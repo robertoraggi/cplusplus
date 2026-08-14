@@ -63,7 +63,6 @@ Wrapper<double> w1;
 // CHECK-NEXT:        constructor inline explicit void Wrapper(double)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter double v
-// CHECK-NEXT:            block
 // CHECK-NEXT:        constructor defaulted void Wrapper(const ::Wrapper<double, ::Base>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Wrapper<double, ::Base>&

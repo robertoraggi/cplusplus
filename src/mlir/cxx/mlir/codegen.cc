@@ -63,11 +63,12 @@ static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
   return false;
 }
 
-static auto isMemberOfExplicitInstantiationDeclaredClass(Symbol* symbol)
+static auto isMemberOfExplicitInstantiationDeclaredClass(TranslationUnit* unit,
+                                                         Symbol* symbol)
     -> bool {
   for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
     if (auto cls = symbol_cast<ClassSymbol>(scope)) {
-      if (cls->isExplicitInstantiationDeclared()) return true;
+      if (cls->isExplicitInstantiationDeclared(unit)) return true;
     }
   }
   return false;
@@ -937,6 +938,7 @@ auto Codegen::createConditionalCleanupFlag(mlir::Location loc,
 
 void Codegen::addTemporaryCleanup(mlir::Value address, const Type* type) {
   if (cleanupStack_.empty() || !cleanupStack_.back().isFullExpression) return;
+  if (traits.is_trivially_destructible(type)) return;
   auto classType = type_cast<ClassType>(traits.remove_cv(type));
   if (!classType || !classType->symbol()) return;
   auto dtor = classType->symbol()->resolvedDefinition()->destructor();
@@ -1712,7 +1714,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   } else if (emittedSymbol->hasCLinkage()) {
     name = to_string(emittedSymbol->name());
   } else {
-    ExternalNameEncoder encoder;
+    ExternalNameEncoder encoder{unit_};
     name = encoder.encode(emittedSymbol);
     isStructor = emittedSymbol->isConstructor() ||
                  name_cast<DestructorId>(emittedSymbol->name());
@@ -1731,7 +1733,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
              (emittedSymbol->isDefined() || emittedSymbol->definition()) &&
              !emittedSymbol->completeObjectVariant() &&
              !emittedSymbol->isStructorVariant()) {
-    ExternalNameEncoder encoder;
+    ExternalNameEncoder encoder{unit_};
     encoder.setStructorVariant(ExternalNameEncoder::StructorVariant::Base);
     aliasNameAttr =
         mlir::StringAttr::get(context_, encoder.encode(emittedSymbol));
@@ -1793,7 +1795,7 @@ void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
   target = target->resolvedDefinition();
   if (!target->declaration()) return;
   if (!target->isInline() &&
-      isMemberOfExplicitInstantiationDeclaredClass(target)) {
+      isMemberOfExplicitInstantiationDeclaredClass(unit_, target)) {
     return;
   }
   if (!enqueuedFunctions_.insert(target).second) return;
@@ -1896,7 +1898,7 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
       }
     }
 
-    ExternalNameEncoder encoder;
+    ExternalNameEncoder encoder{unit_};
     name = encoder.encode(symbol, suffix);
   }
 
@@ -2039,7 +2041,7 @@ auto Codegen::findOrCreateExternField(FieldSymbol* field)
   auto linkageAttr = mlir::cxx::LinkageKindAttr::get(
       context_, mlir::cxx::LinkageKind::External);
 
-  ExternalNameEncoder encoder;
+  ExternalNameEncoder encoder{unit_};
   auto name = encoder.encode(field);
 
   const auto isConstant =
@@ -2300,8 +2302,8 @@ auto Codegen::emitTodoExpr(SourceLocation location, std::string_view message)
 
 auto Codegen::encodeSecondaryVTableName(ClassSymbol* classSymbol,
                                         ClassSymbol* base) -> std::string {
-  ExternalNameEncoder classEncoder;
-  ExternalNameEncoder baseEncoder;
+  ExternalNameEncoder classEncoder{unit_};
+  ExternalNameEncoder baseEncoder{unit_};
   return std::format("__cxx_secondary_vtable${}${}",
                      classEncoder.encodeVTable(classSymbol),
                      baseEncoder.encodeVTable(base));
@@ -2515,7 +2517,7 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
   auto vtableLayout = classSymbol->vtableLayout();
   if (!vtableLayout) return;
 
-  ExternalNameEncoder encoder;
+  ExternalNameEncoder encoder{unit_};
   auto vtableName = encoder.encodeVTable(classSymbol);
 
   auto& primary = vtableLayout->primary;
@@ -2636,14 +2638,14 @@ void Codegen::generateVTable(ClassSymbol* classSymbol) {
     return;
   }
 
-  if (classSymbol->isExplicitInstantiationDeclared()) return;
+  if (classSymbol->isExplicitInstantiationDeclared(unit_)) return;
 
   if (!emittedVTables_.insert(classSymbol).second) return;
 
   auto vtableLayout = classSymbol->vtableLayout();
   if (!vtableLayout) return;
 
-  ExternalNameEncoder encoder;
+  ExternalNameEncoder encoder{unit_};
   auto vtableName = encoder.encodeVTable(classSymbol);
 
   auto loc = getLocation(classSymbol->location());

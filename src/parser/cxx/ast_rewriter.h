@@ -53,8 +53,8 @@ class [[nodiscard]] ASTRewriter {
                           Symbol* symbol, SourceLocation instantiationLoc = {},
                           bool sfinaeContext = false, bool argsComplete = false,
                           bool declarationOnly = false,
-                          bool retainEnclosingTemplateLevels = false)
-      -> Symbol*;
+                          bool retainEnclosingTemplateLevels = false,
+                          bool isOverloadCandidate = false) -> Symbol*;
 
   static auto instantiateForArgs(
       TranslationUnit* unit, List<TemplateArgumentAST*>* deducedArguments,
@@ -160,6 +160,8 @@ class [[nodiscard]] ASTRewriter {
 
   static void requireFunctionDefinition(TranslationUnit* unit,
                                         FunctionSymbol* function);
+
+  static void requireFieldDefinition(TranslationUnit* unit, FieldSymbol* field);
 
   static void completeDeducedReturnType(TranslationUnit* unit, Symbol* symbol);
 
@@ -395,6 +397,9 @@ class [[nodiscard]] ASTRewriter {
   void addEnclosingTemplateArguments(int depth,
                                      std::vector<TemplateArgument> arguments);
 
+  [[nodiscard]] auto referencedParameterPacks(AST* ast) const
+      -> std::vector<ParameterPackSymbol*>;
+
   [[nodiscard]] auto findReferencedParameterPack(AST* ast) const
       -> ParameterPackSymbol*;
 
@@ -413,24 +418,34 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] auto substitutedTemplateParameterClass(Symbol* symbol) const
       -> Symbol*;
 
-  [[nodiscard]] auto packElementCount(ParameterPackSymbol* pack) const -> int;
+  [[nodiscard]] auto packExpansionSize(
+      AST* pattern, SourceLocation expansionLoc,
+      ParameterPackSymbol* additionalPack = nullptr) -> std::optional<int>;
 
   [[nodiscard]] auto packElementAt(ParameterPackSymbol* pack) const -> Symbol*;
 
   template <typename Expand>
-  void forEachPackElement(ParameterPackSymbol* pack, Expand expand) {
-    const int elementCount = packElementCount(pack);
-    std::swap(parameterPack_, pack);
+  auto forEachPackElement(AST* pattern, SourceLocation expansionLoc,
+                          Expand expand,
+                          ParameterPackSymbol* additionalPack = nullptr)
+      -> bool {
+    auto size = packExpansionSize(pattern, expansionLoc, additionalPack);
+    if (!size.has_value()) return false;
+    const int elementCount = *size;
     for (int i = 0; i < elementCount; ++i) expandPackElement(i, expand);
-    std::swap(parameterPack_, pack);
+    return true;
   }
 
   template <typename Expand>
-  void forEachPackElementReversed(ParameterPackSymbol* pack, Expand expand) {
-    const int elementCount = packElementCount(pack);
-    std::swap(parameterPack_, pack);
+  auto forEachPackElementReversed(AST* pattern, SourceLocation expansionLoc,
+                                  Expand expand,
+                                  ParameterPackSymbol* additionalPack = nullptr)
+      -> bool {
+    auto size = packExpansionSize(pattern, expansionLoc, additionalPack);
+    if (!size.has_value()) return false;
+    const int elementCount = *size;
     for (int i = elementCount - 1; i >= 0; --i) expandPackElement(i, expand);
-    std::swap(parameterPack_, pack);
+    return true;
   }
 
   template <typename Expand>
@@ -441,7 +456,7 @@ class [[nodiscard]] ASTRewriter {
     std::swap(elementIndex_, index);
   }
 
-  friend struct FindReferencedParameterPack;
+  friend struct CollectReferencedParameterPacks;
   friend struct FindUnresolvedParameterPack;
 
   auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
@@ -477,7 +492,6 @@ class [[nodiscard]] ASTRewriter {
   bool rewritingFunctionBody_ = false;
   int unevaluatedOperandDepth_ = 0;
   int immediateContextDepth_ = 0;
-  ParameterPackSymbol* parameterPack_ = nullptr;
   std::optional<int> elementIndex_;
   Binder binder_;
   std::unordered_map<Symbol*, ParameterPackSymbol*> functionParamPacks_;

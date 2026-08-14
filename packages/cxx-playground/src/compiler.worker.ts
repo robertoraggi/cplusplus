@@ -32,7 +32,7 @@ async function compile({
     path,
     appdir,
     sysroot,
-    std: "c++14",
+    std: "c++17",
     debugInfo,
     exists,
     readFile,

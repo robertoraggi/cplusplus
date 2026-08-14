@@ -74,7 +74,17 @@ class Parser final {
 
   enum class TypeNameContext { kGeneral, kTypeOnly };
 
-  enum class MemberAccessKind { kNone, kObject, kDependentObject };
+  struct MemberAccess {
+    bool isMember;
+    bool isDependent;
+    ScopeSymbol* lookupScope;
+
+    constexpr MemberAccess(bool isMember = false, bool isDependent = false,
+                           ScopeSymbol* lookupScope = nullptr)
+        : isMember(isMember),
+          isDependent(isDependent),
+          lookupScope(lookupScope) {}
+  };
 
   struct ScopeRAII {
     ScopeRAII(const ScopeRAII&) = delete;
@@ -207,12 +217,12 @@ class Parser final {
 
   [[nodiscard]] auto parse_id_expression(IdExpressionAST*& yyast,
                                          IdExpressionContext ctx) -> bool;
-  [[nodiscard]] auto objectAccessKind(ExpressionAST* objectExpression)
-      -> MemberAccessKind;
+  [[nodiscard]] auto memberAccess(ExpressionAST* objectExpression,
+                                  TokenKind accessOp) -> MemberAccess;
   [[nodiscard]] auto parse_unqualified_id(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
       bool isTemplateIntroduced, bool inRequiresClause,
-      MemberAccessKind memberAccess = MemberAccessKind::kNone) -> bool;
+      MemberAccess memberAccess = {}) -> bool;
   void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast,
                                             NestedNameSpecifierContext ctx);
   [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
@@ -812,8 +822,7 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_simple_template_id(
       SimpleTemplateIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-      bool isTemplateIntroduced = false,
-      MemberAccessKind memberAccess = MemberAccessKind::kNone,
+      bool isTemplateIntroduced = false, MemberAccess memberAccess = {},
       TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_literal_operator_template_id(
       LiteralOperatorTemplateIdAST*& yyast,
@@ -823,8 +832,7 @@ class Parser final {
       NestedNameSpecifierAST* nestedNameSpecifier) -> bool;
   [[nodiscard]] auto parse_template_id(
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
-      bool isTemplateIntroduced,
-      MemberAccessKind memberAccess = MemberAccessKind::kNone) -> bool;
+      bool isTemplateIntroduced, MemberAccess memberAccess = {}) -> bool;
   [[nodiscard]] auto parse_template_argument_list(
       List<TemplateArgumentAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_template_argument(TemplateArgumentAST*& yyast)

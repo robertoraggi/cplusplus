@@ -138,6 +138,7 @@ auto isTemplateArityMatch(TemplateDeclarationAST* templateDecl,
 
   return true;
 }
+
 }  // namespace
 
 struct [[nodiscard]] Binder::ResolveUnqualifiedId {
@@ -183,7 +184,16 @@ auto Binder::ResolveUnqualifiedId::shouldKeepTemplateIdAsDependent(
   if (symbol_cast<TemplateTypeParameterSymbol>(templateId->symbol)) {
     return true;
   }
-  return hasDependentTemplateArguments(binder.unit_, templateId);
+  if (!hasDependentTemplateArguments(binder.unit_, templateId)) return false;
+
+  auto resolved = templateId->symbol;
+  if (auto injected = symbol_cast<InjectedClassNameSymbol>(resolved))
+    resolved = injected->classSymbol();
+
+  auto classSymbol = symbol_cast<ClassSymbol>(resolved);
+  if (!classSymbol) return true;
+
+  return names_template_head_parameters(templateId, classSymbol);
 }
 
 auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
@@ -203,7 +213,8 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
 
   auto templateArgs = std::move(*subst).templateArguments();
 
-  if (auto cached = classSymbol->findSpecialization(templateArgs)) {
+  if (auto cached =
+          classSymbol->findSpecialization(binder.unit_, templateArgs)) {
     return cached;
   }
 
@@ -211,16 +222,11 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
   auto spec = control()->newClassSymbol(parentScope, classSymbol->location());
   spec->setName(classSymbol->name());
   spec->setType(control()->getClassType(spec));
-  classSymbol->addSpecialization(std::move(templateArgs), spec);
+  classSymbol->addSpecialization(binder.unit_, std::move(templateArgs), spec);
 
-  for (auto& s : classSymbol->mutableSpecializations()) {
-    if (s.symbol == spec) {
-      s.pendingArgumentList = templateId->templateArgumentList;
-      s.pendingInstantiationLoc = templateId->identifierLoc;
-      s.isPendingInstantiation = true;
-      break;
-    }
-  }
+  classSymbol->setPendingInstantiation(
+      spec, templateId->templateArgumentList, templateId->identifierLoc,
+      !isDependent(binder.unit_, spec->type()));
 
   return spec;
 }
@@ -228,6 +234,10 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
 auto Binder::ResolveUnqualifiedId::resolveTypeAliasTemplateId(
     SimpleTemplateIdAST* templateId, TypeAliasSymbol* typeAliasSymbol)
     -> Symbol* {
+  if (typeAliasSymbol->isSpecialization()) {
+    typeAliasSymbol = typeAliasSymbol->primaryTemplateSymbol();
+  }
+
   if (!isTemplateArityMatch(typeAliasSymbol->templateDeclaration(),
                             templateId->templateArgumentList)) {
     return nullptr;
@@ -269,7 +279,11 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
   if (shouldKeepTemplateIdAsDependent(templateId)) return templateId->symbol;
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(resolvedSymbol)) {
-    return resolveClassTemplateId(templateId, classSymbol);
+    if (auto spec = resolveClassTemplateId(templateId, classSymbol))
+      return spec;
+    if (inTemplate() && hasDependentTemplateArguments(binder.unit_, templateId))
+      return templateId->symbol;
+    return nullptr;
   }
 
   return templateId->symbol;

@@ -18,14 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/toolchain_config.h>
-
 #include <cxx/cli.h>
 #include <cxx/gcc_linux_toolchain.h>
 #include <cxx/macos_toolchain.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 #include <cxx/toolchain.h>
+#include <cxx/toolchain_config.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <cxx/windows_toolchain.h>
 
@@ -70,7 +69,8 @@ auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
     if (auto paths = cli.get("--sysroot"); !paths.empty()) {
       toolchain->setSysroot(paths.back());
     } else {
-      toolchain->setSysroot((appDir / std::string("../lib/wasi-sysroot")).string());
+      toolchain->setSysroot(
+          (appDir / std::string("../lib/wasi-sysroot")).string());
     }
     return toolchain;
   }
@@ -102,7 +102,7 @@ auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
   return {};
 }
 
-}
+}  // namespace
 
 auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
                      std::string& error) -> std::unique_ptr<Toolchain> {
@@ -121,8 +121,9 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
     if (standard->language != toolchain->language()) {
       auto languageName =
           toolchain->language() == LanguageKind::kCXX ? "C++" : "C";
-      error = std::format("cxx: invalid argument '-std={}' not allowed with '{}'",
-                          *standardName, languageName);
+      error =
+          std::format("cxx: invalid argument '-std={}' not allowed with '{}'",
+                      *standardName, languageName);
       return toolchain;
     }
     toolchain->setLanguageStandard(standard);
@@ -155,4 +156,4 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
 
   return toolchain;
 }
-}
+}  // namespace cxx

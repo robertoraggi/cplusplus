@@ -152,15 +152,13 @@ class TypeChecker {
   void warning(SourceLocation loc, std::string message);
   void error(SourceLocation loc, std::string message);
   void note(SourceLocation loc, std::string message);
-  void reportDeletedFunction(FunctionSymbol* function, SourceLocation loc);
+  void useFunction(FunctionSymbol* function, SourceLocation loc);
 
-  void reportDeletedConversion(ExpressionAST* expr);
-
-  void setPotentiallyEvaluated(bool potentiallyEvaluated) {
-    potentiallyEvaluated_ = potentiallyEvaluated;
-  }
+  void useConversionFunction(ExpressionAST* expr);
 
   void requireFunctionDefinition(FunctionSymbol* function);
+
+  [[nodiscard]] auto hasConstantValue(FieldSymbol* field) -> bool;
 
   [[nodiscard]] auto as_pointer(const Type* type) const -> const PointerType*;
   [[nodiscard]] auto as_class(const Type* type) const -> const ClassType*;
@@ -195,7 +193,6 @@ class TypeChecker {
   bool lastOperatorLookupAmbiguous_ = false;
   bool lastOperatorRewritten_ = false;
   bool lastOperatorReversed_ = false;
-  bool potentiallyEvaluated_ = true;
   std::unordered_set<ClassSymbol*> aggregatesBeingInitialized_;
 };
 }  // namespace cxx

@@ -90,6 +90,7 @@ add_library(cxx-parser
     cxx/symbol_printer.cc
     cxx/symbols.cc
     cxx/template_argument_deduction.cc
+    cxx/template_equivalence.cc
     cxx/token.cc
     cxx/toolchain.cc
     cxx/toolchain_config.cc

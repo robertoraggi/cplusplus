@@ -9909,6 +9909,7 @@ auto SizeofPackExpressionAST::clone(Arena* arena) -> SizeofPackExpressionAST* {
   node->identifierLoc = identifierLoc;
   node->rparenLoc = rparenLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -9923,7 +9924,7 @@ auto SizeofPackExpressionAST::create(Arena* arena) -> SizeofPackExpressionAST* {
 auto SizeofPackExpressionAST::create(
     Arena* arena, SourceLocation sizeofLoc, SourceLocation ellipsisLoc,
     SourceLocation lparenLoc, SourceLocation identifierLoc,
-    SourceLocation rparenLoc, const Identifier* identifier,
+    SourceLocation rparenLoc, const Identifier* identifier, Symbol* symbol,
     ValueCategory valueCategory, const Type* type) -> SizeofPackExpressionAST* {
   auto node = new (arena) SizeofPackExpressionAST();
   node->sizeofLoc = sizeofLoc;
@@ -9932,17 +9933,20 @@ auto SizeofPackExpressionAST::create(
   node->identifierLoc = identifierLoc;
   node->rparenLoc = rparenLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
 auto SizeofPackExpressionAST::create(Arena* arena, const Identifier* identifier,
+                                     Symbol* symbol,
                                      ValueCategory valueCategory,
                                      const Type* type)
     -> SizeofPackExpressionAST* {
   auto node = new (arena) SizeofPackExpressionAST();
   node->identifier = identifier;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -12634,6 +12638,7 @@ auto TypenameSpecifierAST::clone(Arena* arena) -> TypenameSpecifierAST* {
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
   node->isTemplateIntroduced = isTemplateIntroduced;
+  node->symbol = symbol;
 
   return node;
 }
@@ -12647,7 +12652,7 @@ auto TypenameSpecifierAST::create(Arena* arena, SourceLocation typenameLoc,
                                   NestedNameSpecifierAST* nestedNameSpecifier,
                                   SourceLocation templateLoc,
                                   UnqualifiedIdAST* unqualifiedId,
-                                  bool isTemplateIntroduced)
+                                  bool isTemplateIntroduced, Symbol* symbol)
     -> TypenameSpecifierAST* {
   auto node = new (arena) TypenameSpecifierAST();
   node->typenameLoc = typenameLoc;
@@ -12655,18 +12660,20 @@ auto TypenameSpecifierAST::create(Arena* arena, SourceLocation typenameLoc,
   node->templateLoc = templateLoc;
   node->unqualifiedId = unqualifiedId;
   node->isTemplateIntroduced = isTemplateIntroduced;
+  node->symbol = symbol;
   return node;
 }
 
 auto TypenameSpecifierAST::create(Arena* arena,
                                   NestedNameSpecifierAST* nestedNameSpecifier,
                                   UnqualifiedIdAST* unqualifiedId,
-                                  bool isTemplateIntroduced)
+                                  bool isTemplateIntroduced, Symbol* symbol)
     -> TypenameSpecifierAST* {
   auto node = new (arena) TypenameSpecifierAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
   node->isTemplateIntroduced = isTemplateIntroduced;
+  node->symbol = symbol;
   return node;
 }
 

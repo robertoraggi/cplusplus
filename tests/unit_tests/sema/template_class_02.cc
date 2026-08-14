@@ -59,22 +59,22 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:          parameter unsigned long i
 // CHECK-NEXT:      class iterator
 // CHECK-NEXT:        injected class name iterator
-// CHECK-NEXT:        function std::basic_string::iterator& operator ++()
-// CHECK-NEXT:        function std::basic_string::iterator operator ++(int)
+// CHECK-NEXT:        function ::std::basic_string::iterator& operator ++()
+// CHECK-NEXT:        function ::std::basic_string::iterator operator ++(int)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter int
 // CHECK-NEXT:        function type-param<0, 0>& operator *()
 // CHECK-NEXT:        function const type-param<0, 0>& operator *() const
-// CHECK-NEXT:        function bool operator ==(const std::basic_string::iterator&) const
+// CHECK-NEXT:        function bool operator ==(const ::std::basic_string::iterator&) const
 // CHECK-NEXT:          parameters
-// CHECK-NEXT:            parameter const std::basic_string::iterator&
-// CHECK-NEXT:        function bool operator !=(const std::basic_string::iterator&) const
+// CHECK-NEXT:            parameter const ::std::basic_string::iterator&
+// CHECK-NEXT:        function bool operator !=(const ::std::basic_string::iterator&) const
 // CHECK-NEXT:          parameters
-// CHECK-NEXT:            parameter const std::basic_string::iterator&
-// CHECK-NEXT:      function std::basic_string::iterator begin()
-// CHECK-NEXT:      function std::basic_string::iterator end()
+// CHECK-NEXT:            parameter const ::std::basic_string::iterator&
+// CHECK-NEXT:      function ::std::basic_string::iterator begin()
+// CHECK-NEXT:      function ::std::basic_string::iterator end()
 // CHECK-NEXT:      [specializations]
 // CHECK-NEXT:        class basic_string<char>
 // CHECK-NEXT:        class basic_string<char8_t>
-// CHECK-NEXT:    typealias std::basic_string<char> string
-// CHECK-NEXT:    typealias std::basic_string<char8_t> u8string
+// CHECK-NEXT:    typealias ::std::basic_string<char> string
+// CHECK-NEXT:    typealias ::std::basic_string<char8_t> u8string

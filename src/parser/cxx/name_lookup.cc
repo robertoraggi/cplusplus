@@ -420,6 +420,16 @@ auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
   return result;
 }
 
+auto isDeferredDependentLookupContext(TranslationUnit* unit,
+                                      Symbol* lookupContext, ScopeSymbol* scope)
+    -> bool {
+  auto classSymbol = symbol_cast<ClassSymbol>(lookupContext);
+  if (!classSymbol) return false;
+  if (!isDependent(unit, classSymbol->type())) return false;
+  if (classSymbol->isSpecialization()) return true;
+  return !names_current_instantiation(classSymbol, scope);
+}
+
 auto isArgumentDependentCallee(Symbol* symbol) -> bool {
   auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
   return overloadSet && overloadSet->declaredFunctions().empty() &&

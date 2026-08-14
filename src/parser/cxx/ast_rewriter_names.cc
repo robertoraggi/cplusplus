@@ -233,14 +233,17 @@ auto ASTRewriter::UnqualifiedIdVisitor::expandTypePackArgument(
   if (!pack) return PackResult::kNotPack;
   if (pack->elements().empty()) return PackResult::kEmpty;
 
-  rewrite.forEachPackElement(pack, [&] {
-    auto expandedArg = TypeTemplateArgumentAST::create(arena());
-    expandedArg->typeId = rewrite.typeId(typeArg->typeId);
+  rewrite.forEachPackElement(
+      typeArg->typeId, typeArg->firstSourceLocation(),
+      [&] {
+        auto expandedArg = TypeTemplateArgumentAST::create(arena());
+        expandedArg->typeId = rewrite.typeId(typeArg->typeId);
 
-    *templateArgumentList =
-        make_list_node(arena(), static_cast<TemplateArgumentAST*>(expandedArg));
-    templateArgumentList = &(*templateArgumentList)->next;
-  });
+        *templateArgumentList = make_list_node(
+            arena(), static_cast<TemplateArgumentAST*>(expandedArg));
+        templateArgumentList = &(*templateArgumentList)->next;
+      },
+      pack);
 
   return PackResult::kExpanded;
 }
@@ -258,14 +261,17 @@ auto ASTRewriter::UnqualifiedIdVisitor::expandExprPackArgument(
   if (!parameterPack) return PackResult::kNotPack;
   if (parameterPack->elements().empty()) return PackResult::kEmpty;
 
-  rewrite.forEachPackElement(parameterPack, [&] {
-    auto expandedArg = ExpressionTemplateArgumentAST::create(arena());
-    expandedArg->expression = rewrite.expression(packExpr->expression);
+  rewrite.forEachPackElement(
+      packExpr->expression, packExpr->ellipsisLoc,
+      [&] {
+        auto expandedArg = ExpressionTemplateArgumentAST::create(arena());
+        expandedArg->expression = rewrite.expression(packExpr->expression);
 
-    *templateArgumentList =
-        make_list_node(arena(), static_cast<TemplateArgumentAST*>(expandedArg));
-    templateArgumentList = &(*templateArgumentList)->next;
-  });
+        *templateArgumentList = make_list_node(
+            arena(), static_cast<TemplateArgumentAST*>(expandedArg));
+        templateArgumentList = &(*templateArgumentList)->next;
+      },
+      parameterPack);
   return PackResult::kExpanded;
 }
 
@@ -513,6 +519,21 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     }
   }
 
+  if (symbol_cast<TypeAliasSymbol>(copy->templateId->symbol)) {
+    auto instance =
+        binder()->resolve(copy->nestedNameSpecifier, copy->templateId, true);
+    if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
+      copy->symbol = alias;
+      if (auto classType = type_cast<ClassType>(
+              translationUnit()->typeTraits().remove_cv(alias->type()))) {
+        copy->symbol = classType->symbol();
+      }
+    } else {
+      copy->symbol = symbol_cast<ScopeSymbol>(instance);
+    }
+    return copy;
+  }
+
   if (hasDependentArgs) return copy;
 
   if (!copy->templateId->symbol && copy->templateId->identifier) {
@@ -537,19 +558,6 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
         rewrite.unit_, copy->templateId->templateArgumentList, primaryClass,
         copy->templateId->identifierLoc);
     copy->symbol = symbol_cast<ClassSymbol>(instance);
-  } else if (auto aliasSymbol =
-                 symbol_cast<TypeAliasSymbol>(copy->templateId->symbol)) {
-    auto instance = ASTRewriter::instantiate(
-        rewrite.unit_, copy->templateId->templateArgumentList, aliasSymbol,
-        copy->templateId->identifierLoc);
-    if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
-      if (auto classType = type_cast<ClassType>(
-              translationUnit()->typeTraits().remove_cv(alias->type()))) {
-        copy->symbol = classType->symbol();
-      }
-    } else {
-      copy->symbol = symbol_cast<ScopeSymbol>(instance);
-    }
   }
 
   if (auto cls = symbol_cast<ClassSymbol>(copy->symbol)) {

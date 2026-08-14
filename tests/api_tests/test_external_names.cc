@@ -19,18 +19,22 @@
 // SOFTWARE.
 
 #include <cxx/control.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <gtest/gtest.h>
 
 using namespace cxx;
 
 TEST(ExternalNames, BuiltinTypes) {
-  Control control;
-  ExternalNameEncoder encoder;
+  DiagnosticsClient diagnosticsClient;
+  TranslationUnit unit{&diagnosticsClient};
+  auto& control = *unit.control();
+  ExternalNameEncoder encoder{&unit};
 
   ASSERT_EQ("v", encoder.encode(control.getVoidType()));
   ASSERT_EQ("w", encoder.encode(control.getWideCharType()));
@@ -62,8 +66,10 @@ TEST(ExternalNames, BuiltinTypes) {
 }
 
 TEST(ExternalNames, CLinkageFunctionName) {
-  Control control;
-  ExternalNameEncoder encoder;
+  DiagnosticsClient diagnosticsClient;
+  TranslationUnit unit{&diagnosticsClient};
+  auto& control = *unit.control();
+  ExternalNameEncoder encoder{&unit};
 
   auto global = control.newNamespaceSymbol(nullptr, {});
   auto function = control.newFunctionSymbol(global, {});

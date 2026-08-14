@@ -70,10 +70,6 @@ class ClassTemplateArgumentDeduction {
     DeductionCandidateInfo info;
   };
 
-  [[nodiscard]] static auto namesCurrentInstantiation(ClassSymbol* classSymbol,
-                                                      ScopeSymbol* scope)
-      -> bool;
-
   void collectGuides(ClassSymbol* primaryTemplate, const Initializer& init,
                      ScopeSymbol* scope);
 

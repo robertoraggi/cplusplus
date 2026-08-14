@@ -27,6 +27,7 @@
 #include <cxx/names.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
@@ -303,8 +304,9 @@ auto Binder::BindClass::check_template_specialization() -> bool {
                      templateId->templateArgumentList)
             .templateArguments();
 
-    specialization = symbol_cast<ClassSymbol>(
-        primaryTemplateSymbol->findSpecialization(templateArguments));
+    specialization =
+        symbol_cast<ClassSymbol>(primaryTemplateSymbol->findSpecialization(
+            binder.unit_, templateArguments));
     if (specialization && isTrueRedefinition(specialization, templateId)) {
       binder.error(location, std::format("redefinition of specialization '{}'",
                                          templateId->identifier->name()));
@@ -316,18 +318,12 @@ auto Binder::BindClass::check_template_specialization() -> bool {
   if (specialization && !specialization->isComplete()) {
     classSymbol = specialization;
     classSymbol->setIsUnion(ast->classKey == TokenKind::T_UNION);
-    for (auto& s : primaryTemplateSymbol->mutableSpecializations()) {
-      if (s.symbol == specialization) {
-        s.isPendingInstantiation = false;
-        s.pendingArgumentList = nullptr;
-        break;
-      }
-    }
+    primaryTemplateSymbol->clearPendingInstantiation(specialization);
   } else {
     classSymbol = createClassSymbol(templateId->identifier, location);
     if (primaryTemplateSymbol) {
-      primaryTemplateSymbol->addSpecialization(std::move(templateArguments),
-                                               classSymbol);
+      primaryTemplateSymbol->addSpecialization(
+          binder.unit_, std::move(templateArguments), classSymbol);
     }
   }
 

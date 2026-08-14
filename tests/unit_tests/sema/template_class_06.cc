@@ -151,8 +151,6 @@ auto main() -> int {
 // CHECK-NEXT:            parameter ::D2<int>&&
 // CHECK-NEXT:        injected class name D2
 // CHECK-NEXT:        function inline double f()
-// CHECK-NEXT:          block
-// CHECK-NEXT:            variable double t
 // CHECK-NEXT:        field double t
 // CHECK-NEXT:        function defaulted ::D2<int>& operator =(const ::D2<int>&)
 // CHECK-NEXT:          parameters

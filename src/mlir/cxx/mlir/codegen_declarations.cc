@@ -261,6 +261,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
 
   if (traits.is_class(var->type())) {
     auto registerCleanup = [&] {
+      if (traits.is_trivially_destructible(var->type())) return;
       auto classType = type_cast<ClassType>(traits.remove_cv(var->type()));
       if (!classType || !classType->symbol()) return;
       auto dtor = classType->symbol()->destructor();

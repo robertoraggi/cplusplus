@@ -31,4 +31,4 @@ class Preprocessor;
 [[nodiscard]] auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
                                    std::string& error)
     -> std::unique_ptr<Toolchain>;
-}
+}  // namespace cxx

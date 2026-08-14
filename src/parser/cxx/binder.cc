@@ -35,6 +35,7 @@
 #include <cxx/standard_conversion.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 #include <cxx/type_traits.h>
@@ -140,7 +141,7 @@ void Binder::setInstantiationLoc(SourceLocation loc) {
 auto Binder::declaringScope() const -> ScopeSymbol* {
   if (!scope_) return nullptr;
   if (!scope_->isTemplateParameters()) return scope_;
-  return scope_->enclosingNonTemplateParametersScope();
+  return scope_->parent();
 }
 
 auto Binder::scopeForBlockDecl(ScopeSymbol* scope) const -> ScopeSymbol* {
@@ -383,8 +384,7 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
 
     auto classSymbol = symbol_cast<ClassSymbol>(candidate);
 
-    if (classSymbol && isDeclaration &&
-        classSymbol->enclosingNonTemplateParametersScope() != targetScope) {
+    if (classSymbol && isDeclaration && classSymbol->parent() != targetScope) {
       classSymbol = nullptr;
     }
 
@@ -644,6 +644,7 @@ auto Binder::bindInheritedConstructors(UsingDeclaratorAST* ast) -> bool {
       ast->nestedNameSpecifier ? ast->nestedNameSpecifier->symbol : nullptr;
   auto base = symbol_cast<ClassSymbol>(lookupContext);
   if (!base) return isDependent(unit_, ast->nestedNameSpecifier);
+  if (isDependent(unit_, base->type())) return true;
   base = base->resolvedDefinition();
 
   const auto isDirectBase =
@@ -953,26 +954,20 @@ void Binder::bind(DeductionGuideAST* ast,
             .templateArguments();
 
     if (!templateArgs.empty()) {
-      if (auto cached = primaryTemplate->findSpecialization(templateArgs)) {
+      if (auto cached =
+              primaryTemplate->findSpecialization(unit_, templateArgs)) {
         deducedClassSymbol = symbol_cast<ClassSymbol>(cached);
       } else {
-        auto parentScope =
-            primaryTemplate->enclosingNonTemplateParametersScope();
+        auto parentScope = primaryTemplate->parent();
         auto spec =
             control()->newClassSymbol(parentScope, primaryTemplate->location());
         spec->setName(primaryTemplate->name());
         spec->setType(control()->getClassType(spec));
-        primaryTemplate->addSpecialization(std::move(templateArgs), spec);
-        if (!dependent) {
-          for (auto& s : primaryTemplate->mutableSpecializations()) {
-            if (s.symbol == spec) {
-              s.pendingArgumentList = ast->templateId->templateArgumentList;
-              s.pendingInstantiationLoc = ast->templateId->identifierLoc;
-              s.isPendingInstantiation = true;
-              break;
-            }
-          }
-        }
+        primaryTemplate->addSpecialization(unit_, std::move(templateArgs),
+                                           spec);
+        primaryTemplate->setPendingInstantiation(
+            spec, ast->templateId->templateArgumentList,
+            ast->templateId->identifierLoc, !dependent);
         deducedClassSymbol = spec;
       }
     }
@@ -1101,14 +1096,6 @@ struct ThisUseFinder : ASTVisitor {
     for (auto capture : ListView{ast->captureList}) accept(capture);
   }
 };
-
-[[nodiscard]] auto isUsableInConstantExpressions(Symbol* symbol) -> bool {
-  auto var = symbol_cast<VariableSymbol>(symbol);
-  if (!var || !var->constValue().has_value()) return false;
-  if (var->isConstexpr()) return true;
-  auto qualType = type_cast<QualType>(var->type());
-  return qualType && qualType->isConst();
-}
 
 struct OdrUsedLocalFinder : ASTVisitor {
   std::vector<IdExpressionAST*> uses;
@@ -2310,6 +2297,7 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
   fieldSymbol->setType(type);
   fieldSymbol->setMutable(decl.specs.isMutable);
   fieldSymbol->setNoUniqueAddress(decl.specs.isNoUniqueAddress);
+
   if (auto alignment = control()->memoryLayout()->alignmentOf(type)) {
     fieldSymbol->setAlignment(alignment.value());
   }
@@ -2409,6 +2397,7 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
   if (isOutOfClassStaticMemberDef) {
     outOfClassMemberField->setDefinition(symbol);
     symbol->setStatic(true);
+    symbol->setInitializer(outOfClassMemberField->initializer());
   }
 
   if (auto classType = type_cast<ClassType>(traits.remove_cv(type))) {
@@ -2785,6 +2774,10 @@ void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup) {
       return;
     }
 
+    if (isDeferredDependentLookupContext(
+            unit_, ast->nestedNameSpecifier->symbol, scope()))
+      return;
+
     auto name = get_name(control(), ast->unqualifiedId);
 
     const Name* componentName = name;
@@ -2809,6 +2802,10 @@ void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup) {
 void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
   if (!ast->unqualifiedId) return;
   if (!ast->nestedNameSpecifier || !ast->nestedNameSpecifier->symbol) return;
+
+  if (isDeferredDependentLookupContext(unit_, ast->nestedNameSpecifier->symbol,
+                                       scope()))
+    return;
 
   if (auto classSymbol =
           symbol_cast<ClassSymbol>(ast->nestedNameSpecifier->symbol)) {
@@ -2976,25 +2973,6 @@ void Binder::resolveIdExpression(IdExpressionAST* ast, bool isCallee) {
   }
 }
 
-auto Binder::namesOwnTemplateParameters(SimpleTemplateIdAST* templateId,
-                                        ClassSymbol* classSymbol) -> bool {
-  auto templateParameters = classSymbol->templateParameters();
-  if (!templateParameters) return false;
-
-  auto parameters = templateParameters->members();
-  auto parameter = parameters.begin();
-
-  for (auto argument : ListView{templateId->templateArgumentList}) {
-    if (parameter == parameters.end()) return false;
-    auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
-    if (!typeArgument || !typeArgument->typeId) return false;
-    if (typeArgument->typeId->type != (*parameter)->type()) return false;
-    ++parameter;
-  }
-
-  return parameter == parameters.end();
-}
-
 auto Binder::denotesCurrentInstantiation(NestedNameSpecifierAST* nns,
                                          ClassSymbol* currentInstantiation)
     -> bool {
@@ -3015,7 +2993,7 @@ auto Binder::denotesCurrentInstantiation(NestedNameSpecifierAST* nns,
   auto templateNns = ast_cast<TemplateNestedNameSpecifierAST>(nns);
   if (!templateNns) return true;
 
-  return namesOwnTemplateParameters(templateNns->templateId, qualifier);
+  return names_template_head_parameters(templateNns->templateId, qualifier);
 }
 
 auto Binder::currentInstantiationOf(ScopeSymbol* scope) -> ClassSymbol* {
@@ -3027,6 +3005,112 @@ auto Binder::currentInstantiationOf(ScopeSymbol* scope) -> ClassSymbol* {
 }
 
 auto Binder::resolveMemberOfCurrentInstantiation(
+    NestedNameSpecifierAST* nestedNameSpecifier,
+    UnqualifiedIdAST* unqualifiedId, ClassSymbol* currentInstantiation)
+    -> Symbol* {
+  if (!denotesCurrentInstantiation(nestedNameSpecifier, currentInstantiation))
+    return nullptr;
+  auto nameId = ast_cast<NameIdAST>(unqualifiedId);
+  if (!nameId) return nullptr;
+  auto qualifier = symbol_cast<ClassSymbol>(nestedNameSpecifier->symbol);
+  return qualifiedLookup(qualifier, nameId->identifier,
+                         [](Symbol* s) { return is_type(s); });
+}
+
+struct Binder::ResolveCurrentInstantiationMembers {
+  Binder& binder;
+  ClassSymbol* currentInstantiation = nullptr;
+
+  [[nodiscard]] auto specifierList(List<SpecifierAST*>* list) -> bool {
+    auto changed = false;
+    for (auto specifier : ListView{list}) {
+      changed |= visit(*this, specifier);
+    }
+    return changed;
+  }
+
+  [[nodiscard]] auto typeId(TypeIdAST* ast) -> bool {
+    if (!ast) return false;
+    if (!specifierList(ast->typeSpecifierList)) return false;
+    DeclSpecs specs{binder.unit_};
+    for (auto specifier : ListView{ast->typeSpecifierList}) {
+      specs.accept(specifier);
+    }
+    specs.finish();
+    ast->type = getDeclaratorType(binder.unit_, ast->declarator, specs.type());
+    return true;
+  }
+
+  [[nodiscard]] auto expression(ExpressionAST* ast) -> bool {
+    auto recheck = [&](TypeIdAST* operand) {
+      if (!typeId(operand)) return false;
+      auto typeChecker = TypeChecker{binder.unit_};
+      typeChecker.setScope(binder.scope());
+      typeChecker.setReportErrors(false);
+      typeChecker.check(ast);
+      return true;
+    };
+
+    if (auto sizeofType = ast_cast<SizeofTypeExpressionAST>(ast))
+      return recheck(sizeofType->typeId);
+
+    if (auto alignofType = ast_cast<AlignofTypeExpressionAST>(ast))
+      return recheck(alignofType->typeId);
+
+    return false;
+  }
+
+  [[nodiscard]] auto templateId(SimpleTemplateIdAST* ast) -> bool {
+    if (!ast) return false;
+    auto changed = false;
+    for (auto argument : ListView{ast->templateArgumentList}) {
+      changed |= visit(*this, argument);
+    }
+    return changed;
+  }
+
+  auto operator()(TypeTemplateArgumentAST* ast) -> bool {
+    return typeId(ast->typeId);
+  }
+
+  auto operator()(ExpressionTemplateArgumentAST* ast) -> bool {
+    return expression(ast->expression);
+  }
+
+  auto operator()(TypenameSpecifierAST* ast) -> bool {
+    if (ast->symbol) return false;
+    if (templateId(ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId))) {
+      return true;
+    }
+    auto member = binder.resolveMemberOfCurrentInstantiation(
+        ast->nestedNameSpecifier, ast->unqualifiedId, currentInstantiation);
+    if (!member) return false;
+    ast->symbol = member;
+    return true;
+  }
+
+  auto operator()(NamedTypeSpecifierAST* ast) -> bool {
+    if (!templateId(ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)))
+      return false;
+    auto symbol = binder.resolve(ast->nestedNameSpecifier, ast->unqualifiedId,
+                                 /*checkTemplates=*/true);
+    if (!symbol) return false;
+    ast->symbol = symbol;
+    return true;
+  }
+
+  auto operator()(SpecifierAST*) -> bool { return false; }
+};
+
+auto Binder::resolveMembersOfCurrentInstantiation(
+    List<SpecifierAST*>* specifierList, ClassSymbol* currentInstantiation)
+    -> bool {
+  if (!currentInstantiation) return false;
+  return ResolveCurrentInstantiationMembers{*this, currentInstantiation}
+      .specifierList(specifierList);
+}
+
+auto Binder::resolveMemberOfCurrentInstantiation(
     const Type* type, ClassSymbol* currentInstantiation) -> const Type* {
   if (!type || !currentInstantiation) return type;
 
@@ -3035,16 +3119,9 @@ auto Binder::resolveMemberOfCurrentInstantiation(
   };
 
   if (auto unresolved = type_cast<UnresolvedNameType>(type)) {
-    if (!denotesCurrentInstantiation(unresolved->nestedNameSpecifier(),
-                                     currentInstantiation)) {
-      return type;
-    }
-    auto nameId = ast_cast<NameIdAST>(unresolved->unqualifiedId());
-    if (!nameId) return type;
-    auto qualifier =
-        symbol_cast<ClassSymbol>(unresolved->nestedNameSpecifier()->symbol);
-    auto member = qualifiedLookup(qualifier, nameId->identifier,
-                                  [](Symbol* s) { return is_type(s); });
+    auto member = resolveMemberOfCurrentInstantiation(
+        unresolved->nestedNameSpecifier(), unresolved->unqualifiedId(),
+        currentInstantiation);
     if (!member || !member->type()) return type;
     return member->type();
   }

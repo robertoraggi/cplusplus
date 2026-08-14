@@ -10,13 +10,13 @@ int main() {
   e--;
 
   const enum E ce = a;
-  // expected-error@1 {{cannot increment a value of type 'const E'}}
+  // expected-error@1 {{cannot increment a value of type 'const ::E'}}
   ++ce;
-  // expected-error@1 {{cannot decrement a value of type 'const E'}}
+  // expected-error@1 {{cannot decrement a value of type 'const ::E'}}
   --ce;
-  // expected-error@1 {{cannot increment a value of type 'const E'}}
+  // expected-error@1 {{cannot increment a value of type 'const ::E'}}
   ce++;
-  // expected-error@1 {{cannot decrement a value of type 'const E'}}
+  // expected-error@1 {{cannot decrement a value of type 'const ::E'}}
   ce--;
   return 0;
 }

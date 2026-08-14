@@ -37,6 +37,7 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace cxx {
@@ -63,12 +64,36 @@ class TranslationUnit {
   [[nodiscard]] auto globalScope() const -> ScopeSymbol*;
 
   void addPendingMemberInstantiation(ClassSymbol* instance);
+  void reopenMemberInstantiation(ClassSymbol* instance);
   [[nodiscard]] auto takePendingMemberInstantiations()
       -> std::vector<ClassSymbol*>;
+  [[nodiscard]] auto beginMemberInstantiation(ClassSymbol* instance) -> bool;
 
   void addPendingBodyCompletion(FunctionSymbol* function);
   [[nodiscard]] auto takePendingBodyCompletions()
       -> std::vector<FunctionSymbol*>;
+
+  [[nodiscard]] auto isPotentiallyEvaluated() const -> bool {
+    return potentiallyEvaluated_;
+  }
+
+  class PotentiallyEvaluatedScope {
+   public:
+    PotentiallyEvaluatedScope(const PotentiallyEvaluatedScope&) = delete;
+    auto operator=(const PotentiallyEvaluatedScope&)
+        -> PotentiallyEvaluatedScope& = delete;
+
+    PotentiallyEvaluatedScope(TranslationUnit* unit, bool potentiallyEvaluated)
+        : unit_(unit), saved_(unit->potentiallyEvaluated_) {
+      unit_->potentiallyEvaluated_ = potentiallyEvaluated;
+    }
+
+    ~PotentiallyEvaluatedScope() { unit_->potentiallyEvaluated_ = saved_; }
+
+   private:
+    TranslationUnit* unit_;
+    bool saved_;
+  };
 
   [[nodiscard]] auto reportingDiagnosticsClient() const -> DiagnosticsClient* {
     return reportingDiagnosticsClient_;
@@ -176,9 +201,11 @@ class TranslationUnit {
   NamespaceSymbol* globalNamespace_ = nullptr;
   ParserConfiguration config_;
   std::vector<ClassSymbol*> pendingMemberInstantiations_;
+  std::unordered_set<ClassSymbol*> instantiatedMemberClasses_;
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
   std::unordered_map<FunctionSymbol*, std::vector<Diagnostic>>
       deferredBodyDiagnostics_;
   int templateInstantiationDepth_ = 0;
+  bool potentiallyEvaluated_ = true;
 };
 }  // namespace cxx

@@ -720,7 +720,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
     if (auto substituted = rewrite.substitutedSymbol(ast->symbol)) {
       copy->symbol = substituted;
     }
-    if (auto written = rewrite.writtenTypeArgumentSpecifierFor(ast->symbol)) {
+    auto written = rewrite.writtenTypeArgumentSpecifierFor(ast->symbol);
+    if (written) {
       copy->nestedNameSpecifier = written->nestedNameSpecifier;
       copy->unqualifiedId = written->unqualifiedId;
       copy->isTemplateIntroduced = written->isTemplateIntroduced;
@@ -1015,18 +1016,12 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   }
 
   if (!classSymbol && ast->symbol == rewrite.binder().instantiatingSymbol()) {
-    if (auto existing =
-            ast->symbol->findSpecialization(rewrite.templateArguments())) {
+    if (auto existing = ast->symbol->findSpecialization(
+            translationUnit(), rewrite.templateArguments())) {
       classSymbol = symbol_cast<ClassSymbol>(existing);
       if (classSymbol && !classSymbol->isComplete()) {
         reusingExisting = true;
-        for (auto& s : ast->symbol->mutableSpecializations()) {
-          if (s.symbol == classSymbol) {
-            s.isPendingInstantiation = false;
-            s.pendingArgumentList = nullptr;
-            break;
-          }
-        }
+        ast->symbol->clearPendingInstantiation(classSymbol);
       } else {
         classSymbol = nullptr;
       }
@@ -1053,7 +1048,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   if (reusingClassMember) {
   } else if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
     if (!reusingExisting) {
-      ast->symbol->addSpecialization(rewrite.templateArguments(), classSymbol);
+      ast->symbol->addSpecialization(translationUnit(),
+                                     rewrite.templateArguments(), classSymbol);
     }
   } else {
     binder()->declaringScope()->addSymbol(classSymbol);
@@ -1109,11 +1105,14 @@ void ASTRewriter::SpecifierVisitor::rewriteBaseSpecifiers(
         pack = rewrite.parameterPackFor(node->symbol->symbol());
 
       if (pack) {
-        rewrite.forEachPackElement(pack, [&] {
-          auto value = rewrite.baseSpecifier(node);
-          value->isVariadic = false;
-          appendBaseSpecifier(baseSpecifierList, value, classSymbol);
-        });
+        rewrite.forEachPackElement(
+            node, node->ellipsisLoc,
+            [&] {
+              auto value = rewrite.baseSpecifier(node);
+              value->isVariadic = false;
+              appendBaseSpecifier(baseSpecifierList, value, classSymbol);
+            },
+            pack);
 
         continue;
       }
@@ -1183,8 +1182,7 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
         auto pending = std::make_unique<PendingBodyInstantiation>();
         pending->originalDefinition = oldFunc;
         pending->templateArguments = rewrite.templateArguments();
-        pending->parentScope =
-            copy->symbol->enclosingNonTemplateParametersScope();
+        pending->parentScope = copy->symbol->parent();
         pending->depth = rewrite.depth_;
         newFunc->symbol->setPendingBody(std::move(pending));
 
@@ -1223,9 +1221,7 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
   auto pendingFunctions = std::move(rewrite.pendingBodyCompletions_);
   rewrite.pendingBodyCompletions_.clear();
   for (auto* functionSymbol : pendingFunctions) {
-    if (functionSymbol->hasPendingBody()) {
-      rewrite.unit_->addPendingBodyCompletion(functionSymbol);
-    }
+    rewrite.unit_->addPendingBodyCompletion(functionSymbol);
   }
 
   auto pendingClasses = std::move(rewrite.pendingOutOfClassMemberDefClasses_);

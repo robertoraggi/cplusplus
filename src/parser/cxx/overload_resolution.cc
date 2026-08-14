@@ -28,6 +28,7 @@
 #include <cxx/overload_resolution.h>
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
@@ -142,8 +143,36 @@ auto countDeclaredTemplateParams(FunctionSymbol* function) -> int {
   return static_cast<int>(templateParams->members().size());
 }
 
+using TemplateParamKey = std::pair<int, int>;
+
+[[nodiscard]] auto templateParamKeyOf(Symbol* symbol)
+    -> std::optional<TemplateParamKey> {
+  if (auto info = getTypeParamInfo(symbol->type()))
+    return TemplateParamKey{info->depth, info->index};
+  if (auto param = symbol_cast<NonTypeParameterSymbol>(symbol))
+    return TemplateParamKey{param->depth(), param->index()};
+  return std::nullopt;
+}
+
+[[nodiscard]] auto templateParamKeyOf(const TemplateArgument& argument)
+    -> std::optional<TemplateParamKey> {
+  if (auto type = std::get_if<const Type*>(&argument)) {
+    if (auto info = getTypeParamInfo(*type))
+      return TemplateParamKey{info->depth, info->index};
+    return std::nullopt;
+  }
+  if (auto symbol = std::get_if<Symbol*>(&argument))
+    return templateParamKeyOf(*symbol);
+  if (auto expression = std::get_if<ExpressionAST*>(&argument)) {
+    if (auto id = ast_cast<IdExpressionAST>(*expression);
+        id && id->symbol && !id->nestedNameSpecifier)
+      return templateParamKeyOf(id->symbol);
+  }
+  return std::nullopt;
+}
+
 [[nodiscard]] auto ownTemplateParamKeys(FunctionSymbol* function)
-    -> std::vector<std::pair<int, int>> {
+    -> std::vector<TemplateParamKey> {
   auto primary = function->isSpecialization()
                      ? function->primaryTemplateSymbol()
                      : function;
@@ -152,10 +181,9 @@ auto countDeclaredTemplateParams(FunctionSymbol* function) -> int {
   auto templateParams = primary->templateParameters();
   if (!templateParams) return {};
 
-  std::vector<std::pair<int, int>> keys;
+  std::vector<TemplateParamKey> keys;
   for (auto member : templateParams->members()) {
-    if (auto info = getTypeParamInfo(member->type()))
-      keys.emplace_back(info->depth, info->index);
+    if (auto key = templateParamKeyOf(member)) keys.push_back(*key);
   }
   return keys;
 }
@@ -231,9 +259,18 @@ auto countDeclaredTemplateParams(FunctionSymbol* function) -> int {
     for (std::size_t i = 0; i < argsX.size(); ++i) {
       auto typeX = std::get_if<const Type*>(&argsX[i]);
       auto typeY = std::get_if<const Type*>(&argsY[i]);
-      if (!typeX || !typeY) continue;
-      auto eq = sameDependentShape(unit, *typeX, *typeY);
-      if (!eq || !*eq) return eq;
+      if (typeX && typeY) {
+        auto eq = sameDependentShape(unit, *typeX, *typeY);
+        if (!eq || !*eq) return eq;
+        continue;
+      }
+      auto keyX = templateParamKeyOf(argsX[i]);
+      auto keyY = templateParamKeyOf(argsY[i]);
+      if (keyX || keyY) {
+        if (keyX != keyY) return false;
+        continue;
+      }
+      if (!compare_single_arg(unit, argsX[i], argsY[i])) return false;
     }
     return true;
   }
@@ -242,23 +279,58 @@ auto countDeclaredTemplateParams(FunctionSymbol* function) -> int {
   return tt.is_same(x, y);
 }
 
+using DeducedArguments = std::vector<std::optional<TemplateArgument>>;
+
 [[nodiscard]] auto unifyForPartialOrdering(
-    TranslationUnit* unit, const std::vector<std::pair<int, int>>& bKeys,
-    std::vector<const Type*>& deduced, const Type* p, const Type* raw)
-    -> std::optional<bool> {
+    TranslationUnit* unit, const std::vector<TemplateParamKey>& bKeys,
+    DeducedArguments& deduced, const Type* p, const Type* raw)
+    -> std::optional<bool>;
+
+[[nodiscard]] auto unifyArgumentForPartialOrdering(
+    TranslationUnit* unit, const std::vector<TemplateParamKey>& bKeys,
+    DeducedArguments& deduced, const TemplateArgument& p,
+    const TemplateArgument& a) -> std::optional<bool> {
+  auto typeP = std::get_if<const Type*>(&p);
+  auto typeA = std::get_if<const Type*>(&a);
+  if (typeP && typeA)
+    return unifyForPartialOrdering(unit, bKeys, deduced, *typeP, *typeA);
+
+  if (auto key = templateParamKeyOf(p)) {
+    auto it = std::ranges::find(bKeys, *key);
+    if (it != bKeys.end()) {
+      auto slot = static_cast<std::size_t>(it - bKeys.begin());
+      if (!deduced[slot]) {
+        deduced[slot] = a;
+        return true;
+      }
+      return compare_single_arg(unit, *deduced[slot], a);
+    }
+  }
+
+  if (templateParamKeyOf(a)) return false;
+  return compare_single_arg(unit, p, a);
+}
+
+auto unifyForPartialOrdering(TranslationUnit* unit,
+                             const std::vector<TemplateParamKey>& bKeys,
+                             DeducedArguments& deduced, const Type* p,
+                             const Type* raw) -> std::optional<bool> {
   auto tt = unit->typeTraits();
   p = tt.remove_cvref(p);
   auto rawStripped = tt.remove_cvref(raw);
 
   if (auto info = getTypeParamInfo(p)) {
-    auto it = std::ranges::find(bKeys, std::pair{info->depth, info->index});
+    auto it =
+        std::ranges::find(bKeys, TemplateParamKey{info->depth, info->index});
     if (it != bKeys.end()) {
       auto slot = static_cast<std::size_t>(it - bKeys.begin());
       if (!deduced[slot]) {
-        deduced[slot] = rawStripped;
+        deduced[slot] = TemplateArgument{rawStripped};
         return true;
       }
-      return sameDependentShape(unit, deduced[slot], rawStripped);
+      auto previous = std::get_if<const Type*>(&*deduced[slot]);
+      if (!previous) return false;
+      return sameDependentShape(unit, *previous, rawStripped);
     }
   }
 
@@ -321,10 +393,8 @@ auto countDeclaredTemplateParams(FunctionSymbol* function) -> int {
     auto argsA = symA->templateArguments();
     if (argsP.size() != argsA.size()) return false;
     for (std::size_t i = 0; i < argsP.size(); ++i) {
-      auto typeP = std::get_if<const Type*>(&argsP[i]);
-      auto typeA = std::get_if<const Type*>(&argsA[i]);
-      if (!typeP || !typeA) continue;
-      auto ok = unifyForPartialOrdering(unit, bKeys, deduced, *typeP, *typeA);
+      auto ok = unifyArgumentForPartialOrdering(unit, bKeys, deduced, argsP[i],
+                                                argsA[i]);
       if (!ok || !*ok) return ok;
     }
     return true;
@@ -403,7 +473,7 @@ auto countDeclaredTemplateParams(FunctionSymbol* function) -> int {
     return std::nullopt;
 
   auto bKeys = ownTemplateParamKeys(b);
-  std::vector<const Type*> deduced(bKeys.size(), nullptr);
+  DeducedArguments deduced(bKeys.size());
 
   for (std::size_t i = 0; i < paramsA.size(); ++i) {
     auto ok =

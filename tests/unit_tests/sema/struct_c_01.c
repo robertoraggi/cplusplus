@@ -26,17 +26,17 @@ int main() {
 // clang-format off
 //      CHECK:namespace
 // CHECK-NEXT:  enum E : int
-// CHECK-NEXT:  enumerator E v = 0
+// CHECK-NEXT:  enumerator ::E v = 0
 // CHECK-NEXT:  class A
-// CHECK-NEXT:    field E e
+// CHECK-NEXT:    field ::E e
 // CHECK-NEXT:    field int x
 // CHECK-NEXT:  function extern "C" int main()
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr char __func__[5]
 // CHECK-NEXT:      enum K : int
-// CHECK-NEXT:      enumerator K w = 0
+// CHECK-NEXT:      enumerator ::K w = 0
 // CHECK-NEXT:      class B
-// CHECK-NEXT:        field K k
-// CHECK-NEXT:        field E e
+// CHECK-NEXT:        field ::K k
+// CHECK-NEXT:        field ::E e
 // CHECK-NEXT:        field int y
 // CHECK-NEXT:      class M

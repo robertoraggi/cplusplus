@@ -212,26 +212,12 @@ auto ASTInterpreter::lookupLocalSlot(const Symbol* sym) -> ConstValue* {
 
 void ASTInterpreter::bindReference(const Symbol* sym, ConstValue* target) {
   if (frames_.empty()) frames_.push_back({});
-  for (auto it = frames_.rbegin(); it != frames_.rend(); ++it) {
-    auto found = it->refs.find(sym);
-    if (found != it->refs.end()) {
-      found->second = target;
-      return;
-    }
-  }
-  frames_.back().refs.emplace(sym, target);
+  frames_.back().refs.insert_or_assign(sym, target);
 }
 
 void ASTInterpreter::setLocal(const Symbol* sym, ConstValue value) {
   if (frames_.empty()) frames_.push_back({});
-  for (auto it = frames_.rbegin(); it != frames_.rend(); ++it) {
-    auto found = it->locals.find(sym);
-    if (found != it->locals.end()) {
-      found->second = std::move(value);
-      return;
-    }
-  }
-  frames_.back().locals.emplace(sym, std::move(value));
+  frames_.back().locals.insert_or_assign(sym, std::move(value));
 }
 
 auto ASTInterpreter::bindParameters(FunctionSymbol* func,

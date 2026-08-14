@@ -74,6 +74,8 @@ class StandardConversion {
   void wrapWithImplicitCast(ImplicitCastKind castKind, const Type* type,
                             ExpressionAST*& expr);
 
+  void requireDefinitionOfDesignatedField(ExpressionAST* expr);
+
   [[nodiscard]] auto adjustedCvType(const Type* type) const -> const Type*;
   void adjustCv(ExpressionAST* expr);
 

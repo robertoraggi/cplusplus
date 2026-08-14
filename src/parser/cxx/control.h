@@ -141,6 +141,8 @@ class Control {
   [[nodiscard]] auto getMemberFunctionPointerType(
       const ClassType* classType, const FunctionType* functionType)
       -> const MemberFunctionPointerType*;
+  [[nodiscard]] auto getDependentType() -> const TypeParameterType*;
+
   [[nodiscard]] auto getTypeParameterType(int index, int depth, bool isPack)
       -> const TypeParameterType*;
   [[nodiscard]] auto getTemplateTypeParameterType(

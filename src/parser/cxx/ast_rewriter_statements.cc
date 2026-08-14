@@ -184,11 +184,14 @@ auto ASTRewriter::rewriteMemInitializerList(List<MemInitializerAST*>* source)
         pack = parameterPackFor(base->symbol());
 
       if (pack) {
-        forEachPackElement(pack, [&] {
-          auto value = memInitializer(node);
-          clearPackExpansion(value);
-          append(value);
-        });
+        forEachPackElement(
+            node, node->firstSourceLocation(),
+            [&] {
+              auto value = memInitializer(node);
+              clearPackExpansion(value);
+              append(value);
+            },
+            pack);
         continue;
       }
     }

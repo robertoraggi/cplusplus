@@ -24,13 +24,10 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
-#include <unordered_set>
-
 namespace cxx {
 namespace {
 struct IsDependent {
   TranslationUnit* unit = nullptr;
-  std::unordered_set<Symbol*> initializerStack;
 
   [[nodiscard]] auto isDependent(ExpressionAST* ast) -> bool {
     if (!ast) return false;
@@ -164,10 +161,7 @@ struct IsDependent {
                                                   bool isConstexpr) -> bool {
     if (!initializer || !isPotentiallyConstant(symbol, isConstexpr))
       return false;
-    if (!initializerStack.insert(symbol).second) return false;
-    const bool dependent = isDependent(initializer);
-    initializerStack.erase(symbol);
-    return dependent;
+    return isDependent(initializer);
   }
 
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
@@ -251,34 +245,59 @@ struct IsDependent {
       if (isDependent(enclosingClass->type())) return true;
     }
 
+    auto parameters = template_parameters_of(sym->primaryTemplateSymbol());
+
+    std::size_t index = 0;
     for (const auto& arg : sym->templateArguments()) {
-      if (const auto typeArg = std::get_if<const Type*>(&arg))
-        if (isDependent(*typeArg)) return true;
-      if (const auto symArg = std::get_if<Symbol*>(&arg)) {
-        if (auto pack = symbol_cast<ParameterPackSymbol>(*symArg)) {
-          for (auto elem : pack->elements())
-            if (elem && isDependent(elem->type())) return true;
-        } else if (*symArg) {
-          auto argType = (*symArg)->type();
-          bool bindsTemplate = false;
-          if (auto classType = type_cast<ClassType>(argType)) {
-            auto classSymbol = classType->symbol();
-            if (classSymbol && classSymbol->templateDeclaration() &&
-                !classSymbol->isSpecialization()) {
-              bindsTemplate = true;
-            }
-          }
-          if (auto aliasSymbol = symbol_cast<TypeAliasSymbol>(*symArg);
-              aliasSymbol && aliasSymbol->templateParameters()) {
-            bindsTemplate = true;
-          }
-          if (!bindsTemplate && isDependent(argType)) return true;
-        }
-      }
-      if (const auto exprArg = std::get_if<ExpressionAST*>(&arg))
-        if (isDependent(*exprArg)) return true;
+      Symbol* parameter = nullptr;
+      if (parameters && index < parameters->members().size())
+        parameter = parameters->members()[index];
+      ++index;
+      if (isDependentArgument(arg, parameter)) return true;
     }
     return false;
+  }
+
+  [[nodiscard]] auto isDependentArgument(const TemplateArgument& arg,
+                                         Symbol* parameter = nullptr) -> bool {
+    if (const auto typeArg = std::get_if<const Type*>(&arg))
+      return isDependent(*typeArg);
+
+    if (std::get_if<ConstValue>(&arg)) return false;
+
+    if (const auto exprArg = std::get_if<ExpressionAST*>(&arg))
+      return isDependent(*exprArg);
+
+    const auto symArg = std::get_if<Symbol*>(&arg);
+    if (!symArg || !*symArg) return true;
+
+    auto symbol = *symArg;
+
+    if (auto pack = symbol_cast<ParameterPackSymbol>(symbol)) {
+      for (auto elem : pack->elements()) {
+        if (isDependentArgument(TemplateArgument{elem}, parameter)) return true;
+      }
+      return false;
+    }
+
+    if (symbol_cast<TemplateTypeParameterSymbol>(symbol)) return true;
+
+    const bool bindsTemplateTemplateParameter =
+        !parameter || symbol_cast<TemplateTypeParameterSymbol>(parameter);
+
+    if (bindsTemplateTemplateParameter && template_name_symbol(symbol))
+      return false;
+
+    if (auto var = symbol_cast<VariableSymbol>(symbol)) {
+      if (!var->constValue().has_value()) {
+        if (!var->initializer()) return true;
+        if (isDependent(var->initializer())) return true;
+      }
+    }
+
+    if (!symbol->type()) return true;
+
+    return isDependent(symbol->type());
   }
 
   auto operator()(const EnumType* type) -> bool { return false; }
@@ -335,7 +354,12 @@ struct IsDependent {
   auto operator()(TemplateNestedNameSpecifierAST* ast) -> bool;
 
   [[nodiscard]] auto isDependent(StatementAST* ast) -> bool { return false; }
-  [[nodiscard]] auto isDependent(UnqualifiedIdAST* ast) -> bool { return false; }
+  [[nodiscard]] auto isDependent(UnqualifiedIdAST* ast) -> bool {
+    auto templateId = ast_cast<SimpleTemplateIdAST>(ast);
+    if (!templateId) return false;
+    if (isDependentTypeParameterSymbol(templateId->symbol)) return true;
+    return hasDependentTemplateArguments(templateId);
+  }
   [[nodiscard]] auto isDependent(LambdaCaptureAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(TemplateParameterAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(AttributeSpecifierAST* ast) -> bool { return false; }
@@ -867,7 +891,8 @@ auto IsDependent::operator()(SizeofTypeExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(SizeofPackExpressionAST* ast) -> bool {
-  return true;
+  auto info = template_parameter_info(ast->symbol);
+  return info && info->isPack;
 }
 
 auto IsDependent::operator()(AlignofTypeExpressionAST* ast) -> bool {

@@ -582,6 +582,11 @@ auto ASTInterpreter::lvalue(ExpressionAST* ast) -> ConstValue* {
   while (auto nested = ast_cast<NestedExpressionAST>(ast))
     ast = nested->expression;
 
+  while (auto cast = ast_cast<ImplicitCastExpressionAST>(ast)) {
+    if (!is_glvalue(cast)) break;
+    ast = cast->expression;
+  }
+
   if (auto id = ast_cast<IdExpressionAST>(ast)) {
     auto sym = id->symbol;
     if (!sym) return nullptr;
@@ -589,6 +594,15 @@ auto ASTInterpreter::lvalue(ExpressionAST* ast) -> ConstValue* {
     if (auto field = symbol_cast<FieldSymbol>(sym)) {
       if (!field->isStatic() && thisObject_)
         return thisObject_->getFieldMutable(field);
+      if (field->isStatic()) {
+        if (auto slot = lookupLocalSlot(sym)) return slot;
+        if (field->initializer()) {
+          auto value = expression(field->initializer());
+          if (!value) return nullptr;
+          setLocal(sym, std::move(*value));
+          return lookupLocalSlot(sym);
+        }
+      }
       return nullptr;
     }
 

@@ -381,6 +381,14 @@ struct ElementInitChecker {
                                            const Type* targetType) -> bool;
 
  private:
+  [[nodiscard]] auto initializesFromSameTypePrvalue(
+      ExpressionAST* expr, const Type* targetType) const -> bool {
+    if (!expr || !expr->type || !is_prvalue(expr)) return false;
+    if (!ctx.traits.is_class(targetType)) return false;
+    return ctx.traits.is_same(ctx.traits.remove_cv(expr->type),
+                              ctx.traits.remove_cv(targetType));
+  }
+
   void checkArrayElementInit(ExpressionAST*& expr, const Type* targetType,
                              std::string errorMessage,
                              InitializationKind initializationKind) {
@@ -426,6 +434,7 @@ auto ElementInitChecker::checkClassElementInit(ExpressionAST*& expr,
   if (!ctx.isCxx()) return false;
   if (!expr || !expr->type) return false;
   if (!ctx.traits.is_class(targetType)) return false;
+  if (initializesFromSameTypePrvalue(expr, targetType)) return true;
   if (isDependent(ctx.unit, targetType)) return false;
   if (isDependent(ctx.unit, expr->type)) return false;
 
@@ -1070,7 +1079,7 @@ void ClassInitChecker::checkClassInit(Target& target) {
       auto resolution = overloadRes.resolveConstructor(classSymbol, {});
       if (resolution.best && !resolution.ambiguous) {
         target.constructor = resolution.best->symbol;
-        ctx.checker.reportDeletedFunction(target.constructor, target.location);
+        ctx.checker.useFunction(target.constructor, target.location);
         appendDefaultArguments(target, target.constructor);
       }
       return;
@@ -1203,7 +1212,7 @@ void ClassInitChecker::checkConstructorInit(Target& target,
   }
 
   target.constructor = resolution.best->symbol;
-  ctx.checker.reportDeletedFunction(target.constructor, target.location);
+  ctx.checker.useFunction(target.constructor, target.location);
   if (selectedInitializerListConstructor) return;
   applyArgumentConversions(target, resolution.best->conversions);
   appendDefaultArguments(target, target.constructor);
@@ -1566,6 +1575,9 @@ static auto deduceAutoReplacement(InitContext& ctx, const Type* P,
   }
 
   if (auto ref = type_cast<RvalueReferenceType>(P)) {
+    if (type_cast<LvalueReferenceType>(A)) {
+      return deduceAutoReplacement(ctx, ref->elementType(), A);
+    }
     return deduceAutoReplacement(ctx, ref->elementType(),
                                  ctx.traits.remove_reference(A));
   }
@@ -1649,7 +1661,7 @@ void TypeDeducer::deduceAutoType(VariableSymbol* var) {
   if (inTemplate && (!deducedExpr || !deducedExpr->type ||
                      isDependent(ctx.unit, deducedExpr) ||
                      isDependent(ctx.unit, deducedExpr->type))) {
-    auto dependentType = ctx.control->getTypeParameterType(0, 0, false);
+    auto dependentType = ctx.control->getDependentType();
     var->setType(ctx.traits.replace_placeholder_types(declType, dependentType));
     return;
   }
@@ -1775,7 +1787,7 @@ void InitDeclaratorChecker::checkVariable(VariableSymbol* var,
                                           ExpressionAST*& initializer,
                                           SourceLocation location,
                                           SpecifierAST* typeSpecifier) {
-  var->setInitializer(initializer);
+  if (initializer) var->setInitializer(initializer);
 
   typeDeducer.deduceArraySize(var);
   typeDeducer.deduceClassTemplateArguments(var, typeSpecifier);
@@ -1957,7 +1969,12 @@ auto TypeChecker::deducePlaceholderType(const Type* declaredType,
   if (!initializer) return nullptr;
   if (type_cast<DecltypeAutoType>(declaredType))
     return unit_->typeTraits().decltype_of(initializer);
-  return deduceAutoType(declaredType, initializer->type);
+  auto initializerType = initializer->type;
+  if (type_cast<RvalueReferenceType>(declaredType) &&
+      initializer->valueCategory == ValueCategory::kLValue) {
+    initializerType = unit_->typeTraits().add_lvalue_reference(initializerType);
+  }
+  return deduceAutoType(declaredType, initializerType);
 }
 
 auto TypeChecker::deduceAutoType(const Type* declaredType,

@@ -244,8 +244,21 @@ auto ASTRewriter::completePendingBodyFor(TranslationUnit* unit,
 void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
                                             FunctionSymbol* function) {
   if (!unit || !function) return;
+  if (!unit->isPotentiallyEvaluated()) return;
   function->setDefinitionRequired(true);
-  if (function->hasPendingBody()) unit->addPendingBodyCompletion(function);
+  unit->addPendingBodyCompletion(function);
+}
+
+void ASTRewriter::requireFieldDefinition(TranslationUnit* unit,
+                                         FieldSymbol* field) {
+  if (!unit || !field || !field->isStatic()) return;
+  if (!unit->isPotentiallyEvaluated()) return;
+  if (field->isDefinitionRequired()) return;
+  field->setDefinitionRequired(true);
+
+  auto enclosingClass = symbol_cast<ClassSymbol>(field->parent());
+  if (!enclosingClass) return;
+  unit->reopenMemberInstantiation(enclosingClass->resolvedDefinition());
 }
 
 void ASTRewriter::completeDeducedReturnType(TranslationUnit* unit,
@@ -307,8 +320,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
     rewriter.inheritEnclosingTemplateArguments(parentScope);
     rewriter.binder_.setInstantiatingSymbol(originalDef->symbol);
 
-    auto patternClass = symbol_cast<ClassSymbol>(
-        originalDef->symbol->enclosingNonTemplateParametersScope());
+    auto patternClass = symbol_cast<ClassSymbol>(originalDef->symbol->parent());
     auto instanceClass = symbol_cast<ClassSymbol>(func->parent());
     if (patternClass && instanceClass) {
       rewriter.remapScopeMembers(patternClass, instanceClass);

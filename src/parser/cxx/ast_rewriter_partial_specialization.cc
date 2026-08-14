@@ -27,6 +27,7 @@
 #include <cxx/diagnostics_client.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
@@ -1261,9 +1262,9 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
   auto& selected = *selection.candidate;
 
   if (auto cached =
-          selected.specClass->findSpecialization(selected.deducedArgs)) {
+          selected.specClass->findSpecialization(unit, selected.deducedArgs)) {
     if (auto cachedClass = symbol_cast<ClassSymbol>(cached)) {
-      classSymbol->addSpecialization(templateArguments, cachedClass);
+      classSymbol->addSpecialization(unit, templateArguments, cachedClass);
     }
     return {.symbol = cached};
   }
@@ -1274,7 +1275,7 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
   specRewriter.binder().setInstantiatingSymbol(selected.specClass);
 
   auto pendingInstance = symbol_cast<ClassSymbol>(
-      classSymbol->findSpecialization(templateArguments));
+      classSymbol->findSpecialization(unit, templateArguments));
   if (pendingInstance && !pendingInstance->isComplete()) {
     specRewriter.setClassInstanceToComplete(pendingInstance);
   }
@@ -1284,7 +1285,7 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
   if (!instance || !instance->symbol) return {.resolutionFailed = true};
 
   if (auto instanceClass = symbol_cast<ClassSymbol>(instance->symbol)) {
-    classSymbol->addSpecialization(templateArguments, instanceClass);
+    classSymbol->addSpecialization(unit, templateArguments, instanceClass);
   }
 
   return {.symbol = instance->symbol};
@@ -1303,9 +1304,9 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
   auto& selected = *selection.candidate;
 
   if (auto cached =
-          selected.specVar->findSpecialization(selected.deducedArgs)) {
+          selected.specVar->findSpecialization(unit, selected.deducedArgs)) {
     if (auto cachedVar = symbol_cast<VariableSymbol>(cached)) {
-      variableSymbol->addSpecialization(templateArguments, cachedVar);
+      variableSymbol->addSpecialization(unit, templateArguments, cachedVar);
     }
     return {.symbol = cached};
   }
@@ -1333,7 +1334,7 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
   if (!instantiatedSymbol) return {.resolutionFailed = true};
 
   if (auto instanceVar = symbol_cast<VariableSymbol>(instantiatedSymbol)) {
-    variableSymbol->addSpecialization(templateArguments, instanceVar);
+    variableSymbol->addSpecialization(unit, templateArguments, instanceVar);
   }
 
   return {.symbol = instantiatedSymbol};

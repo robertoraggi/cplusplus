@@ -1439,13 +1439,13 @@ auto TypeTraits::replace_placeholder_types(const Type* type,
   if (auto referenceType = type_cast<LvalueReferenceType>(type)) {
     auto elementType =
         replace_placeholder_types(referenceType->elementType(), replacement);
-    return control()->getLvalueReferenceType(elementType);
+    return add_lvalue_reference(elementType);
   }
 
   if (auto referenceType = type_cast<RvalueReferenceType>(type)) {
     auto elementType =
         replace_placeholder_types(referenceType->elementType(), replacement);
-    return control()->getRvalueReferenceType(elementType);
+    return add_rvalue_reference(elementType);
   }
 
   if (auto functionType = type_cast<FunctionType>(type)) {

@@ -134,7 +134,7 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
   auto eIdent = name_cast<Identifier>(eSymbol->name());
 
   if (isDependent(unit_, eSymbol->type())) {
-    auto dependentType = control()->getTypeParameterType(0, 0, false);
+    auto dependentType = control()->getDependentType();
     auto placeholderTail = &ast->bindingDeclaratorList;
     for (auto it = ast->bindingList; it; it = it->next) {
       auto name = asExpression(it->value);
