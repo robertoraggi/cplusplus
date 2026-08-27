@@ -18,9 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/access_control.h>
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/overload_resolution.h>
@@ -30,6 +33,9 @@
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
+
+#include <cmath>
+#include <unordered_set>
 
 namespace cxx {
 namespace {
@@ -95,6 +101,12 @@ struct IsFloatingPoint {
 };
 
 struct IsSigned {
+  bool wideCharIsSigned = true;
+
+  auto operator()(const WideCharType*) const -> bool {
+    return wideCharIsSigned;
+  }
+
   auto operator()(const SignedCharType*) const -> bool { return true; }
   auto operator()(const ShortIntType*) const -> bool { return true; }
   auto operator()(const IntType*) const -> bool { return true; }
@@ -116,6 +128,12 @@ struct IsSigned {
 };
 
 struct IsUnsigned {
+  bool wideCharIsSigned = true;
+
+  auto operator()(const WideCharType*) const -> bool {
+    return !wideCharIsSigned;
+  }
+
   auto operator()(const BoolType*) const -> bool { return true; }
   auto operator()(const UnsignedCharType*) const -> bool { return true; }
   auto operator()(const UnsignedShortIntType*) const -> bool { return true; }
@@ -125,7 +143,6 @@ struct IsUnsigned {
   auto operator()(const Char8Type*) const -> bool { return true; }
   auto operator()(const Char16Type*) const -> bool { return true; }
   auto operator()(const Char32Type*) const -> bool { return true; }
-  auto operator()(const WideCharType*) const -> bool { return true; }
   auto operator()(const UnsignedInt128Type*) const -> bool { return true; }
   auto operator()(const UnsignedBitIntType*) const -> bool { return true; }
 
@@ -155,6 +172,20 @@ struct IsEnum {
   }
 
   auto operator()(const Type*) const -> bool { return false; }
+};
+
+struct UnderlyingType {
+  auto operator()(const EnumType* type) const -> const Type* {
+    auto underlyingType = type->underlyingType();
+    return underlyingType ? underlyingType : type;
+  }
+
+  auto operator()(const ScopedEnumType* type) const -> const Type* {
+    auto underlyingType = type->underlyingType();
+    return underlyingType ? underlyingType : type;
+  }
+
+  auto operator()(const Type* type) const -> const Type* { return type; }
 };
 
 struct IsScopedEnum {
@@ -516,9 +547,38 @@ struct GetElementType {
   auto operator()(auto) const -> const Type* { return nullptr; }
 };
 
-struct RemoveCv {
+struct RemoveQualifiers {
+  const TypeTraits& typeTraits;
+  CvQualifiers qualifiers;
+
+  [[nodiscard]] auto control() const -> Control* {
+    return typeTraits.control();
+  }
+
   auto operator()(const QualType* type) const -> const Type* {
-    return type->elementType();
+    auto remaining = type->cvQualifiers() & ~qualifiers;
+    if (remaining == type->cvQualifiers()) return type;
+    if (remaining == CvQualifiers::kNone) return type->elementType();
+    return control()->getQualType(type->elementType(), remaining);
+  }
+
+  auto operator()(const BoundedArrayType* type) const -> const Type* {
+    auto elementType = visit(*this, type->elementType());
+    if (elementType == type->elementType()) return type;
+    return control()->getBoundedArrayType(elementType, type->size());
+  }
+
+  auto operator()(const UnboundedArrayType* type) const -> const Type* {
+    auto elementType = visit(*this, type->elementType());
+    if (elementType == type->elementType()) return type;
+    return control()->getUnboundedArrayType(elementType);
+  }
+
+  auto operator()(const UnresolvedBoundedArrayType* type) const -> const Type* {
+    auto elementType = visit(*this, type->elementType());
+    if (elementType == type->elementType()) return type;
+    return control()->getUnresolvedBoundedArrayType(type->translationUnit(),
+                                                    elementType, type->size());
   }
 
   auto operator()(auto type) const -> const Type* { return type; }
@@ -860,6 +920,210 @@ auto is_trivially_copyable_class(TypeTraits& traits, ClassSymbol* cls) -> bool {
 
   return true;
 }
+
+auto is_trivially_destructible_class(TypeTraits& traits, ClassSymbol* cls)
+    -> bool {
+  if (!cls || !cls->isComplete()) return false;
+
+  auto dtor = cls->destructor();
+  if (dtor && dtor->isDeleted()) return false;
+  if (isUserProvided(dtor)) return false;
+  if (dtor && dtor->isVirtual()) return false;
+
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    if (!is_trivially_destructible_class(traits, baseClass)) return false;
+  }
+
+  for (auto field : cls->members() | views::non_static_fields) {
+    auto fieldType = traits.remove_all_extents(field->type());
+    if (!traits.has_trivial_destructor(fieldType)) return false;
+  }
+
+  return true;
+}
+
+enum class TrivialConstructorKind { kDefault, kCopy, kMove };
+
+auto constructorKind(ClassSymbol* cls, FunctionSymbol* constructor)
+    -> std::optional<TrivialConstructorKind> {
+  if (constructor == cls->defaultConstructor())
+    return TrivialConstructorKind::kDefault;
+  if (constructor == cls->copyConstructor())
+    return TrivialConstructorKind::kCopy;
+  if (constructor == cls->moveConstructor())
+    return TrivialConstructorKind::kMove;
+  return std::nullopt;
+}
+
+auto constructorFor(ClassSymbol* cls, TrivialConstructorKind kind)
+    -> FunctionSymbol* {
+  if (kind == TrivialConstructorKind::kDefault)
+    return cls->defaultConstructor();
+  if (kind == TrivialConstructorKind::kCopy) return cls->copyConstructor();
+  auto move = cls->moveConstructor();
+  if (move) return move;
+  return cls->copyConstructor();
+}
+
+auto has_trivial_constructor(TypeTraits& traits, ClassSymbol* cls,
+                             TrivialConstructorKind kind) -> bool {
+  if (!cls || !cls->isComplete()) return false;
+  auto constructor = constructorFor(cls, kind);
+  if (!constructor || constructor->isDeleted()) return false;
+  if (isUserProvided(constructor)) return false;
+  if (cls->hasVirtualFunctions()) return false;
+  if (cls->hasVirtualBaseClasses()) return false;
+  if (cls->isUnion()) return true;
+
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    baseClass = baseClass->resolvedDefinition();
+    if (!has_trivial_constructor(traits, baseClass, kind)) return false;
+  }
+
+  for (auto field : cls->members() | views::non_static_fields) {
+    if (kind == TrivialConstructorKind::kDefault && field->initializer())
+      return false;
+    auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
+    auto classType = type_cast<ClassType>(fieldType);
+    if (!classType) continue;
+    auto fieldClass = classType->definition();
+    if (!has_trivial_constructor(traits, fieldClass, kind)) return false;
+  }
+
+  return true;
+}
+
+enum class TrivialAssignmentKind { kCopy, kMove };
+
+auto assignmentFor(ClassSymbol* cls, TrivialAssignmentKind kind)
+    -> FunctionSymbol* {
+  if (kind == TrivialAssignmentKind::kCopy)
+    return cls->copyAssignmentOperator();
+  auto move = cls->moveAssignmentOperator();
+  if (move) return move;
+  return cls->copyAssignmentOperator();
+}
+
+auto has_trivial_assignment(TypeTraits& traits, ClassSymbol* cls,
+                            TrivialAssignmentKind kind) -> bool {
+  if (!cls || !cls->isComplete()) return false;
+  auto assignment = assignmentFor(cls, kind);
+  if (!assignment || assignment->isDeleted()) return false;
+  if (isUserProvided(assignment)) return false;
+  if (cls->hasVirtualFunctions()) return false;
+  if (cls->hasVirtualBaseClasses()) return false;
+  if (cls->isUnion()) return true;
+
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    baseClass = baseClass->resolvedDefinition();
+    if (!has_trivial_assignment(traits, baseClass, kind)) return false;
+  }
+
+  for (auto field : cls->members() | views::non_static_fields) {
+    auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
+    auto classType = type_cast<ClassType>(fieldType);
+    if (!classType) continue;
+    auto fieldClass = classType->definition();
+    if (!has_trivial_assignment(traits, fieldClass, kind)) return false;
+  }
+
+  return true;
+}
+
+auto has_non_static_data_members(ClassSymbol* cls) -> bool {
+  if (!cls) return false;
+  for (auto member : cls->members() | views::non_static_fields) {
+    (void)member;
+    return true;
+  }
+  return false;
+}
+
+auto has_data_members_in_hierarchy(ClassSymbol* cls) -> bool {
+  if (has_non_static_data_members(cls)) return true;
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    baseClass = baseClass->resolvedDefinition();
+    if (has_data_members_in_hierarchy(baseClass)) return true;
+  }
+  return false;
+}
+
+auto has_unique_base_subobject_types(ClassSymbol* cls,
+                                     std::unordered_set<ClassSymbol*>& seen)
+    -> bool {
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    baseClass = baseClass->resolvedDefinition();
+    if (!seen.insert(baseClass).second) return false;
+    if (!has_unique_base_subobject_types(baseClass, seen)) return false;
+  }
+  return true;
+}
+
+void collect_standard_layout_member_types(
+    TypeTraits& traits, const Type* type,
+    std::unordered_set<ClassSymbol*>& memberTypes,
+    std::unordered_set<ClassSymbol*>& expanded);
+
+void add_standard_layout_member_type(
+    TypeTraits& traits, const Type* type,
+    std::unordered_set<ClassSymbol*>& memberTypes,
+    std::unordered_set<ClassSymbol*>& expanded) {
+  auto unqual = traits.remove_cv(type);
+  if (traits.is_array(unqual)) {
+    add_standard_layout_member_type(traits, traits.remove_extent(unqual),
+                                    memberTypes, expanded);
+    return;
+  }
+
+  auto classType = type_cast<ClassType>(unqual);
+  if (!classType) return;
+  auto cls = classType->definition();
+  if (!cls) return;
+  cls = cls->resolvedDefinition();
+  memberTypes.insert(cls);
+  if (!expanded.insert(cls).second) return;
+  collect_standard_layout_member_types(traits, cls->type(), memberTypes,
+                                       expanded);
+}
+
+void collect_standard_layout_member_types(
+    TypeTraits& traits, const Type* type,
+    std::unordered_set<ClassSymbol*>& memberTypes,
+    std::unordered_set<ClassSymbol*>& expanded) {
+  auto unqual = traits.remove_cv(type);
+  if (traits.is_array(unqual)) {
+    add_standard_layout_member_type(traits, traits.remove_extent(unqual),
+                                    memberTypes, expanded);
+    return;
+  }
+
+  auto classType = type_cast<ClassType>(unqual);
+  if (!classType) return;
+  auto cls = classType->definition();
+  if (!cls) return;
+  cls = cls->resolvedDefinition();
+
+  auto first = true;
+  for (auto field : cls->members() | views::non_static_fields) {
+    auto fieldType = traits.remove_cv(field->type());
+    auto zeroSize = field->isNoUniqueAddress();
+    if (zeroSize) zeroSize = traits.is_empty(fieldType);
+    if (cls->isUnion() || first || zeroSize) {
+      add_standard_layout_member_type(traits, fieldType, memberTypes, expanded);
+    }
+    first = false;
+  }
+}
 }  // namespace
 
 TypeTraits::TypeTraits(TranslationUnit* unit) : unit_(unit) {}
@@ -934,6 +1198,10 @@ auto TypeTraits::is_integral_or_unscoped_enum(const Type* type) const -> bool {
   return is_integral(type) || (is_enum(type) && !is_scoped_enum(type));
 }
 
+auto TypeTraits::is_integral_or_enum(const Type* type) const -> bool {
+  return is_integral(type) || is_enum(type);
+}
+
 auto TypeTraits::is_fundamental(const Type* type) const -> bool {
   return is_arithmetic(type) || is_void(type) || is_null_pointer(type);
 }
@@ -972,11 +1240,13 @@ auto TypeTraits::is_volatile(const Type* type) const -> bool {
 }
 
 auto TypeTraits::is_signed(const Type* type) const -> bool {
-  return type && visit(IsSigned{}, type);
+  return type &&
+         visit(IsSigned{control()->memoryLayout()->isWideCharSigned()}, type);
 }
 
 auto TypeTraits::is_unsigned(const Type* type) const -> bool {
-  return type && visit(IsUnsigned{}, type);
+  return type &&
+         visit(IsUnsigned{control()->memoryLayout()->isWideCharSigned()}, type);
 }
 
 auto TypeTraits::is_bounded_array(const Type* type) const -> bool {
@@ -989,6 +1259,29 @@ auto TypeTraits::is_unbounded_array(const Type* type) const -> bool {
 
 auto TypeTraits::is_scoped_enum(const Type* type) const -> bool {
   return type && visit(IsScopedEnum{}, type);
+}
+
+auto TypeTraits::is_member_of_object_type(const Type* objectType,
+                                          Symbol* member) const -> bool {
+  if (!member || !objectType) return false;
+
+  auto memberClass = symbol_cast<ClassSymbol>(member->parent());
+  if (!memberClass) return false;
+
+  auto objectClass = type_cast<ClassType>(remove_cv(objectType));
+  if (!objectClass || !objectClass->symbol()) return false;
+
+  if (memberClass->resolvedDefinition() ==
+      objectClass->symbol()->resolvedDefinition()) {
+    return true;
+  }
+
+  return is_base_of(memberClass->type(), objectType);
+}
+
+auto TypeTraits::underlying_type(const Type* type) const -> const Type* {
+  if (!type) return type;
+  return visit(UnderlyingType{}, remove_cv(type));
 }
 
 auto TypeTraits::remove_reference(const Type* type) const -> const Type* {
@@ -1040,7 +1333,7 @@ auto TypeTraits::get_element_type(const Type* type) const -> const Type* {
 
 auto TypeTraits::remove_cv(const Type* type) const -> const Type* {
   if (!type) return type;
-  return visit(RemoveCv{}, type);
+  return visit(RemoveQualifiers{*this, CvQualifiers::kConstVolatile}, type);
 }
 
 auto TypeTraits::remove_cvref(const Type* type) const -> const Type* {
@@ -1248,8 +1541,8 @@ auto TypeTraits::is_narrowing_conversion(const Type* from, const Type* to) const
     -> bool {
   if (!from || !to) return false;
 
-  from = remove_cv(from);
-  to = remove_cv(to);
+  from = remove_cvref(from);
+  to = remove_cvref(to);
 
   if (is_same(from, to)) return false;
 
@@ -1273,6 +1566,119 @@ auto TypeTraits::is_narrowing_conversion(const Type* from, const Type* to) const
   }
 
   return false;
+}
+
+namespace {
+
+auto listElementSource(ExpressionAST* expr) -> ExpressionAST* {
+  while (expr) {
+    if (auto cast = ast_cast<ImplicitCastExpressionAST>(expr)) {
+      expr = cast->expression;
+      continue;
+    }
+    if (auto constant = ast_cast<ConstExpressionAST>(expr)) {
+      expr = constant->expression;
+      continue;
+    }
+    if (auto nested = ast_cast<NestedExpressionAST>(expr)) {
+      expr = nested->expression;
+      continue;
+    }
+    if (auto equal = ast_cast<EqualInitializerAST>(expr)) {
+      expr = equal->expression;
+      continue;
+    }
+    if (auto paren = ast_cast<ParenInitializerAST>(expr)) {
+      if (!paren->expressionList || paren->expressionList->next) return expr;
+      expr = paren->expressionList->value;
+      continue;
+    }
+    return expr;
+  }
+  return expr;
+}
+
+}  // namespace
+
+auto TypeTraits::is_narrowing_list_element(ExpressionAST* expr,
+                                           const Type* targetType) const
+    -> bool {
+  if (!expr) return false;
+
+  auto source = listElementSource(expr);
+  if (!source) return false;
+
+  auto sourceType = source->type ? source->type : expr->type;
+  if (!is_narrowing_conversion(sourceType, targetType)) return false;
+
+  targetType = remove_cv(targetType);
+
+  auto fitsInteger = [&](std::intmax_t value) {
+    if (is_integral(targetType)) {
+      if (value >= 0) {
+        return integer_constant_fits_in_type(static_cast<std::uint64_t>(value),
+                                             targetType);
+      }
+      if (!is_signed(targetType)) return false;
+      auto targetSize = control()->memoryLayout()->sizeOf(targetType);
+      if (!targetSize) return false;
+      const auto magnitude = std::uint64_t{1} << (*targetSize * 8 - 1);
+      return static_cast<std::uint64_t>(-(value + 1)) < magnitude;
+    }
+
+    auto exact = static_cast<long double>(value);
+    if (type_cast<FloatType>(targetType)) {
+      auto converted = static_cast<float>(value);
+      return std::isfinite(converted) &&
+             static_cast<long double>(converted) == exact;
+    }
+    if (type_cast<DoubleType>(targetType)) {
+      auto converted = static_cast<double>(value);
+      return std::isfinite(converted) &&
+             static_cast<long double>(converted) == exact;
+    }
+    if (type_cast<LongDoubleType>(targetType)) {
+      auto converted = static_cast<long double>(value);
+      return std::isfinite(static_cast<double>(converted)) &&
+             converted == exact;
+    }
+    return false;
+  };
+
+  auto fitsFloating = [&](double value) {
+    if (!is_floating_point(targetType)) return false;
+    const bool convertedIsFinite =
+        type_cast<FloatType>(targetType)
+            ? std::isfinite(static_cast<float>(value))
+            : std::isfinite(static_cast<long double>(value));
+    if (!std::isfinite(value)) return !convertedIsFinite;
+    return convertedIsFinite;
+  };
+
+  if (auto intLiteral = ast_cast<IntLiteralExpressionAST>(source)) {
+    if (!intLiteral->literal) return true;
+    return !fitsInteger(
+        static_cast<std::intmax_t>(intLiteral->literal->integerValue()));
+  }
+
+  if (auto floatLiteral = ast_cast<FloatLiteralExpressionAST>(source)) {
+    if (!floatLiteral->literal) return true;
+    return !fitsFloating(floatLiteral->literal->floatValue());
+  }
+
+  auto value = ASTInterpreter{unit_}.evaluate(source);
+  if (!value) return true;
+
+  if (auto intValue = std::get_if<std::intmax_t>(&*value))
+    return !fitsInteger(*intValue);
+  if (auto floatValue = std::get_if<float>(&*value))
+    return !fitsFloating(*floatValue);
+  if (auto doubleValue = std::get_if<double>(&*value))
+    return !fitsFloating(*doubleValue);
+  if (auto longDoubleValue = std::get_if<long double>(&*value))
+    return !fitsFloating(static_cast<double>(*longDoubleValue));
+
+  return true;
 }
 
 auto TypeTraits::integer_constant_fits_in_type(std::uint64_t value,
@@ -1354,27 +1760,13 @@ auto TypeTraits::remove_all_extents(const Type* type) const -> const Type* {
 }
 
 auto TypeTraits::remove_const(const Type* type) const -> const Type* {
-  if (auto qualType = type_cast<QualType>(type)) {
-    if (qualType->isConst()) {
-      if (qualType->isVolatile())
-        return control()->getQualType(qualType->elementType(),
-                                      CvQualifiers::kVolatile);
-      return qualType->elementType();
-    }
-  }
-  return type;
+  if (!type) return type;
+  return visit(RemoveQualifiers{*this, CvQualifiers::kConst}, type);
 }
 
 auto TypeTraits::remove_volatile(const Type* type) const -> const Type* {
-  if (auto qualType = type_cast<QualType>(type)) {
-    if (qualType->isVolatile()) {
-      if (qualType->isConst())
-        return control()->getQualType(qualType->elementType(),
-                                      CvQualifiers::kConst);
-      return qualType->elementType();
-    }
-  }
-  return type;
+  if (!type) return type;
+  return visit(RemoveQualifiers{*this, CvQualifiers::kVolatile}, type);
 }
 
 auto TypeTraits::add_cv(const Type* type, CvQualifiers cv) const
@@ -1586,17 +1978,81 @@ auto TypeTraits::can_initialize(const Type* to, const Type* from,
   const auto toIsVoid = is_void(to);
   if (fromIsVoid || toIsVoid) return fromIsVoid && toIsVoid;
 
-  const auto valueCategory = is_lvalue_reference(from) ? ValueCategory::kLValue
-                                                       : ValueCategory::kXValue;
+  auto valueCategory = ValueCategory::kXValue;
+  if (is_lvalue_reference(from)) valueCategory = ValueCategory::kLValue;
 
   auto declvalFrom = ThisExpressionAST::create(unit_->arena(), valueCategory,
                                                remove_reference(from));
 
   StandardConversion conversions{unit_};
-  return static_cast<bool>(conversions.computeConversionSequence(
-      declvalFrom, to,
-      directInitialization ? InitializationKind::kDirectInitialization
-                           : InitializationKind::kCopyInitialization));
+  auto initializationKind = InitializationKind::kCopyInitialization;
+  if (directInitialization)
+    initializationKind = InitializationKind::kDirectInitialization;
+  auto sequence = conversions.computeConversionSequence(declvalFrom, to,
+                                                        initializationKind);
+  if (!sequence) return false;
+  if (!is_accessible_from_unrelated_context(
+          sequence.userDefinedConversionFunction))
+    return false;
+
+  if (is_reference(to)) return true;
+  auto classType = type_cast<ClassType>(remove_cv(to));
+  if (!classType) return true;
+  auto classSymbol = classType->definition();
+  if (!classSymbol) return false;
+  auto destructor = classSymbol->destructor();
+  if (destructor && destructor->isDeleted()) return false;
+  return is_accessible_from_unrelated_context(destructor);
+}
+
+auto TypeTraits::is_accessible_from_unrelated_context(
+    FunctionSymbol* function) const -> bool {
+  if (!function) return true;
+  auto declaringClass = declaringClassOf(function);
+  if (!declaringClass) return true;
+  AccessContext accessContext{unit_, unit_->globalScope()};
+  return accessContext.isAccessible(function, declaringClass, nullptr);
+}
+
+auto TypeTraits::is_nothrow_function(FunctionSymbol* function) const -> bool {
+  if (!function) return true;
+  ASTRewriter::completePendingExceptionSpecification(unit_, function);
+  auto functionType = type_cast<FunctionType>(function->type());
+  return functionType && functionType->isNoexcept();
+}
+
+auto TypeTraits::is_nothrow_initialization(const Type* to, const Type* from,
+                                           bool directInitialization) const
+    -> bool {
+  if (!from || !to) return false;
+  auto valueCategory = ValueCategory::kXValue;
+  if (is_lvalue_reference(from)) valueCategory = ValueCategory::kLValue;
+  auto expression = ThisExpressionAST::create(unit_->arena(), valueCategory,
+                                              remove_reference(from));
+  auto initializationKind = InitializationKind::kCopyInitialization;
+  if (directInitialization)
+    initializationKind = InitializationKind::kDirectInitialization;
+  auto sequence = StandardConversion{unit_}.computeConversionSequence(
+      expression, to, initializationKind);
+  if (!sequence) return false;
+  return is_nothrow_function(sequence.userDefinedConversionFunction);
+}
+
+auto TypeTraits::is_trivial_initialization(const Type* to, const Type* from,
+                                           bool directInitialization) const
+    -> bool {
+  if (!from || !to) return false;
+  auto valueCategory = ValueCategory::kXValue;
+  if (is_lvalue_reference(from)) valueCategory = ValueCategory::kLValue;
+  auto expression = ThisExpressionAST::create(unit_->arena(), valueCategory,
+                                              remove_reference(from));
+  auto initializationKind = InitializationKind::kCopyInitialization;
+  if (directInitialization)
+    initializationKind = InitializationKind::kDirectInitialization;
+  auto sequence = StandardConversion{unit_}.computeConversionSequence(
+      expression, to, initializationKind);
+  if (!sequence) return false;
+  return sequence.userDefinedConversionFunction == nullptr;
 }
 
 auto TypeTraits::is_convertible(const Type* from, const Type* to) const
@@ -1607,17 +2063,10 @@ auto TypeTraits::is_convertible(const Type* from, const Type* to) const
 auto TypeTraits::is_pod(const Type* type) -> bool {
   auto unqual = remove_cv(type);
   if (is_scalar(unqual)) return true;
-  if (is_void(unqual)) return true;
-  if (auto classType = type_cast<ClassType>(unqual)) {
-    auto cls = classType->definition();
-    requireCompleteClass(cls);
-    if (!cls || !cls->isComplete()) return false;
-    if (cls->hasUserDeclaredConstructors()) return false;
-    if (cls->hasVirtualFunctions()) return false;
-    if (cls->hasVirtualBaseClasses()) return false;
-    return true;
-  }
-  if (is_array(unqual)) return true;
+  if (is_void(unqual)) return false;
+  if (is_class(unqual) || is_union(unqual))
+    return is_trivial(unqual) && is_standard_layout(unqual);
+  if (is_array(unqual)) return is_pod(remove_all_extents(unqual));
   return false;
 }
 
@@ -1628,8 +2077,8 @@ auto TypeTraits::is_trivial(const Type* type) -> bool {
     auto cls = classType->definition();
     requireCompleteClass(cls);
     if (!cls || !cls->isComplete()) return false;
-    auto defCtor = cls->defaultConstructor();
-    if (isUserProvided(defCtor)) return false;
+    if (!has_trivial_constructor(*this, cls, TrivialConstructorKind::kDefault))
+      return false;
     if (!is_trivially_copyable_class(*this, cls)) return false;
     return true;
   }
@@ -1648,9 +2097,39 @@ auto TypeTraits::is_standard_layout(const Type* type) -> bool {
     if (!cls || !cls->isComplete()) return false;
     if (cls->hasVirtualFunctions()) return false;
     if (cls->hasVirtualBaseClasses()) return false;
+
+    std::optional<AccessSpecifier> memberAccess;
+    for (auto field : cls->members() | views::non_static_fields) {
+      if (is_reference(field->type())) return false;
+      if (!is_standard_layout(remove_all_extents(field->type()))) return false;
+      if (!memberAccess) memberAccess = field->accessSpecifier();
+      if (*memberAccess != field->accessSpecifier()) return false;
+    }
+
+    auto dataBearingSubobjects = 0;
+    if (has_non_static_data_members(cls)) dataBearingSubobjects = 1;
+    for (auto base : cls->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass) continue;
+      baseClass = baseClass->resolvedDefinition();
+      if (!is_standard_layout(baseClass->type())) return false;
+      if (has_data_members_in_hierarchy(baseClass)) ++dataBearingSubobjects;
+      if (dataBearingSubobjects > 1) return false;
+    }
+
+    std::unordered_set<ClassSymbol*> baseTypes;
+    if (!has_unique_base_subobject_types(cls, baseTypes)) return false;
+
+    std::unordered_set<ClassSymbol*> memberTypes;
+    std::unordered_set<ClassSymbol*> expandedMemberTypes;
+    collect_standard_layout_member_types(*this, unqual, memberTypes,
+                                         expandedMemberTypes);
+    for (auto baseType : baseTypes) {
+      if (memberTypes.contains(baseType)) return false;
+    }
     return true;
   }
-  if (is_array(unqual)) return true;
+  if (is_array(unqual)) return is_standard_layout(remove_all_extents(unqual));
   return false;
 }
 
@@ -1659,16 +2138,83 @@ auto TypeTraits::is_literal_type(const Type* type) -> bool {
   if (is_void(unqual)) return true;
   if (is_scalar(unqual)) return true;
   if (is_reference(unqual)) return true;
-  if (is_array(unqual)) return true;
+  if (is_array(unqual)) return is_literal_type(remove_all_extents(unqual));
   if (auto classType = type_cast<ClassType>(unqual)) {
     auto cls = classType->definition();
     requireCompleteClass(cls);
     if (!cls || !cls->isComplete()) return false;
-    auto dtor = cls->destructor();
-    if (dtor && !dtor->isDefaulted() && !dtor->isDeleted()) return false;
+    auto destructor = cls->destructor();
+    auto hasConstexprDestructor = !destructor;
+    if (destructor && destructor->isDefaulted()) hasConstexprDestructor = true;
+    if (destructor && destructor->isConstexpr()) hasConstexprDestructor = true;
+    if (!hasConstexprDestructor) return false;
+
+    for (auto base : cls->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass) continue;
+      if (!is_literal_type(baseClass->type())) return false;
+    }
+
+    auto hasVariant = false;
+    auto hasLiteralVariant = false;
+    for (auto field : cls->members() | views::non_static_fields) {
+      hasVariant = true;
+      if (is_volatile(field->type())) {
+        if (!cls->isUnion()) return false;
+        continue;
+      }
+      auto fieldIsLiteral = is_literal_type(field->type());
+      if (!cls->isUnion() && !fieldIsLiteral) return false;
+      if (cls->isUnion() && fieldIsLiteral) hasLiteralVariant = true;
+    }
+    if (cls->isUnion() && hasVariant && !hasLiteralVariant) return false;
+
+    if (cls->isClosureType() || is_aggregate(unqual)) return true;
+
+    for (auto constructor : cls->constructors()) {
+      if (constructor->isDeleted()) continue;
+      if (constructor == cls->copyConstructor()) continue;
+      if (constructor == cls->moveConstructor()) continue;
+      if (constructor->isConstexpr()) return true;
+    }
+
+    auto defaultConstructor = cls->defaultConstructor();
+    if (!defaultConstructor || defaultConstructor->isDeleted()) return false;
+    if (!defaultConstructor->isDefaulted()) return false;
+
+    for (auto base : cls->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass) continue;
+      baseClass = baseClass->resolvedDefinition();
+      auto baseConstructor = baseClass->defaultConstructor();
+      if (!baseConstructor || baseConstructor->isDeleted()) return false;
+      if (!baseConstructor->isConstexpr() && !baseConstructor->isDefaulted())
+        return false;
+    }
+
+    for (auto field : cls->members() | views::non_static_fields) {
+      if (field->initializer()) continue;
+      auto fieldType = remove_all_extents(remove_cv(field->type()));
+      auto fieldClassType = type_cast<ClassType>(fieldType);
+      if (!fieldClassType) continue;
+      auto fieldConstructor =
+          fieldClassType->definition()->defaultConstructor();
+      if (!fieldConstructor || fieldConstructor->isDeleted()) return false;
+      if (!fieldConstructor->isConstexpr() && !fieldConstructor->isDefaulted())
+        return false;
+    }
     return true;
   }
   return false;
+}
+
+auto TypeTraits::aggregate_elements(ClassSymbol* classSymbol) const
+    -> std::vector<Symbol*> {
+  std::vector<Symbol*> elements;
+  for (auto base : classSymbol->baseClasses()) elements.push_back(base);
+  for (auto field : views::members(classSymbol) | views::non_static_fields)
+    elements.push_back(field);
+  return elements;
 }
 
 auto TypeTraits::is_aggregate(const Type* type) -> bool {
@@ -1678,10 +2224,17 @@ auto TypeTraits::is_aggregate(const Type* type) -> bool {
   auto cls = classType->definition();
   requireCompleteClass(cls);
   if (!cls || !cls->isComplete()) return false;
-  if (cls->hasUserDeclaredConstructors()) return false;
   if (cls->hasInheritedConstructors()) return false;
   if (cls->hasVirtualFunctions()) return false;
   if (cls->hasVirtualBaseClasses()) return false;
+  if (cls->hasUserDeclaredConstructors()) return false;
+  for (auto field : cls->members() | views::non_static_fields) {
+    if (field->accessSpecifier() != AccessSpecifier::kPublic) return false;
+  }
+  for (auto base : cls->baseClasses()) {
+    if (base->isVirtual()) return false;
+    if (base->accessSpecifier() != AccessSpecifier::kPublic) return false;
+  }
   return true;
 }
 
@@ -1730,9 +2283,8 @@ auto TypeTraits::selectConstructor(ClassSymbol* classSymbol,
 
   for (auto argType : argTypes) {
     if (!argType) return nullptr;
-    const auto valueCategory = is_lvalue_reference(argType)
-                                   ? ValueCategory::kLValue
-                                   : ValueCategory::kXValue;
+    auto valueCategory = ValueCategory::kXValue;
+    if (is_lvalue_reference(argType)) valueCategory = ValueCategory::kLValue;
     args.push_back(ThisExpressionAST::create(unit_->arena(), valueCategory,
                                              remove_reference(argType)));
   }
@@ -1769,28 +2321,13 @@ auto TypeTraits::is_constructible(const Type* type,
     requireCompleteClass(cls);
     if (!cls || !cls->isComplete()) return false;
 
-    if (argTypes.empty()) {
-      auto defCtor = cls->defaultConstructor();
-      if (!defCtor) return !cls->hasUserDeclaredConstructors();
-      return !defCtor->isDeleted();
-    }
-
-    if (argTypes.size() == 1) {
-      auto argUnqual = remove_cvref(argTypes[0]);
-      if (is_same(argUnqual, unqual)) {
-        if (is_rvalue_reference(argTypes[0]) ||
-            (!is_reference(argTypes[0]) && !is_const(argTypes[0]))) {
-          auto moveCtor = cls->moveConstructor();
-          if (moveCtor && !moveCtor->isDeleted()) return true;
-        }
-        auto copyCtor = cls->copyConstructor();
-        if (copyCtor && !copyCtor->isDeleted()) return true;
-        if (!cls->hasUserDeclaredConstructors()) return true;
-      }
-    }
-
     auto selected = selectConstructor(cls, argTypes);
-    return selected && !selected->isDeleted();
+    if (!selected || selected->isDeleted()) return false;
+    if (cls->isAbstract()) return false;
+    if (!is_accessible_from_unrelated_context(selected)) return false;
+    auto destructor = cls->destructor();
+    if (destructor && destructor->isDeleted()) return false;
+    return is_accessible_from_unrelated_context(destructor);
   }
 
   if (is_void(unqual)) return false;
@@ -1806,8 +2343,10 @@ auto TypeTraits::is_nothrow_constructible(const Type* type,
 
   if (!is_constructible(type, argTypes)) return false;
 
-  if (is_reference(unqual)) return true;
-  if (is_scalar(unqual)) return true;
+  if (is_reference(unqual) || is_scalar(unqual)) {
+    if (argTypes.empty()) return true;
+    return is_nothrow_initialization(unqual, argTypes.front(), true);
+  }
 
   if (is_array(unqual))
     return is_nothrow_constructible(remove_all_extents(unqual), argTypes);
@@ -1817,43 +2356,51 @@ auto TypeTraits::is_nothrow_constructible(const Type* type,
     requireCompleteClass(cls);
     if (!cls || !cls->isComplete()) return false;
 
-    auto selected = selectConstructor(cls, argTypes);
-    if (!selected) return !cls->hasUserDeclaredConstructors();
-    if (selected->isDeleted()) return false;
-
-    auto ctorType = type_cast<FunctionType>(selected->type());
-    return ctorType && ctorType->isNoexcept();
+    std::vector<ExpressionAST*> args;
+    args.reserve(argTypes.size());
+    for (auto argType : argTypes) {
+      auto category = ValueCategory::kXValue;
+      if (is_lvalue_reference(argType)) category = ValueCategory::kLValue;
+      args.push_back(ThisExpressionAST::create(unit_->arena(), category,
+                                               remove_reference(argType)));
+    }
+    auto result = OverloadResolution{unit_}.resolveConstructor(cls, args);
+    if (result.ambiguous || !result.best) return false;
+    auto selected = result.best->symbol;
+    if (!selected || selected->isDeleted()) return false;
+    if (!is_nothrow_function(selected)) return false;
+    if (!is_nothrow_function(cls->destructor())) return false;
+    for (const auto& conversion : result.best->conversions) {
+      if (!is_nothrow_function(conversion.userDefinedConversionFunction))
+        return false;
+    }
+    return true;
   }
 
   return false;
 }
 
-auto TypeTraits::is_trivially_constructible(const Type* type) -> bool {
+auto TypeTraits::is_trivially_constructible(
+    const Type* type, std::span<const Type* const> argTypes) -> bool {
+  if (!is_constructible(type, argTypes)) return false;
   auto unqual = remove_cv(type);
-  if (is_scalar(unqual)) return true;
+  if (is_reference(unqual) || is_scalar(unqual)) {
+    if (argTypes.empty()) return true;
+    return is_trivial_initialization(unqual, argTypes.front(), true);
+  }
   if (auto classType = type_cast<ClassType>(unqual)) {
     auto cls = classType->definition();
     requireCompleteClass(cls);
     if (!cls || !cls->isComplete()) return false;
-    auto defCtor = cls->defaultConstructor();
-    if (isUserProvided(defCtor)) return false;
-    if (cls->isPolymorphic()) return false;
-    if (cls->hasVirtualBaseClasses()) return false;
-    for (auto base : cls->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass) continue;
-      if (!is_trivially_constructible(baseClass->type())) return false;
-    }
-    for (auto field : cls->members() | views::non_static_fields) {
-      auto fieldType = remove_all_extents(remove_cv(field->type()));
-      if (auto ct = type_cast<ClassType>(fieldType)) {
-        if (!is_trivially_constructible(ct->symbol()->type())) return false;
-      }
-    }
-    return true;
+    if (!has_trivial_destructor(unqual)) return false;
+    auto constructor = selectConstructor(cls, argTypes);
+    if (!constructor || isUserProvided(constructor)) return false;
+    auto kind = constructorKind(cls, constructor);
+    if (!kind) return false;
+    return has_trivial_constructor(*this, cls, *kind);
   }
   if (is_array(unqual)) {
-    return is_trivially_constructible(remove_all_extents(unqual));
+    return is_trivially_constructible(remove_all_extents(unqual), {});
   }
   return false;
 }
@@ -1863,9 +2410,8 @@ auto TypeTraits::selectAssignmentOperator(const Type* to, const Type* from)
   if (!to || !from) return nullptr;
 
   auto makeOperand = [&](const Type* type) {
-    const auto valueCategory = is_lvalue_reference(type)
-                                   ? ValueCategory::kLValue
-                                   : ValueCategory::kXValue;
+    auto valueCategory = ValueCategory::kXValue;
+    if (is_lvalue_reference(type)) valueCategory = ValueCategory::kLValue;
     return ThisExpressionAST::create(unit_->arena(), valueCategory,
                                      remove_reference(type));
   };
@@ -1879,6 +2425,7 @@ auto TypeTraits::selectAssignmentOperator(const Type* to, const Type* from)
 
   if (resolution.wasLastLookupAmbiguous()) return nullptr;
   if (selected && selected->isDeleted()) return nullptr;
+  if (!is_accessible_from_unrelated_context(selected)) return nullptr;
   return selected;
 }
 
@@ -1906,40 +2453,36 @@ auto TypeTraits::is_nothrow_assignable(const Type* to, const Type* from)
     -> bool {
   if (!is_assignable(to, from)) return false;
 
-  if (!type_cast<ClassType>(remove_cvref(to))) return true;
+  if (!type_cast<ClassType>(remove_cvref(to))) {
+    return is_nothrow_initialization(remove_reference(to), from, false);
+  }
 
   auto selected = selectAssignmentOperator(to, from);
   if (!selected) return false;
 
+  if (!is_nothrow_function(selected)) return false;
   auto assignmentType = type_cast<FunctionType>(selected->type());
-  return assignmentType && assignmentType->isNoexcept();
+  if (!assignmentType || assignmentType->parameterTypes().empty()) return true;
+  return is_nothrow_initialization(assignmentType->parameterTypes().front(),
+                                   from, false);
 }
 
-auto TypeTraits::is_trivially_assignable(const Type* from, const Type* to)
+auto TypeTraits::is_trivially_assignable(const Type* to, const Type* from)
     -> bool {
-  if (!to) return false;
-  auto unqual = remove_cvref(from);
-  if (is_scalar(unqual)) return true;
+  if (!is_assignable(to, from)) return false;
+  auto unqual = remove_cvref(to);
+  if (is_scalar(unqual))
+    return is_trivial_initialization(remove_reference(to), from, false);
   if (auto classType = type_cast<ClassType>(unqual)) {
     auto cls = classType->definition();
     requireCompleteClass(cls);
     if (!cls || !cls->isComplete()) return false;
-    if (is_lvalue_reference(to)) {
-      auto inner = remove_cv(remove_reference(to));
-      if (is_same(inner, unqual)) {
-        auto op = cls->copyAssignmentOperator();
-        if (!op || isUserProvided(op)) return false;
-        return is_trivially_copyable_class(*this, cls);
-      }
-    }
-    if (is_rvalue_reference(to)) {
-      auto inner = remove_reference(to);
-      if (is_same(inner, unqual)) {
-        auto op = cls->moveAssignmentOperator();
-        if (!op || isUserProvided(op)) return false;
-        return is_trivially_copyable_class(*this, cls);
-      }
-    }
+    auto selected = selectAssignmentOperator(to, from);
+    if (!selected) return false;
+    if (selected == cls->copyAssignmentOperator())
+      return has_trivial_assignment(*this, cls, TrivialAssignmentKind::kCopy);
+    if (selected == cls->moveAssignmentOperator())
+      return has_trivial_assignment(*this, cls, TrivialAssignmentKind::kMove);
     return false;
   }
   return false;
@@ -1985,7 +2528,7 @@ auto TypeTraits::is_destructible(const Type* type) -> bool {
 
     auto dtor = cls->destructor();
     if (dtor && dtor->isDeleted()) return false;
-    return true;
+    return is_accessible_from_unrelated_context(dtor);
   }
 
   if (is_enum(unqual)) return true;
@@ -2015,7 +2558,7 @@ auto TypeTraits::is_nothrow_destructible(const Type* type) -> bool {
   return !destructorType || destructorType->isNoexcept();
 }
 
-auto TypeTraits::is_trivially_destructible(const Type* type) -> bool {
+auto TypeTraits::has_trivial_destructor(const Type* type) -> bool {
   auto unqual = remove_cv(type);
   if (is_reference(unqual)) return true;
   if (is_void(unqual)) return false;
@@ -2025,10 +2568,17 @@ auto TypeTraits::is_trivially_destructible(const Type* type) -> bool {
     return is_trivially_destructible(remove_all_extents(unqual));
   if (is_scalar(unqual)) return true;
   if (auto classType = type_cast<ClassType>(unqual)) {
-    return is_trivial(classType);
+    auto cls = classType->definition();
+    requireCompleteClass(cls);
+    return is_trivially_destructible_class(*this, cls);
   }
   if (is_enum(unqual)) return true;
   return false;
+}
+
+auto TypeTraits::is_trivially_destructible(const Type* type) -> bool {
+  if (!is_destructible(type)) return false;
+  return has_trivial_destructor(type);
 }
 
 auto TypeTraits::has_virtual_destructor(const Type* type) -> bool {

@@ -24,7 +24,9 @@
 #include <cxx/ast.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/util.h>
 
 #include <cstring>
@@ -86,6 +88,7 @@ struct ConstValueHash {
       -> std::size_t {
     return std::hash<std::string>{}(value->name());
   }
+  auto operator()(IndeterminateValue) const -> std::size_t { return 0; }
 };
 
 struct TemplateArgumentHash {
@@ -166,6 +169,55 @@ struct ConvertToName {
     -> const Name* {
   if (!id) return nullptr;
   return visit(ConvertToName{control}, id);
+}
+
+auto get_name_location(IdExpressionAST* ast) -> SourceLocation {
+  if (ast->unqualifiedId) return ast->unqualifiedId->firstSourceLocation();
+  return ast->firstSourceLocation();
+}
+
+auto get_name_location(MemberExpressionAST* ast) -> SourceLocation {
+  if (ast->unqualifiedId) return ast->unqualifiedId->firstSourceLocation();
+  return ast->firstSourceLocation();
+}
+
+auto get_name_location(DotDesignatorAST* ast) -> SourceLocation {
+  if (ast->identifierLoc) return ast->identifierLoc;
+  return ast->firstSourceLocation();
+}
+
+namespace {
+[[nodiscard]] auto builtinFunctionKindOf(TranslationUnit* unit,
+                                         FunctionSymbol* function)
+    -> BuiltinFunctionKind {
+  if (!function) return BuiltinFunctionKind::T_NONE;
+
+  auto loc = function->location();
+  if (!loc) return BuiltinFunctionKind::T_NONE;
+
+  if (unit->tokenAt(loc).fileId() != unit->preprocessor()->builtinsFileId())
+    return BuiltinFunctionKind::T_NONE;
+
+  return unit->tokenAt(loc).builtinFunction();
+}
+}  // namespace
+
+auto resolveBuiltinFunctionKind(TranslationUnit* unit, IdExpressionAST* idExpr)
+    -> BuiltinFunctionKind {
+  if (!idExpr) return BuiltinFunctionKind::T_NONE;
+
+  if (auto function = symbol_cast<FunctionSymbol>(idExpr->symbol)) {
+    return builtinFunctionKindOf(unit, function);
+  }
+
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(idExpr->symbol)) {
+    for (auto function : overloadSet->declaredFunctions()) {
+      auto kind = builtinFunctionKindOf(unit, function);
+      if (kind != BuiltinFunctionKind::T_NONE) return kind;
+    }
+  }
+
+  return BuiltinFunctionKind::T_NONE;
 }
 
 Name::~Name() = default;

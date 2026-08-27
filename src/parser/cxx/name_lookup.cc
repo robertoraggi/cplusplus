@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/binder.h>
 #include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
@@ -173,7 +174,8 @@ auto lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
 
 auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
                       std::vector<ScopeSymbol*>& visited,
-                      bool tagsAreTypes = true) -> Symbol* {
+                      bool tagsAreTypes = true,
+                      bool discardHiddenClassNames = false) -> Symbol* {
   if (auto cls = symbol_cast<ClassSymbol>(scope)) {
     scope = cls->resolvedDefinition();
   }
@@ -182,12 +184,13 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
   visited.push_back(scope);
 
   Symbol* fallback = nullptr;
+  bool foundOtherDeclaration = false;
   for (auto candidate : scope->find(id)) {
     if (candidate->isHidden()) continue;
 
     if (auto u = symbol_cast<UsingDeclarationSymbol>(candidate);
         u && u->target()) {
-      candidate = u->target();
+      candidate = resolve_using_declaration(candidate);
     }
 
     if (is_type(candidate) || candidate->isNamespace()) {
@@ -198,8 +201,15 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
 
       if (symbol_cast<TypeAliasSymbol>(candidate)) return candidate;
       if (!fallback) fallback = candidate;
+    } else if (bindsName(candidate)) {
+      foundOtherDeclaration = true;
     }
   }
+
+  if (discardHiddenClassNames && foundOtherDeclaration &&
+      is_class_or_enum_declaration(fallback))
+    fallback = nullptr;
+
   if (fallback) return fallback;
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
@@ -242,9 +252,10 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
     case SymbolKind::kUsingDeclaration: {
       auto ud = symbol_cast<UsingDeclarationSymbol>(symbol);
       if (!ud->target()) return nullptr;
-      if (auto cls = symbol_cast<ClassSymbol>(ud->target())) return cls;
-      if (auto en = symbol_cast<EnumSymbol>(ud->target())) return en;
-      if (auto se = symbol_cast<ScopedEnumSymbol>(ud->target())) return se;
+      auto target = resolve_using_declaration(symbol);
+      if (auto cls = symbol_cast<ClassSymbol>(target)) return cls;
+      if (auto en = symbol_cast<EnumSymbol>(target)) return en;
+      if (auto se = symbol_cast<ScopedEnumSymbol>(target)) return se;
       return nullptr;
     }
 
@@ -255,11 +266,13 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
 }  // namespace
 
 auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id,
-                           bool tagsAreTypes) -> Symbol* {
+                           bool tagsAreTypes, bool discardHiddenClassNames)
+    -> Symbol* {
   std::vector<ScopeSymbol*> visited;
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     if (!sc->symbol) continue;
-    if (auto s = lookupTypeHelper(sc->symbol, id, visited, tagsAreTypes))
+    if (auto s = lookupTypeHelper(sc->symbol, id, visited, tagsAreTypes,
+                                  discardHiddenClassNames))
       return s;
   }
   return nullptr;
@@ -357,6 +370,15 @@ auto mergeInlineNamespaceOverloads(Control* control, NamespaceSymbol* scope,
   return merged;
 }
 
+auto qualifiedLookupIncludingInlineNamespaces(Control* control,
+                                              Symbol* scopeOrAlias,
+                                              const Name* name) -> Symbol* {
+  auto symbol = qualifiedLookup(scopeOrAlias, name);
+  auto ns = symbol_cast<NamespaceSymbol>(scopeOrAlias);
+  if (!ns) return symbol;
+  return mergeInlineNamespaceOverloads(control, ns, name, symbol);
+}
+
 auto designatedFunction(Symbol* symbol) -> FunctionSymbol* {
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) return function;
 
@@ -387,6 +409,30 @@ auto isPureFriend(FunctionSymbol* func) -> bool {
   return true;
 }
 
+auto bindsName(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+
+  if (auto function = symbol_cast<FunctionSymbol>(symbol))
+    return !isPureFriend(function);
+
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+    const auto& functions = overloadSet->declaredFunctions();
+    if (functions.empty()) return true;
+    return !std::ranges::all_of(functions, isPureFriend);
+  }
+
+  return true;
+}
+
+void addOverloadCandidate(std::vector<FunctionSymbol*>& candidates,
+                          FunctionSymbol* function) {
+  if (!function) return;
+  if (function->isSpecialization()) return;
+  auto canonical = function->canonical();
+  if (std::ranges::contains(candidates, canonical)) return;
+  candidates.push_back(canonical);
+}
+
 auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
                              std::span<const Type* const> argumentTypes)
     -> std::vector<FunctionSymbol*> {
@@ -401,14 +447,12 @@ auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
   for (auto argType : argumentTypes) collector.collect(argType);
 
   auto addCandidate = [&](FunctionSymbol* func) {
-    if (func->isSpecialization()) return;
     if (!func->templateDeclaration() && isDependent(unit, func->type())) return;
     if (isPureFriend(func)) {
       auto befriending = symbol_cast<ClassSymbol>(func->parent());
       if (!befriending || !std::ranges::contains(classes, befriending)) return;
     }
-    auto canonical = func->canonical();
-    if (!std::ranges::contains(result, canonical)) result.push_back(canonical);
+    addOverloadCandidate(result, func);
   };
 
   for (auto ns : namespaces) {
@@ -435,6 +479,15 @@ auto isArgumentDependentCallee(Symbol* symbol) -> bool {
   return overloadSet && overloadSet->declaredFunctions().empty() &&
          overloadSet->usingDeclarations().empty();
 }
+
+namespace {
+void declareGlobalFunction(TranslationUnit* unit, ScopeSymbol* globalScope,
+                           const Name* name, FunctionSymbol* function) {
+  Binder binder{unit};
+  auto overloadSet = binder.overloadSetFor(globalScope, name, {});
+  overloadSet->addFunction(function);
+}
+}  // namespace
 
 auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
                                 bool isArrayDelete) -> FunctionSymbol* {
@@ -468,7 +521,7 @@ auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
   fn->setType(
       control->getFunctionType(voidType, {control->getPointerType(voidType)}));
   fn->setLanguageLinkage(LanguageKind::kCXX);
-  globalScope->addSymbol(fn);
+  declareGlobalFunction(unit, globalScope, name, fn);
   return fn;
 }
 
@@ -496,7 +549,7 @@ auto findOrDeclareGlobalAllocationFunction(
   fn->setName(name);
   fn->setType(control->getFunctionType(returnType, std::move(parameterTypes)));
   fn->setLanguageLinkage(LanguageKind::kCXX);
-  globalScope->addSymbol(fn);
+  declareGlobalFunction(unit, globalScope, name, fn);
   return fn;
 }
 
@@ -510,9 +563,9 @@ auto resolveBuiltinOperatorDelete(TranslationUnit* unit,
 
   std::vector<const Type*> parameterTypes;
   parameterTypes.push_back(control->getPointerType(voidType));
-  if (argumentTypes.size() >= 2)
-    parameterTypes.push_back(control->getSizeType());
-  if (argumentTypes.size() >= 3) parameterTypes.push_back(argumentTypes[2]);
+  for (auto argumentType :
+       argumentTypes.subspan(std::min<std::size_t>(1, argumentTypes.size())))
+    parameterTypes.push_back(argumentType);
 
   return findOrDeclareGlobalAllocationFunction(
       unit, TokenKind::T_DELETE, voidType, std::move(parameterTypes));

@@ -30,11 +30,11 @@ A<void*> a2;
 // CHECK-NEXT:    typealias type-param<0, 0>& reference
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class A<int>
-// CHECK-NEXT:        constructor defaulted void A()
-// CHECK-NEXT:        constructor defaulted void A(const ::A<int>&)
+// CHECK-NEXT:        constructor inline defaulted void A()
+// CHECK-NEXT:        constructor inline defaulted void A(const ::A<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<int>&
-// CHECK-NEXT:        constructor defaulted void A(::A<int>&&)
+// CHECK-NEXT:        constructor inline defaulted void A(::A<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<int>&&
 // CHECK-NEXT:        injected class name A
@@ -46,19 +46,19 @@ A<void*> a2;
 // CHECK-NEXT:            parameter const int& a
 // CHECK-NEXT:        typealias int type
 // CHECK-NEXT:        typealias int& reference
-// CHECK-NEXT:        function defaulted ::A<int>& operator =(const ::A<int>&)
+// CHECK-NEXT:        function inline defaulted ::A<int>& operator =(const ::A<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<int>&
-// CHECK-NEXT:        function defaulted ::A<int>& operator =(::A<int>&&)
+// CHECK-NEXT:        function inline defaulted ::A<int>& operator =(::A<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<int>&&
-// CHECK-NEXT:        function defaulted void ~A()
+// CHECK-NEXT:        function inline defaulted void ~A()
 // CHECK-NEXT:      class A<void*>
-// CHECK-NEXT:        constructor defaulted void A()
-// CHECK-NEXT:        constructor defaulted void A(const ::A<void*>&)
+// CHECK-NEXT:        constructor inline defaulted void A()
+// CHECK-NEXT:        constructor inline defaulted void A(const ::A<void*>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<void*>&
-// CHECK-NEXT:        constructor defaulted void A(::A<void*>&&)
+// CHECK-NEXT:        constructor inline defaulted void A(::A<void*>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<void*>&&
 // CHECK-NEXT:        injected class name A
@@ -70,12 +70,12 @@ A<void*> a2;
 // CHECK-NEXT:            parameter void* const& a
 // CHECK-NEXT:        typealias void* type
 // CHECK-NEXT:        typealias void*& reference
-// CHECK-NEXT:        function defaulted ::A<void*>& operator =(const ::A<void*>&)
+// CHECK-NEXT:        function inline defaulted ::A<void*>& operator =(const ::A<void*>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<void*>&
-// CHECK-NEXT:        function defaulted ::A<void*>& operator =(::A<void*>&&)
+// CHECK-NEXT:        function inline defaulted ::A<void*>& operator =(::A<void*>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<void*>&&
-// CHECK-NEXT:        function defaulted void ~A()
+// CHECK-NEXT:        function inline defaulted void ~A()
 // CHECK-NEXT:  variable ::A<int> a1
 // CHECK-NEXT:  variable ::A<void*> a2

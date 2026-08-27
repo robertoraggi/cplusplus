@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import * as path from "node:path";
-import type { MetaModel, Type, Request, Notification } from "./MetaModel.ts";
+import type { MetaModel, Type, Request, Notification, TypeAlias } from "./MetaModel.ts";
 import { getEnumBaseType, toCppType, isRequest } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.ts";
@@ -77,7 +77,7 @@ public:
   [[nodiscard]] explicit operator bool() const { return repr_ && repr_->is_array(); }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
-  [[nodiscard]] auto at(int index) const -> T { return T(repr_->at(index)); }
+  [[nodiscard]] auto at(int index) const -> T { return repr_->at(index).get<T>(); }
 
   template <typename... Args>
   void emplace_back(Args&&... args) { repr_->emplace_back(std::forward<Args>(args)...); }
@@ -116,7 +116,7 @@ template <>
 struct TryEmplace<bool> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_boolean()) return false;
-    result.template emplace<bool>(value);
+    result.template emplace<bool>(value.get<bool>());
     return true;
   }
 };
@@ -125,7 +125,7 @@ template <>
 struct TryEmplace<int> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result.template emplace<int>(value);
+    result.template emplace<int>(value.get<int>());
     return true;
   }
 };
@@ -134,7 +134,7 @@ template <>
 struct TryEmplace<long> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result.template emplace<long>(value);
+    result.template emplace<long>(value.get<long>());
     return true;
   }
 };
@@ -143,7 +143,7 @@ template <>
 struct TryEmplace<double> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_float()) return false;
-    result.template emplace<double>(value);
+    result.template emplace<double>(value.get<double>());
     return true;
   }
 };
@@ -152,7 +152,7 @@ template <>
 struct TryEmplace<std::string> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_string()) return false;
-    result.template emplace<std::string>(value);
+    result.template emplace<std::string>(value.get<std::string>());
     return true;
   }
 };
@@ -200,7 +200,7 @@ class Vector<std::string> final : public LSPObject {
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(int index) const -> std::string {
-    return repr_->at(index);
+    return repr_->at(index).get<std::string>();
   }
 
   template <typename... Args>
@@ -260,7 +260,11 @@ public:
   [[nodiscard]] explicit operator bool() const { return repr_ && repr_->is_object(); }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
-  [[nodiscard]] auto at(const Key& key) const -> const Value& { return repr_->at(key); }
+  [[nodiscard]] auto at(const Key& key) const -> Value {
+    auto& value = repr_->at(key);
+    if constexpr (std::derived_from<Value, LSPObject>) return Value(value);
+    return value.template get<Value>();
+  }
 };
 
 template <typename Key, typename... Ts>
@@ -311,10 +315,46 @@ function dependenciesHelper(type: Type, deps: Set<string>) {
 function dependencies(type: Type): Set<string> {
   const deps = new Set<string>();
   dependenciesHelper(type, deps);
-  if (type.kind === "reference") {
-    deps.delete(type.name);
-  }
   return deps;
+}
+
+export function orderTypeAliases(model: MetaModel): TypeAlias[] {
+  const knownTypes = new Set<string>();
+  model.enumerations.forEach((enumeration) => knownTypes.add(enumeration.name));
+  model.structures.forEach((structure) => knownTypes.add(structure.name));
+
+  const builtinTypes = new Set(["LSPAny", "LSPObject", "LSPArray", "Pattern"]);
+  builtinTypes.forEach((name) => knownTypes.add(name));
+
+  let todo = model.typeAliases.filter((typeAlias) => !builtinTypes.has(typeAlias.name));
+  const ordered: TypeAlias[] = [];
+
+  while (todo.length > 0) {
+    const pending: Array<{ typeAlias: TypeAlias; unknownDeps: string[] }> = [];
+
+    for (const typeAlias of todo) {
+      const deps = Array.from(dependencies(typeAlias.type));
+      const unknownDeps = deps.filter((dep) => !knownTypes.has(dep));
+      if (unknownDeps.length > 0) {
+        pending.push({ typeAlias, unknownDeps });
+        continue;
+      }
+
+      ordered.push(typeAlias);
+      knownTypes.add(typeAlias.name);
+    }
+
+    if (pending.length === todo.length) {
+      const details = pending.map(
+        ({ typeAlias, unknownDeps }) => `${typeAlias.name}: ${unknownDeps.join(", ")}`,
+      );
+      throw new Error(`Cannot resolve type aliases: ${details.join("; ")}`);
+    }
+
+    todo = pending.map(({ typeAlias }) => typeAlias);
+  }
+
+  return ordered;
 }
 
 export function gen_fwd_h({ model, outputDirectory }: { model: MetaModel; outputDirectory: string }) {
@@ -329,13 +369,11 @@ export function gen_fwd_h({ model, outputDirectory }: { model: MetaModel; output
   emit();
   emit(`#pragma once`);
   emit();
-  emit(`#include <nlohmann/json.hpp>`);
+  emit(`#include <cxx/lsp/json.h>`);
   emit(`#include <concepts>`);
   emit(`#include <variant>`);
   emit();
   emit(`namespace cxx::lsp {`);
-  emit();
-  emit(`using json = nlohmann::json;`);
   emit();
   model.enumerations.forEach((enumeration) => {
     const enumBaseType = getEnumBaseType(enumeration);
@@ -356,39 +394,9 @@ export function gen_fwd_h({ model, outputDirectory }: { model: MetaModel; output
   });
   emit();
 
-  const knownTypes = new Set<string>();
-  model.enumerations.forEach((enumeration) => knownTypes.add(enumeration.name));
-  model.structures.forEach((structure) => knownTypes.add(structure.name));
-  // add builtins
-  knownTypes.add("LSPAny");
-  knownTypes.add("LSPObject");
-  knownTypes.add("LSPArray");
-  knownTypes.add("Pattern");
-  knownTypes.add("DocumentFilter");
-  knownTypes.add("TextDocumentFilter");
-
-  const todo = model.typeAliases.map((typeAlias) => typeAlias);
-
-  const builtinTypes = new Set(["LSPAny", "LSPObject", "LSPArray", "Pattern"]);
-
   emit(fragment);
 
-  while (todo.length > 0) {
-    const typeAlias = todo.pop()!;
-    const deps = Array.from(dependencies(typeAlias.type));
-    const hasUnknownDeps = deps.some((dep) => !knownTypes.has(dep));
-    if (hasUnknownDeps) {
-      const unknownDeps = deps.filter((dep) => !knownTypes.has(dep));
-      console.log(`unknown ${unknownDeps} for type alias ${typeAlias.name}`);
-      todo.unshift(typeAlias);
-      continue;
-    }
-
-    if (builtinTypes.has(typeAlias.name)) {
-      // skip builtins
-      continue;
-    }
-
+  for (const typeAlias of orderTypeAliases(model)) {
     const cppType = toCppType(typeAlias.type);
     emit();
     emit(`using ${typeAlias.name} = ${cppType};`);

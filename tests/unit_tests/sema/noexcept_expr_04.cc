@@ -43,7 +43,6 @@ struct Base {
 struct Derived : Base {};
 Base* bp = nullptr;
 
-// expected-warning@+1 {{dynamic_cast is not supported yet}}
 static_assert(noexcept(dynamic_cast<Derived*>(bp)));
 
 static_assert(noexcept((int)1.0));

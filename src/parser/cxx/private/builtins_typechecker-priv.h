@@ -259,8 +259,110 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_C23_VA_START:
       return checkBuiltinVaListAccess(ast);
 
+    case BuiltinFunctionKind::T___C11_ATOMIC_INIT:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_STORE:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_LOAD:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_EXCHANGE:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_COMPARE_EXCHANGE_STRONG:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_COMPARE_EXCHANGE_WEAK:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_ADD:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_SUB:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_OR:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_AND:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_XOR:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_NAND:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_LOAD_N:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_LOAD:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_STORE_N:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_STORE:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_EXCHANGE_N:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_EXCHANGE:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE_N:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_ADD_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_SUB_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_AND_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_XOR_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_OR_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_NAND_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_ADD:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_SUB:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_AND:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_XOR:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_OR:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_NAND:
+      return checkBuiltinAtomic(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
       return checkBuiltinAssumeAligned(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_OPERATOR_NEW:
+      return checkBuiltinOperatorNew(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_OPERATOR_DELETE:
+      return checkBuiltinOperatorDelete(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_INVOKE:
       return checkBuiltinInvoke(ast);

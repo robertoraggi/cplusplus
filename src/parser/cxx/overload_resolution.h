@@ -30,6 +30,7 @@
 
 #include <expected>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -99,9 +100,6 @@ struct ConstructorResult {
 [[nodiscard]] auto templateCandidateArityRejects(FunctionSymbol* pattern,
                                                  int argCount) -> bool;
 
-[[nodiscard]] auto functionTemplateHasPackParameter(FunctionSymbol* pattern)
-    -> bool;
-
 [[nodiscard]] auto compareFunctionTemplateSpecializations(
     TranslationUnit* unit, FunctionSymbol* candidate, FunctionSymbol* other)
     -> int;
@@ -135,6 +133,16 @@ class OverloadResolution {
 
   [[nodiscard]] auto findCandidates(ScopeSymbol* scope, const Name* name) const
       -> std::vector<FunctionSymbol*>;
+
+  [[nodiscard]] auto buildCallCandidate(
+      FunctionSymbol* function, const FunctionType* type,
+      std::span<ExpressionAST* const> args,
+      std::vector<RejectedCandidate>* rejected = nullptr)
+      -> std::optional<Candidate>;
+
+  [[nodiscard]] auto resolveCall(const std::vector<FunctionSymbol*>& candidates,
+                                 std::span<ExpressionAST* const> args,
+                                 bool* ambiguous = nullptr) -> FunctionSymbol*;
 
   [[nodiscard]] auto collectCandidates(Symbol* symbol) const
       -> std::vector<FunctionSymbol*>;
@@ -178,9 +186,6 @@ class OverloadResolution {
       const std::vector<FunctionSymbol*>& candidates, const Type* type,
       const Type* rightType, ExpressionAST* leftExpr = nullptr,
       ExpressionAST* rightExpr = nullptr) -> FunctionSymbol*;
-
-  void completeDeferredWinnerBody(
-      FunctionSymbol* winner, List<TemplateArgumentAST*>* deducedTemplateArgs);
 
   TranslationUnit* unit_;
   TypeTraits traits;

@@ -60,6 +60,7 @@ struct ImplicitConversionSequence {
   const Type* secondStandardConversionTarget = nullptr;
 
   bool fromSingleElementList = false;
+  bool narrowsListElement = false;
   bool bindsToRvalueRef = false;
   bool bindsToReference = false;
   bool bindsUnqualifiedImplicitObjectParameter = false;

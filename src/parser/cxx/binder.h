@@ -58,6 +58,10 @@ class Binder {
     SourceLocation location = {};
   };
 
+  [[nodiscard]] auto overloadSetFor(ScopeSymbol* scope, const Name* name,
+                                    SourceLocation location)
+      -> OverloadSetSymbol*;
+
   explicit Binder(TranslationUnit* unit);
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
@@ -71,14 +75,9 @@ class Binder {
     std::unordered_map<FunctionSymbol*, int> lambdaDiscriminators;
   };
 
-  [[nodiscard]] auto closureNamingState() const -> ClosureNamingState {
-    return {lambdaCount_, lambdaDiscriminators_};
-  }
+  [[nodiscard]] auto closureNamingState() const -> ClosureNamingState;
 
-  void setClosureNamingState(ClosureNamingState state) {
-    lambdaCount_ = state.lambdaCount;
-    lambdaDiscriminators_ = std::move(state.lambdaDiscriminators);
-  }
+  void setClosureNamingState(ClosureNamingState state);
 
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
@@ -102,6 +101,39 @@ class Binder {
 
   [[nodiscard]] auto declaringScope() const -> ScopeSymbol*;
 
+  struct ClassBodyState {
+    ClassSymbol* classSymbol = nullptr;
+    AccessSpecifier defaultAccessSpecifier = AccessSpecifier::kPublic;
+    AccessSpecifier accessSpecifier = AccessSpecifier::kPublic;
+  };
+
+  struct ClassBodyGuard {
+    ClassBodyGuard(const ClassBodyGuard&) = delete;
+    auto operator=(const ClassBodyGuard&) -> ClassBodyGuard& = delete;
+
+    ClassBodyGuard(Binder* binder, ClassSymbol* classSymbol,
+                   AccessSpecifier defaultAccessSpecifier)
+        : binder_(binder) {
+      binder_->classBodyStack_.push_back(ClassBodyState{
+          .classSymbol = classSymbol,
+          .defaultAccessSpecifier = defaultAccessSpecifier,
+          .accessSpecifier = defaultAccessSpecifier,
+      });
+    }
+
+    ~ClassBodyGuard() { binder_->classBodyStack_.pop_back(); }
+
+   private:
+    Binder* binder_;
+  };
+
+  [[nodiscard]] auto classBeingDefined() const -> ClassSymbol*;
+  [[nodiscard]] auto currentAccessSpecifier() const -> AccessSpecifier;
+  [[nodiscard]] auto defaultAccessSpecifier() const -> AccessSpecifier;
+  void setCurrentAccessSpecifier(AccessSpecifier accessSpecifier);
+
+  void applyAccessSpecifier(Symbol* symbol) const;
+
   [[nodiscard]] auto currentTemplateParameters() const
       -> TemplateParametersSymbol*;
 
@@ -114,6 +146,8 @@ class Binder {
 
   void finishAutoReturnType(FunctionSymbol* functionSymbol);
 
+  [[nodiscard]] static auto returnsAValue(AST* declaration) -> bool;
+
   [[nodiscard]] auto enterBlock(SourceLocation loc) -> BlockSymbol*;
 
   [[nodiscard]] auto declareTypeAlias(SourceLocation identifierLoc,
@@ -125,7 +159,9 @@ class Binder {
       -> TypeAliasSymbol*;
 
   [[nodiscard]] auto declareFunction(DeclaratorAST* declarator,
-                                     const Decl& decl) -> FunctionSymbol*;
+                                     const Decl& decl,
+                                     bool addSymbolToParentScope = true)
+      -> FunctionSymbol*;
 
   [[nodiscard]] auto declareField(DeclaratorAST* declarator, const Decl& decl)
       -> FieldSymbol*;
@@ -187,10 +223,16 @@ class Binder {
   void bind(EnumeratorAST* ast, const Type* type,
             std::optional<ConstValue> value);
 
+  [[nodiscard]] static auto nextEnumeratorValue(
+      TranslationUnit* unit, const Type* underlyingType,
+      const std::optional<ConstValue>& previous) -> std::optional<ConstValue>;
+
   void bind(ParameterDeclarationAST* ast, const Decl& decl,
             bool inTemplateParameters);
 
   void bind(UsingDeclaratorAST* ast, Symbol* target);
+  void checkUsingDeclaratorAccess(UsingDeclaratorAST* ast,
+                                  UsingDeclarationSymbol* symbol);
 
   [[nodiscard]] static auto usingDeclaratorNamesConstructor(
       UsingDeclaratorAST* ast) -> bool;
@@ -215,12 +257,37 @@ class Binder {
 
   void complete(LambdaExpressionAST* ast);
 
+  struct InitCapture {
+    const Identifier* name = nullptr;
+    const Type* type = nullptr;
+    bool isPack = false;
+  };
+
+  [[nodiscard]] auto initCapture(LambdaCaptureAST* captureNode)
+      -> std::optional<InitCapture>;
+
+  void declareInitCapturesInLambdaScope(LambdaExpressionAST* ast);
+
   void completeLambdaBody(LambdaExpressionAST* ast);
+  [[nodiscard]] auto declareClosureInvoker(ClassSymbol* classSymbol,
+                                           FunctionSymbol* operatorFunc,
+                                           const FunctionType* operatorType,
+                                           SourceLocation loc)
+      -> FunctionSymbol*;
+  void declareClosureFunctionPointerConversion(ClassSymbol* classSymbol,
+                                               FunctionSymbol* invoker,
+                                               const FunctionType* operatorType,
+                                               SourceLocation loc);
+  void attachSynthesizedBody(FunctionSymbol* function, UnqualifiedIdAST* id,
+                             FunctionBodyAST* body);
+  void completeClosureType(ClassSymbol* classSymbol);
 
   void bind(ParameterDeclarationClauseAST* ast);
 
   void bind(UsingDirectiveAST* ast,
             NamespaceSymbol* resolvedNamespace = nullptr);
+
+  void bind(UsingEnumDeclarationAST* ast);
 
   void bind(TypeIdAST* ast, const Decl& decl);
 
@@ -239,6 +306,14 @@ class Binder {
 
   [[nodiscard]] auto reportUnresolvedNestedNameSpecifier(
       NestedNameSpecifierAST* ast) -> bool;
+
+  [[nodiscard]] auto adoptFriendDeclaredClass(ScopeSymbol* targetScope,
+                                              const Identifier* name)
+      -> ClassSymbol*;
+
+  void disableAccessControlForUnsupportedFriend(
+      NestedNameSpecifierAST* nestedNameSpecifier,
+      ClassSymbol* befriendingClass);
 
   [[nodiscard]] auto getFunction(
       ScopeSymbol* scope, const Name* name, const Type* type,
@@ -341,28 +416,27 @@ class Binder {
 
   void declareArgumentDependentCallee(IdExpressionAST* ast);
 
-  [[nodiscard]] auto findOverriddenFunction(ClassSymbol* cls,
-                                            FunctionSymbol* fn)
-      -> FunctionSymbol*;
+  [[nodiscard]] auto findOverriddenFunctions(ClassSymbol* cls,
+                                             FunctionSymbol* fn)
+      -> std::vector<FunctionSymbol*>;
 
   void applyImplicitExceptionSpecification(FunctionSymbol* fn);
 
-  [[nodiscard]] auto findOverriddenFunctionImpl(
+  void findOverriddenFunctionsImpl(
       ClassSymbol* cls, FunctionSymbol* fn,
-      std::unordered_set<ClassSymbol*>& visited) -> FunctionSymbol*;
-
-  [[nodiscard]] auto overloadSetFor(ScopeSymbol* scope, const Name* name,
-                                    SourceLocation location)
-      -> OverloadSetSymbol*;
+      std::unordered_set<ClassSymbol*>& visited,
+      std::vector<FunctionSymbol*>& overriddenFunctions);
 
  private:
+  friend struct ClassBodyGuard;
+
   TranslationUnit* unit_ = nullptr;
   TypeTraits traits;
   ScopeSymbol* scope_ = nullptr;
+  std::vector<ClassBodyState> classBodyStack_;
   Symbol* instantiatingSymbol_ = nullptr;
   SourceLocation instantiationLoc_{};
   LanguageKind languageLinkage_ = LanguageKind::kCXX;
-  int lambdaCount_ = 0;
   int explicitTemplateHeadDepth_ = 0;
   bool inTemplate_ = false;
   bool retainsEnclosingTemplateLevels_ = false;

@@ -232,6 +232,12 @@ auto areExpressionsEquivalent(TranslationUnit* unit, ExpressionAST* a,
   if (auto cast = ast_cast<ImplicitCastExpressionAST>(b)) {
     return areExpressionsEquivalent(unit, a, cast->expression);
   }
+  if (auto constant = ast_cast<ConstExpressionAST>(a)) {
+    return areExpressionsEquivalent(unit, constant->expression, b);
+  }
+  if (auto constant = ast_cast<ConstExpressionAST>(b)) {
+    return areExpressionsEquivalent(unit, a, constant->expression);
+  }
 
   if (auto aLit = ast_cast<IntLiteralExpressionAST>(a)) {
     auto bLit = ast_cast<IntLiteralExpressionAST>(b);
@@ -360,6 +366,50 @@ namespace {
 
 }  // namespace
 
+namespace {
+
+auto templateArgumentEquivalentModuloOwnHeadDepth(TranslationUnit* unit,
+                                                  const TemplateArgument& lhs,
+                                                  const TemplateArgument& rhs,
+                                                  int lhsDepth, int rhsDepth,
+                                                  int ownParamCount) -> bool {
+  auto lhsType = template_argument_as_type(lhs);
+  auto rhsType = template_argument_as_type(rhs);
+  if (lhsType || rhsType) {
+    if (!lhsType || !rhsType) return false;
+    return typesEquivalentModuloOwnHeadDepth(unit, lhsType, rhsType, lhsDepth,
+                                             rhsDepth, ownParamCount);
+  }
+
+  auto lhsInfo = template_argument_parameter_info(lhs);
+  auto rhsInfo = template_argument_parameter_info(rhs);
+  if (lhsInfo || rhsInfo) {
+    if (!lhsInfo || !rhsInfo) return false;
+    if (lhsInfo->isPack != rhsInfo->isPack) return false;
+    if (lhsInfo->depth == lhsDepth && lhsInfo->index < ownParamCount) {
+      return rhsInfo->depth == rhsDepth && rhsInfo->index == lhsInfo->index;
+    }
+    return lhsInfo->depth == rhsInfo->depth && lhsInfo->index == rhsInfo->index;
+  }
+
+  return lhs == rhs;
+}
+
+auto templateArgumentListsEquivalentModuloOwnHeadDepth(
+    TranslationUnit* unit, const std::vector<TemplateArgument>& lhs,
+    const std::vector<TemplateArgument>& rhs, int lhsDepth, int rhsDepth,
+    int ownParamCount) -> bool {
+  if (lhs.size() != rhs.size()) return false;
+  for (std::size_t i = 0; i < lhs.size(); ++i) {
+    if (!templateArgumentEquivalentModuloOwnHeadDepth(
+            unit, lhs[i], rhs[i], lhsDepth, rhsDepth, ownParamCount))
+      return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 auto typesEquivalentModuloOwnHeadDepth(TranslationUnit* unit, const Type* lhs,
                                        const Type* rhs, int lhsDepth,
                                        int rhsDepth, int ownParamCount)
@@ -453,28 +503,13 @@ auto typesEquivalentModuloOwnHeadDepth(TranslationUnit* unit, const Type* lhs,
     if (!lhsSym || !rhsSym) return false;
     if (lhsSym == rhsSym) return true;
 
-    if (lhsSym->isSpecialization() && rhsSym->isSpecialization() &&
-        lhsSym->primaryTemplateSymbol() == rhsSym->primaryTemplateSymbol()) {
-      auto lhsArgs = lhsSym->templateArguments();
-      auto rhsArgs = rhsSym->templateArguments();
-      if (lhsArgs.size() != rhsArgs.size()) return false;
+    auto lhsTemplate = class_template_of(lhsSym);
+    if (!lhsTemplate) return false;
+    if (lhsTemplate != class_template_of(rhsSym)) return false;
 
-      for (std::size_t i = 0; i < lhsArgs.size(); ++i) {
-        auto lhsArgType = std::get_if<const Type*>(&lhsArgs[i]);
-        auto rhsArgType = std::get_if<const Type*>(&rhsArgs[i]);
-        if (lhsArgType && rhsArgType) {
-          if (!typesEquivalentModuloOwnHeadDepth(unit, *lhsArgType, *rhsArgType,
-                                                 lhsDepth, rhsDepth,
-                                                 ownParamCount))
-            return false;
-          continue;
-        }
-        if (lhsArgs[i] == rhsArgs[i]) continue;
-        return false;
-      }
-      return true;
-    }
-    return false;
+    return templateArgumentListsEquivalentModuloOwnHeadDepth(
+        unit, class_template_arguments(lhsSym),
+        class_template_arguments(rhsSym), lhsDepth, rhsDepth, ownParamCount);
   }
 
   return unit->typeTraits().is_same(lhs, rhs);
@@ -684,6 +719,30 @@ auto areTemplateHeadsEquivalentForRedeclaration(TranslationUnit* unit,
     return a->requiresClause == b->requiresClause;
   return areExpressionsEquivalent(unit, a->requiresClause->expression,
                                   b->requiresClause->expression);
+}
+
+auto ownFunctionTemplateHead(TranslationUnit* unit, ClassSymbol* enclosingClass,
+                             TemplateDeclarationAST* templateHead)
+    -> TemplateDeclarationAST* {
+  if (!templateHead) return nullptr;
+
+  for (auto current = enclosingClass; current;
+       current = symbol_cast<ClassSymbol>(current->parent())) {
+    auto enclosingHead = current->templateDeclaration();
+    if (!enclosingHead && current->isSpecialization()) {
+      auto primary = current->primaryTemplateSymbol();
+      if (primary) enclosingHead = primary->templateDeclaration();
+    }
+    if (!enclosingHead || enclosingHead->depth != templateHead->depth) {
+      continue;
+    }
+    if (areTemplateHeadsEquivalentForRedeclaration(unit, enclosingHead,
+                                                   templateHead)) {
+      return nullptr;
+    }
+  }
+
+  return templateHead;
 }
 
 }  // namespace cxx

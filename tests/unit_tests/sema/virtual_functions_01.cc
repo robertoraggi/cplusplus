@@ -75,9 +75,9 @@ struct VGrandchild : VDerived {};
 // CHECK:      class VBase polymorphic
 // CHECK:        function inline virtual defaulted void ~VBase()
 // CHECK:      class VDerived polymorphic
-// CHECK:        function virtual defaulted void ~VDerived()
+// CHECK:        function inline virtual defaulted void ~VDerived()
 // CHECK:      class VGrandchild polymorphic
-// CHECK:        function virtual defaulted void ~VGrandchild()
+// CHECK:        function inline virtual defaulted void ~VGrandchild()
 
 struct Plain {
   void f();

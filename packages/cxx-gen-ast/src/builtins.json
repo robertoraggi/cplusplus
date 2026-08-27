@@ -2681,17 +2681,41 @@
   {
     "name": "__builtin_isfinite",
     "prototype": "bool __builtin_isfinite(double)",
-    "constexpr": false
+    "constexpr": true,
+    "codegen": "codegenBuiltinIsFinite",
+    "eval": {
+      "fn": "std::isfinite",
+      "args": [
+        "double"
+      ],
+      "ret": "bool"
+    }
   },
   {
     "name": "__builtin_isinf",
     "prototype": "bool __builtin_isinf(double)",
-    "constexpr": false
+    "constexpr": true,
+    "codegen": "codegenBuiltinIsInf",
+    "eval": {
+      "fn": "std::isinf",
+      "args": [
+        "double"
+      ],
+      "ret": "bool"
+    }
   },
   {
     "name": "__builtin_isnan",
     "prototype": "bool __builtin_isnan(double)",
-    "constexpr": false
+    "constexpr": true,
+    "codegen": "codegenBuiltinIsNan",
+    "eval": {
+      "fn": "std::isnan",
+      "args": [
+        "double"
+      ],
+      "ret": "bool"
+    }
   },
   {
     "name": "__builtin_isnormal",
@@ -2706,62 +2730,74 @@
   {
     "name": "__c11_atomic_init",
     "prototype": "void __c11_atomic_init(volatile void*, long long)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_store",
     "prototype": "void __c11_atomic_store(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_load",
     "prototype": "long long __c11_atomic_load(volatile void*, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_exchange",
     "prototype": "long long __c11_atomic_exchange(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_compare_exchange_strong",
     "prototype": "int __c11_atomic_compare_exchange_strong(volatile void*, void*, long long, int, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_compare_exchange_weak",
     "prototype": "int __c11_atomic_compare_exchange_weak(volatile void*, void*, long long, int, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_add",
     "prototype": "long long __c11_atomic_fetch_add(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_sub",
     "prototype": "long long __c11_atomic_fetch_sub(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_or",
     "prototype": "long long __c11_atomic_fetch_or(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_and",
     "prototype": "long long __c11_atomic_fetch_and(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_xor",
     "prototype": "long long __c11_atomic_fetch_xor(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_nand",
     "prototype": "long long __c11_atomic_fetch_nand(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_thread_fence",
@@ -2781,106 +2817,126 @@
   {
     "name": "__atomic_load_n",
     "prototype": "long long __atomic_load_n(const volatile void*, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_load",
     "prototype": "void __atomic_load(const volatile void*, void*, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_store_n",
     "prototype": "void __atomic_store_n(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_store",
     "prototype": "void __atomic_store(volatile void*, void*, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_exchange_n",
     "prototype": "long long __atomic_exchange_n(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_exchange",
     "prototype": "void __atomic_exchange(volatile void*, void*, void*, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_compare_exchange_n",
-    "prototype": "int __atomic_compare_exchange_n(volatile void*, void*, long long, int, int, int)",
-    "constexpr": false
+    "prototype": "bool __atomic_compare_exchange_n(volatile void*, void*, long long, bool, int, int)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_compare_exchange",
-    "prototype": "int __atomic_compare_exchange(volatile void*, void*, void*, int, int, int)",
-    "constexpr": false
+    "prototype": "bool __atomic_compare_exchange(volatile void*, void*, void*, bool, int, int)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_add_fetch",
     "prototype": "long long __atomic_add_fetch(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_sub_fetch",
     "prototype": "long long __atomic_sub_fetch(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_and_fetch",
     "prototype": "long long __atomic_and_fetch(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_xor_fetch",
     "prototype": "long long __atomic_xor_fetch(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_or_fetch",
     "prototype": "long long __atomic_or_fetch(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_nand_fetch",
     "prototype": "long long __atomic_nand_fetch(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_add",
     "prototype": "long long __atomic_fetch_add(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_sub",
     "prototype": "long long __atomic_fetch_sub(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_and",
     "prototype": "long long __atomic_fetch_and(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_xor",
     "prototype": "long long __atomic_fetch_xor(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_or",
     "prototype": "long long __atomic_fetch_or(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_nand",
     "prototype": "long long __atomic_fetch_nand(volatile void*, long long, int)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
   },
   {
     "name": "__atomic_test_and_set",
-    "prototype": "int __atomic_test_and_set(volatile void*, int)",
+    "prototype": "bool __atomic_test_and_set(volatile void*, int)",
     "constexpr": false
   },
   {
@@ -2900,12 +2956,12 @@
   },
   {
     "name": "__atomic_always_lock_free",
-    "prototype": "int __atomic_always_lock_free(long long, const volatile void*)",
+    "prototype": "bool __atomic_always_lock_free(__SIZE_TYPE__, const volatile void*)",
     "constexpr": false
   },
   {
     "name": "__atomic_is_lock_free",
-    "prototype": "int __atomic_is_lock_free(long long, const volatile void*)",
+    "prototype": "bool __atomic_is_lock_free(__SIZE_TYPE__, const volatile void*)",
     "constexpr": false
   },
   {
@@ -2984,12 +3040,14 @@
   {
     "name": "__builtin_operator_new",
     "prototype": "void* __builtin_operator_new(__SIZE_TYPE__, ...)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinOperatorNew"
   },
   {
     "name": "__builtin_operator_delete",
     "prototype": "void __builtin_operator_delete(void*, ...)",
-    "constexpr": false
+    "constexpr": false,
+    "typeCheck": "checkBuiltinOperatorDelete"
   },
   {
     "name": "__builtin_invoke",
@@ -3007,7 +3065,15 @@
   {
     "name": "__builtin_signbit",
     "prototype": "bool __builtin_signbit(double)",
-    "constexpr": false
+    "constexpr": true,
+    "codegen": "codegenBuiltinSignbit",
+    "eval": {
+      "fn": "std::signbit",
+      "args": [
+        "double"
+      ],
+      "ret": "bool"
+    }
   },
   {
     "name": "__builtin_fpclassify",

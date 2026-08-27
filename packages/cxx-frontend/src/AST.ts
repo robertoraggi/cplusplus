@@ -8448,6 +8448,34 @@ export class ImplicitCastExpressionAST extends ExpressionAST {
 }
 
 /**
+ * ConstExpressionAST node.
+ */
+export class ConstExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitConstExpression(this, context);
+  }
+
+  /**
+   * Returns the expression of this node
+   */
+  getExpression(): ExpressionAST | undefined {
+    return AST.from<ExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
+  }
+}
+
+/**
  * BinaryExpressionAST node.
  */
 export class BinaryExpressionAST extends ExpressionAST {
@@ -9211,6 +9239,34 @@ export class ParenInitializerAST extends ExpressionAST {
    */
   getRparenToken(): Token | undefined {
     return Token.from(cxx.getASTSlot(this.getHandle(), 2), this.parser);
+  }
+}
+
+/**
+ * ThreeWayComparisonExpressionAST node.
+ */
+export class ThreeWayComparisonExpressionAST extends ExpressionAST {
+  /**
+   * Traverse this node using the given visitor.
+   * @param visitor the visitor.
+   * @param context the context.
+   * @returns the result of the visit.
+   */
+  accept<Context, Result>(
+    visitor: ASTVisitor<Context, Result>,
+    context: Context,
+  ): Result {
+    return visitor.visitThreeWayComparisonExpression(this, context);
+  }
+
+  /**
+   * Returns the comparison of this node
+   */
+  getComparison(): BinaryExpressionAST | undefined {
+    return AST.from<BinaryExpressionAST>(
+      cxx.getASTSlot(this.getHandle(), 0),
+      this.parser,
+    );
   }
 }
 
@@ -14378,6 +14434,7 @@ const AST_CONSTRUCTORS: Array<
   DeleteExpressionAST,
   CastExpressionAST,
   ImplicitCastExpressionAST,
+  ConstExpressionAST,
   BinaryExpressionAST,
   ConditionalExpressionAST,
   YieldExpressionAST,
@@ -14393,6 +14450,7 @@ const AST_CONSTRUCTORS: Array<
   EqualInitializerAST,
   BracedInitListAST,
   ParenInitializerAST,
+  ThreeWayComparisonExpressionAST,
   DefaultGenericAssociationAST,
   TypeGenericAssociationAST,
   DotDesignatorAST,

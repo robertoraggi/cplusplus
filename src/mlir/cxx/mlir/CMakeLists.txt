@@ -21,6 +21,7 @@ set(SOURCES
     codegen_declarators.cc
     codegen_expressions.cc
     codegen_names.cc
+    codegen_rtti.cc
     codegen_specifiers.cc
     codegen_statements.cc
     codegen_units.cc

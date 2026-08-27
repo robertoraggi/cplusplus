@@ -48,6 +48,13 @@ class ASTInterpreter {
 
   [[nodiscard]] auto evaluate(ExpressionAST* ast) -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto cloneValue(const ConstValue& value) -> ConstValue;
+
+  [[nodiscard]] auto isFullyInitialized(const ConstValue& value) const -> bool;
+
+  [[nodiscard]] auto evaluateAddress(ExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto toBool(const ConstValue& value) -> std::optional<bool>;
 
   [[nodiscard]] auto toInt(const ConstValue& value)
@@ -175,6 +182,9 @@ class ASTInterpreter {
   [[nodiscard]] auto declaration(DeclarationAST* ast) -> DeclarationResult;
   [[nodiscard]] auto statement(StatementAST* ast) -> StatementResult;
   [[nodiscard]] auto expression(ExpressionAST* ast) -> ExpressionResult;
+
+  [[nodiscard]] auto evaluateStaticField(FieldSymbol* field)
+      -> ExpressionResult;
   [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
       -> TemplateParameterResult;
   [[nodiscard]] auto specifier(SpecifierAST* ast) -> SpecifierResult;
@@ -287,13 +297,25 @@ class ASTInterpreter {
                                                  List<ExpressionAST*>* argExprs)
       -> ConstValue*;
 
+  [[nodiscard]] auto evaluateCallAddressFromExprs(
+      FunctionSymbol* func, List<ExpressionAST*>* argExprs)
+      -> std::optional<ConstValue>;
+
   void bindReference(const Symbol* sym, ConstValue* target);
 
   void interpretInitDeclarator(InitDeclaratorAST* initDecl);
 
   void interpretStructuredBinding(StructuredBindingDeclarationAST* ast);
 
+  [[nodiscard]] auto beginAutomaticScope() const -> std::size_t;
+  void registerAutomaticObject(VariableSymbol* variable);
+  [[nodiscard]] auto endAutomaticScope(std::size_t mark) -> bool;
+  [[nodiscard]] auto destroyValue(const Type* type, ConstValue& value) -> bool;
+
   void applyNsdmis(const std::shared_ptr<ConstObject>& obj);
+  [[nodiscard]] auto initializeDefaultedObject(
+      const std::shared_ptr<ConstObject>& obj, ClassSymbol* classSymbol)
+      -> bool;
 
   [[nodiscard]] auto valueInitializeClass(const Type* type, ClassSymbol* symbol)
       -> std::shared_ptr<ConstObject>;
@@ -360,6 +382,7 @@ class ASTInterpreter {
   struct Frame {
     std::unordered_map<const Symbol*, ConstValue> locals;
     std::unordered_map<const Symbol*, ConstValue*> refs;
+    std::vector<VariableSymbol*> automaticObjects;
   };
   std::vector<Frame> frames_;
   std::vector<Frame> retiredFrames_;
@@ -384,12 +407,15 @@ class ASTInterpreter {
 
   bool captureReturnLValue_ = false;
   ConstValue* returnLValue_ = nullptr;
+  bool captureReturnAddress_ = false;
+  std::optional<ConstValue> returnAddress_;
 
   std::shared_ptr<ConstObject> thisObject_;
 
   ClassSymbol* currentConstructorClass_ = nullptr;
 
   std::string currentFunctionName_;
+  std::vector<FieldSymbol*> fieldsUnderEvaluation_;
   int depth_ = 0;
 
   std::uint64_t steps_ = 0;

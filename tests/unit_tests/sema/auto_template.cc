@@ -39,7 +39,7 @@ auto main() -> int {
 // CHECK-NEXT:     function int id(int)
 // CHECK:     function double id(double)
 
-// CHECK: template function type-param<0, 0> add(type-param<0, 0>, type-param<1, 0>)
+// CHECK: template function <dependent-type> add(type-param<0, 0>, type-param<1, 0>)
 // CHECK-NEXT:   parameter typename<0, 0> __auto_0
 // CHECK-NEXT:   parameter typename<1, 0> __auto_1
 // CHECK:   [specializations]

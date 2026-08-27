@@ -153,6 +153,8 @@ class Preprocessor {
 
   void requestCodeCompletionAt(std::uint32_t line, std::uint32_t column);
 
+  [[nodiscard]] auto hasCodeCompletionRequest() const -> bool;
+
   void squeeze();
 
   [[nodiscard]] auto packValueAt(std::uint32_t fileId, unsigned offset) const

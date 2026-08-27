@@ -708,6 +708,8 @@ void ASTVisitor::visit(ImplicitCastExpressionAST* ast) {
   accept(ast->expression);
 }
 
+void ASTVisitor::visit(ConstExpressionAST* ast) { accept(ast->expression); }
+
 void ASTVisitor::visit(BinaryExpressionAST* ast) {
   accept(ast->leftExpression);
   accept(ast->rightExpression);
@@ -779,6 +781,10 @@ void ASTVisitor::visit(ParenInitializerAST* ast) {
   for (auto node : ListView{ast->expressionList}) {
     accept(node);
   }
+}
+
+void ASTVisitor::visit(ThreeWayComparisonExpressionAST* ast) {
+  accept(ast->comparison);
 }
 
 void ASTVisitor::visit(DefaultGenericAssociationAST* ast) {

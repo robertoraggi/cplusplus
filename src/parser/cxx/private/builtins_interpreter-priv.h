@@ -990,6 +990,22 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
       if (auto a = toLongDouble(args[0])) return ConstValue{std::trunc(*a)};
       return std::nullopt;
     }
+    case BuiltinFunctionKind::T___BUILTIN_ISFINITE: {
+      if (auto a = toDouble(args[0])) return ConstValue{std::isfinite(*a)};
+      return std::nullopt;
+    }
+    case BuiltinFunctionKind::T___BUILTIN_ISINF: {
+      if (auto a = toDouble(args[0])) return ConstValue{std::isinf(*a)};
+      return std::nullopt;
+    }
+    case BuiltinFunctionKind::T___BUILTIN_ISNAN: {
+      if (auto a = toDouble(args[0])) return ConstValue{std::isnan(*a)};
+      return std::nullopt;
+    }
+    case BuiltinFunctionKind::T___BUILTIN_SIGNBIT: {
+      if (auto a = toDouble(args[0])) return ConstValue{std::signbit(*a)};
+      return std::nullopt;
+    }
 
     default:
       return std::nullopt;

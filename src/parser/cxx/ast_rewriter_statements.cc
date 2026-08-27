@@ -24,6 +24,7 @@
 #include <cxx/binder.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/dependent_types.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -36,9 +37,7 @@ struct ASTRewriter::StatementVisitor {
   }
 
   [[nodiscard]] auto typeChecker() -> TypeChecker {
-    auto typeChecker = TypeChecker{rewrite.unit_};
-    typeChecker.setScope(binder()->scope());
-    return typeChecker;
+    return rewrite.typeChecker();
   }
 
   [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
@@ -173,7 +172,7 @@ auto ASTRewriter::rewriteMemInitializerList(List<MemInitializerAST*>* source)
   };
 
   for (auto node : ListView{source}) {
-    if (isPackExpansion(node) && !elementIndex_.has_value()) {
+    if (isPackExpansion(node) && !expandsAnActivePack(node)) {
       if (hasUnresolvedParameterPack(node)) {
         append(memInitializer(node));
         continue;
@@ -422,7 +421,8 @@ auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
   copy->rparenLoc = ast->rparenLoc;
 
   std::optional<bool> constexprValue;
-  if (ast->constexprLoc && copy->condition) {
+  if (ast->constexprLoc && copy->condition && !binder()->inTemplate() &&
+      !isDependent(rewrite.unit_, copy->condition)) {
     auto interp = ASTInterpreter{rewrite.unit_};
     if (auto val = interp.evaluate(copy->condition)) {
       constexprValue = interp.toBool(*val);
@@ -564,7 +564,11 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
   copy->forLoc = ast->forLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite.statement(ast->initializer);
-  copy->rangeDeclaration = rewrite.declaration(ast->rangeDeclaration);
+  {
+    auto restore = std::exchange(rewrite.rewritingForRangeDeclaration_, true);
+    copy->rangeDeclaration = rewrite.declaration(ast->rangeDeclaration);
+    rewrite.rewritingForRangeDeclaration_ = restore;
+  }
   copy->colonLoc = ast->colonLoc;
   copy->rangeInitializer = rewrite.expression(ast->rangeInitializer);
 

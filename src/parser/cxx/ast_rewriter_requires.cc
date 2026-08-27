@@ -31,6 +31,8 @@
 #include <cxx/type_checker.h>
 #include <cxx/types.h>
 
+#include <ranges>
+
 namespace cxx {
 namespace {
 auto functionParameterClause(FunctionSymbol* function)
@@ -68,13 +70,21 @@ ASTRewriter::ImmediateContextGuard::~ImmediateContextGuard() {
 }
 
 auto ASTRewriter::shouldReportCheckErrors() const -> bool {
-  return immediateContextDepth_ == 0 &&
-         symbol_cast<FunctionSymbol>(binder_.instantiatingSymbol()) &&
+  return immediateContextDepth_ == 0 && !pastingCheckedBody_ &&
          binder_.reportErrors();
 }
 
 auto ASTRewriter::shouldCaptureBodyErrors() const -> bool {
-  return rewritingFunctionBody_ && shouldReportCheckErrors();
+  return rewritingFunctionBody_ &&
+         symbol_cast<FunctionSymbol>(binder_.instantiatingSymbol()) &&
+         shouldReportCheckErrors();
+}
+
+auto ASTRewriter::typeChecker() -> TypeChecker {
+  auto typeChecker = TypeChecker{unit_};
+  typeChecker.setScope(binder_.scope());
+  typeChecker.setReportErrors(shouldReportCheckErrors());
+  return typeChecker;
 }
 
 void ASTRewriter::typeCheckAndCapture(std::function<void()> checkFn) {
@@ -176,20 +186,53 @@ auto ASTRewriter::associatedConstraints(TranslationUnit* unit, Symbol* symbol)
   return constraints;
 }
 
+namespace {
+
+auto constrainedPrimaryTemplateOf(Symbol* symbol) -> FunctionSymbol* {
+  auto function = symbol_cast<FunctionSymbol>(symbol);
+  if (!function) return nullptr;
+  if (!function->isSpecialization()) return nullptr;
+  auto primary = function->primaryTemplateSymbol();
+  if (!primary) return nullptr;
+  if (!primary->templateDeclaration()) return nullptr;
+  return primary;
+}
+
+}  // namespace
+
+auto ASTRewriter::evaluateSpecializationConstraints(TranslationUnit* unit,
+                                                    FunctionSymbol* symbol,
+                                                    FunctionSymbol* primary)
+    -> std::optional<bool> {
+  if (associatedConstraints(unit, primary).empty()) return true;
+
+  auto arguments = symbol->templateArguments();
+  std::vector<TemplateArgument> templateArguments{arguments.begin(),
+                                                  arguments.end()};
+
+  return checkAssociatedConstraints(unit, primary, templateArguments,
+                                    primary->templateDeclaration()->depth);
+}
+
 auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
                                                 Symbol* symbol)
     -> std::optional<bool> {
+  if (auto primary = constrainedPrimaryTemplateOf(symbol)) {
+    return evaluateSpecializationConstraints(
+        unit, symbol_cast<FunctionSymbol>(symbol), primary);
+  }
+
   auto constraints = associatedConstraints(unit, symbol);
   if (constraints.empty()) return true;
   if (isDependent(unit, symbol->type())) return std::nullopt;
-
-  SilentDiagnosticsClient silent;
-  auto saved = unit->changeDiagnosticsClient(&silent);
 
   auto interp = ASTInterpreter{unit};
   std::optional<bool> conjunction = true;
 
   for (auto constraint : constraints) {
+    SilentDiagnosticsClient silent;
+    auto saved = unit->changeDiagnosticsClient(&silent);
+
     if (!constraint->type) {
       auto typeChecker = TypeChecker{unit};
       typeChecker.setScope(symbol->parent());
@@ -198,43 +241,63 @@ auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
     }
 
     auto value = interp.evaluate(constraint);
-    auto satisfied = value.has_value() ? interp.toBool(*value) : std::nullopt;
+
+    (void)unit->changeDiagnosticsClient(saved);
+
+    if (silent.hadError()) return false;
+
+    std::optional<bool> satisfied;
+    if (value.has_value()) satisfied = interp.toBool(*value);
 
     if (!satisfied.has_value()) {
       conjunction = std::nullopt;
       continue;
     }
-
-    if (!*satisfied) {
-      (void)unit->changeDiagnosticsClient(saved);
-      return false;
-    }
+    if (!*satisfied) return false;
   }
-
-  (void)unit->changeDiagnosticsClient(saved);
 
   return conjunction;
 }
 
 auto ASTRewriter::checkConstraintExpression(
     TranslationUnit* unit, Symbol* symbol, ExpressionAST* constraint,
-    const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
+    const std::vector<TemplateArgument>& templateArguments, int depth)
+    -> std::optional<bool> {
   if (!constraint) return true;
 
   while (auto nested = ast_cast<NestedExpressionAST>(constraint))
     constraint = nested->expression;
 
-  if (auto binary = ast_cast<BinaryExpressionAST>(constraint);
-      binary && (binary->op == TokenKind::T_AMP_AMP ||
-                 binary->op == TokenKind::T_BAR_BAR)) {
-    const bool left = checkConstraintExpression(
-        unit, symbol, binary->leftExpression, templateArguments, depth);
+  if (auto binary = ast_cast<BinaryExpressionAST>(constraint)) {
+    const bool isConjunction = binary->op == TokenKind::T_AMP_AMP;
+    const bool isDisjunction = binary->op == TokenKind::T_BAR_BAR;
+    if (isConjunction || isDisjunction) {
+      auto left = checkConstraintExpression(
+          unit, symbol, binary->leftExpression, templateArguments, depth);
 
-    if (binary->op == TokenKind::T_AMP_AMP && !left) return false;
-    if (binary->op == TokenKind::T_BAR_BAR && left) return true;
+      if (left.has_value()) {
+        if (isConjunction) {
+          if (!*left) return false;
+        } else if (*left) {
+          return true;
+        }
+      }
 
-    return checkConstraintExpression(unit, symbol, binary->rightExpression,
-                                     templateArguments, depth);
+      auto right = checkConstraintExpression(
+          unit, symbol, binary->rightExpression, templateArguments, depth);
+      if (right.has_value()) {
+        if (isConjunction) {
+          if (!*right) return false;
+        } else if (*right) {
+          return true;
+        }
+      }
+
+      if (!left.has_value()) return std::nullopt;
+      if (!right.has_value()) return std::nullopt;
+      if (isConjunction) return *left && *right;
+      return *left || *right;
+    }
   }
 
   auto parentScope = symbol->parent();
@@ -244,12 +307,25 @@ auto ASTRewriter::checkConstraintExpression(
     (void)reqRewriter.parameterDeclarationClause(
         functionParameterClause(function));
   }
-  auto rewritten = reqRewriter.expression(constraint);
-  if (!rewritten) return true;
 
-  reqRewriter.check(rewritten);
+  auto substituteIntoConstraint = [&]() -> ExpressionAST* {
+    SilentDiagnosticsClient silent;
+    auto saved = unit->changeDiagnosticsClient(&silent);
 
-  if (isDependent(unit, rewritten)) return true;
+    auto rewritten = reqRewriter.expression(constraint);
+    if (rewritten) reqRewriter.check(rewritten);
+
+    (void)unit->changeDiagnosticsClient(saved);
+
+    if (silent.hadError()) return nullptr;
+    if (reqRewriter.substitutionFailed()) return nullptr;
+    return rewritten;
+  };
+
+  auto rewritten = substituteIntoConstraint();
+  if (!rewritten) return false;
+
+  if (isDependent(unit, rewritten)) return std::nullopt;
 
   auto interp = ASTInterpreter{unit};
   auto val = interp.evaluate(rewritten);
@@ -262,10 +338,40 @@ auto ASTRewriter::checkConstraintExpression(
 auto ASTRewriter::checkAssociatedConstraints(
     TranslationUnit* unit, Symbol* symbol,
     const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
-  for (auto constraint : associatedConstraints(unit, symbol)) {
-    if (!checkConstraintExpression(unit, symbol, constraint, templateArguments,
-                                   depth))
+  auto constraints = associatedConstraints(unit, symbol);
+  if (constraints.empty()) return true;
+
+  const bool cacheable = std::ranges::none_of(
+      templateArguments, [&](const TemplateArgument& argument) {
+        return isDependentTemplateArgument(unit, argument);
+      });
+
+  if (cacheable) {
+    auto cached = unit->cachedConstraintSatisfaction(symbol, constraints,
+                                                     templateArguments);
+    if (cached.has_value()) return *cached;
+  }
+
+  bool determinate = true;
+  for (auto constraint : constraints) {
+    auto result = checkConstraintExpression(unit, symbol, constraint,
+                                            templateArguments, depth);
+    if (!result.has_value()) {
+      determinate = false;
+      continue;
+    }
+    if (!*result) {
+      if (cacheable)
+        unit->cacheConstraintSatisfaction(symbol, std::move(constraints),
+                                          templateArguments, false);
       return false;
+    }
+  }
+
+  if (cacheable) {
+    if (determinate)
+      unit->cacheConstraintSatisfaction(symbol, std::move(constraints),
+                                        templateArguments, true);
   }
   return true;
 }
@@ -343,9 +449,28 @@ auto ASTRewriter::evaluateConcept(
   auto subst = Substitution::make(unit, templateDecl, templateArgumentList);
   if (!subst) return std::nullopt;
 
-  return evaluateConstraintExpression(
-      unit, conceptSymbol->parent(), definition->expression,
-      std::move(*subst).templateArguments(), templateDecl->depth);
+  auto templateArguments = std::move(*subst).templateArguments();
+  const bool cacheable = std::ranges::none_of(
+      templateArguments, [&](const TemplateArgument& argument) {
+        return isDependentTemplateArgument(unit, argument);
+      });
+  std::vector<ExpressionAST*> constraints{definition->expression};
+
+  if (cacheable) {
+    auto cached = unit->cachedConstraintSatisfaction(conceptSymbol, constraints,
+                                                     templateArguments);
+    if (cached.has_value()) return cached;
+  }
+
+  auto result = evaluateConstraintExpression(
+      unit, conceptSymbol->parent(), definition->expression, templateArguments,
+      templateDecl->depth);
+  if (cacheable) {
+    if (result.has_value())
+      unit->cacheConstraintSatisfaction(conceptSymbol, std::move(constraints),
+                                        std::move(templateArguments), *result);
+  }
+  return result;
 }
 
 void ASTRewriter::check(ExpressionAST* ast) {
@@ -354,15 +479,7 @@ void ASTRewriter::check(ExpressionAST* ast) {
 
   TranslationUnit::PotentiallyEvaluatedScope evaluated{
       unit_, unevaluatedOperandDepth_ == 0};
-  auto typeChecker = TypeChecker{unit_};
-  typeChecker.setScope(binder_.scope());
-  typeChecker.setReportErrors(shouldReportCheckErrors());
-  typeCheckAndCapture([&] { typeChecker.check(ast); });
-}
-
-void ASTRewriter::checkUnevaluated(ExpressionAST* ast) {
-  ++unevaluatedOperandDepth_;
-  check(ast);
-  --unevaluatedOperandDepth_;
+  auto checker = typeChecker();
+  typeCheckAndCapture([&] { checker.check(ast); });
 }
 }  // namespace cxx

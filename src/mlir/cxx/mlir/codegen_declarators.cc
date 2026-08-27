@@ -476,12 +476,21 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
 
   if (args.size() != 1) return {};
 
+  if (gen.hasNoValueRepresentation(targetType)) return {};
+
+  auto value = args[0].value;
+  if (!value) {
+    (void)gen.emitTodoExpr(ast->firstSourceLocation(),
+                           "mem-initializer without a value");
+    return {};
+  }
+
   auto layout = declaringClass->layout();
   if (auto field = symbol_cast<FieldSymbol>(symbol);
       field && field->isBitField() && layout) {
     if (auto fi = layout->getFieldInfo(field)) {
       mlir::cxx::BitfieldStoreOp::create(
-          gen.builder_, loc, args[0].value, fieldPtr,
+          gen.builder_, loc, value, fieldPtr,
           gen.builder_.getI32IntegerAttr(fi->bitOffset),
           gen.builder_.getI32IntegerAttr(fi->bitWidth),
           gen.builder_.getI64IntegerAttr(fi->allocUnitSizeBytes));
@@ -489,8 +498,7 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
     }
   }
 
-  auto value = args[0].value;
-  if (gen.traits.is_class(gen.traits.remove_cv(targetType)) && value &&
+  if (gen.traits.is_class(gen.traits.remove_cv(targetType)) &&
       mlir::isa<mlir::cxx::PointerType>(value.getType())) {
     value = mlir::cxx::LoadOp::create(gen.builder_, loc,
                                       gen.convertType(targetType), value,

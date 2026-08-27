@@ -257,6 +257,7 @@ class ASTEncoder : ASTVisitor {
   void visit(DeleteExpressionAST* ast) override;
   void visit(CastExpressionAST* ast) override;
   void visit(ImplicitCastExpressionAST* ast) override;
+  void visit(ConstExpressionAST* ast) override;
   void visit(BinaryExpressionAST* ast) override;
   void visit(ConditionalExpressionAST* ast) override;
   void visit(YieldExpressionAST* ast) override;
@@ -272,6 +273,7 @@ class ASTEncoder : ASTVisitor {
   void visit(EqualInitializerAST* ast) override;
   void visit(BracedInitListAST* ast) override;
   void visit(ParenInitializerAST* ast) override;
+  void visit(ThreeWayComparisonExpressionAST* ast) override;
 
   void visit(DefaultGenericAssociationAST* ast) override;
   void visit(TypeGenericAssociationAST* ast) override;

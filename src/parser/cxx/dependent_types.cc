@@ -101,7 +101,7 @@ struct IsDependent {
           if (isDependent(alias->type())) return true;
         }
       }
-      if (isDependentNestedNameSpecifier(named->nestedNameSpecifier)) {
+      if (isDependent(named->nestedNameSpecifier)) {
         return true;
       }
 
@@ -238,12 +238,7 @@ struct IsDependent {
     if (sym->templateDeclaration() && !sym->primaryTemplateSymbol())
       return true;
 
-    for (auto enclosing = sym->parent(); enclosing;
-         enclosing = enclosing->parent()) {
-      auto enclosingClass = symbol_cast<ClassSymbol>(enclosing);
-      if (!enclosingClass) break;
-      if (isDependent(enclosingClass->type())) return true;
-    }
+    if (enclosedInDependentTemplate(sym->parent(), true)) return true;
 
     auto parameters = template_parameters_of(sym->primaryTemplateSymbol());
 
@@ -427,7 +422,9 @@ struct IsDependent {
   auto operator()(DeleteExpressionAST* ast) -> bool;
   auto operator()(CastExpressionAST* ast) -> bool;
   auto operator()(ImplicitCastExpressionAST* ast) -> bool;
+  auto operator()(ConstExpressionAST* ast) -> bool;
   auto operator()(BinaryExpressionAST* ast) -> bool;
+  auto operator()(ThreeWayComparisonExpressionAST* ast) -> bool;
   auto operator()(ConditionalExpressionAST* ast) -> bool;
   auto operator()(YieldExpressionAST* ast) -> bool;
   auto operator()(ThrowExpressionAST* ast) -> bool;
@@ -677,8 +674,6 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(LambdaExpressionAST* ast) -> bool {
-  if (ast->symbol && ast->symbol->isTemplate()) return true;
-
   for (auto node : ListView{ast->captureList}) {
     if (isDependent(node)) return true;
   }
@@ -764,11 +759,9 @@ auto IsDependent::operator()(CallExpressionAST* ast) -> bool {
 
 auto IsDependent::operator()(TypeConstructionAST* ast) -> bool {
   if (isDependent(ast->typeSpecifier)) return true;
-
   for (auto node : ListView{ast->expressionList}) {
     if (isDependent(node)) return true;
   }
-
   return false;
 }
 
@@ -945,11 +938,21 @@ auto IsDependent::operator()(ImplicitCastExpressionAST* ast) -> bool {
   return false;
 }
 
+auto IsDependent::operator()(ConstExpressionAST* ast) -> bool {
+  if (isDependent(ast->expression)) return true;
+
+  return false;
+}
+
 auto IsDependent::operator()(BinaryExpressionAST* ast) -> bool {
   if (isDependent(ast->leftExpression)) return true;
   if (isDependent(ast->rightExpression)) return true;
 
   return false;
+}
+
+auto IsDependent::operator()(ThreeWayComparisonExpressionAST* ast) -> bool {
+  return isDependent(ast->comparison);
 }
 
 auto IsDependent::operator()(ConditionalExpressionAST* ast) -> bool {
@@ -1074,26 +1077,19 @@ auto isEnclosedInDependentTemplate(TranslationUnit* unit, ScopeSymbol* scope,
       scope, stopAtConcreteSpecialization);
 }
 
-auto isEnclosedInTemplate(ScopeSymbol* scope) -> bool {
-  return IsDependent{nullptr}.enclosedInDependentTemplate(
-      scope, /*stopAtConcreteSpecialization=*/false);
-}
-
 auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool {
   return symbol_cast<TypeParameterSymbol>(symbol) ||
          symbol_cast<TemplateTypeParameterSymbol>(symbol);
 }
 
-auto isDependentNestedNameSpecifier(NestedNameSpecifierAST* ast) -> bool {
-  if (!ast) return false;
-  if (ast->symbol && ast->symbol->asScopeSymbol()) return false;
-  if (isDependentTypeParameterSymbol(ast->symbol)) return true;
-  return false;
-}
-
 auto isDependentTemplateArgument(TranslationUnit* unit,
                                  TemplateArgumentAST* arg) -> bool {
   return IsDependent{unit}.isDependentTemplateArgument(arg);
+}
+
+auto isDependentTemplateArgument(TranslationUnit* unit,
+                                 const TemplateArgument& argument) -> bool {
+  return IsDependent{unit}.isDependentArgument(argument);
 }
 
 auto hasDependentTemplateArguments(TranslationUnit* unit,
@@ -1103,5 +1099,39 @@ auto hasDependentTemplateArguments(TranslationUnit* unit,
 
 auto isDependent(TranslationUnit* unit, NestedNameSpecifierAST* ast) -> bool {
   return IsDependent{unit}.isDependent(ast);
+}
+
+auto isCurrentInstantiation(ScopeSymbol* scope, const Type* type) -> bool {
+  auto classType = type_cast<ClassType>(type);
+  if (!classType) return false;
+
+  for (auto current = scope; current; current = current->parent()) {
+    if (current == classType->symbol()) return true;
+  }
+
+  return false;
+}
+
+auto hasDependentBaseClass(TranslationUnit* unit, ClassSymbol* classSymbol)
+    -> bool {
+  if (!classSymbol) return false;
+
+  for (auto baseClass : classSymbol->baseClasses()) {
+    auto base = baseClass->symbol();
+    if (!base) return true;
+
+    auto baseType = base->type();
+    if (!baseType) return true;
+
+    if (isCurrentInstantiation(classSymbol, baseType)) continue;
+
+    if (isDependent(unit, baseType)) return true;
+
+    if (auto baseClassType = type_cast<ClassType>(baseType)) {
+      if (hasDependentBaseClass(unit, baseClassType->symbol())) return true;
+    }
+  }
+
+  return false;
 }
 }  // namespace cxx

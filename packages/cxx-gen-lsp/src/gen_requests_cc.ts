@@ -56,7 +56,7 @@ class RequestGenerator extends TypeGenerator {
     this.emit(`}`);
     this.emit();
     this.emit(`auto LSPRequest::method() const -> std::string {`);
-    this.emit(`  return repr_->at("method");`);
+    this.emit(`  return repr_->at("method").get<std::string>();`);
     this.emit(`}`);
     this.emit();
     this.emit(`auto LSPResponse::id() const -> std::optional<std::variant<long, std::string>> {`);

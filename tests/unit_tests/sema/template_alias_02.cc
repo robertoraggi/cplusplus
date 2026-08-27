@@ -22,39 +22,39 @@ struct ScopeSymbol {
 // CHECK-NEXT:    typealias type-param<1, 0>* iterator
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class HashMap<const ::Name*, ::Symbol*>
-// CHECK-NEXT:        constructor defaulted void HashMap()
-// CHECK-NEXT:        constructor defaulted void HashMap(const ::HashMap<const ::Name*, ::Symbol*>&)
+// CHECK-NEXT:        constructor inline defaulted void HashMap()
+// CHECK-NEXT:        constructor inline defaulted void HashMap(const ::HashMap<const ::Name*, ::Symbol*>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::HashMap<const ::Name*, ::Symbol*>&
-// CHECK-NEXT:        constructor defaulted void HashMap(::HashMap<const ::Name*, ::Symbol*>&&)
+// CHECK-NEXT:        constructor inline defaulted void HashMap(::HashMap<const ::Name*, ::Symbol*>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::HashMap<const ::Name*, ::Symbol*>&&
 // CHECK-NEXT:        injected class name HashMap
 // CHECK-NEXT:        typealias ::Symbol** iterator
-// CHECK-NEXT:        function defaulted ::HashMap<const ::Name*, ::Symbol*>& operator =(const ::HashMap<const ::Name*, ::Symbol*>&)
+// CHECK-NEXT:        function inline defaulted ::HashMap<const ::Name*, ::Symbol*>& operator =(const ::HashMap<const ::Name*, ::Symbol*>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::HashMap<const ::Name*, ::Symbol*>&
-// CHECK-NEXT:        function defaulted ::HashMap<const ::Name*, ::Symbol*>& operator =(::HashMap<const ::Name*, ::Symbol*>&&)
+// CHECK-NEXT:        function inline defaulted ::HashMap<const ::Name*, ::Symbol*>& operator =(::HashMap<const ::Name*, ::Symbol*>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::HashMap<const ::Name*, ::Symbol*>&&
-// CHECK-NEXT:        function defaulted void ~HashMap()
+// CHECK-NEXT:        function inline defaulted void ~HashMap()
 // CHECK-NEXT:  class Name
 // CHECK-NEXT:  class Symbol
 // CHECK-NEXT:  class ScopeSymbol
-// CHECK-NEXT:    constructor defaulted void ScopeSymbol()
-// CHECK-NEXT:    constructor defaulted void ScopeSymbol(const ::ScopeSymbol&)
+// CHECK-NEXT:    constructor inline defaulted void ScopeSymbol()
+// CHECK-NEXT:    constructor inline defaulted void ScopeSymbol(const ::ScopeSymbol&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::ScopeSymbol&
-// CHECK-NEXT:    constructor defaulted void ScopeSymbol(::ScopeSymbol&&)
+// CHECK-NEXT:    constructor inline defaulted void ScopeSymbol(::ScopeSymbol&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::ScopeSymbol&&
 // CHECK-NEXT:    injected class name ScopeSymbol
 // CHECK-NEXT:    typealias ::HashMap<const ::Name*, ::Symbol*> Table
 // CHECK-NEXT:    typealias ::Symbol** MemberIterator
-// CHECK-NEXT:    function defaulted ::ScopeSymbol& operator =(const ::ScopeSymbol&)
+// CHECK-NEXT:    function inline defaulted ::ScopeSymbol& operator =(const ::ScopeSymbol&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::ScopeSymbol&
-// CHECK-NEXT:    function defaulted ::ScopeSymbol& operator =(::ScopeSymbol&&)
+// CHECK-NEXT:    function inline defaulted ::ScopeSymbol& operator =(::ScopeSymbol&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::ScopeSymbol&&
-// CHECK-NEXT:    function defaulted void ~ScopeSymbol()
+// CHECK-NEXT:    function inline defaulted void ~ScopeSymbol()

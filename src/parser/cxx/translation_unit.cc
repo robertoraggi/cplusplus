@@ -217,6 +217,48 @@ auto TranslationUnit::beginMemberInstantiation(ClassSymbol* instance) -> bool {
   return instantiatedMemberClasses_.insert(instance).second;
 }
 
+auto TranslationUnit::cachedConstraintSatisfaction(
+    Symbol* symbol, const std::vector<ExpressionAST*>& constraints,
+    const std::vector<TemplateArgument>& arguments) -> std::optional<bool> {
+  if (!symbol) return std::nullopt;
+  auto cacheIt = constraintSatisfactionCaches_.find(symbol);
+  if (cacheIt == constraintSatisfactionCaches_.end()) return std::nullopt;
+
+  auto& cache = cacheIt->second;
+  auto matches = [&](const ConstraintSatisfaction& entry) {
+    if (entry.constraints != constraints) return false;
+    return compare_args(this, entry.arguments, arguments);
+  };
+
+  if (cache.lastIndex) {
+    auto index = *cache.lastIndex;
+    if (index < cache.entries.size()) {
+      if (matches(cache.entries[index])) return cache.entries[index].value;
+    }
+  }
+
+  for (std::size_t i = 0; i < cache.entries.size(); ++i) {
+    if (cache.lastIndex) {
+      if (i == *cache.lastIndex) continue;
+    }
+    if (!matches(cache.entries[i])) continue;
+    cache.lastIndex = i;
+    return cache.entries[i].value;
+  }
+
+  return std::nullopt;
+}
+
+void TranslationUnit::cacheConstraintSatisfaction(
+    Symbol* symbol, std::vector<ExpressionAST*> constraints,
+    std::vector<TemplateArgument> arguments, bool value) {
+  if (!symbol) return;
+  auto& cache = constraintSatisfactionCaches_[symbol];
+  cache.entries.push_back(
+      {std::move(constraints), std::move(arguments), value});
+  cache.lastIndex = cache.entries.size() - 1;
+}
+
 auto TranslationUnit::takePendingMemberInstantiations()
     -> std::vector<ClassSymbol*> {
   auto pending = std::move(pendingMemberInstantiations_);

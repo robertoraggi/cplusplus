@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/token_fwd.h>
 
 #include <iosfwd>
 
@@ -75,7 +76,16 @@ enum class AccessSpecifier {
   kPrivate,
 };
 
+[[nodiscard]] auto toAccessSpecifier(TokenKind accessSpecifierToken,
+                                     AccessSpecifier defaultAccessSpecifier)
+    -> AccessSpecifier;
+
+[[nodiscard]] auto defaultAccessSpecifierOfClassKey(TokenKind classKey)
+    -> AccessSpecifier;
+
 void dump(std::ostream& out, Symbol* symbol, int depth = 0);
+void dump(std::ostream& out, Symbol* symbol, TranslationUnit* unit,
+          int depth = 0);
 
 auto operator<<(std::ostream& out, Symbol* symbol) -> std::ostream&;
 

@@ -228,6 +228,10 @@ void VTableOp::print(OpAsmPrinter& p) {
     p << "offset_to_top " << getOffsetToTop() << ' ';
   }
 
+  if (auto typeInfo = getTypeInfo()) {
+    p << "type_info @" << *typeInfo << ' ';
+  }
+
   p << '[';
   llvm::interleaveComma(getSlots(), p, [&](Attribute entry) {
     if (auto symRef = mlir::dyn_cast<FlatSymbolRefAttr>(entry)) {

@@ -37,11 +37,11 @@ auto test() -> int {
 
 // Non-template class has injected class name
 //      CHECK:class Foo
-// CHECK-NEXT:    constructor defaulted void Foo()
-// CHECK-NEXT:    constructor defaulted void Foo(const ::Foo&)
+// CHECK-NEXT:    constructor inline defaulted void Foo()
+// CHECK-NEXT:    constructor inline defaulted void Foo(const ::Foo&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Foo&
-// CHECK-NEXT:    constructor defaulted void Foo(::Foo&&)
+// CHECK-NEXT:    constructor inline defaulted void Foo(::Foo&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Foo&&
 // CHECK-NEXT:    injected class name Foo
@@ -57,10 +57,10 @@ auto test() -> int {
 
 // Non-template derived from template has injected class name
 //      CHECK:class IntBox
-// CHECK-NEXT:    base class Box
+// CHECK-NEXT:    base class ::Box<int>
 // CHECK:        injected class name IntBox
 
 // Multiple inheritance levels preserve injected class name
 //      CHECK:class IntBoxDerived
-// CHECK-NEXT:    base class IntBox
+// CHECK-NEXT:    base class ::IntBox
 // CHECK:        injected class name IntBoxDerived

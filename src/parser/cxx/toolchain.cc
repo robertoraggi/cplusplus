@@ -1419,6 +1419,5 @@ void Toolchain::addWASICxx26Macros() {
   defineMacro("__private_extern__", "extern");
 
   undefMacro("__cpp_exceptions");
-  undefMacro("__cpp_rtti");
 }
 }  // namespace cxx

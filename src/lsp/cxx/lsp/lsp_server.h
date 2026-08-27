@@ -22,8 +22,10 @@
 
 #include <cxx/lsp/fwd.h>
 
+#include <functional>
 #include <istream>
 #include <ostream>
+#include <vector>
 
 #ifndef CXX_NO_THREADS
 #include <thread>
@@ -31,8 +33,6 @@
 #endif
 
 #include <cxx/cli.h>
-
-#include <vector>
 
 #include "sync_queue.h"
 
@@ -59,6 +59,7 @@ class Server {
 
   void operator()(DocumentSymbolRequest request);
   void operator()(CompletionRequest request);
+  void operator()(SignatureHelpRequest request);
 
   void operator()(SetTraceNotification notification);
 
@@ -69,11 +70,15 @@ class Server {
   void startWorkersIfNeeded();
   void stopWorkersIfNeeded();
 
-  void cancelPendingParserRequests(const std::string& fileName);
+  void cancelPendingParserRequests(const std::string& fileName,
+                                   long minVersion);
+  void registerPendingParserRequest(std::shared_ptr<CxxDocument> doc);
+  void unregisterPendingParserRequest(const std::shared_ptr<CxxDocument>& doc);
 
   void run(std::function<void()> task);
 
   void parse(const std::string& uri);
+  void scheduleParse(const std::string& uri);
 
   [[nodiscard]] auto latestDocument(const std::string& uri)
       -> std::shared_ptr<CxxDocument>;
@@ -101,6 +106,8 @@ class Server {
     void computeLineStartOffsets();
   };
 
+  [[nodiscard]] auto snapshotDocument(const std::string& uri) -> Text;
+
  private:
   const CLI& cli;
   std::istream& input;
@@ -109,10 +116,12 @@ class Server {
   std::unordered_map<std::string, std::shared_ptr<CxxDocument>> documents_;
   std::unordered_map<std::string, Text> documentContents_;
   std::vector<std::shared_ptr<CxxDocument>> pendingParserRequests_;
+  std::unordered_map<std::string, std::int64_t> pendingParseGeneration_;
 #ifndef CXX_NO_THREADS
   SyncQueue syncQueue_;
   std::vector<std::thread> workers_;
   std::mutex documentsMutex_;
+  std::mutex documentContentsMutex_;
   std::mutex outputMutex_;
 #endif
   TraceValue trace_{};

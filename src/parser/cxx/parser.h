@@ -70,6 +70,7 @@ class Parser final {
   struct CombinedScopeGuard;
   struct RestoredScopeChain;
   struct ExplicitTemplateHeadGuard;
+  struct EnclosingTemplateHeadGuard;
   struct UnevaluatedOperandGuard;
 
   enum class TypeNameContext { kGeneral, kTypeOnly };
@@ -179,6 +180,35 @@ class Parser final {
   void parse_translation_unit(UnitAST*& yyast);
 
   [[nodiscard]] auto parse_completion(SourceLocation& loc) -> bool;
+
+  struct CompletionTokenPosition {
+    int argumentIndex = 0;
+    bool isDesignator = false;
+  };
+
+  [[nodiscard]] auto isCompletionRequested() const -> bool;
+
+  [[nodiscard]] auto findCompletionToken(int startOffset,
+                                         TokenKind closingDelimiter)
+      -> std::optional<CompletionTokenPosition>;
+
+  void checkSignatureHelp(ExpressionAST* callee);
+  void checkSignatureHelp(std::vector<FunctionSymbol*> candidates,
+                          int activeParameter);
+  void checkTemplateSignatureHelp(Symbol* templateSymbol);
+  void checkInitializerCompletion(const Type* targetType);
+  void checkParenInitializerCompletion(const Type* targetType);
+  void checkBracedInitializerCompletion(const Type* targetType);
+  [[nodiscard]] auto constructorCandidatesOf(const Type* type)
+      -> std::vector<FunctionSymbol*>;
+  void checkMemInitializerCompletion(
+      NestedNameSpecifierAST* nestedNameSpecifier,
+      UnqualifiedIdAST* unqualifiedId);
+  [[nodiscard]] auto completionTargetType(SpecifierAST* typeSpecifier)
+      -> const Type*;
+  [[nodiscard]] auto memInitializerTargetType(
+      NestedNameSpecifierAST* nestedNameSpecifier,
+      UnqualifiedIdAST* unqualifiedId) -> const Type*;
 
   [[nodiscard]] auto parse_id(const Identifier* id, SourceLocation& loc)
       -> bool;
@@ -347,7 +377,8 @@ class Parser final {
   void parse_optional_new_placement(NewPlacementAST*& yyast,
                                     const ExprContext& ctx);
   void parse_optional_new_initializer(NewInitializerAST*& yyast, Decl& decl,
-                                      const ExprContext& ctx);
+                                      const ExprContext& ctx,
+                                      DeclaratorAST* declarator);
   [[nodiscard]] auto parse_delete_expression(ExpressionAST*& yyast,
                                              const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_cast_expression(ExpressionAST*& yyast,
@@ -578,7 +609,8 @@ class Parser final {
       BindingContext ctx, TemplateDeclarationAST* templateHead = nullptr)
       -> bool;
   [[nodiscard]] auto parse_declarator_initializer(
-      RequiresClauseAST*& requiresClause, ExpressionAST*& yyast) -> bool;
+      RequiresClauseAST*& requiresClause, ExpressionAST*& yyast,
+      const Type* declaredType = nullptr) -> bool;
   void parse_optional_declarator_or_abstract_declarator(DeclaratorAST*& yyast,
                                                         Decl& decl);
 
@@ -763,7 +795,7 @@ class Parser final {
                                              const DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_member_declarator(InitDeclaratorAST*& yyast,
                                              DeclaratorAST* declarator,
-                                             const Decl& decl) -> bool;
+                                             Decl decl) -> bool;
   [[nodiscard]] auto parse_virt_specifier(
       FunctionDeclaratorChunkAST* functionDeclarator) -> bool;
   [[nodiscard]] auto parse_pure_specifier(SourceLocation& equalLoc,
@@ -818,6 +850,8 @@ class Parser final {
   [[nodiscard]] auto parse_type_constraint(TypeConstraintAST*& yyast,
                                            bool parsingPlaceholderTypeSpec)
       -> bool;
+  [[nodiscard]] auto parse_unresolved_simple_template_id(
+      SimpleTemplateIdAST*& yyast, Symbol* signatureHelpSymbol) -> bool;
   [[nodiscard]] auto parse_simple_template_id(SimpleTemplateIdAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_simple_template_id(
@@ -893,12 +927,18 @@ class Parser final {
   void rewind(SourceLocation location) { cursor_ = location.index(); }
 
   void completePendingFunctionDefinitions();
+  enum class FriendDeclarationKind { kType, kDeclarator };
+  void recordFriendDeclaration(const DeclSpecs& specs,
+                               List<SpecifierAST*>* specifierList,
+                               NestedNameSpecifierAST* declaratorQualifier,
+                               FriendDeclarationKind kind);
   [[nodiscard]] auto isDeferredFieldInitializer(Symbol* symbol) const -> bool;
   struct PendingFieldInitializer {
     InitDeclaratorAST* ast;
     ScopeSymbol* scope;
   };
-  void recordFieldInitializer(InitDeclaratorAST* ast);
+  void recordFieldInitializer(InitDeclaratorAST* ast,
+                              SpecifierAST* typeSpecifier);
   [[nodiscard]] auto isDeferredDefaultArgument(bool templParam) const -> bool;
   [[nodiscard]] auto isDeferredNoexceptSpecifier() const -> bool;
   [[nodiscard]] auto hasPendingNoexceptSpecifier(ClassSymbol* classSymbol,
@@ -927,6 +967,8 @@ class Parser final {
   void completeNoexceptSpecifiers(
       const std::vector<PendingNoexceptSpecifier>& pending);
   void completeFunctionDefinition(FunctionDefinitionAST* ast);
+
+  [[nodiscard]] static auto templateParameterDepthOf(Symbol* symbol) -> int;
 
   [[nodiscard]] auto getCurrentNonClassScope() const -> ScopeSymbol*;
 
@@ -965,6 +1007,11 @@ class Parser final {
   void synthesizeAbbreviatedTemplateParams(
       ParameterDeclarationClauseAST* params);
 
+  [[nodiscard]] auto takeAbbreviatedTemplateHead(Decl& decl)
+      -> TemplateDeclarationAST*;
+
+  void attachFunctionTemplateDeclarations(SimpleDeclarationAST* declaration);
+
   void synthesizeLambdaAbbreviatedTemplateParams(LambdaExpressionAST* ast);
 
   [[nodiscard]] auto isC() const { return lang_ == LanguageKind::kC; }
@@ -999,7 +1046,6 @@ class Parser final {
   int templateParameterDepth_ = -1;
   int templateParameterCount_ = 0;
   TemplateDeclarationAST* abbreviatedTemplateHead_ = nullptr;
-  int abbreviatedTemplateParamCount_ = 0;
   TemplateDeclarationAST* enclosingExplicitTemplateHead_ = nullptr;
   bool didAcceptCompletionToken_ = false;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;

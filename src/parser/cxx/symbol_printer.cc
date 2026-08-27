@@ -20,6 +20,7 @@
 
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
@@ -42,10 +43,27 @@ struct GetEnumeratorValue {
   auto operator()(auto x) const -> std::string { return {}; }
 };
 
+[[nodiscard]] auto templateParameterText(Symbol* parameter) -> std::string {
+  auto nonTypeParameter = symbol_cast<NonTypeParameterSymbol>(parameter);
+  if (!nonTypeParameter) return to_string(parameter->type());
+
+  auto text = to_string(nonTypeParameter->objectType());
+  if (nonTypeParameter->isParameterPack()) text += "...";
+  return text;
+}
+
 struct DumpSymbols {
   std::ostream& out;
   int depth = 0;
+  TranslationUnit* unit = nullptr;
   std::unordered_set<Symbol*> visited;
+
+  [[nodiscard]] auto isPreambleSymbol(Symbol* symbol) const -> bool {
+    if (!unit || !symbol) return false;
+    auto loc = symbol->location();
+    if (!loc) return false;
+    return unit->tokenStartPosition(loc).fileName == "<builtins>";
+  }
 
   auto dumpScope(ScopeSymbol* scope) {
     if (!scope) return;
@@ -64,6 +82,7 @@ struct DumpSymbols {
         return;
       }
       if (id && id->builtinTemplate() != BuiltinTemplateKind::T_NONE) return;
+      if (isPreambleSymbol(symbol)) return;
       visit(*this, symbol);
     });
 
@@ -111,6 +130,11 @@ struct DumpSymbols {
 
   void operator()(BaseClassSymbol* symbol) {
     indent();
+    auto baseClass = symbol->symbol();
+    if (baseClass && baseClass->type()) {
+      out << std::format("base class {}\n", to_string(baseClass->type()));
+      return;
+    }
     out << std::format("base class {}\n", to_string(symbol->name()));
   }
 
@@ -144,16 +168,7 @@ struct DumpSymbols {
         out << '<';
         std::string_view sep = "";
         for (const auto& param : views::members(symbol->templateParameters())) {
-          if (auto cstParam = symbol_cast<NonTypeParameterSymbol>(param)) {
-            out << std::format("{}{}", sep, to_string(cstParam->objectType()));
-          } else if (symbol_cast<TypeParameterSymbol>(param)) {
-            out << std::format("{}{}", sep, to_string(param->type()));
-          } else if (symbol_cast<TemplateTypeParameterSymbol>(param)) {
-            out << std::format("{}{}", sep, to_string(param->type()));
-          } else {
-            out << std::format("{}{}", sep, to_string(param->type()));
-          }
-          if (param->isParameterPack()) out << "...";
+          out << std::format("{}{}", sep, templateParameterText(param));
           sep = ", ";
         }
         out << '>';
@@ -502,6 +517,10 @@ struct DumpSymbols {
 
 void dump(std::ostream& out, Symbol* symbol, int depth) {
   visit(DumpSymbols{out, depth}, symbol);
+}
+
+void dump(std::ostream& out, Symbol* symbol, TranslationUnit* unit, int depth) {
+  visit(DumpSymbols{out, depth, unit}, symbol);
 }
 
 auto operator<<(std::ostream& out, Symbol* symbol) -> std::ostream& {

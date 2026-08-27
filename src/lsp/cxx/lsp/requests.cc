@@ -46,7 +46,9 @@ auto LSPRequest::id(std::optional<std::variant<long, std::string>> id)
   return *this;
 }
 
-auto LSPRequest::method() const -> std::string { return repr_->at("method"); }
+auto LSPRequest::method() const -> std::string {
+  return repr_->at("method").get<std::string>();
+}
 
 auto LSPResponse::id() const -> std::optional<std::variant<long, std::string>> {
   if (!repr_->contains("id")) return std::nullopt;
@@ -231,15 +233,11 @@ auto DocumentColorResponse::id(std::variant<long, std::string> id)
   return static_cast<DocumentColorResponse&>(LSPResponse::id(std::move(id)));
 }
 
-auto DocumentColorResponse::result() const
-    -> std::variant<Vector<ColorInformation>, std::nullptr_t> {
+auto DocumentColorResponse::result() const -> Vector<ColorInformation> {
   auto& value = (*repr_)["result"];
 
-  std::variant<Vector<ColorInformation>, std::nullptr_t> result;
-
-  details::try_emplace(result, value);
-
-  return result;
+  if (value.is_null()) value = json::array();
+  return Vector<ColorInformation>(value);
 }
 
 auto ColorPresentationRequest::method(std::string method)
@@ -270,15 +268,11 @@ auto ColorPresentationResponse::id(std::variant<long, std::string> id)
       LSPResponse::id(std::move(id)));
 }
 
-auto ColorPresentationResponse::result() const
-    -> std::variant<Vector<ColorPresentation>, std::nullptr_t> {
+auto ColorPresentationResponse::result() const -> Vector<ColorPresentation> {
   auto& value = (*repr_)["result"];
 
-  std::variant<Vector<ColorPresentation>, std::nullptr_t> result;
-
-  details::try_emplace(result, value);
-
-  return result;
+  if (value.is_null()) value = json::array();
+  return Vector<ColorPresentation>(value);
 }
 
 auto FoldingRangeRequest::method(std::string method) -> FoldingRangeRequest& {

@@ -769,70 +769,6 @@ auto ColorPresentation::additionalTextEdits(
   return *this;
 }
 
-WorkDoneProgressOptions::operator bool() const {
-  if (!repr_->is_object() || repr_->is_null()) return false;
-  return true;
-}
-
-auto WorkDoneProgressOptions::workDoneProgress() const -> std::optional<bool> {
-  if (!repr_->contains("workDoneProgress")) return std::nullopt;
-
-  auto& value = (*repr_)["workDoneProgress"];
-
-  if (value.is_null()) value = false;
-  assert(value.is_boolean());
-  return value.get<bool>();
-}
-
-auto WorkDoneProgressOptions::workDoneProgress(
-    std::optional<bool> workDoneProgress) -> WorkDoneProgressOptions& {
-  if (!workDoneProgress.has_value()) {
-    repr_->erase("workDoneProgress");
-    return *this;
-  }
-  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
-  return *this;
-}
-
-TextDocumentRegistrationOptions::operator bool() const {
-  if (!repr_->is_object() || repr_->is_null()) return false;
-  if (!repr_->contains("documentSelector")) return false;
-  return true;
-}
-
-auto TextDocumentRegistrationOptions::documentSelector() const
-    -> std::variant<DocumentSelector, std::nullptr_t> {
-  auto& value = (*repr_)["documentSelector"];
-
-  std::variant<DocumentSelector, std::nullptr_t> result;
-
-  details::try_emplace(result, value);
-
-  return result;
-}
-
-auto TextDocumentRegistrationOptions::documentSelector(
-    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
-    -> TextDocumentRegistrationOptions& {
-  struct {
-    json* repr_;
-
-    void operator()(DocumentSelector documentSelector) {
-      lsp_runtime_error(
-          "TextDocumentRegistrationOptions::documentSelector: not implemented "
-          "yet");
-    }
-
-    void operator()(std::nullptr_t documentSelector) {
-      (*repr_)["documentSelector"] = std::move(documentSelector);
-    }
-  } v{repr_};
-
-  std::visit(v, documentSelector);
-
-  return *this;
-}
-
 FoldingRangeParams::operator bool() const {
   if (!repr_->is_object() || repr_->is_null()) return false;
   if (!repr_->contains("textDocument")) return false;
@@ -1565,7 +1501,7 @@ auto CallHierarchyItem::name() const -> std::string {
 auto CallHierarchyItem::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return SymbolKind(value);
+  return static_cast<SymbolKind>(value.get<long>());
 }
 
 auto CallHierarchyItem::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -3161,7 +3097,7 @@ auto TypeHierarchyItem::name() const -> std::string {
 auto TypeHierarchyItem::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return SymbolKind(value);
+  return static_cast<SymbolKind>(value.get<long>());
 }
 
 auto TypeHierarchyItem::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -3710,7 +3646,7 @@ auto InlayHint::kind() const -> std::optional<InlayHintKind> {
 
   auto& value = (*repr_)["kind"];
 
-  return InlayHintKind(value);
+  return static_cast<InlayHintKind>(value.get<long>());
 }
 
 auto InlayHint::textEdits() const -> std::optional<Vector<TextEdit>> {
@@ -4062,33 +3998,6 @@ auto DocumentDiagnosticParams::partialResultToken(
   }
   lsp_runtime_error(
       "DocumentDiagnosticParams::partialResultToken: not implemented yet");
-  return *this;
-}
-
-DocumentDiagnosticReportPartialResult::operator bool() const {
-  if (!repr_->is_object() || repr_->is_null()) return false;
-  if (!repr_->contains("relatedDocuments")) return false;
-  return true;
-}
-
-auto DocumentDiagnosticReportPartialResult::relatedDocuments() const
-    -> Map<std::string, std::variant<FullDocumentDiagnosticReport,
-                                     UnchangedDocumentDiagnosticReport>> {
-  auto& value = (*repr_)["relatedDocuments"];
-
-  if (value.is_null()) value = json::object();
-  return Map<std::string, std::variant<FullDocumentDiagnosticReport,
-                                       UnchangedDocumentDiagnosticReport>>(
-      value);
-}
-
-auto DocumentDiagnosticReportPartialResult::relatedDocuments(
-    Map<std::string, std::variant<FullDocumentDiagnosticReport,
-                                  UnchangedDocumentDiagnosticReport>>
-        relatedDocuments) -> DocumentDiagnosticReportPartialResult& {
-  lsp_runtime_error(
-      "DocumentDiagnosticReportPartialResult::relatedDocuments: not "
-      "implemented yet");
   return *this;
 }
 
@@ -5358,7 +5267,7 @@ ShowMessageParams::operator bool() const {
 auto ShowMessageParams::type() const -> MessageType {
   auto& value = (*repr_)["type"];
 
-  return MessageType(value);
+  return static_cast<MessageType>(value.get<long>());
 }
 
 auto ShowMessageParams::message() const -> std::string {
@@ -5389,7 +5298,7 @@ ShowMessageRequestParams::operator bool() const {
 auto ShowMessageRequestParams::type() const -> MessageType {
   auto& value = (*repr_)["type"];
 
-  return MessageType(value);
+  return static_cast<MessageType>(value.get<long>());
 }
 
 auto ShowMessageRequestParams::message() const -> std::string {
@@ -5462,7 +5371,7 @@ LogMessageParams::operator bool() const {
 auto LogMessageParams::type() const -> MessageType {
   auto& value = (*repr_)["type"];
 
-  return MessageType(value);
+  return static_cast<MessageType>(value.get<long>());
 }
 
 auto LogMessageParams::message() const -> std::string {
@@ -5498,6 +5407,45 @@ auto DidOpenTextDocumentParams::textDocument() const -> TextDocumentItem {
 auto DidOpenTextDocumentParams::textDocument(TextDocumentItem textDocument)
     -> DidOpenTextDocumentParams& {
   (*repr_)["textDocument"] = textDocument;
+  return *this;
+}
+
+TextDocumentRegistrationOptions::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("documentSelector")) return false;
+  return true;
+}
+
+auto TextDocumentRegistrationOptions::documentSelector() const
+    -> std::variant<DocumentSelector, std::nullptr_t> {
+  auto& value = (*repr_)["documentSelector"];
+
+  std::variant<DocumentSelector, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
+auto TextDocumentRegistrationOptions::documentSelector(
+    std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+    -> TextDocumentRegistrationOptions& {
+  struct {
+    json* repr_;
+
+    void operator()(DocumentSelector documentSelector) {
+      lsp_runtime_error(
+          "TextDocumentRegistrationOptions::documentSelector: not implemented "
+          "yet");
+    }
+
+    void operator()(std::nullptr_t documentSelector) {
+      (*repr_)["documentSelector"] = std::move(documentSelector);
+    }
+  } v{repr_};
+
+  std::visit(v, documentSelector);
+
   return *this;
 }
 
@@ -5548,7 +5496,7 @@ auto TextDocumentChangeRegistrationOptions::syncKind() const
     -> TextDocumentSyncKind {
   auto& value = (*repr_)["syncKind"];
 
-  return TextDocumentSyncKind(value);
+  return static_cast<TextDocumentSyncKind>(value.get<long>());
 }
 
 auto TextDocumentChangeRegistrationOptions::documentSelector() const
@@ -5724,7 +5672,7 @@ auto WillSaveTextDocumentParams::textDocument() const
 auto WillSaveTextDocumentParams::reason() const -> TextDocumentSaveReason {
   auto& value = (*repr_)["reason"];
 
-  return TextDocumentSaveReason(value);
+  return static_cast<TextDocumentSaveReason>(value.get<long>());
 }
 
 auto WillSaveTextDocumentParams::textDocument(
@@ -5986,7 +5934,7 @@ auto CompletionItem::kind() const -> std::optional<CompletionItemKind> {
 
   auto& value = (*repr_)["kind"];
 
-  return CompletionItemKind(value);
+  return static_cast<CompletionItemKind>(value.get<long>());
 }
 
 auto CompletionItem::tags() const -> std::optional<Vector<CompletionItemTag>> {
@@ -6077,7 +6025,7 @@ auto CompletionItem::insertTextFormat() const
 
   auto& value = (*repr_)["insertTextFormat"];
 
-  return InsertTextFormat(value);
+  return static_cast<InsertTextFormat>(value.get<long>());
 }
 
 auto CompletionItem::insertTextMode() const -> std::optional<InsertTextMode> {
@@ -6085,7 +6033,7 @@ auto CompletionItem::insertTextMode() const -> std::optional<InsertTextMode> {
 
   auto& value = (*repr_)["insertTextMode"];
 
-  return InsertTextMode(value);
+  return static_cast<InsertTextMode>(value.get<long>());
 }
 
 auto CompletionItem::textEdit() const
@@ -7370,7 +7318,7 @@ auto DocumentHighlight::kind() const -> std::optional<DocumentHighlightKind> {
 
   auto& value = (*repr_)["kind"];
 
-  return DocumentHighlightKind(value);
+  return static_cast<DocumentHighlightKind>(value.get<long>());
 }
 
 auto DocumentHighlight::range(Range range) -> DocumentHighlight& {
@@ -7549,7 +7497,7 @@ auto SymbolInformation::name() const -> std::string {
 auto SymbolInformation::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return SymbolKind(value);
+  return static_cast<SymbolKind>(value.get<long>());
 }
 
 auto SymbolInformation::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -7646,7 +7594,7 @@ auto DocumentSymbol::detail() const -> std::optional<std::string> {
 auto DocumentSymbol::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return SymbolKind(value);
+  return static_cast<SymbolKind>(value.get<long>());
 }
 
 auto DocumentSymbol::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -8386,7 +8334,7 @@ auto WorkspaceSymbol::name() const -> std::string {
 auto WorkspaceSymbol::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return SymbolKind(value);
+  return static_cast<SymbolKind>(value.get<long>());
 }
 
 auto WorkspaceSymbol::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -11915,96 +11863,30 @@ auto RelatedUnchangedDocumentDiagnosticReport::resultId(std::string resultId)
   return *this;
 }
 
-FullDocumentDiagnosticReport::operator bool() const {
+DocumentDiagnosticReportPartialResult::operator bool() const {
   if (!repr_->is_object() || repr_->is_null()) return false;
-  if (!repr_->contains("kind")) return false;
-  if ((*repr_)["kind"] != "full") return false;
-  if (!repr_->contains("items")) return false;
+  if (!repr_->contains("relatedDocuments")) return false;
   return true;
 }
 
-auto FullDocumentDiagnosticReport::kind() const -> std::string {
-  auto& value = (*repr_)["kind"];
+auto DocumentDiagnosticReportPartialResult::relatedDocuments() const
+    -> Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                     UnchangedDocumentDiagnosticReport>> {
+  auto& value = (*repr_)["relatedDocuments"];
 
-  if (value.is_null()) value = "full";
-  assert(value.is_string());
-  return value.get<std::string>();
+  if (value.is_null()) value = json::object();
+  return Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                       UnchangedDocumentDiagnosticReport>>(
+      value);
 }
 
-auto FullDocumentDiagnosticReport::resultId() const
-    -> std::optional<std::string> {
-  if (!repr_->contains("resultId")) return std::nullopt;
-
-  auto& value = (*repr_)["resultId"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto FullDocumentDiagnosticReport::items() const -> Vector<Diagnostic> {
-  auto& value = (*repr_)["items"];
-
-  if (value.is_null()) value = json::array();
-  return Vector<Diagnostic>(value);
-}
-
-auto FullDocumentDiagnosticReport::kind(std::string kind)
-    -> FullDocumentDiagnosticReport& {
-  lsp_runtime_error("FullDocumentDiagnosticReport::kind: not implemented yet");
-  return *this;
-}
-
-auto FullDocumentDiagnosticReport::resultId(std::optional<std::string> resultId)
-    -> FullDocumentDiagnosticReport& {
-  if (!resultId.has_value()) {
-    repr_->erase("resultId");
-    return *this;
-  }
-  (*repr_)["resultId"] = std::move(resultId.value());
-  return *this;
-}
-
-auto FullDocumentDiagnosticReport::items(Vector<Diagnostic> items)
-    -> FullDocumentDiagnosticReport& {
-  (*repr_)["items"] = std::move(items);
-  return *this;
-}
-
-UnchangedDocumentDiagnosticReport::operator bool() const {
-  if (!repr_->is_object() || repr_->is_null()) return false;
-  if (!repr_->contains("kind")) return false;
-  if ((*repr_)["kind"] != "unchanged") return false;
-  if (!repr_->contains("resultId")) return false;
-  return true;
-}
-
-auto UnchangedDocumentDiagnosticReport::kind() const -> std::string {
-  auto& value = (*repr_)["kind"];
-
-  if (value.is_null()) value = "unchanged";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto UnchangedDocumentDiagnosticReport::resultId() const -> std::string {
-  auto& value = (*repr_)["resultId"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto UnchangedDocumentDiagnosticReport::kind(std::string kind)
-    -> UnchangedDocumentDiagnosticReport& {
+auto DocumentDiagnosticReportPartialResult::relatedDocuments(
+    Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                  UnchangedDocumentDiagnosticReport>>
+        relatedDocuments) -> DocumentDiagnosticReportPartialResult& {
   lsp_runtime_error(
-      "UnchangedDocumentDiagnosticReport::kind: not implemented yet");
-  return *this;
-}
-
-auto UnchangedDocumentDiagnosticReport::resultId(std::string resultId)
-    -> UnchangedDocumentDiagnosticReport& {
-  (*repr_)["resultId"] = std::move(resultId);
+      "DocumentDiagnosticReportPartialResult::relatedDocuments: not "
+      "implemented yet");
   return *this;
 }
 
@@ -12415,7 +12297,7 @@ auto InlineCompletionContext::triggerKind() const
     -> InlineCompletionTriggerKind {
   auto& value = (*repr_)["triggerKind"];
 
-  return InlineCompletionTriggerKind(value);
+  return static_cast<InlineCompletionTriggerKind>(value.get<long>());
 }
 
 auto InlineCompletionContext::selectedCompletionInfo() const
@@ -14290,7 +14172,7 @@ auto FileEvent::uri() const -> std::string {
 auto FileEvent::type() const -> FileChangeType {
   auto& value = (*repr_)["type"];
 
-  return FileChangeType(value);
+  return static_cast<FileChangeType>(value.get<long>());
 }
 
 auto FileEvent::uri(std::string uri) -> FileEvent& {
@@ -14324,7 +14206,7 @@ auto FileSystemWatcher::kind() const -> std::optional<WatchKind> {
 
   auto& value = (*repr_)["kind"];
 
-  return WatchKind(value);
+  return static_cast<WatchKind>(value.get<long>());
 }
 
 auto FileSystemWatcher::globPattern(GlobPattern globPattern)
@@ -14361,7 +14243,7 @@ auto Diagnostic::severity() const -> std::optional<DiagnosticSeverity> {
 
   auto& value = (*repr_)["severity"];
 
-  return DiagnosticSeverity(value);
+  return static_cast<DiagnosticSeverity>(value.get<long>());
 }
 
 auto Diagnostic::code() const
@@ -14395,12 +14277,14 @@ auto Diagnostic::source() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
-auto Diagnostic::message() const -> std::string {
+auto Diagnostic::message() const -> std::variant<std::string, MarkupContent> {
   auto& value = (*repr_)["message"];
 
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
+  std::variant<std::string, MarkupContent> result;
+
+  details::try_emplace(result, value);
+
+  return result;
 }
 
 auto Diagnostic::tags() const -> std::optional<Vector<DiagnosticTag>> {
@@ -14485,8 +14369,20 @@ auto Diagnostic::source(std::optional<std::string> source) -> Diagnostic& {
   return *this;
 }
 
-auto Diagnostic::message(std::string message) -> Diagnostic& {
-  (*repr_)["message"] = std::move(message);
+auto Diagnostic::message(std::variant<std::string, MarkupContent> message)
+    -> Diagnostic& {
+  struct {
+    json* repr_;
+
+    void operator()(std::string message) {
+      (*repr_)["message"] = std::move(message);
+    }
+
+    void operator()(MarkupContent message) { (*repr_)["message"] = message; }
+  } v{repr_};
+
+  std::visit(v, message);
+
   return *this;
 }
 
@@ -14529,7 +14425,7 @@ CompletionContext::operator bool() const {
 auto CompletionContext::triggerKind() const -> CompletionTriggerKind {
   auto& value = (*repr_)["triggerKind"];
 
-  return CompletionTriggerKind(value);
+  return static_cast<CompletionTriggerKind>(value.get<long>());
 }
 
 auto CompletionContext::triggerCharacter() const -> std::optional<std::string> {
@@ -14681,7 +14577,7 @@ auto CompletionItemDefaults::insertTextFormat() const
 
   auto& value = (*repr_)["insertTextFormat"];
 
-  return InsertTextFormat(value);
+  return static_cast<InsertTextFormat>(value.get<long>());
 }
 
 auto CompletionItemDefaults::insertTextMode() const
@@ -14690,7 +14586,7 @@ auto CompletionItemDefaults::insertTextMode() const
 
   auto& value = (*repr_)["insertTextMode"];
 
-  return InsertTextMode(value);
+  return static_cast<InsertTextMode>(value.get<long>());
 }
 
 auto CompletionItemDefaults::data() const -> std::optional<LSPAny> {
@@ -14778,7 +14674,7 @@ auto CompletionItemApplyKinds::commitCharacters() const
 
   auto& value = (*repr_)["commitCharacters"];
 
-  return ApplyKind(value);
+  return static_cast<ApplyKind>(value.get<long>());
 }
 
 auto CompletionItemApplyKinds::data() const -> std::optional<ApplyKind> {
@@ -14786,7 +14682,7 @@ auto CompletionItemApplyKinds::data() const -> std::optional<ApplyKind> {
 
   auto& value = (*repr_)["data"];
 
-  return ApplyKind(value);
+  return static_cast<ApplyKind>(value.get<long>());
 }
 
 auto CompletionItemApplyKinds::commitCharacters(
@@ -14951,7 +14847,7 @@ SignatureHelpContext::operator bool() const {
 auto SignatureHelpContext::triggerKind() const -> SignatureHelpTriggerKind {
   auto& value = (*repr_)["triggerKind"];
 
-  return SignatureHelpTriggerKind(value);
+  return static_cast<SignatureHelpTriggerKind>(value.get<long>());
 }
 
 auto SignatureHelpContext::triggerCharacter() const
@@ -15310,7 +15206,7 @@ auto BaseSymbolInformation::name() const -> std::string {
 auto BaseSymbolInformation::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return SymbolKind(value);
+  return static_cast<SymbolKind>(value.get<long>());
 }
 
 auto BaseSymbolInformation::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -15436,7 +15332,7 @@ auto CodeActionContext::triggerKind() const
 
   auto& value = (*repr_)["triggerKind"];
 
-  return CodeActionTriggerKind(value);
+  return static_cast<CodeActionTriggerKind>(value.get<long>());
 }
 
 auto CodeActionContext::diagnostics(Vector<Diagnostic> diagnostics)
@@ -16095,6 +15991,31 @@ auto WorkspaceEditMetadata::isRefactoring(std::optional<bool> isRefactoring)
   return *this;
 }
 
+WorkDoneProgressOptions::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  return true;
+}
+
+auto WorkDoneProgressOptions::workDoneProgress() const -> std::optional<bool> {
+  if (!repr_->contains("workDoneProgress")) return std::nullopt;
+
+  auto& value = (*repr_)["workDoneProgress"];
+
+  if (value.is_null()) value = false;
+  assert(value.is_boolean());
+  return value.get<bool>();
+}
+
+auto WorkDoneProgressOptions::workDoneProgress(
+    std::optional<bool> workDoneProgress) -> WorkDoneProgressOptions& {
+  if (!workDoneProgress.has_value()) {
+    repr_->erase("workDoneProgress");
+    return *this;
+  }
+  (*repr_)["workDoneProgress"] = std::move(workDoneProgress.value());
+  return *this;
+}
+
 SemanticTokensLegend::operator bool() const {
   if (!repr_->is_object() || repr_->is_null()) return false;
   if (!repr_->contains("tokenTypes")) return false;
@@ -16539,6 +16460,99 @@ auto FileOperationPattern::options(
   return *this;
 }
 
+FullDocumentDiagnosticReport::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("kind")) return false;
+  if ((*repr_)["kind"] != "full") return false;
+  if (!repr_->contains("items")) return false;
+  return true;
+}
+
+auto FullDocumentDiagnosticReport::kind() const -> std::string {
+  auto& value = (*repr_)["kind"];
+
+  if (value.is_null()) value = "full";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto FullDocumentDiagnosticReport::resultId() const
+    -> std::optional<std::string> {
+  if (!repr_->contains("resultId")) return std::nullopt;
+
+  auto& value = (*repr_)["resultId"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto FullDocumentDiagnosticReport::items() const -> Vector<Diagnostic> {
+  auto& value = (*repr_)["items"];
+
+  if (value.is_null()) value = json::array();
+  return Vector<Diagnostic>(value);
+}
+
+auto FullDocumentDiagnosticReport::kind(std::string kind)
+    -> FullDocumentDiagnosticReport& {
+  lsp_runtime_error("FullDocumentDiagnosticReport::kind: not implemented yet");
+  return *this;
+}
+
+auto FullDocumentDiagnosticReport::resultId(std::optional<std::string> resultId)
+    -> FullDocumentDiagnosticReport& {
+  if (!resultId.has_value()) {
+    repr_->erase("resultId");
+    return *this;
+  }
+  (*repr_)["resultId"] = std::move(resultId.value());
+  return *this;
+}
+
+auto FullDocumentDiagnosticReport::items(Vector<Diagnostic> items)
+    -> FullDocumentDiagnosticReport& {
+  (*repr_)["items"] = std::move(items);
+  return *this;
+}
+
+UnchangedDocumentDiagnosticReport::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("kind")) return false;
+  if ((*repr_)["kind"] != "unchanged") return false;
+  if (!repr_->contains("resultId")) return false;
+  return true;
+}
+
+auto UnchangedDocumentDiagnosticReport::kind() const -> std::string {
+  auto& value = (*repr_)["kind"];
+
+  if (value.is_null()) value = "unchanged";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto UnchangedDocumentDiagnosticReport::resultId() const -> std::string {
+  auto& value = (*repr_)["resultId"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto UnchangedDocumentDiagnosticReport::kind(std::string kind)
+    -> UnchangedDocumentDiagnosticReport& {
+  lsp_runtime_error(
+      "UnchangedDocumentDiagnosticReport::kind: not implemented yet");
+  return *this;
+}
+
+auto UnchangedDocumentDiagnosticReport::resultId(std::string resultId)
+    -> UnchangedDocumentDiagnosticReport& {
+  (*repr_)["resultId"] = std::move(resultId);
+  return *this;
+}
+
 WorkspaceFullDocumentDiagnosticReport::operator bool() const {
   if (!repr_->is_object() || repr_->is_null()) return false;
   if (!repr_->contains("uri")) return false;
@@ -16736,7 +16750,7 @@ NotebookCell::operator bool() const {
 auto NotebookCell::kind() const -> NotebookCellKind {
   auto& value = (*repr_)["kind"];
 
-  return NotebookCellKind(value);
+  return static_cast<NotebookCellKind>(value.get<long>());
 }
 
 auto NotebookCell::document() const -> std::string {
@@ -17190,7 +17204,7 @@ auto TextDocumentSyncOptions::change() const
 
   auto& value = (*repr_)["change"];
 
-  return TextDocumentSyncKind(value);
+  return static_cast<TextDocumentSyncKind>(value.get<long>());
 }
 
 auto TextDocumentSyncOptions::willSave() const -> std::optional<bool> {
@@ -17698,65 +17712,6 @@ auto CodeActionKindDocumentation::kind(CodeActionKind kind)
 auto CodeActionKindDocumentation::command(Command command)
     -> CodeActionKindDocumentation& {
   (*repr_)["command"] = command;
-  return *this;
-}
-
-NotebookCellTextDocumentFilter::operator bool() const {
-  if (!repr_->is_object() || repr_->is_null()) return false;
-  if (!repr_->contains("notebook")) return false;
-  return true;
-}
-
-auto NotebookCellTextDocumentFilter::notebook() const
-    -> std::variant<std::string, NotebookDocumentFilter> {
-  auto& value = (*repr_)["notebook"];
-
-  std::variant<std::string, NotebookDocumentFilter> result;
-
-  details::try_emplace(result, value);
-
-  return result;
-}
-
-auto NotebookCellTextDocumentFilter::language() const
-    -> std::optional<std::string> {
-  if (!repr_->contains("language")) return std::nullopt;
-
-  auto& value = (*repr_)["language"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto NotebookCellTextDocumentFilter::notebook(
-    std::variant<std::string, NotebookDocumentFilter> notebook)
-    -> NotebookCellTextDocumentFilter& {
-  struct {
-    json* repr_;
-
-    void operator()(std::string notebook) {
-      (*repr_)["notebook"] = std::move(notebook);
-    }
-
-    void operator()(NotebookDocumentFilter notebook) {
-      lsp_runtime_error(
-          "NotebookCellTextDocumentFilter::notebook: not implemented yet");
-    }
-  } v{repr_};
-
-  std::visit(v, notebook);
-
-  return *this;
-}
-
-auto NotebookCellTextDocumentFilter::language(
-    std::optional<std::string> language) -> NotebookCellTextDocumentFilter& {
-  if (!language.has_value()) {
-    repr_->erase("language");
-    return *this;
-  }
-  (*repr_)["language"] = std::move(language.value());
   return *this;
 }
 
@@ -19273,6 +19228,65 @@ auto FileOperationOptions::willDelete(
   return *this;
 }
 
+NotebookCellTextDocumentFilter::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("notebook")) return false;
+  return true;
+}
+
+auto NotebookCellTextDocumentFilter::notebook() const
+    -> std::variant<std::string, NotebookDocumentFilter> {
+  auto& value = (*repr_)["notebook"];
+
+  std::variant<std::string, NotebookDocumentFilter> result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
+auto NotebookCellTextDocumentFilter::language() const
+    -> std::optional<std::string> {
+  if (!repr_->contains("language")) return std::nullopt;
+
+  auto& value = (*repr_)["language"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto NotebookCellTextDocumentFilter::notebook(
+    std::variant<std::string, NotebookDocumentFilter> notebook)
+    -> NotebookCellTextDocumentFilter& {
+  struct {
+    json* repr_;
+
+    void operator()(std::string notebook) {
+      (*repr_)["notebook"] = std::move(notebook);
+    }
+
+    void operator()(NotebookDocumentFilter notebook) {
+      lsp_runtime_error(
+          "NotebookCellTextDocumentFilter::notebook: not implemented yet");
+    }
+  } v{repr_};
+
+  std::visit(v, notebook);
+
+  return *this;
+}
+
+auto NotebookCellTextDocumentFilter::language(
+    std::optional<std::string> language) -> NotebookCellTextDocumentFilter& {
+  if (!language.has_value()) {
+    repr_->erase("language");
+    return *this;
+  }
+  (*repr_)["language"] = std::move(language.value());
+  return *this;
+}
+
 RelativePattern::operator bool() const {
   if (!repr_->is_object() || repr_->is_null()) return false;
   if (!repr_->contains("baseUri")) return false;
@@ -19318,192 +19332,6 @@ auto RelativePattern::baseUri(
 
 auto RelativePattern::pattern(Pattern pattern) -> RelativePattern& {
   lsp_runtime_error("RelativePattern::pattern: not implemented yet");
-  return *this;
-}
-
-TextDocumentFilterLanguage::operator bool() const {
-  if (!repr_->is_object() || repr_->is_null()) return false;
-  if (!repr_->contains("language")) return false;
-  return true;
-}
-
-auto TextDocumentFilterLanguage::language() const -> std::string {
-  auto& value = (*repr_)["language"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto TextDocumentFilterLanguage::scheme() const -> std::optional<std::string> {
-  if (!repr_->contains("scheme")) return std::nullopt;
-
-  auto& value = (*repr_)["scheme"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto TextDocumentFilterLanguage::pattern() const -> std::optional<GlobPattern> {
-  if (!repr_->contains("pattern")) return std::nullopt;
-
-  auto& value = (*repr_)["pattern"];
-
-  GlobPattern result;
-
-  details::try_emplace(result, value);
-
-  return result;
-}
-
-auto TextDocumentFilterLanguage::language(std::string language)
-    -> TextDocumentFilterLanguage& {
-  (*repr_)["language"] = std::move(language);
-  return *this;
-}
-
-auto TextDocumentFilterLanguage::scheme(std::optional<std::string> scheme)
-    -> TextDocumentFilterLanguage& {
-  if (!scheme.has_value()) {
-    repr_->erase("scheme");
-    return *this;
-  }
-  (*repr_)["scheme"] = std::move(scheme.value());
-  return *this;
-}
-
-auto TextDocumentFilterLanguage::pattern(std::optional<GlobPattern> pattern)
-    -> TextDocumentFilterLanguage& {
-  if (!pattern.has_value()) {
-    repr_->erase("pattern");
-    return *this;
-  }
-  lsp_runtime_error("TextDocumentFilterLanguage::pattern: not implemented yet");
-  return *this;
-}
-
-TextDocumentFilterScheme::operator bool() const {
-  if (!repr_->is_object() || repr_->is_null()) return false;
-  if (!repr_->contains("scheme")) return false;
-  return true;
-}
-
-auto TextDocumentFilterScheme::language() const -> std::optional<std::string> {
-  if (!repr_->contains("language")) return std::nullopt;
-
-  auto& value = (*repr_)["language"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto TextDocumentFilterScheme::scheme() const -> std::string {
-  auto& value = (*repr_)["scheme"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto TextDocumentFilterScheme::pattern() const -> std::optional<GlobPattern> {
-  if (!repr_->contains("pattern")) return std::nullopt;
-
-  auto& value = (*repr_)["pattern"];
-
-  GlobPattern result;
-
-  details::try_emplace(result, value);
-
-  return result;
-}
-
-auto TextDocumentFilterScheme::language(std::optional<std::string> language)
-    -> TextDocumentFilterScheme& {
-  if (!language.has_value()) {
-    repr_->erase("language");
-    return *this;
-  }
-  (*repr_)["language"] = std::move(language.value());
-  return *this;
-}
-
-auto TextDocumentFilterScheme::scheme(std::string scheme)
-    -> TextDocumentFilterScheme& {
-  (*repr_)["scheme"] = std::move(scheme);
-  return *this;
-}
-
-auto TextDocumentFilterScheme::pattern(std::optional<GlobPattern> pattern)
-    -> TextDocumentFilterScheme& {
-  if (!pattern.has_value()) {
-    repr_->erase("pattern");
-    return *this;
-  }
-  lsp_runtime_error("TextDocumentFilterScheme::pattern: not implemented yet");
-  return *this;
-}
-
-TextDocumentFilterPattern::operator bool() const {
-  if (!repr_->is_object() || repr_->is_null()) return false;
-  if (!repr_->contains("pattern")) return false;
-  return true;
-}
-
-auto TextDocumentFilterPattern::language() const -> std::optional<std::string> {
-  if (!repr_->contains("language")) return std::nullopt;
-
-  auto& value = (*repr_)["language"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto TextDocumentFilterPattern::scheme() const -> std::optional<std::string> {
-  if (!repr_->contains("scheme")) return std::nullopt;
-
-  auto& value = (*repr_)["scheme"];
-
-  if (value.is_null()) value = "";
-  assert(value.is_string());
-  return value.get<std::string>();
-}
-
-auto TextDocumentFilterPattern::pattern() const -> GlobPattern {
-  auto& value = (*repr_)["pattern"];
-
-  GlobPattern result;
-
-  details::try_emplace(result, value);
-
-  return result;
-}
-
-auto TextDocumentFilterPattern::language(std::optional<std::string> language)
-    -> TextDocumentFilterPattern& {
-  if (!language.has_value()) {
-    repr_->erase("language");
-    return *this;
-  }
-  (*repr_)["language"] = std::move(language.value());
-  return *this;
-}
-
-auto TextDocumentFilterPattern::scheme(std::optional<std::string> scheme)
-    -> TextDocumentFilterPattern& {
-  if (!scheme.has_value()) {
-    repr_->erase("scheme");
-    return *this;
-  }
-  (*repr_)["scheme"] = std::move(scheme.value());
-  return *this;
-}
-
-auto TextDocumentFilterPattern::pattern(GlobPattern pattern)
-    -> TextDocumentFilterPattern& {
-  lsp_runtime_error("TextDocumentFilterPattern::pattern: not implemented yet");
   return *this;
 }
 
@@ -20602,7 +20430,7 @@ auto CompletionClientCapabilities::insertTextMode() const
 
   auto& value = (*repr_)["insertTextMode"];
 
-  return InsertTextMode(value);
+  return static_cast<InsertTextMode>(value.get<long>());
 }
 
 auto CompletionClientCapabilities::contextSupport() const
@@ -21605,7 +21433,7 @@ auto RenameClientCapabilities::prepareSupportDefaultBehavior() const
 
   auto& value = (*repr_)["prepareSupportDefaultBehavior"];
 
-  return PrepareSupportDefaultBehavior(value);
+  return static_cast<PrepareSupportDefaultBehavior>(value.get<long>());
 }
 
 auto RenameClientCapabilities::honorsChangeAnnotations() const
@@ -22291,6 +22119,17 @@ auto DiagnosticClientCapabilities::relatedDocumentSupport() const
   return value.get<bool>();
 }
 
+auto DiagnosticClientCapabilities::markupMessageSupport() const
+    -> std::optional<bool> {
+  if (!repr_->contains("markupMessageSupport")) return std::nullopt;
+
+  auto& value = (*repr_)["markupMessageSupport"];
+
+  if (value.is_null()) value = false;
+  assert(value.is_boolean());
+  return value.get<bool>();
+}
+
 auto DiagnosticClientCapabilities::relatedInformation() const
     -> std::optional<bool> {
   if (!repr_->contains("relatedInformation")) return std::nullopt;
@@ -22351,6 +22190,16 @@ auto DiagnosticClientCapabilities::relatedDocumentSupport(
   }
   (*repr_)["relatedDocumentSupport"] =
       std::move(relatedDocumentSupport.value());
+  return *this;
+}
+
+auto DiagnosticClientCapabilities::markupMessageSupport(
+    std::optional<bool> markupMessageSupport) -> DiagnosticClientCapabilities& {
+  if (!markupMessageSupport.has_value()) {
+    repr_->erase("markupMessageSupport");
+    return *this;
+  }
+  (*repr_)["markupMessageSupport"] = std::move(markupMessageSupport.value());
   return *this;
 }
 
@@ -22657,6 +22506,192 @@ auto MarkdownClientCapabilities::allowedTags(
     return *this;
   }
   (*repr_)["allowedTags"] = std::move(allowedTags.value());
+  return *this;
+}
+
+TextDocumentFilterLanguage::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("language")) return false;
+  return true;
+}
+
+auto TextDocumentFilterLanguage::language() const -> std::string {
+  auto& value = (*repr_)["language"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto TextDocumentFilterLanguage::scheme() const -> std::optional<std::string> {
+  if (!repr_->contains("scheme")) return std::nullopt;
+
+  auto& value = (*repr_)["scheme"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto TextDocumentFilterLanguage::pattern() const -> std::optional<GlobPattern> {
+  if (!repr_->contains("pattern")) return std::nullopt;
+
+  auto& value = (*repr_)["pattern"];
+
+  GlobPattern result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
+auto TextDocumentFilterLanguage::language(std::string language)
+    -> TextDocumentFilterLanguage& {
+  (*repr_)["language"] = std::move(language);
+  return *this;
+}
+
+auto TextDocumentFilterLanguage::scheme(std::optional<std::string> scheme)
+    -> TextDocumentFilterLanguage& {
+  if (!scheme.has_value()) {
+    repr_->erase("scheme");
+    return *this;
+  }
+  (*repr_)["scheme"] = std::move(scheme.value());
+  return *this;
+}
+
+auto TextDocumentFilterLanguage::pattern(std::optional<GlobPattern> pattern)
+    -> TextDocumentFilterLanguage& {
+  if (!pattern.has_value()) {
+    repr_->erase("pattern");
+    return *this;
+  }
+  lsp_runtime_error("TextDocumentFilterLanguage::pattern: not implemented yet");
+  return *this;
+}
+
+TextDocumentFilterScheme::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("scheme")) return false;
+  return true;
+}
+
+auto TextDocumentFilterScheme::language() const -> std::optional<std::string> {
+  if (!repr_->contains("language")) return std::nullopt;
+
+  auto& value = (*repr_)["language"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto TextDocumentFilterScheme::scheme() const -> std::string {
+  auto& value = (*repr_)["scheme"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto TextDocumentFilterScheme::pattern() const -> std::optional<GlobPattern> {
+  if (!repr_->contains("pattern")) return std::nullopt;
+
+  auto& value = (*repr_)["pattern"];
+
+  GlobPattern result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
+auto TextDocumentFilterScheme::language(std::optional<std::string> language)
+    -> TextDocumentFilterScheme& {
+  if (!language.has_value()) {
+    repr_->erase("language");
+    return *this;
+  }
+  (*repr_)["language"] = std::move(language.value());
+  return *this;
+}
+
+auto TextDocumentFilterScheme::scheme(std::string scheme)
+    -> TextDocumentFilterScheme& {
+  (*repr_)["scheme"] = std::move(scheme);
+  return *this;
+}
+
+auto TextDocumentFilterScheme::pattern(std::optional<GlobPattern> pattern)
+    -> TextDocumentFilterScheme& {
+  if (!pattern.has_value()) {
+    repr_->erase("pattern");
+    return *this;
+  }
+  lsp_runtime_error("TextDocumentFilterScheme::pattern: not implemented yet");
+  return *this;
+}
+
+TextDocumentFilterPattern::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("pattern")) return false;
+  return true;
+}
+
+auto TextDocumentFilterPattern::language() const -> std::optional<std::string> {
+  if (!repr_->contains("language")) return std::nullopt;
+
+  auto& value = (*repr_)["language"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto TextDocumentFilterPattern::scheme() const -> std::optional<std::string> {
+  if (!repr_->contains("scheme")) return std::nullopt;
+
+  auto& value = (*repr_)["scheme"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto TextDocumentFilterPattern::pattern() const -> GlobPattern {
+  auto& value = (*repr_)["pattern"];
+
+  GlobPattern result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
+auto TextDocumentFilterPattern::language(std::optional<std::string> language)
+    -> TextDocumentFilterPattern& {
+  if (!language.has_value()) {
+    repr_->erase("language");
+    return *this;
+  }
+  (*repr_)["language"] = std::move(language.value());
+  return *this;
+}
+
+auto TextDocumentFilterPattern::scheme(std::optional<std::string> scheme)
+    -> TextDocumentFilterPattern& {
+  if (!scheme.has_value()) {
+    repr_->erase("scheme");
+    return *this;
+  }
+  (*repr_)["scheme"] = std::move(scheme.value());
+  return *this;
+}
+
+auto TextDocumentFilterPattern::pattern(GlobPattern pattern)
+    -> TextDocumentFilterPattern& {
+  lsp_runtime_error("TextDocumentFilterPattern::pattern: not implemented yet");
   return *this;
 }
 

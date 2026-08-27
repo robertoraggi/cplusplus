@@ -18,21 +18,21 @@ Box<IntAlias> b;
 // CHECK-NEXT:    injected class name Box
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Box<int>
-// CHECK-NEXT:        constructor defaulted void Box()
-// CHECK-NEXT:        constructor defaulted void Box(const ::Box<int>&)
+// CHECK-NEXT:        constructor inline defaulted void Box()
+// CHECK-NEXT:        constructor inline defaulted void Box(const ::Box<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Box<int>&
-// CHECK-NEXT:        constructor defaulted void Box(::Box<int>&&)
+// CHECK-NEXT:        constructor inline defaulted void Box(::Box<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Box<int>&&
 // CHECK-NEXT:        injected class name Box
-// CHECK-NEXT:        function defaulted ::Box<int>& operator =(const ::Box<int>&)
+// CHECK-NEXT:        function inline defaulted ::Box<int>& operator =(const ::Box<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Box<int>&
-// CHECK-NEXT:        function defaulted ::Box<int>& operator =(::Box<int>&&)
+// CHECK-NEXT:        function inline defaulted ::Box<int>& operator =(::Box<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Box<int>&&
-// CHECK-NEXT:        function defaulted void ~Box()
+// CHECK-NEXT:        function inline defaulted void ~Box()
 // CHECK-NEXT:  template typealias type-param<0, 0> Alias
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:  typealias int IntAlias

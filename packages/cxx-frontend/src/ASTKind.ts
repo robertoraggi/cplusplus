@@ -154,6 +154,7 @@ export enum ASTKind {
   DeleteExpression,
   CastExpression,
   ImplicitCastExpression,
+  ConstExpression,
   BinaryExpression,
   ConditionalExpression,
   YieldExpression,
@@ -169,6 +170,7 @@ export enum ASTKind {
   EqualInitializer,
   BracedInitList,
   ParenInitializer,
+  ThreeWayComparisonExpression,
 
   // GenericAssociationAST
   DefaultGenericAssociation,

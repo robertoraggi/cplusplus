@@ -142,6 +142,12 @@ struct TypeParamInfo {
   bool isPack = false;
 };
 
-auto to_string(const Type* type, const std::string& id = "") -> std::string;
-auto to_string(const Type* type, const Name* name) -> std::string;
+struct TypePrintOptions {
+  bool omitFunctionReturnType = false;
+};
+
+auto to_string(const Type* type, const std::string& id = "",
+               TypePrintOptions options = {}) -> std::string;
+auto to_string(const Type* type, const Name* name,
+               TypePrintOptions options = {}) -> std::string;
 }  // namespace cxx

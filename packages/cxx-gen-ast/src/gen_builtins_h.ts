@@ -53,6 +53,14 @@ export function gen_builtins_h({ output }: { output: string }) {
   lines.push(`          class... Ts>`);
   lines.push(`using __builtin_common_type = void;`);
   lines.push(``);
+
+  lines.push(`void* operator new(__SIZE_TYPE__);`);
+  lines.push(`void* operator new[](__SIZE_TYPE__);`);
+  lines.push(`void operator delete(void*) noexcept;`);
+  lines.push(`void operator delete[](void*) noexcept;`);
+  lines.push(`void operator delete(void*, __SIZE_TYPE__) noexcept;`);
+  lines.push(`void operator delete[](void*, __SIZE_TYPE__) noexcept;`);
+  lines.push(``);
   lines.push(`#endif`);
 
   lines.push(`)";`);

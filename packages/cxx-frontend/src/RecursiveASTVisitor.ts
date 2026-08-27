@@ -1730,6 +1730,16 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
   }
 
   /**
+   * Visit a ConstExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitConstExpression(node: ast.ConstExpressionAST, context: Context): void {
+    this.accept(node.getExpression(), context);
+  }
+
+  /**
    * Visit a BinaryExpression node.
    *
    * @param node The node to visit.
@@ -1920,6 +1930,19 @@ export class RecursiveASTVisitor<Context> extends ASTVisitor<Context, void> {
     for (const element of node.getExpressionList()) {
       this.accept(element, context);
     }
+  }
+
+  /**
+   * Visit a ThreeWayComparisonExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   */
+  visitThreeWayComparisonExpression(
+    node: ast.ThreeWayComparisonExpressionAST,
+    context: Context,
+  ): void {
+    this.accept(node.getComparison(), context);
   }
 
   /**

@@ -171,12 +171,11 @@ void Codegen::StatementVisitor::operator()(IfStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(ConstevalIfStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
-
-#if false
-  gen.statement(ast->statement);
-  gen.statement(ast->elseStatement);
-#endif
+  if (!ast->isNot) {
+    if (ast->elseStatement) gen.statement(ast->elseStatement);
+  } else {
+    if (ast->statement) gen.statement(ast->statement);
+  }
 }
 
 void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
@@ -385,11 +384,14 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     auto stepBlock = gen.newBlock();
     auto exitBlock = gen.newBlock();
 
+    const auto iterationDepth = gen.cleanupStack_.size();
+    gen.pushCleanup();
+
     Loop loop;
     loop.continueBlock = stepBlock;
     loop.breakBlock = exitBlock;
-    loop.continueCleanupDepth = gen.cleanupStack_.size();
-    loop.breakCleanupDepth = gen.cleanupStack_.size();
+    loop.continueCleanupDepth = iterationDepth;
+    loop.breakCleanupDepth = iterationDepth;
     std::swap(gen.loop_, loop);
 
     gen.branch(loc, conditionBlock);
@@ -401,10 +403,10 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
       gen.emitLocalVariableInit(loopVar, ast->element);
     emitRangeElementBindings(ast);
     gen.statement(ast->statement);
-    gen.branch(
-        gen.getLocation(ast->statement ? ast->statement->lastSourceLocation()
-                                       : ast->rparenLoc),
-        stepBlock);
+    auto bodyEndLoc = ast->rparenLoc;
+    if (ast->statement) bodyEndLoc = ast->statement->lastSourceLocation();
+    gen.emitBranchWithCleanups(bodyEndLoc, stepBlock, iterationDepth);
+    gen.popCleanup(bodyEndLoc);
 
     gen.builder_.setInsertionPointToEnd(stepBlock);
     (void)gen.expression(ast->increment);
@@ -494,6 +496,9 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
   auto stepBlock = gen.newBlock();
   auto exitBlock = gen.newBlock();
 
+  const auto iterationDepth = gen.cleanupStack_.size();
+  gen.pushCleanup();
+
   auto iterType = beginVal.getType();
   auto iterPtrType = mlir::cxx::PointerType::get(gen.context_, iterType);
   auto iterAlloca =
@@ -508,8 +513,8 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
   Loop loop;
   loop.continueBlock = stepBlock;
   loop.breakBlock = exitBlock;
-  loop.continueCleanupDepth = gen.cleanupStack_.size();
-  loop.breakCleanupDepth = gen.cleanupStack_.size();
+  loop.continueCleanupDepth = iterationDepth;
+  loop.breakCleanupDepth = iterationDepth;
   std::swap(gen.loop_, loop);
 
   gen.branch(loc, condBlock);
@@ -620,10 +625,10 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
   emitRangeElementBindings(ast);
 
   gen.statement(ast->statement);
-  gen.branch(
-      gen.getLocation(ast->statement ? ast->statement->lastSourceLocation()
-                                     : ast->rparenLoc),
-      stepBlock);
+  auto bodyEndLoc = ast->rparenLoc;
+  if (ast->statement) bodyEndLoc = ast->statement->lastSourceLocation();
+  gen.emitBranchWithCleanups(bodyEndLoc, stepBlock, iterationDepth);
+  gen.popCleanup(bodyEndLoc);
 
   gen.builder_.setInsertionPointToEnd(stepBlock);
 

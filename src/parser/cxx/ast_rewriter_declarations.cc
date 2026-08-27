@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/ast_validator.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -27,6 +28,7 @@
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 
@@ -189,6 +191,51 @@ auto ASTRewriter::templateParameter(TemplateParameterAST* ast)
   return visit(TemplateParameterVisitor{*this}, ast);
 }
 
+auto ASTRewriter::rewriteTemplateHead(TemplateDeclarationAST* ast)
+    -> TemplateDeclarationAST* {
+  if (!ast) return nullptr;
+
+  auto copy = TemplateDeclarationAST::create(arena());
+  copy->templateLoc = ast->templateLoc;
+  copy->lessLoc = ast->lessLoc;
+  copy->symbol = control()->newTemplateParametersSymbol(
+      binder_.scope(), ast->symbol->location());
+  copy->symbol->setExplicitTemplateSpecialization(
+      ast->symbol->isExplicitTemplateSpecialization());
+  copy->depth = ast->depth;
+
+  binder_.setScope(copy->symbol);
+
+  auto templateParameterList = &copy->templateParameterList;
+  for (auto parameter : ListView{ast->templateParameterList}) {
+    auto value = templateParameter(parameter);
+    *templateParameterList = make_list_node(arena(), value);
+    templateParameterList = &(*templateParameterList)->next;
+  }
+
+  copy->greaterLoc = ast->greaterLoc;
+  copy->requiresClause = requiresClause(ast->requiresClause);
+  return copy;
+}
+
+auto ASTRewriter::rewriteMemberTemplateHead(Symbol* patternSymbol)
+    -> TemplateDeclarationAST* {
+  if (!patternSymbol || binder_.instantiatingSymbol() == patternSymbol) {
+    return nullptr;
+  }
+
+  auto enclosingClass = symbol_cast<ClassSymbol>(patternSymbol->parent());
+  auto patternTemplateHead = ownFunctionTemplateHead(
+      unit_, enclosingClass, template_declaration_of(patternSymbol));
+  if (patternTemplateHead == currentTemplatePatternHead_) {
+    return currentTemplateHead_;
+  }
+  if (!patternTemplateHead) return nullptr;
+
+  auto scopeGuard = Binder::ScopeGuard{&binder_};
+  return rewriteTemplateHead(patternTemplateHead);
+}
+
 auto ASTRewriter::functionBody(FunctionBodyAST* ast) -> FunctionBodyAST* {
   if (!ast) return {};
   const auto savedRewritingFunctionBody =
@@ -309,6 +356,16 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   }
   declSpecifierListCtx.finish();
 
+  if (declSpecifierListCtx.isFriend) {
+    auto friendType =
+        rewrite.unit_->typeTraits().remove_cv(declSpecifierListCtx.type());
+    auto classType = type_cast<ClassType>(friendType);
+    auto befriendingClass =
+        symbol_cast<ClassSymbol>(rewrite.binder().declaringScope());
+    if (classType && befriendingClass)
+      classType->definition()->addBefriendingClass(befriendingClass);
+  }
+
   if (!ast->initDeclaratorList) {
     for (auto spec : ListView{copy->declSpecifierList}) {
       auto elab = ast_cast<ElaboratedTypeSpecifierAST>(spec);
@@ -339,6 +396,19 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
   copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
   copy->semicolonLoc = ast->semicolonLoc;
+
+  for (auto initDeclarator : ListView{copy->initDeclaratorList}) {
+    auto function = symbol_cast<FunctionSymbol>(initDeclarator->symbol);
+    if (!function) continue;
+
+    auto functionTemplateHead = function->templateDeclaration();
+    if (!functionTemplateHead || functionTemplateHead->declaration) continue;
+
+    functionTemplateHead->declaration = SimpleDeclarationAST::create(
+        arena(), copy->attributeList, copy->declSpecifierList,
+        make_list_node(arena(), initDeclarator), copy->requiresClause,
+        copy->semicolonLoc);
+  }
 
   return copy;
 }
@@ -469,7 +539,12 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingEnumDeclarationAST* ast)
   copy->usingLoc = ast->usingLoc;
   copy->enumTypeSpecifier = ast_cast<ElaboratedTypeSpecifierAST>(
       rewrite.specifier(ast->enumTypeSpecifier));
+  if (copy->enumTypeSpecifier && ast->enumTypeSpecifier)
+    copy->enumTypeSpecifier->symbol =
+        rewrite.remapSymbol(ast->enumTypeSpecifier->symbol);
   copy->semicolonLoc = ast->semicolonLoc;
+
+  binder()->bind(copy);
 
   return copy;
 }
@@ -510,10 +585,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
   copy->semicolonLoc = ast->semicolonLoc;
 
   if (binder()->instantiatingSymbol()) {
-    auto typeChecker = TypeChecker{translationUnit()};
-    typeChecker.setScope(binder()->scope());
-    typeChecker.setReportErrors(binder()->reportErrors());
-    rewrite.typeCheckAndCapture([&] { typeChecker.check(copy); });
+    auto checker = rewrite.typeChecker();
+    rewrite.typeCheckAndCapture([&] { checker.check(copy); });
   }
 
   return copy;
@@ -615,6 +688,11 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationAST* {
   auto copy = FunctionDefinitionAST::create(arena());
+  auto functionTemplateHead = templateHead;
+  if (!functionTemplateHead) {
+    auto patternFunction = symbol_cast<FunctionSymbol>(ast->symbol);
+    functionTemplateHead = rewrite.rewriteMemberTemplateHead(patternFunction);
+  }
 
   for (auto attributeList = &copy->attributeList;
        auto node : ListView{ast->attributeList}) {
@@ -624,7 +702,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
-  declSpecifierListCtx.templateHead = templateHead;
+  declSpecifierListCtx.templateHead = functionTemplateHead;
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -669,16 +747,25 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       !isFunctionTemplateSpecialization) {
     functionSymbol = binder()->getFunction(
         binder()->scope(), declaratorDecl.getName(), declaratorType,
-        templateHead, copy->requiresClause);
+        functionTemplateHead, copy->requiresClause);
   }
   if (!functionSymbol) {
-    functionSymbol =
-        binder()->declareFunction(copy->declarator, declaratorDecl);
+    const bool addSymbolToParentScope = !isFunctionTemplateSpecialization;
+    functionSymbol = binder()->declareFunction(copy->declarator, declaratorDecl,
+                                               addSymbolToParentScope);
   }
 
   if (ast->symbol && ast->symbol->isFriend()) functionSymbol->setFriend(true);
 
   if (ast->symbol && ast->symbol->isInline()) functionSymbol->setInline(true);
+
+  if (ast->symbol && ast->symbol->isStatic()) functionSymbol->setStatic(true);
+
+  if (ast->symbol && ast->symbol->isConsteval())
+    functionSymbol->setConsteval(true);
+
+  if (ast->symbol && ast->symbol->isConstexpr())
+    functionSymbol->setConstexpr(true);
 
   if (isOutOfClassMemberDef) {
     functionSymbol->setDefined(true);
@@ -716,6 +803,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   copy->symbol = functionSymbol;
   copy->symbol->setDeclaration(copy);
+  if (functionTemplateHead && !functionTemplateHead->declaration) {
+    functionTemplateHead->declaration = copy;
+  }
 
   rewrite.associatePendingExceptionSpecifiers(
       pendingExceptionSpecifierMark, functionSymbol,
@@ -749,9 +839,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   if (!isTemplateInstantiation && !isFunctionTemplateSpecialization) {
-    if (templateHead) {
-      functionSymbol->setTemplateDeclaration(templateHead);
-      functionSymbol->setTemplateParameters(templateHead->symbol);
+    if (functionTemplateHead) {
+      functionSymbol->setTemplateDeclaration(functionTemplateHead);
+      functionSymbol->setTemplateParameters(functionTemplateHead->symbol);
     } else if (ast->symbol && ast->symbol->templateParameters()) {
       functionSymbol->setTemplateDeclaration(
           ast->symbol->templateDeclaration());
@@ -769,12 +859,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
       if (auto oldParams = oldFunc->functionParameters()) {
         if (auto newParams = functionSymbol->functionParameters()) {
-          auto& oldMembers = oldParams->members();
-          auto& newMembers = newParams->members();
-          auto n = std::min(oldMembers.size(), newMembers.size());
-          for (std::size_t i = 0; i < n; ++i) {
-            rewrite.addSymbolRemap(oldMembers[i], newMembers[i]);
-          }
+          rewrite.remapFunctionParameters(getFunctionPrototype(ast->declarator),
+                                          functionDeclarator, oldParams,
+                                          newParams);
         }
       }
     }
@@ -786,9 +873,11 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     if (auto compoundBody =
             ast_cast<CompoundStatementFunctionBodyAST>(copy->functionBody)) {
       rewrite.checkMemInitializers(functionSymbol, compoundBody);
+      binder()->finishAutoReturnType(functionSymbol);
     }
 
     binder()->synthesizeDefaultedMemberBody(functionSymbol);
+    validateCompletedInstantiation(rewrite.unit_, functionSymbol, copy);
   }
 
   return copy;
@@ -796,37 +885,14 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
 auto ASTRewriter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
     -> DeclarationAST* {
-  auto copy = TemplateDeclarationAST::create(arena());
-
-  copy->templateLoc = ast->templateLoc;
-  copy->lessLoc = ast->lessLoc;
-
   auto _ = Binder::ScopeGuard{binder()};
-
-  copy->symbol = control()->newTemplateParametersSymbol(
-      binder()->scope(), ast->symbol->location());
-
-  copy->symbol->setExplicitTemplateSpecialization(
-      ast->symbol->isExplicitTemplateSpecialization());
-
-  copy->depth = ast->depth;
-
-  binder()->setScope(copy->symbol);
-
-  for (auto templateParameterList = &copy->templateParameterList;
-       auto node : ListView{ast->templateParameterList}) {
-    auto value = rewrite.templateParameter(node);
-    *templateParameterList = make_list_node(arena(), value);
-    templateParameterList = &(*templateParameterList)->next;
-  }
-
-  copy->greaterLoc = ast->greaterLoc;
-
-  copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
-
+  auto copy = rewrite.rewriteTemplateHead(ast);
+  auto savedPatternHead =
+      std::exchange(rewrite.currentTemplatePatternHead_, ast);
   auto savedTemplateHead = std::exchange(rewrite.currentTemplateHead_, copy);
   copy->declaration = rewrite.declaration(ast->declaration, copy);
   rewrite.currentTemplateHead_ = savedTemplateHead;
+  rewrite.currentTemplatePatternHead_ = savedPatternHead;
 
   return copy;
 }
@@ -1081,6 +1147,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(AccessDeclarationAST* ast)
   copy->accessLoc = ast->accessLoc;
   copy->colonLoc = ast->colonLoc;
   copy->accessSpecifier = ast->accessSpecifier;
+
+  binder()->setCurrentAccessSpecifier(toAccessSpecifier(
+      copy->accessSpecifier, binder()->defaultAccessSpecifier()));
 
   return copy;
 }

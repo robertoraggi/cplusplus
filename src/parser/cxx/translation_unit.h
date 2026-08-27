@@ -34,6 +34,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -68,6 +69,15 @@ class TranslationUnit {
   [[nodiscard]] auto takePendingMemberInstantiations()
       -> std::vector<ClassSymbol*>;
   [[nodiscard]] auto beginMemberInstantiation(ClassSymbol* instance) -> bool;
+
+  [[nodiscard]] auto cachedConstraintSatisfaction(
+      Symbol* symbol, const std::vector<ExpressionAST*>& constraints,
+      const std::vector<TemplateArgument>& arguments) -> std::optional<bool>;
+
+  void cacheConstraintSatisfaction(Symbol* symbol,
+                                   std::vector<ExpressionAST*> constraints,
+                                   std::vector<TemplateArgument> arguments,
+                                   bool value);
 
   void addPendingBodyCompletion(FunctionSymbol* function);
   [[nodiscard]] auto takePendingBodyCompletions()
@@ -189,6 +199,17 @@ class TranslationUnit {
       const std::function<void(std::span<const std::uint8_t>)>& onData) -> bool;
 
  private:
+  struct ConstraintSatisfaction {
+    std::vector<ExpressionAST*> constraints;
+    std::vector<TemplateArgument> arguments;
+    bool value = false;
+  };
+
+  struct ConstraintSatisfactionCache {
+    std::vector<ConstraintSatisfaction> entries;
+    std::optional<std::size_t> lastIndex;
+  };
+
   std::unique_ptr<Control> control_;
   std::unique_ptr<Arena> arena_;
   std::unique_ptr<Preprocessor> preprocessor_;
@@ -205,6 +226,8 @@ class TranslationUnit {
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
   std::unordered_map<FunctionSymbol*, std::vector<Diagnostic>>
       deferredBodyDiagnostics_;
+  std::unordered_map<Symbol*, ConstraintSatisfactionCache>
+      constraintSatisfactionCaches_;
   int templateInstantiationDepth_ = 0;
   bool potentiallyEvaluated_ = true;
 };

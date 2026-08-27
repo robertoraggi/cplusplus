@@ -38,11 +38,16 @@ class MemoryLayout {
   [[nodiscard]] auto sizeOfLong() const -> std::size_t;
   [[nodiscard]] auto sizeOfLongLong() const -> std::size_t;
   [[nodiscard]] auto sizeOfLongDouble() const -> std::size_t;
+  [[nodiscard]] auto longDoubleMantissaDigits() const -> std::size_t;
+  [[nodiscard]] auto sizeOfWideChar() const -> std::size_t;
+  [[nodiscard]] auto isWideCharSigned() const -> bool;
 
   void setSizeOfPointer(std::size_t sizeOfPointer);
   void setSizeOfLong(std::size_t sizeOfLong);
   void setSizeOfLongLong(std::size_t sizeOfLongLong);
-  void setSizeOfLongDouble(std::size_t sizeOfLongDouble);
+  void setSizeOfLongDouble(std::size_t sizeOfLongDouble,
+                           std::size_t mantissaDigits);
+  void setWideCharUnderlyingType(std::size_t size, bool isSigned);
 
   [[nodiscard]] auto sizeOf(const Type* type) const
       -> std::optional<std::size_t>;
@@ -64,6 +69,9 @@ class MemoryLayout {
   std::size_t sizeOfLong_ = 0;
   std::size_t sizeOfLongLong_ = 0;
   std::size_t sizeOfLongDouble_ = 0;
+  std::size_t longDoubleMantissaDigits_ = 0;
+  std::size_t sizeOfWideChar_ = 4;
+  bool wideCharIsSigned_ = true;
   std::string triple_;
 };
 

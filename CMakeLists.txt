@@ -102,19 +102,25 @@ FetchContent_GetProperties(utfcpp)
 set(UTFCPP_INCLUDE_DIRS "${utfcpp_SOURCE_DIR}/source")
 
 #
-# nlohmann_json
+# simdjson
 #
 FetchContent_Declare(
-    nlohmann_json
-    URL             https://github.com/nlohmann/json/releases/download/v3.12.0/include.zip
-    URL_HASH        SHA256=b8cb0ef2dd7f57f18933997c9934bb1fa962594f701cd5a8d3c2c80541559372
+    simdjson
+    URL             https://github.com/simdjson/simdjson/releases/download/v4.6.8/singleheader.zip
+    URL_HASH        SHA256=dd2b0790507f03321d3a359e2ea94129257319be081fbddbae079adfe7561011
 )
 
-FetchContent_MakeAvailable(nlohmann_json)
+FetchContent_MakeAvailable(simdjson)
 
-add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
-set_target_properties(nlohmann_json::nlohmann_json PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${nlohmann_json_SOURCE_DIR}/single_include")
+add_library(simdjson "${simdjson_SOURCE_DIR}/simdjson.cpp")
+set_target_properties(simdjson PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${simdjson_SOURCE_DIR}")
+
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    target_compile_definitions(simdjson PUBLIC _WASI_EMULATED_MMAN)
+    target_link_libraries(simdjson PUBLIC wasi-emulated-mman)
+endif()
+
 
 FetchContent_Declare(
     wasi_sysroot

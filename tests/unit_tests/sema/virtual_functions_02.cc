@@ -7,7 +7,7 @@ struct NoBase {
 
 struct Base {
   virtual void f();
-  virtual void g() final;
+  virtual void g() final;  // expected-note {{overridden final function is here}}
 };
 
 struct GoodOverride : Base {

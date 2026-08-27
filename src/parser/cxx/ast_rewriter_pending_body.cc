@@ -20,9 +20,12 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/ast_validator.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/dependent_types.h>
+#include <cxx/diagnostics_client.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -30,6 +33,7 @@
 #include <cxx/views/symbols.h>
 
 #include <algorithm>
+#include <format>
 #include <iterator>
 #include <optional>
 
@@ -169,7 +173,10 @@ void ASTRewriter::remapFunctionParameters(
   std::size_t instanceIndex = 0;
 
   for (std::size_t i = 0; i < patternMembers.size(); ++i) {
-    const auto reservedForTrailingParameters = patternMembers.size() - i - 1;
+    std::size_t reservedForTrailingParameters = 0;
+    for (auto j = i + 1; j < patternMembers.size(); ++j)
+      if (!patternIsPack[j]) ++reservedForTrailingParameters;
+
     const auto available = instanceMembers.size() - instanceIndex;
 
     const auto stillPacked =
@@ -253,12 +260,59 @@ void ASTRewriter::requireFieldDefinition(TranslationUnit* unit,
                                          FieldSymbol* field) {
   if (!unit || !field || !field->isStatic()) return;
   if (!unit->isPotentiallyEvaluated()) return;
+  completePendingFieldInitializer(unit, field);
   if (field->isDefinitionRequired()) return;
   field->setDefinitionRequired(true);
 
   auto enclosingClass = symbol_cast<ClassSymbol>(field->parent());
   if (!enclosingClass) return;
   unit->reopenMemberInstantiation(enclosingClass->resolvedDefinition());
+}
+
+void ASTRewriter::completePendingFieldInitializer(TranslationUnit* unit,
+                                                  FieldSymbol* field) {
+  if (!unit || !field || !field->hasPendingInitializer()) return;
+
+  auto pending = field->pendingInitializer();
+  auto pattern = pending->pattern;
+  auto instance = pending->instance;
+  auto typeSpecifier = pending->typeSpecifier;
+  auto templateArguments = std::move(pending->templateArguments);
+  auto parentScope = pending->parentScope;
+  auto depth = pending->depth;
+  field->clearPendingInitializer();
+
+  if (!pattern || !instance || !pattern->initializer) return;
+
+  auto rewriter = ASTRewriter{unit, parentScope, std::move(templateArguments)};
+  rewriter.depth_ = depth;
+  rewriter.inheritEnclosingTemplateArguments(field->parent());
+
+  if (pattern->symbol) {
+    auto patternClass = symbol_cast<ClassSymbol>(pattern->symbol->parent());
+    auto instanceClass = symbol_cast<ClassSymbol>(field->parent());
+    if (patternClass && instanceClass) {
+      rewriter.remapScopeMembers(patternClass, instanceClass);
+    }
+    rewriter.addSymbolRemap(pattern->symbol, field);
+  }
+
+  auto diagnosticsClient = unit->diagnosticsClient();
+  const auto errorsBefore = diagnosticsClient->errorCount();
+
+  instance->initializer = rewriter.expression(pattern->initializer);
+
+  if (!instance->initializer) {
+    if (diagnosticsClient->errorCount() == errorsBefore) {
+      unit->error(field->location(),
+                  std::format("cannot instantiate the initializer of '{}'",
+                              to_string(field->name())));
+    }
+    return;
+  }
+
+  field->setInitializer(instance->initializer);
+  rewriter.typeChecker().check_init_declarator(instance, typeSpecifier);
 }
 
 void ASTRewriter::completeDeducedReturnType(TranslationUnit* unit,
@@ -317,7 +371,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
     auto rewriter = ASTRewriter{unit_, parentScope, std::move(classArguments)};
     rewriter.depth_ = depth;
-    rewriter.inheritEnclosingTemplateArguments(parentScope);
+    rewriter.inheritEnclosingTemplateArguments(func->parent());
     rewriter.binder_.setInstantiatingSymbol(originalDef->symbol);
 
     auto patternClass = symbol_cast<ClassSymbol>(originalDef->symbol->parent());
@@ -352,23 +406,17 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
   auto rewriter = ASTRewriter{unit_, parentScope, templateArguments};
   rewriter.depth_ = depth;
-  rewriter.inheritEnclosingTemplateArguments(parentScope);
+  rewriter.inheritEnclosingTemplateArguments(func->parent());
   rewriter.binder_.setInstantiatingSymbol(func);
 
   if (auto oldFunc = symbol_cast<FunctionSymbol>(originalDef->symbol)) {
     auto oldClass = symbol_cast<ClassSymbol>(oldFunc->parent());
     auto newClass = symbol_cast<ClassSymbol>(func->parent());
 
-    while (oldClass && newClass) {
-      auto oldUp = symbol_cast<ClassSymbol>(oldClass->parent());
-      auto newUp = symbol_cast<ClassSymbol>(newClass->parent());
-      if (!oldUp || !newUp) break;
-      oldClass = oldUp;
-      newClass = newUp;
-    }
-
-    if (oldClass && newClass && oldClass != newClass) {
+    while (oldClass && newClass && oldClass != newClass) {
       rewriter.remapScopeMembers(oldClass, newClass);
+      oldClass = symbol_cast<ClassSymbol>(oldClass->parent());
+      newClass = symbol_cast<ClassSymbol>(newClass->parent());
     }
 
     if (auto oldParams = oldFunc->functionParameters()) {
@@ -397,16 +445,15 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
   if (ast_cast<DefaultFunctionBodyAST>(newAst->functionBody)) {
     rewriter.binder_.synthesizeDefaultedMemberBody(func);
-    return finish(std::move(bodyErrors));
+  } else if (auto compoundBody = ast_cast<CompoundStatementFunctionBodyAST>(
+                 newAst->functionBody)) {
+    rewriter.checkMemInitializers(func, compoundBody);
+    rewriter.binder_.finishAutoReturnType(func);
   }
 
-  auto compoundBody =
-      ast_cast<CompoundStatementFunctionBodyAST>(newAst->functionBody);
-  if (!compoundBody) {
-    return finish(std::move(bodyErrors));
+  if (bodyErrors.empty() && !deferDiagnostics) {
+    validateCompletedInstantiation(unit_, func, newAst);
   }
-
-  rewriter.checkMemInitializers(func, compoundBody);
 
   return finish(std::move(bodyErrors));
 }

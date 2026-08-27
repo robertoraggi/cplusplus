@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <cstddef>
@@ -66,5 +67,10 @@ class TranslationUnit;
 [[nodiscard]] auto areTemplateHeadsEquivalentForRedeclaration(
     TranslationUnit* unit, TemplateDeclarationAST* a, TemplateDeclarationAST* b)
     -> bool;
+
+[[nodiscard]] auto ownFunctionTemplateHead(TranslationUnit* unit,
+                                           ClassSymbol* enclosingClass,
+                                           TemplateDeclarationAST* templateHead)
+    -> TemplateDeclarationAST*;
 
 }  // namespace cxx

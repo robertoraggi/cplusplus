@@ -259,7 +259,7 @@ export class TypeGenerator {
     if (this.enumByName.has(property.type.name)) {
       const enumeration = this.enumByName.get(property.type.name)!;
       if (enumeration.type.name !== "string") {
-        this.emit(`return ${propertyType}(value);`);
+        this.emit(`return static_cast<${propertyType}>(value.get<long>());`);
         return true;
       }
 

@@ -98,7 +98,6 @@ static_assert(__is_signed(char16_t));
 // expected-error@1 {{static assert failed}}
 static_assert(__is_signed(char32_t));
 
-// expected-error@1 {{static assert failed}}
 static_assert(__is_signed(wchar_t));
 
 // expected-error@1 {{static assert failed}}
@@ -119,6 +118,8 @@ static_assert(__is_unsigned(unsigned long long));
 static_assert(__is_unsigned(char8_t));
 static_assert(__is_unsigned(char16_t));
 static_assert(__is_unsigned(char32_t));
+
+// expected-error@1 {{static assert failed}}
 static_assert(__is_unsigned(wchar_t));
 
 // expected-error@1 {{static assert failed}}

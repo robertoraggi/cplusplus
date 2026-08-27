@@ -92,7 +92,6 @@ export function gen_ast_pretty_printer_cc({
   });
 
   const preToken = (m: Member, name: string) => {
-    // pre token
     switch (m.name) {
       case "attributeLoc":
         if (["GccAttributeAST"].includes(name)) {
@@ -119,6 +118,7 @@ export function gen_ast_pretty_printer_cc({
       case "rparen2Loc":
       case "rparenLoc":
       case "greaterLoc":
+      case "lessLoc":
       case "scopeLoc":
       case "commaLoc":
         emit(`nospace();`);
@@ -143,7 +143,7 @@ export function gen_ast_pretty_printer_cc({
 
       default:
         break;
-    } // switch
+    }
   };
 
   const postToken = (m: Member, name: string) => {
@@ -324,7 +324,6 @@ if (ast->op == TokenKind::T_NEW_ARRAY) {
               }
             }
 
-            // post token
             postToken(m, name);
 
             emit(`}`);

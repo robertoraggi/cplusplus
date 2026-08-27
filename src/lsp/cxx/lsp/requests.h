@@ -257,18 +257,11 @@ class DocumentColorResponse final : public LSPResponse {
  public:
   using LSPResponse::id;
   using LSPResponse::LSPResponse;
-  using Result = std::variant<Vector<ColorInformation>, std::nullptr_t>;
+  using Result = Vector<ColorInformation>;
 
   auto id(std::variant<long, std::string> id) -> DocumentColorResponse&;
 
-  [[nodiscard]] auto result() const
-      -> std::variant<Vector<ColorInformation>, std::nullptr_t>;
-
-  template <typename T>
-  [[nodiscard]] auto result() -> T {
-    auto& value = (*repr_)["result"];
-    return T(value);
-  }
+  [[nodiscard]] auto result() const -> Vector<ColorInformation>;
 };
 
 class ColorPresentationRequest final : public LSPRequest {
@@ -288,18 +281,11 @@ class ColorPresentationResponse final : public LSPResponse {
  public:
   using LSPResponse::id;
   using LSPResponse::LSPResponse;
-  using Result = std::variant<Vector<ColorPresentation>, std::nullptr_t>;
+  using Result = Vector<ColorPresentation>;
 
   auto id(std::variant<long, std::string> id) -> ColorPresentationResponse&;
 
-  [[nodiscard]] auto result() const
-      -> std::variant<Vector<ColorPresentation>, std::nullptr_t>;
-
-  template <typename T>
-  [[nodiscard]] auto result() -> T {
-    auto& value = (*repr_)["result"];
-    return T(value);
-  }
+  [[nodiscard]] auto result() const -> Vector<ColorPresentation>;
 };
 
 class FoldingRangeRequest final : public LSPRequest {

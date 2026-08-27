@@ -35,6 +35,15 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_CTZLL:
       return codegenBuiltinCtz(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_ISFINITE:
+      return codegenBuiltinIsFinite(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISINF:
+      return codegenBuiltinIsInf(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISNAN:
+      return codegenBuiltinIsNan(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_LINE:
       return codegenBuiltinLine(ast);
 
@@ -70,6 +79,9 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
 
     case BuiltinFunctionKind::T___BUILTIN_ADDRESSOF:
       return codegenBuiltinAddressof(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SIGNBIT:
+      return codegenBuiltinSignbit(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_CTZG:
       return codegenBuiltinCountZerosGeneric(ast);

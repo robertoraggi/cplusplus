@@ -177,6 +177,7 @@ union Expression {
   DeleteExpression,
   CastExpression,
   ImplicitCastExpression,
+  ConstExpression,
   BinaryExpression,
   ConditionalExpression,
   YieldExpression,
@@ -192,6 +193,7 @@ union Expression {
   EqualInitializer,
   BracedInitList,
   ParenInitializer,
+  ThreeWayComparisonExpression,
 }
 
 union FunctionBody {
@@ -1236,6 +1238,10 @@ table ImplicitCastExpression /* ExpressionAST */ {
   expression: Expression;
 }
 
+table ConstExpression /* ExpressionAST */ {
+  expression: Expression;
+}
+
 table BinaryExpression /* ExpressionAST */ {
   left_expression: Expression;
   right_expression: Expression;
@@ -1323,6 +1329,10 @@ table ParenInitializer /* ExpressionAST */ {
   expression_list: [Expression];
   lparen_loc: uint32;
   rparen_loc: uint32;
+}
+
+table ThreeWayComparisonExpression /* ExpressionAST */ {
+  comparison: BinaryExpression;
 }
 
 table DefaultFunctionBody /* FunctionBodyAST */ {

@@ -96,16 +96,23 @@ class SilentDiagnosticsClient final : public DiagnosticsClient {
   explicit SilentDiagnosticsClient(bool sfinae = true) : sfinae_(sfinae) {}
 
   void report(const Diagnostic& diagnostic) override {
-    if (diagnostic.severity() == Severity::Error) hadError_ = true;
+    if (diagnostic.severity() != Severity::Error) return;
+    hadError_ = true;
+    diagnostics_.push_back(diagnostic);
   }
 
   [[nodiscard]] auto isSfinae() const -> bool override { return sfinae_; }
 
   [[nodiscard]] auto hadError() const -> bool { return hadError_; }
 
+  [[nodiscard]] auto diagnostics() const -> const std::vector<Diagnostic>& {
+    return diagnostics_;
+  }
+
  private:
   bool sfinae_ = true;
   bool hadError_ = false;
+  std::vector<Diagnostic> diagnostics_;
 };
 
 class SilentDiagnosticsScope {

@@ -275,6 +275,8 @@ struct ASTPrettyPrinter::ExpressionVisitor {
 
   void operator()(ImplicitCastExpressionAST* ast);
 
+  void operator()(ConstExpressionAST* ast);
+
   void operator()(BinaryExpressionAST* ast);
 
   void operator()(ConditionalExpressionAST* ast);
@@ -304,6 +306,8 @@ struct ASTPrettyPrinter::ExpressionVisitor {
   void operator()(BracedInitListAST* ast);
 
   void operator()(ParenInitializerAST* ast);
+
+  void operator()(ThreeWayComparisonExpressionAST* ast);
 };
 
 struct ASTPrettyPrinter::GenericAssociationVisitor {
@@ -1241,6 +1245,7 @@ void ASTPrettyPrinter::operator()(TypeConstraintAST* ast) {
     writeToken(ast->identifierLoc);
   }
   if (ast->lessLoc) {
+    nospace();
     writeToken(ast->lessLoc);
     nospace();
   }
@@ -1645,6 +1650,7 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
     accept.writeToken(ast->templateLoc);
   }
   if (ast->lessLoc) {
+    nospace();
     accept.writeToken(ast->lessLoc);
     nospace();
   }
@@ -2501,6 +2507,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(LambdaExpressionAST* ast) {
     accept.writeToken(ast->rbracketLoc);
   }
   if (ast->lessLoc) {
+    nospace();
     accept.writeToken(ast->lessLoc);
     nospace();
   }
@@ -2794,6 +2801,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     accept.writeToken(ast->castLoc);
   }
   if (ast->lessLoc) {
+    nospace();
     accept.writeToken(ast->lessLoc);
     nospace();
   }
@@ -3124,6 +3132,10 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   accept(ast->expression);
 }
 
+void ASTPrettyPrinter::ExpressionVisitor::operator()(ConstExpressionAST* ast) {
+  accept(ast->expression);
+}
+
 void ASTPrettyPrinter::ExpressionVisitor::operator()(BinaryExpressionAST* ast) {
   accept(ast->leftExpression);
   if (ast->opLoc) {
@@ -3308,6 +3320,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(ParenInitializerAST* ast) {
   }
 }
 
+void ASTPrettyPrinter::ExpressionVisitor::operator()(
+    ThreeWayComparisonExpressionAST* ast) {
+  accept(ast->comparison);
+}
+
 void ASTPrettyPrinter::GenericAssociationVisitor::operator()(
     DefaultGenericAssociationAST* ast) {
   if (ast->defaultLoc) {
@@ -3361,6 +3378,7 @@ void ASTPrettyPrinter::TemplateParameterVisitor::operator()(
     accept.writeToken(ast->templateLoc);
   }
   if (ast->lessLoc) {
+    nospace();
     accept.writeToken(ast->lessLoc);
     nospace();
   }
@@ -4103,6 +4121,7 @@ void ASTPrettyPrinter::UnqualifiedIdVisitor::operator()(
     accept.writeToken(ast->identifierLoc);
   }
   if (ast->lessLoc) {
+    nospace();
     accept.writeToken(ast->lessLoc);
     nospace();
   }
@@ -4125,6 +4144,7 @@ void ASTPrettyPrinter::UnqualifiedIdVisitor::operator()(
     LiteralOperatorTemplateIdAST* ast) {
   accept(ast->literalOperatorId);
   if (ast->lessLoc) {
+    nospace();
     accept.writeToken(ast->lessLoc);
     nospace();
   }
@@ -4147,6 +4167,7 @@ void ASTPrettyPrinter::UnqualifiedIdVisitor::operator()(
     OperatorFunctionTemplateIdAST* ast) {
   accept(ast->operatorFunctionId);
   if (ast->lessLoc) {
+    nospace();
     accept.writeToken(ast->lessLoc);
     nospace();
   }

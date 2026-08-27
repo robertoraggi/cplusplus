@@ -112,7 +112,7 @@ class StandardConversion {
 
   [[nodiscard]] auto lvalueToRvalue(ExpressionAST*& expr) -> bool;
 
-  void foldConstantRead(ImplicitCastExpressionAST* cast);
+  void foldConstantRead(ExpressionAST*& expression);
 
   void recordUserDefinedConversion(ImplicitCastExpressionAST* cast,
                                    FunctionSymbol* function);
@@ -135,6 +135,9 @@ class StandardConversion {
 
   auto copyInitializeClassPrvalue(ExpressionAST*& expr,
                                   const Type* destinationType) -> bool;
+
+  [[nodiscard]] auto narrowsAggregateElement(BracedInitListAST* bracedInitList,
+                                             const Type* targetType) -> bool;
 
   [[nodiscard]] auto listInitializes(BracedInitListAST* bracedInitList,
                                      const Type* targetType) -> bool;
@@ -183,9 +186,6 @@ class StandardConversion {
       -> bool;
   [[nodiscard]] auto floatingIntegralConversion(ExpressionAST*& expr,
                                                 const Type* destinationType)
-      -> bool;
-
-  [[nodiscard]] auto isNarrowingConversion(const Type* from, const Type* to)
       -> bool;
 
   [[nodiscard]] auto isReferenceCompatible(const Type* targetType,

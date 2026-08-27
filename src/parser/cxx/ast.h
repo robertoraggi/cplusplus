@@ -4620,7 +4620,6 @@ class ImplicitCastExpressionAST final : public ExpressionAST {
 
   ExpressionAST* expression = nullptr;
   ImplicitCastKind castKind = ImplicitCastKind::kIdentity;
-  const ConstValue* constValue = nullptr;
   FunctionSymbol* conversionFunction = nullptr;
   bool isVirtualDispatch = false;
 
@@ -4633,14 +4632,41 @@ class ImplicitCastExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> ImplicitCastExpressionAST*;
 
-  [[nodiscard]] static auto create(
-      Arena* arena, ExpressionAST* expression, ImplicitCastKind castKind,
-      const ConstValue* constValue, FunctionSymbol* conversionFunction,
-      bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ImplicitCastKind castKind,
+                                   FunctionSymbol* conversionFunction,
+                                   bool isVirtualDispatch,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
       -> ImplicitCastExpressionAST*;
 
  protected:
   ImplicitCastExpressionAST() : ExpressionAST(Kind) {}
+};
+
+class ConstExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ConstExpression;
+
+  ExpressionAST* expression = nullptr;
+  const ConstValue* constValue = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena) -> ConstExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> ConstExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   const ConstValue* constValue,
+                                   ValueCategory valueCategory,
+                                   const Type* type) -> ConstExpressionAST*;
+
+ protected:
+  ConstExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class BinaryExpressionAST final : public ExpressionAST {
@@ -4934,6 +4960,7 @@ class DesignatedInitializerClauseAST final : public ExpressionAST {
 
   List<DesignatorAST*>* designatorList = nullptr;
   ExpressionAST* initializer = nullptr;
+  FunctionSymbol* constructorSymbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4949,6 +4976,7 @@ class DesignatedInitializerClauseAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena,
                                    List<DesignatorAST*>* designatorList,
                                    ExpressionAST* initializer,
+                                   FunctionSymbol* constructorSymbol,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> DesignatedInitializerClauseAST*;
@@ -5115,6 +5143,37 @@ class ParenInitializerAST final : public ExpressionAST {
 
  protected:
   ParenInitializerAST() : ExpressionAST(Kind) {}
+};
+
+class ThreeWayComparisonExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ThreeWayComparisonExpression;
+
+  BinaryExpressionAST* comparison = nullptr;
+  Symbol* lessResult = nullptr;
+  Symbol* equalResult = nullptr;
+  Symbol* greaterResult = nullptr;
+  Symbol* unorderedResult = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ThreeWayComparisonExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> ThreeWayComparisonExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, BinaryExpressionAST* comparison, Symbol* lessResult,
+      Symbol* equalResult, Symbol* greaterResult, Symbol* unorderedResult,
+      ValueCategory valueCategory, const Type* type)
+      -> ThreeWayComparisonExpressionAST*;
+
+ protected:
+  ThreeWayComparisonExpressionAST() : ExpressionAST(Kind) {}
 };
 
 class DefaultGenericAssociationAST final : public GenericAssociationAST {
@@ -8560,6 +8619,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case ImplicitCastExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ImplicitCastExpressionAST*>(ast));
+    case ConstExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<ConstExpressionAST*>(ast));
     case BinaryExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<BinaryExpressionAST*>(ast));
@@ -8605,6 +8667,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case ParenInitializerAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ParenInitializerAST*>(ast));
+    case ThreeWayComparisonExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<ThreeWayComparisonExpressionAST*>(ast));
     default:
       cxx_runtime_error("unexpected Expression");
   }  // switch
@@ -8664,6 +8729,7 @@ template <>
     case DeleteExpressionAST::Kind:
     case CastExpressionAST::Kind:
     case ImplicitCastExpressionAST::Kind:
+    case ConstExpressionAST::Kind:
     case BinaryExpressionAST::Kind:
     case ConditionalExpressionAST::Kind:
     case YieldExpressionAST::Kind:
@@ -8679,6 +8745,7 @@ template <>
     case EqualInitializerAST::Kind:
     case BracedInitListAST::Kind:
     case ParenInitializerAST::Kind:
+    case ThreeWayComparisonExpressionAST::Kind:
       return static_cast<ExpressionAST*>(ast);
     default:
       return nullptr;

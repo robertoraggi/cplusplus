@@ -27,6 +27,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace cxx {
 
@@ -93,6 +94,9 @@ class Token {
 
   [[nodiscard]] static auto spell(BuiltinFunctionKind kind)
       -> const std::string&;
+
+  [[nodiscard]] static auto builtinFunctionKind(std::string_view spelling)
+      -> BuiltinFunctionKind;
 
   [[nodiscard]] static auto isBuiltinTypeTrait(BuiltinTypeTraitKind kind)
       -> bool;

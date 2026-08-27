@@ -430,6 +430,7 @@ struct Preprocessor::Private {
   std::function<auto()->std::optional<PreprocessingState>> continuation_;
   std::optional<SourcePosition> codeCompletionLocation_;
   std::uint32_t codeCompletionOffset_ = 0;
+  bool hasCodeCompletionRequest_ = false;
   int localCount_ = 0;
 
   int counter_ = 0;
@@ -3482,6 +3483,11 @@ auto Preprocessor::resolve(const Include& include, bool isIncludeNext) const
 void Preprocessor::requestCodeCompletionAt(std::uint32_t line,
                                            std::uint32_t column) {
   d->codeCompletionLocation_ = SourcePosition{{}, line, column};
+  d->hasCodeCompletionRequest_ = true;
+}
+
+auto Preprocessor::hasCodeCompletionRequest() const -> bool {
+  return d->hasCodeCompletionRequest_;
 }
 
 void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,

@@ -25,14 +25,31 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/dependent_types.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
+#include <cxx/type_traits.h>
+#include <cxx/types.h>
 
 #include <format>
 
 namespace cxx {
+namespace {
+[[nodiscard]] auto initializerCompletesDeclaredType(FieldSymbol* field)
+    -> bool {
+  auto type = field->type();
+  if (containsPlaceholderType(type)) return true;
+  return type_cast<UnboundedArrayType>(type) != nullptr;
+}
+
+void applyConstexprConstness(const TypeTraits& traits, FieldSymbol* field) {
+  if (!field->isConstexpr()) return;
+  field->setType(traits.add_const(field->type()));
+}
+}  // namespace
+
 struct ASTRewriter::CoreDeclaratorVisitor {
   ASTRewriter& rewrite;
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
@@ -400,12 +417,17 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
 
   auto copy = InitDeclaratorAST::create(arena());
 
+  auto patternFunction = symbol_cast<FunctionSymbol>(ast->symbol);
+  auto functionTemplateHead = rewriteMemberTemplateHead(patternFunction);
+
   const auto pendingExceptionSpecifierMark =
       this->pendingExceptionSpecifierMark();
   copy->declarator = declarator(ast->declarator);
 
   auto decl = Decl{declSpecs, copy->declarator};
-  if (!decl.specs.templateHead && currentTemplateHead_) {
+  if (functionTemplateHead) {
+    decl.specs.templateHead = functionTemplateHead;
+  } else if (!decl.specs.templateHead && currentTemplateHead_) {
     decl.specs.templateHead = currentTemplateHead_;
   }
 
@@ -442,7 +464,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
         auto typedefSymbol = binder_.declareTypedef(copy->declarator, decl);
         copy->symbol = typedefSymbol;
       } else if (getFunctionPrototype(copy->declarator)) {
-        auto functionSymbol = binder_.declareFunction(copy->declarator, decl);
+        auto functionSymbol = binder_.declareFunction(copy->declarator, decl,
+                                                      addSymbolToParentScope);
         if (currentTemplateHead_) {
           functionSymbol->setTemplateDeclaration(currentTemplateHead_);
           functionSymbol->setTemplateParameters(currentTemplateHead_->symbol);
@@ -466,6 +489,10 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   }
 
   auto function = symbol_cast<FunctionSymbol>(copy->symbol);
+  if (function && functionTemplateHead) {
+    function->setTemplateDeclaration(functionTemplateHead);
+    function->setTemplateParameters(functionTemplateHead->symbol);
+  }
   auto functionExceptionSpecifier =
       static_cast<ExceptionSpecifierAST*>(nullptr);
   if (auto prototype = getFunctionPrototype(copy->declarator))
@@ -480,11 +507,33 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       });
 
   if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol);
-      fieldSymbol && !fieldSymbol->isStatic() && classBodyDepth_ > 0) {
-    addSymbolRemap(ast->symbol, copy->symbol);
-    if (ast->initializer)
-      pendingFieldInitializers_.push_back({ast, copy, binder_.scope()});
-    return copy;
+      fieldSymbol && classBodyDepth_ > 0) {
+    if (!fieldSymbol->isStatic()) {
+      addSymbolRemap(ast->symbol, copy->symbol);
+      if (ast->initializer)
+        pendingFieldInitializers_.push_back({ast, copy, binder_.scope()});
+      return copy;
+    }
+
+    const auto canDeferInitializer =
+        ast->initializer && !initializerCompletesDeclaredType(fieldSymbol) &&
+        !isEnclosedInDependentTemplate(unit_, binder_.scope(),
+                                       /*stopAtConcreteSpecialization=*/true);
+
+    if (canDeferInitializer) {
+      addSymbolRemap(ast->symbol, copy->symbol);
+      applyConstexprConstness(unit_->typeTraits(), fieldSymbol);
+
+      auto pending = std::make_unique<PendingFieldInitializerInstantiation>();
+      pending->pattern = ast;
+      pending->instance = copy;
+      pending->typeSpecifier = declSpecs.typeSpecifier();
+      pending->templateArguments = templateArguments();
+      pending->parentScope = binder_.scope();
+      pending->depth = depth_;
+      fieldSymbol->setPendingInitializer(std::move(pending));
+      return copy;
+    }
   }
 
   copy->initializer = expression(ast->initializer);
@@ -495,14 +544,14 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
     if (copy->initializer) {
       fieldSymbol->setInitializer(copy->initializer);
 
-      auto typeChecker = TypeChecker{unit_};
-      typeChecker.setScope(binder_.scope());
-      typeChecker.check_field_initializer(fieldSymbol);
+      if (fieldSymbol->isStatic())
+        typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier());
+      else
+        typeChecker().check_field_initializer(fieldSymbol);
     }
   } else if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
-    auto typeChecker = TypeChecker{unit_};
-    typeChecker.setScope(binder_.scope());
-    typeChecker.check_init_declarator(copy, declSpecs.typeSpecifier());
+    if (!rewritingForRangeDeclaration_)
+      typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier());
   }
 
   return copy;

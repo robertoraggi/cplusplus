@@ -168,6 +168,7 @@ class ASTVisitor {
   virtual void visit(DeleteExpressionAST* ast);
   virtual void visit(CastExpressionAST* ast);
   virtual void visit(ImplicitCastExpressionAST* ast);
+  virtual void visit(ConstExpressionAST* ast);
   virtual void visit(BinaryExpressionAST* ast);
   virtual void visit(ConditionalExpressionAST* ast);
   virtual void visit(YieldExpressionAST* ast);
@@ -183,6 +184,7 @@ class ASTVisitor {
   virtual void visit(EqualInitializerAST* ast);
   virtual void visit(BracedInitListAST* ast);
   virtual void visit(ParenInitializerAST* ast);
+  virtual void visit(ThreeWayComparisonExpressionAST* ast);
 
   // GenericAssociationAST
   virtual void visit(DefaultGenericAssociationAST* ast);

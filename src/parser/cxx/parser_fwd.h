@@ -27,10 +27,16 @@
 
 #include <functional>
 #include <variant>
+#include <vector>
 
 namespace cxx {
 
 class Parser;
+
+struct ScopeCompletionContext {
+  ScopeSymbol* scope = nullptr;
+  ScopeSymbol* accessingScope = nullptr;
+};
 
 struct UnqualifiedCompletionContext {
   ScopeSymbol* scope = nullptr;
@@ -39,13 +45,32 @@ struct UnqualifiedCompletionContext {
 struct MemberCompletionContext {
   const Type* objectType = nullptr;
   TokenKind accessOp = TokenKind::T_DOT;
+  ScopeSymbol* accessingScope = nullptr;
+};
+
+struct DesignatorCompletionContext {
+  const Type* objectType = nullptr;
+  ScopeSymbol* accessingScope = nullptr;
+};
+
+struct ArgumentHintsContext {
+  std::vector<FunctionSymbol*> candidates;
+  int activeParameter = 0;
+};
+
+struct TemplateArgumentHintsContext {
+  Symbol* templateSymbol = nullptr;
+  int activeParameter = 0;
 };
 
 using CodeCompletionContext =
-    std::variant<UnqualifiedCompletionContext, MemberCompletionContext>;
+    std::variant<ScopeCompletionContext, UnqualifiedCompletionContext,
+                 MemberCompletionContext, DesignatorCompletionContext,
+                 ArgumentHintsContext, TemplateArgumentHintsContext>;
 
 struct ParserConfiguration {
   bool checkTypes = false;
+  bool validateAst = false;
   bool allowUnprototypedFunctions = false;
   std::function<bool()> stopParsingPredicate;
   std::function<void(const CodeCompletionContext&)> complete;

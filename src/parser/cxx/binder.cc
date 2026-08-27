@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/access_control.h>
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
@@ -45,6 +46,15 @@
 #include <format>
 
 namespace cxx {
+auto Binder::closureNamingState() const -> ClosureNamingState {
+  return {control()->closureNameCount(), lambdaDiscriminators_};
+}
+
+void Binder::setClosureNamingState(ClosureNamingState state) {
+  control()->setClosureNameCount(state.lambdaCount);
+  lambdaDiscriminators_ = std::move(state.lambdaDiscriminators);
+}
+
 Binder::Binder(TranslationUnit* unit) : unit_(unit), traits(unit) {
   languageLinkage_ = unit_->language();
 }
@@ -98,11 +108,33 @@ void Binder::setRetainsEnclosingTemplateLevels(bool value) {
   retainsEnclosingTemplateLevels_ = value;
 }
 
+namespace {
+struct FindReturnedValue final : ASTVisitor {
+  bool found = false;
+
+  auto preVisit(AST*) -> bool override { return !found; }
+
+  void visit(ReturnStatementAST* ast) override {
+    if (ast->expression) found = true;
+  }
+
+  void visit(LambdaExpressionAST*) override {}
+};
+}  // namespace
+
+auto Binder::returnsAValue(AST* declaration) -> bool {
+  if (!declaration) return false;
+  FindReturnedValue scan;
+  scan.accept(declaration);
+  return scan.found;
+}
+
 void Binder::finishAutoReturnType(FunctionSymbol* functionSymbol) {
   if (!functionSymbol) return;
   auto funcType = type_cast<FunctionType>(functionSymbol->type());
   if (!funcType) return;
   if (!isPlaceholderType(funcType->returnType())) return;
+  if (returnsAValue(functionSymbol->declaration())) return;
 
   auto newFuncType = control()->getFunctionType(
       control()->getVoidType(),
@@ -144,6 +176,32 @@ auto Binder::declaringScope() const -> ScopeSymbol* {
   return scope_->parent();
 }
 
+auto Binder::classBeingDefined() const -> ClassSymbol* {
+  if (classBodyStack_.empty()) return nullptr;
+  return classBodyStack_.back().classSymbol;
+}
+
+auto Binder::currentAccessSpecifier() const -> AccessSpecifier {
+  if (classBodyStack_.empty()) return AccessSpecifier::kPublic;
+  return classBodyStack_.back().accessSpecifier;
+}
+
+auto Binder::defaultAccessSpecifier() const -> AccessSpecifier {
+  if (classBodyStack_.empty()) return AccessSpecifier::kPublic;
+  return classBodyStack_.back().defaultAccessSpecifier;
+}
+
+void Binder::setCurrentAccessSpecifier(AccessSpecifier accessSpecifier) {
+  if (classBodyStack_.empty()) return;
+  classBodyStack_.back().accessSpecifier = accessSpecifier;
+}
+
+void Binder::applyAccessSpecifier(Symbol* symbol) const {
+  if (!symbol) return;
+  if (symbol_cast<ClassSymbol>(symbol->parent()) != classBeingDefined()) return;
+  symbol->setAccessSpecifier(currentAccessSpecifier());
+}
+
 auto Binder::scopeForBlockDecl(ScopeSymbol* scope) const -> ScopeSymbol* {
   if (scope && scope->isBlock()) {
     if (auto ns = scope->enclosingNamespace()) return ns;
@@ -156,6 +214,7 @@ void Binder::injectUsing(ScopeSymbol* scope, const Name* name, Symbol* target,
   auto u = control()->newUsingDeclarationSymbol(scope, loc);
   u->setName(name);
   u->setTarget(target);
+  if (target) u->setType(target->type());
   scope->addSymbol(u);
 }
 
@@ -163,7 +222,8 @@ auto Binder::scope() const -> ScopeSymbol* { return scope_; }
 
 void Binder::setScope(ScopeSymbol* scope) {
   scope_ = scope;
-  inTemplate_ = isEnclosedInTemplate(scope_);
+  inTemplate_ = isEnclosedInDependentTemplate(
+      unit_, scope_, /*stopAtConcreteSpecialization=*/true);
 }
 
 auto Binder::languageLinkage() const -> LanguageKind {
@@ -300,6 +360,7 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
   ast->symbol = declareEnum(get_name(control(), ast->unqualifiedId), location,
                             underlyingType, ast->classLoc && isCxx(),
                             ast->typeSpecifierList != nullptr, true);
+  applyAccessSpecifier(ast->symbol);
   setScope(ast->symbol->asScopeSymbol());
 }
 
@@ -388,10 +449,27 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
       classSymbol = nullptr;
     }
 
+    auto adoptedClassSymbol = static_cast<ClassSymbol*>(nullptr);
+    if (!classSymbol && !declSpecs.isFriend) {
+      adoptedClassSymbol = adoptFriendDeclaredClass(targetScope, name);
+      classSymbol = adoptedClassSymbol;
+    }
+
+    if (adoptedClassSymbol) {
+      adoptedClassSymbol->setIsUnion(ast->classKey == TokenKind::T_UNION);
+      adoptedClassSymbol->setTemplateDeclaration(declSpecs.templateHead);
+      if (declSpecs.templateHead) {
+        adoptedClassSymbol->setTemplateParameters(
+            declSpecs.templateHead->symbol);
+      }
+      adoptedClassSymbol->setDeclaration(ast);
+    }
+
     if (!classSymbol) {
       const auto isUnion = ast->classKey == TokenKind::T_UNION;
       classSymbol = control()->newClassSymbol(targetScope, location);
 
+      applyAccessSpecifier(classSymbol);
       classSymbol->setIsUnion(isUnion);
       classSymbol->setName(name);
       classSymbol->setTemplateDeclaration(declSpecs.templateHead);
@@ -408,6 +486,10 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
     }
 
     ast->symbol = classSymbol;
+
+    if (declSpecs.isFriend && !templateId && classBeingDefined()) {
+      classSymbol->canonical()->addBefriendingClass(classBeingDefined());
+    }
   }
 
   declSpecs.setTypeSpecifier(ast);
@@ -415,6 +497,33 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
   if (ast->symbol) {
     declSpecs.setType(ast->symbol->type());
   }
+}
+
+auto Binder::adoptFriendDeclaredClass(ScopeSymbol* targetScope,
+                                      const Identifier* name) -> ClassSymbol* {
+  if (!name) return nullptr;
+
+  for (auto candidate : targetScope->find(name)) {
+    auto classSymbol = symbol_cast<ClassSymbol>(candidate);
+    if (!classSymbol) continue;
+    if (!classSymbol->isFriend()) continue;
+    if (classSymbol->parent() != targetScope) continue;
+
+    classSymbol->setFriend(false);
+    classSymbol->setHidden(false);
+    return classSymbol;
+  }
+
+  return nullptr;
+}
+
+void Binder::disableAccessControlForUnsupportedFriend(
+    NestedNameSpecifierAST* nestedNameSpecifier,
+    ClassSymbol* befriendingClass) {
+  if (!inTemplate() || !isDependent(unit_, nestedNameSpecifier)) return;
+  if (!befriendingClass) return;
+
+  befriendingClass->setAccessControlDisabled(true);
 }
 
 void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
@@ -442,16 +551,48 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
     auto parameterLoc = decl.location();
     if (!parameterLoc) parameterLoc = ast->firstSourceLocation();
 
+    const auto isFirstParameter = scope_->members().empty();
+
+    if (ast->isThisIntroduced && !isFirstParameter) {
+      error(ast->thisLoc,
+            "an explicit object parameter must be the first parameter");
+    }
+
+    if (ast->isThisIntroduced && decl.isPack) {
+      error(ast->thisLoc,
+            "an explicit object parameter cannot be a function parameter pack");
+    }
+
     auto parameterSymbol = control()->newParameterSymbol(scope_, parameterLoc);
     parameterSymbol->setName(ast->identifier);
     parameterSymbol->setType(ast->type);
     parameterSymbol->setDefaultArgument(ast->expression);
+    parameterSymbol->setExplicitObject(ast->isThisIntroduced &&
+                                       isFirstParameter);
     scope_->addSymbol(parameterSymbol);
   }
 }
 
 void Binder::bind(DecltypeSpecifierAST* ast) {
   if (auto type = traits.decltype_of(ast->expression)) ast->type = type;
+}
+
+auto Binder::nextEnumeratorValue(TranslationUnit* unit,
+                                 const Type* underlyingType,
+                                 const std::optional<ConstValue>& previous)
+    -> std::optional<ConstValue> {
+  if (!previous.has_value()) return std::intmax_t{0};
+
+  ASTInterpreter interp{unit};
+
+  if (unit->typeTraits().is_unsigned(underlyingType)) {
+    if (auto v = interp.toUInt(previous.value()))
+      return std::bit_cast<std::intmax_t>(v.value() + 1);
+    return std::nullopt;
+  }
+
+  if (auto v = interp.toInt(previous.value())) return v.value() + 1;
+  return std::nullopt;
 }
 
 void Binder::bind(EnumeratorAST* ast, const Type* type,
@@ -463,6 +604,10 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
     symbol->setName(ast->identifier);
     symbol->setType(type);
     ast->symbol->setValue(value);
+    if (auto enclosingEnum = symbol_cast<EnumSymbol>(scope()))
+      symbol->setAccessSpecifier(enclosingEnum->accessSpecifier());
+    if (auto enclosingEnum = symbol_cast<ScopedEnumSymbol>(scope()))
+      symbol->setAccessSpecifier(enclosingEnum->accessSpecifier());
     scope()->addSymbol(symbol);
 
     if (auto enumSymbol = symbol_cast<EnumSymbol>(scope())) {
@@ -473,6 +618,7 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
       u->setName(ast->identifier);
       u->setTarget(symbol);
       parentScope->addSymbol(u);
+      applyAccessSpecifier(u);
     }
 
     return;
@@ -496,6 +642,7 @@ void Binder::bind(EnumeratorAST* ast, const Type* type,
 auto Binder::declareTypeAlias(SourceLocation identifierLoc, TypeIdAST* typeId,
                               bool addSymbolToParentScope) -> TypeAliasSymbol* {
   auto symbol = control()->newTypeAliasSymbol(declaringScope(), identifierLoc);
+  applyAccessSpecifier(symbol);
 
   auto name = unit_->identifier(identifierLoc);
   symbol->setName(name);
@@ -696,7 +843,7 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
   if (dependentQualifier) target = makeDependentTypeTarget();
 
   if (auto u = symbol_cast<UsingDeclarationSymbol>(target)) {
-    target = u->target();
+    target = resolve_using_declaration(target);
   }
 
   if (!target && !dependentQualifier) {
@@ -717,9 +864,12 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
 
   ast->symbol = symbol;
 
+  applyAccessSpecifier(symbol);
   symbol->setName(name);
   symbol->setDeclarator(ast);
   symbol->setTarget(target);
+
+  if (!dependentQualifier) checkUsingDeclaratorAccess(ast, symbol);
 
   const auto joinsAnOverloadSet =
       !symbol->introducedFunctions().empty() &&
@@ -732,6 +882,43 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
 
   overloadSetFor(scope(), name, symbol->location())
       ->addUsingDeclaration(symbol);
+}
+
+void Binder::checkUsingDeclaratorAccess(UsingDeclaratorAST* ast,
+                                        UsingDeclarationSymbol* symbol) {
+  if (usingDeclaratorNamesConstructor(ast)) return;
+  if (!ast->nestedNameSpecifier) return;
+
+  auto designatingClass =
+      symbol_cast<ClassSymbol>(ast->nestedNameSpecifier->symbol);
+  if (!designatingClass) return;
+
+  AccessContext accessContext{unit_, scope()};
+  const auto location = ast->unqualifiedId->firstSourceLocation();
+
+  auto reportInaccessible = [&](Symbol* named) {
+    if (!named) return;
+    if (accessContext.isAccessible(named, designatingClass, nullptr)) return;
+
+    auto declaringClass = declaringClassOf(named);
+    if (!declaringClass) return;
+
+    auto accessKind = std::string_view{"private"};
+    if (named->accessSpecifier() == AccessSpecifier::kProtected)
+      accessKind = "protected";
+
+    error(location,
+          std::format("'{}' is a {} member of '{}'", to_string(named->name()),
+                      accessKind, to_string(declaringClass->type())));
+  };
+
+  auto introduced = symbol->introducedFunctions();
+  if (introduced.empty()) {
+    reportInaccessible(symbol->target());
+    return;
+  }
+
+  for (auto function : introduced) reportInaccessible(function);
 }
 
 void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
@@ -780,19 +967,8 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
       baseClassSymbol->setSymbol(typeParam);
       baseClassSymbol->setName(typeParam->name());
 
-      switch (ast->accessSpecifier) {
-        case TokenKind::T_PRIVATE:
-          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
-          break;
-        case TokenKind::T_PROTECTED:
-          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
-          break;
-        case TokenKind::T_PUBLIC:
-          baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
-          break;
-        default:
-          break;
-      }
+      baseClassSymbol->setAccessSpecifier(
+          toAccessSpecifier(ast->accessSpecifier, defaultAccessSpecifier()));
       return;
     }
     if (!inTemplate()) {
@@ -823,25 +999,16 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
 
   baseClassSymbol->setName(symbol->name());
 
-  switch (ast->accessSpecifier) {
-    case TokenKind::T_PRIVATE:
-      baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPrivate);
-      break;
-    case TokenKind::T_PROTECTED:
-      baseClassSymbol->setAccessSpecifier(AccessSpecifier::kProtected);
-      break;
-    case TokenKind::T_PUBLIC:
-      baseClassSymbol->setAccessSpecifier(AccessSpecifier::kPublic);
-      break;
-    default:
-      break;
-  }
+  baseClassSymbol->setAccessSpecifier(
+      toAccessSpecifier(ast->accessSpecifier, defaultAccessSpecifier()));
 }
 
 void Binder::bind(NonTypeTemplateParameterAST* ast, int index, int depth) {
   auto symbol = control()->newNonTypeParameterSymbol(
       scope(), ast->declaration->firstSourceLocation());
   ast->symbol = symbol;
+  ast->index = index;
+  ast->depth = depth;
 
   symbol->setIndex(index);
   symbol->setDepth(depth);
@@ -857,6 +1024,8 @@ void Binder::bind(TypenameTypeParameterAST* ast, int index, int depth) {
   auto symbol = control()->newTypeParameterSymbol(scope(), location, index,
                                                   depth, ast->isPack);
   ast->symbol = symbol;
+  ast->index = index;
+  ast->depth = depth;
 
   symbol->setName(ast->identifier);
   scope()->addSymbol(symbol);
@@ -869,6 +1038,8 @@ void Binder::bind(ConstraintTypeParameterAST* ast, int index, int depth) {
   symbol->setName(ast->identifier);
   symbol->setTypeConstraint(ast->typeConstraint);
   ast->symbol = symbol;
+  ast->index = index;
+  ast->depth = depth;
   scope()->addSymbol(symbol);
 }
 
@@ -888,6 +1059,8 @@ void Binder::bind(TemplateTypeParameterAST* ast, int index, int depth) {
   symbol->setName(ast->identifier);
 
   ast->symbol = symbol;
+  ast->index = index;
+  ast->depth = depth;
 
   scope()->addSymbol(symbol);
 }
@@ -1391,6 +1564,43 @@ void Binder::bind(LambdaExpressionAST* ast) {
   setScope(symbol);
 }
 
+auto Binder::initCapture(LambdaCaptureAST* captureNode)
+    -> std::optional<InitCapture> {
+  if (auto initCap = ast_cast<InitLambdaCaptureAST>(captureNode)) {
+    InitCapture capture;
+    capture.name = initCap->identifier;
+    capture.isPack = static_cast<bool>(initCap->ellipsisLoc);
+    if (initCap->initializer && initCap->initializer->type)
+      capture.type = traits.decay(initCap->initializer->type);
+    return capture;
+  }
+
+  if (auto refInitCap = ast_cast<RefInitLambdaCaptureAST>(captureNode)) {
+    InitCapture capture;
+    capture.name = refInitCap->identifier;
+    capture.isPack = static_cast<bool>(refInitCap->ellipsisLoc);
+    if (refInitCap->initializer && refInitCap->initializer->type)
+      capture.type = control()->getLvalueReferenceType(
+          traits.remove_reference(refInitCap->initializer->type));
+    return capture;
+  }
+
+  return std::nullopt;
+}
+
+void Binder::declareInitCapturesInLambdaScope(LambdaExpressionAST* ast) {
+  for (auto captureNode : ListView{ast->captureList}) {
+    auto capture = initCapture(captureNode);
+    if (!capture || !capture->name) continue;
+
+    auto variable = control()->newVariableSymbol(
+        ast->symbol, captureNode->firstSourceLocation());
+    variable->setName(capture->name);
+    variable->setType(capture->type ? capture->type : control()->getAutoType());
+    ast->symbol->addSymbol(variable);
+  }
+}
+
 void Binder::complete(LambdaExpressionAST* ast) {
   if (auto params = ast->parameterDeclarationClause) {
     auto lambdaScope = ast->symbol;
@@ -1444,10 +1654,15 @@ void Binder::complete(LambdaExpressionAST* ast) {
       returnType, std::move(parameterTypes), isVariadic, {}, {}, isNoexcept);
   ast->symbol->setType(funcType);
 
-  if (isCxx() && !isEnclosedInTemplate(ast->symbol->parent()) &&
-      !ast->symbol->isInTemplate()) {
-    auto closureName =
-        control()->getIdentifier(std::format("__lambda_{}", lambdaCount_++));
+  const bool inDependentContext =
+      isEnclosedInDependentTemplate(unit_, ast->symbol->parent(),
+                                    /*stopAtConcreteSpecialization=*/true) ||
+      ast->symbol->isInTemplate();
+
+  if (isCxx()) declareInitCapturesInLambdaScope(ast);
+
+  if (isCxx() && !inDependentContext) {
+    auto closureName = control()->newClosureName();
 
     auto classSymbol = control()->newClassSymbol(parentScope, ast->lbracketLoc);
     classSymbol->setName(closureName);
@@ -1461,6 +1676,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
     operatorFunc->setName(operatorCallName);
     operatorFunc->setType(funcType);
     operatorFunc->setDefined(true);
+    operatorFunc->setConstexpr(true);
     operatorFunc->setLanguageLinkage(LanguageKind::kCXX);
     classSymbol->addSymbol(operatorFunc);
 
@@ -1488,6 +1704,9 @@ void Binder::complete(LambdaExpressionAST* ast) {
     }
 
     classSymbol->setIsClosureType(true);
+    classSymbol->setHasLambdaCapture(ast->captureDefault !=
+                                         TokenKind::T_EOF_SYMBOL ||
+                                     ast->captureList != nullptr);
 
     std::vector<const Type*> ctorParamTypes;
 
@@ -1583,27 +1802,18 @@ void Binder::complete(LambdaExpressionAST* ast) {
       } else if (auto deref =
                      ast_cast<DerefThisLambdaCaptureAST>(captureNode)) {
         error(captureLoc, "capture of '*this' is not yet supported");
-      } else if (auto initCap = ast_cast<InitLambdaCaptureAST>(captureNode)) {
-        if (!initCap->initializer || !initCap->initializer->type) continue;
-        auto fieldType = traits.decay(initCap->initializer->type);
-        if (type_cast<ClassType>(fieldType) &&
-            !traits.is_trivially_copyable(fieldType)) {
+      } else if (auto capture = initCapture(captureNode)) {
+        if (!capture->type) continue;
+        if (!ast_cast<RefInitLambdaCaptureAST>(captureNode) &&
+            type_cast<ClassType>(capture->type) &&
+            !traits.is_trivially_copyable(capture->type)) {
           error(captureLoc,
                 std::format("init-capturing '{}' by value is not yet "
                             "supported for non-trivially-copyable class types",
-                            initCap->identifier->name()));
+                            capture->name->name()));
           continue;
         }
-        addField(initCap->identifier, fieldType);
-      } else if (auto refInitCap =
-                     ast_cast<RefInitLambdaCaptureAST>(captureNode)) {
-        if (!refInitCap->initializer || !refInitCap->initializer->type) {
-          continue;
-        }
-        auto elementType =
-            traits.remove_reference(refInitCap->initializer->type);
-        auto fieldType = control()->getLvalueReferenceType(elementType);
-        addField(refInitCap->identifier, fieldType);
+        addField(capture->name, capture->type);
       }
     }
 
@@ -1619,20 +1829,6 @@ void Binder::complete(LambdaExpressionAST* ast) {
 
     ast->constructorSymbol = ctorSymbol;
 
-    if (!ast->symbol->isTemplate() &&
-        ast->captureDefault == TokenKind::T_EOF_SYMBOL && !ast->captureList) {
-      auto fptrType = control()->getPointerType(funcType);
-      auto convFuncType = control()->getFunctionType(fptrType, {});
-      auto convName = control()->getConversionFunctionId(fptrType);
-      auto convFunc =
-          control()->newFunctionSymbol(classSymbol, ast->lbracketLoc);
-      convFunc->setName(convName);
-      convFunc->setType(convFuncType);
-      convFunc->setDefined(true);
-      convFunc->setLanguageLinkage(LanguageKind::kCXX);
-      classSymbol->addSymbol(convFunc);
-    }
-
     classSymbol->setComplete(true);
     auto status = buildRecordLayout(classSymbol);
     if (!status.has_value()) {
@@ -1642,6 +1838,160 @@ void Binder::complete(LambdaExpressionAST* ast) {
     ast->type = classSymbol->type();
     ast->valueCategory = ValueCategory::kPrValue;
   }
+}
+
+auto Binder::declareClosureInvoker(ClassSymbol* classSymbol,
+                                   FunctionSymbol* operatorFunc,
+                                   const FunctionType* operatorType,
+                                   SourceLocation loc) -> FunctionSymbol* {
+  auto pool = unit_->arena();
+
+  auto invoker = control()->newFunctionSymbol(classSymbol, loc);
+  invoker->setName(control()->getIdentifier("__invoke"));
+  invoker->setType(operatorType);
+  invoker->setStatic(true);
+  invoker->setDefined(true);
+  invoker->setConstexpr(true);
+  invoker->setLanguageLinkage(LanguageKind::kCXX);
+  classSymbol->addSymbol(invoker);
+
+  auto parametersSymbol = control()->newFunctionParametersSymbol(invoker, loc);
+  invoker->addSymbol(parametersSymbol);
+
+  List<ExpressionAST*>* arguments = nullptr;
+  auto argumentTail = &arguments;
+  int index = 0;
+  for (auto parameterType : operatorType->parameterTypes()) {
+    auto parameter = control()->newParameterSymbol(parametersSymbol, loc);
+    parameter->setName(control()->getIdentifier(std::format("__p{}", index++)));
+    parameter->setType(parameterType);
+    parametersSymbol->addSymbol(parameter);
+
+    auto reference = IdExpressionAST::create(pool);
+    reference->unqualifiedId =
+        NameIdAST::create(pool, name_cast<Identifier>(parameter->name()));
+    reference->symbol = parameter;
+    reference->type = parameterType;
+    reference->valueCategory = ValueCategory::kLValue;
+
+    ExpressionAST* argument = reference;
+    (void)TypeChecker{unit_}.implicit_conversion(argument, parameterType);
+
+    *argumentTail = make_list_node<ExpressionAST>(pool, argument);
+    argumentTail = &(*argumentTail)->next;
+  }
+
+  auto closureObject = TypeConstructionAST::create(pool);
+  closureObject->type = classSymbol->type();
+  closureObject->valueCategory = ValueCategory::kPrValue;
+  for (auto constructor : classSymbol->declaredConstructors()) {
+    auto constructorType = type_cast<FunctionType>(constructor->type());
+    if (constructorType && constructorType->parameterTypes().empty()) {
+      closureObject->constructorSymbol = constructor;
+      break;
+    }
+  }
+
+  auto callee = MemberExpressionAST::create(pool);
+  callee->baseExpression = closureObject;
+  callee->accessOp = TokenKind::T_DOT;
+  callee->unqualifiedId =
+      OperatorFunctionIdAST::create(pool, TokenKind::T_LPAREN);
+  callee->symbol = operatorFunc;
+  callee->type = operatorType;
+  callee->valueCategory = ValueCategory::kLValue;
+
+  auto call = CallExpressionAST::create(pool);
+  call->baseExpression = callee;
+  call->expressionList = arguments;
+  call->type = operatorType->returnType();
+  call->valueCategory = ValueCategory::kPrValue;
+
+  StatementAST* bodyStatement = nullptr;
+  if (traits.is_void(operatorType->returnType())) {
+    auto expressionStatement = ExpressionStatementAST::create(pool);
+    expressionStatement->expression = call;
+    bodyStatement = expressionStatement;
+  } else {
+    auto returnStatement = ReturnStatementAST::create(pool);
+    returnStatement->expression = call;
+    bodyStatement = returnStatement;
+  }
+
+  auto block = CompoundStatementAST::create(pool);
+  block->statementList = make_list_node<StatementAST>(pool, bodyStatement);
+
+  attachSynthesizedBody(
+      invoker, NameIdAST::create(pool, control()->getIdentifier("__invoke")),
+      CompoundStatementFunctionBodyAST::create(
+          pool, /*memInitializerList=*/nullptr, block));
+
+  return invoker;
+}
+
+void Binder::declareClosureFunctionPointerConversion(
+    ClassSymbol* classSymbol, FunctionSymbol* invoker,
+    const FunctionType* operatorType, SourceLocation loc) {
+  auto pool = unit_->arena();
+
+  auto pointerType = control()->getPointerType(operatorType);
+
+  auto convFunc = control()->newFunctionSymbol(classSymbol, loc);
+  convFunc->setName(control()->getConversionFunctionId(pointerType));
+  convFunc->setType(
+      control()->getFunctionType(pointerType, {}, false, CvQualifiers::kConst));
+  convFunc->setDefined(true);
+  convFunc->setConstexpr(true);
+  convFunc->setLanguageLinkage(LanguageKind::kCXX);
+  classSymbol->addSymbol(convFunc);
+
+  convFunc->addSymbol(control()->newFunctionParametersSymbol(convFunc, loc));
+
+  auto reference = IdExpressionAST::create(pool);
+  reference->unqualifiedId =
+      NameIdAST::create(pool, name_cast<Identifier>(invoker->name()));
+  reference->symbol = invoker;
+  reference->type = operatorType;
+  reference->valueCategory = ValueCategory::kLValue;
+
+  auto addressOf = UnaryExpressionAST::create(pool);
+  addressOf->op = TokenKind::T_AMP;
+  addressOf->expression = reference;
+  addressOf->type = pointerType;
+  addressOf->valueCategory = ValueCategory::kPrValue;
+
+  auto returnStatement = ReturnStatementAST::create(pool);
+  returnStatement->expression = addressOf;
+
+  auto block = CompoundStatementAST::create(pool);
+  block->statementList = make_list_node<StatementAST>(pool, returnStatement);
+
+  auto conversionId = ConversionFunctionIdAST::create(pool);
+
+  attachSynthesizedBody(convFunc, conversionId,
+                        CompoundStatementFunctionBodyAST::create(
+                            pool, /*memInitializerList=*/nullptr, block));
+}
+
+void Binder::attachSynthesizedBody(FunctionSymbol* function,
+                                   UnqualifiedIdAST* id,
+                                   FunctionBodyAST* body) {
+  auto pool = unit_->arena();
+
+  auto idDeclarator = IdDeclaratorAST::create(pool);
+  idDeclarator->unqualifiedId = id;
+
+  auto functionChunk = FunctionDeclaratorChunkAST::create(pool);
+
+  auto declarator = DeclaratorAST::create(
+      pool, /*ptrOpList=*/nullptr, idDeclarator,
+      make_list_node<DeclaratorChunkAST>(pool, functionChunk));
+
+  auto definition = FunctionDefinitionAST::create(pool);
+  definition->declarator = declarator;
+  definition->functionBody = body;
+  definition->symbol = function;
+  function->setDeclaration(definition);
 }
 
 void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
@@ -1672,6 +2022,8 @@ void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
 
   addImplicitCaptures(ast, classSymbol);
 
+  completeClosureType(classSymbol);
+
   FunctionSymbol* operatorFunc = nullptr;
   for (auto member : classSymbol->members()) {
     if (auto func = symbol_cast<FunctionSymbol>(member)) {
@@ -1693,6 +2045,15 @@ void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
       ASTRewriter::paste(unit_, bodyScope, ast->statement));
 
   if (!ast->trailingReturnType) finishAutoReturnType(operatorFunc);
+
+  if (auto opFuncType = type_cast<FunctionType>(operatorFunc->type());
+      opFuncType && !ast->symbol->isTemplate() &&
+      ast->captureDefault == TokenKind::T_EOF_SYMBOL && !ast->captureList) {
+    auto invoker = declareClosureInvoker(classSymbol, operatorFunc, opFuncType,
+                                         ast->lbracketLoc);
+    declareClosureFunctionPointerConversion(classSymbol, invoker, opFuncType,
+                                            ast->lbracketLoc);
+  }
 
   auto opId = OperatorFunctionIdAST::create(ar, TokenKind::T_LPAREN);
 
@@ -1775,6 +2136,54 @@ void Binder::bind(UsingDirectiveAST* ast, NamespaceSymbol* resolvedNamespace) {
   }
 }
 
+void Binder::bind(UsingEnumDeclarationAST* ast) {
+  if (!ast || !ast->enumTypeSpecifier) return;
+
+  auto spec = ast->enumTypeSpecifier;
+
+  if (spec->nestedNameSpecifier && !spec->nestedNameSpecifier->symbol) {
+    if (reportUnresolvedNestedNameSpecifier(spec->nestedNameSpecifier)) return;
+  }
+
+  const auto checkTemplates = unit_->config().checkTypes;
+  auto symbol = resolve(spec->nestedNameSpecifier, spec->unqualifiedId,
+                        checkTemplates, spec->symbol);
+
+  symbol = resolve_using_declaration(symbol);
+
+  ScopeSymbol* enumScope = nullptr;
+  if (auto enumSymbol = symbol_cast<EnumSymbol>(symbol)) {
+    enumScope = enumSymbol;
+  } else if (auto scopedEnumSymbol = symbol_cast<ScopedEnumSymbol>(symbol)) {
+    enumScope = scopedEnumSymbol;
+  } else if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
+    auto unqualType = traits.remove_cv(typeAlias->type());
+    if (auto enumType = type_cast<EnumType>(unqualType)) {
+      enumScope = enumType->symbol();
+    } else if (auto scopedEnumType = type_cast<ScopedEnumType>(unqualType)) {
+      enumScope = scopedEnumType->symbol();
+    }
+  }
+
+  if (!enumScope) {
+    if (!inTemplate()) {
+      auto missingName = get_name(control(), spec->unqualifiedId);
+      error(spec->unqualifiedId->firstSourceLocation(),
+            std::format("'{}' does not name an enumeration",
+                        to_string(missingName)));
+    }
+    return;
+  }
+
+  spec->symbol = enumScope;
+
+  for (auto member : enumScope->members()) {
+    if (auto enumerator = symbol_cast<EnumeratorSymbol>(member)) {
+      injectUsing(scope(), enumerator->name(), enumerator, ast->usingLoc);
+    }
+  }
+}
+
 void Binder::bind(TypeIdAST* ast, const Decl& decl) {
   ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.type());
 }
@@ -1785,6 +2194,7 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
   auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
   auto targetScope = declaringScope();
   auto symbol = control()->newTypeAliasSymbol(targetScope, decl.location());
+  applyAccessSpecifier(symbol);
   symbol->setName(name);
   symbol->setType(type);
 
@@ -1982,6 +2392,71 @@ auto unresolvedNameTypesStructurallyEquivalent(TranslationUnit* unit,
       unit, a->nestedNameSpecifier(), b->nestedNameSpecifier());
 }
 
+[[nodiscard]] auto referencedTypeOf(const Type* type) -> const Type* {
+  if (auto reference = type_cast<LvalueReferenceType>(type))
+    return reference->elementType();
+  if (auto reference = type_cast<RvalueReferenceType>(type))
+    return reference->elementType();
+  return nullptr;
+}
+
+}  // namespace
+
+namespace {
+
+auto redeclarationTypesEquivalent(TranslationUnit* unit,
+                                  const Type* existingType,
+                                  const Type* incomingType) -> bool {
+  if (!existingType || !incomingType) return false;
+
+  if (unit->typeTraits().is_same(existingType, incomingType)) return true;
+
+  auto existingQual = type_cast<QualType>(existingType);
+  auto incomingQual = type_cast<QualType>(incomingType);
+  if (existingQual || incomingQual) {
+    if (!existingQual || !incomingQual) return false;
+    if (existingQual->cvQualifiers() != incomingQual->cvQualifiers())
+      return false;
+    return redeclarationTypesEquivalent(unit, existingQual->elementType(),
+                                        incomingQual->elementType());
+  }
+
+  auto existingReferencedType = referencedTypeOf(existingType);
+  auto incomingReferencedType = referencedTypeOf(incomingType);
+  if (existingReferencedType || incomingReferencedType) {
+    if (!existingReferencedType || !incomingReferencedType) return false;
+    if (existingType->kind() != incomingType->kind()) return false;
+    return redeclarationTypesEquivalent(unit, existingReferencedType,
+                                        incomingReferencedType);
+  }
+
+  auto existingUnresolved = type_cast<UnresolvedNameType>(existingType);
+  auto incomingUnresolved = type_cast<UnresolvedNameType>(incomingType);
+  if (existingUnresolved || incomingUnresolved) {
+    if (!existingUnresolved || !incomingUnresolved) return false;
+    return unresolvedNameTypesStructurallyEquivalent(unit, existingUnresolved,
+                                                     incomingUnresolved);
+  }
+
+  if (!unit->typeTraits().is_array(existingType)) return false;
+  if (!unit->typeTraits().is_array(incomingType)) return false;
+
+  auto existingElementType = unit->typeTraits().get_element_type(existingType);
+  auto incomingElementType = unit->typeTraits().get_element_type(incomingType);
+  if (!redeclarationTypesEquivalent(unit, existingElementType,
+                                    incomingElementType)) {
+    return false;
+  }
+
+  if (isEffectivelyUnboundedArray(unit, existingType)) return true;
+  if (isEffectivelyUnboundedArray(unit, incomingType)) return true;
+
+  auto existingBound = arrayBoundToString(existingType);
+  auto incomingBound = arrayBoundToString(incomingType);
+  if (!existingBound || !incomingBound) return true;
+  return *existingBound == *incomingBound;
+}
+
 }  // namespace
 
 auto areRedeclarationTypesCompatible(TranslationUnit* unit,
@@ -1996,37 +2471,7 @@ auto areRedeclarationTypesCompatible(TranslationUnit* unit,
     incomingType = qual->elementType();
   }
 
-  if (unit->typeTraits().is_same(existingType, incomingType)) return true;
-
-  auto existingUnresolved = type_cast<UnresolvedNameType>(existingType);
-  auto incomingUnresolved = type_cast<UnresolvedNameType>(incomingType);
-  if (existingUnresolved || incomingUnresolved) {
-    return existingUnresolved && incomingUnresolved &&
-           unresolvedNameTypesStructurallyEquivalent(unit, existingUnresolved,
-                                                     incomingUnresolved);
-  }
-
-  if (!unit->typeTraits().is_array(existingType) ||
-      !unit->typeTraits().is_array(incomingType)) {
-    return false;
-  }
-
-  auto existingElementType = unit->typeTraits().get_element_type(existingType);
-  auto incomingElementType = unit->typeTraits().get_element_type(incomingType);
-  if (!areRedeclarationTypesCompatible(unit, existingElementType,
-                                       incomingElementType)) {
-    return false;
-  }
-
-  if (isEffectivelyUnboundedArray(unit, existingType) ||
-      isEffectivelyUnboundedArray(unit, incomingType)) {
-    return true;
-  }
-
-  auto existingBound = arrayBoundToString(existingType);
-  auto incomingBound = arrayBoundToString(incomingType);
-  if (!existingBound || !incomingBound) return true;
-  return *existingBound == *incomingBound;
+  return redeclarationTypesEquivalent(unit, existingType, incomingType);
 }
 
 namespace {
@@ -2445,17 +2890,22 @@ auto Binder::declareMemberSymbol(DeclaratorAST* declarator, const Decl& decl)
 }
 
 void Binder::applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs) {
+  applyAccessSpecifier(symbol);
   symbol->setStatic(specs.isStatic);
   symbol->setExtern(specs.isExtern);
   symbol->setFriend(specs.isFriend);
   symbol->setConstexpr(specs.isConstexpr);
   symbol->setConsteval(specs.isConsteval);
-  symbol->setInline(specs.isInline);
+  auto isInline = specs.isInline;
+  if (specs.isConstexpr) isInline = true;
+  if (specs.isConsteval) isInline = true;
+  symbol->setInline(isInline);
   symbol->setVirtual(specs.isVirtual);
   symbol->setExplicit(specs.isExplicit);
 }
 
 void Binder::applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs) {
+  applyAccessSpecifier(symbol);
   symbol->setStatic(specs.isStatic);
   symbol->setThreadLocal(specs.isThreadLocal);
   symbol->setExtern(specs.isExtern);
@@ -2465,6 +2915,7 @@ void Binder::applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs) {
 }
 
 void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
+  applyAccessSpecifier(symbol);
   symbol->setStatic(specs.isStatic);
   symbol->setThreadLocal(specs.isThreadLocal);
   symbol->setConstexpr(specs.isConstexpr);
@@ -2474,7 +2925,7 @@ void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
 
 auto Binder::reportUnresolvedNestedNameSpecifier(NestedNameSpecifierAST* ast)
     -> bool {
-  if (inTemplate() || isDependentNestedNameSpecifier(ast)) return false;
+  if (inTemplate() || isDependentTypeParameterSymbol(ast->symbol)) return false;
 
   error(ast->firstSourceLocation(),
         "nested name specifier must be a class or namespace");
@@ -2519,106 +2970,6 @@ auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
 }
 
 namespace {
-struct TemplateArity {
-  int minArgs = 0;
-  int maxArgs = 0;
-  bool hasParameterPack = false;
-};
-
-auto isPackParameter(TemplateParameterAST* parameter) -> bool {
-  if (auto typeParameter = ast_cast<TypenameTypeParameterAST>(parameter)) {
-    return typeParameter->isPack;
-  }
-
-  if (auto nonTypeParameter =
-          ast_cast<NonTypeTemplateParameterAST>(parameter)) {
-    return nonTypeParameter->declaration &&
-           nonTypeParameter->declaration->isPack;
-  }
-
-  if (auto templateTypeParameter =
-          ast_cast<TemplateTypeParameterAST>(parameter)) {
-    return templateTypeParameter->isPack;
-  }
-
-  if (auto constraintParameter =
-          ast_cast<ConstraintTypeParameterAST>(parameter)) {
-    return static_cast<bool>(constraintParameter->ellipsisLoc);
-  }
-
-  return false;
-}
-
-auto hasDefaultTemplateArgument(TemplateParameterAST* parameter) -> bool {
-  if (auto typeParameter = ast_cast<TypenameTypeParameterAST>(parameter)) {
-    return typeParameter->typeId && typeParameter->typeId->type;
-  }
-
-  if (auto nonTypeParameter =
-          ast_cast<NonTypeTemplateParameterAST>(parameter)) {
-    return nonTypeParameter->declaration &&
-           nonTypeParameter->declaration->equalLoc &&
-           nonTypeParameter->declaration->expression;
-  }
-
-  if (auto templateTypeParameter =
-          ast_cast<TemplateTypeParameterAST>(parameter)) {
-    return templateTypeParameter->idExpression;
-  }
-
-  if (auto constraintParameter =
-          ast_cast<ConstraintTypeParameterAST>(parameter)) {
-    return constraintParameter->typeId && constraintParameter->typeId->type;
-  }
-
-  return false;
-}
-
-auto computeTemplateArity(TemplateDeclarationAST* templateDecl)
-    -> TemplateArity {
-  TemplateArity arity;
-  if (!templateDecl) return arity;
-
-  for (auto parameter : ListView{templateDecl->templateParameterList}) {
-    ++arity.maxArgs;
-
-    if (isPackParameter(parameter)) {
-      arity.hasParameterPack = true;
-      continue;
-    }
-
-    if (!hasDefaultTemplateArgument(parameter)) {
-      ++arity.minArgs;
-    }
-  }
-
-  return arity;
-}
-
-auto templateArgumentCount(List<TemplateArgumentAST*>* templateArgumentList)
-    -> int {
-  int count = 0;
-  for (auto argument : ListView{templateArgumentList}) {
-    (void)argument;
-    ++count;
-  }
-  return count;
-}
-
-auto isTemplateArityMatch(TemplateDeclarationAST* templateDecl,
-                          List<TemplateArgumentAST*>* templateArgumentList,
-                          bool isFunctionTemplate = false) -> bool {
-  if (!templateDecl) return true;
-
-  auto arity = computeTemplateArity(templateDecl);
-  auto argc = templateArgumentCount(templateArgumentList);
-
-  if (!isFunctionTemplate && argc < arity.minArgs) return false;
-  if (!arity.hasParameterPack && argc > arity.maxArgs) return false;
-
-  return true;
-}
-
 enum class TemplateParameterKind {
   kUnknown,
   kType,
@@ -2786,14 +3137,8 @@ void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup) {
       componentName = templateId->name();
     }
 
-    ast->symbol =
-        qualifiedLookup(ast->nestedNameSpecifier->symbol, componentName);
-
-    if (auto ns =
-            symbol_cast<NamespaceSymbol>(ast->nestedNameSpecifier->symbol)) {
-      ast->symbol = mergeInlineNamespaceOverloads(control(), ns, componentName,
-                                                  ast->symbol);
-    }
+    ast->symbol = qualifiedLookupIncludingInlineNamespaces(
+        control(), ast->nestedNameSpecifier->symbol, componentName);
   }
 
   resolveIdExpression(ast, mayUseArgumentDependentLookup);
@@ -2817,16 +3162,15 @@ void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
   if (auto templateId = name_cast<TemplateId>(name))
     componentName = templateId->name();
 
-  ast->symbol =
-      qualifiedLookup(ast->nestedNameSpecifier->symbol, componentName);
-
-  if (auto ns =
-          symbol_cast<NamespaceSymbol>(ast->nestedNameSpecifier->symbol)) {
-    ast->symbol = mergeInlineNamespaceOverloads(control(), ns, componentName,
-                                                ast->symbol);
-  }
+  ast->symbol = qualifiedLookupIncludingInlineNamespaces(
+      control(), ast->nestedNameSpecifier->symbol, componentName);
 
   resolveIdExpression(ast, /*isCallee=*/false);
+
+  if (auto function = designatedFunction(ast->symbol)) {
+    ast->symbol = function;
+    ast->type = function->type();
+  }
 }
 
 void Binder::resolveIdExpression(IdExpressionAST* ast, bool isCallee) {
@@ -2842,12 +3186,12 @@ void Binder::resolveIdExpression(IdExpressionAST* ast, bool isCallee) {
 
       auto needsCallSiteDeduction =
           [&](TemplateDeclarationAST* templateDecl) -> bool {
+        if (!templateDecl) return false;
         auto arity = computeTemplateArity(templateDecl);
         auto argc = templateArgumentCount(templateId->templateArgumentList);
         if (argc < arity.minArgs) return true;
-        if (arity.hasParameterPack && argc > 0 && argc == arity.minArgs)
-          return true;
-        return false;
+        if (arity.packCount > 0 && argc <= arity.minArgs) return true;
+        return arity.packCount > 1;
       };
 
       auto hasDependentArguments = [&]() -> bool {
@@ -2997,11 +3341,8 @@ auto Binder::denotesCurrentInstantiation(NestedNameSpecifierAST* nns,
 }
 
 auto Binder::currentInstantiationOf(ScopeSymbol* scope) -> ClassSymbol* {
-  for (auto current = scope; current; current = current->parent()) {
-    if (auto classSymbol = symbol_cast<ClassSymbol>(current))
-      return classSymbol;
-  }
-  return nullptr;
+  if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) return classSymbol;
+  return scope->enclosingClass();
 }
 
 auto Binder::resolveMemberOfCurrentInstantiation(
@@ -3223,28 +3564,9 @@ auto areFunctionTemplateHeadsEquivalentForRedeclaration(
     TranslationUnit* unit, ClassSymbol* enclosingClass,
     TemplateDeclarationAST* existingHead, TemplateDeclarationAST* newHead)
     -> bool {
-  auto enclosingHeadAtDepth = [&](int depth) -> TemplateDeclarationAST* {
-    for (auto current = enclosingClass; current;
-         current = symbol_cast<ClassSymbol>(current->parent())) {
-      auto head = current->templateDeclaration();
-      if (!head && current->isSpecialization()) {
-        auto primary = current->primaryTemplateSymbol();
-        head = primary ? primary->templateDeclaration() : nullptr;
-      }
-      if (head && head->depth == depth) return head;
-    }
-    return nullptr;
-  };
-  auto ownHead = [&](TemplateDeclarationAST* head) -> TemplateDeclarationAST* {
-    if (head) {
-      auto enclosingHead = enclosingHeadAtDepth(head->depth);
-      if (enclosingHead &&
-          areTemplateHeadsEquivalentForRedeclaration(unit, enclosingHead, head))
-        return nullptr;
-    }
-    return head;
-  };
-  return areTemplateHeadsEquivalentForRedeclaration(unit, ownHead(existingHead),
-                                                    ownHead(newHead));
+  existingHead = ownFunctionTemplateHead(unit, enclosingClass, existingHead);
+  newHead = ownFunctionTemplateHead(unit, enclosingClass, newHead);
+  return areTemplateHeadsEquivalentForRedeclaration(unit, existingHead,
+                                                    newHead);
 }
 }  // namespace cxx

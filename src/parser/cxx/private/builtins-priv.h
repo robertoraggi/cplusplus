@@ -300,8 +300,8 @@ void __atomic_store_n(volatile void*, long long, int);
 void __atomic_store(volatile void*, void*, int);
 long long __atomic_exchange_n(volatile void*, long long, int);
 void __atomic_exchange(volatile void*, void*, void*, int);
-int __atomic_compare_exchange_n(volatile void*, void*, long long, int, int, int);
-int __atomic_compare_exchange(volatile void*, void*, void*, int, int, int);
+bool __atomic_compare_exchange_n(volatile void*, void*, long long, bool, int, int);
+bool __atomic_compare_exchange(volatile void*, void*, void*, bool, int, int);
 long long __atomic_add_fetch(volatile void*, long long, int);
 long long __atomic_sub_fetch(volatile void*, long long, int);
 long long __atomic_and_fetch(volatile void*, long long, int);
@@ -314,12 +314,12 @@ long long __atomic_fetch_and(volatile void*, long long, int);
 long long __atomic_fetch_xor(volatile void*, long long, int);
 long long __atomic_fetch_or(volatile void*, long long, int);
 long long __atomic_fetch_nand(volatile void*, long long, int);
-int __atomic_test_and_set(volatile void*, int);
+bool __atomic_test_and_set(volatile void*, int);
 void __atomic_clear(volatile void*, int);
 void __atomic_thread_fence(int);
 void __atomic_signal_fence(int);
-int __atomic_always_lock_free(long long, const volatile void*);
-int __atomic_is_lock_free(long long, const volatile void*);
+bool __atomic_always_lock_free(__SIZE_TYPE__, const volatile void*);
+bool __atomic_is_lock_free(__SIZE_TYPE__, const volatile void*);
 constexpr int __builtin_LINE();
 constexpr const char* __builtin_FILE();
 constexpr const char* __builtin_FUNCTION();
@@ -353,6 +353,13 @@ template <template <class... Args> class BaseTemplate,
           class HasNoTypeMember,
           class... Ts>
 using __builtin_common_type = void;
+
+void* operator new(__SIZE_TYPE__);
+void* operator new[](__SIZE_TYPE__);
+void operator delete(void*) noexcept;
+void operator delete[](void*) noexcept;
+void operator delete(void*, __SIZE_TYPE__) noexcept;
+void operator delete[](void*, __SIZE_TYPE__) noexcept;
 
 #endif
 )";

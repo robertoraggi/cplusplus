@@ -474,6 +474,7 @@ struct Instantiate {
 auto ASTRewriter::paste(TranslationUnit* unit, ScopeSymbol* scope,
                         StatementAST* ast) -> StatementAST* {
   auto rewriter = ASTRewriter{unit, scope, {}};
+  rewriter.pastingCheckedBody_ = true;
   auto result = rewriter.statement(ast);
   return result;
 }
@@ -551,24 +552,42 @@ void ASTRewriter::reportPendingInstantiationErrors(
   }
 }
 
-auto ASTRewriter::instantiateForArgs(
+auto ASTRewriter::instantiateOverloadCandidate(
     TranslationUnit* unit, List<TemplateArgumentAST*>* deducedArguments,
     FunctionSymbol* function, SourceLocation instantiationLoc,
-    bool argsComplete, bool declarationOnly) -> FunctionSymbol* {
+    bool argsComplete, std::vector<Diagnostic>* substitutionFailure)
+    -> FunctionSymbol* {
   return symbol_cast<FunctionSymbol>(
       instantiate(unit, deducedArguments, function, instantiationLoc,
-                  /*sfinaeContext=*/true, argsComplete, declarationOnly,
+                  /*sfinaeContext=*/true, argsComplete,
+                  /*declarationOnly=*/true,
                   /*retainEnclosingTemplateLevels=*/false,
-                  /*isOverloadCandidate=*/true));
+                  /*isOverloadCandidate=*/true, substitutionFailure));
 }
 
-auto ASTRewriter::instantiate(TranslationUnit* unit,
-                              List<TemplateArgumentAST*>* templateArgumentList,
-                              Symbol* symbol, SourceLocation instantiationLoc,
-                              bool sfinaeContext, bool argsComplete,
-                              bool declarationOnly,
-                              bool retainEnclosingTemplateLevels,
-                              bool isOverloadCandidate) -> Symbol* {
+void ASTRewriter::instantiateSelectedSpecializationDefinition(
+    TranslationUnit* unit, FunctionSymbol* selected,
+    List<TemplateArgumentAST*>* deducedArguments) {
+  if (!selected || !deducedArguments) return;
+  if (!selected->isSpecialization()) return;
+
+  auto primary = selected->primaryTemplateSymbol();
+  if (!primary) return;
+
+  (void)instantiate(unit, deducedArguments, primary, selected->location(),
+                    /*sfinaeContext=*/true, /*argsComplete=*/true,
+                    /*declarationOnly=*/false,
+                    /*retainEnclosingTemplateLevels=*/false,
+                    /*isOverloadCandidate=*/true,
+                    /*substitutionFailure=*/nullptr);
+}
+
+auto ASTRewriter::instantiate(
+    TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
+    Symbol* symbol, SourceLocation instantiationLoc, bool sfinaeContext,
+    bool argsComplete, bool declarationOnly, bool retainEnclosingTemplateLevels,
+    bool isOverloadCandidate, std::vector<Diagnostic>* substitutionFailure)
+    -> Symbol* {
   if (!symbol) return nullptr;
 
   if (!unit->config().checkTypes) return nullptr;
@@ -617,6 +636,17 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
     sfinaeClient.emplace();
     savedDiagClient = unit->changeDiagnosticsClient(&*sfinaeClient);
   }
+
+  struct SubstitutionFailureExporter {
+    std::optional<SilentDiagnosticsClient>& client;
+    std::vector<Diagnostic>* out;
+
+    ~SubstitutionFailureExporter() {
+      if (!out || !client.has_value() || !client->hadError()) return;
+      const auto& diagnostics = client->diagnostics();
+      out->assign(diagnostics.begin(), diagnostics.end());
+    }
+  } substitutionFailureExporter{sfinaeClient, substitutionFailure};
 
   auto subst = Substitution::make(unit, templateDecl, templateArgumentList,
                                   argsComplete);
@@ -719,6 +749,11 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
   rewriter.binder().setInstantiationLoc(instantiationLoc);
   if (declarationOnly) rewriter.setRestrictedToDeclarations(true);
 
+  auto inheritTemplateAccess = [&](Symbol* result) {
+    if (!result || result == symbol) return;
+    result->setAccessSpecifier(symbol->accessSpecifier());
+  };
+
   auto registerFunctionSpecialization = [&](Symbol* result) {
     if (!result || result == symbol) return;
     auto fnTemplate = symbol_cast<FunctionSymbol>(symbol);
@@ -741,6 +776,7 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
     }
     if (rewriter.substitutionFailed()) return nullptr;
 
+    inheritTemplateAccess(instance);
     registerFunctionSpecialization(instance);
 
     auto bodyErrors = rewriter.takeBodyErrors();
@@ -761,6 +797,7 @@ auto ASTRewriter::instantiate(TranslationUnit* unit,
 
   (void)unit->changeDiagnosticsClient(capturing.parent);
 
+  inheritTemplateAccess(instantiatedSymbol);
   registerFunctionSpecialization(instantiatedSymbol);
 
   auto bodyErrors = rewriter.takeBodyErrors();
@@ -888,9 +925,19 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
 
   auto instanceClass = symbol_cast<ClassSymbol>(
       pattern->findSpecialization(unit_, templateArguments_));
+
   if (instanceClass) {
+    if (instanceClass->templateParameters()) return;
+
+    if (auto instantiationPattern = instanceClass->instantiationPattern();
+        instantiationPattern && instantiationPattern != pattern)
+      return;
+
     if (auto def = symbol_cast<ClassSymbol>(instanceClass->definition());
         def && def != instanceClass) {
+      if (auto instantiationPattern = def->instantiationPattern();
+          instantiationPattern && instantiationPattern != pattern)
+        return;
       instanceClass = def;
     }
   }
@@ -1145,12 +1192,8 @@ void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
     for (auto function : unit->takePendingBodyCompletions()) {
       if (!function->hasPendingBody()) continue;
       progressed = true;
-      CapturingDiagnosticsClient capture;
-      auto saved = unit->changeDiagnosticsClient(&capture);
       auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
       rewriter.completePendingBody(function);
-      (void)unit->changeDiagnosticsClient(saved);
-      unit->deferBodyDiagnostics(function, std::move(capture.diagnostics));
     }
     return progressed;
   };
