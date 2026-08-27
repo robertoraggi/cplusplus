@@ -20,6 +20,7 @@
 
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/private/builtin_function_keywords-priv.h>
 #include <cxx/token.h>
 
 namespace cxx {
@@ -55,6 +56,12 @@ auto Token::spell(BuiltinTypeTraitKind kind) -> const std::string& {
 
 auto Token::spell(BuiltinFunctionKind kind) -> const std::string& {
   return builtin_function_spell[static_cast<int>(kind)];
+}
+
+auto Token::builtinFunctionKind(std::string_view spelling)
+    -> BuiltinFunctionKind {
+  return classifyBuiltinFunction(spelling.data(),
+                                 static_cast<int>(spelling.size()));
 }
 
 auto Token::spell() const -> const std::string& {

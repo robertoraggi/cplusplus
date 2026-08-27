@@ -21,6 +21,7 @@
 #include <cxx/cxx_fwd.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
+#include <cxx/token.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Module.h>
@@ -56,6 +57,58 @@ static auto getBoolMemoryType(MLIRContext* context) -> IntegerType {
 static auto isBoolElementType(cxx::PointerType ptrTy) -> bool {
   return ptrTy.getElementType().isInteger(1);
 }
+
+static auto foldConstantInt(Value value) -> std::optional<std::int64_t> {
+  if (auto constOp = value.getDefiningOp<LLVM::ConstantOp>()) {
+    if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue())) {
+      return intAttr.getInt();
+    }
+  }
+  return std::nullopt;
+}
+
+static auto atomicOrderingFromValue(Value value) -> LLVM::AtomicOrdering {
+  auto folded = foldConstantInt(value);
+  if (!folded) return LLVM::AtomicOrdering::seq_cst;
+
+  switch (*folded) {
+    case 0:
+      return LLVM::AtomicOrdering::monotonic;
+    case 1:
+    case 2:
+      return LLVM::AtomicOrdering::acquire;
+    case 3:
+      return LLVM::AtomicOrdering::release;
+    case 4:
+      return LLVM::AtomicOrdering::acq_rel;
+    case 5:
+      return LLVM::AtomicOrdering::seq_cst;
+    default:
+      return LLVM::AtomicOrdering::seq_cst;
+  }
+}
+
+static auto atomicIntegerType(Type llvmElementType, MLIRContext* context,
+                              const DataLayout& dataLayout)
+    -> std::optional<IntegerType> {
+  if (!llvmElementType) return std::nullopt;
+
+  switch (dataLayout.getTypeSize(llvmElementType)) {
+    case 1:
+    case 2:
+    case 4:
+    case 8:
+      return IntegerType::get(context,
+                              dataLayout.getTypeSizeInBits(llvmElementType));
+    default:
+      return std::nullopt;
+  }
+}
+
+using ::cxx::BuiltinFunctionKind;
+using ::cxx::Token;
+
+constexpr StringRef kVaArgKeywordSyntaxBuiltinName = "__builtin_va_arg";
 
 static auto convertLinkage(mlir::cxx::LinkageKind kind)
     -> LLVM::linkage::Linkage {
@@ -541,7 +594,13 @@ class VTableOpLowering : public OpConversionPattern<cxx::VTableOp> {
 
     append(offsetWord(op.getOffsetToTop()));
 
-    append(nullPtr());
+    if (auto typeInfo = op.getTypeInfo()) {
+      append(LLVM::AddressOfOp::create(
+          rewriter, op.getLoc(), ptrType,
+          FlatSymbolRefAttr::get(rewriter.getContext(), *typeInfo)));
+    } else {
+      append(nullPtr());
+    }
 
     for (auto entry : slots) {
       if (auto symRef = mlir::dyn_cast<FlatSymbolRefAttr>(entry)) {
@@ -645,78 +704,248 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
 
 class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
  public:
-  using OpConversionPattern::OpConversionPattern;
+  BuiltinCallOpLowering(const TypeConverter& typeConverter,
+                        const DataLayout& dataLayout, MLIRContext* context,
+                        PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::BuiltinCallOp>(typeConverter, context,
+                                                benefit),
+        dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::BuiltinCallOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
-    auto typeConverter = getTypeConverter();
+    if (op.getBuiltinName() == kVaArgKeywordSyntaxBuiltinName) {
+      return lowerVaArg(op, adaptor, rewriter);
+    }
+
+    auto kind = Token::builtinFunctionKind(op.getBuiltinName());
+
+    switch (kind) {
+      case BuiltinFunctionKind::T___BUILTIN_VA_START:
+      case BuiltinFunctionKind::T___BUILTIN_C23_VA_START:
+        return lowerVaStart(op, adaptor, rewriter);
+
+      case BuiltinFunctionKind::T___BUILTIN_VA_END:
+        return lowerVaEnd(op, adaptor, rewriter);
+
+      case BuiltinFunctionKind::T___BUILTIN_VA_COPY:
+        return lowerVaCopy(op, adaptor, rewriter);
+
+      case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
+        return lowerAssumeAligned(op, adaptor, rewriter);
+
+      case BuiltinFunctionKind::T___BUILTIN_BSWAP32:
+      case BuiltinFunctionKind::T___BUILTIN_BSWAP64:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter, "llvm.bswap");
+
+      case BuiltinFunctionKind::T___BUILTIN_MEMCPY:
+        return lowerMemIntrinsic(op, adaptor, rewriter, "llvm.memcpy");
+
+      case BuiltinFunctionKind::T___BUILTIN_MEMMOVE:
+        return lowerMemIntrinsic(op, adaptor, rewriter, "llvm.memmove");
+
+      case BuiltinFunctionKind::T___BUILTIN_MEMSET:
+        return lowerMemIntrinsic(op, adaptor, rewriter, "llvm.memset");
+
+      case BuiltinFunctionKind::T___BUILTIN_CTZ:
+      case BuiltinFunctionKind::T___BUILTIN_CTZL:
+      case BuiltinFunctionKind::T___BUILTIN_CTZLL:
+      case BuiltinFunctionKind::T___BUILTIN_CTZG:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter, "llvm.cttz");
+
+      case BuiltinFunctionKind::T___BUILTIN_CLZG:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter, "llvm.ctlz");
+
+      case BuiltinFunctionKind::T___ATOMIC_LOAD_N:
+      case BuiltinFunctionKind::T___C11_ATOMIC_LOAD:
+        return lowerAtomicLoad(op, adaptor, rewriter, /*hasOutParam=*/false);
+      case BuiltinFunctionKind::T___ATOMIC_LOAD:
+        return lowerAtomicLoad(op, adaptor, rewriter, /*hasOutParam=*/true);
+
+      case BuiltinFunctionKind::T___ATOMIC_STORE_N:
+      case BuiltinFunctionKind::T___C11_ATOMIC_STORE:
+        return lowerAtomicStore(op, adaptor, rewriter, /*hasOutParam=*/false);
+      case BuiltinFunctionKind::T___ATOMIC_STORE:
+        return lowerAtomicStore(op, adaptor, rewriter, /*hasOutParam=*/true);
+
+      case BuiltinFunctionKind::T___C11_ATOMIC_INIT:
+        return lowerAtomicInit(op, adaptor, rewriter);
+
+      case BuiltinFunctionKind::T___ATOMIC_EXCHANGE_N:
+      case BuiltinFunctionKind::T___C11_ATOMIC_EXCHANGE:
+        return lowerAtomicExchange(op, adaptor, rewriter,
+                                   /*hasOutParam=*/false);
+      case BuiltinFunctionKind::T___ATOMIC_EXCHANGE:
+        return lowerAtomicExchange(op, adaptor, rewriter,
+                                   /*hasOutParam=*/true);
+
+      case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE_N:
+        return lowerAtomicCompareExchange(op, adaptor, rewriter,
+                                          /*hasOutParam=*/false,
+                                          /*fixedWeak=*/std::nullopt);
+      case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE:
+        return lowerAtomicCompareExchange(op, adaptor, rewriter,
+                                          /*hasOutParam=*/true,
+                                          /*fixedWeak=*/std::nullopt);
+      case BuiltinFunctionKind::T___C11_ATOMIC_COMPARE_EXCHANGE_STRONG:
+        return lowerAtomicCompareExchange(op, adaptor, rewriter,
+                                          /*hasOutParam=*/false,
+                                          /*fixedWeak=*/false);
+      case BuiltinFunctionKind::T___C11_ATOMIC_COMPARE_EXCHANGE_WEAK:
+        return lowerAtomicCompareExchange(op, adaptor, rewriter,
+                                          /*hasOutParam=*/false,
+                                          /*fixedWeak=*/true);
+
+      case BuiltinFunctionKind::T___ATOMIC_ADD_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::add,
+                              /*returnsPostOp=*/true);
+      case BuiltinFunctionKind::T___ATOMIC_SUB_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::sub,
+                              /*returnsPostOp=*/true);
+      case BuiltinFunctionKind::T___ATOMIC_AND_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_and,
+                              /*returnsPostOp=*/true);
+      case BuiltinFunctionKind::T___ATOMIC_OR_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_or,
+                              /*returnsPostOp=*/true);
+      case BuiltinFunctionKind::T___ATOMIC_XOR_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_xor,
+                              /*returnsPostOp=*/true);
+      case BuiltinFunctionKind::T___ATOMIC_NAND_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::nand,
+                              /*returnsPostOp=*/true);
+
+      case BuiltinFunctionKind::T___ATOMIC_FETCH_ADD:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::add,
+                              /*returnsPostOp=*/false);
+      case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_ADD:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::add,
+                              /*returnsPostOp=*/false,
+                              /*scalePointerAddend=*/true);
+      case BuiltinFunctionKind::T___ATOMIC_FETCH_SUB:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::sub,
+                              /*returnsPostOp=*/false);
+      case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_SUB:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::sub,
+                              /*returnsPostOp=*/false,
+                              /*scalePointerAddend=*/true);
+      case BuiltinFunctionKind::T___ATOMIC_FETCH_AND:
+      case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_AND:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_and,
+                              /*returnsPostOp=*/false);
+      case BuiltinFunctionKind::T___ATOMIC_FETCH_OR:
+      case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_OR:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_or,
+                              /*returnsPostOp=*/false);
+      case BuiltinFunctionKind::T___ATOMIC_FETCH_XOR:
+      case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_XOR:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_xor,
+                              /*returnsPostOp=*/false);
+      case BuiltinFunctionKind::T___ATOMIC_FETCH_NAND:
+      case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_NAND:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::nand,
+                              /*returnsPostOp=*/false);
+
+      case BuiltinFunctionKind::T___ATOMIC_TEST_AND_SET:
+        return lowerAtomicTestAndSet(op, adaptor, rewriter);
+
+      case BuiltinFunctionKind::T___ATOMIC_CLEAR:
+        return lowerAtomicClear(op, adaptor, rewriter);
+
+      case BuiltinFunctionKind::T___ATOMIC_THREAD_FENCE:
+      case BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE:
+        return lowerAtomicFence(op, adaptor, rewriter,
+                                /*singleThread=*/false);
+      case BuiltinFunctionKind::T___ATOMIC_SIGNAL_FENCE:
+      case BuiltinFunctionKind::T___C11_ATOMIC_SIGNAL_FENCE:
+        return lowerAtomicFence(op, adaptor, rewriter, /*singleThread=*/true);
+
+      case BuiltinFunctionKind::T___ATOMIC_ALWAYS_LOCK_FREE:
+      case BuiltinFunctionKind::T___ATOMIC_IS_LOCK_FREE:
+      case BuiltinFunctionKind::T___C11_ATOMIC_IS_LOCK_FREE:
+        return lowerAtomicIsLockFree(op, adaptor, rewriter);
+
+      default:
+        return rewriter.notifyMatchFailure(op, "unknown builtin");
+    }
+  }
+
+ private:
+  auto lowerVaStart(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter& rewriter) const
+      -> LogicalResult {
+    if (adaptor.getInputs().empty()) {
+      return rewriter.notifyMatchFailure(
+          op, "va_start expects at least 1 argument");
+    }
+    LLVM::VaStartOp::create(rewriter, op.getLoc(), adaptor.getInputs()[0]);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+  auto lowerVaEnd(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter& rewriter) const -> LogicalResult {
+    if (adaptor.getInputs().size() != 1) {
+      return rewriter.notifyMatchFailure(op, "va_end expects 1 argument");
+    }
+    LLVM::VaEndOp::create(rewriter, op.getLoc(), adaptor.getInputs()[0]);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+  auto lowerVaCopy(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                   ConversionPatternRewriter& rewriter) const -> LogicalResult {
+    if (adaptor.getInputs().size() != 2) {
+      return rewriter.notifyMatchFailure(op, "va_copy expects 2 arguments");
+    }
+    LLVM::VaCopyOp::create(rewriter, op.getLoc(), adaptor.getInputs()[0],
+                           adaptor.getInputs()[1]);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+  auto lowerAssumeAligned(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                          ConversionPatternRewriter& rewriter) const
+      -> LogicalResult {
+    if (adaptor.getInputs().size() < 2) {
+      return rewriter.notifyMatchFailure(
+          op, "assume_aligned expects at least 2 arguments");
+    }
     auto loc = op.getLoc();
-    auto name = op.getBuiltinName();
+    auto trueBit = LLVM::ConstantOp::create(rewriter, loc, rewriter.getI1Type(),
+                                            rewriter.getBoolAttr(true));
+    LLVM::AssumeOp::create(rewriter, loc, trueBit, "align",
+                           adaptor.getInputs());
+    rewriter.replaceOp(op, adaptor.getInputs()[0]);
+    return success();
+  }
 
-    if (name == "__builtin_va_start" || name == "__builtin_c23_va_start") {
-      if (adaptor.getInputs().size() < 1) {
-        return rewriter.notifyMatchFailure(
-            op, "va_start expects at least 1 argument");
-      }
-      LLVM::VaStartOp::create(rewriter, loc, adaptor.getInputs()[0]);
-      rewriter.eraseOp(op);
-      return success();
+  auto lowerVaArg(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter& rewriter) const -> LogicalResult {
+    if (adaptor.getInputs().size() != 1) {
+      return rewriter.notifyMatchFailure(op, "va_arg expects 1 argument");
     }
-
-    if (name == "__builtin_va_end") {
-      if (adaptor.getInputs().size() != 1) {
-        return rewriter.notifyMatchFailure(op, "va_end expects 1 argument");
-      }
-      LLVM::VaEndOp::create(rewriter, loc, adaptor.getInputs()[0]);
-      rewriter.eraseOp(op);
-      return success();
-    }
-
-    if (name == "__builtin_va_copy") {
-      if (adaptor.getInputs().size() != 2) {
-        return rewriter.notifyMatchFailure(op, "va_copy expects 2 arguments");
-      }
-      LLVM::VaCopyOp::create(rewriter, loc, adaptor.getInputs()[0],
-                             adaptor.getInputs()[1]);
-      rewriter.eraseOp(op);
-      return success();
-    }
-
-    if (name == "__builtin_assume_aligned") {
-      if (adaptor.getInputs().size() < 2) {
-        return rewriter.notifyMatchFailure(
-            op, "assume_aligned expects at least 2 arguments");
-      }
-      auto trueBit = LLVM::ConstantOp::create(
-          rewriter, loc, rewriter.getI1Type(), rewriter.getBoolAttr(true));
-      LLVM::AssumeOp::create(rewriter, loc, trueBit, "align",
-                             adaptor.getInputs());
-      rewriter.replaceOp(op, adaptor.getInputs()[0]);
-      return success();
-    }
-
-    if (name == "__builtin_va_arg") {
-      if (adaptor.getInputs().size() != 1) {
-        return rewriter.notifyMatchFailure(op, "va_arg expects 1 argument");
-      }
-      SmallVector<Type> resultTypes;
-      if (failed(
-              typeConverter->convertTypes(op.getResultTypes(), resultTypes))) {
-        return rewriter.notifyMatchFailure(
-            op, "failed to convert va_arg result type");
-      }
-      if (resultTypes.empty()) {
-        return rewriter.notifyMatchFailure(op, "va_arg must have a result");
-      }
-      auto vaArgOp = LLVM::VaArgOp::create(rewriter, loc, resultTypes.front(),
-                                           adaptor.getInputs()[0]);
-      rewriter.replaceOp(op, vaArgOp);
-      return success();
-    }
-
     SmallVector<Type> resultTypes;
-    if (failed(typeConverter->convertTypes(op.getResultTypes(), resultTypes))) {
+    if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
+                                                resultTypes))) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert va_arg result type");
+    }
+    if (resultTypes.empty()) {
+      return rewriter.notifyMatchFailure(op, "va_arg must have a result");
+    }
+    auto vaArgOp = LLVM::VaArgOp::create(
+        rewriter, op.getLoc(), resultTypes.front(), adaptor.getInputs()[0]);
+    rewriter.replaceOp(op, vaArgOp);
+    return success();
+  }
+
+  auto lowerSimpleIntrinsic(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                            ConversionPatternRewriter& rewriter,
+                            StringRef intrinsicName) const -> LogicalResult {
+    SmallVector<Type> resultTypes;
+    if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
+                                                resultTypes))) {
       return rewriter.notifyMatchFailure(
           op, "failed to convert builtin call result types");
     }
@@ -724,63 +953,457 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     Type resultType;
     if (!resultTypes.empty()) resultType = resultTypes.front();
 
-    std::vector<Value> inputs;
-    for (auto input : adaptor.getInputs()) {
-      inputs.push_back(input);
-    }
-
-    llvm::StringRef funcName = name;
-
-    StringAttr intrin;
-
-    if (funcName == "__builtin_bswap16" || funcName == "__builtin_bswap32" ||
-        funcName == "__builtin_bswap64") {
-      intrin = rewriter.getStringAttr("llvm.bswap");
-    } else if (funcName == "__builtin_trap") {
-      intrin = rewriter.getStringAttr("llvm.trap");
-    } else if (funcName == "__builtin_memcpy" ||
-               funcName == "__builtin_memcpy_inline" ||
-               funcName == "__builtin_memmove" ||
-               funcName == "__builtin_memmove_inline" ||
-               funcName == "__builtin_memset" ||
-               funcName == "__builtin_memset_inline") {
-      const bool isMemset = funcName == "__builtin_memset" ||
-                            funcName == "__builtin_memset_inline";
-      const bool isMemmove = funcName == "__builtin_memmove" ||
-                             funcName == "__builtin_memmove_inline";
-      intrin = rewriter.getStringAttr(isMemset    ? "llvm.memset"
-                                      : isMemmove ? "llvm.memmove"
-                                                  : "llvm.memcpy");
-      inputs.push_back(LLVM::ConstantOp::create(
-          rewriter, loc, rewriter.getI1Type(),
-          rewriter.getIntegerAttr(rewriter.getI1Type(), 0)));
-      LLVM::CallIntrinsicOp::create(rewriter, loc, intrin,
-                                    mlir::ValueRange{inputs});
-      if (op->getNumResults() == 0) {
-        rewriter.eraseOp(op);
-      } else {
-        rewriter.replaceOp(op, inputs[0]);
-      }
-      return success();
-    } else if (funcName == "__builtin_ctzll" || funcName == "__builtin_ctzl" ||
-               funcName == "__builtin_ctz") {
-      intrin = rewriter.getStringAttr("llvm.cttz");
-    } else if (funcName == "__builtin_clzll" || funcName == "__builtin_clzl" ||
-               funcName == "__builtin_clz") {
-      intrin = rewriter.getStringAttr("llvm.ctlz");
-    }
-
-    if (!intrin) {
-      return rewriter.notifyMatchFailure(
-          op, "failed to create function name attribute");
-    }
-
-    auto intrinsicOp = LLVM::CallIntrinsicOp::create(rewriter, loc, resultType,
-                                                     intrin, inputs);
+    auto intrinsicOp = LLVM::CallIntrinsicOp::create(
+        rewriter, op.getLoc(), resultType,
+        rewriter.getStringAttr(intrinsicName), adaptor.getInputs());
 
     rewriter.replaceOp(op, intrinsicOp);
     return success();
   }
+
+  auto lowerMemIntrinsic(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                         ConversionPatternRewriter& rewriter,
+                         StringRef intrinsicName) const -> LogicalResult {
+    auto loc = op.getLoc();
+
+    std::vector<Value> inputs;
+    for (auto input : adaptor.getInputs()) inputs.push_back(input);
+
+    inputs.push_back(LLVM::ConstantOp::create(
+        rewriter, loc, rewriter.getI1Type(),
+        rewriter.getIntegerAttr(rewriter.getI1Type(), 0)));
+
+    LLVM::CallIntrinsicOp::create(rewriter, loc,
+                                  rewriter.getStringAttr(intrinsicName),
+                                  mlir::ValueRange{inputs});
+
+    if (op->getNumResults() == 0) {
+      rewriter.eraseOp(op);
+    } else {
+      rewriter.replaceOp(op, inputs[0]);
+    }
+    return success();
+  }
+
+  auto atomicPointeeIntegerType(cxx::BuiltinCallOp op, unsigned argIndex) const
+      -> std::optional<IntegerType> {
+    if (argIndex >= op.getInputs().size()) return std::nullopt;
+    auto ptrTy = dyn_cast<cxx::PointerType>(op.getInputs()[argIndex].getType());
+    if (!ptrTy) return std::nullopt;
+    Type llvmElementType =
+        isBoolElementType(ptrTy)
+            ? getBoolMemoryType(getContext())
+            : getTypeConverter()->convertType(ptrTy.getElementType());
+    return atomicIntegerType(llvmElementType, getContext(), dataLayout_);
+  }
+
+  auto atomicPointerElementStrideBytes(cxx::BuiltinCallOp op,
+                                       unsigned argIndex) const
+      -> std::optional<std::int64_t> {
+    if (argIndex >= op.getInputs().size()) return std::nullopt;
+    auto outerPtrTy =
+        dyn_cast<cxx::PointerType>(op.getInputs()[argIndex].getType());
+    if (!outerPtrTy) return std::nullopt;
+    auto innerPtrTy = dyn_cast<cxx::PointerType>(outerPtrTy.getElementType());
+    if (!innerPtrTy) return std::nullopt;
+    auto pointeeType =
+        getTypeConverter()->convertType(innerPtrTy.getElementType());
+    if (!pointeeType ||
+        isa<LLVM::LLVMVoidType, LLVM::LLVMFunctionType>(pointeeType)) {
+      return std::nullopt;
+    }
+    return dataLayout_.getTypeSize(pointeeType);
+  }
+
+  auto lowerAtomicLoad(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter,
+                       bool hasOutParam) const -> LogicalResult {
+    auto loc = op.getLoc();
+
+    if (hasOutParam) {
+      if (adaptor.getInputs().size() < 3) {
+        return rewriter.notifyMatchFailure(op,
+                                           "atomic_load expects 3 arguments");
+      }
+      auto elementType = atomicPointeeIntegerType(op, 0);
+      if (!elementType) {
+        return rewriter.notifyMatchFailure(
+            op, "unsupported atomic_load element type");
+      }
+      auto width = static_cast<unsigned>(dataLayout_.getTypeSize(*elementType));
+      auto order = atomicOrderingFromValue(adaptor.getInputs()[2]);
+      auto loaded = LLVM::LoadOp::create(rewriter, loc, *elementType,
+                                         adaptor.getInputs()[0], width, false,
+                                         false, false, false, order);
+      LLVM::StoreOp::create(rewriter, loc, loaded, adaptor.getInputs()[1],
+                            width, false, false, false,
+                            LLVM::AtomicOrdering::not_atomic);
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    if (adaptor.getInputs().size() < 2) {
+      return rewriter.notifyMatchFailure(op, "atomic_load expects 2 arguments");
+    }
+    SmallVector<Type> resultTypes;
+    if (failed(getTypeConverter()->convertTypes(op.getResultTypes(),
+                                                resultTypes)) ||
+        resultTypes.empty()) {
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert atomic_load result type");
+    }
+    auto width =
+        static_cast<unsigned>(dataLayout_.getTypeSize(resultTypes.front()));
+    auto order = atomicOrderingFromValue(adaptor.getInputs()[1]);
+    auto loaded = LLVM::LoadOp::create(rewriter, loc, resultTypes.front(),
+                                       adaptor.getInputs()[0], width, false,
+                                       false, false, false, order);
+    rewriter.replaceOp(op, loaded);
+    return success();
+  }
+
+  auto lowerAtomicStore(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                        ConversionPatternRewriter& rewriter,
+                        bool hasOutParam) const -> LogicalResult {
+    auto loc = op.getLoc();
+
+    if (hasOutParam) {
+      if (adaptor.getInputs().size() < 3) {
+        return rewriter.notifyMatchFailure(op,
+                                           "atomic_store expects 3 arguments");
+      }
+      auto elementType = atomicPointeeIntegerType(op, 0);
+      if (!elementType) {
+        return rewriter.notifyMatchFailure(
+            op, "unsupported atomic_store element type");
+      }
+      auto width = static_cast<unsigned>(dataLayout_.getTypeSize(*elementType));
+      auto value = LLVM::LoadOp::create(
+          rewriter, loc, *elementType, adaptor.getInputs()[1], width, false,
+          false, false, false, LLVM::AtomicOrdering::not_atomic);
+      auto order = atomicOrderingFromValue(adaptor.getInputs()[2]);
+      LLVM::StoreOp::create(rewriter, loc, value, adaptor.getInputs()[0], width,
+                            false, false, false, order);
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    if (adaptor.getInputs().size() < 3) {
+      return rewriter.notifyMatchFailure(op,
+                                         "atomic_store expects 3 arguments");
+    }
+    auto value = adaptor.getInputs()[1];
+    auto width =
+        static_cast<unsigned>(dataLayout_.getTypeSize(value.getType()));
+    auto order = atomicOrderingFromValue(adaptor.getInputs()[2]);
+    LLVM::StoreOp::create(rewriter, loc, value, adaptor.getInputs()[0], width,
+                          false, false, false, order);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+  auto lowerAtomicInit(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult {
+    if (adaptor.getInputs().size() < 2) {
+      return rewriter.notifyMatchFailure(op, "atomic_init expects 2 arguments");
+    }
+    auto value = adaptor.getInputs()[1];
+    auto width =
+        static_cast<unsigned>(dataLayout_.getTypeSize(value.getType()));
+    LLVM::StoreOp::create(rewriter, op.getLoc(), value, adaptor.getInputs()[0],
+                          width, false, false, false,
+                          LLVM::AtomicOrdering::not_atomic);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+  auto lowerAtomicExchange(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                           ConversionPatternRewriter& rewriter,
+                           bool hasOutParam) const -> LogicalResult {
+    auto loc = op.getLoc();
+
+    if (hasOutParam) {
+      if (adaptor.getInputs().size() < 4) {
+        return rewriter.notifyMatchFailure(
+            op, "atomic_exchange expects 4 arguments");
+      }
+      auto elementType = atomicPointeeIntegerType(op, 0);
+      if (!elementType) {
+        return rewriter.notifyMatchFailure(
+            op, "unsupported atomic_exchange element type");
+      }
+      auto width = static_cast<unsigned>(dataLayout_.getTypeSize(*elementType));
+      auto newValue = LLVM::LoadOp::create(
+          rewriter, loc, *elementType, adaptor.getInputs()[1], width, false,
+          false, false, false, LLVM::AtomicOrdering::not_atomic);
+      auto order = atomicOrderingFromValue(adaptor.getInputs()[3]);
+      auto old =
+          LLVM::AtomicRMWOp::create(rewriter, loc, LLVM::AtomicBinOp::xchg,
+                                    adaptor.getInputs()[0], newValue, order);
+      LLVM::StoreOp::create(rewriter, loc, old, adaptor.getInputs()[2], width,
+                            false, false, false,
+                            LLVM::AtomicOrdering::not_atomic);
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    if (adaptor.getInputs().size() < 3) {
+      return rewriter.notifyMatchFailure(op,
+                                         "atomic_exchange expects 3 arguments");
+    }
+    auto newValue = adaptor.getInputs()[1];
+    auto order = atomicOrderingFromValue(adaptor.getInputs()[2]);
+    auto old =
+        LLVM::AtomicRMWOp::create(rewriter, loc, LLVM::AtomicBinOp::xchg,
+                                  adaptor.getInputs()[0], newValue, order);
+    rewriter.replaceOp(op, old);
+    return success();
+  }
+
+  auto reinterpretAsInteger(Value value, IntegerType intType, Location loc,
+                            ConversionPatternRewriter& rewriter) const
+      -> Value {
+    if (value.getType() == intType) return value;
+    if (isa<LLVM::LLVMPointerType>(value.getType())) {
+      return LLVM::PtrToIntOp::create(rewriter, loc, intType, value);
+    }
+    return LLVM::BitcastOp::create(rewriter, loc, intType, value);
+  }
+
+  auto lowerAtomicCompareExchange(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                                  ConversionPatternRewriter& rewriter,
+                                  bool hasOutParam,
+                                  std::optional<bool> fixedWeak) const
+      -> LogicalResult {
+    auto loc = op.getLoc();
+
+    auto resolved = atomicPointeeIntegerType(op, 0);
+    if (!resolved) {
+      return rewriter.notifyMatchFailure(
+          op, "unsupported compare_exchange element type");
+    }
+    IntegerType elementType = *resolved;
+    auto width = static_cast<unsigned>(dataLayout_.getTypeSize(elementType));
+
+    Value expectedPtr;
+    Value desiredValue;
+    Value weakValue;
+    Value successOrderValue;
+    Value failureOrderValue;
+
+    if (hasOutParam) {
+      if (adaptor.getInputs().size() < 6) {
+        return rewriter.notifyMatchFailure(
+            op, "atomic_compare_exchange expects 6 arguments");
+      }
+      expectedPtr = adaptor.getInputs()[1];
+      desiredValue = LLVM::LoadOp::create(
+          rewriter, loc, elementType, adaptor.getInputs()[2], width, false,
+          false, false, false, LLVM::AtomicOrdering::not_atomic);
+      weakValue = adaptor.getInputs()[3];
+      successOrderValue = adaptor.getInputs()[4];
+      failureOrderValue = adaptor.getInputs()[5];
+    } else {
+      const std::size_t minArgs = fixedWeak.has_value() ? 5 : 6;
+      if (adaptor.getInputs().size() < minArgs) {
+        return rewriter.notifyMatchFailure(
+            op, "compare_exchange expects more arguments");
+      }
+      expectedPtr = adaptor.getInputs()[1];
+      desiredValue = reinterpretAsInteger(adaptor.getInputs()[2], elementType,
+                                          loc, rewriter);
+      if (fixedWeak.has_value()) {
+        successOrderValue = adaptor.getInputs()[3];
+        failureOrderValue = adaptor.getInputs()[4];
+      } else {
+        weakValue = adaptor.getInputs()[3];
+        successOrderValue = adaptor.getInputs()[4];
+        failureOrderValue = adaptor.getInputs()[5];
+      }
+    }
+
+    auto expected = LLVM::LoadOp::create(
+        rewriter, loc, elementType, expectedPtr, width, false, false, false,
+        false, LLVM::AtomicOrdering::not_atomic);
+
+    bool isWeak = fixedWeak.value_or(false);
+    if (!fixedWeak.has_value() && weakValue) {
+      if (auto folded = foldConstantInt(weakValue)) isWeak = *folded != 0;
+    }
+
+    auto successOrder = atomicOrderingFromValue(successOrderValue);
+    auto failureOrder = atomicOrderingFromValue(failureOrderValue);
+
+    auto cmpxchg = LLVM::AtomicCmpXchgOp::create(
+        rewriter, loc, adaptor.getInputs()[0], expected, desiredValue,
+        successOrder, failureOrder, /*syncscope=*/StringRef(), width, isWeak,
+        /*isVolatile=*/false);
+
+    auto oldValue = LLVM::ExtractValueOp::create(rewriter, loc, cmpxchg,
+                                                 ArrayRef<std::int64_t>{0});
+    auto succeeded = LLVM::ExtractValueOp::create(rewriter, loc, cmpxchg,
+                                                  ArrayRef<std::int64_t>{1});
+
+    LLVM::StoreOp::create(rewriter, loc, oldValue, expectedPtr, width, false,
+                          false, false, LLVM::AtomicOrdering::not_atomic);
+
+    rewriter.replaceOp(op, succeeded);
+    return success();
+  }
+
+  auto lowerAtomicRmw(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                      ConversionPatternRewriter& rewriter,
+                      LLVM::AtomicBinOp binOp, bool returnsPostOp,
+                      bool scalePointerAddend = false) const -> LogicalResult {
+    if (adaptor.getInputs().size() < 3) {
+      return rewriter.notifyMatchFailure(op, "atomic RMW expects 3 arguments");
+    }
+    auto loc = op.getLoc();
+    auto ptr = adaptor.getInputs()[0];
+    auto val = adaptor.getInputs()[1];
+    auto order = atomicOrderingFromValue(adaptor.getInputs()[2]);
+
+    if (scalePointerAddend) {
+      if (auto stride = atomicPointerElementStrideBytes(op, 0);
+          stride && *stride > 1) {
+        auto strideConst = LLVM::ConstantOp::create(
+            rewriter, loc, val.getType(),
+            rewriter.getIntegerAttr(val.getType(), *stride));
+        val = LLVM::MulOp::create(rewriter, loc, val, strideConst);
+      }
+    }
+
+    const bool isFloat = isa<FloatType>(val.getType());
+    if (isFloat && binOp == LLVM::AtomicBinOp::add) {
+      binOp = LLVM::AtomicBinOp::fadd;
+    } else if (isFloat && binOp == LLVM::AtomicBinOp::sub) {
+      binOp = LLVM::AtomicBinOp::fsub;
+    }
+
+    auto rmw = LLVM::AtomicRMWOp::create(rewriter, loc, binOp, ptr, val, order);
+
+    auto reinterpretResult = [&](Value value) -> Value {
+      if (!isa<cxx::PointerType>(op.getResult().getType())) return value;
+      return LLVM::IntToPtrOp::create(
+          rewriter, loc, LLVM::LLVMPointerType::get(getContext()), value);
+    };
+
+    if (!returnsPostOp) {
+      rewriter.replaceOp(op, reinterpretResult(rmw));
+      return success();
+    }
+
+    Value postOp;
+    switch (binOp) {
+      case LLVM::AtomicBinOp::add:
+        postOp = LLVM::AddOp::create(rewriter, loc, rmw, val);
+        break;
+      case LLVM::AtomicBinOp::sub:
+        postOp = LLVM::SubOp::create(rewriter, loc, rmw, val);
+        break;
+      case LLVM::AtomicBinOp::fadd:
+        postOp = LLVM::FAddOp::create(rewriter, loc, rmw, val);
+        break;
+      case LLVM::AtomicBinOp::fsub:
+        postOp = LLVM::FSubOp::create(rewriter, loc, rmw, val);
+        break;
+      case LLVM::AtomicBinOp::_and:
+        postOp = LLVM::AndOp::create(rewriter, loc, rmw, val);
+        break;
+      case LLVM::AtomicBinOp::_or:
+        postOp = LLVM::OrOp::create(rewriter, loc, rmw, val);
+        break;
+      case LLVM::AtomicBinOp::_xor:
+        postOp = LLVM::XOrOp::create(rewriter, loc, rmw, val);
+        break;
+      case LLVM::AtomicBinOp::nand: {
+        auto anded = LLVM::AndOp::create(rewriter, loc, rmw, val);
+        auto allOnes = LLVM::ConstantOp::create(
+            rewriter, loc, anded.getType(),
+            rewriter.getIntegerAttr(anded.getType(), -1));
+        postOp = LLVM::XOrOp::create(rewriter, loc, anded, allOnes);
+        break;
+      }
+      default:
+        postOp = rmw;
+    }
+    rewriter.replaceOp(op, reinterpretResult(postOp));
+    return success();
+  }
+
+  auto lowerAtomicTestAndSet(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                             ConversionPatternRewriter& rewriter) const
+      -> LogicalResult {
+    if (adaptor.getInputs().size() < 2) {
+      return rewriter.notifyMatchFailure(
+          op, "atomic_test_and_set expects 2 arguments");
+    }
+    auto loc = op.getLoc();
+    auto i8Type = IntegerType::get(getContext(), 8);
+    auto one = LLVM::ConstantOp::create(rewriter, loc, i8Type,
+                                        rewriter.getIntegerAttr(i8Type, 1));
+    auto order = atomicOrderingFromValue(adaptor.getInputs()[1]);
+    auto old = LLVM::AtomicRMWOp::create(rewriter, loc, LLVM::AtomicBinOp::xchg,
+                                         adaptor.getInputs()[0], one, order);
+    auto zero = LLVM::ConstantOp::create(rewriter, loc, i8Type,
+                                         rewriter.getIntegerAttr(i8Type, 0));
+    auto wasSet =
+        LLVM::ICmpOp::create(rewriter, loc, LLVM::ICmpPredicate::ne, old, zero);
+    rewriter.replaceOp(op, wasSet);
+    return success();
+  }
+
+  auto lowerAtomicClear(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                        ConversionPatternRewriter& rewriter) const
+      -> LogicalResult {
+    if (adaptor.getInputs().size() < 2) {
+      return rewriter.notifyMatchFailure(op,
+                                         "atomic_clear expects 2 arguments");
+    }
+    auto loc = op.getLoc();
+    auto i8Type = IntegerType::get(getContext(), 8);
+    auto zero = LLVM::ConstantOp::create(rewriter, loc, i8Type,
+                                         rewriter.getIntegerAttr(i8Type, 0));
+    auto order = atomicOrderingFromValue(adaptor.getInputs()[1]);
+    LLVM::StoreOp::create(rewriter, loc, zero, adaptor.getInputs()[0], 1, false,
+                          false, false, order);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+  auto lowerAtomicFence(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                        ConversionPatternRewriter& rewriter,
+                        bool singleThread) const -> LogicalResult {
+    auto order = adaptor.getInputs().empty()
+                     ? LLVM::AtomicOrdering::seq_cst
+                     : atomicOrderingFromValue(adaptor.getInputs()[0]);
+    LLVM::FenceOp::create(rewriter, op.getLoc(), order,
+                          singleThread ? "singlethread" : "");
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+  auto lowerAtomicIsLockFree(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                             ConversionPatternRewriter& rewriter) const
+      -> LogicalResult {
+    if (adaptor.getInputs().empty()) {
+      return rewriter.notifyMatchFailure(
+          op, "lock_free query expects a size argument");
+    }
+    auto loc = op.getLoc();
+    auto i1Type = rewriter.getI1Type();
+    auto size = foldConstantInt(adaptor.getInputs()[0]);
+    const bool lockFree = size.has_value() && (*size == 1 || *size == 2 ||
+                                               *size == 4 || *size == 8);
+    auto result = LLVM::ConstantOp::create(
+        rewriter, loc, i1Type,
+        rewriter.getIntegerAttr(i1Type, lockFree ? 1 : 0));
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+  const DataLayout& dataLayout_;
 };
 
 class AddressOfOpLowering : public OpConversionPattern<cxx::AddressOfOp> {
@@ -1858,17 +2481,16 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   patterns.insert<FuncOpLowering>(typeConverter, needsComdat, context);
   patterns.insert<GlobalOpLowering>(typeConverter, needsComdat, context);
   patterns.insert<VTableOpLowering>(typeConverter, needsComdat, context);
-  patterns
-      .insert<ReturnOpLowering, UnreachableOpLowering, CallOpLowering,
-              BuiltinCallOpLowering, AddressOfOpLowering, DynAllocaOpLowering>(
-          typeConverter, context);
+  patterns.insert<ReturnOpLowering, UnreachableOpLowering, CallOpLowering,
+                  AddressOfOpLowering, DynAllocaOpLowering>(typeConverter,
+                                                            context);
 
   DataLayout dataLayout{module};
 
   patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering,
                   MemSetZeroOpLowering, SubscriptOpLowering, MemberOpLowering,
-                  BitfieldLoadOpLowering, BitfieldStoreOpLowering>(
-      typeConverter, dataLayout, context);
+                  BitfieldLoadOpLowering, BitfieldStoreOpLowering,
+                  BuiltinCallOpLowering>(typeConverter, dataLayout, context);
 
   patterns.insert<ArrayToPointerOpLowering, PtrToIntOpLowering,
                   IntToPtrOpLowering, BitcastOpLowering, MemCpyOpLowering>(

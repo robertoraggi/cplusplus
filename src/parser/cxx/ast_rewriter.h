@@ -35,6 +35,7 @@
 namespace cxx {
 class TranslationUnit;
 class Control;
+class TypeChecker;
 class Arena;
 class FieldSymbol;
 
@@ -48,18 +49,23 @@ class [[nodiscard]] ASTRewriter {
   static auto paste(TranslationUnit* unit, ScopeSymbol* scope,
                     StatementAST* ast) -> StatementAST*;
 
-  static auto instantiate(TranslationUnit* unit,
-                          List<TemplateArgumentAST*>* templateArgumentList,
-                          Symbol* symbol, SourceLocation instantiationLoc = {},
-                          bool sfinaeContext = false, bool argsComplete = false,
-                          bool declarationOnly = false,
-                          bool retainEnclosingTemplateLevels = false,
-                          bool isOverloadCandidate = false) -> Symbol*;
+  static auto instantiate(
+      TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
+      Symbol* symbol, SourceLocation instantiationLoc = {},
+      bool sfinaeContext = false, bool argsComplete = false,
+      bool declarationOnly = false, bool retainEnclosingTemplateLevels = false,
+      bool isOverloadCandidate = false,
+      std::vector<Diagnostic>* substitutionFailure = nullptr) -> Symbol*;
 
-  static auto instantiateForArgs(
+  static auto instantiateOverloadCandidate(
       TranslationUnit* unit, List<TemplateArgumentAST*>* deducedArguments,
       FunctionSymbol* function, SourceLocation instantiationLoc,
-      bool argsComplete, bool declarationOnly = false) -> FunctionSymbol*;
+      bool argsComplete, std::vector<Diagnostic>* substitutionFailure = nullptr)
+      -> FunctionSymbol*;
+
+  static void instantiateSelectedSpecializationDefinition(
+      TranslationUnit* unit, FunctionSymbol* selected,
+      List<TemplateArgumentAST*>* deducedArguments);
 
   static auto ensureCompleteClass(TranslationUnit* unit,
                                   ClassSymbol* classSymbol) -> bool;
@@ -163,6 +169,9 @@ class [[nodiscard]] ASTRewriter {
 
   static void requireFieldDefinition(TranslationUnit* unit, FieldSymbol* field);
 
+  static void completePendingFieldInitializer(TranslationUnit* unit,
+                                              FieldSymbol* field);
+
   static void completeDeducedReturnType(TranslationUnit* unit, Symbol* symbol);
 
   void setInstantiatingFunctionTemplateSpecialization(bool value) {
@@ -175,6 +184,10 @@ class [[nodiscard]] ASTRewriter {
   void instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern);
 
   void retryPendingMemberTemplateAttachment(FunctionSymbol* member);
+
+  [[nodiscard]] static auto evaluateSpecializationConstraints(
+      TranslationUnit* unit, FunctionSymbol* symbol, FunctionSymbol* primary)
+      -> std::optional<bool>;
 
   [[nodiscard]] static auto associatedConstraints(TranslationUnit* unit,
                                                   Symbol* symbol)
@@ -234,7 +247,7 @@ class [[nodiscard]] ASTRewriter {
   static auto checkConstraintExpression(
       TranslationUnit* unit, Symbol* symbol, ExpressionAST* constraint,
       const std::vector<TemplateArgument>& templateArguments, int depth)
-      -> bool;
+      -> std::optional<bool>;
 
   static auto evaluateConstraintExpression(
       TranslationUnit* unit, ScopeSymbol* parentScope,
@@ -287,7 +300,6 @@ class [[nodiscard]] ASTRewriter {
   auto unit(UnitAST* ast) -> UnitAST*;
   auto expression(ExpressionAST* ast) -> ExpressionAST*;
   auto unevaluatedExpression(ExpressionAST* ast) -> ExpressionAST*;
-  void checkUnevaluated(ExpressionAST* ast);
 
   auto rewriteExpressionList(List<ExpressionAST*>* source)
       -> List<ExpressionAST*>*;
@@ -296,6 +308,10 @@ class [[nodiscard]] ASTRewriter {
   auto genericAssociation(GenericAssociationAST* ast) -> GenericAssociationAST*;
   auto designator(DesignatorAST* ast) -> DesignatorAST*;
   auto templateParameter(TemplateParameterAST* ast) -> TemplateParameterAST*;
+  auto rewriteTemplateHead(TemplateDeclarationAST* ast)
+      -> TemplateDeclarationAST*;
+  auto rewriteMemberTemplateHead(Symbol* patternSymbol)
+      -> TemplateDeclarationAST*;
   auto ptrOperator(PtrOperatorAST* ast) -> PtrOperatorAST*;
   auto coreDeclarator(CoreDeclaratorAST* ast) -> CoreDeclaratorAST*;
   auto declaratorChunk(DeclaratorChunkAST* ast) -> DeclaratorChunkAST*;
@@ -339,7 +355,8 @@ class [[nodiscard]] ASTRewriter {
       -> InitDeclaratorAST*;
   auto declarator(DeclaratorAST* ast) -> DeclaratorAST*;
   auto usingDeclarator(UsingDeclaratorAST* ast) -> UsingDeclaratorAST*;
-  auto enumerator(EnumeratorAST* ast) -> EnumeratorAST*;
+  auto enumerator(EnumeratorAST* ast, const Type* underlyingType,
+                  std::optional<ConstValue>& lastValue) -> EnumeratorAST*;
   auto typeId(TypeIdAST* ast) -> TypeIdAST*;
   auto handler(HandlerAST* ast) -> HandlerAST*;
   auto baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST*;
@@ -394,6 +411,8 @@ class [[nodiscard]] ASTRewriter {
   auto shouldCaptureBodyErrors() const -> bool;
   void typeCheckAndCapture(std::function<void()> checkFn);
 
+  [[nodiscard]] auto typeChecker() -> TypeChecker;
+
   void addEnclosingTemplateArguments(int depth,
                                      std::vector<TemplateArgument> arguments);
 
@@ -422,7 +441,15 @@ class [[nodiscard]] ASTRewriter {
       AST* pattern, SourceLocation expansionLoc,
       ParameterPackSymbol* additionalPack = nullptr) -> std::optional<int>;
 
+  [[nodiscard]] auto expandedPacksOf(AST* pattern,
+                                     ParameterPackSymbol* additionalPack) const
+      -> std::vector<ParameterPackSymbol*>;
+
   [[nodiscard]] auto packElementAt(ParameterPackSymbol* pack) const -> Symbol*;
+
+  [[nodiscard]] auto isBeingExpanded(ParameterPackSymbol* pack) const -> bool;
+
+  [[nodiscard]] auto expandsAnActivePack(AST* pattern) const -> bool;
 
   template <typename Expand>
   auto forEachPackElement(AST* pattern, SourceLocation expansionLoc,
@@ -431,8 +458,9 @@ class [[nodiscard]] ASTRewriter {
       -> bool {
     auto size = packExpansionSize(pattern, expansionLoc, additionalPack);
     if (!size.has_value()) return false;
+    auto packs = expandedPacksOf(pattern, additionalPack);
     const int elementCount = *size;
-    for (int i = 0; i < elementCount; ++i) expandPackElement(i, expand);
+    for (int i = 0; i < elementCount; ++i) expandPackElement(packs, i, expand);
     return true;
   }
 
@@ -443,17 +471,22 @@ class [[nodiscard]] ASTRewriter {
       -> bool {
     auto size = packExpansionSize(pattern, expansionLoc, additionalPack);
     if (!size.has_value()) return false;
+    auto packs = expandedPacksOf(pattern, additionalPack);
     const int elementCount = *size;
-    for (int i = elementCount - 1; i >= 0; --i) expandPackElement(i, expand);
+    for (int i = elementCount - 1; i >= 0; --i)
+      expandPackElement(packs, i, expand);
     return true;
   }
 
   template <typename Expand>
-  void expandPackElement(int i, Expand&& expand) {
+  void expandPackElement(const std::vector<ParameterPackSymbol*>& packs, int i,
+                         Expand&& expand) {
+    activeExpansions_.push_back({packs, i});
     std::optional<int> index{i};
     std::swap(elementIndex_, index);
     expand();
     std::swap(elementIndex_, index);
+    activeExpansions_.pop_back();
   }
 
   friend struct CollectReferencedParameterPacks;
@@ -490,13 +523,22 @@ class [[nodiscard]] ASTRewriter {
       enclosingTemplateArguments_;
   std::vector<Diagnostic> bodyErrors_;
   bool rewritingFunctionBody_ = false;
+  bool rewritingForRangeDeclaration_ = false;
+  bool pastingCheckedBody_ = false;
   int unevaluatedOperandDepth_ = 0;
   int immediateContextDepth_ = 0;
+  struct ActiveExpansion {
+    std::vector<ParameterPackSymbol*> packs;
+    int index = 0;
+  };
+
+  std::vector<ActiveExpansion> activeExpansions_;
   std::optional<int> elementIndex_;
   Binder binder_;
   std::unordered_map<Symbol*, ParameterPackSymbol*> functionParamPacks_;
   std::unordered_map<Symbol*, Symbol*> symbolRemap_;
   std::vector<std::unordered_map<Symbol*, FieldSymbol*>> lambdaCaptureFields_;
+  TemplateDeclarationAST* currentTemplatePatternHead_ = nullptr;
   TemplateDeclarationAST* currentTemplateHead_ = nullptr;
   int depth_ = 0;
   ClassSymbol* classInstanceToComplete_ = nullptr;
@@ -506,6 +548,7 @@ class [[nodiscard]] ASTRewriter {
   bool substitutionFailed_ = false;
 
   bool instantiatingFunctionTemplateSpecialization_ = false;
+  bool rewritingCallee_ = false;
 
   int classBodyDepth_ = 0;
 

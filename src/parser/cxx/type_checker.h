@@ -38,6 +38,9 @@ class TranslationUnit;
 
 void markUntypedAfterError(ExpressionAST* expr);
 
+[[nodiscard]] auto fold_concept_id(TranslationUnit* unit, ExpressionAST* ast)
+    -> ExpressionAST*;
+
 class TypeChecker {
  public:
   explicit TypeChecker(TranslationUnit* unit);
@@ -79,6 +82,9 @@ class TypeChecker {
                               InitializationKind initializationKind);
   void append_default_arguments(FunctionSymbol* function,
                                 List<ExpressionAST*>** list);
+
+  void checkConstructorAccess(FunctionSymbol* constructor,
+                              SourceLocation location);
 
   [[nodiscard]] auto check_class_initializer(
       const Type* targetType, ExpressionAST*& initializer,

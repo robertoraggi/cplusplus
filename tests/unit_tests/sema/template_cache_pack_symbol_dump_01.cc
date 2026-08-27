@@ -6,6 +6,9 @@ struct Pack {};
 template <typename T>
 using Alias = T;
 
+template <int... Ns>
+struct Indices {};
+
 Pack<int, Alias<int>> p;
 Pack<int, int> q;
 
@@ -16,22 +19,25 @@ Pack<int, int> q;
 // CHECK-NEXT:    injected class name Pack
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Pack<int, int>
-// CHECK-NEXT:        constructor defaulted void Pack()
-// CHECK-NEXT:        constructor defaulted void Pack(const ::Pack<int, int>&)
+// CHECK-NEXT:        constructor inline defaulted void Pack()
+// CHECK-NEXT:        constructor inline defaulted void Pack(const ::Pack<int, int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Pack<int, int>&
-// CHECK-NEXT:        constructor defaulted void Pack(::Pack<int, int>&&)
+// CHECK-NEXT:        constructor inline defaulted void Pack(::Pack<int, int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Pack<int, int>&&
 // CHECK-NEXT:        injected class name Pack
-// CHECK-NEXT:        function defaulted ::Pack<int, int>& operator =(const ::Pack<int, int>&)
+// CHECK-NEXT:        function inline defaulted ::Pack<int, int>& operator =(const ::Pack<int, int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Pack<int, int>&
-// CHECK-NEXT:        function defaulted ::Pack<int, int>& operator =(::Pack<int, int>&&)
+// CHECK-NEXT:        function inline defaulted ::Pack<int, int>& operator =(::Pack<int, int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Pack<int, int>&&
-// CHECK-NEXT:        function defaulted void ~Pack()
+// CHECK-NEXT:        function inline defaulted void ~Pack()
 // CHECK-NEXT:  template typealias type-param<0, 0> Alias
 // CHECK-NEXT:    parameter typename<0, 0> T
+// CHECK-NEXT:  template class Indices<int...>
+// CHECK-NEXT:    parameter constant<0, 0, int>... Ns
+// CHECK-NEXT:    injected class name Indices
 // CHECK-NEXT:  variable ::Pack<int, int> p
 // CHECK-NEXT:  variable ::Pack<int, int> q

@@ -271,19 +271,8 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
     baseClassSym->setSymbol(resolved);
     baseClassSym->setName(resolved->name());
     baseClassSym->setVirtual(ast->isVirtual);
-    switch (ast->accessSpecifier) {
-      case TokenKind::T_PRIVATE:
-        baseClassSym->setAccessSpecifier(AccessSpecifier::kPrivate);
-        break;
-      case TokenKind::T_PROTECTED:
-        baseClassSym->setAccessSpecifier(AccessSpecifier::kProtected);
-        break;
-      case TokenKind::T_PUBLIC:
-        baseClassSym->setAccessSpecifier(AccessSpecifier::kPublic);
-        break;
-      default:
-        break;
-    }
+    baseClassSym->setAccessSpecifier(toAccessSpecifier(
+        ast->accessSpecifier, binder_.defaultAccessSpecifier()));
     copy->symbol = baseClassSym;
     return true;
   };
@@ -325,26 +314,17 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
     baseClassSym->setSymbol(remapSymbol(ast->symbol->symbol()));
     baseClassSym->setName(ast->symbol->name());
     baseClassSym->setVirtual(ast->isVirtual);
-    switch (ast->accessSpecifier) {
-      case TokenKind::T_PRIVATE:
-        baseClassSym->setAccessSpecifier(AccessSpecifier::kPrivate);
-        break;
-      case TokenKind::T_PROTECTED:
-        baseClassSym->setAccessSpecifier(AccessSpecifier::kProtected);
-        break;
-      case TokenKind::T_PUBLIC:
-        baseClassSym->setAccessSpecifier(AccessSpecifier::kPublic);
-        break;
-      default:
-        break;
-    }
+    baseClassSym->setAccessSpecifier(toAccessSpecifier(
+        ast->accessSpecifier, binder_.defaultAccessSpecifier()));
     copy->symbol = baseClassSym;
   }
 
   return copy;
 }
 
-auto ASTRewriter::enumerator(EnumeratorAST* ast) -> EnumeratorAST* {
+auto ASTRewriter::enumerator(EnumeratorAST* ast, const Type* underlyingType,
+                             std::optional<ConstValue>& lastValue)
+    -> EnumeratorAST* {
   if (!ast) return {};
 
   auto copy = EnumeratorAST::create(arena());
@@ -362,12 +342,17 @@ auto ASTRewriter::enumerator(EnumeratorAST* ast) -> EnumeratorAST* {
   copy->expression = expression(ast->expression);
   copy->identifier = ast->identifier;
 
-  auto interp = ASTInterpreter{unit_};
-  auto value = interp.evaluate(copy->expression);
+  std::optional<ConstValue> value;
+  if (copy->expression) {
+    auto interp = ASTInterpreter{unit_};
+    value = interp.evaluate(copy->expression);
+  } else {
+    value = Binder::nextEnumeratorValue(unit_, underlyingType, lastValue);
+  }
 
-  auto type = binder().scope()->type();
+  lastValue = value;
 
-  binder_.bind(copy, type, std::move(value));
+  binder_.bind(copy, binder().scope()->type(), std::move(value));
 
   if (ast->symbol && copy->symbol) addSymbolRemap(ast->symbol, copy->symbol);
 
@@ -859,7 +844,6 @@ auto ASTRewriter::SpecifierVisitor::operator()(DecltypeSpecifierAST* ast)
   copy->rparenLoc = ast->rparenLoc;
 
   if (copy->expression) {
-    rewrite.checkUnevaluated(copy->expression);
     rewrite.binder().bind(copy);
   }
   if (!copy->type) {
@@ -951,9 +935,14 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
   binder()->bind(copy, typeSpecifierListCtx);
 
+  auto enumSymbol = symbol_cast<EnumSymbol>(binder()->scope());
+  auto underlyingType =
+      enumSymbol ? enumSymbol->underlyingType() : copy->symbol->type();
+
+  std::optional<ConstValue> lastValue;
   for (auto enumeratorList = &copy->enumeratorList;
        auto node : ListView{ast->enumeratorList}) {
-    auto value = rewrite.enumerator(node);
+    auto value = rewrite.enumerator(node, underlyingType, lastValue);
     *enumeratorList = make_list_node(arena(), value);
     enumeratorList = &(*enumeratorList)->next;
   }
@@ -1039,8 +1028,10 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
                                             rewrite.templateArguments());
 
   classSymbol->setName(className);
+  binder()->applyAccessSpecifier(classSymbol);
   classSymbol->setIsUnion(ast->symbol->isUnion());
   classSymbol->setFinal(ast->isFinal);
+  classSymbol->setAccessControlDisabled(ast->symbol->isAccessControlDisabled());
   classSymbol->setDeclaration(copy);
   classSymbol->setTemplateDeclaration(templateHead);
   if (templateHead) classSymbol->setTemplateParameters(templateHead->symbol);
@@ -1068,22 +1059,26 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
     classSymbol->addSymbol(injected);
   }
 
-  rewriteBaseSpecifiers(ast, copy, classSymbol);
+  {
+    Binder::ClassBodyGuard classBody{
+        binder(), classSymbol, defaultAccessSpecifierOfClassKey(ast->classKey)};
 
-  copy->lbraceLoc = ast->lbraceLoc;
+    rewriteBaseSpecifiers(ast, copy, classSymbol);
 
-  rewriteClassBody(ast, copy);
+    copy->lbraceLoc = ast->lbraceLoc;
 
-  copy->rbraceLoc = ast->rbraceLoc;
-  copy->classKey = ast->classKey;
-  copy->isFinal = ast->isFinal;
+    rewriteClassBody(ast, copy);
 
-  const bool deferExceptionSpecificationChecks =
-      rewrite.hasPendingExceptionSpecifier(classSymbol);
-  binder()->complete(copy, deferExceptionSpecificationChecks);
-  if (deferExceptionSpecificationChecks)
-    rewrite.pendingExceptionSpecificationClasses_.push_back(classSymbol);
+    copy->rbraceLoc = ast->rbraceLoc;
+    copy->classKey = ast->classKey;
+    copy->isFinal = ast->isFinal;
 
+    const bool deferExceptionSpecificationChecks =
+        rewrite.hasPendingExceptionSpecifier(classSymbol);
+    binder()->complete(copy, deferExceptionSpecificationChecks);
+    if (deferExceptionSpecificationChecks)
+      rewrite.pendingExceptionSpecificationClasses_.push_back(classSymbol);
+  }
   if (!classSymbol->layout() && !classSymbol->templateDeclaration()) {
     auto status = binder()->buildRecordLayout(classSymbol);
     if (!status.has_value())

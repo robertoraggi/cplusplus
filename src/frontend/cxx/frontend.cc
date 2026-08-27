@@ -411,9 +411,14 @@ void Frontend::Private::parse() {
     if (limit > 0) diagnosticsClient_->setErrorLimit(limit);
   }
 
+  bool checkTypes = cli.opt_fcheck;
+  if (cli.opt_fvalidate_ast) checkTypes = true;
+  if (needsIR()) checkTypes = true;
+  if (unit_->language() == LanguageKind::kC) checkTypes = true;
+
   unit_->parse(ParserConfiguration{
-      .checkTypes =
-          cli.opt_fcheck || needsIR() || unit_->language() == LanguageKind::kC,
+      .checkTypes = checkTypes,
+      .validateAst = cli.opt_fvalidate_ast,
       .allowUnprototypedFunctions = cli.opt_fno_strict_prototypes,
       .stopParsingPredicate = [this]() -> bool {
         return diagnosticsClient_->errorLimitReached();
@@ -438,7 +443,7 @@ void Frontend::Private::dumpSymbols(std::ostream& out) {
   if (!cli.opt_dump_symbols) return;
   auto globalScope = unit_->globalScope();
   auto globalNamespace = globalScope;
-  cxx::dump(out, globalNamespace);
+  cxx::dump(out, globalNamespace, unit_.get());
 }
 
 void Frontend::Private::dumpRecordLayouts(std::ostream& out) {

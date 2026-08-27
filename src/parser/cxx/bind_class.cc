@@ -101,6 +101,7 @@ auto Binder::BindClass::createClassSymbol(const Identifier* className,
 
 void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   ast->symbol = classSymbol;
+  binder.applyAccessSpecifier(classSymbol);
   ast->symbol->setDeclaration(ast);
   ast->symbol->setFinal(ast->isFinal);
 

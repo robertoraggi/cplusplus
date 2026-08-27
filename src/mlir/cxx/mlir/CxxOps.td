@@ -172,13 +172,14 @@ def Cxx_VTableOp : Cxx_Op<"vtable"> {
   let description = [{
     Storage shape (one pointer-sized word per entry):
 
-      [vbase_offsets...] [vcall_offsets...] [offset_to_top] [RTTI (null)] [slots...]
+      [vbase_offsets...] [vcall_offsets...] [offset_to_top] [type_info] [slots...]
 
     `vbase_offsets`, `vcall_offsets`, and `offset_to_top` are byte offsets
-    stored as pointer-sized integers; each slot is either a function symbol
-    or a unit attribute (a null slot). The lowering is purely mechanical --
-    every field's meaning is explicit here, it never guesses from attribute
-    shapes.
+    stored as pointer-sized integers; `type_info` names the `_ZTI` object for
+    the class this group belongs to, and is null when absent; each slot is
+    either a function symbol or a unit attribute (a null slot). The lowering
+    is purely mechanical -- every field's meaning is explicit here, it never
+    guesses from attribute shapes.
   }];
 
   let arguments = (ins
@@ -186,6 +187,7 @@ def Cxx_VTableOp : Cxx_Op<"vtable"> {
     , I64ArrayAttr:$vbase_offsets
     , I64ArrayAttr:$vcall_offsets
     , I64Attr:$offset_to_top
+    , OptionalAttr<FlatSymbolRefAttr>:$type_info
     , ArrayAttr:$slots
     , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
   );

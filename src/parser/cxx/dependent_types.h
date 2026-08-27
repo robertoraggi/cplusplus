@@ -27,6 +27,7 @@ namespace cxx {
 class TranslationUnit;
 class Symbol;
 class ScopeSymbol;
+class ClassSymbol;
 
 [[nodiscard]] auto isEnclosedInDependentTemplate(
     TranslationUnit* unit, ScopeSymbol* scope,
@@ -34,11 +35,12 @@ class ScopeSymbol;
 
 [[nodiscard]] auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool;
 
-[[nodiscard]] auto isDependentNestedNameSpecifier(NestedNameSpecifierAST* ast)
+[[nodiscard]] auto isDependentTemplateArgument(TranslationUnit* unit,
+                                               TemplateArgumentAST* arg)
     -> bool;
 
 [[nodiscard]] auto isDependentTemplateArgument(TranslationUnit* unit,
-                                               TemplateArgumentAST* arg)
+                                               const TemplateArgument& argument)
     -> bool;
 
 [[nodiscard]] auto hasDependentTemplateArguments(
@@ -56,4 +58,10 @@ class ScopeSymbol;
 
 [[nodiscard]] auto isDependent(TranslationUnit* unit,
                                NestedNameSpecifierAST* ast) -> bool;
+
+[[nodiscard]] auto isCurrentInstantiation(ScopeSymbol* scope, const Type* type)
+    -> bool;
+
+[[nodiscard]] auto hasDependentBaseClass(TranslationUnit* unit,
+                                         ClassSymbol* classSymbol) -> bool;
 }  // namespace cxx

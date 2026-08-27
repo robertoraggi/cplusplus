@@ -34,6 +34,9 @@
 #include <vector>
 
 namespace cxx {
+
+[[nodiscard]] auto bindsName(Symbol* symbol) -> bool;
+
 namespace detail {
 template <typename Predicate>
 [[nodiscard]] auto searchScope(ScopeSymbol* scope, const Name* name,
@@ -47,16 +50,29 @@ template <typename Predicate>
       return searchScope(def, name, visited, accept);
   }
 
+  Symbol* classOrEnumDeclaration = nullptr;
+
+  auto consider = [&](Symbol* candidate) -> Symbol* {
+    if (!std::invoke(accept, candidate)) return nullptr;
+    if (!is_class_or_enum_declaration(candidate)) return candidate;
+    if (!classOrEnumDeclaration) classOrEnumDeclaration = candidate;
+    return nullptr;
+  };
+
   for (auto symbol : scope->find(name)) {
     if (symbol->isHidden()) continue;
+    if (!bindsName(symbol)) continue;
 
     if (auto u = symbol_cast<UsingDeclarationSymbol>(symbol);
         u && u->target()) {
-      if (std::invoke(accept, u->target())) return u->target();
+      if (auto found = consider(resolve_using_declaration(symbol)))
+        return found;
     }
 
-    if (std::invoke(accept, symbol)) return symbol;
+    if (auto found = consider(symbol)) return found;
   }
+
+  if (classOrEnumDeclaration) return classOrEnumDeclaration;
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
     for (auto member : classSymbol->find(/*unnamed=*/nullptr)) {
@@ -161,12 +177,18 @@ template <typename Predicate>
 
 [[nodiscard]] auto isPureFriend(FunctionSymbol* func) -> bool;
 
+void addOverloadCandidate(std::vector<FunctionSymbol*>& candidates,
+                          FunctionSymbol* function);
+
 [[nodiscard]] auto designatedFunction(Symbol* symbol) -> FunctionSymbol*;
 
 [[nodiscard]] auto mergeInlineNamespaceOverloads(Control* control,
                                                  NamespaceSymbol* scope,
                                                  const Name* name,
                                                  Symbol* primary) -> Symbol*;
+
+[[nodiscard]] auto qualifiedLookupIncludingInlineNamespaces(
+    Control* control, Symbol* scopeOrAlias, const Name* name) -> Symbol*;
 
 [[nodiscard]] auto resolveUsualOperatorDelete(TranslationUnit* unit,
                                               ClassSymbol* classSymbol,

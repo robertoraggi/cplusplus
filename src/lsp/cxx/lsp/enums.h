@@ -287,6 +287,7 @@ enum class LanguageKind {
   kPerl,
   kPerl6,
   kPHP,
+  kPlaintext,
   kPowershell,
   kPug,
   kPython,

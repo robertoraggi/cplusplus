@@ -22,8 +22,10 @@
 
 #include <cxx/cli.h>
 #include <cxx/lsp/fwd.h>
+#include <cxx/parser_fwd.h>
 #include <cxx/translation_unit.h>
 
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -40,9 +42,14 @@ class CxxDocument {
   [[nodiscard]] auto fileName() const -> const std::string&;
 
   void parse(std::string source);
+  void parse(std::string source,
+             std::function<void(const CodeCompletionContext&)> complete);
 
   void codeCompletionAt(std::string source, std::uint32_t line,
                         std::uint32_t column, Vector<CompletionItem> result);
+
+  void signatureHelpAt(std::string source, std::uint32_t line,
+                       std::uint32_t column, SignatureHelp result);
 
   [[nodiscard]] auto version() const -> long;
   [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;

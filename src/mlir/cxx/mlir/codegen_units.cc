@@ -66,6 +66,20 @@ struct Codegen::UnitVisitor {
   auto operator()(TranslationUnitAST* ast) -> UnitResult;
   auto operator()(ModuleUnitAST* ast) -> UnitResult;
 
+  void visitClassStatics(ClassSymbol* classSymbol) {
+    if (classSymbol->templateParameters() && !classSymbol->isSpecialization())
+      return;
+    for (auto member : classSymbol->members()) {
+      if (auto field = symbol_cast<FieldSymbol>(member)) {
+        if (field->isInline() || field->isConstexpr())
+          (void)gen.findOrCreateStaticField(field);
+        continue;
+      }
+      if (auto nestedClass = symbol_cast<ClassSymbol>(member))
+        visitClassStatics(nestedClass);
+    }
+  }
+
   void visitGlobals(ScopeSymbol* scope) {
     auto ns = symbol_cast<NamespaceSymbol>(scope);
     if (!ns) return;
@@ -81,7 +95,11 @@ struct Codegen::UnitVisitor {
 
       if (auto nestedNs = symbol_cast<NamespaceSymbol>(member)) {
         visitGlobals(nestedNs);
+        continue;
       }
+
+      if (auto classSymbol = symbol_cast<ClassSymbol>(member))
+        visitClassStatics(classSymbol);
     }
   }
 };
@@ -327,6 +345,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   forEachExternalDefinition.functionCallback =
       [&](FunctionDefinitionAST* function) {
+        if (gen.hasVagueFunctionEmission(function->symbol)) return;
         auto loc = function->firstSourceLocation();
         if (loc && gen.unit_->tokenAt(loc).fileId() == mainFileId) {
           (void)gen.declaration(function);

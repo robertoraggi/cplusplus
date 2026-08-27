@@ -3638,6 +3638,17 @@ void ASTEncoder::visit(ImplicitCastExpressionAST* ast) {
   type_ = io::Expression_ImplicitCastExpression;
 }
 
+void ASTEncoder::visit(ConstExpressionAST* ast) {
+  const auto [expression, expressionType] = acceptExpression(ast->expression);
+
+  io::ConstExpression::Builder builder{fbb_};
+  builder.add_expression(expression);
+  builder.add_expression_type(static_cast<io::Expression>(expressionType));
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_ConstExpression;
+}
+
 void ASTEncoder::visit(BinaryExpressionAST* ast) {
   const auto [leftExpression, leftExpressionType] =
       acceptExpression(ast->leftExpression);
@@ -3940,6 +3951,16 @@ void ASTEncoder::visit(ParenInitializerAST* ast) {
 
   offset_ = builder.Finish().Union();
   type_ = io::Expression_ParenInitializer;
+}
+
+void ASTEncoder::visit(ThreeWayComparisonExpressionAST* ast) {
+  const auto comparison = accept(ast->comparison);
+
+  io::ThreeWayComparisonExpression::Builder builder{fbb_};
+  builder.add_comparison(comparison.o);
+
+  offset_ = builder.Finish().Union();
+  type_ = io::Expression_ThreeWayComparisonExpression;
 }
 
 void ASTEncoder::visit(DefaultGenericAssociationAST* ast) {

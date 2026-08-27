@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/views/symbol_chain.h>
@@ -81,6 +82,18 @@ auto ASTRewriter::remapSymbol(Symbol* sym) const -> Symbol* {
     }
   }
 
+  if (auto injected = symbol_cast<InjectedClassNameSymbol>(sym)) {
+    if (auto remappedClass =
+            symbol_cast<ClassSymbol>(remapSymbol(injected->classSymbol()))) {
+      for (auto member : remappedClass->members()) {
+        if (auto newInjected = symbol_cast<InjectedClassNameSymbol>(member)) {
+          return newInjected;
+        }
+      }
+      return remappedClass;
+    }
+  }
+
   return sym;
 }
 
@@ -120,7 +133,8 @@ void ASTRewriter::note(SourceLocation loc, std::string message) {
 }
 
 void ASTRewriter::error(SourceLocation loc, std::string message) {
-  if (!shouldCaptureBodyErrors()) substitutionFailed_ = true;
+  if (shouldCaptureBodyErrors()) return;
+  substitutionFailed_ = true;
   binder_.error(loc, std::move(message));
 }
 }  // namespace cxx

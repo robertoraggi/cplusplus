@@ -44,10 +44,10 @@ MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch)
                   xcodeContentsBasePath);
 
   if (arch_ == "aarch64") {
-    memoryLayout()->setSizeOfLongDouble(8);
+    memoryLayout()->setSizeOfLongDouble(8, 53);
     memoryLayout()->setTriple("arm64-apple-macosx15.0.0");
   } else if (arch_ == "x86_64") {
-    memoryLayout()->setSizeOfLongDouble(16);
+    memoryLayout()->setSizeOfLongDouble(16, 64);
     memoryLayout()->setTriple("x86_64-apple-macosx15.0.0");
   } else {
     cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));

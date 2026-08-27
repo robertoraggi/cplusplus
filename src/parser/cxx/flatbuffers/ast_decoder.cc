@@ -357,6 +357,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_ImplicitCastExpression:
       return decodeImplicitCastExpression(
           reinterpret_cast<const io::ImplicitCastExpression*>(ptr));
+    case io::Expression_ConstExpression:
+      return decodeConstExpression(
+          reinterpret_cast<const io::ConstExpression*>(ptr));
     case io::Expression_BinaryExpression:
       return decodeBinaryExpression(
           reinterpret_cast<const io::BinaryExpression*>(ptr));
@@ -402,6 +405,9 @@ auto ASTDecoder::decodeExpression(const void* ptr, io::Expression type)
     case io::Expression_ParenInitializer:
       return decodeParenInitializer(
           reinterpret_cast<const io::ParenInitializer*>(ptr));
+    case io::Expression_ThreeWayComparisonExpression:
+      return decodeThreeWayComparisonExpression(
+          reinterpret_cast<const io::ThreeWayComparisonExpression*>(ptr));
     default:
       return nullptr;
   }  // switch
@@ -3185,6 +3191,16 @@ auto ASTDecoder::decodeImplicitCastExpression(
   return ast;
 }
 
+auto ASTDecoder::decodeConstExpression(const io::ConstExpression* node)
+    -> ConstExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ConstExpressionAST();
+  ast->expression =
+      decodeExpression(node->expression(), node->expression_type());
+  return ast;
+}
+
 auto ASTDecoder::decodeBinaryExpression(const io::BinaryExpression* node)
     -> BinaryExpressionAST* {
   if (!node) return nullptr;
@@ -3410,6 +3426,16 @@ auto ASTDecoder::decodeParenInitializer(const io::ParenInitializer* node)
     }
   }
   ast->rparenLoc = SourceLocation(node->rparen_loc());
+  return ast;
+}
+
+auto ASTDecoder::decodeThreeWayComparisonExpression(
+    const io::ThreeWayComparisonExpression* node)
+    -> ThreeWayComparisonExpressionAST* {
+  if (!node) return nullptr;
+
+  auto ast = new (pool_) ThreeWayComparisonExpressionAST();
+  ast->comparison = decodeBinaryExpression(node->comparison());
   return ast;
 }
 

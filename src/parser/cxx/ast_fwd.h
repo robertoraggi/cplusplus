@@ -216,6 +216,7 @@ class NewExpressionAST;
 class DeleteExpressionAST;
 class CastExpressionAST;
 class ImplicitCastExpressionAST;
+class ConstExpressionAST;
 class BinaryExpressionAST;
 class ConditionalExpressionAST;
 class YieldExpressionAST;
@@ -231,6 +232,7 @@ class ConditionExpressionAST;
 class EqualInitializerAST;
 class BracedInitListAST;
 class ParenInitializerAST;
+class ThreeWayComparisonExpressionAST;
 
 // GenericAssociationAST
 class DefaultGenericAssociationAST;

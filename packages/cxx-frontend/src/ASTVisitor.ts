@@ -1491,6 +1491,18 @@ export abstract class ASTVisitor<Context, Result> {
   ): Result;
 
   /**
+   * Visit ConstExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitConstExpression(
+    node: ast.ConstExpressionAST,
+    context: Context,
+  ): Result;
+
+  /**
    * Visit BinaryExpression node.
    *
    * @param node The node to visit.
@@ -1667,6 +1679,18 @@ export abstract class ASTVisitor<Context, Result> {
    */
   abstract visitParenInitializer(
     node: ast.ParenInitializerAST,
+    context: Context,
+  ): Result;
+
+  /**
+   * Visit ThreeWayComparisonExpression node.
+   *
+   * @param node The node to visit.
+   * @param context The context.
+   * @returns The result of the visit.
+   */
+  abstract visitThreeWayComparisonExpression(
+    node: ast.ThreeWayComparisonExpressionAST,
     context: Context,
   ): Result;
 

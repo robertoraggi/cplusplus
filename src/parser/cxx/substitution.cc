@@ -23,6 +23,7 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
+#include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
@@ -33,7 +34,8 @@
 #include <format>
 
 namespace cxx {
-struct Substitution::IsPackParameter {
+namespace {
+struct IsPackParameter {
   auto operator()(TypenameTypeParameterAST* parameter) -> bool {
     return parameter->isPack;
   }
@@ -47,17 +49,18 @@ struct Substitution::IsPackParameter {
   }
 
   auto operator()(ConstraintTypeParameterAST* parameter) -> bool {
-    return false;
+    return static_cast<bool>(parameter->ellipsisLoc);
   }
 };
 
-struct Substitution::HasDefaultTemplateArgument {
+struct HasDefaultTemplateArgument {
   auto operator()(TypenameTypeParameterAST* parameter) -> bool {
     return parameter->typeId && parameter->typeId->type;
   }
 
   auto operator()(NonTypeTemplateParameterAST* parameter) -> bool {
-    return parameter->declaration && parameter->declaration->expression;
+    return parameter->declaration && parameter->declaration->equalLoc &&
+           parameter->declaration->expression;
   }
 
   auto operator()(TemplateTypeParameterAST* parameter) -> bool {
@@ -68,12 +71,109 @@ struct Substitution::HasDefaultTemplateArgument {
     return parameter->typeId && parameter->typeId->type;
   }
 };
+}  // namespace
+
+auto isPackParameter(TemplateParameterAST* parameter) -> bool {
+  if (!parameter) return false;
+  return visit(IsPackParameter{}, parameter);
+}
+
+auto hasDefaultTemplateArgument(TemplateParameterAST* parameter) -> bool {
+  if (!parameter) return false;
+  return visit(HasDefaultTemplateArgument{}, parameter);
+}
+
+auto isPackExpansion(TypeIdAST* typeId) -> bool {
+  if (!typeId || !typeId->declarator) return false;
+  return ast_cast<ParameterPackAST>(typeId->declarator->coreDeclarator) !=
+         nullptr;
+}
+
+auto isPackExpansionTemplateArgument(TemplateArgumentAST* argument) -> bool {
+  if (auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument))
+    return isPackExpansion(typeArgument->typeId);
+
+  if (auto expressionArgument =
+          ast_cast<ExpressionTemplateArgumentAST>(argument)) {
+    return ast_cast<PackExpansionExpressionAST>(
+               expressionArgument->expression) != nullptr;
+  }
+
+  return false;
+}
+
+auto lastTemplateArgument(List<TemplateArgumentAST*>* templateArgumentList)
+    -> TemplateArgumentAST* {
+  TemplateArgumentAST* last = nullptr;
+  for (auto argument : ListView{templateArgumentList}) last = argument;
+  return last;
+}
+
+auto hasPackExpansionTemplateArgument(
+    List<TemplateArgumentAST*>* templateArgumentList) -> bool {
+  for (auto argument : ListView{templateArgumentList}) {
+    if (isPackExpansionTemplateArgument(argument)) return true;
+  }
+  return false;
+}
+
+auto computeTemplateArity(TemplateDeclarationAST* templateDecl)
+    -> TemplateArity {
+  TemplateArity arity;
+  if (!templateDecl) return arity;
+
+  for (auto parameter : ListView{templateDecl->templateParameterList}) {
+    ++arity.maxArgs;
+
+    if (isPackParameter(parameter)) {
+      ++arity.packCount;
+      arity.hasParameterPack = true;
+      continue;
+    }
+
+    if (!hasDefaultTemplateArgument(parameter)) {
+      ++arity.minArgs;
+    }
+  }
+
+  return arity;
+}
+
+auto templateArgumentCount(List<TemplateArgumentAST*>* templateArgumentList)
+    -> int {
+  int count = 0;
+  for (auto argument : ListView{templateArgumentList}) {
+    (void)argument;
+    ++count;
+  }
+  return count;
+}
+
+auto isTemplateArityMatch(TemplateDeclarationAST* templateDecl,
+                          List<TemplateArgumentAST*>* templateArgumentList,
+                          bool isFunctionTemplate) -> bool {
+  if (!templateDecl) return true;
+
+  auto arity = computeTemplateArity(templateDecl);
+  auto argc = templateArgumentCount(templateArgumentList);
+
+  const bool expandsAnUnknownNumberOfArguments =
+      hasPackExpansionTemplateArgument(templateArgumentList);
+
+  if (!isFunctionTemplate && !expandsAnUnknownNumberOfArguments &&
+      argc < arity.minArgs)
+    return false;
+  if (!arity.hasParameterPack && argc > arity.maxArgs) return false;
+
+  return true;
+}
 
 struct Substitution::CollectRawTemplateArgument {
   Substitution& subst;
 
   [[nodiscard]] auto isInTemplateScope(Symbol* symbol) -> bool {
-    return isEnclosedInTemplate(symbol->parent());
+    return isEnclosedInDependentTemplate(subst.unit_, symbol->parent(),
+                                         /*stopAtConcreteSpecialization=*/true);
   }
 
   auto operator()(ExpressionTemplateArgumentAST* ast) -> std::optional<Symbol*>;
@@ -387,10 +487,13 @@ void Substitution::doMake() {
   auto control = unit_->control();
 
   std::vector<Symbol*> collectedArguments;
+  std::vector<bool> collectedIsPackExpansion;
   for (auto argument : ListView{templateArgumentList_}) {
     auto arg = visit(CollectRawTemplateArgument{*this}, argument);
     if (!arg.has_value()) return;
     collectedArguments.push_back(*arg);
+    collectedIsPackExpansion.push_back(
+        isPackExpansionTemplateArgument(argument));
   }
 
   std::vector<TemplateParameterAST*> parameters;
@@ -429,6 +532,7 @@ void Substitution::doMake() {
   }
 
   int argumentIndex = 0;
+  bool argumentCountIsKnown = true;
 
   auto deducedPackAt = [&](int index) -> ParameterPackSymbol* {
     if (index >= argCount) return nullptr;
@@ -442,6 +546,11 @@ void Substitution::doMake() {
       if (auto deducedPack = deducedPackAt(argumentIndex)) {
         ++argumentIndex;
         templateArguments_.push_back(deducedPack);
+        continue;
+      }
+      if (argumentIndex >= argCount) {
+        auto pack = control->newParameterPackSymbol(nullptr, {});
+        templateArguments_.push_back(pack);
         continue;
       }
     }
@@ -461,6 +570,7 @@ void Substitution::doMake() {
     }
 
     if (argumentIndex < argCount) {
+      if (collectedIsPackExpansion[argumentIndex]) argumentCountIsKnown = false;
       auto symbol = collectedArguments[argumentIndex++];
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
       if (nonTypeParam && !checkNonTypeParameterType(nonTypeParam)) return;
@@ -469,11 +579,15 @@ void Substitution::doMake() {
       continue;
     }
 
-    if (!fillDefaults_) break;
+    if (!fillDefaults_ || !argumentCountIsKnown) break;
 
     if (auto defaultArg = getDefaultTemplateArgument(parameter)) {
       templateArguments_.push_back(defaultArg.value());
+      continue;
     }
+
+    hadError_ = true;
+    return;
   }
 }
 
@@ -532,6 +646,8 @@ auto Substitution::checkNonTypeParameterType(
 
 auto Substitution::normalizeNonTypeArgument(
     NonTypeTemplateParameterAST* parameter, Symbol* argument) -> Symbol* {
+  if (!parameter) return argument;
+
   auto unit = unit_;
   auto control = unit->control();
 
@@ -585,17 +701,6 @@ auto Substitution::normalizeNonTypeArgument(
 
   normalizedArgument->setType(targetType);
   return normalizedArgument;
-}
-
-auto Substitution::isPackParameter(TemplateParameterAST* parameter) -> bool {
-  if (!parameter) return false;
-  return visit(IsPackParameter{}, parameter);
-}
-
-auto Substitution::hasDefaultTemplateArgument(TemplateParameterAST* parameter)
-    -> bool {
-  if (!parameter) return false;
-  return visit(HasDefaultTemplateArgument{}, parameter);
 }
 
 auto Substitution::getDefaultTemplateArgument(TemplateParameterAST* parameter)

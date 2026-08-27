@@ -1982,6 +1982,16 @@ void ASTPrinter::visit(ImplicitCastExpressionAST* ast) {
   accept(ast->expression, "expression");
 }
 
+void ASTPrinter::visit(ConstExpressionAST* ast) {
+  out_ << "const-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  accept(ast->expression, "expression");
+}
+
 void ASTPrinter::visit(BinaryExpressionAST* ast) {
   out_ << "binary-expression";
   if (ast->type) {
@@ -2223,6 +2233,16 @@ void ASTPrinter::visit(ParenInitializerAST* ast) {
     }
     --indent_;
   }
+}
+
+void ASTPrinter::visit(ThreeWayComparisonExpressionAST* ast) {
+  out_ << "three-way-comparison-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  accept(ast->comparison, "comparison");
 }
 
 void ASTPrinter::visit(DefaultGenericAssociationAST* ast) {

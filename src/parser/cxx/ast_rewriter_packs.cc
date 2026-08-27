@@ -22,17 +22,22 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <algorithm>
+#include <ranges>
+
 namespace cxx {
 struct CollectReferencedParameterPacks final : ASTVisitor {
   const ASTRewriter& rewriter;
+  AST* pattern = nullptr;
   std::vector<ParameterPackSymbol*> packs;
 
-  explicit CollectReferencedParameterPacks(const ASTRewriter& r)
-      : rewriter(r) {}
+  CollectReferencedParameterPacks(const ASTRewriter& r, AST* pattern)
+      : rewriter(r), pattern(pattern) {}
 
   void add(ParameterPackSymbol* pack) {
     if (!pack) return;
@@ -75,6 +80,11 @@ struct CollectReferencedParameterPacks final : ASTVisitor {
   }
 
   void visit(PackExpansionExpressionAST*) override {}
+
+  void visit(TypeIdAST* ast) override {
+    if (ast != pattern && isPackExpansion(ast)) return;
+    ASTVisitor::visit(ast);
+  }
 };
 
 struct FindUnresolvedParameterPack final : ASTVisitor {
@@ -259,10 +269,19 @@ auto ASTRewriter::functionParameterPackFor(Symbol* symbol) const
 }
 
 auto ASTRewriter::packElementAt(ParameterPackSymbol* pack) const -> Symbol* {
-  if (!pack || !elementIndex_.has_value()) return nullptr;
-  if (*elementIndex_ >= static_cast<int>(pack->elements().size()))
-    return nullptr;
-  return pack->elements()[*elementIndex_];
+  if (!pack) return nullptr;
+
+  auto index = [&]() -> std::optional<int> {
+    for (const auto& expansion : activeExpansions_ | std::views::reverse) {
+      if (std::ranges::find(expansion.packs, pack) != expansion.packs.end())
+        return expansion.index;
+    }
+    return elementIndex_;
+  }();
+
+  if (!index.has_value()) return nullptr;
+  if (*index >= static_cast<int>(pack->elements().size())) return nullptr;
+  return pack->elements()[*index];
 }
 
 auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) const
@@ -287,7 +306,7 @@ auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) const
 
 auto ASTRewriter::referencedParameterPacks(AST* ast) const
     -> std::vector<ParameterPackSymbol*> {
-  CollectReferencedParameterPacks collector{*this};
+  CollectReferencedParameterPacks collector{*this, ast};
   collector.accept(ast);
   return collector.packs;
 }
@@ -298,6 +317,33 @@ auto ASTRewriter::findReferencedParameterPack(AST* ast) const
   auto packs = referencedParameterPacks(ast);
   if (packs.empty()) return nullptr;
   return packs.front();
+}
+
+auto ASTRewriter::expandedPacksOf(AST* pattern,
+                                  ParameterPackSymbol* additionalPack) const
+    -> std::vector<ParameterPackSymbol*> {
+  auto packs = referencedParameterPacks(pattern);
+  if (additionalPack &&
+      std::ranges::find(packs, additionalPack) == packs.end()) {
+    packs.push_back(additionalPack);
+  }
+  return packs;
+}
+
+auto ASTRewriter::isBeingExpanded(ParameterPackSymbol* pack) const -> bool {
+  if (!pack) return false;
+  for (const auto& expansion : activeExpansions_) {
+    if (std::ranges::find(expansion.packs, pack) != expansion.packs.end())
+      return true;
+  }
+  return false;
+}
+
+auto ASTRewriter::expandsAnActivePack(AST* pattern) const -> bool {
+  for (auto pack : referencedParameterPacks(pattern)) {
+    if (isBeingExpanded(pack)) return true;
+  }
+  return false;
 }
 
 auto ASTRewriter::packExpansionSize(AST* pattern, SourceLocation expansionLoc,
@@ -323,9 +369,7 @@ auto ASTRewriter::packExpansionSize(AST* pattern, SourceLocation expansionLoc,
 
 auto ASTRewriter::expandedParameterPack(TypeIdAST* typeId) const
     -> ParameterPackSymbol* {
-  if (!typeId || !typeId->declarator) return nullptr;
-  if (!ast_cast<ParameterPackAST>(typeId->declarator->coreDeclarator))
-    return nullptr;
+  if (!isPackExpansion(typeId)) return nullptr;
 
   for (auto spec : ListView{typeId->typeSpecifierList}) {
     if (auto pack = findReferencedParameterPack(spec)) return pack;

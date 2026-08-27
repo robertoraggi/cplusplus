@@ -41,12 +41,16 @@ class ConstObject;
 class ConstAddress;
 class ConstLabelAddress;
 
+struct IndeterminateValue {
+  auto operator==(const IndeterminateValue&) const -> bool = default;
+};
+
 using ConstValue =
     std::variant<std::intmax_t, const StringLiteral*, float, double,
                  long double, std::shared_ptr<Meta>,
                  std::shared_ptr<InitializerList>, std::shared_ptr<ConstObject>,
                  std::shared_ptr<ConstAddress>,
-                 std::shared_ptr<ConstLabelAddress>>;
+                 std::shared_ptr<ConstLabelAddress>, IndeterminateValue>;
 
 class InitializerList {
  public:
@@ -70,6 +74,8 @@ class ConstObject {
   [[nodiscard]] auto fields() const -> const std::deque<Field>& {
     return fields_;
   }
+
+  [[nodiscard]] auto mutableFields() -> std::deque<Field>& { return fields_; }
 
   void addField(const Symbol* symbol, ConstValue value) {
     fields_.push_back({symbol, std::move(value)});
@@ -100,7 +106,7 @@ class ConstObject {
         }
       }
     }
-    fields_.push_back({symbol, ConstValue{std::intmax_t{0}}});
+    fields_.push_back({symbol, ConstValue{IndeterminateValue{}}});
     return &fields_.back().value;
   }
 
@@ -115,6 +121,10 @@ class ConstObject {
   }
 
   [[nodiscard]] auto bases() const -> const std::vector<ConstValue>& {
+    return bases_;
+  }
+
+  [[nodiscard]] auto mutableBases() -> std::vector<ConstValue>& {
     return bases_;
   }
 

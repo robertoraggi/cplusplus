@@ -323,6 +323,8 @@ class ASTDecoder {
       -> CastExpressionAST*;
   auto decodeImplicitCastExpression(const io::ImplicitCastExpression* node)
       -> ImplicitCastExpressionAST*;
+  auto decodeConstExpression(const io::ConstExpression* node)
+      -> ConstExpressionAST*;
   auto decodeBinaryExpression(const io::BinaryExpression* node)
       -> BinaryExpressionAST*;
   auto decodeConditionalExpression(const io::ConditionalExpression* node)
@@ -355,6 +357,9 @@ class ASTDecoder {
       -> BracedInitListAST*;
   auto decodeParenInitializer(const io::ParenInitializer* node)
       -> ParenInitializerAST*;
+  auto decodeThreeWayComparisonExpression(
+      const io::ThreeWayComparisonExpression* node)
+      -> ThreeWayComparisonExpressionAST*;
 
   auto decodeDefaultGenericAssociation(
       const io::DefaultGenericAssociation* node)

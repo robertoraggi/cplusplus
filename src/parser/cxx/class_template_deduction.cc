@@ -71,6 +71,18 @@ auto ClassTemplateArgumentDeduction::placeholderClassTemplate(
   return classSymbol;
 }
 
+auto ClassTemplateArgumentDeduction::alreadyDeducedSpecialization(
+    ClassSymbol* primaryTemplate, const Type* recordedType) -> const Type* {
+  auto classType = type_cast<ClassType>(recordedType);
+  if (!classType) return nullptr;
+
+  auto classSymbol = classType->symbol();
+  if (!classSymbol || !classSymbol->isSpecialization()) return nullptr;
+  if (classSymbol->primaryTemplateSymbol() != primaryTemplate) return nullptr;
+
+  return recordedType;
+}
+
 auto ClassTemplateArgumentDeduction::classTemplateParameterCount(
     ClassSymbol* primaryTemplate) const -> int {
   int count = 0;
@@ -491,9 +503,8 @@ auto ClassTemplateArgumentDeduction::guideParameterTypes(
       out = &(*out)->next;
     }
 
-    auto instantiated = ASTRewriter::instantiateForArgs(
-        unit_, ownArgs, constructor, location, /*argsComplete=*/true,
-        /*declarationOnly=*/true);
+    auto instantiated = ASTRewriter::instantiateOverloadCandidate(
+        unit_, ownArgs, constructor, location, /*argsComplete=*/true);
     if (!instantiated) return std::nullopt;
     constructor = instantiated;
   }

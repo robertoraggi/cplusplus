@@ -136,7 +136,7 @@ struct SizeOf {
 
   auto operator()(const WideCharType* type) const
       -> std::optional<std::size_t> {
-    return 4;
+    return memoryLayout.sizeOfWideChar();
   }
 
   auto operator()(const FloatType* type) const -> std::optional<std::size_t> {
@@ -326,6 +326,7 @@ MemoryLayout::MemoryLayout(std::size_t bits) : bits_(bits) {
   sizeOfLong_ = bits / 8;
   sizeOfLongLong_ = sizeOfLong_;
   sizeOfLongDouble_ = 8;
+  longDoubleMantissaDigits_ = 53;
 }
 
 MemoryLayout::~MemoryLayout() = default;
@@ -350,6 +351,10 @@ auto MemoryLayout::sizeOfLongDouble() const -> std::size_t {
   return sizeOfLongDouble_;
 }
 
+auto MemoryLayout::longDoubleMantissaDigits() const -> std::size_t {
+  return longDoubleMantissaDigits_;
+}
+
 void MemoryLayout::setSizeOfPointer(std::size_t sizeOfPointer) {
   sizeOfPointer_ = sizeOfPointer;
 }
@@ -362,8 +367,23 @@ void MemoryLayout::setSizeOfLongLong(std::size_t sizeOfLongLong) {
   sizeOfLongLong_ = sizeOfLongLong;
 }
 
-void MemoryLayout::setSizeOfLongDouble(std::size_t sizeOfLongDouble) {
+void MemoryLayout::setSizeOfLongDouble(std::size_t sizeOfLongDouble,
+                                       std::size_t mantissaDigits) {
   sizeOfLongDouble_ = sizeOfLongDouble;
+  longDoubleMantissaDigits_ = mantissaDigits;
+}
+
+auto MemoryLayout::sizeOfWideChar() const -> std::size_t {
+  return sizeOfWideChar_;
+}
+
+auto MemoryLayout::isWideCharSigned() const -> bool {
+  return wideCharIsSigned_;
+}
+
+void MemoryLayout::setWideCharUnderlyingType(std::size_t size, bool isSigned) {
+  sizeOfWideChar_ = size;
+  wideCharIsSigned_ = isSigned;
 }
 
 auto MemoryLayout::sizeOf(const Type* type) const

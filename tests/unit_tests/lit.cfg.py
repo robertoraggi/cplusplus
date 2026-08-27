@@ -39,7 +39,7 @@ if getattr(config, "have_lld", False):
     config.available_features.add("lld")
 
 # The 'wasmtime' feature is available when a wasmtime runtime is on PATH, which
-# lets link tests execute the wasm32-wasi executables they produce.
+# lets link tests execute the wasm32-wasip1 executables they produce.
 wasmtime = shutil.which("wasmtime")
 if wasmtime:
     config.available_features.add("wasmtime")

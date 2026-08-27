@@ -37,8 +37,9 @@ namespace cxx {
 Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor)
     : Toolchain(preprocessor) {
   setMemoryLayout(std::make_unique<MemoryLayout>(32));
-  memoryLayout()->setSizeOfLongDouble(16);
+  memoryLayout()->setSizeOfLongDouble(16, 113);
   memoryLayout()->setSizeOfLongLong(8);
+  memoryLayout()->setWideCharUnderlyingType(4, /*isSigned=*/true);
   memoryLayout()->setTriple("wasm32");
 }
 
@@ -68,7 +69,7 @@ void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
 
 void Wasm32WasiToolchain::addSystemIncludePaths() {
   addSystemIncludePath(std::format("{}/include", sysroot_));
-  addSystemIncludePath(std::format("{}/include/wasm32-wasi", sysroot_));
+  addSystemIncludePath(std::format("{}/include/wasm32-wasip1", sysroot_));
   addSystemIncludePath(std::format("{}/../lib/cxx/include", appdir_));
 }
 
@@ -76,7 +77,8 @@ void Wasm32WasiToolchain::addSystemCppIncludePaths() {
   if (language() != LanguageKind::kCXX) return;
 
   addSystemIncludePath(std::format("{}/include/c++/v1", sysroot_));
-  addSystemIncludePath(std::format("{}/include/wasm32-wasi/c++/v1", sysroot_));
+  addSystemIncludePath(
+      std::format("{}/include/wasm32-wasip1/c++/v1", sysroot_));
 }
 
 void Wasm32WasiToolchain::addPredefinedMacros() {
@@ -104,7 +106,7 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
 
 void Wasm32WasiToolchain::addLinkerStartArgs(
     std::vector<std::string>& args) const {
-  const auto libdir = std::format("{}/lib/wasm32-wasi", sysroot_);
+  const auto libdir = std::format("{}/lib/wasm32-wasip1", sysroot_);
 
   args.push_back(std::format("{}/crt1.o", libdir));
   args.push_back(std::format("-L{}", libdir));
@@ -147,8 +149,8 @@ void Wasm32WasiToolchain::addLinkerEndArgs(
     args.push_back("-lc++abi");
   }
 
-  const auto builtins =
-      std::format("{}/lib/wasm32-wasi/libclang_rt.builtins-wasm32.a", sysroot_);
+  const auto builtins = std::format(
+      "{}/lib/wasm32-wasip1/libclang_rt.builtins-wasm32.a", sysroot_);
   if (fs::exists(builtins)) {
     args.push_back(builtins);
   }

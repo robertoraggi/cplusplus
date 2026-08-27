@@ -24,12 +24,14 @@
 
 #include <cstdint>
 #include <span>
+#include <vector>
 
 namespace cxx {
 class ClassSymbol;
 class Control;
 class ExpressionAST;
 class FunctionSymbol;
+class Symbol;
 class TranslationUnit;
 class Type;
 
@@ -63,6 +65,7 @@ class TypeTraits {
   [[nodiscard]] auto is_integer(const Type* type) const -> bool;
   [[nodiscard]] auto is_integral_or_unscoped_enum(const Type* type) const
       -> bool;
+  [[nodiscard]] auto is_integral_or_enum(const Type* type) const -> bool;
   [[nodiscard]] auto is_fundamental(const Type* type) const -> bool;
   [[nodiscard]] auto is_arithmetic(const Type* type) const -> bool;
   [[nodiscard]] auto is_scalar(const Type* type) const -> bool;
@@ -90,6 +93,8 @@ class TypeTraits {
   [[nodiscard]] auto remove_extent(const Type* type) const -> const Type*;
   [[nodiscard]] auto get_element_type(const Type* type) const -> const Type*;
 
+  [[nodiscard]] auto underlying_type(const Type* type) const -> const Type*;
+
   [[nodiscard]] auto remove_cv(const Type* type) const -> const Type*;
   [[nodiscard]] auto remove_cvref(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_const_ref(const Type* type) const -> const Type*;
@@ -113,6 +118,9 @@ class TypeTraits {
   [[nodiscard]] auto is_char_type(const Type* type) const -> bool;
   [[nodiscard]] auto is_narrowing_conversion(const Type* from,
                                              const Type* to) const -> bool;
+  [[nodiscard]] auto is_narrowing_list_element(ExpressionAST* expr,
+                                               const Type* targetType) const
+      -> bool;
   [[nodiscard]] auto integer_constant_fits_in_type(std::uint64_t value,
                                                    const Type* targetType) const
       -> bool;
@@ -130,6 +138,9 @@ class TypeTraits {
   [[nodiscard]] auto replace_placeholder_types(const Type* type,
                                                const Type* replacement) const
       -> const Type*;
+  [[nodiscard]] auto is_member_of_object_type(const Type* objectType,
+                                              Symbol* member) const -> bool;
+
   [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) const
       -> bool;
 
@@ -154,6 +165,8 @@ class TypeTraits {
   auto is_standard_layout(const Type* type) -> bool;
   auto is_literal_type(const Type* type) -> bool;
   auto is_aggregate(const Type* type) -> bool;
+  [[nodiscard]] auto aggregate_elements(ClassSymbol* classSymbol) const
+      -> std::vector<Symbol*>;
   auto is_empty(const Type* type) -> bool;
   auto is_polymorphic(const Type* type) -> bool;
   auto is_final(const Type* type) -> bool;
@@ -164,22 +177,35 @@ class TypeTraits {
       -> bool;
   auto is_nothrow_constructible(const Type* type,
                                 std::span<const Type* const> argTypes) -> bool;
-  auto is_trivially_constructible(const Type* type) -> bool;
+  auto is_trivially_constructible(const Type* type,
+                                  std::span<const Type* const> argTypes = {})
+      -> bool;
   auto selectAssignmentOperator(const Type* to, const Type* from)
       -> FunctionSymbol*;
   auto is_assignable(const Type* to, const Type* from) -> bool;
   auto is_nothrow_assignable(const Type* to, const Type* from) -> bool;
-  auto is_trivially_assignable(const Type* from, const Type* to) -> bool;
+  auto is_trivially_assignable(const Type* to, const Type* from) -> bool;
   auto is_trivially_copyable(const Type* type) -> bool;
   auto is_abstract(const Type* type) -> bool;
   auto is_destructible(const Type* type) -> bool;
   auto is_nothrow_destructible(const Type* type) -> bool;
+  auto has_trivial_destructor(const Type* type) -> bool;
   auto is_trivially_destructible(const Type* type) -> bool;
   auto has_virtual_destructor(const Type* type) -> bool;
 
  private:
   [[nodiscard]] auto can_initialize(const Type* to, const Type* from,
                                     bool directInitialization) const -> bool;
+  [[nodiscard]] auto is_accessible_from_unrelated_context(
+      FunctionSymbol* function) const -> bool;
+  [[nodiscard]] auto is_nothrow_function(FunctionSymbol* function) const
+      -> bool;
+  [[nodiscard]] auto is_nothrow_initialization(const Type* to, const Type* from,
+                                               bool directInitialization) const
+      -> bool;
+  [[nodiscard]] auto is_trivial_initialization(const Type* to, const Type* from,
+                                               bool directInitialization) const
+      -> bool;
   [[nodiscard]] auto apply_sign(const Type* type, bool isUnsigned) const
       -> const Type*;
   [[nodiscard]] auto corresponding_integer_type(const Type* type,

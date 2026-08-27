@@ -28,6 +28,7 @@
 #include <cxx/symbols.h>
 #include <utf8/unchecked.h>
 
+#include <chrono>
 #include <format>
 #include <iostream>
 #include <unordered_map>
@@ -58,13 +59,28 @@ auto Server::Text::offsetAt(std::size_t line, std::size_t column) const
   }
 
   const auto lineStart = lineStartOffsets.at(line);
-  const auto nextLineStart = line + 1 < lineStartOffsets.size()
-                                 ? lineStartOffsets.at(line + 1)
-                                 : value.size();
 
-  const auto columnOffset = std::min(column, nextLineStart - lineStart);
+  auto lineEnd = value.size();
+  if (line + 1 < lineStartOffsets.size()) {
+    lineEnd = lineStartOffsets.at(line + 1);
+  }
 
-  return lineStart + columnOffset;
+  auto it = value.begin() + std::ptrdiff_t(lineStart);
+  const auto end = value.begin() + std::ptrdiff_t(lineEnd);
+
+  std::size_t utf16Offset = 0;
+
+  while (it != end && utf16Offset < column) {
+    const auto codepoint = utf8::unchecked::next(it);
+
+    if (codepoint > 0xFFFF) {
+      utf16Offset += 2;
+    } else {
+      utf16Offset += 1;
+    }
+  }
+
+  return std::size_t(it - value.begin());
 }
 
 void Server::Text::computeLineStartOffsets() {
@@ -233,16 +249,22 @@ auto Server::pathFromUri(const std::string& uri) -> std::string {
 
 void Server::startWorkersIfNeeded() {
 #ifndef CXX_NO_THREADS
+  if (cli.opt_lsp_test) return;
+
   const auto threadCountOption = cli.getSingle("-j");
 
-  if (!threadCountOption.has_value()) {
-    return;
-  }
+  int workerCount = 0;
 
-  auto workerCount = std::stoi(threadCountOption.value());
+  if (threadCountOption.has_value()) {
+    workerCount = std::stoi(threadCountOption.value());
+  }
 
   if (workerCount <= 0) {
     workerCount = int(std::thread::hardware_concurrency());
+  }
+
+  if (workerCount <= 0) {
+    workerCount = 1;
   }
 
   for (int i = 0; i < workerCount; ++i) {
@@ -284,7 +306,8 @@ void Server::run(std::function<void()> task) {
   task();
 }
 
-void Server::cancelPendingParserRequests(const std::string& fileName) {
+void Server::cancelPendingParserRequests(const std::string& fileName,
+                                         long minVersion) {
 #ifndef CXX_NO_THREADS
   auto lock = std::unique_lock(documentsMutex_);
 #endif
@@ -293,7 +316,7 @@ void Server::cancelPendingParserRequests(const std::string& fileName) {
   std::swap(pendingParserRequests_, pendingParserRequests);
 
   for (const auto& doc : pendingParserRequests) {
-    if (doc->fileName() == fileName) {
+    if (doc->fileName() == fileName && doc->version() < minVersion) {
       doc->cancel();
     } else {
       pendingParserRequests_.push_back(doc);
@@ -301,31 +324,83 @@ void Server::cancelPendingParserRequests(const std::string& fileName) {
   }
 }
 
+void Server::registerPendingParserRequest(std::shared_ptr<CxxDocument> doc) {
+#ifndef CXX_NO_THREADS
+  auto lock = std::unique_lock(documentsMutex_);
+#endif
+
+  pendingParserRequests_.push_back(std::move(doc));
+}
+
+void Server::unregisterPendingParserRequest(
+    const std::shared_ptr<CxxDocument>& doc) {
+#ifndef CXX_NO_THREADS
+  auto lock = std::unique_lock(documentsMutex_);
+#endif
+
+  if (auto it = std::ranges::find(pendingParserRequests_, doc);
+      it != pendingParserRequests_.end()) {
+    pendingParserRequests_.erase(it);
+  }
+}
+
+void Server::scheduleParse(const std::string& uri) {
+#ifndef CXX_NO_THREADS
+  if (cli.opt_lsp_test) {
+    parse(uri);
+    return;
+  }
+
+  constexpr auto kDiagnosticsDebounce = std::chrono::milliseconds(250);
+
+  std::int64_t generation;
+  {
+    auto lock = std::unique_lock(documentsMutex_);
+    generation = ++pendingParseGeneration_[uri];
+  }
+
+  std::thread([this, uri, generation, kDiagnosticsDebounce] {
+    std::this_thread::sleep_for(kDiagnosticsDebounce);
+
+    {
+      auto lock = std::unique_lock(documentsMutex_);
+      if (pendingParseGeneration_[uri] != generation) return;
+    }
+
+    parse(uri);
+  }).detach();
+#else
+  parse(uri);
+#endif
+}
+
+auto Server::snapshotDocument(const std::string& uri) -> Text {
+#ifndef CXX_NO_THREADS
+  auto lock = std::unique_lock(documentContentsMutex_);
+#endif
+  return documentContents_.at(uri);
+}
+
 void Server::parse(const std::string& uri) {
-  const auto& doc = documentContents_.at(uri);
+  auto snapshot = snapshotDocument(uri);
+  auto version = snapshot.version;
 
-  auto text = doc.value;
-  auto version = doc.version;
-
-  run([text = std::move(text), uri = std::move(uri), version, this] {
+  run([text = std::move(snapshot.value), uri = uri, version, this] {
     auto fileName = pathFromUri(uri);
 
-    cancelPendingParserRequests(fileName);
+    cancelPendingParserRequests(fileName, version);
 
     auto doc = std::make_shared<CxxDocument>(cli, std::move(fileName), version);
-    pendingParserRequests_.push_back(doc);
+    registerPendingParserRequest(doc);
 
     doc->parse(std::move(text));
+
+    unregisterPendingParserRequest(doc);
 
     {
 #ifndef CXX_NO_THREADS
       auto locker = std::unique_lock(outputMutex_);
 #endif
-
-      if (auto it = std::ranges::find(pendingParserRequests_, doc);
-          it != pendingParserRequests_.end()) {
-        pendingParserRequests_.erase(it);
-      }
 
       if (documents_.contains(uri) && documents_.at(uri)->version() > version) {
         return;
@@ -367,6 +442,11 @@ void Server::operator()(InitializeRequest request) {
 
     completionOptions.triggerCharacters({":", ".", ">"});
 
+    auto signatureHelpOptions =
+        capabilities.signatureHelpProvider<SignatureHelpOptions>();
+
+    signatureHelpOptions.triggerCharacters({"(", ",", "<", "{"});
+
     sendToClient(response);
   });
 }
@@ -398,10 +478,16 @@ void Server::operator()(DidOpenTextDocumentNotification notification) {
 
   auto text = textDocument.text();
 
-  auto& content = documentContents_[textDocument.uri()];
-  content.value = std::move(text);
-  content.version = textDocument.version();
-  content.computeLineStartOffsets();
+  {
+#ifndef CXX_NO_THREADS
+    auto lock = std::unique_lock(documentContentsMutex_);
+#endif
+
+    auto& content = documentContents_[textDocument.uri()];
+    content.value = std::move(text);
+    content.version = textDocument.version();
+    content.computeLineStartOffsets();
+  }
 
   parse(textDocument.uri());
 }
@@ -420,35 +506,42 @@ void Server::operator()(DidChangeTextDocumentNotification notification) {
   const auto uri = textDocument.uri();
   const auto version = textDocument.version();
 
-  auto& text = documentContents_[uri];
-  text.version = version;
+  {
+#ifndef CXX_NO_THREADS
+    auto lock = std::unique_lock(documentContentsMutex_);
+#endif
 
-  struct {
-    Text& text;
+    auto& text = documentContents_[uri];
+    text.version = version;
 
-    void operator()(const TextDocumentContentChangeWholeDocument& change) {
-      text.value = change.text();
+    struct {
+      Text& text;
+
+      void operator()(const TextDocumentContentChangeWholeDocument& change) {
+        text.value = change.text();
+        text.computeLineStartOffsets();
+      }
+
+      void operator()(const TextDocumentContentChangePartial& change) {
+        auto range = change.range();
+        auto start = range.start();
+        auto end = range.end();
+        auto startOffset = text.offsetAt(start.line(), start.character());
+        auto endOffset = text.offsetAt(end.line(), end.character());
+        text.value.replace(startOffset, endOffset - startOffset, change.text());
+        text.computeLineStartOffsets();
+      }
+    } visit{text};
+
+    auto contentChanges = notification.params().contentChanges();
+    const auto contentChangeCount = int(contentChanges.size());
+
+    for (int i = 0; i < contentChangeCount; ++i) {
+      std::visit(visit, contentChanges.at(i));
     }
-
-    void operator()(const TextDocumentContentChangePartial& change) {
-      auto range = change.range();
-      auto start = range.start();
-      auto end = range.end();
-      auto startOffset = text.offsetAt(start.line(), start.character());
-      auto endOffset = text.offsetAt(end.line(), end.character());
-      text.value.replace(startOffset, endOffset - startOffset, change.text());
-      text.computeLineStartOffsets();
-    }
-  } visit{text};
-
-  auto contentChanges = notification.params().contentChanges();
-  const auto contentChangeCount = int(contentChanges.size());
-
-  for (int i = 0; i < contentChangeCount; ++i) {
-    std::visit(visit, contentChanges.at(i));
   }
 
-  parse(textDocument.uri());
+  scheduleParse(uri);
 }
 
 auto Server::latestDocument(const std::string& uri)
@@ -490,24 +583,59 @@ void Server::operator()(CompletionRequest request) {
   auto line = request.params().position().line();
   auto column = request.params().position().character();
 
-  const auto& text = documentContents_.at(uri);
-  auto source = text.value;
+  auto snapshot = snapshotDocument(uri);
+  auto version = snapshot.version;
 
-  run([=, this, fileName = pathFromUri(uri)] {
+  run([=, this, fileName = pathFromUri(uri),
+       source = std::move(snapshot.value)] {
     withUnsafeJson([&](json storage) {
       CompletionResponse response(storage);
-      response.id(request.id());
+      response.id(id);
 
-      // the version is not relevant for code completion requests as we don't
-      // need to store the document in the cache.
-      auto cxxDocument = std::make_shared<CxxDocument>(cli, std::move(fileName),
-                                                       /*version=*/0);
+      auto cxxDocument =
+          std::make_shared<CxxDocument>(cli, std::move(fileName), version);
+      registerPendingParserRequest(cxxDocument);
 
       auto completionItems = response.result<Vector<CompletionItem>>();
 
-      // cxx expects 1-based line and column numbers
       cxxDocument->codeCompletionAt(std::move(source), std::uint32_t(line + 1),
                                     std::uint32_t(column + 1), completionItems);
+
+      unregisterPendingParserRequest(cxxDocument);
+
+      sendToClient(response);
+    });
+  });
+}
+
+void Server::operator()(SignatureHelpRequest request) {
+  logTrace(std::format("Did receive SignatureHelpRequest"));
+
+  auto textDocument = request.params().textDocument();
+  auto uri = textDocument.uri();
+  auto id = request.id();
+  auto line = request.params().position().line();
+  auto column = request.params().position().character();
+
+  auto snapshot = snapshotDocument(uri);
+  auto version = snapshot.version;
+
+  run([=, this, fileName = pathFromUri(uri),
+       source = std::move(snapshot.value)] {
+    withUnsafeJson([&](json storage) {
+      SignatureHelpResponse response(storage);
+      response.id(id);
+
+      auto cxxDocument =
+          std::make_shared<CxxDocument>(cli, std::move(fileName), version);
+      registerPendingParserRequest(cxxDocument);
+
+      auto signatureHelp = response.result<SignatureHelp>();
+
+      cxxDocument->signatureHelpAt(std::move(source), std::uint32_t(line + 1),
+                                   std::uint32_t(column + 1), signatureHelp);
+
+      unregisterPendingParserRequest(cxxDocument);
 
       sendToClient(response);
     });

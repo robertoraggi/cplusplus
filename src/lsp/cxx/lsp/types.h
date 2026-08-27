@@ -401,44 +401,6 @@ class ColorPresentation final : public LSPObject {
       -> ColorPresentation&;
 };
 
-class WorkDoneProgressOptions final : public LSPObject {
- public:
-  using LSPObject::LSPObject;
-
-  explicit operator bool() const;
-
-  [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
-
-  template <typename T>
-  [[nodiscard]] auto workDoneProgress() -> T {
-    auto& value = (*repr_)["workDoneProgress"];
-    return T(value);
-  }
-
-  auto workDoneProgress(std::optional<bool> workDoneProgress)
-      -> WorkDoneProgressOptions&;
-};
-
-class TextDocumentRegistrationOptions final : public LSPObject {
- public:
-  using LSPObject::LSPObject;
-
-  explicit operator bool() const;
-
-  [[nodiscard]] auto documentSelector() const
-      -> std::variant<DocumentSelector, std::nullptr_t>;
-
-  template <typename T>
-  [[nodiscard]] auto documentSelector() -> T {
-    auto& value = (*repr_)["documentSelector"];
-    return T(value);
-  }
-
-  auto documentSelector(
-      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
-      -> TextDocumentRegistrationOptions&;
-};
-
 class FoldingRangeParams final : public LSPObject {
  public:
   using LSPObject::LSPObject;
@@ -2046,22 +2008,6 @@ class DocumentDiagnosticParams final : public LSPObject {
       -> DocumentDiagnosticParams&;
 };
 
-class DocumentDiagnosticReportPartialResult final : public LSPObject {
- public:
-  using LSPObject::LSPObject;
-
-  explicit operator bool() const;
-
-  [[nodiscard]] auto relatedDocuments() const
-      -> Map<std::string, std::variant<FullDocumentDiagnosticReport,
-                                       UnchangedDocumentDiagnosticReport>>;
-
-  auto relatedDocuments(
-      Map<std::string, std::variant<FullDocumentDiagnosticReport,
-                                    UnchangedDocumentDiagnosticReport>>
-          relatedDocuments) -> DocumentDiagnosticReportPartialResult&;
-};
-
 class DiagnosticServerCancellationData final : public LSPObject {
  public:
   using LSPObject::LSPObject;
@@ -2788,6 +2734,26 @@ class DidOpenTextDocumentParams final : public LSPObject {
 
   auto textDocument(TextDocumentItem textDocument)
       -> DidOpenTextDocumentParams&;
+};
+
+class TextDocumentRegistrationOptions final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto documentSelector() const
+      -> std::variant<DocumentSelector, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto documentSelector() -> T {
+    auto& value = (*repr_)["documentSelector"];
+    return T(value);
+  }
+
+  auto documentSelector(
+      std::variant<DocumentSelector, std::nullptr_t> documentSelector)
+      -> TextDocumentRegistrationOptions&;
 };
 
 class DidChangeTextDocumentParams final : public LSPObject {
@@ -6162,45 +6128,20 @@ class RelatedUnchangedDocumentDiagnosticReport final : public LSPObject {
       -> RelatedUnchangedDocumentDiagnosticReport&;
 };
 
-class FullDocumentDiagnosticReport final : public LSPObject {
+class DocumentDiagnosticReportPartialResult final : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto kind() const -> std::string;
+  [[nodiscard]] auto relatedDocuments() const
+      -> Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                       UnchangedDocumentDiagnosticReport>>;
 
-  [[nodiscard]] auto resultId() const -> std::optional<std::string>;
-
-  template <typename T>
-  [[nodiscard]] auto resultId() -> T {
-    auto& value = (*repr_)["resultId"];
-    return T(value);
-  }
-
-  [[nodiscard]] auto items() const -> Vector<Diagnostic>;
-
-  auto kind(std::string kind) -> FullDocumentDiagnosticReport&;
-
-  auto resultId(std::optional<std::string> resultId)
-      -> FullDocumentDiagnosticReport&;
-
-  auto items(Vector<Diagnostic> items) -> FullDocumentDiagnosticReport&;
-};
-
-class UnchangedDocumentDiagnosticReport final : public LSPObject {
- public:
-  using LSPObject::LSPObject;
-
-  explicit operator bool() const;
-
-  [[nodiscard]] auto kind() const -> std::string;
-
-  [[nodiscard]] auto resultId() const -> std::string;
-
-  auto kind(std::string kind) -> UnchangedDocumentDiagnosticReport&;
-
-  auto resultId(std::string resultId) -> UnchangedDocumentDiagnosticReport&;
+  auto relatedDocuments(
+      Map<std::string, std::variant<FullDocumentDiagnosticReport,
+                                    UnchangedDocumentDiagnosticReport>>
+          relatedDocuments) -> DocumentDiagnosticReportPartialResult&;
 };
 
 class DiagnosticOptions final : public LSPObject {
@@ -7245,7 +7186,14 @@ class Diagnostic final : public LSPObject {
     return T(value);
   }
 
-  [[nodiscard]] auto message() const -> std::string;
+  [[nodiscard]] auto message() const
+      -> std::variant<std::string, MarkupContent>;
+
+  template <typename T>
+  [[nodiscard]] auto message() -> T {
+    auto& value = (*repr_)["message"];
+    return T(value);
+  }
 
   [[nodiscard]] auto tags() const -> std::optional<Vector<DiagnosticTag>>;
 
@@ -7283,7 +7231,7 @@ class Diagnostic final : public LSPObject {
 
   auto source(std::optional<std::string> source) -> Diagnostic&;
 
-  auto message(std::string message) -> Diagnostic&;
+  auto message(std::variant<std::string, MarkupContent> message) -> Diagnostic&;
 
   auto tags(std::optional<Vector<DiagnosticTag>> tags) -> Diagnostic&;
 
@@ -8255,6 +8203,24 @@ class WorkspaceEditMetadata final : public LSPObject {
       -> WorkspaceEditMetadata&;
 };
 
+class WorkDoneProgressOptions final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto workDoneProgress() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto workDoneProgress() -> T {
+    auto& value = (*repr_)["workDoneProgress"];
+    return T(value);
+  }
+
+  auto workDoneProgress(std::optional<bool> workDoneProgress)
+      -> WorkDoneProgressOptions&;
+};
+
 class SemanticTokensLegend final : public LSPObject {
  public:
   using LSPObject::LSPObject;
@@ -8508,6 +8474,47 @@ class FileOperationPattern final : public LSPObject {
 
   auto options(std::optional<FileOperationPatternOptions> options)
       -> FileOperationPattern&;
+};
+
+class FullDocumentDiagnosticReport final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto kind() const -> std::string;
+
+  [[nodiscard]] auto resultId() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto resultId() -> T {
+    auto& value = (*repr_)["resultId"];
+    return T(value);
+  }
+
+  [[nodiscard]] auto items() const -> Vector<Diagnostic>;
+
+  auto kind(std::string kind) -> FullDocumentDiagnosticReport&;
+
+  auto resultId(std::optional<std::string> resultId)
+      -> FullDocumentDiagnosticReport&;
+
+  auto items(Vector<Diagnostic> items) -> FullDocumentDiagnosticReport&;
+};
+
+class UnchangedDocumentDiagnosticReport final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto kind() const -> std::string;
+
+  [[nodiscard]] auto resultId() const -> std::string;
+
+  auto kind(std::string kind) -> UnchangedDocumentDiagnosticReport&;
+
+  auto resultId(std::string resultId) -> UnchangedDocumentDiagnosticReport&;
 };
 
 class WorkspaceFullDocumentDiagnosticReport final : public LSPObject {
@@ -9096,36 +9103,6 @@ class CodeActionKindDocumentation final : public LSPObject {
   auto kind(CodeActionKind kind) -> CodeActionKindDocumentation&;
 
   auto command(Command command) -> CodeActionKindDocumentation&;
-};
-
-class NotebookCellTextDocumentFilter final : public LSPObject {
- public:
-  using LSPObject::LSPObject;
-
-  explicit operator bool() const;
-
-  [[nodiscard]] auto notebook() const
-      -> std::variant<std::string, NotebookDocumentFilter>;
-
-  template <typename T>
-  [[nodiscard]] auto notebook() -> T {
-    auto& value = (*repr_)["notebook"];
-    return T(value);
-  }
-
-  [[nodiscard]] auto language() const -> std::optional<std::string>;
-
-  template <typename T>
-  [[nodiscard]] auto language() -> T {
-    auto& value = (*repr_)["language"];
-    return T(value);
-  }
-
-  auto notebook(std::variant<std::string, NotebookDocumentFilter> notebook)
-      -> NotebookCellTextDocumentFilter&;
-
-  auto language(std::optional<std::string> language)
-      -> NotebookCellTextDocumentFilter&;
 };
 
 class FileOperationPatternOptions final : public LSPObject {
@@ -10065,6 +10042,36 @@ class FileOperationOptions final : public LSPObject {
       -> FileOperationOptions&;
 };
 
+class NotebookCellTextDocumentFilter final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto notebook() const
+      -> std::variant<std::string, NotebookDocumentFilter>;
+
+  template <typename T>
+  [[nodiscard]] auto notebook() -> T {
+    auto& value = (*repr_)["notebook"];
+    return T(value);
+  }
+
+  [[nodiscard]] auto language() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto language() -> T {
+    auto& value = (*repr_)["language"];
+    return T(value);
+  }
+
+  auto notebook(std::variant<std::string, NotebookDocumentFilter> notebook)
+      -> NotebookCellTextDocumentFilter&;
+
+  auto language(std::optional<std::string> language)
+      -> NotebookCellTextDocumentFilter&;
+};
+
 class RelativePattern final : public LSPObject {
  public:
   using LSPObject::LSPObject;
@@ -10086,102 +10093,6 @@ class RelativePattern final : public LSPObject {
       -> RelativePattern&;
 
   auto pattern(Pattern pattern) -> RelativePattern&;
-};
-
-class TextDocumentFilterLanguage final : public LSPObject {
- public:
-  using LSPObject::LSPObject;
-
-  explicit operator bool() const;
-
-  [[nodiscard]] auto language() const -> std::string;
-
-  [[nodiscard]] auto scheme() const -> std::optional<std::string>;
-
-  template <typename T>
-  [[nodiscard]] auto scheme() -> T {
-    auto& value = (*repr_)["scheme"];
-    return T(value);
-  }
-
-  [[nodiscard]] auto pattern() const -> std::optional<GlobPattern>;
-
-  template <typename T>
-  [[nodiscard]] auto pattern() -> T {
-    auto& value = (*repr_)["pattern"];
-    return T(value);
-  }
-
-  auto language(std::string language) -> TextDocumentFilterLanguage&;
-
-  auto scheme(std::optional<std::string> scheme) -> TextDocumentFilterLanguage&;
-
-  auto pattern(std::optional<GlobPattern> pattern)
-      -> TextDocumentFilterLanguage&;
-};
-
-class TextDocumentFilterScheme final : public LSPObject {
- public:
-  using LSPObject::LSPObject;
-
-  explicit operator bool() const;
-
-  [[nodiscard]] auto language() const -> std::optional<std::string>;
-
-  template <typename T>
-  [[nodiscard]] auto language() -> T {
-    auto& value = (*repr_)["language"];
-    return T(value);
-  }
-
-  [[nodiscard]] auto scheme() const -> std::string;
-
-  [[nodiscard]] auto pattern() const -> std::optional<GlobPattern>;
-
-  template <typename T>
-  [[nodiscard]] auto pattern() -> T {
-    auto& value = (*repr_)["pattern"];
-    return T(value);
-  }
-
-  auto language(std::optional<std::string> language)
-      -> TextDocumentFilterScheme&;
-
-  auto scheme(std::string scheme) -> TextDocumentFilterScheme&;
-
-  auto pattern(std::optional<GlobPattern> pattern) -> TextDocumentFilterScheme&;
-};
-
-class TextDocumentFilterPattern final : public LSPObject {
- public:
-  using LSPObject::LSPObject;
-
-  explicit operator bool() const;
-
-  [[nodiscard]] auto language() const -> std::optional<std::string>;
-
-  template <typename T>
-  [[nodiscard]] auto language() -> T {
-    auto& value = (*repr_)["language"];
-    return T(value);
-  }
-
-  [[nodiscard]] auto scheme() const -> std::optional<std::string>;
-
-  template <typename T>
-  [[nodiscard]] auto scheme() -> T {
-    auto& value = (*repr_)["scheme"];
-    return T(value);
-  }
-
-  [[nodiscard]] auto pattern() const -> GlobPattern;
-
-  auto language(std::optional<std::string> language)
-      -> TextDocumentFilterPattern&;
-
-  auto scheme(std::optional<std::string> scheme) -> TextDocumentFilterPattern&;
-
-  auto pattern(GlobPattern pattern) -> TextDocumentFilterPattern&;
 };
 
 class NotebookDocumentFilterNotebookType final : public LSPObject {
@@ -11854,6 +11765,14 @@ class DiagnosticClientCapabilities final : public LSPObject {
     return T(value);
   }
 
+  [[nodiscard]] auto markupMessageSupport() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto markupMessageSupport() -> T {
+    auto& value = (*repr_)["markupMessageSupport"];
+    return T(value);
+  }
+
   [[nodiscard]] auto relatedInformation() const -> std::optional<bool>;
 
   template <typename T>
@@ -11891,6 +11810,9 @@ class DiagnosticClientCapabilities final : public LSPObject {
       -> DiagnosticClientCapabilities&;
 
   auto relatedDocumentSupport(std::optional<bool> relatedDocumentSupport)
+      -> DiagnosticClientCapabilities&;
+
+  auto markupMessageSupport(std::optional<bool> markupMessageSupport)
       -> DiagnosticClientCapabilities&;
 
   auto relatedInformation(std::optional<bool> relatedInformation)
@@ -12068,6 +11990,102 @@ class MarkdownClientCapabilities final : public LSPObject {
     value = std::move(allowedTags);
     return *this;
   }
+};
+
+class TextDocumentFilterLanguage final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto language() const -> std::string;
+
+  [[nodiscard]] auto scheme() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto scheme() -> T {
+    auto& value = (*repr_)["scheme"];
+    return T(value);
+  }
+
+  [[nodiscard]] auto pattern() const -> std::optional<GlobPattern>;
+
+  template <typename T>
+  [[nodiscard]] auto pattern() -> T {
+    auto& value = (*repr_)["pattern"];
+    return T(value);
+  }
+
+  auto language(std::string language) -> TextDocumentFilterLanguage&;
+
+  auto scheme(std::optional<std::string> scheme) -> TextDocumentFilterLanguage&;
+
+  auto pattern(std::optional<GlobPattern> pattern)
+      -> TextDocumentFilterLanguage&;
+};
+
+class TextDocumentFilterScheme final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto language() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto language() -> T {
+    auto& value = (*repr_)["language"];
+    return T(value);
+  }
+
+  [[nodiscard]] auto scheme() const -> std::string;
+
+  [[nodiscard]] auto pattern() const -> std::optional<GlobPattern>;
+
+  template <typename T>
+  [[nodiscard]] auto pattern() -> T {
+    auto& value = (*repr_)["pattern"];
+    return T(value);
+  }
+
+  auto language(std::optional<std::string> language)
+      -> TextDocumentFilterScheme&;
+
+  auto scheme(std::string scheme) -> TextDocumentFilterScheme&;
+
+  auto pattern(std::optional<GlobPattern> pattern) -> TextDocumentFilterScheme&;
+};
+
+class TextDocumentFilterPattern final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto language() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto language() -> T {
+    auto& value = (*repr_)["language"];
+    return T(value);
+  }
+
+  [[nodiscard]] auto scheme() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto scheme() -> T {
+    auto& value = (*repr_)["scheme"];
+    return T(value);
+  }
+
+  [[nodiscard]] auto pattern() const -> GlobPattern;
+
+  auto language(std::optional<std::string> language)
+      -> TextDocumentFilterPattern&;
+
+  auto scheme(std::optional<std::string> scheme) -> TextDocumentFilterPattern&;
+
+  auto pattern(GlobPattern pattern) -> TextDocumentFilterPattern&;
 };
 
 class ChangeAnnotationsSupportOptions final : public LSPObject {

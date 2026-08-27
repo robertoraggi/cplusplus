@@ -261,7 +261,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
 
   if (traits.is_class(var->type())) {
     auto registerCleanup = [&] {
-      if (traits.is_trivially_destructible(var->type())) return;
+      if (traits.has_trivial_destructor(var->type())) return;
       auto classType = type_cast<ClassType>(traits.remove_cv(var->type()));
       if (!classType || !classType->symbol()) return;
       auto dtor = classType->symbol()->destructor();
@@ -269,18 +269,8 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
       addCleanup(local.value(), completeObjectDtor(dtor));
     };
 
-    auto singleInitExpr = [&]() -> ExpressionAST* {
-      if (!initializer) return nullptr;
-      if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
-        if (ast_cast<BracedInitListAST>(equal->expression)) return nullptr;
-        return equal->expression;
-      }
-      if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
-        if (paren->expressionList && !paren->expressionList->next)
-          return paren->expressionList->value;
-      }
-      return nullptr;
-    }();
+    auto singleInitExpr = initializerExpression(initializer);
+    if (ast_cast<BracedInitListAST>(singleInitExpr)) singleInitExpr = nullptr;
 
     if (singleInitExpr &&
         singleInitExpr->valueCategory == ValueCategory::kPrValue &&
@@ -295,36 +285,9 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
     }
 
     if (auto ctor = var->constructor()) {
-      std::vector<ExpressionResult> args;
-
-      auto pushBracedArgs = [&](BracedInitListAST* braced) {
-        if (braced->type) {
-          args.push_back(expression(braced));
-          return;
-        }
-        for (auto it = braced->expressionList; it; it = it->next) {
-          args.push_back(expression(it->value));
-        }
-      };
-
-      if (initializer) {
-        if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
-          for (auto it = paren->expressionList; it; it = it->next) {
-            args.push_back(expression(it->value));
-          }
-        } else if (auto braced = ast_cast<BracedInitListAST>(initializer)) {
-          pushBracedArgs(braced);
-        } else if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
-          if (auto braced = ast_cast<BracedInitListAST>(equal->expression)) {
-            pushBracedArgs(braced);
-          } else {
-            args.push_back(expression(equal->expression));
-          }
-        }
-      }
       (void)emitCtorCall(
           initializer ? initializer->firstSourceLocation() : var->location(),
-          ctor, local.value(), args, /*completeObject=*/true);
+          ctor, local.value(), constructorArguments(initializer), true);
       registerCleanup();
       return;
     }
@@ -347,15 +310,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
   }
 
   if (initializer) {
-    ExpressionAST* initExpr = nullptr;
-    if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
-      initExpr = equal->expression;
-    } else if (auto paren = ast_cast<ParenInitializerAST>(initializer)) {
-      if (paren->expressionList && !paren->expressionList->next)
-        initExpr = paren->expressionList->value;
-    } else {
-      initExpr = initializer;
-    }
+    auto initExpr = initializerExpression(initializer);
 
     if (traits.is_reference(var->type())) {
       emitReferenceInit(var, local.value(), initExpr, loc);
@@ -528,7 +483,16 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   auto ctx = gen.context_;
 
-  const auto functionType = type_cast<FunctionType>(functionSymbol->type());
+  const auto functionType =
+      functionSymbol ? type_cast<FunctionType>(functionSymbol->type())
+                     : nullptr;
+
+  if (!functionType) {
+    gen.unit_->error(ast->firstSourceLocation(),
+                     "unable to generate code for this function definition");
+    return {};
+  }
+
   const auto returnType = functionType->returnType();
 
   auto func = gen.findOrCreateFunction(functionSymbol);
@@ -561,8 +525,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   gen.builder_.setInsertionPointToEnd(entryBlock);
 
   if (needsExitValue) {
-    auto exitValueLoc =
-        gen.getLocation(ast->functionBody->firstSourceLocation());
+    auto exitValueLoc = gen.getLocation(
+        ast->functionBody ? ast->functionBody->firstSourceLocation()
+                          : ast->firstSourceLocation());
     auto exitValueType = gen.convertType(returnType);
     auto ptrType = mlir::cxx::PointerType::get(gen.context_, exitValueType);
     exitValue = mlir::cxx::AllocaOp::create(gen.builder_, exitValueLoc, ptrType,
@@ -592,6 +557,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.staticLocalCounts_, staticLocalCounts);
   std::swap(gen.cleanupStack_, cleanupStack);
 
+  mlir::Value structorVTTValue;
+  std::swap(gen.structorVTTValue_, structorVTTValue);
+
   FunctionSymbol* prevFunctionSymbol = nullptr;
   std::swap(gen.currentFunctionSymbol_, prevFunctionSymbol);
   gen.currentFunctionSymbol_ = functionSymbol;
@@ -617,6 +585,20 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
         gen.builder_, loc, gen.entryBlock_->getArgument(sretReturn ? 1 : 0),
         thisValue,
         gen.getAlignment(gen.traits.add_pointer(classSymbol->type())));
+  }
+
+  if ((functionSymbol->isConstructor() || functionSymbol->isDestructor()) &&
+      gen.requiresVTT(symbol_cast<ClassSymbol>(functionSymbol->parent()))) {
+    std::size_t ordinaryArguments = 1;
+    if (auto functionType = type_cast<FunctionType>(functionSymbol->type())) {
+      for (auto parameterType : functionType->parameterTypes()) {
+        if (gen.classifyClassValueAbi(parameterType).kind !=
+            ClassValueAbi::Kind::Empty)
+          ++ordinaryArguments;
+      }
+    }
+    if (gen.entryBlock_->getNumArguments() > ordinaryArguments)
+      gen.structorVTTValue_ = gen.entryBlock_->getArguments().back();
   }
 
   FunctionParametersSymbol* params = nullptr;
@@ -715,6 +697,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   std::swap(gen.thisValue_, thisValue);
+  std::swap(gen.structorVTTValue_, structorVTTValue);
 
   allocateLocals(functionSymbol);
 
@@ -966,6 +949,15 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
   auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
   if (!classSymbol) return {};
 
+  auto sourceLoc = ast->firstSourceLocation();
+  if (!sourceLoc) sourceLoc = functionSymbol->location();
+  auto loc = gen.getLocation(sourceLoc);
+
+  if (functionSymbol->isDestructor()) {
+    gen.emitCtorVtableInit(functionSymbol, loc);
+    return {};
+  }
+
   const bool isCopyAssign =
       functionSymbol == classSymbol->copyAssignmentOperator();
   const bool isMoveAssign =
@@ -973,10 +965,6 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
 
   if (!functionSymbol->isConstructor() && !isCopyAssign && !isMoveAssign)
     return {};
-
-  auto sourceLoc = ast->firstSourceLocation();
-  if (!sourceLoc) sourceLoc = functionSymbol->location();
-  auto loc = gen.getLocation(sourceLoc);
 
   auto thisPtr = gen.loadThisPointer(loc, classSymbol);
 

@@ -26,7 +26,9 @@
 #include <cxx/dependent_types.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
+#include <cxx/template_argument_deduction.h>
 #include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
@@ -47,14 +49,9 @@ auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
   auto rhsFn = type_cast<FunctionType>(rhs);
   if (!lhsFn || !rhsFn) return false;
 
-  if (!unit->typeTraits().is_same(lhsFn->returnType(), rhsFn->returnType())) {
-    auto lhsCore = unit->typeTraits().remove_cvref(lhsFn->returnType());
-    auto rhsCore = unit->typeTraits().remove_cvref(rhsFn->returnType());
-    auto lhsUnresolved = type_cast<UnresolvedNameType>(lhsCore);
-    auto rhsUnresolved = type_cast<UnresolvedNameType>(rhsCore);
-    if (!lhsUnresolved || !rhsUnresolved) return false;
-    if (to_string(lhsUnresolved) != to_string(rhsUnresolved)) return false;
-  }
+  if (!areRedeclarationTypesCompatible(unit, lhsFn->returnType(),
+                                       rhsFn->returnType()))
+    return false;
   if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
   if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
   if (lhsFn->isVariadic() != rhsFn->isVariadic()) return false;
@@ -71,6 +68,16 @@ auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
 
   return true;
 }
+
+[[nodiscard]] auto declaresExplicitObjectParameter(
+    FunctionDeclaratorChunkAST* prototype) -> bool {
+  if (!prototype || !prototype->parameterDeclarationClause) return false;
+  auto parameters =
+      prototype->parameterDeclarationClause->parameterDeclarationList;
+  if (!parameters) return false;
+  auto parameter = ast_cast<ParameterDeclarationAST>(parameters->value);
+  return parameter && parameter->isThisIntroduced;
+}
 }  // namespace
 
 struct [[nodiscard]] Binder::DeclareFunction {
@@ -80,6 +87,19 @@ struct [[nodiscard]] Binder::DeclareFunction {
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
   FunctionSymbol* functionSymbol = nullptr;
   FunctionSymbol* shadowedFunction = nullptr;
+  bool addSymbolToParentScope = true;
+
+  DeclareFunction(Binder& binder, DeclaratorAST* declarator, const Decl& decl,
+                  bool addSymbolToParentScope)
+      : binder(binder),
+        declarator(declarator),
+        decl(decl),
+        addSymbolToParentScope(addSymbolToParentScope) {}
+
+  struct NamedTemplateSpecialization {
+    FunctionSymbol* primary = nullptr;
+    std::vector<TemplateArgument> arguments;
+  };
 
   auto control() const -> Control* { return binder.control(); }
   auto scope() const -> ScopeSymbol* { return binder.scope(); }
@@ -93,6 +113,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
   }
 
   auto declaringScopeForFunction() const -> ScopeSymbol*;
+  auto namedTemplateSpecialization() const
+      -> std::optional<NamedTemplateSpecialization>;
   void mergeAsCRedeclaration(FunctionSymbol* otherFunction);
   auto mergeWithMatchingOverload(OverloadSetSymbol* overloadSet) -> bool;
   void checkCRedeclaration(ScopeSymbol* declaringScope);
@@ -116,12 +138,16 @@ struct [[nodiscard]] Binder::DeclareFunction {
   void checkExternalLinkageSpec();
 
   void checkVirtualSpecifier();
+  void checkExplicitObjectParameter();
+  void checkDestructorParameters();
+  [[nodiscard]] auto declaresClassMember() const -> bool;
   void mergeRedeclaration();
 };
 
-auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl)
-    -> FunctionSymbol* {
-  return DeclareFunction{*this, declarator, decl}.declare();
+auto Binder::declareFunction(DeclaratorAST* declarator, const Decl& decl,
+                             bool addSymbolToParentScope) -> FunctionSymbol* {
+  return DeclareFunction{*this, declarator, decl, addSymbolToParentScope}
+      .declare();
 }
 
 auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
@@ -145,6 +171,9 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
 
   functionSymbol->setTrailingRequiresClause(decl.trailingRequiresClause);
 
+  functionSymbol->setExplicitObjectParameter(
+      declaresExplicitObjectParameter(functionDeclarator));
+
   if (functionDeclarator && functionDeclarator->exceptionSpecifier)
     functionSymbol->setExceptionSpecifier(true);
 
@@ -158,13 +187,21 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   checkDeclSpecifiers();
   checkExternalLinkageSpec();
   checkVirtualSpecifier();
+  checkExplicitObjectParameter();
+  checkDestructorParameters();
 
   if (functionSymbol->isConstructor()) {
     checkConstructor();
     return functionSymbol;
   }
 
-  checkRedeclaration();
+  if (addSymbolToParentScope) checkRedeclaration();
+
+  auto namedSpecialization = namedTemplateSpecialization();
+  if (namedSpecialization) {
+    namedSpecialization->primary->addSpecialization(
+        binder.unit_, namedSpecialization->arguments, functionSymbol);
+  }
 
   if (targetScope != originalScope) {
     if (functionSymbol->canonical() == functionSymbol)
@@ -173,7 +210,50 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
                        functionSymbol->location());
   }
 
+  if (decl.specs.isFriend) {
+    ClassSymbol* befriendingClass = nullptr;
+    for (auto symbol = static_cast<Symbol*>(originalScope); symbol;
+         symbol = symbol->parent()) {
+      befriendingClass = symbol_cast<ClassSymbol>(symbol);
+      if (befriendingClass) break;
+    }
+
+    if (namedSpecialization) {
+      namedSpecialization->primary->canonical()->addBefriendingClass(
+          befriendingClass, std::move(namedSpecialization->arguments));
+    } else {
+      functionSymbol->canonical()->addBefriendingClass(befriendingClass);
+    }
+  }
+
   return functionSymbol;
+}
+
+auto Binder::DeclareFunction::namedTemplateSpecialization() const
+    -> std::optional<NamedTemplateSpecialization> {
+  auto declaratorId = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
+  if (!declaratorId) return std::nullopt;
+  auto templateId = ast_cast<SimpleTemplateIdAST>(declaratorId->unqualifiedId);
+  if (!templateId || hasDependentTemplateArguments(binder.unit_, templateId))
+    return std::nullopt;
+
+  auto functionType = type_cast<FunctionType>(functionSymbol->type());
+  if (!functionType || isDependent(binder.unit_, functionType))
+    return std::nullopt;
+
+  auto primary = symbol_cast<FunctionSymbol>(templateId->symbol);
+  if (!primary || !primary->templateDeclaration()) return std::nullopt;
+
+  TemplateArgumentDeduction deduction{binder.unit_};
+  auto deducedArgs = deduction.deduceFromTargetType(
+      primary, functionType, templateId->templateArgumentList);
+  if (!deducedArgs.has_value()) return std::nullopt;
+
+  auto substitution = Substitution::make(
+      binder.unit_, primary->templateDeclaration(), *deducedArgs);
+  if (!substitution) return std::nullopt;
+  return NamedTemplateSpecialization{
+      primary, std::move(*substitution).templateArguments()};
 }
 
 auto Binder::DeclareFunction::declaringScopeForFunction() const
@@ -391,6 +471,73 @@ void Binder::DeclareFunction::checkDeclSpecifiers() {
   binder.applySpecifiers(functionSymbol, decl.specs);
 }
 
+void Binder::DeclareFunction::checkDestructorParameters() {
+  if (!functionSymbol->isDestructor()) return;
+  if (!functionDeclarator) return;
+
+  auto parameterDeclarationClause =
+      functionDeclarator->parameterDeclarationClause;
+  if (!parameterDeclarationClause) return;
+  if (!parameterDeclarationClause->parameterDeclarationList) return;
+
+  binder.error(parameterDeclarationClause->parameterDeclarationList->value
+                   ->firstSourceLocation(),
+               "a destructor cannot have any parameters");
+}
+
+void Binder::DeclareFunction::checkExplicitObjectParameter() {
+  if (!functionSymbol->hasExplicitObjectParameter()) return;
+
+  auto explicitObjectLoc = functionDeclarator->parameterDeclarationClause
+                               ->parameterDeclarationList->value->thisLoc;
+
+  if (!declaresClassMember()) {
+    binder.error(explicitObjectLoc,
+                 "an explicit object parameter is only allowed in a member "
+                 "function declaration");
+    functionSymbol->setExplicitObjectParameter(false);
+    return;
+  }
+
+  if (functionSymbol->isConstructor()) {
+    binder.error(explicitObjectLoc,
+                 "a constructor cannot have an explicit object parameter");
+    functionSymbol->setExplicitObjectParameter(false);
+    return;
+  }
+
+  if (functionSymbol->isDestructor()) {
+    binder.error(explicitObjectLoc,
+                 "a destructor cannot have an explicit object parameter");
+    functionSymbol->setExplicitObjectParameter(false);
+    return;
+  }
+
+  if (functionSymbol->isStatic()) {
+    binder.error(explicitObjectLoc,
+                 "a static member function cannot have an explicit object "
+                 "parameter");
+  }
+
+  if (functionSymbol->isVirtual()) {
+    binder.error(explicitObjectLoc,
+                 "a virtual member function cannot have an explicit object "
+                 "parameter");
+  }
+
+  if (functionDeclarator->cvQualifierList) {
+    binder.error(explicitObjectLoc,
+                 "a member function with an explicit object parameter cannot "
+                 "be cv-qualified");
+  }
+
+  if (functionDeclarator->refLoc) {
+    binder.error(explicitObjectLoc,
+                 "a member function with an explicit object parameter cannot "
+                 "have a ref-qualifier");
+  }
+}
+
 void Binder::DeclareFunction::checkExternalLinkageSpec() {
   if (binder.isC()) {
     functionSymbol->setLanguageLinkage(LanguageKind::kC);
@@ -418,6 +565,16 @@ void Binder::DeclareFunction::applyVirtualFlagsFromDeclarator() {
 
 auto Binder::DeclareFunction::enclosingClass() const -> ClassSymbol* {
   return symbol_cast<ClassSymbol>(scope());
+}
+
+auto Binder::DeclareFunction::declaresClassMember() const -> bool {
+  auto enclosing = scope();
+  while (enclosing && enclosing->isTemplateParameters())
+    enclosing = enclosing->parent();
+  if (symbol_cast<ClassSymbol>(enclosing)) return true;
+
+  auto declaratorId = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
+  return declaratorId && declaratorId->nestedNameSpecifier;
 }
 
 void Binder::DeclareFunction::checkVirtualSpecifierOutsideClass() {
@@ -489,40 +646,40 @@ void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
                            to_string(functionSymbol->name())));
 }
 
-auto Binder::findOverriddenFunction(ClassSymbol* cls, FunctionSymbol* fn)
-    -> FunctionSymbol* {
+auto Binder::findOverriddenFunctions(ClassSymbol* cls, FunctionSymbol* fn)
+    -> std::vector<FunctionSymbol*> {
   std::unordered_set<ClassSymbol*> visited;
-  return findOverriddenFunctionImpl(cls, fn, visited);
+  std::vector<FunctionSymbol*> overriddenFunctions;
+  findOverriddenFunctionsImpl(cls, fn, visited, overriddenFunctions);
+  return overriddenFunctions;
 }
 
-auto Binder::findOverriddenFunctionImpl(
+void Binder::findOverriddenFunctionsImpl(
     ClassSymbol* cls, FunctionSymbol* fn,
-    std::unordered_set<ClassSymbol*>& visited) -> FunctionSymbol* {
+    std::unordered_set<ClassSymbol*>& visited,
+    std::vector<FunctionSymbol*>& overriddenFunctions) {
   for (auto base : cls->baseClasses()) {
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClass || !visited.insert(baseClass).second) continue;
     baseClass = baseClass->resolvedDefinition();
 
-    auto checkMember = [&](FunctionSymbol* member) -> FunctionSymbol* {
-      if (!member->isVirtual()) return nullptr;
-      if (!traits.is_corresponding_overrider(fn, member)) return nullptr;
-      return member;
+    auto checkMember = [&](FunctionSymbol* member) {
+      if (!member->isVirtual()) return;
+      if (!traits.is_corresponding_overrider(fn, member)) return;
+      if (!std::ranges::contains(overriddenFunctions, member))
+        overriddenFunctions.push_back(member);
     };
 
     for (auto symbol : baseClass->members()) {
       if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
-        if (auto result = checkMember(func)) return result;
+        checkMember(func);
       } else if (auto ovl = symbol_cast<OverloadSetSymbol>(symbol)) {
-        for (auto func : ovl->declaredFunctions()) {
-          if (auto result = checkMember(func)) return result;
-        }
+        for (auto func : ovl->declaredFunctions()) checkMember(func);
       }
     }
 
-    if (auto result = findOverriddenFunctionImpl(baseClass, fn, visited))
-      return result;
+    findOverriddenFunctionsImpl(baseClass, fn, visited, overriddenFunctions);
   }
-  return nullptr;
 }
 
 void Binder::DeclareFunction::checkVirtualSpecifier() {
@@ -536,19 +693,26 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
 
   if (functionSymbol->isConstructor()) return;
 
-  auto overridden = binder.findOverriddenFunction(cls, functionSymbol);
+  auto overriddenFunctions =
+      binder.findOverriddenFunctions(cls, functionSymbol);
+  auto overridden =
+      overriddenFunctions.empty() ? nullptr : overriddenFunctions.front();
 
   if (overridden) {
+    for (auto function : overriddenFunctions)
+      functionSymbol->addOverriddenFunction(function);
     functionSymbol->setVirtual(true);
 
-    if (overridden->isFinal()) {
-      binder.error(
-          functionSymbol->location(),
-          std::format("declaration of '{}' overrides a 'final' function",
-                      to_string(functionSymbol->name())));
+    for (auto function : overriddenFunctions) {
+      if (function->isFinal()) {
+        binder.error(
+            functionSymbol->location(),
+            std::format("declaration of '{}' overrides a 'final' function",
+                        to_string(functionSymbol->name())));
+        binder.note(function->location(), "overridden final function is here");
+      }
+      checkCovariantReturnType(function);
     }
-
-    checkCovariantReturnType(overridden);
   }
 
   if (!overridden) {
@@ -584,7 +748,9 @@ void Binder::DeclareFunction::mergeRedeclaration() {
   if (canonical->isConsteval()) functionSymbol->setConsteval(true);
   if (canonical->isInline()) functionSymbol->setInline(true);
   if (canonical->isVirtual()) functionSymbol->setVirtual(true);
-  if (canonical->isExplicit()) functionSymbol->setExplicit(true);
+  if (canonical->isExplicit()) {
+    if (!binder.instantiatingSymbol()) functionSymbol->setExplicit(true);
+  }
   if (canonical->isOverride()) functionSymbol->setOverride(true);
   if (canonical->isFinal()) functionSymbol->setFinal(true);
   if (canonical->isPure()) functionSymbol->setPure(true);

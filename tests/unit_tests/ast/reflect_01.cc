@@ -25,6 +25,7 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: int_ty
 // CHECK-NEXT:          initializer: equal-initializer [prvalue __builtin_meta_info]
+// CHECK-NEXT:            expression: const-expression [prvalue __builtin_meta_info]
 // CHECK-NEXT:            expression: type-id-reflect-expression [prvalue __builtin_meta_info]
 // CHECK-NEXT:              type-id: type-id
 // CHECK-NEXT:                type-specifier-list
@@ -41,6 +42,7 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: ptr_ty
 // CHECK-NEXT:          initializer: equal-initializer [prvalue __builtin_meta_info]
+// CHECK-NEXT:            expression: const-expression [prvalue __builtin_meta_info]
 // CHECK-NEXT:            expression: type-id-reflect-expression [prvalue __builtin_meta_info]
 // CHECK-NEXT:              type-id: type-id
 // CHECK-NEXT:                type-specifier-list
@@ -64,6 +66,7 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: i
 // CHECK-NEXT:          initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:            expression: const-expression [prvalue int]
 // CHECK-NEXT:            expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:              literal: 0
 // CHECK-NEXT:    simple-declaration
@@ -81,6 +84,7 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: ptr
 // CHECK-NEXT:          initializer: equal-initializer [prvalue const void*]
+// CHECK-NEXT:            expression: const-expression [prvalue const void*]
 // CHECK-NEXT:            expression: implicit-cast-expression [prvalue const void*]
 // CHECK-NEXT:              cast-kind: pointer-conversion
 // CHECK-NEXT:              expression: nullptr-literal-expression [prvalue decltype(nullptr)]
@@ -96,6 +100,7 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: z
 // CHECK-NEXT:          initializer: equal-initializer [prvalue __builtin_meta_info]
+// CHECK-NEXT:            expression: const-expression [prvalue __builtin_meta_info]
 // CHECK-NEXT:            expression: reflect-expression [prvalue __builtin_meta_info]
 // CHECK-NEXT:              expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                literal: 123
@@ -110,6 +115,7 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: x
 // CHECK-NEXT:          initializer: equal-initializer [prvalue int]
+// CHECK-NEXT:            expression: const-expression [prvalue int]
 // CHECK-NEXT:            expression: splice-expression [prvalue int]
 // CHECK-NEXT:              splicer: splicer
 // CHECK-NEXT:                expression: id-expression [lvalue const __builtin_meta_info]

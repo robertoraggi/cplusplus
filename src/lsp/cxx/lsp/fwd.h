@@ -21,13 +21,12 @@
 
 #pragma once
 
+#include <cxx/lsp/json.h>
+
 #include <concepts>
-#include <nlohmann/json.hpp>
 #include <variant>
 
 namespace cxx::lsp {
-
-using json = nlohmann::json;
 
 enum class SemanticTokenTypes;
 enum class SemanticTokenModifiers;
@@ -84,8 +83,6 @@ class ColorInformation;
 class DocumentColorRegistrationOptions;
 class ColorPresentationParams;
 class ColorPresentation;
-class WorkDoneProgressOptions;
-class TextDocumentRegistrationOptions;
 class FoldingRangeParams;
 class FoldingRange;
 class FoldingRangeRegistrationOptions;
@@ -135,7 +132,6 @@ class InlayHintParams;
 class InlayHint;
 class InlayHintRegistrationOptions;
 class DocumentDiagnosticParams;
-class DocumentDiagnosticReportPartialResult;
 class DiagnosticServerCancellationData;
 class DiagnosticRegistrationOptions;
 class WorkspaceDiagnosticParams;
@@ -167,6 +163,7 @@ class ShowMessageRequestParams;
 class MessageActionItem;
 class LogMessageParams;
 class DidOpenTextDocumentParams;
+class TextDocumentRegistrationOptions;
 class DidChangeTextDocumentParams;
 class TextDocumentChangeRegistrationOptions;
 class DidCloseTextDocumentParams;
@@ -274,8 +271,7 @@ class MarkupContent;
 class InlayHintOptions;
 class RelatedFullDocumentDiagnosticReport;
 class RelatedUnchangedDocumentDiagnosticReport;
-class FullDocumentDiagnosticReport;
-class UnchangedDocumentDiagnosticReport;
+class DocumentDiagnosticReportPartialResult;
 class DiagnosticOptions;
 class PreviousResultId;
 class NotebookDocument;
@@ -331,6 +327,7 @@ class PrepareRenamePlaceholder;
 class PrepareRenameDefaultBehavior;
 class ExecuteCommandOptions;
 class WorkspaceEditMetadata;
+class WorkDoneProgressOptions;
 class SemanticTokensLegend;
 class SemanticTokensFullDelta;
 class OptionalVersionedTextDocumentIdentifier;
@@ -341,6 +338,8 @@ class CreateFileOptions;
 class RenameFileOptions;
 class DeleteFileOptions;
 class FileOperationPattern;
+class FullDocumentDiagnosticReport;
+class UnchangedDocumentDiagnosticReport;
 class WorkspaceFullDocumentDiagnosticReport;
 class WorkspaceUnchangedDocumentDiagnosticReport;
 class NotebookCell;
@@ -361,7 +360,6 @@ class ServerCompletionItemOptions;
 class MarkedStringWithLanguage;
 class ParameterInformation;
 class CodeActionKindDocumentation;
-class NotebookCellTextDocumentFilter;
 class FileOperationPatternOptions;
 class ExecutionSummary;
 class NotebookCellLanguage;
@@ -374,10 +372,8 @@ class WindowClientCapabilities;
 class GeneralClientCapabilities;
 class WorkspaceFoldersServerCapabilities;
 class FileOperationOptions;
+class NotebookCellTextDocumentFilter;
 class RelativePattern;
-class TextDocumentFilterLanguage;
-class TextDocumentFilterScheme;
-class TextDocumentFilterPattern;
 class NotebookDocumentFilterNotebookType;
 class NotebookDocumentFilterScheme;
 class NotebookDocumentFilterPattern;
@@ -433,6 +429,9 @@ class ShowDocumentClientCapabilities;
 class StaleRequestSupportOptions;
 class RegularExpressionsClientCapabilities;
 class MarkdownClientCapabilities;
+class TextDocumentFilterLanguage;
+class TextDocumentFilterScheme;
+class TextDocumentFilterPattern;
 class ChangeAnnotationsSupportOptions;
 class ClientSymbolKindOptions;
 class ClientSymbolTagOptions;
@@ -679,7 +678,9 @@ class Vector final : public LSPObject {
   }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
-  [[nodiscard]] auto at(int index) const -> T { return T(repr_->at(index)); }
+  [[nodiscard]] auto at(int index) const -> T {
+    return repr_->at(index).get<T>();
+  }
 
   template <typename... Args>
   void emplace_back(Args&&... args) {
@@ -720,7 +721,7 @@ template <>
 struct TryEmplace<bool> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_boolean()) return false;
-    result.template emplace<bool>(value);
+    result.template emplace<bool>(value.get<bool>());
     return true;
   }
 };
@@ -729,7 +730,7 @@ template <>
 struct TryEmplace<int> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result.template emplace<int>(value);
+    result.template emplace<int>(value.get<int>());
     return true;
   }
 };
@@ -738,7 +739,7 @@ template <>
 struct TryEmplace<long> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result.template emplace<long>(value);
+    result.template emplace<long>(value.get<long>());
     return true;
   }
 };
@@ -747,7 +748,7 @@ template <>
 struct TryEmplace<double> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_float()) return false;
-    result.template emplace<double>(value);
+    result.template emplace<double>(value.get<double>());
     return true;
   }
 };
@@ -756,7 +757,7 @@ template <>
 struct TryEmplace<std::string> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_string()) return false;
-    result.template emplace<std::string>(value);
+    result.template emplace<std::string>(value.get<std::string>());
     return true;
   }
 };
@@ -806,7 +807,7 @@ class Vector<std::string> final : public LSPObject {
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
   [[nodiscard]] auto at(int index) const -> std::string {
-    return repr_->at(index);
+    return repr_->at(index).get<std::string>();
   }
 
   template <typename... Args>
@@ -872,8 +873,10 @@ class Map final : public LSPObject {
   }
   [[nodiscard]] auto size() const -> std::size_t { return repr_->size(); }
   [[nodiscard]] auto empty() const -> bool { return repr_->empty(); }
-  [[nodiscard]] auto at(const Key& key) const -> const Value& {
-    return repr_->at(key);
+  [[nodiscard]] auto at(const Key& key) const -> Value {
+    auto& value = repr_->at(key);
+    if constexpr (std::derived_from<Value, LSPObject>) return Value(value);
+    return value.template get<Value>();
   }
 };
 
@@ -895,7 +898,43 @@ class Map<Key, std::variant<Ts...>> final : public LSPObject {
   }
 };
 
-using RegularExpressionEngineKind = std::string;
+using Definition = std::variant<Location, Vector<Location>>;
+
+using DefinitionLink = LocationLink;
+
+using Declaration = std::variant<Location, Vector<Location>>;
+
+using DeclarationLink = LocationLink;
+
+using InlineValue = std::variant<InlineValueText, InlineValueVariableLookup,
+                                 InlineValueEvaluatableExpression>;
+
+using DocumentDiagnosticReport =
+    std::variant<RelatedFullDocumentDiagnosticReport,
+                 RelatedUnchangedDocumentDiagnosticReport>;
+
+using DocumentDiagnosticReportProgress =
+    std::variant<DocumentDiagnosticReport,
+                 DocumentDiagnosticReportPartialResult>;
+
+using PrepareRenameResult =
+    std::variant<Range, PrepareRenamePlaceholder, PrepareRenameDefaultBehavior>;
+
+using ProgressToken = std::variant<long, std::string>;
+
+using ChangeAnnotationIdentifier = std::string;
+
+using WorkspaceDocumentDiagnosticReport =
+    std::variant<WorkspaceFullDocumentDiagnosticReport,
+                 WorkspaceUnchangedDocumentDiagnosticReport>;
+
+using TextDocumentContentChangeEvent =
+    std::variant<TextDocumentContentChangePartial,
+                 TextDocumentContentChangeWholeDocument>;
+
+using MarkedString = std::variant<std::string, MarkedStringWithLanguage>;
+
+using GlobPattern = std::variant<Pattern, RelativePattern>;
 
 using NotebookDocumentFilter =
     std::variant<NotebookDocumentFilterNotebookType,
@@ -905,43 +944,11 @@ using TextDocumentFilter =
     std::variant<TextDocumentFilterLanguage, TextDocumentFilterScheme,
                  TextDocumentFilterPattern>;
 
-using GlobPattern = std::variant<Pattern, RelativePattern>;
+using RegularExpressionEngineKind = std::string;
 
 using DocumentFilter =
     std::variant<TextDocumentFilter, NotebookCellTextDocumentFilter>;
 
-using MarkedString = std::variant<std::string, MarkedStringWithLanguage>;
-
-using TextDocumentContentChangeEvent =
-    std::variant<TextDocumentContentChangePartial,
-                 TextDocumentContentChangeWholeDocument>;
-
-using WorkspaceDocumentDiagnosticReport =
-    std::variant<WorkspaceFullDocumentDiagnosticReport,
-                 WorkspaceUnchangedDocumentDiagnosticReport>;
-
-using ChangeAnnotationIdentifier = std::string;
-
-using ProgressToken = std::variant<long, std::string>;
-
 using DocumentSelector = Vector<DocumentFilter>;
-
-using PrepareRenameResult =
-    std::variant<Range, PrepareRenamePlaceholder, PrepareRenameDefaultBehavior>;
-
-using DocumentDiagnosticReport =
-    std::variant<RelatedFullDocumentDiagnosticReport,
-                 RelatedUnchangedDocumentDiagnosticReport>;
-
-using InlineValue = std::variant<InlineValueText, InlineValueVariableLookup,
-                                 InlineValueEvaluatableExpression>;
-
-using DeclarationLink = LocationLink;
-
-using Declaration = std::variant<Location, Vector<Location>>;
-
-using DefinitionLink = LocationLink;
-
-using Definition = std::variant<Location, Vector<Location>>;
 
 }  // namespace cxx::lsp

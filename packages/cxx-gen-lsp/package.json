@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Scripts to generate the LSP server for C++",
   "scripts": {
-    "check": "tsc"
+    "check": "tsc",
+    "test": "node --test src/*.test.ts"
   },
   "keywords": [],
   "author": {

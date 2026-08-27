@@ -48,6 +48,9 @@ class ClassTemplateArgumentDeduction {
   [[nodiscard]] static auto placeholderClassTemplate(
       SpecifierAST* typeSpecifier, ScopeSymbol* scope) -> ClassSymbol*;
 
+  [[nodiscard]] static auto alreadyDeducedSpecialization(
+      ClassSymbol* primaryTemplate, const Type* recordedType) -> const Type*;
+
   [[nodiscard]] auto deduce(ClassSymbol* primaryTemplate,
                             const Initializer& initializer,
                             SourceLocation location, ScopeSymbol* scope)

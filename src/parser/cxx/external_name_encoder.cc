@@ -883,6 +883,37 @@ auto ExternalNameEncoder::encodeVTable(ClassSymbol* classSymbol)
   return externalName;
 }
 
+auto ExternalNameEncoder::encodeVTT(ClassSymbol* classSymbol) -> std::string {
+  std::string externalName;
+  std::swap(externalName, out_);
+
+  out("_ZTT");
+  encodeName(classSymbol);
+
+  std::swap(externalName, out_);
+  return externalName;
+}
+
+auto ExternalNameEncoder::encodeGuardVariable(Symbol* symbol) -> std::string {
+  encodingSymbol_ = symbol;
+  std::string externalName;
+  std::swap(externalName, out_);
+
+  out("_ZGV");
+  encodeName(symbol);
+
+  std::swap(externalName, out_);
+  return externalName;
+}
+
+auto ExternalNameEncoder::encodeTypeInfo(const Type* type) -> std::string {
+  return std::format("_ZTI{}", encode(type));
+}
+
+auto ExternalNameEncoder::encodeTypeInfoName(const Type* type) -> std::string {
+  return std::format("_ZTS{}", encode(type));
+}
+
 auto ExternalNameEncoder::encodeData(Symbol* symbol) -> std::string {
   std::string externalName;
   std::swap(externalName, out_);
@@ -967,16 +998,7 @@ auto ExternalNameEncoder::encodeLocalName(Symbol* symbol) -> bool {
     if (auto classSymbol = symbol_cast<ClassSymbol>(memberFunction->parent());
         classSymbol && classSymbol->isClosureType()) {
       out("N");
-      if (auto functionType = type_cast<FunctionType>(memberFunction->type())) {
-        const auto cv = functionType->cvQualifiers();
-        if (is_const(cv)) out("K");
-        if (is_volatile(cv)) out("V");
-        if (functionType->refQualifier() == RefQualifier::kLvalue) {
-          out("R");
-        } else if (functionType->refQualifier() == RefQualifier::kRvalue) {
-          out("O");
-        }
-      }
+      encodeObjectParameterQualifiers(memberFunction);
       encodeClosureSourceName(classSymbol);
       encodeUnqualifiedName(memberFunction);
       out("E");
@@ -986,6 +1008,26 @@ auto ExternalNameEncoder::encodeLocalName(Symbol* symbol) -> bool {
 
   encodeUnqualifiedName(symbol);
   return true;
+}
+
+void ExternalNameEncoder::encodeObjectParameterQualifiers(
+    FunctionSymbol* function) {
+  if (function->hasExplicitObjectParameter()) {
+    out("H");
+    return;
+  }
+
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType) return;
+
+  const auto cv = functionType->cvQualifiers();
+  if (is_const(cv)) out("K");
+  if (is_volatile(cv)) out("V");
+
+  if (functionType->refQualifier() == RefQualifier::kLvalue)
+    out("R");
+  else if (functionType->refQualifier() == RefQualifier::kRvalue)
+    out("O");
 }
 
 auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
@@ -1004,14 +1046,7 @@ auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
   out("N");
 
   if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
-    auto functionType = type_cast<FunctionType>(functionSymbol->type());
-    if (is_const(functionType->cvQualifiers())) out("K");
-    if (is_volatile(functionType->cvQualifiers())) out("V");
-
-    if (functionType->refQualifier() == RefQualifier::kLvalue)
-      out("R");
-    else if (functionType->refQualifier() == RefQualifier::kRvalue)
-      out("O");
+    encodeObjectParameterQualifiers(functionSymbol);
   }
 
   if (encodeTemplateNameSubstitution(symbol)) {
@@ -1090,14 +1125,30 @@ void ExternalNameEncoder::encodeType(const Type* type) {
 
 auto ExternalNameEncoder::encodeDependentName(NestedNameSpecifierAST* nns,
                                               UnqualifiedIdAST* id) -> bool {
-  auto nameId = ast_cast<NameIdAST>(id);
-  if (!nameId || !nameId->identifier) return false;
+  if (auto nameId = ast_cast<NameIdAST>(id)) {
+    if (!nameId->identifier) return false;
 
-  out("N");
-  if (!encodeDependentQualifier(nns)) return false;
-  const auto name = nameId->identifier->name();
-  out(std::format("{}{}E", name.length(), name));
-  return true;
+    out("N");
+    if (!encodeDependentQualifier(nns)) return false;
+    const auto name = nameId->identifier->name();
+    out(std::format("{}{}E", name.length(), name));
+    return true;
+  }
+
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(id)) {
+    if (!templateId->identifier) return false;
+
+    out("N");
+    if (!encodeDependentQualifier(nns)) return false;
+    const auto name = templateId->identifier->name();
+    out(std::format("{}{}", name.length(), name));
+    if (!encodeTemplateArgumentList(templateId->templateArgumentList))
+      return false;
+    out("E");
+    return true;
+  }
+
+  return false;
 }
 
 auto ExternalNameEncoder::encodeDependentQualifier(NestedNameSpecifierAST* nns)
@@ -1312,125 +1363,167 @@ void ExternalNameEncoder::encodeTemplateParamValue(int index) {
   }
 }
 
+struct ExternalNameEncoder::EncodeExpression {
+  ExternalNameEncoder& encoder;
+
+  [[nodiscard]] auto encode(ExpressionAST* expr) const -> bool {
+    return encoder.encodeExpression(expr);
+  }
+
+  [[nodiscard]] auto operator()(NestedExpressionAST* ast) const -> bool {
+    return encode(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(PackExpansionExpressionAST* ast) const -> bool {
+    encoder.out("sp");
+    return encode(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(ImplicitCastExpressionAST* ast) const -> bool {
+    return encode(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(ConstExpressionAST* ast) const -> bool {
+    return encode(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(BoolLiteralExpressionAST* ast) const -> bool {
+    if (!ast->type) return false;
+    encoder.encodeConstValue(ast->type,
+                             ConstValue{std::intmax_t(ast->isTrue ? 1 : 0)});
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(IntLiteralExpressionAST* ast) const -> bool {
+    if (!ast->literal || !ast->type) return false;
+    encoder.encodeConstValue(
+        ast->type,
+        ConstValue{static_cast<std::intmax_t>(ast->literal->integerValue())});
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(SizeofPackExpressionAST* ast) const -> bool {
+    auto parameter = template_parameter_info(ast->symbol);
+    if (!parameter) return false;
+    encoder.out("sZ");
+    encoder.encodeTemplateParamValue(parameter->index);
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(TypeTraitExpressionAST* ast) const -> bool {
+    const auto name = encoder.unit_->tokenText(ast->typeTraitLoc);
+    encoder.out(std::format("u{}{}", name.length(), name));
+    for (auto typeId : ListView{ast->typeIdList}) {
+      if (!typeId || !typeId->type) return false;
+      encoder.encodeType(typeId->type);
+    }
+    encoder.out("E");
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(SizeofTypeExpressionAST* ast) const -> bool {
+    if (!ast->typeId || !ast->typeId->type) return false;
+    encoder.out("st");
+    encoder.encodeType(ast->typeId->type);
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(SizeofExpressionAST* ast) const -> bool {
+    encoder.out("sz");
+    return encode(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(AlignofTypeExpressionAST* ast) const -> bool {
+    if (!ast->typeId || !ast->typeId->type) return false;
+    encoder.out("at");
+    encoder.encodeType(ast->typeId->type);
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(AlignofExpressionAST* ast) const -> bool {
+    encoder.out("az");
+    return encode(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(NoexceptExpressionAST* ast) const -> bool {
+    encoder.out("nx");
+    return encode(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(UnaryExpressionAST* ast) const -> bool {
+    encoder.out(encoder.encodeOperatorName(ast->op, /*isUnary=*/true));
+    return encode(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(BinaryExpressionAST* ast) const -> bool {
+    encoder.out(encoder.encodeOperatorName(ast->op, /*isUnary=*/false));
+    if (!encode(ast->leftExpression)) return false;
+    return encode(ast->rightExpression);
+  }
+
+  [[nodiscard]] auto operator()(CallExpressionAST* ast) const -> bool {
+    encoder.out("cl");
+    if (!encode(ast->baseExpression)) return false;
+    for (auto argument : ListView{ast->expressionList}) {
+      if (!encode(argument)) return false;
+    }
+    encoder.out("E");
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(IdExpressionAST* ast) const -> bool {
+    if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol)) {
+      encoder.encodeTemplateParamValue(param->index());
+      return true;
+    }
+
+    if (auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
+        templateId && templateId->identifier) {
+      if (!encodeUnresolvedPrefix(ast)) return false;
+      const auto name = templateId->identifier->name();
+      encoder.out(std::format("{}{}", name.length(), name));
+      return encoder.encodeTemplateArgumentList(
+          templateId->templateArgumentList);
+    }
+
+    auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId);
+    if (!nameId || !nameId->identifier || !ast->nestedNameSpecifier) {
+      return false;
+    }
+
+    if (!encodeUnresolvedPrefix(ast)) return false;
+    const auto name = nameId->identifier->name();
+    encoder.out(std::format("{}{}", name.size(), name));
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(ExpressionAST*) const -> bool { return false; }
+
+ private:
+  [[nodiscard]] auto encodeUnresolvedPrefix(IdExpressionAST* ast) const
+      -> bool {
+    if (!ast->nestedNameSpecifier) return true;
+    if (has_global_qualifier(ast->nestedNameSpecifier)) encoder.out("gs");
+    encoder.out("sr");
+    if (!encoder.encodeUnresolvedQualifier(ast->nestedNameSpecifier)) {
+      return false;
+    }
+    encoder.out("E");
+    return true;
+  }
+};
+
 auto ExternalNameEncoder::encodeExpression(ExpressionAST* expr) -> bool {
   if (!expr) return false;
 
   const auto outMark = out_.size();
   const auto substsSnapshot = substs_;
 
-  const auto rollback = [&] {
-    out_.resize(outMark);
-    substs_ = substsSnapshot;
-    return false;
-  };
+  if (visit(EncodeExpression{*this}, expr)) return true;
 
-  if (auto nested = ast_cast<NestedExpressionAST>(expr)) {
-    return encodeExpression(nested->expression);
-  }
-
-  if (auto pack = ast_cast<PackExpansionExpressionAST>(expr)) {
-    out("sp");
-    return encodeExpression(pack->expression);
-  }
-
-  if (auto implicitCast = ast_cast<ImplicitCastExpressionAST>(expr)) {
-    return encodeExpression(implicitCast->expression);
-  }
-
-  if (auto boolLit = ast_cast<BoolLiteralExpressionAST>(expr)) {
-    if (!boolLit->type) return rollback();
-    encodeConstValue(boolLit->type,
-                     ConstValue{std::intmax_t(boolLit->isTrue ? 1 : 0)});
-    return true;
-  }
-
-  if (auto intLit = ast_cast<IntLiteralExpressionAST>(expr)) {
-    if (!intLit->literal || !intLit->type) return rollback();
-    encodeConstValue(intLit->type, ConstValue{static_cast<std::intmax_t>(
-                                       intLit->literal->integerValue())});
-    return true;
-  }
-
-  if (auto sizeofPack = ast_cast<SizeofPackExpressionAST>(expr)) {
-    auto parameter = template_parameter_info(sizeofPack->symbol);
-    if (!parameter) return rollback();
-    out("sZ");
-    encodeTemplateParamValue(parameter->index);
-    return true;
-  }
-
-  if (auto typeTrait = ast_cast<TypeTraitExpressionAST>(expr)) {
-    const auto name = unit_->tokenText(typeTrait->typeTraitLoc);
-    out(std::format("u{}{}", name.length(), name));
-    for (auto typeId : ListView{typeTrait->typeIdList}) {
-      if (!typeId || !typeId->type) return rollback();
-      encodeType(typeId->type);
-    }
-    out("E");
-    return true;
-  }
-
-  if (auto unary = ast_cast<UnaryExpressionAST>(expr)) {
-    out(encodeOperatorName(unary->op, /*isUnary=*/true));
-    if (!encodeExpression(unary->expression)) return rollback();
-    return true;
-  }
-
-  if (auto binary = ast_cast<BinaryExpressionAST>(expr)) {
-    out(encodeOperatorName(binary->op, /*isUnary=*/false));
-    if (!encodeExpression(binary->leftExpression)) return rollback();
-    if (!encodeExpression(binary->rightExpression)) return rollback();
-    return true;
-  }
-
-  if (auto call = ast_cast<CallExpressionAST>(expr)) {
-    out("cl");
-    if (!encodeExpression(call->baseExpression)) return rollback();
-    for (auto argument : ListView{call->expressionList}) {
-      if (!encodeExpression(argument)) return rollback();
-    }
-    out("E");
-    return true;
-  }
-
-  if (auto idExpr = ast_cast<IdExpressionAST>(expr)) {
-    if (auto param = symbol_cast<NonTypeParameterSymbol>(idExpr->symbol)) {
-      encodeTemplateParamValue(param->index());
-      return true;
-    }
-
-    if (auto templateId = ast_cast<SimpleTemplateIdAST>(idExpr->unqualifiedId);
-        templateId && templateId->identifier) {
-      if (idExpr->nestedNameSpecifier) {
-        if (has_global_qualifier(idExpr->nestedNameSpecifier)) out("gs");
-        out("sr");
-        if (!encodeUnresolvedQualifier(idExpr->nestedNameSpecifier)) {
-          return rollback();
-        }
-        out("E");
-      }
-      const auto name = templateId->identifier->name();
-      out(std::format("{}{}", name.length(), name));
-      if (!encodeTemplateArgumentList(templateId->templateArgumentList))
-        return rollback();
-      return true;
-    }
-
-    auto nameId = ast_cast<NameIdAST>(idExpr->unqualifiedId);
-    if (nameId && nameId->identifier && idExpr->nestedNameSpecifier) {
-      if (has_global_qualifier(idExpr->nestedNameSpecifier)) out("gs");
-      out("sr");
-      if (!encodeUnresolvedQualifier(idExpr->nestedNameSpecifier)) {
-        return rollback();
-      }
-      out("E");
-      const auto name = nameId->identifier->name();
-      out(std::format("{}{}", name.size(), name));
-      return true;
-    }
-  }
-
-  return rollback();
+  out_.resize(outMark);
+  substs_ = substsSnapshot;
+  return false;
 }
 
 auto ExternalNameEncoder::encodeTemplateArgumentList(

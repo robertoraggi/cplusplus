@@ -2071,6 +2071,16 @@ auto ImplicitCastExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto ConstExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return {};
+}
+
+auto ConstExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  return {};
+}
+
 auto BinaryExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(leftExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
@@ -2262,6 +2272,16 @@ auto ParenInitializerAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return {};
+}
+
+auto ThreeWayComparisonExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(comparison)) return loc;
+  return {};
+}
+
+auto ThreeWayComparisonExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(comparison)) return loc;
   return {};
 }
 
@@ -3826,6 +3846,7 @@ std::string_view kASTKindNames[] = {
     "delete-expression",
     "cast-expression",
     "implicit-cast-expression",
+    "const-expression",
     "binary-expression",
     "conditional-expression",
     "yield-expression",
@@ -3841,6 +3862,7 @@ std::string_view kASTKindNames[] = {
     "equal-initializer",
     "braced-init-list",
     "paren-initializer",
+    "three-way-comparison-expression",
 
     // GenericAssociationAST
     "default-generic-association",
@@ -10277,7 +10299,6 @@ auto ImplicitCastExpressionAST::clone(Arena* arena)
   if (expression) node->expression = expression->clone(arena);
 
   node->castKind = castKind;
-  node->constValue = constValue;
   node->conversionFunction = conversionFunction;
   node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
@@ -10292,17 +10313,47 @@ auto ImplicitCastExpressionAST::create(Arena* arena)
   return node;
 }
 
-auto ImplicitCastExpressionAST::create(
-    Arena* arena, ExpressionAST* expression, ImplicitCastKind castKind,
-    const ConstValue* constValue, FunctionSymbol* conversionFunction,
-    bool isVirtualDispatch, ValueCategory valueCategory, const Type* type)
+auto ImplicitCastExpressionAST::create(Arena* arena, ExpressionAST* expression,
+                                       ImplicitCastKind castKind,
+                                       FunctionSymbol* conversionFunction,
+                                       bool isVirtualDispatch,
+                                       ValueCategory valueCategory,
+                                       const Type* type)
     -> ImplicitCastExpressionAST* {
   auto node = new (arena) ImplicitCastExpressionAST();
   node->expression = expression;
   node->castKind = castKind;
-  node->constValue = constValue;
   node->conversionFunction = conversionFunction;
   node->isVirtualDispatch = isVirtualDispatch;
+  node->valueCategory = valueCategory;
+  node->type = type;
+  return node;
+}
+
+auto ConstExpressionAST::clone(Arena* arena) -> ConstExpressionAST* {
+  auto node = create(arena);
+
+  if (expression) node->expression = expression->clone(arena);
+
+  node->constValue = constValue;
+  node->valueCategory = valueCategory;
+  node->type = type;
+
+  return node;
+}
+
+auto ConstExpressionAST::create(Arena* arena) -> ConstExpressionAST* {
+  auto node = new (arena) ConstExpressionAST();
+  return node;
+}
+
+auto ConstExpressionAST::create(Arena* arena, ExpressionAST* expression,
+                                const ConstValue* constValue,
+                                ValueCategory valueCategory, const Type* type)
+    -> ConstExpressionAST* {
+  auto node = new (arena) ConstExpressionAST();
+  node->expression = expression;
+  node->constValue = constValue;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10727,6 +10778,7 @@ auto DesignatedInitializerClauseAST::clone(Arena* arena)
 
   if (initializer) node->initializer = initializer->clone(arena);
 
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10741,11 +10793,13 @@ auto DesignatedInitializerClauseAST::create(Arena* arena)
 
 auto DesignatedInitializerClauseAST::create(
     Arena* arena, List<DesignatorAST*>* designatorList,
-    ExpressionAST* initializer, ValueCategory valueCategory, const Type* type)
+    ExpressionAST* initializer, FunctionSymbol* constructorSymbol,
+    ValueCategory valueCategory, const Type* type)
     -> DesignatedInitializerClauseAST* {
   auto node = new (arena) DesignatedInitializerClauseAST();
   node->designatorList = designatorList;
   node->initializer = initializer;
+  node->constructorSymbol = constructorSymbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11000,6 +11054,44 @@ auto ParenInitializerAST::create(Arena* arena,
     -> ParenInitializerAST* {
   auto node = new (arena) ParenInitializerAST();
   node->expressionList = expressionList;
+  node->valueCategory = valueCategory;
+  node->type = type;
+  return node;
+}
+
+auto ThreeWayComparisonExpressionAST::clone(Arena* arena)
+    -> ThreeWayComparisonExpressionAST* {
+  auto node = create(arena);
+
+  if (comparison) node->comparison = comparison->clone(arena);
+
+  node->lessResult = lessResult;
+  node->equalResult = equalResult;
+  node->greaterResult = greaterResult;
+  node->unorderedResult = unorderedResult;
+  node->valueCategory = valueCategory;
+  node->type = type;
+
+  return node;
+}
+
+auto ThreeWayComparisonExpressionAST::create(Arena* arena)
+    -> ThreeWayComparisonExpressionAST* {
+  auto node = new (arena) ThreeWayComparisonExpressionAST();
+  return node;
+}
+
+auto ThreeWayComparisonExpressionAST::create(
+    Arena* arena, BinaryExpressionAST* comparison, Symbol* lessResult,
+    Symbol* equalResult, Symbol* greaterResult, Symbol* unorderedResult,
+    ValueCategory valueCategory, const Type* type)
+    -> ThreeWayComparisonExpressionAST* {
+  auto node = new (arena) ThreeWayComparisonExpressionAST();
+  node->comparison = comparison;
+  node->lessResult = lessResult;
+  node->equalResult = equalResult;
+  node->greaterResult = greaterResult;
+  node->unorderedResult = unorderedResult;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;

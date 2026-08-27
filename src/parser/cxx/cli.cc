@@ -163,6 +163,9 @@ std::vector<CLIOptionDescr> options{
 
     {"-fcheck", "Enable type checker (WIP)", &CLI::opt_fcheck},
 
+    {"-fvalidate-ast", "Validate completed template instantiations",
+     &CLI::opt_fvalidate_ast},
+
     {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
 
     {"-freport-missing-types", "Report missing types",

@@ -33,7 +33,7 @@ const workspacePath = path.join(__dirname, "../");
 
 const wasm32WasiIncludeDir = path.join(
   workspacePath,
-  "build.em/src/lib/wasi-sysroot/include/wasm32-wasi",
+  "build.em/src/lib/wasi-sysroot/include/wasm32-wasip1",
 );
 
 const cxxIncludeDir = path.join(workspacePath, "build.em/src/lib/cxx/include");
@@ -59,7 +59,7 @@ async function main() {
   try {
     await fs.copy(
       wasm32WasiIncludeDir,
-      path.join(stageDir, "include/wasm32-wasi"),
+      path.join(stageDir, "include/wasm32-wasip1"),
     );
     await fs.copy(cxxIncludeDir, path.join(stageDir, "lib/cxx/include"));
 

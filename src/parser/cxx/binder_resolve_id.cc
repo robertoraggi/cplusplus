@@ -38,109 +38,6 @@
 #include <format>
 
 namespace cxx {
-namespace {
-struct TemplateArity {
-  int minArgs = 0;
-  int maxArgs = 0;
-  bool hasParameterPack = false;
-};
-
-auto isPackParameter(TemplateParameterAST* parameter) -> bool {
-  if (auto typeParameter = ast_cast<TypenameTypeParameterAST>(parameter)) {
-    return typeParameter->isPack;
-  }
-
-  if (auto nonTypeParameter =
-          ast_cast<NonTypeTemplateParameterAST>(parameter)) {
-    return nonTypeParameter->declaration &&
-           nonTypeParameter->declaration->isPack;
-  }
-
-  if (auto templateTypeParameter =
-          ast_cast<TemplateTypeParameterAST>(parameter)) {
-    return templateTypeParameter->isPack;
-  }
-
-  if (auto constraintParameter =
-          ast_cast<ConstraintTypeParameterAST>(parameter)) {
-    return static_cast<bool>(constraintParameter->ellipsisLoc);
-  }
-
-  return false;
-}
-
-auto hasDefaultTemplateArgument(TemplateParameterAST* parameter) -> bool {
-  if (auto typeParameter = ast_cast<TypenameTypeParameterAST>(parameter)) {
-    return typeParameter->typeId && typeParameter->typeId->type;
-  }
-
-  if (auto nonTypeParameter =
-          ast_cast<NonTypeTemplateParameterAST>(parameter)) {
-    return nonTypeParameter->declaration &&
-           nonTypeParameter->declaration->equalLoc &&
-           nonTypeParameter->declaration->expression;
-  }
-
-  if (auto templateTypeParameter =
-          ast_cast<TemplateTypeParameterAST>(parameter)) {
-    return templateTypeParameter->idExpression;
-  }
-
-  if (auto constraintParameter =
-          ast_cast<ConstraintTypeParameterAST>(parameter)) {
-    return constraintParameter->typeId && constraintParameter->typeId->type;
-  }
-
-  return false;
-}
-
-auto computeTemplateArity(TemplateDeclarationAST* templateDecl)
-    -> TemplateArity {
-  TemplateArity arity;
-  if (!templateDecl) return arity;
-
-  for (auto parameter : ListView{templateDecl->templateParameterList}) {
-    ++arity.maxArgs;
-
-    if (isPackParameter(parameter)) {
-      arity.hasParameterPack = true;
-      continue;
-    }
-
-    if (!hasDefaultTemplateArgument(parameter)) {
-      ++arity.minArgs;
-    }
-  }
-
-  return arity;
-}
-
-auto templateArgumentCount(List<TemplateArgumentAST*>* templateArgumentList)
-    -> int {
-  int count = 0;
-  for (auto argument : ListView{templateArgumentList}) {
-    (void)argument;
-    ++count;
-  }
-  return count;
-}
-
-auto isTemplateArityMatch(TemplateDeclarationAST* templateDecl,
-                          List<TemplateArgumentAST*>* templateArgumentList)
-    -> bool {
-  if (!templateDecl) return true;
-
-  auto arity = computeTemplateArity(templateDecl);
-  auto argc = templateArgumentCount(templateArgumentList);
-
-  if (argc < arity.minArgs) return false;
-  if (!arity.hasParameterPack && argc > arity.maxArgs) return false;
-
-  return true;
-}
-
-}  // namespace
-
 struct [[nodiscard]] Binder::ResolveUnqualifiedId {
   Binder& binder;
   NestedNameSpecifierAST* nestedNameSpecifier;
@@ -290,12 +187,10 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
 }
 
 auto Binder::ResolveUnqualifiedId::operator()(NameIdAST* nameId) -> Symbol* {
-  Symbol* symbol = nullptr;
-  if (nestedNameSpecifier && nestedNameSpecifier->symbol)
+  Symbol* symbol = resolvedType;
+  if (!symbol && nestedNameSpecifier && nestedNameSpecifier->symbol) {
     symbol =
         qualifiedLookupType(nestedNameSpecifier->symbol, nameId->identifier);
-  else {
-    symbol = resolvedType;
   }
 
   if (!is_type(symbol)) return nullptr;

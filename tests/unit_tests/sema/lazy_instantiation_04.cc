@@ -18,11 +18,11 @@ struct Derived : Base<int> {
 // CHECK-NEXT:    field type-param<0, 0> value
 // CHECK-NEXT:    function inline type-param<0, 0> get()
 //      CHECK:      class Base<int>
-// CHECK-NEXT:        constructor defaulted void Base()
-// CHECK-NEXT:        constructor defaulted void Base(const ::Base<int>&)
+// CHECK-NEXT:        constructor inline defaulted void Base()
+// CHECK-NEXT:        constructor inline defaulted void Base(const ::Base<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Base<int>&
-// CHECK-NEXT:        constructor defaulted void Base(::Base<int>&&)
+// CHECK-NEXT:        constructor inline defaulted void Base(::Base<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Base<int>&&
 // CHECK-NEXT:        injected class name Base

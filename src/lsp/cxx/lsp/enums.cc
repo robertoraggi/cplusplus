@@ -522,7 +522,7 @@ auto to_string(LanguageKind value) -> std::string {
     case LanguageKind::kGitCommit:
       return "git-commit";
     case LanguageKind::kGitRebase:
-      return "rebase";
+      return "git-rebase";
     case LanguageKind::kGo:
       return "go";
     case LanguageKind::kGroovy:
@@ -565,6 +565,8 @@ auto to_string(LanguageKind value) -> std::string {
       return "perl6";
     case LanguageKind::kPHP:
       return "php";
+    case LanguageKind::kPlaintext:
+      return "plaintext";
     case LanguageKind::kPowershell:
       return "powershell";
     case LanguageKind::kPug:
@@ -967,7 +969,7 @@ auto parseLanguageKind(std::string_view name) -> std::optional<LanguageKind> {
       {"erlang", LanguageKind::kErlang},
       {"fsharp", LanguageKind::kFSharp},
       {"git-commit", LanguageKind::kGitCommit},
-      {"rebase", LanguageKind::kGitRebase},
+      {"git-rebase", LanguageKind::kGitRebase},
       {"go", LanguageKind::kGo},
       {"groovy", LanguageKind::kGroovy},
       {"handlebars", LanguageKind::kHandlebars},
@@ -989,6 +991,7 @@ auto parseLanguageKind(std::string_view name) -> std::optional<LanguageKind> {
       {"perl", LanguageKind::kPerl},
       {"perl6", LanguageKind::kPerl6},
       {"php", LanguageKind::kPHP},
+      {"plaintext", LanguageKind::kPlaintext},
       {"powershell", LanguageKind::kPowershell},
       {"jade", LanguageKind::kPug},
       {"python", LanguageKind::kPython},

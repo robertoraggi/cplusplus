@@ -543,7 +543,9 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   }
 
   if (!copy->templateId->symbol && copy->templateId->identifier &&
-      !isDependentNestedNameSpecifier(copy->nestedNameSpecifier)) {
+      !isDependentTypeParameterSymbol(copy->nestedNameSpecifier
+                                          ? copy->nestedNameSpecifier->symbol
+                                          : nullptr)) {
     auto scopeSymbol =
         copy->nestedNameSpecifier ? copy->nestedNameSpecifier->symbol : nullptr;
     rewrite.error(copy->templateId->identifierLoc,

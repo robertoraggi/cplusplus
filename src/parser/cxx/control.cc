@@ -28,6 +28,7 @@
 #include <cxx/types.h>
 
 #include <cstdlib>
+#include <format>
 #include <forward_list>
 #include <set>
 #include <unordered_set>
@@ -89,6 +90,8 @@ struct Control::Private {
   explicit Private(Control*) {}
 
   std::unordered_set<ClassSymbol*> copyConstructorSelections;
+
+  int closureNameCount = 0;
 
   MemoryLayout* memoryLayout = nullptr;
   LiteralSet<IntegerLiteral> integerLiterals;
@@ -533,7 +536,7 @@ auto Control::getMemberFunctionPointerType(const ClassType* classType,
 }
 
 auto Control::getDependentType() -> const TypeParameterType* {
-  return getTypeParameterType(0, 0, false);
+  return getTypeParameterType(-1, -1, false);
 }
 
 auto Control::getTypeParameterType(int index, int depth, bool isParameterPack)
@@ -846,6 +849,14 @@ auto Control::beginCopyConstructorSelection(ClassSymbol* classSymbol) -> bool {
 
 void Control::endCopyConstructorSelection(ClassSymbol* classSymbol) {
   d->copyConstructorSelections.erase(classSymbol);
+}
+
+auto Control::closureNameCount() const -> int { return d->closureNameCount; }
+
+void Control::setClosureNameCount(int count) { d->closureNameCount = count; }
+
+auto Control::newClosureName() -> const Identifier* {
+  return getIdentifier(std::format("__lambda_{}", d->closureNameCount++));
 }
 
 }  // namespace cxx

@@ -31,6 +31,40 @@
 namespace cxx {
 class TranslationUnit;
 
+struct TemplateArity {
+  int minArgs = 0;
+  int maxArgs = 0;
+  int packCount = 0;
+  bool hasParameterPack = false;
+};
+
+[[nodiscard]] auto isPackParameter(TemplateParameterAST* parameter) -> bool;
+
+[[nodiscard]] auto hasDefaultTemplateArgument(TemplateParameterAST* parameter)
+    -> bool;
+
+[[nodiscard]] auto isPackExpansion(TypeIdAST* typeId) -> bool;
+
+[[nodiscard]] auto isPackExpansionTemplateArgument(
+    TemplateArgumentAST* argument) -> bool;
+
+[[nodiscard]] auto hasPackExpansionTemplateArgument(
+    List<TemplateArgumentAST*>* templateArgumentList) -> bool;
+
+[[nodiscard]] auto lastTemplateArgument(
+    List<TemplateArgumentAST*>* templateArgumentList) -> TemplateArgumentAST*;
+
+[[nodiscard]] auto computeTemplateArity(TemplateDeclarationAST* templateDecl)
+    -> TemplateArity;
+
+[[nodiscard]] auto templateArgumentCount(
+    List<TemplateArgumentAST*>* templateArgumentList) -> int;
+
+[[nodiscard]] auto isTemplateArityMatch(
+    TemplateDeclarationAST* templateDecl,
+    List<TemplateArgumentAST*>* templateArgumentList,
+    bool isFunctionTemplate = false) -> bool;
+
 class Substitution {
  public:
   Substitution() = delete;
@@ -65,11 +99,6 @@ class Substitution {
  private:
   void doMake();
 
-  [[nodiscard]] auto isPackParameter(TemplateParameterAST* parameter) -> bool;
-
-  [[nodiscard]] auto hasDefaultTemplateArgument(TemplateParameterAST* parameter)
-      -> bool;
-
   [[nodiscard]] auto normalizeNonTypeArgument(
       NonTypeTemplateParameterAST* parameter, Symbol* argument) -> Symbol*;
 
@@ -88,8 +117,6 @@ class Substitution {
 
   struct MakeDefaultTemplateArgument;
   struct CollectRawTemplateArgument;
-  struct HasDefaultTemplateArgument;
-  struct IsPackParameter;
 
  private:
   TranslationUnit* unit_ = nullptr;

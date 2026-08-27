@@ -154,7 +154,9 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
 
   if (!rangeInitializer || !rangeInitializer->type ||
       isDependent(unit_, rangeInitializer->type)) {
-    if (needsDeduction && isEnclosedInTemplate(scope()))
+    if (needsDeduction &&
+        isEnclosedInDependentTemplate(unit_, scope(),
+                                      /*stopAtConcreteSpecialization=*/true))
       var->setType(control()->getDependentType());
     return;
   }

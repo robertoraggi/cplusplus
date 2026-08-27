@@ -110,8 +110,8 @@ void collectReferencedTypeParams(const Type* type,
     auto classSymbol = classType->symbol();
     if (!classSymbol || !classSymbol->isSpecialization()) return;
     for (const auto& arg : classSymbol->templateArguments()) {
-      if (auto argType = std::get_if<const Type*>(&arg))
-        collectReferencedTypeParams(*argType, out);
+      if (auto argType = template_argument_as_type(arg))
+        collectReferencedTypeParams(argType, out);
     }
   }
 }
@@ -257,10 +257,11 @@ using TemplateParamKey = std::pair<int, int>;
     auto argsY = symY->templateArguments();
     if (argsX.size() != argsY.size()) return false;
     for (std::size_t i = 0; i < argsX.size(); ++i) {
-      auto typeX = std::get_if<const Type*>(&argsX[i]);
-      auto typeY = std::get_if<const Type*>(&argsY[i]);
-      if (typeX && typeY) {
-        auto eq = sameDependentShape(unit, *typeX, *typeY);
+      auto typeX = template_argument_as_type(argsX[i]);
+      auto typeY = template_argument_as_type(argsY[i]);
+      if (typeX || typeY) {
+        if (!typeX || !typeY) return false;
+        auto eq = sameDependentShape(unit, typeX, typeY);
         if (!eq || !*eq) return eq;
         continue;
       }
@@ -290,10 +291,12 @@ using DeducedArguments = std::vector<std::optional<TemplateArgument>>;
     TranslationUnit* unit, const std::vector<TemplateParamKey>& bKeys,
     DeducedArguments& deduced, const TemplateArgument& p,
     const TemplateArgument& a) -> std::optional<bool> {
-  auto typeP = std::get_if<const Type*>(&p);
-  auto typeA = std::get_if<const Type*>(&a);
-  if (typeP && typeA)
-    return unifyForPartialOrdering(unit, bKeys, deduced, *typeP, *typeA);
+  auto typeP = template_argument_as_type(p);
+  auto typeA = template_argument_as_type(a);
+  if (typeP || typeA) {
+    if (!typeP || !typeA) return false;
+    return unifyForPartialOrdering(unit, bKeys, deduced, typeP, typeA);
+  }
 
   if (auto key = templateParamKeyOf(p)) {
     auto it = std::ranges::find(bKeys, *key);
@@ -566,21 +569,22 @@ auto isPackExpansionParameterType(const Type* type) -> bool {
     return isPackExpansionParameterType(ptr->elementType());
   return false;
 }
-}  // namespace
 
-auto compareFunctionTemplateSpecializations(TranslationUnit* unit,
-                                            FunctionSymbol* candidate,
-                                            FunctionSymbol* other) -> int {
-  return compareTemplateSpecialization(unit, candidate, other);
-}
-
-auto functionTemplateHasPackParameter(FunctionSymbol* pattern) -> bool {
+[[nodiscard]] auto functionTemplateHasPackParameter(FunctionSymbol* pattern)
+    -> bool {
   auto type = type_cast<FunctionType>(pattern->type());
   if (!type) return false;
   for (auto param : type->parameterTypes()) {
     if (isPackExpansionParameterType(param)) return true;
   }
   return false;
+}
+}  // namespace
+
+auto compareFunctionTemplateSpecializations(TranslationUnit* unit,
+                                            FunctionSymbol* candidate,
+                                            FunctionSymbol* other) -> int {
+  return compareTemplateSpecialization(unit, candidate, other);
 }
 
 auto templateCandidateArityRejects(FunctionSymbol* pattern, int argCount)
@@ -747,19 +751,9 @@ auto OverloadResolution::selectBestViableFunction(
   if (best.empty()) return {};
   if (best.size() > 1) return {best[0], true};
 
-  completeDeferredWinnerBody(best[0]->symbol, best[0]->deducedTemplateArgs);
+  ASTRewriter::instantiateSelectedSpecializationDefinition(
+      unit_, best[0]->symbol, best[0]->deducedTemplateArgs);
   return {best[0], false};
-}
-
-void OverloadResolution::completeDeferredWinnerBody(
-    FunctionSymbol* winner, List<TemplateArgumentAST*>* deducedTemplateArgs) {
-  if (!winner || !deducedTemplateArgs) return;
-  if (!winner->isSpecialization()) return;
-  auto primary = winner->primaryTemplateSymbol();
-  if (!primary) return;
-  ASTRewriter::instantiateForArgs(unit_, deducedTemplateArgs, primary,
-                                  winner->location(),
-                                  /*argsComplete=*/true);
 }
 
 auto isExcludedInheritedConstructor(const TypeTraits& traits,
@@ -845,9 +839,8 @@ auto OverloadResolution::resolveConstructor(
       const auto loc = args.empty() ? classSymbol->location()
                                     : args.front()->firstSourceLocation();
 
-      auto instCtor = ASTRewriter::instantiateForArgs(
-          unit_, *deducedArgs, ctor, loc, /*argsComplete=*/true,
-          /*declarationOnly=*/!functionTemplateHasPackParameter(ctor));
+      auto instCtor = ASTRewriter::instantiateOverloadCandidate(
+          unit_, *deducedArgs, ctor, loc, /*argsComplete=*/true);
       if (!instCtor) {
         reject(ctor, "substitution failed for the deduced arguments");
         continue;
@@ -855,6 +848,10 @@ auto OverloadResolution::resolveConstructor(
 
       ctor = instCtor;
       deducedArgsForCandidate = *deducedArgs;
+
+      if (excludesExplicitConstructors) {
+        if (ctor->isExplicit()) continue;
+      }
     }
 
     auto type = type_cast<FunctionType>(ctor->type());
@@ -901,7 +898,16 @@ auto OverloadResolution::resolveConstructor(
     auto paramIt = type->parameterTypes().begin();
     auto paramEnd = type->parameterTypes().end();
     for (size_t i = 0; i < args.size() && paramIt != paramEnd; ++i, ++paramIt) {
-      auto conv = computeImplicitConversionSequence(args[i], *paramIt);
+      ImplicitConversionSequence conv;
+      bool isFirstCopyInitializationArgument = false;
+      if (excludesExplicitConstructors) {
+        if (i == 0) isFirstCopyInitializationArgument = true;
+      }
+      if (isFirstCopyInitializationArgument) {
+        conv = stdconv_.computeStandardConversionSequence(args[i], *paramIt);
+      } else {
+        conv = computeImplicitConversionSequence(args[i], *paramIt);
+      }
       if (conv.rank == ConversionRank::kNone) {
         cand.viable = false;
         reject(ctor, std::format(
@@ -959,19 +965,98 @@ auto OverloadResolution::findCandidates(ScopeSymbol* scope,
   if (!symbol) return result;
 
   if (auto funcSymbol = symbol_cast<FunctionSymbol>(symbol)) {
-    result.push_back(funcSymbol);
+    addOverloadCandidate(result, funcSymbol);
     return result;
   }
 
   if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
     for (auto func : overloadSet->functions()) {
-      if (func->canonical() == func) {
-        result.push_back(func);
-      }
+      if (isPureFriend(func)) continue;
+      addOverloadCandidate(result, func);
     }
   }
 
   return result;
+}
+
+auto OverloadResolution::buildCallCandidate(
+    FunctionSymbol* function, const FunctionType* type,
+    std::span<ExpressionAST* const> args,
+    std::vector<RejectedCandidate>* rejected) -> std::optional<Candidate> {
+  const auto argCount = static_cast<int>(args.size());
+  const auto paramCount = static_cast<int>(type->parameterTypes().size());
+
+  auto reject = [&](std::string reason) {
+    if (rejected) rejected->push_back({function, std::move(reason)});
+  };
+
+  auto rejectArity = [&] {
+    reject(std::format("requires {} argument{}, but {} {} provided", paramCount,
+                       paramCount == 1 ? "" : "s", argCount,
+                       argCount == 1 ? "was" : "were"));
+  };
+
+  if (argCount > paramCount && !type->isVariadic()) {
+    rejectArity();
+    return std::nullopt;
+  }
+
+  if (argCount < paramCount &&
+      argCount < getMinRequiredArgs(function, paramCount)) {
+    rejectArity();
+    return std::nullopt;
+  }
+
+  Candidate cand{function};
+  cand.viable = true;
+
+  auto paramIt = type->parameterTypes().begin();
+  auto paramEnd = type->parameterTypes().end();
+  for (int i = 0; i < argCount && paramIt != paramEnd; ++i, ++paramIt) {
+    auto conv = computeImplicitConversionSequence(args[i], *paramIt);
+    if (conv.rank == ConversionRank::kNone) {
+      reject(
+          std::format("no known conversion from '{}' to '{}' for argument {}",
+                      to_string(args[i]->type), to_string(*paramIt), i + 1));
+      return std::nullopt;
+    }
+    cand.conversions.push_back(conv);
+  }
+
+  if (type->isVariadic()) {
+    for (int i = paramCount; i < argCount; ++i) {
+      ImplicitConversionSequence ellipsisConv;
+      ellipsisConv.kind = ConversionSequenceKind::kEllipsis;
+      ellipsisConv.rank = ConversionRank::kConversion;
+      cand.conversions.push_back(ellipsisConv);
+    }
+  }
+
+  return cand;
+}
+
+auto OverloadResolution::resolveCall(
+    const std::vector<FunctionSymbol*>& candidates,
+    std::span<ExpressionAST* const> args, bool* ambiguous) -> FunctionSymbol* {
+  if (ambiguous) *ambiguous = false;
+
+  std::vector<Candidate> viableCandidates;
+  for (auto function : candidates) {
+    auto type = type_cast<FunctionType>(function->type());
+    if (!type) continue;
+    if (auto cand = buildCallCandidate(function, type, args))
+      viableCandidates.push_back(std::move(*cand));
+  }
+
+  auto [bestPtr, isAmbiguous] =
+      selectBestViableFunction(viableCandidates, /*preferNonTemplate=*/true);
+
+  if (isAmbiguous) {
+    if (ambiguous) *ambiguous = true;
+    return nullptr;
+  }
+
+  return bestPtr ? bestPtr->symbol : nullptr;
 }
 
 auto OverloadResolution::collectCandidates(Symbol* symbol) const
@@ -1178,11 +1263,10 @@ auto OverloadResolution::resolveBinaryOperator(
                                           /*explicitTemplateArguments=*/{});
       if (!deducedArgs.has_value()) continue;
 
-      auto instFunc = ASTRewriter::instantiateForArgs(
+      auto instFunc = ASTRewriter::instantiateOverloadCandidate(
           unit_, *deducedArgs, candidate,
           candidateLeftExpr->firstSourceLocation(),
-          /*argsComplete=*/true,
-          /*declarationOnly=*/!functionTemplateHasPackParameter(candidate));
+          /*argsComplete=*/true);
       if (!instFunc) continue;
 
       candidate = instFunc;
@@ -1317,7 +1401,8 @@ auto OverloadResolution::resolveBinaryOperator(
     return nullptr;
   }
 
-  completeDeferredWinnerBody(best->symbol, best->deducedTemplateArgs);
+  ASTRewriter::instantiateSelectedSpecializationDefinition(
+      unit_, best->symbol, best->deducedTemplateArgs);
   lastOperatorRewritten_ = best->rewritten;
   lastOperatorReversed_ = best->reversed;
   return best->symbol;

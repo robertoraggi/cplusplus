@@ -52,7 +52,7 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            expression-statement
-// CHECK-NEXT:              expression: call-expression [prvalue type-param<0, 0>]
+// CHECK-NEXT:              expression: call-expression [prvalue <dependent-type>]
 // CHECK-NEXT:                base-expression: id-expression [lvalue $overload-set]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: foo

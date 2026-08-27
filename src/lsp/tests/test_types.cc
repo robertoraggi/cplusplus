@@ -251,3 +251,20 @@ TEST(LSP, CreateCompletionList) {
     ASSERT_TRUE(completionList);
   });
 }
+
+TEST(LSP, JsonRoundTrip) {
+  auto value = json::parse(
+      R"({"message":"one\ntwo","items":[1,true,null],"object":{}})");
+
+  ASSERT_EQ(value.at("message").get<std::string>(), "one\ntwo");
+  ASSERT_EQ(value.at("items").at(0).get<int>(), 1);
+  ASSERT_TRUE(value.at("items").at(1).get<bool>());
+  ASSERT_TRUE(value.at("items").at(2).is_null());
+
+  value["answer"] = 42;
+
+  auto reparsed = json::parse(value.dump());
+  ASSERT_EQ(reparsed.at("answer").get<int>(), 42);
+  ASSERT_EQ(reparsed.at("message").get<std::string>(), "one\ntwo");
+  ASSERT_NE(value.dump(2).find("\"answer\": 42"), std::string::npos);
+}

@@ -263,6 +263,10 @@ class Control {
       -> bool;
   void endCopyConstructorSelection(ClassSymbol* classSymbol);
 
+  [[nodiscard]] auto closureNameCount() const -> int;
+  void setClosureNameCount(int count);
+  [[nodiscard]] auto newClosureName() -> const Identifier*;
+
  private:
   struct Private;
   std::unique_ptr<Private> d;

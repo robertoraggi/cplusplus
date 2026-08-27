@@ -30,6 +30,7 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <algorithm>
 #include <format>
 
 namespace cxx {
@@ -118,6 +119,11 @@ struct ArithmeticCast {
     return T{};
   }
 
+  auto operator()(IndeterminateValue) const -> T {
+    cxx_runtime_error("invalid artihmetic cast");
+    return T{};
+  }
+
   auto operator()(auto value) const -> T { return static_cast<T>(value); }
 };
 }  // namespace
@@ -143,6 +149,10 @@ struct ASTInterpreter::ToBool {
     return true;
   }
 
+  auto operator()(IndeterminateValue) const -> std::optional<bool> {
+    return std::nullopt;
+  }
+
   auto operator()(const auto& value) const -> std::optional<bool> {
     return bool(value);
   }
@@ -153,12 +163,62 @@ ASTInterpreter::ASTInterpreter(TranslationUnit* unit)
 
 ASTInterpreter::~ASTInterpreter() {}
 
+auto ASTInterpreter::cloneValue(const ConstValue& value) -> ConstValue {
+  if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
+    if (!*object) return value;
+    auto copy = std::make_shared<ConstObject>((*object)->type());
+    for (const auto& field : (*object)->fields())
+      copy->addField(field.symbol, cloneValue(field.value));
+    for (const auto& base : (*object)->bases()) copy->addBase(cloneValue(base));
+    return ConstValue{std::move(copy)};
+  }
+
+  if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+    if (!*list) return value;
+    auto copy = std::make_shared<InitializerList>();
+    for (const auto& [element, type] : (*list)->elements)
+      copy->elements.emplace_back(cloneValue(element), type);
+    return ConstValue{std::move(copy)};
+  }
+
+  return value;
+}
+
+auto ASTInterpreter::isFullyInitialized(const ConstValue& value) const -> bool {
+  if (std::holds_alternative<IndeterminateValue>(value)) return false;
+
+  if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
+    if (!*object) return false;
+    for (const auto& field : (*object)->fields()) {
+      if (!isFullyInitialized(field.value)) return false;
+    }
+    for (const auto& base : (*object)->bases()) {
+      if (!isFullyInitialized(base)) return false;
+    }
+  }
+
+  if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+    if (!*list) return false;
+    for (const auto& [element, type] : (*list)->elements) {
+      if (!isFullyInitialized(element)) return false;
+    }
+  }
+
+  return true;
+}
+
 auto ASTInterpreter::control() const -> Control* { return unit_->control(); }
 
 auto ASTInterpreter::evaluate(ExpressionAST* ast) -> std::optional<ConstValue> {
   EvaluationScope evaluationScope{*this};
   auto result = expression(ast);
   return result;
+}
+
+auto ASTInterpreter::evaluateAddress(ExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  EvaluationScope evaluationScope{*this};
+  return addressOfLvalue(ast);
 }
 
 auto ASTInterpreter::toBool(const ConstValue& value) -> std::optional<bool> {
@@ -289,6 +349,52 @@ void ASTInterpreter::applyNsdmis(const std::shared_ptr<ConstObject>& obj) {
   thisObject_ = std::move(savedThis);
 }
 
+auto ASTInterpreter::initializeDefaultedObject(
+    const std::shared_ptr<ConstObject>& obj, ClassSymbol* classSymbol) -> bool {
+  if (!obj || !classSymbol) return false;
+  classSymbol = classSymbol->resolvedDefinition();
+  auto savedThis = std::exchange(thisObject_, obj);
+
+  for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    auto value = defaultConstruct(baseClass->type());
+    if (!value) {
+      thisObject_ = std::move(savedThis);
+      return false;
+    }
+    obj->addBase(std::move(*value));
+  }
+
+  for (auto member : classSymbol->members()) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field || field->isStatic()) continue;
+
+    if (field->initializer()) {
+      auto value = evaluate(field->initializer());
+      if (!value) {
+        thisObject_ = std::move(savedThis);
+        return false;
+      }
+      obj->setField(field, std::move(*value));
+      if (classSymbol->isUnion()) break;
+      continue;
+    }
+
+    auto value = defaultConstruct(field->type());
+    if (!value) {
+      thisObject_ = std::move(savedThis);
+      return false;
+    }
+    obj->setField(field, std::move(*value));
+    if (classSymbol->isUnion()) break;
+  }
+
+  thisObject_ = std::move(savedThis);
+  return true;
+}
+
 void ASTInterpreter::applyMemInitializer(MemInitializerAST* ast,
                                          std::vector<ConstValue> args) {
   if (!ast->symbol || !thisObject_) return;
@@ -336,39 +442,30 @@ void ASTInterpreter::applyMemInitializer(MemInitializerAST* ast,
 auto ASTInterpreter::defaultConstruct(const Type* type)
     -> std::optional<ConstValue> {
   EvaluationScope evaluationScope{*this};
-  auto classType = type_cast<ClassType>(traits.remove_cv(type));
+  auto unqualified = traits.remove_cv(type);
+  if (auto arrayType = type_cast<BoundedArrayType>(unqualified)) {
+    auto elements = std::make_shared<InitializerList>();
+    elements->elements.reserve(arrayType->size());
+    for (std::size_t index = 0; index < arrayType->size(); ++index) {
+      auto value = defaultConstruct(arrayType->elementType());
+      if (!value) return std::nullopt;
+      elements->elements.emplace_back(std::move(*value),
+                                      arrayType->elementType());
+    }
+    return ConstValue{std::move(elements)};
+  }
+
+  if (!traits.is_class(unqualified)) return ConstValue{IndeterminateValue{}};
+
+  auto classType = type_cast<ClassType>(unqualified);
   if (!classType || !classType->symbol()) return std::nullopt;
 
-  auto callableWithNoArgs = [](FunctionSymbol* ctor) {
-    auto params = ctor->functionParameters();
-    if (!params) return true;
-    for (auto member : params->members()) {
-      auto param = symbol_cast<ParameterSymbol>(member);
-      if (param && !param->defaultArgument()) return false;
-    }
-    return true;
-  };
-
-  for (auto ctor : classType->symbol()->constructors()) {
-    if (!ctor->isConstexpr() || !callableWithNoArgs(ctor)) continue;
-    if (auto value = evaluateConstructor(ctor, type, {})) return value;
-  }
-
-  auto obj = std::make_shared<ConstObject>(type);
-  auto savedThis = std::exchange(thisObject_, obj);
-
-  for (auto base : classType->symbol()->baseClasses()) {
-    if (base->isVirtual()) continue;
-    auto baseClassSym = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClassSym) continue;
-    if (auto baseVal = defaultConstruct(baseClassSym->type()))
-      obj->addBase(std::move(*baseVal));
-  }
-
-  applyNsdmis(obj);
-  thisObject_ = std::move(savedThis);
-  if (aborted_) return std::nullopt;
-  return ConstValue{std::move(obj)};
+  auto classSymbol = classType->symbol()->resolvedDefinition();
+  auto constructor = classSymbol->defaultConstructor();
+  if (!constructor) return std::nullopt;
+  if (!constructor->isConstexpr() && !constructor->isDefaulted())
+    return std::nullopt;
+  return evaluateConstructor(constructor, type, {});
 }
 
 void ASTInterpreter::pushFrame() { frames_.push_back({}); }
@@ -381,6 +478,97 @@ void ASTInterpreter::retireFrame() {
   if (frames_.empty()) return;
   retiredFrames_.push_back(std::move(frames_.back()));
   frames_.pop_back();
+}
+
+auto ASTInterpreter::beginAutomaticScope() const -> std::size_t {
+  if (frames_.empty()) return 0;
+  return frames_.back().automaticObjects.size();
+}
+
+void ASTInterpreter::registerAutomaticObject(VariableSymbol* variable) {
+  if (!variable || variable->isStatic()) return;
+  if (frames_.empty()) return;
+  auto type = traits.remove_cv(variable->type());
+  if (!traits.is_class(type) && !traits.is_array(type)) return;
+  frames_.back().automaticObjects.push_back(variable);
+}
+
+auto ASTInterpreter::endAutomaticScope(std::size_t mark) -> bool {
+  if (frames_.empty()) return true;
+  auto& objects = frames_.back().automaticObjects;
+  if (mark > objects.size()) return false;
+  while (objects.size() > mark) {
+    auto variable = objects.back();
+    objects.pop_back();
+    auto value = lookupLocalSlot(variable);
+    if (!value) continue;
+    if (destroyValue(variable->type(), *value)) continue;
+    aborted_ = true;
+    return false;
+  }
+  return true;
+}
+
+auto ASTInterpreter::destroyValue(const Type* type, ConstValue& value) -> bool {
+  auto unqual = traits.remove_cv(type);
+  if (auto arrayType = type_cast<BoundedArrayType>(unqual)) {
+    auto elements = std::get_if<std::shared_ptr<InitializerList>>(&value);
+    if (!elements || !*elements) return false;
+    for (auto it = (*elements)->elements.rbegin();
+         it != (*elements)->elements.rend(); ++it) {
+      auto& [element, elementType] = *it;
+      auto typeToDestroy = elementType;
+      if (!typeToDestroy) typeToDestroy = arrayType->elementType();
+      if (!destroyValue(typeToDestroy, element)) return false;
+    }
+    return true;
+  }
+
+  auto classType = type_cast<ClassType>(unqual);
+  if (!classType) return true;
+  if (traits.has_trivial_destructor(unqual)) return true;
+
+  auto object = std::get_if<std::shared_ptr<ConstObject>>(&value);
+  if (!object || !*object) return false;
+  auto classSymbol = classType->definition();
+  traits.requireCompleteClass(classSymbol);
+  if (!classSymbol || !classSymbol->isComplete()) return false;
+  auto destructor = classSymbol->destructor();
+  if (!destructor || destructor->isDeleted()) return false;
+
+  if (!destructor->isDefaulted()) {
+    if (!destructor->isConstexpr()) return false;
+    auto savedReturnValue = std::move(returnValue_);
+    auto savedCaptureReturnLValue = std::exchange(captureReturnLValue_, false);
+    auto savedReturnLValue = std::exchange(returnLValue_, nullptr);
+    auto savedCaptureReturnAddress =
+        std::exchange(captureReturnAddress_, false);
+    auto savedReturnAddress = std::move(returnAddress_);
+    (void)evaluateCall(destructor, {}, *object);
+    returnValue_ = std::move(savedReturnValue);
+    captureReturnLValue_ = savedCaptureReturnLValue;
+    returnLValue_ = savedReturnLValue;
+    captureReturnAddress_ = savedCaptureReturnAddress;
+    returnAddress_ = std::move(savedReturnAddress);
+    if (aborted_) return false;
+  }
+
+  auto& fields = (*object)->mutableFields();
+  for (auto it = fields.rbegin(); it != fields.rend(); ++it) {
+    if (!it->symbol || !it->symbol->type()) continue;
+    if (!destroyValue(it->symbol->type(), it->value)) return false;
+  }
+
+  auto& bases = (*object)->mutableBases();
+  auto baseClasses = classSymbol->baseClasses();
+  auto count = std::min(bases.size(), baseClasses.size());
+  for (auto index = count; index > 0; --index) {
+    auto baseClass = symbol_cast<ClassSymbol>(baseClasses[index - 1]->symbol());
+    if (!baseClass) continue;
+    if (!destroyValue(baseClass->type(), bases[index - 1])) return false;
+  }
+
+  return true;
 }
 
 auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
@@ -411,10 +599,8 @@ auto ASTInterpreter::evaluateCall(FunctionSymbol* func,
   ++depth_;
   pushFrame();
 
-  std::string funcNameStr;
-  if (auto id = name_cast<Identifier>(func->name())) {
-    funcNameStr = id->value();
-  }
+  std::string funcNameStr = to_string(func->name());
+
   auto savedFunctionName =
       std::exchange(currentFunctionName_, std::move(funcNameStr));
 
@@ -522,10 +708,8 @@ auto ASTInterpreter::evaluateCallExprs(FunctionSymbol* func,
   ++depth_;
   pushFrame();
 
-  std::string funcNameStr;
-  if (auto id = name_cast<Identifier>(func->name())) {
-    funcNameStr = id->value();
-  }
+  std::string funcNameStr = to_string(func->name());
+
   auto savedFunctionName =
       std::exchange(currentFunctionName_, std::move(funcNameStr));
 
@@ -602,12 +786,63 @@ auto ASTInterpreter::evaluateCallLValueFromExprs(FunctionSymbol* func,
   return result;
 }
 
+auto ASTInterpreter::evaluateCallAddressFromExprs(
+    FunctionSymbol* func, List<ExpressionAST*>* argExprs)
+    -> std::optional<ConstValue> {
+  if (!func) return std::nullopt;
+  if (!func->isConstexpr()) return std::nullopt;
+
+  auto defn = func->definition();
+  if (!defn) defn = func;
+
+  if (defn->hasPendingBody()) {
+    ASTRewriter::completePendingBodyFor(unit_, defn);
+  }
+
+  auto funcDef = defn->declaration();
+  if (!funcDef) return std::nullopt;
+
+  auto body = funcDef->functionBody;
+  if (!body) return std::nullopt;
+
+  auto compBody = ast_cast<CompoundStatementFunctionBodyAST>(body);
+  if (!compBody) return std::nullopt;
+  if (!compBody->statement) return std::nullopt;
+  if (depth_ >= kMaxDepth) return std::nullopt;
+
+  ++depth_;
+  pushFrame();
+
+  if (!bindParametersFromExprs(func, argExprs)) {
+    popFrame();
+    --depth_;
+    return std::nullopt;
+  }
+
+  auto savedCapture = std::exchange(captureReturnAddress_, true);
+  auto savedAddress = std::move(returnAddress_);
+  returnAddress_.reset();
+  returnValue_.reset();
+  (void)statement(compBody->statement);
+
+  auto result = std::move(returnAddress_);
+  returnAddress_ = std::move(savedAddress);
+  captureReturnAddress_ = savedCapture;
+
+  popFrame();
+  --depth_;
+
+  if (aborted_) return std::nullopt;
+  return result;
+}
+
 auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
                                          const Type* classType,
                                          std::vector<ConstValue> args)
     -> std::optional<ConstValue> {
   EvaluationScope evaluationScope{*this};
-  if (!ctor || !ctor->isConstexpr()) return std::nullopt;
+  if (!ctor) return std::nullopt;
+  if (!ctor->isConstexpr() && !ctor->isDefaulted()) return std::nullopt;
 
   auto defn = ctor->definition();
   if (!defn) defn = ctor;
@@ -622,10 +857,40 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
   auto body = funcDef->functionBody;
   if (!body) return std::nullopt;
 
+  if (depth_ >= kMaxDepth) return std::nullopt;
+
+  if (ast_cast<DefaultFunctionBodyAST>(body)) {
+    auto classSymbol = symbol_cast<ClassSymbol>(ctor->parent());
+    if (!classSymbol) return std::nullopt;
+    classSymbol = classSymbol->resolvedDefinition();
+
+    auto obj = std::make_shared<ConstObject>(classType);
+    auto defaultConstructor = classSymbol->defaultConstructor();
+    auto isDefaultConstructor = defaultConstructor != nullptr;
+    if (isDefaultConstructor)
+      isDefaultConstructor =
+          ctor->canonical() == defaultConstructor->canonical();
+    if (isDefaultConstructor) {
+      ++depth_;
+      auto initialized = initializeDefaultedObject(obj, classSymbol);
+      --depth_;
+      if (!initialized) return std::nullopt;
+      return ConstValue{std::move(obj)};
+    }
+
+    auto copy = classSymbol->copyConstructor();
+    auto move = classSymbol->moveConstructor();
+    auto canonical = ctor->canonical();
+    auto copiesObject = copy && canonical == copy->canonical();
+    if (move && canonical == move->canonical()) copiesObject = true;
+    if (!copiesObject || args.size() != 1) return std::nullopt;
+    auto source = std::get_if<std::shared_ptr<ConstObject>>(&args.front());
+    if (!source || !*source) return std::nullopt;
+    return cloneValue(args.front());
+  }
+
   auto compBody = ast_cast<CompoundStatementFunctionBodyAST>(body);
   if (!compBody) return std::nullopt;
-
-  if (depth_ >= kMaxDepth) return std::nullopt;
 
   ++depth_;
   pushFrame();

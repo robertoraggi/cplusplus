@@ -29,8 +29,30 @@
 #include <cxx/views/symbols.h>
 
 #include <format>
+#include <unordered_set>
 
 namespace cxx {
+
+auto toAccessSpecifier(TokenKind accessSpecifierToken,
+                       AccessSpecifier defaultAccessSpecifier)
+    -> AccessSpecifier {
+  switch (accessSpecifierToken) {
+    case TokenKind::T_PRIVATE:
+      return AccessSpecifier::kPrivate;
+    case TokenKind::T_PROTECTED:
+      return AccessSpecifier::kProtected;
+    case TokenKind::T_PUBLIC:
+      return AccessSpecifier::kPublic;
+    default:
+      return defaultAccessSpecifier;
+  }
+}
+
+auto defaultAccessSpecifierOfClassKey(TokenKind classKey) -> AccessSpecifier {
+  if (classKey == TokenKind::T_CLASS) return AccessSpecifier::kPrivate;
+  return AccessSpecifier::kPublic;
+}
+
 namespace {
 [[nodiscard]] auto hasEquivalentParameterTypeList(FunctionSymbol* lhs,
                                                   FunctionSymbol* rhs) -> bool {
@@ -181,19 +203,35 @@ auto compare_args(TranslationUnit* unit,
 auto expand_template_arguments(std::span<const TemplateArgument> arguments)
     -> std::vector<TemplateArgument> {
   std::vector<TemplateArgument> expanded;
+  for (auto& entry : expand_template_arguments_with_sources(arguments))
+    expanded.push_back(std::move(entry.value));
+  return expanded;
+}
 
-  auto expandInto = [&](const TemplateArgument& argument, auto&& self) -> void {
-    if (auto symbol = std::get_if<Symbol*>(&argument)) {
+auto expand_template_arguments_with_sources(
+    std::span<const TemplateArgument> arguments)
+    -> std::vector<ExpandedTemplateArgument> {
+  std::vector<ExpandedTemplateArgument> expanded;
+  std::vector<ExpandedTemplateArgument> pending;
+  pending.reserve(arguments.size());
+
+  for (std::size_t index = arguments.size(); index > 0; --index)
+    pending.push_back({arguments[index - 1], index - 1});
+
+  while (!pending.empty()) {
+    auto entry = std::move(pending.back());
+    pending.pop_back();
+    if (auto symbol = std::get_if<Symbol*>(&entry.value)) {
       if (auto pack = symbol_cast<ParameterPackSymbol>(*symbol)) {
-        for (auto element : pack->elements())
-          self(TemplateArgument{element}, self);
-        return;
+        auto& elements = pack->elements();
+        for (std::size_t index = elements.size(); index > 0; --index)
+          pending.push_back(
+              {TemplateArgument{elements[index - 1]}, entry.sourceIndex});
+        continue;
       }
     }
-    expanded.push_back(argument);
-  };
-
-  for (const auto& argument : arguments) expandInto(argument, expandInto);
+    expanded.push_back(std::move(entry));
+  }
 
   return expanded;
 }
@@ -202,6 +240,48 @@ auto template_argument_type(const TemplateArgument& argument) -> const Type* {
   if (auto type = std::get_if<const Type*>(&argument)) return *type;
   if (auto symbol = std::get_if<Symbol*>(&argument)) return (*symbol)->type();
   return nullptr;
+}
+
+auto template_argument_as_type(const TemplateArgument& argument)
+    -> const Type* {
+  if (auto type = std::get_if<const Type*>(&argument)) return *type;
+  auto symbol = std::get_if<Symbol*>(&argument);
+  if (!symbol || !is_type(*symbol)) return nullptr;
+  return (*symbol)->type();
+}
+
+auto template_argument_parameter_info(const TemplateArgument& argument)
+    -> std::optional<TypeParamInfo> {
+  if (auto symbol = std::get_if<Symbol*>(&argument))
+    return template_parameter_info(*symbol);
+  if (auto type = std::get_if<const Type*>(&argument))
+    return getTypeParamInfo(*type);
+  return std::nullopt;
+}
+
+auto class_template_of(ClassSymbol* classSymbol) -> ClassSymbol* {
+  if (!classSymbol) return nullptr;
+  if (classSymbol->isSpecialization())
+    return classSymbol->primaryTemplateSymbol();
+  if (classSymbol->templateDeclaration()) return classSymbol;
+  return nullptr;
+}
+
+auto class_template_arguments(ClassSymbol* classSymbol)
+    -> std::vector<TemplateArgument> {
+  if (!classSymbol) return {};
+
+  if (classSymbol->isSpecialization()) {
+    auto arguments = classSymbol->templateArguments();
+    return std::vector<TemplateArgument>{arguments.begin(), arguments.end()};
+  }
+
+  auto parameters = classSymbol->templateParameters();
+  if (!parameters) return {};
+
+  std::vector<TemplateArgument> arguments;
+  for (auto parameter : parameters->members()) arguments.push_back(parameter);
+  return arguments;
 }
 
 auto template_argument_value(const TemplateArgument& argument)
@@ -221,7 +301,7 @@ auto template_name_symbol(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
 
   if (auto alias = symbol_cast<TypeAliasSymbol>(symbol)) {
-    if (alias->templateParameters() && !alias->isSpecialization()) return alias;
+    if (alias->isTemplatePattern()) return alias;
     if (auto classType = type_cast<ClassType>(alias->type())) {
       return template_name_symbol(classType->symbol());
     }
@@ -238,11 +318,18 @@ auto template_name_symbol(Symbol* symbol) -> Symbol* {
   return nullptr;
 }
 
+auto resolve_using_declaration(Symbol* symbol) -> Symbol* {
+  while (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol)) {
+    symbol = usingDeclaration->target();
+  }
+  return symbol;
+}
+
 auto templated_symbol(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
 
-  if (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol))
-    return templated_symbol(usingDeclaration->target());
+  symbol = resolve_using_declaration(symbol);
+  if (!symbol) return nullptr;
 
   if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
     for (auto function : overloadSet->functions()) {
@@ -349,6 +436,15 @@ auto Symbol::enclosingNamespace() const -> NamespaceSymbol* {
   for (auto scope = parent(); scope; scope = scope->parent()) {
     if (auto ns = symbol_cast<NamespaceSymbol>(scope)) {
       return ns;
+    }
+  }
+  return nullptr;
+}
+
+auto Symbol::enclosingClass() const -> ClassSymbol* {
+  for (auto scope = parent(); scope; scope = scope->parent()) {
+    if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
+      return classSymbol;
     }
   }
   return nullptr;
@@ -499,6 +595,15 @@ auto is_member_template(Symbol* symbol) -> bool {
 }
 
 namespace {
+auto denotes_template_parameter(Symbol* symbol, Symbol* parameter) -> bool {
+  auto symbolInfo = template_parameter_info(symbol);
+  auto parameterInfo = template_parameter_info(parameter);
+  if (!symbolInfo || !parameterInfo) return false;
+  if (symbolInfo->depth != parameterInfo->depth) return false;
+  if (symbolInfo->index != parameterInfo->index) return false;
+  return symbolInfo->isPack == parameterInfo->isPack;
+}
+
 auto is_equivalent_to_template_parameter(TemplateArgumentAST* argument,
                                          Symbol* parameter) -> bool {
   if (auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument)) {
@@ -512,7 +617,8 @@ auto is_equivalent_to_template_parameter(TemplateArgumentAST* argument,
     if (auto pack = ast_cast<PackExpansionExpressionAST>(expression))
       expression = pack->expression;
     auto idExpression = ast_cast<IdExpressionAST>(expression);
-    return idExpression && idExpression->symbol == parameter;
+    if (!idExpression) return false;
+    return denotes_template_parameter(idExpression->symbol, parameter);
   }
 
   return false;
@@ -588,13 +694,21 @@ auto ScopeSymbol::members() const -> const std::vector<Symbol*>& {
 }
 
 void ScopeSymbol::reset() {
-  for (auto symbol : members_) {
-    symbol->link_ = nullptr;
-    symbol->setParent(nullptr);
-  }
-  members_.clear();
-  buckets_.clear();
+  truncate(0);
   usingDirectives_.clear();
+}
+
+void ScopeSymbol::truncate(std::size_t count) {
+  if (count >= members_.size()) return;
+  for (std::size_t i = count; i < members_.size(); ++i) {
+    members_[i]->link_ = nullptr;
+    members_[i]->setParent(nullptr);
+  }
+  members_.resize(count);
+  buckets_.clear();
+  if (!members_.empty()) {
+    rehash();
+  }
 }
 
 auto ScopeSymbol::isTransparent() const -> bool {
@@ -772,14 +886,6 @@ auto BaseClassSymbol::isVirtual() const -> bool { return isVirtual_; }
 
 void BaseClassSymbol::setVirtual(bool isVirtual) { isVirtual_ = isVirtual; }
 
-auto BaseClassSymbol::accessSpecifier() const -> AccessSpecifier {
-  return accessSpecifier_;
-}
-
-void BaseClassSymbol::setAccessSpecifier(AccessSpecifier accessSpecifier) {
-  accessSpecifier_ = accessSpecifier;
-}
-
 auto BaseClassSymbol::symbol() const -> Symbol* { return symbol_; }
 
 void BaseClassSymbol::setSymbol(Symbol* symbol) { symbol_ = symbol; }
@@ -845,6 +951,26 @@ void ClassSymbol::addBaseClass(BaseClassSymbol* baseClass) {
   baseClasses_.push_back(baseClass);
 }
 
+void ClassSymbol::addBefriendingClass(ClassSymbol* classSymbol) {
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+  if (std::ranges::contains(befriendingClasses_, classSymbol)) return;
+  befriendingClasses_.push_back(classSymbol);
+}
+
+void ClassSymbol::addBefriendingClass(ClassSymbol* classSymbol,
+                                      std::vector<TemplateArgument> arguments) {
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+  auto found = std::ranges::find_if(
+      templateFriendships_, [&](const TemplateFriendship& friendship) {
+        return friendship.befriendingClass == classSymbol &&
+               friendship.arguments == arguments;
+      });
+  if (found != templateFriendships_.end()) return;
+  templateFriendships_.push_back({std::move(arguments), classSymbol});
+}
+
 auto ClassSymbol::constructors() const -> std::vector<FunctionSymbol*> {
   return constructorOverloadSet_->functions();
 }
@@ -903,14 +1029,14 @@ auto ClassSymbol::alignment() const -> int { return std::max(alignment_, 1); }
 
 void ClassSymbol::setAlignment(int alignment) { alignment_ = alignment; }
 
-auto ClassSymbol::hasBaseClass(Symbol* symbol) const -> bool {
+auto ClassSymbol::hasBaseClass(const Symbol* symbol) const -> bool {
   std::unordered_set<const ClassSymbol*> processed;
   return hasBaseClass(symbol, processed);
 }
 
 auto ClassSymbol::hasBaseClass(
-    Symbol* symbol, std::unordered_set<const ClassSymbol*>& processed) const
-    -> bool {
+    const Symbol* symbol,
+    std::unordered_set<const ClassSymbol*>& processed) const -> bool {
   if (!processed.insert(this).second) {
     return false;
   }
@@ -929,18 +1055,23 @@ namespace {
 
 struct BaseSubobjectSearch {
   ClassSymbol* base = nullptr;
-  int nonVirtualCount = 0;
-  std::uint64_t nonVirtualOffset = 0;
-  bool reachableVirtually = false;
+  ClassSymbol::BaseSubobjectInfo info;
 
   void collect(const ClassSymbol* derived, std::uint64_t offset,
-               bool reachedVirtually) {
+               bool reachedVirtually, bool reachedPublicly) {
     if (derived == base) {
-      if (reachedVirtually) {
-        reachableVirtually = true;
-      } else {
-        ++nonVirtualCount;
-        nonVirtualOffset = offset;
+      ++info.pathCount;
+      if (!reachedVirtually) {
+        ++info.nonVirtualPathCount;
+        info.nonVirtualOffset = offset;
+      }
+      if (reachedPublicly) {
+        ++info.publicPathCount;
+        if (reachedVirtually) {
+          info.anyPublicPathIsVirtual = true;
+        } else {
+          info.publicNonVirtualOffset = offset;
+        }
       }
       return;
     }
@@ -954,33 +1085,72 @@ struct BaseSubobjectSearch {
 
       auto baseDefinition = baseSymbol->resolvedDefinition();
 
+      const auto isPublic = reachedPublicly && baseClass->accessSpecifier() ==
+                                                   AccessSpecifier::kPublic;
+
       if (baseClass->isVirtual()) {
-        collect(baseDefinition, 0, true);
+        collect(baseDefinition, 0, true, isPublic);
         continue;
       }
 
-      auto info = layout->getBaseInfo(baseDefinition);
-      if (!info) continue;
+      auto baseInfo = layout->getBaseInfo(baseDefinition);
+      if (!baseInfo) continue;
 
-      collect(baseDefinition, offset + info->offset, reachedVirtually);
+      collect(baseDefinition, offset + baseInfo->offset, reachedVirtually,
+              isPublic);
     }
   }
+};
 
-  [[nodiscard]] auto uniqueNonVirtualOffset() const
-      -> std::optional<std::uint64_t> {
-    if (reachableVirtually) return std::nullopt;
-    if (nonVirtualCount != 1) return std::nullopt;
-    return nonVirtualOffset;
+struct BaseClassRepetitionSearch {
+  std::unordered_set<const ClassSymbol*> virtualBases;
+  std::unordered_set<const ClassSymbol*> nonVirtualBases;
+  ClassSymbol::BaseClassRepetition result;
+
+  void collect(const ClassSymbol* derived) {
+    for (auto baseClass : derived->baseClasses()) {
+      auto baseSymbol = symbol_cast<ClassSymbol>(baseClass->symbol());
+      if (!baseSymbol) continue;
+
+      auto baseDefinition = baseSymbol->resolvedDefinition();
+
+      if (baseClass->isVirtual()) {
+        if (!virtualBases.insert(baseDefinition).second) {
+          result.diamondShaped = true;
+        } else if (nonVirtualBases.contains(baseDefinition)) {
+          result.nonDiamondRepeat = true;
+        }
+      } else if (!nonVirtualBases.insert(baseDefinition).second) {
+        result.nonDiamondRepeat = true;
+      } else if (virtualBases.contains(baseDefinition)) {
+        result.nonDiamondRepeat = true;
+      }
+
+      collect(baseDefinition);
+    }
   }
 };
 
 }  // namespace
 
+auto ClassSymbol::baseSubobjectInfo(ClassSymbol* base) const
+    -> BaseSubobjectInfo {
+  BaseSubobjectSearch search{.base = base->resolvedDefinition()};
+  search.collect(resolvedDefinition(), 0, false, true);
+  return search.info;
+}
+
 auto ClassSymbol::baseClassOffset(ClassSymbol* base) const
     -> std::optional<std::uint64_t> {
-  BaseSubobjectSearch search{.base = base->resolvedDefinition()};
-  search.collect(resolvedDefinition(), 0, false);
-  return search.uniqueNonVirtualOffset();
+  auto info = baseSubobjectInfo(base);
+  if (info.pathCount != 1 || info.nonVirtualPathCount != 1) return std::nullopt;
+  return info.nonVirtualOffset;
+}
+
+auto ClassSymbol::baseClassRepetition() const -> BaseClassRepetition {
+  BaseClassRepetitionSearch search;
+  search.collect(resolvedDefinition());
+  return search.result;
 }
 
 auto ClassSymbol::hasVirtualBasePath(Symbol* symbol) const -> bool {
@@ -1138,10 +1308,11 @@ auto ClassSymbol::moveAssignmentOperator() const -> FunctionSymbol* {
 }
 
 auto ClassSymbol::hasUserDeclaredConstructors() const -> bool {
-  for (auto ctor : constructors()) {
-    if (!ctor->isDefaulted()) return true;
-  }
-  return false;
+  return hasUserDeclaredConstructors_;
+}
+
+void ClassSymbol::setHasUserDeclaredConstructors(bool value) {
+  hasUserDeclaredConstructors_ = value;
 }
 
 auto ClassSymbol::hasInheritedConstructors() const -> bool {
@@ -1193,6 +1364,12 @@ void ClassSymbol::setIsClosureType(bool isClosureType) {
   isClosureType_ = isClosureType;
 }
 
+auto ClassSymbol::hasLambdaCapture() const -> bool { return hasLambdaCapture_; }
+
+void ClassSymbol::setHasLambdaCapture(bool hasLambdaCapture) {
+  hasLambdaCapture_ = hasLambdaCapture;
+}
+
 auto ClassSymbol::capturedThisField() const -> FieldSymbol* {
   return capturedThisField_;
 }
@@ -1207,6 +1384,14 @@ auto ClassSymbol::closureDiscriminator() const -> int {
 
 void ClassSymbol::setClosureDiscriminator(int closureDiscriminator) {
   closureDiscriminator_ = closureDiscriminator;
+}
+
+auto ClassSymbol::instantiationPattern() const -> ClassSymbol* {
+  return instantiationPattern_;
+}
+
+void ClassSymbol::setInstantiationPattern(ClassSymbol* instantiationPattern) {
+  instantiationPattern_ = instantiationPattern;
 }
 
 EnumSymbol::EnumSymbol(ScopeSymbol* enclosingScope)
@@ -1273,10 +1458,33 @@ auto FunctionSymbol::isFriend() const -> bool { return isFriend_; }
 void FunctionSymbol::setFriend(bool isFriend) { isFriend_ = isFriend; }
 
 auto FunctionSymbol::isImplicitObjectMemberFunction() const -> bool {
+  if (hasExplicitObjectParameter()) return false;
   return !isStatic() && !isFriend() && symbol_cast<ClassSymbol>(parent());
 }
 
-auto FunctionSymbol::isConstexpr() const -> bool { return isConstexpr_; }
+auto FunctionSymbol::hasExplicitObjectParameter() const -> bool {
+  return hasExplicitObjectParameter_;
+}
+
+void FunctionSymbol::setExplicitObjectParameter(
+    bool hasExplicitObjectParameter) {
+  hasExplicitObjectParameter_ = hasExplicitObjectParameter;
+}
+
+auto FunctionSymbol::explicitObjectParameter() const -> ParameterSymbol* {
+  if (!hasExplicitObjectParameter()) return nullptr;
+  auto parameters = functionParameters();
+  if (!parameters) return nullptr;
+  for (auto member : parameters->members()) {
+    if (auto parameter = symbol_cast<ParameterSymbol>(member)) return parameter;
+  }
+  return nullptr;
+}
+
+auto FunctionSymbol::isConstexpr() const -> bool {
+  if (isConsteval_) return true;
+  return isConstexpr_;
+}
 
 void FunctionSymbol::setConstexpr(bool isConstexpr) {
   isConstexpr_ = isConstexpr;
@@ -1295,6 +1503,52 @@ void FunctionSymbol::setInline(bool isInline) { isInline_ = isInline; }
 auto FunctionSymbol::isVirtual() const -> bool { return isVirtual_; }
 
 void FunctionSymbol::setVirtual(bool isVirtual) { isVirtual_ = isVirtual; }
+
+void FunctionSymbol::addOverriddenFunction(FunctionSymbol* function) {
+  if (!function) return;
+  if (std::ranges::contains(overriddenFunctions_, function)) return;
+  overriddenFunctions_.push_back(function);
+}
+
+auto FunctionSymbol::overrides(FunctionSymbol* function) const -> bool {
+  if (!function) return false;
+
+  std::vector<const FunctionSymbol*> pending{this};
+  std::unordered_set<const FunctionSymbol*> visited;
+
+  while (!pending.empty()) {
+    auto current = pending.back();
+    pending.pop_back();
+    if (!visited.insert(current).second) continue;
+
+    for (auto overridden : current->overriddenFunctions_) {
+      if (overridden == function) return true;
+      pending.push_back(overridden);
+    }
+  }
+
+  return false;
+}
+
+void FunctionSymbol::addBefriendingClass(ClassSymbol* classSymbol) {
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+  if (std::ranges::contains(befriendingClasses_, classSymbol)) return;
+  befriendingClasses_.push_back(classSymbol);
+}
+
+void FunctionSymbol::addBefriendingClass(
+    ClassSymbol* classSymbol, std::vector<TemplateArgument> arguments) {
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+  auto found = std::ranges::find_if(
+      templateFriendships_, [&](const TemplateFriendship& friendship) {
+        return friendship.befriendingClass == classSymbol &&
+               friendship.arguments == arguments;
+      });
+  if (found != templateFriendships_.end()) return;
+  templateFriendships_.push_back({std::move(arguments), classSymbol});
+}
 
 auto FunctionSymbol::isExplicit() const -> bool { return isExplicit_; }
 
@@ -1633,8 +1887,28 @@ void VariableSymbol::setConstValue(std::optional<ConstValue> value) {
   constValue_ = std::move(value);
 }
 
+auto FieldSymbol::constValue() const -> const std::optional<ConstValue>& {
+  return constValue_;
+}
+
+void FieldSymbol::setConstValue(std::optional<ConstValue> value) {
+  constValue_ = std::move(value);
+}
+
 FieldSymbol::FieldSymbol(ScopeSymbol* enclosingScope)
     : Symbol(Kind, enclosingScope) {}
+
+auto FieldSymbol::pendingInitializer() const
+    -> PendingFieldInitializerInstantiation* {
+  return pendingInitializer_.get();
+}
+
+void FieldSymbol::setPendingInitializer(
+    std::unique_ptr<PendingFieldInitializerInstantiation> pending) {
+  pendingInitializer_ = std::move(pending);
+}
+
+void FieldSymbol::clearPendingInitializer() { pendingInitializer_.reset(); }
 
 FieldSymbol::~FieldSymbol() {}
 
@@ -1657,6 +1931,12 @@ void FieldSymbol::setBitFieldWidth(std::optional<ConstValue> bitFieldWidth) {
 }
 
 auto FieldSymbol::isStatic() const -> bool { return isStatic_; }
+
+auto FieldSymbol::isExtern() const -> bool {
+  if (!isStatic_) return false;
+  if (isInline_) return false;
+  return !isConstexpr_;
+}
 
 void FieldSymbol::setStatic(bool isStatic) { isStatic_ = isStatic; }
 
@@ -1730,6 +2010,14 @@ ParameterSymbol::~ParameterSymbol() {}
 
 auto ParameterSymbol::defaultArgument() const -> ExpressionAST* {
   return defaultArgument_;
+}
+
+auto ParameterSymbol::isExplicitObject() const -> bool {
+  return isExplicitObject_;
+}
+
+void ParameterSymbol::setExplicitObject(bool isExplicitObject) {
+  isExplicitObject_ = isExplicitObject;
 }
 
 void ParameterSymbol::setDefaultArgument(ExpressionAST* expr) {
@@ -1851,6 +2139,23 @@ auto UsingDeclarationSymbol::declarator() const -> UsingDeclaratorAST* {
 
 void UsingDeclarationSymbol::setDeclarator(UsingDeclaratorAST* declarator) {
   declarator_ = declarator;
+}
+
+auto is_class_or_enum_declaration(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+  switch (symbol->kind()) {
+    case SymbolKind::kClass:
+    case SymbolKind::kInjectedClassName:
+    case SymbolKind::kEnum:
+    case SymbolKind::kScopedEnum:
+      return true;
+    case SymbolKind::kUsingDeclaration: {
+      auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol);
+      return is_class_or_enum_declaration(usingDeclaration->target());
+    }
+    default:
+      return false;
+  }
 }
 
 bool is_type(Symbol* symbol) {

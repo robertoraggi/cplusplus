@@ -142,6 +142,10 @@ void DeclSpecs::Visitor::operator()(ExplicitSpecifierAST* ast) {
     specs.isExplicit = true;
     return;
   }
+  if (isDependent(specs.unit_, ast->expression)) {
+    specs.isExplicit = false;
+    return;
+  }
   auto interp = ASTInterpreter{specs.unit_};
   auto value = interp.evaluate(ast->expression);
   if (value.has_value()) {

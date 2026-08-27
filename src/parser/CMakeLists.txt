@@ -21,6 +21,7 @@ file(GLOB CXX_INCLUDE_HEADER_FILES cxx/*.h)
 file(GLOB CXX_VIEWS_INCLUDE_HEADER_FILES cxx/views/*.h)
 
 add_library(cxx-parser
+    cxx/access_control.cc
     cxx/ast_cursor.cc
     cxx/ast_interpreter_declarations.cc
     cxx/ast_interpreter_declarators.cc
@@ -48,6 +49,7 @@ add_library(cxx-parser
     cxx/ast_rewriter_units.cc
     cxx/ast_rewriter.cc
     cxx/ast_slot.cc
+    cxx/ast_validator.cc
     cxx/ast_visitor.cc
     cxx/ast.cc
     cxx/base_classes.cc

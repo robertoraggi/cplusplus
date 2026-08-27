@@ -22,6 +22,7 @@ file(GLOB CXX_LSP_INCLUDE_HEADER_FILES cxx/lsp/*.h)
 add_library(cxx-lsp
     cxx/lsp/cxx_document.cc
     cxx/lsp/enums.cc
+    cxx/lsp/json.cc
     cxx/lsp/lsp.cc
     cxx/lsp/lsp_server.cc
     cxx/lsp/requests.cc
@@ -44,7 +45,7 @@ target_include_directories(cxx-lsp
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_link_libraries(cxx-lsp PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(cxx-lsp PUBLIC simdjson)
 
 # disable exception when targeting emscripten
 if (EMSCRIPTEN)

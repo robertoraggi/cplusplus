@@ -53,8 +53,22 @@ class TemplateSpecialization {
   bool isPendingInstantiation = false;
 };
 
+struct TemplateFriendship {
+  std::vector<TemplateArgument> arguments;
+  ClassSymbol* befriendingClass = nullptr;
+};
+
 struct PendingBodyInstantiation {
   FunctionDefinitionAST* originalDefinition = nullptr;
+  std::vector<TemplateArgument> templateArguments;
+  ScopeSymbol* parentScope = nullptr;
+  int depth = 0;
+};
+
+struct PendingFieldInitializerInstantiation {
+  InitDeclaratorAST* pattern = nullptr;
+  InitDeclaratorAST* instance = nullptr;
+  SpecifierAST* typeSpecifier = nullptr;
   std::vector<TemplateArgument> templateArguments;
   ScopeSymbol* parentScope = nullptr;
   int depth = 0;
@@ -91,15 +105,37 @@ struct PendingExceptionSpecification {
     std::span<const TemplateArgument> arguments)
     -> std::vector<TemplateArgument>;
 
+struct ExpandedTemplateArgument {
+  TemplateArgument value;
+  std::size_t sourceIndex = 0;
+};
+
+[[nodiscard]] auto expand_template_arguments_with_sources(
+    std::span<const TemplateArgument> arguments)
+    -> std::vector<ExpandedTemplateArgument>;
+
 [[nodiscard]] auto template_argument_type(const TemplateArgument& argument)
+    -> const Type*;
+
+[[nodiscard]] auto template_argument_as_type(const TemplateArgument& argument)
     -> const Type*;
 
 [[nodiscard]] auto template_argument_value(const TemplateArgument& argument)
     -> std::optional<ConstValue>;
 
+[[nodiscard]] auto template_argument_parameter_info(
+    const TemplateArgument& argument) -> std::optional<TypeParamInfo>;
+
+[[nodiscard]] auto class_template_of(ClassSymbol* classSymbol) -> ClassSymbol*;
+
+[[nodiscard]] auto class_template_arguments(ClassSymbol* classSymbol)
+    -> std::vector<TemplateArgument>;
+
 [[nodiscard]] auto template_name_symbol(Symbol* symbol) -> Symbol*;
 
 [[nodiscard]] auto templated_symbol(Symbol* symbol) -> Symbol*;
+
+[[nodiscard]] auto resolve_using_declaration(Symbol* symbol) -> Symbol*;
 
 [[nodiscard]] auto template_declaration_of(Symbol* symbol)
     -> TemplateDeclarationAST*;
@@ -230,6 +266,10 @@ class MaybeTemplate {
   [[nodiscard]] auto isSpecialization() const -> bool {
     if (!template_) return false;
     return template_->primaryTemplateSymbol_ != nullptr;
+  }
+
+  [[nodiscard]] auto isTemplatePattern() const -> bool {
+    return templateParameters() != nullptr && !isSpecialization();
   }
 
   void addSpecialization(TranslationUnit* unit,
@@ -382,6 +422,7 @@ class Symbol {
   void setParent(ScopeSymbol* parent);
 
   [[nodiscard]] auto enclosingNamespace() const -> NamespaceSymbol*;
+  [[nodiscard]] auto enclosingClass() const -> ClassSymbol*;
 
   [[nodiscard]] auto enclosingSymbols() const {
     return std::ranges::subrange(EnclosingSymbolIterator{parent()},
@@ -396,6 +437,13 @@ class Symbol {
 
   [[nodiscard]] auto isHidden() const -> bool { return isHidden_; }
   void setHidden(bool isHidden) { isHidden_ = isHidden; }
+
+  [[nodiscard]] auto accessSpecifier() const -> AccessSpecifier {
+    return accessSpecifier_;
+  }
+  void setAccessSpecifier(AccessSpecifier accessSpecifier) {
+    accessSpecifier_ = accessSpecifier;
+  }
 
   [[nodiscard]] auto abiTags() const -> std::span<const Identifier* const>;
 
@@ -434,6 +482,7 @@ class Symbol {
   const std::vector<const Identifier*>* abiTags_ = nullptr;
   SourceLocation location_;
   bool isHidden_ = false;
+  AccessSpecifier accessSpecifier_ = AccessSpecifier::kPublic;
 };
 
 class ScopeSymbol : public Symbol {
@@ -465,6 +514,7 @@ class ScopeSymbol : public Symbol {
   [[nodiscard]] auto isTransparent() const -> bool;
 
   void replaceSymbol(Symbol* symbol, Symbol* newSymbol);
+  void truncate(std::size_t count);
   void reset();
 
  private:
@@ -589,6 +639,21 @@ class ClassLayout {
   [[nodiscard]] auto hasDirectVtable() const -> bool {
     return hasDirectVtable_;
   }
+  void setAbiEmpty(bool abiEmpty) { abiEmpty_ = abiEmpty; }
+  [[nodiscard]] auto isAbiEmpty() const -> bool { return abiEmpty_; }
+
+  void setPrimaryBase(ClassSymbol* primaryBase, bool isVirtual) {
+    primaryBase_ = primaryBase;
+    primaryBaseIsVirtual_ = isVirtual;
+  }
+
+  [[nodiscard]] auto primaryBase() const -> ClassSymbol* {
+    return primaryBase_;
+  }
+
+  [[nodiscard]] auto primaryBaseIsVirtual() const -> bool {
+    return primaryBaseIsVirtual_;
+  }
 
  private:
   std::unordered_map<FieldSymbol*, MemberInfo> fields_;
@@ -599,8 +664,11 @@ class ClassLayout {
   std::uint64_t nonVirtualSize_ = 0;
   std::uint64_t nonVirtualAlignment_ = 1;
   std::uint32_t vtableIndex_ = 0;
+  ClassSymbol* primaryBase_ = nullptr;
   bool hasVtable_ = false;
   bool hasDirectVtable_ = false;
+  bool primaryBaseIsVirtual_ = false;
+  bool abiEmpty_ = false;
 };
 
 class VTableLayout {
@@ -614,8 +682,11 @@ class VTableLayout {
   struct Slot {
     FunctionSymbol* function = nullptr;
     SlotKind kind = SlotKind::kFunction;
-    std::uint64_t thisAdjustment = 0;
+    FunctionSymbol* introducingFunction = nullptr;
+    ClassSymbol* vcallBase = nullptr;
+    std::int64_t thisAdjustment = 0;
     int vcallOffsetIndex = -1;
+    bool usesVcallOffset = false;
   };
 
   struct Group {
@@ -636,6 +707,7 @@ class VTableLayout {
 
   Group primary;
   std::vector<Group> secondary;
+  FunctionSymbol* keyFunction = nullptr;
 };
 
 class BaseClassSymbol final : public Symbol {
@@ -648,15 +720,11 @@ class BaseClassSymbol final : public Symbol {
   [[nodiscard]] auto isVirtual() const -> bool;
   void setVirtual(bool isVirtual);
 
-  [[nodiscard]] auto accessSpecifier() const -> AccessSpecifier;
-  void setAccessSpecifier(AccessSpecifier accessSpecifier);
-
   [[nodiscard]] auto symbol() const -> Symbol*;
   void setSymbol(Symbol* symbol);
 
  private:
   Symbol* symbol_ = nullptr;
-  AccessSpecifier accessSpecifier_ = AccessSpecifier::kPublic;
   bool isVirtual_ = false;
 };
 
@@ -757,6 +825,7 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto copyAssignmentOperator() const -> FunctionSymbol*;
   [[nodiscard]] auto moveAssignmentOperator() const -> FunctionSymbol*;
   [[nodiscard]] auto hasUserDeclaredConstructors() const -> bool;
+  void setHasUserDeclaredConstructors(bool value);
 
   [[nodiscard]] auto hasInheritedConstructors() const -> bool;
   [[nodiscard]] auto hasVirtualFunctions() const -> bool;
@@ -783,16 +852,59 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto hasVirtualDestructor() const -> bool;
   void setHasVirtualDestructor(bool hasVirtualDestructor);
 
+  [[nodiscard]] auto isAccessControlDisabled() const -> bool {
+    return isAccessControlDisabled_;
+  }
+  void setAccessControlDisabled(bool value) {
+    isAccessControlDisabled_ = value;
+  }
+
   [[nodiscard]] auto sizeInBytes() const -> int;
   void setSizeInBytes(int sizeInBytes);
 
   [[nodiscard]] auto alignment() const -> int;
   void setAlignment(int alignment);
 
-  [[nodiscard]] auto hasBaseClass(Symbol* symbol) const -> bool;
+  [[nodiscard]] auto hasBaseClass(const Symbol* symbol) const -> bool;
+
+  void addBefriendingClass(ClassSymbol* classSymbol);
+  void addBefriendingClass(ClassSymbol* classSymbol,
+                           std::vector<TemplateArgument> arguments);
+  [[nodiscard]] auto befriendingClasses() const
+      -> const std::vector<ClassSymbol*>& {
+    return befriendingClasses_;
+  }
+  [[nodiscard]] auto templateFriendships() const
+      -> const std::vector<TemplateFriendship>& {
+    return templateFriendships_;
+  }
+
+  struct BaseSubobjectInfo {
+    int pathCount = 0;
+    int nonVirtualPathCount = 0;
+    std::uint64_t nonVirtualOffset = 0;
+    int publicPathCount = 0;
+    bool anyPublicPathIsVirtual = false;
+    std::uint64_t publicNonVirtualOffset = 0;
+
+    [[nodiscard]] auto isUniqueSubobject() const -> bool {
+      if (pathCount > nonVirtualPathCount) return nonVirtualPathCount == 0;
+      return nonVirtualPathCount == 1;
+    }
+  };
+
+  [[nodiscard]] auto baseSubobjectInfo(ClassSymbol* base) const
+      -> BaseSubobjectInfo;
 
   [[nodiscard]] auto baseClassOffset(ClassSymbol* base) const
       -> std::optional<std::uint64_t>;
+
+  struct BaseClassRepetition {
+    bool nonDiamondRepeat = false;
+    bool diamondShaped = false;
+  };
+
+  [[nodiscard]] auto baseClassRepetition() const -> BaseClassRepetition;
 
   [[nodiscard]] auto hasVirtualBasePath(Symbol* symbol) const -> bool;
 
@@ -810,14 +922,20 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto isClosureType() const -> bool;
   void setIsClosureType(bool isClosureType);
 
+  [[nodiscard]] auto hasLambdaCapture() const -> bool;
+  void setHasLambdaCapture(bool hasLambdaCapture);
+
   [[nodiscard]] auto capturedThisField() const -> FieldSymbol*;
   void setCapturedThisField(FieldSymbol* capturedThisField);
 
   [[nodiscard]] auto closureDiscriminator() const -> int;
   void setClosureDiscriminator(int closureDiscriminator);
 
+  [[nodiscard]] auto instantiationPattern() const -> ClassSymbol*;
+  void setInstantiationPattern(ClassSymbol* instantiationPattern);
+
  private:
-  [[nodiscard]] auto hasBaseClass(Symbol* symbol,
+  [[nodiscard]] auto hasBaseClass(const Symbol* symbol,
                                   std::unordered_set<const ClassSymbol*>&) const
       -> bool;
 
@@ -826,6 +944,9 @@ class ClassSymbol final : public ScopeSymbol,
 
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
+  std::vector<ClassSymbol*> befriendingClasses_;
+  std::vector<TemplateFriendship> templateFriendships_;
+  ClassSymbol* instantiationPattern_ = nullptr;
   std::vector<TemplateArgument> instantiationSubstitutionArguments_;
   int instantiationSubstitutionDepth_ = -1;
   OverloadSetSymbol* constructorOverloadSet_ = nullptr;
@@ -843,10 +964,13 @@ class ClassSymbol final : public ScopeSymbol,
       std::uint32_t isFinal_ : 1;
       std::uint32_t isComplete_ : 1;
       std::uint32_t isFriend_ : 1;
+      std::uint32_t isAccessControlDisabled_ : 1;
       std::uint32_t isPolymorphic_ : 1;
       std::uint32_t isAbstract_ : 1;
       std::uint32_t hasVirtualDestructor_ : 1;
       std::uint32_t isClosureType_ : 1;
+      std::uint32_t hasLambdaCapture_ : 1;
+      std::uint32_t hasUserDeclaredConstructors_ : 1;
     };
   };
 };
@@ -925,6 +1049,11 @@ class FunctionSymbol final
 
   [[nodiscard]] auto isImplicitObjectMemberFunction() const -> bool;
 
+  [[nodiscard]] auto hasExplicitObjectParameter() const -> bool;
+  void setExplicitObjectParameter(bool hasExplicitObjectParameter);
+
+  [[nodiscard]] auto explicitObjectParameter() const -> ParameterSymbol*;
+
   [[nodiscard]] auto isConstexpr() const -> bool;
   void setConstexpr(bool isConstexpr);
 
@@ -997,6 +1126,21 @@ class FunctionSymbol final
   [[nodiscard]] auto vtableSlotIndex() const -> int { return vtableSlotIndex_; }
   void setVtableSlotIndex(int index) { vtableSlotIndex_ = index; }
 
+  void addOverriddenFunction(FunctionSymbol* function);
+  [[nodiscard]] auto overrides(FunctionSymbol* function) const -> bool;
+
+  void addBefriendingClass(ClassSymbol* classSymbol);
+  void addBefriendingClass(ClassSymbol* classSymbol,
+                           std::vector<TemplateArgument> arguments);
+  [[nodiscard]] auto befriendingClasses() const
+      -> const std::vector<ClassSymbol*>& {
+    return befriendingClasses_;
+  }
+  [[nodiscard]] auto templateFriendships() const
+      -> const std::vector<TemplateFriendship>& {
+    return templateFriendships_;
+  }
+
   [[nodiscard]] auto delegatingConstructor() const -> FunctionSymbol* {
     return delegatingConstructor_;
   }
@@ -1055,6 +1199,9 @@ class FunctionSymbol final
   FunctionSymbol* deletingDtorVariant_ = nullptr;
   FunctionSymbol* structorPrincipal_ = nullptr;
   FunctionSymbol* inheritedConstructor_ = nullptr;
+  std::vector<FunctionSymbol*> overriddenFunctions_;
+  std::vector<ClassSymbol*> befriendingClasses_;
+  std::vector<TemplateFriendship> templateFriendships_;
   int vtableSlotIndex_ = -1;
   const Identifier* externalName_ = nullptr;
   const Identifier* aliasName_ = nullptr;
@@ -1081,6 +1228,7 @@ class FunctionSymbol final
       std::uint32_t hasHiddenVisibility_ : 1;
       std::uint32_t hasExceptionSpecifier_ : 1;
       std::uint32_t isDefinitionRequired_ : 1;
+      std::uint32_t hasExplicitObjectParameter_ : 1;
     };
   };
 };
@@ -1324,6 +1472,9 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto constructor() const -> FunctionSymbol*;
   void setConstructor(FunctionSymbol* constructor);
 
+  [[nodiscard]] auto constValue() const -> const std::optional<ConstValue>&;
+  void setConstValue(std::optional<ConstValue> value);
+
   [[nodiscard]] auto definition() const -> VariableSymbol* {
     return definition_;
   }
@@ -1336,8 +1487,19 @@ class FieldSymbol final : public Symbol {
     isDefinitionRequired_ = isDefinitionRequired;
   }
 
+  [[nodiscard]] auto hasPendingInitializer() const -> bool {
+    return pendingInitializer_ != nullptr;
+  }
+  [[nodiscard]] auto pendingInitializer() const
+      -> PendingFieldInitializerInstantiation*;
+  void setPendingInitializer(
+      std::unique_ptr<PendingFieldInitializerInstantiation> pending);
+  void clearPendingInitializer();
+
  private:
   VariableSymbol* definition_ = nullptr;
+  std::unique_ptr<PendingFieldInitializerInstantiation> pendingInitializer_;
+  std::optional<ConstValue> constValue_;
   union {
     std::uint32_t flags_{};
     struct {
@@ -1370,8 +1532,12 @@ class ParameterSymbol final : public Symbol {
   [[nodiscard]] auto defaultArgument() const -> ExpressionAST*;
   void setDefaultArgument(ExpressionAST* expr);
 
+  [[nodiscard]] auto isExplicitObject() const -> bool;
+  void setExplicitObject(bool isExplicitObject);
+
  private:
   ExpressionAST* defaultArgument_ = nullptr;
+  bool isExplicitObject_ = false;
 };
 
 class ParameterPackSymbol final : public Symbol {
@@ -1507,6 +1673,8 @@ class UsingDeclarationSymbol final : public Symbol {
 
 bool is_type(Symbol* symbol);
 
+[[nodiscard]] auto is_class_or_enum_declaration(Symbol* symbol) -> bool;
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, Symbol* symbol) {
 #define PROCESS_SYMBOL(S) \
@@ -1549,8 +1717,6 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
   if (symbol->parent()) return false;
   return true;
 }
-
-[[nodiscard]] auto isEnclosedInTemplate(ScopeSymbol* scope) -> bool;
 
 [[nodiscard]] auto isDeclaredConstant(Symbol* symbol) -> bool;
 

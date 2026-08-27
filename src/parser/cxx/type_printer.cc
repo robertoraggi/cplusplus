@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_pretty_printer.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -26,12 +27,13 @@
 #include <cxx/views/symbols.h>
 
 #include <format>
+#include <sstream>
 
 namespace cxx {
 namespace {
 class TypePrinter {
  public:
-  TypePrinter() {
+  explicit TypePrinter(TypePrintOptions options) : options_(options) {
     specifiers_.clear();
     ptrOps_.clear();
     declarator_.clear();
@@ -57,7 +59,7 @@ class TypePrinter {
     buffer.append(specifiers_);
     buffer.append(ptrOps_);
     if (!declarator_.empty()) {
-      buffer.append(" ");
+      if (!buffer.empty()) buffer.append(" ");
       buffer.append(declarator_);
     }
 
@@ -300,7 +302,7 @@ class TypePrinter {
 
     declarator_.append(signature);
 
-    accept(type->returnType());
+    if (!options_.omitFunctionReturnType) accept(type->returnType());
   }
 
   void appendEnclosingScope(Symbol* symbol) {
@@ -367,6 +369,10 @@ class TypePrinter {
   }
 
   void operator()(const TypeParameterType* type) {
+    if (type->depth() < 0 || type->index() < 0) {
+      specifiers_.append("<dependent-type>");
+      return;
+    }
     specifiers_.append(std::format("type-param<{}, {}>{}", type->index(),
                                    type->depth(),
                                    type->isParameterPack() ? "..." : ""));
@@ -380,19 +386,13 @@ class TypePrinter {
 
   void operator()(const UnresolvedNameType* type) {
     auto unit = type->translationUnit();
-    SourceLocation first;
+    std::ostringstream os;
+    ASTPrettyPrinter pp(unit, os);
     if (type->nestedNameSpecifier()) {
-      first = firstSourceLocation(type->nestedNameSpecifier());
-    } else {
-      first = firstSourceLocation(type->unqualifiedId());
+      pp(type->nestedNameSpecifier());
     }
-    auto last = lastSourceLocation(type->unqualifiedId());
-    for (auto loc = first; loc != last; loc = loc.next()) {
-      const auto& tk = unit->tokenAt(loc);
-      if (loc != first && (tk.leadingSpace() || tk.startOfLine()))
-        specifiers_ += ' ';
-      specifiers_ += tk.spell();
-    }
+    if (type->unqualifiedId()) pp(type->unqualifiedId());
+    specifiers_ += os.str();
   }
 
   auto textOf(TranslationUnit* unit, SourceLocationRange range) const
@@ -471,6 +471,7 @@ class TypePrinter {
   }
 
  private:
+  TypePrintOptions options_;
   std::string specifiers_;
   std::string ptrOps_;
   std::string declarator_;
@@ -478,12 +479,14 @@ class TypePrinter {
 };
 }  // namespace
 
-auto to_string(const Type* type, const std::string& id) -> std::string {
+auto to_string(const Type* type, const std::string& id,
+               TypePrintOptions options) -> std::string {
   if (!type) return {};
-  return TypePrinter{}(type, id);
+  return TypePrinter{options}(type, id);
 }
 
-auto to_string(const Type* type, const Name* name) -> std::string {
-  return TypePrinter{}(type, to_string(name));
+auto to_string(const Type* type, const Name* name, TypePrintOptions options)
+    -> std::string {
+  return TypePrinter{options}(type, to_string(name));
 }
 }  // namespace cxx

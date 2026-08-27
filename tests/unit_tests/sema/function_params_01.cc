@@ -14,11 +14,11 @@ struct C {
 // clang-format off
 //      CHECK:namespace
 // CHECK-NEXT:  class C
-// CHECK-NEXT:    constructor defaulted void C()
-// CHECK-NEXT:    constructor defaulted void C(const ::C&)
+// CHECK-NEXT:    constructor inline defaulted void C()
+// CHECK-NEXT:    constructor inline defaulted void C(const ::C&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::C&
-// CHECK-NEXT:    constructor defaulted void C(::C&&)
+// CHECK-NEXT:    constructor inline defaulted void C(::C&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::C&&
 // CHECK-NEXT:    injected class name C
@@ -28,10 +28,10 @@ struct C {
 // CHECK-NEXT:    function void dd() &
 // CHECK-NEXT:    function void ee() &&
 // CHECK-NEXT:    function void ff() const volatile & noexcept
-// CHECK-NEXT:    function defaulted ::C& operator =(const ::C&)
+// CHECK-NEXT:    function inline defaulted ::C& operator =(const ::C&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::C&
-// CHECK-NEXT:    function defaulted ::C& operator =(::C&&)
+// CHECK-NEXT:    function inline defaulted ::C& operator =(::C&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::C&&
-// CHECK-NEXT:    function defaulted void ~C()
+// CHECK-NEXT:    function inline defaulted void ~C()

@@ -35,8 +35,9 @@ WindowsToolchain::WindowsToolchain(Preprocessor* preprocessor,
     : Toolchain(preprocessor), arch_(std::move(arch)) {
   memoryLayout()->setSizeOfLong(4);
   memoryLayout()->setSizeOfLongLong(8);
-  memoryLayout()->setSizeOfLongDouble(8);
+  memoryLayout()->setSizeOfLongDouble(8, 53);
   memoryLayout()->setSizeOfPointer(8);
+  memoryLayout()->setWideCharUnderlyingType(2, /*isSigned=*/false);
 
   if (arch_ == "aarch64") {
     memoryLayout()->setTriple("aarch64-windows");

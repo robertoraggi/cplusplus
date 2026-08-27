@@ -22,6 +22,7 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/names_fwd.h>
+#include <cxx/source_location.h>
 #include <cxx/token_fwd.h>
 
 #include <string>
@@ -29,6 +30,8 @@
 #include <vector>
 
 namespace cxx {
+
+class TranslationUnit;
 
 class IdentifierInfo {
  public:
@@ -251,6 +254,15 @@ auto name_cast(const Name* name) -> const T* {
 
 [[nodiscard]] auto get_name(Control* control, UnqualifiedIdAST* id)
     -> const Name*;
+
+[[nodiscard]] auto get_name_location(IdExpressionAST* ast) -> SourceLocation;
+[[nodiscard]] auto get_name_location(MemberExpressionAST* ast)
+    -> SourceLocation;
+[[nodiscard]] auto get_name_location(DotDesignatorAST* ast) -> SourceLocation;
+
+[[nodiscard]] auto resolveBuiltinFunctionKind(TranslationUnit* unit,
+                                              IdExpressionAST* idExpr)
+    -> BuiltinFunctionKind;
 
 }  // namespace cxx
 

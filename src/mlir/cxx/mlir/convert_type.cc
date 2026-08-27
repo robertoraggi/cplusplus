@@ -49,7 +49,6 @@ struct Codegen::ConvertType {
 
   auto getExprType() const -> mlir::Type;
   auto getIntType(const Type* type, bool isSigned) -> mlir::Type;
-  auto getFloatType(const Type* type) -> mlir::Type;
 
   auto operator()(const VoidType* type) -> mlir::Type;
   auto operator()(const NullptrType* type) -> mlir::Type;
@@ -121,20 +120,6 @@ auto Codegen::ConvertType::getIntType(const Type* type, bool isSigned)
     -> mlir::Type {
   const auto width = memoryLayout()->sizeOf(type).value() * 8;
   return mlir::IntegerType::get(gen.context_, width);
-}
-
-auto Codegen::ConvertType::getFloatType(const Type* type) -> mlir::Type {
-  const auto width = memoryLayout()->sizeOf(type).value() * 8;
-  switch (width) {
-    case 16:
-      return mlir::Float16Type::get(gen.context_);
-    case 32:
-      return mlir::Float32Type::get(gen.context_);
-    case 64:
-      return mlir::Float64Type::get(gen.context_);
-    default:
-      return mlir::Float64Type::get(gen.context_);
-  }
 }
 
 auto Codegen::ConvertType::operator()(const VoidType* type) -> mlir::Type {
@@ -236,20 +221,27 @@ auto Codegen::ConvertType::operator()(const WideCharType* type) -> mlir::Type {
 }
 
 auto Codegen::ConvertType::operator()(const FloatType* type) -> mlir::Type {
-  return getFloatType(type);
+  return mlir::Float32Type::get(gen.context_);
 }
 
 auto Codegen::ConvertType::operator()(const DoubleType* type) -> mlir::Type {
-  return getFloatType(type);
+  return mlir::Float64Type::get(gen.context_);
 }
 
 auto Codegen::ConvertType::operator()(const LongDoubleType* type)
     -> mlir::Type {
-  return getFloatType(type);
+  switch (memoryLayout()->longDoubleMantissaDigits()) {
+    case 53:
+      return mlir::Float64Type::get(gen.context_);
+    case 64:
+      return mlir::Float80Type::get(gen.context_);
+    default:
+      return mlir::Float128Type::get(gen.context_);
+  }
 }
 
 auto Codegen::ConvertType::operator()(const Float16Type* type) -> mlir::Type {
-  return getFloatType(type);
+  return mlir::Float16Type::get(gen.context_);
 }
 
 auto Codegen::ConvertType::operator()(const QualType* type) -> mlir::Type {
@@ -324,7 +316,7 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> mlir::Type {
 
   gen.classNames_[classSymbol] = classType;
 
-  if (classSymbol->templateDeclaration()) {
+  if (classSymbol->isTemplatePattern()) {
     return classType;
   }
 
@@ -393,12 +385,14 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
 
     auto info = layout->getBaseInfo(baseSym);
     if (!info) continue;
+    if (layout->primaryBaseIsVirtual() && layout->primaryBase() == baseSym)
+      continue;
 
     const Type* baseType = base->type();
     if (!baseType) baseType = baseSym->type();
 
     offsetByIndex[info->index] = info->offset;
-    if (unit_->typeTraits().is_empty(baseType)) {
+    if (baseSym->layout() && baseSym->layout()->isAbiEmpty()) {
       memberMap[info->index] = emptyStorageType(context_);
     } else {
       pendingBases[info->index] = baseSym;
@@ -411,9 +405,11 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
       if (!info || memberMap.contains(info->index) ||
           pendingBases.contains(info->index))
         continue;
+      if (layout->primaryBaseIsVirtual() && layout->primaryBase() == vbaseSym)
+        continue;
 
       offsetByIndex[info->index] = info->offset;
-      if (unit_->typeTraits().is_empty(vbaseSym->type())) {
+      if (vbaseSym->layout() && vbaseSym->layout()->isAbiEmpty()) {
         memberMap[info->index] = emptyStorageType(context_);
       } else {
         pendingBases[info->index] = vbaseSym;
@@ -431,9 +427,15 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
     if (info->bitWidth > 0 && info->allocUnitSizeBytes > 0) {
       memberMap[info->index] = mlir::IntegerType::get(
           context_, static_cast<unsigned>(info->allocUnitSizeBytes * 8));
-    } else if (field->isNoUniqueAddress() &&
-               unit_->typeTraits().is_empty(field->type())) {
-      memberMap[info->index] = emptyStorageType(context_);
+    } else if (field->isNoUniqueAddress()) {
+      auto fieldClass =
+          type_cast<ClassType>(unit_->typeTraits().remove_cv(field->type()));
+      auto fieldSymbol = fieldClass ? fieldClass->symbol() : nullptr;
+      auto fieldLayout =
+          fieldSymbol ? fieldSymbol->resolvedDefinition()->layout() : nullptr;
+      memberMap[info->index] = fieldLayout && fieldLayout->isAbiEmpty()
+                                   ? emptyStorageType(context_)
+                                   : convertType(field->type());
     } else {
       memberMap[info->index] = convertType(field->type());
     }
@@ -510,8 +512,7 @@ auto Codegen::ConvertType::operator()(const ScopedEnumType* type)
 }
 
 auto Codegen::ConvertType::getMemberPointerIntType() -> mlir::Type {
-  return mlir::IntegerType::get(gen.context_,
-                                memoryLayout()->sizeOfPointer() * 8);
+  return gen.pointerSizedIntType();
 }
 
 auto Codegen::ConvertType::operator()(const MemberObjectPointerType* type)

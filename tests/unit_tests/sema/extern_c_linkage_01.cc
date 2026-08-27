@@ -68,22 +68,22 @@ void test() {
 // CHECK-NEXT:    parameters
 // CHECK-NEXT:      parameter int x
 // CHECK-NEXT:  class Widget
-// CHECK-NEXT:    constructor defaulted void Widget()
-// CHECK-NEXT:    constructor defaulted void Widget(const ::Widget&)
+// CHECK-NEXT:    constructor inline defaulted void Widget()
+// CHECK-NEXT:    constructor inline defaulted void Widget(const ::Widget&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Widget&
-// CHECK-NEXT:    constructor defaulted void Widget(::Widget&&)
+// CHECK-NEXT:    constructor inline defaulted void Widget(::Widget&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Widget&&
 // CHECK-NEXT:    injected class name Widget
 // CHECK-NEXT:    function void draw()
-// CHECK-NEXT:    function defaulted ::Widget& operator =(const ::Widget&)
+// CHECK-NEXT:    function inline defaulted ::Widget& operator =(const ::Widget&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Widget&
-// CHECK-NEXT:    function defaulted ::Widget& operator =(::Widget&&)
+// CHECK-NEXT:    function inline defaulted ::Widget& operator =(::Widget&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Widget&&
-// CHECK-NEXT:    function defaulted void ~Widget()
+// CHECK-NEXT:    function inline defaulted void ~Widget()
 // CHECK-NEXT:  function void test()
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr const char __func__[5]

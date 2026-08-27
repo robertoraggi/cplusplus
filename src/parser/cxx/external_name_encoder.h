@@ -49,6 +49,10 @@ class ExternalNameEncoder {
   [[nodiscard]] auto mangledAbiTags(Symbol* symbol)
       -> std::vector<const Identifier*>;
   [[nodiscard]] auto encodeVTable(ClassSymbol* classSymbol) -> std::string;
+  [[nodiscard]] auto encodeVTT(ClassSymbol* classSymbol) -> std::string;
+  [[nodiscard]] auto encodeGuardVariable(Symbol* symbol) -> std::string;
+  [[nodiscard]] auto encodeTypeInfo(const Type* type) -> std::string;
+  [[nodiscard]] auto encodeTypeInfoName(const Type* type) -> std::string;
 
  private:
   [[nodiscard]] auto encodeFunction(FunctionSymbol* function) -> std::string;
@@ -63,6 +67,7 @@ class ExternalNameEncoder {
   [[nodiscard]] auto encodeTemplateTemplateArgument(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeLocalName(Symbol* symbol) -> bool;
   void encodeClosureSourceName(ClassSymbol* classSymbol);
+  void encodeObjectParameterQualifiers(FunctionSymbol* function);
   [[nodiscard]] auto encodeNestedName(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeUnscopedName(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeOperatorName(TokenKind op, bool isUnary)
@@ -100,6 +105,7 @@ class ExternalNameEncoder {
 
   struct EncodeType;
   struct EncodeUnqualifiedName;
+  struct EncodeExpression;
 
  private:
   struct TemplatePrefixSubstitution {
