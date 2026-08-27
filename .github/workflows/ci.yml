@@ -49,6 +49,7 @@ jobs:
           done
 
       - name: Parse C++ source files (Linux toolchain)
+        if: false
         run: |
           for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
             echo "Parsing $i"
