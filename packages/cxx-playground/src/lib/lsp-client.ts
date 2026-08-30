@@ -9,6 +9,8 @@ interface PendingRequest {
 export class LspClient {
   readonly #transport: MessageTransport
   readonly #pending = new Map<string, PendingRequest>()
+  readonly #openedDocuments = new Set<string>()
+  readonly #documentOpenWaiters = new Map<string, Set<() => void>>()
   readonly #monacoClient: monaco.lsp.MonacoLspClient
   #listener: ((message: JsonRpcMessage) => void) | undefined
   #nextRequestId = 0
@@ -25,6 +27,19 @@ export class LspClient {
 
   get monacoClient(): monaco.lsp.MonacoLspClient {
     return this.#monacoClient
+  }
+
+  whenDocumentOpened(uri: string): Promise<void> {
+    if (this.#openedDocuments.has(uri)) return Promise.resolve()
+
+    return new Promise((resolve) => {
+      let waiters = this.#documentOpenWaiters.get(uri)
+      if (!waiters) {
+        waiters = new Set()
+        this.#documentOpenWaiters.set(uri, waiters)
+      }
+      waiters.add(resolve)
+    })
   }
 
   sendRequest<Result>(method: string, params: JsonObject): Promise<Result> {
@@ -48,12 +63,26 @@ export class LspClient {
   #monacoTransport(): MessageTransport {
     return {
       state: this.#transport.state,
-      send: (message) => this.#transport.send(message),
+      send: (message) => this.#sendMonacoMessage(message),
       setListener: (listener) => {
         this.#listener = listener
       },
       toString: () => this.#transport.toString(),
     }
+  }
+
+  async #sendMonacoMessage(message: JsonRpcMessage): Promise<void> {
+    await this.#transport.send(message)
+
+    const uri = openedDocumentUri(message)
+    if (!uri) return
+
+    this.#openedDocuments.add(uri)
+    const waiters = this.#documentOpenWaiters.get(uri)
+    if (!waiters) return
+
+    this.#documentOpenWaiters.delete(uri)
+    for (const resolve of waiters) resolve()
   }
 
   #receive(message: JsonRpcMessage): void {
@@ -74,6 +103,19 @@ export class LspClient {
 
     pending.resolve("result" in message ? message.result : undefined)
   }
+}
+
+function openedDocumentUri(message: JsonRpcMessage): string | undefined {
+  if (!("method" in message)) return undefined
+  if (message.method !== "textDocument/didOpen") return undefined
+  if (!message.params || Array.isArray(message.params)) return undefined
+
+  const textDocument = message.params.textDocument
+  if (!textDocument || typeof textDocument !== "object") return undefined
+  if (Array.isArray(textDocument)) return undefined
+
+  const uri = textDocument.uri
+  return typeof uri === "string" ? uri : undefined
 }
 
 function toError(error: unknown): Error {
