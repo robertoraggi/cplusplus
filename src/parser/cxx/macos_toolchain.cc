@@ -32,7 +32,7 @@ namespace cxx {
 
 MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch)
     : Toolchain(preprocessor), arch_(std::move(arch)) {
-  std::string xcodeContentsBasePath = "/Applications/Xcode.app/Contents";
+  std::string xcodeContentsBasePath = "/Applications/Xcode-beta.app/Contents";
 
   platformPath_ = std::format(
       "{}/Developer/Platforms/MacOSX.platform/"

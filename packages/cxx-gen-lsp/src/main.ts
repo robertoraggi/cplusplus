@@ -42,11 +42,16 @@ async function main() {
           short: "o",
           description: "Output directory",
         },
+        extensions: {
+          type: "string",
+          short: "e",
+          description: "Path to a partial metaModel with the cxx extensions",
+        },
       },
     });
 
     const { positionals } = args;
-    const { output: outputDirectory } = args.values;
+    const { output: outputDirectory, extensions } = args.values;
 
     const input = positionals[0];
 
@@ -58,8 +63,7 @@ async function main() {
       throw new Error("Output directory is required");
     }
 
-    const modelSource = await readFile(input, "utf-8");
-    const model = JSON.parse(modelSource) as MetaModel;
+    const model = await readModel(input, extensions);
 
     await mkdir(outputDirectory, { recursive: true });
 
@@ -83,10 +87,29 @@ async function main() {
       console.error(`${error.message}\n`);
     }
 
-    console.error("usage: cxx-gen-lsp --output output-directory <path to metaModel.json>");
+    console.error(
+      "usage: cxx-gen-lsp --output output-directory [--extensions path to extensions.json] <path to metaModel.json>",
+    );
 
     process.exit(1);
   }
+}
+
+async function readModel(input: string, extensions: string | undefined): Promise<MetaModel> {
+  const model = JSON.parse(await readFile(input, "utf-8")) as MetaModel;
+
+  if (!extensions) return model;
+
+  const extension = JSON.parse(await readFile(extensions, "utf-8")) as Partial<MetaModel>;
+
+  return {
+    ...model,
+    enumerations: [...model.enumerations, ...(extension.enumerations ?? [])],
+    notifications: [...model.notifications, ...(extension.notifications ?? [])],
+    requests: [...model.requests, ...(extension.requests ?? [])],
+    structures: [...model.structures, ...(extension.structures ?? [])],
+    typeAliases: [...model.typeAliases, ...(extension.typeAliases ?? [])],
+  };
 }
 
 main().catch((error) => {

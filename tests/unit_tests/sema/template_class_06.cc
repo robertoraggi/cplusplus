@@ -54,68 +54,68 @@ auto main() -> int {
 // CHECK-NEXT:    field int v
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class A<void>
-// CHECK-NEXT:        constructor inline defaulted void A()
-// CHECK-NEXT:        constructor inline defaulted void A(const ::A<void>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void A()
+// CHECK-NEXT:        constructor constexpr inline defaulted void A(const ::A<void>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<void>&
-// CHECK-NEXT:        constructor inline defaulted void A(::A<void>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void A(::A<void>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<void>&&
 // CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        typealias void T
 // CHECK-NEXT:        field int v
-// CHECK-NEXT:        function inline defaulted ::A<void>& operator =(const ::A<void>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::A<void>& operator =(const ::A<void>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<void>&
-// CHECK-NEXT:        function inline defaulted ::A<void>& operator =(::A<void>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::A<void>& operator =(::A<void>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<void>&&
-// CHECK-NEXT:        function inline defaulted void ~A()
+// CHECK-NEXT:        function constexpr inline defaulted void ~A()
 // CHECK-NEXT:      class A<::A<void>>
-// CHECK-NEXT:        constructor inline defaulted void A()
-// CHECK-NEXT:        constructor inline defaulted void A(const ::A<::A<void>>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void A()
+// CHECK-NEXT:        constructor constexpr inline defaulted void A(const ::A<::A<void>>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<::A<void>>&
-// CHECK-NEXT:        constructor inline defaulted void A(::A<::A<void>>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void A(::A<::A<void>>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<::A<void>>&&
 // CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        typealias ::A<void> T
 // CHECK-NEXT:        field int v
-// CHECK-NEXT:        function inline defaulted ::A<::A<void>>& operator =(const ::A<::A<void>>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::A<::A<void>>& operator =(const ::A<::A<void>>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<::A<void>>&
-// CHECK-NEXT:        function inline defaulted ::A<::A<void>>& operator =(::A<::A<void>>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::A<::A<void>>& operator =(::A<::A<void>>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<::A<void>>&&
-// CHECK-NEXT:        function inline defaulted void ~A()
+// CHECK-NEXT:        function constexpr inline defaulted void ~A()
 // CHECK-NEXT:      class A<double>
-// CHECK-NEXT:        constructor inline defaulted void A()
-// CHECK-NEXT:        constructor inline defaulted void A(const ::A<double>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void A()
+// CHECK-NEXT:        constructor constexpr inline defaulted void A(const ::A<double>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<double>&
-// CHECK-NEXT:        constructor inline defaulted void A(::A<double>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void A(::A<double>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<double>&&
 // CHECK-NEXT:        injected class name A
 // CHECK-NEXT:        typealias double T
 // CHECK-NEXT:        field int v
-// CHECK-NEXT:        function inline defaulted ::A<double>& operator =(const ::A<double>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::A<double>& operator =(const ::A<double>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::A<double>&
-// CHECK-NEXT:        function inline defaulted ::A<double>& operator =(::A<double>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::A<double>& operator =(::A<double>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<double>&&
-// CHECK-NEXT:        function inline defaulted void ~A()
+// CHECK-NEXT:        function constexpr inline defaulted void ~A()
 // CHECK-NEXT:  template typealias const ::A B
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:  class D
 // CHECK-NEXT:    base class ::A<::A<void>>
-// CHECK-NEXT:    constructor inline defaulted void D()
-// CHECK-NEXT:    constructor inline defaulted void D(const ::D&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void D()
+// CHECK-NEXT:    constructor constexpr inline defaulted void D(const ::D&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::D&
-// CHECK-NEXT:    constructor inline defaulted void D(::D&&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void D(::D&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::D&&
 // CHECK-NEXT:    injected class name D
@@ -123,13 +123,13 @@ auto main() -> int {
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable ::A<void> t
-// CHECK-NEXT:    function inline defaulted ::D& operator =(const ::D&)
+// CHECK-NEXT:    function constexpr inline defaulted ::D& operator =(const ::D&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::D&
-// CHECK-NEXT:    function inline defaulted ::D& operator =(::D&&)
+// CHECK-NEXT:    function constexpr inline defaulted ::D& operator =(::D&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::D&&
-// CHECK-NEXT:    function inline defaulted void ~D()
+// CHECK-NEXT:    function constexpr inline defaulted void ~D()
 // CHECK-NEXT:  template class D2<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:    base class ::A<double>
@@ -142,23 +142,23 @@ auto main() -> int {
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class D2<int>
 // CHECK-NEXT:        base class ::A<double>
-// CHECK-NEXT:        constructor inline defaulted void D2()
-// CHECK-NEXT:        constructor inline defaulted void D2(const ::D2<int>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void D2()
+// CHECK-NEXT:        constructor constexpr inline defaulted void D2(const ::D2<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::D2<int>&
-// CHECK-NEXT:        constructor inline defaulted void D2(::D2<int>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void D2(::D2<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::D2<int>&&
 // CHECK-NEXT:        injected class name D2
 // CHECK-NEXT:        function inline double f()
 // CHECK-NEXT:        field double t
-// CHECK-NEXT:        function inline defaulted ::D2<int>& operator =(const ::D2<int>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::D2<int>& operator =(const ::D2<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::D2<int>&
-// CHECK-NEXT:        function inline defaulted ::D2<int>& operator =(::D2<int>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::D2<int>& operator =(::D2<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::D2<int>&&
-// CHECK-NEXT:        function inline defaulted void ~D2()
+// CHECK-NEXT:        function constexpr inline defaulted void ~D2()
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr const char __func__[5]

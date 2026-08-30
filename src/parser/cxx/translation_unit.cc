@@ -20,6 +20,7 @@
 
 #include <cxx/arena.h>
 #include <cxx/control.h>
+#include <cxx/dependent_types.h>
 #include <cxx/lexer.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
@@ -43,6 +44,7 @@ namespace cxx {
 TranslationUnit::TranslationUnit(DiagnosticsClient* diagnosticsClient)
     : control_(std::make_unique<Control>()) {
   diagnosticsClient_ = diagnosticsClient;
+  reportingDiagnosticsClient_ = diagnosticsClient;
   arena_ = std::make_unique<Arena>();
   globalNamespace_ = control_->newNamespaceSymbol(nullptr, {});
 
@@ -177,14 +179,34 @@ auto TranslationUnit::tokenEndPosition(SourceLocation loc) const
 }
 
 void TranslationUnit::parse(ParserConfiguration config) {
+  beginParsing(std::move(config));
+
+  while (!std::holds_alternative<ParsingComplete>(continueParsing())) {
+  }
+
+  endParsing();
+}
+
+void TranslationUnit::beginParsing(ParserConfiguration config) {
   if (ast_) {
     cxx_runtime_error("translation unit already parsed");
   }
 
   config_ = std::move(config);
 
-  auto parse = Parser(this);
-  parse(ast_);
+  parser_ = std::make_unique<Parser>(this);
+  parser_->beginParsing(ast_);
+}
+
+auto TranslationUnit::continueParsing() -> ParsingState {
+  if (!parser_) return ParsingComplete{};
+  return parser_->continueParsing();
+}
+
+void TranslationUnit::endParsing() {
+  if (!parser_) return;
+  parser_->endParsing();
+  parser_.reset();
 }
 
 auto TranslationUnit::language() const -> LanguageKind {
@@ -270,6 +292,7 @@ void TranslationUnit::addPendingBodyCompletion(FunctionSymbol* function) {
   if (!function) return;
   if (!function->hasPendingBody()) return;
   if (!function->isDefinitionRequired()) return;
+  if (isEnclosedInDependentTemplate(this, function, true)) return;
   if (std::ranges::contains(pendingBodyCompletions_, function)) return;
   pendingBodyCompletions_.push_back(function);
 }
@@ -279,21 +302,6 @@ auto TranslationUnit::takePendingBodyCompletions()
   auto pending = std::move(pendingBodyCompletions_);
   pendingBodyCompletions_.clear();
   return pending;
-}
-
-void TranslationUnit::deferBodyDiagnostics(
-    FunctionSymbol* function, std::vector<Diagnostic> diagnostics) {
-  if (!function || diagnostics.empty()) return;
-  deferredBodyDiagnostics_[function] = std::move(diagnostics);
-}
-
-auto TranslationUnit::takeDeferredBodyDiagnostics(FunctionSymbol* function)
-    -> std::vector<Diagnostic> {
-  auto it = deferredBodyDiagnostics_.find(function);
-  if (it == deferredBodyDiagnostics_.end()) return {};
-  auto diagnostics = std::move(it->second);
-  deferredBodyDiagnostics_.erase(it);
-  return diagnostics;
 }
 
 auto TranslationUnit::fileName() const -> const std::string& {

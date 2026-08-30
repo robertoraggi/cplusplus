@@ -302,7 +302,7 @@ auto template_name_symbol(Symbol* symbol) -> Symbol* {
 
   if (auto alias = symbol_cast<TypeAliasSymbol>(symbol)) {
     if (alias->isTemplatePattern()) return alias;
-    if (auto classType = type_cast<ClassType>(alias->type())) {
+    if (auto classType = unqualified_cast<ClassType>(alias->type())) {
       return template_name_symbol(classType->symbol());
     }
     return nullptr;
@@ -323,6 +323,14 @@ auto resolve_using_declaration(Symbol* symbol) -> Symbol* {
     symbol = usingDeclaration->target();
   }
   return symbol;
+}
+
+auto resolve_namespace_alias(Symbol* symbol) -> NamespaceSymbol* {
+  symbol = resolve_using_declaration(symbol);
+  while (auto alias = symbol_cast<NamespaceAliasSymbol>(symbol)) {
+    symbol = alias->namespaceSymbol();
+  }
+  return symbol_cast<NamespaceSymbol>(symbol);
 }
 
 auto templated_symbol(Symbol* symbol) -> Symbol* {
@@ -1233,43 +1241,34 @@ auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
   return nullptr;
 }
 
+namespace {
+
+template <typename Reference>
+[[nodiscard]] auto isSpecialMemberForClass(FunctionSymbol* function,
+                                           const ClassSymbol* classSymbol)
+    -> bool {
+  auto funcType = type_cast<FunctionType>(function->type());
+  if (!funcType) return false;
+  auto& params = funcType->parameterTypes();
+  if (params.size() != 1) return false;
+  auto ref = type_cast<Reference>(params[0]);
+  if (!ref) return false;
+  auto classType = unqualified_cast<ClassType>(ref->elementType());
+  return classType && classType->symbol() == classSymbol;
+}
+
+}  // namespace
+
 auto ClassSymbol::copyConstructor() const -> FunctionSymbol* {
   for (auto ctor : constructors()) {
-    auto funcType = type_cast<FunctionType>(ctor->type());
-    if (!funcType) continue;
-    auto& params = funcType->parameterTypes();
-    if (params.size() != 1) continue;
-    auto paramType = params[0];
-    if (auto ref = type_cast<LvalueReferenceType>(paramType)) {
-      auto inner = ref->elementType();
-      auto unqual = inner;
-      if (auto qual = type_cast<QualType>(inner)) {
-        if (qual->isConst())
-          unqual = qual->elementType();
-        else
-          continue;
-      }
-      if (auto classType = type_cast<ClassType>(unqual)) {
-        if (classType->symbol() == this) return ctor;
-      }
-    }
+    if (isSpecialMemberForClass<LvalueReferenceType>(ctor, this)) return ctor;
   }
   return nullptr;
 }
 
 auto ClassSymbol::moveConstructor() const -> FunctionSymbol* {
   for (auto ctor : constructors()) {
-    auto funcType = type_cast<FunctionType>(ctor->type());
-    if (!funcType) continue;
-    auto& params = funcType->parameterTypes();
-    if (params.size() != 1) continue;
-    auto paramType = params[0];
-    if (auto ref = type_cast<RvalueReferenceType>(paramType)) {
-      auto inner = ref->elementType();
-      if (auto classType = type_cast<ClassType>(inner)) {
-        if (classType->symbol() == this) return ctor;
-      }
-    }
+    if (isSpecialMemberForClass<RvalueReferenceType>(ctor, this)) return ctor;
   }
   return nullptr;
 }
@@ -1277,33 +1276,14 @@ auto ClassSymbol::moveConstructor() const -> FunctionSymbol* {
 auto ClassSymbol::copyAssignmentOperator() const -> FunctionSymbol* {
   return views::find_function(
       find(TokenKind::T_EQUAL), [this](FunctionSymbol* func) {
-        auto funcType = type_cast<FunctionType>(func->type());
-        if (!funcType) return false;
-        auto& params = funcType->parameterTypes();
-        if (params.size() != 1) return false;
-        auto ref = type_cast<LvalueReferenceType>(params[0]);
-        if (!ref) return false;
-        auto inner = ref->elementType();
-        if (auto qual = type_cast<QualType>(inner)) {
-          if (!qual->isConst()) return false;
-          inner = qual->elementType();
-        }
-        auto classType = type_cast<ClassType>(inner);
-        return classType && classType->symbol() == this;
+        return isSpecialMemberForClass<LvalueReferenceType>(func, this);
       });
 }
 
 auto ClassSymbol::moveAssignmentOperator() const -> FunctionSymbol* {
   return views::find_function(
       find(TokenKind::T_EQUAL), [this](FunctionSymbol* func) {
-        auto funcType = type_cast<FunctionType>(func->type());
-        if (!funcType) return false;
-        auto& params = funcType->parameterTypes();
-        if (params.size() != 1) return false;
-        auto ref = type_cast<RvalueReferenceType>(params[0]);
-        if (!ref) return false;
-        auto classType = type_cast<ClassType>(ref->elementType());
-        return classType && classType->symbol() == this;
+        return isSpecialMemberForClass<RvalueReferenceType>(func, this);
       });
 }
 
@@ -1479,6 +1459,15 @@ auto FunctionSymbol::explicitObjectParameter() const -> ParameterSymbol* {
     if (auto parameter = symbol_cast<ParameterSymbol>(member)) return parameter;
   }
   return nullptr;
+}
+
+auto FunctionSymbol::parameters() const -> std::vector<ParameterSymbol*> {
+  std::vector<ParameterSymbol*> result;
+  auto scope = functionParameters();
+  if (!scope) return result;
+  for (auto parameter : views::members(scope) | views::parameters)
+    result.push_back(parameter);
+  return result;
 }
 
 auto FunctionSymbol::isConstexpr() const -> bool {
@@ -2114,6 +2103,20 @@ auto EnumeratorSymbol::value() const -> const std::optional<ConstValue>& {
 
 void EnumeratorSymbol::setValue(const std::optional<ConstValue>& value) {
   value_ = value;
+}
+
+NamespaceAliasSymbol::NamespaceAliasSymbol(ScopeSymbol* enclosingScope)
+    : Symbol(Kind, enclosingScope) {}
+
+NamespaceAliasSymbol::~NamespaceAliasSymbol() {}
+
+auto NamespaceAliasSymbol::namespaceSymbol() const -> NamespaceSymbol* {
+  return namespaceSymbol_;
+}
+
+void NamespaceAliasSymbol::setNamespaceSymbol(
+    NamespaceSymbol* namespaceSymbol) {
+  namespaceSymbol_ = namespaceSymbol;
 }
 
 UsingDeclarationSymbol::UsingDeclarationSymbol(ScopeSymbol* enclosingScope)

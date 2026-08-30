@@ -112,11 +112,6 @@ class Control {
   [[nodiscard]] auto getFloat16Type() -> const Float16Type*;
   [[nodiscard]] auto getQualType(const Type* elementType,
                                  CvQualifiers cvQualifiers) -> const QualType*;
-  [[nodiscard]] auto getConstType(const Type* elementType) -> const QualType*;
-  [[nodiscard]] auto getVolatileType(const Type* elementType)
-      -> const QualType*;
-  [[nodiscard]] auto getConstVolatileType(const Type* elementType)
-      -> const QualType*;
   [[nodiscard]] auto getBoundedArrayType(const Type* elementType,
                                          std::size_t size)
       -> const BoundedArrayType*;
@@ -135,11 +130,11 @@ class Control {
       bool isVariadic = false, CvQualifiers cvQualifiers = CvQualifiers::kNone,
       RefQualifier refQualifier = RefQualifier::kNone, bool isNoexcept = false)
       -> const FunctionType*;
-  [[nodiscard]] auto getMemberObjectPointerType(const ClassType* classType,
+  [[nodiscard]] auto getMemberObjectPointerType(const Type* classType,
                                                 const Type* elementType)
       -> const MemberObjectPointerType*;
   [[nodiscard]] auto getMemberFunctionPointerType(
-      const ClassType* classType, const FunctionType* functionType)
+      const Type* classType, const FunctionType* functionType)
       -> const MemberFunctionPointerType*;
   [[nodiscard]] auto getDependentType() -> const TypeParameterType*;
 
@@ -258,6 +253,9 @@ class Control {
   [[nodiscard]] auto newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
                                                SourceLocation sourceLocation)
       -> UsingDeclarationSymbol*;
+  [[nodiscard]] auto newNamespaceAliasSymbol(ScopeSymbol* enclosingScope,
+                                             SourceLocation sourceLocation)
+      -> NamespaceAliasSymbol*;
 
   [[nodiscard]] auto beginCopyConstructorSelection(ClassSymbol* classSymbol)
       -> bool;

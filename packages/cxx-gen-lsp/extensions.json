@@ -1,0 +1,116 @@
+{
+  "requests": [
+    {
+      "method": "cxx/emitCode",
+      "typeName": "EmitCodeRequest",
+      "messageDirection": "clientToServer",
+      "params": {
+        "kind": "reference",
+        "name": "EmitCodeParams"
+      },
+      "result": {
+        "kind": "or",
+        "items": [
+          {
+            "kind": "reference",
+            "name": "EmitCodeResult"
+          },
+          {
+            "kind": "base",
+            "name": "null"
+          }
+        ]
+      },
+      "documentation": "A cxx extension to the language server protocol.\n\nThe request is sent from the client to the server to obtain the code the\ncompiler generates for a text document. The server responds with `null` when\nit was built without a code generator."
+    }
+  ],
+  "notifications": [],
+  "structures": [
+    {
+      "name": "EmitCodeParams",
+      "documentation": "The parameters of a cxx/emitCode request.",
+      "properties": [
+        {
+          "name": "textDocument",
+          "type": {
+            "kind": "reference",
+            "name": "TextDocumentIdentifier"
+          },
+          "documentation": "The document to generate the code for."
+        },
+        {
+          "name": "format",
+          "type": {
+            "kind": "reference",
+            "name": "EmitCodeFormat"
+          },
+          "documentation": "The format of the generated code."
+        },
+        {
+          "name": "debugInfo",
+          "type": {
+            "kind": "base",
+            "name": "boolean"
+          },
+          "optional": true,
+          "documentation": "Whether the generated code carries the source locations. Defaults to false."
+        }
+      ]
+    },
+    {
+      "name": "EmitCodeResult",
+      "documentation": "The code generated for a text document.",
+      "properties": [
+        {
+          "name": "format",
+          "type": {
+            "kind": "reference",
+            "name": "EmitCodeFormat"
+          },
+          "documentation": "The format the code was generated in."
+        },
+        {
+          "name": "text",
+          "type": {
+            "kind": "base",
+            "name": "string"
+          },
+          "documentation": "The generated code. Empty when the document has errors."
+        }
+      ]
+    }
+  ],
+  "enumerations": [
+    {
+      "name": "EmitCodeFormat",
+      "documentation": "The textual formats the cxx code generator can emit.",
+      "type": {
+        "kind": "base",
+        "name": "string"
+      },
+      "values": [
+        {
+          "name": "CxxIR",
+          "value": "cxxir",
+          "documentation": "The cxx dialect of MLIR, before any lowering."
+        },
+        {
+          "name": "MLIR",
+          "value": "mlir",
+          "documentation": "MLIR, after the cxx dialect was lowered."
+        },
+        {
+          "name": "LLVMIR",
+          "value": "llvm",
+          "documentation": "LLVM IR."
+        },
+        {
+          "name": "Assembly",
+          "value": "asm",
+          "documentation": "Target assembly."
+        }
+      ]
+    }
+  ],
+  "typeAliases": []
+}

@@ -137,6 +137,8 @@ struct ExpandedTemplateArgument {
 
 [[nodiscard]] auto resolve_using_declaration(Symbol* symbol) -> Symbol*;
 
+[[nodiscard]] auto resolve_namespace_alias(Symbol* symbol) -> NamespaceSymbol*;
+
 [[nodiscard]] auto template_declaration_of(Symbol* symbol)
     -> TemplateDeclarationAST*;
 
@@ -465,6 +467,10 @@ class Symbol {
 
   [[nodiscard]] auto isClassOrNamespace() const -> bool {
     return isClass() || isNamespace();
+  }
+
+  [[nodiscard]] auto isNamespaceName() const -> bool {
+    return isNamespace() || isNamespaceAlias();
   }
 
   [[nodiscard]] auto isEnumOrScopedEnum() const -> bool {
@@ -1053,6 +1059,8 @@ class FunctionSymbol final
   void setExplicitObjectParameter(bool hasExplicitObjectParameter);
 
   [[nodiscard]] auto explicitObjectParameter() const -> ParameterSymbol*;
+
+  [[nodiscard]] auto parameters() const -> std::vector<ParameterSymbol*>;
 
   [[nodiscard]] auto isConstexpr() const -> bool;
   void setConstexpr(bool isConstexpr);
@@ -1648,6 +1656,20 @@ class EnumeratorSymbol final : public Symbol {
 
  private:
   std::optional<ConstValue> value_;
+};
+
+class NamespaceAliasSymbol final : public Symbol {
+ public:
+  constexpr static auto Kind = SymbolKind::kNamespaceAlias;
+
+  explicit NamespaceAliasSymbol(ScopeSymbol* enclosingScope);
+  ~NamespaceAliasSymbol() override;
+
+  [[nodiscard]] auto namespaceSymbol() const -> NamespaceSymbol*;
+  void setNamespaceSymbol(NamespaceSymbol* namespaceSymbol);
+
+ private:
+  NamespaceSymbol* namespaceSymbol_ = nullptr;
 };
 
 class UsingDeclarationSymbol final : public Symbol {

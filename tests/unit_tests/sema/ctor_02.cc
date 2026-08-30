@@ -38,7 +38,7 @@ X::operator int() { return i; }
 // CHECK-NEXT:            parameter int
 // CHECK-NEXT:            block
 // CHECK-NEXT:              variable static constexpr const char __func__[2]
-// CHECK-NEXT:    constructor inline defaulted void X(const ::X&) noexcept
+// CHECK-NEXT:    constructor constexpr inline defaulted void X(const ::X&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::X&
 // CHECK-NEXT:    injected class name X
@@ -58,6 +58,6 @@ X::operator int() { return i; }
 // CHECK-NEXT:        function const int& operator const int&()
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[20]
-// CHECK-NEXT:    function inline defaulted ::X& operator =(const ::X&) noexcept
+// CHECK-NEXT:    function constexpr inline defaulted ::X& operator =(const ::X&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::X&

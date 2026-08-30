@@ -806,6 +806,21 @@ auto to_string(TokenFormat value) -> std::string {
   lsp_runtime_error("invalid enumerator value");
 }
 
+auto to_string(EmitCodeFormat value) -> std::string {
+  switch (value) {
+    case EmitCodeFormat::kCxxIR:
+      return "cxxir";
+    case EmitCodeFormat::kMLIR:
+      return "mlir";
+    case EmitCodeFormat::kLLVMIR:
+      return "llvm";
+    case EmitCodeFormat::kAssembly:
+      return "asm";
+  }
+
+  lsp_runtime_error("invalid enumerator value");
+}
+
 namespace string_enums {
 
 auto parseSemanticTokenTypes(std::string_view name)
@@ -1070,6 +1085,19 @@ auto parseFailureHandlingKind(std::string_view name)
 auto parseTokenFormat(std::string_view name) -> std::optional<TokenFormat> {
   static std::unordered_map<std::string_view, TokenFormat> map{
       {"relative", TokenFormat::kRelative},
+  };
+  const auto it = map.find(name);
+  if (it != map.end()) return it->second;
+  return std::nullopt;
+}
+
+auto parseEmitCodeFormat(std::string_view name)
+    -> std::optional<EmitCodeFormat> {
+  static std::unordered_map<std::string_view, EmitCodeFormat> map{
+      {"cxxir", EmitCodeFormat::kCxxIR},
+      {"mlir", EmitCodeFormat::kMLIR},
+      {"llvm", EmitCodeFormat::kLLVMIR},
+      {"asm", EmitCodeFormat::kAssembly},
   };
   const auto it = map.find(name);
   if (it != map.end()) return it->second;

@@ -87,18 +87,23 @@ auto ASTRewriter::typeChecker() -> TypeChecker {
   return typeChecker;
 }
 
-void ASTRewriter::typeCheckAndCapture(std::function<void()> checkFn) {
-  if (shouldCaptureBodyErrors()) {
-    CapturingDiagnosticsClient capture;
-    auto saved = unit_->changeDiagnosticsClient(&capture);
-    checkFn();
-    (void)unit_->changeDiagnosticsClient(saved);
-    bodyErrors_.insert(bodyErrors_.end(),
-                       std::make_move_iterator(capture.diagnostics.begin()),
-                       std::make_move_iterator(capture.diagnostics.end()));
-  } else {
-    checkFn();
+ASTRewriter::BodyErrorScope::BodyErrorScope(ASTRewriter& rewrite)
+    : rewrite_(rewrite),
+      rewritingFunctionBody_(
+          std::exchange(rewrite.rewritingFunctionBody_, true)) {
+  if (rewrite_.shouldCaptureBodyErrors()) capture_.emplace(rewrite_.unit_);
+}
+
+ASTRewriter::BodyErrorScope::~BodyErrorScope() {
+  if (capture_.has_value()) {
+    capture_->finish();
+    auto diagnostics = capture_->takeDiagnostics();
+    auto& bodyErrors = rewrite_.bodyErrors_;
+    bodyErrors.insert(bodyErrors.end(),
+                      std::make_move_iterator(diagnostics.begin()),
+                      std::make_move_iterator(diagnostics.end()));
   }
+  rewrite_.rewritingFunctionBody_ = rewritingFunctionBody_;
 }
 
 auto ASTRewriter::typeConstraintExpression(
@@ -230,21 +235,24 @@ auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
   std::optional<bool> conjunction = true;
 
   for (auto constraint : constraints) {
-    SilentDiagnosticsClient silent;
-    auto saved = unit->changeDiagnosticsClient(&silent);
+    std::optional<ConstValue> value;
+    bool hadError = false;
 
-    if (!constraint->type) {
-      auto typeChecker = TypeChecker{unit};
-      typeChecker.setScope(symbol->parent());
-      typeChecker.setReportErrors(false);
-      typeChecker.check(constraint);
+    {
+      SilentDiagnosticsScope silent{unit};
+
+      if (!constraint->type) {
+        auto typeChecker = TypeChecker{unit};
+        typeChecker.setScope(symbol->parent());
+        typeChecker.setReportErrors(false);
+        typeChecker.check(constraint);
+      }
+
+      value = interp.evaluate(constraint);
+      hadError = silent.hadError();
     }
 
-    auto value = interp.evaluate(constraint);
-
-    (void)unit->changeDiagnosticsClient(saved);
-
-    if (silent.hadError()) return false;
+    if (hadError) return false;
 
     std::optional<bool> satisfied;
     if (value.has_value()) satisfied = interp.toBool(*value);
@@ -309,15 +317,19 @@ auto ASTRewriter::checkConstraintExpression(
   }
 
   auto substituteIntoConstraint = [&]() -> ExpressionAST* {
-    SilentDiagnosticsClient silent;
-    auto saved = unit->changeDiagnosticsClient(&silent);
+    ExpressionAST* rewritten = nullptr;
+    bool hadError = false;
 
-    auto rewritten = reqRewriter.expression(constraint);
-    if (rewritten) reqRewriter.check(rewritten);
+    {
+      SilentDiagnosticsScope silent{unit};
 
-    (void)unit->changeDiagnosticsClient(saved);
+      rewritten = reqRewriter.expression(constraint);
+      if (rewritten) reqRewriter.check(rewritten);
 
-    if (silent.hadError()) return nullptr;
+      hadError = silent.hadError();
+    }
+
+    if (hadError) return nullptr;
     if (reqRewriter.substitutionFailed()) return nullptr;
     return rewritten;
   };
@@ -395,19 +407,21 @@ auto ASTRewriter::evaluateConstraintExpression(
 
     if (!left.has_value() || !right.has_value()) return std::nullopt;
 
-    return isConjunction ? (*left && *right) : (*left || *right);
+    if (isConjunction) return *left && *right;
+    return *left || *right;
   }
-
-  SilentDiagnosticsClient silent;
-  auto saved = unit->changeDiagnosticsClient(&silent);
 
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
   rewriter.depth_ = depth;
 
-  auto constraint = rewriter.expression(expression);
-  if (constraint) rewriter.check(constraint);
+  ExpressionAST* constraint = nullptr;
 
-  (void)unit->changeDiagnosticsClient(saved);
+  {
+    SilentDiagnosticsScope silent{unit};
+
+    constraint = rewriter.expression(expression);
+    if (constraint) rewriter.check(constraint);
+  }
 
   if (!constraint) return std::nullopt;
   if (rewriter.substitutionFailed()) return false;
@@ -480,6 +494,6 @@ void ASTRewriter::check(ExpressionAST* ast) {
   TranslationUnit::PotentiallyEvaluatedScope evaluated{
       unit_, unevaluatedOperandDepth_ == 0};
   auto checker = typeChecker();
-  typeCheckAndCapture([&] { checker.check(ast); });
+  checker.check(ast);
 }
 }  // namespace cxx

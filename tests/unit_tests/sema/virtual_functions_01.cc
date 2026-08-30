@@ -12,7 +12,7 @@ struct Base {
 // CHECK:        function virtual void f()
 // CHECK:        function virtual pure void g()
 // CHECK:        function virtual void h()
-// CHECK:        function inline virtual defaulted void ~Base()
+// CHECK:        function constexpr inline virtual defaulted void ~Base()
 
 struct Derived : Base {
   void f() override;
@@ -73,11 +73,11 @@ struct VDerived : VBase {};
 struct VGrandchild : VDerived {};
 
 // CHECK:      class VBase polymorphic
-// CHECK:        function inline virtual defaulted void ~VBase()
+// CHECK:        function constexpr inline virtual defaulted void ~VBase()
 // CHECK:      class VDerived polymorphic
-// CHECK:        function inline virtual defaulted void ~VDerived()
+// CHECK:        function constexpr inline virtual defaulted void ~VDerived()
 // CHECK:      class VGrandchild polymorphic
-// CHECK:        function inline virtual defaulted void ~VGrandchild()
+// CHECK:        function constexpr inline virtual defaulted void ~VGrandchild()
 
 struct Plain {
   void f();

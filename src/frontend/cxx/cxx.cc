@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/lsp/cxx_server_host.h>
 #include <cxx/lsp/lsp_server.h>
+#include <cxx/lsp/transport.h>
 
 #include <chrono>
 #include <format>
@@ -145,7 +147,8 @@ auto main(int argc, char* argv[]) -> int {
   }
 
   if (cli.opt_lsp) {
-    auto server = cxx::lsp::Server{cli};
+    auto host = cxx::lsp::CxxServerHost{cli};
+    auto server = cxx::lsp::Server{host, cxx::lsp::createTransport(cli)};
 
     return server.start();
   }

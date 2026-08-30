@@ -85,7 +85,7 @@ void test_conditional(bool x) {
   // clang-format on
 
   static_assert(__is_same(char(*&)[10], decltype(x ? a10 : a10)));
-  static_assert(__is_same(const char(*)[], decltype(x ? a10 : a)));
+  static_assert(__is_same(char(*)[], decltype(x ? a10 : a)));
   static_assert(__is_same(char(*&)[], decltype(x ? a : a)));
   static_assert(__is_same(const char(*)[], decltype(x ? a : ca)));
 }

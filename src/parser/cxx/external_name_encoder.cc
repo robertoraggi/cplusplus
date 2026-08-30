@@ -34,6 +34,7 @@
 #include <bit>
 #include <cstdint>
 #include <format>
+#include <functional>
 #include <set>
 #include <span>
 
@@ -378,8 +379,7 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const QualType* type) -> bool {
-    if (type->isVolatile()) encoder.out("V");
-    if (type->isConst()) encoder.out("K");
+    encoder.encodeCvQualifiers(type->cvQualifiers());
     encoder.encodeType(type->elementType());
     return true;
   }
@@ -415,8 +415,7 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const FunctionType* type) -> bool {
-    if (is_volatile(type->cvQualifiers())) encoder.out("V");
-    if (is_const(type->cvQualifiers())) encoder.out("K");
+    encoder.encodeCvQualifiers(type->cvQualifiers());
 
     if (type->isNoexcept()) encoder.out("Do");
 
@@ -434,7 +433,7 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const ClassType* type) -> bool {
-    if (!type->symbol()->name()) {
+    if (!type->symbol()->name() && !type->symbol()->enclosingFunction()) {
       cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
       return false;
     }
@@ -444,7 +443,7 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const EnumType* type) -> bool {
-    if (!type->symbol()->name()) {
+    if (!type->symbol()->name() && !type->symbol()->enclosingFunction()) {
       cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
       return false;
     }
@@ -453,7 +452,7 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const ScopedEnumType* type) -> bool {
-    if (!type->symbol()->name()) {
+    if (!type->symbol()->name() && !type->symbol()->enclosingFunction()) {
       cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
       return false;
     }
@@ -502,8 +501,15 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const UnresolvedUnderlyingType* type) -> bool {
-    cxx_runtime_error(std::format(
-        "cannot mangle unresolved underlying type '{}'", to_string(type)));
+    constexpr std::string_view name = "__underlying_type";
+    auto typeId = type->typeId();
+    if (!typeId || !typeId->type) {
+      cxx_runtime_error("cannot mangle unresolved underlying type");
+    }
+    encoder.out(std::format("u{}{}I", name.size(), name));
+    encoder.encodeType(typeId->type);
+    encoder.out("E");
+    return true;
   }
 
   auto operator()(const UnresolvedBuiltinType* type) -> bool {
@@ -982,6 +988,53 @@ void ExternalNameEncoder::encodeClosureSourceName(ClassSymbol* classSymbol) {
   out(std::format("{}{}", name.length(), name));
 }
 
+auto ExternalNameEncoder::unnamedTypeIndex(Symbol* symbol) const -> int {
+  FunctionSymbol* function = nullptr;
+  if (symbol) function = symbol->enclosingFunction();
+  if (!function) return -1;
+
+  std::vector<Symbol*> unnamedTypes;
+  std::set<ScopeSymbol*> visited;
+
+  auto isUnnamedType = [](Symbol* candidate) {
+    if (!candidate || candidate->name()) return false;
+    if (auto classSymbol = symbol_cast<ClassSymbol>(candidate))
+      return !classSymbol->isClosureType();
+    return candidate->isEnumOrScopedEnum();
+  };
+
+  std::function<void(ScopeSymbol*)> collect;
+  collect = [&](ScopeSymbol* scope) {
+    if (!scope || !visited.insert(scope).second) return;
+    for (auto member : scope->members()) {
+      if (member->enclosingFunction() != function) continue;
+      if (isUnnamedType(member)) unnamedTypes.push_back(member);
+
+      auto childScope = member->asScopeSymbol();
+      if (!childScope || member->isFunction()) continue;
+      collect(childScope);
+    }
+  };
+
+  collect(function);
+  std::ranges::sort(unnamedTypes, {}, &Symbol::location);
+
+  auto it = std::ranges::find(unnamedTypes, symbol);
+  if (it == unnamedTypes.end()) return -1;
+  return static_cast<int>(it - unnamedTypes.begin());
+}
+
+void ExternalNameEncoder::encodeUnnamedTypeName(Symbol* symbol) {
+  auto index = unnamedTypeIndex(symbol);
+  if (index < 0) {
+    cxx_runtime_error("cannot determine unnamed local type index");
+  }
+
+  out("Ut");
+  if (index > 0) out(std::to_string(index - 1));
+  out("_");
+}
+
 auto ExternalNameEncoder::encodeLocalName(Symbol* symbol) -> bool {
   auto function = symbol->enclosingFunction();
   if (!function) return false;
@@ -993,6 +1046,13 @@ auto ExternalNameEncoder::encodeLocalName(Symbol* symbol) -> bool {
                            encodes_return_type(function));
   }
   out("E");
+
+  const bool isUnnamedClass = !symbol->name() && symbol->isClass();
+  const bool isUnnamedEnum = !symbol->name() && symbol->isEnumOrScopedEnum();
+  if (isUnnamedClass || isUnnamedEnum) {
+    encodeUnnamedTypeName(symbol);
+    return true;
+  }
 
   if (auto memberFunction = symbol_cast<FunctionSymbol>(symbol)) {
     if (auto classSymbol = symbol_cast<ClassSymbol>(memberFunction->parent());
@@ -1010,6 +1070,11 @@ auto ExternalNameEncoder::encodeLocalName(Symbol* symbol) -> bool {
   return true;
 }
 
+void ExternalNameEncoder::encodeCvQualifiers(CvQualifiers cvQualifiers) {
+  if (has_volatile(cvQualifiers)) out("V");
+  if (has_const(cvQualifiers)) out("K");
+}
+
 void ExternalNameEncoder::encodeObjectParameterQualifiers(
     FunctionSymbol* function) {
   if (function->hasExplicitObjectParameter()) {
@@ -1020,9 +1085,7 @@ void ExternalNameEncoder::encodeObjectParameterQualifiers(
   auto functionType = type_cast<FunctionType>(function->type());
   if (!functionType) return;
 
-  const auto cv = functionType->cvQualifiers();
-  if (is_const(cv)) out("K");
-  if (is_volatile(cv)) out("V");
+  encodeCvQualifiers(functionType->cvQualifiers());
 
   if (functionType->refQualifier() == RefQualifier::kLvalue)
     out("R");

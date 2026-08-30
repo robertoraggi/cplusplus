@@ -120,28 +120,17 @@ class TypeChecker {
   void applyImplicitConversion(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
 
-  void wrapWithImplicitCast(ImplicitCastKind castKind, const Type* type,
-                            ExpressionAST*& expr);
-
   [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
                                     const Type* rightType = nullptr,
                                     ExpressionAST* leftExpr = nullptr,
                                     ExpressionAST* rightExpr = nullptr)
       -> FunctionSymbol*;
 
-  [[nodiscard]] auto trySelectOperator(
-      const std::vector<FunctionSymbol*>& candidates, const Type* type,
-      const Type* rightType) -> FunctionSymbol*;
-
   [[nodiscard]] auto collectOverloads(Symbol* symbol) const
       -> std::vector<FunctionSymbol*>;
 
   [[nodiscard]] auto findOverloads(ScopeSymbol* scope, const Name* name) const
       -> std::vector<FunctionSymbol*>;
-
-  [[nodiscard]] auto selectBestOverload(
-      const std::vector<FunctionSymbol*>& candidates, const Type* type,
-      const Type* rightType, bool* ambiguous) const -> FunctionSymbol*;
 
   [[nodiscard]] auto wasLastOperatorLookupAmbiguous() const -> bool {
     return lastOperatorLookupAmbiguous_;
@@ -166,29 +155,10 @@ class TypeChecker {
 
   [[nodiscard]] auto hasConstantValue(FieldSymbol* field) -> bool;
 
-  [[nodiscard]] auto as_pointer(const Type* type) const -> const PointerType*;
-  [[nodiscard]] auto as_class(const Type* type) const -> const ClassType*;
+  [[nodiscard]] auto enterAggregateInitialization(ClassSymbol* classSymbol)
+      -> bool;
 
-  struct AggregateInitGuard {
-    AggregateInitGuard(const AggregateInitGuard&) = delete;
-    auto operator=(const AggregateInitGuard&) -> AggregateInitGuard& = delete;
-
-    TypeChecker& checker;
-    ClassSymbol* classSymbol;
-    bool entered;
-
-    AggregateInitGuard(TypeChecker& checker, ClassSymbol* classSymbol)
-        : checker(checker),
-          classSymbol(classSymbol),
-          entered(
-              checker.aggregatesBeingInitialized_.insert(classSymbol).second) {}
-
-    ~AggregateInitGuard() {
-      if (entered) checker.aggregatesBeingInitialized_.erase(classSymbol);
-    }
-
-    [[nodiscard]] explicit operator bool() const { return entered; }
-  };
+  void leaveAggregateInitialization(ClassSymbol* classSymbol);
 
  private:
   struct Visitor;

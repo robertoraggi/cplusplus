@@ -399,6 +399,13 @@ enum class TokenFormat {
   kRelative,
 };
 
+enum class EmitCodeFormat {
+  kCxxIR,
+  kMLIR,
+  kLLVMIR,
+  kAssembly,
+};
+
 auto to_string(SemanticTokenTypes value) -> std::string;
 auto to_string(SemanticTokenModifiers value) -> std::string;
 auto to_string(DocumentDiagnosticReportKind value) -> std::string;
@@ -439,6 +446,7 @@ auto to_string(ResourceOperationKind value) -> std::string;
 auto to_string(FailureHandlingKind value) -> std::string;
 auto to_string(PrepareSupportDefaultBehavior value) -> std::string;
 auto to_string(TokenFormat value) -> std::string;
+auto to_string(EmitCodeFormat value) -> std::string;
 
 namespace string_enums {
 
@@ -472,6 +480,8 @@ namespace string_enums {
     -> std::optional<FailureHandlingKind>;
 [[nodiscard]] auto parseTokenFormat(std::string_view name)
     -> std::optional<TokenFormat>;
+[[nodiscard]] auto parseEmitCodeFormat(std::string_view name)
+    -> std::optional<EmitCodeFormat>;
 }  // namespace string_enums
 
 }  // namespace cxx::lsp

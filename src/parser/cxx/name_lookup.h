@@ -101,11 +101,12 @@ template <typename Predicate>
   if (!scopeSymbol) return nullptr;
 
   if (auto alias = symbol_cast<TypeAliasSymbol>(scopeSymbol)) {
-    if (auto ct = type_cast<ClassType>(alias->type()))
+    auto aliasedType = unqualified_type(alias->type());
+    if (auto ct = type_cast<ClassType>(aliasedType))
       return resolveAndSearch(ct->symbol(), name, accept);
-    if (auto et = type_cast<EnumType>(alias->type()))
+    if (auto et = type_cast<EnumType>(aliasedType))
       return resolveAndSearch(et->symbol(), name, accept);
-    if (auto st = type_cast<ScopedEnumType>(alias->type()))
+    if (auto st = type_cast<ScopedEnumType>(aliasedType))
       return resolveAndSearch(st->symbol(), name, accept);
   }
 
@@ -116,6 +117,10 @@ template <typename Predicate>
     case SymbolKind::kScopedEnum: {
       std::vector<ScopeSymbol*> visited;
       return searchScope(scopeSymbol->asScopeSymbol(), name, visited, accept);
+    }
+    case SymbolKind::kNamespaceAlias: {
+      return resolveAndSearch(resolve_namespace_alias(scopeSymbol), name,
+                              accept);
     }
     case SymbolKind::kInjectedClassName: {
       auto injected = symbol_cast<InjectedClassNameSymbol>(scopeSymbol);

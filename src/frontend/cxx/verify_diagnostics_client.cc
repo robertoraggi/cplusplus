@@ -96,24 +96,25 @@ void VerifyDiagnosticsClient::report(const Diagnostic& diagnostic) {
 void VerifyDiagnosticsClient::verifyExpectedDiagnostics() {
   if (!verify_) return;
 
-  while (!reportedDiagnostics_.empty()) {
-    if (expectedDiagnostics_.empty()) break;
-
+  while (!expectedDiagnostics_.empty()) {
     auto expected = expectedDiagnostics_.front();
     expectedDiagnostics_.pop_front();
 
     if (auto it = findDiagnostic(expected); it != cend(reportedDiagnostics_)) {
       reportedDiagnostics_.erase(it);
-    } else {
-      Diagnostic diag(Severity::Error, expected.token, "expected diagnostic");
-      DiagnosticsClient::report(diag);
-
-      hasErrors_ = true;
+      continue;
     }
+
+    Diagnostic diag(Severity::Error, expected.token, "expected diagnostic");
+    DiagnosticsClient::report(diag);
+
+    hasErrors_ = true;
   }
 
   for (const auto& diag : reportedDiagnostics_) {
     DiagnosticsClient::report(diag);
+
+    hasErrors_ = true;
   }
 }
 

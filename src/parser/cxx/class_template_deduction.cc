@@ -606,19 +606,19 @@ auto ClassTemplateArgumentDeduction::deduce(ClassSymbol* primaryTemplate,
   candidateGuides.reserve(guides_.size());
   bool explicitGuideRejected = false;
 
-  SilentDiagnosticsClient silent;
-
   for (const auto& guide : guides_) {
     auto guideType = type_cast<FunctionType>(guide.function->type());
     if (!guideType) continue;
 
-    auto saved = unit_->changeDiagnosticsClient(&silent);
+    std::optional<List<TemplateArgumentAST*>*> deduced;
 
-    TemplateArgumentDeduction deduction{unit_};
-    auto deduced = deduction.deduceForGuide(guide.templateDeclaration,
-                                            guideType, guide.parameters, args);
+    {
+      SilentDiagnosticsScope silent{unit_};
 
-    (void)unit_->changeDiagnosticsClient(saved);
+      TemplateArgumentDeduction deduction{unit_};
+      deduced = deduction.deduceForGuide(guide.templateDeclaration, guideType,
+                                         guide.parameters, args);
+    }
 
     if (!deduced) continue;
 
@@ -659,7 +659,7 @@ auto ClassTemplateArgumentDeduction::deduce(ClassSymbol* primaryTemplate,
       auto sequence = overloadResolution.computeImplicitConversionSequence(
           argument, parameterTypes[index]);
 
-      if (sequence.rank == ConversionRank::kNone) {
+      if (!sequence) {
         viable = false;
         break;
       }

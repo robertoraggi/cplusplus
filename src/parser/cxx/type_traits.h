@@ -22,14 +22,17 @@
 
 #include <cxx/types_fwd.h>
 
+#include <array>
 #include <cstdint>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace cxx {
 class ClassSymbol;
 class Control;
 class ExpressionAST;
+class FieldSymbol;
 class FunctionSymbol;
 class Symbol;
 class TranslationUnit;
@@ -133,7 +136,6 @@ class TypeTraits {
   [[nodiscard]] auto remove_volatile(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_cv(const Type* type, CvQualifiers cv) const
       -> const Type*;
-  [[nodiscard]] auto get_cv_qualifiers(const Type* type) const -> CvQualifiers;
   [[nodiscard]] auto remove_noexcept(const Type* type) const -> const Type*;
   [[nodiscard]] auto replace_placeholder_types(const Type* type,
                                                const Type* replacement) const
@@ -144,8 +146,43 @@ class TypeTraits {
   [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) const
       -> bool;
 
+  [[nodiscard]] auto is_known_complete_object(ExpressionAST* expression) const
+      -> bool;
+
+  [[nodiscard]] auto is_virtual_member_dispatch(
+      FunctionSymbol* function, ExpressionAST* objectExpression) const -> bool;
+
+  [[nodiscard]] auto adjusted_cv_type(const Type* type) const -> const Type*;
+
+  [[nodiscard]] auto is_similar(const Type* lhs, const Type* rhs) const -> bool;
+
+  [[nodiscard]] auto qualification_combined_type(const Type* lhs,
+                                                 const Type* rhs) const
+      -> const Type*;
+
+  [[nodiscard]] auto is_qualification_convertible(const Type* from,
+                                                  const Type* to) const -> bool;
+
   [[nodiscard]] auto is_reference_related(const Type* lhs,
                                           const Type* rhs) const -> bool;
+
+  [[nodiscard]] auto is_reference_compatible(const Type* target,
+                                             const Type* source) const -> bool;
+
+  [[nodiscard]] auto promoted_integer_type(const Type* type) const
+      -> const Type*;
+
+  [[nodiscard]] auto promoted_enumeration_types(const EnumType* enumType) const
+      -> std::pair<const Type*, const Type*>;
+
+  [[nodiscard]] auto is_integral_promotion(const Type* from,
+                                           const Type* to) const -> bool;
+
+  [[nodiscard]] auto is_floating_point_promotion(const Type* from,
+                                                 const Type* to) const -> bool;
+
+  [[nodiscard]] auto representsAllValuesOf(const Type* target,
+                                           const Type* source) const -> bool;
 
   [[nodiscard]] auto is_virtual_base_of(const Type* base,
                                         const Type* derived) const -> bool;
@@ -159,6 +196,12 @@ class TypeTraits {
       -> bool;
   [[nodiscard]] auto is_convertible(const Type* from, const Type* to) const
       -> bool;
+  [[nodiscard]] auto reference_constructs_from_temporary(const Type* to,
+                                                         const Type* from) const
+      -> bool;
+  [[nodiscard]] auto reference_converts_from_temporary(const Type* to,
+                                                       const Type* from) const
+      -> bool;
 
   auto is_pod(const Type* type) -> bool;
   auto is_trivial(const Type* type) -> bool;
@@ -167,7 +210,10 @@ class TypeTraits {
   auto is_aggregate(const Type* type) -> bool;
   [[nodiscard]] auto aggregate_elements(ClassSymbol* classSymbol) const
       -> std::vector<Symbol*>;
+  [[nodiscard]] auto aggregate_element_type(Symbol* element) const
+      -> const Type*;
   auto is_empty(const Type* type) -> bool;
+  [[nodiscard]] auto is_zero_size_subobject(FieldSymbol* field) -> bool;
   auto is_polymorphic(const Type* type) -> bool;
   auto is_final(const Type* type) -> bool;
   auto selectConstructor(ClassSymbol* classSymbol,
@@ -194,8 +240,14 @@ class TypeTraits {
   auto has_virtual_destructor(const Type* type) -> bool;
 
  private:
+  [[nodiscard]] auto integralPromotionCandidates() const
+      -> std::array<const Type*, 6>;
+
   [[nodiscard]] auto can_initialize(const Type* to, const Type* from,
                                     bool directInitialization) const -> bool;
+  [[nodiscard]] auto reference_binds_to_temporary(
+      const Type* to, const Type* from, bool directInitialization) const
+      -> bool;
   [[nodiscard]] auto is_accessible_from_unrelated_context(
       FunctionSymbol* function) const -> bool;
   [[nodiscard]] auto is_nothrow_function(FunctionSymbol* function) const

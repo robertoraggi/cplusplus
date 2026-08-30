@@ -68,6 +68,7 @@ enum class ResourceOperationKind;
 enum class FailureHandlingKind;
 enum class PrepareSupportDefaultBehavior : long;
 enum class TokenFormat;
+enum class EmitCodeFormat;
 
 // structures
 class ImplementationParams;
@@ -457,6 +458,8 @@ class ClientSignatureParameterInformationOptions;
 class ClientCodeActionKindOptions;
 class ClientDiagnosticsTagOptions;
 class ClientSemanticTokensRequestFullDelta;
+class EmitCodeParams;
+class EmitCodeResult;
 // requests
 class ImplementationRequest;
 class ImplementationResponse;
@@ -596,6 +599,8 @@ class ExecuteCommandRequest;
 class ExecuteCommandResponse;
 class ApplyWorkspaceEditRequest;
 class ApplyWorkspaceEditResponse;
+class EmitCodeRequest;
+class EmitCodeResponse;
 class DidChangeWorkspaceFoldersNotification;
 class WorkDoneProgressCancelNotification;
 class DidCreateFilesNotification;

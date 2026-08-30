@@ -113,7 +113,7 @@ auto classifyClassValueAbi(TranslationUnit* unit, const Type* type)
   if (!type) return {};
 
   auto traits = unit->typeTraits();
-  auto classType = type_cast<ClassType>(traits.remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return {};
 
   auto memoryLayout = unit->control()->memoryLayout();

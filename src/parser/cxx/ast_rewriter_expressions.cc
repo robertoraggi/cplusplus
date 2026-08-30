@@ -330,6 +330,7 @@ auto ASTRewriter::expression(ExpressionAST* ast) -> ExpressionAST* {
 }
 
 auto ASTRewriter::unevaluatedExpression(ExpressionAST* ast) -> ExpressionAST* {
+  TranslationUnit::PotentiallyEvaluatedScope unevaluated{unit_, false};
   ++unevaluatedOperandDepth_;
   auto result = expression(ast);
   --unevaluatedOperandDepth_;
@@ -633,9 +634,11 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
   } else if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
     binder()->qualifiedLookupIdExpression(copy);
   } else if (ast->symbol) {
+    const auto isCallee = std::exchange(rewrite.rewritingCallee_, false);
+
     copy->symbol = rewrite.remapSymbol(ast->symbol);
 
-    if (symbol_cast<OverloadSetSymbol>(copy->symbol) &&
+    if (!isCallee && symbol_cast<OverloadSetSymbol>(copy->symbol) &&
         type_cast<FunctionType>(copy->type)) {
       if (auto function = designatedFunction(copy->symbol))
         copy->symbol = function;
@@ -667,14 +670,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
 
     if (auto usingDecl = symbol_cast<UsingDeclarationSymbol>(copy->symbol);
-        usingDecl && usingDecl->target()) {
+        usingDecl && usingDecl->target() && !isCallee) {
       copy->symbol = usingDecl->target();
       copy->type = copy->symbol->type();
       return copy;
     }
 
-    binder()->resolveIdExpression(
-        copy, std::exchange(rewrite.rewritingCallee_, false));
+    binder()->resolveIdExpression(copy, isCallee);
 
     if (copy->symbol != ast->symbol && copy->symbol) {
       copy->type = copy->symbol->type();
@@ -1276,11 +1278,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
             !translationUnit()->typeTraits().is_base_of(lookupScope->type(),
                                                         objectType)) {
           copy->type = nullptr;
-          rewrite.error(
-              copy->accessLoc,
-              std::format("'{}::{}' is not a member of a base class of '{}'",
-                          to_string(lookupScope->name()), to_string(memberName),
-                          to_string(classSymbol->name())));
+          rewrite.markSubstitutionFailure();
         } else if (lookupScope && memberName) {
           auto symbol = qualifiedLookup(lookupScope, memberName);
           if (symbol) {
@@ -1298,10 +1296,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
             }
           } else {
             copy->type = nullptr;
-            rewrite.error(get_name_location(copy),
-                          std::format("no member named '{}' in type '{}'",
-                                      to_string(memberName),
-                                      to_string(lookupScope->name())));
+            rewrite.markSubstitutionFailure();
           }
         }
       } else if (!isDependent(translationUnit(), objectType)) {

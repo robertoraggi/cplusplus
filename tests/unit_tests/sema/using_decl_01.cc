@@ -35,42 +35,42 @@ auto main() -> int {
 // CHECK-NEXT:    using int printf(const char*...)
 // CHECK-NEXT:    typealias decltype(nullptr) nullptr_t
 // CHECK-NEXT:  class Base
-// CHECK-NEXT:    constructor inline defaulted void Base()
-// CHECK-NEXT:    constructor inline defaulted void Base(const ::Base&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Base()
+// CHECK-NEXT:    constructor constexpr inline defaulted void Base(const ::Base&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Base&
-// CHECK-NEXT:    constructor inline defaulted void Base(::Base&&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Base(::Base&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Base&&
 // CHECK-NEXT:    injected class name Base
 // CHECK-NEXT:    function bool operator bool() const
 // CHECK-NEXT:    function void f()
-// CHECK-NEXT:    function inline defaulted ::Base& operator =(const ::Base&)
+// CHECK-NEXT:    function constexpr inline defaulted ::Base& operator =(const ::Base&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Base&
-// CHECK-NEXT:    function inline defaulted ::Base& operator =(::Base&&)
+// CHECK-NEXT:    function constexpr inline defaulted ::Base& operator =(::Base&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Base&&
-// CHECK-NEXT:    function inline defaulted void ~Base()
+// CHECK-NEXT:    function constexpr inline defaulted void ~Base()
 // CHECK-NEXT:  class Derived
 // CHECK-NEXT:    base class ::Base
-// CHECK-NEXT:    constructor inline defaulted void Derived()
-// CHECK-NEXT:    constructor inline defaulted void Derived(const ::Derived&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Derived()
+// CHECK-NEXT:    constructor constexpr inline defaulted void Derived(const ::Derived&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Derived&
-// CHECK-NEXT:    constructor inline defaulted void Derived(::Derived&&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Derived(::Derived&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Derived&&
 // CHECK-NEXT:    injected class name Derived
 // CHECK-NEXT:    using bool operator bool() const
 // CHECK-NEXT:    using void f()
-// CHECK-NEXT:    function inline defaulted ::Derived& operator =(const ::Derived&)
+// CHECK-NEXT:    function constexpr inline defaulted ::Derived& operator =(const ::Derived&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Derived&
-// CHECK-NEXT:    function inline defaulted ::Derived& operator =(::Derived&&)
+// CHECK-NEXT:    function constexpr inline defaulted ::Derived& operator =(::Derived&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Derived&&
-// CHECK-NEXT:    function inline defaulted void ~Derived()
+// CHECK-NEXT:    function constexpr inline defaulted void ~Derived()
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr const char __func__[5]

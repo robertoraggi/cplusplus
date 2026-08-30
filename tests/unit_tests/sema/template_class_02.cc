@@ -39,7 +39,7 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:    typealias unsigned long size_t
 // CHECK-NEXT:    template class basic_string<type-param<0, 0>>
 // CHECK-NEXT:      parameter typename<0, 0> T
-// CHECK-NEXT:      constructor inline defaulted void basic_string()
+// CHECK-NEXT:      constructor constexpr inline defaulted void basic_string()
 // CHECK-NEXT:      constructor inline explicit void basic_string(const type-param<0, 0>*)
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter const type-param<0, 0>* p

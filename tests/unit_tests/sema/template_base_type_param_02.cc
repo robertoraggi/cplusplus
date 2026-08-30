@@ -29,26 +29,26 @@ Wrapper<double> w1;
 // CHECK-NEXT:        parameter int v
 // CHECK-NEXT:        block
 // CHECK-NEXT:          variable static constexpr const char __func__[5]
-// CHECK-NEXT:    constructor inline defaulted void Base(const ::Base&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Base(const ::Base&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Base&
-// CHECK-NEXT:    constructor inline defaulted void Base(::Base&&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Base(::Base&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Base&&
 // CHECK-NEXT:    injected class name Base
 // CHECK-NEXT:    field int value
-// CHECK-NEXT:    function inline defaulted ::Base& operator =(const ::Base&)
+// CHECK-NEXT:    function constexpr inline defaulted ::Base& operator =(const ::Base&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Base&
-// CHECK-NEXT:    function inline defaulted ::Base& operator =(::Base&&)
+// CHECK-NEXT:    function constexpr inline defaulted ::Base& operator =(::Base&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Base&&
-// CHECK-NEXT:    function inline defaulted void ~Base()
+// CHECK-NEXT:    function constexpr inline defaulted void ~Base()
 // CHECK-NEXT:  template class Wrapper<type-param<0, 0>, type-param<1, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:    parameter typename<1, 0> B
 // CHECK-NEXT:    base class type-param<1, 0>
-// CHECK-NEXT:    constructor inline defaulted void Wrapper()
+// CHECK-NEXT:    constructor constexpr inline defaulted void Wrapper()
 // CHECK-NEXT:    constructor inline explicit void Wrapper(type-param<0, 0>)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter type-param<0, 0> v
@@ -59,23 +59,23 @@ Wrapper<double> w1;
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Wrapper<double, ::Base>
 // CHECK-NEXT:        base class ::Base
-// CHECK-NEXT:        constructor inline defaulted void Wrapper()
+// CHECK-NEXT:        constructor constexpr inline defaulted void Wrapper()
 // CHECK-NEXT:        constructor inline explicit void Wrapper(double)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter double v
-// CHECK-NEXT:        constructor inline defaulted void Wrapper(const ::Wrapper<double, ::Base>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void Wrapper(const ::Wrapper<double, ::Base>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Wrapper<double, ::Base>&
-// CHECK-NEXT:        constructor inline defaulted void Wrapper(::Wrapper<double, ::Base>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void Wrapper(::Wrapper<double, ::Base>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Wrapper<double, ::Base>&&
 // CHECK-NEXT:        injected class name Wrapper
 // CHECK-NEXT:        field double extra
-// CHECK-NEXT:        function inline defaulted ::Wrapper<double, ::Base>& operator =(const ::Wrapper<double, ::Base>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::Wrapper<double, ::Base>& operator =(const ::Wrapper<double, ::Base>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Wrapper<double, ::Base>&
-// CHECK-NEXT:        function inline defaulted ::Wrapper<double, ::Base>& operator =(::Wrapper<double, ::Base>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::Wrapper<double, ::Base>& operator =(::Wrapper<double, ::Base>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Wrapper<double, ::Base>&&
-// CHECK-NEXT:        function inline defaulted void ~Wrapper()
+// CHECK-NEXT:        function constexpr inline defaulted void ~Wrapper()
 // CHECK-NEXT:  variable ::Wrapper<double, ::Base> w1

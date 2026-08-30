@@ -279,7 +279,12 @@ class Token;
   V(__IS_UNION, "__is_union")                                     \
   V(__IS_UNSIGNED, "__is_unsigned")                               \
   V(__IS_VOID, "__is_void")                                       \
-  V(__IS_VOLATILE, "__is_volatile")
+  V(__IS_VOLATILE, "__is_volatile")                               \
+  V(__REFERENCE_CONSTRUCTS_FROM_TEMPORARY,                        \
+    "__reference_constructs_from_temporary")                      \
+  V(__REFERENCE_CONVERTS_FROM_TEMPORARY,                          \
+    "__reference_converts_from_"                                  \
+    "temporary")
 
 #define FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(V)          \
   V(__ADD_LVALUE_REFERENCE, "__add_lvalue_reference") \

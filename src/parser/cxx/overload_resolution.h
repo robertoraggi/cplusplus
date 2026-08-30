@@ -115,9 +115,6 @@ class OverloadResolution {
   void applyImplicitConversion(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
 
-  void wrapWithImplicitCast(ImplicitCastKind castKind, const Type* type,
-                            ExpressionAST*& expr);
-
   [[nodiscard]] auto implicitObjectArgumentConversion(
       FunctionSymbol* function, const ImplicitObjectArgument& object)
       -> std::expected<ImplicitConversionSequence, std::string>;
@@ -130,6 +127,10 @@ class OverloadResolution {
       ClassSymbol* classSymbol, const std::vector<ExpressionAST*>& args,
       InitializationKind initializationKind =
           InitializationKind::kDirectInitialization) -> ConstructorResult;
+
+  [[nodiscard]] auto resolveInitializerListConstructor(
+      ClassSymbol* classSymbol, BracedInitListAST* bracedInitList,
+      InitializationKind initializationKind) -> ConstructorResult;
 
   [[nodiscard]] auto findCandidates(ScopeSymbol* scope, const Name* name) const
       -> std::vector<FunctionSymbol*>;
@@ -173,19 +174,17 @@ class OverloadResolution {
     return lastOperatorReversed_;
   }
 
-  [[nodiscard]] auto initializerListElementType(const Type* targetType)
-      -> const Type*;
-
  private:
+  [[nodiscard]] auto resolveConstructor(ClassSymbol* classSymbol,
+                                        const std::vector<ExpressionAST*>& args,
+                                        InitializationKind initializationKind,
+                                        bool initializerListConstructorsOnly)
+      -> ConstructorResult;
+
   [[nodiscard]] auto resolveBinaryOperator(
       const std::vector<BinaryOperatorCandidate>& candidates,
       const Type* leftType, const Type* rightType, bool* ambiguous,
       ExpressionAST* leftExpr, ExpressionAST* rightExpr) -> FunctionSymbol*;
-
-  [[nodiscard]] auto trySelectOperator(
-      const std::vector<FunctionSymbol*>& candidates, const Type* type,
-      const Type* rightType, ExpressionAST* leftExpr = nullptr,
-      ExpressionAST* rightExpr = nullptr) -> FunctionSymbol*;
 
   TranslationUnit* unit_;
   TypeTraits traits;

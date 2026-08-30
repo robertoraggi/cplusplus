@@ -201,3 +201,125 @@ int answer() { return 42; }
     parser.dispose();
   }
 });
+
+test("an aborted signal rejects Parser.parse", async () => {
+  await assert.rejects(
+    Parser.parse({
+      source: "int answer() { return 42; }",
+      path: "/source/aborted.cc",
+      signal: AbortSignal.abort(),
+    }),
+    (error) => error.name === "AbortError",
+  );
+});
+
+test("aborting while includes are resolved stops preprocessing early", async () => {
+  const includeCount = 200;
+  const controller = new AbortController();
+  const requested = [];
+
+  let source = "";
+  for (let i = 0; i < includeCount; ++i) source += `#include "h${i}.h"\n`;
+  source += "int answer() { return 42; }\n";
+
+  await assert.rejects(
+    Parser.parse({
+      source,
+      path: "/source/abort.cc",
+      exists: () => true,
+      readFile: async (path) => {
+        requested.push(path);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        controller.abort();
+        return "";
+      },
+      signal: controller.signal,
+    }),
+    (error) => error.name === "AbortError",
+  );
+
+  assert.ok(
+    requested.length < includeCount / 2,
+    `resolved ${requested.length} of ${includeCount} includes after aborting`,
+  );
+});
+
+test("a signal that is never aborted does not affect parsing", async () => {
+  const controller = new AbortController();
+
+  const parser = await Parser.parse({
+    source: "int answer() { return 42; }",
+    path: "/source/not-aborted.cc",
+    signal: controller.signal,
+  });
+
+  try {
+    assert.deepEqual(parser.diagnostics, []);
+    assert.ok(parser.ast);
+  } finally {
+    parser.dispose();
+  }
+});
+
+test("a signal composes with resolved includes", async () => {
+  const controller = new AbortController();
+
+  const parser = await Parser.parse({
+    source: `#include "a.h"
+#include "b.h"
+#include "c.h"
+static_assert(A == 1);
+static_assert(B == 2);
+static_assert(C == 3);
+int answer() { return A + B + C; }
+`,
+    path: "/source/includes.cc",
+    exists: () => true,
+    readFile: async (path) => {
+      const name = path.slice(path.lastIndexOf("/") + 1, -2).toUpperCase();
+      return `#define ${name} ${"ABC".indexOf(name) + 1}\n`;
+    },
+    signal: controller.signal,
+  });
+
+  try {
+    assert.deepEqual(parser.diagnostics, []);
+    assert.ok(parser.ast);
+  } finally {
+    parser.dispose();
+  }
+});
+
+test("aborting during parsing stops a translation unit with no includes", async () => {
+  let source = "";
+  for (let i = 0; i < 20000; ++i) {
+    source += `int f${i}(int x) { int a = x + ${i}; return a * 2; }\n`;
+  }
+
+  const started = performance.now();
+  const parser = await Parser.parse({ source, path: "/source/big.cc" });
+  const fullParseMs = performance.now() - started;
+  parser.dispose();
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5);
+  const abortStarted = performance.now();
+
+  await assert.rejects(
+    Parser.parse({
+      source,
+      path: "/source/big.cc",
+      signal: controller.signal,
+    }),
+    (error) => error.name === "AbortError",
+  );
+
+  clearTimeout(timer);
+
+  const abortedParseMs = performance.now() - abortStarted;
+
+  assert.ok(
+    abortedParseMs < fullParseMs / 2,
+    `aborted parse took ${abortedParseMs.toFixed(0)}ms, full parse took ${fullParseMs.toFixed(0)}ms`,
+  );
+});

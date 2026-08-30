@@ -68,6 +68,12 @@ using CodeCompletionContext =
                  MemberCompletionContext, DesignatorCompletionContext,
                  ArgumentHintsContext, TemplateArgumentHintsContext>;
 
+struct CanContinueParsing {};
+
+struct ParsingComplete {};
+
+using ParsingState = std::variant<CanContinueParsing, ParsingComplete>;
+
 struct ParserConfiguration {
   bool checkTypes = false;
   bool validateAst = false;

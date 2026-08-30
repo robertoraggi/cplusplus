@@ -94,7 +94,8 @@ namespace cxx::lsp {
   V(Rename, "textDocument/rename")                                       \
   V(PrepareRename, "textDocument/prepareRename")                         \
   V(ExecuteCommand, "workspace/executeCommand")                          \
-  V(ApplyWorkspaceEdit, "workspace/applyEdit")
+  V(ApplyWorkspaceEdit, "workspace/applyEdit")                           \
+  V(EmitCode, "cxx/emitCode")
 
 #define FOR_EACH_LSP_NOTIFICATION_TYPE(V)                             \
   V(DidChangeWorkspaceFolders, "workspace/didChangeWorkspaceFolders") \
@@ -2099,6 +2100,37 @@ class ApplyWorkspaceEditResponse final : public LSPResponse {
   auto id(std::variant<long, std::string> id) -> ApplyWorkspaceEditResponse&;
 
   [[nodiscard]] auto result() const -> ApplyWorkspaceEditResult;
+};
+
+class EmitCodeRequest final : public LSPRequest {
+ public:
+  using LSPRequest::id;
+  using LSPRequest::LSPRequest;
+  using LSPRequest::method;
+
+  auto method(std::string method) -> EmitCodeRequest&;
+  auto id(std::variant<long, std::string> id) -> EmitCodeRequest&;
+
+  [[nodiscard]] auto params() const -> EmitCodeParams;
+  auto params(EmitCodeParams result) -> EmitCodeRequest&;
+};
+
+class EmitCodeResponse final : public LSPResponse {
+ public:
+  using LSPResponse::id;
+  using LSPResponse::LSPResponse;
+  using Result = std::variant<EmitCodeResult, std::nullptr_t>;
+
+  auto id(std::variant<long, std::string> id) -> EmitCodeResponse&;
+
+  [[nodiscard]] auto result() const
+      -> std::variant<EmitCodeResult, std::nullptr_t>;
+
+  template <typename T>
+  [[nodiscard]] auto result() -> T {
+    auto& value = (*repr_)["result"];
+    return T(value);
+  }
 };
 
 class DidChangeWorkspaceFoldersNotification final : public LSPRequest {

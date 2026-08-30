@@ -441,7 +441,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       binder().instantiatingSymbol() != ast->symbol;
 
   if (binder_.scope()->isClass()) {
-    auto symbol = binder_.declareMemberSymbol(copy->declarator, decl);
+    auto symbol = binder_.declareMemberSymbol(copy->declarator, decl,
+                                              addSymbolToParentScope);
     copy->symbol = symbol;
 
     if (auto funcSymbol = symbol_cast<FunctionSymbol>(symbol)) {

@@ -831,6 +831,9 @@ struct Preprocessor::Private {
         BuiltinFunctionMacro(std::string(name), std::move(expand)));
   }
 
+  [[nodiscard]] auto shouldInsertCodeCompletionBefore(
+      const Tok& tk, std::string_view text) const -> bool;
+
   void finalizeToken(std::vector<Token>& tokens, const Tok& tk);
 
   void print(const Tok* begin, const Tok* end, std::ostream& out) const;
@@ -2582,6 +2585,21 @@ auto Preprocessor::Private::parseHeaderName(const Tok*& ts, const Tok* lineEnd)
   return std::nullopt;
 }
 
+auto Preprocessor::Private::shouldInsertCodeCompletionBefore(
+    const Tok& tk, std::string_view text) const -> bool {
+  if (tk.sourceFile != 1) return false;
+  if (!codeCompletionLocation_.has_value()) return false;
+
+  if (codeCompletionOffset_ < tk.offset) return true;
+
+  const auto tokenEnd = tk.offset + tk.length;
+  if (codeCompletionOffset_ < tokenEnd) return true;
+  if (codeCompletionOffset_ != tokenEnd) return false;
+
+  if (tk.kind != TokenKind::T_IDENTIFIER) return false;
+  return Lexer::classifyKeyword(text, language_) == TokenKind::T_IDENTIFIER;
+}
+
 void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
                                           const Tok& tk) {
   auto kind = tk.kind;
@@ -2589,15 +2607,11 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
   TokenValue value{};
   auto text = getText(tk);
 
-  if (tk.sourceFile == 1 && codeCompletionLocation_.has_value()) {
-    if (codeCompletionOffset_ < tk.offset ||
-        (codeCompletionOffset_ >= tk.offset &&
-         codeCompletionOffset_ < tk.offset + tk.length)) {
-      auto& completionToken =
-          tokens.emplace_back(TokenKind::T_CODE_COMPLETION, tk.offset, 0);
-      completionToken.setFileId(fileId);
-      codeCompletionLocation_ = std::nullopt;
-    }
+  if (shouldInsertCodeCompletionBefore(tk, text)) {
+    auto& completionToken =
+        tokens.emplace_back(TokenKind::T_CODE_COMPLETION, tk.offset, 0);
+    completionToken.setFileId(fileId);
+    codeCompletionLocation_ = std::nullopt;
   }
 
   switch (tk.kind) {

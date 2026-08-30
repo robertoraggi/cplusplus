@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <set>
 #include <unordered_map>
@@ -54,9 +55,11 @@ class Parser final {
 
   [[nodiscard]] auto control() const -> Control* { return control_; }
 
-  void parse(UnitAST*& ast);
+  void beginParsing(UnitAST*& ast);
 
-  void operator()(UnitAST*& ast);
+  [[nodiscard]] auto continueParsing() -> ParsingState;
+
+  void endParsing();
 
   [[nodiscard]] auto config() const -> const ParserConfiguration&;
 
@@ -66,6 +69,7 @@ class Parser final {
   struct ExprContext;
   struct LookaheadParser;
   struct LoopParser;
+  struct TopLevelDeclarationSequence;
   struct UncheckedInitializerContext;
   struct CombinedScopeGuard;
   struct RestoredScopeChain;
@@ -177,8 +181,6 @@ class Parser final {
   void error(std::string message);
   void error(SourceLocation loc, std::string message);
 
-  void parse_translation_unit(UnitAST*& yyast);
-
   [[nodiscard]] auto parse_completion(SourceLocation& loc) -> bool;
 
   struct CompletionTokenPosition {
@@ -224,7 +226,6 @@ class Parser final {
   [[nodiscard]] auto parse_literal(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_module_head() -> bool;
   [[nodiscard]] auto parse_module_unit(UnitAST*& yyast) -> bool;
-  void parse_top_level_declaration_seq(UnitAST*& yyast);
   void parse_declaration_seq(List<DeclarationAST*>*& yyast);
   void parse_skip_declaration(bool& skipping);
   void parse_skip_member_declaration(bool& skipping);
@@ -1048,6 +1049,7 @@ class Parser final {
   TemplateDeclarationAST* abbreviatedTemplateHead_ = nullptr;
   TemplateDeclarationAST* enclosingExplicitTemplateHead_ = nullptr;
   bool didAcceptCompletionToken_ = false;
+  std::unique_ptr<TopLevelDeclarationSequence> topLevelDeclarationSequence_;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
   std::vector<PendingFieldInitializer> pendingFieldInitializers_;
 

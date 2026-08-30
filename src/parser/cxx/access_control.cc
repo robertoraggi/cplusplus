@@ -156,7 +156,7 @@ auto usingDeclarationIntroducing(Symbol* member, ClassSymbol* designatingClass)
 
   for (auto field : views::members(enclosingClass) | views::non_static_fields) {
     if (field->name()) continue;
-    auto fieldClass = type_cast<ClassType>(field->type());
+    auto fieldClass = unqualified_cast<ClassType>(field->type());
     if (!fieldClass) continue;
     if (normalize(fieldClass->symbol()) == normalize(classSymbol)) return true;
   }

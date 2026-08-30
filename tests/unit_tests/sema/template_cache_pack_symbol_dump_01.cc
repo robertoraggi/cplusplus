@@ -19,21 +19,21 @@ Pack<int, int> q;
 // CHECK-NEXT:    injected class name Pack
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Pack<int, int>
-// CHECK-NEXT:        constructor inline defaulted void Pack()
-// CHECK-NEXT:        constructor inline defaulted void Pack(const ::Pack<int, int>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void Pack()
+// CHECK-NEXT:        constructor constexpr inline defaulted void Pack(const ::Pack<int, int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Pack<int, int>&
-// CHECK-NEXT:        constructor inline defaulted void Pack(::Pack<int, int>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void Pack(::Pack<int, int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Pack<int, int>&&
 // CHECK-NEXT:        injected class name Pack
-// CHECK-NEXT:        function inline defaulted ::Pack<int, int>& operator =(const ::Pack<int, int>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::Pack<int, int>& operator =(const ::Pack<int, int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Pack<int, int>&
-// CHECK-NEXT:        function inline defaulted ::Pack<int, int>& operator =(::Pack<int, int>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::Pack<int, int>& operator =(::Pack<int, int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Pack<int, int>&&
-// CHECK-NEXT:        function inline defaulted void ~Pack()
+// CHECK-NEXT:        function constexpr inline defaulted void ~Pack()
 // CHECK-NEXT:  template typealias type-param<0, 0> Alias
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:  template class Indices<int...>

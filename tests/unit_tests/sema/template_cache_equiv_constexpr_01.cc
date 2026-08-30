@@ -17,21 +17,21 @@ Box<k> c;
 // CHECK-NEXT:    injected class name Box
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Box<3>
-// CHECK-NEXT:        constructor inline defaulted void Box()
-// CHECK-NEXT:        constructor inline defaulted void Box(const ::Box<3>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void Box()
+// CHECK-NEXT:        constructor constexpr inline defaulted void Box(const ::Box<3>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Box<3>&
-// CHECK-NEXT:        constructor inline defaulted void Box(::Box<3>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void Box(::Box<3>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Box<3>&&
 // CHECK-NEXT:        injected class name Box
-// CHECK-NEXT:        function inline defaulted ::Box<3>& operator =(const ::Box<3>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::Box<3>& operator =(const ::Box<3>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::Box<3>&
-// CHECK-NEXT:        function inline defaulted ::Box<3>& operator =(::Box<3>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::Box<3>& operator =(::Box<3>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::Box<3>&&
-// CHECK-NEXT:        function inline defaulted void ~Box()
+// CHECK-NEXT:        function constexpr inline defaulted void ~Box()
 // CHECK-NEXT:  function constexpr inline int three()
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr const char __func__[6]

@@ -209,7 +209,7 @@ struct GetDeclaratorType {
     auto symbol = ast->nestedNameSpecifier->symbol;
     if (!symbol) return;
 
-    auto classType = type_cast<ClassType>(symbol->type());
+    auto classType = symbol->type();
     if (!classType) return;
 
     if (auto functionType = type_cast<FunctionType>(type_)) {
@@ -260,17 +260,10 @@ struct GetDeclaratorType {
 
     CvQualifiers cvQualifiers = CvQualifiers::kNone;
     for (auto it = ast->cvQualifierList; it; it = it->next) {
-      if (ast_cast<ConstQualifierAST>(it->value)) {
-        if (cvQualifiers == CvQualifiers::kVolatile)
-          cvQualifiers = CvQualifiers::kConstVolatile;
-        else
-          cvQualifiers = CvQualifiers::kConst;
-      } else if (ast_cast<VolatileQualifierAST>(it->value)) {
-        if (cvQualifiers == CvQualifiers::kConst)
-          cvQualifiers = CvQualifiers::kConstVolatile;
-        else
-          cvQualifiers = CvQualifiers::kVolatile;
-      }
+      if (ast_cast<ConstQualifierAST>(it->value))
+        cvQualifiers |= CvQualifiers::kConst;
+      else if (ast_cast<VolatileQualifierAST>(it->value))
+        cvQualifiers |= CvQualifiers::kVolatile;
     }
 
     RefQualifier refQualifier = RefQualifier::kNone;
@@ -405,7 +398,7 @@ auto Decl::getScope() const -> ScopeSymbol* {
   if (!symbol) return nullptr;
 
   if (auto alias = symbol_cast<TypeAliasSymbol>(symbol)) {
-    if (auto classType = type_cast<ClassType>(alias->type())) {
+    if (auto classType = unqualified_cast<ClassType>(alias->type())) {
       symbol = classType->symbol();
     }
   }

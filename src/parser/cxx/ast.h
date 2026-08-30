@@ -478,6 +478,7 @@ class NamespaceAliasDefinitionAST final : public DeclarationAST {
   NameIdAST* unqualifiedId = nullptr;
   SourceLocation semicolonLoc;
   const Identifier* identifier = nullptr;
+  NamespaceAliasSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -494,12 +495,14 @@ class NamespaceAliasDefinitionAST final : public DeclarationAST {
       Arena* arena, SourceLocation namespaceLoc, SourceLocation identifierLoc,
       SourceLocation equalLoc, NestedNameSpecifierAST* nestedNameSpecifier,
       NameIdAST* unqualifiedId, SourceLocation semicolonLoc,
-      const Identifier* identifier) -> NamespaceAliasDefinitionAST*;
+      const Identifier* identifier, NamespaceAliasSymbol* symbol)
+      -> NamespaceAliasDefinitionAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    NameIdAST* unqualifiedId,
-                                   const Identifier* identifier)
+                                   const Identifier* identifier,
+                                   NamespaceAliasSymbol* symbol)
       -> NamespaceAliasDefinitionAST*;
 
  protected:

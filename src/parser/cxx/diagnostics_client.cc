@@ -26,6 +26,7 @@
 #include <cxx/translation_unit.h>
 
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <format>
 #include <iostream>
@@ -34,14 +35,30 @@ namespace cxx {
 
 DiagnosticsClient::~DiagnosticsClient() = default;
 
-SilentDiagnosticsScope::SilentDiagnosticsScope(TranslationUnit* unit,
-                                               bool sfinae)
-    : unit_(unit),
-      client_(sfinae),
-      saved_(unit->changeDiagnosticsClient(&client_)) {}
+auto reportOutsideImmediateContext(TranslationUnit* unit,
+                                   const std::vector<Diagnostic>& diagnostics)
+    -> bool {
+  if (diagnostics.empty()) return false;
+  auto client = unit->reportingDiagnosticsClient();
+  if (!client) return false;
+  for (const auto& diagnostic : diagnostics) client->report(diagnostic);
+  return true;
+}
 
-SilentDiagnosticsScope::~SilentDiagnosticsScope() {
-  (void)unit_->changeDiagnosticsClient(saved_);
+DiagnosticsClientScope::DiagnosticsClientScope(TranslationUnit* unit,
+                                               DiagnosticsClient* client)
+    : unit_(unit),
+      previousReportingClient_(unit->reportingDiagnosticsClient()) {
+  previousClient_ = unit->changeDiagnosticsClient(client);
+}
+
+DiagnosticsClientScope::~DiagnosticsClientScope() { restore(); }
+
+void DiagnosticsClientScope::restore() {
+  if (restored_) return;
+  restored_ = true;
+  (void)unit_->changeDiagnosticsClient(previousClient_);
+  unit_->setReportingDiagnosticsClient(previousReportingClient_);
 }
 
 void DiagnosticsClient::report(const Diagnostic& diag) {

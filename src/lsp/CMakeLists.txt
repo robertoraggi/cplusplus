@@ -21,20 +21,22 @@ file(GLOB CXX_LSP_INCLUDE_HEADER_FILES cxx/lsp/*.h)
 
 add_library(cxx-lsp
     cxx/lsp/cxx_document.cc
+    cxx/lsp/cxx_server_host.cc
     cxx/lsp/enums.cc
     cxx/lsp/json.cc
     cxx/lsp/lsp.cc
     cxx/lsp/lsp_server.cc
     cxx/lsp/requests.cc
+    cxx/lsp/server_host.cc
     cxx/lsp/sync_queue.cc
+    cxx/lsp/transport.cc
     cxx/lsp/types.cc
     ${CXX_LSP_INCLUDE_HEADER_FILES}
 )
 
 target_link_libraries(cxx-lsp PUBLIC cxx-parser)
 
-# if cmake founds the Threads package, link with it
-if(Threads_FOUND)
+if(Threads_FOUND AND NOT EMSCRIPTEN)
     target_link_libraries(cxx-lsp PUBLIC Threads::Threads)
 else()
     target_compile_definitions(cxx-lsp PUBLIC CXX_NO_THREADS)

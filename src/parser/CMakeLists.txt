@@ -86,6 +86,8 @@ add_library(cxx-parser
     cxx/preprocessor.cc
     cxx/scope.cc
     cxx/source_location.cc
+    cxx/implicit_conversion_sequence.cc
+    cxx/initialization.cc
     cxx/standard_conversion.cc
     cxx/substitution.cc
     cxx/symbol_chain_view.cc

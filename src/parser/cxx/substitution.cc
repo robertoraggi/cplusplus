@@ -55,7 +55,7 @@ struct IsPackParameter {
 
 struct HasDefaultTemplateArgument {
   auto operator()(TypenameTypeParameterAST* parameter) -> bool {
-    return parameter->typeId && parameter->typeId->type;
+    return parameter->equalLoc && parameter->typeId;
   }
 
   auto operator()(NonTypeTemplateParameterAST* parameter) -> bool {
@@ -68,7 +68,7 @@ struct HasDefaultTemplateArgument {
   }
 
   auto operator()(ConstraintTypeParameterAST* parameter) -> bool {
-    return parameter->typeId && parameter->typeId->type;
+    return parameter->equalLoc && parameter->typeId;
   }
 };
 }  // namespace
@@ -180,6 +180,25 @@ struct Substitution::CollectRawTemplateArgument {
 
   auto operator()(TypeTemplateArgumentAST* ast) -> std::optional<Symbol*>;
 };
+
+[[nodiscard]] auto injectedClassNameAsTemplate(TemplateArgumentAST* argument)
+    -> Symbol* {
+  auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
+  if (!typeArgument || !typeArgument->typeId) return nullptr;
+
+  for (auto spec : ListView{typeArgument->typeId->typeSpecifierList}) {
+    auto named = ast_cast<NamedTypeSpecifierAST>(spec);
+    if (!named) continue;
+    if (!ast_cast<NameIdAST>(named->unqualifiedId)) return nullptr;
+
+    auto classSymbol = symbol_cast<ClassSymbol>(named->symbol);
+    if (!classSymbol || !classSymbol->isSpecialization()) return nullptr;
+
+    return classSymbol->primaryTemplateSymbol();
+  }
+
+  return nullptr;
+}
 
 struct Substitution::MakeDefaultTemplateArgument {
   Substitution& subst;
@@ -295,13 +314,13 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     auto substituted = ASTRewriter::substituteDefaultTypeId(
         subst.unit_, typeId, subst.templateArguments_,
         subst.templateDecl_->depth, subst.templateDecl_->symbol);
-    if (substituted && substituted->type) {
-      typeId = substituted;
-    }
+    if (!substituted || !substituted->type) return std::nullopt;
+    typeId = substituted;
   }
 
   if (!typeId->type) {
-    subst.error(loc, "missing default template argument");
+    if (!isDependent(subst.unit_, parameter->typeId))
+      subst.error(loc, "missing default template argument");
     return std::nullopt;
   }
 
@@ -324,9 +343,8 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     auto substituted = ASTRewriter::substituteDefaultTypeId(
         subst.unit_, typeId, subst.templateArguments_,
         subst.templateDecl_->depth, subst.templateDecl_->symbol);
-    if (substituted && substituted->type) {
-      typeId = substituted;
-    }
+    if (!substituted || !substituted->type) return std::nullopt;
+    typeId = substituted;
   }
 
   auto argument = control()->newTypeAliasSymbol(nullptr, {});
@@ -487,11 +505,13 @@ void Substitution::doMake() {
   auto control = unit_->control();
 
   std::vector<Symbol*> collectedArguments;
+  std::vector<TemplateArgumentAST*> collectedNodes;
   std::vector<bool> collectedIsPackExpansion;
   for (auto argument : ListView{templateArgumentList_}) {
     auto arg = visit(CollectRawTemplateArgument{*this}, argument);
     if (!arg.has_value()) return;
     collectedArguments.push_back(*arg);
+    collectedNodes.push_back(argument);
     collectedIsPackExpansion.push_back(
         isPackExpansionTemplateArgument(argument));
   }
@@ -539,6 +559,14 @@ void Substitution::doMake() {
     return symbol_cast<ParameterPackSymbol>(collectedArguments[index]);
   };
 
+  auto argumentAt = [&](TemplateParameterAST* parameter, int index) -> Symbol* {
+    auto symbol = collectedArguments[index];
+    if (!ast_cast<TemplateTypeParameterAST>(parameter)) return symbol;
+    if (auto templateName = injectedClassNameAsTemplate(collectedNodes[index]))
+      return templateName;
+    return symbol;
+  };
+
   for (int i = 0; i < paramCount; ++i) {
     auto parameter = parameters[i];
 
@@ -560,7 +588,7 @@ void Substitution::doMake() {
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
 
       for (int k = 0; k < packSize && argumentIndex < argCount; ++k) {
-        auto symbol = collectedArguments[argumentIndex++];
+        auto symbol = argumentAt(parameter, argumentIndex++);
         symbol = normalizeNonTypeArgument(nonTypeParam, symbol);
         pack->addElement(symbol);
       }
@@ -571,7 +599,7 @@ void Substitution::doMake() {
 
     if (argumentIndex < argCount) {
       if (collectedIsPackExpansion[argumentIndex]) argumentCountIsKnown = false;
-      auto symbol = collectedArguments[argumentIndex++];
+      auto symbol = argumentAt(parameter, argumentIndex++);
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
       if (nonTypeParam && !checkNonTypeParameterType(nonTypeParam)) return;
       symbol = normalizeNonTypeArgument(nonTypeParam, symbol);

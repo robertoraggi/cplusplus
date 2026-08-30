@@ -20,41 +20,53 @@
 
 #pragma once
 
-#include <cxx/cli.h>
 #include <cxx/lsp/fwd.h>
 #include <cxx/parser_fwd.h>
 #include <cxx/translation_unit.h>
 
-#include <functional>
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
+
+namespace cxx {
+class Toolchain;
+}
 
 namespace cxx::lsp {
 
+struct CompletionEditRange {
+  std::uint32_t line = 0;
+  std::uint32_t startColumn = 0;
+  std::uint32_t endColumn = 0;
+};
+
 class CxxDocument {
  public:
-  explicit CxxDocument(const CLI& cli, std::string fileName, long version);
+  CxxDocument(std::string fileName, long version);
   ~CxxDocument();
+
+  [[nodiscard]] auto fileName() const -> const std::string&;
+  [[nodiscard]] auto version() const -> long;
 
   [[nodiscard]] auto isCancelled() const -> bool;
   void cancel();
 
-  [[nodiscard]] auto fileName() const -> const std::string&;
-
-  void parse(std::string source);
-  void parse(std::string source,
-             std::function<void(const CodeCompletionContext&)> complete);
-
-  void codeCompletionAt(std::string source, std::uint32_t line,
-                        std::uint32_t column, Vector<CompletionItem> result);
-
-  void signatureHelpAt(std::string source, std::uint32_t line,
-                       std::uint32_t column, SignatureHelp result);
-
-  [[nodiscard]] auto version() const -> long;
-  [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;
-
   [[nodiscard]] auto translationUnit() const -> TranslationUnit*;
+  [[nodiscard]] auto parserConfiguration() const -> ParserConfiguration;
+
+  void setToolchain(std::shared_ptr<Toolchain> toolchain);
+
+  void requestCodeCompletionAt(std::uint32_t line, std::uint32_t column,
+                               CompletionEditRange editRange,
+                               Vector<CompletionItem> result);
+
+  void requestSignatureHelpAt(std::uint32_t line, std::uint32_t column,
+                              SignatureHelp result);
+
+  [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;
+  [[nodiscard]] auto hasErrors() const -> bool;
 
   [[nodiscard]] auto textOf(AST* ast) -> std::optional<std::string_view>;
 

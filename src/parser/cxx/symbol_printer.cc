@@ -128,6 +128,15 @@ struct DumpSymbols {
     dumpScope(symbol);
   }
 
+  void operator()(NamespaceAliasSymbol* symbol) {
+    indent();
+    std::string aliasedName{"<unresolved>"};
+    if (auto aliased = symbol->namespaceSymbol())
+      aliasedName = to_string(aliased->name());
+    out << std::format("namespace {} = {}\n", to_string(symbol->name()),
+                       aliasedName);
+  }
+
   void operator()(BaseClassSymbol* symbol) {
     indent();
     auto baseClass = symbol->symbol();

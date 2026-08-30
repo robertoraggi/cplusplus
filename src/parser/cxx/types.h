@@ -227,13 +227,11 @@ class QualType final : public Type,
   }
 
   [[nodiscard]] auto isConst() const -> bool {
-    return cvQualifiers() == CvQualifiers::kConst ||
-           cvQualifiers() == CvQualifiers::kConstVolatile;
+    return has_const(cvQualifiers());
   }
 
   [[nodiscard]] auto isVolatile() const -> bool {
-    return cvQualifiers() == CvQualifiers::kVolatile ||
-           cvQualifiers() == CvQualifiers::kConstVolatile;
+    return has_volatile(cvQualifiers());
   }
 };
 
@@ -391,14 +389,14 @@ class ScopedEnumType final : public Type, public std::tuple<ScopedEnumSymbol*> {
 
 class MemberObjectPointerType final
     : public Type,
-      public std::tuple<const ClassType*, const Type*> {
+      public std::tuple<const Type*, const Type*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kMemberObjectPointer;
 
-  MemberObjectPointerType(const ClassType* classType, const Type* elementType)
+  MemberObjectPointerType(const Type* classType, const Type* elementType)
       : Type(Kind), tuple(classType, elementType) {}
 
-  [[nodiscard]] auto classType() const -> const ClassType* {
+  [[nodiscard]] auto classType() const -> const Type* {
     return std::get<0>(*this);
   }
 
@@ -409,15 +407,15 @@ class MemberObjectPointerType final
 
 class MemberFunctionPointerType final
     : public Type,
-      public std::tuple<const ClassType*, const FunctionType*> {
+      public std::tuple<const Type*, const FunctionType*> {
  public:
   static constexpr TypeKind Kind = TypeKind::kMemberFunctionPointer;
 
-  MemberFunctionPointerType(const ClassType* classType,
+  MemberFunctionPointerType(const Type* classType,
                             const FunctionType* functionType)
       : Type(Kind), tuple(classType, functionType) {}
 
-  [[nodiscard]] auto classType() const -> const ClassType* {
+  [[nodiscard]] auto classType() const -> const Type* {
     return std::get<0>(*this);
   }
 
@@ -624,6 +622,19 @@ template <typename T>
 }
 
 [[nodiscard]] auto containsPlaceholderType(const Type* type) -> bool;
+
+[[nodiscard]] auto unqualified_type(const Type* type) -> const Type*;
+
+[[nodiscard]] auto cv_qualifiers(const Type* type) -> CvQualifiers;
+
+[[nodiscard]] auto residual_cv_qualifiers(CvQualifiers argumentCv,
+                                          CvQualifiers parameterCv)
+    -> CvQualifiers;
+
+template <typename T>
+[[nodiscard]] auto unqualified_cast(const Type* type) -> const T* {
+  return type_cast<T>(unqualified_type(type));
+}
 
 [[nodiscard]] auto memberPointerBaseAdjustment(
     const MemberObjectPointerType* sourceType,

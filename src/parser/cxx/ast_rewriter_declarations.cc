@@ -238,24 +238,19 @@ auto ASTRewriter::rewriteMemberTemplateHead(Symbol* patternSymbol)
 
 auto ASTRewriter::functionBody(FunctionBodyAST* ast) -> FunctionBodyAST* {
   if (!ast) return {};
-  const auto savedRewritingFunctionBody =
-      std::exchange(rewritingFunctionBody_, true);
-  auto body = visit(FunctionBodyVisitor{*this}, ast);
-  rewritingFunctionBody_ = savedRewritingFunctionBody;
-  return body;
+  BodyErrorScope bodyErrors{*this};
+  return visit(FunctionBodyVisitor{*this}, ast);
 }
 
 auto ASTRewriter::lambdaBody(StatementAST* ast) -> CompoundStatementAST* {
   if (!ast) return {};
-  const auto savedRewritingFunctionBody =
-      std::exchange(rewritingFunctionBody_, true);
-  auto body = ast_cast<CompoundStatementAST>(statement(ast));
-  rewritingFunctionBody_ = savedRewritingFunctionBody;
-  return body;
+  BodyErrorScope bodyErrors{*this};
+  return ast_cast<CompoundStatementAST>(statement(ast));
 }
 
 auto ASTRewriter::requirement(RequirementAST* ast) -> RequirementAST* {
   if (!ast) return {};
+  TranslationUnit::PotentiallyEvaluatedScope unevaluated{unit_, false};
   return visit(RequirementVisitor{*this}, ast);
 }
 
@@ -586,7 +581,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
   if (binder()->instantiatingSymbol()) {
     auto checker = rewrite.typeChecker();
-    rewrite.typeCheckAndCapture([&] { checker.check(copy); });
+    checker.check(copy);
   }
 
   return copy;
@@ -750,7 +745,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
         functionTemplateHead, copy->requiresClause);
   }
   if (!functionSymbol) {
-    const bool addSymbolToParentScope = !isFunctionTemplateSpecialization;
+    const bool addSymbolToParentScope =
+        !isFunctionTemplateSpecialization && !isTemplateInstantiation;
     functionSymbol = binder()->declareFunction(copy->declarator, declaratorDecl,
                                                addSymbolToParentScope);
   }

@@ -110,6 +110,12 @@ class [[nodiscard]] ASTRewriter {
       TranslationUnit* unit, ClassSymbol* primary,
       List<TemplateArgumentAST*>* templateArgumentList) -> ClassSymbol*;
 
+  static auto findUndeducedPartialSpecializationParameter(
+      TranslationUnit* unit, TemplateDeclarationAST* templateDeclaration,
+      SimpleTemplateIdAST* templateId,
+      const std::vector<TemplateArgument>& templateArguments)
+      -> TemplateParameterAST*;
+
   auto translationUnit() const -> TranslationUnit* { return unit_; }
 
   auto templateArguments() const -> const std::vector<TemplateArgument>& {
@@ -293,6 +299,20 @@ class [[nodiscard]] ASTRewriter {
     bool substitutionFailed_;
   };
 
+  class BodyErrorScope {
+   public:
+    explicit BodyErrorScope(ASTRewriter& rewrite);
+    ~BodyErrorScope();
+
+    BodyErrorScope(const BodyErrorScope&) = delete;
+    auto operator=(const BodyErrorScope&) -> BodyErrorScope& = delete;
+
+   private:
+    ASTRewriter& rewrite_;
+    bool rewritingFunctionBody_;
+    std::optional<CapturingDiagnosticsScope> capture_;
+  };
+
   void markSubstitutionFailure() {
     if (!shouldCaptureBodyErrors()) substitutionFailed_ = true;
   }
@@ -409,7 +429,6 @@ class [[nodiscard]] ASTRewriter {
 
   auto shouldReportCheckErrors() const -> bool;
   auto shouldCaptureBodyErrors() const -> bool;
-  void typeCheckAndCapture(std::function<void()> checkFn);
 
   [[nodiscard]] auto typeChecker() -> TypeChecker;
 

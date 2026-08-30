@@ -161,8 +161,8 @@ auto lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
   if (std::ranges::contains(visited, scope)) return nullptr;
   visited.push_back(scope);
 
-  for (auto candidate : scope->find(id) | views::namespaces) {
-    return candidate;
+  for (auto candidate : scope->find(id)) {
+    if (auto ns = resolve_namespace_alias(candidate)) return ns;
   }
 
   for (auto u : scope->usingDirectives()) {
@@ -193,7 +193,7 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
       candidate = resolve_using_declaration(candidate);
     }
 
-    if (is_type(candidate) || candidate->isNamespace()) {
+    if (is_type(candidate) || candidate->isNamespaceName()) {
       if (!tagsAreTypes && (symbol_cast<ClassSymbol>(candidate) ||
                             symbol_cast<EnumSymbol>(candidate) ||
                             symbol_cast<ScopedEnumSymbol>(candidate)))
@@ -238,6 +238,9 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
     case SymbolKind::kScopedEnum:
       return symbol->asScopeSymbol();
 
+    case SymbolKind::kNamespaceAlias:
+      return resolve_namespace_alias(symbol);
+
     case SymbolKind::kInjectedClassName: {
       auto injected = symbol_cast<InjectedClassNameSymbol>(symbol);
       return injected->classSymbol();
@@ -245,7 +248,8 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
 
     case SymbolKind::kTypeAlias: {
       auto alias = symbol_cast<TypeAliasSymbol>(symbol);
-      if (auto ct = type_cast<ClassType>(alias->type())) return ct->symbol();
+      auto aliasedType = unqualified_type(alias->type());
+      if (auto ct = type_cast<ClassType>(aliasedType)) return ct->symbol();
       return nullptr;
     }
 
@@ -298,7 +302,7 @@ auto unqualifiedLookupNamespace(Scope* lexicalScope, const Identifier* id)
 
 auto qualifiedLookupNamespace(Symbol* scopeOrAlias, const Identifier* id)
     -> NamespaceSymbol* {
-  auto base = symbol_cast<NamespaceSymbol>(scopeOrAlias);
+  auto base = resolve_namespace_alias(scopeOrAlias);
   if (!base) return nullptr;
   std::vector<ScopeSymbol*> visited;
   return lookupNamespaceHelper(base, id, visited);
