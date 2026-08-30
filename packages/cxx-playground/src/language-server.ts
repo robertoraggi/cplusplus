@@ -25,10 +25,14 @@ export async function emitCode({
   format: TextOutputCodeFormat
   debugInfo: boolean
 }): Promise<string> {
-  const result = await startLanguageServer().sendRequest<EmitCodeResult | null>(
+  const client = startLanguageServer()
+  const uri = documentUri(inputCodeModel)
+  await client.whenDocumentOpened(uri)
+
+  const result = await client.sendRequest<EmitCodeResult | null>(
     "cxx/emitCode",
     {
-      textDocument: { uri: documentUri(inputCodeModel) },
+      textDocument: { uri },
       format,
       debugInfo,
     }
