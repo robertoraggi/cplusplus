@@ -1,8 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react"
 import * as monaco from "monaco-editor"
-import { loadCompiler, compile, type TextOutputCodeFormat } from "./compiler"
-import { applyDiagnostics } from "./diagnostics"
+import {
+  emitCode,
+  startLanguageServer,
+  type TextOutputCodeFormat,
+} from "./language-server"
 import { inputCodeModel } from "./input-code-model"
 import { outputCodeModel } from "./output-code-model"
 import { defaultSample, samples } from "./samples"
@@ -13,6 +16,8 @@ const outputLanguageByFormat: Record<TextOutputCodeFormat, string> = {
   llvm: "llvm",
   asm: "asm",
 }
+
+const emitCodeDebounceMs = 300
 
 interface PlaygroundContextValue {
   isReady: boolean
@@ -58,12 +63,11 @@ export function PlaygroundProvider({
   const isCompilingRef = React.useRef(false)
   const pendingCompileRef = React.useRef(false)
   const compileRevisionRef = React.useRef(0)
-  const currentSampleIdRef = React.useRef(currentSampleId)
   const outputFormatRef = React.useRef(outputFormat)
   const debugInfoRef = React.useRef(debugInfo)
   const compileTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(null)
 
-  const runCompile = React.useCallback(async () => {
+  const runEmitCode = React.useCallback(async () => {
     if (isCompilingRef.current) {
       pendingCompileRef.current = true
       return
@@ -78,17 +82,15 @@ export function PlaygroundProvider({
         const compileRevision = compileRevisionRef.current
         const startTime = performance.now()
 
-        const { diagnostics, output } = await compile({
-          source: inputCodeModel.getValue(),
-          path: currentSampleIdRef.current || "main.cc",
+        const output = await emitCode({
           format: outputFormatRef.current,
           debugInfo: debugInfoRef.current,
         })
 
+        setIsReady(true)
+
         if (compileRevision === compileRevisionRef.current) {
-          applyDiagnostics(inputCodeModel, diagnostics)
           outputCodeModel.setValue(output)
-          setDiagnosticCount(diagnostics.length)
           setCompileTimeMs(
             Math.round((performance.now() - startTime) * 10) / 10
           )
@@ -100,7 +102,7 @@ export function PlaygroundProvider({
     }
   }, [])
 
-  const scheduleCompile = React.useCallback(
+  const scheduleEmitCode = React.useCallback(
     (debounce: boolean) => {
       compileRevisionRef.current += 1
       if (compileTimeoutRef.current) clearTimeout(compileTimeoutRef.current)
@@ -109,55 +111,57 @@ export function PlaygroundProvider({
         pendingCompileRef.current = false
         compileTimeoutRef.current = setTimeout(() => {
           compileTimeoutRef.current = null
-          runCompile()
-        }, 250)
+          runEmitCode()
+        }, emitCodeDebounceMs)
       } else {
         compileTimeoutRef.current = null
-        runCompile()
+        runEmitCode()
       }
     },
-    [runCompile]
+    [runEmitCode]
   )
 
   React.useEffect(() => {
-    let cancelled = false
+    startLanguageServer()
+    scheduleEmitCode(false)
 
-    loadCompiler().then(() => {
-      if (!cancelled) setIsReady(true)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  React.useEffect(() => {
-    if (!isReady) return
     const disposable = inputCodeModel.onDidChangeContent(() => {
-      scheduleCompile(true)
+      scheduleEmitCode(true)
     })
 
     return () => {
       if (compileTimeoutRef.current) clearTimeout(compileTimeoutRef.current)
       disposable.dispose()
     }
-  }, [isReady, scheduleCompile])
+  }, [scheduleEmitCode])
 
   React.useEffect(() => {
-    if (isReady) scheduleCompile(false)
-  }, [isReady, scheduleCompile])
+    const countDiagnostics = () => {
+      setDiagnosticCount(
+        monaco.editor.getModelMarkers({ resource: inputCodeModel.uri }).length
+      )
+    }
 
-  const loadSample = React.useCallback(
-    (id: string) => {
-      const sample = samples.find((s) => s.id === id)
-      if (!sample) return
-      currentSampleIdRef.current = id
-      setCurrentSampleId(id)
-      inputCodeModel.setValue(sample.code)
-      scheduleCompile(false)
-    },
-    [scheduleCompile]
-  )
+    countDiagnostics()
+
+    const disposable = monaco.editor.onDidChangeMarkers((resources) => {
+      const changed = resources.some(
+        (resource) => resource.toString() === inputCodeModel.uri.toString()
+      )
+      if (changed) countDiagnostics()
+    })
+
+    return () => {
+      disposable.dispose()
+    }
+  }, [])
+
+  const loadSample = React.useCallback((id: string) => {
+    const sample = samples.find((s) => s.id === id)
+    if (!sample) return
+    setCurrentSampleId(id)
+    inputCodeModel.setValue(sample.code)
+  }, [])
 
   const setOutputFormat = React.useCallback(
     (format: TextOutputCodeFormat) => {
@@ -168,9 +172,9 @@ export function PlaygroundProvider({
         outputCodeModel,
         outputLanguageByFormat[format]
       )
-      scheduleCompile(false)
+      scheduleEmitCode(false)
     },
-    [scheduleCompile]
+    [scheduleEmitCode]
   )
 
   const setDebugInfo = React.useCallback(
@@ -178,9 +182,9 @@ export function PlaygroundProvider({
       if (debugInfoRef.current === debugInfo) return
       debugInfoRef.current = debugInfo
       setDebugInfoState(debugInfo)
-      scheduleCompile(false)
+      scheduleEmitCode(false)
     },
-    [scheduleCompile]
+    [scheduleEmitCode]
   )
 
   const value = React.useMemo<PlaygroundContextValue>(

@@ -174,7 +174,9 @@ class Binder {
       -> VariableSymbol*;
 
   [[nodiscard]] auto declareMemberSymbol(DeclaratorAST* declarator,
-                                         const Decl& decl) -> Symbol*;
+                                         const Decl& decl,
+                                         bool addSymbolToParentScope = true)
+      -> Symbol*;
 
   void bindStructuredBindings(StructuredBindingDeclarationAST* ast,
                               const DeclSpecs& specs);
@@ -287,6 +289,9 @@ class Binder {
   void bind(UsingDirectiveAST* ast,
             NamespaceSymbol* resolvedNamespace = nullptr);
 
+  void bind(NamespaceAliasDefinitionAST* ast,
+            NamespaceSymbol* resolvedNamespace = nullptr);
+
   void bind(UsingEnumDeclarationAST* ast);
 
   void bind(TypeIdAST* ast, const Decl& decl);
@@ -368,6 +373,9 @@ class Binder {
 
   [[nodiscard]] auto abiTags(List<AttributeSpecifierAST*>* attributes)
       -> std::vector<const Identifier*>;
+
+  void applyFunctionDefinitionKind(FunctionSymbol* functionSymbol,
+                                   FunctionBodyAST* functionBody);
 
   void applyAbiTags(Symbol* symbol, List<AttributeSpecifierAST*>* attributes);
 

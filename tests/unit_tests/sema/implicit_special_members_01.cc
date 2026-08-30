@@ -18,45 +18,45 @@ struct WithDtor {
 // clang-format off
 //      CHECK:namespace
 // CHECK-NEXT:  class Pod
-// CHECK-NEXT:    constructor inline defaulted void Pod() noexcept
-// CHECK-NEXT:    constructor inline defaulted void Pod(const ::Pod&) noexcept
+// CHECK-NEXT:    constructor constexpr inline defaulted void Pod() noexcept
+// CHECK-NEXT:    constructor constexpr inline defaulted void Pod(const ::Pod&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Pod&
-// CHECK-NEXT:    constructor inline defaulted void Pod(::Pod&&) noexcept
+// CHECK-NEXT:    constructor constexpr inline defaulted void Pod(::Pod&&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Pod&&
 // CHECK-NEXT:    injected class name Pod
 // CHECK-NEXT:    field int x
 // CHECK-NEXT:    field float y
-// CHECK-NEXT:    function inline defaulted ::Pod& operator =(const ::Pod&) noexcept
+// CHECK-NEXT:    function constexpr inline defaulted ::Pod& operator =(const ::Pod&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Pod&
-// CHECK-NEXT:    function inline defaulted ::Pod& operator =(::Pod&&) noexcept
+// CHECK-NEXT:    function constexpr inline defaulted ::Pod& operator =(::Pod&&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Pod&&
-// CHECK-NEXT:    function inline defaulted void ~Pod() noexcept
+// CHECK-NEXT:    function constexpr inline defaulted void ~Pod() noexcept
 // CHECK-NEXT:  class WithCtor
 // CHECK-NEXT:    constructor inline void WithCtor()
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[9]
-// CHECK-NEXT:    constructor inline defaulted void WithCtor(const ::WithCtor&) noexcept
+// CHECK-NEXT:    constructor constexpr inline defaulted void WithCtor(const ::WithCtor&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::WithCtor&
-// CHECK-NEXT:    constructor inline defaulted void WithCtor(::WithCtor&&) noexcept
+// CHECK-NEXT:    constructor constexpr inline defaulted void WithCtor(::WithCtor&&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::WithCtor&&
 // CHECK-NEXT:    injected class name WithCtor
 // CHECK-NEXT:    field int val
-// CHECK-NEXT:    function inline defaulted ::WithCtor& operator =(const ::WithCtor&) noexcept
+// CHECK-NEXT:    function constexpr inline defaulted ::WithCtor& operator =(const ::WithCtor&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::WithCtor&
-// CHECK-NEXT:    function inline defaulted ::WithCtor& operator =(::WithCtor&&) noexcept
+// CHECK-NEXT:    function constexpr inline defaulted ::WithCtor& operator =(::WithCtor&&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::WithCtor&&
-// CHECK-NEXT:    function inline defaulted void ~WithCtor() noexcept
+// CHECK-NEXT:    function constexpr inline defaulted void ~WithCtor() noexcept
 // CHECK-NEXT:  class WithDtor
-// CHECK-NEXT:    constructor inline defaulted void WithDtor() noexcept
-// CHECK-NEXT:    constructor inline defaulted void WithDtor(const ::WithDtor&) noexcept
+// CHECK-NEXT:    constructor constexpr inline defaulted void WithDtor() noexcept
+// CHECK-NEXT:    constructor constexpr inline defaulted void WithDtor(const ::WithDtor&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::WithDtor&
 // CHECK-NEXT:    injected class name WithDtor
@@ -64,6 +64,6 @@ struct WithDtor {
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[10]
 // CHECK-NEXT:    field int data
-// CHECK-NEXT:    function inline defaulted ::WithDtor& operator =(const ::WithDtor&) noexcept
+// CHECK-NEXT:    function constexpr inline defaulted ::WithDtor& operator =(const ::WithDtor&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::WithDtor&

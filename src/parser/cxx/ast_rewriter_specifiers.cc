@@ -28,6 +28,7 @@
 #include <cxx/dependent_types.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
@@ -148,6 +149,11 @@ struct ASTRewriter::SpecifierVisitor {
 
   void rewriteClassBody(ClassSpecifierAST* ast, ClassSpecifierAST* copy);
 
+  [[nodiscard]] auto registerRewrittenSpecialization(ClassSpecifierAST* ast,
+                                                     ClassSpecifierAST* copy,
+                                                     ClassSymbol* classSymbol)
+      -> bool;
+
   [[nodiscard]] auto lookupInEnclosingClasses(
       UnqualifiedIdAST* unqualifiedId) const -> Symbol*;
 };
@@ -257,8 +263,7 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
 
   auto setResolvedBase = [&](Symbol* resolved) {
     if (auto typeAlias = symbol_cast<TypeAliasSymbol>(resolved)) {
-      if (auto classType = type_cast<ClassType>(
-              translationUnit()->typeTraits().remove_cv(typeAlias->type())))
+      if (auto classType = unqualified_cast<ClassType>(typeAlias->type()))
         resolved = classType->symbol();
     }
     if (!resolved || !resolved->isClass()) return false;
@@ -298,9 +303,7 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
                                checkTemplates);
   } else if (auto decltypeId = ast_cast<DecltypeIdAST>(copy->unqualifiedId)) {
     if (auto decltypeSpecifier = decltypeId->decltypeSpecifier) {
-      if (auto classType =
-              type_cast<ClassType>(translationUnit()->typeTraits().remove_cv(
-                  decltypeSpecifier->type)))
+      if (auto classType = unqualified_cast<ClassType>(decltypeSpecifier->type))
         resolved = classType->symbol();
     }
   }
@@ -935,9 +938,14 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
   binder()->bind(copy, typeSpecifierListCtx);
 
+  if (ast->symbol && copy->symbol) {
+    rewrite.addSymbolRemap(ast->symbol, copy->symbol);
+  }
+
   auto enumSymbol = symbol_cast<EnumSymbol>(binder()->scope());
-  auto underlyingType =
-      enumSymbol ? enumSymbol->underlyingType() : copy->symbol->type();
+
+  auto underlyingType = copy->symbol->type();
+  if (enumSymbol) underlyingType = enumSymbol->underlyingType();
 
   std::optional<ConstValue> lastValue;
   for (auto enumeratorList = &copy->enumeratorList;
@@ -1042,7 +1050,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
       ast->symbol->addSpecialization(translationUnit(),
                                      rewrite.templateArguments(), classSymbol);
     }
-  } else {
+  } else if (!registerRewrittenSpecialization(ast, copy, classSymbol)) {
     binder()->declaringScope()->addSymbol(classSymbol);
   }
 
@@ -1086,6 +1094,32 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   }
 
   return copy;
+}
+
+auto ASTRewriter::SpecifierVisitor::registerRewrittenSpecialization(
+    ClassSpecifierAST* ast, ClassSpecifierAST* copy, ClassSymbol* classSymbol)
+    -> bool {
+  if (!templateHead) return false;
+  if (!ast->symbol->isSpecialization()) return false;
+
+  auto patternPrimary = ast->symbol->primaryTemplateSymbol();
+  if (!patternPrimary) return false;
+
+  auto primary = symbol_cast<ClassSymbol>(rewrite.remapSymbol(patternPrimary));
+  if (!primary || primary == classSymbol) return false;
+
+  auto primaryDeclaration = primary->templateDeclaration();
+  if (!primaryDeclaration) return false;
+
+  auto templateId = ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId);
+  if (!templateId) return false;
+
+  primary->addSpecialization(translationUnit(),
+                             Substitution(translationUnit(), primaryDeclaration,
+                                          templateId->templateArgumentList)
+                                 .templateArguments(),
+                             classSymbol);
+  return true;
 }
 
 void ASTRewriter::SpecifierVisitor::rewriteBaseSpecifiers(
@@ -1247,9 +1281,13 @@ auto ASTRewriter::SpecifierVisitor::operator()(TypenameSpecifierAST* ast)
             scope = def;
           }
         }
+        if (isDependent(rewrite.unit_, scope->type())) return copy;
+
         auto symbol = qualifiedLookup(scope, nameId->identifier,
                                       [](Symbol* s) { return is_type(s); });
-        if (!symbol && !isDependent(rewrite.unit_, scope->type())) {
+        if (symbol) {
+          copy->symbol = symbol;
+        } else {
           rewrite.error(
               copy->typenameLoc,
               std::format("no type named '{}' in '{}'",

@@ -12707,4 +12707,44 @@ class ClientSemanticTokensRequestFullDelta final : public LSPObject {
   auto delta(std::optional<bool> delta)
       -> ClientSemanticTokensRequestFullDelta&;
 };
+
+class EmitCodeParams final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto textDocument() const -> TextDocumentIdentifier;
+
+  [[nodiscard]] auto format() const -> EmitCodeFormat;
+
+  [[nodiscard]] auto debugInfo() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto debugInfo() -> T {
+    auto& value = (*repr_)["debugInfo"];
+    return T(value);
+  }
+
+  auto textDocument(TextDocumentIdentifier textDocument) -> EmitCodeParams&;
+
+  auto format(EmitCodeFormat format) -> EmitCodeParams&;
+
+  auto debugInfo(std::optional<bool> debugInfo) -> EmitCodeParams&;
+};
+
+class EmitCodeResult final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto format() const -> EmitCodeFormat;
+
+  [[nodiscard]] auto text() const -> std::string;
+
+  auto format(EmitCodeFormat format) -> EmitCodeResult&;
+
+  auto text(std::string text) -> EmitCodeResult&;
+};
 }  // namespace cxx::lsp

@@ -293,8 +293,7 @@ auto ASTRewriter::substitutedTemplateParameterClass(Symbol* symbol) const
   if (!resolved) return nullptr;
 
   if (auto alias = symbol_cast<TypeAliasSymbol>(resolved)) {
-    if (auto classType = type_cast<ClassType>(
-            translationUnit()->typeTraits().remove_cv(alias->type()))) {
+    if (auto classType = unqualified_cast<ClassType>(alias->type())) {
       resolved = classType->symbol();
     }
   }

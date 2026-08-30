@@ -480,7 +480,7 @@ auto Codegen::findOrCreateTypeInfo(const Type* type) -> std::string {
   if (auto pointerType = type_cast<PointerType>(type)) {
     auto pointee = traits.remove_cv(pointerType->elementType());
     if (isFundamentalTypeInfoInRuntime(pointee) &&
-        !is_volatile(traits.get_cv_qualifiers(pointerType->elementType()))) {
+        !has_volatile(cv_qualifiers(pointerType->elementType()))) {
       return declareExternal();
     }
   }
@@ -552,15 +552,15 @@ auto Codegen::findOrCreateTypeInfo(const Type* type) -> std::string {
     return name;
   }
 
-  const auto cv = traits.get_cv_qualifiers(pointee);
+  const auto cv = cv_qualifiers(pointee);
   std::uint32_t pointeeFlags = 0;
-  if (is_const(cv)) pointeeFlags |= kPointeeConstMask;
-  if (is_volatile(cv)) pointeeFlags |= kPointeeVolatileMask;
+  if (has_const(cv)) pointeeFlags |= kPointeeConstMask;
+  if (has_volatile(cv)) pointeeFlags |= kPointeeVolatileMask;
   if (!traits.is_complete(traits.remove_cv(pointee)))
     pointeeFlags |= kPointeeIncompleteMask;
   if (memberPointerClass && !traits.is_complete(memberPointerClass))
     pointeeFlags |= kPointeeIncompleteClassMask;
-  if (auto functionType = type_cast<FunctionType>(traits.remove_cv(pointee));
+  if (auto functionType = unqualified_cast<FunctionType>(pointee);
       functionType && functionType->isNoexcept())
     pointeeFlags |= kPointeeNoexceptMask;
 
@@ -675,9 +675,8 @@ auto Codegen::dynamicCastNeedsRuntimeCheck(CppCastExpressionAST* ast) -> bool {
   auto sourceObjectType = ast->expression->type;
 
   if (ast->valueCategory == ValueCategory::kPrValue) {
-    auto targetPointer = type_cast<PointerType>(traits.remove_cv(ast->type));
-    auto sourcePointer =
-        type_cast<PointerType>(traits.remove_cv(ast->expression->type));
+    auto targetPointer = unqualified_cast<PointerType>(ast->type);
+    auto sourcePointer = unqualified_cast<PointerType>(ast->expression->type);
     if (!targetPointer || !sourcePointer) return false;
     targetObjectType = targetPointer->elementType();
     sourceObjectType = sourcePointer->elementType();
@@ -697,7 +696,7 @@ auto Codegen::emitDynamicCast(CppCastExpressionAST* ast) -> mlir::Value {
 
   const auto objectTypeOf = [&](const Type* type) {
     if (!isPointerCast) return type;
-    return type_cast<PointerType>(traits.remove_cv(type))->elementType();
+    return unqualified_cast<PointerType>(type)->elementType();
   };
 
   auto sourceObjectType = objectTypeOf(ast->expression->type);
@@ -721,9 +720,9 @@ auto Codegen::emitDynamicCast(CppCastExpressionAST* ast) -> mlir::Value {
     auto hintType = pointerSizedIntType();
 
     auto sourceClass =
-        type_cast<ClassType>(traits.remove_cv(sourceObjectType))->definition();
+        unqualified_cast<ClassType>(sourceObjectType)->definition();
     auto targetClass =
-        type_cast<ClassType>(traits.remove_cv(targetObjectType))->definition();
+        unqualified_cast<ClassType>(targetObjectType)->definition();
 
     auto hint = mlir::arith::ConstantOp::create(
         builder_, loc, hintType,

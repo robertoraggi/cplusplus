@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -26,6 +28,7 @@
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/literals.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -34,12 +37,19 @@
 #include <cxx/views/symbol_chain.h>
 
 #include <format>
+#include <optional>
 #include <vector>
 
 namespace cxx {
 namespace {
 auto asExpression(NameIdAST* nameId) -> const Identifier* {
   return nameId ? nameId->identifier : nullptr;
+}
+
+[[nodiscard]] auto enclosingGlobalScope(ScopeSymbol* scope) -> ScopeSymbol* {
+  auto root = scope;
+  while (root && root->parent()) root = root->parent();
+  return root;
 }
 }  // namespace
 
@@ -81,7 +91,7 @@ auto Binder::declareStructuredBindingEntity(
     TypeChecker check{unit_};
     check.setScope(scope());
     check.setReportErrors(unit_->config().checkTypes);
-    check.check_init_declarator(initDeclarator, /*typeSpecifier=*/nullptr);
+    check.check_init_declarator(initDeclarator, nullptr);
   }
 
   return initDeclarator;
@@ -107,14 +117,14 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
 
   auto initializerRefOp = refOp;
   if (initializerRefOp == TokenKind::T_EOF_SYMBOL &&
-      type_cast<BoundedArrayType>(
-          traits.remove_cv(traits.remove_reference(ast->initializer->type)))) {
+      unqualified_cast<BoundedArrayType>(
+          traits.remove_reference(ast->initializer->type))) {
     initializerRefOp = TokenKind::T_AMP;
   }
 
   auto eInitDeclarator = declareStructuredBindingEntity(
       ast->initializer->firstSourceLocation(), eIdent, specs, initializerRefOp,
-      ast->initializer, /*addSymbolToParentScope=*/false);
+      ast->initializer, false);
   if (!eInitDeclarator) return;
   ast->hiddenVariable = eInitDeclarator;
 
@@ -158,20 +168,21 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
 
   auto elementBaseType = traits.remove_reference(eSymbol->type());
   auto unqualifiedBaseType = traits.remove_cv(elementBaseType);
-  auto baseCv = traits.get_cv_qualifiers(elementBaseType);
+  auto baseCv = cv_qualifiers(elementBaseType);
 
-  auto buildEIdExpr = [&]() -> IdExpressionAST* {
+  auto buildEIdExpr = [&](ValueCategory valueCategory) -> IdExpressionAST* {
     auto idExpr = IdExpressionAST::create(ar);
     idExpr->unqualifiedId = NameIdAST::create(ar, eIdent);
     idExpr->symbol = eSymbol;
     idExpr->type = elementBaseType;
-    idExpr->valueCategory = ValueCategory::kLValue;
+    idExpr->valueCategory = valueCategory;
     return idExpr;
   };
 
   auto bindingDeclaratorListTail = &ast->bindingDeclaratorList;
 
-  auto declareBinding = [&](NameIdAST* nameId, ExpressionAST* accessExpr) {
+  auto declareBinding = [&](NameIdAST* nameId, ExpressionAST* accessExpr,
+                            const Type* declaredType = nullptr) {
     auto name = asExpression(nameId);
     if (!name) return;
 
@@ -182,13 +193,15 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
       return;
     }
 
+    if (!declaredType) declaredType = accessExpr->type;
+
     auto equalInit = EqualInitializerAST::create(ar);
     equalInit->expression = accessExpr;
     equalInit->valueCategory = accessExpr->valueCategory;
     equalInit->type = accessExpr->type;
 
     DeclSpecs bindingSpecs{unit_};
-    bindingSpecs.setType(accessExpr->type);
+    bindingSpecs.setType(declaredType);
     bindingSpecs.finish();
 
     const auto bindingRefOp =
@@ -198,7 +211,7 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
 
     auto bindingInitDeclarator = declareStructuredBindingEntity(
         nameId->identifierLoc, name, bindingSpecs, bindingRefOp, equalInit,
-        /*addSymbolToParentScope=*/true);
+        true);
     if (!bindingInitDeclarator) return;
 
     *bindingDeclaratorListTail =
@@ -225,7 +238,7 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
       idxLiteral->type = control()->getSizeType();
 
       auto subscript = SubscriptExpressionAST::create(ar);
-      subscript->baseExpression = buildEIdExpr();
+      subscript->baseExpression = buildEIdExpr(ValueCategory::kLValue);
       subscript->indexExpression = idxLiteral;
       subscript->valueCategory = ValueCategory::kLValue;
       subscript->type = elementType;
@@ -248,76 +261,194 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
 
   auto getIdent = control()->getIdentifier("get");
 
-  Symbol* getCandidate = nullptr;
-  for (auto current = scope(); current && !getCandidate;
-       current = current->parent()) {
-    for (auto candidate : current->find(getIdent)) {
-      getCandidate = candidate;
-      break;
+  auto indexLiteral = [&](int index) -> IntLiteralExpressionAST* {
+    auto literal = IntLiteralExpressionAST::create(ar);
+    literal->literal = control()->integerLiteral(std::to_string(index));
+    literal->valueCategory = ValueCategory::kPrValue;
+    literal->type = control()->getSizeType();
+    return literal;
+  };
+
+  auto typeArgument = [&](const Type* type) -> TemplateArgumentAST* {
+    auto typeId = TypeIdAST::create(ar);
+    typeId->type = type;
+    return TypeTemplateArgumentAST::create(ar, typeId);
+  };
+
+  auto valueArgument = [&](int index) -> TemplateArgumentAST* {
+    auto argument = ExpressionTemplateArgumentAST::create(ar);
+    argument->expression = indexLiteral(index);
+    return argument;
+  };
+
+  auto standardLibraryClassTemplate = [&](std::string_view name) -> Symbol* {
+    auto stdNamespace = symbol_cast<NamespaceSymbol>(qualifiedLookup(
+        enclosingGlobalScope(scope()), control()->getIdentifier("std")));
+    if (!stdNamespace) return nullptr;
+    return qualifiedLookup(stdNamespace, control()->getIdentifier(name),
+                           [](Symbol* s) { return is_type(s); });
+  };
+
+  auto instantiateStandardLibraryClass =
+      [&](std::string_view name,
+          List<TemplateArgumentAST*>* arguments) -> ClassSymbol* {
+    auto primary = standardLibraryClassTemplate(name);
+    if (!primary) return nullptr;
+    auto instance =
+        ASTRewriter::instantiate(unit_, arguments, primary, ast->lbracketLoc);
+    auto instanceClass = symbol_cast<ClassSymbol>(instance);
+    if (!instanceClass) return nullptr;
+    (void)traits.requireCompleteClass(instanceClass);
+    return symbol_cast<ClassSymbol>(instanceClass->resolvedDefinition());
+  };
+
+  auto tupleSizeClass = [&]() -> ClassSymbol* {
+    auto arguments =
+        make_list_node<TemplateArgumentAST>(ar, typeArgument(elementBaseType));
+    auto sizeClass = instantiateStandardLibraryClass("tuple_size", arguments);
+    if (!sizeClass || !sizeClass->isComplete()) return nullptr;
+    if (!qualifiedLookup(sizeClass, control()->getIdentifier("value")))
+      return nullptr;
+    return sizeClass;
+  };
+
+  auto structuredBindingSize =
+      [&](ClassSymbol* sizeClass) -> std::optional<std::intmax_t> {
+    auto valueSymbol =
+        qualifiedLookup(sizeClass, control()->getIdentifier("value"));
+    if (!valueSymbol || !valueSymbol->type()) return std::nullopt;
+
+    if (auto valueField = symbol_cast<FieldSymbol>(valueSymbol))
+      ASTRewriter::completePendingFieldInitializer(unit_, valueField);
+
+    auto valueExpr = IdExpressionAST::create(ar);
+    valueExpr->unqualifiedId =
+        NameIdAST::create(ar, control()->getIdentifier("value"));
+    valueExpr->symbol = valueSymbol;
+    valueExpr->type = valueSymbol->type();
+    valueExpr->valueCategory = ValueCategory::kLValue;
+
+    auto value = ASTInterpreter{unit_}.evaluate(valueExpr);
+    if (!value) return std::nullopt;
+    auto integer = std::get_if<std::intmax_t>(&*value);
+    if (!integer || *integer < 0) return std::nullopt;
+    return *integer;
+  };
+
+  auto structuredBindingElementType = [&](int index) -> const Type* {
+    auto arguments =
+        make_list_node<TemplateArgumentAST>(ar, valueArgument(index));
+    arguments->next =
+        make_list_node<TemplateArgumentAST>(ar, typeArgument(elementBaseType));
+    auto elementClass =
+        instantiateStandardLibraryClass("tuple_element", arguments);
+    if (!elementClass) return nullptr;
+    auto typeSymbol =
+        qualifiedLookup(elementClass, control()->getIdentifier("type"),
+                        [](Symbol* s) { return is_type(s); });
+    if (!typeSymbol) return nullptr;
+    return typeSymbol->type();
+  };
+
+  auto namesConstantIndexedTemplate = [](FunctionSymbol* function) {
+    if (!function) return false;
+    if (!function->templateDeclaration()) return false;
+    auto parameters = template_parameters_of(function);
+    if (!parameters) return false;
+    const auto& members = parameters->members();
+    if (members.empty()) return false;
+    return symbol_cast<NonTypeParameterSymbol>(members.front()) != nullptr;
+  };
+
+  auto declaresConstantIndexedGet = [&](Symbol* candidate) {
+    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(candidate)) {
+      for (auto function : overloadSet->functions()) {
+        if (namesConstantIndexedTemplate(function)) return true;
+      }
+      return false;
     }
-  }
+    return namesConstantIndexedTemplate(symbol_cast<FunctionSymbol>(candidate));
+  };
 
-  auto tryTupleGet = [&](int index) -> ExpressionAST* {
-    auto idxLiteral = IntLiteralExpressionAST::create(ar);
-    idxLiteral->literal = control()->integerLiteral(std::to_string(index));
-    idxLiteral->valueCategory = ValueCategory::kPrValue;
-    idxLiteral->type = control()->getSizeType();
+  const bool hasMemberGetTemplate =
+      qualifiedLookup(classSymbol, getIdent, declaresConstantIndexedGet) !=
+      nullptr;
 
-    auto exprArg = ExpressionTemplateArgumentAST::create(ar);
-    exprArg->expression = idxLiteral;
-
+  auto buildGetTemplateId = [&]() -> SimpleTemplateIdAST* {
     auto templateId = SimpleTemplateIdAST::create(ar);
     templateId->identifier = getIdent;
     templateId->identifierLoc = ast->lbracketLoc;
+    return templateId;
+  };
+
+  auto tupleEntityValueCategory = ValueCategory::kXValue;
+  if (type_cast<LvalueReferenceType>(eSymbol->type()))
+    tupleEntityValueCategory = ValueCategory::kLValue;
+
+  auto tupleGet = [&](int index, TypeChecker& check) -> ExpressionAST* {
+    auto templateId = buildGetTemplateId();
     templateId->templateArgumentList =
-        make_list_node<TemplateArgumentAST>(ar, exprArg);
-
-    auto calleeIdExpr = IdExpressionAST::create(ar);
-    calleeIdExpr->unqualifiedId = templateId;
-    calleeIdExpr->symbol = getCandidate;
-
-    bind(calleeIdExpr, /*mayUseArgumentDependentLookup=*/true);
-
-    TypeChecker check{unit_};
-    check.setScope(scope());
-    check.setReportErrors(false);
-    check.check(calleeIdExpr);
+        make_list_node<TemplateArgumentAST>(ar, valueArgument(index));
 
     auto callExpr = CallExpressionAST::create(ar);
-    callExpr->baseExpression = calleeIdExpr;
-    callExpr->expressionList = make_list_node<ExpressionAST>(
-        ar, static_cast<ExpressionAST*>(buildEIdExpr()));
+
+    if (hasMemberGetTemplate) {
+      auto memberExpr = MemberExpressionAST::create(ar);
+      memberExpr->baseExpression = buildEIdExpr(tupleEntityValueCategory);
+      memberExpr->accessOp = TokenKind::T_DOT;
+      memberExpr->unqualifiedId = templateId;
+      memberExpr->isTemplateIntroduced = true;
+      check.check(memberExpr);
+      callExpr->baseExpression = memberExpr;
+    } else {
+      auto calleeIdExpr = IdExpressionAST::create(ar);
+      calleeIdExpr->unqualifiedId = templateId;
+      bind(calleeIdExpr, true);
+      check.check(calleeIdExpr);
+      callExpr->baseExpression = calleeIdExpr;
+      callExpr->expressionList = make_list_node<ExpressionAST>(
+          ar,
+          static_cast<ExpressionAST*>(buildEIdExpr(tupleEntityValueCategory)));
+    }
+
     check.check(callExpr);
 
     if (!callExpr->type) return nullptr;
     return callExpr;
   };
 
-  bool tupleLikeOk = false;
-  std::vector<ExpressionAST*> tupleAccess;
+  if (auto sizeClass = tupleSizeClass()) {
+    auto tupleSize = structuredBindingSize(sizeClass);
 
-  if (getCandidate) {
-    auto diagnosticsClient = unit_->diagnosticsClient();
-    const auto savedBlockErrors =
-        diagnosticsClient ? diagnosticsClient->blockErrors(true) : false;
-
-    tupleLikeOk = true;
-    for (int index = 0; index < count; ++index) {
-      auto access = tryTupleGet(index);
-      if (!access) {
-        tupleLikeOk = false;
-        break;
-      }
-      tupleAccess.push_back(access);
+    if (!tupleSize) {
+      error(ast->lbracketLoc,
+            std::format("'std::tuple_size<{}>::value' is not a non-negative "
+                        "integral constant expression",
+                        to_string(elementBaseType)));
+      return;
     }
 
-    if (diagnosticsClient) diagnosticsClient->blockErrors(savedBlockErrors);
-  }
+    if (count != *tupleSize) {
+      error(ast->lbracketLoc,
+            std::format("{} names provided for structured binding of type "
+                        "with a structured binding size of {}",
+                        count, *tupleSize));
+      return;
+    }
 
-  if (tupleLikeOk) {
+    TypeChecker check{unit_};
+    check.setScope(scope());
+
     int index = 0;
     for (auto it = ast->bindingList; it; it = it->next, ++index) {
-      declareBinding(it->value, tupleAccess[static_cast<std::size_t>(index)]);
+      auto elementType = structuredBindingElementType(index);
+      if (!elementType) {
+        error(ast->lbracketLoc, std::format("no type named 'type' in "
+                                            "'std::tuple_element<{}, {}>'",
+                                            index, to_string(elementBaseType)));
+        return;
+      }
+      declareBinding(it->value, tupleGet(index, check), elementType);
     }
     return;
   }
@@ -342,7 +473,7 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
     auto memberType = traits.add_cv(field->type(), baseCv);
 
     auto memberExpr = MemberExpressionAST::create(ar);
-    memberExpr->baseExpression = buildEIdExpr();
+    memberExpr->baseExpression = buildEIdExpr(ValueCategory::kLValue);
     memberExpr->accessOp = TokenKind::T_DOT;
     memberExpr->unqualifiedId =
         NameIdAST::create(ar, name_cast<Identifier>(field->name()));

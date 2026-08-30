@@ -67,7 +67,10 @@ class ExternalNameEncoder {
   [[nodiscard]] auto encodeTemplateTemplateArgument(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeLocalName(Symbol* symbol) -> bool;
   void encodeClosureSourceName(ClassSymbol* classSymbol);
+  void encodeUnnamedTypeName(Symbol* symbol);
+  [[nodiscard]] auto unnamedTypeIndex(Symbol* symbol) const -> int;
   void encodeObjectParameterQualifiers(FunctionSymbol* function);
+  void encodeCvQualifiers(CvQualifiers cvQualifiers);
   [[nodiscard]] auto encodeNestedName(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeUnscopedName(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeOperatorName(TokenKind op, bool isUnary)

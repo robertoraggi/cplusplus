@@ -13,11 +13,11 @@ struct Outer {
 // clang-format off
 //      CHECK:namespace
 // CHECK-NEXT:  class Outer
-// CHECK-NEXT:    constructor inline defaulted void Outer()
-// CHECK-NEXT:    constructor inline defaulted void Outer(const ::Outer&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Outer()
+// CHECK-NEXT:    constructor constexpr inline defaulted void Outer(const ::Outer&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Outer&
-// CHECK-NEXT:    constructor inline defaulted void Outer(::Outer&&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Outer(::Outer&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Outer&&
 // CHECK-NEXT:    injected class name Outer
@@ -32,10 +32,10 @@ struct Outer {
 // CHECK-NEXT:      deduction-guide Inner(int) -> ::Outer::Inner<int>
 // CHECK-NEXT:      [specializations]
 // CHECK-NEXT:        class Inner<int>
-// CHECK-NEXT:    function inline defaulted ::Outer& operator =(const ::Outer&)
+// CHECK-NEXT:    function constexpr inline defaulted ::Outer& operator =(const ::Outer&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Outer&
-// CHECK-NEXT:    function inline defaulted ::Outer& operator =(::Outer&&)
+// CHECK-NEXT:    function constexpr inline defaulted ::Outer& operator =(::Outer&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Outer&&
-// CHECK-NEXT:    function inline defaulted void ~Outer()
+// CHECK-NEXT:    function constexpr inline defaulted void ~Outer()

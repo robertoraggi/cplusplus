@@ -37,11 +37,11 @@ auto test() -> int {
 
 // Non-template class has injected class name
 //      CHECK:class Foo
-// CHECK-NEXT:    constructor inline defaulted void Foo()
-// CHECK-NEXT:    constructor inline defaulted void Foo(const ::Foo&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Foo()
+// CHECK-NEXT:    constructor constexpr inline defaulted void Foo(const ::Foo&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Foo&
-// CHECK-NEXT:    constructor inline defaulted void Foo(::Foo&&)
+// CHECK-NEXT:    constructor constexpr inline defaulted void Foo(::Foo&&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter ::Foo&&
 // CHECK-NEXT:    injected class name Foo

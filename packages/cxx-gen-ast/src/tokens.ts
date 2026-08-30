@@ -262,6 +262,8 @@ export const BUILTIN_TYPE_TRAITS: string[] = [
   "__is_unsigned",
   "__is_void",
   "__is_volatile",
+  "__reference_constructs_from_temporary",
+  "__reference_converts_from_temporary",
 ];
 
 export const UNARY_BUILTIN_TYPE_SPECIFIERS: string[] = [

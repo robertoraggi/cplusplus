@@ -4272,6 +4272,7 @@ auto NamespaceAliasDefinitionAST::clone(Arena* arena)
 
   node->semicolonLoc = semicolonLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
 
   return node;
 }
@@ -4286,7 +4287,8 @@ auto NamespaceAliasDefinitionAST::create(
     Arena* arena, SourceLocation namespaceLoc, SourceLocation identifierLoc,
     SourceLocation equalLoc, NestedNameSpecifierAST* nestedNameSpecifier,
     NameIdAST* unqualifiedId, SourceLocation semicolonLoc,
-    const Identifier* identifier) -> NamespaceAliasDefinitionAST* {
+    const Identifier* identifier, NamespaceAliasSymbol* symbol)
+    -> NamespaceAliasDefinitionAST* {
   auto node = new (arena) NamespaceAliasDefinitionAST();
   node->namespaceLoc = namespaceLoc;
   node->identifierLoc = identifierLoc;
@@ -4295,17 +4297,19 @@ auto NamespaceAliasDefinitionAST::create(
   node->unqualifiedId = unqualifiedId;
   node->semicolonLoc = semicolonLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
 auto NamespaceAliasDefinitionAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
-    NameIdAST* unqualifiedId, const Identifier* identifier)
-    -> NamespaceAliasDefinitionAST* {
+    NameIdAST* unqualifiedId, const Identifier* identifier,
+    NamespaceAliasSymbol* symbol) -> NamespaceAliasDefinitionAST* {
   auto node = new (arena) NamespaceAliasDefinitionAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 

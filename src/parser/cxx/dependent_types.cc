@@ -24,10 +24,14 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <algorithm>
+#include <vector>
+
 namespace cxx {
 namespace {
 struct IsDependent {
   TranslationUnit* unit = nullptr;
+  std::vector<const Type*> typesUnderExamination;
 
   [[nodiscard]] auto isDependent(ExpressionAST* ast) -> bool {
     if (!ast) return false;
@@ -69,9 +73,12 @@ struct IsDependent {
             tp && !tp->isExplicitTemplateSpecialization())
           return true;
       } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
-        if (stopAtConcreteSpecialization && func->isSpecialization() &&
-            !isDependent(func->type()))
-          return false;
+        if (stopAtConcreteSpecialization && func->isSpecialization()) {
+          const auto hasConcreteType = !isDependent(func->type());
+          const auto hasDependentParent =
+              enclosedInDependentTemplate(func->parent(), false);
+          if (hasConcreteType && !hasDependentParent) return false;
+        }
         if (auto tp = func->templateParameters();
             tp && !tp->isExplicitTemplateSpecialization())
           return true;
@@ -114,20 +121,68 @@ struct IsDependent {
     return false;
   }
 
-  [[nodiscard]] auto isDependentTemplateArgument(TemplateArgumentAST* arg)
+  [[nodiscard]] auto isDependentTemplateNameArgument(
+      TypeTemplateArgumentAST* typeArg) -> bool {
+    if (!typeArg || !typeArg->typeId) return true;
+
+    for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
+      auto named = ast_cast<NamedTypeSpecifierAST>(spec);
+      if (!named) continue;
+      if (isDependent(named->nestedNameSpecifier)) return true;
+      return isDependentTypeParameterSymbol(named->symbol);
+    }
+
+    return true;
+  }
+
+  [[nodiscard]] auto isDependentTemplateArgument(TemplateArgumentAST* arg,
+                                                 Symbol* parameter = nullptr)
       -> bool {
-    if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg))
+    if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
+      if (symbol_cast<TemplateTypeParameterSymbol>(parameter))
+        return isDependentTemplateNameArgument(typeArg);
       return isDependentTypeArgument(typeArg);
+    }
     if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg))
       return isDependent(exprArg->expression);
     return false;
   }
 
+  [[nodiscard]] static auto isTemplateParameterPack(Symbol* parameter) -> bool {
+    if (!parameter) return false;
+    if (auto info = getTypeParamInfo(parameter->type())) return info->isPack;
+    if (auto nonType = symbol_cast<NonTypeParameterSymbol>(parameter))
+      return nonType->isParameterPack();
+    if (auto constraint = symbol_cast<ConstraintTypeParameterSymbol>(parameter))
+      return constraint->isParameterPack();
+    return false;
+  }
+
+  [[nodiscard]] static auto parameterForArgument(
+      TemplateParametersSymbol* parameters, std::size_t index) -> Symbol* {
+    if (!parameters) return nullptr;
+
+    const auto& members = parameters->members();
+    if (members.empty()) return nullptr;
+    if (index < members.size()) return members[index];
+
+    auto trailing = members.back();
+    if (!isTemplateParameterPack(trailing)) return nullptr;
+    return trailing;
+  }
+
   [[nodiscard]] auto hasDependentTemplateArguments(
       SimpleTemplateIdAST* templateId) -> bool {
     if (!templateId) return false;
+
+    auto parameters =
+        template_parameters_of(template_name_symbol(templateId->symbol));
+
+    std::size_t index = 0;
     for (auto arg : ListView{templateId->templateArgumentList}) {
-      if (isDependentTemplateArgument(arg)) return true;
+      auto parameter = parameterForArgument(parameters, index);
+      ++index;
+      if (isDependentTemplateArgument(arg, parameter)) return true;
     }
     return false;
   }
@@ -147,10 +202,8 @@ struct IsDependent {
     auto traits = unit->typeTraits();
     if (traits.is_reference(symbol->type())) return true;
 
-    auto cv = traits.get_cv_qualifiers(symbol->type());
-    if ((cv & CvQualifiers::kConst) == CvQualifiers::kNone ||
-        (cv & CvQualifiers::kVolatile) != CvQualifiers::kNone)
-      return false;
+    auto cv = cv_qualifiers(symbol->type());
+    if (cv != CvQualifiers::kConst) return false;
 
     auto type = traits.remove_cv(symbol->type());
     return traits.is_integral(type) || traits.is_enum(type);
@@ -166,7 +219,11 @@ struct IsDependent {
 
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
     if (!type) return false;
-    return visit(*this, type);
+    if (std::ranges::contains(typesUnderExamination, type)) return false;
+    typesUnderExamination.push_back(type);
+    const auto dependent = visit(*this, type);
+    typesUnderExamination.pop_back();
+    return dependent;
   }
 
   auto operator()(const VoidType* type) -> bool { return false; }
@@ -244,9 +301,7 @@ struct IsDependent {
 
     std::size_t index = 0;
     for (const auto& arg : sym->templateArguments()) {
-      Symbol* parameter = nullptr;
-      if (parameters && index < parameters->members().size())
-        parameter = parameters->members()[index];
+      auto parameter = parameterForArgument(parameters, index);
       ++index;
       if (isDependentArgument(arg, parameter)) return true;
     }
@@ -652,7 +707,22 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
       return true;
     if (isDependent(var->type())) return true;
   }
+  auto hasDependentPlaceholderReturn = [&](FunctionSymbol* function) {
+    if (!function) return false;
+    auto functionType = type_cast<FunctionType>(function->type());
+    if (!functionType) return false;
+    if (!containsPlaceholderType(functionType->returnType())) return false;
+    return isInTemplateScope(function);
+  };
+
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(ast->symbol)) {
+    for (auto function : overloadSet->functions()) {
+      if (hasDependentPlaceholderReturn(function)) return true;
+    }
+  }
+
   if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
+    if (hasDependentPlaceholderReturn(func)) return true;
     if (func->isStatic() && isInTemplateScope(func)) return true;
   }
   if (auto param = symbol_cast<ParameterSymbol>(ast->symbol)) {
@@ -1102,7 +1172,7 @@ auto isDependent(TranslationUnit* unit, NestedNameSpecifierAST* ast) -> bool {
 }
 
 auto isCurrentInstantiation(ScopeSymbol* scope, const Type* type) -> bool {
-  auto classType = type_cast<ClassType>(type);
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return false;
 
   for (auto current = scope; current; current = current->parent()) {

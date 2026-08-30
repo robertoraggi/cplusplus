@@ -22,6 +22,7 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/external_name_encoder.h>
+#include <cxx/initialization.h>
 #include <cxx/mlir/codegen.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -262,7 +263,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
   if (traits.is_class(var->type())) {
     auto registerCleanup = [&] {
       if (traits.has_trivial_destructor(var->type())) return;
-      auto classType = type_cast<ClassType>(traits.remove_cv(var->type()));
+      auto classType = unqualified_cast<ClassType>(var->type());
       if (!classType || !classType->symbol()) return;
       auto dtor = classType->symbol()->destructor();
       if (!dtor) return;
@@ -292,14 +293,8 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
       return;
     }
 
-    BracedInitListAST* braced = nullptr;
-    if (initializer) {
-      if (auto b = ast_cast<BracedInitListAST>(initializer)) {
-        braced = b;
-      } else if (auto equal = ast_cast<EqualInitializerAST>(initializer)) {
-        braced = ast_cast<BracedInitListAST>(equal->expression);
-      }
-    }
+    auto braced =
+        ast_cast<BracedInitListAST>(Initializer{initializer}.clause());
 
     if (braced) {
       braced->type = var->type();
@@ -341,7 +336,7 @@ void Codegen::emitReferenceInit(VariableSymbol* var, mlir::Value local,
   (void)emitPrvalueInto(extendedTemporary, elementType, initExpr,
                         initExpr->firstSourceLocation());
 
-  if (auto classType = type_cast<ClassType>(traits.remove_cv(elementType))) {
+  if (auto classType = unqualified_cast<ClassType>(elementType)) {
     if (classType->symbol()) {
       if (auto dtor = classType->symbol()->resolvedDefinition()->destructor())
         addCleanup(extendedTemporary, completeObjectDtor(dtor));
@@ -478,8 +473,6 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
   auto functionSymbol = ast->symbol;
   if (functionSymbol && functionSymbol->templateDeclaration()) return {};
-
-  gen.reportDeferredBodyDiagnostics(functionSymbol);
 
   auto ctx = gen.context_;
 
@@ -1113,9 +1106,7 @@ void Codegen::FunctionBodyVisitor::emitFieldInitializer(
     return;
   }
 
-  ExpressionAST* expr = initializer;
-  if (auto equal = ast_cast<EqualInitializerAST>(expr))
-    expr = equal->expression;
+  auto expr = Initializer{initializer}.clause();
 
   if (auto paren = ast_cast<ParenInitializerAST>(expr)) {
     auto ctor = field->constructor();
@@ -1184,7 +1175,7 @@ void Codegen::FunctionBodyVisitor::emitFieldInitializer(
 auto Codegen::FunctionBodyVisitor::emitAnonymousUnionInitializer(
     SourceLocation sourceLoc, mlir::Value thisPtr, ClassSymbol* classSymbol,
     FieldSymbol* field) -> bool {
-  auto unionType = type_cast<ClassType>(gen.traits.remove_cv(field->type()));
+  auto unionType = unqualified_cast<ClassType>(field->type());
   if (!unionType || !unionType->symbol()) return false;
 
   auto unionSymbol = unionType->symbol()->resolvedDefinition();

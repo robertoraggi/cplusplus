@@ -17,21 +17,21 @@ using X = S<int>::type;
 // CHECK-NEXT:    field static constexpr const int size
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class S<int>
-// CHECK-NEXT:        constructor inline defaulted void S()
-// CHECK-NEXT:        constructor inline defaulted void S(const ::S<int>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void S()
+// CHECK-NEXT:        constructor constexpr inline defaulted void S(const ::S<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::S<int>&
-// CHECK-NEXT:        constructor inline defaulted void S(::S<int>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void S(::S<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::S<int>&&
 // CHECK-NEXT:        injected class name S
 // CHECK-NEXT:        typealias int type
 // CHECK-NEXT:        field static constexpr const int size
-// CHECK-NEXT:        function inline defaulted ::S<int>& operator =(const ::S<int>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::S<int>& operator =(const ::S<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::S<int>&
-// CHECK-NEXT:        function inline defaulted ::S<int>& operator =(::S<int>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::S<int>& operator =(::S<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::S<int>&&
-// CHECK-NEXT:        function inline defaulted void ~S()
+// CHECK-NEXT:        function constexpr inline defaulted void ~S()
 // CHECK-NEXT:  typealias int X

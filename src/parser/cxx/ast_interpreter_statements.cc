@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/control.h>
+#include <cxx/initialization.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/parser.h>
@@ -602,9 +603,7 @@ void ASTInterpreter::interpretInitDeclarator(InitDeclaratorAST* initDecl) {
   auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
 
   if (var && traits.is_reference(var->type())) {
-    auto initExpr = initDecl->initializer;
-    if (auto eq = ast_cast<EqualInitializerAST>(initExpr))
-      initExpr = eq->expression;
+    auto initExpr = Initializer{initDecl->initializer}.clause();
     if (auto slot = lvalue(initExpr)) {
       bindReference(initDecl->symbol, slot);
     }

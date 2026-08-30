@@ -325,7 +325,7 @@ auto Codegen::emitConstInitValue(mlir::OpBuilder& builder, mlir::Location loc,
   }
 
   if (traits.is_class_or_union(type)) {
-    auto classType = type_cast<ClassType>(traits.remove_cv(type));
+    auto classType = unqualified_cast<ClassType>(type);
     auto mlirType = convertType(type);
 
     if (classType && classType->isUnion()) {
@@ -963,7 +963,7 @@ auto Codegen::createConditionalCleanupFlag(mlir::Location loc,
 void Codegen::addTemporaryCleanup(mlir::Value address, const Type* type) {
   if (cleanupStack_.empty() || !cleanupStack_.back().isFullExpression) return;
   if (traits.has_trivial_destructor(type)) return;
-  auto classType = type_cast<ClassType>(traits.remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType || !classType->symbol()) return;
   auto dtor = classType->symbol()->resolvedDefinition()->destructor();
   if (!dtor) return;
@@ -1019,8 +1019,8 @@ auto Codegen::loadEnclosingObject(mlir::Location loc, ClassSymbol* targetClass,
     auto layout = objectClass->layout();
     auto fieldInfo = layout ? layout->getFieldInfo(capturedThis) : std::nullopt;
 
-    auto enclosingType = type_cast<ClassType>(traits.remove_cv(
-        traits.get_element_type(traits.remove_cv(capturedThis->type()))));
+    auto enclosingType = unqualified_cast<ClassType>(
+        traits.get_element_type(traits.remove_cv(capturedThis->type())));
 
     if (!fieldInfo || !enclosingType || !enclosingType->symbol()) {
       cxx_runtime_error(std::format(
@@ -1118,7 +1118,7 @@ auto Codegen::subobjectAddress(mlir::Location loc, mlir::Value objectPtr,
 
     for (auto field :
          views::members(enclosingClass) | views::non_static_fields) {
-      auto fieldClass = type_cast<ClassType>(traits.remove_cv(field->type()));
+      auto fieldClass = unqualified_cast<ClassType>(field->type());
       if (!fieldClass || !fieldClass->symbol()) continue;
       if (fieldClass->symbol()->resolvedDefinition() != declaringClass)
         continue;
@@ -1715,14 +1715,6 @@ auto Codegen::computeFunctionSignature(const FunctionType* functionType,
                                       functionType->isVariadic());
 }
 
-void Codegen::reportDeferredBodyDiagnostics(FunctionSymbol* functionSymbol) {
-  if (!functionSymbol) return;
-
-  for (const auto& diagnostic :
-       unit_->takeDeferredBodyDiagnostics(functionSymbol))
-    unit_->diagnosticsClient()->report(diagnostic);
-}
-
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     -> mlir::cxx::FuncOp {
   auto canonicalSymbol = functionSymbol->canonical();
@@ -2139,7 +2131,7 @@ auto Codegen::findOrCreateStaticField(FieldSymbol* field)
   }
 
   FunctionSymbol* destructor = nullptr;
-  if (auto classType = type_cast<ClassType>(traits.remove_cv(field->type()))) {
+  if (auto classType = unqualified_cast<ClassType>(field->type())) {
     auto classSymbol = classType->symbol();
     if (classSymbol)
       destructor = classSymbol->resolvedDefinition()->destructor();
@@ -2233,7 +2225,7 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var,
   if (defVar->isExtern()) return;
 
   FunctionSymbol* destructor = nullptr;
-  if (auto classType = type_cast<ClassType>(traits.remove_cv(defVar->type()))) {
+  if (auto classType = unqualified_cast<ClassType>(defVar->type())) {
     auto classSymbol = classType->symbol();
     if (classSymbol)
       destructor = classSymbol->resolvedDefinition()->destructor();

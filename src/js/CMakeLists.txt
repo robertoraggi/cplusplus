@@ -25,7 +25,7 @@ aux_source_directory(cxx SOURCES)
 
 add_executable(cxx-js ${SOURCES})
 
-target_link_libraries(cxx-js cxx-parser embind)
+target_link_libraries(cxx-js cxx-parser cxx-lsp embind)
 
 if (CXX_ENABLE_MLIR)
     target_link_libraries(cxx-js cxx-mlir)

@@ -104,8 +104,20 @@ struct Instantiate {
     fn->setPendingBody(std::move(pending));
   }
 
+  [[nodiscard]] auto patternClassSpecifier(ClassSymbol* symbol)
+      -> ClassSpecifierAST* {
+    auto pattern = symbol->instantiationPattern();
+    if (!pattern || pattern == symbol) return nullptr;
+
+    auto definition = symbol_cast<ClassSymbol>(pattern->resolvedDefinition());
+    if (!definition) return nullptr;
+
+    return ast_cast<ClassSpecifierAST>(definition->declaration());
+  }
+
   auto operator()(ClassSymbol* symbol) -> Symbol* {
     auto classSpecifier = ast_cast<ClassSpecifierAST>(symbol->declaration());
+    if (!classSpecifier) classSpecifier = patternClassSpecifier(symbol);
     if (!classSpecifier) return nullptr;
 
     auto instance =
@@ -272,9 +284,24 @@ struct Instantiate {
 }
 
 [[nodiscard]] auto instantiationLabel(Symbol* symbol) -> std::string_view {
-  return symbol_cast<FunctionSymbol>(symbol)
-             ? "function template specialization"
-             : "template class";
+  if (symbol_cast<FunctionSymbol>(symbol))
+    return "function template specialization";
+  return "template class";
+}
+
+void noteInstantiationRequestedHere(
+    TranslationUnit* unit, Symbol* primaryTemplate,
+    const std::vector<TemplateArgument>& templateArguments,
+    SourceLocation instantiationLoc) {
+  if (!instantiationLoc) return;
+  auto client = unit->reportingDiagnosticsClient();
+  if (!client) return;
+  auto name =
+      computeInstantiationClassName(unit, primaryTemplate, templateArguments);
+  auto label = instantiationLabel(primaryTemplate);
+  client->report(
+      unit->tokenAt(instantiationLoc), Severity::Note,
+      std::format("in instantiation of {} '{}' requested here", label, name));
 }
 
 [[nodiscard]] auto findMutableSpecialization(Symbol* primary, Symbol* spec)
@@ -290,6 +317,15 @@ struct Instantiate {
   if (auto vs = symbol_cast<VariableSymbol>(primary)) return search(vs);
   if (auto fs = symbol_cast<FunctionSymbol>(primary)) return search(fs);
   return nullptr;
+}
+
+void recordFunctionInstantiationRequest(Symbol* primary, Symbol* specialization,
+                                        SourceLocation instantiationLoc) {
+  if (!instantiationLoc) return;
+  if (!symbol_cast<FunctionSymbol>(specialization)) return;
+  auto spec = findMutableSpecialization(primary, specialization);
+  if (!spec) return;
+  spec->pendingInstantiationLoc = instantiationLoc;
 }
 
 [[nodiscard]] auto instantiateBuiltinMakeIntegerSeq(
@@ -484,10 +520,13 @@ auto ASTRewriter::substituteDefaultTypeId(
     const std::vector<TemplateArgument>& templateArguments, int depth,
     ScopeSymbol* scope) -> TypeIdAST* {
   if (!typeId) return nullptr;
+  SilentDiagnosticsScope silent{unit};
   auto rewriter = ASTRewriter{unit, scope,
                               std::vector<TemplateArgument>(templateArguments)};
   rewriter.depth_ = depth;
-  return rewriter.typeId(typeId);
+  auto substituted = rewriter.typeId(typeId);
+  if (silent.hadError()) return nullptr;
+  return substituted;
 }
 
 auto ASTRewriter::substituteDefaultExpression(
@@ -495,10 +534,13 @@ auto ASTRewriter::substituteDefaultExpression(
     const std::vector<TemplateArgument>& templateArguments, int depth,
     ScopeSymbol* scope) -> ExpressionAST* {
   if (!expression) return nullptr;
+  SilentDiagnosticsScope silent{unit};
   auto rewriter = ASTRewriter{unit, scope,
                               std::vector<TemplateArgument>(templateArguments)};
   rewriter.depth_ = depth;
-  return rewriter.expression(expression);
+  auto substituted = rewriter.expression(expression);
+  if (silent.hadError()) return nullptr;
+  return substituted;
 }
 
 auto ASTRewriter::substituteParameterClause(
@@ -570,15 +612,22 @@ void ASTRewriter::instantiateSelectedSpecializationDefinition(
     List<TemplateArgumentAST*>* deducedArguments) {
   if (!selected || !deducedArguments) return;
   if (!selected->isSpecialization()) return;
+  if (!unit->isPotentiallyEvaluated()) return;
 
   auto primary = selected->primaryTemplateSymbol();
   if (!primary) return;
 
-  (void)instantiate(unit, deducedArguments, primary, selected->location(),
-                    /*sfinaeContext=*/true, /*argsComplete=*/true,
+  auto instantiationLoc = selected->location();
+  if (auto spec = findMutableSpecialization(primary, selected);
+      spec && spec->pendingInstantiationLoc) {
+    instantiationLoc = spec->pendingInstantiationLoc;
+  }
+
+  (void)instantiate(unit, deducedArguments, primary, instantiationLoc,
+                    /*sfinaeContext=*/false, /*argsComplete=*/true,
                     /*declarationOnly=*/false,
                     /*retainEnclosingTemplateLevels=*/false,
-                    /*isOverloadCandidate=*/true,
+                    /*isOverloadCandidate=*/false,
                     /*substitutionFailure=*/nullptr);
 }
 
@@ -621,6 +670,11 @@ auto ASTRewriter::instantiate(
     sfinaeContext = true;
   }
 
+  const auto functionBodyIsOdrUsed =
+      !symbol_cast<FunctionSymbol>(symbol) || unit->isPotentiallyEvaluated();
+
+  if (!functionBodyIsOdrUsed) declarationOnly = true;
+
   auto templateDecl = template_declaration_of(symbol);
   if (!templateDecl) return nullptr;
 
@@ -630,29 +684,24 @@ auto ASTRewriter::instantiate(
   const bool ownsSfinaeClient =
       sfinaeContext && (isOverloadCandidate || !activeClientIsSfinae);
 
-  std::optional<SilentDiagnosticsClient> sfinaeClient;
-  DiagnosticsClient* savedDiagClient = nullptr;
-  if (ownsSfinaeClient) {
-    sfinaeClient.emplace();
-    savedDiagClient = unit->changeDiagnosticsClient(&*sfinaeClient);
-  }
+  std::optional<SilentDiagnosticsScope> sfinaeScope;
+  if (ownsSfinaeClient) sfinaeScope.emplace(unit);
 
   struct SubstitutionFailureExporter {
-    std::optional<SilentDiagnosticsClient>& client;
+    std::optional<SilentDiagnosticsScope>& scope;
     std::vector<Diagnostic>* out;
 
     ~SubstitutionFailureExporter() {
-      if (!out || !client.has_value() || !client->hadError()) return;
-      const auto& diagnostics = client->diagnostics();
+      if (!out || !scope.has_value() || !scope->hadError()) return;
+      const auto& diagnostics = scope->diagnostics();
       out->assign(diagnostics.begin(), diagnostics.end());
     }
-  } substitutionFailureExporter{sfinaeClient, substitutionFailure};
+  } substitutionFailureExporter{sfinaeScope, substitutionFailure};
 
   auto subst = Substitution::make(unit, templateDecl, templateArgumentList,
                                   argsComplete);
 
   if (!subst) {
-    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
     return nullptr;
   }
 
@@ -665,19 +714,16 @@ auto ASTRewriter::instantiate(
     auto result = instantiateBuiltinTemplate(
         unit, symbol, builtinKind, templateArguments, instantiationLoc,
         sfinaeContext, argsComplete, declarationOnly);
-    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
     return result;
   }
 
   if (symbol_cast<FunctionSymbol>(symbol) &&
       static_cast<int>(templateArguments.size()) <
           templateParameterCount(templateDecl)) {
-    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
     return symbol;
   }
 
   if (isPrimaryTemplate(templateArguments, templateDecl->depth)) {
-    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
     return symbol;
   }
 
@@ -686,6 +732,8 @@ auto ASTRewriter::instantiate(
                     : visit(GetSpecialization{unit, templateArguments}, symbol);
 
   if (cached) {
+    if (declarationOnly)
+      recordFunctionInstantiationRequest(symbol, cached, instantiationLoc);
     auto cachedClass = symbol_cast<ClassSymbol>(cached);
     if (!cachedClass) {
       if (!declarationOnly) {
@@ -703,21 +751,18 @@ auto ASTRewriter::instantiate(
       if (!sfinaeContext)
         reportPendingInstantiationErrors(unit, symbol, cached,
                                          instantiationLoc);
-      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
       return cached;
     }
     if (cachedClass->declaration()) {
       if (!sfinaeContext)
         reportPendingInstantiationErrors(unit, symbol, cached,
                                          instantiationLoc);
-      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
       return cached;
     }
   }
 
   if (!checkAssociatedConstraints(unit, symbol, templateArguments,
                                   templateDecl->depth)) {
-    if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
     return nullptr;
   }
 
@@ -725,7 +770,6 @@ auto ASTRewriter::instantiate(
     auto partial =
         tryPartialSpecialization(unit, classSymbol, templateArguments);
     if (partial.handled()) {
-      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
       return partial.symbol;
     }
   }
@@ -734,7 +778,6 @@ auto ASTRewriter::instantiate(
     auto partial =
         tryPartialSpecialization(unit, variableSymbol, templateArguments);
     if (partial.handled()) {
-      if (savedDiagClient) (void)unit->changeDiagnosticsClient(savedDiagClient);
       return partial.symbol;
     }
   }
@@ -770,18 +813,23 @@ auto ASTRewriter::instantiate(
   if (sfinaeContext) {
     auto instance =
         visit(Instantiate{rewriter, parentScope, declarationOnly}, symbol);
-    if (ownsSfinaeClient) {
-      (void)unit->changeDiagnosticsClient(savedDiagClient);
-      if (sfinaeClient->hadError()) return nullptr;
+    if (sfinaeScope) {
+      sfinaeScope->finish();
+      if (sfinaeScope->hadError()) return nullptr;
     }
     if (rewriter.substitutionFailed()) return nullptr;
 
     inheritTemplateAccess(instance);
     registerFunctionSpecialization(instance);
+    if (declarationOnly)
+      recordFunctionInstantiationRequest(symbol, instance, instantiationLoc);
 
     auto bodyErrors = rewriter.takeBodyErrors();
-    if (!bodyErrors.empty() && instance) {
-      if (auto spec = findMutableSpecialization(symbol, instance)) {
+    if (!bodyErrors.empty()) {
+      if (reportOutsideImmediateContext(unit, bodyErrors)) {
+        noteInstantiationRequestedHere(unit, symbol, templateArguments,
+                                       instantiationLoc);
+      } else if (auto spec = findMutableSpecialization(symbol, instance)) {
         spec->instantiationErrors = std::move(bodyErrors);
       }
     }
@@ -789,34 +837,33 @@ auto ASTRewriter::instantiate(
     return instance;
   }
 
-  CapturingDiagnosticsClient capturing{unit->diagnosticsClient()};
-  (void)unit->changeDiagnosticsClient(&capturing);
+  CapturingDiagnosticsScope capturing{unit};
+  capturing.forwardToPreviousClient();
 
   auto instantiatedSymbol =
       visit(Instantiate{rewriter, parentScope, declarationOnly}, symbol);
 
-  (void)unit->changeDiagnosticsClient(capturing.parent);
+  capturing.finish();
 
   inheritTemplateAccess(instantiatedSymbol);
   registerFunctionSpecialization(instantiatedSymbol);
+  if (declarationOnly)
+    recordFunctionInstantiationRequest(symbol, instantiatedSymbol,
+                                       instantiationLoc);
 
   auto bodyErrors = rewriter.takeBodyErrors();
-  capturing.diagnostics.insert(capturing.diagnostics.end(),
-                               std::make_move_iterator(bodyErrors.begin()),
-                               std::make_move_iterator(bodyErrors.end()));
 
-  if (!capturing.diagnostics.empty()) {
+  auto instantiationErrors = capturing.takeDiagnostics();
+  instantiationErrors.insert(instantiationErrors.end(),
+                             std::make_move_iterator(bodyErrors.begin()),
+                             std::make_move_iterator(bodyErrors.end()));
+
+  if (!instantiationErrors.empty()) {
     if (auto spec = findMutableSpecialization(symbol, instantiatedSymbol)) {
-      spec->instantiationErrors = std::move(capturing.diagnostics);
+      spec->instantiationErrors = std::move(instantiationErrors);
     }
-    if (instantiationLoc) {
-      auto name =
-          computeInstantiationClassName(unit, symbol, templateArguments);
-      auto label = instantiationLabel(symbol);
-      unit->note(instantiationLoc,
-                 std::format("in instantiation of {} '{}' requested here",
-                             label, name));
-    }
+    noteInstantiationRequestedHere(unit, symbol, templateArguments,
+                                   instantiationLoc);
   }
 
   return instantiatedSymbol;
@@ -907,14 +954,14 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
   if (templateArguments_.empty()) return;
 
   auto instantiateDefinition = [&](Symbol* def, DeclarationAST* declaration,
-                                   TemplateDeclarationAST* templateDecl) {
+                                   int depth) {
     auto lexicalScope = def->parent();
     while (lexicalScope && lexicalScope->isClass()) {
       lexicalScope = lexicalScope->parent();
     }
     auto rewriter = ASTRewriter{
         unit_, lexicalScope, std::vector<TemplateArgument>(templateArguments_)};
-    rewriter.depth_ = templateDecl->depth;
+    rewriter.depth_ = depth;
     rewriter.binder_.setInstantiatingSymbol(def);
     if (auto instance = symbol_cast<ClassSymbol>(
             pattern->findSpecialization(unit_, templateArguments_))) {
@@ -1058,22 +1105,43 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
     }
   }
 
+  auto outOfClassMemberTemplateDefinition =
+      [](ClassSymbol* memberClass) -> TemplateDeclarationAST* {
+    if (!memberClass->templateParameters()) return nullptr;
+    auto classSpecifier =
+        ast_cast<ClassSpecifierAST>(memberClass->declaration());
+    if (!classSpecifier) return nullptr;
+    if (!classSpecifier->nestedNameSpecifier) return nullptr;
+    return memberClass->templateDeclaration();
+  };
+
   for (auto member : pattern->members()) {
     auto memberClass = symbol_cast<ClassSymbol>(member);
     if (!memberClass) continue;
-    auto def = symbol_cast<ClassSymbol>(memberClass->definition());
-    if (!def || def == memberClass) continue;
-    auto templateDecl = def->templateDeclaration();
-    if (!templateDecl) continue;
-    auto declAst = ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
-    if (!declAst) continue;
+
     const auto alreadyComplete = std::ranges::any_of(
         instanceClass->find(memberClass->name()), [](Symbol* candidate) {
           auto cls = symbol_cast<ClassSymbol>(candidate);
           return cls && cls->isComplete();
         });
     if (alreadyComplete) continue;
-    instantiateDefinition(def, declAst, templateDecl);
+
+    if (classTemplateDecl) {
+      if (auto memberTemplateDecl =
+              outOfClassMemberTemplateDefinition(memberClass)) {
+        instantiateDefinition(memberClass, memberTemplateDecl,
+                              classTemplateDecl->depth);
+        continue;
+      }
+    }
+
+    auto def = symbol_cast<ClassSymbol>(memberClass->definition());
+    if (!def || def == memberClass) continue;
+    auto templateDecl = def->templateDeclaration();
+    if (!templateDecl) continue;
+    auto declAst = ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
+    if (!declAst) continue;
+    instantiateDefinition(def, declAst, templateDecl->depth);
   }
 
   for (auto member : pattern->members()) {
@@ -1092,7 +1160,7 @@ void ASTRewriter::instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern) {
       auto declAst = ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
       if (!declAst) continue;
       if (def->findSpecialization(unit_, templateArguments_)) continue;
-      instantiateDefinition(def, declAst, templateDecl);
+      instantiateDefinition(def, declAst, templateDecl->depth);
     }
   }
 
@@ -1187,7 +1255,13 @@ void ASTRewriter::retryPendingMemberTemplateAttachment(FunctionSymbol* member) {
 void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
   if (!unit || !unit->config().checkTypes) return;
 
+  auto stopRequested = [unit] {
+    const auto& stopParsing = unit->config().stopParsingPredicate;
+    return stopParsing && stopParsing();
+  };
+
   auto completeBodies = [&] {
+    if (stopRequested()) return false;
     bool progressed = false;
     for (auto function : unit->takePendingBodyCompletions()) {
       if (!function->hasPendingBody()) continue;
@@ -1199,6 +1273,7 @@ void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
   };
 
   auto instantiateMembers = [&] {
+    if (stopRequested()) return false;
     bool progressed = false;
     for (auto instance : unit->takePendingMemberInstantiations()) {
       if (!instance->isComplete()) continue;

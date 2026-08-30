@@ -23654,4 +23654,95 @@ auto ClientSemanticTokensRequestFullDelta::delta(std::optional<bool> delta)
   (*repr_)["delta"] = std::move(delta.value());
   return *this;
 }
+
+EmitCodeParams::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("textDocument")) return false;
+  if (!repr_->contains("format")) return false;
+  return true;
+}
+
+auto EmitCodeParams::textDocument() const -> TextDocumentIdentifier {
+  auto& value = (*repr_)["textDocument"];
+
+  return TextDocumentIdentifier(value);
+}
+
+auto EmitCodeParams::format() const -> EmitCodeFormat {
+  auto& value = (*repr_)["format"];
+
+  const auto enumValue =
+      string_enums::parseEmitCodeFormat(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for EmitCodeFormat enumeration");
+}
+
+auto EmitCodeParams::debugInfo() const -> std::optional<bool> {
+  if (!repr_->contains("debugInfo")) return std::nullopt;
+
+  auto& value = (*repr_)["debugInfo"];
+
+  if (value.is_null()) value = false;
+  assert(value.is_boolean());
+  return value.get<bool>();
+}
+
+auto EmitCodeParams::textDocument(TextDocumentIdentifier textDocument)
+    -> EmitCodeParams& {
+  (*repr_)["textDocument"] = textDocument;
+  return *this;
+}
+
+auto EmitCodeParams::format(EmitCodeFormat format) -> EmitCodeParams& {
+  (*repr_)["format"] = to_string(format);
+  return *this;
+}
+
+auto EmitCodeParams::debugInfo(std::optional<bool> debugInfo)
+    -> EmitCodeParams& {
+  if (!debugInfo.has_value()) {
+    repr_->erase("debugInfo");
+    return *this;
+  }
+  (*repr_)["debugInfo"] = std::move(debugInfo.value());
+  return *this;
+}
+
+EmitCodeResult::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("format")) return false;
+  if (!repr_->contains("text")) return false;
+  return true;
+}
+
+auto EmitCodeResult::format() const -> EmitCodeFormat {
+  auto& value = (*repr_)["format"];
+
+  const auto enumValue =
+      string_enums::parseEmitCodeFormat(value.get<std::string>());
+
+  if (enumValue.has_value()) return *enumValue;
+
+  lsp_runtime_error("invalid value for EmitCodeFormat enumeration");
+}
+
+auto EmitCodeResult::text() const -> std::string {
+  auto& value = (*repr_)["text"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto EmitCodeResult::format(EmitCodeFormat format) -> EmitCodeResult& {
+  (*repr_)["format"] = to_string(format);
+  return *this;
+}
+
+auto EmitCodeResult::text(std::string text) -> EmitCodeResult& {
+  (*repr_)["text"] = std::move(text);
+  return *this;
+}
 }  // namespace cxx::lsp

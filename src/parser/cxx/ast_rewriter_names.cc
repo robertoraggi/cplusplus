@@ -524,8 +524,7 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
         binder()->resolve(copy->nestedNameSpecifier, copy->templateId, true);
     if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
       copy->symbol = alias;
-      if (auto classType = type_cast<ClassType>(
-              translationUnit()->typeTraits().remove_cv(alias->type()))) {
+      if (auto classType = unqualified_cast<ClassType>(alias->type())) {
         copy->symbol = classType->symbol();
       }
     } else {

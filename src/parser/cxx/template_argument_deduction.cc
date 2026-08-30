@@ -35,11 +35,6 @@
 namespace cxx {
 namespace {
 
-[[nodiscard]] auto withoutTopLevelQualifiers(const Type* type) -> const Type* {
-  if (auto qualType = type_cast<QualType>(type)) return qualType->elementType();
-  return type;
-}
-
 [[nodiscard]] auto parameterTemplateArgumentType(TypeIdAST* typeId)
     -> const Type* {
   if (!typeId) return nullptr;
@@ -343,19 +338,15 @@ auto TemplateArgumentDeduction::isForwardingReference(
 
 auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
     -> bool {
-  auto bareParam = withoutTopLevelQualifiers(traits.remove_reference(P));
+  auto bareParam = unqualified_type(traits.remove_reference(P));
   auto tpt = type_cast<TypeParameterType>(bareParam);
 
-  auto bareArg = withoutTopLevelQualifiers(traits.remove_reference(A));
+  auto bareArg = unqualified_type(traits.remove_reference(A));
 
   if (!tpt) {
     if (auto ptrParam = type_cast<PointerType>(bareParam)) {
-      CvQualifiers cvP = CvQualifiers::kNone;
-      const Type* paramElemBase = ptrParam->elementType();
-      if (auto qual = type_cast<QualType>(paramElemBase)) {
-        cvP = qual->cvQualifiers();
-        paramElemBase = qual->elementType();
-      }
+      auto cvP = cv_qualifiers(ptrParam->elementType());
+      auto paramElemBase = unqualified_type(ptrParam->elementType());
 
       if (auto elemTpt = type_cast<TypeParameterType>(paramElemBase)) {
         const Type* argElemType = nullptr;
@@ -364,21 +355,8 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
         }
 
         if (argElemType) {
-          CvQualifiers cvA = CvQualifiers::kNone;
-          const Type* argElemBase = argElemType;
-          if (auto qual = type_cast<QualType>(argElemType)) {
-            cvA = qual->cvQualifiers();
-            argElemBase = qual->elementType();
-          }
-
-          CvQualifiers cvT = CvQualifiers::kNone;
-          if (is_const(cvA) && !is_const(cvP)) cvT = cvT | CvQualifiers::kConst;
-          if (is_volatile(cvA) && !is_volatile(cvP))
-            cvT = cvT | CvQualifiers::kVolatile;
-
-          const Type* deducedT = cvT != CvQualifiers::kNone
-                                     ? control_->getQualType(argElemBase, cvT)
-                                     : argElemBase;
+          auto cvT = residual_cv_qualifiers(cv_qualifiers(argElemType), cvP);
+          auto deducedT = traits.add_cv(unqualified_type(argElemType), cvT);
 
           auto idx = parameterSlot(elemTpt);
           if (idx >= 0) {
@@ -426,23 +404,9 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
   const Type* deducedArg = A;
 
   if (auto qualP = type_cast<QualType>(traits.remove_reference(P))) {
-    auto cvP = qualP->cvQualifiers();
-
-    CvQualifiers cvA = CvQualifiers::kNone;
-    const Type* argBase = deducedArg;
-    if (auto qualA = type_cast<QualType>(deducedArg)) {
-      cvA = qualA->cvQualifiers();
-      argBase = qualA->elementType();
-    }
-
-    CvQualifiers cvT = CvQualifiers::kNone;
-    if (is_const(cvA) && !is_const(cvP)) cvT = cvT | CvQualifiers::kConst;
-    if (is_volatile(cvA) && !is_volatile(cvP))
-      cvT = cvT | CvQualifiers::kVolatile;
-
-    deducedArg = cvT != CvQualifiers::kNone
-                     ? control_->getQualType(argBase, cvT)
-                     : argBase;
+    auto cvT = residual_cv_qualifiers(cv_qualifiers(deducedArg),
+                                      qualP->cvQualifiers());
+    deducedArg = traits.add_cv(unqualified_type(deducedArg), cvT);
   }
 
   if (templateParams_[idx].isPack) {
@@ -847,11 +811,10 @@ auto TemplateArgumentDeduction::nonTypeParameterIndex(ExpressionAST* expr) const
 
 auto TemplateArgumentDeduction::deduceArrayBound(const Type* P, const Type* A)
     -> bool {
-  auto unresolvedParam =
-      type_cast<UnresolvedBoundedArrayType>(withoutTopLevelQualifiers(P));
+  auto unresolvedParam = unqualified_cast<UnresolvedBoundedArrayType>(P);
   if (!unresolvedParam) return false;
 
-  auto boundedArg = type_cast<BoundedArrayType>(withoutTopLevelQualifiers(A));
+  auto boundedArg = unqualified_cast<BoundedArrayType>(A);
   if (!boundedArg) return false;
 
   auto index = nonTypeParameterIndex(unresolvedParam->size());
@@ -896,7 +859,6 @@ auto TemplateArgumentDeduction::collectDeducedSoFar(
 auto TemplateArgumentDeduction::substituteDefaultTypeId(
     TypeIdAST* typeId, const std::vector<TemplateArgument>& arguments)
     -> TypeIdAST* {
-  SilentDiagnosticsScope silent{unit_};
   return ASTRewriter::substituteDefaultTypeId(
       unit_, typeId, arguments, templateDecl_->depth, templateDecl_->symbol);
 }
@@ -904,7 +866,6 @@ auto TemplateArgumentDeduction::substituteDefaultTypeId(
 auto TemplateArgumentDeduction::substituteDefaultExpression(
     ExpressionAST* expression, const std::vector<TemplateArgument>& arguments)
     -> ExpressionAST* {
-  SilentDiagnosticsScope silent{unit_};
   return ASTRewriter::substituteDefaultExpression(unit_, expression, arguments,
                                                   templateDecl_->depth,
                                                   templateDecl_->symbol);

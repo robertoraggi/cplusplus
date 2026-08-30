@@ -24,6 +24,7 @@ export type UnitOptions = {
   debugInfo?: boolean | undefined;
   exists?: ((path: string) => boolean) | undefined;
   readFile?: ((path: string) => Promise<string | undefined>) | undefined;
+  shouldContinue?: (() => Promise<boolean>) | undefined;
 };
 
 export type DiagnosticList = Array<{
@@ -52,8 +53,31 @@ export interface Unit extends ClassHandle {
   emitCode(_0: EmbindString): any;
 }
 
+export type LanguageServerOptions = {
+  appdir?: string | undefined;
+  sysroot?: string | undefined;
+  std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined;
+  defines?: string[] | undefined;
+  undefines?: string[] | undefined;
+  quoteIncludePaths?: string[] | undefined;
+  includePaths?: string[] | undefined;
+  systemIncludePaths?: string[] | undefined;
+  exists?: ((path: string) => boolean) | undefined;
+  readFile?: ((path: string) => Promise<string | undefined>) | undefined;
+  shouldContinue?: (() => Promise<boolean>) | undefined;
+  onTrace?:
+    ((message: string, verbose: string | undefined) => void) | undefined;
+  onMessage: (message: string) => void;
+};
+
+export interface LanguageServer extends ClassHandle {
+  receive(_0: EmbindString): any;
+}
+
 interface EmbindModule {
   Unit: {};
+  LanguageServer: {};
+  createLanguageServer(_0: LanguageServerOptions): LanguageServer | null;
   getASTKind(_0: number): number;
   getListValue(_0: number): number;
   getListNext(_0: number): number;

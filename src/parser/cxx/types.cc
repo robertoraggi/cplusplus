@@ -85,6 +85,35 @@ auto containsPlaceholderType(const Type* type) -> bool {
   return visit(ContainsPlaceholderType{}, type);
 }
 
+auto unqualified_type(const Type* type) -> const Type* {
+  while (auto qualType = type_cast<QualType>(type)) {
+    type = qualType->elementType();
+  }
+  return type;
+}
+
+auto cv_qualifiers(const Type* type) -> CvQualifiers {
+  auto cv = CvQualifiers::kNone;
+  while (type) {
+    if (auto qualType = type_cast<QualType>(type)) {
+      cv |= qualType->cvQualifiers();
+      type = qualType->elementType();
+    } else if (auto arrayType = type_cast<BoundedArrayType>(type)) {
+      type = arrayType->elementType();
+    } else if (auto arrayType = type_cast<UnboundedArrayType>(type)) {
+      type = arrayType->elementType();
+    } else {
+      break;
+    }
+  }
+  return cv;
+}
+
+auto residual_cv_qualifiers(CvQualifiers argumentCv, CvQualifiers parameterCv)
+    -> CvQualifiers {
+  return argumentCv & ~parameterCv;
+}
+
 auto EnumType::underlyingType() const -> const Type* {
   return symbol()->underlyingType();
 }
@@ -108,8 +137,12 @@ auto memberPointerBaseAdjustment(const MemberObjectPointerType* sourceType,
     -> std::optional<std::int64_t> {
   if (!sourceType || !targetType) return std::nullopt;
 
-  auto baseClass = sourceType->classType()->symbol();
-  auto derivedClass = targetType->classType()->symbol();
+  auto sourceClassType = type_cast<ClassType>(sourceType->classType());
+  auto targetClassType = type_cast<ClassType>(targetType->classType());
+  if (!sourceClassType || !targetClassType) return std::nullopt;
+
+  auto baseClass = sourceClassType->symbol();
+  auto derivedClass = targetClassType->symbol();
   if (!baseClass || !derivedClass) return std::nullopt;
 
   auto offset = derivedClass->resolvedDefinition()->baseClassOffset(baseClass);

@@ -109,6 +109,10 @@ class TranslationUnit {
     return reportingDiagnosticsClient_;
   }
 
+  void setReportingDiagnosticsClient(DiagnosticsClient* client) {
+    reportingDiagnosticsClient_ = client;
+  }
+
   [[nodiscard]] auto templateInstantiationDepth() const -> int {
     return templateInstantiationDepth_;
   }
@@ -119,11 +123,6 @@ class TranslationUnit {
 
   static constexpr int kMaxTemplateInstantiationDepth = 1024;
 
-  void deferBodyDiagnostics(FunctionSymbol* function,
-                            std::vector<Diagnostic> diagnostics);
-  [[nodiscard]] auto takeDeferredBodyDiagnostics(FunctionSymbol* function)
-      -> std::vector<Diagnostic>;
-
   [[nodiscard]] auto fileName() const -> const std::string&;
 
   [[nodiscard]] auto preprocessor() const -> Preprocessor* {
@@ -133,6 +132,12 @@ class TranslationUnit {
   [[nodiscard]] auto language() const -> LanguageKind;
 
   void parse(ParserConfiguration config = {});
+
+  void beginParsing(ParserConfiguration config = {});
+
+  [[nodiscard]] auto continueParsing() -> ParsingState;
+
+  void endParsing();
 
   [[nodiscard]] auto config() const -> const ParserConfiguration&;
 
@@ -213,6 +218,7 @@ class TranslationUnit {
   std::unique_ptr<Control> control_;
   std::unique_ptr<Arena> arena_;
   std::unique_ptr<Preprocessor> preprocessor_;
+  std::unique_ptr<Parser> parser_;
   std::vector<Token> tokens_;
   std::string fileName_;
   UnitAST* ast_ = nullptr;
@@ -224,8 +230,6 @@ class TranslationUnit {
   std::vector<ClassSymbol*> pendingMemberInstantiations_;
   std::unordered_set<ClassSymbol*> instantiatedMemberClasses_;
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
-  std::unordered_map<FunctionSymbol*, std::vector<Diagnostic>>
-      deferredBodyDiagnostics_;
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
   int templateInstantiationDepth_ = 0;

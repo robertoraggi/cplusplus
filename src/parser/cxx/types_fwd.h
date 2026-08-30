@@ -98,36 +98,48 @@ enum class CvQualifiers {
   kConstVolatile = kConst | kVolatile,
 };
 
-[[nodiscard]] inline auto operator|(CvQualifiers a, CvQualifiers b)
+[[nodiscard]] constexpr auto operator|(CvQualifiers a, CvQualifiers b)
     -> CvQualifiers {
   return CvQualifiers(std::to_underlying(a) | std::to_underlying(b));
 }
 
-[[nodiscard]] inline auto operator&(CvQualifiers a, CvQualifiers b)
+[[nodiscard]] constexpr auto operator&(CvQualifiers a, CvQualifiers b)
     -> CvQualifiers {
   return CvQualifiers(std::to_underlying(a) & std::to_underlying(b));
 }
 
-[[nodiscard]] inline auto operator~(CvQualifiers a) -> CvQualifiers {
+[[nodiscard]] constexpr auto operator~(CvQualifiers a) -> CvQualifiers {
   return CvQualifiers(~std::to_underlying(a) &
                       std::to_underlying(CvQualifiers::kConstVolatile));
 }
 
-[[nodiscard]] inline auto operator<(CvQualifiers a, CvQualifiers b) -> bool {
-  return std::to_underlying(a) < std::to_underlying(b);
+constexpr auto operator|=(CvQualifiers& a, CvQualifiers b) -> CvQualifiers& {
+  a = a | b;
+  return a;
 }
 
-[[nodiscard]] inline auto is_const(CvQualifiers cv) -> bool {
+constexpr auto operator&=(CvQualifiers& a, CvQualifiers b) -> CvQualifiers& {
+  a = a & b;
+  return a;
+}
+
+[[nodiscard]] constexpr auto has_const(CvQualifiers cv) -> bool {
   return (cv & CvQualifiers::kConst) != CvQualifiers::kNone;
 }
 
-[[nodiscard]] inline auto is_volatile(CvQualifiers cv) -> bool {
+[[nodiscard]] constexpr auto has_volatile(CvQualifiers cv) -> bool {
   return (cv & CvQualifiers::kVolatile) != CvQualifiers::kNone;
 }
 
-[[nodiscard]] inline auto cv_is_subset_of(CvQualifiers a, CvQualifiers b)
+[[nodiscard]] constexpr auto is_at_least_as_cv_qualified(CvQualifiers cv,
+                                                         CvQualifiers other)
     -> bool {
-  return (a & ~b) == CvQualifiers::kNone;
+  return (other & ~cv) == CvQualifiers::kNone;
+}
+
+[[nodiscard]] constexpr auto is_more_cv_qualified(CvQualifiers cv,
+                                                  CvQualifiers other) -> bool {
+  return cv != other && is_at_least_as_cv_qualified(cv, other);
 }
 
 enum class RefQualifier {

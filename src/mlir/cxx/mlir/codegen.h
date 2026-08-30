@@ -260,6 +260,9 @@ class Codegen {
 
   void emitAggregateInit(mlir::Value address, const Type* type,
                          BracedInitListAST* ast);
+  void emitAggregateInit(mlir::Value address, const Type* type,
+                         List<ExpressionAST*>* initializerList,
+                         SourceLocation location);
   void emitLocalVariableInit(VariableSymbol* var, ExpressionAST* initializer);
   void emitReferenceInit(VariableSymbol* var, mlir::Value local,
                          ExpressionAST* initExpr, mlir::Location loc);
@@ -316,8 +319,6 @@ class Codegen {
   [[nodiscard]] auto hasInternalLinkage(Symbol* symbol) const -> bool;
   [[nodiscard]] auto hasVagueFunctionEmission(FunctionSymbol* function) const
       -> bool;
-
-  void reportDeferredBodyDiagnostics(FunctionSymbol* functionSymbol);
 
   [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
       -> mlir::cxx::FuncOp;

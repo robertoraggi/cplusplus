@@ -133,6 +133,15 @@ struct Parser::LoopParser {
   }
 };
 
+struct Parser::TopLevelDeclarationSequence {
+  LoopParser loop;
+  List<DeclarationAST*>** it;
+  bool skipping = false;
+
+  TopLevelDeclarationSequence(Parser* p, List<DeclarationAST*>** it)
+      : loop(p), it(it) {}
+};
+
 struct Parser::ExprContext {
   bool templParam = false;
   bool templArg = false;
@@ -294,8 +303,10 @@ struct Parser::EnclosingTemplateHeadGuard {
 
 struct Parser::UnevaluatedOperandGuard {
   Parser* parser;
+  TranslationUnit::PotentiallyEvaluatedScope unevaluated;
 
-  explicit UnevaluatedOperandGuard(Parser* parser) : parser(parser) {
+  explicit UnevaluatedOperandGuard(Parser* parser)
+      : parser(parser), unevaluated(parser->unit_, false) {
     ++parser->unevaluatedOperandDepth_;
   }
 
@@ -395,13 +406,9 @@ auto Parser::expect(TokenKind tk, SourceLocation& location) -> bool {
   return false;
 }
 
-void Parser::operator()(UnitAST*& ast) { parse(ast); }
-
 auto Parser::config() const -> const ParserConfiguration& {
   return unit_->config();
 }
-
-void Parser::parse(UnitAST*& ast) { parse_translation_unit(ast); }
 
 void Parser::parse_warn(std::string message) {
   unit_->warning(SourceLocation(cursor_), std::move(message));
@@ -796,12 +803,47 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
   }
 }
 
-void Parser::parse_translation_unit(UnitAST*& yyast) {
-  if (parse_module_unit(yyast)) {
-    ASTRewriter::completePendingMemberInstantiations(unit_);
-    return;
+void Parser::beginParsing(UnitAST*& yyast) {
+  if (parse_module_unit(yyast)) return;
+
+  auto ast = TranslationUnitAST::create(pool_);
+  yyast = ast;
+
+  moduleUnit_ = false;
+
+  topLevelDeclarationSequence_ = std::make_unique<TopLevelDeclarationSequence>(
+      this, &ast->declarationList);
+}
+
+auto Parser::continueParsing() -> ParsingState {
+  if (!topLevelDeclarationSequence_) return ParsingComplete{};
+
+  auto& sequence = *topLevelDeclarationSequence_;
+
+  if (!LA()) return ParsingComplete{};
+  if (shouldStopParsing()) return ParsingComplete{};
+
+  sequence.loop.start();
+
+  DeclarationAST* declaration = nullptr;
+
+  if (!parse_declaration(declaration, BindingContext::kNamespace)) {
+    parse_skip_declaration(sequence.skipping);
+    return CanContinueParsing{};
   }
-  parse_top_level_declaration_seq(yyast);
+
+  sequence.skipping = false;
+
+  if (declaration) {
+    *sequence.it = make_list_node(pool_, declaration);
+    sequence.it = &(*sequence.it)->next;
+  }
+
+  return CanContinueParsing{};
+}
+
+void Parser::endParsing() {
+  topLevelDeclarationSequence_.reset();
   ASTRewriter::completePendingMemberInstantiations(unit_);
 }
 
@@ -844,39 +886,6 @@ auto Parser::parse_module_unit(UnitAST*& yyast) -> bool {
   expect(TokenKind::T_EOF_SYMBOL, eofLoc);
 
   return true;
-}
-
-void Parser::parse_top_level_declaration_seq(UnitAST*& yyast) {
-  auto ast = TranslationUnitAST::create(pool_);
-  yyast = ast;
-
-  moduleUnit_ = false;
-
-  auto it = &ast->declarationList;
-
-  LoopParser loop(this);
-
-  bool skipping = false;
-
-  while (LA()) {
-    if (shouldStopParsing()) break;
-
-    loop.start();
-
-    DeclarationAST* declaration = nullptr;
-
-    if (!parse_declaration(declaration, BindingContext::kNamespace)) {
-      parse_skip_declaration(skipping);
-      continue;
-    }
-
-    skipping = false;
-
-    if (declaration) {
-      *it = make_list_node(pool_, declaration);
-      it = &(*it)->next;
-    }
-  }
 }
 
 void Parser::parse_declaration_seq(List<DeclarationAST*>*& yyast) {
@@ -1100,7 +1109,7 @@ auto Parser::constructorCandidatesOf(const Type* type)
     -> std::vector<FunctionSymbol*> {
   if (!type) return {};
 
-  auto classType = type_cast<ClassType>(unit_->typeTraits().remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return {};
 
   auto classSymbol = classType->symbol();
@@ -1658,8 +1667,7 @@ auto Parser::parse_template_nested_name_specifier(
             binder_.resolve(ast->nestedNameSpecifier, templateId, true);
 
         if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
-          if (auto classType =
-                  type_cast<ClassType>(traits.remove_cv(alias->type()))) {
+          if (auto classType = unqualified_cast<ClassType>(alias->type())) {
             ast->symbol = classType->symbol();
           }
         } else {
@@ -1699,8 +1707,7 @@ auto Parser::parse_template_nested_name_specifier(
         }
       }
     } else if (auto alias = symbol_cast<TypeAliasSymbol>(templateId->symbol)) {
-      if (auto classType =
-              type_cast<ClassType>(traits.remove_cv(alias->type())))
+      if (auto classType = unqualified_cast<ClassType>(alias->type()))
         ast->symbol = classType->symbol();
     }
   }
@@ -1773,13 +1780,14 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   CombinedScopeGuard templateScopeGuard{this};
 
   if (match(TokenKind::T_LESS, ast->lessLoc)) {
+    ExplicitTemplateHeadGuard explicitTemplateHeadGuard{this};
+    pushScope(ast->symbol);
+
     parse_template_parameter_list(ast->templateParameterList);
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
     ast->symbol->setTemplate(true);
-
-    pushScope(ast->symbol);
 
     (void)parse_requires_clause(ast->templateRequiresClause);
   }
@@ -4247,7 +4255,7 @@ auto Parser::parse_compound_statement(CompoundStatementAST*& yyast,
 
     const Type* elementType = control()->getCharType();
     if (isCxx()) {
-      elementType = control()->getConstType(elementType);
+      elementType = control()->getQualType(elementType, CvQualifiers::kConst);
     }
 
     func->setType(
@@ -5237,10 +5245,7 @@ auto Parser::parse_simple_declaration(
 
     lookahead.commit();
 
-    if (ast_cast<DefaultFunctionBodyAST>(functionBody))
-      functionSymbol->setDefaulted(true);
-    if (ast_cast<DeleteFunctionBodyAST>(functionBody))
-      functionSymbol->setDeleted(true);
+    binder_.applyFunctionDefinitionKind(functionSymbol, functionBody);
 
     binder_.applyAbiTags(functionSymbol, attributes);
 
@@ -5435,10 +5440,7 @@ auto Parser::parse_notypespec_function_definition(
 
   if (!parse_function_body(functionBody)) parse_error("expected function body");
 
-  if (ast_cast<DefaultFunctionBodyAST>(functionBody))
-    functionSymbol->setDefaulted(true);
-  if (ast_cast<DeleteFunctionBodyAST>(functionBody))
-    functionSymbol->setDeleted(true);
+  binder_.applyFunctionDefinitionKind(functionSymbol, functionBody);
 
   auto ast = FunctionDefinitionAST::create(pool_);
   yyast = ast;
@@ -8296,6 +8298,14 @@ auto Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool {
   if (!parse_qualified_namespace_specifier(ast->nestedNameSpecifier,
                                            ast->unqualifiedId)) {
     parse_error("expected a namespace name");
+  } else {
+    NamespaceSymbol* resolvedNamespace = nullptr;
+    if (!ast->nestedNameSpecifier && ast->unqualifiedId &&
+        ast->unqualifiedId->identifier) {
+      resolvedNamespace = unqualifiedLookupNamespace(
+          lexicalScope_, ast->unqualifiedId->identifier);
+    }
+    binder_.bind(ast, resolvedNamespace);
   }
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
@@ -9597,10 +9607,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
 
     if (classDepth_) functionSymbol->setInline(true);
 
-    if (ast_cast<DefaultFunctionBodyAST>(functionBody))
-      functionSymbol->setDefaulted(true);
-    if (ast_cast<DeleteFunctionBodyAST>(functionBody))
-      functionSymbol->setDeleted(true);
+    binder_.applyFunctionDefinitionKind(functionSymbol, functionBody);
 
     binder_.applyAbiTags(functionSymbol, attributes);
 

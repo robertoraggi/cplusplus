@@ -43,8 +43,7 @@ auto memberFunctionKey(FunctionSymbol* fn) -> std::pair<bool, std::size_t> {
   bool isConst = false;
   std::size_t arity = 0;
   if (auto ft = type_cast<FunctionType>(fn->type())) {
-    isConst = ft->cvQualifiers() == CvQualifiers::kConst ||
-              ft->cvQualifiers() == CvQualifiers::kConstVolatile;
+    isConst = has_const(ft->cvQualifiers());
     arity = ft->parameterTypes().size();
   }
   return {isConst, arity};
@@ -112,6 +111,13 @@ void ASTRewriter::remapScopeMembers(ScopeSymbol* oldScope,
     if (index >= candidates.size()) continue;
     auto newMember = candidates[index++];
     addSymbolRemap(oldMember, newMember);
+
+    if (auto oldMemberClass = symbol_cast<ClassSymbol>(oldMember)) {
+      if (auto newMemberClass = symbol_cast<ClassSymbol>(newMember)) {
+        if (!newMemberClass->instantiationPattern())
+          newMemberClass->setInstantiationPattern(oldMemberClass);
+      }
+    }
     if (symbol_cast<OverloadSetSymbol>(oldMember) ||
         symbol_cast<OverloadSetSymbol>(newMember)) {
       std::vector<FunctionSymbol*> oldFns, newFns;
@@ -202,13 +208,8 @@ void ASTRewriter::remapFunctionParameters(
 
 void ASTRewriter::checkMemInitializers(FunctionSymbol* function,
                                        CompoundStatementFunctionBodyAST* body) {
-  auto client = unit_->diagnosticsClient();
-
-  std::optional<CapturingDiagnosticsClient> capture;
-  if (client->isSfinae()) {
-    capture.emplace();
-    (void)unit_->changeDiagnosticsClient(&*capture);
-  }
+  std::optional<CapturingDiagnosticsScope> capture;
+  if (unit_->diagnosticsClient()->isSfinae()) capture.emplace(unit_);
 
   TypeChecker check{unit_};
   check.setScope(function);
@@ -233,10 +234,10 @@ void ASTRewriter::checkMemInitializers(FunctionSymbol* function,
     check.check_mem_initializers(body);
   }
 
-  if (!capture) return;
+  if (!capture.has_value()) return;
 
-  (void)unit_->changeDiagnosticsClient(client);
-  unit_->deferBodyDiagnostics(function, std::move(capture->diagnostics));
+  capture->finish();
+  reportOutsideImmediateContext(unit_, capture->diagnostics());
 }
 
 auto ASTRewriter::completePendingBodyFor(TranslationUnit* unit,
@@ -252,8 +253,15 @@ void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
                                             FunctionSymbol* function) {
   if (!unit || !function) return;
   if (!unit->isPotentiallyEvaluated()) return;
+  const auto alreadyRequired = function->isDefinitionRequired();
   function->setDefinitionRequired(true);
   unit->addPendingBodyCompletion(function);
+  if (alreadyRequired) return;
+  if (!function->hasPendingBody()) {
+    auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
+    rewriter.binder_.synthesizeDefaultedMemberBody(function);
+  }
+  requireFunctionDefinition(unit, function->inheritedConstructor());
 }
 
 void ASTRewriter::requireFieldDefinition(TranslationUnit* unit,
@@ -337,26 +345,23 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
   const bool deferDiagnostics =
       !captureBodyErrors && unit_->diagnosticsClient()->isSfinae();
 
-  std::optional<CapturingDiagnosticsClient> capture;
-  DiagnosticsClient* savedClient = nullptr;
-  if (captureBodyErrors || deferDiagnostics) {
-    capture.emplace();
-    savedClient = unit_->changeDiagnosticsClient(&*capture);
-  }
-  auto finish = [&](std::vector<Diagnostic> extra = {}) {
-    if (!capture) return extra;
+  std::optional<CapturingDiagnosticsScope> capture;
+  if (captureBodyErrors || deferDiagnostics) capture.emplace(unit_);
 
-    (void)unit_->changeDiagnosticsClient(savedClient);
-
-    if (deferDiagnostics) {
-      unit_->deferBodyDiagnostics(func, std::move(capture->diagnostics));
-      return extra;
+  auto finish =
+      [&](std::vector<Diagnostic> bodyErrors = {}) -> std::vector<Diagnostic> {
+    if (capture.has_value()) {
+      capture->finish();
+      auto captured = capture->takeDiagnostics();
+      bodyErrors.insert(bodyErrors.end(),
+                        std::make_move_iterator(captured.begin()),
+                        std::make_move_iterator(captured.end()));
     }
 
-    extra.insert(extra.end(),
-                 std::make_move_iterator(capture->diagnostics.begin()),
-                 std::make_move_iterator(capture->diagnostics.end()));
-    return extra;
+    if (captureBodyErrors) return bodyErrors;
+
+    reportOutsideImmediateContext(unit_, bodyErrors);
+    return {};
   };
 
   auto newAst = func->declaration();

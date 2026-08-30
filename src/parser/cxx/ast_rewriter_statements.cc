@@ -25,6 +25,7 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
+#include <cxx/initialization.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -136,15 +137,6 @@ auto ASTRewriter::memInitializer(MemInitializerAST* ast) -> MemInitializerAST* {
 }
 
 namespace {
-[[nodiscard]] auto memInitializerId(MemInitializerAST* ast)
-    -> UnqualifiedIdAST* {
-  if (auto paren = ast_cast<ParenMemInitializerAST>(ast))
-    return paren->unqualifiedId;
-  if (auto braced = ast_cast<BracedMemInitializerAST>(ast))
-    return braced->unqualifiedId;
-  return nullptr;
-}
-
 [[nodiscard]] auto isPackExpansion(MemInitializerAST* ast) -> bool {
   if (auto paren = ast_cast<ParenMemInitializerAST>(ast))
     return bool(paren->ellipsisLoc);
@@ -211,6 +203,13 @@ void ASTRewriter::MemInitializerVisitor::resolveBase(
     baseClass = rewrite.substitutedTemplateParameterClass(base->symbol());
     if (!baseClass && symbol_cast<TypeParameterSymbol>(base->symbol()))
       copy->symbol = ast->symbol;
+    if (!baseClass && symbol_cast<ClassSymbol>(base->symbol()))
+      baseClass = base->symbol();
+  }
+
+  if (!baseClass && symbol_cast<TypeParameterSymbol>(ast->symbol)) {
+    baseClass = rewrite.substitutedTemplateParameterClass(ast->symbol);
+    if (!baseClass) copy->symbol = ast->symbol;
   }
 
   if (!baseClass && ast_cast<SimpleTemplateIdAST>(unqualifiedId)) {

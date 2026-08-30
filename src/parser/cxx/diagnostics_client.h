@@ -115,23 +115,6 @@ class SilentDiagnosticsClient final : public DiagnosticsClient {
   std::vector<Diagnostic> diagnostics_;
 };
 
-class SilentDiagnosticsScope {
- public:
-  explicit SilentDiagnosticsScope(TranslationUnit* unit, bool sfinae = true);
-  ~SilentDiagnosticsScope();
-
-  SilentDiagnosticsScope(const SilentDiagnosticsScope&) = delete;
-  auto operator=(const SilentDiagnosticsScope&)
-      -> SilentDiagnosticsScope& = delete;
-
-  [[nodiscard]] auto hadError() const -> bool { return client_.hadError(); }
-
- private:
-  TranslationUnit* unit_;
-  SilentDiagnosticsClient client_;
-  DiagnosticsClient* saved_;
-};
-
 struct CapturingDiagnosticsClient final : DiagnosticsClient {
   DiagnosticsClient* parent = nullptr;
   std::vector<Diagnostic> diagnostics;
@@ -143,5 +126,87 @@ struct CapturingDiagnosticsClient final : DiagnosticsClient {
     diagnostics.push_back(diagnostic);
     if (parent) parent->report(diagnostic);
   }
+};
+
+auto reportOutsideImmediateContext(TranslationUnit* unit,
+                                   const std::vector<Diagnostic>& diagnostics)
+    -> bool;
+
+class DiagnosticsClientScope {
+ public:
+  DiagnosticsClientScope(TranslationUnit* unit, DiagnosticsClient* client);
+  ~DiagnosticsClientScope();
+
+  DiagnosticsClientScope(const DiagnosticsClientScope&) = delete;
+  auto operator=(const DiagnosticsClientScope&)
+      -> DiagnosticsClientScope& = delete;
+
+  void restore();
+
+  [[nodiscard]] auto previousClient() const -> DiagnosticsClient* {
+    return previousClient_;
+  }
+
+ private:
+  TranslationUnit* unit_;
+  DiagnosticsClient* previousClient_;
+  DiagnosticsClient* previousReportingClient_;
+  bool restored_ = false;
+};
+
+class SilentDiagnosticsScope {
+ public:
+  explicit SilentDiagnosticsScope(TranslationUnit* unit, bool sfinae = true)
+      : client_(sfinae), scope_(unit, &client_) {}
+
+  SilentDiagnosticsScope(const SilentDiagnosticsScope&) = delete;
+  auto operator=(const SilentDiagnosticsScope&)
+      -> SilentDiagnosticsScope& = delete;
+
+  void finish() { scope_.restore(); }
+
+  [[nodiscard]] auto hadError() const -> bool { return client_.hadError(); }
+
+  [[nodiscard]] auto diagnostics() const -> const std::vector<Diagnostic>& {
+    return client_.diagnostics();
+  }
+
+  [[nodiscard]] auto previousClient() const -> DiagnosticsClient* {
+    return scope_.previousClient();
+  }
+
+ private:
+  SilentDiagnosticsClient client_;
+  DiagnosticsClientScope scope_;
+};
+
+class CapturingDiagnosticsScope {
+ public:
+  explicit CapturingDiagnosticsScope(TranslationUnit* unit)
+      : scope_(unit, &client_) {}
+
+  CapturingDiagnosticsScope(const CapturingDiagnosticsScope&) = delete;
+  auto operator=(const CapturingDiagnosticsScope&)
+      -> CapturingDiagnosticsScope& = delete;
+
+  void forwardToPreviousClient() { client_.parent = scope_.previousClient(); }
+
+  void finish() { scope_.restore(); }
+
+  [[nodiscard]] auto diagnostics() const -> const std::vector<Diagnostic>& {
+    return client_.diagnostics;
+  }
+
+  auto takeDiagnostics() -> std::vector<Diagnostic> {
+    return std::move(client_.diagnostics);
+  }
+
+  [[nodiscard]] auto previousClient() const -> DiagnosticsClient* {
+    return scope_.previousClient();
+  }
+
+ private:
+  CapturingDiagnosticsClient client_;
+  DiagnosticsClientScope scope_;
 };
 }  // namespace cxx

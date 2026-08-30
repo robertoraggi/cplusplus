@@ -160,6 +160,8 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
         hasDependentTemplateArguments(binder.unit_, templateId)) {
       auto placeholder = control()->newTypeAliasSymbol(nullptr, {});
       placeholder->setName(templateId->identifier);
+      if (auto alias = symbol_cast<TypeAliasSymbol>(templateId->symbol))
+        placeholder->setTemplateDeclaration(alias->templateDeclaration());
       return placeholder;
     }
   }

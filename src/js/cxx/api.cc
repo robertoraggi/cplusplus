@@ -27,35 +27,15 @@
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
 #include <cxx/wasm32_wasi_toolchain.h>
-
-// emscripten
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
-#include <format>
 #include <optional>
-#include <sstream>
 
-#ifdef CXX_WITH_MLIR
-// cxx
-#include <cxx/memory_layout.h>
-#include <cxx/mlir/codegen.h>
-#include <cxx/mlir/cxx_dialect.h>
-#include <cxx/mlir/cxx_dialect_conversions.h>
-
-// mlir
-#include <mlir/IR/MLIRContext.h>
-
-// llvm
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/Module.h>
-#include <llvm/MC/TargetRegistry.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Support/raw_os_ostream.h>
-#include <llvm/Target/TargetMachine.h>
-#endif
+#include "async_parse.h"
+#include "emit_code.h"
+#include "toolchain_options.h"
 
 using namespace emscripten;
 
@@ -128,76 +108,23 @@ struct WrappedUnit {
   std::unique_ptr<cxx::TranslationUnit> unit;
   std::unique_ptr<cxx::Wasm32WasiToolchain> toolchain;
   UnitOptions api;
+  std::string source;
+  std::string fileName;
   bool debugInfo = true;
 
-  WrappedUnit(std::string source, std::string filename, UnitOptions api)
-      : api(api) {
+  WrappedUnit(std::string source, std::string fileName, UnitOptions api)
+      : api(api), source(std::move(source)), fileName(std::move(fileName)) {
     diagnosticsClient = std::make_unique<DiagnosticsClient>();
 
     unit = std::make_unique<cxx::TranslationUnit>(diagnosticsClient.get());
 
-    if (auto preprocessor = unit->preprocessor()) {
-      toolchain = std::make_unique<cxx::Wasm32WasiToolchain>(preprocessor);
-
-      if (!api.isUndefined()) {
-        if (val appdir = api["appdir"]; appdir.isString()) {
-          toolchain->setAppdir(appdir.as<std::string>());
-        }
-
-        if (val sysroot = api["sysroot"]; sysroot.isString()) {
-          toolchain->setSysroot(sysroot.as<std::string>());
-        }
-
-        if (val value = api["debugInfo"]; value.isTrue() || value.isFalse()) {
-          debugInfo = value.as<bool>();
-        }
-
-        if (val standard = api["std"]; standard.isString()) {
-          auto languageStandard =
-              cxx::findLanguageStandard(standard.as<std::string>());
-
-          if (languageStandard &&
-              languageStandard->language == toolchain->language()) {
-            toolchain->setLanguageStandard(languageStandard);
-          }
-        }
+    if (!api.isUndefined()) {
+      if (val value = api["debugInfo"]; value.isTrue() || value.isFalse()) {
+        debugInfo = value.as<bool>();
       }
-
-      toolchain->initMemoryLayout();
-      toolchain->addSystemCppIncludePaths();
-      toolchain->addSystemIncludePaths();
-      toolchain->addPredefinedMacros();
-
-      addIncludePaths("quoteIncludePaths", [&](std::string path) {
-        preprocessor->addQuoteIncludePath(std::move(path));
-      });
-
-      addIncludePaths("includePaths", [&](std::string path) {
-        preprocessor->addUserIncludePath(std::move(path));
-      });
-
-      addIncludePaths("systemIncludePaths", [&](std::string path) {
-        preprocessor->addSystemIncludePath(std::move(path));
-      });
-
-      for (const auto& macro : stringArray("undefines")) {
-        preprocessor->undefMacro(macro);
-      }
-
-      for (const auto& macro : stringArray("defines")) {
-        auto sep = macro.find_first_of('=');
-        if (sep == std::string::npos) {
-          preprocessor->defineMacro(macro, "1");
-        } else {
-          preprocessor->defineMacro(macro.substr(0, sep),
-                                    macro.substr(sep + 1));
-        }
-      }
-
-      preprocessor->setCanResolveFiles(true);
     }
 
-    unit->beginPreprocessing(std::move(source), std::move(filename));
+    toolchain = cxx::js::configureToolchain(unit.get(), api);
   }
 
   auto getUnitHandle() const -> std::intptr_t {
@@ -210,82 +137,21 @@ struct WrappedUnit {
     return DiagnosticList(diagnosticsClient->messages);
   }
 
-  auto stringArray(const char* name) const -> std::vector<std::string> {
-    val value = api[name];
-    if (!value.isArray()) return {};
-    return vecFromJSArray<std::string>(value);
-  }
-
-  template <typename F>
-  void addIncludePaths(const char* name, F&& add) {
-    for (auto& path : stringArray(name)) add(std::move(path));
-  }
-
   auto parse() -> val {
-    val exists = val::undefined();
-    val readFile = val::undefined();
-
-    if (!api.isUndefined()) {
-      exists = api["exists"];
-      readFile = api["readFile"];
-    }
-
-    auto findCandidate =
-        [&exists](const std::vector<cxx::IncludeCandidate>& candidates)
-        -> const cxx::IncludeCandidate* {
-      if (exists.isUndefined()) return nullptr;
-
-      for (auto& candidate : candidates) {
-        if (exists(candidate.fileName).as<bool>()) return &candidate;
-      }
-
-      return nullptr;
+    cxx::js::AsyncParseRequest request{
+        .unit = unit.get(),
+        .source = std::move(source),
+        .fileName = fileName,
+        .config = {.checkTypes = true},
     };
 
-    while (true) {
-      auto state = unit->continuePreprocessing();
-
-      if (std::holds_alternative<cxx::ProcessingComplete>(state)) break;
-
-      if (auto pendingInclude = std::get_if<cxx::PendingInclude>(&state)) {
-        auto candidates = pendingInclude->candidates();
-
-        if (auto found = findCandidate(candidates)) {
-          pendingInclude->resolveWith(found->fileName, found->isSystemHeader);
-        } else {
-          pendingInclude->resolveWith(std::nullopt);
-        }
-
-      } else if (auto pendingHasIncludes =
-                     std::get_if<cxx::PendingHasIncludes>(&state)) {
-        for (auto& request : pendingHasIncludes->requests) {
-          auto candidates = request.candidates();
-          request.setExists(findCandidate(candidates) != nullptr);
-        }
-      } else if (auto pendingFileContent =
-                     std::get_if<cxx::PendingFileContent>(&state)) {
-        if (readFile.isUndefined()) {
-          pendingFileContent->setContent(std::nullopt);
-          continue;
-        }
-
-        val content = co_await readFile(pendingFileContent->fileName);
-
-        if (content.isString()) {
-          pendingFileContent->setContent(content.as<std::string>());
-        } else {
-          pendingFileContent->setContent(std::nullopt);
-        }
-      }
+    if (!api.isUndefined()) {
+      request.exists = api["exists"];
+      request.readFile = api["readFile"];
+      request.shouldContinue = api["shouldContinue"];
     }
 
-    unit->endPreprocessing();
-
-    unit->parse(cxx::ParserConfiguration{
-        .checkTypes = true,
-    });
-
-    co_return val{true};
+    return cxx::js::asyncParse(std::move(request));
   }
 
   auto emitCode(const std::string& format) -> val {
@@ -296,103 +162,23 @@ struct WrappedUnit {
       return val(std::string{});
     };
 
-#ifdef CXX_WITH_MLIR
-    if (diagnosticsClient->hasErrors) {
-      return emptyOutput();
-    }
+    if (diagnosticsClient->hasErrors) return emptyOutput();
 
-    mlir::MLIRContext context{mlir::MLIRContext::Threading::DISABLED};
+    auto generated = cxx::js::generateCode(unit.get(), format, debugInfo);
 
-    context.loadDialect<mlir::cxx::CxxDialect>();
+    if (!generated) return emptyOutput();
 
-    cxx::Codegen codegen(context, unit.get(), debugInfo);
+    if (!objectFile) return val(std::move(generated->text));
 
-    auto ir = codegen(unit->ast());
+    auto& objectCode = generated->objectCode;
 
-    std::ostringstream out;
-    llvm::raw_os_ostream os(out);
+    auto result = val::global("Uint8Array").new_(objectCode.size());
 
-    auto textOutput = [&] {
-      os.flush();
-      return val(out.str());
-    };
-
-    if (format == "cxxir") {
-      mlir::OpPrintingFlags flags;
-      if (debugInfo) flags.enableDebugInfo(true);
-      ir.module->print(os, flags);
-      return textOutput();
-    }
-
-    if (failed(cxx::lowerToMLIR(ir.module))) {
-      if (objectFile) return emptyOutput();
-      return val(std::format("<error lowering to {}>", format));
-    }
-
-    if (format == "mlir") {
-      mlir::OpPrintingFlags flags;
-      if (debugInfo) flags.enableDebugInfo(true);
-      ir.module->print(os, flags);
-      return textOutput();
-    }
-
-    llvm::LLVMContext llvmContext;
-    auto llvmModule = cxx::exportToLLVMIR(ir.module, llvmContext);
-    llvmModule->setSourceFileName(unit->fileName());
-
-    if (format == "llvm") {
-      llvmModule->print(os, nullptr);
-      return textOutput();
-    }
-
-    LLVMInitializeWebAssemblyTargetInfo();
-    LLVMInitializeWebAssemblyTarget();
-    LLVMInitializeWebAssemblyTargetMC();
-    LLVMInitializeWebAssemblyAsmPrinter();
-
-    llvm::TargetOptions opt;
-
-    auto RM = std::optional<llvm::Reloc::Model>();
-
-    auto triple = llvm::Triple{codegen.control()->memoryLayout()->triple()};
-
-    std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(triple, error);
-
-    auto targetMachine = target->createTargetMachine(llvm::Triple{triple},
-                                                     "generic", "", opt, RM);
-
-    llvm::legacy::PassManager pm;
-
-    llvm::SmallString<0> outputBuffer;
-    llvm::raw_svector_ostream outBytes(outputBuffer);
-
-    llvm::CodeGenFileType fileType = objectFile
-                                         ? llvm::CodeGenFileType::ObjectFile
-                                         : llvm::CodeGenFileType::AssemblyFile;
-
-    if (targetMachine->addPassesToEmitFile(pm, outBytes, nullptr, fileType)) {
-      return emptyOutput();
-    }
-
-    pm.run(*llvmModule);
-
-    if (!objectFile) {
-      return val(std::string(outputBuffer.begin(), outputBuffer.size()));
-    }
-
-    auto result = val::global("Uint8Array").new_(outputBuffer.size());
-
-    val memory = val(typed_memory_view(
-        outputBuffer.size(),
-        reinterpret_cast<const unsigned char*>(outputBuffer.data())));
+    val memory = val(typed_memory_view(objectCode.size(), objectCode.data()));
 
     result.call<void>("set", memory);
 
     return result;
-#endif
-
-    return emptyOutput();
   }
 };
 
@@ -492,11 +278,9 @@ auto getASTSlotCount(std::intptr_t handle, int slot) -> int {
   return static_cast<int>(slotCount);
 }
 
-auto createUnit(std::string source, std::string filename, UnitOptions api)
+auto createUnit(std::string source, std::string fileName, UnitOptions api)
     -> WrappedUnit* {
-  auto wrapped = new WrappedUnit(std::move(source), std::move(filename), api);
-
-  return wrapped;
+  return new WrappedUnit(std::move(source), std::move(fileName), api);
 }
 
 }  // namespace
@@ -504,7 +288,7 @@ auto createUnit(std::string source, std::string filename, UnitOptions api)
 EMSCRIPTEN_BINDINGS(cxx) {
   register_type<UnitOptions>(
       "UnitOptions",
-      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined })");
+      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
 
   register_type<DiagnosticList>(
       "DiagnosticList",

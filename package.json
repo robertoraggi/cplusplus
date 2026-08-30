@@ -43,7 +43,7 @@
     "setup-venv": "node scripts/setup-venv.js",
     "update-tests": "node scripts/update-tests.js",
     "cxx-gen-ast": "node --no-warnings packages/cxx-gen-ast/src/gen.ts",
-    "cxx-gen-lsp": "node --no-warnings packages/cxx-gen-lsp/src/main.ts packages/cxx-gen-lsp/metaModel.json packages/cxx-gen-lsp -o src/lsp/cxx/lsp",
+    "cxx-gen-lsp": "node --no-warnings packages/cxx-gen-lsp/src/main.ts packages/cxx-gen-lsp/metaModel.json -e packages/cxx-gen-lsp/extensions.json -o src/lsp/cxx/lsp",
     "download-lsp-model": "node scripts/download-lsp-model.js",
     "download-mlir": "gh run download -n mlir --dir build.em/llvm-project/install/"
   }

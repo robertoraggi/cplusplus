@@ -462,13 +462,15 @@ auto ASTRewriter::ConstraintSubsumption::subsumes(
 auto ASTRewriter::ConstraintSubsumption::isMoreConstrained(Symbol* symbol,
                                                            Symbol* other)
     -> bool {
-  SilentDiagnosticsClient silent;
-  auto saved = unit->changeDiagnosticsClient(&silent);
+  std::optional<Constraint> lhs;
+  std::optional<Constraint> rhs;
 
-  auto lhs = normalizeAssociatedConstraints(symbol);
-  auto rhs = normalizeAssociatedConstraints(other);
+  {
+    SilentDiagnosticsScope silent{unit};
 
-  (void)unit->changeDiagnosticsClient(saved);
+    lhs = normalizeAssociatedConstraints(symbol);
+    rhs = normalizeAssociatedConstraints(other);
+  }
 
   auto atLeastAsConstrained = [this](const std::optional<Constraint>& first,
                                      const std::optional<Constraint>& second) {

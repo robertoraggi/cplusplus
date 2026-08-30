@@ -52,15 +52,17 @@ TEST(TypePrinter, BasicTypes) {
 TEST(TypePrinter, QualTypes) {
   Control control;
 
-  ASSERT_EQ(to_string(control.getConstType(control.getUnsignedCharType())),
+  ASSERT_EQ(to_string(control.getQualType(control.getUnsignedCharType(),
+                                          CvQualifiers::kConst)),
             "const unsigned char");
 
-  ASSERT_EQ(to_string(control.getVolatileType(control.getUnsignedCharType())),
+  ASSERT_EQ(to_string(control.getQualType(control.getUnsignedCharType(),
+                                          CvQualifiers::kVolatile)),
             "volatile unsigned char");
 
-  ASSERT_EQ(
-      to_string(control.getConstVolatileType(control.getUnsignedCharType())),
-      "const volatile unsigned char");
+  ASSERT_EQ(to_string(control.getQualType(control.getUnsignedCharType(),
+                                          CvQualifiers::kConstVolatile)),
+            "const volatile unsigned char");
 }
 
 TEST(TypePrinter, PointerTypes) {
@@ -76,14 +78,14 @@ TEST(TypePrinter, PointerTypes) {
   ASSERT_EQ(to_string(pointerToPointerToUnsignedInt), "unsigned int**");
 
   // test pointer to const char
-  auto pointerToConstChar =
-      control.getPointerType(control.getConstType(control.getCharType()));
+  auto pointerToConstChar = control.getPointerType(
+      control.getQualType(control.getCharType(), CvQualifiers::kConst));
 
   ASSERT_EQ(to_string(pointerToConstChar), "const char*");
 
   // const pointer to char
-  auto constPointerToChar =
-      control.getConstType(control.getPointerType(control.getCharType()));
+  auto constPointerToChar = control.getQualType(
+      control.getPointerType(control.getCharType()), CvQualifiers::kConst);
 
   ASSERT_EQ(to_string(constPointerToChar), "char* const");
 
@@ -117,8 +119,9 @@ TEST(TypePrinter, LValueReferences) {
   ASSERT_EQ(to_string(referenceToPointerToChar), "char*&");
 
   // lvalue reference to a const pointer to char
-  auto referenceToConstPointerToChar = control.getLvalueReferenceType(
-      control.getConstType(control.getPointerType(control.getCharType())));
+  auto referenceToConstPointerToChar =
+      control.getLvalueReferenceType(control.getQualType(
+          control.getPointerType(control.getCharType()), CvQualifiers::kConst));
 
   ASSERT_EQ(to_string(referenceToConstPointerToChar), "char* const&");
 
@@ -131,7 +134,8 @@ TEST(TypePrinter, LValueReferences) {
   // reference to function returning pointer to const char
   auto referenceToFunctionReturningPointerToConstChar =
       control.getLvalueReferenceType(control.getFunctionType(
-          control.getPointerType(control.getConstType(control.getCharType())),
+          control.getPointerType(
+              control.getQualType(control.getCharType(), CvQualifiers::kConst)),
           {}));
 
   ASSERT_EQ(to_string(referenceToFunctionReturningPointerToConstChar),
@@ -180,7 +184,8 @@ TEST(TypePrinter, Arrays) {
   // array of 4 arrays of 2 pointers to const char
   auto arrayOf4ArraysOf2PointersToConstChar = control.getBoundedArrayType(
       control.getBoundedArrayType(
-          control.getPointerType(control.getConstType(control.getCharType())),
+          control.getPointerType(
+              control.getQualType(control.getCharType(), CvQualifiers::kConst)),
           2),
       4);
 
@@ -200,15 +205,19 @@ TEST(TypePrinter, Functions) {
 
   // function returning pointer to const char
 
-  auto functionReturningPointerToConstChar = control.getFunctionType(
-      control.getPointerType(control.getConstType(control.getCharType())), {});
+  auto functionReturningPointerToConstChar =
+      control.getFunctionType(control.getPointerType(control.getQualType(
+                                  control.getCharType(), CvQualifiers::kConst)),
+                              {});
 
   ASSERT_EQ(to_string(functionReturningPointerToConstChar), "const char* ()");
 
   // function returning const pointer to int
 
   auto functionReturningConstPointerToInt = control.getFunctionType(
-      control.getConstType(control.getPointerType(control.getIntType())), {});
+      control.getQualType(control.getPointerType(control.getIntType()),
+                          CvQualifiers::kConst),
+      {});
 
   ASSERT_EQ(to_string(functionReturningConstPointerToInt), "int* const ()");
 

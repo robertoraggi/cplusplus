@@ -28,7 +28,7 @@
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/symbols.h>
-#include <cxx/toolchain_config.h>
+#include <cxx/toolchain.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
@@ -38,8 +38,7 @@
 #endif
 
 #include <algorithm>
-#include <format>
-#include <iostream>
+#include <functional>
 
 namespace cxx::lsp {
 
@@ -47,11 +46,33 @@ namespace {
 
 constexpr int kMaxDiagnostics = 100;
 
+auto diagnosticSeverityOf(cxx::Severity severity) -> DiagnosticSeverity {
+  switch (severity) {
+    case cxx::Severity::Message:
+      return DiagnosticSeverity::kInformation;
+    case cxx::Severity::Note:
+      return DiagnosticSeverity::kHint;
+    case cxx::Severity::Warning:
+      return DiagnosticSeverity::kWarning;
+    case cxx::Severity::Error:
+    case cxx::Severity::Fatal:
+      return DiagnosticSeverity::kError;
+  }
+
+  return DiagnosticSeverity::kError;
+}
+
 struct Diagnostics final : cxx::DiagnosticsClient {
   json messages = json::array();
   Vector<lsp::Diagnostic> diagnostics{messages};
+  bool hasErrors = false;
 
   void report(const cxx::Diagnostic& diag) override {
+    if (diag.severity() == cxx::Severity::Error ||
+        diag.severity() == cxx::Severity::Fatal) {
+      hasErrors = true;
+    }
+
     auto start = preprocessor()->tokenStartPosition(diag.token());
     auto end = preprocessor()->tokenEndPosition(diag.token());
 
@@ -65,6 +86,7 @@ struct Diagnostics final : cxx::DiagnosticsClient {
     int ec = std::max(int(end.column) - 1, 0);
 
     d.message(diag.message());
+    d.severity(diagnosticSeverityOf(diag.severity()));
     d.range().start(lsp::Position(tmp).line(s).character(sc));
     d.range().end(lsp::Position(tmp).line(e).character(ec));
   }
@@ -84,14 +106,132 @@ auto classSymbolOf(const TypeTraits& traits, const Type* objectType)
   return classType->symbol();
 }
 
+auto templateParametersOf(Symbol* symbol) -> TemplateParametersSymbol* {
+  return cxx::visit(
+      []<typename S>(S* symbol) -> TemplateParametersSymbol* {
+        if constexpr (requires { symbol->templateParameters(); })
+          return symbol->templateParameters();
+        else
+          return nullptr;
+      },
+      symbol);
+}
+
+auto functionCompletionItemKind(FunctionSymbol* function, bool memberOfClass)
+    -> CompletionItemKind {
+  if (function->isConstructor()) return CompletionItemKind::kConstructor;
+  if (memberOfClass) return CompletionItemKind::kMethod;
+  return CompletionItemKind::kFunction;
+}
+
+struct CompletionItemKindOf {
+  bool memberOfClass = false;
+
+  auto operator()(NamespaceSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kModule;
+  }
+
+  auto operator()(ConceptSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kInterface;
+  }
+
+  auto operator()(ClassSymbol* symbol) const -> CompletionItemKind {
+    if (symbol->isUnion()) return CompletionItemKind::kStruct;
+    return CompletionItemKind::kClass;
+  }
+
+  auto operator()(InjectedClassNameSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kClass;
+  }
+
+  auto operator()(TypeAliasSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kClass;
+  }
+
+  auto operator()(EnumSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kEnum;
+  }
+
+  auto operator()(ScopedEnumSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kEnum;
+  }
+
+  auto operator()(EnumeratorSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kEnumMember;
+  }
+
+  auto operator()(FunctionSymbol* symbol) const -> CompletionItemKind {
+    return functionCompletionItemKind(symbol, memberOfClass);
+  }
+
+  auto operator()(OverloadSetSymbol* symbol) const -> CompletionItemKind {
+    auto functions = symbol->declaredFunctions();
+    if (functions.empty()) return CompletionItemKind::kFunction;
+    return functionCompletionItemKind(functions.front(), memberOfClass);
+  }
+
+  auto operator()(DeductionGuideSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kFunction;
+  }
+
+  auto operator()(LambdaSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kFunction;
+  }
+
+  auto operator()(FieldSymbol* symbol) const -> CompletionItemKind {
+    if (symbol->isStatic()) return CompletionItemKind::kVariable;
+    return CompletionItemKind::kField;
+  }
+
+  auto operator()(VariableSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kVariable;
+  }
+
+  auto operator()(ParameterSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kVariable;
+  }
+
+  auto operator()(ParameterPackSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kVariable;
+  }
+
+  auto operator()(NonTypeParameterSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kVariable;
+  }
+
+  auto operator()(TypeParameterSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kTypeParameter;
+  }
+
+  auto operator()(TemplateTypeParameterSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kTypeParameter;
+  }
+
+  auto operator()(ConstraintTypeParameterSymbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kTypeParameter;
+  }
+
+  auto operator()(UsingDeclarationSymbol* symbol) const -> CompletionItemKind {
+    auto target = symbol->target();
+    if (!target) return CompletionItemKind::kReference;
+    return cxx::visit(*this, target);
+  }
+
+  auto operator()(Symbol*) const -> CompletionItemKind {
+    return CompletionItemKind::kText;
+  }
+};
+
 class CompletionItemCollector {
  public:
   CompletionItemCollector(Vector<CompletionItem>& completionItems,
                           std::vector<std::string>& labels,
-                          const AccessContext& accessContext)
+                          const AccessContext& accessContext,
+                          CompletionEditRange editRange)
       : completionItems_(completionItems),
         labels_(labels),
-        accessContext_(accessContext) {}
+        accessContext_(accessContext),
+        editRange_(editRange) {}
 
   void addScope(ScopeSymbol* scope, ClassSymbol* objectClass) {
     if (!scope) return;
@@ -105,7 +245,7 @@ class CompletionItemCollector {
       if (member->isHidden()) continue;
       if (!accessContext_.isAccessible(member, designatingClass, objectClass))
         continue;
-      addLabel(to_string(member->name()));
+      addItem(member, designatingClass != nullptr);
     }
 
     for (auto directive : scope->usingDirectives()) {
@@ -137,7 +277,7 @@ class CompletionItemCollector {
       if (!field->name()) continue;
       if (!accessContext_.isAccessible(field, classSymbol, classSymbol))
         continue;
-      addLabel(to_string(field->name()));
+      addItem(field, true);
     }
   }
 
@@ -145,31 +285,54 @@ class CompletionItemCollector {
     for (auto current = scope; current; current = current->parent()) {
       auto objectClass = symbol_cast<ClassSymbol>(current);
       addScope(current, objectClass);
+      addScope(templateParametersOf(current), nullptr);
     }
   }
 
  private:
-  void addLabel(std::string label) {
+  void addItem(Symbol* symbol, bool memberOfClass) {
+    auto label = to_string(symbol->name());
     if (std::ranges::contains(labels_, label)) return;
-    labels_.push_back(label);
+
     auto item = completionItems_.emplace_back();
-    item.label(std::move(label));
+    item.label(label);
+    item.kind(cxx::visit(CompletionItemKindOf{memberOfClass}, symbol));
+
+    json startStorage;
+    Position start{startStorage};
+    start.line(editRange_.line).character(editRange_.startColumn);
+
+    json endStorage;
+    Position end{endStorage};
+    end.line(editRange_.line).character(editRange_.endColumn);
+
+    json rangeStorage;
+    Range range{rangeStorage};
+    range.start(start).end(end);
+
+    json textEditStorage;
+    TextEdit textEdit{textEditStorage};
+    textEdit.range(range).newText(label);
+    item.textEdit(std::variant<TextEdit, InsertReplaceEdit>{textEdit});
+
+    labels_.push_back(std::move(label));
   }
 
   Vector<CompletionItem>& completionItems_;
   std::vector<std::string>& labels_;
   const AccessContext& accessContext_;
+  CompletionEditRange editRange_;
   std::vector<ScopeSymbol*> visitedScopes_;
 };
 
 struct CompletionSink {
   TranslationUnit* unit;
-  TypeTraits traits;
-  Vector<CompletionItem>& completionItems;
+  Vector<CompletionItem> completionItems;
+  CompletionEditRange editRange;
   std::vector<std::string> labels;
 
   void operator()(const MemberCompletionContext& context) {
-    auto objectClass = classSymbolOf(traits, context.objectType);
+    auto objectClass = classSymbolOf(unit->typeTraits(), context.objectType);
     if (!objectClass) return;
     AccessContext accessContext{unit, context.accessingScope};
     auto collector = collectorFor(accessContext);
@@ -191,7 +354,8 @@ struct CompletionSink {
   void operator()(const DesignatorCompletionContext& context) {
     AccessContext accessContext{unit, context.accessingScope};
     auto collector = collectorFor(accessContext);
-    collector.addDesignators(classSymbolOf(traits, context.objectType));
+    collector.addDesignators(
+        classSymbolOf(unit->typeTraits(), context.objectType));
   }
 
   void operator()(const ArgumentHintsContext&) const {}
@@ -200,31 +364,9 @@ struct CompletionSink {
  private:
   auto collectorFor(const AccessContext& accessContext)
       -> CompletionItemCollector {
-    return CompletionItemCollector{completionItems, labels, accessContext};
+    return CompletionItemCollector{completionItems, labels, accessContext,
+                                   editRange};
   }
-};
-
-struct SignatureHelpSink {
-  std::vector<FunctionSymbol*> candidates;
-  Symbol* templateSymbol = nullptr;
-  int activeParameter = 0;
-
-  void operator()(const ArgumentHintsContext& context) {
-    candidates = context.candidates;
-    templateSymbol = nullptr;
-    activeParameter = context.activeParameter;
-  }
-
-  void operator()(const TemplateArgumentHintsContext& context) {
-    candidates.clear();
-    templateSymbol = context.templateSymbol;
-    activeParameter = context.activeParameter;
-  }
-
-  void operator()(const MemberCompletionContext&) const {}
-  void operator()(const ScopeCompletionContext&) const {}
-  void operator()(const UnqualifiedCompletionContext&) const {}
-  void operator()(const DesignatorCompletionContext&) const {}
 };
 
 auto signatureLabelOf(FunctionSymbol* function) -> std::string {
@@ -297,14 +439,7 @@ struct TemplateParameterLabel {
 
 void addTemplateSignature(SignatureHelp& result, Symbol* templateSymbol,
                           int activeParameter) {
-  auto templateParameters = cxx::visit(
-      []<typename S>(S* symbol) -> TemplateParametersSymbol* {
-        if constexpr (requires { symbol->templateParameters(); })
-          return symbol->templateParameters();
-        else
-          return nullptr;
-      },
-      templateSymbol);
+  auto templateParameters = templateParametersOf(templateSymbol);
   if (!templateParameters) return;
 
   std::string label = "template <";
@@ -335,15 +470,81 @@ void addTemplateSignature(SignatureHelp& result, Symbol* templateSymbol,
   result.activeParameter(long(activeParameter));
 }
 
+struct SignatureHelpSink {
+  SignatureHelp result;
+
+  void operator()(const ArgumentHintsContext& context) {
+    clearResult();
+
+    if (context.candidates.empty()) return;
+
+    auto signatures = result.signatures();
+    int activeSignature = 0;
+    bool foundActiveSignature = false;
+
+    for (auto function : context.candidates) {
+      auto signature = signatures.emplace_back();
+
+      signature.label(signatureLabelOf(function));
+
+      auto parameterList = signature.parameters<Vector<ParameterInformation>>();
+
+      int parameterCount = 0;
+
+      if (auto functionParameters = function->functionParameters()) {
+        for (auto member : views::members(functionParameters)) {
+          auto parameterSymbol = symbol_cast<ParameterSymbol>(member);
+          if (!parameterSymbol) continue;
+
+          auto parameterInfo = parameterList.emplace_back();
+          parameterInfo.label(
+              to_string(parameterSymbol->type(), parameterSymbol->name()));
+
+          ++parameterCount;
+        }
+      }
+
+      if (foundActiveSignature) continue;
+
+      if (parameterCount > context.activeParameter) {
+        foundActiveSignature = true;
+        continue;
+      }
+
+      ++activeSignature;
+    }
+
+    if (!foundActiveSignature) activeSignature = 0;
+
+    result.activeSignature(activeSignature);
+    result.activeParameter(long(context.activeParameter));
+  }
+
+  void operator()(const TemplateArgumentHintsContext& context) {
+    clearResult();
+
+    addTemplateSignature(result, context.templateSymbol,
+                         context.activeParameter);
+  }
+
+  void operator()(const MemberCompletionContext&) const {}
+  void operator()(const ScopeCompletionContext&) const {}
+  void operator()(const UnqualifiedCompletionContext&) const {}
+  void operator()(const DesignatorCompletionContext&) const {}
+
+ private:
+  void clearResult() { result.get() = json::object(); }
+};
+
 }  // namespace
 
 struct CxxDocument::Private {
-  const CLI& cli;
   std::string fileName;
   long version;
   Diagnostics diagnosticsClient;
   TranslationUnit unit{&diagnosticsClient};
   std::shared_ptr<Toolchain> toolchain;
+  std::function<void(const CodeCompletionContext&)> complete;
 
 #ifndef CXX_NO_THREADS
   std::atomic<bool> cancelled{false};
@@ -351,24 +552,16 @@ struct CxxDocument::Private {
   bool cancelled{false};
 #endif
 
-  Private(const CLI& cli, std::string fileName, long version)
-      : cli(cli), fileName(std::move(fileName)), version(version) {
+  Private(std::string fileName, long version)
+      : fileName(std::move(fileName)), version(version) {
     diagnosticsClient.setErrorLimit(kMaxDiagnostics);
   }
-
-  void configure();
 };
 
-void CxxDocument::Private::configure() {
-  auto preprocessor = unit.preprocessor();
-  std::string error;
-  toolchain = createToolchain(cli, preprocessor, error);
-  if (!error.empty()) toolchain.reset();
-  if (toolchain) unit.control()->setMemoryLayout(toolchain->memoryLayout());
-}
+CxxDocument::CxxDocument(std::string fileName, long version)
+    : d(std::make_unique<Private>(std::move(fileName), version)) {}
 
-CxxDocument::CxxDocument(const CLI& cli, std::string fileName, long version)
-    : d(std::make_unique<Private>(cli, std::move(fileName), version)) {}
+CxxDocument::~CxxDocument() {}
 
 auto CxxDocument::isCancelled() const -> bool {
 #ifndef CXX_NO_THREADS
@@ -388,128 +581,61 @@ void CxxDocument::cancel() {
 
 auto CxxDocument::fileName() const -> const std::string& { return d->fileName; }
 
-void CxxDocument::codeCompletionAt(std::string source, std::uint32_t line,
-                                   std::uint32_t column,
-                                   Vector<CompletionItem> completionItems) {
-  auto& unit = d->unit;
-
-  (void)unit.blockErrors(true);
-
-  unit.preprocessor()->requestCodeCompletionAt(line, column);
-
-  auto traits = unit.typeTraits();
-
-  CompletionSink sink{&unit, traits, completionItems};
-
-  parse(std::move(source), [&sink](const CodeCompletionContext& context) {
-    std::visit(sink, context);
-  });
-}
-
-void CxxDocument::signatureHelpAt(std::string source, std::uint32_t line,
-                                  std::uint32_t column, SignatureHelp result) {
-  auto& unit = d->unit;
-
-  (void)unit.blockErrors(true);
-
-  unit.preprocessor()->requestCodeCompletionAt(line, column);
-
-  SignatureHelpSink sink;
-
-  parse(std::move(source), [&sink](const CodeCompletionContext& context) {
-    std::visit(sink, context);
-  });
-
-  if (sink.templateSymbol) {
-    addTemplateSignature(result, sink.templateSymbol, sink.activeParameter);
-    return;
-  }
-
-  if (sink.candidates.empty()) return;
-
-  auto signatures = result.signatures();
-  int activeSignature = 0;
-  bool foundActiveSignature = false;
-
-  for (auto function : sink.candidates) {
-    auto signature = signatures.emplace_back();
-
-    signature.label(signatureLabelOf(function));
-
-    auto parameterList = signature.parameters<Vector<ParameterInformation>>();
-
-    int parameterCount = 0;
-
-    if (auto functionParameters = function->functionParameters()) {
-      for (auto member : views::members(functionParameters)) {
-        auto parameterSymbol = symbol_cast<ParameterSymbol>(member);
-        if (!parameterSymbol) continue;
-
-        auto parameterInfo = parameterList.emplace_back();
-        parameterInfo.label(
-            to_string(parameterSymbol->type(), parameterSymbol->name()));
-
-        ++parameterCount;
-      }
-    }
-
-    if (foundActiveSignature) continue;
-
-    if (parameterCount > sink.activeParameter) {
-      foundActiveSignature = true;
-      continue;
-    }
-
-    ++activeSignature;
-  }
-
-  if (!foundActiveSignature) activeSignature = 0;
-
-  result.activeSignature(activeSignature);
-  result.activeParameter(long(sink.activeParameter));
-}
-
-void CxxDocument::parse(std::string source) { parse(std::move(source), {}); }
-
-void CxxDocument::parse(
-    std::string source,
-    std::function<void(const CodeCompletionContext&)> complete) {
-  d->configure();
-
-  auto& unit = d->unit;
-
-  auto preprocessor = unit.preprocessor();
-
-  DefaultPreprocessorState state{*preprocessor};
-
-  unit.beginPreprocessing(std::move(source), d->fileName);
-
-  while (state) {
-    if (isCancelled()) break;
-    std::visit(state, unit.continuePreprocessing());
-  }
-
-  unit.endPreprocessing();
-
-  auto stopParsingPredicate = [this] { return isCancelled(); };
-
-  unit.parse(ParserConfiguration{
-      .checkTypes = true,
-      .stopParsingPredicate = stopParsingPredicate,
-      .complete = std::move(complete),
-  });
-}
-
-CxxDocument::~CxxDocument() {}
-
 auto CxxDocument::version() const -> long { return d->version; }
+
+auto CxxDocument::translationUnit() const -> TranslationUnit* {
+  return &d->unit;
+}
+
+auto CxxDocument::parserConfiguration() const -> ParserConfiguration {
+  return ParserConfiguration{
+      .checkTypes = true,
+      .stopParsingPredicate = [this] { return isCancelled(); },
+      .complete = d->complete,
+  };
+}
+
+void CxxDocument::setToolchain(std::shared_ptr<Toolchain> toolchain) {
+  d->toolchain = std::move(toolchain);
+}
+
+void CxxDocument::requestCodeCompletionAt(std::uint32_t line,
+                                          std::uint32_t column,
+                                          CompletionEditRange editRange,
+                                          Vector<CompletionItem> result) {
+  auto& unit = d->unit;
+
+  (void)unit.blockErrors(true);
+
+  unit.preprocessor()->requestCodeCompletionAt(line, column);
+
+  d->complete = [sink = CompletionSink{&unit, result, editRange}](
+                    const CodeCompletionContext& context) mutable {
+    std::visit(sink, context);
+  };
+}
+
+void CxxDocument::requestSignatureHelpAt(std::uint32_t line,
+                                         std::uint32_t column,
+                                         SignatureHelp result) {
+  auto& unit = d->unit;
+
+  (void)unit.blockErrors(true);
+
+  unit.preprocessor()->requestCodeCompletionAt(line, column);
+
+  d->complete = [sink = SignatureHelpSink{result}](
+                    const CodeCompletionContext& context) mutable {
+    std::visit(sink, context);
+  };
+}
 
 auto CxxDocument::diagnostics() const -> Vector<Diagnostic> {
   return Vector<Diagnostic>(d->diagnosticsClient.messages);
 }
 
-auto CxxDocument::translationUnit() const -> TranslationUnit* {
-  return &d->unit;
+auto CxxDocument::hasErrors() const -> bool {
+  return d->diagnosticsClient.hasErrors;
 }
 
 auto CxxDocument::textOf(AST* ast) -> std::optional<std::string_view> {

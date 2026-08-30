@@ -460,7 +460,8 @@ void Binder::DeclareFunction::checkConstructor() {
     cxx_runtime_error("constructor must be declared inside a class");
   }
 
-  if (!mergeWithMatchingOverload(enclosingClass->constructorOverloadSet())) {
+  if (addSymbolToParentScope &&
+      !mergeWithMatchingOverload(enclosingClass->constructorOverloadSet())) {
     enclosingClass->addConstructor(functionSymbol);
   }
 

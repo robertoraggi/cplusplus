@@ -337,7 +337,7 @@ auto ASTInterpreter::bindParametersFromExprs(FunctionSymbol* func,
 }
 
 void ASTInterpreter::applyNsdmis(const std::shared_ptr<ConstObject>& obj) {
-  auto classType = type_cast<ClassType>(obj->type());
+  auto classType = unqualified_cast<ClassType>(obj->type());
   if (!classType || !classType->symbol()) return;
   auto savedThis = std::exchange(thisObject_, obj);
   for (auto member : classType->symbol()->members()) {
@@ -463,8 +463,7 @@ auto ASTInterpreter::defaultConstruct(const Type* type)
   auto classSymbol = classType->symbol()->resolvedDefinition();
   auto constructor = classSymbol->defaultConstructor();
   if (!constructor) return std::nullopt;
-  if (!constructor->isConstexpr() && !constructor->isDefaulted())
-    return std::nullopt;
+  if (!constructor->isConstexpr()) return std::nullopt;
   return evaluateConstructor(constructor, type, {});
 }
 
@@ -842,7 +841,7 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
     -> std::optional<ConstValue> {
   EvaluationScope evaluationScope{*this};
   if (!ctor) return std::nullopt;
-  if (!ctor->isConstexpr() && !ctor->isDefaulted()) return std::nullopt;
+  if (!ctor->isConstexpr()) return std::nullopt;
 
   auto defn = ctor->definition();
   if (!defn) defn = ctor;

@@ -2531,6 +2531,42 @@ auto ApplyWorkspaceEditResponse::result() const -> ApplyWorkspaceEditResult {
   return ApplyWorkspaceEditResult(value);
 }
 
+auto EmitCodeRequest::method(std::string method) -> EmitCodeRequest& {
+  (*repr_)["method"] = std::move(method);
+  return *this;
+}
+
+auto EmitCodeRequest::id(std::variant<long, std::string> id)
+    -> EmitCodeRequest& {
+  return static_cast<EmitCodeRequest&>(LSPRequest::id(std::move(id)));
+}
+
+auto EmitCodeRequest::params() const -> EmitCodeParams {
+  if (!repr_->contains("params")) repr_->emplace("params", json::object());
+  return EmitCodeParams(repr_->at("params"));
+}
+
+auto EmitCodeRequest::params(EmitCodeParams params) -> EmitCodeRequest& {
+  (*repr_)["params"] = std::move(params);
+  return *this;
+}
+
+auto EmitCodeResponse::id(std::variant<long, std::string> id)
+    -> EmitCodeResponse& {
+  return static_cast<EmitCodeResponse&>(LSPResponse::id(std::move(id)));
+}
+
+auto EmitCodeResponse::result() const
+    -> std::variant<EmitCodeResult, std::nullptr_t> {
+  auto& value = (*repr_)["result"];
+
+  std::variant<EmitCodeResult, std::nullptr_t> result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
 auto DidChangeWorkspaceFoldersNotification::method(std::string method)
     -> DidChangeWorkspaceFoldersNotification& {
   (*repr_)["method"] = std::move(method);

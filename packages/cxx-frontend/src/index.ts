@@ -25,6 +25,7 @@ export * from "./ASTKind.js";
 export * from "./ASTSlot.js";
 export * from "./ASTVisitor.js";
 export * from "./Diagnostic.js";
+export * from "./LanguageServer.js";
 export * from "./Parser.js";
 export * from "./RecursiveASTVisitor.js";
 export * from "./SourceLocation.js";

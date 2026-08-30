@@ -192,6 +192,7 @@ struct Control::Private {
       constraintTypeParameterSymbols;
   std::forward_list<EnumeratorSymbol> enumeratorSymbols;
   std::forward_list<UsingDeclarationSymbol> usingDeclarationSymbols;
+  std::forward_list<NamespaceAliasSymbol> namespaceAliasSymbols;
 
   std::forward_list<TypeTraitIdentifierInfo> typeTraitIdentifierInfos;
   std::forward_list<UnaryBuiltinTypeInfo> unaryBuiltinTypeInfos;
@@ -461,26 +462,11 @@ auto Control::getFloat16Type() -> const Float16Type* { return &d->float16Type; }
 auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)
     -> const QualType* {
   if (auto qualType = type_cast<QualType>(elementType)) {
-    cvQualifiers = cvQualifiers | qualType->cvQualifiers();
-    return &*d->qualTypes
-                 .emplace(qualType->elementType(),
-                          cvQualifiers | qualType->cvQualifiers())
-                 .first;
+    cvQualifiers |= qualType->cvQualifiers();
+    elementType = qualType->elementType();
   }
 
   return &*d->qualTypes.emplace(elementType, cvQualifiers).first;
-}
-
-auto Control::getConstType(const Type* elementType) -> const QualType* {
-  return getQualType(elementType, CvQualifiers::kConst);
-}
-
-auto Control::getVolatileType(const Type* elementType) -> const QualType* {
-  return getQualType(elementType, CvQualifiers::kVolatile);
-}
-
-auto Control::getConstVolatileType(const Type* elementType) -> const QualType* {
-  return getQualType(elementType, CvQualifiers::kConstVolatile);
 }
 
 auto Control::getBoundedArrayType(const Type* elementType, std::size_t size)
@@ -523,13 +509,13 @@ auto Control::getFunctionType(const Type* returnType,
                .first;
 }
 
-auto Control::getMemberObjectPointerType(const ClassType* classType,
+auto Control::getMemberObjectPointerType(const Type* classType,
                                          const Type* elementType)
     -> const MemberObjectPointerType* {
   return &*d->memberObjectPointerTypes.emplace(classType, elementType).first;
 }
 
-auto Control::getMemberFunctionPointerType(const ClassType* classType,
+auto Control::getMemberFunctionPointerType(const Type* classType,
                                            const FunctionType* functionType)
     -> const MemberFunctionPointerType* {
   return &*d->memberFunctionPointerTypes.emplace(classType, functionType).first;
@@ -840,6 +826,14 @@ auto Control::newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation loc)
     -> UsingDeclarationSymbol* {
   auto symbol = &d->usingDeclarationSymbols.emplace_front(enclosingScope);
+  symbol->setLocation(loc);
+  return symbol;
+}
+
+auto Control::newNamespaceAliasSymbol(ScopeSymbol* enclosingScope,
+                                      SourceLocation loc)
+    -> NamespaceAliasSymbol* {
+  auto symbol = &d->namespaceAliasSymbols.emplace_front(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }

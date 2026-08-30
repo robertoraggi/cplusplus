@@ -428,8 +428,7 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
       memberMap[info->index] = mlir::IntegerType::get(
           context_, static_cast<unsigned>(info->allocUnitSizeBytes * 8));
     } else if (field->isNoUniqueAddress()) {
-      auto fieldClass =
-          type_cast<ClassType>(unit_->typeTraits().remove_cv(field->type()));
+      auto fieldClass = unqualified_cast<ClassType>(field->type());
       auto fieldSymbol = fieldClass ? fieldClass->symbol() : nullptr;
       auto fieldLayout =
           fieldSymbol ? fieldSymbol->resolvedDefinition()->layout() : nullptr;

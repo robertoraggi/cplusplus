@@ -305,6 +305,15 @@ auto Binder::BindClass::check_template_specialization() -> bool {
                      templateId->templateArgumentList)
             .templateArguments();
 
+    if (auto parameter =
+            ASTRewriter::findUndeducedPartialSpecializationParameter(
+                binder.unit_, declSpecs.templateHead, templateId,
+                templateArguments)) {
+      binder.error(parameter->firstSourceLocation(),
+                   "class template partial specialization contains a template "
+                   "parameter that cannot be deduced");
+    }
+
     specialization =
         symbol_cast<ClassSymbol>(primaryTemplateSymbol->findSpecialization(
             binder.unit_, templateArguments));

@@ -22,39 +22,39 @@ S<char> v2;
 // CHECK-NEXT:      class S<float>
 // CHECK-NEXT:      class S<double>
 // CHECK-NEXT:      class S<int>
-// CHECK-NEXT:        constructor inline defaulted void S()
-// CHECK-NEXT:        constructor inline defaulted void S(const ::S<int>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void S()
+// CHECK-NEXT:        constructor constexpr inline defaulted void S(const ::S<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::S<int>&
-// CHECK-NEXT:        constructor inline defaulted void S(::S<int>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void S(::S<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::S<int>&&
 // CHECK-NEXT:        injected class name S
 // CHECK-NEXT:        field int value
-// CHECK-NEXT:        function inline defaulted ::S<int>& operator =(const ::S<int>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::S<int>& operator =(const ::S<int>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::S<int>&
-// CHECK-NEXT:        function inline defaulted ::S<int>& operator =(::S<int>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::S<int>& operator =(::S<int>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::S<int>&&
-// CHECK-NEXT:        function inline defaulted void ~S()
+// CHECK-NEXT:        function constexpr inline defaulted void ~S()
 // CHECK-NEXT:      class S<char>
-// CHECK-NEXT:        constructor inline defaulted void S()
-// CHECK-NEXT:        constructor inline defaulted void S(const ::S<char>&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void S()
+// CHECK-NEXT:        constructor constexpr inline defaulted void S(const ::S<char>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::S<char>&
-// CHECK-NEXT:        constructor inline defaulted void S(::S<char>&&)
+// CHECK-NEXT:        constructor constexpr inline defaulted void S(::S<char>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::S<char>&&
 // CHECK-NEXT:        injected class name S
 // CHECK-NEXT:        field char value
-// CHECK-NEXT:        function inline defaulted ::S<char>& operator =(const ::S<char>&)
+// CHECK-NEXT:        function constexpr inline defaulted ::S<char>& operator =(const ::S<char>&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::S<char>&
-// CHECK-NEXT:        function inline defaulted ::S<char>& operator =(::S<char>&&)
+// CHECK-NEXT:        function constexpr inline defaulted ::S<char>& operator =(::S<char>&&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::S<char>&&
-// CHECK-NEXT:        function inline defaulted void ~S()
+// CHECK-NEXT:        function constexpr inline defaulted void ~S()
 // CHECK-NEXT:  variable ::S<float>* p1
 // CHECK-NEXT:  variable ::S<float>& r1
 // CHECK-NEXT:  typealias ::S<double> A1

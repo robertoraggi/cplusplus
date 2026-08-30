@@ -25,6 +25,7 @@ import { type Diagnostic } from "./Diagnostic.js";
 import { type Unit } from "./Unit.js";
 import { AST } from "./AST.js";
 import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
+import { continueWithEventLoopYields } from "./eventLoop.js";
 
 export const OutputCodeFormat = [
   "cxxir",
@@ -52,7 +53,7 @@ export const CxxStandard = [
 ] as const;
 export type CxxStandard = (typeof CxxStandard)[number];
 
-export interface ParseOptions extends UnitOptions {
+export interface ParseOptions extends Omit<UnitOptions, "shouldContinue"> {
   /**
    * Path to the file to parse.
    */
@@ -64,6 +65,19 @@ export interface ParseOptions extends UnitOptions {
   source: string;
 
   std?: CxxStandard;
+
+  /**
+   * Aborts preprocessing and parsing.
+   *
+   * When the signal is aborted {@link Parser.parse} rejects with
+   * `signal.reason` and no translation unit is returned.
+   *
+   * The wasm module runs on the JavaScript thread, so preprocessing and parsing
+   * periodically yield to the event loop to give the signal a chance to be
+   * aborted. Passing a signal therefore makes the work asynchronous, a parse
+   * without one runs to completion without interruption.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -98,7 +112,7 @@ export class Parser implements Disposable, AsyncDisposable {
    * @returns the parsed translation unit.
    */
   static async parse(options: ParseOptions): Promise<Parser> {
-    const { path, source, ...unitOptions } = options;
+    const { path, source, signal, ...unitOptions } = options;
 
     if (typeof path !== "string") {
       throw new TypeError("expected parameter 'path' of type 'string'");
@@ -114,7 +128,17 @@ export class Parser implements Disposable, AsyncDisposable {
       );
     }
 
-    const unit = cxx.createUnit(source, path, unitOptions);
+    signal?.throwIfAborted();
+
+    let shouldContinue: (() => Promise<boolean>) | undefined;
+    if (signal) {
+      shouldContinue = continueWithEventLoopYields(() => !signal.aborted);
+    }
+
+    const unit = cxx.createUnit(source, path, {
+      ...unitOptions,
+      shouldContinue,
+    });
 
     if (!unit) {
       throw new Error("failed to create the translation unit");
@@ -122,6 +146,7 @@ export class Parser implements Disposable, AsyncDisposable {
 
     try {
       await unit.parse();
+      signal?.throwIfAborted();
       return new Parser(unit);
     } catch (error) {
       unit.delete();

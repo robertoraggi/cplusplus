@@ -528,14 +528,17 @@ void Binder::disableAccessControlForUnsupportedFriend(
 
 void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
                   bool inTemplateParameters) {
-  ast->type = getDeclaratorType(unit_, ast->declarator, decl.specs.type());
+  auto parameterObjectType =
+      getDeclaratorType(unit_, ast->declarator, decl.specs.type());
 
-  if (traits.is_array(ast->type))
-    ast->type = traits.add_pointer(traits.remove_extent(ast->type));
-  else if (traits.is_function(ast->type))
-    ast->type = traits.add_pointer(ast->type);
-  else if (traits.is_scalar(ast->type))
-    ast->type = traits.remove_cv(ast->type);
+  if (traits.is_array(parameterObjectType)) {
+    parameterObjectType =
+        traits.add_pointer(traits.remove_extent(parameterObjectType));
+  } else if (traits.is_function(parameterObjectType)) {
+    parameterObjectType = traits.add_pointer(parameterObjectType);
+  }
+
+  ast->type = unqualified_type(parameterObjectType);
 
   if (auto declId = decl.declaratorId; declId && declId->unqualifiedId) {
     auto paramName = get_name(control(), declId->unqualifiedId);
@@ -565,7 +568,7 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
 
     auto parameterSymbol = control()->newParameterSymbol(scope_, parameterLoc);
     parameterSymbol->setName(ast->identifier);
-    parameterSymbol->setType(ast->type);
+    parameterSymbol->setType(parameterObjectType);
     parameterSymbol->setDefaultArgument(ast->expression);
     parameterSymbol->setExplicitObject(ast->isThisIntroduced &&
                                        isFirstParameter);
@@ -932,8 +935,8 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   Symbol* symbol = nullptr;
 
   if (auto decltypeId = ast_cast<DecltypeIdAST>(ast->unqualifiedId)) {
-    if (auto classType = type_cast<ClassType>(
-            traits.remove_cv(decltypeId->decltypeSpecifier->type))) {
+    if (auto classType =
+            unqualified_cast<ClassType>(decltypeId->decltypeSpecifier->type)) {
       symbol = classType->symbol();
     }
   } else {
@@ -942,8 +945,7 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   }
 
   if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {
-    if (auto classType =
-            type_cast<ClassType>(traits.remove_cv(typeAlias->type()))) {
+    if (auto classType = unqualified_cast<ClassType>(typeAlias->type())) {
       symbol = classType->symbol();
     }
   }
@@ -1354,6 +1356,24 @@ auto Binder::abiTags(List<AttributeSpecifierAST*>* attributes)
   return tags;
 }
 
+void Binder::applyFunctionDefinitionKind(FunctionSymbol* functionSymbol,
+                                         FunctionBodyAST* functionBody) {
+  if (!functionSymbol) return;
+
+  if (ast_cast<DeleteFunctionBodyAST>(functionBody)) {
+    functionSymbol->setDeleted(true);
+    return;
+  }
+
+  if (!ast_cast<DefaultFunctionBodyAST>(functionBody)) return;
+
+  functionSymbol->setDefaulted(true);
+
+  const auto isFirstDeclaration = functionSymbol->canonical() == functionSymbol;
+
+  if (isFirstDeclaration) functionSymbol->setConstexpr(true);
+}
+
 void Binder::applyAbiTags(Symbol* symbol,
                           List<AttributeSpecifierAST*>* attributes) {
   if (!symbol || !attributes) return;
@@ -1487,7 +1507,7 @@ void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
       continue;
     }
 
-    if (byCopy && type_cast<ClassType>(fieldType) &&
+    if (byCopy && unqualified_cast<ClassType>(fieldType) &&
         !traits.is_trivially_copyable(fieldType)) {
       error(use->firstSourceLocation(),
             std::format("capturing '{}' by value is not yet supported for "
@@ -1503,7 +1523,7 @@ void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
     idExpr->valueCategory = ValueCategory::kLValue;
 
     ExpressionAST* initializer = idExpr;
-    if (byCopy) (void)StandardConversion{unit_}.lvalueToRvalue(initializer);
+    if (byCopy) StandardConversion{unit_}.prepareOperand(initializer);
 
     auto field = control()->newFieldSymbol(classSymbol, loc);
     field->setName(identifier);
@@ -1741,7 +1761,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
           continue;
         }
         auto fieldType = traits.remove_reference(outerSymbol->type());
-        if (type_cast<ClassType>(fieldType) &&
+        if (unqualified_cast<ClassType>(fieldType) &&
             !traits.is_trivially_copyable(fieldType)) {
           error(captureLoc,
                 std::format("capturing '{}' by value is not yet supported for "
@@ -1757,7 +1777,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
         idExpr->valueCategory = ValueCategory::kLValue;
 
         ExpressionAST* valueExpr = idExpr;
-        (void)StandardConversion{unit_}.lvalueToRvalue(valueExpr);
+        StandardConversion{unit_}.prepareOperand(valueExpr);
         simple->initializer = valueExpr;
 
         addField(simple->identifier, fieldType);
@@ -1805,7 +1825,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
       } else if (auto capture = initCapture(captureNode)) {
         if (!capture->type) continue;
         if (!ast_cast<RefInitLambdaCaptureAST>(captureNode) &&
-            type_cast<ClassType>(capture->type) &&
+            unqualified_cast<ClassType>(capture->type) &&
             !traits.is_trivially_copyable(capture->type)) {
           error(captureLoc,
                 std::format("init-capturing '{}' by value is not yet "
@@ -1824,6 +1844,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
         control()->getFunctionType(control()->getVoidType(), ctorParamTypes));
     ctorSymbol->setDefined(true);
     ctorSymbol->setDefaulted(true);
+    ctorSymbol->setConstexpr(true);
     ctorSymbol->setLanguageLinkage(LanguageKind::kCXX);
     classSymbol->addConstructor(ctorSymbol);
 
@@ -2136,6 +2157,46 @@ void Binder::bind(UsingDirectiveAST* ast, NamespaceSymbol* resolvedNamespace) {
   }
 }
 
+void Binder::bind(NamespaceAliasDefinitionAST* ast,
+                  NamespaceSymbol* resolvedNamespace) {
+  auto id = ast->unqualifiedId->identifier;
+
+  NamespaceSymbol* namespaceSymbol = resolvedNamespace;
+  if (ast->nestedNameSpecifier && ast->nestedNameSpecifier->symbol)
+    namespaceSymbol =
+        qualifiedLookupNamespace(ast->nestedNameSpecifier->symbol, id);
+
+  if (!namespaceSymbol) {
+    error(ast->unqualifiedId->firstSourceLocation(),
+          std::format("'{}' is not a namespace name", id->name()));
+    return;
+  }
+
+  auto scope = declaringScope();
+
+  for (auto candidate : scope->find(ast->identifier)) {
+    auto previous = symbol_cast<NamespaceAliasSymbol>(candidate);
+    auto candidateNamespace = resolve_namespace_alias(candidate);
+    if (candidateNamespace == namespaceSymbol) {
+      if (previous) {
+        ast->symbol = previous;
+        return;
+      }
+      continue;
+    }
+    error(ast->identifierLoc,
+          std::format("redefinition of namespace alias '{}'",
+                      ast->identifier->name()));
+    return;
+  }
+
+  auto symbol = control()->newNamespaceAliasSymbol(scope, ast->identifierLoc);
+  symbol->setName(ast->identifier);
+  symbol->setNamespaceSymbol(namespaceSymbol);
+  ast->symbol = symbol;
+  scope->addSymbol(symbol);
+}
+
 void Binder::bind(UsingEnumDeclarationAST* ast) {
   if (!ast || !ast->enumTypeSpecifier) return;
 
@@ -2406,7 +2467,8 @@ namespace {
 
 auto redeclarationTypesEquivalent(TranslationUnit* unit,
                                   const Type* existingType,
-                                  const Type* incomingType) -> bool {
+                                  const Type* incomingType,
+                                  bool ignoresArrayBound = true) -> bool {
   if (!existingType || !incomingType) return false;
 
   if (unit->typeTraits().is_same(existingType, incomingType)) return true;
@@ -2418,7 +2480,8 @@ auto redeclarationTypesEquivalent(TranslationUnit* unit,
     if (existingQual->cvQualifiers() != incomingQual->cvQualifiers())
       return false;
     return redeclarationTypesEquivalent(unit, existingQual->elementType(),
-                                        incomingQual->elementType());
+                                        incomingQual->elementType(),
+                                        ignoresArrayBound);
   }
 
   auto existingReferencedType = referencedTypeOf(existingType);
@@ -2427,7 +2490,8 @@ auto redeclarationTypesEquivalent(TranslationUnit* unit,
     if (!existingReferencedType || !incomingReferencedType) return false;
     if (existingType->kind() != incomingType->kind()) return false;
     return redeclarationTypesEquivalent(unit, existingReferencedType,
-                                        incomingReferencedType);
+                                        incomingReferencedType,
+                                        /*ignoresArrayBound=*/false);
   }
 
   auto existingUnresolved = type_cast<UnresolvedNameType>(existingType);
@@ -2444,12 +2508,17 @@ auto redeclarationTypesEquivalent(TranslationUnit* unit,
   auto existingElementType = unit->typeTraits().get_element_type(existingType);
   auto incomingElementType = unit->typeTraits().get_element_type(incomingType);
   if (!redeclarationTypesEquivalent(unit, existingElementType,
-                                    incomingElementType)) {
+                                    incomingElementType, ignoresArrayBound)) {
     return false;
   }
 
-  if (isEffectivelyUnboundedArray(unit, existingType)) return true;
-  if (isEffectivelyUnboundedArray(unit, incomingType)) return true;
+  if (ignoresArrayBound) {
+    if (isEffectivelyUnboundedArray(unit, existingType)) return true;
+    if (isEffectivelyUnboundedArray(unit, incomingType)) return true;
+  } else if (isEffectivelyUnboundedArray(unit, existingType) !=
+             isEffectivelyUnboundedArray(unit, incomingType)) {
+    return false;
+  }
 
   auto existingBound = arrayBoundToString(existingType);
   auto incomingBound = arrayBoundToString(incomingType);
@@ -2464,14 +2533,8 @@ auto areRedeclarationTypesCompatible(TranslationUnit* unit,
                                      const Type* incomingType) -> bool {
   if (!unit || !existingType || !incomingType) return false;
 
-  while (auto qual = type_cast<QualType>(existingType)) {
-    existingType = qual->elementType();
-  }
-  while (auto qual = type_cast<QualType>(incomingType)) {
-    incomingType = qual->elementType();
-  }
-
-  return redeclarationTypesEquivalent(unit, existingType, incomingType);
+  return redeclarationTypesEquivalent(unit, unqualified_type(existingType),
+                                      unqualified_type(incomingType));
 }
 
 namespace {
@@ -2845,7 +2908,7 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
     symbol->setInitializer(outOfClassMemberField->initializer());
   }
 
-  if (auto classType = type_cast<ClassType>(traits.remove_cv(type))) {
+  if (auto classType = unqualified_cast<ClassType>(type)) {
     traits.requireCompleteClass(classType->symbol());
   }
 
@@ -2879,12 +2942,12 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
   return symbol;
 }
 
-auto Binder::declareMemberSymbol(DeclaratorAST* declarator, const Decl& decl)
-    -> Symbol* {
+auto Binder::declareMemberSymbol(DeclaratorAST* declarator, const Decl& decl,
+                                 bool addSymbolToParentScope) -> Symbol* {
   if (decl.specs.isTypedef) return declareTypedef(declarator, decl);
 
   if (getFunctionPrototype(declarator))
-    return declareFunction(declarator, decl);
+    return declareFunction(declarator, decl, addSymbolToParentScope);
 
   return declareField(declarator, decl);
 }
@@ -2944,7 +3007,7 @@ auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
     return injected->classSymbol();
   }
 
-  if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
+  if (auto namespaceSymbol = resolve_namespace_alias(symbol))
     return namespaceSymbol;
 
   if (auto enumSymbol = symbol_cast<EnumSymbol>(symbol)) return enumSymbol;
@@ -2953,16 +3016,17 @@ auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol* {
     return scopedEnumSymbol;
 
   if (auto typeAliasSymbol = symbol_cast<TypeAliasSymbol>(symbol)) {
-    if (auto classType = type_cast<ClassType>(typeAliasSymbol->type())) {
+    auto aliasedType = unqualified_type(typeAliasSymbol->type());
+
+    if (auto classType = type_cast<ClassType>(aliasedType)) {
       traits.requireCompleteClass(classType->symbol());
       return classType->symbol();
     }
 
-    if (auto enumType = type_cast<EnumType>(typeAliasSymbol->type()))
+    if (auto enumType = type_cast<EnumType>(aliasedType))
       return enumType->symbol();
 
-    if (auto scopedEnumType =
-            type_cast<ScopedEnumType>(typeAliasSymbol->type()))
+    if (auto scopedEnumType = type_cast<ScopedEnumType>(aliasedType))
       return scopedEnumType->symbol();
   }
 
@@ -3470,11 +3534,7 @@ auto Binder::resolveMemberOfCurrentInstantiation(
   if (auto qual = type_cast<QualType>(type)) {
     auto elementType = resolve(qual->elementType());
     if (elementType == qual->elementType()) return type;
-    if (qual->isConst()) elementType = control()->getConstType(elementType);
-    if (qual->isVolatile()) {
-      elementType = control()->getVolatileType(elementType);
-    }
-    return elementType;
+    return control()->getQualType(elementType, qual->cvQualifiers());
   }
 
   if (auto ptr = type_cast<PointerType>(type)) {

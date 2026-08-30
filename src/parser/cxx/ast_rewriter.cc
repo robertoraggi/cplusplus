@@ -133,8 +133,7 @@ void ASTRewriter::note(SourceLocation loc, std::string message) {
 }
 
 void ASTRewriter::error(SourceLocation loc, std::string message) {
-  if (shouldCaptureBodyErrors()) return;
-  substitutionFailed_ = true;
+  markSubstitutionFailure();
   binder_.error(loc, std::move(message));
 }
 }  // namespace cxx

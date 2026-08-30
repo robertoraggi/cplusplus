@@ -23,6 +23,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/initialization.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
@@ -34,11 +35,98 @@
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
+#include <array>
 #include <cmath>
+#include <optional>
 #include <unordered_set>
 
 namespace cxx {
 namespace {
+struct QualificationComponent {
+  enum class Kind {
+    kPointer,
+    kMemberPointer,
+    kBoundedArray,
+    kUnboundedArray,
+  };
+
+  Kind kind = Kind::kPointer;
+  const Type* classType = nullptr;
+  std::size_t size = 0;
+
+  [[nodiscard]] auto isArray() const -> bool {
+    return kind == Kind::kBoundedArray || kind == Kind::kUnboundedArray;
+  }
+};
+
+struct QualificationStep {
+  std::optional<QualificationComponent> component;
+  const Type* next = nullptr;
+};
+
+struct DecomposeQualificationComponent {
+  auto operator()(const PointerType* type) const -> QualificationStep {
+    return {QualificationComponent{QualificationComponent::Kind::kPointer},
+            type->elementType()};
+  }
+
+  auto operator()(const MemberObjectPointerType* type) const
+      -> QualificationStep {
+    return {QualificationComponent{QualificationComponent::Kind::kMemberPointer,
+                                   type->classType()},
+            type->elementType()};
+  }
+
+  auto operator()(const MemberFunctionPointerType* type) const
+      -> QualificationStep {
+    return {QualificationComponent{QualificationComponent::Kind::kMemberPointer,
+                                   type->classType()},
+            type->functionType()};
+  }
+
+  auto operator()(const BoundedArrayType* type) const -> QualificationStep {
+    return {QualificationComponent{QualificationComponent::Kind::kBoundedArray,
+                                   nullptr, type->size()},
+            type->elementType()};
+  }
+
+  auto operator()(const UnboundedArrayType* type) const -> QualificationStep {
+    return {
+        QualificationComponent{QualificationComponent::Kind::kUnboundedArray},
+        type->elementType()};
+  }
+
+  auto operator()(const Type*) const -> QualificationStep { return {}; }
+};
+
+[[nodiscard]] auto decomposeQualificationComponent(const Type* type)
+    -> QualificationStep {
+  if (!type) return {};
+  return visit(DecomposeQualificationComponent{}, unqualified_type(type));
+}
+
+struct QualificationDecomposition {
+  std::vector<CvQualifiers> cv;
+  std::vector<QualificationComponent> components;
+  const Type* terminal = nullptr;
+};
+
+struct QualificationDecompositionPair {
+  QualificationDecomposition left;
+  QualificationDecomposition right;
+};
+
+[[nodiscard]] auto componentsMatch(const TypeTraits& traits,
+                                   const QualificationComponent& lhs,
+                                   const QualificationComponent& rhs) -> bool {
+  if (lhs.isArray() && rhs.isArray()) {
+    if (lhs.kind != rhs.kind) return true;
+    return lhs.size == rhs.size;
+  }
+  if (lhs.kind != rhs.kind) return false;
+  return traits.is_same(lhs.classType, rhs.classType);
+}
+
 struct IsVoid {
   auto operator()(const VoidType*) const -> bool { return true; }
 
@@ -154,6 +242,10 @@ struct IsUnsigned {
 };
 
 struct IsArray {
+  auto operator()(const QualType* type) const -> bool {
+    return visit(*this, type->elementType());
+  }
+
   auto operator()(const UnboundedArrayType*) const -> bool { return true; }
   auto operator()(const BoundedArrayType*) const -> bool { return true; }
   auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
@@ -258,6 +350,10 @@ struct IsMemberFunctionPointer {
 };
 
 struct IsBoundedArray {
+  auto operator()(const QualType* type) const -> bool {
+    return visit(*this, type->elementType());
+  }
+
   auto operator()(const BoundedArrayType*) const -> bool { return true; }
   auto operator()(const UnresolvedBoundedArrayType*) const -> bool {
     return true;
@@ -267,6 +363,10 @@ struct IsBoundedArray {
 };
 
 struct IsUnboundedArray {
+  auto operator()(const QualType* type) const -> bool {
+    return visit(*this, type->elementType());
+  }
+
   auto operator()(const UnboundedArrayType*) const -> bool { return true; }
   auto operator()(const Type*) const -> bool { return false; }
 };
@@ -419,8 +519,9 @@ struct AddRvalueReference {
   }
 };
 
-struct AddConst {
+struct AddCvQualifiers {
   const TypeTraits& typeTraits;
+  CvQualifiers qualifiers;
 
   [[nodiscard]] auto control() const -> Control* {
     return typeTraits.control();
@@ -455,47 +556,7 @@ struct AddConst {
   }
 
   auto operator()(auto type) const -> const Type* {
-    return control()->getConstType(type);
-  }
-};
-
-struct AddVolatile {
-  const TypeTraits& typeTraits;
-
-  [[nodiscard]] auto control() const -> Control* {
-    return typeTraits.control();
-  }
-
-  auto operator()(const BoundedArrayType* type) const -> const Type* {
-    auto elementType = visit(*this, type->elementType());
-    return control()->getBoundedArrayType(elementType, type->size());
-  }
-
-  auto operator()(const UnboundedArrayType* type) const -> const Type* {
-    auto elementType = visit(*this, type->elementType());
-    return control()->getUnboundedArrayType(elementType);
-  }
-
-  auto operator()(const UnresolvedBoundedArrayType* type) const -> const Type* {
-    auto elementType = visit(*this, type->elementType());
-    return control()->getUnresolvedBoundedArrayType(type->translationUnit(),
-                                                    elementType, type->size());
-  }
-
-  auto operator()(const FunctionType* type) const -> const Type* {
-    return type;
-  }
-
-  auto operator()(const LvalueReferenceType* type) const -> const Type* {
-    return type;
-  }
-
-  auto operator()(const RvalueReferenceType* type) const -> const Type* {
-    return type;
-  }
-
-  auto operator()(auto type) const -> const Type* {
-    return control()->getVolatileType(type);
+    return control()->getQualType(type, qualifiers);
   }
 };
 
@@ -1347,13 +1408,11 @@ auto TypeTraits::add_const_ref(const Type* type) const -> const Type* {
 }
 
 auto TypeTraits::add_const(const Type* type) const -> const Type* {
-  if (!type) return type;
-  return visit(AddConst{*this}, type);
+  return add_cv(type, CvQualifiers::kConst);
 }
 
 auto TypeTraits::add_volatile(const Type* type) const -> const Type* {
-  if (!type) return type;
-  return visit(AddVolatile{*this}, type);
+  return add_cv(type, CvQualifiers::kVolatile);
 }
 
 auto TypeTraits::remove_pointer(const Type* type) const -> const Type* {
@@ -1495,7 +1554,7 @@ auto TypeTraits::apply_sign(const Type* type, bool isUnsigned) const
   auto result = corresponding_integer_type(remove_cv(type), isUnsigned);
   if (!result) return type;
 
-  return add_cv(result, get_cv_qualifiers(type));
+  return add_cv(result, cv_qualifiers(type));
 }
 
 auto TypeTraits::is_class_or_union(const Type* type) const -> bool {
@@ -1584,13 +1643,11 @@ auto listElementSource(ExpressionAST* expr) -> ExpressionAST* {
       expr = nested->expression;
       continue;
     }
-    if (auto equal = ast_cast<EqualInitializerAST>(expr)) {
-      expr = equal->expression;
-      continue;
-    }
-    if (auto paren = ast_cast<ParenInitializerAST>(expr)) {
-      if (!paren->expressionList || paren->expressionList->next) return expr;
-      expr = paren->expressionList->value;
+    if (ast_cast<EqualInitializerAST>(expr) ||
+        ast_cast<ParenInitializerAST>(expr)) {
+      auto inner = Initializer{expr}.singleExpression();
+      if (!inner) return expr;
+      expr = inner;
       continue;
     }
     return expr;
@@ -1771,15 +1828,9 @@ auto TypeTraits::remove_volatile(const Type* type) const -> const Type* {
 
 auto TypeTraits::add_cv(const Type* type, CvQualifiers cv) const
     -> const Type* {
-  if (cxx::is_const(cv)) type = add_const(type);
-  if (cxx::is_volatile(cv)) type = add_volatile(type);
-  return type;
-}
-
-auto TypeTraits::get_cv_qualifiers(const Type* type) const -> CvQualifiers {
-  if (auto qualType = type_cast<QualType>(type))
-    return qualType->cvQualifiers();
-  return CvQualifiers::kNone;
+  if (!type) return type;
+  if (cv == CvQualifiers::kNone) return type;
+  return visit(AddCvQualifiers{*this, cv}, type);
 }
 
 auto TypeTraits::remove_noexcept(const Type* type) const -> const Type* {
@@ -1856,17 +1907,20 @@ auto TypeTraits::replace_placeholder_types(const Type* type,
   }
 
   if (auto pointerType = type_cast<MemberObjectPointerType>(type)) {
+    auto classType =
+        replace_placeholder_types(pointerType->classType(), replacement);
     auto elementType =
         replace_placeholder_types(pointerType->elementType(), replacement);
-    return control()->getMemberObjectPointerType(pointerType->classType(),
-                                                 elementType);
+    return control()->getMemberObjectPointerType(classType, elementType);
   }
 
   if (auto pointerType = type_cast<MemberFunctionPointerType>(type)) {
+    auto classType =
+        replace_placeholder_types(pointerType->classType(), replacement);
     auto functionType =
         replace_placeholder_types(pointerType->functionType(), replacement);
     return control()->getMemberFunctionPointerType(
-        pointerType->classType(), type_cast<FunctionType>(functionType));
+        classType, type_cast<FunctionType>(functionType));
   }
 
   return type;
@@ -1882,10 +1936,345 @@ auto TypeTraits::is_base_of(const Type* base, const Type* derived) const
   return derivedClassType->symbol()->hasBaseClass(baseClassType->symbol());
 }
 
+namespace {
+[[nodiscard]] auto decomposeForQualification(const TypeTraits& traits,
+                                             const Type* lhs, const Type* rhs)
+    -> std::optional<QualificationDecompositionPair> {
+  QualificationDecompositionPair result;
+
+  for (;;) {
+    result.left.cv.push_back(cv_qualifiers(lhs));
+    result.right.cv.push_back(cv_qualifiers(rhs));
+
+    auto leftStep = decomposeQualificationComponent(lhs);
+    auto rightStep = decomposeQualificationComponent(rhs);
+
+    if (!leftStep.component || !rightStep.component) break;
+    if (!componentsMatch(traits, *leftStep.component, *rightStep.component))
+      break;
+
+    result.left.components.push_back(*leftStep.component);
+    result.right.components.push_back(*rightStep.component);
+
+    lhs = leftStep.next;
+    rhs = rightStep.next;
+  }
+
+  result.left.terminal = unqualified_type(lhs);
+  result.right.terminal = unqualified_type(rhs);
+
+  if (!traits.is_same(result.left.terminal, result.right.terminal))
+    return std::nullopt;
+
+  return result;
+}
+}  // namespace
+
+auto TypeTraits::is_known_complete_object(ExpressionAST* expression) const
+    -> bool {
+  while (expression) {
+    if (auto nested = ast_cast<NestedExpressionAST>(expression)) {
+      expression = nested->expression;
+      continue;
+    }
+    if (auto cast = ast_cast<ImplicitCastExpressionAST>(expression);
+        cast && cast->castKind == ImplicitCastKind::kDerivedToBaseConversion) {
+      expression = cast->expression;
+      continue;
+    }
+    break;
+  }
+
+  Symbol* symbol = nullptr;
+  if (auto id = ast_cast<IdExpressionAST>(expression)) {
+    symbol = id->symbol;
+  } else if (auto member = ast_cast<MemberExpressionAST>(expression)) {
+    symbol = member->symbol;
+  }
+
+  if (!symbol) return false;
+
+  if (!symbol_cast<VariableSymbol>(symbol) &&
+      !symbol_cast<ParameterSymbol>(symbol) &&
+      !symbol_cast<FieldSymbol>(symbol))
+    return false;
+
+  return !is_reference(symbol->type());
+}
+
+auto TypeTraits::is_virtual_member_dispatch(
+    FunctionSymbol* function, ExpressionAST* objectExpression) const -> bool {
+  if (!function || !function->isVirtual()) return false;
+  if (!function->isImplicitObjectMemberFunction()) return false;
+  if (!objectExpression || !is_glvalue(objectExpression)) return false;
+  return !is_known_complete_object(objectExpression);
+}
+
+auto TypeTraits::adjusted_cv_type(const Type* type) const -> const Type* {
+  auto qualType = type_cast<QualType>(type);
+  if (!qualType) return type;
+
+  if (is_class(type) || is_array(type)) return type;
+
+  return qualType->elementType();
+}
+
+auto TypeTraits::is_similar(const Type* lhs, const Type* rhs) const -> bool {
+  return decomposeForQualification(*this, lhs, rhs).has_value();
+}
+
+auto TypeTraits::qualification_combined_type(const Type* lhs,
+                                             const Type* rhs) const
+    -> const Type* {
+  auto decomposition = decomposeForQualification(*this, lhs, rhs);
+  if (!decomposition) return nullptr;
+
+  const auto& left = decomposition->left;
+  const auto& right = decomposition->right;
+  const auto depth = left.cv.size();
+
+  std::vector<CvQualifiers> cv(depth);
+  for (std::size_t i = 0; i < depth; ++i) cv[i] = left.cv[i] | right.cv[i];
+
+  std::vector<QualificationComponent> components;
+  components.reserve(left.components.size());
+  for (std::size_t i = 0; i < left.components.size(); ++i) {
+    auto component = left.components[i];
+    if (right.components[i].kind ==
+        QualificationComponent::Kind::kUnboundedArray) {
+      component = right.components[i];
+    }
+    components.push_back(component);
+  }
+
+  auto isChangedAt = [&](std::size_t i) {
+    if (cv[i] != left.cv[i] || cv[i] != right.cv[i]) return true;
+    if (i >= components.size()) return false;
+    return components[i].kind != left.components[i].kind ||
+           components[i].kind != right.components[i].kind;
+  };
+
+  for (auto changed = true; changed;) {
+    changed = false;
+
+    for (std::size_t i = 0; i < depth; ++i) {
+      if (!isChangedAt(i)) continue;
+      for (std::size_t k = 1; k < i; ++k) {
+        if (has_const(cv[k])) continue;
+        cv[k] = cv[k] | CvQualifiers::kConst;
+        changed = true;
+      }
+    }
+
+    for (std::size_t i = 0; i < components.size(); ++i) {
+      if (!components[i].isArray()) continue;
+      auto shared = cv[i] | cv[i + 1];
+      if (shared == cv[i] && shared == cv[i + 1]) continue;
+      cv[i] = shared;
+      cv[i + 1] = shared;
+      changed = true;
+    }
+  }
+
+  auto result = add_cv(left.terminal, cv[depth - 1]);
+
+  for (auto i = components.size(); i-- > 0;) {
+    const auto& component = components[i];
+    switch (component.kind) {
+      case QualificationComponent::Kind::kPointer:
+        result = control()->getPointerType(result);
+        break;
+      case QualificationComponent::Kind::kMemberPointer:
+        if (auto functionType = type_cast<FunctionType>(result)) {
+          result = control()->getMemberFunctionPointerType(component.classType,
+                                                           functionType);
+        } else {
+          result = control()->getMemberObjectPointerType(component.classType,
+                                                         result);
+        }
+        break;
+      case QualificationComponent::Kind::kBoundedArray:
+        result = control()->getBoundedArrayType(result, component.size);
+        break;
+      case QualificationComponent::Kind::kUnboundedArray:
+        result = control()->getUnboundedArrayType(result);
+        break;
+    }
+    result = add_cv(result, cv[i]);
+  }
+
+  return result;
+}
+
+auto TypeTraits::is_qualification_convertible(const Type* from,
+                                              const Type* to) const -> bool {
+  return is_same(qualification_combined_type(from, to), to);
+}
+
 auto TypeTraits::is_reference_related(const Type* lhs, const Type* rhs) const
     -> bool {
-  if (is_same(remove_cv(lhs), remove_cv(rhs))) return true;
+  if (is_similar(remove_cv(lhs), remove_cv(rhs))) return true;
   return is_base_of(lhs, rhs);
+}
+
+auto TypeTraits::representsAllValuesOf(const Type* target,
+                                       const Type* source) const -> bool {
+  auto memoryLayout = control()->memoryLayout();
+  auto targetSize = memoryLayout->sizeOf(target).value_or(0);
+  auto sourceSize = memoryLayout->sizeOf(source).value_or(0);
+  if (!targetSize || !sourceSize) return false;
+
+  if (is_unsigned(source)) {
+    if (is_unsigned(target)) return targetSize >= sourceSize;
+    return targetSize > sourceSize;
+  }
+
+  if (is_unsigned(target)) return false;
+  return targetSize >= sourceSize;
+}
+
+auto TypeTraits::integralPromotionCandidates() const
+    -> std::array<const Type*, 6> {
+  return {
+      control()->getIntType(),         control()->getUnsignedIntType(),
+      control()->getLongIntType(),     control()->getUnsignedLongIntType(),
+      control()->getLongLongIntType(), control()->getUnsignedLongLongIntType()};
+}
+
+auto TypeTraits::promoted_integer_type(const Type* type) const -> const Type* {
+  if (!type) return control()->getIntType();
+
+  auto source = remove_cv(type);
+
+  if (auto enumType = type_cast<EnumType>(source)) {
+    auto [underlyingType, promotedType] = promoted_enumeration_types(enumType);
+    return promotedType ? promotedType : underlyingType;
+  }
+
+  switch (source->kind()) {
+    case TypeKind::kBool:
+      return control()->getIntType();
+
+    case TypeKind::kChar8:
+    case TypeKind::kChar16:
+    case TypeKind::kChar32:
+    case TypeKind::kWideChar:
+      for (auto candidate : integralPromotionCandidates()) {
+        if (representsAllValuesOf(candidate, source)) return candidate;
+      }
+      return source;
+
+    case TypeKind::kChar:
+    case TypeKind::kSignedChar:
+    case TypeKind::kUnsignedChar:
+    case TypeKind::kShortInt:
+    case TypeKind::kUnsignedShortInt:
+      if (representsAllValuesOf(control()->getIntType(), source))
+        return control()->getIntType();
+      return control()->getUnsignedIntType();
+
+    default:
+      return source;
+  }
+}
+
+auto TypeTraits::promoted_enumeration_types(const EnumType* enumType) const
+    -> std::pair<const Type*, const Type*> {
+  auto enumSymbol = enumType->symbol();
+
+  if (enumSymbol && enumSymbol->hasFixedUnderlyingType()) {
+    auto underlyingType = enumType->underlyingType();
+    if (!underlyingType) return {control()->getIntType(), nullptr};
+    auto promotedType = promoted_integer_type(underlyingType);
+    if (is_same(promotedType, remove_cv(underlyingType)))
+      return {underlyingType, nullptr};
+    return {underlyingType, promotedType};
+  }
+
+  auto minValue = std::intmax_t{0};
+  auto maxValue = std::intmax_t{0};
+
+  if (enumSymbol) {
+    for (auto member : enumSymbol->members()) {
+      auto enumerator = symbol_cast<EnumeratorSymbol>(member);
+      if (!enumerator) continue;
+      const auto& value = enumerator->value();
+      if (!value) continue;
+      auto intValue = std::get_if<std::intmax_t>(&*value);
+      if (!intValue) continue;
+      minValue = std::min(minValue, *intValue);
+      maxValue = std::max(maxValue, *intValue);
+    }
+  }
+
+  auto memoryLayout = control()->memoryLayout();
+
+  auto representsEnumerationValues = [&](const Type* type) {
+    auto bits = memoryLayout->sizeOf(type).value_or(0) * 8;
+    if (bits == 0) return false;
+    if (bits >= 64) return is_signed(type) || minValue >= 0;
+    if (is_signed(type)) {
+      const auto limit = std::intmax_t{1} << (bits - 1);
+      return minValue >= -limit && maxValue < limit;
+    }
+    return minValue >= 0 && maxValue < (std::intmax_t{1} << bits);
+  };
+
+  for (auto candidate : integralPromotionCandidates()) {
+    if (representsEnumerationValues(candidate)) return {candidate, nullptr};
+  }
+
+  auto underlyingType = enumType->underlyingType();
+  return {underlyingType ? underlyingType : control()->getIntType(), nullptr};
+}
+
+auto TypeTraits::is_integral_promotion(const Type* from, const Type* to) const
+    -> bool {
+  if (!from || !to) return false;
+
+  auto source = remove_cv(from);
+  auto target = remove_cv(to);
+
+  if (auto enumType = type_cast<EnumType>(source)) {
+    auto [underlyingType, promotedType] = promoted_enumeration_types(enumType);
+    if (underlyingType && is_same(remove_cv(underlyingType), target))
+      return true;
+    return promotedType && is_same(remove_cv(promotedType), target);
+  }
+
+  if (!is_integral(source)) return false;
+
+  auto promotedType = promoted_integer_type(source);
+  if (is_same(promotedType, source)) return false;
+  return is_same(promotedType, target);
+}
+
+auto TypeTraits::is_floating_point_promotion(const Type* from,
+                                             const Type* to) const -> bool {
+  if (!from || !to) return false;
+  return remove_cv(from)->kind() == TypeKind::kFloat &&
+         remove_cv(to)->kind() == TypeKind::kDouble;
+}
+
+auto TypeTraits::is_reference_compatible(const Type* target,
+                                         const Type* source) const -> bool {
+  if (!target || !source) return false;
+
+  if (is_qualification_convertible(control()->getPointerType(source),
+                                   control()->getPointerType(target)))
+    return true;
+
+  auto targetUnqualified = remove_cv(target);
+  auto sourceUnqualified = remove_cv(source);
+
+  if (is_function(targetUnqualified) && is_function(sourceUnqualified)) {
+    return is_same(remove_noexcept(sourceUnqualified), targetUnqualified);
+  }
+
+  if (!is_base_of(targetUnqualified, sourceUnqualified)) return false;
+
+  return is_at_least_as_cv_qualified(cv_qualifiers(target),
+                                     cv_qualifiers(source));
 }
 
 auto TypeTraits::is_virtual_base_of(const Type* base, const Type* derived) const
@@ -1938,8 +2327,7 @@ auto TypeTraits::is_covariant_return_type(const Type* overriddenReturnType,
   if (!overriddenReturnType || !overriderReturnType) return false;
   if (is_same(overriddenReturnType, overriderReturnType)) return true;
 
-  if (get_cv_qualifiers(overriddenReturnType) !=
-      get_cv_qualifiers(overriderReturnType))
+  if (cv_qualifiers(overriddenReturnType) != cv_qualifiers(overriderReturnType))
     return false;
 
   auto overridden = remove_cv(overriddenReturnType);
@@ -1962,8 +2350,8 @@ auto TypeTraits::is_covariant_return_type(const Type* overriddenReturnType,
   auto overriderClass = classOf(overrider);
   if (!overriddenClass || !overriderClass) return false;
 
-  const auto overriddenCv = get_cv_qualifiers(overriddenClass);
-  const auto overriderCv = get_cv_qualifiers(overriderClass);
+  const auto overriddenCv = cv_qualifiers(overriddenClass);
+  const auto overriderCv = cv_qualifiers(overriderClass);
   if ((static_cast<int>(overriderCv) & ~static_cast<int>(overriddenCv)) != 0)
     return false;
 
@@ -1991,12 +2379,11 @@ auto TypeTraits::can_initialize(const Type* to, const Type* from,
   auto sequence = conversions.computeConversionSequence(declvalFrom, to,
                                                         initializationKind);
   if (!sequence) return false;
-  if (!is_accessible_from_unrelated_context(
-          sequence.userDefinedConversionFunction))
+  if (!is_accessible_from_unrelated_context(sequence.udc.function))
     return false;
 
   if (is_reference(to)) return true;
-  auto classType = type_cast<ClassType>(remove_cv(to));
+  auto classType = unqualified_cast<ClassType>(to);
   if (!classType) return true;
   auto classSymbol = classType->definition();
   if (!classSymbol) return false;
@@ -2035,7 +2422,7 @@ auto TypeTraits::is_nothrow_initialization(const Type* to, const Type* from,
   auto sequence = StandardConversion{unit_}.computeConversionSequence(
       expression, to, initializationKind);
   if (!sequence) return false;
-  return is_nothrow_function(sequence.userDefinedConversionFunction);
+  return is_nothrow_function(sequence.udc.function);
 }
 
 auto TypeTraits::is_trivial_initialization(const Type* to, const Type* from,
@@ -2052,12 +2439,50 @@ auto TypeTraits::is_trivial_initialization(const Type* to, const Type* from,
   auto sequence = StandardConversion{unit_}.computeConversionSequence(
       expression, to, initializationKind);
   if (!sequence) return false;
-  return sequence.userDefinedConversionFunction == nullptr;
+  return sequence.udc.function == nullptr;
 }
 
 auto TypeTraits::is_convertible(const Type* from, const Type* to) const
     -> bool {
   return can_initialize(to, from, false);
+}
+
+auto TypeTraits::reference_binds_to_temporary(const Type* to, const Type* from,
+                                              bool directInitialization) const
+    -> bool {
+  if (!to || !from) return false;
+  if (!is_reference(to)) return false;
+
+  auto valueCategory = ValueCategory::kPrValue;
+  if (is_lvalue_reference(from)) valueCategory = ValueCategory::kLValue;
+  if (is_rvalue_reference(from)) valueCategory = ValueCategory::kXValue;
+  if (is_function(from)) valueCategory = ValueCategory::kLValue;
+
+  auto source = ThisExpressionAST::create(unit_->arena(), valueCategory,
+                                          remove_reference(from));
+
+  auto initializationKind = InitializationKind::kCopyInitialization;
+  if (directInitialization)
+    initializationKind = InitializationKind::kDirectInitialization;
+
+  auto sequence = StandardConversion{unit_}.computeConversionSequence(
+      source, to, initializationKind);
+  if (!sequence) return false;
+  if (!is_accessible_from_unrelated_context(sequence.udc.function))
+    return false;
+  return sequence.binding.bindsToTemporary();
+}
+
+auto TypeTraits::reference_constructs_from_temporary(const Type* to,
+                                                     const Type* from) const
+    -> bool {
+  return reference_binds_to_temporary(to, from, /*directInitialization=*/true);
+}
+
+auto TypeTraits::reference_converts_from_temporary(const Type* to,
+                                                   const Type* from) const
+    -> bool {
+  return reference_binds_to_temporary(to, from, /*directInitialization=*/false);
 }
 
 auto TypeTraits::is_pod(const Type* type) -> bool {
@@ -2188,8 +2613,7 @@ auto TypeTraits::is_literal_type(const Type* type) -> bool {
       baseClass = baseClass->resolvedDefinition();
       auto baseConstructor = baseClass->defaultConstructor();
       if (!baseConstructor || baseConstructor->isDeleted()) return false;
-      if (!baseConstructor->isConstexpr() && !baseConstructor->isDefaulted())
-        return false;
+      if (!baseConstructor->isConstexpr()) return false;
     }
 
     for (auto field : cls->members() | views::non_static_fields) {
@@ -2200,12 +2624,34 @@ auto TypeTraits::is_literal_type(const Type* type) -> bool {
       auto fieldConstructor =
           fieldClassType->definition()->defaultConstructor();
       if (!fieldConstructor || fieldConstructor->isDeleted()) return false;
-      if (!fieldConstructor->isConstexpr() && !fieldConstructor->isDefaulted())
-        return false;
+      if (!fieldConstructor->isConstexpr()) return false;
     }
     return true;
   }
   return false;
+}
+
+namespace {
+struct AggregateElementType {
+  const TypeTraits& traits;
+
+  auto operator()(FieldSymbol* symbol) const -> const Type* {
+    return traits.remove_cv(symbol->type());
+  }
+
+  auto operator()(BaseClassSymbol* symbol) const -> const Type* {
+    auto baseClass = symbol_cast<ClassSymbol>(symbol->symbol());
+    if (!baseClass) return nullptr;
+    return baseClass->type();
+  }
+
+  auto operator()(auto) const -> const Type* { return nullptr; }
+};
+}  // namespace
+
+auto TypeTraits::aggregate_element_type(Symbol* element) const -> const Type* {
+  if (!element) return nullptr;
+  return visit(AggregateElementType{*this}, element);
 }
 
 auto TypeTraits::aggregate_elements(ClassSymbol* classSymbol) const
@@ -2238,6 +2684,20 @@ auto TypeTraits::is_aggregate(const Type* type) -> bool {
   return true;
 }
 
+auto TypeTraits::is_zero_size_subobject(FieldSymbol* field) -> bool {
+  if (field->isBitField()) {
+    if (field->name()) return false;
+    auto& width = field->bitFieldWidth();
+    if (!width.has_value()) return false;
+    auto bits = std::get_if<std::intmax_t>(&*width);
+    return bits && *bits == 0;
+  }
+
+  if (!field->isNoUniqueAddress()) return false;
+
+  return is_empty(field->type());
+}
+
 auto TypeTraits::is_empty(const Type* type) -> bool {
   auto classType = type_cast<ClassType>(remove_cv(type));
   if (!classType) return false;
@@ -2245,8 +2705,7 @@ auto TypeTraits::is_empty(const Type* type) -> bool {
   requireCompleteClass(cls);
   if (!cls || !cls->isComplete()) return false;
   for (auto f : cls->members() | views::non_static_fields) {
-    (void)f;
-    return false;
+    if (!is_zero_size_subobject(f)) return false;
   }
   if (cls->hasVirtualFunctions()) return false;
   if (cls->hasVirtualBaseClasses()) return false;
@@ -2371,8 +2830,7 @@ auto TypeTraits::is_nothrow_constructible(const Type* type,
     if (!is_nothrow_function(selected)) return false;
     if (!is_nothrow_function(cls->destructor())) return false;
     for (const auto& conversion : result.best->conversions) {
-      if (!is_nothrow_function(conversion.userDefinedConversionFunction))
-        return false;
+      if (!is_nothrow_function(conversion.udc.function)) return false;
     }
     return true;
   }

@@ -24,11 +24,11 @@ struct Codegen {
 // CHECK-NEXT:    namespace ir
 // CHECK-NEXT:      class BasicBlock
 // CHECK-NEXT:    class Codegen
-// CHECK-NEXT:      constructor inline defaulted void Codegen()
-// CHECK-NEXT:      constructor inline defaulted void Codegen(const ::cxx::Codegen&)
+// CHECK-NEXT:      constructor constexpr inline defaulted void Codegen()
+// CHECK-NEXT:      constructor constexpr inline defaulted void Codegen(const ::cxx::Codegen&)
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter const ::cxx::Codegen&
-// CHECK-NEXT:      constructor inline defaulted void Codegen(::cxx::Codegen&&)
+// CHECK-NEXT:      constructor constexpr inline defaulted void Codegen(::cxx::Codegen&&)
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter ::cxx::Codegen&&
 // CHECK-NEXT:      injected class name Codegen
@@ -37,10 +37,10 @@ struct Codegen {
 // CHECK-NEXT:          parameter ::cxx::ExpressionAST* ast
 // CHECK-NEXT:          parameter ::cxx::ir::BasicBlock* iftrue
 // CHECK-NEXT:          parameter ::cxx::ir::BasicBlock* iffalse
-// CHECK-NEXT:      function inline defaulted ::cxx::Codegen& operator =(const ::cxx::Codegen&)
+// CHECK-NEXT:      function constexpr inline defaulted ::cxx::Codegen& operator =(const ::cxx::Codegen&)
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter const ::cxx::Codegen&
-// CHECK-NEXT:      function inline defaulted ::cxx::Codegen& operator =(::cxx::Codegen&&)
+// CHECK-NEXT:      function constexpr inline defaulted ::cxx::Codegen& operator =(::cxx::Codegen&&)
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter ::cxx::Codegen&&
-// CHECK-NEXT:      function inline defaulted void ~Codegen()
+// CHECK-NEXT:      function constexpr inline defaulted void ~Codegen()
