@@ -42,6 +42,9 @@ class Lexer {
 
   [[nodiscard]] auto hasBOM() const -> bool { return hasBOM_; }
 
+  [[nodiscard]] auto LA() const -> std::uint32_t { return currentChar_; }
+  [[nodiscard]] auto LA(int n) const -> std::uint32_t;
+
   auto operator()() -> TokenKind { return next(); }
 
   auto next() -> TokenKind {
@@ -106,8 +109,6 @@ class Lexer {
   void consume();
   void consume(int n);
 
-  [[nodiscard]] inline auto LA() const -> std::uint32_t { return currentChar_; }
-  [[nodiscard]] auto LA(int n) const -> std::uint32_t;
   [[nodiscard]] auto readToken() -> TokenKind;
   [[nodiscard]] auto skipSpaces() -> bool;
 

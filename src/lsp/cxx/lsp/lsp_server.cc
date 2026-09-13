@@ -26,8 +26,8 @@
 #include <cxx/lsp/requests.h>
 #include <cxx/lsp/types.h>
 #include <cxx/preprocessor.h>
+#include <cxx/private/utf8.h>
 #include <cxx/symbols.h>
-#include <utf8/unchecked.h>
 
 #include <chrono>
 #include <format>
@@ -92,7 +92,7 @@ auto Server::Text::offsetAt(std::size_t line, std::size_t column) const
   std::size_t utf16Offset = 0;
 
   while (it != end && utf16Offset < column) {
-    const auto codepoint = utf8::unchecked::next(it);
+    const auto codepoint = utf8::next(it, end);
 
     if (codepoint > 0xFFFF) {
       utf16Offset += 2;
@@ -135,7 +135,7 @@ auto Server::Text::completionPrefixStartAt(std::size_t line,
   std::size_t prefixLength = 0;
 
   while (it != end) {
-    const auto codepoint = utf8::unchecked::next(it);
+    const auto codepoint = utf8::next(it, end);
     if (codepoint > 0xFFFF) {
       prefixLength += 2;
     } else {
@@ -157,7 +157,7 @@ void Server::Text::computeLineStartOffsets() {
   lineStartOffsets.push_back(it - begin);
 
   while (it != end) {
-    const auto ch = utf8::unchecked::next(it);
+    const auto ch = utf8::next(it, end);
     if (ch == '\n') {
       lineStartOffsets.push_back(it - begin);
     }
@@ -236,14 +236,15 @@ void Server::sendNullResult(std::optional<std::variant<long, std::string>> id) {
 }
 
 void Server::sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
-                             EmitCodeFormat format, bool debugInfo) {
+                             EmitCodeFormat format, bool debugInfo,
+                             int optimizationLevel) {
   const auto startedAt = std::chrono::steady_clock::now();
 
   logTrace(std::format(
       "emit event=started file={} version={} format={} interruptible=false",
       document.fileName(), document.version(), to_string(format)));
 
-  auto text = host_->emitCode(document, format, debugInfo);
+  auto text = host_->emitCode(document, format, debugInfo, optimizationLevel);
 
   logTrace(std::format(
       "emit event=finished file={} version={} format={} duration_ms={:.1f}",
@@ -307,6 +308,10 @@ auto Server::registerPendingParserRequest(std::shared_ptr<CxxDocument> document,
                                           std::size_t sourceBytes,
                                           std::optional<ParserRequestId> id)
     -> std::shared_ptr<PendingParserRequest> {
+  if (auto snapshot = snapshotDocument(uri)) {
+    document->preambleCache = snapshot->preambleCache;
+  }
+
   auto request = std::make_shared<PendingParserRequest>(PendingParserRequest{
       .document = std::move(document),
       .uri = std::move(uri),
@@ -397,10 +402,11 @@ auto Server::finishParserRequest(
 
   logTrace(std::format(
       "parse event=finished kind={} file={} version={} duration_ms={:.1f} "
-      "cancelled={} pending={}",
+      "cancelled={} pending={} preamble={}",
       request->kind, request->document->fileName(),
       request->document->version(), elapsedMilliseconds(startedAt),
-      request->document->isCancelled(), pendingCount));
+      request->document->isCancelled(), pendingCount,
+      request->document->translationUnit()->hasAdoptedPrefix()));
 
   if (!parserRequestIsInvalidated(request)) return true;
   if (request->id.has_value()) sendNullResult(request->id);
@@ -542,6 +548,17 @@ void Server::operator()(InitializeRequest request) {
     auto capabilities = response.result().capabilities();
     capabilities.textDocumentSync(TextDocumentSyncKind::kIncremental);
     capabilities.documentSymbolProvider(true);
+    capabilities.hoverProvider(true);
+    capabilities.documentHighlightProvider(true);
+
+    auto semanticTokensOptions =
+        capabilities.semanticTokensProvider<SemanticTokensOptions>();
+    semanticTokensOptions.legend().tokenTypes(
+        CxxDocument::semanticTokenTypeLegend());
+    semanticTokensOptions.legend().tokenModifiers(
+        CxxDocument::semanticTokenModifierLegend());
+    semanticTokensOptions.range(true);
+    semanticTokensOptions.full(true);
 
     if (host_->supportsEmitCode()) {
       auto experimental = json::object();
@@ -635,6 +652,31 @@ void Server::operator()(DidCloseTextDocumentNotification notification) {
   pendingParseGeneration_.erase(uri);
 }
 
+void Server::operator()(DidChangeWatchedFilesNotification notification) {
+  std::vector<std::string> uris;
+  {
+#ifndef CXX_NO_THREADS
+    auto lock = std::unique_lock(documentContentsMutex_);
+#endif
+    for (auto& [uri, content] : documentContents_) {
+      content.preambleCache = std::make_shared<PreambleCache>();
+      uris.push_back(uri);
+    }
+  }
+  {
+#ifndef CXX_NO_THREADS
+    auto lock = std::unique_lock(documentsMutex_);
+#endif
+    documents_.clear();
+  }
+  for (const auto& uri : uris) {
+    if (auto fileName = host_->pathFromUri(uri)) {
+      (void)cancelPendingParserRequests(*fileName);
+    }
+    scheduleParse(uri);
+  }
+}
+
 void Server::operator()(DidChangeTextDocumentNotification notification) {
   logTrace(std::format("Did receive DidChangeTextDocumentNotification"));
 
@@ -704,6 +746,57 @@ auto Server::latestDocument(const std::string& uri)
   return documents_[uri];
 }
 
+void Server::withParsedDocument(const std::string& uri,
+                                std::optional<ParserRequestId> id,
+                                std::string kind, DocumentAction action) {
+  auto snapshot = snapshotDocument(uri);
+
+  if (!snapshot.has_value()) {
+    logTrace(std::format("No content for the document {}", uri));
+    sendNullResult(id);
+    return;
+  }
+
+  if (auto document = latestDocument(uri);
+      document && document->version() == snapshot->version) {
+    host_->run([document, text = std::move(*snapshot),
+                action = std::move(action)] { action(*document, text); });
+    return;
+  }
+
+  auto fileName = host_->pathFromUri(uri);
+
+  if (!fileName.has_value()) {
+    logTrace(std::format("Unsupported URI scheme: {}", uri));
+    sendNullResult(id);
+    return;
+  }
+
+  auto document =
+      std::make_shared<CxxDocument>(std::move(*fileName), snapshot->version);
+
+  auto parserRequest = registerPendingParserRequest(
+      std::move(document), uri, std::move(kind), snapshot->value.size(), id);
+
+  host_->run([this, parserRequest, text = std::move(*snapshot),
+              action = std::move(action)]() mutable {
+    if (parserRequestIsInvalidated(parserRequest)) {
+      skipParserRequest(parserRequest);
+      return;
+    }
+
+    const auto startedAt = startParserRequest(parserRequest);
+    auto source = text.value;
+
+    host_->process(*parserRequest->document, std::move(source),
+                   [this, parserRequest, startedAt, text = std::move(text),
+                    action = std::move(action)] {
+                     if (!finishParserRequest(parserRequest, startedAt)) return;
+                     action(*parserRequest->document, text);
+                   });
+  });
+}
+
 void Server::operator()(DocumentSymbolRequest request) {
   logTrace(std::format("Did receive DocumentSymbolRequest"));
 
@@ -719,6 +812,100 @@ void Server::operator()(DocumentSymbolRequest request) {
       sendToClient(response);
     });
   });
+}
+
+void Server::operator()(HoverRequest request) {
+  logTrace(std::format("Did receive HoverRequest"));
+
+  auto uri = request.params().textDocument().uri();
+  auto id = request.id();
+  auto position = request.params().position();
+  auto line = position.line();
+  auto character = position.character();
+
+  withParsedDocument(
+      uri, id, "hover",
+      [this, id, line, character](CxxDocument& document, const Text& text) {
+        auto offset = text.offsetAt(line, character);
+
+        withUnsafeJson([&](json storage) {
+          HoverResponse response(storage);
+          response.id(id);
+          auto result = response.result<Hover>();
+
+          if (offset == std::string::npos ||
+              !document.hoverAt(offset, result)) {
+            sendNullResult(id);
+            return;
+          }
+
+          sendToClient(response);
+        });
+      });
+}
+
+void Server::operator()(SemanticTokensRequest request) {
+  logTrace(std::format("Did receive SemanticTokensRequest"));
+
+  auto uri = request.params().textDocument().uri();
+  auto id = request.id();
+
+  withParsedDocument(uri, id, "semanticTokens",
+                     [this, id](CxxDocument& document, const Text&) {
+                       withUnsafeJson([&](json storage) {
+                         SemanticTokensResponse response(storage);
+                         response.id(id);
+                         auto result = response.result<SemanticTokens>();
+                         document.semanticTokens({}, result.data());
+                         sendToClient(response);
+                       });
+                     });
+}
+
+void Server::operator()(SemanticTokensRangeRequest request) {
+  logTrace(std::format("Did receive SemanticTokensRangeRequest"));
+
+  auto uri = request.params().textDocument().uri();
+  auto id = request.id();
+  auto range = request.params().range();
+
+  withParsedDocument(uri, id, "semanticTokens",
+                     [this, id, range](CxxDocument& document, const Text&) {
+                       withUnsafeJson([&](json storage) {
+                         SemanticTokensRangeResponse response(storage);
+                         response.id(id);
+                         auto result = response.result<SemanticTokens>();
+                         document.semanticTokens(range, result.data());
+                         sendToClient(response);
+                       });
+                     });
+}
+
+void Server::operator()(DocumentHighlightRequest request) {
+  logTrace(std::format("Did receive DocumentHighlightRequest"));
+
+  auto uri = request.params().textDocument().uri();
+  auto id = request.id();
+  auto position = request.params().position();
+  auto line = position.line();
+  auto character = position.character();
+
+  withParsedDocument(
+      uri, id, "documentHighlight",
+      [this, id, line, character](CxxDocument& document, const Text& text) {
+        auto offset = text.offsetAt(line, character);
+
+        withUnsafeJson([&](json storage) {
+          DocumentHighlightResponse response(storage);
+          response.id(id);
+          auto result = response.result<Vector<DocumentHighlight>>();
+          result.get() = json::array();
+          if (offset != std::string::npos) {
+            document.documentHighlightsAt(offset, result);
+          }
+          sendToClient(response);
+        });
+      });
 }
 
 void Server::operator()(CompletionRequest request) {
@@ -849,6 +1036,8 @@ void Server::operator()(EmitCodeRequest request) {
   auto id = request.id();
   auto format = params.format();
   auto debugInfo = params.debugInfo().value_or(false);
+  auto optimizationLevel =
+      static_cast<int>(params.optimizationLevel().value_or(0));
 
   auto fileName = host_->pathFromUri(uri);
 
@@ -882,7 +1071,8 @@ void Server::operator()(EmitCodeRequest request) {
                                                     snapshot->value.size(), id);
 
   host_->run([this, storage, parserRequest, response, uri, version, format,
-              debugInfo, source = std::move(snapshot->value)]() mutable {
+              debugInfo, optimizationLevel,
+              source = std::move(snapshot->value)]() mutable {
     if (parserRequestIsInvalidated(parserRequest)) {
       skipParserRequest(parserRequest);
       return;
@@ -894,19 +1084,20 @@ void Server::operator()(EmitCodeRequest request) {
 
     if (canReuse) {
       reuseParserRequest(parserRequest);
-      sendEmittedCode(response, *parsedDocument, format, debugInfo);
+      sendEmittedCode(response, *parsedDocument, format, debugInfo,
+                      optimizationLevel);
       return;
     }
 
     const auto startedAt = startParserRequest(parserRequest);
 
-    host_->process(
-        *parserRequest->document, std::move(source),
-        [this, storage, parserRequest, response, format, debugInfo, startedAt] {
-          if (!finishParserRequest(parserRequest, startedAt)) return;
-          sendEmittedCode(response, *parserRequest->document, format,
-                          debugInfo);
-        });
+    host_->process(*parserRequest->document, std::move(source),
+                   [this, storage, parserRequest, response, format, debugInfo,
+                    optimizationLevel, startedAt] {
+                     if (!finishParserRequest(parserRequest, startedAt)) return;
+                     sendEmittedCode(response, *parserRequest->document, format,
+                                     debugInfo, optimizationLevel);
+                   });
   });
 }
 

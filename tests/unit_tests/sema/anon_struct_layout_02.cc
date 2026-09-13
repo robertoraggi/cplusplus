@@ -13,7 +13,7 @@ struct S1 {
 };
 
 // CHECK: *** Dumping AST Record Layout
-// CHECK:         0 | struct S1
+// CHECK:         0 | struct ::S1
 // CHECK:         0 |  union (anonymous)
 // CHECK:         0 |    float f
 // CHECK:         0 |    int i
@@ -37,7 +37,7 @@ struct S2 {
 };
 
 // CHECK: *** Dumping AST Record Layout
-// CHECK:         0 | struct S2
+// CHECK:         0 | struct ::S2
 // CHECK:         0 |  struct (anonymous)
 // CHECK:         0 |    int a
 // CHECK:         4 |    int b
@@ -63,7 +63,7 @@ struct S3 {
 };
 
 // CHECK: *** Dumping AST Record Layout
-// CHECK:         0 | struct S3
+// CHECK:         0 | struct ::S3
 // CHECK:         0 |  union (anonymous)
 // CHECK:         0 |    int xy
 // CHECK:         0 |    struct (anonymous)

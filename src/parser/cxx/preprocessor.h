@@ -21,6 +21,8 @@
 #pragma once
 
 #include <cxx/preprocessor_fwd.h>
+#include <cxx/preprocessor_snapshot.h>
+#include <cxx/source_resolver.h>
 
 #include <functional>
 #include <iosfwd>
@@ -48,7 +50,7 @@ class CommentHandler {
                              const Token& token) = 0;
 };
 
-class Preprocessor {
+class Preprocessor final : public SourceResolver {
  public:
   Preprocessor(Preprocessor&&) noexcept = default;
   auto operator=(Preprocessor&&) noexcept -> Preprocessor& = default;
@@ -85,6 +87,8 @@ class Preprocessor {
 
   void endPreprocessing(std::vector<Token>& outputTokens);
 
+  static constexpr std::string_view kBuiltinsFileName = "<builtins>";
+
   [[nodiscard]] auto builtinsFileId() const -> int;
 
   [[nodiscard]] auto mainSourceFileId() const -> int;
@@ -100,8 +104,10 @@ class Preprocessor {
   void preprocess(std::string source, std::string fileName,
                   std::vector<Token>& tokens);
 
-  void getPreprocessedText(const std::vector<Token>& tokens,
-                           std::ostream& out) const;
+  void getPreprocessedText(
+      const std::vector<Token>& tokens,
+      const std::vector<std::pair<unsigned, int>>& packChanges,
+      std::ostream& out) const;
 
   [[nodiscard]] auto systemIncludePaths() const
       -> const std::vector<std::string>&;
@@ -131,6 +137,19 @@ class Preprocessor {
 
   void printMacros(std::ostream& out) const;
 
+  void setPreambleOnly(bool enabled);
+  [[nodiscard]] auto preambleOnly() const -> bool;
+  [[nodiscard]] auto preambleSize() const -> std::optional<std::size_t>;
+  [[nodiscard]] auto preambleState() const -> PreprocessorSnapshot;
+
+  [[nodiscard]] auto canSnapshot() const -> bool;
+
+  [[nodiscard]] auto snapshotBlocker() const -> std::string_view;
+
+  [[nodiscard]] auto snapshot() const -> PreprocessorSnapshot;
+
+  void restore(const PreprocessorSnapshot& snapshot);
+
   struct Source {
     std::string_view fileName;
     std::span<int> lineOffsets;
@@ -138,15 +157,20 @@ class Preprocessor {
 
   [[nodiscard]] auto sources() const -> std::vector<Source>;
 
-  [[nodiscard]] auto tokenStartPosition(const Token& token) const
+  [[nodiscard]] auto presumedTokenStartPosition(const Token& token) const
       -> SourcePosition;
+
+  [[nodiscard]] auto tokenStartPosition(const Token& token) const
+      -> SourcePosition override;
 
   [[nodiscard]] auto tokenEndPosition(const Token& token) const
-      -> SourcePosition;
+      -> SourcePosition override;
 
-  [[nodiscard]] auto getTextLine(const Token& token) const -> std::string_view;
+  [[nodiscard]] auto getTextLine(const Token& token) const
+      -> std::string_view override;
 
-  [[nodiscard]] auto getTokenText(const Token& token) const -> std::string_view;
+  [[nodiscard]] auto getTokenText(const Token& token) const
+      -> std::string_view override;
 
   [[nodiscard]] auto resolve(const Include& include, bool isIncludeNext) const
       -> std::optional<std::string>;
@@ -156,9 +180,6 @@ class Preprocessor {
   [[nodiscard]] auto hasCodeCompletionRequest() const -> bool;
 
   void squeeze();
-
-  [[nodiscard]] auto packValueAt(std::uint32_t fileId, unsigned offset) const
-      -> int;
 
  private:
   struct Private;

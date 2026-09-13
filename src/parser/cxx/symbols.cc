@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
@@ -28,10 +29,23 @@
 #include <cxx/util.h>
 #include <cxx/views/symbols.h>
 
+#include <algorithm>
+#include <bit>
 #include <format>
 #include <unordered_set>
 
 namespace cxx {
+
+auto instantiationErrorsOf(const std::vector<Diagnostic>& diagnostics)
+    -> std::vector<InstantiationError> {
+  std::vector<InstantiationError> errors;
+  errors.reserve(diagnostics.size());
+  for (const auto& diagnostic : diagnostics) {
+    errors.push_back(
+        {diagnostic.location(), diagnostic.message(), diagnostic.severity()});
+  }
+  return errors;
+}
 
 auto toAccessSpecifier(TokenKind accessSpecifierToken,
                        AccessSpecifier defaultAccessSpecifier)
@@ -119,8 +133,8 @@ auto compare_symbols(TranslationUnit* unit, Symbol* lhs, Symbol* rhs) -> bool {
     if (lhsVar->constValue().has_value()) {
       if (lhsVar->constValue().value() != rhsVar->constValue().value())
         return false;
-    } else if (!areExpressionsEquivalent(unit, lhsVar->initializer(),
-                                         rhsVar->initializer())) {
+    } else if (!TemplateEquivalence{unit}.same(lhsVar->initializer(),
+                                               rhsVar->initializer())) {
       return false;
     }
   }
@@ -182,7 +196,7 @@ auto compare_single_arg(TranslationUnit* unit, const TemplateArgument& lhs,
     auto rhsExpr = std::get_if<ExpressionAST*>(&rhs);
     if (!rhsExpr) return false;
     if (*lhsExpr == *rhsExpr) return true;
-    return areExpressionsEquivalent(unit, *lhsExpr, *rhsExpr);
+    return TemplateEquivalence{unit}.same(*lhsExpr, *rhsExpr);
   }
 
   return false;
@@ -295,6 +309,53 @@ auto template_argument_value(const TemplateArgument& argument)
   }
 
   return std::nullopt;
+}
+
+auto hash_template_arguments(std::span<const TemplateArgument> arguments)
+    -> std::optional<std::size_t> {
+  std::size_t seed = arguments.size();
+
+  auto mix = [&seed](std::size_t value) {
+    seed ^= value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2);
+  };
+
+  auto hashSymbol = [&](auto& self, Symbol* symbol) -> bool {
+    if (!symbol) return false;
+
+    if (auto templateName = template_name_symbol(symbol)) {
+      mix(std::hash<const void*>{}(templateName));
+      return true;
+    }
+
+    if (nonTypeParameterIdentity(symbol)) return false;
+
+    if (auto pack = symbol_cast<ParameterPackSymbol>(symbol)) {
+      if (pack->type()) return false;
+      mix(pack->elements().size());
+      for (auto element : pack->elements()) {
+        if (!self(self, element)) return false;
+      }
+      return true;
+    }
+
+    auto type = symbol->type();
+    if (!type) return false;
+    mix(std::hash<const void*>{}(type));
+    return true;
+  };
+
+  for (const auto& argument : arguments) {
+    if (auto type = std::get_if<const Type*>(&argument)) {
+      mix(std::hash<const void*>{}(*type));
+      continue;
+    }
+
+    auto symbol = std::get_if<Symbol*>(&argument);
+    if (!symbol) return std::nullopt;
+    if (!hashSymbol(hashSymbol, *symbol)) return std::nullopt;
+  }
+
+  return seed;
 }
 
 auto template_name_symbol(Symbol* symbol) -> Symbol* {
@@ -458,6 +519,52 @@ auto Symbol::enclosingClass() const -> ClassSymbol* {
   return nullptr;
 }
 
+auto is_unnamed_namespace(Symbol* symbol) -> bool {
+  auto ns = symbol_cast<NamespaceSymbol>(symbol);
+  return ns && ns->anonNamespaceIndex().has_value();
+}
+
+auto is_in_unnamed_namespace(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+  if (is_unnamed_namespace(symbol)) return true;
+  for (auto scope : symbol->enclosingSymbols()) {
+    if (is_unnamed_namespace(scope)) return true;
+  }
+  return false;
+}
+
+auto is_declared_extern(VariableSymbol* variable) -> bool {
+  if (variable->isExtern()) return true;
+  auto canonical = variable->canonical();
+  if (canonical->isExtern()) return true;
+  return std::ranges::any_of(
+      canonical->redeclarations(),
+      [](VariableSymbol* redeclaration) { return redeclaration->isExtern(); });
+}
+
+auto has_internal_linkage(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+
+  if (is_in_unnamed_namespace(symbol)) return true;
+
+  auto parent = symbol->parent();
+  if (!parent || !parent->isNamespace()) return false;
+
+  if (auto function = symbol_cast<FunctionSymbol>(symbol))
+    return function->isStatic();
+
+  auto variable = symbol_cast<VariableSymbol>(symbol);
+  if (!variable) return false;
+
+  if (variable->isStatic()) return true;
+  if (variable->isInline() || is_declared_extern(variable)) return false;
+  if (variable->templateParameters() || variable->isSpecialization())
+    return false;
+
+  auto qualType = type_cast<QualType>(variable->type());
+  return qualType && qualType->isConst() && !qualType->isVolatile();
+}
+
 auto Symbol::enclosingFunction() const -> FunctionSymbol* {
   for (auto scope = parent(); scope; scope = scope->parent()) {
     if (auto func = symbol_cast<FunctionSymbol>(scope)) {
@@ -465,6 +572,12 @@ auto Symbol::enclosingFunction() const -> FunctionSymbol* {
     }
   }
   return nullptr;
+}
+
+auto Symbol::enclosingFunctionOrSelf() const -> FunctionSymbol* {
+  if (auto func = symbol_cast<FunctionSymbol>(const_cast<Symbol*>(this)))
+    return func;
+  return enclosingFunction();
 }
 
 auto Symbol::canonical() const -> Symbol* {
@@ -597,6 +710,18 @@ auto template_parameter_info(Symbol* symbol) -> std::optional<TypeParamInfo> {
   return visit(GetTemplateParameterInfo{}, symbol);
 }
 
+auto is_non_static_member(Symbol* symbol) -> bool {
+  if (auto field = symbol_cast<FieldSymbol>(symbol)) return !field->isStatic();
+  if (auto function = symbol_cast<FunctionSymbol>(symbol))
+    return !function->isStatic();
+  if (symbol_cast<OverloadSetSymbol>(symbol)) {
+    return std::ranges::any_of(
+        views::each_function(symbol),
+        [](FunctionSymbol* function) { return !function->isStatic(); });
+  }
+  return false;
+}
+
 auto is_member_template(Symbol* symbol) -> bool {
   if (!template_declaration_of(symbol)) return false;
   return symbol_cast<ClassSymbol>(symbol->parent()) != nullptr;
@@ -695,8 +820,6 @@ ScopeSymbol::ScopeSymbol(SymbolKind kind, ScopeSymbol* enclosingScope)
 
 ScopeSymbol::~ScopeSymbol() {}
 
-void ScopeSymbol::addMember(Symbol* symbol) { addSymbol(symbol); }
-
 auto ScopeSymbol::members() const -> const std::vector<Symbol*>& {
   return members_;
 }
@@ -713,10 +836,10 @@ void ScopeSymbol::truncate(std::size_t count) {
     members_[i]->setParent(nullptr);
   }
   members_.resize(count);
-  buckets_.clear();
-  if (!members_.empty()) {
+  if (members_.empty())
+    buckets_.clear();
+  else
     rehash();
-  }
 }
 
 auto ScopeSymbol::isTransparent() const -> bool {
@@ -725,7 +848,11 @@ auto ScopeSymbol::isTransparent() const -> bool {
   return false;
 }
 
-void ScopeSymbol::addSymbol(Symbol* symbol) {
+auto ScopeSymbol::bucketOf(const Symbol* symbol) const -> std::size_t {
+  return bucketOfHash(symbol->name() ? symbol->name()->hashValue() : 0);
+}
+
+void ScopeSymbol::addMember(Symbol* symbol) {
   if (symbol->isTemplateParameters()) {
     cxx_runtime_error("trying to add a template parameters symbol to a scope");
     return;
@@ -744,27 +871,39 @@ void ScopeSymbol::addSymbol(Symbol* symbol) {
   }
 
   members_.push_back(symbol);
+}
+
+void ScopeSymbol::addSymbol(Symbol* symbol) {
+  const auto size = members_.size();
+
+  addMember(symbol);
+
+  if (members_.size() == size) return;
 
   if (3 * members_.size() >= 2 * buckets_.size()) {
     rehash();
   } else {
-    auto h = symbol->name() ? symbol->name()->hashValue() : 0;
-    h = h % buckets_.size();
+    const auto h = bucketOf(symbol);
     symbol->link_ = buckets_[h];
     buckets_[h] = symbol;
   }
 }
 
-void ScopeSymbol::rehash() {
-  const auto newSize = std::max(std::size_t(8), buckets_.size() * 2);
+void ScopeSymbol::rebuildLookupTable() {
+  if (members_.empty()) return;
+  rehash();
+}
 
-  buckets_ = std::vector<Symbol*>(newSize);
+void ScopeSymbol::rehash() {
+  const auto newSize =
+      std::max(std::size_t(8), std::bit_ceil(members_.size() * 2));
+
+  buckets_.assign(newSize, nullptr);
 
   for (auto symbol : members_) {
-    auto h = symbol->name() ? symbol->name()->hashValue() : 0;
-    auto index = h % newSize;
-    symbol->link_ = buckets_[index];
-    buckets_[index] = symbol;
+    const auto h = bucketOf(symbol);
+    symbol->link_ = buckets_[h];
+    buckets_[h] = symbol;
   }
 }
 
@@ -779,8 +918,7 @@ void ScopeSymbol::replaceSymbol(Symbol* symbol, Symbol* newSymbol) {
 
   newSymbol->link_ = symbol->link_;
 
-  auto h = newSymbol->name() ? newSymbol->name()->hashValue() : 0;
-  h = h % buckets_.size();
+  const auto h = bucketOf(newSymbol);
 
   if (buckets_[h] == symbol) {
     buckets_[h] = newSymbol;
@@ -802,8 +940,7 @@ void ScopeSymbol::addUsingDirective(ScopeSymbol* scope) {
 
 auto ScopeSymbol::find(const Name* name) const -> SymbolChainView {
   if (!members_.empty()) {
-    auto h = name ? name->hashValue() : 0;
-    h = h % buckets_.size();
+    const auto h = bucketOfHash(name ? name->hashValue() : 0);
     for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
       if (symbol->name() == name) {
         return SymbolChainView{symbol};
@@ -815,7 +952,7 @@ auto ScopeSymbol::find(const Name* name) const -> SymbolChainView {
 
 auto ScopeSymbol::find(TokenKind op) const -> SymbolChainView {
   if (!members_.empty()) {
-    const auto h = OperatorId::hash(op) % buckets_.size();
+    const auto h = bucketOfHash(OperatorId::hash(op));
     for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
       auto id = name_cast<OperatorId>(symbol->name());
       if (id && id->op() == op) return SymbolChainView{symbol};
@@ -826,7 +963,7 @@ auto ScopeSymbol::find(TokenKind op) const -> SymbolChainView {
 
 auto ScopeSymbol::find(const std::string_view& name) const -> SymbolChainView {
   if (!members_.empty()) {
-    const auto h = Identifier::hash(name) % buckets_.size();
+    const auto h = bucketOfHash(Identifier::hash(name));
     for (auto symbol = buckets_[h]; symbol; symbol = symbol->link_) {
       auto id = name_cast<Identifier>(symbol->name());
       if (id && id->name() == name) return SymbolChainView{symbol};
@@ -1037,6 +1174,20 @@ auto ClassSymbol::alignment() const -> int { return std::max(alignment_, 1); }
 
 void ClassSymbol::setAlignment(int alignment) { alignment_ = alignment; }
 
+auto ClassSymbol::explicitAlignment() const -> int {
+  return explicitAlignment_;
+}
+
+void ClassSymbol::setExplicitAlignment(int alignment) {
+  explicitAlignment_ = alignment;
+}
+
+auto ClassSymbol::packAlignment() const -> int { return packAlignment_; }
+
+void ClassSymbol::setPackAlignment(int alignment) {
+  packAlignment_ = alignment;
+}
+
 auto ClassSymbol::hasBaseClass(const Symbol* symbol) const -> bool {
   std::unordered_set<const ClassSymbol*> processed;
   return hasBaseClass(symbol, processed);
@@ -1205,6 +1356,49 @@ auto ClassSymbol::implicitConversionFunctions() const
   auto result = conversionFunctions();
   std::erase_if(result,
                 [](FunctionSymbol* func) { return func->isExplicit(); });
+  return result;
+}
+
+auto ClassSymbol::visibleConversionFunctions() const
+    -> std::vector<FunctionSymbol*> {
+  struct Declaration {
+    ClassSymbol* declaringClass = nullptr;
+    FunctionSymbol* function = nullptr;
+  };
+
+  std::vector<Declaration> declarations;
+  std::vector<ClassSymbol*> pending{resolvedDefinition()};
+  std::vector<ClassSymbol*> seen;
+
+  while (!pending.empty()) {
+    auto currentClass = pending.back();
+    pending.pop_back();
+    if (!currentClass) continue;
+    if (std::ranges::find(seen, currentClass) != seen.end()) continue;
+    seen.push_back(currentClass);
+
+    for (auto base : currentClass->baseClasses()) {
+      if (auto baseClass = symbol_cast<ClassSymbol>(base->symbol()))
+        pending.push_back(baseClass->resolvedDefinition());
+    }
+
+    for (auto func : currentClass->conversionFunctions())
+      declarations.push_back({currentClass, func});
+  }
+
+  const auto isHidden = [&declarations](const Declaration& declaration) {
+    return std::ranges::any_of(declarations, [&](const Declaration& other) {
+      if (other.declaringClass == declaration.declaringClass) return false;
+      if (other.function->name() != declaration.function->name()) return false;
+      return other.declaringClass->hasBaseClass(declaration.declaringClass);
+    });
+  };
+
+  std::vector<FunctionSymbol*> result;
+  for (const auto& declaration : declarations) {
+    if (isHidden(declaration)) continue;
+    result.push_back(declaration.function);
+  }
   return result;
 }
 
@@ -1600,7 +1794,10 @@ auto FunctionSymbol::isConstructor() const -> bool {
   }
 
   auto id = name_cast<Identifier>(name());
-  if (!id) return false;
+  if (!id) {
+    return std::ranges::contains(p->constructors(),
+                                 const_cast<FunctionSymbol*>(this));
+  }
 
   if (p->name() == id) return true;
 
@@ -1634,6 +1831,18 @@ void FunctionSymbol::setDefinitionRequired(bool isDefinitionRequired) {
   isDefinitionRequired_ = isDefinitionRequired;
 }
 
+auto FunctionSymbol::isNoReturn() const -> bool { return isNoReturn_; }
+
+void FunctionSymbol::setNoReturn(bool isNoReturn) { isNoReturn_ = isNoReturn; }
+
+auto FunctionSymbol::builtinKind() const -> BuiltinFunctionKind {
+  return builtinKind_;
+}
+
+void FunctionSymbol::setBuiltinKind(BuiltinFunctionKind builtinKind) {
+  builtinKind_ = builtinKind;
+}
+
 auto FunctionSymbol::externalName() const -> const Identifier* {
   return externalName_;
 }
@@ -1650,6 +1859,30 @@ void FunctionSymbol::setAliasName(const Identifier* aliasName) {
   aliasName_ = aliasName;
 }
 
+auto FunctionSymbol::importModule() const -> const Identifier* {
+  return importModule_;
+}
+
+void FunctionSymbol::setImportModule(const Identifier* importModule) {
+  importModule_ = importModule;
+}
+
+auto FunctionSymbol::importName() const -> const Identifier* {
+  return importName_;
+}
+
+void FunctionSymbol::setImportName(const Identifier* importName) {
+  importName_ = importName;
+}
+
+auto FunctionSymbol::exportName() const -> const Identifier* {
+  return exportName_;
+}
+
+void FunctionSymbol::setExportName(const Identifier* exportName) {
+  exportName_ = exportName;
+}
+
 auto FunctionSymbol::hasHiddenVisibility() const -> bool {
   return hasHiddenVisibility_;
 }
@@ -1660,6 +1893,11 @@ void FunctionSymbol::setHiddenVisibility(bool hasHiddenVisibility) {
 
 auto FunctionSymbol::hasPendingBody() const -> bool {
   return pendingBody_ != nullptr;
+}
+
+auto FunctionSymbol::hasUninstantiatedBody() const -> bool {
+  if (hasPendingBody()) return true;
+  return isSpecialization() && !declaration() && !isDefined();
 }
 
 auto FunctionSymbol::pendingBody() const -> PendingBodyInstantiation* {
@@ -1716,6 +1954,11 @@ void OverloadSetSymbol::addFunction(FunctionSymbol* function) {
   }
 
   declaredFunctions_.push_back(function);
+}
+
+void OverloadSetSymbol::truncateFunctions(std::size_t count) {
+  if (count >= declaredFunctions_.size()) return;
+  declaredFunctions_.resize(count);
 }
 
 auto OverloadSetSymbol::usingDeclarations() const
@@ -1876,6 +2119,14 @@ void VariableSymbol::setConstValue(std::optional<ConstValue> value) {
   constValue_ = std::move(value);
 }
 
+auto VariableSymbol::explicitAlignment() const -> int {
+  return explicitAlignment_;
+}
+
+void VariableSymbol::setExplicitAlignment(int alignment) {
+  explicitAlignment_ = alignment;
+}
+
 auto FieldSymbol::constValue() const -> const std::optional<ConstValue>& {
   return constValue_;
 }
@@ -1978,7 +2229,13 @@ auto FieldSymbol::alignment() const -> int { return alignment_; }
 
 void FieldSymbol::setAlignment(int alignment) { alignment_ = alignment; }
 
-auto FieldSymbol::initializer() const -> ExpressionAST* { return initializer_; }
+auto FieldSymbol::initializer() const -> ExpressionAST* {
+  if (pendingInitializer_ && !isStatic()) {
+    ASTRewriter::completePendingFieldInitializer(
+        pendingInitializer_->unit, const_cast<FieldSymbol*>(this));
+  }
+  return initializer_;
+}
 
 void FieldSymbol::setInitializer(ExpressionAST* initializer) {
   initializer_ = initializer;

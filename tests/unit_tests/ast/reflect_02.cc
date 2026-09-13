@@ -46,20 +46,22 @@ auto main() -> int { return S{.x = 10}.[:^^S::x:]; }
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:          statement-list
 // CHECK-NEXT:            return-statement
-// CHECK-NEXT:              expression: splice-member-expression [prvalue ::S]
-// CHECK-NEXT:                access-op: .
-// CHECK-NEXT:                base-expression: braced-type-construction [prvalue ::S]
-// CHECK-NEXT:                  type-specifier: named-type-specifier
-// CHECK-NEXT:                    unqualified-id: name-id
-// CHECK-NEXT:                      identifier: S
-// CHECK-NEXT:                  braced-init-list: braced-init-list
-// CHECK-NEXT:                    expression-list
-// CHECK-NEXT:                      int-literal-expression [prvalue int]
-// CHECK-NEXT:                        literal: 10
-// CHECK-NEXT:                splicer: splicer
-// CHECK-NEXT:                  expression: reflect-expression [prvalue __builtin_meta_info]
-// CHECK-NEXT:                    expression: id-expression [lvalue int]
-// CHECK-NEXT:                      nested-name-specifier: simple-nested-name-specifier
-// CHECK-NEXT:                        identifier: S
+// CHECK-NEXT:              expression: implicit-cast-expression [prvalue int]
+// CHECK-NEXT:                cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                expression: splice-member-expression [xvalue int]
+// CHECK-NEXT:                  access-op: .
+// CHECK-NEXT:                  base-expression: braced-type-construction [prvalue ::S]
+// CHECK-NEXT:                    type-specifier: named-type-specifier
 // CHECK-NEXT:                      unqualified-id: name-id
-// CHECK-NEXT:                        identifier: x
+// CHECK-NEXT:                        identifier: S
+// CHECK-NEXT:                    braced-init-list: braced-init-list
+// CHECK-NEXT:                      expression-list
+// CHECK-NEXT:                        int-literal-expression [prvalue int]
+// CHECK-NEXT:                          literal: 10
+// CHECK-NEXT:                  splicer: splicer
+// CHECK-NEXT:                    expression: reflect-expression [prvalue __builtin_meta_info]
+// CHECK-NEXT:                      expression: id-expression [lvalue int]
+// CHECK-NEXT:                        nested-name-specifier: simple-nested-name-specifier
+// CHECK-NEXT:                          identifier: S
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: x

@@ -33,6 +33,7 @@
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
+#include <cxx/views/symbols.h>
 
 #include <format>
 
@@ -369,6 +370,14 @@ auto ASTRewriter::attributeArgumentClause(AttributeArgumentClauseAST* ast)
   auto copy = AttributeArgumentClauseAST::create(arena());
 
   copy->lparenLoc = ast->lparenLoc;
+
+  for (auto expressionList = &copy->expressionList;
+       auto node : ListView{ast->expressionList}) {
+    auto value = expression(node);
+    *expressionList = make_list_node(arena(), value);
+    expressionList = &(*expressionList)->next;
+  }
+
   copy->rparenLoc = ast->rparenLoc;
 
   return copy;
@@ -407,7 +416,15 @@ auto ASTRewriter::typeId(TypeIdAST* ast) -> TypeIdAST* {
   const auto pendingExceptionSpecifierMark =
       this->pendingExceptionSpecifierMark();
 
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = attributeSpecifier(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   auto typeSpecifierListCtx = DeclSpecs{unit_};
+  typeSpecifierListCtx.attributeList = copy->attributeList;
   for (auto typeSpecifierList = &copy->typeSpecifierList;
        auto node : ListView{ast->typeSpecifierList}) {
     auto value = specifier(node);
@@ -811,16 +828,19 @@ auto ASTRewriter::SpecifierVisitor::operator()(ElaboratedTypeSpecifierAST* ast)
   copy->classKey = ast->classKey;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
-#if false
-  auto decl = symbol_cast<ClassSymbol>(ast->symbol);
+  const bool hasResolvedNestedNameSpecifier =
+      copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol;
+  const bool isTemplateId =
+      ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId) != nullptr;
 
-  if (auto classSpec = decl->declaration()) {
-    auto newClassSpec =
-        ast_cast<ClassSpecifierAST>(rewrite.specifier(classSpec));
-
-    copy->symbol = newClassSpec->symbol;
+  if (hasResolvedNestedNameSpecifier || isTemplateId) {
+    copy->symbol =
+        binder()->resolve(copy->nestedNameSpecifier, copy->unqualifiedId,
+                          /*checkTemplates=*/true);
+    if (!copy->symbol) copy->symbol = rewrite.remapSymbol(ast->symbol);
+  } else {
+    copy->symbol = rewrite.remapSymbol(ast->symbol);
   }
-#endif
 
   return copy;
 }
@@ -988,7 +1008,26 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   bool reusingExisting = false;
   bool reusingClassMember = false;
 
-  if (copy->nestedNameSpecifier) {
+  if (auto target = std::exchange(rewrite.classInstanceToComplete_, nullptr);
+      !classSymbol && target && !target->isComplete()) {
+    classSymbol = target;
+    reusingExisting = true;
+  }
+
+  if (!classSymbol && ast->symbol == rewrite.binder().instantiatingSymbol()) {
+    if (auto existing = ast->symbol->findSpecialization(
+            translationUnit(), rewrite.templateArguments())) {
+      classSymbol = symbol_cast<ClassSymbol>(existing);
+      if (classSymbol && !classSymbol->isComplete()) {
+        reusingExisting = true;
+        ast->symbol->clearPendingInstantiation(classSymbol);
+      } else {
+        classSymbol = nullptr;
+      }
+    }
+  }
+
+  if (!classSymbol && copy->nestedNameSpecifier) {
     if (auto enclosingInstance =
             symbol_cast<ClassSymbol>(copy->nestedNameSpecifier->symbol)) {
       for (auto candidate : enclosingInstance->find(className)) {
@@ -1007,21 +1046,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
     }
   }
 
-  if (auto target = std::exchange(rewrite.classInstanceToComplete_, nullptr);
-      !classSymbol && target && !target->isComplete()) {
-    classSymbol = target;
-  }
-
-  if (!classSymbol && ast->symbol == rewrite.binder().instantiatingSymbol()) {
-    if (auto existing = ast->symbol->findSpecialization(
-            translationUnit(), rewrite.templateArguments())) {
-      classSymbol = symbol_cast<ClassSymbol>(existing);
-      if (classSymbol && !classSymbol->isComplete()) {
-        reusingExisting = true;
-        ast->symbol->clearPendingInstantiation(classSymbol);
-      } else {
-        classSymbol = nullptr;
-      }
+  if (!classSymbol && !copy->nestedNameSpecifier && className &&
+      !ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId)) {
+    for (auto candidate :
+         binder()->declaringScope()->find(className) | views::classes) {
+      if (candidate->isComplete()) break;
+      if (candidate->templateParameters()) break;
+      classSymbol = candidate;
+      reusingClassMember = true;
+      break;
     }
   }
 
@@ -1039,7 +1072,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   binder()->applyAccessSpecifier(classSymbol);
   classSymbol->setIsUnion(ast->symbol->isUnion());
   classSymbol->setFinal(ast->isFinal);
+  if (!binder()->hasDependentAlignment(ast->attributeList)) {
+    classSymbol->setExplicitAlignment(ast->symbol->explicitAlignment());
+  } else if (auto alignment =
+                 binder()->explicitAlignment(copy->attributeList, location)) {
+    classSymbol->setExplicitAlignment(*alignment);
+  }
+  classSymbol->setPackAlignment(ast->symbol->packAlignment());
   classSymbol->setAccessControlDisabled(ast->symbol->isAccessControlDisabled());
+  binder()->inheritDeclarationAttributes(classSymbol, ast->symbol);
   classSymbol->setDeclaration(copy);
   classSymbol->setTemplateDeclaration(templateHead);
   if (templateHead) classSymbol->setTemplateParameters(templateHead->symbol);
@@ -1256,7 +1297,9 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
   auto pendingClasses = std::move(rewrite.pendingOutOfClassMemberDefClasses_);
   rewrite.pendingOutOfClassMemberDefClasses_.clear();
   for (auto* patternClass : pendingClasses) {
-    rewrite.instantiateOutOfClassMemberDefinitions(patternClass);
+    auto instanceClass =
+        symbol_cast<ClassSymbol>(rewrite.remapSymbol(patternClass));
+    rewrite.instantiateOutOfClassMemberDefinitions(patternClass, instanceClass);
   }
 }
 
@@ -1341,6 +1384,14 @@ auto ASTRewriter::AttributeSpecifierVisitor::operator()(GccAttributeAST* ast)
   copy->attributeLoc = ast->attributeLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->lparen2Loc = ast->lparen2Loc;
+
+  for (auto attributeList = &copy->attributeList;
+       auto node : ListView{ast->attributeList}) {
+    auto value = rewrite.attribute(node);
+    *attributeList = make_list_node(arena(), value);
+    attributeList = &(*attributeList)->next;
+  }
+
   copy->rparenLoc = ast->rparenLoc;
   copy->rparen2Loc = ast->rparen2Loc;
 

@@ -18,10 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
 namespace cxx {
+
+auto UnresolvedNameType::sourceLocationRange() const -> SourceLocationRange {
+  auto [first, last] = unqualifiedId() ? unqualifiedId()->sourceLocationRange()
+                                       : SourceLocationRange{};
+
+  if (nestedNameSpecifier()) {
+    auto [qualifierFirst, qualifierLast] =
+        nestedNameSpecifier()->sourceLocationRange();
+    if (qualifierFirst && (!first || qualifierFirst < first))
+      first = qualifierFirst;
+    if (!last) last = qualifierLast;
+  }
+
+  return {first, last};
+}
 namespace {
 
 struct ContainsPlaceholderType {
@@ -132,22 +148,34 @@ auto ClassType::isComplete() const -> bool {
 
 auto ClassType::isUnion() const -> bool { return definition()->isUnion(); }
 
-auto memberPointerBaseAdjustment(const MemberObjectPointerType* sourceType,
-                                 const MemberObjectPointerType* targetType)
+auto classSubobjectOffset(const Type* derivedClassType,
+                          const Type* baseClassType)
     -> std::optional<std::int64_t> {
-  if (!sourceType || !targetType) return std::nullopt;
+  auto derived = type_cast<ClassType>(derivedClassType);
+  auto base = type_cast<ClassType>(baseClassType);
+  if (!derived || !base) return std::nullopt;
 
-  auto sourceClassType = type_cast<ClassType>(sourceType->classType());
-  auto targetClassType = type_cast<ClassType>(targetType->classType());
-  if (!sourceClassType || !targetClassType) return std::nullopt;
-
-  auto baseClass = sourceClassType->symbol();
-  auto derivedClass = targetClassType->symbol();
-  if (!baseClass || !derivedClass) return std::nullopt;
+  auto derivedClass = derived->symbol();
+  auto baseClass = base->symbol();
+  if (!derivedClass || !baseClass) return std::nullopt;
 
   auto offset = derivedClass->resolvedDefinition()->baseClassOffset(baseClass);
   if (!offset.has_value()) return std::nullopt;
 
   return static_cast<std::int64_t>(*offset);
+}
+
+auto memberPointerBaseAdjustment(const MemberObjectPointerType* sourceType,
+                                 const MemberObjectPointerType* targetType)
+    -> std::optional<std::int64_t> {
+  if (!sourceType || !targetType) return std::nullopt;
+  return classSubobjectOffset(targetType->classType(), sourceType->classType());
+}
+
+auto memberPointerBaseAdjustment(const MemberFunctionPointerType* sourceType,
+                                 const MemberFunctionPointerType* targetType)
+    -> std::optional<std::int64_t> {
+  if (!sourceType || !targetType) return std::nullopt;
+  return classSubobjectOffset(targetType->classType(), sourceType->classType());
 }
 }  // namespace cxx

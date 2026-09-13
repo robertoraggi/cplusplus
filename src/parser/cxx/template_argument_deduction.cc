@@ -130,10 +130,44 @@ auto TemplateArgumentDeduction::deduceFromConversionTarget(
 
   A = traits.remove_cv(A);
 
+  if (!isDependent(unit_, P)) {
+    auto conversionType = P;
+    if (auto pointer = type_cast<PointerType>(P)) {
+      if (auto targetPointer = type_cast<PointerType>(A)) {
+        auto targetFunction =
+            type_cast<FunctionType>(targetPointer->elementType());
+        if (targetFunction && !targetFunction->isNoexcept())
+          conversionType = unit_->control()->getPointerType(
+              traits.remove_noexcept(pointer->elementType()));
+      }
+    }
+    if (auto pointer = type_cast<MemberFunctionPointerType>(P)) {
+      if (auto targetPointer = type_cast<MemberFunctionPointerType>(A)) {
+        if (!targetPointer->functionType()->isNoexcept())
+          conversionType = unit_->control()->getMemberFunctionPointerType(
+              pointer->classType(),
+              type_cast<FunctionType>(
+                  traits.remove_noexcept(pointer->functionType())));
+      }
+    }
+    if (!traits.is_qualification_convertible(conversionType, A))
+      return std::nullopt;
+  }
+
   if (!deduceTypeFromType(P, A)) return std::nullopt;
   if (!checkDeducedArguments()) return std::nullopt;
 
   return buildTemplateArgumentList();
+}
+
+auto TemplateArgumentDeduction::deduceDeclaredTypeFromType(const Type* P,
+                                                           const Type* A)
+    -> bool {
+  if (traits.is_reference(P) && traits.is_reference(A)) {
+    return deduceTypeFromType(traits.remove_reference(P),
+                              traits.remove_reference(A));
+  }
+  return deduceTypeFromType(P, A);
 }
 
 auto TemplateArgumentDeduction::deduceFromTargetType(
@@ -160,8 +194,12 @@ auto TemplateArgumentDeduction::deduceFromTargetType(
   }
 
   if (mentionsDeducibleParameter(functionType->returnType())) {
-    if (!deduceTypeFromType(functionType->returnType(),
-                            targetType->returnType()))
+    if (!deduceDeclaredTypeFromType(functionType->returnType(),
+                                    targetType->returnType()))
+      return std::nullopt;
+    if (!deduceFromClassTemplateParam(
+            getReturnTypeSpecifierList(templateDecl->declaration),
+            targetType->returnType(), functionType->returnType()))
       return std::nullopt;
     beginParameterDeduction();
   }
@@ -178,10 +216,11 @@ auto TemplateArgumentDeduction::deduceFromTargetType(
     auto targetParamType = *targetIt;
 
     if (mentionsDeducibleParameter(param)) {
-      if (!deduceTypeFromType(param, targetParamType)) return std::nullopt;
+      if (!deduceDeclaredTypeFromType(param, targetParamType))
+        return std::nullopt;
       if (!deduceFromClassTemplateParam(
-              paramDeclIt ? paramDeclIt->value : nullptr, targetParamType,
-              param))
+              paramDeclIt ? paramDeclIt->value->typeSpecifierList : nullptr,
+              targetParamType, param))
         return std::nullopt;
     }
 
@@ -410,12 +449,8 @@ auto TemplateArgumentDeduction::deduceTypeFromType(const Type* P, const Type* A)
   }
 
   if (templateParams_[idx].isPack) {
-    if (!explicitPackArgs_[idx].empty()) {
-      auto explicitPackIndex = static_cast<int>(deducedPacks_[idx].size());
-      if (explicitPackIndex >=
-          static_cast<int>(explicitPackArgs_[idx].size())) {
-        return false;
-      }
+    if (auto explicitPackIndex = static_cast<int>(deducedPacks_[idx].size());
+        explicitPackIndex < static_cast<int>(explicitPackArgs_[idx].size())) {
       if (!isExplicitArgumentCompatible(
               templateParams_[idx],
               explicitPackArgs_[idx][explicitPackIndex])) {
@@ -479,8 +514,8 @@ auto TemplateArgumentDeduction::completedTemplateArguments(const Type* type)
   return symbol->templateArguments();
 }
 
-auto TemplateArgumentDeduction::deduceCurrentInstantiation(
-    const Type* patternType, const Type* argumentType) -> bool {
+auto TemplateArgumentDeduction::isSpecializationOfPattern(
+    const Type* patternType, const Type* argumentType) const -> bool {
   auto patternClassType =
       type_cast<ClassType>(traits.remove_cvref(patternType));
   auto argumentClassType =
@@ -492,7 +527,17 @@ auto TemplateArgumentDeduction::deduceCurrentInstantiation(
   if (!patternClass || !argumentClass) return false;
   if (patternClass->isSpecialization()) return false;
   if (!argumentClass->isSpecialization()) return false;
-  if (argumentClass->primaryTemplateSymbol() != patternClass) return false;
+  return argumentClass->primaryTemplateSymbol() == patternClass;
+}
+
+auto TemplateArgumentDeduction::deduceCurrentInstantiation(
+    const Type* patternType, const Type* argumentType) -> bool {
+  if (!isSpecializationOfPattern(patternType, argumentType)) return false;
+
+  auto patternClass =
+      type_cast<ClassType>(traits.remove_cvref(patternType))->symbol();
+  auto argumentClass =
+      type_cast<ClassType>(traits.remove_cvref(argumentType))->symbol();
 
   auto templateDeclaration = patternClass->templateDeclaration();
   if (!templateDeclaration) return false;
@@ -611,11 +656,13 @@ auto TemplateArgumentDeduction::deduceTemplateId(
           matchedTemplateId = true;
         }
         if (matchedTemplateId) continue;
-        if (getTypeParamInfo(patternType)) {
+        if (isSpecializationOfPattern(patternType, argumentType)) {
+          if (!deduceCurrentInstantiation(patternType, argumentType))
+            return false;
+        } else if (mentionsDeducibleParameter(patternType)) {
           if (!deduceTypeFromType(patternType, argumentType)) return false;
-        } else if (!traits.is_same(patternType, argumentType) &&
-                   !deduceCurrentInstantiation(patternType, argumentType)) {
-          return false;
+        } else if (!isDependent(unit_, patternType)) {
+          if (!traits.is_same(patternType, argumentType)) return false;
         }
       }
       continue;
@@ -776,8 +823,9 @@ auto TemplateArgumentDeduction::deduceFromCall(const FunctionType* functionType,
 
         if (!deduceTypeFromType(P, adjustedArgType)) return false;
 
-        if (paramDeclIt && !deduceFromClassTemplateParam(paramDeclIt->value,
-                                                         adjustedArgType, P))
+        if (paramDeclIt &&
+            !deduceFromClassTemplateParam(paramDeclIt->value->typeSpecifierList,
+                                          adjustedArgType, P))
           return false;
       }
     }
@@ -854,21 +902,6 @@ auto TemplateArgumentDeduction::collectDeducedSoFar(
     return std::nullopt;
 
   return std::move(*substitution).templateArguments();
-}
-
-auto TemplateArgumentDeduction::substituteDefaultTypeId(
-    TypeIdAST* typeId, const std::vector<TemplateArgument>& arguments)
-    -> TypeIdAST* {
-  return ASTRewriter::substituteDefaultTypeId(
-      unit_, typeId, arguments, templateDecl_->depth, templateDecl_->symbol);
-}
-
-auto TemplateArgumentDeduction::substituteDefaultExpression(
-    ExpressionAST* expression, const std::vector<TemplateArgument>& arguments)
-    -> ExpressionAST* {
-  return ASTRewriter::substituteDefaultExpression(unit_, expression, arguments,
-                                                  templateDecl_->depth,
-                                                  templateDecl_->symbol);
 }
 
 auto TemplateArgumentDeduction::recordDeducedValue(int index,
@@ -962,24 +995,27 @@ auto TemplateArgumentDeduction::makePackArgument(int parameterIndex)
     -> TemplateArgumentAST* {
   auto pack = control_->newParameterPackSymbol(nullptr, {});
 
+  const auto explicitCount = explicitPackArgs_[parameterIndex].size();
+
   for (auto explicitArg : explicitPackArgs_[parameterIndex]) {
     auto element = makeExplicitPackElement(explicitArg, parameterIndex);
     if (!element) return nullptr;
     pack->addElement(element);
   }
 
-  if (explicitPackArgs_[parameterIndex].empty()) {
-    for (auto elementType : deducedPacks_[parameterIndex])
-      pack->addElement(makeTypePackElement(elementType));
+  const auto& deducedTypes = deducedPacks_[parameterIndex];
+  for (auto i = explicitCount; i < deducedTypes.size(); ++i)
+    pack->addElement(makeTypePackElement(deducedTypes[i]));
 
-    if (!deducedValuePacks_[parameterIndex].empty()) {
-      auto elementType = nonTypeParameterType(parameterIndex);
-      if (!elementType) return nullptr;
+  const auto& deducedValues = deducedValuePacks_[parameterIndex];
+  if (deducedValues.size() > explicitCount) {
+    auto elementType = nonTypeParameterType(parameterIndex);
+    if (!elementType) return nullptr;
 
-      for (auto elementValue : deducedValuePacks_[parameterIndex]) {
-        pack->addElement(makeValuePackElement(
-            ConstValue{static_cast<std::intmax_t>(elementValue)}, elementType));
-      }
+    for (auto i = explicitCount; i < deducedValues.size(); ++i) {
+      pack->addElement(makeValuePackElement(
+          ConstValue{static_cast<std::intmax_t>(deducedValues[i])},
+          elementType));
     }
   }
 
@@ -1004,7 +1040,7 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
     if (templateParams_[i].isPack) {
       if (!explicitPackArgs_[i].empty()) {
         if (!deducedPacks_[i].empty() &&
-            deducedPacks_[i].size() != explicitPackArgs_[i].size()) {
+            deducedPacks_[i].size() < explicitPackArgs_[i].size()) {
           return std::nullopt;
         }
 
@@ -1031,7 +1067,7 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
     }
 
     if (auto deducedTemplate = deducedTemplates_[i]) {
-      auto typeArg = makeTemplateNameArgument(deducedTemplate);
+      auto typeArg = TemplateArguments{unit_}.templateName(deducedTemplate);
       if (!typeArg) return std::nullopt;
       *argListIt = make_list_node<TemplateArgumentAST>(arena_, typeArg);
       argListIt = &(*argListIt)->next;
@@ -1042,7 +1078,8 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
       auto literal =
           control_->integerLiteral(std::to_string(*deducedValues_[i]));
       auto value = IntLiteralExpressionAST::create(
-          arena_, literal, ValueCategory::kPrValue, control_->getSizeType());
+          arena_, literal, /*literalOperatorCall=*/nullptr,
+          ValueCategory::kPrValue, control_->getSizeType());
 
       auto exprArg = ExpressionTemplateArgumentAST::create(arena_);
       exprArg->expression = value;
@@ -1056,7 +1093,8 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
       auto p = templateParams_[i].parameterAST;
       auto deducedSoFar = collectDeducedSoFar(templArgList);
       if (!deducedSoFar.has_value()) return std::nullopt;
-      auto defaultArgument = defaultTemplateArgument(p, *deducedSoFar);
+      auto defaultArgument = TemplateArguments{unit_}.defaultArgument(
+          templateDecl_, p, *deducedSoFar);
       if (!defaultArgument) return std::nullopt;
       *argListIt = make_list_node<TemplateArgumentAST>(arena_, defaultArgument);
       argListIt = &(*argListIt)->next;
@@ -1074,73 +1112,6 @@ auto TemplateArgumentDeduction::buildTemplateArgumentList()
   return templArgList;
 }
 
-auto TemplateArgumentDeduction::makeTemplateNameArgument(Symbol* templateSymbol)
-    -> TemplateArgumentAST* {
-  if (!templateSymbol) return nullptr;
-
-  auto identifier = name_cast<Identifier>(templateSymbol->name());
-  if (!identifier) return nullptr;
-
-  auto namedSpecifier = NamedTypeSpecifierAST::create(arena_);
-  namedSpecifier->unqualifiedId = NameIdAST::create(arena_, identifier);
-  namedSpecifier->symbol = templateSymbol;
-
-  auto typeId = TypeIdAST::create(arena_);
-  typeId->typeSpecifierList = make_list_node<SpecifierAST>(
-      arena_, static_cast<SpecifierAST*>(namedSpecifier));
-  typeId->type = templateSymbol->type();
-
-  auto argument = TypeTemplateArgumentAST::create(arena_);
-  argument->typeId = typeId;
-  return argument;
-}
-
-auto TemplateArgumentDeduction::defaultTemplateArgument(
-    TemplateParameterAST* parameter,
-    const std::vector<TemplateArgument>& argumentsSoFar)
-    -> TemplateArgumentAST* {
-  if (auto nonType = ast_cast<NonTypeTemplateParameterAST>(parameter)) {
-    if (!nonType->declaration || !nonType->declaration->expression) {
-      return nullptr;
-    }
-    auto expression = nonType->declaration->expression;
-    if (isDependent(unit_, expression) && !argumentsSoFar.empty()) {
-      expression = substituteDefaultExpression(expression, argumentsSoFar);
-      if (!expression) return nullptr;
-    }
-    auto argument = ExpressionTemplateArgumentAST::create(arena_);
-    argument->expression = expression;
-    return argument;
-  }
-
-  if (auto templateType = ast_cast<TemplateTypeParameterAST>(parameter)) {
-    if (!templateType->idExpression) return nullptr;
-    return makeTemplateNameArgument(templateType->idExpression->symbol);
-  }
-
-  auto typeId = [&]() -> TypeIdAST* {
-    if (auto type = ast_cast<TypenameTypeParameterAST>(parameter))
-      return type->typeId;
-    if (auto constrained = ast_cast<ConstraintTypeParameterAST>(parameter))
-      return constrained->typeId;
-    return nullptr;
-  }();
-
-  if (!typeId) return nullptr;
-  if ((!typeId->type || isDependent(unit_, typeId->type)) &&
-      !argumentsSoFar.empty() && templateDecl_) {
-    auto substituted = substituteDefaultTypeId(typeId, argumentsSoFar);
-    if (!substituted || !substituted->type ||
-        type_cast<UnresolvedNameType>(substituted->type)) {
-      return nullptr;
-    }
-    typeId = substituted;
-  }
-  auto argument = TypeTemplateArgumentAST::create(arena_);
-  argument->typeId = typeId;
-  return argument;
-}
-
 auto TemplateArgumentDeduction::getParameterClause(DeclarationAST* decl)
     -> ParameterDeclarationClauseAST* {
   DeclaratorAST* declarator = nullptr;
@@ -1153,6 +1124,28 @@ auto TemplateArgumentDeduction::getParameterClause(DeclarationAST* decl)
   for (auto chunk : ListView{declarator->declaratorChunkList})
     if (auto fc = ast_cast<FunctionDeclaratorChunkAST>(chunk))
       return fc->parameterDeclarationClause;
+  return nullptr;
+}
+
+auto TemplateArgumentDeduction::getReturnTypeSpecifierList(DeclarationAST* decl)
+    -> List<SpecifierAST*>* {
+  DeclaratorAST* declarator = nullptr;
+  if (auto funcDef = ast_cast<FunctionDefinitionAST>(decl))
+    declarator = funcDef->declarator;
+  else if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(decl))
+    if (simpleDecl->initDeclaratorList)
+      declarator = simpleDecl->initDeclaratorList->value->declarator;
+  if (!declarator) return nullptr;
+  for (auto chunk : ListView{declarator->declaratorChunkList}) {
+    auto functionChunk = ast_cast<FunctionDeclaratorChunkAST>(chunk);
+    if (!functionChunk || !functionChunk->trailingReturnType) continue;
+    if (auto typeId = functionChunk->trailingReturnType->typeId)
+      return typeId->typeSpecifierList;
+  }
+  if (auto funcDef = ast_cast<FunctionDefinitionAST>(decl))
+    return funcDef->declSpecifierList;
+  if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(decl))
+    return simpleDecl->declSpecifierList;
   return nullptr;
 }
 
@@ -1336,9 +1329,9 @@ void TemplateArgumentDeduction::restoreDeductionState(
 }
 
 auto TemplateArgumentDeduction::deduceFromClassTemplateParam(
-    ParameterDeclarationAST* paramDecl, const Type* argType, const Type* P)
+    List<SpecifierAST*>* typeSpecifierList, const Type* argType, const Type* P)
     -> bool {
-  if (!paramDecl) return true;
+  if (!typeSpecifierList) return true;
 
   auto bareP = traits.remove_cvref(P);
   auto bareA = traits.remove_cvref(argType);
@@ -1380,7 +1373,7 @@ auto TemplateArgumentDeduction::deduceFromClassTemplateParam(
                                deducedClass->primaryTemplateSymbol()))
       return false;
 
-    for (auto spec : ListView{paramDecl->typeSpecifierList}) {
+    for (auto spec : ListView{typeSpecifierList}) {
       auto namedSpec = ast_cast<NamedTypeSpecifierAST>(spec);
       if (!namedSpec) continue;
       auto templateId = ast_cast<SimpleTemplateIdAST>(namedSpec->unqualifiedId);

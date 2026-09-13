@@ -29,6 +29,14 @@
 
 namespace cxx {
 namespace {
+[[nodiscard]] auto enclosingScopeForDependence(FunctionSymbol* function)
+    -> ScopeSymbol* {
+  auto scope = function->parent();
+  if (!function->isFriend()) return scope;
+  while (scope && scope->isClass()) scope = scope->parent();
+  return scope;
+}
+
 struct IsDependent {
   TranslationUnit* unit = nullptr;
   std::vector<const Type*> typesUnderExamination;
@@ -75,8 +83,8 @@ struct IsDependent {
       } else if (auto func = symbol_cast<FunctionSymbol>(scope)) {
         if (stopAtConcreteSpecialization && func->isSpecialization()) {
           const auto hasConcreteType = !isDependent(func->type());
-          const auto hasDependentParent =
-              enclosedInDependentTemplate(func->parent(), false);
+          const auto hasDependentParent = enclosedInDependentTemplate(
+              enclosingScopeForDependence(func), false);
           if (hasConcreteType && !hasDependentParent) return false;
         }
         if (auto tp = func->templateParameters();
@@ -175,8 +183,11 @@ struct IsDependent {
       SimpleTemplateIdAST* templateId) -> bool {
     if (!templateId) return false;
 
-    auto parameters =
-        template_parameters_of(template_name_symbol(templateId->symbol));
+    auto parameters = template_parameters_of(templateId->symbol);
+    if (!parameters) {
+      parameters =
+          template_parameters_of(template_name_symbol(templateId->symbol));
+    }
 
     std::size_t index = 0;
     for (auto arg : ListView{templateId->templateArgumentList}) {
@@ -396,6 +407,20 @@ struct IsDependent {
 
   auto operator()(const UnresolvedBitIntType* type) -> bool { return true; }
 
+  auto operator()(const VectorType* type) -> bool {
+    return isDependent(type->elementType());
+  }
+
+  auto operator()(const UnresolvedVectorType* type) -> bool { return true; }
+
+  auto operator()(const ComplexType* type) -> bool {
+    return isDependent(type->elementType());
+  }
+
+  auto operator()(const AtomicType* type) -> bool {
+    return isDependent(type->elementType());
+  }
+
   // clang-format off
   [[nodiscard]] auto isDependent(NestedNameSpecifierAST* ast) -> bool;
   auto operator()(GlobalNestedNameSpecifierAST* ast) -> bool;
@@ -414,17 +439,18 @@ struct IsDependent {
   [[nodiscard]] auto isDependent(TemplateParameterAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(AttributeSpecifierAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(RequiresClauseAST* ast) -> bool { return false; }
-  [[nodiscard]] auto isDependent(ParameterDeclarationClauseAST* ast) -> bool { return false; }
+  [[nodiscard]] auto isDependent(ParameterDeclarationClauseAST* ast) -> bool;
   [[nodiscard]] auto isDependent(LambdaSpecifierAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(ExceptionSpecifierAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(TrailingReturnTypeAST* ast) -> bool { return false; }
-  [[nodiscard]] auto isDependent(RequirementAST* ast) -> bool { return false; }
+  [[nodiscard]] auto isDependent(RequirementAST* ast) -> bool;
+  [[nodiscard]] auto isDependent(TypeConstraintAST* ast) -> bool;
   [[nodiscard]] auto isDependent(SplicerAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(DesignatorAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(NewPlacementAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(DeclaratorAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(NewInitializerAST* ast) -> bool { return false; }
-  [[nodiscard]] auto isDependent(GenericAssociationAST* ast) -> bool { return false; }
+  [[nodiscard]] auto isDependent(GenericAssociationAST* ast) -> bool;
   // clang-format on
 
   auto operator()(CharLiteralExpressionAST* ast) -> bool;
@@ -439,6 +465,9 @@ struct IsDependent {
   auto operator()(PackIndexExpressionAST* ast) -> bool;
   auto operator()(GenericSelectionExpressionAST* ast) -> bool;
   auto operator()(NestedStatementExpressionAST* ast) -> bool;
+  auto operator()(DefaultInitializerExpressionAST* ast) -> bool {
+    return isDependent(ast->expression);
+  }
   auto operator()(NestedExpressionAST* ast) -> bool;
   auto operator()(IdExpressionAST* ast) -> bool;
   auto operator()(LambdaExpressionAST* ast) -> bool;
@@ -583,25 +612,27 @@ struct IsDependent {
 
 auto IsDependent::isDependent(NestedNameSpecifierAST* ast) -> bool {
   if (!ast) return false;
-  if (!ast->symbol) return true;
-  if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
-  if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
-  if (isDependent(ast->symbol->type())) return true;
-  if (visit(*this, ast)) return true;
-  return false;
+
+  if (ast->symbol) {
+    if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
+    if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
+    if (isDependent(ast->symbol->type())) return true;
+  }
+
+  return visit(*this, ast);
 }
 
 auto IsDependent::operator()(GlobalNestedNameSpecifierAST* ast) -> bool {
-  return false;
+  return !ast->symbol;
 }
 
 auto IsDependent::operator()(SimpleNestedNameSpecifierAST* ast) -> bool {
   if (isDependent(ast->nestedNameSpecifier)) return true;
-  return false;
+  return !ast->symbol && !ast->nestedNameSpecifier;
 }
 
 auto IsDependent::operator()(DecltypeNestedNameSpecifierAST* ast) -> bool {
-  return false;
+  return !ast->symbol;
 }
 
 auto IsDependent::operator()(TemplateNestedNameSpecifierAST* ast) -> bool {
@@ -618,7 +649,7 @@ auto IsDependent::operator()(TemplateNestedNameSpecifierAST* ast) -> bool {
 
   if (isDependent(ast->nestedNameSpecifier)) return true;
 
-  return false;
+  return !ast->symbol && !ast->nestedNameSpecifier;
 }
 
 auto IsDependent::operator()(CharLiteralExpressionAST* ast) -> bool {
@@ -663,6 +694,14 @@ auto IsDependent::operator()(PackIndexExpressionAST* ast) -> bool {
   return true;
 }
 
+auto IsDependent::isDependent(GenericAssociationAST* ast) -> bool {
+  if (auto typeAssoc = ast_cast<TypeGenericAssociationAST>(ast)) {
+    return isDependent(typeAssoc->typeId);
+  }
+
+  return false;
+}
+
 auto IsDependent::operator()(GenericSelectionExpressionAST* ast) -> bool {
   if (isDependent(ast->expression)) return true;
 
@@ -686,6 +725,9 @@ auto IsDependent::operator()(NestedExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
+  if (auto functionType = type_cast<FunctionType>(ast->type)) {
+    if (isDependent(functionType)) return true;
+  }
   if (isDependent(ast->nestedNameSpecifier)) return true;
   if (isDependent(ast->unqualifiedId)) return true;
 
@@ -730,14 +772,7 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
   }
 
   if (auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
-    for (auto arg : ListView{templateId->templateArgumentList}) {
-      if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-        if (isDependent(typeArg->typeId)) return true;
-      }
-      if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-        if (isDependent(exprArg->expression)) return true;
-      }
-    }
+    if (hasDependentTemplateArguments(templateId)) return true;
   }
 
   return false;
@@ -792,9 +827,54 @@ auto IsDependent::operator()(LeftFoldExpressionAST* ast) -> bool {
   return true;
 }
 
+auto IsDependent::isDependent(ParameterDeclarationClauseAST* ast) -> bool {
+  if (!ast) return false;
+
+  for (auto parameter : ListView{ast->parameterDeclarationList}) {
+    if (isDependent(parameter->type)) return true;
+    for (auto typeSpecifier : ListView{parameter->typeSpecifierList}) {
+      if (isDependent(typeSpecifier)) return true;
+    }
+  }
+
+  return false;
+}
+
+auto IsDependent::isDependent(TypeConstraintAST* ast) -> bool {
+  if (!ast) return false;
+  if (isDependent(ast->nestedNameSpecifier)) return true;
+
+  for (auto argument : ListView{ast->templateArgumentList}) {
+    if (isDependentTemplateArgument(argument)) return true;
+  }
+
+  return false;
+}
+
+auto IsDependent::isDependent(RequirementAST* ast) -> bool {
+  if (!ast) return false;
+
+  if (auto simpleRequirement = ast_cast<SimpleRequirementAST>(ast))
+    return isDependent(simpleRequirement->expression);
+
+  if (auto compoundRequirement = ast_cast<CompoundRequirementAST>(ast)) {
+    if (isDependent(compoundRequirement->expression)) return true;
+    return isDependent(compoundRequirement->typeConstraint);
+  }
+
+  if (auto typeRequirement = ast_cast<TypeRequirementAST>(ast)) {
+    if (isDependent(typeRequirement->nestedNameSpecifier)) return true;
+    return isDependent(typeRequirement->unqualifiedId);
+  }
+
+  if (auto nestedRequirement = ast_cast<NestedRequirementAST>(ast))
+    return isDependent(nestedRequirement->expression);
+
+  return false;
+}
+
 auto IsDependent::operator()(RequiresExpressionAST* ast) -> bool {
-  auto parameterDeclarationClauseResult =
-      isDependent(ast->parameterDeclarationClause);
+  if (isDependent(ast->parameterDeclarationClause)) return true;
 
   for (auto node : ListView{ast->requirementList}) {
     if (isDependent(node)) return true;

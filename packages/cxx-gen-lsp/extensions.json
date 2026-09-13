@@ -54,6 +54,15 @@
           },
           "optional": true,
           "documentation": "Whether the generated code carries the source locations. Defaults to false."
+        },
+        {
+          "name": "optimizationLevel",
+          "type": {
+            "kind": "base",
+            "name": "uinteger"
+          },
+          "optional": true,
+          "documentation": "The optimization level the code is generated with, from 0 to 3. Defaults to 0."
         }
       ]
     },

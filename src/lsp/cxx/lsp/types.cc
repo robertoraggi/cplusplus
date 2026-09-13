@@ -3458,6 +3458,19 @@ auto InlineValueParams::workDoneToken() const -> std::optional<ProgressToken> {
   return result;
 }
 
+auto InlineValueParams::partialResultToken() const
+    -> std::optional<ProgressToken> {
+  if (!repr_->contains("partialResultToken")) return std::nullopt;
+
+  auto& value = (*repr_)["partialResultToken"];
+
+  ProgressToken result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
 auto InlineValueParams::textDocument(TextDocumentIdentifier textDocument)
     -> InlineValueParams& {
   (*repr_)["textDocument"] = textDocument;
@@ -3482,6 +3495,17 @@ auto InlineValueParams::workDoneToken(
     return *this;
   }
   lsp_runtime_error("InlineValueParams::workDoneToken: not implemented yet");
+  return *this;
+}
+
+auto InlineValueParams::partialResultToken(
+    std::optional<ProgressToken> partialResultToken) -> InlineValueParams& {
+  if (!partialResultToken.has_value()) {
+    repr_->erase("partialResultToken");
+    return *this;
+  }
+  lsp_runtime_error(
+      "InlineValueParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -3596,6 +3620,19 @@ auto InlayHintParams::workDoneToken() const -> std::optional<ProgressToken> {
   return result;
 }
 
+auto InlayHintParams::partialResultToken() const
+    -> std::optional<ProgressToken> {
+  if (!repr_->contains("partialResultToken")) return std::nullopt;
+
+  auto& value = (*repr_)["partialResultToken"];
+
+  ProgressToken result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
 auto InlayHintParams::textDocument(TextDocumentIdentifier textDocument)
     -> InlayHintParams& {
   (*repr_)["textDocument"] = textDocument;
@@ -3614,6 +3651,16 @@ auto InlayHintParams::workDoneToken(std::optional<ProgressToken> workDoneToken)
     return *this;
   }
   lsp_runtime_error("InlayHintParams::workDoneToken: not implemented yet");
+  return *this;
+}
+
+auto InlayHintParams::partialResultToken(
+    std::optional<ProgressToken> partialResultToken) -> InlayHintParams& {
+  if (!partialResultToken.has_value()) {
+    repr_->erase("partialResultToken");
+    return *this;
+  }
+  lsp_runtime_error("InlayHintParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -4514,6 +4561,19 @@ auto InlineCompletionParams::workDoneToken() const
   return result;
 }
 
+auto InlineCompletionParams::partialResultToken() const
+    -> std::optional<ProgressToken> {
+  if (!repr_->contains("partialResultToken")) return std::nullopt;
+
+  auto& value = (*repr_)["partialResultToken"];
+
+  ProgressToken result;
+
+  details::try_emplace(result, value);
+
+  return result;
+}
+
 auto InlineCompletionParams::context(InlineCompletionContext context)
     -> InlineCompletionParams& {
   (*repr_)["context"] = context;
@@ -4540,6 +4600,18 @@ auto InlineCompletionParams::workDoneToken(
   }
   lsp_runtime_error(
       "InlineCompletionParams::workDoneToken: not implemented yet");
+  return *this;
+}
+
+auto InlineCompletionParams::partialResultToken(
+    std::optional<ProgressToken> partialResultToken)
+    -> InlineCompletionParams& {
+  if (!partialResultToken.has_value()) {
+    repr_->erase("partialResultToken");
+    return *this;
+  }
+  lsp_runtime_error(
+      "InlineCompletionParams::partialResultToken: not implemented yet");
   return *this;
 }
 
@@ -23689,6 +23761,16 @@ auto EmitCodeParams::debugInfo() const -> std::optional<bool> {
   return value.get<bool>();
 }
 
+auto EmitCodeParams::optimizationLevel() const -> std::optional<long> {
+  if (!repr_->contains("optimizationLevel")) return std::nullopt;
+
+  auto& value = (*repr_)["optimizationLevel"];
+
+  if (value.is_null()) value = 0;
+  assert(value.is_number_integer());
+  return value.get<long>();
+}
+
 auto EmitCodeParams::textDocument(TextDocumentIdentifier textDocument)
     -> EmitCodeParams& {
   (*repr_)["textDocument"] = textDocument;
@@ -23707,6 +23789,16 @@ auto EmitCodeParams::debugInfo(std::optional<bool> debugInfo)
     return *this;
   }
   (*repr_)["debugInfo"] = std::move(debugInfo.value());
+  return *this;
+}
+
+auto EmitCodeParams::optimizationLevel(std::optional<long> optimizationLevel)
+    -> EmitCodeParams& {
+  if (!optimizationLevel.has_value()) {
+    repr_->erase("optimizationLevel");
+    return *this;
+  }
+  (*repr_)["optimizationLevel"] = std::move(optimizationLevel.value());
   return *this;
 }
 

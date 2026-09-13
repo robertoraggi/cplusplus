@@ -633,7 +633,7 @@ class LSPObject;
 using LSPAny = json;
 using Pattern = std::string;
 
-[[nodiscard]] auto withUnsafeJson(auto block) { return block(json()); }
+void withUnsafeJson(auto block) { block(json()); }
 [[noreturn]] void lsp_runtime_error(const std::string& msg);
 
 class LSPObject {

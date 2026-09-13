@@ -229,6 +229,7 @@ auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
 
   auto constraints = associatedConstraints(unit, symbol);
   if (constraints.empty()) return true;
+  if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kConstraints);
   if (isDependent(unit, symbol->type())) return std::nullopt;
 
   auto interp = ASTInterpreter{unit};
@@ -245,7 +246,7 @@ auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
         auto typeChecker = TypeChecker{unit};
         typeChecker.setScope(symbol->parent());
         typeChecker.setReportErrors(false);
-        typeChecker.check(constraint);
+        typeChecker.check(&constraint);
       }
 
       value = interp.evaluate(constraint);
@@ -352,6 +353,7 @@ auto ASTRewriter::checkAssociatedConstraints(
     const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
   auto constraints = associatedConstraints(unit, symbol);
   if (constraints.empty()) return true;
+  if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kConstraints);
 
   const bool cacheable = std::ranges::none_of(
       templateArguments, [&](const TemplateArgument& argument) {
@@ -361,7 +363,10 @@ auto ASTRewriter::checkAssociatedConstraints(
   if (cacheable) {
     auto cached = unit->cachedConstraintSatisfaction(symbol, constraints,
                                                      templateArguments);
-    if (cached.has_value()) return *cached;
+    if (cached.has_value()) {
+      if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kCacheHits);
+      return *cached;
+    }
   }
 
   bool determinate = true;
@@ -453,6 +458,7 @@ auto ASTRewriter::evaluateConcept(
     TranslationUnit* unit, ConceptSymbol* conceptSymbol,
     List<TemplateArgumentAST*>* templateArgumentList) -> std::optional<bool> {
   if (!conceptSymbol) return std::nullopt;
+  if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kConcepts);
 
   auto definition = conceptSymbol->declaration();
   if (!definition || !definition->expression) return std::nullopt;
@@ -473,7 +479,10 @@ auto ASTRewriter::evaluateConcept(
   if (cacheable) {
     auto cached = unit->cachedConstraintSatisfaction(conceptSymbol, constraints,
                                                      templateArguments);
-    if (cached.has_value()) return cached;
+    if (cached.has_value()) {
+      if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kCacheHits);
+      return cached;
+    }
   }
 
   auto result = evaluateConstraintExpression(
@@ -494,6 +503,6 @@ void ASTRewriter::check(ExpressionAST* ast) {
   TranslationUnit::PotentiallyEvaluatedScope evaluated{
       unit_, unevaluatedOperandDepth_ == 0};
   auto checker = typeChecker();
-  checker.check(ast);
+  checker.check(&ast);
 }
 }  // namespace cxx

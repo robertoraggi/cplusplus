@@ -27,6 +27,14 @@
 #include <optional>
 
 namespace cxx {
+
+enum class ClassValueAbiKind {
+  kDefault,
+  kSingleScalar,
+  kAArch64,
+  kX86_64,
+};
+
 class MemoryLayout {
  public:
   explicit MemoryLayout(std::size_t bits);
@@ -57,10 +65,20 @@ class MemoryLayout {
 
   [[nodiscard]] auto triple() const -> const std::string&;
   [[nodiscard]] auto arch() const -> std::string_view;
+  [[nodiscard]] auto isWebAssembly() const -> bool;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
+  [[nodiscard]] auto defaultNewAlignment() const -> std::size_t;
+  [[nodiscard]] auto maxAtomicInlineWidth() const -> std::size_t;
+  [[nodiscard]] auto maxAtomicPromoteWidth() const -> std::size_t;
+
+  /**
+   * The strictest alignment a vector type may request, in bytes, or zero when
+   * the target does not cap it.
+   */
+  [[nodiscard]] auto maxVectorAlignment() const -> std::size_t;
 
   [[nodiscard]] auto nullMemberObjectPointer() const -> std::int64_t;
-  [[nodiscard]] auto usesSingleScalarClassAbi() const -> bool;
+  [[nodiscard]] auto classValueAbiKind() const -> ClassValueAbiKind;
   void setTriple(std::string triple);
 
  private:

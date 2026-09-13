@@ -27,9 +27,11 @@ interface PlaygroundContextValue {
   currentSampleId: string
   outputFormat: TextOutputCodeFormat
   debugInfo: boolean
+  optimize: boolean
   loadSample: (id: string) => void
   setOutputFormat: (format: TextOutputCodeFormat) => void
   setDebugInfo: (debugInfo: boolean) => void
+  setOptimize: (optimize: boolean) => void
 }
 
 const PlaygroundContext = React.createContext<PlaygroundContextValue | null>(
@@ -59,12 +61,14 @@ export function PlaygroundProvider({
   const [outputFormat, setOutputFormatState] =
     React.useState<TextOutputCodeFormat>("cxxir")
   const [debugInfo, setDebugInfoState] = React.useState(false)
+  const [optimize, setOptimizeState] = React.useState(false)
 
   const isCompilingRef = React.useRef(false)
   const pendingCompileRef = React.useRef(false)
   const compileRevisionRef = React.useRef(0)
   const outputFormatRef = React.useRef(outputFormat)
   const debugInfoRef = React.useRef(debugInfo)
+  const optimizeRef = React.useRef(optimize)
   const compileTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(null)
 
   const runEmitCode = React.useCallback(async () => {
@@ -85,6 +89,7 @@ export function PlaygroundProvider({
         const output = await emitCode({
           format: outputFormatRef.current,
           debugInfo: debugInfoRef.current,
+          optimizationLevel: optimizeRef.current ? 2 : 0,
         })
 
         setIsReady(true)
@@ -187,6 +192,16 @@ export function PlaygroundProvider({
     [scheduleEmitCode]
   )
 
+  const setOptimize = React.useCallback(
+    (optimize: boolean) => {
+      if (optimizeRef.current === optimize) return
+      optimizeRef.current = optimize
+      setOptimizeState(optimize)
+      scheduleEmitCode(false)
+    },
+    [scheduleEmitCode]
+  )
+
   const value = React.useMemo<PlaygroundContextValue>(
     () => ({
       isReady,
@@ -196,9 +211,11 @@ export function PlaygroundProvider({
       currentSampleId,
       outputFormat,
       debugInfo,
+      optimize,
       loadSample,
       setOutputFormat,
       setDebugInfo,
+      setOptimize,
     }),
     [
       isReady,
@@ -208,9 +225,11 @@ export function PlaygroundProvider({
       currentSampleId,
       outputFormat,
       debugInfo,
+      optimize,
       loadSample,
       setOutputFormat,
       setDebugInfo,
+      setOptimize,
     ]
   )
 

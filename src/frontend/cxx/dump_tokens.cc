@@ -43,10 +43,9 @@ void DumpTokens::operator()(TranslationUnit& unit, std::ostream& output) {
 
   const auto builtinsFileId = unit.preprocessor()->builtinsFileId();
 
-  for (SourceLocation loc(1);; loc = loc.next()) {
+  for (auto loc = unit.locationOfIndex(1);; loc = loc.next()) {
     const auto& tk = unit.tokenAt(loc);
 
-    // skip tokens from the builtins prelude
     if (builtinsFileId && tk.fileId() == builtinsFileId) {
       if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
       continue;

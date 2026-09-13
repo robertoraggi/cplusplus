@@ -398,23 +398,24 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
       memberExpr->accessOp = TokenKind::T_DOT;
       memberExpr->unqualifiedId = templateId;
       memberExpr->isTemplateIntroduced = true;
-      check.check(memberExpr);
       callExpr->baseExpression = memberExpr;
+      check.check(&callExpr->baseExpression);
     } else {
       auto calleeIdExpr = IdExpressionAST::create(ar);
       calleeIdExpr->unqualifiedId = templateId;
       bind(calleeIdExpr, true);
-      check.check(calleeIdExpr);
       callExpr->baseExpression = calleeIdExpr;
+      check.check(&callExpr->baseExpression);
       callExpr->expressionList = make_list_node<ExpressionAST>(
           ar,
           static_cast<ExpressionAST*>(buildEIdExpr(tupleEntityValueCategory)));
     }
 
-    check.check(callExpr);
+    ExpressionAST* result = callExpr;
+    check.check(&result);
 
-    if (!callExpr->type) return nullptr;
-    return callExpr;
+    if (!result->type) return nullptr;
+    return result;
   };
 
   if (auto sizeClass = tupleSizeClass()) {

@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/source_location.h>
 #include <cxx/token.h>
 
 #include <string>
@@ -31,6 +32,7 @@ enum class Severity { Message, Note, Warning, Error, Fatal };
 class Diagnostic {
   std::string message_;
   Token token_;
+  SourceLocation location_;
   Severity severity_ = Severity::Message;
 
  public:
@@ -42,11 +44,14 @@ class Diagnostic {
   Diagnostic(Diagnostic&&) = default;
   auto operator=(Diagnostic&&) -> Diagnostic& = default;
 
-  Diagnostic(Severity severity, const Token& token, std::string message);
+  Diagnostic(Severity severity, const Token& token, std::string message,
+             SourceLocation location = {});
 
   [[nodiscard]] auto severity() const -> Severity { return severity_; }
 
   [[nodiscard]] auto token() const -> const Token& { return token_; }
+
+  [[nodiscard]] auto location() const -> SourceLocation { return location_; }
 
   [[nodiscard]] auto message() const -> const std::string& { return message_; }
 };

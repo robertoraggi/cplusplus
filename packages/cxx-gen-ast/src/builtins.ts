@@ -24,6 +24,12 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+export function isInterpreterHook(
+  eval_: string | BuiltinEval | undefined,
+): eval_ is string {
+  return typeof eval_ === "string";
+}
+
 export interface BuiltinEval {
   fn: string;
   args: string[];
@@ -31,15 +37,30 @@ export interface BuiltinEval {
   cxx23?: boolean;
 }
 
+export interface GenericMacroAssociation {
+  type: string;
+  expansion: string;
+}
+
+export interface GenericMacro {
+  parameter: string;
+  zeroFallbackParameter?: string;
+  zeroFallbackType?: string;
+  associations: GenericMacroAssociation[];
+}
+
 export interface BuiltinDef {
   name: string;
-  prototype: string;
+  prototype?: string | string[];
+  genericMacro?: GenericMacro;
   constexpr: boolean;
+  consteval?: boolean;
+  noexcept?: boolean;
+  noreturn?: boolean;
   libcall?: boolean;
-  eval?: BuiltinEval;
-  constEval?: string; // ASTInterpreter method name
-  typeCheck?: string; // TypeChecker::Visitor method name
-  codegen?: string; // Codegen::ExpressionVisitor method name
+  eval?: string | BuiltinEval;
+  typeCheck?: string;
+  codegen?: string;
 }
 
 const builtinsPath = path.join(__dirname, "builtins.json");
@@ -48,4 +69,14 @@ export const BUILTINS: BuiltinDef[] = JSON.parse(
   fs.readFileSync(builtinsPath, "utf-8"),
 );
 
-export const BUILTIN_NAMES: string[] = BUILTINS.map((b) => b.name).sort();
+export const BUILTIN_FUNCTION_DEFS: BuiltinDef[] = BUILTINS.filter(
+  (b) => b.prototype,
+);
+
+export const BUILTIN_MACRO_DEFS: BuiltinDef[] = BUILTINS.filter(
+  (b) => b.genericMacro,
+);
+
+export const BUILTIN_NAMES: string[] = BUILTIN_FUNCTION_DEFS.map(
+  (b) => b.name,
+).sort();

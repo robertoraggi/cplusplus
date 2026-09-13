@@ -32,7 +32,7 @@ def Cxx_Dialect : Dialect {
   let name = "cxx";
   let cppNamespace = "mlir::cxx";
   let useDefaultTypePrinterParser = 1;
-  let dependentDialects = ["mlir::arith::ArithDialect", "mlir::cf::ControlFlowDialect", "mlir::DLTIDialect", "mlir::LLVM::LLVMDialect"];
+  let dependentDialects = ["mlir::arith::ArithDialect", "mlir::cf::ControlFlowDialect", "mlir::DLTIDialect", "mlir::LLVM::LLVMDialect", "mlir::vector::VectorDialect"];
 }
 
 class Cxx_Type<string name, string typeMnemonic, list<Trait> traits = []>
@@ -102,7 +102,8 @@ def Cxx_ClassType : Cxx_Type<"Class", "class", [MutableType]> {
 
   let extraClassDeclaration = [{
     static auto getNamed(MLIRContext *context, StringRef name) -> ClassType;
-    auto setBody(ArrayRef<Type> types) -> LogicalResult;
+    auto setBody(ArrayRef<Type> types, bool packed = false) -> LogicalResult;
+    auto isPacked() const -> bool;
   }];
 
 }
@@ -130,6 +131,10 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
       OptionalAttr<Cxx_InlineKind>:$inline_kind,
       OptionalAttr<Cxx_Visibility>:$visibility_,
       OptionalAttr<StrAttr>:$alias_name,
+      OptionalAttr<StrAttr>:$wasm_import_module,
+      OptionalAttr<StrAttr>:$wasm_import_name,
+      OptionalAttr<StrAttr>:$wasm_export_name,
+      UnitAttr:$used,
       OptionalAttr<DictArrayAttr>:$arg_attrs,
       OptionalAttr<DictArrayAttr>:$res_attrs);
 
@@ -152,6 +157,7 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
     , OptionalAttr<AnyAttr>:$value
     , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
     , OptionalAttr<I64Attr>:$alignment
+    , UnitAttr:$used
   );
 
   let regions = (region AnyRegion:$initializer);
@@ -168,25 +174,28 @@ def Cxx_GlobalCtorOp : Cxx_Op<"global_ctor"> {
 }
 
 def Cxx_VTableOp : Cxx_Op<"vtable"> {
-  let summary = "one Itanium vtable group";
+  let summary = "one Itanium virtual table group";
   let description = [{
-    Storage shape (one pointer-sized word per entry):
+    A virtual table group is one object: the primary virtual table followed by
+    the secondary virtual table of every base subobject that does not share the
+    primary one, concatenated in base allocation order. Storage shape of each
+    table (one pointer-sized word per entry):
 
       [vbase_offsets...] [vcall_offsets...] [offset_to_top] [type_info] [slots...]
 
-    `vbase_offsets`, `vcall_offsets`, and `offset_to_top` are byte offsets
-    stored as pointer-sized integers; `type_info` names the `_ZTI` object for
-    the class this group belongs to, and is null when absent; each slot is
-    either a function symbol or a unit attribute (a null slot). The lowering
-    is purely mechanical -- every field's meaning is explicit here, it never
-    guesses from attribute shapes.
+    `vbase_offsets`, `vcall_offsets`, and `offsets_to_top` are byte offsets
+    stored as pointer-sized integers, one entry per table; `type_info` names
+    the `_ZTI` object for the class the group belongs to and is shared by every
+    table, and is null when absent; each slot is either a function symbol or a
+    unit attribute (a null slot). The lowering is purely mechanical -- every
+    field's meaning is explicit here, it never guesses from attribute shapes.
   }];
 
   let arguments = (ins
       SymbolNameAttr:$sym_name
-    , I64ArrayAttr:$vbase_offsets
-    , I64ArrayAttr:$vcall_offsets
-    , I64Attr:$offset_to_top
+    , ArrayAttr:$vbase_offsets
+    , ArrayAttr:$vcall_offsets
+    , I64ArrayAttr:$offsets_to_top
     , OptionalAttr<FlatSymbolRefAttr>:$type_info
     , ArrayAttr:$slots
     , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
@@ -217,9 +226,10 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
     , Optional<Cxx_PointerType>:$callee_operand
     , Variadic<AnyType>:$inputs
     , OptionalAttr<TypeAttrOf<Cxx_FunctionType>>:$var_callee_type
+    , OptionalAttr<DictArrayAttr>:$arg_attrs
   );
 
-  let results = (outs Optional<AnyType>:$result);
+  let results = (outs Variadic<AnyType>:$results);
 
   let assemblyFormat = [{
     ($callee^)?
@@ -232,7 +242,7 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
                    "::mlir::FlatSymbolRefAttr":$callee,
                    "::mlir::ValueRange":$inputs), [{
       build($_builder, $_state, resultTypes, callee, ::mlir::Value{}, inputs,
-            ::mlir::TypeAttr{});
+            ::mlir::TypeAttr{}, ::mlir::ArrayAttr{});
     }]>,
     OpBuilder<(ins "::mlir::TypeRange":$resultTypes, "::llvm::StringRef":$callee,
                    "::mlir::ValueRange":$inputs), [{
@@ -243,7 +253,7 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
     OpBuilder<(ins "::mlir::TypeRange":$resultTypes, "::mlir::Value":$callee,
                    "::mlir::ValueRange":$inputs), [{
       build($_builder, $_state, resultTypes, ::mlir::FlatSymbolRefAttr{},
-            callee, inputs, ::mlir::TypeAttr{});
+            callee, inputs, ::mlir::TypeAttr{}, ::mlir::ArrayAttr{});
     }]>
   ];
 
@@ -377,6 +387,22 @@ def Cxx_ReshapeOp : Cxx_Op<"reshape", [Pure]> {
   let results = (outs AnyType:$result);
 
   let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
+}
+
+def Cxx_ExtractValueOp : Cxx_Op<"extractvalue", [Pure]> {
+  let arguments = (ins AnyType:$container, I64Attr:$position);
+
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = "$container `[` $position `]` attr-dict `:` type($container) `to` type($result)";
+
+  let builders = [
+    OpBuilder<(ins "Type":$resultType, "Value":$container, "int64_t":$position),
+    [{
+      build($_builder, $_state, resultType, container,
+            $_builder.getI64IntegerAttr(position));
+    }]>
+  ];
 }
 
 def Cxx_InsertValueOp : Cxx_Op<"insertvalue", [AllTypesMatch<["container", "result"]>]> {

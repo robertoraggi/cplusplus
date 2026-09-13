@@ -22,11 +22,15 @@
 
 #include <cxx/access_control.h>
 #include <cxx/ast.h>
+#include <cxx/ast_visitor.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
+#include <cxx/lexer.h>
 #include <cxx/lsp/enums.h>
 #include <cxx/lsp/types.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
+#include <cxx/private/utf8.h>
 #include <cxx/symbols.h>
 #include <cxx/toolchain.h>
 #include <cxx/translation_unit.h>
@@ -35,16 +39,611 @@
 
 #ifndef CXX_NO_THREADS
 #include <atomic>
+#include <mutex>
 #endif
 
 #include <algorithm>
+#include <array>
+#include <format>
 #include <functional>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace cxx::lsp {
 
 namespace {
 
 constexpr int kMaxDiagnostics = 100;
+
+constexpr std::array kSemanticTokenTypes{
+    SemanticTokenTypes::kNamespace,     SemanticTokenTypes::kType,
+    SemanticTokenTypes::kClass,         SemanticTokenTypes::kEnum,
+    SemanticTokenTypes::kInterface,     SemanticTokenTypes::kStruct,
+    SemanticTokenTypes::kTypeParameter, SemanticTokenTypes::kParameter,
+    SemanticTokenTypes::kVariable,      SemanticTokenTypes::kProperty,
+    SemanticTokenTypes::kEnumMember,    SemanticTokenTypes::kEvent,
+    SemanticTokenTypes::kFunction,      SemanticTokenTypes::kMethod,
+    SemanticTokenTypes::kMacro,         SemanticTokenTypes::kKeyword,
+    SemanticTokenTypes::kModifier,      SemanticTokenTypes::kComment,
+    SemanticTokenTypes::kString,        SemanticTokenTypes::kNumber,
+    SemanticTokenTypes::kRegexp,        SemanticTokenTypes::kOperator,
+    SemanticTokenTypes::kDecorator,     SemanticTokenTypes::kLabel,
+};
+
+constexpr std::array kSemanticTokenModifiers{
+    SemanticTokenModifiers::kDeclaration,
+};
+
+template <typename Enum, std::size_t Size>
+auto enumNames(const std::array<Enum, Size>& values)
+    -> std::vector<std::string> {
+  std::vector<std::string> names;
+  names.reserve(values.size());
+  for (auto value : values) names.push_back(to_string(value));
+  return names;
+}
+
+template <typename Enum, std::size_t Size>
+auto enumIndex(const std::array<Enum, Size>& values, Enum value) -> long {
+  auto position = std::ranges::find(values, value);
+  return long(position - values.begin());
+}
+
+auto semanticTokenModifierMask(SemanticTokenModifiers modifier) -> long {
+  return 1L << enumIndex(kSemanticTokenModifiers, modifier);
+}
+
+auto templateParametersOf(Symbol* symbol) -> TemplateParametersSymbol*;
+auto signatureLabelOf(FunctionSymbol* function) -> std::string;
+
+struct TextPosition {
+  std::uint32_t line = 0;
+  std::uint32_t character = 0;
+};
+
+class SourceText {
+ public:
+  explicit SourceText(std::string_view source) : source_(source) {
+    lineStarts_.push_back(0);
+    for (std::size_t index = 0; index < source_.size(); ++index) {
+      if (source_[index] == '\n') lineStarts_.push_back(index + 1);
+    }
+  }
+
+  [[nodiscard]] auto positionAt(std::size_t offset) const -> TextPosition {
+    if (offset > source_.size()) offset = source_.size();
+
+    auto nextLine = std::ranges::upper_bound(lineStarts_, offset);
+    auto line = std::size_t(nextLine - lineStarts_.begin());
+    if (line != 0) --line;
+
+    const auto lineStart = lineStarts_.at(line);
+    return TextPosition{.line = std::uint32_t(line),
+                        .character = utf16Length(lineStart, offset)};
+  }
+
+  [[nodiscard]] auto utf16Length(std::size_t start, std::size_t end) const
+      -> std::uint32_t {
+    auto first = source_.begin() + std::ptrdiff_t(start);
+    const auto last = source_.begin() + std::ptrdiff_t(end);
+    std::uint32_t length = 0;
+
+    while (first != last) {
+      const auto codepoint = utf8::next(first, last);
+      ++length;
+      if (codepoint > 0xFFFF) ++length;
+    }
+
+    return length;
+  }
+
+ private:
+  std::string_view source_;
+  std::vector<std::size_t> lineStarts_;
+};
+
+struct SymbolOccurrence {
+  SourceLocation location;
+  Symbol* symbol = nullptr;
+  bool isDeclaration = false;
+};
+
+auto soleFunctionOf(Symbol* overloadSet) -> FunctionSymbol* {
+  FunctionSymbol* result = nullptr;
+
+  for (auto function : views::each_function(overloadSet)) {
+    auto canonical = function->canonical();
+    if (!result) {
+      result = canonical;
+      continue;
+    }
+    if (result != canonical) return nullptr;
+  }
+
+  return result;
+}
+
+auto symbolIdentity(Symbol* symbol) -> Symbol* {
+  if (!symbol) return nullptr;
+  symbol = resolve_using_declaration(symbol);
+  if (!symbol) return nullptr;
+
+  if (auto injected = symbol_cast<InjectedClassNameSymbol>(symbol)) {
+    symbol = injected->classSymbol();
+  } else if (auto baseClass = symbol_cast<BaseClassSymbol>(symbol)) {
+    symbol = baseClass->symbol();
+  }
+
+  if (!symbol) return nullptr;
+
+  if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
+    if (auto principal = function->structorPrincipal()) symbol = principal;
+  }
+
+  if (symbol->isOverloadSet()) {
+    if (auto function = soleFunctionOf(symbol)) symbol = function;
+  }
+
+  return symbol->canonical();
+}
+
+auto isSameDeclaration(Symbol* lhs, Symbol* rhs) -> bool {
+  if (lhs == rhs) return true;
+  if (!lhs->location()) return false;
+  if (lhs->location() != rhs->location()) return false;
+  return lhs->name() == rhs->name();
+}
+
+auto overloadSetContains(Symbol* overloadSet, Symbol* symbol) -> bool {
+  for (auto function : views::each_function(overloadSet)) {
+    if (isSameDeclaration(function->canonical(), symbol)) return true;
+  }
+  return false;
+}
+
+auto isSameEntity(Symbol* lhs, Symbol* rhs) -> bool {
+  lhs = symbolIdentity(lhs);
+  rhs = symbolIdentity(rhs);
+
+  if (!lhs || !rhs) return false;
+  if (lhs->isOverloadSet()) return overloadSetContains(lhs, rhs);
+  if (rhs->isOverloadSet()) return overloadSetContains(rhs, lhs);
+  return isSameDeclaration(lhs, rhs);
+}
+
+auto redeclarationsOf(Symbol* symbol) -> std::vector<Symbol*> {
+  return cxx::visit(
+      []<typename S>(S* symbol) -> std::vector<Symbol*> {
+        if constexpr (requires { symbol->redeclarations(); }) {
+          const auto& redeclarations = symbol->redeclarations();
+          return std::vector<Symbol*>(redeclarations.begin(),
+                                      redeclarations.end());
+        } else {
+          return {};
+        }
+      },
+      symbol);
+}
+
+auto isImplicitlyDeclared(TranslationUnit* unit, Symbol* symbol) -> bool {
+  auto identifier = name_cast<Identifier>(symbol->name());
+
+  if (unit->ownsLocation(symbol->location())) {
+    if (unit->tokenKind(symbol->location()) != TokenKind::T_IDENTIFIER) {
+      return identifier != nullptr;
+    }
+
+    if (unit->identifier(symbol->location()) != identifier) return true;
+  }
+
+  auto function = symbol_cast<FunctionSymbol>(symbol);
+  if (!function) return false;
+  if (function->isStructorVariant()) return true;
+  if (function->inheritedConstructor()) return true;
+
+  auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
+  if (!classSymbol) return false;
+
+  return function->location() == classSymbol->location();
+}
+
+auto symbolOccurrencePriority(Symbol* symbol) -> int {
+  if (!symbol) return 0;
+
+  switch (symbol->kind()) {
+    case cxx::SymbolKind::kNamespace:
+    case cxx::SymbolKind::kNamespaceAlias:
+    case cxx::SymbolKind::kConcept:
+    case cxx::SymbolKind::kClass:
+    case cxx::SymbolKind::kEnum:
+    case cxx::SymbolKind::kScopedEnum:
+    case cxx::SymbolKind::kTypeAlias:
+    case cxx::SymbolKind::kInjectedClassName:
+      return 3;
+    case cxx::SymbolKind::kVariable:
+    case cxx::SymbolKind::kField:
+    case cxx::SymbolKind::kParameter:
+    case cxx::SymbolKind::kParameterPack:
+    case cxx::SymbolKind::kEnumerator:
+    case cxx::SymbolKind::kTypeParameter:
+    case cxx::SymbolKind::kNonTypeParameter:
+    case cxx::SymbolKind::kTemplateTypeParameter:
+    case cxx::SymbolKind::kConstraintTypeParameter:
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+class SymbolOccurrences final : public ASTVisitor {
+ public:
+  explicit SymbolOccurrences(TranslationUnit* unit) : unit_(unit) {
+    collectScope(unit_->globalScope());
+    accept(unit_->ast());
+
+    std::ranges::sort(occurrences_, [](const SymbolOccurrence& lhs,
+                                       const SymbolOccurrence& rhs) {
+      if (lhs.location != rhs.location) return lhs.location < rhs.location;
+      if (lhs.isDeclaration != rhs.isDeclaration)
+        return lhs.isDeclaration && !rhs.isDeclaration;
+      return symbolOccurrencePriority(lhs.symbol) >
+             symbolOccurrencePriority(rhs.symbol);
+    });
+
+    auto sameOccurrence = [](const SymbolOccurrence& lhs,
+                             const SymbolOccurrence& rhs) {
+      if (lhs.location != rhs.location) return false;
+      return isSameEntity(lhs.symbol, rhs.symbol);
+    };
+
+    auto end = std::ranges::unique(occurrences_, sameOccurrence).begin();
+    occurrences_.erase(end, occurrences_.end());
+  }
+
+  [[nodiscard]] auto all() const -> const std::vector<SymbolOccurrence>& {
+    return occurrences_;
+  }
+
+  [[nodiscard]] auto atOffset(std::size_t offset) const
+      -> const SymbolOccurrence* {
+    for (const auto& occurrence : occurrences_) {
+      const auto& token = unit_->tokenAt(occurrence.location);
+      if (offset < token.offset()) continue;
+      if (offset >= token.offset() + token.length()) continue;
+      return &occurrence;
+    }
+
+    return nullptr;
+  }
+
+  [[nodiscard]] auto rangeOf(SourceLocation location) const
+      -> std::pair<std::size_t, std::size_t> {
+    const auto& token = unit_->tokenAt(location);
+    return {token.offset(), token.offset() + token.length()};
+  }
+
+  void visit(IdExpressionAST* ast) override {
+    add(get_name_location(ast), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(MemberExpressionAST* ast) override {
+    add(get_name_location(ast), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(DotDesignatorAST* ast) override {
+    add(get_name_location(ast), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(NamedTypeSpecifierAST* ast) override {
+    add(firstSourceLocation(ast->unqualifiedId), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(ElaboratedTypeSpecifierAST* ast) override {
+    add(firstSourceLocation(ast->unqualifiedId), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(TypenameSpecifierAST* ast) override {
+    add(firstSourceLocation(ast->unqualifiedId), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(SimpleTemplateIdAST* ast) override {
+    add(ast->identifierLoc, ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(SimpleNestedNameSpecifierAST* ast) override {
+    add(ast->identifierLoc, ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(TemplateNestedNameSpecifierAST* ast) override {
+    add(firstSourceLocation(ast->templateId), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(TypeConstraintAST* ast) override {
+    add(ast->identifierLoc, ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(SizeofPackExpressionAST* ast) override {
+    add(ast->identifierLoc, ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(BuiltinOffsetofExpressionAST* ast) override {
+    add(ast->identifierLoc, ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(NamespaceReflectExpressionAST* ast) override {
+    add(ast->identifierLoc, ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(FunctionDefinitionAST* ast) override {
+    addDeclarator(ast->declarator, ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(InitDeclaratorAST* ast) override {
+    addDeclarator(ast->declarator, ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(BaseSpecifierAST* ast) override {
+    add(firstSourceLocation(ast->unqualifiedId), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(ParenMemInitializerAST* ast) override {
+    add(firstSourceLocation(ast->unqualifiedId), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(BracedMemInitializerAST* ast) override {
+    add(firstSourceLocation(ast->unqualifiedId), ast->symbol, false);
+    ASTVisitor::visit(ast);
+  }
+
+ private:
+  void addDeclarator(DeclaratorAST* declarator, Symbol* symbol) {
+    auto declaratorId = getDeclaratorId(declarator);
+    if (!declaratorId) return;
+    add(firstSourceLocation(declaratorId->unqualifiedId), symbol, true);
+  }
+
+  void add(SourceLocation location, Symbol* symbol, bool isDeclaration) {
+    if (!location || !symbol) return;
+    if (!symbol->name()) return;
+    if (!unit_->isMainFileLocation(location)) return;
+
+    occurrences_.push_back(SymbolOccurrence{.location = location,
+                                            .symbol = symbol,
+                                            .isDeclaration = isDeclaration});
+  }
+
+  void collectScope(ScopeSymbol* scope) {
+    if (!scope) return;
+    for (auto member : scope->members()) collectMember(member);
+  }
+
+  void collectMember(Symbol* symbol) {
+    if (!symbol) return;
+    if (!visitedSymbols_.insert(symbol).second) return;
+
+    if (symbol->isOverloadSet()) {
+      auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
+      for (auto usingDeclaration : overloadSet->usingDeclarations())
+        collectMember(usingDeclaration);
+      for (auto function : overloadSet->declaredFunctions())
+        collectMember(function);
+      return;
+    }
+
+    if (!symbol->isBaseClass() && !isImplicitlyDeclared(unit_, symbol)) {
+      add(symbol->location(), symbol, true);
+    }
+
+    if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+      for (auto constructor : classSymbol->declaredConstructors())
+        collectMember(constructor);
+      for (auto deductionGuide : classSymbol->deductionGuides())
+        collectMember(deductionGuide);
+    }
+
+    collectScope(templateParametersOf(symbol));
+    collectScope(symbol->asScopeSymbol());
+
+    for (auto redeclaration : redeclarationsOf(symbol))
+      collectMember(redeclaration);
+  }
+
+  TranslationUnit* unit_;
+  std::vector<SymbolOccurrence> occurrences_;
+  std::unordered_set<Symbol*> visitedSymbols_;
+};
+
+auto semanticTokenTypeOf(Symbol* symbol) -> std::optional<SemanticTokenTypes> {
+  if (!symbol) return std::nullopt;
+
+  return cxx::visit(
+      []<typename S>(S* symbol) -> std::optional<SemanticTokenTypes> {
+        using SymbolType = std::remove_cvref_t<decltype(*symbol)>;
+
+        if constexpr (std::is_same_v<SymbolType, NamespaceSymbol> ||
+                      std::is_same_v<SymbolType, NamespaceAliasSymbol>) {
+          return SemanticTokenTypes::kNamespace;
+        } else if constexpr (std::is_same_v<SymbolType, ClassSymbol> ||
+                             std::is_same_v<SymbolType,
+                                            InjectedClassNameSymbol>) {
+          return SemanticTokenTypes::kClass;
+        } else if constexpr (std::is_same_v<SymbolType, EnumSymbol> ||
+                             std::is_same_v<SymbolType, ScopedEnumSymbol>) {
+          return SemanticTokenTypes::kEnum;
+        } else if constexpr (std::is_same_v<SymbolType, TypeAliasSymbol> ||
+                             std::is_same_v<SymbolType, ConceptSymbol>) {
+          return SemanticTokenTypes::kType;
+        } else if constexpr (std::is_same_v<SymbolType, TypeParameterSymbol> ||
+                             std::is_same_v<SymbolType,
+                                            TemplateTypeParameterSymbol> ||
+                             std::is_same_v<SymbolType,
+                                            ConstraintTypeParameterSymbol>) {
+          return SemanticTokenTypes::kTypeParameter;
+        } else if constexpr (std::is_same_v<SymbolType, ParameterSymbol> ||
+                             std::is_same_v<SymbolType, ParameterPackSymbol> ||
+                             std::is_same_v<SymbolType,
+                                            NonTypeParameterSymbol>) {
+          return SemanticTokenTypes::kParameter;
+        } else if constexpr (std::is_same_v<SymbolType, VariableSymbol>) {
+          return SemanticTokenTypes::kVariable;
+        } else if constexpr (std::is_same_v<SymbolType, FieldSymbol>) {
+          return SemanticTokenTypes::kProperty;
+        } else if constexpr (std::is_same_v<SymbolType, EnumeratorSymbol>) {
+          return SemanticTokenTypes::kEnumMember;
+        } else if constexpr (std::is_same_v<SymbolType, FunctionSymbol> ||
+                             std::is_same_v<SymbolType, DeductionGuideSymbol> ||
+                             std::is_same_v<SymbolType, OverloadSetSymbol> ||
+                             std::is_same_v<SymbolType, LambdaSymbol>) {
+          if (symbol->parent() && symbol->parent()->isClass()) {
+            return SemanticTokenTypes::kMethod;
+          }
+          return SemanticTokenTypes::kFunction;
+        } else if constexpr (std::is_same_v<SymbolType,
+                                            UsingDeclarationSymbol>) {
+          return semanticTokenTypeOf(symbol->target());
+        } else {
+          return std::nullopt;
+        }
+      },
+      symbol);
+}
+
+auto lexicalSemanticTokenType(TokenKind kind)
+    -> std::optional<SemanticTokenTypes> {
+  switch (kind) {
+#define CXX_LSP_KEYWORD_CASE(name, spelling) \
+  case TokenKind::T_##name:                  \
+    return SemanticTokenTypes::kKeyword;
+    FOR_EACH_KEYWORD(CXX_LSP_KEYWORD_CASE)
+#undef CXX_LSP_KEYWORD_CASE
+
+    case TokenKind::T_COMMENT:
+      return SemanticTokenTypes::kComment;
+    case TokenKind::T_CHARACTER_LITERAL:
+    case TokenKind::T_STRING_LITERAL:
+    case TokenKind::T_USER_DEFINED_STRING_LITERAL:
+    case TokenKind::T_UTF16_STRING_LITERAL:
+    case TokenKind::T_UTF32_STRING_LITERAL:
+    case TokenKind::T_UTF8_STRING_LITERAL:
+    case TokenKind::T_WIDE_STRING_LITERAL:
+      return SemanticTokenTypes::kString;
+    case TokenKind::T_FLOATING_POINT_LITERAL:
+    case TokenKind::T_INTEGER_LITERAL:
+      return SemanticTokenTypes::kNumber;
+    default:
+      break;
+  }
+
+  switch (kind) {
+#define CXX_LSP_OPERATOR_CASE(name, spelling) \
+  case TokenKind::T_##name:                   \
+    return SemanticTokenTypes::kOperator;
+    FOR_EACH_OPERATOR(CXX_LSP_OPERATOR_CASE)
+#undef CXX_LSP_OPERATOR_CASE
+
+    default:
+      return std::nullopt;
+  }
+}
+
+auto semanticTokenPriority(SemanticTokenTypes type) -> int {
+  switch (type) {
+    case SemanticTokenTypes::kNamespace:
+    case SemanticTokenTypes::kType:
+    case SemanticTokenTypes::kClass:
+    case SemanticTokenTypes::kEnum:
+    case SemanticTokenTypes::kInterface:
+    case SemanticTokenTypes::kStruct:
+    case SemanticTokenTypes::kTypeParameter:
+      return 3;
+    case SemanticTokenTypes::kFunction:
+    case SemanticTokenTypes::kMethod:
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+auto hoverTextOf(Symbol* symbol) -> std::string {
+  if (!symbol) return {};
+  symbol = resolve_using_declaration(symbol);
+  if (!symbol) return {};
+
+  return cxx::visit(
+      []<typename S>(S* symbol) -> std::string {
+        using SymbolType = std::remove_cvref_t<decltype(*symbol)>;
+        auto name = to_string(symbol->name());
+
+        if constexpr (std::is_same_v<SymbolType, NamespaceSymbol>) {
+          return std::format("namespace {}", name);
+        } else if constexpr (std::is_same_v<SymbolType, NamespaceAliasSymbol>) {
+          return std::format("namespace {}", name);
+        } else if constexpr (std::is_same_v<SymbolType, ClassSymbol>) {
+          if (symbol->isUnion()) return std::format("union {}", name);
+          return std::format("class {}", name);
+        } else if constexpr (std::is_same_v<SymbolType,
+                                            InjectedClassNameSymbol>) {
+          return std::format("class {}", name);
+        } else if constexpr (std::is_same_v<SymbolType, EnumSymbol> ||
+                             std::is_same_v<SymbolType, ScopedEnumSymbol>) {
+          return std::format("enum {}", name);
+        } else if constexpr (std::is_same_v<SymbolType, TypeAliasSymbol>) {
+          return std::format("using {} = {}", name, to_string(symbol->type()));
+        } else if constexpr (std::is_same_v<SymbolType, ConceptSymbol>) {
+          return std::format("concept {}", name);
+        } else if constexpr (std::is_same_v<SymbolType, OverloadSetSymbol>) {
+          std::string label;
+          for (auto function : views::each_function(symbol)) {
+            if (function->canonical() != function) continue;
+            if (!label.empty()) label += "\n";
+            label += signatureLabelOf(function);
+          }
+          if (label.empty()) return name;
+          return label;
+        } else {
+          if (!symbol->type()) return name;
+          return to_string(symbol->type(), symbol->name());
+        }
+      },
+      symbol);
+}
+
+auto isBefore(TextPosition lhs, TextPosition rhs) -> bool {
+  if (lhs.line < rhs.line) return true;
+  if (lhs.line > rhs.line) return false;
+  return lhs.character < rhs.character;
+}
+
+auto overlaps(TextPosition tokenStart, TextPosition tokenEnd,
+              const Range& range) -> bool {
+  auto start = range.start();
+  auto end = range.end();
+  TextPosition rangeStart{.line = std::uint32_t(start.line()),
+                          .character = std::uint32_t(start.character())};
+  TextPosition rangeEnd{.line = std::uint32_t(end.line()),
+                        .character = std::uint32_t(end.character())};
+  if (!isBefore(rangeStart, rangeEnd)) return false;
+  if (!isBefore(tokenStart, rangeEnd)) return false;
+  return isBefore(rangeStart, tokenEnd);
+}
 
 auto diagnosticSeverityOf(cxx::Severity severity) -> DiagnosticSeverity {
   switch (severity) {
@@ -73,8 +672,8 @@ struct Diagnostics final : cxx::DiagnosticsClient {
       hasErrors = true;
     }
 
-    auto start = preprocessor()->tokenStartPosition(diag.token());
-    auto end = preprocessor()->tokenEndPosition(diag.token());
+    auto start = sourceResolver()->tokenStartPosition(diag.token());
+    auto end = sourceResolver()->tokenEndPosition(diag.token());
 
     auto tmp = json::object();
 
@@ -222,6 +821,16 @@ struct CompletionItemKindOf {
   }
 };
 
+[[nodiscard]] auto isUnnameable(Symbol* member) -> bool {
+  if (auto classSymbol = symbol_cast<ClassSymbol>(member))
+    if (classSymbol->isClosureType()) return true;
+
+  if (auto identifier = name_cast<Identifier>(member->name()))
+    return identifier->isAnonymous();
+
+  return false;
+}
+
 class CompletionItemCollector {
  public:
   CompletionItemCollector(Vector<CompletionItem>& completionItems,
@@ -243,6 +852,7 @@ class CompletionItemCollector {
     for (auto member : views::members(scope)) {
       if (!member->name()) continue;
       if (member->isHidden()) continue;
+      if (isUnnameable(member)) continue;
       if (!accessContext_.isAccessible(member, designatingClass, objectClass))
         continue;
       addItem(member, designatingClass != nullptr);
@@ -556,7 +1166,49 @@ struct CxxDocument::Private {
       : fileName(std::move(fileName)), version(version) {
     diagnosticsClient.setErrorLimit(kMaxDiagnostics);
   }
+
+  auto symbolOccurrences() -> const SymbolOccurrences& {
+    auto lock = lockCaches();
+    if (!occurrences) occurrences = std::make_unique<SymbolOccurrences>(&unit);
+    return *occurrences;
+  }
+
+  auto sourceText() -> const SourceText& {
+    auto lock = lockCaches();
+    if (!source) {
+      source = std::make_unique<SourceText>(
+          unit.preprocessor()->source(unit.preprocessor()->mainSourceFileId()));
+    }
+    return *source;
+  }
+
+ private:
+#ifndef CXX_NO_THREADS
+  auto lockCaches() -> std::unique_lock<std::mutex> {
+    return std::unique_lock(cachesMutex);
+  }
+
+  std::mutex cachesMutex;
+#else
+  struct NoLock {};
+
+  auto lockCaches() -> NoLock { return {}; }
+#endif
+
+  std::unique_ptr<SymbolOccurrences> occurrences;
+  std::unique_ptr<SourceText> source;
 };
+
+auto CxxDocument::semanticTokenTypeLegend() -> const std::vector<std::string>& {
+  static const auto tokenTypes = enumNames(kSemanticTokenTypes);
+  return tokenTypes;
+}
+
+auto CxxDocument::semanticTokenModifierLegend()
+    -> const std::vector<std::string>& {
+  static const auto tokenModifiers = enumNames(kSemanticTokenModifiers);
+  return tokenModifiers;
+}
 
 CxxDocument::CxxDocument(std::string fileName, long version)
     : d(std::make_unique<Private>(std::move(fileName), version)) {}
@@ -630,6 +1282,171 @@ void CxxDocument::requestSignatureHelpAt(std::uint32_t line,
   };
 }
 
+void CxxDocument::semanticTokens(std::optional<Range> range,
+                                 Vector<long> result) const {
+  auto& unit = d->unit;
+  auto preprocessor = unit.preprocessor();
+  const std::string_view source =
+      preprocessor->source(preprocessor->mainSourceFileId());
+  const auto& sourceText = d->sourceText();
+  const auto& occurrences = d->symbolOccurrences();
+
+  struct SymbolToken {
+    SemanticTokenTypes type;
+    long modifiers = 0;
+  };
+
+  std::unordered_map<std::size_t, SymbolToken> symbolTokens;
+
+  for (const auto& occurrence : occurrences.all()) {
+    const auto& token = unit.tokenAt(occurrence.location);
+
+    auto type = semanticTokenTypeOf(occurrence.symbol);
+    if (!type.has_value()) continue;
+
+    long modifiers = 0;
+    if (occurrence.isDeclaration) {
+      modifiers =
+          semanticTokenModifierMask(SemanticTokenModifiers::kDeclaration);
+    }
+    auto current = symbolTokens.find(token.offset());
+    if (current == symbolTokens.end()) {
+      symbolTokens.emplace(token.offset(),
+                           SymbolToken{.type = *type, .modifiers = modifiers});
+      continue;
+    }
+
+    if (current->second.modifiers < modifiers) {
+      current->second = SymbolToken{.type = *type, .modifiers = modifiers};
+      continue;
+    }
+
+    if (current->second.modifiers > modifiers) continue;
+    if (semanticTokenPriority(current->second.type) >=
+        semanticTokenPriority(*type))
+      continue;
+    current->second = SymbolToken{.type = *type, .modifiers = modifiers};
+  }
+
+  std::uint32_t previousLine = 0;
+  std::uint32_t previousCharacter = 0;
+  bool hasPreviousToken = false;
+
+  auto emit = [&](std::size_t startOffset, std::size_t endOffset,
+                  SemanticTokenTypes type, long modifiers) {
+    if (startOffset == endOffset) return;
+
+    auto position = sourceText.positionAt(startOffset);
+    auto endPosition = sourceText.positionAt(endOffset);
+    if (range.has_value()) {
+      if (!overlaps(position, endPosition, *range)) return;
+    }
+
+    auto length = sourceText.utf16Length(startOffset, endOffset);
+    if (length == 0) return;
+
+    std::uint32_t deltaLine = position.line;
+    std::uint32_t deltaCharacter = position.character;
+
+    if (hasPreviousToken) {
+      deltaLine -= previousLine;
+      if (deltaLine == 0) deltaCharacter -= previousCharacter;
+    }
+
+    result.emplace_back(long(deltaLine));
+    result.emplace_back(long(deltaCharacter));
+    result.emplace_back(long(length));
+    result.emplace_back(enumIndex(kSemanticTokenTypes, type));
+    result.emplace_back(modifiers);
+
+    previousLine = position.line;
+    previousCharacter = position.character;
+    hasPreviousToken = true;
+  };
+
+  Lexer lexer(source, unit.language());
+  lexer.setKeepComments(true);
+
+  for (;;) {
+    const auto kind = lexer.next();
+    if (kind == TokenKind::T_EOF_SYMBOL) break;
+
+    const auto tokenStart = std::size_t(lexer.tokenPos());
+    const auto tokenEnd = tokenStart + lexer.tokenLength();
+    auto modifiers = 0L;
+    std::optional<SemanticTokenTypes> type;
+
+    if (kind == TokenKind::T_IDENTIFIER) {
+      auto symbolToken = symbolTokens.find(tokenStart);
+      if (symbolToken != symbolTokens.end()) {
+        type = symbolToken->second.type;
+        modifiers = symbolToken->second.modifiers;
+      }
+    } else {
+      type = lexicalSemanticTokenType(kind);
+    }
+
+    if (!type.has_value()) continue;
+
+    auto segmentStart = tokenStart;
+    while (segmentStart < tokenEnd) {
+      auto newline = source.find('\n', segmentStart);
+      auto segmentEnd = tokenEnd;
+      if (newline != std::string_view::npos && newline < tokenEnd) {
+        segmentEnd = newline;
+      }
+
+      emit(segmentStart, segmentEnd, *type, modifiers);
+
+      if (segmentEnd == tokenEnd) break;
+      segmentStart = segmentEnd + 1;
+    }
+  }
+}
+
+auto CxxDocument::hoverAt(std::size_t offset, Hover result) const -> bool {
+  const auto& occurrences = d->symbolOccurrences();
+  auto occurrence = occurrences.atOffset(offset);
+  if (!occurrence) return false;
+
+  auto text = hoverTextOf(occurrence->symbol);
+  if (text.empty()) return false;
+
+  auto contents = result.contents<MarkupContent>();
+  contents.kind(MarkupKind::kMarkdown);
+  contents.value(std::format("```cpp\n{}\n```", text));
+
+  const auto& sourceText = d->sourceText();
+  auto [startOffset, endOffset] = occurrences.rangeOf(occurrence->location);
+  auto start = sourceText.positionAt(startOffset);
+  auto end = sourceText.positionAt(endOffset);
+  auto range = result.range<Range>();
+  range.start().line(start.line).character(start.character);
+  range.end().line(end.line).character(end.character);
+  return true;
+}
+
+void CxxDocument::documentHighlightsAt(std::size_t offset,
+                                       Vector<DocumentHighlight> result) const {
+  const auto& occurrences = d->symbolOccurrences();
+  auto selected = occurrences.atOffset(offset);
+  if (!selected) return;
+
+  const auto& sourceText = d->sourceText();
+
+  for (const auto& occurrence : occurrences.all()) {
+    if (!isSameEntity(occurrence.symbol, selected->symbol)) continue;
+
+    auto [startOffset, endOffset] = occurrences.rangeOf(occurrence.location);
+    auto start = sourceText.positionAt(startOffset);
+    auto end = sourceText.positionAt(endOffset);
+    auto highlight = result.emplace_back();
+    highlight.kind(DocumentHighlightKind::kText);
+    highlight.range().start().line(start.line).character(start.character);
+    highlight.range().end().line(end.line).character(end.character);
+  }
+}
+
 auto CxxDocument::diagnostics() const -> Vector<Diagnostic> {
   return Vector<Diagnostic>(d->diagnosticsClient.messages);
 }
@@ -646,6 +1463,10 @@ auto CxxDocument::textInRange(SourceLocation start, SourceLocation end)
     -> std::optional<std::string_view> {
   auto& unit = d->unit;
   auto preprocessor = unit.preprocessor();
+
+  if (!unit.ownsLocation(start) || !unit.ownsLocation(end.previous())) {
+    return std::nullopt;
+  }
 
   const auto startToken = unit.tokenAt(start);
   const auto endToken = unit.tokenAt(end.previous());

@@ -1,0 +1,13 @@
+# Keep backend dependencies out of generic lowering and its public interface.
+file(GLOB_RECURSE sources "${CODEGEN_SOURCE_DIR}/*.h" "${CODEGEN_SOURCE_DIR}/*.cc")
+foreach(source IN LISTS sources)
+    file(READ "${source}" content)
+    if(content MATCHES "(mlir|llvm)::|#[ \t]*include[ \t]*[<\"](mlir/|llvm/|cxx/mlir/)")
+        message(FATAL_ERROR "Backend dependency in ${source}")
+    endif()
+endforeach()
+file(READ "${DEPENDENCIES_FILE}" dependencies)
+string(TOLOWER "${dependencies}" dependencies)
+if(dependencies MATCHES "mlir|llvm")
+    message(FATAL_ERROR "Backend dependency in generic codegen target: ${dependencies}")
+endif()

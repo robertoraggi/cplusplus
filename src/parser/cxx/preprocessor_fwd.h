@@ -86,6 +86,7 @@ struct PendingFileContent {
   Preprocessor& preprocessor;
   std::string fileName;
   bool isSystemHeader = false;
+  void* loc = nullptr;
 
   void setContent(std::optional<std::string> content) const;
 };

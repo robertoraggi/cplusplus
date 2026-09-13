@@ -43,11 +43,18 @@ file(READ "${CMAKE_CURRENT_SOURCE_DIR}/package.json" package_json)
 # option to install tools
 option(CXX_INSTALL_TOOLS "Install tools" ON)
 option(CXX_INSTALL_WASI_SYSROOT "Install wasi sysroot" OFF)
-option(CXX_ENABLE_FLATBUFFERS "Enable flatbuffers" OFF)
 option(CXX_ENABLE_MLIR "Enable MLIR" OFF)
 option(CXX_LIBCXX_WITH_CLANG "Link with libc++" OFF)
 option(CXX_BUILD_TESTS "Build tests" ON)
 option(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
+
+if (EMSCRIPTEN)
+    set(cxx_llvm_optimizer_default OFF)
+else()
+    set(cxx_llvm_optimizer_default ON)
+endif()
+option(CXX_ENABLE_LLVM_OPTIMIZER "Link the LLVM optimization pipeline"
+       ${cxx_llvm_optimizer_default})
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "WASI")
     find_package(Threads)
@@ -88,20 +95,6 @@ if(CXX_BUILD_TESTS)
 endif()
 
 #
-# utfcpp
-#
-FetchContent_Declare(
-    utfcpp
-    URL                 https://github.com/nemtrif/utfcpp/archive/refs/tags/v4.0.8.tar.gz
-    URL_HASH            SHA256=f808b26d8c3a59def27fea207182ece77a8930bd121a69f80d328ecf3cfef925
-)
-
-FetchContent_MakeAvailable(utfcpp)
-FetchContent_GetProperties(utfcpp)
-
-set(UTFCPP_INCLUDE_DIRS "${utfcpp_SOURCE_DIR}/source")
-
-#
 # simdjson
 #
 FetchContent_Declare(
@@ -121,7 +114,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
     target_link_libraries(simdjson PUBLIC wasi-emulated-mman)
 endif()
 
-
 FetchContent_Declare(
     wasi_sysroot
     URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-32/wasi-sysroot-32.0.tar.gz
@@ -131,34 +123,18 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(wasi_sysroot)
 FetchContent_GetProperties(wasi_sysroot)
 
-if (CXX_ENABLE_FLATBUFFERS)
-    set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(FLATBUFFERS_BUILD_FLATHASH OFF CACHE BOOL "" FORCE)
-    set(FLATBUFFERS_BUILD_FLATLIB OFF CACHE BOOL "" FORCE)
-    set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    wasi_builtins
+    URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-32/libclang_rt-32.0.tar.gz
+    URL_HASH    SHA256=e42ba168766a4a1161d44b740d22c336b39424190ca7a672acbd8b71b8d4372a
+)
 
-    if (FLATBUFFERS_FLATC_EXECUTABLE)
-        set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
-    endif()
-
-    FetchContent_Declare(
-        flatbuffers
-        URL         https://github.com/google/flatbuffers/archive/refs/tags/v25.1.24.tar.gz
-        URL_HASH    SHA256=ffc668a310e77607d393f3c18b32715f223da1eac4c4d6e0579a11df8e6b59cf
-    )
-
-    FetchContent_MakeAvailable(flatbuffers)
-    FetchContent_GetProperties(flatbuffers)
-
-    add_library(flatbuffers::header-only INTERFACE IMPORTED)
-    set_target_properties(flatbuffers::header-only PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${flatbuffers_SOURCE_DIR}/include")
-endif()
-
+FetchContent_MakeAvailable(wasi_builtins)
+FetchContent_GetProperties(wasi_builtins)
 
 if (CXX_BUILD_TESTS)
     enable_testing()
 endif()
-
 
 add_subdirectory(src)
 

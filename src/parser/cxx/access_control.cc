@@ -19,11 +19,14 @@
 // SOFTWARE.
 
 #include <cxx/access_control.h>
+#include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/translation_unit.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
 #include <algorithm>
+#include <format>
 
 namespace cxx {
 
@@ -114,13 +117,6 @@ namespace {
   return target->canonical() == member->canonical();
 }
 
-[[nodiscard]] auto isNonStaticMember(Symbol* member) -> bool {
-  if (auto field = symbol_cast<FieldSymbol>(member)) return !field->isStatic();
-  if (auto function = symbol_cast<FunctionSymbol>(member))
-    return !function->isStatic();
-  return false;
-}
-
 }  // namespace
 
 auto usingDeclarationIntroducing(Symbol* member, ClassSymbol* designatingClass)
@@ -164,6 +160,14 @@ auto usingDeclarationIntroducing(Symbol* member, ClassSymbol* designatingClass)
   return false;
 }
 
+[[nodiscard]] auto isInjectedIntoEnclosingClass(Symbol* member,
+                                                ClassSymbol* classSymbol)
+    -> bool {
+  if (!injectsMembersIntoEnclosingClass(classSymbol)) return false;
+  auto field = symbol_cast<FieldSymbol>(member);
+  return field && !field->isStatic();
+}
+
 auto declaredMemberOf(Symbol* member) -> DeclaredMember {
   if (!member) return {};
   if (isFriendDeclaration(member)) return {};
@@ -173,7 +177,7 @@ auto declaredMemberOf(Symbol* member) -> DeclaredMember {
   for (auto declaringScope = member->parent(); declaringScope;
        declaringScope = declaringScope->parent()) {
     if (auto classSymbol = symbol_cast<ClassSymbol>(declaringScope)) {
-      if (!injectsMembersIntoEnclosingClass(classSymbol))
+      if (!isInjectedIntoEnclosingClass(member, classSymbol))
         return {normalize(classSymbol), access};
       access = std::max(access, classSymbol->accessSpecifier());
       continue;
@@ -216,7 +220,7 @@ auto designatingClassOf(Symbol* member, ScopeSymbol* accessingScope)
 auto isProtectedAccessRestricted(Symbol* member) -> bool {
   if (!member) return false;
   if (member->accessSpecifier() != AccessSpecifier::kProtected) return false;
-  return isNonStaticMember(member);
+  return is_non_static_member(member);
 }
 
 AccessContext::AccessContext(TranslationUnit* unit, ScopeSymbol* accessingScope)
@@ -503,6 +507,37 @@ auto AccessContext::isAccessible(Symbol* member, ClassSymbol* designatingClass,
   std::vector<ClassSymbol*> visited;
   return isAccessibleWhenDesignatedIn(member, designatingClass, objectClass,
                                       visited);
+}
+
+auto checkMemberAccess(TranslationUnit* unit, ScopeSymbol* accessingScope,
+                       Symbol* member, ClassSymbol* designatingClass,
+                       ClassSymbol* objectClass, SourceLocation loc) -> bool {
+  if (!unit->config().checkTypes) return true;
+  AccessContext accessContext{unit, accessingScope};
+  if (accessContext.isAccessible(member, designatingClass, objectClass))
+    return true;
+
+  auto deniedIn = declaringClassOf(member);
+  auto access = member->accessSpecifier();
+
+  if (designatingClass) {
+    if (auto usingDeclaration =
+            usingDeclarationIntroducing(member, designatingClass)) {
+      deniedIn = designatingClass;
+      access = usingDeclaration->accessSpecifier();
+    }
+  }
+
+  if (!deniedIn) return true;
+
+  auto accessKind = std::string_view{"private"};
+  if (access == AccessSpecifier::kProtected) accessKind = "protected";
+
+  unit->error(
+      loc, std::format("'{}' is a {} member of '{}'", to_string(member->name()),
+                       accessKind, to_string(deniedIn->type())));
+
+  return false;
 }
 
 }  // namespace cxx

@@ -22,11 +22,46 @@
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
+#include <bit>
 #include <cstdlib>
 #include <optional>
 
 namespace cxx {
 namespace {
+
+[[nodiscard]] auto storageSizeInBytes(std::size_t numBits) -> std::size_t {
+  auto bytes = (numBits + 7) / 8;
+  std::size_t result = 1;
+  while (result < bytes) result *= 2;
+  return result;
+}
+
+[[nodiscard]] auto vectorWidthInBits(const MemoryLayout& memoryLayout,
+                                     const VectorType* type)
+    -> std::optional<std::size_t> {
+  if (type->vectorKind() == VectorKind::kExt &&
+      type->elementType()->kind() == TypeKind::kBool)
+    return type->elementCount();
+
+  auto elementSize = memoryLayout.sizeOf(type->elementType());
+  if (!elementSize) return std::nullopt;
+
+  return type->elementCount() * *elementSize * 8;
+}
+
+[[nodiscard]] auto atomicWidthInBits(const MemoryLayout& memoryLayout,
+                                     const AtomicType* type)
+    -> std::optional<std::size_t> {
+  auto valueSize = memoryLayout.sizeOf(type->elementType());
+  if (!valueSize) return std::nullopt;
+
+  auto width = *valueSize * 8;
+  if (!width) return std::size_t{8};
+  if (width > memoryLayout.maxAtomicPromoteWidth()) return width;
+
+  return std::bit_ceil(width);
+}
+
 struct SizeOf {
   const MemoryLayout& memoryLayout;
 
@@ -263,12 +298,12 @@ struct SizeOf {
   }
 
   auto operator()(const BitIntType* type) const -> std::optional<std::size_t> {
-    return bitIntSizeInBytes(type->numBits());
+    return storageSizeInBytes(type->numBits());
   }
 
   auto operator()(const UnsignedBitIntType* type) const
       -> std::optional<std::size_t> {
-    return bitIntSizeInBytes(type->numBits());
+    return storageSizeInBytes(type->numBits());
   }
 
   auto operator()(const UnresolvedBitIntType* type) const
@@ -276,17 +311,49 @@ struct SizeOf {
     return std::nullopt;
   }
 
- private:
-  static auto bitIntSizeInBytes(int numBits) -> std::size_t {
-    auto bytes = static_cast<std::size_t>((numBits + 7) / 8);
-    std::size_t result = 1;
-    while (result < bytes) result *= 2;
-    return result;
+  auto operator()(const VectorType* type) const -> std::optional<std::size_t> {
+    auto bits = vectorWidthInBits(memoryLayout, type);
+    if (!bits) return std::nullopt;
+    return storageSizeInBytes(*bits);
+  }
+
+  auto operator()(const UnresolvedVectorType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const ComplexType* type) const -> std::optional<std::size_t> {
+    auto elementSize = memoryLayout.sizeOf(type->elementType());
+    if (!elementSize) return std::nullopt;
+    return *elementSize * 2;
+  }
+
+  auto operator()(const AtomicType* type) const -> std::optional<std::size_t> {
+    auto width = atomicWidthInBits(memoryLayout, type);
+    if (!width) return std::nullopt;
+    return *width / 8;
   }
 };
 
 struct AlignmentOf {
   const MemoryLayout& memoryLayout;
+
+  auto operator()(const QualType* type) const -> std::optional<std::size_t> {
+    return memoryLayout.alignmentOf(type->elementType());
+  }
+
+  auto operator()(const EnumType* type) const -> std::optional<std::size_t> {
+    if (type->underlyingType())
+      return memoryLayout.alignmentOf(type->underlyingType());
+    return 4;
+  }
+
+  auto operator()(const ScopedEnumType* type) const
+      -> std::optional<std::size_t> {
+    if (type->underlyingType())
+      return memoryLayout.alignmentOf(type->underlyingType());
+    return 4;
+  }
 
   auto operator()(const ClassType* type) const -> std::optional<std::size_t> {
     auto classSymbol = type->definition();
@@ -312,6 +379,25 @@ struct AlignmentOf {
   auto operator()(const MemberFunctionPointerType* type) const
       -> std::optional<std::size_t> {
     return memoryLayout.sizeOfPointer();
+  }
+
+  auto operator()(const VectorType* type) const -> std::optional<std::size_t> {
+    auto size = memoryLayout.sizeOf(type);
+    if (!size) return std::nullopt;
+    auto maximum = memoryLayout.maxVectorAlignment();
+    if (maximum && maximum < *size) return maximum;
+    return size;
+  }
+
+  auto operator()(const ComplexType* type) const -> std::optional<std::size_t> {
+    return memoryLayout.alignmentOf(type->elementType());
+  }
+
+  auto operator()(const AtomicType* type) const -> std::optional<std::size_t> {
+    auto width = atomicWidthInBits(memoryLayout, type);
+    if (!width) return std::nullopt;
+    if (*width <= memoryLayout.maxAtomicPromoteWidth()) return *width / 8;
+    return memoryLayout.alignmentOf(type->elementType());
   }
 
   auto operator()(auto type) const -> std::optional<std::size_t> {
@@ -404,18 +490,49 @@ auto MemoryLayout::arch() const -> std::string_view {
   return std::string_view{triple_}.substr(0, triple_.find('-'));
 }
 
+auto MemoryLayout::isWebAssembly() const -> bool {
+  return arch().starts_with("wasm");
+}
+
 auto MemoryLayout::usesArmMemberPointerAbi() const -> bool {
   const auto arch = this->arch();
   return arch.starts_with("arm") || arch.starts_with("aarch64") ||
-         arch.starts_with("thumb") || arch.starts_with("wasm");
+         arch.starts_with("thumb") || isWebAssembly();
+}
+
+auto MemoryLayout::defaultNewAlignment() const -> std::size_t { return 16; }
+
+auto MemoryLayout::maxAtomicInlineWidth() const -> std::size_t {
+  const auto arch = this->arch();
+  if (arch.starts_with("aarch64") || arch.starts_with("arm64")) return 128;
+  return 64;
+}
+
+auto MemoryLayout::maxAtomicPromoteWidth() const -> std::size_t {
+  const auto arch = this->arch();
+  if (arch.starts_with("aarch64") || arch.starts_with("arm64")) return 128;
+  if (arch.starts_with("x86_64")) return 128;
+  return 64;
+}
+
+auto MemoryLayout::maxVectorAlignment() const -> std::size_t {
+  const auto arch = this->arch();
+  if (arch.starts_with("aarch64") || arch.starts_with("arm64")) return 16;
+  return 0;
 }
 
 auto MemoryLayout::nullMemberObjectPointer() const -> std::int64_t {
   return -1;
 }
 
-auto MemoryLayout::usesSingleScalarClassAbi() const -> bool {
-  return arch().starts_with("wasm");
+auto MemoryLayout::classValueAbiKind() const -> ClassValueAbiKind {
+  const auto arch = this->arch();
+  if (isWebAssembly()) return ClassValueAbiKind::kSingleScalar;
+  if (arch.starts_with("aarch64") || arch.starts_with("arm64"))
+    return ClassValueAbiKind::kAArch64;
+  if (arch.starts_with("x86_64") || arch.starts_with("amd64"))
+    return ClassValueAbiKind::kX86_64;
+  return ClassValueAbiKind::kDefault;
 }
 
 void MemoryLayout::setTriple(std::string triple) {

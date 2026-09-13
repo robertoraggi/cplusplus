@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/attributes.h>
 #include <cxx/const_value.h>
 #include <cxx/diagnostic.h>
 #include <cxx/names_fwd.h>
@@ -34,6 +35,8 @@
 #include <optional>
 #include <ranges>
 #include <span>
+#include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -42,12 +45,22 @@ namespace cxx {
 class SymbolChainView;
 class TranslationUnit;
 
+struct InstantiationError {
+  SourceLocation location;
+  std::string message;
+  Severity severity = Severity::Error;
+};
+
+[[nodiscard]] auto instantiationErrorsOf(
+    const std::vector<Diagnostic>& diagnostics)
+    -> std::vector<InstantiationError>;
+
 class TemplateSpecialization {
  public:
   Symbol* templateSymbol = nullptr;
   std::vector<TemplateArgument> arguments;
   Symbol* symbol = nullptr;
-  std::vector<Diagnostic> instantiationErrors;
+  std::vector<InstantiationError> instantiationErrors;
   List<TemplateArgumentAST*>* pendingArgumentList = nullptr;
   SourceLocation pendingInstantiationLoc;
   bool isPendingInstantiation = false;
@@ -66,6 +79,7 @@ struct PendingBodyInstantiation {
 };
 
 struct PendingFieldInitializerInstantiation {
+  TranslationUnit* unit = nullptr;
   InitDeclaratorAST* pattern = nullptr;
   InitDeclaratorAST* instance = nullptr;
   SpecifierAST* typeSpecifier = nullptr;
@@ -104,6 +118,9 @@ struct PendingExceptionSpecification {
 [[nodiscard]] auto expand_template_arguments(
     std::span<const TemplateArgument> arguments)
     -> std::vector<TemplateArgument>;
+
+[[nodiscard]] auto hash_template_arguments(
+    std::span<const TemplateArgument> arguments) -> std::optional<std::size_t>;
 
 struct ExpandedTemplateArgument {
   TemplateArgument value;
@@ -149,6 +166,16 @@ struct ExpandedTemplateArgument {
 
 [[nodiscard]] auto is_member_template(Symbol* symbol) -> bool;
 
+[[nodiscard]] auto is_unnamed_namespace(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_in_unnamed_namespace(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_declared_extern(VariableSymbol* variable) -> bool;
+
+[[nodiscard]] auto has_internal_linkage(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_non_static_member(Symbol* symbol) -> bool;
+
 [[nodiscard]] auto names_current_instantiation(ClassSymbol* classSymbol,
                                                ScopeSymbol* scope) -> bool;
 
@@ -165,6 +192,8 @@ class MaybeRedecl {
     return canonical_ ? canonical_
                       : const_cast<S*>(static_cast<const S*>(this));
   }
+
+  [[nodiscard]] auto canonicalOrNull() const -> S* { return canonical_; }
 
   void setCanonical(S* canonical) { canonical_ = canonical; }
 
@@ -192,6 +221,13 @@ class MaybeRedecl {
     redeclarations_.push_back(redecl);
   }
 
+  void truncateRedeclarations(std::size_t count) {
+    while (redeclarations_.size() > count) {
+      redeclarations_.back()->setCanonical(nullptr);
+      redeclarations_.pop_back();
+    }
+  }
+
  private:
   S* canonical_ = nullptr;
   S* definition_ = nullptr;
@@ -202,6 +238,9 @@ template <typename S, typename D>
 class MaybeTemplate {
   struct Template {
     std::vector<TemplateSpecialization> specializations_;
+    std::unordered_map<std::size_t, std::vector<std::uint32_t>>
+        specializationsByArguments_;
+    std::vector<std::uint32_t> unkeyedSpecializations_;
     TemplateDeclarationAST* templateDeclaration_ = nullptr;
     TemplateParametersSymbol* templateParameters_ = nullptr;
     std::vector<std::vector<TemplateArgument>> externInstantiationDeclarations_;
@@ -218,17 +257,51 @@ class MaybeTemplate {
   [[nodiscard]] auto findSpecialization(
       TranslationUnit* unit,
       const std::vector<TemplateArgument>& arguments) const -> Symbol* {
-    for (const auto& specialization : specializations()) {
+    if (!template_) return nullptr;
+
+    auto match = [&](std::uint32_t index) -> Symbol* {
+      const auto& specialization = template_->specializations_[index];
       const std::vector<TemplateArgument>& args = specialization.arguments;
       if (args == arguments) return specialization.symbol;
-      if (args.size() != arguments.size()) continue;
-      if (compare_args(unit, args, arguments)) {
-        return specialization.symbol;
+      if (args.size() != arguments.size()) return nullptr;
+      if (compare_args(unit, args, arguments)) return specialization.symbol;
+      return nullptr;
+    };
+
+    auto key = hash_template_arguments(arguments);
+
+    if (!key.has_value()) {
+      for (std::uint32_t i = 0; i < template_->specializations_.size(); ++i) {
+        if (auto found = match(i)) return found;
+      }
+      return nullptr;
+    }
+
+    if (auto it = template_->specializationsByArguments_.find(*key);
+        it != template_->specializationsByArguments_.end()) {
+      for (auto index : it->second) {
+        if (auto found = match(index)) return found;
       }
     }
+
+    for (auto index : template_->unkeyedSpecializations_) {
+      if (auto found = match(index)) return found;
+    }
+
     return nullptr;
   }
 
+ private:
+  void indexSpecialization(std::uint32_t index) {
+    auto key =
+        hash_template_arguments(template_->specializations_[index].arguments);
+    if (key.has_value())
+      template_->specializationsByArguments_[*key].push_back(index);
+    else
+      template_->unkeyedSpecializations_.push_back(index);
+  }
+
+ public:
   void setPendingInstantiation(S* specialization,
                                List<TemplateArgumentAST*>* argumentList,
                                SourceLocation location, bool isPending) {
@@ -297,6 +370,26 @@ class MaybeTemplate {
     template_->specializations_.push_back({template_->primaryTemplateSymbol_,
                                            std::move(arguments),
                                            specialization});
+    indexSpecialization(static_cast<std::uint32_t>(index));
+  }
+
+  /**
+   * Restores a specialization exactly as it was recorded. Going through
+   * `addSpecialization` would re-run argument comparison against a graph that
+   * is still being fixed up and can drop an entry, which shifts every later
+   * specialization index (7.6).
+   */
+  void restoreSpecialization(TemplateSpecialization specialization) {
+    ensure_template();
+    template_->specializations_.push_back(std::move(specialization));
+    indexSpecialization(
+        static_cast<std::uint32_t>(template_->specializations_.size() - 1));
+  }
+
+  void restoreSpecializationInfo(S* primaryTemplateSymbol, int index) {
+    ensure_template();
+    template_->primaryTemplateSymbol_ = primaryTemplateSymbol;
+    template_->templateSepcializationIndex_ = index;
   }
 
   [[nodiscard]] auto declaration() const -> D* { return declaration_; }
@@ -328,6 +421,12 @@ class MaybeTemplate {
       std::vector<TemplateArgument> arguments) {
     ensure_template();
     template_->externInstantiationDeclarations_.push_back(std::move(arguments));
+  }
+
+  [[nodiscard]] auto externInstantiationDeclarations() const
+      -> std::span<const std::vector<TemplateArgument>> {
+    if (!template_) return {};
+    return template_->externInstantiationDeclarations_;
   }
 
   [[nodiscard]] auto isExternInstantiationDeclared(
@@ -365,11 +464,13 @@ class MaybeTemplate {
     template_->templateSepcializationIndex_ = index;
   }
 
-  [[nodiscard]] auto templateSepcializationIndex() const -> std::size_t {
+ public:
+  [[nodiscard]] auto templateSpecializationIndex() const -> int {
     if (!template_) return 0;
     return template_->templateSepcializationIndex_;
   }
 
+ private:
  private:
   void ensure_template() {
     if (template_) return;
@@ -433,6 +534,8 @@ class Symbol {
 
   [[nodiscard]] auto enclosingFunction() const -> FunctionSymbol*;
 
+  [[nodiscard]] auto enclosingFunctionOrSelf() const -> FunctionSymbol*;
+
   [[nodiscard]] auto hasEnclosingSymbol(Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto next() const -> Symbol*;
@@ -456,6 +559,36 @@ class Symbol {
 
   void setAbiTags(const std::vector<const Identifier*>* abiTags);
 
+  [[nodiscard]] auto attributes() const -> const AttributeMap* {
+    return attributes_;
+  }
+  void setAttributes(const AttributeMap* attributes) {
+    attributes_ = attributes;
+  }
+
+  [[nodiscard]] auto isNodiscard() const -> bool { return isNodiscard_; }
+  void setNodiscard(bool isNodiscard) { isNodiscard_ = isNodiscard; }
+
+  [[nodiscard]] auto isUsed() const -> bool { return isUsed_; }
+  void setUsed(bool isUsed) { isUsed_ = isUsed; }
+
+  [[nodiscard]] auto isExcludedFromExplicitInstantiation() const -> bool {
+    return isExcludedFromExplicitInstantiation_;
+  }
+  void setExcludedFromExplicitInstantiation(bool value) {
+    isExcludedFromExplicitInstantiation_ = value;
+  }
+
+  [[nodiscard]] auto isTrivialAbi() const -> bool { return isTrivialAbi_; }
+  void setTrivialAbi(bool isTrivialAbi) { isTrivialAbi_ = isTrivialAbi; }
+
+  [[nodiscard]] auto hasDeducedReturnType() const -> bool {
+    return hasDeducedReturnType_;
+  }
+  void setDeducedReturnType(bool hasDeducedReturnType) {
+    hasDeducedReturnType_ = hasDeducedReturnType;
+  }
+
   [[nodiscard]] auto canonical() const -> Symbol*;
 
   [[nodiscard]] auto definition() const -> Symbol*;
@@ -477,6 +610,15 @@ class Symbol {
     return isEnum() || isScopedEnum();
   }
 
+  /**
+   * Scratch space for a walk that has to number the symbols it reaches, such
+   * as the archive encoder assigning references. Zero means unnumbered; a walk
+   * clears what it stamped when it finishes, so the field is always zero
+   * outside one.
+   */
+  [[nodiscard]] auto internalId() const -> std::uint32_t { return internalId_; }
+  void setInternalId(std::uint32_t internalId) { internalId_ = internalId; }
+
  private:
   friend class ScopeSymbol;
 
@@ -486,8 +628,15 @@ class Symbol {
   ScopeSymbol* parent_ = nullptr;
   Symbol* link_ = nullptr;
   const std::vector<const Identifier*>* abiTags_ = nullptr;
+  const AttributeMap* attributes_ = nullptr;
   SourceLocation location_;
+  std::uint32_t internalId_ = 0;
   bool isHidden_ = false;
+  bool isNodiscard_ = false;
+  bool isUsed_ = false;
+  bool isExcludedFromExplicitInstantiation_ = false;
+  bool isTrivialAbi_ = false;
+  bool hasDeducedReturnType_ = false;
   AccessSpecifier accessSpecifier_ = AccessSpecifier::kPublic;
 };
 
@@ -501,7 +650,6 @@ class ScopeSymbol : public Symbol {
   [[nodiscard]] auto empty() const -> bool { return members_.empty(); }
 
   [[nodiscard]] auto members() const -> const std::vector<Symbol*>&;
-  void addMember(Symbol* member);
 
   [[nodiscard]] auto usingDirectives() const {
     return std::views::all(usingDirectives_);
@@ -515,6 +663,14 @@ class ScopeSymbol : public Symbol {
   [[nodiscard]] auto find(TokenKind op) const -> SymbolChainView;
 
   void addSymbol(Symbol* symbol);
+
+  /**
+   * Appends a member without indexing it. A decoded scope is filled before the
+   * names of its members are interned, so the caller answers for calling
+   * `rebuildLookupTable` once the graph is fixed up (7.6, phase 7).
+   */
+  void addMember(Symbol* symbol);
+
   void addUsingDirective(ScopeSymbol* scope);
 
   [[nodiscard]] auto isTransparent() const -> bool;
@@ -523,8 +679,21 @@ class ScopeSymbol : public Symbol {
   void truncate(std::size_t count);
   void reset();
 
+  /**
+   * Rebuilds the name-lookup index from `members_`. A decoded scope is filled
+   * before the names of its members are interned, so the index is rebuilt once
+   * the graph is fixed up (7.6, phase 7).
+   */
+  void rebuildLookupTable();
+
  private:
   void rehash();
+
+  [[nodiscard]] auto bucketOfHash(std::size_t hash) const -> std::size_t {
+    return hash & (buckets_.size() - 1);
+  }
+
+  [[nodiscard]] auto bucketOf(const Symbol* symbol) const -> std::size_t;
 
  private:
   std::vector<Symbol*> members_;
@@ -607,6 +776,21 @@ class ClassLayout {
   void setFieldInfo(FieldSymbol* field, const MemberInfo& info);
   void setBaseInfo(ClassSymbol* base, const MemberInfo& info);
 
+  /**
+   * The layout tables in member order. The maps themselves are unordered, and
+   * anything that has to produce the same bytes twice — an archive (7.5), a
+   * layout dump — needs a total order that does not depend on hashing.
+   */
+  [[nodiscard]] auto sortedFieldInfos() const
+      -> std::vector<std::pair<FieldSymbol*, MemberInfo>> {
+    return sortedByIndex(fields_);
+  }
+
+  [[nodiscard]] auto sortedBaseInfos() const
+      -> std::vector<std::pair<ClassSymbol*, MemberInfo>> {
+    return sortedByIndex(bases_);
+  }
+
   void addVirtualBase(ClassSymbol* base) { virtualBases_.push_back(base); }
   [[nodiscard]] auto virtualBases() const -> const std::vector<ClassSymbol*>& {
     return virtualBases_;
@@ -614,6 +798,9 @@ class ClassLayout {
 
   void setSize(std::uint64_t size) { size_ = size; }
   void setAlignment(std::uint64_t alignment) { alignment_ = alignment; }
+
+  void setDataSize(std::uint64_t dataSize) { dataSize_ = dataSize; }
+  [[nodiscard]] auto dataSize() const -> std::uint64_t { return dataSize_; }
 
   void setNonVirtualSize(std::uint64_t size) { nonVirtualSize_ = size; }
   void setNonVirtualAlignment(std::uint64_t alignment) {
@@ -648,6 +835,21 @@ class ClassLayout {
   void setAbiEmpty(bool abiEmpty) { abiEmpty_ = abiEmpty; }
   [[nodiscard]] auto isAbiEmpty() const -> bool { return abiEmpty_; }
 
+  struct PaddingInfo {
+    std::uint32_t index = 0;
+    std::uint64_t offset = 0;
+    std::uint64_t sizeInBytes = 0;
+  };
+
+  void addPadding(std::uint32_t index, std::uint64_t offset,
+                  std::uint64_t sizeInBytes) {
+    padding_.push_back({index, offset, sizeInBytes});
+  }
+
+  [[nodiscard]] auto padding() const -> const std::vector<PaddingInfo>& {
+    return padding_;
+  }
+
   void setPrimaryBase(ClassSymbol* primaryBase, bool isVirtual) {
     primaryBase_ = primaryBase;
     primaryBaseIsVirtual_ = isVirtual;
@@ -662,10 +864,23 @@ class ClassLayout {
   }
 
  private:
+  template <typename K>
+  [[nodiscard]] static auto sortedByIndex(
+      const std::unordered_map<K, MemberInfo>& entries)
+      -> std::vector<std::pair<K, MemberInfo>> {
+    std::vector<std::pair<K, MemberInfo>> result(entries.begin(),
+                                                 entries.end());
+    std::ranges::sort(result, {},
+                      [](const auto& entry) { return entry.second.index; });
+    return result;
+  }
+
   std::unordered_map<FieldSymbol*, MemberInfo> fields_;
   std::unordered_map<ClassSymbol*, MemberInfo> bases_;
   std::vector<ClassSymbol*> virtualBases_;
+  std::vector<PaddingInfo> padding_;
   std::uint64_t size_ = 0;
+  std::uint64_t dataSize_ = 0;
   std::uint64_t alignment_ = 1;
   std::uint64_t nonVirtualSize_ = 0;
   std::uint64_t nonVirtualAlignment_ = 1;
@@ -771,6 +986,7 @@ class ClassSymbol final : public ScopeSymbol,
   using MaybeRedecl<ClassSymbol>::setDefinition;
   using MaybeRedecl<ClassSymbol>::redeclarations;
   using MaybeRedecl<ClassSymbol>::addRedeclaration;
+  using MaybeRedecl<ClassSymbol>::truncateRedeclarations;
 
   void setInstantiationSubstitution(int depth,
                                     std::vector<TemplateArgument> arguments) {
@@ -824,6 +1040,9 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto implicitConversionFunctions() const
       -> std::vector<FunctionSymbol*>;
 
+  [[nodiscard]] auto visibleConversionFunctions() const
+      -> std::vector<FunctionSymbol*>;
+
   [[nodiscard]] auto destructor() const -> FunctionSymbol*;
   [[nodiscard]] auto defaultConstructor() const -> FunctionSymbol*;
   [[nodiscard]] auto copyConstructor() const -> FunctionSymbol*;
@@ -870,6 +1089,12 @@ class ClassSymbol final : public ScopeSymbol,
 
   [[nodiscard]] auto alignment() const -> int;
   void setAlignment(int alignment);
+
+  [[nodiscard]] auto explicitAlignment() const -> int;
+  void setExplicitAlignment(int alignment);
+
+  [[nodiscard]] auto packAlignment() const -> int;
+  void setPackAlignment(int alignment);
 
   [[nodiscard]] auto hasBaseClass(const Symbol* symbol) const -> bool;
 
@@ -963,6 +1188,8 @@ class ClassSymbol final : public ScopeSymbol,
   int closureDiscriminator_ = 0;
   int sizeInBytes_ = 0;
   int alignment_ = 0;
+  int explicitAlignment_ = 0;
+  int packAlignment_ = 0;
   union {
     std::uint32_t flags_{};
     struct {
@@ -1035,6 +1262,7 @@ class FunctionSymbol final
   using MaybeRedecl<FunctionSymbol>::setDefinition;
   using MaybeRedecl<FunctionSymbol>::redeclarations;
   using MaybeRedecl<FunctionSymbol>::addRedeclaration;
+  using MaybeRedecl<FunctionSymbol>::truncateRedeclarations;
 
   explicit FunctionSymbol(ScopeSymbol* enclosingScope);
   ~FunctionSymbol() override;
@@ -1101,6 +1329,12 @@ class FunctionSymbol final
   [[nodiscard]] auto isDefinitionRequired() const -> bool;
   void setDefinitionRequired(bool isDefinitionRequired);
 
+  [[nodiscard]] auto isNoReturn() const -> bool;
+  void setNoReturn(bool isNoReturn);
+
+  [[nodiscard]] auto builtinKind() const -> BuiltinFunctionKind;
+  void setBuiltinKind(BuiltinFunctionKind builtinKind);
+
   [[nodiscard]] auto trailingRequiresClause() const -> RequiresClauseAST*;
   void setTrailingRequiresClause(RequiresClauseAST* requiresClause);
 
@@ -1121,7 +1355,17 @@ class FunctionSymbol final
   [[nodiscard]] auto hasHiddenVisibility() const -> bool;
   void setHiddenVisibility(bool hasHiddenVisibility);
 
+  [[nodiscard]] auto importModule() const -> const Identifier*;
+  void setImportModule(const Identifier* importModule);
+
+  [[nodiscard]] auto importName() const -> const Identifier*;
+  void setImportName(const Identifier* importName);
+
+  [[nodiscard]] auto exportName() const -> const Identifier*;
+  void setExportName(const Identifier* exportName);
+
   [[nodiscard]] auto hasPendingBody() const -> bool;
+  [[nodiscard]] auto hasUninstantiatedBody() const -> bool;
   [[nodiscard]] auto pendingBody() const -> PendingBodyInstantiation*;
   void setPendingBody(std::unique_ptr<PendingBodyInstantiation> pending);
   void clearPendingBody();
@@ -1135,6 +1379,10 @@ class FunctionSymbol final
   void setVtableSlotIndex(int index) { vtableSlotIndex_ = index; }
 
   void addOverriddenFunction(FunctionSymbol* function);
+  [[nodiscard]] auto overriddenFunctions() const
+      -> const std::vector<FunctionSymbol*>& {
+    return overriddenFunctions_;
+  }
   [[nodiscard]] auto overrides(FunctionSymbol* function) const -> bool;
 
   void addBefriendingClass(ClassSymbol* classSymbol);
@@ -1213,7 +1461,11 @@ class FunctionSymbol final
   int vtableSlotIndex_ = -1;
   const Identifier* externalName_ = nullptr;
   const Identifier* aliasName_ = nullptr;
+  const Identifier* importModule_ = nullptr;
+  const Identifier* importName_ = nullptr;
+  const Identifier* exportName_ = nullptr;
   RequiresClauseAST* trailingRequiresClause_ = nullptr;
+  BuiltinFunctionKind builtinKind_ = BuiltinFunctionKind::T_NONE;
   union {
     std::uint32_t flags_{};
     struct {
@@ -1237,6 +1489,7 @@ class FunctionSymbol final
       std::uint32_t hasExceptionSpecifier_ : 1;
       std::uint32_t isDefinitionRequired_ : 1;
       std::uint32_t hasExplicitObjectParameter_ : 1;
+      std::uint32_t isNoReturn_ : 1;
     };
   };
 };
@@ -1255,6 +1508,7 @@ class OverloadSetSymbol final : public Symbol {
 
   void setFunctions(std::vector<FunctionSymbol*> functions);
   void addFunction(FunctionSymbol* function);
+  void truncateFunctions(std::size_t count);
 
   [[nodiscard]] auto usingDeclarations() const
       -> const std::vector<UsingDeclarationSymbol*>&;
@@ -1291,7 +1545,14 @@ class LambdaSymbol final : public ScopeSymbol {
   [[nodiscard]] auto isInTemplate() const -> bool;
   void setInTemplate(bool isInTemplate);
 
+  [[nodiscard]] auto closureType() const -> ClassSymbol* {
+    return closureType_;
+  }
+  void setClosureType(ClassSymbol* closureType) { closureType_ = closureType; }
+
  private:
+  ClassSymbol* closureType_ = nullptr;
+
   union {
     std::uint32_t flags_{};
     struct {
@@ -1333,6 +1594,15 @@ class BlockSymbol final : public ScopeSymbol {
 
   explicit BlockSymbol(ScopeSymbol* enclosingScope);
   ~BlockSymbol() override;
+
+  [[nodiscard]] auto isOutermostBlockScope() const -> bool {
+    return isOutermostBlockScope_;
+  }
+
+  void setOutermostBlockScope(bool value) { isOutermostBlockScope_ = value; }
+
+ private:
+  bool isOutermostBlockScope_ = false;
 };
 
 class TypeAliasSymbol final
@@ -1349,6 +1619,7 @@ class TypeAliasSymbol final
   using MaybeRedecl<TypeAliasSymbol>::setDefinition;
   using MaybeRedecl<TypeAliasSymbol>::redeclarations;
   using MaybeRedecl<TypeAliasSymbol>::addRedeclaration;
+  using MaybeRedecl<TypeAliasSymbol>::truncateRedeclarations;
 
   explicit TypeAliasSymbol(ScopeSymbol* enclosingScope);
   ~TypeAliasSymbol() override;
@@ -1360,7 +1631,6 @@ class TypeAliasSymbol final
   void setExpansionTypeId(TypeIdAST* typeId) { expansionTypeId_ = typeId; }
 
  private:
-  TemplateDeclarationAST* templateDeclaration_ = nullptr;
   TypeIdAST* expansionTypeId_ = nullptr;
 };
 
@@ -1378,6 +1648,7 @@ class VariableSymbol final
   using MaybeRedecl<VariableSymbol>::setDefinition;
   using MaybeRedecl<VariableSymbol>::redeclarations;
   using MaybeRedecl<VariableSymbol>::addRedeclaration;
+  using MaybeRedecl<VariableSymbol>::truncateRedeclarations;
 
   explicit VariableSymbol(ScopeSymbol* enclosingScope);
   ~VariableSymbol() override;
@@ -1409,11 +1680,15 @@ class VariableSymbol final
   [[nodiscard]] auto constValue() const -> const std::optional<ConstValue>&;
   void setConstValue(std::optional<ConstValue> value);
 
+  [[nodiscard]] auto explicitAlignment() const -> int;
+  void setExplicitAlignment(int alignment);
+
  private:
   ExpressionAST* initializer_ = nullptr;
   FunctionSymbol* constructor_ = nullptr;
   std::optional<ConstValue> constValue_;
 
+  int explicitAlignment_ = 0;
   union {
     std::uint32_t flags_{};
     struct {
@@ -1497,6 +1772,10 @@ class FieldSymbol final : public Symbol {
 
   [[nodiscard]] auto hasPendingInitializer() const -> bool {
     return pendingInitializer_ != nullptr;
+  }
+
+  [[nodiscard]] auto hasInitializer() const -> bool {
+    return initializer_ != nullptr || hasPendingInitializer();
   }
   [[nodiscard]] auto pendingInitializer() const
       -> PendingFieldInitializerInstantiation*;

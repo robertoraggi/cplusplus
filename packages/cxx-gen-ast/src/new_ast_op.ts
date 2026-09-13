@@ -24,6 +24,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as process from "node:process";
 import * as child_process from "child_process";
+import { loadModel } from "./parseModel.ts";
 import { parseAST } from "./parseAST.ts";
 import { new_ast_op_h } from "./new_ast_op_h.ts";
 import { new_ast_op_cc } from "./new_ast_op_cc.ts";
@@ -49,12 +50,7 @@ function main(args: MainArgs) {
 
   const outdir = process.cwd();
 
-  const fn = path.join(outdir, "src/parser/cxx/ast.h");
-
-  if (!fs.existsSync(fn)) throw new Error("File 'ast.h' not found");
-
-  const source = fs.readFileSync(fn).toString();
-  const ast = parseAST({ fn, source });
+  const ast = parseAST(loadModel(fs.readFileSync("packages/cxx-gen-ast/semantic-model.json", "utf8")));
 
   new_ast_op_h({
     ast,

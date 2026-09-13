@@ -292,6 +292,12 @@ auto ASTRewriter::handler(HandlerAST* ast) -> HandlerAST* {
 
   auto copy = HandlerAST::create(arena());
 
+  auto _ = Binder::ScopeGuard(&binder_);
+
+  if (ast->symbol) {
+    copy->symbol = binder_.enterBlock(ast->symbol->location());
+  }
+
   copy->catchLoc = ast->catchLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->exceptionDeclaration = exceptionDeclaration(ast->exceptionDeclaration);
@@ -822,9 +828,11 @@ auto ASTRewriter::ExceptionDeclarationVisitor::operator()(
 
   copy->declarator = rewrite.declarator(ast->declarator);
 
-  auto declaratorDecl = Decl{typeSpecifierListCtx, copy->declarator};
-  auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
-                                          typeSpecifierListCtx.type());
+  binder()->bind(copy, Decl{typeSpecifierListCtx, copy->declarator});
+
+  if (ast->symbol && copy->symbol) {
+    rewrite.addSymbolRemap(ast->symbol, copy->symbol);
+  }
 
   return copy;
 }

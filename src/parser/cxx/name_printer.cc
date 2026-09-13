@@ -91,7 +91,7 @@ struct NamePrinter {
   }
 
   auto operator()(const DestructorId* name) const -> std::string {
-    return "~" + visit(*this, name->name());
+    return "~" + to_string(name->name());
   }
 
   auto operator()(const LiteralOperatorId* name) const -> std::string {
@@ -103,7 +103,7 @@ struct NamePrinter {
   }
 
   auto operator()(const TemplateId* name) const -> std::string {
-    std::string s = visit(*this, name->name());
+    std::string s = to_string(name->name());
     s += " <";
     std::string_view sep = "";
     for (const auto& arg : expand_template_arguments(name->arguments())) {

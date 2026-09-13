@@ -40,9 +40,11 @@ enum class ClassAdjustment { kNone, kDerivedToBase, kBaseToDerived };
 
 enum class ConversionContext { kImplicit, kStandardOnly };
 
-struct AggregateInitializerSlot {
-  ExpressionAST* initializer = nullptr;
-  const Type* elementType = nullptr;
+struct AggregateListConversion {
+  bool viable = false;
+  bool narrows = false;
+  std::size_t elementCount = 0;
+  ConversionRank elementRank = ConversionRank::kExactMatch;
 };
 
 class StandardConversion {
@@ -59,11 +61,16 @@ class StandardConversion {
   void applyConversionSequence(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
 
+  void setAccessingScope(ScopeSymbol* accessingScope) {
+    accessingScope_ = accessingScope;
+  }
+
   [[nodiscard]] auto convertImplicitly(
       ExpressionAST*& expr, const Type* destinationType,
       InitializationKind initializationKind =
           InitializationKind::kCopyInitialization) -> bool;
 
+  void atomicToNonAtomic(ExpressionAST*& expr);
   void prepareOperand(ExpressionAST*& expr);
   void promoteOperand(ExpressionAST*& expr);
   void decayOperand(ExpressionAST*& expr);
@@ -74,6 +81,13 @@ class StandardConversion {
                                                ExpressionAST*& other)
       -> const Type*;
 
+  [[nodiscard]] auto vectorOperandConversion(ExpressionAST*& expr,
+                                             ExpressionAST*& other)
+      -> std::optional<const Type*>;
+
+  [[nodiscard]] auto canSplatIntoVector(ExpressionAST* expr,
+                                        const VectorType* vectorType) -> bool;
+
   [[nodiscard]] auto commonArithmeticType(const Type* a, const Type* b)
       -> const Type*;
 
@@ -81,11 +95,10 @@ class StandardConversion {
                                           ExpressionAST*& other) -> const Type*;
 
   [[nodiscard]] auto classAdjustment(const Type* sourceType,
-                                     const Type* targetType) const
-      -> ClassAdjustment;
+                                     const Type* targetType) -> ClassAdjustment;
 
   [[nodiscard]] auto pointerConversionCastKind(const Type* sourceType,
-                                               const Type* targetType) const
+                                               const Type* targetType)
       -> ImplicitCastKind;
 
   auto convertToBaseClass(ExpressionAST*& expr, const Type* baseType) -> bool;
@@ -103,10 +116,16 @@ class StandardConversion {
   void foldConstantRead(ExpressionAST*& expression);
 
   void appendDefaultArguments(FunctionSymbol* function,
-                              List<ExpressionAST*>** list);
+                              List<ExpressionAST*>** list,
+                              SourceLocation location = {});
 
   void recordConversionFunction(ImplicitCastExpressionAST* cast,
                                 const ImplicitConversionSequence& sequence);
+
+  [[nodiscard]] auto referenceBinding(const Type* targetType,
+                                      const Type* sourceType,
+                                      ValueCategory valueCategory)
+      -> std::optional<ImplicitConversionSequence>;
 
  private:
   void applyStep(const ImplicitConversionSequence& sequence,
@@ -132,27 +151,16 @@ class StandardConversion {
   [[nodiscard]] auto isDesignatedInitializerList(
       BracedInitListAST* bracedInitList) const -> bool;
 
-  [[nodiscard]] auto singleListElement(BracedInitListAST* bracedInitList) const
-      -> ExpressionAST*;
+  [[nodiscard]] auto aggregateListConversion(BracedInitListAST* bracedInitList,
+                                             const Type* aggregateType)
+      -> AggregateListConversion;
 
-  [[nodiscard]] auto initializesCharacterArrayFromStringLiteral(
-      BracedInitListAST* bracedInitList, const Type* arrayType) const -> bool;
+  [[nodiscard]] auto rankAggregateElements(BracedInitListAST* bracedInitList,
+                                           const Type* aggregateType)
+      -> AggregateListConversion;
 
-  [[nodiscard]] auto designatedAggregateSlot(
-      const std::vector<Symbol*>& elements,
-      DesignatedInitializerClauseAST* designated) const
-      -> std::optional<std::size_t>;
-
-  [[nodiscard]] auto aggregateInitializerSlots(
-      BracedInitListAST* bracedInitList, ClassSymbol* classSymbol)
-      -> std::optional<std::vector<AggregateInitializerSlot>>;
-
-  [[nodiscard]] auto referenceBindingSequence(ExpressionAST* expr,
-                                              const Type* targetType)
-      -> std::optional<ImplicitConversionSequence>;
-
-  [[nodiscard]] auto directReferenceBindingCastKind(
-      const Type* referencedType, const Type* sourceType) const
+  [[nodiscard]] auto directReferenceBindingCastKind(const Type* referencedType,
+                                                    const Type* sourceType)
       -> ImplicitCastKind;
 
   [[nodiscard]] auto computeConversionSequenceSteps(
@@ -163,17 +171,33 @@ class StandardConversion {
   void wrapWithImplicitCast(ImplicitCastKind castKind, const Type* type,
                             ExpressionAST*& expr);
 
+  void materializeClosureConversion(ClassSymbol* srcClass,
+                                    const Type* targetType);
+
+  [[nodiscard]] auto convertedClassSymbol(const Type* type) const
+      -> ClassSymbol*;
+
+  [[nodiscard]] auto accessingScope() const -> ScopeSymbol*;
+
+  void checkDerivedToBaseAccess(const Type* sourceType, const Type* targetType,
+                                SourceLocation loc);
+
+  void checkUserDefinedConversionAccess(
+      const ImplicitConversionSequence& sequence, ExpressionAST* expr);
+
   void resolveOverloadSet(ExpressionAST* expr, const Type* targetType);
 
   void setResolvedFunction(ExpressionAST* expr, FunctionSymbol* function);
 
   [[nodiscard]] auto pointeeClassAdjustment(const Type* sourceType,
-                                            const Type* targetType) const
+                                            const Type* targetType)
       -> ClassAdjustment;
 
   [[nodiscard]] auto ensurePrvalue(ExpressionAST*& expr) -> bool;
 
   void adjustCv(ExpressionAST* expr);
+
+  [[nodiscard]] auto readsValueDirectly(const Type* type) const -> bool;
 
   [[nodiscard]] auto lvalueToRvalue(ExpressionAST*& expr) -> bool;
 
@@ -204,15 +228,16 @@ class StandardConversion {
 
   void requireDefinitionOfDesignatedField(ExpressionAST* expr);
 
+  [[nodiscard]] static auto namedEntity(ExpressionAST* expr) -> Symbol*;
+
+  void requireNamedFunction(ExpressionAST* expr);
+
   void materializeConstructorArguments(ImplicitCastExpressionAST* cast,
                                        FunctionSymbol* constructor);
 
   [[nodiscard]] auto requiresCopyConstruction(ExpressionAST* expr,
                                               const Type* destinationType) const
       -> bool;
-
-  [[nodiscard]] auto narrowsAggregateElement(BracedInitListAST* bracedInitList,
-                                             const Type* targetType) -> bool;
 
   [[nodiscard]] auto listInitializes(BracedInitListAST* bracedInitList,
                                      const Type* targetType,
@@ -256,6 +281,8 @@ class StandardConversion {
   TypeTraits traits;
   Control* control_;
   Arena* arena_;
+  std::vector<const Type*> rankedAggregates_;
+  ScopeSymbol* accessingScope_ = nullptr;
   bool isC_ = false;
 };
 }  // namespace cxx

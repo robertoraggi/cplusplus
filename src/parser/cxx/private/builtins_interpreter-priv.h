@@ -23,11 +23,118 @@
 #include <cstdlib>
 #include <cstring>
 
+auto cxx::ASTInterpreter::builtinIsConstantOnly(cxx::BuiltinFunctionKind kind)
+    -> bool {
+  switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_COLUMN:
+    case BuiltinFunctionKind::T___BUILTIN_SOURCE_LOCATION:
+    case BuiltinFunctionKind::T___BUILTIN_LINE:
+    case BuiltinFunctionKind::T___BUILTIN_FILE:
+    case BuiltinFunctionKind::T___BUILTIN_FUNCTION:
+      return true;
+    default:
+      return false;
+  }
+}
+
+auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
+    cxx::BuiltinFunctionKind kind) -> bool {
+  switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_COMPLEX:
+    case BuiltinFunctionKind::T___BUILTIN_NANF:
+    case BuiltinFunctionKind::T___BUILTIN_NAN:
+    case BuiltinFunctionKind::T___BUILTIN_NANL:
+    case BuiltinFunctionKind::T___BUILTIN_INF:
+    case BuiltinFunctionKind::T___BUILTIN_INFF:
+    case BuiltinFunctionKind::T___BUILTIN_INFL:
+    case BuiltinFunctionKind::T___C11_ATOMIC_IS_LOCK_FREE:
+    case BuiltinFunctionKind::T___ATOMIC_ALWAYS_LOCK_FREE:
+    case BuiltinFunctionKind::T___ATOMIC_IS_LOCK_FREE:
+    case BuiltinFunctionKind::T___BUILTIN_COLUMN:
+    case BuiltinFunctionKind::T___BUILTIN_SOURCE_LOCATION:
+    case BuiltinFunctionKind::T___BUILTIN_LINE:
+    case BuiltinFunctionKind::T___BUILTIN_FILE:
+    case BuiltinFunctionKind::T___BUILTIN_FUNCTION:
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VAL:
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VALF:
+    case BuiltinFunctionKind::T___BUILTIN_HUGE_VALL:
+    case BuiltinFunctionKind::T___BUILTIN_MUL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_ADDRESSOF:
+    case BuiltinFunctionKind::T___BUILTIN_CLZ:
+    case BuiltinFunctionKind::T___BUILTIN_CLZL:
+    case BuiltinFunctionKind::T___BUILTIN_CLZLL:
+    case BuiltinFunctionKind::T___BUILTIN_CTZ:
+    case BuiltinFunctionKind::T___BUILTIN_CTZL:
+    case BuiltinFunctionKind::T___BUILTIN_CTZLL:
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNT:
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNTL:
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNTLL:
+    case BuiltinFunctionKind::T___BUILTIN_PARITY:
+    case BuiltinFunctionKind::T___BUILTIN_PARITYL:
+    case BuiltinFunctionKind::T___BUILTIN_PARITYLL:
+    case BuiltinFunctionKind::T___BUILTIN_FFS:
+    case BuiltinFunctionKind::T___BUILTIN_FFSL:
+    case BuiltinFunctionKind::T___BUILTIN_FFSLL:
+    case BuiltinFunctionKind::T___BUILTIN_CLRSB:
+    case BuiltinFunctionKind::T___BUILTIN_CLRSBL:
+    case BuiltinFunctionKind::T___BUILTIN_CLRSBLL:
+    case BuiltinFunctionKind::T___BUILTIN_CLZS:
+    case BuiltinFunctionKind::T___BUILTIN_CTZS:
+    case BuiltinFunctionKind::T___BUILTIN_ISGREATER:
+    case BuiltinFunctionKind::T___BUILTIN_ISGREATEREQUAL:
+    case BuiltinFunctionKind::T___BUILTIN_ISLESS:
+    case BuiltinFunctionKind::T___BUILTIN_ISLESSEQUAL:
+    case BuiltinFunctionKind::T___BUILTIN_ISLESSGREATER:
+    case BuiltinFunctionKind::T___BUILTIN_ISUNORDERED:
+    case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
+      return true;
+    default:
+      return false;
+  }
+}
+
 auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
                                               std::vector<ConstValue> args,
                                               cxx::CallExpressionAST* ast)
     -> std::optional<ConstValue> {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_COMPLEX:
+      return evaluateBuiltinComplex(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_NANF:
+      return evaluateBuiltinNanf(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_NAN:
+      return evaluateBuiltinNan(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_NANL:
+      return evaluateBuiltinNanl(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_INF:
+      return evaluateBuiltinHugeVal(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_INFF:
+      return evaluateBuiltinHugeValf(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_INFL:
+      return evaluateBuiltinHugeVall(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_IS_LOCK_FREE:
+      return evaluateBuiltinC11AtomicIsLockFree(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_ALWAYS_LOCK_FREE:
+      return evaluateBuiltinAtomicAlwaysLockFree(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_IS_LOCK_FREE:
+      return evaluateBuiltinAtomicIsLockFree(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_COLUMN:
+      return evaluateBuiltinColumn(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SOURCE_LOCATION:
+      return evaluateBuiltinSourceLocation(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_LINE:
       return evaluateBuiltinLine(ast);
 
@@ -45,6 +152,96 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
     case BuiltinFunctionKind::T___BUILTIN_HUGE_VALL:
       return evaluateBuiltinHugeVall(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_MUL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDRESSOF:
+      return evaluateBuiltinAddressof(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLZ:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLZL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLZLL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZ:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZLL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNT:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNTL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNTLL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_PARITY:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_PARITYL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_PARITYLL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_FFS:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_FFSL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_FFSLL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLRSB:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLRSBL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLRSBLL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLZS:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZS:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISGREATER:
+      return evaluateBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISGREATEREQUAL:
+      return evaluateBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISLESS:
+      return evaluateBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISLESSEQUAL:
+      return evaluateBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISLESSGREATER:
+      return evaluateBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISUNORDERED:
+      return evaluateBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_CONSTANT_P:
       // Reaching here means the argument was successfully constant-evaluated.

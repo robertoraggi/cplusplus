@@ -155,16 +155,38 @@ std::vector<CLIOptionDescr> options{
     {"-g", "Generate debug information", &CLI::opt_g,
      CLIOptionVisibility::kExperimental},
 
+    {"-fdebug-compilation-dir", "<dir>",
+     "The compilation directory recorded in the debug information",
+     CLIOptionDescrKind::kSeparated, CLIOptionVisibility::kExperimental},
+
+    {"-O", "Optimize the generated code", &CLI::opt_O},
+
+    {"-O0", "Disable optimizations", &CLI::opt_O0},
+
+    {"-O1", "Optimize the generated code", &CLI::opt_O1},
+
+    {"-O2", "Optimize the generated code further", &CLI::opt_O2},
+
+    {"-O3", "Optimize the generated code aggressively", &CLI::opt_O3},
+
+    {"-Os", "Optimize the generated code for size", &CLI::opt_Os},
+
+    {"-Oz", "Optimize the generated code aggressively for size", &CLI::opt_Oz},
+
     {"-o", "<file>", "Place output into <file>",
      CLIOptionDescrKind::kSeparated},
 
     {"-x", "Specify the language from the compiler driver, e.g. c, or c++",
      CLIOptionDescrKind::kSeparated},
 
-    {"-fcheck", "Enable type checker (WIP)", &CLI::opt_fcheck},
+    {"-fno-check", "Disable type checker", &CLI::opt_fno_check},
 
     {"-fvalidate-ast", "Validate completed template instantiations",
      &CLI::opt_fvalidate_ast},
+
+    {"-ftime-trace", "<file>",
+     "Write declaration timings in Chrome JSON format",
+     CLIOptionDescrKind::kJoined},
 
     {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
 
@@ -177,7 +199,11 @@ std::vector<CLIOptionDescr> options{
      "Allow unprototyped C declarations (pre-C23 behavior)",
      &CLI::opt_fno_strict_prototypes},
 
-    {"-emit-ast", "Emit AST files for source inputs", &CLI::opt_emit_ast},
+    {"-emit-pch", "Emit a precompiled header for the source input",
+     &CLI::opt_emit_pch, CLIOptionVisibility::kExperimental},
+
+    {"-include-pch", "<file>", "Resume compilation from the precompiled header",
+     CLIOptionDescrKind::kSeparated, CLIOptionVisibility::kExperimental},
 
     {"-emit-ir", "Emit the CXX dialect IR for the source inputs",
      &CLI::opt_emit_cxx_ir},
@@ -264,8 +290,6 @@ std::vector<CLIOptionDescr> options{
      CLIOptionDescrKind::kSeparated},
 };
 
-#ifndef CXX_NO_FILESYSTEM
-
 auto getSystemPaths() -> std::vector<fs::path> {
   std::vector<fs::path> paths;
 
@@ -287,7 +311,6 @@ auto getSystemPaths() -> std::vector<fs::path> {
   return paths;
 }
 
-#endif
 }  // namespace
 
 CLI::CLI() = default;
@@ -330,10 +353,17 @@ auto CLI::positionals() const -> std::vector<std::string> {
   return result;
 }
 
+auto CLI::optimizationLevel() const -> int {
+  if (opt_O3) return 3;
+  if (opt_O2) return 2;
+  if (opt_Os || opt_Oz) return 2;
+  if (opt_O1 || opt_O) return 1;
+  return 0;
+}
+
 void CLI::parse(int& argc, char**& argv) {
   app_name = argv[0];
 
-#ifndef CXX_NO_FILESYSTEM
   if (fs::path(app_name).remove_filename().empty()) {
     for (auto path : getSystemPaths()) {
       if (fs::exists(path / app_name)) {
@@ -346,7 +376,6 @@ void CLI::parse(int& argc, char**& argv) {
   while (fs::is_symlink(app_name)) {
     app_name = fs::read_symlink(app_name).string();
   }
-#endif
 
   for (int i = 1; i < argc;) {
     const std::string arg(argv[i++]);

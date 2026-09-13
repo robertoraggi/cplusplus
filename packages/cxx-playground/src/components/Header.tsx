@@ -3,6 +3,7 @@ import { Button } from "./ui/button"
 import { SampleSelector } from "./sample-selector"
 import { OutputFormatSelector } from "./output-format-selector"
 import { DebugInfoToggle } from "./debug-info-toggle"
+import { OptimizeToggle } from "./optimize-toggle"
 
 function statusLabel({
   diagnosticCount,
@@ -52,6 +53,11 @@ export function Header() {
         <DebugInfoToggle
           debugInfo={state.debugInfo}
           setDebugInfo={state.setDebugInfo}
+        />
+
+        <OptimizeToggle
+          optimize={state.optimize}
+          setOptimize={state.setOptimize}
         />
 
         <Button

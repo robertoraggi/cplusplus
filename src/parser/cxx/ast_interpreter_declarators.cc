@@ -374,7 +374,10 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
   std::vector<ConstValue> args;
   for (auto node : ListView{ast->expressionList}) {
     auto value = interp.evaluate(node);
-    if (!value) return {};
+    if (!value) {
+      interp.aborted_ = true;
+      return {};
+    }
     args.push_back(std::move(*value));
   }
 
@@ -393,7 +396,10 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
   if (ast->constructor && ast->bracedInitList) {
     for (auto node : ListView{ast->bracedInitList->expressionList}) {
       auto value = interp.evaluate(node);
-      if (!value) return {};
+      if (!value) {
+        interp.aborted_ = true;
+        return {};
+      }
       args.push_back(std::move(*value));
     }
   } else {

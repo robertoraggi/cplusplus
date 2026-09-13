@@ -49,6 +49,8 @@ enum class ConversionRank {
     case ImplicitCastKind::kQualificationConversion:
     case ImplicitCastKind::kFunctionPointerConversion:
     case ImplicitCastKind::kTemporaryMaterializationConversion:
+    case ImplicitCastKind::kAtomicToNonAtomic:
+    case ImplicitCastKind::kNonAtomicToAtomic:
       return ConversionRank::kExactMatch;
 
     case ImplicitCastKind::kIntegralPromotion:
@@ -63,6 +65,11 @@ enum class ConversionRank {
     case ImplicitCastKind::kDerivedToBaseConversion:
     case ImplicitCastKind::kBaseToDerivedConversion:
     case ImplicitCastKind::kBooleanConversion:
+    case ImplicitCastKind::kVectorSplat:
+    case ImplicitCastKind::kVectorConversion:
+    case ImplicitCastKind::kRealToComplexConversion:
+    case ImplicitCastKind::kComplexToRealConversion:
+    case ImplicitCastKind::kComplexConversion:
     case ImplicitCastKind::kUserDefinedConversion:
       return ConversionRank::kConversion;
     default:
@@ -224,7 +231,7 @@ struct ImplicitConversionSequence {
   }
 
   [[nodiscard]] auto isBetterThan(const ImplicitConversionSequence& other,
-                                  const TypeTraits& traits) const -> bool;
+                                  TypeTraits& traits) const -> bool;
 
   explicit operator bool() const {
     return form != ConversionSequenceForm::kNone;

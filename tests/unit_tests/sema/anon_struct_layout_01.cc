@@ -23,7 +23,7 @@ struct X {
 };
 
 // CHECK: *** Dumping AST Record Layout
-// CHECK:         0 | struct X
+// CHECK:         0 | struct ::X
 // CHECK:         0 |  union (anonymous)
 // CHECK:         0 |    int i
 // CHECK:         0 |    struct (anonymous)
@@ -48,8 +48,8 @@ struct D : X {
 // CHECK: *** Dumping AST Record Layout
 
 // CHECK: *** Dumping AST Record Layout
-// CHECK:         0 | struct D
-// CHECK:         0 |  struct X (base)
+// CHECK:         0 | struct ::D
+// CHECK:         0 |  struct ::X (base)
 // CHECK:         0 |    union (anonymous)
 // CHECK:         0 |      int i
 // CHECK:         0 |      struct (anonymous)

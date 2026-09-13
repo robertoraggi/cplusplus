@@ -21,8 +21,8 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
-#include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/mlir_debug_emitter.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -36,9 +36,9 @@
 
 #include <format>
 
-namespace cxx {
-struct Codegen::ConvertDebugType {
-  Codegen& gen;
+namespace cxx::ir {
+struct MlirDebugEmitter::ConvertDebugType {
+  MlirDebugEmitter& gen;
 
   [[nodiscard]] auto control() const { return gen.control(); }
   [[nodiscard]] auto memoryLayout() const { return control()->memoryLayout(); }
@@ -100,13 +100,19 @@ struct Codegen::ConvertDebugType {
   auto operator()(const BitIntType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const UnsignedBitIntType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const UnresolvedBitIntType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const VectorType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const UnresolvedVectorType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const ComplexType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const AtomicType* type) -> mlir::LLVM::DITypeAttr;
 
   auto basicType(const llvm::Twine& name, const Type* type, unsigned encoding)
       -> mlir::LLVM::DITypeAttr;
 
   auto derivedType(unsigned tag, const Type* type,
                    mlir::LLVM::DITypeAttr baseType, uint64_t offsetInBits = 0,
-                   const llvm::Twine& name = {}) -> mlir::LLVM::DITypeAttr;
+                   const llvm::Twine& name = {},
+                   mlir::LLVM::DINodeAttr extraData = {})
+      -> mlir::LLVM::DITypeAttr;
 
   auto compositeType(unsigned tag, const llvm::Twine& name,
                      mlir::LLVM::DITypeAttr baseType,
@@ -125,7 +131,8 @@ struct Codegen::ConvertDebugType {
   }
 };
 
-auto Codegen::convertDebugType(const Type* type) -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::convertDebugType(const Type* type)
+    -> mlir::LLVM::DITypeAttr {
   if (!type) {
     return {};
   }
@@ -139,7 +146,8 @@ auto Codegen::convertDebugType(const Type* type) -> mlir::LLVM::DITypeAttr {
   return result;
 }
 
-auto Codegen::ConvertDebugType::declFileLine(Symbol* symbol) -> DeclFileLine {
+auto MlirDebugEmitter::ConvertDebugType::declFileLine(Symbol* symbol)
+    -> DeclFileLine {
   if (!symbol || !symbol->location()) return {};
 
   auto [filename, line, column] =
@@ -148,19 +156,19 @@ auto Codegen::ConvertDebugType::declFileLine(Symbol* symbol) -> DeclFileLine {
   return {gen.getFileAttr(filename), line};
 }
 
-auto Codegen::ConvertDebugType::basicType(const llvm::Twine& name,
-                                          const Type* type, unsigned encoding)
+auto MlirDebugEmitter::ConvertDebugType::basicType(const llvm::Twine& name,
+                                                   const Type* type,
+                                                   unsigned encoding)
     -> mlir::LLVM::DITypeAttr {
   return mlir::LLVM::DIBasicTypeAttr::get(
       context(), llvm::dwarf::DW_TAG_base_type, name,
       memoryLayout()->sizeOf(type).value() * 8, encoding);
 }
 
-auto Codegen::ConvertDebugType::derivedType(unsigned tag, const Type* type,
-                                            mlir::LLVM::DITypeAttr baseType,
-                                            uint64_t offsetInBits,
-                                            const llvm::Twine& name)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::derivedType(
+    unsigned tag, const Type* type, mlir::LLVM::DITypeAttr baseType,
+    uint64_t offsetInBits, const llvm::Twine& name,
+    mlir::LLVM::DINodeAttr extraData) -> mlir::LLVM::DITypeAttr {
   auto sizeInBits = memoryLayout()->sizeOf(type).value_or(0) * 8;
   auto alignInBits = memoryLayout()->alignmentOf(type).value_or(0) * 8;
 
@@ -177,20 +185,18 @@ auto Codegen::ConvertDebugType::derivedType(unsigned tag, const Type* type,
 #if LLVM_VERSION_MAJOR < 23
   return mlir::LLVM::DIDerivedTypeAttr::get(context(), tag, nameAttr, baseType,
                                             sizeInBits, alignInBits,
-                                            offsetInBits, {},
-                                            /*extraData=*/{});
+                                            offsetInBits, {}, extraData);
 #else
   return mlir::LLVM::DIDerivedTypeAttr::get(
       context(), tag, nameAttr, fileAttr, /*line=*/0,
       /*scope=*/mlir::LLVM::DIScopeAttr{}, baseType, sizeInBits, alignInBits,
       offsetInBits,
       /*dwarfAddressSpace=*/std::nullopt,
-      /*flags=*/mlir::LLVM::DIFlags{},
-      /*extraData=*/mlir::LLVM::DINodeAttr{});
+      /*flags=*/mlir::LLVM::DIFlags{}, extraData);
 #endif
 }
 
-auto Codegen::ConvertDebugType::compositeType(
+auto MlirDebugEmitter::ConvertDebugType::compositeType(
     unsigned tag, const llvm::Twine& name, mlir::LLVM::DITypeAttr baseType,
     llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements, const Type* type)
     -> mlir::LLVM::DITypeAttr {
@@ -230,95 +236,95 @@ auto Codegen::ConvertDebugType::compositeType(
   );
 }
 
-auto Codegen::ConvertDebugType::operator()(const VoidType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const VoidType* type)
     -> mlir::LLVM::DITypeAttr {
   return mlir::LLVM::DIBasicTypeAttr::get(
       context(), llvm::dwarf::DW_TAG_unspecified_type, "void", 0, 0);
 }
 
-auto Codegen::ConvertDebugType::operator()(const NullptrType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const NullptrType* type)
     -> mlir::LLVM::DITypeAttr {
   return mlir::LLVM::DIBasicTypeAttr::get(
       context(), llvm::dwarf::DW_TAG_unspecified_type, "decltype(nullptr)",
       memoryLayout()->sizeOfPointer() * 8, 0);
 }
 
-auto Codegen::ConvertDebugType::operator()(const DecltypeAutoType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const DecltypeAutoType* type) -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(const AutoType* type)
     -> mlir::LLVM::DITypeAttr {
   return {};
 }
 
-auto Codegen::ConvertDebugType::operator()(const AutoType* type)
-    -> mlir::LLVM::DITypeAttr {
-  return {};
-}
-
-auto Codegen::ConvertDebugType::operator()(const BoolType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const BoolType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("bool", type, llvm::dwarf::DW_ATE_boolean);
 }
 
-auto Codegen::ConvertDebugType::operator()(const SignedCharType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const SignedCharType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("signed char", type, llvm::dwarf::DW_ATE_signed);
 }
 
-auto Codegen::ConvertDebugType::operator()(const ShortIntType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const ShortIntType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("short", type, llvm::dwarf::DW_ATE_signed);
 }
 
-auto Codegen::ConvertDebugType::operator()(const IntType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const IntType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("int", type, llvm::dwarf::DW_ATE_signed);
 }
 
-auto Codegen::ConvertDebugType::operator()(const LongIntType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const LongIntType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("long", type, llvm::dwarf::DW_ATE_signed);
 }
 
-auto Codegen::ConvertDebugType::operator()(const LongLongIntType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const LongLongIntType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("long long", type, llvm::dwarf::DW_ATE_signed);
 }
 
-auto Codegen::ConvertDebugType::operator()(const Int128Type* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const Int128Type* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("int128", type, llvm::dwarf::DW_ATE_signed);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnsignedCharType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnsignedCharType* type) -> mlir::LLVM::DITypeAttr {
   return basicType("unsigned char", type, llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnsignedShortIntType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnsignedShortIntType* type) -> mlir::LLVM::DITypeAttr {
   return basicType("unsigned short", type, llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnsignedIntType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const UnsignedIntType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("unsigned int", type, llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnsignedLongIntType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnsignedLongIntType* type) -> mlir::LLVM::DITypeAttr {
   return basicType("unsigned long", type, llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnsignedLongLongIntType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnsignedLongLongIntType* type) -> mlir::LLVM::DITypeAttr {
   return basicType("unsigned long long", type, llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnsignedInt128Type* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnsignedInt128Type* type) -> mlir::LLVM::DITypeAttr {
   return basicType("uint128", type, llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const CharType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const CharType* type)
     -> mlir::LLVM::DITypeAttr {
   auto isSigned = gen.traits.is_signed(type);
   return basicType(
@@ -326,22 +332,22 @@ auto Codegen::ConvertDebugType::operator()(const CharType* type)
       isSigned ? llvm::dwarf::DW_ATE_signed : llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const Char8Type* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const Char8Type* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("char8_t", type, llvm::dwarf::DW_ATE_UTF);
 }
 
-auto Codegen::ConvertDebugType::operator()(const Char16Type* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const Char16Type* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("char16_t", type, llvm::dwarf::DW_ATE_UTF);
 }
 
-auto Codegen::ConvertDebugType::operator()(const Char32Type* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const Char32Type* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("char32_t", type, llvm::dwarf::DW_ATE_UTF);
 }
 
-auto Codegen::ConvertDebugType::operator()(const WideCharType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const WideCharType* type)
     -> mlir::LLVM::DITypeAttr {
   auto isSigned = gen.traits.is_signed(type);
   return basicType(
@@ -349,27 +355,27 @@ auto Codegen::ConvertDebugType::operator()(const WideCharType* type)
       isSigned ? llvm::dwarf::DW_ATE_signed : llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const FloatType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const FloatType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("float", type, llvm::dwarf::DW_ATE_float);
 }
 
-auto Codegen::ConvertDebugType::operator()(const DoubleType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const DoubleType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("double", type, llvm::dwarf::DW_ATE_float);
 }
 
-auto Codegen::ConvertDebugType::operator()(const LongDoubleType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const LongDoubleType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("long double", type, llvm::dwarf::DW_ATE_float);
 }
 
-auto Codegen::ConvertDebugType::operator()(const Float16Type* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const Float16Type* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType("_Float16", type, llvm::dwarf::DW_ATE_float);
 }
 
-auto Codegen::ConvertDebugType::operator()(const QualType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const QualType* type)
     -> mlir::LLVM::DITypeAttr {
   auto resultType = gen.convertDebugType(type->elementType());
 
@@ -385,8 +391,8 @@ auto Codegen::ConvertDebugType::operator()(const QualType* type)
   return resultType;
 }
 
-auto Codegen::ConvertDebugType::operator()(const BoundedArrayType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const BoundedArrayType* type) -> mlir::LLVM::DITypeAttr {
   auto elementType = gen.convertDebugType(type->elementType());
 
   mlir::Attribute count = mlir::IntegerAttr::get(
@@ -409,32 +415,32 @@ auto Codegen::ConvertDebugType::operator()(const BoundedArrayType* type)
                        elements, type);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnboundedArrayType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnboundedArrayType* type) -> mlir::LLVM::DITypeAttr {
+  auto elementType = gen.convertDebugType(type->elementType());
+  return derivedType(llvm::dwarf::DW_TAG_pointer_type, type, elementType);
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(const PointerType* type)
     -> mlir::LLVM::DITypeAttr {
   auto elementType = gen.convertDebugType(type->elementType());
   return derivedType(llvm::dwarf::DW_TAG_pointer_type, type, elementType);
 }
 
-auto Codegen::ConvertDebugType::operator()(const PointerType* type)
-    -> mlir::LLVM::DITypeAttr {
-  auto elementType = gen.convertDebugType(type->elementType());
-  return derivedType(llvm::dwarf::DW_TAG_pointer_type, type, elementType);
-}
-
-auto Codegen::ConvertDebugType::operator()(const LvalueReferenceType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const LvalueReferenceType* type) -> mlir::LLVM::DITypeAttr {
   auto elementType = gen.convertDebugType(type->elementType());
   return derivedType(llvm::dwarf::DW_TAG_reference_type, type, elementType);
 }
 
-auto Codegen::ConvertDebugType::operator()(const RvalueReferenceType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const RvalueReferenceType* type) -> mlir::LLVM::DITypeAttr {
   auto elementType = gen.convertDebugType(type->elementType());
   return derivedType(llvm::dwarf::DW_TAG_rvalue_reference_type, type,
                      elementType);
 }
 
-auto Codegen::ConvertDebugType::operator()(const FunctionType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const FunctionType* type)
     -> mlir::LLVM::DITypeAttr {
   mlir::SmallVector<mlir::LLVM::DITypeAttr> signatureTypes;
   signatureTypes.push_back(gen.convertDebugType(type->returnType()));
@@ -444,7 +450,7 @@ auto Codegen::ConvertDebugType::operator()(const FunctionType* type)
   return mlir::LLVM::DISubroutineTypeAttr::get(context(), signatureTypes);
 }
 
-auto Codegen::ConvertDebugType::operator()(const ClassType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const ClassType* type)
     -> mlir::LLVM::DITypeAttr {
   auto symbol = type->symbol();
   if (!symbol) return {};
@@ -512,7 +518,7 @@ auto Codegen::ConvertDebugType::operator()(const ClassType* type)
   return fullDef;
 }
 
-auto Codegen::ConvertDebugType::operator()(const EnumType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const EnumType* type)
     -> mlir::LLVM::DITypeAttr {
   auto symbol = type->symbol();
   auto name = to_string(symbol->name());
@@ -544,7 +550,7 @@ auto Codegen::ConvertDebugType::operator()(const EnumType* type)
   );
 }
 
-auto Codegen::ConvertDebugType::operator()(const ScopedEnumType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const ScopedEnumType* type)
     -> mlir::LLVM::DITypeAttr {
   auto symbol = type->symbol();
   auto name = to_string(symbol->name());
@@ -577,82 +583,125 @@ auto Codegen::ConvertDebugType::operator()(const ScopedEnumType* type)
   );
 }
 
-auto Codegen::ConvertDebugType::operator()(const MemberObjectPointerType* type)
-    -> mlir::LLVM::DITypeAttr {
-  return {};
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const MemberObjectPointerType* type) -> mlir::LLVM::DITypeAttr {
+  auto elementType = gen.convertDebugType(type->elementType());
+  auto classType = gen.convertDebugType(type->classType());
+  if (!elementType || !classType) return {};
+  return derivedType(llvm::dwarf::DW_TAG_ptr_to_member_type, type, elementType,
+                     0, {}, classType);
 }
 
-auto Codegen::ConvertDebugType::operator()(
+auto MlirDebugEmitter::ConvertDebugType::operator()(
     const MemberFunctionPointerType* type) -> mlir::LLVM::DITypeAttr {
-  return {};
+  auto functionType = gen.convertDebugType(type->functionType());
+  auto classType = gen.convertDebugType(type->classType());
+  if (!functionType || !classType) return {};
+  return derivedType(llvm::dwarf::DW_TAG_ptr_to_member_type, type, functionType,
+                     0, {}, classType);
 }
 
-auto Codegen::ConvertDebugType::operator()(const NamespaceType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const NamespaceType* type)
     -> mlir::LLVM::DITypeAttr {
   return {};
 }
 
-auto Codegen::ConvertDebugType::operator()(const TypeParameterType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const TypeParameterType* type) -> mlir::LLVM::DITypeAttr {
   return {};
 }
 
-auto Codegen::ConvertDebugType::operator()(
+auto MlirDebugEmitter::ConvertDebugType::operator()(
     const TemplateTypeParameterType* type) -> mlir::LLVM::DITypeAttr {
   return {};
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnresolvedNameType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnresolvedNameType* type) -> mlir::LLVM::DITypeAttr {
   return {};
 }
 
-auto Codegen::ConvertDebugType::operator()(
+auto MlirDebugEmitter::ConvertDebugType::operator()(
     const UnresolvedBoundedArrayType* type) -> mlir::LLVM::DITypeAttr {
   return {};
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnresolvedUnderlyingType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnresolvedUnderlyingType* type) -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnresolvedBuiltinType* type) -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(const OverloadSetType* type)
     -> mlir::LLVM::DITypeAttr {
   return {};
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnresolvedBuiltinType* type)
-    -> mlir::LLVM::DITypeAttr {
-  return {};
-}
-
-auto Codegen::ConvertDebugType::operator()(const OverloadSetType* type)
-    -> mlir::LLVM::DITypeAttr {
-  return {};
-}
-
-auto Codegen::ConvertDebugType::operator()(const BuiltinVaListType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const BuiltinVaListType* type) -> mlir::LLVM::DITypeAttr {
   auto elementType = mlir::LLVM::DIBasicTypeAttr::get(
       context(), llvm::dwarf::DW_TAG_unspecified_type, "void", 0, 0);
   return derivedType(llvm::dwarf::DW_TAG_pointer_type, type, elementType);
 }
 
-auto Codegen::ConvertDebugType::operator()(const BuiltinMetaInfoType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const BuiltinMetaInfoType* type) -> mlir::LLVM::DITypeAttr {
   return {};
 }
 
-auto Codegen::ConvertDebugType::operator()(const BitIntType* type)
+auto MlirDebugEmitter::ConvertDebugType::operator()(const BitIntType* type)
     -> mlir::LLVM::DITypeAttr {
   return basicType(std::format("_BitInt({})", type->numBits()), type,
                    llvm::dwarf::DW_ATE_signed);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnsignedBitIntType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnsignedBitIntType* type) -> mlir::LLVM::DITypeAttr {
   return basicType(std::format("unsigned _BitInt({})", type->numBits()), type,
                    llvm::dwarf::DW_ATE_unsigned);
 }
 
-auto Codegen::ConvertDebugType::operator()(const UnresolvedBitIntType* type)
-    -> mlir::LLVM::DITypeAttr {
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnresolvedBitIntType* type) -> mlir::LLVM::DITypeAttr {
   return {};
 }
-}  // namespace cxx
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(const VectorType* type)
+    -> mlir::LLVM::DITypeAttr {
+  auto elementType = gen.convertDebugType(type->elementType());
+
+  mlir::Attribute count = mlir::IntegerAttr::get(
+      mlir::IntegerType::get(context(),
+                             control()->memoryLayout()->sizeOfSizeType() * 8),
+      type->elementCount());
+
+  auto subrange = mlir::LLVM::DISubrangeAttr::get(context(), count, {}, {}, {});
+
+  mlir::SmallVector<mlir::LLVM::DINodeAttr> elements{
+      subrange,
+  };
+
+  return compositeType(llvm::dwarf::DW_TAG_array_type, {}, elementType,
+                       elements, type);
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const UnresolvedVectorType* type) -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(const ComplexType* type)
+    -> mlir::LLVM::DITypeAttr {
+  return basicType(to_string(type), type, llvm::dwarf::DW_ATE_complex_float);
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(const AtomicType* type)
+    -> mlir::LLVM::DITypeAttr {
+  return derivedType(llvm::dwarf::DW_TAG_atomic_type, type,
+                     gen.convertDebugType(type->elementType()));
+}
+}  // namespace cxx::ir

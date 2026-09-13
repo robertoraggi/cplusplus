@@ -27,15 +27,22 @@
 #include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace cxx {
 
+[[nodiscard]] auto makeDefaultInitializer(TranslationUnit* unit,
+                                          ExpressionAST* expression,
+                                          SourceLocation location,
+                                          ScopeSymbol* scope) -> ExpressionAST*;
+
 class Arena;
 class Control;
 class TranslationUnit;
 class TypeChecker;
+struct ConstructorResult;
 
 enum class InitializationKind {
   kCopyInitialization,
@@ -74,6 +81,11 @@ enum class InitializedEntityKind {
   kTemporary,
   kNewObject,
   kDelegating,
+};
+
+enum class ArrayCopyPolicy {
+  kBracedInitializerOnly,
+  kElementwiseCopyAllowed,
 };
 
 class InitializedEntity {
@@ -117,6 +129,11 @@ class InitializedEntity {
                                        SourceLocation location)
       -> InitializedEntity;
 
+  [[nodiscard]] auto arrayCopyPolicy() const -> ArrayCopyPolicy {
+    return arrayCopyPolicy_;
+  }
+  void setArrayCopyPolicy(ArrayCopyPolicy policy) { arrayCopyPolicy_ = policy; }
+
   [[nodiscard]] auto kind() const -> InitializedEntityKind { return kind_; }
   [[nodiscard]] auto type() const -> const Type* { return type_; }
   [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
@@ -129,6 +146,7 @@ class InitializedEntity {
 
  private:
   InitializedEntityKind kind_ = InitializedEntityKind::kTemporary;
+  ArrayCopyPolicy arrayCopyPolicy_ = ArrayCopyPolicy::kBracedInitializerOnly;
   const Type* type_ = nullptr;
   Symbol* symbol_ = nullptr;
   SourceLocation location_;
@@ -211,6 +229,10 @@ class Initializer {
                                         List<ExpressionAST*>* arguments)
     -> ParenInitializerAST*;
 
+[[nodiscard]] auto isWholeArrayCopy(const TypeTraits& traits,
+                                    ExpressionAST* expression,
+                                    const Type* arrayType) -> bool;
+
 struct InitContext {
   TypeChecker& checker;
   TranslationUnit* unit;
@@ -229,6 +251,68 @@ struct InitContext {
 
   [[nodiscard]] auto isTargetTypeUnresolved(const Type* type) const -> bool;
 };
+
+struct AggregateInitializerElement {
+  std::size_t index = 0;
+  Symbol* element = nullptr;
+  const Type* type = nullptr;
+  ExpressionAST* initializer = nullptr;
+  bool elided = false;
+};
+
+struct AggregateInitializerPlan {
+  std::vector<Symbol*> elements;
+  std::vector<AggregateInitializerElement> initializedElements;
+  const Type* arrayElementType = nullptr;
+  std::size_t elementCount = 0;
+  bool isUnion = false;
+  bool isVector = false;
+  bool valid = true;
+};
+
+struct MaterializedTemporary {
+  ExpressionAST* expression = nullptr;
+  bool conditional = false;
+
+  [[nodiscard]] explicit operator bool() const { return expression != nullptr; }
+};
+
+[[nodiscard]] auto materializedTemporary(const TypeTraits& traits,
+                                         ExpressionAST* initializer)
+    -> MaterializedTemporary;
+
+struct StringLiteralInitialization {
+  const Type* destinationElementType = nullptr;
+  const Type* sourceElementType = nullptr;
+  std::size_t elementCount = 0;
+  std::size_t minimumElements = 0;
+  std::size_t availableElements = 0;
+  bool bounded = false;
+  bool compatible = false;
+
+  [[nodiscard]] auto tooLong() const -> bool {
+    return compatible && bounded && minimumElements > availableElements;
+  }
+};
+
+[[nodiscard]] auto singleInitializerClause(BracedInitListAST* bracedInitList)
+    -> ExpressionAST*;
+
+[[nodiscard]] auto stringLiteralInitialization(const TypeTraits& traits,
+                                               bool isCxx,
+                                               const Type* destinationType,
+                                               ExpressionAST* source)
+    -> std::optional<StringLiteralInitialization>;
+
+[[nodiscard]] auto planAggregateInitialization(
+    TranslationUnit* unit, const Type* aggregateType,
+    BracedInitListAST* bracedInitList)
+    -> std::optional<AggregateInitializerPlan>;
+
+[[nodiscard]] auto resolveAggregateInitialization(
+    InitContext& ctx, const Type* aggregateType,
+    BracedInitListAST* bracedInitList)
+    -> std::optional<AggregateInitializerPlan>;
 
 enum class InitializationBullet {
   kNone,
@@ -312,5 +396,12 @@ void diagnoseInitializationFailure(InitContext& ctx,
                                    const InitializationSequence& sequence,
                                    const InitializedEntity& entity,
                                    const Initializer& initializer);
+
+void reportRejectedConstructors(InitContext& ctx,
+                                const ConstructorResult& resolution);
+
+void diagnoseConversionFailure(InitContext& ctx,
+                               const InitializedEntity& entity,
+                               ExpressionAST* source);
 
 }  // namespace cxx

@@ -95,8 +95,8 @@ auto Binder::ResolveUnqualifiedId::shouldKeepTemplateIdAsDependent(
 
 auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
     SimpleTemplateIdAST* templateId, ClassSymbol* classSymbol) -> Symbol* {
-  if (!isTemplateArityMatch(classSymbol->templateDeclaration(),
-                            templateId->templateArgumentList)) {
+  if (!TemplateArity::matches(classSymbol->templateDeclaration(),
+                              templateId->templateArgumentList)) {
     return nullptr;
   }
 
@@ -135,8 +135,8 @@ auto Binder::ResolveUnqualifiedId::resolveTypeAliasTemplateId(
     typeAliasSymbol = typeAliasSymbol->primaryTemplateSymbol();
   }
 
-  if (!isTemplateArityMatch(typeAliasSymbol->templateDeclaration(),
-                            templateId->templateArgumentList)) {
+  if (!TemplateArity::matches(typeAliasSymbol->templateDeclaration(),
+                              templateId->templateArgumentList)) {
     return nullptr;
   }
 
@@ -167,6 +167,14 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
   }
 
   auto resolvedSymbol = templateId->symbol;
+  if (!resolvedSymbol && nestedNameSpecifier) {
+    auto lookupScope = nestedNameSpecifier->symbol;
+    if (lookupScope) {
+      auto candidate = qualifiedLookup(lookupScope, templateId->identifier);
+      resolvedSymbol = templated_symbol(candidate);
+    }
+  }
+
   if (auto injected = symbol_cast<InjectedClassNameSymbol>(resolvedSymbol)) {
     resolvedSymbol = injected->classSymbol();
   }

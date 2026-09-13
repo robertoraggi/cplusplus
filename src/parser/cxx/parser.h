@@ -57,6 +57,12 @@ class Parser final {
 
   void beginParsing(UnitAST*& ast);
 
+  /**
+   * Continues into a prefix that has already been adopted: the suffix is
+   * appended to the prefix's open declaration list (9.5).
+   */
+  void resumeParsing(UnitAST*& ast);
+
   [[nodiscard]] auto continueParsing() -> ParsingState;
 
   void endParsing();
@@ -68,6 +74,7 @@ class Parser final {
   struct ClassSpecifierContext;
   struct ExprContext;
   struct LookaheadParser;
+  struct DeclarationRollback;
   struct LoopParser;
   struct TopLevelDeclarationSequence;
   struct UncheckedInitializerContext;
@@ -424,8 +431,9 @@ class Parser final {
   [[nodiscard]] auto parse_template_argument_constant_expression(
       ExpressionAST*& yyast) -> bool;
 
-  void parse_statement(StatementAST*& yyast);
-  [[nodiscard]] auto parse_maybe_statement(StatementAST*& yyast) -> bool;
+  void parse_statement(StatementAST*& yyast, bool isSubstatement = false);
+  [[nodiscard]] auto parse_maybe_statement(StatementAST*& yyast,
+                                           bool isSubstatement = false) -> bool;
 
   void parse_init_statement(StatementAST*& yyast);
   void parse_condition(ExpressionAST*& yyast, const ExprContext& ctx);
@@ -438,11 +446,13 @@ class Parser final {
       StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
 
   [[nodiscard]] auto parse_maybe_compound_statement(
-      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
+      StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes,
+      bool isOutermostBlockScope = false) -> bool;
 
   [[nodiscard]] auto parse_compound_statement(
       CompoundStatementAST*& yyast, List<AttributeSpecifierAST*>* attributes,
-      bool skip) -> bool;
+      bool skip, bool reuseEnclosingBlock = false,
+      bool isOutermostBlockScope = false) -> bool;
 
   void finish_compound_statement(CompoundStatementAST* yyast);
   void parse_skip_statement(bool& skipping);
@@ -735,6 +745,7 @@ class Parser final {
   void parse_optional_attribute_specifier_seq(
       List<AttributeSpecifierAST*>*& yyast,
       AllowedAttributes allowedAttributes = AllowedAttributes::kIgnoreAsm);
+  void parse_optional_declaration_attributes(DeclSpecs& specs);
 
   [[nodiscard]] auto parse_attribute_specifier_seq(
       List<AttributeSpecifierAST*>*& yyast,
@@ -919,13 +930,20 @@ class Parser final {
   auto match(TokenKind tk, SourceLocation& location) -> bool;
   auto expect(TokenKind tk, SourceLocation& location) -> bool;
 
-  auto consumeToken() -> SourceLocation { return SourceLocation(cursor_++); }
-
-  [[nodiscard]] auto currentLocation() const -> SourceLocation {
-    return SourceLocation(cursor_);
+  auto consumeToken() -> SourceLocation {
+    return unit_->locationOfIndex(cursor_++);
   }
 
-  void rewind(SourceLocation location) { cursor_ = location.index(); }
+  [[nodiscard]] auto currentLocation() const -> SourceLocation {
+    return unit_->locationOfIndex(cursor_);
+  }
+
+  void rewind(SourceLocation location) {
+    if (!unit_->ownsLocation(location)) {
+      cxx_runtime_error("cannot rewind outside the current token segment");
+    }
+    cursor_ = unit_->indexOfLocation(location);
+  }
 
   void completePendingFunctionDefinitions();
   enum class FriendDeclarationKind { kType, kDeclarator };
@@ -984,8 +1002,29 @@ class Parser final {
 
   [[nodiscard]] auto lexicalScope() const -> Scope* { return lexicalScope_; }
 
-  void check(ExpressionAST* ast);
+  void check(ExpressionAST** ast);
+
+  void resolve_user_defined_literal(ExpressionAST* ast,
+                                    std::string_view suffix);
+
+  [[nodiscard]] auto literal_operator_candidates(std::string_view suffix)
+      -> Symbol*;
+
+  [[nodiscard]] auto make_literal_operator_call(
+      UnqualifiedIdAST* unqualifiedId, Symbol* literalOperators,
+      List<ExpressionAST*>* argumentList) -> ExpressionAST*;
   void check(StatementAST* ast);
+
+  void check_function_body(FunctionSymbol* functionSymbol,
+                           FunctionBodyAST* functionBody);
+
+  struct DiscardedIfBranches {
+    bool statement = false;
+    bool elseStatement = false;
+  };
+
+  [[nodiscard]] auto discardedIfBranches(IfStatementAST* ast)
+      -> DiscardedIfBranches;
   void check(DeclarationAST* ast);
 
   void check_bool_condition(ExpressionAST*& ast);
@@ -1011,9 +1050,37 @@ class Parser final {
   [[nodiscard]] auto takeAbbreviatedTemplateHead(Decl& decl)
       -> TemplateDeclarationAST*;
 
+  void setFunctionTemplateHead(FunctionSymbol* functionSymbol, const Decl& decl,
+                               TemplateDeclarationAST* templateHead);
+
   void attachFunctionTemplateDeclarations(SimpleDeclarationAST* declaration);
 
   void synthesizeLambdaAbbreviatedTemplateParams(LambdaExpressionAST* ast);
+
+  struct DeferredAccessCheck {
+    Symbol* member = nullptr;
+    ClassSymbol* designatingClass = nullptr;
+    SourceLocation loc;
+  };
+
+  void deferAccessCheck(NestedNameSpecifierAST* nestedNameSpecifier,
+                        Symbol* symbol, SourceLocation loc);
+
+  void flushDeferredAccessChecks(ScopeSymbol* accessingScope);
+
+  struct DeferredAccessChecksGuard {
+    explicit DeferredAccessChecksGuard(Parser* parser) : parser_(parser) {}
+    ~DeferredAccessChecksGuard() {
+      parser_->flushDeferredAccessChecks(parser_->binder_.scope());
+    }
+
+    DeferredAccessChecksGuard(const DeferredAccessChecksGuard&) = delete;
+    auto operator=(const DeferredAccessChecksGuard&)
+        -> DeferredAccessChecksGuard& = delete;
+
+   private:
+    Parser* parser_;
+  };
 
   [[nodiscard]] auto isC() const { return lang_ == LanguageKind::kC; }
 
@@ -1028,6 +1095,7 @@ class Parser final {
   DiagnosticsClient* diagnosticClient_ = nullptr;
   ScopeSymbol* globalScope_ = nullptr;
   Scope* lexicalScope_ = nullptr;
+  std::vector<DeferredAccessCheck> deferredAccessChecks_;
   LanguageKind lang_ = LanguageKind::kCXX;
   bool skipFunctionBody_ = false;
   bool moduleUnit_ = false;

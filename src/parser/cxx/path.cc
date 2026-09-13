@@ -20,48 +20,17 @@
 
 #include <cxx/private/path.h>
 
-#ifndef CXX_NO_FILESYSTEM
-
-namespace cxx::fs {}
-
-#else
-
-#include <sys/stat.h>
-#include <unistd.h>
+#include <system_error>
 
 namespace cxx::fs {
 
-path& path::remove_filename() {
-  auto pos = path_.find_last_of('/');
-  if (pos != std::string::npos) path_.resize(pos);
-  return *this;
-}
+auto working_directory() -> path {
+  if constexpr (!kHasProcessWorkingDirectory) return path{"/"};
 
-bool exists(const path& p) {
-  const auto& fn = p.string();
-  return access(fn.c_str(), F_OK) == 0;
-}
-
-path operator/(path lhs, const path& rhs) {
-  auto sep = lhs.string().back() == '/' ? "" : "/";
-  return path(lhs.string() + "/" + rhs.string());
-}
-
-path operator/(path lhs, const std::string& rhs) {
-  if (lhs.string().ends_with('/')) return path(lhs.string() + rhs);
-  return path(lhs.string() + "/" + rhs);
-}
-
-path current_path() { return {}; }
-
-auto is_directory(const path& p) -> bool {
-  struct stat st;
-  if (stat(p.string().c_str(), &st) != 0) {
-    return false;
-  }
-  return S_ISDIR(st.st_mode);
+  std::error_code ec;
+  auto directory = std::filesystem::current_path(ec);
+  if (ec || directory.empty()) return path{"/"};
+  return directory;
 }
 
 }  // namespace cxx::fs
-
-#endif

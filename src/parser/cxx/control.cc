@@ -19,10 +19,12 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/attributes.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -35,6 +37,41 @@
 
 namespace cxx {
 namespace {
+[[nodiscard]] auto withCompletedTemplateArguments(
+    TranslationUnit* unit, NestedNameSpecifierAST* nestedNameSpecifier)
+    -> NestedNameSpecifierAST* {
+  auto templateQualifier =
+      ast_cast<TemplateNestedNameSpecifierAST>(nestedNameSpecifier);
+  if (!templateQualifier || !templateQualifier->templateId)
+    return nestedNameSpecifier;
+
+  auto templateId = templateQualifier->templateId;
+
+  auto completed = TemplateArguments{unit}.complete(
+      templateId->symbol, templateId->templateArgumentList);
+
+  if (completed == templateId->templateArgumentList) return nestedNameSpecifier;
+
+  auto arena = unit->arena();
+
+  auto completedId = SimpleTemplateIdAST::create(arena);
+  completedId->identifierLoc = templateId->identifierLoc;
+  completedId->lessLoc = templateId->lessLoc;
+  completedId->templateArgumentList = completed;
+  completedId->greaterLoc = templateId->greaterLoc;
+  completedId->identifier = templateId->identifier;
+  completedId->symbol = templateId->symbol;
+
+  auto result = TemplateNestedNameSpecifierAST::create(arena);
+  result->templateLoc = templateQualifier->templateLoc;
+  result->nestedNameSpecifier = templateQualifier->nestedNameSpecifier;
+  result->templateId = completedId;
+  result->scopeLoc = templateQualifier->scopeLoc;
+  result->symbol = templateQualifier->symbol;
+  result->isTemplateIntroduced = templateQualifier->isTemplateIntroduced;
+  return result;
+}
+
 [[nodiscard]] auto appendNestedNameSpecifier(
     TranslationUnit* unit, NestedNameSpecifierAST* nestedNameSpecifier,
     UnqualifiedIdAST* unqualifiedId) -> NestedNameSpecifierAST* {
@@ -163,8 +200,13 @@ struct Control::Private {
   std::set<BitIntType> bitIntTypes;
   std::set<UnsignedBitIntType> unsignedBitIntTypes;
   std::set<UnresolvedBitIntType> unresolvedBitIntTypes;
+  std::set<VectorType> vectorTypes;
+  std::set<UnresolvedVectorType> unresolvedVectorTypes;
+  std::set<ComplexType> complexTypes;
+  std::set<AtomicType> atomicTypes;
 
   std::set<std::vector<const Identifier*>> abiTags;
+  std::set<AttributeMap> attributes;
   std::forward_list<NamespaceSymbol> namespaceSymbols;
   std::forward_list<ConceptSymbol> conceptSymbols;
   std::forward_list<DeductionGuideSymbol> deductionGuideSymbols;
@@ -198,6 +240,7 @@ struct Control::Private {
   std::forward_list<UnaryBuiltinTypeInfo> unaryBuiltinTypeInfos;
   std::forward_list<BuiltinFunctionIdentifierInfo> builtinFunctionInfos;
   std::forward_list<BuiltinTemplateIdentifierInfo> builtinTemplateInfos;
+  std::forward_list<WellKnownNameIdentifierInfo> wellKnownNameInfos;
 
   int anonymousIdCount = 0;
 
@@ -232,6 +275,16 @@ struct Control::Private {
 #undef PROCESS_BUILTIN_FUNCTION
   }
 
+  void initWellKnownNames() {
+#define PROCESS_WELL_KNOWN_NAME(id, name) \
+  getIdentifier(name)->setInfo(           \
+      &wellKnownNameInfos.emplace_front(WellKnownName::T_##id));
+
+    FOR_EACH_WELL_KNOWN_NAME(PROCESS_WELL_KNOWN_NAME)
+
+#undef PROCESS_WELL_KNOWN_NAME
+  }
+
   void initBuiltinTemplates() {
 #define PROCESS_BUILTIN_TEMPLATE(id, name) \
   getIdentifier(name)->setInfo(            \
@@ -247,6 +300,7 @@ Control::Control() : d(std::make_unique<Private>(this)) {
   d->initBuiltinTypeTraits();
   d->initBuiltinFunctions();
   d->initBuiltinTemplates();
+  d->initWellKnownNames();
 }
 
 Control::~Control() = default;
@@ -267,6 +321,11 @@ auto Control::floatLiteral(std::string_view spelling) -> const FloatLiteral* {
   auto it = d->floatLiterals.emplace(std::string(spelling)).first;
   it->initialize();
   return &*it;
+}
+
+auto Control::stringLiteralFromValue(std::string_view value)
+    -> const StringLiteral* {
+  return stringLiteral(quoteStringLiteral(value));
 }
 
 auto Control::stringLiteral(std::string_view spelling) -> const StringLiteral* {
@@ -373,7 +432,13 @@ auto Control::getTemplateId(const Name* name,
   return &*d->templateIds.emplace(name, std::move(arguments)).first;
 }
 
-auto Control::getSizeType() -> const Type* { return getUnsignedLongIntType(); }
+auto Control::getSizeType() -> const Type* {
+  auto layout = memoryLayout();
+  if (!layout) return getUnsignedLongIntType();
+  if (layout->sizeOfLong() == layout->sizeOfSizeType())
+    return getUnsignedLongIntType();
+  return getUnsignedLongLongIntType();
+}
 
 auto Control::getBuiltinVaListType() -> const BuiltinVaListType* {
   return &d->builtinVaListType;
@@ -554,15 +619,24 @@ auto Control::getUnresolvedNameType(TranslationUnit* unit,
     nestedNameSpecifier = expandedQualifier;
   }
 
-  return &*d->unresolvedNameTypes
-               .emplace(unit, nestedNameSpecifier, unqualifiedId)
-               .first;
+  nestedNameSpecifier =
+      withCompletedTemplateArguments(unit, nestedNameSpecifier);
+
+  auto type =
+      &*d->unresolvedNameTypes.emplace(unit, nestedNameSpecifier, unqualifiedId)
+            .first;
+
+  unit->captureSnippet(type->sourceLocationRange());
+
+  return type;
 }
 
 auto Control::getUnresolvedBoundedArrayType(TranslationUnit* unit,
                                             const Type* elementType,
                                             ExpressionAST* sizeExpression)
     -> const UnresolvedBoundedArrayType* {
+  if (sizeExpression)
+    unit->captureSnippet(sizeExpression->sourceLocationRange());
   return &*d->unresolvedBoundedArrayTypes
                .emplace(unit, elementType, sizeExpression)
                .first;
@@ -571,6 +645,7 @@ auto Control::getUnresolvedBoundedArrayType(TranslationUnit* unit,
 auto Control::getUnresolvedUnderlyingType(TranslationUnit* unit,
                                           TypeIdAST* typeId)
     -> const UnresolvedUnderlyingType* {
+  if (typeId) unit->captureSnippet(typeId->sourceLocationRange());
   return &*d->unresolvedUnderlyingTypes.emplace(unit, typeId).first;
 }
 
@@ -578,6 +653,7 @@ auto Control::getUnresolvedBuiltinType(TranslationUnit* unit,
                                        UnaryBuiltinTypeKind builtinKind,
                                        TypeIdAST* typeId)
     -> const UnresolvedBuiltinType* {
+  if (typeId) unit->captureSnippet(typeId->sourceLocationRange());
   return &*d->unresolvedBuiltinTypes.emplace(unit, builtinKind, typeId).first;
 }
 
@@ -611,8 +687,36 @@ auto Control::getUnresolvedBitIntType(TranslationUnit* unit,
                                       ExpressionAST* sizeExpression,
                                       bool isUnsigned)
     -> const UnresolvedBitIntType* {
+  if (sizeExpression)
+    unit->captureSnippet(sizeExpression->sourceLocationRange());
   return &*d->unresolvedBitIntTypes.emplace(unit, sizeExpression, isUnsigned)
                .first;
+}
+
+auto Control::getVectorType(const Type* elementType, std::size_t elementCount,
+                            VectorKind vectorKind) -> const VectorType* {
+  return &*d->vectorTypes.emplace(elementType, elementCount, vectorKind).first;
+}
+
+auto Control::getUnresolvedVectorType(TranslationUnit* unit,
+                                      const Type* elementType,
+                                      ExpressionAST* sizeExpression,
+                                      VectorKind vectorKind,
+                                      VectorSizeKind sizeKind)
+    -> const UnresolvedVectorType* {
+  if (sizeExpression)
+    unit->captureSnippet(sizeExpression->sourceLocationRange());
+  return &*d->unresolvedVectorTypes
+               .emplace(unit, elementType, sizeExpression, vectorKind, sizeKind)
+               .first;
+}
+
+auto Control::getComplexType(const Type* elementType) -> const ComplexType* {
+  return &*d->complexTypes.emplace(elementType).first;
+}
+
+auto Control::getAtomicType(const Type* elementType) -> const AtomicType* {
+  return &*d->atomicTypes.emplace(elementType).first;
 }
 
 auto Control::newNamespaceSymbol(ScopeSymbol* enclosingScope,
@@ -744,6 +848,11 @@ auto Control::newVariableSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
   return symbol;
 }
 
+auto Control::getAttributes(AttributeMap attributes) -> const AttributeMap* {
+  if (attributes.empty()) return nullptr;
+  return &*d->attributes.insert(std::move(attributes)).first;
+}
+
 auto Control::getAbiTags(std::vector<const Identifier*> tags)
     -> const std::vector<const Identifier*>* {
   if (tags.empty()) return nullptr;
@@ -848,6 +957,10 @@ void Control::endCopyConstructorSelection(ClassSymbol* classSymbol) {
 auto Control::closureNameCount() const -> int { return d->closureNameCount; }
 
 void Control::setClosureNameCount(int count) { d->closureNameCount = count; }
+
+auto Control::anonymousIdCount() const -> int { return d->anonymousIdCount; }
+
+void Control::setAnonymousIdCount(int count) { d->anonymousIdCount = count; }
 
 auto Control::newClosureName() -> const Identifier* {
   return getIdentifier(std::format("__lambda_{}", d->closureNameCount++));

@@ -48,7 +48,8 @@ class ServerHost {
   [[nodiscard]] virtual auto supportsEmitCode() const -> bool;
 
   [[nodiscard]] virtual auto emitCode(CxxDocument& document,
-                                      EmitCodeFormat format, bool debugInfo)
+                                      EmitCodeFormat format, bool debugInfo,
+                                      int optimizationLevel)
       -> std::optional<std::string>;
 
   virtual void run(std::function<void()> task);

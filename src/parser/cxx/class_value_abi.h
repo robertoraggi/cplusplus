@@ -23,15 +23,38 @@
 #include <cxx/cxx_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <cstdint>
+#include <vector>
+
 namespace cxx {
 
-struct ClassValueAbi {
-  enum class Kind { Direct, Empty, Scalar, Indirect };
-  Kind kind = Kind::Direct;
-  const Type* scalarType = nullptr;
+enum class ClassValueAbiContext { Argument, Return };
+
+struct ClassValueAbiSlot {
+  const Type* type = nullptr;
+  std::uint64_t offset = 0;
 };
 
+struct ClassValueAbi {
+  enum class Kind { Direct, Empty, Coerce, Indirect };
+
+  Kind kind = Kind::Direct;
+
+  bool passedInMemory = false;
+  std::uint64_t indirectAlignment = 0;
+
+  std::vector<ClassValueAbiSlot> slots;
+  std::uint64_t coerceSize = 0;
+  std::uint64_t coerceAlignment = 0;
+};
+
+[[nodiscard]] auto usesClassValueAbi(const Type* type) -> bool;
+
 [[nodiscard]] auto classifyClassValueAbi(TranslationUnit* unit,
-                                         const Type* type) -> ClassValueAbi;
+                                         const Type* type,
+                                         ClassValueAbiContext context)
+    -> ClassValueAbi;
+
+[[nodiscard]] auto isClassValueDestroyedInCallee(const Type* type) -> bool;
 
 }  // namespace cxx

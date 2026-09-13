@@ -22,6 +22,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
 #include <cxx/memory_layout.h>
@@ -376,8 +377,7 @@ void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {
-  specs.typeSpecifier_ = ast;
-  specs.isComplex = true;
+  specs.complexTypeSpecifier = ast;
 }
 
 void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
@@ -393,7 +393,8 @@ void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
 
 void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
-  if (ast->typeId) specs.type_ = ast->typeId->type;
+  if (!ast->typeId) return;
+  specs.type_ = specs.makeAtomicType(ast->typeId->type, ast->atomicLoc);
 }
 
 void DeclSpecs::Visitor::operator()(BitIntTypeSpecifierAST* ast) {
@@ -448,6 +449,7 @@ void DeclSpecs::Visitor::operator()(DecltypeSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(PlaceholderTypeSpecifierAST* ast) {
+  if (ast->specifier) visit(*this, ast->specifier);
   specs.typeSpecifier_ = ast;
 }
 
@@ -464,7 +466,7 @@ void DeclSpecs::Visitor::operator()(RestrictQualifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(AtomicQualifierAST* ast) {
-  specs.isAtomic = true;
+  specs.atomicQualifier = ast;
 }
 
 void DeclSpecs::Visitor::operator()(EnumSpecifierAST* ast) {
@@ -611,6 +613,14 @@ void DeclSpecs::finish() {
     type_ = control()->getUnsignedInt128Type();
   }
 
+  if (!type_ && complexTypeSpecifier) {
+    translationUnit()->warning(
+        complexTypeSpecifier->complexLoc,
+        "plain '_Complex' requires a type specifier; assuming '_Complex "
+        "double'");
+    type_ = control()->getDoubleType();
+  }
+
   if (!type_) {
     return;
   }
@@ -698,14 +708,69 @@ void DeclSpecs::finish() {
     }
   }
 
+  if (complexTypeSpecifier) type_ = makeComplexType(type_);
+
+  type_ =
+      applyTypeAttributes(translationUnit(), attributeList, type_,
+                          typeSpecifier_ ? typeSpecifier_->firstSourceLocation()
+                                         : SourceLocation{});
+
+  if (atomicQualifier)
+    type_ = makeAtomicType(type_, atomicQualifier->atomicLoc);
   if (isConst) type_ = translationUnit()->typeTraits().add_const(type_);
   if (isVolatile) type_ = translationUnit()->typeTraits().add_volatile(type_);
+}
+
+auto DeclSpecs::makeAtomicType(const Type* type, SourceLocation location) const
+    -> const Type* {
+  const auto traits = translationUnit()->typeTraits();
+
+  std::string_view rejected;
+
+  if (traits.is_array(type))
+    rejected = "array";
+  else if (traits.is_function(type))
+    rejected = "function";
+  else if (traits.is_reference(type))
+    rejected = "reference";
+  else if (traits.is_atomic(type))
+    rejected = "atomic";
+  else if (traits.is_const(type) || traits.is_volatile(type))
+    rejected = "qualified";
+
+  if (!rejected.empty()) {
+    translationUnit()->error(
+        location, std::format("_Atomic cannot be applied to {} type '{}'",
+                              rejected, to_string(type)));
+    return type;
+  }
+
+  return traits.add_atomic(type);
+}
+
+auto DeclSpecs::makeComplexType(const Type* type) const -> const Type* {
+  const auto traits = translationUnit()->typeTraits();
+
+  const auto isValidElementType =
+      traits.is_floating_point(type) ||
+      (traits.is_integral(type) && type != control()->getBoolType() &&
+       !type_cast<BitIntType>(type) && !type_cast<UnsignedBitIntType>(type));
+
+  if (!isValidElementType) {
+    translationUnit()->error(
+        complexTypeSpecifier->complexLoc,
+        std::format("'_Complex {}' is invalid", to_string(type)));
+    return type;
+  }
+
+  return control()->getComplexType(type);
 }
 
 auto DeclSpecs::hasTypeOrSizeSpecifier() const -> bool {
   if (hasTypeSpecifier()) return true;
   if (isShort || isLong) return true;
   if (isSigned || isUnsigned) return true;
+  if (complexTypeSpecifier) return true;
   return false;
 }
 

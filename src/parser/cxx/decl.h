@@ -60,6 +60,17 @@ class Decl {
                                      DeclaratorAST* declarator,
                                      const Type* type) -> const Type*;
 
+/**
+ * Applies the attributes that appertain to a type, per [dcl.type.general]/2,
+ * to the type they were written on.
+ */
+[[nodiscard]] auto applyTypeAttributes(
+    TranslationUnit* unit, List<AttributeSpecifierAST*>* attributeList,
+    const Type* type, SourceLocation location) -> const Type*;
+
+[[nodiscard]] auto getGenericSelectionExpression(
+    GenericSelectionExpressionAST* ast) -> ExpressionAST*;
+
 [[nodiscard]] auto exceptionSpecifierIsNoexcept(TranslationUnit* unit,
                                                 ExceptionSpecifierAST* ast)
     -> bool;

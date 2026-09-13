@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { cpy_header } from "./cpy_header.ts";
-import { BUILTINS } from "./builtins.ts";
+import { BUILTIN_MACRO_DEFS } from "./builtins.ts";
 import * as fs from "node:fs";
 
 export function gen_builtins_h({ output }: { output: string }) {
@@ -32,8 +32,49 @@ export function gen_builtins_h({ output }: { output: string }) {
   lines.push(`// clang-format off`);
   lines.push(`static constexpr const char* builtinsSource = R"(`);
 
-  for (const b of BUILTINS) {
-    lines.push(`${b.prototype};`);
+  if (BUILTIN_MACRO_DEFS.length) {
+    lines.push(``);
+    lines.push(`#define __cxx_builtin_arity(_1, _2, selected, ...) selected`);
+    lines.push(
+      `#define __cxx_builtin_overload(one, two, ...) ` +
+        `__cxx_builtin_arity(__VA_ARGS__, two, one)`,
+    );
+  }
+
+  for (const b of BUILTIN_MACRO_DEFS) {
+    const macro = b.genericMacro!;
+    const { parameter, zeroFallbackParameter, zeroFallbackType, associations } =
+      macro;
+    const stem = b.name.replace(/^__builtin_/, "");
+    const dispatch = `__cxx_${stem}_dispatch`;
+
+    lines.push(``);
+    lines.push(`#define ${dispatch}(${parameter}) _Generic((${parameter}), \\`);
+    const continuation = ", \\";
+    associations.forEach(({ type, expansion }, index) => {
+      const last = index === associations.length - 1;
+      const separator = last ? ")" : continuation;
+      lines.push(`    ${type}: ${expansion}${separator}`);
+    });
+
+    if (!zeroFallbackParameter) {
+      lines.push(`#define ${b.name}(${parameter}) ${dispatch}(${parameter})`);
+      continue;
+    }
+
+    const withFallback = `__cxx_${stem}_or`;
+    const fallbackValue = zeroFallbackType
+      ? `_Generic((${zeroFallbackParameter}), ` +
+        `${zeroFallbackType}: (${zeroFallbackParameter}))`
+      : `(${zeroFallbackParameter})`;
+    lines.push(
+      `#define ${withFallback}(${parameter}, ${zeroFallbackParameter}) ` +
+        `((${parameter}) ? ${dispatch}(${parameter}) : ${fallbackValue})`,
+    );
+    lines.push(
+      `#define ${b.name}(...) ` +
+        `__cxx_builtin_overload(${dispatch}, ${withFallback}, __VA_ARGS__)(__VA_ARGS__)`,
+    );
   }
 
   lines.push(``);

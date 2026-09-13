@@ -8,6 +8,7 @@ interface PendingRequest {
 
 export class LspClient {
   readonly #transport: MessageTransport
+  readonly #completionStarted = new Map<string | number, number>()
   readonly #pending = new Map<string, PendingRequest>()
   readonly #openedDocuments = new Set<string>()
   readonly #documentOpenWaiters = new Map<string, Set<() => void>>()
@@ -72,6 +73,12 @@ export class LspClient {
   }
 
   async #sendMonacoMessage(message: JsonRpcMessage): Promise<void> {
+    if (
+      message.method === "textDocument/completion" &&
+      message.id !== undefined
+    ) {
+      this.#completionStarted.set(message.id, performance.now())
+    }
     await this.#transport.send(message)
 
     const uri = openedDocumentUri(message)
@@ -86,6 +93,15 @@ export class LspClient {
   }
 
   #receive(message: JsonRpcMessage): void {
+    if (message.id !== undefined && message.id !== null) {
+      const started = this.#completionStarted.get(message.id)
+      if (started !== undefined) {
+        this.#completionStarted.delete(message.id)
+        console.info(
+          `[cxx-lsp] completion round_trip_ms=${(performance.now() - started).toFixed(1)}`
+        )
+      }
+    }
     const id = typeof message.id === "string" ? message.id : undefined
     const pending = id === undefined ? undefined : this.#pending.get(id)
 

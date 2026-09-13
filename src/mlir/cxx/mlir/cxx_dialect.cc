@@ -25,6 +25,7 @@
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
+#include <mlir/Dialect/Vector/IR/VectorOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/OpImplementation.h>
@@ -41,6 +42,7 @@ struct detail::ClassTypeStorage : public TypeStorage {
 
   auto getName() -> StringRef const { return name_; }
   auto getBody() const -> ArrayRef<Type> { return body_; }
+  auto isPacked() const -> bool { return packed_; }
 
   auto operator==(const KeyTy& key) const -> bool { return name_ == key; };
 
@@ -54,12 +56,13 @@ struct detail::ClassTypeStorage : public TypeStorage {
         ClassTypeStorage(allocator.copyInto(key));
   }
 
-  auto mutate(TypeStorageAllocator& allocator, ArrayRef<Type> body)
+  auto mutate(TypeStorageAllocator& allocator, ArrayRef<Type> body, bool packed)
       -> LogicalResult {
-    if (isInitialized_) return success(body == getBody());
+    if (isInitialized_) return success(body == getBody() && packed == packed_);
 
     isInitialized_ = true;
     body_ = allocator.copyInto(body);
+    packed_ = packed;
 
     return success();
   }
@@ -67,6 +70,7 @@ struct detail::ClassTypeStorage : public TypeStorage {
  private:
   StringRef name_;
   ArrayRef<Type> body_;
+  bool packed_ = false;
   bool isInitialized_ = false;
 };
 
@@ -213,34 +217,43 @@ void VTableOp::print(OpAsmPrinter& p) {
     p << stringifyLinkageKind(*linkage) << ' ';
   }
 
-  auto printOffsetArray = [&](llvm::StringRef label, ArrayAttr offsets) {
-    if (offsets.empty()) return;
-    p << label << " [";
-    llvm::interleaveComma(offsets, p, [&](Attribute entry) {
-      p << mlir::cast<IntegerAttr>(entry).getInt();
-    });
-    p << "] ";
-  };
-  printOffsetArray("vbase_offsets", getVbaseOffsets());
-  printOffsetArray("vcall_offsets", getVcallOffsets());
-
-  if (getOffsetToTop() != 0) {
-    p << "offset_to_top " << getOffsetToTop() << ' ';
-  }
-
   if (auto typeInfo = getTypeInfo()) {
     p << "type_info @" << *typeInfo << ' ';
   }
 
-  p << '[';
-  llvm::interleaveComma(getSlots(), p, [&](Attribute entry) {
-    if (auto symRef = mlir::dyn_cast<FlatSymbolRefAttr>(entry)) {
-      p << '@' << symRef.getValue();
-    } else {
-      p << "null";
-    }
-  });
-  p << ']';
+  auto printOffsetArray = [&](llvm::StringRef label, Attribute offsets) {
+    auto array = mlir::cast<ArrayAttr>(offsets);
+    if (array.empty()) return;
+    p << label << " [";
+    llvm::interleaveComma(array, p, [&](Attribute entry) {
+      p << mlir::cast<IntegerAttr>(entry).getInt();
+    });
+    p << "] ";
+  };
+
+  auto offsetsToTop = getOffsetsToTop();
+  auto vbaseOffsets = getVbaseOffsets();
+  auto vcallOffsets = getVcallOffsets();
+
+  p << '{';
+  llvm::interleaveComma(
+      llvm::seq<std::size_t>(0, getSlots().size()), p, [&](std::size_t index) {
+        p << ' ';
+        printOffsetArray("vbase_offsets", vbaseOffsets[index]);
+        printOffsetArray("vcall_offsets", vcallOffsets[index]);
+        p << "offset_to_top "
+          << mlir::cast<IntegerAttr>(offsetsToTop[index]).getInt() << " [";
+        llvm::interleaveComma(
+            mlir::cast<ArrayAttr>(getSlots()[index]), p, [&](Attribute entry) {
+              if (auto symRef = mlir::dyn_cast<FlatSymbolRefAttr>(entry)) {
+                p << '@' << symRef.getValue();
+              } else {
+                p << "null";
+              }
+            });
+        p << ']';
+      });
+  p << " }";
 }
 
 auto VTableOp::parse(OpAsmParser& parser, OperationState& result)
@@ -294,8 +307,9 @@ auto ClassType::getNamed(MLIRContext* context, StringRef name) -> ClassType {
   return Base::get(context, name);
 }
 
-auto ClassType::setBody(llvm::ArrayRef<Type> body) -> LogicalResult {
-  return Base::mutate(body);
+auto ClassType::setBody(llvm::ArrayRef<Type> body, bool packed)
+    -> LogicalResult {
+  return Base::mutate(body, packed);
 }
 
 void ClassType::print(AsmPrinter& p) const {
@@ -330,6 +344,8 @@ auto ClassType::getName() const -> StringRef { return getImpl()->getName(); }
 auto ClassType::getBody() const -> ArrayRef<Type> {
   return getImpl()->getBody();
 }
+
+auto ClassType::isPacked() const -> bool { return getImpl()->isPacked(); }
 }  // namespace mlir::cxx
 
 #include <cxx/mlir/CxxOpsAttributes.cpp.inc>

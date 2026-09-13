@@ -142,8 +142,9 @@ auto ASTInterpreter::StatementVisitor::operator()(DefaultStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(ExpressionStatementAST* ast)
     -> StatementResult {
-  auto expressionResult = interp.expression(ast->expression);
-
+  if (ast->expression && !interp.expression(ast->expression)) {
+    interp.aborted_ = true;
+  }
   return {};
 }
 
@@ -176,8 +177,7 @@ auto ASTInterpreter::StatementVisitor::operator()(IfStatementAST* ast)
       }
     }
 
-    (void)interp.statement(ast->statement);
-    (void)interp.statement(ast->elseStatement);
+    interp.aborted_ = true;
     return {};
   }();
 
@@ -580,6 +580,8 @@ auto ASTInterpreter::StatementVisitor::operator()(ReturnStatementAST* ast)
   auto expressionResult = interp.expression(ast->expression);
   if (expressionResult.has_value()) {
     interp.setReturnValue(*expressionResult);
+  } else if (ast->expression) {
+    interp.aborted_ = true;
   }
 
   return {ControlFlow::kReturn};
@@ -610,39 +612,15 @@ void ASTInterpreter::interpretInitDeclarator(InitDeclaratorAST* initDecl) {
     return;
   }
 
-  auto initVal = expression(initDecl->initializer);
-
-  if (!initVal.has_value()) {
-    if (auto parenInit = ast_cast<ParenInitializerAST>(initDecl->initializer)) {
-      if (var) {
-        auto varType = traits.remove_cv(var->type());
-        if (auto classType = type_cast<ClassType>(varType)) {
-          std::vector<ConstValue> args;
-          bool argsOk = true;
-          for (auto node : ListView{parenInit->expressionList}) {
-            auto val = evaluate(node);
-            if (!val) {
-              argsOk = false;
-              break;
-            }
-            args.push_back(std::move(*val));
-          }
-          if (argsOk) {
-            if (var->constructor() && var->constructor()->isConstexpr()) {
-              initVal = evaluateConstructor(var->constructor(), varType,
-                                            std::move(args));
-            } else if (auto classSym = classType->symbol()) {
-              for (auto ctor : classSym->constructors()) {
-                if (ctor->isConstexpr()) {
-                  initVal = evaluateConstructor(ctor, varType, std::move(args));
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+  ExpressionResult initVal;
+  if (var && var->constructor() &&
+      !ast_cast<ConstExpressionAST>(
+          Initializer{initDecl->initializer}.clause())) {
+    initVal = evaluateConstructorFromExprs(
+        var->constructor(), var->type(),
+        Initializer{initDecl->initializer}.arguments());
+  } else {
+    initVal = expression(initDecl->initializer);
   }
 
   if (!initVal.has_value() && !initDecl->initializer) {

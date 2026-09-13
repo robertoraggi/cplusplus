@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/access_control.h>
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
@@ -39,36 +40,6 @@
 
 namespace cxx {
 namespace {
-auto areFunctionSignaturesEquivalentForRedeclaration(TranslationUnit* unit,
-                                                     const Type* lhs,
-                                                     const Type* rhs) -> bool {
-  if (!unit || !lhs || !rhs) return false;
-  if (unit->typeTraits().is_same(lhs, rhs)) return true;
-
-  auto lhsFn = type_cast<FunctionType>(lhs);
-  auto rhsFn = type_cast<FunctionType>(rhs);
-  if (!lhsFn || !rhsFn) return false;
-
-  if (!areRedeclarationTypesCompatible(unit, lhsFn->returnType(),
-                                       rhsFn->returnType()))
-    return false;
-  if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
-  if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
-  if (lhsFn->isVariadic() != rhsFn->isVariadic()) return false;
-
-  const auto& lhsParams = lhsFn->parameterTypes();
-  const auto& rhsParams = rhsFn->parameterTypes();
-  if (lhsParams.size() != rhsParams.size()) return false;
-
-  for (std::size_t i = 0; i < lhsParams.size(); ++i) {
-    if (!areRedeclarationTypesCompatible(unit, lhsParams[i], rhsParams[i])) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 [[nodiscard]] auto declaresExplicitObjectParameter(
     FunctionDeclaratorChunkAST* prototype) -> bool {
   if (!prototype || !prototype->parameterDeclarationClause) return false;
@@ -99,6 +70,7 @@ struct [[nodiscard]] Binder::DeclareFunction {
   struct NamedTemplateSpecialization {
     FunctionSymbol* primary = nullptr;
     std::vector<TemplateArgument> arguments;
+    List<TemplateArgumentAST*>* deducedArguments = nullptr;
   };
 
   auto control() const -> Control* { return binder.control(); }
@@ -115,6 +87,15 @@ struct [[nodiscard]] Binder::DeclareFunction {
   auto declaringScopeForFunction() const -> ScopeSymbol*;
   auto namedTemplateSpecialization() const
       -> std::optional<NamedTemplateSpecialization>;
+  [[nodiscard]] auto deducedSpecializationOf(
+      FunctionSymbol* primary, const FunctionType* functionType,
+      List<TemplateArgumentAST*>* templateArgumentList) const
+      -> std::optional<NamedTemplateSpecialization>;
+  void instantiateExplicitly(const NamedTemplateSpecialization& specialization);
+
+  [[nodiscard]] auto isExplicitSpecializationHead() const -> bool;
+  [[nodiscard]] auto specializedPrimaryTemplates() const
+      -> std::vector<FunctionSymbol*>;
   void mergeAsCRedeclaration(FunctionSymbol* otherFunction);
   auto mergeWithMatchingOverload(OverloadSetSymbol* overloadSet) -> bool;
   void checkCRedeclaration(ScopeSymbol* declaringScope);
@@ -127,6 +108,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
   void checkVirtualSpecifierOutsideClass();
   void checkOverrideAndFinalSpecifiers(FunctionSymbol* overridden);
   void checkCovariantReturnType(FunctionSymbol* overridden);
+  void checkCovariantReturnBase(
+      const TypeTraits::CovariantReturnClasses& classes);
 
   auto declare() -> FunctionSymbol*;
 
@@ -171,6 +154,9 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
 
   functionSymbol->setTrailingRequiresClause(decl.trailingRequiresClause);
 
+  binder.checkTrailingRequiresClauseIsTemplated(functionSymbol,
+                                                decl.specs.templateHead);
+
   functionSymbol->setExplicitObjectParameter(
       declaresExplicitObjectParameter(functionDeclarator));
 
@@ -195,10 +181,16 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
     return functionSymbol;
   }
 
-  if (addSymbolToParentScope) checkRedeclaration();
-
   auto namedSpecialization = namedTemplateSpecialization();
-  if (namedSpecialization) {
+
+  const auto instantiatesExplicitly =
+      namedSpecialization && binder.inExplicitInstantiation();
+
+  if (addSymbolToParentScope && !instantiatesExplicitly) checkRedeclaration();
+
+  if (instantiatesExplicitly) {
+    instantiateExplicitly(*namedSpecialization);
+  } else if (namedSpecialization && !decl.specs.isFriend) {
     namedSpecialization->primary->addSpecialization(
         binder.unit_, namedSpecialization->arguments, functionSymbol);
   }
@@ -229,31 +221,89 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   return functionSymbol;
 }
 
-auto Binder::DeclareFunction::namedTemplateSpecialization() const
+auto Binder::DeclareFunction::deducedSpecializationOf(
+    FunctionSymbol* primary, const FunctionType* functionType,
+    List<TemplateArgumentAST*>* templateArgumentList) const
     -> std::optional<NamedTemplateSpecialization> {
-  auto declaratorId = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
-  if (!declaratorId) return std::nullopt;
-  auto templateId = ast_cast<SimpleTemplateIdAST>(declaratorId->unqualifiedId);
-  if (!templateId || hasDependentTemplateArguments(binder.unit_, templateId))
-    return std::nullopt;
-
-  auto functionType = type_cast<FunctionType>(functionSymbol->type());
-  if (!functionType || isDependent(binder.unit_, functionType))
-    return std::nullopt;
-
-  auto primary = symbol_cast<FunctionSymbol>(templateId->symbol);
   if (!primary || !primary->templateDeclaration()) return std::nullopt;
 
   TemplateArgumentDeduction deduction{binder.unit_};
-  auto deducedArgs = deduction.deduceFromTargetType(
-      primary, functionType, templateId->templateArgumentList);
+  auto deducedArgs = deduction.deduceFromTargetType(primary, functionType,
+                                                    templateArgumentList);
   if (!deducedArgs.has_value()) return std::nullopt;
 
   auto substitution = Substitution::make(
       binder.unit_, primary->templateDeclaration(), *deducedArgs);
   if (!substitution) return std::nullopt;
   return NamedTemplateSpecialization{
-      primary, std::move(*substitution).templateArguments()};
+      primary, std::move(*substitution).templateArguments(), *deducedArgs};
+}
+
+void Binder::DeclareFunction::instantiateExplicitly(
+    const NamedTemplateSpecialization& specialization) {
+  if (!binder.inExplicitInstantiationDefinition()) {
+    ASTRewriter::markExplicitInstantiationDeclared(
+        binder.unit_, specialization.deducedArguments, specialization.primary);
+    return;
+  }
+
+  auto instance = ASTRewriter::instantiate(
+      binder.unit_, specialization.deducedArguments, specialization.primary,
+      decl.location(), /*sfinaeContext=*/false, /*argsComplete=*/true);
+
+  ASTRewriter::requireFunctionDefinition(binder.unit_,
+                                         symbol_cast<FunctionSymbol>(instance));
+}
+
+auto Binder::DeclareFunction::isExplicitSpecializationHead() const -> bool {
+  return cxx::isExplicitSpecializationHead(decl.specs.templateHead);
+}
+
+auto Binder::DeclareFunction::specializedPrimaryTemplates() const
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> primaries;
+  auto canonical = functionSymbol->canonical();
+  for (auto candidate : declaringScopeForFunction()->find(decl.getName())) {
+    for (auto function : views::each_function(candidate)) {
+      if (function->canonical() == canonical) continue;
+      auto templateDeclaration = function->templateDeclaration();
+      if (!templateDeclaration || !templateDeclaration->templateParameterList)
+        continue;
+      primaries.push_back(function);
+    }
+  }
+  return primaries;
+}
+
+auto Binder::DeclareFunction::namedTemplateSpecialization() const
+    -> std::optional<NamedTemplateSpecialization> {
+  auto declaratorId = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
+  if (!declaratorId) return std::nullopt;
+
+  auto functionType = type_cast<FunctionType>(functionSymbol->type());
+  if (!functionType || isDependent(binder.unit_, functionType))
+    return std::nullopt;
+
+  if (auto templateId =
+          ast_cast<SimpleTemplateIdAST>(declaratorId->unqualifiedId)) {
+    if (hasDependentTemplateArguments(binder.unit_, templateId))
+      return std::nullopt;
+    return deducedSpecializationOf(
+        symbol_cast<FunctionSymbol>(templateId->symbol), functionType,
+        templateId->templateArgumentList);
+  }
+
+  if (!ast_cast<NameIdAST>(declaratorId->unqualifiedId)) return std::nullopt;
+  if (!isExplicitSpecializationHead() && !binder.inExplicitInstantiation())
+    return std::nullopt;
+
+  for (auto primary : specializedPrimaryTemplates()) {
+    auto specialization =
+        deducedSpecializationOf(primary, functionType, nullptr);
+    if (specialization) return specialization;
+  }
+
+  return std::nullopt;
 }
 
 auto Binder::DeclareFunction::declaringScopeForFunction() const
@@ -267,6 +317,8 @@ auto Binder::DeclareFunction::declaringScopeForFunction() const
     return declaringScope;
   }
 
+  if (auto qualifiedScope = decl.getScope()) return qualifiedScope;
+
   if (declaringScope->isNamespace()) return declaringScope;
 
   auto enclosingNamespace = declaringScope->enclosingNamespace();
@@ -278,10 +330,14 @@ auto Binder::DeclareFunction::declaringScopeForFunction() const
 void Binder::DeclareFunction::mergeAsCRedeclaration(
     FunctionSymbol* otherFunction) {
   auto canonical = otherFunction->canonical();
-  canonical->addRedeclaration(functionSymbol);
+  binder.addRedeclaration(canonical, functionSymbol);
   if (canonical->hasNoPrototype() && !functionSymbol->hasNoPrototype()) {
-    canonical->setType(functionSymbol->type());
-    canonical->setNoPrototype(false);
+    binder.setSpeculativeValue(
+        canonical->type(), functionSymbol->type(),
+        [canonical](const Type* value) { canonical->setType(value); });
+    binder.setSpeculativeValue(
+        canonical->hasNoPrototype(), false,
+        [canonical](bool value) { canonical->setNoPrototype(value); });
   }
   mergeRedeclaration();
 }
@@ -308,32 +364,23 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
       continue;
     }
 
-    bool sigEq = areFunctionSignaturesEquivalentForRedeclaration(
-        binder.unit_, existingFunction->type(), functionSymbol->type());
+    const bool isOutOfLineDeclaration =
+        decl.getNestedNameSpecifier() != nullptr;
 
-    if (!sigEq && existingTemplateDecl && newTemplateHead &&
-        existingTemplateDecl->depth != newTemplateHead->depth) {
-      int ownParamCount = 0;
-      for ([[maybe_unused]] auto p :
-           ListView{newTemplateHead->templateParameterList}) {
-        ++ownParamCount;
-      }
-      sigEq = typesEquivalentModuloOwnHeadDepth(
-          binder.unit_, existingFunction->type(), functionSymbol->type(),
-          existingTemplateDecl->depth, newTemplateHead->depth, ownParamCount);
-    }
+    if (!areFunctionSignaturesEquivalentForRedeclaration(
+            binder.unit_, existingFunction->type(), functionSymbol->type(),
+            existingTemplateDecl, newTemplateHead, isOutOfLineDeclaration))
+      continue;
 
-    if (!sigEq) continue;
-
-    if (!trailingRequiresClausesEquivalent(
-            binder.unit_, existingFunction->trailingRequiresClause(),
+    if (!TemplateEquivalence{binder.unit_}.same(
+            existingFunction->trailingRequiresClause(),
             functionSymbol->trailingRequiresClause()))
       continue;
 
     reportMemberRedeclaration(existingFunction);
 
     auto canonical = existingFunction->canonical();
-    canonical->addRedeclaration(functionSymbol);
+    binder.addRedeclaration(canonical, functionSymbol);
     mergeRedeclaration();
     return true;
   }
@@ -414,6 +461,7 @@ void Binder::DeclareFunction::checkRedeclaration() {
       declaringScope, functionSymbol->name(), functionSymbol->location());
 
   if (!mergeWithMatchingOverload(overloadSet)) {
+    binder.recordSpeculativeOverload(overloadSet);
     overloadSet->addFunction(functionSymbol);
   }
 
@@ -430,7 +478,9 @@ void Binder::DeclareFunction::checkCRedeclaration(ScopeSymbol* declaringScope) {
         (binder.unit_->config().allowUnprototypedFunctions &&
          canonical->hasNoPrototype()) ||
         areFunctionSignaturesEquivalentForRedeclaration(
-            binder.unit_, canonical->type(), functionSymbol->type());
+            binder.unit_, canonical->type(), functionSymbol->type(),
+            /*lhsHead=*/nullptr, /*rhsHead=*/nullptr,
+            /*isOutOfLineDeclaration=*/false);
     if (canMerge) {
       mergeAsCRedeclaration(otherFunction);
     } else {
@@ -470,6 +520,23 @@ void Binder::DeclareFunction::checkConstructor() {
 
 void Binder::DeclareFunction::checkDeclSpecifiers() {
   binder.applySpecifiers(functionSymbol, decl.specs);
+
+  if (!symbol_cast<ClassSymbol>(functionSymbol->parent())) return;
+
+  auto operatorId = name_cast<OperatorId>(functionSymbol->name());
+  if (!operatorId) return;
+
+  switch (operatorId->op()) {
+    case TokenKind::T_NEW:
+    case TokenKind::T_NEW_ARRAY:
+    case TokenKind::T_DELETE:
+    case TokenKind::T_DELETE_ARRAY:
+      functionSymbol->setStatic(true);
+      break;
+
+    default:
+      break;
+  }
 }
 
 void Binder::DeclareFunction::checkDestructorParameters() {
@@ -618,8 +685,10 @@ void Binder::DeclareFunction::checkCovariantReturnType(
     return;
   }
 
-  if (binder.traits.is_covariant_return_type(overriddenReturnType,
-                                             overriderReturnType)) {
+  TypeTraits::CovariantReturnClasses covariantClasses;
+  if (binder.traits.is_covariant_return_type(
+          overriddenReturnType, overriderReturnType, &covariantClasses)) {
+    checkCovariantReturnBase(covariantClasses);
     return;
   }
 
@@ -629,6 +698,33 @@ void Binder::DeclareFunction::checkCovariantReturnType(
                            "overrides",
                            to_string(functionSymbol->name())));
   binder.note(overridden->location(), "overridden virtual function is here");
+}
+
+void Binder::DeclareFunction::checkCovariantReturnBase(
+    const TypeTraits::CovariantReturnClasses& classes) {
+  auto base = classes.overriddenClass;
+  auto derived = classes.overriderClass;
+  if (!base || !derived) return;
+
+  base = base->resolvedDefinition();
+  derived = derived->resolvedDefinition();
+  if (!base || !derived) return;
+  if (base == derived) return;
+
+  auto info = derived->baseSubobjectInfo(base);
+
+  const auto isUnambiguous = info.pathCount == 0 || info.isUniqueSubobject();
+
+  AccessContext accessContext{binder.unit_, declaringClassOf(functionSymbol)};
+  const auto isAccessible = accessContext.isAccessibleBaseClass(derived, base);
+
+  if (isUnambiguous && isAccessible) return;
+
+  binder.error(functionSymbol->location(),
+               std::format("return type of virtual function '{}' is not "
+                           "covariant with the return type of the function it "
+                           "overrides",
+                           to_string(functionSymbol->name())));
 }
 
 void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
@@ -739,7 +835,9 @@ void Binder::DeclareFunction::mergeRedeclaration() {
   if (!canonical || canonical == functionSymbol) return;
 
   if (!functionSymbol->isFriend() && canonical->isHidden()) {
-    canonical->setHidden(false);
+    binder.setSpeculativeValue(
+        canonical->isHidden(), false,
+        [canonical](bool value) { canonical->setHidden(value); });
   }
 
   if (canonical->isStatic()) functionSymbol->setStatic(true);
@@ -760,11 +858,23 @@ void Binder::DeclareFunction::mergeRedeclaration() {
 
   inheritAbiTags(canonical);
 
-  if (functionSymbol->isInline()) canonical->setInline(true);
-  if (functionSymbol->isConstexpr()) canonical->setConstexpr(true);
-  if (functionSymbol->isConsteval()) canonical->setConsteval(true);
+  if (functionSymbol->isInline())
+    binder.setSpeculativeValue(
+        canonical->isInline(), true,
+        [canonical](bool value) { canonical->setInline(value); });
+  if (functionSymbol->isConstexpr())
+    binder.setSpeculativeValue(
+        canonical->isConstexpr(), true,
+        [canonical](bool value) { canonical->setConstexpr(value); });
+  if (functionSymbol->isConsteval())
+    binder.setSpeculativeValue(
+        canonical->isConsteval(), true,
+        [canonical](bool value) { canonical->setConsteval(value); });
   if (functionSymbol->hasCLinkage())
-    canonical->setLanguageLinkage(LanguageKind::kC);
+    binder.setSpeculativeValue(canonical->languageLinkage(), LanguageKind::kC,
+                               [canonical](LanguageKind value) {
+                                 canonical->setLanguageLinkage(value);
+                               });
 
   auto canonParams = canonical->functionParameters();
   auto redeclParams = functionSymbol->functionParameters();
@@ -786,7 +896,9 @@ void Binder::DeclareFunction::mergeRedeclaration() {
     }
 
     if (!cp->defaultArgument() && rp->defaultArgument()) {
-      cp->setDefaultArgument(rp->defaultArgument());
+      binder.setSpeculativeValue(
+          cp->defaultArgument(), rp->defaultArgument(),
+          [cp](ExpressionAST* value) { cp->setDefaultArgument(value); });
       continue;
     }
 

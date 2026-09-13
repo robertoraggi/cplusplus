@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/lsp/fwd.h>
+#include <cxx/lsp/preamble.h>
 
 #include <chrono>
 #include <cstdint>
@@ -63,10 +64,15 @@ class Server {
   void operator()(DidOpenTextDocumentNotification notification);
   void operator()(DidCloseTextDocumentNotification notification);
   void operator()(DidChangeTextDocumentNotification notification);
+  void operator()(DidChangeWatchedFilesNotification notification);
 
   void operator()(DocumentSymbolRequest request);
   void operator()(CompletionRequest request);
+  void operator()(HoverRequest request);
   void operator()(SignatureHelpRequest request);
+  void operator()(SemanticTokensRequest request);
+  void operator()(SemanticTokensRangeRequest request);
+  void operator()(DocumentHighlightRequest request);
   void operator()(EmitCodeRequest request);
 
   void operator()(SetTraceNotification notification);
@@ -112,11 +118,14 @@ class Server {
   void sendNullResult(std::optional<std::variant<long, std::string>> id);
 
   void sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
-                       EmitCodeFormat format, bool debugInfo);
+                       EmitCodeFormat format, bool debugInfo,
+                       int optimizationLevel);
 
   void logTrace(std::string message, std::optional<std::string> verbose = {});
 
   struct Text {
+    std::shared_ptr<PreambleCache> preambleCache =
+        std::make_shared<PreambleCache>();
     std::string value;
     std::vector<std::size_t> lineStartOffsets;
     std::int64_t version = 0;
@@ -127,6 +136,12 @@ class Server {
 
     void computeLineStartOffsets();
   };
+
+  using DocumentAction = std::function<void(CxxDocument&, const Text&)>;
+
+  void withParsedDocument(const std::string& uri,
+                          std::optional<ParserRequestId> id, std::string kind,
+                          DocumentAction action);
 
   [[nodiscard]] auto snapshotDocument(const std::string& uri)
       -> std::optional<Text>;

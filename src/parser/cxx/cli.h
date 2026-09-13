@@ -71,22 +71,31 @@ class CLI {
   bool opt_c = false;
   bool opt_link = false;
   bool opt_fsyntax_only = false;
-  bool opt_fcheck = false;
+  bool opt_fno_check = false;
   bool opt_fvalidate_ast = false;
   bool opt_freport_missing_types = false;
   bool opt_fno_reflect = false;
   bool opt_fno_strict_prototypes = false;
   bool opt_verify = false;
   bool opt_v = false;
-  bool opt_emit_ast = false;
+  bool opt_emit_pch = false;
   bool opt_lsp = false;
   bool opt_lsp_test = false;
   bool opt_g = false;
+  bool opt_O = false;
+  bool opt_O0 = false;
+  bool opt_O1 = false;
+  bool opt_O2 = false;
+  bool opt_O3 = false;
+  bool opt_Os = false;
+  bool opt_Oz = false;
   bool opt_M = false;
   bool opt_MD = false;
   bool opt_MM = false;
   bool opt_MMD = false;
   bool opt_MP = false;
+
+  [[nodiscard]] auto optimizationLevel() const -> int;
 
   void parse(int& argc, char**& argv);
 

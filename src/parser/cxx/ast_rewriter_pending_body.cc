@@ -21,12 +21,16 @@
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/ast_validator.h>
+#include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
+#include <cxx/function_body_warnings.h>
 #include <cxx/names.h>
+#include <cxx/overload_resolution.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 #include <cxx/types.h>
@@ -249,6 +253,84 @@ auto ASTRewriter::completePendingBodyFor(TranslationUnit* unit,
   return rewriter.completePendingBody(function, captureBodyErrors);
 }
 
+void ASTRewriter::requirePotentiallyInvokedDestructors(
+    TranslationUnit* unit, FunctionSymbol* destructor) {
+  if (!unit || !destructor || !destructor->isDestructor()) return;
+  if (!unit->isPotentiallyEvaluated()) return;
+
+  auto classSymbol = symbol_cast<ClassSymbol>(destructor->parent());
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+
+  auto requireDestructorOf = [&](const Type* type) {
+    requireDestructorOfType(unit, type);
+  };
+
+  for (auto baseClass : classSymbol->baseClasses()) {
+    if (auto base = baseClass->symbol()) requireDestructorOf(base->type());
+  }
+
+  if (auto layout = classSymbol->layout()) {
+    for (auto virtualBase : layout->virtualBases())
+      requireDestructorOf(virtualBase->type());
+  }
+
+  for (auto field : classSymbol->members() | views::non_static_fields) {
+    requireDestructorOf(field->type());
+  }
+}
+
+void ASTRewriter::requireDestructorOfType(TranslationUnit* unit,
+                                          const Type* type) {
+  if (!unit || !type) return;
+
+  TypeTraits traits{unit};
+  auto objectType = traits.remove_cv(traits.remove_all_extents(type));
+  auto classType = unqualified_cast<ClassType>(objectType);
+  if (!classType || !classType->symbol()) return;
+
+  auto classSymbol = classType->symbol()->resolvedDefinition();
+  requireFunctionDefinition(unit, classSymbol->destructor());
+}
+
+void ASTRewriter::requireSubobjectDefaultConstructors(
+    TranslationUnit* unit, FunctionSymbol* constructor) {
+  auto classSymbol = symbol_cast<ClassSymbol>(constructor->parent());
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+  if (classSymbol->isUnion()) return;
+
+  TypeTraits traits{unit};
+
+  auto requireDefaultConstructorOf = [&](const Type* type) {
+    if (!type) return;
+    auto subobjectType = traits.remove_cv(traits.remove_all_extents(type));
+    auto classType = unqualified_cast<ClassType>(subobjectType);
+    if (!classType || !classType->symbol()) return;
+    auto subobjectClass = classType->symbol()->resolvedDefinition();
+    if (subobjectClass == classSymbol) return;
+    OverloadResolution overloadResolution{unit};
+    requireFunctionDefinition(
+        unit,
+        overloadResolution.resolveConstructor(subobjectClass, {}).selected());
+  };
+
+  for (auto baseClass : classSymbol->baseClasses()) {
+    if (auto base = baseClass->symbol())
+      requireDefaultConstructorOf(base->type());
+  }
+
+  if (auto layout = classSymbol->layout()) {
+    for (auto virtualBase : layout->virtualBases())
+      requireDefaultConstructorOf(virtualBase->type());
+  }
+
+  for (auto field : classSymbol->members() | views::non_static_fields) {
+    if (field->initializer()) continue;
+    requireDefaultConstructorOf(field->type());
+  }
+}
+
 void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
                                             FunctionSymbol* function) {
   if (!unit || !function) return;
@@ -262,6 +344,132 @@ void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
     rewriter.binder_.synthesizeDefaultedMemberBody(function);
   }
   requireFunctionDefinition(unit, function->inheritedConstructor());
+  auto definition = function->resolvedDefinition();
+  const bool definesBody =
+      definition->isDefined() || definition->hasPendingBody();
+
+  if (function->isDestructor() && definesBody)
+    requirePotentiallyInvokedDestructors(unit, definition);
+
+  if (function->isConstructor() && function->isDefaulted()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
+    if (classSymbol &&
+        classSymbol->resolvedDefinition()->defaultConstructor() == function) {
+      requireSubobjectDefaultConstructors(unit, function);
+    }
+  }
+}
+
+namespace {
+
+struct RequireNamedDefinitions final : ASTVisitor {
+  TranslationUnit* unit;
+
+  explicit RequireNamedDefinitions(TranslationUnit* unit) : unit(unit) {}
+
+  void requireEntity(Symbol* symbol) {
+    ASTRewriter::requireFunctionDefinition(unit,
+                                           symbol_cast<FunctionSymbol>(symbol));
+    ASTRewriter::requireFieldDefinition(unit, symbol_cast<FieldSymbol>(symbol));
+  }
+
+  void visit(IdExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(MemberExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(SpliceMemberExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(CallExpressionAST* ast) override {
+    requireEntity(ast->constructorSymbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(TypeConstructionAST* ast) override {
+    requireEntity(ast->constructorSymbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(BracedTypeConstructionAST* ast) override {
+    requireEntity(ast->constructorSymbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(DesignatedInitializerClauseAST* ast) override {
+    requireEntity(ast->constructorSymbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(LambdaExpressionAST* ast) override {
+    requireEntity(ast->constructorSymbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(NewExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    requireEntity(ast->constructorSymbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(DeleteExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(SubscriptExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(UnaryExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(PostIncrExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(BinaryExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(AssignmentExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(CompoundAssignmentExpressionAST* ast) override {
+    requireEntity(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(ImplicitCastExpressionAST* ast) override {
+    requireEntity(ast->conversionFunction);
+    if (ast->castKind ==
+        ImplicitCastKind::kTemporaryMaterializationConversion) {
+      ASTRewriter::requireDestructorOfType(unit, ast->type);
+    }
+    ASTVisitor::visit(ast);
+  }
+};
+
+}  // namespace
+
+void ASTRewriter::requireDefinitionsNamedBy(TranslationUnit* unit, AST* ast) {
+  if (!unit || !ast) return;
+  if (!unit->isPotentiallyEvaluated()) return;
+  RequireNamedDefinitions{unit}.accept(ast);
 }
 
 void ASTRewriter::requireFieldDefinition(TranslationUnit* unit,
@@ -320,7 +528,12 @@ void ASTRewriter::completePendingFieldInitializer(TranslationUnit* unit,
   }
 
   field->setInitializer(instance->initializer);
-  rewriter.typeChecker().check_init_declarator(instance, typeSpecifier);
+
+  if (field->isStatic()) {
+    rewriter.typeChecker().check_init_declarator(instance, typeSpecifier);
+  } else {
+    rewriter.typeChecker().check_field_initializer(field);
+  }
 }
 
 void ASTRewriter::completeDeducedReturnType(TranslationUnit* unit,
@@ -335,12 +548,29 @@ void ASTRewriter::completeDeducedReturnType(TranslationUnit* unit,
   (void)completePendingBodyFor(unit, function);
 }
 
+auto ASTRewriter::completedSymbolType(TranslationUnit* unit, Symbol* symbol)
+    -> const Type* {
+  if (!symbol) return nullptr;
+  completeDeducedReturnType(unit, symbol);
+  if (auto function = symbol_cast<FunctionSymbol>(symbol))
+    completePendingExceptionSpecification(unit, function);
+  return symbol->type();
+}
+
 auto ASTRewriter::completePendingBody(FunctionSymbol* func,
                                       bool captureBodyErrors)
     -> std::vector<Diagnostic> {
   if (!func || !func->hasPendingBody()) return {};
 
   auto pending = func->pendingBody();
+
+  if (unit_->isFunctionBodyUnparsed(pending->originalDefinition)) {
+    unit_->addPendingBodyCompletion(func);
+    return {};
+  }
+
+  if (auto trace = unit_->timeTrace()) trace->count(TimeTrace::kFunctionBodies);
+  TranslationUnit::TemplateInstantiationScope instantiationScope{unit_};
 
   const bool deferDiagnostics =
       !captureBodyErrors && unit_->diagnosticsClient()->isSfinae();
@@ -386,6 +616,8 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
     }
 
     auto patternTemplateDecl = originalDef->symbol->templateDeclaration();
+    rewriter.setInstantiatingFunctionTemplateSpecialization(
+        func->isSpecialization());
     auto rewrittenDecl = patternTemplateDecl
                              ? rewriter.declaration(patternTemplateDecl)
                              : rewriter.declaration(originalDef);
@@ -400,7 +632,15 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
     }
 
     if (!func->declaration() && copy) func->setDeclaration(copy);
-    return finish();
+
+    const auto instantiatesATemplate =
+        TemplateEquivalence{unit_}.ownFunctionTemplateHead(
+            symbol_cast<ClassSymbol>(originalDef->symbol->parent()),
+            patternTemplateDecl);
+
+    if (instantiatesATemplate) return finish();
+
+    return finish(rewriter.takeBodyErrors());
   }
 
   auto templateArguments = std::move(pending->templateArguments);
@@ -408,6 +648,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
   auto depth = pending->depth;
   auto originalDef = pending->originalDefinition;
   func->clearPendingBody();
+  if (newAst->symbol) func = newAst->symbol;
 
   auto rewriter = ASTRewriter{unit_, parentScope, templateArguments};
   rewriter.depth_ = depth;
@@ -457,6 +698,9 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
   }
 
   if (bodyErrors.empty() && !deferDiagnostics) {
+    if (!rewriter.binder_.inTemplate())
+      checkReturnPathWarnings(unit_, func, newAst->functionBody);
+
     validateCompletedInstantiation(unit_, func, newAst);
   }
 

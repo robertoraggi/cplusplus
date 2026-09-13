@@ -100,7 +100,6 @@ void WindowsToolchain::addPredefinedMacros() {
   defineMacro("__stdcall", "");
   defineMacro("__forceinline", "inline");
   defineMacro("__unaligned", "");
-  defineMacro("_Pragma(a)", "");
 
   defineMacro("__int8", "char");
   defineMacro("__int16", "short");

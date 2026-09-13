@@ -22,48 +22,25 @@
 
 #include <cxx/cxx_fwd.h>
 
-#ifndef CXX_NO_FILESYSTEM
 #include <filesystem>
 
 namespace cxx::fs {
 
 using path = std::filesystem::path;
 
-using std::filesystem::current_path;
+using std::filesystem::absolute;
 using std::filesystem::exists;
 using std::filesystem::is_directory;
 using std::filesystem::is_symlink;
 using std::filesystem::read_symlink;
 
-}  // namespace cxx::fs
-
+inline constexpr bool kHasProcessWorkingDirectory =
+#if defined(__EMSCRIPTEN__) || defined(__wasi__)
+    false;
 #else
+    true;
+#endif
 
-#include <string>
-#include <tuple>
-
-namespace cxx::fs {
-
-class path {
-  std::string path_;
-
- public:
-  path() = default;
-  path(std::string p) : path_(std::move(p)) {}
-
-  const std::string& string() const { return path_; }
-  operator const std::string&() const { return path_; }
-
-  path& remove_filename();
-};
-
-auto exists(const path& path) -> bool;
-auto operator/(path lhs, const path& rhs) -> path;
-auto operator/(path lhs, const std::string& rhs) -> path;
-auto current_path() -> path;
-auto absolute(const path& p) -> path;
-auto is_directory(const path& p) -> bool;
+[[nodiscard]] auto working_directory() -> path;
 
 }  // namespace cxx::fs
-
-#endif

@@ -22,7 +22,7 @@ file(GLOB CXX_VIEWS_INCLUDE_HEADER_FILES cxx/views/*.h)
 
 add_library(cxx-parser
     cxx/access_control.cc
-    cxx/ast_cursor.cc
+    cxx/archive.cc
     cxx/ast_interpreter_declarations.cc
     cxx/ast_interpreter_declarators.cc
     cxx/ast_interpreter_expressions.cc
@@ -48,9 +48,9 @@ add_library(cxx-parser
     cxx/ast_rewriter_subsumption.cc
     cxx/ast_rewriter_units.cc
     cxx/ast_rewriter.cc
-    cxx/ast_slot.cc
     cxx/ast_validator.cc
     cxx/ast_visitor.cc
+    cxx/attributes.cc
     cxx/ast.cc
     cxx/base_classes.cc
     cxx/binder.cc
@@ -60,6 +60,8 @@ add_library(cxx-parser
     cxx/binder_range_for.cc
     cxx/binder_structured_bindings.cc
     cxx/bind_class.cc
+    cxx/builtin_bit_operations.cc
+    cxx/builtin_signature.cc
     cxx/class_template_deduction.cc
     cxx/class_value_abi.cc
     cxx/cli.cc
@@ -72,6 +74,7 @@ add_library(cxx-parser
     cxx/diagnostic.cc
     cxx/diagnostics_client.cc
     cxx/external_name_encoder.cc
+    cxx/function_body_warnings.cc
     cxx/gcc_linux_toolchain.cc
     cxx/lexer.cc
     cxx/literals.cc
@@ -86,11 +89,16 @@ add_library(cxx-parser
     cxx/preprocessor.cc
     cxx/scope.cc
     cxx/source_location.cc
+    cxx/source_resolver.cc
+    cxx/pch.cc
+    cxx/freeze_audit.cc
     cxx/implicit_conversion_sequence.cc
     cxx/initialization.cc
     cxx/standard_conversion.cc
     cxx/substitution.cc
     cxx/symbol_chain_view.cc
+    cxx/semantic_archive.cc
+    cxx/semantic_codec.cc
     cxx/symbol_printer.cc
     cxx/symbols.cc
     cxx/template_argument_deduction.cc
@@ -98,6 +106,7 @@ add_library(cxx-parser
     cxx/token.cc
     cxx/toolchain.cc
     cxx/toolchain_config.cc
+    cxx/time_trace.cc
     cxx/translation_unit.cc
     cxx/type_checker.cc
     cxx/type_checker_initializer.cc
@@ -128,32 +137,6 @@ target_compile_features(cxx-parser PUBLIC cxx_std_23)
 # disable exception when targeting emscripten
 if (EMSCRIPTEN)
     target_compile_options(cxx-parser PUBLIC -fno-exceptions)
-endif()
-
-target_include_directories(cxx-parser PUBLIC
-    $<BUILD_INTERFACE:${UTFCPP_INCLUDE_DIRS}>
-)
-
-if (CXX_ENABLE_FLATBUFFERS)
-    target_sources(cxx-parser PRIVATE
-        cxx/flatbuffers/ast_decoder.cc
-        cxx/flatbuffers/ast_encoder.cc
-    )
-
-    # generate flatbuffers decoder for ast.fbs
-    flatbuffers_generate_headers(
-        TARGET cxx-ast-flatbuffers
-        SCHEMAS cxx/ast.fbs
-        BINARY_SCHEMAS_DIR ${CMAKE_CURRENT_BINARY_DIR}/cxx
-        FLAGS --cpp)
-
-    target_link_libraries(cxx-parser
-        PRIVATE $<BUILD_INTERFACE:flatbuffers::header-only>
-    )
-
-    add_dependencies(cxx-parser GENERATE_cxx-ast-flatbuffers)
-else()
-    target_compile_definitions(cxx-parser PRIVATE CXX_NO_FLATBUFFERS)
 endif()
 
 install(

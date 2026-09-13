@@ -21,7 +21,7 @@
 #include <cxx/lexer.h>
 #include <cxx/private/c_keywords-priv.h>
 #include <cxx/private/keywords-priv.h>
-#include <utf8/unchecked.h>
+#include <cxx/private/utf8.h>
 
 #include <cctype>
 #include <vector>
@@ -132,22 +132,26 @@ inline auto skipSlash(It it, It end) -> It {
 template <typename It>
 inline auto peekNext(It it, It end) -> std::uint32_t {
   it = skipSlash(it, end);
-  return it < end ? utf8::unchecked::peek_next(it) : 0;
+  return utf8::peekNext(it, end);
 }
 
 template <typename It>
 inline void readNext(It& it, It end) {
   it = skipSlash(it, end);
-  if (it < end) utf8::unchecked::next(it);
+  (void)utf8::next(it, end);
 }
 
 template <typename It>
-inline void advance(It& it, int n, It end) {
-  if (n > 0) {
-    while (it < end && n--) readNext(it, end);
-  } else if (n < 0) {
-    while (n++) utf8::unchecked::prior(it);
+inline auto advance(It& it, int n, It begin, It end) -> bool {
+  for (; n > 0; --n) {
+    if (it == end) return false;
+    readNext(it, end);
   }
+  for (; n < 0; ++n) {
+    if (it == begin) return false;
+    (void)utf8::prior(it, begin);
+  }
+  return true;
 }
 
 template <typename It>
@@ -167,7 +171,7 @@ inline auto skipBOM(It& it, It end) -> bool {
 Lexer::Lexer(std::string_view source, LanguageKind lang)
     : source_(source), pos_(cbegin(source_)), end_(cend(source_)), lang_(lang) {
   hasBOM_ = skipBOM(pos_, end_);
-  currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+  currentChar_ = peekNext(pos_, end_);
 }
 
 Lexer::Lexer(std::string buffer, LanguageKind lang)
@@ -177,23 +181,23 @@ Lexer::Lexer(std::string buffer, LanguageKind lang)
       end_(cend(source_)),
       lang_(lang) {
   hasBOM_ = skipBOM(pos_, end_);
-  currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+  currentChar_ = peekNext(pos_, end_);
 }
 
 void Lexer::consume() {
   readNext(pos_, end_);
-  currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+  currentChar_ = peekNext(pos_, end_);
 }
 
 void Lexer::consume(int n) {
-  advance(pos_, n, end_);
-  currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+  (void)advance(pos_, n, cbegin(source_), end_);
+  currentChar_ = peekNext(pos_, end_);
 }
 
 auto Lexer::LA(int n) const -> std::uint32_t {
   auto it = pos_;
-  advance(it, n, n >= 0 ? end_ : source_.begin());
-  return it < end_ ? peekNext(it, end_) : 0;
+  if (!advance(it, n, cbegin(source_), end_)) return 0;
+  return peekNext(it, end_);
 }
 
 auto Lexer::readToken() -> TokenKind {
@@ -256,7 +260,7 @@ auto Lexer::readToken() -> TokenKind {
       if (scan >= end_ || *scan != '\\') {
         text_.assign(pos_, scan);
         pos_ = scan;
-        currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+        currentChar_ = peekNext(pos_, end_);
       } else {
         do {
           text_ += static_cast<char>(LA());
@@ -371,6 +375,12 @@ auto Lexer::readToken() -> TokenKind {
     }
     if (LA() == '\'') {
       consume();
+    }
+
+    if (lang_ == LanguageKind::kCXX && (std::isalpha(LA()) || LA() == '_')) {
+      do {
+        consume();
+      } while (pos_ != end_ && is_idcont(LA()));
     }
 
     return TokenKind::T_CHARACTER_LITERAL;
@@ -616,7 +626,7 @@ auto Lexer::skipSpaces() -> bool {
       do {
         ++pos_;
       } while (pos_ < end_ && (*pos_ == ' ' || *pos_ == '\t'));
-      currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+      currentChar_ = peekNext(pos_, end_);
       continue;
     }
 
@@ -633,13 +643,13 @@ auto Lexer::skipSpaces() -> bool {
     } else if (!keepComments_ && pos_ + 1 < end_ && ch == '/' && LA(1) == '/') {
       consume(2);
       while (pos_ < end_ && *pos_ != '\n' && *pos_ != '\\') ++pos_;
-      currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+      currentChar_ = peekNext(pos_, end_);
       while (pos_ != end_ && LA() != '\n') consume();
     } else if (!keepComments_ && pos_ + 1 < end_ && ch == '/' && LA(1) == '*') {
       consume(2);
       while (pos_ != end_) {
         while (pos_ < end_ && *pos_ != '*' && *pos_ != '\\') ++pos_;
-        currentChar_ = pos_ < end_ ? peekNext(pos_, end_) : 0;
+        currentChar_ = peekNext(pos_, end_);
         if (pos_ == end_) break;
         if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
           consume(2);

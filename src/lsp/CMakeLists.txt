@@ -20,6 +20,7 @@
 file(GLOB CXX_LSP_INCLUDE_HEADER_FILES cxx/lsp/*.h)
 
 add_library(cxx-lsp
+    cxx/lsp/preamble.cc
     cxx/lsp/cxx_document.cc
     cxx/lsp/cxx_server_host.cc
     cxx/lsp/enums.cc

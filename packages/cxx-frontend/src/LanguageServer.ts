@@ -125,6 +125,13 @@ export interface LanguageServerOptions extends Omit<
   "onMessage" | "onTrace" | "shouldContinue"
 > {
   /**
+   * Cache leading literal include directives as an in-memory PCH. Defaults to true.
+   * Body edits reuse the preamble; changing includes or closing the document
+   * discards it. Send workspace/didChangeWatchedFiles when header contents change.
+   */
+  preamble?: boolean;
+
+  /**
    * Receives the requests, responses and notifications sent by the server.
    */
   onMessage(message: JsonRpcMessage): void;

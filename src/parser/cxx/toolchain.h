@@ -56,7 +56,9 @@ class Toolchain {
   explicit Toolchain(Preprocessor* preprocessor);
   virtual ~Toolchain();
 
-  [[nodiscard]] auto language() const -> LanguageKind;
+  [[nodiscard]] auto language() const -> LanguageKind { return language_; }
+
+  void setLanguage(LanguageKind language);
 
   void setLanguageStandard(const LanguageStandard* languageStandard);
 
@@ -119,6 +121,7 @@ class Toolchain {
 
   Preprocessor* preprocessor_;
   std::unique_ptr<MemoryLayout> memoryLayout_;
+  LanguageKind language_ = LanguageKind::kCXX;
   const LanguageStandard* languageStandard_ = nullptr;
 };
 }  // namespace cxx

@@ -18,6 +18,7 @@
     "watch": "watchexec --print-events -r npm run build",
     "build": "tsc",
     "test": "node --test test/*.test.mjs",
+    "example": "node examples/cxx-parse/index.js",
     "docs": "typedoc src/index.ts",
     "prettier": "npx prettier --check .",
     "prettier:fix": "npx prettier --write . "

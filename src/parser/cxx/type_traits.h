@@ -20,10 +20,12 @@
 
 #pragma once
 
+#include <cxx/names_fwd.h>
 #include <cxx/types_fwd.h>
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <utility>
 #include <vector>
@@ -48,6 +50,7 @@ class TypeTraits {
   [[nodiscard]] auto control() const -> Control*;
 
   auto requireCompleteClass(ClassSymbol* classSymbol) -> bool;
+  auto requireCompleteClass(const Type* type) -> bool;
 
   [[nodiscard]] auto is_void(const Type* type) const -> bool;
   [[nodiscard]] auto is_null_pointer(const Type* type) const -> bool;
@@ -59,6 +62,20 @@ class TypeTraits {
   [[nodiscard]] auto is_class(const Type* type) const -> bool;
   [[nodiscard]] auto is_function(const Type* type) const -> bool;
   [[nodiscard]] auto is_pointer(const Type* type) const -> bool;
+  [[nodiscard]] auto is_vector(const Type* type) const -> bool;
+
+  /**
+   * A type whose special member functions are all trivial and which has no
+   * class semantics: a scalar or a vector.
+   */
+  [[nodiscard]] auto is_scalar_or_vector(const Type* type) const -> bool;
+
+  /**
+   * The number of bytes a vector's lanes occupy, ignoring the padding that
+   * rounds its storage size up to a power of two.
+   */
+  [[nodiscard]] auto vector_width_in_bytes(const Type* type) const
+      -> std::size_t;
   [[nodiscard]] auto is_lvalue_reference(const Type* type) const -> bool;
   [[nodiscard]] auto is_rvalue_reference(const Type* type) const -> bool;
   [[nodiscard]] auto is_member_object_pointer(const Type* type) const -> bool;
@@ -71,6 +88,7 @@ class TypeTraits {
   [[nodiscard]] auto is_integral_or_enum(const Type* type) const -> bool;
   [[nodiscard]] auto is_fundamental(const Type* type) const -> bool;
   [[nodiscard]] auto is_arithmetic(const Type* type) const -> bool;
+  [[nodiscard]] auto is_floating(const Type* type) const -> bool;
   [[nodiscard]] auto is_scalar(const Type* type) const -> bool;
   [[nodiscard]] auto is_object(const Type* type) const -> bool;
   [[nodiscard]] auto is_compound(const Type* type) const -> bool;
@@ -79,11 +97,20 @@ class TypeTraits {
 
   [[nodiscard]] auto is_const(const Type* type) const -> bool;
   [[nodiscard]] auto is_volatile(const Type* type) const -> bool;
+  [[nodiscard]] auto is_atomic(const Type* type) const -> bool;
   [[nodiscard]] auto is_signed(const Type* type) const -> bool;
   [[nodiscard]] auto is_unsigned(const Type* type) const -> bool;
   [[nodiscard]] auto is_bounded_array(const Type* type) const -> bool;
   [[nodiscard]] auto is_unbounded_array(const Type* type) const -> bool;
   [[nodiscard]] auto is_scoped_enum(const Type* type) const -> bool;
+
+  struct IntegralRepresentation {
+    int bits = 0;
+    bool isSigned = false;
+  };
+
+  [[nodiscard]] auto integral_representation(const Type* type) const
+      -> std::optional<IntegralRepresentation>;
 
   [[nodiscard]] auto remove_reference(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_lvalue_reference(const Type* type) const
@@ -103,6 +130,11 @@ class TypeTraits {
   [[nodiscard]] auto add_const_ref(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_const(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_volatile(const Type* type) const -> const Type*;
+  [[nodiscard]] auto add_atomic(const Type* type) const -> const Type*;
+  [[nodiscard]] auto remove_atomic(const Type* type) const -> const Type*;
+  [[nodiscard]] auto is_complex(const Type* type) const -> bool;
+  [[nodiscard]] auto complex_element_type(const Type* type) const
+      -> const Type*;
 
   [[nodiscard]] auto remove_pointer(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_pointer(const Type* type) const -> const Type*;
@@ -128,6 +160,13 @@ class TypeTraits {
                                                    const Type* targetType) const
       -> bool;
 
+  [[nodiscard]] auto is_std_namespace(Symbol* symbol) const -> bool;
+  [[nodiscard]] auto is_in_std_namespace(Symbol* symbol) const -> bool;
+  [[nodiscard]] auto is_std_type(const Type* type, WellKnownName name) const
+      -> bool;
+  [[nodiscard]] auto is_align_val_t(const Type* type) const -> bool;
+  [[nodiscard]] auto is_destroying_delete_t(const Type* type) const -> bool;
+
   [[nodiscard]] auto initializer_list_element_type(const Type* targetType)
       -> const Type*;
 
@@ -141,10 +180,9 @@ class TypeTraits {
                                                const Type* replacement) const
       -> const Type*;
   [[nodiscard]] auto is_member_of_object_type(const Type* objectType,
-                                              Symbol* member) const -> bool;
+                                              Symbol* member) -> bool;
 
-  [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) const
-      -> bool;
+  [[nodiscard]] auto is_base_of(const Type* base, const Type* derived) -> bool;
 
   [[nodiscard]] auto is_known_complete_object(ExpressionAST* expression) const
       -> bool;
@@ -153,6 +191,9 @@ class TypeTraits {
       FunctionSymbol* function, ExpressionAST* objectExpression) const -> bool;
 
   [[nodiscard]] auto adjusted_cv_type(const Type* type) const -> const Type*;
+
+  [[nodiscard]] auto adjusted_parameter_type(const Type* type) const
+      -> const Type*;
 
   [[nodiscard]] auto is_similar(const Type* lhs, const Type* rhs) const -> bool;
 
@@ -163,11 +204,11 @@ class TypeTraits {
   [[nodiscard]] auto is_qualification_convertible(const Type* from,
                                                   const Type* to) const -> bool;
 
-  [[nodiscard]] auto is_reference_related(const Type* lhs,
-                                          const Type* rhs) const -> bool;
+  [[nodiscard]] auto is_reference_related(const Type* lhs, const Type* rhs)
+      -> bool;
 
   [[nodiscard]] auto is_reference_compatible(const Type* target,
-                                             const Type* source) const -> bool;
+                                             const Type* source) -> bool;
 
   [[nodiscard]] auto promoted_integer_type(const Type* type) const
       -> const Type*;
@@ -191,9 +232,18 @@ class TypeTraits {
       const FunctionSymbol* overrider, const FunctionSymbol* overridden) const
       -> bool;
 
-  [[nodiscard]] auto is_covariant_return_type(
-      const Type* overriddenReturnType, const Type* overriderReturnType) const
+  [[nodiscard]] auto has_corresponding_object_parameters(
+      const FunctionSymbol* overrider, const FunctionSymbol* overridden) const
       -> bool;
+
+  struct CovariantReturnClasses {
+    ClassSymbol* overriddenClass = nullptr;
+    ClassSymbol* overriderClass = nullptr;
+  };
+
+  [[nodiscard]] auto is_covariant_return_type(
+      const Type* overriddenReturnType, const Type* overriderReturnType,
+      CovariantReturnClasses* classes = nullptr) -> bool;
   [[nodiscard]] auto is_convertible(const Type* from, const Type* to) const
       -> bool;
   [[nodiscard]] auto reference_constructs_from_temporary(const Type* to,
@@ -204,6 +254,8 @@ class TypeTraits {
       -> bool;
 
   auto is_pod(const Type* type) -> bool;
+  [[nodiscard]] auto data_size(const Type* type) -> std::uint64_t;
+  [[nodiscard]] auto non_virtual_size(const Type* type) -> std::uint64_t;
   auto is_trivial(const Type* type) -> bool;
   auto is_standard_layout(const Type* type) -> bool;
   auto is_literal_type(const Type* type) -> bool;
@@ -213,6 +265,9 @@ class TypeTraits {
   [[nodiscard]] auto aggregate_element_type(Symbol* element) const
       -> const Type*;
   auto is_empty(const Type* type) -> bool;
+  [[nodiscard]] auto requires_zero_initialization(const Type* type,
+                                                  FunctionSymbol* constructor)
+      -> bool;
   [[nodiscard]] auto is_zero_size_subobject(FieldSymbol* field) -> bool;
   auto is_polymorphic(const Type* type) -> bool;
   auto is_final(const Type* type) -> bool;
@@ -232,6 +287,7 @@ class TypeTraits {
   auto is_nothrow_assignable(const Type* to, const Type* from) -> bool;
   auto is_trivially_assignable(const Type* to, const Type* from) -> bool;
   auto is_trivially_copyable(const Type* type) -> bool;
+  auto is_non_trivial_for_calls(const Type* type) -> bool;
   auto is_abstract(const Type* type) -> bool;
   auto is_destructible(const Type* type) -> bool;
   auto is_nothrow_destructible(const Type* type) -> bool;
@@ -266,4 +322,7 @@ class TypeTraits {
   [[nodiscard]] auto integer_type_of_size(std::size_t size,
                                           bool isUnsigned) const -> const Type*;
 };
+
+[[nodiscard]] auto isUserProvided(FunctionSymbol* function) -> bool;
+
 }  // namespace cxx

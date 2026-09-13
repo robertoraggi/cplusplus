@@ -37,7 +37,7 @@ Promise.all([loadCxx({ wasmURL: wasmBinaryUrl }), loadSysroot()])
       port,
       appdir,
       sysroot,
-      std: "c++17",
+      std: "c++26",
       exists,
       readFile,
       onTrace: (message) => console.info(`[cxx-lsp] ${message}`),

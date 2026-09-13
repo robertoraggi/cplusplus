@@ -54,6 +54,13 @@ enum class ImplicitCastKind {
   kBooleanConversion,
   kFunctionPointerConversion,
   kQualificationConversion,
+  kVectorSplat,
+  kVectorConversion,
+  kAtomicToNonAtomic,
+  kNonAtomicToAtomic,
+  kRealToComplexConversion,
+  kComplexToRealConversion,
+  kComplexConversion,
   kTemporaryMaterializationConversion,
   kUserDefinedConversion,
 };
@@ -178,6 +185,7 @@ class ThisExpressionAST;
 class PackIndexExpressionAST;
 class GenericSelectionExpressionAST;
 class NestedStatementExpressionAST;
+class DefaultInitializerExpressionAST;
 class NestedExpressionAST;
 class IdExpressionAST;
 class LambdaExpressionAST;

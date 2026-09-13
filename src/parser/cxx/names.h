@@ -103,6 +103,21 @@ class BuiltinTemplateIdentifierInfo final : public IdentifierInfo {
   BuiltinTemplateKind builtinKind_;
 };
 
+class WellKnownNameIdentifierInfo final : public IdentifierInfo {
+ public:
+  static constexpr auto Kind = IdentifierInfoKind::kWellKnownName;
+
+  explicit WellKnownNameIdentifierInfo(WellKnownName wellKnownName)
+      : IdentifierInfo(Kind), wellKnownName_(wellKnownName) {}
+
+  [[nodiscard]] auto wellKnownName() const -> WellKnownName {
+    return wellKnownName_;
+  }
+
+ private:
+  WellKnownName wellKnownName_;
+};
+
 class Name {
  public:
   Name(NameKind kind, std::size_t hashValue)
@@ -141,6 +156,8 @@ class Identifier final : public Name {
   [[nodiscard]] auto builtinFunction() const -> BuiltinFunctionKind;
 
   [[nodiscard]] auto builtinTemplate() const -> BuiltinTemplateKind;
+
+  [[nodiscard]] auto wellKnownName() const -> WellKnownName;
 
   [[nodiscard]] auto info() const -> const IdentifierInfo* { return info_; }
   void setInfo(const IdentifierInfo* info) const { info_ = info; }
@@ -260,8 +277,9 @@ auto name_cast(const Name* name) -> const T* {
     -> SourceLocation;
 [[nodiscard]] auto get_name_location(DotDesignatorAST* ast) -> SourceLocation;
 
-[[nodiscard]] auto resolveBuiltinFunctionKind(TranslationUnit* unit,
-                                              IdExpressionAST* idExpr)
+[[nodiscard]] auto well_known_name(const Name* name) -> WellKnownName;
+
+[[nodiscard]] auto resolveBuiltinFunctionKind(IdExpressionAST* idExpr)
     -> BuiltinFunctionKind;
 
 }  // namespace cxx

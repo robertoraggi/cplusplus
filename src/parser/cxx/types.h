@@ -22,6 +22,7 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/names_fwd.h>
+#include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
@@ -495,6 +496,13 @@ class UnresolvedNameType final
   [[nodiscard]] auto unqualifiedId() const -> UnqualifiedIdAST* {
     return std::get<2>(*this);
   }
+
+  /**
+   * The spelling of an unresolved name is recovered from a snippet, so the
+   * factory that captures it and the printer that reads it back must agree on
+   * one range (6.8).
+   */
+  [[nodiscard]] auto sourceLocationRange() const -> SourceLocationRange;
 };
 
 class UnresolvedBoundedArrayType final
@@ -596,6 +604,87 @@ class UnresolvedBitIntType final
   [[nodiscard]] auto isUnsigned() const -> bool { return std::get<2>(*this); }
 };
 
+class VectorType final
+    : public Type,
+      public std::tuple<const Type*, std::size_t, VectorKind> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kVector;
+
+  VectorType(const Type* elementType, std::size_t elementCount,
+             VectorKind vectorKind)
+      : Type(Kind), tuple(elementType, elementCount, vectorKind) {}
+
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto elementCount() const -> std::size_t {
+    return std::get<1>(*this);
+  }
+
+  [[nodiscard]] auto vectorKind() const -> VectorKind {
+    return std::get<2>(*this);
+  }
+};
+
+class UnresolvedVectorType final
+    : public Type,
+      public std::tuple<TranslationUnit*, const Type*, ExpressionAST*,
+                        VectorKind, VectorSizeKind> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnresolvedVector;
+
+  UnresolvedVectorType(TranslationUnit* unit, const Type* elementType,
+                       ExpressionAST* sizeExpression, VectorKind vectorKind,
+                       VectorSizeKind sizeKind)
+      : Type(Kind),
+        tuple(unit, elementType, sizeExpression, vectorKind, sizeKind) {}
+
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<1>(*this);
+  }
+
+  [[nodiscard]] auto sizeExpression() const -> ExpressionAST* {
+    return std::get<2>(*this);
+  }
+
+  [[nodiscard]] auto vectorKind() const -> VectorKind {
+    return std::get<3>(*this);
+  }
+
+  [[nodiscard]] auto sizeKind() const -> VectorSizeKind {
+    return std::get<4>(*this);
+  }
+};
+
+class ComplexType final : public Type, public std::tuple<const Type*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kComplex;
+
+  explicit ComplexType(const Type* elementType)
+      : Type(Kind), tuple(elementType) {}
+
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
+};
+
+class AtomicType final : public Type, public std::tuple<const Type*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kAtomic;
+
+  explicit AtomicType(const Type* elementType)
+      : Type(Kind), tuple(elementType) {}
+
+  [[nodiscard]] auto elementType() const -> const Type* {
+    return std::get<0>(*this);
+  }
+};
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, const Type* type) {
 #define PROCESS_TYPE(K) \
@@ -636,9 +725,17 @@ template <typename T>
   return type_cast<T>(unqualified_type(type));
 }
 
+[[nodiscard]] auto classSubobjectOffset(const Type* derivedClassType,
+                                        const Type* baseClassType)
+    -> std::optional<std::int64_t>;
+
 [[nodiscard]] auto memberPointerBaseAdjustment(
     const MemberObjectPointerType* sourceType,
     const MemberObjectPointerType* targetType) -> std::optional<std::int64_t>;
+
+[[nodiscard]] auto memberPointerBaseAdjustment(
+    const MemberFunctionPointerType* sourceType,
+    const MemberFunctionPointerType* targetType) -> std::optional<std::int64_t>;
 
 [[nodiscard]] inline auto getTypeParamInfo(const Type* type)
     -> std::optional<TypeParamInfo> {

@@ -2,17 +2,20 @@
   {
     "name": "__builtin_constant_p",
     "prototype": "constexpr int __builtin_constant_p(...)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_is_constant_evaluated",
     "prototype": "constexpr bool __builtin_is_constant_evaluated()",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_abs",
     "prototype": "constexpr int __builtin_abs(int)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::abs",
       "args": [
@@ -26,6 +29,7 @@
     "name": "__builtin_labs",
     "prototype": "constexpr long __builtin_labs(long)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::abs",
       "args": [
@@ -39,6 +43,7 @@
     "name": "__builtin_llabs",
     "prototype": "constexpr long long __builtin_llabs(long long)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::abs",
       "args": [
@@ -50,47 +55,51 @@
   },
   {
     "name": "__builtin_bswap32",
-    "prototype": "constexpr __UINT32_TYPE__ __builtin_bswap32(__UINT32_TYPE__)",
-    "constexpr": true
+    "prototype": "constexpr unsigned int __builtin_bswap32(unsigned int)",
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_bswap64",
-    "prototype": "constexpr __UINT64_TYPE__ __builtin_bswap64(__UINT64_TYPE__)",
-    "constexpr": true
+    "prototype": "constexpr unsigned long long __builtin_bswap64(unsigned long long)",
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_expect",
     "prototype": "constexpr long __builtin_expect(long, long)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_va_start",
-    "prototype": "void __builtin_va_start(__builtin_va_list, ...)",
+    "prototype": "void __builtin_va_start(__builtin_va_list&, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinVaListAccess"
+    "noexcept": true
   },
   {
     "name": "__builtin_va_end",
-    "prototype": "void __builtin_va_end(__builtin_va_list)",
+    "prototype": "void __builtin_va_end(__builtin_va_list&)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinVaListAccess"
+    "noexcept": true
   },
   {
     "name": "__builtin_va_copy",
-    "prototype": "void __builtin_va_copy(__builtin_va_list, __builtin_va_list)",
+    "prototype": "void __builtin_va_copy(__builtin_va_list&, __builtin_va_list&)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinVaListAccess"
+    "noexcept": true
   },
   {
     "name": "__builtin_c23_va_start",
-    "prototype": "void __builtin_c23_va_start(__builtin_va_list, ...)",
+    "prototype": "void __builtin_c23_va_start(__builtin_va_list&, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinVaListAccess"
+    "noexcept": true
   },
   {
     "name": "__builtin_acosf",
     "prototype": "constexpr float __builtin_acosf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::acos",
       "args": [
@@ -104,6 +113,7 @@
     "name": "__builtin_acos",
     "prototype": "constexpr double __builtin_acos(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::acos",
       "args": [
@@ -117,6 +127,7 @@
     "name": "__builtin_acosl",
     "prototype": "constexpr long double __builtin_acosl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::acos",
       "args": [
@@ -130,6 +141,7 @@
     "name": "__builtin_acoshf",
     "prototype": "constexpr float __builtin_acoshf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::acosh",
       "args": [
@@ -143,6 +155,7 @@
     "name": "__builtin_acosh",
     "prototype": "constexpr double __builtin_acosh(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::acosh",
       "args": [
@@ -156,6 +169,7 @@
     "name": "__builtin_acoshl",
     "prototype": "constexpr long double __builtin_acoshl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::acosh",
       "args": [
@@ -169,6 +183,7 @@
     "name": "__builtin_asinf",
     "prototype": "constexpr float __builtin_asinf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::asin",
       "args": [
@@ -182,6 +197,7 @@
     "name": "__builtin_asin",
     "prototype": "constexpr double __builtin_asin(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::asin",
       "args": [
@@ -195,6 +211,7 @@
     "name": "__builtin_asinl",
     "prototype": "constexpr long double __builtin_asinl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::asin",
       "args": [
@@ -208,6 +225,7 @@
     "name": "__builtin_asinhf",
     "prototype": "constexpr float __builtin_asinhf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::asinh",
       "args": [
@@ -221,6 +239,7 @@
     "name": "__builtin_asinh",
     "prototype": "constexpr double __builtin_asinh(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::asinh",
       "args": [
@@ -234,6 +253,7 @@
     "name": "__builtin_asinhl",
     "prototype": "constexpr long double __builtin_asinhl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::asinh",
       "args": [
@@ -247,6 +267,7 @@
     "name": "__builtin_atanf",
     "prototype": "constexpr float __builtin_atanf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atan",
       "args": [
@@ -260,6 +281,7 @@
     "name": "__builtin_atan",
     "prototype": "constexpr double __builtin_atan(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atan",
       "args": [
@@ -273,6 +295,7 @@
     "name": "__builtin_atanl",
     "prototype": "constexpr long double __builtin_atanl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atan",
       "args": [
@@ -286,6 +309,7 @@
     "name": "__builtin_atan2f",
     "prototype": "constexpr float __builtin_atan2f(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atan2",
       "args": [
@@ -300,6 +324,7 @@
     "name": "__builtin_atan2",
     "prototype": "constexpr double __builtin_atan2(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atan2",
       "args": [
@@ -314,6 +339,7 @@
     "name": "__builtin_atan2l",
     "prototype": "constexpr long double __builtin_atan2l(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atan2",
       "args": [
@@ -328,6 +354,7 @@
     "name": "__builtin_atanhf",
     "prototype": "constexpr float __builtin_atanhf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atanh",
       "args": [
@@ -341,6 +368,7 @@
     "name": "__builtin_atanh",
     "prototype": "constexpr double __builtin_atanh(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atanh",
       "args": [
@@ -354,6 +382,7 @@
     "name": "__builtin_atanhl",
     "prototype": "constexpr long double __builtin_atanhl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::atanh",
       "args": [
@@ -367,6 +396,7 @@
     "name": "__builtin_cbrtf",
     "prototype": "constexpr float __builtin_cbrtf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cbrt",
       "args": [
@@ -380,6 +410,7 @@
     "name": "__builtin_cbrt",
     "prototype": "constexpr double __builtin_cbrt(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cbrt",
       "args": [
@@ -393,6 +424,7 @@
     "name": "__builtin_cbrtl",
     "prototype": "constexpr long double __builtin_cbrtl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cbrt",
       "args": [
@@ -406,6 +438,7 @@
     "name": "__builtin_ceilf",
     "prototype": "constexpr float __builtin_ceilf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ceil",
       "args": [
@@ -419,6 +452,7 @@
     "name": "__builtin_ceil",
     "prototype": "constexpr double __builtin_ceil(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ceil",
       "args": [
@@ -432,6 +466,7 @@
     "name": "__builtin_ceill",
     "prototype": "constexpr long double __builtin_ceill(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ceil",
       "args": [
@@ -445,6 +480,7 @@
     "name": "__builtin_copysignf",
     "prototype": "constexpr float __builtin_copysignf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::copysign",
       "args": [
@@ -459,6 +495,7 @@
     "name": "__builtin_copysign",
     "prototype": "constexpr double __builtin_copysign(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::copysign",
       "args": [
@@ -473,6 +510,7 @@
     "name": "__builtin_copysignl",
     "prototype": "constexpr long double __builtin_copysignl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::copysign",
       "args": [
@@ -487,6 +525,7 @@
     "name": "__builtin_cosf",
     "prototype": "constexpr float __builtin_cosf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cos",
       "args": [
@@ -500,6 +539,7 @@
     "name": "__builtin_cos",
     "prototype": "constexpr double __builtin_cos(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cos",
       "args": [
@@ -513,6 +553,7 @@
     "name": "__builtin_cosl",
     "prototype": "constexpr long double __builtin_cosl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cos",
       "args": [
@@ -526,6 +567,7 @@
     "name": "__builtin_coshf",
     "prototype": "constexpr float __builtin_coshf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cosh",
       "args": [
@@ -539,6 +581,7 @@
     "name": "__builtin_cosh",
     "prototype": "constexpr double __builtin_cosh(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cosh",
       "args": [
@@ -552,6 +595,7 @@
     "name": "__builtin_coshl",
     "prototype": "constexpr long double __builtin_coshl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::cosh",
       "args": [
@@ -562,19 +606,496 @@
     "libcall": true
   },
   {
+    "name": "__builtin_cabsf",
+    "prototype": "float __builtin_cabsf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cabs",
+    "prototype": "double __builtin_cabs(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cabsl",
+    "prototype": "long double __builtin_cabsl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cacosf",
+    "prototype": "_Complex float __builtin_cacosf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cacos",
+    "prototype": "_Complex double __builtin_cacos(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cacosl",
+    "prototype": "_Complex long double __builtin_cacosl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cacoshf",
+    "prototype": "_Complex float __builtin_cacoshf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cacosh",
+    "prototype": "_Complex double __builtin_cacosh(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cacoshl",
+    "prototype": "_Complex long double __builtin_cacoshl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cargf",
+    "prototype": "float __builtin_cargf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_carg",
+    "prototype": "double __builtin_carg(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cargl",
+    "prototype": "long double __builtin_cargl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_casinf",
+    "prototype": "_Complex float __builtin_casinf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_casin",
+    "prototype": "_Complex double __builtin_casin(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_casinl",
+    "prototype": "_Complex long double __builtin_casinl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_casinhf",
+    "prototype": "_Complex float __builtin_casinhf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_casinh",
+    "prototype": "_Complex double __builtin_casinh(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_casinhl",
+    "prototype": "_Complex long double __builtin_casinhl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_catanf",
+    "prototype": "_Complex float __builtin_catanf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_catan",
+    "prototype": "_Complex double __builtin_catan(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_catanl",
+    "prototype": "_Complex long double __builtin_catanl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_catanhf",
+    "prototype": "_Complex float __builtin_catanhf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_catanh",
+    "prototype": "_Complex double __builtin_catanh(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_catanhl",
+    "prototype": "_Complex long double __builtin_catanhl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ccosf",
+    "prototype": "_Complex float __builtin_ccosf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ccos",
+    "prototype": "_Complex double __builtin_ccos(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ccosl",
+    "prototype": "_Complex long double __builtin_ccosl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ccoshf",
+    "prototype": "_Complex float __builtin_ccoshf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ccosh",
+    "prototype": "_Complex double __builtin_ccosh(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ccoshl",
+    "prototype": "_Complex long double __builtin_ccoshl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cexpf",
+    "prototype": "_Complex float __builtin_cexpf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cexp",
+    "prototype": "_Complex double __builtin_cexp(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cexpl",
+    "prototype": "_Complex long double __builtin_cexpl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cimagf",
+    "prototype": "float __builtin_cimagf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cimag",
+    "prototype": "double __builtin_cimag(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cimagl",
+    "prototype": "long double __builtin_cimagl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_clogf",
+    "prototype": "_Complex float __builtin_clogf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_clog",
+    "prototype": "_Complex double __builtin_clog(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_clogl",
+    "prototype": "_Complex long double __builtin_clogl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_conjf",
+    "prototype": "_Complex float __builtin_conjf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_conj",
+    "prototype": "_Complex double __builtin_conj(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_conjl",
+    "prototype": "_Complex long double __builtin_conjl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cpowf",
+    "prototype": "_Complex float __builtin_cpowf(_Complex float, _Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cpow",
+    "prototype": "_Complex double __builtin_cpow(_Complex double, _Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cpowl",
+    "prototype": "_Complex long double __builtin_cpowl(_Complex long double, _Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cprojf",
+    "prototype": "_Complex float __builtin_cprojf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cproj",
+    "prototype": "_Complex double __builtin_cproj(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_cprojl",
+    "prototype": "_Complex long double __builtin_cprojl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_crealf",
+    "prototype": "float __builtin_crealf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_creal",
+    "prototype": "double __builtin_creal(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_creall",
+    "prototype": "long double __builtin_creall(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csinf",
+    "prototype": "_Complex float __builtin_csinf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csin",
+    "prototype": "_Complex double __builtin_csin(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csinl",
+    "prototype": "_Complex long double __builtin_csinl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csinhf",
+    "prototype": "_Complex float __builtin_csinhf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csinh",
+    "prototype": "_Complex double __builtin_csinh(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csinhl",
+    "prototype": "_Complex long double __builtin_csinhl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csqrtf",
+    "prototype": "_Complex float __builtin_csqrtf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csqrt",
+    "prototype": "_Complex double __builtin_csqrt(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_csqrtl",
+    "prototype": "_Complex long double __builtin_csqrtl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ctanf",
+    "prototype": "_Complex float __builtin_ctanf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ctan",
+    "prototype": "_Complex double __builtin_ctan(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ctanl",
+    "prototype": "_Complex long double __builtin_ctanl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ctanhf",
+    "prototype": "_Complex float __builtin_ctanhf(_Complex float)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ctanh",
+    "prototype": "_Complex double __builtin_ctanh(_Complex double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ctanhl",
+    "prototype": "_Complex long double __builtin_ctanhl(_Complex long double)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_complex",
+    "prototype": [
+      "constexpr _Complex float __builtin_complex(float, float)",
+      "constexpr _Complex double __builtin_complex(double, double)",
+      "constexpr _Complex long double __builtin_complex(long double, long double)"
+    ],
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinComplex",
+    "codegen": "codegenBuiltinComplex"
+  },
+  {
     "name": "__builtin___cospif",
     "prototype": "constexpr float __builtin___cospif(float)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin___cospi",
     "prototype": "constexpr double __builtin___cospi(double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_erff",
     "prototype": "constexpr float __builtin_erff(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::erf",
       "args": [
@@ -588,6 +1109,7 @@
     "name": "__builtin_erf",
     "prototype": "constexpr double __builtin_erf(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::erf",
       "args": [
@@ -601,6 +1123,7 @@
     "name": "__builtin_erfl",
     "prototype": "constexpr long double __builtin_erfl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::erf",
       "args": [
@@ -614,6 +1137,7 @@
     "name": "__builtin_erfcf",
     "prototype": "constexpr float __builtin_erfcf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::erfc",
       "args": [
@@ -627,6 +1151,7 @@
     "name": "__builtin_erfc",
     "prototype": "constexpr double __builtin_erfc(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::erfc",
       "args": [
@@ -640,6 +1165,7 @@
     "name": "__builtin_erfcl",
     "prototype": "constexpr long double __builtin_erfcl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::erfc",
       "args": [
@@ -653,6 +1179,7 @@
     "name": "__builtin_expf",
     "prototype": "constexpr float __builtin_expf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::exp",
       "args": [
@@ -666,6 +1193,7 @@
     "name": "__builtin_exp",
     "prototype": "constexpr double __builtin_exp(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::exp",
       "args": [
@@ -679,6 +1207,7 @@
     "name": "__builtin_expl",
     "prototype": "constexpr long double __builtin_expl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::exp",
       "args": [
@@ -692,6 +1221,7 @@
     "name": "__builtin_exp2f",
     "prototype": "constexpr float __builtin_exp2f(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::exp2",
       "args": [
@@ -705,6 +1235,7 @@
     "name": "__builtin_exp2",
     "prototype": "constexpr double __builtin_exp2(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::exp2",
       "args": [
@@ -718,6 +1249,7 @@
     "name": "__builtin_exp2l",
     "prototype": "constexpr long double __builtin_exp2l(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::exp2",
       "args": [
@@ -731,6 +1263,7 @@
     "name": "__builtin_expm1f",
     "prototype": "constexpr float __builtin_expm1f(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::expm1",
       "args": [
@@ -744,6 +1277,7 @@
     "name": "__builtin_expm1",
     "prototype": "constexpr double __builtin_expm1(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::expm1",
       "args": [
@@ -757,6 +1291,7 @@
     "name": "__builtin_expm1l",
     "prototype": "constexpr long double __builtin_expm1l(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::expm1",
       "args": [
@@ -770,6 +1305,7 @@
     "name": "__builtin_fabsf",
     "prototype": "constexpr float __builtin_fabsf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fabs",
       "args": [
@@ -783,6 +1319,7 @@
     "name": "__builtin_fabs",
     "prototype": "constexpr double __builtin_fabs(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fabs",
       "args": [
@@ -796,6 +1333,7 @@
     "name": "__builtin_fabsl",
     "prototype": "constexpr long double __builtin_fabsl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fabs",
       "args": [
@@ -809,6 +1347,7 @@
     "name": "__builtin_fdimf",
     "prototype": "constexpr float __builtin_fdimf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fdim",
       "args": [
@@ -823,6 +1362,7 @@
     "name": "__builtin_fdim",
     "prototype": "constexpr double __builtin_fdim(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fdim",
       "args": [
@@ -837,6 +1377,7 @@
     "name": "__builtin_fdiml",
     "prototype": "constexpr long double __builtin_fdiml(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fdim",
       "args": [
@@ -851,6 +1392,7 @@
     "name": "__builtin_finitef",
     "prototype": "constexpr int __builtin_finitef(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::isfinite",
       "args": [
@@ -863,6 +1405,7 @@
     "name": "__builtin_finite",
     "prototype": "constexpr int __builtin_finite(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::isfinite",
       "args": [
@@ -875,6 +1418,7 @@
     "name": "__builtin_finitel",
     "prototype": "constexpr int __builtin_finitel(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::isfinite",
       "args": [
@@ -887,6 +1431,7 @@
     "name": "__builtin_floorf",
     "prototype": "constexpr float __builtin_floorf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::floor",
       "args": [
@@ -900,6 +1445,7 @@
     "name": "__builtin_floor",
     "prototype": "constexpr double __builtin_floor(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::floor",
       "args": [
@@ -913,6 +1459,7 @@
     "name": "__builtin_floorl",
     "prototype": "constexpr long double __builtin_floorl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::floor",
       "args": [
@@ -926,6 +1473,7 @@
     "name": "__builtin_fmaf",
     "prototype": "constexpr float __builtin_fmaf(float, float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fma",
       "args": [
@@ -941,6 +1489,7 @@
     "name": "__builtin_fma",
     "prototype": "constexpr double __builtin_fma(double, double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fma",
       "args": [
@@ -956,6 +1505,7 @@
     "name": "__builtin_fmal",
     "prototype": "constexpr long double __builtin_fmal(long double, long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fma",
       "args": [
@@ -971,6 +1521,7 @@
     "name": "__builtin_fmaxf",
     "prototype": "constexpr float __builtin_fmaxf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmax",
       "args": [
@@ -985,6 +1536,7 @@
     "name": "__builtin_fmax",
     "prototype": "constexpr double __builtin_fmax(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmax",
       "args": [
@@ -999,6 +1551,7 @@
     "name": "__builtin_fmaxl",
     "prototype": "constexpr long double __builtin_fmaxl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmax",
       "args": [
@@ -1012,22 +1565,26 @@
   {
     "name": "__builtin_fmaximum_numf",
     "prototype": "constexpr float __builtin_fmaximum_numf(float, float)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_fmaximum_num",
     "prototype": "constexpr double __builtin_fmaximum_num(double, double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_fmaximum_numl",
     "prototype": "constexpr long double __builtin_fmaximum_numl(long double, long double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_fminf",
     "prototype": "constexpr float __builtin_fminf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmin",
       "args": [
@@ -1042,6 +1599,7 @@
     "name": "__builtin_fmin",
     "prototype": "constexpr double __builtin_fmin(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmin",
       "args": [
@@ -1056,6 +1614,7 @@
     "name": "__builtin_fminl",
     "prototype": "constexpr long double __builtin_fminl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmin",
       "args": [
@@ -1069,22 +1628,26 @@
   {
     "name": "__builtin_fminimum_numf",
     "prototype": "constexpr float __builtin_fminimum_numf(float, float)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_fminimum_num",
     "prototype": "constexpr double __builtin_fminimum_num(double, double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_fminimum_numl",
     "prototype": "constexpr long double __builtin_fminimum_numl(long double, long double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_fmodf",
     "prototype": "constexpr float __builtin_fmodf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmod",
       "args": [
@@ -1099,6 +1662,7 @@
     "name": "__builtin_fmod",
     "prototype": "constexpr double __builtin_fmod(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmod",
       "args": [
@@ -1113,6 +1677,7 @@
     "name": "__builtin_fmodl",
     "prototype": "constexpr long double __builtin_fmodl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::fmod",
       "args": [
@@ -1127,24 +1692,28 @@
     "name": "__builtin_frexpf",
     "prototype": "float __builtin_frexpf(float, int*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_frexp",
     "prototype": "double __builtin_frexp(double, int*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_frexpl",
     "prototype": "long double __builtin_frexpl(long double, int*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_hypotf",
     "prototype": "constexpr float __builtin_hypotf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::hypot",
       "args": [
@@ -1159,6 +1728,7 @@
     "name": "__builtin_hypot",
     "prototype": "constexpr double __builtin_hypot(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::hypot",
       "args": [
@@ -1173,6 +1743,7 @@
     "name": "__builtin_hypotl",
     "prototype": "constexpr long double __builtin_hypotl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::hypot",
       "args": [
@@ -1187,6 +1758,7 @@
     "name": "__builtin_ilogbf",
     "prototype": "constexpr int __builtin_ilogbf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ilogb",
       "args": [
@@ -1200,6 +1772,7 @@
     "name": "__builtin_ilogb",
     "prototype": "constexpr int __builtin_ilogb(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ilogb",
       "args": [
@@ -1213,6 +1786,7 @@
     "name": "__builtin_ilogbl",
     "prototype": "constexpr int __builtin_ilogbl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ilogb",
       "args": [
@@ -1226,6 +1800,7 @@
     "name": "__builtin_ldexpf",
     "prototype": "constexpr float __builtin_ldexpf(float, int)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ldexp",
       "args": [
@@ -1240,6 +1815,7 @@
     "name": "__builtin_ldexp",
     "prototype": "constexpr double __builtin_ldexp(double, int)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ldexp",
       "args": [
@@ -1254,6 +1830,7 @@
     "name": "__builtin_ldexpl",
     "prototype": "constexpr long double __builtin_ldexpl(long double, int)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::ldexp",
       "args": [
@@ -1268,6 +1845,7 @@
     "name": "__builtin_lgammaf",
     "prototype": "constexpr float __builtin_lgammaf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lgamma",
       "args": [
@@ -1281,6 +1859,7 @@
     "name": "__builtin_lgamma",
     "prototype": "constexpr double __builtin_lgamma(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lgamma",
       "args": [
@@ -1294,6 +1873,7 @@
     "name": "__builtin_lgammal",
     "prototype": "constexpr long double __builtin_lgammal(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lgamma",
       "args": [
@@ -1307,6 +1887,7 @@
     "name": "__builtin_llrintf",
     "prototype": "constexpr long long __builtin_llrintf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::llrint",
       "args": [
@@ -1320,6 +1901,7 @@
     "name": "__builtin_llrint",
     "prototype": "constexpr long long __builtin_llrint(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::llrint",
       "args": [
@@ -1333,6 +1915,7 @@
     "name": "__builtin_llrintl",
     "prototype": "constexpr long long __builtin_llrintl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::llrint",
       "args": [
@@ -1346,6 +1929,7 @@
     "name": "__builtin_llroundf",
     "prototype": "constexpr long long __builtin_llroundf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::llround",
       "args": [
@@ -1359,6 +1943,7 @@
     "name": "__builtin_llround",
     "prototype": "constexpr long long __builtin_llround(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::llround",
       "args": [
@@ -1372,6 +1957,7 @@
     "name": "__builtin_llroundl",
     "prototype": "constexpr long long __builtin_llroundl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::llround",
       "args": [
@@ -1385,6 +1971,7 @@
     "name": "__builtin_logf",
     "prototype": "constexpr float __builtin_logf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log",
       "args": [
@@ -1398,6 +1985,7 @@
     "name": "__builtin_log",
     "prototype": "constexpr double __builtin_log(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log",
       "args": [
@@ -1411,6 +1999,7 @@
     "name": "__builtin_logl",
     "prototype": "constexpr long double __builtin_logl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log",
       "args": [
@@ -1424,6 +2013,7 @@
     "name": "__builtin_log1pf",
     "prototype": "constexpr float __builtin_log1pf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log1p",
       "args": [
@@ -1437,6 +2027,7 @@
     "name": "__builtin_log1p",
     "prototype": "constexpr double __builtin_log1p(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log1p",
       "args": [
@@ -1450,6 +2041,7 @@
     "name": "__builtin_log1pl",
     "prototype": "constexpr long double __builtin_log1pl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log1p",
       "args": [
@@ -1463,6 +2055,7 @@
     "name": "__builtin_log2f",
     "prototype": "constexpr float __builtin_log2f(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log2",
       "args": [
@@ -1476,6 +2069,7 @@
     "name": "__builtin_log2",
     "prototype": "constexpr double __builtin_log2(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log2",
       "args": [
@@ -1489,6 +2083,7 @@
     "name": "__builtin_log2l",
     "prototype": "constexpr long double __builtin_log2l(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log2",
       "args": [
@@ -1502,6 +2097,7 @@
     "name": "__builtin_log10f",
     "prototype": "constexpr float __builtin_log10f(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log10",
       "args": [
@@ -1515,6 +2111,7 @@
     "name": "__builtin_log10",
     "prototype": "constexpr double __builtin_log10(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log10",
       "args": [
@@ -1528,6 +2125,7 @@
     "name": "__builtin_log10l",
     "prototype": "constexpr long double __builtin_log10l(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::log10",
       "args": [
@@ -1541,6 +2139,7 @@
     "name": "__builtin_logbf",
     "prototype": "constexpr float __builtin_logbf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::logb",
       "args": [
@@ -1554,6 +2153,7 @@
     "name": "__builtin_logb",
     "prototype": "constexpr double __builtin_logb(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::logb",
       "args": [
@@ -1567,6 +2167,7 @@
     "name": "__builtin_logbl",
     "prototype": "constexpr long double __builtin_logbl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::logb",
       "args": [
@@ -1580,6 +2181,7 @@
     "name": "__builtin_lrintf",
     "prototype": "constexpr long __builtin_lrintf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lrint",
       "args": [
@@ -1593,6 +2195,7 @@
     "name": "__builtin_lrint",
     "prototype": "constexpr long __builtin_lrint(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lrint",
       "args": [
@@ -1606,6 +2209,7 @@
     "name": "__builtin_lrintl",
     "prototype": "constexpr long __builtin_lrintl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lrint",
       "args": [
@@ -1619,6 +2223,7 @@
     "name": "__builtin_lroundf",
     "prototype": "constexpr long __builtin_lroundf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lround",
       "args": [
@@ -1632,6 +2237,7 @@
     "name": "__builtin_lround",
     "prototype": "constexpr long __builtin_lround(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lround",
       "args": [
@@ -1645,6 +2251,7 @@
     "name": "__builtin_lroundl",
     "prototype": "constexpr long __builtin_lroundl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::lround",
       "args": [
@@ -1658,42 +2265,52 @@
     "name": "__builtin_modff",
     "prototype": "float __builtin_modff(float, float*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_modf",
     "prototype": "double __builtin_modf(double, double*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_modfl",
     "prototype": "long double __builtin_modfl(long double, long double*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_nanf",
     "prototype": "float __builtin_nanf(const char*)",
-    "constexpr": false,
-    "libcall": true
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true,
+    "eval": "evaluateBuiltinNanf"
   },
   {
     "name": "__builtin_nan",
     "prototype": "double __builtin_nan(const char*)",
-    "constexpr": false,
-    "libcall": true
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true,
+    "eval": "evaluateBuiltinNan"
   },
   {
     "name": "__builtin_nanl",
     "prototype": "long double __builtin_nanl(const char*)",
-    "constexpr": false,
-    "libcall": true
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true,
+    "eval": "evaluateBuiltinNanl"
   },
   {
     "name": "__builtin_nearbyintf",
     "prototype": "constexpr float __builtin_nearbyintf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nearbyint",
       "args": [
@@ -1707,6 +2324,7 @@
     "name": "__builtin_nearbyint",
     "prototype": "constexpr double __builtin_nearbyint(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nearbyint",
       "args": [
@@ -1720,6 +2338,7 @@
     "name": "__builtin_nearbyintl",
     "prototype": "constexpr long double __builtin_nearbyintl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nearbyint",
       "args": [
@@ -1733,6 +2352,7 @@
     "name": "__builtin_nextafterf",
     "prototype": "constexpr float __builtin_nextafterf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nextafter",
       "args": [
@@ -1747,6 +2367,7 @@
     "name": "__builtin_nextafter",
     "prototype": "constexpr double __builtin_nextafter(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nextafter",
       "args": [
@@ -1761,6 +2382,7 @@
     "name": "__builtin_nextafterl",
     "prototype": "constexpr long double __builtin_nextafterl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nextafter",
       "args": [
@@ -1775,6 +2397,7 @@
     "name": "__builtin_nexttowardf",
     "prototype": "constexpr float __builtin_nexttowardf(float, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nexttoward",
       "args": [
@@ -1789,6 +2412,7 @@
     "name": "__builtin_nexttoward",
     "prototype": "constexpr double __builtin_nexttoward(double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nexttoward",
       "args": [
@@ -1803,6 +2427,7 @@
     "name": "__builtin_nexttowardl",
     "prototype": "constexpr long double __builtin_nexttowardl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::nexttoward",
       "args": [
@@ -1816,32 +2441,38 @@
   {
     "name": "__builtin___exp10f",
     "prototype": "constexpr float __builtin___exp10f(float)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin___exp10",
     "prototype": "constexpr double __builtin___exp10(double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin___finitef",
     "prototype": "constexpr int __builtin___finitef(float)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin___finite",
     "prototype": "constexpr int __builtin___finite(double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin___finitel",
     "prototype": "constexpr int __builtin___finitel(long double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_powf",
     "prototype": "constexpr float __builtin_powf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::pow",
       "args": [
@@ -1856,6 +2487,7 @@
     "name": "__builtin_pow",
     "prototype": "constexpr double __builtin_pow(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::pow",
       "args": [
@@ -1870,6 +2502,7 @@
     "name": "__builtin_powl",
     "prototype": "constexpr long double __builtin_powl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::pow",
       "args": [
@@ -1884,6 +2517,7 @@
     "name": "__builtin_remainderf",
     "prototype": "constexpr float __builtin_remainderf(float, float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::remainder",
       "args": [
@@ -1898,6 +2532,7 @@
     "name": "__builtin_remainder",
     "prototype": "constexpr double __builtin_remainder(double, double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::remainder",
       "args": [
@@ -1912,6 +2547,7 @@
     "name": "__builtin_remainderl",
     "prototype": "constexpr long double __builtin_remainderl(long double, long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::remainder",
       "args": [
@@ -1926,24 +2562,28 @@
     "name": "__builtin_remquof",
     "prototype": "float __builtin_remquof(float, float, int*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_remquo",
     "prototype": "double __builtin_remquo(double, double, int*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_remquol",
     "prototype": "long double __builtin_remquol(long double, long double, int*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_rintf",
     "prototype": "constexpr float __builtin_rintf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::rint",
       "args": [
@@ -1957,6 +2597,7 @@
     "name": "__builtin_rint",
     "prototype": "constexpr double __builtin_rint(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::rint",
       "args": [
@@ -1970,6 +2611,7 @@
     "name": "__builtin_rintl",
     "prototype": "constexpr long double __builtin_rintl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::rint",
       "args": [
@@ -1983,6 +2625,7 @@
     "name": "__builtin_roundf",
     "prototype": "constexpr float __builtin_roundf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::round",
       "args": [
@@ -1996,6 +2639,7 @@
     "name": "__builtin_round",
     "prototype": "constexpr double __builtin_round(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::round",
       "args": [
@@ -2009,6 +2653,7 @@
     "name": "__builtin_roundl",
     "prototype": "constexpr long double __builtin_roundl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::round",
       "args": [
@@ -2022,24 +2667,28 @@
     "name": "__builtin_roundevenf",
     "prototype": "constexpr float __builtin_roundevenf(float)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_roundeven",
     "prototype": "constexpr double __builtin_roundeven(double)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_roundevenl",
     "prototype": "constexpr long double __builtin_roundevenl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_scalblnf",
     "prototype": "constexpr float __builtin_scalblnf(float, long)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::scalbln",
       "args": [
@@ -2054,6 +2703,7 @@
     "name": "__builtin_scalbln",
     "prototype": "constexpr double __builtin_scalbln(double, long)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::scalbln",
       "args": [
@@ -2068,6 +2718,7 @@
     "name": "__builtin_scalblnl",
     "prototype": "constexpr long double __builtin_scalblnl(long double, long)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::scalbln",
       "args": [
@@ -2082,6 +2733,7 @@
     "name": "__builtin_scalbnf",
     "prototype": "constexpr float __builtin_scalbnf(float, int)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::scalbn",
       "args": [
@@ -2096,6 +2748,7 @@
     "name": "__builtin_scalbn",
     "prototype": "constexpr double __builtin_scalbn(double, int)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::scalbn",
       "args": [
@@ -2110,6 +2763,7 @@
     "name": "__builtin_scalbnl",
     "prototype": "constexpr long double __builtin_scalbnl(long double, int)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::scalbn",
       "args": [
@@ -2124,6 +2778,7 @@
     "name": "__builtin_sinf",
     "prototype": "constexpr float __builtin_sinf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sin",
       "args": [
@@ -2137,6 +2792,7 @@
     "name": "__builtin_sin",
     "prototype": "constexpr double __builtin_sin(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sin",
       "args": [
@@ -2150,6 +2806,7 @@
     "name": "__builtin_sinl",
     "prototype": "constexpr long double __builtin_sinl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sin",
       "args": [
@@ -2163,24 +2820,28 @@
     "name": "__builtin_sincosf",
     "prototype": "void __builtin_sincosf(float, float*, float*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_sincos",
     "prototype": "void __builtin_sincos(double, double*, double*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_sincosl",
     "prototype": "void __builtin_sincosl(long double, long double*, long double*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_sinhf",
     "prototype": "constexpr float __builtin_sinhf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sinh",
       "args": [
@@ -2194,6 +2855,7 @@
     "name": "__builtin_sinh",
     "prototype": "constexpr double __builtin_sinh(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sinh",
       "args": [
@@ -2207,6 +2869,7 @@
     "name": "__builtin_sinhl",
     "prototype": "constexpr long double __builtin_sinhl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sinh",
       "args": [
@@ -2219,17 +2882,20 @@
   {
     "name": "__builtin___sinpif",
     "prototype": "constexpr float __builtin___sinpif(float)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin___sinpi",
     "prototype": "constexpr double __builtin___sinpi(double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_sqrtf",
     "prototype": "constexpr float __builtin_sqrtf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sqrt",
       "args": [
@@ -2243,6 +2909,7 @@
     "name": "__builtin_sqrt",
     "prototype": "constexpr double __builtin_sqrt(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sqrt",
       "args": [
@@ -2256,6 +2923,7 @@
     "name": "__builtin_sqrtl",
     "prototype": "constexpr long double __builtin_sqrtl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::sqrt",
       "args": [
@@ -2269,6 +2937,7 @@
     "name": "__builtin_tanf",
     "prototype": "constexpr float __builtin_tanf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tan",
       "args": [
@@ -2282,6 +2951,7 @@
     "name": "__builtin_tan",
     "prototype": "constexpr double __builtin_tan(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tan",
       "args": [
@@ -2295,6 +2965,7 @@
     "name": "__builtin_tanl",
     "prototype": "constexpr long double __builtin_tanl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tan",
       "args": [
@@ -2308,6 +2979,7 @@
     "name": "__builtin_tanhf",
     "prototype": "constexpr float __builtin_tanhf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tanh",
       "args": [
@@ -2321,6 +2993,7 @@
     "name": "__builtin_tanh",
     "prototype": "constexpr double __builtin_tanh(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tanh",
       "args": [
@@ -2334,6 +3007,7 @@
     "name": "__builtin_tanhl",
     "prototype": "constexpr long double __builtin_tanhl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tanh",
       "args": [
@@ -2346,17 +3020,20 @@
   {
     "name": "__builtin___tanpif",
     "prototype": "constexpr float __builtin___tanpif(float)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin___tanpi",
     "prototype": "constexpr double __builtin___tanpi(double)",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true
   },
   {
     "name": "__builtin_tgammaf",
     "prototype": "constexpr float __builtin_tgammaf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tgamma",
       "args": [
@@ -2370,6 +3047,7 @@
     "name": "__builtin_tgamma",
     "prototype": "constexpr double __builtin_tgamma(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tgamma",
       "args": [
@@ -2383,6 +3061,7 @@
     "name": "__builtin_tgammal",
     "prototype": "constexpr long double __builtin_tgammal(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::tgamma",
       "args": [
@@ -2396,6 +3075,7 @@
     "name": "__builtin_truncf",
     "prototype": "constexpr float __builtin_truncf(float)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::trunc",
       "args": [
@@ -2409,6 +3089,7 @@
     "name": "__builtin_trunc",
     "prototype": "constexpr double __builtin_trunc(double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::trunc",
       "args": [
@@ -2422,6 +3103,7 @@
     "name": "__builtin_truncl",
     "prototype": "constexpr long double __builtin_truncl(long double)",
     "constexpr": true,
+    "noexcept": true,
     "eval": {
       "fn": "std::trunc",
       "args": [
@@ -2435,12 +3117,14 @@
     "name": "__builtin_bcmp",
     "prototype": "constexpr int __builtin_bcmp(const void*, const void*, __SIZE_TYPE__)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_bzero",
     "prototype": "void __builtin_bzero(void*, __SIZE_TYPE__)",
     "constexpr": false,
+    "noexcept": true,
     "codegen": "codegenBuiltinBzero",
     "libcall": true
   },
@@ -2448,40 +3132,47 @@
     "name": "__builtin_bcopy",
     "prototype": "void __builtin_bcopy(const void*, void*, __SIZE_TYPE__)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_index",
     "prototype": "constexpr char* __builtin_index(const char*, int)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_memchr",
     "prototype": "constexpr void* __builtin_memchr(const void*, int, __SIZE_TYPE__)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_memcmp",
     "prototype": "constexpr int __builtin_memcmp(const void*, const void*, __SIZE_TYPE__)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_memcpy",
     "prototype": "void* __builtin_memcpy(void*, const void*, __SIZE_TYPE__)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__builtin_memmove",
     "prototype": "void* __builtin_memmove(void*, const void*, __SIZE_TYPE__)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__builtin_memset",
     "prototype": "void* __builtin_memset(void*, int, __SIZE_TYPE__)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__builtin_memccpy",
@@ -2493,24 +3184,28 @@
     "name": "__builtin_mempcpy",
     "prototype": "void* __builtin_mempcpy(void*, const void*, __SIZE_TYPE__)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_rindex",
     "prototype": "constexpr char* __builtin_rindex(const char*, int)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_stpcpy",
     "prototype": "char* __builtin_stpcpy(char*, const char*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_stpncpy",
     "prototype": "char* __builtin_stpncpy(char*, const char*, __SIZE_TYPE__)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
@@ -2523,30 +3218,35 @@
     "name": "__builtin_strcat",
     "prototype": "char* __builtin_strcat(char*, const char*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strchr",
     "prototype": "constexpr char* __builtin_strchr(const char*, int)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strcmp",
     "prototype": "constexpr int __builtin_strcmp(const char*, const char*)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strcpy",
     "prototype": "char* __builtin_strcpy(char*, const char*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strdup",
     "prototype": "char* __builtin_strdup(const char*)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
@@ -2559,36 +3259,42 @@
     "name": "__builtin_strlen",
     "prototype": "constexpr __SIZE_TYPE__ __builtin_strlen(const char*)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strncat",
     "prototype": "char* __builtin_strncat(char*, const char*, __SIZE_TYPE__)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strncmp",
     "prototype": "constexpr int __builtin_strncmp(const char*, const char*, __SIZE_TYPE__)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strncpy",
     "prototype": "char* __builtin_strncpy(char*, const char*, __SIZE_TYPE__)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strspn",
     "prototype": "constexpr __SIZE_TYPE__ __builtin_strspn(const char*, const char*)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strstr",
     "prototype": "constexpr char* __builtin_strstr(const char*, const char*)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
@@ -2601,6 +3307,7 @@
     "name": "__builtin_strcspn",
     "prototype": "constexpr __SIZE_TYPE__ __builtin_strcspn(const char*, const char*)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
@@ -2625,18 +3332,21 @@
     "name": "__builtin_strndup",
     "prototype": "char* __builtin_strndup(const char*, __SIZE_TYPE__)",
     "constexpr": false,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strpbrk",
     "prototype": "constexpr char* __builtin_strpbrk(const char*, const char*)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
     "name": "__builtin_strrchr",
     "prototype": "constexpr char* __builtin_strrchr(const char*, int)",
     "constexpr": true,
+    "noexcept": true,
     "libcall": true
   },
   {
@@ -2646,42 +3356,38 @@
     "libcall": true
   },
   {
-    "name": "__builtin_ctz",
-    "prototype": "constexpr int __builtin_ctz(unsigned int)",
-    "constexpr": true,
-    "codegen": "codegenBuiltinCtz"
-  },
-  {
-    "name": "__builtin_ctzl",
-    "prototype": "constexpr int __builtin_ctzl(unsigned long)",
-    "constexpr": true,
-    "codegen": "codegenBuiltinCtz"
-  },
-  {
-    "name": "__builtin_ctzll",
-    "prototype": "constexpr int __builtin_ctzll(unsigned long long)",
-    "constexpr": true,
-    "codegen": "codegenBuiltinCtz"
-  },
-  {
     "name": "__builtin_inf",
     "prototype": "constexpr double __builtin_inf()",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinHugeVal",
+    "codegen": "codegenBuiltinHugeVal"
   },
   {
     "name": "__builtin_inff",
     "prototype": "constexpr float __builtin_inff()",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinHugeValf",
+    "codegen": "codegenBuiltinHugeValf"
   },
   {
     "name": "__builtin_infl",
     "prototype": "constexpr long double __builtin_infl()",
-    "constexpr": true
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinHugeVall",
+    "codegen": "codegenBuiltinHugeVall"
   },
   {
     "name": "__builtin_isfinite",
-    "prototype": "bool __builtin_isfinite(double)",
+    "prototype": [
+      "constexpr bool __builtin_isfinite(float)",
+      "constexpr bool __builtin_isfinite(double)",
+      "constexpr bool __builtin_isfinite(long double)"
+    ],
     "constexpr": true,
+    "noexcept": true,
     "codegen": "codegenBuiltinIsFinite",
     "eval": {
       "fn": "std::isfinite",
@@ -2693,8 +3399,13 @@
   },
   {
     "name": "__builtin_isinf",
-    "prototype": "bool __builtin_isinf(double)",
+    "prototype": [
+      "constexpr bool __builtin_isinf(float)",
+      "constexpr bool __builtin_isinf(double)",
+      "constexpr bool __builtin_isinf(long double)"
+    ],
     "constexpr": true,
+    "noexcept": true,
     "codegen": "codegenBuiltinIsInf",
     "eval": {
       "fn": "std::isinf",
@@ -2706,8 +3417,13 @@
   },
   {
     "name": "__builtin_isnan",
-    "prototype": "bool __builtin_isnan(double)",
+    "prototype": [
+      "constexpr bool __builtin_isnan(float)",
+      "constexpr bool __builtin_isnan(double)",
+      "constexpr bool __builtin_isnan(long double)"
+    ],
     "constexpr": true,
+    "noexcept": true,
     "codegen": "codegenBuiltinIsNan",
     "eval": {
       "fn": "std::isnan",
@@ -2719,13 +3435,20 @@
   },
   {
     "name": "__builtin_isnormal",
-    "prototype": "bool __builtin_isnormal(double)",
-    "constexpr": false
+    "prototype": [
+      "constexpr bool __builtin_isnormal(float)",
+      "constexpr bool __builtin_isnormal(double)",
+      "constexpr bool __builtin_isnormal(long double)"
+    ],
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__builtin_unreachable",
     "prototype": "void __builtin_unreachable()",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true,
+    "noreturn": true
   },
   {
     "name": "__c11_atomic_init",
@@ -2802,17 +3525,21 @@
   {
     "name": "__c11_atomic_thread_fence",
     "prototype": "void __c11_atomic_thread_fence(int)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__c11_atomic_signal_fence",
     "prototype": "void __c11_atomic_signal_fence(int)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__c11_atomic_is_lock_free",
-    "prototype": "int __c11_atomic_is_lock_free(__SIZE_TYPE__)",
-    "constexpr": false
+    "prototype": "constexpr bool __c11_atomic_is_lock_free(__SIZE_TYPE__)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinC11AtomicIsLockFree"
   },
   {
     "name": "__atomic_load_n",
@@ -2937,103 +3664,139 @@
   {
     "name": "__atomic_test_and_set",
     "prototype": "bool __atomic_test_and_set(volatile void*, int)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__atomic_clear",
     "prototype": "void __atomic_clear(volatile void*, int)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__atomic_thread_fence",
     "prototype": "void __atomic_thread_fence(int)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__atomic_signal_fence",
     "prototype": "void __atomic_signal_fence(int)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__atomic_always_lock_free",
-    "prototype": "bool __atomic_always_lock_free(__SIZE_TYPE__, const volatile void*)",
-    "constexpr": false
+    "prototype": "constexpr bool __atomic_always_lock_free(__SIZE_TYPE__, const volatile void*)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinAtomicAlwaysLockFree"
   },
   {
     "name": "__atomic_is_lock_free",
-    "prototype": "bool __atomic_is_lock_free(__SIZE_TYPE__, const volatile void*)",
-    "constexpr": false
+    "prototype": "constexpr bool __atomic_is_lock_free(__SIZE_TYPE__, const volatile void*)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinAtomicIsLockFree"
+  },
+  {
+    "name": "__builtin_COLUMN",
+    "prototype": "unsigned __builtin_COLUMN()",
+    "constexpr": true,
+    "consteval": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinColumn"
+  },
+  {
+    "name": "__builtin_source_location",
+    "prototype": "const void* __builtin_source_location()",
+    "constexpr": true,
+    "consteval": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinSourceLocation",
+    "typeCheck": "checkBuiltinSourceLocation"
   },
   {
     "name": "__builtin_LINE",
-    "prototype": "constexpr int __builtin_LINE()",
+    "prototype": "unsigned __builtin_LINE()",
     "constexpr": true,
-    "constEval": "evaluateBuiltinLine",
-    "codegen": "codegenBuiltinLine"
+    "noexcept": true,
+    "eval": "evaluateBuiltinLine",
+    "consteval": true
   },
   {
     "name": "__builtin_FILE",
-    "prototype": "constexpr const char* __builtin_FILE()",
+    "prototype": "const char* __builtin_FILE()",
     "constexpr": true,
-    "constEval": "evaluateBuiltinFile",
-    "codegen": "codegenBuiltinFile"
+    "noexcept": true,
+    "eval": "evaluateBuiltinFile",
+    "consteval": true
   },
   {
     "name": "__builtin_FUNCTION",
-    "prototype": "constexpr const char* __builtin_FUNCTION()",
+    "prototype": "const char* __builtin_FUNCTION()",
     "constexpr": true,
-    "constEval": "evaluateBuiltinFunction",
-    "codegen": "codegenBuiltinFunction"
+    "noexcept": true,
+    "eval": "evaluateBuiltinFunction",
+    "consteval": true
   },
   {
     "name": "__builtin_huge_val",
     "prototype": "constexpr double __builtin_huge_val()",
     "constexpr": true,
-    "constEval": "evaluateBuiltinHugeVal",
+    "noexcept": true,
+    "eval": "evaluateBuiltinHugeVal",
     "codegen": "codegenBuiltinHugeVal"
   },
   {
     "name": "__builtin_huge_valf",
     "prototype": "constexpr float __builtin_huge_valf()",
     "constexpr": true,
-    "constEval": "evaluateBuiltinHugeValf",
+    "noexcept": true,
+    "eval": "evaluateBuiltinHugeValf",
     "codegen": "codegenBuiltinHugeValf"
   },
   {
     "name": "__builtin_huge_vall",
     "prototype": "constexpr long double __builtin_huge_vall()",
     "constexpr": true,
-    "constEval": "evaluateBuiltinHugeVall",
+    "noexcept": true,
+    "eval": "evaluateBuiltinHugeVall",
     "codegen": "codegenBuiltinHugeVall"
   },
   {
     "name": "__builtin_nans",
     "prototype": "double __builtin_nans(const char*)",
     "constexpr": false,
+    "noexcept": true,
     "codegen": "codegenBuiltinNans"
   },
   {
     "name": "__builtin_nansf",
     "prototype": "float __builtin_nansf(const char*)",
     "constexpr": false,
+    "noexcept": true,
     "codegen": "codegenBuiltinNansf"
   },
   {
     "name": "__builtin_nansl",
     "prototype": "long double __builtin_nansl(const char*)",
     "constexpr": false,
+    "noexcept": true,
     "codegen": "codegenBuiltinNansl"
   },
   {
     "name": "__builtin_alloca",
     "prototype": "void* __builtin_alloca(__SIZE_TYPE__)",
     "constexpr": false,
+    "noexcept": true,
     "codegen": "codegenBuiltinAlloca"
   },
   {
     "name": "__builtin_assume_aligned",
     "prototype": "void* __builtin_assume_aligned(const void*, __SIZE_TYPE__, ...)",
     "constexpr": false,
+    "noexcept": true,
     "typeCheck": "checkBuiltinAssumeAligned",
     "codegen": "codegenBuiltinAssumeAligned"
   },
@@ -3047,6 +3810,7 @@
     "name": "__builtin_operator_delete",
     "prototype": "void __builtin_operator_delete(void*, ...)",
     "constexpr": false,
+    "noexcept": true,
     "typeCheck": "checkBuiltinOperatorDelete"
   },
   {
@@ -3056,16 +3820,32 @@
     "typeCheck": "checkBuiltinInvoke"
   },
   {
+    "name": "__builtin_mul_overflow",
+    "prototype": "bool __builtin_mul_overflow(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinArithmeticOverflow",
+    "typeCheck": "checkBuiltinArithmeticOverflow",
+    "codegen": "codegenBuiltinArithmeticOverflow"
+  },
+  {
     "name": "__builtin_addressof",
     "prototype": "void* __builtin_addressof(...)",
-    "constexpr": false,
+    "constexpr": true,
+    "eval": "evaluateBuiltinAddressof",
+    "noexcept": true,
     "typeCheck": "checkBuiltinAddressof",
     "codegen": "codegenBuiltinAddressof"
   },
   {
     "name": "__builtin_signbit",
-    "prototype": "bool __builtin_signbit(double)",
+    "prototype": [
+      "constexpr bool __builtin_signbit(float)",
+      "constexpr bool __builtin_signbit(double)",
+      "constexpr bool __builtin_signbit(long double)"
+    ],
     "constexpr": true,
+    "noexcept": true,
     "codegen": "codegenBuiltinSignbit",
     "eval": {
       "fn": "std::signbit",
@@ -3078,20 +3858,602 @@
   {
     "name": "__builtin_fpclassify",
     "prototype": "int __builtin_fpclassify(int, int, int, int, int, ...)",
-    "constexpr": false
+    "constexpr": false,
+    "noexcept": true
   },
   {
-    "name": "__builtin_ctzg",
-    "prototype": "int __builtin_ctzg(...)",
-    "constexpr": false,
-    "typeCheck": "checkBuiltinCountZerosGeneric",
-    "codegen": "codegenBuiltinCountZerosGeneric"
+    "name": "__builtin_clz",
+    "prototype": "constexpr int __builtin_clz(unsigned int)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_clzl",
+    "prototype": "constexpr int __builtin_clzl(unsigned long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_clzll",
+    "prototype": "constexpr int __builtin_clzll(unsigned long long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_ctz",
+    "prototype": "constexpr int __builtin_ctz(unsigned int)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_ctzl",
+    "prototype": "constexpr int __builtin_ctzl(unsigned long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_ctzll",
+    "prototype": "constexpr int __builtin_ctzll(unsigned long long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_popcount",
+    "prototype": "constexpr int __builtin_popcount(unsigned int)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_popcountl",
+    "prototype": "constexpr int __builtin_popcountl(unsigned long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_popcountll",
+    "prototype": "constexpr int __builtin_popcountll(unsigned long long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_parity",
+    "prototype": "constexpr int __builtin_parity(unsigned int)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_parityl",
+    "prototype": "constexpr int __builtin_parityl(unsigned long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_parityll",
+    "prototype": "constexpr int __builtin_parityll(unsigned long long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_ffs",
+    "prototype": "constexpr int __builtin_ffs(int)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_ffsl",
+    "prototype": "constexpr int __builtin_ffsl(long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_ffsll",
+    "prototype": "constexpr int __builtin_ffsll(long long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_clrsb",
+    "prototype": "constexpr int __builtin_clrsb(int)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_clrsbl",
+    "prototype": "constexpr int __builtin_clrsbl(long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_clrsbll",
+    "prototype": "constexpr int __builtin_clrsbll(long long)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
   },
   {
     "name": "__builtin_clzg",
-    "prototype": "int __builtin_clzg(...)",
+    "constexpr": true,
+    "genericMacro": {
+      "parameter": "x",
+      "associations": [
+        {
+          "type": "unsigned char",
+          "expansion": "__builtin_clz((unsigned int)(x)) - 24"
+        },
+        {
+          "type": "unsigned short",
+          "expansion": "__builtin_clzs(x)"
+        },
+        {
+          "type": "unsigned int",
+          "expansion": "__builtin_clz(x)"
+        },
+        {
+          "type": "unsigned long",
+          "expansion": "__builtin_clzl(x)"
+        },
+        {
+          "type": "unsigned long long",
+          "expansion": "__builtin_clzll(x)"
+        },
+        {
+          "type": "unsigned __int128",
+          "expansion": "((unsigned long long)((x) >> 64) ? __builtin_clzll((unsigned long long)((x) >> 64)) : 64 + __builtin_clzll((unsigned long long)(x)))"
+        }
+      ],
+      "zeroFallbackParameter": "fallback",
+      "zeroFallbackType": "int"
+    }
+  },
+  {
+    "name": "__builtin_ctzg",
+    "constexpr": true,
+    "genericMacro": {
+      "parameter": "x",
+      "associations": [
+        {
+          "type": "unsigned char",
+          "expansion": "__builtin_ctz((unsigned int)(x))"
+        },
+        {
+          "type": "unsigned short",
+          "expansion": "__builtin_ctzs(x)"
+        },
+        {
+          "type": "unsigned int",
+          "expansion": "__builtin_ctz(x)"
+        },
+        {
+          "type": "unsigned long",
+          "expansion": "__builtin_ctzl(x)"
+        },
+        {
+          "type": "unsigned long long",
+          "expansion": "__builtin_ctzll(x)"
+        },
+        {
+          "type": "unsigned __int128",
+          "expansion": "((unsigned long long)(x) ? __builtin_ctzll((unsigned long long)(x)) : 64 + __builtin_ctzll((unsigned long long)((x) >> 64)))"
+        }
+      ],
+      "zeroFallbackParameter": "fallback",
+      "zeroFallbackType": "int"
+    }
+  },
+  {
+    "name": "__builtin_popcountg",
+    "constexpr": true,
+    "genericMacro": {
+      "parameter": "x",
+      "associations": [
+        {
+          "type": "unsigned char",
+          "expansion": "__builtin_popcount((unsigned int)(x))"
+        },
+        {
+          "type": "unsigned short",
+          "expansion": "__builtin_popcount((unsigned int)(x))"
+        },
+        {
+          "type": "unsigned int",
+          "expansion": "__builtin_popcount(x)"
+        },
+        {
+          "type": "unsigned long",
+          "expansion": "__builtin_popcountl(x)"
+        },
+        {
+          "type": "unsigned long long",
+          "expansion": "__builtin_popcountll(x)"
+        },
+        {
+          "type": "unsigned __int128",
+          "expansion": "(__builtin_popcountll((unsigned long long)(x)) + __builtin_popcountll((unsigned long long)((x) >> 64)))"
+        }
+      ]
+    }
+  },
+  {
+    "name": "__builtin_clzs",
+    "prototype": "constexpr int __builtin_clzs(unsigned short)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin_ctzs",
+    "prototype": "constexpr int __builtin_ctzs(unsigned short)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
+  },
+  {
+    "name": "__builtin__Exit",
+    "prototype": "void __builtin__Exit(int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinCountZerosGeneric",
-    "codegen": "codegenBuiltinCountZerosGeneric"
+    "noreturn": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_abort",
+    "prototype": "void __builtin_abort()",
+    "constexpr": false,
+    "noexcept": true,
+    "noreturn": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_aligned_alloc",
+    "prototype": "void* __builtin_aligned_alloc(__SIZE_TYPE__, __SIZE_TYPE__)",
+    "constexpr": false,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_exit",
+    "prototype": "void __builtin_exit(int)",
+    "constexpr": false,
+    "noreturn": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_strtod",
+    "prototype": "double __builtin_strtod(const char*, char**)",
+    "constexpr": false,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_strtof",
+    "prototype": "float __builtin_strtof(const char*, char**)",
+    "constexpr": false,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_strtol",
+    "prototype": "long __builtin_strtol(const char*, char**, int)",
+    "constexpr": false,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_strtold",
+    "prototype": "long double __builtin_strtold(const char*, char**)",
+    "constexpr": false,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_strtoll",
+    "prototype": "long long __builtin_strtoll(const char*, char**, int)",
+    "constexpr": false,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_strtoul",
+    "prototype": "unsigned long __builtin_strtoul(const char*, char**, int)",
+    "constexpr": false,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_strtoull",
+    "prototype": "unsigned long long __builtin_strtoull(const char*, char**, int)",
+    "constexpr": false,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_wcschr",
+    "prototype": "constexpr wchar_t* __builtin_wcschr(const wchar_t*, wchar_t)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_wcscmp",
+    "prototype": "constexpr int __builtin_wcscmp(const wchar_t*, const wchar_t*)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_wcslen",
+    "prototype": "constexpr __SIZE_TYPE__ __builtin_wcslen(const wchar_t*)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_wcsncmp",
+    "prototype": "constexpr int __builtin_wcsncmp(const wchar_t*, const wchar_t*, __SIZE_TYPE__)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_wmemchr",
+    "prototype": "constexpr wchar_t* __builtin_wmemchr(const wchar_t*, wchar_t, __SIZE_TYPE__)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_wmemcmp",
+    "prototype": "constexpr int __builtin_wmemcmp(const wchar_t*, const wchar_t*, __SIZE_TYPE__)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_wmemcpy",
+    "prototype": "constexpr wchar_t* __builtin_wmemcpy(wchar_t*, const wchar_t*, __SIZE_TYPE__)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_wmemmove",
+    "prototype": "constexpr wchar_t* __builtin_wmemmove(wchar_t*, const wchar_t*, __SIZE_TYPE__)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isalnum",
+    "prototype": "int __builtin_isalnum(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isalpha",
+    "prototype": "int __builtin_isalpha(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isblank",
+    "prototype": "int __builtin_isblank(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_iscntrl",
+    "prototype": "int __builtin_iscntrl(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isdigit",
+    "prototype": "int __builtin_isdigit(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isgraph",
+    "prototype": "int __builtin_isgraph(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_islower",
+    "prototype": "int __builtin_islower(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isprint",
+    "prototype": "int __builtin_isprint(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_ispunct",
+    "prototype": "int __builtin_ispunct(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isspace",
+    "prototype": "int __builtin_isspace(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isupper",
+    "prototype": "int __builtin_isupper(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isxdigit",
+    "prototype": "int __builtin_isxdigit(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_tolower",
+    "prototype": "int __builtin_tolower(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_toupper",
+    "prototype": "int __builtin_toupper(int)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_isgreater",
+    "prototype": "constexpr bool __builtin_isgreater(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinFloatComparison",
+    "codegen": "codegenBuiltinFloatComparison",
+    "typeCheck": "checkBuiltinFloatComparison"
+  },
+  {
+    "name": "__builtin_isgreaterequal",
+    "prototype": "constexpr bool __builtin_isgreaterequal(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinFloatComparison",
+    "codegen": "codegenBuiltinFloatComparison",
+    "typeCheck": "checkBuiltinFloatComparison"
+  },
+  {
+    "name": "__builtin_isless",
+    "prototype": "constexpr bool __builtin_isless(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinFloatComparison",
+    "codegen": "codegenBuiltinFloatComparison",
+    "typeCheck": "checkBuiltinFloatComparison"
+  },
+  {
+    "name": "__builtin_islessequal",
+    "prototype": "constexpr bool __builtin_islessequal(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinFloatComparison",
+    "codegen": "codegenBuiltinFloatComparison",
+    "typeCheck": "checkBuiltinFloatComparison"
+  },
+  {
+    "name": "__builtin_islessgreater",
+    "prototype": "constexpr bool __builtin_islessgreater(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinFloatComparison",
+    "codegen": "codegenBuiltinFloatComparison",
+    "typeCheck": "checkBuiltinFloatComparison"
+  },
+  {
+    "name": "__builtin_isunordered",
+    "prototype": "constexpr bool __builtin_isunordered(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinFloatComparison",
+    "codegen": "codegenBuiltinFloatComparison",
+    "typeCheck": "checkBuiltinFloatComparison"
+  },
+  {
+    "name": "__builtin_trap",
+    "prototype": "void __builtin_trap()",
+    "constexpr": false,
+    "noexcept": true,
+    "noreturn": true
+  },
+  {
+    "name": "__builtin_vsnprintf",
+    "prototype": "int __builtin_vsnprintf(char*, __SIZE_TYPE__, const char*, __builtin_va_list&)",
+    "constexpr": false,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
+    "name": "__builtin_add_overflow",
+    "prototype": "constexpr bool __builtin_add_overflow(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinArithmeticOverflow",
+    "typeCheck": "checkBuiltinArithmeticOverflow",
+    "codegen": "codegenBuiltinArithmeticOverflow"
+  },
+  {
+    "name": "__builtin_sub_overflow",
+    "prototype": "constexpr bool __builtin_sub_overflow(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinArithmeticOverflow",
+    "typeCheck": "checkBuiltinArithmeticOverflow",
+    "codegen": "codegenBuiltinArithmeticOverflow"
+  },
+  {
+    "name": "__builtin_coro_resume",
+    "prototype": "void __builtin_coro_resume(void*)",
+    "constexpr": false
+  },
+  {
+    "name": "__builtin_coro_destroy",
+    "prototype": "void __builtin_coro_destroy(void*)",
+    "constexpr": false
+  },
+  {
+    "name": "__builtin_coro_done",
+    "prototype": "bool __builtin_coro_done(void*)",
+    "constexpr": false,
+    "noexcept": true
+  },
+  {
+    "name": "__builtin_coro_promise",
+    "prototype": "void* __builtin_coro_promise(void*, int, bool)",
+    "constexpr": false,
+    "noexcept": true
   }
 ]

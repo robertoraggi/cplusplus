@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/source_location.h>
 #include <cxx/types_fwd.h>
 
 namespace cxx {
@@ -59,7 +60,13 @@ class [[nodiscard]] DeclSpecs {
 
   void accept(SpecifierAST* specifier);
 
+  [[nodiscard]] auto makeComplexType(const Type* type) const -> const Type*;
+  [[nodiscard]] auto makeAtomicType(const Type* type,
+                                    SourceLocation location) const
+      -> const Type*;
+
   TemplateDeclarationAST* templateHead = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
 
   bool isTypedef = false;
   bool isFriend = false;
@@ -73,7 +80,7 @@ class [[nodiscard]] DeclSpecs {
   bool isConst = false;
   bool isVolatile = false;
   bool isRestrict = false;
-  bool isAtomic = true;
+  AtomicQualifierAST* atomicQualifier = nullptr;
 
   bool isStatic = false;
   bool isThreadLocal = false;
@@ -92,7 +99,7 @@ class [[nodiscard]] DeclSpecs {
   bool isLong = false;
   bool isLongLong = false;
 
-  bool isComplex = false;
+  ComplexTypeSpecifierAST* complexTypeSpecifier = nullptr;
 
   bool isAuto = false;
   bool isDecltypeAuto = false;

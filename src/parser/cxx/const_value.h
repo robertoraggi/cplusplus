@@ -23,6 +23,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/cxx_fwd.h>
 #include <cxx/literals_fwd.h>
+#include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
@@ -37,9 +38,15 @@
 namespace cxx {
 class Meta;
 class InitializerList;
+class ConstComplex;
 class ConstObject;
 class ConstAddress;
 class ConstLabelAddress;
+
+struct DefaultInitializerContext {
+  SourceLocation location;
+  ScopeSymbol* scope = nullptr;
+};
 
 struct IndeterminateValue {
   auto operator==(const IndeterminateValue&) const -> bool = default;
@@ -50,92 +57,73 @@ using ConstValue =
                  long double, std::shared_ptr<Meta>,
                  std::shared_ptr<InitializerList>, std::shared_ptr<ConstObject>,
                  std::shared_ptr<ConstAddress>,
-                 std::shared_ptr<ConstLabelAddress>, IndeterminateValue>;
+                 std::shared_ptr<ConstLabelAddress>,
+                 std::shared_ptr<ConstComplex>, IndeterminateValue>;
 
 class InitializerList {
  public:
   std::vector<std::tuple<ConstValue, const Type*>> elements;
 };
 
+class ConstComplex {
+ public:
+  ConstComplex() = default;
+
+  ConstComplex(ConstValue real, ConstValue imag)
+      : real_(std::move(real)), imag_(std::move(imag)) {}
+
+  [[nodiscard]] auto real() const -> const ConstValue& { return real_; }
+  [[nodiscard]] auto imag() const -> const ConstValue& { return imag_; }
+
+  void setReal(ConstValue value) { real_ = std::move(value); }
+  void setImag(ConstValue value) { imag_ = std::move(value); }
+
+ private:
+  ConstValue real_;
+  ConstValue imag_;
+};
+
 class ConstObject {
  public:
-  struct Field {
+  struct Member {
     const Symbol* symbol = nullptr;
     ConstValue value;
   };
 
+  ConstObject() = default;
+
   explicit ConstObject(const Type* type) : type_(type) {}
 
-  ConstObject(const Type* type, std::deque<Field> fields)
-      : type_(type), fields_(std::move(fields)) {}
+  ConstObject(const Type* type, std::deque<Member> members)
+      : type_(type), members_(std::move(members)) {}
 
   [[nodiscard]] auto type() const -> const Type* { return type_; }
 
-  [[nodiscard]] auto fields() const -> const std::deque<Field>& {
-    return fields_;
+  void setType(const Type* type) { type_ = type; }
+
+  [[nodiscard]] auto members() const -> const std::deque<Member>& {
+    return members_;
   }
 
-  [[nodiscard]] auto mutableFields() -> std::deque<Field>& { return fields_; }
-
-  void addField(const Symbol* symbol, ConstValue value) {
-    fields_.push_back({symbol, std::move(value)});
+  [[nodiscard]] auto mutableMembers() -> std::deque<Member>& {
+    return members_;
   }
 
-  [[nodiscard]] auto getField(const Symbol* symbol) const -> const ConstValue* {
-    for (const auto& f : fields_) {
-      if (f.symbol == symbol) return &f.value;
-    }
-    for (const auto& base : bases_) {
-      if (auto obj = std::get_if<std::shared_ptr<ConstObject>>(&base)) {
-        if (*obj) {
-          if (auto found = (*obj)->getField(symbol)) return found;
-        }
-      }
-    }
-    return nullptr;
-  }
+  [[nodiscard]] auto isUnion() const -> bool;
 
-  [[nodiscard]] auto getFieldMutable(const Symbol* symbol) -> ConstValue* {
-    for (auto& f : fields_) {
-      if (f.symbol == symbol) return &f.value;
-    }
-    for (auto& base : bases_) {
-      if (auto obj = std::get_if<std::shared_ptr<ConstObject>>(&base)) {
-        if (*obj) {
-          if (auto found = (*obj)->getFieldMutable(symbol)) return found;
-        }
-      }
-    }
-    fields_.push_back({symbol, ConstValue{IndeterminateValue{}}});
-    return &fields_.back().value;
-  }
+  auto addMember(const Symbol* symbol, ConstValue value) -> ConstValue*;
 
-  void setField(const Symbol* symbol, ConstValue value) {
-    for (auto& f : fields_) {
-      if (f.symbol == symbol) {
-        f.value = std::move(value);
-        return;
-      }
-    }
-    fields_.push_back({symbol, std::move(value)});
-  }
+  void setMember(const Symbol* symbol, ConstValue value);
 
-  [[nodiscard]] auto bases() const -> const std::vector<ConstValue>& {
-    return bases_;
-  }
+  [[nodiscard]] auto subobject(const Symbol* symbol) const -> const ConstValue*;
 
-  [[nodiscard]] auto mutableBases() -> std::vector<ConstValue>& {
-    return bases_;
-  }
-
-  void addBase(ConstValue base) { bases_.push_back(std::move(base)); }
+  [[nodiscard]] auto mutableSubobject(const Symbol* symbol) -> ConstValue*;
 
   [[nodiscard]] auto operator==(const ConstObject& other) const -> bool;
 
  private:
   const Type* type_ = nullptr;
-  std::deque<Field> fields_;
-  std::vector<ConstValue> bases_;
+  std::deque<Member> members_;
 };
 
 class Meta {
@@ -150,6 +138,8 @@ class Meta {
 
 class ConstAddress {
  public:
+  ConstAddress() = default;
+
   explicit ConstAddress(Symbol* symbol, std::intmax_t offset = 0)
       : symbol_(symbol), offset_(offset) {}
 
@@ -160,7 +150,10 @@ class ConstAddress {
                std::intmax_t offset = 0)
       : symbol_(symbol), owner_(std::move(owner)), offset_(offset) {}
 
+  explicit ConstAddress(const Type* typeInfoFor) : typeInfoFor_(typeInfoFor) {}
+
   [[nodiscard]] auto symbol() const -> Symbol* { return symbol_; }
+  [[nodiscard]] auto typeInfoFor() const -> const Type* { return typeInfoFor_; }
   [[nodiscard]] auto owner() const -> const std::shared_ptr<ConstObject>& {
     return owner_;
   }
@@ -169,20 +162,38 @@ class ConstAddress {
   }
   [[nodiscard]] auto offset() const -> std::intmax_t { return offset_; }
 
+  [[nodiscard]] auto sameTarget(const ConstAddress& other) const -> bool;
+
+  void setSymbol(Symbol* symbol) { symbol_ = symbol; }
+  void setOwner(std::shared_ptr<ConstObject> owner) {
+    owner_ = std::move(owner);
+  }
+  void setStringLiteral(const StringLiteral* string) { string_ = string; }
+  void setTypeInfoFor(const Type* type) { typeInfoFor_ = type; }
+  void setOffset(std::intmax_t offset) { offset_ = offset; }
+
  private:
   Symbol* symbol_ = nullptr;
   std::shared_ptr<ConstObject> owner_;
   const StringLiteral* string_ = nullptr;
+  const Type* typeInfoFor_ = nullptr;
   std::intmax_t offset_ = 0;
 };
 
 class ConstLabelAddress {
  public:
+  ConstLabelAddress() = default;
+
   explicit ConstLabelAddress(std::string name) : name_(std::move(name)) {}
 
   [[nodiscard]] auto name() const -> const std::string& { return name_; }
 
+  void setName(std::string name) { name_ = std::move(name); }
+
  private:
   std::string name_;
 };
+
+[[nodiscard]] auto isFullyInitialized(const ConstValue& value) -> bool;
+
 }  // namespace cxx

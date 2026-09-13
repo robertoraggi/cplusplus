@@ -19,15 +19,13 @@
 // SOFTWARE.
 
 export * from "./loadCxx.js";
-export * from "./AST.js";
-export * from "./ASTCursor.js";
-export * from "./ASTKind.js";
-export * from "./ASTSlot.js";
-export * from "./ASTVisitor.js";
 export * from "./Diagnostic.js";
+export * from "./Emitter.js";
+export * from "./TraceEmitter.js";
 export * from "./LanguageServer.js";
 export * from "./Parser.js";
-export * from "./RecursiveASTVisitor.js";
 export * from "./SourceLocation.js";
 export * from "./Token.js";
 export * from "./TokenKind.js";
+
+export * as Semantic from "./Semantic.js";

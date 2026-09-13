@@ -54,8 +54,9 @@ Toolchain::Toolchain(Preprocessor* preprocessor) : preprocessor_(preprocessor) {
 
 Toolchain::~Toolchain() = default;
 
-auto Toolchain::language() const -> LanguageKind {
-  return preprocessor_->language();
+void Toolchain::setLanguage(LanguageKind language) {
+  language_ = language;
+  if (preprocessor_) preprocessor_->setLanguage(language);
 }
 
 void Toolchain::setLanguageStandard(const LanguageStandard* languageStandard) {

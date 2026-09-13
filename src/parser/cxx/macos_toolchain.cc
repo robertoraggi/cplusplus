@@ -161,7 +161,6 @@ void MacOSToolchain::addPredefinedMacros() {
   defineMacro("__signed", "signed");
   defineMacro("_Nonnull", "");
   defineMacro("_Nullable", "");
-  defineMacro("_Pragma(x)", "");
 
   addCommonMacros();
   addCommonMacOSMacros();
