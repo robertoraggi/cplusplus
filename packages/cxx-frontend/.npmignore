@@ -6,3 +6,5 @@ examples
 test
 .prettierignore
 docs
+.prettierrc
+tsconfig.json
