@@ -64,6 +64,14 @@ union U7 {
 
 union U7 u7 = {{1, 2}};
 
+union U8 {
+  int i;
+  const char* p;
+};
+
+union U8 u8a = {5};
+union U8 u8b = {.p = "hi"};
+
 // CHECK-DAG: %union.U1 = type { i32 }
 // CHECK-DAG: %union.U2 = type { %Inner2 }
 // CHECK-DAG: %union.U3 = type { i32 }
@@ -78,5 +86,8 @@ union U7 u7 = {{1, 2}};
 // CHECK-DAG: @u5 = global %union.U5 { %union.U5inner { i32 42 } }
 // CHECK-DAG: @u6 = global %union.U6 { i16 1 }
 // CHECK-DAG: @u7 = global %union.U7 { %Large { i64 1, i64 2 } }
+// CHECK-DAG: %union.U8 = type { ptr }
+// CHECK-DAG: @u8a = global %union.U8 { ptr inttoptr (i64 5 to ptr) }
+// CHECK-DAG: @u8b = global %union.U8 { ptr @.str{{[0-9]*}} }
 
 int main() { return 0; }

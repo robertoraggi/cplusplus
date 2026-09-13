@@ -99,6 +99,8 @@ class FloatLiteral final : public Literal {
     };
 
     double value = 0;
+    std::string_view literalPart;
+    std::string_view userSuffix;
     FloatingPointSuffix suffix = FloatingPointSuffix::kNone;
     bool isDouble = false;
     bool isFloat = false;
@@ -135,6 +137,7 @@ class StringLiteral final : public Literal {
 
   struct Components {
     std::string value;
+    std::string_view userSuffix;
     StringLiteralEncoding encoding = StringLiteralEncoding::kNone;
     bool isRaw = false;
 
@@ -171,6 +174,7 @@ class CharLiteral final : public Literal {
   struct Components {
     int value = 0;
     std::string_view prefix;
+    std::string_view userSuffix;
 
     [[nodiscard]] static auto from(std::string_view text,
                                    DiagnosticsClient* diagnostics = nullptr)
@@ -186,6 +190,8 @@ class CharLiteral final : public Literal {
  private:
   mutable Components components_;
 };
+
+[[nodiscard]] auto quoteStringLiteral(std::string_view value) -> std::string;
 
 class CommentLiteral final : public Literal {
  public:

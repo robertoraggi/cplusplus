@@ -94,19 +94,15 @@ template <typename S>
 void TypeDeducer::deduceArraySizeFromBraced(S* var,
                                             const UnboundedArrayType* ty,
                                             BracedInitListAST* braced) {
-  if (ctx.traits.is_narrow_char_type(ty->elementType()) &&
-      braced->expressionList && !braced->expressionList->next) {
-    if (auto strLit = ast_cast<StringLiteralExpressionAST>(
-            braced->expressionList->value)) {
-      if (auto srcArray = type_cast<BoundedArrayType>(strLit->type)) {
-        var->setType(ctx.control->getBoundedArrayType(ty->elementType(),
-                                                      srcArray->size()));
-        return;
-      }
-    }
+  if (auto stringInit = stringLiteralInitialization(
+          ctx.traits, ctx.isCxx(), ty, singleInitializerClause(braced));
+      stringInit && stringInit->compatible) {
+    var->setType(ctx.control->getBoundedArrayType(ty->elementType(),
+                                                  stringInit->elementCount));
+    return;
   }
 
-  auto interp = ASTInterpreter{ctx.unit};
+  auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
   size_t currentIndex = 0;
   size_t maxIndex = 0;
   bool hasElements = false;
@@ -263,7 +259,21 @@ void TypeDeducer::deduceAutoType(S* var) {
     return;
   }
 
-  auto deducedExpr = Initializer{var->initializer()}.singleExpression();
+  auto initializer = Initializer{var->initializer()};
+  auto deducedExpr = initializer.singleExpression();
+  if (auto braced = initializer.bracedInitList()) {
+    if (initializer.initializationKind() ==
+        InitializationKind::kCopyListInitialization) {
+      deducedExpr = braced;
+    } else {
+      if (!braced->expressionList || braced->expressionList->next) {
+        ctx.error(var->location(),
+                  "direct-list-initialization of auto requires one element");
+        return;
+      }
+      deducedExpr = braced->expressionList->value;
+    }
+  }
 
   const bool inTemplate = isEnclosedInDependentTemplate(
       ctx.unit, ctx.checker.scope(), /*stopAtConcreteSpecialization=*/true);
@@ -275,7 +285,7 @@ void TypeDeducer::deduceAutoType(S* var) {
     return;
   }
 
-  if (!deducedExpr || !deducedExpr->type) return;
+  if (!deducedExpr) return;
 
   auto deduced = ctx.checker.deducePlaceholderType(declType, deducedExpr);
   if (!deduced) return;
@@ -317,20 +327,13 @@ auto ConstexprEvaluator::tryEvaluateConstructor(S* var, ASTInterpreter& interp)
     }
   }
 
-  std::vector<ConstValue> args;
-  for (auto argExpr : initArgs) {
-    auto argVal = interp.evaluate(argExpr);
-    if (!argVal) return std::nullopt;
-    args.push_back(std::move(*argVal));
-  }
-
   auto constructor = var->constructor();
   if (!constructor) constructor = classSym->defaultConstructor();
   if (!constructor) return std::nullopt;
   if (!constructor->isConstexpr()) return std::nullopt;
   auto value =
-      interp.evaluateConstructor(constructor, classType, std::move(args));
-  if (!value || !interp.isFullyInitialized(*value)) return std::nullopt;
+      interp.evaluateConstructorFromExprs(constructor, classType, initArgs);
+  if (!value || !isFullyInitialized(*value)) return std::nullopt;
   return value;
 }
 
@@ -349,11 +352,11 @@ struct InitDeclaratorChecker {
                      SpecifierAST* typeSpecifier = nullptr);
   void checkFieldInitializer(FieldSymbol* field);
   void evaluateFieldConstValue(FieldSymbol* field);
-
- private:
   template <typename S>
   void checkInitialization(S* var, ExpressionAST*& initializer,
                            SourceLocation location);
+
+ private:
   void evaluateConstValue(VariableSymbol* var, ExpressionAST*& initializer);
 };
 
@@ -436,6 +439,13 @@ void InitDeclaratorChecker::checkInitialization(S* var,
     initializer = result;
     var->setInitializer(result);
   }
+
+  if (var->constructor() &&
+      ctx.checker.evaluateImmediateConstruction(
+          &initializer, var->constructor(), var->type(), location)) {
+    var->setConstructor(nullptr);
+    var->setInitializer(initializer);
+  }
 }
 
 void InitDeclaratorChecker::checkFieldInitializer(FieldSymbol* field) {
@@ -485,7 +495,7 @@ void InitDeclaratorChecker::evaluateFieldConstValue(FieldSymbol* field) {
   if (!field->isConstexpr() && !field->isConstinit()) return;
   if (isDependent(ctx.unit, field->type())) return;
 
-  auto interp = ASTInterpreter{ctx.unit};
+  auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
 
   std::optional<ConstValue> value;
   if (field->initializer()) value = interp.evaluate(field->initializer());
@@ -494,6 +504,8 @@ void InitDeclaratorChecker::evaluateFieldConstValue(FieldSymbol* field) {
     if (auto ctorValue = constexprEval.tryEvaluateConstructor(field, interp))
       value = std::move(ctorValue);
   }
+
+  if (value.has_value() && !isFullyInitialized(*value)) value.reset();
 
   field->setConstValue(std::move(value));
 }
@@ -506,19 +518,20 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var,
     dependent = isDependent(ctx.unit, var->initializer());
 
   if (var->initializer()) {
-    auto interp = ASTInterpreter{ctx.unit};
+    auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
     auto value = interp.evaluate(var->initializer());
 
-    const auto needsConstructor = !value.has_value() || var->constructor();
+    if (var->constructor()) value.reset();
 
-    if (needsConstructor && var->isConstexpr()) {
-      if (auto ctorValue = constexprEval.tryEvaluateConstructor(var, interp))
-        value = std::move(ctorValue);
+    if (!value.has_value() && var->isConstexpr()) {
+      value = constexprEval.tryEvaluateConstructor(var, interp);
     }
+
+    if (value.has_value() && !isFullyInitialized(*value)) value.reset();
 
     var->setConstValue(value);
   } else if (var->isConstexpr() && var->constructor()) {
-    auto interp = ASTInterpreter{ctx.unit};
+    auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
     var->setConstValue(constexprEval.tryEvaluateConstructor(var, interp));
   }
 
@@ -534,7 +547,7 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var,
     if (needsConstantNode) {
       constantValue = *var->constValue();
       if (is_glvalue(*target)) {
-        auto interp = ASTInterpreter{ctx.unit};
+        auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
         auto address = interp.evaluateAddress(*target);
         if (address.has_value()) {
           constantValue = std::move(address);
@@ -575,18 +588,51 @@ void TypeChecker::check_init_declarator(InitDeclaratorAST* ast,
   InitDeclaratorChecker{*this}.checkInitDeclarator(ast, typeSpecifier);
 }
 
+void TypeChecker::check_variable_initializer(VariableSymbol* var,
+                                             ExpressionAST*& initializer,
+                                             SourceLocation location) {
+  if (!var || !var->type()) return;
+  InitDeclaratorChecker{*this}.checkInitialization(var, initializer, location);
+}
+
+void TypeChecker::check_member_initialization(FieldSymbol* field,
+                                              ExpressionAST*& initializer,
+                                              InitializationKind kind,
+                                              ArrayCopyPolicy arrayCopyPolicy) {
+  if (!field || !field->type() || !initializer) return;
+
+  InitContext ctx{*this};
+  auto entity =
+      InitializedEntity::member(field->type(), field, field->location());
+  entity.setArrayCopyPolicy(arrayCopyPolicy);
+  Initializer init{initializer};
+
+  auto sequence = computeInitializationSequence(ctx, entity, kind, init);
+
+  if (!sequence) {
+    diagnoseInitializationFailure(ctx, sequence, entity, init);
+    return;
+  }
+
+  auto result = applyInitializationSequence(ctx, sequence, entity, init);
+
+  if (sequence.constructor) field->setConstructor(sequence.constructor);
+  if (result) initializer = result;
+}
+
 void TypeChecker::check_condition_declaration(ConditionExpressionAST* ast) {
   auto var = ast->symbol;
   if (!var) return;
   InitDeclaratorChecker{*this}.checkVariable(var, ast->initializer,
                                              var->location());
 
-  ast->type = var->type();
+  ast->type = unit_->typeTraits().remove_reference(var->type());
   ast->valueCategory = ValueCategory::kLValue;
 }
 
 void TypeChecker::check_field_initializer(FieldSymbol* field) {
   if (!field || !field->initializer()) return;
+  TranslationUnit::DeferredInitializerScope deferredInitializer{unit_, true};
   InitDeclaratorChecker{*this}.checkFieldInitializer(field);
 }
 
@@ -594,6 +640,51 @@ auto TypeChecker::deducePlaceholderType(const Type* declaredType,
                                         ExpressionAST* initializer)
     -> const Type* {
   if (!initializer) return nullptr;
+  if (auto braced = ast_cast<BracedInitListAST>(initializer)) {
+    if (type_cast<DecltypeAutoType>(declaredType)) {
+      error(braced->firstSourceLocation(),
+            "cannot deduce decltype(auto) from an initializer list");
+      return nullptr;
+    }
+    const Type* elementType = nullptr;
+    const auto traits = unit_->typeTraits();
+    for (auto element : ListView{braced->expressionList}) {
+      if (!element || !element->type) return nullptr;
+      auto candidate = traits.decay(element->type);
+      if (elementType && !traits.is_same(elementType, candidate)) {
+        error(braced->firstSourceLocation(),
+              "cannot deduce a consistent initializer_list element type");
+        return nullptr;
+      }
+      elementType = candidate;
+    }
+    if (!elementType) {
+      error(braced->firstSourceLocation(),
+            "cannot deduce auto from an empty initializer list");
+      return nullptr;
+    }
+    auto control = unit_->control();
+    auto stdNamespace = symbol_cast<NamespaceSymbol>(
+        qualifiedLookup(unit_->globalScope(), control->getIdentifier("std")));
+    Symbol* primary = nullptr;
+    if (stdNamespace)
+      primary = qualifiedLookup(stdNamespace,
+                                control->getIdentifier("initializer_list"));
+    if (!primary) {
+      error(braced->firstSourceLocation(),
+            "include <initializer_list> before deducing auto from a list");
+      return nullptr;
+    }
+    auto typeId = TypeIdAST::create(unit_->arena());
+    typeId->type = elementType;
+    auto argument = TypeTemplateArgumentAST::create(unit_->arena(), typeId);
+    auto arguments =
+        make_list_node<TemplateArgumentAST>(unit_->arena(), argument);
+    auto instance = ASTRewriter::instantiate(unit_, arguments, primary,
+                                             braced->firstSourceLocation());
+    if (!instance) return nullptr;
+    braced->type = instance->type();
+  }
   if (type_cast<DecltypeAutoType>(declaredType))
     return unit_->typeTraits().decltype_of(initializer);
   auto initializerType = initializer->type;

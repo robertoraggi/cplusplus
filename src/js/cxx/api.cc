@@ -19,10 +19,8 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
-#include <cxx/ast_slot.h>
+#include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
-#include <cxx/literals.h>
-#include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/source_location.h>
 #include <cxx/translation_unit.h>
@@ -31,20 +29,21 @@
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
 
+#include <algorithm>
 #include <optional>
 
 #include "async_parse.h"
 #include "emit_code.h"
+#include "emitter_delegate-priv.h"
 #include "toolchain_options.h"
 
 using namespace emscripten;
 
 namespace {
 
-cxx::ASTSlot getSlot;
-
 EMSCRIPTEN_DECLARE_VAL_TYPE(UnitOptions);
 EMSCRIPTEN_DECLARE_VAL_TYPE(DiagnosticList);
+EMSCRIPTEN_DECLARE_VAL_TYPE(EmitterDelegate);
 
 auto severityName(cxx::Severity severity) -> std::string_view {
   switch (severity) {
@@ -72,8 +71,8 @@ struct DiagnosticsClient final : cxx::DiagnosticsClient {
       hasErrors = true;
     }
 
-    const auto start = preprocessor()->tokenStartPosition(diag.token());
-    const auto end = preprocessor()->tokenEndPosition(diag.token());
+    const auto start = sourceResolver()->tokenStartPosition(diag.token());
+    const auto end = sourceResolver()->tokenEndPosition(diag.token());
 
     val d = val::object();
     d.set("fileName", val(std::string(start.fileName)));
@@ -111,6 +110,7 @@ struct WrappedUnit {
   std::string source;
   std::string fileName;
   bool debugInfo = true;
+  int optimizationLevel = 0;
 
   WrappedUnit(std::string source, std::string fileName, UnitOptions api)
       : api(api), source(std::move(source)), fileName(std::move(fileName)) {
@@ -122,6 +122,10 @@ struct WrappedUnit {
       if (val value = api["debugInfo"]; value.isTrue() || value.isFalse()) {
         debugInfo = value.as<bool>();
       }
+
+      if (val value = api["optimizationLevel"]; value.isNumber()) {
+        optimizationLevel = std::clamp(value.as<int>(), 0, 3);
+      }
     }
 
     toolchain = cxx::js::configureToolchain(unit.get(), api);
@@ -130,8 +134,6 @@ struct WrappedUnit {
   auto getUnitHandle() const -> std::intptr_t {
     return (std::intptr_t)unit.get();
   }
-
-  auto getHandle() const -> std::intptr_t { return (std::intptr_t)unit->ast(); }
 
   auto getDiagnostics() const -> DiagnosticList {
     return DiagnosticList(diagnosticsClient->messages);
@@ -154,6 +156,16 @@ struct WrappedUnit {
     return cxx::js::asyncParse(std::move(request));
   }
 
+  void emitWith(EmitterDelegate delegate) {
+    if (diagnosticsClient->hasErrors) return;
+
+    cxx::js::JsEmitter emitter{delegate};
+
+    cxx::Codegen codegen(emitter, unit.get(), {.debugInfo = false});
+
+    (void)codegen(unit->ast());
+  }
+
   auto emitCode(const std::string& format) -> val {
     const auto objectFile = format == "obj";
 
@@ -164,7 +176,8 @@ struct WrappedUnit {
 
     if (diagnosticsClient->hasErrors) return emptyOutput();
 
-    auto generated = cxx::js::generateCode(unit.get(), format, debugInfo);
+    auto generated =
+        cxx::js::generateCode(unit.get(), format, debugInfo, optimizationLevel);
 
     if (!generated) return emptyOutput();
 
@@ -228,56 +241,6 @@ auto getEndLocation(std::intptr_t handle, std::intptr_t unitHandle) -> val {
   return getTokenLocation(loc.index(), unitHandle);
 }
 
-auto getIdentifierValue(std::intptr_t handle) -> val {
-  auto id = reinterpret_cast<const cxx::Identifier*>(handle);
-  if (!id) return {};
-  return val(id->value());
-}
-
-auto getLiteralValue(std::intptr_t handle) -> val {
-  auto id = reinterpret_cast<const cxx::Literal*>(handle);
-  if (!id) return {};
-  return val(id->value());
-}
-
-auto getASTKind(std::intptr_t handle) -> int {
-  return static_cast<int>(((cxx::AST*)handle)->kind());
-}
-
-auto getListValue(std::intptr_t handle) -> int {
-  auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
-  return std::intptr_t(list->value);
-}
-
-auto getListNext(std::intptr_t handle) -> std::intptr_t {
-  auto list = reinterpret_cast<cxx::List<cxx::AST*>*>(handle);
-  return std::intptr_t(list->next);
-}
-
-auto getASTSlot(std::intptr_t handle, int slot) -> std::intptr_t {
-  auto ast = reinterpret_cast<cxx::AST*>(handle);
-  auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
-  return value;
-}
-
-auto getASTSlotKind(std::intptr_t handle, int slot) -> int {
-  auto ast = reinterpret_cast<cxx::AST*>(handle);
-  auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
-  return static_cast<int>(slotKind);
-}
-
-auto getASTSlotName(std::intptr_t handle, int slot) -> int {
-  auto ast = reinterpret_cast<cxx::AST*>(handle);
-  auto [value, slotKind, slotName, slotCount] = getSlot(ast, slot);
-  return static_cast<int>(slotName);
-}
-
-auto getASTSlotCount(std::intptr_t handle, int slot) -> int {
-  auto ast = reinterpret_cast<cxx::AST*>(handle);
-  auto [value, slotKind, slotNameIndex, slotCount] = getSlot(ast, slot);
-  return static_cast<int>(slotCount);
-}
-
 auto createUnit(std::string source, std::string fileName, UnitOptions api)
     -> WrappedUnit* {
   return new WrappedUnit(std::move(source), std::move(fileName), api);
@@ -288,7 +251,10 @@ auto createUnit(std::string source, std::string fileName, UnitOptions api)
 EMSCRIPTEN_BINDINGS(cxx) {
   register_type<UnitOptions>(
       "UnitOptions",
-      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
+      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; optimizationLevel?: number | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
+
+  register_type<EmitterDelegate>("EmitterDelegate",
+                                 R"(import("./Emitter.js").EmitterDelegate)");
 
   register_type<DiagnosticList>(
       "DiagnosticList",
@@ -296,24 +262,15 @@ EMSCRIPTEN_BINDINGS(cxx) {
 
   class_<WrappedUnit>("Unit")
       .function("parse", &WrappedUnit::parse)
-      .function("getHandle", &WrappedUnit::getHandle)
       .function("getUnitHandle", &WrappedUnit::getUnitHandle)
       .function("getDiagnostics", &WrappedUnit::getDiagnostics)
-      .function("emitCode", &WrappedUnit::emitCode);
+      .function("emitCode", &WrappedUnit::emitCode)
+      .function("emitWith", &WrappedUnit::emitWith);
 
   function("createUnit", &createUnit, allow_raw_pointers());
-  function("getASTKind", &getASTKind);
-  function("getListValue", &getListValue);
-  function("getListNext", &getListNext);
-  function("getASTSlot", &getASTSlot);
-  function("getASTSlotKind", &getASTSlotKind);
-  function("getASTSlotName", &getASTSlotName);
-  function("getASTSlotCount", &getASTSlotCount);
   function("getTokenKind", &getTokenKind);
   function("getTokenText", &getTokenText);
   function("getTokenLocation", &getTokenLocation);
   function("getStartLocation", &getStartLocation);
   function("getEndLocation", &getEndLocation);
-  function("getIdentifierValue", &getIdentifierValue);
-  function("getLiteralValue", &getLiteralValue);
 }

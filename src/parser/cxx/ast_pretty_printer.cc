@@ -199,6 +199,8 @@ struct ASTPrettyPrinter::ExpressionVisitor {
 
   void operator()(NestedStatementExpressionAST* ast);
 
+  void operator()(DefaultInitializerExpressionAST* ast);
+
   void operator()(NestedExpressionAST* ast);
 
   void operator()(IdExpressionAST* ast);
@@ -1145,6 +1147,10 @@ void ASTPrettyPrinter::operator()(TypeIdAST* ast) {
     operator()(it->value);
   }
 
+  for (auto it = ast->attributeList; it; it = it->next) {
+    operator()(it->value);
+  }
+
   operator()(ast->declarator);
 }
 
@@ -1272,6 +1278,15 @@ void ASTPrettyPrinter::operator()(AttributeArgumentClauseAST* ast) {
     writeToken(ast->lparenLoc);
     nospace();
   }
+
+  for (auto it = ast->expressionList; it; it = it->next) {
+    operator()(it->value);
+    if (it->next) {
+      nospace();
+      write(",");
+    }
+  }
+
   if (ast->rparenLoc) {
     nospace();
     writeToken(ast->rparenLoc);
@@ -2339,6 +2354,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   if (ast->literalLoc) {
     accept.writeToken(ast->literalLoc);
   }
+  accept(ast->literalOperatorCall);
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
@@ -2353,6 +2369,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   if (ast->literalLoc) {
     accept.writeToken(ast->literalLoc);
   }
+  accept(ast->literalOperatorCall);
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
@@ -2360,6 +2377,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   if (ast->literalLoc) {
     accept.writeToken(ast->literalLoc);
   }
+  accept(ast->literalOperatorCall);
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
@@ -2381,6 +2399,7 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
   if (ast->literalLoc) {
     accept.writeToken(ast->literalLoc);
   }
+  accept(ast->literalOperatorCall);
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(
@@ -2460,6 +2479,11 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     nospace();
     accept.writeToken(ast->rparenLoc);
   }
+}
+
+void ASTPrettyPrinter::ExpressionVisitor::operator()(
+    DefaultInitializerExpressionAST* ast) {
+  accept(ast->expression);
 }
 
 void ASTPrettyPrinter::ExpressionVisitor::operator()(NestedExpressionAST* ast) {
@@ -4631,6 +4655,11 @@ void ASTPrettyPrinter::AttributeSpecifierVisitor::operator()(
       accept.writeToken(loc);
     }
   }
+
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->rparenLoc) {
     nospace();
     accept.writeToken(ast->rparenLoc);

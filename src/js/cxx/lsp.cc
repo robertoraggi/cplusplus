@@ -24,6 +24,8 @@
 #include <cxx/lsp/lsp_server.h>
 #include <cxx/lsp/server_host.h>
 #include <cxx/lsp/transport.h>
+#include <cxx/lsp/types.h>
+#include <cxx/preprocessor.h>
 #include <cxx/translation_unit.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <emscripten/bind.h>
@@ -73,12 +75,14 @@ class JsServerHost final : public cxx::lsp::ServerHost {
   }
 
   [[nodiscard]] auto emitCode(cxx::lsp::CxxDocument& document,
-                              cxx::lsp::EmitCodeFormat format, bool debugInfo)
+                              cxx::lsp::EmitCodeFormat format, bool debugInfo,
+                              int optimizationLevel)
       -> std::optional<std::string> override {
     if (document.hasErrors()) return std::string{};
 
-    auto generated = cxx::js::generateCode(document.translationUnit(),
-                                           to_string(format), debugInfo);
+    auto generated =
+        cxx::js::generateCode(document.translationUnit(), to_string(format),
+                              debugInfo, optimizationLevel);
 
     if (!generated) return std::nullopt;
 
@@ -150,7 +154,7 @@ class JsServerHost final : public cxx::lsp::ServerHost {
 
     cxx::js::AsyncParseRequest request{
         .unit = unit,
-        .source = std::move(source),
+        .source = {},
         .fileName = document.fileName(),
         .config = document.parserConfiguration(),
     };
@@ -170,6 +174,75 @@ class JsServerHost final : public cxx::lsp::ServerHost {
             {});
     };
 
+    bool usePreamble = true;
+    if (!options_.isUndefined()) {
+      auto enabled = options_["preamble"];
+      if (!enabled.isUndefined()) usePreamble = enabled.as<bool>();
+    }
+    if (document.preambleCache && usePreamble) {
+      auto cached = document.preambleCache->get(source);
+      if (!cached) {
+        const auto started = std::chrono::steady_clock::now();
+        cxx::lsp::CxxDocument producer(fileName, version);
+        producer.setToolchain(
+            cxx::js::configureToolchain(producer.translationUnit(), options_));
+        producer.translationUnit()->preprocessor()->setPreambleOnly(true);
+        auto prefixRequest = request;
+        prefixRequest.unit = producer.translationUnit();
+        prefixRequest.source = source;
+        prefixRequest.fileName = producer.fileName();
+        prefixRequest.config.complete = {};
+        auto built = co_await cxx::js::asyncParse(std::move(prefixRequest));
+        if (!built.as<bool>()) {
+          document.cancel();
+          done();
+          co_return val::undefined();
+        }
+        auto preambleSize =
+            producer.translationUnit()->preprocessor()->preambleSize();
+        if (preambleSize && producer.diagnostics().empty()) {
+          cxx::PrecompiledHeaderWriter writer(producer.translationUnit(),
+                                              cxx::lsp::preambleKeys());
+          writer.setPreprocessorState(
+              producer.translationUnit()->preprocessor()->preambleState());
+          auto bytes = writer();
+          if (writer.errors().empty()) {
+            cached = std::make_shared<cxx::lsp::Preamble>(
+                source.substr(0, *preambleSize), std::move(bytes));
+            document.preambleCache->put(cached);
+          } else {
+            for (const auto& error : writer.errors())
+              trace("preamble event=failed reason=" + error, {});
+          }
+        }
+        const auto elapsed = std::chrono::duration<double, std::milli>(
+                                 std::chrono::steady_clock::now() - started)
+                                 .count();
+        auto event = "skipped";
+        if (cached) event = "built";
+        trace(std::format("preamble event={} file={} duration_ms={:.1f}", event,
+                          fileName, elapsed),
+              {});
+      }
+      if (cached) {
+        const auto started = std::chrono::steady_clock::now();
+        cxx::PrecompiledHeaderReader reader(unit, cxx::lsp::preambleKeys());
+        if (reader(cached->bytes)) {
+          cxx::lsp::maskPreamble(source, cached->source.size());
+          const auto elapsed = std::chrono::duration<double, std::milli>(
+                                   std::chrono::steady_clock::now() - started)
+                                   .count();
+          trace(std::format(
+                    "preamble event=reused file={} bytes={} duration_ms={:.1f}",
+                    fileName, cached->bytes.size(), elapsed),
+                {});
+        } else {
+          trace("preamble event=failed reason=" + reader.error(), {});
+        }
+      }
+    }
+
+    request.source = std::move(source);
     auto completed = co_await cxx::js::asyncParse(std::move(request));
     if (!completed.as<bool>()) document.cancel();
 
@@ -253,7 +326,7 @@ auto createLanguageServer(LanguageServerOptions options)
 EMSCRIPTEN_BINDINGS(cxx_lsp) {
   register_type<LanguageServerOptions>(
       "LanguageServerOptions",
-      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined; onTrace?: ((message: string, verbose: string | undefined) => void) | undefined; onMessage: (message: string) => void })");
+      R"({ preamble?: boolean | undefined; appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined; onTrace?: ((message: string, verbose: string | undefined) => void) | undefined; onMessage: (message: string) => void })");
 
   class_<WrappedLanguageServer>("LanguageServer")
       .function("receive", &WrappedLanguageServer::receive);

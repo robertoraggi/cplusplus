@@ -20,9 +20,11 @@
 
 #include <cxx/ast.h>
 #include <cxx/binder.h>
+#include <cxx/builtin_signature.h>
 #include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
+#include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/scope.h>
@@ -32,9 +34,13 @@
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
+#include <optional>
+#include <span>
+
 namespace cxx {
 namespace {
 struct AssociatedNamespaceCollector {
+  TranslationUnit* unit = nullptr;
   std::vector<NamespaceSymbol*>& namespaces;
   std::vector<ClassSymbol*>& classes;
   std::vector<const Type*>& visited;
@@ -47,7 +53,29 @@ struct AssociatedNamespaceCollector {
   }
 
   void addNamespace(NamespaceSymbol* ns) {
-    if (ns && !std::ranges::contains(namespaces, ns)) namespaces.push_back(ns);
+    if (!ns) return;
+    while (ns->isInline()) {
+      auto parent = ns->enclosingNamespace();
+      if (!parent) break;
+      ns = parent;
+    }
+    auto addInline = [&](auto&& self, NamespaceSymbol* current) -> void {
+      if (std::ranges::contains(namespaces, current)) return;
+      namespaces.push_back(current);
+      for (auto directive : current->usingDirectives()) {
+        auto child = symbol_cast<NamespaceSymbol>(directive);
+        if (child && child->isInline()) self(self, child);
+      }
+    };
+    addInline(addInline, ns);
+  }
+
+  void addEnclosingClass(const Symbol* symbol) {
+    if (auto cls = symbol_cast<ClassSymbol>(symbol->parent())) {
+      cls = cls->resolvedDefinition();
+      addClass(cls);
+      addNamespace(cls->enclosingNamespace());
+    }
   }
 
   void addClass(ClassSymbol* cls) {
@@ -57,6 +85,7 @@ struct AssociatedNamespaceCollector {
   void collect(const Symbol* symbol) {
     if (!symbol) return;
     collect(symbol->type());
+    addEnclosingClass(symbol);
     addNamespace(symbol->enclosingNamespace());
   }
 
@@ -111,8 +140,8 @@ struct AssociatedNamespaceCollector {
     auto classSymbol = type->symbol();
     if (!classSymbol) return;
     classSymbol = classSymbol->resolvedDefinition();
-    if (std::ranges::contains(classes, classSymbol)) return;
     addClass(classSymbol);
+    addEnclosingClass(classSymbol);
 
     addNamespace(classSymbol->enclosingNamespace());
 
@@ -128,11 +157,17 @@ struct AssociatedNamespaceCollector {
   }
 
   void operator()(const EnumType* type) {
-    if (auto sym = type->symbol()) addNamespace(sym->enclosingNamespace());
+    if (auto sym = type->symbol()) {
+      addEnclosingClass(sym);
+      addNamespace(sym->enclosingNamespace());
+    }
   }
 
   void operator()(const ScopedEnumType* type) {
-    if (auto sym = type->symbol()) addNamespace(sym->enclosingNamespace());
+    if (auto sym = type->symbol()) {
+      addEnclosingClass(sym);
+      addNamespace(sym->enclosingNamespace());
+    }
   }
 
   void operator()(const FunctionType* type) {
@@ -155,27 +190,72 @@ struct AssociatedNamespaceCollector {
 }  // namespace
 
 namespace {
+template <typename Predicate>
+void collectQualifiedNamespaceDeclarations(NamespaceSymbol* scope,
+                                           const Name* name, Predicate accept,
+                                           std::vector<Symbol*>& found,
+                                           std::vector<ScopeSymbol*>& visited) {
+  if (!scope || std::ranges::contains(visited, scope)) return;
+  std::vector<NamespaceSymbol*> inlineSet{scope};
+  for (std::size_t i = 0; i < inlineSet.size(); ++i) {
+    for (auto directive : inlineSet[i]->usingDirectives()) {
+      auto ns = symbol_cast<NamespaceSymbol>(directive);
+      if (ns && ns->isInline() && !std::ranges::contains(inlineSet, ns))
+        inlineSet.push_back(ns);
+    }
+  }
+
+  const auto start = found.size();
+  for (auto ns : inlineSet) {
+    if (std::ranges::contains(visited, ns)) continue;
+    std::vector<ScopeSymbol*> directVisited;
+    if (auto symbol =
+            detail::searchScope(ns, name, directVisited, accept, false))
+      found.push_back(symbol);
+  }
+  for (auto ns : inlineSet) {
+    if (!std::ranges::contains(visited, ns)) visited.push_back(ns);
+  }
+  if (found.size() != start) return;
+
+  for (auto ns : inlineSet) {
+    for (auto directive : ns->usingDirectives()) {
+      collectQualifiedNamespaceDeclarations(
+          symbol_cast<NamespaceSymbol>(directive), name, accept, found,
+          visited);
+    }
+  }
+}
+
+auto uniqueLookupDeclaration(const std::vector<Symbol*>& found) -> Symbol* {
+  if (found.empty()) return nullptr;
+  auto first = found.front();
+  for (auto symbol : found) {
+    if (symbol == first) continue;
+    auto ns = resolve_namespace_alias(first);
+    if (ns && ns == resolve_namespace_alias(symbol)) continue;
+    return nullptr;
+  }
+  return first;
+}
+
 auto lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
                            std::vector<ScopeSymbol*>& visited)
     -> NamespaceSymbol* {
-  if (std::ranges::contains(visited, scope)) return nullptr;
-  visited.push_back(scope);
-
-  for (auto candidate : scope->find(id)) {
-    if (auto ns = resolve_namespace_alias(candidate)) return ns;
-  }
-
-  for (auto u : scope->usingDirectives()) {
-    if (auto ns = lookupNamespaceHelper(u, id, visited)) return ns;
-  }
-
-  return nullptr;
+  std::vector<Symbol*> found;
+  collectQualifiedNamespaceDeclarations(
+      symbol_cast<NamespaceSymbol>(scope), id,
+      [](Symbol* symbol) { return resolve_namespace_alias(symbol) != nullptr; },
+      found, visited);
+  return resolve_namespace_alias(uniqueLookupDeclaration(found));
 }
 
 auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
                       std::vector<ScopeSymbol*>& visited,
                       bool tagsAreTypes = true,
-                      bool discardHiddenClassNames = false) -> Symbol* {
+                      bool discardHiddenClassNames = false,
+                      bool followUsingDirectives = true,
+                      bool* ambiguous = nullptr) -> Symbol* {
   if (auto cls = symbol_cast<ClassSymbol>(scope)) {
     scope = cls->resolvedDefinition();
   }
@@ -212,17 +292,24 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
 
   if (fallback) return fallback;
 
+  auto accept = [tagsAreTypes](Symbol* symbol) {
+    if (!is_type(symbol) && !symbol->isNamespaceName()) return false;
+    return tagsAreTypes || !is_class_or_enum_declaration(symbol);
+  };
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
-    for (const auto& base : classSymbol->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass) continue;
-      if (auto s = lookupTypeHelper(baseClass, id, visited, tagsAreTypes))
-        return s;
-    }
+    auto result = lookupClassMember(classSymbol, id, accept);
+    if (ambiguous) *ambiguous = result.ambiguous;
+    return result.ambiguous ? nullptr : result.symbol;
   }
 
-  for (auto u : scope->usingDirectives()) {
-    if (auto s = lookupTypeHelper(u, id, visited, tagsAreTypes)) return s;
+  if (followUsingDirectives) {
+    std::vector<Symbol*> found;
+    std::vector<ScopeSymbol*> namespaceVisited;
+    collectQualifiedNamespaceDeclarations(symbol_cast<NamespaceSymbol>(scope),
+                                          id, accept, found, namespaceVisited);
+    auto result = uniqueLookupDeclaration(found);
+    if (ambiguous && !found.empty() && !result) *ambiguous = true;
+    return result;
   }
 
   return nullptr;
@@ -269,35 +356,22 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
 }
 }  // namespace
 
-auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id,
-                           bool tagsAreTypes, bool discardHiddenClassNames)
-    -> Symbol* {
-  std::vector<ScopeSymbol*> visited;
-  for (auto sc = lexicalScope; sc; sc = sc->parent) {
-    if (!sc->symbol) continue;
-    if (auto s = lookupTypeHelper(sc->symbol, id, visited, tagsAreTypes,
-                                  discardHiddenClassNames))
-      return s;
-  }
-  return nullptr;
-}
-
 auto qualifiedLookupType(Symbol* scopeOrAlias, const Identifier* id)
     -> Symbol* {
   auto resolved = resolveTypeScope(scopeOrAlias);
   if (!resolved) return nullptr;
   std::vector<ScopeSymbol*> visited;
-  return lookupTypeHelper(resolved, id, visited);
-}
-
-auto unqualifiedLookupNamespace(Scope* lexicalScope, const Identifier* id)
-    -> NamespaceSymbol* {
-  std::vector<ScopeSymbol*> visited;
-  for (auto sc = lexicalScope; sc; sc = sc->parent) {
-    if (!sc->symbol) continue;
-    if (auto ns = lookupNamespaceHelper(sc->symbol, id, visited)) return ns;
+  if (auto ns = symbol_cast<NamespaceSymbol>(resolved)) {
+    std::vector<Symbol*> found;
+    collectQualifiedNamespaceDeclarations(
+        ns, id,
+        [](Symbol* symbol) {
+          return is_type(symbol) || symbol->isNamespaceName();
+        },
+        found, visited);
+    return uniqueLookupDeclaration(found);
   }
-  return nullptr;
+  return lookupTypeHelper(resolved, id, visited);
 }
 
 auto qualifiedLookupNamespace(Symbol* scopeOrAlias, const Identifier* id)
@@ -309,78 +383,174 @@ auto qualifiedLookupNamespace(Symbol* scopeOrAlias, const Identifier* id)
 }
 
 namespace {
-void collectInlineNamespaceFunctions(ScopeSymbol* scope, const Name* name,
-                                     std::vector<FunctionSymbol*>& out,
-                                     std::vector<ScopeSymbol*>& visited) {
-  if (std::ranges::contains(visited, scope)) return;
-  visited.push_back(scope);
+auto isContainedBy(NamespaceSymbol* ns, ScopeSymbol* scope) -> bool {
+  for (auto parent = ns->parent(); parent; parent = parent->parent()) {
+    if (parent == scope) return true;
+  }
+  return false;
+}
 
-  auto add = [&](FunctionSymbol* func) {
-    auto canonical = func->canonical();
-    if (!std::ranges::contains(out, canonical)) out.push_back(canonical);
-  };
-
+void collectActiveNominatedNamespaces(ScopeSymbol* scope,
+                                      std::vector<NamespaceSymbol*>& out) {
   for (auto directive : scope->usingDirectives()) {
     auto ns = symbol_cast<NamespaceSymbol>(directive);
     if (!ns) continue;
-    if (!ns->isInline() && ns->name()) continue;
-
-    for (auto symbol : ns->find(name)) {
-      if (symbol->isHidden()) continue;
-      for (auto func : views::each_function(symbol)) add(func);
-    }
-
-    collectInlineNamespaceFunctions(ns, name, out, visited);
+    if (std::ranges::contains(out, ns)) continue;
+    out.push_back(ns);
+    collectActiveNominatedNamespaces(ns, out);
   }
 }
-}  // namespace
 
-auto mergeInlineNamespaceOverloads(Control* control, NamespaceSymbol* scope,
-                                   const Name* name, Symbol* primary)
+auto mergeDeclarations(Control* control, ScopeSymbol* scope, const Name* name,
+                       std::vector<Symbol*>& found, bool* ambiguous)
     -> Symbol* {
-  if (!control || !scope || !primary) return primary;
+  std::vector<Symbol*> distinct;
+  for (auto symbol : found) {
+    if (!std::ranges::contains(distinct, symbol)) distinct.push_back(symbol);
+  }
 
-  const bool primaryIsFunction = symbol_cast<FunctionSymbol>(primary);
-  if (!primaryIsFunction && !symbol_cast<OverloadSetSymbol>(primary))
-    return primary;
-
-  if (!scope->hasInlineNamespaces()) return primary;
-
-  auto isOverloadable = [](Symbol* s) {
-    return !s->isHidden() && (symbol_cast<FunctionSymbol>(s) ||
-                              symbol_cast<OverloadSetSymbol>(s));
-  };
-  if (!std::ranges::any_of(scope->find(name), isOverloadable)) return primary;
+  if (distinct.size() == 1) return distinct.front();
 
   std::vector<FunctionSymbol*> functions;
-  auto add = [&](FunctionSymbol* func) {
-    auto canonical = func->canonical();
-    if (!std::ranges::contains(functions, canonical))
-      functions.push_back(canonical);
-  };
+  for (auto symbol : distinct) {
+    if (!symbol_cast<FunctionSymbol>(symbol) &&
+        !symbol_cast<OverloadSetSymbol>(symbol)) {
+      if (ambiguous) *ambiguous = true;
+      return distinct.front();
+    }
 
-  for (auto func : views::each_function(primary)) add(func);
+    for (auto func : views::each_function(symbol)) {
+      auto canonical = func->canonical();
+      if (!std::ranges::contains(functions, canonical))
+        functions.push_back(canonical);
+    }
+  }
 
-  const auto directCount = functions.size();
-
-  std::vector<ScopeSymbol*> visited;
-  collectInlineNamespaceFunctions(scope, name, functions, visited);
-
-  if (functions.size() == directCount) return primary;
-
-  auto merged = control->newOverloadSetSymbol(scope, primary->location());
+  auto merged =
+      control->newOverloadSetSymbol(scope, distinct.front()->location());
   merged->setName(name);
   for (auto func : functions) merged->addFunction(func);
   return merged;
 }
 
+}  // namespace
+
+auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id,
+                           bool tagsAreTypes, bool discardHiddenClassNames)
+    -> Symbol* {
+  std::vector<NamespaceSymbol*> nominated;
+  for (auto sc = lexicalScope; sc; sc = sc->parent) {
+    if (!sc->symbol) continue;
+    collectActiveNominatedNamespaces(sc->symbol, nominated);
+    std::vector<Symbol*> found;
+    bool ambiguous = false;
+    auto search = [&](ScopeSymbol* scope) {
+      std::vector<ScopeSymbol*> visited;
+      if (auto symbol =
+              lookupTypeHelper(scope, id, visited, tagsAreTypes,
+                               discardHiddenClassNames, false, &ambiguous))
+        found.push_back(symbol);
+    };
+    search(sc->symbol);
+    for (auto ns : nominated)
+      if (isContainedBy(ns, sc->symbol)) search(ns);
+    if (ambiguous || !found.empty()) return uniqueLookupDeclaration(found);
+  }
+  return nullptr;
+}
+
+auto unqualifiedLookupNamespace(Scope* lexicalScope, const Identifier* id)
+    -> NamespaceSymbol* {
+  std::vector<NamespaceSymbol*> nominated;
+  for (auto sc = lexicalScope; sc; sc = sc->parent) {
+    if (!sc->symbol) continue;
+    collectActiveNominatedNamespaces(sc->symbol, nominated);
+    std::vector<Symbol*> found;
+    auto search = [&](ScopeSymbol* scope) {
+      for (auto candidate : scope->find(id))
+        if (auto ns = resolve_namespace_alias(candidate)) found.push_back(ns);
+    };
+    search(sc->symbol);
+    for (auto ns : nominated)
+      if (isContainedBy(ns, sc->symbol)) search(ns);
+    if (!found.empty())
+      return resolve_namespace_alias(uniqueLookupDeclaration(found));
+  }
+  return nullptr;
+}
+
+auto unqualifiedLookupIncludingInlineNamespaces(Control* control,
+                                                Scope* lexicalScope,
+                                                const Name* name,
+                                                bool skipClassNames,
+                                                bool* ambiguous) -> Symbol* {
+  if (!name) return nullptr;
+
+  auto accept = [skipClassNames](Symbol* symbol) {
+    return !skipClassNames || !symbol_cast<ClassSymbol>(symbol);
+  };
+
+  std::vector<NamespaceSymbol*> nominated;
+  std::vector<ScopeSymbol*> visited;
+
+  for (auto sc = lexicalScope; sc; sc = sc->parent) {
+    auto scope = sc->symbol;
+    if (!scope) continue;
+
+    collectActiveNominatedNamespaces(scope, nominated);
+
+    std::vector<Symbol*> found;
+
+    if (auto cls = symbol_cast<ClassSymbol>(scope)) {
+      auto result = lookupClassMember(cls, name, accept);
+      if (result.ambiguous) {
+        if (ambiguous) *ambiguous = true;
+        return ambiguous ? result.symbol : nullptr;
+      }
+      if (result.symbol) found.push_back(result.symbol);
+    } else if (auto symbol =
+                   detail::searchScope(scope, name, visited, accept, false)) {
+      found.push_back(symbol);
+    }
+
+    for (auto ns : nominated) {
+      if (!isContainedBy(ns, scope)) continue;
+      if (auto symbol = detail::searchScope(ns, name, visited, accept,
+                                            /*followUsingDirectives=*/false)) {
+        found.push_back(symbol);
+      }
+    }
+
+    if (found.empty()) continue;
+
+    return mergeDeclarations(control, scope, name, found, ambiguous);
+  }
+
+  return nullptr;
+}
+
 auto qualifiedLookupIncludingInlineNamespaces(Control* control,
                                               Symbol* scopeOrAlias,
-                                              const Name* name) -> Symbol* {
-  auto symbol = qualifiedLookup(scopeOrAlias, name);
-  auto ns = symbol_cast<NamespaceSymbol>(scopeOrAlias);
-  if (!ns) return symbol;
-  return mergeInlineNamespaceOverloads(control, ns, name, symbol);
+                                              const Name* name, bool* ambiguous)
+    -> Symbol* {
+  auto ns = resolve_namespace_alias(scopeOrAlias);
+  if (!ns) {
+    if (auto cls = symbol_cast<ClassSymbol>(resolveTypeScope(scopeOrAlias))) {
+      auto result = lookupClassMember(cls, name, [](Symbol*) { return true; });
+      if (ambiguous) *ambiguous = result.ambiguous;
+      return result.ambiguous && !ambiguous ? nullptr : result.symbol;
+    }
+    return qualifiedLookup(scopeOrAlias, name);
+  }
+  std::vector<Symbol*> found;
+  std::vector<ScopeSymbol*> visited;
+  collectQualifiedNamespaceDeclarations(
+      ns, name, [](Symbol*) { return true; }, found, visited);
+  if (found.empty()) return nullptr;
+  bool isAmbiguous = false;
+  auto result = mergeDeclarations(control, ns, name, found, &isAmbiguous);
+  if (ambiguous) *ambiguous = isAmbiguous;
+  return isAmbiguous && !ambiguous ? nullptr : result;
 }
 
 auto designatedFunction(Symbol* symbol) -> FunctionSymbol* {
@@ -447,8 +617,14 @@ auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
   std::vector<ClassSymbol*> classes;
   std::vector<const Type*> visited;
 
-  AssociatedNamespaceCollector collector{namespaces, classes, visited};
-  for (auto argType : argumentTypes) collector.collect(argType);
+  AssociatedNamespaceCollector collector{unit, namespaces, classes, visited};
+  for (auto argType : argumentTypes) {
+    auto argClassType =
+        type_cast<ClassType>(unit->typeTraits().remove_cvref(argType));
+    if (argClassType)
+      unit->typeTraits().requireCompleteClass(argClassType->symbol());
+    collector.collect(argType);
+  }
 
   auto addCandidate = [&](FunctionSymbol* func) {
     if (!func->templateDeclaration() && isDependent(unit, func->type())) return;
@@ -491,39 +667,181 @@ void declareGlobalFunction(TranslationUnit* unit, ScopeSymbol* globalScope,
   auto overloadSet = binder.overloadSetFor(globalScope, name, {});
   overloadSet->addFunction(function);
 }
+
 }  // namespace
 
-auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
-                                bool isArrayDelete) -> FunctionSymbol* {
-  auto control = unit->control();
-  auto name = control->getOperatorId(isArrayDelete ? TokenKind::T_DELETE_ARRAY
-                                                   : TokenKind::T_DELETE);
+namespace {
 
-  auto matches = [&](FunctionSymbol* fn) {
-    auto funcType = type_cast<FunctionType>(fn->type());
-    if (!funcType || funcType->parameterTypes().size() != 1) return false;
-    auto param = funcType->parameterTypes()[0];
-    auto pointer = type_cast<PointerType>(param);
-    return pointer && unit->typeTraits().is_void(pointer->elementType());
-  };
+auto hasNewExtendedAlignment(TranslationUnit* unit, const Type* objectType)
+    -> bool {
+  if (!objectType) return false;
+  auto memoryLayout = unit->control()->memoryLayout();
+  auto alignment = memoryLayout->alignmentOf(objectType);
+  if (!alignment) return false;
+  return *alignment > memoryLayout->defaultNewAlignment();
+}
 
-  auto findUsual = [&](auto&& symbols) -> FunctionSymbol* {
-    return views::find_function(symbols, matches);
-  };
+}  // namespace
 
-  if (classSymbol) {
-    classSymbol = classSymbol->resolvedDefinition();
-    if (auto fn = findUsual(classSymbol->find(name))) return fn;
+auto deallocationSignatureOf(TranslationUnit* unit, FunctionSymbol* fn)
+    -> std::optional<DeallocationSignature> {
+  if (!fn) return std::nullopt;
+  auto funcType = type_cast<FunctionType>(fn->type());
+  if (!funcType) return std::nullopt;
+  if (fn->isSpecialization()) return std::nullopt;
+
+  const std::span parameterTypes{funcType->parameterTypes()};
+  if (parameterTypes.empty()) return std::nullopt;
+
+  auto traits = unit->typeTraits();
+
+  auto firstParameter = type_cast<PointerType>(parameterTypes[0]);
+  if (!firstParameter) return std::nullopt;
+
+  DeallocationSignature signature;
+  auto rest = parameterTypes.subspan(1);
+  std::size_t index = 0;
+
+  auto enclosingClass = fn->enclosingClass();
+
+  if (!rest.empty() && enclosingClass &&
+      traits.is_destroying_delete_t(rest[0])) {
+    if (!traits.is_same(firstParameter->elementType(), enclosingClass->type()))
+      return std::nullopt;
+    signature.isDestroying = true;
+    index = 1;
+  } else if (!traits.is_void(firstParameter->elementType())) {
+    return std::nullopt;
   }
 
-  auto globalScope = unit->globalScope();
-  if (auto fn = findUsual(globalScope->find(name))) return fn;
+  if (index < rest.size() &&
+      traits.is_same(rest[index], unit->control()->getSizeType())) {
+    signature.hasSize = true;
+    ++index;
+  }
 
+  if (index < rest.size() && traits.is_align_val_t(rest[index])) {
+    signature.hasAlignment = true;
+    ++index;
+  }
+
+  if (index != rest.size()) return std::nullopt;
+
+  return signature;
+}
+
+namespace {
+
+auto declareGlobalOperatorDelete(TranslationUnit* unit, const Name* name)
+    -> FunctionSymbol* {
+  auto control = unit->control();
+  auto globalScope = unit->globalScope();
   auto voidType = control->getVoidType();
   auto fn = control->newFunctionSymbol(globalScope, {});
   fn->setName(name);
   fn->setType(
       control->getFunctionType(voidType, {control->getPointerType(voidType)}));
+  fn->setLanguageLinkage(LanguageKind::kCXX);
+  declareGlobalFunction(unit, globalScope, name, fn);
+  return fn;
+}
+
+}  // namespace
+
+auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
+                                const Type* objectType, bool isArrayDelete)
+    -> FunctionSymbol* {
+  auto control = unit->control();
+  auto name = control->getOperatorId(isArrayDelete ? TokenKind::T_DELETE_ARRAY
+                                                   : TokenKind::T_DELETE);
+
+  std::vector<std::pair<FunctionSymbol*, DeallocationSignature>> candidates;
+
+  auto collect = [&](Symbol* declarations) {
+    for (auto fn : views::each_function(declarations)) {
+      if (auto signature = deallocationSignatureOf(unit, fn))
+        candidates.emplace_back(fn, *signature);
+    }
+  };
+
+  auto inClassScope = false;
+
+  if (classSymbol) {
+    if (auto declarations =
+            qualifiedLookup(classSymbol->resolvedDefinition(), name)) {
+      inClassScope = true;
+      collect(declarations);
+    }
+  }
+
+  if (!inClassScope) {
+    auto globalScope = unit->globalScope();
+    auto declarations = qualifiedLookup(globalScope, name);
+    if (!declarations) return declareGlobalOperatorDelete(unit, name);
+    collect(declarations);
+  }
+
+  if (candidates.empty()) return nullptr;
+
+  auto keepIf = [&](auto&& predicate) {
+    decltype(candidates) kept;
+    for (auto& candidate : candidates)
+      if (predicate(candidate.second)) kept.push_back(candidate);
+    if (!kept.empty()) candidates = std::move(kept);
+    return !kept.empty();
+  };
+
+  (void)keepIf([](const DeallocationSignature& s) { return s.isDestroying; });
+
+  const auto overAligned = hasNewExtendedAlignment(unit, objectType);
+  (void)keepIf([&](const DeallocationSignature& s) {
+    return s.hasAlignment == overAligned;
+  });
+
+  if (candidates.size() == 1) return candidates.front().first;
+
+  if (inClassScope) {
+    for (auto& [fn, signature] : candidates)
+      if (!signature.hasSize) return fn;
+    return nullptr;
+  }
+
+  auto traits = unit->typeTraits();
+  auto selectSized =
+      traits.is_complete(objectType) &&
+      (!isArrayDelete || !traits.has_trivial_destructor(objectType));
+
+  for (auto& [fn, signature] : candidates)
+    if (signature.hasSize == selectSized) return fn;
+
+  return candidates.front().first;
+}
+
+auto declareGlobalOperatorNew(TranslationUnit* unit, bool isArrayNew)
+    -> FunctionSymbol* {
+  auto control = unit->control();
+  auto name = control->getOperatorId(isArrayNew ? TokenKind::T_NEW_ARRAY
+                                                : TokenKind::T_NEW);
+
+  auto sizeType = control->getSizeType();
+  auto globalScope = unit->globalScope();
+
+  auto matches = [&](FunctionSymbol* fn) {
+    auto funcType = type_cast<FunctionType>(fn->type());
+    if (!funcType || funcType->parameterTypes().size() != 1) return false;
+    return unit->typeTraits().is_same(funcType->parameterTypes()[0], sizeType);
+  };
+
+  if (auto symbol = qualifiedLookup(globalScope, name)) {
+    if (auto fn = views::find_function(views::each_function(symbol), matches))
+      return fn;
+  }
+
+  auto voidType = control->getVoidType();
+  auto fn = control->newFunctionSymbol(globalScope, {});
+  fn->setName(name);
+  fn->setType(
+      control->getFunctionType(control->getPointerType(voidType), {sizeType}));
   fn->setLanguageLinkage(LanguageKind::kCXX);
   declareGlobalFunction(unit, globalScope, name, fn);
   return fn;
@@ -612,4 +930,175 @@ auto resolveBuiltinLibcallSymbol(TranslationUnit* unit, const char* nameStr,
   globalScope->addSymbol(fn);
   return fn;
 }
+
+auto resolveBuiltinFunctionSymbol(TranslationUnit* unit, const Identifier* name,
+                                  BuiltinFunctionKind kind) -> Symbol* {
+  if (kind == BuiltinFunctionKind::T_NONE) return nullptr;
+
+  auto globalScope = unit->globalScope();
+
+  auto isBuiltin = [&](FunctionSymbol* fn) {
+    return fn->builtinKind() == kind;
+  };
+
+  for (auto symbol : globalScope->find(name)) {
+    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+      if (views::find_function(views::each_function(overloadSet), isBuiltin))
+        return overloadSet;
+      continue;
+    }
+    if (auto fn = symbol_cast<FunctionSymbol>(symbol)) {
+      if (isBuiltin(fn)) return fn;
+    }
+  }
+
+  auto signature = builtinSignatureOf(kind);
+  if (!signature.count) return nullptr;
+
+  auto control = unit->control();
+
+  Symbol* result = nullptr;
+
+  for (std::size_t index = 0; index < signature.count; ++index) {
+    auto functionType = decodeBuiltinSignature(control, kind, index);
+    if (!functionType) return result;
+
+    auto fn = control->newFunctionSymbol(globalScope, {});
+    fn->setName(name);
+    fn->setType(functionType);
+    fn->setBuiltinKind(kind);
+    fn->setConstexpr(contains(signature.flags, BuiltinFlags::kConstexpr));
+    fn->setNoReturn(contains(signature.flags, BuiltinFlags::kNoReturn));
+    fn->setExceptionSpecifier(
+        contains(signature.flags, BuiltinFlags::kNoexcept));
+
+    if (unit->language() == LanguageKind::kCXX)
+      fn->setConsteval(contains(signature.flags, BuiltinFlags::kConsteval));
+
+    declareGlobalFunction(unit, globalScope, name, fn);
+
+    result = fn;
+  }
+
+  if (signature.count > 1) {
+    for (auto symbol : globalScope->find(name)) {
+      if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol))
+        return overloadSet;
+    }
+  }
+
+  return result;
+}
+
+auto lookupClassMember(ClassSymbol* scope, const Name* name,
+                       const std::function<bool(Symbol*)>& accept)
+    -> ClassMemberLookup {
+  if (!scope || !name) return {};
+  scope = scope->resolvedDefinition();
+  if (!scope) return {};
+  std::vector<ScopeSymbol*> visited;
+  if (auto symbol =
+          detail::searchScope(scope, name, visited, accept, false, false))
+    return {symbol, false};
+  if (scope->baseClasses().empty()) return {};
+
+  struct Subobject {
+    ClassSymbol* type;
+    std::vector<int> bases;
+  };
+  struct LookupSet {
+    Symbol* declaration = nullptr;
+    std::vector<int> subobjects;
+    bool ambiguous = false;
+  };
+  std::vector<Subobject> graph;
+  std::vector<std::pair<ClassSymbol*, int>> virtualBases;
+  std::vector<ClassSymbol*> path;
+  auto build = [&](auto&& self, ClassSymbol* cls) -> int {
+    cls = cls->resolvedDefinition();
+    auto index = int(graph.size());
+    graph.push_back({cls, {}});
+    if (std::ranges::contains(path, cls)) return index;
+    path.push_back(cls);
+    for (auto base : cls->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass || isDependent(nullptr, baseClass->type())) continue;
+      baseClass = baseClass->resolvedDefinition();
+      int baseIndex = -1;
+      if (base->isVirtual()) {
+        for (auto [type, candidate] : virtualBases)
+          if (type == baseClass) baseIndex = candidate;
+      }
+      if (baseIndex < 0) {
+        baseIndex = self(self, baseClass);
+        if (base->isVirtual()) virtualBases.emplace_back(baseClass, baseIndex);
+      }
+      graph[index].bases.push_back(baseIndex);
+    }
+    path.pop_back();
+    return index;
+  };
+  build(build, scope);
+
+  auto isBase = [&](auto&& self, int base, int derived) -> bool {
+    if (base == derived) return true;
+    for (auto next : graph[derived].bases)
+      if (self(self, base, next)) return true;
+    return false;
+  };
+  auto sameDeclaration = [&](Symbol* first, Symbol* second) {
+    if (first == second) return true;
+    if (is_type(first) && is_type(second))
+      return first->type() == second->type();
+    std::vector<FunctionSymbol*> left;
+    std::vector<FunctionSymbol*> right;
+    for (auto fn : views::each_function(first)) left.push_back(fn->canonical());
+    for (auto fn : views::each_function(second))
+      right.push_back(fn->canonical());
+    if (left.empty() || right.empty()) return false;
+    return std::ranges::is_permutation(left, right);
+  };
+  std::vector<std::optional<LookupSet>> cache(graph.size());
+  auto lookup = [&](auto&& self, int index) -> LookupSet {
+    if (cache[index]) return *cache[index];
+    LookupSet result;
+    std::vector<ScopeSymbol*> directVisited;
+    result.declaration = detail::searchScope(
+        graph[index].type, name, directVisited, accept, false, false);
+    if (result.declaration) {
+      result.subobjects.push_back(index);
+    } else {
+      for (auto base : graph[index].bases) {
+        auto incoming = self(self, base);
+        if (!incoming.declaration) continue;
+        if (!result.declaration) {
+          result = std::move(incoming);
+          continue;
+        }
+        auto dominated = [&](const auto& first, const auto& second) {
+          return std::ranges::all_of(first, [&](int a) {
+            return std::ranges::any_of(
+                second, [&](int b) { return isBase(isBase, a, b); });
+          });
+        };
+        if (dominated(incoming.subobjects, result.subobjects)) continue;
+        if (dominated(result.subobjects, incoming.subobjects)) {
+          result = std::move(incoming);
+          continue;
+        }
+        result.ambiguous =
+            result.ambiguous || incoming.ambiguous ||
+            !sameDeclaration(result.declaration, incoming.declaration);
+        for (auto subobject : incoming.subobjects)
+          if (!std::ranges::contains(result.subobjects, subobject))
+            result.subobjects.push_back(subobject);
+      }
+    }
+    cache[index] = result;
+    return result;
+  };
+  auto result = lookup(lookup, 0);
+  return {result.declaration, result.ambiguous};
+}
+
 }  // namespace cxx

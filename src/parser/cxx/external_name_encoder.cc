@@ -187,48 +187,7 @@ namespace {
   return nullptr;
 }
 
-[[nodiscard]] auto isDeclaredExtern(VariableSymbol* variable) -> bool {
-  if (variable->isExtern()) return true;
-  auto canonical = variable->canonical();
-  if (canonical->isExtern()) return true;
-  return std::ranges::any_of(
-      canonical->redeclarations(),
-      [](VariableSymbol* redeclaration) { return redeclaration->isExtern(); });
-}
-
-[[nodiscard]] auto isInUnnamedNamespace(Symbol* symbol) -> bool {
-  for (auto scope : symbol->enclosingSymbols()) {
-    auto ns = symbol_cast<NamespaceSymbol>(scope);
-    if (!ns || is_global_namespace(ns)) continue;
-    if (!ns->name()) return true;
-  }
-  return false;
-}
-
-[[nodiscard]] auto hasInternalLinkage(Symbol* symbol) -> bool {
-  auto parent = symbol->parent();
-  if (!parent || !parent->isNamespace()) return false;
-
-  if (isInUnnamedNamespace(symbol)) return false;
-
-  if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-    return function->isStatic();
-  }
-
-  auto variable = symbol_cast<VariableSymbol>(symbol);
-  if (!variable) return false;
-
-  if (variable->isStatic()) return true;
-
-  if (variable->isInline() || isDeclaredExtern(variable)) return false;
-  if (variable->templateParameters() || variable->isSpecialization())
-    return false;
-
-  auto qualType = type_cast<QualType>(variable->type());
-  return qualType && qualType->isConst() && !qualType->isVolatile();
-}
-
-[[nodiscard]] auto is_std_namespace(Symbol* symbol) -> bool {
+[[nodiscard]] auto is_abi_std_namespace(Symbol* symbol) -> bool {
   if (!symbol_cast<NamespaceSymbol>(symbol)) return false;
 
   auto parent = enclosing_class_or_namespace(symbol);
@@ -243,6 +202,12 @@ namespace {
 
   return true;
 }
+
+[[nodiscard]] auto needsInternalLinkageMarker(Symbol* symbol) -> bool {
+  if (is_in_unnamed_namespace(symbol)) return false;
+  return has_internal_linkage(symbol);
+}
+
 }  // namespace
 
 struct ExternalNameEncoder::EncodeType {
@@ -553,6 +518,29 @@ struct ExternalNameEncoder::EncodeType {
     cxx_runtime_error(std::format("cannot mangle unresolved bit-int type '{}'",
                                   to_string(type)));
   }
+
+  auto operator()(const VectorType* type) -> bool {
+    encoder.out(std::format("Dv{}_", type->elementCount()));
+    encoder.encodeType(type->elementType());
+    return true;
+  }
+
+  auto operator()(const UnresolvedVectorType* type) -> bool {
+    cxx_runtime_error(std::format("cannot mangle unresolved vector type '{}'",
+                                  to_string(type)));
+  }
+
+  auto operator()(const ComplexType* type) -> bool {
+    encoder.out("C");
+    encoder.encodeType(type->elementType());
+    return true;
+  }
+
+  auto operator()(const AtomicType* type) -> bool {
+    encoder.out("U7_Atomic");
+    encoder.encodeType(type->elementType());
+    return true;
+  }
 };
 
 struct ExternalNameEncoder::EncodeUnqualifiedName {
@@ -723,34 +711,38 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
     encoder.out("E");
   }
 
-  void operator()(const Identifier* id) {
-    if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-      if (function->isConstructor()) {
-        if (auto inherited = function->inheritedConstructorOrigin()) {
-          if (encoder.structorVariant_ == StructorVariant::Base)
-            out("CI2");
-          else
-            out("CI1");
-          auto base = enclosing_class_or_namespace(inherited);
-          if (!base || !base->type()) {
-            cxx_runtime_error("cannot mangle inherited constructor");
-          }
-          encoder.encodeType(base->type());
-          encodeTemplateArguments(inherited);
-          return;
-        }
-        if (encoder.structorVariant_ == StructorVariant::Base)
-          out("C2");
-        else
-          out("C1");
-        encodeAbiTagsAndTemplateArguments(symbol);
-        return;
+  auto encodeConstructor() -> bool {
+    auto function = symbol_cast<FunctionSymbol>(symbol);
+    if (!function || !function->isConstructor()) return false;
+
+    if (auto inherited = function->inheritedConstructorOrigin()) {
+      if (encoder.structorVariant_ == StructorVariant::Base)
+        out("CI2");
+      else
+        out("CI1");
+      auto base = enclosing_class_or_namespace(inherited);
+      if (!base || !base->type()) {
+        cxx_runtime_error("cannot mangle inherited constructor");
       }
+      encoder.encodeType(base->type());
+      encodeTemplateArguments(inherited);
+      return true;
     }
+
+    if (encoder.structorVariant_ == StructorVariant::Base)
+      out("C2");
+    else
+      out("C1");
+    encodeAbiTagsAndTemplateArguments(symbol);
+    return true;
+  }
+
+  void operator()(const Identifier* id) {
+    if (encodeConstructor()) return;
 
     if (encoder.encodeTemplateNameSubstitution(symbol)) return;
 
-    if (hasInternalLinkage(symbol)) out("L");
+    if (needsInternalLinkageMarker(symbol)) out("L");
 
     out(std::format("{}{}", id->name().length(), id->name()));
     encodeAbiTagsAndTemplateArguments(symbol);
@@ -816,7 +808,7 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   }
 
   void operator()(const LiteralOperatorId* name) {
-    out("ll");
+    out("li");
     encoder.out(std::format("{}{}", name->name().length(), name->name()));
     encodeAbiTagsAndTemplateArguments(symbol);
   }
@@ -889,6 +881,28 @@ auto ExternalNameEncoder::encodeVTable(ClassSymbol* classSymbol)
   return externalName;
 }
 
+auto ExternalNameEncoder::encodeConstructionVTable(ClassSymbol* completeClass,
+                                                   std::int64_t offset,
+                                                   ClassSymbol* baseClass)
+    -> std::string {
+  std::string externalName;
+  std::swap(externalName, out_);
+
+  out("_ZTC");
+  encodeName(completeClass);
+  if (offset < 0) {
+    out("n");
+    out(std::to_string(-offset));
+  } else {
+    out(std::to_string(offset));
+  }
+  out("_");
+  encodeName(baseClass);
+
+  std::swap(externalName, out_);
+  return externalName;
+}
+
 auto ExternalNameEncoder::encodeVTT(ClassSymbol* classSymbol) -> std::string {
   std::string externalName;
   std::swap(externalName, out_);
@@ -924,7 +938,7 @@ auto ExternalNameEncoder::encodeData(Symbol* symbol) -> std::string {
   std::string externalName;
   std::swap(externalName, out_);
   if (is_global_namespace(enclosing_class_or_namespace(symbol)) &&
-      !hasInternalLinkage(symbol) && mangledAbiTags(symbol).empty()) {
+      !needsInternalLinkageMarker(symbol) && mangledAbiTags(symbol).empty()) {
     auto id = name_cast<Identifier>(symbol->name());
     out(id->name());
   } else {
@@ -989,9 +1003,7 @@ void ExternalNameEncoder::encodeClosureSourceName(ClassSymbol* classSymbol) {
 }
 
 auto ExternalNameEncoder::unnamedTypeIndex(Symbol* symbol) const -> int {
-  FunctionSymbol* function = nullptr;
-  if (symbol) function = symbol->enclosingFunction();
-  if (!function) return -1;
+  if (!symbol) return -1;
 
   std::vector<Symbol*> unnamedTypes;
   std::set<ScopeSymbol*> visited;
@@ -1003,20 +1015,27 @@ auto ExternalNameEncoder::unnamedTypeIndex(Symbol* symbol) const -> int {
     return candidate->isEnumOrScopedEnum();
   };
 
-  std::function<void(ScopeSymbol*)> collect;
-  collect = [&](ScopeSymbol* scope) {
-    if (!scope || !visited.insert(scope).second) return;
-    for (auto member : scope->members()) {
-      if (member->enclosingFunction() != function) continue;
+  if (auto function = symbol->enclosingFunction()) {
+    std::function<void(ScopeSymbol*)> collect;
+    collect = [&](ScopeSymbol* scope) {
+      if (!scope || !visited.insert(scope).second) return;
+      for (auto member : scope->members()) {
+        if (member->enclosingFunction() != function) continue;
+        if (isUnnamedType(member)) unnamedTypes.push_back(member);
+
+        auto childScope = member->asScopeSymbol();
+        if (!childScope || member->isFunction()) continue;
+        collect(childScope);
+      }
+    };
+
+    collect(function);
+  } else if (auto context = symbol_cast<ScopeSymbol>(symbol->parent())) {
+    for (auto member : context->members()) {
       if (isUnnamedType(member)) unnamedTypes.push_back(member);
-
-      auto childScope = member->asScopeSymbol();
-      if (!childScope || member->isFunction()) continue;
-      collect(childScope);
     }
-  };
+  }
 
-  collect(function);
   std::ranges::sort(unnamedTypes, {}, &Symbol::location);
 
   auto it = std::ranges::find(unnamedTypes, symbol);
@@ -1097,7 +1116,7 @@ auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
   auto parent = mangling_parent(symbol);
   if (!parent) return false;
   if (is_global_namespace(parent)) return false;
-  if (is_std_namespace(parent)) return false;
+  if (is_abi_std_namespace(parent)) return false;
 
   if (templateNameOnly_ == symbol) {
     if (auto templateName = template_name(symbol);
@@ -1124,7 +1143,7 @@ auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
 }
 
 auto ExternalNameEncoder::encodeUnscopedName(Symbol* symbol) -> bool {
-  if (is_std_namespace(mangling_parent(symbol))) {
+  if (is_abi_std_namespace(mangling_parent(symbol))) {
     out("St");
   }
 
@@ -1133,7 +1152,7 @@ auto ExternalNameEncoder::encodeUnscopedName(Symbol* symbol) -> bool {
 }
 
 void ExternalNameEncoder::encodePrefix(Symbol* symbol) {
-  if (is_std_namespace(symbol)) {
+  if (is_abi_std_namespace(symbol)) {
     out("St");
     return;
   }
@@ -1156,6 +1175,13 @@ void ExternalNameEncoder::encodeUnqualifiedName(Symbol* symbol) {
     auto index = ns->anonNamespaceIndex().value();
     std::string name = std::format("_GLOBAL__N_{}", index + 1);
     out(std::format("{}{}", name.length(), name));
+    return;
+  }
+
+  if (!symbol->name()) {
+    EncodeUnqualifiedName encode{*this, symbol};
+    if (encode.encodeConstructor()) return;
+    encodeUnnamedTypeName(symbol);
     return;
   }
 
@@ -1825,8 +1851,8 @@ auto ExternalNameEncoder::encodeTemplatePrefixSubstitution(
   auto sameTemplateId = [&](const Substitution& substitution) {
     auto candidate = std::get_if<TemplatePrefixSubstitution>(&substitution);
     if (!candidate || candidate->templateSymbol != templateSymbol) return false;
-    return unit_ && areTemplateArgumentListsSyntacticallyEquivalent(
-                        unit_, candidate->arguments, arguments);
+    return unit_ && TemplateEquivalence{unit_}.sameWritten(candidate->arguments,
+                                                           arguments);
   };
   auto it = std::ranges::find_if(substs_, sameTemplateId);
   if (it == substs_.end()) return false;
@@ -1876,8 +1902,8 @@ void ExternalNameEncoder::enterTemplatePrefixSubstitution(
   auto sameTemplateId = [&](const Substitution& substitution) {
     auto candidate = std::get_if<TemplatePrefixSubstitution>(&substitution);
     if (!candidate || candidate->templateSymbol != templateSymbol) return false;
-    return unit_ && areTemplateArgumentListsSyntacticallyEquivalent(
-                        unit_, candidate->arguments, arguments);
+    return unit_ && TemplateEquivalence{unit_}.sameWritten(candidate->arguments,
+                                                           arguments);
   };
   if (std::ranges::any_of(substs_, sameTemplateId)) return;
   substs_.push_back(TemplatePrefixSubstitution{templateSymbol, arguments});

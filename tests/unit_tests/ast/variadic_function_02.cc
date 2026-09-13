@@ -49,7 +49,7 @@ void ff(int count, ...) {
 // CHECK-NEXT:                          identifier: args
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: call-expression [prvalue void]
-// CHECK-NEXT:                base-expression: id-expression [lvalue void (__builtin_va_list...)]
+// CHECK-NEXT:                base-expression: id-expression [lvalue void (__builtin_va_list&...) noexcept]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: __builtin_va_start
 // CHECK-NEXT:                expression-list
@@ -110,7 +110,7 @@ void ff(int count, ...) {
 // CHECK-NEXT:                              specifier: int
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: call-expression [prvalue void]
-// CHECK-NEXT:                base-expression: id-expression [lvalue void (__builtin_va_list)]
+// CHECK-NEXT:                base-expression: id-expression [lvalue void (__builtin_va_list&) noexcept]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: __builtin_va_end
 // CHECK-NEXT:                expression-list

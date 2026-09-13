@@ -209,6 +209,7 @@ ${cpy_header}
 #include <cxx/source_location.h>
 #include <cxx/token.h>
 #include <cxx/ast_kind.h>
+#include <cxx/attributes.h>
 #include <cxx/const_value.h>
 #include <cxx/symbols_fwd.h>
 #include <optional>
@@ -255,7 +256,7 @@ class ListIterator {
 };
 
 template <typename T>
-class ListView : std::ranges::view_interface<ListView<T>> {
+class ListView : public std::ranges::view_interface<ListView<T>> {
  public:
   explicit ListView(List<T>* list) : list_(list) {}
 
@@ -287,8 +288,18 @@ public:
       return SourceLocationRange(firstSourceLocation(), lastSourceLocation());
   }
 
+  /**
+   * Scratch space for a walk that has to number the nodes it reaches, such as
+   * the archive encoder assigning references. Zero means unnumbered; a walk
+   * clears what it stamped when it finishes, so the field is always zero
+   * outside one. It occupies padding that already existed after the kind.
+   */
+  [[nodiscard]] auto internalId() const -> std::uint32_t { return internalId_; }
+  void setInternalId(std::uint32_t internalId) { internalId_ = internalId; }
+
 private:
     ASTKind kind_;
+    std::uint32_t internalId_ = 0;
 };
 
 template <typename T>
@@ -319,6 +330,12 @@ template <typename T>
 template <typename T>
 [[nodiscard]] inline auto lastSourceLocation(T* node) -> SourceLocation {
     return node ? node->lastSourceLocation() : SourceLocation();
+}
+
+template <typename T>
+[[nodiscard]] inline auto lastTokenLocation(T* node) -> SourceLocation {
+    auto loc = lastSourceLocation(node);
+    return loc ? loc.previous() : SourceLocation();
 }
 
 template <typename T>

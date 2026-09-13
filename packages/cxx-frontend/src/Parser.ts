@@ -22,8 +22,9 @@ import { cxx } from "./cxx.js";
 import { type UnitOptions } from "./cxx-js.js";
 import { isCxxLoaded } from "./loadCxx.js";
 import { type Diagnostic } from "./Diagnostic.js";
+import { type EmitterDelegate } from "./Emitter.js";
 import { type Unit } from "./Unit.js";
-import { AST } from "./AST.js";
+import { modelOf, type UnitAST } from "./Semantic.js";
 import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
 import { continueWithEventLoopYields } from "./eventLoop.js";
 
@@ -91,18 +92,9 @@ export interface ParseOptions extends Omit<UnitOptions, "shouldContinue"> {
  */
 export class Parser implements Disposable, AsyncDisposable {
   #unit: Unit | undefined;
-  readonly #ast: AST;
 
   private constructor(unit: Unit) {
     this.#unit = unit;
-
-    const ast = AST.from(unit.getHandle(), this);
-
-    if (!ast) {
-      throw new Error("failed to create the AST");
-    }
-
-    this.#ast = ast;
   }
 
   /**
@@ -157,17 +149,24 @@ export class Parser implements Disposable, AsyncDisposable {
   /**
    * Returns the root of the AST.
    */
-  get ast(): AST {
-    if (!this.#unit) {
-      throw disposedError();
-    }
+  get ast(): UnitAST {
+    return this.model.ast;
+  }
 
-    return this.#ast;
+  /**
+   * Whether the native resources of the parser have been released.
+   */
+  get disposed(): boolean {
+    return this.#unit === undefined;
   }
 
   /**
    * Returns the diagnostics collected while preprocessing and parsing.
    */
+  get model() {
+    return modelOf(this);
+  }
+
   get diagnostics(): Diagnostic[] {
     return this.#nativeUnit().getDiagnostics();
   }
@@ -185,6 +184,10 @@ export class Parser implements Disposable, AsyncDisposable {
     format: Format;
   }): OutputCode<Format> {
     return this.#nativeUnit().emitCode(format) as OutputCode<Format>;
+  }
+
+  emitWith(delegate: EmitterDelegate): void {
+    this.#nativeUnit().emitWith(delegate);
   }
 
   /**

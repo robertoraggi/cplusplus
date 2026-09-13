@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { cpy_header } from "./cpy_header.ts";
-import { BUILTINS } from "./builtins.ts";
+import { BUILTINS, isInterpreterHook } from "./builtins.ts";
 import * as fs from "node:fs";
 
 const converterFor: Record<string, string> = {
@@ -238,6 +238,30 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
   lines.push(`#include <cstdlib>`);
   lines.push(`#include <cstring>`);
   lines.push(``);
+  lines.push(`auto cxx::ASTInterpreter::builtinIsConstantOnly(`);
+  lines.push(`    cxx::BuiltinFunctionKind kind) -> bool {`);
+  lines.push(`  switch (kind) {`);
+  for (const b of BUILTINS.filter((b) => b.consteval)) {
+    lines.push(`    case ${enumName(b.name)}:`);
+  }
+  lines.push(`      return true;`);
+  lines.push(`    default:`);
+  lines.push(`      return false;`);
+  lines.push(`  }`);
+  lines.push(`}`);
+  lines.push(``);
+  lines.push(`auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(`);
+  lines.push(`    cxx::BuiltinFunctionKind kind) -> bool {`);
+  lines.push(`  switch (kind) {`);
+  for (const b of BUILTINS.filter((b) => isInterpreterHook(b.eval))) {
+    lines.push(`    case ${enumName(b.name)}:`);
+  }
+  lines.push(`      return true;`);
+  lines.push(`    default:`);
+  lines.push(`      return false;`);
+  lines.push(`  }`);
+  lines.push(`}`);
+  lines.push(``);
   lines.push(
     `auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,`,
   );
@@ -250,11 +274,10 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
   lines.push(`    -> std::optional<ConstValue> {`);
   lines.push(`  switch (kind) {`);
 
-  // Emit constEval dispatch cases before the math loop
-  const constEvalBuiltins = BUILTINS.filter((b) => b.constEval);
-  for (const b of constEvalBuiltins) {
+  for (const b of BUILTINS) {
+    if (!isInterpreterHook(b.eval)) continue;
     lines.push(`    case ${enumName(b.name)}:`);
-    lines.push(`      return ${b.constEval}(ast);`);
+    lines.push(`      return ${b.eval}(ast);`);
     lines.push(``);
   }
 
@@ -339,7 +362,7 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
 
   for (const b of BUILTINS) {
     if (!b.eval) continue;
-    if (b.constEval) continue; // handled by constEval dispatch above
+    if (isInterpreterHook(b.eval)) continue;
     if (b.eval.cxx23 && !inCxx23Block) {
       lines.push(`#if __cplusplus >= 202302L`);
       inCxx23Block = true;

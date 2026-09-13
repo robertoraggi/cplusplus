@@ -86,7 +86,6 @@ void GCCLinuxToolchain::addPredefinedMacros() {
   defineMacro("__signed__", "signed");
   defineMacro("_Nonnull", "");
   defineMacro("_Nullable", "");
-  defineMacro("_Pragma(x)", "");
 
   addCommonMacros();
   addCommonLinuxMacros();

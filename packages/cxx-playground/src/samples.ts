@@ -17,4 +17,4 @@ export const samples: SampleCode[] = Object.entries(semaFiles)
   .sort((a, b) => a.name.localeCompare(b.name))
 
 export const defaultSample =
-  samples.find((s) => s.id === "auto_template.cc") ?? samples[0]
+  samples.find((s) => s.id === "print_01.cc") ?? samples[0]

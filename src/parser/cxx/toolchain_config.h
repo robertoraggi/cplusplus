@@ -28,7 +28,15 @@
 namespace cxx {
 class CLI;
 class Preprocessor;
+
+[[nodiscard]] auto languageOf(const CLI& cli, const std::string& fileName)
+    -> LanguageKind;
+
 [[nodiscard]] auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
-                                   std::string& error)
+                                   LanguageKind language, std::string& error)
+    -> std::unique_ptr<Toolchain>;
+
+[[nodiscard]] auto createToolchainForLinking(const CLI& cli,
+                                             LanguageKind language)
     -> std::unique_ptr<Toolchain>;
 }  // namespace cxx

@@ -125,7 +125,7 @@ auto VerifyDiagnosticsClient::findDiagnostic(const ExpectedDiagnostic& expected)
       return false;
     }
 
-    const auto pos = preprocessor()->tokenStartPosition(d.token());
+    const auto pos = sourceResolver()->tokenStartPosition(d.token());
 
     if (pos.line != expected.line) return false;
 

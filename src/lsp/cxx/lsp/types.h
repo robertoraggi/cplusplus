@@ -1738,6 +1738,14 @@ class InlineValueParams final : public LSPObject {
     return T(value);
   }
 
+  [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument) -> InlineValueParams&;
 
   auto range(Range range) -> InlineValueParams&;
@@ -1745,6 +1753,9 @@ class InlineValueParams final : public LSPObject {
   auto context(InlineValueContext context) -> InlineValueParams&;
 
   auto workDoneToken(std::optional<ProgressToken> workDoneToken)
+      -> InlineValueParams&;
+
+  auto partialResultToken(std::optional<ProgressToken> partialResultToken)
       -> InlineValueParams&;
 };
 
@@ -1807,11 +1818,22 @@ class InlayHintParams final : public LSPObject {
     return T(value);
   }
 
+  [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument) -> InlayHintParams&;
 
   auto range(Range range) -> InlayHintParams&;
 
   auto workDoneToken(std::optional<ProgressToken> workDoneToken)
+      -> InlayHintParams&;
+
+  auto partialResultToken(std::optional<ProgressToken> partialResultToken)
       -> InlayHintParams&;
 };
 
@@ -2274,6 +2296,14 @@ class InlineCompletionParams final : public LSPObject {
     return T(value);
   }
 
+  [[nodiscard]] auto partialResultToken() const -> std::optional<ProgressToken>;
+
+  template <typename T>
+  [[nodiscard]] auto partialResultToken() -> T {
+    auto& value = (*repr_)["partialResultToken"];
+    return T(value);
+  }
+
   auto context(InlineCompletionContext context) -> InlineCompletionParams&;
 
   auto textDocument(TextDocumentIdentifier textDocument)
@@ -2282,6 +2312,9 @@ class InlineCompletionParams final : public LSPObject {
   auto position(Position position) -> InlineCompletionParams&;
 
   auto workDoneToken(std::optional<ProgressToken> workDoneToken)
+      -> InlineCompletionParams&;
+
+  auto partialResultToken(std::optional<ProgressToken> partialResultToken)
       -> InlineCompletionParams&;
 };
 
@@ -12726,11 +12759,22 @@ class EmitCodeParams final : public LSPObject {
     return T(value);
   }
 
+  [[nodiscard]] auto optimizationLevel() const -> std::optional<long>;
+
+  template <typename T>
+  [[nodiscard]] auto optimizationLevel() -> T {
+    auto& value = (*repr_)["optimizationLevel"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument) -> EmitCodeParams&;
 
   auto format(EmitCodeFormat format) -> EmitCodeParams&;
 
   auto debugInfo(std::optional<bool> debugInfo) -> EmitCodeParams&;
+
+  auto optimizationLevel(std::optional<long> optimizationLevel)
+      -> EmitCodeParams&;
 };
 
 class EmitCodeResult final : public LSPObject {

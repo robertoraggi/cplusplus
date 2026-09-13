@@ -28,9 +28,15 @@ if (EMSCRIPTEN)
 endif()
 
 add_executable(test_api
+    test_arena.cc
     test_control.cc
+    test_diagnostics.cc
     test_external_names.cc
+    test_lexer.cc
+    test_pch.cc
+    test_translation_unit.cc
     test_type_printer.cc
+    test_utf8.cc
 )
 
 target_link_libraries(test_api
@@ -38,3 +44,22 @@ target_link_libraries(test_api
     cxx-parser)
 
 gtest_discover_tests(test_api DISCOVERY_MODE PRE_TEST)
+
+if (CXX_ENABLE_MLIR)
+    add_executable(test_mlir_emitter test_mlir_emitter.cc)
+
+    target_link_libraries(test_mlir_emitter
+        GTest::gtest_main
+        cxx-mlir)
+
+    gtest_discover_tests(test_mlir_emitter DISCOVERY_MODE PRE_TEST)
+endif()
+
+# Evaluate the target's effective include directories, including dependencies.
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/codegen-dependencies-$<CONFIG>.txt"
+    CONTENT "$<TARGET_PROPERTY:cxx-codegen,INCLUDE_DIRECTORIES>\n$<TARGET_PROPERTY:cxx-codegen,LINK_LIBRARIES>\n")
+add_test(NAME codegen_backend_firewall
+    COMMAND ${CMAKE_COMMAND}
+        -DCODEGEN_SOURCE_DIR=${PROJECT_SOURCE_DIR}/src/codegen
+        -DDEPENDENCIES_FILE=${CMAKE_CURRENT_BINARY_DIR}/codegen-dependencies-$<CONFIG>.txt
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/codegen_backend_firewall.cmake)

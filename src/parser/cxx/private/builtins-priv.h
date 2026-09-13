@@ -23,322 +23,38 @@
 
 // clang-format off
 static constexpr const char* builtinsSource = R"(
-constexpr int __builtin_constant_p(...);
-constexpr bool __builtin_is_constant_evaluated();
-constexpr int __builtin_abs(int);
-constexpr long __builtin_labs(long);
-constexpr long long __builtin_llabs(long long);
-constexpr __UINT32_TYPE__ __builtin_bswap32(__UINT32_TYPE__);
-constexpr __UINT64_TYPE__ __builtin_bswap64(__UINT64_TYPE__);
-constexpr long __builtin_expect(long, long);
-void __builtin_va_start(__builtin_va_list, ...);
-void __builtin_va_end(__builtin_va_list);
-void __builtin_va_copy(__builtin_va_list, __builtin_va_list);
-void __builtin_c23_va_start(__builtin_va_list, ...);
-constexpr float __builtin_acosf(float);
-constexpr double __builtin_acos(double);
-constexpr long double __builtin_acosl(long double);
-constexpr float __builtin_acoshf(float);
-constexpr double __builtin_acosh(double);
-constexpr long double __builtin_acoshl(long double);
-constexpr float __builtin_asinf(float);
-constexpr double __builtin_asin(double);
-constexpr long double __builtin_asinl(long double);
-constexpr float __builtin_asinhf(float);
-constexpr double __builtin_asinh(double);
-constexpr long double __builtin_asinhl(long double);
-constexpr float __builtin_atanf(float);
-constexpr double __builtin_atan(double);
-constexpr long double __builtin_atanl(long double);
-constexpr float __builtin_atan2f(float, float);
-constexpr double __builtin_atan2(double, double);
-constexpr long double __builtin_atan2l(long double, long double);
-constexpr float __builtin_atanhf(float);
-constexpr double __builtin_atanh(double);
-constexpr long double __builtin_atanhl(long double);
-constexpr float __builtin_cbrtf(float);
-constexpr double __builtin_cbrt(double);
-constexpr long double __builtin_cbrtl(long double);
-constexpr float __builtin_ceilf(float);
-constexpr double __builtin_ceil(double);
-constexpr long double __builtin_ceill(long double);
-constexpr float __builtin_copysignf(float, float);
-constexpr double __builtin_copysign(double, double);
-constexpr long double __builtin_copysignl(long double, long double);
-constexpr float __builtin_cosf(float);
-constexpr double __builtin_cos(double);
-constexpr long double __builtin_cosl(long double);
-constexpr float __builtin_coshf(float);
-constexpr double __builtin_cosh(double);
-constexpr long double __builtin_coshl(long double);
-constexpr float __builtin___cospif(float);
-constexpr double __builtin___cospi(double);
-constexpr float __builtin_erff(float);
-constexpr double __builtin_erf(double);
-constexpr long double __builtin_erfl(long double);
-constexpr float __builtin_erfcf(float);
-constexpr double __builtin_erfc(double);
-constexpr long double __builtin_erfcl(long double);
-constexpr float __builtin_expf(float);
-constexpr double __builtin_exp(double);
-constexpr long double __builtin_expl(long double);
-constexpr float __builtin_exp2f(float);
-constexpr double __builtin_exp2(double);
-constexpr long double __builtin_exp2l(long double);
-constexpr float __builtin_expm1f(float);
-constexpr double __builtin_expm1(double);
-constexpr long double __builtin_expm1l(long double);
-constexpr float __builtin_fabsf(float);
-constexpr double __builtin_fabs(double);
-constexpr long double __builtin_fabsl(long double);
-constexpr float __builtin_fdimf(float, float);
-constexpr double __builtin_fdim(double, double);
-constexpr long double __builtin_fdiml(long double, long double);
-constexpr int __builtin_finitef(float);
-constexpr int __builtin_finite(double);
-constexpr int __builtin_finitel(long double);
-constexpr float __builtin_floorf(float);
-constexpr double __builtin_floor(double);
-constexpr long double __builtin_floorl(long double);
-constexpr float __builtin_fmaf(float, float, float);
-constexpr double __builtin_fma(double, double, double);
-constexpr long double __builtin_fmal(long double, long double, long double);
-constexpr float __builtin_fmaxf(float, float);
-constexpr double __builtin_fmax(double, double);
-constexpr long double __builtin_fmaxl(long double, long double);
-constexpr float __builtin_fmaximum_numf(float, float);
-constexpr double __builtin_fmaximum_num(double, double);
-constexpr long double __builtin_fmaximum_numl(long double, long double);
-constexpr float __builtin_fminf(float, float);
-constexpr double __builtin_fmin(double, double);
-constexpr long double __builtin_fminl(long double, long double);
-constexpr float __builtin_fminimum_numf(float, float);
-constexpr double __builtin_fminimum_num(double, double);
-constexpr long double __builtin_fminimum_numl(long double, long double);
-constexpr float __builtin_fmodf(float, float);
-constexpr double __builtin_fmod(double, double);
-constexpr long double __builtin_fmodl(long double, long double);
-float __builtin_frexpf(float, int*);
-double __builtin_frexp(double, int*);
-long double __builtin_frexpl(long double, int*);
-constexpr float __builtin_hypotf(float, float);
-constexpr double __builtin_hypot(double, double);
-constexpr long double __builtin_hypotl(long double, long double);
-constexpr int __builtin_ilogbf(float);
-constexpr int __builtin_ilogb(double);
-constexpr int __builtin_ilogbl(long double);
-constexpr float __builtin_ldexpf(float, int);
-constexpr double __builtin_ldexp(double, int);
-constexpr long double __builtin_ldexpl(long double, int);
-constexpr float __builtin_lgammaf(float);
-constexpr double __builtin_lgamma(double);
-constexpr long double __builtin_lgammal(long double);
-constexpr long long __builtin_llrintf(float);
-constexpr long long __builtin_llrint(double);
-constexpr long long __builtin_llrintl(long double);
-constexpr long long __builtin_llroundf(float);
-constexpr long long __builtin_llround(double);
-constexpr long long __builtin_llroundl(long double);
-constexpr float __builtin_logf(float);
-constexpr double __builtin_log(double);
-constexpr long double __builtin_logl(long double);
-constexpr float __builtin_log1pf(float);
-constexpr double __builtin_log1p(double);
-constexpr long double __builtin_log1pl(long double);
-constexpr float __builtin_log2f(float);
-constexpr double __builtin_log2(double);
-constexpr long double __builtin_log2l(long double);
-constexpr float __builtin_log10f(float);
-constexpr double __builtin_log10(double);
-constexpr long double __builtin_log10l(long double);
-constexpr float __builtin_logbf(float);
-constexpr double __builtin_logb(double);
-constexpr long double __builtin_logbl(long double);
-constexpr long __builtin_lrintf(float);
-constexpr long __builtin_lrint(double);
-constexpr long __builtin_lrintl(long double);
-constexpr long __builtin_lroundf(float);
-constexpr long __builtin_lround(double);
-constexpr long __builtin_lroundl(long double);
-float __builtin_modff(float, float*);
-double __builtin_modf(double, double*);
-long double __builtin_modfl(long double, long double*);
-float __builtin_nanf(const char*);
-double __builtin_nan(const char*);
-long double __builtin_nanl(const char*);
-constexpr float __builtin_nearbyintf(float);
-constexpr double __builtin_nearbyint(double);
-constexpr long double __builtin_nearbyintl(long double);
-constexpr float __builtin_nextafterf(float, float);
-constexpr double __builtin_nextafter(double, double);
-constexpr long double __builtin_nextafterl(long double, long double);
-constexpr float __builtin_nexttowardf(float, long double);
-constexpr double __builtin_nexttoward(double, long double);
-constexpr long double __builtin_nexttowardl(long double, long double);
-constexpr float __builtin___exp10f(float);
-constexpr double __builtin___exp10(double);
-constexpr int __builtin___finitef(float);
-constexpr int __builtin___finite(double);
-constexpr int __builtin___finitel(long double);
-constexpr float __builtin_powf(float, float);
-constexpr double __builtin_pow(double, double);
-constexpr long double __builtin_powl(long double, long double);
-constexpr float __builtin_remainderf(float, float);
-constexpr double __builtin_remainder(double, double);
-constexpr long double __builtin_remainderl(long double, long double);
-float __builtin_remquof(float, float, int*);
-double __builtin_remquo(double, double, int*);
-long double __builtin_remquol(long double, long double, int*);
-constexpr float __builtin_rintf(float);
-constexpr double __builtin_rint(double);
-constexpr long double __builtin_rintl(long double);
-constexpr float __builtin_roundf(float);
-constexpr double __builtin_round(double);
-constexpr long double __builtin_roundl(long double);
-constexpr float __builtin_roundevenf(float);
-constexpr double __builtin_roundeven(double);
-constexpr long double __builtin_roundevenl(long double);
-constexpr float __builtin_scalblnf(float, long);
-constexpr double __builtin_scalbln(double, long);
-constexpr long double __builtin_scalblnl(long double, long);
-constexpr float __builtin_scalbnf(float, int);
-constexpr double __builtin_scalbn(double, int);
-constexpr long double __builtin_scalbnl(long double, int);
-constexpr float __builtin_sinf(float);
-constexpr double __builtin_sin(double);
-constexpr long double __builtin_sinl(long double);
-void __builtin_sincosf(float, float*, float*);
-void __builtin_sincos(double, double*, double*);
-void __builtin_sincosl(long double, long double*, long double*);
-constexpr float __builtin_sinhf(float);
-constexpr double __builtin_sinh(double);
-constexpr long double __builtin_sinhl(long double);
-constexpr float __builtin___sinpif(float);
-constexpr double __builtin___sinpi(double);
-constexpr float __builtin_sqrtf(float);
-constexpr double __builtin_sqrt(double);
-constexpr long double __builtin_sqrtl(long double);
-constexpr float __builtin_tanf(float);
-constexpr double __builtin_tan(double);
-constexpr long double __builtin_tanl(long double);
-constexpr float __builtin_tanhf(float);
-constexpr double __builtin_tanh(double);
-constexpr long double __builtin_tanhl(long double);
-constexpr float __builtin___tanpif(float);
-constexpr double __builtin___tanpi(double);
-constexpr float __builtin_tgammaf(float);
-constexpr double __builtin_tgamma(double);
-constexpr long double __builtin_tgammal(long double);
-constexpr float __builtin_truncf(float);
-constexpr double __builtin_trunc(double);
-constexpr long double __builtin_truncl(long double);
-constexpr int __builtin_bcmp(const void*, const void*, __SIZE_TYPE__);
-void __builtin_bzero(void*, __SIZE_TYPE__);
-void __builtin_bcopy(const void*, void*, __SIZE_TYPE__);
-constexpr char* __builtin_index(const char*, int);
-constexpr void* __builtin_memchr(const void*, int, __SIZE_TYPE__);
-constexpr int __builtin_memcmp(const void*, const void*, __SIZE_TYPE__);
-void* __builtin_memcpy(void*, const void*, __SIZE_TYPE__);
-void* __builtin_memmove(void*, const void*, __SIZE_TYPE__);
-void* __builtin_memset(void*, int, __SIZE_TYPE__);
-void* __builtin_memccpy(void*, const void*, int, __SIZE_TYPE__);
-void* __builtin_mempcpy(void*, const void*, __SIZE_TYPE__);
-constexpr char* __builtin_rindex(const char*, int);
-char* __builtin_stpcpy(char*, const char*);
-char* __builtin_stpncpy(char*, const char*, __SIZE_TYPE__);
-constexpr int __builtin_strcasecmp(const char*, const char*);
-char* __builtin_strcat(char*, const char*);
-constexpr char* __builtin_strchr(const char*, int);
-constexpr int __builtin_strcmp(const char*, const char*);
-char* __builtin_strcpy(char*, const char*);
-char* __builtin_strdup(const char*);
-char* __builtin_strerror(int);
-constexpr __SIZE_TYPE__ __builtin_strlen(const char*);
-char* __builtin_strncat(char*, const char*, __SIZE_TYPE__);
-constexpr int __builtin_strncmp(const char*, const char*, __SIZE_TYPE__);
-char* __builtin_strncpy(char*, const char*, __SIZE_TYPE__);
-constexpr __SIZE_TYPE__ __builtin_strspn(const char*, const char*);
-constexpr char* __builtin_strstr(const char*, const char*);
-char* __builtin_strtok(char*, const char*);
-constexpr __SIZE_TYPE__ __builtin_strcspn(const char*, const char*);
-__SIZE_TYPE__ __builtin_strlcat(char*, const char*, __SIZE_TYPE__);
-__SIZE_TYPE__ __builtin_strlcpy(char*, const char*, __SIZE_TYPE__);
-constexpr int __builtin_strncasecmp(const char*, const char*, __SIZE_TYPE__);
-char* __builtin_strndup(const char*, __SIZE_TYPE__);
-constexpr char* __builtin_strpbrk(const char*, const char*);
-constexpr char* __builtin_strrchr(const char*, int);
-__SIZE_TYPE__ __builtin_strxfrm(char*, const char*, __SIZE_TYPE__);
-constexpr int __builtin_ctz(unsigned int);
-constexpr int __builtin_ctzl(unsigned long);
-constexpr int __builtin_ctzll(unsigned long long);
-constexpr double __builtin_inf();
-constexpr float __builtin_inff();
-constexpr long double __builtin_infl();
-bool __builtin_isfinite(double);
-bool __builtin_isinf(double);
-bool __builtin_isnan(double);
-bool __builtin_isnormal(double);
-void __builtin_unreachable();
-void __c11_atomic_init(volatile void*, long long);
-void __c11_atomic_store(volatile void*, long long, int);
-long long __c11_atomic_load(volatile void*, int);
-long long __c11_atomic_exchange(volatile void*, long long, int);
-int __c11_atomic_compare_exchange_strong(volatile void*, void*, long long, int, int);
-int __c11_atomic_compare_exchange_weak(volatile void*, void*, long long, int, int);
-long long __c11_atomic_fetch_add(volatile void*, long long, int);
-long long __c11_atomic_fetch_sub(volatile void*, long long, int);
-long long __c11_atomic_fetch_or(volatile void*, long long, int);
-long long __c11_atomic_fetch_and(volatile void*, long long, int);
-long long __c11_atomic_fetch_xor(volatile void*, long long, int);
-long long __c11_atomic_fetch_nand(volatile void*, long long, int);
-void __c11_atomic_thread_fence(int);
-void __c11_atomic_signal_fence(int);
-int __c11_atomic_is_lock_free(__SIZE_TYPE__);
-long long __atomic_load_n(const volatile void*, int);
-void __atomic_load(const volatile void*, void*, int);
-void __atomic_store_n(volatile void*, long long, int);
-void __atomic_store(volatile void*, void*, int);
-long long __atomic_exchange_n(volatile void*, long long, int);
-void __atomic_exchange(volatile void*, void*, void*, int);
-bool __atomic_compare_exchange_n(volatile void*, void*, long long, bool, int, int);
-bool __atomic_compare_exchange(volatile void*, void*, void*, bool, int, int);
-long long __atomic_add_fetch(volatile void*, long long, int);
-long long __atomic_sub_fetch(volatile void*, long long, int);
-long long __atomic_and_fetch(volatile void*, long long, int);
-long long __atomic_xor_fetch(volatile void*, long long, int);
-long long __atomic_or_fetch(volatile void*, long long, int);
-long long __atomic_nand_fetch(volatile void*, long long, int);
-long long __atomic_fetch_add(volatile void*, long long, int);
-long long __atomic_fetch_sub(volatile void*, long long, int);
-long long __atomic_fetch_and(volatile void*, long long, int);
-long long __atomic_fetch_xor(volatile void*, long long, int);
-long long __atomic_fetch_or(volatile void*, long long, int);
-long long __atomic_fetch_nand(volatile void*, long long, int);
-bool __atomic_test_and_set(volatile void*, int);
-void __atomic_clear(volatile void*, int);
-void __atomic_thread_fence(int);
-void __atomic_signal_fence(int);
-bool __atomic_always_lock_free(__SIZE_TYPE__, const volatile void*);
-bool __atomic_is_lock_free(__SIZE_TYPE__, const volatile void*);
-constexpr int __builtin_LINE();
-constexpr const char* __builtin_FILE();
-constexpr const char* __builtin_FUNCTION();
-constexpr double __builtin_huge_val();
-constexpr float __builtin_huge_valf();
-constexpr long double __builtin_huge_vall();
-double __builtin_nans(const char*);
-float __builtin_nansf(const char*);
-long double __builtin_nansl(const char*);
-void* __builtin_alloca(__SIZE_TYPE__);
-void* __builtin_assume_aligned(const void*, __SIZE_TYPE__, ...);
-void* __builtin_operator_new(__SIZE_TYPE__, ...);
-void __builtin_operator_delete(void*, ...);
-void* __builtin_invoke(...);
-void* __builtin_addressof(...);
-bool __builtin_signbit(double);
-int __builtin_fpclassify(int, int, int, int, int, ...);
-int __builtin_ctzg(...);
-int __builtin_clzg(...);
+
+#define __cxx_builtin_arity(_1, _2, selected, ...) selected
+#define __cxx_builtin_overload(one, two, ...) __cxx_builtin_arity(__VA_ARGS__, two, one)
+
+#define __cxx_clzg_dispatch(x) _Generic((x), \
+    unsigned char: __builtin_clz((unsigned int)(x)) - 24, \
+    unsigned short: __builtin_clzs(x), \
+    unsigned int: __builtin_clz(x), \
+    unsigned long: __builtin_clzl(x), \
+    unsigned long long: __builtin_clzll(x), \
+    unsigned __int128: ((unsigned long long)((x) >> 64) ? __builtin_clzll((unsigned long long)((x) >> 64)) : 64 + __builtin_clzll((unsigned long long)(x))))
+#define __cxx_clzg_or(x, fallback) ((x) ? __cxx_clzg_dispatch(x) : _Generic((fallback), int: (fallback)))
+#define __builtin_clzg(...) __cxx_builtin_overload(__cxx_clzg_dispatch, __cxx_clzg_or, __VA_ARGS__)(__VA_ARGS__)
+
+#define __cxx_ctzg_dispatch(x) _Generic((x), \
+    unsigned char: __builtin_ctz((unsigned int)(x)), \
+    unsigned short: __builtin_ctzs(x), \
+    unsigned int: __builtin_ctz(x), \
+    unsigned long: __builtin_ctzl(x), \
+    unsigned long long: __builtin_ctzll(x), \
+    unsigned __int128: ((unsigned long long)(x) ? __builtin_ctzll((unsigned long long)(x)) : 64 + __builtin_ctzll((unsigned long long)((x) >> 64))))
+#define __cxx_ctzg_or(x, fallback) ((x) ? __cxx_ctzg_dispatch(x) : _Generic((fallback), int: (fallback)))
+#define __builtin_ctzg(...) __cxx_builtin_overload(__cxx_ctzg_dispatch, __cxx_ctzg_or, __VA_ARGS__)(__VA_ARGS__)
+
+#define __cxx_popcountg_dispatch(x) _Generic((x), \
+    unsigned char: __builtin_popcount((unsigned int)(x)), \
+    unsigned short: __builtin_popcount((unsigned int)(x)), \
+    unsigned int: __builtin_popcount(x), \
+    unsigned long: __builtin_popcountl(x), \
+    unsigned long long: __builtin_popcountll(x), \
+    unsigned __int128: (__builtin_popcountll((unsigned long long)(x)) + __builtin_popcountll((unsigned long long)((x) >> 64))))
+#define __builtin_popcountg(x) __cxx_popcountg_dispatch(x)
 
 #ifdef __cplusplus
 

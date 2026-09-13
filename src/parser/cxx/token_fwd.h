@@ -46,7 +46,8 @@ class Token;
   V(UTF8_STRING_LITERAL, "<utf8_string_literal>")                 \
   V(WIDE_STRING_LITERAL, "<wide_string_literal>")                 \
   V(PP_INTERNAL_VARIABLE, "<pp_internal_variable>")               \
-  V(CODE_COMPLETION, "<code_completion>")
+  V(CODE_COMPLETION, "<code_completion>")                         \
+  V(PRAGMA_PACK, "<pragma_pack>")
 
 #define FOR_EACH_OPERATOR(V)      \
   V(AMP_AMP, "&&")                \
@@ -332,9 +333,11 @@ class Token;
   V(__ATOMIC_TEST_AND_SET, "__atomic_test_and_set")                           \
   V(__ATOMIC_THREAD_FENCE, "__atomic_thread_fence")                           \
   V(__ATOMIC_XOR_FETCH, "__atomic_xor_fetch")                                 \
+  V(__BUILTIN_COLUMN, "__builtin_COLUMN")                                     \
   V(__BUILTIN_FILE, "__builtin_FILE")                                         \
   V(__BUILTIN_FUNCTION, "__builtin_FUNCTION")                                 \
   V(__BUILTIN_LINE, "__builtin_LINE")                                         \
+  V(__BUILTIN__EXIT, "__builtin__Exit")                                       \
   V(__BUILTIN___COSPI, "__builtin___cospi")                                   \
   V(__BUILTIN___COSPIF, "__builtin___cospif")                                 \
   V(__BUILTIN___EXP10, "__builtin___exp10")                                   \
@@ -346,6 +349,7 @@ class Token;
   V(__BUILTIN___SINPIF, "__builtin___sinpif")                                 \
   V(__BUILTIN___TANPI, "__builtin___tanpi")                                   \
   V(__BUILTIN___TANPIF, "__builtin___tanpif")                                 \
+  V(__BUILTIN_ABORT, "__builtin_abort")                                       \
   V(__BUILTIN_ABS, "__builtin_abs")                                           \
   V(__BUILTIN_ACOS, "__builtin_acos")                                         \
   V(__BUILTIN_ACOSF, "__builtin_acosf")                                       \
@@ -353,7 +357,9 @@ class Token;
   V(__BUILTIN_ACOSHF, "__builtin_acoshf")                                     \
   V(__BUILTIN_ACOSHL, "__builtin_acoshl")                                     \
   V(__BUILTIN_ACOSL, "__builtin_acosl")                                       \
+  V(__BUILTIN_ADD_OVERFLOW, "__builtin_add_overflow")                         \
   V(__BUILTIN_ADDRESSOF, "__builtin_addressof")                               \
+  V(__BUILTIN_ALIGNED_ALLOC, "__builtin_aligned_alloc")                       \
   V(__BUILTIN_ALLOCA, "__builtin_alloca")                                     \
   V(__BUILTIN_ASIN, "__builtin_asin")                                         \
   V(__BUILTIN_ASINF, "__builtin_asinf")                                       \
@@ -377,33 +383,111 @@ class Token;
   V(__BUILTIN_BSWAP64, "__builtin_bswap64")                                   \
   V(__BUILTIN_BZERO, "__builtin_bzero")                                       \
   V(__BUILTIN_C23_VA_START, "__builtin_c23_va_start")                         \
+  V(__BUILTIN_CABS, "__builtin_cabs")                                         \
+  V(__BUILTIN_CABSF, "__builtin_cabsf")                                       \
+  V(__BUILTIN_CABSL, "__builtin_cabsl")                                       \
+  V(__BUILTIN_CACOS, "__builtin_cacos")                                       \
+  V(__BUILTIN_CACOSF, "__builtin_cacosf")                                     \
+  V(__BUILTIN_CACOSH, "__builtin_cacosh")                                     \
+  V(__BUILTIN_CACOSHF, "__builtin_cacoshf")                                   \
+  V(__BUILTIN_CACOSHL, "__builtin_cacoshl")                                   \
+  V(__BUILTIN_CACOSL, "__builtin_cacosl")                                     \
+  V(__BUILTIN_CARG, "__builtin_carg")                                         \
+  V(__BUILTIN_CARGF, "__builtin_cargf")                                       \
+  V(__BUILTIN_CARGL, "__builtin_cargl")                                       \
+  V(__BUILTIN_CASIN, "__builtin_casin")                                       \
+  V(__BUILTIN_CASINF, "__builtin_casinf")                                     \
+  V(__BUILTIN_CASINH, "__builtin_casinh")                                     \
+  V(__BUILTIN_CASINHF, "__builtin_casinhf")                                   \
+  V(__BUILTIN_CASINHL, "__builtin_casinhl")                                   \
+  V(__BUILTIN_CASINL, "__builtin_casinl")                                     \
+  V(__BUILTIN_CATAN, "__builtin_catan")                                       \
+  V(__BUILTIN_CATANF, "__builtin_catanf")                                     \
+  V(__BUILTIN_CATANH, "__builtin_catanh")                                     \
+  V(__BUILTIN_CATANHF, "__builtin_catanhf")                                   \
+  V(__BUILTIN_CATANHL, "__builtin_catanhl")                                   \
+  V(__BUILTIN_CATANL, "__builtin_catanl")                                     \
   V(__BUILTIN_CBRT, "__builtin_cbrt")                                         \
   V(__BUILTIN_CBRTF, "__builtin_cbrtf")                                       \
   V(__BUILTIN_CBRTL, "__builtin_cbrtl")                                       \
+  V(__BUILTIN_CCOS, "__builtin_ccos")                                         \
+  V(__BUILTIN_CCOSF, "__builtin_ccosf")                                       \
+  V(__BUILTIN_CCOSH, "__builtin_ccosh")                                       \
+  V(__BUILTIN_CCOSHF, "__builtin_ccoshf")                                     \
+  V(__BUILTIN_CCOSHL, "__builtin_ccoshl")                                     \
+  V(__BUILTIN_CCOSL, "__builtin_ccosl")                                       \
   V(__BUILTIN_CEIL, "__builtin_ceil")                                         \
   V(__BUILTIN_CEILF, "__builtin_ceilf")                                       \
   V(__BUILTIN_CEILL, "__builtin_ceill")                                       \
-  V(__BUILTIN_CLZG, "__builtin_clzg")                                         \
+  V(__BUILTIN_CEXP, "__builtin_cexp")                                         \
+  V(__BUILTIN_CEXPF, "__builtin_cexpf")                                       \
+  V(__BUILTIN_CEXPL, "__builtin_cexpl")                                       \
+  V(__BUILTIN_CIMAG, "__builtin_cimag")                                       \
+  V(__BUILTIN_CIMAGF, "__builtin_cimagf")                                     \
+  V(__BUILTIN_CIMAGL, "__builtin_cimagl")                                     \
+  V(__BUILTIN_CLOG, "__builtin_clog")                                         \
+  V(__BUILTIN_CLOGF, "__builtin_clogf")                                       \
+  V(__BUILTIN_CLOGL, "__builtin_clogl")                                       \
+  V(__BUILTIN_CLRSB, "__builtin_clrsb")                                       \
+  V(__BUILTIN_CLRSBL, "__builtin_clrsbl")                                     \
+  V(__BUILTIN_CLRSBLL, "__builtin_clrsbll")                                   \
+  V(__BUILTIN_CLZ, "__builtin_clz")                                           \
+  V(__BUILTIN_CLZL, "__builtin_clzl")                                         \
+  V(__BUILTIN_CLZLL, "__builtin_clzll")                                       \
+  V(__BUILTIN_CLZS, "__builtin_clzs")                                         \
+  V(__BUILTIN_COMPLEX, "__builtin_complex")                                   \
+  V(__BUILTIN_CONJ, "__builtin_conj")                                         \
+  V(__BUILTIN_CONJF, "__builtin_conjf")                                       \
+  V(__BUILTIN_CONJL, "__builtin_conjl")                                       \
   V(__BUILTIN_CONSTANT_P, "__builtin_constant_p")                             \
   V(__BUILTIN_COPYSIGN, "__builtin_copysign")                                 \
   V(__BUILTIN_COPYSIGNF, "__builtin_copysignf")                               \
   V(__BUILTIN_COPYSIGNL, "__builtin_copysignl")                               \
+  V(__BUILTIN_CORO_DESTROY, "__builtin_coro_destroy")                         \
+  V(__BUILTIN_CORO_DONE, "__builtin_coro_done")                               \
+  V(__BUILTIN_CORO_PROMISE, "__builtin_coro_promise")                         \
+  V(__BUILTIN_CORO_RESUME, "__builtin_coro_resume")                           \
   V(__BUILTIN_COS, "__builtin_cos")                                           \
   V(__BUILTIN_COSF, "__builtin_cosf")                                         \
   V(__BUILTIN_COSH, "__builtin_cosh")                                         \
   V(__BUILTIN_COSHF, "__builtin_coshf")                                       \
   V(__BUILTIN_COSHL, "__builtin_coshl")                                       \
   V(__BUILTIN_COSL, "__builtin_cosl")                                         \
+  V(__BUILTIN_CPOW, "__builtin_cpow")                                         \
+  V(__BUILTIN_CPOWF, "__builtin_cpowf")                                       \
+  V(__BUILTIN_CPOWL, "__builtin_cpowl")                                       \
+  V(__BUILTIN_CPROJ, "__builtin_cproj")                                       \
+  V(__BUILTIN_CPROJF, "__builtin_cprojf")                                     \
+  V(__BUILTIN_CPROJL, "__builtin_cprojl")                                     \
+  V(__BUILTIN_CREAL, "__builtin_creal")                                       \
+  V(__BUILTIN_CREALF, "__builtin_crealf")                                     \
+  V(__BUILTIN_CREALL, "__builtin_creall")                                     \
+  V(__BUILTIN_CSIN, "__builtin_csin")                                         \
+  V(__BUILTIN_CSINF, "__builtin_csinf")                                       \
+  V(__BUILTIN_CSINH, "__builtin_csinh")                                       \
+  V(__BUILTIN_CSINHF, "__builtin_csinhf")                                     \
+  V(__BUILTIN_CSINHL, "__builtin_csinhl")                                     \
+  V(__BUILTIN_CSINL, "__builtin_csinl")                                       \
+  V(__BUILTIN_CSQRT, "__builtin_csqrt")                                       \
+  V(__BUILTIN_CSQRTF, "__builtin_csqrtf")                                     \
+  V(__BUILTIN_CSQRTL, "__builtin_csqrtl")                                     \
+  V(__BUILTIN_CTAN, "__builtin_ctan")                                         \
+  V(__BUILTIN_CTANF, "__builtin_ctanf")                                       \
+  V(__BUILTIN_CTANH, "__builtin_ctanh")                                       \
+  V(__BUILTIN_CTANHF, "__builtin_ctanhf")                                     \
+  V(__BUILTIN_CTANHL, "__builtin_ctanhl")                                     \
+  V(__BUILTIN_CTANL, "__builtin_ctanl")                                       \
   V(__BUILTIN_CTZ, "__builtin_ctz")                                           \
-  V(__BUILTIN_CTZG, "__builtin_ctzg")                                         \
   V(__BUILTIN_CTZL, "__builtin_ctzl")                                         \
   V(__BUILTIN_CTZLL, "__builtin_ctzll")                                       \
+  V(__BUILTIN_CTZS, "__builtin_ctzs")                                         \
   V(__BUILTIN_ERF, "__builtin_erf")                                           \
   V(__BUILTIN_ERFC, "__builtin_erfc")                                         \
   V(__BUILTIN_ERFCF, "__builtin_erfcf")                                       \
   V(__BUILTIN_ERFCL, "__builtin_erfcl")                                       \
   V(__BUILTIN_ERFF, "__builtin_erff")                                         \
   V(__BUILTIN_ERFL, "__builtin_erfl")                                         \
+  V(__BUILTIN_EXIT, "__builtin_exit")                                         \
   V(__BUILTIN_EXP, "__builtin_exp")                                           \
   V(__BUILTIN_EXP2, "__builtin_exp2")                                         \
   V(__BUILTIN_EXP2F, "__builtin_exp2f")                                       \
@@ -420,6 +504,9 @@ class Token;
   V(__BUILTIN_FDIM, "__builtin_fdim")                                         \
   V(__BUILTIN_FDIMF, "__builtin_fdimf")                                       \
   V(__BUILTIN_FDIML, "__builtin_fdiml")                                       \
+  V(__BUILTIN_FFS, "__builtin_ffs")                                           \
+  V(__BUILTIN_FFSL, "__builtin_ffsl")                                         \
+  V(__BUILTIN_FFSLL, "__builtin_ffsll")                                       \
   V(__BUILTIN_FINITE, "__builtin_finite")                                     \
   V(__BUILTIN_FINITEF, "__builtin_finitef")                                   \
   V(__BUILTIN_FINITEL, "__builtin_finitel")                                   \
@@ -463,10 +550,28 @@ class Token;
   V(__BUILTIN_INFL, "__builtin_infl")                                         \
   V(__BUILTIN_INVOKE, "__builtin_invoke")                                     \
   V(__BUILTIN_IS_CONSTANT_EVALUATED, "__builtin_is_constant_evaluated")       \
+  V(__BUILTIN_ISALNUM, "__builtin_isalnum")                                   \
+  V(__BUILTIN_ISALPHA, "__builtin_isalpha")                                   \
+  V(__BUILTIN_ISBLANK, "__builtin_isblank")                                   \
+  V(__BUILTIN_ISCNTRL, "__builtin_iscntrl")                                   \
+  V(__BUILTIN_ISDIGIT, "__builtin_isdigit")                                   \
   V(__BUILTIN_ISFINITE, "__builtin_isfinite")                                 \
+  V(__BUILTIN_ISGRAPH, "__builtin_isgraph")                                   \
+  V(__BUILTIN_ISGREATER, "__builtin_isgreater")                               \
+  V(__BUILTIN_ISGREATEREQUAL, "__builtin_isgreaterequal")                     \
   V(__BUILTIN_ISINF, "__builtin_isinf")                                       \
+  V(__BUILTIN_ISLESS, "__builtin_isless")                                     \
+  V(__BUILTIN_ISLESSEQUAL, "__builtin_islessequal")                           \
+  V(__BUILTIN_ISLESSGREATER, "__builtin_islessgreater")                       \
+  V(__BUILTIN_ISLOWER, "__builtin_islower")                                   \
   V(__BUILTIN_ISNAN, "__builtin_isnan")                                       \
   V(__BUILTIN_ISNORMAL, "__builtin_isnormal")                                 \
+  V(__BUILTIN_ISPRINT, "__builtin_isprint")                                   \
+  V(__BUILTIN_ISPUNCT, "__builtin_ispunct")                                   \
+  V(__BUILTIN_ISSPACE, "__builtin_isspace")                                   \
+  V(__BUILTIN_ISUNORDERED, "__builtin_isunordered")                           \
+  V(__BUILTIN_ISUPPER, "__builtin_isupper")                                   \
+  V(__BUILTIN_ISXDIGIT, "__builtin_isxdigit")                                 \
   V(__BUILTIN_LABS, "__builtin_labs")                                         \
   V(__BUILTIN_LDEXP, "__builtin_ldexp")                                       \
   V(__BUILTIN_LDEXPF, "__builtin_ldexpf")                                     \
@@ -512,6 +617,7 @@ class Token;
   V(__BUILTIN_MODF, "__builtin_modf")                                         \
   V(__BUILTIN_MODFF, "__builtin_modff")                                       \
   V(__BUILTIN_MODFL, "__builtin_modfl")                                       \
+  V(__BUILTIN_MUL_OVERFLOW, "__builtin_mul_overflow")                         \
   V(__BUILTIN_NAN, "__builtin_nan")                                           \
   V(__BUILTIN_NANF, "__builtin_nanf")                                         \
   V(__BUILTIN_NANL, "__builtin_nanl")                                         \
@@ -529,6 +635,12 @@ class Token;
   V(__BUILTIN_NEXTTOWARDL, "__builtin_nexttowardl")                           \
   V(__BUILTIN_OPERATOR_DELETE, "__builtin_operator_delete")                   \
   V(__BUILTIN_OPERATOR_NEW, "__builtin_operator_new")                         \
+  V(__BUILTIN_PARITY, "__builtin_parity")                                     \
+  V(__BUILTIN_PARITYL, "__builtin_parityl")                                   \
+  V(__BUILTIN_PARITYLL, "__builtin_parityll")                                 \
+  V(__BUILTIN_POPCOUNT, "__builtin_popcount")                                 \
+  V(__BUILTIN_POPCOUNTL, "__builtin_popcountl")                               \
+  V(__BUILTIN_POPCOUNTLL, "__builtin_popcountll")                             \
   V(__BUILTIN_POW, "__builtin_pow")                                           \
   V(__BUILTIN_POWF, "__builtin_powf")                                         \
   V(__BUILTIN_POWL, "__builtin_powl")                                         \
@@ -564,6 +676,7 @@ class Token;
   V(__BUILTIN_SINHF, "__builtin_sinhf")                                       \
   V(__BUILTIN_SINHL, "__builtin_sinhl")                                       \
   V(__BUILTIN_SINL, "__builtin_sinl")                                         \
+  V(__BUILTIN_SOURCE_LOCATION, "__builtin_source_location")                   \
   V(__BUILTIN_SQRT, "__builtin_sqrt")                                         \
   V(__BUILTIN_SQRTF, "__builtin_sqrtf")                                       \
   V(__BUILTIN_SQRTL, "__builtin_sqrtl")                                       \
@@ -589,8 +702,16 @@ class Token;
   V(__BUILTIN_STRRCHR, "__builtin_strrchr")                                   \
   V(__BUILTIN_STRSPN, "__builtin_strspn")                                     \
   V(__BUILTIN_STRSTR, "__builtin_strstr")                                     \
+  V(__BUILTIN_STRTOD, "__builtin_strtod")                                     \
+  V(__BUILTIN_STRTOF, "__builtin_strtof")                                     \
   V(__BUILTIN_STRTOK, "__builtin_strtok")                                     \
+  V(__BUILTIN_STRTOL, "__builtin_strtol")                                     \
+  V(__BUILTIN_STRTOLD, "__builtin_strtold")                                   \
+  V(__BUILTIN_STRTOLL, "__builtin_strtoll")                                   \
+  V(__BUILTIN_STRTOUL, "__builtin_strtoul")                                   \
+  V(__BUILTIN_STRTOULL, "__builtin_strtoull")                                 \
   V(__BUILTIN_STRXFRM, "__builtin_strxfrm")                                   \
+  V(__BUILTIN_SUB_OVERFLOW, "__builtin_sub_overflow")                         \
   V(__BUILTIN_TAN, "__builtin_tan")                                           \
   V(__BUILTIN_TANF, "__builtin_tanf")                                         \
   V(__BUILTIN_TANH, "__builtin_tanh")                                         \
@@ -600,6 +721,9 @@ class Token;
   V(__BUILTIN_TGAMMA, "__builtin_tgamma")                                     \
   V(__BUILTIN_TGAMMAF, "__builtin_tgammaf")                                   \
   V(__BUILTIN_TGAMMAL, "__builtin_tgammal")                                   \
+  V(__BUILTIN_TOLOWER, "__builtin_tolower")                                   \
+  V(__BUILTIN_TOUPPER, "__builtin_toupper")                                   \
+  V(__BUILTIN_TRAP, "__builtin_trap")                                         \
   V(__BUILTIN_TRUNC, "__builtin_trunc")                                       \
   V(__BUILTIN_TRUNCF, "__builtin_truncf")                                     \
   V(__BUILTIN_TRUNCL, "__builtin_truncl")                                     \
@@ -607,6 +731,15 @@ class Token;
   V(__BUILTIN_VA_COPY, "__builtin_va_copy")                                   \
   V(__BUILTIN_VA_END, "__builtin_va_end")                                     \
   V(__BUILTIN_VA_START, "__builtin_va_start")                                 \
+  V(__BUILTIN_VSNPRINTF, "__builtin_vsnprintf")                               \
+  V(__BUILTIN_WCSCHR, "__builtin_wcschr")                                     \
+  V(__BUILTIN_WCSCMP, "__builtin_wcscmp")                                     \
+  V(__BUILTIN_WCSLEN, "__builtin_wcslen")                                     \
+  V(__BUILTIN_WCSNCMP, "__builtin_wcsncmp")                                   \
+  V(__BUILTIN_WMEMCHR, "__builtin_wmemchr")                                   \
+  V(__BUILTIN_WMEMCMP, "__builtin_wmemcmp")                                   \
+  V(__BUILTIN_WMEMCPY, "__builtin_wmemcpy")                                   \
+  V(__BUILTIN_WMEMMOVE, "__builtin_wmemmove")                                 \
   V(__C11_ATOMIC_COMPARE_EXCHANGE_STRONG,                                     \
     "__c11_atomic_compare_exchange_strong")                                   \
   V(__C11_ATOMIC_COMPARE_EXCHANGE_WEAK, "__c11_atomic_compare_exchange_weak") \
@@ -624,10 +757,21 @@ class Token;
   V(__C11_ATOMIC_STORE, "__c11_atomic_store")                                 \
   V(__C11_ATOMIC_THREAD_FENCE, "__c11_atomic_thread_fence")
 
+#define FOR_EACH_BUILTIN_MACRO(V) \
+  V(__builtin_clzg)               \
+  V(__builtin_ctzg)               \
+  V(__builtin_popcountg)
+
 #define FOR_EACH_BUILTIN_TEMPLATE(V)            \
   V(__MAKE_INTEGER_SEQ, "__make_integer_seq")   \
   V(__TYPE_PACK_ELEMENT, "__type_pack_element") \
   V(__BUILTIN_COMMON_TYPE, "__builtin_common_type")
+
+#define FOR_EACH_WELL_KNOWN_NAME(V)             \
+  V(STD, "std")                                 \
+  V(ALIGN_VAL_T, "align_val_t")                 \
+  V(DESTROYING_DELETE_T, "destroying_delete_t") \
+  V(INITIALIZER_LIST, "initializer_list")
 
 #define FOR_EACH_TOKEN_ALIAS(V)    \
   V(RESTRICT, __RESTRICT__)        \
@@ -705,6 +849,11 @@ enum class BuiltinFunctionKind {
 enum class BuiltinTemplateKind {
   T_NONE,
   FOR_EACH_BUILTIN_TEMPLATE(TOKEN_ENUM)
+};
+
+enum class WellKnownName {
+  T_NONE,
+  FOR_EACH_WELL_KNOWN_NAME(TOKEN_ENUM)
 };
 
 #undef TOKEN_ENUM

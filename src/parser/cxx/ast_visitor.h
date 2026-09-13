@@ -130,6 +130,7 @@ class ASTVisitor {
   virtual void visit(PackIndexExpressionAST* ast);
   virtual void visit(GenericSelectionExpressionAST* ast);
   virtual void visit(NestedStatementExpressionAST* ast);
+  virtual void visit(DefaultInitializerExpressionAST* ast);
   virtual void visit(NestedExpressionAST* ast);
   virtual void visit(IdExpressionAST* ast);
   virtual void visit(LambdaExpressionAST* ast);

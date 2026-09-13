@@ -319,6 +319,9 @@ void ASTVisitor::visit(TypeIdAST* ast) {
   for (auto node : ListView{ast->typeSpecifierList}) {
     accept(node);
   }
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->declarator);
 }
 
@@ -354,7 +357,11 @@ void ASTVisitor::visit(TypeConstraintAST* ast) {
   }
 }
 
-void ASTVisitor::visit(AttributeArgumentClauseAST* ast) {}
+void ASTVisitor::visit(AttributeArgumentClauseAST* ast) {
+  for (auto node : ListView{ast->expressionList}) {
+    accept(node);
+  }
+}
 
 void ASTVisitor::visit(AttributeAST* ast) {
   accept(ast->attributeToken);
@@ -508,19 +515,27 @@ void ASTVisitor::visit(TryBlockStatementAST* ast) {
   }
 }
 
-void ASTVisitor::visit(CharLiteralExpressionAST* ast) {}
+void ASTVisitor::visit(CharLiteralExpressionAST* ast) {
+  accept(ast->literalOperatorCall);
+}
 
 void ASTVisitor::visit(BoolLiteralExpressionAST* ast) {}
 
-void ASTVisitor::visit(IntLiteralExpressionAST* ast) {}
+void ASTVisitor::visit(IntLiteralExpressionAST* ast) {
+  accept(ast->literalOperatorCall);
+}
 
-void ASTVisitor::visit(FloatLiteralExpressionAST* ast) {}
+void ASTVisitor::visit(FloatLiteralExpressionAST* ast) {
+  accept(ast->literalOperatorCall);
+}
 
 void ASTVisitor::visit(NullptrLiteralExpressionAST* ast) {}
 
 void ASTVisitor::visit(StringLiteralExpressionAST* ast) {}
 
-void ASTVisitor::visit(UserDefinedStringLiteralExpressionAST* ast) {}
+void ASTVisitor::visit(UserDefinedStringLiteralExpressionAST* ast) {
+  accept(ast->literalOperatorCall);
+}
 
 void ASTVisitor::visit(ObjectLiteralExpressionAST* ast) {
   accept(ast->typeId);
@@ -543,6 +558,10 @@ void ASTVisitor::visit(GenericSelectionExpressionAST* ast) {
 
 void ASTVisitor::visit(NestedStatementExpressionAST* ast) {
   accept(ast->statement);
+}
+
+void ASTVisitor::visit(DefaultInitializerExpressionAST* ast) {
+  accept(ast->expression);
 }
 
 void ASTVisitor::visit(NestedExpressionAST* ast) { accept(ast->expression); }
@@ -1162,7 +1181,11 @@ void ASTVisitor::visit(CxxAttributeAST* ast) {
   }
 }
 
-void ASTVisitor::visit(GccAttributeAST* ast) {}
+void ASTVisitor::visit(GccAttributeAST* ast) {
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
+}
 
 void ASTVisitor::visit(AlignasAttributeAST* ast) { accept(ast->expression); }
 

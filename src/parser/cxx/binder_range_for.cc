@@ -149,6 +149,15 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
 
   TypeChecker check{unit_};
   check.setScope(scope());
+  check.setReportErrors(reportErrors());
+
+  if (auto braced = ast_cast<BracedInitListAST>(rangeInitializer)) {
+    if (!braced->type) {
+      auto rangeType =
+          control()->getRvalueReferenceType(control()->getAutoType());
+      (void)check.deducePlaceholderType(rangeType, braced);
+    }
+  }
 
   const bool needsDeduction = var && containsPlaceholderType(var->type());
 
@@ -199,30 +208,44 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
                             qualifiedLookup(classSymbol, beginName) &&
                             qualifiedLookup(classSymbol, endName);
 
+    const auto implicitLoc = rangeInitializer
+                                 ? rangeInitializer->firstSourceLocation()
+                                 : ast->forLoc;
+
+    auto makeName = [&](const Identifier* name) {
+      auto id = NameIdAST::create(unit_->arena(), name);
+      id->identifierLoc = implicitLoc;
+      return id;
+    };
+
     auto makeCall = [&](const Identifier* name) -> ExpressionAST* {
       ExpressionAST* callee = nullptr;
       if (memberCase) {
         auto member = MemberExpressionAST::create(unit_->arena());
         member->baseExpression = makeId(ast->rangeVariable);
-        member->unqualifiedId = NameIdAST::create(unit_->arena(), name);
+        member->unqualifiedId = makeName(name);
         member->accessOp = TokenKind::T_DOT;
+        member->accessLoc = implicitLoc;
         callee = member;
       } else {
         auto id = IdExpressionAST::create(unit_->arena());
-        id->unqualifiedId = NameIdAST::create(unit_->arena(), name);
+        id->unqualifiedId = makeName(name);
         declareArgumentDependentCallee(id);
         callee = id;
       }
 
       auto call = CallExpressionAST::create(unit_->arena());
       call->baseExpression = callee;
+      call->lparenLoc = implicitLoc;
+      call->rparenLoc = implicitLoc;
       if (!memberCase) {
         call->expressionList = make_list_node<ExpressionAST>(
             unit_->arena(), makeId(ast->rangeVariable));
       }
-      check.check(callee);
-      check.check(call);
-      return call;
+      check.check(&call->baseExpression);
+      ExpressionAST* result = call;
+      check.check(&result);
+      return result;
     };
 
     ast->beginInitializer = makeCall(beginName);
@@ -239,7 +262,7 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
       binaryCondition->rightExpression = makeId(ast->endVariable);
       binaryCondition->op = TokenKind::T_EXCLAIM_EQUAL;
       binaryCondition->opLoc = ast->colonLoc;
-      check.check(condition);
+      check.check(&condition);
       check.check_bool_condition(condition);
       ast->condition = condition;
 
@@ -247,21 +270,27 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
       increment->expression = makeId(ast->beginVariable);
       increment->op = TokenKind::T_PLUS_PLUS;
       increment->opLoc = ast->colonLoc;
-      check.check(increment);
       ast->increment = increment;
+      check.check(&ast->increment);
 
       auto dereference = UnaryExpressionAST::create(unit_->arena());
       dereference->expression = makeId(ast->beginVariable);
       dereference->op = TokenKind::T_STAR;
       dereference->opLoc = ast->colonLoc;
-      check.check(dereference);
       ast->element = dereference;
-      if (dereference->type) elementType = dereference->type;
+      check.check(&ast->element);
+      if (ast->element->type) elementType = ast->element->type;
     }
   }
 
+  auto elementExpression = ast->element;
+  if (!elementExpression && elementType) {
+    elementExpression = ThisExpressionAST::create(
+        unit_->arena(), ValueCategory::kLValue, elementType);
+  }
+
   if (elementType && needsDeduction) {
-    auto deduced = check.deduceAutoType(var->type(), elementType);
+    auto deduced = check.deducePlaceholderType(var->type(), elementExpression);
     if (!deduced) return;
 
     var->setType(deduced);
@@ -286,7 +315,8 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
     auto entity = symbol_cast<VariableSymbol>(entityDeclarator->symbol);
     if (!entity) return;
 
-    auto deduced = check.deduceAutoType(entity->type(), elementType);
+    auto deduced =
+        check.deducePlaceholderType(entity->type(), elementExpression);
     if (!deduced) return;
     entity->setType(deduced);
 
@@ -302,10 +332,10 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
   }
 
   if (var && ast->element && var->type()) {
-    (void)check.implicit_conversion(ast->element, var->type());
     ast->element = EqualInitializerAST::create(
         unit_->arena(), ast->colonLoc, ast->element,
         ast->element->valueCategory, ast->element->type);
+    check.check_variable_initializer(var, ast->element, ast->colonLoc);
   }
 }
 }  // namespace cxx

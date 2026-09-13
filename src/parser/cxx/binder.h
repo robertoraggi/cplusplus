@@ -21,7 +21,9 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/attributes.h>
 #include <cxx/const_value.h>
+#include <cxx/initialization.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
@@ -30,7 +32,9 @@
 #include <cxx/types_fwd.h>
 
 #include <expected>
+#include <functional>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -50,6 +54,14 @@ class TranslationUnit;
                                                    const Type* existingType,
                                                    const Type* incomingType)
     -> bool;
+
+[[nodiscard]] auto areFunctionSignaturesEquivalentForRedeclaration(
+    TranslationUnit* unit, const Type* lhs, const Type* rhs,
+    TemplateDeclarationAST* lhsHead, TemplateDeclarationAST* rhsHead,
+    bool isOutOfLineDeclaration) -> bool;
+
+[[nodiscard]] auto isExplicitSpecializationHead(
+    TemplateDeclarationAST* templateHead) -> bool;
 
 class Binder {
  public:
@@ -142,6 +154,33 @@ class Binder {
   void enterExplicitTemplateHead();
   void leaveExplicitTemplateHead();
 
+  void enterExplicitInstantiation(bool isDefinition);
+  void leaveExplicitInstantiation();
+
+  [[nodiscard]] auto inExplicitInstantiation() const -> bool;
+  [[nodiscard]] auto inExplicitInstantiationDefinition() const -> bool;
+
+  [[nodiscard]] auto inDiscardedStatement() const -> bool;
+
+  class DiscardedStatementGuard {
+   public:
+    DiscardedStatementGuard(Binder* binder, bool discarded)
+        : binder_(discarded ? binder : nullptr) {
+      if (binder_) ++binder_->discardedStatementDepth_;
+    }
+
+    ~DiscardedStatementGuard() {
+      if (binder_) --binder_->discardedStatementDepth_;
+    }
+
+    DiscardedStatementGuard(const DiscardedStatementGuard&) = delete;
+    auto operator=(const DiscardedStatementGuard&)
+        -> DiscardedStatementGuard& = delete;
+
+   private:
+    Binder* binder_;
+  };
+
   void setRetainsEnclosingTemplateLevels(bool value);
 
   void finishAutoReturnType(FunctionSymbol* functionSymbol);
@@ -150,10 +189,12 @@ class Binder {
 
   [[nodiscard]] auto enterBlock(SourceLocation loc) -> BlockSymbol*;
 
-  [[nodiscard]] auto declareTypeAlias(SourceLocation identifierLoc,
-                                      TypeIdAST* typeId,
-                                      bool addSymbolToParentScope = true)
-      -> TypeAliasSymbol*;
+  void addTypeAliasToScope(TypeAliasSymbol* symbol);
+
+  [[nodiscard]] auto declareTypeAlias(
+      SourceLocation identifierLoc, const Identifier* identifier,
+      TypeIdAST* typeId, bool addSymbolToParentScope = true,
+      TemplateDeclarationAST* templateHead = nullptr) -> TypeAliasSymbol*;
 
   [[nodiscard]] auto declareTypedef(DeclaratorAST* declarator, const Decl& decl)
       -> TypeAliasSymbol*;
@@ -162,6 +203,22 @@ class Binder {
                                      const Decl& decl,
                                      bool addSymbolToParentScope = true)
       -> FunctionSymbol*;
+
+  void checkRedeclaredAlignment(ClassSymbol* classSymbol, int requested,
+                                SourceLocation loc);
+
+  [[nodiscard]] auto hasDependentAlignment(
+      List<AttributeSpecifierAST*>* attributeList) const -> bool;
+
+  [[nodiscard]] auto explicitAlignment(
+      List<AttributeSpecifierAST*>* attributeList, SourceLocation loc)
+      -> std::optional<int>;
+
+  [[nodiscard]] auto checkExplicitAlignment(int requested, const Type* type,
+                                            SourceLocation loc) -> bool;
+
+  void applyExplicitAlignment(FieldSymbol* field, const Decl& decl);
+  void applyExplicitAlignment(VariableSymbol* variable, const Decl& decl);
 
   [[nodiscard]] auto declareField(DeclaratorAST* declarator, const Decl& decl)
       -> FieldSymbol*;
@@ -177,6 +234,10 @@ class Binder {
                                          const Decl& decl,
                                          bool addSymbolToParentScope = true)
       -> Symbol*;
+
+  void declareVariableTemplate(VariableSymbol* symbol,
+                               IdDeclaratorAST* declaratorId,
+                               TemplateDeclarationAST* templateHead);
 
   void bindStructuredBindings(StructuredBindingDeclarationAST* ast,
                               const DeclSpecs& specs);
@@ -210,6 +271,7 @@ class Binder {
   void complete(ClassSpecifierAST* ast,
                 bool deferExceptionSpecificationChecks = false);
   void refreshImplicitExceptionSpecifications(ClassSymbol* classSymbol);
+
   void finalizeExceptionSpecifications(ClassSymbol* classSymbol);
 
   void synthesizeCompleteObjectCtor(FunctionSymbol* ctor);
@@ -229,12 +291,23 @@ class Binder {
       TranslationUnit* unit, const Type* underlyingType,
       const std::optional<ConstValue>& previous) -> std::optional<ConstValue>;
 
+  void bind(TypeExceptionDeclarationAST* ast, const Decl& decl);
+
+  void checkExceptionDeclarationType(TypeExceptionDeclarationAST* ast,
+                                     const Type* type);
+
+  void checkTrailingRequiresClauseIsTemplated(
+      FunctionSymbol* functionSymbol, TemplateDeclarationAST* templateHead);
+
   void bind(ParameterDeclarationAST* ast, const Decl& decl,
             bool inTemplateParameters);
 
   void bind(UsingDeclaratorAST* ast, Symbol* target);
   void checkUsingDeclaratorAccess(UsingDeclaratorAST* ast,
                                   UsingDeclarationSymbol* symbol);
+
+  void checkQualifiedNameAccess(NestedNameSpecifierAST* nestedNameSpecifier,
+                                Symbol* symbol, SourceLocation loc);
 
   [[nodiscard]] static auto usingDeclaratorNamesConstructor(
       UsingDeclaratorAST* ast) -> bool;
@@ -265,17 +338,30 @@ class Binder {
     bool isPack = false;
   };
 
+  void initializeCapturedField(FieldSymbol* field, ScopeSymbol* scope,
+                               ExpressionAST*& initializer,
+                               InitializationKind kind);
+
   [[nodiscard]] auto initCapture(LambdaCaptureAST* captureNode)
       -> std::optional<InitCapture>;
 
   void declareInitCapturesInLambdaScope(LambdaExpressionAST* ast);
 
   void completeLambdaBody(LambdaExpressionAST* ast);
+  [[nodiscard]] auto declareClosureMemberFunction(ClassSymbol* classSymbol,
+                                                  const Name* name,
+                                                  const Type* type,
+                                                  SourceLocation loc)
+      -> FunctionSymbol*;
   [[nodiscard]] auto declareClosureInvoker(ClassSymbol* classSymbol,
                                            FunctionSymbol* operatorFunc,
                                            const FunctionType* operatorType,
                                            SourceLocation loc)
       -> FunctionSymbol*;
+  [[nodiscard]] auto materializeClosureFunctionPointerConversion(
+      ClassSymbol* closureClass, const FunctionType* targetFunctionType)
+      -> FunctionSymbol*;
+
   void declareClosureFunctionPointerConversion(ClassSymbol* classSymbol,
                                                FunctionSymbol* invoker,
                                                const FunctionType* operatorType,
@@ -319,6 +405,10 @@ class Binder {
   void disableAccessControlForUnsupportedFriend(
       NestedNameSpecifierAST* nestedNameSpecifier,
       ClassSymbol* befriendingClass);
+
+  [[nodiscard]] auto getSpecializedFunctionTemplate(
+      ScopeSymbol* scope, const Name* name,
+      TemplateDeclarationAST* templateHead) -> FunctionSymbol*;
 
   [[nodiscard]] auto getFunction(
       ScopeSymbol* scope, const Name* name, const Type* type,
@@ -371,15 +461,20 @@ class Binder {
 
   [[nodiscard]] auto enclosingThisType(ScopeSymbol* scope) -> const Type*;
 
-  [[nodiscard]] auto abiTags(List<AttributeSpecifierAST*>* attributes)
-      -> std::vector<const Identifier*>;
-
   void applyFunctionDefinitionKind(FunctionSymbol* functionSymbol,
                                    FunctionBodyAST* functionBody);
 
-  void applyAbiTags(Symbol* symbol, List<AttributeSpecifierAST*>* attributes);
+  void applyDeclarationAttributes(Symbol* symbol,
+                                  List<AttributeSpecifierAST*>* attributes);
 
-  void applyAbiTags(SimpleDeclarationAST* ast);
+  void applyDeclarationAttributes(SimpleDeclarationAST* ast);
+
+  void inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern);
+
+  void applyAttributeMap(Symbol* symbol, AttributeMap collected);
+
+  void applyWasmFunctionAttributes(FunctionSymbol* function,
+                                   const AttributeMap* attributes);
 
   [[nodiscard]] auto usesImplicitThis(StatementAST* stmt) -> bool;
 
@@ -408,6 +503,44 @@ class Binder {
       List<SpecifierAST*>* specifierList, ClassSymbol* currentInstantiation)
       -> bool;
 
+  void enterSpeculativeDeclarations();
+  void leaveSpeculativeDeclarations();
+
+  [[nodiscard]] auto speculativeMutationCount() const -> std::size_t {
+    return speculativeMutations_.size();
+  }
+
+  void undoSpeculativeMutations(std::size_t count);
+
+  template <typename S>
+  void addRedeclaration(S* canonical, S* redeclaration) {
+    if (speculationDepth_) {
+      const auto count = canonical->redeclarations().size();
+      recordSpeculativeMutation(
+          [canonical, count] { canonical->truncateRedeclarations(count); });
+    }
+    canonical->addRedeclaration(redeclaration);
+  }
+
+  template <typename S>
+  void setDefinition(S* canonical, S* definition) {
+    if (speculationDepth_) {
+      auto previous = canonical->definition();
+      recordSpeculativeMutation(
+          [canonical, previous] { canonical->setDefinition(previous); });
+    }
+    canonical->setDefinition(definition);
+  }
+
+  template <typename T, typename Setter>
+  void setSpeculativeValue(T previous, T value, Setter setter) {
+    if (speculationDepth_) {
+      recordSpeculativeMutation(
+          [previous, setter]() mutable { setter(previous); });
+    }
+    setter(value);
+  }
+
  private:
   struct BindClass;
   struct BuildRecordLayout;
@@ -423,6 +556,7 @@ class Binder {
       -> ScopeSymbol*;
 
   void declareArgumentDependentCallee(IdExpressionAST* ast);
+  void declareBuiltinFunctionCallee(IdExpressionAST* ast);
 
   [[nodiscard]] auto findOverriddenFunctions(ClassSymbol* cls,
                                              FunctionSymbol* fn)
@@ -446,11 +580,19 @@ class Binder {
   SourceLocation instantiationLoc_{};
   LanguageKind languageLinkage_ = LanguageKind::kCXX;
   int explicitTemplateHeadDepth_ = 0;
+  int explicitInstantiationDepth_ = 0;
+  bool explicitInstantiationIsDefinition_ = false;
+  int discardedStatementDepth_ = 0;
   bool inTemplate_ = false;
   bool retainsEnclosingTemplateLevels_ = false;
   bool reportErrors_ = true;
   std::unordered_map<FunctionSymbol*, int> lambdaDiscriminators_;
   std::unordered_map<FunctionSymbol*, std::vector<DefaultArgumentInfo>>
       defaultArguments_;
+  std::vector<std::function<void()>> speculativeMutations_;
+  int speculationDepth_ = 0;
+
+  void recordSpeculativeMutation(std::function<void()> undo);
+  void recordSpeculativeOverload(OverloadSetSymbol* overloadSet);
 };
 }  // namespace cxx

@@ -1,6 +1,7 @@
 // RUN: %cxx -fsyntax-only -verify -ast-dump %s | %filecheck %s --match-full-lines
 
 int main() {
+  // expected-error@1 {{include <initializer_list> before deducing auto from a list}}
   for (int i : {10, 20, 30}) {
   }
 }

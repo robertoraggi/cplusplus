@@ -8,7 +8,10 @@ let mounted: Promise<void> | undefined
 
 export function loadSysroot(): Promise<void> {
   mounted ??= mountSysroot().catch((error: unknown) => {
-    console.warn("Failed to load sysroot; continuing without system headers", error)
+    console.warn(
+      "Failed to load sysroot; continuing without system headers",
+      error
+    )
   })
   return mounted
 }
@@ -17,7 +20,9 @@ async function mountSysroot(): Promise<void> {
   const baseUrl = import.meta.env.BASE_URL.replace(/\/?$/, "/")
   const response = await fetch(`${baseUrl}sysroot.zip`)
   if (!response.ok) {
-    throw new Error(`Failed to load sysroot: ${response.status} ${response.statusText}`)
+    throw new Error(
+      `Failed to load sysroot: ${response.status} ${response.statusText}`
+    )
   }
   const data = await response.arrayBuffer()
 
@@ -35,8 +40,14 @@ export function exists(path: string): boolean {
   if (fileExistsCache.has(path)) {
     return fileExistsCache.get(path)!
   }
-  fileExistsCache.set(path, fs.existsSync(path))
-  return fileExistsCache.get(path)!
+  let isFile = false
+  try {
+    isFile = fs.statSync(path).isFile()
+  } catch {
+    isFile = false
+  }
+  fileExistsCache.set(path, isFile)
+  return isFile
 }
 
 export async function readFile(path: string): Promise<string | undefined> {

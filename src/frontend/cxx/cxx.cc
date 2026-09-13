@@ -21,21 +21,18 @@
 #include <cxx/lsp/cxx_server_host.h>
 #include <cxx/lsp/lsp_server.h>
 #include <cxx/lsp/transport.h>
+#include <cxx/toolchain_config.h>
 
 #include <chrono>
+#include <filesystem>
 #include <format>
 #include <iostream>
+#include <system_error>
 
 #include "frontend.h"
 #include "linker.h"
 
-#ifndef CXX_NO_FILESYSTEM
-#include <filesystem>
-#include <system_error>
-#endif
-
 namespace {
-#ifndef CXX_NO_FILESYSTEM
 
 namespace fs = std::filesystem;
 
@@ -63,9 +60,23 @@ auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
     return EXIT_FAILURE;
   }
 
+  auto language = cxx::LanguageKind::kC;
+  for (const auto& fileName : inputFiles) {
+    if (cxx::languageOf(cli, fileName) == cxx::LanguageKind::kCXX) {
+      language = cxx::LanguageKind::kCXX;
+      break;
+    }
+  }
+
+  auto toolchain = cxx::createToolchainForLinking(cli, language);
+  if (!toolchain) {
+    auto id = cli.getSingle("-toolchain").value_or("wasm32");
+    std::cerr << std::format("cxx: unknown toolchain '{}'\n", id);
+    return EXIT_FAILURE;
+  }
+
   std::vector<std::string> objectsToLink;
   std::vector<std::string> tempObjects;
-  cxx::Toolchain* toolchain = nullptr;
   auto exitStatus = EXIT_SUCCESS;
 
   std::vector<std::unique_ptr<cxx::Frontend>> frontends;
@@ -87,19 +98,18 @@ auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
       continue;
     }
 
-    toolchain = runOnFile->toolchain();
     tempObjects.push_back(objectFile);
     objectsToLink.push_back(objectFile);
     frontends.push_back(std::move(runOnFile));
   }
 
   if (exitStatus == EXIT_SUCCESS) {
-    if (!toolchain) {
+    if (objectsToLink.empty()) {
       std::cerr << "cxx: nothing to link" << std::endl;
       exitStatus = EXIT_FAILURE;
     } else {
       auto outputPath = cli.getSingle("-o").value_or("a.out");
-      if (!cxx::link(cli, toolchain, objectsToLink, outputPath)) {
+      if (!cxx::link(cli, toolchain.get(), objectsToLink, outputPath)) {
         exitStatus = EXIT_FAILURE;
       }
     }
@@ -111,14 +121,6 @@ auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
   return exitStatus;
 }
 
-#else
-
-auto compileAndLink(cxx::CLI&, const std::vector<std::string>&) -> int {
-  std::cerr << "cxx: -flink is not supported in this build" << std::endl;
-  return EXIT_FAILURE;
-}
-
-#endif
 }  // namespace
 
 auto main(int argc, char* argv[]) -> int {
@@ -133,7 +135,7 @@ auto main(int argc, char* argv[]) -> int {
   const auto& inputFiles = cli.positionals();
 
   if (cli.opt_fsyntax_only) {
-    cli.opt_fcheck = true;
+    cli.opt_fno_check = false;
   }
 
   if (cli.opt_lsp_test) {
@@ -155,7 +157,7 @@ auto main(int argc, char* argv[]) -> int {
 
   const bool stopBeforeLink = cli.opt_E || cli.opt_Eonly ||
                               cli.opt_fsyntax_only || cli.opt_S || cli.opt_c ||
-                              cli.opt_emit_ast || cli.opt_emit_cxx_ir ||
+                              cli.opt_emit_pch || cli.opt_emit_cxx_ir ||
                               cli.opt_emit_mlir || cli.opt_emit_llvm;
 
   auto output = cli.getSingle("-o");

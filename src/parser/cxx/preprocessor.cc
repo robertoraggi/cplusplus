@@ -26,8 +26,8 @@
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
 #include <cxx/private/pp_directives-priv.h>
+#include <cxx/private/utf8.h>
 #include <cxx/util.h>
-#include <utf8/unchecked.h>
 
 #include <algorithm>
 #include <array>
@@ -56,11 +56,14 @@ namespace {
 std::unordered_set<std::string_view> enabledBuiltins{
 
 #define VISIT_BUILTIN(_, name) name,
+#define VISIT_BUILTIN_MACRO(name) #name,
     FOR_EACH_BUILTIN_TEMPLATE(VISIT_BUILTIN)
     FOR_EACH_BUILTIN_FUNCTION(VISIT_BUILTIN)
+    FOR_EACH_BUILTIN_MACRO(VISIT_BUILTIN_MACRO)
     FOR_EACH_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
     FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
     FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
+#undef VISIT_BUILTIN_MACRO
 #undef VISIT_BUILTIN_FUNCTION
 
 };
@@ -162,9 +165,34 @@ using TokVector = std::vector<Tok>;
 using TokSpan = std::span<const Tok>;
 
 struct SourceFile {
+  struct LineDirective {
+    std::uint32_t physicalLine = 0;
+    std::uint32_t presumedLine = 0;
+    std::string fileName;
+  };
+  std::vector<LineDirective> lineDirectives;
+
+  auto getPresumedPosition(unsigned offset) const -> SourcePosition {
+    auto position = getTokenStartPosition(offset);
+    auto it = std::upper_bound(lineDirectives.begin(), lineDirectives.end(),
+                               position.line,
+                               [](auto line, const LineDirective& directive) {
+                                 return line < directive.physicalLine;
+                               });
+    if (it != lineDirectives.begin()) {
+      --it;
+      position.line = it->presumedLine + position.line - it->physicalLine;
+      position.fileName = it->fileName;
+    }
+    return position;
+  }
+
   std::string fileName;
   std::string source;
   mutable std::vector<int> lines;
+  mutable unsigned lastLineOffset_ = ~0u;
+  mutable unsigned lastOffset_ = 0;
+  mutable std::uint32_t lastColumn_ = 0;
   mutable bool linesComputed = false;
   TokVector tokens;
   std::string headerGuardName;
@@ -204,10 +232,29 @@ struct SourceFile {
     if (it != lines.cbegin()) --it;
     assert(*it <= int(offset));
     auto line = std::uint32_t(std::distance(cbegin(lines), it) + 1);
-    const auto start = cbegin(source) + *it;
-    const auto end = cbegin(source) + offset;
-    const auto column =
-        std::uint32_t(utf8::unchecked::distance(start, end) + 1);
+    const auto lineOffset = static_cast<unsigned>(*it);
+
+    // Counting the column means walking the line, so a caller that asks for
+    // one position after another — the archive encoder, the code generator
+    // building MLIR locations, a diagnostic renderer — would rescan the same
+    // prefix every time. Continue from the last answer when it is on the same
+    // line and no later than this one.
+    std::uint32_t column = 0;
+
+    if (lineOffset == lastLineOffset_ && offset >= lastOffset_) {
+      column = lastColumn_ +
+               std::uint32_t(utf8::distance(cbegin(source) + lastOffset_,
+                                            cbegin(source) + offset));
+    } else {
+      column = std::uint32_t(utf8::distance(cbegin(source) + lineOffset,
+                                            cbegin(source) + offset)) +
+               1;
+    }
+
+    lastLineOffset_ = lineOffset;
+    lastOffset_ = offset;
+    lastColumn_ = column;
+
     return SourcePosition{fileName, line, column};
   }
 
@@ -217,10 +264,11 @@ struct SourceFile {
     if (line == 0 && column == 0) return 0;
     if (line > lines.size()) return static_cast<std::uint32_t>(source.size());
     const auto start = source.data();
+    const auto last = start + source.size();
     const auto offsetOfTheLine = lines[line - 1];
     auto it = start + offsetOfTheLine;
     for (std::uint32_t i = 1; i < column; ++i) {
-      utf8::unchecked::next(it);
+      (void)utf8::next(it, last);
     }
     return static_cast<std::uint32_t>(it - start);
   }
@@ -409,7 +457,9 @@ struct Preprocessor::Private {
                      TransparentStringEqual>
       macros_;
   std::unordered_set<const cxx::Identifier*> taintedIdents_;
+  std::unordered_map<std::string, Macro> builtinMacros_;
   std::unordered_map<std::string, std::string> ifndefProtectedFiles_;
+  std::unordered_set<std::string> pragmaOnceProtectedFiles_;
   std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
   fs::path currentPath_;
   std::string currentFileName_;
@@ -437,16 +487,19 @@ struct Preprocessor::Private {
   int includeDepth_ = 0;
   int builtinsFileId_ = 0;
   int mainSourceFileId_ = 0;
+  bool preambleOnly_ = false;
+  bool preambleEligible_ = true;
+  bool preambleHasInclude_ = false;
+  std::size_t preambleDirectiveEnd_ = 0;
+  std::optional<std::size_t> preambleSize_;
+  std::optional<std::size_t> firstMainInputOffset_;
+  std::optional<PreprocessorSnapshot> preambleState_;
+
   bool omitLineMarkers_ = false;
   std::unordered_map<std::string, SourceFile*> sourceFileIndex_;
 
-  // #pragma pack state
   int currentPack_ = 0;
   std::vector<int> packStack_;
-  // per-file sorted list of (charOffset, packValue) changes
-  std::map<uint32_t, std::vector<std::pair<std::uint32_t, int>>>
-      packChangesByFile_;
-
   std::vector<std::string> texts_;
 
   std::vector<TokVector> expansionPool_;
@@ -478,6 +531,9 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto getText(const Tok& tk) const -> std::string_view {
     if (tk.dirty && tk.textIndex > 0) {
+      if (tk.textIndex > texts_.size()) {
+        cxx_runtime_error("preprocessor token text was released");
+      }
       return texts_[tk.textIndex - 1];
     }
     if (tk.sourceFile > 0 && tk.sourceFile <= sourceFiles_.size()) {
@@ -525,6 +581,11 @@ struct Preprocessor::Private {
   }
 
   [[nodiscard]] auto copyTok(const Tok& src) -> Tok { return src; }
+
+  [[nodiscard]] auto diagnosticTokenAt(const void* loc) const -> Token {
+    if (!loc) return Token{};
+    return tokenForDiagnostic(*static_cast<const Tok*>(loc));
+  }
 
   [[nodiscard]] auto tokenForDiagnostic(const Tok& tk) const -> Token {
     Token token(tk.kind, tk.offset, tk.length);
@@ -611,7 +672,9 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto parseDirective(SourceFile* source,
                                     const Tok* directiveLine,
-                                    const Tok* directiveEnd) -> ParsedDirective;
+                                    const Tok* directiveEnd,
+                                    std::optional<Tok>& pragmaToken)
+      -> ParsedDirective;
 
   [[nodiscard]] auto parseIncludeDirective(const Tok* directive, const Tok* ts,
                                            const Tok* lineEnd)
@@ -619,6 +682,19 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto parseHeaderName(const Tok*& ts, const Tok* lineEnd)
       -> std::optional<Include>;
+
+  [[nodiscard]] auto handlePragma(std::uint32_t fileId, std::uint32_t offset,
+                                  const Tok* ts, const Tok* end)
+      -> std::optional<Tok>;
+
+  [[nodiscard]] auto destringize(std::string_view spelling) const
+      -> std::string;
+
+  template <typename EmitToken>
+  [[nodiscard]] auto expandPragmaOperator(Cursor& cursor,
+                                          const EmitToken& emitToken) -> bool;
+
+  [[nodiscard]] auto spliceAcrossCursorBoundary(bool requireLeftParen) -> bool;
 
   template <typename EmitToken>
   [[nodiscard]] auto expand(const EmitToken& emitToken) -> PreprocessingState;
@@ -718,9 +794,6 @@ struct Preprocessor::Private {
   [[nodiscard]] auto checkHeaderProtection(const TokVector& tokens) const
       -> std::string;
 
-  [[nodiscard]] auto checkPragmaOnceProtected(const TokVector& tokens) const
-      -> bool;
-
   [[nodiscard]] auto resolve(const Include& include, bool isIncludeNext) const
       -> std::optional<ResolveResult>;
 
@@ -770,42 +843,104 @@ struct Preprocessor::Private {
       case TokenKind::T_UTF8_STRING_LITERAL:
       case TokenKind::T_UTF16_STRING_LITERAL:
       case TokenKind::T_UTF32_STRING_LITERAL:
+      case TokenKind::T_USER_DEFINED_STRING_LITERAL:
         return true;
       default:
         return false;
     }
   }
 
+  [[nodiscard]] static auto encodingPrefixOf(std::string_view text)
+      -> std::string_view {
+    auto quote = text.find('"');
+    if (quote == std::string_view::npos) return {};
+    auto prefix = text.substr(0, quote);
+    if (prefix.ends_with('R')) prefix.remove_suffix(1);
+    return prefix;
+  }
+
+  [[nodiscard]] auto internStringLiteral(std::string_view encodingPrefix,
+                                         const std::string& text) const
+      -> const Literal* {
+    if (encodingPrefix.starts_with("L"))
+      return control_->wideStringLiteral(text);
+    if (encodingPrefix.starts_with("u8"))
+      return control_->utf8StringLiteral(text);
+    if (encodingPrefix.starts_with("u"))
+      return control_->utf16StringLiteral(text);
+    if (encodingPrefix.starts_with("U"))
+      return control_->utf32StringLiteral(text);
+    return control_->stringLiteral(text);
+  }
+
   [[nodiscard]] auto updateStringLiteralValue(Token& lastToken, const Tok& tk)
       -> bool {
     if (!isStringLiteral(lastToken.kind())) return false;
-    if (tk.isNot(TokenKind::T_STRING_LITERAL) && tk.kind != lastToken.kind())
-      return false;
+    if (!isStringLiteral(tk.kind)) return false;
+
+    const bool concatenatesUserDefined =
+        tk.is(TokenKind::T_USER_DEFINED_STRING_LITERAL) ||
+        lastToken.kind() == TokenKind::T_USER_DEFINED_STRING_LITERAL;
 
     auto newText = lastToken.value().literalValue->value();
-    if (newText.ends_with('"')) newText.pop_back();
-
     auto tkText = getText(tk);
-    newText += tkText.substr(tkText.find_first_of('"') + 1);
+
+    const auto lastQuote = newText.find_last_of('"');
+    const auto tkFirstQuote = tkText.find_first_of('"');
+    const auto tkLastQuote = tkText.find_last_of('"');
+
+    if (lastQuote == std::string::npos ||
+        tkFirstQuote == std::string_view::npos || tkLastQuote <= tkFirstQuote) {
+      return false;
+    }
+
+    const auto lastPrefix = encodingPrefixOf(newText);
+    const auto tkPrefix = encodingPrefixOf(tkText);
+
+    if (!concatenatesUserDefined) {
+      if (tk.isNot(TokenKind::T_STRING_LITERAL) && tk.kind != lastToken.kind())
+        return false;
+    } else if (!lastPrefix.empty() && !tkPrefix.empty() &&
+               lastPrefix != tkPrefix) {
+      return false;
+    }
+
+    const auto lastSuffix = newText.substr(lastQuote + 1);
+    const auto tkSuffix = tkText.substr(tkLastQuote + 1);
+
+    if (!lastSuffix.empty() && !tkSuffix.empty() && lastSuffix != tkSuffix) {
+      error(&tk, "concatenating string literals with different ud-suffixes");
+    }
+
+    newText.erase(lastQuote);
+    newText += tkText.substr(tkFirstQuote + 1, tkLastQuote - tkFirstQuote);
+    newText += lastSuffix.empty() ? std::string(tkSuffix) : lastSuffix;
 
     TokenValue value = lastToken.value();
-    auto internedText = std::string(newText);
+
+    if (concatenatesUserDefined) {
+      value.literalValue = internStringLiteral(
+          lastPrefix.empty() ? tkPrefix : lastPrefix, newText);
+      lastToken.setValue(value);
+      lastToken.setKind(TokenKind::T_USER_DEFINED_STRING_LITERAL);
+      return true;
+    }
 
     switch (lastToken.kind()) {
       case TokenKind::T_STRING_LITERAL:
-        value.literalValue = control_->stringLiteral(internedText);
+        value.literalValue = control_->stringLiteral(newText);
         break;
       case TokenKind::T_WIDE_STRING_LITERAL:
-        value.literalValue = control_->wideStringLiteral(internedText);
+        value.literalValue = control_->wideStringLiteral(newText);
         break;
       case TokenKind::T_UTF8_STRING_LITERAL:
-        value.literalValue = control_->utf8StringLiteral(internedText);
+        value.literalValue = control_->utf8StringLiteral(newText);
         break;
       case TokenKind::T_UTF16_STRING_LITERAL:
-        value.literalValue = control_->utf16StringLiteral(internedText);
+        value.literalValue = control_->utf16StringLiteral(newText);
         break;
       case TokenKind::T_UTF32_STRING_LITERAL:
-        value.literalValue = control_->utf32StringLiteral(internedText);
+        value.literalValue = control_->utf32StringLiteral(newText);
         break;
       default:
         break;
@@ -818,17 +953,17 @@ struct Preprocessor::Private {
   void adddBuiltinMacro(
       std::string_view name,
       std::function<auto(MacroExpansionContext)->TokVector> expand) {
-    macros_.insert_or_assign(
-        std::string(name),
-        BuiltinObjectMacro(std::string(name), std::move(expand)));
+    auto macro = BuiltinObjectMacro(std::string(name), std::move(expand));
+    builtinMacros_.insert_or_assign(std::string(name), macro);
+    macros_.insert_or_assign(std::string(name), std::move(macro));
   }
 
   void adddBuiltinFunctionMacro(
       std::string_view name,
       std::function<auto(MacroExpansionContext)->TokVector> expand) {
-    macros_.insert_or_assign(
-        std::string(name),
-        BuiltinFunctionMacro(std::string(name), std::move(expand)));
+    auto macro = BuiltinFunctionMacro(std::string(name), std::move(expand));
+    builtinMacros_.insert_or_assign(std::string(name), macro);
+    macros_.insert_or_assign(std::string(name), std::move(macro));
   }
 
   [[nodiscard]] auto shouldInsertCodeCompletionBefore(
@@ -857,22 +992,26 @@ Preprocessor::Private::Private() {
 }
 
 void Preprocessor::Private::initialize() {
-  adddBuiltinMacro("__FILE__",
-                   [this](const MacroExpansionContext& context) -> TokVector {
-                     TokVector result;
-                     auto tk = genTok(TokenKind::T_STRING_LITERAL,
-                                      std::format("\"{}\"", currentFileName_));
-                     tk.space = true;
-                     tk.sourceFile = context.tok->sourceFile;
-                     result.push_back(tk);
-                     return result;
-                   });
+  adddBuiltinMacro(
+      "__FILE__", [this](const MacroExpansionContext& context) -> TokVector {
+        TokVector result;
+        auto tk =
+            genTok(TokenKind::T_STRING_LITERAL,
+                   quoteStringLiteral(preprocessor_
+                                          ->presumedTokenStartPosition(
+                                              tokenForDiagnostic(*context.tok))
+                                          .fileName));
+        tk.space = true;
+        tk.sourceFile = context.tok->sourceFile;
+        result.push_back(tk);
+        return result;
+      });
 
   adddBuiltinMacro(
       "__LINE__", [this](const MacroExpansionContext& context) -> TokVector {
         TokVector result;
-        const auto start =
-            preprocessor_->tokenStartPosition(tokenForDiagnostic(*context.tok));
+        const auto start = preprocessor_->presumedTokenStartPosition(
+            tokenForDiagnostic(*context.tok));
         auto tk =
             genTok(TokenKind::T_INTEGER_LITERAL, std::to_string(start.line));
         tk.sourceFile = context.tok->sourceFile;
@@ -2050,6 +2189,15 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
 
 auto Preprocessor::Private::expandFunctionLikeMacroAcrossBoundary(
     const Macro* macro, const cxx::Identifier* ident) -> bool {
+  if (!spliceAcrossCursorBoundary(true)) return false;
+
+  auto& target = cursors_.back();
+
+  return expandFunctionLikeMacro(target, macro, ident);
+}
+
+auto Preprocessor::Private::spliceAcrossCursorBoundary(bool requireLeftParen)
+    -> bool {
   auto curIdx = cursors_.size() - 1;
   if (curIdx == 0) return false;  // no parent cursor
 
@@ -2059,15 +2207,26 @@ auto Preprocessor::Private::expandFunctionLikeMacroAcrossBoundary(
   while (true) {
     auto& ancestor = cursors_[parentIdx];
     parentPeek = ancestor.pos;
-    while (parentPeek < ancestor.end &&
-           parentPeek->is(TokenKind::T_IDENTIFIER) && parentPeek->noexpand)
-      ++parentPeek;
+    if (requireLeftParen) {
+      while (parentPeek < ancestor.end &&
+             parentPeek->is(TokenKind::T_IDENTIFIER) && parentPeek->noexpand) {
+        ++parentPeek;
+      }
+    }
     if (parentPeek < ancestor.end) break;
     if (parentIdx == 0) return false;
     --parentIdx;
   }
 
-  if (parentPeek->isNot(TokenKind::T_LPAREN)) return false;
+  if (requireLeftParen && parentPeek->isNot(TokenKind::T_LPAREN)) return false;
+
+  if (!requireLeftParen) {
+    auto& parent = cursors_[parentIdx];
+    if (parent.kind == Cursor::FileCursor && parentPeek->bol &&
+        parentPeek->is(TokenKind::T_HASH)) {
+      return false;
+    }
+  }
 
   TokVector combined;
   {
@@ -2093,7 +2252,7 @@ auto Preprocessor::Private::expandFunctionLikeMacroAcrossBoundary(
   target.ownedTokens = std::move(combined);
   target.initFromOwned();
 
-  return expandFunctionLikeMacro(target, macro, ident);
+  return true;
 }
 
 auto Preprocessor::Private::expandTokens(const Tok* begin, const Tok* end,
@@ -2140,6 +2299,7 @@ void Preprocessor::Private::expandOne(Cursor& cursor,
 
   if (cursor.current().is(TokenKind::T_IDENTIFIER) &&
       !cursor.current().noexpand) {
+    if (expandPragmaOperator(cursor, emitToken)) return;
     if (expandMacro(cursor)) return;
   }
 
@@ -2218,13 +2378,40 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
 
     if (cursor.current().bol && cursor.current().is(TokenKind::T_HASH)) {
       auto directiveStart = cursor.pos;
+      const auto inPreamble = source->id == mainSourceFileId_ && !preambleSize_;
+      bool isPreambleInclude = false;
+      if (inPreamble) {
+        auto directive = directiveStart + 1;
+        if (directive < cursor.end &&
+            directive->kind == TokenKind::T_IDENTIFIER) {
+          isPreambleInclude = getText(*directive) == "include";
+        }
+        if (isPreambleInclude)
+          preambleHasInclude_ = true;
+        else
+          preambleEligible_ = false;
+        if (preambleOnly_ && !preambleEligible_) {
+          cursors_.clear();
+          return ProcessingComplete{};
+        }
+      }
       cursor.advance();
 
       auto lineStart = cursor.pos;
       skipLine(cursor.pos, cursor.end);
       auto lineEnd = cursor.pos;
 
-      auto parsedDirective = parseDirective(source, directiveStart, lineEnd);
+      if (isPreambleInclude && lineEnd != directiveStart) {
+        const auto& lastToken = lineEnd[-1];
+        preambleDirectiveEnd_ = lastToken.offset + lastToken.length;
+      }
+
+      std::optional<Tok> pragmaToken;
+
+      auto parsedDirective =
+          parseDirective(source, directiveStart, lineEnd, pragmaToken);
+
+      if (pragmaToken.has_value()) emitToken(*pragmaToken);
 
       if (auto pi = std::get_if<ParsedIncludeDirective>(&parsedDirective)) {
         PendingInclude nextState{
@@ -2291,7 +2478,20 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
           break;
         }
 
+        if (cur.kind == Cursor::FileCursor &&
+            cur.sourceFile->id == mainSourceFileId_) {
+          if (!firstMainInputOffset_) {
+            firstMainInputOffset_ = cur.current().offset;
+            if (preambleOnly_) preambleState_ = preprocessor_->snapshot();
+          }
+        }
+
         expandOne(cur, false, emitToken);
+        if (preambleOnly_ && preambleSize_) {
+          cursors_.clear();
+          taintedIdents_.clear();
+          return ProcessingComplete{};
+        }
       }
 
       if (cursors_.empty()) return ProcessingComplete{};
@@ -2317,7 +2517,8 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
 
 auto Preprocessor::Private::parseDirective(SourceFile* source,
                                            const Tok* directiveLine,
-                                           const Tok* directiveEnd)
+                                           const Tok* directiveEnd,
+                                           std::optional<Tok>& pragmaToken)
     -> ParsedDirective {
   auto ts = directiveLine + 1;
   if (ts >= directiveEnd) return std::monostate{};
@@ -2452,44 +2653,59 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
     }
 
     case PreprocessorDirectiveKind::T_LINE: {
+      if (skipping) break;
+      auto tokens = expandTokens(ts, directiveEnd, false);
+      if (tokens.empty() ||
+          tokens.front().kind != TokenKind::T_INTEGER_LITERAL) {
+        error(directiveLine, "expected a line number after '#line'");
+        break;
+      }
+      auto spelling = getText(tokens.front());
+      std::uint64_t line = 0;
+      auto valid = !spelling.empty();
+      for (auto ch : spelling) {
+        if (ch < '0' || ch > '9' || line > 2147483647) {
+          valid = false;
+          break;
+        }
+        line = line * 10 + ch - '0';
+      }
+      if (!valid || line == 0 || line > 2147483647) {
+        error(directiveLine, "invalid line number in '#line'");
+        break;
+      }
+      auto fileName = std::string(
+          source->getPresumedPosition(directiveLine->offset).fileName);
+      if (tokens.size() > 1) {
+        if (tokens[1].kind != TokenKind::T_STRING_LITERAL ||
+            tokens.size() != 2 || !getText(tokens[1]).starts_with('"')) {
+          error(directiveLine, "invalid file name in '#line'");
+          break;
+        }
+        fileName = control_->stringLiteral(getText(tokens[1]))->stringValue();
+      }
+      auto last = directiveEnd - 1;
+      auto physical =
+          source->getTokenStartPosition(last->offset + last->length).line + 1;
+      auto& directives = source->lineDirectives;
+      auto position =
+          std::lower_bound(directives.begin(), directives.end(), physical,
+                           [](const auto& directive, auto line) {
+                             return directive.physicalLine < line;
+                           });
+      SourceFile::LineDirective directive{
+          physical, static_cast<std::uint32_t>(line), std::move(fileName)};
+      if (position != directives.end() && position->physicalLine == physical)
+        *position = std::move(directive);
+      else
+        directives.insert(position, std::move(directive));
       break;
     }
 
     case PreprocessorDirectiveKind::T_PRAGMA: {
       if (skipping) break;
-      if (ts < directiveEnd && ts->is(TokenKind::T_IDENTIFIER) &&
-          getText(*ts) == "pack") {
-        ++ts;
-        if (ts < directiveEnd && ts->is(TokenKind::T_LPAREN)) {
-          ++ts;
-          auto recordPack = [&](int newPack) {
-            currentPack_ = newPack;
-            packChangesByFile_[source->id].emplace_back(directiveLine->offset,
-                                                        newPack);
-          };
-          if (ts < directiveEnd && ts->is(TokenKind::T_IDENTIFIER) &&
-              getText(*ts) == "push") {
-            ++ts;
-            int newPack = currentPack_;
-            if (ts < directiveEnd && ts->is(TokenKind::T_COMMA)) {
-              ++ts;
-              if (ts < directiveEnd && ts->is(TokenKind::T_INTEGER_LITERAL)) {
-                newPack = std::stoi(std::string(getText(*ts)));
-              }
-            }
-            packStack_.push_back(currentPack_);
-            recordPack(newPack);
-          } else if (ts < directiveEnd && ts->is(TokenKind::T_IDENTIFIER) &&
-                     getText(*ts) == "pop") {
-            int prev = packStack_.empty() ? 0 : packStack_.back();
-            if (!packStack_.empty()) packStack_.pop_back();
-            recordPack(prev);
-          } else if (ts < directiveEnd &&
-                     ts->is(TokenKind::T_INTEGER_LITERAL)) {
-            recordPack(std::stoi(std::string(getText(*ts))));
-          }
-        }
-      }
+      pragmaToken =
+          handlePragma(source->id, directiveLine->offset, ts, directiveEnd);
       break;
     }
 
@@ -2514,6 +2730,161 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
   }
 
   return std::monostate{};
+}
+
+auto Preprocessor::Private::handlePragma(std::uint32_t fileId,
+                                         std::uint32_t offset, const Tok* ts,
+                                         const Tok* end) -> std::optional<Tok> {
+  if (ts >= end) return std::nullopt;
+  if (ts->isNot(TokenKind::T_IDENTIFIER)) return std::nullopt;
+
+  if (getText(*ts) == "once") {
+    if (fileId > 0 && fileId <= sourceFiles_.size()) {
+      auto sourceFile = sourceFiles_[fileId - 1].get();
+      sourceFile->pragmaOnceProtected = true;
+      pragmaOnceProtectedFiles_.insert(sourceFile->fileName);
+    }
+    return std::nullopt;
+  }
+
+  if (getText(*ts) != "pack") return std::nullopt;
+
+  ++ts;
+  if (ts >= end || ts->isNot(TokenKind::T_LPAREN)) return std::nullopt;
+
+  ++ts;
+
+  auto recordPack = [&](int newPack) { currentPack_ = newPack; };
+
+  if (ts < end && ts->is(TokenKind::T_IDENTIFIER) && getText(*ts) == "push") {
+    ++ts;
+    int newPack = currentPack_;
+    if (ts < end && ts->is(TokenKind::T_COMMA)) {
+      ++ts;
+      if (ts < end && ts->is(TokenKind::T_INTEGER_LITERAL)) {
+        newPack = std::stoi(std::string(getText(*ts)));
+      }
+    }
+    packStack_.push_back(currentPack_);
+    recordPack(newPack);
+  } else if (ts < end && ts->is(TokenKind::T_IDENTIFIER) &&
+             getText(*ts) == "pop") {
+    int prev = 0;
+    if (!packStack_.empty()) prev = packStack_.back();
+    if (!packStack_.empty()) packStack_.pop_back();
+    recordPack(prev);
+  } else if (ts < end && ts->is(TokenKind::T_INTEGER_LITERAL)) {
+    recordPack(std::stoi(std::string(getText(*ts))));
+  }
+
+  auto token = genTok(TokenKind::T_PRAGMA_PACK, std::to_string(currentPack_));
+  token.sourceFile = fileId;
+  token.offset = offset;
+  token.bol = true;
+
+  return token;
+}
+
+auto Preprocessor::Private::destringize(std::string_view spelling) const
+    -> std::string {
+  const auto openingQuote = spelling.find('"');
+  if (openingQuote == std::string_view::npos) return std::string(spelling);
+
+  auto body = spelling.substr(openingQuote + 1);
+  if (!body.empty() && body.back() == '"') body.remove_suffix(1);
+
+  std::string text;
+  text.reserve(body.length());
+
+  for (std::size_t i = 0; i < body.length(); ++i) {
+    const auto ch = body[i];
+    if (ch == '\\' && i + 1 < body.length()) {
+      const auto escaped = body[i + 1];
+      if (escaped == '"' || escaped == '\\') {
+        text += escaped;
+        ++i;
+        continue;
+      }
+    }
+    text += ch;
+  }
+
+  return text;
+}
+
+template <typename EmitToken>
+auto Preprocessor::Private::expandPragmaOperator(Cursor& cursor,
+                                                 const EmitToken& emitToken)
+    -> bool {
+  const auto pragmaToken = cursor.current();
+  if (getText(pragmaToken) != "_Pragma") return false;
+
+  const auto reportInvalidOperand = [&] {
+    error(&pragmaToken, "'_Pragma' requires a parenthesized string literal");
+  };
+
+  auto pos = cursor.pos + 1;
+
+  if (pos >= cursor.end) {
+    if (spliceAcrossCursorBoundary(false)) {
+      return expandPragmaOperator(cursors_.back(), emitToken);
+    }
+
+    reportInvalidOperand();
+    cursor.advance();
+    return true;
+  }
+
+  if (pos->isNot(TokenKind::T_LPAREN)) {
+    reportInvalidOperand();
+    cursor.advance();
+    return true;
+  }
+
+  auto argumentBegin = pos + 1;
+  auto argumentEnd = argumentBegin;
+  int depth = 1;
+
+  while (argumentEnd < cursor.end &&
+         argumentEnd->isNot(TokenKind::T_EOF_SYMBOL)) {
+    if (argumentEnd->is(TokenKind::T_LPAREN)) ++depth;
+    if (argumentEnd->is(TokenKind::T_RPAREN)) {
+      --depth;
+      if (!depth) break;
+    }
+    ++argumentEnd;
+  }
+
+  if (argumentEnd >= cursor.end || argumentEnd->isNot(TokenKind::T_RPAREN)) {
+    if (spliceAcrossCursorBoundary(false)) {
+      return expandPragmaOperator(cursors_.back(), emitToken);
+    }
+
+    reportInvalidOperand();
+    cursor.pos = argumentEnd;
+    return true;
+  }
+
+  const auto sourceFile = pragmaToken.sourceFile;
+  const auto offset = pragmaToken.offset;
+  const auto operand = expandTokens(argumentBegin, argumentEnd, false);
+
+  cursor.pos = argumentEnd + 1;
+
+  if (operand.size() != 1 || !isStringLiteral(operand.front().kind)) {
+    reportInvalidOperand();
+    return true;
+  }
+
+  const auto text = destringize(getText(operand.front()));
+  const auto tokens = tokenize(text, 0, true);
+
+  auto pragma = handlePragma(sourceFile, offset, tokens.data(),
+                             tokens.data() + tokens.size());
+
+  if (pragma.has_value()) emitToken(*pragma);
+
+  return true;
 }
 
 auto Preprocessor::Private::parseIncludeDirective(const Tok* directive,
@@ -2602,6 +2973,15 @@ auto Preprocessor::Private::shouldInsertCodeCompletionBefore(
 
 void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
                                           const Tok& tk) {
+  if (tk.sourceFile == mainSourceFileId_ &&
+      tk.kind != TokenKind::T_PRAGMA_PACK) {
+    if (!preambleSize_) {
+      preambleSize_ = preambleDirectiveEnd_;
+      if (firstMainInputOffset_ && *firstMainInputOffset_ != tk.offset)
+        preambleEligible_ = false;
+    }
+    if (preambleOnly_) return;
+  }
   auto kind = tk.kind;
   const auto fileId = tk.sourceFile;
   TokenValue value{};
@@ -2653,7 +3033,9 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
       break;
 
     case TokenKind::T_USER_DEFINED_STRING_LITERAL:
-      value.literalValue = control_->stringLiteral(text);
+      if (updateStringLiteralValue(tokens.back(), tk)) return;
+      value.literalValue =
+          internStringLiteral(encodingPrefixOf(text), std::string(text));
       break;
 
     case TokenKind::T_INTEGER_LITERAL:
@@ -2662,6 +3044,10 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
 
     case TokenKind::T_FLOATING_POINT_LITERAL:
       value.literalValue = control_->floatLiteral(text);
+      break;
+
+    case TokenKind::T_PRAGMA_PACK:
+      value.intValue = std::stoi(std::string(text));
       break;
 
     default:
@@ -2689,19 +3075,6 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
     token.setStartOfLine(tk.bol);
     tokens.push_back(token);
   }
-}
-
-auto Preprocessor::Private::checkPragmaOnceProtected(
-    const TokVector& tokens) const -> bool {
-  const Tok* ts = tokens.data();
-  const Tok* end = ts + tokens.size();
-  if (ts >= end) return false;
-  if (ts->isNot(TokenKind::T_HASH)) return false;
-  ++ts;
-  if (ts >= end || ts->bol || getText(*ts) != "pragma") return false;
-  ++ts;
-  if (ts >= end || ts->bol || getText(*ts) != "once") return false;
-  return true;
 }
 
 auto Preprocessor::Private::checkHeaderProtection(const TokVector& tokens) const
@@ -2971,11 +3344,6 @@ void Preprocessor::Private::defineMacro(const Tok* ts, const Tok* lineEnd) {
   auto macro = parseMacroDefinition(ts, lineEnd);
   auto name = std::string(getMacroName(macro));
 
-  if (auto body = getMacroBody(macro); body && !body->empty()) {
-    // strip leading space/bol from first body token - but body is in the
-    // Macro variant, so we need to modify it in place after insert
-  }
-
   if (auto it = macros_.find(name); it != macros_.end()) {
     auto previousBody = getMacroBody(it->second);
     auto newBody = getMacroBody(macro);
@@ -3161,8 +3529,8 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
   d->cursors_.push_back(std::move(mainCursor));
 
   {
-    auto builtinsSourceFile =
-        d->createSourceFile("<builtins>", std::string(builtinsSource));
+    auto builtinsSourceFile = d->createSourceFile(
+        std::string(kBuiltinsFileName), std::string(builtinsSource));
 
     d->builtinsFileId_ = builtinsSourceFile->id;
 
@@ -3184,6 +3552,14 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
     tokens.emplace_back(TokenKind::T_ERROR);
   }
 
+  if (d->currentPack_) {
+    auto pragma =
+        d->genTok(TokenKind::T_PRAGMA_PACK, std::to_string(d->currentPack_));
+    pragma.sourceFile = sourceFile->id;
+    pragma.bol = true;
+    d->finalizeToken(tokens, pragma);
+  }
+
   if (auto loc = d->codeCompletionLocation_) {
     d->codeCompletionOffset_ = sourceFile->offsetAt(loc->line, loc->column);
   }
@@ -3199,7 +3575,11 @@ void Preprocessor::endPreprocessing(std::vector<Token>& tokens) {
   const auto mainSourceFileId = d->mainSourceFileId_;
   if (mainSourceFileId == 0) return;
 
-  const auto offset = d->sourceFiles_[mainSourceFileId - 1]->source.size();
+  auto offset = d->sourceFiles_[mainSourceFileId - 1]->source.size();
+  if (d->preambleOnly_) {
+    if (!d->preambleState_) d->preambleState_ = snapshot();
+    if (d->preambleSize_) offset = *d->preambleSize_;
+  }
 
   if (d->codeCompletionLocation_.has_value()) {
     auto& tk = tokens.emplace_back(TokenKind::T_CODE_COMPLETION,
@@ -3233,8 +3613,10 @@ auto Preprocessor::continuePreprocessing(std::vector<Token>& tokens)
   return d->expand(emitToken);
 }
 
-void Preprocessor::getPreprocessedText(const std::vector<Token>& tokens,
-                                       std::ostream& out) const {
+void Preprocessor::getPreprocessedText(
+    const std::vector<Token>& tokens,
+    const std::vector<std::pair<unsigned, int>>& packChanges,
+    std::ostream& out) const {
   struct FileEntry {
     std::uint32_t fileId;
     bool isSystemHeader;
@@ -3307,9 +3689,18 @@ void Preprocessor::getPreprocessedText(const std::vector<Token>& tokens,
     atStartOfLine = false;
   };
 
+  auto nextPackChange = packChanges.begin();
+
   std::size_t index = 1;
   while (index + 1 < tokens.size()) {
     const auto& token = tokens[index++];
+
+    while (nextPackChange != packChanges.end() &&
+           nextPackChange->first < index) {
+      out << std::format("\n#pragma pack({})\n", nextPackChange->second);
+      atStartOfLine = true;
+      ++nextPackChange;
+    }
     if (d->builtinsFileId_ && token.fileId() == d->builtinsFileId_) continue;
 
     const auto fileId = token.fileId();
@@ -3320,6 +3711,7 @@ void Preprocessor::getPreprocessedText(const std::vector<Token>& tokens,
     }
 
     emitColumnPadding(token);
+
     out << token.spell();
   }
 
@@ -3373,6 +3765,179 @@ auto Preprocessor::isSystemHeader(std::uint32_t sourceFileId) const -> bool {
 
 void Preprocessor::setDisableCurrentDirSearch(bool disable) {
   d->disableCurrentDirSearch_ = disable;
+}
+
+void Preprocessor::setPreambleOnly(bool enabled) { d->preambleOnly_ = enabled; }
+
+auto Preprocessor::preambleOnly() const -> bool { return d->preambleOnly_; }
+
+auto Preprocessor::preambleSize() const -> std::optional<std::size_t> {
+  if (!d->preambleEligible_) return {};
+  if (!d->preambleHasInclude_) return {};
+  return d->preambleSize_;
+}
+
+auto Preprocessor::preambleState() const -> PreprocessorSnapshot {
+  if (d->preambleState_) return *d->preambleState_;
+  return snapshot();
+}
+
+auto Preprocessor::canSnapshot() const -> bool {
+  return snapshotBlocker().empty();
+}
+
+auto Preprocessor::snapshotBlocker() const -> std::string_view {
+  if (!d->cursors_.empty()) return "a file or macro expansion is still open";
+  if (d->evaluating_.size() != 1) return "a conditional group is still open";
+  if (d->skipping_.size() != 1) return "a skipped group is still open";
+  if (d->continuation_) return "a directive is waiting to be resumed";
+  if (!d->taintedIdents_.empty()) return "a macro expansion is in progress";
+  return {};
+}
+
+auto Preprocessor::snapshot() const -> PreprocessorSnapshot {
+  PreprocessorSnapshot snapshot;
+
+  snapshot.date = d->date_;
+  snapshot.time = d->time_;
+  snapshot.counter = d->counter_;
+  snapshot.currentPack = d->currentPack_;
+  snapshot.packStack = d->packStack_;
+  snapshot.includedFiles = d->includedFiles_;
+
+  for (const auto& [name, macro] : d->macros_) {
+    if (std::holds_alternative<BuiltinObjectMacro>(macro)) continue;
+    if (std::holds_alternative<BuiltinFunctionMacro>(macro)) continue;
+
+    MacroRecord record;
+    record.name = name;
+
+    if (auto fn = std::get_if<FunctionMacro>(&macro)) {
+      record.isFunctionLike = true;
+      record.isVariadic = fn->variadic;
+      record.formals = fn->formals;
+    }
+
+    if (auto body = getMacroBody(macro)) {
+      for (const auto& tok : *body) {
+        PreprocessingTokenRecord token;
+        token.kind = tok.kind;
+        token.spelling = std::string(d->getText(tok));
+        token.startOfLine = tok.bol;
+        token.leadingSpace = tok.space;
+        token.isFromMacroBody = tok.isFromMacroBody;
+        token.noexpand = tok.noexpand;
+        record.body.push_back(std::move(token));
+      }
+    }
+
+    snapshot.macros.push_back(std::move(record));
+  }
+
+  std::sort(snapshot.macros.begin(), snapshot.macros.end(),
+            [](const MacroRecord& lhs, const MacroRecord& rhs) {
+              return lhs.name < rhs.name;
+            });
+
+  for (const auto& [name, macro] : d->builtinMacros_) {
+    if (!d->macros_.contains(name)) snapshot.undefinedBuiltins.push_back(name);
+  }
+
+  std::ranges::sort(snapshot.undefinedBuiltins);
+
+  std::map<std::string, ProtectedFileRecord> protectedFiles;
+
+  for (const auto& [fileName, headerGuardName] : d->ifndefProtectedFiles_) {
+    auto& record = protectedFiles[fileName];
+    record.fileName = fileName;
+    record.headerGuardName = headerGuardName;
+  }
+
+  for (const auto& fileName : d->pragmaOnceProtectedFiles_) {
+    auto& record = protectedFiles[fileName];
+    record.fileName = fileName;
+    record.pragmaOnceProtected = true;
+  }
+
+  for (const auto& sourceFile : d->sourceFiles_) {
+    auto it = protectedFiles.find(sourceFile->fileName);
+    if (it == protectedFiles.end()) continue;
+    it->second.headerProtectionLevel = sourceFile->headerProtectionLevel;
+    it->second.isSystemHeader = sourceFile->isSystemHeader;
+  }
+
+  for (const auto& [fileName, isSystemHeader] : d->includedFiles_) {
+    auto it = protectedFiles.find(fileName);
+    if (it == protectedFiles.end()) continue;
+    if (isSystemHeader) it->second.isSystemHeader = true;
+  }
+
+  for (auto& [fileName, record] : protectedFiles) {
+    snapshot.protectedFiles.push_back(std::move(record));
+  }
+
+  return snapshot;
+}
+
+void Preprocessor::restore(const PreprocessorSnapshot& snapshot) {
+  d->date_ = snapshot.date;
+  d->time_ = snapshot.time;
+  d->counter_ = snapshot.counter;
+  d->currentPack_ = snapshot.currentPack;
+  d->packStack_ = snapshot.packStack;
+  d->includedFiles_ = snapshot.includedFiles;
+  d->ifndefProtectedFiles_.clear();
+  d->pragmaOnceProtectedFiles_.clear();
+
+  for (auto it = d->macros_.begin(); it != d->macros_.end();) {
+    const auto isBuiltin =
+        std::holds_alternative<BuiltinObjectMacro>(it->second) ||
+        std::holds_alternative<BuiltinFunctionMacro>(it->second);
+    if (isBuiltin) {
+      ++it;
+    } else {
+      it = d->macros_.erase(it);
+    }
+  }
+
+  for (const auto& [name, macro] : d->builtinMacros_) {
+    d->macros_.insert_or_assign(name, macro);
+  }
+
+  for (const auto& name : snapshot.undefinedBuiltins) d->macros_.erase(name);
+
+  for (const auto& record : snapshot.macros) {
+    TokVector body;
+
+    for (const auto& token : record.body) {
+      auto tok = d->genTok(token.kind, token.spelling);
+      tok.bol = token.startOfLine;
+      tok.space = token.leadingSpace;
+      tok.isFromMacroBody = token.isFromMacroBody;
+      tok.noexpand = token.noexpand;
+      body.push_back(tok);
+    }
+
+    if (record.isFunctionLike) {
+      d->macros_.insert_or_assign(
+          record.name, FunctionMacro(record.name, record.formals,
+                                     std::move(body), record.isVariadic));
+    } else {
+      d->macros_.insert_or_assign(record.name,
+                                  ObjectMacro(record.name, std::move(body)));
+    }
+  }
+
+  for (const auto& record : snapshot.protectedFiles) {
+    if (!record.headerGuardName.empty()) {
+      d->ifndefProtectedFiles_.insert_or_assign(record.fileName,
+                                                record.headerGuardName);
+    }
+
+    if (record.pragmaOnceProtected) {
+      d->pragmaOnceProtectedFiles_.insert(record.fileName);
+    }
+  }
 }
 
 void Preprocessor::defineMacro(const std::string& name,
@@ -3447,6 +4012,13 @@ auto Preprocessor::sources() const -> std::vector<Source> {
   return sources;
 }
 
+auto Preprocessor::presumedTokenStartPosition(const Token& token) const
+    -> SourcePosition {
+  if (token.fileId() == 0) return {};
+  return d->sourceFiles_[token.fileId() - 1]->getPresumedPosition(
+      token.offset());
+}
+
 auto Preprocessor::tokenStartPosition(const Token& token) const
     -> SourcePosition {
   if (token.fileId() == 0) return {};
@@ -3510,34 +4082,31 @@ void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,
 
   if (!resolvedFileName.has_value()) {
     const auto& header = getHeaderName(include);
-    Token errorTok;
-    if (loc) {
-      auto tokPtr = static_cast<const Tok*>(loc);
-      errorTok = d->tokenForDiagnostic(*tokPtr);
-    }
-    d->error(errorTok, std::format("file '{}' not found", header));
+    d->error(d->diagnosticTokenAt(loc),
+             std::format("file '{}' not found", header));
     return;
   }
 
   auto fileName = resolvedFileName.value();
 
   auto resume = [=, this]() -> std::optional<PreprocessingState> {
+    if (d->pragmaOnceProtectedFiles_.contains(fileName)) return std::nullopt;
+
+    if (auto it = d->ifndefProtectedFiles_.find(fileName);
+        it != d->ifndefProtectedFiles_.end() &&
+        d->macros_.contains(it->second)) {
+      return std::nullopt;
+    }
+
     auto sourceFile = d->findSourceFile(fileName);
     if (!sourceFile) {
       PendingFileContent request{
           .preprocessor = preprocessor,
           .fileName = fileName,
           .isSystemHeader = isSystemHeader,
+          .loc = loc,
       };
       return request;
-    }
-
-    if (sourceFile->pragmaOnceProtected) return std::nullopt;
-
-    if (auto it = d->ifndefProtectedFiles_.find(fileName);
-        it != d->ifndefProtectedFiles_.end() &&
-        d->macros_.contains(it->second)) {
-      return std::nullopt;
     }
 
     auto dirpath = fs::path(sourceFile->fileName).parent_path();
@@ -3570,13 +4139,14 @@ void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,
 void PendingFileContent::setContent(std::optional<std::string> content) const {
   auto d = preprocessor.d.get();
 
-  if (!content.has_value()) return;
+  if (!content.has_value()) {
+    d->error(d->diagnosticTokenAt(loc),
+             std::format("cannot read file '{}'", fileName));
+    return;
+  }
 
   auto sourceFile = d->createSourceFile(fileName, std::move(*content));
   sourceFile->isSystemHeader = isSystemHeader;
-
-  sourceFile->pragmaOnceProtected =
-      d->checkPragmaOnceProtected(sourceFile->tokens);
 
   sourceFile->headerGuardName = d->checkHeaderProtection(sourceFile->tokens);
 
@@ -3649,19 +4219,5 @@ void DefaultPreprocessorState::operator()(const PendingFileContent& request) {
 void DefaultPreprocessorState::operator()(const EnteringFile&) {}
 
 void DefaultPreprocessorState::operator()(const LeavingFile&) {}
-
-auto Preprocessor::packValueAt(std::uint32_t fileId, unsigned offset) const
-    -> int {
-  auto it = d->packChangesByFile_.find(fileId);
-  if (it == d->packChangesByFile_.end()) return 0;
-  const auto& changes = it->second;
-  // Binary search: find the last change with charOffset <= offset
-  auto pos = std::upper_bound(
-      changes.begin(), changes.end(),
-      std::pair<unsigned, int>{offset, std::numeric_limits<int>::max()});
-  if (pos == changes.begin()) return 0;
-  --pos;
-  return pos->second;
-}
 
 }  // namespace cxx

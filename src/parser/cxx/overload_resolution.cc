@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <format>
+#include <span>
 
 namespace cxx {
 namespace {
@@ -450,9 +451,8 @@ auto unifyForPartialOrdering(TranslationUnit* unit,
   auto templateA = primaryA->templateDeclaration();
   auto templateB = primaryB->templateDeclaration();
   if (!templateA || !templateB) return false;
-  if (!areTemplateParameterListsEquivalentForPartialOrdering(
-          unit, templateA->templateParameterList,
-          templateB->templateParameterList))
+  if (!TemplateEquivalence{unit}.sameForOrdering(
+          templateA->templateParameterList, templateB->templateParameterList))
     return false;
 
   auto functionTypeA = type_cast<FunctionType>(primaryA->type());
@@ -465,8 +465,8 @@ auto unifyForPartialOrdering(TranslationUnit* unit,
   if (paramsA.size() != paramsB.size()) return false;
 
   for (std::size_t i = 0; i < paramsA.size(); ++i) {
-    if (!areTypesEquivalentForPartialOrdering(unit, paramsA[i], paramsB[i],
-                                              templateA, templateB))
+    if (!TemplateEquivalence{unit}.sameForOrdering(paramsA[i], paramsB[i],
+                                                   templateA, templateB))
       return false;
   }
 
@@ -669,6 +669,32 @@ auto isPackExpansionParameterType(const Type* type) -> bool {
 }
 }  // namespace
 
+auto compareNonTemplateConstraints(TranslationUnit* unit,
+                                   FunctionSymbol* candidate,
+                                   FunctionSymbol* other) -> int {
+  if (ASTRewriter::isMorePartialOrderingConstrained(unit, candidate, other))
+    return 1;
+  if (ASTRewriter::isMorePartialOrderingConstrained(unit, other, candidate))
+    return -1;
+  return 0;
+}
+
+auto compareCandidateOrdering(TranslationUnit* unit, FunctionSymbol* candidate,
+                              bool candidateFromTemplate, FunctionSymbol* other,
+                              bool otherFromTemplate, bool preferNonTemplate)
+    -> int {
+  if (preferNonTemplate && candidateFromTemplate != otherFromTemplate)
+    return candidateFromTemplate ? -1 : 1;
+
+  if (candidateFromTemplate && otherFromTemplate)
+    return compareFunctionTemplateSpecializations(unit, candidate, other);
+
+  if (!candidateFromTemplate && !otherFromTemplate)
+    return compareNonTemplateConstraints(unit, candidate, other);
+
+  return 0;
+}
+
 auto compareFunctionTemplateSpecializations(TranslationUnit* unit,
                                             FunctionSymbol* candidate,
                                             FunctionSymbol* other) -> int {
@@ -743,8 +769,11 @@ auto OverloadResolution::implicitObjectArgumentConversion(
   }
 
   auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
-  auto implicitObjectClass =
-      classSymbol ? classSymbol->type() : traits.remove_cvref(object.type);
+  const bool isConversionFunction =
+      name_cast<ConversionFunctionId>(function->name()) != nullptr;
+  auto implicitObjectClass = classSymbol && !isConversionFunction
+                                 ? classSymbol->type()
+                                 : traits.remove_cvref(object.type);
 
   conversion.binding.kind = objectIsLvalue
                                 ? ReferenceBinding::Kind::kDirectToLvalue
@@ -762,13 +791,23 @@ auto OverloadResolution::implicitObjectArgumentConversion(
   return conversion;
 }
 
+auto nonObjectParameterTypes(FunctionSymbol* function)
+    -> std::span<const Type* const> {
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType) return {};
+  std::span<const Type* const> parameterTypes{functionType->parameterTypes()};
+  if (function->hasExplicitObjectParameter() && !parameterTypes.empty())
+    parameterTypes = parameterTypes.subspan(1);
+  return parameterTypes;
+}
+
 auto haveSameParameterTypes(FunctionSymbol* lhs, FunctionSymbol* rhs) -> bool {
   auto lhsType = type_cast<FunctionType>(lhs->type());
   auto rhsType = type_cast<FunctionType>(rhs->type());
   if (!lhsType || !rhsType) return false;
   if (lhsType->isVariadic() != rhsType->isVariadic()) return false;
-  return std::ranges::equal(lhsType->parameterTypes(),
-                            rhsType->parameterTypes());
+  return std::ranges::equal(nonObjectParameterTypes(lhs),
+                            nonObjectParameterTypes(rhs));
 }
 
 auto compareDeductionCandidates(const DeductionCandidateInfo& lhs,
@@ -820,19 +859,21 @@ auto OverloadResolution::selectBestViableFunction(
         refBetter = true;
     }
 
+    if (currBetter == refBetter && curr.resultConversion &&
+        ref.resultConversion) {
+      currBetter =
+          curr.resultConversion->isBetterThan(*ref.resultConversion, traits);
+      refBetter =
+          ref.resultConversion->isBetterThan(*curr.resultConversion, traits);
+    }
+
     if (currBetter && !refBetter) {
       best.clear();
       best.push_back(&curr);
     } else if (refBetter && !currBetter) {
-    } else if (preferNonTemplate && curr.fromTemplate != ref.fromTemplate) {
-      if (!curr.fromTemplate) {
-        best.clear();
-        best.push_back(&curr);
-      }
-    } else if (int order = curr.fromTemplate && ref.fromTemplate
-                               ? compareTemplateSpecialization(
-                                     unit_, curr.symbol, ref.symbol)
-                               : 0;
+    } else if (int order = compareCandidateOrdering(
+                   unit_, curr.symbol, curr.fromTemplate, ref.symbol,
+                   ref.fromTemplate, preferNonTemplate);
                order != 0) {
       if (order > 0) {
         best.clear();
@@ -859,7 +900,7 @@ auto OverloadResolution::selectBestViableFunction(
   return {best[0], false};
 }
 
-auto isExcludedInheritedConstructor(const TypeTraits& traits,
+auto isExcludedInheritedConstructor(TypeTraits& traits,
                                     FunctionSymbol* constructor,
                                     ClassSymbol* classSymbol, int argCount)
     -> bool {
@@ -889,11 +930,33 @@ auto OverloadResolution::resolveConstructor(
   return resolveConstructor(classSymbol, args, initializationKind, false);
 }
 
-auto OverloadResolution::resolveInitializerListConstructor(
+auto OverloadResolution::hasDefaultConstructor(ClassSymbol* classSymbol)
+    -> bool {
+  return bool(resolveConstructor(classSymbol, {},
+                                 InitializationKind::kDirectInitialization));
+}
+
+auto OverloadResolution::selectListConstructor(
     ClassSymbol* classSymbol, BracedInitListAST* bracedInitList,
+    const std::vector<ExpressionAST*>& elements,
     InitializationKind initializationKind) -> ConstructorResult {
-  std::vector<ExpressionAST*> args = {bracedInitList};
-  return resolveConstructor(classSymbol, args, initializationKind, true);
+  const auto listInitializationKind = asListInitialization(initializationKind);
+
+  const bool emptyListSelectsDefaultConstructor =
+      elements.empty() && hasDefaultConstructor(classSymbol);
+
+  if (!emptyListSelectsDefaultConstructor) {
+    std::vector<ExpressionAST*> wholeList = {bracedInitList};
+    auto result = resolveConstructor(classSymbol, wholeList,
+                                     listInitializationKind, true);
+    if (result.best) {
+      result.fromInitializerListConstructor = true;
+      return result;
+    }
+  }
+
+  return resolveConstructor(classSymbol, elements, listInitializationKind,
+                            false);
 }
 
 auto OverloadResolution::resolveConstructor(
@@ -917,6 +980,13 @@ auto OverloadResolution::resolveConstructor(
     reject(ctor, std::format("requires {} argument{}, but {} {} provided",
                              paramCount, paramCount == 1 ? "" : "s", argCount,
                              argCount == 1 ? "was" : "were"));
+  };
+
+  auto bindsReferenceToInitializedClass = [&](const Type* parameterType) {
+    auto referencedType = traits.remove_reference(parameterType);
+    if (referencedType == parameterType) return false;
+    return traits.is_same(traits.remove_cv(referencedType),
+                          classSymbol->type());
   };
 
   auto isInitializerListConstructor = [&](FunctionSymbol* ctor) {
@@ -1031,8 +1101,16 @@ auto OverloadResolution::resolveConstructor(
       const auto convertsFirstCopyInitializationArgument =
           excludesExplicitConstructors && i == 0;
 
+      const auto admitsExplicitConversionFunctions =
+          i == 0 && args.size() == 1 &&
+          isDirectInitialization(initializationKind) &&
+          bindsReferenceToInitializedClass(*paramIt);
+
       auto conv = stdconv_.computeConversionSequence(
-          args[i], *paramIt, InitializationKind::kCopyInitialization,
+          args[i], *paramIt,
+          admitsExplicitConversionFunctions
+              ? InitializationKind::kDirectInitialization
+              : InitializationKind::kCopyInitialization,
           convertsFirstCopyInitializationArgument
               ? ConversionContext::kStandardOnly
               : ConversionContext::kImplicit);
@@ -1062,6 +1140,17 @@ auto OverloadResolution::resolveConstructor(
       selectBestViableFunction(result.candidates, /*preferNonTemplate=*/true);
   result.best = bestPtr;
   result.ambiguous = ambiguous;
+
+  if (!result.best) {
+    result.failure = ConstructorSelectionFailure::kNoViableConstructor;
+  } else if (ambiguous) {
+    result.failure = ConstructorSelectionFailure::kAmbiguous;
+  } else if (initializationKind ==
+                 InitializationKind::kCopyListInitialization &&
+             result.best->symbol->isExplicit()) {
+    result.failure = ConstructorSelectionFailure::kExplicitInCopyInitialization;
+  }
+
   return result;
 }
 
@@ -1125,6 +1214,11 @@ auto OverloadResolution::buildCallCandidate(
   if (argCount < paramCount &&
       argCount < getMinRequiredArgs(function, paramCount)) {
     rejectArity();
+    return std::nullopt;
+  }
+
+  if (ASTRewriter::evaluateAssociatedConstraints(unit_, function) == false) {
+    reject("constraints not satisfied");
     return std::nullopt;
   }
 
@@ -1310,7 +1404,7 @@ auto OverloadResolution::resolveBinaryOperator(
     ImplicitConversionSequence left;
     std::optional<ImplicitConversionSequence> right;
 
-    if (candidateRightType) {
+    if (candidateRightExpr) {
       if (isMember) {
         if (params.size() != 1) continue;
         auto classType =
@@ -1357,7 +1451,7 @@ auto OverloadResolution::resolveBinaryOperator(
     }
 
     if (!left) continue;
-    if (candidateRightType && (!right || !*right)) continue;
+    if (candidateRightExpr && (!right || !*right)) continue;
 
     if (operatorCandidate.reversed && right) std::swap(left, *right);
     viable.push_back({candidate, left, right, deducedArgsForCandidate,
@@ -1380,26 +1474,16 @@ auto OverloadResolution::resolveBinaryOperator(
       continue;
     }
 
-    if (viable[i].symbol->isSpecialization() !=
-        best->symbol->isSpecialization()) {
-      if (!viable[i].symbol->isSpecialization()) {
-        best = &viable[i];
-        foundEquivalent = false;
-      }
+    auto order = compareCandidateOrdering(
+        unit_, viable[i].symbol, viable[i].symbol->isSpecialization(),
+        best->symbol, best->symbol->isSpecialization(),
+        /*preferNonTemplate=*/true);
+    if (order > 0) {
+      best = &viable[i];
+      foundEquivalent = false;
       continue;
     }
-
-    if (viable[i].symbol->isSpecialization() &&
-        best->symbol->isSpecialization()) {
-      auto order =
-          compareTemplateSpecialization(unit_, viable[i].symbol, best->symbol);
-      if (order > 0) {
-        best = &viable[i];
-        foundEquivalent = false;
-        continue;
-      }
-      if (order < 0) continue;
-    }
+    if (order < 0) continue;
 
     foundEquivalent = true;
   }
@@ -1447,8 +1531,8 @@ auto OverloadResolution::isRewriteTarget(FunctionSymbol* equalityOperator,
     if (candidateType->cvQualifiers() != equalityType->cvQualifiers()) continue;
     if (candidateType->refQualifier() != equalityType->refQualifier()) continue;
     if (candidate->parent() != equalityOperator->parent()) continue;
-    if (!trailingRequiresClausesEquivalent(
-            unit_, candidate->trailingRequiresClause(),
+    if (!TemplateEquivalence{unit_}.same(
+            candidate->trailingRequiresClause(),
             equalityOperator->trailingRequiresClause()))
       continue;
 

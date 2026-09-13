@@ -63,6 +63,72 @@ auto cxx::isBuiltinLibcall(cxx::BuiltinFunctionKind kind) -> bool {
     case BuiltinFunctionKind::T___BUILTIN_COSHF:
     case BuiltinFunctionKind::T___BUILTIN_COSH:
     case BuiltinFunctionKind::T___BUILTIN_COSHL:
+    case BuiltinFunctionKind::T___BUILTIN_CABSF:
+    case BuiltinFunctionKind::T___BUILTIN_CABS:
+    case BuiltinFunctionKind::T___BUILTIN_CABSL:
+    case BuiltinFunctionKind::T___BUILTIN_CACOSF:
+    case BuiltinFunctionKind::T___BUILTIN_CACOS:
+    case BuiltinFunctionKind::T___BUILTIN_CACOSL:
+    case BuiltinFunctionKind::T___BUILTIN_CACOSHF:
+    case BuiltinFunctionKind::T___BUILTIN_CACOSH:
+    case BuiltinFunctionKind::T___BUILTIN_CACOSHL:
+    case BuiltinFunctionKind::T___BUILTIN_CARGF:
+    case BuiltinFunctionKind::T___BUILTIN_CARG:
+    case BuiltinFunctionKind::T___BUILTIN_CARGL:
+    case BuiltinFunctionKind::T___BUILTIN_CASINF:
+    case BuiltinFunctionKind::T___BUILTIN_CASIN:
+    case BuiltinFunctionKind::T___BUILTIN_CASINL:
+    case BuiltinFunctionKind::T___BUILTIN_CASINHF:
+    case BuiltinFunctionKind::T___BUILTIN_CASINH:
+    case BuiltinFunctionKind::T___BUILTIN_CASINHL:
+    case BuiltinFunctionKind::T___BUILTIN_CATANF:
+    case BuiltinFunctionKind::T___BUILTIN_CATAN:
+    case BuiltinFunctionKind::T___BUILTIN_CATANL:
+    case BuiltinFunctionKind::T___BUILTIN_CATANHF:
+    case BuiltinFunctionKind::T___BUILTIN_CATANH:
+    case BuiltinFunctionKind::T___BUILTIN_CATANHL:
+    case BuiltinFunctionKind::T___BUILTIN_CCOSF:
+    case BuiltinFunctionKind::T___BUILTIN_CCOS:
+    case BuiltinFunctionKind::T___BUILTIN_CCOSL:
+    case BuiltinFunctionKind::T___BUILTIN_CCOSHF:
+    case BuiltinFunctionKind::T___BUILTIN_CCOSH:
+    case BuiltinFunctionKind::T___BUILTIN_CCOSHL:
+    case BuiltinFunctionKind::T___BUILTIN_CEXPF:
+    case BuiltinFunctionKind::T___BUILTIN_CEXP:
+    case BuiltinFunctionKind::T___BUILTIN_CEXPL:
+    case BuiltinFunctionKind::T___BUILTIN_CIMAGF:
+    case BuiltinFunctionKind::T___BUILTIN_CIMAG:
+    case BuiltinFunctionKind::T___BUILTIN_CIMAGL:
+    case BuiltinFunctionKind::T___BUILTIN_CLOGF:
+    case BuiltinFunctionKind::T___BUILTIN_CLOG:
+    case BuiltinFunctionKind::T___BUILTIN_CLOGL:
+    case BuiltinFunctionKind::T___BUILTIN_CONJF:
+    case BuiltinFunctionKind::T___BUILTIN_CONJ:
+    case BuiltinFunctionKind::T___BUILTIN_CONJL:
+    case BuiltinFunctionKind::T___BUILTIN_CPOWF:
+    case BuiltinFunctionKind::T___BUILTIN_CPOW:
+    case BuiltinFunctionKind::T___BUILTIN_CPOWL:
+    case BuiltinFunctionKind::T___BUILTIN_CPROJF:
+    case BuiltinFunctionKind::T___BUILTIN_CPROJ:
+    case BuiltinFunctionKind::T___BUILTIN_CPROJL:
+    case BuiltinFunctionKind::T___BUILTIN_CREALF:
+    case BuiltinFunctionKind::T___BUILTIN_CREAL:
+    case BuiltinFunctionKind::T___BUILTIN_CREALL:
+    case BuiltinFunctionKind::T___BUILTIN_CSINF:
+    case BuiltinFunctionKind::T___BUILTIN_CSIN:
+    case BuiltinFunctionKind::T___BUILTIN_CSINL:
+    case BuiltinFunctionKind::T___BUILTIN_CSINHF:
+    case BuiltinFunctionKind::T___BUILTIN_CSINH:
+    case BuiltinFunctionKind::T___BUILTIN_CSINHL:
+    case BuiltinFunctionKind::T___BUILTIN_CSQRTF:
+    case BuiltinFunctionKind::T___BUILTIN_CSQRT:
+    case BuiltinFunctionKind::T___BUILTIN_CSQRTL:
+    case BuiltinFunctionKind::T___BUILTIN_CTANF:
+    case BuiltinFunctionKind::T___BUILTIN_CTAN:
+    case BuiltinFunctionKind::T___BUILTIN_CTANL:
+    case BuiltinFunctionKind::T___BUILTIN_CTANHF:
+    case BuiltinFunctionKind::T___BUILTIN_CTANH:
+    case BuiltinFunctionKind::T___BUILTIN_CTANHL:
     case BuiltinFunctionKind::T___BUILTIN_ERFF:
     case BuiltinFunctionKind::T___BUILTIN_ERF:
     case BuiltinFunctionKind::T___BUILTIN_ERFL:
@@ -237,6 +303,40 @@ auto cxx::isBuiltinLibcall(cxx::BuiltinFunctionKind kind) -> bool {
     case BuiltinFunctionKind::T___BUILTIN_STRPBRK:
     case BuiltinFunctionKind::T___BUILTIN_STRRCHR:
     case BuiltinFunctionKind::T___BUILTIN_STRXFRM:
+    case BuiltinFunctionKind::T___BUILTIN__EXIT:
+    case BuiltinFunctionKind::T___BUILTIN_ABORT:
+    case BuiltinFunctionKind::T___BUILTIN_ALIGNED_ALLOC:
+    case BuiltinFunctionKind::T___BUILTIN_EXIT:
+    case BuiltinFunctionKind::T___BUILTIN_STRTOD:
+    case BuiltinFunctionKind::T___BUILTIN_STRTOF:
+    case BuiltinFunctionKind::T___BUILTIN_STRTOL:
+    case BuiltinFunctionKind::T___BUILTIN_STRTOLD:
+    case BuiltinFunctionKind::T___BUILTIN_STRTOLL:
+    case BuiltinFunctionKind::T___BUILTIN_STRTOUL:
+    case BuiltinFunctionKind::T___BUILTIN_STRTOULL:
+    case BuiltinFunctionKind::T___BUILTIN_WCSCHR:
+    case BuiltinFunctionKind::T___BUILTIN_WCSCMP:
+    case BuiltinFunctionKind::T___BUILTIN_WCSLEN:
+    case BuiltinFunctionKind::T___BUILTIN_WCSNCMP:
+    case BuiltinFunctionKind::T___BUILTIN_WMEMCHR:
+    case BuiltinFunctionKind::T___BUILTIN_WMEMCMP:
+    case BuiltinFunctionKind::T___BUILTIN_WMEMCPY:
+    case BuiltinFunctionKind::T___BUILTIN_WMEMMOVE:
+    case BuiltinFunctionKind::T___BUILTIN_ISALNUM:
+    case BuiltinFunctionKind::T___BUILTIN_ISALPHA:
+    case BuiltinFunctionKind::T___BUILTIN_ISBLANK:
+    case BuiltinFunctionKind::T___BUILTIN_ISCNTRL:
+    case BuiltinFunctionKind::T___BUILTIN_ISDIGIT:
+    case BuiltinFunctionKind::T___BUILTIN_ISGRAPH:
+    case BuiltinFunctionKind::T___BUILTIN_ISLOWER:
+    case BuiltinFunctionKind::T___BUILTIN_ISPRINT:
+    case BuiltinFunctionKind::T___BUILTIN_ISPUNCT:
+    case BuiltinFunctionKind::T___BUILTIN_ISSPACE:
+    case BuiltinFunctionKind::T___BUILTIN_ISUPPER:
+    case BuiltinFunctionKind::T___BUILTIN_ISXDIGIT:
+    case BuiltinFunctionKind::T___BUILTIN_TOLOWER:
+    case BuiltinFunctionKind::T___BUILTIN_TOUPPER:
+    case BuiltinFunctionKind::T___BUILTIN_VSNPRINTF:
       return true;
 
     default:
@@ -247,18 +347,6 @@ auto cxx::isBuiltinLibcall(cxx::BuiltinFunctionKind kind) -> bool {
 auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind) -> bool {
   switch (kind) {
-    case BuiltinFunctionKind::T___BUILTIN_VA_START:
-      return checkBuiltinVaListAccess(ast);
-
-    case BuiltinFunctionKind::T___BUILTIN_VA_END:
-      return checkBuiltinVaListAccess(ast);
-
-    case BuiltinFunctionKind::T___BUILTIN_VA_COPY:
-      return checkBuiltinVaListAccess(ast);
-
-    case BuiltinFunctionKind::T___BUILTIN_C23_VA_START:
-      return checkBuiltinVaListAccess(ast);
-
     case BuiltinFunctionKind::T___C11_ATOMIC_INIT:
       return checkBuiltinAtomic(ast);
 
@@ -355,6 +443,9 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     case BuiltinFunctionKind::T___ATOMIC_FETCH_NAND:
       return checkBuiltinAtomic(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_SOURCE_LOCATION:
+      return checkBuiltinSourceLocation(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
       return checkBuiltinAssumeAligned(ast);
 
@@ -367,14 +458,35 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_INVOKE:
       return checkBuiltinInvoke(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_MUL_OVERFLOW:
+      return checkBuiltinArithmeticOverflow(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ADDRESSOF:
       return checkBuiltinAddressof(ast);
 
-    case BuiltinFunctionKind::T___BUILTIN_CTZG:
-      return checkBuiltinCountZerosGeneric(ast);
+    case BuiltinFunctionKind::T___BUILTIN_ISGREATER:
+      return checkBuiltinFloatComparison(ast);
 
-    case BuiltinFunctionKind::T___BUILTIN_CLZG:
-      return checkBuiltinCountZerosGeneric(ast);
+    case BuiltinFunctionKind::T___BUILTIN_ISGREATEREQUAL:
+      return checkBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISLESS:
+      return checkBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISLESSEQUAL:
+      return checkBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISLESSGREATER:
+      return checkBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ISUNORDERED:
+      return checkBuiltinFloatComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
+      return checkBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
+      return checkBuiltinArithmeticOverflow(ast);
 
     default:
       return false;

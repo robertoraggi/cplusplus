@@ -18,12 +18,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/access_control.h>
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/dependent_types.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
@@ -119,8 +121,18 @@ struct [[nodiscard]] Binder::CompleteClass {
       -> FunctionSymbol*;
   void synthesizeDefaultedEqualityBodies();
   void synthesizeDefaultedEqualityBody(FunctionSymbol* fn);
+  void forEachComparisonSubobject(
+      FunctionSymbol* fn,
+      const std::function<void(ExpressionAST*, ExpressionAST*)>&
+          appendComparison);
+  void deduceDefaultedThreeWayReturnTypes();
+  void synthesizeDefaultedThreeWayBody(FunctionSymbol* fn);
   auto hasUserDeclaredAssignmentOperator(bool moveForm) const -> bool;
   void addDefaultConstructor();
+  [[nodiscard]] auto isSubobjectMemberUsable(FunctionSymbol* function,
+                                             ClassSymbol* subobject) const
+      -> bool;
+
   [[nodiscard]] auto defaultConstructorIsDeleted() const -> bool;
   void addCopyConstructor();
   void addMoveConstructor();
@@ -140,12 +152,14 @@ struct [[nodiscard]] Binder::CompleteClass {
                                FunctionBodyAST* body);
   auto makeThisExpr() -> ExpressionAST*;
   auto makeParamRef(ParameterSymbol* param) -> ExpressionAST*;
+  auto makeForwardedParamRef(ParameterSymbol* param) -> ExpressionAST*;
   auto makeQualifier(ClassSymbol* cls) -> NestedNameSpecifierAST*;
   auto makeStructorCallStatement(FunctionSymbol* callee,
                                  ExpressionAST* objectPtr) -> StatementAST*;
   auto pickVBaseConstructor(ClassSymbol* vbase, bool isCopy, bool isMove)
       -> FunctionSymbol*;
   void synthesizeCompleteObjectCtor(FunctionSymbol* ctor);
+  void synthesizeDelegatingCompleteObjectCtor(FunctionSymbol* ctor);
   void synthesizeCompleteObjectDtor(FunctionSymbol* dtor);
   void synthesizeDeletingDtor(FunctionSymbol* dtor);
 
@@ -158,6 +172,7 @@ struct [[nodiscard]] Binder::CompleteClass {
   auto ensureSourceParameter(FunctionSymbol* fn) -> ParameterSymbol*;
   auto makeSourceSubobjectRef(ExpressionAST* expr, const Type* type,
                               bool isMove) -> ExpressionAST*;
+  void synthesizeDefaultConstructorBody(FunctionSymbol* fn);
   void synthesizeCopyMoveCtorBody(FunctionSymbol* fn, bool isMove);
   void synthesizeCopyMoveAssignBody(FunctionSymbol* fn, bool isMove);
 };
@@ -187,9 +202,10 @@ auto Binder::inheritedConstructorFor(ClassSymbol* classSymbol,
 }
 
 void Binder::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
-  if (!ctor->isConstructor()) return;
-  if (ctor->isDeleted() || ctor->completeObjectVariant()) return;
+  if (!ctor || !ctor->isConstructor()) return;
+  if (ctor->isDeleted()) return;
   if (!type_cast<FunctionType>(ctor->type())) return;
+  if (ctor->completeObjectVariant() && !ctor->delegatingConstructor()) return;
 
   auto classSymbol = symbol_cast<ClassSymbol>(ctor->parent());
   if (!classSymbol) return;
@@ -218,7 +234,9 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
   };
 
   CompleteClass cc{*this, classSymbol};
-  if (matches(classSymbol->copyConstructor()))
+  if (matches(classSymbol->defaultConstructor()))
+    cc.synthesizeDefaultConstructorBody(fn);
+  else if (matches(classSymbol->copyConstructor()))
     cc.synthesizeCopyMoveCtorBody(fn, /*isMove=*/false);
   else if (matches(classSymbol->moveConstructor()))
     cc.synthesizeCopyMoveCtorBody(fn, /*isMove=*/true);
@@ -231,9 +249,7 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
 void Binder::CompleteClass::markComplete() { classSymbol->setComplete(true); }
 
 auto Binder::CompleteClass::shouldSynthesizeSpecialMembers() const -> bool {
-  if (!binder.isCxx()) return false;
-  if (!classSymbol->name()) return false;
-  return true;
+  return binder.isCxx();
 }
 
 void Binder::CompleteClass::synthesizeSpecialMembers() {
@@ -402,16 +418,8 @@ void Binder::CompleteClass::synthesizeInheritedConstructorBody(
   auto argsTail = &args;
   for (auto param :
        views::members(fn->functionParameters()) | views::parameters) {
-    auto argExpr = makeParamRef(param);
-    if (!binder.traits.is_reference(param->type())) {
-      auto load = ImplicitCastExpressionAST::create(pool);
-      load->castKind = ImplicitCastKind::kLValueToRValueConversion;
-      load->expression = argExpr;
-      load->type = binder.traits.remove_cv(argExpr->type);
-      load->valueCategory = ValueCategory::kPrValue;
-      argExpr = load;
-    }
-    *argsTail = make_list_node<ExpressionAST>(pool, argExpr);
+    *argsTail =
+        make_list_node<ExpressionAST>(pool, makeForwardedParamRef(param));
     argsTail = &(*argsTail)->next;
   }
   init->expressionList = args;
@@ -467,6 +475,11 @@ void Binder::CompleteClass::complete(bool deferExceptionSpecificationChecks) {
   }
 
   synthesizeDefaultedEqualityBodies();
+  deduceDefaultedThreeWayReturnTypes();
+  for (auto function : comparisonFunctions(TokenKind::T_LESS_EQUAL_GREATER)) {
+    if (function->isDefaulted() && !function->isDeleted())
+      synthesizeDefaultedThreeWayBody(function);
+  }
 
   markComplete();
 }
@@ -530,9 +543,10 @@ void Binder::applyImplicitExceptionSpecification(FunctionSymbol* fn) {
       TypeChecker check{unit_};
       check.setScope(classSymbol);
       check.setReportErrors(false);
-      check.check(comparison);
-      return !comparison->type ||
-             TypeChecker::isPotentiallyThrowing(comparison);
+      ExpressionAST* expression = comparison;
+      check.check(&expression);
+      return !expression->type ||
+             TypeChecker::isPotentiallyThrowing(expression);
     }
 
     if (fn->isDestructor()) {
@@ -540,8 +554,12 @@ void Binder::applyImplicitExceptionSpecification(FunctionSymbol* fn) {
              !traits.is_nothrow_destructible(type);
     }
 
-    if (isDefaultConstructor && field && field->initializer())
-      return TypeChecker::isPotentiallyThrowing(field->initializer());
+    if (isDefaultConstructor && field && field->hasInitializer()) {
+      SilentDiagnosticsScope silent{unit_};
+      auto initializer = field->initializer();
+      if (silent.hadError()) return true;
+      return TypeChecker::isPotentiallyThrowing(initializer);
+    }
 
     auto subobjectType = traits.remove_all_extents(type);
     if (traits.is_reference(subobjectType)) return false;
@@ -801,8 +819,289 @@ void Binder::CompleteClass::synthesizeDefaultedEqualityBodies() {
   }
 }
 
-void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
+void Binder::CompleteClass::deduceDefaultedThreeWayReturnTypes() {
+  auto stdNamespace = symbol_cast<NamespaceSymbol>(qualifiedLookup(
+      binder.unit_->globalScope(), control()->getIdentifier("std")));
+  auto categoryType = [&](std::string_view name) -> const Type* {
+    if (!stdNamespace) return nullptr;
+    auto symbol =
+        qualifiedLookupType(stdNamespace, control()->getIdentifier(name));
+    if (!symbol) return nullptr;
+    return binder.traits.remove_cv(symbol->type());
+  };
+  const Type* categories[] = {categoryType("strong_ordering"),
+                              categoryType("weak_ordering"),
+                              categoryType("partial_ordering")};
+  for (auto function : comparisonFunctions(TokenKind::T_LESS_EQUAL_GREATER)) {
+    if (!function->isDefaulted()) continue;
+    auto type = type_cast<FunctionType>(function->type());
+    if (!type || !type_cast<AutoType>(type->returnType())) continue;
+    TypeChecker check{binder.unit_};
+    check.setScope(function);
+    check.setReportErrors(false);
+    TranslationUnit::PotentiallyEvaluatedScope unevaluated{binder.unit_, false};
+    int rank = 0;
+    forEachComparisonSubobject(
+        function, [&](ExpressionAST* left, ExpressionAST* right) {
+          auto comparison = BinaryExpressionAST::create(pool);
+          comparison->leftExpression = left;
+          comparison->rightExpression = right;
+          comparison->op = TokenKind::T_LESS_EQUAL_GREATER;
+          comparison->opLoc = function->location();
+          ExpressionAST* expression = comparison;
+          check.check(&expression);
+          auto resultType = binder.traits.remove_cv(expression->type);
+          for (int index = 0; index != 3; ++index) {
+            if (!categories[index]) continue;
+            if (resultType != categories[index]) continue;
+            rank = std::max(rank, index);
+            return;
+          }
+          function->setDeleted(true);
+        });
+    if (function->isDeleted()) continue;
+    if (!categories[rank]) {
+      binder.error(
+          function->location(),
+          "you need to include <compare> before using the '<=>' operator");
+      continue;
+    }
+    auto deducedType = control()->getFunctionType(
+        categories[rank], type->parameterTypes(), type->isVariadic(),
+        type->cvQualifiers(), type->refQualifier(), type->isNoexcept());
+    auto canonical = function->canonical();
+    canonical->setType(deducedType);
+    canonical->setDeducedReturnType(true);
+    for (auto redeclaration : canonical->redeclarations()) {
+      redeclaration->setType(deducedType);
+      redeclaration->setDeducedReturnType(true);
+    }
+  }
+}
+
+void Binder::CompleteClass::synthesizeDefaultedThreeWayBody(
     FunctionSymbol* fn) {
+  auto definition = fn->declaration();
+  if (!definition) return;
+  if (!ast_cast<DefaultFunctionBodyAST>(definition->functionBody)) return;
+  auto functionType = type_cast<FunctionType>(fn->type());
+  if (!functionType) return;
+  auto returnType = functionType->returnType();
+  if (containsPlaceholderType(returnType)) return;
+
+  TypeChecker check{binder.unit_};
+  check.setScope(fn);
+  TranslationUnit::PotentiallyEvaluatedScope unevaluated{binder.unit_, false};
+  bool potentiallyThrowing = false;
+  auto usable = [&](ExpressionAST* expression) {
+    CapturingDiagnosticsScope diagnostics{binder.unit_};
+    check.check(&expression);
+    diagnostics.finish();
+    if (!diagnostics.takeDiagnostics().empty()) return false;
+    if (!expression->type) return false;
+    if (TypeChecker::isPotentiallyThrowing(expression))
+      potentiallyThrowing = true;
+    return true;
+  };
+  auto makeSpecifier = [&](const Type* type) {
+    auto alias = control()->newTypeAliasSymbol(nullptr, {});
+    alias->setType(type);
+    auto specifier = NamedTypeSpecifierAST::create(pool);
+    specifier->symbol = alias;
+    return specifier;
+  };
+  auto makeCast = [&](ExpressionAST* expression) {
+    auto cast = CppCastExpressionAST::create(pool);
+    cast->castOp = TokenKind::T_STATIC_CAST;
+    cast->castLoc = fn->location();
+    cast->typeId = TypeIdAST::create(pool);
+    cast->typeId->type = returnType;
+    cast->typeId->typeSpecifierList =
+        make_list_node<SpecifierAST>(pool, makeSpecifier(returnType));
+    cast->expression = expression;
+    return cast;
+  };
+  auto makeBinary = [&](ExpressionAST* left, TokenKind op,
+                        ExpressionAST* right) {
+    auto expression = BinaryExpressionAST::create(pool);
+    expression->leftExpression = left;
+    expression->op = op;
+    expression->opLoc = fn->location();
+    expression->rightExpression = right;
+    return expression;
+  };
+  auto categoryValue = [&](const Type* type,
+                           std::string_view name) -> ExpressionAST* {
+    auto classType = unqualified_cast<ClassType>(type);
+    if (!classType) return nullptr;
+    auto symbol = qualifiedLookup(classType->definition(),
+                                  control()->getIdentifier(name));
+    if (!symbol) return nullptr;
+    auto expression = IdExpressionAST::create(pool);
+    expression->symbol = symbol;
+    expression->unqualifiedId =
+        NameIdAST::create(pool, control()->getIdentifier(name));
+    expression->type = symbol->type();
+    expression->valueCategory = ValueCategory::kLValue;
+    return expression;
+  };
+
+  auto stdNamespace = symbol_cast<NamespaceSymbol>(qualifiedLookup(
+      binder.unit_->globalScope(), control()->getIdentifier("std")));
+  auto category = [&](std::string_view name) -> Symbol* {
+    if (!stdNamespace) return nullptr;
+    return qualifiedLookupType(stdNamespace, control()->getIdentifier(name));
+  };
+  auto strongOrdering = category("strong_ordering");
+  auto weakOrdering = category("weak_ordering");
+  auto partialOrdering = category("partial_ordering");
+  const bool isStrong = strongOrdering && returnType == strongOrdering->type();
+  const bool isWeak = weakOrdering && returnType == weakOrdering->type();
+  const bool isPartial =
+      partialOrdering && returnType == partialOrdering->type();
+  auto makeConditional = [&](ExpressionAST* condition, ExpressionAST* left,
+                             ExpressionAST* right) -> ExpressionAST* {
+    if (!condition || !left || !right) return nullptr;
+    auto expression = ConditionalExpressionAST::create(pool);
+    expression->condition = condition;
+    expression->iftrueExpression = left;
+    expression->iffalseExpression = right;
+    if (!usable(expression)) return nullptr;
+    return expression;
+  };
+  auto synthesizedComparison = [&](ExpressionAST* left,
+                                   ExpressionAST* right) -> ExpressionAST* {
+    auto comparison = ThreeWayComparisonExpressionAST::create(pool);
+    comparison->comparison =
+        makeBinary(left, TokenKind::T_LESS_EQUAL_GREATER, right);
+    if (usable(comparison)) {
+      auto cast = makeCast(comparison);
+      if (!usable(cast)) return nullptr;
+      return cast;
+    }
+    if (comparison->comparison->symbol) return nullptr;
+    if (check.wasLastOperatorLookupAmbiguous()) return nullptr;
+    if (!isStrong && !isWeak && !isPartial) return nullptr;
+    auto equal = makeBinary(left, TokenKind::T_EQUAL_EQUAL, right);
+    auto less = makeBinary(left, TokenKind::T_LESS, right);
+    if (!usable(equal) || !usable(less)) return nullptr;
+    auto tail = categoryValue(returnType, "greater");
+    if (isPartial) {
+      auto greater = makeBinary(right, TokenKind::T_LESS, left);
+      if (!usable(greater)) return nullptr;
+      tail = makeConditional(greater, tail,
+                             categoryValue(returnType, "unordered"));
+    }
+    tail = makeConditional(less, categoryValue(returnType, "less"), tail);
+    std::string_view equalName = "equivalent";
+    if (isStrong) equalName = "equal";
+    return makeConditional(equal, categoryValue(returnType, equalName), tail);
+  };
+  std::vector<ExpressionAST*> comparisons;
+  forEachComparisonSubobject(
+      fn, [&](ExpressionAST* left, ExpressionAST* right) {
+        auto comparison = synthesizedComparison(left, right);
+        if (!comparison) {
+          fn->setDeleted(true);
+          return;
+        }
+        comparisons.push_back(comparison);
+      });
+  if (fn->isDeleted()) return;
+
+  auto compound = CompoundStatementAST::create(pool);
+  compound->symbol = control()->newBlockSymbol(fn, fn->location());
+  fn->addSymbol(compound->symbol);
+  check.setScope(compound->symbol);
+  TranslationUnit::PotentiallyEvaluatedScope evaluated{binder.unit_, true};
+  auto statements = &compound->statementList;
+  auto append = [&](StatementAST* statement) {
+    *statements = make_list_node(pool, statement);
+    statements = &(*statements)->next;
+  };
+  auto makeReference = [&](VariableSymbol* variable) {
+    auto reference = IdExpressionAST::create(pool);
+    reference->symbol = variable;
+    reference->unqualifiedId =
+        NameIdAST::create(pool, name_cast<Identifier>(variable->name()));
+    reference->type = returnType;
+    reference->valueCategory = ValueCategory::kLValue;
+    return reference;
+  };
+  for (auto comparison : comparisons) {
+    auto variable =
+        control()->newVariableSymbol(compound->symbol, fn->location());
+    variable->setName(control()->getIdentifier(
+        std::format("$comparison{}", compound->symbol->members().size())));
+    variable->setType(returnType);
+    variable->setInitializer(comparison);
+    compound->symbol->addSymbol(variable);
+    auto id = IdDeclaratorAST::create(pool);
+    id->unqualifiedId =
+        NameIdAST::create(pool, name_cast<Identifier>(variable->name()));
+    auto declarator = DeclaratorAST::create(pool);
+    declarator->coreDeclarator = id;
+    auto init = InitDeclaratorAST::create(pool);
+    init->declarator = declarator;
+    init->symbol = variable;
+    init->initializer = comparison;
+    auto declaration = SimpleDeclarationAST::create(pool);
+    declaration->declSpecifierList =
+        make_list_node<SpecifierAST>(pool, makeSpecifier(returnType));
+    declaration->initDeclaratorList = make_list_node(pool, init);
+    auto declarationStatement = DeclarationStatementAST::create(pool);
+    declarationStatement->declaration = declaration;
+    append(declarationStatement);
+
+    auto zero = IntLiteralExpressionAST::create(pool);
+    zero->literal = control()->integerLiteral("0");
+    zero->type = control()->getIntType();
+    zero->valueCategory = ValueCategory::kPrValue;
+    ExpressionAST* condition =
+        makeBinary(makeReference(variable), TokenKind::T_EXCLAIM_EQUAL, zero);
+    if (!usable(condition) || !check.check_bool_condition(condition)) {
+      fn->setDeleted(true);
+      return;
+    }
+    auto result = ReturnStatementAST::create(pool);
+    result->expression = makeReference(variable);
+    check.check_return_statement(result);
+    if (TypeChecker::isPotentiallyThrowing(result->expression))
+      potentiallyThrowing = true;
+    auto statement = IfStatementAST::create(pool);
+    statement->condition = condition;
+    statement->statement = result;
+    append(statement);
+  }
+
+  ExpressionAST* equal = nullptr;
+  if (strongOrdering) equal = categoryValue(strongOrdering->type(), "equal");
+  if (!equal) {
+    fn->setDeleted(true);
+    return;
+  }
+  auto cast = makeCast(equal);
+  if (!usable(cast)) {
+    fn->setDeleted(true);
+    return;
+  }
+  auto result = ReturnStatementAST::create(pool);
+  result->expression = cast;
+  check.check_return_statement(result);
+  if (TypeChecker::isPotentiallyThrowing(result->expression))
+    potentiallyThrowing = true;
+  append(result);
+  auto body = CompoundStatementFunctionBodyAST::create(pool);
+  body->statement = compound;
+  definition->functionBody = body;
+  if (!fn->hasExceptionSpecifier())
+    setFunctionNoexcept(control(), fn, !potentiallyThrowing);
+}
+
+void Binder::CompleteClass::forEachComparisonSubobject(
+    FunctionSymbol* fn,
+    const std::function<void(ExpressionAST*, ExpressionAST*)>&
+        appendComparison) {
   auto definition = fn->declaration();
   if (!definition) return;
   if (!ast_cast<DefaultFunctionBodyAST>(definition->functionBody)) return;
@@ -890,38 +1189,6 @@ void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
     return member;
   };
 
-  ExpressionAST* result = nullptr;
-  TypeChecker check{binder.unit_};
-  check.setScope(fn);
-  check.setReportErrors(false);
-  TranslationUnit::PotentiallyEvaluatedScope unevaluated{binder.unit_, false};
-
-  auto appendComparison = [&](ExpressionAST* left, ExpressionAST* right) {
-    auto comparison = BinaryExpressionAST::create(pool);
-    comparison->leftExpression = left;
-    comparison->op = TokenKind::T_EQUAL_EQUAL;
-    comparison->rightExpression = right;
-    check.check(comparison);
-
-    ExpressionAST* condition = comparison;
-    if (!check.check_bool_condition(condition)) {
-      fn->setDeleted(true);
-      return;
-    }
-
-    if (!result) {
-      result = condition;
-      return;
-    }
-
-    auto conjunction = BinaryExpressionAST::create(pool);
-    conjunction->leftExpression = result;
-    conjunction->op = TokenKind::T_AMP_AMP;
-    conjunction->rightExpression = condition;
-    check.check(conjunction);
-    result = conjunction;
-  };
-
   std::function<void(ExpressionAST*, ExpressionAST*, const Type*)>
       appendExpanded;
   appendExpanded = [&](ExpressionAST* left, ExpressionAST* right,
@@ -968,6 +1235,48 @@ void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
                    makeMember(makeRightObject(), field), field->type());
     if (fn->isDeleted()) return;
   }
+}
+
+void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
+    FunctionSymbol* fn) {
+  auto definition = fn->declaration();
+  if (!definition) return;
+  if (!ast_cast<DefaultFunctionBodyAST>(definition->functionBody)) return;
+
+  ExpressionAST* result = nullptr;
+  TypeChecker check{binder.unit_};
+  check.setScope(fn);
+  check.setReportErrors(false);
+  TranslationUnit::PotentiallyEvaluatedScope unevaluated{binder.unit_, false};
+
+  auto appendComparison = [&](ExpressionAST* left, ExpressionAST* right) {
+    auto comparison = BinaryExpressionAST::create(pool);
+    comparison->leftExpression = left;
+    comparison->op = TokenKind::T_EQUAL_EQUAL;
+    comparison->rightExpression = right;
+    ExpressionAST* condition = comparison;
+    check.check(&condition);
+
+    if (!check.check_bool_condition(condition)) {
+      fn->setDeleted(true);
+      return;
+    }
+
+    if (!result) {
+      result = condition;
+      return;
+    }
+
+    auto conjunction = BinaryExpressionAST::create(pool);
+    conjunction->leftExpression = result;
+    conjunction->op = TokenKind::T_AMP_AMP;
+    conjunction->rightExpression = condition;
+    result = conjunction;
+    check.check(&result);
+  };
+
+  forEachComparisonSubobject(fn, appendComparison);
+  if (fn->isDeleted()) return;
 
   if (!result) {
     result = BoolLiteralExpressionAST::create(
@@ -985,6 +1294,15 @@ void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
   definition->functionBody = body;
 }
 
+auto Binder::CompleteClass::isSubobjectMemberUsable(
+    FunctionSymbol* function, ClassSymbol* subobject) const -> bool {
+  if (!function) return false;
+  if (function->isDeleted()) return false;
+
+  AccessContext accessContext{binder.unit_, classSymbol};
+  return accessContext.isAccessible(function, subobject, nullptr);
+}
+
 auto Binder::CompleteClass::defaultConstructorIsDeleted() const -> bool {
   auto traits = binder.traits;
 
@@ -995,13 +1313,12 @@ auto Binder::CompleteClass::defaultConstructorIsDeleted() const -> bool {
     if (!subobject->isComplete()) return false;
 
     if (auto destructor = subobject->destructor();
-        destructor && destructor->isDeleted())
+        destructor && !isSubobjectMemberUsable(destructor, subobject))
       return true;
 
     if (subobject->constructors().empty()) return false;
 
-    auto defaultConstructor = subobject->defaultConstructor();
-    return !defaultConstructor || defaultConstructor->isDeleted();
+    return !isSubobjectMemberUsable(subobject->defaultConstructor(), subobject);
   };
 
   for (auto base : classSymbol->baseClasses()) {
@@ -1011,7 +1328,7 @@ auto Binder::CompleteClass::defaultConstructorIsDeleted() const -> bool {
   }
 
   for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    if (field->initializer()) continue;
+    if (field->hasInitializer()) continue;
 
     auto type = field->type();
     if (traits.is_reference(type)) return true;
@@ -1128,12 +1445,12 @@ auto Binder::CompleteClass::hasNonCopyConstructibleSubobject(
     if (!subobject->isComplete()) return false;
 
     if (auto destructor = subobject->destructor();
-        destructor && destructor->isDeleted())
+        destructor && !isSubobjectMemberUsable(destructor, subobject))
       return true;
 
     auto constructor = moveForm ? subobject->moveConstructor() : nullptr;
     if (!constructor) constructor = subobject->copyConstructor();
-    return constructor && constructor->isDeleted();
+    return constructor && !isSubobjectMemberUsable(constructor, subobject);
   };
 
   for (auto base : classSymbol->baseClasses()) {
@@ -1165,7 +1482,7 @@ auto Binder::CompleteClass::hasNonAssignableSubobject(bool moveForm) const
 
     auto assignment = moveForm ? subobject->moveAssignmentOperator() : nullptr;
     if (!assignment) assignment = subobject->copyAssignmentOperator();
-    return assignment && assignment->isDeleted();
+    return assignment && !isSubobjectMemberUsable(assignment, subobject);
   };
 
   for (auto base : classSymbol->baseClasses()) {
@@ -1244,6 +1561,10 @@ auto Binder::CompleteClass::newStructorVariant(FunctionSymbol* principal)
   variant->setDefined(true);
   variant->setLanguageLinkage(LanguageKind::kCXX);
   variant->setStructorPrincipal(principal);
+  variant->setInline(principal->isInline());
+  variant->setConstexpr(principal->isConstexpr());
+  variant->setConsteval(principal->isConsteval());
+  binder.inheritDeclarationAttributes(variant, principal);
 
   auto params = control()->newFunctionParametersSymbol(variant, {});
   variant->addSymbol(params);
@@ -1298,6 +1619,23 @@ auto Binder::CompleteClass::makeParamRef(ParameterSymbol* param)
   return idExpr;
 }
 
+auto Binder::CompleteClass::makeForwardedParamRef(ParameterSymbol* param)
+    -> ExpressionAST* {
+  auto argExpr = makeParamRef(param);
+  auto paramType = binder.traits.remove_cv(param->type());
+  if (binder.traits.is_reference(paramType)) return argExpr;
+  if (binder.traits.is_class_or_union(paramType)) {
+    argExpr->valueCategory = ValueCategory::kPrValue;
+    return argExpr;
+  }
+  auto load = ImplicitCastExpressionAST::create(pool);
+  load->castKind = ImplicitCastKind::kLValueToRValueConversion;
+  load->expression = argExpr;
+  load->type = binder.traits.remove_cv(argExpr->type);
+  load->valueCategory = ValueCategory::kPrValue;
+  return load;
+}
+
 auto Binder::CompleteClass::makeQualifier(ClassSymbol* cls)
     -> NestedNameSpecifierAST* {
   auto nns = SimpleNestedNameSpecifierAST::create(pool);
@@ -1347,7 +1685,36 @@ auto Binder::CompleteClass::pickVBaseConstructor(ClassSymbol* vbase,
   return vbase->defaultConstructor();
 }
 
+void Binder::CompleteClass::synthesizeDelegatingCompleteObjectCtor(
+    FunctionSymbol* ctor) {
+  auto definition = ast_cast<FunctionDefinitionAST>(ctor->declaration());
+  if (!definition || !definition->functionBody) return;
+
+  if (auto variant = ctor->completeObjectVariant()) {
+    auto variantDefinition =
+        ast_cast<FunctionDefinitionAST>(variant->declaration());
+    if (variantDefinition &&
+        variantDefinition->functionBody == definition->functionBody)
+      return;
+  }
+
+  auto target = ctor->delegatingConstructor();
+  ASTRewriter::requireFunctionDefinition(binder.unit_, target);
+  binder.synthesizeCompleteObjectCtor(target);
+  ASTRewriter::requireFunctionDefinition(binder.unit_,
+                                         target->completeObjectVariant());
+
+  auto variant = newStructorVariant(ctor);
+  attachVariantDefinition(variant, makeCtorNameId(), definition->functionBody);
+  ctor->setCompleteObjectVariant(variant);
+}
+
 void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
+  if (ctor->delegatingConstructor()) {
+    synthesizeDelegatingCompleteObjectCtor(ctor);
+    return;
+  }
+
   auto layout = classSymbol->layout();
   auto traits = binder.traits;
 
@@ -1402,7 +1769,8 @@ void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
     } else if (vbaseCtor) {
       TypeChecker check{binder.unit_};
       check.setScope(ctor);
-      check.append_default_arguments(vbaseCtor, &init->expressionList);
+      check.append_default_arguments(vbaseCtor, &init->expressionList,
+                                     ctor->location());
     }
 
     *memInitsTail = make_list_node<MemInitializerAST>(pool, init);
@@ -1418,16 +1786,8 @@ void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
   List<ExpressionAST*>* args = nullptr;
   auto argsTail = &args;
   for (auto param : params) {
-    auto argExpr = makeParamRef(param);
-    if (!traits.is_reference(param->type())) {
-      auto load = ImplicitCastExpressionAST::create(pool);
-      load->castKind = ImplicitCastKind::kLValueToRValueConversion;
-      load->expression = argExpr;
-      load->type = traits.remove_cv(argExpr->type);
-      load->valueCategory = ValueCategory::kPrValue;
-      argExpr = load;
-    }
-    *argsTail = make_list_node<ExpressionAST>(pool, argExpr);
+    *argsTail =
+        make_list_node<ExpressionAST>(pool, makeForwardedParamRef(param));
     argsTail = &(*argsTail)->next;
   }
   delegate->expressionList = args;
@@ -1501,8 +1861,19 @@ void Binder::CompleteClass::synthesizeDeletingDtor(FunctionSymbol* dtor) {
   if (!completeDtor) completeDtor = dtor;
   appendStatement(makeStructorCallStatement(completeDtor, makeThisExpr()));
 
-  auto operatorDelete =
-      resolveUsualOperatorDelete(binder.unit_, classSymbol, false);
+  auto operatorDelete = resolveUsualOperatorDelete(binder.unit_, classSymbol,
+                                                   classSymbol->type(), false);
+  if (!operatorDelete) {
+    binder.error(dtor->location(), "no suitable deallocation function");
+    return;
+  }
+
+  auto signature = deallocationSignatureOf(binder.unit_, operatorDelete);
+  if (signature->isDestroying) {
+    binder.error(dtor->location(),
+                 "destroying operator delete is not supported");
+    return;
+  }
 
   auto calleeExpr = IdExpressionAST::create(pool);
   calleeExpr->unqualifiedId =
@@ -1523,6 +1894,28 @@ void Binder::CompleteClass::synthesizeDeletingDtor(FunctionSymbol* dtor) {
   call->expressionList = make_list_node<ExpressionAST>(pool, thisAsVoidPtr);
   call->type = control()->getVoidType();
   call->valueCategory = ValueCategory::kPrValue;
+
+  auto argumentsTail = &call->expressionList->next;
+  const auto& parameterTypes =
+      type_cast<FunctionType>(operatorDelete->type())->parameterTypes();
+
+  auto appendArgument = [&](std::size_t index, std::uint64_t value) {
+    auto literal = IntLiteralExpressionAST::create(pool);
+    literal->literal = control()->integerLiteral(std::to_string(value));
+    literal->type = parameterTypes[index];
+    literal->valueCategory = ValueCategory::kPrValue;
+    *argumentsTail = make_list_node<ExpressionAST>(pool, literal);
+    argumentsTail = &(*argumentsTail)->next;
+  };
+
+  auto memoryLayout = control()->memoryLayout();
+
+  if (signature->hasSize)
+    appendArgument(1, memoryLayout->sizeOf(classSymbol->type()).value_or(0));
+
+  if (signature->hasAlignment)
+    appendArgument(signature->hasSize ? 2 : 1,
+                   memoryLayout->alignmentOf(classSymbol->type()).value_or(1));
 
   auto stmt = ExpressionStatementAST::create(pool);
   stmt->expression = call;
@@ -1574,6 +1967,8 @@ void Binder::CompleteClass::synthesizeMemberwiseBodies() {
 
 void Binder::CompleteClass::typeFieldInitializers() {
   for (auto field : views::members(classSymbol) | views::fields) {
+    if (field->hasPendingInitializer()) continue;
+
     auto init = field->initializer();
     if (!init) continue;
 
@@ -1615,6 +2010,21 @@ auto Binder::CompleteClass::makeSourceSubobjectRef(ExpressionAST* expr,
   cast->type = type;
   cast->valueCategory = ValueCategory::kXValue;
   return cast;
+}
+
+void Binder::CompleteClass::synthesizeDefaultConstructorBody(
+    FunctionSymbol* fn) {
+  auto def = fn->declaration();
+  if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
+
+  auto body = CompoundStatementFunctionBodyAST::create(pool);
+  body->statement = CompoundStatementAST::create(pool);
+  def->functionBody = body;
+
+  TypeChecker check{binder.unit_};
+  check.setScope(fn);
+  check.setReportErrors(false);
+  check.check_mem_initializers(body);
 }
 
 void Binder::CompleteClass::synthesizeCopyMoveCtorBody(FunctionSymbol* fn,
@@ -1728,14 +2138,14 @@ void Binder::CompleteClass::synthesizeCopyMoveAssignBody(FunctionSymbol* fn,
     assign->leftExpression = lhs;
     assign->op = TokenKind::T_EQUAL;
     assign->rightExpression = rhs;
+    auto stmt = ExpressionStatementAST::create(pool);
+    stmt->expression = assign;
     if (resolve) {
-      check.check(assign);
+      check.check(&stmt->expression);
     } else {
       assign->type = lhs->type;
       assign->valueCategory = ValueCategory::kLValue;
     }
-    auto stmt = ExpressionStatementAST::create(pool);
-    stmt->expression = assign;
     append(stmt);
   };
 
@@ -1833,6 +2243,7 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
 
   int calculatedSize = 0;
   int calculatedAlignment = 1;
+  std::uint64_t emittedEnd = 0;
   std::uint32_t currentIndex = 0;
 
   int nextBitPos = 0;
@@ -1849,23 +2260,22 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
         classSymbol(cls),
         memoryLayout(b.control()->memoryLayout()),
         layout(std::make_unique<ClassLayout>()) {
-    if (auto loc = cls->location()) {
-      const auto& tok = b.unit_->tokenAt(loc);
-      packValue =
-          b.unit_->preprocessor()->packValueAt(tok.fileId(), tok.offset());
-    }
+    packValue = cls->packAlignment();
   }
 
   auto control() const -> Control* { return binder.control(); }
 
   auto operator()() -> std::expected<bool, std::string>;
   auto validate() -> std::expected<bool, std::string>;
+  void completeFieldTypes();
   [[nodiscard]] auto computeAbiEmpty() const -> bool;
   [[nodiscard]] auto isNearlyEmptyClass(ClassSymbol* classSymbol) const -> bool;
   [[nodiscard]] auto selectPrimaryBase() const -> std::pair<ClassSymbol*, bool>;
+  void padTo(std::uint64_t offset);
   void layoutVtable();
   void layoutBases();
   void layoutVirtualBases();
+  [[nodiscard]] auto baseNonVirtualSize(ClassSymbol* base) -> std::uint64_t;
   [[nodiscard]] auto classSubobjectOffset(ClassSymbol* classSymbol,
                                           bool tryZero, std::uint64_t alignment)
       -> std::uint64_t;
@@ -1892,6 +2302,8 @@ auto Binder::buildRecordLayout(ClassSymbol* classSymbol)
 auto Binder::BuildRecordLayout::operator()()
     -> std::expected<bool, std::string> {
   if (auto status = validate(); !status) return status;
+
+  completeFieldTypes();
 
   layout->setAbiEmpty(computeAbiEmpty());
   layoutVtable();
@@ -1929,6 +2341,26 @@ auto Binder::BuildRecordLayout::validate() -> std::expected<bool, std::string> {
     }
   }
   return true;
+}
+
+void Binder::BuildRecordLayout::completeFieldTypes() {
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    auto fieldElementType =
+        binder.traits.remove_cv(binder.traits.remove_all_extents(
+            binder.traits.remove_cv(field->type())));
+
+    auto classType = type_cast<ClassType>(fieldElementType);
+    if (!classType) continue;
+
+    binder.traits.requireCompleteClass(classType->symbol());
+
+    if (field->alignment()) continue;
+
+    if (auto alignment =
+            binder.control()->memoryLayout()->alignmentOf(field->type())) {
+      field->setAlignment(alignment.value());
+    }
+  }
 }
 
 auto Binder::BuildRecordLayout::computeAbiEmpty() const -> bool {
@@ -2000,6 +2432,7 @@ void Binder::BuildRecordLayout::layoutVtable() {
   auto ptrSize = static_cast<int>(memoryLayout->sizeOfPointer());
   calculatedSize = ptrSize;
   calculatedAlignment = ptrSize;
+  emittedEnd = static_cast<std::uint64_t>(ptrSize);
   nextBitPos = calculatedSize * 8;
 }
 
@@ -2121,6 +2554,12 @@ auto Binder::BuildRecordLayout::selectPrimaryBase() const
   return {nullptr, false};
 }
 
+auto Binder::BuildRecordLayout::baseNonVirtualSize(ClassSymbol* base)
+    -> std::uint64_t {
+  if (!base->layout()) return base->sizeInBytes();
+  return binder.traits.non_virtual_size(base->type());
+}
+
 auto Binder::BuildRecordLayout::classSubobjectOffset(ClassSymbol* target,
                                                      bool tryZero,
                                                      std::uint64_t alignment)
@@ -2189,9 +2628,7 @@ void Binder::BuildRecordLayout::layoutBases() {
 
     const bool baseHasVirtualBases =
         baseLayout && !baseLayout->virtualBases().empty();
-    int baseSizeInBytes = baseHasVirtualBases
-                              ? static_cast<int>(baseLayout->nonVirtualSize())
-                              : baseClassSymbol->sizeInBytes();
+    int baseSizeInBytes = static_cast<int>(baseNonVirtualSize(baseClassSymbol));
     int baseAlignment =
         baseHasVirtualBases
             ? static_cast<int>(baseLayout->nonVirtualAlignment())
@@ -2200,6 +2637,8 @@ void Binder::BuildRecordLayout::layoutBases() {
     const bool isEmpty = baseLayout && baseLayout->isAbiEmpty();
     const auto baseOffset = classSubobjectOffset(baseClassSymbol, isEmpty,
                                                  std::max(baseAlignment, 1));
+
+    padTo(baseOffset);
 
     ClassLayout::MemberInfo baseInfo;
     baseInfo.offset = baseOffset;
@@ -2211,9 +2650,11 @@ void Binder::BuildRecordLayout::layoutBases() {
       layout->setVtableIndex(baseInfo.index);
     }
 
-    if (!isEmpty)
+    if (!isEmpty) {
       calculatedSize = std::max(calculatedSize,
                                 static_cast<int>(baseOffset) + baseSizeInBytes);
+      emittedEnd = std::max(emittedEnd, baseOffset + baseSizeInBytes);
+    }
     recordNonVirtualClassSubobjects(baseClassSymbol, baseOffset);
     calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
   }
@@ -2331,9 +2772,7 @@ void Binder::BuildRecordLayout::layoutVirtualBases() {
 
     const bool vbaseHasVirtualBases =
         vbaseLayout && !vbaseLayout->virtualBases().empty();
-    int baseSizeInBytes = vbaseHasVirtualBases
-                              ? static_cast<int>(vbaseLayout->nonVirtualSize())
-                              : baseClassSymbol->sizeInBytes();
+    int baseSizeInBytes = static_cast<int>(baseNonVirtualSize(baseClassSymbol));
     int baseAlignment =
         vbaseHasVirtualBases
             ? static_cast<int>(vbaseLayout->nonVirtualAlignment())
@@ -2343,15 +2782,19 @@ void Binder::BuildRecordLayout::layoutVirtualBases() {
     const auto baseOffset = classSubobjectOffset(baseClassSymbol, isEmpty,
                                                  std::max(baseAlignment, 1));
 
+    padTo(baseOffset);
+
     ClassLayout::MemberInfo baseInfo;
     baseInfo.offset = baseOffset;
     baseInfo.index = currentIndex++;
     layout->setBaseInfo(baseClassSymbol, baseInfo);
     layout->addVirtualBase(baseClassSymbol);
 
-    if (!isEmpty)
+    if (!isEmpty) {
       calculatedSize = std::max(calculatedSize,
                                 static_cast<int>(baseOffset) + baseSizeInBytes);
+      emittedEnd = std::max(emittedEnd, baseOffset + baseSizeInBytes);
+    }
     recordNonVirtualClassSubobjects(baseClassSymbol, baseOffset);
     recordPrimaryChain(baseClassSymbol, baseOffset, baseInfo.index);
     calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
@@ -2378,6 +2821,7 @@ void Binder::BuildRecordLayout::closeBitfieldRun() {
 
   runFields.clear();
   inBitfieldRun = false;
+  emittedEnd = std::max(emittedEnd, static_cast<std::uint64_t>(calculatedSize));
   currentIndex++;
 }
 
@@ -2443,6 +2887,7 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
   if (!inBitfieldRun) {
     runStartByte = calculatedSize;
     nextBitPos = runStartByte * 8;
+    padTo(static_cast<std::uint64_t>(runStartByte));
     runIndex = currentIndex;
     inBitfieldRun = true;
     runFields.clear();
@@ -2515,6 +2960,8 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
     }
     field->setLocalOffset(static_cast<int>(fieldOffset));
 
+    padTo(fieldOffset);
+
     ClassLayout::MemberInfo fieldInfo;
     fieldInfo.offset = fieldOffset;
     fieldInfo.index = currentIndex++;
@@ -2522,6 +2969,7 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
 
     calculatedSize =
         std::max(calculatedSize, static_cast<int>(fieldOffset + size.value()));
+    emittedEnd = std::max(emittedEnd, fieldOffset + size.value());
     if (fieldClass && fieldClass->symbol())
       recordNonVirtualClassSubobjects(fieldClass->symbol(), fieldOffset);
   }
@@ -2539,20 +2987,6 @@ auto Binder::BuildRecordLayout::layoutFields()
   FieldSymbol* lastField = nullptr;
 
   for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    auto fieldElementType =
-        binder.traits.remove_cv(binder.traits.remove_all_extents(
-            binder.traits.remove_cv(field->type())));
-
-    if (auto classType = type_cast<ClassType>(fieldElementType)) {
-      binder.traits.requireCompleteClass(classType->symbol());
-      if (!field->alignment()) {
-        if (auto alignment =
-                binder.control()->memoryLayout()->alignmentOf(field->type())) {
-          field->setAlignment(alignment.value());
-        }
-      }
-    }
-
     if (lastField && binder.traits.is_unbounded_array(lastField->type())) {
       return std::unexpected(
           std::format("size of incomplete type '{}'",
@@ -2659,15 +3093,39 @@ void Binder::BuildRecordLayout::propagateAnonymousFields(
   }
 }
 
+void Binder::BuildRecordLayout::padTo(std::uint64_t offset) {
+  if (offset <= emittedEnd) return;
+  layout->addPadding(currentIndex++, emittedEnd, offset - emittedEnd);
+  emittedEnd = offset;
+}
+
 void Binder::BuildRecordLayout::finalize() {
-  calculatedSize = align_to(calculatedSize, calculatedAlignment);
+  if (auto requested = classSymbol->explicitAlignment()) {
+    if (requested < calculatedAlignment) {
+      binder.error(
+          classSymbol->location(),
+          std::format("requested alignment is less than minimum "
+                      "alignment of {} for type '{}'",
+                      calculatedAlignment, to_string(classSymbol->type())));
+    } else {
+      calculatedAlignment = requested;
+    }
+  }
+
+  const auto dataSize = static_cast<std::uint64_t>(calculatedSize);
+
   if (calculatedSize == 0) calculatedSize = 1;
+
+  calculatedSize = align_to(calculatedSize, calculatedAlignment);
+
+  padTo(static_cast<std::uint64_t>(calculatedSize));
 
   classSymbol->setAlignment(calculatedAlignment);
   classSymbol->setSizeInBytes(calculatedSize);
 
   layout->setSize(calculatedSize);
   layout->setAlignment(calculatedAlignment);
+  layout->setDataSize(dataSize);
 
   classSymbol->setLayout(std::move(layout));
 
@@ -2699,6 +3157,7 @@ void Binder::BuildRecordLayout::buildVTableLayout() {
   const auto inheritedPrimarySlotCount = slots.size();
 
   auto processFunc = [&](FunctionSymbol* func) {
+    if (func->parent() != classSymbol) return;
     if (!func->isVirtual()) return;
     if (!vtable->keyFunction && !func->isPure() && !func->isInline())
       vtable->keyFunction = func;
@@ -2797,6 +3256,7 @@ void Binder::BuildRecordLayout::buildVTableLayout() {
       }
       for (auto member : subobject.classSymbol->members()) {
         for (auto func : views::each_function(member)) {
+          if (func->parent() != subobject.classSymbol) continue;
           if (!func->isVirtual()) continue;
           if (func != baseFunc && !func->overrides(baseFunc)) continue;
           candidates.push_back({func, subobject.offset});

@@ -143,9 +143,17 @@ auto asyncParse(AsyncParseRequest request) -> val {
 
   if (*cancelled) co_return val{false};
 
+  if (unit->preprocessor()->preambleOnly()) {
+    if (!unit->preprocessor()->preambleSize()) co_return val{true};
+  }
+
   const auto parsingStartedAt = std::chrono::steady_clock::now();
 
-  unit->beginParsing(std::move(config));
+  if (unit->hasAdoptedPrefix()) {
+    unit->resumeParsing(std::move(config));
+  } else {
+    unit->beginParsing(std::move(config));
+  }
 
   while (!*cancelled) {
     auto state = unit->continueParsing();

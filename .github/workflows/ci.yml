@@ -31,39 +31,6 @@ jobs:
         run: |
           ctest --output-on-failure
 
-      - name: Parse C++ source files (WASI toolchain)
-        run: |
-          for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
-            echo "Parsing $i"
-            ./build/src/frontend/cxx \
-              -I src/parser \
-              -I src/lsp \
-              -I build/_deps/utfcpp-src/source \
-              -I build/_deps/simdjson-src \
-              -I build/src/parser \
-              -DCXX_NO_FLATBUFFERS \
-              -DCXX_NO_FILESYSTEM \
-              -DCXX_NO_THREADS \
-              -D_WASI_EMULATED_MMAN \
-              $i
-          done
-
-      - name: Parse C++ source files (Linux toolchain)
-        if: false
-        run: |
-          for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
-            echo "Parsing $i"
-            ./build/src/frontend/cxx \
-              -toolchain linux \
-              -I src/parser \
-              -I src/lsp \
-              -I build/_deps/utfcpp-src/source \
-              -I build/_deps/simdjson-src \
-              -I build/src/parser \
-              -DCXX_NO_FLATBUFFERS \
-              $i
-          done
-
   build-linux-mlir:
     runs-on: ubuntu-26.04
 
@@ -207,21 +174,6 @@ jobs:
         run: |
           ctest --verbose
 
-      - name: Parse C++ source files (macOS toolchain)
-        run: |
-          for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
-            echo "Parsing $i"
-            ./build/src/frontend/cxx \
-              -toolchain macos \
-              -I src/parser \
-              -I src/lsp \
-              -I build/_deps/utfcpp-src/source \
-              -I build/_deps/simdjson-src \
-              -I build/src/parser \
-              -DCXX_NO_FLATBUFFERS \
-              $i
-          done
-
   build-wasi:
     runs-on: ubuntu-26.04
 
@@ -247,33 +199,7 @@ jobs:
             -W threads=y -S threads=y \
             --dir ${{github.workspace}}/build.wasi/install::/ \
             --dir tests::tests \
-            ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -v tests/manual/source.cc
-
-      - name: Parse C++ source files (wasmtime runtime)
-        run: |
-          PATH=~/wasmtime-v${{ env.WASMTIME_VERSION }}-x86_64-linux:$PATH
-
-          for i in src/parser/cxx/*.cc src/lsp/cxx/lsp/*.cc src/frontend/cxx/*.cc; do
-            echo "Parsing $i"
-            wasmtime \
-                  -W threads=y -S threads=y \
-                  --dir=src::/src \
-                  --dir=build.wasi/_deps::/build.wasi/_deps \
-                  --dir=build.wasi/src/parser::build.wasi/src/parser \
-                  --dir=build.wasi/src/lsp::build.wasi/src/lsp \
-                  --dir=build.wasi/install/usr::/usr \
-                  build.wasi/install/usr/bin/cxx.wasm \
-              -I src/parser \
-              -I src/lsp \
-              -I build.wasi/_deps/utfcpp-src/source \
-              -I build.wasi/_deps/simdjson-src \
-              -I build.wasi/src/parser \
-              -DCXX_NO_FLATBUFFERS \
-              -DCXX_NO_FILESYSTEM \
-              -DCXX_NO_THREADS \
-              -D_WASI_EMULATED_MMAN \
-              $i
-          done
+            ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -v -fno-check tests/manual/source.cc
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7

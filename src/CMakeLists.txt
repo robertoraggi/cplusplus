@@ -19,6 +19,7 @@
 
 add_subdirectory(lib)
 add_subdirectory(parser)
+add_subdirectory(codegen)
 add_subdirectory(lsp)
 add_subdirectory(js)
 

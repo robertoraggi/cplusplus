@@ -34,6 +34,7 @@ export const BASE_TOKENS: string[] = [
   "WIDE_STRING_LITERAL",
   "PP_INTERNAL_VARIABLE",
   "CODE_COMPLETION",
+  "PRAGMA_PACK",
 ];
 
 export const OPERATORS: Array<[kind: string, spelling: string]> = [
@@ -286,14 +287,28 @@ export const UNARY_BUILTIN_TYPE_SPECIFIERS: string[] = [
 
 export const BINARY_BUILTIN_TYPE_SPECIFIERS: string[] = [];
 
+// Names the core language refers to by their qualified std:: spelling, e.g.
+// std::align_val_t and std::destroying_delete_t in
+// [basic.stc.dynamic.deallocation]. They are library declarations, not
+// builtins: the compiler only has to recognize them when it sees them.
+export const WELL_KNOWN_NAMES: string[] = [
+  "std",
+  "align_val_t",
+  "destroying_delete_t",
+  "initializer_list",
+];
+
 export const BUILTIN_TEMPLATES: string[] = [
   "__make_integer_seq",
   "__type_pack_element",
   "__builtin_common_type",
 ];
 
-import { BUILTIN_NAMES } from "./builtins.ts";
+import { BUILTIN_NAMES, BUILTIN_MACRO_DEFS } from "./builtins.ts";
 export const BUILTIN_FUNCTIONS: string[] = BUILTIN_NAMES;
+export const BUILTIN_MACROS: string[] = BUILTIN_MACRO_DEFS.map(
+  (b) => b.name,
+).sort();
 
 export const CXX_TOKEN_ALIASES = {
   and_eq: "AMP_EQUAL",

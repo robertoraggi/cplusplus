@@ -57,13 +57,9 @@ auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
     fs::path appDir;
 #if __wasi__
     appDir = fs::path("/usr/bin/");
-#elif !defined(CXX_NO_FILESYSTEM)
+#else
     appDir = std::filesystem::canonical(
         std::filesystem::path(cli.app_name).remove_filename());
-#elif __unix__ || __APPLE__
-    char* appName = realpath(cli.app_name.c_str(), nullptr);
-    appDir = fs::path(appName).remove_filename().string();
-    std::free(appName);
 #endif
     toolchain->setAppdir(appDir.string());
     if (auto paths = cli.get("--sysroot"); !paths.empty()) {
@@ -104,11 +100,28 @@ auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
 
 }  // namespace
 
+auto languageOf(const CLI& cli, const std::string& fileName) -> LanguageKind {
+  if (auto lang = cli.getSingle("-x")) {
+    return lang == "c" ? LanguageKind::kC : LanguageKind::kCXX;
+  }
+  return fileName.ends_with(".c") ? LanguageKind::kC : LanguageKind::kCXX;
+}
+
+auto createToolchainForLinking(const CLI& cli, LanguageKind language)
+    -> std::unique_ptr<Toolchain> {
+  auto toolchain = makeToolchain(cli, nullptr);
+  if (!toolchain) return {};
+  toolchain->setLanguage(language);
+  return toolchain;
+}
+
 auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
-                     std::string& error) -> std::unique_ptr<Toolchain> {
+                     LanguageKind language, std::string& error)
+    -> std::unique_ptr<Toolchain> {
   auto toolchain = makeToolchain(cli, preprocessor);
   if (!toolchain) return {};
 
+  toolchain->setLanguage(language);
   toolchain->initMemoryLayout();
 
   if (auto standardName = cli.getSingle("-std")) {

@@ -31,7 +31,7 @@ class LSPObject;
 using LSPAny = json;
 using Pattern = std::string;
 
-[[nodiscard]] auto withUnsafeJson(auto block) { return block(json()); }
+void withUnsafeJson(auto block) { block(json()); }
 [[noreturn]] void lsp_runtime_error(const std::string& msg);
 
 class LSPObject {
@@ -345,9 +345,7 @@ export function orderTypeAliases(model: MetaModel): TypeAlias[] {
     }
 
     if (pending.length === todo.length) {
-      const details = pending.map(
-        ({ typeAlias, unknownDeps }) => `${typeAlias.name}: ${unknownDeps.join(", ")}`,
-      );
+      const details = pending.map(({ typeAlias, unknownDeps }) => `${typeAlias.name}: ${unknownDeps.join(", ")}`);
       throw new Error(`Cannot resolve type aliases: ${details.join("; ")}`);
     }
 

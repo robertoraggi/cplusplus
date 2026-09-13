@@ -751,12 +751,14 @@ auto EnumeratorAST::lastSourceLocation() -> SourceLocation {
 
 auto TypeIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarator)) return loc;
   return {};
 }
 
 auto TypeIdAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(declarator)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
   return {};
 }
@@ -869,12 +871,14 @@ auto TypeConstraintAST::lastSourceLocation() -> SourceLocation {
 
 auto AttributeArgumentClauseAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   return {};
 }
 
 auto AttributeArgumentClauseAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   return {};
 }
@@ -1291,10 +1295,12 @@ auto TryBlockStatementAST::lastSourceLocation() -> SourceLocation {
 
 auto CharLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalOperatorCall)) return loc;
   return {};
 }
 
 auto CharLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(literalOperatorCall)) return loc;
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   return {};
 }
@@ -1311,20 +1317,24 @@ auto BoolLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
 
 auto IntLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalOperatorCall)) return loc;
   return {};
 }
 
 auto IntLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(literalOperatorCall)) return loc;
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   return {};
 }
 
 auto FloatLiteralExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalOperatorCall)) return loc;
   return {};
 }
 
 auto FloatLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(literalOperatorCall)) return loc;
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   return {};
 }
@@ -1352,11 +1362,13 @@ auto StringLiteralExpressionAST::lastSourceLocation() -> SourceLocation {
 auto UserDefinedStringLiteralExpressionAST::firstSourceLocation()
     -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(literalOperatorCall)) return loc;
   return {};
 }
 
 auto UserDefinedStringLiteralExpressionAST::lastSourceLocation()
     -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(literalOperatorCall)) return loc;
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   return {};
 }
@@ -1436,6 +1448,16 @@ auto NestedStatementExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  return {};
+}
+
+auto DefaultInitializerExpressionAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  return {};
+}
+
+auto DefaultInitializerExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   return {};
 }
 
@@ -3619,6 +3641,7 @@ auto GccAttributeAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(attributeLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparen2Loc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparen2Loc)) return loc;
   return {};
@@ -3627,6 +3650,7 @@ auto GccAttributeAST::firstSourceLocation() -> SourceLocation {
 auto GccAttributeAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rparen2Loc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparen2Loc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeLoc)) return loc;
@@ -3808,6 +3832,7 @@ std::string_view kASTKindNames[] = {
     "pack-index-expression",
     "generic-selection-expression",
     "nested-statement-expression",
+    "default-initializer-expression",
     "nested-expression",
     "id-expression",
     "lambda-expression",
@@ -4020,6 +4045,8 @@ auto TranslationUnitAST::clone(Arena* arena) -> TranslationUnitAST* {
     }
   }
 
+  node->symbol = symbol;
+
   return node;
 }
 
@@ -4029,10 +4056,12 @@ auto TranslationUnitAST::create(Arena* arena) -> TranslationUnitAST* {
 }
 
 auto TranslationUnitAST::create(Arena* arena,
-                                List<DeclarationAST*>* declarationList)
+                                List<DeclarationAST*>* declarationList,
+                                NamespaceSymbol* symbol)
     -> TranslationUnitAST* {
   auto node = new (arena) TranslationUnitAST();
   node->declarationList = declarationList;
+  node->symbol = symbol;
   return node;
 }
 
@@ -4056,6 +4085,8 @@ auto ModuleUnitAST::clone(Arena* arena) -> ModuleUnitAST* {
   if (privateModuleFragment)
     node->privateModuleFragment = privateModuleFragment->clone(arena);
 
+  node->symbol = symbol;
+
   return node;
 }
 
@@ -4068,13 +4099,14 @@ auto ModuleUnitAST::create(Arena* arena,
                            GlobalModuleFragmentAST* globalModuleFragment,
                            ModuleDeclarationAST* moduleDeclaration,
                            List<DeclarationAST*>* declarationList,
-                           PrivateModuleFragmentAST* privateModuleFragment)
-    -> ModuleUnitAST* {
+                           PrivateModuleFragmentAST* privateModuleFragment,
+                           NamespaceSymbol* symbol) -> ModuleUnitAST* {
   auto node = new (arena) ModuleUnitAST();
   node->globalModuleFragment = globalModuleFragment;
   node->moduleDeclaration = moduleDeclaration;
   node->declarationList = declarationList;
   node->privateModuleFragment = privateModuleFragment;
+  node->symbol = symbol;
   return node;
 }
 
@@ -5098,6 +5130,7 @@ auto NamespaceDefinitionAST::clone(Arena* arena) -> NamespaceDefinitionAST* {
 
   node->rbraceLoc = rbraceLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isInline = isInline;
 
   return node;
@@ -5115,7 +5148,8 @@ auto NamespaceDefinitionAST::create(
     SourceLocation identifierLoc,
     List<AttributeSpecifierAST*>* extraAttributeList, SourceLocation lbraceLoc,
     List<DeclarationAST*>* declarationList, SourceLocation rbraceLoc,
-    const Identifier* identifier, bool isInline) -> NamespaceDefinitionAST* {
+    const Identifier* identifier, NamespaceSymbol* symbol, bool isInline)
+    -> NamespaceDefinitionAST* {
   auto node = new (arena) NamespaceDefinitionAST();
   node->inlineLoc = inlineLoc;
   node->namespaceLoc = namespaceLoc;
@@ -5127,6 +5161,7 @@ auto NamespaceDefinitionAST::create(
   node->declarationList = declarationList;
   node->rbraceLoc = rbraceLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isInline = isInline;
   return node;
 }
@@ -5136,13 +5171,14 @@ auto NamespaceDefinitionAST::create(
     List<NestedNamespaceSpecifierAST*>* nestedNamespaceSpecifierList,
     List<AttributeSpecifierAST*>* extraAttributeList,
     List<DeclarationAST*>* declarationList, const Identifier* identifier,
-    bool isInline) -> NamespaceDefinitionAST* {
+    NamespaceSymbol* symbol, bool isInline) -> NamespaceDefinitionAST* {
   auto node = new (arena) NamespaceDefinitionAST();
   node->attributeList = attributeList;
   node->nestedNamespaceSpecifierList = nestedNamespaceSpecifierList;
   node->extraAttributeList = extraAttributeList;
   node->declarationList = declarationList;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isInline = isInline;
   return node;
 }
@@ -5283,6 +5319,7 @@ auto ParameterDeclarationAST::clone(Arena* arena) -> ParameterDeclarationAST* {
 
   node->type = type;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isThisIntroduced = isThisIntroduced;
   node->isPack = isPack;
 
@@ -5299,7 +5336,8 @@ auto ParameterDeclarationAST::create(
     SourceLocation thisLoc, List<SpecifierAST*>* typeSpecifierList,
     DeclaratorAST* declarator, SourceLocation equalLoc,
     ExpressionAST* expression, const Type* type, const Identifier* identifier,
-    bool isThisIntroduced, bool isPack) -> ParameterDeclarationAST* {
+    ParameterSymbol* symbol, bool isThisIntroduced, bool isPack)
+    -> ParameterDeclarationAST* {
   auto node = new (arena) ParameterDeclarationAST();
   node->attributeList = attributeList;
   node->thisLoc = thisLoc;
@@ -5309,6 +5347,7 @@ auto ParameterDeclarationAST::create(
   node->expression = expression;
   node->type = type;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isThisIntroduced = isThisIntroduced;
   node->isPack = isPack;
   return node;
@@ -5318,7 +5357,8 @@ auto ParameterDeclarationAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
     ExpressionAST* expression, const Type* type, const Identifier* identifier,
-    bool isThisIntroduced, bool isPack) -> ParameterDeclarationAST* {
+    ParameterSymbol* symbol, bool isThisIntroduced, bool isPack)
+    -> ParameterDeclarationAST* {
   auto node = new (arena) ParameterDeclarationAST();
   node->attributeList = attributeList;
   node->typeSpecifierList = typeSpecifierList;
@@ -5326,6 +5366,7 @@ auto ParameterDeclarationAST::create(
   node->expression = expression;
   node->type = type;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isThisIntroduced = isThisIntroduced;
   node->isPack = isPack;
   return node;
@@ -6128,6 +6169,14 @@ auto TypeIdAST::clone(Arena* arena) -> TypeIdAST* {
     }
   }
 
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   if (declarator) node->declarator = declarator->clone(arena);
 
   node->type = type;
@@ -6141,10 +6190,12 @@ auto TypeIdAST::create(Arena* arena) -> TypeIdAST* {
 }
 
 auto TypeIdAST::create(Arena* arena, List<SpecifierAST*>* typeSpecifierList,
+                       List<AttributeSpecifierAST*>* attributeList,
                        DeclaratorAST* declarator, const Type* type)
     -> TypeIdAST* {
   auto node = new (arena) TypeIdAST();
   node->typeSpecifierList = typeSpecifierList;
+  node->attributeList = attributeList;
   node->declarator = declarator;
   node->type = type;
   return node;
@@ -6163,6 +6214,8 @@ auto HandlerAST::clone(Arena* arena) -> HandlerAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
+  node->symbol = symbol;
+
   return node;
 }
 
@@ -6175,22 +6228,26 @@ auto HandlerAST::create(Arena* arena, SourceLocation catchLoc,
                         SourceLocation lparenLoc,
                         ExceptionDeclarationAST* exceptionDeclaration,
                         SourceLocation rparenLoc,
-                        CompoundStatementAST* statement) -> HandlerAST* {
+                        CompoundStatementAST* statement, BlockSymbol* symbol)
+    -> HandlerAST* {
   auto node = new (arena) HandlerAST();
   node->catchLoc = catchLoc;
   node->lparenLoc = lparenLoc;
   node->exceptionDeclaration = exceptionDeclaration;
   node->rparenLoc = rparenLoc;
   node->statement = statement;
+  node->symbol = symbol;
   return node;
 }
 
 auto HandlerAST::create(Arena* arena,
                         ExceptionDeclarationAST* exceptionDeclaration,
-                        CompoundStatementAST* statement) -> HandlerAST* {
+                        CompoundStatementAST* statement, BlockSymbol* symbol)
+    -> HandlerAST* {
   auto node = new (arena) HandlerAST();
   node->exceptionDeclaration = exceptionDeclaration;
   node->statement = statement;
+  node->symbol = symbol;
   return node;
 }
 
@@ -6477,6 +6534,15 @@ auto AttributeArgumentClauseAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->lparenLoc = lparenLoc;
+
+  if (expressionList) {
+    auto it = &node->expressionList;
+    for (auto node : ListView{expressionList}) {
+      *it = make_list_node<ExpressionAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   node->rparenLoc = rparenLoc;
 
   return node;
@@ -6489,11 +6555,21 @@ auto AttributeArgumentClauseAST::create(Arena* arena)
 }
 
 auto AttributeArgumentClauseAST::create(Arena* arena, SourceLocation lparenLoc,
+                                        List<ExpressionAST*>* expressionList,
                                         SourceLocation rparenLoc)
     -> AttributeArgumentClauseAST* {
   auto node = new (arena) AttributeArgumentClauseAST();
   node->lparenLoc = lparenLoc;
+  node->expressionList = expressionList;
   node->rparenLoc = rparenLoc;
+  return node;
+}
+
+auto AttributeArgumentClauseAST::create(Arena* arena,
+                                        List<ExpressionAST*>* expressionList)
+    -> AttributeArgumentClauseAST* {
+  auto node = new (arena) AttributeArgumentClauseAST();
+  node->expressionList = expressionList;
   return node;
 }
 
@@ -6608,6 +6684,7 @@ auto NestedNamespaceSpecifierAST::clone(Arena* arena)
   node->identifierLoc = identifierLoc;
   node->scopeLoc = scopeLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isInline = isInline;
 
   return node;
@@ -6623,23 +6700,25 @@ auto NestedNamespaceSpecifierAST::create(Arena* arena, SourceLocation inlineLoc,
                                          SourceLocation identifierLoc,
                                          SourceLocation scopeLoc,
                                          const Identifier* identifier,
-                                         bool isInline)
+                                         NamespaceSymbol* symbol, bool isInline)
     -> NestedNamespaceSpecifierAST* {
   auto node = new (arena) NestedNamespaceSpecifierAST();
   node->inlineLoc = inlineLoc;
   node->identifierLoc = identifierLoc;
   node->scopeLoc = scopeLoc;
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isInline = isInline;
   return node;
 }
 
 auto NestedNamespaceSpecifierAST::create(Arena* arena,
                                          const Identifier* identifier,
-                                         bool isInline)
+                                         NamespaceSymbol* symbol, bool isInline)
     -> NestedNamespaceSpecifierAST* {
   auto node = new (arena) NestedNamespaceSpecifierAST();
   node->identifier = identifier;
+  node->symbol = symbol;
   node->isInline = isInline;
   return node;
 }
@@ -7706,6 +7785,10 @@ auto CharLiteralExpressionAST::clone(Arena* arena)
 
   node->literalLoc = literalLoc;
   node->literal = literal;
+
+  if (literalOperatorCall)
+    node->literalOperatorCall = literalOperatorCall->clone(arena);
+
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -7720,23 +7803,27 @@ auto CharLiteralExpressionAST::create(Arena* arena)
 
 auto CharLiteralExpressionAST::create(Arena* arena, SourceLocation literalLoc,
                                       const CharLiteral* literal,
+                                      ExpressionAST* literalOperatorCall,
                                       ValueCategory valueCategory,
                                       const Type* type)
     -> CharLiteralExpressionAST* {
   auto node = new (arena) CharLiteralExpressionAST();
   node->literalLoc = literalLoc;
   node->literal = literal;
+  node->literalOperatorCall = literalOperatorCall;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
 auto CharLiteralExpressionAST::create(Arena* arena, const CharLiteral* literal,
+                                      ExpressionAST* literalOperatorCall,
                                       ValueCategory valueCategory,
                                       const Type* type)
     -> CharLiteralExpressionAST* {
   auto node = new (arena) CharLiteralExpressionAST();
   node->literal = literal;
+  node->literalOperatorCall = literalOperatorCall;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7788,6 +7875,10 @@ auto IntLiteralExpressionAST::clone(Arena* arena) -> IntLiteralExpressionAST* {
 
   node->literalLoc = literalLoc;
   node->literal = literal;
+
+  if (literalOperatorCall)
+    node->literalOperatorCall = literalOperatorCall->clone(arena);
+
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -7801,12 +7892,14 @@ auto IntLiteralExpressionAST::create(Arena* arena) -> IntLiteralExpressionAST* {
 
 auto IntLiteralExpressionAST::create(Arena* arena, SourceLocation literalLoc,
                                      const IntegerLiteral* literal,
+                                     ExpressionAST* literalOperatorCall,
                                      ValueCategory valueCategory,
                                      const Type* type)
     -> IntLiteralExpressionAST* {
   auto node = new (arena) IntLiteralExpressionAST();
   node->literalLoc = literalLoc;
   node->literal = literal;
+  node->literalOperatorCall = literalOperatorCall;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7814,11 +7907,13 @@ auto IntLiteralExpressionAST::create(Arena* arena, SourceLocation literalLoc,
 
 auto IntLiteralExpressionAST::create(Arena* arena,
                                      const IntegerLiteral* literal,
+                                     ExpressionAST* literalOperatorCall,
                                      ValueCategory valueCategory,
                                      const Type* type)
     -> IntLiteralExpressionAST* {
   auto node = new (arena) IntLiteralExpressionAST();
   node->literal = literal;
+  node->literalOperatorCall = literalOperatorCall;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7830,6 +7925,10 @@ auto FloatLiteralExpressionAST::clone(Arena* arena)
 
   node->literalLoc = literalLoc;
   node->literal = literal;
+
+  if (literalOperatorCall)
+    node->literalOperatorCall = literalOperatorCall->clone(arena);
+
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -7844,12 +7943,14 @@ auto FloatLiteralExpressionAST::create(Arena* arena)
 
 auto FloatLiteralExpressionAST::create(Arena* arena, SourceLocation literalLoc,
                                        const FloatLiteral* literal,
+                                       ExpressionAST* literalOperatorCall,
                                        ValueCategory valueCategory,
                                        const Type* type)
     -> FloatLiteralExpressionAST* {
   auto node = new (arena) FloatLiteralExpressionAST();
   node->literalLoc = literalLoc;
   node->literal = literal;
+  node->literalOperatorCall = literalOperatorCall;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7857,11 +7958,13 @@ auto FloatLiteralExpressionAST::create(Arena* arena, SourceLocation literalLoc,
 
 auto FloatLiteralExpressionAST::create(Arena* arena,
                                        const FloatLiteral* literal,
+                                       ExpressionAST* literalOperatorCall,
                                        ValueCategory valueCategory,
                                        const Type* type)
     -> FloatLiteralExpressionAST* {
   auto node = new (arena) FloatLiteralExpressionAST();
   node->literal = literal;
+  node->literalOperatorCall = literalOperatorCall;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -7964,6 +8067,10 @@ auto UserDefinedStringLiteralExpressionAST::clone(Arena* arena)
 
   node->literalLoc = literalLoc;
   node->literal = literal;
+
+  if (literalOperatorCall)
+    node->literalOperatorCall = literalOperatorCall->clone(arena);
+
   node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
@@ -7979,25 +8086,27 @@ auto UserDefinedStringLiteralExpressionAST::create(Arena* arena)
 
 auto UserDefinedStringLiteralExpressionAST::create(
     Arena* arena, SourceLocation literalLoc, const StringLiteral* literal,
-    TokenKind encoding, ValueCategory valueCategory, const Type* type)
+    ExpressionAST* literalOperatorCall, TokenKind encoding,
+    ValueCategory valueCategory, const Type* type)
     -> UserDefinedStringLiteralExpressionAST* {
   auto node = new (arena) UserDefinedStringLiteralExpressionAST();
   node->literalLoc = literalLoc;
   node->literal = literal;
+  node->literalOperatorCall = literalOperatorCall;
   node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
-auto UserDefinedStringLiteralExpressionAST::create(Arena* arena,
-                                                   const StringLiteral* literal,
-                                                   TokenKind encoding,
-                                                   ValueCategory valueCategory,
-                                                   const Type* type)
+auto UserDefinedStringLiteralExpressionAST::create(
+    Arena* arena, const StringLiteral* literal,
+    ExpressionAST* literalOperatorCall, TokenKind encoding,
+    ValueCategory valueCategory, const Type* type)
     -> UserDefinedStringLiteralExpressionAST* {
   auto node = new (arena) UserDefinedStringLiteralExpressionAST();
   node->literal = literal;
+  node->literalOperatorCall = literalOperatorCall;
   node->encoding = encoding;
   node->valueCategory = valueCategory;
   node->type = type;
@@ -8253,6 +8362,39 @@ auto NestedStatementExpressionAST::create(Arena* arena,
     -> NestedStatementExpressionAST* {
   auto node = new (arena) NestedStatementExpressionAST();
   node->statement = statement;
+  node->valueCategory = valueCategory;
+  node->type = type;
+  return node;
+}
+
+auto DefaultInitializerExpressionAST::clone(Arena* arena)
+    -> DefaultInitializerExpressionAST* {
+  auto node = create(arena);
+
+  if (expression) node->expression = expression->clone(arena);
+
+  node->context = context;
+  node->valueCategory = valueCategory;
+  node->type = type;
+
+  return node;
+}
+
+auto DefaultInitializerExpressionAST::create(Arena* arena)
+    -> DefaultInitializerExpressionAST* {
+  auto node = new (arena) DefaultInitializerExpressionAST();
+  return node;
+}
+
+auto DefaultInitializerExpressionAST::create(Arena* arena,
+                                             ExpressionAST* expression,
+                                             DefaultInitializerContext context,
+                                             ValueCategory valueCategory,
+                                             const Type* type)
+    -> DefaultInitializerExpressionAST* {
+  auto node = new (arena) DefaultInitializerExpressionAST();
+  node->expression = expression;
+  node->context = context;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10142,6 +10284,7 @@ auto NewExpressionAST::clone(Arena* arena) -> NewExpressionAST* {
 
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10159,7 +10302,8 @@ auto NewExpressionAST::create(
     List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
     SourceLocation rparenLoc, NewInitializerAST* newInitalizer,
     const Type* objectType, FunctionSymbol* constructorSymbol,
-    ValueCategory valueCategory, const Type* type) -> NewExpressionAST* {
+    FunctionSymbol* symbol, ValueCategory valueCategory, const Type* type)
+    -> NewExpressionAST* {
   auto node = new (arena) NewExpressionAST();
   node->scopeLoc = scopeLoc;
   node->newLoc = newLoc;
@@ -10171,19 +10315,18 @@ auto NewExpressionAST::create(
   node->newInitalizer = newInitalizer;
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
-auto NewExpressionAST::create(Arena* arena, NewPlacementAST* newPlacement,
-                              List<SpecifierAST*>* typeSpecifierList,
-                              DeclaratorAST* declarator,
-                              NewInitializerAST* newInitalizer,
-                              const Type* objectType,
-                              FunctionSymbol* constructorSymbol,
-                              ValueCategory valueCategory, const Type* type)
-    -> NewExpressionAST* {
+auto NewExpressionAST::create(
+    Arena* arena, NewPlacementAST* newPlacement,
+    List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
+    NewInitializerAST* newInitalizer, const Type* objectType,
+    FunctionSymbol* constructorSymbol, FunctionSymbol* symbol,
+    ValueCategory valueCategory, const Type* type) -> NewExpressionAST* {
   auto node = new (arena) NewExpressionAST();
   node->newPlacement = newPlacement;
   node->typeSpecifierList = typeSpecifierList;
@@ -10191,6 +10334,7 @@ auto NewExpressionAST::create(Arena* arena, NewPlacementAST* newPlacement,
   node->newInitalizer = newInitalizer;
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
+  node->symbol = symbol;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -13148,6 +13292,7 @@ auto FunctionDeclaratorChunkAST::clone(Arena* arena)
   if (trailingReturnType)
     node->trailingReturnType = trailingReturnType->clone(arena);
 
+  node->refOp = refOp;
   node->isFinal = isFinal;
   node->isOverride = isOverride;
   node->isPure = isPure;
@@ -13167,8 +13312,8 @@ auto FunctionDeclaratorChunkAST::create(
     SourceLocation rparenLoc, List<SpecifierAST*>* cvQualifierList,
     SourceLocation refLoc, ExceptionSpecifierAST* exceptionSpecifier,
     List<AttributeSpecifierAST*>* attributeList,
-    TrailingReturnTypeAST* trailingReturnType, bool isFinal, bool isOverride,
-    bool isPure) -> FunctionDeclaratorChunkAST* {
+    TrailingReturnTypeAST* trailingReturnType, TokenKind refOp, bool isFinal,
+    bool isOverride, bool isPure) -> FunctionDeclaratorChunkAST* {
   auto node = new (arena) FunctionDeclaratorChunkAST();
   node->lparenLoc = lparenLoc;
   node->parameterDeclarationClause = parameterDeclarationClause;
@@ -13178,6 +13323,7 @@ auto FunctionDeclaratorChunkAST::create(
   node->exceptionSpecifier = exceptionSpecifier;
   node->attributeList = attributeList;
   node->trailingReturnType = trailingReturnType;
+  node->refOp = refOp;
   node->isFinal = isFinal;
   node->isOverride = isOverride;
   node->isPure = isPure;
@@ -13189,14 +13335,15 @@ auto FunctionDeclaratorChunkAST::create(
     List<SpecifierAST*>* cvQualifierList,
     ExceptionSpecifierAST* exceptionSpecifier,
     List<AttributeSpecifierAST*>* attributeList,
-    TrailingReturnTypeAST* trailingReturnType, bool isFinal, bool isOverride,
-    bool isPure) -> FunctionDeclaratorChunkAST* {
+    TrailingReturnTypeAST* trailingReturnType, TokenKind refOp, bool isFinal,
+    bool isOverride, bool isPure) -> FunctionDeclaratorChunkAST* {
   auto node = new (arena) FunctionDeclaratorChunkAST();
   node->parameterDeclarationClause = parameterDeclarationClause;
   node->cvQualifierList = cvQualifierList;
   node->exceptionSpecifier = exceptionSpecifier;
   node->attributeList = attributeList;
   node->trailingReturnType = trailingReturnType;
+  node->refOp = refOp;
   node->isFinal = isFinal;
   node->isOverride = isOverride;
   node->isPure = isPure;
@@ -14383,6 +14530,8 @@ auto ThisLambdaCaptureAST::clone(Arena* arena) -> ThisLambdaCaptureAST* {
 
   if (initializer) node->initializer = initializer->clone(arena);
 
+  node->symbol = symbol;
+
   return node;
 }
 
@@ -14392,18 +14541,22 @@ auto ThisLambdaCaptureAST::create(Arena* arena) -> ThisLambdaCaptureAST* {
 }
 
 auto ThisLambdaCaptureAST::create(Arena* arena, SourceLocation thisLoc,
-                                  ExpressionAST* initializer)
+                                  ExpressionAST* initializer,
+                                  FieldSymbol* symbol)
     -> ThisLambdaCaptureAST* {
   auto node = new (arena) ThisLambdaCaptureAST();
   node->thisLoc = thisLoc;
   node->initializer = initializer;
+  node->symbol = symbol;
   return node;
 }
 
-auto ThisLambdaCaptureAST::create(Arena* arena, ExpressionAST* initializer)
+auto ThisLambdaCaptureAST::create(Arena* arena, ExpressionAST* initializer,
+                                  FieldSymbol* symbol)
     -> ThisLambdaCaptureAST* {
   auto node = new (arena) ThisLambdaCaptureAST();
   node->initializer = initializer;
+  node->symbol = symbol;
   return node;
 }
 
@@ -14413,6 +14566,7 @@ auto DerefThisLambdaCaptureAST::clone(Arena* arena)
 
   node->starLoc = starLoc;
   node->thisLoc = thisLoc;
+  node->symbol = symbol;
 
   return node;
 }
@@ -14424,11 +14578,20 @@ auto DerefThisLambdaCaptureAST::create(Arena* arena)
 }
 
 auto DerefThisLambdaCaptureAST::create(Arena* arena, SourceLocation starLoc,
-                                       SourceLocation thisLoc)
+                                       SourceLocation thisLoc,
+                                       FieldSymbol* symbol)
     -> DerefThisLambdaCaptureAST* {
   auto node = new (arena) DerefThisLambdaCaptureAST();
   node->starLoc = starLoc;
   node->thisLoc = thisLoc;
+  node->symbol = symbol;
+  return node;
+}
+
+auto DerefThisLambdaCaptureAST::create(Arena* arena, FieldSymbol* symbol)
+    -> DerefThisLambdaCaptureAST* {
+  auto node = new (arena) DerefThisLambdaCaptureAST();
+  node->symbol = symbol;
   return node;
 }
 
@@ -14441,6 +14604,8 @@ auto SimpleLambdaCaptureAST::clone(Arena* arena) -> SimpleLambdaCaptureAST* {
 
   if (initializer) node->initializer = initializer->clone(arena);
 
+  node->symbol = symbol;
+
   return node;
 }
 
@@ -14452,22 +14617,26 @@ auto SimpleLambdaCaptureAST::create(Arena* arena) -> SimpleLambdaCaptureAST* {
 auto SimpleLambdaCaptureAST::create(Arena* arena, SourceLocation identifierLoc,
                                     SourceLocation ellipsisLoc,
                                     const Identifier* identifier,
-                                    ExpressionAST* initializer)
+                                    ExpressionAST* initializer,
+                                    FieldSymbol* symbol)
     -> SimpleLambdaCaptureAST* {
   auto node = new (arena) SimpleLambdaCaptureAST();
   node->identifierLoc = identifierLoc;
   node->ellipsisLoc = ellipsisLoc;
   node->identifier = identifier;
   node->initializer = initializer;
+  node->symbol = symbol;
   return node;
 }
 
 auto SimpleLambdaCaptureAST::create(Arena* arena, const Identifier* identifier,
-                                    ExpressionAST* initializer)
+                                    ExpressionAST* initializer,
+                                    FieldSymbol* symbol)
     -> SimpleLambdaCaptureAST* {
   auto node = new (arena) SimpleLambdaCaptureAST();
   node->identifier = identifier;
   node->initializer = initializer;
+  node->symbol = symbol;
   return node;
 }
 
@@ -14481,6 +14650,8 @@ auto RefLambdaCaptureAST::clone(Arena* arena) -> RefLambdaCaptureAST* {
 
   if (initializer) node->initializer = initializer->clone(arena);
 
+  node->symbol = symbol;
+
   return node;
 }
 
@@ -14493,23 +14664,25 @@ auto RefLambdaCaptureAST::create(Arena* arena, SourceLocation ampLoc,
                                  SourceLocation identifierLoc,
                                  SourceLocation ellipsisLoc,
                                  const Identifier* identifier,
-                                 ExpressionAST* initializer)
-    -> RefLambdaCaptureAST* {
+                                 ExpressionAST* initializer,
+                                 FieldSymbol* symbol) -> RefLambdaCaptureAST* {
   auto node = new (arena) RefLambdaCaptureAST();
   node->ampLoc = ampLoc;
   node->identifierLoc = identifierLoc;
   node->ellipsisLoc = ellipsisLoc;
   node->identifier = identifier;
   node->initializer = initializer;
+  node->symbol = symbol;
   return node;
 }
 
 auto RefLambdaCaptureAST::create(Arena* arena, const Identifier* identifier,
-                                 ExpressionAST* initializer)
-    -> RefLambdaCaptureAST* {
+                                 ExpressionAST* initializer,
+                                 FieldSymbol* symbol) -> RefLambdaCaptureAST* {
   auto node = new (arena) RefLambdaCaptureAST();
   node->identifier = identifier;
   node->initializer = initializer;
+  node->symbol = symbol;
   return node;
 }
 
@@ -14523,6 +14696,7 @@ auto RefInitLambdaCaptureAST::clone(Arena* arena) -> RefInitLambdaCaptureAST* {
   if (initializer) node->initializer = initializer->clone(arena);
 
   node->identifier = identifier;
+  node->symbol = symbol;
 
   return node;
 }
@@ -14536,7 +14710,8 @@ auto RefInitLambdaCaptureAST::create(Arena* arena, SourceLocation ampLoc,
                                      SourceLocation ellipsisLoc,
                                      SourceLocation identifierLoc,
                                      ExpressionAST* initializer,
-                                     const Identifier* identifier)
+                                     const Identifier* identifier,
+                                     FieldSymbol* symbol)
     -> RefInitLambdaCaptureAST* {
   auto node = new (arena) RefInitLambdaCaptureAST();
   node->ampLoc = ampLoc;
@@ -14544,15 +14719,18 @@ auto RefInitLambdaCaptureAST::create(Arena* arena, SourceLocation ampLoc,
   node->identifierLoc = identifierLoc;
   node->initializer = initializer;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
 auto RefInitLambdaCaptureAST::create(Arena* arena, ExpressionAST* initializer,
-                                     const Identifier* identifier)
+                                     const Identifier* identifier,
+                                     FieldSymbol* symbol)
     -> RefInitLambdaCaptureAST* {
   auto node = new (arena) RefInitLambdaCaptureAST();
   node->initializer = initializer;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
@@ -14565,6 +14743,7 @@ auto InitLambdaCaptureAST::clone(Arena* arena) -> InitLambdaCaptureAST* {
   if (initializer) node->initializer = initializer->clone(arena);
 
   node->identifier = identifier;
+  node->symbol = symbol;
 
   return node;
 }
@@ -14577,22 +14756,26 @@ auto InitLambdaCaptureAST::create(Arena* arena) -> InitLambdaCaptureAST* {
 auto InitLambdaCaptureAST::create(Arena* arena, SourceLocation ellipsisLoc,
                                   SourceLocation identifierLoc,
                                   ExpressionAST* initializer,
-                                  const Identifier* identifier)
+                                  const Identifier* identifier,
+                                  FieldSymbol* symbol)
     -> InitLambdaCaptureAST* {
   auto node = new (arena) InitLambdaCaptureAST();
   node->ellipsisLoc = ellipsisLoc;
   node->identifierLoc = identifierLoc;
   node->initializer = initializer;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
 auto InitLambdaCaptureAST::create(Arena* arena, ExpressionAST* initializer,
-                                  const Identifier* identifier)
+                                  const Identifier* identifier,
+                                  FieldSymbol* symbol)
     -> InitLambdaCaptureAST* {
   auto node = new (arena) InitLambdaCaptureAST();
   node->initializer = initializer;
   node->identifier = identifier;
+  node->symbol = symbol;
   return node;
 }
 
@@ -14641,6 +14824,8 @@ auto TypeExceptionDeclarationAST::clone(Arena* arena)
 
   if (declarator) node->declarator = declarator->clone(arena);
 
+  node->symbol = symbol;
+
   return node;
 }
 
@@ -14652,12 +14837,13 @@ auto TypeExceptionDeclarationAST::create(Arena* arena)
 
 auto TypeExceptionDeclarationAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
-    List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator)
-    -> TypeExceptionDeclarationAST* {
+    List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
+    VariableSymbol* symbol) -> TypeExceptionDeclarationAST* {
   auto node = new (arena) TypeExceptionDeclarationAST();
   node->attributeList = attributeList;
   node->typeSpecifierList = typeSpecifierList;
   node->declarator = declarator;
+  node->symbol = symbol;
   return node;
 }
 
@@ -14680,6 +14866,7 @@ auto CxxAttributeAST::clone(Arena* arena) -> CxxAttributeAST* {
 
   node->rbracketLoc = rbracketLoc;
   node->rbracket2Loc = rbracket2Loc;
+  node->attributes = attributes;
 
   return node;
 }
@@ -14694,7 +14881,9 @@ auto CxxAttributeAST::create(Arena* arena, SourceLocation lbracketLoc,
                              AttributeUsingPrefixAST* attributeUsingPrefix,
                              List<AttributeAST*>* attributeList,
                              SourceLocation rbracketLoc,
-                             SourceLocation rbracket2Loc) -> CxxAttributeAST* {
+                             SourceLocation rbracket2Loc,
+                             const AttributeMap* attributes)
+    -> CxxAttributeAST* {
   auto node = new (arena) CxxAttributeAST();
   node->lbracketLoc = lbracketLoc;
   node->lbracket2Loc = lbracket2Loc;
@@ -14702,16 +14891,19 @@ auto CxxAttributeAST::create(Arena* arena, SourceLocation lbracketLoc,
   node->attributeList = attributeList;
   node->rbracketLoc = rbracketLoc;
   node->rbracket2Loc = rbracket2Loc;
+  node->attributes = attributes;
   return node;
 }
 
 auto CxxAttributeAST::create(Arena* arena,
                              AttributeUsingPrefixAST* attributeUsingPrefix,
-                             List<AttributeAST*>* attributeList)
+                             List<AttributeAST*>* attributeList,
+                             const AttributeMap* attributes)
     -> CxxAttributeAST* {
   auto node = new (arena) CxxAttributeAST();
   node->attributeUsingPrefix = attributeUsingPrefix;
   node->attributeList = attributeList;
+  node->attributes = attributes;
   return node;
 }
 
@@ -14721,8 +14913,18 @@ auto GccAttributeAST::clone(Arena* arena) -> GccAttributeAST* {
   node->attributeLoc = attributeLoc;
   node->lparenLoc = lparenLoc;
   node->lparen2Loc = lparen2Loc;
+
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   node->rparenLoc = rparenLoc;
   node->rparen2Loc = rparen2Loc;
+  node->attributes = attributes;
 
   return node;
 }
@@ -14732,17 +14934,28 @@ auto GccAttributeAST::create(Arena* arena) -> GccAttributeAST* {
   return node;
 }
 
-auto GccAttributeAST::create(Arena* arena, SourceLocation attributeLoc,
-                             SourceLocation lparenLoc,
-                             SourceLocation lparen2Loc,
-                             SourceLocation rparenLoc,
-                             SourceLocation rparen2Loc) -> GccAttributeAST* {
+auto GccAttributeAST::create(
+    Arena* arena, SourceLocation attributeLoc, SourceLocation lparenLoc,
+    SourceLocation lparen2Loc, List<AttributeAST*>* attributeList,
+    SourceLocation rparenLoc, SourceLocation rparen2Loc,
+    const AttributeMap* attributes) -> GccAttributeAST* {
   auto node = new (arena) GccAttributeAST();
   node->attributeLoc = attributeLoc;
   node->lparenLoc = lparenLoc;
   node->lparen2Loc = lparen2Loc;
+  node->attributeList = attributeList;
   node->rparenLoc = rparenLoc;
   node->rparen2Loc = rparen2Loc;
+  node->attributes = attributes;
+  return node;
+}
+
+auto GccAttributeAST::create(Arena* arena, List<AttributeAST*>* attributeList,
+                             const AttributeMap* attributes)
+    -> GccAttributeAST* {
+  auto node = new (arena) GccAttributeAST();
+  node->attributeList = attributeList;
+  node->attributes = attributes;
   return node;
 }
 
@@ -14757,6 +14970,7 @@ auto AlignasAttributeAST::clone(Arena* arena) -> AlignasAttributeAST* {
   node->ellipsisLoc = ellipsisLoc;
   node->rparenLoc = rparenLoc;
   node->isPack = isPack;
+  node->attributes = attributes;
 
   return node;
 }
@@ -14770,7 +14984,8 @@ auto AlignasAttributeAST::create(Arena* arena, SourceLocation alignasLoc,
                                  SourceLocation lparenLoc,
                                  ExpressionAST* expression,
                                  SourceLocation ellipsisLoc,
-                                 SourceLocation rparenLoc, bool isPack)
+                                 SourceLocation rparenLoc, bool isPack,
+                                 const AttributeMap* attributes)
     -> AlignasAttributeAST* {
   auto node = new (arena) AlignasAttributeAST();
   node->alignasLoc = alignasLoc;
@@ -14779,14 +14994,17 @@ auto AlignasAttributeAST::create(Arena* arena, SourceLocation alignasLoc,
   node->ellipsisLoc = ellipsisLoc;
   node->rparenLoc = rparenLoc;
   node->isPack = isPack;
+  node->attributes = attributes;
   return node;
 }
 
 auto AlignasAttributeAST::create(Arena* arena, ExpressionAST* expression,
-                                 bool isPack) -> AlignasAttributeAST* {
+                                 bool isPack, const AttributeMap* attributes)
+    -> AlignasAttributeAST* {
   auto node = new (arena) AlignasAttributeAST();
   node->expression = expression;
   node->isPack = isPack;
+  node->attributes = attributes;
   return node;
 }
 
@@ -14801,6 +15019,7 @@ auto AlignasTypeAttributeAST::clone(Arena* arena) -> AlignasTypeAttributeAST* {
   node->ellipsisLoc = ellipsisLoc;
   node->rparenLoc = rparenLoc;
   node->isPack = isPack;
+  node->attributes = attributes;
 
   return node;
 }
@@ -14810,12 +15029,10 @@ auto AlignasTypeAttributeAST::create(Arena* arena) -> AlignasTypeAttributeAST* {
   return node;
 }
 
-auto AlignasTypeAttributeAST::create(Arena* arena, SourceLocation alignasLoc,
-                                     SourceLocation lparenLoc,
-                                     TypeIdAST* typeId,
-                                     SourceLocation ellipsisLoc,
-                                     SourceLocation rparenLoc, bool isPack)
-    -> AlignasTypeAttributeAST* {
+auto AlignasTypeAttributeAST::create(
+    Arena* arena, SourceLocation alignasLoc, SourceLocation lparenLoc,
+    TypeIdAST* typeId, SourceLocation ellipsisLoc, SourceLocation rparenLoc,
+    bool isPack, const AttributeMap* attributes) -> AlignasTypeAttributeAST* {
   auto node = new (arena) AlignasTypeAttributeAST();
   node->alignasLoc = alignasLoc;
   node->lparenLoc = lparenLoc;
@@ -14823,14 +15040,18 @@ auto AlignasTypeAttributeAST::create(Arena* arena, SourceLocation alignasLoc,
   node->ellipsisLoc = ellipsisLoc;
   node->rparenLoc = rparenLoc;
   node->isPack = isPack;
+  node->attributes = attributes;
   return node;
 }
 
 auto AlignasTypeAttributeAST::create(Arena* arena, TypeIdAST* typeId,
-                                     bool isPack) -> AlignasTypeAttributeAST* {
+                                     bool isPack,
+                                     const AttributeMap* attributes)
+    -> AlignasTypeAttributeAST* {
   auto node = new (arena) AlignasTypeAttributeAST();
   node->typeId = typeId;
   node->isPack = isPack;
+  node->attributes = attributes;
   return node;
 }
 
@@ -14842,6 +15063,7 @@ auto AsmAttributeAST::clone(Arena* arena) -> AsmAttributeAST* {
   node->literalLoc = literalLoc;
   node->rparenLoc = rparenLoc;
   node->literal = literal;
+  node->attributes = attributes;
 
   return node;
 }
@@ -14854,7 +15076,8 @@ auto AsmAttributeAST::create(Arena* arena) -> AsmAttributeAST* {
 auto AsmAttributeAST::create(Arena* arena, SourceLocation asmLoc,
                              SourceLocation lparenLoc,
                              SourceLocation literalLoc,
-                             SourceLocation rparenLoc, const Literal* literal)
+                             SourceLocation rparenLoc, const Literal* literal,
+                             const AttributeMap* attributes)
     -> AsmAttributeAST* {
   auto node = new (arena) AsmAttributeAST();
   node->asmLoc = asmLoc;
@@ -14862,13 +15085,16 @@ auto AsmAttributeAST::create(Arena* arena, SourceLocation asmLoc,
   node->literalLoc = literalLoc;
   node->rparenLoc = rparenLoc;
   node->literal = literal;
+  node->attributes = attributes;
   return node;
 }
 
-auto AsmAttributeAST::create(Arena* arena, const Literal* literal)
+auto AsmAttributeAST::create(Arena* arena, const Literal* literal,
+                             const AttributeMap* attributes)
     -> AsmAttributeAST* {
   auto node = new (arena) AsmAttributeAST();
   node->literal = literal;
+  node->attributes = attributes;
   return node;
 }
 
@@ -14991,6 +15217,20 @@ auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view {
       return "function-pointer-conversion";
     case ImplicitCastKind::kQualificationConversion:
       return "qualification-conversion";
+    case ImplicitCastKind::kVectorSplat:
+      return "vector-splat";
+    case ImplicitCastKind::kVectorConversion:
+      return "vector-conversion";
+    case ImplicitCastKind::kAtomicToNonAtomic:
+      return "atomic-to-non-atomic";
+    case ImplicitCastKind::kNonAtomicToAtomic:
+      return "non-atomic-to-atomic";
+    case ImplicitCastKind::kRealToComplexConversion:
+      return "real-to-complex-conversion";
+    case ImplicitCastKind::kComplexToRealConversion:
+      return "complex-to-real-conversion";
+    case ImplicitCastKind::kComplexConversion:
+      return "complex-conversion";
     case ImplicitCastKind::kTemporaryMaterializationConversion:
       return "temporary-materialization-conversion";
     case ImplicitCastKind::kUserDefinedConversion:

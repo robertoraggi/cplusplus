@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 
 #include <optional>
@@ -48,6 +49,13 @@ struct DeclaredMember {
 [[nodiscard]] auto usingDeclarationIntroducing(Symbol* member,
                                                ClassSymbol* designatingClass)
     -> UsingDeclarationSymbol*;
+
+[[nodiscard]] auto checkMemberAccess(TranslationUnit* unit,
+                                     ScopeSymbol* accessingScope,
+                                     Symbol* member,
+                                     ClassSymbol* designatingClass,
+                                     ClassSymbol* objectClass,
+                                     SourceLocation loc) -> bool;
 
 class AccessContext {
  public:

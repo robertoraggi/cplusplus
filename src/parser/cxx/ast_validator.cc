@@ -88,6 +88,7 @@ void validateCompletedInstantiation(TranslationUnit* unit,
   if (!unit || !function || !ast) return;
   if (!unit->config().validateAst) return;
   if (isEnclosedInDependentTemplate(unit, function, true)) return;
+  if (isDependent(unit, function->type())) return;
 
   auto expression = CompletedInstantiationValidator{unit}(ast);
   if (!expression) return;

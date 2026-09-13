@@ -121,6 +121,7 @@ enum class ASTKind {
   PackIndexExpression,
   GenericSelectionExpression,
   NestedStatementExpression,
+  DefaultInitializerExpression,
   NestedExpression,
   IdExpression,
   LambdaExpression,

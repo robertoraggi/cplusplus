@@ -33,7 +33,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build:cxx-frontend": "npm run build:emscripten && npm run build -w cxx-frontend",
+    "build:cxx-frontend": "npm run build:emscripten && npm run build --workspace=cxx-frontend",
     "build:playground": "npm run build:playground-sysroot && npm run build -w @robertoraggi/cxx-playground",
     "build:playground-sysroot": "node scripts/build-playground-sysroot.js",
     "build:emscripten": "node scripts/build-emscripten.js",
@@ -45,6 +45,8 @@
     "cxx-gen-ast": "node --no-warnings packages/cxx-gen-ast/src/gen.ts",
     "cxx-gen-lsp": "node --no-warnings packages/cxx-gen-lsp/src/main.ts packages/cxx-gen-lsp/metaModel.json -e packages/cxx-gen-lsp/extensions.json -o src/lsp/cxx/lsp",
     "download-lsp-model": "node scripts/download-lsp-model.js",
-    "download-mlir": "gh run download -n mlir --dir build.em/llvm-project/install/"
+    "download-mlir": "gh run download -n mlir --dir build.em/llvm-project/install/",
+    "cxx-gen-model": "node --no-warnings packages/cxx-gen-ast/src/gen_model.ts",
+    "cxx-dump-model": "node scripts/dump-model.js"
   }
 }

@@ -16,16 +16,10 @@ target_sources(MLIRCxxOpsIncGen PRIVATE
 )
 
 set(SOURCES
-    codegen.cc
-    codegen_declarations.cc
-    codegen_declarators.cc
-    codegen_expressions.cc
-    codegen_names.cc
-    codegen_rtti.cc
-    codegen_specifiers.cc
-    codegen_statements.cc
-    codegen_units.cc
-    convert_type.cc
+    mlir_debug_emitter.cc
+    mlir_emitter.cc
+    mlir_emitter_module.cc
+    mlir_emitter_control_flow.cc
     convert_debug_type.cc
     cxx_dialect.cc
     cxx_dialect_conversions.cc
@@ -42,7 +36,7 @@ target_include_directories(cxx-mlir
 )
 
 target_link_libraries(cxx-mlir PUBLIC
-    cxx-parser
+    cxx-codegen
     MLIRArithDialect
     MLIRArithToLLVM
     MLIRBuiltinToLLVMIRTranslation
@@ -56,7 +50,19 @@ target_link_libraries(cxx-mlir PUBLIC
     MLIRTargetLLVMIRExport
     MLIRTargetLLVMIRImport
     MLIRTransforms
+    MLIRVectorDialect
+    MLIRVectorToLLVM
 )
+
+if (CXX_ENABLE_LLVM_OPTIMIZER)
+    if (NOT LLVM_LINK_LLVM_DYLIB)
+        llvm_map_components_to_libnames(cxx_mlir_llvm_libs passes)
+        target_link_libraries(cxx-mlir PUBLIC ${cxx_mlir_llvm_libs})
+    endif()
+    target_compile_definitions(cxx-mlir PUBLIC CXX_WITH_LLVM_OPTIMIZER)
+else()
+    message(STATUS "cxx: the LLVM optimization pipeline is disabled")
+endif()
 
 if (EMSCRIPTEN)
     target_link_libraries(cxx-mlir PUBLIC LLVMWebAssemblyCodeGen)

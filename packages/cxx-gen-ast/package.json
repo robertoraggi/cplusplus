@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Generate AST from C++ source code",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "node --test test/*.test.mjs"
   },
   "keywords": [],
   "author": {

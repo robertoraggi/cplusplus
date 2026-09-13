@@ -134,6 +134,7 @@ class ASTPrinter : ASTVisitor {
   void visit(PackIndexExpressionAST* ast) override;
   void visit(GenericSelectionExpressionAST* ast) override;
   void visit(NestedStatementExpressionAST* ast) override;
+  void visit(DefaultInitializerExpressionAST* ast) override;
   void visit(NestedExpressionAST* ast) override;
   void visit(IdExpressionAST* ast) override;
   void visit(LambdaExpressionAST* ast) override;

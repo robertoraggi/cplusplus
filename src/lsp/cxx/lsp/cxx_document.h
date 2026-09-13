@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/lsp/fwd.h>
+#include <cxx/lsp/preamble.h>
 #include <cxx/parser_fwd.h>
 #include <cxx/translation_unit.h>
 
@@ -29,6 +30,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace cxx {
 class Toolchain;
@@ -44,6 +46,14 @@ struct CompletionEditRange {
 
 class CxxDocument {
  public:
+  [[nodiscard]] static auto semanticTokenTypeLegend()
+      -> const std::vector<std::string>&;
+
+  [[nodiscard]] static auto semanticTokenModifierLegend()
+      -> const std::vector<std::string>&;
+
+  std::shared_ptr<PreambleCache> preambleCache;
+
   CxxDocument(std::string fileName, long version);
   ~CxxDocument();
 
@@ -64,6 +74,13 @@ class CxxDocument {
 
   void requestSignatureHelpAt(std::uint32_t line, std::uint32_t column,
                               SignatureHelp result);
+
+  void semanticTokens(std::optional<Range> range, Vector<long> result) const;
+
+  [[nodiscard]] auto hoverAt(std::size_t offset, Hover result) const -> bool;
+
+  void documentHighlightsAt(std::size_t offset,
+                            Vector<DocumentHighlight> result) const;
 
   [[nodiscard]] auto diagnostics() const -> Vector<Diagnostic>;
   [[nodiscard]] auto hasErrors() const -> bool;

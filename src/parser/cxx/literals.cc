@@ -745,7 +745,18 @@ auto IntegerLiteral::Components::from(std::string_view text,
     parseDecLiteral();
   }
 
+  const auto numericPartEnd = pos;
+
   parseOptionalIntegerSuffix();
+
+  if (pos != text.size()) {
+    pos = numericPartEnd;
+    hasUnsignedSuffix = false;
+    hasLongLongSuffix = false;
+    hasLongSuffix = false;
+    hasSizeSuffix = false;
+    hasWBSuffix = false;
+  }
 
   int base = 10;
   if (radix == Radix::kHexadecimal)
@@ -866,7 +877,11 @@ auto FloatLiteral::Components::from(std::string_view text,
   auto parseOptionalFloatingPointSuffix = [&]() -> std::string_view {
     const auto suffix = text.substr(pos);
     components.suffix = classifyFloatingPointSuffix(suffix);
-    if (components.suffix == FloatingPointSuffix::kNone) return {};
+    if (components.suffix == FloatingPointSuffix::kNone) {
+      components.userSuffix = suffix;
+      return {};
+    }
+    pos += suffix.size();
     return suffix;
   };
 
@@ -889,7 +904,8 @@ auto FloatLiteral::Components::from(std::string_view text,
   };
 
   auto parseHexadecimalPrefix = [&] {
-    if (LA() != '0' && (LA(1) != 'x' || LA(1) != 'X')) return false;
+    if (LA() != '0') return false;
+    if (LA(1) != 'x' && LA(1) != 'X') return false;
     literalText += LA();
     literalText += LA(1);
     consume(2);
@@ -939,6 +955,8 @@ auto FloatLiteral::Components::from(std::string_view text,
     parseDecimalFloatPointLiteral();
   }
 
+  components.literalPart = text.substr(0, pos);
+
   const auto firstChar = literalText.data();
   components.value = strtod(firstChar, nullptr);
 
@@ -967,7 +985,29 @@ auto StringLiteral::Components::from(std::string_view text,
     components.isRaw = true;
   }
 
+  if (auto closingQuote = text.find_last_of('"');
+      closingQuote != std::string_view::npos) {
+    components.userSuffix = text.substr(closingQuote + 1);
+  }
+
   return components;
+}
+
+auto quoteStringLiteral(std::string_view value) -> std::string {
+  std::string spelling = "\"";
+  for (unsigned char ch : value) {
+    if (ch == '\\' || ch == '\"') spelling += '\\';
+    if (ch < 32 || ch >= 127) {
+      spelling += '\\';
+      spelling += static_cast<char>('0' + (ch >> 6));
+      spelling += static_cast<char>('0' + ((ch >> 3) & 7));
+      spelling += static_cast<char>('0' + (ch & 7));
+    } else {
+      spelling += static_cast<char>(ch);
+    }
+  }
+  spelling += '"';
+  return spelling;
 }
 
 void StringLiteral::initialize(StringLiteralEncoding encoding) const {
@@ -998,6 +1038,11 @@ auto CharLiteral::Components::from(std::string_view text,
   Components components;
   components.prefix = text.substr(0, text.find_first_of('\''));
   components.value = !parser.value.empty() ? parser.value[0] : 0;
+
+  if (auto closingQuote = text.find_last_of('\'');
+      closingQuote != std::string_view::npos) {
+    components.userSuffix = text.substr(closingQuote + 1);
+  }
 
   return components;
 }

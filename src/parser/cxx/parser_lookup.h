@@ -44,6 +44,10 @@ template <typename Predicate>
   return unqualifiedLookup(lexicalScope, name, [](Symbol*) { return true; });
 }
 
+[[nodiscard]] auto unqualifiedLookupIncludingInlineNamespaces(
+    Control* control, Scope* lexicalScope, const Name* name,
+    bool skipClassNames = false, bool* ambiguous = nullptr) -> Symbol*;
+
 [[nodiscard]] auto unqualifiedLookupType(Scope* lexicalScope,
                                          const Identifier* id,
                                          bool tagsAreTypes = true,

@@ -27,12 +27,16 @@
 #include <cxx/names_fwd.h>
 #include <cxx/parser_fwd.h>
 #include <cxx/preprocessor_fwd.h>
+#include <cxx/semantic_archive.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/time_trace.h>
 #include <cxx/token.h>
 #include <cxx/type_traits.h>
 
+#include <format>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <span>
@@ -46,6 +50,11 @@ class TranslationUnit {
  public:
   explicit TranslationUnit(DiagnosticsClient* diagosticsClient = nullptr);
   ~TranslationUnit();
+
+  void enableTimeTrace() { timeTrace_ = std::make_unique<TimeTrace>(); }
+  [[nodiscard]] auto timeTrace() const -> TimeTrace* {
+    return timeTrace_.get();
+  }
 
   [[nodiscard]] auto control() const -> Control* { return control_.get(); }
 
@@ -83,6 +92,11 @@ class TranslationUnit {
   [[nodiscard]] auto takePendingBodyCompletions()
       -> std::vector<FunctionSymbol*>;
 
+  void markFunctionBodyUnparsed(FunctionDefinitionAST* definition);
+  void markFunctionBodyParsed(FunctionDefinitionAST* definition);
+  [[nodiscard]] auto isFunctionBodyUnparsed(
+      FunctionDefinitionAST* definition) const -> bool;
+
   [[nodiscard]] auto isPotentiallyEvaluated() const -> bool {
     return potentiallyEvaluated_;
   }
@@ -105,6 +119,53 @@ class TranslationUnit {
     bool saved_;
   };
 
+  [[nodiscard]] auto isImmediateFunctionContext() const -> bool {
+    return immediateFunctionContext_;
+  }
+
+  class ImmediateFunctionContextScope {
+   public:
+    ImmediateFunctionContextScope(const ImmediateFunctionContextScope&) =
+        delete;
+    auto operator=(const ImmediateFunctionContextScope&)
+        -> ImmediateFunctionContextScope& = delete;
+
+    ImmediateFunctionContextScope(TranslationUnit* unit, bool active)
+        : unit_(unit), saved_(unit->immediateFunctionContext_) {
+      unit_->immediateFunctionContext_ = saved_ || active;
+    }
+
+    ~ImmediateFunctionContextScope() {
+      unit_->immediateFunctionContext_ = saved_;
+    }
+
+   private:
+    TranslationUnit* unit_;
+    bool saved_;
+  };
+
+  [[nodiscard]] auto isDeferredInitializer() const -> bool {
+    return deferredInitializer_;
+  }
+
+  class DeferredInitializerScope {
+   public:
+    DeferredInitializerScope(const DeferredInitializerScope&) = delete;
+    auto operator=(const DeferredInitializerScope&)
+        -> DeferredInitializerScope& = delete;
+
+    DeferredInitializerScope(TranslationUnit* unit, bool active)
+        : unit_(unit), saved_(unit->deferredInitializer_) {
+      unit_->deferredInitializer_ = saved_ || active;
+    }
+
+    ~DeferredInitializerScope() { unit_->deferredInitializer_ = saved_; }
+
+   private:
+    TranslationUnit* unit_;
+    bool saved_;
+  };
+
   [[nodiscard]] auto reportingDiagnosticsClient() const -> DiagnosticsClient* {
     return reportingDiagnosticsClient_;
   }
@@ -117,9 +178,21 @@ class TranslationUnit {
     return templateInstantiationDepth_;
   }
 
-  void setTemplateInstantiationDepth(int depth) {
-    templateInstantiationDepth_ = depth;
+  [[nodiscard]] auto isInstantiatingTemplate() const -> bool {
+    return templateInstantiationDepth_ > 0;
   }
+
+  class TemplateInstantiationScope {
+   public:
+    explicit TemplateInstantiationScope(TranslationUnit* unit) : unit_(unit) {
+      ++unit_->templateInstantiationDepth_;
+    }
+
+    ~TemplateInstantiationScope() { --unit_->templateInstantiationDepth_; }
+
+   private:
+    TranslationUnit* unit_;
+  };
 
   static constexpr int kMaxTemplateInstantiationDepth = 1024;
 
@@ -134,6 +207,41 @@ class TranslationUnit {
   void parse(ParserConfiguration config = {});
 
   void beginParsing(ParserConfiguration config = {});
+
+  /**
+   * The resume entry point of section 9.5. It accepts a validated prefix that
+   * has already been adopted and starts the parser at the base of the
+   * consumer's token segment; `beginParsing`'s "there is no AST yet"
+   * precondition stays exactly as it is for an ordinary compilation.
+   */
+  void resumeParsing(ParserConfiguration config = {});
+
+  void resume(ParserConfiguration config = {});
+
+  /**
+   * Adopts a decoded prefix as the committed prefix of this unit: the global
+   * scope, the open AST declaration list, the identity counters and the
+   * end-of-translation-unit queues.
+   */
+  void adoptPrefix(SemanticArchiveRoots roots,
+                   std::unique_ptr<PrefixSourceMap> sourceMap);
+
+  [[nodiscard]] auto hasAdoptedPrefix() const -> bool {
+    return prefixSourceMap_ != nullptr;
+  }
+
+  [[nodiscard]] auto prefixSourceLocationInfo(SourceLocation loc) const
+      -> std::optional<PrefixSourceLocationInfo>;
+
+  /**
+   * Whether a location belongs to the source file being compiled. This is a
+   * location question, not a token question: a location in an adopted prefix
+   * has no token in this unit, and a prefix is never the main file.
+   */
+  [[nodiscard]] auto isMainFileLocation(SourceLocation loc) const -> bool;
+
+  /** Whether a location belongs to the builtin declarations. */
+  [[nodiscard]] auto isBuiltinsLocation(SourceLocation loc) const -> bool;
 
   [[nodiscard]] auto continueParsing() -> ParsingState;
 
@@ -166,12 +274,59 @@ class TranslationUnit {
     return tokens_;
   }
 
+  [[nodiscard]] inline auto tokenSegmentBase() const -> unsigned {
+    return tokenSegmentBase_;
+  }
+
+  void setTokenSegmentBase(unsigned base) {
+    const auto available = std::numeric_limits<unsigned>::max() - base;
+    if (tokens_.size() > available) {
+      cxx_runtime_error("source location range overflows");
+    }
+    tokenSegmentBase_ = base;
+  }
+
+  [[nodiscard]] inline auto ownsLocation(SourceLocation loc) const -> bool {
+    if (!loc) return false;
+    if (loc.index() < tokenSegmentBase_) return false;
+    return loc.index() - tokenSegmentBase_ < tokens_.size();
+  }
+
+  [[nodiscard]] inline auto locationOfIndex(unsigned index) const
+      -> SourceLocation {
+    return SourceLocation(tokenSegmentBase_ + index);
+  }
+
+  [[nodiscard]] inline auto indexOfLocation(SourceLocation loc) const
+      -> unsigned {
+    if (!ownsLocation(loc)) {
+      cxx_runtime_error(std::format(
+          "source location {} is outside the current token segment [{}, {})",
+          loc.index(), tokenSegmentBase_, tokenSegmentBase_ + tokens_.size()));
+    }
+    return loc.index() - tokenSegmentBase_;
+  }
+
+  [[nodiscard]] inline auto tokenForDiagnostic(SourceLocation loc) const
+      -> const Token& {
+    static const Token nullToken{};
+    if (!loc || !ownsLocation(loc)) return nullToken;
+    return tokenAt(loc);
+  }
+
   [[nodiscard]] inline auto tokenAt(SourceLocation loc) const -> const Token& {
-    return tokens_[loc.index()];
+    if (tokens_.empty()) cxx_runtime_error("translation unit has no tokens");
+    if (!loc) return tokens_.front();
+    return tokens_[indexOfLocation(loc)];
+  }
+
+  [[nodiscard]] inline auto tokenAtIndex(unsigned index) const -> const Token& {
+    if (index >= tokens_.size()) return tokens_.back();
+    return tokens_[index];
   }
 
   void setTokenKind(SourceLocation loc, TokenKind kind) {
-    tokens_[loc.index()].setKind(kind);
+    tokens_[indexOfLocation(loc)].setKind(kind);
   }
 
   [[nodiscard]] inline auto tokenKind(SourceLocation loc) const -> TokenKind {
@@ -179,12 +334,15 @@ class TranslationUnit {
   }
 
   void setTokenValue(SourceLocation loc, TokenValue value) {
-    tokens_[loc.index()].setValue(value);
+    tokens_[indexOfLocation(loc)].setValue(value);
   }
 
   [[nodiscard]] auto tokenLength(SourceLocation loc) const -> int;
 
   [[nodiscard]] auto tokenText(SourceLocation loc) const -> const std::string&;
+
+  [[nodiscard]] auto presumedTokenStartPosition(SourceLocation loc) const
+      -> SourcePosition;
 
   [[nodiscard]] auto tokenStartPosition(SourceLocation loc) const
       -> SourcePosition;
@@ -194,14 +352,23 @@ class TranslationUnit {
 
   [[nodiscard]] auto identifier(SourceLocation loc) const -> const Identifier*;
 
+  [[nodiscard]] auto packAlignmentAt(SourceLocation loc) const -> int;
+
+  void extractPackAlignments();
+
+  [[nodiscard]] auto packAlignmentChanges() const
+      -> const std::vector<std::pair<unsigned, int>>& {
+    return packAlignments_;
+  }
+
+  void captureSnippet(SourceLocationRange range);
+
+  [[nodiscard]] auto snippetText(SourceLocationRange range) const
+      -> std::string_view;
+
   [[nodiscard]] auto literal(SourceLocation loc) const -> const Literal*;
 
-  [[nodiscard]] auto load(std::span<const std::uint8_t> data) -> bool;
-
-  [[nodiscard]] auto serialize(std::ostream& out) -> bool;
-
-  [[nodiscard]] auto serialize(
-      const std::function<void(std::span<const std::uint8_t>)>& onData) -> bool;
+  [[nodiscard]] auto semanticArchiveRoots() -> SemanticArchiveRoots;
 
  private:
   struct ConstraintSatisfaction {
@@ -222,6 +389,7 @@ class TranslationUnit {
   std::vector<Token> tokens_;
   std::string fileName_;
   UnitAST* ast_ = nullptr;
+  unsigned tokenSegmentBase_ = 0;
   const char* yyptr = nullptr;
   DiagnosticsClient* diagnosticsClient_ = nullptr;
   DiagnosticsClient* reportingDiagnosticsClient_ = nullptr;
@@ -230,9 +398,16 @@ class TranslationUnit {
   std::vector<ClassSymbol*> pendingMemberInstantiations_;
   std::unordered_set<ClassSymbol*> instantiatedMemberClasses_;
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
+  std::unordered_set<FunctionDefinitionAST*> unparsedFunctionBodies_;
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
+  std::unordered_map<std::uint64_t, const Identifier*> snippets_;
+  std::vector<std::pair<unsigned, int>> packAlignments_;
+  std::unique_ptr<PrefixSourceMap> prefixSourceMap_;
+  std::unique_ptr<TimeTrace> timeTrace_;
   int templateInstantiationDepth_ = 0;
   bool potentiallyEvaluated_ = true;
+  bool immediateFunctionContext_ = false;
+  bool deferredInitializer_ = false;
 };
 }  // namespace cxx

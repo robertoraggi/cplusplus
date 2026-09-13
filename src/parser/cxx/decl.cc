@@ -24,7 +24,10 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/attributes.h>
 #include <cxx/control.h>
+#include <cxx/dependent_types.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -34,6 +37,8 @@ namespace cxx {
 
 auto exceptionSpecifierIsNoexcept(TranslationUnit* unit,
                                   ExceptionSpecifierAST* ast) -> bool {
+  if (ast_cast<ThrowExceptionSpecifierAST>(ast)) return true;
+
   auto noexceptSpecifier = ast_cast<NoexceptSpecifierAST>(ast);
   if (!noexceptSpecifier) return false;
   if (!noexceptSpecifier->expression) return true;
@@ -187,6 +192,9 @@ struct GetDeclaratorType {
         type_ = unit->typeTraits().add_volatile(type_);
       }
     }
+
+    type_ = applyTypeAttributes(unit, ast->attributeList, type_,
+                                ast->firstSourceLocation());
   }
 
   void operator()(ReferenceOperatorAST* ast) {
@@ -201,6 +209,9 @@ struct GetDeclaratorType {
     } else {
       type_ = unit->typeTraits().add_lvalue_reference(type_);
     }
+
+    type_ = applyTypeAttributes(unit, ast->attributeList, type_,
+                                ast->firstSourceLocation());
   }
 
   void operator()(PtrToMemberOperatorAST* ast) {
@@ -225,6 +236,9 @@ struct GetDeclaratorType {
         type_ = unit->typeTraits().add_volatile(type_);
       }
     }
+
+    type_ = applyTypeAttributes(unit, ast->attributeList, type_,
+                                ast->firstSourceLocation());
   }
 
   void operator()(BitfieldDeclaratorAST* ast) {}
@@ -233,7 +247,10 @@ struct GetDeclaratorType {
     if (ast->coreDeclarator) visit(*this, ast->coreDeclarator);
   }
 
-  void operator()(IdDeclaratorAST* ast) {}
+  void operator()(IdDeclaratorAST* ast) {
+    type_ = applyTypeAttributes(unit, ast->attributeList, type_,
+                                ast->firstSourceLocation());
+  }
 
   void operator()(NestedDeclaratorAST* ast) {
     std::invoke(*this, ast->declarator);
@@ -268,8 +285,8 @@ struct GetDeclaratorType {
 
     RefQualifier refQualifier = RefQualifier::kNone;
 
-    if (ast->refLoc) {
-      if (unit->tokenKind(ast->refLoc) == TokenKind::T_AMP_AMP) {
+    if (ast->refOp != TokenKind::T_EOF_SYMBOL) {
+      if (ast->refOp == TokenKind::T_AMP_AMP) {
         refQualifier = RefQualifier::kRvalue;
       } else {
         refQualifier = RefQualifier::kLvalue;
@@ -299,29 +316,35 @@ struct GetDeclaratorType {
     type_ = control()->getFunctionType(returnType, std::move(parameterTypes),
                                        isVariadic, cvQualifiers, refQualifier,
                                        isNoexcept);
+
+    type_ = applyTypeAttributes(unit, ast->attributeList, type_,
+                                ast->firstSourceLocation());
   }
 
   void operator()(ArrayDeclaratorChunkAST* ast) {
-    if (!ast->expression) {
-      type_ = control()->getUnboundedArrayType(type_);
-      return;
-    }
+    type_ = arrayTypeOf(ast);
+    type_ = applyTypeAttributes(unit, ast->attributeList, type_,
+                                ast->firstSourceLocation());
+  }
+
+  [[nodiscard]] auto arrayTypeOf(ArrayDeclaratorChunkAST* ast) -> const Type* {
+    if (!ast->expression) return control()->getUnboundedArrayType(type_);
 
     ASTInterpreter interp{unit};
     const auto constValue = interp.evaluate(ast->expression);
 
     if (constValue) {
-      if (auto size = interp.toUInt(constValue.value())) {
-        type_ = control()->getBoundedArrayType(type_, *size);
-        return;
-      }
+      if (auto size = interp.toUInt(constValue.value()))
+        return control()->getBoundedArrayType(type_, *size);
     }
 
-    type_ =
-        control()->getUnresolvedBoundedArrayType(unit, type_, ast->expression);
+    return control()->getUnresolvedBoundedArrayType(unit, type_,
+                                                    ast->expression);
   }
 
-  auto operator()(ThrowExceptionSpecifierAST* ast) -> bool { return false; }
+  auto operator()(ThrowExceptionSpecifierAST* ast) -> bool {
+    return exceptionSpecifierIsNoexcept(unit, ast);
+  }
 
   auto operator()(NoexceptSpecifierAST* ast) -> bool {
     return exceptionSpecifierIsNoexcept(unit, ast);
@@ -341,6 +364,139 @@ struct GetDeclaratorType {
                                      const Type* type) -> const Type* {
   GetDeclaratorType getDeclaratorType{unit};
   return getDeclaratorType(declarator, type);
+}
+
+namespace {
+
+constexpr AttributeSpelling kVectorSizeSpellings[] = {
+    {AttributeSyntax::kGnu, "", "vector_size"},
+    {AttributeSyntax::kCxx, "gnu", "vector_size"},
+    {AttributeSyntax::kGnu, "", "ext_vector_type"},
+    {AttributeSyntax::kCxx, "clang", "ext_vector_type"},
+};
+
+[[nodiscard]] auto vectorKindOf(const AttributeSpelling& spelling)
+    -> VectorKind {
+  return spelling.name == "ext_vector_type" ? VectorKind::kExt
+                                            : VectorKind::kGnu;
+}
+
+[[nodiscard]] auto vectorSizeKindOf(const AttributeSpelling& spelling)
+    -> VectorSizeKind {
+  return spelling.name == "ext_vector_type" ? VectorSizeKind::kElements
+                                            : VectorSizeKind::kBytes;
+}
+
+[[nodiscard]] auto isValidVectorElementType(TranslationUnit* unit,
+                                            const Type* type,
+                                            VectorKind vectorKind) -> bool {
+  auto traits = unit->typeTraits();
+  if (traits.is_floating_point(type)) return true;
+  if (!traits.is_integral(type)) return false;
+  if (type->kind() == TypeKind::kBool) return vectorKind == VectorKind::kExt;
+  return true;
+}
+
+[[nodiscard]] auto vectorSizeExpression(AttributeArgumentClauseAST* clause)
+    -> ExpressionAST* {
+  if (!clause || !clause->expressionList) return nullptr;
+  if (clause->expressionList->next) return nullptr;
+  return clause->expressionList->value;
+}
+
+}  // namespace
+
+auto applyTypeAttributes(TranslationUnit* unit,
+                         List<AttributeSpecifierAST*>* attributeList,
+                         const Type* type, SourceLocation location)
+    -> const Type* {
+  if (!type || !attributeList) return type;
+
+  auto attribute =
+      findAttributeBySpelling(unit, attributeList, kVectorSizeSpellings);
+
+  if (!attribute) return type;
+
+  const auto at = attribute.location ? attribute.location : location;
+  const auto vectorKind = vectorKindOf(*attribute.spelling);
+  const auto sizeKind = vectorSizeKindOf(*attribute.spelling);
+  const auto attributeName = attribute.spelling->name;
+
+  auto sizeExpression = vectorSizeExpression(attribute.argumentClause);
+
+  if (!sizeExpression) {
+    unit->error(
+        at, std::format("'{}' attribute takes one argument", attributeName));
+    return type;
+  }
+
+  auto control = unit->control();
+
+  if (isDependent(unit, type) || isDependent(unit, sizeExpression)) {
+    return control->getUnresolvedVectorType(unit, type, sizeExpression,
+                                            vectorKind, sizeKind);
+  }
+
+  if (!isValidVectorElementType(unit, type, vectorKind)) {
+    unit->error(
+        at, std::format("invalid vector element type '{}'", to_string(type)));
+    return type;
+  }
+
+  ASTInterpreter interp{unit};
+  auto constValue = interp.evaluate(sizeExpression);
+  auto size = constValue ? interp.toInt(*constValue) : std::nullopt;
+
+  if (!size) {
+    unit->error(at, std::format("'{}' attribute requires an integer constant",
+                                attributeName));
+    return type;
+  }
+
+  if (*size < 0) {
+    unit->error(at, "vector must have non-negative size");
+    return type;
+  }
+
+  auto elementCount = static_cast<std::size_t>(*size);
+
+  if (sizeKind == VectorSizeKind::kBytes) {
+    auto elementSize = control->memoryLayout()->sizeOf(type);
+    if (!elementSize || *elementSize == 0) {
+      unit->error(
+          at, std::format("invalid vector element type '{}'", to_string(type)));
+      return type;
+    }
+    if (elementCount % *elementSize != 0) {
+      unit->error(at, "vector size not an integral multiple of component size");
+      return type;
+    }
+    elementCount /= *elementSize;
+  }
+
+  if (elementCount == 0) {
+    unit->error(at, "zero vector size");
+    return type;
+  }
+
+  return control->getVectorType(type, elementCount, vectorKind);
+}
+
+[[nodiscard]] auto getGenericSelectionExpression(
+    GenericSelectionExpressionAST* ast) -> ExpressionAST* {
+  if (!ast || ast->matchedAssocIndex < 0) return nullptr;
+
+  int index = 0;
+  for (auto assoc : ListView{ast->genericAssociationList}) {
+    if (index++ != ast->matchedAssocIndex) continue;
+    if (auto entry = ast_cast<DefaultGenericAssociationAST>(assoc))
+      return entry->expression;
+    if (auto entry = ast_cast<TypeGenericAssociationAST>(assoc))
+      return entry->expression;
+    break;
+  }
+
+  return nullptr;
 }
 
 [[nodiscard]] auto getDeclaratorId(DeclaratorAST* declarator)

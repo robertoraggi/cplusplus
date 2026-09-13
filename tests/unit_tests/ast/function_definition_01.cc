@@ -2,6 +2,7 @@
 
 void (*ptr)(){};
 
+// expected-warning@+1 {{non-void function does not return a value of type 'void (*)()' on every path}}
 void (*f(int))() {}
 
 // clang-format off

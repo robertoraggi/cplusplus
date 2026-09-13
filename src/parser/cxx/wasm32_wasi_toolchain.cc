@@ -89,7 +89,6 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   defineMacro("__weak", "");
   defineMacro("_Nonnull", "");
   defineMacro("_Nullable", "");
-  defineMacro("_Pragma(x)", "");
   defineMacro("_Thread_local", "thread_local");
 
   addCommonMacros();

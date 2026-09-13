@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/const_value.h>
 #include <cxx/implicit_conversion_sequence.h>
 #include <cxx/overload_resolution.h>
 #include <cxx/source_location.h>
@@ -29,12 +30,23 @@
 #include <cxx/token.h>
 #include <cxx/types_fwd.h>
 
+#include <optional>
 #include <unordered_set>
 
 namespace cxx {
 class TranslationUnit;
 
 [[nodiscard]] auto isUntypedAfterError(ExpressionAST* expr) -> bool;
+
+struct CalledFunction {
+  ExpressionAST* callee = nullptr;
+  FunctionSymbol* function = nullptr;
+};
+
+[[nodiscard]] auto calledFunction(ExpressionAST* expression) -> CalledFunction;
+
+[[nodiscard]] auto invokedFunction(ExpressionAST* expression)
+    -> FunctionSymbol*;
 
 void markUntypedAfterError(ExpressionAST* expr);
 
@@ -53,26 +65,34 @@ class TypeChecker {
   void setScope(ScopeSymbol* scope) { scope_ = scope; }
   [[nodiscard]] auto scope() const -> ScopeSymbol* { return scope_; }
 
-  void operator()(ExpressionAST* ast);
+  void operator()(ExpressionAST** ast);
 
-  void check(ExpressionAST* ast);
+  void check(ExpressionAST** ast);
 
   void check(DeclarationAST* ast);
 
-  void check_return_statement(ReturnStatementAST* ast);
+  void check_return_statement(ReturnStatementAST* ast,
+                              bool isDiscarded = false);
 
   [[nodiscard]] auto isMoveEligibleOperand(ExpressionAST* expr,
                                            ScopeSymbol* functionScope) const
       -> bool;
 
   void treatMoveEligibleOperandAsRvalue(ExpressionAST*& expr,
-                                        ScopeSymbol* functionScope,
-                                        const Type* targetType);
+                                        ScopeSymbol* functionScope);
 
   auto check_bool_condition(ExpressionAST*& ast) -> bool;
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl,
                              SpecifierAST* typeSpecifier);
+  void check_variable_initializer(VariableSymbol* var,
+                                  ExpressionAST*& initializer,
+                                  SourceLocation location);
+  void check_member_initialization(FieldSymbol* field,
+                                   ExpressionAST*& initializer,
+                                   InitializationKind kind,
+                                   ArrayCopyPolicy arrayCopyPolicy =
+                                       ArrayCopyPolicy::kBracedInitializerOnly);
   void check_condition_declaration(ConditionExpressionAST* ast);
   void check_field_initializer(FieldSymbol* field);
   void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
@@ -80,8 +100,11 @@ class TypeChecker {
       CompoundStatementFunctionBodyAST* ast);
   void check_braced_init_list(const Type* type, BracedInitListAST* ast,
                               InitializationKind initializationKind);
+  void check_list_initialization(const Type* type, ExpressionAST*& expression,
+                                 InitializationKind initializationKind);
   void append_default_arguments(FunctionSymbol* function,
-                                List<ExpressionAST*>** list);
+                                List<ExpressionAST*>** list,
+                                SourceLocation location);
 
   void checkConstructorAccess(FunctionSymbol* constructor,
                               SourceLocation location);
@@ -120,6 +143,9 @@ class TypeChecker {
   void applyImplicitConversion(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
 
+  void diagnoseAmbiguousConversion(const ImplicitConversionSequence& sequence,
+                                   ExpressionAST* expr);
+
   [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
                                     const Type* rightType = nullptr,
                                     ExpressionAST* leftExpr = nullptr,
@@ -147,13 +173,21 @@ class TypeChecker {
   void warning(SourceLocation loc, std::string message);
   void error(SourceLocation loc, std::string message);
   void note(SourceLocation loc, std::string message);
-  void useFunction(FunctionSymbol* function, SourceLocation loc);
+  auto useFunction(FunctionSymbol* function, SourceLocation loc) -> bool;
 
   void useConversionFunction(ExpressionAST* expr);
 
   void requireFunctionDefinition(FunctionSymbol* function);
 
   [[nodiscard]] auto hasConstantValue(FieldSymbol* field) -> bool;
+
+  [[nodiscard]] auto evaluateImmediateConstruction(ExpressionAST** initializer,
+                                                   FunctionSymbol* constructor,
+                                                   const Type* type,
+                                                   SourceLocation location)
+      -> bool;
+
+  void evaluateImmediateInvocation(ExpressionAST** ast);
 
   [[nodiscard]] auto enterAggregateInitialization(ClassSymbol* classSymbol)
       -> bool;
@@ -162,6 +196,21 @@ class TypeChecker {
 
  private:
   struct Visitor;
+
+  [[nodiscard]] auto finishImmediateInvocation(ExpressionAST** ast,
+                                               FunctionSymbol* function,
+                                               std::optional<ConstValue> value,
+                                               const Type* type,
+                                               ValueCategory valueCategory,
+                                               SourceLocation location) -> bool;
+
+  [[nodiscard]] auto isImmediateInvocation(ExpressionAST* ast,
+                                           FunctionSymbol* function) const
+      -> bool;
+
+  [[nodiscard]] auto isImmediateFunctionContext() const -> bool;
+
+  [[nodiscard]] auto canEscalate(FunctionSymbol* function) const -> bool;
 
   TranslationUnit* unit_ = nullptr;
   ScopeSymbol* scope_ = nullptr;

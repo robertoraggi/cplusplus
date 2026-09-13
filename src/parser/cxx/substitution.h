@@ -36,34 +36,51 @@ struct TemplateArity {
   int maxArgs = 0;
   int packCount = 0;
   bool hasParameterPack = false;
+
+  [[nodiscard]] static auto of(TemplateDeclarationAST* templateDecl)
+      -> TemplateArity;
+
+  [[nodiscard]] static auto matches(
+      TemplateDeclarationAST* templateDecl,
+      List<TemplateArgumentAST*>* templateArgumentList,
+      bool isFunctionTemplate = false) -> bool;
+};
+
+class TemplateArguments {
+ public:
+  explicit TemplateArguments(TranslationUnit* unit) : unit_(unit) {}
+
+  [[nodiscard]] static auto count(
+      List<TemplateArgumentAST*>* templateArgumentList) -> int;
+
+  [[nodiscard]] static auto last(
+      List<TemplateArgumentAST*>* templateArgumentList) -> TemplateArgumentAST*;
+
+  [[nodiscard]] static auto isPackExpansion(TemplateArgumentAST* argument)
+      -> bool;
+
+  [[nodiscard]] static auto hasPackExpansion(
+      List<TemplateArgumentAST*>* templateArgumentList) -> bool;
+
+  [[nodiscard]] auto complete(Symbol* templateSymbol,
+                              List<TemplateArgumentAST*>* writtenArguments)
+      const -> List<TemplateArgumentAST*>*;
+
+  [[nodiscard]] auto defaultArgument(
+      TemplateDeclarationAST* templateDecl, TemplateParameterAST* parameter,
+      const std::vector<TemplateArgument>& argumentsSoFar) const
+      -> TemplateArgumentAST*;
+
+  [[nodiscard]] auto templateName(Symbol* templateSymbol) const
+      -> TemplateArgumentAST*;
+
+ private:
+  TranslationUnit* unit_;
 };
 
 [[nodiscard]] auto isPackParameter(TemplateParameterAST* parameter) -> bool;
 
-[[nodiscard]] auto hasDefaultTemplateArgument(TemplateParameterAST* parameter)
-    -> bool;
-
 [[nodiscard]] auto isPackExpansion(TypeIdAST* typeId) -> bool;
-
-[[nodiscard]] auto isPackExpansionTemplateArgument(
-    TemplateArgumentAST* argument) -> bool;
-
-[[nodiscard]] auto hasPackExpansionTemplateArgument(
-    List<TemplateArgumentAST*>* templateArgumentList) -> bool;
-
-[[nodiscard]] auto lastTemplateArgument(
-    List<TemplateArgumentAST*>* templateArgumentList) -> TemplateArgumentAST*;
-
-[[nodiscard]] auto computeTemplateArity(TemplateDeclarationAST* templateDecl)
-    -> TemplateArity;
-
-[[nodiscard]] auto templateArgumentCount(
-    List<TemplateArgumentAST*>* templateArgumentList) -> int;
-
-[[nodiscard]] auto isTemplateArityMatch(
-    TemplateDeclarationAST* templateDecl,
-    List<TemplateArgumentAST*>* templateArgumentList,
-    bool isFunctionTemplate = false) -> bool;
 
 class Substitution {
  public:
@@ -101,6 +118,8 @@ class Substitution {
 
   [[nodiscard]] auto normalizeNonTypeArgument(
       NonTypeTemplateParameterAST* parameter, Symbol* argument) -> Symbol*;
+
+  void convertNonTypeArgument(VariableSymbol* argument, const Type* targetType);
 
   [[nodiscard]] auto checkNonTypeParameterType(
       NonTypeTemplateParameterAST* parameter) -> bool;

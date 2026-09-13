@@ -41,7 +41,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   }
 }
 
-[[nodiscard]] auto decayedSourceType(const TypeTraits& traits,
+[[nodiscard]] auto decayedSourceType(TypeTraits& traits,
                                      const ImplicitConversionSequence& seq)
     -> const Type* {
   auto source = traits.remove_reference(seq.sourceType);
@@ -50,7 +50,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return traits.remove_cv(source);
 }
 
-[[nodiscard]] auto conversionTargetType(const TypeTraits& traits,
+[[nodiscard]] auto conversionTargetType(TypeTraits& traits,
                                         const ImplicitConversionSequence& seq)
     -> const Type* {
   if (seq.binding.binds() && seq.binding.referencedType)
@@ -61,7 +61,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 }
 
 [[nodiscard]] auto referenceBindingConversionKind(
-    const TypeTraits& traits, const ImplicitConversionSequence& seq)
+    TypeTraits& traits, const ImplicitConversionSequence& seq)
     -> ImplicitCastKind {
   auto target = traits.remove_cv(seq.binding.referencedType);
   auto source = traits.remove_cv(traits.remove_reference(seq.sourceType));
@@ -82,7 +82,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return ImplicitCastKind::kQualificationConversion;
 }
 
-[[nodiscard]] auto canonicalConversions(const TypeTraits& traits,
+[[nodiscard]] auto canonicalConversions(TypeTraits& traits,
                                         const ImplicitConversionSequence& seq)
     -> std::vector<ImplicitCastKind> {
   if (seq.binding.isDirect && seq.binding.referencedType) {
@@ -121,14 +121,14 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return kinds;
 }
 
-[[nodiscard]] auto yieldedType(const TypeTraits& traits,
+[[nodiscard]] auto yieldedType(TypeTraits& traits,
                                const ImplicitConversionSequence& seq)
     -> const Type* {
   return conversionTargetType(traits, seq);
 }
 
 [[nodiscard]] auto convertsToBoolFromPointer(
-    const TypeTraits& traits, const ImplicitConversionSequence& seq) -> bool {
+    TypeTraits& traits, const ImplicitConversionSequence& seq) -> bool {
   auto target = conversionTargetType(traits, seq);
   if (!target || target->kind() != TypeKind::kBool) return false;
 
@@ -137,7 +137,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
          traits.is_null_pointer(source);
 }
 
-[[nodiscard]] auto pointeeClass(const TypeTraits& traits, const Type* type)
+[[nodiscard]] auto pointeeClass(TypeTraits& traits, const Type* type)
     -> const Type* {
   auto pointerType = type_cast<PointerType>(type);
   if (!pointerType) return nullptr;
@@ -146,15 +146,15 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return element;
 }
 
-[[nodiscard]] auto isPointerToVoid(const TypeTraits& traits, const Type* type)
+[[nodiscard]] auto isPointerToVoid(TypeTraits& traits, const Type* type)
     -> bool {
   auto pointerType = type_cast<PointerType>(type);
   if (!pointerType) return false;
   return traits.is_void(pointerType->elementType());
 }
 
-[[nodiscard]] auto memberPointerClass(const TypeTraits& traits,
-                                      const Type* type) -> const Type* {
+[[nodiscard]] auto memberPointerClass(TypeTraits& traits, const Type* type)
+    -> const Type* {
   if (auto objectPointer = type_cast<MemberObjectPointerType>(type))
     return traits.remove_cv(objectPointer->classType());
   if (auto functionPointer = type_cast<MemberFunctionPointerType>(type))
@@ -162,13 +162,13 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return nullptr;
 }
 
-[[nodiscard]] auto classOperand(const TypeTraits& traits, const Type* type)
+[[nodiscard]] auto classOperand(TypeTraits& traits, const Type* type)
     -> const Type* {
   if (!traits.is_class(type)) return nullptr;
   return type;
 }
 
-[[nodiscard]] auto nearerBase(const TypeTraits& traits, const Type* left,
+[[nodiscard]] auto nearerBase(TypeTraits& traits, const Type* left,
                               const Type* right) -> std::optional<bool> {
   if (!left || !right) return std::nullopt;
   if (traits.is_same(left, right)) return std::nullopt;
@@ -177,7 +177,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return std::nullopt;
 }
 
-[[nodiscard]] auto sameSourceHierarchyBetter(const TypeTraits& traits,
+[[nodiscard]] auto sameSourceHierarchyBetter(TypeTraits& traits,
                                              const Type* source,
                                              const Type* target1,
                                              const Type* target2)
@@ -219,7 +219,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return std::nullopt;
 }
 
-[[nodiscard]] auto sameTargetHierarchyBetter(const TypeTraits& traits,
+[[nodiscard]] auto sameTargetHierarchyBetter(TypeTraits& traits,
                                              const Type* target,
                                              const Type* source1,
                                              const Type* source2)
@@ -263,9 +263,11 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return std::nullopt;
 }
 
-[[nodiscard]] auto classHierarchyBetter(
-    const TypeTraits& traits, const Type* source1, const Type* target1,
-    const Type* source2, const Type* target2) -> std::optional<bool> {
+[[nodiscard]] auto classHierarchyBetter(TypeTraits& traits, const Type* source1,
+                                        const Type* target1,
+                                        const Type* source2,
+                                        const Type* target2)
+    -> std::optional<bool> {
   if (!source1 || !source2 || !target1 || !target2) return std::nullopt;
 
   if (traits.is_same(source1, source2))
@@ -278,7 +280,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 }
 
 [[nodiscard]] auto promotesFixedEnumerationToUnderlyingType(
-    const TypeTraits& traits, const ImplicitConversionSequence& seq)
+    TypeTraits& traits, const ImplicitConversionSequence& seq)
     -> std::optional<bool> {
   auto enumType = type_cast<EnumType>(decayedSourceType(traits, seq));
   if (!enumType) return std::nullopt;
@@ -294,8 +296,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 }
 
 [[nodiscard]] auto initializedElementCount(
-    const TypeTraits& traits, const ImplicitConversionSequence& seq)
-    -> std::size_t {
+    TypeTraits& traits, const ImplicitConversionSequence& seq) -> std::size_t {
   auto arrayType =
       traits.remove_cv(traits.remove_reference(seq.destinationType));
   if (auto bounded = type_cast<BoundedArrayType>(arrayType))
@@ -303,7 +304,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return seq.list.elementCount;
 }
 
-[[nodiscard]] auto listArrayElementType(const TypeTraits& traits,
+[[nodiscard]] auto listArrayElementType(TypeTraits& traits,
                                         const ImplicitConversionSequence& seq)
     -> const Type* {
   auto arrayType =
@@ -313,7 +314,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 }
 
 [[nodiscard]] auto listInitializationBetter(
-    const TypeTraits& traits, const ImplicitConversionSequence& lhs,
+    TypeTraits& traits, const ImplicitConversionSequence& lhs,
     const ImplicitConversionSequence& rhs) -> std::optional<bool> {
   if (!lhs.list.isListInitialization || !rhs.list.isListInitialization)
     return std::nullopt;
@@ -339,7 +340,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   return std::nullopt;
 }
 
-[[nodiscard]] auto sameRankBetter(const TypeTraits& traits,
+[[nodiscard]] auto sameRankBetter(TypeTraits& traits,
                                   const ImplicitConversionSequence& lhs,
                                   const ImplicitConversionSequence& rhs)
     -> std::optional<bool> {
@@ -362,7 +363,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
                               conversionTargetType(traits, rhs));
 }
 
-[[nodiscard]] auto referenceBindingBetter(const TypeTraits& traits,
+[[nodiscard]] auto referenceBindingBetter(TypeTraits& traits,
                                           const ImplicitConversionSequence& lhs,
                                           const ImplicitConversionSequence& rhs)
     -> std::optional<bool> {
@@ -390,7 +391,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 }
 
 [[nodiscard]] auto qualificationConversionBetter(
-    const TypeTraits& traits, const ImplicitConversionSequence& lhs,
+    TypeTraits& traits, const ImplicitConversionSequence& lhs,
     const ImplicitConversionSequence& rhs) -> std::optional<bool> {
   auto lhsKinds = canonicalConversions(traits, lhs);
   auto rhsKinds = canonicalConversions(traits, rhs);
@@ -413,7 +414,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 }
 
 [[nodiscard]] auto boundReferenceTypeBetter(
-    const TypeTraits& traits, const ImplicitConversionSequence& lhs,
+    TypeTraits& traits, const ImplicitConversionSequence& lhs,
     const ImplicitConversionSequence& rhs) -> std::optional<bool> {
   if (!lhs.binding.binds() || !rhs.binding.binds()) return std::nullopt;
 
@@ -434,7 +435,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
       traits.add_pointer(traits.remove_cv(rhsType)));
 }
 
-[[nodiscard]] auto standardSequenceBetter(const TypeTraits& traits,
+[[nodiscard]] auto standardSequenceBetter(TypeTraits& traits,
                                           const ImplicitConversionSequence& lhs,
                                           const ImplicitConversionSequence& rhs)
     -> bool {
@@ -461,8 +462,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 }  // namespace
 
 auto ImplicitConversionSequence::isBetterThan(
-    const ImplicitConversionSequence& other, const TypeTraits& traits) const
-    -> bool {
+    const ImplicitConversionSequence& other, TypeTraits& traits) const -> bool {
   if (isStaticMemberObjectParameter || other.isStaticMemberObjectParameter)
     return false;
 

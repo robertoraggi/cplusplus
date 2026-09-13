@@ -71,12 +71,19 @@ struct ConstValueHash {
     }
     return seed;
   }
+  auto operator()(const std::shared_ptr<ConstComplex>& value) const
+      -> std::size_t {
+    std::size_t seed = 0;
+    hash_combine(seed, std::visit(ConstValueHash{}, value->real()));
+    hash_combine(seed, std::visit(ConstValueHash{}, value->imag()));
+    return seed;
+  }
   auto operator()(const std::shared_ptr<ConstObject>& value) const
       -> std::size_t {
     std::size_t seed = std::hash<const void*>{}(value->type());
-    for (const auto& field : value->fields()) {
-      hash_combine(seed, std::hash<const void*>{}(field.symbol));
-      hash_combine(seed, std::visit(ConstValueHash{}, field.value));
+    for (const auto& member : value->members()) {
+      hash_combine(seed, std::hash<const void*>{}(member.symbol));
+      hash_combine(seed, std::visit(ConstValueHash{}, member.value));
     }
     return seed;
   }
@@ -186,33 +193,17 @@ auto get_name_location(DotDesignatorAST* ast) -> SourceLocation {
   return ast->firstSourceLocation();
 }
 
-namespace {
-[[nodiscard]] auto builtinFunctionKindOf(TranslationUnit* unit,
-                                         FunctionSymbol* function)
-    -> BuiltinFunctionKind {
-  if (!function) return BuiltinFunctionKind::T_NONE;
-
-  auto loc = function->location();
-  if (!loc) return BuiltinFunctionKind::T_NONE;
-
-  if (unit->tokenAt(loc).fileId() != unit->preprocessor()->builtinsFileId())
-    return BuiltinFunctionKind::T_NONE;
-
-  return unit->tokenAt(loc).builtinFunction();
-}
-}  // namespace
-
-auto resolveBuiltinFunctionKind(TranslationUnit* unit, IdExpressionAST* idExpr)
+auto resolveBuiltinFunctionKind(IdExpressionAST* idExpr)
     -> BuiltinFunctionKind {
   if (!idExpr) return BuiltinFunctionKind::T_NONE;
 
   if (auto function = symbol_cast<FunctionSymbol>(idExpr->symbol)) {
-    return builtinFunctionKindOf(unit, function);
+    return function->builtinKind();
   }
 
   if (auto overloadSet = symbol_cast<OverloadSetSymbol>(idExpr->symbol)) {
     for (auto function : overloadSet->declaredFunctions()) {
-      auto kind = builtinFunctionKindOf(unit, function);
+      auto kind = function->builtinKind();
       if (kind != BuiltinFunctionKind::T_NONE) return kind;
     }
   }
@@ -243,6 +234,21 @@ auto Identifier::builtinFunction() const -> BuiltinFunctionKind {
 
   return static_cast<const BuiltinFunctionIdentifierInfo*>(info_)
       ->builtinKind();
+}
+
+auto well_known_name(const Name* name) -> WellKnownName {
+  auto id = name_cast<Identifier>(name);
+  return id ? id->wellKnownName() : WellKnownName::T_NONE;
+}
+
+auto Identifier::wellKnownName() const -> WellKnownName {
+  if (!info_) return WellKnownName::T_NONE;
+
+  if (info_->kind() != IdentifierInfoKind::kWellKnownName)
+    return WellKnownName::T_NONE;
+
+  return static_cast<const WellKnownNameIdentifierInfo*>(info_)
+      ->wellKnownName();
 }
 
 auto Identifier::builtinTemplate() const -> BuiltinTemplateKind {

@@ -225,8 +225,8 @@ auto ASTRewriter::rewriteMemberTemplateHead(Symbol* patternSymbol)
   }
 
   auto enclosingClass = symbol_cast<ClassSymbol>(patternSymbol->parent());
-  auto patternTemplateHead = ownFunctionTemplateHead(
-      unit_, enclosingClass, template_declaration_of(patternSymbol));
+  auto patternTemplateHead = TemplateEquivalence{unit_}.ownFunctionTemplateHead(
+      enclosingClass, template_declaration_of(patternSymbol));
   if (patternTemplateHead == currentTemplatePatternHead_) {
     return currentTemplateHead_;
   }
@@ -287,6 +287,7 @@ auto ASTRewriter::nestedNamespaceSpecifier(NestedNamespaceSpecifierAST* ast)
   copy->identifierLoc = ast->identifierLoc;
   copy->scopeLoc = ast->scopeLoc;
   copy->identifier = ast->identifier;
+  copy->symbol = ast->symbol;
   copy->isInline = ast->isInline;
 
   return copy;
@@ -342,6 +343,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   declSpecifierListCtx.templateHead = templateHead;
+  declSpecifierListCtx.attributeList = copy->attributeList;
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node, templateHead);
@@ -362,16 +364,24 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   }
 
   if (!ast->initDeclaratorList) {
-    for (auto spec : ListView{copy->declSpecifierList}) {
-      auto elab = ast_cast<ElaboratedTypeSpecifierAST>(spec);
-      if (!elab || elab->symbol || elab->nestedNameSpecifier) continue;
+    auto patternSpecifier = ast->declSpecifierList;
+    for (auto specifier = copy->declSpecifierList;
+         specifier && patternSpecifier; specifier = specifier->next,
+              patternSpecifier = patternSpecifier->next) {
+      auto elab = ast_cast<ElaboratedTypeSpecifierAST>(specifier->value);
+      if (!elab || elab->nestedNameSpecifier) continue;
       if (elab->classKey != TokenKind::T_CLASS &&
           elab->classKey != TokenKind::T_STRUCT &&
           elab->classKey != TokenKind::T_UNION) {
         continue;
       }
+      auto patternElab =
+          ast_cast<ElaboratedTypeSpecifierAST>(patternSpecifier->value);
       rewrite.binder().bind(elab, declSpecifierListCtx,
-                            /*isDeclaration=*/true);
+                            /*isDeclaration=*/true, elab->symbol);
+      if (patternElab && patternElab->symbol && elab->symbol) {
+        rewrite.addSymbolRemap(patternElab->symbol, elab->symbol);
+      }
     }
 
     if (auto classSpec =
@@ -393,6 +403,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   copy->semicolonLoc = ast->semicolonLoc;
 
   for (auto initDeclarator : ListView{copy->initDeclaratorList}) {
+    binder()->applyDeclarationAttributes(initDeclarator->symbol,
+                                         copy->attributeList);
+
     auto function = symbol_cast<FunctionSymbol>(initDeclarator->symbol);
     if (!function) continue;
 
@@ -589,6 +602,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
 auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
     -> DeclarationAST* {
+  const auto errorsBefore =
+      translationUnit()->diagnosticsClient()->errorCount();
   auto copy = AliasDeclarationAST::create(arena());
   const auto pendingExceptionSpecifierMark =
       rewrite.pendingExceptionSpecifierMark();
@@ -619,9 +634,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
   const auto addSymbolToParentScope =
       rewrite.binder().instantiatingSymbol() != ast->symbol;
 
-  auto symbol = binder()->declareTypeAlias(copy->identifierLoc, copy->typeId,
-                                           addSymbolToParentScope);
-  if (!addSymbolToParentScope && !rewrite.substitutionFailed() &&
+  auto symbol = binder()->declareTypeAlias(
+      copy->identifierLoc, copy->identifier, copy->typeId,
+      addSymbolToParentScope, templateHead);
+  const auto declarationIsValid =
+      translationUnit()->diagnosticsClient()->errorCount() == errorsBefore;
+  if (declarationIsValid && !addSymbolToParentScope &&
+      !rewrite.substitutionFailed() &&
       !rewrite.retainsEnclosingTemplateLevels()) {
     ast->symbol->addSpecialization(translationUnit(),
                                    rewrite.templateArguments(), symbol);
@@ -682,6 +701,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 
 auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationAST* {
+  const auto errorsBefore =
+      translationUnit()->diagnosticsClient()->errorCount();
   auto copy = FunctionDefinitionAST::create(arena());
   auto functionTemplateHead = templateHead;
   if (!functionTemplateHead) {
@@ -698,6 +719,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   declSpecifierListCtx.templateHead = functionTemplateHead;
+  declSpecifierListCtx.attributeList = copy->attributeList;
   for (auto declSpecifierList = &copy->declSpecifierList;
        auto node : ListView{ast->declSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -750,6 +772,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     functionSymbol = binder()->declareFunction(copy->declarator, declaratorDecl,
                                                addSymbolToParentScope);
   }
+
+  binder()->inheritDeclarationAttributes(functionSymbol, ast->symbol);
 
   if (ast->symbol && ast->symbol->isFriend()) functionSymbol->setFriend(true);
 
@@ -825,10 +849,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     auto instSym =
         symbol_cast<FunctionSymbol>(rewrite.binder().instantiatingSymbol());
     auto primaryForThis = ast->symbol->canonical();
-    if (instSym && (instSym == ast->symbol || instSym == primaryForThis ||
-                    instSym->canonical() == primaryForThis ||
-                    (isFunctionTemplateSpecialization &&
-                     instSym->templateDeclaration()))) {
+    const auto declarationIsValid =
+        translationUnit()->diagnosticsClient()->errorCount() == errorsBefore;
+    if (declarationIsValid && !rewrite.substitutionFailed() && instSym &&
+        (instSym == ast->symbol || instSym == primaryForThis ||
+         instSym->canonical() == primaryForThis ||
+         (isFunctionTemplateSpecialization &&
+          instSym->templateDeclaration()))) {
       instSym->addSpecialization(translationUnit(), rewrite.templateArguments(),
                                  functionSymbol);
     }
@@ -1029,6 +1056,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(NamespaceDefinitionAST* ast)
 
   copy->rbraceLoc = ast->rbraceLoc;
   copy->identifier = ast->identifier;
+  copy->symbol = ast->symbol;
   copy->isInline = ast->isInline;
 
   return copy;
@@ -1092,6 +1120,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
   copy->thisLoc = ast->thisLoc;
 
   auto typeSpecifierListCtx = DeclSpecs{rewrite.unit_};
+  typeSpecifierListCtx.attributeList = copy->attributeList;
   for (auto typeSpecifierList = &copy->typeSpecifierList;
        auto node : ListView{ast->typeSpecifierList}) {
     auto value = rewrite.specifier(node);
@@ -1114,16 +1143,34 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
   copy->isThisIntroduced = ast->isThisIntroduced;
   copy->isPack = ast->isPack;
 
-  const bool inTemplateParameters = binder()->scope()->isTemplateParameters();
+  const bool inTemplateParameters =
+      binder()->scope()->isTemplateParameters() ||
+      rewrite.rewritingTemplateParameterDeclaration();
 
-  copy->expression = rewrite.expression(ast->expression);
+  auto defaultArgument = ast->expression;
+  ScopeSymbol* defaultArgumentScope = nullptr;
+
+  if (!defaultArgument) {
+    if (auto parameter = symbol_cast<ParameterSymbol>(ast->symbol)) {
+      defaultArgument = parameter->defaultArgument();
+      if (defaultArgument) {
+        if (auto patternClass = parameter->enclosingClass()) {
+          defaultArgumentScope =
+              symbol_cast<ClassSymbol>(rewrite.remapSymbol(patternClass));
+        }
+      }
+    }
+  }
+
+  {
+    auto _ = Binder::ScopeGuard{binder()};
+    if (defaultArgumentScope) binder()->setScope(defaultArgumentScope);
+    copy->expression = rewrite.expression(defaultArgument);
+  }
 
   binder()->bind(copy, declaratorDecl, inTemplateParameters);
 
-  ParameterSymbol* parameter = nullptr;
-  if (!binder()->scope()->members().empty())
-    parameter =
-        symbol_cast<ParameterSymbol>(binder()->scope()->members().back());
+  auto parameter = copy->symbol;
 
   rewrite.associatePendingExceptionSpecifiers(
       pendingExceptionSpecifierMark, nullptr, nullptr, nullptr,
@@ -1247,8 +1294,12 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
 
   copy->depth = ast->depth;
   copy->index = ast->index;
-  copy->declaration =
-      ast_cast<ParameterDeclarationAST>(rewrite.declaration(ast->declaration));
+
+  {
+    ASTRewriter::TemplateParameterDeclarationGuard guard{rewrite};
+    copy->declaration = ast_cast<ParameterDeclarationAST>(
+        rewrite.declaration(ast->declaration));
+  }
 
   binder()->bind(copy, copy->index, copy->depth);
   rewrite.addSymbolRemap(ast->symbol, copy->symbol);

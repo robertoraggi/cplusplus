@@ -58,11 +58,13 @@ enum class IdentifierInfoKind {
   kUnaryBuiltinType,
   kBuiltinFunction,
   kBuiltinTemplate,
+  kWellKnownName,
 };
 
 class IdentifierInfo;
 class TypeTraitIdentifierInfo;
 class BuiltinFunctionIdentifierInfo;
+class WellKnownNameIdentifierInfo;
 
 auto to_string(const Name* name) -> std::string;
 auto to_string(const TemplateArgument& argument) -> std::string;

@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/attributes.h>
 #include <cxx/literals_fwd.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
@@ -64,8 +65,14 @@ class Control {
   [[nodiscard]] auto commentLiteral(std::string_view spelling)
       -> const CommentLiteral*;
 
+  [[nodiscard]] auto stringLiteralFromValue(std::string_view value)
+      -> const StringLiteral*;
+
   [[nodiscard]] auto newAnonymousId(std::string_view base) -> const Identifier*;
   [[nodiscard]] auto getIdentifier(std::string_view name) -> const Identifier*;
+
+  [[nodiscard]] auto getAttributes(AttributeMap attributes)
+      -> const AttributeMap*;
 
   [[nodiscard]] auto getAbiTags(std::vector<const Identifier*> tags)
       -> const std::vector<const Identifier*>*;
@@ -171,6 +178,19 @@ class Control {
                                              ExpressionAST* sizeExpression,
                                              bool isUnsigned)
       -> const UnresolvedBitIntType*;
+  [[nodiscard]] auto getVectorType(const Type* elementType,
+                                   std::size_t elementCount,
+                                   VectorKind vectorKind) -> const VectorType*;
+  [[nodiscard]] auto getUnresolvedVectorType(TranslationUnit* unit,
+                                             const Type* elementType,
+                                             ExpressionAST* sizeExpression,
+                                             VectorKind vectorKind,
+                                             VectorSizeKind sizeKind)
+      -> const UnresolvedVectorType*;
+  [[nodiscard]] auto getComplexType(const Type* elementType)
+      -> const ComplexType*;
+  [[nodiscard]] auto getAtomicType(const Type* elementType)
+      -> const AtomicType*;
 
   [[nodiscard]] auto newNamespaceSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)
@@ -260,6 +280,9 @@ class Control {
   [[nodiscard]] auto beginCopyConstructorSelection(ClassSymbol* classSymbol)
       -> bool;
   void endCopyConstructorSelection(ClassSymbol* classSymbol);
+
+  [[nodiscard]] auto anonymousIdCount() const -> int;
+  void setAnonymousIdCount(int count);
 
   [[nodiscard]] auto closureNameCount() const -> int;
   void setClosureNameCount(int count);

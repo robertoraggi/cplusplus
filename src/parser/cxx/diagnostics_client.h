@@ -21,11 +21,11 @@
 #pragma once
 
 #include <cxx/diagnostic.h>
+#include <cxx/source_resolver.h>
 
 #include <vector>
 
 namespace cxx {
-class Preprocessor;
 class TranslationUnit;
 
 class DiagnosticsClient {
@@ -41,12 +41,12 @@ class DiagnosticsClient {
 
   [[nodiscard]] virtual auto isSfinae() const -> bool { return false; }
 
-  [[nodiscard]] auto preprocessor() const -> Preprocessor* {
-    return preprocessor_;
+  [[nodiscard]] auto sourceResolver() const -> SourceResolver* {
+    return sourceResolver_;
   }
 
-  void setPreprocessor(Preprocessor* preprocessor) {
-    preprocessor_ = preprocessor;
+  void setSourceResolver(SourceResolver* sourceResolver) {
+    sourceResolver_ = sourceResolver;
   }
 
   [[nodiscard]] auto fatalErrors() const -> bool { return fatalErrors_; }
@@ -70,7 +70,8 @@ class DiagnosticsClient {
     return blockErrors;
   }
 
-  void report(const Token& token, Severity severity, std::string message) {
+  void report(const Token& token, Severity severity, std::string message,
+              SourceLocation location = {}) {
     if (blockErrors_) return;
 
     if (severity == Severity::Error || severity == Severity::Fatal) {
@@ -78,13 +79,13 @@ class DiagnosticsClient {
       if (errorLimit_ > 0 && errorCount_ > errorLimit_) return;
     }
 
-    Diagnostic diag{severity, token, std::move(message)};
+    Diagnostic diag{severity, token, std::move(message), location};
 
     report(diag);
   }
 
  private:
-  Preprocessor* preprocessor_ = nullptr;
+  SourceResolver* sourceResolver_ = nullptr;
   int errorCount_ = 0;
   int errorLimit_ = 0;
   bool blockErrors_ = false;

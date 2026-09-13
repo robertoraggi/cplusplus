@@ -555,9 +555,8 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   }
 
   if (auto primaryClass = symbol_cast<ClassSymbol>(copy->templateId->symbol)) {
-    auto instance = ASTRewriter::instantiate(
-        rewrite.unit_, copy->templateId->templateArgumentList, primaryClass,
-        copy->templateId->identifierLoc);
+    auto instance = binder()->resolve(copy->nestedNameSpecifier,
+                                      copy->templateId, true, primaryClass);
     copy->symbol = symbol_cast<ClassSymbol>(instance);
   }
 

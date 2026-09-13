@@ -49,6 +49,10 @@ class ExternalNameEncoder {
   [[nodiscard]] auto mangledAbiTags(Symbol* symbol)
       -> std::vector<const Identifier*>;
   [[nodiscard]] auto encodeVTable(ClassSymbol* classSymbol) -> std::string;
+  [[nodiscard]] auto encodeConstructionVTable(ClassSymbol* completeClass,
+                                              std::int64_t offset,
+                                              ClassSymbol* baseClass)
+      -> std::string;
   [[nodiscard]] auto encodeVTT(ClassSymbol* classSymbol) -> std::string;
   [[nodiscard]] auto encodeGuardVariable(Symbol* symbol) -> std::string;
   [[nodiscard]] auto encodeTypeInfo(const Type* type) -> std::string;

@@ -170,15 +170,34 @@ class [[nodiscard]] ASTRewriter {
                                      bool captureBodyErrors = false)
       -> std::vector<Diagnostic>;
 
+  static void requireVirtualMemberDefinitions(TranslationUnit* unit,
+                                              ClassSymbol* classSymbol);
+
+  static void requireVTableForKeyFunction(TranslationUnit* unit,
+                                          FunctionSymbol* function);
+
+  static void requireSubobjectDefaultConstructors(TranslationUnit* unit,
+                                                  FunctionSymbol* constructor);
+
+  static void requirePotentiallyInvokedDestructors(TranslationUnit* unit,
+                                                   FunctionSymbol* destructor);
+
+  static void requireDestructorOfType(TranslationUnit* unit, const Type* type);
+
   static void requireFunctionDefinition(TranslationUnit* unit,
                                         FunctionSymbol* function);
 
   static void requireFieldDefinition(TranslationUnit* unit, FieldSymbol* field);
 
+  static void requireDefinitionsNamedBy(TranslationUnit* unit, AST* ast);
+
   static void completePendingFieldInitializer(TranslationUnit* unit,
                                               FieldSymbol* field);
 
   static void completeDeducedReturnType(TranslationUnit* unit, Symbol* symbol);
+
+  static auto completedSymbolType(TranslationUnit* unit, Symbol* symbol)
+      -> const Type*;
 
   void setInstantiatingFunctionTemplateSpecialization(bool value) {
     instantiatingFunctionTemplateSpecialization_ = value;
@@ -187,9 +206,12 @@ class [[nodiscard]] ASTRewriter {
   void setDepth(int depth) { depth_ = depth; }
   auto depth() const -> int { return depth_; }
 
-  void instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern);
+  void instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern,
+                                              ClassSymbol* instanceClass);
 
   void retryPendingMemberTemplateAttachment(FunctionSymbol* member);
+
+  void retryPendingSpecializationBodyAttachment(FunctionSymbol* specialization);
 
   [[nodiscard]] static auto evaluateSpecializationConstraints(
       TranslationUnit* unit, FunctionSymbol* symbol, FunctionSymbol* primary)
@@ -216,12 +238,41 @@ class [[nodiscard]] ASTRewriter {
                                               Symbol* symbol, Symbol* other)
       -> bool;
 
+  [[nodiscard]] static auto isMorePartialOrderingConstrained(
+      TranslationUnit* unit, FunctionSymbol* function, FunctionSymbol* other)
+      -> bool;
+
  private:
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
   void note(SourceLocation loc, std::string message);
 
   void check(ExpressionAST* ast);
+
+  class TemplateParameterDeclarationGuard {
+   public:
+    explicit TemplateParameterDeclarationGuard(ASTRewriter& rewrite)
+        : rewrite_(rewrite),
+          saved_(std::exchange(rewrite.rewritingTemplateParameterDeclaration_,
+                               true)) {}
+
+    ~TemplateParameterDeclarationGuard() {
+      rewrite_.rewritingTemplateParameterDeclaration_ = saved_;
+    }
+
+    TemplateParameterDeclarationGuard(
+        const TemplateParameterDeclarationGuard&) = delete;
+    auto operator=(const TemplateParameterDeclarationGuard&)
+        -> TemplateParameterDeclarationGuard& = delete;
+
+   private:
+    ASTRewriter& rewrite_;
+    bool saved_;
+  };
+
+  [[nodiscard]] auto rewritingTemplateParameterDeclaration() const -> bool {
+    return rewritingTemplateParameterDeclaration_;
+  }
 
   struct RewritePartialSpecialization;
   struct ConstraintSubsumption;
@@ -561,6 +612,7 @@ class [[nodiscard]] ASTRewriter {
   TemplateDeclarationAST* currentTemplateHead_ = nullptr;
   int depth_ = 0;
   ClassSymbol* classInstanceToComplete_ = nullptr;
+  bool rewritingTemplateParameterDeclaration_ = false;
   bool restrictedToDeclarations_ = false;
   bool rewritingConstraintExpression_ = false;
   bool retainsEnclosingTemplateLevels_ = false;

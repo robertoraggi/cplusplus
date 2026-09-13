@@ -386,6 +386,15 @@ class TypePrinter {
 
   void operator()(const UnresolvedNameType* type) {
     auto unit = type->translationUnit();
+
+    // The snippet is the only spelling available once the tokens the name was
+    // written with are gone, as they are for an adopted prefix (6.8).
+    auto snippet = unit->snippetText(type->sourceLocationRange());
+    if (!snippet.empty()) {
+      specifiers_ += snippet;
+      return;
+    }
+
     std::ostringstream os;
     ASTPrettyPrinter pp(unit, os);
     if (type->nestedNameSpecifier()) {
@@ -396,15 +405,8 @@ class TypePrinter {
   }
 
   auto textOf(TranslationUnit* unit, SourceLocationRange range) const
-      -> std::string {
-    std::string buf;
-    auto [first, last] = range;
-    for (auto loc = first; loc != last; loc = loc.next()) {
-      const auto& tk = unit->tokenAt(loc);
-      if (loc != first && (tk.leadingSpace() || tk.startOfLine())) buf += ' ';
-      buf += tk.spell();
-    }
-    return buf;
+      -> std::string_view {
+    return unit->snippetText(range);
   }
 
   void operator()(const UnresolvedBoundedArrayType* type) {
@@ -468,6 +470,40 @@ class TypePrinter {
     specifiers_ += textOf(type->translationUnit(),
                           type->sizeExpression()->sourceLocationRange());
     specifiers_ += ")";
+  }
+
+  void operator()(const VectorType* type) {
+    const auto elementType = to_string(type->elementType());
+    specifiers_ += elementType;
+    if (type->vectorKind() == VectorKind::kExt) {
+      specifiers_ += std::format(" __attribute__((ext_vector_type({})))",
+                                 type->elementCount());
+    } else {
+      specifiers_ +=
+          std::format(" __attribute__((vector_size({} * sizeof({}))))",
+                      type->elementCount(), elementType);
+    }
+  }
+
+  void operator()(const ComplexType* type) {
+    specifiers_ += "_Complex ";
+    accept(type->elementType());
+  }
+
+  void operator()(const AtomicType* type) {
+    specifiers_ += "_Atomic(";
+    specifiers_ += to_string(type->elementType());
+    specifiers_ += ")";
+  }
+
+  void operator()(const UnresolvedVectorType* type) {
+    specifiers_ += to_string(type->elementType());
+    specifiers_ += type->vectorKind() == VectorKind::kExt
+                       ? " __attribute__((ext_vector_type("
+                       : " __attribute__((vector_size(";
+    specifiers_ += textOf(type->translationUnit(),
+                          type->sizeExpression()->sourceLocationRange());
+    specifiers_ += ")))";
   }
 
  private:

@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -37,17 +38,29 @@ namespace cxx {
 
 [[nodiscard]] auto bindsName(Symbol* symbol) -> bool;
 
+struct ClassMemberLookup {
+  Symbol* symbol = nullptr;
+  bool ambiguous = false;
+};
+
+[[nodiscard]] auto lookupClassMember(ClassSymbol* scope, const Name* name,
+                                     const std::function<bool(Symbol*)>& accept)
+    -> ClassMemberLookup;
+
 namespace detail {
 template <typename Predicate>
 [[nodiscard]] auto searchScope(ScopeSymbol* scope, const Name* name,
                                std::vector<ScopeSymbol*>& visited,
-                               Predicate accept) -> Symbol* {
+                               Predicate accept,
+                               bool followUsingDirectives = true,
+                               bool searchBaseClasses = true) -> Symbol* {
   if (std::ranges::contains(visited, scope)) return nullptr;
   visited.push_back(scope);
 
   if (auto cls = symbol_cast<ClassSymbol>(scope)) {
     if (auto def = cls->definition(); def && def != cls)
-      return searchScope(def, name, visited, accept);
+      return searchScope(def, name, visited, accept, followUsingDirectives,
+                         searchBaseClasses);
   }
 
   Symbol* classOrEnumDeclaration = nullptr;
@@ -78,15 +91,16 @@ template <typename Predicate>
     for (auto member : classSymbol->find(/*unnamed=*/nullptr)) {
       auto nestedClass = symbol_cast<ClassSymbol>(member);
       if (!nestedClass) continue;
-      if (auto s = searchScope(nestedClass, name, visited, accept)) return s;
+      if (auto s = searchScope(nestedClass, name, visited, accept,
+                               followUsingDirectives))
+        return s;
     }
 
-    for (const auto& base : classSymbol->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass) continue;
-      if (auto s = searchScope(baseClass, name, visited, accept)) return s;
-    }
+    if (searchBaseClasses && !classSymbol->baseClasses().empty())
+      return lookupClassMember(classSymbol, name, accept).symbol;
   }
+
+  if (!followUsingDirectives) return nullptr;
 
   for (auto u : scope->usingDirectives()) {
     if (auto s = searchScope(u, name, visited, accept)) return s;
@@ -187,18 +201,28 @@ void addOverloadCandidate(std::vector<FunctionSymbol*>& candidates,
 
 [[nodiscard]] auto designatedFunction(Symbol* symbol) -> FunctionSymbol*;
 
-[[nodiscard]] auto mergeInlineNamespaceOverloads(Control* control,
-                                                 NamespaceSymbol* scope,
-                                                 const Name* name,
-                                                 Symbol* primary) -> Symbol*;
-
 [[nodiscard]] auto qualifiedLookupIncludingInlineNamespaces(
-    Control* control, Symbol* scopeOrAlias, const Name* name) -> Symbol*;
+    Control* control, Symbol* scopeOrAlias, const Name* name,
+    bool* ambiguous = nullptr) -> Symbol*;
+
+struct DeallocationSignature {
+  bool isDestroying = false;
+  bool hasSize = false;
+  bool hasAlignment = false;
+};
+
+[[nodiscard]] auto deallocationSignatureOf(TranslationUnit* unit,
+                                           FunctionSymbol* fn)
+    -> std::optional<DeallocationSignature>;
 
 [[nodiscard]] auto resolveUsualOperatorDelete(TranslationUnit* unit,
                                               ClassSymbol* classSymbol,
+                                              const Type* objectType,
                                               bool isArrayDelete)
     -> FunctionSymbol*;
+
+[[nodiscard]] auto declareGlobalOperatorNew(TranslationUnit* unit,
+                                            bool isArrayNew) -> FunctionSymbol*;
 
 [[nodiscard]] auto resolveBuiltinOperatorDelete(
     TranslationUnit* unit, std::span<const Type* const> argumentTypes)
@@ -212,4 +236,9 @@ void addOverloadCandidate(std::vector<FunctionSymbol*>& candidates,
                                                const char* nameStr,
                                                const FunctionType* funcType)
     -> FunctionSymbol*;
+
+[[nodiscard]] auto resolveBuiltinFunctionSymbol(TranslationUnit* unit,
+                                                const Identifier* name,
+                                                BuiltinFunctionKind kind)
+    -> Symbol*;
 }  // namespace cxx

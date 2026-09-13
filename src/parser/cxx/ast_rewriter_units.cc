@@ -162,6 +162,8 @@ auto ASTRewriter::importName(ImportNameAST* ast) -> ImportNameAST* {
 auto ASTRewriter::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitAST* {
   auto copy = TranslationUnitAST::create(arena());
 
+  copy->symbol = ast->symbol;
+
   for (auto declarationList = &copy->declarationList;
        auto node : ListView{ast->declarationList}) {
     auto value = rewrite.declaration(node);
@@ -174,6 +176,8 @@ auto ASTRewriter::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitAST* {
 
 auto ASTRewriter::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitAST* {
   auto copy = ModuleUnitAST::create(arena());
+
+  copy->symbol = ast->symbol;
 
   copy->globalModuleFragment =
       rewrite.globalModuleFragment(ast->globalModuleFragment);

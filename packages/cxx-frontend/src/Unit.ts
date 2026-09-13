@@ -19,12 +19,13 @@
 // SOFTWARE.
 
 import { type Diagnostic } from "./Diagnostic.js";
+import { type EmitterDelegate } from "./Emitter.js";
 
 export interface Unit {
   delete(): void;
   parse(): Promise<boolean>;
-  getHandle(): number;
   getUnitHandle(): number;
   getDiagnostics(): Diagnostic[];
   emitCode(format: string): string | Uint8Array;
+  emitWith(delegate: EmitterDelegate): void;
 }

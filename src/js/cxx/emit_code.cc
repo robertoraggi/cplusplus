@@ -21,11 +21,13 @@
 #include "emit_code.h"
 
 #ifdef CXX_WITH_MLIR
+#include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
-#include <cxx/mlir/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
+#include <cxx/mlir/mlir_emitter.h>
+#include <cxx/private/path.h>
 #include <cxx/translation_unit.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>
@@ -46,7 +48,7 @@ namespace cxx::js {
 
 auto hasCodeGenerator() -> bool { return false; }
 
-auto generateCode(TranslationUnit*, std::string_view, bool)
+auto generateCode(TranslationUnit*, std::string_view, bool, int)
     -> std::optional<GeneratedCode> {
   return std::nullopt;
 }
@@ -56,16 +58,22 @@ auto generateCode(TranslationUnit*, std::string_view, bool)
 auto hasCodeGenerator() -> bool { return true; }
 
 auto generateCode(TranslationUnit* unit, std::string_view format,
-                  bool debugInfo) -> std::optional<GeneratedCode> {
+                  bool debugInfo, int optimizationLevel)
+    -> std::optional<GeneratedCode> {
   const auto objectFile = format == "obj";
 
   mlir::MLIRContext context{mlir::MLIRContext::Threading::DISABLED};
 
   context.loadDialect<mlir::cxx::CxxDialect>();
 
-  Codegen codegen(context, unit, debugInfo);
+  ir::MlirEmitter emitter(context, unit);
+  Codegen codegen(
+      emitter, unit,
+      {.debugInfo = debugInfo,
+       .debugCompilationDirectory = fs::working_directory().string()});
 
-  auto ir = codegen(unit->ast());
+  auto result = codegen(unit->ast());
+  auto module = emitter.module(result.module);
 
   std::ostringstream out;
   llvm::raw_os_ostream os(out);
@@ -82,26 +90,17 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   };
 
   if (format == "cxxir") {
-    ir.module->print(os, printingFlags());
+    module->print(os, printingFlags());
     return textOutput();
   }
 
-  if (failed(lowerToMLIR(ir.module))) {
+  if (failed(lowerToMLIR(module))) {
     if (objectFile) return GeneratedCode{};
     return GeneratedCode{.text = std::format("<error lowering to {}>", format)};
   }
 
   if (format == "mlir") {
-    ir.module->print(os, printingFlags());
-    return textOutput();
-  }
-
-  llvm::LLVMContext llvmContext;
-  auto llvmModule = exportToLLVMIR(ir.module, llvmContext);
-  llvmModule->setSourceFileName(unit->fileName());
-
-  if (format == "llvm") {
-    llvmModule->print(os, nullptr);
+    module->print(os, printingFlags());
     return textOutput();
   }
 
@@ -110,9 +109,31 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   LLVMInitializeWebAssemblyTargetMC();
   LLVMInitializeWebAssemblyAsmPrinter();
 
-  llvm::TargetOptions opt;
+  const auto codeGenOptLevel = [&] {
+    switch (optimizationLevel) {
+      case 1:
+        return llvm::CodeGenOptLevel::Less;
+      case 2:
+        return llvm::CodeGenOptLevel::Default;
+      case 3:
+        return llvm::CodeGenOptLevel::Aggressive;
+      default:
+        return llvm::CodeGenOptLevel::None;
+    }
+  }();
 
-  auto RM = std::optional<llvm::Reloc::Model>();
+  const auto pipelineOptLevel = [&] {
+    switch (optimizationLevel) {
+      case 1:
+        return llvm::OptimizationLevel::O1;
+      case 2:
+        return llvm::OptimizationLevel::O2;
+      case 3:
+        return llvm::OptimizationLevel::O3;
+      default:
+        return llvm::OptimizationLevel::O0;
+    }
+  }();
 
   auto triple = llvm::Triple{codegen.control()->memoryLayout()->triple()};
 
@@ -120,7 +141,22 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   auto target = llvm::TargetRegistry::lookupTarget(triple, error);
 
   auto targetMachine =
-      target->createTargetMachine(llvm::Triple{triple}, "generic", "", opt, RM);
+      std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
+          llvm::Triple{triple}, "generic", "", llvm::TargetOptions{},
+          std::optional<llvm::Reloc::Model>(), std::nullopt, codeGenOptLevel));
+
+  llvm::LLVMContext llvmContext;
+  auto llvmModule = exportToLLVMIR(module, llvmContext);
+  llvmModule->setSourceFileName(unit->fileName());
+
+  if (pipelineOptLevel != llvm::OptimizationLevel::O0) {
+    optimizeLLVMIR(*llvmModule, targetMachine.get(), pipelineOptLevel);
+  }
+
+  if (format == "llvm") {
+    llvmModule->print(os, nullptr);
+    return textOutput();
+  }
 
   llvm::legacy::PassManager pm;
 

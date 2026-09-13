@@ -56,6 +56,7 @@ struct Candidate {
   FunctionSymbol* symbol = nullptr;
   std::optional<ImplicitConversionSequence> objectConversion;
   std::vector<ImplicitConversionSequence> conversions;
+  std::optional<ImplicitConversionSequence> resultConversion;
   bool viable = false;
   bool fromTemplate = false;
   List<TemplateArgumentAST*>* deducedTemplateArgs = nullptr;
@@ -73,7 +74,7 @@ struct BinaryOperatorCandidate {
   bool reversed = false;
 };
 
-[[nodiscard]] auto isExcludedInheritedConstructor(const TypeTraits& traits,
+[[nodiscard]] auto isExcludedInheritedConstructor(TypeTraits& traits,
                                                   FunctionSymbol* constructor,
                                                   ClassSymbol* classSymbol,
                                                   int argCount) -> bool;
@@ -83,11 +84,27 @@ struct RejectedCandidate {
   std::string reason;
 };
 
+enum class ConstructorSelectionFailure {
+  kNone,
+  kNoViableConstructor,
+  kAmbiguous,
+  kExplicitInCopyInitialization,
+};
+
 struct ConstructorResult {
   std::vector<Candidate> candidates;
   std::vector<RejectedCandidate> rejected;
   Candidate* best = nullptr;
   bool ambiguous = false;
+  bool fromInitializerListConstructor = false;
+  ConstructorSelectionFailure failure = ConstructorSelectionFailure::kNone;
+
+  [[nodiscard]] auto selected() const -> FunctionSymbol* {
+    if (failure != ConstructorSelectionFailure::kNone) return nullptr;
+    return best ? best->symbol : nullptr;
+  }
+
+  [[nodiscard]] explicit operator bool() const { return selected() != nullptr; }
 };
 
 [[nodiscard]] auto haveSameParameterTypes(FunctionSymbol* lhs,
@@ -103,6 +120,17 @@ struct ConstructorResult {
 [[nodiscard]] auto compareFunctionTemplateSpecializations(
     TranslationUnit* unit, FunctionSymbol* candidate, FunctionSymbol* other)
     -> int;
+
+[[nodiscard]] auto compareNonTemplateConstraints(TranslationUnit* unit,
+                                                 FunctionSymbol* candidate,
+                                                 FunctionSymbol* other) -> int;
+
+[[nodiscard]] auto compareCandidateOrdering(TranslationUnit* unit,
+                                            FunctionSymbol* candidate,
+                                            bool candidateFromTemplate,
+                                            FunctionSymbol* other,
+                                            bool otherFromTemplate,
+                                            bool preferNonTemplate) -> int;
 
 class OverloadResolution {
  public:
@@ -128,9 +156,12 @@ class OverloadResolution {
       InitializationKind initializationKind =
           InitializationKind::kDirectInitialization) -> ConstructorResult;
 
-  [[nodiscard]] auto resolveInitializerListConstructor(
+  [[nodiscard]] auto selectListConstructor(
       ClassSymbol* classSymbol, BracedInitListAST* bracedInitList,
+      const std::vector<ExpressionAST*>& elements,
       InitializationKind initializationKind) -> ConstructorResult;
+
+  [[nodiscard]] auto hasDefaultConstructor(ClassSymbol* classSymbol) -> bool;
 
   [[nodiscard]] auto findCandidates(ScopeSymbol* scope, const Name* name) const
       -> std::vector<FunctionSymbol*>;
@@ -172,6 +203,10 @@ class OverloadResolution {
 
   [[nodiscard]] auto wasLastOperatorReversed() const -> bool {
     return lastOperatorReversed_;
+  }
+
+  void setAccessingScope(ScopeSymbol* accessingScope) {
+    stdconv_.setAccessingScope(accessingScope);
   }
 
  private:

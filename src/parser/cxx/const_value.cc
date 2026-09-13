@@ -19,19 +19,82 @@
 // SOFTWARE.
 
 #include <cxx/const_value.h>
+#include <cxx/names.h>
+#include <cxx/symbols.h>
+#include <cxx/types.h>
 
 namespace cxx {
 
+namespace {
+[[nodiscard]] auto isTransparentSubobject(const Symbol* symbol) -> bool {
+  if (symbol_cast<BaseClassSymbol>(const_cast<Symbol*>(symbol))) return true;
+  auto field = symbol_cast<FieldSymbol>(const_cast<Symbol*>(symbol));
+  return field && !field->name();
+}
+}  // namespace
+
+auto ConstObject::isUnion() const -> bool {
+  auto classType = unqualified_cast<ClassType>(type_);
+  auto classSymbol = classType ? classType->symbol() : nullptr;
+  return classSymbol && classSymbol->isUnion();
+}
+
+auto ConstObject::addMember(const Symbol* symbol, ConstValue value)
+    -> ConstValue* {
+  if (isUnion()) members_.clear();
+  members_.push_back({symbol, std::move(value)});
+  return &members_.back().value;
+}
+
+void ConstObject::setMember(const Symbol* symbol, ConstValue value) {
+  if (!isUnion()) {
+    for (auto& member : members_) {
+      if (member.symbol == symbol) {
+        member.value = std::move(value);
+        return;
+      }
+    }
+  }
+  addMember(symbol, std::move(value));
+}
+
+auto ConstObject::subobject(const Symbol* symbol) const -> const ConstValue* {
+  for (const auto& member : members_) {
+    if (member.symbol == symbol) return &member.value;
+  }
+  for (const auto& member : members_) {
+    if (!isTransparentSubobject(member.symbol)) continue;
+    auto nested = std::get_if<std::shared_ptr<ConstObject>>(&member.value);
+    if (!nested || !*nested) continue;
+    if (auto found = (*nested)->subobject(symbol)) return found;
+  }
+  return nullptr;
+}
+
+auto ConstObject::mutableSubobject(const Symbol* symbol) -> ConstValue* {
+  for (auto& member : members_) {
+    if (member.symbol == symbol) return &member.value;
+  }
+  for (auto& member : members_) {
+    if (!isTransparentSubobject(member.symbol)) continue;
+    auto nested = std::get_if<std::shared_ptr<ConstObject>>(&member.value);
+    if (!nested || !*nested) continue;
+    if (auto found = (*nested)->mutableSubobject(symbol)) return found;
+  }
+  return nullptr;
+}
+
+auto ConstAddress::sameTarget(const ConstAddress& other) const -> bool {
+  return symbol_ == other.symbol_ && owner_ == other.owner_ &&
+         string_ == other.string_ && typeInfoFor_ == other.typeInfoFor_;
+}
+
 auto ConstObject::operator==(const ConstObject& other) const -> bool {
   if (type_ != other.type_) return false;
-  if (fields_.size() != other.fields_.size()) return false;
-  if (bases_.size() != other.bases_.size()) return false;
-  for (std::size_t i = 0; i < fields_.size(); ++i) {
-    if (fields_[i].symbol != other.fields_[i].symbol) return false;
-    if (fields_[i].value != other.fields_[i].value) return false;
-  }
-  for (std::size_t i = 0; i < bases_.size(); ++i) {
-    if (bases_[i] != other.bases_[i]) return false;
+  if (members_.size() != other.members_.size()) return false;
+  for (std::size_t i = 0; i < members_.size(); ++i) {
+    if (members_[i].symbol != other.members_[i].symbol) return false;
+    if (members_[i].value != other.members_[i].value) return false;
   }
   return true;
 }

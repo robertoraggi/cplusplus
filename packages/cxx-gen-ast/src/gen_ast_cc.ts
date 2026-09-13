@@ -230,6 +230,13 @@ auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view {
   case ImplicitCastKind::kBooleanConversion: return "boolean-conversion";
   case ImplicitCastKind::kFunctionPointerConversion: return "function-pointer-conversion";
   case ImplicitCastKind::kQualificationConversion: return "qualification-conversion";
+  case ImplicitCastKind::kVectorSplat: return "vector-splat";
+  case ImplicitCastKind::kVectorConversion: return "vector-conversion";
+  case ImplicitCastKind::kAtomicToNonAtomic: return "atomic-to-non-atomic";
+  case ImplicitCastKind::kNonAtomicToAtomic: return "non-atomic-to-atomic";
+  case ImplicitCastKind::kRealToComplexConversion: return "real-to-complex-conversion";
+  case ImplicitCastKind::kComplexToRealConversion: return "complex-to-real-conversion";
+  case ImplicitCastKind::kComplexConversion: return "complex-conversion";
   case ImplicitCastKind::kTemporaryMaterializationConversion: return "temporary-materialization-conversion";
   case ImplicitCastKind::kUserDefinedConversion: return "user-defined-conversion";
   default: cxx_runtime_error("Invalid implicit cast kind");

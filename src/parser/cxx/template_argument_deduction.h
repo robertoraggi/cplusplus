@@ -104,6 +104,13 @@ class TemplateArgumentDeduction {
       const TemplateArgument& patternArgument, const TemplateArgument& argument)
       -> bool;
 
+  [[nodiscard]] auto deduceDeclaredTypeFromType(const Type* P, const Type* A)
+      -> bool;
+
+  [[nodiscard]] auto isSpecializationOfPattern(const Type* patternType,
+                                               const Type* argumentType) const
+      -> bool;
+
   [[nodiscard]] auto deduceCurrentInstantiation(const Type* patternType,
                                                 const Type* argumentType)
       -> bool;
@@ -126,22 +133,6 @@ class TemplateArgumentDeduction {
   [[nodiscard]] auto collectDeducedSoFar(
       List<TemplateArgumentAST*>* argumentsSoFar)
       -> std::optional<std::vector<TemplateArgument>>;
-
-  [[nodiscard]] auto substituteDefaultTypeId(
-      TypeIdAST* typeId, const std::vector<TemplateArgument>& arguments)
-      -> TypeIdAST*;
-
-  [[nodiscard]] auto substituteDefaultExpression(
-      ExpressionAST* expression, const std::vector<TemplateArgument>& arguments)
-      -> ExpressionAST*;
-
-  [[nodiscard]] auto defaultTemplateArgument(
-      TemplateParameterAST* parameter,
-      const std::vector<TemplateArgument>& argumentsSoFar)
-      -> TemplateArgumentAST*;
-
-  [[nodiscard]] auto makeTemplateNameArgument(Symbol* templateSymbol)
-      -> TemplateArgumentAST*;
 
   static auto getParameterClause(DeclarationAST* decl)
       -> ParameterDeclarationClauseAST*;
@@ -168,9 +159,12 @@ class TemplateArgumentDeduction {
 
   void beginParameterDeduction();
 
+  [[nodiscard]] auto getReturnTypeSpecifierList(DeclarationAST* decl)
+      -> List<SpecifierAST*>*;
+
   [[nodiscard]] auto deduceFromClassTemplateParam(
-      ParameterDeclarationAST* paramDecl, const Type* argType, const Type* P)
-      -> bool;
+      List<SpecifierAST*>* typeSpecifierList, const Type* argType,
+      const Type* P) -> bool;
 
   [[nodiscard]] auto mentionsDeducibleParameter(const Type* type) const -> bool;
 

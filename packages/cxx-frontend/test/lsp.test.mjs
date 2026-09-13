@@ -50,6 +50,29 @@ function scheduled() {
   return new Promise((resolve) => setTimeout(resolve, 800));
 }
 
+function decodeSemanticTokens(data, legend) {
+  const tokens = [];
+  let line = 0;
+  let character = 0;
+
+  for (let index = 0; index < data.length; index += 5) {
+    const deltaLine = data[index];
+    line += deltaLine;
+    if (deltaLine === 0) character += data[index + 1];
+    else character = data[index + 1];
+
+    tokens.push({
+      line,
+      character,
+      length: data[index + 2],
+      type: legend.tokenTypes[data[index + 3]],
+      declaration: (data[index + 4] & 1) !== 0,
+    });
+  }
+
+  return tokens;
+}
+
 test("LanguageServer answers initialize, diagnostics and completion", async () => {
   const { server, messages } = await startServer();
 
@@ -108,6 +131,229 @@ test("LanguageServer answers initialize, diagnostics and completion", async () =
     assert.ok(responseOf(messages, 3), "expected a response to shutdown");
 
     await server.receive({ jsonrpc: "2.0", method: "exit" });
+  } finally {
+    server.dispose();
+  }
+});
+
+test("LanguageServer provides semantic tokens, hover and document highlights", async () => {
+  const { server, messages } = await startServer();
+  const text = [
+    "struct Widget { Widget* next; int value; };",
+    "int read(Widget widget) { int value = 0; return widget.value + value; }",
+    "// 😀 note",
+    "",
+  ].join("\n");
+
+  try {
+    await server.receive({ jsonrpc: "2.0", id: 1, method: "initialize" });
+
+    const capabilities = responseOf(messages, 1).result.capabilities;
+    assert.equal(capabilities.hoverProvider, true);
+    assert.equal(capabilities.documentHighlightProvider, true);
+    assert.equal(capabilities.semanticTokensProvider.full, true);
+    assert.equal(capabilities.semanticTokensProvider.range, true);
+
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: { uri, languageId: "cpp", version: 0, text },
+      },
+    });
+
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "textDocument/semanticTokens/full",
+      params: { textDocument: { uri } },
+    });
+
+    const semanticTokens = decodeSemanticTokens(
+      responseOf(messages, 2).result.data,
+      capabilities.semanticTokensProvider.legend,
+    );
+
+    assert.ok(
+      semanticTokens.some(
+        (token) =>
+          token.line === 0 &&
+          token.character === 7 &&
+          token.type === "class" &&
+          token.declaration,
+      ),
+    );
+    assert.ok(
+      semanticTokens.some(
+        (token) =>
+          token.line === 2 &&
+          token.character === 0 &&
+          token.length === 10 &&
+          token.type === "comment",
+      ),
+    );
+    assert.ok(
+      semanticTokens.some(
+        (token) =>
+          token.line === 1 &&
+          token.character === 55 &&
+          token.type === "property" &&
+          !token.declaration,
+      ),
+    );
+
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "textDocument/semanticTokens/range",
+      params: {
+        textDocument: { uri },
+        range: {
+          start: { line: 1, character: 57 },
+          end: { line: 1, character: 58 },
+        },
+      },
+    });
+
+    assert.deepEqual(
+      decodeSemanticTokens(
+        responseOf(messages, 3).result.data,
+        capabilities.semanticTokensProvider.legend,
+      ),
+      [
+        {
+          line: 1,
+          character: 55,
+          length: 5,
+          type: "property",
+          declaration: false,
+        },
+      ],
+    );
+
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "textDocument/hover",
+      params: {
+        textDocument: { uri },
+        position: { line: 1, character: 57 },
+      },
+    });
+
+    assert.deepEqual(responseOf(messages, 4).result, {
+      contents: { kind: "markdown", value: "```cpp\nint value\n```" },
+      range: {
+        start: { line: 1, character: 55 },
+        end: { line: 1, character: 60 },
+      },
+    });
+
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "textDocument/documentHighlight",
+      params: {
+        textDocument: { uri },
+        position: { line: 1, character: 57 },
+      },
+    });
+
+    assert.deepEqual(responseOf(messages, 5).result, [
+      {
+        kind: 1,
+        range: {
+          start: { line: 0, character: 34 },
+          end: { line: 0, character: 39 },
+        },
+      },
+      {
+        kind: 1,
+        range: {
+          start: { line: 1, character: 55 },
+          end: { line: 1, character: 60 },
+        },
+      },
+    ]);
+
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 6,
+      method: "textDocument/hover",
+      params: {
+        textDocument: { uri },
+        position: { line: 0, character: 8 },
+      },
+    });
+
+    assert.deepEqual(responseOf(messages, 6).result, {
+      contents: { kind: "markdown", value: "```cpp\nclass Widget\n```" },
+      range: {
+        start: { line: 0, character: 7 },
+        end: { line: 0, character: 13 },
+      },
+    });
+
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 7,
+      method: "textDocument/documentHighlight",
+      params: {
+        textDocument: { uri },
+        position: { line: 0, character: 8 },
+      },
+    });
+
+    assert.deepEqual(responseOf(messages, 7).result, [
+      {
+        kind: 1,
+        range: {
+          start: { line: 0, character: 7 },
+          end: { line: 0, character: 13 },
+        },
+      },
+      {
+        kind: 1,
+        range: {
+          start: { line: 0, character: 16 },
+          end: { line: 0, character: 22 },
+        },
+      },
+      {
+        kind: 1,
+        range: {
+          start: { line: 1, character: 9 },
+          end: { line: 1, character: 15 },
+        },
+      },
+    ]);
+
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 8,
+      method: "textDocument/semanticTokens/range",
+      params: {
+        textDocument: { uri },
+        range: {
+          start: { line: 1, character: 57 },
+          end: { line: 1, character: 57 },
+        },
+      },
+    });
+
+    assert.deepEqual(responseOf(messages, 8).result.data, []);
+
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 9,
+      method: "textDocument/documentHighlight",
+      params: {
+        textDocument: { uri },
+        position: { line: 1, character: 24 },
+      },
+    });
+
+    assert.deepEqual(responseOf(messages, 9).result, []);
   } finally {
     server.dispose();
   }
@@ -327,7 +573,7 @@ test("cxx/emitCode reuses the parse that produced the diagnostics", async () => 
     await scheduled();
 
     const afterDidChange = reads;
-    assert.equal(afterDidChange, 2);
+    assert.equal(afterDidChange, 1);
 
     await server.receive({
       jsonrpc: "2.0",
@@ -649,6 +895,266 @@ test("LanguageServer serves an editor session over a message transport", async (
       ),
       [1, 2, 4],
     );
+  } finally {
+    server.dispose();
+  }
+});
+
+test("LanguageServer reuses and replaces include preambles", async () => {
+  const headers = new Map([
+    ["/inc/one.h", "namespace library { struct One { int member; }; }\n"],
+    ["/inc/two.h", "namespace library { struct Two {}; }\n"],
+  ]);
+  const messages = [];
+  const traces = [];
+  let reads = 0;
+  const server = await LanguageServer.start({
+    includePaths: ["/inc"],
+    exists: (path) => headers.has(path),
+    readFile: async (path) => {
+      ++reads;
+      return headers.get(path);
+    },
+    onMessage: (message) => messages.push(message),
+    onTrace: (message) => traces.push(message),
+  });
+  let id = 0;
+  async function complete() {
+    const requestId = ++id;
+    await server.receive({
+      jsonrpc: "2.0",
+      id: requestId,
+      method: "textDocument/completion",
+      params: {
+        textDocument: { uri },
+        position: { line: 1, character: 9 },
+      },
+    });
+    return responseOf(messages, requestId).result.map((item) => item.label);
+  }
+  try {
+    await server.receive({ jsonrpc: "2.0", id: ++id, method: "initialize" });
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri,
+          languageId: "cpp",
+          version: 0,
+          text: "#include <one.h>\nlibrary::\n",
+        },
+      },
+    });
+    assert.ok((await complete()).includes("One"));
+    assert.equal(reads, 1);
+    assert.ok(traces.some((trace) => trace.includes("preamble event=reused")));
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didChange",
+      params: {
+        textDocument: { uri, version: 1 },
+        contentChanges: [{ text: "#include <one.h>\nlibrary::\nint other;\n" }],
+      },
+    });
+    assert.ok((await complete()).includes("One"));
+    assert.equal(reads, 1);
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didChange",
+      params: {
+        textDocument: { uri, version: 2 },
+        contentChanges: [{ text: "#include <two.h>\nlibrary::\n" }],
+      },
+    });
+    const labels = await complete();
+    assert.ok(labels.includes("Two"));
+    assert.ok(!labels.includes("One"));
+    assert.equal(reads, 2);
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didClose",
+      params: { textDocument: { uri } },
+    });
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri,
+          languageId: "cpp",
+          version: 0,
+          text: "#include <two.h>\nlibrary::\n",
+        },
+      },
+    });
+    assert.ok((await complete()).includes("Two"));
+    assert.equal(reads, 3);
+  } finally {
+    server.dispose();
+  }
+});
+
+test("LanguageServer invalidates preambles when watched headers change", async () => {
+  let header = "namespace library { struct Before {}; }\n";
+  const messages = [];
+  let reads = 0;
+  const server = await LanguageServer.start({
+    includePaths: ["/inc"],
+    exists: (path) => path === "/inc/header.h",
+    readFile: async () => {
+      ++reads;
+      return header;
+    },
+    onMessage: (message) => messages.push(message),
+  });
+  try {
+    await server.receive({ jsonrpc: "2.0", id: 0, method: "initialize" });
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri,
+          languageId: "cpp",
+          version: 0,
+          text: "#include <header.h>\nlibrary::\n",
+        },
+      },
+    });
+    header = "namespace library { struct After {}; }\n";
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "workspace/didChangeWatchedFiles",
+      params: { changes: [{ uri: "file:///inc/header.h", type: 2 }] },
+    });
+    await server.receive({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "textDocument/completion",
+      params: { textDocument: { uri }, position: { line: 1, character: 9 } },
+    });
+    const labels = responseOf(messages, 1).result.map((item) => item.label);
+    assert.ok(labels.includes("After"));
+    assert.ok(!labels.includes("Before"));
+    assert.equal(reads, 2);
+  } finally {
+    server.dispose();
+  }
+});
+
+test("LanguageServer falls back for preamble diagnostics and non-include directives", async () => {
+  for (const prefix of ["#define BEFORE 1\n", ""]) {
+    const messages = [];
+    let reads = 0;
+    const server = await LanguageServer.start({
+      includePaths: ["/inc"],
+      exists: () => true,
+      readFile: async () => {
+        ++reads;
+        return "#warning header warning\nint value;\n";
+      },
+      onMessage: (message) => messages.push(message),
+    });
+    try {
+      await server.receive({ jsonrpc: "2.0", id: 0, method: "initialize" });
+      await server.receive({
+        jsonrpc: "2.0",
+        method: "textDocument/didOpen",
+        params: {
+          textDocument: {
+            uri,
+            languageId: "cpp",
+            version: 0,
+            text: `${prefix}#include <header.h>\nint x = value;\n`,
+          },
+        },
+      });
+      const diagnostics = notificationsOf(
+        messages,
+        "textDocument/publishDiagnostics",
+      ).at(-1).params.diagnostics;
+      assert.ok(
+        diagnostics.some((diagnostic) =>
+          diagnostic.message.includes("header warning"),
+        ),
+      );
+      assert.ok(reads >= 1);
+    } finally {
+      server.dispose();
+    }
+  }
+});
+
+test("LanguageServer keeps the preamble when the text after the includes changes", async () => {
+  const headers = new Map([
+    ["/inc/one.h", "namespace library { struct One { int member; }; }\n"],
+  ]);
+  const messages = [];
+  const traces = [];
+  const server = await LanguageServer.start({
+    includePaths: ["/inc"],
+    exists: (path) => headers.has(path),
+    readFile: async (path) => headers.get(path),
+    onMessage: (message) => messages.push(message),
+    onTrace: (message) => traces.push(message),
+  });
+  let id = 0;
+  let version = 0;
+  async function edit(text, line, character) {
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didChange",
+      params: {
+        textDocument: { uri, version: ++version },
+        contentChanges: [{ text }],
+      },
+    });
+    const requestId = ++id;
+    const mark = traces.length;
+    await server.receive({
+      jsonrpc: "2.0",
+      id: requestId,
+      method: "textDocument/completion",
+      params: { textDocument: { uri }, position: { line, character } },
+    });
+    return {
+      labels: (responseOf(messages, requestId).result ?? []).map(
+        (item) => item.label,
+      ),
+      events: traces
+        .slice(mark)
+        .filter((trace) => trace.startsWith("preamble event=")),
+    };
+  }
+  try {
+    await server.receive({ jsonrpc: "2.0", id: ++id, method: "initialize" });
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri,
+          languageId: "cpp",
+          version: 0,
+          text: "#include <one.h> // io\n\n\n\nint value;\n",
+        },
+      },
+    });
+    for (const [gap, completes] of [
+      ["#include <one.h> // io\n\nlibrary::\n\nint value;\n", true],
+      ["#include <one.h> // io\n\n\n\nint value;\n", false],
+      ["#include <one.h> // input output\n\nlibrary::\n\nint value;\n", true],
+      ["#include <one.h>\n\nlibrary::\n\nint value;\n", true],
+    ]) {
+      const { labels, events } = await edit(gap, 2, 9);
+      assert.equal(labels.includes("One"), completes, gap);
+      assert.deepEqual(
+        events.filter((event) => !event.startsWith("preamble event=reused")),
+        [],
+        gap,
+      );
+    }
   } finally {
     server.dispose();
   }

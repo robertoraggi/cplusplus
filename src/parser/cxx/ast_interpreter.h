@@ -22,11 +22,13 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/const_value.h>
+#include <cxx/source_location.h>
 #include <cxx/token_fwd.h>
 #include <cxx/type_traits.h>
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -37,20 +39,21 @@ class Control;
 
 class ASTInterpreter {
  public:
-  explicit ASTInterpreter(TranslationUnit* unit);
+  explicit ASTInterpreter(TranslationUnit* unit, ScopeSymbol* scope = nullptr);
   ~ASTInterpreter();
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return unit_;
   }
 
+  [[nodiscard]] auto subobjectSlot(const std::shared_ptr<ConstObject>& object,
+                                   const Symbol* symbol) -> ConstValue*;
+
   [[nodiscard]] auto control() const -> Control*;
 
   [[nodiscard]] auto evaluate(ExpressionAST* ast) -> std::optional<ConstValue>;
 
   [[nodiscard]] auto cloneValue(const ConstValue& value) -> ConstValue;
-
-  [[nodiscard]] auto isFullyInitialized(const ConstValue& value) const -> bool;
 
   [[nodiscard]] auto evaluateAddress(ExpressionAST* ast)
       -> std::optional<ConstValue>;
@@ -62,6 +65,12 @@ class ASTInterpreter {
 
   [[nodiscard]] auto toUInt(const ConstValue& value)
       -> std::optional<std::uintmax_t>;
+
+  [[nodiscard]] auto toIntegralType(const ConstValue& value, const Type* type)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto toArithmeticType(const ConstValue& value, const Type* type)
+      -> std::optional<ConstValue>;
 
   [[nodiscard]] auto toFloat(const ConstValue& value) -> std::optional<float>;
 
@@ -75,13 +84,26 @@ class ASTInterpreter {
                                   std::shared_ptr<ConstObject> thisObject = {})
       -> std::optional<ConstValue>;
 
-  [[nodiscard]] auto evaluateConstructor(FunctionSymbol* ctor,
-                                         const Type* classType,
-                                         std::vector<ConstValue> args)
+  [[nodiscard]] auto evaluateConstructor(
+      FunctionSymbol* ctor, const Type* classType, std::vector<ConstValue> args,
+      std::shared_ptr<ConstObject> object = {}) -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateConstructorFromExprs(
+      FunctionSymbol* constructor, const Type* type,
+      const std::vector<ExpressionAST*>& arguments)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto defaultConstruct(const Type* type)
       -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto zeroInitialize(const Type* type)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] static auto builtinIsConstantOnly(BuiltinFunctionKind kind)
+      -> bool;
+
+  [[nodiscard]] static auto builtinEvaluatesItsOwnArguments(
+      BuiltinFunctionKind kind) -> bool;
 
   [[nodiscard]] auto evaluateBuiltinCall(BuiltinFunctionKind kind,
                                          std::vector<ConstValue> args,
@@ -275,31 +297,34 @@ class ASTInterpreter {
 
   void setLocal(const Symbol* sym, ConstValue value);
 
-  [[nodiscard]] auto bindParameters(FunctionSymbol* func,
+  struct Frame;
+  enum class CallResultKind { kValue, kLValue, kAddress };
+  struct CallResult {
+    std::optional<ConstValue> value;
+    ConstValue* lvalue = nullptr;
+  };
+
+  [[nodiscard]] auto evaluateCallExpression(CallExpressionAST* ast,
+                                            CallResultKind kind) -> CallResult;
+
+  [[nodiscard]] auto executeFunction(FunctionSymbol* function, Frame frame,
+                                     CallResultKind kind,
+                                     std::shared_ptr<ConstObject> object = {},
+                                     bool constructor = false) -> CallResult;
+
+  [[nodiscard]] auto bindParameters(Frame& frame, FunctionSymbol* func,
                                     std::vector<ConstValue>& args) -> bool;
 
-  [[nodiscard]] auto bindOneParameter(Symbol* paramSymbol,
+  [[nodiscard]] auto bindOneParameter(Frame& frame, Symbol* paramSymbol,
                                       ExpressionAST* argExpr) -> bool;
 
-  [[nodiscard]] auto bindParametersFromExprs(FunctionSymbol* func,
-                                             List<ExpressionAST*>* argExprs)
-      -> bool;
-
-  [[nodiscard]] auto evaluateCallExprs(FunctionSymbol* func,
-                                       List<ExpressionAST*>* argExprs)
-      -> std::optional<ConstValue>;
+  [[nodiscard]] auto bindParametersFromExprs(
+      Frame& frame, FunctionSymbol* func,
+      std::span<ExpressionAST* const> argExprs) -> bool;
 
   [[nodiscard]] auto evaluateCallLValue(FunctionSymbol* func,
                                         std::vector<ConstValue> args)
       -> ConstValue*;
-
-  [[nodiscard]] auto evaluateCallLValueFromExprs(FunctionSymbol* func,
-                                                 List<ExpressionAST*>* argExprs)
-      -> ConstValue*;
-
-  [[nodiscard]] auto evaluateCallAddressFromExprs(
-      FunctionSymbol* func, List<ExpressionAST*>* argExprs)
-      -> std::optional<ConstValue>;
 
   void bindReference(const Symbol* sym, ConstValue* target);
 
@@ -323,17 +348,31 @@ class ASTInterpreter {
   void applyMemInitializer(MemInitializerAST* ast,
                            std::vector<ConstValue> args);
 
+  [[nodiscard]] auto constructSubobject(MemInitializerAST* ast,
+                                        const Type* type,
+                                        std::vector<ConstValue> args)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto lvalue(ExpressionAST* ast) -> ConstValue*;
 
   [[nodiscard]] auto loadAddress(const ConstAddress& address,
-                                 std::intmax_t extraIndex)
+                                 std::intmax_t extraIndex,
+                                 const Type* objectType = nullptr)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto addressSlot(const ConstAddress& address,
-                                 std::intmax_t extraIndex) -> ConstValue*;
+                                 std::intmax_t extraIndex,
+                                 const Type* objectType = nullptr)
+      -> ConstValue*;
+
+  [[nodiscard]] auto memberObject(MemberExpressionAST* ast)
+      -> std::shared_ptr<ConstObject>;
 
   [[nodiscard]] auto fieldOwner(ExpressionAST* ast)
       -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto typeInfoAddress(const Type* type)
+      -> std::optional<ConstValue>;
 
   [[nodiscard]] auto addressOfLvalue(ExpressionAST* ast)
       -> std::optional<ConstValue>;
@@ -361,17 +400,66 @@ class ASTInterpreter {
     thisObject_ = std::move(obj);
   }
 
+  [[nodiscard]] auto evaluateBuiltinArithmeticOverflow(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinNanPayload(CallExpressionAST* ast)
+      -> std::optional<std::string>;
+
+  [[nodiscard]] auto evaluateBuiltinNan(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinNanf(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinNanl(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinFloatComparison(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinAddressof(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto evaluateBuiltinLine(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
+  [[nodiscard]] auto evaluateBuiltinColumn(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto evaluateBuiltinSourceLocation(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto sourceLocation(CallExpressionAST* ast) const
+      -> SourceLocation;
+  [[nodiscard]] auto sourceFunction(CallExpressionAST* ast) const
+      -> FunctionSymbol*;
   [[nodiscard]] auto evaluateBuiltinFile(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
   [[nodiscard]] auto evaluateBuiltinFunction(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinComplex(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto evaluateBuiltinHugeVal(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
   [[nodiscard]] auto evaluateBuiltinHugeValf(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
+  [[nodiscard]] auto evaluateBuiltinBitCount(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinLockFree(CallExpressionAST* ast,
+                                             bool alwaysLockFree,
+                                             bool ignoresPointerOperand)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinAtomicAlwaysLockFree(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinAtomicIsLockFree(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinC11AtomicIsLockFree(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto evaluateBuiltinHugeVall(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
 
@@ -382,6 +470,7 @@ class ASTInterpreter {
   struct Frame {
     std::unordered_map<const Symbol*, ConstValue> locals;
     std::unordered_map<const Symbol*, ConstValue*> refs;
+    std::unordered_map<const Symbol*, ConstValue> referenceAddresses;
     std::vector<VariableSymbol*> automaticObjects;
   };
   std::vector<Frame> frames_;
@@ -414,7 +503,25 @@ class ASTInterpreter {
 
   ClassSymbol* currentConstructorClass_ = nullptr;
 
-  std::string currentFunctionName_;
+  FunctionSymbol* currentFunction_ = nullptr;
+  DefaultInitializerContext defaultInitializerContext_;
+
+  class InitializerContextGuard {
+   public:
+    InitializerContextGuard(ASTInterpreter& interpreter,
+                            DefaultInitializerContext context)
+        : interpreter_(interpreter),
+          saved_(interpreter.defaultInitializerContext_) {
+      if (!saved_.location) interpreter_.defaultInitializerContext_ = context;
+    }
+    ~InitializerContextGuard() {
+      interpreter_.defaultInitializerContext_ = saved_;
+    }
+
+   private:
+    ASTInterpreter& interpreter_;
+    DefaultInitializerContext saved_;
+  };
   std::vector<FieldSymbol*> fieldsUnderEvaluation_;
   int depth_ = 0;
 

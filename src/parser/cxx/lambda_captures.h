@@ -21,21 +21,61 @@
 #pragma once
 
 #include <cxx/ast.h>
+#include <cxx/symbols_fwd.h>
 
 namespace cxx {
 
+[[nodiscard]] inline auto capture_initializer_slot(LambdaCaptureAST* capture)
+    -> ExpressionAST** {
+  if (auto simple = ast_cast<SimpleLambdaCaptureAST>(capture))
+    return &simple->initializer;
+  if (auto ref = ast_cast<RefLambdaCaptureAST>(capture))
+    return &ref->initializer;
+  if (auto self = ast_cast<ThisLambdaCaptureAST>(capture))
+    return &self->initializer;
+  if (auto initCapture = ast_cast<InitLambdaCaptureAST>(capture))
+    return &initCapture->initializer;
+  if (auto refInitCapture = ast_cast<RefInitLambdaCaptureAST>(capture))
+    return &refInitCapture->initializer;
+  return nullptr;
+}
+
 [[nodiscard]] inline auto capture_initializer(LambdaCaptureAST* capture)
     -> ExpressionAST* {
+  auto slot = capture_initializer_slot(capture);
+  return slot ? *slot : nullptr;
+}
+
+[[nodiscard]] inline auto capture_field_slot(LambdaCaptureAST* capture)
+    -> FieldSymbol** {
   if (auto simple = ast_cast<SimpleLambdaCaptureAST>(capture))
-    return simple->initializer;
-  if (auto ref = ast_cast<RefLambdaCaptureAST>(capture))
-    return ref->initializer;
-  if (auto self = ast_cast<ThisLambdaCaptureAST>(capture))
-    return self->initializer;
+    return &simple->symbol;
+  if (auto ref = ast_cast<RefLambdaCaptureAST>(capture)) return &ref->symbol;
+  if (auto self = ast_cast<ThisLambdaCaptureAST>(capture)) return &self->symbol;
+  if (auto deref = ast_cast<DerefThisLambdaCaptureAST>(capture))
+    return &deref->symbol;
   if (auto initCapture = ast_cast<InitLambdaCaptureAST>(capture))
-    return initCapture->initializer;
+    return &initCapture->symbol;
   if (auto refInitCapture = ast_cast<RefInitLambdaCaptureAST>(capture))
-    return refInitCapture->initializer;
+    return &refInitCapture->symbol;
+  return nullptr;
+}
+
+[[nodiscard]] inline auto capture_field(LambdaCaptureAST* capture)
+    -> FieldSymbol* {
+  auto slot = capture_field_slot(capture);
+  return slot ? *slot : nullptr;
+}
+
+[[nodiscard]] inline auto capture_identifier(LambdaCaptureAST* capture)
+    -> const Identifier* {
+  if (auto simple = ast_cast<SimpleLambdaCaptureAST>(capture))
+    return simple->identifier;
+  if (auto ref = ast_cast<RefLambdaCaptureAST>(capture)) return ref->identifier;
+  if (auto initCapture = ast_cast<InitLambdaCaptureAST>(capture))
+    return initCapture->identifier;
+  if (auto refInitCapture = ast_cast<RefInitLambdaCaptureAST>(capture))
+    return refInitCapture->identifier;
   return nullptr;
 }
 

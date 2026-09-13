@@ -27,6 +27,7 @@
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
+#include <cxx/lambda_captures.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
@@ -93,6 +94,7 @@ struct ASTRewriter::ExpressionVisitor {
 
     auto literal = control()->integerLiteral(std::to_string(*value));
     return IntLiteralExpressionAST::create(arena(), literal,
+                                           /*literalOperatorCall=*/nullptr,
                                            ValueCategory::kPrValue, type);
   }
 
@@ -129,6 +131,8 @@ struct ASTRewriter::ExpressionVisitor {
   [[nodiscard]] auto operator()(NestedStatementExpressionAST* ast)
       -> ExpressionAST*;
 
+  [[nodiscard]] auto operator()(DefaultInitializerExpressionAST* ast)
+      -> ExpressionAST*;
   [[nodiscard]] auto operator()(NestedExpressionAST* ast) -> ExpressionAST*;
 
   [[nodiscard]] auto operator()(IdExpressionAST* ast) -> ExpressionAST*;
@@ -554,7 +558,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   }
 
   copy->rparenLoc = ast->rparenLoc;
-  copy->matchedAssocIndex = ast->matchedAssocIndex;
 
   return copy;
 }
@@ -570,6 +573,17 @@ auto ASTRewriter::ExpressionVisitor::operator()(
       ast_cast<CompoundStatementAST>(rewrite.statement(ast->statement));
   copy->rparenLoc = ast->rparenLoc;
 
+  return copy;
+}
+
+auto ASTRewriter::ExpressionVisitor::operator()(
+    DefaultInitializerExpressionAST* ast) -> ExpressionAST* {
+  auto copy = DefaultInitializerExpressionAST::create(arena());
+  copy->expression = rewrite.expression(ast->expression);
+  copy->context = ast->context;
+  copy->context.scope = rewrite.binder_.scope();
+  copy->type = copy->expression ? copy->expression->type : ast->type;
+  copy->valueCategory = ast->valueCategory;
   return copy;
 }
 
@@ -805,20 +819,28 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
       binder()->setScope(classType->symbol());
 
+      auto declaredInitCapture = [&](const Identifier* name) -> Symbol* {
+        for (auto candidate : copy->symbol->find(name)) {
+          if (symbol_cast<VariableSymbol>(candidate)) return candidate;
+        }
+        return nullptr;
+      };
+
       std::unordered_map<Symbol*, FieldSymbol*> captureFields;
       for (auto captureNode : ListView{copy->captureList}) {
-        const Identifier* fieldName = nullptr;
-        ExpressionAST* initExpr = nullptr;
+        auto field = capture_field(captureNode);
+        if (!field) continue;
 
-        if (auto simple = ast_cast<SimpleLambdaCaptureAST>(captureNode)) {
-          fieldName = simple->identifier;
-          initExpr = simple->initializer;
-        } else if (auto ref = ast_cast<RefLambdaCaptureAST>(captureNode)) {
-          fieldName = ref->identifier;
-          initExpr = ref->initializer;
+        if (ast_cast<InitLambdaCaptureAST>(captureNode) ||
+            ast_cast<RefInitLambdaCaptureAST>(captureNode)) {
+          if (auto declared =
+                  declaredInitCapture(capture_identifier(captureNode)))
+            captureFields[declared] = field;
+          continue;
         }
 
-        if (!fieldName || !initExpr) continue;
+        auto initExpr = capture_initializer(captureNode);
+        if (!initExpr) continue;
 
         if (auto cast = ast_cast<ImplicitCastExpressionAST>(initExpr))
           initExpr = cast->expression;
@@ -826,12 +848,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
         auto outerIdExpr = ast_cast<IdExpressionAST>(initExpr);
         if (!outerIdExpr || !outerIdExpr->symbol) continue;
 
-        for (auto candidate : classType->symbol()->find(fieldName)) {
-          if (auto field = symbol_cast<FieldSymbol>(candidate)) {
-            captureFields[outerIdExpr->symbol] = field;
-            break;
-          }
-        }
+        captureFields[outerIdExpr->symbol] = field;
       }
 
       rewrite.pushLambdaCaptureFields(std::move(captureFields));
@@ -1241,7 +1258,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
   }
 
   if (copy->symbol && copy->symbol != ast->symbol) {
-    copy->type = copy->symbol->type();
+    copy->type = completedSymbolType(translationUnit(), copy->symbol);
   }
 
   if (!copy->symbol && copy->baseExpression) {
@@ -1252,7 +1269,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
           translationUnit()->typeTraits().requireCompleteClass(classSymbol);
           if (auto dtor = classSymbol->destructor()) {
             copy->symbol = dtor;
-            copy->type = dtor->type();
+            copy->type = completedSymbolType(translationUnit(), dtor);
           }
         } else {
           copy->type = control()->getFunctionType(control()->getVoidType(), {});
@@ -1284,10 +1301,9 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
           if (symbol) {
             copy->symbol = symbol;
             if (auto function = designatedFunction(symbol)) {
-              copy->symbol = function;
-              copy->type = function->type();
+              copy->type = completedSymbolType(translationUnit(), function);
             } else {
-              copy->type = symbol->type();
+              copy->type = completedSymbolType(translationUnit(), symbol);
             }
 
             if (auto field = symbol_cast<FieldSymbol>(symbol);
@@ -1559,6 +1575,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
     auto literal = control()->integerLiteral(std::to_string(packSize));
     auto sizeType = control()->getSizeType();
     return IntLiteralExpressionAST::create(arena(), literal,
+                                           /*literalOperatorCall=*/nullptr,
                                            ValueCategory::kPrValue, sizeType);
   }
 
@@ -1567,6 +1584,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
     auto literal = control()->integerLiteral(std::to_string(packSize));
     auto sizeType = control()->getSizeType();
     return IntLiteralExpressionAST::create(arena(), literal,
+                                           /*literalOperatorCall=*/nullptr,
                                            ValueCategory::kPrValue, sizeType);
   }
 
@@ -2054,6 +2072,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(ThisLambdaCaptureAST* ast)
   copy->thisLoc = ast->thisLoc;
   copy->initializer = rewrite.expression(ast->initializer);
 
+  copy->symbol = ast->symbol;
   return copy;
 }
 
@@ -2063,6 +2082,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(
 
   copy->starLoc = ast->starLoc;
   copy->thisLoc = ast->thisLoc;
+  copy->symbol = ast->symbol;
 
   return copy;
 }
@@ -2076,6 +2096,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(SimpleLambdaCaptureAST* ast)
   copy->identifier = ast->identifier;
   copy->initializer = rewrite.expression(ast->initializer);
 
+  copy->symbol = ast->symbol;
   return copy;
 }
 
@@ -2089,6 +2110,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(RefLambdaCaptureAST* ast)
   copy->identifier = ast->identifier;
   copy->initializer = rewrite.expression(ast->initializer);
 
+  copy->symbol = ast->symbol;
   return copy;
 }
 
@@ -2102,6 +2124,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(RefInitLambdaCaptureAST* ast)
   copy->initializer = rewrite.expression(ast->initializer);
   copy->identifier = ast->identifier;
 
+  copy->symbol = ast->symbol;
   return copy;
 }
 
@@ -2114,6 +2137,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(InitLambdaCaptureAST* ast)
   copy->initializer = rewrite.expression(ast->initializer);
   copy->identifier = ast->identifier;
 
+  copy->symbol = ast->symbol;
   return copy;
 }
 }  // namespace cxx

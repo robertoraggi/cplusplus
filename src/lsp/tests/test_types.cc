@@ -268,3 +268,14 @@ TEST(LSP, JsonRoundTrip) {
   ASSERT_EQ(reparsed.at("message").get<std::string>(), "one\ntwo");
   ASSERT_NE(value.dump(2).find("\"answer\": 42"), std::string::npos);
 }
+
+#include <cxx/lsp/preamble.h>
+
+TEST(Preamble, PreservesSuffixOffsets) {
+  std::string source = "#include <vector>\r\n\nstd::";
+  const auto prefixSize = source.find("std::");
+  const auto position = source.find("std::");
+  cxx::lsp::maskPreamble(source, prefixSize);
+  EXPECT_EQ(source.find("std::"), position);
+  EXPECT_EQ(source, "                 \r\n\nstd::");
+}

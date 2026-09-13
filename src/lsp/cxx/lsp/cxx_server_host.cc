@@ -30,6 +30,7 @@
 #include <algorithm>
 
 #include "cxx_document.h"
+#include "types.h"
 
 namespace cxx::lsp {
 
@@ -43,11 +44,43 @@ void CxxServerHost::process(CxxDocument& document, std::string source,
   auto preprocessor = unit->preprocessor();
 
   std::string error;
-  auto toolchain = createToolchain(cli_, preprocessor, error);
+  auto toolchain = createToolchain(
+      cli_, preprocessor, languageOf(cli_, document.fileName()), error);
 
   if (toolchain && error.empty()) {
     unit->control()->setMemoryLayout(toolchain->memoryLayout());
     document.setToolchain(std::move(toolchain));
+  }
+
+  if (document.preambleCache) {
+    auto cached = document.preambleCache->get(source);
+    if (!cached) {
+      CxxDocument producer(document.fileName(), document.version());
+      producer.translationUnit()->preprocessor()->setPreambleOnly(true);
+      process(producer, source, [] {});
+      if (document.isCancelled()) {
+        done();
+        return;
+      }
+      auto preambleSize =
+          producer.translationUnit()->preprocessor()->preambleSize();
+      if (preambleSize && producer.diagnostics().empty()) {
+        PrecompiledHeaderWriter writer(producer.translationUnit(),
+                                       preambleKeys());
+        writer.setPreprocessorState(
+            producer.translationUnit()->preprocessor()->preambleState());
+        auto bytes = writer();
+        if (writer.errors().empty()) {
+          cached = std::make_shared<Preamble>(source.substr(0, *preambleSize),
+                                              std::move(bytes));
+          document.preambleCache->put(cached);
+        }
+      }
+    }
+    if (cached) {
+      PrecompiledHeaderReader reader(unit, preambleKeys());
+      if (reader(cached->bytes)) maskPreamble(source, cached->source.size());
+    }
   }
 
   DefaultPreprocessorState state{*preprocessor};
@@ -61,8 +94,19 @@ void CxxServerHost::process(CxxDocument& document, std::string source,
 
   unit->endPreprocessing();
 
+  if (preprocessor->preambleOnly() && !preprocessor->preambleSize()) {
+    done();
+    return;
+  }
+
   if (!document.isCancelled()) {
-    unit->parse(document.parserConfiguration());
+    auto config = document.parserConfiguration();
+    config.validateAst = cli_.opt_fvalidate_ast;
+    if (unit->hasAdoptedPrefix()) {
+      unit->resume(config);
+    } else {
+      unit->parse(config);
+    }
   }
 
   done();

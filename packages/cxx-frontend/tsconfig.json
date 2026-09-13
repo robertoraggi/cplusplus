@@ -23,7 +23,7 @@
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
-    "allowJs": true,
+    "allowJs": false,
 
     // Style Options
     // "noImplicitReturns": true,
@@ -42,5 +42,5 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": ["src/**/*.ts"]
 }

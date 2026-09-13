@@ -34,8 +34,8 @@
       }
     },
     {
-      "name": "emscripten",
-      "displayName": "emscripten",
+      "name": "emscripten-base",
+      "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build.em",
       "toolchainFile": "$env{EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake",
@@ -43,14 +43,21 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.em/install/usr",
-        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
-        "CXX_ENABLE_FLATBUFFERS": "NO",
+        "EMSCRIPTEN_ROOT_PATH": "$env{EMSCRIPTEN_ROOT}",
         "CXX_INSTALL_WASI_SYSROOT": "YES"
       },
       "condition": {
         "type": "notEquals",
         "lhs": "$env{EMSCRIPTEN_ROOT}",
         "rhs": ""
+      }
+    },
+    {
+      "name": "emscripten",
+      "displayName": "emscripten",
+      "inherits": "emscripten-base",
+      "cacheVariables": {
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES"
       }
     },
     {
@@ -72,24 +79,12 @@
     {
       "name": "emscripten-mlir",
       "displayName": "emscripten with MLIR",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build.em",
-      "toolchainFile": "$env{EMSCRIPTEN_ROOT}/cmake/Modules/Platform/Emscripten.cmake",
+      "inherits": "emscripten-base",
       "cacheVariables": {
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.em/install/usr",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "NO",
-        "CXX_ENABLE_FLATBUFFERS": "NO",
-        "CXX_INSTALL_WASI_SYSROOT": "YES",
         "CXX_ENABLE_MLIR": "YES",
         "LLVM_DIR": "${sourceDir}/build.em/llvm-project/install/lib/cmake/llvm",
         "MLIR_DIR": "${sourceDir}/build.em/llvm-project/install/lib/cmake/mlir"
-      },
-      "condition": {
-        "type": "notEquals",
-        "lhs": "$env{EMSCRIPTEN_ROOT}",
-        "rhs": ""
       }
     },
     {
@@ -103,7 +98,6 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build.wasi/install/usr",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
-        "CXX_ENABLE_FLATBUFFERS": "NO",
         "CXX_INSTALL_WASI_SYSROOT": "YES"
       },
       "condition": {
@@ -130,16 +124,29 @@
     {
       "name": "install",
       "configurePreset": "default",
-      "targets": ["install"]
+      "targets": [
+        "install"
+      ]
     },
     {
       "name": "build-emscripten",
       "configurePreset": "emscripten"
     },
     {
+      "name": "build-emscripten-mlir",
+      "configurePreset": "emscripten-mlir",
+      "targets": [
+        "cxx-js",
+        "link_cxx_include",
+        "link_wasi_sysroot"
+      ]
+    },
+    {
       "name": "install-emscripten",
       "configurePreset": "emscripten",
-      "targets": ["install"]
+      "targets": [
+        "install"
+      ]
     },
     {
       "name": "build-wasi",
@@ -148,7 +155,9 @@
     {
       "name": "install-wasi",
       "configurePreset": "wasi",
-      "targets": ["install"]
+      "targets": [
+        "install"
+      ]
     },
     {
       "name": "build-wasi-threads",
@@ -157,7 +166,9 @@
     {
       "name": "install-wasi-threads",
       "configurePreset": "wasi-threads",
-      "targets": ["install"]
+      "targets": [
+        "install"
+      ]
     }
   ],
   "testPresets": [

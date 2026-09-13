@@ -25,6 +25,7 @@
 #include <cxx/dependent_types.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
+#include <cxx/standard_conversion.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -78,20 +79,24 @@ auto isPackParameter(TemplateParameterAST* parameter) -> bool {
   return visit(IsPackParameter{}, parameter);
 }
 
-auto hasDefaultTemplateArgument(TemplateParameterAST* parameter) -> bool {
-  if (!parameter) return false;
-  return visit(HasDefaultTemplateArgument{}, parameter);
-}
-
 auto isPackExpansion(TypeIdAST* typeId) -> bool {
   if (!typeId || !typeId->declarator) return false;
   return ast_cast<ParameterPackAST>(typeId->declarator->coreDeclarator) !=
          nullptr;
 }
 
-auto isPackExpansionTemplateArgument(TemplateArgumentAST* argument) -> bool {
+namespace {
+
+auto hasDefaultTemplateArgument(TemplateParameterAST* parameter) -> bool {
+  if (!parameter) return false;
+  return visit(HasDefaultTemplateArgument{}, parameter);
+}
+
+}  // namespace
+
+auto TemplateArguments::isPackExpansion(TemplateArgumentAST* argument) -> bool {
   if (auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument))
-    return isPackExpansion(typeArgument->typeId);
+    return cxx::isPackExpansion(typeArgument->typeId);
 
   if (auto expressionArgument =
           ast_cast<ExpressionTemplateArgumentAST>(argument)) {
@@ -102,23 +107,29 @@ auto isPackExpansionTemplateArgument(TemplateArgumentAST* argument) -> bool {
   return false;
 }
 
-auto lastTemplateArgument(List<TemplateArgumentAST*>* templateArgumentList)
-    -> TemplateArgumentAST* {
-  TemplateArgumentAST* last = nullptr;
-  for (auto argument : ListView{templateArgumentList}) last = argument;
-  return last;
-}
-
-auto hasPackExpansionTemplateArgument(
+auto TemplateArguments::hasPackExpansion(
     List<TemplateArgumentAST*>* templateArgumentList) -> bool {
   for (auto argument : ListView{templateArgumentList}) {
-    if (isPackExpansionTemplateArgument(argument)) return true;
+    if (isPackExpansion(argument)) return true;
   }
   return false;
 }
 
-auto computeTemplateArity(TemplateDeclarationAST* templateDecl)
-    -> TemplateArity {
+auto TemplateArguments::last(List<TemplateArgumentAST*>* templateArgumentList)
+    -> TemplateArgumentAST* {
+  TemplateArgumentAST* result = nullptr;
+  for (auto argument : ListView{templateArgumentList}) result = argument;
+  return result;
+}
+
+auto TemplateArguments::count(List<TemplateArgumentAST*>* templateArgumentList)
+    -> int {
+  int count = 0;
+  for ([[maybe_unused]] auto argument : ListView{templateArgumentList}) ++count;
+  return count;
+}
+
+auto TemplateArity::of(TemplateDeclarationAST* templateDecl) -> TemplateArity {
   TemplateArity arity;
   if (!templateDecl) return arity;
 
@@ -139,26 +150,16 @@ auto computeTemplateArity(TemplateDeclarationAST* templateDecl)
   return arity;
 }
 
-auto templateArgumentCount(List<TemplateArgumentAST*>* templateArgumentList)
-    -> int {
-  int count = 0;
-  for (auto argument : ListView{templateArgumentList}) {
-    (void)argument;
-    ++count;
-  }
-  return count;
-}
-
-auto isTemplateArityMatch(TemplateDeclarationAST* templateDecl,
-                          List<TemplateArgumentAST*>* templateArgumentList,
-                          bool isFunctionTemplate) -> bool {
+auto TemplateArity::matches(TemplateDeclarationAST* templateDecl,
+                            List<TemplateArgumentAST*>* templateArgumentList,
+                            bool isFunctionTemplate) -> bool {
   if (!templateDecl) return true;
 
-  auto arity = computeTemplateArity(templateDecl);
-  auto argc = templateArgumentCount(templateArgumentList);
+  auto arity = of(templateDecl);
+  auto argc = TemplateArguments::count(templateArgumentList);
 
   const bool expandsAnUnknownNumberOfArguments =
-      hasPackExpansionTemplateArgument(templateArgumentList);
+      TemplateArguments::hasPackExpansion(templateArgumentList);
 
   if (!isFunctionTemplate && !expandsAnUnknownNumberOfArguments &&
       argc < arity.minArgs)
@@ -166,6 +167,123 @@ auto isTemplateArityMatch(TemplateDeclarationAST* templateDecl,
   if (!arity.hasParameterPack && argc > arity.maxArgs) return false;
 
   return true;
+}
+
+auto TemplateArguments::templateName(Symbol* templateSymbol) const
+    -> TemplateArgumentAST* {
+  if (!templateSymbol) return nullptr;
+
+  auto identifier = name_cast<Identifier>(templateSymbol->name());
+  if (!identifier) return nullptr;
+
+  auto arena = unit_->arena();
+
+  auto namedSpecifier = NamedTypeSpecifierAST::create(arena);
+  namedSpecifier->unqualifiedId = NameIdAST::create(arena, identifier);
+  namedSpecifier->symbol = templateSymbol;
+
+  auto typeId = TypeIdAST::create(arena);
+  typeId->typeSpecifierList = make_list_node<SpecifierAST>(
+      arena, static_cast<SpecifierAST*>(namedSpecifier));
+  typeId->type = templateSymbol->type();
+
+  auto argument = TypeTemplateArgumentAST::create(arena);
+  argument->typeId = typeId;
+  return argument;
+}
+
+auto TemplateArguments::defaultArgument(
+    TemplateDeclarationAST* templateDecl, TemplateParameterAST* parameter,
+    const std::vector<TemplateArgument>& argumentsSoFar) const
+    -> TemplateArgumentAST* {
+  auto arena = unit_->arena();
+
+  if (auto nonType = ast_cast<NonTypeTemplateParameterAST>(parameter)) {
+    if (!nonType->declaration || !nonType->declaration->expression) {
+      return nullptr;
+    }
+    auto expression = nonType->declaration->expression;
+    if (isDependent(unit_, expression)) {
+      if (argumentsSoFar.empty() || !templateDecl) return nullptr;
+      expression = ASTRewriter::substituteDefaultExpression(
+          unit_, expression, argumentsSoFar, templateDecl->depth,
+          templateDecl->symbol);
+      if (!expression) return nullptr;
+    }
+    auto argument = ExpressionTemplateArgumentAST::create(arena);
+    argument->expression = expression;
+    return argument;
+  }
+
+  if (auto templateType = ast_cast<TemplateTypeParameterAST>(parameter)) {
+    if (!templateType->idExpression) return nullptr;
+    return templateName(templateType->idExpression->symbol);
+  }
+
+  auto typeId = [&]() -> TypeIdAST* {
+    if (auto type = ast_cast<TypenameTypeParameterAST>(parameter))
+      return type->typeId;
+    if (auto constrained = ast_cast<ConstraintTypeParameterAST>(parameter))
+      return constrained->typeId;
+    return nullptr;
+  }();
+
+  if (!typeId) return nullptr;
+
+  if (!typeId->type || isDependent(unit_, typeId->type)) {
+    if (argumentsSoFar.empty() || !templateDecl) return nullptr;
+    auto substituted = ASTRewriter::substituteDefaultTypeId(
+        unit_, typeId, argumentsSoFar, templateDecl->depth,
+        templateDecl->symbol);
+    if (!substituted || !substituted->type ||
+        type_cast<UnresolvedNameType>(substituted->type)) {
+      return nullptr;
+    }
+    typeId = substituted;
+  }
+
+  auto argument = TypeTemplateArgumentAST::create(arena);
+  argument->typeId = typeId;
+  return argument;
+}
+
+auto TemplateArguments::complete(
+    Symbol* templateSymbol, List<TemplateArgumentAST*>* writtenArguments) const
+    -> List<TemplateArgumentAST*>* {
+  if (!templateSymbol) return writtenArguments;
+
+  auto templateDecl = template_declaration_of(templateSymbol);
+  if (!templateDecl) return writtenArguments;
+
+  auto arity = TemplateArity::of(templateDecl);
+  if (arity.hasParameterPack) return writtenArguments;
+  if (hasPackExpansion(writtenArguments)) return writtenArguments;
+
+  const auto argc = count(writtenArguments);
+  if (argc >= arity.maxArgs) return writtenArguments;
+  if (argc < arity.minArgs) return writtenArguments;
+
+  auto arena = unit_->arena();
+  List<TemplateArgumentAST*>* completed = nullptr;
+  auto tail = &completed;
+
+  for (auto argument : ListView{writtenArguments}) {
+    *tail = make_list_node<TemplateArgumentAST>(arena, argument);
+    tail = &(*tail)->next;
+  }
+
+  int index = 0;
+  for (auto parameter : ListView{templateDecl->templateParameterList}) {
+    if (index++ < argc) continue;
+
+    auto argument = defaultArgument(templateDecl, parameter, {});
+    if (!argument) return writtenArguments;
+
+    *tail = make_list_node<TemplateArgumentAST>(arena, argument);
+    tail = &(*tail)->next;
+  }
+
+  return completed;
 }
 
 struct Substitution::CollectRawTemplateArgument {
@@ -513,7 +631,7 @@ void Substitution::doMake() {
     collectedArguments.push_back(*arg);
     collectedNodes.push_back(argument);
     collectedIsPackExpansion.push_back(
-        isPackExpansionTemplateArgument(argument));
+        TemplateArguments::isPackExpansion(argument));
   }
 
   std::vector<TemplateParameterAST*> parameters;
@@ -728,7 +846,36 @@ auto Substitution::normalizeNonTypeArgument(
   }
 
   normalizedArgument->setType(targetType);
+
+  convertNonTypeArgument(normalizedArgument, targetType);
+
   return normalizedArgument;
+}
+
+void Substitution::convertNonTypeArgument(VariableSymbol* argument,
+                                          const Type* targetType) {
+  if (!targetType) return;
+  if (!unit_->typeTraits().is_class(targetType)) return;
+
+  auto expression = argument->initializer();
+  if (!expression || !expression->type) return;
+
+  auto traits = unit_->typeTraits();
+  if (traits.is_same(traits.remove_cv(expression->type),
+                     traits.remove_cv(targetType)))
+    return;
+
+  StandardConversion conversions{unit_};
+  auto converted = expression;
+  if (!conversions.convertImplicitly(converted, targetType)) return;
+
+  auto interp = ASTInterpreter{unit_};
+  auto value = interp.evaluate(converted);
+  if (!value.has_value()) return;
+
+  argument->setInitializer(converted);
+  argument->setConstexpr(true);
+  argument->setConstValue(value);
 }
 
 auto Substitution::getDefaultTemplateArgument(TemplateParameterAST* parameter)

@@ -25,9 +25,17 @@ For updates, improvements, and recent features in cxx-frontend, please consult t
 
 ## Playground
 
-The playground uses the Monaco Editor to demonstrate how to create a syntax checker and navigate the Abstract Syntax Tree (AST).
+The playground uses the Monaco Editor to demonstrate how to use the compiler frontend LSP implementation.
 
 https://robertoraggi.github.io/cplusplus/
+
+```bash
+npm ci
+npm run download-mlir
+npm run build:cxx-frontend
+npm run build:playground-sysroot
+npm run playground
+```
 
 ## Native Build and CLI tools
 

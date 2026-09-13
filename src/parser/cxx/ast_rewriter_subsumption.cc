@@ -24,6 +24,7 @@
 #include <cxx/control.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/names.h>
+#include <cxx/overload_resolution.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -208,6 +209,10 @@ auto ASTRewriter::ConstraintSubsumption::normalize(
 
   if (auto nested = ast_cast<NestedExpressionAST>(expression)) {
     return normalize(parentScope, nested->expression, mapping, depth);
+  }
+
+  if (auto folded = ast_cast<ConstExpressionAST>(expression)) {
+    return normalize(parentScope, folded->expression, mapping, depth);
   }
 
   if (auto binary = ast_cast<BinaryExpressionAST>(expression);
@@ -485,6 +490,49 @@ auto ASTRewriter::ConstraintSubsumption::isMoreConstrained(Symbol* symbol,
 auto ASTRewriter::isMoreConstrained(TranslationUnit* unit, Symbol* symbol,
                                     Symbol* other) -> bool {
   return ConstraintSubsumption{unit}.isMoreConstrained(symbol, other);
+}
+
+auto ASTRewriter::isMorePartialOrderingConstrained(TranslationUnit* unit,
+                                                   FunctionSymbol* function,
+                                                   FunctionSymbol* other)
+    -> bool {
+  if (!function || !other) return false;
+
+  if (!haveSameParameterTypes(function, other)) return false;
+
+  auto enclosingClass = symbol_cast<ClassSymbol>(function->parent());
+  auto otherEnclosingClass = symbol_cast<ClassSymbol>(other->parent());
+
+  if (enclosingClass || otherEnclosingClass) {
+    if (enclosingClass != otherEnclosingClass) return false;
+
+    const bool isObjectMember = enclosingClass && !function->isStatic();
+    const bool otherIsObjectMember = otherEnclosingClass && !other->isStatic();
+
+    if (isObjectMember && otherIsObjectMember) {
+      auto functionType = type_cast<FunctionType>(function->type());
+      auto otherType = type_cast<FunctionType>(other->type());
+      if (!functionType || !otherType) return false;
+
+      if (function->hasExplicitObjectParameter() ||
+          other->hasExplicitObjectParameter()) {
+        auto objectParameterType = [](FunctionSymbol* fn) -> const Type* {
+          if (!fn->hasExplicitObjectParameter()) return nullptr;
+          auto type = type_cast<FunctionType>(fn->type());
+          if (!type || type->parameterTypes().empty()) return nullptr;
+          return type->parameterTypes().front();
+        };
+
+        if (objectParameterType(function) != objectParameterType(other))
+          return false;
+      } else if (functionType->cvQualifiers() != otherType->cvQualifiers() ||
+                 functionType->refQualifier() != otherType->refQualifier()) {
+        return false;
+      }
+    }
+  }
+
+  return isMoreConstrained(unit, function, other);
 }
 
 auto ASTRewriter::substituteTemplateArgumentList(

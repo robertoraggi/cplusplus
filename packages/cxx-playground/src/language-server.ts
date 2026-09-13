@@ -21,9 +21,11 @@ export function startLanguageServer(): LspClient {
 export async function emitCode({
   format,
   debugInfo,
+  optimizationLevel,
 }: {
   format: TextOutputCodeFormat
   debugInfo: boolean
+  optimizationLevel: number
 }): Promise<string> {
   const client = startLanguageServer()
   const uri = documentUri(inputCodeModel)
@@ -35,6 +37,7 @@ export async function emitCode({
       textDocument: { uri },
       format,
       debugInfo,
+      optimizationLevel,
     }
   )
 

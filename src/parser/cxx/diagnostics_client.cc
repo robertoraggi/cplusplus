@@ -82,25 +82,30 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
       break;
   }  // switch
 
-  const auto pos = preprocessor_->tokenStartPosition(diag.token());
+  SourcePosition pos;
+  if (sourceResolver_) {
+    pos = sourceResolver_->tokenStartPosition(diag.token());
+  }
 
-  if (!pos.fileName.empty()) {
+  if (pos.fileName.empty()) {
+    std::cerr << std::format("{}\n", diag.message());
+  } else {
     std::cerr << std::format("{}:{}:{}: {}: {}\n", pos.fileName, pos.line,
                              pos.column, severity, diag.message());
 
-    const auto textLine = preprocessor_->getTextLine(diag.token());
+    const auto textLine = sourceResolver_->getTextLine(diag.token());
 
-    const auto end = std::max(0, static_cast<int>(pos.column) - 1);
+    if (!textLine.empty()) {
+      const auto end = std::max(0, static_cast<int>(pos.column) - 1);
 
-    std::string indent{textLine.substr(0, end)};
+      std::string indent{textLine.substr(0, end)};
 
-    for (auto& ch : indent) {
-      if (!std::isspace(ch)) ch = ' ';
+      for (auto& ch : indent) {
+        if (!std::isspace(ch)) ch = ' ';
+      }
+
+      std::cerr << std::format("{0}\n{1}^\n", textLine, indent);
     }
-
-    std::cerr << std::format("{0}\n{1}^\n", textLine, indent);
-  } else {
-    std::cerr << std::format("{}\n", diag.message());
   }
 
   if (diag.severity() == Severity::Fatal ||

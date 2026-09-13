@@ -745,6 +745,15 @@ void ASTPrinter::visit(TypeIdAST* ast) {
     }
     --indent_;
   }
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->declarator, "declarator");
 }
 
@@ -851,6 +860,15 @@ void ASTPrinter::visit(TypeConstraintAST* ast) {
 
 void ASTPrinter::visit(AttributeArgumentClauseAST* ast) {
   out_ << std::format("{}\n", "attribute-argument-clause");
+  if (ast->expressionList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "expression-list");
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(AttributeAST* ast) {
@@ -1201,6 +1219,7 @@ void ASTPrinter::visit(CharLiteralExpressionAST* ast) {
     out_ << std::format("literal: {}\n", ast->literal->value());
     --indent_;
   }
+  accept(ast->literalOperatorCall, "literal-operator-call");
 }
 
 void ASTPrinter::visit(BoolLiteralExpressionAST* ast) {
@@ -1231,6 +1250,7 @@ void ASTPrinter::visit(IntLiteralExpressionAST* ast) {
     out_ << std::format("literal: {}\n", ast->literal->value());
     --indent_;
   }
+  accept(ast->literalOperatorCall, "literal-operator-call");
 }
 
 void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
@@ -1246,6 +1266,7 @@ void ASTPrinter::visit(FloatLiteralExpressionAST* ast) {
     out_ << std::format("literal: {}\n", ast->literal->value());
     --indent_;
   }
+  accept(ast->literalOperatorCall, "literal-operator-call");
 }
 
 void ASTPrinter::visit(NullptrLiteralExpressionAST* ast) {
@@ -1303,6 +1324,7 @@ void ASTPrinter::visit(UserDefinedStringLiteralExpressionAST* ast) {
     out_ << std::format("encoding: {}\n", Token::spell(ast->encoding));
     --indent_;
   }
+  accept(ast->literalOperatorCall, "literal-operator-call");
 }
 
 void ASTPrinter::visit(ObjectLiteralExpressionAST* ast) {
@@ -1367,6 +1389,16 @@ void ASTPrinter::visit(NestedStatementExpressionAST* ast) {
   }
   out_ << "\n";
   accept(ast->statement, "statement");
+}
+
+void ASTPrinter::visit(DefaultInitializerExpressionAST* ast) {
+  out_ << "default-initializer-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  accept(ast->expression, "expression");
 }
 
 void ASTPrinter::visit(NestedExpressionAST* ast) {
@@ -2769,6 +2801,12 @@ void ASTPrinter::visit(NestedDeclaratorAST* ast) {
 
 void ASTPrinter::visit(FunctionDeclaratorChunkAST* ast) {
   out_ << std::format("{}\n", "function-declarator-chunk");
+  if (ast->refOp != TokenKind::T_EOF_SYMBOL) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("ref-op: {}\n", Token::spell(ast->refOp));
+    --indent_;
+  }
   if (ast->isFinal) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -3153,6 +3191,15 @@ void ASTPrinter::visit(CxxAttributeAST* ast) {
 
 void ASTPrinter::visit(GccAttributeAST* ast) {
   out_ << std::format("{}\n", "gcc-attribute");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(AlignasAttributeAST* ast) {

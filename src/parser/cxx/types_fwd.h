@@ -79,7 +79,11 @@ class Name;
   V(BuiltinMetaInfo)              \
   V(BitInt)                       \
   V(UnsignedBitInt)               \
-  V(UnresolvedBitInt)
+  V(UnresolvedBitInt)             \
+  V(Vector)                       \
+  V(UnresolvedVector)             \
+  V(Complex)                      \
+  V(Atomic)
 
 class Type;
 
@@ -146,6 +150,16 @@ enum class RefQualifier {
   kNone,
   kLvalue,
   kRvalue,
+};
+
+enum class VectorKind {
+  kGnu,
+  kExt,
+};
+
+enum class VectorSizeKind {
+  kBytes,
+  kElements,
 };
 
 struct TypeParamInfo {

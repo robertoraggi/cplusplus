@@ -199,8 +199,8 @@ auto asSymbolArgument(const TemplateArgument& argument) -> Symbol* {
 
 auto expandsTrailingArguments(SimpleTemplateIdAST* patternRoot) -> bool {
   if (!patternRoot) return false;
-  return isPackExpansionTemplateArgument(
-      lastTemplateArgument(patternRoot->templateArgumentList));
+  return TemplateArguments::isPackExpansion(
+      TemplateArguments::last(patternRoot->templateArgumentList));
 }
 
 struct ExpandedPatternArgument {
@@ -236,7 +236,7 @@ auto expandArgumentList(SimpleTemplateIdAST* root,
 
   std::vector<bool> writtenExpansions;
   for (auto argument : ListView{root->templateArgumentList})
-    writtenExpansions.push_back(isPackExpansionTemplateArgument(argument));
+    writtenExpansions.push_back(TemplateArguments::isPackExpansion(argument));
 
   std::size_t expandedIndex = 0;
   std::size_t writtenIndex = 0;
@@ -874,6 +874,8 @@ struct PartialSpecMatcher {
     auto patClassType = type_cast<ClassType>(patType);
     auto concClassType = type_cast<ClassType>(concType);
     if (!patClassType || !concClassType) return std::nullopt;
+    if (!isDependent(unit, patType))
+      return unit->typeTraits().is_same(patType, concType);
 
     auto patClassSym = patClassType->symbol();
     auto concClassSym = concClassType->symbol();
@@ -997,6 +999,15 @@ struct PartialSpecMatcher {
     return finishNestedMatch(patSymbols, toSymbolVector(concArgs), patTemplId);
   }
 };
+
+[[nodiscard]] auto declaredSpecializationTemplate(Symbol* symbol)
+    -> TemplateDeclarationAST* {
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol))
+    return classSymbol->resolvedDefinition()->templateDeclaration();
+  if (auto variableSymbol = symbol_cast<VariableSymbol>(symbol))
+    return variableSymbol->templateDeclaration();
+  return nullptr;
+}
 }  // namespace
 
 struct ASTRewriter::RewritePartialSpecialization {
@@ -1239,7 +1250,7 @@ auto ASTRewriter::RewritePartialSpecialization::collectClassCandidate(
   if (!specClass) return std::nullopt;
   specClass = specClass->resolvedDefinition();
 
-  auto specTemplateDecl = specClass->templateDeclaration();
+  auto specTemplateDecl = declaredSpecializationTemplate(specClass);
   if (!specTemplateDecl) return std::nullopt;
 
   const auto& patternArgs = spec.arguments;
@@ -1307,7 +1318,7 @@ auto ASTRewriter::RewritePartialSpecialization::collectVariableCandidate(
   auto specVar = symbol_cast<VariableSymbol>(spec.symbol);
   if (!specVar) return std::nullopt;
 
-  auto specTemplateDecl = specVar->templateDeclaration();
+  auto specTemplateDecl = declaredSpecializationTemplate(specVar);
   if (!specTemplateDecl) return std::nullopt;
 
   const auto& patternArgs = spec.arguments;
@@ -1423,8 +1434,8 @@ auto ASTRewriter::RewritePartialSpecialization::isAtLeastAsSpecialized(
 
 auto ASTRewriter::RewritePartialSpecialization::hasEquivalentTransformedType(
     const Candidate& lhs, const Candidate& rhs) const -> bool {
-  if (!areTemplateParameterListsEquivalentForPartialOrdering(
-          unit, lhs.specTemplateDecl->templateParameterList,
+  if (!TemplateEquivalence{unit}.sameForOrdering(
+          lhs.specTemplateDecl->templateParameterList,
           rhs.specTemplateDecl->templateParameterList))
     return false;
 
@@ -1435,9 +1446,8 @@ auto ASTRewriter::RewritePartialSpecialization::hasEquivalentTransformedType(
     auto rhsType = template_argument_type(rhs.patternArguments[i]);
     if (lhsType || rhsType) {
       if (!lhsType || !rhsType ||
-          !areTypesEquivalentForPartialOrdering(unit, lhsType, rhsType,
-                                                lhs.specTemplateDecl,
-                                                rhs.specTemplateDecl))
+          !TemplateEquivalence{unit}.sameForOrdering(
+              lhsType, rhsType, lhs.specTemplateDecl, rhs.specTemplateDecl))
         return false;
       continue;
     }
@@ -1474,8 +1484,11 @@ auto ASTRewriter::RewritePartialSpecialization::select(
     std::span<const TemplateSpecialization> specializations,
     const std::vector<TemplateArgument>& templateArguments,
     SourceLocation fallbackLocation, Collect collect) -> Selection {
-  std::vector<TemplateSpecialization> stableSpecializations(
-      specializations.begin(), specializations.end());
+  std::vector<TemplateSpecialization> stableSpecializations;
+  for (const auto& specialization : specializations) {
+    if (!declaredSpecializationTemplate(specialization.symbol)) continue;
+    stableSpecializations.push_back(specialization);
+  }
   std::vector<Candidate> candidates;
   for (const auto& specialization : stableSpecializations) {
     auto candidate = (this->*collect)(specialization, templateArguments);
@@ -1615,29 +1628,24 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
   if (!selection.candidate) return {.resolutionFailed = selection.ambiguous};
   auto& selected = *selection.candidate;
 
-  if (auto cached =
-          selected.specClass->findSpecialization(unit, selected.deducedArgs)) {
-    auto cachedClass = symbol_cast<ClassSymbol>(cached);
-
-    if (!cachedClass) return {.symbol = cached};
-
-    if (cachedClass->resolvedDefinition()->isComplete()) {
-      cachedClass->setInstantiationPattern(selected.specClass);
-      classSymbol->addSpecialization(unit, templateArguments, cachedClass);
-      return {.symbol = cached};
-    }
-  }
-
+  if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kInstantiations);
   auto specParentScope = selected.specClass->parent();
   auto specRewriter = ASTRewriter{unit, specParentScope, selected.deducedArgs};
   specRewriter.depth_ = selected.specTemplateDecl->depth;
+  specRewriter.inheritEnclosingTemplateArguments(specParentScope);
   specRewriter.binder().setInstantiatingSymbol(selected.specClass);
 
   auto pendingInstance = symbol_cast<ClassSymbol>(
       classSymbol->findSpecialization(unit, templateArguments));
-  if (pendingInstance && !pendingInstance->isComplete()) {
-    specRewriter.setClassInstanceToComplete(pendingInstance);
+  if (!pendingInstance) {
+    pendingInstance = unit->control()->newClassSymbol(classSymbol->parent(),
+                                                      classSymbol->location());
+    pendingInstance->setName(classSymbol->name());
+    pendingInstance->setType(unit->control()->getClassType(pendingInstance));
+    classSymbol->addSpecialization(unit, templateArguments, pendingInstance);
   }
+  pendingInstance->setInstantiationPattern(selected.specClass);
+  specRewriter.setClassInstanceToComplete(pendingInstance);
 
   auto instance =
       ast_cast<ClassSpecifierAST>(specRewriter.specifier(selected.specBody));
@@ -1678,9 +1686,11 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
       ast_cast<SimpleDeclarationAST>(specTemplateDecl->declaration);
   if (!simpleDecl) return {.resolutionFailed = true};
 
+  if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kInstantiations);
   auto specParentScope = selected.specVar->parent();
   auto specRewriter = ASTRewriter{unit, specParentScope, selected.deducedArgs};
   specRewriter.depth_ = selected.specTemplateDecl->depth;
+  specRewriter.inheritEnclosingTemplateArguments(specParentScope);
   specRewriter.binder().setInstantiatingSymbol(selected.specVar);
 
   auto instance =

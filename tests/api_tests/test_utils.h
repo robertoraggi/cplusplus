@@ -27,6 +27,7 @@
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
+#include <cxx/views/symbol_chain.h>
 
 #include <sstream>
 #include <string_view>
@@ -44,8 +45,7 @@ struct Source {
   DiagnosticsClient diagnosticsClient;
   TranslationUnit unit{&diagnosticsClient};
 
-  explicit Source(std::string_view source, bool templateInstantiation = true) {
-    // default to wasm32 memory layout
+  explicit Source(std::string_view source) {
     memoryLayout = std::make_unique<MemoryLayout>(32);
 
     unit.control()->setMemoryLayout(memoryLayout.get());
@@ -54,8 +54,6 @@ struct Source {
 
     unit.parse({
         .checkTypes = true,
-        .templateInstantiation = templateInstantiation,
-        .reflect = true,
     });
   }
 
@@ -82,14 +80,6 @@ struct Source {
 
 inline auto operator""_cxx(const char* source, std::size_t size) -> Source {
   return Source{std::string_view{source, size}};
-}
-
-inline auto operator""_cxx_no_templates(const char* source, std::size_t size)
-    -> Source {
-  // disable templates to allow overriding the template instantiation algorithm
-  bool templateInstantiation = false;
-  auto text = std::string_view{source, size};
-  return Source{text, templateInstantiation};
 }
 
 struct LookupMember {

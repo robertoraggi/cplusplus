@@ -105,7 +105,20 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   ast->symbol->setDeclaration(ast);
   ast->symbol->setFinal(ast->isFinal);
 
-  binder.applyAbiTags(ast->symbol, ast->attributeList);
+  binder.applyDeclarationAttributes(ast->symbol, ast->attributeList);
+
+  classSymbol->setPackAlignment(
+      binder.translationUnit()->packAlignmentAt(classLocation()));
+
+  const auto declaredAlignment = classSymbol->explicitAlignment();
+  if (auto alignment =
+          binder.explicitAlignment(ast->attributeList, classLocation())) {
+    binder.checkRedeclaredAlignment(classSymbol, *alignment, classLocation());
+  } else if (declaredAlignment) {
+    binder.error(classLocation(),
+                 "'alignas' must be specified on the definition if it is "
+                 "specified on any declaration");
+  }
 
   if (declSpecs.templateHead) {
     if (auto oldDecl = ast->symbol->templateDeclaration()) {
@@ -194,8 +207,8 @@ auto Binder::BindClass::isTrueRedefinition(
 
   if (!existingTemplateDecl) return false;
 
-  if (!areTemplateHeadsEquivalentForRedeclaration(
-          binder.unit_, existingTemplateDecl, declSpecs.templateHead)) {
+  if (!TemplateEquivalence{binder.unit_}.same(existingTemplateDecl,
+                                              declSpecs.templateHead)) {
     return false;
   }
 
@@ -206,8 +219,8 @@ auto Binder::BindClass::isTrueRedefinition(
       auto existingTemplateId =
           ast_cast<SimpleTemplateIdAST>(existingClassSpec->unqualifiedId);
       if (existingTemplateId) {
-        if (!areTemplateArgumentListsSyntacticallyEquivalent(
-                binder.unit_, existingTemplateId->templateArgumentList,
+        if (!TemplateEquivalence{binder.unit_}.sameWritten(
+                existingTemplateId->templateArgumentList,
                 newTemplateId->templateArgumentList)) {
           return false;
         }

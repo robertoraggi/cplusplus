@@ -105,11 +105,16 @@ void ASTRewriter::pushLambdaCaptureFields(
 void ASTRewriter::popLambdaCaptureFields() { lambdaCaptureFields_.pop_back(); }
 
 auto ASTRewriter::lambdaCaptureField(Symbol* sym) const -> FieldSymbol* {
-  if (!sym || lambdaCaptureFields_.empty()) return nullptr;
-  auto& fields = lambdaCaptureFields_.back();
-  auto it = fields.find(sym);
-  if (it == fields.end()) return nullptr;
-  return it->second;
+  if (!sym) return nullptr;
+
+  FieldSymbol* field = nullptr;
+  for (const auto& fields : lambdaCaptureFields_) {
+    auto it = fields.find(sym);
+    if (it == fields.end()) continue;
+    field = it->second;
+    sym = field;
+  }
+  return field;
 }
 
 auto ASTRewriter::control() const -> Control* { return unit_->control(); }
