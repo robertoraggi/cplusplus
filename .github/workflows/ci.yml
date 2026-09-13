@@ -31,6 +31,11 @@ jobs:
         run: |
           ctest --output-on-failure
 
+      - name: the cxx frontend
+        run: |
+          npm ci --ignore-scripts
+          node scripts/bootstrap.js --cxx=build/src/frontend/cxx --syntax-only
+
   build-linux-mlir:
     runs-on: ubuntu-26.04
 
@@ -39,10 +44,11 @@ jobs:
 
       - name: Install LLVM and MLIR deps
         run: |
-          sudo apt-get install -y libmlir-22-dev mlir-22-tools
+          sudo apt-get install -y libmlir-22-dev mlir-22-tools liblld-22-dev
 
       - name: Install unit tests requirements
         run: |
+          npm ci --ignore-scripts
           pipx install uv
           uv sync
 
@@ -60,6 +66,10 @@ jobs:
         working-directory: build
         run: |
           ctest --output-on-failure
+
+      - name: Bootstrap the cxx frontend
+        run: |
+          node scripts/bootstrap.js --cxx=build/src/frontend/cxx
 
   build-windows:
     runs-on: windows-latest

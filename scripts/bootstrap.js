@@ -96,7 +96,6 @@ const cxx = argv.cxx ? path.resolve(String(argv.cxx)) : await which("cxx");
 
 const compileFlags = [
   `-std=${std}`,
-  "-c",
   opt,
   ...includePaths.flatMap((dir) => ["-I", dir]),
   "-D_WASI_EMULATED_MMAN",
@@ -151,9 +150,13 @@ async function compile(sources) {
   }
 
   await runPool(sources, async (source) => {
-    const output = syntaxOnly ? "/dev/null" : objectFileFor(source);
     try {
-      await $`${cxx} ${compileFlags} ${source} -o ${output}`;
+      if (syntaxOnly) {
+        await $`${cxx} -fsyntax-only ${compileFlags} ${source}`;
+      } else {
+        const output = objectFileFor(source);
+        await $`${cxx} -c ${compileFlags} ${source} -o ${output}`;
+      }
       echo(chalk.green(`[${++done}/${sources.length}] compiled ${source}`));
     } catch (error) {
       ++done;
