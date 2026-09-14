@@ -7792,7 +7792,8 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& ast,
 
       DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
 
-      if (!parse_designated_initializer_clause(designatedInitializerClause)) {
+      if (!(lookat_designator() &&
+            parse_designated_initializer_clause(designatedInitializerClause))) {
         parse_error("expected designated initializer clause");
       }
 
