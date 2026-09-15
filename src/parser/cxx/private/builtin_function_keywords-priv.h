@@ -2052,7 +2052,12 @@ static inline auto classifyBuiltinFunction17(const char* s)
                           if (s[12] == 'w') {
                             if (s[13] == 'a') {
                               if (s[14] == 'p') {
-                                if (s[15] == '3') {
+                                if (s[15] == '1') {
+                                  if (s[16] == '6') {
+                                    return cxx::BuiltinFunctionKind::
+                                        T___BUILTIN_BSWAP16;
+                                  }
+                                } else if (s[15] == '3') {
                                   if (s[16] == '2') {
                                     return cxx::BuiltinFunctionKind::
                                         T___BUILTIN_BSWAP32;

@@ -848,6 +848,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
         return lowerAssumeAligned(op, adaptor, rewriter);
 
+      case BuiltinFunctionKind::T___BUILTIN_BSWAP16:
       case BuiltinFunctionKind::T___BUILTIN_BSWAP32:
       case BuiltinFunctionKind::T___BUILTIN_BSWAP64:
         return lowerSimpleIntrinsic(op, adaptor, rewriter, "llvm.bswap");

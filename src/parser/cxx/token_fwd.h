@@ -379,6 +379,7 @@ class Token;
   V(__BUILTIN_ATANL, "__builtin_atanl")                                       \
   V(__BUILTIN_BCMP, "__builtin_bcmp")                                         \
   V(__BUILTIN_BCOPY, "__builtin_bcopy")                                       \
+  V(__BUILTIN_BSWAP16, "__builtin_bswap16")                                   \
   V(__BUILTIN_BSWAP32, "__builtin_bswap32")                                   \
   V(__BUILTIN_BSWAP64, "__builtin_bswap64")                                   \
   V(__BUILTIN_BZERO, "__builtin_bzero")                                       \
