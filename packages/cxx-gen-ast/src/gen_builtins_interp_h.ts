@@ -310,6 +310,16 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
   lines.push(`    }`);
   lines.push(``);
 
+  lines.push(`    case BuiltinFunctionKind::T___BUILTIN_BSWAP16: {`);
+  lines.push(`      if (auto a = toInt(args[0])) {`);
+  lines.push(`        auto v = static_cast<uint16_t>(*a);`);
+  lines.push(`        v = static_cast<uint16_t>(((v & 0xFF00u) >> 8) |`);
+  lines.push(`                                  ((v & 0x00FFu) << 8));`);
+  lines.push(`        return ConstValue{static_cast<std::intmax_t>(v)};`);
+  lines.push(`      }`);
+  lines.push(`      return std::nullopt;`);
+  lines.push(`    }`);
+
   lines.push(`    case ${enumName("__builtin_bswap64")}: {`);
   lines.push(`      if (auto a = toInt(args[0])) {`);
   lines.push(`        auto v = static_cast<uint64_t>(*a);`);

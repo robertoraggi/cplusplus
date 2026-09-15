@@ -54,6 +54,12 @@
     "libcall": true
   },
   {
+    "name": "__builtin_bswap16",
+    "prototype": "constexpr unsigned short __builtin_bswap16(unsigned short)",
+    "constexpr": true,
+    "noexcept": true
+  },
+  {
     "name": "__builtin_bswap32",
     "prototype": "constexpr unsigned int __builtin_bswap32(unsigned int)",
     "constexpr": true,

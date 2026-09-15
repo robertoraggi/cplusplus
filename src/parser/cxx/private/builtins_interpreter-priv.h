@@ -264,6 +264,14 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
       return std::nullopt;
     }
 
+    case BuiltinFunctionKind::T___BUILTIN_BSWAP16: {
+      if (auto a = toInt(args[0])) {
+        auto v = static_cast<uint16_t>(*a);
+        v = static_cast<uint16_t>(((v & 0xFF00u) >> 8) | ((v & 0x00FFu) << 8));
+        return ConstValue{static_cast<std::intmax_t>(v)};
+      }
+      return std::nullopt;
+    }
     case BuiltinFunctionKind::T___BUILTIN_BSWAP64: {
       if (auto a = toInt(args[0])) {
         auto v = static_cast<uint64_t>(*a);
