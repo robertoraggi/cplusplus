@@ -717,7 +717,8 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<ir::ValueRef> {
       const auto countType = emitter_.typeOf(totalElements);
       if (emitter_.typeOf(innerVal) != countType)
         innerVal = emitter_.signExtend(loc, innerVal, countType);
-      totalElements = emitter_.mulInt(loc, totalElements, innerVal);
+      totalElements =
+          emitter_.binaryOp(loc, ir::BinaryOp::MulInt, totalElements, innerVal);
       elemType = inner->elementType();
     }
 
@@ -731,7 +732,8 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<ir::ValueRef> {
     if (leafSizeBytes > 1) {
       auto countType = emitter_.typeOf(totalElements);
       auto sizeConst = emitter_.constantInt(loc, countType, leafSizeBytes);
-      totalBytes = emitter_.mulInt(loc, totalElements, sizeConst);
+      totalBytes = emitter_.binaryOp(loc, ir::BinaryOp::MulInt, totalElements,
+                                     sizeConst);
     }
 
     auto allocaOp =
@@ -2468,7 +2470,8 @@ void Codegen::emitGlobalInit(Symbol* symbol, const Type* type,
     auto guardAddress = emitter_.bitcast(loc, guardBytePtrType, guardStorage);
     auto guardValue = emitter_.load(loc, guardByteType, guardAddress, 1);
     auto one = emitter_.constantInt(loc, guardByteType, 1);
-    auto initializedBit = emitter_.andInt(loc, guardValue, one);
+    auto initializedBit =
+        emitter_.binaryOp(loc, ir::BinaryOp::AndInt, guardValue, one);
     auto zero = emitter_.constantInt(loc, guardByteType, 0);
     auto needsInitialization =
         emitter_.compareInt(loc, ir::IntPredicate::Equal, initializedBit, zero);

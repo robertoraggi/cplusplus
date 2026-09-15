@@ -219,13 +219,16 @@ struct Initializer {
     Undef,
     SignalingNaN,
   };
+
   Kind kind = Kind::None;
   TypeRef type;
   std::int64_t integer = 0;
   double floating = 0;
   std::string bytes;
   std::vector<Initializer> elements;
+
   explicit operator bool() const { return kind != Kind::None; }
+
   static auto integerValue(TypeRef type, std::int64_t value) -> Initializer {
     Initializer i;
     i.kind = Kind::Integer;
@@ -233,6 +236,7 @@ struct Initializer {
     i.integer = value;
     return i;
   }
+
   static auto floatingValue(TypeRef type, double value) -> Initializer {
     Initializer i;
     i.kind = Kind::Floating;
@@ -240,38 +244,45 @@ struct Initializer {
     i.floating = value;
     return i;
   }
+
   static auto byteString(std::string_view value) -> Initializer {
     Initializer i;
     i.kind = Kind::Bytes;
     i.bytes = value;
     return i;
   }
+
   static auto aggregate(std::vector<Initializer> value) -> Initializer {
     Initializer i;
     i.kind = Kind::Aggregate;
     i.elements = std::move(value);
     return i;
   }
+
   static auto null() -> Initializer {
     Initializer i;
     i.kind = Kind::Null;
     return i;
   }
+
   static auto zero() -> Initializer {
     Initializer i;
     i.kind = Kind::Zero;
     return i;
   }
+
   static auto scalarZero() -> Initializer {
     Initializer i;
     i.kind = Kind::ScalarZero;
     return i;
   }
+
   static auto undef() -> Initializer {
     Initializer i;
     i.kind = Kind::Undef;
     return i;
   }
+
   static auto signalingNaN() -> Initializer {
     Initializer i;
     i.kind = Kind::SignalingNaN;
@@ -365,6 +376,7 @@ class Emitter {
     setInsertionPoint(
         {.kind = InsertionPoint::Kind::BlockStart, .block = block});
   }
+
   virtual void beginGlobalInitializer(GlobalRef global) = 0;
   virtual void globalConstructor(SourceLocation loc, FunctionRef function) = 0;
   virtual auto constant(SourceLocation loc, TypeRef type,
@@ -402,6 +414,7 @@ class Emitter {
       -> ValueRef {
     return constant(loc, type, Initializer::signalingNaN());
   }
+
   virtual auto isZeroConstant(ValueRef value) -> bool = 0;
   virtual auto symbolExists(std::string_view name) -> bool = 0;
 
@@ -496,9 +509,6 @@ class Emitter {
   [[nodiscard]] virtual auto blockParameterCount(BlockRef block)
       -> unsigned = 0;
 
-  // Creates a block, appended to `function`'s body when given and otherwise to
-  // the region holding the current insertion point. Never moves the insertion
-  // point: call setInsertionPoint() to emit into the new block.
   [[nodiscard]] virtual auto createBlock(FunctionRef function) -> BlockRef = 0;
 
   [[nodiscard]] virtual auto insertionBlock() -> BlockRef = 0;
@@ -513,91 +523,6 @@ class Emitter {
 
   virtual void condBranch(SourceLocation loc, ValueRef condition,
                           BlockRef trueDest, BlockRef falseDest) = 0;
-
-  [[nodiscard]] auto addInt(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::AddInt, lhs, rhs);
-  }
-
-  [[nodiscard]] auto subInt(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::SubInt, lhs, rhs);
-  }
-
-  [[nodiscard]] auto mulInt(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::MulInt, lhs, rhs);
-  }
-
-  [[nodiscard]] auto signedDiv(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::SignedDiv, lhs, rhs);
-  }
-
-  [[nodiscard]] auto unsignedDiv(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::UnsignedDiv, lhs, rhs);
-  }
-
-  [[nodiscard]] auto signedRem(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::SignedRem, lhs, rhs);
-  }
-
-  [[nodiscard]] auto unsignedRem(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::UnsignedRem, lhs, rhs);
-  }
-
-  [[nodiscard]] auto addFloat(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::AddFloat, lhs, rhs);
-  }
-
-  [[nodiscard]] auto subFloat(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::SubFloat, lhs, rhs);
-  }
-
-  [[nodiscard]] auto mulFloat(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::MulFloat, lhs, rhs);
-  }
-
-  [[nodiscard]] auto divFloat(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::DivFloat, lhs, rhs);
-  }
-
-  [[nodiscard]] auto andInt(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::AndInt, lhs, rhs);
-  }
-
-  [[nodiscard]] auto orInt(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::OrInt, lhs, rhs);
-  }
-
-  [[nodiscard]] auto xorInt(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::XorInt, lhs, rhs);
-  }
-
-  [[nodiscard]] auto shiftLeft(SourceLocation loc, ValueRef lhs, ValueRef rhs)
-      -> ValueRef {
-    return binaryOp(loc, BinaryOp::ShiftLeft, lhs, rhs);
-  }
-
-  [[nodiscard]] auto arithmeticShiftRight(SourceLocation loc, ValueRef lhs,
-                                          ValueRef rhs) -> ValueRef {
-    return binaryOp(loc, BinaryOp::ArithmeticShiftRight, lhs, rhs);
-  }
-
-  [[nodiscard]] auto logicalShiftRight(SourceLocation loc, ValueRef lhs,
-                                       ValueRef rhs) -> ValueRef {
-    return binaryOp(loc, BinaryOp::LogicalShiftRight, lhs, rhs);
-  }
 
   [[nodiscard]] virtual auto binaryOp(SourceLocation loc, BinaryOp op,
                                       ValueRef lhs, ValueRef rhs)
