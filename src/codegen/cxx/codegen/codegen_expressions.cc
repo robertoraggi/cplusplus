@@ -965,10 +965,13 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
       if (gen.emitter_.typeOf(countVal) != gen.emitter_.typeOf(index))
         countVal =
             gen.emitter_.signExtend(loc, countVal, gen.emitter_.typeOf(index));
-      stride = stride ? gen.emitter_.mulInt(loc, stride, countVal) : countVal;
+      stride = stride ? gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, stride,
+                                              countVal)
+                      : countVal;
       cur = vla->elementType();
     }
-    if (stride) index = gen.emitter_.mulInt(loc, index, stride);
+    if (stride)
+      index = gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, index, stride);
   }
 
   if (gen.traits.is_pointer(baseType) ||
@@ -1530,8 +1533,9 @@ auto Codegen::ExpressionVisitor::emitBitFieldIncrDecr(SourceLocation loc,
   auto oldValue = emitBitFieldLoad(loc, *access, resultType);
   auto step = gen.emitter_.constantInt(loc, resultType,
                                        op == TokenKind::T_PLUS_PLUS ? 1 : -1);
-  auto stored =
-      emitBitFieldStore(loc, *access, gen.emitter_.addInt(loc, oldValue, step));
+  auto stored = emitBitFieldStore(
+      loc, *access,
+      gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, oldValue, step));
 
   return ExpressionResult{postfix ? oldValue : stored};
 }
@@ -1652,7 +1656,8 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     auto resultTy = gen.convertType(ast->baseExpression->type);
     auto oneOp = gen.emitter_.constantInt(
         loc, resultTy, ast->op == TokenKind::T_PLUS_PLUS ? 1 : -1);
-    auto addOp = gen.emitter_.addInt(loc, loadOp, oneOp);
+    auto addOp =
+        gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, loadOp, oneOp);
     gen.emitter_.store(loc, addOp, expressionResult.value,
                        gen.getAlignment(ast->baseExpression->type));
     return {loadOp};
@@ -1697,7 +1702,8 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
         return {op};
     }
 
-    auto addOp = gen.emitter_.addFloat(loc, loadOp, one);
+    auto addOp =
+        gen.emitter_.binaryOp(loc, ir::BinaryOp::AddFloat, loadOp, one);
     gen.emitter_.store(loc, addOp, expressionResult.value,
                        gen.getAlignment(ast->baseExpression->type));
     return {loadOp};
@@ -1878,7 +1884,8 @@ auto Codegen::ExpressionVisitor::emitUnaryOpNot(UnaryExpressionAST* ast)
     auto expressionResult = gen.expression(ast->expression);
     auto resultType = gen.convertType(ast->type);
     auto c1 = gen.emitter_.constantInt(loc, resultType, 1);
-    auto op = gen.emitter_.xorInt(loc, expressionResult.value, c1);
+    auto op = gen.emitter_.binaryOp(loc, ir::BinaryOp::XorInt,
+                                    expressionResult.value, c1);
     return {op};
   }
   return {gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()))};
@@ -1911,7 +1918,8 @@ auto Codegen::ExpressionVisitor::emitUnaryOpMinus(UnaryExpressionAST* ast)
 
   if (gen.traits.is_integral_or_unscoped_enum(ast->type)) {
     auto zero = gen.emitter_.constantInt(loc, resultType, 0);
-    auto op = gen.emitter_.subInt(loc, zero, expressionResult.value);
+    auto op = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, zero,
+                                    expressionResult.value);
 
     return {op};
   }
@@ -1939,7 +1947,8 @@ auto Codegen::ExpressionVisitor::emitUnaryOpTilde(UnaryExpressionAST* ast)
         imag.value)};
   }
   auto allOnes = gen.emitter_.constantInt(loc, resultType, -1);
-  auto op = gen.emitter_.xorInt(loc, expressionResult.value, allOnes);
+  auto op = gen.emitter_.binaryOp(loc, ir::BinaryOp::XorInt,
+                                  expressionResult.value, allOnes);
 
   return {op};
 }
@@ -1985,9 +1994,9 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrFloat(
   ir::ValueRef addOp;
 
   if (ast->op == TokenKind::T_MINUS_MINUS)
-    addOp = gen.emitter_.subFloat(loc, loadOp, one);
+    addOp = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubFloat, loadOp, one);
   else
-    addOp = gen.emitter_.addFloat(loc, loadOp, one);
+    addOp = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddFloat, loadOp, one);
 
   gen.emitter_.store(loc, addOp, expressionResult.value,
                      gen.getAlignment(ast->expression->type));
@@ -2018,9 +2027,9 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrIntegral(
   ir::ValueRef addOp;
 
   if (ast->op == TokenKind::T_MINUS_MINUS)
-    addOp = gen.emitter_.subInt(loc, loadOp, oneOp);
+    addOp = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, loadOp, oneOp);
   else
-    addOp = gen.emitter_.addInt(loc, loadOp, oneOp);
+    addOp = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, loadOp, oneOp);
 
   gen.emitter_.store(loc, addOp, expressionResult.value,
                      gen.getAlignment(ast->expression->type));
@@ -2192,7 +2201,8 @@ auto Codegen::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
         countVal = gen.emitter_.signExtend(vla->size()->firstSourceLocation(),
                                            countVal, resultType);
       totalElements = totalElements
-                          ? gen.emitter_.mulInt(loc, totalElements, countVal)
+                          ? gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt,
+                                                  totalElements, countVal)
                           : countVal;
       cur = vla->elementType();
     }
@@ -2201,7 +2211,8 @@ auto Codegen::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
           gen.control()->memoryLayout()->sizeOf(cur).value_or(1));
       if (leafSize > 1) {
         auto leafConst = gen.emitter_.constantInt(loc, resultType, leafSize);
-        totalElements = gen.emitter_.mulInt(loc, totalElements, leafConst);
+        totalElements = gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt,
+                                              totalElements, leafConst);
       }
       return {totalElements};
     }
@@ -2242,7 +2253,8 @@ auto Codegen::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
         countVal = gen.emitter_.signExtend(vla->size()->firstSourceLocation(),
                                            countVal, resultType);
       totalElements = totalElements
-                          ? gen.emitter_.mulInt(loc, totalElements, countVal)
+                          ? gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt,
+                                                  totalElements, countVal)
                           : countVal;
       cur = vla->elementType();
     }
@@ -2251,7 +2263,8 @@ auto Codegen::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
           gen.control()->memoryLayout()->sizeOf(cur).value_or(1));
       if (leafSize > 1) {
         auto leafConst = gen.emitter_.constantInt(loc, resultType, leafSize);
-        totalElements = gen.emitter_.mulInt(loc, totalElements, leafConst);
+        totalElements = gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt,
+                                              totalElements, leafConst);
       }
       return {totalElements};
     }
@@ -2404,7 +2417,8 @@ auto Codegen::arrayElementCount(SourceLocation loc, const Type* allocatedType,
   if (!runtimeExtent) return constantValue;
   if (constantExtents == 1) return runtimeExtent;
 
-  return emitter_.mulInt(loc, runtimeExtent, constantValue);
+  return emitter_.binaryOp(loc, ir::BinaryOp::MulInt, runtimeExtent,
+                           constantValue);
 }
 
 void Codegen::emitArrayLoop(SourceLocation loc, ir::ValueRef base,
@@ -2440,10 +2454,14 @@ void Codegen::emitArrayLoop(SourceLocation loc, ir::ValueRef base,
 
   emitter_.setInsertionBlock(bodyBlock);
   auto one = emitter_.constantInt(loc, countType, 1);
-  auto elementIndex = reverse ? emitter_.subInt(loc, position, one) : position;
-  emitter_.store(loc,
-                 reverse ? elementIndex : emitter_.addInt(loc, position, one),
-                 index, countAlignment);
+  auto elementIndex =
+      reverse ? emitter_.binaryOp(loc, ir::BinaryOp::SubInt, position, one)
+              : position;
+  emitter_.store(
+      loc,
+      reverse ? elementIndex
+              : emitter_.binaryOp(loc, ir::BinaryOp::AddInt, position, one),
+      index, countAlignment);
   body(emitter_.pointerAdd(loc, elementPtrType, base, elementIndex));
   branch(loc, conditionBlock);
 
@@ -2481,11 +2499,13 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
     elementCount = gen.arrayElementCount(loc, allocatedType, sizeTy);
     auto elementSize = gen.emitter_.constantInt(
         loc, sizeTy, static_cast<std::int64_t>(objectSize));
-    sizeVal = gen.emitter_.mulInt(loc, elementCount, elementSize);
+    sizeVal = gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, elementCount,
+                                    elementSize);
     if (prefixSize) {
       auto prefix = gen.emitter_.constantInt(
           loc, sizeTy, static_cast<std::int64_t>(prefixSize));
-      sizeVal = gen.emitter_.addInt(loc, sizeVal, prefix);
+      sizeVal =
+          gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, sizeVal, prefix);
     }
   } else {
     sizeVal = gen.emitter_.constantInt(
@@ -2713,8 +2733,9 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
           loc, sizeTy,
           static_cast<std::int64_t>(
               control()->memoryLayout()->sizeOf(pointeeType).value_or(0)));
-      deallocationSize = gen.emitter_.addInt(
-          loc, gen.emitter_.mulInt(loc, count, elementSize),
+      deallocationSize = gen.emitter_.binaryOp(
+          loc, ir::BinaryOp::AddInt,
+          gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, count, elementSize),
           gen.emitter_.constantInt(loc, sizeTy,
                                    static_cast<std::int64_t>(prefixSize)));
     }
@@ -3152,7 +3173,8 @@ auto Codegen::ExpressionVisitor::emitPointerToMemberConversion(
     auto wordType = gen.pointerSizedIntType();
     auto delta = gen.emitter_.constantInt(loc, wordType, *adjustment * 2);
 
-    auto adjusted = gen.emitter_.addInt(loc, adjustmentField, delta);
+    auto adjusted = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt,
+                                          adjustmentField, delta);
 
     return {
         gen.makeMemberFunctionPointer(loc, targetType, pointerField, adjusted)};
@@ -3182,7 +3204,8 @@ auto Codegen::ExpressionVisitor::emitPointerToMemberConversion(
 
   auto adjustmentValue = gen.emitter_.constantInt(loc, resultType, *adjustment);
 
-  auto adjusted = gen.emitter_.addInt(loc, operand.value, adjustmentValue);
+  auto adjusted = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt,
+                                        operand.value, adjustmentValue);
 
   auto isNull = gen.emitter_.compareInt(loc, ir::IntPredicate::Equal,
                                         operand.value, nullValue);
@@ -3541,10 +3564,12 @@ auto Codegen::ExpressionVisitor::emitComplexComparisonOp(
 
   switch (op) {
     case TokenKind::T_EQUAL_EQUAL:
-      return {gen.emitter_.andInt(loc, realEqual, imagEqual)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::AndInt, realEqual,
+                                    imagEqual)};
 
     case TokenKind::T_EXCLAIM_EQUAL:
-      return {gen.emitter_.orInt(loc, realEqual, imagEqual)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::OrInt, realEqual,
+                                    imagEqual)};
 
     default:
       break;
@@ -3558,16 +3583,16 @@ auto Codegen::ExpressionVisitor::emitBinaryArithmeticOpFloat(
     ir::ValueRef left, ir::ValueRef right) -> ExpressionResult {
   switch (binop) {
     case TokenKind::T_PLUS:
-      return {gen.emitter_.addFloat(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::AddFloat, left, right)};
 
     case TokenKind::T_MINUS:
-      return {gen.emitter_.subFloat(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::SubFloat, left, right)};
 
     case TokenKind::T_STAR:
-      return {gen.emitter_.mulFloat(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::MulFloat, left, right)};
 
     case TokenKind::T_SLASH:
-      return {gen.emitter_.divFloat(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::DivFloat, left, right)};
 
     default:
       break;
@@ -3583,21 +3608,25 @@ auto Codegen::ExpressionVisitor::emitBinaryArithmeticOpIntegral(
   const bool isSigned = gen.traits.is_signed(leftType);
   switch (binop) {
     case TokenKind::T_PLUS:
-      return {gen.emitter_.addInt(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, left, right)};
 
     case TokenKind::T_MINUS:
-      return {gen.emitter_.subInt(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, left, right)};
 
     case TokenKind::T_STAR:
-      return {gen.emitter_.mulInt(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, left, right)};
 
     case TokenKind::T_SLASH:
-      return {isSigned ? gen.emitter_.signedDiv(loc, left, right)
-                       : gen.emitter_.unsignedDiv(loc, left, right)};
+      return {isSigned ? gen.emitter_.binaryOp(loc, ir::BinaryOp::SignedDiv,
+                                               left, right)
+                       : gen.emitter_.binaryOp(loc, ir::BinaryOp::UnsignedDiv,
+                                               left, right)};
 
     case TokenKind::T_PERCENT:
-      return {isSigned ? gen.emitter_.signedRem(loc, left, right)
-                       : gen.emitter_.unsignedRem(loc, left, right)};
+      return {isSigned ? gen.emitter_.binaryOp(loc, ir::BinaryOp::SignedRem,
+                                               left, right)
+                       : gen.emitter_.binaryOp(loc, ir::BinaryOp::UnsignedRem,
+                                               left, right)};
 
     default:
       break;
@@ -3626,7 +3655,8 @@ auto Codegen::ExpressionVisitor::emitBinaryArithmeticOpPointer(
       }
       auto offsetType = gen.emitter_.typeOf(right);
       auto zero = gen.emitter_.constantInt(loc, offsetType, 0);
-      auto offset = gen.emitter_.subInt(loc, zero, right);
+      auto offset =
+          gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, zero, right);
       return {gen.emitter_.pointerAdd(loc, resultType, left, offset)};
     }
     default:
@@ -3677,13 +3707,16 @@ auto Codegen::ExpressionVisitor::emitBinaryShiftOp(
   }
 
   if (binOp == TokenKind::T_LESS_LESS) {
-    return {gen.emitter_.shiftLeft(opLoc, left, right)};
+    return {gen.emitter_.binaryOp(opLoc, ir::BinaryOp::ShiftLeft, left, right)};
   }
 
   if (gen.traits.is_signed(leftType)) {
-    return {gen.emitter_.arithmeticShiftRight(opLoc, left, right)};
+    return {gen.emitter_.binaryOp(opLoc, ir::BinaryOp::ArithmeticShiftRight,
+                                  left, right)};
   }
-  return {gen.emitter_.logicalShiftRight(opLoc, left, right)};
+
+  return {gen.emitter_.binaryOp(opLoc, ir::BinaryOp::LogicalShiftRight, left,
+                                right)};
 }
 
 auto Codegen::ExpressionVisitor::emitBinaryComparisonOpFloat(
@@ -3922,11 +3955,11 @@ auto Codegen::ExpressionVisitor::emitBinaryBitwiseOp(
     ir::ValueRef right) -> ExpressionResult {
   switch (op) {
     case TokenKind::T_CARET:
-      return {gen.emitter_.xorInt(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::XorInt, left, right)};
     case TokenKind::T_AMP:
-      return {gen.emitter_.andInt(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::AndInt, left, right)};
     case TokenKind::T_BAR:
-      return {gen.emitter_.orInt(loc, left, right)};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::OrInt, left, right)};
     default:
       break;
   }
@@ -5446,7 +5479,8 @@ auto Codegen::ExpressionVisitor::emitComplexToBoolean(
 
   if (!realNotZero || !imagNotZero) return {};
 
-  return {gen.emitter_.orInt(loc, realNotZero, imagNotZero)};
+  return {gen.emitter_.binaryOp(loc, ir::BinaryOp::OrInt, realNotZero,
+                                imagNotZero)};
 }
 
 auto Codegen::ExpressionVisitor::codegenBuiltinComplex(CallExpressionAST* ast)
@@ -5589,7 +5623,8 @@ auto Codegen::ExpressionVisitor::codegenBuiltinIsInf(CallExpressionAST* ast)
   auto isNegativeInfinity = gen.emitter_.compareFloat(
       loc, ir::FloatPredicate::OrderedEqual, value, negativeInfinity);
 
-  return {gen.emitter_.orInt(loc, isPositiveInfinity, isNegativeInfinity)};
+  return {gen.emitter_.binaryOp(loc, ir::BinaryOp::OrInt, isPositiveInfinity,
+                                isNegativeInfinity)};
 }
 
 auto Codegen::ExpressionVisitor::codegenBuiltinIsFinite(CallExpressionAST* ast)
@@ -5613,7 +5648,8 @@ auto Codegen::ExpressionVisitor::codegenBuiltinIsFinite(CallExpressionAST* ast)
   auto aboveNegativeInfinity = gen.emitter_.compareFloat(
       loc, ir::FloatPredicate::OrderedGreater, value, negativeInfinity);
 
-  return {gen.emitter_.andInt(loc, belowInfinity, aboveNegativeInfinity)};
+  return {gen.emitter_.binaryOp(loc, ir::BinaryOp::AndInt, belowInfinity,
+                                aboveNegativeInfinity)};
 }
 
 auto Codegen::ExpressionVisitor::codegenBuiltinSignbit(CallExpressionAST* ast)
@@ -5709,12 +5745,14 @@ auto Codegen::ExpressionVisitor::emitMemberFunctionPointerCall(
   auto objectAddress = gen.emitter_.bitcast(loc, i8PtrType, object.value);
 
   auto thisAdjustment =
-      gen.emitter_.arithmeticShiftRight(loc, adjustmentField, constantWord(1));
+      gen.emitter_.binaryOp(loc, ir::BinaryOp::ArithmeticShiftRight,
+                            adjustmentField, constantWord(1));
 
   auto thisValue =
       gen.emitter_.pointerAdd(loc, i8PtrType, objectAddress, thisAdjustment);
 
-  auto virtualBit = gen.emitter_.andInt(loc, adjustmentField, constantWord(1));
+  auto virtualBit = gen.emitter_.binaryOp(loc, ir::BinaryOp::AndInt,
+                                          adjustmentField, constantWord(1));
   auto isVirtual = gen.emitter_.compareInt(loc, ir::IntPredicate::NotEqual,
                                            virtualBit, constantWord(0));
 
@@ -5882,13 +5920,13 @@ auto Codegen::ExpressionVisitor::codegenBuiltinArithmeticOverflow(
   switch (resolveBuiltinFunctionKind(
       ast_cast<IdExpressionAST>(ast->baseExpression))) {
     case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
-      product = gen.emitter_.addInt(loc, lhs, rhs);
+      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, lhs, rhs);
       break;
     case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
-      product = gen.emitter_.subInt(loc, lhs, rhs);
+      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, lhs, rhs);
       break;
     case BuiltinFunctionKind::T___BUILTIN_MUL_OVERFLOW:
-      product = gen.emitter_.mulInt(loc, lhs, rhs);
+      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, lhs, rhs);
       break;
     default:
       return {};
@@ -6006,12 +6044,14 @@ auto Codegen::ExpressionVisitor::codegenBuiltinBitCount(CallExpressionAST* ast)
       return {populationCount(operand.value)};
 
     case BitCountOperation::kParity:
-      return {gen.emitter_.andInt(loc, populationCount(operand.value),
-                                  constant(i32Type, 1))};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::AndInt,
+                                    populationCount(operand.value),
+                                    constant(i32Type, 1))};
 
     case BitCountOperation::kFindFirstSet: {
-      auto index = gen.emitter_.addInt(loc, countTrailingZeros(operand.value),
-                                       constant(i32Type, 1));
+      auto index = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt,
+                                         countTrailingZeros(operand.value),
+                                         constant(i32Type, 1));
       auto isZero =
           gen.emitter_.compareInt(loc, ir::IntPredicate::Equal, operand.value,
                                   constant(operandType, 0));
@@ -6019,15 +6059,16 @@ auto Codegen::ExpressionVisitor::codegenBuiltinBitCount(CallExpressionAST* ast)
     }
 
     case BitCountOperation::kCountLeadingRedundantSignBits: {
-      auto complement =
-          gen.emitter_.xorInt(loc, operand.value, constant(operandType, -1));
+      auto complement = gen.emitter_.binaryOp(
+          loc, ir::BinaryOp::XorInt, operand.value, constant(operandType, -1));
       auto isNegative =
           gen.emitter_.compareInt(loc, ir::IntPredicate::SignedLess,
                                   operand.value, constant(operandType, 0));
       auto magnitude =
           gen.emitter_.select(loc, isNegative, complement, operand.value);
-      return {gen.emitter_.subInt(loc, countLeadingZeros(magnitude),
-                                  constant(i32Type, 1))};
+      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt,
+                                    countLeadingZeros(magnitude),
+                                    constant(i32Type, 1))};
     }
   }
 

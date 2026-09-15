@@ -518,7 +518,8 @@ void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     if (condVal && ast->notEqualRewritten) {
       auto boolType = gen.emitter_.typeOf(condVal);
       auto trueConst = gen.emitter_.constantInt(loc, boolType, 1);
-      condVal = gen.emitter_.xorInt(loc, condVal, trueConst);
+      condVal =
+          gen.emitter_.binaryOp(loc, ir::BinaryOp::XorInt, condVal, trueConst);
     }
   }
 
