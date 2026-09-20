@@ -25,8 +25,10 @@ X::operator int() { return i; }
 //      CHECK:namespace
 // CHECK-NEXT:  class X
 // CHECK-NEXT:    constructor void X()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        constructor void X()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[2]
 // CHECK-NEXT:    constructor void X(int)
@@ -44,18 +46,24 @@ X::operator int() { return i; }
 // CHECK-NEXT:    injected class name X
 // CHECK-NEXT:    field int i
 // CHECK-NEXT:    function void ~X() noexcept
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        function void ~X() noexcept
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[3]
 // CHECK-NEXT:    function int operator int()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        function int operator int()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[13]
 // CHECK-NEXT:    function const int& operator const int&()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        function const int& operator const int&()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[20]
 // CHECK-NEXT:    function constexpr inline defaulted ::X& operator =(const ::X&) noexcept

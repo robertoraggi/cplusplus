@@ -18,14 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export * from "./loadCxx.js";
+export { loadCxx as default, loadCxx, isCxxLoaded } from "./loadCxx.js";
+export type { LoadCxxOptions, WasmSource } from "./loadCxx.js";
+
 export * from "./Diagnostic.js";
 export * from "./Emitter.js";
-export * from "./TraceEmitter.js";
-export * from "./LanguageServer.js";
-export * from "./Parser.js";
+export * from "./parse.js";
 export * from "./SourceLocation.js";
 export * from "./Token.js";
 export * from "./TokenKind.js";
-
-export * as Semantic from "./Semantic.js";
+export * from "./TraceEmitter.js";

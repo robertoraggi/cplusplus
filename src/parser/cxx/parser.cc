@@ -22,6 +22,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/const_int.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -280,17 +281,21 @@ struct Parser::RestoredScopeChain {
   CombinedScopeGuard guard;
   Parser* parser;
   int savedTemplateParameterDepth;
+  ScopeSymbol* savedAccessCheckScope;
 
   RestoredScopeChain(Parser* parser, ScopeSymbol* scope)
       : guard(parser),
         parser(parser),
-        savedTemplateParameterDepth(parser->templateParameterDepth_) {
+        savedTemplateParameterDepth(parser->templateParameterDepth_),
+        savedAccessCheckScope(parser->accessCheckScope_) {
     parser->enterScopeChain(scope);
     parser->templateParameterDepth_ = templateParameterDepthOf(scope);
+    parser->accessCheckScope_ = scope;
   }
 
   ~RestoredScopeChain() {
     parser->templateParameterDepth_ = savedTemplateParameterDepth;
+    parser->accessCheckScope_ = savedAccessCheckScope;
   }
 };
 
@@ -4931,11 +4936,30 @@ void Parser::deferAccessCheck(NestedNameSpecifierAST* nestedNameSpecifier,
                               Symbol* symbol, SourceLocation loc) {
   if (!symbol) return;
   if (!nestedNameSpecifier) return;
+  if (binder_.inExplicitInstantiation()) return;
 
   auto designatingClass = symbol_cast<ClassSymbol>(nestedNameSpecifier->symbol);
   if (!designatingClass) return;
 
+  if (accessCheckScope_) {
+    (void)checkMemberAccess(unit_, accessCheckScope_, symbol, designatingClass,
+                            nullptr, loc);
+    return;
+  }
+
   deferredAccessChecks_.push_back({symbol, designatingClass, loc});
+}
+
+Parser::AccessCheckScopeGuard::AccessCheckScopeGuard(Parser* parser,
+                                                     const Decl& decl)
+    : AccessCheckScopeGuard(parser, decl.getScope()) {}
+
+Parser::AccessCheckScopeGuard::AccessCheckScopeGuard(Parser* parser,
+                                                     ScopeSymbol* declaredIn)
+    : parser_(parser), saved_(parser->accessCheckScope_) {
+  if (!declaredIn) declaredIn = parser->binder_.scope();
+  parser_->flushDeferredAccessChecks(declaredIn);
+  parser_->accessCheckScope_ = declaredIn;
 }
 
 void Parser::flushDeferredAccessChecks(ScopeSymbol* accessingScope) {
@@ -5338,10 +5362,7 @@ auto Parser::parse_simple_declaration(
     return false;
   }
 
-  if (auto declaredIn = decl.getScope())
-    flushDeferredAccessChecks(declaredIn);
-  else
-    flushDeferredAccessChecks(binder_.scope());
+  AccessCheckScopeGuard accessCheckScope{this, decl};
 
   auto lookat_function_definition = [&] {
     if (!context_allows_function_definition(ctx)) return false;
@@ -5406,6 +5427,7 @@ auto Parser::parse_simple_declaration(
     }
 
     decl.trailingRequiresClause = requiresClause;
+    decl.isFunctionDefinition = true;
 
     auto functionSymbol = binder_.declareFunction(declarator, decl);
     associatePendingNoexceptSpecifier(declarator, functionSymbol);
@@ -5419,8 +5441,6 @@ auto Parser::parse_simple_declaration(
     if (classDepth_) functionSymbol->setInline(true);
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
-      auto functionScope = functionSymbol;
-      functionScope->addSymbol(params->functionParametersSymbol);
       setScope(params->functionParametersSymbol);
     } else {
       setScope(functionSymbol);
@@ -5535,6 +5555,8 @@ auto Parser::parse_notypespec_function_definition(
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
   if (!parse_function_declarator(functionDeclarator)) return false;
 
+  AccessCheckScopeGuard accessCheckScope{this, decl};
+
   auto declarator = DeclaratorAST::create(pool_);
   declarator->coreDeclarator = declaratorId;
 
@@ -5571,6 +5593,7 @@ auto Parser::parse_notypespec_function_definition(
   if (abbreviatedHead) setScope(abbreviatedHead->symbol);
 
   decl.trailingRequiresClause = requiresClause;
+  decl.isFunctionDefinition = isDefinition;
 
   auto functionSymbol = binder_.declareFunction(declarator, decl);
   associatePendingNoexceptSpecifier(declarator, functionSymbol);
@@ -5586,10 +5609,6 @@ auto Parser::parse_notypespec_function_definition(
   }
 
   if (isDeclaration) {
-    if (auto params = functionDeclarator->parameterDeclarationClause) {
-      functionSymbol->addSymbol(params->functionParametersSymbol);
-    }
-
     auto initDeclarator = InitDeclaratorAST::create(pool_);
     initDeclarator->declarator = declarator;
     initDeclarator->symbol = functionSymbol;
@@ -5616,8 +5635,6 @@ auto Parser::parse_notypespec_function_definition(
   }
 
   if (auto params = functionDeclarator->parameterDeclarationClause) {
-    auto functionScope = functionSymbol;
-    functionScope->addSymbol(params->functionParametersSymbol);
     setScope(params->functionParametersSymbol);
   } else {
     setScope(functionSymbol);
@@ -6397,8 +6414,8 @@ auto Parser::parse_bitint_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   }
 
   if (value)
-    if (auto v = std::get_if<std::intmax_t>(&*value))
-      ast->bitCount = static_cast<int>(*v);
+    if (auto v = std::get_if<ConstInt>(&*value))
+      ast->bitCount = static_cast<int>(v->toIntMax());
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -6442,9 +6459,14 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T_BOOL:
     case TokenKind::T_INT:
     case TokenKind::T___INT64:
+      makeIntegralTypeSpecifier();
+      specs.accept(yyast);
+      return true;
+
     case TokenKind::T___INT128:
     case TokenKind::T___INT128_T:
     case TokenKind::T___UINT128_T:
+      if constexpr (!ConstInt::supportsInt128) return false;
       makeIntegralTypeSpecifier();
       specs.accept(yyast);
       return true;
@@ -6607,8 +6629,7 @@ void Parser::setFunctionTemplateHead(FunctionSymbol* functionSymbol,
     return;
   }
 
-  functionSymbol->setTemplateDeclaration(templateHead);
-  functionSymbol->setTemplateParameters(templateHead->symbol);
+  binder_.setTemplateHead(functionSymbol, templateHead);
 }
 
 auto Parser::takeAbbreviatedTemplateHead(Decl& decl)
@@ -6877,7 +6898,7 @@ auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
   SourceLocation lparenLoc;
   if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
-  if (lookat(TokenKind::T_AUTO)) return false;
+  if (lookat(TokenKind::T_AUTO, TokenKind::T_RPAREN)) return false;
 
   auto ast = DecltypeSpecifierAST::create(pool_);
   yyast = ast;
@@ -6905,7 +6926,8 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
     (void)parse_type_constraint(typeConstraint, true);
 
     if (!lookat(TokenKind::T_AUTO) &&
-        !lookat(TokenKind::T_DECLTYPE, TokenKind::T_LPAREN, TokenKind::T_AUTO))
+        !lookat(TokenKind::T_DECLTYPE, TokenKind::T_LPAREN, TokenKind::T_AUTO,
+                TokenKind::T_RPAREN))
       return false;
 
     lookahead.commit();
@@ -6973,25 +6995,25 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   Symbol* symbol = nullptr;
 
   if (auto declId = decl.declaratorId; declId) {
+    const Type* declaratorType = nullptr;
+    bool declaresFunction = getFunctionPrototype(declarator) != nullptr;
+
+    if (!decl.specs.isTypedef && !declaresFunction) {
+      declaratorType = getDeclaratorType(unit_, declarator, decl.specs.type());
+      declaresFunction = type_cast<FunctionType>(declaratorType) != nullptr;
+    }
+
     if (decl.specs.isTypedef) {
       auto typedefSymbol = binder_.declareTypedef(declarator, decl);
       symbol = typedefSymbol;
-    } else if (getFunctionPrototype(declarator) ||
-               type_cast<FunctionType>(
-                   getDeclaratorType(unit_, declarator, decl.specs.type()))) {
+    } else if (declaresFunction) {
       auto functionSymbol = binder_.declareFunction(declarator, decl);
       associatePendingNoexceptSpecifier(declarator, functionSymbol);
-      functionSymbol->setTemplateDeclaration(templateHead);
-      if (templateHead)
-        functionSymbol->setTemplateParameters(templateHead->symbol);
-      if (auto functionDeclarator = getFunctionPrototype(declarator)) {
-        if (auto params = functionDeclarator->parameterDeclarationClause)
-          functionSymbol->addSymbol(params->functionParametersSymbol);
-      }
+      binder_.setTemplateHead(functionSymbol, templateHead);
       symbol = functionSymbol;
     } else {
       auto variableSymbol = binder_.declareVariable(
-          declarator, decl, /*addSymbolToParentScope=*/true);
+          declarator, decl, /*addSymbolToParentScope=*/true, declaratorType);
       binder_.declareVariableTemplate(variableSymbol, declId, templateHead);
 
       if (!variableSymbol->isExtern()) {
@@ -7261,6 +7283,24 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
   DeclSpecs cvQualifiers{unit_};
 
   (void)parse_cv_qualifier_seq(ast->cvQualifierList, cvQualifiers);
+
+  if (!ast->parameterDeclarationClause &&
+      unit_->language() != LanguageKind::kC) {
+    ast->parameterDeclarationClause =
+        ParameterDeclarationClauseAST::create(pool_);
+    binder_.bind(ast->parameterDeclarationClause);
+  }
+  if (ast->parameterDeclarationClause) {
+    auto parameters = ast->parameterDeclarationClause->functionParametersSymbol;
+    CvQualifiers cv = CvQualifiers::kNone;
+    if (cvQualifiers.isConst) cv |= CvQualifiers::kConst;
+    if (cvQualifiers.isVolatile) cv |= CvQualifiers::kVolatile;
+    binder_.setSpeculativeValue(parameters->cvQualifiers(), cv,
+                                [parameters](CvQualifiers value) {
+                                  parameters->setCvQualifiers(value);
+                                });
+    setScope(parameters);
+  }
 
   if (parse_ref_qualifier(ast->refLoc))
     ast->refOp = unit_->tokenKind(ast->refLoc);
@@ -7999,6 +8039,7 @@ auto Parser::lookat_function_body() -> bool {
 }
 
 auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
+  AccessCheckScopeGuard accessCheckScope{this, scope()};
   if (lookat(TokenKind::T_SEMICOLON)) return false;
 
   if (parse_function_try_block(yyast)) return true;
@@ -8134,8 +8175,8 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
           auto sym = it->value ? it->value->symbol : nullptr;
           if (!sym) continue;
           if (const auto& val = sym->value()) {
-            if (auto iv = std::get_if<std::intmax_t>(&*val)) {
-              if (*iv < 0) {
+            if (auto iv = std::get_if<ConstInt>(&*val)) {
+              if (iv->isNegative()) {
                 hasNegative = true;
                 break;
               }
@@ -9629,6 +9670,12 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
   }
 
   if (classDepth_ == 1) {
+    if (pendingDefaultArguments_.size() > pendingDefaultArgumentsMark ||
+        pendingFieldInitializers_.size() > pendingFieldInitializersMark ||
+        pendingNoexceptSpecifiers_.size() > pendingNoexceptSpecifiersMark) {
+      binder_.completeForMemberContexts(ast->symbol);
+    }
+
     while (pendingDefaultArguments_.size() > pendingDefaultArgumentsMark ||
            pendingFieldInitializers_.size() > pendingFieldInitializersMark ||
            pendingNoexceptSpecifiers_.size() > pendingNoexceptSpecifiersMark) {
@@ -9817,6 +9864,8 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     (void)parse_declarator(declarator, decl);
   }
 
+  AccessCheckScopeGuard accessCheckScope{this, decl};
+
   auto lookat_function_definition = [&] {
     if (!isCxx()) return false;
 
@@ -9843,20 +9892,16 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     if (abbreviatedHead) setScope(abbreviatedHead->symbol);
 
     decl.trailingRequiresClause = requiresClause;
+    decl.isFunctionDefinition = true;
 
     auto functionSymbol = binder_.declareFunction(declarator, decl);
     associatePendingNoexceptSpecifier(declarator, functionSymbol);
 
-    if (templateHead) {
-      functionSymbol->setTemplateDeclaration(templateHead);
-      functionSymbol->setTemplateParameters(templateHead->symbol);
-    }
+    if (templateHead) binder_.setTemplateHead(functionSymbol, templateHead);
 
     auto _ = CombinedScopeGuard{this};
 
     if (auto params = functionDeclarator->parameterDeclarationClause) {
-      auto functionScope = functionSymbol;
-      functionScope->addSymbol(params->functionParametersSymbol);
       setScope(params->functionParametersSymbol);
     } else {
       setScope(functionSymbol);
@@ -9970,14 +10015,22 @@ void Parser::recordFriendDeclaration(
 
   if (kind != FriendDeclarationKind::kType) return;
   for (auto specifier : ListView{specifierList}) {
-    auto elaborated = ast_cast<ElaboratedTypeSpecifierAST>(specifier);
-    if (!elaborated) continue;
-    auto templateId = ast_cast<SimpleTemplateIdAST>(elaborated->unqualifiedId);
-    if (!templateId || isDependent(unit_, elaborated->nestedNameSpecifier) ||
+    NestedNameSpecifierAST* qualifier = nullptr;
+    UnqualifiedIdAST* name = nullptr;
+    if (auto elaborated = ast_cast<ElaboratedTypeSpecifierAST>(specifier)) {
+      qualifier = elaborated->nestedNameSpecifier;
+      name = elaborated->unqualifiedId;
+    } else if (auto named = ast_cast<NamedTypeSpecifierAST>(specifier)) {
+      qualifier = named->nestedNameSpecifier;
+      name = named->unqualifiedId;
+    }
+    auto templateId = ast_cast<SimpleTemplateIdAST>(name);
+    if (!templateId || isDependent(unit_, qualifier) ||
         hasDependentTemplateArguments(unit_, templateId))
       continue;
     auto primary = symbol_cast<ClassSymbol>(templateId->symbol);
     if (!primary) continue;
+    if (primary->isSpecialization()) primary = primary->primaryTemplateSymbol();
     auto substitution =
         Substitution::make(unit_, primary->templateDeclaration(),
                            templateId->templateArgumentList);
@@ -10083,14 +10136,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
     associatePendingNoexceptSpecifier(declarator, funcSym);
     auto templateHead = decl.specs.templateHead;
-    if (templateHead) {
-      funcSym->setTemplateDeclaration(templateHead);
-      funcSym->setTemplateParameters(templateHead->symbol);
-    }
-    if (auto functionDeclarator = getFunctionPrototype(declarator)) {
-      if (auto params = functionDeclarator->parameterDeclarationClause)
-        funcSym->addSymbol(params->functionParametersSymbol);
-    }
+    if (templateHead) binder_.setTemplateHead(funcSym, templateHead);
   }
 
   auto ast = InitDeclaratorAST::create(pool_);
@@ -10815,6 +10861,13 @@ auto Parser::parse_constraint_logical_and_expression(ExpressionAST*& yyast,
 }
 
 void Parser::parse_template_parameter(TemplateParameterAST*& yyast) {
+  parse_template_parameter_declaration(yyast);
+
+  recordDefaultTemplateArgument(yyast, nullptr);
+}
+
+void Parser::parse_template_parameter_declaration(
+    TemplateParameterAST*& yyast) {
   auto lookat_constraint_type_parameter = [&] {
     LookaheadParser lookahead{this};
 
@@ -11831,6 +11884,9 @@ auto Parser::parse_handler(HandlerAST*& yyast) -> bool {
   auto _ = CombinedScopeGuard{this};
 
   auto blockSymbol = binder_.enterBlock(catchLoc);
+  if (blockSymbol->parent()->isFunction() ||
+      blockSymbol->parent()->isFunctionParameters())
+    blockSymbol->setOutermostBlockScope(true);
 
   pushScope(blockSymbol);
 

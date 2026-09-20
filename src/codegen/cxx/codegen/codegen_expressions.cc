@@ -673,6 +673,10 @@ auto Codegen::ExpressionVisitor::operator()(NestedStatementExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(
     DefaultInitializerExpressionAST* ast) -> ExpressionResult {
+  std::optional<ThisValueGuard> thisValue;
+  if (gen.defaultInitializerObject_)
+    thisValue.emplace(gen, gen.defaultInitializerObject_);
+
   if (auto object = gen.takeResultObject(ast)) {
     (void)gen.emitPrvalueInto(object, ast->type, ast->expression,
                               ast->firstSourceLocation());
@@ -774,10 +778,10 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   } else if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
     if (enumerator->value().has_value()) {
-      if (auto val = std::get_if<std::intmax_t>(&enumerator->value().value())) {
+      if (auto val = std::get_if<ConstInt>(&enumerator->value().value())) {
         auto loc = ast->firstSourceLocation();
         auto type = gen.convertType(enumerator->type());
-        auto op = gen.emitter_.constantInt(loc, type, *val);
+        auto op = gen.emitter_.constantInt(loc, type, val->toIntMax());
         return {op};
       }
     }
@@ -1571,10 +1575,10 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
   if (auto enumerator = symbol_cast<EnumeratorSymbol>(symbol)) {
     (void)gen.expression(ast->baseExpression, ExpressionFormat::kSideEffect);
     if (enumerator->value().has_value()) {
-      if (auto val = std::get_if<std::intmax_t>(&enumerator->value().value())) {
+      if (auto val = std::get_if<ConstInt>(&enumerator->value().value())) {
         auto loc = ast->firstSourceLocation();
         auto type = gen.convertType(enumerator->type());
-        auto op = gen.emitter_.constantInt(loc, type, *val);
+        auto op = gen.emitter_.constantInt(loc, type, val->toIntMax());
         return {op};
       }
     }
@@ -4645,7 +4649,7 @@ auto Codegen::emitInPlaceConstruction(ir::ValueRef address, ExpressionAST* ast)
 
   (void)emitCtorCall(ast->firstSourceLocation(),
                      construction->constructorSymbol, address, std::move(args),
-                     /*completeObject=*/false);
+                     /*completeObject=*/true);
 
   return true;
 }
@@ -4660,6 +4664,23 @@ void Codegen::emitAggregateInit(ir::ValueRef address, const Type* type,
                                 List<ExpressionAST*>* initializerList,
                                 SourceLocation location) {
   auto loc = location;
+
+  std::optional<DefaultInitializerObjectGuard> defaultInitializerObject;
+  if (traits.is_class_or_union(type)) {
+    const auto hasDefaultInitializer =
+        std::ranges::any_of(ListView{initializerList}, [](ExpressionAST* node) {
+          return ast_cast<DefaultInitializerExpressionAST>(node) != nullptr;
+        });
+
+    if (hasDefaultInitializer) {
+      auto objectPointerType = control()->getPointerType(type);
+      auto slotType = emitter_.pointerType(convertType(objectPointerType));
+      auto slot =
+          emitter_.allocate(loc, slotType, getAlignment(objectPointerType));
+      emitter_.store(loc, address, slot, getAlignment(objectPointerType));
+      defaultInitializerObject.emplace(*this, slot);
+    }
+  }
 
   if (auto size = control()->memoryLayout()->sizeOf(type)) {
     emitter_.memsetZero(loc, address, *size);
@@ -5066,28 +5087,34 @@ auto Codegen::baseStructorVTTArgument(SourceLocation loc,
 auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
                        ExpressionResult thisValue,
                        std::vector<ExpressionResult> arguments,
-                       bool isVirtualDispatch, ExpressionAST* resultOwner)
-    -> ExpressionResult {
+                       bool isVirtualDispatch, ExpressionAST* resultOwner,
+                       bool baseObjectStructor) -> ExpressionResult {
   auto functionType = type_cast<FunctionType>(symbol->type());
 
   return emitCall(loc, functionType, symbol, isVirtualDispatch, thisValue,
                   std::move(arguments),
-                  takeIndirectResultObject(resultOwner, functionType));
+                  takeIndirectResultObject(resultOwner, functionType), {},
+                  baseObjectStructor);
 }
 
 auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
                        FunctionSymbol* symbol, bool isVirtualDispatch,
                        ExpressionResult thisValue,
                        std::vector<ExpressionResult> arguments,
-                       ir::ValueRef resultObject, ir::ValueRef calleeValue)
-    -> ExpressionResult {
+                       ir::ValueRef resultObject, ir::ValueRef calleeValue,
+                       bool baseObjectStructor) -> ExpressionResult {
   if (!functionType) return {};
 
   loc = implicitLocation(loc);
 
+  const auto calleeOf = [&](FunctionSymbol* callee) {
+    return baseObjectStructor ? findOrCreateBaseObjectStructor(callee)
+                              : findOrCreateFunction(callee);
+  };
+
   if (symbol && thisValue.value) {
     auto targetClass = symbol_cast<ClassSymbol>(symbol->parent());
-    auto function = findOrCreateFunction(symbol);
+    auto function = calleeOf(symbol);
     const auto suppliedCount = arguments.size() + 1;
     if (requiresVTT(targetClass) &&
         emitter_.functionParameterTypes(function).size() > suppliedCount) {
@@ -5140,7 +5167,7 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
   ir::ValueRef sretTemp;
   if (returnsThis) {
     if (symbol && !isVirtualDispatch) {
-      auto funcOp = findOrCreateFunction(symbol);
+      auto funcOp = calleeOf(symbol);
       auto results = emitter_.functionResultTypes(funcOp);
       resultTypes.insert(resultTypes.end(), results.begin(), results.end());
     } else if (!args.empty()) {
@@ -5192,7 +5219,7 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
   } else if (!symbol) {
     callInfo.indirectCallee = calleeValue;
   } else {
-    auto funcOp = findOrCreateFunction(symbol);
+    auto funcOp = calleeOf(symbol);
     if (emitter_.functionParameterTypes(funcOp).size() > args.size()) {
       auto targetClass = symbol_cast<ClassSymbol>(symbol->parent());
       if (requiresVTT(targetClass)) {
@@ -5268,7 +5295,9 @@ auto Codegen::emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,
     if (!vtt) vtt = baseStructorVTTArgument(loc, targetClass);
     if (vtt) args.push_back({vtt});
   }
-  return emitCall(loc, target, {thisPtr}, std::move(args));
+  return emitCall(loc, target, {thisPtr}, std::move(args),
+                  /*isVirtualDispatch=*/false, /*resultOwner=*/nullptr,
+                  /*baseObjectStructor=*/!completeObject);
 }
 
 auto Codegen::ExpressionVisitor::emitArithmeticConversion(
@@ -6033,12 +6062,22 @@ auto Codegen::ExpressionVisitor::codegenBuiltinBitCount(CallExpressionAST* ast)
         intrinsic("__builtin_popcount", std::vector<ir::ValueRef>{value}));
   };
 
+  ir::ValueRef fallback{};
+  if (++it != args.end()) fallback = gen.expression(*it).value;
+
+  const auto withFallback = [&](ir::ValueRef value) -> ir::ValueRef {
+    if (!fallback) return value;
+    auto isZero = gen.emitter_.compareInt(
+        loc, ir::IntPredicate::Equal, operand.value, constant(operandType, 0));
+    return gen.emitter_.select(loc, isZero, fallback, value);
+  };
+
   switch (*operation) {
     case BitCountOperation::kCountLeadingZeros:
-      return {countLeadingZeros(operand.value)};
+      return {withFallback(countLeadingZeros(operand.value))};
 
     case BitCountOperation::kCountTrailingZeros:
-      return {countTrailingZeros(operand.value)};
+      return {withFallback(countTrailingZeros(operand.value))};
 
     case BitCountOperation::kPopulationCount:
       return {populationCount(operand.value)};

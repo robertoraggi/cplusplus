@@ -126,20 +126,38 @@ export interface ModelEnum {
   enumerators: ModelEnumerator[];
 }
 
+export interface ModelAlias {
+  name: string;
+  unqualifiedName: string;
+  typeName: string;
+  type: ModelType;
+  location?: Location;
+}
+
 export interface Model {
   enums: ModelEnum[];
   classes: ModelClass[];
+  aliases: ModelAlias[];
 }
 
 export class ModelIndex {
   readonly classes = new Map<string, ModelClass>();
   readonly enums = new Map<string, ModelEnum>();
+  readonly aliases = new Map<string, ModelAlias>();
   readonly model: Model;
 
   constructor(model: Model) {
     this.model = model;
     for (const entry of model.classes) this.classes.set(entry.name, entry);
     for (const entry of model.enums) this.enums.set(entry.name, entry);
+    for (const entry of model.aliases ?? []) {
+      const key = typeKey(entry.type);
+      if (!this.aliases.has(key)) this.aliases.set(key, entry);
+    }
+  }
+
+  aliasOf(type: ModelType): ModelAlias | undefined {
+    return this.aliases.get(typeKey(unqualified(type)));
   }
 
   classOf(name: string): ModelClass | undefined {
@@ -184,6 +202,42 @@ export class ModelIndex {
 
     return result;
   }
+
+  primaryBaseOf(
+    entry: ModelClass,
+    accept: (base: ModelClass) => boolean,
+  ): ModelClass | undefined {
+    const base = entry.bases[0];
+    if (!base) return undefined;
+    const owner = this.classOf(base.type);
+    if (!owner || !accept(owner)) return undefined;
+    return owner;
+  }
+
+  ownLayoutOf(
+    entry: ModelClass,
+    base: ModelClass | undefined,
+  ): { owner: ModelClass; substitution: ModelType[] }[] {
+    const layout = this.layoutOf(entry);
+    if (!base) return layout;
+
+    const shared = this.layoutOf(base);
+    for (let i = 0; i < shared.length; ++i) {
+      const expected = shared[i]!;
+      const actual = layout[i];
+      if (
+        !actual ||
+        actual.owner.name !== expected.owner.name ||
+        JSON.stringify(actual.substitution) !==
+          JSON.stringify(expected.substitution)
+      )
+        throw new Error(
+          `the layout of ${base.name} is not a prefix of the layout of ${entry.name}`,
+        );
+    }
+
+    return layout.slice(shared.length);
+  }
 }
 
 export function substituteType(
@@ -218,6 +272,43 @@ export function substituteType(
       };
     default:
       return type;
+  }
+}
+
+export function typeKey(type: ModelType): string {
+  switch (type.kind) {
+    case "none":
+      return "none";
+    case "builtin":
+      return type.name;
+    case "enum":
+      return `enum ${type.name}`;
+    case "class":
+      return `${type.name}<${type.arguments
+        .map((argument) =>
+          argument.kind === "type"
+            ? typeKey(argument.type)
+            : `${argument.kind}:${argument.text}`,
+        )
+        .join(",")}>`;
+    case "pointer":
+      return `${typeKey(type.element)}*`;
+    case "lvalue-reference":
+      return `${typeKey(type.element)}&`;
+    case "rvalue-reference":
+      return `${typeKey(type.element)}&&`;
+    case "qual":
+      return `${type.isConst ? "const " : ""}${type.isVolatile ? "volatile " : ""}${typeKey(type.element)}`;
+    case "array":
+      return `${typeKey(type.element)}[${type.size ?? ""}]`;
+    case "type-param":
+      return `type-param<${type.index},${type.depth}${type.isPack ? ",..." : ""}>`;
+    case "function":
+      return `${typeKey(type.returnType)}(${type.parameterTypes.map(typeKey).join(",")})`;
+    case "member-object-pointer":
+      return `${typeKey(type.classType)}::*${typeKey(type.element)}`;
+    case "member-function-pointer":
+      return `${typeKey(type.classType)}::*${typeKey(type.functionType)}`;
   }
 }
 

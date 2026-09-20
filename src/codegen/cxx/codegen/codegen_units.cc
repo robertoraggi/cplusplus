@@ -107,6 +107,8 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
       .sourceFile = gen.unit_->fileName(),
       .targetTriple = gen.control()->memoryLayout()->triple(),
       .debugCompilationDirectory = gen.debugCompilationDirectory(),
+      .framePointer =
+          to_string(gen.control()->memoryLayout()->framePointerKind()),
   });
 
   visitGlobals(gen.unit_->globalScope());

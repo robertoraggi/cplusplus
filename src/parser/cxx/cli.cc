@@ -53,9 +53,10 @@ enum class CLIOptionDescrKind {
   kSeparated,
 };
 
-enum class CLIOptionVisibility : bool {
+enum class CLIOptionVisibility {
   kDefault,
   kExperimental,
+  kDeprecated,
 };
 
 struct CLIOptionDescr {
@@ -120,6 +121,16 @@ std::vector<CLIOptionDescr> options{
     {"-isysroot", "<directory>",
      "Set the system root directory (usually used for SDK paths)",
      CLIOptionDescrKind::kSeparated},
+
+    {"-resource-dir", "<directory>",
+     "Use <directory> as the resource directory",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-print-resource-dir", "Print the resource directory pathname",
+     &CLI::opt_print_resource_dir},
+
+    {"-print-target-triple", "Print the normalized target triple",
+     &CLI::opt_print_target_triple},
 
     {"-isystem", "<directory>", "Add directory to SYSTEM include search path",
      CLIOptionDescrKind::kSeparated},
@@ -195,6 +206,8 @@ std::vector<CLIOptionDescr> options{
 
     {"-fno-reflect", "Disable reflection", &CLI::opt_fno_reflect},
 
+    {"-fno-exceptions", "Disable C++ exceptions", &CLI::opt_fno_exceptions},
+
     {"-fno-strict-prototypes",
      "Allow unprototyped C declarations (pre-C23 behavior)",
      &CLI::opt_fno_strict_prototypes},
@@ -242,10 +255,20 @@ std::vector<CLIOptionDescr> options{
     {"-winsdkversion", "<version>", "Version of the Windows SDK",
      CLIOptionDescrKind::kSeparated},
 
+    {"--target", "<triple>",
+     "Generate code for the given target triple, e.g. "
+     "'x86_64-unknown-linux-gnu'",
+     CLIOptionDescrKind::kJoined},
+
+    {"-target", "<triple>",
+     "Generate code for the given target triple, e.g. "
+     "'x86_64-unknown-linux-gnu'",
+     CLIOptionDescrKind::kSeparated},
+
     {"-toolchain", "<id>",
      "Set the toolchain to 'linux', 'darwin', 'wasm32', or 'windows'. Defaults "
      "to wasm32.",
-     CLIOptionDescrKind::kSeparated},
+     CLIOptionDescrKind::kSeparated, CLIOptionVisibility::kDeprecated},
 
     {"-arch", "<arch>",
      "Set the architecture to 'x86_64', 'aarch64', 'wasm32'. Defaults to the "
@@ -483,7 +506,12 @@ void CLI::showHelp() {
         break;
       }
     }
-    std::cerr << std::format("  {:<28} {}\n", info, opt.help);
+    auto help = opt.help;
+    if (opt.visibility == CLIOptionVisibility::kDeprecated) {
+      help = std::format("[deprecated, use --target=<triple>] {}", help);
+    }
+
+    std::cerr << std::format("  {:<28} {}\n", info, help);
   }
 }
 }  // namespace cxx

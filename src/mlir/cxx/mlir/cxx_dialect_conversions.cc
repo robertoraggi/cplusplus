@@ -241,6 +241,12 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
     auto linkage = convertLinkage(
         op.getLinkageKind().value_or(cxx::LinkageKind::External));
 
+    if (auto aliasee = op.getAliasee()) {
+      emitAlias(rewriter, op, llvmFuncType, linkage, *aliasee);
+      rewriter.eraseOp(op);
+      return success();
+    }
+
     auto func = LLVM::LLVMFuncOp::create(rewriter, op.getLoc(), op.getSymName(),
                                          llvmFuncType, linkage);
 
@@ -258,10 +264,6 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
 
     if (auto visibility = op.getVisibility_()) {
       func.setVisibility_(convertVisibility(*visibility));
-    }
-
-    if (auto aliasName = op.getAliasName()) {
-      emitAlias(rewriter, op.getLoc(), func, llvmFuncType, *aliasName);
     }
 
     setTargetFunctionAttributes(rewriter, op, func);
@@ -293,31 +295,44 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
       passthrough.push_back(rewriter.getStrArrayAttr({name, *value}));
     }
 
+    if (auto module = op->getParentOfType<ModuleOp>()) {
+      if (auto framePointer =
+              module->getAttrOfType<StringAttr>("cxx.frame-pointer")) {
+        passthrough.push_back(rewriter.getStrArrayAttr(
+            {"frame-pointer", framePointer.getValue()}));
+      }
+    }
+
     if (passthrough.empty()) return;
 
     func.setPassthroughAttr(rewriter.getArrayAttr(passthrough));
   }
 
-  static void emitAlias(ConversionPatternRewriter& rewriter, Location loc,
-                        LLVM::LLVMFuncOp func, Type aliasType,
-                        StringRef aliasName) {
-    auto module = func->getParentOfType<ModuleOp>();
-    if (!module || module.lookupSymbol(aliasName)) return;
+  static void emitAlias(ConversionPatternRewriter& rewriter, cxx::FuncOp op,
+                        Type aliasType, LLVM::linkage::Linkage linkage,
+                        StringRef aliasee) {
+    auto module = op->getParentOfType<ModuleOp>();
+    if (!module) return;
+
+    auto context = op.getContext();
 
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToEnd(module.getBody());
 
-    auto alias = LLVM::AliasOp::create(rewriter, loc, aliasType,
-                                       func.getLinkage(), aliasName);
-    alias.setVisibility_(LLVM::Visibility::Hidden);
+    auto alias = LLVM::AliasOp::create(rewriter, op.getLoc(), aliasType,
+                                       linkage, op.getSymName());
+
+    if (auto visibility = op.getVisibility_()) {
+      alias.setVisibility_(convertVisibility(*visibility));
+    }
 
     auto block = rewriter.createBlock(&alias.getInitializerRegion());
     rewriter.setInsertionPointToStart(block);
-    auto ptrType = LLVM::LLVMPointerType::get(func.getContext());
-    auto addr = LLVM::AddressOfOp::create(
-        rewriter, loc, ptrType,
-        FlatSymbolRefAttr::get(func.getContext(), func.getSymName()));
-    LLVM::ReturnOp::create(rewriter, loc, addr.getResult());
+    auto ptrType = LLVM::LLVMPointerType::get(context);
+    auto addr =
+        LLVM::AddressOfOp::create(rewriter, op.getLoc(), ptrType,
+                                  FlatSymbolRefAttr::get(context, aliasee));
+    LLVM::ReturnOp::create(rewriter, op.getLoc(), addr.getResult());
   }
 
   auto convertFunctionTyype(cxx::FuncOp funcOp,
@@ -376,7 +391,10 @@ static Value emitAttrAsValue(ConversionPatternRewriter& rewriter, Location loc,
   if (auto intAttr = dyn_cast<IntegerAttr>(attr)) {
     auto intType = dyn_cast<IntegerType>(type);
     if (!intType) intType = IntegerType::get(type.getContext(), 64);
-    auto adjusted = rewriter.getIntegerAttr(intType, intAttr.getInt());
+    auto bits = intAttr.getValue();
+    if (bits.getBitWidth() != intType.getWidth())
+      bits = bits.sextOrTrunc(intType.getWidth());
+    auto adjusted = rewriter.getIntegerAttr(intType, bits);
     return LLVM::ConstantOp::create(rewriter, loc, intType, adjusted);
   }
 
@@ -654,11 +672,11 @@ class VTableOpLowering : public OpConversionPattern<cxx::VTableOp> {
     };
 
     for (std::size_t table = 0; table < slots.size(); ++table) {
-      for (auto entry : mlir::cast<ArrayAttr>(vbaseOffsets[table])) {
+      for (auto entry : mlir::cast<ArrayAttr>(vcallOffsets[table])) {
         append(offsetWord(mlir::cast<IntegerAttr>(entry).getInt()));
       }
 
-      for (auto entry : mlir::cast<ArrayAttr>(vcallOffsets[table])) {
+      for (auto entry : mlir::cast<ArrayAttr>(vbaseOffsets[table])) {
         append(offsetWord(mlir::cast<IntegerAttr>(entry).getInt()));
       }
 
@@ -2589,6 +2607,34 @@ static void emitLLVMUsed(ModuleOp module, ArrayRef<Attribute> symbols) {
   LLVM::ReturnOp::create(builder, loc, array);
 }
 
+static void resolveAliasedCallees(ModuleOp module) {
+  llvm::StringMap<StringRef> aliasees;
+
+  module.walk([&](cxx::FuncOp funcOp) {
+    if (auto aliasee = funcOp.getAliasee()) {
+      aliasees.insert_or_assign(funcOp.getSymName(), *aliasee);
+    }
+  });
+
+  if (aliasees.empty()) return;
+
+  module.walk([&](cxx::CallOp callOp) {
+    auto callee = callOp.getCallee();
+    if (!callee) return;
+
+    auto target = *callee;
+    for (std::size_t step = 0; step != aliasees.size(); ++step) {
+      auto it = aliasees.find(target);
+      if (it == aliasees.end()) break;
+      target = it->second;
+    }
+
+    if (target == *callee) return;
+
+    callOp.setCalleeAttr(FlatSymbolRefAttr::get(module.getContext(), target));
+  });
+}
+
 class CxxToLLVMLoweringPass
     : public PassWrapper<CxxToLLVMLoweringPass, OperationPass<ModuleOp>> {
  public:
@@ -2733,6 +2779,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
 
+  resolveAliasedCallees(module);
+
   SmallVector<Attribute> globalCtors;
   module.walk([&](cxx::GlobalCtorOp ctorOp) {
     globalCtors.push_back(ctorOp.getCtorAttr());
@@ -2799,6 +2847,11 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   module->setAttr(LLVM::LLVMDialect::getDataLayoutAttrName(),
                   mlir::StringAttr::get(context, dataLayoutDescr.str()));
+
+  for (auto name : {"cxx.triple", "cxx.data-layout", "cxx.frame-pointer",
+                    "cxx.debug-compilation-dir"}) {
+    module->removeAttr(name);
+  }
 }
 }  // namespace mlir
 

@@ -18,9 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/const_int.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
+#include <cxx/private/path.h>
 #include <cxx/toolchain.h>
 
 namespace cxx {
@@ -39,6 +41,29 @@ constexpr std::string_view kDefaultCplusplusMacroValue = "202400L";
 constexpr std::string_view kDefaultStdcVersionMacroValue = "202311L";
 
 }  // namespace
+
+void Toolchain::setAppdir(std::string appdir) {
+  appdir_ = std::move(appdir);
+  while (!appdir_.empty() && appdir_.back() == '/') appdir_.pop_back();
+}
+
+void Toolchain::setResourceDir(std::string resourceDir) {
+  resourceDir_ = std::move(resourceDir);
+  while (!resourceDir_.empty() && resourceDir_.back() == '/') {
+    resourceDir_.pop_back();
+  }
+}
+
+auto Toolchain::resourceDir() const -> std::string {
+  if (!resourceDir_.empty()) return resourceDir_;
+  return defaultResourceDir();
+}
+
+auto Toolchain::defaultResourceDir() const -> std::string {
+  if (appdir_.empty()) return {};
+  auto path = fs::path{appdir_}.parent_path() / "lib" / "cxx";
+  return path.lexically_normal().string();
+}
 
 auto findLanguageStandard(std::string_view name) -> const LanguageStandard* {
   for (const auto& standard : kLanguageStandards) {
@@ -251,7 +276,9 @@ void Toolchain::addCommonMacros() {
   defineMacro("__SIG_ATOMIC_WIDTH__", "32");
   defineMacro("__SIZEOF_DOUBLE__", "8");
   defineMacro("__SIZEOF_FLOAT__", "4");
-  defineMacro("__SIZEOF_INT128__", "16");
+  if constexpr (ConstInt::supportsInt128) {
+    defineMacro("__SIZEOF_INT128__", "16");
+  }
   defineMacro("__SIZEOF_INT__", "4");
   defineMacro("__SIZEOF_LONG_LONG__", "8");
   defineMacro("__SIZEOF_SHORT__", "2");
@@ -356,82 +383,135 @@ void Toolchain::addCommonC23Macros() {
   defineMacro("__UINT_LEAST8_FMTb__", "\"hhb\"");
 }
 
+namespace {
+struct FeatureTestMacro {
+  std::string_view name;
+  std::string_view standard;
+  std::string_view value;
+};
+
+const FeatureTestMacro kFeatureTestMacros[] = {
+    {"__cpp_aggregate_bases", "201703L", "201603L"},
+    {"__cpp_aggregate_nsdmi", "201402L", "201304L"},
+    {"__cpp_aggregate_paren_init", "202002L", "201902L"},
+    {"__cpp_alias_templates", "201402L", "200704L"},
+    {"__cpp_aligned_new", "201703L", "201606L"},
+    {"__cpp_attributes", "201402L", "200809L"},
+    {"__cpp_auto_cast", "202302L", "202110L"},
+    {"__cpp_binary_literals", "201402L", "201304L"},
+    {"__cpp_capture_star_this", "201703L", "201603L"},
+    {"__cpp_char8_t", "202002L", "202207L"},
+    {"__cpp_concepts", "202002L", "202002"},
+    {"__cpp_conditional_explicit", "202002L", "201806L"},
+    {"__cpp_consteval", "202002L", "202211L"},
+    {"__cpp_constexpr", "201402L", "201304L"},
+    {"__cpp_constexpr", "201703L", "201603L"},
+    {"__cpp_constexpr", "202002L", "202002L"},
+    {"__cpp_constexpr", "202302L", "202211L"},
+    {"__cpp_constexpr", "202400L", "202406L"},
+    {"__cpp_constexpr_dynamic_alloc", "202002L", "201907L"},
+    {"__cpp_constexpr_in_decltype", "201402L", "201711L"},
+    {"__cpp_constinit", "202002L", "201907L"},
+    {"__cpp_decltype", "201402L", "200707L"},
+    {"__cpp_decltype_auto", "201402L", "201304L"},
+    {"__cpp_deduction_guides", "201703L", "201703L"},
+    {"__cpp_delegating_constructors", "201402L", "200604L"},
+    {"__cpp_deleted_function", "201402L", "202403L"},
+    {"__cpp_designated_initializers", "202002L", "201707L"},
+    {"__cpp_digit_separators", "201402L", "201309L"},
+    {"__cpp_enumerator_attributes", "201703L", "201411L"},
+    {"__cpp_exceptions", "201402L", "199711L"},
+    {"__cpp_explicit_this_parameter", "202302L", "202110L"},
+    {"__cpp_fold_expressions", "201703L", "201603L"},
+    {"__cpp_generic_lambdas", "201402L", "201304L"},
+    {"__cpp_generic_lambdas", "202002L", "201707L"},
+    {"__cpp_guaranteed_copy_elision", "201703L", "201606L"},
+    {"__cpp_hex_float", "201703L", "201603L"},
+    {"__cpp_if_consteval", "202302L", "202106L"},
+    {"__cpp_if_constexpr", "201703L", "201606L"},
+    {"__cpp_impl_coroutine", "202002L", "201902L"},
+    {"__cpp_impl_destroying_delete", "201402L", "201806L"},
+    {"__cpp_impl_three_way_comparison", "202002L", "201907L"},
+    {"__cpp_implicit_move", "202302L", "202207L"},
+    {"__cpp_inheriting_constructors", "201402L", "201511L"},
+    {"__cpp_init_captures", "201402L", "201304L"},
+    {"__cpp_init_captures", "202002L", "201803L"},
+    {"__cpp_initializer_lists", "201402L", "200806L"},
+    {"__cpp_inline_variables", "201703L", "201606L"},
+    {"__cpp_lambdas", "201402L", "200907L"},
+    {"__cpp_multidimensional_subscript", "202302L", "202211L"},
+    {"__cpp_named_character_escapes", "201402L", "202207L"},
+    {"__cpp_namespace_attributes", "201703L", "201411L"},
+    {"__cpp_nested_namespace_definitions", "201703L", "201411L"},
+    {"__cpp_noexcept_function_type", "201703L", "201510L"},
+    {"__cpp_nontype_template_args", "201703L", "201411L"},
+    {"__cpp_nontype_template_parameter_auto", "201703L", "201606L"},
+    {"__cpp_nsdmi", "201402L", "200809L"},
+    {"__cpp_pack_indexing", "201402L", "202311L"},
+    {"__cpp_placeholder_variables", "201402L", "202306L"},
+    {"__cpp_range_based_for", "201402L", "200907"},
+    {"__cpp_range_based_for", "201703L", "201603L"},
+    {"__cpp_range_based_for", "202302L", "202211L"},
+    {"__cpp_raw_strings", "201402L", "200710L"},
+    {"__cpp_ref_qualifiers", "201402L", "200710L"},
+    {"__cpp_return_type_deduction", "201402L", "201304L"},
+    {"__cpp_rtti", "201402L", "199711L"},
+    {"__cpp_rvalue_references", "201402L", "200610L"},
+    {"__cpp_size_t_suffix", "202302L", "202011L"},
+    {"__cpp_sized_deallocation", "201402L", "201309L"},
+    {"__cpp_static_assert", "201402L", "202306L"},
+    {"__cpp_static_call_operator", "201402L", "202207L"},
+    {"__cpp_structured_bindings", "201703L", "202403L"},
+    {"__cpp_template_auto", "201703L", "201606L"},
+    {"__cpp_template_template_args", "201402L", "201611L"},
+    {"__cpp_threadsafe_static_init", "201402L", "200806L"},
+    {"__cpp_unicode_characters", "201402L", "200704L"},
+    {"__cpp_unicode_literals", "201402L", "200710L"},
+    {"__cpp_user_defined_literals", "201402L", "200809L"},
+    {"__cpp_using_enum", "202002L", "201907L"},
+    {"__cpp_variable_templates", "201402L", "201304L"},
+    {"__cpp_variadic_friend", "201402L", "202403L"},
+    {"__cpp_variadic_templates", "201402L", "200704L"},
+    {"__cpp_variadic_using", "201703L", "201611L"},
+};
+
+[[nodiscard]] auto standardValue(std::string_view macroValue) -> long {
+  long value = 0;
+  for (auto ch : macroValue) {
+    if (ch < '0' || ch > '9') break;
+    value = value * 10 + (ch - '0');
+  }
+  return value;
+}
+}  // namespace
+
+void Toolchain::addFeatureTestMacros() {
+  const auto selected = standardValue(cplusplusMacroValue());
+
+  std::string_view name;
+  std::string_view value;
+
+  const auto flush = [&] {
+    if (name.empty()) return;
+    defineMacro(std::string(name), std::string(value));
+    name = {};
+  };
+
+  for (const auto& macro : kFeatureTestMacros) {
+    if (macro.name != name) flush();
+    if (standardValue(macro.standard) > selected) continue;
+    if (!exceptionsEnabled() && macro.name == "__cpp_exceptions") continue;
+    name = macro.name;
+    value = macro.value;
+  }
+
+  flush();
+}
+
 void Toolchain::addCommonCxx26Macros() {
   defineMacro("__DEPRECATED", "1");
   defineMacro("__cplusplus", std::string(cplusplusMacroValue()));
-  defineMacro("__cpp_aggregate_bases", "201603L");
-  defineMacro("__cpp_aggregate_nsdmi", "201304L");
-  defineMacro("__cpp_aggregate_paren_init", "201902L");
-  defineMacro("__cpp_alias_templates", "200704L");
-  defineMacro("__cpp_aligned_new", "201606L");
-  defineMacro("__cpp_attributes", "200809L");
-  defineMacro("__cpp_auto_cast", "202110L");
-  defineMacro("__cpp_binary_literals", "201304L");
-  defineMacro("__cpp_capture_star_this", "201603L");
-  defineMacro("__cpp_char8_t", "202207L");
-  defineMacro("__cpp_concepts", "202002");
-  defineMacro("__cpp_conditional_explicit", "201806L");
-  defineMacro("__cpp_consteval", "202211L");
-  defineMacro("__cpp_constexpr", "202406L");
-  defineMacro("__cpp_constexpr_dynamic_alloc", "201907L");
-  defineMacro("__cpp_constexpr_in_decltype", "201711L");
-  defineMacro("__cpp_constinit", "201907L");
-  defineMacro("__cpp_decltype", "200707L");
-  defineMacro("__cpp_decltype_auto", "201304L");
-  defineMacro("__cpp_deduction_guides", "201703L");
-  defineMacro("__cpp_delegating_constructors", "200604L");
-  defineMacro("__cpp_deleted_function", "202403L");
-  defineMacro("__cpp_designated_initializers", "201707L");
-  defineMacro("__cpp_digit_separators", "201309L");
-  defineMacro("__cpp_enumerator_attributes", "201411L");
-  defineMacro("__cpp_exceptions", "199711L");
-  defineMacro("__cpp_explicit_this_parameter", "202110L");
-  defineMacro("__cpp_fold_expressions", "201603L");
-  defineMacro("__cpp_generic_lambdas", "201707L");
-  defineMacro("__cpp_guaranteed_copy_elision", "201606L");
-  defineMacro("__cpp_hex_float", "201603L");
-  defineMacro("__cpp_if_consteval", "202106L");
-  defineMacro("__cpp_if_constexpr", "201606L");
-  defineMacro("__cpp_impl_coroutine", "201902L");
-  defineMacro("__cpp_impl_destroying_delete", "201806L");
-  defineMacro("__cpp_impl_three_way_comparison", "201907L");
-  defineMacro("__cpp_implicit_move", "202207L");
-  defineMacro("__cpp_inheriting_constructors", "201511L");
-  defineMacro("__cpp_init_captures", "201803L");
-  defineMacro("__cpp_initializer_lists", "200806L");
-  defineMacro("__cpp_inline_variables", "201606L");
-  defineMacro("__cpp_lambdas", "200907L");
-  defineMacro("__cpp_multidimensional_subscript", "202211L");
-  defineMacro("__cpp_named_character_escapes", "202207L");
-  defineMacro("__cpp_namespace_attributes", "201411L");
-  defineMacro("__cpp_nested_namespace_definitions", "201411L");
-  defineMacro("__cpp_noexcept_function_type", "201510L");
-  defineMacro("__cpp_nontype_template_args", "201411L");
-  defineMacro("__cpp_nontype_template_parameter_auto", "201606L");
-  defineMacro("__cpp_nsdmi", "200809L");
-  defineMacro("__cpp_pack_indexing", "202311L");
-  defineMacro("__cpp_placeholder_variables", "202306L");
-  defineMacro("__cpp_range_based_for", "202211L");
-  defineMacro("__cpp_raw_strings", "200710L");
-  defineMacro("__cpp_ref_qualifiers", "200710L");
-  defineMacro("__cpp_return_type_deduction", "201304L");
-  defineMacro("__cpp_rtti", "199711L");
-  defineMacro("__cpp_rvalue_references", "200610L");
-  defineMacro("__cpp_size_t_suffix", "202011L");
-  defineMacro("__cpp_sized_deallocation", "201309L");
-  defineMacro("__cpp_static_assert", "202306L");
-  defineMacro("__cpp_static_call_operator", "202207L");
-  defineMacro("__cpp_structured_bindings", "202403L");
-  defineMacro("__cpp_template_auto", "201606L");
-  defineMacro("__cpp_template_template_args", "201611L");
-  defineMacro("__cpp_unicode_characters", "200704L");
-  defineMacro("__cpp_unicode_literals", "200710L");
-  defineMacro("__cpp_user_defined_literals", "200809L");
-  defineMacro("__cpp_using_enum", "201907L");
-  defineMacro("__cpp_variable_templates", "201304L");
-  defineMacro("__cpp_variadic_friend", "202403L");
-  defineMacro("__cpp_variadic_templates", "200704L");
-  defineMacro("__cpp_variadic_using", "201611L");
+  addFeatureTestMacros();
 }
 
 void Toolchain::addCommonLinuxMacros() {
@@ -603,8 +683,6 @@ void Toolchain::addCommonMacOSMacros() {
   defineMacro("__APPLE_CC__", "6000");
   defineMacro("__APPLE__", "1");
   defineMacro("__DYNAMIC__", "1");
-  defineMacro("__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__", "150000");
-  defineMacro("__ENVIRONMENT_OS_VERSION_MIN_REQUIRED__", "150000");
   defineMacro("__FLT16_DECIMAL_DIG__", "5");
   defineMacro("__FLT16_DENORM_MIN__", "5.9604644775390625e-8F16");
   defineMacro("__FLT16_DIG__", "3");
@@ -1370,7 +1448,7 @@ void Toolchain::addWASIC23Macros() {
 
 void Toolchain::addLinuxCxx26Macros() {
   defineMacro("_GNU_SOURCE", "1");
-  defineMacro("__EXCEPTIONS", "1");
+  if (exceptionsEnabled()) defineMacro("__EXCEPTIONS", "1");
   defineMacro("__GNUC_GNU_INLINE__", "1");
   defineMacro("__GNUG__", "4");
   defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");
@@ -1383,7 +1461,7 @@ void Toolchain::addLinuxCxx26Macros() {
 }
 
 void Toolchain::addMacOSCxx26Macros() {
-  defineMacro("__EXCEPTIONS", "1");
+  if (exceptionsEnabled()) defineMacro("__EXCEPTIONS", "1");
   defineMacro("__GNUC_GNU_INLINE__", "1");
   defineMacro("__GNUG__", "4");
   defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");
@@ -1397,7 +1475,7 @@ void Toolchain::addMacOSCxx26Macros() {
 
 void Toolchain::addWindowsCxx26Macros() {
   defineMacro("_CPPRTTI", "1");
-  defineMacro("_CPPUNWIND", "1");
+  if (exceptionsEnabled()) defineMacro("_CPPUNWIND", "1");
   defineMacro("_HAS_CHAR16_T_LANGUAGE_SUPPORT", "1");
   defineMacro("_MSVC_LANG", "202400L");
   defineMacro("_NATIVE_NULLPTR_SUPPORTED", "1");
@@ -1418,7 +1496,5 @@ void Toolchain::addWASICxx26Macros() {
   defineMacro("__GXX_WEAK__", "1");
   defineMacro("__STDCPP_DEFAULT_NEW_ALIGNMENT__", "16UL");
   defineMacro("__private_extern__", "extern");
-
-  undefMacro("__cpp_exceptions");
 }
 }  // namespace cxx

@@ -177,6 +177,17 @@ struct [[nodiscard]] Binder::CompleteClass {
   void synthesizeCopyMoveAssignBody(FunctionSymbol* fn, bool isMove);
 };
 
+void Binder::completeForMemberContexts(ClassSymbol* classSymbol) {
+  if (!classSymbol) return;
+  if (classSymbol->isComplete()) return;
+  if (defersClassSemanticCompletion(unit_, classSymbol)) return;
+
+  auto status = buildRecordLayout(classSymbol);
+  if (!status.has_value()) return;
+
+  classSymbol->setComplete(true);
+}
+
 void Binder::complete(ClassSpecifierAST* ast,
                       bool deferExceptionSpecificationChecks) {
   CompleteClass{*this, ast}.complete(deferExceptionSpecificationChecks);
@@ -765,7 +776,7 @@ auto Binder::CompleteClass::declareImplicitEqualityOperator(
   auto equalityType = control()->getFunctionType(
       control()->getBoolType(), threeWayType->parameterTypes(),
       threeWayType->isVariadic(), threeWayType->cvQualifiers(),
-      threeWayType->refQualifier(), threeWayType->isNoexcept());
+      threeWayType->refQualifier(), threeWayType->exceptionSpecification());
 
   auto equality = newDefaultedFunction(
       control()->getOperatorId(TokenKind::T_EQUAL_EQUAL), equalityType);
@@ -868,13 +879,11 @@ void Binder::CompleteClass::deduceDefaultedThreeWayReturnTypes() {
     }
     auto deducedType = control()->getFunctionType(
         categories[rank], type->parameterTypes(), type->isVariadic(),
-        type->cvQualifiers(), type->refQualifier(), type->isNoexcept());
-    auto canonical = function->canonical();
-    canonical->setType(deducedType);
-    canonical->setDeducedReturnType(true);
-    for (auto redeclaration : canonical->redeclarations()) {
-      redeclaration->setType(deducedType);
-      redeclaration->setDeducedReturnType(true);
+        type->cvQualifiers(), type->refQualifier(),
+        type->exceptionSpecification());
+    for (auto declaration : function->declarations()) {
+      declaration->setType(deducedType);
+      declaration->setDeducedReturnType(true);
     }
   }
 }
@@ -2243,6 +2252,8 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
 
   int calculatedSize = 0;
   int calculatedAlignment = 1;
+  std::uint64_t runningSizeof = 0;
+  std::uint64_t emptyComponentEnd = 0;
   std::uint64_t emittedEnd = 0;
   std::uint32_t currentIndex = 0;
 
@@ -2251,7 +2262,8 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   std::uint32_t runIndex = 0;
   bool inBitfieldRun = false;
   std::vector<FieldSymbol*> runFields;
-  std::vector<std::pair<ClassSymbol*, std::uint64_t>> placedClassSubobjects;
+  ClassSubobjectList placedClassSubobjects;
+  std::uint64_t maxPlacedSubobjectOffset = 0;
 
   int packValue = 0;
 
@@ -2276,13 +2288,29 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   void layoutBases();
   void layoutVirtualBases();
   [[nodiscard]] auto baseNonVirtualSize(ClassSymbol* base) -> std::uint64_t;
+  [[nodiscard]] auto allocateBaseSubobject(ClassSymbol* base, bool isVirtual)
+      -> ClassLayout::MemberInfo;
+  void growSizeof(std::uint64_t offset, std::uint64_t sizeInBytes);
+  void recordEmptyComponent(std::uint64_t offset, std::uint64_t sizeInBytes);
+  [[nodiscard]] static auto subobjectCovers(const ClassSubobject& subobject,
+                                            std::uint64_t address) -> bool;
+
+  [[nodiscard]] static auto subobjectLast(const ClassSubobject& subobject)
+      -> std::uint64_t;
+
+  [[nodiscard]] auto placedAt(ClassSymbol* symbol, std::uint64_t address) const
+      -> bool;
+
+  [[nodiscard]] auto conflictsAt(const ClassSubobject& candidate,
+                                 std::size_t level, std::uint64_t address) const
+      -> bool;
+
   [[nodiscard]] auto classSubobjectOffset(ClassSymbol* classSymbol,
                                           bool tryZero, std::uint64_t alignment)
       -> std::uint64_t;
-  [[nodiscard]] auto nonVirtualClassSubobjects(ClassSymbol* classSymbol)
-      -> std::vector<std::pair<ClassSymbol*, std::uint64_t>>;
   void recordNonVirtualClassSubobjects(ClassSymbol* classSymbol,
-                                       std::uint64_t offset);
+                                       std::uint64_t offset,
+                                       ClassSubobjectExtent extent = {});
   auto layoutFields() -> std::expected<bool, std::string>;
   auto layoutBitfield(FieldSymbol* field) -> std::expected<bool, std::string>;
   auto layoutRegularField(FieldSymbol* field)
@@ -2313,7 +2341,10 @@ auto Binder::BuildRecordLayout::operator()()
   if (!fieldsStatus) return fieldsStatus;
   if (!fieldsStatus.value()) return false;
 
-  layout->setNonVirtualSize(calculatedSize);
+  auto nonVirtualSize = static_cast<std::uint64_t>(calculatedSize);
+  if (emptyComponentEnd > nonVirtualSize) nonVirtualSize = emptyComponentEnd;
+
+  layout->setNonVirtualSize(nonVirtualSize);
   layout->setNonVirtualAlignment(calculatedAlignment);
 
   layoutVirtualBases();
@@ -2379,8 +2410,8 @@ auto Binder::BuildRecordLayout::computeAbiEmpty() const -> bool {
     }
     if (field->isBitField() && !field->name()) {
       auto width = field->bitFieldWidth();
-      auto value = width ? std::get_if<std::intmax_t>(&*width) : nullptr;
-      if (value && *value == 0) continue;
+      auto value = width ? std::get_if<ConstInt>(&*width) : nullptr;
+      if (value && value->isZero()) continue;
     }
     return false;
   }
@@ -2453,8 +2484,8 @@ auto Binder::BuildRecordLayout::isNearlyEmptyClass(ClassSymbol* candidate) const
     }
     if (field->isBitField() && !field->name()) {
       auto width = field->bitFieldWidth();
-      auto value = width ? std::get_if<std::intmax_t>(&*width) : nullptr;
-      if (value && *value == 0) continue;
+      auto value = width ? std::get_if<ConstInt>(&*width) : nullptr;
+      if (value && value->isZero()) continue;
     }
     return false;
   }
@@ -2560,20 +2591,147 @@ auto Binder::BuildRecordLayout::baseNonVirtualSize(ClassSymbol* base)
   return binder.traits.non_virtual_size(base->type());
 }
 
+auto Binder::fieldElementClass(FieldSymbol* field) -> ClassSymbol* {
+  auto elementType = traits.remove_cv(traits.remove_all_extents(field->type()));
+  auto classType = type_cast<ClassType>(elementType);
+  if (!classType || !classType->symbol()) return nullptr;
+  return classType->symbol()->resolvedDefinition();
+}
+
+auto Binder::fieldArrayExtent(FieldSymbol* field) -> ClassSubobjectExtent {
+  ClassSubobjectExtent extent;
+  if (!traits.is_array(field->type())) return extent;
+
+  auto elementType = traits.remove_cv(traits.remove_all_extents(field->type()));
+  auto memoryLayout = control()->memoryLayout();
+
+  const auto elementSize = memoryLayout->sizeOf(elementType);
+  const auto totalSize = memoryLayout->sizeOf(field->type());
+
+  if (!elementSize.has_value() || !totalSize.has_value()) return extent;
+  if (!elementSize.value()) return extent;
+
+  extent.stride = elementSize.value();
+  extent.count = totalSize.value() / elementSize.value();
+  return extent;
+}
+
+void Binder::appendClassSubobjects(ClassSubobjectList& subobjects,
+                                   ClassSymbol* classSymbol,
+                                   std::uint64_t offset,
+                                   ClassSubobjectExtent extent) {
+  if (!extent.count) return;
+
+  for (const auto& subobject : emptyClassSubobjects(classSymbol)) {
+    auto& merged = subobjects.emplace_back(subobject);
+    merged.offset += offset;
+    if (extent.count > 1) merged.extents.insert(merged.extents.begin(), extent);
+  }
+}
+
+auto Binder::emptyClassSubobjects(ClassSymbol* classSymbol)
+    -> const ClassSubobjectList& {
+  classSymbol = classSymbol->resolvedDefinition();
+
+  const auto layout = classSymbol->layout();
+
+  if (auto it = emptyClassSubobjects_.find(classSymbol);
+      it != emptyClassSubobjects_.end() && it->second.layout == layout) {
+    return it->second.subobjects;
+  }
+
+  ClassSubobjectList subobjects;
+
+  if (layout && layout->isAbiEmpty()) {
+    subobjects.emplace_back(classSymbol, 0,
+                            std::vector<ClassSubobjectExtent>{});
+  }
+
+  if (layout) {
+    for (auto base : classSymbol->baseClasses()) {
+      if (base->isVirtual()) continue;
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass) continue;
+      baseClass = baseClass->resolvedDefinition();
+      if (auto baseInfo = layout->getBaseInfo(baseClass)) {
+        appendClassSubobjects(subobjects, baseClass, baseInfo->offset,
+                              ClassSubobjectExtent{});
+      }
+    }
+
+    for (auto field : views::members(classSymbol) | views::non_static_fields) {
+      auto fieldClass = fieldElementClass(field);
+      if (!fieldClass || !fieldClass->layout()) continue;
+      auto fieldInfo = layout->getFieldInfo(field);
+      if (!fieldInfo) continue;
+
+      appendClassSubobjects(subobjects, fieldClass, fieldInfo->offset,
+                            fieldArrayExtent(field));
+    }
+  }
+
+  auto& entry = emptyClassSubobjects_[classSymbol];
+  entry.layout = layout;
+  entry.subobjects = std::move(subobjects);
+  return entry.subobjects;
+}
+
+auto Binder::BuildRecordLayout::subobjectCovers(const ClassSubobject& subobject,
+                                                std::uint64_t address) -> bool {
+  if (address < subobject.offset) return false;
+  auto displacement = address - subobject.offset;
+  for (const auto& extent : subobject.extents) {
+    if (!extent.stride) continue;
+    const auto index = displacement / extent.stride;
+    if (index >= extent.count) return false;
+    displacement -= index * extent.stride;
+  }
+  return displacement == 0;
+}
+
+auto Binder::BuildRecordLayout::subobjectLast(const ClassSubobject& subobject)
+    -> std::uint64_t {
+  auto last = subobject.offset;
+  for (const auto& extent : subobject.extents)
+    last += (extent.count - 1) * extent.stride;
+  return last;
+}
+
+auto Binder::BuildRecordLayout::placedAt(ClassSymbol* symbol,
+                                         std::uint64_t address) const -> bool {
+  return std::ranges::any_of(
+      placedClassSubobjects, [&](const ClassSubobject& placed) {
+        return placed.symbol == symbol && subobjectCovers(placed, address);
+      });
+}
+
+auto Binder::BuildRecordLayout::conflictsAt(const ClassSubobject& candidate,
+                                            std::size_t level,
+                                            std::uint64_t address) const
+    -> bool {
+  if (level == candidate.extents.size())
+    return placedAt(candidate.symbol, address);
+
+  const auto& extent = candidate.extents[level];
+  for (std::uint64_t index = 0; index != extent.count; ++index) {
+    const auto elementAddress = address + index * extent.stride;
+    if (elementAddress > maxPlacedSubobjectOffset) break;
+    if (conflictsAt(candidate, level + 1, elementAddress)) return true;
+  }
+  return false;
+}
+
 auto Binder::BuildRecordLayout::classSubobjectOffset(ClassSymbol* target,
                                                      bool tryZero,
                                                      std::uint64_t alignment)
     -> std::uint64_t {
-  auto subobjects = nonVirtualClassSubobjects(target);
+  const auto& subobjects = binder.emptyClassSubobjects(target);
 
   auto conflicts = [&](std::uint64_t offset) {
-    return std::ranges::any_of(subobjects, [&](const auto& candidate) {
-      return std::ranges::any_of(
-          placedClassSubobjects, [&](const auto& placed) {
-            return placed.first == candidate.first &&
-                   placed.second == offset + candidate.second;
-          });
-    });
+    return std::ranges::any_of(
+        subobjects, [&](const ClassSubobject& candidate) {
+          return conflictsAt(candidate, 0, offset + candidate.offset);
+        });
   };
 
   if (tryZero && !conflicts(0)) return 0;
@@ -2583,80 +2741,94 @@ auto Binder::BuildRecordLayout::classSubobjectOffset(ClassSymbol* target,
   return offset;
 }
 
-auto Binder::BuildRecordLayout::nonVirtualClassSubobjects(ClassSymbol* target)
-    -> std::vector<std::pair<ClassSymbol*, std::uint64_t>> {
-  std::vector<std::pair<ClassSymbol*, std::uint64_t>> subobjects;
-  std::vector<std::pair<ClassSymbol*, std::uint64_t>> pending{{target, 0}};
-  while (!pending.empty()) {
-    auto [cls, offset] = pending.back();
-    pending.pop_back();
-    cls = cls->resolvedDefinition();
-    subobjects.emplace_back(cls, offset);
+void Binder::BuildRecordLayout::recordNonVirtualClassSubobjects(
+    ClassSymbol* target, std::uint64_t offset, ClassSubobjectExtent extent) {
+  const auto first = placedClassSubobjects.size();
 
-    auto classLayout = cls->layout();
-    if (!classLayout) continue;
+  binder.appendClassSubobjects(placedClassSubobjects, target, offset, extent);
 
-    for (auto base : cls->baseClasses()) {
-      if (base->isVirtual()) continue;
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass) continue;
-      baseClass = baseClass->resolvedDefinition();
-      auto baseInfo = classLayout->getBaseInfo(baseClass);
-      if (!baseInfo) continue;
-      pending.emplace_back(baseClass, offset + baseInfo->offset);
-    }
+  for (auto index = first; index != placedClassSubobjects.size(); ++index) {
+    maxPlacedSubobjectOffset = std::max(
+        maxPlacedSubobjectOffset, subobjectLast(placedClassSubobjects[index]));
   }
-  return subobjects;
 }
 
-void Binder::BuildRecordLayout::recordNonVirtualClassSubobjects(
-    ClassSymbol* target, std::uint64_t offset) {
-  for (auto& [classSymbol, relativeOffset] : nonVirtualClassSubobjects(target))
-    placedClassSubobjects.emplace_back(classSymbol, offset + relativeOffset);
+void Binder::BuildRecordLayout::growSizeof(std::uint64_t offset,
+                                           std::uint64_t sizeInBytes) {
+  runningSizeof = std::max(runningSizeof, offset + sizeInBytes);
+}
+
+void Binder::BuildRecordLayout::recordEmptyComponent(
+    std::uint64_t offset, std::uint64_t sizeInBytes) {
+  growSizeof(offset, sizeInBytes);
+  emptyComponentEnd = std::max(emptyComponentEnd, offset + sizeInBytes);
+}
+
+auto Binder::BuildRecordLayout::allocateBaseSubobject(ClassSymbol* base,
+                                                      bool isVirtual)
+    -> ClassLayout::MemberInfo {
+  auto baseLayout = base->layout();
+
+  auto baseAlignment = static_cast<int>(base->alignment());
+  if (baseLayout && !baseLayout->virtualBases().empty()) {
+    baseAlignment = static_cast<int>(baseLayout->nonVirtualAlignment());
+  }
+
+  const auto baseSizeInBytes = static_cast<int>(baseNonVirtualSize(base));
+  const bool isEmpty = baseLayout && baseLayout->isAbiEmpty();
+
+  const auto baseOffset =
+      classSubobjectOffset(base, isEmpty, std::max(baseAlignment, 1));
+
+  if (!isEmpty) padTo(baseOffset);
+
+  ClassLayout::MemberInfo baseInfo;
+  baseInfo.offset = baseOffset;
+  baseInfo.index = currentIndex++;
+  layout->setBaseInfo(base, baseInfo);
+
+  if (isEmpty) {
+    const auto emptySize = memoryLayout->sizeOf(base->type()).value_or(1);
+    if (isVirtual) {
+      growSizeof(baseOffset, emptySize);
+    } else {
+      recordEmptyComponent(baseOffset, emptySize);
+    }
+  } else {
+    calculatedSize = std::max(calculatedSize,
+                              static_cast<int>(baseOffset) + baseSizeInBytes);
+    emittedEnd = std::max(emittedEnd, baseOffset + baseSizeInBytes);
+  }
+
+  recordNonVirtualClassSubobjects(base, baseOffset);
+  calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
+
+  return baseInfo;
 }
 
 void Binder::BuildRecordLayout::layoutBases() {
   if (classSymbol->isUnion()) return;
 
+  ClassSymbol* primaryBase = nullptr;
+  if (!layout->primaryBaseIsVirtual()) primaryBase = layout->primaryBase();
+
+  std::vector<ClassSymbol*> orderedBases;
   for (auto base : classSymbol->baseClasses()) {
     if (base->isVirtual()) continue;
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) continue;
     baseClassSymbol = baseClassSymbol->resolvedDefinition();
-
-    auto baseLayout = baseClassSymbol->layout();
-
-    const bool baseHasVirtualBases =
-        baseLayout && !baseLayout->virtualBases().empty();
-    int baseSizeInBytes = static_cast<int>(baseNonVirtualSize(baseClassSymbol));
-    int baseAlignment =
-        baseHasVirtualBases
-            ? static_cast<int>(baseLayout->nonVirtualAlignment())
-            : static_cast<int>(baseClassSymbol->alignment());
-
-    const bool isEmpty = baseLayout && baseLayout->isAbiEmpty();
-    const auto baseOffset = classSubobjectOffset(baseClassSymbol, isEmpty,
-                                                 std::max(baseAlignment, 1));
-
-    padTo(baseOffset);
-
-    ClassLayout::MemberInfo baseInfo;
-    baseInfo.offset = baseOffset;
-    baseInfo.index = currentIndex++;
-    layout->setBaseInfo(baseClassSymbol, baseInfo);
-
-    if (baseClassSymbol == layout->primaryBase() &&
-        !layout->primaryBaseIsVirtual()) {
-      layout->setVtableIndex(baseInfo.index);
+    if (baseClassSymbol == primaryBase) {
+      orderedBases.insert(orderedBases.begin(), baseClassSymbol);
+    } else {
+      orderedBases.push_back(baseClassSymbol);
     }
+  }
 
-    if (!isEmpty) {
-      calculatedSize = std::max(calculatedSize,
-                                static_cast<int>(baseOffset) + baseSizeInBytes);
-      emittedEnd = std::max(emittedEnd, baseOffset + baseSizeInBytes);
-    }
-    recordNonVirtualClassSubobjects(baseClassSymbol, baseOffset);
-    calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
+  for (auto baseClassSymbol : orderedBases) {
+    const auto baseInfo = allocateBaseSubobject(baseClassSymbol, false);
+
+    if (baseClassSymbol == primaryBase) layout->setVtableIndex(baseInfo.index);
   }
 
   nextBitPos = calculatedSize * 8;
@@ -2768,36 +2940,10 @@ void Binder::BuildRecordLayout::layoutVirtualBases() {
       continue;
     }
 
-    auto vbaseLayout = baseClassSymbol->layout();
+    const auto baseInfo = allocateBaseSubobject(baseClassSymbol, true);
 
-    const bool vbaseHasVirtualBases =
-        vbaseLayout && !vbaseLayout->virtualBases().empty();
-    int baseSizeInBytes = static_cast<int>(baseNonVirtualSize(baseClassSymbol));
-    int baseAlignment =
-        vbaseHasVirtualBases
-            ? static_cast<int>(vbaseLayout->nonVirtualAlignment())
-            : static_cast<int>(baseClassSymbol->alignment());
-
-    const bool isEmpty = vbaseLayout && vbaseLayout->isAbiEmpty();
-    const auto baseOffset = classSubobjectOffset(baseClassSymbol, isEmpty,
-                                                 std::max(baseAlignment, 1));
-
-    padTo(baseOffset);
-
-    ClassLayout::MemberInfo baseInfo;
-    baseInfo.offset = baseOffset;
-    baseInfo.index = currentIndex++;
-    layout->setBaseInfo(baseClassSymbol, baseInfo);
     layout->addVirtualBase(baseClassSymbol);
-
-    if (!isEmpty) {
-      calculatedSize = std::max(calculatedSize,
-                                static_cast<int>(baseOffset) + baseSizeInBytes);
-      emittedEnd = std::max(emittedEnd, baseOffset + baseSizeInBytes);
-    }
-    recordNonVirtualClassSubobjects(baseClassSymbol, baseOffset);
-    recordPrimaryChain(baseClassSymbol, baseOffset, baseInfo.index);
-    calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
+    recordPrimaryChain(baseClassSymbol, baseInfo.offset, baseInfo.index);
   }
 
   nextBitPos = calculatedSize * 8;
@@ -2831,8 +2977,8 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
 
   int bitWidth = 0;
   if (auto& bfw = field->bitFieldWidth()) {
-    if (auto iv = std::get_if<std::intmax_t>(&*bfw)) {
-      bitWidth = static_cast<int>(*iv);
+    if (auto iv = std::get_if<ConstInt>(&*bfw)) {
+      bitWidth = static_cast<int>(iv->toIntMax());
     }
   }
 
@@ -2918,17 +3064,21 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
 
   closeBitfieldRun();
 
+  const ClassLayout* memberLayout = nullptr;
+  if (auto memberClass = unqualified_cast<ClassType>(field->type())) {
+    if (auto memberClassSymbol = memberClass->symbol()) {
+      memberLayout = memberClassSymbol->resolvedDefinition()->layout();
+    }
+  }
+
+  const bool isEmptyDataMember =
+      field->isNoUniqueAddress() && memberLayout && memberLayout->isAbiEmpty();
+
   std::optional<std::size_t> size;
   if (binder.traits.is_unbounded_array(field->type())) {
     size = 0;
-  } else if (field->isNoUniqueAddress()) {
-    auto fieldClass = unqualified_cast<ClassType>(field->type());
-    auto fieldSymbol = fieldClass ? fieldClass->symbol() : nullptr;
-    auto fieldLayout =
-        fieldSymbol ? fieldSymbol->resolvedDefinition()->layout() : nullptr;
-    size = fieldLayout && fieldLayout->isAbiEmpty()
-               ? std::optional<std::size_t>{0}
-               : memoryLayout->sizeOf(field->type());
+  } else if (isEmptyDataMember) {
+    size = 0;
   } else {
     size = memoryLayout->sizeOf(field->type());
   }
@@ -2952,26 +3102,48 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
     if (packValue > 0) fieldAlign = std::min(fieldAlign, packValue);
     auto fieldOffset =
         static_cast<std::uint64_t>(align_to(calculatedSize, fieldAlign));
-    auto fieldClass = unqualified_cast<ClassType>(field->type());
-    if (fieldClass && fieldClass->symbol()) {
-      const bool tryZero = field->isNoUniqueAddress() && size.value() == 0;
-      fieldOffset = classSubobjectOffset(fieldClass->symbol(), tryZero,
+    auto elementClass = binder.fieldElementClass(field);
+    if (elementClass) {
+      fieldOffset = classSubobjectOffset(elementClass, isEmptyDataMember,
                                          std::max(fieldAlign, 1));
     }
     field->setLocalOffset(static_cast<int>(fieldOffset));
 
-    padTo(fieldOffset);
+    if (!isEmptyDataMember) padTo(fieldOffset);
 
     ClassLayout::MemberInfo fieldInfo;
     fieldInfo.offset = fieldOffset;
     fieldInfo.index = currentIndex++;
     layout->setFieldInfo(field, fieldInfo);
 
-    calculatedSize =
-        std::max(calculatedSize, static_cast<int>(fieldOffset + size.value()));
-    emittedEnd = std::max(emittedEnd, fieldOffset + size.value());
-    if (fieldClass && fieldClass->symbol())
-      recordNonVirtualClassSubobjects(fieldClass->symbol(), fieldOffset);
+    if (!isEmptyDataMember) {
+      auto allocatedExtent = static_cast<std::uint64_t>(size.value());
+      auto emittedExtent = allocatedExtent;
+
+      if (field->isNoUniqueAddress() && memberLayout) {
+        emittedExtent = binder.traits.non_virtual_size(field->type());
+        allocatedExtent =
+            std::max(emittedExtent, binder.traits.data_size(field->type()));
+      }
+
+      calculatedSize = std::max(
+          calculatedSize, static_cast<int>(fieldOffset + allocatedExtent));
+      emittedEnd = std::max(emittedEnd, fieldOffset + emittedExtent);
+    }
+
+    if (field->isNoUniqueAddress()) {
+      const auto memberSize = memoryLayout->sizeOf(field->type()).value_or(0);
+      if (isEmptyDataMember) {
+        recordEmptyComponent(fieldOffset, memberSize);
+      } else {
+        growSizeof(fieldOffset, memberSize);
+      }
+    }
+
+    if (elementClass) {
+      recordNonVirtualClassSubobjects(elementClass, fieldOffset,
+                                      binder.fieldArrayExtent(field));
+    }
   }
 
   nextBitPos = calculatedSize * 8;
@@ -3114,6 +3286,8 @@ void Binder::BuildRecordLayout::finalize() {
 
   const auto dataSize = static_cast<std::uint64_t>(calculatedSize);
 
+  calculatedSize = std::max(calculatedSize, static_cast<int>(runningSizeof));
+
   if (calculatedSize == 0) calculatedSize = 1;
 
   calculatedSize = align_to(calculatedSize, calculatedAlignment);
@@ -3127,6 +3301,7 @@ void Binder::BuildRecordLayout::finalize() {
   layout->setAlignment(calculatedAlignment);
   layout->setDataSize(dataSize);
 
+  binder.emptyClassSubobjects_.erase(classSymbol->resolvedDefinition());
   classSymbol->setLayout(std::move(layout));
 
   buildVTableLayout();
@@ -3379,7 +3554,9 @@ void Binder::BuildRecordLayout::buildVTableLayout() {
       std::ranges::reverse(group.vbaseOffsets);
     }
 
-    if (auto baseVtable = baseSym->vtableLayout()) {
+    if (baseSym == classSymbol) {
+      group.slots = vtable->primary.slots;
+    } else if (auto baseVtable = baseSym->vtableLayout()) {
       group.slots = baseVtable->primary.slots;
     }
 
@@ -3407,9 +3584,8 @@ void Binder::BuildRecordLayout::buildVTableLayout() {
           findFinalOverrider(slot.introducingFunction, derivedFirst,
                              virtualTarget, virtualTargetOffset);
       if (!overrider) continue;
-      const auto changed = overrider->function != slot.function;
       overrideOf.emplace(slot.function, *overrider);
-      if (inheritedVcallSlots[index] || (isVirtualBase && changed)) {
+      if (inheritedVcallSlots[index] || isVirtualBase) {
         slot.usesVcallOffset = true;
         if (!inheritedVcallSlots[index]) slot.vcallBase = baseSym;
         group.vcallOffsets.emplace_back(
@@ -3508,6 +3684,11 @@ void Binder::BuildRecordLayout::buildVTableLayout() {
 
     if (auto group = buildGroup(vbase, vbaseInfo->offset, true, subobjects))
       vtable->secondary.push_back(std::move(*group));
+  }
+
+  if (!classLayout->virtualBases().empty()) {
+    if (auto group = buildGroup(classSymbol, 0, true, subobjects))
+      vtable->virtualBasePrimary = std::move(*group);
   }
 
   classSymbol->setVTableLayout(std::move(vtable));

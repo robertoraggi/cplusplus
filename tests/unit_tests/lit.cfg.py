@@ -19,6 +19,7 @@
 
 import os
 import shutil
+import subprocess
 
 import lit.util
 import lit.formats
@@ -37,6 +38,20 @@ config.substitutions.append(("%filecheck", config.filecheck))
 # The 'lld' feature is available when cxx was built with an embedded lld linker.
 if getattr(config, "have_lld", False):
     config.available_features.add("lld")
+
+# The 'int128' feature is available when cxx itself was built on a host with a
+# 128-bit integer type, which is what makes __int128 a usable type specifier.
+try:
+    macros = subprocess.run(
+        [config.cxx, "-E", "-dM", os.devnull],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout
+    if "__SIZEOF_INT128__" in macros:
+        config.available_features.add("int128")
+except OSError:
+    pass
 
 # The 'wasmtime' feature is available when a wasmtime runtime is on PATH, which
 # lets link tests execute the wasm32-wasip1 executables they produce.

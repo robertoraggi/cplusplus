@@ -220,9 +220,16 @@ void ClassTemplateArgumentDeduction::addConstructorGuide(
 
   auto parameters = parameterClauseOf(constructor);
   if (!parameters) {
+    auto constructorParameters = constructor->parameters();
     std::vector<ParameterDeclarationAST*> synthesized;
-    for (auto parameterType : constructorType->parameterTypes())
-      synthesized.push_back(makeParameterDeclaration(parameterType, nullptr));
+    std::size_t index = 0;
+    for (auto parameterType : constructorType->parameterTypes()) {
+      auto parameter = makeParameterDeclaration(parameterType, nullptr);
+      if (index < constructorParameters.size())
+        parameter->expression = constructorParameters[index]->defaultArgument();
+      synthesized.push_back(parameter);
+      ++index;
+    }
     parameters =
         makeParameterClause(synthesized, constructorType->isVariadic());
   }

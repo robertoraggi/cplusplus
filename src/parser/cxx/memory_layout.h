@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string_view>
 
 namespace cxx {
 
@@ -34,6 +35,14 @@ enum class ClassValueAbiKind {
   kAArch64,
   kX86_64,
 };
+
+enum class FramePointerKind {
+  kNone,
+  kNonLeaf,
+  kAll,
+};
+
+[[nodiscard]] auto to_string(FramePointerKind kind) -> std::string_view;
 
 class MemoryLayout {
  public:
@@ -66,6 +75,7 @@ class MemoryLayout {
   [[nodiscard]] auto triple() const -> const std::string&;
   [[nodiscard]] auto arch() const -> std::string_view;
   [[nodiscard]] auto isWebAssembly() const -> bool;
+  [[nodiscard]] auto isDarwin() const -> bool;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
   [[nodiscard]] auto defaultNewAlignment() const -> std::size_t;
   [[nodiscard]] auto maxAtomicInlineWidth() const -> std::size_t;
@@ -79,6 +89,7 @@ class MemoryLayout {
 
   [[nodiscard]] auto nullMemberObjectPointer() const -> std::int64_t;
   [[nodiscard]] auto classValueAbiKind() const -> ClassValueAbiKind;
+  [[nodiscard]] auto framePointerKind() const -> FramePointerKind;
   void setTriple(std::string triple);
 
  private:

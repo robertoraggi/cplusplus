@@ -40,6 +40,7 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:    template class basic_string<type-param<0, 0>>
 // CHECK-NEXT:      parameter typename<0, 0> T
 // CHECK-NEXT:      constructor constexpr inline defaulted void basic_string()
+// CHECK-NEXT:        parameters
 // CHECK-NEXT:      constructor inline explicit void basic_string(const type-param<0, 0>*)
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter const type-param<0, 0>* p
@@ -50,7 +51,9 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter const type-param<0, 0>* p
 // CHECK-NEXT:      function const type-param<0, 0>* c_str() const
+// CHECK-NEXT:        parameters
 // CHECK-NEXT:      function unsigned long size() const
+// CHECK-NEXT:        parameters
 // CHECK-NEXT:      function const type-param<0, 0>& operator [](unsigned long) const
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter unsigned long i
@@ -60,11 +63,14 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:      class iterator
 // CHECK-NEXT:        injected class name iterator
 // CHECK-NEXT:        function ::std::basic_string::iterator& operator ++()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:        function ::std::basic_string::iterator operator ++(int)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter int
 // CHECK-NEXT:        function type-param<0, 0>& operator *()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:        function const type-param<0, 0>& operator *() const
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:        function bool operator ==(const ::std::basic_string::iterator&) const
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::std::basic_string::iterator&
@@ -72,7 +78,9 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const ::std::basic_string::iterator&
 // CHECK-NEXT:      function ::std::basic_string::iterator begin()
+// CHECK-NEXT:        parameters
 // CHECK-NEXT:      function ::std::basic_string::iterator end()
+// CHECK-NEXT:        parameters
 // CHECK-NEXT:      [specializations]
 // CHECK-NEXT:        class basic_string<char>
 // CHECK-NEXT:        class basic_string<char8_t>

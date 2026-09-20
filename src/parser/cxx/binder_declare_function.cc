@@ -27,6 +27,7 @@
 #include <cxx/dependent_types.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/overload_resolution.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
@@ -91,6 +92,9 @@ struct [[nodiscard]] Binder::DeclareFunction {
       FunctionSymbol* primary, const FunctionType* functionType,
       List<TemplateArgumentAST*>* templateArgumentList) const
       -> std::optional<NamedTemplateSpecialization>;
+  [[nodiscard]] auto mostSpecializedMatch(
+      std::vector<NamedTemplateSpecialization> matches) const
+      -> std::optional<NamedTemplateSpecialization>;
   void instantiateExplicitly(const NamedTemplateSpecialization& specialization);
 
   [[nodiscard]] auto isExplicitSpecializationHead() const -> bool;
@@ -118,8 +122,17 @@ struct [[nodiscard]] Binder::DeclareFunction {
 
   void inheritAbiTags(FunctionSymbol* canonical);
   void checkDeclSpecifiers();
+  void checkFriendDefaults();
   void checkExternalLinkageSpec();
 
+  void attachFunctionParameters();
+  [[nodiscard]] auto declarationsInHostScope() const
+      -> std::vector<FunctionSymbol*>;
+  void mergeDefaultArguments();
+  void propagateDefaultArguments(
+      const std::vector<FunctionSymbol*>& declarations);
+  void rejectDefaultArguments();
+  void checkDefaultArgumentOrder();
   void checkVirtualSpecifier();
   void checkExplicitObjectParameter();
   void checkDestructorParameters();
@@ -160,6 +173,8 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   functionSymbol->setExplicitObjectParameter(
       declaresExplicitObjectParameter(functionDeclarator));
 
+  attachFunctionParameters();
+
   if (functionDeclarator && functionDeclarator->exceptionSpecifier)
     functionSymbol->setExceptionSpecifier(true);
 
@@ -171,6 +186,12 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   }
 
   checkDeclSpecifiers();
+  checkFriendDefaults();
+
+  functionSymbol->setHostScope(originalScope && originalScope->isBlock()
+                                   ? originalScope
+                                   : declaringScopeForFunction());
+
   checkExternalLinkageSpec();
   checkVirtualSpecifier();
   checkExplicitObjectParameter();
@@ -185,6 +206,16 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
 
   const auto instantiatesExplicitly =
       namedSpecialization && binder.inExplicitInstantiation();
+
+  if (decl.specs.templateHead &&
+      is_templated_class(symbol_cast<ClassSymbol>(decl.getScope()))) {
+    binder.rejectDefaultTemplateArguments(
+        decl.specs.templateHead,
+        "a default template argument cannot be specified on the out-of-class "
+        "definition of a member of a class template");
+
+    rejectDefaultArguments();
+  }
 
   if (addSymbolToParentScope && !instantiatesExplicitly) checkRedeclaration();
 
@@ -297,13 +328,36 @@ auto Binder::DeclareFunction::namedTemplateSpecialization() const
   if (!isExplicitSpecializationHead() && !binder.inExplicitInstantiation())
     return std::nullopt;
 
+  std::vector<NamedTemplateSpecialization> matches;
   for (auto primary : specializedPrimaryTemplates()) {
     auto specialization =
         deducedSpecializationOf(primary, functionType, nullptr);
-    if (specialization) return specialization;
+    if (specialization) matches.push_back(std::move(*specialization));
   }
 
-  return std::nullopt;
+  return mostSpecializedMatch(std::move(matches));
+}
+
+auto Binder::DeclareFunction::mostSpecializedMatch(
+    std::vector<NamedTemplateSpecialization> matches) const
+    -> std::optional<NamedTemplateSpecialization> {
+  if (matches.empty()) return std::nullopt;
+
+  std::size_t best = 0;
+  for (std::size_t i = 1; i < matches.size(); ++i) {
+    if (compareFunctionTemplateSpecializations(binder.unit_, matches[i].primary,
+                                               matches[best].primary) > 0)
+      best = i;
+  }
+
+  for (std::size_t i = 0; i < matches.size(); ++i) {
+    if (i == best) continue;
+    if (compareFunctionTemplateSpecializations(
+            binder.unit_, matches[best].primary, matches[i].primary) <= 0)
+      return std::nullopt;
+  }
+
+  return std::move(matches[best]);
 }
 
 auto Binder::DeclareFunction::declaringScopeForFunction() const
@@ -465,7 +519,7 @@ void Binder::DeclareFunction::checkRedeclaration() {
     overloadSet->addFunction(functionSymbol);
   }
 
-  binder.mergeDefaultArguments(functionSymbol, declarator);
+  checkDefaultArgumentOrder();
 }
 
 void Binder::DeclareFunction::checkCRedeclaration(ScopeSymbol* declaringScope) {
@@ -483,6 +537,7 @@ void Binder::DeclareFunction::checkCRedeclaration(ScopeSymbol* declaringScope) {
             /*isOutOfLineDeclaration=*/false);
     if (canMerge) {
       mergeAsCRedeclaration(otherFunction);
+      checkDefaultArgumentOrder();
     } else {
       binder.error(functionSymbol->location(),
                    std::format("conflicting types for '{}'",
@@ -496,7 +551,7 @@ void Binder::DeclareFunction::checkCRedeclaration(ScopeSymbol* declaringScope) {
 
   declaringScope->addSymbol(functionSymbol);
 
-  binder.mergeDefaultArguments(functionSymbol, declarator);
+  checkDefaultArgumentOrder();
 }
 
 void Binder::DeclareFunction::checkConstructor() {
@@ -515,7 +570,7 @@ void Binder::DeclareFunction::checkConstructor() {
     enclosingClass->addConstructor(functionSymbol);
   }
 
-  binder.mergeDefaultArguments(functionSymbol, declarator);
+  checkDefaultArgumentOrder();
 }
 
 void Binder::DeclareFunction::checkDeclSpecifiers() {
@@ -537,6 +592,35 @@ void Binder::DeclareFunction::checkDeclSpecifiers() {
     default:
       break;
   }
+}
+
+void Binder::DeclareFunction::checkFriendDefaults() {
+  if (!decl.specs.isFriend) return;
+
+  if (functionDeclarator && functionDeclarator->parameterDeclarationClause) {
+    for (auto parameter :
+         ListView{functionDeclarator->parameterDeclarationClause
+                      ->parameterDeclarationList}) {
+      if (parameter->equalLoc) functionSymbol->setFriendDefaultArgument(true);
+    }
+  }
+  if (decl.specs.templateHead) {
+    for (auto parameter :
+         ListView{decl.specs.templateHead->templateParameterList}) {
+      if (hasWrittenDefaultTemplateArgument(parameter))
+        functionSymbol->setFriendDefaultTemplateArgument(true);
+    }
+  }
+
+  if (decl.isFunctionDefinition) return;
+  if (functionSymbol->hasFriendDefaultArgument())
+    binder.error(decl.location(),
+                 "a friend declaration specifying a default argument must be a "
+                 "definition");
+  if (functionSymbol->hasFriendDefaultTemplateArgument())
+    binder.error(decl.location(),
+                 "a friend declaration specifying a default template argument "
+                 "must be a definition");
 }
 
 void Binder::DeclareFunction::checkDestructorParameters() {
@@ -830,9 +914,39 @@ void Binder::DeclareFunction::inheritAbiTags(FunctionSymbol* canonical) {
   functionSymbol->setAbiTags(canonical->abiTagList());
 }
 
+void Binder::DeclareFunction::attachFunctionParameters() {
+  if (!functionDeclarator) return;
+  auto parameterDeclarationClause =
+      functionDeclarator->parameterDeclarationClause;
+  if (!parameterDeclarationClause) return;
+  auto parameters = parameterDeclarationClause->functionParametersSymbol;
+  if (!parameters) return;
+  if (functionSymbol->functionParameters() == parameters) return;
+  functionSymbol->addSymbol(parameters);
+}
+
 void Binder::DeclareFunction::mergeRedeclaration() {
   auto canonical = functionSymbol->canonical();
   if (!canonical || canonical == functionSymbol) return;
+
+  {
+    bool defaultArgument = functionSymbol->hasFriendDefaultArgument();
+    bool defaultTemplateArgument =
+        functionSymbol->hasFriendDefaultTemplateArgument();
+    for (auto previous : canonical->declarations()) {
+      if (previous == functionSymbol) break;
+      defaultArgument |= previous->hasFriendDefaultArgument();
+      defaultTemplateArgument |= previous->hasFriendDefaultTemplateArgument();
+    }
+    if (defaultArgument)
+      binder.error(decl.location(),
+                   "a friend declaration specifying a default argument must be "
+                   "the only declaration");
+    if (defaultTemplateArgument)
+      binder.error(decl.location(),
+                   "a friend declaration specifying a default template "
+                   "argument must be the only declaration");
+  }
 
   if (!functionSymbol->isFriend() && canonical->isHidden()) {
     binder.setSpeculativeValue(
@@ -876,35 +990,121 @@ void Binder::DeclareFunction::mergeRedeclaration() {
                                  canonical->setLanguageLinkage(value);
                                });
 
-  auto canonParams = canonical->functionParameters();
-  auto redeclParams = functionSymbol->functionParameters();
-  if (!canonParams || !redeclParams) return;
+  mergeDefaultArguments();
+}
 
-  auto canonIt = canonParams->members().begin();
-  auto canonEnd = canonParams->members().end();
-  auto redeclIt = redeclParams->members().begin();
-  auto redeclEnd = redeclParams->members().end();
+auto Binder::DeclareFunction::declarationsInHostScope() const
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> result;
 
-  for (; canonIt != canonEnd && redeclIt != redeclEnd; ++canonIt, ++redeclIt) {
-    auto cp = symbol_cast<ParameterSymbol>(*canonIt);
-    auto rp = symbol_cast<ParameterSymbol>(*redeclIt);
-    if (!cp || !rp) continue;
+  for (auto declaration : functionSymbol->canonical()->declarations()) {
+    if (declaration == functionSymbol) break;
+    if (declaration->hostScope() != functionSymbol->hostScope()) continue;
+    if (!declaration->functionParameters()) continue;
+    result.push_back(declaration);
+  }
 
-    if (cp->defaultArgument() && rp->defaultArgument()) {
-      binder.error(rp->location(), "redefinition of default argument");
+  return result;
+}
+
+void Binder::DeclareFunction::mergeDefaultArguments() {
+  if (binder.instantiatingSymbol()) return;
+
+  auto parameters = functionSymbol->functionParameters();
+  if (!parameters) return;
+
+  auto previousDeclarations = declarationsInHostScope();
+  if (previousDeclarations.empty()) return;
+
+  auto previousScope = previousDeclarations.back()->functionParameters();
+  if (previousScope == parameters) return;
+
+  auto previousParameters = previousScope->members() | views::parameters;
+  auto currentParameters = parameters->members() | views::parameters;
+
+  auto previousIt = previousParameters.begin();
+  auto currentIt = currentParameters.begin();
+
+  for (; previousIt != previousParameters.end() &&
+         currentIt != currentParameters.end();
+       ++previousIt, ++currentIt) {
+    auto previous = *previousIt;
+    auto current = *currentIt;
+
+    if (previous->defaultArgument() == current->defaultArgument()) continue;
+
+    if (!current->defaultArgument()) {
+      binder.setSpeculativeValue(current->defaultArgument(),
+                                 previous->defaultArgument(),
+                                 [current](ExpressionAST* value) {
+                                   current->setDefaultArgument(value);
+                                 });
       continue;
     }
 
-    if (!cp->defaultArgument() && rp->defaultArgument()) {
-      binder.setSpeculativeValue(
-          cp->defaultArgument(), rp->defaultArgument(),
-          [cp](ExpressionAST* value) { cp->setDefaultArgument(value); });
+    if (!previous->defaultArgument()) {
+      binder.setSpeculativeValue(previous->defaultArgument(),
+                                 current->defaultArgument(),
+                                 [previous](ExpressionAST* value) {
+                                   previous->setDefaultArgument(value);
+                                 });
       continue;
     }
 
-    if (cp->defaultArgument() && !rp->defaultArgument()) {
-      rp->setDefaultArgument(cp->defaultArgument());
+    binder.error(current->location(), "redefinition of default argument");
+    binder.note(previous->location(), "previous definition is here");
+  }
+
+  propagateDefaultArguments(previousDeclarations);
+}
+
+void Binder::DeclareFunction::propagateDefaultArguments(
+    const std::vector<FunctionSymbol*>& declarations) {
+  auto parameters = functionSymbol->functionParameters();
+
+  for (auto declaration : declarations)
+    binder.copyDefaultArguments(parameters, declaration->functionParameters());
+}
+
+void Binder::DeclareFunction::rejectDefaultArguments() {
+  if (binder.instantiatingSymbol()) return;
+
+  auto parameters = functionSymbol->functionParameters();
+  if (!parameters) return;
+
+  for (auto parameter : parameters->members() | views::parameters) {
+    if (!parameter->defaultArgument()) continue;
+
+    binder.error(parameter->location(),
+                 "a default argument for a member function of a class template "
+                 "must be specified on its declaration in the class");
+    return;
+  }
+}
+
+void Binder::DeclareFunction::checkDefaultArgumentOrder() {
+  if (binder.instantiatingSymbol()) return;
+
+  auto parameters = functionSymbol->functionParameters();
+  if (!parameters) return;
+
+  bool sawDefaultArgument = false;
+
+  for (auto parameter : parameters->members() | views::parameters) {
+    if (parameter->defaultArgument()) {
+      sawDefaultArgument = true;
+      continue;
     }
+
+    if (!sawDefaultArgument) continue;
+    if (is_parameter_pack_type(parameter->type())) continue;
+
+    binder.error(parameter->location(),
+                 parameter->name()
+                     ? std::format("missing default argument on parameter '{}'",
+                                   to_string(parameter->name()))
+                     : std::string("missing default argument on parameter"));
+    return;
   }
 }
 }  // namespace cxx

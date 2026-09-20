@@ -176,10 +176,10 @@ struct Instantiate {
     auto definingSymbol = symbol;
 
     if (!functionDef) {
-      for (auto redecl : symbol->redeclarations()) {
-        if (auto def = redecl->declaration()) {
+      for (auto declaration : symbol->declarations()) {
+        if (auto def = declaration->declaration()) {
           functionDef = def;
-          definingSymbol = redecl;
+          definingSymbol = declaration;
           break;
         }
       }
@@ -935,6 +935,28 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
                                       ClassSymbol* classSymbol) -> bool {
   if (!classSymbol) return false;
   if (classSymbol->resolvedDefinition()->isComplete()) return true;
+  if (!classSymbol->isSpecialization() && classSymbol->instantiationPattern()) {
+    auto pattern = classSymbol->instantiationPattern()->resolvedDefinition();
+    auto declaration = ast_cast<ClassSpecifierAST>(pattern->declaration());
+    if (!declaration) return false;
+    InstantiationDepthGuard depthGuard{unit};
+    if (depthGuard.exceeded()) return false;
+    ASTRewriter rewriter{unit, classSymbol->parent(),
+                         classSymbol->instantiationSubstitutionArguments()};
+    rewriter.depth_ = classSymbol->instantiationSubstitutionDepth();
+    rewriter.inheritEnclosingTemplateArguments(classSymbol->parent());
+    rewriter.classInstanceToComplete_ = classSymbol;
+    rewriter.binder_.setInstantiatingSymbol(pattern);
+    for (auto oldScope = pattern->parent(), newScope = classSymbol->parent();
+         oldScope && newScope && oldScope->isClass() && newScope->isClass();
+         oldScope = oldScope->parent(), newScope = newScope->parent()) {
+      rewriter.remapScopeMembers(oldScope, newScope);
+    }
+    rewriter.addSymbolRemap(pattern, classSymbol);
+    rewriter.specifier(declaration);
+    rewriter.instantiateOutOfClassMemberDefinitions(pattern, classSymbol);
+    return classSymbol->isComplete();
+  }
   if (!classSymbol->isSpecialization()) return false;
 
   auto primaryTemplate = classSymbol->primaryTemplateSymbol();

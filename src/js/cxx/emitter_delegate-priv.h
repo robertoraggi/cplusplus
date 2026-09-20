@@ -27,6 +27,495 @@
 
 namespace cxx::js {
 
+inline auto toVal(cxx::ir::InsertionPoint::Kind value) -> val {
+  switch (value) {
+    case cxx::ir::InsertionPoint::Kind::BlockStart:
+      return val("BlockStart");
+    case cxx::ir::InsertionPoint::Kind::BlockEnd:
+      return val("BlockEnd");
+    case cxx::ir::InsertionPoint::Kind::ModuleStart:
+      return val("ModuleStart");
+    case cxx::ir::InsertionPoint::Kind::ModuleEnd:
+      return val("ModuleEnd");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::InsertionPoint::Kind>(const val& value)
+    -> cxx::ir::InsertionPoint::Kind {
+  const auto name = toString(value);
+  if (name == "BlockStart") return cxx::ir::InsertionPoint::Kind::BlockStart;
+  if (name == "BlockEnd") return cxx::ir::InsertionPoint::Kind::BlockEnd;
+  if (name == "ModuleStart") return cxx::ir::InsertionPoint::Kind::ModuleStart;
+  if (name == "ModuleEnd") return cxx::ir::InsertionPoint::Kind::ModuleEnd;
+  return cxx::ir::InsertionPoint::Kind{};
+}
+
+inline auto toVal(cxx::ir::Initializer::Kind value) -> val {
+  switch (value) {
+    case cxx::ir::Initializer::Kind::None:
+      return val("None");
+    case cxx::ir::Initializer::Kind::Integer:
+      return val("Integer");
+    case cxx::ir::Initializer::Kind::Floating:
+      return val("Floating");
+    case cxx::ir::Initializer::Kind::Bytes:
+      return val("Bytes");
+    case cxx::ir::Initializer::Kind::Aggregate:
+      return val("Aggregate");
+    case cxx::ir::Initializer::Kind::Null:
+      return val("Null");
+    case cxx::ir::Initializer::Kind::Zero:
+      return val("Zero");
+    case cxx::ir::Initializer::Kind::ScalarZero:
+      return val("ScalarZero");
+    case cxx::ir::Initializer::Kind::Undef:
+      return val("Undef");
+    case cxx::ir::Initializer::Kind::SignalingNaN:
+      return val("SignalingNaN");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::Initializer::Kind>(const val& value)
+    -> cxx::ir::Initializer::Kind {
+  const auto name = toString(value);
+  if (name == "None") return cxx::ir::Initializer::Kind::None;
+  if (name == "Integer") return cxx::ir::Initializer::Kind::Integer;
+  if (name == "Floating") return cxx::ir::Initializer::Kind::Floating;
+  if (name == "Bytes") return cxx::ir::Initializer::Kind::Bytes;
+  if (name == "Aggregate") return cxx::ir::Initializer::Kind::Aggregate;
+  if (name == "Null") return cxx::ir::Initializer::Kind::Null;
+  if (name == "Zero") return cxx::ir::Initializer::Kind::Zero;
+  if (name == "ScalarZero") return cxx::ir::Initializer::Kind::ScalarZero;
+  if (name == "Undef") return cxx::ir::Initializer::Kind::Undef;
+  if (name == "SignalingNaN") return cxx::ir::Initializer::Kind::SignalingNaN;
+  return cxx::ir::Initializer::Kind{};
+}
+
+inline auto toVal(cxx::ir::TodoKind value) -> val {
+  switch (value) {
+    case cxx::ir::TodoKind::Expression:
+      return val("Expression");
+    case cxx::ir::TodoKind::Statement:
+      return val("Statement");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::TodoKind>(const val& value) -> cxx::ir::TodoKind {
+  const auto name = toString(value);
+  if (name == "Expression") return cxx::ir::TodoKind::Expression;
+  if (name == "Statement") return cxx::ir::TodoKind::Statement;
+  return cxx::ir::TodoKind{};
+}
+
+inline auto toVal(cxx::ir::UnaryOp value) -> val {
+  switch (value) {
+    case cxx::ir::UnaryOp::NegateFloat:
+      return val("NegateFloat");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::UnaryOp>(const val& value) -> cxx::ir::UnaryOp {
+  const auto name = toString(value);
+  if (name == "NegateFloat") return cxx::ir::UnaryOp::NegateFloat;
+  return cxx::ir::UnaryOp{};
+}
+
+inline auto toVal(cxx::ir::Linkage value) -> val {
+  switch (value) {
+    case cxx::ir::Linkage::External:
+      return val("External");
+    case cxx::ir::Linkage::Internal:
+      return val("Internal");
+    case cxx::ir::Linkage::LinkOnceODR:
+      return val("LinkOnceODR");
+    case cxx::ir::Linkage::WeakODR:
+      return val("WeakODR");
+    case cxx::ir::Linkage::AvailableExternally:
+      return val("AvailableExternally");
+    case cxx::ir::Linkage::Appending:
+      return val("Appending");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::Linkage>(const val& value) -> cxx::ir::Linkage {
+  const auto name = toString(value);
+  if (name == "External") return cxx::ir::Linkage::External;
+  if (name == "Internal") return cxx::ir::Linkage::Internal;
+  if (name == "LinkOnceODR") return cxx::ir::Linkage::LinkOnceODR;
+  if (name == "WeakODR") return cxx::ir::Linkage::WeakODR;
+  if (name == "AvailableExternally")
+    return cxx::ir::Linkage::AvailableExternally;
+  if (name == "Appending") return cxx::ir::Linkage::Appending;
+  return cxx::ir::Linkage{};
+}
+
+inline auto toVal(cxx::ir::BinaryOp value) -> val {
+  switch (value) {
+    case cxx::ir::BinaryOp::AddInt:
+      return val("AddInt");
+    case cxx::ir::BinaryOp::SubInt:
+      return val("SubInt");
+    case cxx::ir::BinaryOp::MulInt:
+      return val("MulInt");
+    case cxx::ir::BinaryOp::SignedDiv:
+      return val("SignedDiv");
+    case cxx::ir::BinaryOp::UnsignedDiv:
+      return val("UnsignedDiv");
+    case cxx::ir::BinaryOp::SignedRem:
+      return val("SignedRem");
+    case cxx::ir::BinaryOp::UnsignedRem:
+      return val("UnsignedRem");
+    case cxx::ir::BinaryOp::AndInt:
+      return val("AndInt");
+    case cxx::ir::BinaryOp::OrInt:
+      return val("OrInt");
+    case cxx::ir::BinaryOp::XorInt:
+      return val("XorInt");
+    case cxx::ir::BinaryOp::ShiftLeft:
+      return val("ShiftLeft");
+    case cxx::ir::BinaryOp::ArithmeticShiftRight:
+      return val("ArithmeticShiftRight");
+    case cxx::ir::BinaryOp::LogicalShiftRight:
+      return val("LogicalShiftRight");
+    case cxx::ir::BinaryOp::AddFloat:
+      return val("AddFloat");
+    case cxx::ir::BinaryOp::SubFloat:
+      return val("SubFloat");
+    case cxx::ir::BinaryOp::MulFloat:
+      return val("MulFloat");
+    case cxx::ir::BinaryOp::DivFloat:
+      return val("DivFloat");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::BinaryOp>(const val& value) -> cxx::ir::BinaryOp {
+  const auto name = toString(value);
+  if (name == "AddInt") return cxx::ir::BinaryOp::AddInt;
+  if (name == "SubInt") return cxx::ir::BinaryOp::SubInt;
+  if (name == "MulInt") return cxx::ir::BinaryOp::MulInt;
+  if (name == "SignedDiv") return cxx::ir::BinaryOp::SignedDiv;
+  if (name == "UnsignedDiv") return cxx::ir::BinaryOp::UnsignedDiv;
+  if (name == "SignedRem") return cxx::ir::BinaryOp::SignedRem;
+  if (name == "UnsignedRem") return cxx::ir::BinaryOp::UnsignedRem;
+  if (name == "AndInt") return cxx::ir::BinaryOp::AndInt;
+  if (name == "OrInt") return cxx::ir::BinaryOp::OrInt;
+  if (name == "XorInt") return cxx::ir::BinaryOp::XorInt;
+  if (name == "ShiftLeft") return cxx::ir::BinaryOp::ShiftLeft;
+  if (name == "ArithmeticShiftRight")
+    return cxx::ir::BinaryOp::ArithmeticShiftRight;
+  if (name == "LogicalShiftRight") return cxx::ir::BinaryOp::LogicalShiftRight;
+  if (name == "AddFloat") return cxx::ir::BinaryOp::AddFloat;
+  if (name == "SubFloat") return cxx::ir::BinaryOp::SubFloat;
+  if (name == "MulFloat") return cxx::ir::BinaryOp::MulFloat;
+  if (name == "DivFloat") return cxx::ir::BinaryOp::DivFloat;
+  return cxx::ir::BinaryOp{};
+}
+
+inline auto toVal(cxx::ir::IntPredicate value) -> val {
+  switch (value) {
+    case cxx::ir::IntPredicate::Equal:
+      return val("Equal");
+    case cxx::ir::IntPredicate::NotEqual:
+      return val("NotEqual");
+    case cxx::ir::IntPredicate::SignedLess:
+      return val("SignedLess");
+    case cxx::ir::IntPredicate::SignedLessEqual:
+      return val("SignedLessEqual");
+    case cxx::ir::IntPredicate::SignedGreater:
+      return val("SignedGreater");
+    case cxx::ir::IntPredicate::SignedGreaterEqual:
+      return val("SignedGreaterEqual");
+    case cxx::ir::IntPredicate::UnsignedLess:
+      return val("UnsignedLess");
+    case cxx::ir::IntPredicate::UnsignedLessEqual:
+      return val("UnsignedLessEqual");
+    case cxx::ir::IntPredicate::UnsignedGreater:
+      return val("UnsignedGreater");
+    case cxx::ir::IntPredicate::UnsignedGreaterEqual:
+      return val("UnsignedGreaterEqual");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::IntPredicate>(const val& value)
+    -> cxx::ir::IntPredicate {
+  const auto name = toString(value);
+  if (name == "Equal") return cxx::ir::IntPredicate::Equal;
+  if (name == "NotEqual") return cxx::ir::IntPredicate::NotEqual;
+  if (name == "SignedLess") return cxx::ir::IntPredicate::SignedLess;
+  if (name == "SignedLessEqual") return cxx::ir::IntPredicate::SignedLessEqual;
+  if (name == "SignedGreater") return cxx::ir::IntPredicate::SignedGreater;
+  if (name == "SignedGreaterEqual")
+    return cxx::ir::IntPredicate::SignedGreaterEqual;
+  if (name == "UnsignedLess") return cxx::ir::IntPredicate::UnsignedLess;
+  if (name == "UnsignedLessEqual")
+    return cxx::ir::IntPredicate::UnsignedLessEqual;
+  if (name == "UnsignedGreater") return cxx::ir::IntPredicate::UnsignedGreater;
+  if (name == "UnsignedGreaterEqual")
+    return cxx::ir::IntPredicate::UnsignedGreaterEqual;
+  return cxx::ir::IntPredicate{};
+}
+
+inline auto toVal(cxx::ir::FloatPredicate value) -> val {
+  switch (value) {
+    case cxx::ir::FloatPredicate::OrderedEqual:
+      return val("OrderedEqual");
+    case cxx::ir::FloatPredicate::OrderedNotEqual:
+      return val("OrderedNotEqual");
+    case cxx::ir::FloatPredicate::OrderedLess:
+      return val("OrderedLess");
+    case cxx::ir::FloatPredicate::OrderedLessEqual:
+      return val("OrderedLessEqual");
+    case cxx::ir::FloatPredicate::OrderedGreater:
+      return val("OrderedGreater");
+    case cxx::ir::FloatPredicate::OrderedGreaterEqual:
+      return val("OrderedGreaterEqual");
+    case cxx::ir::FloatPredicate::UnorderedNotEqual:
+      return val("UnorderedNotEqual");
+    case cxx::ir::FloatPredicate::Unordered:
+      return val("Unordered");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::FloatPredicate>(const val& value)
+    -> cxx::ir::FloatPredicate {
+  const auto name = toString(value);
+  if (name == "OrderedEqual") return cxx::ir::FloatPredicate::OrderedEqual;
+  if (name == "OrderedNotEqual")
+    return cxx::ir::FloatPredicate::OrderedNotEqual;
+  if (name == "OrderedLess") return cxx::ir::FloatPredicate::OrderedLess;
+  if (name == "OrderedLessEqual")
+    return cxx::ir::FloatPredicate::OrderedLessEqual;
+  if (name == "OrderedGreater") return cxx::ir::FloatPredicate::OrderedGreater;
+  if (name == "OrderedGreaterEqual")
+    return cxx::ir::FloatPredicate::OrderedGreaterEqual;
+  if (name == "UnorderedNotEqual")
+    return cxx::ir::FloatPredicate::UnorderedNotEqual;
+  if (name == "Unordered") return cxx::ir::FloatPredicate::Unordered;
+  return cxx::ir::FloatPredicate{};
+}
+
+inline auto toVal(cxx::ir::FloatKind value) -> val {
+  switch (value) {
+    case cxx::ir::FloatKind::Half:
+      return val("Half");
+    case cxx::ir::FloatKind::Single:
+      return val("Single");
+    case cxx::ir::FloatKind::Double:
+      return val("Double");
+    case cxx::ir::FloatKind::X87DoubleExtended:
+      return val("X87DoubleExtended");
+    case cxx::ir::FloatKind::Quad:
+      return val("Quad");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::FloatKind>(const val& value) -> cxx::ir::FloatKind {
+  const auto name = toString(value);
+  if (name == "Half") return cxx::ir::FloatKind::Half;
+  if (name == "Single") return cxx::ir::FloatKind::Single;
+  if (name == "Double") return cxx::ir::FloatKind::Double;
+  if (name == "X87DoubleExtended") return cxx::ir::FloatKind::X87DoubleExtended;
+  if (name == "Quad") return cxx::ir::FloatKind::Quad;
+  return cxx::ir::FloatKind{};
+}
+
+inline auto toVal(cxx::ir::CastKind value) -> val {
+  switch (value) {
+    case cxx::ir::CastKind::Truncate:
+      return val("Truncate");
+    case cxx::ir::CastKind::SignExtend:
+      return val("SignExtend");
+    case cxx::ir::CastKind::ZeroExtend:
+      return val("ZeroExtend");
+    case cxx::ir::CastKind::FloatExtend:
+      return val("FloatExtend");
+    case cxx::ir::CastKind::FloatTruncate:
+      return val("FloatTruncate");
+    case cxx::ir::CastKind::SignedIntToFloat:
+      return val("SignedIntToFloat");
+    case cxx::ir::CastKind::UnsignedIntToFloat:
+      return val("UnsignedIntToFloat");
+    case cxx::ir::CastKind::FloatToSignedInt:
+      return val("FloatToSignedInt");
+    case cxx::ir::CastKind::FloatToUnsignedInt:
+      return val("FloatToUnsignedInt");
+    case cxx::ir::CastKind::ReinterpretBits:
+      return val("ReinterpretBits");
+    case cxx::ir::CastKind::Bitcast:
+      return val("Bitcast");
+    case cxx::ir::CastKind::Reshape:
+      return val("Reshape");
+    case cxx::ir::CastKind::ArrayToPointer:
+      return val("ArrayToPointer");
+    case cxx::ir::CastKind::PointerToInt:
+      return val("PointerToInt");
+    case cxx::ir::CastKind::IntToPointer:
+      return val("IntToPointer");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::CastKind>(const val& value) -> cxx::ir::CastKind {
+  const auto name = toString(value);
+  if (name == "Truncate") return cxx::ir::CastKind::Truncate;
+  if (name == "SignExtend") return cxx::ir::CastKind::SignExtend;
+  if (name == "ZeroExtend") return cxx::ir::CastKind::ZeroExtend;
+  if (name == "FloatExtend") return cxx::ir::CastKind::FloatExtend;
+  if (name == "FloatTruncate") return cxx::ir::CastKind::FloatTruncate;
+  if (name == "SignedIntToFloat") return cxx::ir::CastKind::SignedIntToFloat;
+  if (name == "UnsignedIntToFloat")
+    return cxx::ir::CastKind::UnsignedIntToFloat;
+  if (name == "FloatToSignedInt") return cxx::ir::CastKind::FloatToSignedInt;
+  if (name == "FloatToUnsignedInt")
+    return cxx::ir::CastKind::FloatToUnsignedInt;
+  if (name == "ReinterpretBits") return cxx::ir::CastKind::ReinterpretBits;
+  if (name == "Bitcast") return cxx::ir::CastKind::Bitcast;
+  if (name == "Reshape") return cxx::ir::CastKind::Reshape;
+  if (name == "ArrayToPointer") return cxx::ir::CastKind::ArrayToPointer;
+  if (name == "PointerToInt") return cxx::ir::CastKind::PointerToInt;
+  if (name == "IntToPointer") return cxx::ir::CastKind::IntToPointer;
+  return cxx::ir::CastKind{};
+}
+
+inline auto toVal(cxx::ir::TypeKind value) -> val {
+  switch (value) {
+    case cxx::ir::TypeKind::Void:
+      return val("Void");
+    case cxx::ir::TypeKind::Integer:
+      return val("Integer");
+    case cxx::ir::TypeKind::Floating:
+      return val("Floating");
+    case cxx::ir::TypeKind::Pointer:
+      return val("Pointer");
+    case cxx::ir::TypeKind::Array:
+      return val("Array");
+    case cxx::ir::TypeKind::Class:
+      return val("Class");
+    case cxx::ir::TypeKind::Function:
+      return val("Function");
+    case cxx::ir::TypeKind::Unresolved:
+      return val("Unresolved");
+    case cxx::ir::TypeKind::Other:
+      return val("Other");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::TypeKind>(const val& value) -> cxx::ir::TypeKind {
+  const auto name = toString(value);
+  if (name == "Void") return cxx::ir::TypeKind::Void;
+  if (name == "Integer") return cxx::ir::TypeKind::Integer;
+  if (name == "Floating") return cxx::ir::TypeKind::Floating;
+  if (name == "Pointer") return cxx::ir::TypeKind::Pointer;
+  if (name == "Array") return cxx::ir::TypeKind::Array;
+  if (name == "Class") return cxx::ir::TypeKind::Class;
+  if (name == "Function") return cxx::ir::TypeKind::Function;
+  if (name == "Unresolved") return cxx::ir::TypeKind::Unresolved;
+  if (name == "Other") return cxx::ir::TypeKind::Other;
+  return cxx::ir::TypeKind{};
+}
+
+inline auto toVal(cxx::ir::CallKind value) -> val {
+  switch (value) {
+    case cxx::ir::CallKind::Direct:
+      return val("Direct");
+    case cxx::ir::CallKind::Builtin:
+      return val("Builtin");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::CallKind>(const val& value) -> cxx::ir::CallKind {
+  const auto name = toString(value);
+  if (name == "Direct") return cxx::ir::CallKind::Direct;
+  if (name == "Builtin") return cxx::ir::CallKind::Builtin;
+  return cxx::ir::CallKind{};
+}
+
+inline auto toVal(cxx::ir::ParameterAbiKind value) -> val {
+  switch (value) {
+    case cxx::ir::ParameterAbiKind::Default:
+      return val("Default");
+    case cxx::ir::ParameterAbiKind::StructReturn:
+      return val("StructReturn");
+    case cxx::ir::ParameterAbiKind::ByValue:
+      return val("ByValue");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::ParameterAbiKind>(const val& value)
+    -> cxx::ir::ParameterAbiKind {
+  const auto name = toString(value);
+  if (name == "Default") return cxx::ir::ParameterAbiKind::Default;
+  if (name == "StructReturn") return cxx::ir::ParameterAbiKind::StructReturn;
+  if (name == "ByValue") return cxx::ir::ParameterAbiKind::ByValue;
+  return cxx::ir::ParameterAbiKind{};
+}
+
+inline auto toVal(cxx::ir::Visibility value) -> val {
+  switch (value) {
+    case cxx::ir::Visibility::Default:
+      return val("Default");
+    case cxx::ir::Visibility::Hidden:
+      return val("Hidden");
+    case cxx::ir::Visibility::Protected:
+      return val("Protected");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::Visibility>(const val& value)
+    -> cxx::ir::Visibility {
+  const auto name = toString(value);
+  if (name == "Default") return cxx::ir::Visibility::Default;
+  if (name == "Hidden") return cxx::ir::Visibility::Hidden;
+  if (name == "Protected") return cxx::ir::Visibility::Protected;
+  return cxx::ir::Visibility{};
+}
+
+inline auto toVal(cxx::ir::InlineKind value) -> val {
+  switch (value) {
+    case cxx::ir::InlineKind::NoInline:
+      return val("NoInline");
+    case cxx::ir::InlineKind::InlineHint:
+      return val("InlineHint");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::InlineKind>(const val& value)
+    -> cxx::ir::InlineKind {
+  const auto name = toString(value);
+  if (name == "NoInline") return cxx::ir::InlineKind::NoInline;
+  if (name == "InlineHint") return cxx::ir::InlineKind::InlineHint;
+  return cxx::ir::InlineKind{};
+}
+
 auto toVal(const cxx::ir::InsertionPoint& value) -> val;
 auto toVal(const cxx::ir::Initializer& value) -> val;
 auto toVal(const cxx::ir::VTableInfo& value) -> val;
@@ -97,6 +586,7 @@ inline auto toVal(const cxx::ir::ModuleInfo& value) -> val {
   result.set("targetTriple", toVal(value.targetTriple));
   result.set("debugCompilationDirectory",
              toVal(value.debugCompilationDirectory));
+  result.set("framePointer", toVal(value.framePointer));
   return result;
 }
 
@@ -171,7 +661,7 @@ inline auto toVal(const cxx::ir::FunctionInfo& value) -> val {
   result.set("linkage", toVal(value.linkage));
   result.set("visibility", toVal(value.visibility));
   result.set("inlineKind", toVal(value.inlineKind));
-  result.set("aliasName", toVal(value.aliasName));
+  result.set("aliasee", toVal(value.aliasee));
   result.set("importModule", toVal(value.importModule));
   result.set("importName", toVal(value.importName));
   result.set("exportName", toVal(value.exportName));
@@ -643,6 +1133,11 @@ class JsEmitter final : public ir::Emitter {
 
   auto functionHasBody(cxx::ir::FunctionRef function) -> bool override {
     return toBool(delegate_.call<val>("functionHasBody", toVal(function)));
+  }
+
+  void setFunctionAliasee(cxx::ir::FunctionRef function,
+                          std::string_view aliasee) override {
+    delegate_.call<val>("setFunctionAliasee", toVal(function), toVal(aliasee));
   }
 
   auto findGlobal(std::string_view name) -> cxx::ir::GlobalRef override {

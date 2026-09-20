@@ -23,11 +23,27 @@
 #include <cxx/toolchain.h>
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 
 namespace cxx {
 class CLI;
 class Preprocessor;
+
+struct TargetSelection {
+  std::string toolchain;
+  std::string arch;
+  std::string triple;
+  std::optional<std::pair<int, int>> osVersion;
+  bool valid = true;
+};
+
+[[nodiscard]] auto selectTarget(const CLI& cli) -> TargetSelection;
+
+[[nodiscard]] auto targetTripleOf(const CLI& cli) -> std::string;
+
+[[nodiscard]] auto describeUnsupportedTarget(const CLI& cli) -> std::string;
 
 [[nodiscard]] auto languageOf(const CLI& cli, const std::string& fileName)
     -> LanguageKind;

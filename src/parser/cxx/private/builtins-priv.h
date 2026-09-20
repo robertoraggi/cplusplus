@@ -24,38 +24,6 @@
 // clang-format off
 static constexpr const char* builtinsSource = R"(
 
-#define __cxx_builtin_arity(_1, _2, selected, ...) selected
-#define __cxx_builtin_overload(one, two, ...) __cxx_builtin_arity(__VA_ARGS__, two, one)
-
-#define __cxx_clzg_dispatch(x) _Generic((x), \
-    unsigned char: __builtin_clz((unsigned int)(x)) - 24, \
-    unsigned short: __builtin_clzs(x), \
-    unsigned int: __builtin_clz(x), \
-    unsigned long: __builtin_clzl(x), \
-    unsigned long long: __builtin_clzll(x), \
-    unsigned __int128: ((unsigned long long)((x) >> 64) ? __builtin_clzll((unsigned long long)((x) >> 64)) : 64 + __builtin_clzll((unsigned long long)(x))))
-#define __cxx_clzg_or(x, fallback) ((x) ? __cxx_clzg_dispatch(x) : _Generic((fallback), int: (fallback)))
-#define __builtin_clzg(...) __cxx_builtin_overload(__cxx_clzg_dispatch, __cxx_clzg_or, __VA_ARGS__)(__VA_ARGS__)
-
-#define __cxx_ctzg_dispatch(x) _Generic((x), \
-    unsigned char: __builtin_ctz((unsigned int)(x)), \
-    unsigned short: __builtin_ctzs(x), \
-    unsigned int: __builtin_ctz(x), \
-    unsigned long: __builtin_ctzl(x), \
-    unsigned long long: __builtin_ctzll(x), \
-    unsigned __int128: ((unsigned long long)(x) ? __builtin_ctzll((unsigned long long)(x)) : 64 + __builtin_ctzll((unsigned long long)((x) >> 64))))
-#define __cxx_ctzg_or(x, fallback) ((x) ? __cxx_ctzg_dispatch(x) : _Generic((fallback), int: (fallback)))
-#define __builtin_ctzg(...) __cxx_builtin_overload(__cxx_ctzg_dispatch, __cxx_ctzg_or, __VA_ARGS__)(__VA_ARGS__)
-
-#define __cxx_popcountg_dispatch(x) _Generic((x), \
-    unsigned char: __builtin_popcount((unsigned int)(x)), \
-    unsigned short: __builtin_popcount((unsigned int)(x)), \
-    unsigned int: __builtin_popcount(x), \
-    unsigned long: __builtin_popcountl(x), \
-    unsigned long long: __builtin_popcountll(x), \
-    unsigned __int128: (__builtin_popcountll((unsigned long long)(x)) + __builtin_popcountll((unsigned long long)((x) >> 64))))
-#define __builtin_popcountg(x) __cxx_popcountg_dispatch(x)
-
 #ifdef __cplusplus
 
 template <template <class IntSeqT, IntSeqT... Ints> class IntSeq, class T, T N>

@@ -53,6 +53,7 @@ auto main() -> int {
 // CHECK-NEXT:    typealias type-param<0, 0> T
 // CHECK-NEXT:    field int v
 // CHECK-NEXT:    [specializations]
+// CHECK-NEXT:      class A<type-param<0, 0>>
 // CHECK-NEXT:      class A<void>
 // CHECK-NEXT:        constructor constexpr inline defaulted void A()
 // CHECK-NEXT:        constructor constexpr inline defaulted void A(const ::A<void>&)
@@ -107,7 +108,7 @@ auto main() -> int {
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter ::A<double>&&
 // CHECK-NEXT:        function constexpr inline defaulted void ~A()
-// CHECK-NEXT:  template typealias const ::A B
+// CHECK-NEXT:  template typealias const ::A<type-param<0, 0>> B
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:  class D
 // CHECK-NEXT:    base class ::A<::A<void>>
@@ -120,6 +121,7 @@ auto main() -> int {
 // CHECK-NEXT:        parameter ::D&&
 // CHECK-NEXT:    injected class name D
 // CHECK-NEXT:    function inline void f()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable ::A<void> t
@@ -135,6 +137,7 @@ auto main() -> int {
 // CHECK-NEXT:    base class ::A<double>
 // CHECK-NEXT:    injected class name D2
 // CHECK-NEXT:    function inline double f()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable double t
@@ -151,6 +154,7 @@ auto main() -> int {
 // CHECK-NEXT:            parameter ::D2<int>&&
 // CHECK-NEXT:        injected class name D2
 // CHECK-NEXT:        function inline double f()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:        field double t
 // CHECK-NEXT:        function constexpr inline defaulted ::D2<int>& operator =(const ::D2<int>&)
 // CHECK-NEXT:          parameters
@@ -160,6 +164,7 @@ auto main() -> int {
 // CHECK-NEXT:            parameter ::D2<int>&&
 // CHECK-NEXT:        function constexpr inline defaulted void ~D2()
 // CHECK-NEXT:  function int main()
+// CHECK-NEXT:    parameters
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr const char __func__[5]
 // CHECK-NEXT:      variable ::D d1

@@ -196,6 +196,7 @@ class TypeChecker {
 
  private:
   struct Visitor;
+  struct CheckMemInitializers;
 
   [[nodiscard]] auto finishImmediateInvocation(ExpressionAST** ast,
                                                FunctionSymbol* function,

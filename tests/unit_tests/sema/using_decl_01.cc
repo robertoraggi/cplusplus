@@ -44,7 +44,9 @@ auto main() -> int {
 // CHECK-NEXT:        parameter ::Base&&
 // CHECK-NEXT:    injected class name Base
 // CHECK-NEXT:    function bool operator bool() const
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function void f()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function constexpr inline defaulted ::Base& operator =(const ::Base&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Base&
@@ -72,6 +74,7 @@ auto main() -> int {
 // CHECK-NEXT:        parameter ::Derived&&
 // CHECK-NEXT:    function constexpr inline defaulted void ~Derived()
 // CHECK-NEXT:  function int main()
+// CHECK-NEXT:    parameters
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr const char __func__[5]
 // CHECK-NEXT:      using decltype(nullptr) nullptr_t

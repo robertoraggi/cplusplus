@@ -18,6 +18,7 @@ auto main() -> int {
 // CHECK-NEXT:            identifier: main
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
+// CHECK-NEXT:            parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:            trailing-return-type: trailing-return-type
 // CHECK-NEXT:              type-id: type-id
 // CHECK-NEXT:                type-specifier-list

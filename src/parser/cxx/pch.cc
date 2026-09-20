@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/const_int.h>
 #include <cxx/freeze_audit.h>
 #include <cxx/pch.h>
 #include <cxx/preprocessor.h>
@@ -40,7 +41,10 @@ void encodePreprocessorState(ByteWriter& out,
   out.i32(snapshot.currentPack);
 
   out.u32(static_cast<std::uint32_t>(snapshot.packStack.size()));
-  for (auto value : snapshot.packStack) out.i32(value);
+  for (const auto& entry : snapshot.packStack) {
+    out.str(entry.label);
+    out.i32(entry.value);
+  }
 
   out.u32(static_cast<std::uint32_t>(snapshot.macros.size()));
   for (const auto& macro : snapshot.macros) {
@@ -90,8 +94,10 @@ void decodePreprocessorState(ByteReader& in, PreprocessorSnapshot& snapshot) {
   snapshot.currentPack = in.i32();
 
   const auto packStackSize = in.count(4);
-  for (std::uint32_t i = 0; in.ok() && i < packStackSize; ++i)
-    snapshot.packStack.push_back(in.i32());
+  for (std::uint32_t i = 0; in.ok() && i < packStackSize; ++i) {
+    auto label = in.str();
+    snapshot.packStack.push_back({std::move(label), in.i32()});
+  }
 
   const auto macroCount = in.count(4);
   for (std::uint32_t i = 0; in.ok() && i < macroCount; ++i) {
@@ -154,8 +160,8 @@ void decodePreprocessorState(ByteReader& in, PreprocessorSnapshot& snapshot) {
 }  // namespace
 
 auto precompiledHeaderSerializationAbi() -> std::string {
-  return std::format("cxx/{}.{}", ArchiveWriter::kSchemaMajor,
-                     ArchiveWriter::kSchemaMinor);
+  return std::format("cxx/{}.{}/i{}", ArchiveWriter::kSchemaMajor,
+                     ArchiveWriter::kSchemaMinor, ConstInt::maxWidth);
 }
 
 auto PrecompiledHeaderWriter::operator()() -> std::vector<std::uint8_t> {

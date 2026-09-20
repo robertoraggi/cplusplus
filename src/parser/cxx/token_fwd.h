@@ -224,6 +224,7 @@ class Token;
 
 #define FOR_EACH_BUILTIN_TYPE_TRAIT(V)                            \
   V(__BUILTIN_TYPES_COMPATIBLE_P, "__builtin_types_compatible_p") \
+  V(__HAS_TRIVIAL_DESTRUCTOR, "__has_trivial_destructor")         \
   V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                          \
     "__has_unique_object_representations")                        \
   V(__HAS_VIRTUAL_DESTRUCTOR, "__has_virtual_destructor")         \
@@ -433,6 +434,7 @@ class Token;
   V(__BUILTIN_CLRSBL, "__builtin_clrsbl")                                     \
   V(__BUILTIN_CLRSBLL, "__builtin_clrsbll")                                   \
   V(__BUILTIN_CLZ, "__builtin_clz")                                           \
+  V(__BUILTIN_CLZG, "__builtin_clzg")                                         \
   V(__BUILTIN_CLZL, "__builtin_clzl")                                         \
   V(__BUILTIN_CLZLL, "__builtin_clzll")                                       \
   V(__BUILTIN_CLZS, "__builtin_clzs")                                         \
@@ -479,6 +481,7 @@ class Token;
   V(__BUILTIN_CTANHL, "__builtin_ctanhl")                                     \
   V(__BUILTIN_CTANL, "__builtin_ctanl")                                       \
   V(__BUILTIN_CTZ, "__builtin_ctz")                                           \
+  V(__BUILTIN_CTZG, "__builtin_ctzg")                                         \
   V(__BUILTIN_CTZL, "__builtin_ctzl")                                         \
   V(__BUILTIN_CTZLL, "__builtin_ctzll")                                       \
   V(__BUILTIN_CTZS, "__builtin_ctzs")                                         \
@@ -640,6 +643,7 @@ class Token;
   V(__BUILTIN_PARITYL, "__builtin_parityl")                                   \
   V(__BUILTIN_PARITYLL, "__builtin_parityll")                                 \
   V(__BUILTIN_POPCOUNT, "__builtin_popcount")                                 \
+  V(__BUILTIN_POPCOUNTG, "__builtin_popcountg")                               \
   V(__BUILTIN_POPCOUNTL, "__builtin_popcountl")                               \
   V(__BUILTIN_POPCOUNTLL, "__builtin_popcountll")                             \
   V(__BUILTIN_POW, "__builtin_pow")                                           \
@@ -757,11 +761,6 @@ class Token;
   V(__C11_ATOMIC_SIGNAL_FENCE, "__c11_atomic_signal_fence")                   \
   V(__C11_ATOMIC_STORE, "__c11_atomic_store")                                 \
   V(__C11_ATOMIC_THREAD_FENCE, "__c11_atomic_thread_fence")
-
-#define FOR_EACH_BUILTIN_MACRO(V) \
-  V(__builtin_clzg)               \
-  V(__builtin_ctzg)               \
-  V(__builtin_popcountg)
 
 #define FOR_EACH_BUILTIN_TEMPLATE(V)            \
   V(__MAKE_INTEGER_SEQ, "__make_integer_seq")   \

@@ -63,9 +63,19 @@ struct BuiltinSignature {
 [[nodiscard]] auto builtinSignatureOf(BuiltinFunctionKind kind)
     -> BuiltinSignature;
 
+enum class BuiltinOverloadStatus : std::uint8_t {
+  kOk,
+  kUnavailable,
+  kInvalid,
+};
+
+struct BuiltinOverload {
+  const FunctionType* type = nullptr;
+  BuiltinOverloadStatus status = BuiltinOverloadStatus::kInvalid;
+};
+
 [[nodiscard]] auto decodeBuiltinSignature(Control* control,
                                           BuiltinFunctionKind kind,
-                                          std::size_t index)
-    -> const FunctionType*;
+                                          std::size_t index) -> BuiltinOverload;
 
 }  // namespace cxx

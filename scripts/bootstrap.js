@@ -36,23 +36,33 @@ $.quiet = true;
 const usage = `
 Usage: node scripts/bootstrap.js [options] [-- extra cxx args]
 
-Compiles the cxx frontend with cxx itself, links the resulting wasm module and
-runs it on a preprocessed translation unit.
+Compiles the cxx frontend with cxx itself, links the result and runs it on a
+preprocessed translation unit.
+
+The wasm32 toolchain links with the cxx driver and runs under a wasi runtime.
+Every other toolchain links with an external C++ driver (clang++ by default),
+because the cxx driver only implements linking for wasm32, and runs the native
+executable directly.
 
 Options:
   --cxx=<path>          host cxx driver (default: cxx from PATH)
+  --toolchain=<id>      target toolchain: wasm32, darwin, linux, windows
+                        (default: wasm32)
+  --linker=<path>       driver used to link a native toolchain (default: clang++)
+  --debug               compile with debug information (-g, defaults --opt to -O0)
   --wasmtime[=<path>]   run the wasm with wasmtime instead of the node wasi runtime
-  --build-dir=<path>    object and wasm output directory (default: build-bootstrap)
+  --build-dir=<path>    object and executable output directory
+                        (default: build-bootstrap[-<toolchain>])
   --std=<std>           language standard (default: c++26)
-  --opt=<flag>          optimization flag (default: -O3)
+  --opt=<flag>          optimization flag (default: -O3, or -O0 with --debug)
   --jobs=<n>            parallel compile jobs (default: number of cpus)
-  --stack-size=<bytes>  linker stack size (default: 131072)
+  --stack-size=<bytes>  wasm linker stack size (default: 131072)
   --only=<substring>    compile only the sources whose path contains <substring>
   --check=<source>      source to syntax check (default: #include <iostream>)
   --clean               remove the build directory before compiling
   --syntax-only         compile to /dev/null, skip the link and run steps
   --skip-compile        reuse the objects already in the build directory
-  --skip-link           reuse the wasm already in the build directory
+  --skip-link           reuse the executable already in the build directory
   --skip-run            stop after linking
   --keep-going          report every compile failure instead of the first batch
   --verbose             echo every command line
@@ -80,9 +90,16 @@ const includePaths = [
   "build/_deps/simdjson-src",
 ];
 
-const buildDir = String(argv["build-dir"] ?? "build-bootstrap");
+const toolchain = String(argv.toolchain ?? "wasm32");
+const isWasm = toolchain === "wasm32";
+
+const buildDir = String(
+  argv["build-dir"] ??
+    (isWasm ? "build-bootstrap" : `build-bootstrap-${toolchain}`),
+);
 const std = String(argv.std ?? "c++26");
-const opt = String(argv.opt ?? "-O3");
+const debugInfo = Boolean(argv.debug);
+const opt = String(argv.opt ?? (debugInfo ? "-O0" : "-O3"));
 const jobs = Number(argv.jobs ?? availableParallelism());
 const stackSize = Number(argv["stack-size"] ?? 128 * 1024);
 const syntaxOnly = Boolean(argv["syntax-only"]);
@@ -94,11 +111,22 @@ const version = JSON.parse(
 
 const cxx = argv.cxx ? path.resolve(String(argv.cxx)) : await which("cxx");
 
+const linker = isWasm
+  ? null
+  : argv.linker
+    ? path.resolve(String(argv.linker))
+    : await which("clang++");
+
 const compileFlags = [
   `-std=${std}`,
   opt,
+  ...(debugInfo ? ["-g"] : []),
+  "-fno-exceptions",
+  ...(isWasm ? [] : ["-toolchain", toolchain]),
   ...includePaths.flatMap((dir) => ["-I", dir]),
   "-D_WASI_EMULATED_MMAN",
+  "-DSIMDJSON_IMPLEMENTATION_ARM64=0",
+  "-DSIMDJSON_EXPERIMENTAL_HAS_NEON=0",
   `-DCXX_VERSION="${version}"`,
   ...extraArgs,
 ];
@@ -201,19 +229,23 @@ async function link(sources) {
     process.exit(1);
   }
 
-  const wasm = path.join(buildDir, "cxx.wasm");
+  const output = path.join(buildDir, isWasm ? "cxx.wasm" : "cxx");
 
-  await $`${cxx} -Wl,-z,stack-size=${stackSize} -o ${wasm} ${objects}`;
+  if (isWasm) {
+    await $`${cxx} -Wl,-z,stack-size=${stackSize} -o ${output} ${objects}`;
+  } else {
+    await $`${linker} -o ${output} ${objects}`;
+  }
 
-  const { size } = await fs.stat(path.join(workspacePath, wasm));
+  const { size } = await fs.stat(path.join(workspacePath, output));
 
   echo(
     chalk.bold(
-      `linked ${wasm} (${(size / (1024 * 1024)).toFixed(1)} MiB) in ${formatDuration(startedAt)}`,
+      `linked ${output} (${(size / (1024 * 1024)).toFixed(1)} MiB) in ${formatDuration(startedAt)}`,
     ),
   );
 
-  return wasm;
+  return output;
 }
 
 function silenceWasiExperimentalWarning() {
@@ -273,7 +305,19 @@ async function runWithWasmtime(wasm, args, input) {
   return result.exitCode ?? 0;
 }
 
-async function run(wasm) {
+async function runNative(executable, args, input) {
+  const result = await $({
+    input,
+    nothrow: true,
+  })`${path.join(workspacePath, executable)} ${args}`;
+
+  if (result.stdout.trim()) echo(result.stdout.trimEnd());
+  if (result.stderr.trim()) echo(result.stderr.trimEnd());
+
+  return result.exitCode ?? 0;
+}
+
+async function run(executable) {
   const startedAt = Date.now();
 
   const source = String(argv.check ?? "#include <iostream>\n");
@@ -284,20 +328,26 @@ async function run(wasm) {
 
   const args = ["-fsyntax-only", "-"];
 
-  const runtime = argv.wasmtime ? "wasmtime" : "node wasi";
+  const runtime = isWasm
+    ? argv.wasmtime
+      ? "wasmtime"
+      : "node wasi"
+    : toolchain;
 
-  const exitCode = argv.wasmtime
-    ? await runWithWasmtime(wasm, args, preprocessed)
-    : await runWithNodeWasi(wasm, args, preprocessed);
+  const exitCode = !isWasm
+    ? await runNative(executable, args, preprocessed)
+    : argv.wasmtime
+      ? await runWithWasmtime(executable, args, preprocessed)
+      : await runWithNodeWasi(executable, args, preprocessed);
 
   echo(
     chalk.bold(
-      `ran ${wasm} on ${runtime} over ${preprocessed.split("\n").length} preprocessed lines in ${formatDuration(startedAt)}`,
+      `ran ${executable} on ${runtime} over ${preprocessed.split("\n").length} preprocessed lines in ${formatDuration(startedAt)}`,
     ),
   );
 
   if (exitCode !== 0) {
-    echo(chalk.red(`${wasm} exited with status ${exitCode}`));
+    echo(chalk.red(`${executable} exited with status ${exitCode}`));
     process.exit(exitCode);
   }
 }
@@ -320,6 +370,8 @@ async function main() {
   }
 
   echo(chalk.bold(`cxx        ${cxx}`));
+  echo(chalk.bold(`toolchain  ${toolchain}`));
+  if (linker) echo(chalk.bold(`linker     ${linker}`));
   echo(chalk.bold(`sources    ${sources.length}`));
   echo(chalk.bold(`jobs       ${jobs}`));
   echo(chalk.bold(`build dir  ${buildDir}`));
@@ -328,13 +380,13 @@ async function main() {
 
   if (syntaxOnly) return;
 
-  const wasm = argv["skip-link"]
-    ? path.join(buildDir, "cxx.wasm")
+  const executable = argv["skip-link"]
+    ? path.join(buildDir, isWasm ? "cxx.wasm" : "cxx")
     : await link(sources);
 
   if (argv["skip-run"]) return;
 
-  await run(wasm);
+  await run(executable);
 
   echo(chalk.green.bold("bootstrap ok"));
 }

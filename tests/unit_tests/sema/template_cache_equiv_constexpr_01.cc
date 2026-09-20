@@ -33,6 +33,7 @@ Box<k> c;
 // CHECK-NEXT:            parameter ::Box<3>&&
 // CHECK-NEXT:        function constexpr inline defaulted void ~Box()
 // CHECK-NEXT:  function constexpr inline int three()
+// CHECK-NEXT:    parameters
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr const char __func__[6]
 // CHECK-NEXT:  variable constexpr const int k

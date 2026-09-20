@@ -29,6 +29,7 @@ import { gen_ast_kind_h } from "./gen_ast_kind_h.ts";
 import { gen_ast_visitor_h } from "./gen_ast_visitor_h.ts";
 import { gen_ast_visitor_cc } from "./gen_ast_visitor_cc.ts";
 import { gen_reflection } from "./gen_reflection.ts";
+import { gen_traverse_ts } from "./gen_traverse_ts.ts";
 import { loadModel } from "./parseModel.ts";
 import {
   missingFrontend,
@@ -82,6 +83,7 @@ if (!missing) {
 const model = loadModel(fs.readFileSync(snapshot, "utf8"));
 const ast = parseAST(model);
 gen_reflection(model, outdir);
+gen_traverse_ts({ ast, index: model, root: outdir });
 
 gen_ast_fwd_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_fwd.h") });
 gen_ast_h({ ast, output: path.join(outdir, "src/parser/cxx/ast.h") });

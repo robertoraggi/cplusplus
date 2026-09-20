@@ -148,6 +148,14 @@ class TemplateArgumentDeduction {
   [[nodiscard]] auto nonTypeParameterType(int parameterIndex) const
       -> const Type*;
 
+  [[nodiscard]] auto convertedValue(const ConstValue& value,
+                                    const Type* valueType) const
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto makeValueArgument(const ConstValue& value,
+                                       const Type* valueType)
+      -> TemplateArgumentAST*;
+
   [[nodiscard]] auto makeValuePackElement(const ConstValue& value,
                                           const Type* elementType) -> Symbol*;
 
@@ -155,7 +163,9 @@ class TemplateArgumentDeduction {
                                              int parameterIndex) -> Symbol*;
 
   [[nodiscard]] auto recordDeducedValue(int index, const ConstValue& value,
-                                        bool isPack) -> bool;
+                                        bool isPack,
+                                        const Type* valueType = nullptr)
+      -> bool;
 
   void beginParameterDeduction();
 
@@ -181,10 +191,10 @@ class TemplateArgumentDeduction {
   struct DeductionState {
     std::vector<const Type*> types;
     std::vector<Symbol*> templates;
-    std::vector<std::optional<std::uint64_t>> values;
+    std::vector<std::optional<ConstInt>> values;
     std::vector<std::vector<const Type*>> packs;
     std::vector<std::size_t> packElementCursor;
-    std::vector<std::vector<std::uint64_t>> valuePacks;
+    std::vector<std::vector<ConstInt>> valuePacks;
   };
 
   [[nodiscard]] auto saveDeductionState() const -> DeductionState;
@@ -209,10 +219,10 @@ class TemplateArgumentDeduction {
   std::vector<std::vector<TemplateArgumentAST*>> explicitPackArgs_;
   std::vector<const Type*> deducedTypes_;
   std::vector<Symbol*> deducedTemplates_;
-  std::vector<std::optional<std::uint64_t>> deducedValues_;
+  std::vector<std::optional<ConstInt>> deducedValues_;
   std::vector<std::vector<const Type*>> deducedPacks_;
   std::vector<std::size_t> packElementCursor_;
-  std::vector<std::vector<std::uint64_t>> deducedValuePacks_;
+  std::vector<std::vector<ConstInt>> deducedValuePacks_;
   List<ParameterDeclarationAST*>* parameterDeclarations_ = nullptr;
   TemplateDeclarationAST* templateDecl_ = nullptr;
 };

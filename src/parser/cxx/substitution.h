@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/const_int.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
@@ -74,11 +75,24 @@ class TemplateArguments {
   [[nodiscard]] auto templateName(Symbol* templateSymbol) const
       -> TemplateArgumentAST*;
 
+  [[nodiscard]] auto integerLiteralExpression(const ConstInt& value,
+                                              const Type* type) const
+      -> ExpressionAST*;
+
  private:
   TranslationUnit* unit_;
 };
 
 [[nodiscard]] auto isPackParameter(TemplateParameterAST* parameter) -> bool;
+
+[[nodiscard]] auto hasWrittenDefaultTemplateArgument(
+    TemplateParameterAST* parameter) -> bool;
+
+void recordDefaultTemplateArgument(TemplateParameterAST* parameter,
+                                   TemplateParameterAST* pattern);
+
+[[nodiscard]] auto hasDefaultTemplateArgument(TemplateParameterAST* parameter)
+    -> bool;
 
 [[nodiscard]] auto isPackExpansion(TypeIdAST* typeId) -> bool;
 

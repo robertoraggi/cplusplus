@@ -59,15 +59,10 @@ struct AssociatedNamespaceCollector {
       if (!parent) break;
       ns = parent;
     }
-    auto addInline = [&](auto&& self, NamespaceSymbol* current) -> void {
-      if (std::ranges::contains(namespaces, current)) return;
+    for (auto current : inlineNamespaceSet(ns)) {
+      if (std::ranges::contains(namespaces, current)) continue;
       namespaces.push_back(current);
-      for (auto directive : current->usingDirectives()) {
-        auto child = symbol_cast<NamespaceSymbol>(directive);
-        if (child && child->isInline()) self(self, child);
-      }
-    };
-    addInline(addInline, ns);
+    }
   }
 
   void addEnclosingClass(const Symbol* symbol) {
@@ -196,14 +191,7 @@ void collectQualifiedNamespaceDeclarations(NamespaceSymbol* scope,
                                            std::vector<Symbol*>& found,
                                            std::vector<ScopeSymbol*>& visited) {
   if (!scope || std::ranges::contains(visited, scope)) return;
-  std::vector<NamespaceSymbol*> inlineSet{scope};
-  for (std::size_t i = 0; i < inlineSet.size(); ++i) {
-    for (auto directive : inlineSet[i]->usingDirectives()) {
-      auto ns = symbol_cast<NamespaceSymbol>(directive);
-      if (ns && ns->isInline() && !std::ranges::contains(inlineSet, ns))
-        inlineSet.push_back(ns);
-    }
-  }
+  auto inlineSet = inlineNamespaceSet(scope);
 
   const auto start = found.size();
   for (auto ns : inlineSet) {
@@ -576,11 +564,26 @@ auto isPureFriend(FunctionSymbol* func) -> bool {
   auto isClassParented = [](FunctionSymbol* f) {
     return f->parent() && f->parent()->isClass();
   };
-  if (!isClassParented(canonical)) return false;
-  for (auto redecl : canonical->redeclarations()) {
-    if (!isClassParented(redecl)) return false;
+  return std::ranges::all_of(canonical->declarations(), isClassParented);
+}
+
+auto inlineNamespaceSet(NamespaceSymbol* namespaceSymbol)
+    -> std::vector<NamespaceSymbol*> {
+  std::vector<NamespaceSymbol*> result;
+  if (!namespaceSymbol) return result;
+
+  result.push_back(namespaceSymbol);
+
+  for (std::size_t i = 0; i < result.size(); ++i) {
+    for (auto directive : result[i]->usingDirectives()) {
+      auto nested = symbol_cast<NamespaceSymbol>(directive);
+      if (!nested || !nested->isInline()) continue;
+      if (std::ranges::contains(result, nested)) continue;
+      result.push_back(nested);
+    }
   }
-  return true;
+
+  return result;
 }
 
 auto bindsName(Symbol* symbol) -> bool {
@@ -960,12 +963,13 @@ auto resolveBuiltinFunctionSymbol(TranslationUnit* unit, const Identifier* name,
   Symbol* result = nullptr;
 
   for (std::size_t index = 0; index < signature.count; ++index) {
-    auto functionType = decodeBuiltinSignature(control, kind, index);
-    if (!functionType) return result;
+    auto overload = decodeBuiltinSignature(control, kind, index);
+    if (overload.status == BuiltinOverloadStatus::kUnavailable) continue;
+    if (overload.status != BuiltinOverloadStatus::kOk) return result;
 
     auto fn = control->newFunctionSymbol(globalScope, {});
     fn->setName(name);
-    fn->setType(functionType);
+    fn->setType(overload.type);
     fn->setBuiltinKind(kind);
     fn->setConstexpr(contains(signature.flags, BuiltinFlags::kConstexpr));
     fn->setNoReturn(contains(signature.flags, BuiltinFlags::kNoReturn));

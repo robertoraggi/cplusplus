@@ -33,6 +33,7 @@ struct S {
 // CHECK-NEXT:                      identifier: f
 // CHECK-NEXT:                  declarator-chunk-list
 // CHECK-NEXT:                    function-declarator-chunk
+// CHECK-NEXT:                      parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:                function-body: compound-statement-function-body
 // CHECK-NEXT:                  statement: compound-statement
 // CHECK-NEXT:                    statement-list

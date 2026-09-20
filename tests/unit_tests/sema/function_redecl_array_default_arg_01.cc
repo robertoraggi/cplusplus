@@ -2,5 +2,6 @@
 
 void g(int a[4] = nullptr);
 
-// expected-error@1 {{redefinition of default argument}}
+// expected-error@2 {{redefinition of default argument}}
+// expected-note@-3 {{previous definition is here}}
 void g(int a[] = nullptr);

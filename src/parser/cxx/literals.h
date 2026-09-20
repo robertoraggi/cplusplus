@@ -157,7 +157,11 @@ class StringLiteral final : public Literal {
     return components_.value;
   };
 
+  [[nodiscard]] auto codeUnitSize() const -> std::size_t;
+
   [[nodiscard]] auto charCount() const -> std::size_t;
+
+  [[nodiscard]] auto charAt(std::size_t index) const -> std::uint32_t;
 
   [[nodiscard]] auto components() const { return components_; }
 

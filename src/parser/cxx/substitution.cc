@@ -29,6 +29,7 @@
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
 
@@ -85,14 +86,31 @@ auto isPackExpansion(TypeIdAST* typeId) -> bool {
          nullptr;
 }
 
-namespace {
-
-auto hasDefaultTemplateArgument(TemplateParameterAST* parameter) -> bool {
+auto hasWrittenDefaultTemplateArgument(TemplateParameterAST* parameter)
+    -> bool {
   if (!parameter) return false;
   return visit(HasDefaultTemplateArgument{}, parameter);
 }
 
-}  // namespace
+void recordDefaultTemplateArgument(TemplateParameterAST* parameter,
+                                   TemplateParameterAST* pattern) {
+  if (!parameter || !parameter->symbol) return;
+
+  if (hasWrittenDefaultTemplateArgument(parameter)) {
+    set_default_template_argument(parameter->symbol, parameter);
+    return;
+  }
+
+  if (!pattern) return;
+
+  set_default_template_argument(parameter->symbol,
+                                default_template_argument(pattern->symbol));
+}
+
+auto hasDefaultTemplateArgument(TemplateParameterAST* parameter) -> bool {
+  if (!parameter) return false;
+  return default_template_argument(parameter->symbol) != nullptr;
+}
 
 auto TemplateArguments::isPackExpansion(TemplateArgumentAST* argument) -> bool {
   if (auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument))
@@ -143,7 +161,7 @@ auto TemplateArity::of(TemplateDeclarationAST* templateDecl) -> TemplateArity {
     }
 
     if (!hasDefaultTemplateArgument(parameter)) {
-      ++arity.minArgs;
+      arity.minArgs = arity.maxArgs;
     }
   }
 
@@ -167,6 +185,26 @@ auto TemplateArity::matches(TemplateDeclarationAST* templateDecl,
   if (!arity.hasParameterPack && argc > arity.maxArgs) return false;
 
   return true;
+}
+
+auto TemplateArguments::integerLiteralExpression(const ConstInt& value,
+                                                 const Type* type) const
+    -> ExpressionAST* {
+  if (!value.magnitudeFitsInUIntMax()) return nullptr;
+
+  auto arena = unit_->arena();
+  auto literal = unit_->control()->integerLiteral(value.toDecimalString());
+
+  ExpressionAST* expression = IntLiteralExpressionAST::create(
+      arena, literal, /*literalOperatorCall=*/nullptr, ValueCategory::kPrValue,
+      type);
+
+  if (!value.isNegative()) return expression;
+
+  return UnaryExpressionAST::create(arena, SourceLocation{}, expression,
+                                    TokenKind::T_MINUS, /*symbol=*/nullptr,
+                                    /*isVirtualDispatch=*/false,
+                                    ValueCategory::kPrValue, type);
 }
 
 auto TemplateArguments::templateName(Symbol* templateSymbol) const
@@ -197,6 +235,10 @@ auto TemplateArguments::defaultArgument(
     const std::vector<TemplateArgument>& argumentsSoFar) const
     -> TemplateArgumentAST* {
   auto arena = unit_->arena();
+
+  parameter =
+      default_template_argument(parameter ? parameter->symbol : nullptr);
+  if (!parameter) return nullptr;
 
   if (auto nonType = ast_cast<NonTypeTemplateParameterAST>(parameter)) {
     if (!nonType->declaration || !nonType->declaration->expression) {
@@ -386,9 +428,7 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
   auto interp = ASTInterpreter{subst.unit_};
   auto value = interp.evaluate(expression);
 
-  if (!value.has_value()) {
-    if (isDependent(subst.unit_, expression)) return std::nullopt;
-
+  if (!value.has_value() && !isDependent(subst.unit_, expression)) {
     subst.maybeReportInvalidConstantExpression(
         parameter->firstSourceLocation());
 
@@ -398,7 +438,7 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
   auto argument = control()->newVariableSymbol(nullptr, {});
   argument->setInitializer(expression);
   argument->setConstexpr(true);
-  argument->setConstValue(value.value());
+  if (value) argument->setConstValue(*value);
 
   const Type* argumentType = declaredType;
   if (!argumentType && expression) argumentType = expression->type;
@@ -557,6 +597,10 @@ auto Substitution::CollectRawTemplateArgument::operator()(
     if (!named) continue;
     if (auto pack = symbol_cast<ParameterPackSymbol>(named->symbol))
       return pack;
+    if (auto variable = symbol_cast<VariableSymbol>(named->symbol);
+        variable && variable->isConstexpr()) {
+      return variable;
+    }
     if (!ast_cast<NameIdAST>(named->unqualifiedId)) break;
     if (auto alias = symbol_cast<TypeAliasSymbol>(named->symbol)) {
       if (alias->templateParameters()) return alias;
@@ -825,7 +869,14 @@ auto Substitution::normalizeNonTypeArgument(
       !type_cast<TemplateTypeParameterType>(targetType)) {
     if (parameter && parameter->declaration && parameter->declaration->type) {
       const Type* declaredType = parameter->declaration->type;
-      if (!isDependent(unit, declaredType)) {
+      if (containsPlaceholderType(declaredType)) {
+        auto checker = TypeChecker{unit};
+        if (auto initializer = variableArgument->initializer()) {
+          targetType = checker.deducePlaceholderType(declaredType, initializer);
+        } else {
+          targetType = checker.deduceAutoType(declaredType, targetType);
+        }
+      } else if (!isDependent(unit, declaredType)) {
         targetType = declaredType;
       } else if (templateDecl_) {
         auto typeId = TypeIdAST::create(unit->arena());
@@ -880,6 +931,9 @@ void Substitution::convertNonTypeArgument(VariableSymbol* argument,
 
 auto Substitution::getDefaultTemplateArgument(TemplateParameterAST* parameter)
     -> std::optional<TemplateArgument> {
-  return visit(MakeDefaultTemplateArgument{*this}, parameter);
+  if (!parameter) return std::nullopt;
+  auto provider = default_template_argument(parameter->symbol);
+  if (!provider) return std::nullopt;
+  return visit(MakeDefaultTemplateArgument{*this}, provider);
 }
 }  // namespace cxx

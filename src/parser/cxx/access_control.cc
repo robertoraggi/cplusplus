@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/access_control.h>
+#include <cxx/dependent_types.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -255,7 +256,15 @@ void AccessContext::materialize() const {
   const auto grantTemplateFriendships =
       [&](const std::vector<TemplateFriendship>& friendships,
           const std::vector<TemplateArgument>& arguments) {
+        const auto dependent =
+            std::ranges::any_of(arguments, [&](const auto& arg) {
+              return isDependentTemplateArgument(unit_, arg);
+            });
         for (const auto& friendship : friendships) {
+          if (dependent) {
+            grantAccessOf(friendship.befriendingClass);
+            continue;
+          }
           if (friendship.arguments.size() != arguments.size()) continue;
           if (friendship.arguments != arguments) {
             if (!compare_args(unit_, friendship.arguments, arguments)) continue;
@@ -488,6 +497,22 @@ auto AccessContext::isAccessibleWhenDesignatedIn(
   return false;
 }
 
+auto AccessContext::hasUndecidableDerivation(
+    ClassSymbol* designatingClass) const -> bool {
+  if (hasDependentBaseClass(unit_, designatingClass)) return true;
+
+  materialize();
+
+  if (std::ranges::any_of(enclosingClasses_, [&](ClassSymbol* candidate) {
+        return hasDependentBaseClass(unit_, candidate);
+      }))
+    return true;
+
+  return std::ranges::any_of(classes_, [&](ClassSymbol* candidate) {
+    return hasDependentBaseClass(unit_, candidate);
+  });
+}
+
 auto AccessContext::isAccessible(Symbol* member, ClassSymbol* designatingClass,
                                  ClassSymbol* objectClass) const -> bool {
   if (!member) return true;
@@ -505,8 +530,11 @@ auto AccessContext::isAccessible(Symbol* member, ClassSymbol* designatingClass,
   if (!designatingClass) designatingClass = declaringClass;
 
   std::vector<ClassSymbol*> visited;
-  return isAccessibleWhenDesignatedIn(member, designatingClass, objectClass,
-                                      visited);
+  if (isAccessibleWhenDesignatedIn(member, designatingClass, objectClass,
+                                   visited))
+    return true;
+
+  return hasUndecidableDerivation(designatingClass);
 }
 
 auto checkMemberAccess(TranslationUnit* unit, ScopeSymbol* accessingScope,

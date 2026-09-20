@@ -22,11 +22,12 @@ Ptr<double> p2 = nullptr;
 // CHECK-NEXT:    injected class name S
 // CHECK-NEXT:    field type-param<0, 0> value
 // CHECK-NEXT:    [specializations]
+// CHECK-NEXT:      class S<type-param<0, 0>>
 // CHECK-NEXT:      class S<int>
 // CHECK-NEXT:      class S<double>
-// CHECK-NEXT:  template typealias ::S* Ptr
+// CHECK-NEXT:  template typealias ::S<type-param<0, 0>>* Ptr
 // CHECK-NEXT:    parameter typename<0, 0> T
-// CHECK-NEXT:  template typealias ::S& Ref
+// CHECK-NEXT:  template typealias ::S<type-param<0, 0>>& Ref
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:  variable ::S<int>* p
 // CHECK-NEXT:  variable ::S<double>* p2

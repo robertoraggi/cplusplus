@@ -58,6 +58,10 @@ void GCCLinuxToolchain::addSystemIncludePaths() {
         std::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
   };
 
+  if (auto resourceDir = this->resourceDir(); !resourceDir.empty()) {
+    addSystemIncludePath((fs::path{resourceDir} / "include").string());
+  }
+
   addSystemIncludePath("/usr/include");
   addSystemIncludePath(std::format("/usr/include/{}-linux-gnu", arch_));
   addSystemIncludePath("/usr/local/include");

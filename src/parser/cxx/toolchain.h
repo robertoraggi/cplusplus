@@ -62,9 +62,25 @@ class Toolchain {
 
   void setLanguageStandard(const LanguageStandard* languageStandard);
 
+  [[nodiscard]] auto exceptionsEnabled() const -> bool {
+    return exceptionsEnabled_;
+  }
+
+  void setExceptionsEnabled(bool exceptionsEnabled) {
+    exceptionsEnabled_ = exceptionsEnabled;
+  }
+
   [[nodiscard]] auto memoryLayout() const -> MemoryLayout* {
     return memoryLayout_.get();
   }
+
+  [[nodiscard]] auto appdir() const -> const std::string& { return appdir_; }
+
+  void setAppdir(std::string appdir);
+
+  [[nodiscard]] auto resourceDir() const -> std::string;
+
+  void setResourceDir(std::string resourceDir);
 
   void setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout);
 
@@ -95,6 +111,7 @@ class Toolchain {
   void addCommonMacros();
   void addCommonC23Macros();
   void addCommonCxx26Macros();
+  void addFeatureTestMacros();
   void addCommonLinuxMacros();
   void addCommonMacOSMacros();
   void addCommonWindowsMacros();
@@ -115,13 +132,19 @@ class Toolchain {
   void addWindowsCxx26Macros();
   void addWASICxx26Macros();
 
+ protected:
+  [[nodiscard]] virtual auto defaultResourceDir() const -> std::string;
+
  private:
   [[nodiscard]] auto cplusplusMacroValue() const -> std::string_view;
   [[nodiscard]] auto stdcVersionMacroValue() const -> std::string_view;
 
   Preprocessor* preprocessor_;
+  std::string appdir_;
+  std::string resourceDir_;
   std::unique_ptr<MemoryLayout> memoryLayout_;
   LanguageKind language_ = LanguageKind::kCXX;
   const LanguageStandard* languageStandard_ = nullptr;
+  bool exceptionsEnabled_ = true;
 };
 }  // namespace cxx

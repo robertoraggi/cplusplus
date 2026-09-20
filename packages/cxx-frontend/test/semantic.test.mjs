@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx, Parser, Semantic as S } from "../dist/index.js";
+import { loadCxx, Parser } from "cxx-frontend";
+import * as S from "cxx-frontend/model";
+import { traverse } from "cxx-frontend/traverse";
 
 await loadCxx({
   wasm: await readFile(new URL("../dist/wasm/cxx-js.wasm", import.meta.url)),
@@ -26,7 +28,7 @@ test("read-only model exposes symbol identity, types and integer constants", asy
     assert.ok(field.type instanceof S.IntType);
     const answer = [...globalScope.members].find((s) => s.text === "Answer");
     assert.ok(answer instanceof S.ScopedEnumSymbol);
-    assert.equal([...answer.members][0].value.value, 9007199254740993n);
+    assert.equal([...answer.members][0].value, 9007199254740993n);
     assert.throws(() => {
       point.isFinal = true;
     }, TypeError);
@@ -48,7 +50,7 @@ test("the AST is traversed by kind, by children and by visitor", async () => {
   assert.deepEqual(parser.diagnostics, []);
 
   const { ast } = parser.model;
-  assert.equal(ast.kind, S.ASTKind.TranslationUnit);
+  assert.equal(ast.kind, "TranslationUnit");
 
   const declarations = [...ast.declarationList];
   const written = declarations.slice(-2);
@@ -56,21 +58,20 @@ test("the AST is traversed by kind, by children and by visitor", async () => {
   assert.ok(written[1] instanceof S.FunctionDefinitionAST);
 
   assert.deepEqual(
-    [...S.children(ast)].map((node) => node.handle),
+    [...S.children(ast)].map((child) => child.node.handle),
     declarations.map((node) => node.handle),
   );
 
-  class Names extends S.RecursiveASTVisitor {
-    found = [];
-    visitIdExpression(node, context) {
-      this.found.push(node.unqualifiedId?.identifier?.name);
-      this.visitChildren(node, context);
-    }
-  }
-
-  const names = new Names();
-  names.accept(ast, undefined);
-  assert.deepEqual(names.found, ["x"]);
+  const names = traverse(
+    ast,
+    {
+      IdExpression(path, found) {
+        found.push(path.node.unqualifiedId?.identifier?.name);
+      },
+    },
+    [],
+  );
+  assert.deepEqual(names, ["x"]);
 });
 
 test("declarations link back to the symbols the binder created", async () => {
@@ -98,14 +99,15 @@ test("declarations link back to the symbols the binder created", async () => {
     ["outer"],
   );
 
-  const parameters = [];
-  class Parameters extends S.RecursiveASTVisitor {
-    visitParameterDeclaration(node, context) {
-      parameters.push(node.symbol);
-      this.visitChildren(node, context);
-    }
-  }
-  new Parameters().accept(namespaceDefinition, undefined);
+  const parameters = traverse(
+    namespaceDefinition,
+    {
+      ParameterDeclaration(path, found) {
+        found.push(path.node.symbol);
+      },
+    },
+    [],
+  );
 
   assert.deepEqual(
     parameters.map((symbol) => symbol.text),

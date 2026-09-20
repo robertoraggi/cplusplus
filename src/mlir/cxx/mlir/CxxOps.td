@@ -130,7 +130,7 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
       OptionalAttr<Cxx_LinkageKind>:$linkage_kind,
       OptionalAttr<Cxx_InlineKind>:$inline_kind,
       OptionalAttr<Cxx_Visibility>:$visibility_,
-      OptionalAttr<StrAttr>:$alias_name,
+      OptionalAttr<StrAttr>:$aliasee,
       OptionalAttr<StrAttr>:$wasm_import_module,
       OptionalAttr<StrAttr>:$wasm_import_name,
       OptionalAttr<StrAttr>:$wasm_export_name,

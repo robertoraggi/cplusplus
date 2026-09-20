@@ -94,6 +94,11 @@ class SemanticEncoder final : public SemanticEncoderBase {
     return ConstRef{constNodeRef(value, 4)};
   }
 
+  [[nodiscard]] auto constRef(const std::shared_ptr<cxx::ConstComplex>& value)
+      -> ConstRef {
+    return ConstRef{constNodeRef(value, 5)};
+  }
+
   template <typename T>
   void writeAstList(ByteWriter& out, cxx::List<T*>* list) {
     std::uint32_t count = 0;
@@ -214,6 +219,8 @@ class SemanticEncoder final : public SemanticEncoderBase {
                                      const cxx::UnresolvedVectorType* self);
   void writeTypeComplexType(ByteWriter& out, const cxx::ComplexType* self);
   void writeTypeAtomicType(ByteWriter& out, const cxx::AtomicType* self);
+  void writeSymbolSymbol(ByteWriter& out, cxx::Symbol* self);
+  void writeSymbolScopeSymbol(ByteWriter& out, cxx::ScopeSymbol* self);
   void writeSymbolNamespaceSymbol(ByteWriter& out, cxx::NamespaceSymbol* self);
   void writeSymbolNamespaceAliasSymbol(ByteWriter& out,
                                        cxx::NamespaceAliasSymbol* self);
@@ -256,6 +263,39 @@ class SemanticEncoder final : public SemanticEncoderBase {
                                    cxx::UnresolvedSymbol* self);
   void writeSymbolUsingDeclarationSymbol(ByteWriter& out,
                                          cxx::UsingDeclarationSymbol* self);
+  void writeAstManaged(ByteWriter& out, cxx::Managed* self);
+  void writeAstAST(ByteWriter& out, cxx::AST* self);
+  void writeAstUnitAST(ByteWriter& out, cxx::UnitAST* self);
+  void writeAstDeclarationAST(ByteWriter& out, cxx::DeclarationAST* self);
+  void writeAstStatementAST(ByteWriter& out, cxx::StatementAST* self);
+  void writeAstExpressionAST(ByteWriter& out, cxx::ExpressionAST* self);
+  void writeAstGenericAssociationAST(ByteWriter& out,
+                                     cxx::GenericAssociationAST* self);
+  void writeAstDesignatorAST(ByteWriter& out, cxx::DesignatorAST* self);
+  void writeAstTemplateParameterAST(ByteWriter& out,
+                                    cxx::TemplateParameterAST* self);
+  void writeAstSpecifierAST(ByteWriter& out, cxx::SpecifierAST* self);
+  void writeAstPtrOperatorAST(ByteWriter& out, cxx::PtrOperatorAST* self);
+  void writeAstCoreDeclaratorAST(ByteWriter& out, cxx::CoreDeclaratorAST* self);
+  void writeAstDeclaratorChunkAST(ByteWriter& out,
+                                  cxx::DeclaratorChunkAST* self);
+  void writeAstUnqualifiedIdAST(ByteWriter& out, cxx::UnqualifiedIdAST* self);
+  void writeAstNestedNameSpecifierAST(ByteWriter& out,
+                                      cxx::NestedNameSpecifierAST* self);
+  void writeAstFunctionBodyAST(ByteWriter& out, cxx::FunctionBodyAST* self);
+  void writeAstTemplateArgumentAST(ByteWriter& out,
+                                   cxx::TemplateArgumentAST* self);
+  void writeAstExceptionSpecifierAST(ByteWriter& out,
+                                     cxx::ExceptionSpecifierAST* self);
+  void writeAstRequirementAST(ByteWriter& out, cxx::RequirementAST* self);
+  void writeAstNewInitializerAST(ByteWriter& out, cxx::NewInitializerAST* self);
+  void writeAstMemInitializerAST(ByteWriter& out, cxx::MemInitializerAST* self);
+  void writeAstLambdaCaptureAST(ByteWriter& out, cxx::LambdaCaptureAST* self);
+  void writeAstExceptionDeclarationAST(ByteWriter& out,
+                                       cxx::ExceptionDeclarationAST* self);
+  void writeAstAttributeSpecifierAST(ByteWriter& out,
+                                     cxx::AttributeSpecifierAST* self);
+  void writeAstAttributeTokenAST(ByteWriter& out, cxx::AttributeTokenAST* self);
   void writeAstTranslationUnitAST(ByteWriter& out,
                                   cxx::TranslationUnitAST* self);
   void writeAstModuleUnitAST(ByteWriter& out, cxx::ModuleUnitAST* self);
@@ -702,15 +742,16 @@ class SemanticEncoder final : public SemanticEncoderBase {
   void writecxxAttribute(ByteWriter& out, const cxx::Attribute* self);
   void writecxxMeta(ByteWriter& out, const cxx::Meta* self);
   void writecxxMetaConstExpr(ByteWriter& out, const cxx::Meta::ConstExpr* self);
+  void writecxxConstInt(ByteWriter& out, const cxx::ConstInt* self);
   void writecxxInitializerList(ByteWriter& out,
                                const cxx::InitializerList* self);
-  void writecxxConstComplex(ByteWriter& out, const cxx::ConstComplex* self);
   void writecxxConstObject(ByteWriter& out, const cxx::ConstObject* self);
   void writecxxConstObjectMember(ByteWriter& out,
                                  const cxx::ConstObject::Member* self);
   void writecxxConstAddress(ByteWriter& out, const cxx::ConstAddress* self);
   void writecxxConstLabelAddress(ByteWriter& out,
                                  const cxx::ConstLabelAddress* self);
+  void writecxxConstComplex(ByteWriter& out, const cxx::ConstComplex* self);
   void writecxxTemplateSpecialization(ByteWriter& out,
                                       const cxx::TemplateSpecialization* self);
   void writecxxInstantiationError(ByteWriter& out,
@@ -874,6 +915,8 @@ class SemanticDecoder final : public SemanticDecoderBase {
       -> const cxx::Type*;
   [[nodiscard]] auto readTypeComplexType(ByteReader& in) -> const cxx::Type*;
   [[nodiscard]] auto readTypeAtomicType(ByteReader& in) -> const cxx::Type*;
+  void readSymbolSymbol(ByteReader& in, cxx::Symbol* self);
+  void readSymbolScopeSymbol(ByteReader& in, cxx::ScopeSymbol* self);
   void readSymbolNamespaceSymbol(ByteReader& in, cxx::NamespaceSymbol* self);
   void readSymbolNamespaceAliasSymbol(ByteReader& in,
                                       cxx::NamespaceAliasSymbol* self);
@@ -913,6 +956,38 @@ class SemanticDecoder final : public SemanticDecoderBase {
   void readSymbolUnresolvedSymbol(ByteReader& in, cxx::UnresolvedSymbol* self);
   void readSymbolUsingDeclarationSymbol(ByteReader& in,
                                         cxx::UsingDeclarationSymbol* self);
+  void readAstManaged(ByteReader& in, cxx::Managed* self);
+  void readAstAST(ByteReader& in, cxx::AST* self);
+  void readAstUnitAST(ByteReader& in, cxx::UnitAST* self);
+  void readAstDeclarationAST(ByteReader& in, cxx::DeclarationAST* self);
+  void readAstStatementAST(ByteReader& in, cxx::StatementAST* self);
+  void readAstExpressionAST(ByteReader& in, cxx::ExpressionAST* self);
+  void readAstGenericAssociationAST(ByteReader& in,
+                                    cxx::GenericAssociationAST* self);
+  void readAstDesignatorAST(ByteReader& in, cxx::DesignatorAST* self);
+  void readAstTemplateParameterAST(ByteReader& in,
+                                   cxx::TemplateParameterAST* self);
+  void readAstSpecifierAST(ByteReader& in, cxx::SpecifierAST* self);
+  void readAstPtrOperatorAST(ByteReader& in, cxx::PtrOperatorAST* self);
+  void readAstCoreDeclaratorAST(ByteReader& in, cxx::CoreDeclaratorAST* self);
+  void readAstDeclaratorChunkAST(ByteReader& in, cxx::DeclaratorChunkAST* self);
+  void readAstUnqualifiedIdAST(ByteReader& in, cxx::UnqualifiedIdAST* self);
+  void readAstNestedNameSpecifierAST(ByteReader& in,
+                                     cxx::NestedNameSpecifierAST* self);
+  void readAstFunctionBodyAST(ByteReader& in, cxx::FunctionBodyAST* self);
+  void readAstTemplateArgumentAST(ByteReader& in,
+                                  cxx::TemplateArgumentAST* self);
+  void readAstExceptionSpecifierAST(ByteReader& in,
+                                    cxx::ExceptionSpecifierAST* self);
+  void readAstRequirementAST(ByteReader& in, cxx::RequirementAST* self);
+  void readAstNewInitializerAST(ByteReader& in, cxx::NewInitializerAST* self);
+  void readAstMemInitializerAST(ByteReader& in, cxx::MemInitializerAST* self);
+  void readAstLambdaCaptureAST(ByteReader& in, cxx::LambdaCaptureAST* self);
+  void readAstExceptionDeclarationAST(ByteReader& in,
+                                      cxx::ExceptionDeclarationAST* self);
+  void readAstAttributeSpecifierAST(ByteReader& in,
+                                    cxx::AttributeSpecifierAST* self);
+  void readAstAttributeTokenAST(ByteReader& in, cxx::AttributeTokenAST* self);
   void readAstTranslationUnitAST(ByteReader& in, cxx::TranslationUnitAST* self);
   void readAstModuleUnitAST(ByteReader& in, cxx::ModuleUnitAST* self);
   void readAstSimpleDeclarationAST(ByteReader& in,
@@ -1337,12 +1412,13 @@ class SemanticDecoder final : public SemanticDecoderBase {
   void readcxxAttribute(ByteReader& in, cxx::Attribute* self);
   void readcxxMeta(ByteReader& in, cxx::Meta* self);
   void readcxxMetaConstExpr(ByteReader& in, cxx::Meta::ConstExpr* self);
+  void readcxxConstInt(ByteReader& in, cxx::ConstInt* self);
   void readcxxInitializerList(ByteReader& in, cxx::InitializerList* self);
-  void readcxxConstComplex(ByteReader& in, cxx::ConstComplex* self);
   void readcxxConstObject(ByteReader& in, cxx::ConstObject* self);
   void readcxxConstObjectMember(ByteReader& in, cxx::ConstObject::Member* self);
   void readcxxConstAddress(ByteReader& in, cxx::ConstAddress* self);
   void readcxxConstLabelAddress(ByteReader& in, cxx::ConstLabelAddress* self);
+  void readcxxConstComplex(ByteReader& in, cxx::ConstComplex* self);
   void readcxxTemplateSpecialization(ByteReader& in,
                                      cxx::TemplateSpecialization* self);
   void readcxxInstantiationError(ByteReader& in, cxx::InstantiationError* self);

@@ -566,12 +566,19 @@ auto Control::getOverloadSetType(OverloadSetSymbol* symbol)
 auto Control::getFunctionType(const Type* returnType,
                               std::vector<const Type*> parameterTypes,
                               bool isVariadic, CvQualifiers cvQualifiers,
-                              RefQualifier refQualifier, bool isNoexcept)
+                              RefQualifier refQualifier,
+                              ExceptionSpecification exceptionSpecification)
     -> const FunctionType* {
   return &*d->functionTypes
                .emplace(returnType, std::move(parameterTypes), isVariadic,
-                        cvQualifiers, refQualifier, isNoexcept)
+                        cvQualifiers, refQualifier, exceptionSpecification)
                .first;
+}
+
+auto Control::getPseudoDestructorType() -> const FunctionType* {
+  return getFunctionType(getVoidType(), {}, /*isVariadic=*/false,
+                         CvQualifiers::kNone, RefQualifier::kNone,
+                         /*exceptionSpecification=*/true);
 }
 
 auto Control::getMemberObjectPointerType(const Type* classType,

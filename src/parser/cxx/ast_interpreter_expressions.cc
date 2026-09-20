@@ -147,6 +147,30 @@ struct ASTInterpreter::ExpressionVisitor {
     return ConstValue(std::bit_cast<std::intmax_t>(value));
   }
 
+  [[nodiscard]] auto toConstInt(const Type* type, const ConstValue& value)
+      -> std::optional<ConstInt> {
+    auto converted = interp.toIntegralType(value, type);
+    if (!converted) return std::nullopt;
+
+    auto result = std::get_if<ConstInt>(&*converted);
+    if (!result) return std::nullopt;
+
+    return *result;
+  }
+
+  [[nodiscard]] auto integerOperands(const Type* type,
+                                     const ExpressionResult& left,
+                                     const ExpressionResult& right)
+      -> std::optional<std::pair<ConstInt, ConstInt>> {
+    auto l = toConstInt(type, *left);
+    if (!l) return std::nullopt;
+
+    auto r = toConstInt(type, *right);
+    if (!r) return std::nullopt;
+
+    return std::pair{*l, *r};
+  }
+
   [[nodiscard]] auto floatingArithmetic(const Type* type,
                                         const ExpressionResult& left,
                                         const ExpressionResult& right,
@@ -194,15 +218,13 @@ struct ASTInterpreter::ExpressionVisitor {
     }
 
     if (unit()->typeTraits().is_integral_or_unscoped_enum(type)) {
-      const auto sz = memoryLayout()->sizeOf(type);
+      auto value = toConstInt(type, *operand);
+      if (!value) return std::nullopt;
 
-      if (unit()->typeTraits().is_unsigned(type)) {
-        if (sz <= 4) return toValue(-toUInt32(*operand));
-        return toValue(-toUInt64(*operand));
-      }
+      auto zero = ConstInt::make(0, value->width(), value->isSigned());
+      if (!zero) return std::nullopt;
 
-      if (sz <= 4) return ConstValue{-toInt32(*operand)};
-      return ConstValue{-toInt64(*operand)};
+      return ConstValue{*zero - *value};
     }
 
     switch (type->kind()) {
@@ -219,88 +241,47 @@ struct ASTInterpreter::ExpressionVisitor {
 
   auto star_op(const Type* type, const ExpressionResult& left,
                const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type)) {
       return floatingArithmetic(type, left, right,
                                 [](auto a, auto b) { return a * b; });
     }
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toValue(toUInt32(*left) * toUInt32(*right));
+    if (!unit()->typeTraits().is_integral_or_unscoped_enum(type)) {
       return toValue(toUInt64(*left) * toUInt64(*right));
     }
 
-    if (sz <= 4) return toValue(toInt32(*left) * toInt32(*right));
-    return toValue(toInt64(*left) * toInt64(*right));
+    auto operands = integerOperands(type, left, right);
+    if (!operands) return std::nullopt;
+
+    return ConstValue{operands->first * operands->second};
   }
 
   auto slash_op(const Type* type, const ExpressionResult& left,
                 const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type)) {
       if (toDouble(*right) == 0.0) return std::nullopt;
       return floatingArithmetic(type, left, right,
                                 [](auto a, auto b) { return a / b; });
     }
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) {
-        auto l = toUInt32(*left);
-        auto r = toUInt32(*right);
-        if (r == 0) return std::nullopt;
-        return toValue(l / r);
-      }
+    auto operands = integerOperands(type, left, right);
+    if (!operands) return std::nullopt;
 
-      auto l = toUInt64(*left);
-      auto r = toUInt64(*right);
-      if (r == 0) return std::nullopt;
-      return toValue(l / r);
-    }
+    auto result = operands->first / operands->second;
+    if (!result) return std::nullopt;
 
-    if (sz <= 4) {
-      auto l = toInt32(*left);
-      auto r = toInt32(*right);
-      if (r == 0) return std::nullopt;
-      return toValue(l / r);
-    }
-
-    auto l = toInt64(*left);
-    auto r = toInt64(*right);
-    if (r == 0) return std::nullopt;
-    return toValue(l / r);
+    return ConstValue{*result};
   }
 
   auto percent_op(const Type* type, const ExpressionResult& left,
                   const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
+    auto operands = integerOperands(type, left, right);
+    if (!operands) return std::nullopt;
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) {
-        auto l = toUInt32(*left);
-        auto r = toUInt32(*right);
-        if (r == 0) return std::nullopt;
-        return toValue(l % r);
-      }
+    auto result = operands->first % operands->second;
+    if (!result) return std::nullopt;
 
-      auto l = toUInt64(*left);
-      auto r = toUInt64(*right);
-      if (r == 0) return std::nullopt;
-      return toValue(l % r);
-    }
-
-    if (sz <= 4) {
-      auto l = toInt32(*left);
-      auto r = toInt32(*right);
-      if (r == 0) return std::nullopt;
-      return toValue(l % r);
-    }
-
-    auto l = toInt64(*left);
-    auto r = toInt64(*right);
-    if (r == 0) return std::nullopt;
-    return toValue(l % r);
+    return ConstValue{*result};
   }
 
   auto complexParts(const ConstValue& value, const Type* elementType)
@@ -392,64 +373,71 @@ struct ASTInterpreter::ExpressionVisitor {
 
   auto plus_op(const Type* type, const ExpressionResult& left,
                const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type)) {
       return floatingArithmetic(type, left, right,
                                 [](auto a, auto b) { return a + b; });
     }
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toValue(toUInt32(*left) + toUInt32(*right));
+    if (!unit()->typeTraits().is_integral_or_unscoped_enum(type)) {
       return toValue(toUInt64(*left) + toUInt64(*right));
     }
 
-    if (sz <= 4) return toValue(toInt32(*left) + toInt32(*right));
-    return toValue(toInt64(*left) + toInt64(*right));
+    auto operands = integerOperands(type, left, right);
+    if (!operands) return std::nullopt;
+
+    return ConstValue{operands->first + operands->second};
   }
 
   auto minus_op(const Type* type, const ExpressionResult& left,
                 const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type)) {
       return floatingArithmetic(type, left, right,
                                 [](auto a, auto b) { return a - b; });
     }
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toValue(toUInt32(*left) - toUInt32(*right));
+    if (!unit()->typeTraits().is_integral_or_unscoped_enum(type)) {
       return toValue(toUInt64(*left) - toUInt64(*right));
     }
 
-    if (sz <= 4) return toValue(toInt32(*left) - toInt32(*right));
-    return toValue(toInt64(*left) - toInt64(*right));
+    auto operands = integerOperands(type, left, right);
+    if (!operands) return std::nullopt;
+
+    return ConstValue{operands->first - operands->second};
+  }
+
+  [[nodiscard]] auto shiftOperands(const Type* type,
+                                   const ExpressionResult& left,
+                                   const ExpressionResult& right)
+      -> std::optional<std::pair<ConstInt, ConstInt>> {
+    auto shifted = toConstInt(type, *left);
+    if (!shifted) return std::nullopt;
+
+    auto count = std::get_if<ConstInt>(&*right);
+    if (!count) return std::nullopt;
+
+    if (count->isNegative()) return std::nullopt;
+
+    if (count->toUIntMax() >= static_cast<std::uintmax_t>(shifted->width())) {
+      return std::nullopt;
+    }
+
+    return std::pair{*shifted, *count};
   }
 
   auto less_less_op(const Type* type, const ExpressionResult& left,
                     const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
+    auto operands = shiftOperands(type, left, right);
+    if (!operands) return std::nullopt;
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toValue(toUInt32(*left) << toUInt32(*right));
-      return toValue(toUInt64(*left) << toUInt64(*right));
-    }
-
-    if (sz <= 4) return toValue(toInt32(*left) << toInt32(*right));
-    return toValue(toInt64(*left) << toInt64(*right));
+    return ConstValue{operands->first << operands->second};
   }
 
   auto greater_greater_op(const Type* type, const ExpressionResult& left,
                           const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
+    auto operands = shiftOperands(type, left, right);
+    if (!operands) return std::nullopt;
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toValue(toUInt32(*left) >> toUInt32(*right));
-      return toValue(toUInt64(*left) >> toUInt64(*right));
-    }
-
-    if (sz <= 4) return toValue(toInt32(*left) >> toInt32(*right));
-    return toValue(toInt64(*left) >> toInt64(*right));
+    return ConstValue{operands->first >> operands->second};
   }
 
   auto less_equal_greater_op(const Type* type, const ExpressionResult& left,
@@ -461,114 +449,79 @@ struct ASTInterpreter::ExpressionVisitor {
       return 0;
     };
 
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type))
       return convert(toDouble(*left) <=> toDouble(*right));
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return convert(toUInt32(*left) <=> toUInt32(*right));
-      return convert(toUInt64(*left) <=> toUInt64(*right));
-    }
+    auto operands = integerOperands(type, left, right);
+    if (operands) return convert(operands->first <=> operands->second);
 
-    if (sz <= 4) return convert(toInt32(*left) <=> toInt32(*right));
-    return convert(toInt64(*left) <=> toInt64(*right));
+    return convert(toUInt(*left) <=> toUInt(*right));
   }
 
   auto less_equal_op(const Type* type, const ExpressionResult& left,
                      const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) <= toDouble(*right);
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toUInt(*left) <= toUInt(*right);
-      return toUInt64(*left) <= toUInt64(*right);
-    }
+    auto operands = integerOperands(type, left, right);
+    if (operands) return operands->first <= operands->second;
 
-    if (sz <= 4) return toInt(*left) <= toInt(*right);
-    return toInt64(*left) <= toInt64(*right);
+    return toUInt(*left) <= toUInt(*right);
   }
 
   auto greater_equal_op(const Type* type, const ExpressionResult& left,
                         const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) >= toDouble(*right);
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toUInt(*left) >= toUInt(*right);
-      return toUInt64(*left) >= toUInt64(*right);
-    }
+    auto operands = integerOperands(type, left, right);
+    if (operands) return operands->first >= operands->second;
 
-    if (sz <= 4) return toInt(*left) >= toInt(*right);
-    return toInt64(*left) >= toInt64(*right);
+    return toUInt(*left) >= toUInt(*right);
   }
 
   auto less_op(const Type* type, const ExpressionResult& left,
                const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) < toDouble(*right);
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toUInt(*left) < toUInt(*right);
-      return toUInt64(*left) < toUInt64(*right);
-    }
+    auto operands = integerOperands(type, left, right);
+    if (operands) return operands->first < operands->second;
 
-    if (sz <= 4) return toInt(*left) < toInt(*right);
-    return toInt64(*left) < toInt64(*right);
+    return toUInt(*left) < toUInt(*right);
   }
 
   auto greater_op(const Type* type, const ExpressionResult& left,
                   const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) > toDouble(*right);
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toUInt(*left) > toUInt(*right);
-      return toUInt64(*left) > toUInt64(*right);
-    }
+    auto operands = integerOperands(type, left, right);
+    if (operands) return operands->first > operands->second;
 
-    if (sz <= 4) return toInt(*left) > toInt(*right);
-    return toInt64(*left) > toInt64(*right);
+    return toUInt(*left) > toUInt(*right);
   }
 
   auto equal_equal_op(const Type* type, const ExpressionResult& left,
                       const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) == toDouble(*right);
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toUInt(*left) == toUInt(*right);
-      return toUInt64(*left) == toUInt64(*right);
-    }
+    auto operands = integerOperands(type, left, right);
+    if (operands) return operands->first == operands->second;
 
-    if (sz <= 4) return toInt(*left) == toInt(*right);
-    return toInt64(*left) == toInt64(*right);
+    return toUInt(*left) == toUInt(*right);
   }
 
   auto exclaim_equal_op(const Type* type, const ExpressionResult& left,
                         const ExpressionResult& right) -> ExpressionResult {
-    const auto sz = memoryLayout()->sizeOf(type);
-
     if (unit()->typeTraits().is_floating_point(type))
       return toDouble(*left) != toDouble(*right);
 
-    if (unit()->typeTraits().is_unsigned(type)) {
-      if (sz <= 4) return toUInt(*left) != toUInt(*right);
-      return toUInt64(*left) != toUInt64(*right);
-    }
+    auto operands = integerOperands(type, left, right);
+    if (operands) return operands->first != operands->second;
 
-    if (sz <= 4) return toInt(*left) != toInt(*right);
-    return toInt64(*left) != toInt64(*right);
+    return toUInt(*left) != toUInt(*right);
   }
 
   auto amp_op(const Type* type, const ExpressionResult& left,
@@ -807,6 +760,7 @@ struct ASTInterpreter::NewInitializerVisitor {
 auto ASTInterpreter::expression(ExpressionAST* ast) -> ExpressionResult {
   if (!ast) return ExpressionResult{std::nullopt};
   if (aborted_) return ExpressionResult{std::nullopt};
+  if (isDependent(unit_, ast->type)) return ExpressionResult{std::nullopt};
   return visit(ExpressionVisitor{*this}, ast);
 }
 
@@ -974,12 +928,12 @@ auto ASTInterpreter::loadAddress(const ConstAddress& address,
   if (index < 0) return std::nullopt;
 
   if (auto str = address.stringLiteral()) {
-    const auto value = str->stringValue();
-    if (static_cast<std::size_t>(index) > value.size()) return std::nullopt;
-    auto ch =
-        static_cast<std::size_t>(index) < value.size() ? value[index] : '\0';
-    return ConstValue{
-        static_cast<std::intmax_t>(static_cast<unsigned char>(ch))};
+    const auto count = str->charCount();
+    if (static_cast<std::size_t>(index) > count) return std::nullopt;
+    const auto unit = static_cast<std::size_t>(index) < count
+                          ? str->charAt(static_cast<std::size_t>(index))
+                          : 0;
+    return ConstValue{static_cast<std::intmax_t>(unit)};
   }
 
   auto sym = address.symbol();
@@ -1212,7 +1166,18 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 auto ASTInterpreter::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
     -> ExpressionResult {
   if (ast->literalOperatorCall) return evaluate(ast->literalOperatorCall);
+
   const auto value = static_cast<std::uintmax_t>(ast->literal->integerValue());
+
+  auto representation = unit()->typeTraits().integral_representation(ast->type);
+
+  if (representation && ConstInt::isRepresentableWidth(representation->bits)) {
+    auto literal = ConstInt::make(
+        static_cast<ConstInt::Wide>(static_cast<ConstInt::UWide>(value)),
+        representation->bits, representation->isSigned);
+    if (literal) return ConstValue{*literal};
+  }
+
   return ExpressionResult{std::bit_cast<std::intmax_t>(value)};
 }
 
@@ -1574,11 +1539,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
   }
 
   if (auto str = std::get_if<const StringLiteral*>(&*baseExpressionResult)) {
-    const auto value = (*str)->stringValue();
-    if (*idx > value.size()) return std::nullopt;
-    auto ch = *idx < value.size() ? value[*idx] : '\0';
-    return ConstValue{
-        static_cast<std::intmax_t>(static_cast<unsigned char>(ch))};
+    const auto count = (*str)->charCount();
+    if (*idx > count) return std::nullopt;
+    const auto unit = *idx < count ? (*str)->charAt(*idx) : 0;
+    return ConstValue{static_cast<std::intmax_t>(unit)};
   }
 
   if (auto addr =
@@ -1970,10 +1934,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
         return interp.loadAddress(**addr, 0);
       }
       if (auto str = std::get_if<const StringLiteral*>(&*expressionResult)) {
-        const auto value = (*str)->stringValue();
-        auto ch = value.empty() ? '\0' : value[0];
-        return ConstValue{
-            static_cast<std::intmax_t>(static_cast<unsigned char>(ch))};
+        const auto unit = (*str)->charCount() ? (*str)->charAt(0) : 0;
+        return ConstValue{static_cast<std::intmax_t>(unit)};
       }
       if (auto list = std::get_if<std::shared_ptr<InitializerList>>(
               &*expressionResult)) {
@@ -1997,22 +1959,11 @@ auto ASTInterpreter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
       if (expressionResult.has_value() &&
           unit()->typeTraits().is_integral_or_unscoped_enum(
               ast->expression->type)) {
-        const auto sz = memoryLayout()->sizeOf(ast->expression->type);
+        auto operand =
+            toConstInt(ast->expression->type, expressionResult.value());
+        if (!operand) return std::nullopt;
 
-        if (sz <= 4) {
-          if (unit()->typeTraits().is_unsigned(ast->expression->type)) {
-            return toValue(~toUInt32(expressionResult.value()));
-          }
-
-          return ExpressionResult(
-              static_cast<std::intmax_t>(~toInt32(expressionResult.value())));
-        }
-
-        if (unit()->typeTraits().is_unsigned(ast->expression->type)) {
-          return toValue(~toUInt64(expressionResult.value()));
-        }
-
-        return ExpressionResult(~toInt64(expressionResult.value()));
+        return ConstValue{~*operand};
       }
       break;
     }
@@ -2376,7 +2327,12 @@ auto ASTInterpreter::ExpressionVisitor::applyBinaryOp(
     };
 
     if (leftAddr && rightAddr && op == TokenKind::T_MINUS) {
-      return ConstValue{offsetOf(**leftAddr) - offsetOf(**rightAddr)};
+      const auto width = static_cast<int>(memoryLayout()->sizeOfPointer()) * 8;
+      auto difference =
+          ConstInt::make(offsetOf(**leftAddr) - offsetOf(**rightAddr), width,
+                         /*isSigned=*/true);
+      if (!difference) return std::nullopt;
+      return ConstValue{*difference};
     }
     if (leftAddr && right.has_value()) {
       auto n = toInt(*right);
@@ -2419,8 +2375,8 @@ auto ASTInterpreter::ExpressionVisitor::applyBinaryOp(
   if (bool(leftAddr) != bool(rightAddr)) {
     const ExpressionResult& other = leftAddr ? right : left;
     const auto* otherInt =
-        other.has_value() ? std::get_if<std::intmax_t>(&*other) : nullptr;
-    if (otherInt && *otherInt == 0) {
+        other.has_value() ? std::get_if<ConstInt>(&*other) : nullptr;
+    if (otherInt && otherInt->isZero()) {
       switch (op) {
         case TokenKind::T_EQUAL_EQUAL:
           return ConstValue{std::intmax_t{0}};
@@ -2961,6 +2917,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 
       case BuiltinTypeTraitKind::T___IS_NOTHROW_DESTRUCTIBLE:
         return unit()->typeTraits().is_nothrow_destructible(firstType);
+
+      case BuiltinTypeTraitKind::T___HAS_TRIVIAL_DESTRUCTOR:
+        return unit()->typeTraits().has_trivial_destructor(firstType);
 
       case BuiltinTypeTraitKind::T___IS_TRIVIALLY_DESTRUCTIBLE:
         return unit()->typeTraits().is_trivially_destructible(firstType);

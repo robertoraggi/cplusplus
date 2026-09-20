@@ -535,7 +535,9 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   if (hasDependentArgs) return copy;
 
-  if (!copy->templateId->symbol && copy->templateId->identifier) {
+  if (copy->templateId->identifier &&
+      (!copy->templateId->symbol ||
+       (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol))) {
     if (auto resolved =
             lookupType(copy->nestedNameSpecifier, copy->templateId->identifier))
       copy->templateId->symbol = resolved;

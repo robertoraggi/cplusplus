@@ -70,8 +70,7 @@ auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
 
   auto toolchain = cxx::createToolchainForLinking(cli, language);
   if (!toolchain) {
-    auto id = cli.getSingle("-toolchain").value_or("wasm32");
-    std::cerr << std::format("cxx: unknown toolchain '{}'\n", id);
+    std::cerr << cxx::describeUnsupportedTarget(cli) << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -129,6 +128,22 @@ auto main(int argc, char* argv[]) -> int {
 
   if (cli.opt_help) {
     cli.showHelp();
+    return EXIT_SUCCESS;
+  }
+
+  if (cli.opt_print_target_triple) {
+    std::cout << cxx::targetTripleOf(cli) << std::endl;
+    return EXIT_SUCCESS;
+  }
+
+  if (cli.opt_print_resource_dir) {
+    auto toolchain =
+        cxx::createToolchainForLinking(cli, cxx::LanguageKind::kCXX);
+    if (!toolchain) {
+      std::cerr << "cxx: unknown toolchain" << std::endl;
+      return EXIT_FAILURE;
+    }
+    std::cout << toolchain->resourceDir() << std::endl;
     return EXIT_SUCCESS;
   }
 

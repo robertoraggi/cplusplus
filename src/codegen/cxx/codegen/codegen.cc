@@ -272,9 +272,11 @@ auto Codegen::constValueToInitializer(const ConstValue& value, const Type* type)
   auto interp = ASTInterpreter{unit_};
 
   if (traits.is_integral_or_enum(type)) {
-    auto constValue = interp.toInt(value);
-    return ir::Initializer::integerValue(emitter_.integerType(64),
-                                         constValue.value_or(0));
+    auto constValue = interp.toIntegralType(value, type);
+    if (!constValue) return ir::Initializer::integerValue(convertType(type), 0);
+    auto number = std::get<ConstInt>(*constValue);
+    return ir::Initializer::integerValue(emitter_.integerType(number.width()),
+                                         number);
   }
 
   if (type_cast<MemberObjectPointerType>(type)) {
@@ -291,8 +293,8 @@ auto Codegen::constValueToInitializer(const ConstValue& value, const Type* type)
   if (traits.is_pointer(type) || traits.is_reference(type)) {
     if (std::get_if<std::shared_ptr<ConstLabelAddress>>(&value))
       return std::nullopt;
-    if (auto intVal = std::get_if<std::intmax_t>(&value)) {
-      if (*intVal == 0) return ir::Initializer::null();
+    if (auto intVal = std::get_if<ConstInt>(&value)) {
+      if (intVal->isZero()) return ir::Initializer::null();
     }
     return std::nullopt;
   }
@@ -348,10 +350,13 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
 
   if (traits.is_integral_or_enum(type)) {
     auto irType = convertType(type);
-    auto constValue = interp.toInt(value);
+    auto constValue = interp.toIntegralType(value, type);
+    if (!constValue)
+      return emitter_.constantLiteral(loc, irType,
+                                      ir::Initializer::integerValue(irType, 0));
     return emitter_.constantLiteral(
         loc, irType,
-        ir::Initializer::integerValue(irType, constValue.value_or(0)));
+        ir::Initializer::integerValue(irType, std::get<ConstInt>(*constValue)));
   }
 
   if (type_cast<MemberObjectPointerType>(type)) {
@@ -462,8 +467,8 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
       if (slots && !slots->empty() && (*slots)[0]) {
         auto& [elemValue, elemType] = *(*slots)[0];
         bool isZero = false;
-        if (auto intVal = std::get_if<std::intmax_t>(&elemValue)) {
-          isZero = (*intVal == 0);
+        if (auto intVal = std::get_if<ConstInt>(&elemValue)) {
+          isZero = intVal->isZero();
         } else if (auto floatVal = std::get_if<float>(&elemValue)) {
           isZero = (*floatVal == 0.0f);
         } else if (auto doubleVal = std::get_if<double>(&elemValue)) {
@@ -1066,13 +1071,9 @@ auto Codegen::defaultConstructorArguments(FunctionSymbol* constructor)
     -> std::vector<ExpressionResult> {
   std::vector<ExpressionResult> args;
 
-  auto params = constructor->functionParameters();
-  if (!params) return args;
-
-  for (auto member : views::members(params)) {
-    auto param = symbol_cast<ParameterSymbol>(member);
-    if (!param || !param->defaultArgument()) continue;
-    args.push_back(expression(param->defaultArgument()));
+  for (auto parameter : constructor->parameters()) {
+    if (!parameter->defaultArgument()) continue;
+    args.push_back(expression(parameter->defaultArgument()));
   }
 
   return args;
@@ -1090,7 +1091,8 @@ void Codegen::emitSubobjectDestruction(SourceLocation loc,
   auto dtor = shape->classSymbol->destructor();
   if (!dtor) return;
 
-  if (symbol_cast<FieldSymbol>(subobject)) dtor = completeObjectDtor(dtor);
+  const auto isField = symbol_cast<FieldSymbol>(subobject) != nullptr;
+  if (isField) dtor = completeObjectDtor(dtor);
 
   auto subobjectPtr = subobjectAddress(loc, objectPtr, classSymbol, subobject);
   if (!subobjectPtr) return;
@@ -1098,7 +1100,8 @@ void Codegen::emitSubobjectDestruction(SourceLocation loc,
   auto addresses = subobjectElementAddresses(loc, subobjectPtr, *shape);
 
   for (auto it = addresses.rbegin(); it != addresses.rend(); ++it)
-    (void)emitCall(loc, dtor, {*it}, {});
+    (void)emitCall(loc, dtor, {*it}, {}, /*isVirtualDispatch=*/false,
+                   /*resultOwner=*/nullptr, /*baseObjectStructor=*/!isField);
 }
 
 void Codegen::emitSubobjectDefaultConstruction(SourceLocation loc,
@@ -1792,14 +1795,15 @@ auto Codegen::globalName(ir::GlobalRef global) const -> std::string_view {
   return it == globalNames_.end() ? std::string_view{} : it->second;
 }
 
+auto Codegen::emittedFunctionSymbol(FunctionSymbol* functionSymbol)
+    -> FunctionSymbol* {
+  if (functionSymbol->isSpecialization()) return functionSymbol;
+  return functionSymbol->canonical();
+}
+
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     -> ir::FunctionRef {
-  auto canonicalSymbol = functionSymbol->canonical();
-  auto emittedSymbol = functionSymbol;
-
-  if (!functionSymbol->isSpecialization()) {
-    emittedSymbol = canonicalSymbol;
-  }
+  auto emittedSymbol = emittedFunctionSymbol(functionSymbol);
 
   if (auto it = funcOps_.find(emittedSymbol); it != funcOps_.end()) {
     return it->second;
@@ -1813,7 +1817,6 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   auto functionAbi = computeFunctionAbi(functionType, emittedSymbol);
 
   std::string name;
-  bool isStructor = false;
 
   if (auto externalName = emittedSymbol->externalName()) {
     name = externalName->name();
@@ -1822,29 +1825,18 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   } else {
     ExternalNameEncoder encoder{unit_};
     name = encoder.encode(emittedSymbol);
-    isStructor = emittedSymbol->isConstructor() ||
-                 name_cast<DestructorId>(emittedSymbol->name());
   }
 
   auto visibility = emittedSymbol->hasHiddenVisibility()
                         ? ir::Visibility::Hidden
                         : ir::Visibility::Default;
 
-  std::string aliasName;
-  if (auto alias = emittedSymbol->aliasName()) {
-    aliasName = alias->name();
-  } else if (isStructor &&
-             (emittedSymbol->isDefined() || emittedSymbol->definition()) &&
-             !emittedSymbol->completeObjectVariant() &&
-             !emittedSymbol->isStructorVariant()) {
-    ExternalNameEncoder encoder{unit_};
-    encoder.setStructorVariant(ExternalNameEncoder::StructorVariant::Base);
-    aliasName = encoder.encode(emittedSymbol);
-  }
-
   if (auto existingFunc = findFunction(name)) {
     functionTypes_[existingFunc] = functionAbi.signature;
     funcOps_.insert_or_assign(emittedSymbol, existingFunc);
+    if (auto aliasName = aliasNameOf(emittedSymbol)) {
+      (void)findOrCreateSecondaryFunctionName(emittedSymbol, *aliasName, name);
+    }
     enqueueFunctionBody(emittedSymbol);
     return existingFunc;
   }
@@ -1871,7 +1863,6 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
                .linkage = linkage,
                .visibility = visibility,
                .inlineKind = inlineKind,
-               .aliasName = aliasName,
                .importModule = identifierName(emittedSymbol->importModule()),
                .importName = identifierName(emittedSymbol->importName()),
                .exportName = identifierName(emittedSymbol->exportName()),
@@ -1880,13 +1871,91 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   funcOps_.insert_or_assign(emittedSymbol, func);
 
+  if (auto aliasName = aliasNameOf(emittedSymbol)) {
+    (void)findOrCreateSecondaryFunctionName(emittedSymbol, *aliasName, name);
+  }
+
   enqueueFunctionBody(emittedSymbol);
 
   return func;
 }
 
+auto Codegen::baseObjectStructorName(FunctionSymbol* functionSymbol)
+    -> std::optional<std::string> {
+  auto emittedSymbol = emittedFunctionSymbol(functionSymbol);
+
+  if (!emittedSymbol->hasBaseObjectVariant()) return std::nullopt;
+
+  ExternalNameEncoder encoder{unit_};
+  encoder.setStructorVariant(ExternalNameEncoder::StructorVariant::Base);
+  return encoder.encode(emittedSymbol);
+}
+
+auto Codegen::aliasNameOf(FunctionSymbol* emittedSymbol)
+    -> std::optional<std::string> {
+  if (auto alias = emittedSymbol->aliasName()) {
+    return std::string{alias->name()};
+  }
+
+  if (!emittedSymbol->isDefined() && !emittedSymbol->definition()) {
+    return std::nullopt;
+  }
+
+  return baseObjectStructorName(emittedSymbol);
+}
+
+auto Codegen::findOrCreateSecondaryFunctionName(FunctionSymbol* functionSymbol,
+                                                std::string_view name,
+                                                std::string_view aliaseeName)
+    -> ir::FunctionRef {
+  auto emittedSymbol = emittedFunctionSymbol(functionSymbol);
+
+  if (auto existingFunc = findFunction(name)) {
+    if (!aliaseeName.empty() && !emitter_.functionHasBody(existingFunc)) {
+      emitter_.setFunctionAliasee(existingFunc, aliaseeName);
+    }
+    return existingFunc;
+  }
+
+  const auto functionType = type_cast<FunctionType>(emittedSymbol->type());
+  if (!functionType) return {};
+
+  auto functionAbi = computeFunctionAbi(functionType, emittedSymbol);
+
+  auto visibility = ir::Visibility::Default;
+  if (emittedSymbol->hasHiddenVisibility()) visibility = ir::Visibility::Hidden;
+
+  auto inlineKind = ir::InlineKind::NoInline;
+  if (emittedSymbol->isInline()) inlineKind = ir::InlineKind::InlineHint;
+
+  auto guard = ir::InsertionGuard(emitter_);
+  emitter_.setModuleInsertionPoint(true);
+
+  return this->declareFunction(
+      emittedSymbol->location(),
+      ir::FunctionInfo{.name = name,
+                       .type = functionAbi.signature,
+                       .linkage = symbolLinkage(emittedSymbol),
+                       .visibility = visibility,
+                       .inlineKind = inlineKind,
+                       .aliasee = aliaseeName,
+                       .isUsed = emittedSymbol->isUsed(),
+                       .parameters = functionAbi.parameters});
+}
+
+auto Codegen::findOrCreateBaseObjectStructor(FunctionSymbol* functionSymbol)
+    -> ir::FunctionRef {
+  auto func = findOrCreateFunction(functionSymbol);
+  if (!func) return func;
+
+  auto name = baseObjectStructorName(functionSymbol);
+  if (!name) return func;
+
+  return findOrCreateSecondaryFunctionName(functionSymbol, *name, {});
+}
+
 void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
-  auto target = symbol->isSpecialization() ? symbol : symbol->canonical();
+  auto target = emittedFunctionSymbol(symbol);
   target = target->resolvedDefinition();
   if (!target->declaration()) return;
   if (!target->isInline() &&
@@ -1991,11 +2060,8 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   if (value.has_value()) {
     auto interp = ASTInterpreter{unit_};
 
-    if (traits.is_integral_or_enum(defVar->type())) {
-      auto constValue = interp.toInt(*value);
-      initializer = ir::Initializer::integerValue(emitter_.integerType(64),
-                                                  constValue.value_or(0));
-    } else if (type_cast<MemberObjectPointerType>(defVar->type())) {
+    if (traits.is_integral_or_enum(defVar->type()) ||
+        type_cast<MemberObjectPointerType>(defVar->type())) {
       if (auto attr = constValueToInitializer(*value, defVar->type()))
         initializer = *attr;
     } else if (auto attr = getFloatAttr(value, defVar->type())) {
@@ -2091,15 +2157,15 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   auto alignmentAttr = ir::Initializer::integerValue(
       emitter_.integerType(64), static_cast<int64_t>(getAlignment(defVar)));
 
-  auto var = this->declareGlobal(
-      loc, {.name = std::string_view(name),
-            .type = varType,
-            .linkage = linkageAttr,
-            .isConstant = isConstant,
-            .alignment = static_cast<std::uint64_t>(alignmentAttr.integer),
-            .initializer = initializer,
-            .unknownLocation = false,
-            .isUsed = defVar->isUsed()});
+  auto var = this->declareGlobal(loc, {.name = std::string_view(name),
+                                       .type = varType,
+                                       .linkage = linkageAttr,
+                                       .isConstant = isConstant,
+                                       .alignment = static_cast<std::uint64_t>(
+                                           alignmentAttr.integer.toUIntMax()),
+                                       .initializer = initializer,
+                                       .unknownLocation = false,
+                                       .isUsed = defVar->isUsed()});
 
   globalOps_.insert_or_assign(canonicalVar, var);
 
@@ -2169,15 +2235,15 @@ auto Codegen::findOrCreateStaticField(FieldSymbol* field) -> ir::GlobalRef {
 
   ir::Initializer alignmentAttr;
 
-  auto var = this->declareGlobal(
-      loc, {.name = std::string_view(name),
-            .type = varType,
-            .linkage = linkageAttr,
-            .isConstant = isConstant,
-            .alignment = static_cast<std::uint64_t>(alignmentAttr.integer),
-            .initializer = initializer,
-            .unknownLocation = false,
-            .isUsed = field->isUsed()});
+  auto var = this->declareGlobal(loc, {.name = std::string_view(name),
+                                       .type = varType,
+                                       .linkage = linkageAttr,
+                                       .isConstant = isConstant,
+                                       .alignment = static_cast<std::uint64_t>(
+                                           alignmentAttr.integer.toUIntMax()),
+                                       .initializer = initializer,
+                                       .unknownLocation = false,
+                                       .isUsed = field->isUsed()});
 
   staticFieldGlobalOps_.insert_or_assign(field, var);
 
@@ -2990,6 +3056,7 @@ auto Codegen::requiresVTT(ClassSymbol* classSymbol) const -> bool {
 void Codegen::appendConstructionSubVTT(ClassSymbol* completeClass,
                                        ClassSymbol* constructionClass,
                                        std::uint64_t constructionOffset,
+                                       bool constructionClassIsVirtual,
                                        GeneratedVTT& vtt,
                                        const VTableEmission& emission) {
   auto completeLayout = completeClass->layout();
@@ -3018,9 +3085,13 @@ void Codegen::appendConstructionSubVTT(ClassSymbol* completeClass,
     return constructionOffset + source.offset;
   };
 
+  const auto& primarySource =
+      constructionClassIsVirtual && sourceVTable->virtualBasePrimary.base
+          ? sourceVTable->virtualBasePrimary
+          : sourceVTable->primary;
+
   std::vector<VTableLayout::Group> groups;
-  groups.push_back(
-      constructionGroup(sourceVTable->primary, constructionOffset));
+  groups.push_back(constructionGroup(primarySource, constructionOffset));
   for (auto& source : sourceVTable->secondary)
     groups.push_back(constructionGroup(source, secondaryGroupOffset(source)));
 
@@ -3047,8 +3118,9 @@ void Codegen::appendConstructionSubVTT(ClassSymbol* completeClass,
     if (!requiresVTT(baseClass)) continue;
     auto info = constructionLayout->getBaseInfo(baseClass);
     if (!info) continue;
-    appendConstructionSubVTT(completeClass, baseClass,
-                             constructionOffset + info->offset, vtt, emission);
+    appendConstructionSubVTT(
+        completeClass, baseClass, constructionOffset + info->offset,
+        /*constructionClassIsVirtual=*/false, vtt, emission);
   }
 
   for (std::size_t index = 1; index < tables.size(); ++index) {
@@ -3084,7 +3156,8 @@ auto Codegen::buildVTT(ClassSymbol* completeClass) -> GeneratedVTT {
     auto info = layout->getBaseInfo(baseClass);
     if (!info) continue;
     vtt.directBaseStarts.emplace(baseClass, vtt.entries.size());
-    appendConstructionSubVTT(completeClass, baseClass, info->offset, vtt,
+    appendConstructionSubVTT(completeClass, baseClass, info->offset,
+                             /*constructionClassIsVirtual=*/false, vtt,
                              emission);
   }
 
@@ -3107,7 +3180,8 @@ auto Codegen::buildVTT(ClassSymbol* completeClass) -> GeneratedVTT {
     auto info = layout->getBaseInfo(virtualBase);
     if (!info) continue;
     vtt.virtualBaseStarts.emplace(virtualBase, vtt.entries.size());
-    appendConstructionSubVTT(completeClass, virtualBase, info->offset, vtt,
+    appendConstructionSubVTT(completeClass, virtualBase, info->offset,
+                             /*constructionClassIsVirtual=*/true, vtt,
                              emission);
   }
 
@@ -3261,7 +3335,8 @@ auto Codegen::findOrCreateDsoHandle(SourceLocation loc) -> ir::GlobalRef {
             .type = i8Type,
             .linkage = linkageAttr,
             .isConstant = /*isConstant=*/false,
-            .alignment = static_cast<std::uint64_t>(alignmentAttr.integer),
+            .alignment =
+                static_cast<std::uint64_t>(alignmentAttr.integer.toUIntMax()),
             .initializer = /*initializer=*/ir::Initializer(),
             .unknownLocation = false});
 }

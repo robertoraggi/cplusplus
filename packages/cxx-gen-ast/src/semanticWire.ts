@@ -48,7 +48,7 @@ export type Wire =
   | { k: "literal"; cpp: string }
   | { k: "abi-tags" }
   | { k: "attributes" }
-  | { k: "const-value" }
+  | { k: "const-value"; alternatives: Wire[] }
   | { k: "const-value-ptr" }
   | { k: "template-argument" }
   | { k: "indeterminate" }
@@ -111,6 +111,7 @@ const integerWires: Record<string, Wire> = {
 export class WireMapper {
   readonly structs = new Map<string, string>();
   readonly index: ModelIndex;
+  constValue: Wire | undefined;
 
   constructor(index: ModelIndex) {
     this.index = index;
@@ -214,7 +215,7 @@ export class WireMapper {
       return "cxx::TemplateArgument";
 
     if (
-      alternatives[0] === "long long" &&
+      alternatives[0] === "::cxx::ConstInt" &&
       alternatives[1] === "::cxx::StringLiteral" &&
       alternatives.at(-1) === "::cxx::IndeterminateValue"
     )
@@ -427,7 +428,17 @@ export class WireMapper {
     const alias = this.variantAliasOf(target);
 
     if (alias === "cxx::TemplateArgument") return { k: "template-argument" };
-    if (alias === "cxx::ConstValue") return { k: "const-value" };
+
+    if (alias === "cxx::ConstValue") {
+      const wire: Wire = {
+        k: "const-value",
+        alternatives: typeArguments(target).map((argument) =>
+          this.wireOf(argument, context),
+        ),
+      };
+      this.constValue = wire;
+      return wire;
+    }
 
     return {
       k: "variant",

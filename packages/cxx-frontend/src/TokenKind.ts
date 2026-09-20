@@ -19,190 +19,565 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-export enum TokenKind {
-  EOF_SYMBOL,
-  ERROR,
-  COMMENT,
-  IDENTIFIER,
-  CHARACTER_LITERAL,
-  FLOATING_POINT_LITERAL,
-  INTEGER_LITERAL,
-  STRING_LITERAL,
-  USER_DEFINED_STRING_LITERAL,
-  UTF16_STRING_LITERAL,
-  UTF32_STRING_LITERAL,
-  UTF8_STRING_LITERAL,
-  WIDE_STRING_LITERAL,
-  PP_INTERNAL_VARIABLE,
-  CODE_COMPLETION,
-  PRAGMA_PACK,
-  AMP_AMP,
-  AMP_EQUAL,
-  AMP,
-  BAR_BAR,
-  BAR_EQUAL,
-  BAR,
-  CARET_CARET,
-  CARET_EQUAL,
-  CARET,
-  COLON_COLON,
-  COLON,
-  COMMA,
-  DELETE_ARRAY,
-  DOT_DOT_DOT,
-  DOT_STAR,
-  DOT,
-  EQUAL_EQUAL,
-  EQUAL,
-  EXCLAIM_EQUAL,
-  EXCLAIM,
-  GREATER_EQUAL,
-  GREATER_GREATER_EQUAL,
-  GREATER_GREATER,
-  GREATER,
-  HASH_HASH,
-  HASH,
-  LBRACE,
-  LBRACKET,
-  LESS_EQUAL_GREATER,
-  LESS_EQUAL,
-  LESS_LESS_EQUAL,
-  LESS_LESS,
-  LESS,
-  LPAREN,
-  MINUS_EQUAL,
-  MINUS_GREATER_STAR,
-  MINUS_GREATER,
-  MINUS_MINUS,
-  MINUS,
-  NEW_ARRAY,
-  PERCENT_EQUAL,
-  PERCENT,
-  PLUS_EQUAL,
-  PLUS_PLUS,
-  PLUS,
-  QUESTION,
-  RBRACE,
-  RBRACKET,
-  RPAREN,
-  SEMICOLON,
-  SLASH_EQUAL,
-  SLASH,
-  STAR_EQUAL,
-  STAR,
-  TILDE,
-  _ATOMIC,
-  _BITINT,
-  _COMPLEX,
-  _DECIMAL128,
-  _DECIMAL32,
-  _DECIMAL64,
-  _FLOAT16,
-  _GENERIC,
-  _IMAGINARY,
-  _NORETURN,
-  __ATTRIBUTE__,
-  __BUILTIN_BIT_CAST,
-  __BUILTIN_META_INFO,
-  __BUILTIN_OFFSETOF,
-  __BUILTIN_VA_ARG,
-  __BUILTIN_VA_LIST,
-  __COMPLEX__,
-  __EXTENSION__,
-  __FLOAT128,
-  __FLOAT80,
-  __IMAG__,
-  __INT128,
-  __INT128_T,
-  __INT64,
-  __REAL__,
-  __RESTRICT__,
-  __THREAD,
-  __UINT128_T,
-  __UNDERLYING_TYPE,
-  ALIGNAS,
-  ALIGNOF,
-  ASM,
-  AUTO,
-  BOOL,
-  BREAK,
-  CASE,
-  CATCH,
-  CHAR,
-  CHAR16_T,
-  CHAR32_T,
-  CHAR8_T,
-  CLASS,
-  CO_AWAIT,
-  CO_RETURN,
-  CO_YIELD,
-  CONCEPT,
-  CONST,
-  CONST_CAST,
-  CONSTEVAL,
-  CONSTEXPR,
-  CONSTINIT,
-  CONTINUE,
-  DECLTYPE,
-  DEFAULT,
-  DELETE,
-  DO,
-  DOUBLE,
-  DYNAMIC_CAST,
-  ELSE,
-  ENUM,
-  EXPLICIT,
-  EXPORT,
-  EXTERN,
-  FALSE,
-  FLOAT,
-  FOR,
-  FRIEND,
-  GOTO,
-  IF,
-  IMPORT,
-  INLINE,
-  INT,
-  LONG,
-  MODULE,
-  MUTABLE,
-  NAMESPACE,
-  NEW,
-  NOEXCEPT,
-  NULLPTR,
-  OPERATOR,
-  PRIVATE,
-  PROTECTED,
-  PUBLIC,
-  REGISTER,
-  REINTERPRET_CAST,
-  REQUIRES,
-  RETURN,
-  SHORT,
-  SIGNED,
-  SIZEOF,
-  STATIC,
-  STATIC_ASSERT,
-  STATIC_CAST,
-  STRUCT,
-  SWITCH,
-  TEMPLATE,
-  THIS,
-  THREAD_LOCAL,
-  THROW,
-  TRUE,
-  TRY,
-  TYPEDEF,
-  TYPEID,
-  TYPENAME,
-  TYPEOF,
-  TYPEOF_UNQUAL,
-  UNION,
-  UNSIGNED,
-  USING,
-  VIRTUAL,
-  VOID,
-  VOLATILE,
-  WCHAR_T,
-  WHILE,
-}
+export type TokenKind =
+  | "eof_symbol"
+  | "error"
+  | "comment"
+  | "identifier"
+  | "character_literal"
+  | "floating_point_literal"
+  | "integer_literal"
+  | "string_literal"
+  | "user_defined_string_literal"
+  | "utf16_string_literal"
+  | "utf32_string_literal"
+  | "utf8_string_literal"
+  | "wide_string_literal"
+  | "pp_internal_variable"
+  | "code_completion"
+  | "pragma_pack"
+  | "&&"
+  | "&="
+  | "&"
+  | "||"
+  | "|="
+  | "|"
+  | "^^"
+  | "^="
+  | "^"
+  | "::"
+  | ":"
+  | ","
+  | "delete[]"
+  | "..."
+  | ".*"
+  | "."
+  | "=="
+  | "="
+  | "!="
+  | "!"
+  | ">="
+  | ">>="
+  | ">>"
+  | ">"
+  | "##"
+  | "#"
+  | "{"
+  | "["
+  | "<=>"
+  | "<="
+  | "<<="
+  | "<<"
+  | "<"
+  | "("
+  | "-="
+  | "->*"
+  | "->"
+  | "--"
+  | "-"
+  | "new[]"
+  | "%="
+  | "%"
+  | "+="
+  | "++"
+  | "+"
+  | "?"
+  | "}"
+  | "]"
+  | ")"
+  | ";"
+  | "/="
+  | "/"
+  | "*="
+  | "*"
+  | "~"
+  | "_Atomic"
+  | "_BitInt"
+  | "_Complex"
+  | "_Decimal128"
+  | "_Decimal32"
+  | "_Decimal64"
+  | "_Float16"
+  | "_Generic"
+  | "_Imaginary"
+  | "_Noreturn"
+  | "__attribute__"
+  | "__builtin_bit_cast"
+  | "__builtin_meta_info"
+  | "__builtin_offsetof"
+  | "__builtin_va_arg"
+  | "__builtin_va_list"
+  | "__complex__"
+  | "__extension__"
+  | "__float128"
+  | "__float80"
+  | "__imag__"
+  | "__int128"
+  | "__int128_t"
+  | "__int64"
+  | "__real__"
+  | "__restrict__"
+  | "__thread"
+  | "__uint128_t"
+  | "__underlying_type"
+  | "alignas"
+  | "alignof"
+  | "asm"
+  | "auto"
+  | "bool"
+  | "break"
+  | "case"
+  | "catch"
+  | "char"
+  | "char16_t"
+  | "char32_t"
+  | "char8_t"
+  | "class"
+  | "co_await"
+  | "co_return"
+  | "co_yield"
+  | "concept"
+  | "const"
+  | "const_cast"
+  | "consteval"
+  | "constexpr"
+  | "constinit"
+  | "continue"
+  | "decltype"
+  | "default"
+  | "delete"
+  | "do"
+  | "double"
+  | "dynamic_cast"
+  | "else"
+  | "enum"
+  | "explicit"
+  | "export"
+  | "extern"
+  | "false"
+  | "float"
+  | "for"
+  | "friend"
+  | "goto"
+  | "if"
+  | "import"
+  | "inline"
+  | "int"
+  | "long"
+  | "module"
+  | "mutable"
+  | "namespace"
+  | "new"
+  | "noexcept"
+  | "nullptr"
+  | "operator"
+  | "private"
+  | "protected"
+  | "public"
+  | "register"
+  | "reinterpret_cast"
+  | "requires"
+  | "return"
+  | "short"
+  | "signed"
+  | "sizeof"
+  | "static"
+  | "static_assert"
+  | "static_cast"
+  | "struct"
+  | "switch"
+  | "template"
+  | "this"
+  | "thread_local"
+  | "throw"
+  | "true"
+  | "try"
+  | "typedef"
+  | "typeid"
+  | "typename"
+  | "typeof"
+  | "typeof_unqual"
+  | "union"
+  | "unsigned"
+  | "using"
+  | "virtual"
+  | "void"
+  | "volatile"
+  | "wchar_t"
+  | "while";
+
+export const tokenKindNames: Record<number, TokenKind> = {
+  0: "eof_symbol",
+  1: "error",
+  2: "comment",
+  3: "identifier",
+  4: "character_literal",
+  5: "floating_point_literal",
+  6: "integer_literal",
+  7: "string_literal",
+  8: "user_defined_string_literal",
+  9: "utf16_string_literal",
+  10: "utf32_string_literal",
+  11: "utf8_string_literal",
+  12: "wide_string_literal",
+  13: "pp_internal_variable",
+  14: "code_completion",
+  15: "pragma_pack",
+  16: "&&",
+  17: "&=",
+  18: "&",
+  19: "||",
+  20: "|=",
+  21: "|",
+  22: "^^",
+  23: "^=",
+  24: "^",
+  25: "::",
+  26: ":",
+  27: ",",
+  28: "delete[]",
+  29: "...",
+  30: ".*",
+  31: ".",
+  32: "==",
+  33: "=",
+  34: "!=",
+  35: "!",
+  36: ">=",
+  37: ">>=",
+  38: ">>",
+  39: ">",
+  40: "##",
+  41: "#",
+  42: "{",
+  43: "[",
+  44: "<=>",
+  45: "<=",
+  46: "<<=",
+  47: "<<",
+  48: "<",
+  49: "(",
+  50: "-=",
+  51: "->*",
+  52: "->",
+  53: "--",
+  54: "-",
+  55: "new[]",
+  56: "%=",
+  57: "%",
+  58: "+=",
+  59: "++",
+  60: "+",
+  61: "?",
+  62: "}",
+  63: "]",
+  64: ")",
+  65: ";",
+  66: "/=",
+  67: "/",
+  68: "*=",
+  69: "*",
+  70: "~",
+  71: "_Atomic",
+  72: "_BitInt",
+  73: "_Complex",
+  74: "_Decimal128",
+  75: "_Decimal32",
+  76: "_Decimal64",
+  77: "_Float16",
+  78: "_Generic",
+  79: "_Imaginary",
+  80: "_Noreturn",
+  81: "__attribute__",
+  82: "__builtin_bit_cast",
+  83: "__builtin_meta_info",
+  84: "__builtin_offsetof",
+  85: "__builtin_va_arg",
+  86: "__builtin_va_list",
+  87: "__complex__",
+  88: "__extension__",
+  89: "__float128",
+  90: "__float80",
+  91: "__imag__",
+  92: "__int128",
+  93: "__int128_t",
+  94: "__int64",
+  95: "__real__",
+  96: "__restrict__",
+  97: "__thread",
+  98: "__uint128_t",
+  99: "__underlying_type",
+  100: "alignas",
+  101: "alignof",
+  102: "asm",
+  103: "auto",
+  104: "bool",
+  105: "break",
+  106: "case",
+  107: "catch",
+  108: "char",
+  109: "char16_t",
+  110: "char32_t",
+  111: "char8_t",
+  112: "class",
+  113: "co_await",
+  114: "co_return",
+  115: "co_yield",
+  116: "concept",
+  117: "const",
+  118: "const_cast",
+  119: "consteval",
+  120: "constexpr",
+  121: "constinit",
+  122: "continue",
+  123: "decltype",
+  124: "default",
+  125: "delete",
+  126: "do",
+  127: "double",
+  128: "dynamic_cast",
+  129: "else",
+  130: "enum",
+  131: "explicit",
+  132: "export",
+  133: "extern",
+  134: "false",
+  135: "float",
+  136: "for",
+  137: "friend",
+  138: "goto",
+  139: "if",
+  140: "import",
+  141: "inline",
+  142: "int",
+  143: "long",
+  144: "module",
+  145: "mutable",
+  146: "namespace",
+  147: "new",
+  148: "noexcept",
+  149: "nullptr",
+  150: "operator",
+  151: "private",
+  152: "protected",
+  153: "public",
+  154: "register",
+  155: "reinterpret_cast",
+  156: "requires",
+  157: "return",
+  158: "short",
+  159: "signed",
+  160: "sizeof",
+  161: "static",
+  162: "static_assert",
+  163: "static_cast",
+  164: "struct",
+  165: "switch",
+  166: "template",
+  167: "this",
+  168: "thread_local",
+  169: "throw",
+  170: "true",
+  171: "try",
+  172: "typedef",
+  173: "typeid",
+  174: "typename",
+  175: "typeof",
+  176: "typeof_unqual",
+  177: "union",
+  178: "unsigned",
+  179: "using",
+  180: "virtual",
+  181: "void",
+  182: "volatile",
+  183: "wchar_t",
+  184: "while",
+};
+
+export const tokenKindValues: Record<TokenKind, number> = {
+  eof_symbol: 0,
+  error: 1,
+  comment: 2,
+  identifier: 3,
+  character_literal: 4,
+  floating_point_literal: 5,
+  integer_literal: 6,
+  string_literal: 7,
+  user_defined_string_literal: 8,
+  utf16_string_literal: 9,
+  utf32_string_literal: 10,
+  utf8_string_literal: 11,
+  wide_string_literal: 12,
+  pp_internal_variable: 13,
+  code_completion: 14,
+  pragma_pack: 15,
+  "&&": 16,
+  "&=": 17,
+  "&": 18,
+  "||": 19,
+  "|=": 20,
+  "|": 21,
+  "^^": 22,
+  "^=": 23,
+  "^": 24,
+  "::": 25,
+  ":": 26,
+  ",": 27,
+  "delete[]": 28,
+  "...": 29,
+  ".*": 30,
+  ".": 31,
+  "==": 32,
+  "=": 33,
+  "!=": 34,
+  "!": 35,
+  ">=": 36,
+  ">>=": 37,
+  ">>": 38,
+  ">": 39,
+  "##": 40,
+  "#": 41,
+  "{": 42,
+  "[": 43,
+  "<=>": 44,
+  "<=": 45,
+  "<<=": 46,
+  "<<": 47,
+  "<": 48,
+  "(": 49,
+  "-=": 50,
+  "->*": 51,
+  "->": 52,
+  "--": 53,
+  "-": 54,
+  "new[]": 55,
+  "%=": 56,
+  "%": 57,
+  "+=": 58,
+  "++": 59,
+  "+": 60,
+  "?": 61,
+  "}": 62,
+  "]": 63,
+  ")": 64,
+  ";": 65,
+  "/=": 66,
+  "/": 67,
+  "*=": 68,
+  "*": 69,
+  "~": 70,
+  _Atomic: 71,
+  _BitInt: 72,
+  _Complex: 73,
+  _Decimal128: 74,
+  _Decimal32: 75,
+  _Decimal64: 76,
+  _Float16: 77,
+  _Generic: 78,
+  _Imaginary: 79,
+  _Noreturn: 80,
+  __attribute__: 81,
+  __builtin_bit_cast: 82,
+  __builtin_meta_info: 83,
+  __builtin_offsetof: 84,
+  __builtin_va_arg: 85,
+  __builtin_va_list: 86,
+  __complex__: 87,
+  __extension__: 88,
+  __float128: 89,
+  __float80: 90,
+  __imag__: 91,
+  __int128: 92,
+  __int128_t: 93,
+  __int64: 94,
+  __real__: 95,
+  __restrict__: 96,
+  __thread: 97,
+  __uint128_t: 98,
+  __underlying_type: 99,
+  alignas: 100,
+  alignof: 101,
+  asm: 102,
+  auto: 103,
+  bool: 104,
+  break: 105,
+  case: 106,
+  catch: 107,
+  char: 108,
+  char16_t: 109,
+  char32_t: 110,
+  char8_t: 111,
+  class: 112,
+  co_await: 113,
+  co_return: 114,
+  co_yield: 115,
+  concept: 116,
+  const: 117,
+  const_cast: 118,
+  consteval: 119,
+  constexpr: 120,
+  constinit: 121,
+  continue: 122,
+  decltype: 123,
+  default: 124,
+  delete: 125,
+  do: 126,
+  double: 127,
+  dynamic_cast: 128,
+  else: 129,
+  enum: 130,
+  explicit: 131,
+  export: 132,
+  extern: 133,
+  false: 134,
+  float: 135,
+  for: 136,
+  friend: 137,
+  goto: 138,
+  if: 139,
+  import: 140,
+  inline: 141,
+  int: 142,
+  long: 143,
+  module: 144,
+  mutable: 145,
+  namespace: 146,
+  new: 147,
+  noexcept: 148,
+  nullptr: 149,
+  operator: 150,
+  private: 151,
+  protected: 152,
+  public: 153,
+  register: 154,
+  reinterpret_cast: 155,
+  requires: 156,
+  return: 157,
+  short: 158,
+  signed: 159,
+  sizeof: 160,
+  static: 161,
+  static_assert: 162,
+  static_cast: 163,
+  struct: 164,
+  switch: 165,
+  template: 166,
+  this: 167,
+  thread_local: 168,
+  throw: 169,
+  true: 170,
+  try: 171,
+  typedef: 172,
+  typeid: 173,
+  typename: 174,
+  typeof: 175,
+  typeof_unqual: 176,
+  union: 177,
+  unsigned: 178,
+  using: 179,
+  virtual: 180,
+  void: 181,
+  volatile: 182,
+  wchar_t: 183,
+  while: 184,
+};

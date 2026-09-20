@@ -40,6 +40,7 @@
 #include <vector>
 
 namespace cxx {
+class ClassLayout;
 class DeclSpecs;
 class Decl;
 
@@ -65,11 +66,6 @@ class TranslationUnit;
 
 class Binder {
  public:
-  struct DefaultArgumentInfo {
-    ExpressionAST* expression = nullptr;
-    SourceLocation location = {};
-  };
-
   [[nodiscard]] auto overloadSetFor(ScopeSymbol* scope, const Name* name,
                                     SourceLocation location)
       -> OverloadSetSymbol*;
@@ -227,7 +223,8 @@ class Binder {
 
   [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
                                      const Decl& decl,
-                                     bool addSymbolToParentScope)
+                                     bool addSymbolToParentScope,
+                                     const Type* declaratorType = nullptr)
       -> VariableSymbol*;
 
   [[nodiscard]] auto declareMemberSymbol(DeclaratorAST* declarator,
@@ -306,9 +303,6 @@ class Binder {
   void checkUsingDeclaratorAccess(UsingDeclaratorAST* ast,
                                   UsingDeclarationSymbol* symbol);
 
-  void checkQualifiedNameAccess(NestedNameSpecifierAST* nestedNameSpecifier,
-                                Symbol* symbol, SourceLocation loc);
-
   [[nodiscard]] static auto usingDeclaratorNamesConstructor(
       UsingDeclaratorAST* ast) -> bool;
 
@@ -386,7 +380,7 @@ class Binder {
 
   void resolveIdExpression(IdExpressionAST* ast, bool isCallee);
 
-  void qualifiedLookupIdExpression(IdExpressionAST* ast);
+  void qualifiedLookupIdExpression(IdExpressionAST* ast, bool isCallee = false);
 
   [[nodiscard]] auto resolve(NestedNameSpecifierAST* nestedNameSpecifier,
                              UnqualifiedIdAST* unqualifiedId,
@@ -436,13 +430,34 @@ class Binder {
   [[nodiscard]] auto isC() const -> bool;
   [[nodiscard]] auto isCxx() const -> bool;
 
-  void mergeDefaultArguments(FunctionSymbol* functionSymbol,
-                             DeclaratorAST* declarator);
-
   void computeClassFlags(ClassSymbol* classSymbol);
+
+  void completeForMemberContexts(ClassSymbol* classSymbol);
 
   [[nodiscard]] auto buildRecordLayout(ClassSymbol* classSymbol)
       -> std::expected<bool, std::string>;
+
+  void mergeTemplateParameterDefaults(TemplateParametersSymbol* accumulated,
+                                      TemplateParametersSymbol* incoming);
+
+  void copyDefaultArguments(FunctionParametersSymbol* from,
+                            FunctionParametersSymbol* to);
+
+  void checkTemplateParameterDefaultOrder(TemplateParametersSymbol* parameters);
+
+  void checkDefaultTemplateArgumentOnPack(TemplateParametersSymbol* parameters);
+
+  void rejectDefaultTemplateArguments(TemplateDeclarationAST* templateHead,
+                                      std::string message);
+
+  void setTemplateHead(FunctionSymbol* symbol,
+                       TemplateDeclarationAST* templateHead);
+
+  void setTemplateHead(VariableSymbol* symbol,
+                       TemplateDeclarationAST* templateHead);
+
+  void setTemplateHead(TypeAliasSymbol* symbol,
+                       TemplateDeclarationAST* templateHead);
 
   [[nodiscard]] auto scopeForBlockDecl(ScopeSymbol* scope) const
       -> ScopeSymbol*;
@@ -542,6 +557,38 @@ class Binder {
   }
 
  private:
+  struct ClassSubobjectExtent {
+    std::uint64_t stride = 0;
+    std::uint64_t count = 1;
+  };
+
+  struct ClassSubobject {
+    ClassSymbol* symbol = nullptr;
+    std::uint64_t offset = 0;
+    std::vector<ClassSubobjectExtent> extents;
+  };
+
+  using ClassSubobjectList = std::vector<ClassSubobject>;
+
+  struct CachedClassSubobjects {
+    const ClassLayout* layout = nullptr;
+    ClassSubobjectList subobjects;
+  };
+
+  [[nodiscard]] auto emptyClassSubobjects(ClassSymbol* classSymbol)
+      -> const ClassSubobjectList&;
+
+  [[nodiscard]] auto fieldElementClass(FieldSymbol* field) -> ClassSymbol*;
+
+  [[nodiscard]] auto fieldArrayExtent(FieldSymbol* field)
+      -> ClassSubobjectExtent;
+
+  void appendClassSubobjects(ClassSubobjectList& subobjects,
+                             ClassSymbol* classSymbol, std::uint64_t offset,
+                             ClassSubobjectExtent extent);
+
+  std::unordered_map<ClassSymbol*, CachedClassSubobjects> emptyClassSubobjects_;
+
   struct BindClass;
   struct BuildRecordLayout;
   struct CompleteClass;
@@ -587,8 +634,6 @@ class Binder {
   bool retainsEnclosingTemplateLevels_ = false;
   bool reportErrors_ = true;
   std::unordered_map<FunctionSymbol*, int> lambdaDiscriminators_;
-  std::unordered_map<FunctionSymbol*, std::vector<DefaultArgumentInfo>>
-      defaultArguments_;
   std::vector<std::function<void()>> speculativeMutations_;
   int speculationDepth_ = 0;
 

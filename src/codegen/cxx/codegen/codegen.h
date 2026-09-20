@@ -366,6 +366,23 @@ class Codegen {
   [[nodiscard]] auto hasVagueEmission(Symbol* symbol) const -> bool;
   [[nodiscard]] auto symbolLinkage(Symbol* symbol) const -> ir::Linkage;
 
+  [[nodiscard]] auto findOrCreateBaseObjectStructor(
+      FunctionSymbol* functionSymbol) -> ir::FunctionRef;
+
+  [[nodiscard]] auto baseObjectStructorName(FunctionSymbol* functionSymbol)
+      -> std::optional<std::string>;
+
+  [[nodiscard]] auto aliasNameOf(FunctionSymbol* emittedSymbol)
+      -> std::optional<std::string>;
+
+  auto findOrCreateSecondaryFunctionName(FunctionSymbol* functionSymbol,
+                                         std::string_view name,
+                                         std::string_view aliaseeName)
+      -> ir::FunctionRef;
+
+  [[nodiscard]] auto emittedFunctionSymbol(FunctionSymbol* functionSymbol)
+      -> FunctionSymbol*;
+
   [[nodiscard]] auto findOrCreateFunction(FunctionSymbol* functionSymbol)
       -> ir::FunctionRef;
 
@@ -590,6 +607,7 @@ class Codegen {
   void appendConstructionSubVTT(ClassSymbol* completeClass,
                                 ClassSymbol* constructionClass,
                                 std::uint64_t constructionOffset,
+                                bool constructionClassIsVirtual,
                                 GeneratedVTT& vtt,
                                 const VTableEmission& emission);
   void generateVTT(ClassSymbol* completeClass, const VTableEmission& emission);
@@ -740,21 +758,20 @@ class Codegen {
                               ExpressionResult thisValue,
                               std::vector<ExpressionResult> arguments,
                               bool isVirtualDispatch = false,
-                              ExpressionAST* resultOwner = nullptr)
+                              ExpressionAST* resultOwner = nullptr,
+                              bool baseObjectStructor = false)
       -> ExpressionResult;
 
   [[nodiscard]] auto baseStructorVTTArgument(SourceLocation loc,
                                              ClassSymbol* targetClass)
       -> ir::ValueRef;
 
-  [[nodiscard]] auto emitCall(SourceLocation loc,
-                              const FunctionType* functionType,
-                              FunctionSymbol* symbol, bool isVirtualDispatch,
-                              ExpressionResult thisValue,
-                              std::vector<ExpressionResult> arguments,
-                              ir::ValueRef resultObject = {},
-                              ir::ValueRef calleeValue = {})
-      -> ExpressionResult;
+  [[nodiscard]] auto emitCall(
+      SourceLocation loc, const FunctionType* functionType,
+      FunctionSymbol* symbol, bool isVirtualDispatch,
+      ExpressionResult thisValue, std::vector<ExpressionResult> arguments,
+      ir::ValueRef resultObject = {}, ir::ValueRef calleeValue = {},
+      bool baseObjectStructor = false) -> ExpressionResult;
 
   [[nodiscard]] auto uniqueClassTypeName(std::string name) -> std::string;
 
@@ -879,6 +896,36 @@ class Codegen {
     SourceLocation endLoc_;
   };
 
+  class DefaultInitializerObjectGuard {
+   public:
+    DefaultInitializerObjectGuard(Codegen& gen, ir::ValueRef object)
+        : gen_(gen), object_(object) {
+      std::swap(gen_.defaultInitializerObject_, object_);
+    }
+
+    ~DefaultInitializerObjectGuard() {
+      std::swap(gen_.defaultInitializerObject_, object_);
+    }
+
+   private:
+    Codegen& gen_;
+    ir::ValueRef object_;
+  };
+
+  class ThisValueGuard {
+   public:
+    ThisValueGuard(Codegen& gen, ir::ValueRef thisValue)
+        : gen_(gen), thisValue_(thisValue) {
+      std::swap(gen_.thisValue_, thisValue_);
+    }
+
+    ~ThisValueGuard() { std::swap(gen_.thisValue_, thisValue_); }
+
+   private:
+    Codegen& gen_;
+    ir::ValueRef thisValue_;
+  };
+
   class ConditionalEvaluation {
    public:
     explicit ConditionalEvaluation(Codegen& gen) : gen_(gen) {
@@ -971,6 +1018,7 @@ class Codegen {
   ir::ValueRef exitValue_;
   const Type* returnType_ = nullptr;
   ir::ValueRef thisValue_;
+  ir::ValueRef defaultInitializerObject_;
   ir::ValueRef structorVTTValue_;
   ir::ValueRef targetValue_;
   FunctionSymbol* currentFunctionSymbol_ = nullptr;

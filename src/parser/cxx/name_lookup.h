@@ -38,6 +38,9 @@ namespace cxx {
 
 [[nodiscard]] auto bindsName(Symbol* symbol) -> bool;
 
+[[nodiscard]] auto inlineNamespaceSet(NamespaceSymbol* namespaceSymbol)
+    -> std::vector<NamespaceSymbol*>;
+
 struct ClassMemberLookup {
   Symbol* symbol = nullptr;
   bool ambiguous = false;

@@ -154,25 +154,27 @@ struct ASTRewriter::SpecifierVisitor {
                                                      ClassSpecifierAST* copy,
                                                      ClassSymbol* classSymbol)
       -> bool;
-
-  [[nodiscard]] auto lookupInEnclosingClasses(
-      UnqualifiedIdAST* unqualifiedId) const -> Symbol*;
 };
 
-auto ASTRewriter::SpecifierVisitor::lookupInEnclosingClasses(
+auto ASTRewriter::needsEnclosingClassLookup(Symbol* symbol) const -> bool {
+  if (!symbol) return true;
+  auto type = symbol->type();
+  if (!type) return true;
+  if (type_cast<UnresolvedNameType>(type)) return true;
+  return isDependent(unit_, type);
+}
+
+auto ASTRewriter::resolvedInEnclosingClasses(
     UnqualifiedIdAST* unqualifiedId) const -> Symbol* {
   auto nameId = ast_cast<NameIdAST>(unqualifiedId);
   if (!nameId) return nullptr;
 
-  for (auto scope = rewrite.binder_.scope(); scope; scope = scope->parent()) {
+  for (auto scope = binder_.scope(); scope; scope = scope->parent()) {
     if (!symbol_cast<ClassSymbol>(scope)) continue;
 
     auto found = qualifiedLookupType(scope, nameId->identifier);
 
-    if (found && found->type() &&
-        !type_cast<UnresolvedNameType>(found->type())) {
-      return found;
-    }
+    if (found && !needsEnclosingClassLookup(found)) return found;
   }
 
   return nullptr;
@@ -307,6 +309,13 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
       if (auto classType = unqualified_cast<ClassType>(decltypeSpecifier->type))
         resolved = classType->symbol();
     }
+  }
+
+  if (!resolved && ast->symbol) resolved = remapSymbol(ast->symbol->symbol());
+
+  if (needsEnclosingClassLookup(resolved)) {
+    if (auto found = resolvedInEnclosingClasses(copy->unqualifiedId))
+      resolved = found;
   }
 
   if (!setResolvedBase(resolved) && ast->symbol) {
@@ -763,8 +772,9 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
       copy->symbol = rewrite.remapSymbol(ast->symbol);
     }
 
-    if (copy->symbol && type_cast<UnresolvedNameType>(copy->symbol->type())) {
-      if (auto resolved = lookupInEnclosingClasses(copy->unqualifiedId))
+    if (rewrite.needsEnclosingClassLookup(copy->symbol)) {
+      if (auto resolved =
+              rewrite.resolvedInEnclosingClasses(copy->unqualifiedId))
         copy->symbol = resolved;
     }
   }
@@ -1096,6 +1106,14 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   }
 
   rewrite.addSymbolRemap(ast->symbol, classSymbol);
+
+  if (rewrite.classBodyDepth_ && !reusingExisting && !templateHead &&
+      className && !ast->symbol->isSpecialization()) {
+    classSymbol->setInstantiationPattern(ast->symbol);
+    copy->classKey = ast->classKey;
+    copy->isFinal = ast->isFinal;
+    return copy;
+  }
 
   binder()->setScope(classSymbol);
 

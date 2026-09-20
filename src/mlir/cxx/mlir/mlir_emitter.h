@@ -167,6 +167,10 @@ class MlirEmitter final : public Emitter {
                               ValueRef size, std::uint64_t alignment)
       -> ValueRef override;
 
+  [[nodiscard]] auto enclosingFunction() -> mlir::cxx::FuncOp;
+
+  [[nodiscard]] auto enclosingFunctionLocation() -> mlir::Location;
+
   [[nodiscard]] auto enclosingFunctionEntryBlock() -> mlir::Block*;
 
   [[nodiscard]] auto allocate(mlir::Location loc, TypeRef pointerType,
@@ -288,6 +292,9 @@ class MlirEmitter final : public Emitter {
   [[nodiscard]] auto functionLinkage(FunctionRef function) -> Linkage;
 
   [[nodiscard]] auto functionHasBody(FunctionRef function) -> bool override;
+
+  void setFunctionAliasee(FunctionRef function,
+                          std::string_view aliasee) override;
 
   [[nodiscard]] auto findGlobal(std::string_view name) -> GlobalRef override;
 

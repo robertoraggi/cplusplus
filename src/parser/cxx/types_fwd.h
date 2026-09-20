@@ -24,9 +24,13 @@
 
 #include <string>
 #include <utility>
+#include <variant>
 
 namespace cxx {
 class Name;
+class ExpressionAST;
+
+using ExceptionSpecification = std::variant<bool, ExpressionAST*>;
 
 #define CXX_FOR_EACH_TYPE_KIND(V) \
   V(Void)                         \

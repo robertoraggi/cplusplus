@@ -30,147 +30,112 @@ export type ValueRef = number;
 
 export type TokenIndex = number;
 
-export enum InsertionPointKind {
-  BlockStart = 0,
-  BlockEnd = 1,
-  ModuleStart = 2,
-  ModuleEnd = 3,
-}
+export type InsertionPointKind =
+  "BlockStart" | "BlockEnd" | "ModuleStart" | "ModuleEnd";
 
-export enum InitializerKind {
-  None = 0,
-  Integer = 1,
-  Floating = 2,
-  Bytes = 3,
-  Aggregate = 4,
-  Null = 5,
-  Zero = 6,
-  ScalarZero = 7,
-  Undef = 8,
-  SignalingNaN = 9,
-}
+export type InitializerKind =
+  | "None"
+  | "Integer"
+  | "Floating"
+  | "Bytes"
+  | "Aggregate"
+  | "Null"
+  | "Zero"
+  | "ScalarZero"
+  | "Undef"
+  | "SignalingNaN";
 
-export enum TodoKind {
-  Expression = 0,
-  Statement = 1,
-}
+export type TodoKind = "Expression" | "Statement";
 
-export enum UnaryOp {
-  NegateFloat = 0,
-}
+export type UnaryOp = "NegateFloat";
 
-export enum Linkage {
-  External = 0,
-  Internal = 1,
-  LinkOnceODR = 2,
-  WeakODR = 3,
-  AvailableExternally = 4,
-  Appending = 5,
-}
+export type Linkage =
+  | "External"
+  | "Internal"
+  | "LinkOnceODR"
+  | "WeakODR"
+  | "AvailableExternally"
+  | "Appending";
 
-export enum BinaryOp {
-  AddInt = 0,
-  SubInt = 1,
-  MulInt = 2,
-  SignedDiv = 3,
-  UnsignedDiv = 4,
-  SignedRem = 5,
-  UnsignedRem = 6,
-  AndInt = 7,
-  OrInt = 8,
-  XorInt = 9,
-  ShiftLeft = 10,
-  ArithmeticShiftRight = 11,
-  LogicalShiftRight = 12,
-  AddFloat = 13,
-  SubFloat = 14,
-  MulFloat = 15,
-  DivFloat = 16,
-}
+export type BinaryOp =
+  | "AddInt"
+  | "SubInt"
+  | "MulInt"
+  | "SignedDiv"
+  | "UnsignedDiv"
+  | "SignedRem"
+  | "UnsignedRem"
+  | "AndInt"
+  | "OrInt"
+  | "XorInt"
+  | "ShiftLeft"
+  | "ArithmeticShiftRight"
+  | "LogicalShiftRight"
+  | "AddFloat"
+  | "SubFloat"
+  | "MulFloat"
+  | "DivFloat";
 
-export enum IntPredicate {
-  Equal = 0,
-  NotEqual = 1,
-  SignedLess = 2,
-  SignedLessEqual = 3,
-  SignedGreater = 4,
-  SignedGreaterEqual = 5,
-  UnsignedLess = 6,
-  UnsignedLessEqual = 7,
-  UnsignedGreater = 8,
-  UnsignedGreaterEqual = 9,
-}
+export type IntPredicate =
+  | "Equal"
+  | "NotEqual"
+  | "SignedLess"
+  | "SignedLessEqual"
+  | "SignedGreater"
+  | "SignedGreaterEqual"
+  | "UnsignedLess"
+  | "UnsignedLessEqual"
+  | "UnsignedGreater"
+  | "UnsignedGreaterEqual";
 
-export enum FloatPredicate {
-  OrderedEqual = 0,
-  OrderedNotEqual = 1,
-  OrderedLess = 2,
-  OrderedLessEqual = 3,
-  OrderedGreater = 4,
-  OrderedGreaterEqual = 5,
-  UnorderedNotEqual = 6,
-  Unordered = 7,
-}
+export type FloatPredicate =
+  | "OrderedEqual"
+  | "OrderedNotEqual"
+  | "OrderedLess"
+  | "OrderedLessEqual"
+  | "OrderedGreater"
+  | "OrderedGreaterEqual"
+  | "UnorderedNotEqual"
+  | "Unordered";
 
-export enum FloatKind {
-  Half = 0,
-  Single = 1,
-  Double = 2,
-  X87DoubleExtended = 3,
-  Quad = 4,
-}
+export type FloatKind =
+  "Half" | "Single" | "Double" | "X87DoubleExtended" | "Quad";
 
-export enum CastKind {
-  Truncate = 0,
-  SignExtend = 1,
-  ZeroExtend = 2,
-  FloatExtend = 3,
-  FloatTruncate = 4,
-  SignedIntToFloat = 5,
-  UnsignedIntToFloat = 6,
-  FloatToSignedInt = 7,
-  FloatToUnsignedInt = 8,
-  ReinterpretBits = 9,
-  Bitcast = 10,
-  Reshape = 11,
-  ArrayToPointer = 12,
-  PointerToInt = 13,
-  IntToPointer = 14,
-}
+export type CastKind =
+  | "Truncate"
+  | "SignExtend"
+  | "ZeroExtend"
+  | "FloatExtend"
+  | "FloatTruncate"
+  | "SignedIntToFloat"
+  | "UnsignedIntToFloat"
+  | "FloatToSignedInt"
+  | "FloatToUnsignedInt"
+  | "ReinterpretBits"
+  | "Bitcast"
+  | "Reshape"
+  | "ArrayToPointer"
+  | "PointerToInt"
+  | "IntToPointer";
 
-export enum TypeKind {
-  Void = 0,
-  Integer = 1,
-  Floating = 2,
-  Pointer = 3,
-  Array = 4,
-  Class = 5,
-  Function = 6,
-  Unresolved = 7,
-  Other = 8,
-}
+export type TypeKind =
+  | "Void"
+  | "Integer"
+  | "Floating"
+  | "Pointer"
+  | "Array"
+  | "Class"
+  | "Function"
+  | "Unresolved"
+  | "Other";
 
-export enum CallKind {
-  Direct = 0,
-  Builtin = 1,
-}
+export type CallKind = "Direct" | "Builtin";
 
-export enum ParameterAbiKind {
-  Default = 0,
-  StructReturn = 1,
-  ByValue = 2,
-}
+export type ParameterAbiKind = "Default" | "StructReturn" | "ByValue";
 
-export enum Visibility {
-  Default = 0,
-  Hidden = 1,
-  Protected = 2,
-}
+export type Visibility = "Default" | "Hidden" | "Protected";
 
-export enum InlineKind {
-  NoInline = 0,
-  InlineHint = 1,
-}
+export type InlineKind = "NoInline" | "InlineHint";
 
 export interface InsertionPoint {
   kind: InsertionPointKind;
@@ -180,7 +145,7 @@ export interface InsertionPoint {
 export interface Initializer {
   kind: InitializerKind;
   type: TypeRef;
-  integer: number;
+  integer: bigint;
   floating: number;
   bytes: Uint8Array;
   elements: readonly Initializer[];
@@ -205,6 +170,7 @@ export interface ModuleInfo {
   sourceFile: string;
   targetTriple: string;
   debugCompilationDirectory: string;
+  framePointer: string;
 }
 
 export interface CleanupTarget {
@@ -253,7 +219,7 @@ export interface FunctionInfo {
   linkage: Linkage;
   visibility: Visibility;
   inlineKind: InlineKind;
-  aliasName: string;
+  aliasee: string;
   importModule: string;
   importName: string;
   exportName: string;
@@ -468,6 +434,7 @@ export interface EmitterDelegate {
   findFunction(name: string): FunctionRef;
   declareFunction(loc: TokenIndex, info: FunctionInfo): FunctionRef;
   functionHasBody(function_: FunctionRef): boolean;
+  setFunctionAliasee(function_: FunctionRef, aliasee: string): void;
   findGlobal(name: string): GlobalRef;
   declareGlobal(loc: TokenIndex, info: GlobalInfo): GlobalRef;
 }

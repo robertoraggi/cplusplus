@@ -47,6 +47,7 @@ struct [[nodiscard]] Binder::BindClass {
   auto findExistingClass(const Identifier* className) const -> ClassSymbol*;
   auto createClassSymbol(const Identifier* className, SourceLocation location)
       -> ClassSymbol*;
+  auto enclosingClassOfDeclaration() const -> ClassSymbol*;
   void initializeClassSymbol(ClassSymbol* classSymbol);
 
   auto findPrimaryTemplateSymbol(SimpleTemplateIdAST* templateId) const
@@ -99,6 +100,11 @@ auto Binder::BindClass::createClassSymbol(const Identifier* className,
   return classSymbol;
 }
 
+auto Binder::BindClass::enclosingClassOfDeclaration() const -> ClassSymbol* {
+  if (!ast->nestedNameSpecifier) return nullptr;
+  return symbol_cast<ClassSymbol>(ast->nestedNameSpecifier->symbol);
+}
+
 void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   ast->symbol = classSymbol;
   binder.applyAccessSpecifier(classSymbol);
@@ -121,49 +127,29 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
   }
 
   if (declSpecs.templateHead) {
-    if (auto oldDecl = ast->symbol->templateDeclaration()) {
-      auto mergeDefault = [](TemplateParameterAST* src,
-                             TemplateParameterAST* dst) {
-        if (auto s = ast_cast<TypenameTypeParameterAST>(src)) {
-          auto d = ast_cast<TypenameTypeParameterAST>(dst);
-          if (d && s->typeId && !d->typeId) {
-            d->equalLoc = s->equalLoc;
-            d->typeId = s->typeId;
-          }
-        } else if (auto s = ast_cast<NonTypeTemplateParameterAST>(src)) {
-          auto d = ast_cast<NonTypeTemplateParameterAST>(dst);
-          if (d && s->declaration && d->declaration &&
-              s->declaration->expression && !d->declaration->expression) {
-            d->declaration->equalLoc = s->declaration->equalLoc;
-            d->declaration->expression = s->declaration->expression;
-          }
-        } else if (auto s = ast_cast<TemplateTypeParameterAST>(src)) {
-          auto d = ast_cast<TemplateTypeParameterAST>(dst);
-          if (d && s->idExpression && !d->idExpression) {
-            d->equalLoc = s->equalLoc;
-            d->idExpression = s->idExpression;
-          }
-        } else if (auto s = ast_cast<ConstraintTypeParameterAST>(src)) {
-          auto d = ast_cast<ConstraintTypeParameterAST>(dst);
-          if (d && s->typeId && !d->typeId) {
-            d->equalLoc = s->equalLoc;
-            d->typeId = s->typeId;
-          }
-        }
-      };
-
-      auto oldParams = ListView{oldDecl->templateParameterList};
-      auto newParams = ListView{declSpecs.templateHead->templateParameterList};
-      auto newIt = newParams.begin();
-      for (auto oldIt = oldParams.begin();
-           oldIt != oldParams.end() && newIt != newParams.end();
-           ++oldIt, ++newIt) {
-        mergeDefault(*oldIt, *newIt);
-      }
+    if (is_templated_class(enclosingClassOfDeclaration())) {
+      binder.rejectDefaultTemplateArguments(
+          declSpecs.templateHead,
+          "a default template argument cannot be specified on the "
+          "out-of-class definition of a member of a class template");
+    } else if (declSpecs.isFriend) {
+      binder.rejectDefaultTemplateArguments(
+          declSpecs.templateHead,
+          "a default template argument cannot be specified on a friend "
+          "template declaration");
     }
+
+    binder.mergeTemplateParameterDefaults(ast->symbol->templateParameters(),
+                                          declSpecs.templateHead->symbol);
 
     ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
     ast->symbol->setTemplateParameters(declSpecs.templateHead->symbol);
+
+    binder.checkDefaultTemplateArgumentOnPack(
+        ast->symbol->templateParameters());
+
+    binder.checkTemplateParameterDefaultOrder(
+        ast->symbol->templateParameters());
   }
 
   auto classCanon = ast->symbol->canonical();

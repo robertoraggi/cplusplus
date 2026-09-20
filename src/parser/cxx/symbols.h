@@ -166,6 +166,8 @@ struct ExpandedTemplateArgument {
 
 [[nodiscard]] auto is_member_template(Symbol* symbol) -> bool;
 
+[[nodiscard]] auto is_templated_class(ClassSymbol* classSymbol) -> bool;
+
 [[nodiscard]] auto is_unnamed_namespace(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto is_in_unnamed_namespace(Symbol* symbol) -> bool;
@@ -176,6 +178,18 @@ struct ExpandedTemplateArgument {
 
 [[nodiscard]] auto is_non_static_member(Symbol* symbol) -> bool;
 
+[[nodiscard]] auto required_parameter_count(FunctionSymbol* function,
+                                            int parameterCount) -> int;
+
+[[nodiscard]] auto is_callable_with_one_argument(FunctionSymbol* function)
+    -> bool;
+
+[[nodiscard]] auto default_template_argument(Symbol* symbol)
+    -> TemplateParameterAST*;
+
+void set_default_template_argument(Symbol* symbol,
+                                   TemplateParameterAST* defaultArgument);
+
 [[nodiscard]] auto names_current_instantiation(ClassSymbol* classSymbol,
                                                ScopeSymbol* scope) -> bool;
 
@@ -184,6 +198,22 @@ struct ExpandedTemplateArgument {
 
 [[nodiscard]] auto template_parameter_info(Symbol* symbol)
     -> std::optional<TypeParamInfo>;
+
+[[nodiscard]] auto is_template_parameter_pack(Symbol* symbol) -> bool;
+
+class MaybeDefaultTemplateArgument {
+ public:
+  [[nodiscard]] auto defaultArgument() const -> TemplateParameterAST* {
+    return defaultArgument_;
+  }
+
+  void setDefaultArgument(TemplateParameterAST* defaultArgument) {
+    defaultArgument_ = defaultArgument;
+  }
+
+ private:
+  TemplateParameterAST* defaultArgument_ = nullptr;
+};
 
 template <typename S>
 class MaybeRedecl {
@@ -208,6 +238,16 @@ class MaybeRedecl {
 
   [[nodiscard]] auto redeclarations() const -> const std::vector<S*>& {
     return redeclarations_;
+  }
+
+  [[nodiscard]] auto declarations() const -> std::vector<S*> {
+    auto self = canonical();
+    std::vector<S*> result;
+    result.reserve(self->redeclarations_.size() + 1);
+    result.push_back(self);
+    for (auto redeclaration : self->redeclarations_)
+      result.push_back(redeclaration);
+    return result;
   }
 
   void addRedeclaration(S* redecl) {
@@ -927,6 +967,7 @@ class VTableLayout {
   };
 
   Group primary;
+  Group virtualBasePrimary;
   std::vector<Group> secondary;
   FunctionSymbol* keyFunction = nullptr;
 };
@@ -985,6 +1026,7 @@ class ClassSymbol final : public ScopeSymbol,
   using MaybeRedecl<ClassSymbol>::resolvedDefinition;
   using MaybeRedecl<ClassSymbol>::setDefinition;
   using MaybeRedecl<ClassSymbol>::redeclarations;
+  using MaybeRedecl<ClassSymbol>::declarations;
   using MaybeRedecl<ClassSymbol>::addRedeclaration;
   using MaybeRedecl<ClassSymbol>::truncateRedeclarations;
 
@@ -1261,6 +1303,7 @@ class FunctionSymbol final
   using MaybeRedecl<FunctionSymbol>::resolvedDefinition;
   using MaybeRedecl<FunctionSymbol>::setDefinition;
   using MaybeRedecl<FunctionSymbol>::redeclarations;
+  using MaybeRedecl<FunctionSymbol>::declarations;
   using MaybeRedecl<FunctionSymbol>::addRedeclaration;
   using MaybeRedecl<FunctionSymbol>::truncateRedeclarations;
 
@@ -1429,6 +1472,10 @@ class FunctionSymbol final
     return structorPrincipal_ != nullptr;
   }
 
+  [[nodiscard]] auto isStructor() const -> bool;
+
+  [[nodiscard]] auto hasBaseObjectVariant() const -> bool;
+
   [[nodiscard]] auto inheritedConstructor() const -> FunctionSymbol* {
     return inheritedConstructor_;
   }
@@ -1447,9 +1494,30 @@ class FunctionSymbol final
            structorPrincipal_->deletingDtorVariant() == this;
   }
 
+  [[nodiscard]] auto hostScope() const -> ScopeSymbol* {
+    return hostScope_ ? hostScope_ : parent();
+  }
+
+  void setHostScope(ScopeSymbol* hostScope) { hostScope_ = hostScope; }
+
+  [[nodiscard]] auto hasFriendDefaultArgument() const -> bool {
+    return hasFriendDefaultArgument_;
+  }
+  void setFriendDefaultArgument(bool value) {
+    hasFriendDefaultArgument_ = value;
+  }
+
+  [[nodiscard]] auto hasFriendDefaultTemplateArgument() const -> bool {
+    return hasFriendDefaultTemplateArgument_;
+  }
+  void setFriendDefaultTemplateArgument(bool value) {
+    hasFriendDefaultTemplateArgument_ = value;
+  }
+
  private:
   std::unique_ptr<PendingBodyInstantiation> pendingBody_;
   std::unique_ptr<PendingExceptionSpecification> pendingExceptionSpecification_;
+  ScopeSymbol* hostScope_ = nullptr;
   FunctionSymbol* completeObjectVariant_ = nullptr;
   FunctionSymbol* delegatingConstructor_ = nullptr;
   FunctionSymbol* deletingDtorVariant_ = nullptr;
@@ -1490,6 +1558,8 @@ class FunctionSymbol final
       std::uint32_t isDefinitionRequired_ : 1;
       std::uint32_t hasExplicitObjectParameter_ : 1;
       std::uint32_t isNoReturn_ : 1;
+      std::uint32_t hasFriendDefaultArgument_ : 1;
+      std::uint32_t hasFriendDefaultTemplateArgument_ : 1;
     };
   };
 };
@@ -1572,6 +1642,14 @@ class FunctionParametersSymbol final : public ScopeSymbol {
 
   explicit FunctionParametersSymbol(ScopeSymbol* enclosingScope);
   ~FunctionParametersSymbol() override;
+
+  [[nodiscard]] auto cvQualifiers() const -> CvQualifiers {
+    return cvQualifiers_;
+  }
+  void setCvQualifiers(CvQualifiers value) { cvQualifiers_ = value; }
+
+ private:
+  CvQualifiers cvQualifiers_ = CvQualifiers::kNone;
 };
 
 class TemplateParametersSymbol final : public ScopeSymbol {
@@ -1618,6 +1696,7 @@ class TypeAliasSymbol final
   using MaybeRedecl<TypeAliasSymbol>::resolvedDefinition;
   using MaybeRedecl<TypeAliasSymbol>::setDefinition;
   using MaybeRedecl<TypeAliasSymbol>::redeclarations;
+  using MaybeRedecl<TypeAliasSymbol>::declarations;
   using MaybeRedecl<TypeAliasSymbol>::addRedeclaration;
   using MaybeRedecl<TypeAliasSymbol>::truncateRedeclarations;
 
@@ -1647,6 +1726,7 @@ class VariableSymbol final
   using MaybeRedecl<VariableSymbol>::resolvedDefinition;
   using MaybeRedecl<VariableSymbol>::setDefinition;
   using MaybeRedecl<VariableSymbol>::redeclarations;
+  using MaybeRedecl<VariableSymbol>::declarations;
   using MaybeRedecl<VariableSymbol>::addRedeclaration;
   using MaybeRedecl<VariableSymbol>::truncateRedeclarations;
 
@@ -1841,7 +1921,8 @@ class ParameterPackSymbol final : public Symbol {
   std::vector<Symbol*> elements_;
 };
 
-class TypeParameterSymbol final : public Symbol {
+class TypeParameterSymbol final : public Symbol,
+                                  public MaybeDefaultTemplateArgument {
  public:
   constexpr static auto Kind = SymbolKind::kTypeParameter;
 
@@ -1849,7 +1930,8 @@ class TypeParameterSymbol final : public Symbol {
   ~TypeParameterSymbol() override;
 };
 
-class NonTypeParameterSymbol final : public Symbol {
+class NonTypeParameterSymbol final : public Symbol,
+                                     public MaybeDefaultTemplateArgument {
  public:
   constexpr static auto Kind = SymbolKind::kNonTypeParameter;
 
@@ -1875,7 +1957,8 @@ class NonTypeParameterSymbol final : public Symbol {
   bool isParameterPack_ = false;
 };
 
-class TemplateTypeParameterSymbol final : public Symbol {
+class TemplateTypeParameterSymbol final : public Symbol,
+                                          public MaybeDefaultTemplateArgument {
  public:
   constexpr static auto Kind = SymbolKind::kTemplateTypeParameter;
 
@@ -1883,7 +1966,9 @@ class TemplateTypeParameterSymbol final : public Symbol {
   ~TemplateTypeParameterSymbol() override;
 };
 
-class ConstraintTypeParameterSymbol final : public Symbol {
+class ConstraintTypeParameterSymbol final
+    : public Symbol,
+      public MaybeDefaultTemplateArgument {
  public:
   constexpr static auto Kind = SymbolKind::kConstraintTypeParameter;
 

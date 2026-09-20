@@ -1703,7 +1703,7 @@ auto StandardConversion::computeConversionSequenceSteps(
         auto funcType = type_cast<FunctionType>(ctor->type());
         if (!funcType) continue;
         auto& params = funcType->parameterTypes();
-        if (!isCallableWithOneArgument(ctor)) continue;
+        if (!is_callable_with_one_argument(ctor)) continue;
         if (ASTRewriter::evaluateAssociatedConstraints(unit_, ctor) == false)
           continue;
 
@@ -2058,21 +2058,6 @@ auto StandardConversion::listInitializes(BracedInitListAST* bracedInitList,
   OverloadResolution resolution(unit_);
   return bool(resolution.selectListConstructor(classSymbol, bracedInitList,
                                                elements, initializationKind));
-}
-
-auto StandardConversion::isCallableWithOneArgument(FunctionSymbol* ctor)
-    -> bool {
-  auto funcType = type_cast<FunctionType>(ctor->type());
-  if (!funcType || funcType->parameterTypes().empty()) return false;
-  if (funcType->parameterTypes().size() == 1) return true;
-
-  auto params = ctor->parameters();
-  if (params.size() != funcType->parameterTypes().size()) return false;
-
-  for (std::size_t i = 1; i < params.size(); ++i)
-    if (!params[i]->defaultArgument()) return false;
-
-  return true;
 }
 
 void StandardConversion::appendDefaultArguments(FunctionSymbol* function,

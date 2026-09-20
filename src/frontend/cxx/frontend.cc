@@ -412,8 +412,7 @@ void Frontend::Private::prepare() {
     return;
   }
   if (!toolchain_) {
-    auto id = cli.getSingle("-toolchain").value_or("wasm32");
-    std::cerr << std::format("cxx: unknown toolchain '{}'\n", id);
+    std::cerr << describeUnsupportedTarget(cli) << '\n';
     fail();
     return;
   }

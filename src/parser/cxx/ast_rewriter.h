@@ -312,10 +312,6 @@ class [[nodiscard]] ASTRewriter {
       const std::vector<TemplateArgument>& templateArguments, int depth)
       -> std::optional<bool>;
 
-  [[nodiscard]] auto constraintOperandDeterminesResult(ExpressionAST* operand,
-                                                       TokenKind op) const
-      -> bool;
-
   auto control() const -> Control*;
   auto arena() const -> Arena*;
   auto binder() -> Binder& { return binder_; }
@@ -507,6 +503,11 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] auto substitutedTemplateParameterClass(Symbol* symbol) const
       -> Symbol*;
 
+  [[nodiscard]] auto resolvedInEnclosingClasses(
+      UnqualifiedIdAST* unqualifiedId) const -> Symbol*;
+
+  [[nodiscard]] auto needsEnclosingClassLookup(Symbol* symbol) const -> bool;
+
   [[nodiscard]] auto packExpansionSize(
       AST* pattern, SourceLocation expansionLoc,
       ParameterPackSymbol* additionalPack = nullptr) -> std::optional<int>;
@@ -614,7 +615,6 @@ class [[nodiscard]] ASTRewriter {
   ClassSymbol* classInstanceToComplete_ = nullptr;
   bool rewritingTemplateParameterDeclaration_ = false;
   bool restrictedToDeclarations_ = false;
-  bool rewritingConstraintExpression_ = false;
   bool retainsEnclosingTemplateLevels_ = false;
   bool substitutionFailed_ = false;
 

@@ -23,6 +23,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/dependent_types.h>
 #include <cxx/initialization.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
@@ -30,6 +31,7 @@
 #include <cxx/overload_resolution.h>
 #include <cxx/standard_conversion.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
@@ -848,7 +850,10 @@ struct IsSameVisitor {
     if (type->isVariadic() != otherType->isVariadic()) return false;
     if (type->refQualifier() != otherType->refQualifier()) return false;
     if (type->cvQualifiers() != otherType->cvQualifiers()) return false;
-    if (type->isNoexcept() != otherType->isNoexcept()) return false;
+    if (!TemplateEquivalence{typeTraits.unit()}.same(
+            type->exceptionSpecification(),
+            otherType->exceptionSpecification()))
+      return false;
     if (type->parameterTypes().size() != otherType->parameterTypes().size())
       return false;
     if (!typeTraits.is_same(type->returnType(), otherType->returnType()))
@@ -1048,7 +1053,6 @@ auto is_trivially_destructible_class(TypeTraits& traits, ClassSymbol* cls)
   if (!cls || !cls->isComplete()) return false;
 
   auto dtor = cls->destructor();
-  if (dtor && dtor->isDeleted()) return false;
   if (isUserProvided(dtor)) return false;
   if (dtor && dtor->isVirtual()) return false;
 
@@ -1189,6 +1193,30 @@ auto has_unique_base_subobject_types(ClassSymbol* cls,
     if (!has_unique_base_subobject_types(baseClass, seen)) return false;
   }
   return true;
+}
+
+auto has_base_of_first_member_type(TypeTraits& traits, ClassSymbol* cls)
+    -> bool {
+  FieldSymbol* firstField = nullptr;
+  for (auto field : cls->members() | views::non_static_fields) {
+    firstField = field;
+    break;
+  }
+
+  if (!firstField) return false;
+
+  auto fieldClass = type_cast<ClassType>(traits.remove_cv(firstField->type()));
+  if (!fieldClass || !fieldClass->symbol()) return false;
+
+  auto fieldSymbol = fieldClass->symbol()->resolvedDefinition();
+
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    if (baseClass->resolvedDefinition() == fieldSymbol) return true;
+  }
+
+  return false;
 }
 
 void collect_standard_layout_member_types(
@@ -1412,6 +1440,22 @@ auto TypeTraits::is_signed(const Type* type) const -> bool {
 auto TypeTraits::is_unsigned(const Type* type) const -> bool {
   return type &&
          visit(IsUnsigned{control()->memoryLayout()->isWideCharSigned()}, type);
+}
+
+auto TypeTraits::integral_constant(const Type* type, ConstInt::Wide value) const
+    -> std::optional<ConstInt> {
+  auto representation = integral_representation(type);
+  if (!representation) return std::nullopt;
+  return ConstInt::make(value, representation->bits, representation->isSigned);
+}
+
+auto TypeTraits::converted_integral_constant(const Type* type,
+                                             const ConstInt& value) const
+    -> std::optional<ConstInt> {
+  auto converted = integral_constant(type, value.toWideValue());
+  if (!converted) return std::nullopt;
+  if (*converted != value) return std::nullopt;
+  return converted;
 }
 
 auto TypeTraits::integral_representation(const Type* type) const
@@ -1807,6 +1851,7 @@ auto TypeTraits::is_narrowing_list_element(ExpressionAST* expr,
 
   auto source = listElementSource(expr);
   if (!source) return false;
+  if (isDependent(unit_, source)) return false;
 
   auto sourceType = source->type ? source->type : expr->type;
   if (!is_narrowing_conversion(sourceType, targetType)) return false;
@@ -1869,8 +1914,8 @@ auto TypeTraits::is_narrowing_list_element(ExpressionAST* expr,
   auto value = ASTInterpreter{unit_}.evaluate(source);
   if (!value) return true;
 
-  if (auto intValue = std::get_if<std::intmax_t>(&*value))
-    return !fitsInteger(*intValue);
+  if (auto intValue = std::get_if<ConstInt>(&*value))
+    return !fitsInteger(intValue->toIntMax());
   if (auto floatValue = std::get_if<float>(&*value))
     return !fitsFloating(*floatValue);
   if (auto doubleValue = std::get_if<double>(&*value))
@@ -2073,7 +2118,7 @@ auto TypeTraits::replace_placeholder_types(const Type* type,
     return control()->getFunctionType(
         returnType, std::move(parameterTypes), functionType->isVariadic(),
         functionType->cvQualifiers(), functionType->refQualifier(),
-        functionType->isNoexcept());
+        functionType->exceptionSpecification());
   }
 
   if (auto pointerType = type_cast<MemberObjectPointerType>(type)) {
@@ -2381,10 +2426,10 @@ auto TypeTraits::promoted_enumeration_types(const EnumType* enumType) const
       if (!enumerator) continue;
       const auto& value = enumerator->value();
       if (!value) continue;
-      auto intValue = std::get_if<std::intmax_t>(&*value);
+      auto intValue = std::get_if<ConstInt>(&*value);
       if (!intValue) continue;
-      minValue = std::min(minValue, *intValue);
-      maxValue = std::max(maxValue, *intValue);
+      minValue = std::min(minValue, intValue->toIntMax());
+      maxValue = std::max(maxValue, intValue->toIntMax());
     }
   }
 
@@ -2748,7 +2793,7 @@ auto TypeTraits::data_size(const Type* type) -> std::uint64_t {
   auto cls = classType ? classType->definition() : nullptr;
   auto layout = cls ? cls->layout() : nullptr;
   if (!layout) return 0;
-  if (is_pod(type)) return layout->size();
+  if (is_pod_for_layout(type)) return layout->size();
   return layout->dataSize();
 }
 
@@ -2757,7 +2802,7 @@ auto TypeTraits::non_virtual_size(const Type* type) -> std::uint64_t {
   auto cls = classType ? classType->definition() : nullptr;
   auto layout = cls ? cls->layout() : nullptr;
   if (!layout) return 0;
-  if (is_pod(type)) return layout->size();
+  if (is_pod_for_layout(type)) return layout->size();
   return layout->nonVirtualSize();
 }
 
@@ -2780,6 +2825,11 @@ auto TypeTraits::is_trivial(const Type* type) -> bool {
 }
 
 auto TypeTraits::is_standard_layout(const Type* type) -> bool {
+  return standard_layout(type, StandardLayoutRule::kLanguage);
+}
+
+auto TypeTraits::standard_layout(const Type* type, StandardLayoutRule rule)
+    -> bool {
   auto unqual = remove_cv(type);
   if (is_scalar_or_vector(unqual)) return true;
   if (auto classType = type_cast<ClassType>(unqual)) {
@@ -2792,7 +2842,8 @@ auto TypeTraits::is_standard_layout(const Type* type) -> bool {
     std::optional<AccessSpecifier> memberAccess;
     for (auto field : cls->members() | views::non_static_fields) {
       if (is_reference(field->type())) return false;
-      if (!is_standard_layout(remove_all_extents(field->type()))) return false;
+      if (!standard_layout(remove_all_extents(field->type()), rule))
+        return false;
       if (!memberAccess) memberAccess = field->accessSpecifier();
       if (*memberAccess != field->accessSpecifier()) return false;
     }
@@ -2803,9 +2854,13 @@ auto TypeTraits::is_standard_layout(const Type* type) -> bool {
       auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseClass) continue;
       baseClass = baseClass->resolvedDefinition();
-      if (!is_standard_layout(baseClass->type())) return false;
+      if (!standard_layout(baseClass->type(), rule)) return false;
       if (has_data_members_in_hierarchy(baseClass)) ++dataBearingSubobjects;
       if (dataBearingSubobjects > 1) return false;
+    }
+
+    if (rule == StandardLayoutRule::kLayout) {
+      return !has_base_of_first_member_type(*this, cls);
     }
 
     std::unordered_set<ClassSymbol*> baseTypes;
@@ -2820,8 +2875,18 @@ auto TypeTraits::is_standard_layout(const Type* type) -> bool {
     }
     return true;
   }
-  if (is_array(unqual)) return is_standard_layout(remove_all_extents(unqual));
+  if (is_array(unqual))
+    return standard_layout(remove_all_extents(unqual), rule);
   return false;
+}
+
+auto TypeTraits::is_pod_for_layout(const Type* type) -> bool {
+  auto unqual = remove_cv(type);
+  if (is_array(unqual)) return is_pod_for_layout(remove_all_extents(unqual));
+  if (is_scalar_or_vector(unqual)) return true;
+  if (!type_cast<ClassType>(unqual)) return false;
+  if (!is_trivial(unqual)) return false;
+  return standard_layout(unqual, StandardLayoutRule::kLayout);
 }
 
 auto TypeTraits::is_literal_type(const Type* type) -> bool {
@@ -2961,8 +3026,8 @@ auto TypeTraits::is_zero_size_subobject(FieldSymbol* field) -> bool {
     if (field->name()) return false;
     auto& width = field->bitFieldWidth();
     if (!width.has_value()) return false;
-    auto bits = std::get_if<std::intmax_t>(&*width);
-    return bits && *bits == 0;
+    auto bits = std::get_if<ConstInt>(&*width);
+    return bits && bits->isZero();
   }
 
   if (!field->isNoUniqueAddress()) return false;
@@ -3317,9 +3382,8 @@ auto TypeTraits::has_trivial_destructor(const Type* type) -> bool {
   if (is_reference(unqual)) return true;
   if (is_void(unqual)) return false;
   if (is_function(unqual)) return false;
-  if (is_unbounded_array(unqual)) return false;
-  if (is_bounded_array(unqual))
-    return is_trivially_destructible(remove_all_extents(unqual));
+  if (is_array(unqual))
+    return has_trivial_destructor(remove_all_extents(unqual));
   if (is_scalar_or_vector(unqual) || is_atomic(unqual)) return true;
   if (auto classType = type_cast<ClassType>(unqual)) {
     auto cls = classType->definition();

@@ -90,7 +90,12 @@ auto Binder::ResolveUnqualifiedId::shouldKeepTemplateIdAsDependent(
   auto classSymbol = symbol_cast<ClassSymbol>(resolved);
   if (!classSymbol) return true;
 
-  return names_template_head_parameters(templateId, classSymbol);
+  for (auto scope = binder.scope(); scope; scope = scope->parent()) {
+    if (auto enclosing = symbol_cast<ClassSymbol>(scope);
+        enclosing && enclosing->canonical() == classSymbol->canonical())
+      return names_template_head_parameters(templateId, classSymbol);
+  }
+  return false;
 }
 
 auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(

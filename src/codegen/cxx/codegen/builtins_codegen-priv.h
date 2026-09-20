@@ -134,6 +134,15 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_CLRSBLL:
       return codegenBuiltinBitCount(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_CLZG:
+      return codegenBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZG:
+      return codegenBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNTG:
+      return codegenBuiltinBitCount(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_CLZS:
       return codegenBuiltinBitCount(ast);
 

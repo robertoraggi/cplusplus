@@ -4013,106 +4013,60 @@
   },
   {
     "name": "__builtin_clzg",
+    "prototype": [
+      "constexpr int __builtin_clzg(unsigned char)",
+      "constexpr int __builtin_clzg(unsigned short)",
+      "constexpr int __builtin_clzg(unsigned int)",
+      "constexpr int __builtin_clzg(unsigned long)",
+      "constexpr int __builtin_clzg(unsigned long long)",
+      "constexpr int __builtin_clzg(unsigned __int128)",
+      "constexpr int __builtin_clzg(unsigned char, int)",
+      "constexpr int __builtin_clzg(unsigned short, int)",
+      "constexpr int __builtin_clzg(unsigned int, int)",
+      "constexpr int __builtin_clzg(unsigned long, int)",
+      "constexpr int __builtin_clzg(unsigned long long, int)",
+      "constexpr int __builtin_clzg(unsigned __int128, int)"
+    ],
     "constexpr": true,
-    "genericMacro": {
-      "parameter": "x",
-      "associations": [
-        {
-          "type": "unsigned char",
-          "expansion": "__builtin_clz((unsigned int)(x)) - 24"
-        },
-        {
-          "type": "unsigned short",
-          "expansion": "__builtin_clzs(x)"
-        },
-        {
-          "type": "unsigned int",
-          "expansion": "__builtin_clz(x)"
-        },
-        {
-          "type": "unsigned long",
-          "expansion": "__builtin_clzl(x)"
-        },
-        {
-          "type": "unsigned long long",
-          "expansion": "__builtin_clzll(x)"
-        },
-        {
-          "type": "unsigned __int128",
-          "expansion": "((unsigned long long)((x) >> 64) ? __builtin_clzll((unsigned long long)((x) >> 64)) : 64 + __builtin_clzll((unsigned long long)(x)))"
-        }
-      ],
-      "zeroFallbackParameter": "fallback",
-      "zeroFallbackType": "int"
-    }
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
   },
   {
     "name": "__builtin_ctzg",
+    "prototype": [
+      "constexpr int __builtin_ctzg(unsigned char)",
+      "constexpr int __builtin_ctzg(unsigned short)",
+      "constexpr int __builtin_ctzg(unsigned int)",
+      "constexpr int __builtin_ctzg(unsigned long)",
+      "constexpr int __builtin_ctzg(unsigned long long)",
+      "constexpr int __builtin_ctzg(unsigned __int128)",
+      "constexpr int __builtin_ctzg(unsigned char, int)",
+      "constexpr int __builtin_ctzg(unsigned short, int)",
+      "constexpr int __builtin_ctzg(unsigned int, int)",
+      "constexpr int __builtin_ctzg(unsigned long, int)",
+      "constexpr int __builtin_ctzg(unsigned long long, int)",
+      "constexpr int __builtin_ctzg(unsigned __int128, int)"
+    ],
     "constexpr": true,
-    "genericMacro": {
-      "parameter": "x",
-      "associations": [
-        {
-          "type": "unsigned char",
-          "expansion": "__builtin_ctz((unsigned int)(x))"
-        },
-        {
-          "type": "unsigned short",
-          "expansion": "__builtin_ctzs(x)"
-        },
-        {
-          "type": "unsigned int",
-          "expansion": "__builtin_ctz(x)"
-        },
-        {
-          "type": "unsigned long",
-          "expansion": "__builtin_ctzl(x)"
-        },
-        {
-          "type": "unsigned long long",
-          "expansion": "__builtin_ctzll(x)"
-        },
-        {
-          "type": "unsigned __int128",
-          "expansion": "((unsigned long long)(x) ? __builtin_ctzll((unsigned long long)(x)) : 64 + __builtin_ctzll((unsigned long long)((x) >> 64)))"
-        }
-      ],
-      "zeroFallbackParameter": "fallback",
-      "zeroFallbackType": "int"
-    }
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
   },
   {
     "name": "__builtin_popcountg",
+    "prototype": [
+      "constexpr int __builtin_popcountg(unsigned char)",
+      "constexpr int __builtin_popcountg(unsigned short)",
+      "constexpr int __builtin_popcountg(unsigned int)",
+      "constexpr int __builtin_popcountg(unsigned long)",
+      "constexpr int __builtin_popcountg(unsigned long long)",
+      "constexpr int __builtin_popcountg(unsigned __int128)"
+    ],
     "constexpr": true,
-    "genericMacro": {
-      "parameter": "x",
-      "associations": [
-        {
-          "type": "unsigned char",
-          "expansion": "__builtin_popcount((unsigned int)(x))"
-        },
-        {
-          "type": "unsigned short",
-          "expansion": "__builtin_popcount((unsigned int)(x))"
-        },
-        {
-          "type": "unsigned int",
-          "expansion": "__builtin_popcount(x)"
-        },
-        {
-          "type": "unsigned long",
-          "expansion": "__builtin_popcountl(x)"
-        },
-        {
-          "type": "unsigned long long",
-          "expansion": "__builtin_popcountll(x)"
-        },
-        {
-          "type": "unsigned __int128",
-          "expansion": "(__builtin_popcountll((unsigned long long)(x)) + __builtin_popcountll((unsigned long long)((x) >> 64)))"
-        }
-      ]
-    }
+    "noexcept": true,
+    "eval": "evaluateBuiltinBitCount",
+    "codegen": "codegenBuiltinBitCount"
   },
   {
     "name": "__builtin_clzs",

@@ -309,6 +309,46 @@ struct PartialSpecMatcher {
     return result;
   }
 
+  auto constantArgument(const Type* type, std::optional<ConstValue> value,
+                        ExpressionAST* initializer = nullptr) -> Symbol* {
+    auto argument = control()->newVariableSymbol(nullptr, {});
+    argument->setType(type);
+    argument->setInitializer(initializer);
+    argument->setConstexpr(value.has_value());
+    argument->setConstValue(value);
+    return argument;
+  }
+
+  auto integralArgument(const Type* type, ConstInt::Wide value) -> Symbol* {
+    auto constant = unit->typeTraits().integral_constant(type, value);
+    if (!constant) return nullptr;
+    return constantArgument(type, ConstValue{*constant});
+  }
+
+  auto constantArgument(ExpressionAST* expression) -> Symbol* {
+    if (!expression) return nullptr;
+    if (auto cast = ast_cast<ImplicitCastExpressionAST>(expression))
+      return constantArgument(cast->expression);
+    if (auto nested = ast_cast<NestedExpressionAST>(expression))
+      return constantArgument(nested->expression);
+    if (auto constant = ast_cast<ConstExpressionAST>(expression))
+      return constantArgument(constant->expression);
+    if (auto id = ast_cast<IdExpressionAST>(expression); id && id->symbol)
+      return id->symbol;
+    return constantArgument(expression->type,
+                            isDependent(unit, expression)
+                                ? std::nullopt
+                                : ASTInterpreter{unit}.evaluate(expression),
+                            expression);
+  }
+
+  auto constantArgument(const ExceptionSpecification& specification)
+      -> Symbol* {
+    if (auto value = std::get_if<bool>(&specification))
+      return integralArgument(control()->getBoolType(), *value);
+    return constantArgument(std::get<ExpressionAST*>(specification));
+  }
+
   auto collectWrittenTemplateArgumentSymbols(List<TemplateArgumentAST*>* args)
       -> std::optional<std::vector<Symbol*>> {
     std::vector<Symbol*> symbols;
@@ -325,19 +365,7 @@ struct PartialSpecMatcher {
         auto expression = exprArg->expression;
         if (auto expansion = ast_cast<PackExpansionExpressionAST>(expression))
           expression = expansion->expression;
-        auto idExpr = ast_cast<IdExpressionAST>(expression);
-        if (idExpr && idExpr->symbol) {
-          symbols.push_back(idExpr->symbol);
-          continue;
-        }
-
-        auto value = control()->newVariableSymbol(nullptr, {});
-        if (expression) value->setType(expression->type);
-        if (auto constant = ASTInterpreter{unit}.evaluate(expression)) {
-          value->setConstexpr(true);
-          value->setConstValue(*constant);
-        }
-        symbols.push_back(value);
+        symbols.push_back(constantArgument(expression));
         continue;
       }
 
@@ -513,6 +541,14 @@ struct PartialSpecMatcher {
     if (auto patInfo = template_parameter_info(patSym)) {
       auto concInfo = template_parameter_info(concSym);
       if (!patInfo->isPack && concInfo && concInfo->isPack) return false;
+      if (auto parameter = symbol_cast<NonTypeParameterSymbol>(patSym);
+          parameter && isDependent(unit, parameter->objectType())) {
+        auto argumentType = concSym->type();
+        if (auto argument = symbol_cast<NonTypeParameterSymbol>(concSym))
+          argumentType = argument->objectType();
+        if (!deduceType(parameter->objectType(), argumentType, nullptr))
+          return false;
+      }
       return deduceOrCheck(paramPosition(patInfo->depth, patInfo->index),
                            concSym);
     }
@@ -527,6 +563,8 @@ struct PartialSpecMatcher {
       return true;
     }
 
+    if (auto decided = deduceConstantArgument(patSym, concSym)) return *decided;
+
     auto patType = patSym->type();
     auto concType = concSym->type();
     if (!patType || !concType) {
@@ -535,8 +573,6 @@ struct PartialSpecMatcher {
     }
 
     if (type_cast<UnresolvedNameType>(patType)) return true;
-
-    if (auto decided = deduceConstantArgument(patSym, concSym)) return *decided;
 
     return deduceType(patType, concType, childTemplateId);
   }
@@ -778,33 +814,21 @@ struct PartialSpecMatcher {
     auto patArray = type_cast<UnresolvedBoundedArrayType>(patType);
     if (!patArray) return std::nullopt;
 
-    auto idExpr = ast_cast<IdExpressionAST>(patArray->size());
-    if (!idExpr) return false;
-
-    auto nttp = symbol_cast<NonTypeParameterSymbol>(idExpr->symbol);
-    if (!nttp) return false;
-
     Symbol* argument = nullptr;
     const Type* concElementType = nullptr;
     if (auto concArray = type_cast<BoundedArrayType>(concType)) {
-      auto value = control()->newVariableSymbol(nullptr, {});
-      value->setType(nttp->objectType());
-      value->setConstexpr(true);
-      value->setConstValue(
-          ConstValue(static_cast<std::intmax_t>(concArray->size())));
-      argument = value;
+      argument = integralArgument(control()->getSizeType(), concArray->size());
       concElementType = concArray->elementType();
     } else if (auto concArray =
                    type_cast<UnresolvedBoundedArrayType>(concType)) {
-      auto concIdExpr = ast_cast<IdExpressionAST>(concArray->size());
-      if (!concIdExpr) return false;
-      argument = concIdExpr->symbol;
+      argument = constantArgument(concArray->size());
       concElementType = concArray->elementType();
     } else {
       return false;
     }
 
-    if (!deduceOrCheck(paramPosition(nttp->depth(), nttp->index()), argument))
+    if (!deduceArgument(constantArgument(patArray->size()), argument, nullptr,
+                        0))
       return false;
 
     return deduceType(patArray->elementType(), concElementType, patTemplId);
@@ -823,7 +847,11 @@ struct PartialSpecMatcher {
       return false;
     if (patFunction->refQualifier() != concFunction->refQualifier())
       return false;
-    if (patFunction->isNoexcept() != concFunction->isNoexcept()) return false;
+    if (!deduceArgument(
+            constantArgument(patFunction->exceptionSpecification()),
+            constantArgument(concFunction->exceptionSpecification()), nullptr,
+            0))
+      return false;
 
     const auto& patParams = patFunction->parameterTypes();
     const auto& concParams = concFunction->parameterTypes();

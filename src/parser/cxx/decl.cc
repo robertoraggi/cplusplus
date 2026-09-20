@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/decl.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/type_traits.h>
 
 // cxx
@@ -53,7 +54,9 @@ void setFunctionNoexcept(Control* control, FunctionSymbol* function,
                          bool isNoexcept) {
   if (!function) return;
   auto functionType = type_cast<FunctionType>(function->type());
-  if (!functionType || functionType->isNoexcept() == isNoexcept) return;
+  if (!functionType || functionType->exceptionSpecification() ==
+                           ExceptionSpecification{isNoexcept})
+    return;
 
   function->setType(control->getFunctionType(
       functionType->returnType(),
@@ -293,10 +296,14 @@ struct GetDeclaratorType {
       }
     }
 
-    bool isNoexcept = false;
-
-    if (ast->exceptionSpecifier)
-      isNoexcept = visit(*this, ast->exceptionSpecifier);
+    ExceptionSpecification exceptionSpecification = false;
+    if (auto specification =
+            ast_cast<NoexceptSpecifierAST>(ast->exceptionSpecifier);
+        specification && isDependent(unit, specification->expression)) {
+      exceptionSpecification = specification->expression;
+    } else if (ast->exceptionSpecifier) {
+      exceptionSpecification = visit(*this, ast->exceptionSpecifier);
+    }
 
     if (ast->trailingReturnType) {
 #if false
@@ -315,7 +322,7 @@ struct GetDeclaratorType {
 
     type_ = control()->getFunctionType(returnType, std::move(parameterTypes),
                                        isVariadic, cvQualifiers, refQualifier,
-                                       isNoexcept);
+                                       exceptionSpecification);
 
     type_ = applyTypeAttributes(unit, ast->attributeList, type_,
                                 ast->firstSourceLocation());
@@ -334,8 +341,27 @@ struct GetDeclaratorType {
     const auto constValue = interp.evaluate(ast->expression);
 
     if (constValue) {
-      if (auto size = interp.toUInt(constValue.value()))
-        return control()->getBoundedArrayType(type_, *size);
+      auto sizeType = control()->getSizeType();
+      auto converted = interp.toIntegralType(constValue.value(), sizeType);
+
+      if (converted) {
+        auto size = std::get<ConstInt>(*converted);
+        auto number = std::get_if<ConstInt>(&constValue.value());
+
+        if (number && *number != size) {
+          unit->error(ast->expression->firstSourceLocation(),
+                      "array declared with a negative size");
+          return control()->getBoundedArrayType(type_, 1);
+        }
+
+        if (size.isZero() && unit->diagnosticsClient()->isSfinae()) {
+          unit->error(ast->expression->firstSourceLocation(),
+                      "array declared with a size of zero");
+          return control()->getBoundedArrayType(type_, 1);
+        }
+
+        return control()->getBoundedArrayType(type_, size.toUIntMax());
+      }
     }
 
     return control()->getUnresolvedBoundedArrayType(unit, type_,

@@ -113,6 +113,7 @@ add_library(cxx-parser
     cxx/type_printer.cc
     cxx/type_traits.cc
     cxx/types.cc
+    cxx/triple.cc
     cxx/util.cc
     cxx/wasm32_wasi_toolchain.cc
     cxx/windows_toolchain.cc

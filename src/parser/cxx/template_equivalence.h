@@ -48,6 +48,8 @@ class TemplateEquivalence {
                       ParameterCorrespondence correspondence)
       : unit_(unit), correspondence_(correspondence) {}
 
+  [[nodiscard]] auto same(const ExceptionSpecification& a,
+                          const ExceptionSpecification& b) const -> bool;
   [[nodiscard]] auto same(const Type* a, const Type* b) const -> bool;
   [[nodiscard]] auto same(ExpressionAST* a, ExpressionAST* b) const -> bool;
   [[nodiscard]] auto same(TypeIdAST* a, TypeIdAST* b) const -> bool;

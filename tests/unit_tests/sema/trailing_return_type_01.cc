@@ -41,8 +41,10 @@ auto list::at(value_type) -> value_type { return 0; }
 // CHECK-NEXT:          parameter ::list::iterator&&
 // CHECK-NEXT:      function constexpr inline defaulted void ~iterator()
 // CHECK-NEXT:    function ::list::iterator begin()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        function ::list::iterator begin()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[6]
 // CHECK-NEXT:    function int at(int)

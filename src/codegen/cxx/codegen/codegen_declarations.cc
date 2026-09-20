@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
-#include <cxx/ast_rewriter.h>
 #include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -427,6 +426,11 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   auto func = gen.findOrCreateFunction(functionSymbol);
 
   if (gen.emitter_.functionHasBody(func)) return {};
+
+  if (auto baseName = gen.baseObjectStructorName(functionSymbol)) {
+    (void)gen.findOrCreateSecondaryFunctionName(functionSymbol, *baseName,
+                                                gen.functionName(func));
+  }
 
   const auto needsExitValue = !gen.traits.is_void(returnType);
 

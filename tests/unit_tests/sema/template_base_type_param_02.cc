@@ -22,6 +22,7 @@ Wrapper<double> w1;
 //      CHECK:namespace
 // CHECK-NEXT:  class Base
 // CHECK-NEXT:    constructor inline void Base()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[5]
 // CHECK-NEXT:    constructor inline explicit void Base(int)
@@ -49,6 +50,7 @@ Wrapper<double> w1;
 // CHECK-NEXT:    parameter typename<1, 0> B
 // CHECK-NEXT:    base class type-param<1, 0>
 // CHECK-NEXT:    constructor constexpr inline defaulted void Wrapper()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    constructor inline explicit void Wrapper(type-param<0, 0>)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter type-param<0, 0> v
@@ -60,6 +62,7 @@ Wrapper<double> w1;
 // CHECK-NEXT:      class Wrapper<double, ::Base>
 // CHECK-NEXT:        base class ::Base
 // CHECK-NEXT:        constructor constexpr inline defaulted void Wrapper()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:        constructor inline explicit void Wrapper(double)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter double v

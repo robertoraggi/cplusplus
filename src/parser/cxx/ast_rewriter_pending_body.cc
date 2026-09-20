@@ -283,11 +283,14 @@ void ASTRewriter::requirePotentiallyInvokedDestructors(
 void ASTRewriter::requireDestructorOfType(TranslationUnit* unit,
                                           const Type* type) {
   if (!unit || !type) return;
+  if (!unit->isPotentiallyEvaluated()) return;
 
   TypeTraits traits{unit};
   auto objectType = traits.remove_cv(traits.remove_all_extents(type));
   auto classType = unqualified_cast<ClassType>(objectType);
   if (!classType || !classType->symbol()) return;
+
+  if (!ensureCompleteClass(unit, classType->symbol())) return;
 
   auto classSymbol = classType->symbol()->resolvedDefinition();
   requireFunctionDefinition(unit, classSymbol->destructor());

@@ -135,8 +135,10 @@ class Control {
   [[nodiscard]] auto getFunctionType(
       const Type* returnType, std::vector<const Type*> parameterTypes,
       bool isVariadic = false, CvQualifiers cvQualifiers = CvQualifiers::kNone,
-      RefQualifier refQualifier = RefQualifier::kNone, bool isNoexcept = false)
+      RefQualifier refQualifier = RefQualifier::kNone,
+      ExceptionSpecification exceptionSpecification = false)
       -> const FunctionType*;
+  [[nodiscard]] auto getPseudoDestructorType() -> const FunctionType*;
   [[nodiscard]] auto getMemberObjectPointerType(const Type* classType,
                                                 const Type* elementType)
       -> const MemberObjectPointerType*;
