@@ -78,6 +78,9 @@ auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
     case BuiltinFunctionKind::T___BUILTIN_CLRSB:
     case BuiltinFunctionKind::T___BUILTIN_CLRSBL:
     case BuiltinFunctionKind::T___BUILTIN_CLRSBLL:
+    case BuiltinFunctionKind::T___BUILTIN_CLZG:
+    case BuiltinFunctionKind::T___BUILTIN_CTZG:
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNTG:
     case BuiltinFunctionKind::T___BUILTIN_CLZS:
     case BuiltinFunctionKind::T___BUILTIN_CTZS:
     case BuiltinFunctionKind::T___BUILTIN_ISGREATER:
@@ -211,6 +214,15 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
       return evaluateBuiltinBitCount(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_CLRSBLL:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CLZG:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CTZG:
+      return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNTG:
       return evaluateBuiltinBitCount(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_CLZS:

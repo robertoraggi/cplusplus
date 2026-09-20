@@ -16,6 +16,7 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:            identifier: foo
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
+// CHECK-NEXT:            parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement
 // CHECK-NEXT:    function-definition

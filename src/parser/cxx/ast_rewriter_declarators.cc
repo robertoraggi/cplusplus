@@ -26,6 +26,7 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -299,9 +300,9 @@ auto ASTRewriter::requiresClause(RequiresClauseAST* ast) -> RequiresClauseAST* {
   auto copy = RequiresClauseAST::create(arena());
 
   copy->requiresLoc = ast->requiresLoc;
-  const auto saved = std::exchange(rewritingConstraintExpression_, true);
+
+  SilentDiagnosticsScope silent{unit_};
   copy->expression = unevaluatedExpression(ast->expression);
-  rewritingConstraintExpression_ = saved;
 
   return copy;
 }
@@ -313,6 +314,10 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
   auto copy = ParameterDeclarationClauseAST::create(arena());
 
   binder().bind(copy);
+
+  if (ast->functionParametersSymbol)
+    copy->functionParametersSymbol->setCvQualifiers(
+        ast->functionParametersSymbol->cvQualifiers());
 
   auto _ = Binder::ScopeGuard(&binder_);
 
@@ -462,10 +467,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       } else if (getFunctionPrototype(copy->declarator)) {
         auto functionSymbol = binder_.declareFunction(copy->declarator, decl,
                                                       addSymbolToParentScope);
-        if (auto templateHead = decl.specs.templateHead) {
-          functionSymbol->setTemplateDeclaration(templateHead);
-          functionSymbol->setTemplateParameters(templateHead->symbol);
-        }
+        if (auto templateHead = decl.specs.templateHead)
+          binder_.setTemplateHead(functionSymbol, templateHead);
         copy->symbol = functionSymbol;
       } else {
         auto variableSymbol = binder_.declareVariable(copy->declarator, decl,
@@ -487,16 +490,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   }
 
   auto function = symbol_cast<FunctionSymbol>(copy->symbol);
-  if (function) {
-    if (auto prototype = getFunctionPrototype(copy->declarator)) {
-      if (auto parameters = prototype->parameterDeclarationClause)
-        function->addSymbol(parameters->functionParametersSymbol);
-    }
-  }
-  if (function && functionTemplateHead) {
-    function->setTemplateDeclaration(functionTemplateHead);
-    function->setTemplateParameters(functionTemplateHead->symbol);
-  }
+  if (function && functionTemplateHead)
+    binder_.setTemplateHead(function, functionTemplateHead);
   auto functionExceptionSpecifier =
       static_cast<ExceptionSpecifierAST*>(nullptr);
   if (auto prototype = getFunctionPrototype(copy->declarator))

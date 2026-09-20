@@ -42,8 +42,8 @@ struct ToInt {
     return v ? 1 : 0;
   }
 
-  auto operator()(std::intmax_t v) const -> std::optional<std::intmax_t> {
-    return v;
+  auto operator()(ConstInt v) const -> std::optional<std::intmax_t> {
+    return v.toIntMax();
   }
 
   auto operator()(float v) const -> std::optional<std::intmax_t> {
@@ -74,8 +74,8 @@ struct ToUInt {
     return v ? 1 : 0;
   }
 
-  auto operator()(std::intmax_t v) const -> std::optional<std::uintmax_t> {
-    return std::bit_cast<std::uintmax_t>(v);
+  auto operator()(ConstInt v) const -> std::optional<std::uintmax_t> {
+    return static_cast<std::uintmax_t>(v.toWideValue());
   }
 
   auto operator()(float v) const -> std::optional<std::uintmax_t> {
@@ -143,6 +143,11 @@ struct ArithmeticCast {
     return std::visit(*this, value->real());
   }
 
+  auto operator()(ConstInt value) const -> T {
+    if (value.isSigned()) return static_cast<T>(value.toIntMax());
+    return static_cast<T>(value.toUIntMax());
+  }
+
   auto operator()(auto value) const -> T { return static_cast<T>(value); }
 };
 }  // namespace
@@ -179,6 +184,10 @@ struct ASTInterpreter::ToBool {
     auto imag = std::visit(*this, value->imag());
     if (!real || !imag) return std::nullopt;
     return *real || *imag;
+  }
+
+  auto operator()(ConstInt value) const -> std::optional<bool> {
+    return !value.isZero();
   }
 
   auto operator()(const auto& value) const -> std::optional<bool> {
@@ -276,28 +285,29 @@ auto ASTInterpreter::toUInt(const ConstValue& value)
 
 auto ASTInterpreter::toIntegralType(const ConstValue& value, const Type* type)
     -> std::optional<ConstValue> {
-  auto representation =
-      translationUnit()->typeTraits().integral_representation(type);
+  auto traits = translationUnit()->typeTraits();
+
+  auto representation = traits.integral_representation(type);
   if (!representation) return std::nullopt;
 
-  constexpr auto storageBits = static_cast<int>(sizeof(std::uintmax_t) * 8);
-  const auto bits = std::min(representation->bits, storageBits);
+  ConstInt::Wide raw = 0;
 
-  if (!representation->isSigned) {
+  if (auto stored = std::get_if<ConstInt>(&value)) {
+    raw = stored->toWideValue();
+  } else if (representation->isSigned) {
+    auto result = toInt(value);
+    if (!result.has_value()) return std::nullopt;
+    raw = static_cast<ConstInt::Wide>(*result);
+  } else {
     auto result = toUInt(value);
     if (!result.has_value()) return std::nullopt;
-    if (bits < storageBits) *result &= (std::uintmax_t{1} << bits) - 1;
-    return ConstValue{std::bit_cast<std::intmax_t>(*result)};
+    raw = static_cast<ConstInt::Wide>(static_cast<ConstInt::UWide>(*result));
   }
 
-  auto result = toInt(value);
-  if (!result.has_value()) return std::nullopt;
-  if (bits >= storageBits) return ConstValue{*result};
+  auto converted = traits.integral_constant(type, raw);
+  if (!converted) return std::nullopt;
 
-  const auto mask = (std::uintmax_t{1} << bits) - 1;
-  auto bitPattern = std::bit_cast<std::uintmax_t>(*result) & mask;
-  if (bitPattern & (std::uintmax_t{1} << (bits - 1))) bitPattern |= ~mask;
-  return ConstValue{std::bit_cast<std::intmax_t>(bitPattern)};
+  return ConstValue{*converted};
 }
 
 auto ASTInterpreter::toArithmeticType(const ConstValue& value, const Type* type)
@@ -305,7 +315,7 @@ auto ASTInterpreter::toArithmeticType(const ConstValue& value, const Type* type)
   if (!type) return std::nullopt;
 
   const auto holdsArithmetic =
-      std::holds_alternative<std::intmax_t>(value) ||
+      std::holds_alternative<ConstInt>(value) ||
       std::holds_alternative<float>(value) ||
       std::holds_alternative<double>(value) ||
       std::holds_alternative<long double>(value) ||
@@ -403,9 +413,17 @@ void ASTInterpreter::setLocal(const Symbol* sym, ConstValue value) {
   frames_.back().locals.insert_or_assign(sym, std::move(value));
 }
 
+auto ASTInterpreter::definingDeclarationOf(FunctionSymbol* function)
+    -> FunctionSymbol* {
+  auto definition = function->resolvedDefinition();
+  if (definition->hasPendingBody())
+    ASTRewriter::completePendingBodyFor(unit_, definition);
+  return definition;
+}
+
 auto ASTInterpreter::bindParameters(Frame& frame, FunctionSymbol* func,
                                     std::vector<ConstValue>& args) -> bool {
-  auto params = func->parameters();
+  auto params = definingDeclarationOf(func)->parameters();
   for (std::size_t i = 0; i < params.size(); ++i) {
     if (i < args.size()) {
       auto value = traits.is_reference(params[i]->type()) ? args[i]
@@ -451,7 +469,7 @@ auto ASTInterpreter::bindOneParameter(Frame& frame, Symbol* paramSymbol,
 auto ASTInterpreter::bindParametersFromExprs(
     Frame& frame, FunctionSymbol* function,
     std::span<ExpressionAST* const> arguments) -> bool {
-  auto parameters = function->parameters();
+  auto parameters = definingDeclarationOf(function)->parameters();
   for (std::size_t i = 0; i < parameters.size(); ++i) {
     auto argument =
         i < arguments.size() ? arguments[i] : parameters[i]->defaultArgument();
@@ -774,10 +792,7 @@ auto ASTInterpreter::executeFunction(FunctionSymbol* function, Frame frame,
                                      std::shared_ptr<ConstObject> object,
                                      bool constructor) -> CallResult {
   if (!function || !function->isConstexpr() || depth_ >= kMaxDepth) return {};
-  auto definition = function->definition();
-  if (!definition) definition = function;
-  if (definition->hasPendingBody())
-    ASTRewriter::completePendingBodyFor(unit_, definition);
+  auto definition = definingDeclarationOf(function);
   auto declaration = definition->declaration();
   auto body = declaration ? ast_cast<CompoundStatementFunctionBodyAST>(
                                 declaration->functionBody)
@@ -824,7 +839,7 @@ auto ASTInterpreter::executeFunction(FunctionSymbol* function, Frame frame,
   if (!aborted_ && body->statement) (void)statement(body->statement);
   if (auto type = type_cast<FunctionType>(function->type());
       type && traits.is_void(type->returnType()) && !returnValue_)
-    returnValue_ = ConstValue{std::intmax_t{0}};
+    returnValue_ = ConstValue{ConstInt{std::intmax_t{0}}};
   CallResult result;
   if (constructor)
     result.value = thisObject_;
@@ -906,8 +921,7 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
   if (!ctor) return std::nullopt;
   if (!ctor->isConstexpr()) return std::nullopt;
 
-  auto defn = ctor->definition();
-  if (!defn) defn = ctor;
+  auto defn = ctor->resolvedDefinition();
 
   if (defn->hasPendingBody()) {
     ASTRewriter::completePendingBodyFor(unit_, defn);

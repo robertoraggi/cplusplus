@@ -24,14 +24,55 @@
 #include <cxx/private/path.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <format>
+#include <optional>
 #include <ranges>
 #include <regex>
+#include <utility>
+
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 
 namespace cxx {
+namespace {
 
-MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch)
+constexpr int kFallbackVersionMajor = 26;
+
+auto hostProductVersion() -> std::optional<std::pair<int, int>> {
+#ifdef __APPLE__
+  char buffer[64] = {};
+  std::size_t size = sizeof(buffer) - 1;
+  if (sysctlbyname("kern.osproductversion", buffer, &size, nullptr, 0) != 0) {
+    return std::nullopt;
+  }
+
+  int major = 0;
+  int minor = 0;
+  if (std::sscanf(buffer, "%d.%d", &major, &minor) < 1) return std::nullopt;
+
+  return std::pair{major, minor};
+#else
+  return std::nullopt;
+#endif
+}
+
+}  // namespace
+
+MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch,
+                               std::optional<std::pair<int, int>> osVersion)
     : Toolchain(preprocessor), arch_(std::move(arch)) {
+  versionMajor_ = kFallbackVersionMajor;
+  versionMinor_ = 0;
+
+  if (!osVersion) osVersion = hostProductVersion();
+
+  if (osVersion) {
+    versionMajor_ = osVersion->first;
+    versionMinor_ = osVersion->second;
+  }
+
   std::string xcodeContentsBasePath = "/Applications/Xcode.app/Contents";
 
   platformPath_ = std::format(
@@ -45,13 +86,23 @@ MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch)
 
   if (arch_ == "aarch64") {
     memoryLayout()->setSizeOfLongDouble(8, 53);
-    memoryLayout()->setTriple("arm64-apple-macosx15.0.0");
+    memoryLayout()->setTriple(
+        std::format("arm64-apple-macosx{}", deploymentTargetTriplePart()));
   } else if (arch_ == "x86_64") {
     memoryLayout()->setSizeOfLongDouble(16, 64);
-    memoryLayout()->setTriple("x86_64-apple-macosx15.0.0");
+    memoryLayout()->setTriple(
+        std::format("x86_64-apple-macosx{}", deploymentTargetTriplePart()));
   } else {
     cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
   }
+}
+
+auto MacOSToolchain::deploymentTargetTriplePart() const -> std::string {
+  return std::format("{}.{}.0", versionMajor_, versionMinor_);
+}
+
+auto MacOSToolchain::deploymentTargetMacroValue() const -> std::string {
+  return std::format("{}{:02}{:02}", versionMajor_, versionMinor_, 0);
 }
 
 void MacOSToolchain::setSysroot(std::string sysroot) {
@@ -104,9 +155,7 @@ auto to_string(const Version& version) -> std::string {
 
 }  // namespace
 
-void MacOSToolchain::addSystemIncludePaths() {
-  auto platform = sysroot_.empty() ? platformPath_ : sysroot_;
-
+auto MacOSToolchain::defaultResourceDir() const -> std::string {
   const auto clangLibDir =
       std::filesystem::path{toolchainPath_} / "usr" / "lib" / "clang";
 
@@ -130,11 +179,18 @@ void MacOSToolchain::addSystemIncludePaths() {
     }
   }
 
+  if (candidates.empty()) return Toolchain::defaultResourceDir();
+
   std::ranges::sort(candidates, std::less<>{}, &VersionedResourcePath::version);
 
-  for (const auto& candidate : candidates | std::ranges::views::reverse) {
-    addSystemIncludePath((candidate.path / "include").string());
-    break;
+  return candidates.back().path.string();
+}
+
+void MacOSToolchain::addSystemIncludePaths() {
+  auto platform = sysroot_.empty() ? platformPath_ : sysroot_;
+
+  if (auto resourceDir = this->resourceDir(); !resourceDir.empty()) {
+    addSystemIncludePath((fs::path{resourceDir} / "include").string());
   }
 
   addSystemIncludePath(std::format("{}/usr/include", platform));
@@ -164,6 +220,11 @@ void MacOSToolchain::addPredefinedMacros() {
 
   addCommonMacros();
   addCommonMacOSMacros();
+
+  defineMacro("__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__",
+              deploymentTargetMacroValue());
+  defineMacro("__ENVIRONMENT_OS_VERSION_MIN_REQUIRED__",
+              deploymentTargetMacroValue());
 
   if (language() == LanguageKind::kCXX) {
     addCommonCxx26Macros();

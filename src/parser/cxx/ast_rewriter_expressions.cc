@@ -33,6 +33,7 @@
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/standard_conversion.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -89,13 +90,11 @@ struct ASTRewriter::ExpressionVisitor {
       -> ExpressionAST* {
     if (!var->constValue()) return nullptr;
 
-    auto value = std::get_if<std::intmax_t>(&*var->constValue());
-    if (!value || *value < 0) return nullptr;
+    auto value = std::get_if<ConstInt>(&*var->constValue());
+    if (!value) return nullptr;
 
-    auto literal = control()->integerLiteral(std::to_string(*value));
-    return IntLiteralExpressionAST::create(arena(), literal,
-                                           /*literalOperatorCall=*/nullptr,
-                                           ValueCategory::kPrValue, type);
+    return TemplateArguments{translationUnit()}.integerLiteralExpression(*value,
+                                                                         type);
   }
 
   [[nodiscard]] auto operator()(CharLiteralExpressionAST* ast)
@@ -602,6 +601,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(NestedExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionAST* {
+  const auto isCallee = std::exchange(rewrite.rewritingCallee_, false);
   if (auto pack = rewrite.functionParameterPackFor(ast->symbol)) {
     if (auto expandedParam = rewrite.packElementAt(pack)) {
       auto copy = IdExpressionAST::create(arena());
@@ -646,10 +646,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
       }
     }
   } else if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
-    binder()->qualifiedLookupIdExpression(copy);
+    binder()->qualifiedLookupIdExpression(copy, isCallee);
   } else if (ast->symbol) {
-    const auto isCallee = std::exchange(rewrite.rewritingCallee_, false);
-
     copy->symbol = rewrite.remapSymbol(ast->symbol);
 
     if (!isCallee && symbol_cast<OverloadSetSymbol>(copy->symbol) &&
@@ -1259,6 +1257,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
 
   if (copy->symbol && copy->symbol != ast->symbol) {
     copy->type = completedSymbolType(translationUnit(), copy->symbol);
+    copy->valueCategory = ValueCategory::kNone;
   }
 
   if (!copy->symbol && copy->baseExpression) {
@@ -1272,7 +1271,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
             copy->type = completedSymbolType(translationUnit(), dtor);
           }
         } else {
-          copy->type = control()->getFunctionType(control()->getVoidType(), {});
+          copy->type = control()->getPseudoDestructorType();
         }
         return copy;
       }
@@ -1306,10 +1305,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
               copy->type = completedSymbolType(translationUnit(), symbol);
             }
 
-            if (auto field = symbol_cast<FieldSymbol>(symbol);
-                field && !field->isStatic()) {
-              copy->valueCategory = ast->valueCategory;
-            }
+            copy->valueCategory = ValueCategory::kNone;
           } else {
             copy->type = nullptr;
             rewrite.markSubstitutionFailure();
@@ -1750,13 +1746,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
   copy->isVirtualDispatch = ast->isVirtualDispatch;
   copy->leftExpression = rewrite.expression(ast->leftExpression);
   copy->opLoc = ast->opLoc;
-  if (rewrite.rewritingConstraintExpression_ &&
-      rewrite.constraintOperandDeterminesResult(copy->leftExpression,
-                                                ast->op)) {
-    copy->rightExpression = ast->rightExpression->clone(arena());
-  } else {
-    copy->rightExpression = rewrite.expression(ast->rightExpression);
-  }
+  copy->rightExpression = rewrite.expression(ast->rightExpression);
   copy->op = ast->op;
 
   return copy;
@@ -1857,9 +1847,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   copy->isVirtualDispatch = ast->isVirtualDispatch;
   copy->targetExpression = rewrite.expression(ast->targetExpression);
   copy->opLoc = ast->opLoc;
-  copy->leftExpression = rewrite.expression(ast->leftExpression);
+  if (ast->leftExpression) {
+    copy->leftExpression = TargetExpressionAST::create(arena());
+  }
   copy->rightExpression = rewrite.expression(ast->rightExpression);
-  copy->adjustExpression = rewrite.expression(ast->adjustExpression);
+  if (ast->adjustExpression) {
+    copy->adjustExpression = RightExpressionAST::create(arena());
+  }
   copy->op = ast->op;
   copy->symbol = ast->symbol;
 

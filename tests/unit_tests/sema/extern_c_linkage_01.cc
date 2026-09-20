@@ -52,8 +52,10 @@ void test() {
 // CHECK-NEXT:      parameter const char* a
 // CHECK-NEXT:      parameter const char* b
 // CHECK-NEXT:  function extern "C" void abort()
+// CHECK-NEXT:    parameters
 // CHECK-NEXT:    [redeclarations]
 // CHECK-NEXT:      function extern "C" void abort()
+// CHECK-NEXT:        parameters
 // CHECK-NEXT:  namespace std
 // CHECK-NEXT:    function extern "C" void* malloc(unsigned long)
 // CHECK-NEXT:      parameters
@@ -77,6 +79,7 @@ void test() {
 // CHECK-NEXT:        parameter ::Widget&&
 // CHECK-NEXT:    injected class name Widget
 // CHECK-NEXT:    function void draw()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function constexpr inline defaulted ::Widget& operator =(const ::Widget&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Widget&
@@ -85,6 +88,7 @@ void test() {
 // CHECK-NEXT:        parameter ::Widget&&
 // CHECK-NEXT:    function constexpr inline defaulted void ~Widget()
 // CHECK-NEXT:  function void test()
+// CHECK-NEXT:    parameters
 // CHECK-NEXT:    block
 // CHECK-NEXT:      variable static constexpr const char __func__[5]
 // CHECK-NEXT:      variable char buf[32]

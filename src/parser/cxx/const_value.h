@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/const_int.h>
 #include <cxx/cxx_fwd.h>
 #include <cxx/literals_fwd.h>
 #include <cxx/source_location.h>
@@ -53,10 +54,9 @@ struct IndeterminateValue {
 };
 
 using ConstValue =
-    std::variant<std::intmax_t, const StringLiteral*, float, double,
-                 long double, std::shared_ptr<Meta>,
-                 std::shared_ptr<InitializerList>, std::shared_ptr<ConstObject>,
-                 std::shared_ptr<ConstAddress>,
+    std::variant<ConstInt, const StringLiteral*, float, double, long double,
+                 std::shared_ptr<Meta>, std::shared_ptr<InitializerList>,
+                 std::shared_ptr<ConstObject>, std::shared_ptr<ConstAddress>,
                  std::shared_ptr<ConstLabelAddress>,
                  std::shared_ptr<ConstComplex>, IndeterminateValue>;
 

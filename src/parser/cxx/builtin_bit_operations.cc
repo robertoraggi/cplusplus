@@ -29,17 +29,20 @@ auto bitCountOperation(BuiltinFunctionKind kind)
     case BuiltinFunctionKind::T___BUILTIN_CLZS:
     case BuiltinFunctionKind::T___BUILTIN_CLZL:
     case BuiltinFunctionKind::T___BUILTIN_CLZLL:
+    case BuiltinFunctionKind::T___BUILTIN_CLZG:
       return BitCountOperation::kCountLeadingZeros;
 
     case BuiltinFunctionKind::T___BUILTIN_CTZ:
     case BuiltinFunctionKind::T___BUILTIN_CTZS:
     case BuiltinFunctionKind::T___BUILTIN_CTZL:
     case BuiltinFunctionKind::T___BUILTIN_CTZLL:
+    case BuiltinFunctionKind::T___BUILTIN_CTZG:
       return BitCountOperation::kCountTrailingZeros;
 
     case BuiltinFunctionKind::T___BUILTIN_POPCOUNT:
     case BuiltinFunctionKind::T___BUILTIN_POPCOUNTL:
     case BuiltinFunctionKind::T___BUILTIN_POPCOUNTLL:
+    case BuiltinFunctionKind::T___BUILTIN_POPCOUNTG:
       return BitCountOperation::kPopulationCount;
 
     case BuiltinFunctionKind::T___BUILTIN_PARITY:

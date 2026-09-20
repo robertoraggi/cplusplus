@@ -365,7 +365,7 @@ auto Codegen::virtualBaseOffsetSlotOffset(ClassSymbol* classSymbol,
         virtualBase->resolvedDefinition())
       continue;
     const auto distanceWords =
-        static_cast<std::int64_t>(primary.headerWordCount() - index);
+        static_cast<std::int64_t>(primary.vbaseOffsets.size() + 2 - index);
     return -wordSize * distanceWords;
   }
 

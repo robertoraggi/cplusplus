@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx, Parser } from "../dist/index.js";
+import { loadCxx, Parser, Token } from "cxx-frontend";
+import { walk } from "cxx-frontend/traverse";
 
 const wasm = await readFile(
   new URL("../dist/wasm/cxx-js.wasm", import.meta.url),
@@ -322,4 +323,33 @@ test("aborting during parsing stops a translation unit with no includes", async 
     abortedParseMs < fullParseMs / 2,
     `aborted parse took ${abortedParseMs.toFixed(0)}ms, full parse took ${fullParseMs.toFixed(0)}ms`,
   );
+});
+
+test("token kinds are the spelling of the token", async () => {
+  await using parser = await Parser.parse({
+    path: "/tokens.cc",
+    source: "struct S { public: int x = 1 + 2; };",
+  });
+
+  const { ast } = parser.model;
+  const classSpecifier = [...walk(ast)].find((path) => path.isClassSpecifier());
+  assert.equal(classSpecifier.node.classKey, "struct");
+
+  const access = [...walk(ast)].find((path) => path.isAccessDeclaration());
+  assert.equal(access.node.accessSpecifier, "public");
+
+  const binary = [...walk(ast)].find((path) => path.isBinaryExpression());
+  assert.equal(binary.node.op, "+");
+
+  const classKey = Token.from(classSpecifier.node.classLoc, parser);
+  assert.equal(classKey.getKind(), "struct");
+  assert.equal(classKey.getText(), "struct");
+  assert.ok(classKey.is("struct"));
+
+  const name = Token.from(
+    classSpecifier.node.unqualifiedId.identifierLoc,
+    parser,
+  );
+  assert.equal(name.getKind(), "identifier");
+  assert.equal(name.getText(), "S");
 });

@@ -4,12 +4,28 @@
   "description": "A compiler front end for the C++ language",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
-    "./wasm": "./dist/wasm/cxx-js.wasm"
+    "./parse": {
+      "types": "./dist/parse.d.ts",
+      "default": "./dist/parse.js"
+    },
+    "./model": {
+      "types": "./dist/Semantic.d.ts",
+      "default": "./dist/Semantic.js"
+    },
+    "./traverse": {
+      "types": "./dist/Traverse.d.ts",
+      "default": "./dist/Traverse.js"
+    },
+    "./lsp": {
+      "types": "./dist/LanguageServer.d.ts",
+      "default": "./dist/LanguageServer.js"
+    },
+    "./wasm": "./dist/wasm/cxx-js.wasm",
+    "./package.json": "./package.json"
   },
-  "types": "dist/index.d.ts",
   "type": "module",
   "browser": {
     "url": false
@@ -17,9 +33,9 @@
   "scripts": {
     "watch": "watchexec --print-events -r npm run build",
     "build": "tsc",
-    "test": "node --test test/*.test.mjs",
+    "test": "tsc -p test/tsconfig.json && node --test test/*.test.mjs",
     "example": "node examples/cxx-parse/index.js",
-    "docs": "typedoc src/index.ts",
+    "docs": "typedoc src/index.ts src/parse.ts src/Semantic.ts src/Traverse.ts src/LanguageServer.ts",
     "prettier": "npx prettier --check .",
     "prettier:fix": "npx prettier --write . "
   },

@@ -30,9 +30,6 @@ class Wasm32WasiToolchain final : public Toolchain {
  public:
   explicit Wasm32WasiToolchain(Preprocessor* preprocessor);
 
-  const std::string& appdir() const;
-  void setAppdir(std::string appdir);
-
   const std::string& sysroot() const;
   void setSysroot(std::string sysroot);
 
@@ -49,7 +46,6 @@ class Wasm32WasiToolchain final : public Toolchain {
   void applyEntryPointAbi(TranslationUnit* unit) const override;
 
  private:
-  std::string appdir_;
   std::string sysroot_;
   std::optional<int> version_;
 };

@@ -18,13 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import {
-  loadCxx,
-  Parser,
-  Semantic as S,
-  Token,
-  TraceEmitter,
-} from "cxx-frontend";
+import { loadCxx, Token, TraceEmitter } from "cxx-frontend";
+import parse from "cxx-frontend/parse";
+import { walk } from "cxx-frontend/traverse";
 import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -179,13 +175,12 @@ function semanticsOf(node) {
 }
 
 function printAst(node, depth = 0) {
-  console.log(
-    `${"  ".repeat(depth)}${style("cyan", S.ASTKind[node.kind])}${semanticsOf(node)}`,
-  );
-  for (const child of S.children(node)) printAst(child, depth + 1);
+  for (const path of walk(node))
+    console.log(
+      `${"  ".repeat(depth + path.depth)}${style("cyan", path.node.kind)}` +
+        semanticsOf(path.node),
+    );
 }
-
-const kindName = (kinds, kind) => kinds[kind].replace(/^k/, "");
 
 function fileOf(parser, location) {
   return Token.from(location, parser)?.getLocation()?.fileName;
@@ -196,7 +191,7 @@ function printSymbols(parser, scope, path) {
     if (!symbol || fileOf(parser, symbol.location) !== path) continue;
     const type = symbol.type ? ` : ${symbol.type.text}` : "";
     console.log(
-      `${style("cyan", kindName(S.SymbolKind, symbol.kind))} ${symbol.text}${style("dim", type)}`,
+      `${style("cyan", symbol.kind)} ${symbol.text}${style("dim", type)}`,
     );
   }
 }
@@ -223,7 +218,7 @@ async function main() {
     const sources = new SourceCache();
     const source = await sources.read(path);
 
-    await using parser = await Parser.parse({
+    await using parser = await parse({
       path,
       source,
       appdir: values.appdir,
@@ -249,7 +244,7 @@ async function main() {
       console.log(style("bold", `// ${path}`));
 
     if (values.ast) {
-      console.log(style("cyan", S.ASTKind[ast.kind]));
+      console.log(style("cyan", ast.kind));
       for (const declaration of ast.declarationList)
         if (declaration?.startLocation?.fileName === path)
           printAst(declaration, 1);

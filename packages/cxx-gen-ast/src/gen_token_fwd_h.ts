@@ -69,9 +69,6 @@ export function gen_token_fwd_h({ output }: { output: string }) {
     emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
   );
 
-  emit();
-  emit("#define FOR_EACH_BUILTIN_MACRO(V) \\");
-  tokens.BUILTIN_MACROS.forEach((tk) => emit(`  V(${tk}) \\`));
 
   emit();
   emit("#define FOR_EACH_BUILTIN_TEMPLATE(V) \\");

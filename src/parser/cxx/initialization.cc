@@ -2404,9 +2404,10 @@ void ClassInitChecker::appendDefaultArguments(Target& target,
   auto params = constructor->parameters();
   if (params.empty()) return;
 
-  auto argCount = arguments(target).size();
-  if (argCount >= params.size()) return;
-  if (!params[argCount]->defaultArgument()) return;
+  const auto argCount = static_cast<int>(arguments(target).size());
+  const auto parameterCount = static_cast<int>(params.size());
+  if (argCount >= parameterCount) return;
+  if (required_parameter_count(constructor, parameterCount) > argCount) return;
 
   auto tail = argumentListSlot(target, ctx.unit->arena());
   if (!tail) return;
@@ -3042,10 +3043,11 @@ void diagnoseNarrowingListElement(InitContext& ctx, ExpressionAST* element,
   if (!element || !element->type) return;
   if (!ctx.traits.is_narrowing_list_element(element, targetType)) return;
 
+  auto source = Initializer::stripImplicitCasts(element);
   ctx.error(element->firstSourceLocation(),
             std::format("narrowing conversion from '{}' to '{}' in "
                         "braced-init-list",
-                        to_string(element->type), to_string(targetType)));
+                        to_string(source->type), to_string(targetType)));
 }
 
 auto computeInitializationSequence(InitContext& ctx,

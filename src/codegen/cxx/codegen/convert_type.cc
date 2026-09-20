@@ -524,13 +524,23 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
       memberMap[info->index] = emitter_.integerType(
           static_cast<unsigned>(info->allocUnitSizeBytes * 8));
     } else if (field->isNoUniqueAddress()) {
-      auto fieldClass = unqualified_cast<ClassType>(field->type());
-      auto fieldSymbol = fieldClass ? fieldClass->symbol() : nullptr;
-      auto fieldLayout =
-          fieldSymbol ? fieldSymbol->resolvedDefinition()->layout() : nullptr;
-      memberMap[info->index] = fieldLayout && fieldLayout->isAbiEmpty()
-                                   ? emptyStorageType
-                                   : convertType(field->type());
+      ClassSymbol* fieldSymbol = nullptr;
+      if (auto fieldClass = unqualified_cast<ClassType>(field->type())) {
+        if (fieldClass->symbol()) {
+          fieldSymbol = fieldClass->symbol()->resolvedDefinition();
+        }
+      }
+
+      const ClassLayout* fieldLayout = nullptr;
+      if (fieldSymbol) fieldLayout = fieldSymbol->layout();
+
+      if (fieldLayout && fieldLayout->isAbiEmpty()) {
+        memberMap[info->index] = emptyStorageType;
+      } else if (fieldLayout && !fieldLayout->virtualBases().empty()) {
+        pendingBases[info->index] = fieldSymbol;
+      } else {
+        memberMap[info->index] = convertType(field->type());
+      }
     } else {
       memberMap[info->index] = convertType(field->type());
     }

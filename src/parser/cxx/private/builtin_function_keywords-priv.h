@@ -274,7 +274,9 @@ static inline auto classifyBuiltinFunction14(const char* s)
                               return cxx::BuiltinFunctionKind::T___BUILTIN_CLOG;
                             }
                           } else if (s[12] == 'z') {
-                            if (s[13] == 'l') {
+                            if (s[13] == 'g') {
+                              return cxx::BuiltinFunctionKind::T___BUILTIN_CLZG;
+                            } else if (s[13] == 'l') {
                               return cxx::BuiltinFunctionKind::T___BUILTIN_CLZL;
                             } else if (s[13] == 's') {
                               return cxx::BuiltinFunctionKind::T___BUILTIN_CLZS;
@@ -312,7 +314,9 @@ static inline auto classifyBuiltinFunction14(const char* s)
                               return cxx::BuiltinFunctionKind::T___BUILTIN_CTAN;
                             }
                           } else if (s[12] == 'z') {
-                            if (s[13] == 'l') {
+                            if (s[13] == 'g') {
+                              return cxx::BuiltinFunctionKind::T___BUILTIN_CTZG;
+                            } else if (s[13] == 'l') {
                               return cxx::BuiltinFunctionKind::T___BUILTIN_CTZL;
                             } else if (s[13] == 's') {
                               return cxx::BuiltinFunctionKind::T___BUILTIN_CTZS;
@@ -3443,7 +3447,10 @@ static inline auto classifyBuiltinFunction19(const char* s)
                                 if (s[15] == 'u') {
                                   if (s[16] == 'n') {
                                     if (s[17] == 't') {
-                                      if (s[18] == 'l') {
+                                      if (s[18] == 'g') {
+                                        return cxx::BuiltinFunctionKind::
+                                            T___BUILTIN_POPCOUNTG;
+                                      } else if (s[18] == 'l') {
                                         return cxx::BuiltinFunctionKind::
                                             T___BUILTIN_POPCOUNTL;
                                       }

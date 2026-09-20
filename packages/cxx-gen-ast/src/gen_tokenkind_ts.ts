@@ -23,18 +23,27 @@ import * as fs from "node:fs";
 import * as tokens from "./tokens.ts";
 
 export function gen_tokenkind_ts({ output }: { output: string }) {
-  const code: string[] = [];
-  const emit = (line = "") => code.push(line);
+  const names = [
+    ...tokens.BASE_TOKENS.map((tk) => tk.toLowerCase()),
+    ...tokens.OPERATORS.map(([, spelling]) => spelling),
+    ...tokens.C_AND_CXX_KEYWORDS,
+  ];
 
-  emit("export enum TokenKind {");
-  tokens.BASE_TOKENS.forEach((tk) => emit(`  ${tk},`));
-  tokens.OPERATORS.forEach(([tk]) => emit(`  ${tk},`));
-  tokens.C_AND_CXX_KEYWORDS.forEach((tk) => emit(`  ${tk.toUpperCase()},`));
-  emit("}");
+  const duplicate = names.find((name, index) => names.indexOf(name) !== index);
+  if (duplicate) throw new Error(`duplicate token spelling '${duplicate}'`);
 
   const out = `// Generated file by: gen_tokenkind_ts.ts
 ${cpy_header}
-${code.join("\n")}
+export type TokenKind =
+${names.map((name) => `  | "${name}"`).join("\n")};
+
+export const tokenKindNames: Record<number, TokenKind> = {
+${names.map((name, value) => `  ${value}: "${name}",`).join("\n")}
+};
+
+export const tokenKindValues: Record<TokenKind, number> = {
+${names.map((name, value) => `  "${name}": ${value},`).join("\n")}
+};
 `;
 
   fs.writeFileSync(output, out);

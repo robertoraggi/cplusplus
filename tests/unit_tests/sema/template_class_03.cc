@@ -30,9 +30,11 @@ auto X<T>::self() -> X* {
 // CHECK-NEXT:  template class X<type-param<0, 0>>
 // CHECK-NEXT:    parameter typename<0, 0> T
 // CHECK-NEXT:    constructor void X()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        template constructor void X()
 // CHECK-NEXT:          parameter typename<0, 0> T
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[2]
 // CHECK-NEXT:    constructor void X(int)
@@ -47,14 +49,18 @@ auto X<T>::self() -> X* {
 // CHECK-NEXT:              variable static constexpr const char __func__[2]
 // CHECK-NEXT:    injected class name X
 // CHECK-NEXT:    function const ::X* self() const
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        template function const ::X* self() const
 // CHECK-NEXT:          parameter typename<0, 0> T
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[5]
 // CHECK-NEXT:    function ::X* self()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        template function ::X* self()
 // CHECK-NEXT:          parameter typename<0, 0> T
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
 // CHECK-NEXT:            variable static constexpr const char __func__[5]

@@ -21,6 +21,7 @@
 import * as fs from "node:fs";
 import { cpy_header } from "./cpy_header.ts";
 import type { CodecPlan, EntityPlan, FieldPlan } from "./semanticPlan.ts";
+import type { Wire } from "./semanticWire.ts";
 import {
   Names,
   codecName,
@@ -30,29 +31,17 @@ import {
   substitute,
 } from "./semanticEmit.ts";
 
-const constAlternatives = [
-  {
-    tag: 0,
-    cpp: "std::intmax_t",
-    kind: "scalar",
-    writer: "i64",
-    reader: "i64",
-  },
-  { tag: 1, cpp: "const cxx::StringLiteral*", kind: "literal" },
-  { tag: 2, cpp: "float", kind: "scalar", writer: "f32", reader: "f32" },
-  { tag: 3, cpp: "double", kind: "scalar", writer: "f64", reader: "f64" },
-  { tag: 4, cpp: "long double", kind: "scalar", writer: "f80", reader: "f80" },
-  { tag: 5, cpp: "cxx::Meta", kind: "shared" },
-  { tag: 6, cpp: "cxx::InitializerList", kind: "shared" },
-  { tag: 7, cpp: "cxx::ConstObject", kind: "shared" },
-  { tag: 8, cpp: "cxx::ConstAddress", kind: "shared" },
-  { tag: 9, cpp: "cxx::ConstLabelAddress", kind: "shared" },
-  { tag: 10, cpp: "cxx::IndeterminateValue", kind: "indeterminate" },
-] as const;
+function constAlternativesOf(plan: CodecPlan): Wire[] {
+  if (plan.constValue.k !== "const-value")
+    throw new Error("the constant value plan is not a variant");
+  return plan.constValue.alternatives;
+}
 
-const sharedConstKinds = constAlternatives
-  .filter((alternative) => alternative.kind === "shared")
-  .map((alternative) => alternative.cpp);
+function sharedConstKindsOf(plan: CodecPlan): string[] {
+  return constAlternativesOf(plan)
+    .filter((alternative) => alternative.k === "shared")
+    .map((alternative) => alternative.cpp);
+}
 
 export function gen_semantic_codec({
   plan,
@@ -71,7 +60,9 @@ function allEntities(plan: CodecPlan): EntityPlan[] {
   return [
     ...plan.names,
     ...plan.types,
+    ...plan.symbolBases,
     ...plan.symbols,
+    ...plan.nodeBases,
     ...plan.nodes,
     ...plan.structs,
   ];
@@ -99,7 +90,7 @@ function header(plan: CodecPlan): string {
     );
   }
 
-  for (const entity of plan.symbols) {
+  for (const entity of [...plan.symbolBases, ...plan.symbols]) {
     encoderMembers.push(
       `  void writeSymbol${entity.short}(ByteWriter& out, ${entity.cpp}* self);`,
     );
@@ -108,7 +99,7 @@ function header(plan: CodecPlan): string {
     );
   }
 
-  for (const entity of plan.nodes) {
+  for (const entity of [...plan.nodeBases, ...plan.nodes]) {
     encoderMembers.push(
       `  void writeAst${entity.short}(ByteWriter& out, ${entity.cpp}* self);`,
     );
@@ -179,7 +170,7 @@ class SemanticEncoder final : public SemanticEncoderBase {
     return stringRef(identifier->name());
   }
 
-${sharedConstKinds
+${sharedConstKindsOf(plan)
   .map(
     (cpp, index) => `  [[nodiscard]] auto constRef(
       const std::shared_ptr<${cpp}>& value) -> ConstRef {
@@ -280,11 +271,13 @@ function source(plan: CodecPlan): string {
 
   emit(encoderEntryPoint(plan));
   emit(encoderDispatch(plan));
-  emit(encoderHelpers());
+  emit(encoderHelpers(plan));
   for (const entity of plan.names) emit(encodeFactoryEntity(entity, "Name"));
   for (const entity of plan.types) emit(encodeFactoryEntity(entity, "Type"));
-  for (const entity of plan.symbols) emit(encodeFieldEntity(entity, "Symbol"));
-  for (const entity of plan.nodes) emit(encodeFieldEntity(entity, "Ast"));
+  for (const entity of [...plan.symbolBases, ...plan.symbols])
+    emit(encodeFieldEntity(entity, "Symbol"));
+  for (const entity of [...plan.nodeBases, ...plan.nodes])
+    emit(encodeFieldEntity(entity, "Ast"));
   for (const entity of plan.structs) emit(encodeStructEntity(entity));
 
   emit(decoderEntryPoint(plan));
@@ -292,8 +285,10 @@ function source(plan: CodecPlan): string {
   emit(decoderHelpers(plan));
   for (const entity of plan.names) emit(decodeFactoryEntity(entity, "Name"));
   for (const entity of plan.types) emit(decodeFactoryEntity(entity, "Type"));
-  for (const entity of plan.symbols) emit(decodeFieldEntity(entity, "Symbol"));
-  for (const entity of plan.nodes) emit(decodeFieldEntity(entity, "Ast"));
+  for (const entity of [...plan.symbolBases, ...plan.symbols])
+    emit(decodeFieldEntity(entity, "Symbol"));
+  for (const entity of [...plan.nodeBases, ...plan.nodes])
+    emit(decodeFieldEntity(entity, "Ast"));
   for (const entity of plan.structs) emit(decodeStructEntity(entity));
 
   return `// Generated file by: gen_semantic_codec.ts
@@ -691,7 +686,7 @@ function encoderDispatch(plan: CodecPlan): string {
   );
   lines.push(`  out.u8(static_cast<std::uint8_t>(node.kind));`);
   lines.push(`  switch (node.kind) {`);
-  sharedConstKinds.forEach((cpp, index) => {
+  sharedConstKindsOf(plan).forEach((cpp, index) => {
     lines.push(`    case ${index}:`);
     lines.push(
       `      write${codecName(cpp)}(out, static_cast<const ${cpp}*>(node.owner.get()));`,
@@ -756,7 +751,7 @@ function encoderDispatch(plan: CodecPlan): string {
   return lines.join("\n");
 }
 
-function encoderHelpers(): string {
+function encoderHelpers(plan: CodecPlan): string {
   const lines: string[] = [];
   const names = new Names();
 
@@ -798,27 +793,17 @@ function encoderHelpers(): string {
   lines.push(
     `                                      const cxx::ConstValue& value) {`,
   );
-  lines.push(`  out.u8(static_cast<std::uint8_t>(value.index()));`);
-  lines.push(`  switch (value.index()) {`);
-  for (const alternative of constAlternatives) {
-    lines.push(`    case ${alternative.tag}: {`);
-    if (alternative.kind === "scalar") {
-      lines.push(
-        `      out.${(alternative as { writer: string }).writer}(std::get<${alternative.tag}>(value));`,
-      );
-    } else if (alternative.kind === "literal") {
-      lines.push(
-        `      writeLiteral(out, std::get<${alternative.tag}>(value));`,
-      );
-    } else if (alternative.kind === "shared") {
-      lines.push(
-        `      out.varU32(static_cast<std::uint32_t>(constRef(std::get<${alternative.tag}>(value))));`,
-      );
-    }
-    lines.push(`      break;`);
-    lines.push(`    }`);
-  }
-  lines.push(`  }`);
+  emitWrite(
+    lines,
+    "  ",
+    {
+      k: "variant",
+      cpp: "cxx::ConstValue",
+      alternatives: constAlternativesOf(plan),
+    },
+    "value",
+    new Names(),
+  );
   lines.push(`}`);
   lines.push(``);
 
@@ -896,6 +881,8 @@ function encodeFieldEntity(entity: EntityPlan, domain: string): string {
 
   lines.push(`void SemanticEncoder::write${domain}${entity.short}(`);
   lines.push(`    ByteWriter& out, [[maybe_unused]] ${entity.cpp}* self) {`);
+  if (entity.base)
+    lines.push(`  write${domain}${entity.base.short}(out, self);`);
   lines.push(...fieldWrites(entity.fields, "self"));
   lines.push(`}`);
   lines.push(``);
@@ -910,6 +897,8 @@ function encodeStructEntity(entity: EntityPlan): string {
   lines.push(
     `    ByteWriter& out, [[maybe_unused]] const ${entity.cpp}* self) {`,
   );
+  if (entity.base)
+    lines.push(`  write${codecName(entity.base.name)}(out, self);`);
   lines.push(...fieldWrites(entity.fields, "self"));
   lines.push(`}`);
   lines.push(``);
@@ -1107,31 +1096,19 @@ function decoderHelpers(plan: CodecPlan): string {
   lines.push(
     `auto SemanticDecoder::readConstValue(ByteReader& in) -> cxx::ConstValue {`,
   );
-  lines.push(`  const auto tag = in.u8();`);
-  lines.push(`  switch (tag) {`);
-  for (const alternative of constAlternatives) {
-    lines.push(`    case ${alternative.tag}:`);
-    if (alternative.kind === "scalar") {
-      lines.push(
-        `      return cxx::ConstValue{static_cast<${alternative.cpp}>(in.${(alternative as { reader: string }).reader}())};`,
-      );
-    } else if (alternative.kind === "literal") {
-      lines.push(`      return cxx::ConstValue{readStringLiteral(in)};`);
-    } else if (alternative.kind === "shared") {
-      const kindIndex = sharedConstKinds.indexOf(alternative.cpp);
-      lines.push(
-        `      return cxx::ConstValue{std::static_pointer_cast<${alternative.cpp}>(`,
-      );
-      lines.push(`          constantAt(ConstRef{in.varU32()}))};`);
-      void kindIndex;
-    } else {
-      lines.push(`      return cxx::ConstValue{cxx::IndeterminateValue{}};`);
-    }
-  }
-  lines.push(`    default:`);
-  lines.push(`      fail("unknown constant value alternative");`);
-  lines.push(`      return cxx::ConstValue{};`);
-  lines.push(`  }`);
+  emitRead(
+    lines,
+    "  ",
+    {
+      k: "variant",
+      cpp: "cxx::ConstValue",
+      alternatives: constAlternativesOf(plan),
+    },
+    "cxx::ConstValue",
+    "value",
+    new Names(),
+  );
+  lines.push(`  return value;`);
   lines.push(`}`);
   lines.push(``);
 
@@ -1173,7 +1150,7 @@ function decoderHelpers(plan: CodecPlan): string {
   lines.push(`  ByteReader in{constRecords_[index - 1].bytes};`);
   lines.push(`  const auto kind = in.u8();`);
   lines.push(`  switch (kind) {`);
-  sharedConstKinds.forEach((cpp, position) => {
+  sharedConstKindsOf(plan).forEach((cpp, position) => {
     lines.push(`    case ${position}: {`);
     lines.push(`      auto value = std::make_shared<${cpp}>();`);
     lines.push(`      constants_[index - 1] = value;`);
@@ -1269,6 +1246,7 @@ function decodeFieldEntity(entity: EntityPlan, domain: string): string {
   lines.push(
     `    [[maybe_unused]] ByteReader& in, [[maybe_unused]] ${entity.cpp}* self) {`,
   );
+  if (entity.base) lines.push(`  read${domain}${entity.base.short}(in, self);`);
   lines.push(...fieldReads(entity.fields, "self"));
   lines.push(`}`);
   lines.push(``);
@@ -1283,6 +1261,8 @@ function decodeStructEntity(entity: EntityPlan): string {
   lines.push(
     `    [[maybe_unused]] ByteReader& in, [[maybe_unused]] ${entity.cpp}* self) {`,
   );
+  if (entity.base)
+    lines.push(`  read${codecName(entity.base.name)}(in, self);`);
   lines.push(...fieldReads(entity.fields, "self"));
   lines.push(`}`);
   lines.push(``);

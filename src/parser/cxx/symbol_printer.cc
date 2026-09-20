@@ -36,8 +36,8 @@ struct GetEnumeratorValue {
   auto operator()(bool value) const -> std::string {
     return value ? "true" : "false";
   }
-  auto operator()(std::intmax_t value) const -> std::string {
-    return std::to_string(value);
+  auto operator()(ConstInt value) const -> std::string {
+    return value.toString();
   }
 
   auto operator()(auto x) const -> std::string { return {}; }

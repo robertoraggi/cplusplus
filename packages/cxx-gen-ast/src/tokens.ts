@@ -207,6 +207,7 @@ export const CXX_KEYWORDS: string[] = [
 
 export const BUILTIN_TYPE_TRAITS: string[] = [
   "__builtin_types_compatible_p",
+  "__has_trivial_destructor",
   "__has_unique_object_representations",
   "__has_virtual_destructor",
   "__is_abstract",
@@ -304,11 +305,8 @@ export const BUILTIN_TEMPLATES: string[] = [
   "__builtin_common_type",
 ];
 
-import { BUILTIN_NAMES, BUILTIN_MACRO_DEFS } from "./builtins.ts";
+import { BUILTIN_NAMES } from "./builtins.ts";
 export const BUILTIN_FUNCTIONS: string[] = BUILTIN_NAMES;
-export const BUILTIN_MACROS: string[] = BUILTIN_MACRO_DEFS.map(
-  (b) => b.name,
-).sort();
 
 export const CXX_TOKEN_ALIASES = {
   and_eq: "AMP_EQUAL",

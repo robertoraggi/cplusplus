@@ -179,11 +179,6 @@ class OverloadResolution {
   [[nodiscard]] auto collectCandidates(Symbol* symbol) const
       -> std::vector<FunctionSymbol*>;
 
-  [[nodiscard]] auto resolveBinaryOperator(
-      const std::vector<FunctionSymbol*>& candidates, const Type* leftType,
-      const Type* rightType, bool* ambiguous, ExpressionAST* leftExpr = nullptr,
-      ExpressionAST* rightExpr = nullptr) -> FunctionSymbol*;
-
   [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
                                     const Type* rightType = nullptr,
                                     ExpressionAST* leftExpr = nullptr,
@@ -217,9 +212,14 @@ class OverloadResolution {
       -> ConstructorResult;
 
   [[nodiscard]] auto resolveBinaryOperator(
-      const std::vector<BinaryOperatorCandidate>& candidates,
+      TokenKind op, const std::vector<BinaryOperatorCandidate>& candidates,
       const Type* leftType, const Type* rightType, bool* ambiguous,
       ExpressionAST* leftExpr, ExpressionAST* rightExpr) -> FunctionSymbol*;
+
+  [[nodiscard]] auto builtinBinaryOperatorParameterType(TokenKind op,
+                                                        const Type* leftType,
+                                                        const Type* rightType)
+      -> const Type*;
 
   TranslationUnit* unit_;
   TypeTraits traits;

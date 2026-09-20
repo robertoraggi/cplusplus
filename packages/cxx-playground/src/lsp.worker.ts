@@ -1,5 +1,6 @@
 import wasmBinaryUrl from "cxx-frontend/wasm?url"
-import { LanguageServer, loadCxx, type MessagePortLike } from "cxx-frontend"
+import { loadCxx } from "cxx-frontend"
+import { LanguageServer, type MessagePortLike } from "cxx-frontend/lsp"
 import { appdir, exists, loadSysroot, readFile, sysroot } from "./sysroot"
 
 interface LanguageServerWorkerScope {

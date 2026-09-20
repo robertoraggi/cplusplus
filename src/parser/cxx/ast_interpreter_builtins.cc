@@ -394,48 +394,67 @@ auto ASTInterpreter::evaluateBuiltinBitCount(CallExpressionAST* ast)
   auto value = evaluate(argument);
   if (!value) return std::nullopt;
 
-  auto bits = toUInt(*value);
-  if (!bits) return std::nullopt;
-
-  auto size = control()->memoryLayout()->sizeOf(argument->type);
-  if (!size || *size == 0 || *size > sizeof(std::uintmax_t))
+  auto representation = traits.integral_representation(argument->type);
+  if (!representation) return std::nullopt;
+  if (!ConstInt::isRepresentableWidth(representation->bits))
     return std::nullopt;
 
-  const auto width = static_cast<unsigned>(*size * 8);
-  const auto mask = width == sizeof(std::uintmax_t) * 8
-                        ? ~std::uintmax_t(0)
-                        : (std::uintmax_t(1) << width) - 1;
-  const auto operand = *bits & mask;
+  auto stored = std::get_if<ConstInt>(&*value);
+  if (!stored) return std::nullopt;
 
-  const auto countLeadingZeros = [width](std::uintmax_t bits) {
-    return std::countl_zero(bits) - static_cast<int>(sizeof(bits) * 8 - width);
-  };
+  auto operand = ConstInt::make(stored->toWideValue(), representation->bits,
+                                /*isSigned=*/false);
+  if (!operand) return std::nullopt;
+
+  const auto width = representation->bits;
+
+  if (operand->isZero()) {
+    if (auto fallback = argumentAt(ast, 1)) {
+      auto fallbackValue = evaluate(fallback);
+      if (!fallbackValue) return std::nullopt;
+      auto result = toInt(*fallbackValue);
+      if (!result) return std::nullopt;
+      return ConstValue{*result};
+    }
+  }
 
   switch (*operation) {
     case BitCountOperation::kCountLeadingZeros:
-      if (!operand) return std::nullopt;
-      return ConstValue{static_cast<std::intmax_t>(countLeadingZeros(operand))};
+      if (operand->isZero()) return std::nullopt;
+      return ConstValue{
+          static_cast<std::intmax_t>(operand->countLeadingZeros())};
 
     case BitCountOperation::kCountTrailingZeros:
-      if (!operand) return std::nullopt;
-      return ConstValue{static_cast<std::intmax_t>(std::countr_zero(operand))};
+      if (operand->isZero()) return std::nullopt;
+      return ConstValue{
+          static_cast<std::intmax_t>(operand->countTrailingZeros())};
 
     case BitCountOperation::kPopulationCount:
-      return ConstValue{static_cast<std::intmax_t>(std::popcount(operand))};
+      return ConstValue{static_cast<std::intmax_t>(operand->popcount())};
 
     case BitCountOperation::kParity:
-      return ConstValue{static_cast<std::intmax_t>(std::popcount(operand) & 1)};
+      return ConstValue{static_cast<std::intmax_t>(operand->popcount() & 1)};
 
     case BitCountOperation::kFindFirstSet:
-      if (!operand) return ConstValue{std::intmax_t(0)};
+      if (operand->isZero()) return ConstValue{std::intmax_t(0)};
       return ConstValue{
-          static_cast<std::intmax_t>(std::countr_zero(operand) + 1)};
+          static_cast<std::intmax_t>(operand->countTrailingZeros() + 1)};
 
     case BitCountOperation::kCountLeadingRedundantSignBits: {
-      const auto isNegative = (operand >> (width - 1)) & 1;
-      const auto magnitude = isNegative ? ~operand & mask : operand;
+      auto signBit = ConstInt::make(1, width, /*isSigned=*/false);
+      if (!signBit) return std::nullopt;
+      auto shift = ConstInt::make(width - 1, width, /*isSigned=*/false);
+      if (!shift) return std::nullopt;
+
+      auto magnitude = *operand;
+      if (!((*operand >> *shift) & *signBit).isZero()) {
+        auto allOnes = ConstInt::make(-1, width, /*isSigned=*/false);
+        if (!allOnes) return std::nullopt;
+        magnitude = *operand ^ *allOnes;
+      }
+
       return ConstValue{
-          static_cast<std::intmax_t>(countLeadingZeros(magnitude) - 1)};
+          static_cast<std::intmax_t>(magnitude.countLeadingZeros() - 1)};
     }
   }
 

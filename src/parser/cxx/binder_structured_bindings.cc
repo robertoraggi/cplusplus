@@ -330,9 +330,9 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
 
     auto value = ASTInterpreter{unit_}.evaluate(valueExpr);
     if (!value) return std::nullopt;
-    auto integer = std::get_if<std::intmax_t>(&*value);
-    if (!integer || *integer < 0) return std::nullopt;
-    return *integer;
+    auto integer = std::get_if<ConstInt>(&*value);
+    if (!integer || integer->isNegative()) return std::nullopt;
+    return integer->toIntMax();
   };
 
   auto structuredBindingElementType = [&](int index) -> const Type* {
@@ -391,6 +391,8 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
         make_list_node<TemplateArgumentAST>(ar, valueArgument(index));
 
     auto callExpr = CallExpressionAST::create(ar);
+    callExpr->lparenLoc = ast->lbracketLoc;
+    callExpr->rparenLoc = ast->rbracketLoc;
 
     if (hasMemberGetTemplate) {
       auto memberExpr = MemberExpressionAST::create(ar);

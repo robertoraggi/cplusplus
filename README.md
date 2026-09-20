@@ -9,109 +9,52 @@ Playground showing the cxx compiler frontend in action at https://robertoraggi.g
 
 The API Reference is available at https://robertoraggi.github.io/cplusplus/docs/
 
-# Changelog and What's New
+## Build the cxx compiler and the MLIR based backed
 
-For updates, improvements, and recent features in cxx-frontend, please consult the [Changelog](CHANGELOG.md).
+```sh
+uv sync && source .venv/bin/activate # optonal, for the lit-based unit tests
 
-# Key Features
+cmake --preset default-mlir
+cmake --build build
+ctest --test-dir build --progress
+```
 
-- **Syntax Analysis**: APIs to scan, preprocess, parse, and inspect the syntax of source code, making it a versatile tool for various code analysis tasks.
+The cxx tool will be available at **./build/src/frontend/cxx**, and the default target is **wasm32-wasip1**.
 
-- **Multi-Language Support**: In addition to C++, the library provides APIs for TypeScript and JavaScript.
+```bash
+./build/src/frontend/cxx --help
+Usage: cxx [options] file...
+Options:
+  --help                       Display this information
+  -D <macro>[=<val>]           Define a <macro> with <val> as its value. If just <macro> is given, <val> is taken to be 1
+  -I <dir>                     Add <dir> to the end of the main include path
+  -L <dir>                     Add <dir> to the end of the library path
+  -U <macro>                   Undefine <macro>
+  -std=<standard>              Assume that the input sources are for <standard>, one of 'c++14', 'c++17', 'c++20', 'c++23', 'c++26', or 'c23'
+  --sysroot=<directory>        Use <directory> as the root directory for headers and libraries
+...
+```
 
-- **C++-26 and C23 Support**: Latest language enhancements, syntax, and features (WIP).
+## Build the NPM package and the Playground
 
-- **MLIR**: MLIR code generation and optimization.
-
-## Playground
-
-The playground uses the Monaco Editor to demonstrate how to use the compiler frontend LSP implementation.
+The playground uses the Monaco Editor to demonstrate how to use the compiler frontend LSP implementation,
+and the MLIR based codegen pipeline.
 
 https://robertoraggi.github.io/cplusplus/
 
 ```bash
+# set EMSCRIPTEN_ROOT to the emscripten root, e.g. on macOS with emscripten installed via homebrew
+export EMSCRIPTEN_ROOT=/opt/homebrew/opt/emscripten/libexec/
+
+uv sync
+source .venv/bin/activate
+
 npm ci
 npm run download-mlir
 npm run build:cxx-frontend
 npm run build:playground-sysroot
 npm run playground
 ```
-
-## Native Build and CLI tools
-
-On Linux, macOS and Windows:
-
-install the python packages required to run the unit tests (optional)
-
-```sh
-uv sync && source .venv/bin/activate
-```
-
-configure with MLIR support enabled
-
-```sh
-cmake --preset default-mlir
-```
-
-build
-
-```sh
-cmake --build build
-```
-
-run the unit tests
-
-```sh
-cd build
-ctest --progress
-```
-
-Dump the AST to stdout
-
-```sh
- ./build/src/frontend/cxx tests/manual/source.cc -ast-dump
-```
-
-## Build the npm package (requires docker)
-
-prepare the package
-
-```sh
-npm ci
-```
-
-compile WASM and TypeScript code
-
-```sh
-npm run build:cxx-frontend
-```
-
-## Build for WASM/WASI (requires docker)
-
-```sh
-npm ci
-npm run build:wasi
-```
-
-run the C++ front end CLI tool using wasmtime
-
-```sh
-wasmtime \
-  --mapdir=/::build.wasi/install \
-  --mapdir tests::tests \
-  build.wasi/install/usr/bin/cxx.wasm -- \
-  tests/manual/source.cc -ast-dump
-```
-
-## Installing from npm
-
-To integrate the latest stable version of the C++ Compiler Frontend bindings into your project, you can install them from npm:
-
-```sh
-npm install cxx-frontend
-```
-
-Once installed, you can use the bindings in your Node.js or web projects as needed.
 
 ## License
 

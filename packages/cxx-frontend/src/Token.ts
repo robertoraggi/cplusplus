@@ -20,7 +20,7 @@
 
 import { cxx } from "./cxx.js";
 import { type SourceLocation } from "./SourceLocation.js";
-import { TokenKind } from "./TokenKind.js";
+import { type TokenKind, tokenKindNames } from "./TokenKind.js";
 
 interface TranslationUnitLike {
   getUnitHandle(): number;
@@ -40,7 +40,7 @@ export class Token {
   }
 
   getKind(): TokenKind {
-    return cxx.getTokenKind(this.#handle, this.#unit) as TokenKind;
+    return tokenKindNames[cxx.getTokenKind(this.#handle, this.#unit)]!;
   }
 
   is(kind: TokenKind) {

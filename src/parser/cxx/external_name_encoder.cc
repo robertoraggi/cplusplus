@@ -20,9 +20,11 @@
 
 #include <cxx/ast.h>
 #include <cxx/binder.h>
+#include <cxx/control.h>
 #include <cxx/dependent_types.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/template_equivalence.h>
@@ -35,6 +37,7 @@
 #include <cstdint>
 #include <format>
 #include <functional>
+#include <limits>
 #include <set>
 #include <span>
 
@@ -382,7 +385,12 @@ struct ExternalNameEncoder::EncodeType {
   auto operator()(const FunctionType* type) -> bool {
     encoder.encodeCvQualifiers(type->cvQualifiers());
 
-    if (type->isNoexcept()) encoder.out("Do");
+    if (type->noexceptExpression()) {
+      encoder.out("DO");
+      if (!encoder.encodeExpression(type->noexceptExpression())) return false;
+      encoder.out("E");
+    } else if (type->isNoexcept())
+      encoder.out("Do");
 
     encoder.out("F");
 
@@ -461,7 +469,17 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const UnresolvedBoundedArrayType* type) -> bool {
-    encoder.out("A0_");
+    encoder.out("A");
+
+    if (isDependent(type->translationUnit(), type->size())) {
+      if (!encoder.encodeExpression(type->size())) {
+        cxx_runtime_error(std::format(
+            "cannot mangle dependent array bound of '{}'", to_string(type)));
+      }
+    }
+
+    encoder.out("_");
+    encoder.encodeType(type->elementType());
     return true;
   }
 
@@ -590,12 +608,15 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
 
     for (std::size_t index = 0; index < args.size(); ++index) {
       const auto& arg = args[index];
-      if (isOverloadableTemplate && index < parameters.size()) {
+
+      const Type* declaredType = nullptr;
+      if (index < parameters.size()) {
         if (auto parameter =
                 ast_cast<NonTypeTemplateParameterAST>(parameters[index])) {
           auto declaration = parameter->declaration;
-          auto declaredType = declaration ? declaration->type : nullptr;
-          if (declaredType && encoder.unit_ &&
+          if (declaration) declaredType = declaration->type;
+
+          if (isOverloadableTemplate && declaredType && encoder.unit_ &&
               isDependent(encoder.unit_, declaredType)) {
             if (declaration->isPack) encoder.out("Tp");
             encoder.out("Tn");
@@ -610,7 +631,8 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
         if (!*type) continue;
         encoder.encodeType(*type);
       } else if (auto val = std::get_if<ConstValue>(&arg)) {
-        encoder.out(std::format("Li{}E", std::get<std::intmax_t>(*val)));
+        if (!declaredType) continue;
+        encoder.encodeConstValue(declaredType, *val);
       } else if (auto exprArg = std::get_if<ExpressionAST*>(&arg)) {
         encodeDependentExpressionArgument(*exprArg);
       }
@@ -1560,7 +1582,19 @@ struct ExternalNameEncoder::EncodeExpression {
     return true;
   }
 
+  [[nodiscard]] auto operator()(ConditionalExpressionAST* ast) const -> bool {
+    encoder.out("qu");
+    return encode(ast->condition) && encode(ast->iftrueExpression) &&
+           encode(ast->iffalseExpression);
+  }
+
   [[nodiscard]] auto operator()(IdExpressionAST* ast) const -> bool {
+    if (auto enumerator = symbol_cast<EnumeratorSymbol>(
+            resolve_using_declaration(ast->symbol));
+        enumerator && enumerator->value() && ast->type) {
+      encoder.encodeConstValue(ast->type, *enumerator->value());
+      return true;
+    }
     if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol)) {
       encoder.encodeTemplateParamValue(param->index());
       return true;
@@ -1641,6 +1675,18 @@ auto ExternalNameEncoder::encodeTemplateArgumentList(
   return true;
 }
 
+auto ExternalNameEncoder::normalizeConstInt(const Type* type,
+                                            const ConstInt& value) const
+    -> ConstInt {
+  if (!unit_) return value;
+
+  auto normalized =
+      TypeTraits{unit_}.integral_constant(type, value.toWideValue());
+  if (!normalized) return value;
+
+  return *normalized;
+}
+
 void ExternalNameEncoder::encodeConstValue(const Type* type,
                                            const ConstValue& value) {
   out("L");
@@ -1648,12 +1694,10 @@ void ExternalNameEncoder::encodeConstValue(const Type* type,
   std::visit(
       [&](auto&& v) {
         using T = std::decay_t<decltype(v)>;
-        if constexpr (std::is_same_v<T, std::intmax_t>) {
-          if (v < 0) {
-            out(std::format("n{}", -v));
-          } else {
-            out(std::format("{}", v));
-          }
+        if constexpr (std::is_same_v<T, ConstInt>) {
+          auto normalized = normalizeConstInt(type, v);
+          if (normalized.isNegative()) out("n");
+          out(normalized.toDecimalString());
         } else if constexpr (std::is_same_v<T, bool>) {
           out(v ? "1" : "0");
         } else if constexpr (std::is_same_v<T, double>) {
@@ -1739,10 +1783,8 @@ auto ExternalNameEncoder::mangledAbiTags(Symbol* symbol)
 
   addDeclaredTags(symbol);
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-    addDeclaredTags(function->canonical());
-    for (auto redeclaration : function->canonical()->redeclarations()) {
-      addDeclaredTags(redeclaration);
-    }
+    for (auto declaration : function->declarations())
+      addDeclaredTags(declaration);
   }
 
   std::vector<const Identifier*> tags{declaredTags.begin(), declaredTags.end()};

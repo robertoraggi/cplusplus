@@ -23,11 +23,17 @@ struct C {
 // CHECK-NEXT:        parameter ::C&&
 // CHECK-NEXT:    injected class name C
 // CHECK-NEXT:    function void aa() const
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function void bb() volatile
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function void cc() const volatile
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function void dd() &
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function void ee() &&
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function void ff() const volatile & noexcept
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function constexpr inline defaulted ::C& operator =(const ::C&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::C&

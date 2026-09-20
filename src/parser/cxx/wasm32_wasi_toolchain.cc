@@ -43,18 +43,6 @@ Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor)
   memoryLayout()->setTriple("wasm32");
 }
 
-auto Wasm32WasiToolchain::appdir() const -> const std::string& {
-  return appdir_;
-}
-
-void Wasm32WasiToolchain::setAppdir(std::string appdir) {
-  appdir_ = std::move(appdir);
-
-  if (!appdir_.empty() && appdir_.back() == '/') {
-    appdir_.pop_back();
-  }
-}
-
 auto Wasm32WasiToolchain::sysroot() const -> const std::string& {
   return sysroot_;
 }
@@ -70,7 +58,7 @@ void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
 void Wasm32WasiToolchain::addSystemIncludePaths() {
   addSystemIncludePath(std::format("{}/include", sysroot_));
   addSystemIncludePath(std::format("{}/include/wasm32-wasip1", sysroot_));
-  addSystemIncludePath(std::format("{}/../lib/cxx/include", appdir_));
+  addSystemIncludePath(std::format("{}/include", resourceDir()));
 }
 
 void Wasm32WasiToolchain::addSystemCppIncludePaths() {
@@ -82,6 +70,8 @@ void Wasm32WasiToolchain::addSystemCppIncludePaths() {
 }
 
 void Wasm32WasiToolchain::addPredefinedMacros() {
+  setExceptionsEnabled(false);
+
   defineMacro("__extension__", "");
   defineMacro("__autoreleasing", "");
   defineMacro("__strong", "");

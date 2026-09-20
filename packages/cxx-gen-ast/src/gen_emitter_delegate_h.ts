@@ -124,6 +124,31 @@ export function gen_emitter_delegate_h({
   emit(`namespace cxx::js {`);
   emit();
 
+  for (const entry of protocol.enums) {
+    emit(`inline auto toVal(${entry.cpp} value) -> val {`);
+    emit(`  switch (value) {`);
+    for (const enumerator of entry.enumerators)
+      emit(
+        `    case ${entry.cpp}::${enumerator.name}:\n      return val("${enumerator.name}");`,
+      );
+    emit(`  }`);
+    emit(`  return val::undefined();`);
+    emit(`}`);
+    emit();
+    emit(`template <>`);
+    emit(
+      `inline auto toEnum<${entry.cpp}>(const val& value) -> ${entry.cpp} {`,
+    );
+    emit(`  const auto name = toString(value);`);
+    for (const enumerator of entry.enumerators)
+      emit(
+        `  if (name == "${enumerator.name}") return ${entry.cpp}::${enumerator.name};`,
+      );
+    emit(`  return ${entry.cpp}{};`);
+    emit(`}`);
+    emit();
+  }
+
   for (const struct of protocol.structs)
     emit(`auto toVal(const ${struct.cpp}& value) -> val;`);
   emit();

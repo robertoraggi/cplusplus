@@ -52,12 +52,17 @@ struct ProtectedFileRecord {
   bool isSystemHeader = false;
 };
 
+struct PackStackEntry {
+  std::string label;
+  int value = 0;
+};
+
 struct PreprocessorSnapshot {
   std::vector<MacroRecord> macros;
   std::vector<std::string> undefinedBuiltins;
   std::vector<ProtectedFileRecord> protectedFiles;
   std::vector<std::pair<std::string, bool>> includedFiles;
-  std::vector<int> packStack;
+  std::vector<PackStackEntry> packStack;
   std::string date;
   std::string time;
   int counter = 0;

@@ -22,6 +22,7 @@
 
 #include <cxx/codegen/debug_emitter.h>
 #include <cxx/codegen/emitter_handles.h>
+#include <cxx/const_int.h>
 #include <cxx/source_location.h>
 
 #include <cstdint>
@@ -168,6 +169,7 @@ struct ModuleInfo {
   std::string_view sourceFile;
   std::string_view targetTriple;
   std::string_view debugCompilationDirectory;
+  std::string_view framePointer;
 };
 
 struct VTableTableInfo {
@@ -198,7 +200,7 @@ struct FunctionInfo {
   Linkage linkage = Linkage::External;
   Visibility visibility = Visibility::Default;
   InlineKind inlineKind = InlineKind::NoInline;
-  std::string_view aliasName;
+  std::string_view aliasee;
   std::string_view importModule;
   std::string_view importName;
   std::string_view exportName;
@@ -222,14 +224,14 @@ struct Initializer {
 
   Kind kind = Kind::None;
   TypeRef type;
-  std::int64_t integer = 0;
+  ConstInt integer;
   double floating = 0;
   std::string bytes;
   std::vector<Initializer> elements;
 
   explicit operator bool() const { return kind != Kind::None; }
 
-  static auto integerValue(TypeRef type, std::int64_t value) -> Initializer {
+  static auto integerValue(TypeRef type, ConstInt value) -> Initializer {
     Initializer i;
     i.kind = Kind::Integer;
     i.type = type;
@@ -388,7 +390,7 @@ class Emitter {
   }
 
   [[nodiscard]] auto constantInt(SourceLocation loc, TypeRef type,
-                                 std::int64_t value) -> ValueRef {
+                                 ConstInt value) -> ValueRef {
     return constant(loc, type, Initializer::integerValue(type, value));
   }
 
@@ -759,6 +761,9 @@ class Emitter {
       -> FunctionRef = 0;
 
   [[nodiscard]] virtual auto functionHasBody(FunctionRef function) -> bool = 0;
+
+  virtual void setFunctionAliasee(FunctionRef function,
+                                  std::string_view aliasee) = 0;
 
   [[nodiscard]] virtual auto findGlobal(std::string_view name) -> GlobalRef = 0;
 

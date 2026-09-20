@@ -56,9 +56,23 @@ namespace {
 
 }  // namespace
 
+auto TemplateEquivalence::same(const ExceptionSpecification& a,
+                               const ExceptionSpecification& b) const -> bool {
+  if (a.index() != b.index()) return false;
+  if (auto value = std::get_if<bool>(&a)) return *value == std::get<bool>(b);
+  return same(std::get<ExpressionAST*>(a), std::get<ExpressionAST*>(b));
+}
+
 auto TemplateEquivalence::same(const Type* a, const Type* b) const -> bool {
   if (!a || !b) return false;
   if (a == b) return true;
+
+  if (auto lhs = type_cast<UnresolvedNameType>(a)) {
+    auto rhs = type_cast<UnresolvedNameType>(b);
+    return rhs &&
+           same(lhs->nestedNameSpecifier(), rhs->nestedNameSpecifier()) &&
+           same(lhs->unqualifiedId(), rhs->unqualifiedId());
+  }
 
   if (correspondence_.applies()) return corresponds(a, b, correspondence_);
 
@@ -89,30 +103,31 @@ auto TemplateEquivalence::sameQualifiedName(NestedNameSpecifierAST* aQualifier,
 auto TemplateEquivalence::same(NamedTypeSpecifierAST* a,
                                NamedTypeSpecifierAST* b) const -> bool {
   if (!a || !b) return false;
-  if (!same(a->nestedNameSpecifier, b->nestedNameSpecifier)) return false;
 
-  if (ast_cast<NameIdAST>(a->unqualifiedId) &&
-      ast_cast<NameIdAST>(b->unqualifiedId)) {
-    return same(a->symbol ? a->symbol->type() : nullptr,
-                b->symbol ? b->symbol->type() : nullptr);
+  auto aTemplateId = ast_cast<SimpleTemplateIdAST>(a->unqualifiedId);
+  auto bTemplateId = ast_cast<SimpleTemplateIdAST>(b->unqualifiedId);
+
+  if (aTemplateId || bTemplateId) {
+    if (!aTemplateId || !bTemplateId) return false;
+    if (!aTemplateId->symbol || aTemplateId->symbol != bTemplateId->symbol)
+      return false;
+    return same(aTemplateId->templateArgumentList,
+                bTemplateId->templateArgumentList);
   }
 
-  auto aTid = ast_cast<SimpleTemplateIdAST>(a->unqualifiedId);
-  auto bTid = ast_cast<SimpleTemplateIdAST>(b->unqualifiedId);
-  if (!aTid || !bTid) return false;
-  if (!aTid->symbol || aTid->symbol != bTid->symbol) return false;
+  if (!same(a->nestedNameSpecifier, b->nestedNameSpecifier)) return false;
 
-  return same(aTid->templateArgumentList, bTid->templateArgumentList);
+  if (!ast_cast<NameIdAST>(a->unqualifiedId) ||
+      !ast_cast<NameIdAST>(b->unqualifiedId))
+    return false;
+
+  return same(a->symbol ? a->symbol->type() : nullptr,
+              b->symbol ? b->symbol->type() : nullptr);
 }
 
 auto TemplateEquivalence::sameWritten(NamedTypeSpecifierAST* a,
                                       NamedTypeSpecifierAST* b) const -> bool {
   if (!a || !b) return false;
-  auto aScope =
-      a->nestedNameSpecifier ? a->nestedNameSpecifier->symbol : nullptr;
-  auto bScope =
-      b->nestedNameSpecifier ? b->nestedNameSpecifier->symbol : nullptr;
-  if (aScope != bScope) return false;
 
   auto aName = ast_cast<NameIdAST>(a->unqualifiedId);
   auto bName = ast_cast<NameIdAST>(b->unqualifiedId);
@@ -291,8 +306,6 @@ auto TemplateEquivalence::same(ExpressionAST* a, ExpressionAST* b) const
              aNttp->index() == bNttp->index();
     }
 
-    if (!same(aId->nestedNameSpecifier, bId->nestedNameSpecifier)) return false;
-
     auto aTid = ast_cast<SimpleTemplateIdAST>(aId->unqualifiedId);
     auto bTid = ast_cast<SimpleTemplateIdAST>(bId->unqualifiedId);
     if (aTid || bTid) {
@@ -307,7 +320,7 @@ auto TemplateEquivalence::same(ExpressionAST* a, ExpressionAST* b) const
     if (!aNameId || !bNameId) return false;
     if (aNameId->identifier != bNameId->identifier) return false;
     if (aId->symbol && bId->symbol) return aId->symbol == bId->symbol;
-    return true;
+    return same(aId->nestedNameSpecifier, bId->nestedNameSpecifier);
   }
 
   return false;
@@ -381,6 +394,15 @@ auto TemplateEquivalence::corresponds(
     return corresponds(a, b, correspondence);
   };
 
+  if (auto name = type_cast<UnresolvedNameType>(lhs)) {
+    auto other = type_cast<UnresolvedNameType>(rhs);
+    TemplateEquivalence equivalence{unit_, correspondence};
+    return other &&
+           equivalence.same(name->nestedNameSpecifier(),
+                            other->nestedNameSpecifier()) &&
+           equivalence.same(name->unqualifiedId(), other->unqualifiedId());
+  }
+
   auto lhsInfo = getTypeParamInfo(lhs);
   auto rhsInfo = getTypeParamInfo(rhs);
   if (lhsInfo || rhsInfo) {
@@ -433,6 +455,9 @@ auto TemplateEquivalence::corresponds(
     if (lhsFn->isVariadic() != rhsFn->isVariadic()) return false;
     if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
     if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
+    if (!TemplateEquivalence{unit_, correspondence}.same(
+            lhsFn->exceptionSpecification(), rhsFn->exceptionSpecification()))
+      return false;
 
     const auto& lhsParams = lhsFn->parameterTypes();
     const auto& rhsParams = rhsFn->parameterTypes();
@@ -457,8 +482,10 @@ auto TemplateEquivalence::corresponds(
     if (!lhsTemplate) return false;
     if (lhsTemplate != class_template_of(rhsSym)) return false;
 
-    return corresponds(class_template_arguments(lhsSym),
-                       class_template_arguments(rhsSym), correspondence);
+    return corresponds(
+        expand_template_arguments(class_template_arguments(lhsSym)),
+        expand_template_arguments(class_template_arguments(rhsSym)),
+        correspondence);
   }
 
   return unit_->typeTraits().is_same(lhs, rhs);
@@ -517,8 +544,8 @@ auto TemplateEquivalence::same(NestedNameSpecifierAST* a,
     if (!aTemplateId || !bTemplateId) return false;
     if (!aTemplateId->symbol || aTemplateId->symbol != bTemplateId->symbol)
       return false;
-    return sameWritten(aTemplateId->templateArgumentList,
-                       bTemplateId->templateArgumentList);
+    return same(aTemplateId->templateArgumentList,
+                bTemplateId->templateArgumentList);
   }
 
   if (auto aSimple = ast_cast<SimpleNestedNameSpecifierAST>(a)) {

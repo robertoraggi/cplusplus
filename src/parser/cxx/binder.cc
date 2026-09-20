@@ -47,6 +47,7 @@
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
+#include <algorithm>
 #include <format>
 
 namespace cxx {
@@ -171,7 +172,7 @@ void Binder::finishAutoReturnType(FunctionSymbol* functionSymbol) {
       std::vector<const Type*>(funcType->parameterTypes().begin(),
                                funcType->parameterTypes().end()),
       funcType->isVariadic(), funcType->cvQualifiers(),
-      funcType->refQualifier(), funcType->isNoexcept());
+      funcType->refQualifier(), funcType->exceptionSpecification());
   functionSymbol->setType(newFuncType);
 }
 
@@ -230,6 +231,153 @@ void Binder::applyAccessSpecifier(Symbol* symbol) const {
   if (!symbol) return;
   if (symbol_cast<ClassSymbol>(symbol->parent()) != classBeingDefined()) return;
   symbol->setAccessSpecifier(currentAccessSpecifier());
+}
+
+namespace {
+template <typename S>
+void applyTemplateHead(Binder& binder, S* symbol,
+                       TemplateDeclarationAST* templateHead) {
+  if (!symbol) return;
+
+  if (templateHead) {
+    binder.mergeTemplateParameterDefaults(
+        symbol->canonical()->templateParameters(), templateHead->symbol);
+  }
+
+  symbol->setTemplateDeclaration(templateHead);
+
+  if (!templateHead) return;
+
+  symbol->setTemplateParameters(templateHead->symbol);
+  binder.checkDefaultTemplateArgumentOnPack(templateHead->symbol);
+}
+}  // namespace
+
+void Binder::setTemplateHead(FunctionSymbol* symbol,
+                             TemplateDeclarationAST* templateHead) {
+  applyTemplateHead(*this, symbol, templateHead);
+}
+
+void Binder::setTemplateHead(VariableSymbol* symbol,
+                             TemplateDeclarationAST* templateHead) {
+  applyTemplateHead(*this, symbol, templateHead);
+}
+
+void Binder::setTemplateHead(TypeAliasSymbol* symbol,
+                             TemplateDeclarationAST* templateHead) {
+  applyTemplateHead(*this, symbol, templateHead);
+}
+
+void Binder::checkTemplateParameterDefaultOrder(
+    TemplateParametersSymbol* parameters) {
+  if (!parameters) return;
+
+  Symbol* defaulted = nullptr;
+
+  for (auto parameter : parameters->members()) {
+    if (default_template_argument(parameter)) {
+      defaulted = parameter;
+      continue;
+    }
+
+    if (!defaulted) continue;
+
+    if (is_template_parameter_pack(parameter)) continue;
+
+    error(parameter->location(),
+          "template parameter missing a default argument");
+    note(defaulted->location(),
+         "previous default template argument defined here");
+    return;
+  }
+}
+
+void Binder::checkDefaultTemplateArgumentOnPack(
+    TemplateParametersSymbol* parameters) {
+  if (!parameters) return;
+
+  for (auto parameter : parameters->members()) {
+    if (!is_template_parameter_pack(parameter)) continue;
+    if (!default_template_argument(parameter)) continue;
+
+    error(parameter->location(),
+          "a template parameter pack cannot have a default argument");
+    return;
+  }
+}
+
+void Binder::rejectDefaultTemplateArguments(
+    TemplateDeclarationAST* templateHead, std::string message) {
+  if (!templateHead) return;
+
+  for (auto parameter : ListView{templateHead->templateParameterList}) {
+    if (!hasWrittenDefaultTemplateArgument(parameter)) continue;
+    error(parameter->firstSourceLocation(), std::move(message));
+    return;
+  }
+}
+
+void Binder::copyDefaultArguments(FunctionParametersSymbol* from,
+                                  FunctionParametersSymbol* to) {
+  if (!from || !to || from == to) return;
+
+  auto sources = from->members() | views::parameters;
+  auto targets = to->members() | views::parameters;
+
+  auto sourceIt = sources.begin();
+  auto targetIt = targets.begin();
+
+  for (; sourceIt != sources.end() && targetIt != targets.end();
+       ++sourceIt, ++targetIt) {
+    auto source = *sourceIt;
+    auto target = *targetIt;
+
+    if (target->defaultArgument()) continue;
+    if (!source->defaultArgument()) continue;
+
+    setSpeculativeValue(
+        target->defaultArgument(), source->defaultArgument(),
+        [target](ExpressionAST* value) { target->setDefaultArgument(value); });
+  }
+}
+
+void Binder::mergeTemplateParameterDefaults(
+    TemplateParametersSymbol* accumulated, TemplateParametersSymbol* incoming) {
+  if (!accumulated || !incoming) return;
+  if (accumulated == incoming) return;
+
+  const auto& previousParameters = accumulated->members();
+  const auto& currentParameters = incoming->members();
+  const auto count =
+      std::min(previousParameters.size(), currentParameters.size());
+
+  for (std::size_t index = 0; index < count; ++index) {
+    auto previous = previousParameters[index];
+    auto current = currentParameters[index];
+    auto previousDefault = default_template_argument(previous);
+    auto currentDefault = default_template_argument(current);
+
+    if (previousDefault == currentDefault) continue;
+
+    if (!currentDefault) {
+      setSpeculativeValue(currentDefault, previousDefault,
+                          [current](TemplateParameterAST* value) {
+                            set_default_template_argument(current, value);
+                          });
+      continue;
+    }
+
+    if (!previousDefault) {
+      setSpeculativeValue(previousDefault, currentDefault,
+                          [previous](TemplateParameterAST* value) {
+                            set_default_template_argument(previous, value);
+                          });
+      continue;
+    }
+
+    error(current->location(), "redefinition of default template argument");
+    note(previous->location(), "previous definition is here");
+  }
 }
 
 auto Binder::scopeForBlockDecl(ScopeSymbol* scope) const -> ScopeSymbol* {
@@ -519,6 +667,29 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
       }
 
       classSymbol->setDeclaration(ast);
+    } else if (declSpecs.templateHead && isDeclaration) {
+      if (classSymbol->templateParameters()) {
+        mergeTemplateParameterDefaults(classSymbol->templateParameters(),
+                                       declSpecs.templateHead->symbol);
+      } else {
+        classSymbol->setTemplateDeclaration(declSpecs.templateHead);
+        classSymbol->setTemplateParameters(declSpecs.templateHead->symbol);
+      }
+    }
+
+    if (declSpecs.templateHead && isDeclaration && declSpecs.isFriend) {
+      rejectDefaultTemplateArguments(
+          declSpecs.templateHead,
+          "a default template argument cannot be specified on a friend "
+          "template declaration");
+    }
+
+    if (declSpecs.templateHead && isDeclaration) {
+      checkDefaultTemplateArgumentOnPack(classSymbol->templateParameters());
+    }
+
+    if (declSpecs.templateHead && isDeclaration && !declSpecs.isFriend) {
+      checkTemplateParameterDefaultOrder(classSymbol->templateParameters());
     }
 
     ast->symbol = classSymbol;
@@ -858,8 +1029,8 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc,
   symbol->setName(name);
 
   if (typeId) symbol->setType(typeId->type);
-  symbol->setTemplateDeclaration(templateHead);
-  if (templateHead) symbol->setTemplateParameters(templateHead->symbol);
+  setTemplateHead(symbol, templateHead);
+  checkTemplateParameterDefaultOrder(symbol->canonical()->templateParameters());
 
   if (auto classType = type_cast<ClassType>(symbol->type())) {
     auto classSymbol = classType->symbol();
@@ -1054,19 +1225,6 @@ void Binder::checkUsingDeclaratorAccess(UsingDeclaratorAST* ast,
   for (auto function : introduced) reportInaccessible(function);
 }
 
-void Binder::checkQualifiedNameAccess(
-    NestedNameSpecifierAST* nestedNameSpecifier, Symbol* symbol,
-    SourceLocation loc) {
-  if (!symbol) return;
-  if (!nestedNameSpecifier) return;
-
-  auto designatingClass = symbol_cast<ClassSymbol>(nestedNameSpecifier->symbol);
-  if (!designatingClass) return;
-
-  (void)checkMemberAccess(unit_, scope(), symbol, designatingClass, nullptr,
-                          loc);
-}
-
 void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   const auto checkTemplates = unit_->config().checkTypes;
 
@@ -1103,14 +1261,14 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
       return;
     }
 
-    if (auto typeParam = symbol_cast<TypeParameterSymbol>(symbol)) {
+    if (isDependent(unit_, symbol->type())) {
       auto location = ast->unqualifiedId->firstSourceLocation();
       auto baseClassSymbol = control()->newBaseClassSymbol(scope(), location);
       ast->symbol = baseClassSymbol;
 
       baseClassSymbol->setVirtual(ast->isVirtual);
-      baseClassSymbol->setSymbol(typeParam);
-      baseClassSymbol->setName(typeParam->name());
+      baseClassSymbol->setSymbol(symbol);
+      baseClassSymbol->setName(symbol->name());
 
       baseClassSymbol->setAccessSpecifier(
           toAccessSpecifier(ast->accessSpecifier, defaultAccessSpecifier()));
@@ -1357,6 +1515,12 @@ auto Binder::checkCapturedEntity(Symbol* symbol, const Identifier* identifier,
 
 auto Binder::enclosingThisType(ScopeSymbol* scope) -> const Type* {
   for (auto current = scope; current; current = current->parent()) {
+    if (auto parameters = symbol_cast<FunctionParametersSymbol>(current);
+        parameters && !symbol_cast<FunctionSymbol>(parameters->parent())) {
+      if (auto cls = parameters->enclosingClass())
+        return control()->getPointerType(
+            control()->getQualType(cls->type(), parameters->cvQualifiers()));
+    }
     if (auto classSymbol = symbol_cast<ClassSymbol>(current)) {
       if (classSymbol->isClosureType()) {
         if (auto capturedThisField = classSymbol->capturedThisField()) {
@@ -2501,8 +2665,8 @@ auto unqualifiedIdsStructurallyEquivalentForRedeclaration(TranslationUnit* unit,
   auto bTemplateId = ast_cast<SimpleTemplateIdAST>(b);
   if (!aTemplateId || !bTemplateId) return false;
   if (aTemplateId->identifier != bTemplateId->identifier) return false;
-  return TemplateEquivalence{unit}.sameWritten(
-      aTemplateId->templateArgumentList, bTemplateId->templateArgumentList);
+  return TemplateEquivalence{unit}.same(aTemplateId->templateArgumentList,
+                                        bTemplateId->templateArgumentList);
 }
 
 auto nestedNameSpecifiersStructurallyEquivalent(TranslationUnit* unit,
@@ -2515,9 +2679,8 @@ auto nestedNameSpecifiersStructurallyEquivalent(TranslationUnit* unit,
     auto tb = ast_cast<TemplateNestedNameSpecifierAST>(b);
     if (!tb || !ta->templateId || !tb->templateId) return false;
     if (ta->templateId->identifier != tb->templateId->identifier) return false;
-    if (!TemplateEquivalence{unit}.sameWritten(
-            ta->templateId->templateArgumentList,
-            tb->templateId->templateArgumentList)) {
+    if (!TemplateEquivalence{unit}.same(ta->templateId->templateArgumentList,
+                                        tb->templateId->templateArgumentList)) {
       return false;
     }
     return nestedNameSpecifiersStructurallyEquivalent(
@@ -2729,63 +2892,6 @@ auto preferredRedeclarationType(TranslationUnit* unit, const Type* existingType,
   return existingType;
 }
 
-auto collectDefaultArguments(DeclaratorAST* declarator)
-    -> std::vector<Binder::DefaultArgumentInfo> {
-  std::vector<Binder::DefaultArgumentInfo> result;
-
-  if (!declarator) return result;
-
-  auto functionDeclarator = getFunctionPrototype(declarator);
-  if (!functionDeclarator) return result;
-
-  auto params = functionDeclarator->parameterDeclarationClause;
-  if (!params || !params->functionParametersSymbol) return result;
-
-  for (auto member : params->functionParametersSymbol->members()) {
-    auto param = symbol_cast<ParameterSymbol>(member);
-    if (!param) {
-      result.push_back({});
-      continue;
-    }
-
-    result.push_back({.expression = param->defaultArgument(),
-                      .location = param->location()});
-  }
-
-  return result;
-}
-
-void applyDefaultArguments(
-    DeclaratorAST* declarator,
-    const std::vector<Binder::DefaultArgumentInfo>& defaultArguments) {
-  if (!declarator) return;
-
-  auto functionDeclarator = getFunctionPrototype(declarator);
-  if (!functionDeclarator) return;
-
-  auto params = functionDeclarator->parameterDeclarationClause;
-  if (!params || !params->functionParametersSymbol) return;
-
-  size_t index = 0;
-  for (auto member : params->functionParametersSymbol->members()) {
-    auto param = symbol_cast<ParameterSymbol>(member);
-    if (!param) {
-      ++index;
-      continue;
-    }
-
-    if (index >= defaultArguments.size()) {
-      ++index;
-      continue;
-    }
-
-    if (!param->defaultArgument()) {
-      param->setDefaultArgument(defaultArguments[index].expression);
-    }
-
-    ++index;
-  }
-}
 }  // namespace
 
 void Binder::computeClassFlags(ClassSymbol* classSymbol) {
@@ -2876,52 +2982,6 @@ void Binder::computeClassFlags(ClassSymbol* classSymbol) {
 
   auto dtor = classSymbol->destructor();
   classSymbol->setHasVirtualDestructor(dtor && dtor->isVirtual());
-}
-
-void Binder::mergeDefaultArguments(FunctionSymbol* functionSymbol,
-                                   DeclaratorAST* declarator) {
-  if (!functionSymbol) return;
-
-  auto collected = collectDefaultArguments(declarator);
-  if (collected.empty()) return;
-
-  auto canonical = functionSymbol->canonical();
-  if (!canonical) canonical = functionSymbol;
-
-  if (speculationDepth_) {
-    auto previous = defaultArguments_.find(canonical);
-    const auto existed = previous != defaultArguments_.end();
-    std::vector<DefaultArgumentInfo> arguments;
-    if (existed) arguments = previous->second;
-    recordSpeculativeMutation(
-        [this, canonical, existed, arguments = std::move(arguments)]() mutable {
-          if (!existed) {
-            defaultArguments_.erase(canonical);
-            return;
-          }
-          defaultArguments_[canonical] = std::move(arguments);
-        });
-  }
-
-  auto& known = defaultArguments_[canonical];
-  if (known.size() < collected.size()) {
-    known.resize(collected.size());
-  }
-
-  for (size_t index = 0; index < collected.size(); ++index) {
-    const auto& incoming = collected[index];
-    if (!incoming.expression) continue;
-
-    auto& existing = known[index];
-    if (existing.expression) {
-      error(incoming.location, "redefinition of default argument");
-      continue;
-    }
-
-    existing = incoming;
-  }
-
-  applyDefaultArguments(declarator, known);
 }
 
 void Binder::checkRedeclaredAlignment(ClassSymbol* classSymbol, int requested,
@@ -3097,14 +3157,15 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
 
       if (value) {
         fieldSymbol->setBitFieldWidth(*value);
-        if (auto width = std::get_if<std::intmax_t>(&*value)) {
-          if (*width < 0) {
+        if (auto bitWidth = std::get_if<ConstInt>(&*value)) {
+          const auto width = bitWidth->toIntMax();
+          if (width < 0) {
             error(decl.location(), "bit-field width is negative");
-          } else if (*width == 0 && name) {
+          } else if (width == 0 && name) {
             error(decl.location(), "zero-width bit-field must be unnamed");
           } else if (!inTemplate()) {
             auto typeSize = control()->memoryLayout()->sizeOf(type);
-            if (typeSize && *width > *typeSize * 8) {
+            if (typeSize && width > static_cast<std::intmax_t>(*typeSize) * 8) {
               error(decl.location(),
                     "width of bit-field exceeds width of its type");
             }
@@ -3142,7 +3203,8 @@ void Binder::declareAnonymousField(ClassSpecifierAST* classSpecifier) {
 }
 
 auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
-                             bool addSymbolToParentScope) -> VariableSymbol* {
+                             bool addSymbolToParentScope,
+                             const Type* declaratorType) -> VariableSymbol* {
   auto name = decl.getName();
   auto currentScope = declaringScope();
   auto qualifiedScope = decl.getScope();
@@ -3172,7 +3234,8 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
                                            : currentScope;
 
   auto symbol = control()->newVariableSymbol(targetScope, decl.location());
-  auto type = getDeclaratorType(unit_, declarator, decl.specs.type());
+  auto type = declaratorType;
+  if (!type) type = getDeclaratorType(unit_, declarator, decl.specs.type());
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
   symbol->setType(type);
@@ -3246,10 +3309,10 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
 void Binder::declareVariableTemplate(VariableSymbol* symbol,
                                      IdDeclaratorAST* declaratorId,
                                      TemplateDeclarationAST* templateHead) {
-  symbol->setTemplateDeclaration(templateHead);
+  setTemplateHead(symbol, templateHead);
   if (!templateHead) return;
 
-  symbol->setTemplateParameters(templateHead->symbol);
+  checkTemplateParameterDefaultOrder(symbol->canonical()->templateParameters());
 
   if (!declaratorId) return;
 
@@ -3565,7 +3628,7 @@ void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup) {
   resolveIdExpression(ast, mayUseArgumentDependentLookup);
 }
 
-void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
+void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast, bool isCallee) {
   if (!ast->unqualifiedId) return;
   if (!ast->nestedNameSpecifier || !ast->nestedNameSpecifier->symbol) return;
 
@@ -3593,7 +3656,7 @@ void Binder::qualifiedLookupIdExpression(IdExpressionAST* ast) {
     return;
   }
 
-  resolveIdExpression(ast, /*isCallee=*/false);
+  resolveIdExpression(ast, isCallee);
 
   if (auto function = designatedFunction(ast->symbol)) {
     ast->symbol = function;
@@ -3948,7 +4011,7 @@ auto Binder::resolveMemberOfCurrentInstantiation(
     return control()->getFunctionType(
         returnType, std::move(parameterTypes), function->isVariadic(),
         function->cvQualifiers(), function->refQualifier(),
-        function->isNoexcept());
+        function->exceptionSpecification());
   }
 
   return type;
@@ -4012,6 +4075,15 @@ auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type,
     for (auto ctor : parentClass->constructors()) {
       if (matches(ctor)) return ctor;
     }
+  }
+
+  if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(parentScope)) {
+    for (auto candidateScope : inlineNamespaceSet(namespaceSymbol)) {
+      if (auto function =
+              views::find_function(candidateScope->find(name), matches))
+        return function;
+    }
+    return nullptr;
   }
 
   return views::find_function(scope->find(name), matches);

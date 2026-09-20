@@ -458,3 +458,44 @@ TEST(PrecompiledHeader, ReportsIncludesThatCannotBeRead) {
   ASSERT_EQ(messages.size(), 1);
   EXPECT_EQ(messages[0], "cannot read file 'header.h'");
 }
+
+TEST(PrecompiledHeader, RestoresDependentExceptionSpecifications) {
+  Prefix prefix{R"(
+template<bool B> using Function = int() noexcept(B);
+using Nothrow = Function<true>;
+using Throwing = Function<false>;
+)"};
+  const auto data = prefix.emit();
+  ASSERT_TRUE(prefix.errors().empty());
+  ASSERT_FALSE(data.empty());
+
+  DiagnosticsClient diagnostics;
+  TranslationUnit consumer{&diagnostics};
+  consumer.setSource("", "consumer.cc");
+  PrecompiledHeaderReader reader{&consumer, keys()};
+  ASSERT_TRUE(reader(data)) << reader.error();
+
+  auto alias = symbol_cast<TypeAliasSymbol>(
+      findMember(consumer.globalScope(), "Function"));
+  ASSERT_TRUE(alias);
+  auto function = type_cast<FunctionType>(alias->type());
+  ASSERT_TRUE(function);
+  auto expression = ast_cast<IdExpressionAST>(function->noexceptExpression());
+  ASSERT_TRUE(expression);
+  auto parameter = symbol_cast<NonTypeParameterSymbol>(expression->symbol);
+  ASSERT_TRUE(parameter);
+  EXPECT_EQ(parameter->parent(), alias->templateParameters());
+
+  auto nothrow = findMember(consumer.globalScope(), "Nothrow");
+  auto throwing = findMember(consumer.globalScope(), "Throwing");
+  ASSERT_TRUE(nothrow);
+  ASSERT_TRUE(throwing);
+  auto nothrowType = type_cast<FunctionType>(nothrow->type());
+  auto throwingType = type_cast<FunctionType>(throwing->type());
+  ASSERT_TRUE(nothrowType);
+  ASSERT_TRUE(throwingType);
+  EXPECT_EQ(nothrowType->noexceptExpression(), nullptr);
+  EXPECT_EQ(throwingType->noexceptExpression(), nullptr);
+  EXPECT_TRUE(nothrowType->isNoexcept());
+  EXPECT_FALSE(throwingType->isNoexcept());
+}

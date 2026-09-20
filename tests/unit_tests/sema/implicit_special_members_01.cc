@@ -37,6 +37,7 @@ struct WithDtor {
 // CHECK-NEXT:    function constexpr inline defaulted void ~Pod() noexcept
 // CHECK-NEXT:  class WithCtor
 // CHECK-NEXT:    constructor inline void WithCtor()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[9]
 // CHECK-NEXT:    constructor constexpr inline defaulted void WithCtor(const ::WithCtor&) noexcept
@@ -61,6 +62,7 @@ struct WithDtor {
 // CHECK-NEXT:        parameter const ::WithDtor&
 // CHECK-NEXT:    injected class name WithDtor
 // CHECK-NEXT:    function inline void ~WithDtor() noexcept
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
 // CHECK-NEXT:        variable static constexpr const char __func__[10]
 // CHECK-NEXT:    field int data

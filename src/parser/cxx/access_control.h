@@ -98,6 +98,9 @@ class AccessContext {
       Symbol* member, ClassSymbol* designatingClass, ClassSymbol* objectClass,
       std::vector<ClassSymbol*>& visited) const -> bool;
 
+  [[nodiscard]] auto hasUndecidableDerivation(
+      ClassSymbol* designatingClass) const -> bool;
+
   [[nodiscard]] auto isProtectedMemberAccessible(Symbol* member,
                                                  ClassSymbol* designatingClass,
                                                  ClassSymbol* objectClass) const

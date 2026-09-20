@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <bit>
 #include <format>
+#include <ranges>
 #include <unordered_set>
 
 namespace cxx {
@@ -534,12 +535,8 @@ auto is_in_unnamed_namespace(Symbol* symbol) -> bool {
 }
 
 auto is_declared_extern(VariableSymbol* variable) -> bool {
-  if (variable->isExtern()) return true;
-  auto canonical = variable->canonical();
-  if (canonical->isExtern()) return true;
-  return std::ranges::any_of(
-      canonical->redeclarations(),
-      [](VariableSymbol* redeclaration) { return redeclaration->isExtern(); });
+  return std::ranges::any_of(variable->declarations(),
+                             &VariableSymbol::isExtern);
 }
 
 auto has_internal_linkage(Symbol* symbol) -> bool {
@@ -710,6 +707,93 @@ auto template_parameter_info(Symbol* symbol) -> std::optional<TypeParamInfo> {
   return visit(GetTemplateParameterInfo{}, symbol);
 }
 
+auto is_template_parameter_pack(Symbol* symbol) -> bool {
+  auto info = template_parameter_info(symbol);
+  return info && info->isPack;
+}
+
+auto is_callable_with_one_argument(FunctionSymbol* function) -> bool {
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType || functionType->parameterTypes().empty()) return false;
+
+  const auto parameterCount =
+      static_cast<int>(functionType->parameterTypes().size());
+
+  return required_parameter_count(function, parameterCount) <= 1;
+}
+
+struct GetDefaultTemplateArgument {
+  auto operator()(TypeParameterSymbol* symbol) const -> TemplateParameterAST* {
+    return symbol->defaultArgument();
+  }
+
+  auto operator()(NonTypeParameterSymbol* symbol) const
+      -> TemplateParameterAST* {
+    return symbol->defaultArgument();
+  }
+
+  auto operator()(TemplateTypeParameterSymbol* symbol) const
+      -> TemplateParameterAST* {
+    return symbol->defaultArgument();
+  }
+
+  auto operator()(ConstraintTypeParameterSymbol* symbol) const
+      -> TemplateParameterAST* {
+    return symbol->defaultArgument();
+  }
+
+  auto operator()(Symbol*) const -> TemplateParameterAST* { return nullptr; }
+};
+
+struct SetDefaultTemplateArgument {
+  TemplateParameterAST* defaultArgument;
+
+  void operator()(TypeParameterSymbol* symbol) const {
+    symbol->setDefaultArgument(defaultArgument);
+  }
+
+  void operator()(NonTypeParameterSymbol* symbol) const {
+    symbol->setDefaultArgument(defaultArgument);
+  }
+
+  void operator()(TemplateTypeParameterSymbol* symbol) const {
+    symbol->setDefaultArgument(defaultArgument);
+  }
+
+  void operator()(ConstraintTypeParameterSymbol* symbol) const {
+    symbol->setDefaultArgument(defaultArgument);
+  }
+
+  void operator()(Symbol*) const {}
+};
+
+auto default_template_argument(Symbol* symbol) -> TemplateParameterAST* {
+  if (!symbol) return nullptr;
+  return visit(GetDefaultTemplateArgument{}, symbol);
+}
+
+void set_default_template_argument(Symbol* symbol,
+                                   TemplateParameterAST* defaultArgument) {
+  if (!symbol) return;
+  visit(SetDefaultTemplateArgument{defaultArgument}, symbol);
+}
+
+auto required_parameter_count(FunctionSymbol* function, int parameterCount)
+    -> int {
+  if (!function) return parameterCount;
+
+  auto parameters = function->parameters();
+  if (parameters.empty()) return parameterCount;
+
+  int defaultCount = 0;
+  for (auto parameter : parameters | std::views::reverse) {
+    if (!parameter->defaultArgument()) break;
+    ++defaultCount;
+  }
+
+  return parameterCount - defaultCount;
+}
+
 auto is_non_static_member(Symbol* symbol) -> bool {
   if (auto field = symbol_cast<FieldSymbol>(symbol)) return !field->isStatic();
   if (auto function = symbol_cast<FunctionSymbol>(symbol))
@@ -718,6 +802,16 @@ auto is_non_static_member(Symbol* symbol) -> bool {
     return std::ranges::any_of(
         views::each_function(symbol),
         [](FunctionSymbol* function) { return !function->isStatic(); });
+  }
+  return false;
+}
+
+auto is_templated_class(ClassSymbol* classSymbol) -> bool {
+  for (Symbol* symbol = classSymbol; symbol; symbol = symbol->parent()) {
+    auto enclosingClass = symbol_cast<ClassSymbol>(symbol);
+    if (!enclosingClass) continue;
+    if (enclosingClass->templateParameters()) return true;
+    if (enclosingClass->isSpecialization()) return true;
   }
   return false;
 }
@@ -1414,23 +1508,11 @@ auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
     auto funcType = type_cast<FunctionType>(ctor->type());
     if (!funcType) continue;
 
-    const auto paramTypeCount = funcType->parameterTypes().size();
+    const auto paramTypeCount =
+        static_cast<int>(funcType->parameterTypes().size());
     if (paramTypeCount == 0) return ctor;
 
-    std::size_t paramCount = 0;
-    bool allDefaulted = true;
-    if (auto fpScope = ctor->functionParameters()) {
-      for (auto member : fpScope->members()) {
-        auto param = symbol_cast<ParameterSymbol>(member);
-        if (!param) continue;
-        ++paramCount;
-        if (!param->defaultArgument()) {
-          allDefaulted = false;
-          break;
-        }
-      }
-    }
-    if (allDefaulted && paramCount == paramTypeCount) return ctor;
+    if (required_parameter_count(ctor, paramTypeCount) == 0) return ctor;
   }
   return nullptr;
 }
@@ -1780,6 +1862,18 @@ auto FunctionSymbol::trailingRequiresClause() const -> RequiresClauseAST* {
 void FunctionSymbol::setTrailingRequiresClause(
     RequiresClauseAST* requiresClause) {
   trailingRequiresClause_ = requiresClause;
+}
+
+auto FunctionSymbol::isStructor() const -> bool {
+  return isConstructor() || name_cast<DestructorId>(name());
+}
+
+auto FunctionSymbol::hasBaseObjectVariant() const -> bool {
+  if (!isStructor()) return false;
+  if (externalName() || hasCLinkage()) return false;
+  if (completeObjectVariant()) return false;
+  if (isStructorVariant()) return false;
+  return true;
 }
 
 auto FunctionSymbol::isConstructor() const -> bool {

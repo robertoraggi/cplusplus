@@ -106,8 +106,19 @@ auto MlirEmitter::initializerAttribute(const Initializer& init)
   switch (init.kind) {
     case Initializer::Kind::None:
       return {};
-    case Initializer::Kind::Integer:
-      return builder_.getIntegerAttr(type(init.type), init.integer);
+    case Initializer::Kind::Integer: {
+      auto t = type(init.type);
+      auto intType = mlir::dyn_cast<mlir::IntegerType>(t);
+      const auto width = intType ? intType.getWidth() : 0;
+
+      if (width <= 64) {
+        return builder_.getIntegerAttr(t, init.integer.toIntMax());
+      }
+
+      auto bits = llvm::APInt{width, init.integer.lowBits()};
+      bits |= llvm::APInt{width, init.integer.highBits()}.shl(64);
+      return builder_.getIntegerAttr(t, bits);
+    }
     case Initializer::Kind::Floating: {
       auto t = mlir::cast<mlir::FloatType>(type(init.type));
       llvm::APFloat f{init.floating};
@@ -603,6 +614,18 @@ auto MlirEmitter::hasTerminator(BlockRef ref) -> bool {
   return target && target->mightHaveTerminator();
 }
 
+auto MlirEmitter::enclosingFunctionLocation() -> mlir::Location {
+  auto function = enclosingFunction();
+  if (!function) return mlir::UnknownLoc::get(builder_.getContext());
+
+  auto loc = function.getLoc();
+  while (auto fused = mlir::dyn_cast<mlir::FusedLoc>(loc)) {
+    if (fused.getLocations().empty()) break;
+    loc = fused.getLocations().front();
+  }
+  return loc;
+}
+
 auto MlirEmitter::getLocation(SourceLocation loc) -> mlir::Location {
   if (!loc) return mlir::UnknownLoc::get(builder_.getContext());
   auto [filename, line, column] = unit_->tokenStartPosition(loc);
@@ -782,18 +805,22 @@ auto MlirEmitter::allocate(mlir::Location loc, TypeRef pointerType,
       mlir::cxx::AllocaOp::create(builder_, loc, type(pointerType), alignment));
 }
 
-auto MlirEmitter::enclosingFunctionEntryBlock() -> mlir::Block* {
+auto MlirEmitter::enclosingFunction() -> mlir::cxx::FuncOp {
   auto block = builder_.getInsertionBlock();
-  if (!block) return nullptr;
+  if (!block) return {};
 
   for (auto op = block->getParentOp(); op; op = op->getParentOp()) {
-    auto function = mlir::dyn_cast<mlir::cxx::FuncOp>(op);
-    if (!function) continue;
-    if (function.getBody().empty()) return nullptr;
-    return &function.getBody().front();
+    if (auto function = mlir::dyn_cast<mlir::cxx::FuncOp>(op)) return function;
   }
 
-  return nullptr;
+  return {};
+}
+
+auto MlirEmitter::enclosingFunctionEntryBlock() -> mlir::Block* {
+  auto function = enclosingFunction();
+  if (!function) return nullptr;
+  if (function.getBody().empty()) return nullptr;
+  return &function.getBody().front();
 }
 
 auto MlirEmitter::dynamicAllocate(mlir::Location loc, TypeRef pointerType,
@@ -1100,7 +1127,7 @@ auto MlirEmitter::declareFunction(mlir::Location loc, const FunctionInfo& info)
       info.visibility == Visibility::Default
           ? mlir::cxx::VisibilityAttr{}
           : mlir::cxx::VisibilityAttr::get(context, toMlir(info.visibility)),
-      optionalString(info.aliasName), optionalString(info.importModule),
+      optionalString(info.aliasee), optionalString(info.importModule),
       optionalString(info.importName), optionalString(info.exportName),
       info.isUsed,
       parameterAbiAttrs(info.parameters, functionType.getInputs().size()),
@@ -1114,6 +1141,13 @@ auto MlirEmitter::functionName(FunctionRef ref) -> std::string_view {
 
 auto MlirEmitter::functionHasBody(FunctionRef ref) -> bool {
   return !function(ref).getBody().empty();
+}
+
+void MlirEmitter::setFunctionAliasee(FunctionRef ref,
+                                     std::string_view aliasee) {
+  auto func = function(ref);
+  if (!func) return;
+  func.setAliasee(mlir::StringRef{aliasee.data(), aliasee.size()});
 }
 
 auto MlirEmitter::findGlobal(std::string_view name) -> GlobalRef {
@@ -1155,6 +1189,8 @@ auto MlirEmitter::call(SourceLocation loc, const CallInfo& info)
 
 auto MlirEmitter::call(mlir::Location loc, const CallInfo& info)
     -> std::vector<ValueRef> {
+  if (mlir::isa<mlir::UnknownLoc>(loc)) loc = enclosingFunctionLocation();
+
   auto arguments = values({info.arguments.data(), info.arguments.size()});
   auto resultTypes = types({info.results.data(), info.results.size()});
 

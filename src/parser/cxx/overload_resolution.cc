@@ -344,6 +344,8 @@ auto unifyForPartialOrdering(TranslationUnit* unit,
     }
   }
 
+  if (is_non_deduced_context_type(unqualifiedP)) return true;
+
   if (cvP != cvA) return false;
 
   p = unqualifiedP;
@@ -623,47 +625,12 @@ auto compareTemplateSpecialization(TranslationUnit* unit,
   return 0;
 }
 
-auto getMinRequiredArgs(FunctionSymbol* func, int totalParams) -> int {
-  auto fpScope = func->functionParameters();
-  if (!fpScope) return totalParams;
-
-  std::vector<ParameterSymbol*> params;
-  for (auto member : fpScope->members()) {
-    if (auto param = symbol_cast<ParameterSymbol>(member))
-      params.push_back(param);
-  }
-  if (params.empty()) return totalParams;
-
-  int defaultCount = 0;
-  for (int i = static_cast<int>(params.size()) - 1; i >= 0; --i) {
-    if (params[i]->defaultArgument())
-      ++defaultCount;
-    else
-      break;
-  }
-  return totalParams - defaultCount;
-}
-
-auto isPackExpansionParameterType(const Type* type) -> bool {
-  if (!type) return false;
-  if (auto info = getTypeParamInfo(type)) return info->isPack;
-  if (auto qual = type_cast<QualType>(type))
-    return isPackExpansionParameterType(qual->elementType());
-  if (auto ref = type_cast<LvalueReferenceType>(type))
-    return isPackExpansionParameterType(ref->elementType());
-  if (auto ref = type_cast<RvalueReferenceType>(type))
-    return isPackExpansionParameterType(ref->elementType());
-  if (auto ptr = type_cast<PointerType>(type))
-    return isPackExpansionParameterType(ptr->elementType());
-  return false;
-}
-
 [[nodiscard]] auto functionTemplateHasPackParameter(FunctionSymbol* pattern)
     -> bool {
   auto type = type_cast<FunctionType>(pattern->type());
   if (!type) return false;
   for (auto param : type->parameterTypes()) {
-    if (isPackExpansionParameterType(param)) return true;
+    if (is_parameter_pack_type(param)) return true;
   }
   return false;
 }
@@ -712,7 +679,7 @@ auto templateCandidateArityRejects(FunctionSymbol* pattern, int argCount)
   auto paramCount = static_cast<int>(params.size());
   if (argCount > paramCount) return true;
   if (argCount < paramCount &&
-      argCount < getMinRequiredArgs(pattern, paramCount)) {
+      argCount < required_parameter_count(pattern, paramCount)) {
     return true;
   }
   return false;
@@ -990,12 +957,10 @@ auto OverloadResolution::resolveConstructor(
   };
 
   auto isInitializerListConstructor = [&](FunctionSymbol* ctor) {
+    if (!is_callable_with_one_argument(ctor)) return false;
     auto type = type_cast<FunctionType>(ctor->type());
-    if (!type || type->parameterTypes().empty()) return false;
-    auto firstParameter = type->parameterTypes().front();
-    if (!traits.initializer_list_element_type(firstParameter)) return false;
-    auto parameterCount = static_cast<int>(type->parameterTypes().size());
-    return getMinRequiredArgs(ctor, parameterCount) <= 1;
+    return traits.initializer_list_element_type(
+               type->parameterTypes().front()) != nullptr;
   };
 
   for (auto ctor : constructors) {
@@ -1063,7 +1028,7 @@ auto OverloadResolution::resolveConstructor(
       continue;
     }
     if (argCount < paramCount) {
-      if (argCount < getMinRequiredArgs(ctor, paramCount)) {
+      if (argCount < required_parameter_count(ctor, paramCount)) {
         rejectArity(ctor, paramCount);
         continue;
       }
@@ -1212,7 +1177,7 @@ auto OverloadResolution::buildCallCandidate(
   }
 
   if (argCount < paramCount &&
-      argCount < getMinRequiredArgs(function, paramCount)) {
+      argCount < required_parameter_count(function, paramCount)) {
     rejectArity();
     return std::nullopt;
   }
@@ -1279,20 +1244,61 @@ auto OverloadResolution::collectCandidates(Symbol* symbol) const
   return {functions.begin(), functions.end()};
 }
 
-auto OverloadResolution::resolveBinaryOperator(
-    const std::vector<FunctionSymbol*>& candidates, const Type* leftType,
-    const Type* rightType, bool* ambiguous, ExpressionAST* leftExpr,
-    ExpressionAST* rightExpr) -> FunctionSymbol* {
-  std::vector<BinaryOperatorCandidate> operatorCandidates;
-  operatorCandidates.reserve(candidates.size());
-  for (auto candidate : candidates)
-    operatorCandidates.push_back({.symbol = candidate});
-  return resolveBinaryOperator(operatorCandidates, leftType, rightType,
-                               ambiguous, leftExpr, rightExpr);
+auto OverloadResolution::builtinBinaryOperatorParameterType(
+    TokenKind op, const Type* leftType, const Type* rightType) -> const Type* {
+  if (!leftType || !rightType) return nullptr;
+
+  const auto isComparison = [op] {
+    switch (op) {
+      case TokenKind::T_EQUAL_EQUAL:
+      case TokenKind::T_EXCLAIM_EQUAL:
+      case TokenKind::T_LESS:
+      case TokenKind::T_LESS_EQUAL:
+      case TokenKind::T_GREATER:
+      case TokenKind::T_GREATER_EQUAL:
+      case TokenKind::T_LESS_EQUAL_GREATER:
+        return true;
+      default:
+        return false;
+    }
+  }();
+
+  const auto isArithmetic = [op] {
+    switch (op) {
+      case TokenKind::T_PLUS:
+      case TokenKind::T_MINUS:
+      case TokenKind::T_STAR:
+      case TokenKind::T_SLASH:
+      case TokenKind::T_PERCENT:
+      case TokenKind::T_AMP:
+      case TokenKind::T_BAR:
+      case TokenKind::T_CARET:
+        return true;
+      default:
+        return false;
+    }
+  }();
+
+  if (!isComparison && !isArithmetic) return nullptr;
+
+  auto left = traits.remove_cvref(leftType);
+  auto right = traits.remove_cvref(rightType);
+
+  if (isComparison && traits.is_enum(left) && traits.is_same(left, right))
+    return left;
+
+  const auto isArithmeticOperand = [&](const Type* type) {
+    return traits.is_arithmetic(type) ||
+           (traits.is_enum(type) && !traits.is_scoped_enum(type));
+  };
+
+  if (!isArithmeticOperand(left) || !isArithmeticOperand(right)) return nullptr;
+
+  return stdconv_.commonArithmeticType(left, right);
 }
 
 auto OverloadResolution::resolveBinaryOperator(
-    const std::vector<BinaryOperatorCandidate>& candidates,
+    TokenKind op, const std::vector<BinaryOperatorCandidate>& candidates,
     const Type* leftType, const Type* rightType, bool* ambiguous,
     ExpressionAST* leftExpr, ExpressionAST* rightExpr) -> FunctionSymbol* {
   if (ambiguous) *ambiguous = false;
@@ -1460,6 +1466,16 @@ auto OverloadResolution::resolveBinaryOperator(
 
   if (viable.empty()) return nullptr;
 
+  if (rightExpr) {
+    if (auto parameterType =
+            builtinBinaryOperatorParameterType(op, leftType, rightType)) {
+      auto left = stdconv_.computeConversionSequence(leftExpr, parameterType);
+      auto right = stdconv_.computeConversionSequence(rightExpr, parameterType);
+      if (left && right)
+        viable.push_back({nullptr, left, right, nullptr, false, false});
+    }
+  }
+
   auto best = &viable[0];
   bool foundEquivalent = false;
 
@@ -1471,6 +1487,11 @@ auto OverloadResolution::resolveBinaryOperator(
     }
 
     if (candidateBetterThan(*best, viable[i])) {
+      continue;
+    }
+
+    if (!viable[i].symbol || !best->symbol) {
+      foundEquivalent = true;
       continue;
     }
 
@@ -1492,6 +1513,8 @@ auto OverloadResolution::resolveBinaryOperator(
     if (ambiguous) *ambiguous = true;
     return nullptr;
   }
+
+  if (!best->symbol) return nullptr;
 
   ASTRewriter::instantiateSelectedSpecializationDefinition(
       unit_, best->symbol, best->deducedTemplateArgs);
@@ -1656,8 +1679,8 @@ auto OverloadResolution::lookupOperator(const Type* type, TokenKind op,
   }
 
   bool ambiguous = false;
-  auto selected = resolveBinaryOperator(candidates, type, rightType, &ambiguous,
-                                        leftExpr, rightExpr);
+  auto selected = resolveBinaryOperator(op, candidates, type, rightType,
+                                        &ambiguous, leftExpr, rightExpr);
   lastLookupAmbiguous_ = ambiguous;
   return selected;
 }

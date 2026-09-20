@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/const_int.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token_fwd.h>
@@ -92,6 +93,9 @@ class ExternalNameEncoder {
       List<TemplateArgumentAST*>* arguments) -> bool;
   void encodeTemplateParamValue(int index);
   void encodeConstValue(const Type* type, const ConstValue& value);
+
+  [[nodiscard]] auto normalizeConstInt(const Type* type,
+                                       const ConstInt& value) const -> ConstInt;
   void encodeBareFunctionType(const FunctionType* functionType,
                               bool includeReturnType = false);
 

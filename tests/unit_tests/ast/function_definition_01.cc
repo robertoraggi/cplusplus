@@ -23,6 +23,7 @@ void (*f(int))() {}
 // CHECK-NEXT:                    identifier: ptr
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              function-declarator-chunk
+// CHECK-NEXT:                parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:          initializer: braced-init-list [prvalue void (*)()]
 // CHECK-NEXT:    function-definition
 // CHECK-NEXT:      decl-specifier-list
@@ -45,5 +46,6 @@ void (*f(int))() {}
 // CHECK-NEXT:                          specifier: int
 // CHECK-NEXT:        declarator-chunk-list
 // CHECK-NEXT:          function-declarator-chunk
+// CHECK-NEXT:            parameter-declaration-clause: parameter-declaration-clause
 // CHECK-NEXT:      function-body: compound-statement-function-body
 // CHECK-NEXT:        statement: compound-statement

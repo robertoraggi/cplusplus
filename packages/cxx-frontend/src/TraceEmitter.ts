@@ -19,16 +19,17 @@
 // SOFTWARE.
 
 import {
-  BinaryOp,
-  CastKind,
-  FloatKind,
-  FloatPredicate,
-  InitializerKind,
-  InsertionPointKind,
-  IntPredicate,
-  Linkage,
-  TypeKind,
-  UnaryOp,
+  type BinaryOp,
+  type CastKind,
+  type FloatKind,
+  type FloatPredicate,
+  type InitializerKind,
+  type InsertionPointKind,
+  type IntPredicate,
+  type Linkage,
+  type TypeKind,
+  type UnaryOp,
+  type TodoKind,
   type Access,
   type BlockRef,
   type CallInfo,
@@ -52,11 +53,11 @@ import {
 } from "./Emitter.js";
 
 const FLOAT_WIDTH: Record<FloatKind, number> = {
-  [FloatKind.Half]: 16,
-  [FloatKind.Single]: 32,
-  [FloatKind.Double]: 64,
-  [FloatKind.X87DoubleExtended]: 80,
-  [FloatKind.Quad]: 128,
+  Half: 16,
+  Single: 32,
+  Double: 64,
+  X87DoubleExtended: 80,
+  Quad: 128,
 };
 
 interface TypeInfo {
@@ -207,39 +208,39 @@ export class TraceEmitter implements EmitterDelegate {
   }
 
   voidType(): TypeRef {
-    return this.#intern("void", { kind: TypeKind.Void });
+    return this.#intern("void", { kind: "Void" });
   }
 
   unresolvedType(): TypeRef {
-    return this.#intern("unresolved", { kind: TypeKind.Unresolved });
+    return this.#intern("unresolved", { kind: "Unresolved" });
   }
 
   integerType(bits: number): TypeRef {
-    return this.#intern(`i${bits}`, { kind: TypeKind.Integer, width: bits });
+    return this.#intern(`i${bits}`, { kind: "Integer", width: bits });
   }
 
   floatingType(kind: FloatKind): TypeRef {
     const width = FLOAT_WIDTH[kind];
-    return this.#intern(`f${width}`, { kind: TypeKind.Floating, width });
+    return this.#intern(`f${width}`, { kind: "Floating", width });
   }
 
   pointerType(elementType: TypeRef): TypeRef {
     return this.#intern(`ptr<${this.#typeText(elementType)}>`, {
-      kind: TypeKind.Pointer,
+      kind: "Pointer",
       element: elementType,
     });
   }
 
   arrayType(elementType: TypeRef, size: number): TypeRef {
     return this.#intern(`[${size} x ${this.#typeText(elementType)}]`, {
-      kind: TypeKind.Array,
+      kind: "Array",
       element: elementType,
     });
   }
 
   vectorType(elementType: TypeRef, elementCount: number): TypeRef {
     return this.#intern(`<${elementCount} x ${this.#typeText(elementType)}>`, {
-      kind: TypeKind.Other,
+      kind: "Other",
       element: elementType,
     });
   }
@@ -253,14 +254,14 @@ export class TraceEmitter implements EmitterDelegate {
     if (isVariadic) inputs.push("...");
     const outputs = results.map((type) => this.#typeText(type));
     return this.#intern(`(${inputs.join(", ")}) -> (${outputs.join(", ")})`, {
-      kind: TypeKind.Function,
+      kind: "Function",
       parameters: [...parameters],
       results: [...results],
     });
   }
 
   declareClassType(name: string): TypeRef {
-    return this.#intern(`!${name}`, { kind: TypeKind.Class });
+    return this.#intern(`!${name}`, { kind: "Class" });
   }
 
   defineClassType(
@@ -278,7 +279,7 @@ export class TraceEmitter implements EmitterDelegate {
   }
 
   typeKind(type: TypeRef): TypeKind {
-    return this.#types.get(type)?.kind ?? TypeKind.Other;
+    return this.#types.get(type)?.kind ?? "Other";
   }
 
   scalarWidth(type: TypeRef): number {
@@ -295,25 +296,25 @@ export class TraceEmitter implements EmitterDelegate {
 
   #initializerText(value: Initializer): string {
     switch (value.kind) {
-      case InitializerKind.Integer:
+      case "Integer":
         return String(value.integer);
-      case InitializerKind.Floating:
+      case "Floating":
         return String(value.floating);
-      case InitializerKind.Bytes:
+      case "Bytes":
         return JSON.stringify(String.fromCharCode(...value.bytes));
-      case InitializerKind.Aggregate:
+      case "Aggregate":
         return `{ ${value.elements
           .map((element) => this.#initializerText(element))
           .join(", ")} }`;
-      case InitializerKind.Null:
+      case "Null":
         return "null";
-      case InitializerKind.Zero:
+      case "Zero":
         return "zeroinitializer";
-      case InitializerKind.ScalarZero:
+      case "ScalarZero":
         return "0";
-      case InitializerKind.Undef:
+      case "Undef":
         return "undef";
-      case InitializerKind.SignalingNaN:
+      case "SignalingNaN":
         return "snan";
       default:
         return "none";
@@ -322,13 +323,13 @@ export class TraceEmitter implements EmitterDelegate {
 
   #isZeroInitializer(value: Initializer): boolean {
     switch (value.kind) {
-      case InitializerKind.Integer:
-        return value.integer === 0;
-      case InitializerKind.Floating:
+      case "Integer":
+        return value.integer === 0n;
+      case "Floating":
         return value.floating === 0;
-      case InitializerKind.Null:
-      case InitializerKind.Zero:
-      case InitializerKind.ScalarZero:
+      case "Null":
+      case "Zero":
+      case "ScalarZero":
         return true;
       default:
         return false;
@@ -351,7 +352,7 @@ export class TraceEmitter implements EmitterDelegate {
     type: TypeRef,
     value: ValueRef,
   ): ValueRef {
-    return this.#define(type, `${UnaryOp[op]} %${value}`);
+    return this.#define(type, `${op} %${value}`);
   }
 
   binaryOp(
@@ -360,7 +361,7 @@ export class TraceEmitter implements EmitterDelegate {
     lhs: ValueRef,
     rhs: ValueRef,
   ): ValueRef {
-    return this.#define(this.typeOf(lhs), `${BinaryOp[op]} %${lhs}, %${rhs}`);
+    return this.#define(this.typeOf(lhs), `${op} %${lhs}, %${rhs}`);
   }
 
   compareInt(
@@ -371,7 +372,7 @@ export class TraceEmitter implements EmitterDelegate {
   ): ValueRef {
     return this.#define(
       this.integerType(1),
-      `icmp.${IntPredicate[predicate]} %${lhs}, %${rhs}`,
+      `icmp.${predicate} %${lhs}, %${rhs}`,
     );
   }
 
@@ -383,7 +384,7 @@ export class TraceEmitter implements EmitterDelegate {
   ): ValueRef {
     return this.#define(
       this.integerType(1),
-      `fcmp.${FloatPredicate[predicate]} %${lhs}, %${rhs}`,
+      `fcmp.${predicate} %${lhs}, %${rhs}`,
     );
   }
 
@@ -405,7 +406,7 @@ export class TraceEmitter implements EmitterDelegate {
     value: ValueRef,
     type: TypeRef,
   ): ValueRef {
-    return this.#define(type, `${CastKind[kind]} %${value}`);
+    return this.#define(type, `${kind} %${value}`);
   }
 
   vectorSplat(
@@ -416,7 +417,7 @@ export class TraceEmitter implements EmitterDelegate {
     return this.#define(vectorType, `splat %${scalar}`);
   }
 
-  todo(loc: TokenIndex, kind: number, message: string): ValueRef {
+  todo(loc: TokenIndex, kind: TodoKind, message: string): ValueRef {
     return this.#define(
       this.unresolvedType(),
       `todo ${JSON.stringify(message)}`,
@@ -601,10 +602,7 @@ export class TraceEmitter implements EmitterDelegate {
   }
 
   setInsertionPoint(point: InsertionPoint): void {
-    if (
-      point.kind === InsertionPointKind.ModuleStart ||
-      point.kind === InsertionPointKind.ModuleEnd
-    ) {
+    if (point.kind === "ModuleStart" || point.kind === "ModuleEnd") {
       this.#enterBlock(0);
       return;
     }
@@ -751,8 +749,8 @@ export class TraceEmitter implements EmitterDelegate {
     this.#functionsByName.set(info.name, ref);
     this.#emitTop(
       `func @${info.name} : ${this.#typeText(info.type)} ` +
-        `${Linkage[info.linkage]}` +
-        (info.aliasName ? ` alias @${info.aliasName}` : "") +
+        `${info.linkage}` +
+        (info.aliasee ? ` aliasee @${info.aliasee}` : "") +
         (info.importModule ? ` import_module "${info.importModule}"` : "") +
         (info.importName ? ` import_name "${info.importName}"` : "") +
         (info.exportName ? ` export_name "${info.exportName}"` : "") +
@@ -763,6 +761,12 @@ export class TraceEmitter implements EmitterDelegate {
 
   findFunction(name: string): FunctionRef {
     return this.#functionsByName.get(name) ?? 0;
+  }
+
+  setFunctionAliasee(function_: FunctionRef, aliasee: string): void {
+    const name = this.#functions.get(function_)?.name;
+    if (name === undefined) return;
+    this.#emitTop(`func @${name} aliasee @${aliasee}`);
   }
 
   functionHasBody(function_: FunctionRef): boolean {
@@ -785,7 +789,7 @@ export class TraceEmitter implements EmitterDelegate {
     this.#globalsByName.set(info.name, ref);
     this.#emitTop(
       `global @${info.name} : ${this.#typeText(info.type)} ` +
-        `${Linkage[info.linkage]}${info.isConstant ? " const" : ""}` +
+        `${info.linkage}${info.isConstant ? " const" : ""}` +
         `${info.isUsed ? " used" : ""}` +
         ` = ${this.#initializerText(info.initializer)}`,
     );
@@ -797,7 +801,7 @@ export class TraceEmitter implements EmitterDelegate {
   }
 
   globalLinkage(global: GlobalRef): Linkage {
-    return this.#globals.get(global)?.linkage ?? Linkage.External;
+    return this.#globals.get(global)?.linkage ?? "External";
   }
 
   symbolExists(name: string): boolean {
@@ -815,7 +819,7 @@ export class TraceEmitter implements EmitterDelegate {
   defineVTable(loc: TokenIndex, info: VTableInfo): void {
     this.#emitTop(
       `vtable @${info.name} typeinfo @${info.typeInfo} ` +
-        `${Linkage[info.linkage]} tables ${info.tables.length}`,
+        `${info.linkage} tables ${info.tables.length}`,
     );
     for (const table of info.tables) {
       const slots = table.slots.map((slot) => (slot ? `@${slot}` : "null"));

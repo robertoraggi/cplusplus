@@ -244,9 +244,6 @@ class StandardConversion {
                                      InitializationKind initializationKind)
       -> bool;
 
-  [[nodiscard]] static auto isCallableWithOneArgument(FunctionSymbol* ctor)
-      -> bool;
-
   [[nodiscard]] auto instantiateConversionFunctionTemplate(
       FunctionSymbol* convFunc, const Type* targetType, ExpressionAST* expr)
       -> FunctionSymbol*;

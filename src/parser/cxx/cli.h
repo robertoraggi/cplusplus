@@ -66,6 +66,8 @@ class CLI {
   bool opt_H = false;
   bool opt_help = false;
   bool opt_nostdinc = false;
+  bool opt_print_resource_dir = false;
+  bool opt_print_target_triple = false;
   bool opt_nostdincpp = false;
   bool opt_S = false;
   bool opt_c = false;
@@ -75,6 +77,7 @@ class CLI {
   bool opt_fvalidate_ast = false;
   bool opt_freport_missing_types = false;
   bool opt_fno_reflect = false;
+  bool opt_fno_exceptions = false;
   bool opt_fno_strict_prototypes = false;
   bool opt_verify = false;
   bool opt_v = false;

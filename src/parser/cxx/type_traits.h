@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/const_int.h>
 #include <cxx/names_fwd.h>
 #include <cxx/types_fwd.h>
 
@@ -111,6 +112,14 @@ class TypeTraits {
 
   [[nodiscard]] auto integral_representation(const Type* type) const
       -> std::optional<IntegralRepresentation>;
+
+  [[nodiscard]] auto integral_constant(const Type* type,
+                                       ConstInt::Wide value) const
+      -> std::optional<ConstInt>;
+
+  [[nodiscard]] auto converted_integral_constant(const Type* type,
+                                                 const ConstInt& value) const
+      -> std::optional<ConstInt>;
 
   [[nodiscard]] auto remove_reference(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_lvalue_reference(const Type* type) const
@@ -254,10 +263,15 @@ class TypeTraits {
       -> bool;
 
   auto is_pod(const Type* type) -> bool;
+  [[nodiscard]] auto is_pod_for_layout(const Type* type) -> bool;
   [[nodiscard]] auto data_size(const Type* type) -> std::uint64_t;
   [[nodiscard]] auto non_virtual_size(const Type* type) -> std::uint64_t;
   auto is_trivial(const Type* type) -> bool;
   auto is_standard_layout(const Type* type) -> bool;
+
+  enum class StandardLayoutRule { kLanguage, kLayout };
+  [[nodiscard]] auto standard_layout(const Type* type, StandardLayoutRule rule)
+      -> bool;
   auto is_literal_type(const Type* type) -> bool;
   auto is_aggregate(const Type* type) -> bool;
   [[nodiscard]] auto aggregate_elements(ClassSymbol* classSymbol) const

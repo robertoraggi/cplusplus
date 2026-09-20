@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx, LanguageServer } from "../dist/index.js";
+import { loadCxx } from "cxx-frontend";
+import { LanguageServer } from "cxx-frontend/lsp";
 
 const wasm = await readFile(
   new URL("../dist/wasm/cxx-js.wasm", import.meta.url),

@@ -494,6 +494,13 @@ auto MemoryLayout::isWebAssembly() const -> bool {
   return arch().starts_with("wasm");
 }
 
+auto MemoryLayout::isDarwin() const -> bool {
+  std::string_view triple{triple_};
+  return triple.find("apple") != std::string_view::npos ||
+         triple.find("darwin") != std::string_view::npos ||
+         triple.find("macos") != std::string_view::npos;
+}
+
 auto MemoryLayout::usesArmMemberPointerAbi() const -> bool {
   const auto arch = this->arch();
   return arch.starts_with("arm") || arch.starts_with("aarch64") ||
@@ -533,6 +540,26 @@ auto MemoryLayout::classValueAbiKind() const -> ClassValueAbiKind {
   if (arch.starts_with("x86_64") || arch.starts_with("amd64"))
     return ClassValueAbiKind::kX86_64;
   return ClassValueAbiKind::kDefault;
+}
+
+auto to_string(FramePointerKind kind) -> std::string_view {
+  switch (kind) {
+    case FramePointerKind::kNone:
+      return "none";
+    case FramePointerKind::kNonLeaf:
+      return "non-leaf";
+    case FramePointerKind::kAll:
+      return "all";
+  }
+  return "none";
+}
+
+auto MemoryLayout::framePointerKind() const -> FramePointerKind {
+  if (!isDarwin()) return FramePointerKind::kNone;
+  const auto arch = this->arch();
+  if (arch.starts_with("aarch64") || arch.starts_with("arm64"))
+    return FramePointerKind::kNonLeaf;
+  return FramePointerKind::kAll;
 }
 
 void MemoryLayout::setTriple(std::string triple) {

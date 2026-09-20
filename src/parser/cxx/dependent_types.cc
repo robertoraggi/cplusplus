@@ -156,16 +156,6 @@ struct IsDependent {
     return false;
   }
 
-  [[nodiscard]] static auto isTemplateParameterPack(Symbol* parameter) -> bool {
-    if (!parameter) return false;
-    if (auto info = getTypeParamInfo(parameter->type())) return info->isPack;
-    if (auto nonType = symbol_cast<NonTypeParameterSymbol>(parameter))
-      return nonType->isParameterPack();
-    if (auto constraint = symbol_cast<ConstraintTypeParameterSymbol>(parameter))
-      return constraint->isParameterPack();
-    return false;
-  }
-
   [[nodiscard]] static auto parameterForArgument(
       TemplateParametersSymbol* parameters, std::size_t index) -> Symbol* {
     if (!parameters) return nullptr;
@@ -175,7 +165,7 @@ struct IsDependent {
     if (index < members.size()) return members[index];
 
     auto trailing = members.back();
-    if (!isTemplateParameterPack(trailing)) return nullptr;
+    if (!is_template_parameter_pack(trailing)) return nullptr;
     return trailing;
   }
 
@@ -289,6 +279,7 @@ struct IsDependent {
   }
 
   auto operator()(const FunctionType* type) -> bool {
+    if (type->noexceptExpression()) return true;
     if (isDependent(type->returnType())) return true;
     for (const auto param : type->parameterTypes()) {
       if (isDependent(param)) return true;
@@ -361,9 +352,13 @@ struct IsDependent {
     return isDependent(symbol->type());
   }
 
-  auto operator()(const EnumType* type) -> bool { return false; }
+  auto operator()(const EnumType* type) -> bool {
+    return isInTemplateScope(type->symbol());
+  }
 
-  auto operator()(const ScopedEnumType* type) -> bool { return false; }
+  auto operator()(const ScopedEnumType* type) -> bool {
+    return isInTemplateScope(type->symbol());
+  }
 
   auto operator()(const MemberObjectPointerType* type) -> bool {
     if (isDependent(type->classType())) return true;
@@ -734,6 +729,10 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
   if (symbol_cast<NonTypeParameterSymbol>(ast->symbol)) return true;
   if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
   if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
+
+  if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
+    if (isDependent(enumerator->type())) return true;
+  }
 
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol)) {
     if (field->isStatic() && !field->initializer() && isInTemplateScope(field))

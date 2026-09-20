@@ -1014,18 +1014,36 @@ void StringLiteral::initialize(StringLiteralEncoding encoding) const {
   components_ = Components::from(value(), encoding);
 }
 
-auto StringLiteral::charCount() const -> std::size_t {
+auto StringLiteral::codeUnitSize() const -> std::size_t {
   switch (components_.encoding) {
     case StringLiteralEncoding::kNone:
     case StringLiteralEncoding::kUtf8:
-      return components_.value.size();
+      return 1;
     case StringLiteralEncoding::kUtf16:
-      return components_.value.size() / 2;
+      return 2;
     case StringLiteralEncoding::kUtf32:
     case StringLiteralEncoding::kWide:
-      return components_.value.size() / 4;
+      return 4;
   }
-  return components_.value.size();
+  return 1;
+}
+
+auto StringLiteral::charAt(std::size_t index) const -> std::uint32_t {
+  const auto& value = components_.value;
+  const auto unitSize = codeUnitSize();
+  const auto offset = index * unitSize;
+  std::uint32_t unit = 0;
+  for (std::size_t i = 0; i < unitSize; ++i) {
+    if (offset + i >= value.size()) break;
+    unit |= static_cast<std::uint32_t>(
+                static_cast<unsigned char>(value[offset + i]))
+            << (8 * i);
+  }
+  return unit;
+}
+
+auto StringLiteral::charCount() const -> std::size_t {
+  return components_.value.size() / codeUnitSize();
 }
 
 auto CharLiteral::Components::from(std::string_view text,

@@ -34,6 +34,7 @@ class Decl {
   BitfieldDeclaratorAST* bitfieldDeclarator = nullptr;
   RequiresClauseAST* trailingRequiresClause = nullptr;
   bool isPack = false;
+  bool isFunctionDefinition = false;
 
   explicit Decl(const DeclSpecs& specs, DeclaratorAST* declarator = nullptr);
 

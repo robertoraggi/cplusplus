@@ -18,10 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Parser, Semantic as S, Token } from "cxx-frontend";
+import { Parser, Token } from "cxx-frontend";
+import * as S from "cxx-frontend/model";
+import { traverse } from "cxx-frontend/traverse";
 import type {
   Model,
   ModelAccess,
+  ModelAlias,
   ModelClass,
   ModelField,
   ModelMethod,
@@ -46,10 +49,9 @@ function accessOf(
   current: ModelAccess,
 ): ModelAccess {
   if (!(declaration instanceof S.AccessDeclarationAST)) return current;
-  if (declaration.accessSpecifier === S.TokenKind.T_PUBLIC) return "public";
-  if (declaration.accessSpecifier === S.TokenKind.T_PROTECTED)
-    return "protected";
-  if (declaration.accessSpecifier === S.TokenKind.T_PRIVATE) return "private";
+  if (declaration.accessSpecifier === "public") return "public";
+  if (declaration.accessSpecifier === "protected") return "protected";
+  if (declaration.accessSpecifier === "private") return "private";
   return current;
 }
 
@@ -92,28 +94,29 @@ function safeNumber(value: bigint): number {
 type ElementOf<T> = T extends Iterable<infer U> ? U : never;
 type Argument = ElementOf<S.ClassSymbol["expandedTemplateArguments"]>;
 function argumentModel(argument: Argument): ModelTemplateArgument {
-  const { index, value } = argument;
-  if (index === 0)
-    return { kind: "type", text: value?.text ?? "", type: typeModel(value) };
-  if (index === 1) {
-    if (value?.isType)
-      return { kind: "type", text: value.text, type: typeModel(value.type) };
+  if (argument instanceof S.Type)
+    return { kind: "type", text: argument.text, type: typeModel(argument) };
+  if (argument instanceof S.Symbol) {
+    if (argument.isType)
+      return {
+        kind: "type",
+        text: argument.text,
+        type: typeModel(argument.type),
+      };
     return {
       kind: "symbol",
-      text: value?.text ?? "",
-      name: qualifiedName(value),
+      text: argument.text,
+      name: qualifiedName(argument),
     };
   }
-  if (index === 2) {
-    if (value.index === 0)
-      return {
-        kind: "value",
-        text: String(value.value),
-        value: safeNumber(value.value),
-      };
-    return { kind: "value", text: "" };
-  }
-  return { kind: "expression", text: "" };
+  if (argument instanceof S.AST) return { kind: "expression", text: "" };
+  if (typeof argument === "bigint")
+    return {
+      kind: "value",
+      text: String(argument),
+      value: safeNumber(argument),
+    };
+  return { kind: "value", text: "" };
 }
 
 export function typeModel(type: S.Type | undefined): ModelType {
@@ -192,7 +195,7 @@ export function typeModel(type: S.Type | undefined): ModelType {
 }
 
 export function dumpModel(parser: Parser): Model {
-  const model: Model = { enums: [], classes: [] };
+  const model: Model = { enums: [], classes: [], aliases: [] };
   function location(loc: number): Location | undefined {
     if (!loc) return;
     const pos = new Token(loc, parser).getLocation();
@@ -243,7 +246,7 @@ export function dumpModel(parser: Parser): Model {
         name: fn.name.name,
         access,
         isStatic: fn.isStatic,
-        isConst: (type.cvQualifiers & S.CvQualifiers.kConst) !== 0,
+        isConst: ["Const", "ConstVolatile"].includes(type.cvQualifiers),
         isVirtual: fn.isVirtual,
         isPure: fn.isPure,
         returnTypeName: type.returnType?.text ?? "",
@@ -313,8 +316,9 @@ export function dumpModel(parser: Parser): Model {
     }
     return result;
   }
-  function visit(node: S.AST) {
-    if (node instanceof S.ClassSpecifierAST && node.symbol?.name) {
+  traverse(parser.model.ast, {
+    ClassSpecifier({ node }) {
+      if (!node.symbol?.name) return;
       const loc = location(node.classLoc);
       if (isModelled(loc)) {
         const symbol = node.symbol;
@@ -355,8 +359,30 @@ export function dumpModel(parser: Parser): Model {
         if (body) entry.body = body;
         model.classes.push(entry);
       }
-    }
-    if (node instanceof S.EnumSpecifierAST && node.symbol?.name) {
+    },
+
+    AliasDeclaration({ node }) {
+      if (!node.symbol) return;
+      const symbol = node.symbol;
+      const loc = location(node.usingLoc);
+      if (
+        isModelled(loc) &&
+        symbol.parent instanceof S.NamespaceSymbol &&
+        !symbol.isTemplatePattern
+      ) {
+        const entry: ModelAlias = {
+          name: qualifiedName(symbol),
+          unqualifiedName: nameOf(symbol),
+          typeName: symbol.type?.text ?? "",
+          type: typeModel(symbol.type),
+        };
+        if (loc) entry.location = loc;
+        model.aliases.push(entry);
+      }
+    },
+
+    EnumSpecifier({ node }) {
+      if (!node.symbol?.name) return;
       const loc = location(node.enumLoc);
       if (isModelled(loc)) {
         const symbol = node.symbol;
@@ -375,18 +401,17 @@ export function dumpModel(parser: Parser): Model {
             .filter((e) => e !== undefined)
             .map((e) => {
               const value = e.symbol?.value;
-              if (value?.index === 0)
+              if (typeof value === "bigint")
                 return {
                   name: e.identifier?.name ?? "",
-                  value: safeNumber(value.value),
+                  value: safeNumber(value),
                 };
               return { name: e.identifier?.name ?? "" };
             }),
         });
       }
-    }
-    for (const child of S.children(node)) visit(child);
-  }
-  visit(parser.model.ast);
+    },
+  });
+
   return model;
 }

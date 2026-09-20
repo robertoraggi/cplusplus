@@ -23,6 +23,7 @@ A<void*> a2;
 // CHECK-NEXT:    field type-param<0, 0> a
 // CHECK-NEXT:    field ::A* next
 // CHECK-NEXT:    function type-param<0, 0> get_a()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    function void set_a(const type-param<0, 0>&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const type-param<0, 0>& a
@@ -41,6 +42,7 @@ A<void*> a2;
 // CHECK-NEXT:        field int a
 // CHECK-NEXT:        field ::A<int>* next
 // CHECK-NEXT:        function int get_a()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:        function void set_a(const int&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter const int& a
@@ -65,6 +67,7 @@ A<void*> a2;
 // CHECK-NEXT:        field void* a
 // CHECK-NEXT:        field ::A<void*>* next
 // CHECK-NEXT:        function void* get_a()
+// CHECK-NEXT:          parameters
 // CHECK-NEXT:        function void set_a(void* const&)
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter void* const& a

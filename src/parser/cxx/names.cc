@@ -39,9 +39,7 @@ struct ConstValueHash {
   auto operator()(bool value) const -> std::size_t {
     return std::hash<bool>{}(value);
   }
-  auto operator()(std::intmax_t value) const -> std::size_t {
-    return std::hash<std::intmax_t>{}(value);
-  }
+  auto operator()(ConstInt value) const -> std::size_t { return value.hash(); }
   auto operator()(float value) const -> std::size_t {
     return std::hash<float>{}(value);
   }

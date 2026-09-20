@@ -45,10 +45,12 @@ export function gen_emitter_ts({
   emit();
 
   for (const entry of protocol.enums) {
-    emit(`export enum ${entry.name} {`);
-    for (const enumerator of entry.enumerators)
-      emit(`  ${enumerator.name} = ${enumerator.value},`);
-    emit(`}`);
+    emit(`export type ${entry.name} =`);
+    entry.enumerators.forEach((enumerator, index) =>
+      emit(
+        `  | "${enumerator.name}"${index === entry.enumerators.length - 1 ? ";" : ""}`,
+      ),
+    );
     emit();
   }
 

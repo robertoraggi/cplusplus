@@ -15,6 +15,7 @@ S<int>* ptr = nullptr;
 // CHECK-NEXT:    injected class name S
 // CHECK-NEXT:    field type-param<0, 0> value
 // CHECK-NEXT:    function type-param<0, 0> get()
+// CHECK-NEXT:      parameters
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class S<int>
 // CHECK-NEXT:  variable ::S<int>* ptr

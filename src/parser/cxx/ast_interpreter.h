@@ -312,6 +312,9 @@ class ASTInterpreter {
                                      std::shared_ptr<ConstObject> object = {},
                                      bool constructor = false) -> CallResult;
 
+  [[nodiscard]] auto definingDeclarationOf(FunctionSymbol* function)
+      -> FunctionSymbol*;
+
   [[nodiscard]] auto bindParameters(Frame& frame, FunctionSymbol* func,
                                     std::vector<ConstValue>& args) -> bool;
 

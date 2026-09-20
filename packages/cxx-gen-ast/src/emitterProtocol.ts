@@ -39,6 +39,7 @@ export type Wire =
   | { kind: "void" }
   | { kind: "bool" }
   | { kind: "number"; cpp: string }
+  | { kind: "constint" }
   | { kind: "location" }
   | { kind: "string" }
   | { kind: "bytes" }
@@ -208,6 +209,8 @@ class ProtocolBuilder {
     if (type.kind !== "class") return undefined;
 
     switch (type.name) {
+      case "::cxx::ConstInt":
+        return { kind: "constint" };
       case "::cxx::SourceLocation":
         return { kind: "location" };
       case "::std::basic_string_view":
@@ -365,6 +368,8 @@ export function cppType(wire: Wire): string {
       return "bool";
     case "number":
       return wire.cpp;
+    case "constint":
+      return "cxx::ConstInt";
     case "location":
       return "cxx::SourceLocation";
     case "string":
@@ -441,6 +446,8 @@ export function tsType(wire: Wire, position: "in" | "out"): string {
     case "number":
     case "location":
       return "number";
+    case "constint":
+      return "bigint";
     case "string":
       return "string";
     case "bytes":

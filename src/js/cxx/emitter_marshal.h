@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/codegen/emitter_handles.h>
+#include <cxx/const_int.h>
 #include <cxx/source_location.h>
 #include <emscripten/val.h>
 
@@ -47,15 +48,13 @@ auto toVal(T value) -> val {
   return val(static_cast<double>(value));
 }
 
-template <typename T>
-  requires std::is_enum_v<T>
-auto toVal(T value) -> val {
-  return val(static_cast<int>(value));
-}
-
 template <typename Tag>
 auto toVal(ir::Handle<Tag> handle) -> val {
   return val(static_cast<double>(ir::HandleAccess::id(handle)));
+}
+
+inline auto toVal(const ConstInt& value) -> val {
+  return val::global("BigInt")(val(value.toString()));
 }
 
 inline auto toVal(SourceLocation loc) -> val {
@@ -97,6 +96,11 @@ inline auto toBool(const val& value) -> bool {
   return value.isUndefined() || value.isNull() ? false : value.as<bool>();
 }
 
+inline auto toString(const val& value) -> std::string {
+  if (!value.isString()) return {};
+  return value.as<std::string>();
+}
+
 template <typename T>
 auto toNumber(const val& value) -> T {
   if (!value.isNumber()) return T{};
@@ -104,9 +108,8 @@ auto toNumber(const val& value) -> T {
 }
 
 template <typename T>
-auto toEnum(const val& value) -> T {
-  return static_cast<T>(toNumber<int>(value));
-}
+  requires std::is_enum_v<T>
+auto toEnum(const val& value) -> T;
 
 template <typename Tag>
 auto toHandle(const val& value) -> ir::Handle<Tag> {

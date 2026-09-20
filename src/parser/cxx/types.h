@@ -314,16 +314,17 @@ class OverloadSetType final : public Type,
 class FunctionType final
     : public Type,
       public std::tuple<const Type*, std::vector<const Type*>, bool,
-                        CvQualifiers, RefQualifier, bool> {
+                        CvQualifiers, RefQualifier, ExceptionSpecification> {
  public:
   static constexpr TypeKind Kind = TypeKind::kFunction;
 
   FunctionType(const Type* returnType, std::vector<const Type*> parameterTypes,
                bool isVariadic, CvQualifiers cvQualifiers,
-               RefQualifier refQualifier, bool isNoexcept)
+               RefQualifier refQualifier,
+               ExceptionSpecification exceptionSpecification)
       : Type(Kind),
         tuple(returnType, std::move(parameterTypes), isVariadic, cvQualifiers,
-              refQualifier, isNoexcept) {}
+              refQualifier, exceptionSpecification) {}
 
   [[nodiscard]] auto returnType() const -> const Type* {
     return std::get<0>(*this);
@@ -343,7 +344,20 @@ class FunctionType final
     return std::get<4>(*this);
   }
 
-  [[nodiscard]] auto isNoexcept() const -> bool { return std::get<5>(*this); }
+  [[nodiscard]] auto exceptionSpecification() const
+      -> const ExceptionSpecification& {
+    return std::get<5>(*this);
+  }
+
+  [[nodiscard]] auto isNoexcept() const -> bool {
+    auto value = std::get_if<bool>(&exceptionSpecification());
+    return value && *value;
+  }
+
+  [[nodiscard]] auto noexceptExpression() const -> ExpressionAST* {
+    auto expression = std::get_if<ExpressionAST*>(&exceptionSpecification());
+    return expression ? *expression : nullptr;
+  }
 };
 
 class ClassType final : public Type, public std::tuple<ClassSymbol*> {
@@ -744,5 +758,60 @@ template <typename T>
   if (auto t = type_cast<TemplateTypeParameterType>(type))
     return TypeParamInfo{t->index(), t->depth(), t->isParameterPack()};
   return std::nullopt;
+}
+
+struct IsNonDeducedContextType {
+  auto operator()(const UnresolvedNameType*) const -> bool { return true; }
+  auto operator()(const UnresolvedUnderlyingType*) const -> bool {
+    return true;
+  }
+  auto operator()(const UnresolvedBuiltinType*) const -> bool { return true; }
+  auto operator()(const UnresolvedBitIntType*) const -> bool { return true; }
+  auto operator()(const Type*) const -> bool { return false; }
+};
+
+[[nodiscard]] inline auto is_non_deduced_context_type(const Type* type)
+    -> bool {
+  if (!type) return false;
+  return visit(IsNonDeducedContextType{}, type);
+}
+
+struct IsParameterPackType {
+  auto operator()(const QualType* type) const -> bool;
+  auto operator()(const LvalueReferenceType* type) const -> bool;
+  auto operator()(const RvalueReferenceType* type) const -> bool;
+  auto operator()(const PointerType* type) const -> bool;
+  auto operator()(const TypeParameterType* type) const -> bool {
+    return type->isParameterPack();
+  }
+  auto operator()(const TemplateTypeParameterType* type) const -> bool {
+    return type->isParameterPack();
+  }
+  auto operator()(const Type*) const -> bool { return false; }
+};
+
+[[nodiscard]] inline auto is_parameter_pack_type(const Type* type) -> bool {
+  if (!type) return false;
+  return visit(IsParameterPackType{}, type);
+}
+
+inline auto IsParameterPackType::operator()(const QualType* type) const
+    -> bool {
+  return is_parameter_pack_type(type->elementType());
+}
+
+inline auto IsParameterPackType::operator()(
+    const LvalueReferenceType* type) const -> bool {
+  return is_parameter_pack_type(type->elementType());
+}
+
+inline auto IsParameterPackType::operator()(
+    const RvalueReferenceType* type) const -> bool {
+  return is_parameter_pack_type(type->elementType());
+}
+
+inline auto IsParameterPackType::operator()(const PointerType* type) const
+    -> bool {
+  return is_parameter_pack_type(type->elementType());
 }
 }  // namespace cxx

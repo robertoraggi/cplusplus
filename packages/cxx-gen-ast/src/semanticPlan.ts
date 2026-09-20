@@ -45,7 +45,8 @@ export interface FieldPlan {
   why?: string | undefined;
 }
 
-export type EntityMode = "factory" | "allocate" | "construct" | "inline";
+export type EntityMode =
+  "factory" | "allocate" | "construct" | "inline" | "base";
 
 export interface EntityPlan {
   mode: EntityMode;
@@ -57,6 +58,8 @@ export interface EntityPlan {
   cpp: string;
   /** The enumerator that discriminates the record, when the entity has one. */
   tag?: string | undefined;
+  /** The entity holding the leading fields of this record, when it has one. */
+  base?: { name: string; short: string } | undefined;
   fields: FieldPlan[];
   /** Constructor parameters, for entities rebuilt through a factory. */
   factory?: FactoryPlan | undefined;
@@ -68,10 +71,13 @@ export interface FactoryPlan {
 }
 
 export interface CodecPlan {
+  constValue: Wire;
   names: EntityPlan[];
   types: EntityPlan[];
   symbols: EntityPlan[];
+  symbolBases: EntityPlan[];
   nodes: EntityPlan[];
+  nodeBases: EntityPlan[];
   structs: EntityPlan[];
   diagnostics: string[];
   report: FieldPlan[];
@@ -90,6 +96,7 @@ export class PlanBuilder {
   readonly diagnostics: string[] = [];
   readonly report: FieldPlan[] = [];
   readonly index: ModelIndex;
+  private readonly bases = new Map<string, EntityPlan>();
 
   constructor(index: ModelIndex) {
     this.index = index;
@@ -123,15 +130,19 @@ export class PlanBuilder {
       (kind) => `${kind.slice(1)}Type`,
       "factory",
     );
+    const symbolBases: EntityPlan[] = [];
     const symbols = this.domain(
       "::cxx::SymbolKind",
       (kind) => `${kind.slice(1)}Symbol`,
       "allocate",
+      symbolBases,
     );
+    const nodeBases: EntityPlan[] = [];
     const nodes = this.domain(
       "::cxx::ASTKind",
       (kind) => `${kind}AST`,
       "construct",
+      nodeBases,
     );
 
     const structs: EntityPlan[] = [];
@@ -148,15 +159,24 @@ export class PlanBuilder {
           this.diagnostics.push(`struct '${name}' is not in the model`);
           continue;
         }
-        structs.push(this.planEntity(entry, undefined, "inline"));
+        structs.push(this.planEntity(entry, undefined, "inline", structs));
       }
     }
 
+    const constValue = this.mapper.constValue;
+    if (!constValue)
+      this.diagnostics.push(
+        "::cxx::ConstValue is not reachable from the model",
+      );
+
     return {
+      constValue: constValue ?? { k: "const-value", alternatives: [] },
       names,
       types,
       symbols,
+      symbolBases,
       nodes,
+      nodeBases,
       structs,
       diagnostics: this.diagnostics,
       report: this.report,
@@ -167,6 +187,7 @@ export class PlanBuilder {
     enumName: string,
     classOfKind: (kind: string) => string,
     mode: EntityMode,
+    bases: EntityPlan[] = [],
   ): EntityPlan[] {
     const kinds = this.index.enumOf(enumName);
     if (!kinds) {
@@ -186,7 +207,7 @@ export class PlanBuilder {
         continue;
       }
       const tag = `${normalizeClassName(enumName)}::${enumerator.name}`;
-      plans.push(this.planEntity(entry, tag, mode));
+      plans.push(this.planEntity(entry, tag, mode, bases));
     }
 
     return plans;
@@ -196,6 +217,7 @@ export class PlanBuilder {
     entry: ModelClass,
     tag: string | undefined,
     mode: EntityMode,
+    bases: EntityPlan[],
   ): EntityPlan {
     const plan: EntityPlan = {
       mode,
@@ -223,7 +245,19 @@ export class PlanBuilder {
       return plan;
     }
 
-    for (const { owner, substitution } of this.index.layoutOf(entry)) {
+    const base = this.planBase(entry, bases);
+    let layout = this.index.layoutOf(entry);
+
+    if (base) {
+      try {
+        layout = this.index.ownLayoutOf(entry, this.index.classOf(base.name));
+        plan.base = { name: base.name, short: base.short };
+      } catch (error) {
+        this.diagnostics.push((error as Error).message);
+      }
+    }
+
+    for (const { owner, substitution } of layout) {
       for (const field of owner.fields) {
         const fieldPlan = this.planField(entry, owner, field, substitution);
         if (!fieldPlan) continue;
@@ -245,6 +279,25 @@ export class PlanBuilder {
 
     if (mode === "allocate") plan.factory = this.planFactory(entry, false);
 
+    return plan;
+  }
+
+  private planBase(
+    entry: ModelClass,
+    bases: EntityPlan[],
+  ): EntityPlan | undefined {
+    const base = this.index.primaryBaseOf(
+      entry,
+      (candidate) => !candidate.isTemplate,
+    );
+    if (!base) return undefined;
+
+    const planned = this.bases.get(base.name);
+    if (planned) return planned;
+
+    const plan = this.planEntity(base, undefined, "base", bases);
+    this.bases.set(base.name, plan);
+    bases.push(plan);
     return plan;
   }
 

@@ -63,6 +63,12 @@ auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
                     builder_.getStringAttr(layout.getStringRepresentation()));
   }
 
+  if (!info.framePointer.empty() && info.framePointer != "none") {
+    module->setAttr("cxx.frame-pointer",
+                    builder_.getStringAttr(mlir::StringRef{
+                        info.framePointer.data(), info.framePointer.size()}));
+  }
+
   if (!info.debugCompilationDirectory.empty()) {
     module->setAttr("cxx.debug-compilation-dir",
                     builder_.getStringAttr(mlir::StringRef{

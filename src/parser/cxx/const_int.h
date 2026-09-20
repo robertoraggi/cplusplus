@@ -20,9 +20,15 @@
 
 #pragma once
 
+#include <algorithm>
 #include <bit>
+#include <concepts>
 #include <cstdint>
+#include <functional>
+#include <limits>
 #include <optional>
+#include <string>
+#include <type_traits>
 
 namespace cxx {
 
@@ -42,11 +48,21 @@ class ConstInt {
   static constexpr int narrowWidth = static_cast<int>(sizeof(Narrow) * 8);
   static constexpr int maxWidth = static_cast<int>(sizeof(Wide) * 8);
 
+  static constexpr bool supportsInt128 = maxWidth >= 128;
+
   static constexpr auto isRepresentableWidth(int width) -> bool {
     return width > 0 && width <= maxWidth;
   }
 
   ConstInt() = default;
+
+  template <typename T>
+    requires std::integral<T>
+  ConstInt(T value)
+      : width_(static_cast<std::uint8_t>(sizeof(T) * 8)),
+        isSigned_(std::is_signed_v<T>) {
+    store(static_cast<Wide>(value));
+  }
 
   static auto make(Wide value, int width, bool isSigned)
       -> std::optional<ConstInt> {
@@ -58,20 +74,82 @@ class ConstInt {
     return result;
   }
 
+  [[nodiscard]] auto lowBits() const -> std::uint64_t { return lowBits_; }
+  void setLowBits(std::uint64_t lowBits) { lowBits_ = lowBits; }
+
+  [[nodiscard]] auto highBits() const -> std::uint64_t { return highBits_; }
+  void setHighBits(std::uint64_t highBits) { highBits_ = highBits; }
+
   [[nodiscard]] auto width() const -> int { return width_; }
+  void setWidth(int width) { width_ = static_cast<std::uint8_t>(width); }
+
   [[nodiscard]] auto isSigned() const -> bool { return isSigned_; }
-  [[nodiscard]] auto isNarrow() const -> bool { return width_ <= narrowWidth; }
+  void setIsSigned(bool isSigned) { isSigned_ = isSigned; }
+
   [[nodiscard]] auto isZero() const -> bool { return toUWide() == 0; }
   [[nodiscard]] auto isNegative() const -> bool {
     return isSigned_ && toWide() < 0;
   }
 
   [[nodiscard]] auto toWide() const -> Wide {
-    return isNarrow() ? static_cast<Wide>(narrow_) : wide_;
+    if constexpr (maxWidth > narrowWidth) {
+      auto bits = static_cast<UWide>(highBits_)
+                  << (narrowWidth / 2) << (narrowWidth / 2);
+      bits |= static_cast<UWide>(lowBits_);
+      return static_cast<Wide>(bits);
+    } else {
+      return static_cast<Wide>(lowBits_);
+    }
   }
 
   [[nodiscard]] auto toUWide() const -> UWide {
     return static_cast<UWide>(toWide()) & widthMask();
+  }
+
+  [[nodiscard]] auto magnitude() const -> UWide {
+    if (!isNegative()) return static_cast<UWide>(toWideValue());
+    return static_cast<UWide>(-(toWide() + 1)) + 1;
+  }
+
+  [[nodiscard]] auto toDecimalString() const -> std::string {
+    auto remaining = magnitude();
+
+    if (!remaining) return "0";
+
+    std::string digits;
+    while (remaining) {
+      digits.push_back(
+          static_cast<char>('0' + static_cast<int>(remaining % 10)));
+      remaining /= 10;
+    }
+
+    std::ranges::reverse(digits);
+    return digits;
+  }
+
+  [[nodiscard]] auto toString() const -> std::string {
+    if (isNegative()) return "-" + toDecimalString();
+    return toDecimalString();
+  }
+
+  [[nodiscard]] auto hash() const -> std::size_t {
+    const auto bits = static_cast<UWide>(toWideValue());
+    const auto folded = static_cast<std::uintmax_t>(low(bits)) ^
+                        static_cast<std::uintmax_t>(high(bits));
+    return std::hash<std::uintmax_t>{}(folded);
+  }
+
+  [[nodiscard]] auto isDivisible(const ConstInt& other) const -> bool {
+    if (other.isZero()) return false;
+    if (!isSigned_) return true;
+    if (!other.isNegative()) return true;
+    if (other.toWide() != -1) return true;
+    return toWide() != minSignedValue();
+  }
+
+  [[nodiscard]] auto toWideValue() const -> Wide {
+    if (isSigned_) return toWide();
+    return static_cast<Wide>(toUWide());
   }
 
   [[nodiscard]] auto toIntMax() const -> std::intmax_t {
@@ -80,6 +158,12 @@ class ConstInt {
 
   [[nodiscard]] auto toUIntMax() const -> std::uintmax_t {
     return static_cast<std::uintmax_t>(toUWide());
+  }
+
+  [[nodiscard]] auto magnitudeFitsInUIntMax() const -> bool {
+    constexpr auto limit =
+        static_cast<UWide>(std::numeric_limits<std::uintmax_t>::max());
+    return magnitude() <= limit;
   }
 
   [[nodiscard]] auto popcount() const -> int {
@@ -128,12 +212,14 @@ class ConstInt {
     return l.rebuild(static_cast<Wide>(l.toUWide() * r.toUWide()));
   }
 
-  friend auto operator/(ConstInt l, ConstInt r) -> ConstInt {
+  friend auto operator/(ConstInt l, ConstInt r) -> std::optional<ConstInt> {
+    if (!l.isDivisible(r)) return std::nullopt;
     if (l.isSigned_) return l.rebuild(l.toWide() / r.toWide());
     return l.rebuild(static_cast<Wide>(l.toUWide() / r.toUWide()));
   }
 
-  friend auto operator%(ConstInt l, ConstInt r) -> ConstInt {
+  friend auto operator%(ConstInt l, ConstInt r) -> std::optional<ConstInt> {
+    if (!l.isDivisible(r)) return std::nullopt;
     if (l.isSigned_) return l.rebuild(l.toWide() % r.toWide());
     return l.rebuild(static_cast<Wide>(l.toUWide() % r.toUWide()));
   }
@@ -173,17 +259,25 @@ class ConstInt {
   }
 
   auto operator==(const ConstInt& other) const -> bool {
+    if (isNegative() != other.isNegative()) return false;
+    if (isNegative()) return toWide() == other.toWide();
     return toUWide() == other.toUWide();
   }
 
   auto operator<=>(const ConstInt& other) const -> std::strong_ordering {
-    if (isSigned_) {
+    if (isNegative() != other.isNegative()) {
+      if (isNegative()) return std::strong_ordering::less;
+      return std::strong_ordering::greater;
+    }
+
+    if (isNegative()) {
       auto l = toWide();
       auto r = other.toWide();
       if (l < r) return std::strong_ordering::less;
       if (l > r) return std::strong_ordering::greater;
       return std::strong_ordering::equal;
     }
+
     auto l = toUWide();
     auto r = other.toUWide();
     if (l < r) return std::strong_ordering::less;
@@ -201,6 +295,11 @@ class ConstInt {
     } else {
       return 0;
     }
+  }
+
+  [[nodiscard]] auto minSignedValue() const -> Wide {
+    if (width_ >= maxWidth) return std::numeric_limits<Wide>::min();
+    return -(Wide{1} << (width_ - 1));
   }
 
   [[nodiscard]] auto widthMask() const -> UWide {
@@ -222,19 +321,12 @@ class ConstInt {
         ((truncated >> (width_ - 1)) & 1) != 0) {
       truncated |= ~widthMask();
     }
-    auto normalized = static_cast<Wide>(truncated);
-    if (isNarrow()) {
-      narrow_ = static_cast<Narrow>(normalized);
-    } else {
-      wide_ = normalized;
-    }
+    lowBits_ = low(truncated);
+    highBits_ = high(truncated);
   }
 
-  union {
-    Narrow narrow_{};
-    Wide wide_;
-  };
-
+  std::uint64_t lowBits_ = 0;
+  std::uint64_t highBits_ = 0;
   std::uint8_t width_ = narrowWidth;
   bool isSigned_ = true;
 };

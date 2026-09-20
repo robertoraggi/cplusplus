@@ -851,6 +851,7 @@ class Parser final {
   [[nodiscard]] auto parse_constraint_logical_and_expression(
       ExpressionAST*& yyast, const ExprContext& ctx) -> bool;
   void parse_template_parameter(TemplateParameterAST*& yyast);
+  void parse_template_parameter_declaration(TemplateParameterAST*& yyast);
   [[nodiscard]] auto parse_type_parameter(TemplateParameterAST*& yyast) -> bool;
   [[nodiscard]] auto parse_typename_type_parameter(TemplateParameterAST*& yyast)
       -> bool;
@@ -1066,6 +1067,8 @@ class Parser final {
   void deferAccessCheck(NestedNameSpecifierAST* nestedNameSpecifier,
                         Symbol* symbol, SourceLocation loc);
 
+  ScopeSymbol* accessCheckScope_ = nullptr;
+
   void flushDeferredAccessChecks(ScopeSymbol* accessingScope);
 
   struct DeferredAccessChecksGuard {
@@ -1080,6 +1083,20 @@ class Parser final {
 
    private:
     Parser* parser_;
+  };
+
+  struct AccessCheckScopeGuard {
+    AccessCheckScopeGuard(Parser* parser, const Decl& decl);
+    AccessCheckScopeGuard(Parser* parser, ScopeSymbol* scope);
+    ~AccessCheckScopeGuard() { parser_->accessCheckScope_ = saved_; }
+
+    AccessCheckScopeGuard(const AccessCheckScopeGuard&) = delete;
+    auto operator=(const AccessCheckScopeGuard&)
+        -> AccessCheckScopeGuard& = delete;
+
+   private:
+    Parser* parser_;
+    ScopeSymbol* saved_ = nullptr;
   };
 
   [[nodiscard]] auto isC() const { return lang_ == LanguageKind::kC; }

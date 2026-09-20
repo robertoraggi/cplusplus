@@ -61,6 +61,10 @@ void WindowsToolchain::setWinsdkversion(std::string version) {
 }
 
 void WindowsToolchain::addSystemIncludePaths() {
+  if (auto resourceDir = this->resourceDir(); !resourceDir.empty()) {
+    addSystemIncludePath((fs::path{resourceDir} / "include").string());
+  }
+
   addSystemIncludePath(
       (fs::path(winsdkdir_) /
        std::string(std::format("Include/{}/winrt", winsdkversion_)))

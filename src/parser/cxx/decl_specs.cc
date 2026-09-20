@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/const_int.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -408,8 +409,8 @@ void DeclSpecs::Visitor::operator()(BitIntTypeSpecifierAST* ast) {
   } else if (ast->sizeExpression) {
     auto interp = ASTInterpreter{specs.translationUnit()};
     if (auto value = interp.evaluate(ast->sizeExpression)) {
-      if (auto v = std::get_if<std::intmax_t>(&*value)) {
-        ast->bitCount = static_cast<int>(*v);
+      if (auto v = std::get_if<ConstInt>(&*value)) {
+        ast->bitCount = static_cast<int>(v->toIntMax());
       }
     }
     specs.type_ = control()->getBitIntType(ast->bitCount);

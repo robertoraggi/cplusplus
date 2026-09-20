@@ -27,6 +27,7 @@
 #include <cxx/decl_specs.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
@@ -326,6 +327,8 @@ auto ASTRewriter::usingDeclarator(UsingDeclaratorAST* ast)
     auto target = qualifiedLookup(copy->nestedNameSpecifier->symbol, name);
     binder_.bind(copy, target);
   }
+
+  if (ast->symbol && copy->symbol) addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
 }
@@ -769,6 +772,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   if (!functionSymbol) {
     const bool addSymbolToParentScope =
         !isFunctionTemplateSpecialization && !isTemplateInstantiation;
+    declaratorDecl.isFunctionDefinition = true;
     functionSymbol = binder()->declareFunction(copy->declarator, declaratorDecl,
                                                addSymbolToParentScope);
   }
@@ -799,17 +803,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   if (auto params = functionDeclarator->parameterDeclarationClause) {
     auto newParams = params->functionParametersSymbol;
     if (auto oldParams = functionSymbol->functionParameters()) {
-      auto& oldMembers = oldParams->members();
-      auto& newMembers = newParams->members();
-      auto n = std::min(oldMembers.size(), newMembers.size());
-      for (std::size_t i = 0; i < n; ++i) {
-        auto oldParam = symbol_cast<ParameterSymbol>(oldMembers[i]);
-        auto newParam = symbol_cast<ParameterSymbol>(newMembers[i]);
-        if (oldParam && newParam && oldParam->defaultArgument() &&
-            !newParam->defaultArgument()) {
-          newParam->setDefaultArgument(oldParam->defaultArgument());
-        }
-      }
+      binder()->copyDefaultArguments(oldParams, newParams);
 
       functionSymbol->replaceSymbol(oldParams, newParams);
       newParams->setParent(functionSymbol);
@@ -1285,6 +1279,8 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->idExpression =
       ast_cast<IdExpressionAST>(rewrite.expression(ast->idExpression));
 
+  recordDefaultTemplateArgument(copy, ast);
+
   return copy;
 }
 
@@ -1302,6 +1298,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   }
 
   binder()->bind(copy, copy->index, copy->depth);
+  recordDefaultTemplateArgument(copy, ast);
   rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
@@ -1322,6 +1319,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->isPack = ast->isPack;
 
   binder()->bind(copy, copy->index, copy->depth);
+  recordDefaultTemplateArgument(copy, ast);
   rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
@@ -1341,6 +1339,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->identifier = ast->identifier;
 
   binder()->bind(copy, copy->index, copy->depth);
+  recordDefaultTemplateArgument(copy, ast);
   rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;

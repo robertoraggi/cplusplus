@@ -56,14 +56,11 @@ namespace {
 std::unordered_set<std::string_view> enabledBuiltins{
 
 #define VISIT_BUILTIN(_, name) name,
-#define VISIT_BUILTIN_MACRO(name) #name,
     FOR_EACH_BUILTIN_TEMPLATE(VISIT_BUILTIN)
     FOR_EACH_BUILTIN_FUNCTION(VISIT_BUILTIN)
-    FOR_EACH_BUILTIN_MACRO(VISIT_BUILTIN_MACRO)
     FOR_EACH_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
     FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
     FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
-#undef VISIT_BUILTIN_MACRO
 #undef VISIT_BUILTIN_FUNCTION
 
 };
@@ -499,7 +496,7 @@ struct Preprocessor::Private {
   std::unordered_map<std::string, SourceFile*> sourceFileIndex_;
 
   int currentPack_ = 0;
-  std::vector<int> packStack_;
+  std::vector<PackStackEntry> packStack_;
   std::vector<std::string> texts_;
 
   std::vector<TokVector> expansionPool_;
@@ -2749,32 +2746,124 @@ auto Preprocessor::Private::handlePragma(std::uint32_t fileId,
 
   if (getText(*ts) != "pack") return std::nullopt;
 
+  auto pragmaTok = *ts;
+  pragmaTok.sourceFile = fileId;
+  pragmaTok.offset = offset;
+  pragmaTok.generated = false;
+
   ++ts;
   if (ts >= end || ts->isNot(TokenKind::T_LPAREN)) return std::nullopt;
 
   ++ts;
 
-  auto recordPack = [&](int newPack) { currentPack_ = newPack; };
+  auto isIdentifier = [&](std::string_view text) {
+    return ts < end && ts->is(TokenKind::T_IDENTIFIER) && getText(*ts) == text;
+  };
 
-  if (ts < end && ts->is(TokenKind::T_IDENTIFIER) && getText(*ts) == "push") {
+  auto packAlignment = [&]() -> std::optional<int> {
+    const auto components = IntegerLiteral::Components::from(getText(*ts));
+    switch (components.value) {
+      case 0:
+      case 1:
+      case 2:
+      case 4:
+      case 8:
+      case 16:
+        return static_cast<int>(components.value);
+      default:
+        warning(&pragmaTok,
+                "expected #pragma pack parameter to be '1', '2', '4', '8', or "
+                "'16'");
+        return std::nullopt;
+    }
+  };
+
+  auto packArgument = [&](int& value) -> bool {
+    auto alignment = packAlignment();
+    if (!alignment.has_value()) return false;
+    value = *alignment;
     ++ts;
-    int newPack = currentPack_;
+    return true;
+  };
+
+  auto packLabel = [&]() -> std::string {
+    auto label = std::string(getText(*ts));
+    ++ts;
+    return label;
+  };
+
+  if (isIdentifier("push")) {
+    ++ts;
+
+    std::string label;
+    auto newPack = currentPack_;
+
     if (ts < end && ts->is(TokenKind::T_COMMA)) {
       ++ts;
-      if (ts < end && ts->is(TokenKind::T_INTEGER_LITERAL)) {
-        newPack = std::stoi(std::string(getText(*ts)));
+      if (ts < end && ts->is(TokenKind::T_IDENTIFIER)) {
+        label = packLabel();
+        if (ts < end && ts->is(TokenKind::T_COMMA)) {
+          ++ts;
+          if (ts < end && ts->is(TokenKind::T_INTEGER_LITERAL) &&
+              !packArgument(newPack))
+            return std::nullopt;
+        }
+      } else if (ts < end && ts->is(TokenKind::T_INTEGER_LITERAL)) {
+        if (!packArgument(newPack)) return std::nullopt;
       }
     }
-    packStack_.push_back(currentPack_);
-    recordPack(newPack);
-  } else if (ts < end && ts->is(TokenKind::T_IDENTIFIER) &&
-             getText(*ts) == "pop") {
-    int prev = 0;
-    if (!packStack_.empty()) prev = packStack_.back();
-    if (!packStack_.empty()) packStack_.pop_back();
-    recordPack(prev);
+
+    packStack_.push_back({std::move(label), currentPack_});
+    currentPack_ = newPack;
+  } else if (isIdentifier("pop")) {
+    ++ts;
+
+    std::string label;
+    std::optional<int> requestedPack;
+
+    if (ts < end && ts->is(TokenKind::T_COMMA)) {
+      ++ts;
+      if (ts < end && ts->is(TokenKind::T_IDENTIFIER)) {
+        label = packLabel();
+        if (ts < end && ts->is(TokenKind::T_COMMA)) ++ts;
+      }
+      if (ts < end && ts->is(TokenKind::T_INTEGER_LITERAL)) {
+        int value = 0;
+        if (!packArgument(value)) return std::nullopt;
+        requestedPack = value;
+      }
+    }
+
+    if (label.empty()) {
+      if (packStack_.empty()) {
+        warning(&pragmaTok, "#pragma pack(pop, ...) failed: stack empty");
+        return std::nullopt;
+      }
+      currentPack_ = packStack_.back().value;
+      packStack_.pop_back();
+    } else {
+      auto entry = std::ranges::find_if(
+          packStack_ | std::views::reverse,
+          [&](const auto& candidate) { return candidate.label == label; });
+
+      if (entry == std::ranges::rend(packStack_)) {
+        warning(&pragmaTok,
+                std::format("#pragma pack(pop, {}) failed: no matching record",
+                            label));
+        return std::nullopt;
+      }
+
+      currentPack_ = entry->value;
+      packStack_.erase(entry.base() - 1, packStack_.end());
+    }
+
+    if (requestedPack.has_value()) currentPack_ = *requestedPack;
   } else if (ts < end && ts->is(TokenKind::T_INTEGER_LITERAL)) {
-    recordPack(std::stoi(std::string(getText(*ts))));
+    int value = 0;
+    if (!packArgument(value)) return std::nullopt;
+    currentPack_ = value;
+  } else if (ts < end && ts->is(TokenKind::T_RPAREN)) {
+    currentPack_ = 0;
   }
 
   auto token = genTok(TokenKind::T_PRAGMA_PACK, std::to_string(currentPack_));
@@ -3697,7 +3786,10 @@ void Preprocessor::getPreprocessedText(
 
     while (nextPackChange != packChanges.end() &&
            nextPackChange->first < index) {
-      out << std::format("\n#pragma pack({})\n", nextPackChange->second);
+      if (nextPackChange->second)
+        out << std::format("\n#pragma pack({})\n", nextPackChange->second);
+      else
+        out << "\n#pragma pack()\n";
       atStartOfLine = true;
       ++nextPackChange;
     }

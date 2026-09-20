@@ -70,7 +70,7 @@ struct ArchiveEnvelope {
 class ArchiveWriter {
  public:
   static constexpr std::string_view kMagic = "CXXARCH";
-  static constexpr std::uint32_t kSchemaMajor = 4;
+  static constexpr std::uint32_t kSchemaMajor = 5;
   static constexpr std::uint32_t kSchemaMinor = 0;
 
   void setEnvelope(ArchiveEnvelope envelope) {

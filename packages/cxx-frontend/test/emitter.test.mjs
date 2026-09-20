@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx, Parser, TraceEmitter } from "../dist/index.js";
+import { loadCxx, Parser, TraceEmitter } from "cxx-frontend";
 
 const wasm = await readFile(
   new URL("../dist/wasm/cxx-js.wasm", import.meta.url),

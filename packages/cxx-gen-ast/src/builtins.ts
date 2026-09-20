@@ -37,22 +37,9 @@ export interface BuiltinEval {
   cxx23?: boolean;
 }
 
-export interface GenericMacroAssociation {
-  type: string;
-  expansion: string;
-}
-
-export interface GenericMacro {
-  parameter: string;
-  zeroFallbackParameter?: string;
-  zeroFallbackType?: string;
-  associations: GenericMacroAssociation[];
-}
-
 export interface BuiltinDef {
   name: string;
   prototype?: string | string[];
-  genericMacro?: GenericMacro;
   constexpr: boolean;
   consteval?: boolean;
   noexcept?: boolean;
@@ -71,10 +58,6 @@ export const BUILTINS: BuiltinDef[] = JSON.parse(
 
 export const BUILTIN_FUNCTION_DEFS: BuiltinDef[] = BUILTINS.filter(
   (b) => b.prototype,
-);
-
-export const BUILTIN_MACRO_DEFS: BuiltinDef[] = BUILTINS.filter(
-  (b) => b.genericMacro,
 );
 
 export const BUILTIN_NAMES: string[] = BUILTIN_FUNCTION_DEFS.map(
