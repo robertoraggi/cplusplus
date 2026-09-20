@@ -1,6 +1,8 @@
 // RUN: %cxx -toolchain macos -verify -fsyntax-only %s
 // expected-no-diagnostics
 
+#ifdef CXX_HAS_INT128
+
 int main() {
   __int128 a, b, c;
 
@@ -23,3 +25,5 @@ int main() {
 
   return 0;
 }
+
+#endif
