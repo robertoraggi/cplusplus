@@ -124,6 +124,8 @@ void Toolchain::addSystemIncludePath(std::string path) {
 }
 
 void Toolchain::addCommonMacros() {
+  defineMacro("__PRETTY_FUNCTION__", "__func__");
+
   defineMacro("__ATOMIC_ACQUIRE", "2");
   defineMacro("__ATOMIC_ACQ_REL", "4");
   defineMacro("__ATOMIC_CONSUME", "1");
