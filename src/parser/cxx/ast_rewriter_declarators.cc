@@ -301,8 +301,7 @@ auto ASTRewriter::requiresClause(RequiresClauseAST* ast) -> RequiresClauseAST* {
 
   copy->requiresLoc = ast->requiresLoc;
 
-  SilentDiagnosticsScope silent{unit_};
-  copy->expression = unevaluatedExpression(ast->expression);
+  copy->expression = ast->expression;
 
   return copy;
 }

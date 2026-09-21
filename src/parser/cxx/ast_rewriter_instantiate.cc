@@ -1287,8 +1287,7 @@ void ASTRewriter::retryPendingMemberTemplateAttachment(FunctionSymbol* member) {
   auto instanceClass = symbol_cast<ClassSymbol>(member->parent());
   if (!instanceClass) return;
 
-  auto pattern = instanceClass->instantiationPattern();
-  if (!pattern) pattern = instanceClass->primaryTemplateSymbol();
+  auto pattern = instanceClass->instantiationTemplate();
   if (!pattern) return;
 
   auto classTemplateDecl = pattern->templateDeclaration();
@@ -1409,8 +1408,7 @@ void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
     for (auto instance : unit->takePendingMemberInstantiations()) {
       if (!instance->isComplete()) continue;
       if (!unit->beginMemberInstantiation(instance)) continue;
-      auto pattern = instance->instantiationPattern();
-      if (!pattern) pattern = instance->primaryTemplateSymbol();
+      auto pattern = instance->instantiationTemplate();
       if (!pattern) continue;
       auto args = instance->instantiationSubstitutionArguments();
       if (args.empty()) continue;

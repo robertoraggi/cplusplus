@@ -167,6 +167,16 @@ void ASTRewriter::remapScopeMembers(ScopeSymbol* oldScope,
   }
 }
 
+void ASTRewriter::remapEnclosingClassPatterns(ScopeSymbol* scope) {
+  for (auto current = scope; current; current = current->parent()) {
+    auto instanceClass = symbol_cast<ClassSymbol>(current);
+    if (!instanceClass) continue;
+    auto patternClass = instanceClass->instantiationTemplate();
+    if (!patternClass) continue;
+    remapScopeMembers(patternClass, instanceClass);
+  }
+}
+
 void ASTRewriter::remapFunctionParameters(
     FunctionDeclaratorChunkAST* patternPrototype,
     FunctionDeclaratorChunkAST* instancePrototype,

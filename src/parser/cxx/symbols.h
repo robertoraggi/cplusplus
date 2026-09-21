@@ -1207,6 +1207,8 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto instantiationPattern() const -> ClassSymbol*;
   void setInstantiationPattern(ClassSymbol* instantiationPattern);
 
+  [[nodiscard]] auto instantiationTemplate() const -> ClassSymbol*;
+
  private:
   [[nodiscard]] auto hasBaseClass(const Symbol* symbol,
                                   std::unordered_set<const ClassSymbol*>&) const

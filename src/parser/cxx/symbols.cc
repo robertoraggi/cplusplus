@@ -1650,6 +1650,11 @@ void ClassSymbol::setInstantiationPattern(ClassSymbol* instantiationPattern) {
   instantiationPattern_ = instantiationPattern;
 }
 
+auto ClassSymbol::instantiationTemplate() const -> ClassSymbol* {
+  if (instantiationPattern_) return instantiationPattern_;
+  return primaryTemplateSymbol();
+}
+
 EnumSymbol::EnumSymbol(ScopeSymbol* enclosingScope)
     : ScopeSymbol(Kind, enclosingScope) {}
 
