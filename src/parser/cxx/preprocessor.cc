@@ -2541,6 +2541,8 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
       if (includeDirective.has_value()) {
         return *includeDirective;
       }
+      error(ts < directiveEnd ? ts : directiveLine,
+            "expected \"FILENAME\" or <FILENAME>");
       break;
     }
 
@@ -3024,22 +3026,25 @@ auto Preprocessor::Private::parseHeaderName(const Tok*& ts, const Tok* lineEnd)
   if (ts < lineEnd && ts->is(TokenKind::T_STRING_LITERAL)) {
     auto text = getText(*ts);
     auto file = text.substr(1, text.length() - 2);
+    if (file.empty()) return std::nullopt;
     ++ts;
     return QuoteInclude(std::string(file));
   }
 
   if (ts < lineEnd && ts->is(TokenKind::T_LESS)) {
-    ++ts;
+    auto cursor = ts + 1;
     std::string file;
-    while (ts < lineEnd && ts->isNot(TokenKind::T_EOF_SYMBOL) && !ts->bol) {
-      if (ts->is(TokenKind::T_GREATER)) {
-        ++ts;
-        break;
+    while (cursor < lineEnd && cursor->isNot(TokenKind::T_EOF_SYMBOL) &&
+           !cursor->bol) {
+      if (cursor->is(TokenKind::T_GREATER)) {
+        if (file.empty()) return std::nullopt;
+        ts = cursor + 1;
+        return SystemInclude(file);
       }
-      file += getText(*ts);
-      ++ts;
+      file += getText(*cursor);
+      ++cursor;
     }
-    return SystemInclude(file);
+    return std::nullopt;
   }
 
   return std::nullopt;

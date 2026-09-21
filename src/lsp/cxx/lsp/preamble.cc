@@ -24,8 +24,33 @@
 
 namespace cxx::lsp {
 
+namespace {
+
+[[nodiscard]] auto isSplicedNewline(std::string_view source,
+                                    std::size_t newline) -> bool {
+  auto index = newline;
+  if (index > 0 && source[index - 1] == '\r') --index;
+  return index > 0 && source[index - 1] == '\\';
+}
+
+[[nodiscard]] auto endOfDirectiveLine(std::string_view source,
+                                      std::size_t offset) -> std::size_t {
+  if (offset == 0 || offset >= source.size()) return offset;
+  if (source[offset - 1] == '\n') return offset;
+  while (offset < source.size()) {
+    const auto newline = source.find('\n', offset);
+    if (newline == std::string_view::npos) break;
+    if (!isSplicedNewline(source, newline)) return newline + 1;
+    offset = newline + 1;
+  }
+  return source.size();
+}
+
+}  // namespace
+
 void maskPreamble(std::string& source, std::size_t size) {
-  for (std::size_t i = 0; i < size; ++i) {
+  const auto end = endOfDirectiveLine(source, size);
+  for (std::size_t i = 0; i < end; ++i) {
     if (source[i] == '\n') continue;
     if (source[i] == '\r') continue;
     source[i] = ' ';
