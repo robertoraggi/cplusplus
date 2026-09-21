@@ -574,6 +574,15 @@ class [[nodiscard]] ASTRewriter {
 
   void remapEnclosingClassPatterns(ScopeSymbol* scope);
 
+  [[nodiscard]] auto remappedMemberTemplate(ClassSymbol* instanceClass,
+                                            FunctionSymbol* patternFunction,
+                                            const Identifier* name)
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto instantiatedMemberTemplateFor(
+      FunctionSymbol* patternFunction, SimpleTemplateIdAST* templateId,
+      SourceLocation location) -> FunctionSymbol*;
+
   void checkMemInitializers(FunctionSymbol* function,
                             CompoundStatementFunctionBodyAST* body);
 

@@ -177,6 +177,60 @@ void ASTRewriter::remapEnclosingClassPatterns(ScopeSymbol* scope) {
   }
 }
 
+auto ASTRewriter::remappedMemberTemplate(ClassSymbol* instanceClass,
+                                         FunctionSymbol* patternFunction,
+                                         const Identifier* name)
+    -> FunctionSymbol* {
+  auto patternTemplate = patternFunction;
+  if (patternFunction->isSpecialization()) {
+    patternTemplate = patternFunction->primaryTemplateSymbol();
+  }
+
+  if (patternTemplate) {
+    auto remapped = symbol_cast<FunctionSymbol>(remapSymbol(patternTemplate));
+    if (remapped && remapped != patternTemplate &&
+        remapped->parent() == instanceClass && remapped->isTemplatePattern()) {
+      return remapped;
+    }
+  }
+
+  return views::find_function(instanceClass->find(name),
+                              &FunctionSymbol::isTemplatePattern);
+}
+
+auto ASTRewriter::instantiatedMemberTemplateFor(FunctionSymbol* patternFunction,
+                                                SimpleTemplateIdAST* templateId,
+                                                SourceLocation location)
+    -> FunctionSymbol* {
+  if (!templateId || !templateId->identifier) return nullptr;
+  if (!patternFunction->isTemplatePattern() &&
+      !patternFunction->isSpecialization()) {
+    return nullptr;
+  }
+
+  auto patternClass = symbol_cast<ClassSymbol>(patternFunction->parent());
+  if (!patternClass) return nullptr;
+
+  auto instanceClass = symbol_cast<ClassSymbol>(remapSymbol(patternClass));
+  if (!instanceClass || instanceClass == patternClass) return nullptr;
+
+  auto instanceTemplate = remappedMemberTemplate(instanceClass, patternFunction,
+                                                 templateId->identifier);
+  if (!instanceTemplate) return nullptr;
+  if (!patternFunction->isSpecialization()) return instanceTemplate;
+
+  auto instance = ASTRewriter::instantiate(
+      unit_, templateId->templateArgumentList, instanceTemplate, location,
+      /*sfinaeContext=*/false, /*argsComplete=*/false,
+      /*declarationOnly=*/true);
+
+  if (auto specialization = symbol_cast<FunctionSymbol>(instance)) {
+    return specialization;
+  }
+
+  return instanceTemplate;
+}
+
 void ASTRewriter::remapFunctionParameters(
     FunctionDeclaratorChunkAST* patternPrototype,
     FunctionDeclaratorChunkAST* instancePrototype,

@@ -28,6 +28,7 @@
 #include <cxx/types_fwd.h>
 #include <cxx/views/symbol_chain.h>
 
+#include <functional>
 #include <ranges>
 #include <vector>
 
@@ -157,7 +158,7 @@ template <std::ranges::input_range R, typename Pred>
 auto find_function(R&& symbols, Pred pred) -> FunctionSymbol* {
   for (auto sym : symbols) {
     for (auto func : each_function(sym)) {
-      if (pred(func)) return func;
+      if (std::invoke(pred, func)) return func;
     }
   }
   return nullptr;

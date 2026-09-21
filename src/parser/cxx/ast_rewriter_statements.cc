@@ -463,9 +463,21 @@ auto ASTRewriter::StatementVisitor::operator()(ConstevalIfStatementAST* ast)
   copy->ifLoc = ast->ifLoc;
   copy->exclaimLoc = ast->exclaimLoc;
   copy->constvalLoc = ast->constvalLoc;
-  copy->statement = rewrite.statement(ast->statement);
+
+  {
+    TranslationUnit::ImmediateFunctionContextScope immediate{translationUnit(),
+                                                             !ast->isNot};
+    copy->statement = rewrite.statement(ast->statement);
+  }
+
   copy->elseLoc = ast->elseLoc;
-  copy->elseStatement = rewrite.statement(ast->elseStatement);
+
+  {
+    TranslationUnit::ImmediateFunctionContextScope immediate{translationUnit(),
+                                                             ast->isNot};
+    copy->elseStatement = rewrite.statement(ast->elseStatement);
+  }
+
   copy->isNot = ast->isNot;
 
   return copy;

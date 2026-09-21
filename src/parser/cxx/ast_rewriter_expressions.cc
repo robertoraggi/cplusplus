@@ -665,19 +665,11 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
 
     if (auto fn = symbol_cast<FunctionSymbol>(copy->symbol);
-        fn && fn == ast->symbol &&
-        (fn->templateDeclaration() || fn->isSpecialization())) {
+        fn && fn == ast->symbol) {
       auto templateId = ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId);
-      if (templateId && templateId->identifier) {
-        if (auto cls = symbol_cast<ClassSymbol>(fn->parent())) {
-          if (auto instCls = symbol_cast<ClassSymbol>(rewrite.remapSymbol(cls));
-              instCls && instCls != cls) {
-            auto cf = views::find_function(
-                instCls->find(templateId->identifier),
-                [](FunctionSymbol* f) { return f->templateDeclaration(); });
-            if (cf) copy->symbol = cf;
-          }
-        }
+      if (auto member = rewrite.instantiatedMemberTemplateFor(
+              fn, templateId, ast->firstSourceLocation())) {
+        copy->symbol = member;
       }
     }
 
