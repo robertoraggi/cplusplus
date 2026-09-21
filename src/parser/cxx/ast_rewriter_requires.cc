@@ -232,32 +232,10 @@ auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
   if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kConstraints);
   if (isDependent(unit, symbol->type())) return std::nullopt;
 
-  auto interp = ASTInterpreter{unit};
   std::optional<bool> conjunction = true;
 
   for (auto constraint : constraints) {
-    std::optional<ConstValue> value;
-    bool hadError = false;
-
-    {
-      SilentDiagnosticsScope silent{unit};
-
-      if (!constraint->type) {
-        auto typeChecker = TypeChecker{unit};
-        typeChecker.setScope(symbol->parent());
-        typeChecker.setReportErrors(false);
-        typeChecker.check(&constraint);
-      }
-
-      value = interp.evaluate(constraint);
-      hadError = silent.hadError();
-    }
-
-    if (hadError) return false;
-
-    std::optional<bool> satisfied;
-    if (value.has_value()) satisfied = interp.toBool(*value);
-
+    auto satisfied = checkConstraintExpression(unit, symbol, constraint, {}, -1);
     if (!satisfied.has_value()) {
       conjunction = std::nullopt;
       continue;
@@ -312,6 +290,8 @@ auto ASTRewriter::checkConstraintExpression(
   auto parentScope = symbol->parent();
   auto reqRewriter = ASTRewriter{unit, parentScope, templateArguments};
   reqRewriter.depth_ = depth;
+  reqRewriter.inheritEnclosingTemplateArguments(parentScope);
+  reqRewriter.remapEnclosingClassPatterns(parentScope);
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
     (void)reqRewriter.parameterDeclarationClause(
         functionParameterClause(function));

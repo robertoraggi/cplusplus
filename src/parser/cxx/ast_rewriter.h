@@ -572,6 +572,8 @@ class [[nodiscard]] ASTRewriter {
 
   void remapScopeMembers(ScopeSymbol* oldScope, ScopeSymbol* newScope);
 
+  void remapEnclosingClassPatterns(ScopeSymbol* scope);
+
   void checkMemInitializers(FunctionSymbol* function,
                             CompoundStatementFunctionBodyAST* body);
 
