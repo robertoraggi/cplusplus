@@ -70,7 +70,8 @@ class TemplateArgumentDeduction {
 
   [[nodiscard]] auto deduceFromTargetType(
       FunctionSymbol* func, const FunctionType* targetType,
-      List<TemplateArgumentAST*>* explicitTemplateArgs = nullptr)
+      List<TemplateArgumentAST*>* explicitTemplateArgs = nullptr,
+      bool matchReturnType = true)
       -> std::optional<List<TemplateArgumentAST*>*>;
 
   [[nodiscard]] auto deduceFromConversionTarget(FunctionSymbol* func,
@@ -81,6 +82,9 @@ class TemplateArgumentDeduction {
   struct DeducibleParameterVisitor;
 
   void collectTemplateParameters(TemplateDeclarationAST* templateDecl);
+
+  [[nodiscard]] auto matchesNonDeducedType(const Type* P, const Type* A) const
+      -> bool;
 
   [[nodiscard]] auto substituteExplicitTemplateArguments(
       List<TemplateArgumentAST*>* explicitTemplateArgs) -> bool;

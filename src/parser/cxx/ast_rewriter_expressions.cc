@@ -1175,6 +1175,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
 
   copy->rparenLoc = ast->rparenLoc;
 
+  rewrite.deduceCalleeSpecialization(ast->baseExpression, copy);
+
   return copy;
 }
 

@@ -914,9 +914,6 @@ void ASTRewriter::markExplicitInstantiationDeclared(
   if (!symbol) return;
   if (!unit->config().checkTypes) return;
 
-  auto classSymbol = symbol_cast<ClassSymbol>(symbol);
-  if (!classSymbol) return;
-
   auto templateDecl = template_declaration_of(symbol);
   if (!templateDecl) return;
 
@@ -928,7 +925,7 @@ void ASTRewriter::markExplicitInstantiationDeclared(
 
   if (isPrimaryTemplate(templateArguments, templateDecl->depth)) return;
 
-  classSymbol->addExternInstantiationDeclaration(std::move(templateArguments));
+  add_extern_instantiation_declaration(symbol, std::move(templateArguments));
 }
 
 auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,

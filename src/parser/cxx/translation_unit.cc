@@ -452,6 +452,25 @@ auto TranslationUnit::takePendingMemberInstantiations()
   return pending;
 }
 
+void TranslationUnit::addExplicitInstantiationDefinition(
+    FunctionSymbol* function) {
+  if (!function) return;
+  if (std::ranges::contains(explicitInstantiationDefinitions_, function))
+    return;
+  explicitInstantiationDefinitions_.push_back(function);
+}
+
+auto TranslationUnit::explicitInstantiationDefinitions() const
+    -> const std::vector<FunctionSymbol*>& {
+  return explicitInstantiationDefinitions_;
+}
+
+auto TranslationUnit::isExplicitInstantiationDefinition(
+    FunctionSymbol* function) const -> bool {
+  if (!function) return false;
+  return std::ranges::contains(explicitInstantiationDefinitions_, function);
+}
+
 void TranslationUnit::addPendingBodyCompletion(FunctionSymbol* function) {
   if (!function) return;
   if (!function->hasUninstantiatedBody()) return;

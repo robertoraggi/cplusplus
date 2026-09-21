@@ -87,6 +87,10 @@ auto Codegen::hasInternalLinkage(Symbol* symbol) const -> bool {
 
 auto Codegen::symbolLinkage(Symbol* symbol) const -> ir::Linkage {
   if (hasInternalLinkage(symbol)) return ir::Linkage::Internal;
+  if (unit_->isExplicitInstantiationDefinition(
+          symbol_cast<FunctionSymbol>(symbol))) {
+    return ir::Linkage::WeakODR;
+  }
   if (hasVagueEmission(symbol)) return ir::Linkage::LinkOnceODR;
   return ir::Linkage::External;
 }
@@ -102,6 +106,15 @@ static auto isMemberOfExplicitInstantiationDeclaredClass(TranslationUnit* unit,
     }
   }
   return false;
+}
+
+[[nodiscard]] static auto suppressesOutOfLineCopy(TranslationUnit* unit,
+                                                  FunctionSymbol* function)
+    -> bool {
+  if (unit->isExplicitInstantiationDefinition(function)) return false;
+  if (function->isExplicitInstantiationDeclared(unit)) return true;
+  if (function->isInline()) return false;
+  return isMemberOfExplicitInstantiationDeclaredClass(unit, function);
 }
 
 Codegen::Codegen(ir::Emitter& emitter, TranslationUnit* unit, Options options)
@@ -1897,11 +1910,7 @@ auto Codegen::aliasNameOf(FunctionSymbol* emittedSymbol)
     return std::string{alias->name()};
   }
 
-  if (!emittedSymbol->isDefined() && !emittedSymbol->definition()) {
-    return std::nullopt;
-  }
-
-  return baseObjectStructorName(emittedSymbol);
+  return std::nullopt;
 }
 
 auto Codegen::findOrCreateSecondaryFunctionName(FunctionSymbol* functionSymbol,
@@ -1954,14 +1963,30 @@ auto Codegen::findOrCreateBaseObjectStructor(FunctionSymbol* functionSymbol)
   return findOrCreateSecondaryFunctionName(functionSymbol, *name, {});
 }
 
+void Codegen::emitBaseObjectStructor(FunctionSymbol* functionSymbol,
+                                     ir::FunctionRef completeObjectFunc) {
+  auto name = baseObjectStructorName(functionSymbol);
+  if (!name) return;
+
+  auto baseObjectFunc =
+      findOrCreateSecondaryFunctionName(functionSymbol, *name, {});
+  if (!baseObjectFunc) return;
+  if (emitter_.functionHasBody(baseObjectFunc)) return;
+
+  auto emittedSymbol = emittedFunctionSymbol(functionSymbol);
+
+  auto guard = ir::InsertionGuard(emitter_);
+  emitter_.setModuleInsertionPoint(true);
+
+  emitForwardingBody(baseObjectFunc, emittedSymbol, completeObjectFunc,
+                     emittedSymbol->location(), {});
+}
+
 void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
   auto target = emittedFunctionSymbol(symbol);
   target = target->resolvedDefinition();
   if (!target->declaration()) return;
-  if (!target->isInline() &&
-      isMemberOfExplicitInstantiationDeclaredClass(unit_, target)) {
-    return;
-  }
+  if (suppressesOutOfLineCopy(unit_, target)) return;
   if (!enqueuedFunctions_.insert(target).second) return;
   pendingFunctions_.push_back(target);
 }
@@ -2757,10 +2782,48 @@ void Codegen::declareExternalVTable(SourceLocation loc, std::string_view name,
                                   .unknownLocation = false});
 }
 
-auto Codegen::findOrCreateThunk(
-    FunctionSymbol* target, std::string_view thunkName,
-    const std::function<ir::ValueRef(
-        ir::ValueRef rawThisI8, SourceLocation loc)>& computeAdjustedThisI8)
+void Codegen::emitForwardingBody(ir::FunctionRef func, FunctionSymbol* target,
+                                 ir::FunctionRef targetFuncOp,
+                                 SourceLocation loc,
+                                 const ThisAdjustment& computeAdjustedThisI8) {
+  auto functionBodyGuard = ir::FunctionBodyGuard{emitter_, func};
+
+  auto entryBlock = emitter_.createBlock(func);
+  std::vector<ir::ValueRef> callArgs;
+  for (auto inputType : emitter_.functionParameterTypes(targetFuncOp)) {
+    callArgs.push_back(emitter_.addBlockParameter(entryBlock, inputType, loc));
+  }
+  emitter_.setInsertionBlock(entryBlock);
+
+  if (computeAdjustedThisI8) {
+    auto functionType = type_cast<FunctionType>(target->type());
+    const auto returnAbi = classifyClassValueAbi(functionType->returnType(),
+                                                 ClassValueAbiContext::Return);
+    const size_t thisIndex =
+        returnAbi.kind == ClassValueAbi::Kind::Indirect ? 1 : 0;
+
+    auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
+
+    auto rawThis = callArgs[thisIndex];
+    auto rawThisI8 = emitter_.bitcast(loc, i8PtrType, rawThis);
+
+    auto adjustedThisI8 = computeAdjustedThisI8(rawThisI8, loc);
+
+    callArgs[thisIndex] =
+        emitter_.bitcast(loc, emitter_.typeOf(rawThis), adjustedThisI8);
+  }
+
+  auto callResults = emitter_.call(
+      loc, {.callee = this->functionName(targetFuncOp),
+            .arguments = callArgs,
+            .results = emitter_.functionResultTypes(targetFuncOp)});
+
+  emitter_.ret(loc, callResults);
+}
+
+auto Codegen::findOrCreateThunk(FunctionSymbol* target,
+                                std::string_view thunkName,
+                                const ThisAdjustment& computeAdjustedThisI8)
     -> ir::FunctionRef {
   auto targetFuncOp = findOrCreateFunction(target);
   if (!targetFuncOp) return {};
@@ -2771,53 +2834,18 @@ auto Codegen::findOrCreateThunk(
 
   auto funcType = this->functionType(targetFuncOp);
 
-  auto functionType = type_cast<FunctionType>(target->type());
-  const auto returnAbi = classifyClassValueAbi(functionType->returnType(),
-                                               ClassValueAbiContext::Return);
-  const size_t thisIndex =
-      returnAbi.kind == ClassValueAbi::Kind::Indirect ? 1 : 0;
-
   auto guard = ir::InsertionGuard(emitter_);
   emitter_.setModuleInsertionPoint(true);
 
   auto loc = target->location();
-
-  auto linkageAttr = ir::Linkage::LinkOnceODR;
 
   auto thunkFunc = this->declareFunction(
       loc, ir::FunctionInfo{.name = thunkName,
                             .type = funcType,
                             .linkage = ir::Linkage::LinkOnceODR});
 
-  auto functionBodyGuard = ir::FunctionBodyGuard{emitter_, thunkFunc};
-
-  auto entryBlock = emitter_.createBlock(thunkFunc);
-  std::vector<ir::ValueRef> blockArgs;
-  for (auto inputType : emitter_.functionParameterTypes(targetFuncOp)) {
-    blockArgs.push_back(emitter_.addBlockParameter(entryBlock, inputType, loc));
-  }
-  emitter_.setInsertionBlock(entryBlock);
-
-  auto i8Type = emitter_.integerType(8);
-  auto i8PtrType = emitter_.pointerType(i8Type);
-
-  auto rawThis = blockArgs[thisIndex];
-  auto rawThisI8 = emitter_.bitcast(loc, i8PtrType, rawThis);
-
-  auto adjustedThisI8 = computeAdjustedThisI8(rawThisI8, loc);
-
-  auto adjustedThis =
-      emitter_.bitcast(loc, emitter_.typeOf(rawThis), adjustedThisI8);
-
-  std::vector<ir::ValueRef> callArgs(blockArgs.begin(), blockArgs.end());
-  callArgs[thisIndex] = adjustedThis;
-
-  auto callResults = emitter_.call(
-      loc, {.callee = this->functionName(targetFuncOp),
-            .arguments = callArgs,
-            .results = emitter_.functionResultTypes(targetFuncOp)});
-
-  emitter_.ret(loc, callResults);
+  emitForwardingBody(thunkFunc, target, targetFuncOp, loc,
+                     computeAdjustedThisI8);
 
   return thunkFunc;
 }
@@ -3048,9 +3076,7 @@ auto Codegen::resolveVptrField(ir::ValueRef basePtr, ClassSymbol* baseClassSym,
 
 auto Codegen::requiresVTT(ClassSymbol* classSymbol) const -> bool {
   if (!classSymbol) return false;
-  classSymbol = classSymbol->resolvedDefinition();
-  auto layout = classSymbol->layout();
-  return layout && !layout->virtualBases().empty();
+  return classSymbol->hasVirtualBaseSubobjects();
 }
 
 void Codegen::appendConstructionSubVTT(ClassSymbol* completeClass,

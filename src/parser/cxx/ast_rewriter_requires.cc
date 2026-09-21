@@ -235,7 +235,8 @@ auto ASTRewriter::evaluateAssociatedConstraints(TranslationUnit* unit,
   std::optional<bool> conjunction = true;
 
   for (auto constraint : constraints) {
-    auto satisfied = checkConstraintExpression(unit, symbol, constraint, {}, -1);
+    auto satisfied =
+        checkConstraintExpression(unit, symbol, constraint, {}, -1);
     if (!satisfied.has_value()) {
       conjunction = std::nullopt;
       continue;

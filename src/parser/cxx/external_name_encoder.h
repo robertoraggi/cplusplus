@@ -77,6 +77,8 @@ class ExternalNameEncoder {
   void encodeObjectParameterQualifiers(FunctionSymbol* function);
   void encodeCvQualifiers(CvQualifiers cvQualifiers);
   [[nodiscard]] auto encodeNestedName(Symbol* symbol) -> bool;
+  [[nodiscard]] auto encodeStdTypeAbbreviation(Symbol* symbol) -> bool;
+  [[nodiscard]] auto encodeStdTemplateAbbreviation(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeUnscopedName(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeOperatorName(TokenKind op, bool isUnary)
       -> std::string_view;

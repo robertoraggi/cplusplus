@@ -427,10 +427,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (gen.emitter_.functionHasBody(func)) return {};
 
-  if (auto baseName = gen.baseObjectStructorName(functionSymbol)) {
-    (void)gen.findOrCreateSecondaryFunctionName(functionSymbol, *baseName,
-                                                gen.functionName(func));
-  }
+  gen.emitBaseObjectStructor(functionSymbol, func);
 
   const auto needsExitValue = !gen.traits.is_void(returnType);
 

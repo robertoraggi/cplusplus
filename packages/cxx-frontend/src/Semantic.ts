@@ -266,6 +266,7 @@ export interface PendingExceptionSpecification {
   readonly state: PendingExceptionSpecificationState;
   readonly recursionDiagnosed: boolean;
 }
+export type ExceptionSpecification = boolean | ExpressionAST | undefined;
 export type SourceLocationRange = readonly [number, number];
 function decodeConstValue(value: any, owner: ModelOwner): ConstValue {
   switch (value.index) {
@@ -441,6 +442,19 @@ function decodePendingExceptionSpecification(
     state: pendingExceptionSpecificationStateNames[value.state]!,
     recursionDiagnosed: value.recursionDiagnosed !== 0,
   };
+}
+function decodeExceptionSpecification(
+  value: any,
+  owner: ModelOwner,
+): ExceptionSpecification {
+  switch (value.index) {
+    case 0:
+      return value.value !== 0;
+    case 1:
+      return astOf(value.value, owner);
+    default:
+      return value.value;
+  }
 }
 const ConstComplexSlotBase = 0;
 const ConstObjectSlotBase = ConstComplexSlotBase + 2;
@@ -737,7 +751,7 @@ const LiteralSlotBase = 0;
 const IntegerLiteralSlotBase = LiteralSlotBase + 2;
 const FloatLiteralSlotBase = IntegerLiteralSlotBase + 2;
 const StringLiteralSlotBase = FloatLiteralSlotBase + 2;
-const CharLiteralSlotBase = StringLiteralSlotBase + 5;
+const CharLiteralSlotBase = StringLiteralSlotBase + 6;
 const NameSlotBase = 0;
 const IdentifierSlotBase = NameSlotBase + 2;
 const OperatorIdSlotBase = IdentifierSlotBase + 8;
@@ -753,12 +767,13 @@ const DeductionGuideSymbolSlotBase = ConceptSymbolSlotBase + 9;
 const BaseClassSymbolSlotBase = DeductionGuideSymbolSlotBase + 10;
 const InjectedClassNameSymbolSlotBase = BaseClassSymbolSlotBase + 2;
 const ClassSymbolSlotBase = InjectedClassNameSymbolSlotBase + 1;
-const EnumSymbolSlotBase = ClassSymbolSlotBase + 60;
+const EnumSymbolSlotBase = ClassSymbolSlotBase + 62;
 const ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 3;
 const FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 2;
-const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 69;
+const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 71;
 const LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 3;
-const TemplateParametersSymbolSlotBase = LambdaSymbolSlotBase + 7;
+const FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 7;
+const TemplateParametersSymbolSlotBase = FunctionParametersSymbolSlotBase + 1;
 const BlockSymbolSlotBase = TemplateParametersSymbolSlotBase + 1;
 const TypeAliasSymbolSlotBase = BlockSymbolSlotBase + 1;
 const VariableSymbolSlotBase = TypeAliasSymbolSlotBase + 16;
@@ -782,7 +797,7 @@ const LvalueReferenceTypeSlotBase = PointerTypeSlotBase + 1;
 const RvalueReferenceTypeSlotBase = LvalueReferenceTypeSlotBase + 1;
 const OverloadSetTypeSlotBase = RvalueReferenceTypeSlotBase + 1;
 const FunctionTypeSlotBase = OverloadSetTypeSlotBase + 1;
-const ClassTypeSlotBase = FunctionTypeSlotBase + 6;
+const ClassTypeSlotBase = FunctionTypeSlotBase + 8;
 const EnumTypeSlotBase = ClassTypeSlotBase + 4;
 const ScopedEnumTypeSlotBase = EnumTypeSlotBase + 2;
 const MemberObjectPointerTypeSlotBase = ScopedEnumTypeSlotBase + 2;
@@ -6496,12 +6511,15 @@ export class StringLiteral extends Literal {
       StringLiteralSlotBase + 2,
     ) as string;
   }
-  get charCount(): number {
+  get codeUnitSize(): number {
     return cxx.readLiteral(this.handle, StringLiteralSlotBase + 3);
+  }
+  get charCount(): number {
+    return cxx.readLiteral(this.handle, StringLiteralSlotBase + 4);
   }
   get components(): StringLiteral_Components {
     return decodeStringLiteral_Components(
-      cxx.readLiteralVal(this.handle, StringLiteralSlotBase + 4),
+      cxx.readLiteralVal(this.handle, StringLiteralSlotBase + 5),
       this.modelOwner,
     );
   }
@@ -7285,30 +7303,39 @@ export class ClassSymbol extends ScopeSymbol {
   get flags(): number {
     return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 51);
   }
-  get isClosureType(): boolean {
+  get hasVirtualBaseSubobjects(): boolean {
     return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 52) !== 0;
   }
-  get hasLambdaCapture(): boolean {
+  get isClosureType(): boolean {
     return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 53) !== 0;
+  }
+  get hasLambdaCapture(): boolean {
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 54) !== 0;
   }
   get capturedThisField(): FieldSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 54),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 55),
       this.modelOwner,
     );
   }
   get closureDiscriminator(): number {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 55);
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 56);
   }
   get instantiationPattern(): ClassSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 56),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 57),
+      this.modelOwner,
+    );
+  }
+  get instantiationTemplate(): ClassSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 58),
       this.modelOwner,
     );
   }
   get templatePattern(): ClassSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 57),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 59),
       this.modelOwner,
     );
   }
@@ -7316,7 +7343,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 58,
+      ClassSymbolSlotBase + 60,
       (item: any) => decodeTemplateArgument(item, this.modelOwner),
     );
   }
@@ -7324,7 +7351,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolStringItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 59,
+      ClassSymbolSlotBase + 61,
       (item: any) => item,
     );
   }
@@ -7687,6 +7714,12 @@ export class FunctionSymbol extends ScopeSymbol {
       this.modelOwner,
     );
   }
+  get hasFriendDefaultArgument(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 69) !== 0;
+  }
+  get hasFriendDefaultTemplateArgument(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 70) !== 0;
+  }
 }
 export class OverloadSetSymbol extends Symbol {
   get functions(): Iterable<FunctionSymbol | undefined> {
@@ -7740,7 +7773,13 @@ export class LambdaSymbol extends ScopeSymbol {
     );
   }
 }
-export class FunctionParametersSymbol extends ScopeSymbol {}
+export class FunctionParametersSymbol extends ScopeSymbol {
+  get cvQualifiers(): CvQualifiers {
+    return cvQualifiersNames[
+      cxx.readSymbol(this.handle, FunctionParametersSymbolSlotBase + 0)
+    ]!;
+  }
+}
 export class TemplateParametersSymbol extends ScopeSymbol {
   get isExplicitTemplateSpecialization(): boolean {
     return (
@@ -8343,8 +8382,20 @@ export class FunctionType extends Type {
       cxx.readType(this.handle, FunctionTypeSlotBase + 4)
     ]!;
   }
+  get exceptionSpecification(): ExceptionSpecification {
+    return decodeExceptionSpecification(
+      cxx.readTypeVal(this.handle, FunctionTypeSlotBase + 5),
+      this.modelOwner,
+    );
+  }
   get isNoexcept(): boolean {
-    return cxx.readType(this.handle, FunctionTypeSlotBase + 5) !== 0;
+    return cxx.readType(this.handle, FunctionTypeSlotBase + 6) !== 0;
+  }
+  get noexceptExpression(): ExpressionAST | undefined {
+    return astOf(
+      cxx.readType(this.handle, FunctionTypeSlotBase + 7),
+      this.modelOwner,
+    );
   }
 }
 export class ClassType extends Type {

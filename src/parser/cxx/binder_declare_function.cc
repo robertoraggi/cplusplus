@@ -50,6 +50,38 @@ namespace {
   auto parameter = ast_cast<ParameterDeclarationAST>(parameters->value);
   return parameter && parameter->isThisIntroduced;
 }
+
+struct NamesDeducedTemplateSpecialization {
+  [[nodiscard]] auto operator()(NameIdAST*) const -> bool { return true; }
+  [[nodiscard]] auto operator()(OperatorFunctionIdAST*) const -> bool {
+    return true;
+  }
+  [[nodiscard]] auto operator()(LiteralOperatorIdAST*) const -> bool {
+    return true;
+  }
+  [[nodiscard]] auto operator()(ConversionFunctionIdAST*) const -> bool {
+    return true;
+  }
+  [[nodiscard]] auto operator()(DestructorIdAST*) const -> bool {
+    return false;
+  }
+  [[nodiscard]] auto operator()(DecltypeIdAST*) const -> bool { return false; }
+  [[nodiscard]] auto operator()(SimpleTemplateIdAST*) const -> bool {
+    return false;
+  }
+  [[nodiscard]] auto operator()(LiteralOperatorTemplateIdAST*) const -> bool {
+    return false;
+  }
+  [[nodiscard]] auto operator()(OperatorFunctionTemplateIdAST*) const -> bool {
+    return false;
+  }
+};
+
+[[nodiscard]] auto namesDeducedTemplateSpecialization(UnqualifiedIdAST* id)
+    -> bool {
+  if (!id) return false;
+  return visit(NamesDeducedTemplateSpecialization{}, id);
+}
 }  // namespace
 
 struct [[nodiscard]] Binder::DeclareFunction {
@@ -100,6 +132,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
   [[nodiscard]] auto isExplicitSpecializationHead() const -> bool;
   [[nodiscard]] auto specializedPrimaryTemplates() const
       -> std::vector<FunctionSymbol*>;
+  [[nodiscard]] auto declaratorName() const -> UnqualifiedIdAST*;
+  [[nodiscard]] auto namesConversionFunction() const -> bool;
   void mergeAsCRedeclaration(FunctionSymbol* otherFunction);
   auto mergeWithMatchingOverload(OverloadSetSymbol* overloadSet) -> bool;
   void checkCRedeclaration(ScopeSymbol* declaringScope);
@@ -282,8 +316,9 @@ void Binder::DeclareFunction::instantiateExplicitly(
       binder.unit_, specialization.deducedArguments, specialization.primary,
       decl.location(), /*sfinaeContext=*/false, /*argsComplete=*/true);
 
-  ASTRewriter::requireFunctionDefinition(binder.unit_,
-                                         symbol_cast<FunctionSymbol>(instance));
+  auto instanceFunction = symbol_cast<FunctionSymbol>(instance);
+  ASTRewriter::requireFunctionDefinition(binder.unit_, instanceFunction);
+  binder.unit_->addExplicitInstantiationDefinition(instanceFunction);
 }
 
 auto Binder::DeclareFunction::isExplicitSpecializationHead() const -> bool {
@@ -294,29 +329,48 @@ auto Binder::DeclareFunction::specializedPrimaryTemplates() const
     -> std::vector<FunctionSymbol*> {
   std::vector<FunctionSymbol*> primaries;
   auto canonical = functionSymbol->canonical();
+
+  auto consider = [&](FunctionSymbol* function) {
+    if (function->canonical() == canonical) return;
+    auto templateDeclaration = function->templateDeclaration();
+    if (!templateDeclaration || !templateDeclaration->templateParameterList)
+      return;
+    primaries.push_back(function);
+  };
+
+  if (namesConversionFunction()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(declaringScopeForFunction());
+    if (!classSymbol) return primaries;
+    for (auto function : classSymbol->conversionFunctions()) consider(function);
+    return primaries;
+  }
+
   for (auto candidate : declaringScopeForFunction()->find(decl.getName())) {
-    for (auto function : views::each_function(candidate)) {
-      if (function->canonical() == canonical) continue;
-      auto templateDeclaration = function->templateDeclaration();
-      if (!templateDeclaration || !templateDeclaration->templateParameterList)
-        continue;
-      primaries.push_back(function);
-    }
+    for (auto function : views::each_function(candidate)) consider(function);
   }
   return primaries;
 }
 
+auto Binder::DeclareFunction::declaratorName() const -> UnqualifiedIdAST* {
+  auto declaratorId = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
+  if (!declaratorId) return nullptr;
+  return declaratorId->unqualifiedId;
+}
+
+auto Binder::DeclareFunction::namesConversionFunction() const -> bool {
+  return ast_cast<ConversionFunctionIdAST>(declaratorName()) != nullptr;
+}
+
 auto Binder::DeclareFunction::namedTemplateSpecialization() const
     -> std::optional<NamedTemplateSpecialization> {
-  auto declaratorId = ast_cast<IdDeclaratorAST>(declarator->coreDeclarator);
-  if (!declaratorId) return std::nullopt;
+  auto declaratorName = this->declaratorName();
+  if (!declaratorName) return std::nullopt;
 
   auto functionType = type_cast<FunctionType>(functionSymbol->type());
   if (!functionType || isDependent(binder.unit_, functionType))
     return std::nullopt;
 
-  if (auto templateId =
-          ast_cast<SimpleTemplateIdAST>(declaratorId->unqualifiedId)) {
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(declaratorName)) {
     if (hasDependentTemplateArguments(binder.unit_, templateId))
       return std::nullopt;
     return deducedSpecializationOf(
@@ -324,7 +378,7 @@ auto Binder::DeclareFunction::namedTemplateSpecialization() const
         templateId->templateArgumentList);
   }
 
-  if (!ast_cast<NameIdAST>(declaratorId->unqualifiedId)) return std::nullopt;
+  if (!namesDeducedTemplateSpecialization(declaratorName)) return std::nullopt;
   if (!isExplicitSpecializationHead() && !binder.inExplicitInstantiation())
     return std::nullopt;
 

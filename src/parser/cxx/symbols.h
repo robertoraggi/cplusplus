@@ -156,6 +156,9 @@ struct ExpandedTemplateArgument {
 
 [[nodiscard]] auto resolve_namespace_alias(Symbol* symbol) -> NamespaceSymbol*;
 
+void add_extern_instantiation_declaration(
+    Symbol* symbol, std::vector<TemplateArgument> arguments);
+
 [[nodiscard]] auto template_declaration_of(Symbol* symbol)
     -> TemplateDeclarationAST*;
 
@@ -1187,6 +1190,8 @@ class ClassSymbol final : public ScopeSymbol,
   void setLayout(std::unique_ptr<ClassLayout> layout);
 
   [[nodiscard]] auto layout() const -> const ClassLayout*;
+
+  [[nodiscard]] auto hasVirtualBaseSubobjects() const -> bool;
 
   void setVTableLayout(std::unique_ptr<VTableLayout> vtableLayout);
 

@@ -170,9 +170,16 @@ auto TemplateArgumentDeduction::deduceDeclaredTypeFromType(const Type* P,
   return deduceTypeFromType(P, A);
 }
 
+auto TemplateArgumentDeduction::matchesNonDeducedType(const Type* P,
+                                                      const Type* A) const
+    -> bool {
+  if (isDependent(unit_, P)) return true;
+  return traits.is_same(P, A);
+}
+
 auto TemplateArgumentDeduction::deduceFromTargetType(
     FunctionSymbol* func, const FunctionType* targetType,
-    List<TemplateArgumentAST*>* explicitTemplateArgs)
+    List<TemplateArgumentAST*>* explicitTemplateArgs, bool matchReturnType)
     -> std::optional<List<TemplateArgumentAST*>*> {
   auto templateDecl = func->templateDeclaration();
   if (!templateDecl) return std::nullopt;
@@ -202,6 +209,10 @@ auto TemplateArgumentDeduction::deduceFromTargetType(
             targetType->returnType(), functionType->returnType()))
       return std::nullopt;
     beginParameterDeduction();
+  } else if (matchReturnType &&
+             !matchesNonDeducedType(functionType->returnType(),
+                                    targetType->returnType())) {
+    return std::nullopt;
   }
 
   auto params = functionType->parameterTypes();
@@ -222,6 +233,8 @@ auto TemplateArgumentDeduction::deduceFromTargetType(
               paramDeclIt ? paramDeclIt->value->typeSpecifierList : nullptr,
               targetParamType, param))
         return std::nullopt;
+    } else if (!matchesNonDeducedType(param, targetParamType)) {
+      return std::nullopt;
     }
 
     ++targetIt;

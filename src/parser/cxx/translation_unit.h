@@ -92,6 +92,13 @@ class TranslationUnit {
   [[nodiscard]] auto takePendingBodyCompletions()
       -> std::vector<FunctionSymbol*>;
 
+  void addExplicitInstantiationDefinition(FunctionSymbol* function);
+  [[nodiscard]] auto explicitInstantiationDefinitions() const
+      -> const std::vector<FunctionSymbol*>&;
+
+  [[nodiscard]] auto isExplicitInstantiationDefinition(
+      FunctionSymbol* function) const -> bool;
+
   void markFunctionBodyUnparsed(FunctionDefinitionAST* definition);
   void markFunctionBodyParsed(FunctionDefinitionAST* definition);
   [[nodiscard]] auto isFunctionBodyUnparsed(
@@ -398,6 +405,7 @@ class TranslationUnit {
   std::vector<ClassSymbol*> pendingMemberInstantiations_;
   std::unordered_set<ClassSymbol*> instantiatedMemberClasses_;
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
+  std::vector<FunctionSymbol*> explicitInstantiationDefinitions_;
   std::unordered_set<FunctionDefinitionAST*> unparsedFunctionBodies_;
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
