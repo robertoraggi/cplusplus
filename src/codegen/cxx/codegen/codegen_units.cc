@@ -125,6 +125,10 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
     forEachExternalDefinition.accept(node);
   }
 
+  for (auto function : gen.unit_->explicitInstantiationDefinitions()) {
+    (void)gen.findOrCreateFunction(function);
+  }
+
   gen.processPendingFunctions();
 
   gen.emitter_.endModule();

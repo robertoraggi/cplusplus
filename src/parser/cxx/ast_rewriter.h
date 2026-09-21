@@ -70,6 +70,9 @@ class [[nodiscard]] ASTRewriter {
   static auto ensureCompleteClass(TranslationUnit* unit,
                                   ClassSymbol* classSymbol) -> bool;
 
+  static void requireExplicitInstantiationMembers(TranslationUnit* unit,
+                                                  ClassSymbol* instance);
+
   [[nodiscard]] static auto evaluateConcept(
       TranslationUnit* unit, ConceptSymbol* conceptSymbol,
       List<TemplateArgumentAST*>* templateArgumentList) -> std::optional<bool>;
@@ -573,6 +576,9 @@ class [[nodiscard]] ASTRewriter {
   void remapScopeMembers(ScopeSymbol* oldScope, ScopeSymbol* newScope);
 
   void remapEnclosingClassPatterns(ScopeSymbol* scope);
+
+  void deduceCalleeSpecialization(ExpressionAST* patternCallee,
+                                  CallExpressionAST* call);
 
   [[nodiscard]] auto remappedMemberTemplate(ClassSymbol* instanceClass,
                                             FunctionSymbol* patternFunction,

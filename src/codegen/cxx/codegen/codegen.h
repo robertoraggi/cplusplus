@@ -369,6 +369,9 @@ class Codegen {
   [[nodiscard]] auto findOrCreateBaseObjectStructor(
       FunctionSymbol* functionSymbol) -> ir::FunctionRef;
 
+  void emitBaseObjectStructor(FunctionSymbol* functionSymbol,
+                              ir::FunctionRef completeObjectFunc);
+
   [[nodiscard]] auto baseObjectStructorName(FunctionSymbol* functionSymbol)
       -> std::optional<std::string>;
 
@@ -727,11 +730,16 @@ class Codegen {
       std::span<const VTableLayout::Group* const> tables, std::size_t index)
       -> std::size_t;
 
+  using ThisAdjustment =
+      std::function<ir::ValueRef(ir::ValueRef rawThisI8, SourceLocation loc)>;
+
+  void emitForwardingBody(ir::FunctionRef func, FunctionSymbol* target,
+                          ir::FunctionRef targetFuncOp, SourceLocation loc,
+                          const ThisAdjustment& computeAdjustedThisI8);
+
   [[nodiscard]] auto findOrCreateThunk(
       FunctionSymbol* target, std::string_view thunkName,
-      const std::function<ir::ValueRef(
-          ir::ValueRef rawThisI8, SourceLocation loc)>& computeAdjustedThisI8)
-      -> ir::FunctionRef;
+      const ThisAdjustment& computeAdjustedThisI8) -> ir::FunctionRef;
 
   [[nodiscard]] auto findOrCreateThisAdjustingThunk(FunctionSymbol* target,
                                                     std::int64_t offset)

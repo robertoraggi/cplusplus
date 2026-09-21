@@ -2267,8 +2267,9 @@ auto Binder::materializeClosureFunctionPointerConversion(
   if (!pattern) return nullptr;
 
   TemplateArgumentDeduction deduction{unit_};
-  auto deducedArguments =
-      deduction.deduceFromTargetType(pattern, targetFunctionType);
+  auto deducedArguments = deduction.deduceFromTargetType(
+      pattern, targetFunctionType, /*explicitTemplateArgs=*/nullptr,
+      /*matchReturnType=*/false);
   if (!deducedArguments.has_value()) return nullptr;
 
   auto instance = ASTRewriter::instantiateOverloadCandidate(

@@ -11752,7 +11752,8 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
           auto instance = ASTRewriter::instantiate(
               unit_, templateId->templateArgumentList, classSymbol);
 
-          (void)instance;
+          ASTRewriter::requireExplicitInstantiationMembers(
+              unit_, symbol_cast<ClassSymbol>(instance));
         } else {
           ASTRewriter::markExplicitInstantiationDeclared(
               unit_, templateId->templateArgumentList, classSymbol);
@@ -11782,7 +11783,8 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
         auto instance = ASTRewriter::instantiate(
             unit_, templateId->templateArgumentList, classSymbol);
 
-        (void)instance;
+        ASTRewriter::requireExplicitInstantiationMembers(
+            unit_, symbol_cast<ClassSymbol>(instance));
       } else {
         ASTRewriter::markExplicitInstantiationDeclared(
             unit_, templateId->templateArgumentList, classSymbol);

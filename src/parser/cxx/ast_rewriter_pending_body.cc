@@ -30,6 +30,7 @@
 #include <cxx/names.h>
 #include <cxx/overload_resolution.h>
 #include <cxx/symbols.h>
+#include <cxx/template_argument_deduction.h>
 #include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
@@ -395,6 +396,60 @@ void ASTRewriter::requireSubobjectDefaultConstructors(
   for (auto field : classSymbol->members() | views::non_static_fields) {
     if (field->initializer()) continue;
     requireDefaultConstructorOf(field->type());
+  }
+}
+
+void ASTRewriter::deduceCalleeSpecialization(ExpressionAST* patternCallee,
+                                             CallExpressionAST* call) {
+  auto patternId = ast_cast<IdExpressionAST>(patternCallee);
+  if (!patternId) return;
+
+  auto patternFunction = symbol_cast<FunctionSymbol>(patternId->symbol);
+  if (!patternFunction || !patternFunction->isSpecialization()) return;
+
+  auto instanceId = ast_cast<IdExpressionAST>(call->baseExpression);
+  if (!instanceId || instanceId->symbol != patternFunction) return;
+
+  auto patternClass = symbol_cast<ClassSymbol>(patternFunction->parent());
+  if (!patternClass) return;
+
+  auto instanceClass = symbol_cast<ClassSymbol>(remapSymbol(patternClass));
+  if (!instanceClass || instanceClass == patternClass) return;
+
+  auto instanceTemplate =
+      remappedMemberTemplate(instanceClass, patternFunction,
+                             name_cast<Identifier>(patternFunction->name()));
+  if (!instanceTemplate) return;
+
+  TemplateArgumentDeduction deduction{unit_};
+  auto deduced = deduction.deduce(instanceTemplate, call->expressionList,
+                                  /*explicitTemplateArgs=*/nullptr);
+  if (!deduced.has_value()) return;
+
+  auto instance = ASTRewriter::instantiate(
+      unit_, *deduced, instanceTemplate, patternCallee->firstSourceLocation(),
+      /*sfinaeContext=*/false, /*argsComplete=*/true,
+      /*declarationOnly=*/true);
+
+  auto instanceFunction = symbol_cast<FunctionSymbol>(instance);
+  if (!instanceFunction || instanceFunction == instanceTemplate) return;
+
+  instanceId->symbol = instanceFunction;
+  instanceId->type = instanceFunction->type();
+}
+
+void ASTRewriter::requireExplicitInstantiationMembers(TranslationUnit* unit,
+                                                      ClassSymbol* instance) {
+  if (!unit || !instance) return;
+
+  for (auto function : views::members(instance->resolvedDefinition()) |
+                           views::member_functions) {
+    if (function->isExcludedFromExplicitInstantiation()) continue;
+    if (!isUserProvided(function)) continue;
+    auto definition = function->resolvedDefinition();
+    if (!definition->isDefined() && !definition->hasPendingBody()) continue;
+    requireFunctionDefinition(unit, function);
+    unit->addExplicitInstantiationDefinition(function);
   }
 }
 

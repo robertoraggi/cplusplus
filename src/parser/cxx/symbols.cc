@@ -612,6 +612,17 @@ struct GetTemplateDeclaration {
   auto operator()(Symbol*) const -> TemplateDeclarationAST* { return nullptr; }
 };
 
+struct AddExternInstantiationDeclaration {
+  std::vector<TemplateArgument> arguments;
+
+  template <Templatable S>
+  void operator()(S* symbol) {
+    symbol->addExternInstantiationDeclaration(std::move(arguments));
+  }
+
+  void operator()(Symbol*) {}
+};
+
 struct GetTemplateParameters {
   template <Templatable S>
   auto operator()(S* symbol) const -> TemplateParametersSymbol* {
@@ -690,6 +701,12 @@ struct GetTemplateParameterInfo {
 auto template_declaration_of(Symbol* symbol) -> TemplateDeclarationAST* {
   if (!symbol) return nullptr;
   return visit(GetTemplateDeclaration{}, symbol);
+}
+
+void add_extern_instantiation_declaration(
+    Symbol* symbol, std::vector<TemplateArgument> arguments) {
+  if (!symbol) return;
+  visit(AddExternInstantiationDeclaration{std::move(arguments)}, symbol);
 }
 
 auto template_parameters_of(Symbol* symbol) -> TemplateParametersSymbol* {
@@ -1580,6 +1597,11 @@ auto ClassSymbol::hasVirtualFunctions() const -> bool {
       members(), [](FunctionSymbol* fn) { return fn->isVirtual(); });
 }
 
+auto ClassSymbol::hasVirtualBaseSubobjects() const -> bool {
+  auto classLayout = resolvedDefinition()->layout();
+  return classLayout && !classLayout->virtualBases().empty();
+}
+
 auto ClassSymbol::hasVirtualBaseClasses() const -> bool {
   for (auto base : baseClasses_) {
     if (base->isVirtual()) return true;
@@ -1878,6 +1900,10 @@ auto FunctionSymbol::hasBaseObjectVariant() const -> bool {
   if (externalName() || hasCLinkage()) return false;
   if (completeObjectVariant()) return false;
   if (isStructorVariant()) return false;
+
+  auto classSymbol = symbol_cast<ClassSymbol>(parent());
+  if (classSymbol && classSymbol->hasVirtualBaseSubobjects()) return false;
+
   return true;
 }
 

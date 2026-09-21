@@ -178,6 +178,16 @@ namespace {
   return nullptr;
 }
 
+[[nodiscard]] auto as_written_conversion_type(Symbol* symbol,
+                                              const ConversionFunctionId* name)
+    -> const Type* {
+  auto pattern = template_name(symbol);
+  if (!pattern) return name->type();
+  auto patternName = name_cast<ConversionFunctionId>(pattern->name());
+  if (!patternName) return name->type();
+  return patternName->type();
+}
+
 [[nodiscard]] auto dependent_prefix_type_param(NestedNameSpecifierAST* nns)
     -> Symbol* {
   auto simple = ast_cast<SimpleNestedNameSpecifierAST>(nns);
@@ -204,6 +214,92 @@ namespace {
   if (id->name() != "std") return false;
 
   return true;
+}
+
+[[nodiscard]] auto std_class_identifier(Symbol* symbol) -> const Identifier* {
+  auto classSymbol = symbol_cast<ClassSymbol>(symbol);
+  if (!classSymbol) return nullptr;
+  if (!is_abi_std_namespace(mangling_parent(classSymbol))) return nullptr;
+  return name_cast<Identifier>(classSymbol->name());
+}
+
+[[nodiscard]] auto std_template_abbreviation(Symbol* symbol)
+    -> std::string_view {
+  auto identifier = std_class_identifier(symbol);
+  if (!identifier) return {};
+  if (identifier->name() == "allocator") return "Sa";
+  if (identifier->name() == "basic_string") return "Sb";
+  return {};
+}
+
+[[nodiscard]] auto std_specialization_arguments(const Type* type,
+                                                std::string_view name)
+    -> std::span<const TemplateArgument> {
+  auto classType = type_cast<ClassType>(type);
+  if (!classType) return {};
+  auto classSymbol = classType->symbol();
+  if (!classSymbol->isSpecialization()) return {};
+  auto identifier = std_class_identifier(template_name(classSymbol));
+  if (!identifier) return {};
+  if (identifier->name() != name) return {};
+  return classSymbol->templateArguments();
+}
+
+[[nodiscard]] auto is_type_argument(const TemplateArgument& argument,
+                                    const Type* type) -> bool {
+  return template_argument_type(argument) == type;
+}
+
+[[nodiscard]] auto is_std_specialization_of_char(
+    const TemplateArgument& argument, std::string_view name,
+    const Type* charType) -> bool {
+  auto type = template_argument_type(argument);
+  if (!type) return false;
+  auto args = std_specialization_arguments(type, name);
+  if (args.size() != 1) return false;
+  return is_type_argument(args[0], charType);
+}
+
+[[nodiscard]] auto has_char_stream_arguments(
+    std::span<const TemplateArgument> args, const Type* charType) -> bool {
+  if (args.size() != 2) return false;
+  if (!is_type_argument(args[0], charType)) return false;
+  return is_std_specialization_of_char(args[1], "char_traits", charType);
+}
+
+[[nodiscard]] auto std_type_abbreviation(Control* control, const Type* type)
+    -> std::string_view {
+  auto charType = static_cast<const Type*>(control->getCharType());
+
+  if (auto args = std_specialization_arguments(type, "basic_string");
+      !args.empty()) {
+    if (args.size() != 3) return {};
+    if (!is_type_argument(args[0], charType)) return {};
+    if (!is_std_specialization_of_char(args[1], "char_traits", charType)) {
+      return {};
+    }
+    if (!is_std_specialization_of_char(args[2], "allocator", charType)) {
+      return {};
+    }
+    return "Ss";
+  }
+
+  if (auto args = std_specialization_arguments(type, "basic_istream");
+      has_char_stream_arguments(args, charType)) {
+    return "Si";
+  }
+
+  if (auto args = std_specialization_arguments(type, "basic_ostream");
+      has_char_stream_arguments(args, charType)) {
+    return "So";
+  }
+
+  if (auto args = std_specialization_arguments(type, "basic_iostream");
+      has_char_stream_arguments(args, charType)) {
+    return "Sd";
+  }
+
+  return {};
 }
 
 [[nodiscard]] auto needsInternalLinkageMarker(Symbol* symbol) -> bool {
@@ -565,6 +661,58 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   ExternalNameEncoder& encoder;
   Symbol* symbol = nullptr;
 
+  void encodeTemplateParameterDeclaration(TemplateParameterAST* parameter) {
+    if (auto typeParameter = ast_cast<TypenameTypeParameterAST>(parameter)) {
+      if (typeParameter->isPack) encoder.out("Tp");
+      encoder.out("Ty");
+      return;
+    }
+
+    if (auto constrained = ast_cast<ConstraintTypeParameterAST>(parameter)) {
+      if (constrained->ellipsisLoc) encoder.out("Tp");
+      encoder.out("Ty");
+      return;
+    }
+
+    if (auto nonType = ast_cast<NonTypeTemplateParameterAST>(parameter)) {
+      auto declaration = nonType->declaration;
+      if (declaration && declaration->isPack) encoder.out("Tp");
+      encoder.out("Tn");
+      if (declaration) encoder.encodeType(declaration->type);
+      return;
+    }
+
+    if (auto templateParameter =
+            ast_cast<TemplateTypeParameterAST>(parameter)) {
+      if (templateParameter->isPack) encoder.out("Tp");
+      encoder.out("Tt");
+      for (auto inner : ListView{templateParameter->templateParameterList}) {
+        encodeTemplateParameterDeclaration(inner);
+      }
+      encoder.out("E");
+    }
+  }
+
+  [[nodiscard]] auto needsTemplateParameterDeclaration(
+      TemplateParameterAST* parameter, const TemplateArgument& argument) const
+      -> bool {
+    auto templateParameter = ast_cast<TemplateTypeParameterAST>(parameter);
+    if (!templateParameter) return false;
+
+    auto sym = std::get_if<Symbol*>(&argument);
+    if (!sym) return false;
+
+    auto argumentTemplate = template_name_symbol(*sym);
+    if (!argumentTemplate) return false;
+
+    auto declaration = template_declaration_of(argumentTemplate);
+    if (!declaration) return false;
+
+    return !TemplateEquivalence{encoder.unit_}.same(
+        templateParameter->templateParameterList,
+        declaration->templateParameterList);
+  }
+
   void encodeTemplateArguments(Symbol* symbol) {
     if (!symbol) return;
     if (symbol == encoder.templateNameOnly_) return;
@@ -592,7 +740,8 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
 
     if (args.empty()) return;
 
-    if (templateName) encoder.enterSubstitution(templateName);
+    if (templateName && std_template_abbreviation(templateName).empty())
+      encoder.enterSubstitution(templateName);
 
     encoder.out("I");
 
@@ -611,6 +760,10 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
 
       const Type* declaredType = nullptr;
       if (index < parameters.size()) {
+        if (isOverloadableTemplate &&
+            needsTemplateParameterDeclaration(parameters[index], arg)) {
+          encodeTemplateParameterDeclaration(parameters[index]);
+        }
         if (auto parameter =
                 ast_cast<NonTypeTemplateParameterAST>(parameters[index])) {
           auto declaration = parameter->declaration;
@@ -837,7 +990,7 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
 
   void operator()(const ConversionFunctionId* name) {
     out("cv");
-    encoder.encodeType(name->type());
+    encoder.encodeType(as_written_conversion_type(symbol, name));
     encodeAbiTagsAndTemplateArguments(symbol);
   }
 
@@ -1164,7 +1317,30 @@ auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
   return true;
 }
 
+auto ExternalNameEncoder::encodeStdTypeAbbreviation(Symbol* symbol) -> bool {
+  auto classSymbol = symbol_cast<ClassSymbol>(symbol);
+  if (!classSymbol) return false;
+  auto abbreviation =
+      std_type_abbreviation(unit_->control(), classSymbol->type());
+  if (abbreviation.empty()) return false;
+  out(abbreviation);
+  return true;
+}
+
+auto ExternalNameEncoder::encodeStdTemplateAbbreviation(Symbol* symbol)
+    -> bool {
+  auto abbreviation = std_template_abbreviation(template_name(symbol));
+  if (abbreviation.empty()) return false;
+
+  out(abbreviation);
+  EncodeUnqualifiedName{*this, symbol}.encodeTemplateArguments(symbol);
+  return true;
+}
+
 auto ExternalNameEncoder::encodeUnscopedName(Symbol* symbol) -> bool {
+  if (encodeStdTypeAbbreviation(symbol)) return true;
+  if (encodeStdTemplateAbbreviation(symbol)) return true;
+
   if (is_abi_std_namespace(mangling_parent(symbol))) {
     out("St");
   }
@@ -1180,6 +1356,13 @@ void ExternalNameEncoder::encodePrefix(Symbol* symbol) {
   }
 
   if (encodeSubstitution(symbol->type())) return;
+
+  if (encodeStdTypeAbbreviation(symbol)) return;
+
+  if (encodeStdTemplateAbbreviation(symbol)) {
+    enterSubstitution(symbol->type());
+    return;
+  }
 
   if (auto parent = enclosing_class_or_namespace(symbol);
       parent && !is_global_namespace(parent)) {
@@ -1229,6 +1412,11 @@ void ExternalNameEncoder::encodeBareFunctionType(
 }
 
 void ExternalNameEncoder::encodeType(const Type* type) {
+  if (auto abbreviation = std_type_abbreviation(unit_->control(), type);
+      !abbreviation.empty()) {
+    out(abbreviation);
+    return;
+  }
   if (encodeSubstitution(type)) return;
   if (!visit(EncodeType{*this}, type)) return;
   enterSubstitution(type);
