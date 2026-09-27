@@ -35,17 +35,7 @@
 #include <format>
 
 namespace cxx {
-struct ASTRewriter::UnqualifiedIdVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::UnqualifiedIdVisitor : VisitorBase {
   [[nodiscard]] auto operator()(NameIdAST* ast) -> UnqualifiedIdAST*;
 
   [[nodiscard]] auto operator()(DestructorIdAST* ast) -> UnqualifiedIdAST*;
@@ -69,30 +59,10 @@ struct ASTRewriter::UnqualifiedIdVisitor {
       -> UnqualifiedIdAST*;
 
  private:
-  enum class PackResult { kExpanded, kEmpty, kNotPack };
-
-  [[nodiscard]] auto expandTypePackArgument(
-      TypeTemplateArgumentAST* typeArg,
-      List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult;
-
-  [[nodiscard]] auto expandExprPackArgument(
-      ExpressionTemplateArgumentAST* exprArg,
-      List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult;
-
   void substituteTemplateTemplateParameter(SimpleTemplateIdAST* copy);
 };
 
-struct ASTRewriter::NestedNameSpecifierVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::NestedNameSpecifierVisitor : VisitorBase {
   [[nodiscard]] auto operator()(GlobalNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierAST*;
 
@@ -106,6 +76,11 @@ struct ASTRewriter::NestedNameSpecifierVisitor {
       -> NestedNameSpecifierAST*;
 
   void resolveDependentQualifier(SimpleNestedNameSpecifierAST* copy);
+
+  [[nodiscard]] auto designatedScope(Symbol* entity, SourceLocation loc)
+      -> Symbol*;
+
+  void reportNonScopeQualifier(const Type* type, SourceLocation loc);
 
   [[nodiscard]] auto lookupType(NestedNameSpecifierAST* prefix,
                                 const Identifier* id) const -> Symbol*;
@@ -123,17 +98,7 @@ auto ASTRewriter::NestedNameSpecifierVisitor::lookupType(
   return nullptr;
 }
 
-struct ASTRewriter::TemplateArgumentVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::TemplateArgumentVisitor : VisitorBase {
   [[nodiscard]] auto operator()(TypeTemplateArgumentAST* ast)
       -> TemplateArgumentAST*;
 
@@ -224,55 +189,53 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(ConversionFunctionIdAST* ast)
   return copy;
 }
 
-auto ASTRewriter::UnqualifiedIdVisitor::expandTypePackArgument(
-    TypeTemplateArgumentAST* typeArg,
-    List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult {
-  if (!typeArg) return PackResult::kNotPack;
-
-  auto pack = rewrite.expandedParameterPack(typeArg->typeId);
-  if (!pack) return PackResult::kNotPack;
-  if (pack->elements().empty()) return PackResult::kEmpty;
-
-  rewrite.forEachPackElement(
-      typeArg->typeId, typeArg->firstSourceLocation(),
-      [&] {
-        auto expandedArg = TypeTemplateArgumentAST::create(arena());
-        expandedArg->typeId = rewrite.typeId(typeArg->typeId);
-
-        *templateArgumentList = make_list_node(
-            arena(), static_cast<TemplateArgumentAST*>(expandedArg));
-        templateArgumentList = &(*templateArgumentList)->next;
-      },
-      pack);
-
-  return PackResult::kExpanded;
+auto ASTRewriter::rewriteTemplateArgumentList(
+    List<TemplateArgumentAST*>* source) -> List<TemplateArgumentAST*>* {
+  List<TemplateArgumentAST*>* result = nullptr;
+  ListAppender<TemplateArgumentAST> append{arena(), result};
+  for (auto node : ListView{source}) {
+    if (expandPackArgument(node, append)) continue;
+    append(templateArgument(node));
+  }
+  return result;
 }
 
-auto ASTRewriter::UnqualifiedIdVisitor::expandExprPackArgument(
-    ExpressionTemplateArgumentAST* exprArg,
-    List<TemplateArgumentAST*>**& templateArgumentList) -> PackResult {
-  if (!exprArg) return PackResult::kNotPack;
+auto ASTRewriter::expandPackArgument(TemplateArgumentAST* argument,
+                                     ListAppender<TemplateArgumentAST>& append)
+    -> bool {
+  if (auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument)) {
+    auto pattern = typeArgument->typeId;
+    auto pack = expandedParameterPack(pattern);
+    if (!pack) return false;
+    if (pack->elements().empty()) return true;
+    forEachPackElement(
+        pattern, typeArgument->firstSourceLocation(),
+        [&] {
+          append(TypeTemplateArgumentAST::create(arena(), typeId(pattern)));
+        },
+        pack);
+    return true;
+  }
 
-  auto packExpr = ast_cast<PackExpansionExpressionAST>(exprArg->expression);
-  if (!packExpr) return PackResult::kNotPack;
+  auto expressionArgument = ast_cast<ExpressionTemplateArgumentAST>(argument);
+  if (!expressionArgument) return false;
 
-  auto parameterPack =
-      rewrite.findReferencedParameterPack(packExpr->expression);
-  if (!parameterPack) return PackResult::kNotPack;
-  if (parameterPack->elements().empty()) return PackResult::kEmpty;
+  auto expansion =
+      ast_cast<PackExpansionExpressionAST>(expressionArgument->expression);
+  if (!expansion) return false;
 
-  rewrite.forEachPackElement(
-      packExpr->expression, packExpr->ellipsisLoc,
+  auto pattern = expansion->expression;
+  auto pack = findReferencedParameterPack(pattern);
+  if (!pack) return false;
+  if (pack->elements().empty()) return true;
+  forEachPackElement(
+      pattern, expansion->ellipsisLoc,
       [&] {
-        auto expandedArg = ExpressionTemplateArgumentAST::create(arena());
-        expandedArg->expression = rewrite.expression(packExpr->expression);
-
-        *templateArgumentList = make_list_node(
-            arena(), static_cast<TemplateArgumentAST*>(expandedArg));
-        templateArgumentList = &(*templateArgumentList)->next;
+        append(ExpressionTemplateArgumentAST::create(arena(),
+                                                     expression(pattern)));
       },
-      parameterPack);
-  return PackResult::kExpanded;
+      pack);
+  return true;
 }
 
 void ASTRewriter::UnqualifiedIdVisitor::substituteTemplateTemplateParameter(
@@ -295,26 +258,8 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
   copy->identifierLoc = ast->identifierLoc;
   copy->lessLoc = ast->lessLoc;
 
-  for (auto templateArgumentList = &copy->templateArgumentList;
-       auto node : ListView{ast->templateArgumentList}) {
-    auto typeArg = ast_cast<TypeTemplateArgumentAST>(node);
-    auto typeResult = expandTypePackArgument(typeArg, templateArgumentList);
-    if (typeResult != PackResult::kNotPack) {
-      if (typeResult == PackResult::kExpanded) continue;
-      if (typeResult == PackResult::kEmpty) continue;
-    }
-
-    auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(node);
-    auto exprResult = expandExprPackArgument(exprArg, templateArgumentList);
-    if (exprResult != PackResult::kNotPack) {
-      if (exprResult == PackResult::kExpanded) continue;
-      if (exprResult == PackResult::kEmpty) continue;
-    }
-
-    auto value = rewrite.templateArgument(node);
-    *templateArgumentList = make_list_node(arena(), value);
-    templateArgumentList = &(*templateArgumentList)->next;
-  }
+  copy->templateArgumentList =
+      rewrite.rewriteTemplateArgumentList(ast->templateArgumentList);
 
   copy->greaterLoc = ast->greaterLoc;
   copy->identifier = ast->identifier;
@@ -341,12 +286,8 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(
       rewrite.unqualifiedId(ast->literalOperatorId));
   copy->lessLoc = ast->lessLoc;
 
-  for (auto templateArgumentList = &copy->templateArgumentList;
-       auto node : ListView{ast->templateArgumentList}) {
-    auto value = rewrite.templateArgument(node);
-    *templateArgumentList = make_list_node(arena(), value);
-    templateArgumentList = &(*templateArgumentList)->next;
-  }
+  copy->templateArgumentList =
+      rewrite.rewriteTemplateArgumentList(ast->templateArgumentList);
 
   copy->greaterLoc = ast->greaterLoc;
 
@@ -361,12 +302,8 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(
       rewrite.unqualifiedId(ast->operatorFunctionId));
   copy->lessLoc = ast->lessLoc;
 
-  for (auto templateArgumentList = &copy->templateArgumentList;
-       auto node : ListView{ast->templateArgumentList}) {
-    auto value = rewrite.templateArgument(node);
-    *templateArgumentList = make_list_node(arena(), value);
-    templateArgumentList = &(*templateArgumentList)->next;
-  }
+  copy->templateArgumentList =
+      rewrite.rewriteTemplateArgumentList(ast->templateArgumentList);
 
   copy->greaterLoc = ast->greaterLoc;
 
@@ -400,19 +337,11 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   auto needsSubstitution = !copy->symbol || isTypeParameter;
   if (needsSubstitution && copy->identifier) {
-    auto emitNonScopeError = [&](SourceLocation loc, Symbol* argSym) {
-      auto alias = symbol_cast<TypeAliasSymbol>(argSym);
-      if (!alias || !alias->type()) return;
-      if (isDependent(rewrite.unit_, alias->type())) return;
-      rewrite.error(loc, std::format("type '{}' cannot be used prior to '::' "
-                                     "because it has no members",
-                                     to_string(alias->type())));
-    };
-
     if (isTypeParameter) {
       if (auto substituted = rewrite.substitutedSymbol(copy->symbol)) {
         copy->symbol = binder()->resolveNestedNameSpecifier(substituted);
-        if (!copy->symbol) emitNonScopeError(ast->identifierLoc, substituted);
+        if (!copy->symbol)
+          (void)designatedScope(substituted, ast->identifierLoc);
       }
     } else if (!copy->symbol) {
       resolveDependentQualifier(copy);
@@ -430,6 +359,22 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   }
 
   return copy;
+}
+
+auto ASTRewriter::NestedNameSpecifierVisitor::designatedScope(
+    Symbol* entity, SourceLocation loc) -> Symbol* {
+  if (auto scope = binder()->resolveNestedNameSpecifier(entity)) return scope;
+  auto type = entity ? entity->type() : nullptr;
+  if (!type || isDependent(rewrite.unit_, type)) return entity;
+  reportNonScopeQualifier(type, loc);
+  return nullptr;
+}
+
+void ASTRewriter::NestedNameSpecifierVisitor::reportNonScopeQualifier(
+    const Type* type, SourceLocation loc) {
+  rewrite.error(loc, std::format("type '{}' cannot be used prior to '::' "
+                                 "because it has no members",
+                                 to_string(type)));
 }
 
 void ASTRewriter::NestedNameSpecifierVisitor::resolveDependentQualifier(
@@ -455,33 +400,16 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
       ast_cast<DecltypeSpecifierAST>(rewrite.specifier(ast->decltypeSpecifier));
   copy->scopeLoc = ast->scopeLoc;
 
-  if (copy->decltypeSpecifier) {
-    if (auto classType = type_cast<ClassType>(copy->decltypeSpecifier->type)) {
-      copy->symbol = classType->symbol();
-    } else if (auto enumType =
-                   type_cast<EnumType>(copy->decltypeSpecifier->type)) {
-      copy->symbol = enumType->symbol();
-    } else if (auto scopedEnumType =
-                   type_cast<ScopedEnumType>(copy->decltypeSpecifier->type)) {
-      copy->symbol = scopedEnumType->symbol();
-    }
-  }
+  if (!copy->decltypeSpecifier) return copy;
+
+  auto type = copy->decltypeSpecifier->type;
+  if (!type || isDependent(rewrite.unit_, type)) return copy;
+
+  copy->symbol = binder()->scopeOfType(type);
+  if (!copy->symbol) reportNonScopeQualifier(type, copy->firstSourceLocation());
 
   return copy;
 }
-
-namespace {
-[[nodiscard]] auto templateNameOfTypeId(TypeIdAST* typeId) -> Symbol* {
-  if (!typeId) return nullptr;
-  for (auto spec : ListView{typeId->typeSpecifierList}) {
-    auto named = ast_cast<NamedTypeSpecifierAST>(spec);
-    if (!named) continue;
-    if (!ast_cast<NameIdAST>(named->unqualifiedId)) return nullptr;
-    return template_name_symbol(named->symbol);
-  }
-  return nullptr;
-}
-}  // namespace
 
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     TemplateNestedNameSpecifierAST* ast) -> NestedNameSpecifierAST* {
@@ -496,44 +424,16 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   copy->scopeLoc = ast->scopeLoc;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
-  bool hasDependentArgs = false;
-  if (copy->templateId) {
-    for (auto arg : ListView{copy->templateId->templateArgumentList}) {
-      if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-        if (auto templateName = templateNameOfTypeId(typeArg->typeId)) {
-          if (!symbol_cast<TemplateTypeParameterSymbol>(templateName)) continue;
-          hasDependentArgs = true;
-          break;
-        }
-        if (isDependent(rewrite.unit_, typeArg->typeId)) {
-          hasDependentArgs = true;
-          break;
-        }
-      }
-      if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-        if (isDependent(rewrite.unit_, exprArg->expression)) {
-          hasDependentArgs = true;
-          break;
-        }
-      }
-    }
-  }
-
   if (symbol_cast<TypeAliasSymbol>(copy->templateId->symbol)) {
     auto instance =
         binder()->resolve(copy->nestedNameSpecifier, copy->templateId, true);
-    if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
-      copy->symbol = alias;
-      if (auto classType = unqualified_cast<ClassType>(alias->type())) {
-        copy->symbol = classType->symbol();
-      }
-    } else {
-      copy->symbol = symbol_cast<ScopeSymbol>(instance);
-    }
+    copy->symbol =
+        designatedScope(instance, copy->templateId->firstSourceLocation());
     return copy;
   }
 
-  if (hasDependentArgs) return copy;
+  if (hasDependentTemplateArguments(rewrite.unit_, copy->templateId))
+    return copy;
 
   if (copy->templateId->identifier &&
       (!copy->templateId->symbol ||

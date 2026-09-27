@@ -351,9 +351,7 @@ auto ASTInterpreter::RequirementVisitor::operator()(CompoundRequirementAST* ast)
 
 auto ASTInterpreter::RequirementVisitor::operator()(TypeRequirementAST* ast)
     -> RequirementResult {
-  auto nestedNameSpecifierResult =
-      interp.nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
+  auto typeIdResult = interp.typeId(ast->typeId);
 
   return {};
 }
@@ -371,17 +369,10 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
 
-  std::vector<ConstValue> args;
-  for (auto node : ListView{ast->expressionList}) {
-    auto value = interp.evaluate(node);
-    if (!value) {
-      interp.aborted_ = true;
-      return {};
-    }
-    args.push_back(std::move(*value));
-  }
+  std::vector<ExpressionAST*> arguments;
+  for (auto node : ListView{ast->expressionList}) arguments.push_back(node);
 
-  interp.applyMemInitializer(ast, std::move(args));
+  interp.applyMemInitializer(ast, arguments);
 
   return {};
 }
@@ -392,23 +383,15 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
 
-  std::vector<ConstValue> args;
+  std::vector<ExpressionAST*> arguments;
   if (ast->constructor && ast->bracedInitList) {
-    for (auto node : ListView{ast->bracedInitList->expressionList}) {
-      auto value = interp.evaluate(node);
-      if (!value) {
-        interp.aborted_ = true;
-        return {};
-      }
-      args.push_back(std::move(*value));
-    }
-  } else {
-    auto bracedInitListResult = interp.expression(ast->bracedInitList);
-    if (bracedInitListResult.has_value())
-      args.push_back(std::move(*bracedInitListResult));
+    for (auto node : ListView{ast->bracedInitList->expressionList})
+      arguments.push_back(node);
+  } else if (ast->bracedInitList) {
+    arguments.push_back(ast->bracedInitList);
   }
 
-  interp.applyMemInitializer(ast, std::move(args));
+  interp.applyMemInitializer(ast, arguments);
 
   return {};
 }

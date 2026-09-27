@@ -684,6 +684,7 @@ export class TraceEmitter implements EmitterDelegate {
     const actions = cleanups.map(
       (action) =>
         `%${action.address} ~@${action.destructor} depth ${action.depth}` +
+        (action.elementCount > 1 ? ` count ${action.elementCount}` : "") +
         (action.activeFlag ? ` if %${action.activeFlag}` : ""),
     );
     return ` cleanups [${actions.join(", ")}]`;

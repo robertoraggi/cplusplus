@@ -44,6 +44,17 @@ enum class FramePointerKind {
 
 [[nodiscard]] auto to_string(FramePointerKind kind) -> std::string_view;
 
+struct FloatingPointFormat {
+  int exponentBits = 0;
+  int significandDigits = 0;
+  bool explicitIntegerBit = false;
+
+  [[nodiscard]] auto fractionBits() const -> int;
+  [[nodiscard]] auto maxExponent() const -> int;
+  [[nodiscard]] auto representsInteger(std::intmax_t value) const -> bool;
+  [[nodiscard]] auto rangeContains(double value) const -> bool;
+};
+
 class MemoryLayout {
  public:
   explicit MemoryLayout(std::size_t bits);
@@ -65,6 +76,7 @@ class MemoryLayout {
   void setSizeOfLongDouble(std::size_t sizeOfLongDouble,
                            std::size_t mantissaDigits);
   void setWideCharUnderlyingType(std::size_t size, bool isSigned);
+  void setDefaultNewAlignment(std::size_t defaultNewAlignment);
 
   [[nodiscard]] auto sizeOf(const Type* type) const
       -> std::optional<std::size_t>;
@@ -72,12 +84,18 @@ class MemoryLayout {
   [[nodiscard]] auto alignmentOf(const Type* type) const
       -> std::optional<std::size_t>;
 
+  [[nodiscard]] auto floatingPointFormat(const Type* type) const
+      -> std::optional<FloatingPointFormat>;
+
   [[nodiscard]] auto triple() const -> const std::string&;
   [[nodiscard]] auto arch() const -> std::string_view;
   [[nodiscard]] auto isWebAssembly() const -> bool;
   [[nodiscard]] auto isDarwin() const -> bool;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
+  [[nodiscard]] auto zeroWidthBitFieldAlignsAggregate() const -> bool;
+  [[nodiscard]] auto structorsReturnThis() const -> bool;
   [[nodiscard]] auto defaultNewAlignment() const -> std::size_t;
+  [[nodiscard]] auto alignedAttributeAlignment() const -> std::size_t;
   [[nodiscard]] auto maxAtomicInlineWidth() const -> std::size_t;
   [[nodiscard]] auto maxAtomicPromoteWidth() const -> std::size_t;
 
@@ -101,6 +119,7 @@ class MemoryLayout {
   std::size_t longDoubleMantissaDigits_ = 0;
   std::size_t sizeOfWideChar_ = 4;
   bool wideCharIsSigned_ = true;
+  std::size_t defaultNewAlignment_ = 16;
   std::string triple_;
 };
 

@@ -34,21 +34,11 @@
 #include <cxx/type_checker.h>
 
 namespace cxx {
-struct ASTRewriter::DeclarationVisitor {
-  ASTRewriter& rewrite;
+struct ASTRewriter::DeclarationVisitor : VisitorBase {
   TemplateDeclarationAST* templateHead = nullptr;
 
   DeclarationVisitor(ASTRewriter& rewrite, TemplateDeclarationAST* templateHead)
-      : rewrite(rewrite), templateHead(templateHead) {}
-
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
+      : VisitorBase{rewrite}, templateHead(templateHead) {}
 
   [[nodiscard]] auto operator()(SimpleDeclarationAST* ast) -> DeclarationAST*;
 
@@ -112,17 +102,7 @@ struct ASTRewriter::DeclarationVisitor {
       -> DeclarationAST*;
 };
 
-struct ASTRewriter::TemplateParameterVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::TemplateParameterVisitor : VisitorBase {
   [[nodiscard]] auto operator()(TemplateTypeParameterAST* ast)
       -> TemplateParameterAST*;
 
@@ -136,17 +116,7 @@ struct ASTRewriter::TemplateParameterVisitor {
       -> TemplateParameterAST*;
 };
 
-struct ASTRewriter::FunctionBodyVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::FunctionBodyVisitor : VisitorBase {
   [[nodiscard]] auto operator()(DefaultFunctionBodyAST* ast)
       -> FunctionBodyAST*;
 
@@ -159,17 +129,7 @@ struct ASTRewriter::FunctionBodyVisitor {
   [[nodiscard]] auto operator()(DeleteFunctionBodyAST* ast) -> FunctionBodyAST*;
 };
 
-struct ASTRewriter::RequirementVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::RequirementVisitor : VisitorBase {
   [[nodiscard]] auto operator()(SimpleRequirementAST* ast) -> RequirementAST*;
 
   [[nodiscard]] auto operator()(CompoundRequirementAST* ast) -> RequirementAST*;
@@ -179,11 +139,9 @@ struct ASTRewriter::RequirementVisitor {
   [[nodiscard]] auto operator()(NestedRequirementAST* ast) -> RequirementAST*;
 };
 
-auto ASTRewriter::declaration(DeclarationAST* ast,
-                              TemplateDeclarationAST* templateHead)
-    -> DeclarationAST* {
+auto ASTRewriter::declaration(DeclarationAST* ast) -> DeclarationAST* {
   if (!ast) return {};
-  return visit(DeclarationVisitor{*this, templateHead}, ast);
+  return visit(DeclarationVisitor{*this, nullptr}, ast);
 }
 
 auto ASTRewriter::templateParameter(TemplateParameterAST* ast)
@@ -207,12 +165,8 @@ auto ASTRewriter::rewriteTemplateHead(TemplateDeclarationAST* ast)
 
   binder_.setScope(copy->symbol);
 
-  auto templateParameterList = &copy->templateParameterList;
-  for (auto parameter : ListView{ast->templateParameterList}) {
-    auto value = templateParameter(parameter);
-    *templateParameterList = make_list_node(arena(), value);
-    templateParameterList = &(*templateParameterList)->next;
-  }
+  copy->templateParameterList =
+      rewriteList(ast->templateParameterList, &ASTRewriter::templateParameter);
 
   copy->greaterLoc = ast->greaterLoc;
   copy->requiresClause = requiresClause(ast->requiresClause);
@@ -264,12 +218,8 @@ auto ASTRewriter::typeConstraint(TypeConstraintAST* ast) -> TypeConstraintAST* {
   copy->identifierLoc = ast->identifierLoc;
   copy->lessLoc = ast->lessLoc;
 
-  for (auto templateArgumentList = &copy->templateArgumentList;
-       auto node : ListView{ast->templateArgumentList}) {
-    auto value = templateArgument(node);
-    *templateArgumentList = make_list_node(arena(), value);
-    templateArgumentList = &(*templateArgumentList)->next;
-  }
+  copy->templateArgumentList =
+      rewriteTemplateArgumentList(ast->templateArgumentList);
 
   copy->greaterLoc = ast->greaterLoc;
   copy->identifier = ast->identifier;
@@ -337,24 +287,14 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     -> DeclarationAST* {
   auto copy = SimpleDeclarationAST::create(arena());
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   declSpecifierListCtx.templateHead = templateHead;
   declSpecifierListCtx.attributeList = copy->attributeList;
-  for (auto declSpecifierList = &copy->declSpecifierList;
-       auto node : ListView{ast->declSpecifierList}) {
-    auto value = rewrite.specifier(node, templateHead);
-    *declSpecifierList = make_list_node(arena(), value);
-    declSpecifierList = &(*declSpecifierList)->next;
-    declSpecifierListCtx.accept(value);
-  }
-  declSpecifierListCtx.finish();
+  copy->declSpecifierList = rewrite.rewriteSpecifierList(
+      ast->declSpecifierList, declSpecifierListCtx, templateHead);
 
   if (declSpecifierListCtx.isFriend) {
     auto friendType =
@@ -395,19 +335,18 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     }
   }
 
-  for (auto initDeclaratorList = &copy->initDeclaratorList;
-       auto node : ListView{ast->initDeclaratorList}) {
-    auto value = rewrite.initDeclarator(node, declSpecifierListCtx);
-    *initDeclaratorList = make_list_node(arena(), value);
-    initDeclaratorList = &(*initDeclaratorList)->next;
-  }
+  ListAppender<InitDeclaratorAST> appendInitDeclarator{
+      arena(), copy->initDeclaratorList};
+  for (auto node : ListView{ast->initDeclaratorList})
+    appendInitDeclarator(rewrite.initDeclarator(node, declSpecifierListCtx));
 
   copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
   copy->semicolonLoc = ast->semicolonLoc;
 
   for (auto initDeclarator : ListView{copy->initDeclaratorList}) {
     binder()->applyDeclarationAttributes(initDeclarator->symbol,
-                                         copy->attributeList);
+                                         copy->attributeList,
+                                         initDeclarator->declarator);
 
     auto function = symbol_cast<FunctionSymbol>(initDeclarator->symbol);
     if (!function) continue;
@@ -428,53 +367,27 @@ auto ASTRewriter::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
     -> DeclarationAST* {
   auto copy = AsmDeclarationAST::create(arena());
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
-  for (auto asmQualifierList = &copy->asmQualifierList;
-       auto node : ListView{ast->asmQualifierList}) {
-    auto value = rewrite.asmQualifier(node);
-    *asmQualifierList =
-        make_list_node(arena(), ast_cast<AsmQualifierAST>(value));
-    asmQualifierList = &(*asmQualifierList)->next;
-  }
+  copy->asmQualifierList =
+      rewrite.rewriteList(ast->asmQualifierList, &ASTRewriter::asmQualifier);
 
   copy->asmLoc = ast->asmLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->literalLoc = ast->literalLoc;
 
-  for (auto outputOperandList = &copy->outputOperandList;
-       auto node : ListView{ast->outputOperandList}) {
-    auto value = rewrite.asmOperand(node);
-    *outputOperandList =
-        make_list_node(arena(), ast_cast<AsmOperandAST>(value));
-    outputOperandList = &(*outputOperandList)->next;
-  }
+  copy->outputOperandList =
+      rewrite.rewriteList(ast->outputOperandList, &ASTRewriter::asmOperand);
 
-  for (auto inputOperandList = &copy->inputOperandList;
-       auto node : ListView{ast->inputOperandList}) {
-    auto value = rewrite.asmOperand(node);
-    *inputOperandList = make_list_node(arena(), ast_cast<AsmOperandAST>(value));
-    inputOperandList = &(*inputOperandList)->next;
-  }
+  copy->inputOperandList =
+      rewrite.rewriteList(ast->inputOperandList, &ASTRewriter::asmOperand);
 
-  for (auto clobberList = &copy->clobberList;
-       auto node : ListView{ast->clobberList}) {
-    auto value = rewrite.asmClobber(node);
-    *clobberList = make_list_node(arena(), ast_cast<AsmClobberAST>(value));
-    clobberList = &(*clobberList)->next;
-  }
+  copy->clobberList =
+      rewrite.rewriteList(ast->clobberList, &ASTRewriter::asmClobber);
 
-  for (auto gotoLabelList = &copy->gotoLabelList;
-       auto node : ListView{ast->gotoLabelList}) {
-    auto value = rewrite.asmGotoLabel(node);
-    *gotoLabelList = make_list_node(arena(), ast_cast<AsmGotoLabelAST>(value));
-    gotoLabelList = &(*gotoLabelList)->next;
-  }
+  copy->gotoLabelList =
+      rewrite.rewriteList(ast->gotoLabelList, &ASTRewriter::asmGotoLabel);
 
   copy->rparenLoc = ast->rparenLoc;
   copy->semicolonLoc = ast->semicolonLoc;
@@ -506,14 +419,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingDeclarationAST* ast)
 
   copy->usingLoc = ast->usingLoc;
 
-  auto append = [&](List<UsingDeclaratorAST*>**& out,
-                    UsingDeclaratorAST* value) {
-    *out = make_list_node(arena(), value);
-    out = &(*out)->next;
-  };
+  ListAppender<UsingDeclaratorAST> append{arena(), copy->usingDeclaratorList};
 
-  for (auto usingDeclaratorList = &copy->usingDeclaratorList;
-       auto node : ListView{ast->usingDeclaratorList}) {
+  for (auto node : ListView{ast->usingDeclaratorList}) {
     if (node->isPack) {
       auto pack =
           rewrite.findReferencedParameterPack(node->nestedNameSpecifier);
@@ -527,7 +435,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingDeclarationAST* ast)
               auto value = rewrite.usingDeclarator(node);
               value->ellipsisLoc = {};
               value->isPack = false;
-              append(usingDeclaratorList, value);
+              append(value);
             },
             pack);
 
@@ -535,7 +443,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingDeclarationAST* ast)
       }
     }
 
-    append(usingDeclaratorList, rewrite.usingDeclarator(node));
+    append(rewrite.usingDeclarator(node));
   }
 
   copy->semicolonLoc = ast->semicolonLoc;
@@ -564,12 +472,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(UsingDirectiveAST* ast)
     -> DeclarationAST* {
   auto copy = UsingDirectiveAST::create(arena());
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->usingLoc = ast->usingLoc;
   copy->namespaceLoc = ast->namespaceLoc;
@@ -614,21 +518,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
   copy->usingLoc = ast->usingLoc;
   copy->identifierLoc = ast->identifierLoc;
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->equalLoc = ast->equalLoc;
 
-  for (auto gnuAttributeList = &copy->gnuAttributeList;
-       auto node : ListView{ast->gnuAttributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *gnuAttributeList = make_list_node(arena(), value);
-    gnuAttributeList = &(*gnuAttributeList)->next;
-  }
+  copy->gnuAttributeList = rewrite.rewriteList(
+      ast->gnuAttributeList, &ASTRewriter::attributeSpecifier);
 
   copy->typeId = rewrite.typeId(ast->typeId);
   copy->semicolonLoc = ast->semicolonLoc;
@@ -656,11 +552,10 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
 
   copy->symbol = symbol;
   symbol->setDeclaration(copy);
-  symbol->setExpansionTypeId(copy->typeId);
   rewrite.addSymbolRemap(ast->symbol, symbol);
 
   rewrite.associatePendingExceptionSpecifiers(
-      pendingExceptionSpecifierMark, nullptr, nullptr, nullptr,
+      pendingExceptionSpecifierMark, nullptr, nullptr,
       [copy, symbol] { symbol->setType(copy->typeId->type); });
 
   return copy;
@@ -673,12 +568,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
   copy->enumLoc = ast->enumLoc;
   copy->classLoc = ast->classLoc;
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->nestedNameSpecifier =
       rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
@@ -687,14 +578,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
   copy->colonLoc = ast->colonLoc;
 
   auto typeSpecifierListCtx = DeclSpecs{rewrite.unit_};
-  for (auto typeSpecifierList = &copy->typeSpecifierList;
-       auto node : ListView{ast->typeSpecifierList}) {
-    auto value = rewrite.specifier(node);
-    *typeSpecifierList = make_list_node(arena(), value);
-    typeSpecifierList = &(*typeSpecifierList)->next;
-    typeSpecifierListCtx.accept(value);
-  }
-  typeSpecifierListCtx.finish();
+  copy->typeSpecifierList = rewrite.rewriteSpecifierList(ast->typeSpecifierList,
+                                                         typeSpecifierListCtx);
 
   copy->emicolonLoc = ast->emicolonLoc;
   copy->symbol = rewrite.remapSymbol(ast->symbol);
@@ -713,24 +598,14 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     functionTemplateHead = rewrite.rewriteMemberTemplateHead(patternFunction);
   }
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   declSpecifierListCtx.templateHead = functionTemplateHead;
   declSpecifierListCtx.attributeList = copy->attributeList;
-  for (auto declSpecifierList = &copy->declSpecifierList;
-       auto node : ListView{ast->declSpecifierList}) {
-    auto value = rewrite.specifier(node);
-    *declSpecifierList = make_list_node(arena(), value);
-    declSpecifierList = &(*declSpecifierList)->next;
-    declSpecifierListCtx.accept(value);
-  }
-  declSpecifierListCtx.finish();
+  copy->declSpecifierList = rewrite.rewriteSpecifierList(ast->declSpecifierList,
+                                                         declSpecifierListCtx);
 
   const auto pendingExceptionSpecifierMark =
       rewrite.pendingExceptionSpecifierMark();
@@ -762,8 +637,10 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       rewrite.instantiatingFunctionTemplateSpecialization_;
   rewrite.instantiatingFunctionTemplateSpecialization_ = false;
 
-  FunctionSymbol* functionSymbol = nullptr;
-  if ((!isTemplateInstantiation || isOutOfClassMemberDef) &&
+  FunctionSymbol* functionSymbol =
+      std::exchange(rewrite.functionInstanceToDefine_, nullptr);
+  const bool definesExistingInstance = functionSymbol != nullptr;
+  if (!functionSymbol && (!isTemplateInstantiation || isOutOfClassMemberDef) &&
       !isFunctionTemplateSpecialization) {
     functionSymbol = binder()->getFunction(
         binder()->scope(), declaratorDecl.getName(), declaratorType,
@@ -823,7 +700,6 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   rewrite.associatePendingExceptionSpecifiers(
       pendingExceptionSpecifierMark, functionSymbol,
-      symbol_cast<FunctionSymbol>(ast->symbol),
       functionDeclarator->exceptionSpecifier,
       [this, copy, functionSymbol, baseType = declSpecifierListCtx.type()] {
         auto type = getDeclaratorType(rewrite.translationUnit(),
@@ -838,7 +714,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (ast->symbol) functionSymbol->setAbiTags(ast->symbol->abiTagList());
 
-  if (ast->symbol && ast->symbol->templateDeclaration() &&
+  if (!definesExistingInstance && ast->symbol &&
+      ast->symbol->templateDeclaration() &&
       (!isOutOfClassMemberDef || isFunctionTemplateSpecialization)) {
     auto instSym =
         symbol_cast<FunctionSymbol>(rewrite.binder().instantiatingSymbol());
@@ -876,9 +753,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
       if (auto oldParams = oldFunc->functionParameters()) {
         if (auto newParams = functionSymbol->functionParameters()) {
-          rewrite.remapFunctionParameters(getFunctionPrototype(ast->declarator),
-                                          functionDeclarator, oldParams,
-                                          newParams);
+          rewrite.remapFunctionParameters(oldParams, newParams);
         }
       }
     }
@@ -907,7 +782,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
   auto savedPatternHead =
       std::exchange(rewrite.currentTemplatePatternHead_, ast);
   auto savedTemplateHead = std::exchange(rewrite.currentTemplateHead_, copy);
-  copy->declaration = rewrite.declaration(ast->declaration, copy);
+  if (ast->declaration)
+    copy->declaration =
+        visit(DeclarationVisitor{rewrite, copy}, ast->declaration);
   rewrite.currentTemplateHead_ = savedTemplateHead;
   rewrite.currentTemplatePatternHead_ = savedPatternHead;
 
@@ -976,12 +853,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
   copy->exportLoc = ast->exportLoc;
   copy->lbraceLoc = ast->lbraceLoc;
 
-  for (auto declarationList = &copy->declarationList;
-       auto node : ListView{ast->declarationList}) {
-    auto value = rewrite.declaration(node);
-    *declarationList = make_list_node(arena(), value);
-    declarationList = &(*declarationList)->next;
-  }
+  copy->declarationList =
+      rewrite.rewriteList(ast->declarationList, &ASTRewriter::declaration);
 
   copy->rbraceLoc = ast->rbraceLoc;
 
@@ -996,12 +869,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(LinkageSpecificationAST* ast)
   copy->stringliteralLoc = ast->stringliteralLoc;
   copy->lbraceLoc = ast->lbraceLoc;
 
-  for (auto declarationList = &copy->declarationList;
-       auto node : ListView{ast->declarationList}) {
-    auto value = rewrite.declaration(node);
-    *declarationList = make_list_node(arena(), value);
-    declarationList = &(*declarationList)->next;
-  }
+  copy->declarationList =
+      rewrite.rewriteList(ast->declarationList, &ASTRewriter::declaration);
 
   copy->rbraceLoc = ast->rbraceLoc;
   copy->stringLiteral = ast->stringLiteral;
@@ -1016,37 +885,22 @@ auto ASTRewriter::DeclarationVisitor::operator()(NamespaceDefinitionAST* ast)
   copy->inlineLoc = ast->inlineLoc;
   copy->namespaceLoc = ast->namespaceLoc;
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
-  for (auto nestedNamespaceSpecifierList = &copy->nestedNamespaceSpecifierList;
-       auto node : ListView{ast->nestedNamespaceSpecifierList}) {
-    auto value = rewrite.nestedNamespaceSpecifier(node);
-    *nestedNamespaceSpecifierList = make_list_node(arena(), value);
-    nestedNamespaceSpecifierList = &(*nestedNamespaceSpecifierList)->next;
-  }
+  copy->nestedNamespaceSpecifierList =
+      rewrite.rewriteList(ast->nestedNamespaceSpecifierList,
+                          &ASTRewriter::nestedNamespaceSpecifier);
 
   copy->identifierLoc = ast->identifierLoc;
 
-  for (auto extraAttributeList = &copy->extraAttributeList;
-       auto node : ListView{ast->extraAttributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *extraAttributeList = make_list_node(arena(), value);
-    extraAttributeList = &(*extraAttributeList)->next;
-  }
+  copy->extraAttributeList = rewrite.rewriteList(
+      ast->extraAttributeList, &ASTRewriter::attributeSpecifier);
 
   copy->lbraceLoc = ast->lbraceLoc;
 
-  for (auto declarationList = &copy->declarationList;
-       auto node : ListView{ast->declarationList}) {
-    auto value = rewrite.declaration(node);
-    *declarationList = make_list_node(arena(), value);
-    declarationList = &(*declarationList)->next;
-  }
+  copy->declarationList =
+      rewrite.rewriteList(ast->declarationList, &ASTRewriter::declaration);
 
   copy->rbraceLoc = ast->rbraceLoc;
   copy->identifier = ast->identifier;
@@ -1069,12 +923,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AttributeDeclarationAST* ast)
     -> DeclarationAST* {
   auto copy = AttributeDeclarationAST::create(arena());
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->semicolonLoc = ast->semicolonLoc;
 
@@ -1088,12 +938,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(
   copy->importLoc = ast->importLoc;
   copy->importName = rewrite.importName(ast->importName);
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->semicolonLoc = ast->semicolonLoc;
 
@@ -1104,25 +950,15 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
     -> DeclarationAST* {
   auto copy = ParameterDeclarationAST::create(arena());
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->thisLoc = ast->thisLoc;
 
   auto typeSpecifierListCtx = DeclSpecs{rewrite.unit_};
   typeSpecifierListCtx.attributeList = copy->attributeList;
-  for (auto typeSpecifierList = &copy->typeSpecifierList;
-       auto node : ListView{ast->typeSpecifierList}) {
-    auto value = rewrite.specifier(node);
-    *typeSpecifierList = make_list_node(arena(), value);
-    typeSpecifierList = &(*typeSpecifierList)->next;
-    typeSpecifierListCtx.accept(value);
-  }
-  typeSpecifierListCtx.finish();
+  copy->typeSpecifierList = rewrite.rewriteSpecifierList(ast->typeSpecifierList,
+                                                         typeSpecifierListCtx);
 
   const auto pendingExceptionSpecifierMark =
       rewrite.pendingExceptionSpecifierMark();
@@ -1135,30 +971,32 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
   copy->equalLoc = ast->equalLoc;
   copy->identifier = ast->identifier;
   copy->isThisIntroduced = ast->isThisIntroduced;
-  copy->isPack = ast->isPack;
+  copy->isPack = ast->isPack && !rewrite.expandsAnActivePack(ast);
 
   const bool inTemplateParameters =
       binder()->scope()->isTemplateParameters() ||
       rewrite.rewritingTemplateParameterDeclaration();
 
-  auto defaultArgument = ast->expression;
-  ScopeSymbol* defaultArgumentScope = nullptr;
+  auto defaultArgument =
+      ASTRewriter::patternDefaultArgument(translationUnit(), ast);
+  auto defaultArgumentScope = binder()->scope();
 
-  if (!defaultArgument) {
-    if (auto parameter = symbol_cast<ParameterSymbol>(ast->symbol)) {
-      defaultArgument = parameter->defaultArgument();
-      if (defaultArgument) {
-        if (auto patternClass = parameter->enclosingClass()) {
-          defaultArgumentScope =
-              symbol_cast<ClassSymbol>(rewrite.remapSymbol(patternClass));
-        }
-      }
+  if (defaultArgument && !ast->expression) {
+    auto parameter = symbol_cast<ParameterSymbol>(ast->symbol);
+    if (auto patternClass = parameter->enclosingClass()) {
+      if (auto instanceClass =
+              symbol_cast<ClassSymbol>(rewrite.remapSymbol(patternClass)))
+        defaultArgumentScope = instanceClass;
     }
   }
 
-  {
+  const auto defersDefaultArgument = defaultArgument && !inTemplateParameters;
+
+  if (defaultArgument && !defersDefaultArgument) {
     auto _ = Binder::ScopeGuard{binder()};
-    if (defaultArgumentScope) binder()->setScope(defaultArgumentScope);
+    binder()->setScope(defaultArgumentScope);
+    TranslationUnit::DeferredInitializerScope deferredInitializer{
+        translationUnit(), true};
     copy->expression = rewrite.expression(defaultArgument);
   }
 
@@ -1166,8 +1004,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
 
   auto parameter = copy->symbol;
 
+  if (defersDefaultArgument && parameter) {
+    parameter->setPendingDefaultArgument(
+        rewrite.pendingInstantiationOf(ast, copy, defaultArgumentScope));
+  }
+
   rewrite.associatePendingExceptionSpecifiers(
-      pendingExceptionSpecifierMark, nullptr, nullptr, nullptr,
+      pendingExceptionSpecifierMark, nullptr, nullptr,
       [this, copy, parameter, baseType = typeSpecifierListCtx.type()] {
         copy->type = getDeclaratorType(rewrite.translationUnit(),
                                        copy->declarator, baseType);
@@ -1202,32 +1045,18 @@ auto ASTRewriter::DeclarationVisitor::operator()(
     StructuredBindingDeclarationAST* ast) -> DeclarationAST* {
   auto copy = StructuredBindingDeclarationAST::create(arena());
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
-  for (auto declSpecifierList = &copy->declSpecifierList;
-       auto node : ListView{ast->declSpecifierList}) {
-    auto value = rewrite.specifier(node);
-    *declSpecifierList = make_list_node(arena(), value);
-    declSpecifierList = &(*declSpecifierList)->next;
-    declSpecifierListCtx.accept(value);
-  }
-  declSpecifierListCtx.finish();
+  copy->declSpecifierList = rewrite.rewriteSpecifierList(ast->declSpecifierList,
+                                                         declSpecifierListCtx);
 
   copy->refQualifierLoc = ast->refQualifierLoc;
   copy->lbracketLoc = ast->lbracketLoc;
 
-  for (auto bindingList = &copy->bindingList;
-       auto node : ListView{ast->bindingList}) {
-    auto value = rewrite.unqualifiedId(node);
-    *bindingList = make_list_node(arena(), ast_cast<NameIdAST>(value));
-    bindingList = &(*bindingList)->next;
-  }
+  copy->bindingList =
+      rewrite.rewriteList(ast->bindingList, &ASTRewriter::unqualifiedId);
 
   copy->rbracketLoc = ast->rbracketLoc;
   copy->initializer = rewrite.expression(ast->initializer);
@@ -1255,12 +1084,8 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
                                                              ast->templateLoc);
     binder()->setScope(parameters);
 
-    for (auto templateParameterList = &copy->templateParameterList;
-         auto node : ListView{ast->templateParameterList}) {
-      auto value = rewrite.templateParameter(node);
-      *templateParameterList = make_list_node(arena(), value);
-      templateParameterList = &(*templateParameterList)->next;
-    }
+    copy->templateParameterList = rewrite.rewriteList(
+        ast->templateParameterList, &ASTRewriter::templateParameter);
 
     copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
   }
@@ -1273,11 +1098,11 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->identifier = ast->identifier;
   copy->isPack = ast->isPack;
 
-  binder()->bind(copy, copy->index, copy->depth);
-  rewrite.addSymbolRemap(ast->symbol, copy->symbol);
-
   copy->idExpression =
       ast_cast<IdExpressionAST>(rewrite.expression(ast->idExpression));
+
+  binder()->bind(copy, copy->index, copy->depth);
+  rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   recordDefaultTemplateArgument(copy, ast);
 
@@ -1317,6 +1142,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->typeId = rewrite.typeId(ast->typeId);
   copy->identifier = ast->identifier;
   copy->isPack = ast->isPack;
+  copy->isSynthesized = ast->isSynthesized;
 
   binder()->bind(copy, copy->index, copy->depth);
   recordDefaultTemplateArgument(copy, ast);
@@ -1337,6 +1163,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->equalLoc = ast->equalLoc;
   copy->typeId = rewrite.typeId(ast->typeId);
   copy->identifier = ast->identifier;
+  copy->isSynthesized = ast->isSynthesized;
 
   binder()->bind(copy, copy->index, copy->depth);
   recordDefaultTemplateArgument(copy, ast);
@@ -1384,12 +1211,8 @@ auto ASTRewriter::FunctionBodyVisitor::operator()(
   copy->statement =
       ast_cast<CompoundStatementAST>(rewrite.statement(ast->statement));
 
-  for (auto handlerList = &copy->handlerList;
-       auto node : ListView{ast->handlerList}) {
-    auto value = rewrite.handler(node);
-    *handlerList = make_list_node(arena(), value);
-    handlerList = &(*handlerList)->next;
-  }
+  copy->handlerList =
+      rewrite.rewriteList(ast->handlerList, &ASTRewriter::handler);
 
   return copy;
 }
@@ -1435,12 +1258,8 @@ auto ASTRewriter::RequirementVisitor::operator()(TypeRequirementAST* ast)
   auto copy = TypeRequirementAST::create(arena());
 
   copy->typenameLoc = ast->typenameLoc;
-  copy->nestedNameSpecifier =
-      rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
-  copy->templateLoc = ast->templateLoc;
-  copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
+  copy->typeId = rewrite.typeId(ast->typeId);
   copy->semicolonLoc = ast->semicolonLoc;
-  copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
   return copy;
 }

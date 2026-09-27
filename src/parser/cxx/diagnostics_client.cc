@@ -45,6 +45,18 @@ auto reportOutsideImmediateContext(TranslationUnit* unit,
   return true;
 }
 
+OutsideImmediateContextScope::OutsideImmediateContextScope(
+    TranslationUnit* unit)
+    : unit_(unit) {
+  if (unit->diagnosticsClient()->isSfinae()) capture_.emplace(unit);
+}
+
+OutsideImmediateContextScope::~OutsideImmediateContextScope() {
+  if (!capture_) return;
+  capture_->finish();
+  (void)reportOutsideImmediateContext(unit_, capture_->diagnostics());
+}
+
 DiagnosticsClientScope::DiagnosticsClientScope(TranslationUnit* unit,
                                                DiagnosticsClient* client)
     : unit_(unit),

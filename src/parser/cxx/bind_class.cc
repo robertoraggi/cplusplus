@@ -52,6 +52,12 @@ struct [[nodiscard]] Binder::BindClass {
 
   auto findPrimaryTemplateSymbol(SimpleTemplateIdAST* templateId) const
       -> ClassSymbol*;
+  [[nodiscard]] static auto isImplicitInstantiation(ClassSymbol* specialization)
+      -> bool {
+    return specialization->isComplete() &&
+           specialization->instantiationPattern() != nullptr;
+  }
+
   [[nodiscard]] auto isTrueRedefinition(
       ClassSymbol* specialization, SimpleTemplateIdAST* newTemplateId) const
       -> bool;
@@ -152,8 +158,7 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
         ast->symbol->templateParameters());
   }
 
-  auto classCanon = ast->symbol->canonical();
-  classCanon->setDefinition(ast->symbol);
+  binder.setDefinition(ast->symbol->canonical(), ast->symbol);
 
   declSpecs.setTypeSpecifier(ast);
   declSpecs.setType(ast->symbol->type());
@@ -185,9 +190,7 @@ auto Binder::BindClass::isTrueRedefinition(
   if (!specialization) return false;
 
   if (!specialization->isComplete()) return false;
-
-  bool isRedefinition = true;
-  if (!declSpecs.templateHead) return isRedefinition;
+  if (!declSpecs.templateHead) return true;
 
   auto existingTemplateDecl = specialization->templateDeclaration();
 
@@ -214,7 +217,7 @@ auto Binder::BindClass::isTrueRedefinition(
     }
   }
 
-  return isRedefinition;
+  return true;
 }
 
 void Binder::BindClass::bind() {
@@ -239,6 +242,7 @@ void Binder::BindClass::bind() {
   if (!classSymbol) {
     classSymbol = createClassSymbol(name, location);
     binder.declaringScope()->addSymbol(classSymbol);
+    binder.recordStandardLibraryType(classSymbol);
   } else {
     classSymbol->setParent(binder.declaringScope());
   }
@@ -260,8 +264,7 @@ auto Binder::BindClass::bindOutOfClassNestedDefinition(ClassSymbol* declared)
   if (declSpecs.templateHead->depth != enclosingHead->depth) return false;
 
   auto defSymbol = createClassSymbol(className(), classLocation());
-  defSymbol->setIsUnion(ast->classKey == TokenKind::T_UNION);
-  declared->canonical()->addRedeclaration(defSymbol);
+  binder.addRedeclaration(declared->canonical(), defSymbol);
 
   initializeClassSymbol(defSymbol);
   return true;
@@ -298,6 +301,7 @@ auto Binder::BindClass::check_template_specialization() -> bool {
 
   std::vector<TemplateArgument> templateArguments;
   ClassSymbol* specialization = nullptr;
+  bool specializesInstantiation = false;
   if (primaryTemplateSymbol) {
     templateArguments =
         Substitution(binder.unit_, primaryTemplateSymbol->templateDeclaration(),
@@ -306,8 +310,7 @@ auto Binder::BindClass::check_template_specialization() -> bool {
 
     if (auto parameter =
             ASTRewriter::findUndeducedPartialSpecializationParameter(
-                binder.unit_, declSpecs.templateHead, templateId,
-                templateArguments)) {
+                binder.unit_, declSpecs.templateHead, templateArguments)) {
       binder.error(parameter->firstSourceLocation(),
                    "class template partial specialization contains a template "
                    "parameter that cannot be deduced");
@@ -319,6 +322,12 @@ auto Binder::BindClass::check_template_specialization() -> bool {
     if (specialization && isTrueRedefinition(specialization, templateId)) {
       binder.error(location, std::format("redefinition of specialization '{}'",
                                          templateId->identifier->name()));
+    } else if (specialization && isImplicitInstantiation(specialization)) {
+      specializesInstantiation = true;
+      binder.error(location,
+                   std::format("explicit specialization of '{}' after "
+                               "instantiation",
+                               to_string(specialization->type())));
     }
   }
 
@@ -330,7 +339,7 @@ auto Binder::BindClass::check_template_specialization() -> bool {
     primaryTemplateSymbol->clearPendingInstantiation(specialization);
   } else {
     classSymbol = createClassSymbol(templateId->identifier, location);
-    if (primaryTemplateSymbol) {
+    if (primaryTemplateSymbol && !specializesInstantiation) {
       primaryTemplateSymbol->addSpecialization(
           binder.unit_, std::move(templateArguments), classSymbol);
     }

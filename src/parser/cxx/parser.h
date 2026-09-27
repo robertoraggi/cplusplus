@@ -57,10 +57,6 @@ class Parser final {
 
   void beginParsing(UnitAST*& ast);
 
-  /**
-   * Continues into a prefix that has already been adopted: the suffix is
-   * appended to the prefix's open declaration list (9.5).
-   */
   void resumeParsing(UnitAST*& ast);
 
   [[nodiscard]] auto continueParsing() -> ParsingState;
@@ -83,6 +79,7 @@ class Parser final {
   struct ExplicitTemplateHeadGuard;
   struct EnclosingTemplateHeadGuard;
   struct UnevaluatedOperandGuard;
+  struct CheckContext;
 
   enum class TypeNameContext { kGeneral, kTypeOnly };
 
@@ -210,6 +207,8 @@ class Parser final {
   void checkBracedInitializerCompletion(const Type* targetType);
   [[nodiscard]] auto constructorCandidatesOf(const Type* type)
       -> std::vector<FunctionSymbol*>;
+  void checkScopeCompletion(NestedNameSpecifierAST* nestedNameSpecifier);
+  auto checkUnqualifiedCompletion() -> bool;
   void checkMemInitializerCompletion(
       NestedNameSpecifierAST* nestedNameSpecifier,
       UnqualifiedIdAST* unqualifiedId);
@@ -476,6 +475,8 @@ class Parser final {
                                                  DeclSpecs& specs) -> bool;
 
   void parse_for_range_initializer(ExpressionAST*& yyast);
+  void declare_for_range_variable(DeclarationAST* rangeDeclaration,
+                                  const DeclSpecs& specs);
 
   [[nodiscard]] auto parse_break_statement(
       StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
@@ -961,6 +962,8 @@ class Parser final {
                               SpecifierAST* typeSpecifier);
   [[nodiscard]] auto isDeferredDefaultArgument(bool templParam) const -> bool;
   [[nodiscard]] auto isDeferredNoexceptSpecifier() const -> bool;
+  [[nodiscard]] auto hasPendingFieldInitializer(ClassSymbol* classSymbol,
+                                                std::size_t mark) const -> bool;
   [[nodiscard]] auto hasPendingNoexceptSpecifier(ClassSymbol* classSymbol,
                                                  std::size_t mark) const
       -> bool;
@@ -1051,6 +1054,10 @@ class Parser final {
   [[nodiscard]] auto takeAbbreviatedTemplateHead(Decl& decl)
       -> TemplateDeclarationAST*;
 
+  void replaceAbbreviatedPlaceholder(ParameterDeclarationAST* parameter,
+                                     ParameterSymbol* parameterSymbol,
+                                     SpecifierAST* placeholder,
+                                     TemplateParameterAST* templateParameter);
   void setFunctionTemplateHead(FunctionSymbol* functionSymbol, const Decl& decl,
                                TemplateDeclarationAST* templateHead);
 
@@ -1137,6 +1144,7 @@ class Parser final {
   std::unique_ptr<TopLevelDeclarationSequence> topLevelDeclarationSequence_;
   std::vector<FunctionDefinitionAST*> pendingFunctionDefinitions_;
   std::vector<PendingFieldInitializer> pendingFieldInitializers_;
+  std::vector<ClassSymbol*> classesWithDeferredFieldInitializers_;
 
   std::vector<PendingDefaultArgument> pendingDefaultArguments_;
   std::vector<PendingNoexceptSpecifier> pendingNoexceptSpecifiers_;

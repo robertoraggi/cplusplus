@@ -29,14 +29,25 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <array>
 #include <cstdlib>
 #include <format>
 #include <forward_list>
 #include <set>
 #include <unordered_set>
+#include <utility>
 
 namespace cxx {
 namespace {
+template <typename T, typename... Args>
+[[nodiscard]] auto internType(std::set<T>& types, Args&&... args) -> const T* {
+  T type{std::forward<Args>(args)...};
+  auto position = types.lower_bound(type);
+  if (position != types.end() && !types.key_comp()(type, *position))
+    return &*position;
+  return &*types.emplace_hint(position, std::move(type));
+}
+
 [[nodiscard]] auto withCompletedTemplateArguments(
     TranslationUnit* unit, NestedNameSpecifierAST* nestedNameSpecifier)
     -> NestedNameSpecifierAST* {
@@ -121,14 +132,17 @@ struct LiteralEqualTo {
 template <typename Literal>
 using LiteralSet =
     std::unordered_set<Literal, LiteralHash<Literal>, LiteralEqualTo<Literal>>;
+
+#define COUNT_WELL_KNOWN_NAME(id, name) +1
+constexpr std::size_t kWellKnownNameCount =
+    1 FOR_EACH_WELL_KNOWN_NAME(COUNT_WELL_KNOWN_NAME);
+#undef COUNT_WELL_KNOWN_NAME
 }  // namespace
 
 struct Control::Private {
   explicit Private(Control*) {}
 
   std::unordered_set<ClassSymbol*> copyConstructorSelections;
-
-  int closureNameCount = 0;
 
   MemoryLayout* memoryLayout = nullptr;
   LiteralSet<IntegerLiteral> integerLiterals;
@@ -189,6 +203,11 @@ struct Control::Private {
   std::set<MemberFunctionPointerType> memberFunctionPointerTypes;
   std::set<TypeParameterType> typeParameterTypes;
   std::set<TemplateTypeParameterType> templateTypeParameterTypes;
+  std::map<const TemplateTypeParameterType*,
+           std::forward_list<TemplateTypeParameterSpecializationType>>
+      templateTypeParameterSpecializationTypes;
+  std::set<PackExpansionType> packExpansionTypes;
+  std::set<DecltypeType> decltypeTypes;
   std::set<UnresolvedNameType> unresolvedNameTypes;
   std::set<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
   std::set<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
@@ -241,8 +260,11 @@ struct Control::Private {
   std::forward_list<BuiltinFunctionIdentifierInfo> builtinFunctionInfos;
   std::forward_list<BuiltinTemplateIdentifierInfo> builtinTemplateInfos;
   std::forward_list<WellKnownNameIdentifierInfo> wellKnownNameInfos;
+  std::array<const Identifier*, kWellKnownNameCount> wellKnownIdentifiers{};
 
   int anonymousIdCount = 0;
+  const Type* alignValType = nullptr;
+  const Type* nothrowType = nullptr;
 
   [[nodiscard]] auto getIdentifier(std::string_view name) -> const Identifier* {
     if (auto it = identifiers.find(name); it != identifiers.end()) return &*it;
@@ -277,12 +299,18 @@ struct Control::Private {
 
   void initWellKnownNames() {
 #define PROCESS_WELL_KNOWN_NAME(id, name) \
-  getIdentifier(name)->setInfo(           \
-      &wellKnownNameInfos.emplace_front(WellKnownName::T_##id));
+  registerWellKnownName(WellKnownName::T_##id, name);
 
     FOR_EACH_WELL_KNOWN_NAME(PROCESS_WELL_KNOWN_NAME)
 
 #undef PROCESS_WELL_KNOWN_NAME
+  }
+
+  void registerWellKnownName(WellKnownName wellKnownName,
+                             std::string_view spelling) {
+    auto identifier = getIdentifier(spelling);
+    identifier->setInfo(&wellKnownNameInfos.emplace_front(wellKnownName));
+    wellKnownIdentifiers[std::to_underlying(wellKnownName)] = identifier;
   }
 
   void initBuiltinTemplates() {
@@ -408,6 +436,10 @@ auto Control::getIdentifier(std::string_view name) -> const Identifier* {
   return d->getIdentifier(name);
 }
 
+auto Control::getIdentifier(WellKnownName name) const -> const Identifier* {
+  return d->wellKnownIdentifiers[std::to_underlying(name)];
+}
+
 auto Control::getOperatorId(TokenKind op) -> const OperatorId* {
   return &*d->operatorIds.emplace(op).first;
 }
@@ -531,36 +563,36 @@ auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)
     elementType = qualType->elementType();
   }
 
-  return &*d->qualTypes.emplace(elementType, cvQualifiers).first;
+  return internType(d->qualTypes, elementType, cvQualifiers);
 }
 
 auto Control::getBoundedArrayType(const Type* elementType, std::size_t size)
     -> const BoundedArrayType* {
-  return &*d->boundedArrayTypes.emplace(elementType, size).first;
+  return internType(d->boundedArrayTypes, elementType, size);
 }
 
 auto Control::getUnboundedArrayType(const Type* elementType)
     -> const UnboundedArrayType* {
-  return &*d->unboundedArrayTypes.emplace(elementType).first;
+  return internType(d->unboundedArrayTypes, elementType);
 }
 
 auto Control::getPointerType(const Type* elementType) -> const PointerType* {
-  return &*d->pointerTypes.emplace(elementType).first;
+  return internType(d->pointerTypes, elementType);
 }
 
 auto Control::getLvalueReferenceType(const Type* elementType)
     -> const LvalueReferenceType* {
-  return &*d->lvalueReferenceTypes.emplace(elementType).first;
+  return internType(d->lvalueReferenceTypes, elementType);
 }
 
 auto Control::getRvalueReferenceType(const Type* elementType)
     -> const RvalueReferenceType* {
-  return &*d->rvalueReferenceTypes.emplace(elementType).first;
+  return internType(d->rvalueReferenceTypes, elementType);
 }
 
 auto Control::getOverloadSetType(OverloadSetSymbol* symbol)
     -> const OverloadSetType* {
-  return &*d->overloadSetTypes.emplace(symbol).first;
+  return internType(d->overloadSetTypes, symbol);
 }
 
 auto Control::getFunctionType(const Type* returnType,
@@ -569,10 +601,9 @@ auto Control::getFunctionType(const Type* returnType,
                               RefQualifier refQualifier,
                               ExceptionSpecification exceptionSpecification)
     -> const FunctionType* {
-  return &*d->functionTypes
-               .emplace(returnType, std::move(parameterTypes), isVariadic,
-                        cvQualifiers, refQualifier, exceptionSpecification)
-               .first;
+  return internType(d->functionTypes, returnType, std::move(parameterTypes),
+                    isVariadic, cvQualifiers, refQualifier,
+                    exceptionSpecification);
 }
 
 auto Control::getPseudoDestructorType() -> const FunctionType* {
@@ -581,16 +612,23 @@ auto Control::getPseudoDestructorType() -> const FunctionType* {
                          /*exceptionSpecification=*/true);
 }
 
+auto Control::getMemberPointerType(const Type* classType,
+                                   const Type* memberType) -> const Type* {
+  if (auto functionType = type_cast<FunctionType>(memberType))
+    return getMemberFunctionPointerType(classType, functionType);
+  return getMemberObjectPointerType(classType, memberType);
+}
+
 auto Control::getMemberObjectPointerType(const Type* classType,
                                          const Type* elementType)
     -> const MemberObjectPointerType* {
-  return &*d->memberObjectPointerTypes.emplace(classType, elementType).first;
+  return internType(d->memberObjectPointerTypes, classType, elementType);
 }
 
 auto Control::getMemberFunctionPointerType(const Type* classType,
                                            const FunctionType* functionType)
     -> const MemberFunctionPointerType* {
-  return &*d->memberFunctionPointerTypes.emplace(classType, functionType).first;
+  return internType(d->memberFunctionPointerTypes, classType, functionType);
 }
 
 auto Control::getDependentType() -> const TypeParameterType* {
@@ -599,16 +637,47 @@ auto Control::getDependentType() -> const TypeParameterType* {
 
 auto Control::getTypeParameterType(int index, int depth, bool isParameterPack)
     -> const TypeParameterType* {
-  return &*d->typeParameterTypes.emplace(index, depth, isParameterPack).first;
+  return internType(d->typeParameterTypes, index, depth, isParameterPack);
 }
 
 auto Control::getTemplateTypeParameterType(
     int index, int depth, bool isPack,
     std::vector<const Type*> templateParameters)
     -> const TemplateTypeParameterType* {
-  return &*d->templateTypeParameterTypes
-               .emplace(index, depth, isPack, std::move(templateParameters))
-               .first;
+  return internType(d->templateTypeParameterTypes, index, depth, isPack,
+                    std::move(templateParameters));
+}
+
+auto Control::getTemplateTypeParameterSpecializationType(
+    TranslationUnit* unit, const TemplateTypeParameterType* templateParameter,
+    std::vector<TemplateArgument> templateArguments)
+    -> const TemplateTypeParameterSpecializationType* {
+  auto& types = d->templateTypeParameterSpecializationTypes[templateParameter];
+  for (const auto& type : types) {
+    if (compare_args(unit, type.templateArguments(), templateArguments))
+      return &type;
+  }
+  return restoreTemplateTypeParameterSpecializationType(
+      unit, templateParameter, std::move(templateArguments));
+}
+
+auto Control::restoreTemplateTypeParameterSpecializationType(
+    TranslationUnit* unit, const TemplateTypeParameterType* templateParameter,
+    std::vector<TemplateArgument> templateArguments)
+    -> const TemplateTypeParameterSpecializationType* {
+  auto& types = d->templateTypeParameterSpecializationTypes[templateParameter];
+  return &types.emplace_front(unit, templateParameter,
+                              std::move(templateArguments));
+}
+
+auto Control::getDecltypeType(TranslationUnit* unit, ExpressionAST* expression)
+    -> const DecltypeType* {
+  return internType(d->decltypeTypes, unit, expression);
+}
+
+auto Control::getPackExpansionType(const Type* pattern)
+    -> const PackExpansionType* {
+  return internType(d->packExpansionTypes, pattern);
 }
 
 auto Control::getUnresolvedNameType(TranslationUnit* unit,
@@ -629,9 +698,8 @@ auto Control::getUnresolvedNameType(TranslationUnit* unit,
   nestedNameSpecifier =
       withCompletedTemplateArguments(unit, nestedNameSpecifier);
 
-  auto type =
-      &*d->unresolvedNameTypes.emplace(unit, nestedNameSpecifier, unqualifiedId)
-            .first;
+  auto type = internType(d->unresolvedNameTypes, unit, nestedNameSpecifier,
+                         unqualifiedId);
 
   unit->captureSnippet(type->sourceLocationRange());
 
@@ -644,16 +712,15 @@ auto Control::getUnresolvedBoundedArrayType(TranslationUnit* unit,
     -> const UnresolvedBoundedArrayType* {
   if (sizeExpression)
     unit->captureSnippet(sizeExpression->sourceLocationRange());
-  return &*d->unresolvedBoundedArrayTypes
-               .emplace(unit, elementType, sizeExpression)
-               .first;
+  return internType(d->unresolvedBoundedArrayTypes, unit, elementType,
+                    sizeExpression);
 }
 
 auto Control::getUnresolvedUnderlyingType(TranslationUnit* unit,
                                           TypeIdAST* typeId)
     -> const UnresolvedUnderlyingType* {
   if (typeId) unit->captureSnippet(typeId->sourceLocationRange());
-  return &*d->unresolvedUnderlyingTypes.emplace(unit, typeId).first;
+  return internType(d->unresolvedUnderlyingTypes, unit, typeId);
 }
 
 auto Control::getUnresolvedBuiltinType(TranslationUnit* unit,
@@ -661,33 +728,33 @@ auto Control::getUnresolvedBuiltinType(TranslationUnit* unit,
                                        TypeIdAST* typeId)
     -> const UnresolvedBuiltinType* {
   if (typeId) unit->captureSnippet(typeId->sourceLocationRange());
-  return &*d->unresolvedBuiltinTypes.emplace(unit, builtinKind, typeId).first;
+  return internType(d->unresolvedBuiltinTypes, unit, builtinKind, typeId);
 }
 
 auto Control::getClassType(ClassSymbol* symbol) -> const ClassType* {
-  return &*d->classTypes.emplace(symbol).first;
+  return internType(d->classTypes, symbol);
 }
 
 auto Control::getNamespaceType(NamespaceSymbol* symbol)
     -> const NamespaceType* {
-  return &*d->namespaceTypes.emplace(symbol).first;
+  return internType(d->namespaceTypes, symbol);
 }
 
 auto Control::getEnumType(EnumSymbol* symbol) -> const EnumType* {
-  return &*d->enumTypes.emplace(symbol).first;
+  return internType(d->enumTypes, symbol);
 }
 
 auto Control::getScopedEnumType(ScopedEnumSymbol* symbol)
     -> const ScopedEnumType* {
-  return &*d->scopedEnumTypes.emplace(symbol).first;
+  return internType(d->scopedEnumTypes, symbol);
 }
 
 auto Control::getBitIntType(int numBits) -> const BitIntType* {
-  return &*d->bitIntTypes.emplace(numBits).first;
+  return internType(d->bitIntTypes, numBits);
 }
 
 auto Control::getUnsignedBitIntType(int numBits) -> const UnsignedBitIntType* {
-  return &*d->unsignedBitIntTypes.emplace(numBits).first;
+  return internType(d->unsignedBitIntTypes, numBits);
 }
 
 auto Control::getUnresolvedBitIntType(TranslationUnit* unit,
@@ -696,13 +763,12 @@ auto Control::getUnresolvedBitIntType(TranslationUnit* unit,
     -> const UnresolvedBitIntType* {
   if (sizeExpression)
     unit->captureSnippet(sizeExpression->sourceLocationRange());
-  return &*d->unresolvedBitIntTypes.emplace(unit, sizeExpression, isUnsigned)
-               .first;
+  return internType(d->unresolvedBitIntTypes, unit, sizeExpression, isUnsigned);
 }
 
 auto Control::getVectorType(const Type* elementType, std::size_t elementCount,
                             VectorKind vectorKind) -> const VectorType* {
-  return &*d->vectorTypes.emplace(elementType, elementCount, vectorKind).first;
+  return internType(d->vectorTypes, elementType, elementCount, vectorKind);
 }
 
 auto Control::getUnresolvedVectorType(TranslationUnit* unit,
@@ -713,17 +779,16 @@ auto Control::getUnresolvedVectorType(TranslationUnit* unit,
     -> const UnresolvedVectorType* {
   if (sizeExpression)
     unit->captureSnippet(sizeExpression->sourceLocationRange());
-  return &*d->unresolvedVectorTypes
-               .emplace(unit, elementType, sizeExpression, vectorKind, sizeKind)
-               .first;
+  return internType(d->unresolvedVectorTypes, unit, elementType, sizeExpression,
+                    vectorKind, sizeKind);
 }
 
 auto Control::getComplexType(const Type* elementType) -> const ComplexType* {
-  return &*d->complexTypes.emplace(elementType).first;
+  return internType(d->complexTypes, elementType);
 }
 
 auto Control::getAtomicType(const Type* elementType) -> const AtomicType* {
-  return &*d->atomicTypes.emplace(elementType).first;
+  return internType(d->atomicTypes, elementType);
 }
 
 auto Control::newNamespaceSymbol(ScopeSymbol* enclosingScope,
@@ -961,16 +1026,16 @@ void Control::endCopyConstructorSelection(ClassSymbol* classSymbol) {
   d->copyConstructorSelections.erase(classSymbol);
 }
 
-auto Control::closureNameCount() const -> int { return d->closureNameCount; }
-
-void Control::setClosureNameCount(int count) { d->closureNameCount = count; }
-
 auto Control::anonymousIdCount() const -> int { return d->anonymousIdCount; }
 
 void Control::setAnonymousIdCount(int count) { d->anonymousIdCount = count; }
 
-auto Control::newClosureName() -> const Identifier* {
-  return getIdentifier(std::format("__lambda_{}", d->closureNameCount++));
-}
+auto Control::getAlignValType() const -> const Type* { return d->alignValType; }
+
+void Control::setAlignValType(const Type* type) { d->alignValType = type; }
+
+auto Control::getNothrowType() const -> const Type* { return d->nothrowType; }
+
+void Control::setNothrowType(const Type* type) { d->nothrowType = type; }
 
 }  // namespace cxx

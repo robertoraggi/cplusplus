@@ -29,64 +29,71 @@
 namespace cxx {
 class Name;
 class ExpressionAST;
+class Symbol;
 
 using ExceptionSpecification = std::variant<bool, ExpressionAST*>;
 
-#define CXX_FOR_EACH_TYPE_KIND(V) \
-  V(Void)                         \
-  V(Nullptr)                      \
-  V(DecltypeAuto)                 \
-  V(Auto)                         \
-  V(Bool)                         \
-  V(SignedChar)                   \
-  V(ShortInt)                     \
-  V(Int)                          \
-  V(LongInt)                      \
-  V(LongLongInt)                  \
-  V(Int128)                       \
-  V(UnsignedChar)                 \
-  V(UnsignedShortInt)             \
-  V(UnsignedInt)                  \
-  V(UnsignedLongInt)              \
-  V(UnsignedLongLongInt)          \
-  V(UnsignedInt128)               \
-  V(Char)                         \
-  V(Char8)                        \
-  V(Char16)                       \
-  V(Char32)                       \
-  V(WideChar)                     \
-  V(Float)                        \
-  V(Double)                       \
-  V(LongDouble)                   \
-  V(Float16)                      \
-  V(Qual)                         \
-  V(BoundedArray)                 \
-  V(UnboundedArray)               \
-  V(Pointer)                      \
-  V(LvalueReference)              \
-  V(RvalueReference)              \
-  V(Function)                     \
-  V(Class)                        \
-  V(Enum)                         \
-  V(ScopedEnum)                   \
-  V(MemberObjectPointer)          \
-  V(MemberFunctionPointer)        \
-  V(Namespace)                    \
-  V(TypeParameter)                \
-  V(TemplateTypeParameter)        \
-  V(UnresolvedName)               \
-  V(UnresolvedBoundedArray)       \
-  V(UnresolvedUnderlying)         \
-  V(UnresolvedBuiltin)            \
-  V(OverloadSet)                  \
-  V(BuiltinVaList)                \
-  V(BuiltinMetaInfo)              \
-  V(BitInt)                       \
-  V(UnsignedBitInt)               \
-  V(UnresolvedBitInt)             \
-  V(Vector)                       \
-  V(UnresolvedVector)             \
-  V(Complex)                      \
+#define CXX_FOR_EACH_ARITHMETIC_TYPE_KIND(V) \
+  V(Bool)                                    \
+  V(SignedChar)                              \
+  V(ShortInt)                                \
+  V(Int)                                     \
+  V(LongInt)                                 \
+  V(LongLongInt)                             \
+  V(Int128)                                  \
+  V(UnsignedChar)                            \
+  V(UnsignedShortInt)                        \
+  V(UnsignedInt)                             \
+  V(UnsignedLongInt)                         \
+  V(UnsignedLongLongInt)                     \
+  V(UnsignedInt128)                          \
+  V(Char)                                    \
+  V(Char8)                                   \
+  V(Char16)                                  \
+  V(Char32)                                  \
+  V(WideChar)                                \
+  V(Float)                                   \
+  V(Double)                                  \
+  V(LongDouble)                              \
+  V(Float16)
+
+#define CXX_FOR_EACH_TYPE_KIND(V)        \
+  V(Void)                                \
+  V(Nullptr)                             \
+  V(DecltypeAuto)                        \
+  V(Auto)                                \
+  CXX_FOR_EACH_ARITHMETIC_TYPE_KIND(V)   \
+  V(Qual)                                \
+  V(BoundedArray)                        \
+  V(UnboundedArray)                      \
+  V(Pointer)                             \
+  V(LvalueReference)                     \
+  V(RvalueReference)                     \
+  V(Function)                            \
+  V(Class)                               \
+  V(Enum)                                \
+  V(ScopedEnum)                          \
+  V(MemberObjectPointer)                 \
+  V(MemberFunctionPointer)               \
+  V(Namespace)                           \
+  V(TypeParameter)                       \
+  V(TemplateTypeParameter)               \
+  V(TemplateTypeParameterSpecialization) \
+  V(PackExpansion)                       \
+  V(Decltype)                            \
+  V(UnresolvedName)                      \
+  V(UnresolvedBoundedArray)              \
+  V(UnresolvedUnderlying)                \
+  V(UnresolvedBuiltin)                   \
+  V(OverloadSet)                         \
+  V(BuiltinVaList)                       \
+  V(BuiltinMetaInfo)                     \
+  V(BitInt)                              \
+  V(UnsignedBitInt)                      \
+  V(UnresolvedBitInt)                    \
+  V(Vector)                              \
+  V(UnresolvedVector)                    \
+  V(Complex)                             \
   V(Atomic)
 
 class Type;
@@ -174,6 +181,8 @@ struct TypeParamInfo {
 
 struct TypePrintOptions {
   bool omitFunctionReturnType = false;
+  bool sourceSpelling = false;
+  Symbol* declarationScope = nullptr;
 };
 
 auto to_string(const Type* type, const std::string& id = "",

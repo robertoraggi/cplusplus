@@ -37,6 +37,7 @@ enum class BuiltinFlags : std::uint8_t {
   kConsteval = 2,
   kNoexcept = 4,
   kNoReturn = 8,
+  kCplusplus = 16,
 };
 
 [[nodiscard]] constexpr auto operator|(BuiltinFlags a, BuiltinFlags b)
@@ -60,7 +61,15 @@ struct BuiltinSignature {
   BuiltinFlags flags = BuiltinFlags::kNone;
 };
 
+struct ImplicitDeclarationSignature {
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+  BuiltinSignature signature;
+};
+
 [[nodiscard]] auto builtinSignatureOf(BuiltinFunctionKind kind)
+    -> BuiltinSignature;
+
+[[nodiscard]] auto implicitDeclarationSignatureOf(TokenKind op)
     -> BuiltinSignature;
 
 enum class BuiltinOverloadStatus : std::uint8_t {
@@ -75,7 +84,7 @@ struct BuiltinOverload {
 };
 
 [[nodiscard]] auto decodeBuiltinSignature(Control* control,
-                                          BuiltinFunctionKind kind,
+                                          BuiltinSignature signature,
                                           std::size_t index) -> BuiltinOverload;
 
 }  // namespace cxx

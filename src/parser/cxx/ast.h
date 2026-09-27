@@ -4597,6 +4597,7 @@ class NewExpressionAST final : public ExpressionAST {
   const Type* objectType = nullptr;
   FunctionSymbol* constructorSymbol = nullptr;
   FunctionSymbol* symbol = nullptr;
+  bool hasAlignmentArgument = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4613,15 +4614,16 @@ class NewExpressionAST final : public ExpressionAST {
       List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
       SourceLocation rparenLoc, NewInitializerAST* newInitalizer,
       const Type* objectType, FunctionSymbol* constructorSymbol,
-      FunctionSymbol* symbol, ValueCategory valueCategory, const Type* type)
-      -> NewExpressionAST*;
+      FunctionSymbol* symbol, bool hasAlignmentArgument,
+      ValueCategory valueCategory, const Type* type) -> NewExpressionAST*;
 
   [[nodiscard]] static auto create(
       Arena* arena, NewPlacementAST* newPlacement,
       List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
       NewInitializerAST* newInitalizer, const Type* objectType,
       FunctionSymbol* constructorSymbol, FunctionSymbol* symbol,
-      ValueCategory valueCategory, const Type* type) -> NewExpressionAST*;
+      bool hasAlignmentArgument, ValueCategory valueCategory, const Type* type)
+      -> NewExpressionAST*;
 
  protected:
   NewExpressionAST() : ExpressionAST(Kind) {}
@@ -5168,6 +5170,7 @@ class BracedInitListAST final : public ExpressionAST {
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation commaLoc;
   SourceLocation rbraceLoc;
+  VariableSymbol* implicitElement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -5182,11 +5185,13 @@ class BracedInitListAST final : public ExpressionAST {
                                    List<ExpressionAST*>* expressionList,
                                    SourceLocation commaLoc,
                                    SourceLocation rbraceLoc,
+                                   VariableSymbol* implicitElement,
                                    ValueCategory valueCategory,
                                    const Type* type) -> BracedInitListAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    List<ExpressionAST*>* expressionList,
+                                   VariableSymbol* implicitElement,
                                    ValueCategory valueCategory,
                                    const Type* type) -> BracedInitListAST*;
 
@@ -5459,6 +5464,7 @@ class TypenameTypeParameterAST final : public TemplateParameterAST {
   TypeIdAST* typeId = nullptr;
   const Identifier* identifier = nullptr;
   bool isPack = false;
+  bool isSynthesized = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -5469,17 +5475,16 @@ class TypenameTypeParameterAST final : public TemplateParameterAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> TypenameTypeParameterAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation classKeyLoc,
-                                   SourceLocation ellipsisLoc,
-                                   SourceLocation identifierLoc,
-                                   SourceLocation equalLoc, TypeIdAST* typeId,
-                                   const Identifier* identifier, bool isPack,
-                                   Symbol* symbol, int depth, int index)
-      -> TypenameTypeParameterAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation classKeyLoc, SourceLocation ellipsisLoc,
+      SourceLocation identifierLoc, SourceLocation equalLoc, TypeIdAST* typeId,
+      const Identifier* identifier, bool isPack, bool isSynthesized,
+      Symbol* symbol, int depth, int index) -> TypenameTypeParameterAST*;
 
   [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId,
                                    const Identifier* identifier, bool isPack,
-                                   Symbol* symbol, int depth, int index)
+                                   bool isSynthesized, Symbol* symbol,
+                                   int depth, int index)
       -> TypenameTypeParameterAST*;
 
  protected:
@@ -5496,6 +5501,7 @@ class ConstraintTypeParameterAST final : public TemplateParameterAST {
   SourceLocation equalLoc;
   TypeIdAST* typeId = nullptr;
   const Identifier* identifier = nullptr;
+  bool isSynthesized = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -5511,14 +5517,13 @@ class ConstraintTypeParameterAST final : public TemplateParameterAST {
       Arena* arena, TypeConstraintAST* typeConstraint,
       SourceLocation ellipsisLoc, SourceLocation identifierLoc,
       SourceLocation equalLoc, TypeIdAST* typeId, const Identifier* identifier,
-      Symbol* symbol, int depth, int index) -> ConstraintTypeParameterAST*;
-
-  [[nodiscard]] static auto create(Arena* arena,
-                                   TypeConstraintAST* typeConstraint,
-                                   TypeIdAST* typeId,
-                                   const Identifier* identifier, Symbol* symbol,
-                                   int depth, int index)
+      bool isSynthesized, Symbol* symbol, int depth, int index)
       -> ConstraintTypeParameterAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, TypeConstraintAST* typeConstraint, TypeIdAST* typeId,
+      const Identifier* identifier, bool isSynthesized, Symbol* symbol,
+      int depth, int index) -> ConstraintTypeParameterAST*;
 
  protected:
   ConstraintTypeParameterAST() : TemplateParameterAST(Kind) {}
@@ -6549,6 +6554,7 @@ class ClassSpecifierAST final : public SpecifierAST {
   SourceLocation lbraceLoc;
   List<DeclarationAST*>* declarationList = nullptr;
   SourceLocation rbraceLoc;
+  List<AttributeSpecifierAST*>* trailingAttributeList = nullptr;
   TokenKind classKey = TokenKind::T_EOF_SYMBOL;
   ClassSymbol* symbol = nullptr;
   bool isFinal = false;
@@ -6569,17 +6575,18 @@ class ClassSpecifierAST final : public SpecifierAST {
       UnqualifiedIdAST* unqualifiedId, SourceLocation finalLoc,
       SourceLocation colonLoc, List<BaseSpecifierAST*>* baseSpecifierList,
       SourceLocation lbraceLoc, List<DeclarationAST*>* declarationList,
-      SourceLocation rbraceLoc, TokenKind classKey, ClassSymbol* symbol,
-      bool isFinal) -> ClassSpecifierAST*;
+      SourceLocation rbraceLoc,
+      List<AttributeSpecifierAST*>* trailingAttributeList, TokenKind classKey,
+      ClassSymbol* symbol, bool isFinal) -> ClassSpecifierAST*;
 
-  [[nodiscard]] static auto create(Arena* arena,
-                                   List<AttributeSpecifierAST*>* attributeList,
-                                   NestedNameSpecifierAST* nestedNameSpecifier,
-                                   UnqualifiedIdAST* unqualifiedId,
-                                   List<BaseSpecifierAST*>* baseSpecifierList,
-                                   List<DeclarationAST*>* declarationList,
-                                   TokenKind classKey, ClassSymbol* symbol,
-                                   bool isFinal) -> ClassSpecifierAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+      NestedNameSpecifierAST* nestedNameSpecifier,
+      UnqualifiedIdAST* unqualifiedId,
+      List<BaseSpecifierAST*>* baseSpecifierList,
+      List<DeclarationAST*>* declarationList,
+      List<AttributeSpecifierAST*>* trailingAttributeList, TokenKind classKey,
+      ClassSymbol* symbol, bool isFinal) -> ClassSpecifierAST*;
 
  protected:
   ClassSpecifierAST() : SpecifierAST(Kind) {}
@@ -6749,8 +6756,10 @@ class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
   static constexpr ASTKind Kind = ASTKind::BitfieldDeclarator;
 
   NameIdAST* unqualifiedId = nullptr;
+  List<AttributeSpecifierAST*>* attributeList = nullptr;
   SourceLocation colonLoc;
   ExpressionAST* sizeExpression = nullptr;
+  List<AttributeSpecifierAST*>* trailingAttributeList = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -6761,13 +6770,18 @@ class BitfieldDeclaratorAST final : public CoreDeclaratorAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> BitfieldDeclaratorAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, NameIdAST* unqualifiedId,
-                                   SourceLocation colonLoc,
-                                   ExpressionAST* sizeExpression)
+  [[nodiscard]] static auto create(
+      Arena* arena, NameIdAST* unqualifiedId,
+      List<AttributeSpecifierAST*>* attributeList, SourceLocation colonLoc,
+      ExpressionAST* sizeExpression,
+      List<AttributeSpecifierAST*>* trailingAttributeList)
       -> BitfieldDeclaratorAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, NameIdAST* unqualifiedId,
-                                   ExpressionAST* sizeExpression)
+  [[nodiscard]] static auto create(
+      Arena* arena, NameIdAST* unqualifiedId,
+      List<AttributeSpecifierAST*>* attributeList,
+      ExpressionAST* sizeExpression,
+      List<AttributeSpecifierAST*>* trailingAttributeList)
       -> BitfieldDeclaratorAST*;
 
  protected:
@@ -7651,11 +7665,8 @@ class TypeRequirementAST final : public RequirementAST {
   static constexpr ASTKind Kind = ASTKind::TypeRequirement;
 
   SourceLocation typenameLoc;
-  NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
-  SourceLocation templateLoc;
-  UnqualifiedIdAST* unqualifiedId = nullptr;
+  TypeIdAST* typeId = nullptr;
   SourceLocation semicolonLoc;
-  bool isTemplateIntroduced = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -7667,17 +7678,11 @@ class TypeRequirementAST final : public RequirementAST {
   [[nodiscard]] static auto create(Arena* arena) -> TypeRequirementAST*;
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation typenameLoc,
-                                   NestedNameSpecifierAST* nestedNameSpecifier,
-                                   SourceLocation templateLoc,
-                                   UnqualifiedIdAST* unqualifiedId,
-                                   SourceLocation semicolonLoc,
-                                   bool isTemplateIntroduced)
+                                   TypeIdAST* typeId,
+                                   SourceLocation semicolonLoc)
       -> TypeRequirementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena,
-                                   NestedNameSpecifierAST* nestedNameSpecifier,
-                                   UnqualifiedIdAST* unqualifiedId,
-                                   bool isTemplateIntroduced)
+  [[nodiscard]] static auto create(Arena* arena, TypeIdAST* typeId)
       -> TypeRequirementAST*;
 
  protected:

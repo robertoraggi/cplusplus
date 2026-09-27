@@ -25,17 +25,7 @@
 
 namespace cxx {
 
-struct ASTRewriter::UnitVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::UnitVisitor : VisitorBase {
   [[nodiscard]] auto operator()(TranslationUnitAST* ast) -> UnitAST*;
 
   [[nodiscard]] auto operator()(ModuleUnitAST* ast) -> UnitAST*;
@@ -55,12 +45,8 @@ auto ASTRewriter::globalModuleFragment(GlobalModuleFragmentAST* ast)
   copy->moduleLoc = ast->moduleLoc;
   copy->semicolonLoc = ast->semicolonLoc;
 
-  for (auto declarationList = &copy->declarationList;
-       auto node : ListView{ast->declarationList}) {
-    auto value = declaration(node);
-    *declarationList = make_list_node(arena(), value);
-    declarationList = &(*declarationList)->next;
-  }
+  copy->declarationList =
+      rewriteList(ast->declarationList, &ASTRewriter::declaration);
 
   return copy;
 }
@@ -76,12 +62,8 @@ auto ASTRewriter::privateModuleFragment(PrivateModuleFragmentAST* ast)
   copy->privateLoc = ast->privateLoc;
   copy->semicolonLoc = ast->semicolonLoc;
 
-  for (auto declarationList = &copy->declarationList;
-       auto node : ListView{ast->declarationList}) {
-    auto value = declaration(node);
-    *declarationList = make_list_node(arena(), value);
-    declarationList = &(*declarationList)->next;
-  }
+  copy->declarationList =
+      rewriteList(ast->declarationList, &ASTRewriter::declaration);
 
   return copy;
 }
@@ -97,12 +79,8 @@ auto ASTRewriter::moduleDeclaration(ModuleDeclarationAST* ast)
   copy->moduleName = moduleName(ast->moduleName);
   copy->modulePartition = modulePartition(ast->modulePartition);
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->semicolonLoc = ast->semicolonLoc;
 
@@ -164,12 +142,8 @@ auto ASTRewriter::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitAST* {
 
   copy->symbol = ast->symbol;
 
-  for (auto declarationList = &copy->declarationList;
-       auto node : ListView{ast->declarationList}) {
-    auto value = rewrite.declaration(node);
-    *declarationList = make_list_node(arena(), value);
-    declarationList = &(*declarationList)->next;
-  }
+  copy->declarationList =
+      rewrite.rewriteList(ast->declarationList, &ASTRewriter::declaration);
 
   return copy;
 }
@@ -183,12 +157,8 @@ auto ASTRewriter::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitAST* {
       rewrite.globalModuleFragment(ast->globalModuleFragment);
   copy->moduleDeclaration = rewrite.moduleDeclaration(ast->moduleDeclaration);
 
-  for (auto declarationList = &copy->declarationList;
-       auto node : ListView{ast->declarationList}) {
-    auto value = rewrite.declaration(node);
-    *declarationList = make_list_node(arena(), value);
-    declarationList = &(*declarationList)->next;
-  }
+  copy->declarationList =
+      rewrite.rewriteList(ast->declarationList, &ASTRewriter::declaration);
 
   copy->privateModuleFragment =
       rewrite.privateModuleFragment(ast->privateModuleFragment);

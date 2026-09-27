@@ -89,6 +89,7 @@ class TypeTraits {
   [[nodiscard]] auto is_integral_or_enum(const Type* type) const -> bool;
   [[nodiscard]] auto is_fundamental(const Type* type) const -> bool;
   [[nodiscard]] auto is_arithmetic(const Type* type) const -> bool;
+  [[nodiscard]] auto arithmetic_types() const -> std::vector<const Type*>;
   [[nodiscard]] auto is_floating(const Type* type) const -> bool;
   [[nodiscard]] auto is_scalar(const Type* type) const -> bool;
   [[nodiscard]] auto is_object(const Type* type) const -> bool;
@@ -120,6 +121,9 @@ class TypeTraits {
   [[nodiscard]] auto converted_integral_constant(const Type* type,
                                                  const ConstInt& value) const
       -> std::optional<ConstInt>;
+  [[nodiscard]] auto converted_constant_value(const Type* type,
+                                              const ConstValue& value) const
+      -> std::optional<ConstValue>;
 
   [[nodiscard]] auto remove_reference(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_lvalue_reference(const Type* type) const
@@ -128,6 +132,9 @@ class TypeTraits {
       -> const Type*;
 
   [[nodiscard]] auto decltype_of(ExpressionAST* expr) const -> const Type*;
+
+  [[nodiscard]] auto constantTemplateParameterType(
+      NonTypeParameterSymbol* parameter) const -> const Type*;
 
   [[nodiscard]] auto remove_extent(const Type* type) const -> const Type*;
   [[nodiscard]] auto get_element_type(const Type* type) const -> const Type*;
@@ -147,6 +154,9 @@ class TypeTraits {
 
   [[nodiscard]] auto remove_pointer(const Type* type) const -> const Type*;
   [[nodiscard]] auto add_pointer(const Type* type) const -> const Type*;
+
+  [[nodiscard]] auto address_of_function(FunctionSymbol* function) const
+      -> const Type*;
 
   [[nodiscard]] auto make_signed(const Type* type) const -> const Type*;
   [[nodiscard]] auto make_unsigned(const Type* type) const -> const Type*;
@@ -185,6 +195,9 @@ class TypeTraits {
   [[nodiscard]] auto add_cv(const Type* type, CvQualifiers cv) const
       -> const Type*;
   [[nodiscard]] auto remove_noexcept(const Type* type) const -> const Type*;
+
+  [[nodiscard]] auto remove_function_qualifiers(const FunctionType* type) const
+      -> const FunctionType*;
   [[nodiscard]] auto replace_placeholder_types(const Type* type,
                                                const Type* replacement) const
       -> const Type*;
@@ -261,6 +274,11 @@ class TypeTraits {
   [[nodiscard]] auto reference_converts_from_temporary(const Type* to,
                                                        const Type* from) const
       -> bool;
+  [[nodiscard]] auto declval(const Type* type) const -> ExpressionAST*;
+  [[nodiscard]] auto has_new_extended_alignment(const Type* type) const -> bool;
+  [[nodiscard]] auto conditional_operator_type(const Type* first,
+                                               const Type* second) const
+      -> const Type*;
 
   auto is_pod(const Type* type) -> bool;
   [[nodiscard]] auto is_pod_for_layout(const Type* type) -> bool;
@@ -290,6 +308,7 @@ class TypeTraits {
       -> FunctionSymbol*;
   auto is_constructible(const Type* type, std::span<const Type* const> argTypes)
       -> bool;
+  [[nodiscard]] auto is_const_default_constructible(const Type* type) -> bool;
   auto is_nothrow_constructible(const Type* type,
                                 std::span<const Type* const> argTypes) -> bool;
   auto is_trivially_constructible(const Type* type,
@@ -308,6 +327,7 @@ class TypeTraits {
   auto has_trivial_destructor(const Type* type) -> bool;
   auto is_trivially_destructible(const Type* type) -> bool;
   auto has_virtual_destructor(const Type* type) -> bool;
+  [[nodiscard]] auto has_mutable_subobject(const Type* type) -> bool;
 
  private:
   [[nodiscard]] auto integralPromotionCandidates() const
@@ -322,6 +342,10 @@ class TypeTraits {
       FunctionSymbol* function) const -> bool;
   [[nodiscard]] auto is_nothrow_function(FunctionSymbol* function) const
       -> bool;
+  [[nodiscard]] auto default_initialization_invokes_user_provided_constructor(
+      ClassSymbol* classSymbol) -> bool;
+  [[nodiscard]] auto has_const_default_constructible_subobjects(
+      ClassSymbol* classSymbol) -> bool;
   [[nodiscard]] auto is_nothrow_initialization(const Type* to, const Type* from,
                                                bool directInitialization) const
       -> bool;

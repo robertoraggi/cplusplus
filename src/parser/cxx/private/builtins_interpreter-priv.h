@@ -301,22 +301,17 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_STRLEN: {
-      if (auto lit = std::get_if<const StringLiteral*>(&args[0])) {
-        if (*lit) {
-          return ConstValue{
-              static_cast<std::intmax_t>((*lit)->stringValue().size())};
-        }
+      if (auto string = nullTerminatedString(args[0])) {
+        return ConstValue{static_cast<std::intmax_t>(string->size())};
       }
       return std::nullopt;
     }
 
     case BuiltinFunctionKind::T___BUILTIN_STRCMP: {
-      auto a = std::get_if<const StringLiteral*>(&args[0]);
-      auto b = std::get_if<const StringLiteral*>(&args[1]);
-      if (a && b && *a && *b) {
-        auto sa = (*a)->stringValue();
-        auto sb = (*b)->stringValue();
-        int r = sa.compare(sb);
+      auto a = nullTerminatedString(args[0]);
+      auto b = nullTerminatedString(args[1]);
+      if (a && b) {
+        int r = a->compare(*b);
         return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
                                                      : r < 0 ? -1
                                                              : 0)};
@@ -325,14 +320,12 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_STRNCMP: {
-      auto a = std::get_if<const StringLiteral*>(&args[0]);
-      auto b = std::get_if<const StringLiteral*>(&args[1]);
       auto n = toInt(args[2]);
-      if (a && b && *a && *b && n) {
-        auto sa = (*a)->stringValue();
-        auto sb = (*b)->stringValue();
-        int r = sa.compare(0, static_cast<size_t>(*n), sb, 0,
-                           static_cast<size_t>(*n));
+      if (!n) return std::nullopt;
+      auto a = nullTerminatedString(args[0], static_cast<size_t>(*n));
+      auto b = nullTerminatedString(args[1], static_cast<size_t>(*n));
+      if (a && b) {
+        int r = a->compare(*b);
         return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
                                                      : r < 0 ? -1
                                                              : 0)};
@@ -341,46 +334,39 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     }
 
     case BuiltinFunctionKind::T___BUILTIN_MEMCMP: {
-      auto a = std::get_if<const StringLiteral*>(&args[0]);
-      auto b = std::get_if<const StringLiteral*>(&args[1]);
       auto n = toInt(args[2]);
-      if (a && b && *a && *b && n) {
-        auto sa = (*a)->stringValue();
-        auto sb = (*b)->stringValue();
-        auto len = static_cast<size_t>(*n);
-        if (sa.size() >= len && sb.size() >= len) {
-          int r = std::memcmp(sa.data(), sb.data(), len);
-          return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
-                                                       : r < 0 ? -1
-                                                               : 0)};
-        }
+      if (!n) return std::nullopt;
+      auto len = static_cast<size_t>(*n);
+      auto a = pointeeCharacters(args[0], len);
+      auto b = pointeeCharacters(args[1], len);
+      if (a && b) {
+        int r = std::memcmp(a->data(), b->data(), len);
+        return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
+                                                     : r < 0 ? -1
+                                                             : 0)};
       }
       return std::nullopt;
     }
 
     case BuiltinFunctionKind::T___BUILTIN_BCMP: {
-      auto a = std::get_if<const StringLiteral*>(&args[0]);
-      auto b = std::get_if<const StringLiteral*>(&args[1]);
       auto n = toInt(args[2]);
-      if (a && b && *a && *b && n) {
-        auto sa = (*a)->stringValue();
-        auto sb = (*b)->stringValue();
-        auto len = static_cast<size_t>(*n);
-        if (sa.size() >= len && sb.size() >= len) {
-          int r = std::memcmp(sa.data(), sb.data(), len);
-          return ConstValue{static_cast<std::intmax_t>(r != 0 ? 1 : 0)};
-        }
+      if (!n) return std::nullopt;
+      auto len = static_cast<size_t>(*n);
+      auto a = pointeeCharacters(args[0], len);
+      auto b = pointeeCharacters(args[1], len);
+      if (a && b) {
+        int r = std::memcmp(a->data(), b->data(), len);
+        return ConstValue{static_cast<std::intmax_t>(r != 0 ? 1 : 0)};
       }
       return std::nullopt;
     }
 
 #ifndef _MSC_VER
     case BuiltinFunctionKind::T___BUILTIN_STRCASECMP: {
-      auto a = std::get_if<const StringLiteral*>(&args[0]);
-      auto b = std::get_if<const StringLiteral*>(&args[1]);
-      if (a && b && *a && *b) {
-        int r = strcasecmp(std::string((*a)->stringValue()).c_str(),
-                           std::string((*b)->stringValue()).c_str());
+      auto a = nullTerminatedString(args[0]);
+      auto b = nullTerminatedString(args[1]);
+      if (a && b) {
+        int r = strcasecmp(a->c_str(), b->c_str());
         return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
                                                      : r < 0 ? -1
                                                              : 0)};
@@ -391,13 +377,12 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
 #ifndef _MSC_VER
     case BuiltinFunctionKind::T___BUILTIN_STRNCASECMP: {
-      auto a = std::get_if<const StringLiteral*>(&args[0]);
-      auto b = std::get_if<const StringLiteral*>(&args[1]);
       auto n = toInt(args[2]);
-      if (a && b && *a && *b && n) {
-        int r = strncasecmp(std::string((*a)->stringValue()).c_str(),
-                            std::string((*b)->stringValue()).c_str(),
-                            static_cast<size_t>(*n));
+      if (!n) return std::nullopt;
+      auto a = nullTerminatedString(args[0], static_cast<size_t>(*n));
+      auto b = nullTerminatedString(args[1], static_cast<size_t>(*n));
+      if (a && b) {
+        int r = strncasecmp(a->c_str(), b->c_str(), static_cast<size_t>(*n));
         return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
                                                      : r < 0 ? -1
                                                              : 0)};
@@ -407,25 +392,21 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 #endif
 
     case BuiltinFunctionKind::T___BUILTIN_STRSPN: {
-      auto a = std::get_if<const StringLiteral*>(&args[0]);
-      auto b = std::get_if<const StringLiteral*>(&args[1]);
-      if (a && b && *a && *b) {
-        auto sa = std::string((*a)->stringValue());
-        auto sb = std::string((*b)->stringValue());
+      auto a = nullTerminatedString(args[0]);
+      auto b = nullTerminatedString(args[1]);
+      if (a && b) {
         return ConstValue{
-            static_cast<std::intmax_t>(strspn(sa.c_str(), sb.c_str()))};
+            static_cast<std::intmax_t>(strspn(a->c_str(), b->c_str()))};
       }
       return std::nullopt;
     }
 
     case BuiltinFunctionKind::T___BUILTIN_STRCSPN: {
-      auto a = std::get_if<const StringLiteral*>(&args[0]);
-      auto b = std::get_if<const StringLiteral*>(&args[1]);
-      if (a && b && *a && *b) {
-        auto sa = std::string((*a)->stringValue());
-        auto sb = std::string((*b)->stringValue());
+      auto a = nullTerminatedString(args[0]);
+      auto b = nullTerminatedString(args[1]);
+      if (a && b) {
         return ConstValue{
-            static_cast<std::intmax_t>(strcspn(sa.c_str(), sb.c_str()))};
+            static_cast<std::intmax_t>(strcspn(a->c_str(), b->c_str()))};
       }
       return std::nullopt;
     }

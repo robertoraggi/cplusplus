@@ -72,7 +72,7 @@ Multi<Holder> m1;
 // CHECK-NEXT:    parameter template<0, 0> C
 // CHECK-NEXT:    parameter typename<1, 0> T
 // CHECK-NEXT:    injected class name Wrap
-// CHECK-NEXT:    field template-type-param<0, 0> member
+// CHECK-NEXT:    field template-type-param<0, 0><type-param<1, 0>> member
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Wrap<::Holder, int>
 // CHECK-NEXT:        constructor constexpr inline defaulted void Wrap()
@@ -95,7 +95,7 @@ Multi<Holder> m1;
 // CHECK-NEXT:  template class ApplyInt<template-type-param<0, 0>>
 // CHECK-NEXT:    parameter template<0, 0> C
 // CHECK-NEXT:    injected class name ApplyInt
-// CHECK-NEXT:    typealias template-type-param<0, 0> type
+// CHECK-NEXT:    typealias template-type-param<0, 0><int> type
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class ApplyInt<::Holder>
 // CHECK-NEXT:        constructor constexpr inline defaulted void ApplyInt()
@@ -118,8 +118,8 @@ Multi<Holder> m1;
 // CHECK-NEXT:  template class Multi<template-type-param<0, 0>>
 // CHECK-NEXT:    parameter template<0, 0> C
 // CHECK-NEXT:    injected class name Multi
-// CHECK-NEXT:    field template-type-param<0, 0> a
-// CHECK-NEXT:    field template-type-param<0, 0> b
+// CHECK-NEXT:    field template-type-param<0, 0><int> a
+// CHECK-NEXT:    field template-type-param<0, 0><double> b
 // CHECK-NEXT:    [specializations]
 // CHECK-NEXT:      class Multi<::Holder>
 // CHECK-NEXT:        constructor constexpr inline defaulted void Multi()

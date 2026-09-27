@@ -307,6 +307,18 @@ void Frontend::Private::printPreprocessedText() {
   });
 }
 
+static void collectExistingDirectories(std::ostream& out,
+                                       const std::vector<std::string>& paths,
+                                       std::vector<std::string>& existing) {
+  for (const auto& path : paths) {
+    if (fs::is_directory(path)) {
+      existing.push_back(path);
+      continue;
+    }
+    out << std::format("ignoring nonexistent directory \"{}\"\n", path);
+  }
+}
+
 static auto quoteDepfileTarget(const std::string& target) -> std::string {
   std::string result;
   for (char ch : target) {
@@ -452,6 +464,7 @@ void Frontend::Private::parse() {
       .checkTypes = checkTypes,
       .validateAst = cli.opt_fvalidate_ast,
       .allowUnprototypedFunctions = cli.opt_fno_strict_prototypes,
+      .exceptionsEnabled = toolchain_->exceptionsEnabled(),
       .stopParsingPredicate = [this]() -> bool {
         return diagnosticsClient_->errorLimitReached();
       },
@@ -582,7 +595,7 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
         dumpClassMembers(classSymbol, layout, 1, 0);
 
         for (auto vbase : layout->virtualBases()) {
-          auto baseInfo = layout->getBaseInfo(vbase);
+          auto baseInfo = layout->getVirtualBaseInfo(vbase);
           if (!baseInfo) continue;
           out << std::format("{:>9} | {}{} {} (virtual base)\n",
                              baseInfo->offset, std::string(2, ' '),
@@ -771,18 +784,20 @@ void Frontend::Private::showSearchPaths(std::ostream& out) {
 
   auto preprocessor = unit_->preprocessor();
 
+  std::vector<std::string> quotePaths;
+  std::vector<std::string> anglePaths;
+
+  collectExistingDirectories(out, preprocessor->quoteIncludePaths(),
+                             quotePaths);
+  collectExistingDirectories(out, preprocessor->userIncludePaths(), anglePaths);
+  collectExistingDirectories(out, preprocessor->systemIncludePaths(),
+                             anglePaths);
+
   out << std::format("#include \"...\" search starts here:\n");
-  for (const auto& path : preprocessor->quoteIncludePaths()) {
-    out << std::format(" {}\n", path);
-  }
-  for (const auto& path : preprocessor->userIncludePaths()) {
-    out << std::format(" {}\n", path);
-  }
+  for (const auto& path : quotePaths) out << std::format(" {}\n", path);
 
   out << std::format("#include <...> search starts here:\n");
-  for (const auto& path : preprocessor->systemIncludePaths()) {
-    out << std::format(" {}\n", path);
-  }
+  for (const auto& path : anglePaths) out << std::format(" {}\n", path);
 
   out << std::format("End of search list.\n");
 }

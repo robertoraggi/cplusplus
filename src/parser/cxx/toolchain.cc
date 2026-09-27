@@ -25,6 +25,8 @@
 #include <cxx/private/path.h>
 #include <cxx/toolchain.h>
 
+#include <format>
+
 namespace cxx {
 namespace {
 
@@ -40,19 +42,43 @@ constexpr LanguageStandard kLanguageStandards[] = {
 constexpr std::string_view kDefaultCplusplusMacroValue = "202400L";
 constexpr std::string_view kDefaultStdcVersionMacroValue = "202311L";
 
+void removeTrailingSeparators(std::string& path) {
+  while (path.size() > 1 && path.back() == '/') path.pop_back();
+}
+
 }  // namespace
 
 void Toolchain::setAppdir(std::string appdir) {
   appdir_ = std::move(appdir);
-  while (!appdir_.empty() && appdir_.back() == '/') appdir_.pop_back();
+  removeTrailingSeparators(appdir_);
 }
 
 void Toolchain::setResourceDir(std::string resourceDir) {
   resourceDir_ = std::move(resourceDir);
-  while (!resourceDir_.empty() && resourceDir_.back() == '/') {
-    resourceDir_.pop_back();
-  }
+  removeTrailingSeparators(resourceDir_);
 }
+
+void Toolchain::setSysroot(std::string sysroot) {
+  sysroot_ = std::move(sysroot);
+  removeTrailingSeparators(sysroot_);
+}
+
+void Toolchain::setHeaderSysroot(std::string headerSysroot) {
+  headerSysroot_ = std::move(headerSysroot);
+  removeTrailingSeparators(headerSysroot_);
+}
+
+auto Toolchain::sysroot() const -> std::string {
+  if (!sysroot_.empty()) return sysroot_;
+  return defaultSysroot();
+}
+
+auto Toolchain::headerSysroot() const -> std::string {
+  if (!headerSysroot_.empty()) return headerSysroot_;
+  return sysroot();
+}
+
+auto Toolchain::defaultSysroot() const -> std::string { return {}; }
 
 auto Toolchain::resourceDir() const -> std::string {
   if (!resourceDir_.empty()) return resourceDir_;
@@ -73,7 +99,8 @@ auto findLanguageStandard(std::string_view name) -> const LanguageStandard* {
   return nullptr;
 }
 
-Toolchain::Toolchain(Preprocessor* preprocessor) : preprocessor_(preprocessor) {
+Toolchain::Toolchain(Preprocessor* preprocessor, Triple triple)
+    : preprocessor_(preprocessor), triple_(std::move(triple)) {
   setMemoryLayout(std::make_unique<MemoryLayout>(64));
 }
 
@@ -123,9 +150,13 @@ void Toolchain::addSystemIncludePath(std::string path) {
   preprocessor_->addSystemIncludePath(std::move(path));
 }
 
-void Toolchain::addCommonMacros() {
-  defineMacro("__PRETTY_FUNCTION__", "__func__");
+void Toolchain::addBuiltinIncludePath() {
+  const auto resourceDir = this->resourceDir();
+  if (resourceDir.empty()) return;
+  addSystemIncludePath(std::format("{}/include", resourceDir));
+}
 
+void Toolchain::addCommonMacros() {
   defineMacro("__ATOMIC_ACQUIRE", "2");
   defineMacro("__ATOMIC_ACQ_REL", "4");
   defineMacro("__ATOMIC_CONSUME", "1");
@@ -503,6 +534,9 @@ void Toolchain::addFeatureTestMacros() {
     if (macro.name != name) flush();
     if (standardValue(macro.standard) > selected) continue;
     if (!exceptionsEnabled() && macro.name == "__cpp_exceptions") continue;
+    if (!hasThreads() && macro.name == "__cpp_threadsafe_static_init") {
+      continue;
+    }
     name = macro.name;
     value = macro.value;
   }
@@ -1099,7 +1133,6 @@ void Toolchain::addCommonWASIMacros() {
   defineMacro("__WINT_TYPE__", "int");
   defineMacro("__WINT_WIDTH__", "32");
   defineMacro("__clang_wide_literal_encoding__", "\"UTF-32\"");
-  defineMacro("__wasi__", "1");
   defineMacro("__wasm", "1");
   defineMacro("__wasm32", "1");
   defineMacro("__wasm32__", "1");
@@ -1496,7 +1529,6 @@ void Toolchain::addWASICxx26Macros() {
   defineMacro("__GNUG__", "4");
   defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");
   defineMacro("__GXX_WEAK__", "1");
-  defineMacro("__STDCPP_DEFAULT_NEW_ALIGNMENT__", "16UL");
   defineMacro("__private_extern__", "extern");
 }
 }  // namespace cxx

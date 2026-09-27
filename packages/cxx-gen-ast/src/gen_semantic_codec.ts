@@ -331,6 +331,8 @@ ${out.join("\n")}
 `;
 }
 
+const rootTypes = ["alignValType", "nothrowType"];
+
 function encoderEntryPoint(plan: CodecPlan): string {
   const queues = [
     "pendingBodyCompletions",
@@ -355,7 +357,6 @@ function encoderEntryPoint(plan: CodecPlan): string {
     `  session.varU32(static_cast<std::uint32_t>(astRef(roots.ast)));`,
   );
   lines.push(`  session.varI32(roots.anonymousIdCount);`);
-  lines.push(`  session.varI32(roots.closureNameCount);`);
   lines.push(`  session.varU32(roots.prefixTokenCount);`);
   lines.push(``);
   for (const queue of queues) {
@@ -377,6 +378,12 @@ function encoderEntryPoint(plan: CodecPlan): string {
     `    session.varU32(static_cast<std::uint32_t>(stringRef(text)));`,
   );
   lines.push(`  }`);
+  lines.push(``);
+  for (const type of rootTypes) {
+    lines.push(
+      `  session.varU32(static_cast<std::uint32_t>(typeRef(roots.${type})));`,
+    );
+  }
   lines.push(``);
   lines.push(`  drain();`);
   lines.push(`  resolveLocations();`);
@@ -581,7 +588,6 @@ function decoderEntryPoint(plan: CodecPlan): string {
     `  roots.ast = ast_cast<UnitAST>(astAt(AstRef{session.varU32()}));`,
   );
   lines.push(`  roots.anonymousIdCount = session.varI32();`);
-  lines.push(`  roots.closureNameCount = session.varI32();`);
   lines.push(`  roots.prefixTokenCount = session.varU32();`);
   lines.push(``);
   for (const queue of queues) {
@@ -606,6 +612,9 @@ function decoderEntryPoint(plan: CodecPlan): string {
   );
   lines.push(`    }`);
   lines.push(`  }`);
+  for (const type of rootTypes) {
+    lines.push(`  roots.${type} = typeAt(TypeRef{session.varU32()});`);
+  }
   lines.push(``);
   lines.push(`  if (!session.ok()) fail("session section is truncated");`);
   lines.push(``);

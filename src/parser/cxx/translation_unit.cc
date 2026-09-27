@@ -156,18 +156,20 @@ auto TranslationUnit::blockErrors(bool blockErrors) -> bool {
 }
 
 void TranslationUnit::error(SourceLocation loc, std::string message) const {
-  diagnosticsClient_->report(tokenForDiagnostic(loc), Severity::Error,
-                             std::move(message), loc);
+  report(diagnosticsClient_, loc, Severity::Error, std::move(message));
 }
 
 void TranslationUnit::warning(SourceLocation loc, std::string message) const {
-  TranslationUnit::diagnosticsClient_->report(
-      tokenForDiagnostic(loc), Severity::Warning, std::move(message), loc);
+  report(diagnosticsClient_, loc, Severity::Warning, std::move(message));
 }
 
 void TranslationUnit::note(SourceLocation loc, std::string message) const {
-  diagnosticsClient_->report(tokenForDiagnostic(loc), Severity::Note,
-                             std::move(message), loc);
+  report(diagnosticsClient_, loc, Severity::Note, std::move(message));
+}
+
+void TranslationUnit::report(DiagnosticsClient* client, SourceLocation loc,
+                             Severity severity, std::string message) const {
+  client->report(tokenForDiagnostic(loc), severity, std::move(message), loc);
 }
 
 auto TranslationUnit::tokenLength(SourceLocation loc) const -> int {
@@ -294,7 +296,6 @@ void TranslationUnit::adoptPrefix(SemanticArchiveRoots roots,
   prefixSourceMap_ = std::move(sourceMap);
 
   control_->setAnonymousIdCount(roots.anonymousIdCount);
-  control_->setClosureNameCount(roots.closureNameCount);
 
   setTokenSegmentBase(roots.prefixTokenCount);
 
@@ -309,6 +310,9 @@ void TranslationUnit::adoptPrefix(SemanticArchiveRoots roots,
 
   for (const auto& [key, text] : roots.snippets)
     snippets_.emplace(key, control_->getIdentifier(text));
+
+  control_->setAlignValType(roots.alignValType);
+  control_->setNothrowType(roots.nothrowType);
 }
 
 auto TranslationUnit::prefixSourceLocationInfo(SourceLocation loc) const
@@ -342,7 +346,6 @@ auto TranslationUnit::semanticArchiveRoots() -> SemanticArchiveRoots {
   roots.globalScope = globalScope();
   roots.ast = ast_;
   roots.anonymousIdCount = control_->anonymousIdCount();
-  roots.closureNameCount = control_->closureNameCount();
   roots.prefixTokenCount = locationOfIndex(tokenCount()).index();
   roots.pendingBodyCompletions = pendingBodyCompletions_;
   roots.pendingMemberInstantiations = pendingMemberInstantiations_;
@@ -351,6 +354,9 @@ auto TranslationUnit::semanticArchiveRoots() -> SemanticArchiveRoots {
 
   for (const auto& [key, text] : snippets_)
     roots.snippets.emplace_back(key, text->name());
+
+  roots.alignValType = control_->getAlignValType();
+  roots.nothrowType = control_->getNothrowType();
 
   std::ranges::sort(roots.snippets);
 

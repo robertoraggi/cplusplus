@@ -40,599 +40,69 @@
 
 namespace cxx {
 namespace {
-auto countConcreteTypeNodes(const Type* type) -> int {
-  if (!type) return 0;
-  if (getTypeParamInfo(type)) return 0;
-
-  if (auto qual = type_cast<QualType>(type))
-    return countConcreteTypeNodes(qual->elementType());
-  if (auto pointer = type_cast<PointerType>(type))
-    return 1 + countConcreteTypeNodes(pointer->elementType());
-  if (auto ref = type_cast<LvalueReferenceType>(type))
-    return countConcreteTypeNodes(ref->elementType());
-  if (auto ref = type_cast<RvalueReferenceType>(type))
-    return countConcreteTypeNodes(ref->elementType());
-  if (auto array = type_cast<BoundedArrayType>(type))
-    return 1 + countConcreteTypeNodes(array->elementType());
-  if (auto array = type_cast<UnboundedArrayType>(type))
-    return 1 + countConcreteTypeNodes(array->elementType());
-  if (auto function = type_cast<FunctionType>(type)) {
-    int score = 1 + countConcreteTypeNodes(function->returnType());
-    for (auto param : function->parameterTypes())
-      score += countConcreteTypeNodes(param);
-    return score;
-  }
-
-  return 1;
-}
-
-auto templateSpecializationRank(FunctionSymbol* function) -> int {
-  auto primary = function->isSpecialization()
-                     ? function->primaryTemplateSymbol()
-                     : function;
-  if (!primary) primary = function;
-
-  auto functionType = type_cast<FunctionType>(primary->type());
-  if (!functionType) return 0;
-
-  int rank = 0;
-  for (auto param : functionType->parameterTypes())
-    rank += countConcreteTypeNodes(param);
-  return rank;
-}
-
-void collectReferencedTypeParams(const Type* type,
-                                 std::vector<std::pair<int, int>>& out) {
-  if (!type) return;
-  if (auto info = getTypeParamInfo(type)) {
-    auto key = std::pair{info->depth, info->index};
-    if (std::ranges::find(out, key) == out.end()) out.push_back(key);
-    return;
-  }
-  if (auto qual = type_cast<QualType>(type))
-    return collectReferencedTypeParams(qual->elementType(), out);
-  if (auto pointer = type_cast<PointerType>(type))
-    return collectReferencedTypeParams(pointer->elementType(), out);
-  if (auto ref = type_cast<LvalueReferenceType>(type))
-    return collectReferencedTypeParams(ref->elementType(), out);
-  if (auto ref = type_cast<RvalueReferenceType>(type))
-    return collectReferencedTypeParams(ref->elementType(), out);
-  if (auto array = type_cast<BoundedArrayType>(type))
-    return collectReferencedTypeParams(array->elementType(), out);
-  if (auto array = type_cast<UnboundedArrayType>(type))
-    return collectReferencedTypeParams(array->elementType(), out);
-  if (auto function = type_cast<FunctionType>(type)) {
-    collectReferencedTypeParams(function->returnType(), out);
-    for (auto param : function->parameterTypes())
-      collectReferencedTypeParams(param, out);
-    return;
-  }
-  if (auto classType = type_cast<ClassType>(type)) {
-    auto classSymbol = classType->symbol();
-    if (!classSymbol || !classSymbol->isSpecialization()) return;
-    for (const auto& arg : classSymbol->templateArguments()) {
-      if (auto argType = template_argument_as_type(arg))
-        collectReferencedTypeParams(argType, out);
-    }
-  }
-}
-
-auto countDistinctTemplateParams(FunctionSymbol* function) -> int {
-  auto primary = function->isSpecialization()
-                     ? function->primaryTemplateSymbol()
-                     : function;
-  if (!primary) primary = function;
-
-  auto functionType = type_cast<FunctionType>(primary->type());
-  if (!functionType) return 0;
-
-  std::vector<std::pair<int, int>> distinct;
-  for (auto param : functionType->parameterTypes())
-    collectReferencedTypeParams(param, distinct);
-  return static_cast<int>(distinct.size());
-}
-
-auto countDeclaredTemplateParams(FunctionSymbol* function) -> int {
-  auto primary = function->isSpecialization()
-                     ? function->primaryTemplateSymbol()
-                     : function;
-  if (!primary) primary = function;
-
-  auto templateParams = primary->templateParameters();
-  if (!templateParams) return 0;
-
-  return static_cast<int>(templateParams->members().size());
-}
-
-using TemplateParamKey = std::pair<int, int>;
-
-[[nodiscard]] auto templateParamKeyOf(Symbol* symbol)
-    -> std::optional<TemplateParamKey> {
-  if (auto info = getTypeParamInfo(symbol->type()))
-    return TemplateParamKey{info->depth, info->index};
-  if (auto param = symbol_cast<NonTypeParameterSymbol>(symbol))
-    return TemplateParamKey{param->depth(), param->index()};
-  return std::nullopt;
-}
-
-[[nodiscard]] auto templateParamKeyOf(const TemplateArgument& argument)
-    -> std::optional<TemplateParamKey> {
-  if (auto type = std::get_if<const Type*>(&argument)) {
-    if (auto info = getTypeParamInfo(*type))
-      return TemplateParamKey{info->depth, info->index};
-    return std::nullopt;
-  }
-  if (auto symbol = std::get_if<Symbol*>(&argument))
-    return templateParamKeyOf(*symbol);
-  if (auto expression = std::get_if<ExpressionAST*>(&argument)) {
-    if (auto id = ast_cast<IdExpressionAST>(*expression);
-        id && id->symbol && !id->nestedNameSpecifier)
-      return templateParamKeyOf(id->symbol);
-  }
-  return std::nullopt;
-}
-
-[[nodiscard]] auto ownTemplateParamKeys(FunctionSymbol* function)
-    -> std::vector<TemplateParamKey> {
-  auto primary = function->isSpecialization()
-                     ? function->primaryTemplateSymbol()
-                     : function;
-  if (!primary) primary = function;
-
-  auto templateParams = primary->templateParameters();
-  if (!templateParams) return {};
-
-  std::vector<TemplateParamKey> keys;
-  for (auto member : templateParams->members()) {
-    if (auto key = templateParamKeyOf(member)) keys.push_back(*key);
-  }
-  return keys;
-}
-
-[[nodiscard]] auto sameDependentShape(TranslationUnit* unit, const Type* x,
-                                      const Type* y) -> std::optional<bool> {
-  auto tt = unit->typeTraits();
-  x = tt.remove_cvref(x);
-  y = tt.remove_cvref(y);
-
-  if (auto infoX = getTypeParamInfo(x)) {
-    auto infoY = getTypeParamInfo(y);
-    if (!infoY) return false;
-    return infoX->depth == infoY->depth && infoX->index == infoY->index;
-  }
-  if (getTypeParamInfo(y)) return false;
-
-  if (auto ptrX = type_cast<PointerType>(x)) {
-    auto ptrY = type_cast<PointerType>(y);
-    if (!ptrY) return false;
-    return sameDependentShape(unit, ptrX->elementType(), ptrY->elementType());
-  }
-  if (type_cast<PointerType>(y)) return false;
-
-  auto elementIfArray = [](const Type* t) -> const Type* {
-    if (auto a = type_cast<BoundedArrayType>(t)) return a->elementType();
-    if (auto a = type_cast<UnboundedArrayType>(t)) return a->elementType();
-    return nullptr;
-  };
-  if (auto elemX = elementIfArray(x)) {
-    auto elemY = elementIfArray(y);
-    if (!elemY) return false;
-    return sameDependentShape(unit, elemX, elemY);
-  }
-  if (elementIfArray(y)) return false;
-
-  if (auto fnX = type_cast<FunctionType>(x)) {
-    auto fnY = type_cast<FunctionType>(y);
-    if (!fnY) return false;
-    if (fnX->isVariadic() != fnY->isVariadic()) return false;
-    auto paramsX = fnX->parameterTypes();
-    auto paramsY = fnY->parameterTypes();
-    if (paramsX.size() != paramsY.size()) return false;
-    auto eq = sameDependentShape(unit, fnX->returnType(), fnY->returnType());
-    if (!eq || !*eq) return eq;
-    for (std::size_t i = 0; i < paramsX.size(); ++i) {
-      eq = sameDependentShape(unit, paramsX[i], paramsY[i]);
-      if (!eq || !*eq) return eq;
-    }
-    return true;
-  }
-  if (type_cast<FunctionType>(y)) return false;
-
-  if (auto classX = type_cast<ClassType>(x)) {
-    auto classY = type_cast<ClassType>(y);
-    if (!classY) return false;
-    auto symX = classX->symbol();
-    auto symY = classY->symbol();
-    if (!symX || !symY) return false;
-    auto identityX =
-        symX->isSpecialization() ? symX->primaryTemplateSymbol() : symX;
-    auto identityY =
-        symY->isSpecialization() ? symY->primaryTemplateSymbol() : symY;
-    if (identityX != identityY) return false;
-    if (!symX->isSpecialization()) {
-      if (symX->templateDeclaration()) return std::nullopt;
-      return true;
-    }
-
-    auto argsX = symX->templateArguments();
-    auto argsY = symY->templateArguments();
-    if (argsX.size() != argsY.size()) return false;
-    for (std::size_t i = 0; i < argsX.size(); ++i) {
-      auto typeX = template_argument_as_type(argsX[i]);
-      auto typeY = template_argument_as_type(argsY[i]);
-      if (typeX || typeY) {
-        if (!typeX || !typeY) return false;
-        auto eq = sameDependentShape(unit, typeX, typeY);
-        if (!eq || !*eq) return eq;
-        continue;
-      }
-      auto keyX = templateParamKeyOf(argsX[i]);
-      auto keyY = templateParamKeyOf(argsY[i]);
-      if (keyX || keyY) {
-        if (keyX != keyY) return false;
-        continue;
-      }
-      if (!compare_single_arg(unit, argsX[i], argsY[i])) return false;
-    }
-    return true;
-  }
-  if (type_cast<ClassType>(y)) return false;
-
-  return tt.is_same(x, y);
-}
-
-using DeducedArguments = std::vector<std::optional<TemplateArgument>>;
-
-[[nodiscard]] auto unifyForPartialOrdering(
-    TranslationUnit* unit, const std::vector<TemplateParamKey>& bKeys,
-    DeducedArguments& deduced, const Type* p, const Type* raw)
-    -> std::optional<bool>;
-
-[[nodiscard]] auto unifyArgumentForPartialOrdering(
-    TranslationUnit* unit, const std::vector<TemplateParamKey>& bKeys,
-    DeducedArguments& deduced, const TemplateArgument& p,
-    const TemplateArgument& a) -> std::optional<bool> {
-  auto typeP = template_argument_as_type(p);
-  auto typeA = template_argument_as_type(a);
-  if (typeP || typeA) {
-    if (!typeP || !typeA) return false;
-    return unifyForPartialOrdering(unit, bKeys, deduced, typeP, typeA);
-  }
-
-  if (auto key = templateParamKeyOf(p)) {
-    auto it = std::ranges::find(bKeys, *key);
-    if (it != bKeys.end()) {
-      auto slot = static_cast<std::size_t>(it - bKeys.begin());
-      if (!deduced[slot]) {
-        deduced[slot] = a;
-        return true;
-      }
-      return compare_single_arg(unit, *deduced[slot], a);
-    }
-  }
-
-  if (templateParamKeyOf(a)) return false;
-  return compare_single_arg(unit, p, a);
-}
-
-auto unifyForPartialOrdering(TranslationUnit* unit,
-                             const std::vector<TemplateParamKey>& bKeys,
-                             DeducedArguments& deduced, const Type* p,
-                             const Type* raw) -> std::optional<bool> {
-  auto tt = unit->typeTraits();
-
-  const auto cvP = cv_qualifiers(p);
-  const auto cvA = cv_qualifiers(raw);
-  if (!is_at_least_as_cv_qualified(cvA, cvP)) return false;
-
-  auto unqualifiedP = tt.remove_cv(p);
-
-  if (auto info = getTypeParamInfo(unqualifiedP)) {
-    auto it =
-        std::ranges::find(bKeys, TemplateParamKey{info->depth, info->index});
-    if (it != bKeys.end()) {
-      auto residual = unit->typeTraits().add_cv(
-          unqualified_type(raw), residual_cv_qualifiers(cvA, cvP));
-      auto slot = static_cast<std::size_t>(it - bKeys.begin());
-      if (!deduced[slot]) {
-        deduced[slot] = TemplateArgument{residual};
-        return true;
-      }
-      auto previous = std::get_if<const Type*>(&*deduced[slot]);
-      if (!previous) return false;
-      return sameDependentShape(unit, *previous, residual);
-    }
-  }
-
-  if (is_non_deduced_context_type(unqualifiedP)) return true;
-
-  if (cvP != cvA) return false;
-
-  p = unqualifiedP;
-  auto rawStripped = tt.remove_cv(raw);
-
-  if (auto refP = type_cast<LvalueReferenceType>(p)) {
-    auto refA = type_cast<LvalueReferenceType>(rawStripped);
-    if (!refA) return false;
-    return unifyForPartialOrdering(unit, bKeys, deduced, refP->elementType(),
-                                   refA->elementType());
-  }
-  if (type_cast<LvalueReferenceType>(rawStripped)) return false;
-
-  if (auto refP = type_cast<RvalueReferenceType>(p)) {
-    auto refA = type_cast<RvalueReferenceType>(rawStripped);
-    if (!refA) return false;
-    return unifyForPartialOrdering(unit, bKeys, deduced, refP->elementType(),
-                                   refA->elementType());
-  }
-  if (type_cast<RvalueReferenceType>(rawStripped)) return false;
-
-  if (auto ptrP = type_cast<PointerType>(p)) {
-    auto ptrA = type_cast<PointerType>(rawStripped);
-    if (!ptrA) return false;
-    return unifyForPartialOrdering(unit, bKeys, deduced, ptrP->elementType(),
-                                   ptrA->elementType());
-  }
-  if (type_cast<PointerType>(rawStripped)) return false;
-
-  auto elementIfArray = [](const Type* t) -> const Type* {
-    if (auto a = type_cast<BoundedArrayType>(t)) return a->elementType();
-    if (auto a = type_cast<UnboundedArrayType>(t)) return a->elementType();
-    return nullptr;
-  };
-  if (auto elemP = elementIfArray(p)) {
-    auto elemA = elementIfArray(rawStripped);
-    if (!elemA) return false;
-    return unifyForPartialOrdering(unit, bKeys, deduced, elemP, elemA);
-  }
-  if (elementIfArray(rawStripped)) return false;
-
-  if (auto fnP = type_cast<FunctionType>(p)) {
-    auto fnA = type_cast<FunctionType>(rawStripped);
-    if (!fnA) return false;
-    if (fnP->isVariadic() != fnA->isVariadic()) return false;
-    auto paramsP = fnP->parameterTypes();
-    auto paramsA = fnA->parameterTypes();
-    if (paramsP.size() != paramsA.size()) return false;
-    auto ok = unifyForPartialOrdering(unit, bKeys, deduced, fnP->returnType(),
-                                      fnA->returnType());
-    if (!ok || !*ok) return ok;
-    for (std::size_t i = 0; i < paramsP.size(); ++i) {
-      ok =
-          unifyForPartialOrdering(unit, bKeys, deduced, paramsP[i], paramsA[i]);
-      if (!ok || !*ok) return ok;
-    }
-    return true;
-  }
-  if (type_cast<FunctionType>(rawStripped)) return false;
-
-  if (auto classP = type_cast<ClassType>(p)) {
-    auto classA = type_cast<ClassType>(rawStripped);
-    if (!classA) return false;
-    auto symP = classP->symbol();
-    auto symA = classA->symbol();
-    if (!symP || !symA) return false;
-    auto identityP =
-        symP->isSpecialization() ? symP->primaryTemplateSymbol() : symP;
-    auto identityA =
-        symA->isSpecialization() ? symA->primaryTemplateSymbol() : symA;
-    if (identityP != identityA) return false;
-    if (!symP->isSpecialization()) {
-      if (symP->templateDeclaration()) return std::nullopt;
-      return true;
-    }
-
-    auto argsP = symP->templateArguments();
-    auto argsA = symA->templateArguments();
-    if (argsP.size() != argsA.size()) return false;
-    for (std::size_t i = 0; i < argsP.size(); ++i) {
-      auto ok = unifyArgumentForPartialOrdering(unit, bKeys, deduced, argsP[i],
-                                                argsA[i]);
-      if (!ok || !*ok) return ok;
-    }
-    return true;
-  }
-  if (type_cast<ClassType>(rawStripped)) return false;
-
-  if (getTypeParamInfo(rawStripped)) return false;
-  return tt.is_same(p, rawStripped);
-}
-
-[[nodiscard]] auto primaryTemplateOf(FunctionSymbol* function)
-    -> FunctionSymbol* {
-  if (!function->isSpecialization()) return function;
-  auto primary = function->primaryTemplateSymbol();
-  return primary ? primary : function;
-}
-
-[[nodiscard]] auto hasEquivalentTemplateSignature(TranslationUnit* unit,
-                                                  FunctionSymbol* a,
-                                                  FunctionSymbol* b) -> bool {
-  auto primaryA = primaryTemplateOf(a);
-  auto primaryB = primaryTemplateOf(b);
-  auto templateA = primaryA->templateDeclaration();
-  auto templateB = primaryB->templateDeclaration();
-  if (!templateA || !templateB) return false;
-  if (!TemplateEquivalence{unit}.sameForOrdering(
-          templateA->templateParameterList, templateB->templateParameterList))
-    return false;
-
-  auto functionTypeA = type_cast<FunctionType>(primaryA->type());
-  auto functionTypeB = type_cast<FunctionType>(primaryB->type());
-  if (!functionTypeA || !functionTypeB) return false;
-  if (functionTypeA->isVariadic() != functionTypeB->isVariadic()) return false;
-
-  auto paramsA = functionTypeA->parameterTypes();
-  auto paramsB = functionTypeB->parameterTypes();
-  if (paramsA.size() != paramsB.size()) return false;
-
-  for (std::size_t i = 0; i < paramsA.size(); ++i) {
-    if (!TemplateEquivalence{unit}.sameForOrdering(paramsA[i], paramsB[i],
-                                                   templateA, templateB))
-      return false;
-  }
-
-  const bool conversionA = name_cast<ConversionFunctionId>(primaryA->name());
-  const bool conversionB = name_cast<ConversionFunctionId>(primaryB->name());
-  if (conversionA != conversionB) return false;
-  if (conversionA) {
-    auto specializationTypeA = type_cast<FunctionType>(a->type());
-    auto specializationTypeB = type_cast<FunctionType>(b->type());
-    if (!specializationTypeA || !specializationTypeB ||
-        !unit->typeTraits().is_same(specializationTypeA->returnType(),
-                                    specializationTypeB->returnType()))
-      return false;
-  }
-
-  return true;
-}
-
-struct AdjustedPartialOrderingType {
-  const Type* type = nullptr;
-  bool wasReference = false;
-  bool wasLvalueReference = false;
-  CvQualifiers referencedCvQualifiers = CvQualifiers::kNone;
-};
-
-[[nodiscard]] auto adjustForPartialOrdering(TranslationUnit* unit,
-                                            const Type* type)
-    -> AdjustedPartialOrderingType {
-  auto tt = unit->typeTraits();
-
-  AdjustedPartialOrderingType adjusted;
-  adjusted.wasLvalueReference = type_cast<LvalueReferenceType>(type) != nullptr;
-  adjusted.wasReference = adjusted.wasLvalueReference ||
-                          type_cast<RvalueReferenceType>(type) != nullptr;
-
-  auto referenced = tt.remove_reference(type);
-  adjusted.referencedCvQualifiers = cv_qualifiers(referenced);
-  adjusted.type = tt.remove_cv(referenced);
-
-  return adjusted;
-}
-
-[[nodiscard]] auto losesToReferenceBinding(
-    const AdjustedPartialOrderingType& argument,
-    const AdjustedPartialOrderingType& parameter) -> bool {
-  if (!argument.wasReference || !parameter.wasReference) return false;
-  if (argument.wasLvalueReference && !parameter.wasLvalueReference) return true;
-  return is_more_cv_qualified(argument.referencedCvQualifiers,
-                              parameter.referencedCvQualifiers);
-}
-
-[[nodiscard]] auto isLessSpecializedByReferenceBinding(TranslationUnit* unit,
-                                                       FunctionSymbol* a,
-                                                       FunctionSymbol* b)
-    -> bool {
-  auto functionTypeA = type_cast<FunctionType>(primaryTemplateOf(a)->type());
-  auto functionTypeB = type_cast<FunctionType>(primaryTemplateOf(b)->type());
-  if (!functionTypeA || !functionTypeB) return false;
-
-  auto paramsA = functionTypeA->parameterTypes();
-  auto paramsB = functionTypeB->parameterTypes();
-  if (paramsA.size() != paramsB.size()) return false;
-
-  for (std::size_t i = 0; i < paramsA.size(); ++i) {
-    auto argument = adjustForPartialOrdering(unit, paramsB[i]);
-    auto parameter = adjustForPartialOrdering(unit, paramsA[i]);
-    if (losesToReferenceBinding(argument, parameter)) return true;
-  }
-
-  return false;
-}
-
-[[nodiscard]] auto isAtLeastAsSpecializedAs(TranslationUnit* unit,
-                                            FunctionSymbol* a,
-                                            FunctionSymbol* b)
-    -> std::optional<bool> {
-  auto primaryA = primaryTemplateOf(a);
-  auto primaryB = primaryTemplateOf(b);
-
-  auto functionTypeA = type_cast<FunctionType>(primaryA->type());
-  auto functionTypeB = type_cast<FunctionType>(primaryB->type());
-  if (!functionTypeA || !functionTypeB) return std::nullopt;
-
-  auto paramsA = functionTypeA->parameterTypes();
-  auto paramsB = functionTypeB->parameterTypes();
-  if (paramsA.size() != paramsB.size()) return std::nullopt;
-  if (functionTypeA->isVariadic() != functionTypeB->isVariadic())
-    return std::nullopt;
-
-  auto bKeys = ownTemplateParamKeys(b);
-  DeducedArguments deduced(bKeys.size());
-
-  for (std::size_t i = 0; i < paramsA.size(); ++i) {
-    auto parameter = adjustForPartialOrdering(unit, paramsB[i]);
-    auto argument = adjustForPartialOrdering(unit, paramsA[i]);
-    auto ok = unifyForPartialOrdering(unit, bKeys, deduced, parameter.type,
-                                      argument.type);
-    if (!ok) return std::nullopt;
-    if (!*ok) return false;
-  }
-  return true;
-}
-
-[[nodiscard]] auto compareByConstraints(TranslationUnit* unit,
-                                        FunctionSymbol* a, FunctionSymbol* b)
-    -> int {
-  auto primaryA = primaryTemplateOf(a);
-  auto primaryB = primaryTemplateOf(b);
-  if (!hasEquivalentTemplateSignature(unit, a, b)) return 0;
-
-  if (ASTRewriter::isMoreConstrained(unit, primaryA, primaryB)) return 1;
-  if (ASTRewriter::isMoreConstrained(unit, primaryB, primaryA)) return -1;
-
-  return 0;
-}
-
-[[nodiscard]] auto comparePartialOrderingReal(TranslationUnit* unit,
-                                              FunctionSymbol* a,
-                                              FunctionSymbol* b)
-    -> std::optional<int> {
-  auto aAtLeastB = isAtLeastAsSpecializedAs(unit, a, b);
-  auto bAtLeastA = isAtLeastAsSpecializedAs(unit, b, a);
-  if (!aAtLeastB || !bAtLeastA) return std::nullopt;
-
-  if (*aAtLeastB && *bAtLeastA) {
-    if (isLessSpecializedByReferenceBinding(unit, a, b)) aAtLeastB = false;
-    if (isLessSpecializedByReferenceBinding(unit, b, a)) bAtLeastA = false;
-  }
-
-  if (*aAtLeastB && !*bAtLeastA) return 1;
-  if (*bAtLeastA && !*aAtLeastB) return -1;
-
-  return compareByConstraints(unit, a, b);
-}
-
-auto compareTemplateSpecialization(TranslationUnit* unit,
-                                   FunctionSymbol* candidate,
-                                   FunctionSymbol* other) -> int {
-  if (auto real = comparePartialOrderingReal(unit, candidate, other))
-    return *real;
-
-  auto rankA = templateSpecializationRank(candidate);
-  auto rankB = templateSpecializationRank(other);
-  if (rankA != rankB) return rankA > rankB ? 1 : -1;
-
-  auto distinctA = countDistinctTemplateParams(candidate);
-  auto distinctB = countDistinctTemplateParams(other);
-  if (distinctA != distinctB) return distinctA < distinctB ? 1 : -1;
-
-  auto declaredA = countDeclaredTemplateParams(candidate);
-  auto declaredB = countDeclaredTemplateParams(other);
-  if (declaredA != declaredB) return declaredA < declaredB ? 1 : -1;
-
-  return 0;
+[[nodiscard]] auto callArgumentCount(const Candidate& candidate)
+    -> std::size_t {
+  auto count = candidate.conversions.size();
+  if (candidate.symbol->hasImplicitObjectParameter()) ++count;
+  return count;
 }
 
 [[nodiscard]] auto functionTemplateHasPackParameter(FunctionSymbol* pattern)
     -> bool {
   auto type = type_cast<FunctionType>(pattern->type());
   if (!type) return false;
-  for (auto param : type->parameterTypes()) {
-    if (is_parameter_pack_type(param)) return true;
+  return std::ranges::any_of(type->parameterTypes(), [](const Type* param) {
+    return type_cast<PackExpansionType>(param) != nullptr;
+  });
+}
+
+[[nodiscard]] auto hasClassOrEnumerationOperand(
+    const TypeTraits& traits, std::span<const Type* const> operandTypes)
+    -> bool {
+  return std::ranges::any_of(operandTypes, [&](const Type* type) {
+    auto operandType = traits.remove_cvref(type);
+    return traits.is_class(operandType) || traits.is_enum(operandType);
+  });
+}
+
+[[nodiscard]] auto isOverloadableOnlyByMember(TokenKind op) -> bool {
+  switch (op) {
+    case TokenKind::T_EQUAL:
+    case TokenKind::T_LBRACKET:
+    case TokenKind::T_MINUS_GREATER:
+      return true;
+    default:
+      return false;
   }
+}
+
+[[nodiscard]] auto isParameterForEnumerationOperand(const TypeTraits& traits,
+                                                    const Type* parameterType,
+                                                    const Type* operandType)
+    -> bool {
+  if (!operandType) return false;
+  auto enumeration = traits.remove_cvref(operandType);
+  if (!traits.is_enum(enumeration)) return false;
+  return traits.is_same(traits.remove_cvref(parameterType), enumeration);
+}
+
+[[nodiscard]] auto acceptsEnumerationOperands(
+    const TypeTraits& traits, std::span<const Type* const> parameterTypes,
+    const Type* leftType, const Type* rightType) -> bool {
+  if (!parameterTypes.empty() &&
+      isParameterForEnumerationOperand(traits, parameterTypes[0], leftType))
+    return true;
+  if (parameterTypes.size() > 1 &&
+      isParameterForEnumerationOperand(traits, parameterTypes[1], rightType))
+    return true;
   return false;
+}
+
+[[nodiscard]] auto hasClassOperand(const TypeTraits& traits,
+                                   const Type* leftType, const Type* rightType)
+    -> bool {
+  if (traits.is_class(traits.remove_cvref(leftType))) return true;
+  return rightType && traits.is_class(traits.remove_cvref(rightType));
 }
 }  // namespace
 
@@ -646,26 +116,32 @@ auto compareNonTemplateConstraints(TranslationUnit* unit,
   return 0;
 }
 
+namespace {
+[[nodiscard]] auto orderedFunction(FunctionSymbol* function)
+    -> FunctionSymbol* {
+  if (auto origin = function->inheritedConstructorOrigin()) return origin;
+  return function;
+}
+}  // namespace
+
 auto compareCandidateOrdering(TranslationUnit* unit, FunctionSymbol* candidate,
                               bool candidateFromTemplate, FunctionSymbol* other,
-                              bool otherFromTemplate, bool preferNonTemplate)
-    -> int {
+                              bool otherFromTemplate, bool preferNonTemplate,
+                              const PartialOrderingContext& context) -> int {
+  candidate = orderedFunction(candidate);
+  other = orderedFunction(other);
+
   if (preferNonTemplate && candidateFromTemplate != otherFromTemplate)
     return candidateFromTemplate ? -1 : 1;
 
   if (candidateFromTemplate && otherFromTemplate)
-    return compareFunctionTemplateSpecializations(unit, candidate, other);
+    return compareFunctionTemplateSpecializations(unit, candidate, other,
+                                                  context);
 
   if (!candidateFromTemplate && !otherFromTemplate)
     return compareNonTemplateConstraints(unit, candidate, other);
 
   return 0;
-}
-
-auto compareFunctionTemplateSpecializations(TranslationUnit* unit,
-                                            FunctionSymbol* candidate,
-                                            FunctionSymbol* other) -> int {
-  return compareTemplateSpecialization(unit, candidate, other);
 }
 
 auto templateCandidateArityRejects(FunctionSymbol* pattern, int argCount)
@@ -694,8 +170,21 @@ OverloadResolution::OverloadResolution(TranslationUnit* unit)
 
 using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 
+auto OverloadResolution::implicitObjectParameterClass(
+    FunctionSymbol* function, const ImplicitObjectArgument& object,
+    ScopeSymbol* lookupScope) -> const Type* {
+  if (name_cast<ConversionFunctionId>(function->name()))
+    return traits.remove_cvref(object.type);
+  if (auto nominatingClass = symbol_cast<ClassSymbol>(lookupScope))
+    return nominatingClass->type();
+  if (auto classSymbol = symbol_cast<ClassSymbol>(function->parent()))
+    return classSymbol->type();
+  return traits.remove_cvref(object.type);
+}
+
 auto OverloadResolution::implicitObjectArgumentConversion(
-    FunctionSymbol* function, const ImplicitObjectArgument& object)
+    FunctionSymbol* function, const ImplicitObjectArgument& object,
+    ScopeSymbol* lookupScope)
     -> std::expected<ImplicitConversionSequence, std::string> {
   ImplicitConversionSequence conversion;
   conversion.form = ConversionSequenceForm::kStandard;
@@ -735,12 +224,8 @@ auto OverloadResolution::implicitObjectArgumentConversion(
         "expects an lvalue for the implicit object argument");
   }
 
-  auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
-  const bool isConversionFunction =
-      name_cast<ConversionFunctionId>(function->name()) != nullptr;
-  auto implicitObjectClass = classSymbol && !isConversionFunction
-                                 ? classSymbol->type()
-                                 : traits.remove_cvref(object.type);
+  auto implicitObjectClass =
+      implicitObjectParameterClass(function, object, lookupScope);
 
   conversion.binding.kind = objectIsLvalue
                                 ? ReferenceBinding::Kind::kDirectToLvalue
@@ -754,6 +239,12 @@ auto OverloadResolution::implicitObjectArgumentConversion(
   conversion.binding.isRvalueRef = functionRef == RefQualifier::kRvalue;
   conversion.binding.isUnqualifiedImplicitObjectParameter =
       functionRef == RefQualifier::kNone;
+
+  if (stdconv_.classAdjustment(object.type, implicitObjectClass) ==
+      ClassAdjustment::kDerivedToBase) {
+    conversion.steps.push_back({ImplicitCastKind::kDerivedToBaseConversion,
+                                conversion.binding.referencedType});
+  }
 
   return conversion;
 }
@@ -777,13 +268,46 @@ auto haveSameParameterTypes(FunctionSymbol* lhs, FunctionSymbol* rhs) -> bool {
                             nonObjectParameterTypes(rhs));
 }
 
-auto compareDeductionCandidates(const DeductionCandidateInfo& lhs,
-                                const DeductionCandidateInfo& rhs,
-                                bool parameterTypesMatch) -> int {
-  if (parameterTypesMatch &&
-      lhs.fromInheritedConstructor != rhs.fromInheritedConstructor)
-    return lhs.fromInheritedConstructor ? -1 : 1;
+namespace {
 
+[[nodiscard]] auto isInheritedConstructorCandidate(const Candidate& candidate)
+    -> bool {
+  if (candidate.deduction.fromInheritedConstructor) return true;
+  return candidate.symbol->inheritedConstructorOrigin() != nullptr;
+}
+
+}  // namespace
+
+auto OverloadResolution::haveSameParametersForArguments(const Candidate& lhs,
+                                                        const Candidate& rhs)
+    -> bool {
+  auto lhsType = type_cast<FunctionType>(lhs.symbol->type());
+  auto rhsType = type_cast<FunctionType>(rhs.symbol->type());
+  if (!lhsType || !rhsType) return false;
+  auto lhsParameters = nonObjectParameterTypes(lhs.symbol);
+  auto rhsParameters = nonObjectParameterTypes(rhs.symbol);
+  for (std::size_t index = 0; index < lhs.conversions.size(); ++index) {
+    const auto lhsEllipsis = index >= lhsParameters.size();
+    const auto rhsEllipsis = index >= rhsParameters.size();
+    if (lhsEllipsis != rhsEllipsis) return false;
+    if (lhsEllipsis) continue;
+    if (!traits.is_same(lhsParameters[index], rhsParameters[index]))
+      return false;
+  }
+  return true;
+}
+
+auto OverloadResolution::compareInheritedConstructors(const Candidate& lhs,
+                                                      const Candidate& rhs)
+    -> int {
+  const auto lhsInherited = isInheritedConstructorCandidate(lhs);
+  if (lhsInherited == isInheritedConstructorCandidate(rhs)) return 0;
+  if (!haveSameParametersForArguments(lhs, rhs)) return 0;
+  return lhsInherited ? -1 : 1;
+}
+
+auto compareDeductionCandidates(const DeductionCandidateInfo& lhs,
+                                const DeductionCandidateInfo& rhs) -> int {
   if (lhs.fromDeductionGuide != rhs.fromDeductionGuide)
     return lhs.fromDeductionGuide ? 1 : -1;
 
@@ -840,15 +364,21 @@ auto OverloadResolution::selectBestViableFunction(
     } else if (refBetter && !currBetter) {
     } else if (int order = compareCandidateOrdering(
                    unit_, curr.symbol, curr.fromTemplate, ref.symbol,
-                   ref.fromTemplate, preferNonTemplate);
+                   ref.fromTemplate, preferNonTemplate,
+                   PartialOrderingContext::call(callArgumentCount(curr)));
                order != 0) {
       if (order > 0) {
         best.clear();
         best.push_back(&curr);
       }
-    } else if (int order = compareDeductionCandidates(
-                   curr.deduction, ref.deduction,
-                   haveSameParameterTypes(curr.symbol, ref.symbol));
+    } else if (int order = compareInheritedConstructors(curr, ref);
+               order != 0) {
+      if (order > 0) {
+        best.clear();
+        best.push_back(&curr);
+      }
+    } else if (int order =
+                   compareDeductionCandidates(curr.deduction, ref.deduction);
                order != 0) {
       if (order > 0) {
         best.clear();
@@ -986,33 +516,17 @@ auto OverloadResolution::resolveConstructor(
         continue;
       }
 
-      List<ExpressionAST*>* expressionList = nullptr;
-      auto tail = &expressionList;
-      for (auto arg : args) {
-        *tail = make_list_node(arena_, arg);
-        tail = &(*tail)->next;
-      }
-
-      TemplateArgumentDeduction deduction(unit_);
-      auto deducedArgs = deduction.deduce(ctor, expressionList,
-                                          /*explicitTemplateArguments=*/{});
-      if (!deducedArgs.has_value()) {
-        reject(ctor, "template argument deduction failed");
-        continue;
-      }
-
       const auto loc = args.empty() ? classSymbol->location()
                                     : args.front()->firstSourceLocation();
 
-      auto instCtor = ASTRewriter::instantiateOverloadCandidate(
-          unit_, *deducedArgs, ctor, loc, /*argsComplete=*/true);
-      if (!instCtor) {
-        reject(ctor, "substitution failed for the deduced arguments");
+      auto deduced = deduceTemplateCandidate(ctor, args, loc);
+      if (!deduced) {
+        reject(ctor, std::move(deduced.error()));
         continue;
       }
 
-      ctor = instCtor;
-      deducedArgsForCandidate = *deducedArgs;
+      ctor = deduced->specialization;
+      deducedArgsForCandidate = deduced->templateArguments;
 
       if (excludesExplicitConstructors) {
         if (ctor->isExplicit()) continue;
@@ -1131,26 +645,16 @@ void OverloadResolution::applyImplicitConversion(
 
 auto OverloadResolution::findCandidates(ScopeSymbol* scope,
                                         const Name* name) const
-    -> std::vector<FunctionSymbol*> {
-  std::vector<FunctionSymbol*> result;
+    -> FoundCandidates {
+  FoundCandidates result;
 
   if (!scope || !name) return result;
 
   auto symbol = qualifiedLookup(scope, name);
   if (!symbol) return result;
 
-  if (auto funcSymbol = symbol_cast<FunctionSymbol>(symbol)) {
-    addOverloadCandidate(result, funcSymbol);
-    return result;
-  }
-
-  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
-    for (auto func : overloadSet->functions()) {
-      if (isPureFriend(func)) continue;
-      addOverloadCandidate(result, func);
-    }
-  }
-
+  result.lookupScope = symbol->parent();
+  addLookupCandidates(result.functions, symbol);
   return result;
 }
 
@@ -1214,28 +718,28 @@ auto OverloadResolution::buildCallCandidate(
   return cand;
 }
 
-auto OverloadResolution::resolveCall(
-    const std::vector<FunctionSymbol*>& candidates,
-    std::span<ExpressionAST* const> args, bool* ambiguous) -> FunctionSymbol* {
-  if (ambiguous) *ambiguous = false;
-
-  std::vector<Candidate> viableCandidates;
-  for (auto function : candidates) {
-    auto type = type_cast<FunctionType>(function->type());
-    if (!type) continue;
-    if (auto cand = buildCallCandidate(function, type, args))
-      viableCandidates.push_back(std::move(*cand));
+auto OverloadResolution::deduceTemplateCandidate(
+    FunctionSymbol* pattern, std::span<ExpressionAST* const> args,
+    SourceLocation location) -> std::expected<DeducedCandidate, std::string> {
+  List<ExpressionAST*>* expressionList = nullptr;
+  auto tail = &expressionList;
+  for (auto arg : args) {
+    *tail = make_list_node(arena_, arg);
+    tail = &(*tail)->next;
   }
 
-  auto [bestPtr, isAmbiguous] =
-      selectBestViableFunction(viableCandidates, /*preferNonTemplate=*/true);
+  TemplateArgumentDeduction deduction(unit_);
+  auto deducedArgs = deduction.deduce(pattern, expressionList,
+                                      /*explicitTemplateArguments=*/{});
+  if (!deducedArgs.has_value())
+    return std::unexpected("template argument deduction failed");
 
-  if (isAmbiguous) {
-    if (ambiguous) *ambiguous = true;
-    return nullptr;
-  }
+  auto specialization = ASTRewriter::instantiateOverloadCandidate(
+      unit_, *deducedArgs, pattern, location, /*argsComplete=*/true);
+  if (!specialization)
+    return std::unexpected("substitution failed for the deduced arguments");
 
-  return bestPtr ? bestPtr->symbol : nullptr;
+  return DeducedCandidate{specialization, *deducedArgs};
 }
 
 auto OverloadResolution::collectCandidates(Symbol* symbol) const
@@ -1297,13 +801,73 @@ auto OverloadResolution::builtinBinaryOperatorParameterType(
   return stdconv_.commonArithmeticType(left, right);
 }
 
+auto OverloadResolution::builtinUnaryOperatorParameterTypes(
+    TokenKind op, const Type* operandType) -> std::vector<const Type*> {
+  switch (op) {
+    case TokenKind::T_EXCLAIM:
+      return {control_->getBoolType()};
+    case TokenKind::T_STAR:
+    case TokenKind::T_PLUS:
+    case TokenKind::T_MINUS:
+    case TokenKind::T_TILDE:
+    case TokenKind::T_PLUS_PLUS:
+    case TokenKind::T_MINUS_MINUS:
+      break;
+    default:
+      return {};
+  }
+
+  std::vector<const Type*> types;
+  auto classType = type_cast<ClassType>(traits.remove_cvref(operandType));
+  if (!classType) return types;
+  auto classSymbol = classType->definition();
+  traits.requireCompleteClass(classSymbol);
+  const auto modifies =
+      op == TokenKind::T_PLUS_PLUS || op == TokenKind::T_MINUS_MINUS;
+
+  for (auto function : classSymbol->visibleConversionFunctions()) {
+    if (function->isExplicit()) continue;
+    auto functionType = type_cast<FunctionType>(function->type());
+    if (!functionType) continue;
+    auto result = functionType->returnType();
+    auto type = traits.remove_cvref(result);
+    if (!traits.is_pointer(type)) continue;
+    if (op == TokenKind::T_MINUS || op == TokenKind::T_TILDE) continue;
+    auto pointee = traits.remove_pointer(type);
+    if (op == TokenKind::T_STAR && traits.is_void(pointee)) continue;
+    if (modifies) {
+      if (!traits.is_object(pointee)) continue;
+      if (!traits.is_lvalue_reference(result)) continue;
+      if (traits.is_const(traits.remove_reference(result))) continue;
+      type = result;
+    }
+    if (std::ranges::find(types, type) == types.end()) types.push_back(type);
+  }
+
+  if (op == TokenKind::T_STAR) return types;
+
+  for (auto type : traits.arithmetic_types()) {
+    if (traits.is_same(type, control_->getBoolType())) continue;
+    if (modifies) {
+      types.push_back(traits.add_lvalue_reference(type));
+      types.push_back(traits.add_lvalue_reference(traits.add_volatile(type)));
+      continue;
+    }
+    if (op == TokenKind::T_TILDE && !traits.is_integral(type)) continue;
+    if (traits.is_integral(type) && traits.promoted_integer_type(type) != type)
+      continue;
+    types.push_back(type);
+  }
+  return types;
+}
+
 auto OverloadResolution::resolveBinaryOperator(
     TokenKind op, const std::vector<BinaryOperatorCandidate>& candidates,
     const Type* leftType, const Type* rightType, bool* ambiguous,
-    ExpressionAST* leftExpr, ExpressionAST* rightExpr) -> FunctionSymbol* {
+    ExpressionAST* leftExpr, ExpressionAST* rightExpr,
+    ImplicitConversionSequence* builtinConversion) -> FunctionSymbol* {
+  if (builtinConversion) *builtinConversion = {};
   if (ambiguous) *ambiguous = false;
-
-  if (candidates.empty()) return nullptr;
 
   struct ViableCandidate {
     FunctionSymbol* symbol;
@@ -1347,6 +911,9 @@ auto OverloadResolution::resolveBinaryOperator(
 
   std::vector<ViableCandidate> viable;
 
+  const auto operandsHaveClassType =
+      hasClassOperand(traits, leftType, rightType);
+
   for (auto operatorCandidate : candidates) {
     auto candidate = operatorCandidate.symbol;
     auto candidateLeftType = operatorCandidate.reversed ? rightType : leftType;
@@ -1364,29 +931,16 @@ auto OverloadResolution::resolveBinaryOperator(
       int operandCount = rightExpr ? (isMember ? 1 : 2) : (isMember ? 0 : 1);
       if (templateCandidateArityRejects(candidate, operandCount)) continue;
 
-      List<ExpressionAST*>* argList = nullptr;
-      auto tail = &argList;
-      if (!isMember) {
-        *tail = make_list_node(arena_, candidateLeftExpr);
-        tail = &(*tail)->next;
-      }
-      if (candidateRightExpr) {
-        *tail = make_list_node(arena_, candidateRightExpr);
-      }
+      std::vector<ExpressionAST*> arguments;
+      if (!isMember) arguments.push_back(candidateLeftExpr);
+      if (candidateRightExpr) arguments.push_back(candidateRightExpr);
 
-      TemplateArgumentDeduction deduction(unit_);
-      auto deducedArgs = deduction.deduce(candidate, argList,
-                                          /*explicitTemplateArguments=*/{});
-      if (!deducedArgs.has_value()) continue;
+      auto deduced = deduceTemplateCandidate(
+          candidate, arguments, candidateLeftExpr->firstSourceLocation());
+      if (!deduced) continue;
 
-      auto instFunc = ASTRewriter::instantiateOverloadCandidate(
-          unit_, *deducedArgs, candidate,
-          candidateLeftExpr->firstSourceLocation(),
-          /*argsComplete=*/true);
-      if (!instFunc) continue;
-
-      candidate = instFunc;
-      deducedArgsForCandidate = *deducedArgs;
+      candidate = deduced->specialization;
+      deducedArgsForCandidate = deduced->templateArguments;
     }
 
     bool alreadyViable = false;
@@ -1407,6 +961,13 @@ auto OverloadResolution::resolveBinaryOperator(
 
     auto params = funcType->parameterTypes();
 
+    const bool isFilteredByEnumerationOperands =
+        !isMember && !operandsHaveClassType;
+    if (isFilteredByEnumerationOperands &&
+        !acceptsEnumerationOperands(traits, params, candidateLeftType,
+                                    candidateRightType))
+      continue;
+
     ImplicitConversionSequence left;
     std::optional<ImplicitConversionSequence> right;
 
@@ -1423,7 +984,8 @@ auto OverloadResolution::resolveBinaryOperator(
             candidate,
             {.type = candidateLeftType,
              .cv = cv_qualifiers(traits.remove_reference(candidateLeftType)),
-             .valueCategory = candidateLeftExpr->valueCategory});
+             .valueCategory = candidateLeftExpr->valueCategory},
+            operatorCandidate.lookupScope);
         if (!objectConversion) continue;
         left = *objectConversion;
         right =
@@ -1447,7 +1009,8 @@ auto OverloadResolution::resolveBinaryOperator(
             candidate,
             {.type = candidateLeftType,
              .cv = cv_qualifiers(traits.remove_reference(candidateLeftType)),
-             .valueCategory = candidateLeftExpr->valueCategory});
+             .valueCategory = candidateLeftExpr->valueCategory},
+            operatorCandidate.lookupScope);
         if (!objectConversion) continue;
         left = *objectConversion;
       } else {
@@ -1462,6 +1025,18 @@ auto OverloadResolution::resolveBinaryOperator(
     if (operatorCandidate.reversed && right) std::swap(left, *right);
     viable.push_back({candidate, left, right, deducedArgsForCandidate,
                       operatorCandidate.rewritten, operatorCandidate.reversed});
+  }
+
+  if (!rightExpr && leftExpr) {
+    for (auto parameterType :
+         builtinUnaryOperatorParameterTypes(op, leftType)) {
+      auto initializationKind = InitializationKind::kCopyInitialization;
+      if (op == TokenKind::T_EXCLAIM)
+        initializationKind = InitializationKind::kDirectInitialization;
+      auto conversion = stdconv_.computeConversionSequence(
+          leftExpr, parameterType, initializationKind);
+      if (conversion) viable.push_back({nullptr, conversion, std::nullopt});
+    }
   }
 
   if (viable.empty()) return nullptr;
@@ -1498,7 +1073,9 @@ auto OverloadResolution::resolveBinaryOperator(
     auto order = compareCandidateOrdering(
         unit_, viable[i].symbol, viable[i].symbol->isSpecialization(),
         best->symbol, best->symbol->isSpecialization(),
-        /*preferNonTemplate=*/true);
+        /*preferNonTemplate=*/true,
+        PartialOrderingContext::call(rightExpr ? 2 : 1, viable[i].reversed,
+                                     best->reversed));
     if (order > 0) {
       best = &viable[i];
       foundEquivalent = false;
@@ -1514,7 +1091,14 @@ auto OverloadResolution::resolveBinaryOperator(
     return nullptr;
   }
 
-  if (!best->symbol) return nullptr;
+  if (!best->symbol) {
+    if (best->left.form == ConversionSequenceForm::kAmbiguous) {
+      if (ambiguous) *ambiguous = true;
+      return nullptr;
+    }
+    if (builtinConversion) *builtinConversion = best->left;
+    return nullptr;
+  }
 
   ASTRewriter::instantiateSelectedSpecializationDefinition(
       unit_, best->symbol, best->deducedTemplateArgs);
@@ -1545,7 +1129,8 @@ auto OverloadResolution::isRewriteTarget(FunctionSymbol* equalityOperator,
   auto notEqualName = control_->getOperatorId(TokenKind::T_EXCLAIM_EQUAL);
   if (!notEqualName) return true;
 
-  for (auto candidate : findCandidates(searchScope, notEqualName)) {
+  for (auto candidate : findCandidates(searchScope, notEqualName).functions) {
+    if (isExcludedCandidate(candidate)) continue;
     auto candidateType = type_cast<FunctionType>(candidate->type());
     if (!candidateType) continue;
 
@@ -1565,23 +1150,50 @@ auto OverloadResolution::isRewriteTarget(FunctionSymbol* equalityOperator,
   return true;
 }
 
-auto OverloadResolution::lookupOperator(const Type* type, TokenKind op,
-                                        const Type* rightType,
-                                        ExpressionAST* leftExpr,
-                                        ExpressionAST* rightExpr)
-    -> FunctionSymbol* {
+auto OverloadResolution::nonMemberOperatorCandidates(
+    ScopeSymbol* scope, const Name* name,
+    std::span<const Type* const> operandTypes) const
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> candidates;
+
+  addLookupCandidates(candidates,
+                      unqualifiedNonMemberLookup(control_, scope, name));
+
+  for (auto function : argumentDependentLookup(unit_, name, operandTypes))
+    addOverloadCandidate(candidates, function);
+
+  return candidates;
+}
+
+auto OverloadResolution::isExcludedCandidate(FunctionSymbol* function) const
+    -> bool {
+  if (!excludedCandidate_) return false;
+  return function->canonical() == excludedCandidate_->canonical();
+}
+
+auto OverloadResolution::lookupOperator(
+    ScopeSymbol* scope, const Type* type, TokenKind op, const Type* rightType,
+    ExpressionAST* leftExpr, ExpressionAST* rightExpr,
+    ImplicitConversionSequence* builtinConversion) -> FunctionSymbol* {
   lastLookupAmbiguous_ = false;
   lastOperatorRewritten_ = false;
   lastOperatorReversed_ = false;
+
+  std::vector<const Type*> operandTypes{type};
+  if (rightType) operandTypes.push_back(rightType);
+
+  if (!hasClassOrEnumerationOperand(traits, operandTypes)) return nullptr;
 
   auto name = control_->getOperatorId(op);
   if (!name) return nullptr;
 
   std::vector<BinaryOperatorCandidate> candidates;
 
-  auto addCandidate = [&](FunctionSymbol* function, bool rewritten,
-                          bool reversed) {
-    BinaryOperatorCandidate candidate{function, rewritten, reversed};
+  auto addCandidate = [&](FunctionSymbol* function, ScopeSymbol* lookupScope,
+                          bool rewritten, bool reversed) {
+    if (isExcludedCandidate(function)) return;
+    BinaryOperatorCandidate candidate{function, lookupScope, rewritten,
+                                      reversed};
     for (const auto& existing : candidates) {
       if (existing.symbol == function && existing.rewritten == rewritten &&
           existing.reversed == reversed)
@@ -1597,26 +1209,17 @@ auto OverloadResolution::lookupOperator(const Type* type, TokenKind op,
     if (!classType) return;
     if (auto classSymbol = classType->symbol()) {
       traits.requireCompleteClass(classSymbol);
-      for (auto function : findCandidates(classSymbol, operatorName))
-        addCandidate(function, rewritten, reversed);
+      auto found = findCandidates(classSymbol, operatorName);
+      for (auto function : found.functions)
+        addCandidate(function, found.lookupScope, rewritten, reversed);
     }
   };
 
   addMemberCandidates(type, name, false, false);
 
-  auto isClassOrEnum = [&](const Type* t) {
-    auto stripped = traits.remove_cvref(t);
-    return traits.is_class(stripped) || traits.is_enum(stripped);
-  };
-  bool operandNeedsAdl =
-      isClassOrEnum(type) || (rightType && isClassOrEnum(rightType));
-
-  if (operandNeedsAdl) {
-    std::vector<const Type*> argTypes{type};
-    if (rightType) argTypes.push_back(rightType);
-    for (auto func : argumentDependentLookup(unit_, name, argTypes)) {
-      addCandidate(func, false, false);
-    }
+  if (!isOverloadableOnlyByMember(op)) {
+    for (auto function : nonMemberOperatorCandidates(scope, name, operandTypes))
+      addCandidate(function, nullptr, false, false);
   }
 
   auto addRewrittenCandidates = [&](TokenKind rewrittenOp,
@@ -1628,27 +1231,26 @@ auto OverloadResolution::lookupOperator(const Type* type, TokenKind op,
 
     const bool requiresRewriteTarget = rewrittenOp == TokenKind::T_EQUAL_EQUAL;
 
-    auto accept = [&](FunctionSymbol* function) {
+    auto accept = [&](FunctionSymbol* function, ScopeSymbol* lookupScope) {
       if (requiresRewriteTarget && !isRewriteTarget(function, firstOperandType))
         return;
-      addCandidate(function, true, reversed);
+      addCandidate(function, lookupScope, true, reversed);
     };
 
     if (auto classType =
             type_cast<ClassType>(traits.remove_cvref(firstOperandType))) {
       if (auto classSymbol = classType->symbol()) {
         traits.requireCompleteClass(classSymbol);
-        for (auto function : findCandidates(classSymbol, rewrittenName))
-          accept(function);
+        auto found = findCandidates(classSymbol, rewrittenName);
+        for (auto function : found.functions)
+          accept(function, found.lookupScope);
       }
     }
 
-    if (operandNeedsAdl) {
-      std::vector<const Type*> argTypes{firstOperandType, secondOperandType};
-      for (auto function :
-           argumentDependentLookup(unit_, rewrittenName, argTypes))
-        accept(function);
-    }
+    const Type* rewrittenOperandTypes[] = {firstOperandType, secondOperandType};
+    for (auto function : nonMemberOperatorCandidates(scope, rewrittenName,
+                                                     rewrittenOperandTypes))
+      accept(function, nullptr);
   };
 
   const bool isRelational =
@@ -1679,8 +1281,9 @@ auto OverloadResolution::lookupOperator(const Type* type, TokenKind op,
   }
 
   bool ambiguous = false;
-  auto selected = resolveBinaryOperator(op, candidates, type, rightType,
-                                        &ambiguous, leftExpr, rightExpr);
+  auto selected =
+      resolveBinaryOperator(op, candidates, type, rightType, &ambiguous,
+                            leftExpr, rightExpr, builtinConversion);
   lastLookupAmbiguous_ = ambiguous;
   return selected;
 }

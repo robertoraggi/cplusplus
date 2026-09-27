@@ -159,8 +159,7 @@ export interface VTableInfo {
 }
 
 export interface VTableTableInfo {
-  virtualBaseOffsets: readonly number[];
-  virtualCallOffsets: readonly number[];
+  offsets: readonly number[];
   offsetToTop: number;
   slots: readonly FunctionRef[];
 }
@@ -183,6 +182,7 @@ export interface CleanupAction {
   destructor: FunctionRef;
   depth: number;
   activeFlag: ValueRef;
+  elementCount: number;
 }
 
 export interface Access {

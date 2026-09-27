@@ -207,7 +207,8 @@ auto ASTInterpreter::cloneValue(const ConstValue& value) -> ConstValue {
     if (!*object) return value;
     auto copy = std::make_shared<ConstObject>((*object)->type());
     for (const auto& member : (*object)->members())
-      copy->addMember(member.symbol, cloneValue(member.value));
+      copy->addMember(member.symbol,
+                      cloneValueOfType(member.value, member.symbol->type()));
     return ConstValue{std::move(copy)};
   }
 
@@ -215,7 +216,7 @@ auto ASTInterpreter::cloneValue(const ConstValue& value) -> ConstValue {
     if (!*list) return value;
     auto copy = std::make_shared<InitializerList>();
     for (const auto& [element, type] : (*list)->elements)
-      copy->elements.emplace_back(cloneValue(element), type);
+      copy->elements.emplace_back(cloneValueOfType(element, type), type);
     return ConstValue{std::move(copy)};
   }
 
@@ -229,11 +230,18 @@ auto ASTInterpreter::cloneValue(const ConstValue& value) -> ConstValue {
   return value;
 }
 
+auto ASTInterpreter::cloneValueOfType(const ConstValue& value, const Type* type)
+    -> ConstValue {
+  if (traits.is_pointer(type)) return value;
+  return cloneValue(value);
+}
+
 auto isFullyInitialized(const ConstValue& value) -> bool {
   if (std::holds_alternative<IndeterminateValue>(value)) return false;
 
   if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
     if (!*object) return false;
+    if ((*object)->isConstexprUnknown()) return false;
     for (const auto& member : (*object)->members()) {
       if (!isFullyInitialized(member.value)) return false;
     }
@@ -269,6 +277,12 @@ auto ASTInterpreter::evaluateAddress(ExpressionAST* ast)
   return addressOfLvalue(ast);
 }
 
+auto ASTInterpreter::evaluateStaticDataMember(FieldSymbol* field)
+    -> std::optional<ConstValue> {
+  EvaluationScope evaluationScope{*this};
+  return evaluateStaticField(field);
+}
+
 auto ASTInterpreter::toBool(const ConstValue& value) -> std::optional<bool> {
   return std::visit(ToBool{*this}, value);
 }
@@ -276,6 +290,15 @@ auto ASTInterpreter::toBool(const ConstValue& value) -> std::optional<bool> {
 auto ASTInterpreter::toInt(const ConstValue& value)
     -> std::optional<std::intmax_t> {
   return std::visit(ToInt{}, value);
+}
+
+auto ASTInterpreter::memberObjectPointerOffset(const ConstValue& value) const
+    -> std::optional<std::intmax_t> {
+  auto address = std::get_if<std::shared_ptr<ConstAddress>>(&value);
+  if (!address || !*address) return std::nullopt;
+  if (!(*address)->symbol())
+    return control()->memoryLayout()->nullMemberObjectPointer();
+  return (*address)->offset();
 }
 
 auto ASTInterpreter::toUInt(const ConstValue& value)
@@ -382,15 +405,12 @@ auto ASTInterpreter::toLongDouble(const ConstValue& value)
   return std::visit(ArithmeticCast<long double>{}, value);
 }
 
-auto ASTInterpreter::lookupLocal(const Symbol* sym) const
+auto ASTInterpreter::lookupLocal(const Symbol* sym)
     -> std::optional<ConstValue> {
-  for (auto it = frames_.rbegin(); it != frames_.rend(); ++it) {
-    auto ref = it->refs.find(sym);
-    if (ref != it->refs.end()) return *ref->second;
-    auto found = it->locals.find(sym);
-    if (found != it->locals.end()) return found->second;
-  }
-  return std::nullopt;
+  auto slot = lookupLocalSlot(sym);
+  if (!slot) return std::nullopt;
+  if (asConstexprUnknownObject(*slot)) return std::nullopt;
+  return *slot;
 }
 
 auto ASTInterpreter::lookupLocalSlot(const Symbol* sym) -> ConstValue* {
@@ -401,6 +421,53 @@ auto ASTInterpreter::lookupLocalSlot(const Symbol* sym) -> ConstValue* {
     if (found != it->locals.end()) return &found->second;
   }
   return nullptr;
+}
+
+auto ASTInterpreter::materializedTemporary(ExpressionAST* ast)
+    -> ExpressionAST* {
+  while (auto nested = ast_cast<NestedExpressionAST>(ast))
+    ast = nested->expression;
+  if (!is_glvalue(ast)) return ast;
+  auto cast = ast_cast<ImplicitCastExpressionAST>(ast);
+  if (!cast) return nullptr;
+  if (cast->castKind != ImplicitCastKind::kTemporaryMaterializationConversion)
+    return nullptr;
+  return cast->expression;
+}
+
+auto ASTInterpreter::bindReferenceTo(Frame& frame, Symbol* reference,
+                                     ExpressionAST* initializer) -> bool {
+  if (auto temporary = materializedTemporary(initializer)) {
+    auto value = evaluate(temporary);
+    if (!value) return false;
+    auto storage = std::make_shared<ConstObject>(
+        traits.remove_reference(reference->type()));
+    auto slot = storage->addMember(reference, cloneValue(*value));
+    frame.refs.insert_or_assign(reference, slot);
+    frame.referenceAddresses.insert_or_assign(
+        reference, std::make_shared<ConstAddress>(storage, reference));
+    return true;
+  }
+
+  if (auto value = addressOfLvalue(initializer)) {
+    auto address = std::get_if<std::shared_ptr<ConstAddress>>(&*value);
+    if (address && *address) {
+      frame.referenceAddresses.insert_or_assign(reference, *value);
+      if (auto slot = addressSlot(**address, 0, reference->type())) {
+        frame.refs.insert_or_assign(reference, slot);
+        return true;
+      }
+      if (auto referent = loadAddress(**address, 0, reference->type())) {
+        frame.locals.insert_or_assign(reference, std::move(*referent));
+        return true;
+      }
+    }
+  }
+
+  auto slot = lvalue(initializer);
+  if (!slot) return false;
+  frame.refs.insert_or_assign(reference, slot);
+  return true;
 }
 
 void ASTInterpreter::bindReference(const Symbol* sym, ConstValue* target) {
@@ -416,8 +483,7 @@ void ASTInterpreter::setLocal(const Symbol* sym, ConstValue value) {
 auto ASTInterpreter::definingDeclarationOf(FunctionSymbol* function)
     -> FunctionSymbol* {
   auto definition = function->resolvedDefinition();
-  if (definition->hasPendingBody())
-    ASTRewriter::completePendingBodyFor(unit_, definition);
+  (void)ASTRewriter::completePendingBodyFor(unit_, definition);
   return definition;
 }
 
@@ -430,9 +496,10 @@ auto ASTInterpreter::bindParameters(Frame& frame, FunctionSymbol* func,
                                                           : cloneValue(args[i]);
       frame.locals.insert_or_assign(params[i], std::move(value));
     } else {
-      if (!params[i]->defaultArgument()) return false;
-      if (!bindOneParameter(frame, params[i], params[i]->defaultArgument()))
-        return false;
+      auto defaultArgument =
+          ASTRewriter::requireDefaultArgument(unit_, params[i]);
+      if (!defaultArgument) return false;
+      if (!bindOneParameter(frame, params[i], defaultArgument)) return false;
     }
   }
   return true;
@@ -441,28 +508,18 @@ auto ASTInterpreter::bindParameters(Frame& frame, FunctionSymbol* func,
 auto ASTInterpreter::bindOneParameter(Frame& frame, Symbol* paramSymbol,
                                       ExpressionAST* argExpr) -> bool {
   auto param = symbol_cast<ParameterSymbol>(paramSymbol);
-  if (param && traits.is_reference(param->type())) {
-    if (auto value = addressOfLvalue(argExpr)) {
-      auto address = std::get_if<std::shared_ptr<ConstAddress>>(&*value);
-      if (!address || !*address) return false;
-      frame.referenceAddresses.insert_or_assign(paramSymbol, *value);
-      if (auto slot = addressSlot(**address, 0, param->type())) {
-        frame.refs.insert_or_assign(paramSymbol, slot);
-        return true;
-      }
-      auto referent = loadAddress(**address, 0, param->type());
-      if (!referent) return false;
-      frame.locals.insert_or_assign(paramSymbol, std::move(*referent));
-      return true;
-    }
-    if (auto slot = lvalue(argExpr)) {
-      frame.refs.insert_or_assign(paramSymbol, slot);
-      return true;
-    }
+  if (param && traits.is_reference(param->type()) &&
+      bindReferenceTo(frame, param, argExpr)) {
+    return true;
   }
-  auto value = evaluate(argExpr);
-  if (!value) return false;
-  frame.locals.insert_or_assign(paramSymbol, cloneValue(*value));
+  if (auto value = evaluate(argExpr)) {
+    frame.locals.insert_or_assign(paramSymbol, cloneValue(*value));
+    return true;
+  }
+
+  auto object = constexprUnknownObject(argExpr);
+  if (!object) return false;
+  frame.locals.insert_or_assign(paramSymbol, std::move(object));
   return true;
 }
 
@@ -471,8 +528,9 @@ auto ASTInterpreter::bindParametersFromExprs(
     std::span<ExpressionAST* const> arguments) -> bool {
   auto parameters = definingDeclarationOf(function)->parameters();
   for (std::size_t i = 0; i < parameters.size(); ++i) {
-    auto argument =
-        i < arguments.size() ? arguments[i] : parameters[i]->defaultArgument();
+    auto argument = i < arguments.size() ? arguments[i] : nullptr;
+    if (!argument)
+      argument = ASTRewriter::requireDefaultArgument(unit_, parameters[i]);
     if (!argument || !bindOneParameter(frame, parameters[i], argument))
       return false;
   }
@@ -489,7 +547,7 @@ void ASTInterpreter::applyNsdmis(const std::shared_ptr<ConstObject>& obj) {
   for (auto member : classSymbol->members()) {
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field || field->isStatic() || !field->initializer()) continue;
-    auto value = evaluate(field->initializer());
+    auto value = initialValue(field->type(), field->initializer());
     if (!value) continue;
     obj->setMember(field, std::move(*value));
     if (classSymbol->isUnion()) break;
@@ -520,7 +578,7 @@ auto ASTInterpreter::initializeDefaultedObject(
     if (!field || field->isStatic()) continue;
 
     if (field->initializer()) {
-      auto value = evaluate(field->initializer());
+      auto value = initialValue(field->type(), field->initializer());
       if (!value) {
         thisObject_ = std::move(savedThis);
         return false;
@@ -545,9 +603,40 @@ auto ASTInterpreter::initializeDefaultedObject(
   return true;
 }
 
+auto ASTInterpreter::copyDefaultedObject(
+    const std::shared_ptr<ConstObject>& obj,
+    const std::shared_ptr<ConstObject>& source, ClassSymbol* classSymbol)
+    -> bool {
+  if (!obj || !source || !classSymbol) return false;
+  classSymbol = classSymbol->resolvedDefinition();
+
+  if (classSymbol->isUnion()) {
+    for (const auto& member : source->members())
+      obj->addMember(member.symbol, cloneValue(member.value));
+    return true;
+  }
+
+  for (auto base : classSymbol->baseClasses()) {
+    auto value = source->subobject(base);
+    if (!value) return false;
+    obj->addMember(base, cloneValue(*value));
+  }
+
+  for (auto member : classSymbol->members()) {
+    auto field = symbol_cast<FieldSymbol>(member);
+    if (!field || field->isStatic()) continue;
+    auto value = source->subobject(field);
+    if (!value) return false;
+    obj->setMember(field, cloneValue(*value));
+  }
+
+  return true;
+}
+
 auto ASTInterpreter::subobjectSlot(const std::shared_ptr<ConstObject>& object,
                                    const Symbol* symbol) -> ConstValue* {
   if (!object || !symbol) return nullptr;
+  if (object->isConstexprUnknown()) return nullptr;
 
   if (auto slot = object->mutableSubobject(symbol)) return slot;
 
@@ -582,14 +671,40 @@ auto ASTInterpreter::subobjectSlot(const std::shared_ptr<ConstObject>& object,
   return object->addMember(symbol, ConstValue{IndeterminateValue{}});
 }
 
-auto ASTInterpreter::constructSubobject(MemInitializerAST* ast,
-                                        const Type* type,
-                                        std::vector<ConstValue> args)
+auto ASTInterpreter::copyArrayElements(const Type* type,
+                                       FunctionSymbol* constructor,
+                                       const ConstValue& source)
     -> std::optional<ConstValue> {
+  auto array = type_cast<BoundedArrayType>(traits.remove_cv(type));
+  if (!array) {
+    if (constructor) return evaluateConstructor(constructor, type, {source});
+    return cloneValue(source);
+  }
+
+  auto sourceElements = std::get_if<std::shared_ptr<InitializerList>>(&source);
+  if (!sourceElements || !*sourceElements) return std::nullopt;
+  auto elements = std::make_shared<InitializerList>();
+  for (const auto& [value, elementType] : (*sourceElements)->elements) {
+    auto element = copyArrayElements(array->elementType(), constructor, value);
+    if (!element) return std::nullopt;
+    elements->elements.emplace_back(std::move(*element), array->elementType());
+  }
+  return ConstValue{std::move(elements)};
+}
+
+auto ASTInterpreter::constructSubobject(
+    MemInitializerAST* ast, const Type* type,
+    const std::vector<ExpressionAST*>& arguments) -> std::optional<ConstValue> {
   if (auto array = type_cast<BoundedArrayType>(traits.remove_cv(type))) {
+    if (arguments.size() == 1 &&
+        isWholeArrayCopy(traits, arguments.front(), type)) {
+      auto source = expression(arguments.front());
+      if (!source) return std::nullopt;
+      return copyArrayElements(type, ast->constructor, *source);
+    }
     auto elements = std::make_shared<InitializerList>();
     for (std::size_t i = 0; i < array->size(); ++i) {
-      auto element = constructSubobject(ast, array->elementType(), args);
+      auto element = constructSubobject(ast, array->elementType(), arguments);
       if (!element) return std::nullopt;
       elements->elements.emplace_back(std::move(*element),
                                       array->elementType());
@@ -607,22 +722,21 @@ auto ASTInterpreter::constructSubobject(MemInitializerAST* ast,
     if (traits.is_trivially_constructible(type, {})) return zero;
     auto object = std::get_if<std::shared_ptr<ConstObject>>(&*zero);
     if (!object || !*object) return std::nullopt;
-    return evaluateConstructor(ast->constructor, type, std::move(args),
-                               *object);
+    return evaluateConstructor(ast->constructor, type, {}, *object);
   }
 
-  return evaluateConstructor(ast->constructor, type, std::move(args));
+  return evaluateConstructorFromExprs(ast->constructor, type, arguments);
 }
 
-void ASTInterpreter::applyMemInitializer(MemInitializerAST* ast,
-                                         std::vector<ConstValue> args) {
+void ASTInterpreter::applyMemInitializer(
+    MemInitializerAST* ast, const std::vector<ExpressionAST*>& arguments) {
   if (!ast->symbol || !thisObject_) return;
 
   if (auto cls = symbol_cast<ClassSymbol>(ast->symbol)) {
     if (cls != currentConstructorClass_) return;
     if (!ast->constructor) return;
-    auto result = evaluateConstructor(ast->constructor, thisObject_->type(),
-                                      std::move(args));
+    auto result = evaluateConstructorFromExprs(ast->constructor,
+                                               thisObject_->type(), arguments);
     if (result) {
       if (auto obj = std::get_if<std::shared_ptr<ConstObject>>(&*result)) {
         if (*obj) *thisObject_ = **obj;
@@ -631,36 +745,32 @@ void ASTInterpreter::applyMemInitializer(MemInitializerAST* ast,
     return;
   }
 
-  if (auto base = symbol_cast<BaseClassSymbol>(ast->symbol)) {
+  auto subobject = ast->symbol;
+  if (auto base = symbol_cast<BaseClassSymbol>(subobject)) {
     if (base->isVirtual()) return;
     auto baseClassSym = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSym) return;
-    if (ast->constructor) {
-      auto result =
-          constructSubobject(ast, baseClassSym->type(), std::move(args));
-      if (result)
-        thisObject_->setMember(base, std::move(*result));
-      else
-        aborted_ = true;
-    } else if (!args.empty()) {
-      thisObject_->setMember(base, std::move(args.front()));
-    }
+    initializeSubobject(ast, base, baseClassSym->type(), arguments);
     return;
   }
 
-  auto field = symbol_cast<FieldSymbol>(ast->symbol);
+  auto field = symbol_cast<FieldSymbol>(subobject);
   if (!field) return;
+  initializeSubobject(ast, field, field->type(), arguments);
+}
 
-  if (ast->constructor) {
-    auto result = constructSubobject(ast, field->type(), std::move(args));
-    if (result)
-      thisObject_->setMember(field, std::move(*result));
-    else
-      aborted_ = true;
+void ASTInterpreter::initializeSubobject(
+    MemInitializerAST* ast, Symbol* subobject, const Type* type,
+    const std::vector<ExpressionAST*>& arguments) {
+  if (!ast->constructor && arguments.empty()) return;
+
+  auto value = ast->constructor ? constructSubobject(ast, type, arguments)
+                                : initialValue(type, arguments.front());
+  if (!value) {
+    aborted_ = true;
     return;
   }
-
-  if (!args.empty()) thisObject_->setMember(field, std::move(args.front()));
+  thisObject_->setMember(subobject, std::move(*value));
 }
 
 auto ASTInterpreter::defaultConstruct(const Type* type)
@@ -898,7 +1008,7 @@ auto ASTInterpreter::evaluateConstructorFromExprs(
   if (constructor->isDefaulted()) {
     std::vector<ConstValue> values;
     for (auto argument : arguments) {
-      auto value = expression(argument);
+      auto value = designatedValue(argument);
       if (!value) return std::nullopt;
       values.push_back(std::move(*value));
     }
@@ -921,11 +1031,7 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
   if (!ctor) return std::nullopt;
   if (!ctor->isConstexpr()) return std::nullopt;
 
-  auto defn = ctor->resolvedDefinition();
-
-  if (defn->hasPendingBody()) {
-    ASTRewriter::completePendingBodyFor(unit_, defn);
-  }
+  auto defn = definingDeclarationOf(ctor);
 
   auto funcDef = defn->declaration();
   if (!funcDef) return std::nullopt;
@@ -964,7 +1070,9 @@ auto ASTInterpreter::evaluateConstructor(FunctionSymbol* ctor,
     if (!copiesObject || args.size() != 1) return std::nullopt;
     auto source = std::get_if<std::shared_ptr<ConstObject>>(&args.front());
     if (!source || !*source) return std::nullopt;
-    return cloneValue(args.front());
+    auto obj = object ? object : std::make_shared<ConstObject>(classType);
+    if (!copyDefaultedObject(obj, *source, classSymbol)) return std::nullopt;
+    return ConstValue{std::move(obj)};
   }
 
   Frame frame;

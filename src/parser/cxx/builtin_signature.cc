@@ -23,6 +23,7 @@
 #include <cxx/control.h>
 #include <cxx/types.h>
 
+#include <algorithm>
 #include <iterator>
 #include <vector>
 
@@ -39,8 +40,9 @@ class BuiltinSignatureDecoder {
 
   [[nodiscard]] auto decodeFunctionType(BuiltinFlags flags)
       -> const FunctionType* {
+    unavailable_ = false;
+
     auto returnType = decodeType();
-    if (!returnType) return nullptr;
 
     std::vector<const Type*> parameterTypes;
     bool isVariadic = false;
@@ -52,18 +54,22 @@ class BuiltinSignatureDecoder {
         break;
       }
 
-      auto parameterType = decodeType();
-      if (!parameterType) return nullptr;
-      parameterTypes.push_back(parameterType);
+      parameterTypes.push_back(decodeType());
     }
 
     if (peek() != BuiltinTypeOp::kEnd) return nullptr;
     ++pos_;
 
+    if (unavailable_) return nullptr;
+    if (!returnType) return nullptr;
+    if (std::ranges::contains(parameterTypes, nullptr)) return nullptr;
+
     return control_->getFunctionType(
         returnType, std::move(parameterTypes), isVariadic, CvQualifiers::kNone,
         RefQualifier::kNone, contains(flags, BuiltinFlags::kNoexcept));
   }
+
+  [[nodiscard]] auto unavailable() const -> bool { return unavailable_; }
 
  private:
   [[nodiscard]] auto peek() const -> BuiltinTypeOp {
@@ -124,25 +130,25 @@ class BuiltinSignatureDecoder {
 
       default:
         ++pos_;
-        if constexpr (!ConstInt::supportsInt128) {
-          if (op == BuiltinTypeOp::kInt128 ||
-              op == BuiltinTypeOp::kUnsignedInt128) {
-            unavailable_ = true;
-            return control_->getIntType();
-          }
-        }
-        return decodeBuiltinLeafType(control_, op);
+        return decodeLeafType(op);
     }
+  }
+
+  [[nodiscard]] auto decodeLeafType(BuiltinTypeOp op) -> const Type* {
+    const Type* type = nullptr;
+    if (isRepresentable(op)) type = decodeBuiltinLeafType(control_, op);
+    if (!type) unavailable_ = true;
+    return type;
+  }
+
+  [[nodiscard]] static auto isRepresentable(BuiltinTypeOp op) -> bool {
+    if (ConstInt::supportsInt128) return true;
+    return op != BuiltinTypeOp::kInt128 && op != BuiltinTypeOp::kUnsignedInt128;
   }
 
   Control* control_;
   std::size_t pos_;
   bool unavailable_ = false;
-
- public:
-  [[nodiscard]] auto unavailable() const -> bool { return unavailable_; }
-
-  void clearUnavailable() { unavailable_ = false; }
 };
 
 }  // namespace
@@ -153,26 +159,27 @@ auto builtinSignatureOf(BuiltinFunctionKind kind) -> BuiltinSignature {
   return kBuiltinSignatures[index];
 }
 
-auto decodeBuiltinSignature(Control* control, BuiltinFunctionKind kind,
-                            std::size_t index) -> BuiltinOverload {
-  if (kind == BuiltinFunctionKind::T_NONE) return {};
+auto implicitDeclarationSignatureOf(TokenKind op) -> BuiltinSignature {
+  for (const auto& declaration : kImplicitDeclarationSignatures) {
+    if (declaration.op == op) return declaration.signature;
+  }
+  return {};
+}
 
-  auto signature = builtinSignatureOf(kind);
+auto decodeBuiltinSignature(Control* control, BuiltinSignature signature,
+                            std::size_t index) -> BuiltinOverload {
   if (index >= signature.count) return {};
 
   BuiltinSignatureDecoder decoder{control, signature.offset};
 
   const FunctionType* functionType = nullptr;
-  bool unavailable = false;
 
-  for (std::size_t i = 0; i <= index; ++i) {
-    decoder.clearUnavailable();
+  for (std::size_t i = 0; i <= index; ++i)
     functionType = decoder.decodeFunctionType(signature.flags);
-    if (!functionType) return {};
-    unavailable = decoder.unavailable();
-  }
 
-  if (unavailable) return {nullptr, BuiltinOverloadStatus::kUnavailable};
+  if (decoder.unavailable())
+    return {nullptr, BuiltinOverloadStatus::kUnavailable};
+  if (!functionType) return {};
 
   return {functionType, BuiltinOverloadStatus::kOk};
 }

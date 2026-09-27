@@ -232,15 +232,13 @@ void VTableOp::print(OpAsmPrinter& p) {
   };
 
   auto offsetsToTop = getOffsetsToTop();
-  auto vbaseOffsets = getVbaseOffsets();
-  auto vcallOffsets = getVcallOffsets();
+  auto offsets = getOffsets();
 
   p << '{';
   llvm::interleaveComma(
       llvm::seq<std::size_t>(0, getSlots().size()), p, [&](std::size_t index) {
         p << ' ';
-        printOffsetArray("vbase_offsets", vbaseOffsets[index]);
-        printOffsetArray("vcall_offsets", vcallOffsets[index]);
+        printOffsetArray("offsets", offsets[index]);
         p << "offset_to_top "
           << mlir::cast<IntegerAttr>(offsetsToTop[index]).getInt() << " [";
         llvm::interleaveComma(

@@ -289,14 +289,28 @@ export const UNARY_BUILTIN_TYPE_SPECIFIERS: string[] = [
 export const BINARY_BUILTIN_TYPE_SPECIFIERS: string[] = [];
 
 // Names the core language refers to by their qualified std:: spelling, e.g.
-// std::align_val_t and std::destroying_delete_t in
-// [basic.stc.dynamic.deallocation]. They are library declarations, not
-// builtins: the compiler only has to recognize them when it sees them.
+// std::align_val_t and std::destroying_delete_t.
 export const WELL_KNOWN_NAMES: string[] = [
   "std",
   "align_val_t",
   "destroying_delete_t",
   "initializer_list",
+  "nothrow_t",
+  "partial_ordering",
+  "source_location",
+  "strong_ordering",
+  "tuple_element",
+  "tuple_size",
+  "type_info",
+  "weak_ordering",
+  "equal",
+  "equivalent",
+  "greater",
+  "less",
+  "unordered",
+  "__func__",
+  "__FUNCTION__",
+  "__PRETTY_FUNCTION__",
 ];
 
 export const BUILTIN_TEMPLATES: string[] = [

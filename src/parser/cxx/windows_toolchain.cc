@@ -30,21 +30,24 @@
 
 namespace cxx {
 
-WindowsToolchain::WindowsToolchain(Preprocessor* preprocessor,
-                                   std::string arch = "x86_64")
-    : Toolchain(preprocessor), arch_(std::move(arch)) {
+WindowsToolchain::WindowsToolchain(Preprocessor* preprocessor, Triple triple)
+    : Toolchain(preprocessor, std::move(triple)) {
   memoryLayout()->setSizeOfLong(4);
   memoryLayout()->setSizeOfLongLong(8);
   memoryLayout()->setSizeOfLongDouble(8, 53);
   memoryLayout()->setSizeOfPointer(8);
   memoryLayout()->setWideCharUnderlyingType(2, /*isSigned=*/false);
 
-  if (arch_ == "aarch64") {
-    memoryLayout()->setTriple("aarch64-windows");
-  } else if (arch_ == "x86_64") {
-    memoryLayout()->setTriple("x86_64-windows");
-  } else {
-    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+  switch (this->triple().arch()) {
+    case TripleArch::kAArch64:
+      memoryLayout()->setTriple("aarch64-windows");
+      break;
+    case TripleArch::kX86_64:
+      memoryLayout()->setTriple("x86_64-windows");
+      break;
+    default:
+      cxx_runtime_error(std::format("Unsupported architecture: {}",
+                                    this->triple().archName()));
   }
 }
 
@@ -61,9 +64,7 @@ void WindowsToolchain::setWinsdkversion(std::string version) {
 }
 
 void WindowsToolchain::addSystemIncludePaths() {
-  if (auto resourceDir = this->resourceDir(); !resourceDir.empty()) {
-    addSystemIncludePath((fs::path{resourceDir} / "include").string());
-  }
+  addBuiltinIncludePath();
 
   addSystemIncludePath(
       (fs::path(winsdkdir_) /
@@ -120,12 +121,10 @@ void WindowsToolchain::addPredefinedMacros() {
     addWindowsC23Macros();
   }
 
-  if (arch_ == "aarch64") {
+  if (triple().arch() == TripleArch::kAArch64) {
     addWindowsAArch64Macros();
-  } else if (arch_ == "x86_64") {
-    addWindowsX86_64Macros();
   } else {
-    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+    addWindowsX86_64Macros();
   }
 }
 

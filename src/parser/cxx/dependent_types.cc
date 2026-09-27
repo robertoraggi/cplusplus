@@ -19,12 +19,19 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_visitor.h>
 #include <cxx/dependent_types.h>
+#include <cxx/name_lookup.h>
+#include <cxx/names.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
 #include <algorithm>
+#include <array>
+#include <optional>
+#include <span>
 #include <vector>
 
 namespace cxx {
@@ -37,9 +44,174 @@ namespace {
   return scope;
 }
 
+[[nodiscard]] auto namesParameterPack(Symbol* symbol) -> bool {
+  if (auto parameter = symbol_cast<ParameterSymbol>(symbol))
+    return parameter->isParameterPack();
+  return is_template_parameter_pack(symbol);
+}
+
+struct FindUnexpandedParameterPack final : ASTVisitor {
+  AST* root = nullptr;
+  bool found = false;
+
+  explicit FindUnexpandedParameterPack(AST* root) : root(root) {}
+
+  auto preVisit(AST*) -> bool override { return !found; }
+
+  void check(Symbol* symbol) {
+    if (namesParameterPack(symbol)) found = true;
+  }
+
+  void visit(IdExpressionAST* ast) override {
+    check(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(NamedTypeSpecifierAST* ast) override {
+    check(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(SimpleNestedNameSpecifierAST* ast) override {
+    check(ast->symbol);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(TypeIdAST* ast) override {
+    if (ast != root && isPackExpansion(ast)) return;
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(PackExpansionExpressionAST*) override {}
+  void visit(SizeofPackExpressionAST*) override {}
+  void visit(FoldExpressionAST*) override {}
+  void visit(LeftFoldExpressionAST*) override {}
+  void visit(RightFoldExpressionAST*) override {}
+};
+
+[[nodiscard]] auto templateName(UnqualifiedIdAST* id) -> Symbol* {
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(id))
+    return templateId->symbol;
+  return nullptr;
+}
+
+struct NamesTemplateParameter {
+  [[nodiscard]] auto operator()(TypeParameterSymbol*) const -> bool {
+    return true;
+  }
+  [[nodiscard]] auto operator()(TemplateTypeParameterSymbol*) const -> bool {
+    return true;
+  }
+  [[nodiscard]] auto operator()(NonTypeParameterSymbol*) const -> bool {
+    return true;
+  }
+  [[nodiscard]] auto operator()(ConstraintTypeParameterSymbol*) const -> bool {
+    return true;
+  }
+  [[nodiscard]] auto operator()(Symbol*) const -> bool { return false; }
+};
+
+[[nodiscard]] auto templateParameterDepth(Symbol* symbol)
+    -> std::optional<int> {
+  if (!symbol || !visit(NamesTemplateParameter{}, symbol)) return std::nullopt;
+  auto info = template_parameter_info(symbol);
+  if (!info) return std::nullopt;
+  return info->depth;
+}
+
+[[nodiscard]] auto ownTemplateParameterDepth(FunctionSymbol* function)
+    -> std::optional<int> {
+  auto parameters = function->templateParameters();
+  if (!parameters || parameters->isExplicitTemplateSpecialization())
+    return std::nullopt;
+  if (parameters->members().empty()) return std::nullopt;
+  return templateParameterDepth(parameters->members().front());
+}
+
 struct IsDependent {
   TranslationUnit* unit = nullptr;
-  std::vector<const Type*> typesUnderExamination;
+
+  struct NonDependentType {
+    const Type* type;
+    int localTemplateDepth;
+  };
+
+  struct TypeExamination {
+    const Type* type;
+    TypeExamination* previous;
+  };
+
+  TypeExamination* typesUnderExamination = nullptr;
+  std::array<NonDependentType, 8> nonDependentTypes;
+  std::size_t nonDependentTypeCount = 0;
+  std::vector<NonDependentType> dynamicNonDependentTypes;
+  std::size_t cycles = 0;
+  std::optional<int> localTemplateDepth;
+
+  [[nodiscard]] auto isLocalTemplateDepth(int depth) const -> bool {
+    return localTemplateDepth && depth >= *localTemplateDepth;
+  }
+
+  [[nodiscard]] auto namesDependentTemplateParameter(Symbol* symbol) const
+      -> bool {
+    if (!symbol || !visit(NamesTemplateParameter{}, symbol)) return false;
+    auto depth = templateParameterDepth(symbol);
+    return !depth || !isLocalTemplateDepth(*depth);
+  }
+
+  template <typename Operand>
+  [[nodiscard]] auto isDependentOperand(Operand operand) -> bool {
+    if (!localTemplateDepth) return true;
+    return isDependent(operand);
+  }
+
+  [[nodiscard]] auto hasDependentImplicitObjectParameter(
+      FunctionSymbol* function) -> bool {
+    if (!function->isImplicitObjectMemberFunction()) return false;
+    return isDependent(function->parent()->type());
+  }
+
+  [[nodiscard]] auto isDeclaredWithDependentType(FunctionSymbol* function)
+      -> bool {
+    if (hasDependentImplicitObjectParameter(function)) return true;
+    auto ownDepth = ownTemplateParameterDepth(function);
+    if (!ownDepth) return isDependent(function->type());
+    if (!enclosedInDependentTemplate(enclosingScopeForDependence(function),
+                                     /*stopAtConcreteSpecialization=*/true))
+      return false;
+    const auto enclosingLocalDepth = localTemplateDepth;
+    localTemplateDepth = enclosingLocalDepth
+                             ? std::min(*enclosingLocalDepth, *ownDepth)
+                             : *ownDepth;
+    const auto dependent = isDependent(function->type());
+    localTemplateDepth = enclosingLocalDepth;
+    return dependent;
+  }
+
+  [[nodiscard]] auto hasMemberDeclaredWithDependentType(
+      OverloadSetSymbol* overloadSet) -> bool {
+    std::vector<FunctionSymbol*> functions;
+    addLookupCandidates(functions, overloadSet);
+    for (auto function : functions) {
+      if (isDeclaredWithDependentType(function)) return true;
+    }
+    return false;
+  }
+
+  struct ReferencedMemberIsDependent {
+    IsDependent& self;
+
+    [[nodiscard]] auto operator()(FunctionSymbol* function) -> bool {
+      return self.isDeclaredWithDependentType(function);
+    }
+    [[nodiscard]] auto operator()(OverloadSetSymbol* overloadSet) -> bool {
+      return self.hasMemberDeclaredWithDependentType(overloadSet);
+    }
+    [[nodiscard]] auto operator()(FieldSymbol* field) -> bool {
+      return self.isDependent(field->type());
+    }
+    [[nodiscard]] auto operator()(Symbol*) -> bool { return false; }
+  };
 
   [[nodiscard]] auto isDependent(ExpressionAST* ast) -> bool {
     if (!ast) return false;
@@ -106,7 +278,7 @@ struct IsDependent {
       auto named = ast_cast<NamedTypeSpecifierAST>(spec);
       if (!named) continue;
 
-      if (isDependentTypeParameterSymbol(named->symbol)) return true;
+      if (namesDependentTemplateParameter(named->symbol)) return true;
       if (auto alias = symbol_cast<TypeAliasSymbol>(named->symbol)) {
         const auto bindsAliasTemplate =
             alias->templateParameters() &&
@@ -137,7 +309,7 @@ struct IsDependent {
       auto named = ast_cast<NamedTypeSpecifierAST>(spec);
       if (!named) continue;
       if (isDependent(named->nestedNameSpecifier)) return true;
-      return isDependentTypeParameterSymbol(named->symbol);
+      return namesDependentTemplateParameter(named->symbol);
     }
 
     return true;
@@ -148,6 +320,8 @@ struct IsDependent {
       -> bool {
     if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
       if (symbol_cast<TemplateTypeParameterSymbol>(parameter))
+        return isDependentTemplateNameArgument(typeArg);
+      if (denotesTemplateName(typeArg))
         return isDependentTemplateNameArgument(typeArg);
       return isDependentTypeArgument(typeArg);
     }
@@ -169,18 +343,13 @@ struct IsDependent {
     return trailing;
   }
 
-  [[nodiscard]] auto hasDependentTemplateArguments(
-      SimpleTemplateIdAST* templateId) -> bool {
-    if (!templateId) return false;
-
-    auto parameters = template_parameters_of(templateId->symbol);
-    if (!parameters) {
-      parameters =
-          template_parameters_of(template_name_symbol(templateId->symbol));
-    }
+  [[nodiscard]] auto hasDependentTemplateArguments(UnqualifiedIdAST* id)
+      -> bool {
+    auto parameters =
+        template_parameters_of(templated_symbol(templateName(id)));
 
     std::size_t index = 0;
-    for (auto arg : ListView{templateId->templateArgumentList}) {
+    for (auto arg : ListView{get_template_arguments(id)}) {
       auto parameter = parameterForArgument(parameters, index);
       ++index;
       if (isDependentTemplateArgument(arg, parameter)) return true;
@@ -220,10 +389,36 @@ struct IsDependent {
 
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
     if (!type) return false;
-    if (std::ranges::contains(typesUnderExamination, type)) return false;
-    typesUnderExamination.push_back(type);
+    for (auto entry = typesUnderExamination; entry; entry = entry->previous) {
+      if (entry->type != type) continue;
+      ++cycles;
+      return false;
+    }
+    const auto depth = localTemplateDepth.value_or(-1);
+    auto examined = std::span{nonDependentTypes}.first(nonDependentTypeCount);
+    if (!dynamicNonDependentTypes.empty()) examined = dynamicNonDependentTypes;
+    for (const auto& entry : examined) {
+      if (entry.type != type || entry.localTemplateDepth != depth) continue;
+      if (unit && unit->timeTrace())
+        unit->timeTrace()->count(TimeTrace::kTypeDependenceCacheHits);
+      return false;
+    }
+    const auto cyclesBefore = cycles;
+    TypeExamination examination{type, typesUnderExamination};
+    typesUnderExamination = &examination;
+    if (unit && unit->timeTrace())
+      unit->timeTrace()->count(TimeTrace::kTypeDependenceVisits);
     const auto dependent = visit(*this, type);
-    typesUnderExamination.pop_back();
+    typesUnderExamination = examination.previous;
+    if (dependent || cycles != cyclesBefore) return dependent;
+    if (nonDependentTypeCount < nonDependentTypes.size()) {
+      nonDependentTypes[nonDependentTypeCount++] = {type, depth};
+      return dependent;
+    }
+    if (dynamicNonDependentTypes.empty())
+      dynamicNonDependentTypes.assign(nonDependentTypes.begin(),
+                                      nonDependentTypes.end());
+    dynamicNonDependentTypes.push_back({type, depth});
     return dependent;
   }
 
@@ -279,7 +474,9 @@ struct IsDependent {
   }
 
   auto operator()(const FunctionType* type) -> bool {
-    if (type->noexceptExpression()) return true;
+    if (type->noexceptExpression() &&
+        isDependentOperand(type->noexceptExpression()))
+      return true;
     if (isDependent(type->returnType())) return true;
     for (const auto param : type->parameterTypes()) {
       if (isDependent(param)) return true;
@@ -332,7 +529,8 @@ struct IsDependent {
       return false;
     }
 
-    if (symbol_cast<TemplateTypeParameterSymbol>(symbol)) return true;
+    if (symbol_cast<TemplateTypeParameterSymbol>(symbol))
+      return namesDependentTemplateParameter(symbol);
 
     const bool bindsTemplateTemplateParameter =
         !parameter || symbol_cast<TemplateTypeParameterSymbol>(parameter);
@@ -374,21 +572,46 @@ struct IsDependent {
 
   auto operator()(const NamespaceType* type) -> bool { return false; }
 
-  auto operator()(const TypeParameterType* type) -> bool { return true; }
-
-  auto operator()(const TemplateTypeParameterType* type) -> bool {
-    return true;
+  auto operator()(const TypeParameterType* type) -> bool {
+    return !isLocalTemplateDepth(type->depth());
   }
 
-  auto operator()(const UnresolvedNameType* type) -> bool { return true; }
+  auto operator()(const TemplateTypeParameterType* type) -> bool {
+    return !isLocalTemplateDepth(type->depth());
+  }
+
+  auto operator()(const TemplateTypeParameterSpecializationType* type) -> bool {
+    if (isDependent(type->templateParameter())) return true;
+    for (const auto& argument : type->templateArguments()) {
+      if (isDependentArgument(argument)) return true;
+    }
+    return false;
+  }
+
+  auto operator()(const PackExpansionType* type) -> bool {
+    return isDependentOperand(type->pattern());
+  }
+
+  auto operator()(const DecltypeType* type) -> bool {
+    return isDependentOperand(type->expression());
+  }
+
+  auto operator()(const UnresolvedNameType* type) -> bool {
+    if (isDependentOperand(type->nestedNameSpecifier())) return true;
+    return isDependentOperand(type->unqualifiedId());
+  }
 
   auto operator()(const UnresolvedBoundedArrayType* type) -> bool {
     return isDependent(type->elementType()) || isDependent(type->size());
   }
 
-  auto operator()(const UnresolvedUnderlyingType* type) -> bool { return true; }
+  auto operator()(const UnresolvedUnderlyingType* type) -> bool {
+    return isDependentOperand(type->typeId());
+  }
 
-  auto operator()(const UnresolvedBuiltinType* type) -> bool { return true; }
+  auto operator()(const UnresolvedBuiltinType* type) -> bool {
+    return isDependentOperand(type->typeId());
+  }
 
   auto operator()(const OverloadSetType* type) -> bool { return false; }
 
@@ -400,13 +623,18 @@ struct IsDependent {
 
   auto operator()(const UnsignedBitIntType* type) -> bool { return false; }
 
-  auto operator()(const UnresolvedBitIntType* type) -> bool { return true; }
+  auto operator()(const UnresolvedBitIntType* type) -> bool {
+    return isDependentOperand(type->sizeExpression());
+  }
 
   auto operator()(const VectorType* type) -> bool {
     return isDependent(type->elementType());
   }
 
-  auto operator()(const UnresolvedVectorType* type) -> bool { return true; }
+  auto operator()(const UnresolvedVectorType* type) -> bool {
+    if (isDependentOperand(type->elementType())) return true;
+    return isDependentOperand(type->sizeExpression());
+  }
 
   auto operator()(const ComplexType* type) -> bool {
     return isDependent(type->elementType());
@@ -427,7 +655,7 @@ struct IsDependent {
   [[nodiscard]] auto isDependent(UnqualifiedIdAST* ast) -> bool {
     auto templateId = ast_cast<SimpleTemplateIdAST>(ast);
     if (!templateId) return false;
-    if (isDependentTypeParameterSymbol(templateId->symbol)) return true;
+    if (namesDependentTemplateParameter(templateId->symbol)) return true;
     return hasDependentTemplateArguments(templateId);
   }
   [[nodiscard]] auto isDependent(LambdaCaptureAST* ast) -> bool { return false; }
@@ -552,9 +780,7 @@ struct IsDependent {
   auto operator()(ComplexTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(NamedTypeSpecifierAST* ast) -> bool {
     if (!ast) return false;
-    if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
-    if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
-    if (symbol_cast<ConstraintTypeParameterSymbol>(ast->symbol)) return true;
+    if (namesDependentTemplateParameter(ast->symbol)) return true;
     if (auto alias = symbol_cast<TypeAliasSymbol>(ast->symbol)) {
       const auto bindsAliasTemplate = alias->templateParameters() &&
                                       ast_cast<NameIdAST>(ast->unqualifiedId);
@@ -564,18 +790,8 @@ struct IsDependent {
       }
     }
     if (isDependent(ast->nestedNameSpecifier)) return true;
-    if (auto templateId =
-            ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
-      for (auto arg : ListView{templateId->templateArgumentList}) {
-        if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-          if (isDependent(typeArg->typeId)) return true;
-        }
-        if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-          if (isDependent(exprArg->expression)) return true;
-        }
-      }
-    }
-    return false;
+    return hasDependentTemplateArguments(
+        ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId));
   }
   auto operator()(AtomicTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(BitIntTypeSpecifierAST* ast) -> bool {
@@ -609,8 +825,7 @@ auto IsDependent::isDependent(NestedNameSpecifierAST* ast) -> bool {
   if (!ast) return false;
 
   if (ast->symbol) {
-    if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
-    if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
+    if (namesDependentTemplateParameter(ast->symbol)) return true;
     if (isDependent(ast->symbol->type())) return true;
   }
 
@@ -631,17 +846,7 @@ auto IsDependent::operator()(DecltypeNestedNameSpecifierAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(TemplateNestedNameSpecifierAST* ast) -> bool {
-  if (ast->templateId) {
-    for (auto arg : ListView{ast->templateId->templateArgumentList}) {
-      if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-        if (isDependent(typeArg->typeId)) return true;
-      }
-      if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-        if (isDependent(exprArg->expression)) return true;
-      }
-    }
-  }
-
+  if (hasDependentTemplateArguments(ast->templateId)) return true;
   if (isDependent(ast->nestedNameSpecifier)) return true;
 
   return !ast->symbol && !ast->nestedNameSpecifier;
@@ -686,7 +891,8 @@ auto IsDependent::operator()(ObjectLiteralExpressionAST* ast) -> bool {
 auto IsDependent::operator()(ThisExpressionAST* ast) -> bool { return false; }
 
 auto IsDependent::operator()(PackIndexExpressionAST* ast) -> bool {
-  return true;
+  if (isDependentOperand(ast->packExpression)) return true;
+  return isDependentOperand(ast->indexExpression);
 }
 
 auto IsDependent::isDependent(GenericAssociationAST* ast) -> bool {
@@ -726,9 +932,7 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
   if (isDependent(ast->nestedNameSpecifier)) return true;
   if (isDependent(ast->unqualifiedId)) return true;
 
-  if (symbol_cast<NonTypeParameterSymbol>(ast->symbol)) return true;
-  if (symbol_cast<TypeParameterSymbol>(ast->symbol)) return true;
-  if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol)) return true;
+  if (namesDependentTemplateParameter(ast->symbol)) return true;
 
   if (auto enumerator = symbol_cast<EnumeratorSymbol>(ast->symbol)) {
     if (isDependent(enumerator->type())) return true;
@@ -743,6 +947,7 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
     if (isDependent(field->type())) return true;
   }
   if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
+    if (namesTypeDependentPredefinedVariable(unit, var)) return true;
     if (hasValueDependentInitializer(var, var->initializer(),
                                      var->isConstexpr()))
       return true;
@@ -753,17 +958,20 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
     auto functionType = type_cast<FunctionType>(function->type());
     if (!functionType) return false;
     if (!containsPlaceholderType(functionType->returnType())) return false;
-    return isInTemplateScope(function);
+    return enclosedInDependentTemplate(enclosingScopeForDependence(function),
+                                       /*stopAtConcreteSpecialization=*/true);
   };
 
   if (auto overloadSet = symbol_cast<OverloadSetSymbol>(ast->symbol)) {
     for (auto function : overloadSet->functions()) {
       if (hasDependentPlaceholderReturn(function)) return true;
     }
+    if (hasMemberDeclaredWithDependentType(overloadSet)) return true;
   }
 
   if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
     if (hasDependentPlaceholderReturn(func)) return true;
+    if (isDeclaredWithDependentType(func)) return true;
     if (func->isStatic() && isInTemplateScope(func)) return true;
   }
   if (auto param = symbol_cast<ParameterSymbol>(ast->symbol)) {
@@ -816,14 +1024,17 @@ auto IsDependent::operator()(LambdaExpressionAST* ast) -> bool {
   return false;
 }
 
-auto IsDependent::operator()(FoldExpressionAST* ast) -> bool { return true; }
+auto IsDependent::operator()(FoldExpressionAST* ast) -> bool {
+  if (isDependentOperand(ast->leftExpression)) return true;
+  return isDependentOperand(ast->rightExpression);
+}
 
 auto IsDependent::operator()(RightFoldExpressionAST* ast) -> bool {
-  return true;
+  return isDependentOperand(ast->expression);
 }
 
 auto IsDependent::operator()(LeftFoldExpressionAST* ast) -> bool {
-  return true;
+  return isDependentOperand(ast->expression);
 }
 
 auto IsDependent::isDependent(ParameterDeclarationClauseAST* ast) -> bool {
@@ -861,10 +1072,8 @@ auto IsDependent::isDependent(RequirementAST* ast) -> bool {
     return isDependent(compoundRequirement->typeConstraint);
   }
 
-  if (auto typeRequirement = ast_cast<TypeRequirementAST>(ast)) {
-    if (isDependent(typeRequirement->nestedNameSpecifier)) return true;
-    return isDependent(typeRequirement->unqualifiedId);
-  }
+  if (auto typeRequirement = ast_cast<TypeRequirementAST>(ast))
+    return isDependent(typeRequirement->typeId);
 
   if (auto nestedRequirement = ast_cast<NestedRequirementAST>(ast))
     return isDependent(nestedRequirement->expression);
@@ -932,8 +1141,9 @@ auto IsDependent::operator()(MemberExpressionAST* ast) -> bool {
   if (isDependent(ast->baseExpression)) return true;
   if (isDependent(ast->nestedNameSpecifier)) return true;
   if (isDependent(ast->unqualifiedId)) return true;
+  if (!ast->symbol) return false;
 
-  return false;
+  return visit(ReferencedMemberIsDependent{*this}, ast->symbol);
 }
 
 auto IsDependent::operator()(PostIncrExpressionAST* ast) -> bool {
@@ -1033,8 +1243,9 @@ auto IsDependent::operator()(SizeofTypeExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(SizeofPackExpressionAST* ast) -> bool {
-  auto info = template_parameter_info(ast->symbol);
-  return info && info->isPack;
+  if (!localTemplateDepth) return true;
+  if (namesDependentTemplateParameter(ast->symbol)) return true;
+  return ast->symbol && isDependent(ast->symbol->type());
 }
 
 auto IsDependent::operator()(AlignofTypeExpressionAST* ast) -> bool {
@@ -1145,7 +1356,7 @@ auto IsDependent::operator()(CompoundAssignmentExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(PackExpansionExpressionAST* ast) -> bool {
-  return true;
+  return isDependentOperand(ast->expression);
 }
 
 auto IsDependent::operator()(DesignatedInitializerClauseAST* ast) -> bool {
@@ -1226,6 +1437,13 @@ auto isEnclosedInDependentTemplate(TranslationUnit* unit, ScopeSymbol* scope,
       scope, stopAtConcreteSpecialization);
 }
 
+auto namesTypeDependentPredefinedVariable(TranslationUnit* unit, Symbol* symbol)
+    -> bool {
+  if (!is_function_local_predefined_variable(symbol)) return false;
+  return isEnclosedInDependentTemplate(unit, symbol->parent(),
+                                       /*stopAtConcreteSpecialization=*/true);
+}
+
 auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool {
   return symbol_cast<TypeParameterSymbol>(symbol) ||
          symbol_cast<TemplateTypeParameterSymbol>(symbol);
@@ -1241,9 +1459,16 @@ auto isDependentTemplateArgument(TranslationUnit* unit,
   return IsDependent{unit}.isDependentArgument(argument);
 }
 
-auto hasDependentTemplateArguments(TranslationUnit* unit,
-                                   SimpleTemplateIdAST* templateId) -> bool {
-  return IsDependent{unit}.hasDependentTemplateArguments(templateId);
+auto containsUnexpandedParameterPack(AST* ast) -> bool {
+  if (!ast) return false;
+  FindUnexpandedParameterPack scan{ast};
+  scan.accept(ast);
+  return scan.found;
+}
+
+auto hasDependentTemplateArguments(TranslationUnit* unit, UnqualifiedIdAST* id)
+    -> bool {
+  return IsDependent{unit}.hasDependentTemplateArguments(id);
 }
 
 auto isDependent(TranslationUnit* unit, NestedNameSpecifierAST* ast) -> bool {
@@ -1261,23 +1486,38 @@ auto isCurrentInstantiation(ScopeSymbol* scope, const Type* type) -> bool {
   return false;
 }
 
+auto isDependentBaseClass(TranslationUnit* unit, ClassSymbol* classSymbol,
+                          BaseClassSymbol* baseClass) -> bool {
+  auto base = baseClass->symbol();
+  if (!base) return true;
+
+  auto baseType = base->type();
+  if (!baseType) return true;
+
+  if (isCurrentInstantiation(classSymbol, baseType)) return false;
+
+  return isDependent(unit, baseType);
+}
+
 auto hasDependentBaseClass(TranslationUnit* unit, ClassSymbol* classSymbol)
     -> bool {
   if (!classSymbol) return false;
 
-  for (auto baseClass : classSymbol->baseClasses()) {
-    auto base = baseClass->symbol();
-    if (!base) return true;
+  std::vector<ClassSymbol*> visited{classSymbol};
 
-    auto baseType = base->type();
-    if (!baseType) return true;
+  for (std::size_t index = 0; index < visited.size(); ++index) {
+    auto current = visited[index];
 
-    if (isCurrentInstantiation(classSymbol, baseType)) continue;
+    for (auto baseClass : current->baseClasses()) {
+      if (isDependentBaseClass(unit, current, baseClass)) return true;
 
-    if (isDependent(unit, baseType)) return true;
+      auto baseClassType = type_cast<ClassType>(baseClass->symbol()->type());
+      if (!baseClassType) continue;
+      if (isCurrentInstantiation(current, baseClassType)) continue;
 
-    if (auto baseClassType = type_cast<ClassType>(baseType)) {
-      if (hasDependentBaseClass(unit, baseClassType->symbol())) return true;
+      auto base = baseClassType->symbol();
+      if (std::ranges::contains(visited, base)) continue;
+      visited.push_back(base);
     }
   }
 

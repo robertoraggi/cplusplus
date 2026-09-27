@@ -45,10 +45,9 @@ struct GetEnumeratorValue {
 
 [[nodiscard]] auto templateParameterText(Symbol* parameter) -> std::string {
   auto nonTypeParameter = symbol_cast<NonTypeParameterSymbol>(parameter);
-  if (!nonTypeParameter) return to_string(parameter->type());
-
-  auto text = to_string(nonTypeParameter->objectType());
-  if (nonTypeParameter->isParameterPack()) text += "...";
+  auto text = nonTypeParameter ? to_string(nonTypeParameter->objectType())
+                               : to_string(parameter->type());
+  if (is_template_parameter_pack(parameter)) text += "...";
   return text;
 }
 
@@ -196,6 +195,8 @@ struct DumpSymbols {
         sep = ", ";
       }
       out << std::format(">\n");
+    } else if (symbol->isClosureType()) {
+      out << std::format("{} {}\n", classKey, to_string(symbol->type()));
     } else {
       out << std::format("{} {}", classKey, to_string(symbol->name()));
       if (symbol->isFriend()) out << " friend";
@@ -345,6 +346,11 @@ struct DumpSymbols {
     out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
 
     dumpScope(symbol);
+    if (auto closure = symbol->closureType()) {
+      ++depth;
+      visit(*this, static_cast<Symbol*>(closure));
+      --depth;
+    }
   }
 
   void operator()(TemplateParametersSymbol* symbol) {
@@ -441,6 +447,11 @@ struct DumpSymbols {
 
   void operator()(ParameterSymbol* symbol) {
     indent();
+    if (symbol->isParameterPack()) {
+      out << std::format("parameter {}... {}\n", to_string(symbol->type()),
+                         to_string(symbol->name()));
+      return;
+    }
     out << std::format("parameter {}\n",
                        to_string(symbol->type(), symbol->name()));
   }

@@ -111,68 +111,85 @@ void addAttribute(AttributeMap& map, Attribute attribute) {
   if (it->arguments.empty()) it->arguments = std::move(attribute.arguments);
 }
 
+[[nodiscard]] auto specifierAttributes(TranslationUnit* unit,
+                                       AttributeSpecifierAST* specifier)
+    -> const AttributeMap* {
+  if (specifier->attributes) return specifier->attributes;
+
+  auto control = unit->control();
+
+  List<AttributeAST*>* entries = nullptr;
+  const Identifier* usingNamespace = nullptr;
+
+  if (auto cxxAttribute = ast_cast<CxxAttributeAST>(specifier)) {
+    entries = cxxAttribute->attributeList;
+    if (auto prefix = cxxAttribute->attributeUsingPrefix) {
+      usingNamespace = canonicalAttributeName(
+          control, unit->identifier(prefix->attributeNamespaceLoc));
+    }
+  } else if (auto gccAttribute = ast_cast<GccAttributeAST>(specifier)) {
+    entries = gccAttribute->attributeList;
+  } else {
+    return nullptr;
+  }
+
+  AttributeMap collected;
+
+  for (auto entry : ListView{entries}) {
+    Attribute attribute;
+    attribute.attributeNamespace = usingNamespace;
+
+    if (auto simple =
+            ast_cast<SimpleAttributeTokenAST>(entry->attributeToken)) {
+      attribute.name = canonicalAttributeName(control, simple->identifier);
+    } else if (auto scoped =
+                   ast_cast<ScopedAttributeTokenAST>(entry->attributeToken)) {
+      attribute.name = canonicalAttributeName(control, scoped->identifier);
+      attribute.attributeNamespace =
+          canonicalAttributeName(control, scoped->attributeNamespace);
+    }
+
+    if (auto clause = entry->attributeArgumentClause) {
+      collectStringArguments(unit, clause, attribute.arguments);
+    }
+
+    addAttribute(collected, std::move(attribute));
+  }
+
+  std::ranges::sort(collected);
+
+  specifier->attributes = control->getAttributes(collected);
+  return specifier->attributes;
+}
+
+void addSpecifierAttributes(TranslationUnit* unit, AttributeMap& map,
+                            AttributeSpecifierAST* specifier) {
+  auto attributes = specifierAttributes(unit, specifier);
+  if (!attributes) return;
+  for (const auto& attribute : *attributes) addAttribute(map, attribute);
+}
+
 }  // namespace
 
 auto collectAttributes(TranslationUnit* unit,
                        List<AttributeSpecifierAST*>* attributes)
     -> AttributeMap {
   AttributeMap map;
-  auto control = unit->control();
-
-  for (auto specifier : ListView{attributes}) {
-    if (specifier->attributes) {
-      for (const auto& attribute : *specifier->attributes)
-        addAttribute(map, attribute);
-      continue;
-    }
-
-    List<AttributeAST*>* entries = nullptr;
-    const Identifier* usingNamespace = nullptr;
-
-    if (auto cxxAttribute = ast_cast<CxxAttributeAST>(specifier)) {
-      entries = cxxAttribute->attributeList;
-      if (auto prefix = cxxAttribute->attributeUsingPrefix) {
-        usingNamespace = canonicalAttributeName(
-            control, unit->identifier(prefix->attributeNamespaceLoc));
-      }
-    } else if (auto gccAttribute = ast_cast<GccAttributeAST>(specifier)) {
-      entries = gccAttribute->attributeList;
-    } else {
-      continue;
-    }
-
-    AttributeMap collected;
-
-    for (auto entry : ListView{entries}) {
-      Attribute attribute;
-      attribute.attributeNamespace = usingNamespace;
-
-      if (auto simple =
-              ast_cast<SimpleAttributeTokenAST>(entry->attributeToken)) {
-        attribute.name = canonicalAttributeName(control, simple->identifier);
-      } else if (auto scoped =
-                     ast_cast<ScopedAttributeTokenAST>(entry->attributeToken)) {
-        attribute.name = canonicalAttributeName(control, scoped->identifier);
-        attribute.attributeNamespace =
-            canonicalAttributeName(control, scoped->attributeNamespace);
-      }
-
-      if (auto clause = entry->attributeArgumentClause) {
-        collectStringArguments(unit, clause, attribute.arguments);
-      }
-
-      addAttribute(collected, std::move(attribute));
-    }
-
-    std::ranges::sort(collected);
-
-    specifier->attributes = control->getAttributes(collected);
-
-    for (const auto& attribute : collected) addAttribute(map, attribute);
-  }
-
+  for (auto specifier : ListView{attributes})
+    addSpecifierAttributes(unit, map, specifier);
   std::ranges::sort(map);
+  return map;
+}
 
+auto collectGnuAttributes(TranslationUnit* unit,
+                          List<AttributeSpecifierAST*>* attributes)
+    -> AttributeMap {
+  AttributeMap map;
+  for (auto specifier : ListView{attributes}) {
+    if (!ast_cast<GccAttributeAST>(specifier)) continue;
+    addSpecifierAttributes(unit, map, specifier);
+  }
+  std::ranges::sort(map);
   return map;
 }
 

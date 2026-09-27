@@ -35,6 +35,7 @@
 #include <cxx/type_checker.h>
 #include <cxx/types.h>
 #include <cxx/views/symbol_chain.h>
+#include <cxx/views/symbols.h>
 
 #include <format>
 #include <optional>
@@ -46,17 +47,40 @@ auto asExpression(NameIdAST* nameId) -> const Identifier* {
   return nameId ? nameId->identifier : nullptr;
 }
 
-[[nodiscard]] auto enclosingGlobalScope(ScopeSymbol* scope) -> ScopeSymbol* {
-  auto root = scope;
-  while (root && root->parent()) root = root->parent();
-  return root;
+[[nodiscard]] auto declaresNonStaticDataMembers(ClassSymbol* classSymbol)
+    -> bool {
+  return !std::ranges::empty(views::members(classSymbol) |
+                             views::non_static_fields);
+}
+
+[[nodiscard]] auto classesDeclaringNonStaticDataMembers(
+    ClassSymbol* classSymbol) -> std::vector<ClassSymbol*> {
+  std::vector<ClassSymbol*> owners;
+  std::vector<ClassSymbol*> visited;
+  std::vector<ClassSymbol*> pending{classSymbol->resolvedDefinition()};
+
+  while (!pending.empty()) {
+    auto current = pending.back();
+    pending.pop_back();
+    if (std::ranges::contains(visited, current)) continue;
+    visited.push_back(current);
+
+    if (declaresNonStaticDataMembers(current)) owners.push_back(current);
+
+    for (auto base : current->baseClasses()) {
+      if (auto baseClass = symbol_cast<ClassSymbol>(base->symbol()))
+        pending.push_back(baseClass->resolvedDefinition());
+    }
+  }
+
+  return owners;
 }
 }  // namespace
 
 auto Binder::declareStructuredBindingEntity(
     SourceLocation loc, const Identifier* name, const DeclSpecs& specs,
-    TokenKind refOp, ExpressionAST* initializer, bool addSymbolToParentScope)
-    -> InitDeclaratorAST* {
+    TokenKind refOp, ExpressionAST* initializer, bool addSymbolToParentScope,
+    const Type* declaredType) -> InitDeclaratorAST* {
   if (!name) return nullptr;
 
   auto ar = unit_->arena();
@@ -79,7 +103,8 @@ auto Binder::declareStructuredBindingEntity(
 
   Decl decl{specs, declarator};
 
-  auto symbol = declareVariable(declarator, decl, addSymbolToParentScope);
+  auto symbol =
+      declareVariable(declarator, decl, addSymbolToParentScope, declaredType);
   if (!symbol) return nullptr;
 
   auto initDeclarator = InitDeclaratorAST::create(ar);
@@ -91,10 +116,20 @@ auto Binder::declareStructuredBindingEntity(
     TypeChecker check{unit_};
     check.setScope(scope());
     check.setReportErrors(unit_->config().checkTypes);
-    check.check_init_declarator(initDeclarator, nullptr);
+    check.check_init_declarator(initDeclarator, nullptr,
+                                ArrayCopyPolicy::kElementwiseCopyAllowed);
   }
 
   return initDeclarator;
+}
+
+auto Binder::structuredBindingArrayCopyType(
+    StructuredBindingDeclarationAST* ast, const Type* declaredType,
+    const Type* initializerType) const -> const Type* {
+  if (ast->refQualifierLoc) return nullptr;
+  auto arrayType = traits.remove_reference(initializerType);
+  if (!traits.is_array(arrayType)) return nullptr;
+  return traits.add_cv(arrayType, cv_qualifiers(declaredType));
 }
 
 auto Binder::structuredBindingEntityName() -> const Identifier* {
@@ -113,18 +148,11 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
                          ? unit_->tokenKind(ast->refQualifierLoc)
                          : TokenKind::T_EOF_SYMBOL;
 
-  auto eIdent = structuredBindingEntityName();
-
-  auto initializerRefOp = refOp;
-  if (initializerRefOp == TokenKind::T_EOF_SYMBOL &&
-      unqualified_cast<BoundedArrayType>(
-          traits.remove_reference(ast->initializer->type))) {
-    initializerRefOp = TokenKind::T_AMP;
-  }
-
   auto eInitDeclarator = declareStructuredBindingEntity(
-      ast->initializer->firstSourceLocation(), eIdent, specs, initializerRefOp,
-      ast->initializer, false);
+      ast->initializer->firstSourceLocation(), structuredBindingEntityName(),
+      specs, refOp, ast->initializer, false,
+      structuredBindingArrayCopyType(ast, specs.type(),
+                                     ast->initializer->type));
   if (!eInitDeclarator) return;
   ast->hiddenVariable = eInitDeclarator;
 
@@ -134,283 +162,290 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
   decomposeStructuredBinding(ast, eSymbol);
 }
 
-void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
-                                        VariableSymbol* eSymbol) {
+namespace {
+[[nodiscard]] auto namesConstantIndexedTemplate(FunctionSymbol* function)
+    -> bool {
+  if (!function->templateDeclaration()) return false;
+  auto parameters = template_parameters_of(function);
+  if (!parameters) return false;
+  const auto& members = parameters->members();
+  if (members.empty()) return false;
+  return symbol_cast<NonTypeParameterSymbol>(members.front()) != nullptr;
+}
+
+[[nodiscard]] auto declaresConstantIndexedGet(Symbol* candidate) -> bool {
+  for (auto function : views::each_function(candidate)) {
+    if (namesConstantIndexedTemplate(function)) return true;
+  }
+  return false;
+}
+}  // namespace
+
+struct Binder::DecomposeStructuredBinding {
+  Binder& binder;
+  StructuredBindingDeclarationAST* ast;
+  VariableSymbol* entity;
+  Arena* arena;
   int count = 0;
-  for (auto it = ast->bindingList; it; it = it->next) ++count;
-  if (count == 0) return;
+  const Type* entityType = nullptr;
+  List<InitDeclaratorAST*>** bindingTail = nullptr;
 
-  auto ar = unit_->arena();
-  auto eIdent = name_cast<Identifier>(eSymbol->name());
+  DecomposeStructuredBinding(Binder& b, StructuredBindingDeclarationAST* a,
+                             VariableSymbol* e)
+      : binder(b),
+        ast(a),
+        entity(e),
+        arena(b.unit_->arena()),
+        entityType(b.traits.remove_reference(e->type())),
+        bindingTail(&a->bindingDeclaratorList) {
+    for (auto it = ast->bindingList; it; it = it->next) ++count;
+  }
 
-  if (isDependent(unit_, eSymbol->type())) {
+  [[nodiscard]] auto control() const -> Control* { return binder.control(); }
+
+  void operator()() {
+    if (count == 0) return;
+
+    if (isDependent(binder.unit_, entity->type())) {
+      declareDependentBindings();
+      return;
+    }
+
+    auto unqualifiedType = binder.traits.remove_cv(entityType);
+
+    if (auto arrayType = type_cast<BoundedArrayType>(unqualifiedType)) {
+      decomposeArray(arrayType);
+      return;
+    }
+
+    auto classType = type_cast<ClassType>(unqualifiedType);
+    if (!classType || !classType->symbol()) {
+      binder.error(ast->lbracketLoc,
+                   "cannot decompose a non-class, non-array structured "
+                   "binding initializer");
+      return;
+    }
+
+    auto classSymbol = classType->symbol();
+    (void)binder.traits.requireCompleteClass(classSymbol);
+
+    if (auto sizeClass = tupleSizeClass()) {
+      decomposeTupleLike(classSymbol, sizeClass);
+      return;
+    }
+
+    decomposeDataMembers(classSymbol);
+  }
+
+  void declareDependentBindings() {
     auto dependentType = control()->getDependentType();
-    auto placeholderTail = &ast->bindingDeclaratorList;
     for (auto it = ast->bindingList; it; it = it->next) {
       auto name = asExpression(it->value);
       if (!name) continue;
 
-      auto placeholder =
-          control()->newVariableSymbol(scope(), it->value->identifierLoc);
+      auto placeholder = control()->newVariableSymbol(binder.scope(),
+                                                      it->value->identifierLoc);
       placeholder->setName(name);
       placeholder->setType(dependentType);
-      scope()->addSymbol(placeholder);
+      binder.scope()->addSymbol(placeholder);
 
-      auto placeholderDeclarator = InitDeclaratorAST::create(ar);
+      auto placeholderDeclarator = InitDeclaratorAST::create(arena);
       placeholderDeclarator->symbol = placeholder;
-
-      *placeholderTail =
-          make_list_node<InitDeclaratorAST>(ar, placeholderDeclarator);
-      placeholderTail = &(*placeholderTail)->next;
+      appendBinding(placeholderDeclarator);
     }
-    return;
   }
 
-  auto elementBaseType = traits.remove_reference(eSymbol->type());
-  auto unqualifiedBaseType = traits.remove_cv(elementBaseType);
-  auto baseCv = cv_qualifiers(elementBaseType);
+  void appendBinding(InitDeclaratorAST* declarator) {
+    *bindingTail = make_list_node<InitDeclaratorAST>(arena, declarator);
+    bindingTail = &(*bindingTail)->next;
+  }
 
-  auto buildEIdExpr = [&](ValueCategory valueCategory) -> IdExpressionAST* {
-    auto idExpr = IdExpressionAST::create(ar);
-    idExpr->unqualifiedId = NameIdAST::create(ar, eIdent);
-    idExpr->symbol = eSymbol;
-    idExpr->type = elementBaseType;
-    idExpr->valueCategory = valueCategory;
-    return idExpr;
-  };
+  [[nodiscard]] auto entityReference(ValueCategory valueCategory) const
+      -> IdExpressionAST* {
+    auto reference = IdExpressionAST::create(arena);
+    reference->unqualifiedId =
+        NameIdAST::create(arena, name_cast<Identifier>(entity->name()));
+    reference->symbol = entity;
+    reference->type = entityType;
+    reference->valueCategory = valueCategory;
+    return reference;
+  }
 
-  auto bindingDeclaratorListTail = &ast->bindingDeclaratorList;
+  [[nodiscard]] auto indexLiteral(int index) const -> IntLiteralExpressionAST* {
+    auto literal = IntLiteralExpressionAST::create(arena);
+    literal->literal = control()->integerLiteral(std::to_string(index));
+    literal->valueCategory = ValueCategory::kPrValue;
+    literal->type = control()->getSizeType();
+    return literal;
+  }
 
-  auto declareBinding = [&](NameIdAST* nameId, ExpressionAST* accessExpr,
-                            const Type* declaredType = nullptr) {
+  [[nodiscard]] auto typeArgument(const Type* type) const
+      -> TemplateArgumentAST* {
+    auto typeId = TypeIdAST::create(arena);
+    typeId->type = type;
+    return TypeTemplateArgumentAST::create(arena, typeId);
+  }
+
+  [[nodiscard]] auto valueArgument(int index) const -> TemplateArgumentAST* {
+    auto argument = ExpressionTemplateArgumentAST::create(arena);
+    argument->expression = indexLiteral(index);
+    return argument;
+  }
+
+  void declareBinding(NameIdAST* nameId, ExpressionAST* access,
+                      const Type* declaredType = nullptr) {
     auto name = asExpression(nameId);
     if (!name) return;
 
-    if (!accessExpr || !accessExpr->type) {
-      error(
+    if (!access || !access->type) {
+      binder.error(
           nameId->identifierLoc,
           std::format("cannot decompose initializer into '{}'", name->name()));
       return;
     }
 
-    if (!declaredType) declaredType = accessExpr->type;
+    if (!declaredType) declaredType = access->type;
 
-    auto equalInit = EqualInitializerAST::create(ar);
-    equalInit->expression = accessExpr;
-    equalInit->valueCategory = accessExpr->valueCategory;
-    equalInit->type = accessExpr->type;
+    auto equalInit = EqualInitializerAST::create(arena);
+    equalInit->expression = access;
+    equalInit->valueCategory = access->valueCategory;
+    equalInit->type = access->type;
 
-    DeclSpecs bindingSpecs{unit_};
+    DeclSpecs bindingSpecs{binder.unit_};
     bindingSpecs.setType(declaredType);
     bindingSpecs.finish();
 
-    const auto bindingRefOp =
-        accessExpr->valueCategory == ValueCategory::kLValue
-            ? TokenKind::T_AMP
-            : TokenKind::T_AMP_AMP;
+    const auto bindingRefOp = access->valueCategory == ValueCategory::kLValue
+                                  ? TokenKind::T_AMP
+                                  : TokenKind::T_AMP_AMP;
 
-    auto bindingInitDeclarator = declareStructuredBindingEntity(
+    auto bindingInitDeclarator = binder.declareStructuredBindingEntity(
         nameId->identifierLoc, name, bindingSpecs, bindingRefOp, equalInit,
         true);
     if (!bindingInitDeclarator) return;
 
-    *bindingDeclaratorListTail =
-        make_list_node<InitDeclaratorAST>(ar, bindingInitDeclarator);
-    bindingDeclaratorListTail = &(*bindingDeclaratorListTail)->next;
-  };
+    appendBinding(bindingInitDeclarator);
+  }
 
-  if (auto arrayType = type_cast<BoundedArrayType>(unqualifiedBaseType)) {
+  void decomposeArray(const BoundedArrayType* arrayType) {
     if (static_cast<std::size_t>(count) != arrayType->size()) {
-      error(ast->lbracketLoc,
-            std::format("{} names provided for structured binding of array "
-                        "with {} elements",
-                        count, arrayType->size()));
+      binder.error(ast->lbracketLoc,
+                   std::format("{} names provided for structured binding of "
+                               "array with {} elements",
+                               count, arrayType->size()));
       return;
     }
 
-    auto elementType = traits.add_cv(arrayType->elementType(), baseCv);
+    auto elementType = binder.traits.add_cv(arrayType->elementType(),
+                                            cv_qualifiers(entityType));
 
     int index = 0;
     for (auto it = ast->bindingList; it; it = it->next, ++index) {
-      auto idxLiteral = IntLiteralExpressionAST::create(ar);
-      idxLiteral->literal = control()->integerLiteral(std::to_string(index));
-      idxLiteral->valueCategory = ValueCategory::kPrValue;
-      idxLiteral->type = control()->getSizeType();
-
-      auto subscript = SubscriptExpressionAST::create(ar);
-      subscript->baseExpression = buildEIdExpr(ValueCategory::kLValue);
-      subscript->indexExpression = idxLiteral;
+      auto subscript = SubscriptExpressionAST::create(arena);
+      subscript->baseExpression = entityReference(ValueCategory::kLValue);
+      subscript->indexExpression = indexLiteral(index);
       subscript->valueCategory = ValueCategory::kLValue;
       subscript->type = elementType;
 
       declareBinding(it->value, subscript);
     }
-    return;
   }
 
-  auto classType = type_cast<ClassType>(unqualifiedBaseType);
-  if (!classType || !classType->symbol()) {
-    error(ast->lbracketLoc,
-          "cannot decompose a non-class, non-array structured binding "
-          "initializer");
-    return;
-  }
-
-  auto classSymbol = classType->symbol();
-  (void)traits.requireCompleteClass(classSymbol);
-
-  auto getIdent = control()->getIdentifier("get");
-
-  auto indexLiteral = [&](int index) -> IntLiteralExpressionAST* {
-    auto literal = IntLiteralExpressionAST::create(ar);
-    literal->literal = control()->integerLiteral(std::to_string(index));
-    literal->valueCategory = ValueCategory::kPrValue;
-    literal->type = control()->getSizeType();
-    return literal;
-  };
-
-  auto typeArgument = [&](const Type* type) -> TemplateArgumentAST* {
-    auto typeId = TypeIdAST::create(ar);
-    typeId->type = type;
-    return TypeTemplateArgumentAST::create(ar, typeId);
-  };
-
-  auto valueArgument = [&](int index) -> TemplateArgumentAST* {
-    auto argument = ExpressionTemplateArgumentAST::create(ar);
-    argument->expression = indexLiteral(index);
-    return argument;
-  };
-
-  auto standardLibraryClassTemplate = [&](std::string_view name) -> Symbol* {
-    auto stdNamespace = symbol_cast<NamespaceSymbol>(qualifiedLookup(
-        enclosingGlobalScope(scope()), control()->getIdentifier("std")));
-    if (!stdNamespace) return nullptr;
-    return qualifiedLookup(stdNamespace, control()->getIdentifier(name),
-                           [](Symbol* s) { return is_type(s); });
-  };
-
-  auto instantiateStandardLibraryClass =
-      [&](std::string_view name,
-          List<TemplateArgumentAST*>* arguments) -> ClassSymbol* {
-    auto primary = standardLibraryClassTemplate(name);
+  [[nodiscard]] auto instantiateStandardLibraryClass(
+      WellKnownName name, List<TemplateArgumentAST*>* arguments) const
+      -> ClassSymbol* {
+    auto primary = lookupStandardLibraryType(binder.unit_, name);
     if (!primary) return nullptr;
-    auto instance =
-        ASTRewriter::instantiate(unit_, arguments, primary, ast->lbracketLoc);
+    auto instance = ASTRewriter::instantiate(binder.unit_, arguments, primary,
+                                             ast->lbracketLoc);
     auto instanceClass = symbol_cast<ClassSymbol>(instance);
     if (!instanceClass) return nullptr;
-    (void)traits.requireCompleteClass(instanceClass);
+    (void)binder.traits.requireCompleteClass(instanceClass);
     return symbol_cast<ClassSymbol>(instanceClass->resolvedDefinition());
-  };
+  }
 
-  auto tupleSizeClass = [&]() -> ClassSymbol* {
+  [[nodiscard]] auto tupleSizeClass() const -> ClassSymbol* {
     auto arguments =
-        make_list_node<TemplateArgumentAST>(ar, typeArgument(elementBaseType));
-    auto sizeClass = instantiateStandardLibraryClass("tuple_size", arguments);
+        make_list_node<TemplateArgumentAST>(arena, typeArgument(entityType));
+    auto sizeClass =
+        instantiateStandardLibraryClass(WellKnownName::T_TUPLE_SIZE, arguments);
     if (!sizeClass || !sizeClass->isComplete()) return nullptr;
     if (!qualifiedLookup(sizeClass, control()->getIdentifier("value")))
       return nullptr;
     return sizeClass;
-  };
+  }
 
-  auto structuredBindingSize =
-      [&](ClassSymbol* sizeClass) -> std::optional<std::intmax_t> {
-    auto valueSymbol =
-        qualifiedLookup(sizeClass, control()->getIdentifier("value"));
+  [[nodiscard]] auto tupleSize(ClassSymbol* sizeClass) const
+      -> std::optional<std::intmax_t> {
+    auto valueName = control()->getIdentifier("value");
+    auto valueSymbol = qualifiedLookup(sizeClass, valueName);
     if (!valueSymbol || !valueSymbol->type()) return std::nullopt;
 
     if (auto valueField = symbol_cast<FieldSymbol>(valueSymbol))
-      ASTRewriter::completePendingFieldInitializer(unit_, valueField);
+      ASTRewriter::requireFieldInitializer(binder.unit_, valueField);
 
-    auto valueExpr = IdExpressionAST::create(ar);
-    valueExpr->unqualifiedId =
-        NameIdAST::create(ar, control()->getIdentifier("value"));
+    auto valueExpr = IdExpressionAST::create(arena);
+    valueExpr->unqualifiedId = NameIdAST::create(arena, valueName);
     valueExpr->symbol = valueSymbol;
     valueExpr->type = valueSymbol->type();
     valueExpr->valueCategory = ValueCategory::kLValue;
 
-    auto value = ASTInterpreter{unit_}.evaluate(valueExpr);
+    auto value = ASTInterpreter{binder.unit_}.evaluate(valueExpr);
     if (!value) return std::nullopt;
     auto integer = std::get_if<ConstInt>(&*value);
     if (!integer || integer->isNegative()) return std::nullopt;
     return integer->toIntMax();
-  };
+  }
 
-  auto structuredBindingElementType = [&](int index) -> const Type* {
+  [[nodiscard]] auto tupleElementType(int index) const -> const Type* {
     auto arguments =
-        make_list_node<TemplateArgumentAST>(ar, valueArgument(index));
+        make_list_node<TemplateArgumentAST>(arena, valueArgument(index));
     arguments->next =
-        make_list_node<TemplateArgumentAST>(ar, typeArgument(elementBaseType));
-    auto elementClass =
-        instantiateStandardLibraryClass("tuple_element", arguments);
+        make_list_node<TemplateArgumentAST>(arena, typeArgument(entityType));
+    auto elementClass = instantiateStandardLibraryClass(
+        WellKnownName::T_TUPLE_ELEMENT, arguments);
     if (!elementClass) return nullptr;
     auto typeSymbol =
         qualifiedLookup(elementClass, control()->getIdentifier("type"),
                         [](Symbol* s) { return is_type(s); });
     if (!typeSymbol) return nullptr;
     return typeSymbol->type();
-  };
+  }
 
-  auto namesConstantIndexedTemplate = [](FunctionSymbol* function) {
-    if (!function) return false;
-    if (!function->templateDeclaration()) return false;
-    auto parameters = template_parameters_of(function);
-    if (!parameters) return false;
-    const auto& members = parameters->members();
-    if (members.empty()) return false;
-    return symbol_cast<NonTypeParameterSymbol>(members.front()) != nullptr;
-  };
+  [[nodiscard]] auto tupleEntityValueCategory() const -> ValueCategory {
+    if (type_cast<LvalueReferenceType>(entity->type()))
+      return ValueCategory::kLValue;
+    return ValueCategory::kXValue;
+  }
 
-  auto declaresConstantIndexedGet = [&](Symbol* candidate) {
-    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(candidate)) {
-      for (auto function : overloadSet->functions()) {
-        if (namesConstantIndexedTemplate(function)) return true;
-      }
-      return false;
-    }
-    return namesConstantIndexedTemplate(symbol_cast<FunctionSymbol>(candidate));
-  };
-
-  const bool hasMemberGetTemplate =
-      qualifiedLookup(classSymbol, getIdent, declaresConstantIndexedGet) !=
-      nullptr;
-
-  auto buildGetTemplateId = [&]() -> SimpleTemplateIdAST* {
-    auto templateId = SimpleTemplateIdAST::create(ar);
-    templateId->identifier = getIdent;
+  [[nodiscard]] auto tupleGet(int index, bool hasMemberGetTemplate,
+                              TypeChecker& check) -> ExpressionAST* {
+    auto templateId = SimpleTemplateIdAST::create(arena);
+    templateId->identifier = control()->getIdentifier("get");
     templateId->identifierLoc = ast->lbracketLoc;
-    return templateId;
-  };
-
-  auto tupleEntityValueCategory = ValueCategory::kXValue;
-  if (type_cast<LvalueReferenceType>(eSymbol->type()))
-    tupleEntityValueCategory = ValueCategory::kLValue;
-
-  auto tupleGet = [&](int index, TypeChecker& check) -> ExpressionAST* {
-    auto templateId = buildGetTemplateId();
     templateId->templateArgumentList =
-        make_list_node<TemplateArgumentAST>(ar, valueArgument(index));
+        make_list_node<TemplateArgumentAST>(arena, valueArgument(index));
 
-    auto callExpr = CallExpressionAST::create(ar);
+    auto callExpr = CallExpressionAST::create(arena);
     callExpr->lparenLoc = ast->lbracketLoc;
     callExpr->rparenLoc = ast->rbracketLoc;
 
     if (hasMemberGetTemplate) {
-      auto memberExpr = MemberExpressionAST::create(ar);
-      memberExpr->baseExpression = buildEIdExpr(tupleEntityValueCategory);
+      auto memberExpr = MemberExpressionAST::create(arena);
+      memberExpr->baseExpression = entityReference(tupleEntityValueCategory());
       memberExpr->accessOp = TokenKind::T_DOT;
       memberExpr->unqualifiedId = templateId;
       memberExpr->isTemplateIntroduced = true;
       callExpr->baseExpression = memberExpr;
       check.check(&callExpr->baseExpression);
     } else {
-      auto calleeIdExpr = IdExpressionAST::create(ar);
+      auto calleeIdExpr = IdExpressionAST::create(arena);
       calleeIdExpr->unqualifiedId = templateId;
-      bind(calleeIdExpr, true);
+      binder.bind(calleeIdExpr, true);
       callExpr->baseExpression = calleeIdExpr;
       check.check(&callExpr->baseExpression);
       callExpr->expressionList = make_list_node<ExpressionAST>(
-          ar,
-          static_cast<ExpressionAST*>(buildEIdExpr(tupleEntityValueCategory)));
+          arena, entityReference(tupleEntityValueCategory()));
     }
 
     ExpressionAST* result = callExpr;
@@ -418,73 +453,112 @@ void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
 
     if (!result->type) return nullptr;
     return result;
-  };
+  }
 
-  if (auto sizeClass = tupleSizeClass()) {
-    auto tupleSize = structuredBindingSize(sizeClass);
+  void decomposeTupleLike(ClassSymbol* classSymbol, ClassSymbol* sizeClass) {
+    auto size = tupleSize(sizeClass);
 
-    if (!tupleSize) {
-      error(ast->lbracketLoc,
-            std::format("'std::tuple_size<{}>::value' is not a non-negative "
-                        "integral constant expression",
-                        to_string(elementBaseType)));
+    if (!size) {
+      binder.error(ast->lbracketLoc,
+                   std::format("'std::tuple_size<{}>::value' is not a "
+                               "non-negative integral constant expression",
+                               to_string(entityType)));
       return;
     }
 
-    if (count != *tupleSize) {
-      error(ast->lbracketLoc,
-            std::format("{} names provided for structured binding of type "
-                        "with a structured binding size of {}",
-                        count, *tupleSize));
+    if (count != *size) {
+      binder.error(ast->lbracketLoc,
+                   std::format("{} names provided for structured binding of "
+                               "type with a structured binding size of {}",
+                               count, *size));
       return;
     }
 
-    TypeChecker check{unit_};
-    check.setScope(scope());
+    const bool hasMemberGetTemplate =
+        qualifiedLookup(classSymbol, control()->getIdentifier("get"),
+                        declaresConstantIndexedGet) != nullptr;
+
+    TypeChecker check{binder.unit_};
+    check.setScope(binder.scope());
 
     int index = 0;
     for (auto it = ast->bindingList; it; it = it->next, ++index) {
-      auto elementType = structuredBindingElementType(index);
+      auto elementType = tupleElementType(index);
       if (!elementType) {
-        error(ast->lbracketLoc, std::format("no type named 'type' in "
-                                            "'std::tuple_element<{}, {}>'",
-                                            index, to_string(elementBaseType)));
+        binder.error(ast->lbracketLoc,
+                     std::format("no type named 'type' in "
+                                 "'std::tuple_element<{}, {}>'",
+                                 index, to_string(entityType)));
         return;
       }
-      declareBinding(it->value, tupleGet(index, check), elementType);
+      declareBinding(it->value, tupleGet(index, hasMemberGetTemplate, check),
+                     elementType);
     }
-    return;
   }
 
-  std::vector<FieldSymbol*> fields;
-  for (auto member : classSymbol->members()) {
-    auto field = symbol_cast<FieldSymbol>(member);
-    if (field && !field->isStatic()) fields.push_back(field);
+  void decomposeDataMembers(ClassSymbol* classSymbol) {
+    auto unqualifiedType = binder.traits.remove_cv(entityType);
+    auto owners = classesDeclaringNonStaticDataMembers(classSymbol);
+    if (owners.size() > 1) {
+      binder.error(ast->lbracketLoc,
+                   std::format("cannot decompose '{}': its non-static data "
+                               "members are not all direct members of the "
+                               "same class",
+                               to_string(unqualifiedType)));
+      return;
+    }
+
+    std::vector<FieldSymbol*> fields;
+    if (!owners.empty()) {
+      std::ranges::copy(
+          views::members(owners.front()) | views::non_static_fields,
+          std::back_inserter(fields));
+    }
+
+    if (std::ranges::any_of(fields, is_anonymous_union_member)) {
+      binder.error(ast->lbracketLoc,
+                   std::format("cannot decompose '{}': it has an anonymous "
+                               "union member",
+                               to_string(unqualifiedType)));
+      return;
+    }
+
+    if (static_cast<int>(fields.size()) != count) {
+      binder.error(ast->lbracketLoc,
+                   std::format("{} names provided for structured binding of "
+                               "type with {} non-static data members",
+                               count, fields.size()));
+      return;
+    }
+
+    TypeChecker check{binder.unit_};
+    check.setScope(binder.scope());
+
+    int index = 0;
+    for (auto it = ast->bindingList; it; it = it->next, ++index) {
+      auto field = fields[static_cast<std::size_t>(index)];
+
+      auto memberExpr = MemberExpressionAST::create(arena);
+      memberExpr->baseExpression = entityReference(ValueCategory::kLValue);
+      memberExpr->accessOp = TokenKind::T_DOT;
+      memberExpr->accessLoc = it->value->identifierLoc;
+      auto memberName =
+          NameIdAST::create(arena, name_cast<Identifier>(field->name()));
+      memberName->identifierLoc = it->value->identifierLoc;
+      memberExpr->unqualifiedId = memberName;
+
+      ExpressionAST* access = memberExpr;
+      check.check(&access);
+
+      if (memberExpr->symbol != field) access = nullptr;
+
+      declareBinding(it->value, access);
+    }
   }
+};
 
-  if (static_cast<int>(fields.size()) != count) {
-    error(ast->lbracketLoc,
-          std::format("{} names provided for structured binding of type "
-                      "with {} non-static data members",
-                      count, fields.size()));
-    return;
-  }
-
-  int index = 0;
-  for (auto it = ast->bindingList; it; it = it->next, ++index) {
-    auto field = fields[static_cast<std::size_t>(index)];
-    auto memberType = traits.add_cv(field->type(), baseCv);
-
-    auto memberExpr = MemberExpressionAST::create(ar);
-    memberExpr->baseExpression = buildEIdExpr(ValueCategory::kLValue);
-    memberExpr->accessOp = TokenKind::T_DOT;
-    memberExpr->unqualifiedId =
-        NameIdAST::create(ar, name_cast<Identifier>(field->name()));
-    memberExpr->symbol = field;
-    memberExpr->valueCategory = ValueCategory::kLValue;
-    memberExpr->type = memberType;
-
-    declareBinding(it->value, memberExpr);
-  }
+void Binder::decomposeStructuredBinding(StructuredBindingDeclarationAST* ast,
+                                        VariableSymbol* entity) {
+  DecomposeStructuredBinding{*this, ast, entity}();
 }
 }  // namespace cxx

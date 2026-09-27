@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/mlir/mlir_emitter.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/IR/PatternMatch.h>
@@ -32,11 +33,13 @@ struct SerializedCleanups {
   mlir::SmallVector<mlir::Attribute> destructors;
   mlir::SmallVector<mlir::Attribute> depths;
   mlir::SmallVector<std::int32_t> activeFlagIndices;
+  mlir::SmallVector<std::int64_t> elementCounts;
 
   SerializedCleanups(MlirEmitter& emitter,
                      std::span<const CleanupAction> cleanups) {
     for (const auto& cleanup : cleanups) {
       addresses.push_back(emitter.value(cleanup.address));
+      elementCounts.push_back(cleanup.elementCount);
       destructors.push_back(mlir::FlatSymbolRefAttr::get(
           emitter.function(cleanup.destructor).getSymNameAttr()));
       depths.push_back(emitter.builder().getI64IntegerAttr(cleanup.depth));
@@ -50,6 +53,128 @@ struct SerializedCleanups {
     }
   }
 };
+
+struct Destruction {
+  mlir::FlatSymbolRefAttr destructor;
+  mlir::SmallVector<mlir::Type> resultTypes;
+  mlir::Type objectPointerType;
+  mlir::Value address;
+  std::int64_t elementCount = 1;
+};
+
+void emitDestruction(mlir::IRRewriter& rewriter, mlir::Location loc,
+                     const Destruction& destruction) {
+  if (destruction.elementCount <= 1) {
+    mlir::cxx::CallOp::create(rewriter, loc, destruction.resultTypes,
+                              destruction.destructor,
+                              mlir::ValueRange{destruction.address});
+    return;
+  }
+
+  auto indexType = rewriter.getI64Type();
+
+  auto* currentBlock = rewriter.getInsertionBlock();
+  auto* continueBlock =
+      rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+  auto* conditionBlock =
+      rewriter.createBlock(continueBlock, {indexType}, {loc});
+  auto* bodyBlock = rewriter.createBlock(continueBlock);
+
+  rewriter.setInsertionPointToEnd(currentBlock);
+  auto count = mlir::arith::ConstantOp::create(
+      rewriter, loc, indexType,
+      rewriter.getI64IntegerAttr(destruction.elementCount));
+  mlir::cf::BranchOp::create(rewriter, loc, conditionBlock,
+                             mlir::ValueRange{count});
+
+  rewriter.setInsertionPointToEnd(conditionBlock);
+  auto position = conditionBlock->getArgument(0);
+  auto zero = mlir::arith::ConstantOp::create(rewriter, loc, indexType,
+                                              rewriter.getI64IntegerAttr(0));
+  auto more = mlir::arith::CmpIOp::create(
+      rewriter, loc, mlir::arith::CmpIPredicate::ne, position, zero);
+  mlir::cf::CondBranchOp::create(rewriter, loc, more, bodyBlock, continueBlock);
+
+  rewriter.setInsertionPointToEnd(bodyBlock);
+  auto one = mlir::arith::ConstantOp::create(rewriter, loc, indexType,
+                                             rewriter.getI64IntegerAttr(1));
+  auto index = mlir::arith::SubIOp::create(rewriter, loc, position, one);
+  auto element = mlir::cxx::PtrAddOp::create(
+      rewriter, loc, destruction.objectPointerType, destruction.address, index);
+  mlir::cxx::CallOp::create(rewriter, loc, destruction.resultTypes,
+                            destruction.destructor, mlir::ValueRange{element});
+  mlir::cf::BranchOp::create(rewriter, loc, conditionBlock,
+                             mlir::ValueRange{index});
+
+  rewriter.setInsertionPointToStart(continueBlock);
+}
+
+void emitGuardedDestruction(mlir::IRRewriter& rewriter, mlir::Location loc,
+                            const Destruction& destruction,
+                            mlir::Value activeFlag) {
+  auto* currentBlock = rewriter.getInsertionBlock();
+  auto* continueBlock =
+      rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+  auto* destroyBlock = rewriter.createBlock(continueBlock);
+
+  rewriter.setInsertionPointToEnd(destroyBlock);
+  emitDestruction(rewriter, loc, destruction);
+  mlir::cf::BranchOp::create(rewriter, loc, continueBlock);
+
+  rewriter.setInsertionPointToEnd(currentBlock);
+  auto flag = mlir::cxx::LoadOp::create(rewriter, loc, rewriter.getI1Type(),
+                                        activeFlag, 1);
+  mlir::cf::CondBranchOp::create(rewriter, loc, flag, destroyBlock,
+                                 continueBlock);
+
+  rewriter.setInsertionPointToStart(continueBlock);
+}
+
+struct CleanupCalls {
+  mlir::ValueRange addresses;
+  mlir::ArrayAttr destructors;
+  mlir::ValueRange activeFlags;
+  llvm::ArrayRef<std::int32_t> activeFlagIndices;
+  llvm::ArrayRef<std::int64_t> elementCounts;
+};
+
+[[nodiscard]] auto describeDestruction(MlirEmitter& emitter,
+                                       const CleanupCalls& calls,
+                                       unsigned index) -> Destruction {
+  Destruction destruction{.destructor = mlir::cast<mlir::FlatSymbolRefAttr>(
+                              calls.destructors[index]),
+                          .address = calls.addresses[index],
+                          .elementCount = calls.elementCounts[index]};
+
+  auto dtorFunc = emitter.findFunction(destruction.destructor.getValue());
+  if (!dtorFunc) return destruction;
+
+  auto functionType = emitter.function(dtorFunc).getFunctionType();
+  auto results = functionType.getResults();
+  destruction.resultTypes.append(results.begin(), results.end());
+  destruction.objectPointerType = functionType.getInputs().front();
+  return destruction;
+}
+
+void emitCleanupCalls(MlirEmitter& emitter, mlir::IRRewriter& rewriter,
+                      mlir::Location loc, const CleanupCalls& calls,
+                      llvm::function_ref<bool(unsigned)> selects) {
+  for (unsigned i = 0; i < calls.addresses.size(); ++i) {
+    if (selects && !selects(i)) continue;
+
+    auto destruction = describeDestruction(emitter, calls, i);
+
+    const auto flagIndex = calls.activeFlagIndices[i];
+
+    if (flagIndex < 0) {
+      emitDestruction(rewriter, loc, destruction);
+      continue;
+    }
+
+    emitGuardedDestruction(rewriter, loc, destruction,
+                           calls.activeFlags[flagIndex]);
+  }
+}
 }  // namespace
 
 auto MlirEmitter::beginCleanupRegion() -> CleanupRegionRef {
@@ -129,6 +254,7 @@ void MlirEmitter::branchWithCleanups(SourceLocation loc, CleanupTarget target,
         builder_, getLocation(loc), snapshot.addresses, snapshot.activeFlags,
         builder_.getArrayAttr(snapshot.destructors),
         builder_.getDenseI32ArrayAttr(snapshot.activeFlagIndices),
+        builder_.getDenseI64ArrayAttr(snapshot.elementCounts),
         block(target.block));
     return;
   }
@@ -137,7 +263,8 @@ void MlirEmitter::branchWithCleanups(SourceLocation loc, CleanupTarget target,
       builder_, getLocation(loc), snapshot.addresses, snapshot.activeFlags,
       builder_.getArrayAttr(snapshot.destructors),
       builder_.getArrayAttr(snapshot.depths),
-      builder_.getDenseI32ArrayAttr(snapshot.activeFlagIndices), target.label);
+      builder_.getDenseI32ArrayAttr(snapshot.activeFlagIndices),
+      builder_.getDenseI64ArrayAttr(snapshot.elementCounts), target.label);
 }
 
 void MlirEmitter::indirectGoto(SourceLocation loc, ValueRef target) {
@@ -206,50 +333,6 @@ void MlirEmitter::resolveFunctionControlFlow(FunctionRef funcOp) {
     }
   }
 
-  auto emitCleanupCalls = [&](mlir::Location loc, mlir::ValueRange addresses,
-                              mlir::ArrayAttr destructors,
-                              mlir::ValueRange activeFlags,
-                              llvm::ArrayRef<std::int32_t> activeFlagIndices,
-                              llvm::function_ref<bool(unsigned)> selects) {
-    for (unsigned i = 0; i < addresses.size(); ++i) {
-      if (selects && !selects(i)) continue;
-
-      auto dtorRef = mlir::cast<mlir::FlatSymbolRefAttr>(destructors[i]);
-      mlir::SmallVector<mlir::Type> resultTypes;
-      if (auto dtorFunc = findFunction(dtorRef.getValue())) {
-        auto results = function(dtorFunc).getFunctionType().getResults();
-        resultTypes.append(results.begin(), results.end());
-      }
-
-      const auto flagIndex =
-          i < activeFlagIndices.size() ? activeFlagIndices[i] : -1;
-
-      if (flagIndex < 0) {
-        mlir::cxx::CallOp::create(rewriter, loc, resultTypes, dtorRef,
-                                  mlir::ValueRange{addresses[i]});
-        continue;
-      }
-
-      auto* currentBlock = rewriter.getInsertionBlock();
-      auto* continueBlock =
-          rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
-      auto* destroyBlock = rewriter.createBlock(continueBlock);
-
-      rewriter.setInsertionPointToEnd(destroyBlock);
-      mlir::cxx::CallOp::create(rewriter, loc, resultTypes, dtorRef,
-                                mlir::ValueRange{addresses[i]});
-      mlir::cf::BranchOp::create(rewriter, loc, continueBlock);
-
-      rewriter.setInsertionPointToEnd(currentBlock);
-      auto flag = mlir::cxx::LoadOp::create(rewriter, loc, rewriter.getI1Type(),
-                                            activeFlags[flagIndex], 1);
-      mlir::cf::CondBranchOp::create(rewriter, loc, flag, destroyBlock,
-                                     continueBlock);
-
-      rewriter.setInsertionPointToStart(continueBlock);
-    }
-  };
-
   for (auto gotoOp : gotoOps) {
     auto targetBlock = labels.lookup(gotoOp.getLabel());
     if (!targetBlock) continue;
@@ -264,9 +347,13 @@ void MlirEmitter::resolveFunctionControlFlow(FunctionRef funcOp) {
       rewriter.eraseOp(&*nextOp);
     }
 
-    emitCleanupCalls(gotoOp.getLoc(), gotoOp.getAddresses(),
-                     gotoOp.getDestructors(), gotoOp.getActiveFlags(),
-                     gotoOp.getActiveFlagIndices(), [&](unsigned i) {
+    emitCleanupCalls(*this, rewriter, gotoOp.getLoc(),
+                     {.addresses = gotoOp.getAddresses(),
+                      .destructors = gotoOp.getDestructors(),
+                      .activeFlags = gotoOp.getActiveFlags(),
+                      .activeFlagIndices = gotoOp.getActiveFlagIndices(),
+                      .elementCounts = gotoOp.getElementCounts()},
+                     [&](unsigned i) {
                        auto depthAttr =
                            mlir::cast<mlir::IntegerAttr>(depths[i]);
                        return depthAttr.getValue().getSExtValue() >= labelDepth;
@@ -319,8 +406,12 @@ void MlirEmitter::resolveFunctionControlFlow(FunctionRef funcOp) {
   for (auto cbOp : cleanupBranchOps) {
     rewriter.setInsertionPoint(cbOp);
 
-    emitCleanupCalls(cbOp.getLoc(), cbOp.getAddresses(), cbOp.getDestructors(),
-                     cbOp.getActiveFlags(), cbOp.getActiveFlagIndices(),
+    emitCleanupCalls(*this, rewriter, cbOp.getLoc(),
+                     {.addresses = cbOp.getAddresses(),
+                      .destructors = cbOp.getDestructors(),
+                      .activeFlags = cbOp.getActiveFlags(),
+                      .activeFlagIndices = cbOp.getActiveFlagIndices(),
+                      .elementCounts = cbOp.getElementCounts()},
                      nullptr);
 
     rewriter.setInsertionPoint(cbOp);

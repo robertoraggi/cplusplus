@@ -187,9 +187,16 @@ template <typename Predicate>
                                             const Identifier* id)
     -> NamespaceSymbol*;
 
+[[nodiscard]] auto lookupStandardLibraryType(TranslationUnit* unit,
+                                             WellKnownName name) -> Symbol*;
+
 [[nodiscard]] auto argumentDependentLookup(
     TranslationUnit* unit, const Name* name,
     std::span<const Type* const> argumentTypes) -> std::vector<FunctionSymbol*>;
+
+[[nodiscard]] auto unqualifiedNonMemberLookup(Control* control,
+                                              ScopeSymbol* scope,
+                                              const Name* name) -> Symbol*;
 
 [[nodiscard]] auto isDeferredDependentLookupContext(TranslationUnit* unit,
                                                     Symbol* lookupContext,
@@ -201,6 +208,9 @@ template <typename Predicate>
 
 void addOverloadCandidate(std::vector<FunctionSymbol*>& candidates,
                           FunctionSymbol* function);
+
+void addLookupCandidates(std::vector<FunctionSymbol*>& candidates,
+                         Symbol* found);
 
 [[nodiscard]] auto designatedFunction(Symbol* symbol) -> FunctionSymbol*;
 
@@ -224,21 +234,20 @@ struct DeallocationSignature {
                                               bool isArrayDelete)
     -> FunctionSymbol*;
 
-[[nodiscard]] auto declareGlobalOperatorNew(TranslationUnit* unit,
-                                            bool isArrayNew) -> FunctionSymbol*;
+void declareImplicitAllocationFunctions(TranslationUnit* unit, TokenKind op);
 
-[[nodiscard]] auto resolveBuiltinOperatorDelete(
-    TranslationUnit* unit, std::span<const Type* const> argumentTypes)
-    -> FunctionSymbol*;
-
-[[nodiscard]] auto resolveBuiltinOperatorNew(
-    TranslationUnit* unit, std::span<const Type* const> argumentTypes)
+[[nodiscard]] auto resolveBuiltinLibcallOperator(TranslationUnit* unit,
+                                                 TokenKind op,
+                                                 const FunctionType* type)
     -> FunctionSymbol*;
 
 [[nodiscard]] auto resolveBuiltinLibcallSymbol(TranslationUnit* unit,
                                                const char* nameStr,
                                                const FunctionType* funcType)
     -> FunctionSymbol*;
+
+[[nodiscard]] auto namesBuiltinFunction(Symbol* symbol,
+                                        BuiltinFunctionKind kind) -> bool;
 
 [[nodiscard]] auto resolveBuiltinFunctionSymbol(TranslationUnit* unit,
                                                 const Identifier* name,

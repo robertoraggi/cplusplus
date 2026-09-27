@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 import { cpy_header } from "./cpy_header.ts";
-import { BUILTINS } from "./builtins.ts";
+import { BUILTINS, operatorFunctionToken } from "./builtins.ts";
 import * as fs from "node:fs";
 
 function enumName(builtinName: string): string {
@@ -44,7 +44,7 @@ export function gen_builtins_typechecker_h({ output }: { output: string }) {
   );
   lines.push(`  switch (kind) {`);
 
-  const libcallBuiltins = BUILTINS.filter((b) => b.libcall);
+  const libcallBuiltins = BUILTINS.filter((b) => b.libcall === true);
   for (const b of libcallBuiltins) {
     lines.push(`    case ${enumName(b.name)}:`);
   }
@@ -52,6 +52,20 @@ export function gen_builtins_typechecker_h({ output }: { output: string }) {
   lines.push(``);
   lines.push(`    default:`);
   lines.push(`      return false;`);
+  lines.push(`  }`);
+  lines.push(`}`);
+  lines.push(``);
+  lines.push(
+    `auto cxx::builtinLibcallOperator(cxx::BuiltinFunctionKind kind) -> cxx::TokenKind {`,
+  );
+  lines.push(`  switch (kind) {`);
+  for (const b of BUILTINS) {
+    if (typeof b.libcall !== "string") continue;
+    lines.push(`    case ${enumName(b.name)}:`);
+    lines.push(`      return cxx::${operatorFunctionToken(b.libcall)};`);
+  }
+  lines.push(`    default:`);
+  lines.push(`      return cxx::TokenKind::T_EOF_SYMBOL;`);
   lines.push(`  }`);
   lines.push(`}`);
   lines.push(``);

@@ -272,6 +272,12 @@ auto name_cast(const Name* name) -> const T* {
 [[nodiscard]] auto get_name(Control* control, UnqualifiedIdAST* id)
     -> const Name*;
 
+[[nodiscard]] auto get_lookup_name(Control* control, UnqualifiedIdAST* id)
+    -> const Name*;
+
+[[nodiscard]] auto get_template_arguments(UnqualifiedIdAST* id)
+    -> List<TemplateArgumentAST*>*;
+
 [[nodiscard]] auto get_name_location(IdExpressionAST* ast) -> SourceLocation;
 [[nodiscard]] auto get_name_location(MemberExpressionAST* ast)
     -> SourceLocation;

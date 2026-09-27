@@ -27,7 +27,6 @@ struct Outer {
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter type-param<0, 0>
 // CHECK-NEXT:          block
-// CHECK-NEXT:            variable static constexpr const char __func__[6]
 // CHECK-NEXT:      injected class name Inner
 // CHECK-NEXT:      deduction-guide Inner(int) -> ::Outer::Inner<int>
 // CHECK-NEXT:      [specializations]

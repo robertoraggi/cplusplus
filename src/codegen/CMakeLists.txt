@@ -6,6 +6,7 @@ add_library(cxx-codegen
     cxx/codegen/codegen_specifiers.cc
     cxx/codegen/codegen_statements.cc
     cxx/codegen/codegen_names.cc
+    cxx/codegen/codegen_exceptions.cc
     cxx/codegen/codegen_rtti.cc
     cxx/codegen/codegen_expressions.cc
     cxx/codegen/codegen_units.cc

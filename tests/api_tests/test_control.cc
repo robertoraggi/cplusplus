@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/control.h>
+#include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
@@ -258,4 +259,46 @@ TEST(Control, compare_args_parameter_pack_order_matters) {
   std::vector<TemplateArgument> rhs{static_cast<Symbol*>(packR)};
 
   EXPECT_FALSE(compare_args(&unit, lhs, rhs));
+}
+
+TEST(Control, interned_function_types) {
+  Control control;
+  auto integer = control.getIntType();
+  auto floating = control.getFloatType();
+  auto function = control.getFunctionType(integer, {floating, integer});
+  EXPECT_EQ(function, control.getFunctionType(integer, {floating, integer}));
+  EXPECT_NE(function, control.getFunctionType(integer, {integer, floating}));
+  EXPECT_NE(function, control.getFunctionType(floating, {floating, integer}));
+  EXPECT_NE(function,
+            control.getFunctionType(integer, {floating, integer}, true));
+  EXPECT_EQ(control.getPointerType(function), control.getPointerType(function));
+}
+
+TEST(Control, type_dependence_cycles) {
+  DiagnosticsClient diagnostics;
+  TranslationUnit unit{&diagnostics};
+  auto control = unit.control();
+  auto primary = control->newClassSymbol(nullptr, {});
+  auto first = control->newClassSymbol(nullptr, {});
+  auto second = control->newClassSymbol(nullptr, {});
+  auto dependent = control->getTypeParameterType(0, 0, false);
+  primary->addSpecialization(&unit, {second->type(), dependent}, first);
+  primary->addSpecialization(&unit, {first->type()}, second);
+  auto function = control->getFunctionType(control->getVoidType(),
+                                           {first->type(), second->type()});
+  EXPECT_TRUE(isDependent(&unit, function));
+  EXPECT_TRUE(isDependent(&unit, second->type()));
+}
+
+TEST(Control, type_dependence_observes_symbol_changes) {
+  DiagnosticsClient diagnostics;
+  TranslationUnit unit{&diagnostics};
+  auto control = unit.control();
+  auto symbol = control->newClassSymbol(nullptr, {});
+  EXPECT_FALSE(isDependent(&unit, symbol->type()));
+  auto parameters = control->newTemplateParametersSymbol(nullptr, {});
+  auto parameter = control->newTypeParameterSymbol(parameters, {}, 0, 0, false);
+  parameters->addSymbol(parameter);
+  symbol->setTemplateParameters(parameters);
+  EXPECT_TRUE(isDependent(&unit, symbol->type()));
 }

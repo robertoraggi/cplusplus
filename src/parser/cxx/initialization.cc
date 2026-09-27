@@ -179,11 +179,11 @@ auto InitializedEntity::description() const -> std::string {
     case InitializedEntityKind::kMember:
       if (symbol_ && symbol_->name())
         return std::format("member '{}'", to_string(symbol_->name()));
-      return std::format("anonymous member of type '{}'", to_string(type_));
+      return "anonymous member";
     case InitializedEntityKind::kBase:
-      return std::format("base class '{}'", to_string(type_));
+      return "base class";
     case InitializedEntityKind::kArrayElement:
-      return std::format("array element of type '{}'", to_string(type_));
+      return "array element";
     case InitializedEntityKind::kParameter:
       if (symbol_ && symbol_->name())
         return std::format("parameter '{}'", to_string(symbol_->name()));
@@ -193,9 +193,9 @@ auto InitializedEntity::description() const -> std::string {
     case InitializedEntityKind::kExceptionObject:
       return "exception object";
     case InitializedEntityKind::kNewObject:
-      return std::format("allocated object of type '{}'", to_string(type_));
+      return "allocated object";
     case InitializedEntityKind::kDelegating:
-      return std::format("delegating constructor of '{}'", to_string(type_));
+      return "delegating constructor";
     case InitializedEntityKind::kTemporary:
       break;
   }
@@ -460,6 +460,13 @@ auto isWholeArrayCopy(const TypeTraits& traits, ExpressionAST* expression,
 }
 
 namespace {
+void applyArgumentConversion(TypeChecker& checker,
+                             const ImplicitConversionSequence& conversion,
+                             ExpressionAST*& argument) {
+  checker.initializeBracedArgument(argument, conversion.destinationType);
+  checker.applyImplicitConversion(conversion, argument);
+}
+
 void applyInitializerConversions(
     TypeChecker& checker, const Initializer& initializer,
     const std::vector<ImplicitConversionSequence>& conversions) {
@@ -467,7 +474,7 @@ void applyInitializerConversions(
     std::size_t index = 0;
     for (auto it = *slot; it && index < conversions.size();
          it = it->next, ++index)
-      checker.applyImplicitConversion(conversions[index], it->value);
+      applyArgumentConversion(checker, conversions[index], it->value);
     return;
   }
   if (conversions.empty()) return;
@@ -795,6 +802,15 @@ auto AggregateInitializerBuilder::elementsToInitialize(
   if (!plan.isUnion) return plan.elementCount;
   if (plan.elementCount == 0) return 0;
   return 1;
+}
+
+[[nodiscard]] auto initializesEveryElement(const BoundedArrayType* type,
+                                           std::vector<std::size_t> indices)
+    -> bool {
+  std::ranges::sort(indices);
+  auto duplicates = std::ranges::unique(indices);
+  indices.erase(duplicates.begin(), duplicates.end());
+  return indices.size() == type->size();
 }
 
 auto hasUnexpandedPackExpansion(BracedInitListAST* ast) -> bool {
@@ -1392,9 +1408,23 @@ struct AggregateInitChecker {
   void checkUnion(ClassSymbol* classSymbol, BracedInitListAST* ast);
   void checkStruct(ClassSymbol* classSymbol, BracedInitListAST* ast);
 
-  [[nodiscard]] auto makeValueInitializer(const Type* type,
-                                          SourceLocation location)
+  [[nodiscard]] auto makeEmptyListInitializer(const Type* type,
+                                              SourceLocation location)
       -> ExpressionAST*;
+
+  [[nodiscard]] auto makeValueInitialization(const Type* type,
+                                             SourceLocation location)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto makeImplicitInitializer(const Type* type,
+                                             InitializerForm form,
+                                             SourceLocation location)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto makeImplicitElement(const Type* elementType,
+                                         InitializerForm form,
+                                         SourceLocation location)
+      -> VariableSymbol*;
 
   void checkElementInit(ExpressionAST*& expr, const Type* type,
                         const std::string& description,
@@ -1418,10 +1448,12 @@ struct AggregateInitChecker {
                                               SourceLocation location)
       -> ExpressionAST*;
   [[nodiscard]] auto implicitElementInitializer(Symbol* element,
+                                                InitializerForm form,
                                                 SourceLocation location)
       -> ExpressionAST*;
 
   void checkElementInit(ExpressionAST*& expr, Symbol* element);
+  void checkElementDestructor(Symbol* element, SourceLocation location);
   void checkAnonUnionFieldInit(ExpressionAST*& expr, const Type* fieldType);
   void initializeUnionByDefault(ClassSymbol* classSymbol,
                                 BracedInitListAST* ast);
@@ -1438,6 +1470,7 @@ auto AggregateInitChecker::elementDescription(Symbol* element) const
 auto AggregateInitChecker::defaultMemberInitializer(FieldSymbol* field,
                                                     SourceLocation location)
     -> ExpressionAST* {
+  ASTRewriter::requireFieldInitializer(ctx.unit, field);
   auto initializer = field->initializer();
   if (!initializer) return nullptr;
 
@@ -1464,7 +1497,7 @@ auto AggregateInitChecker::defaultMemberInitializer(FieldSymbol* field,
              braced && !ctx.traits.is_class_or_union(fieldType) &&
              !ctx.traits.is_array(fieldType)) {
     if (!braced->expressionList)
-      return makeValueInitializer(fieldType, braced->lbraceLoc);
+      return makeEmptyListInitializer(fieldType, braced->lbraceLoc);
     initializer = braced->expressionList->value;
   }
 
@@ -1482,10 +1515,9 @@ auto AggregateInitChecker::makeEmptyInitializerList(SourceLocation location)
   return braced;
 }
 
-auto AggregateInitChecker::makeValueInitializer(const Type* type,
-                                                SourceLocation location)
+auto AggregateInitChecker::makeEmptyListInitializer(const Type* type,
+                                                    SourceLocation location)
     -> ExpressionAST* {
-  auto pool = ctx.unit->arena();
   auto braced = makeEmptyInitializerList(location);
 
   if (!type) return braced;
@@ -1502,7 +1534,55 @@ auto AggregateInitChecker::makeValueInitializer(const Type* type,
   return braced;
 }
 
+auto AggregateInitChecker::makeValueInitialization(const Type* type,
+                                                   SourceLocation location)
+    -> ExpressionAST* {
+  if (auto arrayType = type_cast<BoundedArrayType>(type)) {
+    auto braced = makeEmptyInitializerList(location);
+    braced->type = type;
+    braced->valueCategory = ValueCategory::kPrValue;
+    braced->implicitElement =
+        makeImplicitElement(ctx.traits.remove_cv(arrayType->elementType()),
+                            InitializerForm::kParen, location);
+    return braced;
+  }
+
+  if (!ctx.traits.is_class_or_union(type))
+    return makeEmptyListInitializer(type, location);
+
+  List<ExpressionAST*>* arguments = nullptr;
+  ExpressionAST* initializer = nullptr;
+  auto constructor = ctx.checker.check_class_initializer(type, initializer,
+                                                         location, &arguments);
+
+  auto braced = makeEmptyInitializerList(location);
+  braced->expressionList = arguments;
+  return makeClassConstruction(ctx.unit, type, constructor, braced);
+}
+
+auto AggregateInitChecker::makeImplicitInitializer(const Type* type,
+                                                   InitializerForm form,
+                                                   SourceLocation location)
+    -> ExpressionAST* {
+  if (form == InitializerForm::kParen)
+    return makeValueInitialization(type, location);
+  return makeEmptyListInitializer(type, location);
+}
+
+auto AggregateInitChecker::makeImplicitElement(const Type* elementType,
+                                               InitializerForm form,
+                                               SourceLocation location)
+    -> VariableSymbol* {
+  if (ctx.traits.is_trivially_constructible(elementType)) return nullptr;
+
+  auto element = ctx.control->newVariableSymbol(nullptr, location);
+  element->setType(elementType);
+  element->setInitializer(makeImplicitInitializer(elementType, form, location));
+  return element;
+}
+
 auto AggregateInitChecker::implicitElementInitializer(Symbol* element,
+                                                      InitializerForm form,
                                                       SourceLocation location)
     -> ExpressionAST* {
   if (auto field = symbol_cast<FieldSymbol>(element)) {
@@ -1518,7 +1598,18 @@ auto AggregateInitChecker::implicitElementInitializer(Symbol* element,
     return makeEmptyInitializerList(location);
   }
 
-  return makeValueInitializer(type, location);
+  return makeImplicitInitializer(type, form, location);
+}
+
+void AggregateInitChecker::checkElementDestructor(Symbol* element,
+                                                  SourceLocation location) {
+  auto type = ctx.traits.aggregate_element_type(element);
+  if (!type) return;
+
+  auto field = symbol_cast<FieldSymbol>(element);
+  if (field && is_anonymous_union_member(field)) return;
+
+  ctx.checker.checkPotentiallyInvokedDestructor(type, location);
 }
 
 void AggregateInitChecker::checkElementInit(ExpressionAST*& expr,
@@ -1528,7 +1619,7 @@ void AggregateInitChecker::checkElementInit(ExpressionAST*& expr,
 
   auto field = symbol_cast<FieldSymbol>(element);
 
-  if (field && !field->name() && ctx.traits.is_union(type)) {
+  if (field && is_anonymous_union_member(field)) {
     checkAnonUnionFieldInit(expr, type);
     return;
   }
@@ -1597,6 +1688,7 @@ auto AggregateInitChecker::checkParenthesizedAggregate(
     checkElementInit(it->value, ctx.traits.aggregate_element_type(element),
                      elementDescription(element),
                      InitializationKind::kCopyInitialization);
+    checkElementDestructor(element, it->value->firstSourceLocation());
 
     *tail = make_list_node<ExpressionAST>(pool, it->value);
     tail = &(*tail)->next;
@@ -1604,8 +1696,10 @@ auto AggregateInitChecker::checkParenthesizedAggregate(
   }
 
   for (; elementIndex < elements.size(); ++elementIndex) {
+    checkElementDestructor(elements[elementIndex], location);
     *tail = make_list_node<ExpressionAST>(
-        pool, implicitElementInitializer(elements[elementIndex], location));
+        pool, implicitElementInitializer(elements[elementIndex],
+                                         InitializerForm::kParen, location));
     tail = &(*tail)->next;
   }
 
@@ -1647,13 +1741,13 @@ void AggregateInitChecker::initializeUnionByDefault(ClassSymbol* classSymbol,
 
   FieldSymbol* variantMember = nullptr;
   for (auto field : views::members(classSymbol) | views::non_static_fields) {
-    if (!field->initializer()) continue;
+    if (!field->hasInitializer()) continue;
     variantMember = field;
     break;
   }
 
   if (!variantMember) {
-    auto initializer = makeValueInitializer(
+    auto initializer = makeEmptyListInitializer(
         ctx.traits.remove_cv(firstField->type()), ast->lbraceLoc);
     ast->expressionList = make_list_node<ExpressionAST>(pool, initializer);
     return;
@@ -1746,9 +1840,13 @@ void AggregateInitChecker::checkStruct(ClassSymbol* classSymbol,
 
   for (std::size_t i = 0; i < plan->elements.size(); ++i) {
     auto initializer = initializers[i];
+    auto location =
+        initializer ? initializer->firstSourceLocation() : ast->lbraceLoc;
     if (!initializer)
-      initializer =
-          implicitElementInitializer(plan->elements[i], ast->lbraceLoc);
+      initializer = implicitElementInitializer(
+          plan->elements[i], InitializerForm::kList, ast->lbraceLoc);
+
+    checkElementDestructor(plan->elements[i], location);
 
     *tail = make_list_node<ExpressionAST>(pool, initializer);
     tail = &(*tail)->next;
@@ -1905,6 +2003,8 @@ void ListInitChecker::checkArrayElements(const Type* type,
   auto plan = resolveAggregateInitialization(ctx, type, ast);
   if (!plan) return;
 
+  ctx.checker.checkPotentiallyInvokedDestructor(elementType, ast->lbraceLoc);
+
   std::vector<std::pair<std::size_t, ExpressionAST*>> placements;
 
   for (const auto& initialized : plan->initializedElements) {
@@ -1936,33 +2036,22 @@ void ListInitChecker::checkArrayElements(const Type* type,
   auto pool = ctx.unit->arena();
   List<ExpressionAST*>* rebuilt = nullptr;
   auto rebuiltTail = &rebuilt;
+  std::vector<std::size_t> explicitIndices;
   for (auto& [index, initializer] : placements) {
     *rebuiltTail = make_list_node<ExpressionAST>(pool, initializer);
     rebuiltTail = &(*rebuiltTail)->next;
+    explicitIndices.push_back(index);
   }
   ast->expressionList = rebuilt;
+  ast->implicitElement = nullptr;
 
   auto bounded = type_cast<BoundedArrayType>(type);
   if (!bounded) return;
-  if (placements.size() == bounded->size()) return;
-  if (ctx.traits.is_trivially_constructible(elementType)) return;
+  if (hasUnexpandedPackExpansion(ast)) return;
+  if (initializesEveryElement(bounded, std::move(explicitIndices))) return;
 
-  std::vector<ExpressionAST*> slots(bounded->size(), nullptr);
-  for (auto& [slot, initializer] : placements) slots[slot] = initializer;
-
-  List<ExpressionAST*>* normalized = nullptr;
-  auto tail = &normalized;
-
-  for (auto& initializer : slots) {
-    if (!initializer)
-      initializer =
-          aggregateChecker.makeValueInitializer(elementType, ast->lbraceLoc);
-
-    *tail = make_list_node<ExpressionAST>(pool, initializer);
-    tail = &(*tail)->next;
-  }
-
-  ast->expressionList = normalized;
+  ast->implicitElement = aggregateChecker.makeImplicitElement(
+      elementType, InitializerForm::kList, ast->lbraceLoc);
 }
 
 void ListInitChecker::singleElementInit(const Type* type,
@@ -2395,7 +2484,7 @@ void ClassInitChecker::applyArgumentConversions(
   std::size_t index = 0;
   for (auto it = *target.argumentList; it && index < conversions.size();
        it = it->next, ++index) {
-    ctx.checker.applyImplicitConversion(conversions[index], it->value);
+    applyArgumentConversion(ctx.checker, conversions[index], it->value);
   }
 }
 
@@ -2578,9 +2667,9 @@ struct InitializationEngine {
                            const InitializedEntity& entity,
                            Initializer& initializer) -> ExpressionAST*;
 
-  void diagnose(const InitializationSequence& sequence,
-                const InitializedEntity& entity,
-                const Initializer& initializer);
+  [[nodiscard]] auto diagnose(const InitializationSequence& sequence,
+                              const InitializedEntity& entity,
+                              const Initializer& initializer) -> bool;
 
   void listInitialize(ClassInitChecker::Target& target,
                       BracedInitListAST* list);
@@ -2591,15 +2680,34 @@ struct InitializationEngine {
                                            const Initializer& initializer) const
       -> bool;
 
+  [[nodiscard]] auto defaultInitializesNonConstDefaultConstructible(
+      const Type* type) const -> bool;
+
   [[nodiscard]] auto applyClassInitialization(InitializationSequence& sequence,
                                               const InitializedEntity& entity,
                                               Initializer& initializer)
       -> ExpressionAST*;
 
   [[nodiscard]] auto applyArrayFromExpressionList(
-      const InitializedEntity& entity, Initializer& initializer)
-      -> ExpressionAST*;
+      InitializationSequence& sequence, const InitializedEntity& entity,
+      Initializer& initializer) -> ExpressionAST*;
+
+  [[nodiscard]] auto elementwiseConstructor(InitializationKind kind,
+                                            const InitializedEntity& entity,
+                                            ExpressionAST* source)
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto applyArrayDefaultInitialization(
+      InitializationSequence& sequence, const InitializedEntity& entity,
+      Initializer& initializer) -> ExpressionAST*;
 };
+
+auto InitializationEngine::defaultInitializesNonConstDefaultConstructible(
+    const Type* type) const -> bool {
+  if (!ctx.traits.is_const(type)) return false;
+  if (isDependent(ctx.unit, type)) return false;
+  return !ctx.traits.is_const_default_constructible(type);
+}
 
 auto InitializationEngine::considersConstructors(
     const Type* destinationType, InitializationKind kind,
@@ -2637,6 +2745,10 @@ auto InitializationEngine::compute(const InitializedEntity& entity,
   if (!initializer) {
     if (ctx.traits.is_reference(entity.type())) {
       sequence.failure = InitializationFailure::kReferenceWithoutInitializer;
+      return sequence;
+    }
+    if (defaultInitializesNonConstDefaultConstructible(entity.type())) {
+      sequence.failure = InitializationFailure::kNotConstDefaultConstructible;
       return sequence;
     }
     sequence.bullet = InitializationBullet::kDefaultInitialization;
@@ -2700,6 +2812,7 @@ void InitializationEngine::listInitialize(ClassInitChecker::Target& target,
   auto type = target.type;
   list->type = type;
   if (type && isDependent(ctx.unit, type)) return;
+  if (isDependent(ctx.unit, list)) return;
 
   const auto initializationKind = target.initializationKind.value_or(
       InitializationKind::kCopyListInitialization);
@@ -2767,25 +2880,59 @@ auto InitializationEngine::applyClassInitialization(
   return target.initializer;
 }
 
+auto InitializationEngine::applyArrayDefaultInitialization(
+    InitializationSequence& sequence, const InitializedEntity& entity,
+    Initializer& initializer) -> ExpressionAST* {
+  auto elementType =
+      ctx.traits.remove_cv(ctx.traits.remove_all_extents(entity.type()));
+  if (!ctx.traits.is_class(elementType)) return initializer.node();
+
+  auto element =
+      InitializedEntity::arrayElement(elementType, entity.location());
+  return applyClassInitialization(sequence, element, initializer);
+}
+
+auto InitializationEngine::elementwiseConstructor(
+    InitializationKind kind, const InitializedEntity& entity,
+    ExpressionAST* source) -> FunctionSymbol* {
+  auto sourceElementType = ctx.traits.remove_all_extents(source->type);
+  auto elementType = ctx.traits.remove_cv(sourceElementType);
+  if (!ctx.traits.is_class(elementType)) return nullptr;
+
+  auto element =
+      InitializedEntity::arrayElement(elementType, entity.location());
+  Initializer elementInitializer{ThisExpressionAST::create(
+      ctx.unit->arena(), source->valueCategory, sourceElementType)};
+  auto sequence = compute(element, kind, elementInitializer);
+  if (!sequence) {
+    (void)diagnose(sequence, element, elementInitializer);
+    return nullptr;
+  }
+  (void)applyClassInitialization(sequence, element, elementInitializer);
+  return sequence.constructor;
+}
+
 auto InitializationEngine::applyArrayFromExpressionList(
-    const InitializedEntity& entity, Initializer& initializer)
-    -> ExpressionAST* {
+    InitializationSequence& sequence, const InitializedEntity& entity,
+    Initializer& initializer) -> ExpressionAST* {
   auto node = initializer.node();
   auto arrayType = ctx.traits.remove_cv(entity.type());
   auto elementType =
       ctx.traits.remove_cv(ctx.traits.get_element_type(arrayType));
 
-  if (initializer.form() != InitializerForm::kParen) {
-    auto source = initializer.singleExpression();
-    if (entity.arrayCopyPolicy() == ArrayCopyPolicy::kElementwiseCopyAllowed &&
-        isWholeArrayCopy(ctx.traits, source, arrayType)) {
-      InitializerOperand operand{node, source};
-      ctx.checker.applyImplicitConversion(
-          ctx.checker.checkImplicitConversion(operand.operand(), arrayType),
-          operand.operand());
-      return operand.result();
-    }
+  auto source = initializer.singleExpression();
+  if (entity.arrayCopyPolicy() == ArrayCopyPolicy::kElementwiseCopyAllowed &&
+      isWholeArrayCopy(ctx.traits, source, arrayType)) {
+    sequence.constructor =
+        elementwiseConstructor(sequence.kind, entity, source);
+    InitializerOperand operand{node, source};
+    ctx.checker.applyImplicitConversion(
+        ctx.checker.checkImplicitConversion(operand.operand(), arrayType),
+        operand.operand());
+    return operand.result();
+  }
 
+  if (initializer.form() != InitializerForm::kParen) {
     ctx.error(node->firstSourceLocation(),
               "array initializer must be an initializer list");
     return node;
@@ -2816,6 +2963,9 @@ auto InitializationEngine::applyArrayFromExpressionList(
   auto element =
       InitializedEntity::arrayElement(elementType, entity.location());
 
+  ctx.checker.checkPotentiallyInvokedDestructor(elementType,
+                                                normalized->lbraceLoc);
+
   for (auto it = *slot; it; it = it->next) {
     aggregateChecker.checkElementInit(it->value, elementType,
                                       element.description(),
@@ -2825,13 +2975,9 @@ auto InitializationEngine::applyArrayFromExpressionList(
     tail = &(*tail)->next;
   }
 
-  const auto arraySize = bounded ? bounded->size() : elementCount;
-
-  for (auto index = elementCount; index < arraySize; ++index) {
-    *tail = make_list_node<ExpressionAST>(
-        pool, aggregateChecker.makeValueInitializer(elementType,
-                                                    normalized->lbraceLoc));
-    tail = &(*tail)->next;
+  if (bounded && elementCount < bounded->size()) {
+    normalized->implicitElement = aggregateChecker.makeImplicitElement(
+        elementType, InitializerForm::kParen, normalized->lbraceLoc);
   }
 
   initializer.setNode(normalized);
@@ -2861,7 +3007,7 @@ auto InitializationEngine::apply(InitializationSequence& sequence,
       return node;
 
     case InitializationBullet::kArrayFromExpressionList:
-      return applyArrayFromExpressionList(entity, initializer);
+      return applyArrayFromExpressionList(sequence, entity, initializer);
 
     case InitializationBullet::kListInitialization: {
       ClassInitChecker::Target target{
@@ -2879,11 +3025,17 @@ auto InitializationEngine::apply(InitializationSequence& sequence,
       return target.initializer;
     }
 
+    case InitializationBullet::kDefaultInitialization:
+      if (ctx.traits.is_array(destinationType))
+        return applyArrayDefaultInitialization(sequence, entity, initializer);
+      if (initializesClass)
+        return applyClassInitialization(sequence, entity, initializer);
+      return node;
+
     case InitializationBullet::kSameTypePrvalue:
     case InitializationBullet::kConstructor:
     case InitializationBullet::kParenthesizedAggregate:
     case InitializationBullet::kUserDefinedConversion:
-    case InitializationBullet::kDefaultInitialization:
     case InitializationBullet::kValueInitializationFromParens:
       if (initializesClass)
         return applyClassInitialization(sequence, entity, initializer);
@@ -2900,18 +3052,25 @@ auto InitializationEngine::apply(InitializationSequence& sequence,
   return node;
 }
 
-void InitializationEngine::diagnose(const InitializationSequence& sequence,
+auto InitializationEngine::diagnose(const InitializationSequence& sequence,
                                     const InitializedEntity& entity,
-                                    const Initializer& initializer) {
+                                    const Initializer& initializer) -> bool {
   switch (sequence.failure) {
     case InitializationFailure::kReferenceWithoutInitializer:
       ctx.error(entity.location(),
                 std::format("reference variable of type '{}' must be "
                             "initialized",
                             to_string(entity.type())));
-      return;
+      return true;
+    case InitializationFailure::kNotConstDefaultConstructible:
+      ctx.error(entity.location(),
+                std::format("default-initialization of an object of "
+                            "const-qualified type '{}' that is not "
+                            "const-default-constructible",
+                            to_string(entity.type())));
+      return true;
     default:
-      return;
+      return false;
   }
 }
 
@@ -2967,6 +3126,54 @@ auto materializedTemporary(const TypeTraits& traits, ExpressionAST* expr)
   }
 
   return {};
+}
+
+auto designatedArrayIndex(TranslationUnit* unit,
+                          DesignatedInitializerClauseAST* clause)
+    -> std::optional<std::size_t> {
+  if (!clause || !clause->designatorList) return std::nullopt;
+
+  auto subscript =
+      ast_cast<SubscriptDesignatorAST>(clause->designatorList->value);
+  if (!subscript) return std::nullopt;
+
+  ASTInterpreter interp{unit};
+  auto value = interp.evaluate(subscript->expression);
+  if (!value) return std::nullopt;
+
+  auto index = interp.toUInt(*value);
+  if (!index) return std::nullopt;
+
+  return static_cast<std::size_t>(*index);
+}
+
+auto implicitlyInitializedElements(TranslationUnit* unit,
+                                   BracedInitListAST* list,
+                                   std::size_t elementCount)
+    -> std::vector<ArrayElementRange> {
+  std::vector<std::size_t> explicitIndices;
+  std::size_t index = 0;
+
+  for (auto node : ListView{list->expressionList}) {
+    auto designated = ast_cast<DesignatedInitializerClauseAST>(node);
+    if (auto position = designatedArrayIndex(unit, designated))
+      index = *position;
+    explicitIndices.push_back(index++);
+  }
+
+  std::ranges::sort(explicitIndices);
+
+  std::vector<ArrayElementRange> ranges;
+  std::size_t begin = 0;
+
+  for (auto explicitIndex : explicitIndices) {
+    if (explicitIndex > begin) ranges.push_back({begin, explicitIndex});
+    begin = std::max(begin, explicitIndex + 1);
+  }
+
+  if (begin < elementCount) ranges.push_back({begin, elementCount});
+
+  return ranges;
 }
 
 auto singleInitializerClause(BracedInitListAST* bracedInitList)
@@ -3117,11 +3324,11 @@ void diagnoseConversionFailure(InitContext& ctx,
                         to_string(source->type)));
 }
 
-void diagnoseInitializationFailure(InitContext& ctx,
+auto diagnoseInitializationFailure(InitContext& ctx,
                                    const InitializationSequence& sequence,
                                    const InitializedEntity& entity,
-                                   const Initializer& initializer) {
-  InitializationEngine{ctx}.diagnose(sequence, entity, initializer);
+                                   const Initializer& initializer) -> bool {
+  return InitializationEngine{ctx}.diagnose(sequence, entity, initializer);
 }
 
 void TypeChecker::check_braced_init_list(

@@ -565,12 +565,9 @@ inline auto toVal(const cxx::ir::VTableInfo& value) -> val {
 
 inline auto toVal(const cxx::ir::VTableTableInfo& value) -> val {
   auto result = val::object();
-  result.set("virtualBaseOffsets",
-             arrayVal(value.virtualBaseOffsets,
-                      [](const long long& item) { return toVal(item); }));
-  result.set("virtualCallOffsets",
-             arrayVal(value.virtualCallOffsets,
-                      [](const long long& item) { return toVal(item); }));
+  result.set("offsets", arrayVal(value.offsets, [](const long long& item) {
+               return toVal(item);
+             }));
   result.set("offsetToTop", toVal(value.offsetToTop));
   result.set("slots",
              arrayVal(value.slots, [](const cxx::ir::FunctionRef& item) {
@@ -603,6 +600,7 @@ inline auto toVal(const cxx::ir::CleanupAction& value) -> val {
   result.set("destructor", toVal(value.destructor));
   result.set("depth", toVal(value.depth));
   result.set("activeFlag", toVal(value.activeFlag));
+  result.set("elementCount", toVal(value.elementCount));
   return result;
 }
 

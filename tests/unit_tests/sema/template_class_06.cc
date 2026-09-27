@@ -123,7 +123,6 @@ auto main() -> int {
 // CHECK-NEXT:    function inline void f()
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
-// CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable ::A<void> t
 // CHECK-NEXT:    function constexpr inline defaulted ::D& operator =(const ::D&)
 // CHECK-NEXT:      parameters
@@ -139,7 +138,6 @@ auto main() -> int {
 // CHECK-NEXT:    function inline double f()
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
-// CHECK-NEXT:        variable static constexpr const char __func__[2]
 // CHECK-NEXT:        variable double t
 // CHECK-NEXT:    field double t
 // CHECK-NEXT:    [specializations]
@@ -166,6 +164,5 @@ auto main() -> int {
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    parameters
 // CHECK-NEXT:    block
-// CHECK-NEXT:      variable static constexpr const char __func__[5]
 // CHECK-NEXT:      variable ::D d1
 // CHECK-NEXT:      variable ::D2<int> d2

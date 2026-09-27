@@ -173,8 +173,7 @@ struct ModuleInfo {
 };
 
 struct VTableTableInfo {
-  std::span<const std::int64_t> virtualBaseOffsets;
-  std::span<const std::int64_t> virtualCallOffsets;
+  std::span<const std::int64_t> offsets;
   std::int64_t offsetToTop = 0;
   std::span<const FunctionRef> slots;
 };
@@ -308,6 +307,7 @@ struct CleanupAction {
   FunctionRef destructor;
   std::int64_t depth = 0;
   ValueRef activeFlag;
+  std::int64_t elementCount = 1;
 };
 
 struct CleanupTarget {

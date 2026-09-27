@@ -45,7 +45,6 @@ using u8string = basic_string<char8_t>;
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:          parameter const type-param<0, 0>* p
 // CHECK-NEXT:          block
-// CHECK-NEXT:            variable static constexpr const char __func__[13]
 // CHECK-NEXT:      injected class name basic_string
 // CHECK-NEXT:      function void append(const type-param<0, 0>*)
 // CHECK-NEXT:        parameters

@@ -38,9 +38,9 @@ ASTRewriter::ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
 ASTRewriter::~ASTRewriter() {}
 
 void ASTRewriter::addSymbolRemap(Symbol* oldSym, Symbol* newSym) {
-  if (oldSym && newSym && oldSym != newSym) {
-    symbolRemap_[oldSym] = newSym;
-  }
+  if (!oldSym || !newSym || oldSym == newSym) return;
+  symbolRemap_[oldSym] = newSym;
+  if (!newSym->instantiationPattern()) newSym->setInstantiationPattern(oldSym);
 }
 
 void ASTRewriter::remapStructuredBindingSymbols(

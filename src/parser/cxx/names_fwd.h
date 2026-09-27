@@ -66,7 +66,8 @@ class TypeTraitIdentifierInfo;
 class BuiltinFunctionIdentifierInfo;
 class WellKnownNameIdentifierInfo;
 
-auto to_string(const Name* name) -> std::string;
-auto to_string(const TemplateArgument& argument) -> std::string;
+auto to_string(const Name* name, TypePrintOptions options = {}) -> std::string;
+auto to_string(const TemplateArgument& argument, TypePrintOptions options = {})
+    -> std::string;
 
 }  // namespace cxx

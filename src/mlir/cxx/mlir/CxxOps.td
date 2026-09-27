@@ -181,10 +181,11 @@ def Cxx_VTableOp : Cxx_Op<"vtable"> {
     primary one, concatenated in base allocation order. Storage shape of each
     table (one pointer-sized word per entry):
 
-      [vbase_offsets...] [vcall_offsets...] [offset_to_top] [type_info] [slots...]
+      [offsets...] [offset_to_top] [type_info] [slots...]
 
-    `vbase_offsets`, `vcall_offsets`, and `offsets_to_top` are byte offsets
-    stored as pointer-sized integers, one entry per table; `type_info` names
+    `offsets` holds each table's vcall and vbase offsets in memory order, and
+    `offsets_to_top` one entry per table; all are byte offsets stored as
+    pointer-sized integers; `type_info` names
     the `_ZTI` object for the class the group belongs to and is shared by every
     table, and is null when absent; each slot is either a function symbol or a
     unit attribute (a null slot). The lowering is purely mechanical -- every
@@ -193,8 +194,7 @@ def Cxx_VTableOp : Cxx_Op<"vtable"> {
 
   let arguments = (ins
       SymbolNameAttr:$sym_name
-    , ArrayAttr:$vbase_offsets
-    , ArrayAttr:$vcall_offsets
+    , ArrayAttr:$offsets
     , I64ArrayAttr:$offsets_to_top
     , OptionalAttr<FlatSymbolRefAttr>:$type_info
     , ArrayAttr:$slots
@@ -454,10 +454,11 @@ def Cxx_GotoOp : Cxx_Op<"goto", [AttrSizedOperandSegments]> {
     , ArrayAttr:$destructors
     , ArrayAttr:$depths
     , DenseI32ArrayAttr:$activeFlagIndices
+    , DenseI64ArrayAttr:$elementCounts
     , StringProp:$label
   );
 
-  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices attr-dict";
+  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts attr-dict";
 }
 
 def Cxx_LabelAddressOp : Cxx_Op<"label_address"> {
@@ -483,11 +484,12 @@ def Cxx_CleanupBranchOp : Cxx_Op<"cleanup_branch",
     , Variadic<Cxx_PointerType>:$activeFlags
     , ArrayAttr:$destructors
     , DenseI32ArrayAttr:$activeFlagIndices
+    , DenseI64ArrayAttr:$elementCounts
   );
 
   let successors = (successor AnySuccessor:$dest);
 
-  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices $dest attr-dict";
+  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts $dest attr-dict";
 }
 
 //

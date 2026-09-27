@@ -55,6 +55,10 @@ using AttributeMap = std::vector<Attribute>;
                                      List<AttributeSpecifierAST*>* attributes)
     -> AttributeMap;
 
+[[nodiscard]] auto collectGnuAttributes(
+    TranslationUnit* unit, List<AttributeSpecifierAST*>* attributes)
+    -> AttributeMap;
+
 [[nodiscard]] auto mergeAttributes(AttributeMap lhs, const AttributeMap* rhs)
     -> AttributeMap;
 

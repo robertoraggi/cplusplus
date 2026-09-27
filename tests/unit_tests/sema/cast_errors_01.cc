@@ -17,7 +17,7 @@ void test_invalid_static_cast() {
   // expected-error@1 {{invalid static_cast of '::Unrelated*' to '::D*'}}
   D* pd = static_cast<D*>(&u);
 
-  const B cb;
+  const B cb{};
   // expected-error@1 {{invalid static_cast of 'const ::B' to '::D&'}}
   D& rd = static_cast<D&>(cb);
 }

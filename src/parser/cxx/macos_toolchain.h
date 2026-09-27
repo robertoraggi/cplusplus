@@ -22,43 +22,28 @@
 
 #include <cxx/toolchain.h>
 
-#include <optional>
 #include <string>
-#include <utility>
 
 namespace cxx {
 
 class MacOSToolchain final : public Toolchain {
  public:
-  explicit MacOSToolchain(
-      Preprocessor* preprocessor, std::string arch = "aarch64",
-      std::optional<std::pair<int, int>> osVersion = std::nullopt);
-
-  [[nodiscard]] auto arch() const -> std::string { return arch_; }
-
-  [[nodiscard]] auto sysroot() const -> const std::string& { return sysroot_; }
+  MacOSToolchain(Preprocessor* preprocessor, Triple triple);
 
   [[nodiscard]] auto deploymentTargetTriplePart() const -> std::string;
-
   [[nodiscard]] auto deploymentTargetMacroValue() const -> std::string;
-  void setSysroot(std::string sysroot);
 
   void addSystemIncludePaths() override;
+  void addSystemCppIncludePaths() override;
+  void addPredefinedMacros() override;
 
  protected:
   [[nodiscard]] auto defaultResourceDir() const -> std::string override;
-
- public:
-  void addSystemCppIncludePaths() override;
-  void addPredefinedMacros() override;
+  [[nodiscard]] auto defaultSysroot() const -> std::string override;
 
  private:
   int versionMajor_ = 0;
   int versionMinor_ = 0;
-  std::string platformPath_;
-  std::string toolchainPath_;
-  std::string arch_;
-  std::string sysroot_;
+  std::string developerDir_;
 };
-
 }  // namespace cxx

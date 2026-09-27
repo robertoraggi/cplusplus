@@ -20,6 +20,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/class_value_abi.h>
 #include <cxx/codegen/codegen.h>
 #include <cxx/const_value.h>
@@ -53,10 +54,8 @@ static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
 
 auto Codegen::hasVagueFunctionEmission(FunctionSymbol* function) const -> bool {
   if (!function) return false;
+  if (is_inline_or_templated(function)) return true;
   if (!function->isSpecialization()) function = function->canonical();
-  if (function->isInline()) return true;
-  if (function->isSpecialization()) return true;
-  if (isMemberOfClassTemplateSpecialization(function)) return true;
   if (function->isDefaulted()) return true;
   if (function->isStructorVariant()) return true;
   return hasVagueFunctionEmission(function->enclosingFunction());
@@ -77,6 +76,8 @@ auto Codegen::hasVagueEmission(Symbol* symbol) const -> bool {
 auto Codegen::hasInternalLinkage(Symbol* symbol) const -> bool {
   if (!symbol) return false;
   if (has_internal_linkage(symbol)) return true;
+  if (is_specialized_on_internal_type(symbol)) return true;
+  if (is_declared_with_internal_type(symbol)) return true;
 
   auto enclosingFunction = symbol->enclosingFunction();
   if (!enclosingFunction) return false;
@@ -140,6 +141,90 @@ auto Codegen::getAlignment(VariableSymbol* var) -> uint64_t {
   auto alignment = getAlignment(var->type());
   auto requested = static_cast<uint64_t>(var->explicitAlignment());
   return std::max(alignment, requested);
+}
+
+namespace {
+
+[[nodiscard]] auto isReadOnlyStorage(TypeTraits& traits, const Type* type,
+                                     bool isConstantInitialized) -> bool {
+  if (!isConstantInitialized) return false;
+  if (traits.is_reference(type)) return true;
+  if (!traits.is_const(type)) return false;
+  if (traits.has_mutable_subobject(type)) return false;
+  return traits.has_trivial_destructor(type);
+}
+
+[[nodiscard]] auto alignmentAtOffset(uint64_t alignment, uint64_t offset)
+    -> uint64_t {
+  if (offset == 0) return alignment;
+  return std::min(alignment, offset & (~offset + 1));
+}
+
+[[nodiscard]] auto withoutParentheses(ExpressionAST* expression)
+    -> ExpressionAST* {
+  while (auto nested = ast_cast<NestedExpressionAST>(expression))
+    expression = nested->expression;
+  return expression;
+}
+
+}  // namespace
+
+auto Codegen::lvalueAlignment(ExpressionAST* expression) -> uint64_t {
+  expression = withoutParentheses(expression);
+
+  if (auto member = ast_cast<MemberExpressionAST>(expression))
+    return memberAlignment(member);
+
+  if (auto subscript = ast_cast<SubscriptExpressionAST>(expression))
+    return elementAlignment(subscript);
+
+  if (ast_cast<TargetExpressionAST>(expression) && targetExpression_)
+    return lvalueAlignment(targetExpression_);
+
+  if (auto id = ast_cast<IdExpressionAST>(expression)) {
+    if (auto variable = symbol_cast<VariableSymbol>(id->symbol))
+      return getAlignment(variable);
+  }
+
+  return getAlignment(expression->type);
+}
+
+auto Codegen::memberAlignment(MemberExpressionAST* member) -> uint64_t {
+  if (auto variable = symbol_cast<VariableSymbol>(member->symbol))
+    return getAlignment(variable);
+
+  auto field = symbol_cast<FieldSymbol>(member->symbol);
+  if (!field || field->isStatic()) return getAlignment(member->type);
+
+  auto baseAlignment = getAlignment(member->type);
+  if (member->accessOp == TokenKind::T_MINUS_GREATER) {
+    auto pointer =
+        type_cast<PointerType>(traits.remove_cv(member->baseExpression->type));
+    if (!pointer) return baseAlignment;
+    baseAlignment = getAlignment(pointer->elementType());
+  } else {
+    baseAlignment = lvalueAlignment(member->baseExpression);
+  }
+
+  if (auto owner = symbol_cast<ClassSymbol>(field->parent()))
+    baseAlignment = std::min(baseAlignment, getAlignment(owner->type()));
+
+  return alignmentAtOffset(baseAlignment,
+                           static_cast<uint64_t>(field->localOffset()));
+}
+
+auto Codegen::elementAlignment(SubscriptExpressionAST* subscript) -> uint64_t {
+  auto base = withoutParentheses(subscript->baseExpression);
+  if (auto decay = ast_cast<ImplicitCastExpressionAST>(base);
+      decay && decay->castKind == ImplicitCastKind::kArrayToPointerConversion)
+    base = decay->expression;
+
+  if (!traits.is_array(traits.remove_cv(base->type)))
+    return getAlignment(subscript->type);
+
+  auto elementSize =
+      control()->memoryLayout()->sizeOf(subscript->type).value_or(1);
+  return alignmentAtOffset(lvalueAlignment(base), elementSize);
 }
 
 auto Codegen::pointerSize() const -> std::int64_t {
@@ -235,7 +320,7 @@ auto Codegen::classConstantSlots(const ConstValue& value,
     if (auto base = symbol_cast<BaseClassSymbol>(symbol)) {
       auto baseSymbol = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseSymbol) return std::nullopt;
-      auto info = layout->getBaseInfo(baseSymbol);
+      auto info = layout->getBaseInfo(baseSymbol, base->isVirtual());
       if (!info) continue;
       auto baseLayout = baseSymbol->layout();
       if (!baseLayout) return std::nullopt;
@@ -293,7 +378,7 @@ auto Codegen::constValueToInitializer(const ConstValue& value, const Type* type)
   }
 
   if (type_cast<MemberObjectPointerType>(type)) {
-    auto constValue = interp.toInt(value);
+    auto constValue = interp.memberObjectPointerOffset(value);
     return ir::Initializer::integerValue(
         emitter_.integerType(64),
         constValue.value_or(nullMemberObjectPointer()));
@@ -357,6 +442,35 @@ auto Codegen::constValueToInitializer(const ConstValue& value, const Type* type)
   return std::nullopt;
 }
 
+auto Codegen::emitStringLiteralAddress(SourceLocation loc,
+                                       ir::TypeRef pointerType,
+                                       const StringLiteral* literal)
+    -> ir::ValueRef {
+  literal->initialize(literal->encoding());
+  std::string bytes(literal->stringValue());
+  bytes.append(literal->codeUnitSize(), '\0');
+
+  auto i8Type = emitter_.integerType(8);
+  auto arrayType = this->arrayType(i8Type, bytes.size());
+  auto initializer =
+      ir::Initializer::byteString(std::string_view(bytes.data(), bytes.size()));
+  auto name = newUniqueSymbolName(".str");
+
+  {
+    auto guard = ir::InsertionGuard(emitter_);
+    emitter_.setModuleInsertionPoint(true);
+    (void)this->declareGlobal(loc, {.name = name,
+                                    .type = arrayType,
+                                    .linkage = ir::Linkage::Internal,
+                                    .isConstant = true,
+                                    .alignment = static_cast<std::uint64_t>(0),
+                                    .initializer = initializer,
+                                    .unknownLocation = false});
+  }
+
+  return emitter_.addressOfSymbol(loc, pointerType, name);
+}
+
 auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
                                  const ConstValue& value) -> ir::ValueRef {
   auto interp = ASTInterpreter{unit_};
@@ -374,7 +488,7 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
 
   if (type_cast<MemberObjectPointerType>(type)) {
     auto irType = convertType(type);
-    auto constValue = interp.toInt(value);
+    auto constValue = interp.memberObjectPointerOffset(value);
     return emitter_.constantLiteral(
         loc, irType,
         ir::Initializer::integerValue(
@@ -413,6 +527,21 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
       }
       auto symbol = (*addrPtr)->symbol();
       auto offset = (*addrPtr)->offset();
+      if (auto literal = (*addrPtr)->stringLiteral()) {
+        if (offset == 0)
+          return emitStringLiteralAddress(loc, irPtrType, literal);
+        auto bytePointerType = emitter_.pointerType(emitter_.integerType(8));
+        auto base = emitStringLiteralAddress(loc, bytePointerType, literal);
+        auto byteOffset =
+            offset * static_cast<std::intmax_t>(literal->codeUnitSize());
+        auto offsetType = emitter_.integerType(64);
+        auto offsetValue = emitter_.constantLiteral(
+            loc, offsetType,
+            ir::Initializer::integerValue(offsetType, byteOffset));
+        return emitter_.bitcast(
+            loc, irPtrType,
+            emitter_.pointerAdd(loc, bytePointerType, base, offsetValue));
+      }
       if (symbol_cast<VariableSymbol>(symbol)) {
         if (auto glo = findOrCreateGlobal(symbol)) {
           ir::ValueRef result = emitter_.addressOfSymbol(
@@ -440,32 +569,7 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
     }
 
     if (auto strLitPtr = std::get_if<const StringLiteral*>(&value)) {
-      auto stringLiteral = *strLitPtr;
-      stringLiteral->initialize(stringLiteral->encoding());
-      std::string str(stringLiteral->stringValue());
-      str.push_back('\0');
-
-      auto i8Type = emitter_.integerType(8);
-      auto arrayType = this->arrayType(i8Type, str.size());
-      auto strAttr =
-          ir::Initializer::byteString(std::string_view(str.data(), str.size()));
-      auto strName = newUniqueSymbolName(".str");
-
-      {
-        auto guard = ir::InsertionGuard(emitter_);
-        emitter_.setModuleInsertionPoint(true);
-        auto linkage = ir::Linkage::Internal;
-        (void)this->declareGlobal(loc,
-                                  {.name = strName,
-                                   .type = arrayType,
-                                   .linkage = linkage,
-                                   .isConstant = true,
-                                   .alignment = static_cast<std::uint64_t>(0),
-                                   .initializer = strAttr,
-                                   .unknownLocation = false});
-      }
-
-      return emitter_.addressOfSymbol(loc, irPtrType, strName);
+      return emitStringLiteralAddress(loc, irPtrType, *strLitPtr);
     }
 
     return emitter_.nullPointer(loc, irPtrType);
@@ -842,13 +946,33 @@ void Codegen::emitBranchWithCleanups(SourceLocation loc, ir::BlockRef target,
   emitter_.branchWithCleanups(implicitLocation(loc), target, snapshot);
 }
 
-void Codegen::addCleanup(ir::ValueRef address, FunctionSymbol* dtor) {
+void Codegen::addCleanup(ir::ValueRef address, FunctionSymbol* dtor,
+                         std::int64_t elementCount) {
   for (auto i = cleanupStack_.size(); i > 0; --i) {
     auto& scope = cleanupStack_[i - 1];
     if (scope.isFullExpression) continue;
-    scope.entries.push_back({address, dtor});
+    scope.entries.push_back(
+        {.address = address, .destructor = dtor, .elementCount = elementCount});
     return;
   }
+}
+
+auto Codegen::objectDestructor(const Type* type) const -> FunctionSymbol* {
+  auto shape = classSubobjectShape(type);
+  if (!shape) return nullptr;
+  return shape->classSymbol->destructor();
+}
+
+void Codegen::addArrayCleanup(ir::ValueRef address, const Type* arrayType) {
+  auto shape = classSubobjectShape(arrayType);
+  if (!shape) return;
+  if (traits.has_trivial_destructor(shape->elementType)) return;
+
+  auto dtor = objectDestructor(arrayType);
+  if (!dtor) return;
+
+  addCleanup(address, completeObjectDtor(dtor),
+             static_cast<std::int64_t>(shape->elementCount));
 }
 
 void Codegen::addTemporaryCleanup(ir::ValueRef address, const Type* type) {
@@ -977,7 +1101,8 @@ auto Codegen::subobjectIndex(ClassSymbol* classSymbol, Symbol* subobject) const
   } else if (auto base = symbol_cast<BaseClassSymbol>(subobject)) {
     if (layout) {
       if (auto baseSym = symbol_cast<ClassSymbol>(base->symbol())) {
-        if (auto bi = layout->getBaseInfo(baseSym)) return bi->index;
+        if (auto bi = layout->getBaseInfo(baseSym, base->isVirtual()))
+          return bi->index;
       }
     }
   }
@@ -1034,28 +1159,19 @@ auto Codegen::subobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
   return memberAddress(loc, objectPtr, type, *index);
 }
 
-auto Codegen::subobjectElementAddresses(SourceLocation loc,
-                                        ir::ValueRef subobjectPtr,
-                                        const ClassSubobjectShape& shape)
-    -> std::vector<ir::ValueRef> {
-  if (shape.elementCount == 1) return {subobjectPtr};
-
-  auto elementPtrType = emitter_.pointerType(convertType(shape.elementType));
-  auto basePtr = emitter_.bitcast(loc, elementPtrType, subobjectPtr);
-
-  auto indexType = emitter_.integerType(64);
-
-  std::vector<ir::ValueRef> addresses;
-  addresses.reserve(shape.elementCount);
-
-  for (std::uint64_t i = 0; i < shape.elementCount; ++i) {
-    auto offset =
-        emitter_.constantInt(loc, indexType, static_cast<std::int64_t>(i));
-    addresses.push_back(
-        emitter_.pointerAdd(loc, elementPtrType, basePtr, offset));
+void Codegen::forEachSubobjectElement(
+    SourceLocation loc, ir::ValueRef subobjectPtr,
+    const ClassSubobjectShape& shape, bool reverse,
+    const std::function<void(ir::ValueRef)>& body) {
+  if (shape.elementCount == 1) {
+    body(subobjectPtr);
+    return;
   }
 
-  return addresses;
+  auto count =
+      emitter_.constantInt(loc, convertType(control()->getSizeType()),
+                           static_cast<std::int64_t>(shape.elementCount));
+  emitArrayLoop(loc, subobjectPtr, shape.elementType, count, reverse, body);
 }
 
 auto Codegen::subobjectsInDeclarationOrder(ClassSymbol* classSymbol) const
@@ -1085,8 +1201,10 @@ auto Codegen::defaultConstructorArguments(FunctionSymbol* constructor)
   std::vector<ExpressionResult> args;
 
   for (auto parameter : constructor->parameters()) {
-    if (!parameter->defaultArgument()) continue;
-    args.push_back(expression(parameter->defaultArgument()));
+    auto defaultArgument =
+        ASTRewriter::requireDefaultArgument(unit_, parameter);
+    if (!defaultArgument) continue;
+    args.push_back(expression(defaultArgument));
   }
 
   return args;
@@ -1110,11 +1228,12 @@ void Codegen::emitSubobjectDestruction(SourceLocation loc,
   auto subobjectPtr = subobjectAddress(loc, objectPtr, classSymbol, subobject);
   if (!subobjectPtr) return;
 
-  auto addresses = subobjectElementAddresses(loc, subobjectPtr, *shape);
-
-  for (auto it = addresses.rbegin(); it != addresses.rend(); ++it)
-    (void)emitCall(loc, dtor, {*it}, {}, /*isVirtualDispatch=*/false,
-                   /*resultOwner=*/nullptr, /*baseObjectStructor=*/!isField);
+  forEachSubobjectElement(
+      loc, subobjectPtr, *shape, /*reverse=*/true, [&](ir::ValueRef element) {
+        (void)emitCall(loc, dtor, {element}, {}, /*isVirtualDispatch=*/false,
+                       /*resultOwner=*/nullptr,
+                       /*baseObjectStructor=*/!isField);
+      });
 }
 
 void Codegen::emitSubobjectDefaultConstruction(SourceLocation loc,
@@ -1134,10 +1253,12 @@ void Codegen::emitSubobjectDefaultConstruction(SourceLocation loc,
 
   const auto completeObject = symbol_cast<FieldSymbol>(subobject) != nullptr;
 
-  for (auto address : subobjectElementAddresses(loc, subobjectPtr, *shape))
-    (void)emitCtorCall(loc, defaultConstructor, address,
-                       defaultConstructorArguments(defaultConstructor),
-                       completeObject);
+  forEachSubobjectElement(
+      loc, subobjectPtr, *shape, /*reverse=*/false, [&](ir::ValueRef element) {
+        (void)emitCtorCall(loc, defaultConstructor, element,
+                           defaultConstructorArguments(defaultConstructor),
+                           completeObject);
+      });
 }
 
 Codegen::FullExpression::FullExpression(Codegen& gen, SourceLocation endLoc)
@@ -1225,7 +1346,8 @@ auto Codegen::collectCleanupSnapshot(std::size_t targetDepth)
     for (auto jt = scope.entries.rbegin(); jt != scope.entries.rend(); ++jt) {
       auto destructor = findOrCreateFunction(jt->destructor);
       snapshot.push_back({jt->address, destructor,
-                          static_cast<std::int64_t>(i - 1), jt->activeFlag});
+                          static_cast<std::int64_t>(i - 1), jt->activeFlag,
+                          jt->elementCount});
     }
   }
 
@@ -1238,7 +1360,7 @@ auto Codegen::structorReturnsThis(FunctionSymbol* symbol) -> bool {
     return false;
   }
   if (symbol->isDeletingDtorVariant()) return false;
-  return isWasmTarget_;
+  return control()->memoryLayout()->structorsReturnThis();
 }
 
 auto Codegen::classifyClassValueAbi(const Type* type,
@@ -1439,17 +1561,13 @@ auto findBaseClassPath(ClassSymbol* from, ClassSymbol* target,
 auto Codegen::emitVirtualBaseAddress(SourceLocation loc, ir::ValueRef objectPtr,
                                      ClassSymbol* fromClass,
                                      ClassSymbol* vbaseClass) -> ir::ValueRef {
-  int vbaseIndex = 0;
-  if (auto fromLayout = fromClass->layout()) {
-    for (auto baseClass : fromLayout->virtualBases()) {
-      if (baseClass == vbaseClass) break;
-      ++vbaseIndex;
-    }
-  }
+  std::int64_t words = 0;
+  if (auto fromVTable = fromClass->vtableLayout())
+    words = fromVTable->primary().offsetWordsBeforeAddressPoint(vbaseClass);
 
   const auto wordSize =
       static_cast<std::int64_t>(control()->memoryLayout()->sizeOfPointer());
-  const auto slotByteOffset = -wordSize * (3 + vbaseIndex);
+  const auto slotByteOffset = -wordSize * words;
 
   auto i8Type = emitter_.integerType(8);
   auto i8PtrType = emitter_.pointerType(i8Type);
@@ -1978,8 +2096,7 @@ void Codegen::emitBaseObjectStructor(FunctionSymbol* functionSymbol,
   auto guard = ir::InsertionGuard(emitter_);
   emitter_.setModuleInsertionPoint(true);
 
-  emitForwardingBody(baseObjectFunc, emittedSymbol, completeObjectFunc,
-                     emittedSymbol->location(), {});
+  emitForwardingBody(baseObjectFunc, emittedSymbol, completeObjectFunc, {}, {});
 }
 
 void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
@@ -2002,12 +2119,10 @@ void Codegen::processPendingFunctions() {
       (void)declaration(funcDecl);
     }
 
-    if (sym->parent() && sym->parent()->isClass()) {
-      auto classSymbol = symbol_cast<ClassSymbol>(sym->parent());
-      if (classSymbol) {
-        generateVTable(classSymbol);
-      }
-    }
+    emitAdjustingEntryPoints(sym);
+
+    if (auto classSymbol = classRequiringVTable(sym))
+      generateVTable(classSymbol);
   }
 }
 
@@ -2176,8 +2291,8 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
       initializer = ir::Initializer::zero();
   }
 
-  const auto isConstant =
-      variableSymbol->isConstexpr() || traits.is_const(defVar->type());
+  const auto isConstant = isReadOnlyStorage(
+      traits, defVar->type(), value.has_value() || isExternalOnly);
 
   auto alignmentAttr = ir::Initializer::integerValue(
       emitter_.integerType(64), static_cast<int64_t>(getAlignment(defVar)));
@@ -2201,6 +2316,9 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     auto result = emitConstInitValue(initLoc, defVar->type(), *value);
     emitter_.ret(initLoc, {&result, 1});
   }
+
+  if (variableSymbol->isSpecialization())
+    emitGlobalVarInit(variableSymbol, var);
 
   return var;
 }
@@ -2255,8 +2373,8 @@ auto Codegen::findOrCreateStaticField(FieldSymbol* field) -> ir::GlobalRef {
     if (!initializer && !needsRegionInit) initializer = ir::Initializer::zero();
   }
 
-  const auto isConstant = !needsDynamicInit && (field->isConstexpr() ||
-                                                traits.is_const(field->type()));
+  const auto isConstant =
+      isReadOnlyStorage(traits, field->type(), !needsDynamicInit);
 
   ir::Initializer alignmentAttr;
 
@@ -2373,12 +2491,7 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var, ir::GlobalRef global) {
   auto defVar = canonicalVar->resolvedDefinition();
   if (defVar->isExtern()) return;
 
-  FunctionSymbol* destructor = nullptr;
-  if (auto classType = unqualified_cast<ClassType>(defVar->type())) {
-    auto classSymbol = classType->symbol();
-    if (classSymbol)
-      destructor = classSymbol->resolvedDefinition()->destructor();
-  }
+  auto destructor = objectDestructor(defVar->type());
 
   const auto linkage = emitter_.globalLinkage(global);
   const auto isConstantInitialized = defVar->constValue().has_value();
@@ -2430,11 +2543,7 @@ void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
   auto constructor = defVar->constructor();
   if (!initializer) initializer = defVar->initializer();
 
-  FunctionSymbol* destructor = nullptr;
-  if (auto classType = unqualified_cast<ClassType>(defVar->type())) {
-    if (auto classSymbol = classType->symbol())
-      destructor = classSymbol->resolvedDefinition()->destructor();
-  }
+  auto destructor = objectDestructor(defVar->type());
 
   const bool needsDestruction =
       destructor && !traits.has_trivial_destructor(defVar->type());
@@ -2470,8 +2579,8 @@ void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
     auto fullExpression = FullExpression{*this, initLoc};
 
     if (constructor) {
-      (void)emitCtorCall(initLoc, constructor, addr,
-                         constructorArguments(initializer), true);
+      emitConstructorInitialization(initLoc, addr, defVar->type(), constructor,
+                                    initializer);
     } else if (auto expression = initializerExpression(initializer)) {
       (void)emitPrvalueInto(addr, defVar->type(), expression, initLoc);
     }
@@ -2584,8 +2693,8 @@ void Codegen::emitGlobalInit(Symbol* symbol, const Type* type,
     auto fullExpression = FullExpression{*this, initLoc};
 
     if (constructor) {
-      (void)emitCtorCall(initLoc, constructor, addr,
-                         constructorArguments(initializer), true);
+      emitConstructorInitialization(initLoc, addr, type, constructor,
+                                    initializer);
     } else if (auto expression = initializerExpression(initializer)) {
       (void)emitPrvalueInto(addr, type, expression, initLoc);
     }
@@ -2632,31 +2741,6 @@ auto Codegen::emitTodoExpr(SourceLocation location, std::string_view message)
   return op;
 }
 
-auto Codegen::vtableGroupTables(const VTableLayout* vtableLayout)
-    -> std::vector<const VTableLayout::Group*> {
-  std::vector<const VTableLayout::Group*> tables;
-  if (!vtableLayout) return tables;
-  tables.push_back(&vtableLayout->primary);
-  for (auto& group : vtableLayout->secondary) tables.push_back(&group);
-  return tables;
-}
-
-auto Codegen::vtableGroupWordCount(
-    std::span<const VTableLayout::Group* const> tables) -> std::size_t {
-  std::size_t wordCount = 0;
-  for (auto table : tables) wordCount += table->wordCount();
-  return wordCount;
-}
-
-auto Codegen::vtableAddressPointIndex(
-    std::span<const VTableLayout::Group* const> tables, std::size_t index)
-    -> std::size_t {
-  std::size_t addressPoint = 0;
-  for (std::size_t i = 0; i < index; ++i)
-    addressPoint += tables[i]->wordCount();
-  return addressPoint + tables[index]->headerWordCount();
-}
-
 auto Codegen::vtableSlotIndex(FunctionSymbol* function) -> int {
   if (function->vtableSlotIndex() >= 0) return function->vtableSlotIndex();
   if (auto canonical = function->canonical();
@@ -2670,75 +2754,23 @@ auto Codegen::vtableSlotIndex(FunctionSymbol* function) -> int {
 
 void Codegen::emitVTableOp(SourceLocation loc, std::string_view name,
                            ClassSymbol* classSymbol,
-                           std::span<const VTableLayout::Group* const> tables,
+                           const VTableLayout::Group& group,
                            ir::Linkage linkage) {
   auto typeInfoAttr = findOrCreateTypeInfo(classSymbol->type());
 
-  const auto wordSize =
-      static_cast<std::int64_t>(control()->memoryLayout()->sizeOfPointer());
-
-  std::vector<std::vector<std::int64_t>> vbaseOffsets(tables.size());
-  std::vector<std::vector<std::int64_t>> vcallOffsets(tables.size());
-  std::vector<std::vector<ir::FunctionRef>> slotAttrs(tables.size());
+  std::vector<std::vector<std::int64_t>> offsets(group.tables.size());
+  std::vector<std::vector<ir::FunctionRef>> slots(group.tables.size());
   std::vector<ir::VTableTableInfo> tableInfos;
 
-  for (std::size_t index = 0; index < tables.size(); ++index) {
-    auto& group = *tables[index];
-
-    for (auto& vbaseOffset : group.vbaseOffsets)
-      vbaseOffsets[index].push_back(vbaseOffset.second);
-
-    for (auto& vcallOffset : group.vcallOffsets)
-      vcallOffsets[index].push_back(vcallOffset.second);
-
-    auto vcallSlotByteOffset = [&](int slotIndex) -> std::int64_t {
-      const auto distWords =
-          2 + static_cast<std::int64_t>(vbaseOffsets[index].size()) +
-          (static_cast<std::int64_t>(vcallOffsets[index].size()) - slotIndex);
-      return -wordSize * distWords;
-    };
-
-    for (auto& slot : group.slots) {
-      if (!slot.function) {
-        slotAttrs[index].push_back({});
-        continue;
-      }
-
-      if (slot.function->isPure() || slot.function->isDeleted()) {
-        slotAttrs[index].push_back(findOrCreateUnimplementedVirtual(
-            loc, slot.function->isPure() ? "__cxa_pure_virtual"
-                                         : "__cxa_deleted_virtual"));
-        continue;
-      }
-
-      FunctionSymbol* target = slot.function;
-      if (slot.kind == VTableLayout::SlotKind::kDeletingDtor) {
-        auto deletingDtor = slot.function->deletingDtorVariant();
-        target =
-            deletingDtor ? deletingDtor : completeObjectDtor(slot.function);
-      } else if (slot.kind == VTableLayout::SlotKind::kCompleteDtor) {
-        target = completeObjectDtor(slot.function);
-      }
-
-      ir::FunctionRef funcOp;
-      if (slot.vcallOffsetIndex >= 0) {
-        funcOp = findOrCreateVirtualThunk(
-            target, vcallSlotByteOffset(slot.vcallOffsetIndex));
-      } else if (slot.thisAdjustment != 0) {
-        funcOp = findOrCreateThisAdjustingThunk(
-            target, static_cast<std::int64_t>(slot.thisAdjustment));
-      } else {
-        funcOp = findOrCreateFunction(target);
-      }
-
-      slotAttrs[index].push_back(funcOp);
-    }
-
-    tableInfos.push_back(
-        {.virtualBaseOffsets = vbaseOffsets[index],
-         .virtualCallOffsets = vcallOffsets[index],
-         .offsetToTop = -static_cast<std::int64_t>(group.offset),
-         .slots = slotAttrs[index]});
+  for (std::size_t index = 0; index < group.tables.size(); ++index) {
+    const auto& table = group.tables[index];
+    for (const auto& offset : table.offsets)
+      offsets[index].push_back(offset.value);
+    for (const auto& slot : table.slots)
+      slots[index].push_back(vtableEntry(loc, slot));
+    tableInfos.push_back({.offsets = offsets[index],
+                          .offsetToTop = table.offsetToTop,
+                          .slots = slots[index]});
   }
 
   auto guard = ir::InsertionGuard(emitter_);
@@ -2750,16 +2782,16 @@ void Codegen::emitVTableOp(SourceLocation loc, std::string_view name,
                               .linkage = linkage});
 }
 
-void Codegen::emitVTableGroup(
-    SourceLocation loc, std::string_view name, ClassSymbol* classSymbol,
-    std::span<const VTableLayout::Group* const> tables,
-    const VTableEmission& emission) {
+void Codegen::emitVTableGroup(SourceLocation loc, std::string_view name,
+                              ClassSymbol* classSymbol,
+                              const VTableLayout::Group& group,
+                              const VTableEmission& emission) {
   if (emitter_.symbolExists(name)) return;
 
   if (emission.emitDefinition)
-    emitVTableOp(loc, name, classSymbol, tables, emission.linkage);
+    emitVTableOp(loc, name, classSymbol, group, emission.linkage);
   else
-    declareExternalVTable(loc, name, vtableGroupWordCount(tables));
+    declareExternalVTable(loc, name, group.wordCount());
 }
 
 void Codegen::declareExternalVTable(SourceLocation loc, std::string_view name,
@@ -2782,107 +2814,215 @@ void Codegen::declareExternalVTable(SourceLocation loc, std::string_view name,
                                   .unknownLocation = false});
 }
 
-void Codegen::emitForwardingBody(ir::FunctionRef func, FunctionSymbol* target,
-                                 ir::FunctionRef targetFuncOp,
-                                 SourceLocation loc,
-                                 const ThisAdjustment& computeAdjustedThisI8) {
-  auto functionBodyGuard = ir::FunctionBodyGuard{emitter_, func};
-
-  auto entryBlock = emitter_.createBlock(func);
-  std::vector<ir::ValueRef> callArgs;
-  for (auto inputType : emitter_.functionParameterTypes(targetFuncOp)) {
-    callArgs.push_back(emitter_.addBlockParameter(entryBlock, inputType, loc));
+auto Codegen::vtableEntryTarget(const VTableLayout::Slot& slot)
+    -> FunctionSymbol* {
+  if (slot.kind == VTableLayout::SlotKind::kDeletingDtor) {
+    if (auto deletingDtor = slot.function->deletingDtorVariant())
+      return deletingDtor;
+    return completeObjectDtor(slot.function);
   }
+  if (slot.kind == VTableLayout::SlotKind::kCompleteDtor)
+    return completeObjectDtor(slot.function);
+  return slot.function;
+}
+
+auto Codegen::vtableEntry(SourceLocation loc, const VTableLayout::Slot& slot)
+    -> ir::FunctionRef {
+  if (!slot.function) return {};
+
+  if (slot.function->isPure())
+    return findOrCreateUnimplementedVirtual(loc, "__cxa_pure_virtual");
+
+  if (slot.function->isDeleted())
+    return findOrCreateUnimplementedVirtual(loc, "__cxa_deleted_virtual");
+
+  auto target = vtableEntryTarget(slot);
+  if (slot.thisAdjustment.isEmpty() && slot.returnAdjustment.isEmpty())
+    return findOrCreateFunction(target);
+
+  return findOrCreateThunk(target, slot.thisAdjustment, slot.returnAdjustment);
+}
+
+auto Codegen::definesFunctionBody(FunctionSymbol* function) -> bool {
+  auto principal = function->structorPrincipal();
+  if (!principal) principal = function;
+  auto definition = emittedFunctionSymbol(principal)->resolvedDefinition();
+  return definition->declaration() != nullptr;
+}
+
+auto Codegen::applyCallOffset(SourceLocation loc, ir::ValueRef pointerI8,
+                              const VTableLayout::CallOffset& callOffset,
+                              bool virtualFirst) -> ir::ValueRef {
+  auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
+  auto wordType = pointerSizedIntType();
+
+  auto addNonVirtual = [&](ir::ValueRef pointer) {
+    if (!callOffset.nonVirtual) return pointer;
+    auto offset = emitter_.constantInt(loc, wordType, callOffset.nonVirtual);
+    return emitter_.pointerAdd(loc, i8PtrType, pointer, offset);
+  };
+
+  if (!callOffset.virtualOffset) return addNonVirtual(pointerI8);
+
+  if (virtualFirst) {
+    auto adjusted =
+        adjustByVtableWord(loc, pointerI8, callOffset.virtualOffset);
+    return addNonVirtual(adjusted);
+  }
+
+  return adjustByVtableWord(loc, addNonVirtual(pointerI8),
+                            callOffset.virtualOffset);
+}
+
+void Codegen::emitForwardingBody(
+    ir::FunctionRef function, FunctionSymbol* target,
+    ir::FunctionRef targetFuncOp,
+    const VTableLayout::CallOffset& thisAdjustment,
+    const VTableLayout::CallOffset& returnAdjustment) {
+  auto functionBodyGuard = ir::FunctionBodyGuard{emitter_, function};
+  auto loc = target->location();
+
+  auto entryBlock = emitter_.createBlock(function);
+  std::vector<ir::ValueRef> callArgs;
+  for (auto inputType : emitter_.functionParameterTypes(targetFuncOp))
+    callArgs.push_back(emitter_.addBlockParameter(entryBlock, inputType, loc));
   emitter_.setInsertionBlock(entryBlock);
 
-  if (computeAdjustedThisI8) {
-    auto functionType = type_cast<FunctionType>(target->type());
-    const auto returnAbi = classifyClassValueAbi(functionType->returnType(),
-                                                 ClassValueAbiContext::Return);
-    const size_t thisIndex =
-        returnAbi.kind == ClassValueAbi::Kind::Indirect ? 1 : 0;
+  auto functionType = type_cast<FunctionType>(target->type());
+  const auto returnAbi = classifyClassValueAbi(functionType->returnType(),
+                                               ClassValueAbiContext::Return);
+  const std::size_t thisIndex =
+      returnAbi.kind == ClassValueAbi::Kind::Indirect ? 1 : 0;
 
-    auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
+  auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
+  auto rawThis = callArgs[thisIndex];
+  auto adjustedThis = applyCallOffset(
+      loc, emitter_.bitcast(loc, i8PtrType, rawThis), thisAdjustment,
+      /*virtualFirst=*/false);
+  callArgs[thisIndex] =
+      emitter_.bitcast(loc, emitter_.typeOf(rawThis), adjustedThis);
 
-    auto rawThis = callArgs[thisIndex];
-    auto rawThisI8 = emitter_.bitcast(loc, i8PtrType, rawThis);
-
-    auto adjustedThisI8 = computeAdjustedThisI8(rawThisI8, loc);
-
-    callArgs[thisIndex] =
-        emitter_.bitcast(loc, emitter_.typeOf(rawThis), adjustedThisI8);
-  }
-
-  auto callResults = emitter_.call(
+  auto results = emitter_.call(
       loc, {.callee = this->functionName(targetFuncOp),
             .arguments = callArgs,
             .results = emitter_.functionResultTypes(targetFuncOp)});
 
-  emitter_.ret(loc, callResults);
+  if (returnAdjustment.isEmpty() || results.empty()) {
+    emitter_.ret(loc, results);
+    return;
+  }
+
+  auto result = results.front();
+  auto resultType = emitter_.typeOf(result);
+
+  auto adjustResult = [&] {
+    auto adjusted =
+        applyCallOffset(loc, emitter_.bitcast(loc, i8PtrType, result),
+                        returnAdjustment, /*virtualFirst=*/true);
+    return emitter_.bitcast(loc, resultType, adjusted);
+  };
+
+  if (!traits.is_pointer(functionType->returnType())) {
+    auto adjusted = adjustResult();
+    emitter_.ret(loc, {&adjusted, 1});
+    return;
+  }
+
+  auto wordType = pointerSizedIntType();
+  auto isNull =
+      emitter_.compareInt(loc, ir::IntPredicate::Equal,
+                          emitter_.pointerToInt(loc, wordType, result),
+                          emitter_.constantInt(loc, wordType, 0));
+
+  auto adjustBlock = emitter_.createBlock(function);
+  auto nullBlock = emitter_.createBlock(function);
+  auto returnBlock = emitter_.createBlock(function);
+  auto returnValue = emitter_.addBlockParameter(returnBlock, resultType, loc);
+  emitter_.condBranch(loc, isNull, nullBlock, adjustBlock);
+
+  emitter_.setInsertionBlock(nullBlock);
+  emitter_.branch(loc, returnBlock, {&result, 1});
+
+  emitter_.setInsertionBlock(adjustBlock);
+  auto adjusted = adjustResult();
+  emitter_.branch(loc, returnBlock, {&adjusted, 1});
+
+  emitter_.setInsertionBlock(returnBlock);
+  emitter_.ret(loc, {&returnValue, 1});
 }
 
-auto Codegen::findOrCreateThunk(FunctionSymbol* target,
-                                std::string_view thunkName,
-                                const ThisAdjustment& computeAdjustedThisI8)
-    -> ir::FunctionRef {
+auto Codegen::findOrCreateThunk(
+    FunctionSymbol* target, const VTableLayout::CallOffset& thisAdjustment,
+    const VTableLayout::CallOffset& returnAdjustment) -> ir::FunctionRef {
   auto targetFuncOp = findOrCreateFunction(target);
   if (!targetFuncOp) return {};
 
+  ExternalNameEncoder encoder{unit_};
+  auto thunkName = encoder.encodeThunk(emittedFunctionSymbol(target),
+                                       thisAdjustment, returnAdjustment);
+
+  auto linkage = symbolLinkage(emittedFunctionSymbol(target));
+  const auto definesBody =
+      linkage != ir::Linkage::External || definesFunctionBody(target);
+
   if (auto existing = this->findFunction(thunkName)) {
+    if (definesBody && !emitter_.functionHasBody(existing))
+      emitForwardingBody(existing, target, targetFuncOp, thisAdjustment,
+                         returnAdjustment);
     return existing;
   }
-
-  auto funcType = this->functionType(targetFuncOp);
 
   auto guard = ir::InsertionGuard(emitter_);
   emitter_.setModuleInsertionPoint(true);
 
-  auto loc = target->location();
+  auto thunk = this->declareFunction(
+      target->location(), ir::FunctionInfo{.name = thunkName,
+                                           .type = functionType(targetFuncOp),
+                                           .linkage = linkage});
 
-  auto thunkFunc = this->declareFunction(
-      loc, ir::FunctionInfo{.name = thunkName,
-                            .type = funcType,
-                            .linkage = ir::Linkage::LinkOnceODR});
+  if (definesBody)
+    emitForwardingBody(thunk, target, targetFuncOp, thisAdjustment,
+                       returnAdjustment);
 
-  emitForwardingBody(thunkFunc, target, targetFuncOp, loc,
-                     computeAdjustedThisI8);
-
-  return thunkFunc;
+  return thunk;
 }
 
-auto Codegen::findOrCreateThisAdjustingThunk(FunctionSymbol* target,
-                                             std::int64_t offset)
-    -> ir::FunctionRef {
-  auto targetFuncOp = findOrCreateFunction(target);
-  if (!targetFuncOp) return {};
+void Codegen::emitAdjustingEntryPoints(FunctionSymbol* function) {
+  auto principal = function->structorPrincipal();
+  if (!principal) principal = function;
+  if (!principal->isVirtual()) return;
+  if (symbolLinkage(emittedFunctionSymbol(function)) != ir::Linkage::External)
+    return;
 
-  auto thunkName = std::format("__cxx_thunk.{}.{}", offset,
-                               std::string(this->functionName(targetFuncOp)));
+  auto classSymbol = symbol_cast<ClassSymbol>(principal->parent());
+  if (!classSymbol) return;
+  auto vtableLayout = classSymbol->resolvedDefinition()->vtableLayout();
+  if (!vtableLayout) return;
 
-  return findOrCreateThunk(
-      target, thunkName, [&](ir::ValueRef rawThisI8, SourceLocation loc) {
-        auto offsetType = convertType(control()->getIntType());
-        auto offsetOp = emitter_.constantInt(loc, offsetType,
-                                             static_cast<int64_t>(-offset));
-        return emitter_.pointerAdd(loc, emitter_.typeOf(rawThisI8), rawThisI8,
-                                   offsetOp);
-      });
+  auto emitted = emittedFunctionSymbol(principal);
+  for (const auto& entryPoint : vtableLayout->adjustingEntryPoints) {
+    if (emittedFunctionSymbol(entryPoint.function) != emitted) continue;
+    auto target = vtableEntryTarget(
+        {.function = entryPoint.function, .kind = entryPoint.kind});
+    (void)findOrCreateThunk(target, entryPoint.thisAdjustment,
+                            entryPoint.returnAdjustment);
+  }
 }
 
-auto Codegen::findOrCreateVirtualThunk(FunctionSymbol* target,
-                                       std::int64_t vcallSlotByteOffset)
-    -> ir::FunctionRef {
-  auto targetFuncOp = findOrCreateFunction(target);
-  if (!targetFuncOp) return {};
+auto Codegen::classRequiringVTable(FunctionSymbol* function) -> ClassSymbol* {
+  auto principal = function->structorPrincipal();
+  if (!principal) principal = function;
+  auto classSymbol = symbol_cast<ClassSymbol>(principal->parent());
+  if (!classSymbol) return nullptr;
+  classSymbol = classSymbol->resolvedDefinition();
 
-  auto thunkName = std::format("__cxx_vthunk.{}.{}", vcallSlotByteOffset,
-                               std::string(this->functionName(targetFuncOp)));
+  if (unit_->isExplicitInstantiationDefinition(principal)) return classSymbol;
 
-  return findOrCreateThunk(
-      target, thunkName, [&](ir::ValueRef rawThisI8, SourceLocation loc) {
-        return adjustByVtableWord(target->location(), rawThisI8,
-                                  vcallSlotByteOffset);
-      });
+  auto vtableLayout = classSymbol->vtableLayout();
+  if (!vtableLayout || !vtableLayout->keyFunction) return nullptr;
+  if (vtableLayout->keyFunction->canonical() != principal->canonical())
+    return nullptr;
+  return classSymbol;
 }
 
 void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
@@ -2913,66 +3053,64 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
     activeVTT = emitter_.blockParameter(entryBlock_, entryArgumentCount - 1);
   const auto usesVTT = activeVTT && requiresVTT(classSymbol) &&
                        !functionSymbol->isStructorVariant();
-  auto generatedVTT = usesVTT ? buildVTT(classSymbol) : GeneratedVTT{};
+
+  auto intTy = convertType(control()->getIntType());
+
   auto loadVTTEntry = [&](std::size_t index) -> ir::ValueRef {
-    auto indexType = convertType(control()->getIntType());
-    auto offset = emitter_.constantInt(loc, indexType, index);
+    auto offset = emitter_.constantInt(loc, intTy, index);
     auto entry =
         emitter_.pointerAdd(loc, emitter_.typeOf(activeVTT), activeVTT, offset);
     auto address = emitter_.load(loc, i8PtrType, entry, pointerSize());
     return emitter_.bitcast(loc, addressPointType, address);
   };
 
-  auto tables = vtableGroupTables(vtableLayout);
-  auto vtableArrayType =
-      this->arrayType(i8PtrType, vtableGroupWordCount(tables));
-  auto vtablePtrType = emitter_.pointerType(vtableArrayType);
+  const auto& group = vtableLayout->main;
+  auto vtableArrayType = this->arrayType(i8PtrType, group.wordCount());
 
-  auto vtableAddr = emitter_.addressOfSymbol(loc, vtablePtrType, vtableName);
-
-  auto intTy = convertType(control()->getIntType());
   auto addressPointOf = [&](std::size_t index) {
+    generateVTable(classSymbol);
+    auto vtableAddr = emitter_.addressOfSymbol(
+        loc, emitter_.pointerType(vtableArrayType), vtableName);
     auto offset = emitter_.constantInt(
-        loc, intTy,
-        static_cast<int64_t>(vtableAddressPointIndex(tables, index)));
+        loc, intTy, static_cast<int64_t>(group.addressPointIndex(index)));
     return emitter_.pointerAdd(loc, addressPointType, vtableAddr, offset);
   };
 
-  ir::ValueRef vtableDataPtr;
-  if (usesVTT)
-    vtableDataPtr = loadVTTEntry(0);
-  else
-    vtableDataPtr = addressPointOf(0);
-
   auto thisPtr = loadThisPointer(loc, classSymbol);
 
-  auto vptrFieldPtr = resolveVptrField(thisPtr, classSymbol, loc);
+  for (std::size_t index = 0; index < group.tables.size(); ++index) {
+    const auto& table = group.tables[index];
 
-  emitter_.store(loc, vtableDataPtr, vptrFieldPtr, 8);
-
-  for (std::size_t index = 1; index < tables.size(); ++index) {
-    auto& group = *tables[index];
-
-    ir::ValueRef groupDataPtr;
-    if (usesVTT) {
-      auto found = generatedVTT.secondaryVptrs.find(group.offset);
-      if (found != generatedVTT.secondaryVptrs.end())
-        groupDataPtr = loadVTTEntry(found->second);
-    }
-    if (!groupDataPtr) groupDataPtr = addressPointOf(index);
-
-    ir::ValueRef baseSubobjectPtr;
-    if (usesVTT && std::ranges::contains(layout->virtualBases(), group.base))
-      baseSubobjectPtr =
-          emitBaseClassAddress(loc, thisPtr, classSymbol, group.base);
+    ir::ValueRef tableAddress;
+    const auto vttIndex = vtableLayout->tableVTTIndices[index];
+    if (usesVTT && vttIndex >= 0)
+      tableAddress = loadVTTEntry(static_cast<std::size_t>(vttIndex));
     else
-      baseSubobjectPtr =
-          subobjectAddress(loc, thisPtr, group.base, group.offset);
+      tableAddress = addressPointOf(index);
 
-    auto baseVptrFieldPtr = resolveVptrField(baseSubobjectPtr, group.base, loc);
+    ir::ValueRef subobjectPtr = thisPtr;
+    if (index != 0)
+      subobjectPtr =
+          tableSubobjectAddress(loc, thisPtr, classSymbol, table, usesVTT);
 
-    emitter_.store(loc, groupDataPtr, baseVptrFieldPtr, 8);
+    auto vptrFieldPtr = resolveVptrField(subobjectPtr, table.base, loc);
+    emitter_.store(loc, tableAddress, vptrFieldPtr, 8);
   }
+}
+
+auto Codegen::tableSubobjectAddress(SourceLocation loc, ir::ValueRef thisPtr,
+                                    ClassSymbol* classSymbol,
+                                    const VTableLayout::Table& table,
+                                    bool usesVTT) -> ir::ValueRef {
+  auto virtualBase = table.enclosingVirtualBase;
+  if (!usesVTT || !virtualBase)
+    return subobjectAddress(loc, thisPtr, table.base, table.offset);
+
+  auto virtualBaseAddress =
+      emitBaseClassAddress(loc, thisPtr, classSymbol, virtualBase);
+  auto info = classSymbol->layout()->getVirtualBaseInfo(virtualBase);
+  const auto delta = info ? table.offset - info->offset : 0;
+  return subobjectAddress(loc, virtualBaseAddress, table.base, delta);
 }
 
 auto Codegen::subobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
@@ -3057,7 +3195,7 @@ auto Codegen::resolveVptrField(ir::ValueRef basePtr, ClassSymbol* baseClassSym,
     for (auto base : currentClass->baseClasses()) {
       auto bs = symbol_cast<ClassSymbol>(base->symbol());
       if (!bs) continue;
-      auto bi = currentLayout->getBaseInfo(bs);
+      auto bi = currentLayout->getBaseInfo(bs, base->isVirtual());
       if (bi && bi->index == baseIdx) {
         baseSym = bs;
         break;
@@ -3079,180 +3217,69 @@ auto Codegen::requiresVTT(ClassSymbol* classSymbol) const -> bool {
   return classSymbol->hasVirtualBaseSubobjects();
 }
 
-void Codegen::appendConstructionSubVTT(ClassSymbol* completeClass,
-                                       ClassSymbol* constructionClass,
-                                       std::uint64_t constructionOffset,
-                                       bool constructionClassIsVirtual,
-                                       GeneratedVTT& vtt,
-                                       const VTableEmission& emission) {
-  auto completeLayout = completeClass->layout();
-  auto constructionLayout = constructionClass->layout();
-  auto sourceVTable = constructionClass->vtableLayout();
-  if (!completeLayout || !constructionLayout || !sourceVTable) return;
-
-  const auto constructionGroup = [&](const VTableLayout::Group& source,
-                                     std::uint64_t groupOffset) {
-    auto group = source;
-    group.offset = groupOffset - constructionOffset;
-    for (auto& [vbase, offset] : group.vbaseOffsets) {
-      if (auto info = completeLayout->getBaseInfo(vbase))
-        offset = static_cast<std::int64_t>(info->offset) -
-                 static_cast<std::int64_t>(groupOffset);
-    }
-    return group;
-  };
-
-  const auto secondaryGroupOffset = [&](const VTableLayout::Group& source) {
-    if (std::ranges::contains(constructionLayout->virtualBases(),
-                              source.base)) {
-      if (auto info = completeLayout->getBaseInfo(source.base))
-        return info->offset;
-    }
-    return constructionOffset + source.offset;
-  };
-
-  const auto& primarySource =
-      constructionClassIsVirtual && sourceVTable->virtualBasePrimary.base
-          ? sourceVTable->virtualBasePrimary
-          : sourceVTable->primary;
-
-  std::vector<VTableLayout::Group> groups;
-  groups.push_back(constructionGroup(primarySource, constructionOffset));
-  for (auto& source : sourceVTable->secondary)
-    groups.push_back(constructionGroup(source, secondaryGroupOffset(source)));
-
-  std::vector<const VTableLayout::Group*> tables;
-  for (auto& group : groups) tables.push_back(&group);
-
+auto Codegen::constructionVTableName(ClassSymbol* completeClass,
+                                     const VTableLayout::Group& group)
+    -> std::string {
   ExternalNameEncoder encoder{unit_};
-  auto name = encoder.encodeConstructionVTable(
-      completeClass, static_cast<std::int64_t>(constructionOffset),
-      constructionClass);
-
-  emitVTableGroup(completeClass->location(), name, constructionClass, tables,
-                  emission);
-
-  const auto wordCount = vtableGroupWordCount(tables);
-
-  vtt.entries.push_back({name, wordCount, vtableAddressPointIndex(tables, 0)});
-
-  for (auto base : constructionClass->baseClasses()) {
-    if (base->isVirtual()) continue;
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) continue;
-    baseClass = baseClass->resolvedDefinition();
-    if (!requiresVTT(baseClass)) continue;
-    auto info = constructionLayout->getBaseInfo(baseClass);
-    if (!info) continue;
-    appendConstructionSubVTT(
-        completeClass, baseClass, constructionOffset + info->offset,
-        /*constructionClassIsVirtual=*/false, vtt, emission);
-  }
-
-  for (std::size_t index = 1; index < tables.size(); ++index) {
-    auto& source = sourceVTable->secondary[index - 1];
-    const auto virtualPath =
-        std::ranges::contains(constructionLayout->virtualBases(), source.base);
-    if (!virtualPath && !requiresVTT(source.base)) continue;
-    vtt.entries.push_back(
-        {name, wordCount, vtableAddressPointIndex(tables, index)});
-  }
-}
-
-auto Codegen::buildVTT(ClassSymbol* completeClass) -> GeneratedVTT {
-  GeneratedVTT vtt;
-  auto layout = completeClass->layout();
-  auto table = completeClass->vtableLayout();
-  if (!layout || !table) return vtt;
-
-  ExternalNameEncoder encoder{unit_};
-  auto mainName = encoder.encodeVTable(completeClass);
-  auto tables = vtableGroupTables(table);
-  const auto mainWordCount = vtableGroupWordCount(tables);
-  vtt.entries.push_back(
-      {mainName, mainWordCount, vtableAddressPointIndex(tables, 0)});
-
-  auto emission = vtableEmission(completeClass);
-  for (auto base : completeClass->baseClasses()) {
-    if (base->isVirtual()) continue;
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) continue;
-    baseClass = baseClass->resolvedDefinition();
-    if (!requiresVTT(baseClass)) continue;
-    auto info = layout->getBaseInfo(baseClass);
-    if (!info) continue;
-    vtt.directBaseStarts.emplace(baseClass, vtt.entries.size());
-    appendConstructionSubVTT(completeClass, baseClass, info->offset,
-                             /*constructionClassIsVirtual=*/false, vtt,
-                             emission);
-  }
-
-  if (layout->primaryBaseIsVirtual()) {
-    vtt.entries.push_back(vtt.entries.front());
-  }
-
-  for (std::size_t index = 1; index < tables.size(); ++index) {
-    auto& group = *tables[index];
-    const auto virtualPath =
-        std::ranges::contains(layout->virtualBases(), group.base);
-    if (!virtualPath && !requiresVTT(group.base)) continue;
-    vtt.secondaryVptrs.emplace(group.offset, vtt.entries.size());
-    vtt.entries.push_back(
-        {mainName, mainWordCount, vtableAddressPointIndex(tables, index)});
-  }
-
-  for (auto virtualBase : layout->virtualBases()) {
-    if (!requiresVTT(virtualBase)) continue;
-    auto info = layout->getBaseInfo(virtualBase);
-    if (!info) continue;
-    vtt.virtualBaseStarts.emplace(virtualBase, vtt.entries.size());
-    appendConstructionSubVTT(completeClass, virtualBase, info->offset,
-                             /*constructionClassIsVirtual=*/true, vtt,
-                             emission);
-  }
-
-  return vtt;
+  return encoder.encodeConstructionVTable(
+      completeClass, static_cast<std::int64_t>(group.offset), group.base);
 }
 
 void Codegen::generateVTT(ClassSymbol* completeClass,
                           const VTableEmission& emission) {
   if (!requiresVTT(completeClass)) return;
 
+  auto vtableLayout = completeClass->vtableLayout();
+  if (!vtableLayout || vtableLayout->vtt.empty()) return;
+
   ExternalNameEncoder encoder{unit_};
   auto name = encoder.encodeVTT(completeClass);
   if (emitter_.symbolExists(name)) return;
 
-  auto vtt = buildVTT(completeClass);
-  if (vtt.entries.empty()) return;
-
   auto loc = completeClass->location();
+
+  std::vector<std::string> groupNames;
+  for (const auto& group : vtableLayout->constructionGroups) {
+    groupNames.push_back(constructionVTableName(completeClass, group));
+    emitVTableGroup(loc, groupNames.back(), group.base, group, emission);
+  }
+
   auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
-  auto arrayType = this->arrayType(i8PtrType, vtt.entries.size());
-  auto linkageAttr = emission.linkage;
+  auto arrayType = this->arrayType(i8PtrType, vtableLayout->vtt.size());
 
   auto guard = ir::InsertionGuard(emitter_);
   emitter_.setModuleInsertionPoint(true);
   auto global =
       this->declareGlobal(loc, {.name = name,
                                 .type = arrayType,
-                                .linkage = linkageAttr,
+                                .linkage = emission.linkage,
                                 .isConstant = true,
                                 .alignment = static_cast<std::uint64_t>(0),
                                 .initializer = ir::Initializer(),
                                 .unknownLocation = false});
   if (!emission.emitDefinition) return;
 
+  auto mainName = ExternalNameEncoder{unit_}.encodeVTable(completeClass);
+
   emitter_.beginGlobalInitializer(global);
   auto value = emitter_.undef(loc, arrayType);
   auto indexType = convertType(control()->getIntType());
 
-  for (std::size_t index = 0; index < vtt.entries.size(); ++index) {
-    auto& entry = vtt.entries[index];
-    auto tableType = this->arrayType(i8PtrType, entry.wordCount);
-    auto tablePtrType = emitter_.pointerType(tableType);
-    auto table = emitter_.addressOfSymbol(loc, tablePtrType, entry.tableName);
-    auto addressPointIndex =
-        emitter_.constantInt(loc, indexType, entry.addressPointIndex);
+  for (std::size_t index = 0; index < vtableLayout->vtt.size(); ++index) {
+    const auto& entry = vtableLayout->vtt[index];
+    const auto& group =
+        entry.group < 0
+            ? vtableLayout->main
+            : vtableLayout
+                  ->constructionGroups[static_cast<std::size_t>(entry.group)];
+    const auto& tableName =
+        entry.group < 0 ? mainName
+                        : groupNames[static_cast<std::size_t>(entry.group)];
+    auto tableType = this->arrayType(i8PtrType, group.wordCount());
+    auto table = emitter_.addressOfSymbol(loc, emitter_.pointerType(tableType),
+                                          tableName);
+    auto addressPointIndex = emitter_.constantInt(
+        loc, indexType, group.addressPointIndex(entry.table));
     auto addressPoint = emitter_.pointerAdd(
         loc, emitter_.pointerType(i8PtrType), table, addressPointIndex);
     auto address = emitter_.bitcast(loc, i8PtrType, addressPoint);
@@ -3264,11 +3291,12 @@ void Codegen::generateVTT(ClassSymbol* completeClass,
 
 auto Codegen::vttAddress(SourceLocation loc, ClassSymbol* completeClass,
                          std::size_t index) -> ir::ValueRef {
-  auto vtt = buildVTT(completeClass);
+  generateVTable(completeClass);
+  auto vtableLayout = completeClass->vtableLayout();
   ExternalNameEncoder encoder{unit_};
   auto name = encoder.encodeVTT(completeClass);
   auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
-  auto arrayType = this->arrayType(i8PtrType, vtt.entries.size());
+  auto arrayType = this->arrayType(i8PtrType, vtableLayout->vtt.size());
   auto arrayPtrType = emitter_.pointerType(arrayType);
   auto address = emitter_.addressOfSymbol(loc, arrayPtrType, name);
   auto indexType = convertType(control()->getIntType());
@@ -3279,9 +3307,7 @@ auto Codegen::vttAddress(SourceLocation loc, ClassSymbol* completeClass,
 
 void Codegen::generateVTable(ClassSymbol* classSymbol) {
   auto layout = classSymbol->layout();
-  if (!layout || !layout->hasVtable()) {
-    return;
-  }
+  if (!layout || !layout->hasVtable()) return;
 
   if (!emittedVTables_.insert(classSymbol).second) return;
 
@@ -3291,12 +3317,9 @@ void Codegen::generateVTable(ClassSymbol* classSymbol) {
   ExternalNameEncoder encoder{unit_};
   auto vtableName = encoder.encodeVTable(classSymbol);
 
-  auto loc = classSymbol->location();
-
   auto emission = vtableEmission(classSymbol);
-
-  auto tables = vtableGroupTables(vtableLayout);
-  emitVTableGroup(loc, vtableName, classSymbol, tables, emission);
+  emitVTableGroup(classSymbol->location(), vtableName, classSymbol,
+                  vtableLayout->main, emission);
 
   generateVTT(classSymbol, emission);
 }
@@ -3402,7 +3425,16 @@ void Codegen::emitGlobalVarDtorRegistration(Symbol* symbol, const Type* type,
   auto ptrType = emitter_.pointerType(convertType(type));
   auto addr = emitter_.addressOfSymbol(loc, ptrType, this->globalName(global));
 
-  (void)emitCall(symbol->location(), dtor, {addr}, {});
+  if (traits.is_array(type)) {
+    auto count =
+        arrayElementCount(loc, type, convertType(control()->getSizeType()));
+    emitArrayLoop(loc, addr, traits.remove_all_extents(type), count,
+                  /*reverse=*/true, [&](ir::ValueRef element) {
+                    (void)emitCall(symbol->location(), dtor, {element}, {});
+                  });
+  } else {
+    (void)emitCall(symbol->location(), dtor, {addr}, {});
+  }
 
   emitter_.ret(loc, {});
 

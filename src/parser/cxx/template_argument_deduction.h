@@ -24,6 +24,7 @@
 #include <cxx/const_value.h>
 #include <cxx/names_fwd.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/type_deduction.h>
 #include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
 
@@ -36,23 +37,13 @@ class Arena;
 class Control;
 class TranslationUnit;
 
-struct TemplateParameterInfo {
-  enum class Kind {
-    kUnknown,
-    kType,
-    kNonType,
-    kTemplate,
-    kConstraint,
-  };
+[[nodiscard]] auto call_deduction_parameter_type(const TypeTraits& traits,
+                                                 const Type* P) -> const Type*;
 
-  const TypeParameterType* typeParameterType = nullptr;
-  TemplateParameterAST* parameterAST = nullptr;
-  int depth = 0;
-  int index = 0;
-  bool isPack = false;
-  bool hasDefault = false;
-  Kind kind = Kind::kUnknown;
-};
+[[nodiscard]] auto call_deduction_argument_type(const TypeTraits& traits,
+                                                const Type* P, const Type* A,
+                                                bool forwardsLvalue)
+    -> const Type*;
 
 class TemplateArgumentDeduction {
  public:
@@ -64,7 +55,6 @@ class TemplateArgumentDeduction {
 
   [[nodiscard]] auto deduceForGuide(TemplateDeclarationAST* templateDecl,
                                     const FunctionType* functionType,
-                                    ParameterDeclarationClauseAST* parameters,
                                     List<ExpressionAST*>* args)
       -> std::optional<List<TemplateArgumentAST*>*>;
 
@@ -79,155 +69,77 @@ class TemplateArgumentDeduction {
       -> std::optional<List<TemplateArgumentAST*>*>;
 
  private:
-  struct DeducibleParameterVisitor;
+  void begin(TemplateDeclarationAST* templateDecl);
 
-  void collectTemplateParameters(TemplateDeclarationAST* templateDecl);
-
-  [[nodiscard]] auto matchesNonDeducedType(const Type* P, const Type* A) const
-      -> bool;
-
-  [[nodiscard]] auto substituteExplicitTemplateArguments(
+  [[nodiscard]] auto specifyExplicitArguments(
       List<TemplateArgumentAST*>* explicitTemplateArgs) -> bool;
 
-  [[nodiscard]] auto isExplicitArgumentCompatible(
-      const TemplateParameterInfo& info, TemplateArgumentAST* arg) -> bool;
+  [[nodiscard]] auto isForwardingReference(const Type* P) const -> bool;
 
-  [[nodiscard]] auto isForwardingReference(const Type* paramType) const -> bool;
+  [[nodiscard]] auto bindsLvalueToForwardingReference(
+      const Type* P, ExpressionAST* argument) const -> bool;
 
-  [[nodiscard]] auto deduceTypeFromType(const Type* P, const Type* A) -> bool;
-
-  [[nodiscard]] auto deduceTemplateId(
-      SimpleTemplateIdAST* pattern, std::span<const TemplateArgument> arguments,
-      std::span<TemplateArgumentAST* const> substitutions = {},
-      std::span<const TemplateArgument> patternArguments = {}) -> bool;
-
-  [[nodiscard]] auto completedTemplateArguments(const Type* type)
-      -> std::span<const TemplateArgument>;
-
-  [[nodiscard]] auto matchCompletedArgument(
-      const TemplateArgument& patternArgument, const TemplateArgument& argument)
-      -> bool;
-
-  [[nodiscard]] auto deduceDeclaredTypeFromType(const Type* P, const Type* A)
-      -> bool;
-
-  [[nodiscard]] auto isSpecializationOfPattern(const Type* patternType,
-                                               const Type* argumentType) const
-      -> bool;
-
-  [[nodiscard]] auto deduceCurrentInstantiation(const Type* patternType,
-                                                const Type* argumentType)
-      -> bool;
-
-  [[nodiscard]] auto adjustedCallArgumentType(const Type* P, const Type* A,
-                                              ExpressionAST* argExpr) const
+  [[nodiscard]] auto callArgumentType(const Type* P, const Type* A,
+                                      ExpressionAST* argument) const
       -> const Type*;
 
   [[nodiscard]] auto deduceFromCall(const FunctionType* functionType,
                                     List<ExpressionAST*>* args) -> bool;
 
+  [[nodiscard]] auto deduceFromFunctionParameterPack(const Type* P,
+                                                     List<ExpressionAST*>* args)
+      -> bool;
+
+  [[nodiscard]] auto deduceFromCallArgument(const Type* P,
+                                            ExpressionAST* argument) -> bool;
+
   [[nodiscard]] auto deduceFromInitializerList(const Type* P,
                                                BracedInitListAST* list) -> bool;
 
-  [[nodiscard]] auto checkDeducedArguments() -> bool;
+  [[nodiscard]] auto deduceFromOverloadSet(const Type* P,
+                                           const OverloadSetType* A,
+                                           bool takesAddress) -> bool;
 
-  [[nodiscard]] auto buildTemplateArgumentList()
+  [[nodiscard]] auto deduceFromArgumentType(const Type* P, const Type* A)
+      -> bool;
+
+  [[nodiscard]] auto baseClassesOf(ClassSymbol* classSymbol) const
+      -> std::vector<ClassSymbol*>;
+
+  [[nodiscard]] auto deduceFromBaseClass(const Type* P, const Type* A) -> bool;
+
+  [[nodiscard]] auto deduceFromTypes(const Type* P, const Type* A) -> bool;
+
+  [[nodiscard]] auto deducedArguments()
       -> std::optional<List<TemplateArgumentAST*>*>;
+
+  [[nodiscard]] auto deducedArgument(int slot,
+                                     List<TemplateArgumentAST*>* argumentsSoFar)
+      -> TemplateArgumentAST*;
 
   [[nodiscard]] auto collectDeducedSoFar(
       List<TemplateArgumentAST*>* argumentsSoFar)
       -> std::optional<std::vector<TemplateArgument>>;
 
-  static auto getParameterClause(DeclarationAST* decl)
-      -> ParameterDeclarationClauseAST*;
+  [[nodiscard]] auto nonTypeParameterType(int slot) const -> const Type*;
 
-  [[nodiscard]] auto makePackArgument(int parameterIndex)
+  [[nodiscard]] auto valueSymbol(Symbol* value, const Type* valueType) const
+      -> Symbol*;
+
+  [[nodiscard]] auto symbolArgument(Symbol* symbol, const Type* type) const
       -> TemplateArgumentAST*;
 
-  [[nodiscard]] auto makeTypePackElement(const Type* elementType) -> Symbol*;
+  [[nodiscard]] auto packArgument(int slot) -> TemplateArgumentAST*;
 
-  [[nodiscard]] auto deducedTypeArgument(int parameterIndex) const
-      -> const Type*;
-
-  [[nodiscard]] auto nonTypeParameterType(int parameterIndex) const
-      -> const Type*;
-
-  [[nodiscard]] auto convertedValue(const ConstValue& value,
-                                    const Type* valueType) const
-      -> std::optional<ConstValue>;
-
-  [[nodiscard]] auto makeValueArgument(const ConstValue& value,
-                                       const Type* valueType)
+  [[nodiscard]] auto typeArgument(const Type* type) const
       -> TemplateArgumentAST*;
-
-  [[nodiscard]] auto makeValuePackElement(const ConstValue& value,
-                                          const Type* elementType) -> Symbol*;
-
-  [[nodiscard]] auto makeExplicitPackElement(TemplateArgumentAST* explicitArg,
-                                             int parameterIndex) -> Symbol*;
-
-  [[nodiscard]] auto recordDeducedValue(int index, const ConstValue& value,
-                                        bool isPack,
-                                        const Type* valueType = nullptr)
-      -> bool;
-
-  void beginParameterDeduction();
-
-  [[nodiscard]] auto getReturnTypeSpecifierList(DeclarationAST* decl)
-      -> List<SpecifierAST*>*;
-
-  [[nodiscard]] auto deduceFromClassTemplateParam(
-      List<SpecifierAST*>* typeSpecifierList, const Type* argType,
-      const Type* P) -> bool;
-
-  [[nodiscard]] auto mentionsDeducibleParameter(const Type* type) const -> bool;
-
-  [[nodiscard]] auto classMentionsDeducibleParameter(ClassSymbol* symbol) const
-      -> bool;
-
-  [[nodiscard]] auto deducedClassCandidates(ClassSymbol* argClass,
-                                            ClassSymbol* paramClass) const
-      -> std::vector<ClassSymbol*>;
-
-  [[nodiscard]] auto recordDeducedTemplate(int index, Symbol* templateSymbol)
-      -> bool;
-
-  struct DeductionState {
-    std::vector<const Type*> types;
-    std::vector<Symbol*> templates;
-    std::vector<std::optional<ConstInt>> values;
-    std::vector<std::vector<const Type*>> packs;
-    std::vector<std::size_t> packElementCursor;
-    std::vector<std::vector<ConstInt>> valuePacks;
-  };
-
-  [[nodiscard]] auto saveDeductionState() const -> DeductionState;
-
-  void restoreDeductionState(const DeductionState& state);
-
-  [[nodiscard]] auto deduceArrayBound(const Type* P, const Type* A) -> bool;
-
-  [[nodiscard]] auto nonTypeParameterIndex(ExpressionAST* expr) const -> int;
-
-  [[nodiscard]] auto parameterSlot(int depth, int index) const -> int;
-
-  [[nodiscard]] auto parameterSlot(const TypeParameterType* type) const -> int;
 
   TranslationUnit* unit_;
   TypeTraits traits;
   Control* control_;
   Arena* arena_;
-
-  std::vector<TemplateParameterInfo> templateParams_;
-  std::vector<TemplateArgumentAST*> explicitParamArg_;
-  std::vector<std::vector<TemplateArgumentAST*>> explicitPackArgs_;
-  std::vector<const Type*> deducedTypes_;
-  std::vector<Symbol*> deducedTemplates_;
-  std::vector<std::optional<ConstInt>> deducedValues_;
-  std::vector<std::vector<const Type*>> deducedPacks_;
-  std::vector<std::size_t> packElementCursor_;
-  std::vector<std::vector<ConstInt>> deducedValuePacks_;
-  List<ParameterDeclarationAST*>* parameterDeclarations_ = nullptr;
   TemplateDeclarationAST* templateDecl_ = nullptr;
+  std::optional<TypeDeduction> deduction_;
+  std::vector<TemplateArgumentAST*> explicitArguments_;
 };
 }  // namespace cxx

@@ -1,3 +1,5 @@
+#include <cxx/names.h>
+#include <cxx/symbols.h>
 #include <cxx/time_trace.h>
 
 #include <ostream>
@@ -28,6 +30,12 @@ TimeTrace::Scope::Scope(TimeTrace* trace, std::string name, std::string detail)
   counts_ = trace_->counts_;
 }
 
+TimeTrace::Scope::Scope(TimeTrace* trace, std::string name,
+                        const Symbol* symbol)
+    : Scope(trace, std::move(name)) {
+  if (trace && symbol) detail_ = to_string(symbol->name());
+}
+
 TimeTrace::Scope::~Scope() {
   if (!trace_) return;
   const auto end = Clock::now();
@@ -44,9 +52,16 @@ TimeTrace::Scope::~Scope() {
 }
 
 void TimeTrace::write(std::ostream& out) const {
-  constexpr std::array names{"instantiation_requests", "instantiations",
-                             "function_bodies",        "constraint_checks",
-                             "concept_checks",         "cache_hits"};
+  constexpr std::array names{"instantiation_requests",
+                             "instantiations",
+                             "function_bodies",
+                             "constraint_checks",
+                             "concept_checks",
+                             "cache_hits",
+                             "type_dependence_visits",
+                             "type_dependence_cache_hits",
+                             "specialization_comparisons",
+                             "partial_specialization_visits"};
   out << "{\"traceEvents\":[";
   bool first = true;
   for (const auto& event : events_) {

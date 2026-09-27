@@ -2912,10 +2912,12 @@ auto ClassSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbraceLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbraceLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(trailingAttributeList)) return loc;
   return {};
 }
 
 auto ClassSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(trailingAttributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(rbraceLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(declarationList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbraceLoc)) return loc;
@@ -3001,14 +3003,18 @@ auto PtrToMemberOperatorAST::lastSourceLocation() -> SourceLocation {
 
 auto BitfieldDeclaratorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(sizeExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(trailingAttributeList)) return loc;
   return {};
 }
 
 auto BitfieldDeclaratorAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(trailingAttributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(sizeExpression)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
   return {};
 }
@@ -3419,18 +3425,14 @@ auto CompoundRequirementAST::lastSourceLocation() -> SourceLocation {
 
 auto TypeRequirementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(typenameLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(nestedNameSpecifier)) return loc;
-  if (auto loc = cxx::firstSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
 }
 
 auto TypeRequirementAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
-  if (auto loc = cxx::lastSourceLocation(templateLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(nestedNameSpecifier)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
   if (auto loc = cxx::lastSourceLocation(typenameLoc)) return loc;
   return {};
 }
@@ -10285,6 +10287,7 @@ auto NewExpressionAST::clone(Arena* arena) -> NewExpressionAST* {
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
   node->symbol = symbol;
+  node->hasAlignmentArgument = hasAlignmentArgument;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10302,8 +10305,8 @@ auto NewExpressionAST::create(
     List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
     SourceLocation rparenLoc, NewInitializerAST* newInitalizer,
     const Type* objectType, FunctionSymbol* constructorSymbol,
-    FunctionSymbol* symbol, ValueCategory valueCategory, const Type* type)
-    -> NewExpressionAST* {
+    FunctionSymbol* symbol, bool hasAlignmentArgument,
+    ValueCategory valueCategory, const Type* type) -> NewExpressionAST* {
   auto node = new (arena) NewExpressionAST();
   node->scopeLoc = scopeLoc;
   node->newLoc = newLoc;
@@ -10316,17 +10319,21 @@ auto NewExpressionAST::create(
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
   node->symbol = symbol;
+  node->hasAlignmentArgument = hasAlignmentArgument;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
-auto NewExpressionAST::create(
-    Arena* arena, NewPlacementAST* newPlacement,
-    List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
-    NewInitializerAST* newInitalizer, const Type* objectType,
-    FunctionSymbol* constructorSymbol, FunctionSymbol* symbol,
-    ValueCategory valueCategory, const Type* type) -> NewExpressionAST* {
+auto NewExpressionAST::create(Arena* arena, NewPlacementAST* newPlacement,
+                              List<SpecifierAST*>* typeSpecifierList,
+                              DeclaratorAST* declarator,
+                              NewInitializerAST* newInitalizer,
+                              const Type* objectType,
+                              FunctionSymbol* constructorSymbol,
+                              FunctionSymbol* symbol, bool hasAlignmentArgument,
+                              ValueCategory valueCategory, const Type* type)
+    -> NewExpressionAST* {
   auto node = new (arena) NewExpressionAST();
   node->newPlacement = newPlacement;
   node->typeSpecifierList = typeSpecifierList;
@@ -10335,6 +10342,7 @@ auto NewExpressionAST::create(
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
   node->symbol = symbol;
+  node->hasAlignmentArgument = hasAlignmentArgument;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11119,6 +11127,7 @@ auto BracedInitListAST::clone(Arena* arena) -> BracedInitListAST* {
 
   node->commaLoc = commaLoc;
   node->rbraceLoc = rbraceLoc;
+  node->implicitElement = implicitElement;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -11134,6 +11143,7 @@ auto BracedInitListAST::create(Arena* arena, SourceLocation lbraceLoc,
                                List<ExpressionAST*>* expressionList,
                                SourceLocation commaLoc,
                                SourceLocation rbraceLoc,
+                               VariableSymbol* implicitElement,
                                ValueCategory valueCategory, const Type* type)
     -> BracedInitListAST* {
   auto node = new (arena) BracedInitListAST();
@@ -11141,6 +11151,7 @@ auto BracedInitListAST::create(Arena* arena, SourceLocation lbraceLoc,
   node->expressionList = expressionList;
   node->commaLoc = commaLoc;
   node->rbraceLoc = rbraceLoc;
+  node->implicitElement = implicitElement;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11148,10 +11159,12 @@ auto BracedInitListAST::create(Arena* arena, SourceLocation lbraceLoc,
 
 auto BracedInitListAST::create(Arena* arena,
                                List<ExpressionAST*>* expressionList,
+                               VariableSymbol* implicitElement,
                                ValueCategory valueCategory, const Type* type)
     -> BracedInitListAST* {
   auto node = new (arena) BracedInitListAST();
   node->expressionList = expressionList;
+  node->implicitElement = implicitElement;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11522,6 +11535,7 @@ auto TypenameTypeParameterAST::clone(Arena* arena)
 
   node->identifier = identifier;
   node->isPack = isPack;
+  node->isSynthesized = isSynthesized;
   node->symbol = symbol;
   node->depth = depth;
   node->index = index;
@@ -11538,8 +11552,8 @@ auto TypenameTypeParameterAST::create(Arena* arena)
 auto TypenameTypeParameterAST::create(
     Arena* arena, SourceLocation classKeyLoc, SourceLocation ellipsisLoc,
     SourceLocation identifierLoc, SourceLocation equalLoc, TypeIdAST* typeId,
-    const Identifier* identifier, bool isPack, Symbol* symbol, int depth,
-    int index) -> TypenameTypeParameterAST* {
+    const Identifier* identifier, bool isPack, bool isSynthesized,
+    Symbol* symbol, int depth, int index) -> TypenameTypeParameterAST* {
   auto node = new (arena) TypenameTypeParameterAST();
   node->classKeyLoc = classKeyLoc;
   node->ellipsisLoc = ellipsisLoc;
@@ -11548,6 +11562,7 @@ auto TypenameTypeParameterAST::create(
   node->typeId = typeId;
   node->identifier = identifier;
   node->isPack = isPack;
+  node->isSynthesized = isSynthesized;
   node->symbol = symbol;
   node->depth = depth;
   node->index = index;
@@ -11556,12 +11571,14 @@ auto TypenameTypeParameterAST::create(
 
 auto TypenameTypeParameterAST::create(Arena* arena, TypeIdAST* typeId,
                                       const Identifier* identifier, bool isPack,
-                                      Symbol* symbol, int depth, int index)
+                                      bool isSynthesized, Symbol* symbol,
+                                      int depth, int index)
     -> TypenameTypeParameterAST* {
   auto node = new (arena) TypenameTypeParameterAST();
   node->typeId = typeId;
   node->identifier = identifier;
   node->isPack = isPack;
+  node->isSynthesized = isSynthesized;
   node->symbol = symbol;
   node->depth = depth;
   node->index = index;
@@ -11581,6 +11598,7 @@ auto ConstraintTypeParameterAST::clone(Arena* arena)
   if (typeId) node->typeId = typeId->clone(arena);
 
   node->identifier = identifier;
+  node->isSynthesized = isSynthesized;
   node->symbol = symbol;
   node->depth = depth;
   node->index = index;
@@ -11597,8 +11615,8 @@ auto ConstraintTypeParameterAST::create(Arena* arena)
 auto ConstraintTypeParameterAST::create(
     Arena* arena, TypeConstraintAST* typeConstraint, SourceLocation ellipsisLoc,
     SourceLocation identifierLoc, SourceLocation equalLoc, TypeIdAST* typeId,
-    const Identifier* identifier, Symbol* symbol, int depth, int index)
-    -> ConstraintTypeParameterAST* {
+    const Identifier* identifier, bool isSynthesized, Symbol* symbol, int depth,
+    int index) -> ConstraintTypeParameterAST* {
   auto node = new (arena) ConstraintTypeParameterAST();
   node->typeConstraint = typeConstraint;
   node->ellipsisLoc = ellipsisLoc;
@@ -11606,22 +11624,22 @@ auto ConstraintTypeParameterAST::create(
   node->equalLoc = equalLoc;
   node->typeId = typeId;
   node->identifier = identifier;
+  node->isSynthesized = isSynthesized;
   node->symbol = symbol;
   node->depth = depth;
   node->index = index;
   return node;
 }
 
-auto ConstraintTypeParameterAST::create(Arena* arena,
-                                        TypeConstraintAST* typeConstraint,
-                                        TypeIdAST* typeId,
-                                        const Identifier* identifier,
-                                        Symbol* symbol, int depth, int index)
-    -> ConstraintTypeParameterAST* {
+auto ConstraintTypeParameterAST::create(
+    Arena* arena, TypeConstraintAST* typeConstraint, TypeIdAST* typeId,
+    const Identifier* identifier, bool isSynthesized, Symbol* symbol, int depth,
+    int index) -> ConstraintTypeParameterAST* {
   auto node = new (arena) ConstraintTypeParameterAST();
   node->typeConstraint = typeConstraint;
   node->typeId = typeId;
   node->identifier = identifier;
+  node->isSynthesized = isSynthesized;
   node->symbol = symbol;
   node->depth = depth;
   node->index = index;
@@ -12805,6 +12823,15 @@ auto ClassSpecifierAST::clone(Arena* arena) -> ClassSpecifierAST* {
   }
 
   node->rbraceLoc = rbraceLoc;
+
+  if (trailingAttributeList) {
+    auto it = &node->trailingAttributeList;
+    for (auto node : ListView{trailingAttributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   node->classKey = classKey;
   node->symbol = symbol;
   node->isFinal = isFinal;
@@ -12817,17 +12844,16 @@ auto ClassSpecifierAST::create(Arena* arena) -> ClassSpecifierAST* {
   return node;
 }
 
-auto ClassSpecifierAST::create(Arena* arena, SourceLocation classLoc,
-                               List<AttributeSpecifierAST*>* attributeList,
-                               NestedNameSpecifierAST* nestedNameSpecifier,
-                               UnqualifiedIdAST* unqualifiedId,
-                               SourceLocation finalLoc, SourceLocation colonLoc,
-                               List<BaseSpecifierAST*>* baseSpecifierList,
-                               SourceLocation lbraceLoc,
-                               List<DeclarationAST*>* declarationList,
-                               SourceLocation rbraceLoc, TokenKind classKey,
-                               ClassSymbol* symbol, bool isFinal)
-    -> ClassSpecifierAST* {
+auto ClassSpecifierAST::create(
+    Arena* arena, SourceLocation classLoc,
+    List<AttributeSpecifierAST*>* attributeList,
+    NestedNameSpecifierAST* nestedNameSpecifier,
+    UnqualifiedIdAST* unqualifiedId, SourceLocation finalLoc,
+    SourceLocation colonLoc, List<BaseSpecifierAST*>* baseSpecifierList,
+    SourceLocation lbraceLoc, List<DeclarationAST*>* declarationList,
+    SourceLocation rbraceLoc,
+    List<AttributeSpecifierAST*>* trailingAttributeList, TokenKind classKey,
+    ClassSymbol* symbol, bool isFinal) -> ClassSpecifierAST* {
   auto node = new (arena) ClassSpecifierAST();
   node->classLoc = classLoc;
   node->attributeList = attributeList;
@@ -12839,26 +12865,27 @@ auto ClassSpecifierAST::create(Arena* arena, SourceLocation classLoc,
   node->lbraceLoc = lbraceLoc;
   node->declarationList = declarationList;
   node->rbraceLoc = rbraceLoc;
+  node->trailingAttributeList = trailingAttributeList;
   node->classKey = classKey;
   node->symbol = symbol;
   node->isFinal = isFinal;
   return node;
 }
 
-auto ClassSpecifierAST::create(Arena* arena,
-                               List<AttributeSpecifierAST*>* attributeList,
-                               NestedNameSpecifierAST* nestedNameSpecifier,
-                               UnqualifiedIdAST* unqualifiedId,
-                               List<BaseSpecifierAST*>* baseSpecifierList,
-                               List<DeclarationAST*>* declarationList,
-                               TokenKind classKey, ClassSymbol* symbol,
-                               bool isFinal) -> ClassSpecifierAST* {
+auto ClassSpecifierAST::create(
+    Arena* arena, List<AttributeSpecifierAST*>* attributeList,
+    NestedNameSpecifierAST* nestedNameSpecifier,
+    UnqualifiedIdAST* unqualifiedId, List<BaseSpecifierAST*>* baseSpecifierList,
+    List<DeclarationAST*>* declarationList,
+    List<AttributeSpecifierAST*>* trailingAttributeList, TokenKind classKey,
+    ClassSymbol* symbol, bool isFinal) -> ClassSpecifierAST* {
   auto node = new (arena) ClassSpecifierAST();
   node->attributeList = attributeList;
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
   node->baseSpecifierList = baseSpecifierList;
   node->declarationList = declarationList;
+  node->trailingAttributeList = trailingAttributeList;
   node->classKey = classKey;
   node->symbol = symbol;
   node->isFinal = isFinal;
@@ -13103,9 +13130,25 @@ auto BitfieldDeclaratorAST::clone(Arena* arena) -> BitfieldDeclaratorAST* {
 
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
+  if (attributeList) {
+    auto it = &node->attributeList;
+    for (auto node : ListView{attributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
+
   node->colonLoc = colonLoc;
 
   if (sizeExpression) node->sizeExpression = sizeExpression->clone(arena);
+
+  if (trailingAttributeList) {
+    auto it = &node->trailingAttributeList;
+    for (auto node : ListView{trailingAttributeList}) {
+      *it = make_list_node<AttributeSpecifierAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   return node;
 }
@@ -13115,23 +13158,31 @@ auto BitfieldDeclaratorAST::create(Arena* arena) -> BitfieldDeclaratorAST* {
   return node;
 }
 
-auto BitfieldDeclaratorAST::create(Arena* arena, NameIdAST* unqualifiedId,
-                                   SourceLocation colonLoc,
-                                   ExpressionAST* sizeExpression)
+auto BitfieldDeclaratorAST::create(
+    Arena* arena, NameIdAST* unqualifiedId,
+    List<AttributeSpecifierAST*>* attributeList, SourceLocation colonLoc,
+    ExpressionAST* sizeExpression,
+    List<AttributeSpecifierAST*>* trailingAttributeList)
     -> BitfieldDeclaratorAST* {
   auto node = new (arena) BitfieldDeclaratorAST();
   node->unqualifiedId = unqualifiedId;
+  node->attributeList = attributeList;
   node->colonLoc = colonLoc;
   node->sizeExpression = sizeExpression;
+  node->trailingAttributeList = trailingAttributeList;
   return node;
 }
 
-auto BitfieldDeclaratorAST::create(Arena* arena, NameIdAST* unqualifiedId,
-                                   ExpressionAST* sizeExpression)
+auto BitfieldDeclaratorAST::create(
+    Arena* arena, NameIdAST* unqualifiedId,
+    List<AttributeSpecifierAST*>* attributeList, ExpressionAST* sizeExpression,
+    List<AttributeSpecifierAST*>* trailingAttributeList)
     -> BitfieldDeclaratorAST* {
   auto node = new (arena) BitfieldDeclaratorAST();
   node->unqualifiedId = unqualifiedId;
+  node->attributeList = attributeList;
   node->sizeExpression = sizeExpression;
+  node->trailingAttributeList = trailingAttributeList;
   return node;
 }
 
@@ -14264,15 +14315,9 @@ auto TypeRequirementAST::clone(Arena* arena) -> TypeRequirementAST* {
 
   node->typenameLoc = typenameLoc;
 
-  if (nestedNameSpecifier)
-    node->nestedNameSpecifier = nestedNameSpecifier->clone(arena);
-
-  node->templateLoc = templateLoc;
-
-  if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
+  if (typeId) node->typeId = typeId->clone(arena);
 
   node->semicolonLoc = semicolonLoc;
-  node->isTemplateIntroduced = isTemplateIntroduced;
 
   return node;
 }
@@ -14283,31 +14328,19 @@ auto TypeRequirementAST::create(Arena* arena) -> TypeRequirementAST* {
 }
 
 auto TypeRequirementAST::create(Arena* arena, SourceLocation typenameLoc,
-                                NestedNameSpecifierAST* nestedNameSpecifier,
-                                SourceLocation templateLoc,
-                                UnqualifiedIdAST* unqualifiedId,
-                                SourceLocation semicolonLoc,
-                                bool isTemplateIntroduced)
+                                TypeIdAST* typeId, SourceLocation semicolonLoc)
     -> TypeRequirementAST* {
   auto node = new (arena) TypeRequirementAST();
   node->typenameLoc = typenameLoc;
-  node->nestedNameSpecifier = nestedNameSpecifier;
-  node->templateLoc = templateLoc;
-  node->unqualifiedId = unqualifiedId;
+  node->typeId = typeId;
   node->semicolonLoc = semicolonLoc;
-  node->isTemplateIntroduced = isTemplateIntroduced;
   return node;
 }
 
-auto TypeRequirementAST::create(Arena* arena,
-                                NestedNameSpecifierAST* nestedNameSpecifier,
-                                UnqualifiedIdAST* unqualifiedId,
-                                bool isTemplateIntroduced)
+auto TypeRequirementAST::create(Arena* arena, TypeIdAST* typeId)
     -> TypeRequirementAST* {
   auto node = new (arena) TypeRequirementAST();
-  node->nestedNameSpecifier = nestedNameSpecifier;
-  node->unqualifiedId = unqualifiedId;
-  node->isTemplateIntroduced = isTemplateIntroduced;
+  node->typeId = typeId;
   return node;
 }
 

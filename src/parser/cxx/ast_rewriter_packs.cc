@@ -166,37 +166,6 @@ auto ASTRewriter::templateArgumentFor(Symbol* templateParameter) const
   return templateArgumentAt(info->depth, info->index);
 }
 
-auto ASTRewriter::writtenArgumentForAliasedParameter(
-    TypeIdAST* patternTypeId) const -> TypeIdAST* {
-  if (!writtenTemplateArgumentList_) return nullptr;
-  if (!patternTypeId) return nullptr;
-  if (!patternTypeId->typeSpecifierList ||
-      patternTypeId->typeSpecifierList->next) {
-    return nullptr;
-  }
-
-  auto named =
-      ast_cast<NamedTypeSpecifierAST>(patternTypeId->typeSpecifierList->value);
-  if (!named || !symbol_cast<TypeParameterSymbol>(named->symbol)) {
-    return nullptr;
-  }
-
-  auto info = template_parameter_info(named->symbol);
-  if (!info || info->isPack || info->depth != depth_ || info->index < 0) {
-    return nullptr;
-  }
-
-  int index = 0;
-  for (auto argument : ListView{writtenTemplateArgumentList_}) {
-    if (index++ != info->index) continue;
-    auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
-    if (!typeArgument || !typeArgument->typeId) return nullptr;
-    return typeArgument->typeId->clone(arena());
-  }
-
-  return nullptr;
-}
-
 auto ASTRewriter::writtenTypeArgumentSpecifierFor(
     Symbol* templateParameter) const -> NamedTypeSpecifierAST* {
   if (!retainsEnclosingTemplateLevels()) return nullptr;
@@ -366,15 +335,24 @@ auto ASTRewriter::packExpansionSize(AST* pattern, SourceLocation expansionLoc,
   return size;
 }
 
+auto ASTRewriter::packReferencedBy(List<SpecifierAST*>* specifiers) const
+    -> ParameterPackSymbol* {
+  for (auto specifier : ListView{specifiers}) {
+    if (auto pack = findReferencedParameterPack(specifier)) return pack;
+  }
+  return nullptr;
+}
+
 auto ASTRewriter::expandedParameterPack(TypeIdAST* typeId) const
     -> ParameterPackSymbol* {
   if (!isPackExpansion(typeId)) return nullptr;
+  return packReferencedBy(typeId->typeSpecifierList);
+}
 
-  for (auto spec : ListView{typeId->typeSpecifierList}) {
-    if (auto pack = findReferencedParameterPack(spec)) return pack;
-  }
-
-  return nullptr;
+auto ASTRewriter::expandedFunctionParameterPack(
+    ParameterDeclarationAST* parameter) const -> ParameterPackSymbol* {
+  if (!parameter->isPack) return nullptr;
+  return packReferencedBy(parameter->typeSpecifierList);
 }
 
 auto ASTRewriter::emptyFoldIdentity(TokenKind op) -> ExpressionAST* {

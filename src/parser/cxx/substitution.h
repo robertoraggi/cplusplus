@@ -94,7 +94,21 @@ void recordDefaultTemplateArgument(TemplateParameterAST* parameter,
 [[nodiscard]] auto hasDefaultTemplateArgument(TemplateParameterAST* parameter)
     -> bool;
 
+[[nodiscard]] auto denotesTemplateName(TemplateArgumentAST* argument) -> bool;
+
+[[nodiscard]] auto matchesTemplateParameterKind(TemplateParameterAST* parameter,
+                                                TemplateArgumentAST* argument)
+    -> bool;
+
 [[nodiscard]] auto isPackExpansion(TypeIdAST* typeId) -> bool;
+
+[[nodiscard]] auto injected_template_argument_list(
+    TranslationUnit* unit, List<TemplateParameterAST*>* parameters)
+    -> List<TemplateArgumentAST*>*;
+
+[[nodiscard]] auto class_template_arguments(TranslationUnit* unit,
+                                            ClassSymbol* classSymbol)
+    -> std::vector<TemplateArgument>;
 
 class Substitution {
  public:
@@ -117,6 +131,10 @@ class Substitution {
       List<TemplateArgumentAST*>* templateArgumentList)
       -> std::optional<Substitution>;
 
+  [[nodiscard]] static auto writtenTemplateArguments(
+      TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList)
+      -> std::optional<std::vector<TemplateArgument>>;
+
   auto templateArguments() const& -> const std::vector<TemplateArgument>& {
     return templateArguments_;
   }
@@ -128,12 +146,37 @@ class Substitution {
   [[nodiscard]] auto hadError() const -> bool { return hadError_; }
 
  private:
+  Substitution(TranslationUnit* unit,
+               List<TemplateArgumentAST*>* templateArgumentList);
+
   void doMake();
+
+  [[nodiscard]] auto collectWrittenArguments() -> bool;
+
+  [[nodiscard]] auto argumentFor(TemplateParameterAST* parameter,
+                                 int index) const -> Symbol*;
+
+  [[nodiscard]] auto checkArgumentKind(TemplateParameterAST* parameter,
+                                       int index) -> bool;
+
+  [[nodiscard]] auto injectedClassNameAsType(ClassSymbol* classTemplate) const
+      -> Symbol*;
 
   [[nodiscard]] auto normalizeNonTypeArgument(
       NonTypeTemplateParameterAST* parameter, Symbol* argument) -> Symbol*;
 
   void convertNonTypeArgument(VariableSymbol* argument, const Type* targetType);
+
+  void bindReferenceArgument(VariableSymbol* argument, const Type* targetType);
+
+  [[nodiscard]] auto valueDependsOnParameterType(
+      ExpressionAST* expression) const -> bool;
+
+  [[nodiscard]] auto lacksConvertedValue(VariableSymbol* argument) const
+      -> bool;
+
+  [[nodiscard]] auto isConstexprRepresentable(const ConstValue& value) const
+      -> bool;
 
   [[nodiscard]] auto checkNonTypeParameterType(
       NonTypeTemplateParameterAST* parameter) -> bool;
@@ -142,6 +185,8 @@ class Substitution {
       -> std::optional<TemplateArgument>;
 
   void maybeReportInvalidConstantExpression(SourceLocation loc);
+  void maybeReportDefaultArgumentSubstitutionFailure(SourceLocation loc);
+  [[nodiscard]] auto hasDependentArguments() const -> bool;
   void maybeReportMalformedTemplateArgument(SourceLocation loc);
   void maybeReportMissingTemplateArgument(SourceLocation loc);
 
@@ -156,6 +201,9 @@ class Substitution {
   TemplateDeclarationAST* templateDecl_ = nullptr;
   List<TemplateArgumentAST*>* templateArgumentList_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
+  std::vector<Symbol*> collectedArguments_;
+  std::vector<TemplateArgumentAST*> collectedNodes_;
+  std::vector<bool> collectedIsPackExpansion_;
   bool hadError_ = false;
   bool argsComplete_ = false;
   bool fillDefaults_ = true;

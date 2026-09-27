@@ -34,44 +34,105 @@
 #include <format>
 
 namespace cxx {
-Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor)
-    : Toolchain(preprocessor) {
+namespace {
+
+[[nodiscard]] auto wasiPreviewMacro(TripleOS os) -> std::string_view {
+  if (os == TripleOS::kWasiPreview2) return "__wasip2__";
+  return "__wasip1__";
+}
+
+[[nodiscard]] auto defaultNewAlignment(const Triple& triple) -> std::size_t {
+  if (triple.os() == TripleOS::kEmscripten) return 8;
+  return 16;
+}
+
+}  // namespace
+
+Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor,
+                                         Triple triple)
+    : Toolchain(preprocessor, std::move(triple)) {
+  setExceptionsEnabled(false);
   setMemoryLayout(std::make_unique<MemoryLayout>(32));
   memoryLayout()->setSizeOfLongDouble(16, 113);
   memoryLayout()->setSizeOfLongLong(8);
   memoryLayout()->setWideCharUnderlyingType(4, /*isSigned=*/true);
-  memoryLayout()->setTriple("wasm32");
+  memoryLayout()->setDefaultNewAlignment(defaultNewAlignment(this->triple()));
+  memoryLayout()->setTriple(this->triple().str());
 }
 
-auto Wasm32WasiToolchain::sysroot() const -> const std::string& {
-  return sysroot_;
+auto Wasm32WasiToolchain::defaultSysroot() const -> std::string {
+  if (appdir().empty()) return {};
+  auto path = fs::path{appdir()}.parent_path() / "lib" / "wasi-sysroot";
+  return path.lexically_normal().string();
 }
 
-void Wasm32WasiToolchain::setSysroot(std::string sysroot) {
-  sysroot_ = std::move(sysroot);
+auto Wasm32WasiToolchain::multiarchName() const -> std::optional<std::string> {
+  const auto& triple = this->triple();
+  if (triple.os() == TripleOS::kUnknown) return std::nullopt;
 
-  if (!sysroot_.empty() && sysroot_.back() == '/') {
-    sysroot_.pop_back();
+  auto name = std::format("{}-{}", triple.archName(), triple.osName());
+  if (!triple.environmentName().empty()) {
+    name += std::format("-{}", triple.environmentName());
   }
+  return name;
+}
+
+auto Wasm32WasiToolchain::libraryDir() const -> std::string {
+  if (auto multiarch = multiarchName()) {
+    return std::format("{}/lib/{}", sysroot(), *multiarch);
+  }
+  return std::format("{}/lib", sysroot());
 }
 
 void Wasm32WasiToolchain::addSystemIncludePaths() {
-  addSystemIncludePath(std::format("{}/include", sysroot_));
-  addSystemIncludePath(std::format("{}/include/wasm32-wasip1", sysroot_));
-  addSystemIncludePath(std::format("{}/include", resourceDir()));
+  addBuiltinIncludePath();
+
+  const auto includeDir = std::format("{}/include", headerSysroot());
+  if (auto multiarch = multiarchName()) {
+    addSystemIncludePath(std::format("{}/{}", includeDir, *multiarch));
+  }
+  addSystemIncludePath(includeDir);
 }
 
 void Wasm32WasiToolchain::addSystemCppIncludePaths() {
-  if (language() != LanguageKind::kCXX) return;
+  const auto includeDir = std::format("{}/include", headerSysroot());
+  if (auto multiarch = multiarchName()) {
+    const auto exceptionsDir = exceptionsEnabled() ? "eh" : "noeh";
+    addSystemIncludePath(
+        std::format("{}/{}/{}/c++/v1", includeDir, *multiarch, exceptionsDir));
+    addSystemIncludePath(std::format("{}/{}/c++/v1", includeDir, *multiarch));
+  }
+  addSystemIncludePath(std::format("{}/c++/v1", includeDir));
+}
 
-  addSystemIncludePath(std::format("{}/include/c++/v1", sysroot_));
-  addSystemIncludePath(
-      std::format("{}/include/wasm32-wasip1/c++/v1", sysroot_));
+void Wasm32WasiToolchain::addTargetMacros() {
+  const auto& triple = this->triple();
+
+  if (triple.os() == TripleOS::kEmscripten) {
+    defineMacro("__EMSCRIPTEN__", "1");
+    defineMacro("__unix", "1");
+    defineMacro("__unix__", "1");
+    defineMacro("unix", "1");
+  }
+
+  if (!triple.isWasi()) return;
+
+  defineMacro("__wasi__", "1");
+  defineMacro(std::string{wasiPreviewMacro(triple.os())}, "1");
+
+  if (!hasThreads()) return;
+
+  defineMacro("__wasm_atomics__", "1");
+  if (language() != LanguageKind::kCXX) return;
+  defineMacro("__STDCPP_THREADS__", "1");
+}
+
+auto Wasm32WasiToolchain::hasThreads() const -> bool {
+  return triple().isWasi() &&
+         triple().environment() == TripleEnvironment::kThreads;
 }
 
 void Wasm32WasiToolchain::addPredefinedMacros() {
-  setExceptionsEnabled(false);
-
   defineMacro("__extension__", "");
   defineMacro("__autoreleasing", "");
   defineMacro("__strong", "");
@@ -87,15 +148,19 @@ void Wasm32WasiToolchain::addPredefinedMacros() {
   if (language() == LanguageKind::kCXX) {
     addCommonCxx26Macros();
     addWASICxx26Macros();
+    defineMacro("__STDCPP_DEFAULT_NEW_ALIGNMENT__",
+                std::format("{}UL", memoryLayout()->defaultNewAlignment()));
   } else {
     addCommonC23Macros();
     addWASIC23Macros();
   }
+
+  addTargetMacros();
 }
 
 void Wasm32WasiToolchain::addLinkerStartArgs(
     std::vector<std::string>& args) const {
-  const auto libdir = std::format("{}/lib/wasm32-wasip1", sysroot_);
+  const auto libdir = libraryDir();
 
   args.push_back(std::format("{}/crt1.o", libdir));
   args.push_back(std::format("-L{}", libdir));
@@ -138,8 +203,8 @@ void Wasm32WasiToolchain::addLinkerEndArgs(
     args.push_back("-lc++abi");
   }
 
-  const auto builtins = std::format(
-      "{}/lib/wasm32-wasip1/libclang_rt.builtins-wasm32.a", sysroot_);
+  const auto builtins =
+      std::format("{}/libclang_rt.builtins-wasm32.a", libraryDir());
   if (fs::exists(builtins)) {
     args.push_back(builtins);
   }

@@ -29,6 +29,7 @@
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
@@ -66,6 +67,9 @@ struct DeclSpecs::Visitor {
   void operator()(FloatingPointTypeSpecifierAST* ast);
   void operator()(ComplexTypeSpecifierAST* ast);
   void operator()(NamedTypeSpecifierAST* ast);
+
+  [[nodiscard]] auto templateTypeParameterSpecialization(
+      NamedTypeSpecifierAST* ast) -> const Type*;
   void operator()(AtomicTypeSpecifierAST* ast);
   void operator()(BitIntTypeSpecifierAST* ast);
   void operator()(UnderlyingTypeSpecifierAST* ast);
@@ -384,12 +388,30 @@ void DeclSpecs::Visitor::operator()(ComplexTypeSpecifierAST* ast) {
 void DeclSpecs::Visitor::operator()(NamedTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
 
-  if (ast->symbol) {
+  if (auto type = templateTypeParameterSpecialization(ast)) {
+    specs.type_ = type;
+  } else if (ast->symbol) {
     specs.type_ = ast->symbol->type();
   } else {
     specs.type_ = control()->getUnresolvedNameType(
         specs.translationUnit(), ast->nestedNameSpecifier, ast->unqualifiedId);
   }
+}
+
+auto DeclSpecs::Visitor::templateTypeParameterSpecialization(
+    NamedTypeSpecifierAST* ast) -> const Type* {
+  auto templateParameter =
+      symbol_cast<TemplateTypeParameterSymbol>(ast->symbol);
+  if (!templateParameter) return nullptr;
+  auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
+  if (!templateId) return nullptr;
+  auto templateArguments = Substitution::writtenTemplateArguments(
+      specs.translationUnit(), templateId->templateArgumentList);
+  if (!templateArguments) return nullptr;
+  return control()->getTemplateTypeParameterSpecializationType(
+      specs.translationUnit(),
+      type_cast<TemplateTypeParameterType>(templateParameter->type()),
+      std::move(*templateArguments));
 }
 
 void DeclSpecs::Visitor::operator()(AtomicTypeSpecifierAST* ast) {
@@ -486,58 +508,6 @@ void DeclSpecs::Visitor::operator()(TypenameSpecifierAST* ast) {
   if (ast->symbol) {
     specs.type_ = ast->symbol->type();
     return;
-  }
-
-  const auto dependentQualifier =
-      isDependent(specs.translationUnit(), ast->nestedNameSpecifier);
-
-  if (ast->nestedNameSpecifier && !dependentQualifier) {
-    if (auto scope = ast->nestedNameSpecifier->symbol
-                         ? ast->nestedNameSpecifier->symbol->asScopeSymbol()
-                         : nullptr) {
-      if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-        auto symbol = qualifiedLookup(scope, nameId->identifier,
-                                      [](Symbol* s) { return is_type(s); });
-        if (symbol) {
-          specs.type_ = symbol->type();
-          return;
-        }
-      } else if (auto templateId =
-                     ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
-        auto unit = specs.translationUnit();
-
-        auto hasDependentArguments = false;
-        for (auto arg : ListView{templateId->templateArgumentList}) {
-          if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-            if (isDependent(unit, typeArg->typeId)) {
-              hasDependentArguments = true;
-              break;
-            }
-          } else if (auto exprArg =
-                         ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-            if (isDependent(unit, exprArg->expression)) {
-              hasDependentArguments = true;
-              break;
-            }
-          }
-        }
-
-        if (!hasDependentArguments) {
-          auto member = qualifiedLookup(scope, templateId->identifier,
-                                        [](Symbol* s) { return is_type(s); });
-          if (auto aliasTemplate = symbol_cast<TypeAliasSymbol>(member);
-              aliasTemplate && aliasTemplate->templateParameters()) {
-            auto instance = ASTRewriter::instantiate(
-                unit, templateId->templateArgumentList, aliasTemplate,
-                templateId->identifierLoc);
-            if (instance && instance->type()) {
-              specs.type_ = instance->type();
-              return;
-            }
-          }
-        }
-      }
-    }
   }
 
   specs.type_ = control()->getUnresolvedNameType(
@@ -739,14 +709,14 @@ auto DeclSpecs::makeAtomicType(const Type* type, SourceLocation location) const
   else if (traits.is_const(type) || traits.is_volatile(type))
     rejected = "qualified";
 
-  if (!rejected.empty()) {
-    translationUnit()->error(
-        location, std::format("_Atomic cannot be applied to {} type '{}'",
-                              rejected, to_string(type)));
-    return type;
-  }
+  if (rejected.empty()) return traits.add_atomic(type);
 
-  return traits.add_atomic(type);
+  translationUnit()->error(
+      location, std::format("_Atomic cannot be applied to {} type '{}'",
+                            rejected, to_string(type)));
+
+  if (rejected == "qualified") return traits.add_atomic(traits.remove_cv(type));
+  return type;
 }
 
 auto DeclSpecs::makeComplexType(const Type* type) const -> const Type* {

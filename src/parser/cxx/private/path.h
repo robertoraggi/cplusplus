@@ -43,4 +43,6 @@ inline constexpr bool kHasProcessWorkingDirectory =
 
 [[nodiscard]] auto working_directory() -> path;
 
+[[nodiscard]] auto file_identity(const path& file) -> path;
+
 }  // namespace cxx::fs

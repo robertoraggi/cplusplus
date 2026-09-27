@@ -226,11 +226,7 @@ struct GetDeclaratorType {
     auto classType = symbol->type();
     if (!classType) return;
 
-    if (auto functionType = type_cast<FunctionType>(type_)) {
-      type_ = control()->getMemberFunctionPointerType(classType, functionType);
-    } else {
-      type_ = control()->getMemberObjectPointerType(classType, type_);
-    }
+    type_ = control()->getMemberPointerType(classType, type_);
 
     for (auto it = ast->cvQualifierList; it; it = it->next) {
       if (ast_cast<ConstQualifierAST>(it->value)) {
@@ -261,20 +257,11 @@ struct GetDeclaratorType {
 
   void operator()(FunctionDeclaratorChunkAST* ast) {
     auto returnType = type_;
-    std::vector<const Type*> parameterTypes;
+    auto parameterTypes =
+        getParameterTypes(unit, ast->parameterDeclarationClause);
     bool isVariadic = false;
 
     if (auto params = ast->parameterDeclarationClause) {
-      for (auto it = params->parameterDeclarationList; it; it = it->next) {
-        auto paramType = it->value->type;
-
-        if (unit->typeTraits().is_void(paramType)) {
-          continue;
-        }
-
-        parameterTypes.push_back(paramType);
-      }
-
       isVariadic = params->isVariadic;
     }
 
@@ -383,6 +370,32 @@ struct GetDeclaratorType {
     -> FunctionDeclaratorChunkAST* {
   GetFunctionPrototype prototype;
   return prototype(declarator);
+}
+
+auto declaresExplicitObjectParameter(ParameterDeclarationClauseAST* clause)
+    -> bool {
+  if (!clause || !clause->parameterDeclarationList) return false;
+  return clause->parameterDeclarationList->value->isThisIntroduced;
+}
+
+auto getParameterTypes(TranslationUnit* unit,
+                       ParameterDeclarationClauseAST* clause)
+    -> std::vector<const Type*> {
+  std::vector<const Type*> parameterTypes;
+  if (!clause) return parameterTypes;
+
+  for (auto parameter : ListView{clause->parameterDeclarationList}) {
+    if (!parameter || !parameter->type) continue;
+    if (unit->typeTraits().is_void(parameter->type)) continue;
+    if (parameter->isPack) {
+      parameterTypes.push_back(
+          unit->control()->getPackExpansionType(parameter->type));
+      continue;
+    }
+    parameterTypes.push_back(parameter->type);
+  }
+
+  return parameterTypes;
 }
 
 [[nodiscard]] auto getDeclaratorType(TranslationUnit* unit,
@@ -585,7 +598,8 @@ auto Decl::getScope() const -> ScopeSymbol* {
     }
   }
 
-  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) return classSymbol;
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol))
+    return classSymbol->resolvedDefinition();
 
   if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol))
     return namespaceSymbol;

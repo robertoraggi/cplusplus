@@ -487,6 +487,64 @@ class TemplateTypeParameterType final
   }
 };
 
+class TemplateTypeParameterSpecializationType final
+    : public Type,
+      public std::tuple<TranslationUnit*, const TemplateTypeParameterType*,
+                        std::vector<TemplateArgument>> {
+ public:
+  static constexpr TypeKind Kind =
+      TypeKind::kTemplateTypeParameterSpecialization;
+
+  TemplateTypeParameterSpecializationType(
+      TranslationUnit* unit, const TemplateTypeParameterType* templateParameter,
+      std::vector<TemplateArgument> templateArguments)
+      : Type(Kind),
+        tuple(unit, templateParameter, std::move(templateArguments)) {}
+
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto templateParameter() const
+      -> const TemplateTypeParameterType* {
+    return std::get<1>(*this);
+  }
+
+  [[nodiscard]] auto templateArguments() const
+      -> const std::vector<TemplateArgument>& {
+    return std::get<2>(*this);
+  }
+};
+
+class PackExpansionType final : public Type, public std::tuple<const Type*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kPackExpansion;
+
+  explicit PackExpansionType(const Type* pattern)
+      : Type(Kind), tuple(pattern) {}
+
+  [[nodiscard]] auto pattern() const -> const Type* {
+    return std::get<0>(*this);
+  }
+};
+
+class DecltypeType final : public Type,
+                           public std::tuple<TranslationUnit*, ExpressionAST*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kDecltype;
+
+  DecltypeType(TranslationUnit* unit, ExpressionAST* expression)
+      : Type(Kind), tuple(unit, expression) {}
+
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto expression() const -> ExpressionAST* {
+    return std::get<1>(*this);
+  }
+};
+
 class UnresolvedNameType final
     : public Type,
       public std::tuple<TranslationUnit*, NestedNameSpecifierAST*,
@@ -739,6 +797,16 @@ template <typename T>
   return type_cast<T>(unqualified_type(type));
 }
 
+struct MemberPointerParts {
+  const Type* classType = nullptr;
+  const Type* pointeeType = nullptr;
+
+  [[nodiscard]] explicit operator bool() const { return classType; }
+};
+
+[[nodiscard]] auto decomposeMemberPointer(const Type* type)
+    -> MemberPointerParts;
+
 [[nodiscard]] auto classSubobjectOffset(const Type* derivedClassType,
                                         const Type* baseClassType)
     -> std::optional<std::int64_t>;
@@ -776,42 +844,4 @@ struct IsNonDeducedContextType {
   return visit(IsNonDeducedContextType{}, type);
 }
 
-struct IsParameterPackType {
-  auto operator()(const QualType* type) const -> bool;
-  auto operator()(const LvalueReferenceType* type) const -> bool;
-  auto operator()(const RvalueReferenceType* type) const -> bool;
-  auto operator()(const PointerType* type) const -> bool;
-  auto operator()(const TypeParameterType* type) const -> bool {
-    return type->isParameterPack();
-  }
-  auto operator()(const TemplateTypeParameterType* type) const -> bool {
-    return type->isParameterPack();
-  }
-  auto operator()(const Type*) const -> bool { return false; }
-};
-
-[[nodiscard]] inline auto is_parameter_pack_type(const Type* type) -> bool {
-  if (!type) return false;
-  return visit(IsParameterPackType{}, type);
-}
-
-inline auto IsParameterPackType::operator()(const QualType* type) const
-    -> bool {
-  return is_parameter_pack_type(type->elementType());
-}
-
-inline auto IsParameterPackType::operator()(
-    const LvalueReferenceType* type) const -> bool {
-  return is_parameter_pack_type(type->elementType());
-}
-
-inline auto IsParameterPackType::operator()(
-    const RvalueReferenceType* type) const -> bool {
-  return is_parameter_pack_type(type->elementType());
-}
-
-inline auto IsParameterPackType::operator()(const PointerType* type) const
-    -> bool {
-  return is_parameter_pack_type(type->elementType());
-}
 }  // namespace cxx

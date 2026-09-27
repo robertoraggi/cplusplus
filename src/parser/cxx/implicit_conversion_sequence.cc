@@ -435,6 +435,21 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
       traits.add_pointer(traits.remove_cv(rhsType)));
 }
 
+[[nodiscard]] auto secondStandardSequence(
+    const ImplicitConversionSequence& sequence) -> ImplicitConversionSequence {
+  ImplicitConversionSequence result;
+  result.form = ConversionSequenceForm::kStandard;
+  result.sourceType = sequence.sourceType;
+  for (const auto& step : sequence.steps) {
+    if (step.kind == ImplicitCastKind::kUserDefinedConversion)
+      result.sourceType = step.type;
+  }
+  result.destinationType = sequence.destinationType;
+  result.steps = sequence.udc.secondSteps;
+  result.binding = sequence.binding;
+  return result;
+}
+
 [[nodiscard]] auto standardSequenceBetter(TypeTraits& traits,
                                           const ImplicitConversionSequence& lhs,
                                           const ImplicitConversionSequence& rhs)
@@ -476,13 +491,14 @@ auto ImplicitConversionSequence::isBetterThan(
     return standardSequenceBetter(traits, *this, other);
 
   if (form == ConversionSequenceForm::kUserDefined) {
+    if (other.form == ConversionSequenceForm::kAmbiguous) return false;
     if (!comparesSecondStandardSequenceWith(other)) return false;
 
     if (udc.secondRank != other.udc.secondRank)
       return udc.secondRank > other.udc.secondRank;
 
-    auto better = referenceBindingBetter(traits, *this, other);
-    return better.value_or(false);
+    return standardSequenceBetter(traits, secondStandardSequence(*this),
+                                  secondStandardSequence(other));
   }
 
   return false;

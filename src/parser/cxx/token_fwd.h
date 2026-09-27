@@ -448,6 +448,7 @@ class Token;
   V(__BUILTIN_COPYSIGNL, "__builtin_copysignl")                               \
   V(__BUILTIN_CORO_DESTROY, "__builtin_coro_destroy")                         \
   V(__BUILTIN_CORO_DONE, "__builtin_coro_done")                               \
+  V(__BUILTIN_CORO_NOOP, "__builtin_coro_noop")                               \
   V(__BUILTIN_CORO_PROMISE, "__builtin_coro_promise")                         \
   V(__BUILTIN_CORO_RESUME, "__builtin_coro_resume")                           \
   V(__BUILTIN_COS, "__builtin_cos")                                           \
@@ -771,7 +772,23 @@ class Token;
   V(STD, "std")                                 \
   V(ALIGN_VAL_T, "align_val_t")                 \
   V(DESTROYING_DELETE_T, "destroying_delete_t") \
-  V(INITIALIZER_LIST, "initializer_list")
+  V(INITIALIZER_LIST, "initializer_list")       \
+  V(NOTHROW_T, "nothrow_t")                     \
+  V(PARTIAL_ORDERING, "partial_ordering")       \
+  V(SOURCE_LOCATION, "source_location")         \
+  V(STRONG_ORDERING, "strong_ordering")         \
+  V(TUPLE_ELEMENT, "tuple_element")             \
+  V(TUPLE_SIZE, "tuple_size")                   \
+  V(TYPE_INFO, "type_info")                     \
+  V(WEAK_ORDERING, "weak_ordering")             \
+  V(EQUAL, "equal")                             \
+  V(EQUIVALENT, "equivalent")                   \
+  V(GREATER, "greater")                         \
+  V(LESS, "less")                               \
+  V(UNORDERED, "unordered")                     \
+  V(__FUNC__, "__func__")                       \
+  V(__FUNCTION__, "__FUNCTION__")               \
+  V(__PRETTY_FUNCTION__, "__PRETTY_FUNCTION__")
 
 #define FOR_EACH_TOKEN_ALIAS(V)    \
   V(RESTRICT, __RESTRICT__)        \
@@ -845,6 +862,9 @@ enum class BuiltinFunctionKind {
 // Defined in builtins_typechecker-priv.h, generated from builtins.json's
 // `libcall` entries.
 [[nodiscard]] auto isBuiltinLibcall(BuiltinFunctionKind kind) -> bool;
+
+[[nodiscard]] auto builtinLibcallOperator(BuiltinFunctionKind kind)
+    -> TokenKind;
 
 enum class BuiltinTemplateKind {
   T_NONE,

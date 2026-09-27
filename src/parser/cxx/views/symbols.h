@@ -92,6 +92,11 @@ class each_function : public std::ranges::view_interface<each_function> {
   each_function() = default;
 
   explicit each_function(Symbol* symbol) {
+    if (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol)) {
+      composedFunctions_ = usingDeclaration->introducedFunctions();
+      return;
+    }
+
     auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
     if (!overloadSet) {
       function_ = symbol_cast<FunctionSymbol>(symbol);
@@ -125,8 +130,37 @@ class each_function : public std::ranges::view_interface<each_function> {
   std::vector<FunctionSymbol*> composedFunctions_;
 };
 
+class declared_functions
+    : public std::ranges::view_interface<declared_functions> {
+ public:
+  declared_functions() = default;
+
+  explicit declared_functions(Symbol* symbol) {
+    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+      declaredFunctions_ = &overloadSet->declaredFunctions();
+      return;
+    }
+    function_ = symbol_cast<FunctionSymbol>(symbol);
+  }
+
+  [[nodiscard]] auto begin() const -> FunctionSymbol* const* {
+    if (declaredFunctions_) return declaredFunctions_->data();
+    return &function_;
+  }
+
+  [[nodiscard]] auto end() const -> FunctionSymbol* const* {
+    if (declaredFunctions_)
+      return declaredFunctions_->data() + declaredFunctions_->size();
+    return function_ ? &function_ + 1 : &function_;
+  }
+
+ private:
+  const std::vector<FunctionSymbol*>* declaredFunctions_ = nullptr;
+  FunctionSymbol* function_ = nullptr;
+};
+
 constexpr auto member_functions =
-    std::views::transform([](Symbol* s) { return each_function{s}; }) |
+    std::views::transform([](Symbol* s) { return declared_functions{s}; }) |
     std::views::join | std::views::filter([](FunctionSymbol* f) {
       return f->parent() && f->parent()->isClass();
     });
@@ -155,9 +189,9 @@ constexpr auto converting_constructors =
 template <std::ranges::input_range R, typename Pred>
   requires std::convertible_to<std::ranges::range_value_t<R>, Symbol*> &&
            std::predicate<Pred, FunctionSymbol*>
-auto find_function(R&& symbols, Pred pred) -> FunctionSymbol* {
+[[nodiscard]] auto find_function(R&& symbols, Pred pred) -> FunctionSymbol* {
   for (auto sym : symbols) {
-    for (auto func : each_function(sym)) {
+    for (auto func : declared_functions(sym)) {
       if (std::invoke(pred, func)) return func;
     }
   }
@@ -167,7 +201,7 @@ auto find_function(R&& symbols, Pred pred) -> FunctionSymbol* {
 template <std::ranges::input_range R, typename Pred>
   requires std::convertible_to<std::ranges::range_value_t<R>, Symbol*> &&
            std::predicate<Pred, FunctionSymbol*>
-auto any_function(R&& symbols, Pred pred) -> bool {
+[[nodiscard]] auto any_function(R&& symbols, Pred pred) -> bool {
   return find_function(std::forward<R>(symbols), std::move(pred)) != nullptr;
 }
 }  // namespace views

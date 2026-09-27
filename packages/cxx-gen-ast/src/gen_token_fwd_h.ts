@@ -147,6 +147,9 @@ enum class BuiltinFunctionKind {
 // \`libcall\` entries.
 [[nodiscard]] auto isBuiltinLibcall(BuiltinFunctionKind kind) -> bool;
 
+[[nodiscard]] auto builtinLibcallOperator(BuiltinFunctionKind kind)
+    -> TokenKind;
+
 enum class BuiltinTemplateKind {
   T_NONE,
   FOR_EACH_BUILTIN_TEMPLATE(TOKEN_ENUM)

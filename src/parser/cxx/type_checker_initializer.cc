@@ -22,6 +22,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/binder.h>
 #include <cxx/class_template_deduction.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
@@ -31,6 +32,7 @@
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/template_argument_deduction.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 #include <cxx/types.h>
@@ -259,35 +261,8 @@ void TypeDeducer::deduceAutoType(S* var) {
     return;
   }
 
-  auto initializer = Initializer{var->initializer()};
-  auto deducedExpr = initializer.singleExpression();
-  if (auto braced = initializer.bracedInitList()) {
-    if (initializer.initializationKind() ==
-        InitializationKind::kCopyListInitialization) {
-      deducedExpr = braced;
-    } else {
-      if (!braced->expressionList || braced->expressionList->next) {
-        ctx.error(var->location(),
-                  "direct-list-initialization of auto requires one element");
-        return;
-      }
-      deducedExpr = braced->expressionList->value;
-    }
-  }
-
-  const bool inTemplate = isEnclosedInDependentTemplate(
-      ctx.unit, ctx.checker.scope(), /*stopAtConcreteSpecialization=*/true);
-  if (inTemplate && (!deducedExpr || !deducedExpr->type ||
-                     isDependent(ctx.unit, deducedExpr) ||
-                     isDependent(ctx.unit, deducedExpr->type))) {
-    auto dependentType = ctx.control->getDependentType();
-    var->setType(ctx.traits.replace_placeholder_types(declType, dependentType));
-    return;
-  }
-
-  if (!deducedExpr) return;
-
-  auto deduced = ctx.checker.deducePlaceholderType(declType, deducedExpr);
+  auto deduced = ctx.checker.deduceDeclaredPlaceholderType(
+      declType, var->initializer(), var->location());
   if (!deduced) return;
   var->setType(deduced);
 
@@ -341,9 +316,15 @@ struct InitDeclaratorChecker {
   InitContext ctx;
   TypeDeducer typeDeducer;
   ConstexprEvaluator constexprEval;
+  ArrayCopyPolicy arrayCopyPolicy;
 
-  explicit InitDeclaratorChecker(TypeChecker& checker)
-      : ctx(checker), typeDeducer{ctx}, constexprEval{ctx} {}
+  explicit InitDeclaratorChecker(
+      TypeChecker& checker,
+      ArrayCopyPolicy arrayCopyPolicy = ArrayCopyPolicy::kBracedInitializerOnly)
+      : ctx(checker),
+        typeDeducer{ctx},
+        constexprEval{ctx},
+        arrayCopyPolicy(arrayCopyPolicy) {}
 
   void checkInitDeclarator(InitDeclaratorAST* ast, SpecifierAST* typeSpecifier);
   template <typename S>
@@ -353,8 +334,8 @@ struct InitDeclaratorChecker {
   void checkFieldInitializer(FieldSymbol* field);
   void evaluateFieldConstValue(FieldSymbol* field);
   template <typename S>
-  void checkInitialization(S* var, ExpressionAST*& initializer,
-                           SourceLocation location);
+  [[nodiscard]] auto checkInitialization(S* var, ExpressionAST*& initializer,
+                                         SourceLocation location) -> bool;
 
  private:
   void evaluateConstValue(VariableSymbol* var, ExpressionAST*& initializer);
@@ -375,6 +356,14 @@ void InitDeclaratorChecker::checkInitDeclarator(InitDeclaratorAST* ast,
                 ctx.checker.getInitDeclaratorLocation(ast, var), typeSpecifier);
 }
 
+[[nodiscard]] auto isInitializedInClass(VariableSymbol* variable) -> bool {
+  return Binder::isInitializedInClass(variable);
+}
+
+[[nodiscard]] auto isInitializedInClass(FieldSymbol* field) -> bool {
+  return field->hasInitializer();
+}
+
 template <typename S>
 void InitDeclaratorChecker::checkVariable(S* var, ExpressionAST*& initializer,
                                           SourceLocation location,
@@ -387,49 +376,32 @@ void InitDeclaratorChecker::checkVariable(S* var, ExpressionAST*& initializer,
 
   if (var->isConstexpr()) var->setType(ctx.traits.add_const(var->type()));
 
-  if (var->isExtern() && !initializer) return;
+  if (!initializer && !Binder::declaresVariableDefinition(var)) return;
 
-  auto objectType =
-      ctx.traits.remove_cv(ctx.traits.remove_all_extents(var->type()));
-  if (auto classType = type_cast<ClassType>(objectType)) {
-    auto classSymbol = classType->symbol()->resolvedDefinition();
-    auto destructor = classSymbol->destructor();
-    ASTRewriter::requireFunctionDefinition(ctx.unit, destructor);
-    if (destructor && destructor->isDeleted()) {
-      ctx.checker.error(location, "attempt to use a deleted destructor");
-    } else if (destructor) {
-      AccessContext accessContext{ctx.unit, ctx.checker.scope()};
-      if (!accessContext.isAccessible(destructor, classSymbol, nullptr)) {
-        auto accessKind = std::string_view{"private"};
-        if (destructor->accessSpecifier() == AccessSpecifier::kProtected)
-          accessKind = "protected";
-        ctx.checker.error(
-            location, std::format("calling a {} destructor of class '{}'",
-                                  accessKind, to_string(classSymbol->type())));
-      }
-    }
-  }
+  ctx.checker.checkPotentiallyInvokedDestructor(var->type(), location);
 
-  checkInitialization(var, initializer, location);
+  const auto initializesHere = initializer || !isInitializedInClass(var);
+  if (initializesHere && !checkInitialization(var, initializer, location))
+    return;
 
   if constexpr (std::is_same_v<S, VariableSymbol>)
     evaluateConstValue(var, initializer);
 }
 
 template <typename S>
-void InitDeclaratorChecker::checkInitialization(S* var,
+auto InitDeclaratorChecker::checkInitialization(S* var,
                                                 ExpressionAST*& initializer,
-                                                SourceLocation location) {
+                                                SourceLocation location)
+    -> bool {
   auto entity = InitializedEntity::variable(var->type(), var, location);
+  entity.setArrayCopyPolicy(arrayCopyPolicy);
   Initializer init{initializer};
 
   auto sequence = computeInitializationSequence(
       ctx, entity, init.initializationKind(), init);
 
-  if (!sequence) {
-    diagnoseInitializationFailure(ctx, sequence, entity, init);
-    return;
-  }
+  if (!sequence)
+    return !diagnoseInitializationFailure(ctx, sequence, entity, init);
 
   auto result = applyInitializationSequence(ctx, sequence, entity, init);
 
@@ -446,48 +418,26 @@ void InitDeclaratorChecker::checkInitialization(S* var,
     var->setConstructor(nullptr);
     var->setInitializer(initializer);
   }
+
+  return true;
 }
 
 void InitDeclaratorChecker::checkFieldInitializer(FieldSymbol* field) {
   auto targetType = ctx.traits.remove_cv(field->type());
   if (ctx.isTargetTypeUnresolved(targetType)) return;
 
-  if (ctx.traits.is_class(targetType)) {
-    auto classType = type_cast<ClassType>(targetType);
-    if (!classType || !classType->symbol()) return;
+  if (auto classType = type_cast<ClassType>(targetType)) {
     if (!classType->symbol()->resolvedDefinition()->isComplete()) return;
-
-    auto entity =
-        InitializedEntity::member(field->type(), field, field->location());
-    Initializer init{field->initializer()};
-
-    auto sequence = computeInitializationSequence(
-        ctx, entity, init.initializationKind(), init);
-
-    auto result = applyInitializationSequence(ctx, sequence, entity, init);
-
-    if (sequence.constructor) field->setConstructor(sequence.constructor);
-    if (result != field->initializer()) field->setInitializer(result);
-    evaluateFieldConstValue(field);
-    return;
   }
 
-  auto equal = ast_cast<EqualInitializerAST>(field->initializer());
-  auto init = equal ? equal->expression : field->initializer();
+  auto initializer = field->initializer();
+  if (isDependent(ctx.unit, initializer)) return;
 
-  if (auto braced = ast_cast<BracedInitListAST>(init)) {
-    if (!braced->type)
-      ctx.checker.check_braced_init_list(
-          field->type(), braced,
-          Initializer{field->initializer()}.initializationKind());
-    return;
-  }
-
-  if (!equal || !equal->expression) return;
-  if (ctx.traits.is_reference(field->type())) return;
-  if (isDependent(ctx.unit, equal->expression)) return;
-
-  (void)ctx.checker.implicit_conversion(equal->expression, field->type());
+  if (auto constructor = ctx.checker.check_member_initialization(
+          field, initializer, Initializer{initializer}.initializationKind()))
+    field->setConstructor(constructor);
+  field->setInitializer(initializer);
+  evaluateFieldConstValue(field);
 }
 
 void InitDeclaratorChecker::evaluateFieldConstValue(FieldSymbol* field) {
@@ -498,7 +448,8 @@ void InitDeclaratorChecker::evaluateFieldConstValue(FieldSymbol* field) {
   auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
 
   std::optional<ConstValue> value;
-  if (field->initializer()) value = interp.evaluate(field->initializer());
+  if (field->initializer())
+    value = interp.initialValue(field->type(), field->initializer());
 
   if (!value.has_value() || field->constructor()) {
     if (auto ctorValue = constexprEval.tryEvaluateConstructor(field, interp))
@@ -519,7 +470,7 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var,
 
   if (var->initializer()) {
     auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
-    auto value = interp.evaluate(var->initializer());
+    auto value = interp.initialValue(var->type(), var->initializer());
 
     if (var->constructor()) value.reset();
 
@@ -581,25 +532,38 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var,
     }
   }
 }
+
+[[nodiscard]] auto bindsLvalueToForwardingPlaceholder(
+    const Type* declaredType, ExpressionAST* initializer) -> bool {
+  if (initializer->valueCategory != ValueCategory::kLValue) return false;
+  auto reference = type_cast<RvalueReferenceType>(declaredType);
+  return reference && type_cast<AutoType>(reference->elementType());
+}
+
 }  // namespace
 
 void TypeChecker::check_init_declarator(InitDeclaratorAST* ast,
-                                        SpecifierAST* typeSpecifier) {
-  InitDeclaratorChecker{*this}.checkInitDeclarator(ast, typeSpecifier);
+                                        SpecifierAST* typeSpecifier,
+                                        ArrayCopyPolicy arrayCopyPolicy) {
+  InitDeclaratorChecker{*this, arrayCopyPolicy}.checkInitDeclarator(
+      ast, typeSpecifier);
 }
 
 void TypeChecker::check_variable_initializer(VariableSymbol* var,
                                              ExpressionAST*& initializer,
-                                             SourceLocation location) {
+                                             SourceLocation location,
+                                             ArrayCopyPolicy arrayCopyPolicy) {
   if (!var || !var->type()) return;
-  InitDeclaratorChecker{*this}.checkInitialization(var, initializer, location);
+  (void)InitDeclaratorChecker{*this, arrayCopyPolicy}.checkInitialization(
+      var, initializer, location);
 }
 
-void TypeChecker::check_member_initialization(FieldSymbol* field,
+auto TypeChecker::check_member_initialization(FieldSymbol* field,
                                               ExpressionAST*& initializer,
                                               InitializationKind kind,
-                                              ArrayCopyPolicy arrayCopyPolicy) {
-  if (!field || !field->type() || !initializer) return;
+                                              ArrayCopyPolicy arrayCopyPolicy)
+    -> FunctionSymbol* {
+  if (!field || !field->type() || !initializer) return nullptr;
 
   InitContext ctx{*this};
   auto entity =
@@ -610,14 +574,13 @@ void TypeChecker::check_member_initialization(FieldSymbol* field,
   auto sequence = computeInitializationSequence(ctx, entity, kind, init);
 
   if (!sequence) {
-    diagnoseInitializationFailure(ctx, sequence, entity, init);
-    return;
+    (void)diagnoseInitializationFailure(ctx, sequence, entity, init);
+    return nullptr;
   }
 
   auto result = applyInitializationSequence(ctx, sequence, entity, init);
-
-  if (sequence.constructor) field->setConstructor(sequence.constructor);
   if (result) initializer = result;
+  return sequence.constructor;
 }
 
 void TypeChecker::check_condition_declaration(ConditionExpressionAST* ast) {
@@ -634,6 +597,40 @@ void TypeChecker::check_field_initializer(FieldSymbol* field) {
   if (!field || !field->initializer()) return;
   TranslationUnit::DeferredInitializerScope deferredInitializer{unit_, true};
   InitDeclaratorChecker{*this}.checkFieldInitializer(field);
+}
+
+auto TypeChecker::deduceDeclaredPlaceholderType(const Type* declaredType,
+                                                ExpressionAST* initializer,
+                                                SourceLocation location)
+    -> const Type* {
+  auto traits = unit_->typeTraits();
+  auto deducedExpr = Initializer{initializer}.singleExpression();
+  if (auto braced = Initializer{initializer}.bracedInitList()) {
+    if (Initializer{initializer}.initializationKind() ==
+        InitializationKind::kCopyListInitialization) {
+      deducedExpr = braced;
+    } else {
+      if (!braced->expressionList || braced->expressionList->next) {
+        error(location,
+              "direct-list-initialization of auto requires one element");
+        return nullptr;
+      }
+      deducedExpr = braced->expressionList->value;
+    }
+  }
+
+  const bool inTemplate = isEnclosedInDependentTemplate(
+      unit_, scope(), /*stopAtConcreteSpecialization=*/true);
+  if (inTemplate &&
+      (!deducedExpr || !deducedExpr->type || isDependent(unit_, deducedExpr) ||
+       isDependent(unit_, deducedExpr->type))) {
+    return traits.replace_placeholder_types(
+        declaredType, unit_->control()->getDependentType());
+  }
+
+  if (!deducedExpr) return nullptr;
+
+  return deducePlaceholderType(declaredType, deducedExpr);
 }
 
 auto TypeChecker::deducePlaceholderType(const Type* declaredType,
@@ -663,13 +660,8 @@ auto TypeChecker::deducePlaceholderType(const Type* declaredType,
             "cannot deduce auto from an empty initializer list");
       return nullptr;
     }
-    auto control = unit_->control();
-    auto stdNamespace = symbol_cast<NamespaceSymbol>(
-        qualifiedLookup(unit_->globalScope(), control->getIdentifier("std")));
-    Symbol* primary = nullptr;
-    if (stdNamespace)
-      primary = qualifiedLookup(stdNamespace,
-                                control->getIdentifier("initializer_list"));
+    auto primary =
+        lookupStandardLibraryType(unit_, WellKnownName::T_INITIALIZER_LIST);
     if (!primary) {
       error(braced->firstSourceLocation(),
             "include <initializer_list> before deducing auto from a list");
@@ -687,24 +679,30 @@ auto TypeChecker::deducePlaceholderType(const Type* declaredType,
   }
   if (type_cast<DecltypeAutoType>(declaredType))
     return unit_->typeTraits().decltype_of(initializer);
-  auto initializerType = initializer->type;
-  if (type_cast<RvalueReferenceType>(declaredType) &&
-      initializer->valueCategory == ValueCategory::kLValue) {
-    initializerType = unit_->typeTraits().add_lvalue_reference(initializerType);
-  }
-  return deduceAutoType(declaredType, initializerType);
+  return deducePlaceholderReplacement(
+      declaredType, initializer->type,
+      bindsLvalueToForwardingPlaceholder(declaredType, initializer));
 }
 
 auto TypeChecker::deduceAutoType(const Type* declaredType,
                                  const Type* initializerType) -> const Type* {
+  return deducePlaceholderReplacement(declaredType, initializerType,
+                                      /*forwardsLvalue=*/false);
+}
+
+auto TypeChecker::deducePlaceholderReplacement(const Type* declaredType,
+                                               const Type* initializerType,
+                                               bool forwardsLvalue)
+    -> const Type* {
   if (!initializerType) return nullptr;
 
   InitContext ctx{*this};
 
-  if (type_cast<AutoType>(declaredType))
-    return ctx.traits.decay(initializerType);
+  auto P = call_deduction_parameter_type(ctx.traits, declaredType);
+  auto A = call_deduction_argument_type(ctx.traits, declaredType,
+                                        initializerType, forwardsLvalue);
 
-  auto replacement = deduceAutoReplacement(ctx, declaredType, initializerType);
+  auto replacement = deduceAutoReplacement(ctx, P, A);
   if (!replacement) return nullptr;
   return ctx.traits.replace_placeholder_types(declaredType, replacement);
 }
@@ -720,20 +718,50 @@ void TypeChecker::leaveAggregateInitialization(ClassSymbol* classSymbol) {
 
 void TypeChecker::checkConstructorAccess(FunctionSymbol* constructor,
                                          SourceLocation location) {
-  if (!constructor) return;
+  checkSpecialMemberAccess(constructor, "constructor", location);
+}
 
-  auto declaringClass = declaringClassOf(constructor);
+void TypeChecker::checkDestructorAccess(FunctionSymbol* destructor,
+                                        SourceLocation location) {
+  checkSpecialMemberAccess(destructor, "destructor", location);
+}
+
+void TypeChecker::checkPotentiallyInvokedDestructor(const Type* type,
+                                                    SourceLocation location) {
+  ASTRewriter::requireDestructorOfType(unit_, type);
+
+  auto traits = unit_->typeTraits();
+  auto classType =
+      type_cast<ClassType>(traits.remove_cv(traits.remove_all_extents(type)));
+  if (!classType || !classType->symbol()) return;
+
+  auto destructor = classType->symbol()->resolvedDefinition()->destructor();
+
+  if (destructor && destructor->isDeleted()) {
+    error(location, "attempt to use a deleted destructor");
+    return;
+  }
+
+  checkDestructorAccess(destructor, location);
+}
+
+void TypeChecker::checkSpecialMemberAccess(FunctionSymbol* function,
+                                           std::string_view kind,
+                                           SourceLocation location) {
+  if (!function) return;
+
+  auto declaringClass = declaringClassOf(function);
   if (!declaringClass) return;
 
   AccessContext accessContext{unit_, scope_};
-  if (accessContext.isAccessible(constructor, declaringClass, nullptr)) return;
+  if (accessContext.isAccessible(function, declaringClass, nullptr)) return;
 
   auto accessKind = std::string_view{"private"};
-  if (constructor->accessSpecifier() == AccessSpecifier::kProtected)
+  if (function->accessSpecifier() == AccessSpecifier::kProtected)
     accessKind = "protected";
 
-  error(location, std::format("calling a {} constructor of class '{}'",
-                              accessKind, to_string(declaringClass->type())));
+  error(location, std::format("calling a {} {} of class '{}'", accessKind, kind,
+                              to_string(declaringClass->type())));
 }
 
 auto TypeChecker::deduceClassTemplateSpecialization(

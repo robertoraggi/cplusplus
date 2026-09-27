@@ -70,9 +70,6 @@ class Preprocessor final : public SourceResolver {
   [[nodiscard]] auto commentHandler() const -> CommentHandler*;
   void setCommentHandler(CommentHandler* commentHandler);
 
-  [[nodiscard]] auto canResolveFiles() const -> bool;
-  void setCanResolveFiles(bool canResolveFiles);
-
   [[nodiscard]] auto currentPath() const -> std::string;
   void setCurrentPath(std::string currentPath);
 

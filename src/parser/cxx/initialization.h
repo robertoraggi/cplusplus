@@ -298,6 +298,20 @@ struct StringLiteralInitialization {
 [[nodiscard]] auto singleInitializerClause(BracedInitListAST* bracedInitList)
     -> ExpressionAST*;
 
+struct ArrayElementRange {
+  std::size_t begin = 0;
+  std::size_t end = 0;
+};
+
+[[nodiscard]] auto designatedArrayIndex(TranslationUnit* unit,
+                                        DesignatedInitializerClauseAST* clause)
+    -> std::optional<std::size_t>;
+
+[[nodiscard]] auto implicitlyInitializedElements(TranslationUnit* unit,
+                                                 BracedInitListAST* list,
+                                                 std::size_t elementCount)
+    -> std::vector<ArrayElementRange>;
+
 [[nodiscard]] auto stringLiteralInitialization(const TypeTraits& traits,
                                                bool isCxx,
                                                const Type* destinationType,
@@ -350,9 +364,7 @@ enum class InitializationFailure {
   kNone,
   kUnresolvedDestinationType,
   kDependent,
-  kMissingInitializer,
   kReferenceWithoutInitializer,
-  kReferenceDefaultInitialized,
   kNotConstDefaultConstructible,
   kNoViableConstructor,
   kAmbiguousConstructor,
@@ -392,10 +404,9 @@ void diagnoseNarrowingListElement(InitContext& ctx, ExpressionAST* element,
                                                Initializer& initializer)
     -> ExpressionAST*;
 
-void diagnoseInitializationFailure(InitContext& ctx,
-                                   const InitializationSequence& sequence,
-                                   const InitializedEntity& entity,
-                                   const Initializer& initializer);
+[[nodiscard]] auto diagnoseInitializationFailure(
+    InitContext& ctx, const InitializationSequence& sequence,
+    const InitializedEntity& entity, const Initializer& initializer) -> bool;
 
 void reportRejectedConstructors(InitContext& ctx,
                                 const ConstructorResult& resolution);

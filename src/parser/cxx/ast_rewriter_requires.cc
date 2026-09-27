@@ -64,6 +64,10 @@ ASTRewriter::ImmediateContextGuard::ImmediateContextGuard(ASTRewriter& rewrite)
   ++rewrite_.immediateContextDepth_;
 }
 
+auto ASTRewriter::ImmediateContextGuard::substitutionFailed() const -> bool {
+  return silent_.hadError() || rewrite_.substitutionFailed_;
+}
+
 ASTRewriter::ImmediateContextGuard::~ImmediateContextGuard() {
   --rewrite_.immediateContextDepth_;
   rewrite_.substitutionFailed_ = substitutionFailed_;
@@ -306,7 +310,7 @@ auto ASTRewriter::checkConstraintExpression(
       SilentDiagnosticsScope silent{unit};
 
       rewritten = reqRewriter.expression(constraint);
-      if (rewritten) reqRewriter.check(rewritten);
+      if (rewritten) rewritten = reqRewriter.check(rewritten);
 
       hadError = silent.hadError();
     }
@@ -406,7 +410,7 @@ auto ASTRewriter::evaluateConstraintExpression(
     SilentDiagnosticsScope silent{unit};
 
     constraint = rewriter.expression(expression);
-    if (constraint) rewriter.check(constraint);
+    if (constraint) constraint = rewriter.check(constraint);
   }
 
   if (!constraint) return std::nullopt;
@@ -461,13 +465,14 @@ auto ASTRewriter::evaluateConcept(
   return result;
 }
 
-void ASTRewriter::check(ExpressionAST* ast) {
-  if (!ast) return;
-  if (isDependent(unit_, ast)) return;
+auto ASTRewriter::check(ExpressionAST* ast) -> ExpressionAST* {
+  if (!ast) return ast;
+  if (isDependent(unit_, ast)) return ast;
 
   TranslationUnit::PotentiallyEvaluatedScope evaluated{
       unit_, unevaluatedOperandDepth_ == 0};
   auto checker = typeChecker();
   checker.check(&ast);
+  return ast;
 }
 }  // namespace cxx

@@ -18,6 +18,5 @@ int main() {
 // CHECK-NEXT:   parameters
 // CHECK-NEXT:     parameter type-param<1, 0>... xs
 // CHECK-NEXT:     block
-// CHECK-NEXT:       variable static constexpr const char __func__[3]
 // CHECK-NEXT:   [specializations]
 // CHECK-NEXT:     function int at(int, int, int)

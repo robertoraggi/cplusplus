@@ -38,13 +38,6 @@ template <template <class... Args> class BaseTemplate,
           class... Ts>
 using __builtin_common_type = void;
 
-void* operator new(__SIZE_TYPE__);
-void* operator new[](__SIZE_TYPE__);
-void operator delete(void*) noexcept;
-void operator delete[](void*) noexcept;
-void operator delete(void*, __SIZE_TYPE__) noexcept;
-void operator delete[](void*, __SIZE_TYPE__) noexcept;
-
 #endif
 )";
 // clang-format on

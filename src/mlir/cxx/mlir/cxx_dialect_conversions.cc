@@ -618,15 +618,13 @@ class VTableOpLowering : public OpConversionPattern<cxx::VTableOp> {
   auto matchAndRewrite(cxx::VTableOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
-    auto vbaseOffsets = op.getVbaseOffsets();
-    auto vcallOffsets = op.getVcallOffsets();
+    auto offsets = op.getOffsets();
     auto offsetsToTop = op.getOffsetsToTop();
     auto slots = op.getSlots();
 
     std::size_t numEntries = 0;
     for (std::size_t table = 0; table < slots.size(); ++table) {
-      numEntries += mlir::cast<ArrayAttr>(vbaseOffsets[table]).size() +
-                    mlir::cast<ArrayAttr>(vcallOffsets[table]).size() + 2 +
+      numEntries += mlir::cast<ArrayAttr>(offsets[table]).size() + 2 +
                     mlir::cast<ArrayAttr>(slots[table]).size();
     }
 
@@ -672,11 +670,7 @@ class VTableOpLowering : public OpConversionPattern<cxx::VTableOp> {
     };
 
     for (std::size_t table = 0; table < slots.size(); ++table) {
-      for (auto entry : mlir::cast<ArrayAttr>(vcallOffsets[table])) {
-        append(offsetWord(mlir::cast<IntegerAttr>(entry).getInt()));
-      }
-
-      for (auto entry : mlir::cast<ArrayAttr>(vbaseOffsets[table])) {
+      for (auto entry : mlir::cast<ArrayAttr>(offsets[table])) {
         append(offsetWord(mlir::cast<IntegerAttr>(entry).getInt()));
       }
 
@@ -878,7 +872,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
         return lowerMemIntrinsic(op, adaptor, rewriter, "llvm.memmove");
 
       case BuiltinFunctionKind::T___BUILTIN_MEMSET:
-        return lowerMemIntrinsic(op, adaptor, rewriter, "llvm.memset");
+        return lowerMemset(op, adaptor, rewriter);
 
       case BuiltinFunctionKind::T___BUILTIN_CTZ:
         return lowerSimpleIntrinsic(op, adaptor, rewriter, "llvm.cttz");
@@ -1097,10 +1091,29 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
   auto lowerMemIntrinsic(cxx::BuiltinCallOp op, OpAdaptor adaptor,
                          ConversionPatternRewriter& rewriter,
                          StringRef intrinsicName) const -> LogicalResult {
-    auto loc = op.getLoc();
-
     std::vector<Value> inputs;
     for (auto input : adaptor.getInputs()) inputs.push_back(input);
+    return emitMemIntrinsic(op, std::move(inputs), rewriter, intrinsicName);
+  }
+
+  auto lowerMemset(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                   ConversionPatternRewriter& rewriter) const -> LogicalResult {
+    std::vector<Value> inputs;
+    for (auto input : adaptor.getInputs()) inputs.push_back(input);
+    if (inputs.size() != 3) return failure();
+
+    auto byteType = rewriter.getI8Type();
+    if (inputs[1].getType() != byteType) {
+      inputs[1] =
+          LLVM::TruncOp::create(rewriter, op.getLoc(), byteType, inputs[1]);
+    }
+    return emitMemIntrinsic(op, std::move(inputs), rewriter, "llvm.memset");
+  }
+
+  auto emitMemIntrinsic(cxx::BuiltinCallOp op, std::vector<Value> inputs,
+                        ConversionPatternRewriter& rewriter,
+                        StringRef intrinsicName) const -> LogicalResult {
+    auto loc = op.getLoc();
 
     inputs.push_back(LLVM::ConstantOp::create(
         rewriter, loc, rewriter.getI1Type(),

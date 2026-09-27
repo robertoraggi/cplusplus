@@ -77,7 +77,8 @@ auto configureToolchain(TranslationUnit* unit, const val& options)
   auto preprocessor = unit->preprocessor();
   if (!preprocessor) return {};
 
-  auto toolchain = std::make_unique<Wasm32WasiToolchain>(preprocessor);
+  auto toolchain = std::make_unique<Wasm32WasiToolchain>(
+      preprocessor, Triple{"wasm32-wasip1"});
 
   if (!options.isUndefined()) {
     if (val appdir = options["appdir"]; appdir.isString()) {
@@ -92,6 +93,11 @@ auto configureToolchain(TranslationUnit* unit, const val& options)
   }
 
   toolchain->initMemoryLayout();
+
+  addIncludePaths(options, "systemIncludePaths", [&](std::string path) {
+    preprocessor->addSystemIncludePath(std::move(path));
+  });
+
   toolchain->addSystemCppIncludePaths();
   toolchain->addSystemIncludePaths();
   toolchain->addPredefinedMacros();
@@ -104,13 +110,7 @@ auto configureToolchain(TranslationUnit* unit, const val& options)
     preprocessor->addUserIncludePath(std::move(path));
   });
 
-  addIncludePaths(options, "systemIncludePaths", [&](std::string path) {
-    preprocessor->addSystemIncludePath(std::move(path));
-  });
-
   applyMacros(preprocessor, options);
-
-  preprocessor->setCanResolveFiles(true);
 
   return toolchain;
 }

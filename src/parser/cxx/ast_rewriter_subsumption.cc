@@ -541,16 +541,7 @@ auto ASTRewriter::substituteTemplateArgumentList(
     ScopeSymbol* scope) -> List<TemplateArgumentAST*>* {
   auto rewriter = ASTRewriter{unit, scope, templateArguments};
   rewriter.depth_ = depth;
-
-  List<TemplateArgumentAST*>* result = nullptr;
-  auto out = &result;
-
-  for (auto argument : ListView{templateArgumentList}) {
-    *out = make_list_node(unit->arena(), rewriter.templateArgument(argument));
-    out = &(*out)->next;
-  }
-
-  return result;
+  return rewriter.rewriteTemplateArgumentList(templateArgumentList);
 }
 
 }  // namespace cxx
