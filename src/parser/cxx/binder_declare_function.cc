@@ -41,16 +41,6 @@
 
 namespace cxx {
 namespace {
-[[nodiscard]] auto declaresExplicitObjectParameter(
-    FunctionDeclaratorChunkAST* prototype) -> bool {
-  if (!prototype || !prototype->parameterDeclarationClause) return false;
-  auto parameters =
-      prototype->parameterDeclarationClause->parameterDeclarationList;
-  if (!parameters) return false;
-  auto parameter = ast_cast<ParameterDeclarationAST>(parameters->value);
-  return parameter && parameter->isThisIntroduced;
-}
-
 struct NamesDeducedTemplateSpecialization {
   [[nodiscard]] auto operator()(NameIdAST*) const -> bool { return true; }
   [[nodiscard]] auto operator()(OperatorFunctionIdAST*) const -> bool {
@@ -81,6 +71,22 @@ struct NamesDeducedTemplateSpecialization {
     -> bool {
   if (!id) return false;
   return visit(NamesDeducedTemplateSpecialization{}, id);
+}
+
+[[nodiscard]] auto defaultArgumentOrigin(ParameterSymbol* parameter)
+    -> ParameterSymbol* {
+  while (!parameter->defaultArgument() && parameter->defaultArgumentSource())
+    parameter = parameter->defaultArgumentSource();
+  return parameter;
+}
+
+[[nodiscard]] auto sharesDefaultArgument(ParameterSymbol* lhs,
+                                         ParameterSymbol* rhs) -> bool {
+  if (!lhs->hasDefaultArgument() && !rhs->hasDefaultArgument()) return true;
+  if (lhs->defaultArgument() &&
+      lhs->defaultArgument() == rhs->defaultArgument())
+    return true;
+  return defaultArgumentOrigin(lhs) == defaultArgumentOrigin(rhs);
 }
 }  // namespace
 
@@ -204,8 +210,9 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   binder.checkTrailingRequiresClauseIsTemplated(functionSymbol,
                                                 decl.specs.templateHead);
 
-  functionSymbol->setExplicitObjectParameter(
-      declaresExplicitObjectParameter(functionDeclarator));
+  functionSymbol->setExplicitObjectParameter(declaresExplicitObjectParameter(
+      functionDeclarator ? functionDeclarator->parameterDeclarationClause
+                         : nullptr));
 
   attachFunctionParameters();
 
@@ -534,9 +541,6 @@ void Binder::DeclareFunction::reportMemberRedeclaration(
   const bool redeclarationIsTemplate = decl.specs.templateHead != nullptr;
   if (previousIsTemplate != redeclarationIsTemplate) return;
 
-  if (isDependent(binder.unit_, previous->type())) return;
-  if (isDependent(binder.unit_, functionSymbol->type())) return;
-
   binder.error(functionSymbol->location(),
                functionSymbol->isConstructor()
                    ? "constructor cannot be redeclared"
@@ -851,7 +855,8 @@ void Binder::DeclareFunction::checkCovariantReturnBase(
 
   auto info = derived->baseSubobjectInfo(base);
 
-  const auto isUnambiguous = info.pathCount == 0 || info.isUniqueSubobject();
+  const auto isUnambiguous =
+      info.subobjectCount == 0 || info.isUniqueSubobject();
 
   AccessContext accessContext{binder.unit_, declaringClassOf(functionSymbol)};
   const auto isAccessible = accessContext.isAccessibleBaseClass(derived, base);
@@ -883,34 +888,25 @@ void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
 
 auto Binder::findOverriddenFunctions(ClassSymbol* cls, FunctionSymbol* fn)
     -> std::vector<FunctionSymbol*> {
-  std::unordered_set<ClassSymbol*> visited;
+  std::vector<ClassSymbol*> visited;
   std::vector<FunctionSymbol*> overriddenFunctions;
   findOverriddenFunctionsImpl(cls, fn, visited, overriddenFunctions);
   return overriddenFunctions;
 }
 
 void Binder::findOverriddenFunctionsImpl(
-    ClassSymbol* cls, FunctionSymbol* fn,
-    std::unordered_set<ClassSymbol*>& visited,
+    ClassSymbol* cls, FunctionSymbol* fn, std::vector<ClassSymbol*>& visited,
     std::vector<FunctionSymbol*>& overriddenFunctions) {
   for (auto base : cls->baseClasses()) {
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass || !visited.insert(baseClass).second) continue;
+    if (!baseClass || std::ranges::contains(visited, baseClass)) continue;
+    visited.push_back(baseClass);
     baseClass = baseClass->resolvedDefinition();
 
-    auto checkMember = [&](FunctionSymbol* member) {
-      if (!member->isVirtual()) return;
-      if (!traits.is_corresponding_overrider(fn, member)) return;
-      if (!std::ranges::contains(overriddenFunctions, member))
-        overriddenFunctions.push_back(member);
-    };
-
-    for (auto symbol : baseClass->members()) {
-      if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
-        checkMember(func);
-      } else if (auto ovl = symbol_cast<OverloadSetSymbol>(symbol)) {
-        for (auto func : ovl->declaredFunctions()) checkMember(func);
-      }
+    for (auto member : views::members(baseClass) | views::virtual_functions) {
+      if (!traits.is_corresponding_overrider(fn, member)) continue;
+      if (std::ranges::contains(overriddenFunctions, member)) continue;
+      overriddenFunctions.push_back(member);
     }
 
     findOverriddenFunctionsImpl(baseClass, fn, visited, overriddenFunctions);
@@ -1085,23 +1081,15 @@ void Binder::DeclareFunction::mergeDefaultArguments() {
     auto previous = *previousIt;
     auto current = *currentIt;
 
-    if (previous->defaultArgument() == current->defaultArgument()) continue;
+    if (sharesDefaultArgument(previous, current)) continue;
 
-    if (!current->defaultArgument()) {
-      binder.setSpeculativeValue(current->defaultArgument(),
-                                 previous->defaultArgument(),
-                                 [current](ExpressionAST* value) {
-                                   current->setDefaultArgument(value);
-                                 });
+    if (!current->hasDefaultArgument()) {
+      binder.inheritDefaultArgument(current, previous);
       continue;
     }
 
-    if (!previous->defaultArgument()) {
-      binder.setSpeculativeValue(previous->defaultArgument(),
-                                 current->defaultArgument(),
-                                 [previous](ExpressionAST* value) {
-                                   previous->setDefaultArgument(value);
-                                 });
+    if (!previous->hasDefaultArgument()) {
+      binder.inheritDefaultArgument(previous, current);
       continue;
     }
 
@@ -1127,7 +1115,7 @@ void Binder::DeclareFunction::rejectDefaultArguments() {
   if (!parameters) return;
 
   for (auto parameter : parameters->members() | views::parameters) {
-    if (!parameter->defaultArgument()) continue;
+    if (!parameter->hasDefaultArgument()) continue;
 
     binder.error(parameter->location(),
                  "a default argument for a member function of a class template "
@@ -1145,13 +1133,13 @@ void Binder::DeclareFunction::checkDefaultArgumentOrder() {
   bool sawDefaultArgument = false;
 
   for (auto parameter : parameters->members() | views::parameters) {
-    if (parameter->defaultArgument()) {
+    if (parameter->hasDefaultArgument()) {
       sawDefaultArgument = true;
       continue;
     }
 
     if (!sawDefaultArgument) continue;
-    if (is_parameter_pack_type(parameter->type())) continue;
+    if (parameter->isParameterPack()) continue;
 
     binder.error(parameter->location(),
                  parameter->name()

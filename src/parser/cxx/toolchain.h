@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/triple.h>
 
 #include <memory>
 #include <string>
@@ -53,8 +54,10 @@ class Toolchain {
   Toolchain(const Toolchain&) = delete;
   auto operator=(const Toolchain&) -> Toolchain& = delete;
 
-  explicit Toolchain(Preprocessor* preprocessor);
+  Toolchain(Preprocessor* preprocessor, Triple triple);
   virtual ~Toolchain();
+
+  [[nodiscard]] auto triple() const -> const Triple& { return triple_; }
 
   [[nodiscard]] auto language() const -> LanguageKind { return language_; }
 
@@ -70,6 +73,8 @@ class Toolchain {
     exceptionsEnabled_ = exceptionsEnabled;
   }
 
+  [[nodiscard]] virtual auto hasThreads() const -> bool { return true; }
+
   [[nodiscard]] auto memoryLayout() const -> MemoryLayout* {
     return memoryLayout_.get();
   }
@@ -81,6 +86,14 @@ class Toolchain {
   [[nodiscard]] auto resourceDir() const -> std::string;
 
   void setResourceDir(std::string resourceDir);
+
+  [[nodiscard]] auto sysroot() const -> std::string;
+
+  void setSysroot(std::string sysroot);
+
+  [[nodiscard]] auto headerSysroot() const -> std::string;
+
+  void setHeaderSysroot(std::string headerSysroot);
 
   void setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout);
 
@@ -107,6 +120,7 @@ class Toolchain {
   void undefMacro(const std::string& name);
 
   void addSystemIncludePath(std::string path);
+  void addBuiltinIncludePath();
 
   void addCommonMacros();
   void addCommonC23Macros();
@@ -134,14 +148,18 @@ class Toolchain {
 
  protected:
   [[nodiscard]] virtual auto defaultResourceDir() const -> std::string;
+  [[nodiscard]] virtual auto defaultSysroot() const -> std::string;
 
  private:
   [[nodiscard]] auto cplusplusMacroValue() const -> std::string_view;
   [[nodiscard]] auto stdcVersionMacroValue() const -> std::string_view;
 
   Preprocessor* preprocessor_;
+  Triple triple_;
   std::string appdir_;
   std::string resourceDir_;
+  std::string sysroot_;
+  std::string headerSysroot_;
   std::unique_ptr<MemoryLayout> memoryLayout_;
   LanguageKind language_ = LanguageKind::kCXX;
   const LanguageStandard* languageStandard_ = nullptr;

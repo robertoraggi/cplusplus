@@ -3910,6 +3910,10 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(ClassSpecifierAST* ast) {
     accept.writeToken(ast->rbraceLoc);
     newline();
   }
+
+  for (auto it = ast->trailingAttributeList; it; it = it->next) {
+    accept(it->value);
+  }
 }
 
 void ASTPrettyPrinter::SpecifierVisitor::operator()(TypenameSpecifierAST* ast) {
@@ -3975,11 +3979,20 @@ void ASTPrettyPrinter::PtrOperatorVisitor::operator()(
 void ASTPrettyPrinter::CoreDeclaratorVisitor::operator()(
     BitfieldDeclaratorAST* ast) {
   accept(ast->unqualifiedId);
+
+  for (auto it = ast->attributeList; it; it = it->next) {
+    accept(it->value);
+  }
+
   if (ast->colonLoc) {
     nospace();
     accept.writeToken(ast->colonLoc);
   }
   accept(ast->sizeExpression);
+
+  for (auto it = ast->trailingAttributeList; it; it = it->next) {
+    accept(it->value);
+  }
 }
 
 void ASTPrettyPrinter::CoreDeclaratorVisitor::operator()(
@@ -4424,11 +4437,7 @@ void ASTPrettyPrinter::RequirementVisitor::operator()(TypeRequirementAST* ast) {
   if (ast->typenameLoc) {
     accept.writeToken(ast->typenameLoc);
   }
-  accept(ast->nestedNameSpecifier);
-  if (ast->templateLoc) {
-    accept.writeToken(ast->templateLoc);
-  }
-  accept(ast->unqualifiedId);
+  accept(ast->typeId);
   if (ast->semicolonLoc) {
     nospace();
     nonewline();

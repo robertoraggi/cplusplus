@@ -8,6 +8,8 @@
 #include <vector>
 
 namespace cxx {
+class Symbol;
+
 class TimeTrace {
  public:
   enum Counter {
@@ -17,6 +19,10 @@ class TimeTrace {
     kConstraints,
     kConcepts,
     kCacheHits,
+    kTypeDependenceVisits,
+    kTypeDependenceCacheHits,
+    kSpecializationComparisons,
+    kPartialSpecializationVisits,
     kCount
   };
   using Counts = std::array<std::uint64_t, kCount>;
@@ -25,6 +31,7 @@ class TimeTrace {
   class Scope {
    public:
     Scope(TimeTrace* trace, std::string name, std::string detail = {});
+    Scope(TimeTrace* trace, std::string name, const Symbol* symbol);
     ~Scope();
     Scope(const Scope&) = delete;
     auto operator=(const Scope&) -> Scope& = delete;

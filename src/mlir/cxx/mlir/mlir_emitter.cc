@@ -221,16 +221,13 @@ namespace {
 auto toMlir(Linkage linkage) -> mlir::cxx::LinkageKind;
 }
 void MlirEmitter::defineVTable(SourceLocation loc, const VTableInfo& info) {
-  std::vector<mlir::Attribute> vbaseOffsets;
-  std::vector<mlir::Attribute> vcallOffsets;
+  std::vector<mlir::Attribute> offsets;
   std::vector<std::int64_t> offsetsToTop;
   std::vector<mlir::Attribute> slots;
 
   for (const auto& table : info.tables) {
-    vbaseOffsets.push_back(builder_.getI64ArrayAttr(
-        {table.virtualBaseOffsets.data(), table.virtualBaseOffsets.size()}));
-    vcallOffsets.push_back(builder_.getI64ArrayAttr(
-        {table.virtualCallOffsets.data(), table.virtualCallOffsets.size()}));
+    offsets.push_back(
+        builder_.getI64ArrayAttr({table.offsets.data(), table.offsets.size()}));
     offsetsToTop.push_back(table.offsetToTop);
 
     std::vector<mlir::Attribute> tableSlots;
@@ -242,8 +239,7 @@ void MlirEmitter::defineVTable(SourceLocation loc, const VTableInfo& info) {
   }
 
   mlir::cxx::VTableOp::create(
-      builder_, getLocation(loc), info.name,
-      builder_.getArrayAttr(vbaseOffsets), builder_.getArrayAttr(vcallOffsets),
+      builder_, getLocation(loc), info.name, builder_.getArrayAttr(offsets),
       builder_.getI64ArrayAttr(offsetsToTop),
       mlir::FlatSymbolRefAttr::get(context(), info.typeInfo),
       builder_.getArrayAttr(slots),

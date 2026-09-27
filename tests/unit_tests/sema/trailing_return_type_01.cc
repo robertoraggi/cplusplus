@@ -46,7 +46,6 @@ auto list::at(value_type) -> value_type { return 0; }
 // CHECK-NEXT:        function ::list::iterator begin()
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
-// CHECK-NEXT:            variable static constexpr const char __func__[6]
 // CHECK-NEXT:    function int at(int)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter int
@@ -55,7 +54,6 @@ auto list::at(value_type) -> value_type { return 0; }
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter int
 // CHECK-NEXT:            block
-// CHECK-NEXT:              variable static constexpr const char __func__[3]
 // CHECK-NEXT:    function constexpr inline defaulted ::list& operator =(const ::list&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::list&

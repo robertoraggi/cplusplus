@@ -30,7 +30,6 @@ X::operator int() { return i; }
 // CHECK-NEXT:        constructor void X()
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
-// CHECK-NEXT:            variable static constexpr const char __func__[2]
 // CHECK-NEXT:    constructor void X(int)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter int
@@ -39,7 +38,6 @@ X::operator int() { return i; }
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:            parameter int
 // CHECK-NEXT:            block
-// CHECK-NEXT:              variable static constexpr const char __func__[2]
 // CHECK-NEXT:    constructor constexpr inline defaulted void X(const ::X&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::X&
@@ -51,21 +49,18 @@ X::operator int() { return i; }
 // CHECK-NEXT:        function void ~X() noexcept
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
-// CHECK-NEXT:            variable static constexpr const char __func__[3]
 // CHECK-NEXT:    function int operator int()
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        function int operator int()
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
-// CHECK-NEXT:            variable static constexpr const char __func__[13]
 // CHECK-NEXT:    function const int& operator const int&()
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:      [redeclarations]
 // CHECK-NEXT:        function const int& operator const int&()
 // CHECK-NEXT:          parameters
 // CHECK-NEXT:          block
-// CHECK-NEXT:            variable static constexpr const char __func__[20]
 // CHECK-NEXT:    function constexpr inline defaulted ::X& operator =(const ::X&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::X&

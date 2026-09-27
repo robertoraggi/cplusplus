@@ -22,13 +22,13 @@
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
+#include <cxx/private/versioned_directories.h>
 
-#include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <format>
+#include <initializer_list>
 #include <optional>
-#include <ranges>
-#include <regex>
 #include <utility>
 
 #ifdef __APPLE__
@@ -58,14 +58,39 @@ auto hostProductVersion() -> std::optional<std::pair<int, int>> {
 #endif
 }
 
+[[nodiscard]] auto environmentPath(const char* name) -> std::string {
+  const auto value = std::getenv(name);
+  if (!value) return {};
+  return value;
+}
+
+[[nodiscard]] auto selectedDeveloperDir() -> std::string {
+  if (auto path = environmentPath("DEVELOPER_DIR"); !path.empty()) return path;
+
+  std::error_code ec;
+  auto link = fs::read_symlink("/var/db/xcode_select_link", ec);
+  if (!ec) return link.string();
+
+  return "/Applications/Xcode.app/Contents/Developer";
+}
+
+[[nodiscard]] auto firstExistingDirectory(
+    std::initializer_list<fs::path> candidates) -> std::string {
+  for (const auto& candidate : candidates) {
+    if (fs::is_directory(candidate)) return candidate.string();
+  }
+  return {};
+}
+
 }  // namespace
 
-MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch,
-                               std::optional<std::pair<int, int>> osVersion)
-    : Toolchain(preprocessor), arch_(std::move(arch)) {
+MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, Triple triple)
+    : Toolchain(preprocessor, std::move(triple)),
+      developerDir_(selectedDeveloperDir()) {
   versionMajor_ = kFallbackVersionMajor;
   versionMinor_ = 0;
 
+  auto osVersion = this->triple().osVersion();
   if (!osVersion) osVersion = hostProductVersion();
 
   if (osVersion) {
@@ -73,27 +98,20 @@ MacOSToolchain::MacOSToolchain(Preprocessor* preprocessor, std::string arch,
     versionMinor_ = osVersion->second;
   }
 
-  std::string xcodeContentsBasePath = "/Applications/Xcode.app/Contents";
-
-  platformPath_ = std::format(
-      "{}/Developer/Platforms/MacOSX.platform/"
-      "Developer/SDKs/MacOSX.sdk",
-      xcodeContentsBasePath);
-
-  toolchainPath_ =
-      std::format("{}/Developer/Toolchains/XcodeDefault.xctoolchain",
-                  xcodeContentsBasePath);
-
-  if (arch_ == "aarch64") {
-    memoryLayout()->setSizeOfLongDouble(8, 53);
-    memoryLayout()->setTriple(
-        std::format("arm64-apple-macosx{}", deploymentTargetTriplePart()));
-  } else if (arch_ == "x86_64") {
-    memoryLayout()->setSizeOfLongDouble(16, 64);
-    memoryLayout()->setTriple(
-        std::format("x86_64-apple-macosx{}", deploymentTargetTriplePart()));
-  } else {
-    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+  switch (this->triple().arch()) {
+    case TripleArch::kAArch64:
+      memoryLayout()->setSizeOfLongDouble(8, 53);
+      memoryLayout()->setTriple(
+          std::format("arm64-apple-macosx{}", deploymentTargetTriplePart()));
+      break;
+    case TripleArch::kX86_64:
+      memoryLayout()->setSizeOfLongDouble(16, 64);
+      memoryLayout()->setTriple(
+          std::format("x86_64-apple-macosx{}", deploymentTargetTriplePart()));
+      break;
+    default:
+      cxx_runtime_error(std::format("Unsupported architecture: {}",
+                                    this->triple().archName()));
   }
 }
 
@@ -105,107 +123,41 @@ auto MacOSToolchain::deploymentTargetMacroValue() const -> std::string {
   return std::format("{}{:02}{:02}", versionMajor_, versionMinor_, 0);
 }
 
-void MacOSToolchain::setSysroot(std::string sysroot) {
-  sysroot_ = std::move(sysroot);
-  if (!sysroot_.empty() && sysroot_.back() == '/') sysroot_.pop_back();
+auto MacOSToolchain::defaultSysroot() const -> std::string {
+  if (auto path = environmentPath("SDKROOT"); !path.empty()) return path;
+
+  const auto developerDir = fs::path{developerDir_};
+  return firstExistingDirectory(
+      {developerDir / "Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+       developerDir / "SDKs/MacOSX.sdk"});
 }
-
-namespace {
-struct Version {
-  int major{};
-  std::optional<int> minor;
-  std::optional<int> patch;
-
-  static auto parse(const std::string& s) -> std::optional<Version> {
-    // parse version numbers of the form "major[.minor[.patch]]", don't
-    // throw exception, just return nullopt if the format is invalid
-    std::regex versionRe(R"(^(\d+)(?:\.(\d+))?(?:\.(\d+))?$)");
-    std::smatch match;
-    if (!std::regex_match(s, match, versionRe)) return std::nullopt;
-
-    Version version;
-    version.major = std::stoi(match[1].str());
-    if (match[2].matched) version.minor = std::stoi(match[2].str());
-    if (match[3].matched) version.patch = std::stoi(match[3].str());
-    return version;
-  }
-
-  auto operator<(const Version& other) const {
-    if (major != other.major) return major < other.major;
-
-    auto maxInt = std::numeric_limits<int>::max();
-
-    if (minor != other.minor)
-      return minor.value_or(maxInt) < other.minor.value_or(maxInt);
-
-    return patch.value_or(maxInt) < other.patch.value_or(maxInt);
-  }
-};
-
-auto to_string(const Version& version) -> std::string {
-  if (version.patch.has_value())
-    return std::format("{}.{}.{}", version.major, version.minor.value_or(0),
-                       version.patch.value());
-
-  if (version.minor.has_value())
-    return std::format("{}.{}", version.major, version.minor.value());
-
-  return std::format("{}", version.major);
-}
-
-}  // namespace
 
 auto MacOSToolchain::defaultResourceDir() const -> std::string {
-  const auto clangLibDir =
-      std::filesystem::path{toolchainPath_} / "usr" / "lib" / "clang";
+  const auto developerDir = fs::path{developerDir_};
+  const auto clangLibDir = fs::path{firstExistingDirectory(
+      {developerDir / "Toolchains/XcodeDefault.xctoolchain/usr/lib/clang",
+       developerDir / "usr/lib/clang"})};
 
-  struct VersionedResourcePath {
-    std::filesystem::path path;
-    Version version;
-  };
-
-  std::vector<VersionedResourcePath> candidates;
-
-  if (fs::exists(clangLibDir) && std::filesystem::is_directory(clangLibDir)) {
-    for (const auto& e : std::filesystem::directory_iterator(clangLibDir)) {
-      if (!e.is_directory()) continue;
-
-      auto version = Version::parse(e.path().filename().string());
-      if (!version) continue;
-
-      if (!is_directory(e.path() / "include")) continue;
-
-      candidates.emplace_back(e.path(), version.value());
-    }
+  for (const auto& path : versionedSubdirectories(clangLibDir)) {
+    if (fs::is_directory(path / "include")) return path.string();
   }
 
-  if (candidates.empty()) return Toolchain::defaultResourceDir();
-
-  std::ranges::sort(candidates, std::less<>{}, &VersionedResourcePath::version);
-
-  return candidates.back().path.string();
+  return Toolchain::defaultResourceDir();
 }
 
 void MacOSToolchain::addSystemIncludePaths() {
-  auto platform = sysroot_.empty() ? platformPath_ : sysroot_;
+  const auto sysroot = headerSysroot();
 
-  if (auto resourceDir = this->resourceDir(); !resourceDir.empty()) {
-    addSystemIncludePath((fs::path{resourceDir} / "include").string());
-  }
-
-  addSystemIncludePath(std::format("{}/usr/include", platform));
-
-  addSystemIncludePath(std::format("{}/usr/include", toolchainPath_));
-
-  addSystemIncludePath(std::format("{}/System/Library/Frameworks", platform));
-
-  addSystemIncludePath(
-      std::format("{}/System/Library/SubFrameworks", platform));
+  addSystemIncludePath(std::format("{}/usr/local/include", sysroot));
+  addBuiltinIncludePath();
+  addSystemIncludePath(std::format("{}/usr/include", sysroot));
+  addSystemIncludePath(std::format("{}/System/Library/Frameworks", sysroot));
+  addSystemIncludePath(std::format("{}/System/Library/SubFrameworks", sysroot));
+  addSystemIncludePath(std::format("{}/Library/Frameworks", sysroot));
 }
 
 void MacOSToolchain::addSystemCppIncludePaths() {
-  auto platform = sysroot_.empty() ? platformPath_ : sysroot_;
-  addSystemIncludePath(std::format("{}/usr/include/c++/v1", platform));
+  addSystemIncludePath(std::format("{}/usr/include/c++/v1", headerSysroot()));
 }
 
 void MacOSToolchain::addPredefinedMacros() {
@@ -234,12 +186,10 @@ void MacOSToolchain::addPredefinedMacros() {
     addMacOSC23Macros();
   }
 
-  if (arch_ == "aarch64") {
+  if (triple().arch() == TripleArch::kAArch64) {
     addMacOSAArch64Macros();
-  } else if (arch_ == "x86_64") {
-    addMacOSX86_64Macros();
   } else {
-    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+    addMacOSX86_64Macros();
   }
 }
 

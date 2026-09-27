@@ -357,19 +357,10 @@ auto Codegen::virtualBaseOffsetSlotOffset(ClassSymbol* classSymbol,
   auto vtableLayout = classSymbol->vtableLayout();
   if (!vtableLayout) return std::nullopt;
 
-  auto& primary = vtableLayout->primary;
-  const auto wordSize = pointerSize();
-
-  for (std::size_t index = 0; index < primary.vbaseOffsets.size(); ++index) {
-    if (primary.vbaseOffsets[index].first->resolvedDefinition() !=
-        virtualBase->resolvedDefinition())
-      continue;
-    const auto distanceWords =
-        static_cast<std::int64_t>(primary.vbaseOffsets.size() + 2 - index);
-    return -wordSize * distanceWords;
-  }
-
-  return std::nullopt;
+  const auto words = vtableLayout->primary().offsetWordsBeforeAddressPoint(
+      virtualBase->resolvedDefinition());
+  if (!words) return std::nullopt;
+  return -static_cast<std::int64_t>(pointerSize()) * words;
 }
 
 auto Codegen::classTypeInfoBaseDescriptors(ClassSymbol* classSymbol)
@@ -649,9 +640,9 @@ auto Codegen::dynamicCastOffsetHint(ClassSymbol* sourceClass,
 
   auto info = targetClass->baseSubobjectInfo(sourceClass);
 
-  if (info.publicPathCount == 0) return kSourceIsNotAPublicBase;
-  if (info.anyPublicPathIsVirtual) return kNoHint;
-  if (info.publicPathCount > 1) return kSourceIsARepeatedPublicBase;
+  if (info.publicSubobjectCount == 0) return kSourceIsNotAPublicBase;
+  if (info.hasPublicSubobjectInVirtualBase()) return kNoHint;
+  if (info.publicSubobjectCount > 1) return kSourceIsARepeatedPublicBase;
   return static_cast<std::int64_t>(info.publicNonVirtualOffset);
 }
 

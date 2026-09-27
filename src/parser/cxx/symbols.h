@@ -31,13 +31,13 @@
 #include <cxx/types_fwd.h>
 
 #include <algorithm>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <ranges>
 #include <span>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -57,7 +57,6 @@ struct InstantiationError {
 
 class TemplateSpecialization {
  public:
-  Symbol* templateSymbol = nullptr;
   std::vector<TemplateArgument> arguments;
   Symbol* symbol = nullptr;
   std::vector<InstantiationError> instantiationErrors;
@@ -71,39 +70,20 @@ struct TemplateFriendship {
   ClassSymbol* befriendingClass = nullptr;
 };
 
-struct PendingBodyInstantiation {
-  FunctionDefinitionAST* originalDefinition = nullptr;
-  std::vector<TemplateArgument> templateArguments;
-  ScopeSymbol* parentScope = nullptr;
-  int depth = 0;
-};
-
-struct PendingFieldInitializerInstantiation {
-  TranslationUnit* unit = nullptr;
-  InitDeclaratorAST* pattern = nullptr;
-  InitDeclaratorAST* instance = nullptr;
-  SpecifierAST* typeSpecifier = nullptr;
-  std::vector<TemplateArgument> templateArguments;
-  ScopeSymbol* parentScope = nullptr;
-  int depth = 0;
-};
-
-enum class PendingExceptionSpecificationState {
+enum class PendingInstantiationState {
   kUnresolved,
   kResolving,
+  kRecursionDiagnosed,
   kResolved,
 };
 
-struct PendingExceptionSpecification {
-  NoexceptSpecifierAST* original = nullptr;
-  NoexceptSpecifierAST* instance = nullptr;
-  FunctionSymbol* originalFunction = nullptr;
+struct PendingInstantiation {
+  AST* pattern = nullptr;
+  AST* instance = nullptr;
   std::vector<TemplateArgument> templateArguments;
   ScopeSymbol* parentScope = nullptr;
   int depth = 0;
-  PendingExceptionSpecificationState state =
-      PendingExceptionSpecificationState::kUnresolved;
-  bool recursionDiagnosed = false;
+  PendingInstantiationState state = PendingInstantiationState::kUnresolved;
 };
 
 [[nodiscard]] auto compare_single_arg(TranslationUnit* unit,
@@ -111,8 +91,8 @@ struct PendingExceptionSpecification {
                                       const TemplateArgument& rhs) -> bool;
 
 [[nodiscard]] auto compare_args(TranslationUnit* unit,
-                                const std::vector<TemplateArgument>& args1,
-                                const std::vector<TemplateArgument>& args2)
+                                std::span<const TemplateArgument> args1,
+                                std::span<const TemplateArgument> args2)
     -> bool;
 
 [[nodiscard]] auto expand_template_arguments(
@@ -145,14 +125,13 @@ struct ExpandedTemplateArgument {
 
 [[nodiscard]] auto class_template_of(ClassSymbol* classSymbol) -> ClassSymbol*;
 
-[[nodiscard]] auto class_template_arguments(ClassSymbol* classSymbol)
-    -> std::vector<TemplateArgument>;
-
 [[nodiscard]] auto template_name_symbol(Symbol* symbol) -> Symbol*;
 
 [[nodiscard]] auto templated_symbol(Symbol* symbol) -> Symbol*;
 
 [[nodiscard]] auto resolve_using_declaration(Symbol* symbol) -> Symbol*;
+
+[[nodiscard]] auto names_functions(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto resolve_namespace_alias(Symbol* symbol) -> NamespaceSymbol*;
 
@@ -162,14 +141,55 @@ void add_extern_instantiation_declaration(
 [[nodiscard]] auto template_declaration_of(Symbol* symbol)
     -> TemplateDeclarationAST*;
 
+[[nodiscard]] auto find_specialization(
+    TranslationUnit* unit, Symbol* templateSymbol,
+    std::span<const TemplateArgument> arguments) -> Symbol*;
+
+[[nodiscard]] auto specialization_entry_of(Symbol* templateSymbol,
+                                           Symbol* specialization)
+    -> TemplateSpecialization*;
+
 [[nodiscard]] auto template_parameters_of(Symbol* symbol)
     -> TemplateParametersSymbol*;
+
+[[nodiscard]] auto template_arguments_of(Symbol* symbol)
+    -> std::span<const TemplateArgument>;
+
+[[nodiscard]] auto primary_template_of(Symbol* symbol) -> Symbol*;
+
+[[nodiscard]] auto pretty_function_name(FunctionSymbol* function)
+    -> std::string;
 
 [[nodiscard]] auto template_declaration_ast(Symbol* symbol) -> AST*;
 
 [[nodiscard]] auto is_member_template(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto is_templated_class(ClassSymbol* classSymbol) -> bool;
+
+[[nodiscard]] auto anonymous_member_class(FieldSymbol* field) -> ClassSymbol*;
+
+[[nodiscard]] auto resolved_base_class(BaseClassSymbol* baseClass)
+    -> ClassSymbol*;
+
+[[nodiscard]] auto virtual_base_initialization_order(ClassSymbol* classSymbol)
+    -> std::vector<ClassSymbol*>;
+
+[[nodiscard]] auto is_anonymous_union_member(FieldSymbol* field) -> bool;
+
+[[nodiscard]] auto has_variant_members(ClassSymbol* classSymbol) -> bool;
+
+[[nodiscard]] auto is_inline_or_templated(FunctionSymbol* function) -> bool;
+
+[[nodiscard]] auto has_static_storage_duration(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto closure_mangling_context(ClassSymbol* closure)
+    -> FunctionSymbol*;
+
+[[nodiscard]] auto type_has_internal_linkage(const Type* type) -> bool;
+
+[[nodiscard]] auto is_specialized_on_internal_type(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_declared_with_internal_type(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto is_unnamed_namespace(Symbol* symbol) -> bool;
 
@@ -180,6 +200,11 @@ void add_extern_instantiation_declaration(
 [[nodiscard]] auto has_internal_linkage(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto is_non_static_member(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto introduces_variable(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_function_local_predefined_variable(Symbol* symbol)
+    -> bool;
 
 [[nodiscard]] auto required_parameter_count(FunctionSymbol* function,
                                             int parameterCount) -> int;
@@ -218,12 +243,48 @@ class MaybeDefaultTemplateArgument {
   TemplateParameterAST* defaultArgument_ = nullptr;
 };
 
+class SpecializationTable {
+ public:
+  [[nodiscard]] auto entries() const
+      -> std::span<const TemplateSpecialization> {
+    return entries_;
+  }
+
+  [[nodiscard]] auto find(TranslationUnit* unit,
+                          std::span<const TemplateArgument> arguments) const
+      -> Symbol*;
+
+  [[nodiscard]] auto entryOf(const Symbol* specialization)
+      -> TemplateSpecialization*;
+
+  [[nodiscard]] auto add(TranslationUnit* unit,
+                         std::vector<TemplateArgument> arguments,
+                         Symbol* specialization) -> std::size_t;
+
+  void restore(TemplateSpecialization specialization);
+
+ private:
+  [[nodiscard]] auto findIndex(TranslationUnit* unit,
+                               std::span<const TemplateArgument> arguments,
+                               const Symbol* specialization) const
+      -> std::optional<std::size_t>;
+
+  [[nodiscard]] auto matches(TranslationUnit* unit, std::size_t index,
+                             std::span<const TemplateArgument> arguments,
+                             const Symbol* specialization) const -> bool;
+
+  void index(std::size_t index);
+
+  std::vector<TemplateSpecialization> entries_;
+  std::unordered_map<std::size_t, std::vector<std::uint32_t>> byArguments_;
+  std::vector<std::uint32_t> unkeyed_;
+};
+
 template <typename S>
 class MaybeRedecl {
  public:
   [[nodiscard]] auto canonical() const -> S* {
-    return canonical_ ? canonical_
-                      : const_cast<S*>(static_cast<const S*>(this));
+    return canonical_ ? canonical_ : self();
   }
 
   [[nodiscard]] auto canonicalOrNull() const -> S* { return canonical_; }
@@ -233,8 +294,7 @@ class MaybeRedecl {
   [[nodiscard]] auto definition() const -> S* { return definition_; }
 
   [[nodiscard]] auto resolvedDefinition() const -> S* {
-    return definition_ ? definition_
-                       : const_cast<S*>(static_cast<const S*>(this));
+    return definition_ ? definition_ : self();
   }
 
   void setDefinition(S* definition) { definition_ = definition; }
@@ -244,23 +304,19 @@ class MaybeRedecl {
   }
 
   [[nodiscard]] auto declarations() const -> std::vector<S*> {
-    auto self = canonical();
-    std::vector<S*> result;
-    result.reserve(self->redeclarations_.size() + 1);
-    result.push_back(self);
-    for (auto redeclaration : self->redeclarations_)
-      result.push_back(redeclaration);
+    auto first = canonical();
+    std::vector<S*> result{first};
+    std::ranges::copy(first->redeclarations_, std::back_inserter(result));
     return result;
   }
 
   void addRedeclaration(S* redecl) {
-    auto self = static_cast<S*>(this);
-    if (!redecl || redecl == self) cxx_runtime_error("invalid redeclaration");
+    if (!redecl || redecl == self()) cxx_runtime_error("invalid redeclaration");
     if (canonical_)
       cxx_runtime_error("addRedeclaration called on non-canonical symbol");
-    if (std::ranges::find(redeclarations_, redecl) != redeclarations_.end())
+    if (std::ranges::contains(redeclarations_, redecl))
       cxx_runtime_error("duplicate redeclaration");
-    redecl->setCanonical(self);
+    redecl->setCanonical(self());
     redeclarations_.push_back(redecl);
   }
 
@@ -272,6 +328,10 @@ class MaybeRedecl {
   }
 
  private:
+  [[nodiscard]] auto self() const -> S* {
+    return const_cast<S*>(static_cast<const S*>(this));
+  }
+
   S* canonical_ = nullptr;
   S* definition_ = nullptr;
   std::vector<S*> redeclarations_;
@@ -279,245 +339,169 @@ class MaybeRedecl {
 
 template <typename S, typename D>
 class MaybeTemplate {
-  struct Template {
-    std::vector<TemplateSpecialization> specializations_;
-    std::unordered_map<std::size_t, std::vector<std::uint32_t>>
-        specializationsByArguments_;
-    std::vector<std::uint32_t> unkeyedSpecializations_;
-    TemplateDeclarationAST* templateDeclaration_ = nullptr;
-    TemplateParametersSymbol* templateParameters_ = nullptr;
-    std::vector<std::vector<TemplateArgument>> externInstantiationDeclarations_;
+  struct TemplateData {
+    SpecializationTable specializations;
+    mutable std::optional<std::vector<std::size_t>> declaredSpecializations;
+    std::vector<std::vector<TemplateArgument>> externInstantiationDeclarations;
+    TemplateDeclarationAST* templateDeclaration = nullptr;
+    TemplateParametersSymbol* templateParameters = nullptr;
+    S* primaryTemplateSymbol = nullptr;
+    int specializationIndex = 0;
   };
 
-  struct TemplateSpecializationRef {
-    S* primaryTemplateSymbol_ = nullptr;
-    int templateSepcializationIndex_ = 0;
-  };
-
-  struct TemplateData : Template, TemplateSpecializationRef {};
-
  public:
-  [[nodiscard]] auto findSpecialization(
-      TranslationUnit* unit,
-      const std::vector<TemplateArgument>& arguments) const -> Symbol* {
-    if (!template_) return nullptr;
+  [[nodiscard]] auto declaration() const -> D* { return declaration_; }
 
-    auto match = [&](std::uint32_t index) -> Symbol* {
-      const auto& specialization = template_->specializations_[index];
-      const std::vector<TemplateArgument>& args = specialization.arguments;
-      if (args == arguments) return specialization.symbol;
-      if (args.size() != arguments.size()) return nullptr;
-      if (compare_args(unit, args, arguments)) return specialization.symbol;
-      return nullptr;
-    };
-
-    auto key = hash_template_arguments(arguments);
-
-    if (!key.has_value()) {
-      for (std::uint32_t i = 0; i < template_->specializations_.size(); ++i) {
-        if (auto found = match(i)) return found;
-      }
-      return nullptr;
-    }
-
-    if (auto it = template_->specializationsByArguments_.find(*key);
-        it != template_->specializationsByArguments_.end()) {
-      for (auto index : it->second) {
-        if (auto found = match(index)) return found;
-      }
-    }
-
-    for (auto index : template_->unkeyedSpecializations_) {
-      if (auto found = match(index)) return found;
-    }
-
-    return nullptr;
-  }
-
- private:
-  void indexSpecialization(std::uint32_t index) {
-    auto key =
-        hash_template_arguments(template_->specializations_[index].arguments);
-    if (key.has_value())
-      template_->specializationsByArguments_[*key].push_back(index);
-    else
-      template_->unkeyedSpecializations_.push_back(index);
-  }
-
- public:
-  void setPendingInstantiation(S* specialization,
-                               List<TemplateArgumentAST*>* argumentList,
-                               SourceLocation location, bool isPending) {
-    for (auto& entry : mutableSpecializations()) {
-      if (entry.symbol != specialization) continue;
-      entry.pendingArgumentList = argumentList;
-      entry.pendingInstantiationLoc = location;
-      entry.isPendingInstantiation = isPending;
-      return;
-    }
-  }
-
-  void clearPendingInstantiation(S* specialization) {
-    setPendingInstantiation(specialization, nullptr, {}, false);
-  }
+  void setDeclaration(D* ast) { declaration_ = ast; }
 
   [[nodiscard]] auto templateDeclaration() const -> TemplateDeclarationAST* {
-    if (!template_) return nullptr;
-    return template_->templateDeclaration_;
+    return template_ ? template_->templateDeclaration : nullptr;
   }
 
   void setTemplateDeclaration(TemplateDeclarationAST* templateDeclaration) {
-    ensure_template();
-    template_->templateDeclaration_ = templateDeclaration;
+    ensureTemplate().templateDeclaration = templateDeclaration;
+    if (auto primary = primaryTemplateSymbol())
+      primary->ensureTemplate().declaredSpecializations.reset();
   }
 
   [[nodiscard]] auto templateParameters() const -> TemplateParametersSymbol* {
-    if (!template_) return nullptr;
-    return template_->templateParameters_;
+    return template_ ? template_->templateParameters : nullptr;
   }
 
   void setTemplateParameters(TemplateParametersSymbol* templateParameters) {
-    ensure_template();
-    template_->templateParameters_ = templateParameters;
+    ensureTemplate().templateParameters = templateParameters;
+  }
+
+  [[nodiscard]] auto primaryTemplateSymbol() const -> S* {
+    return template_ ? template_->primaryTemplateSymbol : nullptr;
+  }
+
+  [[nodiscard]] auto templateSpecializationIndex() const -> int {
+    return template_ ? template_->specializationIndex : 0;
   }
 
   [[nodiscard]] auto isSpecialization() const -> bool {
-    if (!template_) return false;
-    return template_->primaryTemplateSymbol_ != nullptr;
+    return primaryTemplateSymbol() != nullptr;
   }
 
   [[nodiscard]] auto isTemplatePattern() const -> bool {
     return templateParameters() != nullptr && !isSpecialization();
   }
 
-  void addSpecialization(TranslationUnit* unit,
-                         std::vector<TemplateArgument> arguments,
-                         S* specialization) {
-    ensure_template();
-
-    for (std::size_t i = 0; i < template_->specializations_.size(); ++i) {
-      const auto& existing = template_->specializations_[i];
-      if (existing.symbol != specialization) continue;
-      if (existing.arguments.size() != arguments.size()) continue;
-      if (existing.arguments != arguments &&
-          !compare_args(unit, existing.arguments, arguments))
-        continue;
-      specialization->setSpecializationInfo(static_cast<S*>(this), i);
-      return;
-    }
-
-    auto index = int(template_->specializations_.size());
-
-    specialization->setSpecializationInfo(static_cast<S*>(this), index);
-
-    template_->specializations_.push_back({template_->primaryTemplateSymbol_,
-                                           std::move(arguments),
-                                           specialization});
-    indexSpecialization(static_cast<std::uint32_t>(index));
+  [[nodiscard]] auto templateArguments() const
+      -> std::span<const TemplateArgument> {
+    auto primary = primaryTemplateSymbol();
+    if (!primary) return {};
+    return primary->specializations()[templateSpecializationIndex()].arguments;
   }
-
-  /**
-   * Restores a specialization exactly as it was recorded. Going through
-   * `addSpecialization` would re-run argument comparison against a graph that
-   * is still being fixed up and can drop an entry, which shifts every later
-   * specialization index (7.6).
-   */
-  void restoreSpecialization(TemplateSpecialization specialization) {
-    ensure_template();
-    template_->specializations_.push_back(std::move(specialization));
-    indexSpecialization(
-        static_cast<std::uint32_t>(template_->specializations_.size() - 1));
-  }
-
-  void restoreSpecializationInfo(S* primaryTemplateSymbol, int index) {
-    ensure_template();
-    template_->primaryTemplateSymbol_ = primaryTemplateSymbol;
-    template_->templateSepcializationIndex_ = index;
-  }
-
-  [[nodiscard]] auto declaration() const -> D* { return declaration_; }
-
-  void setDeclaration(D* ast) { declaration_ = ast; }
 
   [[nodiscard]] auto specializations() const
       -> std::span<const TemplateSpecialization> {
     if (!template_) return {};
-    return template_->specializations_;
+    return template_->specializations.entries();
   }
 
-  [[nodiscard]] auto mutableSpecializations()
-      -> std::span<TemplateSpecialization> {
-    if (!template_) return {};
-    return template_->specializations_;
+  [[nodiscard]] auto findSpecialization(
+      TranslationUnit* unit, std::span<const TemplateArgument> arguments) const
+      -> Symbol* {
+    if (!template_) return nullptr;
+    return template_->specializations.find(unit, arguments);
   }
-  [[nodiscard]] auto templateArguments() const
-      -> std::span<const TemplateArgument> {
-    if (!template_) return {};
-    if (!template_->primaryTemplateSymbol_) return {};
 
-    return template_->primaryTemplateSymbol_
-        ->specializations()[template_->templateSepcializationIndex_]
-        .arguments;
+  [[nodiscard]] auto declaredSpecializations() const
+      -> std::vector<TemplateSpecialization> {
+    if (!template_) return {};
+    auto& indices = template_->declaredSpecializations;
+    auto entries = specializations();
+    if (!indices) {
+      indices.emplace();
+      for (std::size_t index = 0; index < entries.size(); ++index) {
+        auto symbol = static_cast<S*>(entries[index].symbol);
+        if constexpr (std::is_same_v<S, ClassSymbol>)
+          symbol = symbol->resolvedDefinition();
+        if (symbol->templateDeclaration()) indices->push_back(index);
+      }
+    }
+    std::vector<TemplateSpecialization> result;
+    result.reserve(indices->size());
+    for (auto index : *indices) result.push_back(entries[index]);
+    return result;
+  }
+
+  [[nodiscard]] auto specializationEntry(const Symbol* specialization)
+      -> TemplateSpecialization* {
+    if (!template_) return nullptr;
+    return template_->specializations.entryOf(specialization);
+  }
+
+  void addSpecialization(TranslationUnit* unit,
+                         std::vector<TemplateArgument> arguments,
+                         S* specialization) {
+    auto index = ensureTemplate().specializations.add(
+        unit, std::move(arguments), specialization);
+    specialization->restoreSpecializationInfo(static_cast<S*>(this),
+                                              static_cast<int>(index));
+  }
+
+  void restoreSpecialization(TemplateSpecialization specialization) {
+    ensureTemplate().specializations.restore(std::move(specialization));
+    template_->declaredSpecializations.reset();
+  }
+
+  void restoreSpecializationInfo(S* primaryTemplateSymbol, int index) {
+    auto& data = ensureTemplate();
+    data.primaryTemplateSymbol = primaryTemplateSymbol;
+    data.specializationIndex = index;
+    if (primaryTemplateSymbol && data.templateDeclaration)
+      primaryTemplateSymbol->ensureTemplate().declaredSpecializations.reset();
+  }
+
+  void setPendingInstantiation(S* specialization,
+                               List<TemplateArgumentAST*>* argumentList,
+                               SourceLocation location, bool isPending) {
+    auto entry = specializationEntry(specialization);
+    if (!entry) return;
+    entry->pendingArgumentList = argumentList;
+    entry->pendingInstantiationLoc = location;
+    entry->isPendingInstantiation = isPending;
+  }
+
+  void clearPendingInstantiation(S* specialization) {
+    setPendingInstantiation(specialization, nullptr, {}, false);
   }
 
   void addExternInstantiationDeclaration(
       std::vector<TemplateArgument> arguments) {
-    ensure_template();
-    template_->externInstantiationDeclarations_.push_back(std::move(arguments));
+    ensureTemplate().externInstantiationDeclarations.push_back(
+        std::move(arguments));
   }
 
   [[nodiscard]] auto externInstantiationDeclarations() const
       -> std::span<const std::vector<TemplateArgument>> {
     if (!template_) return {};
-    return template_->externInstantiationDeclarations_;
+    return template_->externInstantiationDeclarations;
   }
 
   [[nodiscard]] auto isExternInstantiationDeclared(
       TranslationUnit* unit, std::span<const TemplateArgument> arguments) const
       -> bool {
-    if (!template_) return false;
-    for (const auto& args : template_->externInstantiationDeclarations_) {
-      if (args.size() != arguments.size()) continue;
-      if (std::equal(args.begin(), args.end(), arguments.begin()) ||
-          compare_args(unit, args,
-                       std::vector<TemplateArgument>(arguments.begin(),
-                                                     arguments.end())))
-        return true;
-    }
-    return false;
+    return std::ranges::any_of(externInstantiationDeclarations(),
+                               [&](const auto& declared) {
+                                 return compare_args(unit, declared, arguments);
+                               });
   }
 
   [[nodiscard]] auto isExplicitInstantiationDeclared(
       TranslationUnit* unit) const -> bool {
-    if (!isSpecialization()) return false;
     auto primary = primaryTemplateSymbol();
     if (!primary) return false;
     return primary->isExternInstantiationDeclared(unit, templateArguments());
   }
 
-  [[nodiscard]] auto primaryTemplateSymbol() const -> S* {
-    if (!template_) return nullptr;
-    return template_->primaryTemplateSymbol_;
-  }
-
  private:
-  void setSpecializationInfo(S* primaryTemplateSymbol, std::size_t index) {
-    ensure_template();
-    template_->primaryTemplateSymbol_ = primaryTemplateSymbol;
-    template_->templateSepcializationIndex_ = index;
-  }
-
- public:
-  [[nodiscard]] auto templateSpecializationIndex() const -> int {
-    if (!template_) return 0;
-    return template_->templateSepcializationIndex_;
-  }
-
- private:
- private:
-  void ensure_template() {
-    if (template_) return;
-    template_ = std::make_unique<TemplateData>();
+  [[nodiscard]] auto ensureTemplate() -> TemplateData& {
+    if (!template_) template_ = std::make_unique<TemplateData>();
+    return *template_;
   }
 
   std::unique_ptr<TemplateData> template_;
@@ -636,6 +620,13 @@ class Symbol {
 
   [[nodiscard]] auto definition() const -> Symbol*;
 
+  [[nodiscard]] auto instantiationPattern() const -> Symbol* {
+    return instantiationPattern_;
+  }
+  void setInstantiationPattern(Symbol* instantiationPattern) {
+    instantiationPattern_ = instantiationPattern;
+  }
+
 #define PROCESS_SYMBOL(S) \
   [[nodiscard]] auto is##S() const -> bool { return kind_ == SymbolKind::k##S; }
   CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
@@ -670,6 +661,7 @@ class Symbol {
   const Type* type_ = nullptr;
   ScopeSymbol* parent_ = nullptr;
   Symbol* link_ = nullptr;
+  Symbol* instantiationPattern_ = nullptr;
   const std::vector<const Identifier*>* abiTags_ = nullptr;
   const AttributeMap* attributes_ = nullptr;
   SourceLocation location_;
@@ -816,8 +808,17 @@ class ClassLayout {
   [[nodiscard]] auto getBaseInfo(ClassSymbol* base) const
       -> std::optional<MemberInfo>;
 
+  [[nodiscard]] auto getVirtualBaseInfo(ClassSymbol* base) const
+      -> std::optional<MemberInfo>;
+
+  [[nodiscard]] auto getBaseInfo(ClassSymbol* base, bool isVirtual) const
+      -> std::optional<MemberInfo> {
+    return isVirtual ? getVirtualBaseInfo(base) : getBaseInfo(base);
+  }
+
   void setFieldInfo(FieldSymbol* field, const MemberInfo& info);
   void setBaseInfo(ClassSymbol* base, const MemberInfo& info);
+  void setVirtualBaseInfo(ClassSymbol* base, const MemberInfo& info);
 
   /**
    * The layout tables in member order. The maps themselves are unordered, and
@@ -832,6 +833,11 @@ class ClassLayout {
   [[nodiscard]] auto sortedBaseInfos() const
       -> std::vector<std::pair<ClassSymbol*, MemberInfo>> {
     return sortedByIndex(bases_);
+  }
+
+  [[nodiscard]] auto sortedVirtualBaseInfos() const
+      -> std::vector<std::pair<ClassSymbol*, MemberInfo>> {
+    return sortedByIndex(virtualBaseInfos_);
   }
 
   void addVirtualBase(ClassSymbol* base) { virtualBases_.push_back(base); }
@@ -920,6 +926,7 @@ class ClassLayout {
 
   std::unordered_map<FieldSymbol*, MemberInfo> fields_;
   std::unordered_map<ClassSymbol*, MemberInfo> bases_;
+  std::unordered_map<ClassSymbol*, MemberInfo> virtualBaseInfos_;
   std::vector<ClassSymbol*> virtualBases_;
   std::vector<PaddingInfo> padding_;
   std::uint64_t size_ = 0;
@@ -943,36 +950,91 @@ class VTableLayout {
     kDeletingDtor,
   };
 
+  struct CallOffset {
+    std::int64_t nonVirtual = 0;
+    std::int64_t virtualOffset = 0;
+
+    [[nodiscard]] auto isEmpty() const -> bool {
+      return nonVirtual == 0 && virtualOffset == 0;
+    }
+  };
+
   struct Slot {
     FunctionSymbol* function = nullptr;
     SlotKind kind = SlotKind::kFunction;
     FunctionSymbol* introducingFunction = nullptr;
-    ClassSymbol* vcallBase = nullptr;
-    std::int64_t thisAdjustment = 0;
-    int vcallOffsetIndex = -1;
-    bool usesVcallOffset = false;
+    CallOffset thisAdjustment;
+    CallOffset returnAdjustment;
   };
 
-  struct Group {
+  struct Offset {
+    Symbol* subject = nullptr;
+    std::int64_t value = 0;
+  };
+
+  struct Table {
     ClassSymbol* base = nullptr;
     std::uint64_t offset = 0;
-    std::vector<std::pair<ClassSymbol*, std::int64_t>> vbaseOffsets;
-    std::vector<std::pair<FunctionSymbol*, std::int64_t>> vcallOffsets;
+    ClassSymbol* enclosingVirtualBase = nullptr;
+    std::int64_t offsetToTop = 0;
+    std::vector<Offset> offsets;
     std::vector<Slot> slots;
 
     [[nodiscard]] auto headerWordCount() const -> std::size_t {
-      return vbaseOffsets.size() + vcallOffsets.size() + 2;
+      return offsets.size() + 2;
     }
 
     [[nodiscard]] auto wordCount() const -> std::size_t {
       return headerWordCount() + slots.size();
     }
+
+    [[nodiscard]] auto offsetWordsBeforeAddressPoint(Symbol* subject) const
+        -> std::int64_t;
   };
 
-  Group primary;
-  Group virtualBasePrimary;
-  std::vector<Group> secondary;
+  struct Group {
+    ClassSymbol* base = nullptr;
+    std::uint64_t offset = 0;
+    std::vector<Table> tables;
+
+    [[nodiscard]] auto wordCount() const -> std::size_t;
+    [[nodiscard]] auto addressPointIndex(std::size_t table) const
+        -> std::size_t;
+    [[nodiscard]] auto tableAt(std::uint64_t offset) const -> int;
+  };
+
+  struct EntryPoint {
+    FunctionSymbol* function = nullptr;
+    SlotKind kind = SlotKind::kFunction;
+    CallOffset thisAdjustment;
+    CallOffset returnAdjustment;
+  };
+
+  struct VTTEntry {
+    std::int32_t group = -1;
+    std::uint32_t table = 0;
+  };
+
+  struct SubVTT {
+    ClassSymbol* base = nullptr;
+    std::uint32_t index = 0;
+  };
+
+  Group main;
+  std::vector<Group> constructionGroups;
+  std::vector<VTTEntry> vtt;
+  std::vector<std::int32_t> tableVTTIndices;
+  std::vector<SubVTT> baseSubVTTs;
+  std::vector<SubVTT> virtualBaseSubVTTs;
+  std::vector<EntryPoint> adjustingEntryPoints;
   FunctionSymbol* keyFunction = nullptr;
+
+  [[nodiscard]] auto primary() const -> const Table& {
+    return main.tables.front();
+  }
+
+  [[nodiscard]] auto finalOverrider(FunctionSymbol* function) const
+      -> FunctionSymbol*;
 };
 
 class BaseClassSymbol final : public Symbol {
@@ -1024,14 +1086,7 @@ class ClassSymbol final : public ScopeSymbol,
   constexpr static auto Kind = SymbolKind::kClass;
 
   using MaybeRedecl<ClassSymbol>::canonical;
-  using MaybeRedecl<ClassSymbol>::setCanonical;
   using MaybeRedecl<ClassSymbol>::definition;
-  using MaybeRedecl<ClassSymbol>::resolvedDefinition;
-  using MaybeRedecl<ClassSymbol>::setDefinition;
-  using MaybeRedecl<ClassSymbol>::redeclarations;
-  using MaybeRedecl<ClassSymbol>::declarations;
-  using MaybeRedecl<ClassSymbol>::addRedeclaration;
-  using MaybeRedecl<ClassSymbol>::truncateRedeclarations;
 
   void setInstantiationSubstitution(int depth,
                                     std::vector<TemplateArgument> arguments) {
@@ -1156,16 +1211,19 @@ class ClassSymbol final : public ScopeSymbol,
   }
 
   struct BaseSubobjectInfo {
-    int pathCount = 0;
-    int nonVirtualPathCount = 0;
+    std::uint32_t subobjectCount = 0;
+    std::uint32_t nonVirtualSubobjectCount = 0;
     std::uint64_t nonVirtualOffset = 0;
-    int publicPathCount = 0;
-    bool anyPublicPathIsVirtual = false;
+    std::uint32_t publicSubobjectCount = 0;
+    std::uint32_t publicNonVirtualSubobjectCount = 0;
     std::uint64_t publicNonVirtualOffset = 0;
 
     [[nodiscard]] auto isUniqueSubobject() const -> bool {
-      if (pathCount > nonVirtualPathCount) return nonVirtualPathCount == 0;
-      return nonVirtualPathCount == 1;
+      return subobjectCount == 1;
+    }
+
+    [[nodiscard]] auto hasPublicSubobjectInVirtualBase() const -> bool {
+      return publicSubobjectCount > publicNonVirtualSubobjectCount;
     }
   };
 
@@ -1206,27 +1264,17 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto capturedThisField() const -> FieldSymbol*;
   void setCapturedThisField(FieldSymbol* capturedThisField);
 
+  [[nodiscard]] auto functionCallOperator() const -> FunctionSymbol*;
+
   [[nodiscard]] auto closureDiscriminator() const -> int;
   void setClosureDiscriminator(int closureDiscriminator);
 
-  [[nodiscard]] auto instantiationPattern() const -> ClassSymbol*;
-  void setInstantiationPattern(ClassSymbol* instantiationPattern);
-
   [[nodiscard]] auto instantiationTemplate() const -> ClassSymbol*;
-
- private:
-  [[nodiscard]] auto hasBaseClass(const Symbol* symbol,
-                                  std::unordered_set<const ClassSymbol*>&) const
-      -> bool;
-
-  [[nodiscard]] auto hasVirtualBasePath(
-      Symbol* symbol, std::unordered_set<const ClassSymbol*>&) const -> bool;
 
  private:
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<ClassSymbol*> befriendingClasses_;
   std::vector<TemplateFriendship> templateFriendships_;
-  ClassSymbol* instantiationPattern_ = nullptr;
   std::vector<TemplateArgument> instantiationSubstitutionArguments_;
   int instantiationSubstitutionDepth_ = -1;
   OverloadSetSymbol* constructorOverloadSet_ = nullptr;
@@ -1305,14 +1353,7 @@ class FunctionSymbol final
   constexpr static auto Kind = SymbolKind::kFunction;
 
   using MaybeRedecl<FunctionSymbol>::canonical;
-  using MaybeRedecl<FunctionSymbol>::setCanonical;
   using MaybeRedecl<FunctionSymbol>::definition;
-  using MaybeRedecl<FunctionSymbol>::resolvedDefinition;
-  using MaybeRedecl<FunctionSymbol>::setDefinition;
-  using MaybeRedecl<FunctionSymbol>::redeclarations;
-  using MaybeRedecl<FunctionSymbol>::declarations;
-  using MaybeRedecl<FunctionSymbol>::addRedeclaration;
-  using MaybeRedecl<FunctionSymbol>::truncateRedeclarations;
 
   explicit FunctionSymbol(ScopeSymbol* enclosingScope);
   ~FunctionSymbol() override;
@@ -1332,6 +1373,10 @@ class FunctionSymbol final
   void setFriend(bool isFriend);
 
   [[nodiscard]] auto isImplicitObjectMemberFunction() const -> bool;
+
+  [[nodiscard]] auto isNonStaticMemberFunction() const -> bool;
+
+  [[nodiscard]] auto hasImplicitObjectParameter() const -> bool;
 
   [[nodiscard]] auto hasExplicitObjectParameter() const -> bool;
   void setExplicitObjectParameter(bool hasExplicitObjectParameter);
@@ -1416,14 +1461,21 @@ class FunctionSymbol final
 
   [[nodiscard]] auto hasPendingBody() const -> bool;
   [[nodiscard]] auto hasUninstantiatedBody() const -> bool;
-  [[nodiscard]] auto pendingBody() const -> PendingBodyInstantiation*;
-  void setPendingBody(std::unique_ptr<PendingBodyInstantiation> pending);
+  [[nodiscard]] auto pendingBody() const -> PendingInstantiation*;
+  void setPendingBody(std::unique_ptr<PendingInstantiation> pending);
   void clearPendingBody();
 
+  [[nodiscard]] auto hasDeferredImplicitExceptionSpecification() const -> bool {
+    return hasDeferredImplicitExceptionSpecification_;
+  }
+  void setDeferredImplicitExceptionSpecification(bool deferred) {
+    hasDeferredImplicitExceptionSpecification_ = deferred;
+  }
+
   [[nodiscard]] auto pendingExceptionSpecification() const
-      -> PendingExceptionSpecification*;
+      -> PendingInstantiation*;
   void setPendingExceptionSpecification(
-      std::unique_ptr<PendingExceptionSpecification> pending);
+      std::unique_ptr<PendingInstantiation> pending);
 
   [[nodiscard]] auto vtableSlotIndex() const -> int { return vtableSlotIndex_; }
   void setVtableSlotIndex(int index) { vtableSlotIndex_ = index; }
@@ -1522,8 +1574,8 @@ class FunctionSymbol final
   }
 
  private:
-  std::unique_ptr<PendingBodyInstantiation> pendingBody_;
-  std::unique_ptr<PendingExceptionSpecification> pendingExceptionSpecification_;
+  std::unique_ptr<PendingInstantiation> pendingBody_;
+  std::unique_ptr<PendingInstantiation> pendingExceptionSpecification_;
   ScopeSymbol* hostScope_ = nullptr;
   FunctionSymbol* completeObjectVariant_ = nullptr;
   FunctionSymbol* delegatingConstructor_ = nullptr;
@@ -1567,6 +1619,7 @@ class FunctionSymbol final
       std::uint32_t isNoReturn_ : 1;
       std::uint32_t hasFriendDefaultArgument_ : 1;
       std::uint32_t hasFriendDefaultTemplateArgument_ : 1;
+      std::uint32_t hasDeferredImplicitExceptionSpecification_ : 1;
     };
   };
 };
@@ -1591,6 +1644,8 @@ class OverloadSetSymbol final : public Symbol {
       -> const std::vector<UsingDeclarationSymbol*>&;
 
   void addUsingDeclaration(UsingDeclarationSymbol* usingDeclaration);
+
+  [[nodiscard]] auto hasUnresolvedUsingDeclaration() const -> bool;
 
  private:
   std::vector<FunctionSymbol*> declaredFunctions_;
@@ -1698,14 +1753,7 @@ class TypeAliasSymbol final
   constexpr static auto Kind = SymbolKind::kTypeAlias;
 
   using MaybeRedecl<TypeAliasSymbol>::canonical;
-  using MaybeRedecl<TypeAliasSymbol>::setCanonical;
   using MaybeRedecl<TypeAliasSymbol>::definition;
-  using MaybeRedecl<TypeAliasSymbol>::resolvedDefinition;
-  using MaybeRedecl<TypeAliasSymbol>::setDefinition;
-  using MaybeRedecl<TypeAliasSymbol>::redeclarations;
-  using MaybeRedecl<TypeAliasSymbol>::declarations;
-  using MaybeRedecl<TypeAliasSymbol>::addRedeclaration;
-  using MaybeRedecl<TypeAliasSymbol>::truncateRedeclarations;
 
   explicit TypeAliasSymbol(ScopeSymbol* enclosingScope);
   ~TypeAliasSymbol() override;
@@ -1728,14 +1776,7 @@ class VariableSymbol final
   constexpr static auto Kind = SymbolKind::kVariable;
 
   using MaybeRedecl<VariableSymbol>::canonical;
-  using MaybeRedecl<VariableSymbol>::setCanonical;
   using MaybeRedecl<VariableSymbol>::definition;
-  using MaybeRedecl<VariableSymbol>::resolvedDefinition;
-  using MaybeRedecl<VariableSymbol>::setDefinition;
-  using MaybeRedecl<VariableSymbol>::redeclarations;
-  using MaybeRedecl<VariableSymbol>::declarations;
-  using MaybeRedecl<VariableSymbol>::addRedeclaration;
-  using MaybeRedecl<VariableSymbol>::truncateRedeclarations;
 
   explicit VariableSymbol(ScopeSymbol* enclosingScope);
   ~VariableSymbol() override;
@@ -1757,6 +1798,9 @@ class VariableSymbol final
 
   [[nodiscard]] auto isInline() const -> bool;
   void setInline(bool isInline);
+
+  [[nodiscard]] auto isFunctionLocalPredefined() const -> bool;
+  void setFunctionLocalPredefined(bool isFunctionLocalPredefined);
 
   [[nodiscard]] auto initializer() const -> ExpressionAST*;
   void setInitializer(ExpressionAST*);
@@ -1785,6 +1829,7 @@ class VariableSymbol final
       std::uint32_t isConstexpr_ : 1;
       std::uint32_t isConstinit_ : 1;
       std::uint32_t isInline_ : 1;
+      std::uint32_t isFunctionLocalPredefined_ : 1;
     };
   };
 };
@@ -1836,6 +1881,12 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto alignment() const -> int;
   void setAlignment(int alignment);
 
+  [[nodiscard]] auto explicitAlignment() const -> int;
+  void setExplicitAlignment(int alignment);
+
+  [[nodiscard]] auto isPacked() const -> bool;
+  [[nodiscard]] auto effectiveAlignment() const -> int;
+
   [[nodiscard]] auto initializer() const -> ExpressionAST*;
   void setInitializer(ExpressionAST* initializer);
 
@@ -1864,15 +1915,13 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto hasInitializer() const -> bool {
     return initializer_ != nullptr || hasPendingInitializer();
   }
-  [[nodiscard]] auto pendingInitializer() const
-      -> PendingFieldInitializerInstantiation*;
-  void setPendingInitializer(
-      std::unique_ptr<PendingFieldInitializerInstantiation> pending);
+  [[nodiscard]] auto pendingInitializer() const -> PendingInstantiation*;
+  void setPendingInitializer(std::unique_ptr<PendingInstantiation> pending);
   void clearPendingInitializer();
 
  private:
   VariableSymbol* definition_ = nullptr;
-  std::unique_ptr<PendingFieldInitializerInstantiation> pendingInitializer_;
+  std::unique_ptr<PendingInstantiation> pendingInitializer_;
   std::optional<ConstValue> constValue_;
   union {
     std::uint32_t flags_{};
@@ -1890,6 +1939,7 @@ class FieldSymbol final : public Symbol {
   };
   int localOffset_{};
   int alignment_{};
+  int explicitAlignment_{};
   int bitFieldOffset_{};
   std::optional<ConstValue> bitFieldWidth_;
   ExpressionAST* initializer_ = nullptr;
@@ -1906,12 +1956,27 @@ class ParameterSymbol final : public Symbol {
   [[nodiscard]] auto defaultArgument() const -> ExpressionAST*;
   void setDefaultArgument(ExpressionAST* expr);
 
+  [[nodiscard]] auto hasDefaultArgument() const -> bool;
+
+  [[nodiscard]] auto pendingDefaultArgument() const -> PendingInstantiation*;
+  void setPendingDefaultArgument(std::unique_ptr<PendingInstantiation> pending);
+  void clearPendingDefaultArgument();
+
+  [[nodiscard]] auto defaultArgumentSource() const -> ParameterSymbol*;
+  void setDefaultArgumentSource(ParameterSymbol* source);
+
   [[nodiscard]] auto isExplicitObject() const -> bool;
   void setExplicitObject(bool isExplicitObject);
 
+  [[nodiscard]] auto isParameterPack() const -> bool;
+  void setParameterPack(bool isParameterPack);
+
  private:
   ExpressionAST* defaultArgument_ = nullptr;
+  std::unique_ptr<PendingInstantiation> pendingDefaultArgument_;
+  ParameterSymbol* defaultArgumentSource_ = nullptr;
   bool isExplicitObject_ = false;
+  bool isParameterPack_ = false;
 };
 
 class ParameterPackSymbol final : public Symbol {
@@ -2058,6 +2123,8 @@ class UsingDeclarationSymbol final : public Symbol {
 
   [[nodiscard]] auto introducedFunctions() const
       -> std::vector<FunctionSymbol*>;
+
+  [[nodiscard]] auto isUnresolved() const -> bool;
 
  private:
   Symbol* target_ = nullptr;

@@ -21,21 +21,19 @@
 #pragma once
 
 #include <cxx/toolchain.h>
+#include <cxx/triple.h>
 
 #include <memory>
-#include <optional>
 #include <string>
-#include <utility>
 
 namespace cxx {
 class CLI;
 class Preprocessor;
 
 struct TargetSelection {
+  Triple triple;
   std::string toolchain;
-  std::string arch;
-  std::string triple;
-  std::optional<std::pair<int, int>> osVersion;
+  bool requested = false;
   bool valid = true;
 };
 

@@ -118,6 +118,10 @@ std::vector<CLIOptionDescr> options{
      "Use <directory> as the root directory for headers and libraries",
      CLIOptionDescrKind::kJoined},
 
+    {"--sysroot", "<directory>",
+     "Use <directory> as the root directory for headers and libraries",
+     CLIOptionDescrKind::kSeparated},
+
     {"-isysroot", "<directory>",
      "Set the system root directory (usually used for SDK paths)",
      CLIOptionDescrKind::kSeparated},
@@ -133,6 +137,19 @@ std::vector<CLIOptionDescr> options{
      &CLI::opt_print_target_triple},
 
     {"-isystem", "<directory>", "Add directory to SYSTEM include search path",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-iwithsysroot", "<directory>",
+     "Add directory to SYSTEM include search path, absolute paths are "
+     "relative to -isysroot",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-stdlib", "<library>",
+     "C++ standard library to use, 'libc++' or 'libstdc++'",
+     CLIOptionDescrKind::kJoined},
+
+    {"-stdlib++-isystem", "<directory>",
+     "Use directory as the C++ standard library include path",
      CLIOptionDescrKind::kSeparated},
 
     {"-iquote", "<directory>", "Add directory to QUOTE include search path",
@@ -442,9 +459,10 @@ void CLI::parse(int& argc, char**& argv) {
       }
     }
 
-    auto it =
-        std::find_if(options.begin(), options.end(),
-                     [&](const CLIOptionDescr& o) { return o.option == arg; });
+    auto it = std::find_if(
+        options.begin(), options.end(), [&](const CLIOptionDescr& o) {
+          return o.kind != CLIOptionDescrKind::kJoined && o.option == arg;
+        });
 
     if (it != options.end()) {
       if (it->kind == CLIOptionDescrKind::kFlag) {

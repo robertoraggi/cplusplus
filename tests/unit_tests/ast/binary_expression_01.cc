@@ -2,7 +2,7 @@
 
 int a = 10;
 int b = 20;
-int c = 30;
+int d = 30;
 int c = a + b * c;
 
 // clang-format off
@@ -43,7 +43,7 @@ int c = a + b * c;
 // CHECK-NEXT:          declarator: declarator
 // CHECK-NEXT:            core-declarator: id-declarator
 // CHECK-NEXT:              unqualified-id: name-id
-// CHECK-NEXT:                identifier: c
+// CHECK-NEXT:                identifier: d
 // CHECK-NEXT:          initializer: equal-initializer [prvalue int]
 // CHECK-NEXT:            expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:              literal: 30

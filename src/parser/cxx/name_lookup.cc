@@ -370,6 +370,16 @@ auto qualifiedLookupNamespace(Symbol* scopeOrAlias, const Identifier* id)
   return lookupNamespaceHelper(base, id, visited);
 }
 
+auto lookupStandardLibraryType(TranslationUnit* unit, WellKnownName name)
+    -> Symbol* {
+  auto control = unit->control();
+  auto stdNamespace = qualifiedLookupNamespace(
+      unit->globalScope(), control->getIdentifier(WellKnownName::T_STD));
+  if (!stdNamespace) return nullptr;
+  return qualifiedLookup(stdNamespace, control->getIdentifier(name),
+                         [](Symbol* symbol) { return is_type(symbol); });
+}
+
 namespace {
 auto isContainedBy(NamespaceSymbol* ns, ScopeSymbol* scope) -> bool {
   for (auto parent = ns->parent(); parent; parent = parent->parent()) {
@@ -467,6 +477,38 @@ auto unqualifiedLookupNamespace(Scope* lexicalScope, const Identifier* id)
   return nullptr;
 }
 
+namespace {
+
+template <typename Predicate>
+[[nodiscard]] auto searchNonClassScope(Control* control, ScopeSymbol* scope,
+                                       const Name* name, Predicate accept,
+                                       std::vector<NamespaceSymbol*>& nominated,
+                                       std::vector<ScopeSymbol*>& visited,
+                                       bool* ambiguous) -> Symbol* {
+  collectActiveNominatedNamespaces(scope, nominated);
+
+  std::vector<Symbol*> found;
+
+  if (auto symbol = detail::searchScope(scope, name, visited, accept,
+                                        /*followUsingDirectives=*/false)) {
+    found.push_back(symbol);
+  }
+
+  for (auto ns : nominated) {
+    if (!isContainedBy(ns, scope)) continue;
+    if (auto symbol = detail::searchScope(ns, name, visited, accept,
+                                          /*followUsingDirectives=*/false)) {
+      found.push_back(symbol);
+    }
+  }
+
+  if (found.empty()) return nullptr;
+
+  return mergeDeclarations(control, scope, name, found, ambiguous);
+}
+
+}  // namespace
+
 auto unqualifiedLookupIncludingInlineNamespaces(Control* control,
                                                 Scope* lexicalScope,
                                                 const Name* name,
@@ -485,33 +527,40 @@ auto unqualifiedLookupIncludingInlineNamespaces(Control* control,
     auto scope = sc->symbol;
     if (!scope) continue;
 
-    collectActiveNominatedNamespaces(scope, nominated);
+    auto cls = symbol_cast<ClassSymbol>(scope);
 
-    std::vector<Symbol*> found;
-
-    if (auto cls = symbol_cast<ClassSymbol>(scope)) {
-      auto result = lookupClassMember(cls, name, accept);
-      if (result.ambiguous) {
-        if (ambiguous) *ambiguous = true;
-        return ambiguous ? result.symbol : nullptr;
-      }
-      if (result.symbol) found.push_back(result.symbol);
-    } else if (auto symbol =
-                   detail::searchScope(scope, name, visited, accept, false)) {
-      found.push_back(symbol);
+    if (!cls) {
+      if (auto symbol = searchNonClassScope(control, scope, name, accept,
+                                            nominated, visited, ambiguous))
+        return symbol;
+      continue;
     }
 
-    for (auto ns : nominated) {
-      if (!isContainedBy(ns, scope)) continue;
-      if (auto symbol = detail::searchScope(ns, name, visited, accept,
-                                            /*followUsingDirectives=*/false)) {
-        found.push_back(symbol);
-      }
+    auto result = lookupClassMember(cls, name, accept);
+    if (result.ambiguous) {
+      if (ambiguous) *ambiguous = true;
+      return ambiguous ? result.symbol : nullptr;
     }
+    if (result.symbol) return result.symbol;
+  }
 
-    if (found.empty()) continue;
+  return nullptr;
+}
 
-    return mergeDeclarations(control, scope, name, found, ambiguous);
+auto unqualifiedNonMemberLookup(Control* control, ScopeSymbol* scope,
+                                const Name* name) -> Symbol* {
+  if (!name) return nullptr;
+
+  auto accept = [](Symbol*) { return true; };
+
+  std::vector<NamespaceSymbol*> nominated;
+  std::vector<ScopeSymbol*> visited;
+
+  for (; scope; scope = scope->parent()) {
+    if (scope->isClass()) continue;
+    if (auto symbol = searchNonClassScope(control, scope, name, accept,
+                                          nominated, visited, nullptr))
+      return symbol;
   }
 
   return nullptr;
@@ -610,6 +659,14 @@ void addOverloadCandidate(std::vector<FunctionSymbol*>& candidates,
   candidates.push_back(canonical);
 }
 
+void addLookupCandidates(std::vector<FunctionSymbol*>& candidates,
+                         Symbol* found) {
+  for (auto function : views::each_function(found)) {
+    if (isPureFriend(function)) continue;
+    addOverloadCandidate(candidates, function);
+  }
+}
+
 auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
                              std::span<const Type* const> argumentTypes)
     -> std::vector<FunctionSymbol*> {
@@ -673,19 +730,6 @@ void declareGlobalFunction(TranslationUnit* unit, ScopeSymbol* globalScope,
 
 }  // namespace
 
-namespace {
-
-auto hasNewExtendedAlignment(TranslationUnit* unit, const Type* objectType)
-    -> bool {
-  if (!objectType) return false;
-  auto memoryLayout = unit->control()->memoryLayout();
-  auto alignment = memoryLayout->alignmentOf(objectType);
-  if (!alignment) return false;
-  return *alignment > memoryLayout->defaultNewAlignment();
-}
-
-}  // namespace
-
 auto deallocationSignatureOf(TranslationUnit* unit, FunctionSymbol* fn)
     -> std::optional<DeallocationSignature> {
   if (!fn) return std::nullopt;
@@ -733,30 +777,13 @@ auto deallocationSignatureOf(TranslationUnit* unit, FunctionSymbol* fn)
   return signature;
 }
 
-namespace {
-
-auto declareGlobalOperatorDelete(TranslationUnit* unit, const Name* name)
-    -> FunctionSymbol* {
-  auto control = unit->control();
-  auto globalScope = unit->globalScope();
-  auto voidType = control->getVoidType();
-  auto fn = control->newFunctionSymbol(globalScope, {});
-  fn->setName(name);
-  fn->setType(
-      control->getFunctionType(voidType, {control->getPointerType(voidType)}));
-  fn->setLanguageLinkage(LanguageKind::kCXX);
-  declareGlobalFunction(unit, globalScope, name, fn);
-  return fn;
-}
-
-}  // namespace
-
 auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
                                 const Type* objectType, bool isArrayDelete)
     -> FunctionSymbol* {
   auto control = unit->control();
-  auto name = control->getOperatorId(isArrayDelete ? TokenKind::T_DELETE_ARRAY
-                                                   : TokenKind::T_DELETE);
+  const auto op =
+      isArrayDelete ? TokenKind::T_DELETE_ARRAY : TokenKind::T_DELETE;
+  auto name = control->getOperatorId(op);
 
   std::vector<std::pair<FunctionSymbol*, DeallocationSignature>> candidates;
 
@@ -778,10 +805,8 @@ auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
   }
 
   if (!inClassScope) {
-    auto globalScope = unit->globalScope();
-    auto declarations = qualifiedLookup(globalScope, name);
-    if (!declarations) return declareGlobalOperatorDelete(unit, name);
-    collect(declarations);
+    declareImplicitAllocationFunctions(unit, op);
+    collect(qualifiedLookup(unit->globalScope(), name));
   }
 
   if (candidates.empty()) return nullptr;
@@ -796,7 +821,8 @@ auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
 
   (void)keepIf([](const DeallocationSignature& s) { return s.isDestroying; });
 
-  const auto overAligned = hasNewExtendedAlignment(unit, objectType);
+  const auto overAligned =
+      unit->typeTraits().has_new_extended_alignment(objectType);
   (void)keepIf([&](const DeallocationSignature& s) {
     return s.hasAlignment == overAligned;
   });
@@ -820,96 +846,71 @@ auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
   return candidates.front().first;
 }
 
-auto declareGlobalOperatorNew(TranslationUnit* unit, bool isArrayNew)
-    -> FunctionSymbol* {
-  auto control = unit->control();
-  auto name = control->getOperatorId(isArrayNew ? TokenKind::T_NEW_ARRAY
-                                                : TokenKind::T_NEW);
-
-  auto sizeType = control->getSizeType();
-  auto globalScope = unit->globalScope();
-
-  auto matches = [&](FunctionSymbol* fn) {
-    auto funcType = type_cast<FunctionType>(fn->type());
-    if (!funcType || funcType->parameterTypes().size() != 1) return false;
-    return unit->typeTraits().is_same(funcType->parameterTypes()[0], sizeType);
-  };
-
-  if (auto symbol = qualifiedLookup(globalScope, name)) {
-    if (auto fn = views::find_function(views::each_function(symbol), matches))
-      return fn;
-  }
-
-  auto voidType = control->getVoidType();
-  auto fn = control->newFunctionSymbol(globalScope, {});
-  fn->setName(name);
-  fn->setType(
-      control->getFunctionType(control->getPointerType(voidType), {sizeType}));
-  fn->setLanguageLinkage(LanguageKind::kCXX);
-  declareGlobalFunction(unit, globalScope, name, fn);
-  return fn;
-}
-
 namespace {
 
-auto findOrDeclareGlobalAllocationFunction(
-    TranslationUnit* unit, TokenKind op, const Type* returnType,
-    std::vector<const Type*> parameterTypes) -> FunctionSymbol* {
-  if (std::ranges::contains(parameterTypes, nullptr)) return nullptr;
+[[nodiscard]] auto isAvailableIn(TranslationUnit* unit,
+                                 const BuiltinSignature& signature) -> bool {
+  if (!contains(signature.flags, BuiltinFlags::kCplusplus)) return true;
+  return unit->language() == LanguageKind::kCXX;
+}
 
-  auto control = unit->control();
-  auto name = control->getOperatorId(op);
+[[nodiscard]] auto hasParameterTypes(FunctionSymbol* function,
+                                     const FunctionType* type) -> bool {
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType) return false;
+  return std::ranges::equal(functionType->parameterTypes(),
+                            type->parameterTypes());
+}
+
+[[nodiscard]] auto findGlobalFunction(TranslationUnit* unit, const Name* name,
+                                      const FunctionType* type)
+    -> FunctionSymbol* {
+  for (auto function :
+       views::each_function(qualifiedLookup(unit->globalScope(), name))) {
+    if (hasParameterTypes(function, type)) return function;
+  }
+  return nullptr;
+}
+
+auto declareBuiltinOverload(TranslationUnit* unit, const Name* name,
+                            const FunctionType* type, BuiltinFlags flags)
+    -> FunctionSymbol* {
   auto globalScope = unit->globalScope();
-
-  auto matches = [&](FunctionSymbol* fn) {
-    auto funcType = type_cast<FunctionType>(fn->type());
-    return funcType &&
-           std::ranges::equal(funcType->parameterTypes(), parameterTypes);
-  };
-
-  if (auto fn = views::find_function(globalScope->find(name), matches))
-    return fn;
-
-  auto fn = control->newFunctionSymbol(globalScope, {});
+  auto fn = unit->control()->newFunctionSymbol(globalScope, {});
   fn->setName(name);
-  fn->setType(control->getFunctionType(returnType, std::move(parameterTypes)));
-  fn->setLanguageLinkage(LanguageKind::kCXX);
+  fn->setType(type);
+  fn->setConstexpr(contains(flags, BuiltinFlags::kConstexpr));
+  fn->setNoReturn(contains(flags, BuiltinFlags::kNoReturn));
+  fn->setExceptionSpecifier(contains(flags, BuiltinFlags::kNoexcept));
+  if (unit->language() == LanguageKind::kCXX)
+    fn->setConsteval(contains(flags, BuiltinFlags::kConsteval));
   declareGlobalFunction(unit, globalScope, name, fn);
   return fn;
 }
 
 }  // namespace
 
-auto resolveBuiltinOperatorDelete(TranslationUnit* unit,
-                                  std::span<const Type* const> argumentTypes)
-    -> FunctionSymbol* {
-  auto control = unit->control();
-  auto voidType = control->getVoidType();
+void declareImplicitAllocationFunctions(TranslationUnit* unit, TokenKind op) {
+  auto signature = implicitDeclarationSignatureOf(op);
+  if (!isAvailableIn(unit, signature)) return;
 
-  std::vector<const Type*> parameterTypes;
-  parameterTypes.push_back(control->getPointerType(voidType));
-  for (auto argumentType :
-       argumentTypes.subspan(std::min<std::size_t>(1, argumentTypes.size())))
-    parameterTypes.push_back(argumentType);
+  auto name = unit->control()->getOperatorId(op);
 
-  return findOrDeclareGlobalAllocationFunction(
-      unit, TokenKind::T_DELETE, voidType, std::move(parameterTypes));
+  for (std::size_t index = 0; index < signature.count; ++index) {
+    auto overload = decodeBuiltinSignature(unit->control(), signature, index);
+    if (overload.status != BuiltinOverloadStatus::kOk) continue;
+    if (findGlobalFunction(unit, name, overload.type)) continue;
+    auto fn =
+        declareBuiltinOverload(unit, name, overload.type, signature.flags);
+    fn->setLanguageLinkage(LanguageKind::kCXX);
+  }
 }
 
-auto resolveBuiltinOperatorNew(TranslationUnit* unit,
-                               std::span<const Type* const> argumentTypes)
+auto resolveBuiltinLibcallOperator(TranslationUnit* unit, TokenKind op,
+                                   const FunctionType* type)
     -> FunctionSymbol* {
-  auto control = unit->control();
-
-  std::vector<const Type*> parameterTypes;
-  parameterTypes.push_back(control->getSizeType());
-  for (auto argumentType :
-       argumentTypes.subspan(std::min<std::size_t>(1, argumentTypes.size())))
-    parameterTypes.push_back(argumentType);
-
-  return findOrDeclareGlobalAllocationFunction(
-      unit, TokenKind::T_NEW, control->getPointerType(control->getVoidType()),
-      std::move(parameterTypes));
+  declareImplicitAllocationFunctions(unit, op);
+  return findGlobalFunction(unit, unit->control()->getOperatorId(op), type);
 }
 
 auto resolveBuiltinLibcallSymbol(TranslationUnit* unit, const char* nameStr,
@@ -934,64 +935,65 @@ auto resolveBuiltinLibcallSymbol(TranslationUnit* unit, const char* nameStr,
   return fn;
 }
 
+namespace {
+
+[[nodiscard]] auto declaredBuiltinOverloads(TranslationUnit* unit,
+                                            const Identifier* name,
+                                            BuiltinFunctionKind kind)
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> overloads;
+  for (auto symbol : unit->globalScope()->find(name)) {
+    for (auto function : views::each_function(symbol)) {
+      if (function->builtinKind() == kind) overloads.push_back(function);
+    }
+  }
+  return overloads;
+}
+
+void declareAvailableBuiltinOverloads(
+    TranslationUnit* unit, const Identifier* name, BuiltinFunctionKind kind,
+    const BuiltinSignature& signature,
+    const std::vector<FunctionSymbol*>& declared) {
+  for (std::size_t index = 0; index < signature.count; ++index) {
+    auto overload = decodeBuiltinSignature(unit->control(), signature, index);
+    if (overload.status != BuiltinOverloadStatus::kOk) continue;
+    auto isDeclared = [&](FunctionSymbol* function) {
+      return hasParameterTypes(function, overload.type);
+    };
+    if (std::ranges::any_of(declared, isDeclared)) continue;
+    auto fn =
+        declareBuiltinOverload(unit, name, overload.type, signature.flags);
+    fn->setBuiltinKind(kind);
+  }
+}
+
+}  // namespace
+
+auto namesBuiltinFunction(Symbol* symbol, BuiltinFunctionKind kind) -> bool {
+  return std::ranges::any_of(views::each_function(symbol),
+                             [kind](FunctionSymbol* function) {
+                               return function->builtinKind() == kind;
+                             });
+}
+
 auto resolveBuiltinFunctionSymbol(TranslationUnit* unit, const Identifier* name,
                                   BuiltinFunctionKind kind) -> Symbol* {
   if (kind == BuiltinFunctionKind::T_NONE) return nullptr;
 
-  auto globalScope = unit->globalScope();
-
-  auto isBuiltin = [&](FunctionSymbol* fn) {
-    return fn->builtinKind() == kind;
-  };
-
-  for (auto symbol : globalScope->find(name)) {
-    if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
-      if (views::find_function(views::each_function(overloadSet), isBuiltin))
-        return overloadSet;
-      continue;
-    }
-    if (auto fn = symbol_cast<FunctionSymbol>(symbol)) {
-      if (isBuiltin(fn)) return fn;
-    }
-  }
-
   auto signature = builtinSignatureOf(kind);
   if (!signature.count) return nullptr;
+  if (!isAvailableIn(unit, signature)) return nullptr;
 
-  auto control = unit->control();
+  auto declared = declaredBuiltinOverloads(unit, name, kind);
+  if (declared.size() < signature.count)
+    declareAvailableBuiltinOverloads(unit, name, kind, signature, declared);
 
-  Symbol* result = nullptr;
-
-  for (std::size_t index = 0; index < signature.count; ++index) {
-    auto overload = decodeBuiltinSignature(control, kind, index);
-    if (overload.status == BuiltinOverloadStatus::kUnavailable) continue;
-    if (overload.status != BuiltinOverloadStatus::kOk) return result;
-
-    auto fn = control->newFunctionSymbol(globalScope, {});
-    fn->setName(name);
-    fn->setType(overload.type);
-    fn->setBuiltinKind(kind);
-    fn->setConstexpr(contains(signature.flags, BuiltinFlags::kConstexpr));
-    fn->setNoReturn(contains(signature.flags, BuiltinFlags::kNoReturn));
-    fn->setExceptionSpecifier(
-        contains(signature.flags, BuiltinFlags::kNoexcept));
-
-    if (unit->language() == LanguageKind::kCXX)
-      fn->setConsteval(contains(signature.flags, BuiltinFlags::kConsteval));
-
-    declareGlobalFunction(unit, globalScope, name, fn);
-
-    result = fn;
+  for (auto symbol : unit->globalScope()->find(name)) {
+    if (!namesBuiltinFunction(symbol, kind)) continue;
+    if (auto function = designatedFunction(symbol)) return function;
+    return symbol;
   }
-
-  if (signature.count > 1) {
-    for (auto symbol : globalScope->find(name)) {
-      if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol))
-        return overloadSet;
-    }
-  }
-
-  return result;
+  return nullptr;
 }
 
 auto lookupClassMember(ClassSymbol* scope, const Name* name,

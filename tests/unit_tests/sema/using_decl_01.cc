@@ -76,5 +76,4 @@ auto main() -> int {
 // CHECK-NEXT:  function int main()
 // CHECK-NEXT:    parameters
 // CHECK-NEXT:    block
-// CHECK-NEXT:      variable static constexpr const char __func__[5]
 // CHECK-NEXT:      using decltype(nullptr) nullptr_t

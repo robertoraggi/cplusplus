@@ -22,6 +22,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
+#include <cxx/class_template_deduction.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
@@ -38,11 +39,27 @@
 
 namespace cxx {
 namespace {
-[[nodiscard]] auto initializerCompletesDeclaredType(FieldSymbol* field)
+[[nodiscard]] auto initializerCompletesDeclaredType(FieldSymbol* field,
+                                                    SpecifierAST* typeSpecifier,
+                                                    ScopeSymbol* scope)
     -> bool {
   auto type = field->type();
   if (containsPlaceholderType(type)) return true;
-  return type_cast<UnboundedArrayType>(type) != nullptr;
+  if (type_cast<UnboundedArrayType>(type)) return true;
+  return ClassTemplateArgumentDeduction::placeholderClassTemplate(
+             typeSpecifier, scope) != nullptr;
+}
+
+[[nodiscard]] auto redeclaresStaticDataMemberTemplate(VariableSymbol* variable)
+    -> bool {
+  return variable->canonical() != variable;
+}
+
+[[nodiscard]] auto instantiatesVariableTemplate(VariableSymbol* pattern,
+                                                const Decl& decl) -> bool {
+  auto declaredScope = decl.getScope();
+  if (!declaredScope || !declaredScope->isClass()) return true;
+  return redeclaresStaticDataMemberTemplate(pattern);
 }
 
 void applyConstexprConstness(const TypeTraits& traits, FieldSymbol* field) {
@@ -51,17 +68,7 @@ void applyConstexprConstness(const TypeTraits& traits, FieldSymbol* field) {
 }
 }  // namespace
 
-struct ASTRewriter::CoreDeclaratorVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::CoreDeclaratorVisitor : VisitorBase {
   [[nodiscard]] auto operator()(BitfieldDeclaratorAST* ast)
       -> CoreDeclaratorAST*;
 
@@ -72,17 +79,7 @@ struct ASTRewriter::CoreDeclaratorVisitor {
   [[nodiscard]] auto operator()(NestedDeclaratorAST* ast) -> CoreDeclaratorAST*;
 };
 
-struct ASTRewriter::DeclaratorChunkVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::DeclaratorChunkVisitor : VisitorBase {
   [[nodiscard]] auto operator()(FunctionDeclaratorChunkAST* ast)
       -> DeclaratorChunkAST*;
 
@@ -90,17 +87,7 @@ struct ASTRewriter::DeclaratorChunkVisitor {
       -> DeclaratorChunkAST*;
 };
 
-struct ASTRewriter::PtrOperatorVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::PtrOperatorVisitor : VisitorBase {
   [[nodiscard]] auto operator()(PointerOperatorAST* ast) -> PtrOperatorAST*;
 
   [[nodiscard]] auto operator()(ReferenceOperatorAST* ast) -> PtrOperatorAST*;
@@ -108,33 +95,13 @@ struct ASTRewriter::PtrOperatorVisitor {
   [[nodiscard]] auto operator()(PtrToMemberOperatorAST* ast) -> PtrOperatorAST*;
 };
 
-struct ASTRewriter::DesignatorVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::DesignatorVisitor : VisitorBase {
   [[nodiscard]] auto operator()(DotDesignatorAST* ast) -> DesignatorAST*;
 
   [[nodiscard]] auto operator()(SubscriptDesignatorAST* ast) -> DesignatorAST*;
 };
 
-struct ASTRewriter::ExceptionSpecifierVisitor {
-  ASTRewriter& rewrite;
-  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
-    return rewrite.unit_;
-  }
-
-  [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
-  [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
-  [[nodiscard]] auto rewriter() const -> ASTRewriter* { return &rewrite; }
-  [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
-
+struct ASTRewriter::ExceptionSpecifierVisitor : VisitorBase {
   [[nodiscard]] auto operator()(ThrowExceptionSpecifierAST* ast)
       -> ExceptionSpecifierAST*;
 
@@ -175,38 +142,42 @@ auto ASTRewriter::pendingExceptionSpecifierMark() const -> std::size_t {
 
 void ASTRewriter::associatePendingExceptionSpecifiers(
     std::size_t mark, FunctionSymbol* function,
-    FunctionSymbol* originalFunction,
     ExceptionSpecifierAST* functionExceptionSpecifier,
     std::function<void()> refreshType) {
   for (auto index = mark; index < pendingExceptionSpecifiers_.size(); ++index) {
     auto& pending = pendingExceptionSpecifiers_[index];
     pending.typeRefreshers.push_back(refreshType);
-    if (function && pending.instance == functionExceptionSpecifier) {
+    if (function && pending.record->instance == functionExceptionSpecifier)
       pendingFunctionExceptionSpecifiers_[function] = index;
-      pending.originalFunction = originalFunction;
-    }
   }
 }
 
 void ASTRewriter::resolvePendingExceptionSpecifier(std::size_t index) {
   auto& pending = pendingExceptionSpecifiers_[index];
-  if (pending.state == PendingExceptionSpecifierState::kResolved) return;
-  if (pending.state == PendingExceptionSpecifierState::kDeferred) return;
-  if (pending.state == PendingExceptionSpecifierState::kResolving) {
-    error(pending.instance->noexceptLoc,
+  auto record = pending.record.get();
+  if (!record) return;
+
+  auto pattern = ast_cast<NoexceptSpecifierAST>(record->pattern);
+  auto instance = ast_cast<NoexceptSpecifierAST>(record->instance);
+
+  if (record->state == PendingInstantiationState::kResolving) {
+    error(instance->noexceptLoc,
           "recursive exception specification instantiation");
+    record->state = PendingInstantiationState::kRecursionDiagnosed;
     return;
   }
 
-  pending.state = PendingExceptionSpecifierState::kResolving;
+  if (record->state != PendingInstantiationState::kUnresolved) return;
+
+  record->state = PendingInstantiationState::kResolving;
 
   auto _ = Binder::ScopeGuard{&binder_};
-  binder_.setScope(pending.scope);
-  pending.instance->expression = expression(pending.pattern->expression);
+  binder_.setScope(record->parentScope);
+  instance->expression = expression(pattern->expression);
 
   for (auto& refreshType : pending.typeRefreshers) refreshType();
 
-  pending.state = PendingExceptionSpecifierState::kResolved;
+  record->state = PendingInstantiationState::kResolved;
 }
 
 void ASTRewriter::completePendingExceptionSpecifiers(std::size_t mark) {
@@ -214,17 +185,10 @@ void ASTRewriter::completePendingExceptionSpecifiers(std::size_t mark) {
     if (index < mark) continue;
 
     auto& pending = pendingExceptionSpecifiers_[index];
-    if (pending.state != PendingExceptionSpecifierState::kUnresolved) continue;
+    if (pending.record->state != PendingInstantiationState::kUnresolved)
+      continue;
 
-    auto specification = std::make_unique<PendingExceptionSpecification>();
-    specification->original = pending.pattern;
-    specification->instance = pending.instance;
-    specification->originalFunction = pending.originalFunction;
-    specification->templateArguments = templateArguments_;
-    specification->parentScope = pending.scope;
-    specification->depth = depth_;
-    function->setPendingExceptionSpecification(std::move(specification));
-    pending.state = PendingExceptionSpecifierState::kDeferred;
+    function->setPendingExceptionSpecification(std::move(pending.record));
   }
 
   for (auto index = mark; index < pendingExceptionSpecifiers_.size(); ++index) {
@@ -236,9 +200,10 @@ auto ASTRewriter::hasPendingExceptionSpecifier(ClassSymbol* classSymbol) const
     -> bool {
   for (const auto& [function, index] : pendingFunctionExceptionSpecifiers_) {
     if (function->parent() != classSymbol) continue;
-    const auto state = pendingExceptionSpecifiers_[index].state;
-    if (state == PendingExceptionSpecifierState::kUnresolved ||
-        state == PendingExceptionSpecifierState::kResolving)
+    auto record = pendingExceptionSpecifiers_[index].record.get();
+    if (!record) continue;
+    if (record->state == PendingInstantiationState::kUnresolved ||
+        record->state == PendingInstantiationState::kResolving)
       return true;
   }
   return false;
@@ -247,19 +212,26 @@ auto ASTRewriter::hasPendingExceptionSpecifier(ClassSymbol* classSymbol) const
 void ASTRewriter::completePendingExceptionSpecification(
     TranslationUnit* unit, FunctionSymbol* function) {
   if (!function) return;
+  Binder{unit}.completeDeferredImplicitExceptionSpecification(function);
   auto pending = function->pendingExceptionSpecification();
   if (!pending) return;
-  if (pending->state == PendingExceptionSpecificationState::kResolved) return;
-  if (pending->state == PendingExceptionSpecificationState::kResolving) {
-    if (!pending->recursionDiagnosed) {
-      unit->error(pending->instance->noexceptLoc,
-                  "recursive exception specification instantiation");
-      pending->recursionDiagnosed = true;
-    }
+
+  auto pattern = ast_cast<NoexceptSpecifierAST>(pending->pattern);
+  auto instance = ast_cast<NoexceptSpecifierAST>(pending->instance);
+
+  if (pending->state == PendingInstantiationState::kResolving) {
+    unit->error(instance->noexceptLoc,
+                "recursive exception specification instantiation");
+    pending->state = PendingInstantiationState::kRecursionDiagnosed;
     return;
   }
 
-  pending->state = PendingExceptionSpecificationState::kResolving;
+  if (pending->state != PendingInstantiationState::kUnresolved) return;
+
+  pending->state = PendingInstantiationState::kResolving;
+
+  auto patternFunction =
+      symbol_cast<FunctionSymbol>(function->instantiationPattern());
 
   auto rewriter =
       ASTRewriter{unit, pending->parentScope, pending->templateArguments};
@@ -267,7 +239,7 @@ void ASTRewriter::completePendingExceptionSpecification(
   rewriter.inheritEnclosingTemplateArguments(pending->parentScope);
   rewriter.binder_.setInstantiatingSymbol(function);
 
-  auto oldClass = symbol_cast<ClassSymbol>(pending->originalFunction->parent());
+  auto oldClass = symbol_cast<ClassSymbol>(patternFunction->parent());
   auto newClass = symbol_cast<ClassSymbol>(function->parent());
 
   while (oldClass && newClass) {
@@ -281,17 +253,16 @@ void ASTRewriter::completePendingExceptionSpecification(
   if (oldClass && newClass && oldClass != newClass)
     rewriter.remapScopeMembers(oldClass, newClass);
 
-  auto oldParameters = pending->originalFunction->functionParameters();
+  auto oldParameters = patternFunction->functionParameters();
   auto newParameters = function->functionParameters();
   if (oldParameters && newParameters)
-    rewriter.remapScopeMembers(oldParameters, newParameters);
+    rewriter.remapFunctionParameters(oldParameters, newParameters);
 
-  pending->instance->expression =
-      rewriter.expression(pending->original->expression);
-  const bool isNoexcept = exceptionSpecifierIsNoexcept(unit, pending->instance);
+  instance->expression = rewriter.expression(pattern->expression);
+  const bool isNoexcept = exceptionSpecifierIsNoexcept(unit, instance);
   setFunctionNoexcept(unit->control(), function, isNoexcept);
 
-  pending->state = PendingExceptionSpecificationState::kResolved;
+  pending->state = PendingInstantiationState::kResolved;
 }
 
 auto ASTRewriter::requiresClause(RequiresClauseAST* ast) -> RequiresClauseAST* {
@@ -322,82 +293,34 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
 
   binder().setScope(copy->functionParametersSymbol);
 
-  auto originalParameter = [&](const Identifier* identifier) {
-    if (!identifier || !ast->functionParametersSymbol)
-      return static_cast<ParameterSymbol*>(nullptr);
-    for (auto member : ast->functionParametersSymbol->members()) {
-      if (auto parameter = symbol_cast<ParameterSymbol>(member);
-          parameter && name_cast<Identifier>(parameter->name()) == identifier)
-        return parameter;
-    }
-    return static_cast<ParameterSymbol*>(nullptr);
-  };
+  ListAppender<ParameterDeclarationAST> append{arena(),
+                                               copy->parameterDeclarationList};
 
-  for (auto parameterDeclarationList = &copy->parameterDeclarationList;
-       auto node : ListView{ast->parameterDeclarationList}) {
-    auto paramDecl = ast_cast<ParameterDeclarationAST>(node);
-
-    if (paramDecl && paramDecl->isPack) {
-      ParameterPackSymbol* pack = nullptr;
-      for (auto specNode : ListView{paramDecl->typeSpecifierList}) {
-        pack = findReferencedParameterPack(specNode);
-        if (pack) break;
-      }
-
-      if (pack) {
-        auto originalParam = originalParameter(paramDecl->identifier);
-
-        auto funcParamPack = control()->newParameterPackSymbol(
-            binder().scope(), SourceLocation{});
-
-        forEachPackElement(
-            paramDecl, paramDecl->firstSourceLocation(),
-            [&] {
-              auto membersBefore = binder().scope()->members().size();
-
-              auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
-              if (value) value->isPack = false;
-              *parameterDeclarationList = make_list_node(arena(), value);
-              parameterDeclarationList = &(*parameterDeclarationList)->next;
-
-              const auto& members = binder().scope()->members();
-              if (members.size() > membersBefore) {
-                funcParamPack->addElement(members.back());
-              }
-            },
-            pack);
-
-        if (originalParam) {
-          functionParamPacks_[originalParam] = funcParamPack;
-        }
-
-        continue;
-      }
+  for (auto node : ListView{ast->parameterDeclarationList}) {
+    if (auto pack = expandedFunctionParameterPack(node)) {
+      auto elements =
+          control()->newParameterPackSymbol(binder().scope(), SourceLocation{});
+      forEachPackElement(
+          node, node->firstSourceLocation(),
+          [&] {
+            auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
+            if (!value) return;
+            append(value);
+            if (value->symbol) elements->addElement(value->symbol);
+          },
+          pack);
+      if (node->symbol) functionParamPacks_[node->symbol] = elements;
+      continue;
     }
 
     auto value = ast_cast<ParameterDeclarationAST>(declaration(node));
-    *parameterDeclarationList = make_list_node(arena(), value);
-    parameterDeclarationList = &(*parameterDeclarationList)->next;
-
-    if (auto oldParameter =
-            originalParameter(paramDecl ? paramDecl->identifier : nullptr)) {
-      const auto& members = copy->functionParametersSymbol->members();
-      if (!members.empty()) addSymbolRemap(oldParameter, members.back());
-    }
+    append(value);
+    if (value) addSymbolRemap(node->symbol, value->symbol);
   }
 
   copy->commaLoc = ast->commaLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
   copy->isVariadic = ast->isVariadic;
-
-  if (ast->functionParametersSymbol && copy->functionParametersSymbol) {
-    auto& oldParams = ast->functionParametersSymbol->members();
-    auto& newParams = copy->functionParametersSymbol->members();
-    auto n = std::min(oldParams.size(), newParams.size());
-    for (std::size_t i = 0; i < n; ++i) {
-      addSymbolRemap(oldParams[i], newParams[i]);
-    }
-  }
 
   return copy;
 }
@@ -476,13 +399,11 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
                                         decl.specs.templateHead);
         copy->symbol = variableSymbol;
 
-        auto declScope = decl.getScope();
-        const auto isOutOfClassMemberDef = declScope && declScope->isClass();
-
-        if (!addSymbolToParentScope && !isOutOfClassMemberDef) {
-          auto templateVariable = symbol_cast<VariableSymbol>(ast->symbol);
-          templateVariable->addSpecialization(unit_, templateArguments(),
-                                              variableSymbol);
+        auto templateVariable = symbol_cast<VariableSymbol>(ast->symbol);
+        if (!addSymbolToParentScope &&
+            instantiatesVariableTemplate(templateVariable, decl)) {
+          templateVariable->canonical()->addSpecialization(
+              unit_, templateArguments(), variableSymbol);
         }
       }
     }
@@ -497,8 +418,7 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
     functionExceptionSpecifier = prototype->exceptionSpecifier;
 
   associatePendingExceptionSpecifiers(
-      pendingExceptionSpecifierMark, function,
-      symbol_cast<FunctionSymbol>(ast->symbol), functionExceptionSpecifier,
+      pendingExceptionSpecifierMark, function, functionExceptionSpecifier,
       [this, copy, baseType = declSpecs.type()] {
         auto type = getDeclaratorType(unit_, copy->declarator, baseType);
         if (copy->symbol) copy->symbol->setType(type);
@@ -510,19 +430,12 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       addSymbolRemap(ast->symbol, copy->symbol);
 
       if (ast->initializer) {
-        if (initializerCompletesDeclaredType(fieldSymbol)) {
+        if (initializerCompletesDeclaredType(
+                fieldSymbol, declSpecs.typeSpecifier(), binder_.scope())) {
           pendingFieldInitializers_.push_back({ast, copy, binder_.scope()});
         } else {
-          auto pending =
-              std::make_unique<PendingFieldInitializerInstantiation>();
-          pending->unit = unit_;
-          pending->pattern = ast;
-          pending->instance = copy;
-          pending->typeSpecifier = declSpecs.typeSpecifier();
-          pending->templateArguments = templateArguments();
-          pending->parentScope = binder_.scope();
-          pending->depth = depth_;
-          fieldSymbol->setPendingInitializer(std::move(pending));
+          fieldSymbol->setPendingInitializer(
+              pendingInstantiationOf(ast, copy, binder_.scope()));
         }
       }
 
@@ -530,7 +443,9 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
     }
 
     const auto canDeferInitializer =
-        ast->initializer && !initializerCompletesDeclaredType(fieldSymbol) &&
+        ast->initializer &&
+        !initializerCompletesDeclaredType(
+            fieldSymbol, declSpecs.typeSpecifier(), binder_.scope()) &&
         !isEnclosedInDependentTemplate(unit_, binder_.scope(),
                                        /*stopAtConcreteSpecialization=*/true);
 
@@ -538,14 +453,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
       addSymbolRemap(ast->symbol, copy->symbol);
       applyConstexprConstness(unit_->typeTraits(), fieldSymbol);
 
-      auto pending = std::make_unique<PendingFieldInitializerInstantiation>();
-      pending->pattern = ast;
-      pending->instance = copy;
-      pending->typeSpecifier = declSpecs.typeSpecifier();
-      pending->templateArguments = templateArguments();
-      pending->parentScope = binder_.scope();
-      pending->depth = depth_;
-      fieldSymbol->setPendingInitializer(std::move(pending));
+      fieldSymbol->setPendingInitializer(
+          pendingInstantiationOf(ast, copy, binder_.scope()));
       return copy;
     }
   }
@@ -566,6 +475,7 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   } else if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
     if (!rewritingForRangeDeclaration_)
       typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier());
+    binder_.recordVariableDefinition(variableSymbol);
   }
 
   return copy;
@@ -604,21 +514,12 @@ auto ASTRewriter::declarator(DeclaratorAST* ast) -> DeclaratorAST* {
 
   auto copy = DeclaratorAST::create(arena());
 
-  for (auto ptrOpList = &copy->ptrOpList;
-       auto node : ListView{ast->ptrOpList}) {
-    auto value = ptrOperator(node);
-    *ptrOpList = make_list_node(arena(), value);
-    ptrOpList = &(*ptrOpList)->next;
-  }
+  copy->ptrOpList = rewriteList(ast->ptrOpList, &ASTRewriter::ptrOperator);
 
   copy->coreDeclarator = coreDeclarator(ast->coreDeclarator);
 
-  for (auto declaratorChunkList = &copy->declaratorChunkList;
-       auto node : ListView{ast->declaratorChunkList}) {
-    auto value = declaratorChunk(node);
-    *declaratorChunkList = make_list_node(arena(), value);
-    declaratorChunkList = &(*declaratorChunkList)->next;
-  }
+  copy->declaratorChunkList =
+      rewriteList(ast->declaratorChunkList, &ASTRewriter::declaratorChunk);
 
   return copy;
 }
@@ -629,21 +530,11 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(PointerOperatorAST* ast)
 
   copy->starLoc = ast->starLoc;
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
-  auto cvQualifierListCtx = DeclSpecs{rewrite.unit_};
-  for (auto cvQualifierList = &copy->cvQualifierList;
-       auto node : ListView{ast->cvQualifierList}) {
-    auto value = rewrite.specifier(node);
-    *cvQualifierList = make_list_node(arena(), value);
-    cvQualifierList = &(*cvQualifierList)->next;
-    cvQualifierListCtx.accept(value);
-  }
+  copy->cvQualifierList =
+      rewrite.rewriteList(ast->cvQualifierList, &ASTRewriter::specifier);
 
   return copy;
 }
@@ -654,12 +545,8 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(ReferenceOperatorAST* ast)
 
   copy->refLoc = ast->refLoc;
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->refOp = ast->refOp;
 
@@ -674,21 +561,11 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(PtrToMemberOperatorAST* ast)
       rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
   copy->starLoc = ast->starLoc;
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
-  auto cvQualifierListCtx = DeclSpecs{rewrite.unit_};
-  for (auto cvQualifierList = &copy->cvQualifierList;
-       auto node : ListView{ast->cvQualifierList}) {
-    auto value = rewrite.specifier(node);
-    *cvQualifierList = make_list_node(arena(), value);
-    cvQualifierList = &(*cvQualifierList)->next;
-    cvQualifierListCtx.accept(value);
-  }
+  copy->cvQualifierList =
+      rewrite.rewriteList(ast->cvQualifierList, &ASTRewriter::specifier);
 
   return copy;
 }
@@ -699,8 +576,12 @@ auto ASTRewriter::CoreDeclaratorVisitor::operator()(BitfieldDeclaratorAST* ast)
 
   copy->unqualifiedId =
       ast_cast<NameIdAST>(rewrite.unqualifiedId(ast->unqualifiedId));
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
   copy->colonLoc = ast->colonLoc;
   copy->sizeExpression = rewrite.expression(ast->sizeExpression);
+  copy->trailingAttributeList = rewrite.rewriteList(
+      ast->trailingAttributeList, &ASTRewriter::attributeSpecifier);
 
   return copy;
 }
@@ -724,12 +605,8 @@ auto ASTRewriter::CoreDeclaratorVisitor::operator()(IdDeclaratorAST* ast)
   copy->templateLoc = ast->templateLoc;
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
@@ -763,26 +640,16 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
         copy->parameterDeclarationClause->functionParametersSymbol);
   }
 
-  auto cvQualifierListCtx = DeclSpecs{rewrite.unit_};
-  for (auto cvQualifierList = &copy->cvQualifierList;
-       auto node : ListView{ast->cvQualifierList}) {
-    auto value = rewrite.specifier(node);
-    *cvQualifierList = make_list_node(arena(), value);
-    cvQualifierList = &(*cvQualifierList)->next;
-    cvQualifierListCtx.accept(value);
-  }
+  copy->cvQualifierList =
+      rewrite.rewriteList(ast->cvQualifierList, &ASTRewriter::specifier);
 
   copy->refLoc = ast->refLoc;
   copy->exceptionSpecifier =
       rewrite.exceptionSpecifier(ast->exceptionSpecifier);
   copy->refOp = ast->refOp;
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->trailingReturnType =
       rewrite.trailingReturnType(ast->trailingReturnType);
@@ -799,24 +666,14 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
 
   copy->lbracketLoc = ast->lbracketLoc;
 
-  auto typeQualifierListCtx = DeclSpecs{rewrite.unit_};
-  for (auto typeQualifierList = &copy->typeQualifierList;
-       auto node : ListView{ast->typeQualifierList}) {
-    auto value = rewrite.specifier(node);
-    *typeQualifierList = make_list_node(arena(), value);
-    typeQualifierList = &(*typeQualifierList)->next;
-    typeQualifierListCtx.accept(value);
-  }
+  copy->typeQualifierList =
+      rewrite.rewriteList(ast->typeQualifierList, &ASTRewriter::specifier);
 
   copy->expression = rewrite.expression(ast->expression);
   copy->rbracketLoc = ast->rbracketLoc;
 
-  for (auto attributeList = &copy->attributeList;
-       auto node : ListView{ast->attributeList}) {
-    auto value = rewrite.attributeSpecifier(node);
-    *attributeList = make_list_node(arena(), value);
-    attributeList = &(*attributeList)->next;
-  }
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   return copy;
 }
@@ -865,7 +722,7 @@ auto ASTRewriter::ExceptionSpecifierVisitor::operator()(
   if (ast->expression && rewrite.classBodyDepth_ > 0 &&
       rewrite.restrictedToDeclarations_) {
     rewrite.pendingExceptionSpecifiers_.push_back(
-        {ast, copy, nullptr, binder()->scope()});
+        {rewrite.pendingInstantiationOf(ast, copy, binder()->scope())});
   } else {
     copy->expression = rewrite.expression(ast->expression);
   }

@@ -26,7 +26,6 @@
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/names.h>
-#include <cxx/standard_conversion.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -57,172 +56,14 @@ class InstantiationDepthGuard {
   TranslationUnit::TemplateInstantiationScope scope_;
 };
 
-struct GetSpecialization {
-  TranslationUnit* unit;
-  const std::vector<TemplateArgument>& templateArguments;
-
-  auto operator()(ClassSymbol* symbol) -> Symbol* {
-    return symbol->findSpecialization(unit, templateArguments);
-  }
-
-  auto operator()(VariableSymbol* symbol) -> Symbol* {
-    return symbol->findSpecialization(unit, templateArguments);
-  }
-
-  auto operator()(TypeAliasSymbol* symbol) -> Symbol* {
-    return symbol->findSpecialization(unit, templateArguments);
-  }
-
-  auto operator()(FunctionSymbol* symbol) -> Symbol* {
-    return symbol->findSpecialization(unit, templateArguments);
-  }
-
-  auto operator()(Symbol*) -> Symbol* { return nullptr; }
-};
-
-struct Instantiate {
-  ASTRewriter& rewriter;
-  ScopeSymbol* parentScope = nullptr;
-  bool declarationOnly = false;
-
-  void attachDeferredBody(FunctionDefinitionAST* instance,
-                          FunctionDefinitionAST* pattern) {
-    if (instance->functionBody) return;
-    auto fn = symbol_cast<FunctionSymbol>(instance->symbol);
-    if (!fn || fn->hasPendingBody()) return;
-    auto pending = std::make_unique<PendingBodyInstantiation>();
-    pending->originalDefinition = pattern;
-    pending->templateArguments = rewriter.templateArguments();
-    pending->parentScope = parentScope;
-    pending->depth = rewriter.depth();
-    fn->setPendingBody(std::move(pending));
-  }
-
-  [[nodiscard]] auto patternClassSpecifier(ClassSymbol* symbol)
-      -> ClassSpecifierAST* {
-    auto pattern = symbol->instantiationPattern();
-    if (!pattern || pattern == symbol) return nullptr;
-
-    auto definition = symbol_cast<ClassSymbol>(pattern->resolvedDefinition());
-    if (!definition) return nullptr;
-
-    return ast_cast<ClassSpecifierAST>(definition->declaration());
-  }
-
-  auto operator()(ClassSymbol* symbol) -> Symbol* {
-    auto classSpecifier = ast_cast<ClassSpecifierAST>(symbol->declaration());
-    if (!classSpecifier) classSpecifier = patternClassSpecifier(symbol);
-    if (!classSpecifier) return nullptr;
-
-    auto instance =
-        ast_cast<ClassSpecifierAST>(rewriter.specifier(classSpecifier));
-    if (!instance) return nullptr;
-
-    return instance->symbol;
-  }
-
-  auto operator()(VariableSymbol* symbol) -> Symbol* {
-    auto templateDecl = symbol->templateDeclaration();
-    if (!templateDecl) return nullptr;
-
-    auto declaration = templateDecl->declaration;
-    auto simpleDecl = ast_cast<SimpleDeclarationAST>(declaration);
-    if (!simpleDecl) return nullptr;
-
-    auto instance =
-        ast_cast<SimpleDeclarationAST>(rewriter.declaration(simpleDecl));
-    if (!instance || !instance->initDeclaratorList ||
-        !instance->initDeclaratorList->value) {
-      return nullptr;
-    }
-
-    auto instantiatedSymbol = instance->initDeclaratorList->value->symbol;
-    if (!instantiatedSymbol) return nullptr;
-    return symbol_cast<VariableSymbol>(instantiatedSymbol);
-  }
-
-  auto operator()(TypeAliasSymbol* symbol) -> Symbol* {
-    auto templateDecl = symbol->templateDeclaration();
-    if (!templateDecl) return nullptr;
-
-    auto declaration = ast_cast<AliasDeclarationAST>(templateDecl->declaration);
-    if (!declaration) return nullptr;
-
-    auto instance =
-        ast_cast<AliasDeclarationAST>(rewriter.declaration(declaration));
-    if (!instance) return nullptr;
-
-    if (auto written =
-            rewriter.writtenArgumentForAliasedParameter(declaration->typeId)) {
-      if (auto alias = symbol_cast<TypeAliasSymbol>(instance->symbol))
-        alias->setExpansionTypeId(written);
-    }
-
-    return instance->symbol;
-  }
-
-  auto operator()(FunctionSymbol* symbol) -> Symbol* {
-    rewriter.retryPendingMemberTemplateAttachment(symbol);
-
-    auto deferredPattern = symbol->hasPendingBody()
-                               ? symbol->pendingBody()->originalDefinition
-                               : nullptr;
-    if (symbol->hasPendingBody() &&
-        (!declarationOnly || !symbol->declaration())) {
-      rewriter.completePendingBody(symbol);
-    }
-
-    auto functionDef = symbol->declaration();
-    auto definingSymbol = symbol;
-
-    if (!functionDef) {
-      for (auto declaration : symbol->declarations()) {
-        if (auto def = declaration->declaration()) {
-          functionDef = def;
-          definingSymbol = declaration;
-          break;
-        }
-      }
-    }
-
-    if (definingSymbol != symbol) {
-      if (auto definingTemplateDecl = definingSymbol->templateDeclaration()) {
-        rewriter.setDepth(definingTemplateDecl->depth);
-      }
-    }
-
-    rewriter.setInstantiatingFunctionTemplateSpecialization(
-        symbol->templateDeclaration() != nullptr);
-
-    if (functionDef) {
-      auto instance =
-          ast_cast<FunctionDefinitionAST>(rewriter.declaration(functionDef));
-      if (!instance) return nullptr;
-      if (declarationOnly)
-        attachDeferredBody(instance,
-                           deferredPattern ? deferredPattern : functionDef);
-      return instance->symbol;
-    }
-
-    auto templateDecl = symbol->templateDeclaration();
-    if (!templateDecl) return nullptr;
-
-    auto declaration =
-        ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
-    if (!declaration) return nullptr;
-
-    auto instance =
-        ast_cast<SimpleDeclarationAST>(rewriter.declaration(declaration));
-    if (!instance || !instance->initDeclaratorList ||
-        !instance->initDeclaratorList->value) {
-      return nullptr;
-    }
-
-    return instance->initDeclaratorList->value->symbol;
-  }
-
-  auto operator()(Symbol*) -> Symbol* { return nullptr; }
-};
+[[nodiscard]] auto outOfClassDefinitionOf(FunctionSymbol* member)
+    -> FunctionSymbol* {
+  auto definition = symbol_cast<FunctionSymbol>(member->definition());
+  if (!definition || definition == member) return nullptr;
+  if (!ast_cast<FunctionDefinitionAST>(definition->declaration()))
+    return nullptr;
+  return definition;
+}
 
 [[nodiscard]] auto isPrimaryTemplate(
     const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
@@ -299,24 +140,9 @@ void noteInstantiationRequestedHere(
   auto name =
       computeInstantiationClassName(unit, primaryTemplate, templateArguments);
   auto label = instantiationLabel(primaryTemplate);
-  client->report(
-      unit->tokenAt(instantiationLoc), Severity::Note,
+  unit->report(
+      client, instantiationLoc, Severity::Note,
       std::format("in instantiation of {} '{}' requested here", label, name));
-}
-
-[[nodiscard]] auto findMutableSpecialization(Symbol* primary, Symbol* spec)
-    -> TemplateSpecialization* {
-  if (!primary || !spec) return nullptr;
-  auto search = [spec](auto sym) -> TemplateSpecialization* {
-    for (auto& s : sym->mutableSpecializations())
-      if (s.symbol == spec) return &s;
-    return nullptr;
-  };
-  if (auto cs = symbol_cast<ClassSymbol>(primary)) return search(cs);
-  if (auto as = symbol_cast<TypeAliasSymbol>(primary)) return search(as);
-  if (auto vs = symbol_cast<VariableSymbol>(primary)) return search(vs);
-  if (auto fs = symbol_cast<FunctionSymbol>(primary)) return search(fs);
-  return nullptr;
 }
 
 [[nodiscard]] auto hasPlaceholderReturnType(FunctionSymbol* function) -> bool {
@@ -337,9 +163,22 @@ void recordFunctionInstantiationRequest(Symbol* primary, Symbol* specialization,
                                         SourceLocation instantiationLoc) {
   if (!instantiationLoc) return;
   if (!symbol_cast<FunctionSymbol>(specialization)) return;
-  auto spec = findMutableSpecialization(primary, specialization);
+  auto spec = specialization_entry_of(primary, specialization);
   if (!spec) return;
   spec->pendingInstantiationLoc = instantiationLoc;
+}
+
+[[nodiscard]] auto templateTemplateArgument(const TemplateArgument& argument)
+    -> Symbol* {
+  Symbol* symbol = nullptr;
+  if (auto name = std::get_if<Symbol*>(&argument)) {
+    symbol = template_name_symbol(*name);
+  } else if (auto classType =
+                 type_cast<ClassType>(template_argument_type(argument))) {
+    symbol = template_name_symbol(classType->symbol());
+  }
+  if (!template_declaration_of(symbol)) return nullptr;
+  return symbol;
 }
 
 [[nodiscard]] auto instantiateBuiltinMakeIntegerSeq(
@@ -349,15 +188,8 @@ void recordFunctionInstantiationRequest(Symbol* primary, Symbol* specialization,
     bool declarationOnly) -> Symbol* {
   if (templateArguments.size() != 3) return nullptr;
 
-  Symbol* seqClass = nullptr;
-  if (auto symArg = std::get_if<Symbol*>(&templateArguments[0])) {
-    seqClass = template_name_symbol(*symArg);
-  } else if (auto typeArg = std::get_if<const Type*>(&templateArguments[0])) {
-    if (auto classType = type_cast<ClassType>(*typeArg)) {
-      seqClass = template_name_symbol(classType->symbol());
-    }
-  }
-  if (!seqClass || !template_declaration_of(seqClass)) return nullptr;
+  auto seqClass = templateTemplateArgument(templateArguments[0]);
+  if (!seqClass) return nullptr;
 
   auto elementType = template_argument_type(templateArguments[1]);
   if (!elementType) return nullptr;
@@ -436,65 +268,112 @@ void recordFunctionInstantiationRequest(Symbol* primary, Symbol* specialization,
   return alias;
 }
 
+[[nodiscard]] auto typeTemplateArgumentList(TranslationUnit* unit,
+                                            std::span<const Type* const> types)
+    -> List<TemplateArgumentAST*>* {
+  auto arena = unit->arena();
+  List<TemplateArgumentAST*>* arguments = nullptr;
+  auto it = &arguments;
+  for (auto type : types) {
+    auto typeId = TypeIdAST::create(arena);
+    typeId->type = type;
+    auto argument = TypeTemplateArgumentAST::create(arena, typeId);
+    *it = make_list_node(arena, static_cast<TemplateArgumentAST*>(argument));
+    it = &(*it)->next;
+  }
+  return arguments;
+}
+
+class BuiltinCommonType {
+ public:
+  BuiltinCommonType(TranslationUnit* unit, Symbol* commonTypeTemplate,
+                    SourceLocation instantiationLoc)
+      : unit_(unit),
+        traits_(unit),
+        commonTypeTemplate_(commonTypeTemplate),
+        instantiationLoc_(instantiationLoc) {}
+
+  [[nodiscard]] auto operator()(std::span<const Type* const> types)
+      -> const Type* {
+    if (types.empty()) return nullptr;
+    if (types.size() == 1) return commonTypeOf({types[0], types[0]});
+    if (types.size() == 2) return commonTypeOfPair(types[0], types[1]);
+    auto first = commonTypeOf({types[0], types[1]});
+    if (!first) return nullptr;
+    std::vector<const Type*> remaining{first};
+    remaining.insert(remaining.end(), types.begin() + 2, types.end());
+    return commonTypeOf(remaining);
+  }
+
+ private:
+  [[nodiscard]] auto commonTypeOfPair(const Type* first, const Type* second)
+      -> const Type* {
+    if (!isDecayed(first) || !isDecayed(second))
+      return commonTypeOf({traits_.decay(first), traits_.decay(second)});
+    if (auto type = traits_.conditional_operator_type(first, second))
+      return traits_.decay(type);
+    auto type = traits_.conditional_operator_type(
+        traits_.add_const_ref(first), traits_.add_const_ref(second));
+    if (!type) return nullptr;
+    return traits_.decay(type);
+  }
+
+  [[nodiscard]] auto isDecayed(const Type* type) const -> bool {
+    return traits_.is_same(type, traits_.decay(type));
+  }
+
+  [[nodiscard]] auto commonTypeOf(const std::vector<const Type*>& types)
+      -> const Type* {
+    const auto sfinaeContext = true;
+    const auto argsComplete = true;
+    const auto declarationOnly = false;
+    SilentDiagnosticsScope diagnostics{unit_};
+    auto instance = ASTRewriter::instantiate(
+        unit_, typeTemplateArgumentList(unit_, types), commonTypeTemplate_,
+        instantiationLoc_, sfinaeContext, argsComplete, declarationOnly);
+    diagnostics.finish();
+    if (diagnostics.hadError() || !instance) return nullptr;
+    return instance->type();
+  }
+
+  TranslationUnit* unit_;
+  TypeTraits traits_;
+  Symbol* commonTypeTemplate_;
+  SourceLocation instantiationLoc_;
+};
+
 [[nodiscard]] auto instantiateBuiltinCommonType(
     TranslationUnit* unit,
     const std::vector<TemplateArgument>& templateArguments,
     SourceLocation instantiationLoc, bool sfinaeContext, bool argsComplete,
     bool declarationOnly) -> Symbol* {
-  auto traits = TypeTraits{unit};
-
   if (templateArguments.size() < 3) return nullptr;
 
-  ClassSymbol* identityClass = nullptr;
-  if (auto identityArgType = template_argument_type(templateArguments[1])) {
-    if (auto identityType = type_cast<ClassType>(identityArgType)) {
-      identityClass = symbol_cast<ClassSymbol>(identityType->symbol());
-    }
-  } else if (auto sym = std::get_if<Symbol*>(&templateArguments[1])) {
-    identityClass = symbol_cast<ClassSymbol>(*sym);
-  }
-  if (!identityClass || !template_declaration_of(identityClass)) return nullptr;
+  auto commonTypeTemplate = templateTemplateArgument(templateArguments[0]);
+  if (!commonTypeTemplate) return nullptr;
 
-  ClassSymbol* emptyClass = nullptr;
-  if (auto emptyArgType = template_argument_type(templateArguments[2])) {
-    if (auto ctype = type_cast<ClassType>(emptyArgType)) {
-      emptyClass = symbol_cast<ClassSymbol>(ctype->symbol());
-    }
-  } else if (auto sym = std::get_if<Symbol*>(&templateArguments[2])) {
-    emptyClass = symbol_cast<ClassSymbol>(*sym);
-  }
-  if (!emptyClass) return nullptr;
+  auto identityTemplate = templateTemplateArgument(templateArguments[1]);
+  if (!identityTemplate) return nullptr;
 
-  std::vector<const Type*> operands;
-  for (std::size_t i = 3; i < templateArguments.size(); ++i) {
-    auto type = template_argument_type(templateArguments[i]);
+  auto emptyType =
+      type_cast<ClassType>(template_argument_type(templateArguments[2]));
+  if (!emptyType) return nullptr;
+
+  std::vector<const Type*> types;
+  for (const auto& argument : std::span{templateArguments}.subspan(3)) {
+    auto type = template_argument_type(argument);
     if (!type) return nullptr;
-    operands.push_back(type);
+    types.push_back(type);
   }
 
-  if (operands.empty()) return emptyClass;
+  auto commonType =
+      BuiltinCommonType{unit, commonTypeTemplate, instantiationLoc}(types);
+  if (!commonType) return emptyType->symbol();
 
-  const Type* result = traits.remove_cvref(operands[0]);
-  for (std::size_t i = 1; i < operands.size(); ++i) {
-    auto next = traits.remove_cvref(operands[i]);
-    if (traits.is_same(result, next)) continue;
-    auto combined = StandardConversion{unit}.commonArithmeticType(result, next);
-    if (!combined) return emptyClass;
-    result = combined;
-  }
-
-  auto ar = unit->arena();
-  List<TemplateArgumentAST*>* expandedArgs = nullptr;
-  List<TemplateArgumentAST*>** it = &expandedArgs;
-
-  auto typeId = TypeIdAST::create(ar);
-  typeId->type = result;
-  auto typeArg = TypeTemplateArgumentAST::create(ar, typeId);
-  *it = make_list_node(ar, static_cast<TemplateArgumentAST*>(typeArg));
-
-  return ASTRewriter::instantiate(unit, expandedArgs, identityClass,
-                                  instantiationLoc, sfinaeContext, argsComplete,
-                                  declarationOnly);
+  const Type* identityArguments[] = {commonType};
+  return ASTRewriter::instantiate(
+      unit, typeTemplateArgumentList(unit, identityArguments), identityTemplate,
+      instantiationLoc, sfinaeContext, argsComplete, declarationOnly);
 }
 
 [[nodiscard]] auto instantiateBuiltinTemplate(
@@ -522,8 +401,178 @@ void recordFunctionInstantiationRequest(Symbol* primary, Symbol* specialization,
 
 }  // namespace
 
+struct ASTRewriter::Instantiate {
+  ASTRewriter& rewriter;
+  ScopeSymbol* parentScope = nullptr;
+  bool declarationOnly = false;
+
+  void attachDeferredBody(FunctionDefinitionAST* instance,
+                          FunctionDefinitionAST* pattern) {
+    if (instance->functionBody) return;
+    auto fn = symbol_cast<FunctionSymbol>(instance->symbol);
+    if (!fn || fn->hasPendingBody()) return;
+    fn->setPendingBody(
+        rewriter.pendingInstantiationOf(pattern, nullptr, parentScope));
+  }
+
+  [[nodiscard]] auto patternClassSpecifier(ClassSymbol* symbol)
+      -> ClassSpecifierAST* {
+    auto pattern = symbol_cast<ClassSymbol>(symbol->instantiationPattern());
+    if (!pattern || pattern == symbol) return nullptr;
+
+    auto definition = pattern->resolvedDefinition();
+
+    return ast_cast<ClassSpecifierAST>(definition->declaration());
+  }
+
+  auto operator()(ClassSymbol* symbol) -> Symbol* {
+    auto classSpecifier = ast_cast<ClassSpecifierAST>(symbol->declaration());
+    if (!classSpecifier) classSpecifier = patternClassSpecifier(symbol);
+    if (!classSpecifier) return nullptr;
+
+    auto instance =
+        ast_cast<ClassSpecifierAST>(rewriter.specifier(classSpecifier));
+    if (!instance) return nullptr;
+
+    return instance->symbol;
+  }
+
+  auto operator()(VariableSymbol* symbol) -> Symbol* {
+    auto definition = symbol->resolvedDefinition();
+    auto templateDecl = definition->templateDeclaration();
+    if (!templateDecl) return nullptr;
+
+    rewriter.binder_.setInstantiatingSymbol(definition);
+
+    auto declaration = templateDecl->declaration;
+    auto simpleDecl = ast_cast<SimpleDeclarationAST>(declaration);
+    if (!simpleDecl) return nullptr;
+
+    auto instance =
+        ast_cast<SimpleDeclarationAST>(rewriter.declaration(simpleDecl));
+    if (!instance || !instance->initDeclaratorList ||
+        !instance->initDeclaratorList->value) {
+      return nullptr;
+    }
+
+    auto instantiatedSymbol = instance->initDeclaratorList->value->symbol;
+    if (!instantiatedSymbol) return nullptr;
+    return symbol_cast<VariableSymbol>(instantiatedSymbol);
+  }
+
+  auto operator()(TypeAliasSymbol* symbol) -> Symbol* {
+    auto templateDecl = symbol->templateDeclaration();
+    if (!templateDecl) return nullptr;
+
+    auto declaration = ast_cast<AliasDeclarationAST>(templateDecl->declaration);
+    if (!declaration) return nullptr;
+
+    auto instance =
+        ast_cast<AliasDeclarationAST>(rewriter.declaration(declaration));
+    if (!instance) return nullptr;
+
+    return instance->symbol;
+  }
+
+  auto operator()(FunctionSymbol* symbol) -> Symbol* {
+    completePendingExceptionSpecification(rewriter.unit_, symbol);
+    attachPatternDefinition(rewriter.unit_, symbol);
+
+    auto deferredPattern =
+        symbol->hasPendingBody()
+            ? ast_cast<FunctionDefinitionAST>(symbol->pendingBody()->pattern)
+            : nullptr;
+    if (symbol->hasPendingBody() &&
+        (!declarationOnly || !symbol->declaration())) {
+      rewriter.completePendingBody(symbol);
+    }
+
+    auto functionDef = symbol->declaration();
+    auto definingSymbol = symbol;
+
+    if (!functionDef) {
+      for (auto declaration : symbol->declarations()) {
+        if (auto def = declaration->declaration()) {
+          functionDef = def;
+          definingSymbol = declaration;
+          break;
+        }
+      }
+    }
+
+    if (definingSymbol != symbol) {
+      if (auto definingTemplateDecl = definingSymbol->templateDeclaration()) {
+        rewriter.setDepth(definingTemplateDecl->depth);
+      }
+    }
+
+    rewriter.setInstantiatingFunctionTemplateSpecialization(
+        symbol->templateDeclaration() != nullptr);
+
+    if (functionDef) {
+      auto instance =
+          ast_cast<FunctionDefinitionAST>(rewriter.declaration(functionDef));
+      if (!instance) return nullptr;
+      if (declarationOnly)
+        attachDeferredBody(instance,
+                           deferredPattern ? deferredPattern : functionDef);
+      return instance->symbol;
+    }
+
+    auto templateDecl = symbol->templateDeclaration();
+    if (!templateDecl) return nullptr;
+
+    auto declaration =
+        ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
+    if (!declaration) return nullptr;
+
+    auto instance =
+        ast_cast<SimpleDeclarationAST>(rewriter.declaration(declaration));
+    if (!instance || !instance->initDeclaratorList ||
+        !instance->initDeclaratorList->value) {
+      return nullptr;
+    }
+
+    return instance->initDeclaratorList->value->symbol;
+  }
+
+  auto operator()(Symbol*) -> Symbol* { return nullptr; }
+};
+
+auto ASTRewriter::enclosingNonClassScope(Symbol* symbol) -> ScopeSymbol* {
+  auto scope = symbol->parent();
+  while (scope && scope->isClass()) scope = scope->parent();
+  return scope;
+}
+
+auto ASTRewriter::pendingBodyOf(FunctionDefinitionAST* definition,
+                                std::vector<TemplateArgument> arguments,
+                                ScopeSymbol* parentScope, int depth)
+    -> std::unique_ptr<PendingInstantiation> {
+  return std::make_unique<PendingInstantiation>(
+      PendingInstantiation{.pattern = definition,
+                           .templateArguments = std::move(arguments),
+                           .parentScope = parentScope,
+                           .depth = depth});
+}
+
+auto ASTRewriter::pendingInstantiationOf(AST* pattern, AST* instance,
+                                         ScopeSymbol* parentScope) const
+    -> std::unique_ptr<PendingInstantiation> {
+  return std::make_unique<PendingInstantiation>(
+      PendingInstantiation{.pattern = pattern,
+                           .instance = instance,
+                           .templateArguments = templateArguments(),
+                           .parentScope = parentScope,
+                           .depth = depth_});
+}
+
 auto ASTRewriter::paste(TranslationUnit* unit, ScopeSymbol* scope,
                         StatementAST* ast) -> StatementAST* {
+  TranslationUnit::TemplatedContextScope templatedContext{
+      unit,
+      isEnclosedInDependentTemplate(unit, scope,
+                                    /*stopAtConcreteSpecialization=*/true)};
   auto rewriter = ASTRewriter{unit, scope, {}};
   rewriter.pastingCheckedBody_ = true;
   auto result = rewriter.statement(ast);
@@ -594,7 +643,7 @@ void ASTRewriter::reportPendingInstantiationErrors(
     TranslationUnit* unit, Symbol* primaryTemplate, Symbol* instantiated,
     SourceLocation instantiationLoc) {
   if (!primaryTemplate || !instantiated || !instantiationLoc) return;
-  if (auto spec = findMutableSpecialization(primaryTemplate, instantiated)) {
+  if (auto spec = specialization_entry_of(primaryTemplate, instantiated)) {
     if (!spec->instantiationErrors.empty()) {
       for (const auto& error : spec->instantiationErrors) {
         switch (error.severity) {
@@ -640,13 +689,13 @@ void ASTRewriter::instantiateSelectedSpecializationDefinition(
     List<TemplateArgumentAST*>* deducedArguments) {
   if (!selected || !deducedArguments) return;
   if (!selected->isSpecialization()) return;
-  if (!unit->isPotentiallyEvaluated()) return;
+  if (!unit->requiresDefinitions()) return;
 
   auto primary = selected->primaryTemplateSymbol();
   if (!primary) return;
 
   auto instantiationLoc = selected->location();
-  if (auto spec = findMutableSpecialization(primary, selected);
+  if (auto spec = specialization_entry_of(primary, selected);
       spec && spec->pendingInstantiationLoc) {
     instantiationLoc = spec->pendingInstantiationLoc;
   }
@@ -691,11 +740,11 @@ auto ASTRewriter::instantiate(
     if (auto client = unit->reportingDiagnosticsClient();
         client && unit->diagnosticsClient() &&
         unit->diagnosticsClient()->isSfinae()) {
-      client->report(unit->tokenAt(instantiationLoc), Severity::Fatal,
-                     std::move(message));
+      unit->report(client, instantiationLoc, Severity::Fatal,
+                   std::move(message));
     } else {
-      unit->diagnosticsClient()->report(unit->tokenAt(instantiationLoc),
-                                        Severity::Fatal, std::move(message));
+      unit->report(unit->diagnosticsClient(), instantiationLoc, Severity::Fatal,
+                   std::move(message));
     }
 
     return nullptr;
@@ -709,7 +758,7 @@ auto ASTRewriter::instantiate(
   }
 
   const auto functionBodyIsOdrUsed =
-      !symbol_cast<FunctionSymbol>(symbol) || unit->isPotentiallyEvaluated();
+      !symbol_cast<FunctionSymbol>(symbol) || unit->requiresDefinitions();
 
   if (!functionBodyIsOdrUsed) declarationOnly = true;
 
@@ -767,7 +816,7 @@ auto ASTRewriter::instantiate(
 
   auto cached = retainEnclosingTemplateLevels
                     ? nullptr
-                    : visit(GetSpecialization{unit, templateArguments}, symbol);
+                    : find_specialization(unit, symbol, templateArguments);
 
   if (cached) {
     if (declarationOnly)
@@ -780,7 +829,7 @@ auto ASTRewriter::instantiate(
           auto bodyErrors = ASTRewriter::completePendingBodyFor(
               unit, cachedFn, /*captureBodyErrors=*/true);
           if (!bodyErrors.empty()) {
-            if (auto spec = findMutableSpecialization(symbol, cached)) {
+            if (auto spec = specialization_entry_of(symbol, cached)) {
               spec->instantiationErrors = instantiationErrorsOf(bodyErrors);
             }
           }
@@ -820,6 +869,7 @@ auto ASTRewriter::instantiate(
     }
   }
 
+  TimeTrace::Scope instantiationTrace{unit->timeTrace(), "Instantiate", symbol};
   if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kInstantiations);
   auto parentScope = symbol->parent();
   auto rewriter = ASTRewriter{unit, parentScope, templateArguments};
@@ -868,7 +918,7 @@ auto ASTRewriter::instantiate(
       if (reportOutsideImmediateContext(unit, bodyErrors)) {
         noteInstantiationRequestedHere(unit, symbol, templateArguments,
                                        instantiationLoc);
-      } else if (auto spec = findMutableSpecialization(symbol, instance)) {
+      } else if (auto spec = specialization_entry_of(symbol, instance)) {
         spec->instantiationErrors = instantiationErrorsOf(bodyErrors);
       }
     }
@@ -898,7 +948,7 @@ auto ASTRewriter::instantiate(
                              std::make_move_iterator(bodyErrors.end()));
 
   if (!instantiationErrors.empty()) {
-    if (auto spec = findMutableSpecialization(symbol, instantiatedSymbol)) {
+    if (auto spec = specialization_entry_of(symbol, instantiatedSymbol)) {
       spec->instantiationErrors = instantiationErrorsOf(instantiationErrors);
     }
     noteInstantiationRequestedHere(unit, symbol, templateArguments,
@@ -932,8 +982,10 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
                                       ClassSymbol* classSymbol) -> bool {
   if (!classSymbol) return false;
   if (classSymbol->resolvedDefinition()->isComplete()) return true;
-  if (!classSymbol->isSpecialization() && classSymbol->instantiationPattern()) {
-    auto pattern = classSymbol->instantiationPattern()->resolvedDefinition();
+  if (auto memberPattern =
+          symbol_cast<ClassSymbol>(classSymbol->instantiationPattern());
+      memberPattern && !classSymbol->isSpecialization()) {
+    auto pattern = memberPattern->resolvedDefinition();
     auto declaration = ast_cast<ClassSpecifierAST>(pattern->declaration());
     if (!declaration) return false;
     InstantiationDepthGuard depthGuard{unit};
@@ -965,32 +1017,20 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
   auto instantiationTemplate = primaryTemplate;
   if (hasPrimaryDefinition) instantiationTemplate = templateDefinition;
 
-  TemplateSpecialization* spec = nullptr;
-  for (auto& s : primaryTemplate->mutableSpecializations()) {
-    if (s.symbol == classSymbol) {
-      spec = &s;
-      break;
-    }
-  }
-
+  auto spec = primaryTemplate->specializationEntry(classSymbol);
   if (!spec || !spec->isPendingInstantiation) return false;
 
   auto pendingArgList = spec->pendingArgumentList;
   auto pendingLoc = spec->pendingInstantiationLoc;
-  spec->isPendingInstantiation = false;
-  spec->pendingArgumentList = nullptr;
+  primaryTemplate->setPendingInstantiation(classSymbol, nullptr, pendingLoc,
+                                           false);
 
   auto result = instantiate(unit, pendingArgList, instantiationTemplate,
                             pendingLoc, false);
 
   if (!result && !hasPrimaryDefinition) {
-    for (auto& candidate : primaryTemplate->mutableSpecializations()) {
-      if (candidate.symbol != classSymbol) continue;
-      candidate.isPendingInstantiation = true;
-      candidate.pendingArgumentList = pendingArgList;
-      candidate.pendingInstantiationLoc = pendingLoc;
-      break;
-    }
+    primaryTemplate->setPendingInstantiation(classSymbol, pendingArgList,
+                                             pendingLoc, true);
   }
 
   if (!result) return false;
@@ -1029,341 +1069,237 @@ void ASTRewriter::requireVTableForKeyFunction(TranslationUnit* unit,
   requireVirtualMemberDefinitions(unit, classSymbol);
 }
 
-void ASTRewriter::instantiateOutOfClassMemberDefinitions(
-    ClassSymbol* pattern, ClassSymbol* instanceClass) {
-  if (!pattern) return;
-  requireVirtualMemberDefinitions(unit_, instanceClass);
-  if (templateArguments_.empty()) return;
+struct ASTRewriter::OutOfClassMemberDefinitions {
+  ASTRewriter& rewrite;
+  ClassSymbol* pattern;
+  ClassSymbol* instanceClass;
+  TemplateDeclarationAST* classTemplateDecl;
 
-  auto instantiateDefinition = [&](Symbol* def, DeclarationAST* declaration,
-                                   int depth) {
-    auto lexicalScope = def->parent();
-    while (lexicalScope && lexicalScope->isClass()) {
-      lexicalScope = lexicalScope->parent();
+  void instantiate() {
+    attachMemberDefinitions();
+
+    for (auto memberClass : pattern->members() | views::classes)
+      instantiateMemberClassDefinition(memberClass);
+
+    for (auto member : pattern->members()) {
+      if (auto field = symbol_cast<FieldSymbol>(member))
+        instantiateStaticDataMemberDefinition(field);
+      if (auto variable = symbol_cast<VariableSymbol>(member))
+        instantiateMemberVariableTemplateDefinition(variable);
     }
-    auto rewriter = ASTRewriter{
-        unit_, lexicalScope, std::vector<TemplateArgument>(templateArguments_)};
+  }
+
+ private:
+  void instantiateDefinition(Symbol* instantiating, Symbol* definition,
+                             DeclarationAST* declaration, int depth) {
+    auto rewriter =
+        ASTRewriter{rewrite.unit_, enclosingNonClassScope(definition),
+                    std::vector<TemplateArgument>(rewrite.templateArguments_)};
     rewriter.depth_ = depth;
-    rewriter.binder_.setInstantiatingSymbol(def);
+    rewriter.binder_.setInstantiatingSymbol(instantiating);
     rewriter.remapScopeMembers(pattern, instanceClass);
     (void)rewriter.declaration(declaration);
-  };
-
-  if (instanceClass) {
-    if (instanceClass->templateParameters()) return;
-
-    if (auto instantiationPattern = instanceClass->instantiationPattern();
-        instantiationPattern && instantiationPattern != pattern)
-      return;
-
-    if (auto def = symbol_cast<ClassSymbol>(instanceClass->definition());
-        def && def != instanceClass) {
-      if (auto instantiationPattern = def->instantiationPattern();
-          instantiationPattern && instantiationPattern != pattern)
-        return;
-      instanceClass = def;
-    }
   }
 
-  if (!instanceClass) return;
-
-  auto classTemplateDecl = pattern->templateDeclaration();
-
-  unit_->addPendingMemberInstantiation(instanceClass);
-  remapScopeMembers(pattern, instanceClass);
-
-  auto attachPendingBody = [&](FunctionSymbol* target, FunctionSymbol* def,
-                               FunctionDefinitionAST* defAst, int depth) {
-    auto lexicalScope = def->parent();
-    while (lexicalScope && lexicalScope->isClass()) {
-      lexicalScope = lexicalScope->parent();
+  void attachMemberDefinitions() {
+    for (auto member : instanceClass->members()) {
+      for (auto function : views::declared_functions(member))
+        attachDefinitions(function);
     }
+    for (auto constructor : instanceClass->declaredConstructors())
+      attachDefinitions(constructor);
+  }
 
-    auto pending = std::make_unique<PendingBodyInstantiation>();
-    pending->originalDefinition = defAst;
-    pending->templateArguments = templateArguments_;
-    pending->parentScope = lexicalScope;
-    pending->depth = depth;
-    target->setPendingBody(std::move(pending));
-    unit_->addPendingBodyCompletion(target);
-  };
-
-  auto attachPendingSpecializationBodies = [&](FunctionSymbol* memberTemplate,
-                                               FunctionDefinitionAST* defAst) {
-    auto memberTemplateDecl = memberTemplate->templateDeclaration();
-    if (!memberTemplateDecl) return;
-
-    for (const auto& entry : memberTemplate->specializations()) {
+  void attachDefinitions(FunctionSymbol* function) {
+    attachPatternDefinition(rewrite.unit_, function);
+    for (const auto& entry : function->specializations()) {
       auto specialization = symbol_cast<FunctionSymbol>(entry.symbol);
-      if (!specialization) continue;
-      if (!specialization->isDefinitionRequired()) continue;
-      if (specialization->declaration()) continue;
-      if (specialization->hasPendingBody()) continue;
-
-      auto pending = std::make_unique<PendingBodyInstantiation>();
-      pending->originalDefinition = defAst;
-      pending->templateArguments = entry.arguments;
-      pending->parentScope = instanceClass;
-      pending->depth = memberTemplateDecl->depth;
-      specialization->setPendingBody(std::move(pending));
-      unit_->addPendingBodyCompletion(specialization);
+      if (!specialization || !specialization->isDefinitionRequired()) continue;
+      attachPatternDefinition(rewrite.unit_, specialization);
     }
-  };
+  }
 
-  auto attachPendingDefinition = [&](FunctionSymbol* member) {
-    if (member->isFriend()) return;
-    auto def = symbol_cast<FunctionSymbol>(member->definition());
-    if (!def || def == member) return;
-    auto defAst = ast_cast<FunctionDefinitionAST>(def->declaration());
-    if (!defAst) return;
-    if (!classTemplateDecl) return;
+  [[nodiscard]] auto hasCompleteInstance(ClassSymbol* memberClass) const
+      -> bool {
+    return std::ranges::any_of(
+        instanceClass->find(memberClass->name()) | views::classes,
+        &ClassSymbol::isComplete);
+  }
 
-    auto instanceMember = symbol_cast<FunctionSymbol>(remapSymbol(member));
-    if (!instanceMember || instanceMember == member) return;
-    if (!instanceMember->templateDeclaration()) return;
+  void instantiateMemberClassDefinition(ClassSymbol* memberClass) {
+    if (hasCompleteInstance(memberClass)) return;
 
-    attachPendingSpecializationBodies(member, defAst);
-    attachPendingSpecializationBodies(instanceMember, defAst);
+    if (auto memberTemplateDecl =
+            outOfClassMemberClassTemplateDefinition(memberClass)) {
+      instantiateDefinition(memberClass, memberClass, memberTemplateDecl,
+                            classTemplateDecl->depth);
+      return;
+    }
 
-    if (instanceMember->declaration()) return;
-    if (instanceMember->hasPendingBody()) return;
-
-    attachPendingBody(instanceMember, def, defAst, classTemplateDecl->depth);
-  };
-
-  auto instantiateFunctionDefinition = [&](FunctionSymbol* member) {
-    if (member->templateDeclaration()) return;
-    auto def = symbol_cast<FunctionSymbol>(member->definition());
-    if (!def || def == member) return;
-    auto templateDecl = def->templateDeclaration();
+    auto definition = symbol_cast<ClassSymbol>(memberClass->definition());
+    if (!definition || definition == memberClass) return;
+    auto templateDecl = definition->templateDeclaration();
     if (!templateDecl) return;
-    auto defAst = ast_cast<FunctionDefinitionAST>(def->declaration());
-    if (!defAst) return;
-    auto instanceMember = symbol_cast<FunctionSymbol>(remapSymbol(member));
-    if (!instanceMember || instanceMember == member) return;
-    if (instanceMember->isDefined()) return;
-    if (instanceMember->hasPendingBody()) return;
-    attachPendingBody(instanceMember, def, defAst, templateDecl->depth);
-  };
-
-  for (auto member : pattern->members()) {
-    for (auto function : views::each_function(member)) {
-      if (function->templateDeclaration()) attachPendingDefinition(function);
-    }
+    auto declaration =
+        ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
+    if (!declaration) return;
+    instantiateDefinition(definition, definition, declaration,
+                          templateDecl->depth);
   }
 
-  if (classTemplateDecl) {
-    for (auto instanceCtor : instanceClass->declaredConstructors()) {
-      if (!instanceCtor->templateDeclaration()) continue;
-      if (instanceCtor->declaration()) continue;
-      if (instanceCtor->hasPendingBody()) continue;
-
-      FunctionSymbol* patternCtor = nullptr;
-      for (auto candidate : pattern->declaredConstructors()) {
-        if (!candidate->templateDeclaration()) continue;
-        if (candidate->isFriend()) continue;
-        if (remapSymbol(candidate) != instanceCtor) continue;
-        if (!areFunctionTemplateHeadsEquivalentForRedeclaration(
-                unit_, pattern, instanceCtor->templateDeclaration(),
-                candidate->templateDeclaration())) {
-          continue;
-        }
-        patternCtor = candidate;
-        break;
-      }
-      if (!patternCtor) continue;
-
-      auto def = symbol_cast<FunctionSymbol>(patternCtor->definition());
-      if (!def || def == patternCtor) continue;
-      auto defAst = ast_cast<FunctionDefinitionAST>(def->declaration());
-      if (!defAst) continue;
-
-      attachPendingBody(instanceCtor, def, defAst, classTemplateDecl->depth);
-    }
-  }
-
-  auto outOfClassMemberTemplateDefinition =
-      [](ClassSymbol* memberClass) -> TemplateDeclarationAST* {
+  [[nodiscard]] auto outOfClassMemberClassTemplateDefinition(
+      ClassSymbol* memberClass) const -> TemplateDeclarationAST* {
+    if (!classTemplateDecl) return nullptr;
     if (!memberClass->templateParameters()) return nullptr;
     auto classSpecifier =
         ast_cast<ClassSpecifierAST>(memberClass->declaration());
     if (!classSpecifier) return nullptr;
     if (!classSpecifier->nestedNameSpecifier) return nullptr;
     return memberClass->templateDeclaration();
+  }
+
+  void instantiateStaticDataMemberDefinition(FieldSymbol* field) {
+    if (!field->isStatic()) return;
+    auto instanceField = symbol_cast<FieldSymbol>(rewrite.remapSymbol(field));
+    if (!instanceField || instanceField == field) return;
+    if (!instanceField->isDefinitionRequired()) return;
+    if (instanceField->definition()) return;
+    auto definition = field->definition();
+    if (!definition) return;
+    auto templateDecl = definition->templateDeclaration();
+    if (!templateDecl) return;
+    auto declaration =
+        ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
+    if (!declaration) return;
+    if (definition->findSpecialization(rewrite.unit_,
+                                       rewrite.templateArguments_))
+      return;
+    instantiateDefinition(definition, definition, declaration,
+                          templateDecl->depth);
+  }
+
+  [[nodiscard]] auto instanceIsDefined(VariableSymbol* member) const -> bool {
+    auto instance = symbol_cast<VariableSymbol>(rewrite.remapSymbol(member));
+    if (!instance || instance == member) return false;
+    return instance->canonical()->definition() != nullptr;
+  }
+
+  void instantiateMemberVariableTemplateDefinition(VariableSymbol* member) {
+    if (!classTemplateDecl) return;
+    if (!member->isTemplatePattern()) return;
+    auto definition = member->definition();
+    if (!definition || definition == member) return;
+    if (instanceIsDefined(member)) return;
+    auto templateDecl = definition->templateDeclaration();
+    if (!templateDecl) return;
+    instantiateDefinition(pattern, definition, templateDecl,
+                          classTemplateDecl->depth);
+  }
+};
+
+auto ASTRewriter::instantiationTarget(ClassSymbol* pattern,
+                                      ClassSymbol* instanceClass)
+    -> ClassSymbol* {
+  if (!instanceClass) return nullptr;
+  if (instanceClass->templateParameters()) return nullptr;
+
+  auto instantiatedFrom = [pattern](ClassSymbol* candidate) {
+    auto instantiationPattern = candidate->instantiationPattern();
+    if (!instantiationPattern) return true;
+    return instantiationPattern->canonical() == pattern->canonical();
   };
 
-  for (auto member : pattern->members()) {
-    auto memberClass = symbol_cast<ClassSymbol>(member);
-    if (!memberClass) continue;
+  if (!instantiatedFrom(instanceClass)) return nullptr;
 
-    const auto alreadyComplete = std::ranges::any_of(
-        instanceClass->find(memberClass->name()), [](Symbol* candidate) {
-          auto cls = symbol_cast<ClassSymbol>(candidate);
-          return cls && cls->isComplete();
-        });
-    if (alreadyComplete) continue;
-
-    if (classTemplateDecl) {
-      if (auto memberTemplateDecl =
-              outOfClassMemberTemplateDefinition(memberClass)) {
-        instantiateDefinition(memberClass, memberTemplateDecl,
-                              classTemplateDecl->depth);
-        continue;
-      }
-    }
-
-    auto def = symbol_cast<ClassSymbol>(memberClass->definition());
-    if (!def || def == memberClass) continue;
-    auto templateDecl = def->templateDeclaration();
-    if (!templateDecl) continue;
-    auto declAst = ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
-    if (!declAst) continue;
-    instantiateDefinition(def, declAst, templateDecl->depth);
-  }
-
-  for (auto member : pattern->members()) {
-    for (auto function : views::each_function(member)) {
-      instantiateFunctionDefinition(function);
-    }
-    if (auto field = symbol_cast<FieldSymbol>(member)) {
-      if (!field->isStatic()) continue;
-      auto instanceField = symbol_cast<FieldSymbol>(remapSymbol(field));
-      if (!instanceField || instanceField == field) continue;
-      if (!instanceField->isDefinitionRequired()) continue;
-      auto def = field->definition();
-      if (!def) continue;
-      auto templateDecl = def->templateDeclaration();
-      if (!templateDecl) continue;
-      auto declAst = ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
-      if (!declAst) continue;
-      if (def->findSpecialization(unit_, templateArguments_)) continue;
-      instantiateDefinition(def, declAst, templateDecl->depth);
-    }
-  }
-
-  if (!classTemplateDecl) return;
-
-  auto outOfClassConstructors = [](ClassSymbol* cls) {
-    return std::views::filter(
-        cls->declaredConstructors(), [](FunctionSymbol* ctor) {
-          return ctor->canonical() == ctor && !ctor->isDefaulted() &&
-                 !ctor->templateDeclaration();
-        });
-  };
-
-  for (auto [ctor, instanceCtor] :
-       std::views::zip(outOfClassConstructors(pattern),
-                       outOfClassConstructors(instanceClass))) {
-    auto def = symbol_cast<FunctionSymbol>(ctor->definition());
-    if (!def || def == ctor) continue;
-    auto defAst = ast_cast<FunctionDefinitionAST>(def->declaration());
-    if (!defAst) continue;
-
-    if (instanceCtor->hasPendingBody()) continue;
-    if (instanceCtor->declaration() &&
-        instanceCtor->declaration()->functionBody) {
-      continue;
-    }
-
-    auto ctorType = type_cast<FunctionType>(ctor->type());
-    auto instanceCtorType = type_cast<FunctionType>(instanceCtor->type());
-    if (!ctorType || !instanceCtorType ||
-        ctorType->parameterTypes().size() !=
-            instanceCtorType->parameterTypes().size()) {
-      continue;
-    }
-
-    attachPendingBody(instanceCtor, def, defAst, classTemplateDecl->depth);
-  }
+  auto definition = symbol_cast<ClassSymbol>(instanceClass->definition());
+  if (!definition || definition == instanceClass) return instanceClass;
+  if (!instantiatedFrom(definition)) return nullptr;
+  return definition;
 }
 
-void ASTRewriter::retryPendingMemberTemplateAttachment(FunctionSymbol* member) {
-  if (!member || member->hasPendingBody() || member->declaration()) return;
-  if (!member->templateDeclaration() || member->isFriend()) return;
+void ASTRewriter::instantiateOutOfClassMemberDefinitions(
+    ClassSymbol* pattern, ClassSymbol* instanceClass) {
+  if (!pattern) return;
+  requireVirtualMemberDefinitions(unit_, instanceClass);
+  if (templateArguments_.empty()) return;
 
-  auto instanceClass = symbol_cast<ClassSymbol>(member->parent());
+  instanceClass = instantiationTarget(pattern, instanceClass);
   if (!instanceClass) return;
 
-  auto pattern = instanceClass->instantiationTemplate();
-  if (!pattern) return;
-
-  auto classTemplateDecl = pattern->templateDeclaration();
-  if (!classTemplateDecl) return;
-
+  unit_->addPendingMemberInstantiation(instanceClass);
   remapScopeMembers(pattern, instanceClass);
 
-  FunctionSymbol* patternDef = nullptr;
-  FunctionDefinitionAST* patternDefAst = nullptr;
-  for (auto candidate : pattern->find(member->name())) {
-    for (auto function : views::each_function(candidate)) {
-      if (!function->templateDeclaration()) continue;
-      if (function->isFriend()) continue;
-      if (remapSymbol(function) != member) continue;
-      auto def = symbol_cast<FunctionSymbol>(function->definition());
-      if (!def || def == function) continue;
-      auto defAst = ast_cast<FunctionDefinitionAST>(def->declaration());
-      if (!defAst) continue;
-      if (!areFunctionTemplateHeadsEquivalentForRedeclaration(
-              unit_, pattern, member->templateDeclaration(),
-              function->templateDeclaration())) {
-        continue;
-      }
-      patternDef = def;
-      patternDefAst = defAst;
-      break;
-    }
-    if (patternDef) break;
-  }
-  if (!patternDef) return;
-
-  auto lexicalScope = patternDef->parent();
-  while (lexicalScope && lexicalScope->isClass()) {
-    lexicalScope = lexicalScope->parent();
-  }
-
-  auto classArgs = instanceClass->instantiationSubstitutionArguments();
-  auto pending = std::make_unique<PendingBodyInstantiation>();
-  pending->originalDefinition = patternDefAst;
-  pending->templateArguments =
-      std::vector<TemplateArgument>(classArgs.begin(), classArgs.end());
-  pending->parentScope = lexicalScope;
-  pending->depth = classTemplateDecl->depth;
-  member->setPendingBody(std::move(pending));
-  unit_->addPendingBodyCompletion(member);
+  OutOfClassMemberDefinitions{*this, pattern, instanceClass,
+                              pattern->templateDeclaration()}
+      .instantiate();
 }
 
-void ASTRewriter::retryPendingSpecializationBodyAttachment(
-    FunctionSymbol* specialization) {
-  if (!specialization || !specialization->hasUninstantiatedBody()) return;
-  if (specialization->hasPendingBody()) return;
+auto ASTRewriter::pendingBodyFromPattern(FunctionSymbol* function)
+    -> std::unique_ptr<PendingInstantiation> {
+  if (function->isFriend()) return nullptr;
+  if (auto primary = function->primaryTemplateSymbol())
+    return pendingSpecializationBody(function, primary);
+  return pendingMemberBody(function);
+}
 
-  auto primary = specialization->primaryTemplateSymbol();
-  if (!primary) return;
+auto ASTRewriter::pendingMemberBody(FunctionSymbol* member)
+    -> std::unique_ptr<PendingInstantiation> {
+  auto instanceClass = symbol_cast<ClassSymbol>(member->parent());
+  if (!instanceClass || instanceClass->templateParameters()) return nullptr;
 
-  auto spec = findMutableSpecialization(primary, specialization);
-  if (!spec) return;
+  auto pattern = symbol_cast<FunctionSymbol>(member->instantiationPattern());
+  if (!pattern || pattern->isFriend()) return nullptr;
 
-  auto patternDefinition = symbol_cast<FunctionSymbol>(primary->definition());
-  if (!patternDefinition || patternDefinition == primary) return;
+  auto definition = outOfClassDefinitionOf(pattern);
+  if (!definition) return nullptr;
 
-  auto patternDefinitionAst =
-      ast_cast<FunctionDefinitionAST>(patternDefinition->declaration());
-  if (!patternDefinitionAst) return;
+  auto arguments = instanceClass->instantiationSubstitutionArguments();
+  return pendingBodyOf(
+      ast_cast<FunctionDefinitionAST>(definition->declaration()),
+      {arguments.begin(), arguments.end()}, enclosingNonClassScope(definition),
+      instanceClass->instantiationSubstitutionDepth());
+}
 
-  auto templateDeclaration = patternDefinition->templateDeclaration();
-  if (!templateDeclaration) return;
+auto ASTRewriter::pendingSpecializationBody(FunctionSymbol* specialization,
+                                            FunctionSymbol* primary)
+    -> std::unique_ptr<PendingInstantiation> {
+  auto entry = specialization_entry_of(primary, specialization);
+  if (!entry) return nullptr;
 
-  auto lexicalScope = patternDefinition->parent();
-  while (lexicalScope && lexicalScope->isClass()) {
-    lexicalScope = lexicalScope->parent();
+  if (auto definition = outOfClassDefinitionOf(primary)) {
+    auto templateDeclaration = definition->templateDeclaration();
+    if (!templateDeclaration) return nullptr;
+    return pendingBodyOf(
+        ast_cast<FunctionDefinitionAST>(definition->declaration()),
+        entry->arguments, enclosingNonClassScope(definition),
+        templateDeclaration->depth);
   }
 
-  auto pending = std::make_unique<PendingBodyInstantiation>();
-  pending->originalDefinition = patternDefinitionAst;
-  pending->templateArguments = spec->arguments;
-  pending->parentScope = lexicalScope;
-  pending->depth = templateDeclaration->depth;
-  specialization->setPendingBody(std::move(pending));
+  auto memberTemplatePattern =
+      symbol_cast<FunctionSymbol>(primary->instantiationPattern());
+  if (!memberTemplatePattern) return nullptr;
+
+  auto definition = outOfClassDefinitionOf(memberTemplatePattern);
+  if (!definition) return nullptr;
+
+  auto memberTemplateDeclaration = primary->templateDeclaration();
+  if (!memberTemplateDeclaration) return nullptr;
+
+  return pendingBodyOf(
+      ast_cast<FunctionDefinitionAST>(definition->declaration()),
+      entry->arguments, primary->parent(), memberTemplateDeclaration->depth);
+}
+
+void ASTRewriter::attachPatternDefinition(TranslationUnit* unit,
+                                          FunctionSymbol* function) {
+  if (!function || function->hasPendingBody()) return;
+  if (function->declaration() || function->isDefined()) return;
+
+  auto pendingBody = pendingBodyFromPattern(function);
+  if (!pendingBody) return;
+
+  function->setPendingBody(std::move(pendingBody));
+  unit->addPendingBodyCompletion(function);
 }
 
 void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
@@ -1377,7 +1313,7 @@ void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
   auto noteRequestedHere = [unit](FunctionSymbol* function) {
     auto primary = function->primaryTemplateSymbol();
     if (!primary) return;
-    auto spec = findMutableSpecialization(primary, function);
+    auto spec = specialization_entry_of(primary, function);
     if (!spec) return;
     noteInstantiationRequestedHere(unit, primary, spec->arguments,
                                    spec->pendingInstantiationLoc);
@@ -1387,9 +1323,9 @@ void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
     if (stopRequested()) return false;
     bool progressed = false;
     for (auto function : unit->takePendingBodyCompletions()) {
-      auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
-      rewriter.retryPendingSpecializationBodyAttachment(function);
+      attachPatternDefinition(unit, function);
       if (!function->hasPendingBody()) continue;
+      auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
       progressed = true;
       auto bodyErrors =
           rewriter.completePendingBody(function, /*captureBodyErrors=*/true);

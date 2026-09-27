@@ -32,7 +32,6 @@ int main() {
 // CHECK-NEXT:    field int x
 // CHECK-NEXT:  function extern "C" int main()
 // CHECK-NEXT:    block
-// CHECK-NEXT:      variable static constexpr char __func__[5]
 // CHECK-NEXT:      enum K : int
 // CHECK-NEXT:      enumerator ::K w = 0
 // CHECK-NEXT:      class B

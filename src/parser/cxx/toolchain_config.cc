@@ -36,6 +36,7 @@
 #include <format>
 #include <optional>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace cxx {
@@ -60,6 +61,25 @@ auto defaultArch() -> std::string {
 #endif
 }
 
+auto defaultArchOf(std::string_view toolchainId) -> std::string {
+  if (toolchainId == "wasm32") return "wasm32";
+  return defaultArch();
+}
+
+auto defaultTripleOf(std::string_view toolchainId) -> Triple {
+  const auto arch = defaultArchOf(toolchainId);
+  if (toolchainId == "wasm32") return Triple{"wasm32-wasip1"};
+  if (toolchainId == "darwin")
+    return Triple{std::format("{}-apple-macosx", arch)};
+  if (toolchainId == "linux") {
+    return Triple{std::format("{}-unknown-linux-gnu", arch)};
+  }
+  if (toolchainId == "windows") {
+    return Triple{std::format("{}-pc-windows-msvc", arch)};
+  }
+  return Triple{};
+}
+
 auto toolchainForTriple(const Triple& triple) -> std::string {
   if (triple.isDarwin()) return "darwin";
 
@@ -77,53 +97,35 @@ auto toolchainForTriple(const Triple& triple) -> std::string {
   return {};
 }
 
-auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
+auto toolchainTriple(const TargetSelection& target) -> Triple {
+  if (target.triple.arch() != TripleArch::kUnknown) return target.triple;
+  return target.triple.withArchName(defaultArchOf(target.toolchain));
+}
+
+auto instantiateToolchain(const CLI& cli, Preprocessor* preprocessor,
+                          const TargetSelection& target)
     -> std::unique_ptr<Toolchain> {
-  const auto target = selectTarget(cli);
-  if (!target.valid) return {};
+  auto triple = toolchainTriple(target);
 
-  const auto& toolchainId = target.toolchain;
-
-  const auto appDir = applicationDirectory(cli);
-
-  auto configure = [&](std::unique_ptr<Toolchain> toolchain) {
-    toolchain->setAppdir(appDir.string());
-    if (auto paths = cli.get("-resource-dir"); !paths.empty()) {
-      toolchain->setResourceDir(paths.back());
-    }
-    return toolchain;
-  };
-
-  if (toolchainId == "darwin") {
-    auto toolchain = std::make_unique<MacOSToolchain>(preprocessor, target.arch,
-                                                      target.osVersion);
-    if (auto paths = cli.get("-isysroot"); !paths.empty()) {
-      toolchain->setSysroot(paths.back());
-    } else if (auto paths = cli.get("--sysroot"); !paths.empty()) {
-      toolchain->setSysroot(paths.back());
-    }
-    return configure(std::move(toolchain));
+  if (target.toolchain == "darwin") {
+    return std::make_unique<MacOSToolchain>(preprocessor, std::move(triple));
   }
 
-  if (toolchainId == "wasm32") {
-    auto toolchain = std::make_unique<Wasm32WasiToolchain>(preprocessor);
-    if (auto paths = cli.get("--sysroot"); !paths.empty()) {
-      toolchain->setSysroot(paths.back());
-    } else {
-      toolchain->setSysroot(
-          (appDir / std::string("../lib/wasi-sysroot")).string());
-    }
-    return configure(std::move(toolchain));
+  if (target.toolchain == "wasm32") {
+    return std::make_unique<Wasm32WasiToolchain>(preprocessor,
+                                                 std::move(triple));
   }
 
-  if (toolchainId == "linux") {
-    return configure(
-        std::make_unique<GCCLinuxToolchain>(preprocessor, target.arch));
-  }
-
-  if (toolchainId == "windows") {
+  if (target.toolchain == "linux") {
     auto toolchain =
-        std::make_unique<WindowsToolchain>(preprocessor, target.arch);
+        std::make_unique<GCCLinuxToolchain>(preprocessor, std::move(triple));
+    toolchain->setUsesLibCxx(cli.getSingle("-stdlib") == "libc++");
+    return toolchain;
+  }
+
+  if (target.toolchain == "windows") {
+    auto toolchain =
+        std::make_unique<WindowsToolchain>(preprocessor, std::move(triple));
     if (auto paths = cli.get("-vctoolsdir"); !paths.empty()) {
       toolchain->setVctoolsdir(paths.back());
     }
@@ -133,51 +135,110 @@ auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
     if (auto versions = cli.get("-winsdkversion"); !versions.empty()) {
       toolchain->setWinsdkversion(versions.back());
     }
-    return configure(std::move(toolchain));
+    return toolchain;
   }
 
   return {};
+}
+
+auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
+    -> std::unique_ptr<Toolchain> {
+  const auto target = selectTarget(cli);
+  if (!target.valid) return {};
+
+  auto toolchain = instantiateToolchain(cli, preprocessor, target);
+  if (!toolchain) return {};
+
+  toolchain->setAppdir(applicationDirectory(cli).string());
+
+  if (auto paths = cli.get("-resource-dir"); !paths.empty()) {
+    toolchain->setResourceDir(paths.back());
+  }
+  if (auto paths = cli.get("--sysroot"); !paths.empty()) {
+    toolchain->setSysroot(paths.back());
+  }
+  if (auto paths = cli.get("-isysroot"); !paths.empty()) {
+    toolchain->setHeaderSysroot(paths.back());
+  }
+
+  return toolchain;
+}
+
+[[nodiscard]] auto isKnownStandardLibrary(std::string_view name) -> bool {
+  return name == "libc++" || name == "libstdc++";
+}
+
+[[nodiscard]] auto withHeaderSysroot(const Toolchain* toolchain,
+                                     const std::string& path) -> std::string {
+  if (!path.starts_with('/')) return path;
+  return toolchain->headerSysroot() + path;
+}
+
+void addCommandLineSystemIncludePaths(const CLI& cli, Toolchain* toolchain) {
+  auto preprocessor = toolchain->preprocessor();
+
+  for (const auto& match : cli) {
+    auto option = std::get_if<CLIOption>(&match);
+    if (!option) continue;
+
+    const auto& name = std::get<0>(*option);
+    const auto& path = std::get<1>(*option);
+
+    if (name == "-isystem") {
+      preprocessor->addSystemIncludePath(path);
+    } else if (name == "-iwithsysroot") {
+      preprocessor->addSystemIncludePath(withHeaderSysroot(toolchain, path));
+    }
+  }
+}
+
+void addStandardIncludePaths(const CLI& cli, Toolchain* toolchain) {
+  if (cli.opt_nostdinc) return;
+
+  if (toolchain->language() == LanguageKind::kCXX && !cli.opt_nostdincpp) {
+    if (auto paths = cli.get("-stdlib++-isystem"); !paths.empty()) {
+      for (const auto& path : paths) toolchain->addSystemIncludePath(path);
+    } else {
+      toolchain->addSystemCppIncludePaths();
+    }
+  }
+
+  toolchain->addSystemIncludePaths();
 }
 
 }  // namespace
 
 auto selectTarget(const CLI& cli) -> TargetSelection {
   TargetSelection target;
-  target.toolchain = "wasm32";
-  target.arch = defaultArch();
 
   std::optional<std::string> requestedTriple;
   if (auto value = cli.getSingle("--target")) requestedTriple = value;
   if (auto value = cli.getSingle("-target")) requestedTriple = value;
 
   if (requestedTriple) {
-    const Triple triple{*requestedTriple};
-
-    target.triple = triple.str();
-    target.osVersion = triple.osVersion();
-
-    if (triple.arch() != TripleArch::kUnknown) {
-      target.arch = std::string{to_string(triple.arch())};
-    }
-
-    target.toolchain = toolchainForTriple(triple);
+    target.triple = Triple{*requestedTriple};
+    target.requested = true;
+    target.toolchain = toolchainForTriple(target.triple);
     target.valid = !target.toolchain.empty();
-  } else if (auto id = cli.getSingle("-toolchain")) {
-    target.toolchain = *id;
+  } else {
+    target.toolchain = cli.getSingle("-toolchain").value_or("wasm32");
     if (target.toolchain == "macos") target.toolchain = "darwin";
+    target.triple = defaultTripleOf(target.toolchain);
   }
 
-  if (auto arch = cli.getSingle("-arch")) target.arch = *arch;
+  if (auto arch = cli.getSingle("-arch")) {
+    target.triple = target.triple.withArchName(*arch);
+  }
 
   return target;
 }
 
 auto targetTripleOf(const CLI& cli) -> std::string {
   const auto target = selectTarget(cli);
-  if (!target.triple.empty()) return target.triple;
+  if (target.requested) return target.triple.str();
 
   auto toolchain = createToolchainForLinking(cli, LanguageKind::kCXX);
-  if (!toolchain) return target.triple;
+  if (!toolchain) return target.triple.str();
 
   return toolchain->memoryLayout()->triple();
 }
@@ -185,7 +246,8 @@ auto targetTripleOf(const CLI& cli) -> std::string {
 auto describeUnsupportedTarget(const CLI& cli) -> std::string {
   const auto target = selectTarget(cli);
   if (!target.valid) {
-    return std::format("cxx: no toolchain for target '{}'", target.triple);
+    return std::format("cxx: no toolchain for target '{}'",
+                       target.triple.str());
   }
   return std::format("cxx: unknown toolchain '{}'", target.toolchain);
 }
@@ -212,8 +274,15 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
   if (!toolchain) return {};
 
   toolchain->setLanguage(language);
-  toolchain->setExceptionsEnabled(!cli.opt_fno_exceptions);
+  if (cli.opt_fno_exceptions) toolchain->setExceptionsEnabled(false);
   toolchain->initMemoryLayout();
+
+  if (auto name = cli.getSingle("-stdlib");
+      name && !isKnownStandardLibrary(*name)) {
+    error = std::format("cxx: invalid library name in argument '-stdlib={}'",
+                        *name);
+    return toolchain;
+  }
 
   if (auto standardName = cli.getSingle("-std")) {
     auto standard = findLanguageStandard(*standardName);
@@ -233,8 +302,8 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
     toolchain->setLanguageStandard(standard);
   }
 
-  if (!cli.opt_nostdincpp) toolchain->addSystemCppIncludePaths();
-  if (!cli.opt_nostdinc) toolchain->addSystemIncludePaths();
+  addCommandLineSystemIncludePaths(cli, toolchain.get());
+  addStandardIncludePaths(cli, toolchain.get());
   toolchain->addPredefinedMacros();
 
   for (const auto& path : cli.get("-iquote")) {
@@ -242,9 +311,6 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
   }
   for (const auto& path : cli.get("-I")) {
     preprocessor->addUserIncludePath(path);
-  }
-  for (const auto& path : cli.get("-isystem")) {
-    preprocessor->addSystemIncludePath(path);
   }
   for (const auto& macro : cli.get("-D")) {
     auto sep = macro.find_first_of('=');

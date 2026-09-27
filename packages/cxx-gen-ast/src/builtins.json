@@ -3808,16 +3808,72 @@
   },
   {
     "name": "__builtin_operator_new",
-    "prototype": "void* __builtin_operator_new(__SIZE_TYPE__, ...)",
+    "prototype": [
+      "void* __builtin_operator_new(__SIZE_TYPE__)",
+      "void* __builtin_operator_new(__SIZE_TYPE__, std::align_val_t)",
+      "void* __builtin_operator_new(__SIZE_TYPE__, const std::nothrow_t&)",
+      "void* __builtin_operator_new(__SIZE_TYPE__, std::align_val_t, const std::nothrow_t&)"
+    ],
     "constexpr": false,
-    "typeCheck": "checkBuiltinOperatorNew"
+    "cplusplus": true,
+    "libcall": "operator new"
   },
   {
     "name": "__builtin_operator_delete",
-    "prototype": "void __builtin_operator_delete(void*, ...)",
+    "prototype": [
+      "void __builtin_operator_delete(void*)",
+      "void __builtin_operator_delete(void*, __SIZE_TYPE__)",
+      "void __builtin_operator_delete(void*, std::align_val_t)",
+      "void __builtin_operator_delete(void*, __SIZE_TYPE__, std::align_val_t)",
+      "void __builtin_operator_delete(void*, const std::nothrow_t&)",
+      "void __builtin_operator_delete(void*, std::align_val_t, const std::nothrow_t&)"
+    ],
     "constexpr": false,
     "noexcept": true,
-    "typeCheck": "checkBuiltinOperatorDelete"
+    "cplusplus": true,
+    "libcall": "operator delete"
+  },
+  {
+    "name": "operator new",
+    "prototype": [
+      "void* operator new(__SIZE_TYPE__)",
+      "void* operator new(__SIZE_TYPE__, std::align_val_t)"
+    ],
+    "constexpr": false,
+    "cplusplus": true
+  },
+  {
+    "name": "operator new[]",
+    "prototype": [
+      "void* operator new[](__SIZE_TYPE__)",
+      "void* operator new[](__SIZE_TYPE__, std::align_val_t)"
+    ],
+    "constexpr": false,
+    "cplusplus": true
+  },
+  {
+    "name": "operator delete",
+    "prototype": [
+      "void operator delete(void*)",
+      "void operator delete(void*, __SIZE_TYPE__)",
+      "void operator delete(void*, std::align_val_t)",
+      "void operator delete(void*, __SIZE_TYPE__, std::align_val_t)"
+    ],
+    "constexpr": false,
+    "noexcept": true,
+    "cplusplus": true
+  },
+  {
+    "name": "operator delete[]",
+    "prototype": [
+      "void operator delete[](void*)",
+      "void operator delete[](void*, __SIZE_TYPE__)",
+      "void operator delete[](void*, std::align_val_t)",
+      "void operator delete[](void*, __SIZE_TYPE__, std::align_val_t)"
+    ],
+    "constexpr": false,
+    "noexcept": true,
+    "cplusplus": true
   },
   {
     "name": "__builtin_invoke",
@@ -4413,6 +4469,12 @@
   {
     "name": "__builtin_coro_promise",
     "prototype": "void* __builtin_coro_promise(void*, int, bool)",
+    "constexpr": false,
+    "noexcept": true
+  },
+  {
+    "name": "__builtin_coro_noop",
+    "prototype": "void* __builtin_coro_noop()",
     "constexpr": false,
     "noexcept": true
   }

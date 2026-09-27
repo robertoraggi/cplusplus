@@ -44,7 +44,8 @@ export interface BuiltinDef {
   consteval?: boolean;
   noexcept?: boolean;
   noreturn?: boolean;
-  libcall?: boolean;
+  cplusplus?: boolean;
+  libcall?: boolean | string;
   eval?: string | BuiltinEval;
   typeCheck?: string;
   codegen?: string;
@@ -56,8 +57,29 @@ export const BUILTINS: BuiltinDef[] = JSON.parse(
   fs.readFileSync(builtinsPath, "utf-8"),
 );
 
+const OPERATOR_FUNCTION_TOKENS = new Map<string, string>([
+  ["operator new", "T_NEW"],
+  ["operator new[]", "T_NEW_ARRAY"],
+  ["operator delete", "T_DELETE"],
+  ["operator delete[]", "T_DELETE_ARRAY"],
+]);
+
+export function isOperatorFunctionName(name: string): boolean {
+  return OPERATOR_FUNCTION_TOKENS.has(name);
+}
+
+export function operatorFunctionToken(name: string): string {
+  const token = OPERATOR_FUNCTION_TOKENS.get(name);
+  if (!token) throw new Error(`'${name}' is not an allocation function name`);
+  return `TokenKind::${token}`;
+}
+
 export const BUILTIN_FUNCTION_DEFS: BuiltinDef[] = BUILTINS.filter(
-  (b) => b.prototype,
+  (b) => b.prototype && !isOperatorFunctionName(b.name),
+);
+
+export const IMPLICIT_DECLARATION_DEFS: BuiltinDef[] = BUILTINS.filter((b) =>
+  isOperatorFunctionName(b.name),
 );
 
 export const BUILTIN_NAMES: string[] = BUILTIN_FUNCTION_DEFS.map(

@@ -143,15 +143,27 @@ auto Triple::isDarwin() const -> bool {
 auto Triple::isWebAssembly() const -> bool {
   if (arch_ == TripleArch::kWasm32) return true;
 
+  return isWasi() || os_ == TripleOS::kEmscripten;
+}
+
+auto Triple::isWasi() const -> bool {
   switch (os_) {
     case TripleOS::kWasi:
     case TripleOS::kWasiPreview1:
     case TripleOS::kWasiPreview2:
-    case TripleOS::kEmscripten:
       return true;
     default:
       return false;
   }
+}
+
+auto Triple::withArchName(std::string_view archName) const -> Triple {
+  auto text = std::string{archName};
+  for (int index = 1; index != printedComponents_; ++index) {
+    text += '-';
+    text += names_[index];
+  }
+  return Triple{text};
 }
 
 auto Triple::osVersion() const -> std::optional<std::pair<int, int>> {

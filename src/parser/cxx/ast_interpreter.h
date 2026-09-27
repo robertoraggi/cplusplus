@@ -27,6 +27,8 @@
 #include <cxx/type_traits.h>
 
 #include <cstdint>
+#include <deque>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string>
@@ -53,14 +55,35 @@ class ASTInterpreter {
 
   [[nodiscard]] auto evaluate(ExpressionAST* ast) -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto initializationValue(const Type* type,
+                                         FunctionSymbol* constructor,
+                                         ExpressionAST* initializer)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateInitializer(const Type* type,
+                                         ExpressionAST* initializer)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto initialValue(const Type* type, ExpressionAST* initializer)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto cloneValue(const ConstValue& value) -> ConstValue;
 
+  [[nodiscard]] auto cloneValueOfType(const ConstValue& value, const Type* type)
+      -> ConstValue;
+
   [[nodiscard]] auto evaluateAddress(ExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateStaticDataMember(FieldSymbol* field)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto toBool(const ConstValue& value) -> std::optional<bool>;
 
   [[nodiscard]] auto toInt(const ConstValue& value)
+      -> std::optional<std::intmax_t>;
+
+  [[nodiscard]] auto memberObjectPointerOffset(const ConstValue& value) const
       -> std::optional<std::intmax_t>;
 
   [[nodiscard]] auto toUInt(const ConstValue& value)
@@ -127,6 +150,19 @@ class ASTInterpreter {
 
  private:
   using ExpressionResult = std::optional<ConstValue>;
+
+  [[nodiscard]] static auto sameObjectOperand(ExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] static auto materializedTemporary(ExpressionAST* ast)
+      -> ExpressionAST*;
+
+  [[nodiscard]] static auto initializingStringLiteral(
+      ExpressionAST* initializer) -> const StringLiteral*;
+
+  [[nodiscard]] auto stringLiteralArray(const BoundedArrayType* type,
+                                        const StringLiteral* literal)
+      -> ConstValue;
 
   enum class ControlFlow { kNormal, kBreak, kContinue, kReturn };
 
@@ -290,7 +326,7 @@ class ASTInterpreter {
   [[nodiscard]] auto asmClobber(AsmClobberAST* ast) -> DeclarationResult;
   [[nodiscard]] auto asmGotoLabel(AsmGotoLabelAST* ast) -> DeclarationResult;
 
-  [[nodiscard]] auto lookupLocal(const Symbol* sym) const
+  [[nodiscard]] auto lookupLocal(const Symbol* sym)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto lookupLocalSlot(const Symbol* sym) -> ConstValue*;
@@ -331,6 +367,9 @@ class ASTInterpreter {
 
   void bindReference(const Symbol* sym, ConstValue* target);
 
+  [[nodiscard]] auto bindReferenceTo(Frame& frame, Symbol* reference,
+                                     ExpressionAST* initializer) -> bool;
+
   void interpretInitDeclarator(InitDeclaratorAST* initDecl);
 
   void interpretStructuredBinding(StructuredBindingDeclarationAST* ast);
@@ -345,15 +384,50 @@ class ASTInterpreter {
       const std::shared_ptr<ConstObject>& obj, ClassSymbol* classSymbol)
       -> bool;
 
+  [[nodiscard]] auto copyDefaultedObject(
+      const std::shared_ptr<ConstObject>& obj,
+      const std::shared_ptr<ConstObject>& source, ClassSymbol* classSymbol)
+      -> bool;
+
   [[nodiscard]] auto valueInitializeClass(const Type* type, ClassSymbol* symbol)
       -> std::shared_ptr<ConstObject>;
 
   void applyMemInitializer(MemInitializerAST* ast,
-                           std::vector<ConstValue> args);
+                           const std::vector<ExpressionAST*>& arguments);
 
-  [[nodiscard]] auto constructSubobject(MemInitializerAST* ast,
-                                        const Type* type,
-                                        std::vector<ConstValue> args)
+  void initializeSubobject(MemInitializerAST* ast, Symbol* subobject,
+                           const Type* type,
+                           const std::vector<ExpressionAST*>& arguments);
+
+  [[nodiscard]] auto constructSubobject(
+      MemInitializerAST* ast, const Type* type,
+      const std::vector<ExpressionAST*>& arguments)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto referenceBinding(ExpressionAST* initializer)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto pointeeObject(ConstValue value, const Type* pointeeType)
+      -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto objectDesignatedByThis() -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto implicitObjectFor(Symbol* member)
+      -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto memberValue(const std::shared_ptr<ConstObject>& object,
+                                 const Symbol* member)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto memberSlot(const std::shared_ptr<ConstObject>& object,
+                                const Symbol* member) -> ConstValue*;
+
+  [[nodiscard]] auto memberAddress(const std::shared_ptr<ConstObject>& object,
+                                   Symbol* member) -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto staticFieldSlot(FieldSymbol* field) -> ConstValue*;
+
+  [[nodiscard]] auto staticFieldAddress(FieldSymbol* field)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto lvalue(ExpressionAST* ast) -> ConstValue*;
@@ -363,6 +437,19 @@ class ASTInterpreter {
                                  const Type* objectType = nullptr)
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto pointeeCharacter(const ConstValue& pointer,
+                                      std::intmax_t index)
+      -> std::optional<std::intmax_t>;
+
+  [[nodiscard]] auto nullTerminatedString(
+      const ConstValue& pointer,
+      std::size_t limit = std::numeric_limits<std::size_t>::max())
+      -> std::optional<std::string>;
+
+  [[nodiscard]] auto pointeeCharacters(const ConstValue& pointer,
+                                       std::size_t count)
+      -> std::optional<std::string>;
+
   [[nodiscard]] auto addressSlot(const ConstAddress& address,
                                  std::intmax_t extraIndex,
                                  const Type* objectType = nullptr)
@@ -370,6 +457,32 @@ class ASTInterpreter {
 
   [[nodiscard]] auto memberObject(MemberExpressionAST* ast)
       -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto dispatchVirtualCall(
+      FunctionSymbol* function, const std::shared_ptr<ConstObject>& object)
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto constexprUnknownObject(const Type* objectType)
+      -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto constexprUnknownObject(const ConstAddress& address,
+                                            const Type* objectType)
+      -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto constexprUnknownObject(ExpressionAST* ast)
+      -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto constexprUnknownAddress(ExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto designatedValue(ExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto designatedObject(ExpressionAST* ast)
+      -> std::shared_ptr<ConstObject>;
+
+  [[nodiscard]] auto discardedValue(ExpressionAST* ast)
+      -> std::optional<ConstValue>;
 
   [[nodiscard]] auto fieldOwner(ExpressionAST* ast)
       -> std::shared_ptr<ConstObject>;
@@ -467,6 +580,14 @@ class ASTInterpreter {
       -> std::optional<ConstValue>;
 
  private:
+  [[nodiscard]] auto evaluateConversionFunctionCall(
+      ImplicitCastExpressionAST* ast, CallResultKind kind) -> CallResult;
+
+  [[nodiscard]] auto copyArrayElements(const Type* type,
+                                       FunctionSymbol* constructor,
+                                       const ConstValue& source)
+      -> std::optional<ConstValue>;
+
   TranslationUnit* unit_ = nullptr;
   TypeTraits traits;
 
@@ -476,7 +597,7 @@ class ASTInterpreter {
     std::unordered_map<const Symbol*, ConstValue> referenceAddresses;
     std::vector<VariableSymbol*> automaticObjects;
   };
-  std::vector<Frame> frames_;
+  std::deque<Frame> frames_;
   std::vector<Frame> retiredFrames_;
 
   class EvaluationScope {

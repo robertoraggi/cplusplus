@@ -31,6 +31,7 @@
 #include <cxx/types_fwd.h>
 
 #include <optional>
+#include <string_view>
 #include <unordered_set>
 
 namespace cxx {
@@ -84,18 +85,23 @@ class TypeChecker {
   auto check_bool_condition(ExpressionAST*& ast) -> bool;
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl,
-                             SpecifierAST* typeSpecifier);
+                             SpecifierAST* typeSpecifier,
+                             ArrayCopyPolicy arrayCopyPolicy =
+                                 ArrayCopyPolicy::kBracedInitializerOnly);
   void check_variable_initializer(VariableSymbol* var,
                                   ExpressionAST*& initializer,
-                                  SourceLocation location);
-  void check_member_initialization(FieldSymbol* field,
-                                   ExpressionAST*& initializer,
-                                   InitializationKind kind,
-                                   ArrayCopyPolicy arrayCopyPolicy =
-                                       ArrayCopyPolicy::kBracedInitializerOnly);
+                                  SourceLocation location,
+                                  ArrayCopyPolicy arrayCopyPolicy =
+                                      ArrayCopyPolicy::kBracedInitializerOnly);
+  [[nodiscard]] auto check_member_initialization(
+      FieldSymbol* field, ExpressionAST*& initializer, InitializationKind kind,
+      ArrayCopyPolicy arrayCopyPolicy = ArrayCopyPolicy::kBracedInitializerOnly)
+      -> FunctionSymbol*;
   void check_condition_declaration(ConditionExpressionAST* ast);
   void check_field_initializer(FieldSymbol* field);
-  void check_mem_initializers(CompoundStatementFunctionBodyAST* ast);
+  void check_mem_initializers(CompoundStatementFunctionBodyAST* ast,
+                              ArrayCopyPolicy arrayCopyPolicy =
+                                  ArrayCopyPolicy::kBracedInitializerOnly);
   void bind_template_parameter_base_initializers(
       CompoundStatementFunctionBodyAST* ast);
   void check_braced_init_list(const Type* type, BracedInitListAST* ast,
@@ -108,6 +114,12 @@ class TypeChecker {
 
   void checkConstructorAccess(FunctionSymbol* constructor,
                               SourceLocation location);
+  void checkDestructorAccess(FunctionSymbol* destructor,
+                             SourceLocation location);
+  void checkPotentiallyInvokedDestructor(const Type* type,
+                                         SourceLocation location);
+  void initializeBracedArgument(ExpressionAST*& argument,
+                                const Type* parameterType);
 
   [[nodiscard]] auto check_class_initializer(
       const Type* targetType, ExpressionAST*& initializer,
@@ -121,6 +133,11 @@ class TypeChecker {
 
   [[nodiscard]] auto deducePlaceholderType(const Type* declaredType,
                                            ExpressionAST* initializer)
+      -> const Type*;
+
+  [[nodiscard]] auto deduceDeclaredPlaceholderType(const Type* declaredType,
+                                                   ExpressionAST* initializer,
+                                                   SourceLocation location)
       -> const Type*;
 
   [[nodiscard]] auto deduceClassTemplateSpecialization(
@@ -146,10 +163,10 @@ class TypeChecker {
   void diagnoseAmbiguousConversion(const ImplicitConversionSequence& sequence,
                                    ExpressionAST* expr);
 
-  [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
-                                    const Type* rightType = nullptr,
-                                    ExpressionAST* leftExpr = nullptr,
-                                    ExpressionAST* rightExpr = nullptr)
+  [[nodiscard]] auto lookupOperator(
+      const Type* type, TokenKind op, const Type* rightType = nullptr,
+      ExpressionAST* leftExpr = nullptr, ExpressionAST* rightExpr = nullptr,
+      ImplicitConversionSequence* builtinConversion = nullptr)
       -> FunctionSymbol*;
 
   [[nodiscard]] auto collectOverloads(Symbol* symbol) const
@@ -168,6 +185,10 @@ class TypeChecker {
 
   [[nodiscard]] auto wasLastOperatorReversed() const -> bool {
     return lastOperatorReversed_;
+  }
+
+  void excludeOperatorCandidate(FunctionSymbol* function) {
+    excludedOperatorCandidate_ = function;
   }
 
   void warning(SourceLocation loc, std::string message);
@@ -195,6 +216,17 @@ class TypeChecker {
   void leaveAggregateInitialization(ClassSymbol* classSymbol);
 
  private:
+  [[nodiscard]] auto deducePlaceholderReplacement(const Type* declaredType,
+                                                  const Type* initializerType,
+                                                  bool forwardsLvalue)
+      -> const Type*;
+
+  [[nodiscard]] auto deducesReturnTypeAtInstantiation(
+      ScopeSymbol* function, const Type* returnType) const -> bool;
+
+  void checkSpecialMemberAccess(FunctionSymbol* function, std::string_view kind,
+                                SourceLocation location);
+
   struct Visitor;
   struct CheckMemInitializers;
 
@@ -219,6 +251,7 @@ class TypeChecker {
   bool lastOperatorLookupAmbiguous_ = false;
   bool lastOperatorRewritten_ = false;
   bool lastOperatorReversed_ = false;
+  FunctionSymbol* excludedOperatorCandidate_ = nullptr;
   std::unordered_set<ClassSymbol*> aggregatesBeingInitialized_;
 };
 }  // namespace cxx

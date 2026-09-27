@@ -70,8 +70,14 @@ struct OverloadResult {
 
 struct BinaryOperatorCandidate {
   FunctionSymbol* symbol = nullptr;
+  ScopeSymbol* lookupScope = nullptr;
   bool rewritten = false;
   bool reversed = false;
+};
+
+struct FoundCandidates {
+  ScopeSymbol* lookupScope = nullptr;
+  std::vector<FunctionSymbol*> functions;
 };
 
 [[nodiscard]] auto isExcludedInheritedConstructor(TypeTraits& traits,
@@ -111,26 +117,47 @@ struct ConstructorResult {
                                           FunctionSymbol* rhs) -> bool;
 
 [[nodiscard]] auto compareDeductionCandidates(const DeductionCandidateInfo& lhs,
-                                              const DeductionCandidateInfo& rhs,
-                                              bool parameterTypesMatch) -> int;
+                                              const DeductionCandidateInfo& rhs)
+    -> int;
 
 [[nodiscard]] auto templateCandidateArityRejects(FunctionSymbol* pattern,
                                                  int argCount) -> bool;
 
+struct PartialOrderingContext {
+  enum class Kind {
+    kFunctionType,
+    kCall,
+    kConversion,
+  };
+
+  Kind kind = Kind::kFunctionType;
+  std::size_t callArgumentCount = 0;
+  bool candidateReversed = false;
+  bool otherReversed = false;
+
+  [[nodiscard]] static auto call(std::size_t argumentCount,
+                                 bool candidateReversed = false,
+                                 bool otherReversed = false)
+      -> PartialOrderingContext {
+    return {.kind = Kind::kCall,
+            .callArgumentCount = argumentCount,
+            .candidateReversed = candidateReversed,
+            .otherReversed = otherReversed};
+  }
+};
+
 [[nodiscard]] auto compareFunctionTemplateSpecializations(
-    TranslationUnit* unit, FunctionSymbol* candidate, FunctionSymbol* other)
-    -> int;
+    TranslationUnit* unit, FunctionSymbol* candidate, FunctionSymbol* other,
+    const PartialOrderingContext& context = {}) -> int;
 
 [[nodiscard]] auto compareNonTemplateConstraints(TranslationUnit* unit,
                                                  FunctionSymbol* candidate,
                                                  FunctionSymbol* other) -> int;
 
-[[nodiscard]] auto compareCandidateOrdering(TranslationUnit* unit,
-                                            FunctionSymbol* candidate,
-                                            bool candidateFromTemplate,
-                                            FunctionSymbol* other,
-                                            bool otherFromTemplate,
-                                            bool preferNonTemplate) -> int;
+[[nodiscard]] auto compareCandidateOrdering(
+    TranslationUnit* unit, FunctionSymbol* candidate,
+    bool candidateFromTemplate, FunctionSymbol* other, bool otherFromTemplate,
+    bool preferNonTemplate, const PartialOrderingContext& context) -> int;
 
 class OverloadResolution {
  public:
@@ -144,7 +171,8 @@ class OverloadResolution {
                                ExpressionAST*& expr);
 
   [[nodiscard]] auto implicitObjectArgumentConversion(
-      FunctionSymbol* function, const ImplicitObjectArgument& object)
+      FunctionSymbol* function, const ImplicitObjectArgument& object,
+      ScopeSymbol* lookupScope)
       -> std::expected<ImplicitConversionSequence, std::string>;
 
   [[nodiscard]] auto selectBestViableFunction(
@@ -164,7 +192,7 @@ class OverloadResolution {
   [[nodiscard]] auto hasDefaultConstructor(ClassSymbol* classSymbol) -> bool;
 
   [[nodiscard]] auto findCandidates(ScopeSymbol* scope, const Name* name) const
-      -> std::vector<FunctionSymbol*>;
+      -> FoundCandidates;
 
   [[nodiscard]] auto buildCallCandidate(
       FunctionSymbol* function, const FunctionType* type,
@@ -172,17 +200,14 @@ class OverloadResolution {
       std::vector<RejectedCandidate>* rejected = nullptr)
       -> std::optional<Candidate>;
 
-  [[nodiscard]] auto resolveCall(const std::vector<FunctionSymbol*>& candidates,
-                                 std::span<ExpressionAST* const> args,
-                                 bool* ambiguous = nullptr) -> FunctionSymbol*;
-
   [[nodiscard]] auto collectCandidates(Symbol* symbol) const
       -> std::vector<FunctionSymbol*>;
 
-  [[nodiscard]] auto lookupOperator(const Type* type, TokenKind op,
-                                    const Type* rightType = nullptr,
-                                    ExpressionAST* leftExpr = nullptr,
-                                    ExpressionAST* rightExpr = nullptr)
+  [[nodiscard]] auto lookupOperator(
+      ScopeSymbol* scope, const Type* type, TokenKind op,
+      const Type* rightType = nullptr, ExpressionAST* leftExpr = nullptr,
+      ExpressionAST* rightExpr = nullptr,
+      ImplicitConversionSequence* builtinConversion = nullptr)
       -> FunctionSymbol*;
 
   [[nodiscard]] auto isRewriteTarget(FunctionSymbol* equalityOperator,
@@ -204,7 +229,39 @@ class OverloadResolution {
     stdconv_.setAccessingScope(accessingScope);
   }
 
+  void excludeCandidate(FunctionSymbol* function) {
+    excludedCandidate_ = function;
+  }
+
  private:
+  struct DeducedCandidate {
+    FunctionSymbol* specialization = nullptr;
+    List<TemplateArgumentAST*>* templateArguments = nullptr;
+  };
+
+  [[nodiscard]] auto deduceTemplateCandidate(
+      FunctionSymbol* pattern, std::span<ExpressionAST* const> args,
+      SourceLocation location) -> std::expected<DeducedCandidate, std::string>;
+
+  [[nodiscard]] auto nonMemberOperatorCandidates(
+      ScopeSymbol* scope, const Name* name,
+      std::span<const Type* const> operandTypes) const
+      -> std::vector<FunctionSymbol*>;
+
+  [[nodiscard]] auto isExcludedCandidate(FunctionSymbol* function) const
+      -> bool;
+
+  [[nodiscard]] auto haveSameParametersForArguments(const Candidate& lhs,
+                                                    const Candidate& rhs)
+      -> bool;
+
+  [[nodiscard]] auto compareInheritedConstructors(const Candidate& lhs,
+                                                  const Candidate& rhs) -> int;
+
+  [[nodiscard]] auto implicitObjectParameterClass(
+      FunctionSymbol* function, const ImplicitObjectArgument& object,
+      ScopeSymbol* lookupScope) -> const Type*;
+
   [[nodiscard]] auto resolveConstructor(ClassSymbol* classSymbol,
                                         const std::vector<ExpressionAST*>& args,
                                         InitializationKind initializationKind,
@@ -214,7 +271,12 @@ class OverloadResolution {
   [[nodiscard]] auto resolveBinaryOperator(
       TokenKind op, const std::vector<BinaryOperatorCandidate>& candidates,
       const Type* leftType, const Type* rightType, bool* ambiguous,
-      ExpressionAST* leftExpr, ExpressionAST* rightExpr) -> FunctionSymbol*;
+      ExpressionAST* leftExpr, ExpressionAST* rightExpr,
+      ImplicitConversionSequence* builtinConversion) -> FunctionSymbol*;
+
+  [[nodiscard]] auto builtinUnaryOperatorParameterTypes(TokenKind op,
+                                                        const Type* operandType)
+      -> std::vector<const Type*>;
 
   [[nodiscard]] auto builtinBinaryOperatorParameterType(TokenKind op,
                                                         const Type* leftType,
@@ -229,5 +291,6 @@ class OverloadResolution {
   bool lastLookupAmbiguous_ = false;
   bool lastOperatorRewritten_ = false;
   bool lastOperatorReversed_ = false;
+  FunctionSymbol* excludedCandidate_ = nullptr;
 };
 }  // namespace cxx

@@ -33,4 +33,14 @@ auto working_directory() -> path {
   return directory;
 }
 
+auto file_identity(const path& file) -> path {
+  auto normal = (working_directory() / file).lexically_normal();
+  if constexpr (!kHasProcessWorkingDirectory) return normal;
+
+  std::error_code ec;
+  auto canonical = std::filesystem::weakly_canonical(normal, ec);
+  if (ec) return normal;
+  return canonical;
+}
+
 }  // namespace cxx::fs

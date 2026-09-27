@@ -426,8 +426,6 @@ auto ASTInterpreter::SpecifierVisitor::operator()(DecltypeAutoSpecifierAST* ast)
 
 auto ASTInterpreter::SpecifierVisitor::operator()(DecltypeSpecifierAST* ast)
     -> SpecifierResult {
-  auto expressionResult = interp.expression(ast->expression);
-
   return {};
 }
 

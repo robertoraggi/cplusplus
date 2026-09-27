@@ -20,9 +20,11 @@
 
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/dependent_types.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
@@ -52,6 +54,94 @@ namespace {
        ListView{templateDecl->templateParameterList})
     ++count;
   return count;
+}
+
+struct WrittenTemplateArguments {
+  [[nodiscard]] auto operator()(SimpleTemplateIdAST* ast) const
+      -> List<TemplateArgumentAST*>* {
+    return ast->templateArgumentList;
+  }
+
+  [[nodiscard]] auto operator()(OperatorFunctionTemplateIdAST* ast) const
+      -> List<TemplateArgumentAST*>* {
+    return ast->templateArgumentList;
+  }
+
+  [[nodiscard]] auto operator()(LiteralOperatorTemplateIdAST* ast) const
+      -> List<TemplateArgumentAST*>* {
+    return ast->templateArgumentList;
+  }
+
+  [[nodiscard]] auto operator()(UnqualifiedIdAST*) const
+      -> List<TemplateArgumentAST*>* {
+    return nullptr;
+  }
+};
+
+[[nodiscard]] auto writtenExpression(ExpressionAST* expression)
+    -> ExpressionAST* {
+  while (expression) {
+    if (auto cast = ast_cast<ImplicitCastExpressionAST>(expression)) {
+      expression = cast->expression;
+      continue;
+    }
+    if (auto constant = ast_cast<ConstExpressionAST>(expression)) {
+      expression = constant->expression;
+      continue;
+    }
+    return expression;
+  }
+  return nullptr;
+}
+
+[[nodiscard]] auto namesParameter(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+  if (template_parameter_info(symbol)) return true;
+  return symbol_cast<ParameterSymbol>(symbol) != nullptr;
+}
+
+[[nodiscard]] auto correspondingParameters(
+    const TypeParamInfo& lhs, const TypeParamInfo& rhs,
+    const TemplateEquivalence::ParameterCorrespondence& correspondence)
+    -> bool {
+  if (lhs.isPack != rhs.isPack) return false;
+  if (lhs.depth == correspondence.lhsDepth &&
+      lhs.index < correspondence.count) {
+    return rhs.depth == correspondence.rhsDepth && rhs.index == lhs.index;
+  }
+  return lhs.depth == rhs.depth && lhs.index == rhs.index;
+}
+
+[[nodiscard]] auto parameterPosition(ParameterSymbol* parameter)
+    -> std::ptrdiff_t {
+  auto scope = symbol_cast<FunctionParametersSymbol>(parameter->parent());
+  if (!scope) return -1;
+  auto parameters = views::members(scope) | views::parameters;
+  return std::ranges::distance(parameters.begin(),
+                               std::ranges::find(parameters, parameter));
+}
+
+[[nodiscard]] auto parameterListNesting(ParameterSymbol* parameter) -> int {
+  int nesting = 0;
+  for (Symbol* scope = parameter->parent(); scope; scope = scope->parent()) {
+    if (symbol_cast<FunctionParametersSymbol>(scope)) ++nesting;
+  }
+  return nesting;
+}
+
+[[nodiscard]] auto correspondingFunctionParameters(ParameterSymbol* a,
+                                                   ParameterSymbol* b) -> bool {
+  if (a->isParameterPack() != b->isParameterPack()) return false;
+  if (parameterPosition(a) != parameterPosition(b)) return false;
+  return parameterListNesting(a) == parameterListNesting(b);
+}
+
+[[nodiscard]] auto callsDependentName(TranslationUnit* unit,
+                                      CallExpressionAST* call) -> bool {
+  auto callee = ast_cast<IdExpressionAST>(call->baseExpression);
+  if (!callee || callee->nestedNameSpecifier) return false;
+  if (!names_functions(callee->symbol)) return false;
+  return isDependent(unit, call);
 }
 
 }  // namespace
@@ -138,8 +228,11 @@ auto TemplateEquivalence::sameWritten(NamedTypeSpecifierAST* a,
     if (!aParameter && !bParameter) {
       if (aName->identifier != bName->identifier) return false;
     }
-    return same(a->symbol ? a->symbol->type() : nullptr,
-                b->symbol ? b->symbol->type() : nullptr);
+    if (!a->symbol || !b->symbol) {
+      if (a->symbol != b->symbol) return false;
+      return same(a->nestedNameSpecifier, b->nestedNameSpecifier);
+    }
+    return same(a->symbol->type(), b->symbol->type());
   }
 
   auto aTemplateId = ast_cast<SimpleTemplateIdAST>(a->unqualifiedId);
@@ -149,26 +242,6 @@ auto TemplateEquivalence::sameWritten(NamedTypeSpecifierAST* a,
     return false;
   return sameWritten(aTemplateId->templateArgumentList,
                      bTemplateId->templateArgumentList);
-}
-
-auto TemplateEquivalence::same(UnqualifiedIdAST* a, UnqualifiedIdAST* b) const
-    -> bool {
-  if (a == b) return true;
-  auto aName = ast_cast<NameIdAST>(a);
-  auto bName = ast_cast<NameIdAST>(b);
-  if (aName || bName)
-    return aName && bName && aName->identifier == bName->identifier;
-
-  auto aTemplateId = ast_cast<SimpleTemplateIdAST>(a);
-  auto bTemplateId = ast_cast<SimpleTemplateIdAST>(b);
-  if (!aTemplateId || !bTemplateId ||
-      aTemplateId->identifier != bTemplateId->identifier)
-    return false;
-  if (aTemplateId->symbol && bTemplateId->symbol &&
-      aTemplateId->symbol != bTemplateId->symbol)
-    return false;
-  return same(aTemplateId->templateArgumentList,
-              bTemplateId->templateArgumentList);
 }
 
 auto TemplateEquivalence::same(TypenameSpecifierAST* a,
@@ -210,120 +283,647 @@ auto TemplateEquivalence::same(TypeIdAST* a, TypeIdAST* b) const -> bool {
   return same(a->type, b->type);
 }
 
-auto TemplateEquivalence::same(ExpressionAST* a, ExpressionAST* b) const
-    -> bool {
-  if (a == b) return true;
-  if (!a || !b) return false;
+struct TemplateEquivalence::SameUnqualifiedId {
+  const TemplateEquivalence& equivalence;
+  UnqualifiedIdAST* other;
 
-  if (auto nested = ast_cast<NestedExpressionAST>(a))
-    return same(nested->expression, b);
-  if (auto nested = ast_cast<NestedExpressionAST>(b))
-    return same(a, nested->expression);
-  if (auto cast = ast_cast<ImplicitCastExpressionAST>(a))
-    return same(cast->expression, b);
-  if (auto cast = ast_cast<ImplicitCastExpressionAST>(b))
-    return same(a, cast->expression);
-  if (auto constant = ast_cast<ConstExpressionAST>(a))
-    return same(constant->expression, b);
-  if (auto constant = ast_cast<ConstExpressionAST>(b))
-    return same(a, constant->expression);
-
-  if (auto aLit = ast_cast<IntLiteralExpressionAST>(a)) {
-    auto bLit = ast_cast<IntLiteralExpressionAST>(b);
-    if (!bLit || !aLit->literal || !bLit->literal) return false;
-    return aLit->literal->integerValue() == bLit->literal->integerValue();
+  template <typename Node>
+  [[nodiscard]] auto counterpart(Node*) const -> Node* {
+    return static_cast<Node*>(other);
   }
 
-  if (auto aLit = ast_cast<BoolLiteralExpressionAST>(a)) {
-    auto bLit = ast_cast<BoolLiteralExpressionAST>(b);
-    return bLit && aLit->isTrue == bLit->isTrue;
+  [[nodiscard]] auto operator()(NameIdAST* ast) const -> bool {
+    return ast->identifier == counterpart(ast)->identifier;
   }
 
-  if (auto aSizeofType = ast_cast<SizeofTypeExpressionAST>(a)) {
-    auto bSizeofType = ast_cast<SizeofTypeExpressionAST>(b);
-    return bSizeofType &&
-           same(aSizeofType->typeId ? aSizeofType->typeId->type : nullptr,
-                bSizeofType->typeId ? bSizeofType->typeId->type : nullptr);
+  [[nodiscard]] auto operator()(DestructorIdAST* ast) const -> bool {
+    return equivalence.same(ast->id, counterpart(ast)->id);
   }
 
-  if (auto aSizeof = ast_cast<SizeofExpressionAST>(a)) {
-    auto bSizeof = ast_cast<SizeofExpressionAST>(b);
-    return bSizeof && same(aSizeof->expression, bSizeof->expression);
+  [[nodiscard]] auto operator()(DecltypeIdAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!ast->decltypeSpecifier || !b->decltypeSpecifier) return false;
+    return equivalence.same(ast->decltypeSpecifier->expression,
+                            b->decltypeSpecifier->expression);
   }
 
-  if (auto aSizeofPack = ast_cast<SizeofPackExpressionAST>(a)) {
-    auto bSizeofPack = ast_cast<SizeofPackExpressionAST>(b);
-    if (!bSizeofPack) return false;
-    auto aPack = template_parameter_info(aSizeofPack->symbol);
-    auto bPack = template_parameter_info(bSizeofPack->symbol);
-    if (aPack || bPack) {
-      return aPack && bPack && aPack->depth == bPack->depth &&
-             aPack->index == bPack->index;
-    }
-    return aSizeofPack->symbol == bSizeofPack->symbol;
+  [[nodiscard]] auto operator()(OperatorFunctionIdAST* ast) const -> bool {
+    return ast->op == counterpart(ast)->op;
   }
 
-  if (auto aTrait = ast_cast<TypeTraitExpressionAST>(a)) {
-    auto bTrait = ast_cast<TypeTraitExpressionAST>(b);
-    if (!bTrait || aTrait->typeTrait != bTrait->typeTrait) return false;
-    auto aTypeId = aTrait->typeIdList;
-    auto bTypeId = bTrait->typeIdList;
+  [[nodiscard]] auto operator()(LiteralOperatorIdAST* ast) const -> bool {
+    return ast->identifier == counterpart(ast)->identifier;
+  }
+
+  [[nodiscard]] auto operator()(ConversionFunctionIdAST* ast) const -> bool {
+    return equivalence.same(ast->typeId, counterpart(ast)->typeId);
+  }
+
+  [[nodiscard]] auto operator()(SimpleTemplateIdAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->identifier != b->identifier) return false;
+    return equivalence.same(ast->templateArgumentList, b->templateArgumentList);
+  }
+
+  [[nodiscard]] auto operator()(LiteralOperatorTemplateIdAST* ast) const
+      -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->literalOperatorId, b->literalOperatorId))
+      return false;
+    return equivalence.same(ast->templateArgumentList, b->templateArgumentList);
+  }
+
+  [[nodiscard]] auto operator()(OperatorFunctionTemplateIdAST* ast) const
+      -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->operatorFunctionId, b->operatorFunctionId))
+      return false;
+    return equivalence.same(ast->templateArgumentList, b->templateArgumentList);
+  }
+};
+
+struct TemplateEquivalence::SameRequirement {
+  const TemplateEquivalence& equivalence;
+  RequirementAST* other;
+
+  template <typename Node>
+  [[nodiscard]] auto counterpart(Node*) const -> Node* {
+    return static_cast<Node*>(other);
+  }
+
+  [[nodiscard]] auto operator()(SimpleRequirementAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(CompoundRequirementAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (bool(ast->noexceptLoc) != bool(b->noexceptLoc)) return false;
+    if (!equivalence.same(ast->expression, b->expression)) return false;
+    if (!ast->typeConstraint || !b->typeConstraint)
+      return ast->typeConstraint == b->typeConstraint;
+    return equivalence.same(ast->typeConstraint, b->typeConstraint);
+  }
+
+  [[nodiscard]] auto operator()(TypeRequirementAST* ast) const -> bool {
+    return equivalence.same(ast->typeId, counterpart(ast)->typeId);
+  }
+
+  [[nodiscard]] auto operator()(NestedRequirementAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+};
+
+struct TemplateEquivalence::SameExpression {
+  const TemplateEquivalence& equivalence;
+  ExpressionAST* other;
+
+  template <typename Node>
+  [[nodiscard]] auto counterpart(Node*) const -> Node* {
+    return static_cast<Node*>(other);
+  }
+
+  [[nodiscard]] auto operator()(CharLiteralExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!ast->literal || !b->literal) return false;
+    if (!equivalence.same(ast->type, b->type)) return false;
+    return ast->literal->charValue() == b->literal->charValue();
+  }
+
+  [[nodiscard]] auto operator()(BoolLiteralExpressionAST* ast) const -> bool {
+    return ast->isTrue == counterpart(ast)->isTrue;
+  }
+
+  [[nodiscard]] auto operator()(IntLiteralExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!ast->literal || !b->literal) return false;
+    if (!equivalence.same(ast->type, b->type)) return false;
+    return ast->literal->integerValue() == b->literal->integerValue();
+  }
+
+  [[nodiscard]] auto operator()(FloatLiteralExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!ast->literal || !b->literal) return false;
+    if (!equivalence.same(ast->type, b->type)) return false;
+    return ast->literal->floatValue() == b->literal->floatValue();
+  }
+
+  [[nodiscard]] auto operator()(NullptrLiteralExpressionAST* ast) const
+      -> bool {
+    return ast->literal == counterpart(ast)->literal;
+  }
+
+  [[nodiscard]] auto operator()(StringLiteralExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    return ast->literal == b->literal && ast->encoding == b->encoding;
+  }
+
+  [[nodiscard]] auto operator()(
+      UserDefinedStringLiteralExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    return ast->literal == b->literal && ast->encoding == b->encoding;
+  }
+
+  [[nodiscard]] auto operator()(ObjectLiteralExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->typeId, b->typeId)) return false;
+    return equivalence.same(ast->bracedInitList, b->bracedInitList);
+  }
+
+  [[nodiscard]] auto operator()(ThisExpressionAST*) const -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(PackIndexExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->packExpression, b->packExpression)) return false;
+    return equivalence.same(ast->indexExpression, b->indexExpression);
+  }
+
+  [[nodiscard]] auto operator()(GenericSelectionExpressionAST* ast) const
+      -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->expression, b->expression)) return false;
+    return sameAssociations(ast->genericAssociationList,
+                            b->genericAssociationList);
+  }
+
+  [[nodiscard]] auto operator()(NestedStatementExpressionAST*) const -> bool {
+    return false;
+  }
+
+  [[nodiscard]] auto operator()(DefaultInitializerExpressionAST* ast) const
+      -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(NestedExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(IdExpressionAST* ast) const -> bool {
+    return equivalence.same(ast, counterpart(ast));
+  }
+
+  [[nodiscard]] auto operator()(LambdaExpressionAST*) const -> bool {
+    return false;
+  }
+
+  [[nodiscard]] auto operator()(FoldExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->op != b->op || ast->foldOp != b->foldOp) return false;
+    if (!equivalence.same(ast->leftExpression, b->leftExpression)) return false;
+    return equivalence.same(ast->rightExpression, b->rightExpression);
+  }
+
+  [[nodiscard]] auto operator()(RightFoldExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->op != b->op) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
+  [[nodiscard]] auto operator()(LeftFoldExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->op != b->op) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
+  [[nodiscard]] auto operator()(RequiresExpressionAST* ast) const -> bool {
+    return equivalence.same(ast, counterpart(ast));
+  }
+
+  [[nodiscard]] auto operator()(VaArgExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->typeId, b->typeId)) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
+  [[nodiscard]] auto operator()(SubscriptExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->baseExpression, b->baseExpression)) return false;
+    return equivalence.same(ast->indexExpression, b->indexExpression);
+  }
+
+  [[nodiscard]] auto operator()(CallExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.sameCallee(ast, b)) return false;
+    return equivalence.same(ast->expressionList, b->expressionList);
+  }
+
+  [[nodiscard]] auto operator()(TypeConstructionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->type, b->type)) return false;
+    return equivalence.same(ast->expressionList, b->expressionList);
+  }
+
+  [[nodiscard]] auto operator()(BracedTypeConstructionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->type, b->type)) return false;
+    return equivalence.same(ast->bracedInitList, b->bracedInitList);
+  }
+
+  [[nodiscard]] auto operator()(SpliceMemberExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->accessOp != b->accessOp) return false;
+    if (!equivalence.same(ast->baseExpression, b->baseExpression)) return false;
+    return sameSplicer(ast->splicer, b->splicer);
+  }
+
+  [[nodiscard]] auto operator()(MemberExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->accessOp != b->accessOp) return false;
+    if (!equivalence.same(ast->baseExpression, b->baseExpression)) return false;
+    if (!equivalence.same(ast->nestedNameSpecifier, b->nestedNameSpecifier))
+      return false;
+    if (!equivalence.same(ast->unqualifiedId, b->unqualifiedId)) return false;
+    return equivalence.sameEntity(ast->symbol, b->symbol);
+  }
+
+  [[nodiscard]] auto operator()(PostIncrExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->op != b->op) return false;
+    return equivalence.same(ast->baseExpression, b->baseExpression);
+  }
+
+  [[nodiscard]] auto operator()(CppCastExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->castOp != b->castOp) return false;
+    if (!equivalence.same(ast->typeId, b->typeId)) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
+  [[nodiscard]] auto operator()(BuiltinBitCastExpressionAST* ast) const
+      -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->typeId, b->typeId)) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
+  [[nodiscard]] auto operator()(BuiltinOffsetofExpressionAST* ast) const
+      -> bool {
+    auto b = counterpart(ast);
+    if (ast->identifier != b->identifier) return false;
+    if (!equivalence.same(ast->typeId, b->typeId)) return false;
+    return sameDesignators(ast->designatorList, b->designatorList);
+  }
+
+  [[nodiscard]] auto operator()(TypeidExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(TypeidOfTypeExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->typeId, counterpart(ast)->typeId);
+  }
+
+  [[nodiscard]] auto operator()(SpliceExpressionAST* ast) const -> bool {
+    return sameSplicer(ast->splicer, counterpart(ast)->splicer);
+  }
+
+  [[nodiscard]] auto operator()(GlobalScopeReflectExpressionAST*) const
+      -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(NamespaceReflectExpressionAST* ast) const
+      -> bool {
+    return ast->symbol == counterpart(ast)->symbol;
+  }
+
+  [[nodiscard]] auto operator()(TypeIdReflectExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->typeId, counterpart(ast)->typeId);
+  }
+
+  [[nodiscard]] auto operator()(ReflectExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(LabelAddressExpressionAST* ast) const -> bool {
+    return ast->identifier == counterpart(ast)->identifier;
+  }
+
+  [[nodiscard]] auto operator()(UnaryExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->op != b->op) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
+  [[nodiscard]] auto operator()(AwaitExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(SizeofExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(SizeofTypeExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->typeId, counterpart(ast)->typeId);
+  }
+
+  [[nodiscard]] auto operator()(SizeofPackExpressionAST* ast) const -> bool {
+    return equivalence.sameEntity(ast->symbol, counterpart(ast)->symbol);
+  }
+
+  [[nodiscard]] auto operator()(AlignofTypeExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->typeId, counterpart(ast)->typeId);
+  }
+
+  [[nodiscard]] auto operator()(AlignofExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(NoexceptExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(NewExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (bool(ast->scopeLoc) != bool(b->scopeLoc)) return false;
+    if (!sameNewPlacement(ast->newPlacement, b->newPlacement)) return false;
+    if (!equivalence.same(ast->objectType, b->objectType)) return false;
+    return sameNewInitializer(ast->newInitalizer, b->newInitalizer);
+  }
+
+  [[nodiscard]] auto operator()(DeleteExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (bool(ast->scopeLoc) != bool(b->scopeLoc)) return false;
+    if (bool(ast->lbracketLoc) != bool(b->lbracketLoc)) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
+  [[nodiscard]] auto operator()(CastExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->typeId, b->typeId)) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
+  [[nodiscard]] auto operator()(ImplicitCastExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(ConstExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(BinaryExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->op != b->op) return false;
+    if (!equivalence.same(ast->leftExpression, b->leftExpression)) return false;
+    return equivalence.same(ast->rightExpression, b->rightExpression);
+  }
+
+  [[nodiscard]] auto operator()(ConditionalExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->condition, b->condition)) return false;
+    if (!equivalence.same(ast->iftrueExpression, b->iftrueExpression))
+      return false;
+    return equivalence.same(ast->iffalseExpression, b->iffalseExpression);
+  }
+
+  [[nodiscard]] auto operator()(YieldExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(ThrowExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(AssignmentExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->op != b->op) return false;
+    if (!equivalence.same(ast->leftExpression, b->leftExpression)) return false;
+    return equivalence.same(ast->rightExpression, b->rightExpression);
+  }
+
+  [[nodiscard]] auto operator()(TargetExpressionAST*) const -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(RightExpressionAST*) const -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(CompoundAssignmentExpressionAST* ast) const
+      -> bool {
+    auto b = counterpart(ast);
+    if (ast->op != b->op) return false;
+    if (!equivalence.same(ast->targetExpression, b->targetExpression))
+      return false;
+    return equivalence.same(ast->rightExpression, b->rightExpression);
+  }
+
+  [[nodiscard]] auto operator()(PackExpansionExpressionAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
+  }
+
+  [[nodiscard]] auto operator()(TypeTraitExpressionAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    if (ast->typeTrait != b->typeTrait) return false;
+    auto aTypeId = ast->typeIdList;
+    auto bTypeId = b->typeIdList;
     for (; aTypeId && bTypeId;
          aTypeId = aTypeId->next, bTypeId = bTypeId->next) {
-      if (!same(aTypeId->value, bTypeId->value)) return false;
+      if (!equivalence.same(aTypeId->value, bTypeId->value)) return false;
     }
     return !aTypeId && !bTypeId;
   }
 
-  if (auto aUnary = ast_cast<UnaryExpressionAST>(a)) {
-    auto bUnary = ast_cast<UnaryExpressionAST>(b);
-    return bUnary && aUnary->op == bUnary->op &&
-           same(aUnary->expression, bUnary->expression);
+  [[nodiscard]] auto operator()(ConditionExpressionAST*) const -> bool {
+    return false;
   }
 
-  if (auto aBinary = ast_cast<BinaryExpressionAST>(a)) {
-    auto bBinary = ast_cast<BinaryExpressionAST>(b);
-    return bBinary && aBinary->op == bBinary->op &&
-           same(aBinary->leftExpression, bBinary->leftExpression) &&
-           same(aBinary->rightExpression, bBinary->rightExpression);
+  [[nodiscard]] auto operator()(EqualInitializerAST* ast) const -> bool {
+    return equivalence.same(ast->expression, counterpart(ast)->expression);
   }
 
-  if (auto aId = ast_cast<IdExpressionAST>(a)) {
-    auto bId = ast_cast<IdExpressionAST>(b);
-    if (!bId) return false;
+  [[nodiscard]] auto operator()(BracedInitListAST* ast) const -> bool {
+    return equivalence.same(ast->expressionList,
+                            counterpart(ast)->expressionList);
+  }
 
-    auto aNttp = symbol_cast<NonTypeParameterSymbol>(aId->symbol);
-    auto bNttp = symbol_cast<NonTypeParameterSymbol>(bId->symbol);
-    if (aNttp || bNttp) {
-      if (!aNttp || !bNttp) return false;
-      if (correspondence_.applies() &&
-          aNttp->depth() == correspondence_.lhsDepth &&
-          aNttp->index() < correspondence_.count) {
-        return bNttp->depth() == correspondence_.rhsDepth &&
-               bNttp->index() == aNttp->index();
-      }
-      return aNttp->depth() == bNttp->depth() &&
-             aNttp->index() == bNttp->index();
+  [[nodiscard]] auto operator()(ParenInitializerAST* ast) const -> bool {
+    return equivalence.same(ast->expressionList,
+                            counterpart(ast)->expressionList);
+  }
+
+  [[nodiscard]] auto operator()(ThreeWayComparisonExpressionAST* ast) const
+      -> bool {
+    return equivalence.same(ast->comparison, counterpart(ast)->comparison);
+  }
+
+  [[nodiscard]] auto operator()(DesignatedInitializerClauseAST* ast) const
+      -> bool {
+    auto b = counterpart(ast);
+    if (!sameDesignators(ast->designatorList, b->designatorList)) return false;
+    return equivalence.same(ast->initializer, b->initializer);
+  }
+
+ private:
+  [[nodiscard]] auto sameSplicer(SplicerAST* a, SplicerAST* b) const -> bool {
+    if (!a || !b) return a == b;
+    return equivalence.same(a->expression, b->expression);
+  }
+
+  [[nodiscard]] auto sameNewPlacement(NewPlacementAST* a,
+                                      NewPlacementAST* b) const -> bool {
+    if (!a || !b) return a == b;
+    return equivalence.same(a->expressionList, b->expressionList);
+  }
+
+  [[nodiscard]] auto sameNewInitializer(NewInitializerAST* a,
+                                        NewInitializerAST* b) const -> bool {
+    if (!a || !b) return a == b;
+    if (a->kind() != b->kind()) return false;
+    if (auto paren = ast_cast<NewParenInitializerAST>(a)) {
+      return equivalence.same(
+          paren->expressionList,
+          ast_cast<NewParenInitializerAST>(b)->expressionList);
     }
-
-    auto aTid = ast_cast<SimpleTemplateIdAST>(aId->unqualifiedId);
-    auto bTid = ast_cast<SimpleTemplateIdAST>(bId->unqualifiedId);
-    if (aTid || bTid) {
-      if (!aTid || !bTid) return false;
-      if (!aTid->symbol || aTid->symbol != bTid->symbol) return false;
-      return sameWritten(aTid->templateArgumentList,
-                         bTid->templateArgumentList);
-    }
-
-    auto aNameId = ast_cast<NameIdAST>(aId->unqualifiedId);
-    auto bNameId = ast_cast<NameIdAST>(bId->unqualifiedId);
-    if (!aNameId || !bNameId) return false;
-    if (aNameId->identifier != bNameId->identifier) return false;
-    if (aId->symbol && bId->symbol) return aId->symbol == bId->symbol;
-    return same(aId->nestedNameSpecifier, bId->nestedNameSpecifier);
+    return equivalence.same(
+        ast_cast<NewBracedInitializerAST>(a)->bracedInitList,
+        ast_cast<NewBracedInitializerAST>(b)->bracedInitList);
   }
 
-  return false;
+  [[nodiscard]] auto sameDesignator(DesignatorAST* a, DesignatorAST* b) const
+      -> bool {
+    if (a->kind() != b->kind()) return false;
+    if (auto dot = ast_cast<DotDesignatorAST>(a))
+      return dot->identifier == ast_cast<DotDesignatorAST>(b)->identifier;
+    return equivalence.same(ast_cast<SubscriptDesignatorAST>(a)->expression,
+                            ast_cast<SubscriptDesignatorAST>(b)->expression);
+  }
+
+  [[nodiscard]] auto sameDesignators(List<DesignatorAST*>* a,
+                                     List<DesignatorAST*>* b) const -> bool {
+    for (; a && b; a = a->next, b = b->next) {
+      if (!sameDesignator(a->value, b->value)) return false;
+    }
+    return !a && !b;
+  }
+
+  [[nodiscard]] auto sameAssociation(GenericAssociationAST* a,
+                                     GenericAssociationAST* b) const -> bool {
+    if (a->kind() != b->kind()) return false;
+    if (auto typed = ast_cast<TypeGenericAssociationAST>(a)) {
+      auto other = ast_cast<TypeGenericAssociationAST>(b);
+      if (!equivalence.same(typed->typeId, other->typeId)) return false;
+      return equivalence.same(typed->expression, other->expression);
+    }
+    return equivalence.same(
+        ast_cast<DefaultGenericAssociationAST>(a)->expression,
+        ast_cast<DefaultGenericAssociationAST>(b)->expression);
+  }
+
+  [[nodiscard]] auto sameAssociations(List<GenericAssociationAST*>* a,
+                                      List<GenericAssociationAST*>* b) const
+      -> bool {
+    for (; a && b; a = a->next, b = b->next) {
+      if (!sameAssociation(a->value, b->value)) return false;
+    }
+    return !a && !b;
+  }
+};
+
+auto TemplateEquivalence::same(UnqualifiedIdAST* a, UnqualifiedIdAST* b) const
+    -> bool {
+  if (a == b) return true;
+  if (!a || !b) return false;
+  if (a->kind() != b->kind()) return false;
+  return visit(SameUnqualifiedId{*this, b}, a);
+}
+
+auto TemplateEquivalence::same(ExpressionAST* a, ExpressionAST* b) const
+    -> bool {
+  a = writtenExpression(a);
+  b = writtenExpression(b);
+  if (a == b) return true;
+  if (!a || !b) return false;
+  if (a->kind() != b->kind()) return false;
+  return visit(SameExpression{*this, b}, a);
+}
+
+auto TemplateEquivalence::same(List<ExpressionAST*>* a,
+                               List<ExpressionAST*>* b) const -> bool {
+  for (; a && b; a = a->next, b = b->next) {
+    if (!same(a->value, b->value)) return false;
+  }
+  return !a && !b;
+}
+
+auto TemplateEquivalence::same(IdExpressionAST* a, IdExpressionAST* b) const
+    -> bool {
+  if (!a || !b) return a == b;
+  if (namesParameter(a->symbol) || namesParameter(b->symbol))
+    return sameEntity(a->symbol, b->symbol);
+  if (!a->symbol || !b->symbol) {
+    if (!same(a->nestedNameSpecifier, b->nestedNameSpecifier)) return false;
+    return same(a->unqualifiedId, b->unqualifiedId);
+  }
+  if (!sameEntity(a->symbol, b->symbol)) return false;
+  return same(visit(WrittenTemplateArguments{}, a->unqualifiedId),
+              visit(WrittenTemplateArguments{}, b->unqualifiedId));
+}
+
+auto TemplateEquivalence::sameCallee(CallExpressionAST* a,
+                                     CallExpressionAST* b) const -> bool {
+  if (!callsDependentName(unit_, a) || !callsDependentName(unit_, b))
+    return same(a->baseExpression, b->baseExpression);
+  auto aCallee = ast_cast<IdExpressionAST>(a->baseExpression);
+  auto bCallee = ast_cast<IdExpressionAST>(b->baseExpression);
+  return same(aCallee->unqualifiedId, bCallee->unqualifiedId);
+}
+
+auto TemplateEquivalence::sameEntity(Symbol* a, Symbol* b) const -> bool {
+  if (!a || !b) return !namesParameter(a) && !namesParameter(b);
+
+  auto aTemplateParameter = template_parameter_info(a);
+  auto bTemplateParameter = template_parameter_info(b);
+  if (aTemplateParameter || bTemplateParameter) {
+    if (!aTemplateParameter || !bTemplateParameter) return false;
+    return correspondingParameters(*aTemplateParameter, *bTemplateParameter,
+                                   correspondence_);
+  }
+
+  auto aParameter = symbol_cast<ParameterSymbol>(a);
+  auto bParameter = symbol_cast<ParameterSymbol>(b);
+  if (aParameter || bParameter) {
+    if (!aParameter || !bParameter) return false;
+    return correspondingFunctionParameters(aParameter, bParameter);
+  }
+
+  return resolve_using_declaration(a)->canonical() ==
+         resolve_using_declaration(b)->canonical();
+}
+
+auto TemplateEquivalence::same(RequiresExpressionAST* a,
+                               RequiresExpressionAST* b) const -> bool {
+  auto aParameters = getParameterTypes(unit_, a->parameterDeclarationClause);
+  auto bParameters = getParameterTypes(unit_, b->parameterDeclarationClause);
+  if (aParameters.size() != bParameters.size()) return false;
+  for (std::size_t i = 0; i < aParameters.size(); ++i) {
+    if (!same(aParameters[i], bParameters[i])) return false;
+  }
+
+  auto aRequirement = a->requirementList;
+  auto bRequirement = b->requirementList;
+  for (; aRequirement && bRequirement;
+       aRequirement = aRequirement->next, bRequirement = bRequirement->next) {
+    if (aRequirement->value->kind() != bRequirement->value->kind())
+      return false;
+    if (!visit(SameRequirement{*this, bRequirement->value},
+               aRequirement->value))
+      return false;
+  }
+  return !aRequirement && !bRequirement;
+}
+
+auto TemplateEquivalence::same(TypeConstraintAST* a, TypeConstraintAST* b) const
+    -> bool {
+  if (a->identifier != b->identifier) return false;
+  auto aScope =
+      a->nestedNameSpecifier ? a->nestedNameSpecifier->symbol : nullptr;
+  auto bScope =
+      b->nestedNameSpecifier ? b->nestedNameSpecifier->symbol : nullptr;
+  if (aScope != bScope) return false;
+  return sameWritten(a->templateArgumentList, b->templateArgumentList);
 }
 
 auto TemplateEquivalence::same(NonTypeTemplateParameterAST* a,
@@ -362,13 +962,7 @@ auto TemplateEquivalence::corresponds(
   auto rhsInfo = template_argument_parameter_info(rhs);
   if (lhsInfo || rhsInfo) {
     if (!lhsInfo || !rhsInfo) return false;
-    if (lhsInfo->isPack != rhsInfo->isPack) return false;
-    if (lhsInfo->depth == correspondence.lhsDepth &&
-        lhsInfo->index < correspondence.count) {
-      return rhsInfo->depth == correspondence.rhsDepth &&
-             rhsInfo->index == lhsInfo->index;
-    }
-    return lhsInfo->depth == rhsInfo->depth && lhsInfo->index == rhsInfo->index;
+    return correspondingParameters(*lhsInfo, *rhsInfo, correspondence);
   }
 
   return lhs == rhs;
@@ -403,21 +997,25 @@ auto TemplateEquivalence::corresponds(
            equivalence.same(name->unqualifiedId(), other->unqualifiedId());
   }
 
+  if (auto lhsDecltype = type_cast<DecltypeType>(lhs)) {
+    auto rhsDecltype = type_cast<DecltypeType>(rhs);
+    TemplateEquivalence equivalence{unit_, correspondence};
+    return rhsDecltype && equivalence.same(lhsDecltype->expression(),
+                                           rhsDecltype->expression());
+  }
+
   auto lhsInfo = getTypeParamInfo(lhs);
   auto rhsInfo = getTypeParamInfo(rhs);
   if (lhsInfo || rhsInfo) {
     if (!lhsInfo || !rhsInfo) return false;
-    if (lhsInfo->depth == correspondence.lhsDepth &&
-        lhsInfo->index < correspondence.count) {
-      return rhsInfo->depth == correspondence.rhsDepth &&
-             rhsInfo->index == lhsInfo->index &&
-             rhsInfo->isPack == lhsInfo->isPack;
-    }
-    return lhsInfo->depth == rhsInfo->depth &&
-           lhsInfo->index == rhsInfo->index &&
-           lhsInfo->isPack == rhsInfo->isPack;
+    return correspondingParameters(*lhsInfo, *rhsInfo, correspondence);
   }
 
+  if (auto lhsExpansion = type_cast<PackExpansionType>(lhs)) {
+    auto rhsExpansion = type_cast<PackExpansionType>(rhs);
+    if (!rhsExpansion) return false;
+    return recurse(lhsExpansion->pattern(), rhsExpansion->pattern());
+  }
   if (auto lhsQual = type_cast<QualType>(lhs)) {
     auto rhsQual = type_cast<QualType>(rhs);
     if (!rhsQual || lhsQual->cvQualifiers() != rhsQual->cvQualifiers())
@@ -483,8 +1081,8 @@ auto TemplateEquivalence::corresponds(
     if (lhsTemplate != class_template_of(rhsSym)) return false;
 
     return corresponds(
-        expand_template_arguments(class_template_arguments(lhsSym)),
-        expand_template_arguments(class_template_arguments(rhsSym)),
+        expand_template_arguments(class_template_arguments(unit_, lhsSym)),
+        expand_template_arguments(class_template_arguments(unit_, rhsSym)),
         correspondence);
   }
 
@@ -499,6 +1097,8 @@ auto TemplateEquivalence::walkArguments(List<TemplateArgumentAST*>* a,
     auto typeB = ast_cast<TypeTemplateArgumentAST>(b->value);
     if (typeA || typeB) {
       if (!typeA || !typeB) return false;
+      if (isPackExpansion(typeA->typeId) != isPackExpansion(typeB->typeId))
+        return false;
       const bool equal =
           match == ArgumentMatch::kByWrittenTypeId
               ? same(typeA->typeId, typeB->typeId)
@@ -529,6 +1129,14 @@ auto TemplateEquivalence::sameWritten(List<TemplateArgumentAST*>* a,
   return walkArguments(a, b, ArgumentMatch::kByWrittenTypeId);
 }
 
+auto TemplateEquivalence::sameQualifyingEntity(Symbol* a, Symbol* b) const
+    -> bool {
+  if (a == b) return true;
+  if (!a || !b) return false;
+  if (!template_parameter_info(a) && !template_parameter_info(b)) return false;
+  return same(a->type(), b->type());
+}
+
 auto TemplateEquivalence::same(NestedNameSpecifierAST* a,
                                NestedNameSpecifierAST* b) const -> bool {
   if (a == b) return true;
@@ -552,7 +1160,7 @@ auto TemplateEquivalence::same(NestedNameSpecifierAST* a,
     auto bSimple = ast_cast<SimpleNestedNameSpecifierAST>(b);
     if (!bSimple) return false;
     if (aSimple->symbol || bSimple->symbol)
-      return aSimple->symbol == bSimple->symbol;
+      return sameQualifyingEntity(aSimple->symbol, bSimple->symbol);
     if (aSimple->identifier != bSimple->identifier) return false;
     return same(aSimple->nestedNameSpecifier, bSimple->nestedNameSpecifier);
   }
@@ -596,18 +1204,7 @@ auto TemplateEquivalence::same(List<TemplateParameterAST*>* aIt,
       if ((aSymbol && aSymbol->isParameterPack()) !=
           (bSymbol && bSymbol->isParameterPack()))
         return false;
-      if (aTypeConstraint->identifier != bTypeConstraint->identifier)
-        return false;
-      auto aScope = aTypeConstraint->nestedNameSpecifier
-                        ? aTypeConstraint->nestedNameSpecifier->symbol
-                        : nullptr;
-      auto bScope = bTypeConstraint->nestedNameSpecifier
-                        ? bTypeConstraint->nestedNameSpecifier->symbol
-                        : nullptr;
-      if (aScope != bScope) return false;
-      if (!TemplateEquivalence{unit_}.sameWritten(
-              aTypeConstraint->templateArgumentList,
-              bTypeConstraint->templateArgumentList))
+      if (!TemplateEquivalence{unit_}.same(aTypeConstraint, bTypeConstraint))
         return false;
     }
 

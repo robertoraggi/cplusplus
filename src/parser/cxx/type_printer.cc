@@ -31,9 +31,143 @@
 
 namespace cxx {
 namespace {
+
+constexpr TypePrintOptions kSourceSpelling{.sourceSpelling = true};
+
+[[nodiscard]] auto sourceScopePrefix(Symbol* scope,
+                                     const TypePrintOptions& options)
+    -> std::string;
+
+[[nodiscard]] auto sourceQualifiedName(Symbol* symbol,
+                                       const TypePrintOptions& options)
+    -> std::string;
+
+[[nodiscard]] auto isVisibleFromDeclarationScope(
+    Symbol* scope, const TypePrintOptions& options) -> bool {
+  auto declarationScope = options.declarationScope;
+  if (!declarationScope) return false;
+  if (declarationScope == scope) return true;
+  return declarationScope->hasEnclosingSymbol(scope);
+}
+
+struct SourceScopePrefix {
+  const TypePrintOptions& options;
+
+  [[nodiscard]] auto operator()(NamespaceSymbol* symbol) const -> std::string {
+    if (!symbol->parent()) return {};
+    if (isNamedThroughEnclosingNamespace(symbol))
+      return sourceScopePrefix(symbol->parent(), options);
+    return sourceQualifiedName(symbol, options) + "::";
+  }
+
+  [[nodiscard]] auto isNamedThroughEnclosingNamespace(
+      NamespaceSymbol* symbol) const -> bool {
+    if (!options.declarationScope) return false;
+    return symbol->isInline();
+  }
+
+  [[nodiscard]] auto operator()(ClassSymbol* symbol) const -> std::string {
+    return to_string(symbol->type(), "", options) + "::";
+  }
+
+  [[nodiscard]] auto operator()(FunctionSymbol* symbol) const -> std::string {
+    auto functionOptions = options;
+    functionOptions.omitFunctionReturnType = true;
+    return to_string(symbol->type(), sourceQualifiedName(symbol, options),
+                     functionOptions) +
+           "::";
+  }
+
+  [[nodiscard]] auto operator()(Symbol* symbol) const -> std::string {
+    return sourceScopePrefix(symbol->parent(), options);
+  }
+};
+
+auto sourceScopePrefix(Symbol* scope, const TypePrintOptions& options)
+    -> std::string {
+  if (!scope) return {};
+  if (isVisibleFromDeclarationScope(scope, options)) return {};
+  return visit(SourceScopePrefix{options}, scope);
+}
+
+[[nodiscard]] auto sourceUnqualifiedName(Symbol* symbol) -> std::string {
+  if (symbol->isNamespace() && !symbol->name()) return "(anonymous namespace)";
+  return to_string(symbol->name(), kSourceSpelling);
+}
+
+auto sourceQualifiedName(Symbol* symbol, const TypePrintOptions& options)
+    -> std::string {
+  if (!symbol) return {};
+  return sourceScopePrefix(symbol->parent(), options) +
+         sourceUnqualifiedName(symbol);
+}
+
+[[nodiscard]] auto templateParametersDeclaredBy(Symbol* scope)
+    -> TemplateParametersSymbol* {
+  if (auto parameters = symbol_cast<TemplateParametersSymbol>(scope))
+    return parameters;
+  return template_parameters_of(scope);
+}
+
+[[nodiscard]] auto declaredTemplateParameter(const Type* type,
+                                             Symbol* declarationScope)
+    -> Symbol* {
+  for (auto scope = declarationScope; scope; scope = scope->parent()) {
+    auto parameters = templateParametersDeclaredBy(scope);
+    if (!parameters) continue;
+    for (auto parameter : views::members(parameters)) {
+      if (parameter->type() == type) return parameter;
+    }
+  }
+  return nullptr;
+}
+
+[[nodiscard]] auto templateArgumentBindings(Symbol* specialization)
+    -> std::vector<std::string> {
+  std::vector<std::string> bindings;
+  auto parameters = template_parameters_of(primary_template_of(specialization));
+  if (!parameters) return bindings;
+  auto arguments = template_arguments_of(specialization);
+  std::size_t index = 0;
+  for (auto parameter : views::members(parameters)) {
+    if (index == arguments.size()) break;
+    const auto& argument = arguments[index++];
+    if (!parameter->name()) continue;
+    bindings.push_back(std::format("{} = {}", to_string(parameter->name()),
+                                   to_string(argument, kSourceSpelling)));
+  }
+  return bindings;
+}
+
+[[nodiscard]] auto enclosingTemplateArgumentBindings(Symbol* symbol)
+    -> std::string {
+  std::vector<std::string> bindings;
+  for (auto scope = symbol; scope; scope = scope->parent()) {
+    auto scopeBindings = templateArgumentBindings(scope);
+    bindings.insert(bindings.begin(), scopeBindings.begin(),
+                    scopeBindings.end());
+  }
+  if (bindings.empty()) return {};
+  std::string text = " [";
+  std::string_view sep = "";
+  for (const auto& binding : bindings) {
+    text += sep;
+    text += binding;
+    sep = ", ";
+  }
+  text += ']';
+  return text;
+}
+
+[[nodiscard]] auto isStaticMemberFunction(FunctionSymbol* function) -> bool {
+  return function->isStatic() && function->enclosingClass();
+}
+
 class TypePrinter {
  public:
-  explicit TypePrinter(TypePrintOptions options) : options_(options) {
+  explicit TypePrinter(TypePrintOptions options)
+      : options_(options), nestedOptions_(options) {
+    nestedOptions_.omitFunctionReturnType = false;
     specifiers_.clear();
     ptrOps_.clear();
     declarator_.clear();
@@ -248,7 +382,7 @@ class TypePrinter {
 
     for (std::size_t i = 0; i < params.size(); ++i) {
       const auto& param = params[i];
-      signature.append(to_string(param));
+      signature.append(to_string(param, "", nestedOptions_));
 
       if (i != params.size() - 1) {
         signature.append(", ");
@@ -306,6 +440,10 @@ class TypePrinter {
   }
 
   void appendEnclosingScope(Symbol* symbol) {
+    if (options_.sourceSpelling) {
+      specifiers_.append(sourceScopePrefix(symbol->parent(), nestedOptions_));
+      return;
+    }
     auto parent = symbol->parent();
     if (!parent) return;
     while (symbol_cast<TemplateParametersSymbol>(parent)) {
@@ -315,17 +453,38 @@ class TypePrinter {
     specifiers_.append("::");
   }
 
+  void appendClosureType(ClassSymbol* closure) {
+    if (options_.sourceSpelling) {
+      appendEnclosingScope(closure);
+      specifiers_.append("(lambda)");
+      return;
+    }
+    auto callOperator = closure->functionCallOperator();
+    auto signature = callOperator ? to_string(callOperator->type()) : "";
+    specifiers_.append(std::format("(lambda {})", signature));
+  }
+
   void operator()(const ClassType* type) {
+    if (type->symbol()->isClosureType()) {
+      appendClosureType(type->symbol());
+      return;
+    }
+
     appendEnclosingScope(type->symbol());
 
-    std::string out = to_string(type->symbol()->name());
+    std::string out = to_string(type->symbol()->name(), nestedOptions_);
+
+    if (namesInjectedClassName(type->symbol())) {
+      specifiers_.append(out);
+      return;
+    }
 
     if (type->symbol()->isSpecialization()) {
       out += '<';
       std::string_view sep = "";
       for (const auto& arg :
            expand_template_arguments(type->symbol()->templateArguments())) {
-        out += std::format("{}{}", sep, to_string(arg));
+        out += std::format("{}{}", sep, to_string(arg, nestedOptions_));
         sep = ", ";
       }
       out += '>';
@@ -334,7 +493,7 @@ class TypePrinter {
       std::string_view sep = "";
       for (const auto& param :
            views::members(templDecl->templateParameters())) {
-        out += std::format("{}{}", sep, to_string(param->type()));
+        out += std::format("{}{}", sep, templateParameterSpelling(param));
         sep = ", ";
       }
       out += '>';
@@ -343,45 +502,98 @@ class TypePrinter {
     specifiers_.append(out);
   }
 
+  [[nodiscard]] auto namesInjectedClassName(ClassSymbol* classSymbol) const
+      -> bool {
+    if (!options_.sourceSpelling) return false;
+    return isVisibleFromDeclarationScope(classSymbol, options_);
+  }
+
+  [[nodiscard]] auto appendDeclaredTemplateParameter(const Type* type) -> bool {
+    if (!options_.sourceSpelling) return false;
+    auto parameter = declaredTemplateParameter(type, options_.declarationScope);
+    if (!parameter || !parameter->name()) return false;
+    specifiers_.append(to_string(parameter->name()));
+    return true;
+  }
+
+  [[nodiscard]] auto templateParameterSpelling(Symbol* parameter) const
+      -> std::string {
+    if (options_.sourceSpelling && parameter->name())
+      return to_string(parameter->name());
+    return to_string(parameter->type(), "", nestedOptions_);
+  }
+
   void operator()(const NamespaceType* type) {
+    if (options_.sourceSpelling) {
+      specifiers_.append(sourceQualifiedName(type->symbol(), nestedOptions_));
+      return;
+    }
     appendEnclosingScope(type->symbol());
     specifiers_.append(to_string(type->symbol()->name()));
   }
 
   void operator()(const MemberObjectPointerType* type) {
-    ptrOps_ = std::format(" {}::*", to_string(type->classType())) + ptrOps_;
+    ptrOps_ = std::format(" {}::*",
+                          to_string(type->classType(), "", nestedOptions_)) +
+              ptrOps_;
     accept(type->elementType());
   }
 
   void operator()(const MemberFunctionPointerType* type) {
-    ptrOps_ = std::format("{}::*", to_string(type->classType())) + ptrOps_;
+    ptrOps_ =
+        std::format("{}::*", to_string(type->classType(), "", nestedOptions_)) +
+        ptrOps_;
     accept(type->functionType());
   }
 
   void operator()(const EnumType* type) {
     appendEnclosingScope(type->symbol());
-    specifiers_.append(to_string(type->symbol()->name()));
+    specifiers_.append(to_string(type->symbol()->name(), nestedOptions_));
   }
 
   void operator()(const ScopedEnumType* type) {
     appendEnclosingScope(type->symbol());
-    specifiers_.append(to_string(type->symbol()->name()));
+    specifiers_.append(to_string(type->symbol()->name(), nestedOptions_));
   }
 
   void operator()(const TypeParameterType* type) {
+    if (appendDeclaredTemplateParameter(type)) return;
     if (type->depth() < 0 || type->index() < 0) {
       specifiers_.append("<dependent-type>");
       return;
     }
-    specifiers_.append(std::format("type-param<{}, {}>{}", type->index(),
-                                   type->depth(),
-                                   type->isParameterPack() ? "..." : ""));
+    specifiers_.append(
+        std::format("type-param<{}, {}>", type->index(), type->depth()));
   }
 
   void operator()(const TemplateTypeParameterType* type) {
-    specifiers_.append(std::format("template-type-param<{}, {}>{}",
-                                   type->index(), type->depth(),
-                                   type->isParameterPack() ? "..." : ""));
+    if (appendDeclaredTemplateParameter(type)) return;
+    specifiers_.append(std::format("template-type-param<{}, {}>", type->index(),
+                                   type->depth()));
+  }
+
+  void operator()(const PackExpansionType* type) {
+    ptrOps_ = "..." + ptrOps_;
+    accept(type->pattern());
+  }
+
+  void operator()(const TemplateTypeParameterSpecializationType* type) {
+    (*this)(type->templateParameter());
+    specifiers_.append("<");
+    auto first = true;
+    for (const auto& argument : type->templateArguments()) {
+      if (!first) specifiers_.append(", ");
+      first = false;
+      specifiers_.append(to_string(argument, nestedOptions_));
+    }
+    specifiers_.append(">");
+  }
+
+  void operator()(const DecltypeType* type) {
+    std::ostringstream os;
+    ASTPrettyPrinter pp(type->translationUnit(), os);
+    pp(type->expression());
+    specifiers_ += std::format("decltype({})", os.str());
   }
 
   void operator()(const UnresolvedNameType* type) {
@@ -508,6 +720,7 @@ class TypePrinter {
 
  private:
   TypePrintOptions options_;
+  TypePrintOptions nestedOptions_;
   std::string specifiers_;
   std::string ptrOps_;
   std::string declarator_;
@@ -523,6 +736,20 @@ auto to_string(const Type* type, const std::string& id,
 
 auto to_string(const Type* type, const Name* name, TypePrintOptions options)
     -> std::string {
-  return TypePrinter{options}(type, to_string(name));
+  return TypePrinter{options}(type, to_string(name, options));
+}
+
+auto pretty_function_name(FunctionSymbol* function) -> std::string {
+  auto options = kSourceSpelling;
+  options.omitFunctionReturnType =
+      function->isConstructor() || function->isDestructor();
+
+  std::string text;
+  if (isStaticMemberFunction(function)) text += "static ";
+  if (function->isVirtual()) text += "virtual ";
+  text += to_string(function->type(), sourceQualifiedName(function, options),
+                    options);
+  text += enclosingTemplateArgumentBindings(function);
+  return text;
 }
 }  // namespace cxx

@@ -344,6 +344,18 @@ auto cxx::isBuiltinLibcall(cxx::BuiltinFunctionKind kind) -> bool {
   }
 }
 
+auto cxx::builtinLibcallOperator(cxx::BuiltinFunctionKind kind)
+    -> cxx::TokenKind {
+  switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_OPERATOR_NEW:
+      return cxx::TokenKind::T_NEW;
+    case BuiltinFunctionKind::T___BUILTIN_OPERATOR_DELETE:
+      return cxx::TokenKind::T_DELETE;
+    default:
+      return cxx::TokenKind::T_EOF_SYMBOL;
+  }
+}
+
 auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind) -> bool {
   switch (kind) {
@@ -448,12 +460,6 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
 
     case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
       return checkBuiltinAssumeAligned(ast);
-
-    case BuiltinFunctionKind::T___BUILTIN_OPERATOR_NEW:
-      return checkBuiltinOperatorNew(ast);
-
-    case BuiltinFunctionKind::T___BUILTIN_OPERATOR_DELETE:
-      return checkBuiltinOperatorDelete(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_INVOKE:
       return checkBuiltinInvoke(ast);

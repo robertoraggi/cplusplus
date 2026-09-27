@@ -24,12 +24,10 @@ Wrapper<double> w1;
 // CHECK-NEXT:    constructor inline void Base()
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
-// CHECK-NEXT:        variable static constexpr const char __func__[5]
 // CHECK-NEXT:    constructor inline explicit void Base(int)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter int v
 // CHECK-NEXT:        block
-// CHECK-NEXT:          variable static constexpr const char __func__[5]
 // CHECK-NEXT:    constructor constexpr inline defaulted void Base(const ::Base&)
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::Base&
@@ -55,7 +53,6 @@ Wrapper<double> w1;
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter type-param<0, 0> v
 // CHECK-NEXT:        block
-// CHECK-NEXT:          variable static constexpr const char __func__[8]
 // CHECK-NEXT:    injected class name Wrapper
 // CHECK-NEXT:    field type-param<0, 0> extra
 // CHECK-NEXT:    [specializations]

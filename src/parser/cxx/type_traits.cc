@@ -24,6 +24,7 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/initialization.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
@@ -33,6 +34,7 @@
 #include <cxx/symbols.h>
 #include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
@@ -179,6 +181,7 @@ struct IsIntegral {
 };
 
 struct IsFloatingPoint {
+  auto operator()(const Float16Type*) const -> bool { return true; }
   auto operator()(const FloatType*) const -> bool { return true; }
   auto operator()(const DoubleType*) const -> bool { return true; }
   auto operator()(const LongDoubleType*) const -> bool { return true; }
@@ -835,6 +838,17 @@ struct IsSameVisitor {
     return typeTraits.is_same(type->elementType(), otherType->elementType());
   }
 
+  auto operator()(const PackExpansionType* type,
+                  const PackExpansionType* otherType) const -> bool {
+    return typeTraits.is_same(type->pattern(), otherType->pattern());
+  }
+
+  auto operator()(const DecltypeType* type, const DecltypeType* otherType) const
+      -> bool {
+    return TemplateEquivalence{typeTraits.unit()}.same(type->expression(),
+                                                       otherType->expression());
+  }
+
   auto operator()(const LvalueReferenceType* type,
                   const LvalueReferenceType* otherType) const -> bool {
     return typeTraits.is_same(type->elementType(), otherType->elementType());
@@ -927,24 +941,37 @@ struct IsSameVisitor {
     return true;
   }
 
+  auto operator()(
+      const TemplateTypeParameterSpecializationType* type,
+      const TemplateTypeParameterSpecializationType* otherType) const -> bool {
+    return type == otherType;
+  }
+
   auto operator()(const UnresolvedNameType* type,
                   const UnresolvedNameType* otherType) const -> bool {
-    return type == otherType;
+    return type == otherType ||
+           TemplateEquivalence{typeTraits.unit()}.same(type, otherType);
   }
 
   auto operator()(const UnresolvedBoundedArrayType* type,
                   const UnresolvedBoundedArrayType* otherType) const -> bool {
-    return type == otherType;
+    if (!typeTraits.is_same(type->elementType(), otherType->elementType()))
+      return false;
+    return TemplateEquivalence{typeTraits.unit()}.same(type->size(),
+                                                       otherType->size());
   }
 
   auto operator()(const UnresolvedUnderlyingType* type,
                   const UnresolvedUnderlyingType* otherType) const -> bool {
-    return type == otherType;
+    return TemplateEquivalence{typeTraits.unit()}.same(type->typeId(),
+                                                       otherType->typeId());
   }
 
   auto operator()(const UnresolvedBuiltinType* type,
                   const UnresolvedBuiltinType* otherType) const -> bool {
-    return type == otherType;
+    if (type->builtinKind() != otherType->builtinKind()) return false;
+    return TemplateEquivalence{typeTraits.unit()}.same(type->typeId(),
+                                                       otherType->typeId());
   }
 
   auto operator()(const OverloadSetType* type,
@@ -969,7 +996,9 @@ struct IsSameVisitor {
 
   auto operator()(const UnresolvedBitIntType* type,
                   const UnresolvedBitIntType* otherType) const -> bool {
-    return type == otherType;
+    if (type->isUnsigned() != otherType->isUnsigned()) return false;
+    return TemplateEquivalence{typeTraits.unit()}.same(
+        type->sizeExpression(), otherType->sizeExpression());
   }
 
   auto operator()(const VectorType* type, const VectorType* otherType) const
@@ -981,7 +1010,12 @@ struct IsSameVisitor {
 
   auto operator()(const UnresolvedVectorType* type,
                   const UnresolvedVectorType* otherType) const -> bool {
-    return type == otherType;
+    if (type->vectorKind() != otherType->vectorKind()) return false;
+    if (type->sizeKind() != otherType->sizeKind()) return false;
+    if (!typeTraits.is_same(type->elementType(), otherType->elementType()))
+      return false;
+    return TemplateEquivalence{typeTraits.unit()}.same(
+        type->sizeExpression(), otherType->sizeExpression());
   }
 
   auto operator()(const ComplexType* type, const ComplexType* otherType) const
@@ -1111,7 +1145,7 @@ auto has_trivial_constructor(TypeTraits& traits, ClassSymbol* cls,
   }
 
   for (auto field : cls->members() | views::non_static_fields) {
-    if (kind == TrivialConstructorKind::kDefault && field->initializer())
+    if (kind == TrivialConstructorKind::kDefault && field->hasInitializer())
       return false;
     auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
     auto classType = type_cast<ClassType>(fieldType);
@@ -1381,6 +1415,12 @@ auto TypeTraits::is_arithmetic(const Type* type) const -> bool {
   return is_integral(type) || is_floating_point(type) || is_complex(type);
 }
 
+auto TypeTraits::arithmetic_types() const -> std::vector<const Type*> {
+#define PROCESS_TYPE(K) control()->get##K##Type(),
+  return {CXX_FOR_EACH_ARITHMETIC_TYPE_KIND(PROCESS_TYPE)};
+#undef PROCESS_TYPE
+}
+
 auto TypeTraits::is_floating(const Type* type) const -> bool {
   return is_floating_point(type) ||
          (is_complex(type) && is_floating_point(complex_element_type(type)));
@@ -1456,6 +1496,17 @@ auto TypeTraits::converted_integral_constant(const Type* type,
   if (!converted) return std::nullopt;
   if (*converted != value) return std::nullopt;
   return converted;
+}
+
+auto TypeTraits::converted_constant_value(const Type* type,
+                                          const ConstValue& value) const
+    -> std::optional<ConstValue> {
+  auto number = std::get_if<ConstInt>(&value);
+  if (!number) return value;
+  if (!is_integral_or_enum(type)) return value;
+  auto converted = converted_integral_constant(type, *number);
+  if (!converted) return std::nullopt;
+  return ConstValue{*converted};
 }
 
 auto TypeTraits::integral_representation(const Type* type) const
@@ -1546,6 +1597,8 @@ auto TypeTraits::decltype_of(ExpressionAST* expr) const -> const Type* {
   }();
 
   if (symbol_cast<OverloadSetSymbol>(namedSymbol)) return expr->type;
+  if (auto parameter = symbol_cast<NonTypeParameterSymbol>(namedSymbol))
+    return constantTemplateParameterType(parameter);
   if (namedSymbol) return namedSymbol->type();
 
   if (!expr->type) return nullptr;
@@ -1555,6 +1608,14 @@ auto TypeTraits::decltype_of(ExpressionAST* expr) const -> const Type* {
   if (is_lvalue(expr)) return add_lvalue_reference(expr->type);
   if (is_xvalue(expr)) return add_rvalue_reference(expr->type);
   return expr->type;
+}
+
+auto TypeTraits::constantTemplateParameterType(
+    NonTypeParameterSymbol* parameter) const -> const Type* {
+  auto type = parameter->objectType();
+  if (type && containsPlaceholderType(type))
+    return control()->getDependentType();
+  return type;
 }
 
 auto TypeTraits::remove_extent(const Type* type) const -> const Type* {
@@ -1611,6 +1672,15 @@ auto TypeTraits::remove_pointer(const Type* type) const -> const Type* {
 auto TypeTraits::add_pointer(const Type* type) const -> const Type* {
   if (!type) return type;
   return visit(AddPointer{*this}, type);
+}
+
+auto TypeTraits::address_of_function(FunctionSymbol* function) const
+    -> const Type* {
+  if (!function->isImplicitObjectMemberFunction())
+    return add_pointer(function->type());
+  auto classType = type_cast<ClassType>(function->parent()->type());
+  auto functionType = type_cast<FunctionType>(function->type());
+  return control()->getMemberFunctionPointerType(classType, functionType);
 }
 
 auto TypeTraits::is_same(const Type* a, const Type* b) const -> bool {
@@ -1871,33 +1941,13 @@ auto TypeTraits::is_narrowing_list_element(ExpressionAST* expr,
       return static_cast<std::uint64_t>(-(value + 1)) < magnitude;
     }
 
-    auto exact = static_cast<long double>(value);
-    if (type_cast<FloatType>(targetType)) {
-      auto converted = static_cast<float>(value);
-      return std::isfinite(converted) &&
-             static_cast<long double>(converted) == exact;
-    }
-    if (type_cast<DoubleType>(targetType)) {
-      auto converted = static_cast<double>(value);
-      return std::isfinite(converted) &&
-             static_cast<long double>(converted) == exact;
-    }
-    if (type_cast<LongDoubleType>(targetType)) {
-      auto converted = static_cast<long double>(value);
-      return std::isfinite(static_cast<double>(converted)) &&
-             converted == exact;
-    }
-    return false;
+    auto format = control()->memoryLayout()->floatingPointFormat(targetType);
+    return format && format->representsInteger(value);
   };
 
   auto fitsFloating = [&](double value) {
-    if (!is_floating_point(targetType)) return false;
-    const bool convertedIsFinite =
-        type_cast<FloatType>(targetType)
-            ? std::isfinite(static_cast<float>(value))
-            : std::isfinite(static_cast<long double>(value));
-    if (!std::isfinite(value)) return !convertedIsFinite;
-    return convertedIsFinite;
+    auto format = control()->memoryLayout()->floatingPointFormat(targetType);
+    return format && format->rangeContains(value);
   };
 
   if (auto intLiteral = ast_cast<IntLiteralExpressionAST>(source)) {
@@ -2057,6 +2107,13 @@ auto TypeTraits::remove_noexcept(const Type* type) const -> const Type* {
       functionType->refQualifier(), false);
 }
 
+auto TypeTraits::remove_function_qualifiers(const FunctionType* type) const
+    -> const FunctionType* {
+  return control()->getFunctionType(type->returnType(), type->parameterTypes(),
+                                    type->isVariadic(), {}, {},
+                                    type->exceptionSpecification());
+}
+
 auto TypeTraits::replace_placeholder_types(const Type* type,
                                            const Type* replacement) const
     -> const Type* {
@@ -2066,7 +2123,7 @@ auto TypeTraits::replace_placeholder_types(const Type* type,
   if (auto qualType = type_cast<QualType>(type)) {
     auto elementType =
         replace_placeholder_types(qualType->elementType(), replacement);
-    return control()->getQualType(elementType, qualType->cvQualifiers());
+    return add_cv(elementType, qualType->cvQualifiers());
   }
 
   if (auto arrayType = type_cast<BoundedArrayType>(type)) {
@@ -2126,7 +2183,7 @@ auto TypeTraits::replace_placeholder_types(const Type* type,
         replace_placeholder_types(pointerType->classType(), replacement);
     auto elementType =
         replace_placeholder_types(pointerType->elementType(), replacement);
-    return control()->getMemberObjectPointerType(classType, elementType);
+    return control()->getMemberPointerType(classType, elementType);
   }
 
   if (auto pointerType = type_cast<MemberFunctionPointerType>(type)) {
@@ -2311,13 +2368,7 @@ auto TypeTraits::qualification_combined_type(const Type* lhs,
         result = control()->getPointerType(result);
         break;
       case QualificationComponent::Kind::kMemberPointer:
-        if (auto functionType = type_cast<FunctionType>(result)) {
-          result = control()->getMemberFunctionPointerType(component.classType,
-                                                           functionType);
-        } else {
-          result = control()->getMemberObjectPointerType(component.classType,
-                                                         result);
-        }
+        result = control()->getMemberPointerType(component.classType, result);
         break;
       case QualificationComponent::Kind::kBoundedArray:
         result = control()->getBoundedArrayType(result, component.size);
@@ -2659,17 +2710,11 @@ auto TypeTraits::can_initialize(const Type* to, const Type* from,
   const auto toIsVoid = is_void(to);
   if (fromIsVoid || toIsVoid) return fromIsVoid && toIsVoid;
 
-  auto valueCategory = ValueCategory::kXValue;
-  if (is_lvalue_reference(from)) valueCategory = ValueCategory::kLValue;
-
-  auto declvalFrom = ThisExpressionAST::create(unit_->arena(), valueCategory,
-                                               remove_reference(from));
-
   StandardConversion conversions{unit_};
   auto initializationKind = InitializationKind::kCopyInitialization;
   if (directInitialization)
     initializationKind = InitializationKind::kDirectInitialization;
-  auto sequence = conversions.computeConversionSequence(declvalFrom, to,
+  auto sequence = conversions.computeConversionSequence(declval(from), to,
                                                         initializationKind);
   if (!sequence) return false;
   if (!is_accessible_from_unrelated_context(sequence.udc.function))
@@ -2705,15 +2750,11 @@ auto TypeTraits::is_nothrow_initialization(const Type* to, const Type* from,
                                            bool directInitialization) const
     -> bool {
   if (!from || !to) return false;
-  auto valueCategory = ValueCategory::kXValue;
-  if (is_lvalue_reference(from)) valueCategory = ValueCategory::kLValue;
-  auto expression = ThisExpressionAST::create(unit_->arena(), valueCategory,
-                                              remove_reference(from));
   auto initializationKind = InitializationKind::kCopyInitialization;
   if (directInitialization)
     initializationKind = InitializationKind::kDirectInitialization;
   auto sequence = StandardConversion{unit_}.computeConversionSequence(
-      expression, to, initializationKind);
+      declval(from), to, initializationKind);
   if (!sequence) return false;
   return is_nothrow_function(sequence.udc.function);
 }
@@ -2722,15 +2763,11 @@ auto TypeTraits::is_trivial_initialization(const Type* to, const Type* from,
                                            bool directInitialization) const
     -> bool {
   if (!from || !to) return false;
-  auto valueCategory = ValueCategory::kXValue;
-  if (is_lvalue_reference(from)) valueCategory = ValueCategory::kLValue;
-  auto expression = ThisExpressionAST::create(unit_->arena(), valueCategory,
-                                              remove_reference(from));
   auto initializationKind = InitializationKind::kCopyInitialization;
   if (directInitialization)
     initializationKind = InitializationKind::kDirectInitialization;
   auto sequence = StandardConversion{unit_}.computeConversionSequence(
-      expression, to, initializationKind);
+      declval(from), to, initializationKind);
   if (!sequence) return false;
   return sequence.udc.function == nullptr;
 }
@@ -2776,6 +2813,48 @@ auto TypeTraits::reference_converts_from_temporary(const Type* to,
                                                    const Type* from) const
     -> bool {
   return reference_binds_to_temporary(to, from, /*directInitialization=*/false);
+}
+
+auto TypeTraits::declval(const Type* type) const -> ExpressionAST* {
+  auto referenced = remove_reference(type);
+  if (is_void(referenced)) {
+    return ThisExpressionAST::create(unit_->arena(), ValueCategory::kPrValue,
+                                     remove_cv(referenced));
+  }
+  auto valueCategory = ValueCategory::kXValue;
+  if (is_lvalue_reference(type) || is_function(referenced))
+    valueCategory = ValueCategory::kLValue;
+  return ThisExpressionAST::create(unit_->arena(), valueCategory, referenced);
+}
+
+auto TypeTraits::has_new_extended_alignment(const Type* type) const -> bool {
+  if (!type) return false;
+  auto memoryLayout = control()->memoryLayout();
+  auto alignment = memoryLayout->alignmentOf(type);
+  if (!alignment) return false;
+  return *alignment > memoryLayout->defaultNewAlignment();
+}
+
+auto TypeTraits::conditional_operator_type(const Type* first,
+                                           const Type* second) const
+    -> const Type* {
+  auto arena = unit_->arena();
+  auto conditional = ConditionalExpressionAST::create(arena);
+  conditional->condition = BoolLiteralExpressionAST::create(
+      arena, false, ValueCategory::kPrValue, control()->getBoolType());
+  conditional->iftrueExpression = declval(first);
+  conditional->iffalseExpression = declval(second);
+
+  TranslationUnit::PotentiallyEvaluatedScope unevaluated{unit_, false};
+  SilentDiagnosticsScope diagnostics{unit_};
+  TypeChecker check{unit_};
+  check.setScope(unit_->globalScope());
+  ExpressionAST* expression = conditional;
+  check.check(&expression);
+  diagnostics.finish();
+
+  if (diagnostics.hadError()) return nullptr;
+  return decltype_of(expression);
 }
 
 auto TypeTraits::is_pod(const Type* type) -> bool {
@@ -2950,7 +3029,7 @@ auto TypeTraits::is_literal_type(const Type* type) -> bool {
     }
 
     for (auto field : cls->members() | views::non_static_fields) {
-      if (field->initializer()) continue;
+      if (field->hasInitializer()) continue;
       auto fieldType = remove_all_extents(remove_cv(field->type()));
       auto fieldClassType = type_cast<ClassType>(fieldType);
       if (!fieldClassType) continue;
@@ -3032,7 +3111,13 @@ auto TypeTraits::is_zero_size_subobject(FieldSymbol* field) -> bool {
 
   if (!field->isNoUniqueAddress()) return false;
 
-  return is_empty(field->type());
+  auto classType = type_cast<ClassType>(remove_cv(field->type()));
+  if (!classType) return false;
+  auto cls = classType->definition();
+  requireCompleteClass(cls);
+  if (!cls) return false;
+  auto layout = cls->resolvedDefinition()->layout();
+  return layout && layout->isAbiEmpty();
 }
 
 auto TypeTraits::requires_zero_initialization(const Type* type,
@@ -3047,6 +3132,7 @@ auto TypeTraits::requires_zero_initialization(const Type* type,
 auto TypeTraits::is_empty(const Type* type) -> bool {
   auto classType = type_cast<ClassType>(remove_cv(type));
   if (!classType) return false;
+  if (classType->isUnion()) return false;
   auto cls = classType->definition();
   requireCompleteClass(cls);
   if (!cls || !cls->isComplete()) return false;
@@ -3089,10 +3175,7 @@ auto TypeTraits::selectConstructor(ClassSymbol* classSymbol,
 
   for (auto argType : argTypes) {
     if (!argType) return nullptr;
-    auto valueCategory = ValueCategory::kXValue;
-    if (is_lvalue_reference(argType)) valueCategory = ValueCategory::kLValue;
-    args.push_back(ThisExpressionAST::create(unit_->arena(), valueCategory,
-                                             remove_reference(argType)));
+    args.push_back(declval(argType));
   }
 
   auto result = OverloadResolution{unit_}.resolveConstructor(classSymbol, args);
@@ -3140,6 +3223,59 @@ auto TypeTraits::is_constructible(const Type* type,
   return false;
 }
 
+auto TypeTraits::is_const_default_constructible(const Type* type) -> bool {
+  auto element = remove_cv(remove_all_extents(type));
+  if (type_cast<BuiltinMetaInfoType>(element)) return true;
+  if (is_null_pointer(element)) return true;
+
+  auto classType = type_cast<ClassType>(element);
+  if (!classType) return false;
+
+  auto classSymbol = classType->definition();
+  requireCompleteClass(classSymbol);
+  if (!classSymbol || !classSymbol->isComplete()) return false;
+
+  if (default_initialization_invokes_user_provided_constructor(classSymbol))
+    return true;
+
+  return has_const_default_constructible_subobjects(classSymbol);
+}
+
+auto TypeTraits::default_initialization_invokes_user_provided_constructor(
+    ClassSymbol* classSymbol) -> bool {
+  return isUserProvided(selectConstructor(classSymbol, {}));
+}
+
+auto TypeTraits::has_const_default_constructible_subobjects(
+    ClassSymbol* classSymbol) -> bool {
+  auto members = views::members(classSymbol) | views::non_static_fields |
+                 std::views::filter([](FieldSymbol* field) {
+                   return field->name() || !field->isBitField();
+                 });
+
+  if (classSymbol->isUnion()) {
+    if (members.begin() == members.end()) return true;
+    return std::ranges::count_if(members, &FieldSymbol::hasInitializer) == 1;
+  }
+
+  for (auto field : members) {
+    if (field->hasInitializer()) continue;
+    if (!is_const_default_constructible(field->type())) return false;
+  }
+
+  for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual() || !base->symbol()) continue;
+    if (!is_const_default_constructible(base->symbol()->type())) return false;
+  }
+
+  auto layout = classSymbol->layout();
+  if (!layout || classSymbol->isAbstract()) return true;
+
+  return std::ranges::all_of(layout->virtualBases(), [this](ClassSymbol* base) {
+    return is_const_default_constructible(base->type());
+  });
+}
+
 auto TypeTraits::is_nothrow_constructible(const Type* type,
                                           std::span<const Type* const> argTypes)
     -> bool {
@@ -3164,12 +3300,7 @@ auto TypeTraits::is_nothrow_constructible(const Type* type,
 
     std::vector<ExpressionAST*> args;
     args.reserve(argTypes.size());
-    for (auto argType : argTypes) {
-      auto category = ValueCategory::kXValue;
-      if (is_lvalue_reference(argType)) category = ValueCategory::kLValue;
-      args.push_back(ThisExpressionAST::create(unit_->arena(), category,
-                                               remove_reference(argType)));
-    }
+    for (auto argType : argTypes) args.push_back(declval(argType));
     auto result = OverloadResolution{unit_}.resolveConstructor(cls, args);
     auto selected = result.selected();
     if (!selected || selected->isDeleted()) return false;
@@ -3213,19 +3344,12 @@ auto TypeTraits::selectAssignmentOperator(const Type* to, const Type* from)
     -> FunctionSymbol* {
   if (!to || !from) return nullptr;
 
-  auto makeOperand = [&](const Type* type) {
-    auto valueCategory = ValueCategory::kXValue;
-    if (is_lvalue_reference(type)) valueCategory = ValueCategory::kLValue;
-    return ThisExpressionAST::create(unit_->arena(), valueCategory,
-                                     remove_reference(type));
-  };
-
-  auto lhs = makeOperand(to);
-  auto rhs = makeOperand(from);
+  auto lhs = declval(to);
+  auto rhs = declval(from);
 
   OverloadResolution resolution{unit_};
-  auto selected = resolution.lookupOperator(lhs->type, TokenKind::T_EQUAL,
-                                            rhs->type, lhs, rhs);
+  auto selected = resolution.lookupOperator(
+      nullptr, lhs->type, TokenKind::T_EQUAL, rhs->type, lhs, rhs);
 
   if (resolution.wasLastLookupAmbiguous()) return nullptr;
   if (selected && selected->isDeleted()) return nullptr;
@@ -3397,6 +3521,27 @@ auto TypeTraits::has_trivial_destructor(const Type* type) -> bool {
 auto TypeTraits::is_trivially_destructible(const Type* type) -> bool {
   if (!is_destructible(type)) return false;
   return has_trivial_destructor(type);
+}
+
+auto TypeTraits::has_mutable_subobject(const Type* type) -> bool {
+  auto classType = type_cast<ClassType>(remove_cv(remove_all_extents(type)));
+  if (!classType) return false;
+  auto cls = classType->definition();
+  requireCompleteClass(cls);
+  if (!cls) return false;
+
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    if (has_mutable_subobject(baseClass->type())) return true;
+  }
+
+  for (auto field : cls->members() | views::non_static_fields) {
+    if (field->isMutable()) return true;
+    if (has_mutable_subobject(field->type())) return true;
+  }
+
+  return false;
 }
 
 auto TypeTraits::has_virtual_destructor(const Type* type) -> bool {

@@ -28,14 +28,134 @@
 
 #include <algorithm>
 #include <format>
+#include <optional>
+#include <span>
 
 namespace cxx {
 
 namespace {
 
+struct DeclaredMember {
+  ClassSymbol* declaringClass = nullptr;
+  AccessSpecifier accessSpecifier = AccessSpecifier::kPublic;
+};
+
+enum class Derivation {
+  kUnrelated,
+  kDerived,
+  kDependent,
+};
+
 [[nodiscard]] auto normalize(ClassSymbol* classSymbol) -> ClassSymbol* {
   if (!classSymbol) return nullptr;
   return classSymbol->resolvedDefinition();
+}
+
+[[nodiscard]] auto baseClassOf(BaseClassSymbol* baseClass) -> ClassSymbol* {
+  return normalize(symbol_cast<ClassSymbol>(baseClass->symbol()));
+}
+
+[[nodiscard]] auto innermostClassOf(ScopeSymbol* scope) -> ClassSymbol* {
+  if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) return classSymbol;
+  return scope->enclosingClass();
+}
+
+void addUnique(std::vector<ClassSymbol*>& classes, ClassSymbol* classSymbol) {
+  classSymbol = normalize(classSymbol);
+  if (!classSymbol) return;
+  if (std::ranges::contains(classes, classSymbol)) return;
+  classes.push_back(classSymbol);
+}
+
+[[nodiscard]] auto eitherOf(AccessResult lhs, AccessResult rhs)
+    -> AccessResult {
+  if (lhs == AccessResult::kAccessible) return lhs;
+  if (rhs == AccessResult::kAccessible) return rhs;
+  if (lhs == AccessResult::kDependent) return lhs;
+  return rhs;
+}
+
+[[nodiscard]] auto bothOf(AccessResult lhs, AccessResult rhs) -> AccessResult {
+  if (lhs == AccessResult::kInaccessible) return lhs;
+  if (rhs == AccessResult::kInaccessible) return rhs;
+  if (lhs == AccessResult::kDependent) return lhs;
+  return rhs;
+}
+
+[[nodiscard]] auto accessGrantedBy(Derivation derivation) -> AccessResult {
+  switch (derivation) {
+    case Derivation::kDerived:
+      return AccessResult::kAccessible;
+    case Derivation::kDependent:
+      return AccessResult::kDependent;
+    case Derivation::kUnrelated:
+      return AccessResult::kInaccessible;
+  }
+  return AccessResult::kInaccessible;
+}
+
+[[nodiscard]] auto enclosingScopeOf(ClassSymbol* classSymbol) -> ScopeSymbol* {
+  auto scope = classSymbol->parent();
+  while (symbol_cast<TemplateParametersSymbol>(scope)) scope = scope->parent();
+  return scope;
+}
+
+[[nodiscard]] auto mayShareEnclosingScope(ClassSymbol* lhs, ClassSymbol* rhs)
+    -> bool {
+  auto lhsScope = enclosingScopeOf(lhs);
+  auto rhsScope = enclosingScopeOf(rhs);
+  if (lhsScope == rhsScope) return true;
+  if (symbol_cast<NamespaceSymbol>(lhsScope)) return false;
+  if (symbol_cast<NamespaceSymbol>(rhsScope)) return false;
+  return true;
+}
+
+[[nodiscard]] auto mightInstantiateTo(TranslationUnit* unit,
+                                      ClassSymbol* pattern,
+                                      ClassSymbol* classSymbol) -> bool {
+  if (pattern == classSymbol) return false;
+  if (pattern->name() != classSymbol->name()) return false;
+  if (!isEnclosedInDependentTemplate(unit, pattern, true)) return false;
+  return mayShareEnclosingScope(pattern, classSymbol);
+}
+
+[[nodiscard]] auto derivationOf(TranslationUnit* unit, ClassSymbol* derived,
+                                ClassSymbol* base) -> Derivation {
+  derived = normalize(derived);
+  base = normalize(base);
+  if (!derived || !base) return Derivation::kUnrelated;
+  if (derived == base) return Derivation::kDerived;
+
+  auto derivation = Derivation::kUnrelated;
+  std::vector<ClassSymbol*> visited{derived};
+
+  for (std::size_t index = 0; index < visited.size(); ++index) {
+    auto current = visited[index];
+
+    if (mightInstantiateTo(unit, current, base))
+      derivation = Derivation::kDependent;
+
+    for (auto baseClass : current->baseClasses()) {
+      if (isDependentBaseClass(unit, current, baseClass))
+        derivation = Derivation::kDependent;
+
+      auto candidate = baseClassOf(baseClass);
+      if (candidate == base) return Derivation::kDerived;
+      if (!candidate) continue;
+      if (std::ranges::contains(visited, candidate)) continue;
+      visited.push_back(candidate);
+    }
+  }
+
+  return derivation;
+}
+
+template <typename Key, typename Value>
+[[nodiscard]] auto cachedValue(std::vector<std::pair<Key, Value>>& cache,
+                               const Key& key) -> Value* {
+  auto cached = std::ranges::find(cache, key, &std::pair<Key, Value>::first);
+  if (cached == cache.end()) return nullptr;
+  return &cached->second;
 }
 
 [[nodiscard]] auto templateArgumentsOf(auto* symbol)
@@ -44,22 +164,13 @@ namespace {
   return std::vector<TemplateArgument>{arguments.begin(), arguments.end()};
 }
 
-[[nodiscard]] auto instantiationChainOf(ClassSymbol* classSymbol)
-    -> std::vector<ClassSymbol*> {
-  std::vector<ClassSymbol*> chain;
-  std::vector<ClassSymbol*> pending{classSymbol};
-
-  while (!pending.empty()) {
-    auto current = normalize(pending.back());
-    pending.pop_back();
-    if (!current) continue;
-    if (std::ranges::contains(chain, current)) continue;
-    chain.push_back(current);
-    pending.push_back(current->instantiationPattern());
-    pending.push_back(current->primaryTemplateSymbol());
+[[nodiscard]] auto hasDependentArgument(
+    TranslationUnit* unit, const std::vector<TemplateArgument>& arguments)
+    -> bool {
+  for (const auto& argument : arguments) {
+    if (isDependentTemplateArgument(unit, argument)) return true;
   }
-
-  return chain;
+  return false;
 }
 
 [[nodiscard]] auto isFriendDeclaration(Symbol* symbol) -> bool {
@@ -70,47 +181,13 @@ namespace {
   return false;
 }
 
-[[nodiscard]] auto isSameClassForAccess(ClassSymbol* lhs, ClassSymbol* rhs)
-    -> bool {
-  lhs = normalize(lhs);
-  rhs = normalize(rhs);
-  if (!lhs || !rhs) return false;
-  if (lhs == rhs) return true;
-  if (std::ranges::contains(instantiationChainOf(lhs), rhs)) return true;
-  return std::ranges::contains(instantiationChainOf(rhs), lhs);
-}
-
-[[nodiscard]] auto derivesFromForAccess(ClassSymbol* derived, ClassSymbol* base)
-    -> bool {
-  std::vector<ClassSymbol*> visited;
-  std::vector<ClassSymbol*> pending{derived};
-
-  while (!pending.empty()) {
-    auto current = normalize(pending.back());
-    pending.pop_back();
-    if (!current) continue;
-    if (std::ranges::contains(visited, current)) continue;
-    visited.push_back(current);
-
-    for (auto baseClass : current->resolvedDefinition()->baseClasses()) {
-      auto candidate = normalize(symbol_cast<ClassSymbol>(baseClass->symbol()));
-      if (!candidate) continue;
-      if (isSameClassForAccess(candidate, base)) return true;
-      pending.push_back(candidate);
-    }
-  }
-
-  return false;
-}
-
 [[nodiscard]] auto introduces(UsingDeclarationSymbol* usingDeclaration,
                               Symbol* member) -> bool {
   if (auto function = symbol_cast<FunctionSymbol>(member)) {
-    return std::ranges::any_of(usingDeclaration->introducedFunctions(),
-                               [&](FunctionSymbol* introduced) {
-                                 return introduced->canonical() ==
-                                        function->canonical();
-                               });
+    for (auto introduced : usingDeclaration->introducedFunctions()) {
+      if (introduced->canonical() == function->canonical()) return true;
+    }
+    return false;
   }
 
   auto target = usingDeclaration->target();
@@ -118,15 +195,13 @@ namespace {
   return target->canonical() == member->canonical();
 }
 
-}  // namespace
-
-auto usingDeclarationIntroducing(Symbol* member, ClassSymbol* designatingClass)
+[[nodiscard]] auto usingDeclarationIntroducing(Symbol* member,
+                                               ClassSymbol* classSymbol)
     -> UsingDeclarationSymbol* {
   if (!member || !member->name()) return nullptr;
   if (symbol_cast<UsingDeclarationSymbol>(member)) return nullptr;
 
-  for (auto candidate :
-       designatingClass->resolvedDefinition()->find(member->name())) {
+  for (auto candidate : classSymbol->find(member->name())) {
     if (auto usingDeclaration =
             symbol_cast<UsingDeclarationSymbol>(candidate)) {
       if (introduces(usingDeclaration, member)) return usingDeclaration;
@@ -169,7 +244,7 @@ auto usingDeclarationIntroducing(Symbol* member, ClassSymbol* designatingClass)
   return field && !field->isStatic();
 }
 
-auto declaredMemberOf(Symbol* member) -> DeclaredMember {
+[[nodiscard]] auto declaredMemberOf(Symbol* member) -> DeclaredMember {
   if (!member) return {};
   if (isFriendDeclaration(member)) return {};
 
@@ -184,189 +259,367 @@ auto declaredMemberOf(Symbol* member) -> DeclaredMember {
       continue;
     }
 
-    if (declaringScope->isEnum() || declaringScope->isScopedEnum()) {
-      access = std::max(access, declaringScope->accessSpecifier());
-      continue;
-    }
+    if (!declaringScope->isEnum() && !declaringScope->isScopedEnum()) break;
 
-    return {};
+    access = std::max(access, declaringScope->accessSpecifier());
   }
 
   return {};
 }
 
+[[nodiscard]] auto inheritedAccess(std::optional<AccessSpecifier> accessInBase,
+                                   AccessSpecifier baseAccess)
+    -> std::optional<AccessSpecifier> {
+  if (!accessInBase) return std::nullopt;
+  if (*accessInBase == AccessSpecifier::kPrivate) return std::nullopt;
+  return std::max(*accessInBase, baseAccess);
+}
+
+class EffectiveAccess {
+ public:
+  EffectiveAccess(Symbol* member, DeclaredMember declared)
+      : member_(member), declared_(declared) {}
+
+  [[nodiscard]] auto asMemberOf(ClassSymbol* classSymbol)
+      -> std::optional<AccessSpecifier> {
+    if (auto cached = cachedValue(cache_, classSymbol)) return *cached;
+    cache_.emplace_back(classSymbol, std::nullopt);
+    auto access = computeAsMemberOf(classSymbol);
+    *cachedValue(cache_, classSymbol) = access;
+    return access;
+  }
+
+ private:
+  [[nodiscard]] auto computeAsMemberOf(ClassSymbol* classSymbol)
+      -> std::optional<AccessSpecifier> {
+    if (classSymbol == declared_.declaringClass)
+      return declared_.accessSpecifier;
+
+    if (auto usingDeclaration =
+            usingDeclarationIntroducing(member_, classSymbol))
+      return usingDeclaration->accessSpecifier();
+
+    std::optional<AccessSpecifier> best;
+
+    for (auto baseClass : classSymbol->baseClasses()) {
+      auto base = baseClassOf(baseClass);
+      if (!base) continue;
+
+      auto access =
+          inheritedAccess(asMemberOf(base), baseClass->accessSpecifier());
+      if (!access) continue;
+      if (best && *best <= *access) continue;
+      best = access;
+    }
+
+    return best;
+  }
+
+  Symbol* member_;
+  DeclaredMember declared_;
+  std::vector<std::pair<ClassSymbol*, std::optional<AccessSpecifier>>> cache_;
+};
+
+class FriendshipCollector {
+ public:
+  FriendshipCollector(TranslationUnit* unit,
+                      std::vector<ClassSymbol*>& friendClasses)
+      : unit_(unit), friendClasses_(friendClasses) {}
+
+  void collect(ClassSymbol* seed) {
+    auto arguments = templateArgumentsOf(seed);
+    std::vector<ClassSymbol*> visited;
+    std::vector<ClassSymbol*> pending{seed};
+
+    while (!pending.empty()) {
+      auto classSymbol = pending.back();
+      pending.pop_back();
+      if (!classSymbol) continue;
+      if (std::ranges::contains(visited, classSymbol)) continue;
+      visited.push_back(classSymbol);
+
+      addFriendClasses(classSymbol->befriendingClasses());
+      addTemplateFriendships(classSymbol->templateFriendships(), arguments);
+
+      pending.push_back(classSymbol->canonical());
+      pending.push_back(classSymbol->resolvedDefinition());
+      pending.push_back(classSymbol->instantiationTemplate());
+      pending.push_back(classSymbol->primaryTemplateSymbol());
+    }
+  }
+
+  void collect(FunctionSymbol* seed) {
+    auto arguments = templateArgumentsOf(seed);
+
+    for (auto function = seed; function;
+         function = function->canonical()->primaryTemplateSymbol()) {
+      auto canonical = function->canonical();
+      addFriendClasses(canonical->befriendingClasses());
+      addTemplateFriendships(canonical->templateFriendships(), arguments);
+    }
+  }
+
+ private:
+  void addFriendClasses(const std::vector<ClassSymbol*>& befriendingClasses) {
+    for (auto befriendingClass : befriendingClasses)
+      addUnique(friendClasses_, befriendingClass);
+  }
+
+  void addTemplateFriendships(
+      const std::vector<TemplateFriendship>& friendships,
+      const std::vector<TemplateArgument>& arguments) {
+    if (friendships.empty()) return;
+
+    const auto dependent = hasDependentArgument(unit_, arguments);
+
+    for (const auto& friendship : friendships) {
+      if (!dependent && !compare_args(unit_, friendship.arguments, arguments))
+        continue;
+      addUnique(friendClasses_, friendship.befriendingClass);
+    }
+  }
+
+  TranslationUnit* unit_;
+  std::vector<ClassSymbol*>& friendClasses_;
+};
+
+}  // namespace
+
+class AccessContext::Query {
+ public:
+  Query(const AccessContext& context, Symbol* member, DeclaredMember declared,
+        ClassSymbol* objectClass)
+      : context_(context),
+        effectiveAccess_(member, declared),
+        member_(member),
+        declaringClass_(declared.declaringClass),
+        objectClass_(normalize(objectClass)) {
+    context_.materialize();
+  }
+
+  [[nodiscard]] auto designatedIn(ClassSymbol* designatingClass)
+      -> AccessResult {
+    designatingClass = normalize(designatingClass);
+    if (!designatingClass) return AccessResult::kAccessible;
+    restrictsObject_ = restrictsObjectIn(designatingClass);
+    return accessibleIn(designatingClass);
+  }
+
+ private:
+  [[nodiscard]] auto restrictsObjectIn(ClassSymbol* designatingClass) -> bool {
+    if (!objectClass_) return false;
+    if (!member_) return true;
+    if (!is_non_static_member(member_)) return false;
+    auto access = effectiveAccess_.asMemberOf(designatingClass);
+    return access == AccessSpecifier::kProtected;
+  }
+
+  [[nodiscard]] auto accessibleIn(ClassSymbol* namingClass) -> AccessResult {
+    if (auto cached = cachedValue(accessible_, namingClass)) return *cached;
+    accessible_.emplace_back(namingClass, AccessResult::kInaccessible);
+    auto result = computeAccessibleIn(namingClass);
+    *cachedValue(accessible_, namingClass) = result;
+    return result;
+  }
+
+  [[nodiscard]] auto computeAccessibleIn(ClassSymbol* namingClass)
+      -> AccessResult {
+    if (namingClass->isAccessControlDisabled())
+      return AccessResult::kAccessible;
+
+    auto result = AccessResult::kInaccessible;
+
+    if (auto access = effectiveAccess_.asMemberOf(namingClass))
+      result = grants(namingClass, *access);
+
+    if (result == AccessResult::kAccessible) return result;
+    if (usingDeclarationIntroducing(member_, namingClass)) return result;
+
+    for (auto baseClass : namingClass->baseClasses()) {
+      auto base = baseClassOf(baseClass);
+      if (!base) continue;
+      if (isInventedMemberOf(base)) continue;
+
+      auto inBase = accessibleIn(base);
+      if (inBase == AccessResult::kInaccessible) continue;
+
+      auto baseAccess =
+          context_.baseClassAccess(namingClass, base, restrictedObjectClass());
+      result = eitherOf(result, bothOf(baseAccess, inBase));
+      if (result == AccessResult::kAccessible) return result;
+    }
+
+    if (result != AccessResult::kInaccessible) return result;
+    if (!hasDependentBaseClass(context_.unit_, namingClass)) return result;
+    return AccessResult::kDependent;
+  }
+
+  [[nodiscard]] auto isInventedMemberOf(ClassSymbol* classSymbol) const
+      -> bool {
+    if (member_) return false;
+    return classSymbol == declaringClass_;
+  }
+
+  [[nodiscard]] auto grants(ClassSymbol* namingClass, AccessSpecifier access)
+      -> AccessResult {
+    if (access == AccessSpecifier::kPublic) return AccessResult::kAccessible;
+    if (context_.isMemberOf(namingClass)) return AccessResult::kAccessible;
+    if (context_.isFriendOf(namingClass)) return AccessResult::kAccessible;
+
+    auto result = membershipAfterInstantiation(namingClass);
+    if (access == AccessSpecifier::kPrivate) return result;
+
+    result = eitherOf(result, grantsThroughDerivedClasses(
+                                  context_.memberClasses_, namingClass));
+    if (!friendsOfDerivedClassesGrantAccess()) return result;
+
+    return eitherOf(result, grantsThroughDerivedClasses(context_.friendClasses_,
+                                                        namingClass));
+  }
+
+  [[nodiscard]] auto restrictedObjectClass() const -> ClassSymbol* {
+    if (!restrictsObject_) return nullptr;
+    return objectClass_;
+  }
+
+  [[nodiscard]] auto membershipAfterInstantiation(ClassSymbol* namingClass)
+      -> AccessResult {
+    for (auto memberClass : context_.memberClasses_) {
+      if (mightInstantiateTo(context_.unit_, memberClass, namingClass))
+        return AccessResult::kDependent;
+    }
+    return AccessResult::kInaccessible;
+  }
+
+  [[nodiscard]] auto friendsOfDerivedClassesGrantAccess() const -> bool {
+    if (!member_) return true;
+    return restrictsObject_;
+  }
+
+  [[nodiscard]] auto grantsThroughDerivedClasses(
+      std::span<ClassSymbol* const> grantingClasses, ClassSymbol* namingClass)
+      -> AccessResult {
+    auto result = AccessResult::kInaccessible;
+
+    for (auto grantingClass : grantingClasses) {
+      auto derivation =
+          derivationOf(context_.unit_, grantingClass, namingClass);
+      auto granted = bothOf(accessGrantedBy(derivation),
+                            satisfiesObjectRestriction(grantingClass));
+      result = eitherOf(result, granted);
+      if (result == AccessResult::kAccessible) break;
+    }
+
+    return result;
+  }
+
+  [[nodiscard]] auto satisfiesObjectRestriction(ClassSymbol* grantingClass)
+      -> AccessResult {
+    if (!restrictsObject_) return AccessResult::kAccessible;
+    return accessGrantedBy(
+        derivationOf(context_.unit_, objectClass_, grantingClass));
+  }
+
+  const AccessContext& context_;
+  EffectiveAccess effectiveAccess_;
+  Symbol* member_;
+  ClassSymbol* declaringClass_;
+  ClassSymbol* objectClass_;
+  bool restrictsObject_ = false;
+  std::vector<std::pair<ClassSymbol*, AccessResult>> accessible_;
+};
+
 auto declaringClassOf(Symbol* member) -> ClassSymbol* {
   return declaredMemberOf(member).declaringClass;
 }
 
-auto designatingClassOf(Symbol* member, ScopeSymbol* accessingScope)
-    -> ClassSymbol* {
+auto implicitObjectClassOf(TranslationUnit* unit, Symbol* member,
+                           ScopeSymbol* accessingScope) -> ClassSymbol* {
   auto declaringClass = declaringClassOf(member);
   if (!declaringClass) return nullptr;
-  if (!accessingScope) return declaringClass;
+  if (!accessingScope) return nullptr;
 
-  auto innermostClass = symbol_cast<ClassSymbol>(accessingScope);
-  if (!innermostClass) innermostClass = accessingScope->enclosingClass();
-
-  for (auto enclosingClass = innermostClass; enclosingClass;
-       enclosingClass = enclosingClass->enclosingClass()) {
-    auto normalized = normalize(enclosingClass);
-    if (isSameClassForAccess(normalized, declaringClass)) return normalized;
-    if (derivesFromForAccess(normalized, declaringClass)) return normalized;
+  for (auto classSymbol = innermostClassOf(accessingScope); classSymbol;
+       classSymbol = classSymbol->enclosingClass()) {
+    auto derivation = derivationOf(unit, classSymbol, declaringClass);
+    if (derivation == Derivation::kDerived) return normalize(classSymbol);
   }
 
-  return declaringClass;
-}
-
-auto isProtectedAccessRestricted(Symbol* member) -> bool {
-  if (!member) return false;
-  if (member->accessSpecifier() != AccessSpecifier::kProtected) return false;
-  return is_non_static_member(member);
+  return nullptr;
 }
 
 AccessContext::AccessContext(TranslationUnit* unit, ScopeSymbol* accessingScope)
     : unit_(unit), accessingScope_(accessingScope) {}
 
-auto AccessContext::classes() const -> std::span<ClassSymbol* const> {
-  materialize();
-  return classes_;
-}
-
 void AccessContext::materialize() const {
   if (materialized_) return;
   materialized_ = true;
 
-  std::vector<ClassSymbol*> visitedClasses;
-  std::vector<FunctionSymbol*> visitedFunctions;
+  FriendshipCollector friendships{unit_, friendClasses_};
 
-  const auto grantAccessOf = [&](ClassSymbol* classSymbol) {
-    classSymbol = normalize(classSymbol);
-    if (!classSymbol) return;
-    if (std::ranges::contains(classes_, classSymbol)) return;
-    classes_.push_back(classSymbol);
-  };
-
-  const auto addEnclosingClass = [&](ClassSymbol* classSymbol) {
-    classSymbol = normalize(classSymbol);
-    if (!classSymbol) return;
-    if (std::ranges::contains(enclosingClasses_, classSymbol)) return;
-    enclosingClasses_.push_back(classSymbol);
-  };
-
-  const auto grantTemplateFriendships =
-      [&](const std::vector<TemplateFriendship>& friendships,
-          const std::vector<TemplateArgument>& arguments) {
-        const auto dependent =
-            std::ranges::any_of(arguments, [&](const auto& arg) {
-              return isDependentTemplateArgument(unit_, arg);
-            });
-        for (const auto& friendship : friendships) {
-          if (dependent) {
-            grantAccessOf(friendship.befriendingClass);
-            continue;
-          }
-          if (friendship.arguments.size() != arguments.size()) continue;
-          if (friendship.arguments != arguments) {
-            if (!compare_args(unit_, friendship.arguments, arguments)) continue;
-          }
-          grantAccessOf(friendship.befriendingClass);
-        }
-      };
-
-  const auto grantFriendshipsOfClass = [&](ClassSymbol* seed) {
-    if (!seed) return;
-    auto arguments = templateArgumentsOf(seed);
-    std::vector<ClassSymbol*> pending{seed};
-    while (!pending.empty()) {
-      auto classSymbol = pending.back();
-      pending.pop_back();
-      if (!classSymbol) continue;
-      if (std::ranges::contains(visitedClasses, classSymbol)) continue;
-      visitedClasses.push_back(classSymbol);
-      grantAccessOf(classSymbol);
-      for (auto befriending : classSymbol->befriendingClasses())
-        grantAccessOf(befriending);
-      grantTemplateFriendships(classSymbol->templateFriendships(), arguments);
-      pending.push_back(classSymbol->canonical());
-      pending.push_back(classSymbol->resolvedDefinition());
-      pending.push_back(classSymbol->instantiationPattern());
-      pending.push_back(classSymbol->primaryTemplateSymbol());
-    }
-  };
-
-  const auto grantFriendshipsOfFunction = [&](FunctionSymbol* seed) {
-    if (!seed) return;
-    auto arguments = templateArgumentsOf(seed);
-    std::vector<FunctionSymbol*> pending{seed};
-    while (!pending.empty()) {
-      auto function = pending.back();
-      pending.pop_back();
-      if (!function) continue;
-      function = function->canonical();
-      if (std::ranges::contains(visitedFunctions, function)) continue;
-      visitedFunctions.push_back(function);
-      for (auto befriending : function->befriendingClasses())
-        grantAccessOf(befriending);
-      grantTemplateFriendships(function->templateFriendships(), arguments);
-      pending.push_back(function->primaryTemplateSymbol());
-    }
-  };
-
-  for (auto current = accessingScope_; current; current = current->parent()) {
-    if (auto classSymbol = symbol_cast<ClassSymbol>(current)) {
-      addEnclosingClass(classSymbol);
-      grantFriendshipsOfClass(classSymbol);
+  for (auto scope = accessingScope_; scope; scope = scope->parent()) {
+    if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
+      addUnique(memberClasses_, classSymbol);
+      friendships.collect(classSymbol);
       continue;
     }
 
-    auto function = symbol_cast<FunctionSymbol>(current);
-    if (!function) continue;
-
-    grantFriendshipsOfFunction(function);
-
-    auto functionClass = symbol_cast<ClassSymbol>(function->parent());
-    if (functionClass && !function->isFriend()) {
-      addEnclosingClass(functionClass);
-      grantFriendshipsOfClass(functionClass);
-    }
+    if (auto function = symbol_cast<FunctionSymbol>(scope))
+      friendships.collect(function);
   }
-}
-
-auto AccessContext::isMemberOrFriendOf(ClassSymbol* classSymbol) const -> bool {
-  materialize();
-  return std::ranges::any_of(
-      instantiationChainOf(classSymbol), [&](ClassSymbol* candidate) {
-        return std::ranges::contains(classes_, candidate);
-      });
 }
 
 auto AccessContext::isMemberOf(ClassSymbol* classSymbol) const -> bool {
   materialize();
-  return std::ranges::any_of(
-      instantiationChainOf(classSymbol), [&](ClassSymbol* candidate) {
-        return std::ranges::contains(enclosingClasses_, candidate);
-      });
+  return std::ranges::contains(memberClasses_, normalize(classSymbol));
 }
 
-auto AccessContext::isAccessibleBaseClassEdge(ClassSymbol* derived,
-                                              BaseClassSymbol* baseClass) const
-    -> bool {
-  switch (baseClass->accessSpecifier()) {
-    case AccessSpecifier::kPublic:
-      return true;
+auto AccessContext::isFriendOf(ClassSymbol* classSymbol) const -> bool {
+  materialize();
+  return std::ranges::contains(friendClasses_, normalize(classSymbol));
+}
 
-    case AccessSpecifier::kPrivate:
-      return isMemberOrFriendOf(derived);
+auto AccessContext::baseClassAccess(ClassSymbol* derived, ClassSymbol* base,
+                                    ClassSymbol* objectClass) const
+    -> AccessResult {
+  const auto key = BaseClassAccessKey{derived, base, objectClass};
+  if (auto cached = cachedValue(baseClassAccess_, key)) return *cached;
 
-    case AccessSpecifier::kProtected: {
-      if (isMemberOrFriendOf(derived)) return true;
-      return std::ranges::any_of(classes(), [&](ClassSymbol* candidate) {
-        return derivesFromForAccess(candidate, derived);
-      });
+  Query query{*this, nullptr, DeclaredMember{base, AccessSpecifier::kPublic},
+              objectClass};
+  auto result = query.designatedIn(derived);
+  baseClassAccess_.emplace_back(key, result);
+  return result;
+}
+
+auto AccessContext::checkAccess(Symbol* member, ClassSymbol* designatingClass,
+                                ClassSymbol* objectClass) const
+    -> AccessResult {
+  if (!member) return AccessResult::kAccessible;
+
+  if (symbol_cast<OverloadSetSymbol>(member)) {
+    auto result = AccessResult::kInaccessible;
+    for (auto function : views::each_function(member)) {
+      result = eitherOf(result,
+                        checkAccess(function, designatingClass, objectClass));
+      if (result == AccessResult::kAccessible) break;
     }
+    return result;
   }
 
-  return false;
+  auto declared = declaredMemberOf(member);
+  if (!declared.declaringClass) return AccessResult::kAccessible;
+
+  if (!designatingClass) designatingClass = declared.declaringClass;
+
+  Query query{*this, member, declared, objectClass};
+  return query.designatedIn(designatingClass);
+}
+
+auto AccessContext::isAccessible(Symbol* member, ClassSymbol* designatingClass,
+                                 ClassSymbol* objectClass) const -> bool {
+  auto result = checkAccess(member, designatingClass, objectClass);
+  return result != AccessResult::kInaccessible;
 }
 
 auto AccessContext::isAccessibleBaseClass(ClassSymbol* derived,
@@ -375,195 +628,50 @@ auto AccessContext::isAccessibleBaseClass(ClassSymbol* derived,
   base = normalize(base);
   if (!derived || !base) return false;
   if (derived == base) return true;
-  if (derived->isAccessControlDisabled()) return true;
-
-  for (auto baseClass : derived->baseClasses()) {
-    auto directBase = normalize(symbol_cast<ClassSymbol>(baseClass->symbol()));
-    if (!directBase) continue;
-    if (!isAccessibleBaseClassEdge(derived, baseClass)) continue;
-    if (directBase == base) return true;
-    if (isAccessibleBaseClass(directBase, base)) return true;
-  }
-
-  return false;
+  return baseClassAccess(derived, base, nullptr) != AccessResult::kInaccessible;
 }
 
-auto AccessContext::satisfiesProtectedObjectRestriction(
-    Symbol* member, ClassSymbol* grantingClass, ClassSymbol* objectClass) const
-    -> bool {
-  if (!isProtectedAccessRestricted(member)) return true;
-  if (!objectClass) return true;
+namespace {
 
-  objectClass = normalize(objectClass);
-  if (isSameClassForAccess(objectClass, grantingClass)) return true;
-
-  return derivesFromForAccess(objectClass, grantingClass);
-}
-
-auto AccessContext::accessAsMemberOf(Symbol* member,
-                                     ClassSymbol* designatingClass,
-                                     AccessMemo& memo) const
-    -> std::optional<AccessSpecifier> {
-  designatingClass = normalize(designatingClass);
-  if (!designatingClass) return std::nullopt;
-
-  auto entry =
-      std::ranges::find(memo, designatingClass, &AccessMemo::value_type::first);
-  if (entry != memo.end()) return entry->second;
-
-  memo.emplace_back(designatingClass, std::nullopt);
-  const auto index = memo.size() - 1;
-
+[[nodiscard]] auto deniedMemberOf(Symbol* member, ClassSymbol* designatingClass)
+    -> DeclaredMember {
   auto declared = declaredMemberOf(member);
-  if (isSameClassForAccess(declared.declaringClass, designatingClass)) {
-    memo[index].second = declared.accessSpecifier;
-    return memo[index].second;
-  }
-
-  if (auto usingDeclaration =
-          usingDeclarationIntroducing(member, designatingClass)) {
-    memo[index].second = usingDeclaration->accessSpecifier();
-    return memo[index].second;
-  }
-
-  std::optional<AccessSpecifier> best;
-
-  for (auto baseClass : designatingClass->baseClasses()) {
-    auto base = normalize(symbol_cast<ClassSymbol>(baseClass->symbol()));
-    if (!base) continue;
-
-    auto accessInBase = accessAsMemberOf(member, base, memo);
-    if (!accessInBase) continue;
-    if (*accessInBase == AccessSpecifier::kPrivate) continue;
-
-    auto combined = std::max(*accessInBase, baseClass->accessSpecifier());
-    if (!best || combined < *best) best = combined;
-  }
-
-  memo[index].second = best;
-  return best;
-}
-
-auto AccessContext::isProtectedMemberAccessible(Symbol* member,
-                                                ClassSymbol* designatingClass,
-                                                ClassSymbol* objectClass) const
-    -> bool {
-  for (auto grantingClass : classes()) {
-    if (grantingClass != designatingClass) {
-      AccessMemo memo;
-      if (!accessAsMemberOf(member, grantingClass, memo)) continue;
-    }
-
-    if (satisfiesProtectedObjectRestriction(member, grantingClass, objectClass))
-      return true;
-  }
-
-  return false;
-}
-
-auto AccessContext::isAccessibleWhenDesignatedIn(
-    Symbol* member, ClassSymbol* designatingClass, ClassSymbol* objectClass,
-    std::vector<ClassSymbol*>& visited) const -> bool {
   designatingClass = normalize(designatingClass);
-  if (!designatingClass) return true;
-  if (std::ranges::contains(visited, designatingClass)) return false;
-  visited.push_back(designatingClass);
-  if (designatingClass->isAccessControlDisabled()) return true;
+  if (!designatingClass) return declared;
 
-  AccessMemo memo;
-  auto access = accessAsMemberOf(member, designatingClass, memo);
+  EffectiveAccess effectiveAccess{member, declared};
+  auto access = effectiveAccess.asMemberOf(designatingClass)
+                    .value_or(AccessSpecifier::kPrivate);
 
-  if (access == AccessSpecifier::kPublic) return true;
+  if (usingDeclarationIntroducing(member, designatingClass))
+    return {designatingClass, access};
 
-  if (access == AccessSpecifier::kPrivate) {
-    if (isMemberOrFriendOf(designatingClass)) return true;
-  }
-
-  if (access == AccessSpecifier::kProtected) {
-    if (isProtectedMemberAccessible(member, designatingClass, objectClass))
-      return true;
-  }
-
-  if (usingDeclarationIntroducing(member, designatingClass)) return false;
-
-  for (auto baseClass : designatingClass->baseClasses()) {
-    auto base = normalize(symbol_cast<ClassSymbol>(baseClass->symbol()));
-    if (!base) continue;
-    if (!isAccessibleBaseClassEdge(designatingClass, baseClass)) continue;
-    if (isAccessibleWhenDesignatedIn(member, base, objectClass, visited))
-      return true;
-  }
-
-  return false;
+  return {declared.declaringClass, access};
 }
 
-auto AccessContext::hasUndecidableDerivation(
-    ClassSymbol* designatingClass) const -> bool {
-  if (hasDependentBaseClass(unit_, designatingClass)) return true;
-
-  materialize();
-
-  if (std::ranges::any_of(enclosingClasses_, [&](ClassSymbol* candidate) {
-        return hasDependentBaseClass(unit_, candidate);
-      }))
-    return true;
-
-  return std::ranges::any_of(classes_, [&](ClassSymbol* candidate) {
-    return hasDependentBaseClass(unit_, candidate);
-  });
+[[nodiscard]] auto accessKindOf(AccessSpecifier access) -> std::string_view {
+  if (access == AccessSpecifier::kProtected) return "protected";
+  return "private";
 }
 
-auto AccessContext::isAccessible(Symbol* member, ClassSymbol* designatingClass,
-                                 ClassSymbol* objectClass) const -> bool {
-  if (!member) return true;
-
-  if (symbol_cast<OverloadSetSymbol>(member)) {
-    return std::ranges::any_of(
-        views::each_function(member), [&](FunctionSymbol* function) {
-          return isAccessible(function, designatingClass, objectClass);
-        });
-  }
-
-  auto declaringClass = declaringClassOf(member);
-  if (!declaringClass) return true;
-
-  if (!designatingClass) designatingClass = declaringClass;
-
-  std::vector<ClassSymbol*> visited;
-  if (isAccessibleWhenDesignatedIn(member, designatingClass, objectClass,
-                                   visited))
-    return true;
-
-  return hasUndecidableDerivation(designatingClass);
-}
+}  // namespace
 
 auto checkMemberAccess(TranslationUnit* unit, ScopeSymbol* accessingScope,
                        Symbol* member, ClassSymbol* designatingClass,
                        ClassSymbol* objectClass, SourceLocation loc) -> bool {
   if (!unit->config().checkTypes) return true;
+
   AccessContext accessContext{unit, accessingScope};
   if (accessContext.isAccessible(member, designatingClass, objectClass))
     return true;
 
-  auto deniedIn = declaringClassOf(member);
-  auto access = member->accessSpecifier();
-
-  if (designatingClass) {
-    if (auto usingDeclaration =
-            usingDeclarationIntroducing(member, designatingClass)) {
-      deniedIn = designatingClass;
-      access = usingDeclaration->accessSpecifier();
-    }
-  }
-
-  if (!deniedIn) return true;
-
-  auto accessKind = std::string_view{"private"};
-  if (access == AccessSpecifier::kProtected) accessKind = "protected";
+  auto denied = deniedMemberOf(member, designatingClass);
+  if (!denied.declaringClass) return true;
 
   unit->error(
       loc, std::format("'{}' is a {} member of '{}'", to_string(member->name()),
-                       accessKind, to_string(deniedIn->type())));
+                       accessKindOf(denied.accessSpecifier),
+                       to_string(denied.declaringClass->type())));
 
   return false;
 }

@@ -24,6 +24,7 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
+#include <cxx/dependent_types.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
@@ -42,6 +43,11 @@
 namespace cxx {
 namespace {
 using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
+
+[[nodiscard]] auto isClassAdjustment(ImplicitCastKind castKind) -> bool {
+  return castKind == ImplicitCastKind::kDerivedToBaseConversion ||
+         castKind == ImplicitCastKind::kBaseToDerivedConversion;
+}
 
 [[nodiscard]] auto referenceBindingKind(ValueCategory sourceValueCategory)
     -> ReferenceBinding::Kind {
@@ -75,47 +81,127 @@ void bindResultToReference(ImplicitConversionSequence& seq,
       unqualified_cast<FunctionType>(referencedType) != nullptr;
 }
 
-[[nodiscard]] auto resolveOverloadSetAgainstFunctionType(
-    TranslationUnit* unit, OverloadSetSymbol* ovl,
-    const FunctionType* targetFunctionType, SourceLocation loc)
-    -> FunctionSymbol* {
-  FunctionSymbol* match = nullptr;
-  List<TemplateArgumentAST*>* matchDeducedArguments = nullptr;
+struct OverloadSetTarget {
+  const FunctionType* functionType = nullptr;
+  bool isMemberPointer = false;
+};
 
-  for (auto func : ovl->functions()) {
-    if (func->canonical() != func) continue;
+[[nodiscard]] auto overloadSetTargetOf(TranslationUnit* unit,
+                                       const Type* targetType)
+    -> std::optional<OverloadSetTarget> {
+  auto traits = unit->typeTraits();
+  auto target = traits.remove_cv(traits.remove_reference(targetType));
+  if (auto function = type_cast<FunctionType>(target))
+    return OverloadSetTarget{.functionType = function};
+  if (auto pointer = type_cast<PointerType>(target)) {
+    auto function = type_cast<FunctionType>(pointer->elementType());
+    if (function) return OverloadSetTarget{.functionType = function};
+  }
+  if (auto pointer = type_cast<MemberFunctionPointerType>(target))
+    return OverloadSetTarget{.functionType = pointer->functionType(),
+                             .isMemberPointer = true};
+  return std::nullopt;
+}
 
-    FunctionSymbol* candidate = func;
-    List<TemplateArgumentAST*>* candidateDeducedArguments = nullptr;
+struct SelectedFunction {
+  FunctionSymbol* function = nullptr;
+  List<TemplateArgumentAST*>* deducedArguments = nullptr;
+  bool isTemplateSpecialization = false;
+};
 
-    if (func->templateDeclaration() && !func->isSpecialization()) {
-      TemplateArgumentDeduction deduction(unit);
-      auto deducedArgs =
-          deduction.deduceFromTargetType(func, targetFunctionType);
-      if (!deducedArgs.has_value()) continue;
+[[nodiscard]] auto matchesTargetFunctionType(TranslationUnit* unit,
+                                             const FunctionType* type,
+                                             const FunctionType* target)
+    -> bool {
+  auto traits = unit->typeTraits();
+  if (traits.is_same(type, target)) return true;
+  if (!type->isNoexcept() || target->isNoexcept()) return false;
+  return traits.is_same(traits.remove_noexcept(type), target);
+}
 
-      candidate = ASTRewriter::instantiateOverloadCandidate(
-          unit, *deducedArgs, func, loc, /*argsComplete=*/true);
-      if (!candidate) continue;
-      candidateDeducedArguments = *deducedArgs;
-    } else if (func->isSpecialization()) {
-      continue;
-    }
+[[nodiscard]] auto selectedFunctionFor(TranslationUnit* unit,
+                                       FunctionSymbol* function,
+                                       const OverloadSetTarget& target,
+                                       SourceLocation loc)
+    -> std::optional<SelectedFunction> {
+  if (function->canonical() != function) return std::nullopt;
+  if (function->isSpecialization()) return std::nullopt;
+  if (function->isImplicitObjectMemberFunction() != target.isMemberPointer)
+    return std::nullopt;
 
-    auto candidateType = type_cast<FunctionType>(candidate->type());
-    if (!candidateType) continue;
-    if (!unit->typeTraits().is_same(candidateType, targetFunctionType))
-      continue;
+  SelectedFunction selected{.function = function};
 
-    if (match && match != candidate) return nullptr;
-    match = candidate;
-    matchDeducedArguments = candidateDeducedArguments;
+  if (function->templateDeclaration()) {
+    TemplateArgumentDeduction deduction(unit);
+    auto deducedArguments =
+        deduction.deduceFromTargetType(function, target.functionType);
+    if (!deducedArguments.has_value()) return std::nullopt;
+    selected.function = ASTRewriter::instantiateOverloadCandidate(
+        unit, *deducedArguments, function, loc, /*argsComplete=*/true);
+    if (!selected.function) return std::nullopt;
+    selected.deducedArguments = *deducedArguments;
+    selected.isTemplateSpecialization = true;
   }
 
-  ASTRewriter::instantiateSelectedSpecializationDefinition(
-      unit, match, matchDeducedArguments);
+  auto type = type_cast<FunctionType>(selected.function->type());
+  if (!type || !matchesTargetFunctionType(unit, type, target.functionType))
+    return std::nullopt;
 
-  return match;
+  if (ASTRewriter::evaluateAssociatedConstraints(unit, selected.function) ==
+      false)
+    return std::nullopt;
+
+  return selected;
+}
+
+[[nodiscard]] auto isEliminatedBy(TranslationUnit* unit,
+                                  const SelectedFunction& function,
+                                  const SelectedFunction& other) -> bool {
+  if (function.function == other.function) return false;
+  if (function.isTemplateSpecialization != other.isTemplateSpecialization)
+    return function.isTemplateSpecialization;
+  if (function.isTemplateSpecialization)
+    return compareFunctionTemplateSpecializations(unit, other.function,
+                                                  function.function) > 0;
+  return compareNonTemplateConstraints(unit, other.function,
+                                       function.function) > 0;
+}
+
+[[nodiscard]] auto isEliminated(TranslationUnit* unit,
+                                const SelectedFunction& function,
+                                const std::vector<SelectedFunction>& selected)
+    -> bool {
+  for (const auto& other : selected) {
+    if (isEliminatedBy(unit, function, other)) return true;
+  }
+  return false;
+}
+
+[[nodiscard]] auto resolveOverloadSetAgainstTarget(
+    TranslationUnit* unit, OverloadSetSymbol* ovl,
+    const OverloadSetTarget& target, SourceLocation loc) -> FunctionSymbol* {
+  std::vector<SelectedFunction> selected;
+  for (auto function : ovl->functions()) {
+    auto candidate = selectedFunctionFor(unit, function, target, loc);
+    if (!candidate) continue;
+    if (std::ranges::contains(selected, candidate->function,
+                              &SelectedFunction::function))
+      continue;
+    selected.push_back(*candidate);
+  }
+
+  auto survivors = selected;
+  std::erase_if(survivors, [&](const SelectedFunction& function) {
+    return isEliminated(unit, function, selected);
+  });
+
+  if (survivors.size() != 1) return nullptr;
+
+  auto match = survivors.front();
+  ASTRewriter::instantiateSelectedSpecializationDefinition(
+      unit, match.function, match.deducedArguments);
+
+  return match.function;
 }
 
 [[nodiscard]] auto stripNestedExpressions(ExpressionAST* expr)
@@ -125,32 +211,6 @@ void bindResultToReference(ImplicitConversionSequence& seq,
   return expr;
 }
 
-struct MemberPointerParts {
-  const Type* classType = nullptr;
-  const Type* pointeeType = nullptr;
-
-  [[nodiscard]] explicit operator bool() const { return classType; }
-};
-
-struct DecomposeMemberPointer {
-  auto operator()(const MemberObjectPointerType* type) const
-      -> MemberPointerParts {
-    return {type->classType(), type->elementType()};
-  }
-
-  auto operator()(const MemberFunctionPointerType* type) const
-      -> MemberPointerParts {
-    return {type->classType(), type->functionType()};
-  }
-
-  auto operator()(const Type*) const -> MemberPointerParts { return {}; }
-};
-
-[[nodiscard]] auto decomposeMemberPointer(const Type* type)
-    -> MemberPointerParts {
-  if (!type) return {};
-  return visit(DecomposeMemberPointer{}, type);
-}
 }  // namespace
 
 StandardConversion::StandardConversion(TranslationUnit* unit, bool isC)
@@ -294,7 +354,7 @@ void StandardConversion::foldConstantRead(ExpressionAST*& expression) {
   if (!member && field->definition()) return;
 
   auto interp = ASTInterpreter{unit_};
-  if (auto value = interp.evaluate(operand)) {
+  if (auto value = interp.evaluateStaticDataMember(field)) {
     auto constExpression = ConstExpressionAST::create(arena_);
     constExpression->expression = cast;
     constExpression->constValue =
@@ -874,11 +934,7 @@ auto StandardConversion::compositeClassAdjustedType(const Type* type,
   auto member = decomposeMemberPointer(traits.remove_cv(type));
   if (!member) return type;
 
-  if (auto functionType = type_cast<FunctionType>(member.pointeeType)) {
-    return control_->getMemberFunctionPointerType(classType, functionType);
-  }
-
-  return control_->getMemberObjectPointerType(classType, member.pointeeType);
+  return control_->getMemberPointerType(classType, member.pointeeType);
 }
 
 auto StandardConversion::compositePointerClassType(const Type* left,
@@ -1001,6 +1057,26 @@ auto StandardConversion::directReferenceBindingCastKind(
   return ImplicitCastKind::kIdentity;
 }
 
+void StandardConversion::appendDirectBindingSteps(
+    ImplicitConversionSequence& seq, const Type* referencedType,
+    const Type* sourceType, ValueCategory sourceValueCategory) {
+  auto castKind = directReferenceBindingCastKind(referencedType, sourceType);
+
+  if (sourceValueCategory != ValueCategory::kPrValue) {
+    seq.steps.push_back({castKind, referencedType});
+    return;
+  }
+
+  if (castKind != ImplicitCastKind::kDerivedToBaseConversion) {
+    seq.steps.push_back({ImplicitCastKind::kIdentity, referencedType});
+    return;
+  }
+
+  seq.steps.push_back(
+      {ImplicitCastKind::kTemporaryMaterializationConversion, sourceType});
+  seq.steps.push_back({castKind, referencedType});
+}
+
 auto StandardConversion::referenceBinding(const Type* targetType,
                                           const Type* sourceUnadjustedType,
                                           ValueCategory valueCategory)
@@ -1033,10 +1109,7 @@ auto StandardConversion::referenceBinding(const Type* targetType,
     bindResultToReference(seq, targetType, category);
     seq.binding.isDirect = true;
     seq.form = ConversionSequenceForm::kStandard;
-    auto castKind = sourceIsPrvalue ? ImplicitCastKind::kIdentity
-                                    : directReferenceBindingCastKind(
-                                          referencedType, sourceType);
-    seq.steps.push_back({castKind, referencedType});
+    appendDirectBindingSteps(seq, referencedType, sourceType, category);
     return seq;
   };
 
@@ -1246,20 +1319,22 @@ auto StandardConversion::computeConversionSequenceSteps(
   }
 
   if (overloadSetType) {
-    if (auto ptrTarget = type_cast<PointerType>(targetType)) {
-      if (auto targetFuncType =
-              type_cast<FunctionType>(ptrTarget->elementType())) {
-        if (resolveOverloadSetAgainstFunctionType(
-                unit_, overloadSetType->symbol(), targetFuncType,
-                expr->firstSourceLocation())) {
-          return complete(sourceIsAddressOfOverloadSet
-                              ? ImplicitCastKind::kIdentity
-                              : ImplicitCastKind::kFunctionToPointerConversion,
-                          targetType);
-        }
-      }
+    auto target = overloadSetTargetOf(unit_, targetType);
+    if (!target) return seq;
+    if (target->isMemberPointer && !sourceIsAddressOfOverloadSet) return seq;
+    auto resolved = resolveOverloadSetAgainstTarget(
+        unit_, overloadSetType->symbol(), *target, expr->firstSourceLocation());
+    if (!resolved) return seq;
+    if (traits.is_reference(targetType)) {
+      if (sourceIsAddressOfOverloadSet) return seq;
+      return referenceBinding(targetType, resolved->type(),
+                              ValueCategory::kLValue)
+          .value_or(seq);
     }
-    return seq;
+    return complete(sourceIsAddressOfOverloadSet
+                        ? ImplicitCastKind::kIdentity
+                        : ImplicitCastKind::kFunctionToPointerConversion,
+                    targetType);
   }
 
   if (auto bracedInitList = ast_cast<BracedInitListAST>(expr)) {
@@ -1328,7 +1403,9 @@ auto StandardConversion::computeConversionSequenceSteps(
     return valueSequence;
   }
 
-  if (traits.is_complex(unqualFrom) || traits.is_complex(unqualTo)) {
+  if (!traits.is_class_or_union(unqualFrom) &&
+      !traits.is_class_or_union(unqualTo) &&
+      (traits.is_complex(unqualFrom) || traits.is_complex(unqualTo))) {
     if (traits.is_complex(unqualFrom) && traits.is_complex(unqualTo)) {
       return complete(ImplicitCastKind::kComplexConversion,
                       comparisonTargetType);
@@ -1629,9 +1706,11 @@ auto StandardConversion::computeConversionSequenceSteps(
     if (!func->isImplicitObjectMemberFunction()) return std::nullopt;
     OverloadResolution resolution{unit_};
     auto conversion = resolution.implicitObjectArgumentConversion(
-        func, {.type = expr->type,
-               .cv = cv_qualifiers(traits.remove_reference(expr->type)),
-               .valueCategory = expr->valueCategory});
+        func,
+        {.type = expr->type,
+         .cv = cv_qualifiers(traits.remove_reference(expr->type)),
+         .valueCategory = expr->valueCategory},
+        nullptr);
     if (!conversion) return std::nullopt;
     return *conversion;
   };
@@ -1810,24 +1889,38 @@ auto StandardConversion::accessingScope() const -> ScopeSymbol* {
   return unit_->globalScope();
 }
 
-void StandardConversion::checkDerivedToBaseAccess(const Type* sourceType,
-                                                  const Type* targetType,
-                                                  SourceLocation loc) {
+auto checkBaseClassConversion(TranslationUnit* unit,
+                              ScopeSymbol* accessingScope, ClassSymbol* derived,
+                              ClassSymbol* base, SourceLocation loc) -> bool {
+  if (derived == base) return true;
+  if (isDependent(unit, derived->type())) return true;
+
+  if (!derived->baseSubobjectInfo(base).isUniqueSubobject()) {
+    unit->error(
+        loc, std::format("'{}' is an ambiguous base class of '{}'",
+                         to_string(base->type()), to_string(derived->type())));
+    return false;
+  }
+
+  AccessContext accessContext{unit, accessingScope};
+  if (accessContext.isAccessibleBaseClass(derived, base)) return true;
+
+  unit->error(loc,
+              std::format("'{}' is an inaccessible base class of '{}'",
+                          to_string(base->type()), to_string(derived->type())));
+  return false;
+}
+
+void StandardConversion::checkDerivedToBaseConversion(const Type* sourceType,
+                                                      const Type* targetType,
+                                                      SourceLocation loc) {
   auto derived = convertedClassSymbol(sourceType);
   auto base = convertedClassSymbol(targetType);
   if (!derived || !base) return;
 
-  derived = derived->resolvedDefinition();
-  base = base->resolvedDefinition();
-  if (!derived || !base) return;
-  if (derived == base) return;
-
-  AccessContext accessContext{unit_, accessingScope()};
-  if (accessContext.isAccessibleBaseClass(derived, base)) return;
-
-  unit_->error(
-      loc, std::format("'{}' is an inaccessible base class of '{}'",
-                       to_string(base->type()), to_string(derived->type())));
+  (void)checkBaseClassConversion(unit_, accessingScope(),
+                                 derived->resolvedDefinition(),
+                                 base->resolvedDefinition(), loc);
 }
 
 void StandardConversion::checkUserDefinedConversionAccess(
@@ -1865,8 +1958,8 @@ void StandardConversion::applyStep(const ImplicitConversionSequence& sequence,
   }
 
   if (step.kind == ImplicitCastKind::kDerivedToBaseConversion) {
-    checkDerivedToBaseAccess(expr->type, step.type,
-                             expr->firstSourceLocation());
+    checkDerivedToBaseConversion(expr->type, step.type,
+                                 expr->firstSourceLocation());
   } else if (step.kind == ImplicitCastKind::kUserDefinedConversion) {
     checkUserDefinedConversionAccess(sequence, expr);
   }
@@ -2074,7 +2167,8 @@ void StandardConversion::appendDefaultArguments(FunctionSymbol* function,
   }
 
   for (auto i = argCount; i < params.size(); ++i) {
-    auto defaultArgument = params[i]->defaultArgument();
+    auto defaultArgument =
+        ASTRewriter::requireDefaultArgument(unit_, params[i]);
     if (!defaultArgument) break;
     *tail =
         make_list_node<ExpressionAST>(arena_, defaultArgument->clone(arena_));
@@ -2222,13 +2316,8 @@ void StandardConversion::setResolvedFunction(ExpressionAST* expr,
 
 void StandardConversion::resolveOverloadSet(ExpressionAST* expr,
                                             const Type* targetType) {
-  auto targetPointer =
-      type_cast<PointerType>(traits.remove_reference(targetType));
-  if (!targetPointer) return;
-
-  auto targetFunctionType =
-      type_cast<FunctionType>(targetPointer->elementType());
-  if (!targetFunctionType) return;
+  auto target = overloadSetTargetOf(unit_, targetType);
+  if (!target) return;
 
   auto stripped = stripNestedExpressions(expr);
   auto addressOf = ast_cast<UnaryExpressionAST>(stripped);
@@ -2248,13 +2337,12 @@ void StandardConversion::resolveOverloadSet(ExpressionAST* expr,
   }
   if (!overloadSet) return;
 
-  auto resolved = resolveOverloadSetAgainstFunctionType(
-      unit_, overloadSet, targetFunctionType, expr->firstSourceLocation());
+  auto resolved = resolveOverloadSetAgainstTarget(unit_, overloadSet, *target,
+                                                  expr->firstSourceLocation());
   if (!resolved) return;
 
   setResolvedFunction(designator, resolved);
-  if (takesAddress)
-    addressOf->type = control_->getPointerType(resolved->type());
+  if (takesAddress) addressOf->type = traits.address_of_function(resolved);
 }
 
 void StandardConversion::wrapWithImplicitCast(ImplicitCastKind castKind,
@@ -2278,11 +2366,9 @@ void StandardConversion::wrapWithImplicitCast(ImplicitCastKind castKind,
     }
   }
 
-  if (castKind == ImplicitCastKind::kDerivedToBaseConversion) {
-    const auto convertsPointer = traits.is_pointer(type);
-    if (!convertsPointer) {
-      if (is_glvalue(expr)) cast->valueCategory = expr->valueCategory;
-    }
+  if (isClassAdjustment(castKind) && !traits.is_pointer(type) &&
+      is_glvalue(expr)) {
+    cast->valueCategory = expr->valueCategory;
   }
 
   expr = cast;

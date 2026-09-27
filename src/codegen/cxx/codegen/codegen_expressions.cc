@@ -205,6 +205,13 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
                                      ir::TypeRef resultType,
                                      const Type* leftType, ir::ValueRef left,
                                      ir::ValueRef right) -> ExpressionResult;
+  auto emitBinaryComparisonOpMemberFunctionPointer(
+      SourceLocation loc, TokenKind op,
+      const MemberFunctionPointerType* pointerType, ir::ValueRef left,
+      ir::ValueRef right) -> ExpressionResult;
+  auto emitMemberFunctionPointerEquality(
+      SourceLocation loc, const MemberFunctionPointerType* pointerType,
+      ir::ValueRef left, ir::ValueRef right) -> ir::ValueRef;
   auto emitThreeWayComparison(ThreeWayComparisonExpressionAST* ast,
                               ExpressionResult left, ExpressionResult right)
       -> ExpressionResult;
@@ -820,29 +827,6 @@ auto Codegen::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     -> ExpressionResult {
   if (auto classType = type_cast<ClassType>(ast->type)) {
     auto classSymbol = classType->symbol();
-
-    {
-      auto savedIP = gen.emitter_.saveInsertionPoint();
-
-      gen.emitter_.setModuleInsertionPoint(false);
-
-      for (auto ctor : classSymbol->constructors()) {
-        if (auto funcDecl = ctor->declaration()) {
-          (void)gen.declaration(funcDecl);
-        }
-      }
-
-      for (auto member : classSymbol->members()) {
-        for (auto func : views::each_function(member)) {
-          if (auto funcDecl = func->declaration()) {
-            (void)gen.declaration(funcDecl);
-          }
-        }
-      }
-
-      gen.emitter_.restoreInsertionPoint(savedIP);
-    }
-
     auto closure = gen.takeResultObject(ast);
     if (!closure) closure = gen.newTemp(classType, ast->firstSourceLocation());
 
@@ -1654,25 +1638,23 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
   if (gen.traits.is_integral_or_unscoped_enum(ast->baseExpression->type)) {
     auto loc = ast->firstSourceLocation();
     auto elementTy = gen.convertType(ast->baseExpression->type);
-    auto loadOp =
-        gen.emitter_.load(loc, elementTy, expressionResult.value,
-                          gen.getAlignment(ast->baseExpression->type));
+    auto loadOp = gen.emitter_.load(loc, elementTy, expressionResult.value,
+                                    gen.lvalueAlignment(ast->baseExpression));
     auto resultTy = gen.convertType(ast->baseExpression->type);
     auto oneOp = gen.emitter_.constantInt(
         loc, resultTy, ast->op == TokenKind::T_PLUS_PLUS ? 1 : -1);
     auto addOp =
         gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, loadOp, oneOp);
     gen.emitter_.store(loc, addOp, expressionResult.value,
-                       gen.getAlignment(ast->baseExpression->type));
+                       gen.lvalueAlignment(ast->baseExpression));
     return {loadOp};
   }
   if (gen.traits.is_floating_point(ast->baseExpression->type)) {
     auto loc = ast->firstSourceLocation();
     auto ptrTy = gen.emitter_.typeOf(expressionResult.value);
     auto elementTy = gen.emitter_.elementType(ptrTy);
-    auto loadOp =
-        gen.emitter_.load(loc, elementTy, expressionResult.value,
-                          gen.getAlignment(ast->baseExpression->type));
+    auto loadOp = gen.emitter_.load(loc, elementTy, expressionResult.value,
+                                    gen.lvalueAlignment(ast->baseExpression));
     auto resultTy = gen.convertType(ast->baseExpression->type);
 
     ir::ValueRef one;
@@ -1709,21 +1691,20 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     auto addOp =
         gen.emitter_.binaryOp(loc, ir::BinaryOp::AddFloat, loadOp, one);
     gen.emitter_.store(loc, addOp, expressionResult.value,
-                       gen.getAlignment(ast->baseExpression->type));
+                       gen.lvalueAlignment(ast->baseExpression));
     return {loadOp};
   }
   if (gen.traits.is_pointer(ast->baseExpression->type)) {
     auto loc = ast->firstSourceLocation();
     auto resultTy = gen.convertType(ast->baseExpression->type);
-    auto loadOp =
-        gen.emitter_.load(loc, resultTy, expressionResult.value,
-                          gen.getAlignment(ast->baseExpression->type));
+    auto loadOp = gen.emitter_.load(loc, resultTy, expressionResult.value,
+                                    gen.lvalueAlignment(ast->baseExpression));
     auto intTy = gen.emitter_.integerType(32);
     auto oneOp = gen.emitter_.constantInt(
         loc, intTy, ast->op == TokenKind::T_PLUS_PLUS ? 1 : -1);
     auto addOp = gen.emitter_.pointerAdd(loc, resultTy, loadOp, oneOp);
     gen.emitter_.store(loc, addOp, expressionResult.value,
-                       gen.getAlignment(ast->baseExpression->type));
+                       gen.lvalueAlignment(ast->baseExpression));
     return {loadOp};
   }
 
@@ -1993,7 +1974,7 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrFloat(
   auto resultType = gen.convertType(ast->type);
 
   auto loadOp = gen.emitter_.load(loc, resultType, expressionResult.value,
-                                  gen.getAlignment(ast->expression->type));
+                                  gen.lvalueAlignment(ast->expression));
 
   ir::ValueRef addOp;
 
@@ -2003,14 +1984,14 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrFloat(
     addOp = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddFloat, loadOp, one);
 
   gen.emitter_.store(loc, addOp, expressionResult.value,
-                     gen.getAlignment(ast->expression->type));
+                     gen.lvalueAlignment(ast->expression));
 
   if (is_glvalue(ast)) {
     return expressionResult;
   }
 
   auto op = gen.emitter_.load(loc, resultType, expressionResult.value,
-                              gen.getAlignment(ast->expression->type));
+                              gen.lvalueAlignment(ast->expression));
 
   return {op};
 }
@@ -2026,7 +2007,7 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrIntegral(
   auto resultType = gen.convertType(ast->type);
 
   auto loadOp = gen.emitter_.load(loc, resultType, expressionResult.value,
-                                  gen.getAlignment(ast->expression->type));
+                                  gen.lvalueAlignment(ast->expression));
 
   ir::ValueRef addOp;
 
@@ -2036,14 +2017,14 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrIntegral(
     addOp = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, loadOp, oneOp);
 
   gen.emitter_.store(loc, addOp, expressionResult.value,
-                     gen.getAlignment(ast->expression->type));
+                     gen.lvalueAlignment(ast->expression));
 
   if (is_glvalue(ast)) {
     return expressionResult;
   }
 
   auto op = gen.emitter_.load(loc, resultType, expressionResult.value,
-                              gen.getAlignment(ast->expression->type));
+                              gen.lvalueAlignment(ast->expression));
 
   return {op};
 }
@@ -2057,17 +2038,17 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrPointer(
       loc, intTy, ast->op == TokenKind::T_MINUS_MINUS ? -1 : 1);
   auto resultType = gen.convertType(ast->expression->type);
   auto loadOp = gen.emitter_.load(loc, resultType, expressionResult.value,
-                                  gen.getAlignment(ast->expression->type));
+                                  gen.lvalueAlignment(ast->expression));
   auto addOp = gen.emitter_.pointerAdd(loc, resultType, loadOp, one);
   gen.emitter_.store(loc, addOp, expressionResult.value,
-                     gen.getAlignment(ast->expression->type));
+                     gen.lvalueAlignment(ast->expression));
 
   if (is_glvalue(ast)) {
     return expressionResult;
   }
 
   auto op = gen.emitter_.load(loc, resultType, expressionResult.value,
-                              gen.getAlignment(ast->expression->type));
+                              gen.lvalueAlignment(ast->expression));
   return {op};
 }
 
@@ -2429,10 +2410,19 @@ void Codegen::emitArrayLoop(SourceLocation loc, ir::ValueRef base,
                             const Type* elementType, ir::ValueRef count,
                             bool reverse,
                             const std::function<void(ir::ValueRef)>& body) {
-  if (!base || !count) return;
+  if (!base) return;
+  auto elementPtrType = emitter_.pointerType(convertType(elementType));
+  emitIndexLoop(loc, count, reverse, [&](ir::ValueRef index) {
+    body(emitter_.pointerAdd(loc, elementPtrType, base, index));
+  });
+}
+
+void Codegen::emitIndexLoop(SourceLocation loc, ir::ValueRef count,
+                            bool reverse,
+                            const std::function<void(ir::ValueRef)>& body) {
+  if (!count) return;
 
   auto countType = emitter_.typeOf(count);
-  auto elementPtrType = emitter_.pointerType(convertType(elementType));
   auto countAlignment = getAlignment(control()->getSizeType());
 
   auto index =
@@ -2466,7 +2456,7 @@ void Codegen::emitArrayLoop(SourceLocation loc, ir::ValueRef base,
       reverse ? elementIndex
               : emitter_.binaryOp(loc, ir::BinaryOp::AddInt, position, one),
       index, countAlignment);
-  body(emitter_.pointerAdd(loc, elementPtrType, base, elementIndex));
+  body(elementIndex);
   branch(loc, conditionBlock);
 
   emitter_.setInsertionBlock(endBlock);
@@ -2516,16 +2506,25 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
         loc, sizeTy, static_cast<std::int64_t>(objectSize ? objectSize : 1));
   }
 
+  if (!ast->symbol) {
+    return {gen.emitTodoExpr(loc, "new: missing allocation function")};
+  }
+
   std::vector<ExpressionResult> allocationArguments;
   allocationArguments.push_back({sizeVal});
+
+  if (ast->hasAlignmentArgument) {
+    const auto& parameterTypes =
+        type_cast<FunctionType>(ast->symbol->type())->parameterTypes();
+    auto alignment = gen.emitter_.constantInt(
+        loc, gen.convertType(parameterTypes[1]),
+        static_cast<std::int64_t>(gen.getAlignment(objectType)));
+    allocationArguments.push_back({alignment});
+  }
 
   for (auto node : ListView{
            ast->newPlacement ? ast->newPlacement->expressionList : nullptr})
     allocationArguments.push_back(gen.expression(node));
-
-  if (!ast->symbol) {
-    return {gen.emitTodoExpr(loc, "new: missing allocation function")};
-  }
 
   auto allocation =
       gen.emitCall(ast->newLoc, ast->symbol, {}, std::move(allocationArguments))
@@ -2667,7 +2666,7 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
   if (ast->expression->valueCategory == ValueCategory::kLValue) {
     auto loadedType = gen.convertType(ast->expression->type);
     ptrValue = gen.emitter_.load(loc, loadedType, ptrValue,
-                                 gen.getAlignment(ast->expression->type));
+                                 gen.lvalueAlignment(ast->expression));
   }
 
   const Type* pointeeType = nullptr;
@@ -2886,7 +2885,7 @@ auto Codegen::ExpressionVisitor::emitLValueToRValueConversion(
   auto resultType = gen.convertType(ast->type);
 
   auto op = gen.emitter_.load(loc, resultType, expressionResult.value,
-                              gen.getAlignment(ast->type));
+                              gen.lvalueAlignment(ast->expression));
 
   return {op};
 }
@@ -3820,6 +3819,53 @@ auto Codegen::ExpressionVisitor::emitBinaryComparisonOpPointer(
   return {gen.emitter_.compareInt(loc, predicate, leftInt, rightInt)};
 }
 
+auto Codegen::ExpressionVisitor::emitMemberFunctionPointerEquality(
+    SourceLocation loc, const MemberFunctionPointerType* pointerType,
+    ir::ValueRef left, ir::ValueRef right) -> ir::ValueRef {
+  auto wordType = gen.pointerSizedIntType();
+  auto zero = gen.emitter_.constantInt(loc, wordType, 0);
+  auto virtualFlag = gen.emitter_.constantInt(loc, wordType, 1);
+
+  auto [leftPointer, leftAdjustment] =
+      gen.memberFunctionPointerFields(loc, pointerType, left);
+  auto [rightPointer, rightAdjustment] =
+      gen.memberFunctionPointerFields(loc, pointerType, right);
+
+  auto samePointer = gen.emitter_.compareInt(loc, ir::IntPredicate::Equal,
+                                             leftPointer, rightPointer);
+  auto sameAdjustment = gen.emitter_.compareInt(
+      loc, ir::IntPredicate::Equal, leftAdjustment, rightAdjustment);
+
+  auto nullPointerField =
+      gen.emitter_.compareInt(loc, ir::IntPredicate::Equal, leftPointer, zero);
+  auto adjustmentBits = gen.emitter_.binaryOp(loc, ir::BinaryOp::OrInt,
+                                              leftAdjustment, rightAdjustment);
+  auto virtualBits = gen.emitter_.binaryOp(loc, ir::BinaryOp::AndInt,
+                                           adjustmentBits, virtualFlag);
+  auto neitherVirtual =
+      gen.emitter_.compareInt(loc, ir::IntPredicate::Equal, virtualBits, zero);
+  auto bothNull = gen.emitter_.binaryOp(loc, ir::BinaryOp::AndInt,
+                                        nullPointerField, neitherVirtual);
+
+  auto sameMember =
+      gen.emitter_.binaryOp(loc, ir::BinaryOp::OrInt, sameAdjustment, bothNull);
+  return gen.emitter_.binaryOp(loc, ir::BinaryOp::AndInt, samePointer,
+                               sameMember);
+}
+
+auto Codegen::ExpressionVisitor::emitBinaryComparisonOpMemberFunctionPointer(
+    SourceLocation loc, TokenKind op,
+    const MemberFunctionPointerType* pointerType, ir::ValueRef left,
+    ir::ValueRef right) -> ExpressionResult {
+  auto equal = emitMemberFunctionPointerEquality(loc, pointerType, left, right);
+  if (op == TokenKind::T_EQUAL_EQUAL) return {equal};
+  if (op != TokenKind::T_EXCLAIM_EQUAL)
+    return {gen.emitTodoExpr(loc, "member function pointer comparison")};
+  auto boolType = gen.emitter_.integerType(1);
+  return {gen.emitter_.binaryOp(loc, ir::BinaryOp::XorInt, equal,
+                                gen.emitter_.constantInt(loc, boolType, 1))};
+}
+
 auto Codegen::ExpressionVisitor::emitBinaryComparisonOp(
     SourceLocation loc, TokenKind op, ir::TypeRef resultType,
     const Type* leftType, ir::ValueRef left, ir::ValueRef right)
@@ -3845,10 +3891,17 @@ auto Codegen::ExpressionVisitor::emitBinaryComparisonOp(
                                          right);
   }
 
+  if (auto pointerType =
+          unqualified_cast<MemberFunctionPointerType>(leftType)) {
+    return emitBinaryComparisonOpMemberFunctionPointer(loc, op, pointerType,
+                                                       left, right);
+  }
+
   auto comparisonType = gen.traits.underlying_type(leftType);
 
   if (gen.traits.is_integral(comparisonType) ||
-      gen.traits.is_null_pointer(comparisonType)) {
+      gen.traits.is_null_pointer(comparisonType) ||
+      gen.traits.is_member_object_pointer(comparisonType)) {
     return emitBinaryComparisonOpIntegral(loc, op, resultType, comparisonType,
                                           left, right);
   }
@@ -4118,10 +4171,8 @@ auto Codegen::ExpressionVisitor::operator()(YieldExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(ThrowExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-  return {op};
+  gen.emitThrow(ast);
+  return {};
 }
 
 auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
@@ -4164,7 +4215,7 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
     } else {
       gen.emitter_.store(loc, rightExpressionResult.value,
                          leftExpressionResult.value,
-                         gen.getAlignment(ast->leftExpression->type));
+                         gen.lvalueAlignment(ast->leftExpression));
     }
 
     if (format == ExpressionFormat::kSideEffect) {
@@ -4177,7 +4228,7 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
 
       auto op =
           gen.emitter_.load(resultLoc, resultType, leftExpressionResult.value,
-                            gen.getAlignment(ast->leftExpression->type));
+                            gen.lvalueAlignment(ast->leftExpression));
 
       return {op};
     }
@@ -4279,9 +4330,12 @@ auto Codegen::ExpressionVisitor::operator()(
                : gen.expression(ast->targetExpression);
 
   auto targetValue = targetExpressionResult.value;
+  auto targetExpression = ast->targetExpression;
 
   std::swap(gen.targetValue_, targetValue);
+  std::swap(gen.targetExpression_, targetExpression);
   auto leftExpressionResult = gen.expression(ast->leftExpression);
+  std::swap(gen.targetExpression_, targetExpression);
   std::swap(gen.targetValue_, targetValue);
 
   auto rightExpressionResult = gen.expression(ast->rightExpression);
@@ -4357,7 +4411,8 @@ auto Codegen::ExpressionVisitor::operator()(
   }
 
   gen.emitter_.store(loc, sourceExpressionResult.value,
-                     targetExpressionResult.value, gen.getAlignment(ast->type));
+                     targetExpressionResult.value,
+                     gen.lvalueAlignment(ast->targetExpression));
 
   if (format == ExpressionFormat::kSideEffect) {
     return {};
@@ -4366,7 +4421,7 @@ auto Codegen::ExpressionVisitor::operator()(
   if (gen.unit_->language() == LanguageKind::kC) {
     auto loadType = gen.emitter_.typeOf(sourceExpressionResult.value);
     auto op = gen.emitter_.load(loc, loadType, targetExpressionResult.value,
-                                gen.getAlignment(ast->type));
+                                gen.lvalueAlignment(ast->targetExpression));
     return {op};
   }
 
@@ -4482,40 +4537,48 @@ auto Codegen::arrayElementAddress(SourceLocation loc, ir::ValueRef address,
 }
 
 void Codegen::emitArrayCopy(SourceLocation loc, ir::ValueRef destination,
-                            ir::ValueRef source, const Type* arrayType) {
-  auto bounded = type_cast<BoundedArrayType>(traits.remove_cv(arrayType));
-
-  if (bounded && !traits.is_trivially_copyable(bounded->elementType())) {
-    auto elementType = bounded->elementType();
-
-    for (std::size_t index = 0; index < bounded->size(); ++index) {
-      auto destinationElement =
-          arrayElementAddress(loc, destination, elementType, index);
-      auto sourceElement = arrayElementAddress(loc, source, elementType, index);
-
-      if (traits.is_array(elementType)) {
-        emitArrayCopy(loc, destinationElement, sourceElement, elementType);
-        continue;
-      }
-
-      auto elementClass =
-          unqualified_cast<ClassType>(traits.remove_cv(elementType));
-      auto copyConstructor =
-          elementClass && elementClass->symbol()
-              ? elementClass->symbol()->resolvedDefinition()->copyConstructor()
-              : nullptr;
-      if (!copyConstructor) return;
-
-      (void)emitCtorCall({}, copyConstructor, destinationElement,
-                         {{sourceElement}}, /*completeObject=*/true);
-    }
+                            ir::ValueRef source, const Type* arrayType,
+                            FunctionSymbol* elementConstructor) {
+  if (!elementConstructor) {
+    if (auto size = control()->memoryLayout()->sizeOf(arrayType))
+      emitter_.memcpy(loc, destination, source, *size);
     return;
   }
 
-  auto size = control()->memoryLayout()->sizeOf(arrayType);
-  if (!size) return;
+  auto elementType = traits.remove_all_extents(arrayType);
+  auto elementPtrType = emitter_.pointerType(convertType(elementType));
+  auto count =
+      arrayElementCount(loc, arrayType, convertType(control()->getSizeType()));
 
-  emitter_.memcpy(loc, destination, source, *size);
+  emitIndexLoop(loc, count, /*reverse=*/false, [&](ir::ValueRef index) {
+    auto target = emitter_.pointerAdd(loc, elementPtrType, destination, index);
+    auto element = emitter_.pointerAdd(loc, elementPtrType, source, index);
+    (void)emitCtorCall(loc, elementConstructor, target, {{element}},
+                       /*completeObject=*/true);
+  });
+}
+
+auto Codegen::emitWholeArrayCopy(SourceLocation loc, ir::ValueRef address,
+                                 const Type* type,
+                                 FunctionSymbol* elementConstructor,
+                                 ExpressionAST* initializer) -> bool {
+  auto source = Initializer{initializer}.singleExpression();
+  if (!isWholeArrayCopy(traits, source, type)) return false;
+
+  if (auto sourceAddress = expression(source).value)
+    emitArrayCopy(loc, address, sourceAddress, type, elementConstructor);
+  return true;
+}
+
+void Codegen::emitArrayInitialization(SourceLocation loc, ir::ValueRef address,
+                                      const Type* type,
+                                      FunctionSymbol* constructor,
+                                      ExpressionAST* initializer) {
+  if (constructor) {
+    emitConstructorInitialization(loc, address, type, constructor, initializer);
+    return;
+  }
+  arrayInit(address, type, initializer);
 }
 
 void Codegen::arrayInit(ir::ValueRef address, const Type* type,
@@ -4571,68 +4634,14 @@ void Codegen::arrayInit(ir::ValueRef address, const Type* type,
     return;
   }
 
-  if (isWholeArrayCopy(traits, init, type)) {
-    auto source = init;
-    while (auto cast = ast_cast<ImplicitCastExpressionAST>(source))
-      source = cast->expression;
-
-    auto sourceAddress = expression(source).value;
-    if (!sourceAddress) return;
-
-    emitArrayCopy(init->firstSourceLocation(), address, sourceAddress, type);
+  if (emitWholeArrayCopy(init->firstSourceLocation(), address, type,
+                         /*elementConstructor=*/nullptr, init))
     return;
-  }
 
   auto braced = ast_cast<BracedInitListAST>(init);
   if (!braced) return;
 
-  auto loc = braced->firstSourceLocation();
-
-  bool hasDesignated = false;
-  for (auto node : ListView{braced->expressionList}) {
-    if (ast_cast<DesignatedInitializerClauseAST>(node)) {
-      hasDesignated = true;
-      break;
-    }
-  }
-
-  if (hasDesignated) {
-    if (auto size = control()->memoryLayout()->sizeOf(type)) {
-      emitter_.memsetZero(loc, address, *size);
-    }
-    for (auto node : ListView{braced->expressionList}) {
-      if (auto desig = ast_cast<DesignatedInitializerClauseAST>(node)) {
-        emitDesignatedInit(address, type, desig);
-      }
-    }
-    return;
-  }
-
-  if (auto size = control()->memoryLayout()->sizeOf(type)) {
-    emitter_.memsetZero(loc, address, *size);
-  }
-
-  auto elementType = traits.get_element_type(type);
-
-  std::size_t index = 0;
-
-  for (auto node : ListView{braced->expressionList}) {
-    auto nodeLoc = node->firstSourceLocation();
-
-    auto elementAddress =
-        arrayElementAddress(nodeLoc, address, elementType, index++);
-
-    if (traits.is_array(elementType)) {
-      arrayInit(elementAddress, elementType, node);
-    } else if (traits.is_class_or_union(traits.remove_cv(elementType))) {
-      (void)emitPrvalueInto(elementAddress, elementType, node,
-                            node->firstSourceLocation());
-    } else {
-      auto value = expression(node);
-      emitter_.store(nodeLoc, value.value, elementAddress,
-                     getAlignment(elementType));
-    }
-  }
+  emitAggregateInit(address, type, braced);
 }
 
 auto Codegen::emitInPlaceConstruction(ir::ValueRef address, ExpressionAST* ast)
@@ -4658,6 +4667,82 @@ void Codegen::emitAggregateInit(ir::ValueRef address, const Type* type,
                                 BracedInitListAST* ast) {
   emitAggregateInit(address, type, ast->expressionList,
                     ast->firstSourceLocation());
+  emitImplicitArrayElements(address, type, ast);
+}
+
+void Codegen::emitConstructorInitialization(SourceLocation loc,
+                                            ir::ValueRef address,
+                                            const Type* type,
+                                            FunctionSymbol* constructor,
+                                            ExpressionAST* initializer) {
+  if (!traits.is_array(type)) {
+    (void)emitCtorCall(loc, constructor, address,
+                       constructorArguments(initializer), true);
+    return;
+  }
+
+  if (emitWholeArrayCopy(loc, address, type, constructor, initializer)) return;
+
+  auto elementType = traits.remove_all_extents(type);
+  auto count =
+      arrayElementCount(loc, type, convertType(control()->getSizeType()));
+
+  emitArrayLoop(loc, address, elementType, count, /*reverse=*/false,
+                [&](ir::ValueRef element) {
+                  (void)emitCtorCall(loc, constructor, element,
+                                     constructorArguments(initializer), true);
+                });
+}
+
+void Codegen::emitArrayElementInit(ir::ValueRef elementAddress,
+                                   const Type* elementType,
+                                   ExpressionAST* node) {
+  auto loc = node->firstSourceLocation();
+
+  if (auto nested = ast_cast<BracedInitListAST>(node)) {
+    emitAggregateInit(elementAddress, elementType, nested);
+    return;
+  }
+
+  if (traits.is_array(elementType)) {
+    arrayInit(elementAddress, elementType, node);
+    return;
+  }
+
+  if (traits.is_class_or_union(traits.remove_cv(elementType))) {
+    (void)emitPrvalueInto(elementAddress, elementType, node, loc);
+    return;
+  }
+
+  auto value = expression(node);
+  emitter_.store(loc, value.value, elementAddress, getAlignment(elementType));
+}
+
+void Codegen::emitImplicitArrayElements(ir::ValueRef address, const Type* type,
+                                        BracedInitListAST* ast) {
+  auto element = ast->implicitElement;
+  if (!element) return;
+
+  auto arrayType = type_cast<BoundedArrayType>(traits.remove_cv(type));
+  if (!arrayType) return;
+
+  auto loc = ast->firstSourceLocation();
+  auto elementType = arrayType->elementType();
+  auto countType = convertType(control()->getSizeType());
+  auto initializer = element->initializer();
+
+  for (auto range :
+       implicitlyInitializedElements(unit_, ast, arrayType->size())) {
+    auto first = arrayElementAddress(loc, address, elementType, range.begin);
+    auto count = emitter_.constantInt(
+        loc, countType, static_cast<std::int64_t>(range.end - range.begin));
+
+    emitArrayLoop(loc, first, elementType, count, /*reverse=*/false,
+                  [&](ir::ValueRef elementAddress) {
+                    emitArrayElementInit(elementAddress, elementType,
+                                         initializer);
+                  });
+  }
 }
 
 void Codegen::emitAggregateInit(ir::ValueRef address, const Type* type,
@@ -4692,26 +4777,17 @@ void Codegen::emitAggregateInit(ir::ValueRef address, const Type* type,
 
     std::size_t index = 0;
     for (auto node : ListView{initializerList}) {
-      auto elemLoc = node->firstSourceLocation();
-
-      auto elementAddress =
-          arrayElementAddress(elemLoc, address, elementType, index);
-
-      if (auto nested = ast_cast<BracedInitListAST>(node)) {
-        emitAggregateInit(elementAddress, elementType, nested);
-      } else if (auto desig = ast_cast<DesignatedInitializerClauseAST>(node)) {
+      if (auto desig = ast_cast<DesignatedInitializerClauseAST>(node)) {
         emitDesignatedInit(address, type, desig);
-      } else if (traits.is_array(elementType)) {
-        arrayInit(elementAddress, elementType, node);
-      } else if (traits.is_class_or_union(traits.remove_cv(elementType))) {
-        (void)emitPrvalueInto(elementAddress, elementType, node,
-                              node->firstSourceLocation());
-      } else {
-        auto val = expression(node);
-        emitter_.store(elemLoc, val.value, elementAddress,
-                       getAlignment(elementType));
+        if (auto position = designatedArrayIndex(unit_, desig))
+          index = *position;
+        ++index;
+        continue;
       }
-      ++index;
+
+      auto elementAddress = arrayElementAddress(node->firstSourceLocation(),
+                                                address, elementType, index++);
+      emitArrayElementInit(elementAddress, elementType, node);
     }
   } else if (traits.is_class_or_union(type)) {
     auto classType = unqualified_cast<ClassType>(type);
@@ -5056,13 +5132,16 @@ auto Codegen::baseStructorVTTArgument(SourceLocation loc,
       emitter_.blockParameterCount(entryBlock_) == 1)
     return vttAddress(loc, currentClass, 0);
 
+  auto vtableLayout = currentClass->vtableLayout();
+  if (!vtableLayout) return {};
+
   if (auto principal = currentFunctionSymbol_->structorPrincipal(); principal) {
-    auto layout = buildVTT(currentClass);
     std::size_t index = 0;
     if (targetClass != currentClass) {
-      auto found = layout.virtualBaseStarts.find(targetClass);
-      if (found == layout.virtualBaseStarts.end()) return {};
-      index = found->second;
+      auto found = std::ranges::find(vtableLayout->virtualBaseSubVTTs,
+                                     targetClass, &VTableLayout::SubVTT::base);
+      if (found == vtableLayout->virtualBaseSubVTTs.end()) return {};
+      index = found->index;
     }
     return vttAddress(loc, currentClass, index);
   }
@@ -5075,11 +5154,11 @@ auto Codegen::baseStructorVTTArgument(SourceLocation loc,
 
   if (targetClass == currentClass) return currentVTT;
 
-  auto layout = buildVTT(currentClass);
-  auto found = layout.directBaseStarts.find(targetClass);
-  if (found == layout.directBaseStarts.end()) return {};
+  auto found = std::ranges::find(vtableLayout->baseSubVTTs, targetClass,
+                                 &VTableLayout::SubVTT::base);
+  if (found == vtableLayout->baseSubVTTs.end()) return {};
   auto indexType = convertType(control()->getIntType());
-  auto offset = emitter_.constantInt(loc, indexType, found->second);
+  auto offset = emitter_.constantInt(loc, indexType, found->index);
   return emitter_.pointerAdd(loc, emitter_.typeOf(currentVTT), currentVTT,
                              offset);
 }

@@ -25,6 +25,8 @@
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 
+#include <vector>
+
 namespace cxx {
 
 class Decl {
@@ -56,6 +58,13 @@ class Decl {
 
 [[nodiscard]] auto getFunctionPrototype(DeclaratorAST* declarator)
     -> FunctionDeclaratorChunkAST*;
+
+[[nodiscard]] auto declaresExplicitObjectParameter(
+    ParameterDeclarationClauseAST* clause) -> bool;
+
+[[nodiscard]] auto getParameterTypes(TranslationUnit* unit,
+                                     ParameterDeclarationClauseAST* clause)
+    -> std::vector<const Type*>;
 
 [[nodiscard]] auto getDeclaratorType(TranslationUnit* unit,
                                      DeclaratorAST* declarator,

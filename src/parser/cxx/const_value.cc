@@ -23,15 +23,34 @@
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
+#include <algorithm>
+#include <bit>
+#include <cstdint>
+
 namespace cxx {
 
 namespace {
 [[nodiscard]] auto isTransparentSubobject(const Symbol* symbol) -> bool {
   if (symbol_cast<BaseClassSymbol>(const_cast<Symbol*>(symbol))) return true;
   auto field = symbol_cast<FieldSymbol>(const_cast<Symbol*>(symbol));
-  return field && !field->name();
+  return field && anonymous_member_class(field);
 }
 }  // namespace
+
+auto asConstexprUnknownObject(const ConstValue& value)
+    -> std::shared_ptr<ConstObject> {
+  auto object = std::get_if<std::shared_ptr<ConstObject>>(&value);
+  if (!object || !*object) return {};
+  if (!(*object)->isConstexprUnknown()) return {};
+  return *object;
+}
+
+auto ConstObject::makeConstexprUnknown(const Type* type)
+    -> std::shared_ptr<ConstObject> {
+  auto object = std::make_shared<ConstObject>(type);
+  object->setConstexprUnknown(true);
+  return object;
+}
 
 auto ConstObject::isUnion() const -> bool {
   auto classType = unqualified_cast<ClassType>(type_);
@@ -94,9 +113,87 @@ auto ConstObject::operator==(const ConstObject& other) const -> bool {
   if (members_.size() != other.members_.size()) return false;
   for (std::size_t i = 0; i < members_.size(); ++i) {
     if (members_[i].symbol != other.members_[i].symbol) return false;
-    if (members_[i].value != other.members_[i].value) return false;
+    if (!equivalent_values(members_[i].value, other.members_[i].value))
+      return false;
   }
   return true;
+}
+
+namespace {
+
+struct EquivalentValues {
+  const ConstValue& rhs;
+
+  template <typename T>
+  [[nodiscard]] auto other() const -> const T* {
+    return std::get_if<T>(&rhs);
+  }
+
+  [[nodiscard]] auto operator()(const ConstInt& lhs) const -> bool {
+    auto value = other<ConstInt>();
+    return value && lhs == *value;
+  }
+
+  [[nodiscard]] auto operator()(float lhs) const -> bool {
+    auto value = other<float>();
+    return value && std::bit_cast<std::uint32_t>(lhs) ==
+                        std::bit_cast<std::uint32_t>(*value);
+  }
+
+  [[nodiscard]] auto operator()(double lhs) const -> bool {
+    auto value = other<double>();
+    return value && std::bit_cast<std::uint64_t>(lhs) ==
+                        std::bit_cast<std::uint64_t>(*value);
+  }
+
+  [[nodiscard]] auto operator()(long double lhs) const -> bool {
+    auto value = other<long double>();
+    return value && lhs == *value;
+  }
+
+  [[nodiscard]] auto operator()(
+      const std::shared_ptr<InitializerList>& lhs) const -> bool {
+    auto value = other<std::shared_ptr<InitializerList>>();
+    if (!value || !*value || !lhs) return false;
+    return std::ranges::equal(lhs->elements, (*value)->elements,
+                              [](const auto& left, const auto& right) {
+                                return equivalent_values(std::get<0>(left),
+                                                         std::get<0>(right));
+                              });
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<ConstObject>& lhs) const
+      -> bool {
+    auto value = other<std::shared_ptr<ConstObject>>();
+    return value && *value && lhs && *lhs == **value;
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<ConstAddress>& lhs) const
+      -> bool {
+    auto value = other<std::shared_ptr<ConstAddress>>();
+    if (!value || !*value || !lhs) return false;
+    return lhs->sameTarget(**value) && lhs->offset() == (*value)->offset();
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<ConstComplex>& lhs) const
+      -> bool {
+    auto value = other<std::shared_ptr<ConstComplex>>();
+    if (!value || !*value || !lhs) return false;
+    return equivalent_values(lhs->real(), (*value)->real()) &&
+           equivalent_values(lhs->imag(), (*value)->imag());
+  }
+
+  template <typename T>
+  [[nodiscard]] auto operator()(const T& lhs) const -> bool {
+    auto value = other<T>();
+    return value && lhs == *value;
+  }
+};
+
+}  // namespace
+
+auto equivalent_values(const ConstValue& lhs, const ConstValue& rhs) -> bool {
+  return std::visit(EquivalentValues{rhs}, lhs);
 }
 
 }  // namespace cxx

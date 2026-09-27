@@ -24,31 +24,23 @@
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 
-#include <optional>
-#include <span>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 namespace cxx {
 
-struct DeclaredMember {
-  ClassSymbol* declaringClass = nullptr;
-  AccessSpecifier accessSpecifier = AccessSpecifier::kPublic;
+enum class AccessResult {
+  kInaccessible,
+  kAccessible,
+  kDependent,
 };
-
-[[nodiscard]] auto declaredMemberOf(Symbol* member) -> DeclaredMember;
 
 [[nodiscard]] auto declaringClassOf(Symbol* member) -> ClassSymbol*;
 
-[[nodiscard]] auto designatingClassOf(Symbol* member,
-                                      ScopeSymbol* accessingScope)
+[[nodiscard]] auto implicitObjectClassOf(TranslationUnit* unit, Symbol* member,
+                                         ScopeSymbol* accessingScope)
     -> ClassSymbol*;
-
-[[nodiscard]] auto isProtectedAccessRestricted(Symbol* member) -> bool;
-
-[[nodiscard]] auto usingDeclarationIntroducing(Symbol* member,
-                                               ClassSymbol* designatingClass)
-    -> UsingDeclarationSymbol*;
 
 [[nodiscard]] auto checkMemberAccess(TranslationUnit* unit,
                                      ScopeSymbol* accessingScope,
@@ -64,56 +56,37 @@ class AccessContext {
   AccessContext(const AccessContext&) = delete;
   auto operator=(const AccessContext&) -> AccessContext& = delete;
 
-  [[nodiscard]] auto accessingScope() const -> ScopeSymbol* {
-    return accessingScope_;
-  }
-
   [[nodiscard]] auto isAccessible(Symbol* member, ClassSymbol* designatingClass,
                                   ClassSymbol* objectClass) const -> bool;
 
   [[nodiscard]] auto isAccessibleBaseClass(ClassSymbol* derived,
                                            ClassSymbol* base) const -> bool;
 
-  [[nodiscard]] auto classes() const -> std::span<ClassSymbol* const>;
-
  private:
+  class Query;
+
+  using BaseClassAccessKey =
+      std::tuple<ClassSymbol*, ClassSymbol*, ClassSymbol*>;
+
+  [[nodiscard]] auto checkAccess(Symbol* member, ClassSymbol* designatingClass,
+                                 ClassSymbol* objectClass) const
+      -> AccessResult;
+
   void materialize() const;
 
-  [[nodiscard]] auto isMemberOrFriendOf(ClassSymbol* classSymbol) const -> bool;
   [[nodiscard]] auto isMemberOf(ClassSymbol* classSymbol) const -> bool;
+  [[nodiscard]] auto isFriendOf(ClassSymbol* classSymbol) const -> bool;
 
-  [[nodiscard]] auto isAccessibleBaseClassEdge(ClassSymbol* derived,
-                                               BaseClassSymbol* baseClass) const
-      -> bool;
-
-  using AccessMemo =
-      std::vector<std::pair<ClassSymbol*, std::optional<AccessSpecifier>>>;
-
-  [[nodiscard]] auto accessAsMemberOf(Symbol* member,
-                                      ClassSymbol* designatingClass,
-                                      AccessMemo& memo) const
-      -> std::optional<AccessSpecifier>;
-
-  [[nodiscard]] auto isAccessibleWhenDesignatedIn(
-      Symbol* member, ClassSymbol* designatingClass, ClassSymbol* objectClass,
-      std::vector<ClassSymbol*>& visited) const -> bool;
-
-  [[nodiscard]] auto hasUndecidableDerivation(
-      ClassSymbol* designatingClass) const -> bool;
-
-  [[nodiscard]] auto isProtectedMemberAccessible(Symbol* member,
-                                                 ClassSymbol* designatingClass,
-                                                 ClassSymbol* objectClass) const
-      -> bool;
-
-  [[nodiscard]] auto satisfiesProtectedObjectRestriction(
-      Symbol* member, ClassSymbol* grantingClass,
-      ClassSymbol* objectClass) const -> bool;
+  [[nodiscard]] auto baseClassAccess(ClassSymbol* derived, ClassSymbol* base,
+                                     ClassSymbol* objectClass) const
+      -> AccessResult;
 
   TranslationUnit* unit_;
   ScopeSymbol* accessingScope_;
-  mutable std::vector<ClassSymbol*> classes_;
-  mutable std::vector<ClassSymbol*> enclosingClasses_;
+  mutable std::vector<ClassSymbol*> memberClasses_;
+  mutable std::vector<ClassSymbol*> friendClasses_;
+  mutable std::vector<std::pair<BaseClassAccessKey, AccessResult>>
+      baseClassAccess_;
   mutable bool materialized_ = false;
 };
 

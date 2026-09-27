@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include <cxx/ast_fwd.h>
+#include <cxx/ast.h>
 #include <cxx/binder.h>
 #include <cxx/diagnostic.h>
 #include <cxx/diagnostics_client.h>
@@ -28,7 +28,9 @@
 #include <cxx/token_fwd.h>
 
 #include <functional>
+#include <memory>
 #include <optional>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -38,6 +40,7 @@ class Control;
 class TypeChecker;
 class Arena;
 class FieldSymbol;
+struct PendingInstantiation;
 
 class [[nodiscard]] ASTRewriter {
   explicit ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
@@ -113,9 +116,8 @@ class [[nodiscard]] ASTRewriter {
       TranslationUnit* unit, ClassSymbol* primary,
       List<TemplateArgumentAST*>* templateArgumentList) -> ClassSymbol*;
 
-  static auto findUndeducedPartialSpecializationParameter(
+  [[nodiscard]] static auto findUndeducedPartialSpecializationParameter(
       TranslationUnit* unit, TemplateDeclarationAST* templateDeclaration,
-      SimpleTemplateIdAST* templateId,
       const std::vector<TemplateArgument>& templateArguments)
       -> TemplateParameterAST*;
 
@@ -130,9 +132,6 @@ class [[nodiscard]] ASTRewriter {
 
   [[nodiscard]] auto templateArgumentFor(Symbol* templateParameter) const
       -> const TemplateArgument*;
-
-  [[nodiscard]] auto writtenArgumentForAliasedParameter(
-      TypeIdAST* patternTypeId) const -> TypeIdAST*;
 
   [[nodiscard]] auto writtenTypeArgumentSpecifierFor(
       Symbol* templateParameter) const -> NamedTypeSpecifierAST*;
@@ -153,13 +152,9 @@ class [[nodiscard]] ASTRewriter {
 
   void inheritEnclosingTemplateArguments(Symbol* symbol);
 
-  auto declaration(DeclarationAST* ast,
-                   TemplateDeclarationAST* templateHead = nullptr)
-      -> DeclarationAST*;
+  auto declaration(DeclarationAST* ast) -> DeclarationAST*;
 
-  auto specifier(SpecifierAST* ast,
-                 TemplateDeclarationAST* templateHead = nullptr)
-      -> SpecifierAST*;
+  auto specifier(SpecifierAST* ast) -> SpecifierAST*;
 
   auto statement(StatementAST* ast) -> StatementAST*;
 
@@ -194,8 +189,12 @@ class [[nodiscard]] ASTRewriter {
 
   static void requireDefinitionsNamedBy(TranslationUnit* unit, AST* ast);
 
-  static void completePendingFieldInitializer(TranslationUnit* unit,
-                                              FieldSymbol* field);
+  static void requireFieldInitializer(TranslationUnit* unit,
+                                      FieldSymbol* field);
+
+  [[nodiscard]] static auto requireDefaultArgument(TranslationUnit* unit,
+                                                   ParameterSymbol* parameter)
+      -> ExpressionAST*;
 
   static void completeDeducedReturnType(TranslationUnit* unit, Symbol* symbol);
 
@@ -212,9 +211,8 @@ class [[nodiscard]] ASTRewriter {
   void instantiateOutOfClassMemberDefinitions(ClassSymbol* pattern,
                                               ClassSymbol* instanceClass);
 
-  void retryPendingMemberTemplateAttachment(FunctionSymbol* member);
-
-  void retryPendingSpecializationBodyAttachment(FunctionSymbol* specialization);
+  static void attachPatternDefinition(TranslationUnit* unit,
+                                      FunctionSymbol* function);
 
   [[nodiscard]] static auto evaluateSpecializationConstraints(
       TranslationUnit* unit, FunctionSymbol* symbol, FunctionSymbol* primary)
@@ -246,11 +244,20 @@ class [[nodiscard]] ASTRewriter {
       -> bool;
 
  private:
+  [[nodiscard]] auto instantiateSeparately(ExpressionAST* pattern,
+                                           Symbol* owner,
+                                           std::string_view construct)
+      -> ExpressionAST*;
+
+  [[nodiscard]] static auto patternDefaultArgument(
+      TranslationUnit* unit, ParameterDeclarationAST* pattern)
+      -> ExpressionAST*;
+
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
   void note(SourceLocation loc, std::string message);
 
-  void check(ExpressionAST* ast);
+  [[nodiscard]] auto check(ExpressionAST* ast) -> ExpressionAST*;
 
   class TemplateParameterDeclarationGuard {
    public:
@@ -343,6 +350,8 @@ class [[nodiscard]] ASTRewriter {
     auto operator=(const ImmediateContextGuard&)
         -> ImmediateContextGuard& = delete;
 
+    [[nodiscard]] auto substitutionFailed() const -> bool;
+
    private:
     ASTRewriter& rewrite_;
     SilentDiagnosticsScope silent_;
@@ -366,6 +375,40 @@ class [[nodiscard]] ASTRewriter {
   void markSubstitutionFailure() {
     if (!shouldCaptureBodyErrors()) substitutionFailed_ = true;
   }
+
+  template <typename T>
+  class ListAppender {
+   public:
+    ListAppender(Arena* arena, List<T*>*& head) : arena_(arena), tail_(&head) {}
+
+    void operator()(T* value) {
+      *tail_ = make_list_node(arena_, value);
+      tail_ = &(*tail_)->next;
+    }
+
+   private:
+    Arena* arena_;
+    List<T*>** tail_;
+  };
+
+  template <typename T, typename Rewrite>
+  [[nodiscard]] auto rewriteList(List<T*>* source, Rewrite rewriteNode)
+      -> List<T*>* {
+    List<T*>* result = nullptr;
+    ListAppender<T> append{arena(), result};
+    for (auto node : ListView{source}) {
+      auto value = std::invoke(rewriteNode, this, node);
+      if constexpr (std::is_convertible_v<decltype(value), T*>)
+        append(value);
+      else
+        append(ast_cast<T>(value));
+    }
+    return result;
+  }
+
+  [[nodiscard]] auto rewriteSpecifierList(
+      List<SpecifierAST*>* source, DeclSpecs& specs,
+      TemplateDeclarationAST* templateHead = nullptr) -> List<SpecifierAST*>*;
 
   auto unit(UnitAST* ast) -> UnitAST*;
   auto expression(ExpressionAST* ast) -> ExpressionAST*;
@@ -391,11 +434,15 @@ class [[nodiscard]] ASTRewriter {
   auto functionBody(FunctionBodyAST* ast) -> FunctionBodyAST*;
   auto lambdaBody(StatementAST* ast) -> CompoundStatementAST*;
   auto templateArgument(TemplateArgumentAST* ast) -> TemplateArgumentAST*;
+  [[nodiscard]] auto rewriteTemplateArgumentList(
+      List<TemplateArgumentAST*>* source) -> List<TemplateArgumentAST*>*;
+  [[nodiscard]] auto expandPackArgument(
+      TemplateArgumentAST* argument, ListAppender<TemplateArgumentAST>& append)
+      -> bool;
   auto exceptionSpecifier(ExceptionSpecifierAST* ast) -> ExceptionSpecifierAST*;
   [[nodiscard]] auto pendingExceptionSpecifierMark() const -> std::size_t;
   void associatePendingExceptionSpecifiers(
       std::size_t mark, FunctionSymbol* function,
-      FunctionSymbol* originalFunction,
       ExceptionSpecifierAST* functionExceptionSpecifier,
       std::function<void()> refreshType);
   void completePendingExceptionSpecifiers(std::size_t mark);
@@ -450,6 +497,17 @@ class [[nodiscard]] ASTRewriter {
   auto asmGotoLabel(AsmGotoLabelAST* ast) -> AsmGotoLabelAST*;
 
  private:
+  struct VisitorBase {
+    ASTRewriter& rewrite;
+
+    [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+      return rewrite.unit_;
+    }
+    [[nodiscard]] auto control() const -> Control* { return rewrite.control(); }
+    [[nodiscard]] auto arena() const -> Arena* { return rewrite.arena(); }
+    [[nodiscard]] auto binder() const -> Binder* { return &rewrite.binder_; }
+  };
+
   struct UnitVisitor;
   struct DeclarationVisitor;
   struct StatementVisitor;
@@ -491,8 +549,14 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] auto findReferencedParameterPack(AST* ast) const
       -> ParameterPackSymbol*;
 
+  [[nodiscard]] auto packReferencedBy(List<SpecifierAST*>* specifiers) const
+      -> ParameterPackSymbol*;
+
   [[nodiscard]] auto expandedParameterPack(TypeIdAST* typeId) const
       -> ParameterPackSymbol*;
+
+  [[nodiscard]] auto expandedFunctionParameterPack(
+      ParameterDeclarationAST* parameter) const -> ParameterPackSymbol*;
 
   [[nodiscard]] auto parameterPackAt(int depth, int index, bool isPack) const
       -> ParameterPackSymbol*;
@@ -568,6 +632,20 @@ class [[nodiscard]] ASTRewriter {
 
   auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
 
+  [[nodiscard]] auto foldStep(ExpressionAST* left, TokenKind op,
+                              SourceLocation opLoc, ExpressionAST* right)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto leftFold(ExpressionAST* pattern,
+                              SourceLocation ellipsisLoc, TokenKind op,
+                              SourceLocation opLoc, ExpressionAST* init)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto rightFold(ExpressionAST* pattern,
+                               SourceLocation ellipsisLoc, TokenKind op,
+                               SourceLocation opLoc, ExpressionAST* init)
+      -> ExpressionAST*;
+
   void addSymbolRemap(Symbol* oldSym, Symbol* newSym);
 
   void remapStructuredBindingSymbols(StructuredBindingDeclarationAST* from,
@@ -575,26 +653,55 @@ class [[nodiscard]] ASTRewriter {
 
   void remapScopeMembers(ScopeSymbol* oldScope, ScopeSymbol* newScope);
 
+  void remapInstantiatedMember(Symbol* member);
+
+  void remapInitCaptures(LambdaSymbol* pattern, LambdaSymbol* instance);
+
   void remapEnclosingClassPatterns(ScopeSymbol* scope);
 
-  void deduceCalleeSpecialization(ExpressionAST* patternCallee,
-                                  CallExpressionAST* call);
-
+  template <typename S>
   [[nodiscard]] auto remappedMemberTemplate(ClassSymbol* instanceClass,
-                                            FunctionSymbol* patternFunction,
-                                            const Identifier* name)
-      -> FunctionSymbol*;
+                                            S* pattern, const Identifier* name)
+      -> S*;
+
+  struct MemberTemplateInstantiation;
+  struct Instantiate;
+  struct OutOfClassMemberDefinitions;
+
+  [[nodiscard]] static auto enclosingNonClassScope(Symbol* symbol)
+      -> ScopeSymbol*;
+
+  [[nodiscard]] auto pendingInstantiationOf(AST* pattern, AST* instance,
+                                            ScopeSymbol* parentScope) const
+      -> std::unique_ptr<PendingInstantiation>;
+
+  [[nodiscard]] static auto pendingBodyOf(
+      FunctionDefinitionAST* definition,
+      std::vector<TemplateArgument> arguments, ScopeSymbol* parentScope,
+      int depth) -> std::unique_ptr<PendingInstantiation>;
+
+  [[nodiscard]] static auto pendingBodyFromPattern(FunctionSymbol* function)
+      -> std::unique_ptr<PendingInstantiation>;
+
+  [[nodiscard]] static auto pendingMemberBody(FunctionSymbol* member)
+      -> std::unique_ptr<PendingInstantiation>;
+
+  [[nodiscard]] static auto pendingSpecializationBody(
+      FunctionSymbol* specialization, FunctionSymbol* primary)
+      -> std::unique_ptr<PendingInstantiation>;
+
+  [[nodiscard]] static auto instantiationTarget(ClassSymbol* pattern,
+                                                ClassSymbol* instanceClass)
+      -> ClassSymbol*;
 
   [[nodiscard]] auto instantiatedMemberTemplateFor(
-      FunctionSymbol* patternFunction, SimpleTemplateIdAST* templateId,
-      SourceLocation location) -> FunctionSymbol*;
+      Symbol* pattern, SimpleTemplateIdAST* templateId, CallExpressionAST* call,
+      SourceLocation location) -> Symbol*;
 
   void checkMemInitializers(FunctionSymbol* function,
                             CompoundStatementFunctionBodyAST* body);
 
-  void remapFunctionParameters(FunctionDeclaratorChunkAST* patternPrototype,
-                               FunctionDeclaratorChunkAST* instancePrototype,
-                               FunctionParametersSymbol* patternParameters,
+  void remapFunctionParameters(FunctionParametersSymbol* patternParameters,
                                FunctionParametersSymbol* instanceParameters);
 
   [[nodiscard]] auto remapSymbol(Symbol* sym) const -> Symbol*;
@@ -630,30 +737,19 @@ class [[nodiscard]] ASTRewriter {
   TemplateDeclarationAST* currentTemplateHead_ = nullptr;
   int depth_ = 0;
   ClassSymbol* classInstanceToComplete_ = nullptr;
+  FunctionSymbol* functionInstanceToDefine_ = nullptr;
   bool rewritingTemplateParameterDeclaration_ = false;
   bool restrictedToDeclarations_ = false;
   bool retainsEnclosingTemplateLevels_ = false;
   bool substitutionFailed_ = false;
 
   bool instantiatingFunctionTemplateSpecialization_ = false;
-  bool rewritingCallee_ = false;
+  CallExpressionAST* rewritingCall_ = nullptr;
 
   int classBodyDepth_ = 0;
 
-  enum class PendingExceptionSpecifierState {
-    kUnresolved,
-    kResolving,
-    kDeferred,
-    kResolved,
-  };
-
   struct PendingExceptionSpecifier {
-    NoexceptSpecifierAST* pattern = nullptr;
-    NoexceptSpecifierAST* instance = nullptr;
-    FunctionSymbol* originalFunction = nullptr;
-    ScopeSymbol* scope = nullptr;
-    PendingExceptionSpecifierState state =
-        PendingExceptionSpecifierState::kUnresolved;
+    std::unique_ptr<PendingInstantiation> record;
     std::vector<std::function<void()>> typeRefreshers;
   };
 

@@ -195,6 +195,12 @@ class SemanticEncoder final : public SemanticEncoderBase {
                                   const cxx::TypeParameterType* self);
   void writeTypeTemplateTypeParameterType(
       ByteWriter& out, const cxx::TemplateTypeParameterType* self);
+  void writeTypeTemplateTypeParameterSpecializationType(
+      ByteWriter& out,
+      const cxx::TemplateTypeParameterSpecializationType* self);
+  void writeTypePackExpansionType(ByteWriter& out,
+                                  const cxx::PackExpansionType* self);
+  void writeTypeDecltypeType(ByteWriter& out, const cxx::DecltypeType* self);
   void writeTypeUnresolvedNameType(ByteWriter& out,
                                    const cxx::UnresolvedNameType* self);
   void writeTypeUnresolvedBoundedArrayType(
@@ -766,14 +772,22 @@ class SemanticEncoder final : public SemanticEncoderBase {
   void writecxxVTableLayout(ByteWriter& out, const cxx::VTableLayout* self);
   void writecxxVTableLayoutGroup(ByteWriter& out,
                                  const cxx::VTableLayout::Group* self);
+  void writecxxVTableLayoutTable(ByteWriter& out,
+                                 const cxx::VTableLayout::Table* self);
+  void writecxxVTableLayoutOffset(ByteWriter& out,
+                                  const cxx::VTableLayout::Offset* self);
   void writecxxVTableLayoutSlot(ByteWriter& out,
                                 const cxx::VTableLayout::Slot* self);
-  void writecxxPendingBodyInstantiation(
-      ByteWriter& out, const cxx::PendingBodyInstantiation* self);
-  void writecxxPendingExceptionSpecification(
-      ByteWriter& out, const cxx::PendingExceptionSpecification* self);
-  void writecxxPendingFieldInitializerInstantiation(
-      ByteWriter& out, const cxx::PendingFieldInitializerInstantiation* self);
+  void writecxxVTableLayoutCallOffset(
+      ByteWriter& out, const cxx::VTableLayout::CallOffset* self);
+  void writecxxVTableLayoutVTTEntry(ByteWriter& out,
+                                    const cxx::VTableLayout::VTTEntry* self);
+  void writecxxVTableLayoutSubVTT(ByteWriter& out,
+                                  const cxx::VTableLayout::SubVTT* self);
+  void writecxxVTableLayoutEntryPoint(
+      ByteWriter& out, const cxx::VTableLayout::EntryPoint* self);
+  void writecxxPendingInstantiation(ByteWriter& out,
+                                    const cxx::PendingInstantiation* self);
   void writecxxDefaultInitializerContext(
       ByteWriter& out, const cxx::DefaultInitializerContext* self);
 };
@@ -891,6 +905,11 @@ class SemanticDecoder final : public SemanticDecoderBase {
       -> const cxx::Type*;
   [[nodiscard]] auto readTypeTemplateTypeParameterType(ByteReader& in)
       -> const cxx::Type*;
+  [[nodiscard]] auto readTypeTemplateTypeParameterSpecializationType(
+      ByteReader& in) -> const cxx::Type*;
+  [[nodiscard]] auto readTypePackExpansionType(ByteReader& in)
+      -> const cxx::Type*;
+  [[nodiscard]] auto readTypeDecltypeType(ByteReader& in) -> const cxx::Type*;
   [[nodiscard]] auto readTypeUnresolvedNameType(ByteReader& in)
       -> const cxx::Type*;
   [[nodiscard]] auto readTypeUnresolvedBoundedArrayType(ByteReader& in)
@@ -1430,13 +1449,20 @@ class SemanticDecoder final : public SemanticDecoderBase {
                                      cxx::ClassLayout::PaddingInfo* self);
   void readcxxVTableLayout(ByteReader& in, cxx::VTableLayout* self);
   void readcxxVTableLayoutGroup(ByteReader& in, cxx::VTableLayout::Group* self);
+  void readcxxVTableLayoutTable(ByteReader& in, cxx::VTableLayout::Table* self);
+  void readcxxVTableLayoutOffset(ByteReader& in,
+                                 cxx::VTableLayout::Offset* self);
   void readcxxVTableLayoutSlot(ByteReader& in, cxx::VTableLayout::Slot* self);
-  void readcxxPendingBodyInstantiation(ByteReader& in,
-                                       cxx::PendingBodyInstantiation* self);
-  void readcxxPendingExceptionSpecification(
-      ByteReader& in, cxx::PendingExceptionSpecification* self);
-  void readcxxPendingFieldInitializerInstantiation(
-      ByteReader& in, cxx::PendingFieldInitializerInstantiation* self);
+  void readcxxVTableLayoutCallOffset(ByteReader& in,
+                                     cxx::VTableLayout::CallOffset* self);
+  void readcxxVTableLayoutVTTEntry(ByteReader& in,
+                                   cxx::VTableLayout::VTTEntry* self);
+  void readcxxVTableLayoutSubVTT(ByteReader& in,
+                                 cxx::VTableLayout::SubVTT* self);
+  void readcxxVTableLayoutEntryPoint(ByteReader& in,
+                                     cxx::VTableLayout::EntryPoint* self);
+  void readcxxPendingInstantiation(ByteReader& in,
+                                   cxx::PendingInstantiation* self);
   void readcxxDefaultInitializerContext(ByteReader& in,
                                         cxx::DefaultInitializerContext* self);
 };

@@ -97,7 +97,18 @@ class ConstObject {
   ConstObject(const Type* type, std::deque<Member> members)
       : type_(type), members_(std::move(members)) {}
 
+  [[nodiscard]] static auto makeConstexprUnknown(const Type* type)
+      -> std::shared_ptr<ConstObject>;
+
   [[nodiscard]] auto type() const -> const Type* { return type_; }
+
+  [[nodiscard]] auto isConstexprUnknown() const -> bool {
+    return constexprUnknown_;
+  }
+
+  void setConstexprUnknown(bool constexprUnknown) {
+    constexprUnknown_ = constexprUnknown;
+  }
 
   void setType(const Type* type) { type_ = type; }
 
@@ -124,6 +135,7 @@ class ConstObject {
  private:
   const Type* type_ = nullptr;
   std::deque<Member> members_;
+  bool constexprUnknown_ = false;
 };
 
 class Meta {
@@ -164,6 +176,10 @@ class ConstAddress {
 
   [[nodiscard]] auto sameTarget(const ConstAddress& other) const -> bool;
 
+  [[nodiscard]] auto denotesWholeOwner() const -> bool {
+    return owner_ && !symbol_;
+  }
+
   void setSymbol(Symbol* symbol) { symbol_ = symbol; }
   void setOwner(std::shared_ptr<ConstObject> owner) {
     owner_ = std::move(owner);
@@ -195,5 +211,11 @@ class ConstLabelAddress {
 };
 
 [[nodiscard]] auto isFullyInitialized(const ConstValue& value) -> bool;
+
+[[nodiscard]] auto equivalent_values(const ConstValue& lhs,
+                                     const ConstValue& rhs) -> bool;
+
+[[nodiscard]] auto asConstexprUnknownObject(const ConstValue& value)
+    -> std::shared_ptr<ConstObject>;
 
 }  // namespace cxx

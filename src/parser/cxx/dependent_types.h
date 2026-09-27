@@ -28,12 +28,16 @@ class TranslationUnit;
 class Symbol;
 class ScopeSymbol;
 class ClassSymbol;
+class BaseClassSymbol;
 
 [[nodiscard]] auto isEnclosedInDependentTemplate(
     TranslationUnit* unit, ScopeSymbol* scope,
     bool stopAtConcreteSpecialization = false) -> bool;
 
 [[nodiscard]] auto isDependentTypeParameterSymbol(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto namesTypeDependentPredefinedVariable(TranslationUnit* unit,
+                                                        Symbol* symbol) -> bool;
 
 [[nodiscard]] auto isDependentTemplateArgument(TranslationUnit* unit,
                                                TemplateArgumentAST* arg)
@@ -43,11 +47,13 @@ class ClassSymbol;
                                                const TemplateArgument& argument)
     -> bool;
 
-[[nodiscard]] auto hasDependentTemplateArguments(
-    TranslationUnit* unit, SimpleTemplateIdAST* templateId) -> bool;
+[[nodiscard]] auto hasDependentTemplateArguments(TranslationUnit* unit,
+                                                 UnqualifiedIdAST* id) -> bool;
 
 [[nodiscard]] auto isDependent(TranslationUnit* unit, ExpressionAST* ast)
     -> bool;
+
+[[nodiscard]] auto containsUnexpandedParameterPack(AST* ast) -> bool;
 
 [[nodiscard]] auto isDependent(TranslationUnit* unit, TypeIdAST* ast) -> bool;
 
@@ -61,6 +67,10 @@ class ClassSymbol;
 
 [[nodiscard]] auto isCurrentInstantiation(ScopeSymbol* scope, const Type* type)
     -> bool;
+
+[[nodiscard]] auto isDependentBaseClass(TranslationUnit* unit,
+                                        ClassSymbol* classSymbol,
+                                        BaseClassSymbol* baseClass) -> bool;
 
 [[nodiscard]] auto hasDependentBaseClass(TranslationUnit* unit,
                                          ClassSymbol* classSymbol) -> bool;

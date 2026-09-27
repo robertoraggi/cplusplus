@@ -176,6 +176,23 @@ struct ConvertToName {
   return visit(ConvertToName{control}, id);
 }
 
+auto get_lookup_name(Control* control, UnqualifiedIdAST* id) -> const Name* {
+  auto name = get_name(control, id);
+  if (auto templateId = name_cast<TemplateId>(name)) return templateId->name();
+  return name;
+}
+
+auto get_template_arguments(UnqualifiedIdAST* id)
+    -> List<TemplateArgumentAST*>* {
+  if (auto templateId = ast_cast<SimpleTemplateIdAST>(id))
+    return templateId->templateArgumentList;
+  if (auto templateId = ast_cast<OperatorFunctionTemplateIdAST>(id))
+    return templateId->templateArgumentList;
+  if (auto templateId = ast_cast<LiteralOperatorTemplateIdAST>(id))
+    return templateId->templateArgumentList;
+  return nullptr;
+}
+
 auto get_name_location(IdExpressionAST* ast) -> SourceLocation {
   if (ast->unqualifiedId) return ast->unqualifiedId->firstSourceLocation();
   return ast->firstSourceLocation();

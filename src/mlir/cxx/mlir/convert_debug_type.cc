@@ -88,6 +88,10 @@ struct MlirDebugEmitter::ConvertDebugType {
   auto operator()(const TypeParameterType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const TemplateTypeParameterType* type)
       -> mlir::LLVM::DITypeAttr;
+  auto operator()(const TemplateTypeParameterSpecializationType* type)
+      -> mlir::LLVM::DITypeAttr;
+  auto operator()(const PackExpansionType* type) -> mlir::LLVM::DITypeAttr;
+  auto operator()(const DecltypeType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const UnresolvedNameType* type) -> mlir::LLVM::DITypeAttr;
   auto operator()(const UnresolvedBoundedArrayType* type)
       -> mlir::LLVM::DITypeAttr;
@@ -482,7 +486,8 @@ auto MlirDebugEmitter::ConvertDebugType::operator()(const ClassType* type)
 
     uint64_t baseOffset = 0;
     if (layout) {
-      if (auto baseInfo = layout->getBaseInfo(baseClassSymbol)) {
+      if (auto baseInfo =
+              layout->getBaseInfo(baseClassSymbol, base->isVirtual())) {
         baseOffset = baseInfo->offset;
       }
     }
@@ -613,6 +618,22 @@ auto MlirDebugEmitter::ConvertDebugType::operator()(
 
 auto MlirDebugEmitter::ConvertDebugType::operator()(
     const TemplateTypeParameterType* type) -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const TemplateTypeParameterSpecializationType* type)
+    -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(
+    const PackExpansionType* type) -> mlir::LLVM::DITypeAttr {
+  return {};
+}
+
+auto MlirDebugEmitter::ConvertDebugType::operator()(const DecltypeType* type)
+    -> mlir::LLVM::DITypeAttr {
   return {};
 }
 

@@ -303,10 +303,7 @@ auto ASTInterpreter::evaluateBuiltinNanPayload(CallExpressionAST* ast)
   auto value = evaluate(argument);
   if (!value) return std::nullopt;
 
-  auto literal = std::get_if<const StringLiteral*>(&*value);
-  if (!literal || !*literal) return std::nullopt;
-
-  return std::string((*literal)->stringValue());
+  return nullTerminatedString(*value);
 }
 
 auto ASTInterpreter::evaluateBuiltinNan(CallExpressionAST* ast)

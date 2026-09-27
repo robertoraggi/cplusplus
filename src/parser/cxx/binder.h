@@ -78,14 +78,24 @@ class Binder {
   [[nodiscard]] auto reportErrors() const -> bool;
   void setReportErrors(bool reportErrors);
 
-  struct ClosureNamingState {
-    int lambdaCount = 0;
-    std::unordered_map<FunctionSymbol*, int> lambdaDiscriminators;
+  struct ClosureNumberingKey {
+    FunctionSymbol* context = nullptr;
+    std::string signature;
+
+    [[nodiscard]] auto operator==(const ClosureNumberingKey&) const
+        -> bool = default;
   };
 
-  [[nodiscard]] auto closureNamingState() const -> ClosureNamingState;
+  struct ClosureNumberingKeyHash {
+    [[nodiscard]] auto operator()(const ClosureNumberingKey& key) const
+        -> std::size_t;
+  };
 
-  void setClosureNamingState(ClosureNamingState state);
+  [[nodiscard]] auto closureNumberingMark() const -> std::size_t;
+
+  void rewindClosureNumbering(std::size_t mark);
+
+  [[nodiscard]] auto nextClosureNumber(ClassSymbol* closure) -> int;
 
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
@@ -108,6 +118,9 @@ class Binder {
   void setInstantiationLoc(SourceLocation loc);
 
   [[nodiscard]] auto declaringScope() const -> ScopeSymbol*;
+
+  [[nodiscard]] auto elaboratedTypeSpecifierTargetScope(
+      bool isFriend, bool isDeclaration) const -> ScopeSymbol*;
 
   struct ClassBodyState {
     ClassSymbol* classSymbol = nullptr;
@@ -141,6 +154,8 @@ class Binder {
   void setCurrentAccessSpecifier(AccessSpecifier accessSpecifier);
 
   void applyAccessSpecifier(Symbol* symbol) const;
+
+  void recordStandardLibraryType(Symbol* symbol);
 
   [[nodiscard]] auto currentTemplateParameters() const
       -> TemplateParametersSymbol*;
@@ -185,7 +200,17 @@ class Binder {
 
   [[nodiscard]] auto enterBlock(SourceLocation loc) -> BlockSymbol*;
 
+  [[nodiscard]] static auto functionOfBody(ScopeSymbol* scope)
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto functionLocalPredefinedVariable(ScopeSymbol* scope,
+                                                     const Name* name)
+      -> VariableSymbol*;
+
   void addTypeAliasToScope(TypeAliasSymbol* symbol);
+
+  void giveTypedefNameForLinkage(TypeAliasSymbol* alias,
+                                 SpecifierAST* specifier);
 
   [[nodiscard]] auto declareTypeAlias(
       SourceLocation identifierLoc, const Identifier* identifier,
@@ -213,6 +238,16 @@ class Binder {
   [[nodiscard]] auto checkExplicitAlignment(int requested, const Type* type,
                                             SourceLocation loc) -> bool;
 
+  [[nodiscard]] auto validatedAlignment(std::optional<std::intmax_t> value,
+                                        SourceLocation loc)
+      -> std::optional<int>;
+
+  [[nodiscard]] auto alignedAttribute(
+      List<AttributeSpecifierAST*>* attributeList) -> std::optional<int>;
+
+  void applyAlignedAttribute(Symbol* symbol,
+                             List<AttributeSpecifierAST*>* attributeList);
+
   void applyExplicitAlignment(FieldSymbol* field, const Decl& decl);
   void applyExplicitAlignment(VariableSymbol* variable, const Decl& decl);
 
@@ -220,6 +255,37 @@ class Binder {
       -> FieldSymbol*;
 
   void declareAnonymousField(ClassSpecifierAST* classSpecifier);
+
+  [[nodiscard]] static auto declaresDefaultTemplateArgument(Symbol* parameter)
+      -> bool;
+
+  [[nodiscard]] static auto declaresVariableDefinition(VariableSymbol* variable)
+      -> bool;
+
+  [[nodiscard]] static auto declaresVariableDefinition(FieldSymbol* field)
+      -> bool;
+
+  [[nodiscard]] static auto definedStaticDataMember(VariableSymbol* variable)
+      -> FieldSymbol*;
+
+  [[nodiscard]] static auto isInitializedInClass(VariableSymbol* variable)
+      -> bool;
+
+  void recordVariableDefinition(VariableSymbol* variable);
+
+  void recordStaticDataMemberDefinition(FieldSymbol* field,
+                                        VariableSymbol* definition);
+
+  void recordFunctionDefinition(FunctionSymbol* function);
+
+  [[nodiscard]] static auto redeclaresOnlyMembersOf(
+      UsingDeclarationSymbol* usingDeclaration, ScopeSymbol* scope) -> bool;
+
+  [[nodiscard]] auto staticDataMemberOf(ClassSymbol* classSymbol,
+                                        const Name* name) -> FieldSymbol*;
+
+  [[nodiscard]] auto variableMemberOf(ClassSymbol* classSymbol,
+                                      const Name* name) -> VariableSymbol*;
 
   [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
                                      const Decl& decl,
@@ -244,10 +310,18 @@ class Binder {
 
   [[nodiscard]] auto declareStructuredBindingEntity(
       SourceLocation loc, const Identifier* name, const DeclSpecs& specs,
-      TokenKind refOp, ExpressionAST* initializer, bool addSymbolToParentScope)
-      -> InitDeclaratorAST*;
+      TokenKind refOp, ExpressionAST* initializer, bool addSymbolToParentScope,
+      const Type* declaredType = nullptr) -> InitDeclaratorAST*;
+
+  [[nodiscard]] auto structuredBindingArrayCopyType(
+      StructuredBindingDeclarationAST* ast, const Type* declaredType,
+      const Type* initializerType) const -> const Type*;
 
   [[nodiscard]] auto structuredBindingEntityName() -> const Identifier*;
+
+  [[nodiscard]] auto declareRangeStructuredBindingEntity(
+      StructuredBindingDeclarationAST* ast, const DeclSpecs& specs)
+      -> VariableSymbol*;
 
   void finishForRangeDeclaration(ForRangeStatementAST* ast,
                                  const DeclSpecs& specs);
@@ -265,9 +339,15 @@ class Binder {
 
   void bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs);
 
-  void complete(ClassSpecifierAST* ast,
-                bool deferExceptionSpecificationChecks = false);
+  struct DeferredMemberContexts {
+    bool exceptionSpecifications;
+    bool fieldInitializers;
+  };
+
+  void complete(ClassSpecifierAST* ast, DeferredMemberContexts deferred = {});
+  void completeFieldInitializers(ClassSymbol* classSymbol);
   void refreshImplicitExceptionSpecifications(ClassSymbol* classSymbol);
+  void completeDeferredImplicitExceptionSpecification(FunctionSymbol* fn);
 
   void finalizeExceptionSpecifications(ClassSymbol* classSymbol);
 
@@ -280,6 +360,8 @@ class Binder {
   void synthesizeDefaultedMemberBody(FunctionSymbol* fn);
 
   void bind(DecltypeSpecifierAST* ast);
+
+  void bind(TypenameSpecifierAST* ast);
 
   void bind(EnumeratorAST* ast, const Type* type,
             std::optional<ConstValue> value);
@@ -296,6 +378,13 @@ class Binder {
   void checkTrailingRequiresClauseIsTemplated(
       FunctionSymbol* functionSymbol, TemplateDeclarationAST* templateHead);
 
+  [[nodiscard]] auto parameterObjectType(ParameterDeclarationAST* ast,
+                                         const Type* specifiersType)
+      -> const Type*;
+
+  void rebindParameterType(ParameterDeclarationAST* ast,
+                           ParameterSymbol* symbol);
+
   void bind(ParameterDeclarationAST* ast, const Decl& decl,
             bool inTemplateParameters);
 
@@ -309,6 +398,10 @@ class Binder {
   [[nodiscard]] auto bindInheritedConstructors(UsingDeclaratorAST* ast) -> bool;
 
   void bind(BaseSpecifierAST* ast, Symbol* resolvedType = nullptr);
+
+  void checkBaseClass(BaseSpecifierAST* ast, ClassSymbol* baseClass);
+
+  void declareBaseClass(BaseSpecifierAST* ast, Symbol* symbol);
 
   void bind(NonTypeTemplateParameterAST* ast, int index, int depth);
 
@@ -328,7 +421,9 @@ class Binder {
 
   struct InitCapture {
     const Identifier* name = nullptr;
-    const Type* type = nullptr;
+    const Type* declaredType = nullptr;
+    ExpressionAST* initializer = nullptr;
+    SourceLocation location;
     bool isPack = false;
   };
 
@@ -339,14 +434,28 @@ class Binder {
   [[nodiscard]] auto initCapture(LambdaCaptureAST* captureNode)
       -> std::optional<InitCapture>;
 
+  [[nodiscard]] auto deducedInitCaptureType(const InitCapture& capture)
+      -> const Type*;
+
+  [[nodiscard]] static auto declaredInitCapture(ScopeSymbol* lambdaScope,
+                                                const Identifier* name)
+      -> VariableSymbol*;
+
   void declareInitCapturesInLambdaScope(LambdaExpressionAST* ast);
 
+  [[nodiscard]] auto closureCallOperatorDefinition(LambdaExpressionAST* ast,
+                                                   FunctionSymbol* operatorFunc,
+                                                   CompoundStatementAST* body)
+      -> FunctionDefinitionAST*;
   void completeLambdaBody(LambdaExpressionAST* ast);
   [[nodiscard]] auto declareClosureMemberFunction(ClassSymbol* classSymbol,
                                                   const Name* name,
                                                   const Type* type,
                                                   SourceLocation loc)
       -> FunctionSymbol*;
+  void declareSynthesizedParameters(FunctionSymbol* function,
+                                    const FunctionType* functionType,
+                                    SourceLocation loc);
   [[nodiscard]] auto declareClosureInvoker(ClassSymbol* classSymbol,
                                            FunctionSymbol* operatorFunc,
                                            const FunctionType* operatorType,
@@ -378,9 +487,12 @@ class Binder {
 
   void bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup);
 
+  void bind(OperatorFunctionIdAST* ast);
+
   void resolveIdExpression(IdExpressionAST* ast, bool isCallee);
 
   void qualifiedLookupIdExpression(IdExpressionAST* ast, bool isCallee = false);
+  [[nodiscard]] auto lookupQualifiedIdExpression(IdExpressionAST* ast) -> bool;
 
   [[nodiscard]] auto resolve(NestedNameSpecifierAST* nestedNameSpecifier,
                              UnqualifiedIdAST* unqualifiedId,
@@ -389,8 +501,12 @@ class Binder {
 
   [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol*;
 
+  [[nodiscard]] auto scopeOfType(const Type* type) -> ScopeSymbol*;
+
   [[nodiscard]] auto reportUnresolvedNestedNameSpecifier(
       NestedNameSpecifierAST* ast) -> bool;
+
+  [[nodiscard]] auto lookupFriendClass(const Identifier* name) -> ClassSymbol*;
 
   [[nodiscard]] auto adoptFriendDeclaredClass(ScopeSymbol* targetScope,
                                               const Identifier* name)
@@ -433,6 +549,8 @@ class Binder {
   void computeClassFlags(ClassSymbol* classSymbol);
 
   void completeForMemberContexts(ClassSymbol* classSymbol);
+
+  void buildVTableLayout(ClassSymbol* classSymbol);
 
   [[nodiscard]] auto buildRecordLayout(ClassSymbol* classSymbol)
       -> std::expected<bool, std::string>;
@@ -480,7 +598,8 @@ class Binder {
                                    FunctionBodyAST* functionBody);
 
   void applyDeclarationAttributes(Symbol* symbol,
-                                  List<AttributeSpecifierAST*>* attributes);
+                                  List<AttributeSpecifierAST*>* attributes,
+                                  DeclaratorAST* declarator = nullptr);
 
   void applyDeclarationAttributes(SimpleDeclarationAST* ast);
 
@@ -492,6 +611,34 @@ class Binder {
                                    const AttributeMap* attributes);
 
   [[nodiscard]] auto usesImplicitThis(StatementAST* stmt) -> bool;
+
+  struct EntityCapture {
+    FieldSymbol* field = nullptr;
+    ExpressionAST* initializer = nullptr;
+  };
+
+  [[nodiscard]] auto declareCaptureField(ClassSymbol* closure,
+                                         const Identifier* name,
+                                         const Type* type, SourceLocation loc)
+      -> FieldSymbol*;
+
+  [[nodiscard]] auto lookupCapturedEntity(ScopeSymbol* scope,
+                                          const Identifier* identifier,
+                                          SourceLocation loc) -> Symbol*;
+
+  [[nodiscard]] auto captureEntity(ClassSymbol* closure, Symbol* entity,
+                                   const Identifier* name, bool byReference,
+                                   ScopeSymbol* scope, SourceLocation loc)
+      -> EntityCapture;
+
+  [[nodiscard]] auto captureThis(ClassSymbol* closure, const Type* thisType,
+                                 ScopeSymbol* scope, SourceLocation loc)
+      -> EntityCapture;
+
+  [[nodiscard]] auto implicitEntityCapture(const Identifier* identifier,
+                                           const EntityCapture& capture,
+                                           bool byReference, SourceLocation loc)
+      -> LambdaCaptureAST*;
 
   [[nodiscard]] auto addImplicitThisCapture(ClassSymbol* classSymbol,
                                             const Type* thisType,
@@ -557,6 +704,16 @@ class Binder {
   }
 
  private:
+  void inheritDefaultArgument(ParameterSymbol* target, ParameterSymbol* source);
+
+  [[nodiscard]] static auto functionBodyBlock(ScopeSymbol* scope)
+      -> BlockSymbol*;
+
+  [[nodiscard]] auto declarePredefinedVariable(BlockSymbol* body,
+                                               const Identifier* name,
+                                               std::string_view value)
+      -> VariableSymbol*;
+
   struct ClassSubobjectExtent {
     std::uint64_t stride = 0;
     std::uint64_t count = 1;
@@ -591,16 +748,42 @@ class Binder {
 
   struct BindClass;
   struct BuildRecordLayout;
+  struct BuildVTableLayout;
   struct CompleteClass;
   struct DeclareFunction;
   struct ResolveUnqualifiedId;
   struct ResolveCurrentInstantiationMembers;
+
+  [[nodiscard]] auto redefinesVariable(VariableSymbol* previous,
+                                       VariableSymbol* variable) const -> bool;
 
   [[nodiscard]] auto declareEnum(const Name* name, SourceLocation location,
                                  const Type* underlyingType, bool scoped,
                                  bool fixedUnderlyingType, bool isDefinition,
                                  bool isValidDeclaration = true)
       -> ScopeSymbol*;
+
+  struct EnumerationHead {
+    const Type* underlyingType = nullptr;
+    bool isScoped = false;
+    bool hasFixedUnderlyingType = false;
+    bool isDefined = false;
+  };
+
+  struct EnumerationHeadOf;
+  struct ClassRangeRewrite;
+  struct DecomposeStructuredBinding;
+  struct ImplicitExceptionSpecification;
+  struct NestedNameSpecifierScope;
+  struct MemberOfCurrentInstantiationType;
+
+  [[nodiscard]] auto newEnumeration(const Name* name, SourceLocation location,
+                                    const EnumerationHead& head,
+                                    bool addToScope) -> ScopeSymbol*;
+
+  [[nodiscard]] auto checkEnumerationRedeclaration(
+      const EnumerationHead& existing, const EnumerationHead& declared,
+      const Name* name, SourceLocation location) -> bool;
 
   void declareArgumentDependentCallee(IdExpressionAST* ast);
   void declareBuiltinFunctionCallee(IdExpressionAST* ast);
@@ -612,8 +795,7 @@ class Binder {
   void applyImplicitExceptionSpecification(FunctionSymbol* fn);
 
   void findOverriddenFunctionsImpl(
-      ClassSymbol* cls, FunctionSymbol* fn,
-      std::unordered_set<ClassSymbol*>& visited,
+      ClassSymbol* cls, FunctionSymbol* fn, std::vector<ClassSymbol*>& visited,
       std::vector<FunctionSymbol*>& overriddenFunctions);
 
  private:
@@ -633,7 +815,9 @@ class Binder {
   bool inTemplate_ = false;
   bool retainsEnclosingTemplateLevels_ = false;
   bool reportErrors_ = true;
-  std::unordered_map<FunctionSymbol*, int> lambdaDiscriminators_;
+  std::unordered_map<ClosureNumberingKey, int, ClosureNumberingKeyHash>
+      closureCounts_;
+  std::vector<std::pair<const ClosureNumberingKey, int>*> closureNumberingLog_;
   std::vector<std::function<void()>> speculativeMutations_;
   int speculationDepth_ = 0;
 

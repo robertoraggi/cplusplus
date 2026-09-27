@@ -88,6 +88,10 @@ struct Codegen::ConvertType {
   auto operator()(const NamespaceType* type) -> ir::TypeRef;
   auto operator()(const TypeParameterType* type) -> ir::TypeRef;
   auto operator()(const TemplateTypeParameterType* type) -> ir::TypeRef;
+  auto operator()(const TemplateTypeParameterSpecializationType* type)
+      -> ir::TypeRef;
+  auto operator()(const PackExpansionType* type) -> ir::TypeRef;
+  auto operator()(const DecltypeType* type) -> ir::TypeRef;
   auto operator()(const UnresolvedNameType* type) -> ir::TypeRef;
   auto operator()(const UnresolvedBoundedArrayType* type) -> ir::TypeRef;
   auto operator()(const UnresolvedUnderlyingType* type) -> ir::TypeRef;
@@ -479,7 +483,7 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
     auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseSym) continue;
 
-    auto info = layout->getBaseInfo(baseSym);
+    auto info = layout->getBaseInfo(baseSym, base->isVirtual());
     if (!info) continue;
     if (layout->primaryBaseIsVirtual() && layout->primaryBase() == baseSym)
       continue;
@@ -497,7 +501,7 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
 
   if (includeVirtualBases) {
     for (auto vbaseSym : layout->virtualBases()) {
-      auto info = layout->getBaseInfo(vbaseSym);
+      auto info = layout->getVirtualBaseInfo(vbaseSym);
       if (!info || memberMap.contains(info->index) ||
           pendingBases.contains(info->index))
         continue;
@@ -681,6 +685,20 @@ auto Codegen::ConvertType::operator()(const TypeParameterType* type)
 
 auto Codegen::ConvertType::operator()(const TemplateTypeParameterType* type)
     -> ir::TypeRef {
+  return getExprType();
+}
+
+auto Codegen::ConvertType::operator()(
+    const TemplateTypeParameterSpecializationType* type) -> ir::TypeRef {
+  return getExprType();
+}
+
+auto Codegen::ConvertType::operator()(const PackExpansionType* type)
+    -> ir::TypeRef {
+  return getExprType();
+}
+
+auto Codegen::ConvertType::operator()(const DecltypeType* type) -> ir::TypeRef {
   return getExprType();
 }
 

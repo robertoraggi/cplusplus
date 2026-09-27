@@ -23,6 +23,7 @@
 #include <cxx/diagnostic.h>
 #include <cxx/source_resolver.h>
 
+#include <optional>
 #include <vector>
 
 namespace cxx {
@@ -209,5 +210,19 @@ class CapturingDiagnosticsScope {
  private:
   CapturingDiagnosticsClient client_;
   DiagnosticsClientScope scope_;
+};
+
+class OutsideImmediateContextScope {
+ public:
+  explicit OutsideImmediateContextScope(TranslationUnit* unit);
+  ~OutsideImmediateContextScope();
+
+  OutsideImmediateContextScope(const OutsideImmediateContextScope&) = delete;
+  auto operator=(const OutsideImmediateContextScope&)
+      -> OutsideImmediateContextScope& = delete;
+
+ private:
+  TranslationUnit* unit_;
+  std::optional<CapturingDiagnosticsScope> capture_;
 };
 }  // namespace cxx

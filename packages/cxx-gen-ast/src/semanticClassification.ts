@@ -90,6 +90,11 @@ export const bindings: Record<string, ClassBindings> = {
       read: "$->members()",
       writeElement: "$->addMember($element.symbol, $element.value)",
     },
+    constexprUnknown_: {
+      cls: "P",
+      read: "$->isConstexprUnknown()",
+      write: "$->setConstexprUnknown($value)",
+    },
   },
 
   "::cxx::ConstAddress": {
@@ -304,6 +309,12 @@ export const bindings: Record<string, ClassBindings> = {
       from: "sortedBaseInfos",
       read: "$->sortedBaseInfos()",
       writeElement: "$->setBaseInfo($element.first, $element.second)",
+    },
+    virtualBaseInfos_: {
+      cls: "P",
+      from: "sortedVirtualBaseInfos",
+      read: "$->sortedVirtualBaseInfos()",
+      writeElement: "$->setVirtualBaseInfo($element.first, $element.second)",
     },
     virtualBases_: {
       cls: "P",

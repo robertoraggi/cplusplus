@@ -28,14 +28,13 @@
 namespace cxx {
 class Wasm32WasiToolchain final : public Toolchain {
  public:
-  explicit Wasm32WasiToolchain(Preprocessor* preprocessor);
-
-  const std::string& sysroot() const;
-  void setSysroot(std::string sysroot);
+  Wasm32WasiToolchain(Preprocessor* preprocessor, Triple triple);
 
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
+
+  [[nodiscard]] auto hasThreads() const -> bool override;
 
   [[nodiscard]] auto linkerFlavor() const -> LinkerFlavor override {
     return LinkerFlavor::kWasm;
@@ -45,8 +44,12 @@ class Wasm32WasiToolchain final : public Toolchain {
 
   void applyEntryPointAbi(TranslationUnit* unit) const override;
 
+ protected:
+  [[nodiscard]] auto defaultSysroot() const -> std::string override;
+
  private:
-  std::string sysroot_;
-  std::optional<int> version_;
+  [[nodiscard]] auto multiarchName() const -> std::optional<std::string>;
+  [[nodiscard]] auto libraryDir() const -> std::string;
+  void addTargetMacros();
 };
 }  // namespace cxx

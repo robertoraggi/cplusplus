@@ -741,7 +741,11 @@ void Codegen::StatementVisitor::operator()(DeclarationStatementAST* ast) {
 }
 
 void Codegen::StatementVisitor::operator()(TryBlockStatementAST* ast) {
-  (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+  if (gen.unit_->config().exceptionsEnabled) {
+    (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+    return;
+  }
+  gen.statement(ast->statement);
 }
 
 auto Codegen::ExceptionDeclarationVisitor::operator()(

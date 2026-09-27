@@ -118,11 +118,34 @@ auto cv_qualifiers(const Type* type) -> CvQualifiers {
       type = arrayType->elementType();
     } else if (auto arrayType = type_cast<UnboundedArrayType>(type)) {
       type = arrayType->elementType();
+    } else if (auto arrayType = type_cast<UnresolvedBoundedArrayType>(type)) {
+      type = arrayType->elementType();
     } else {
       break;
     }
   }
   return cv;
+}
+
+namespace {
+struct DecomposeMemberPointer {
+  auto operator()(const MemberObjectPointerType* type) const
+      -> MemberPointerParts {
+    return {type->classType(), type->elementType()};
+  }
+
+  auto operator()(const MemberFunctionPointerType* type) const
+      -> MemberPointerParts {
+    return {type->classType(), type->functionType()};
+  }
+
+  auto operator()(const Type*) const -> MemberPointerParts { return {}; }
+};
+}  // namespace
+
+auto decomposeMemberPointer(const Type* type) -> MemberPointerParts {
+  if (!type) return {};
+  return visit(DecomposeMemberPointer{}, type);
 }
 
 auto residual_cv_qualifiers(CvQualifiers argumentCv, CvQualifiers parameterCv)

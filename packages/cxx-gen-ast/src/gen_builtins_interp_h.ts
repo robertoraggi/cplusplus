@@ -105,12 +105,10 @@ function stringCmp(name: string, normalize: boolean): string[] {
     : `static_cast<std::intmax_t>(r)`;
   return [
     `    case ${caseName}: {`,
-    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
-    `      if (a && b && *a && *b) {`,
-    `        auto sa = (*a)->stringValue();`,
-    `        auto sb = (*b)->stringValue();`,
-    `        int r = sa.compare(sb);`,
+    `      auto a = nullTerminatedString(args[0]);`,
+    `      auto b = nullTerminatedString(args[1]);`,
+    `      if (a && b) {`,
+    `        int r = a->compare(*b);`,
     `        return ConstValue{${sign}};`,
     `      }`,
     `      return std::nullopt;`,
@@ -122,13 +120,12 @@ function stringNCmp(name: string): string[] {
   const caseName = enumName(name);
   return [
     `    case ${caseName}: {`,
-    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
     `      auto n = toInt(args[2]);`,
-    `      if (a && b && *a && *b && n) {`,
-    `        auto sa = (*a)->stringValue();`,
-    `        auto sb = (*b)->stringValue();`,
-    `        int r = sa.compare(0, static_cast<size_t>(*n), sb, 0, static_cast<size_t>(*n));`,
+    `      if (!n) return std::nullopt;`,
+    `      auto a = nullTerminatedString(args[0], static_cast<size_t>(*n));`,
+    `      auto b = nullTerminatedString(args[1], static_cast<size_t>(*n));`,
+    `      if (a && b) {`,
+    `        int r = a->compare(*b);`,
     `        return ConstValue{static_cast<std::intmax_t>(r > 0 ? 1 : r < 0 ? -1 : 0)};`,
     `      }`,
     `      return std::nullopt;`,
@@ -143,17 +140,14 @@ function memCmp(name: string, boolResult: boolean): string[] {
     : `static_cast<std::intmax_t>(r > 0 ? 1 : r < 0 ? -1 : 0)`;
   return [
     `    case ${caseName}: {`,
-    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
     `      auto n = toInt(args[2]);`,
-    `      if (a && b && *a && *b && n) {`,
-    `        auto sa = (*a)->stringValue();`,
-    `        auto sb = (*b)->stringValue();`,
-    `        auto len = static_cast<size_t>(*n);`,
-    `        if (sa.size() >= len && sb.size() >= len) {`,
-    `          int r = std::memcmp(sa.data(), sb.data(), len);`,
-    `          return ConstValue{${retExpr}};`,
-    `        }`,
+    `      if (!n) return std::nullopt;`,
+    `      auto len = static_cast<size_t>(*n);`,
+    `      auto a = pointeeCharacters(args[0], len);`,
+    `      auto b = pointeeCharacters(args[1], len);`,
+    `      if (a && b) {`,
+    `        int r = std::memcmp(a->data(), b->data(), len);`,
+    `        return ConstValue{${retExpr}};`,
     `      }`,
     `      return std::nullopt;`,
     `    }`,
@@ -173,29 +167,24 @@ function casecmp(name: string, withN: boolean): string[] {
   }
 
   const caseName = enumName(name);
-  lines.push(
-    `    case ${caseName}: {`,
-    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
-  );
+  lines.push(`    case ${caseName}: {`);
   if (withN) {
     lines.push(`      auto n = toInt(args[2]);`);
-    lines.push(`      if (a && b && *a && *b && n) {`);
+    lines.push(`      if (!n) return std::nullopt;`);
     lines.push(
-      `        int r = strncasecmp(std::string((*a)->stringValue()).c_str(),`,
+      `      auto a = nullTerminatedString(args[0], static_cast<size_t>(*n));`,
     );
     lines.push(
-      `                            std::string((*b)->stringValue()).c_str(),`,
+      `      auto b = nullTerminatedString(args[1], static_cast<size_t>(*n));`,
     );
+    lines.push(`      if (a && b) {`);
+    lines.push(`        int r = strncasecmp(a->c_str(), b->c_str(),`);
     lines.push(`                            static_cast<size_t>(*n));`);
   } else {
-    lines.push(`      if (a && b && *a && *b) {`);
-    lines.push(
-      `        int r = strcasecmp(std::string((*a)->stringValue()).c_str(),`,
-    );
-    lines.push(
-      `                           std::string((*b)->stringValue()).c_str());`,
-    );
+    lines.push(`      auto a = nullTerminatedString(args[0]);`);
+    lines.push(`      auto b = nullTerminatedString(args[1]);`);
+    lines.push(`      if (a && b) {`);
+    lines.push(`        int r = strcasecmp(a->c_str(), b->c_str());`);
   }
   lines.push(
     `        return ConstValue{static_cast<std::intmax_t>(r > 0 ? 1 : r < 0 ? -1 : 0)};`,
@@ -216,12 +205,10 @@ function strspan(name: string, complement: boolean): string[] {
   const func = complement ? "strcspn" : "strspn";
   return [
     `    case ${caseName}: {`,
-    `      auto a = std::get_if<const StringLiteral*>(&args[0]);`,
-    `      auto b = std::get_if<const StringLiteral*>(&args[1]);`,
-    `      if (a && b && *a && *b) {`,
-    `        auto sa = std::string((*a)->stringValue());`,
-    `        auto sb = std::string((*b)->stringValue());`,
-    `        return ConstValue{static_cast<std::intmax_t>(${func}(sa.c_str(), sb.c_str()))};`,
+    `      auto a = nullTerminatedString(args[0]);`,
+    `      auto b = nullTerminatedString(args[1]);`,
+    `      if (a && b) {`,
+    `        return ConstValue{static_cast<std::intmax_t>(${func}(a->c_str(), b->c_str()))};`,
     `      }`,
     `      return std::nullopt;`,
     `    }`,
@@ -338,14 +325,10 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
   lines.push(``);
 
   lines.push(`    case ${enumName("__builtin_strlen")}: {`);
+  lines.push(`      if (auto string = nullTerminatedString(args[0])) {`);
   lines.push(
-    `      if (auto lit = std::get_if<const StringLiteral*>(&args[0])) {`,
+    `        return ConstValue{static_cast<std::intmax_t>(string->size())};`,
   );
-  lines.push(`        if (*lit) {`);
-  lines.push(
-    `          return ConstValue{static_cast<std::intmax_t>((*lit)->stringValue().size())};`,
-  );
-  lines.push(`        }`);
   lines.push(`      }`);
   lines.push(`      return std::nullopt;`);
   lines.push(`    }`);

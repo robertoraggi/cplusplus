@@ -22,6 +22,7 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/class_template_deduction.h>
 #include <cxx/control.h>
+#include <cxx/decl.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/names.h>
 #include <cxx/substitution.h>
@@ -150,37 +151,8 @@ auto ClassTemplateArgumentDeduction::makeInjectedTemplateId(
   templateId->identifier = name_cast<Identifier>(primaryTemplate->name());
   templateId->symbol = primaryTemplate;
 
-  auto out = &templateId->templateArgumentList;
-
-  for (auto parameter : ListView{classTemplateParameters(primaryTemplate)}) {
-    auto symbol = parameter->symbol;
-    if (!symbol) return nullptr;
-
-    TemplateArgumentAST* argument = nullptr;
-
-    if (symbol_cast<NonTypeParameterSymbol>(symbol)) {
-      auto id = IdExpressionAST::create(arena_);
-      id->unqualifiedId =
-          NameIdAST::create(arena_, name_cast<Identifier>(symbol->name()));
-      id->symbol = symbol;
-      id->type = symbol->type();
-      id->valueCategory = ValueCategory::kPrValue;
-
-      auto expressionArgument = ExpressionTemplateArgumentAST::create(arena_);
-      expressionArgument->expression = id;
-      argument = expressionArgument;
-    } else {
-      auto typeId = TypeIdAST::create(arena_);
-      typeId->type = symbol->type();
-
-      auto typeArgument = TypeTemplateArgumentAST::create(arena_);
-      typeArgument->typeId = typeId;
-      argument = typeArgument;
-    }
-
-    *out = make_list_node(arena_, argument);
-    out = &(*out)->next;
-  }
+  templateId->templateArgumentList = injected_template_argument_list(
+      unit_, classTemplateParameters(primaryTemplate));
 
   return templateId;
 }
@@ -189,7 +161,9 @@ auto ClassTemplateArgumentDeduction::makeParameterDeclaration(
     const Type* type, SpecifierAST* writtenSpecifier)
     -> ParameterDeclarationAST* {
   auto parameter = ParameterDeclarationAST::create(arena_);
-  parameter->type = type;
+  auto expansion = type_cast<PackExpansionType>(type);
+  parameter->type = expansion ? expansion->pattern() : type;
+  parameter->isPack = expansion != nullptr;
   if (writtenSpecifier) {
     parameter->typeSpecifierList =
         make_list_node<SpecifierAST>(arena_, writtenSpecifier);
@@ -242,13 +216,9 @@ void ClassTemplateArgumentDeduction::addConstructorGuide(
   auto function = control_->newFunctionSymbol(primaryTemplate->parent(),
                                               constructor->location());
   function->setName(primaryTemplate->name());
-  std::vector<const Type*> guideParameterTypes;
-  for (auto parameter : ListView{parameters->parameterDeclarationList})
-    guideParameterTypes.push_back(parameter->type);
-
-  function->setType(control_->getFunctionType(primaryTemplate->type(),
-                                              std::move(guideParameterTypes),
-                                              constructorType->isVariadic()));
+  function->setType(control_->getFunctionType(
+      primaryTemplate->type(), getParameterTypes(unit_, parameters),
+      constructorType->isVariadic()));
   function->setTemplateDeclaration(templateDeclaration);
 
   Guide guide;
@@ -623,8 +593,8 @@ auto ClassTemplateArgumentDeduction::deduce(ClassSymbol* primaryTemplate,
       SilentDiagnosticsScope silent{unit_};
 
       TemplateArgumentDeduction deduction{unit_};
-      deduced = deduction.deduceForGuide(guide.templateDeclaration, guideType,
-                                         guide.parameters, args);
+      deduced =
+          deduction.deduceForGuide(guide.templateDeclaration, guideType, args);
     }
 
     if (!deduced) continue;

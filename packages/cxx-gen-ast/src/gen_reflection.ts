@@ -574,6 +574,7 @@ export function gen_reflection(index: ModelIndex, root: string) {
             });
           }
         for (const method of owner.methods) {
+          if (method.access !== "public") continue;
           if (!method.isConst || method.isStatic || method.parameters.length)
             continue;
           if (
@@ -638,7 +639,7 @@ export function gen_reflection(index: ModelIndex, root: string) {
           name: "expandedTemplateArguments",
           type: items.get("templateArguments")!.type,
           expression:
-            "expand_template_arguments(class_template_arguments(const_cast<ClassSymbol*>(self)))",
+            "expand_template_arguments(class_template_arguments(reinterpret_cast<TranslationUnit*>(unit), const_cast<ClassSymbol*>(self)))",
           owner: entry.name,
           isVirtual: false,
         });
@@ -651,7 +652,7 @@ export function gen_reflection(index: ModelIndex, root: string) {
             arguments: [{ kind: "type", text: "std::string", type: text() }],
           },
           expression:
-            "[&] { std::vector<std::string> result; for (const auto& argument : expand_template_arguments(class_template_arguments(const_cast<ClassSymbol*>(self)))) result.push_back(to_string(argument)); return result; }()",
+            "[&] { std::vector<std::string> result; for (const auto& argument : expand_template_arguments(class_template_arguments(reinterpret_cast<TranslationUnit*>(unit), const_cast<ClassSymbol*>(self)))) result.push_back(to_string(argument)); return result; }()",
           owner: entry.name,
           isVirtual: false,
         });
@@ -897,7 +898,7 @@ export function gen_reflection(index: ModelIndex, root: string) {
   function writeCpp() {
     const cpp: string[] = [];
     cpp.push(
-      `// Generated file by: gen_reflection.ts\n${cpy_header}\n#include <cxx/private/model_inputs.h>\n#include <cxx/translation_unit.h>\n#include <emscripten/bind.h>\n#include <emscripten/val.h>\n\n#include <cstdint>\n#include <iterator>\n#include <string>\n#include <type_traits>\n\nnamespace cxx::js {\nnamespace {\nusing emscripten::val;`,
+      `// Generated file by: gen_reflection.ts\n${cpy_header}\n#include <cxx/private/model_inputs.h>\n#include <cxx/substitution.h>\n#include <cxx/translation_unit.h>\n#include <emscripten/bind.h>\n#include <emscripten/val.h>\n\n#include <cstdint>\n#include <iterator>\n#include <string>\n#include <type_traits>\n\nnamespace cxx::js {\nnamespace {\nusing emscripten::val;`,
     );
     cpp.push(
       ...slotBases.map(
@@ -928,15 +929,15 @@ auto arrayValue(const T& values, F convert) -> val {
       val: (family) =>
         `auto read${family}Val(std::intptr_t handle, int slot) -> val`,
       size: (family) =>
-        `auto read${family}Size(std::intptr_t handle, int slot) -> int`,
+        `auto read${family}Size(std::intptr_t handle, std::intptr_t unit, int slot) -> int`,
       item: (family) =>
-        `auto read${family}Item(std::intptr_t handle, int slot, int index) -> double`,
+        `auto read${family}Item(std::intptr_t handle, std::intptr_t unit, int slot, int index) -> double`,
       itemBig: (family) =>
-        `auto read${family}ItemBigInt(std::intptr_t handle, int slot, int index) -> std::int64_t`,
+        `auto read${family}ItemBigInt(std::intptr_t handle, std::intptr_t unit, int slot, int index) -> std::int64_t`,
       itemStr: (family) =>
-        `auto read${family}ItemString(std::intptr_t handle, int slot, int index) -> std::string`,
+        `auto read${family}ItemString(std::intptr_t handle, std::intptr_t unit, int slot, int index) -> std::string`,
       itemVal: (family) =>
-        `auto read${family}ItemVal(std::intptr_t handle, int slot, int index) -> val`,
+        `auto read${family}ItemVal(std::intptr_t handle, std::intptr_t unit, int slot, int index) -> val`,
     };
     const exportName: Record<string, (family: string) => string> = {
       num: (family) => `read${family}`,
@@ -1092,10 +1093,11 @@ function optionalOf<T>(value: any, of: (item: any) => T): T | undefined {
   slot: number,
   of: (item: any) => any,
 ): Iterable<any> {
-  const size = ${size}(handle, slot);
+  const unit = owner.getUnitHandle();
+  const size = ${size}(handle, unit, slot);
   for (let i = 0; i < size; ++i) {
     if (owner.disposed) throw disposedError();
-    yield of(${item}(handle, slot, i));
+    yield of(${item}(handle, unit, slot, i));
   }
 }`);
     }

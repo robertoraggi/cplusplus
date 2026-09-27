@@ -259,8 +259,18 @@ class Codegen {
   void asmGotoLabel(AsmGotoLabelAST* ast);
   void arrayInit(ir::ValueRef address, const Type* type, ExpressionAST* init);
 
+  void emitArrayInitialization(SourceLocation loc, ir::ValueRef address,
+                               const Type* type, FunctionSymbol* constructor,
+                               ExpressionAST* initializer);
+
   void emitArrayCopy(SourceLocation loc, ir::ValueRef destination,
-                     ir::ValueRef source, const Type* arrayType);
+                     ir::ValueRef source, const Type* arrayType,
+                     FunctionSymbol* elementConstructor);
+
+  [[nodiscard]] auto emitWholeArrayCopy(SourceLocation loc,
+                                        ir::ValueRef address, const Type* type,
+                                        FunctionSymbol* elementConstructor,
+                                        ExpressionAST* initializer) -> bool;
 
   [[nodiscard]] auto arrayElementAddress(SourceLocation loc,
                                          ir::ValueRef address,
@@ -274,6 +284,14 @@ class Codegen {
   void emitAggregateInit(ir::ValueRef address, const Type* type,
                          List<ExpressionAST*>* initializerList,
                          SourceLocation location);
+  void emitConstructorInitialization(SourceLocation loc, ir::ValueRef address,
+                                     const Type* type,
+                                     FunctionSymbol* constructor,
+                                     ExpressionAST* initializer);
+  void emitArrayElementInit(ir::ValueRef elementAddress,
+                            const Type* elementType, ExpressionAST* node);
+  void emitImplicitArrayElements(ir::ValueRef address, const Type* type,
+                                 BracedInitListAST* ast);
   void emitLocalVariableInit(VariableSymbol* var, ExpressionAST* initializer);
   void emitReferenceInit(VariableSymbol* var, ir::ValueRef local,
                          ExpressionAST* initExpr, SourceLocation loc);
@@ -355,6 +373,10 @@ class Codegen {
 
   [[nodiscard]] auto getAlignment(const Type* type) -> uint64_t;
   [[nodiscard]] auto getAlignment(VariableSymbol* var) -> uint64_t;
+  [[nodiscard]] auto lvalueAlignment(ExpressionAST* expression) -> uint64_t;
+  [[nodiscard]] auto memberAlignment(MemberExpressionAST* member) -> uint64_t;
+  [[nodiscard]] auto elementAlignment(SubscriptExpressionAST* subscript)
+      -> uint64_t;
 
   [[nodiscard]] auto pointerSize() const -> std::int64_t;
 
@@ -535,10 +557,9 @@ class Codegen {
                                       ClassSymbol* classSymbol,
                                       Symbol* subobject) -> ir::ValueRef;
 
-  [[nodiscard]] auto subobjectElementAddresses(SourceLocation loc,
-                                               ir::ValueRef subobjectPtr,
-                                               const ClassSubobjectShape& shape)
-      -> std::vector<ir::ValueRef>;
+  void forEachSubobjectElement(SourceLocation loc, ir::ValueRef subobjectPtr,
+                               const ClassSubobjectShape& shape, bool reverse,
+                               const std::function<void(ir::ValueRef)>& body);
 
   [[nodiscard]] auto subobjectsInDeclarationOrder(
       ClassSymbol* classSymbol) const -> std::vector<Symbol*>;
@@ -592,27 +613,10 @@ class Codegen {
   void generateVTable(ClassSymbol* classSymbol);
   struct VTableEmission;
 
-  struct VTTEntry {
-    std::string tableName;
-    std::size_t wordCount = 0;
-    std::size_t addressPointIndex = 0;
-  };
-
-  struct GeneratedVTT {
-    std::vector<VTTEntry> entries;
-    std::unordered_map<ClassSymbol*, std::size_t> directBaseStarts;
-    std::unordered_map<std::uint64_t, std::size_t> secondaryVptrs;
-    std::unordered_map<ClassSymbol*, std::size_t> virtualBaseStarts;
-  };
-
   [[nodiscard]] auto requiresVTT(ClassSymbol* classSymbol) const -> bool;
-  [[nodiscard]] auto buildVTT(ClassSymbol* completeClass) -> GeneratedVTT;
-  void appendConstructionSubVTT(ClassSymbol* completeClass,
-                                ClassSymbol* constructionClass,
-                                std::uint64_t constructionOffset,
-                                bool constructionClassIsVirtual,
-                                GeneratedVTT& vtt,
-                                const VTableEmission& emission);
+  [[nodiscard]] auto constructionVTableName(ClassSymbol* completeClass,
+                                            const VTableLayout::Group& group)
+      -> std::string;
   void generateVTT(ClassSymbol* completeClass, const VTableEmission& emission);
   [[nodiscard]] auto vttAddress(SourceLocation loc, ClassSymbol* completeClass,
                                 std::size_t index) -> ir::ValueRef;
@@ -668,6 +672,17 @@ class Codegen {
   [[nodiscard]] auto typeInfoAddress(SourceLocation loc, const Type* type)
       -> ir::ValueRef;
 
+  [[nodiscard]] auto findOrCreateRuntimeFunction(
+      SourceLocation loc, std::string_view name,
+      std::vector<ir::TypeRef> parameters, std::vector<ir::TypeRef> results)
+      -> ir::FunctionRef;
+
+  [[nodiscard]] auto exceptionObjectDestructor(SourceLocation loc,
+                                               const Type* exceptionType)
+      -> ir::ValueRef;
+
+  void emitThrow(ThrowExpressionAST* ast);
+
   [[nodiscard]] auto findOrCreateNoreturnRuntimeCall(SourceLocation loc,
                                                      std::string_view name)
       -> ir::FunctionRef;
@@ -711,43 +726,46 @@ class Codegen {
   [[nodiscard]] auto vtableSlotIndex(FunctionSymbol* function) -> int;
 
   void emitVTableOp(SourceLocation loc, std::string_view name,
-                    ClassSymbol* classSymbol,
-                    std::span<const VTableLayout::Group* const> tables,
+                    ClassSymbol* classSymbol, const VTableLayout::Group& group,
                     ir::Linkage linkage);
 
   void emitVTableGroup(SourceLocation loc, std::string_view name,
                        ClassSymbol* classSymbol,
-                       std::span<const VTableLayout::Group* const> tables,
+                       const VTableLayout::Group& group,
                        const VTableEmission& emission);
 
-  [[nodiscard]] static auto vtableGroupTables(const VTableLayout* vtableLayout)
-      -> std::vector<const VTableLayout::Group*>;
+  [[nodiscard]] auto vtableEntryTarget(const VTableLayout::Slot& slot)
+      -> FunctionSymbol*;
 
-  [[nodiscard]] static auto vtableGroupWordCount(
-      std::span<const VTableLayout::Group* const> tables) -> std::size_t;
+  [[nodiscard]] auto vtableEntry(SourceLocation loc,
+                                 const VTableLayout::Slot& slot)
+      -> ir::FunctionRef;
 
-  [[nodiscard]] static auto vtableAddressPointIndex(
-      std::span<const VTableLayout::Group* const> tables, std::size_t index)
-      -> std::size_t;
+  [[nodiscard]] auto definesFunctionBody(FunctionSymbol* function) -> bool;
 
-  using ThisAdjustment =
-      std::function<ir::ValueRef(ir::ValueRef rawThisI8, SourceLocation loc)>;
+  [[nodiscard]] auto applyCallOffset(SourceLocation loc, ir::ValueRef pointerI8,
+                                     const VTableLayout::CallOffset& callOffset,
+                                     bool virtualFirst) -> ir::ValueRef;
 
-  void emitForwardingBody(ir::FunctionRef func, FunctionSymbol* target,
-                          ir::FunctionRef targetFuncOp, SourceLocation loc,
-                          const ThisAdjustment& computeAdjustedThisI8);
+  void emitForwardingBody(ir::FunctionRef function, FunctionSymbol* target,
+                          ir::FunctionRef targetFuncOp,
+                          const VTableLayout::CallOffset& thisAdjustment,
+                          const VTableLayout::CallOffset& returnAdjustment);
 
   [[nodiscard]] auto findOrCreateThunk(
-      FunctionSymbol* target, std::string_view thunkName,
-      const ThisAdjustment& computeAdjustedThisI8) -> ir::FunctionRef;
+      FunctionSymbol* target, const VTableLayout::CallOffset& thisAdjustment,
+      const VTableLayout::CallOffset& returnAdjustment) -> ir::FunctionRef;
 
-  [[nodiscard]] auto findOrCreateThisAdjustingThunk(FunctionSymbol* target,
-                                                    std::int64_t offset)
-      -> ir::FunctionRef;
+  void emitAdjustingEntryPoints(FunctionSymbol* function);
 
-  [[nodiscard]] auto findOrCreateVirtualThunk(FunctionSymbol* target,
-                                              std::int64_t vcallSlotByteOffset)
-      -> ir::FunctionRef;
+  [[nodiscard]] auto classRequiringVTable(FunctionSymbol* function)
+      -> ClassSymbol*;
+
+  [[nodiscard]] auto tableSubobjectAddress(SourceLocation loc,
+                                           ir::ValueRef thisPtr,
+                                           ClassSymbol* classSymbol,
+                                           const VTableLayout::Table& table,
+                                           bool usesVTT) -> ir::ValueRef;
 
   [[nodiscard]] auto resolveVptrField(ir::ValueRef basePtr,
                                       ClassSymbol* baseClassSym,
@@ -809,6 +827,9 @@ class Codegen {
                      const Type* elementType, ir::ValueRef count, bool reverse,
                      const std::function<void(ir::ValueRef)>& body);
 
+  void emitIndexLoop(SourceLocation loc, ir::ValueRef count, bool reverse,
+                     const std::function<void(ir::ValueRef)>& body);
+
   void emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
                             ir::ValueRef fieldPtr, ExpressionAST* initializer);
 
@@ -846,6 +867,10 @@ class Codegen {
                                              const Type* type)
       -> std::optional<ir::Initializer>;
 
+  [[nodiscard]] auto emitStringLiteralAddress(SourceLocation loc,
+                                              ir::TypeRef pointerType,
+                                              const StringLiteral* literal)
+      -> ir::ValueRef;
   [[nodiscard]] auto emitConstInitValue(SourceLocation loc, const Type* type,
                                         const ConstValue& value)
       -> ir::ValueRef;
@@ -865,6 +890,7 @@ class Codegen {
       ir::ValueRef address;
       FunctionSymbol* destructor;
       ir::ValueRef activeFlag;
+      std::int64_t elementCount = 1;
     };
     std::vector<Entry> entries;
     bool isFullExpression = false;
@@ -876,7 +902,11 @@ class Codegen {
   void popCleanup(SourceLocation loc);
   void emitBranchWithCleanups(SourceLocation loc, ir::BlockRef target,
                               std::size_t targetDepth);
-  void addCleanup(ir::ValueRef address, FunctionSymbol* dtor);
+  void addCleanup(ir::ValueRef address, FunctionSymbol* dtor,
+                  std::int64_t elementCount = 1);
+  void addArrayCleanup(ir::ValueRef address, const Type* arrayType);
+  [[nodiscard]] auto objectDestructor(const Type* type) const
+      -> FunctionSymbol*;
   void addTemporaryCleanup(ir::ValueRef address, const Type* type);
 
   void cancelCleanup(ir::ValueRef address);
@@ -1029,6 +1059,7 @@ class Codegen {
   ir::ValueRef defaultInitializerObject_;
   ir::ValueRef structorVTTValue_;
   ir::ValueRef targetValue_;
+  ExpressionAST* targetExpression_ = nullptr;
   FunctionSymbol* currentFunctionSymbol_ = nullptr;
   struct ClassTypeInfo {
     std::string name;

@@ -132,6 +132,16 @@ export const BUILTIN_LEAF_TYPES: BuiltinLeafType[] = [
     spellings: ["__builtin_va_list"],
     expr: "control->getBuiltinVaListType()",
   },
+  {
+    op: "kAlignValType",
+    spellings: ["std::align_val_t"],
+    expr: "control->getAlignValType()",
+  },
+  {
+    op: "kNothrowType",
+    spellings: ["std::nothrow_t"],
+    expr: "control->getNothrowType()",
+  },
 ];
 
 export const BUILTIN_OPS: string[] = [
@@ -164,7 +174,7 @@ export interface BuiltinPrototype {
 
 export function parsePrototype(prototype: string): BuiltinPrototype {
   const match = prototype.match(
-    /^(?:constexpr\s+)?(.*?)\s*\b([A-Za-z_]\w*)\s*\((.*)\)$/,
+    /^(?:constexpr\s+)?(.*?)\s*\b(operator (?:new|delete)(?:\[\])?|[A-Za-z_]\w*)\s*\((.*)\)$/,
   );
 
   if (!match) throw new Error(`cannot parse builtin prototype '${prototype}'`);

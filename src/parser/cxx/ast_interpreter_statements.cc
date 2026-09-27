@@ -142,7 +142,7 @@ auto ASTInterpreter::StatementVisitor::operator()(DefaultStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(ExpressionStatementAST* ast)
     -> StatementResult {
-  if (ast->expression && !interp.expression(ast->expression)) {
+  if (ast->expression && !interp.discardedValue(ast->expression)) {
     interp.aborted_ = true;
   }
   return {};
@@ -605,20 +605,16 @@ void ASTInterpreter::interpretInitDeclarator(InitDeclaratorAST* initDecl) {
   auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
 
   if (var && traits.is_reference(var->type())) {
+    if (frames_.empty()) frames_.push_back({});
     auto initExpr = Initializer{initDecl->initializer}.clause();
-    if (auto slot = lvalue(initExpr)) {
-      bindReference(initDecl->symbol, slot);
-    }
+    (void)bindReferenceTo(frames_.back(), var, initExpr);
     return;
   }
 
   ExpressionResult initVal;
-  if (var && var->constructor() &&
-      !ast_cast<ConstExpressionAST>(
-          Initializer{initDecl->initializer}.clause())) {
-    initVal = evaluateConstructorFromExprs(
-        var->constructor(), var->type(),
-        Initializer{initDecl->initializer}.arguments());
+  if (var) {
+    initVal = initializationValue(var->type(), var->constructor(),
+                                  initDecl->initializer);
   } else {
     initVal = expression(initDecl->initializer);
   }

@@ -73,6 +73,10 @@ struct Codegen::MemInitializerVisitor {
   [[nodiscard]] auto operator()(BracedMemInitializerAST* ast)
       -> MemInitializerResult;
 
+  [[nodiscard]] auto copiesArrayElementwise(
+      const Type* targetType, List<ExpressionAST*>* expressionList) const
+      -> bool;
+
   [[nodiscard]] auto emitSubobjectInit(MemInitializerAST* ast,
                                        BracedInitListAST* bracedInitList,
                                        List<ExpressionAST*>* expressionList,
@@ -355,9 +359,7 @@ auto Codegen::RequirementVisitor::operator()(CompoundRequirementAST* ast)
 
 auto Codegen::RequirementVisitor::operator()(TypeRequirementAST* ast)
     -> RequirementResult {
-  auto nestedNameSpecifierResult =
-      gen.nestedNameSpecifier(ast->nestedNameSpecifier);
-  auto unqualifiedIdResult = gen.unqualifiedId(ast->unqualifiedId);
+  auto typeIdResult = gen.typeId(ast->typeId);
 
   return {};
 }
@@ -406,7 +408,7 @@ auto Codegen::MemInitializerVisitor::emitDelegationOrVirtualBaseInit(
     if (!inCompleteObjectVariant) return {};
     auto layout = currentClass->layout();
     std::optional<ClassLayout::MemberInfo> baseInfo;
-    if (layout) baseInfo = layout->getBaseInfo(targetClass);
+    if (layout) baseInfo = layout->getVirtualBaseInfo(targetClass);
     if (!baseInfo) return {};
     targetPtr =
         gen.memberAddress(loc, thisPtr, targetClass->type(), baseInfo->index);
@@ -423,6 +425,16 @@ auto Codegen::MemInitializerVisitor::emitDelegationOrVirtualBaseInit(
                          /*completeObject=*/delegatesToTargetConstructor &&
                              inCompleteObjectVariant);
   return {};
+}
+
+auto Codegen::MemInitializerVisitor::copiesArrayElementwise(
+    const Type* targetType, List<ExpressionAST*>* expressionList) const
+    -> bool {
+  if (!targetType || !gen.traits.is_array(targetType)) return false;
+  if (!expressionList || expressionList->next) return false;
+  return isWholeArrayCopy(gen.traits,
+                          Initializer{expressionList->value}.singleExpression(),
+                          targetType);
 }
 
 auto Codegen::MemInitializerVisitor::emitSubobjectInit(
@@ -461,14 +473,16 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
       (gen.traits.is_class_or_union(gen.traits.remove_cv(targetType)) ||
        gen.traits.is_array(targetType));
 
-  std::vector<ExpressionResult> args;
-  if (!aggregateInit) {
-    for (auto node : ListView{expressionList}) {
-      args.push_back(gen.expression(node));
-    }
-  }
+  auto evaluateArguments = [&] {
+    std::vector<ExpressionResult> values;
+    if (aggregateInit) return values;
+    for (auto node : ListView{expressionList})
+      values.push_back(gen.expression(node));
+    return values;
+  };
 
   if (auto targetClass = symbol_cast<ClassSymbol>(symbol)) {
+    auto args = evaluateArguments();
     if (!ast->constructor && args.size() == 1 && args[0].value) {
       auto address = gen.loadThisPointer(loc, targetClass);
       gen.emitter_.store(loc, args[0].value, address,
@@ -492,6 +506,14 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
   auto fieldPtr = gen.subobjectAddress(loc, thisPtr, classSymbol, symbol);
   if (!fieldPtr) return {};
 
+  if (!bracedInitList && copiesArrayElementwise(targetType, expressionList)) {
+    gen.emitArrayInitialization(loc, fieldPtr, targetType, ast->constructor,
+                                expressionList->value);
+    return {};
+  }
+
+  auto args = evaluateArguments();
+
   if (ast->constructor) {
     const auto completeObject = symbol_cast<FieldSymbol>(symbol) != nullptr;
     auto shape = gen.classSubobjectShape(targetType);
@@ -500,10 +522,11 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
         gen.requiresZeroInitialization(shape->elementType, ast->constructor)) {
       gen.emitZeroInitialization(loc, fieldPtr, targetType);
     }
-    for (auto address : gen.subobjectElementAddresses(loc, fieldPtr, *shape)) {
-      (void)gen.emitCtorCall(loc, ast->constructor, address, args,
-                             completeObject);
-    }
+    gen.forEachSubobjectElement(
+        loc, fieldPtr, *shape, /*reverse=*/false, [&](ir::ValueRef element) {
+          (void)gen.emitCtorCall(loc, ast->constructor, element, args,
+                                 completeObject);
+        });
     return {};
   }
 

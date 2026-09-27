@@ -204,7 +204,8 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
                                     ExpressionAST* initializer) {
   const bool isVLA =
       type_cast<UnresolvedBoundedArrayType>(var->type()) != nullptr;
-  if (!isVLA && !initializer && !traits.is_class(var->type())) return;
+  const bool isConstructed = var->constructor() || traits.is_class(var->type());
+  if (!isVLA && !initializer && !isConstructed) return;
 
   const auto loc = var->location();
 
@@ -231,7 +232,9 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
   }
 
   if (traits.is_array(var->type())) {
-    arrayInit(local.value(), var->type(), initializer);
+    emitArrayInitialization(loc, local.value(), var->type(), var->constructor(),
+                            initializer);
+    addArrayCleanup(local.value(), var->type());
     return;
   }
 
@@ -457,7 +460,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   gen.emitter_.setInsertionBlock(entryBlock);
 
-  if (needsExitValue) {
+  if (sretReturn) {
+    exitValue = gen.emitter_.blockParameter(entryBlock, 0);
+  } else if (needsExitValue) {
     auto exitValueLoc = ast->functionBody
                             ? ast->functionBody->firstSourceLocation()
                             : ast->firstSourceLocation();
@@ -685,13 +690,6 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (gen.exitValue_) {
     if (sretReturn) {
-      auto elementType =
-          gen.emitter_.elementType(gen.emitter_.typeOf(gen.exitValue_));
-      auto value = gen.emitter_.load(endLoc, elementType, gen.exitValue_,
-                                     gen.getAlignment(returnType));
-      gen.emitter_.store(endLoc, value,
-                         gen.emitter_.blockParameter(gen.entryBlock_, 0),
-                         gen.getAlignment(returnType));
       gen.emitter_.ret(endLoc, {});
     } else if (returnAbi.kind == ClassValueAbi::Kind::Coerce) {
       std::vector<ir::ValueRef> values;
@@ -964,7 +962,8 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
 
   if (!classType) {
     if (traits.is_array(fieldType)) {
-      arrayInit(fieldPtr, field->type(), initializer);
+      emitArrayInitialization(loc, fieldPtr, field->type(),
+                              field->constructor(), initializer);
       return;
     }
 

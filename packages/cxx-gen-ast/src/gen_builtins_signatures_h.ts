@@ -19,7 +19,12 @@
 // SOFTWARE.
 
 import { cpy_header } from "./cpy_header.ts";
-import { BUILTIN_FUNCTION_DEFS, type BuiltinDef } from "./builtins.ts";
+import {
+  BUILTIN_FUNCTION_DEFS,
+  IMPLICIT_DECLARATION_DEFS,
+  operatorFunctionToken,
+  type BuiltinDef,
+} from "./builtins.ts";
 import { BUILTIN_FUNCTIONS } from "./tokens.ts";
 import {
   BUILTIN_LEAF_TYPES,
@@ -40,6 +45,7 @@ function flagsOf(builtin: BuiltinDef): string {
   if (builtin.consteval) flags.push(`BuiltinFlags::kConsteval`);
   if (builtin.noexcept) flags.push(`BuiltinFlags::kNoexcept`);
   if (builtin.noreturn) flags.push(`BuiltinFlags::kNoReturn`);
+  if (builtin.cplusplus) flags.push(`BuiltinFlags::kCplusplus`);
   if (!flags.length) return `BuiltinFlags::kNone`;
   return flags.join(` | `);
 }
@@ -102,6 +108,18 @@ export function gen_builtins_signatures_h({ output }: { output: string }) {
     for (const op of encodeSignature(builtin)) blob.push(opValue(op));
   }
 
+  const implicitDeclarations: { token: string; offset: number; count: number; flags: string }[] = [];
+
+  for (const builtin of IMPLICIT_DECLARATION_DEFS) {
+    implicitDeclarations.push({
+      token: operatorFunctionToken(builtin.name),
+      offset: blob.length,
+      count: prototypesOf(builtin).length,
+      flags: flagsOf(builtin),
+    });
+    for (const op of encodeSignature(builtin)) blob.push(opValue(op));
+  }
+
   lines.push(`inline constexpr std::uint8_t kBuiltinSignatureOps[] = {`);
   for (let i = 0; i < blob.length; i += 20) {
     lines.push(`    ${blob.slice(i, i + 20).join(", ")},`);
@@ -113,6 +131,15 @@ export function gen_builtins_signatures_h({ output }: { output: string }) {
   lines.push(`    {},`);
   for (const { name, offset, count, flags } of entries) {
     lines.push(`    {${offset}, ${count}, ${flags}},  // ${name}`);
+  }
+  lines.push(`};`);
+  lines.push(``);
+
+  lines.push(
+    `inline constexpr ImplicitDeclarationSignature kImplicitDeclarationSignatures[] = {`,
+  );
+  for (const { token, offset, count, flags } of implicitDeclarations) {
+    lines.push(`    {${token}, {${offset}, ${count}, ${flags}}},`);
   }
   lines.push(`};`);
   lines.push(``);

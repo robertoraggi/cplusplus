@@ -22,64 +22,146 @@
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
+#include <cxx/private/versioned_directories.h>
 
+#include <filesystem>
 #include <format>
+#include <optional>
+#include <system_error>
 
 namespace cxx {
 
-GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor,
-                                     std::string arch)
-    : Toolchain(preprocessor), arch_(std::move(arch)) {
-  if (arch_ == "aarch64") {
-    memoryLayout()->setSizeOfLongDouble(16, 113);
-    memoryLayout()->setWideCharUnderlyingType(4, /*isSigned=*/false);
-    memoryLayout()->setTriple("aarch64-linux");
-  } else if (arch_ == "x86_64") {
-    memoryLayout()->setSizeOfLongDouble(16, 64);
-    memoryLayout()->setTriple("x86_64-linux");
-  } else {
-    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
-  }
+namespace {
 
-  for (int version : {15, 14, 13, 12, 11, 10, 9}) {
-    const auto path = fs::path(
-        std::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
+[[nodiscard]] auto namesTargetOf(const std::string& name, const Triple& triple)
+    -> bool {
+  const Triple candidate{name};
+  return candidate.arch() == triple.arch() &&
+         candidate.os() == TripleOS::kLinux;
+}
 
-    if (exists(path)) {
-      version_ = version;
-      break;
+[[nodiscard]] auto findTargetSubdirectory(const fs::path& dir,
+                                          const Triple& triple)
+    -> std::optional<fs::path> {
+  std::error_code ec;
+  for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+    if (!entry.is_directory()) continue;
+    if (namesTargetOf(entry.path().filename().string(), triple)) {
+      return entry.path();
     }
   }
+  return std::nullopt;
+}
+
+}  // namespace
+
+GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor, Triple triple)
+    : Toolchain(preprocessor, std::move(triple)) {
+  const auto arch = this->triple().arch();
+
+  switch (arch) {
+    case TripleArch::kAArch64:
+      memoryLayout()->setSizeOfLongDouble(16, 113);
+      memoryLayout()->setWideCharUnderlyingType(4, /*isSigned=*/false);
+      break;
+    case TripleArch::kX86_64:
+      memoryLayout()->setSizeOfLongDouble(16, 64);
+      break;
+    default:
+      cxx_runtime_error(std::format("Unsupported architecture: {}",
+                                    this->triple().archName()));
+  }
+
+  memoryLayout()->setTriple(this->triple().withArchName(to_string(arch)).str());
+}
+
+auto GCCLinuxToolchain::multiarchName() const -> std::string {
+  return std::format("{}-linux-gnu", to_string(triple().arch()));
+}
+
+auto GCCLinuxToolchain::gccInstallDir() const -> std::optional<std::string> {
+  const auto sysroot = headerSysroot();
+
+  for (const auto& gccLibDir : {std::format("{}/usr/lib/gcc", sysroot),
+                                std::format("{}/usr/lib64/gcc", sysroot),
+                                std::format("{}/usr/lib/gcc-cross", sysroot)}) {
+    auto targetDir = findTargetSubdirectory(gccLibDir, triple());
+    if (!targetDir) continue;
+
+    for (const auto& installDir : versionedSubdirectories(*targetDir)) {
+      if (fs::is_directory(installDir / "include")) return installDir.string();
+    }
+  }
+
+  return std::nullopt;
 }
 
 void GCCLinuxToolchain::addSystemIncludePaths() {
-  auto addSystemIncludePathForGCCVersion = [this](int version) {
-    addSystemIncludePath(
-        std::format("/usr/lib/gcc/{}-linux-gnu/{}/include", arch_, version));
-  };
+  const auto sysroot = headerSysroot();
 
-  if (auto resourceDir = this->resourceDir(); !resourceDir.empty()) {
-    addSystemIncludePath((fs::path{resourceDir} / "include").string());
+  addBuiltinIncludePath();
+
+  if (auto installDir = gccInstallDir()) {
+    addSystemIncludePath(std::format("{}/include", *installDir));
   }
 
-  addSystemIncludePath("/usr/include");
-  addSystemIncludePath(std::format("/usr/include/{}-linux-gnu", arch_));
-  addSystemIncludePath("/usr/local/include");
+  addSystemIncludePath(std::format("{}/usr/local/include", sysroot));
 
-  if (version_) addSystemIncludePathForGCCVersion(*version_);
+  const auto multiarchIncludeDir =
+      std::format("{}/usr/include/{}", sysroot, multiarchName());
+  if (fs::is_directory(multiarchIncludeDir)) {
+    addSystemIncludePath(multiarchIncludeDir);
+  }
+
+  addSystemIncludePath(std::format("{}/usr/include", sysroot));
 }
 
 void GCCLinuxToolchain::addSystemCppIncludePaths() {
-  auto addSystemIncludePathForGCCVersion = [this](int version) {
-    addSystemIncludePath(std::format("/usr/include/c++/{}/backward", version));
+  if (usesLibCxx_) {
+    addLibCxxIncludePaths();
+    return;
+  }
 
-    addSystemIncludePath(
-        std::format("/usr/include/{}-linux-gnu/c++/{}", arch_, version));
+  addLibStdCxxIncludePaths();
+}
 
-    addSystemIncludePath(std::format("/usr/include/c++/{}", version));
-  };
+void GCCLinuxToolchain::addLibStdCxxIncludePaths() {
+  const auto includeDir =
+      fs::path{std::format("{}/usr/include", headerSysroot())};
+  const auto multiarchIncludeDir = includeDir / multiarchName();
 
-  if (version_) addSystemIncludePathForGCCVersion(*version_);
+  for (const auto& libstdcxxDir : versionedSubdirectories(includeDir / "c++")) {
+    const auto version = libstdcxxDir.filename();
+
+    auto targetDir = multiarchIncludeDir / "c++" / version;
+    if (!fs::is_directory(targetDir)) {
+      auto gccTargetDir = findTargetSubdirectory(libstdcxxDir, triple());
+      if (!gccTargetDir) continue;
+      targetDir = *gccTargetDir;
+    }
+
+    addSystemIncludePath(libstdcxxDir.string());
+    addSystemIncludePath(targetDir.string());
+    addSystemIncludePath((libstdcxxDir / "backward").string());
+    return;
+  }
+}
+
+void GCCLinuxToolchain::addLibCxxIncludePaths() {
+  const auto sysroot = headerSysroot();
+
+  for (const auto& includeDir :
+       {fs::path{std::format("{}/usr/local/include", sysroot)},
+        fs::path{std::format("{}/usr/include", sysroot)}}) {
+    const auto libcxxDir = includeDir / "c++" / "v1";
+    if (!fs::is_directory(libcxxDir)) continue;
+
+    const auto targetDir = includeDir / multiarchName() / "c++" / "v1";
+    if (fs::is_directory(targetDir)) addSystemIncludePath(targetDir.string());
+
+    addSystemIncludePath(libcxxDir.string());
+    return;
+  }
 }
 
 void GCCLinuxToolchain::addPredefinedMacros() {
@@ -102,12 +184,10 @@ void GCCLinuxToolchain::addPredefinedMacros() {
     addLinuxC23Macros();
   }
 
-  if (arch_ == "aarch64") {
+  if (triple().arch() == TripleArch::kAArch64) {
     addLinuxAArch64Macros();
-  } else if (arch_ == "x86_64") {
-    addLinuxX86_64Macros();
   } else {
-    cxx_runtime_error(std::format("Unsupported architecture: {}", arch_));
+    addLinuxX86_64Macros();
   }
 }
 

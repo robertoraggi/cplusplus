@@ -29,18 +29,21 @@ namespace cxx {
 
 class GCCLinuxToolchain final : public Toolchain {
  public:
-  explicit GCCLinuxToolchain(Preprocessor* preprocessor,
-                             std::string arch = "x86_64");
+  GCCLinuxToolchain(Preprocessor* preprocessor, Triple triple);
 
-  [[nodiscard]] auto version() const -> std::optional<int> { return version_; }
+  void setUsesLibCxx(bool usesLibCxx) { usesLibCxx_ = usesLibCxx; }
 
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
 
  private:
-  std::optional<int> version_;
-  std::string arch_;
+  [[nodiscard]] auto multiarchName() const -> std::string;
+  [[nodiscard]] auto gccInstallDir() const -> std::optional<std::string>;
+  void addLibStdCxxIncludePaths();
+  void addLibCxxIncludePaths();
+
+  bool usesLibCxx_ = false;
 };
 
 }  // namespace cxx

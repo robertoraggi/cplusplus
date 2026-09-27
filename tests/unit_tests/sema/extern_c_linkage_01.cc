@@ -90,7 +90,6 @@ void test() {
 // CHECK-NEXT:  function void test()
 // CHECK-NEXT:    parameters
 // CHECK-NEXT:    block
-// CHECK-NEXT:      variable static constexpr const char __func__[5]
 // CHECK-NEXT:      variable char buf[32]
 // CHECK-NEXT:      variable int r
 // CHECK-NEXT:      variable void* p

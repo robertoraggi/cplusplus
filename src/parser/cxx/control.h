@@ -70,6 +70,8 @@ class Control {
 
   [[nodiscard]] auto newAnonymousId(std::string_view base) -> const Identifier*;
   [[nodiscard]] auto getIdentifier(std::string_view name) -> const Identifier*;
+  [[nodiscard]] auto getIdentifier(WellKnownName name) const
+      -> const Identifier*;
 
   [[nodiscard]] auto getAttributes(AttributeMap attributes)
       -> const AttributeMap*;
@@ -139,6 +141,10 @@ class Control {
       ExceptionSpecification exceptionSpecification = false)
       -> const FunctionType*;
   [[nodiscard]] auto getPseudoDestructorType() -> const FunctionType*;
+  [[nodiscard]] auto getMemberPointerType(const Type* classType,
+                                          const Type* memberType)
+      -> const Type*;
+
   [[nodiscard]] auto getMemberObjectPointerType(const Type* classType,
                                                 const Type* elementType)
       -> const MemberObjectPointerType*;
@@ -153,6 +159,20 @@ class Control {
       int index, int depth, bool isPack,
       std::vector<const Type*> templateParameters)
       -> const TemplateTypeParameterType*;
+  [[nodiscard]] auto getTemplateTypeParameterSpecializationType(
+      TranslationUnit* unit, const TemplateTypeParameterType* templateParameter,
+      std::vector<TemplateArgument> templateArguments)
+      -> const TemplateTypeParameterSpecializationType*;
+  [[nodiscard]] auto restoreTemplateTypeParameterSpecializationType(
+      TranslationUnit* unit, const TemplateTypeParameterType* templateParameter,
+      std::vector<TemplateArgument> templateArguments)
+      -> const TemplateTypeParameterSpecializationType*;
+  [[nodiscard]] auto getPackExpansionType(const Type* pattern)
+      -> const PackExpansionType*;
+
+  [[nodiscard]] auto getDecltypeType(TranslationUnit* unit,
+                                     ExpressionAST* expression)
+      -> const DecltypeType*;
   [[nodiscard]] auto getUnresolvedNameType(
       TranslationUnit* unit, NestedNameSpecifierAST* nestedNameSpecifier,
       UnqualifiedIdAST* unqualifiedId) -> const UnresolvedNameType*;
@@ -286,9 +306,11 @@ class Control {
   [[nodiscard]] auto anonymousIdCount() const -> int;
   void setAnonymousIdCount(int count);
 
-  [[nodiscard]] auto closureNameCount() const -> int;
-  void setClosureNameCount(int count);
-  [[nodiscard]] auto newClosureName() -> const Identifier*;
+  [[nodiscard]] auto getAlignValType() const -> const Type*;
+  void setAlignValType(const Type* type);
+
+  [[nodiscard]] auto getNothrowType() const -> const Type*;
+  void setNothrowType(const Type* type);
 
  private:
   struct Private;

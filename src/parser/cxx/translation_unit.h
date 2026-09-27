@@ -126,6 +126,28 @@ class TranslationUnit {
     bool saved_;
   };
 
+  [[nodiscard]] auto requiresDefinitions() const -> bool {
+    return potentiallyEvaluated_ && !templatedContext_;
+  }
+
+  class TemplatedContextScope {
+   public:
+    TemplatedContextScope(const TemplatedContextScope&) = delete;
+    auto operator=(const TemplatedContextScope&)
+        -> TemplatedContextScope& = delete;
+
+    TemplatedContextScope(TranslationUnit* unit, bool templated)
+        : unit_(unit), saved_(unit->templatedContext_) {
+      unit_->templatedContext_ = templated;
+    }
+
+    ~TemplatedContextScope() { unit_->templatedContext_ = saved_; }
+
+   private:
+    TranslationUnit* unit_;
+    bool saved_;
+  };
+
   [[nodiscard]] auto isImmediateFunctionContext() const -> bool {
     return immediateFunctionContext_;
   }
@@ -191,7 +213,8 @@ class TranslationUnit {
 
   class TemplateInstantiationScope {
    public:
-    explicit TemplateInstantiationScope(TranslationUnit* unit) : unit_(unit) {
+    explicit TemplateInstantiationScope(TranslationUnit* unit)
+        : unit_(unit), templatedContext_(unit, false) {
       ++unit_->templateInstantiationDepth_;
     }
 
@@ -199,6 +222,7 @@ class TranslationUnit {
 
    private:
     TranslationUnit* unit_;
+    TemplatedContextScope templatedContext_;
   };
 
   static constexpr int kMaxTemplateInstantiationDepth = 1024;
@@ -272,6 +296,8 @@ class TranslationUnit {
   void error(SourceLocation loc, std::string message) const;
   void warning(SourceLocation loc, std::string message) const;
   void note(SourceLocation loc, std::string message) const;
+  void report(DiagnosticsClient* client, SourceLocation loc, Severity severity,
+              std::string message) const;
 
   [[nodiscard]] inline auto tokenCount() const -> unsigned {
     return static_cast<unsigned>(tokens_.size());
@@ -415,6 +441,7 @@ class TranslationUnit {
   std::unique_ptr<TimeTrace> timeTrace_;
   int templateInstantiationDepth_ = 0;
   bool potentiallyEvaluated_ = true;
+  bool templatedContext_ = false;
   bool immediateFunctionContext_ = false;
   bool deferredInitializer_ = false;
 };

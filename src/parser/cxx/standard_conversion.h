@@ -38,6 +38,12 @@ class TranslationUnit;
 
 enum class ClassAdjustment { kNone, kDerivedToBase, kBaseToDerived };
 
+[[nodiscard]] auto checkBaseClassConversion(TranslationUnit* unit,
+                                            ScopeSymbol* accessingScope,
+                                            ClassSymbol* derived,
+                                            ClassSymbol* base,
+                                            SourceLocation loc) -> bool;
+
 enum class ConversionContext { kImplicit, kStandardOnly };
 
 struct AggregateListConversion {
@@ -159,6 +165,11 @@ class StandardConversion {
                                            const Type* aggregateType)
       -> AggregateListConversion;
 
+  void appendDirectBindingSteps(ImplicitConversionSequence& seq,
+                                const Type* referencedType,
+                                const Type* sourceType,
+                                ValueCategory sourceValueCategory);
+
   [[nodiscard]] auto directReferenceBindingCastKind(const Type* referencedType,
                                                     const Type* sourceType)
       -> ImplicitCastKind;
@@ -179,8 +190,8 @@ class StandardConversion {
 
   [[nodiscard]] auto accessingScope() const -> ScopeSymbol*;
 
-  void checkDerivedToBaseAccess(const Type* sourceType, const Type* targetType,
-                                SourceLocation loc);
+  void checkDerivedToBaseConversion(const Type* sourceType,
+                                    const Type* targetType, SourceLocation loc);
 
   void checkUserDefinedConversionAccess(
       const ImplicitConversionSequence& sequence, ExpressionAST* expr);

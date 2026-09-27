@@ -23,11 +23,58 @@
 #include <cxx/types.h>
 
 #include <bit>
+#include <cmath>
 #include <cstdlib>
 #include <optional>
 
 namespace cxx {
 namespace {
+
+struct FloatingPointFormatOf {
+  const MemoryLayout& memoryLayout;
+
+  [[nodiscard]] auto operator()(const Float16Type*) const
+      -> std::optional<FloatingPointFormat> {
+    return FloatingPointFormat{.exponentBits = 5, .significandDigits = 11};
+  }
+
+  [[nodiscard]] auto operator()(const FloatType*) const
+      -> std::optional<FloatingPointFormat> {
+    return FloatingPointFormat{.exponentBits = 8, .significandDigits = 24};
+  }
+
+  [[nodiscard]] auto operator()(const DoubleType*) const
+      -> std::optional<FloatingPointFormat> {
+    return FloatingPointFormat{.exponentBits = 11, .significandDigits = 53};
+  }
+
+  [[nodiscard]] auto operator()(const LongDoubleType*) const
+      -> std::optional<FloatingPointFormat> {
+    switch (memoryLayout.longDoubleMantissaDigits()) {
+      case 53:
+        return FloatingPointFormat{.exponentBits = 11, .significandDigits = 53};
+      case 64:
+        return FloatingPointFormat{.exponentBits = 15,
+                                   .significandDigits = 64,
+                                   .explicitIntegerBit = true};
+      case 113:
+        return FloatingPointFormat{.exponentBits = 15,
+                                   .significandDigits = 113};
+      default:
+        return std::nullopt;
+    }
+  }
+
+  [[nodiscard]] auto operator()(const QualType* type) const
+      -> std::optional<FloatingPointFormat> {
+    return visit(*this, type->elementType());
+  }
+
+  [[nodiscard]] auto operator()(const Type*) const
+      -> std::optional<FloatingPointFormat> {
+    return std::nullopt;
+  }
+};
 
 [[nodiscard]] auto storageSizeInBytes(std::size_t numBits) -> std::size_t {
   auto bytes = (numBits + 7) / 8;
@@ -272,6 +319,21 @@ struct SizeOf {
     return std::nullopt;
   }
 
+  auto operator()(const TemplateTypeParameterSpecializationType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const PackExpansionType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+  auto operator()(const DecltypeType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
   auto operator()(const UnresolvedNameType* type) const
       -> std::optional<std::size_t> {
     return std::nullopt;
@@ -484,6 +546,37 @@ auto MemoryLayout::alignmentOf(const Type* type) const
   return visit(AlignmentOf{*this}, type);
 }
 
+auto MemoryLayout::floatingPointFormat(const Type* type) const
+    -> std::optional<FloatingPointFormat> {
+  if (!type) return std::nullopt;
+  return visit(FloatingPointFormatOf{*this}, type);
+}
+
+auto FloatingPointFormat::fractionBits() const -> int {
+  return explicitIntegerBit ? significandDigits : significandDigits - 1;
+}
+
+auto FloatingPointFormat::maxExponent() const -> int {
+  return (1 << (exponentBits - 1)) - 1;
+}
+
+auto FloatingPointFormat::representsInteger(std::intmax_t value) const -> bool {
+  if (value == 0) return true;
+  const auto magnitude =
+      value < 0 ? std::uint64_t(-(value + 1)) + 1 : std::uint64_t(value);
+  const int width = std::bit_width(magnitude);
+  const int significant = width - std::countr_zero(magnitude);
+  if (significant > significandDigits) return false;
+  return width - 1 <= maxExponent();
+}
+
+auto FloatingPointFormat::rangeContains(double value) const -> bool {
+  if (!std::isfinite(value)) return true;
+  const auto largest =
+      std::ldexp(2.0 - std::ldexp(1.0, 1 - significandDigits), maxExponent());
+  return std::fabs(value) <= largest;
+}
+
 auto MemoryLayout::triple() const -> const std::string& { return triple_; }
 
 auto MemoryLayout::arch() const -> std::string_view {
@@ -507,7 +600,32 @@ auto MemoryLayout::usesArmMemberPointerAbi() const -> bool {
          arch.starts_with("thumb") || isWebAssembly();
 }
 
-auto MemoryLayout::defaultNewAlignment() const -> std::size_t { return 16; }
+auto MemoryLayout::zeroWidthBitFieldAlignsAggregate() const -> bool {
+  if (isDarwin()) return false;
+  const auto arch = this->arch();
+  return arch.starts_with("arm") || arch.starts_with("aarch64") ||
+         arch.starts_with("thumb");
+}
+
+auto MemoryLayout::structorsReturnThis() const -> bool {
+  if (isWebAssembly()) return true;
+  const auto arch = this->arch();
+  if (arch.starts_with("aarch64") || arch.starts_with("arm64"))
+    return isDarwin();
+  return arch.starts_with("arm") || arch.starts_with("thumb");
+}
+
+auto MemoryLayout::defaultNewAlignment() const -> std::size_t {
+  return defaultNewAlignment_;
+}
+
+void MemoryLayout::setDefaultNewAlignment(std::size_t defaultNewAlignment) {
+  defaultNewAlignment_ = defaultNewAlignment;
+}
+
+auto MemoryLayout::alignedAttributeAlignment() const -> std::size_t {
+  return 16;
+}
 
 auto MemoryLayout::maxAtomicInlineWidth() const -> std::size_t {
   const auto arch = this->arch();

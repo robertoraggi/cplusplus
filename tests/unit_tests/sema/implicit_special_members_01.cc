@@ -39,7 +39,6 @@ struct WithDtor {
 // CHECK-NEXT:    constructor inline void WithCtor()
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
-// CHECK-NEXT:        variable static constexpr const char __func__[9]
 // CHECK-NEXT:    constructor constexpr inline defaulted void WithCtor(const ::WithCtor&) noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:        parameter const ::WithCtor&
@@ -64,7 +63,6 @@ struct WithDtor {
 // CHECK-NEXT:    function inline void ~WithDtor() noexcept
 // CHECK-NEXT:      parameters
 // CHECK-NEXT:      block
-// CHECK-NEXT:        variable static constexpr const char __func__[10]
 // CHECK-NEXT:    field int data
 // CHECK-NEXT:    function constexpr inline defaulted ::WithDtor& operator =(const ::WithDtor&) noexcept
 // CHECK-NEXT:      parameters

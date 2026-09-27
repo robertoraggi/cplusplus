@@ -25,6 +25,7 @@
 
 #include <ranges>
 #include <stack>
+#include <unordered_set>
 
 namespace cxx {
 

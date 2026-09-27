@@ -1959,6 +1959,13 @@ void ASTPrinter::visit(NewExpressionAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
+  if (ast->hasAlignmentArgument) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("has-alignment-argument: {}\n",
+                        ast->hasAlignmentArgument);
+    --indent_;
+  }
   accept(ast->newPlacement, "new-placement");
   if (ast->typeSpecifierList) {
     ++indent_;
@@ -2358,6 +2365,12 @@ void ASTPrinter::visit(TypenameTypeParameterAST* ast) {
     out_ << std::format("is-pack: {}\n", ast->isPack);
     --indent_;
   }
+  if (ast->isSynthesized) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-synthesized: {}\n", ast->isSynthesized);
+    --indent_;
+  }
   accept(ast->typeId, "type-id");
 }
 
@@ -2372,6 +2385,12 @@ void ASTPrinter::visit(ConstraintTypeParameterAST* ast) {
   out_ << std::format("index: {}\n", ast->index);
   --indent_;
   accept(ast->identifier, "identifier");
+  if (ast->isSynthesized) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-synthesized: {}\n", ast->isSynthesized);
+    --indent_;
+  }
   accept(ast->typeConstraint, "type-constraint");
   accept(ast->typeId, "type-id");
 }
@@ -2677,6 +2696,15 @@ void ASTPrinter::visit(ClassSpecifierAST* ast) {
     }
     --indent_;
   }
+  if (ast->trailingAttributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "trailing-attribute-list");
+    for (auto node : ListView{ast->trailingAttributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(TypenameSpecifierAST* ast) {
@@ -2764,7 +2792,25 @@ void ASTPrinter::visit(PtrToMemberOperatorAST* ast) {
 void ASTPrinter::visit(BitfieldDeclaratorAST* ast) {
   out_ << std::format("{}\n", "bitfield-declarator");
   accept(ast->unqualifiedId, "unqualified-id");
+  if (ast->attributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "attribute-list");
+    for (auto node : ListView{ast->attributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
   accept(ast->sizeExpression, "size-expression");
+  if (ast->trailingAttributeList) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("{}\n", "trailing-attribute-list");
+    for (auto node : ListView{ast->trailingAttributeList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(ParameterPackAST* ast) {
@@ -3059,15 +3105,7 @@ void ASTPrinter::visit(CompoundRequirementAST* ast) {
 
 void ASTPrinter::visit(TypeRequirementAST* ast) {
   out_ << std::format("{}\n", "type-requirement");
-  if (ast->isTemplateIntroduced) {
-    ++indent_;
-    out_ << std::format("{:{}}", "", indent_ * 2);
-    out_ << std::format("is-template-introduced: {}\n",
-                        ast->isTemplateIntroduced);
-    --indent_;
-  }
-  accept(ast->nestedNameSpecifier, "nested-name-specifier");
-  accept(ast->unqualifiedId, "unqualified-id");
+  accept(ast->typeId, "type-id");
 }
 
 void ASTPrinter::visit(NestedRequirementAST* ast) {

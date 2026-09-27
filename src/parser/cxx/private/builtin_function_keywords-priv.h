@@ -3359,6 +3359,15 @@ static inline auto classifyBuiltinFunction19(const char* s)
                                       }
                                     }
                                   }
+                                } else if (s[15] == 'n') {
+                                  if (s[16] == 'o') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'p') {
+                                        return cxx::BuiltinFunctionKind::
+                                            T___BUILTIN_CORO_NOOP;
+                                      }
+                                    }
+                                  }
                                 }
                               }
                             }

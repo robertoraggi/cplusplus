@@ -59,6 +59,7 @@ add_library(cxx-parser
     cxx/binder_declare_function.cc
     cxx/binder_range_for.cc
     cxx/binder_structured_bindings.cc
+    cxx/binder_vtable_layout.cc
     cxx/bind_class.cc
     cxx/builtin_bit_operations.cc
     cxx/builtin_signature.cc
@@ -82,6 +83,7 @@ add_library(cxx-parser
     cxx/memory_layout.cc
     cxx/name_lookup.cc
     cxx/name_printer.cc
+    cxx/function_template_ordering.cc
     cxx/overload_resolution.cc
     cxx/names.cc
     cxx/parser.cc
@@ -102,6 +104,7 @@ add_library(cxx-parser
     cxx/symbol_printer.cc
     cxx/symbols.cc
     cxx/template_argument_deduction.cc
+    cxx/type_deduction.cc
     cxx/template_equivalence.cc
     cxx/token.cc
     cxx/toolchain.cc

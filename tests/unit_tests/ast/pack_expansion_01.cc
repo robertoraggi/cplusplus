@@ -59,6 +59,6 @@ void foo(int x, auto... xs) { foo(xs...); }
 // CHECK-NEXT:                    identifier: foo
 // CHECK-NEXT:                expression-list
 // CHECK-NEXT:                  pack-expansion-expression
-// CHECK-NEXT:                    expression: id-expression [lvalue type-param<0, 0>...]
+// CHECK-NEXT:                    expression: id-expression [lvalue type-param<0, 0>]
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: xs

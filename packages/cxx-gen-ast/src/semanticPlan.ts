@@ -527,10 +527,10 @@ export class PlanBuilder {
 
     const short = entry.unqualifiedName;
 
-    const candidates = [`get${short}`, `new${short}`];
-    const method = control.methods.find((candidate) =>
-      candidates.includes(candidate.name),
-    );
+    const candidates = [`restore${short}`, `get${short}`, `new${short}`];
+    const method = candidates
+      .map((name) => control.methods.find((method) => method.name === name))
+      .find((method) => method !== undefined);
     if (!method) return undefined;
 
     const accessors = new Map<string, string[]>();

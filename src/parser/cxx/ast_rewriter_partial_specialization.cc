@@ -19,1015 +19,22 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
-#include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
-#include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_deduction.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
 
-#include <algorithm>
-#include <functional>
-#include <map>
-#include <ranges>
 #include <span>
 
 namespace cxx {
 namespace {
-struct DeducedArguments {
-  std::vector<Symbol*> values;
-
-  explicit DeducedArguments(size_t size) : values(size, nullptr) {}
-
-  auto set(int pos, Symbol* symbol) -> bool {
-    if (pos < 0 || pos >= static_cast<int>(values.size())) return false;
-    values[pos] = symbol;
-    return true;
-  }
-
-  [[nodiscard]] auto get(int pos) const -> Symbol* {
-    if (pos < 0 || pos >= static_cast<int>(values.size())) return nullptr;
-    return values[pos];
-  }
-
-  [[nodiscard]] auto complete() const -> bool {
-    for (auto value : values) {
-      if (!value) return false;
-    }
-    return true;
-  }
-
-  [[nodiscard]] auto toTemplateArguments() const
-      -> std::vector<TemplateArgument> {
-    std::vector<TemplateArgument> result;
-    result.reserve(values.size());
-    for (auto value : values) {
-      result.push_back(value);
-    }
-    return result;
-  }
-};
-
-struct NestedTemplatePattern {
-  SimpleTemplateIdAST* root = nullptr;
-  std::map<const SimpleTemplateIdAST*, std::vector<SimpleTemplateIdAST*>>
-      childrenByTemplateId;
-
-  [[nodiscard]] auto child(const SimpleTemplateIdAST* id, size_t argPos) const
-      -> SimpleTemplateIdAST* {
-    if (!id) return nullptr;
-    auto it = childrenByTemplateId.find(id);
-    if (it == childrenByTemplateId.end()) return nullptr;
-    if (argPos >= it->second.size()) return nullptr;
-    return it->second[argPos];
-  }
-};
-
-auto expansionTypeIdOfAlias(NamedTypeSpecifierAST* named) -> TypeIdAST* {
-  auto alias = symbol_cast<TypeAliasSymbol>(named->symbol);
-  if (!alias || alias->templateDeclaration()) return nullptr;
-  return alias->expansionTypeId();
-}
-
-auto findTemplateIdInTypeId(TypeIdAST* typeId,
-                            std::vector<TypeIdAST*>& expandedAliases)
-    -> SimpleTemplateIdAST* {
-  if (!typeId) return nullptr;
-  if (std::ranges::contains(expandedAliases, typeId)) return nullptr;
-  expandedAliases.push_back(typeId);
-
-  for (auto sp : ListView{typeId->typeSpecifierList}) {
-    auto named = ast_cast<NamedTypeSpecifierAST>(sp);
-    if (!named) continue;
-
-    if (auto expansion = expansionTypeIdOfAlias(named)) {
-      if (auto templId = findTemplateIdInTypeId(expansion, expandedAliases))
-        return templId;
-    }
-
-    if (auto templId = ast_cast<SimpleTemplateIdAST>(named->unqualifiedId)) {
-      return templId;
-    }
-  }
-  return nullptr;
-}
-
-auto findTemplateIdInTypeId(TypeIdAST* typeId) -> SimpleTemplateIdAST* {
-  std::vector<TypeIdAST*> expandedAliases;
-  return findTemplateIdInTypeId(typeId, expandedAliases);
-}
-
-auto extractDirectNestedTemplateIds(SimpleTemplateIdAST* templId)
-    -> std::vector<SimpleTemplateIdAST*> {
-  std::vector<SimpleTemplateIdAST*> nested;
-  if (!templId) return nested;
-  for (auto arg : ListView{templId->templateArgumentList}) {
-    auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg);
-    if (!typeArg || !typeArg->typeId) {
-      nested.push_back(nullptr);
-      continue;
-    }
-
-    nested.push_back(findTemplateIdInTypeId(typeArg->typeId));
-  }
-  return nested;
-}
-
-void buildNestedTemplatePattern(SimpleTemplateIdAST* templId,
-                                NestedTemplatePattern& pattern) {
-  if (!templId) return;
-  if (pattern.childrenByTemplateId.contains(templId)) return;
-
-  auto direct = extractDirectNestedTemplateIds(templId);
-  pattern.childrenByTemplateId.emplace(templId, direct);
-
-  for (auto nested : direct) {
-    buildNestedTemplatePattern(nested, pattern);
-  }
-}
-
-auto extractNestedTemplatePattern(ClassSpecifierAST* specBody)
-    -> std::optional<NestedTemplatePattern> {
-  auto root = ast_cast<SimpleTemplateIdAST>(specBody->unqualifiedId);
-  if (!root) return std::nullopt;
-
-  NestedTemplatePattern pattern;
-  pattern.root = root;
-  buildNestedTemplatePattern(root, pattern);
-  return pattern;
-}
-
-struct HasDefaultTemplateArgument {
-  auto operator()(TypenameTypeParameterAST* p) const -> bool {
-    return p->typeId != nullptr;
-  }
-  auto operator()(TemplateTypeParameterAST* p) const -> bool {
-    return p->idExpression != nullptr;
-  }
-  auto operator()(ConstraintTypeParameterAST* p) const -> bool {
-    return p->typeId != nullptr;
-  }
-  auto operator()(NonTypeTemplateParameterAST* p) const -> bool {
-    return p->declaration && p->declaration->expression != nullptr;
-  }
-};
-
-auto hasDefaultsFromPosition(TemplateDeclarationAST* templateDecl,
-                             size_t fromPosition) -> bool {
-  size_t position = 0;
-  for (auto parameter : ListView{templateDecl->templateParameterList}) {
-    if (position >= fromPosition &&
-        !visit(HasDefaultTemplateArgument{}, parameter)) {
-      return false;
-    }
-    ++position;
-  }
-  return true;
-}
-
-auto asSymbolArgument(const TemplateArgument& argument) -> Symbol* {
-  auto symbol = std::get_if<Symbol*>(&argument);
-  if (!symbol) return nullptr;
-  return *symbol;
-}
-
-auto expandsTrailingArguments(SimpleTemplateIdAST* patternRoot) -> bool {
-  if (!patternRoot) return false;
-  return TemplateArguments::isPackExpansion(
-      TemplateArguments::last(patternRoot->templateArgumentList));
-}
-
-struct ExpandedPatternArgument {
-  TemplateArgument value;
-  std::size_t writtenIndex = 0;
-  SimpleTemplateIdAST* nestedTemplateId = nullptr;
-};
-
-struct ExpandedPatternMatch {
-  std::vector<ExpandedPatternArgument> patternArguments;
-  std::vector<ExpandedPatternArgument> concreteArguments;
-  std::size_t fixedCount = 0;
-  bool expandsTrailingArguments = false;
-  bool viable = false;
-};
-
-auto expandArgumentList(SimpleTemplateIdAST* root,
-                        const std::vector<TemplateArgument>& arguments)
-    -> std::vector<ExpandedPatternArgument> {
-  std::vector<ExpandedPatternArgument> result;
-  auto directNested = extractDirectNestedTemplateIds(root);
-  auto expanded = expand_template_arguments_with_sources(arguments);
-
-  if (!root || arguments.size() >= directNested.size()) {
-    for (auto& entry : expanded) {
-      auto nested = entry.sourceIndex < directNested.size()
-                        ? directNested[entry.sourceIndex]
-                        : nullptr;
-      result.push_back({std::move(entry.value), entry.sourceIndex, nested});
-    }
-    return result;
-  }
-
-  std::vector<bool> writtenExpansions;
-  for (auto argument : ListView{root->templateArgumentList})
-    writtenExpansions.push_back(TemplateArguments::isPackExpansion(argument));
-
-  std::size_t expandedIndex = 0;
-  std::size_t writtenIndex = 0;
-  for (std::size_t sourceIndex = 0; sourceIndex < arguments.size();
-       ++sourceIndex) {
-    const auto groupBegin = expandedIndex;
-    while (expandedIndex < expanded.size() &&
-           expanded[expandedIndex].sourceIndex == sourceIndex) {
-      ++expandedIndex;
-    }
-
-    const auto groupSize = expandedIndex - groupBegin;
-    const auto remainingSources = arguments.size() - sourceIndex;
-    const auto remainingWritten = directNested.size() - writtenIndex;
-    const auto availableWritten = remainingWritten - (remainingSources - 1);
-    const auto consumesOneWritten = writtenExpansions[writtenIndex];
-    const auto writtenCount = consumesOneWritten
-                                  ? std::size_t{1}
-                                  : std::min(groupSize, availableWritten);
-
-    for (std::size_t index = 0; index < groupSize; ++index) {
-      const auto currentWritten =
-          writtenIndex + (consumesOneWritten ? 0 : index);
-      result.push_back({std::move(expanded[groupBegin + index].value),
-                        currentWritten, directNested[currentWritten]});
-    }
-    writtenIndex += writtenCount;
-  }
-  return result;
-}
-
-auto expandPatternArguments(
-    SimpleTemplateIdAST* patternRoot,
-    const std::vector<TemplateArgument>& patternArguments,
-    const std::vector<TemplateArgument>& concreteArguments,
-    SimpleTemplateIdAST* concreteRoot = nullptr) -> ExpandedPatternMatch {
-  ExpandedPatternMatch match;
-  match.patternArguments = expandArgumentList(patternRoot, patternArguments);
-  match.concreteArguments = expandArgumentList(concreteRoot, concreteArguments);
-
-  match.expandsTrailingArguments =
-      !match.patternArguments.empty() && expandsTrailingArguments(patternRoot);
-
-  match.fixedCount =
-      match.patternArguments.size() - (match.expandsTrailingArguments ? 1 : 0);
-
-  match.viable = match.expandsTrailingArguments
-                     ? match.concreteArguments.size() >= match.fixedCount
-                     : match.concreteArguments.size() == match.fixedCount;
-
-  return match;
-}
-
-struct PartialSpecMatcher {
-  TranslationUnit* unit = nullptr;
-  const NestedTemplatePattern* pattern = nullptr;
-  DeducedArguments& deducedArgs;
-  std::function<int(int depth, int index)> paramPosition;
-  bool matchingExpansionElement = false;
-
-  [[nodiscard]] auto control() const -> Control* { return unit->control(); }
-
-  static auto toSymbolVector(std::span<const TemplateArgument> args)
-      -> std::vector<Symbol*> {
-    std::vector<Symbol*> result;
-    result.reserve(args.size());
-
-    for (const auto& arg : args) result.push_back(asSymbolArgument(arg));
-
-    return result;
-  }
-
-  auto constantArgument(const Type* type, std::optional<ConstValue> value,
-                        ExpressionAST* initializer = nullptr) -> Symbol* {
-    auto argument = control()->newVariableSymbol(nullptr, {});
-    argument->setType(type);
-    argument->setInitializer(initializer);
-    argument->setConstexpr(value.has_value());
-    argument->setConstValue(value);
-    return argument;
-  }
-
-  auto integralArgument(const Type* type, ConstInt::Wide value) -> Symbol* {
-    auto constant = unit->typeTraits().integral_constant(type, value);
-    if (!constant) return nullptr;
-    return constantArgument(type, ConstValue{*constant});
-  }
-
-  auto constantArgument(ExpressionAST* expression) -> Symbol* {
-    if (!expression) return nullptr;
-    if (auto cast = ast_cast<ImplicitCastExpressionAST>(expression))
-      return constantArgument(cast->expression);
-    if (auto nested = ast_cast<NestedExpressionAST>(expression))
-      return constantArgument(nested->expression);
-    if (auto constant = ast_cast<ConstExpressionAST>(expression))
-      return constantArgument(constant->expression);
-    if (auto id = ast_cast<IdExpressionAST>(expression); id && id->symbol)
-      return id->symbol;
-    return constantArgument(expression->type,
-                            isDependent(unit, expression)
-                                ? std::nullopt
-                                : ASTInterpreter{unit}.evaluate(expression),
-                            expression);
-  }
-
-  auto constantArgument(const ExceptionSpecification& specification)
-      -> Symbol* {
-    if (auto value = std::get_if<bool>(&specification))
-      return integralArgument(control()->getBoolType(), *value);
-    return constantArgument(std::get<ExpressionAST*>(specification));
-  }
-
-  auto collectWrittenTemplateArgumentSymbols(List<TemplateArgumentAST*>* args)
-      -> std::optional<std::vector<Symbol*>> {
-    std::vector<Symbol*> symbols;
-    for (auto arg : ListView{args}) {
-      if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-        if (!typeArg->typeId || !typeArg->typeId->type) return std::nullopt;
-        auto wrapper = control()->newTypeAliasSymbol(nullptr, {});
-        wrapper->setType(typeArg->typeId->type);
-        symbols.push_back(wrapper);
-        continue;
-      }
-
-      if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg)) {
-        auto expression = exprArg->expression;
-        if (auto expansion = ast_cast<PackExpansionExpressionAST>(expression))
-          expression = expansion->expression;
-        symbols.push_back(constantArgument(expression));
-        continue;
-      }
-
-      return std::nullopt;
-    }
-    return symbols;
-  }
-
-  auto finishNestedMatch(const std::vector<Symbol*>& patSymbols,
-                         const std::vector<Symbol*>& concSymbols,
-                         SimpleTemplateIdAST* patTemplId) -> bool {
-    if (!deduceArgumentList(patSymbols, concSymbols, patTemplId, 0)) {
-      return false;
-    }
-    return true;
-  }
-
-  auto sameArgument(Symbol* lhs, Symbol* rhs) const -> bool {
-    if (lhs == rhs) return true;
-    if (!lhs || !rhs) return false;
-
-    auto lhsPack = symbol_cast<ParameterPackSymbol>(lhs);
-    auto rhsPack = symbol_cast<ParameterPackSymbol>(rhs);
-    if (lhsPack && rhsPack) {
-      const auto& lhsElements = lhsPack->elements();
-      const auto& rhsElements = rhsPack->elements();
-      if (lhsElements.size() != rhsElements.size()) return false;
-      for (size_t i = 0; i < lhsElements.size(); ++i) {
-        if (!sameArgument(lhsElements[i], rhsElements[i])) return false;
-      }
-      return true;
-    }
-
-    auto lhsVar = symbol_cast<VariableSymbol>(lhs);
-    auto rhsVar = symbol_cast<VariableSymbol>(rhs);
-    if (lhsVar && rhsVar && lhsVar->constValue().has_value() &&
-        rhsVar->constValue().has_value()) {
-      return lhsVar->constValue().value() == rhsVar->constValue().value();
-    }
-
-    auto lhsType = lhs->type();
-    auto rhsType = rhs->type();
-    if (lhsType && rhsType && unit->typeTraits().is_same(lhsType, rhsType)) {
-      return true;
-    }
-
-    return false;
-  }
-
-  auto deduceOrCheck(int pos, Symbol* newSymbol) -> bool {
-    if (pos < 0) return true;
-    if (!newSymbol) return false;
-
-    auto existingSymbol = deducedArgs.get(pos);
-    if (!existingSymbol) {
-      deducedArgs.set(pos, newSymbol);
-      return true;
-    }
-
-    return sameArgument(existingSymbol, newSymbol);
-  }
-
-  auto deducePackTail(Symbol* packParameter, std::span<Symbol* const> rest)
-      -> bool {
-    auto info = template_parameter_info(packParameter);
-    if (!info) return false;
-
-    auto deducedPack = control()->newParameterPackSymbol(nullptr, {});
-    for (auto element : rest) {
-      if (!element) return false;
-      deducedPack->addElement(element);
-    }
-
-    return deduceOrCheck(paramPosition(info->depth, info->index), deducedPack);
-  }
-
-  auto mentionedParameterSlots(const TemplateArgument& pattern,
-                               const SimpleTemplateIdAST* patTemplId,
-                               size_t argPos) -> std::vector<int> {
-    DeducedArguments selfDeduced(deducedArgs.values.size());
-    PartialSpecMatcher self{unit, this->pattern, selfDeduced, paramPosition,
-                            true};
-    if (!self.matchArg(pattern, pattern, argPos)) return {};
-
-    std::vector<int> slots;
-    for (size_t slot = 0; slot < selfDeduced.values.size(); ++slot) {
-      if (selfDeduced.values[slot]) slots.push_back(static_cast<int>(slot));
-    }
-    return slots;
-  }
-
-  auto deduceExpansionTail(const ExpandedPatternArgument& pattern,
-                           std::span<const ExpandedPatternArgument> rest,
-                           const SimpleTemplateIdAST* patTemplId, size_t argPos)
-      -> bool {
-    auto slots = mentionedParameterSlots(pattern.value, patTemplId, argPos);
-    if (slots.empty()) return false;
-
-    std::vector<ParameterPackSymbol*> packs(slots.size(), nullptr);
-    for (auto& pack : packs)
-      pack = control()->newParameterPackSymbol(nullptr, {});
-
-    for (const auto& concrete : rest) {
-      DeducedArguments elementDeduced(deducedArgs.values.size());
-      PartialSpecMatcher element{unit, this->pattern, elementDeduced,
-                                 paramPosition, true};
-      if (!element.matchArg(pattern.value, concrete.value, argPos))
-        return false;
-
-      for (size_t i = 0; i < slots.size(); ++i) {
-        auto value = elementDeduced.get(slots[i]);
-        if (!value) return false;
-        packs[i]->addElement(value);
-      }
-    }
-
-    for (size_t i = 0; i < slots.size(); ++i) {
-      if (!deduceOrCheck(slots[i], packs[i])) return false;
-    }
-
-    return true;
-  }
-
-  auto deduceArgumentList(const std::vector<Symbol*>& patArgs,
-                          const std::vector<Symbol*>& concArgs,
-                          const SimpleTemplateIdAST* patTemplId,
-                          size_t writtenBase) -> bool {
-    for (size_t patIdx = 0; patIdx < patArgs.size(); ++patIdx) {
-      auto patArg = patArgs[patIdx];
-      if (!patArg) return false;
-
-      auto patInfo = template_parameter_info(patArg);
-
-      if (patInfo && patInfo->isPack) {
-        if (matchingExpansionElement) {
-          if (patIdx >= concArgs.size()) return false;
-          if (!deduceArgument(patArg, concArgs[patIdx], patTemplId,
-                              writtenBase + patIdx))
-            return false;
-          continue;
-        }
-        if (patIdx + 1 != patArgs.size()) return false;
-
-        const auto tail = std::min(patIdx, concArgs.size());
-        return deducePackTail(patArg, std::span{concArgs}.subspan(tail));
-      }
-
-      if (patIdx >= concArgs.size()) return false;
-
-      if (!deduceArgument(patArg, concArgs[patIdx], patTemplId,
-                          writtenBase + patIdx)) {
-        return false;
-      }
-    }
-
-    return patArgs.size() == concArgs.size();
-  }
-
-  auto deduceArgument(Symbol* patSym, Symbol* concSym,
-                      const SimpleTemplateIdAST* patTemplId, size_t argPos)
-      -> bool {
-    if (!patSym || !concSym) return false;
-
-    auto childTemplateId =
-        pattern ? pattern->child(patTemplId, argPos) : nullptr;
-
-    if (auto patTTP = type_cast<TemplateTypeParameterType>(patSym->type());
-        patTTP && childTemplateId && childTemplateId->templateArgumentList) {
-      return deduceTemplateTemplateParameter(patTTP, concSym->type(),
-                                             childTemplateId);
-    }
-
-    if (auto patInfo = template_parameter_info(patSym)) {
-      auto concInfo = template_parameter_info(concSym);
-      if (!patInfo->isPack && concInfo && concInfo->isPack) return false;
-      if (auto parameter = symbol_cast<NonTypeParameterSymbol>(patSym);
-          parameter && isDependent(unit, parameter->objectType())) {
-        auto argumentType = concSym->type();
-        if (auto argument = symbol_cast<NonTypeParameterSymbol>(concSym))
-          argumentType = argument->objectType();
-        if (!deduceType(parameter->objectType(), argumentType, nullptr))
-          return false;
-      }
-      return deduceOrCheck(paramPosition(patInfo->depth, patInfo->index),
-                           concSym);
-    }
-
-    auto patPack = symbol_cast<ParameterPackSymbol>(patSym);
-    auto concPack = symbol_cast<ParameterPackSymbol>(concSym);
-    if (patPack && concPack) {
-      if (!deduceArgumentList(patPack->elements(), concPack->elements(),
-                              patTemplId, argPos)) {
-        return false;
-      }
-      return true;
-    }
-
-    if (auto decided = deduceConstantArgument(patSym, concSym)) return *decided;
-
-    auto patType = patSym->type();
-    auto concType = concSym->type();
-    if (!patType || !concType) {
-      if (patType != concType) return false;
-      return true;
-    }
-
-    if (type_cast<UnresolvedNameType>(patType)) return true;
-
-    return deduceType(patType, concType, childTemplateId);
-  }
-
-  auto deduceConstantArgument(Symbol* patSym, Symbol* concSym)
-      -> std::optional<bool> {
-    auto patVar = symbol_cast<VariableSymbol>(patSym);
-    auto concVar = symbol_cast<VariableSymbol>(concSym);
-    if (!patVar || !concVar) return std::nullopt;
-    if (!patVar->constValue().has_value() && !concVar->constValue().has_value())
-      return std::nullopt;
-
-    if (!concVar->constValue().has_value()) return false;
-    if (!patVar->constValue().has_value()) return true;
-    if (patVar->constValue().value() != concVar->constValue().value())
-      return false;
-
-    return true;
-  }
-
-  auto matchArg(const TemplateArgument& pat, const TemplateArgument& conc,
-                size_t argPos) -> bool {
-    return deduceArgument(asSymbolArgument(pat), asSymbolArgument(conc),
-                          pattern ? pattern->root : nullptr, argPos);
-  }
-
-  auto matchTemplateIdentity(SimpleTemplateIdAST* pat,
-                             SimpleTemplateIdAST* conc) -> bool {
-    if (!pat || !conc || !pat->symbol || !conc->symbol) return false;
-
-    auto identity = [](Symbol* symbol) -> Symbol* {
-      if (auto cls = symbol_cast<ClassSymbol>(symbol)) {
-        if (cls->isSpecialization()) return cls->primaryTemplateSymbol();
-      }
-      return symbol;
-    };
-
-    auto patIdentity = identity(pat->symbol);
-    auto concIdentity = identity(conc->symbol);
-    if (auto info = template_parameter_info(patIdentity)) {
-      return deduceOrCheck(paramPosition(info->depth, info->index),
-                           concIdentity);
-    }
-    return patIdentity == concIdentity;
-  }
-
-  auto deduceTemplateTemplateParameter(const TemplateTypeParameterType* patTTP,
-                                       const Type* concType,
-                                       SimpleTemplateIdAST* patTemplId)
-      -> bool {
-    if (auto concTTP = type_cast<TemplateTypeParameterType>(concType);
-        matchingExpansionElement && concTTP &&
-        patTTP->depth() == concTTP->depth() &&
-        patTTP->index() == concTTP->index()) {
-      Symbol* argument = patTemplId->symbol;
-      if (!argument) {
-        auto wrapper = control()->newTypeAliasSymbol(nullptr, {});
-        wrapper->setType(concType);
-        argument = wrapper;
-      }
-      auto position = paramPosition(patTTP->depth(), patTTP->index());
-      if (!deduceOrCheck(position, argument)) return false;
-      auto arguments = collectWrittenTemplateArgumentSymbols(
-          patTemplId->templateArgumentList);
-      if (!arguments) return false;
-      return finishNestedMatch(*arguments, *arguments, patTemplId);
-    }
-
-    auto concClassType = type_cast<ClassType>(concType);
-    if (!concClassType) return false;
-
-    auto concClassSym = concClassType->symbol();
-    if (!concClassSym || !concClassSym->isSpecialization()) return false;
-
-    auto primary = concClassSym->primaryTemplateSymbol();
-    if (!primary || !primary->templateDeclaration()) return false;
-
-    auto pos = paramPosition(patTTP->depth(), patTTP->index());
-    if (!deduceOrCheck(pos, primary)) return false;
-
-    auto patSymbols =
-        collectWrittenTemplateArgumentSymbols(patTemplId->templateArgumentList);
-    if (!patSymbols) return false;
-
-    auto concSymbols = toSymbolVector(concClassSym->templateArguments());
-
-    auto patInfo = patSymbols->empty()
-                       ? std::nullopt
-                       : template_parameter_info(patSymbols->back());
-    auto patHasTrailingPack = patInfo && patInfo->isPack;
-    if (!patHasTrailingPack && patSymbols->size() < concSymbols.size()) {
-      if (!hasDefaultsFromPosition(primary->templateDeclaration(),
-                                   patSymbols->size())) {
-        return false;
-      }
-      concSymbols.resize(patSymbols->size());
-    }
-
-    return finishNestedMatch(*patSymbols, concSymbols, patTemplId);
-  }
-
-  auto deduceType(const Type* patType, const Type* concType,
-                  SimpleTemplateIdAST* patTemplId) -> bool {
-    if (!patType || !concType) return false;
-
-    if (auto patTTP = type_cast<TemplateTypeParameterType>(patType);
-        patTTP && patTemplId && patTemplId->templateArgumentList) {
-      return deduceTemplateTemplateParameter(patTTP, concType, patTemplId);
-    }
-
-    if (auto patParamInfo = getTypeParamInfo(patType)) {
-      auto pos = paramPosition(patParamInfo->depth, patParamInfo->index);
-      auto argument = control()->newTypeAliasSymbol(nullptr, {});
-      argument->setType(concType);
-      return deduceOrCheck(pos, argument);
-    }
-
-    if (auto decided = deduceQualifiedType(patType, concType, patTemplId))
-      return *decided;
-
-    if (auto decided = deduceIndirectionType(patType, concType, patTemplId))
-      return *decided;
-
-    if (auto decided = deduceMemberPointerType(patType, concType, patTemplId))
-      return *decided;
-
-    if (auto decided = deduceArrayType(patType, concType, patTemplId))
-      return *decided;
-
-    if (auto decided = deduceFunctionType(patType, concType, patTemplId))
-      return *decided;
-
-    if (auto decided = deduceClassType(patType, concType, patTemplId))
-      return *decided;
-
-    if (patType != concType && !unit->typeTraits().is_same(patType, concType)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  auto deduceQualifiedType(const Type* patType, const Type* concType,
-                           SimpleTemplateIdAST* patTemplId)
-      -> std::optional<bool> {
-    auto patQual = type_cast<QualType>(patType);
-    if (!patQual) return std::nullopt;
-
-    auto concQual = type_cast<QualType>(concType);
-    if (!concQual) return false;
-    if (!is_at_least_as_cv_qualified(concQual->cvQualifiers(),
-                                     patQual->cvQualifiers()))
-      return false;
-
-    auto remainder = residual_cv_qualifiers(concQual->cvQualifiers(),
-                                            patQual->cvQualifiers());
-
-    const Type* concElement = concQual->elementType();
-    if (remainder != CvQualifiers::kNone)
-      concElement = control()->getQualType(concElement, remainder);
-
-    return deduceType(patQual->elementType(), concElement, patTemplId);
-  }
-
-  template <typename T>
-  auto deduceElementType(const Type* patType, const Type* concType,
-                         SimpleTemplateIdAST* patTemplId)
-      -> std::optional<bool> {
-    auto pat = type_cast<T>(patType);
-    if (!pat) return std::nullopt;
-
-    auto conc = type_cast<T>(concType);
-    if (!conc) return false;
-
-    return deduceType(pat->elementType(), conc->elementType(), patTemplId);
-  }
-
-  auto deduceIndirectionType(const Type* patType, const Type* concType,
-                             SimpleTemplateIdAST* patTemplId)
-      -> std::optional<bool> {
-    if (auto decided =
-            deduceElementType<PointerType>(patType, concType, patTemplId))
-      return decided;
-
-    if (auto decided = deduceElementType<LvalueReferenceType>(patType, concType,
-                                                              patTemplId))
-      return decided;
-
-    return deduceElementType<RvalueReferenceType>(patType, concType,
-                                                  patTemplId);
-  }
-
-  auto deduceMemberPointerType(const Type* patType, const Type* concType,
-                               SimpleTemplateIdAST* patTemplId)
-      -> std::optional<bool> {
-    if (auto patPointer = type_cast<MemberObjectPointerType>(patType)) {
-      auto concPointer = type_cast<MemberObjectPointerType>(concType);
-      if (!concPointer) return false;
-      if (!deduceType(patPointer->classType(), concPointer->classType(),
-                      patTemplId)) {
-        return false;
-      }
-      return deduceType(patPointer->elementType(), concPointer->elementType(),
-                        patTemplId);
-    }
-
-    if (auto patPointer = type_cast<MemberFunctionPointerType>(patType)) {
-      auto concPointer = type_cast<MemberFunctionPointerType>(concType);
-      if (!concPointer) return false;
-      if (!deduceType(patPointer->classType(), concPointer->classType(),
-                      patTemplId)) {
-        return false;
-      }
-      return deduceType(patPointer->functionType(), concPointer->functionType(),
-                        patTemplId);
-    }
-
-    return std::nullopt;
-  }
-
-  auto deduceArrayType(const Type* patType, const Type* concType,
-                       SimpleTemplateIdAST* patTemplId) -> std::optional<bool> {
-    if (auto patArray = type_cast<BoundedArrayType>(patType)) {
-      auto concArray = type_cast<BoundedArrayType>(concType);
-      if (!concArray || patArray->size() != concArray->size()) return false;
-      return deduceElementType<BoundedArrayType>(patType, concType, patTemplId);
-    }
-
-    if (auto decided = deduceElementType<UnboundedArrayType>(patType, concType,
-                                                             patTemplId))
-      return decided;
-
-    return deduceUnresolvedArrayType(patType, concType, patTemplId);
-  }
-
-  auto deduceUnresolvedArrayType(const Type* patType, const Type* concType,
-                                 SimpleTemplateIdAST* patTemplId)
-      -> std::optional<bool> {
-    auto patArray = type_cast<UnresolvedBoundedArrayType>(patType);
-    if (!patArray) return std::nullopt;
-
-    Symbol* argument = nullptr;
-    const Type* concElementType = nullptr;
-    if (auto concArray = type_cast<BoundedArrayType>(concType)) {
-      argument = integralArgument(control()->getSizeType(), concArray->size());
-      concElementType = concArray->elementType();
-    } else if (auto concArray =
-                   type_cast<UnresolvedBoundedArrayType>(concType)) {
-      argument = constantArgument(concArray->size());
-      concElementType = concArray->elementType();
-    } else {
-      return false;
-    }
-
-    if (!deduceArgument(constantArgument(patArray->size()), argument, nullptr,
-                        0))
-      return false;
-
-    return deduceType(patArray->elementType(), concElementType, patTemplId);
-  }
-
-  auto deduceFunctionType(const Type* patType, const Type* concType,
-                          SimpleTemplateIdAST* patTemplId)
-      -> std::optional<bool> {
-    auto patFunction = type_cast<FunctionType>(patType);
-    if (!patFunction) return std::nullopt;
-
-    auto concFunction = type_cast<FunctionType>(concType);
-    if (!concFunction) return false;
-    if (patFunction->isVariadic() != concFunction->isVariadic()) return false;
-    if (patFunction->cvQualifiers() != concFunction->cvQualifiers())
-      return false;
-    if (patFunction->refQualifier() != concFunction->refQualifier())
-      return false;
-    if (!deduceArgument(
-            constantArgument(patFunction->exceptionSpecification()),
-            constantArgument(concFunction->exceptionSpecification()), nullptr,
-            0))
-      return false;
-
-    const auto& patParams = patFunction->parameterTypes();
-    const auto& concParams = concFunction->parameterTypes();
-
-    if (!deduceType(patFunction->returnType(), concFunction->returnType(),
-                    patTemplId))
-      return false;
-
-    std::size_t fixedCount = patParams.size();
-    std::optional<TypeParamInfo> trailingPack;
-    if (!patParams.empty()) {
-      auto info = getTypeParamInfo(patParams.back());
-      if (info && info->isPack) {
-        trailingPack = info;
-        --fixedCount;
-      }
-    }
-
-    for (std::size_t index = 0; index < fixedCount; ++index) {
-      auto info = getTypeParamInfo(patParams[index]);
-      if (info && info->isPack) return false;
-    }
-
-    if (!trailingPack && patParams.size() != concParams.size()) return false;
-    if (trailingPack && concParams.size() < fixedCount) return false;
-
-    for (size_t i = 0; i < fixedCount; ++i) {
-      if (!deduceType(patParams[i], concParams[i], patTemplId)) return false;
-    }
-
-    if (!trailingPack) return true;
-
-    auto arguments = control()->newParameterPackSymbol(nullptr, {});
-    for (std::size_t index = fixedCount; index < concParams.size(); ++index) {
-      auto argument = control()->newTypeAliasSymbol(nullptr, {});
-      argument->setType(concParams[index]);
-      arguments->addElement(argument);
-    }
-
-    auto position = paramPosition(trailingPack->depth, trailingPack->index);
-    if (!deduceOrCheck(position, arguments)) return false;
-
-    return true;
-  }
-
-  auto deduceClassType(const Type* patType, const Type* concType,
-                       SimpleTemplateIdAST* patTemplId) -> std::optional<bool> {
-    auto patClassType = type_cast<ClassType>(patType);
-    auto concClassType = type_cast<ClassType>(concType);
-    if (!patClassType || !concClassType) return std::nullopt;
-    if (!isDependent(unit, patType))
-      return unit->typeTraits().is_same(patType, concType);
-
-    auto patClassSym = patClassType->symbol();
-    auto concClassSym = concClassType->symbol();
-    if (!patClassSym || !concClassSym) return false;
-
-    if (matchingExpansionElement && patClassSym == concClassSym && patTemplId) {
-      auto arguments = collectWrittenTemplateArgumentSymbols(
-          patTemplId->templateArgumentList);
-      if (!arguments) return false;
-      return deduceArgumentList(*arguments, *arguments, patTemplId, 0);
-    }
-
-    if (!concClassSym->isSpecialization()) return std::nullopt;
-
-    auto primary = patClassSym->isSpecialization()
-                       ? patClassSym->primaryTemplateSymbol()
-                       : patClassSym;
-
-    if (concClassSym->primaryTemplateSymbol() != primary) return std::nullopt;
-    if (!primary->templateDeclaration()) return false;
-    if (!patTemplId) return false;
-
-    return matchNestedWithPattern(patTemplId, primary,
-                                  concClassSym->templateArguments());
-  }
-
- private:
-  static auto extractClassSymbol(const TemplateArgument& arg) -> ClassSymbol* {
-    const Type* type = nullptr;
-
-    if (auto sym = std::get_if<Symbol*>(&arg)) {
-      type = *sym ? (*sym)->type() : nullptr;
-    } else if (auto tp = std::get_if<const Type*>(&arg)) {
-      type = *tp;
-    }
-
-    if (!type) return nullptr;
-
-    auto classType = type_cast<ClassType>(type);
-    if (!classType) return nullptr;
-
-    return classType->symbol();
-  }
-
-  auto remapAliasParameter(Symbol* symbol, int aliasDepth,
-                           const std::vector<TemplateArgument>& aliasArguments)
-      -> Symbol* {
-    if (!symbol) return symbol;
-
-    if (auto pack = symbol_cast<ParameterPackSymbol>(symbol)) {
-      auto remapped = control()->newParameterPackSymbol(nullptr, {});
-      for (auto element : pack->elements()) {
-        auto mapped = remapAliasParameter(element, aliasDepth, aliasArguments);
-        if (auto mappedPack = symbol_cast<ParameterPackSymbol>(mapped)) {
-          for (auto mappedElement : mappedPack->elements())
-            remapped->addElement(mappedElement);
-        } else if (mapped) {
-          remapped->addElement(mapped);
-        }
-      }
-      return remapped;
-    }
-
-    auto info = template_parameter_info(symbol);
-    if (!info || info->depth != aliasDepth) return symbol;
-    if (info->index < 0 ||
-        info->index >= static_cast<int>(aliasArguments.size())) {
-      return symbol;
-    }
-    return asSymbolArgument(aliasArguments[info->index]);
-  }
-
-  auto aliasExpandedArguments(SimpleTemplateIdAST* patTemplId,
-                              ClassSymbol* primarySym)
-      -> std::optional<std::vector<Symbol*>> {
-    auto alias = symbol_cast<TypeAliasSymbol>(patTemplId->symbol);
-    if (!alias) return std::nullopt;
-
-    auto aliasTemplateDecl = alias->templateDeclaration();
-    if (!aliasTemplateDecl) return std::nullopt;
-
-    auto aliasDeclaration =
-        ast_cast<AliasDeclarationAST>(aliasTemplateDecl->declaration);
-    if (!aliasDeclaration) return std::nullopt;
-
-    auto underlying = findTemplateIdInTypeId(aliasDeclaration->typeId);
-    if (!underlying) return std::nullopt;
-
-    auto aliasArguments =
-        Substitution(unit, aliasTemplateDecl, patTemplId->templateArgumentList)
-            .templateArguments();
-
-    auto underlyingArgs = Substitution(unit, primarySym->templateDeclaration(),
-                                       underlying->templateArgumentList)
-                              .templateArguments();
-
-    std::vector<Symbol*> result;
-    result.reserve(underlyingArgs.size());
-    for (const auto& arg : underlyingArgs) {
-      result.push_back(remapAliasParameter(
-          asSymbolArgument(arg), aliasTemplateDecl->depth, aliasArguments));
-    }
-    return result;
-  }
-
-  auto matchNestedWithPattern(SimpleTemplateIdAST* patTemplId,
-                              ClassSymbol* primarySym,
-                              std::span<const TemplateArgument> concArgs)
-      -> bool {
-    std::vector<Symbol*> patSymbols;
-
-    if (auto expanded = aliasExpandedArguments(patTemplId, primarySym)) {
-      patSymbols = std::move(*expanded);
-    } else {
-      auto patInnerArgs = Substitution(unit, primarySym->templateDeclaration(),
-                                       patTemplId->templateArgumentList)
-                              .templateArguments();
-      patSymbols = toSymbolVector(patInnerArgs);
-    }
-
-    return finishNestedMatch(patSymbols, toSymbolVector(concArgs), patTemplId);
-  }
-};
-
 [[nodiscard]] auto declaredSpecializationTemplate(Symbol* symbol)
     -> TemplateDeclarationAST* {
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol))
@@ -1036,6 +43,23 @@ struct PartialSpecMatcher {
     return variableSymbol->templateDeclaration();
   return nullptr;
 }
+
+[[nodiscard]] auto writtenTemplateId(ClassSymbol* specialization)
+    -> SimpleTemplateIdAST* {
+  auto body = ast_cast<ClassSpecifierAST>(specialization->declaration());
+  return body ? ast_cast<SimpleTemplateIdAST>(body->unqualifiedId) : nullptr;
+}
+
+[[nodiscard]] auto writtenTemplateId(TemplateDeclarationAST* templateDecl)
+    -> SimpleTemplateIdAST* {
+  auto declaration = ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
+  if (!declaration || !declaration->initDeclaratorList) return nullptr;
+  auto declaratorId =
+      getDeclaratorId(declaration->initDeclaratorList->value->declarator);
+  return declaratorId
+             ? ast_cast<SimpleTemplateIdAST>(declaratorId->unqualifiedId)
+             : nullptr;
+}
 }  // namespace
 
 struct ASTRewriter::RewritePartialSpecialization {
@@ -1043,30 +67,18 @@ struct ASTRewriter::RewritePartialSpecialization {
 
   explicit RewritePartialSpecialization(TranslationUnit* unit) : unit(unit) {}
 
-  [[nodiscard]] auto control() const -> Control* { return unit->control(); }
-
   struct Candidate {
-    ClassSymbol* specClass = nullptr;
-    VariableSymbol* specVar = nullptr;
+    Symbol* symbol = nullptr;
     TemplateDeclarationAST* specTemplateDecl = nullptr;
-    ClassSpecifierAST* specBody = nullptr;
-    SimpleTemplateIdAST* patternRoot = nullptr;
+    SimpleTemplateIdAST* templateId = nullptr;
     std::vector<TemplateArgument> patternArguments;
     std::vector<TemplateArgument> deducedArgs;
-
-    [[nodiscard]] auto symbol() const -> Symbol* {
-      if (specClass) return specClass;
-      return specVar;
-    }
   };
 
   struct Selection {
     std::optional<Candidate> candidate;
     bool ambiguous = false;
   };
-
-  using Collect = std::optional<Candidate> (RewritePartialSpecialization::*)(
-      const TemplateSpecialization&, const std::vector<TemplateArgument>&);
 
   [[nodiscard]] auto findPattern(
       ClassSymbol* primary, List<TemplateArgumentAST*>* templateArgumentList)
@@ -1082,27 +94,19 @@ struct ASTRewriter::RewritePartialSpecialization {
       const std::vector<TemplateArgument>& templateArguments)
       -> PartialSpecializationResult;
 
-  [[nodiscard]] auto findUndeducedParameter(
-      TemplateDeclarationAST* templateDeclaration,
-      SimpleTemplateIdAST* templateId,
-      const std::vector<TemplateArgument>& templateArguments)
-      -> TemplateParameterAST*;
-
  private:
-  [[nodiscard]] auto collectClassCandidate(
-      const TemplateSpecialization& spec,
+  [[nodiscard]] auto candidate(
+      Symbol* primary, const TemplateSpecialization& specialization,
       const std::vector<TemplateArgument>& templateArguments)
       -> std::optional<Candidate>;
 
-  [[nodiscard]] auto collectVariableCandidate(
-      const TemplateSpecialization& spec,
-      const std::vector<TemplateArgument>& templateArguments)
-      -> std::optional<Candidate>;
+  [[nodiscard]] auto reproducesArguments(
+      Symbol* primary, const Candidate& candidate,
+      const std::vector<TemplateArgument>& templateArguments) -> bool;
 
   [[nodiscard]] auto select(
-      std::span<const TemplateSpecialization> specializations,
-      const std::vector<TemplateArgument>& templateArguments,
-      SourceLocation fallbackLocation, Collect collect) -> Selection;
+      Symbol* primary, std::span<const TemplateSpecialization> specializations,
+      const std::vector<TemplateArgument>& templateArguments) -> Selection;
 
   [[nodiscard]] auto isMoreSpecialized(const Candidate& lhs,
                                        const Candidate& rhs) const -> bool;
@@ -1114,350 +118,124 @@ struct ASTRewriter::RewritePartialSpecialization {
                                                   const Candidate& rhs) const
       -> bool;
 
-  [[nodiscard]] auto checkCollapsedSpecArguments(
-      SimpleTemplateIdAST* specId,
-      std::span<const TemplateArgument> patternArgs,
-      std::span<const TemplateArgument> concreteArgs,
-      const std::vector<TemplateArgument>& deduced,
-      TemplateDeclarationAST* specTemplateDecl, ScopeSymbol* enclosingScope,
-      const std::function<int(int depth, int index)>& paramPosition) -> bool;
-
-  [[nodiscard]] auto reevaluateCollapsedExpressionArgument(
-      ExpressionTemplateArgumentAST* exprArg, const TemplateArgument& storedArg,
-      const TemplateArgument& concreteArg,
-      const std::vector<TemplateArgument>& deduced,
-      TemplateDeclarationAST* specTemplateDecl, ScopeSymbol* enclosingScope)
-      -> bool;
-
-  [[nodiscard]] static auto makeParamPosition(
-      TemplateDeclarationAST* templateDecl)
-      -> std::pair<int, std::function<int(int depth, int index)>>;
-
-  [[nodiscard]] auto materializeTemplateArguments(
-      std::vector<TemplateArgument> templateArguments) const
-      -> std::vector<TemplateArgument>;
+  [[nodiscard]] auto hasEquivalentArgument(
+      const TemplateArgument& lhs, const TemplateArgument& rhs,
+      TemplateDeclarationAST* lhsTemplateDecl,
+      TemplateDeclarationAST* rhsTemplateDecl) const -> bool;
 };
 
-auto ASTRewriter::RewritePartialSpecialization::makeParamPosition(
-    TemplateDeclarationAST* templateDecl)
-    -> std::pair<int, std::function<int(int depth, int index)>> {
-  int paramCount = 0;
-  std::map<std::pair<int, int>, int> paramPositionMap;
-
-  for (auto parameter : ListView{templateDecl->templateParameterList}) {
-    paramPositionMap[{parameter->depth, parameter->index}] = paramCount;
-    ++paramCount;
-  }
-
-  auto position = [map = std::move(paramPositionMap)](int depth,
-                                                      int index) -> int {
-    auto it = map.find({depth, index});
-    if (it == map.end()) return -1;
-    return it->second;
-  };
-
-  return {paramCount, std::move(position)};
-}
-
-auto ASTRewriter::RewritePartialSpecialization::
-    reevaluateCollapsedExpressionArgument(
-        ExpressionTemplateArgumentAST* exprArg,
-        const TemplateArgument& storedArg, const TemplateArgument& concreteArg,
-        const std::vector<TemplateArgument>& deduced,
-        TemplateDeclarationAST* specTemplateDecl, ScopeSymbol* enclosingScope)
-        -> bool {
-  if (!exprArg->expression) return true;
-
-  auto storedSym = std::get_if<Symbol*>(&storedArg);
-  auto storedVar = storedSym && *storedSym
-                       ? symbol_cast<VariableSymbol>(*storedSym)
-                       : nullptr;
-  if (!storedVar || storedVar->constValue().has_value()) return true;
-
-  auto concreteSym = std::get_if<Symbol*>(&concreteArg);
-  auto concreteVar = concreteSym && *concreteSym
-                         ? symbol_cast<VariableSymbol>(*concreteSym)
-                         : nullptr;
-  if (!concreteVar || !concreteVar->constValue().has_value()) return true;
-
-  std::optional<ConstValue> value;
-  bool hadError = false;
-
-  {
-    SilentDiagnosticsScope silent{unit};
-    auto substituted = ASTRewriter::substituteDefaultExpression(
-        unit, exprArg->expression, deduced, specTemplateDecl->depth,
-        enclosingScope);
-    if (substituted) value = ASTInterpreter{unit}.evaluate(substituted);
-    hadError = silent.hadError();
-  }
-
-  if (hadError || !value.has_value()) return false;
-  return value.value() == concreteVar->constValue().value();
-}
-
-auto ASTRewriter::RewritePartialSpecialization::checkCollapsedSpecArguments(
-    SimpleTemplateIdAST* specId, std::span<const TemplateArgument> patternArgs,
-    std::span<const TemplateArgument> concreteArgs,
-    const std::vector<TemplateArgument>& deduced,
-    TemplateDeclarationAST* specTemplateDecl, ScopeSymbol* enclosingScope,
-    const std::function<int(int depth, int index)>& paramPosition) -> bool {
-  if (!specId) return true;
-
-  size_t index = 0;
-  for (auto argAst : ListView{specId->templateArgumentList}) {
-    if (index >= patternArgs.size()) break;
-    const auto& storedArg = patternArgs[index];
-    const auto argPos = index;
-    ++index;
-
-    if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(argAst)) {
-      if (argPos >= concreteArgs.size()) continue;
-      if (!reevaluateCollapsedExpressionArgument(
-              exprArg, storedArg, concreteArgs[argPos], deduced,
-              specTemplateDecl, enclosingScope)) {
-        return false;
-      }
-      continue;
-    }
-
-    auto typeArg = ast_cast<TypeTemplateArgumentAST>(argAst);
-    if (!typeArg || !typeArg->typeId) continue;
-    if (!isDependent(unit, typeArg->typeId)) continue;
-
-    auto isDeducedParamPosition = [&](const Type* candidateType) {
-      auto info =
-          candidateType ? getTypeParamInfo(candidateType) : std::nullopt;
-      return info && paramPosition(info->depth, info->index) >= 0;
-    };
-
-    bool storedIsDeducedParam = false;
-    if (auto storedType = std::get_if<const Type*>(&storedArg)) {
-      storedIsDeducedParam = isDeducedParamPosition(*storedType);
-    } else if (auto storedSym = std::get_if<Symbol*>(&storedArg)) {
-      if (!*storedSym) continue;
-      if (symbol_cast<ParameterPackSymbol>(*storedSym)) continue;
-      storedIsDeducedParam = isDeducedParamPosition((*storedSym)->type());
-    }
-    if (storedIsDeducedParam) continue;
-
-    TypeIdAST* substituted = nullptr;
-    bool hadError = false;
-
-    {
-      SilentDiagnosticsScope silent{unit};
-      substituted = ASTRewriter::substituteDefaultTypeId(
-          unit, typeArg->typeId, deduced, specTemplateDecl->depth,
-          enclosingScope);
-      hadError = silent.hadError();
-    }
-
-    if (hadError || !substituted || !substituted->type ||
-        type_cast<UnresolvedNameType>(substituted->type)) {
-      return false;
-    }
-
-    if (argPos >= concreteArgs.size()) continue;
-
-    auto concreteType = template_argument_type(concreteArgs[argPos]);
-    if (!concreteType) return false;
-    if (isDependent(unit, concreteType)) continue;
-
-    if (!unit->typeTraits().is_same(substituted->type, concreteType))
-      return false;
-  }
-
-  return true;
-}
-
-auto ASTRewriter::RewritePartialSpecialization::collectClassCandidate(
-    const TemplateSpecialization& spec,
+auto ASTRewriter::RewritePartialSpecialization::candidate(
+    Symbol* primary, const TemplateSpecialization& specialization,
     const std::vector<TemplateArgument>& templateArguments)
     -> std::optional<Candidate> {
-  auto specClass = symbol_cast<ClassSymbol>(spec.symbol);
-  if (!specClass) return std::nullopt;
-  specClass = specClass->resolvedDefinition();
-
-  auto specTemplateDecl = declaredSpecializationTemplate(specClass);
+  auto specTemplateDecl = declaredSpecializationTemplate(specialization.symbol);
   if (!specTemplateDecl) return std::nullopt;
 
-  const auto& patternArgs = spec.arguments;
-
-  auto specBody = ast_cast<ClassSpecifierAST>(specClass->declaration());
-  if (!specBody) return std::nullopt;
-
-  auto pattern = extractNestedTemplatePattern(specBody);
-  if (!pattern) return std::nullopt;
-
-  auto match =
-      expandPatternArguments(pattern->root, patternArgs, templateArguments);
-  if (!match.viable) return std::nullopt;
-
-  auto [specParamCount, paramPosition] = makeParamPosition(specTemplateDecl);
-  DeducedArguments deducedArgs(specParamCount);
-
-  PartialSpecMatcher matcher{unit, &*pattern, deducedArgs, paramPosition};
-
-  for (size_t i = 0; i < match.fixedCount; ++i) {
-    auto& patternArgument = match.patternArguments[i];
-    if (!matcher.matchArg(patternArgument.value,
-                          match.concreteArguments[i].value,
-                          patternArgument.writtenIndex)) {
-      return std::nullopt;
-    }
+  auto symbol = specialization.symbol;
+  SimpleTemplateIdAST* templateId = nullptr;
+  if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
+    symbol = classSymbol->resolvedDefinition();
+    templateId = writtenTemplateId(classSymbol->resolvedDefinition());
+  } else {
+    templateId = writtenTemplateId(specTemplateDecl);
   }
 
-  if (match.expandsTrailingArguments &&
-      !matcher.deduceExpansionTail(
-          match.patternArguments[match.fixedCount],
-          std::span{match.concreteArguments}.subspan(match.fixedCount),
-          pattern->root,
-          match.patternArguments[match.fixedCount].writtenIndex)) {
+  TypeDeduction deduction{unit, specTemplateDecl};
+  if (!deduction.deduce(specialization.arguments, templateArguments)) {
     return std::nullopt;
   }
 
-  if (!deducedArgs.complete()) return std::nullopt;
+  auto deduced = deduction.templateArguments();
+  if (!deduced) return std::nullopt;
 
-  if (!checkCollapsedSpecArguments(
-          ast_cast<SimpleTemplateIdAST>(specBody->unqualifiedId), patternArgs,
-          templateArguments, deducedArgs.toTemplateArguments(),
-          specTemplateDecl, specClass->parent(), paramPosition)) {
-    return std::nullopt;
-  }
-
-  if (!ASTRewriter::checkAssociatedConstraints(
-          unit, specClass, deducedArgs.toTemplateArguments(),
-          specTemplateDecl->depth)) {
-    return std::nullopt;
-  }
-
-  return Candidate{.specClass = specClass,
+  Candidate result{.symbol = symbol,
                    .specTemplateDecl = specTemplateDecl,
-                   .specBody = specBody,
-                   .patternRoot = pattern->root,
-                   .patternArguments = patternArgs,
-                   .deducedArgs = deducedArgs.toTemplateArguments()};
+                   .templateId = templateId,
+                   .patternArguments = specialization.arguments,
+                   .deducedArgs = std::move(*deduced)};
+
+  if (!reproducesArguments(primary, result, templateArguments)) {
+    return std::nullopt;
+  }
+
+  if (!ASTRewriter::checkAssociatedConstraints(unit, symbol, result.deducedArgs,
+                                               specTemplateDecl->depth))
+    return std::nullopt;
+
+  return result;
 }
 
-auto ASTRewriter::RewritePartialSpecialization::collectVariableCandidate(
-    const TemplateSpecialization& spec,
-    const std::vector<TemplateArgument>& templateArguments)
-    -> std::optional<Candidate> {
-  auto specVar = symbol_cast<VariableSymbol>(spec.symbol);
-  if (!specVar) return std::nullopt;
+auto ASTRewriter::RewritePartialSpecialization::reproducesArguments(
+    Symbol* primary, const Candidate& candidate,
+    const std::vector<TemplateArgument>& templateArguments) -> bool {
+  auto primaryDeclaration = template_declaration_of(primary);
+  if (!candidate.templateId || !primaryDeclaration) return false;
 
-  auto specTemplateDecl = declaredSpecializationTemplate(specVar);
-  if (!specTemplateDecl) return std::nullopt;
+  SilentDiagnosticsScope silent{unit};
+  auto scope = candidate.symbol->parent();
+  auto rewriter = ASTRewriter{unit, scope, candidate.deducedArgs};
+  rewriter.depth_ = candidate.specTemplateDecl->depth;
+  rewriter.inheritEnclosingTemplateArguments(scope);
+  auto substituted = rewriter.rewriteTemplateArgumentList(
+      candidate.templateId->templateArgumentList);
+  if (silent.hadError()) return false;
 
-  const auto& patternArgs = spec.arguments;
-  if (patternArgs.size() != templateArguments.size()) return std::nullopt;
+  auto substitution = Substitution::make(unit, primaryDeclaration, substituted);
+  if (!substitution || silent.hadError()) return false;
 
-  auto [specParamCount, paramPosition] = makeParamPosition(specTemplateDecl);
-  DeducedArguments deducedArgs(specParamCount);
-
-  std::optional<NestedTemplatePattern> pattern;
-  if (auto simpleDecl =
-          ast_cast<SimpleDeclarationAST>(specTemplateDecl->declaration);
-      simpleDecl && simpleDecl->initDeclaratorList &&
-      simpleDecl->initDeclaratorList->value) {
-    if (auto declId = getDeclaratorId(
-            simpleDecl->initDeclaratorList->value->declarator)) {
-      if (auto root = ast_cast<SimpleTemplateIdAST>(declId->unqualifiedId)) {
-        NestedTemplatePattern p;
-        p.root = root;
-        buildNestedTemplatePattern(root, p);
-        pattern = std::move(p);
-      }
-    }
-  }
-
-  PartialSpecMatcher matcher{unit, pattern ? &*pattern : nullptr, deducedArgs,
-                             paramPosition};
-
-  for (size_t i = 0; i < patternArgs.size(); ++i) {
-    if (!matcher.matchArg(patternArgs[i], templateArguments[i], i)) {
-      return std::nullopt;
-    }
-  }
-
-  if (!deducedArgs.complete()) return std::nullopt;
-
-  if (pattern && !checkCollapsedSpecArguments(
-                     pattern->root, patternArgs, templateArguments,
-                     deducedArgs.toTemplateArguments(), specTemplateDecl,
-                     specVar->parent(), paramPosition)) {
-    return std::nullopt;
-  }
-
-  if (!ASTRewriter::checkAssociatedConstraints(
-          unit, specVar, deducedArgs.toTemplateArguments(),
-          specTemplateDecl->depth)) {
-    return std::nullopt;
-  }
-
-  return Candidate{.specVar = specVar,
-                   .specTemplateDecl = specTemplateDecl,
-                   .patternRoot = pattern ? pattern->root : nullptr,
-                   .patternArguments = patternArgs,
-                   .deducedArgs = deducedArgs.toTemplateArguments()};
+  return compare_args(unit, substitution->templateArguments(),
+                      templateArguments);
 }
 
 auto ASTRewriter::RewritePartialSpecialization::isAtLeastAsSpecialized(
     const Candidate& lhs, const Candidate& rhs) const -> bool {
-  if (!rhs.patternRoot) return false;
-
-  auto [parameterCount, parameterPosition] =
-      makeParamPosition(rhs.specTemplateDecl);
-  DeducedArguments deduced(parameterCount);
-  NestedTemplatePattern pattern;
-  pattern.root = rhs.patternRoot;
-  buildNestedTemplatePattern(rhs.patternRoot, pattern);
-  PartialSpecMatcher matcher{unit, &pattern, deduced, parameterPosition};
-
-  auto match = expandPatternArguments(rhs.patternRoot, rhs.patternArguments,
-                                      lhs.patternArguments, lhs.patternRoot);
-  const auto& rhsArguments = match.patternArguments;
-  const auto& lhsArguments = match.concreteArguments;
-
-  if (!match.viable) return false;
-
-  if (expandsTrailingArguments(lhs.patternRoot) &&
-      !match.expandsTrailingArguments)
+  TypeDeduction deduction{unit, rhs.specTemplateDecl};
+  if (!deduction.deduce(rhs.patternArguments, lhs.patternArguments))
     return false;
+  return deduction.templateArguments().has_value();
+}
 
-  const auto fixedCount = match.fixedCount;
-
-  for (std::size_t i = 0; i < fixedCount; ++i) {
-    auto& rhsArgument = rhsArguments[i];
-    auto& lhsArgument = lhsArguments[i];
-    auto rhsNested = rhsArgument.nestedTemplateId;
-    auto lhsNested = lhsArgument.nestedTemplateId;
-    if (rhsNested) {
-      if (!lhsNested) return false;
-      if (!matcher.matchTemplateIdentity(rhsNested, lhsNested)) return false;
-      auto rhsNestedArguments = matcher.collectWrittenTemplateArgumentSymbols(
-          rhsNested->templateArgumentList);
-      auto lhsNestedArguments = matcher.collectWrittenTemplateArgumentSymbols(
-          lhsNested->templateArgumentList);
-      if (!rhsNestedArguments || !lhsNestedArguments ||
-          !matcher.finishNestedMatch(*rhsNestedArguments, *lhsNestedArguments,
-                                     rhsNested))
-        return false;
-      continue;
-    }
-
-    if (!matcher.matchArg(rhsArgument.value, lhsArgument.value,
-                          rhsArgument.writtenIndex))
-      return false;
+auto ASTRewriter::RewritePartialSpecialization::hasEquivalentArgument(
+    const TemplateArgument& lhs, const TemplateArgument& rhs,
+    TemplateDeclarationAST* lhsTemplateDecl,
+    TemplateDeclarationAST* rhsTemplateDecl) const -> bool {
+  auto lhsType = template_argument_type(lhs);
+  auto rhsType = template_argument_type(rhs);
+  if (lhsType || rhsType) {
+    if (!lhsType || !rhsType) return false;
+    return TemplateEquivalence{unit}.sameForOrdering(
+        lhsType, rhsType, lhsTemplateDecl, rhsTemplateDecl);
   }
 
-  if (match.expandsTrailingArguments &&
-      !matcher.deduceExpansionTail(
-          rhsArguments[fixedCount], std::span{lhsArguments}.subspan(fixedCount),
-          rhs.patternRoot, rhsArguments[fixedCount].writtenIndex))
-    return false;
+  auto lhsValue = template_argument_value(lhs);
+  auto rhsValue = template_argument_value(rhs);
+  if (lhsValue || rhsValue) {
+    if (!lhsValue || !rhsValue) return false;
+    return *lhsValue == *rhsValue;
+  }
 
-  return deduced.complete();
+  auto lhsSymbol = std::get_if<Symbol*>(&lhs);
+  auto rhsSymbol = std::get_if<Symbol*>(&rhs);
+  if (!lhsSymbol || !rhsSymbol) return false;
+
+  auto lhsPack = symbol_cast<ParameterPackSymbol>(*lhsSymbol);
+  auto rhsPack = symbol_cast<ParameterPackSymbol>(*rhsSymbol);
+  if (lhsPack || rhsPack) {
+    if (!lhsPack || !rhsPack) return false;
+    if (lhsPack->elements().size() != rhsPack->elements().size()) return false;
+    for (std::size_t i = 0; i < lhsPack->elements().size(); ++i) {
+      if (!hasEquivalentArgument(lhsPack->elements()[i], rhsPack->elements()[i],
+                                 lhsTemplateDecl, rhsTemplateDecl))
+        return false;
+    }
+    return true;
+  }
+
+  auto lhsInfo = template_parameter_info(*lhsSymbol);
+  auto rhsInfo = template_parameter_info(*rhsSymbol);
+  if (!lhsInfo || !rhsInfo) return false;
+
+  return lhsInfo->index == rhsInfo->index && lhsInfo->isPack == rhsInfo->isPack;
 }
 
 auto ASTRewriter::RewritePartialSpecialization::hasEquivalentTransformedType(
@@ -1470,29 +248,8 @@ auto ASTRewriter::RewritePartialSpecialization::hasEquivalentTransformedType(
   if (lhs.patternArguments.size() != rhs.patternArguments.size()) return false;
 
   for (std::size_t i = 0; i < lhs.patternArguments.size(); ++i) {
-    auto lhsType = template_argument_type(lhs.patternArguments[i]);
-    auto rhsType = template_argument_type(rhs.patternArguments[i]);
-    if (lhsType || rhsType) {
-      if (!lhsType || !rhsType ||
-          !TemplateEquivalence{unit}.sameForOrdering(
-              lhsType, rhsType, lhs.specTemplateDecl, rhs.specTemplateDecl))
-        return false;
-      continue;
-    }
-
-    auto lhsValue = template_argument_value(lhs.patternArguments[i]);
-    auto rhsValue = template_argument_value(rhs.patternArguments[i]);
-    if (lhsValue || rhsValue) {
-      if (!lhsValue || !rhsValue || *lhsValue != *rhsValue) return false;
-      continue;
-    }
-
-    auto lhsSymbol = asSymbolArgument(lhs.patternArguments[i]);
-    auto rhsSymbol = asSymbolArgument(rhs.patternArguments[i]);
-    auto lhsInfo = template_parameter_info(lhsSymbol);
-    auto rhsInfo = template_parameter_info(rhsSymbol);
-    if (!lhsInfo || !rhsInfo || lhsInfo->index != rhsInfo->index ||
-        lhsInfo->isPack != rhsInfo->isPack)
+    if (!hasEquivalentArgument(lhs.patternArguments[i], rhs.patternArguments[i],
+                               lhs.specTemplateDecl, rhs.specTemplateDecl))
       return false;
   }
 
@@ -1505,22 +262,18 @@ auto ASTRewriter::RewritePartialSpecialization::isMoreSpecialized(
   auto rhsAtLeast = isAtLeastAsSpecialized(rhs, lhs);
   if (lhsAtLeast != rhsAtLeast) return lhsAtLeast;
   if (!lhsAtLeast || !hasEquivalentTransformedType(lhs, rhs)) return false;
-  return ASTRewriter::isMoreConstrained(unit, lhs.symbol(), rhs.symbol());
+  return ASTRewriter::isMoreConstrained(unit, lhs.symbol, rhs.symbol);
 }
 
 auto ASTRewriter::RewritePartialSpecialization::select(
-    std::span<const TemplateSpecialization> specializations,
-    const std::vector<TemplateArgument>& templateArguments,
-    SourceLocation fallbackLocation, Collect collect) -> Selection {
-  std::vector<TemplateSpecialization> stableSpecializations;
-  for (const auto& specialization : specializations) {
-    if (!declaredSpecializationTemplate(specialization.symbol)) continue;
-    stableSpecializations.push_back(specialization);
-  }
+    Symbol* primary, std::span<const TemplateSpecialization> specializations,
+    const std::vector<TemplateArgument>& templateArguments) -> Selection {
   std::vector<Candidate> candidates;
-  for (const auto& specialization : stableSpecializations) {
-    auto candidate = (this->*collect)(specialization, templateArguments);
-    if (candidate) candidates.push_back(std::move(*candidate));
+  for (const auto& specialization : specializations) {
+    if (auto trace = unit->timeTrace())
+      trace->count(TimeTrace::kPartialSpecializationVisits);
+    if (auto match = candidate(primary, specialization, templateArguments))
+      candidates.push_back(std::move(*match));
   }
 
   if (candidates.empty()) return {};
@@ -1545,51 +298,14 @@ auto ASTRewriter::RewritePartialSpecialization::select(
   }
 
   if (best == candidates.end()) {
-    auto location = candidates.front().specBody
-                        ? candidates.front().specBody->firstSourceLocation()
-                        : fallbackLocation;
+    auto location = candidates.front().templateId
+                        ? candidates.front().templateId->firstSourceLocation()
+                        : primary->location();
     unit->error(location, "partial specialization is ambiguous");
     return {.ambiguous = true};
   }
 
   return {.candidate = std::move(*best)};
-}
-
-auto ASTRewriter::RewritePartialSpecialization::materializeTemplateArguments(
-    std::vector<TemplateArgument> templateArguments) const
-    -> std::vector<TemplateArgument> {
-  for (auto& argument : templateArguments) {
-    if (auto type = std::get_if<const Type*>(&argument)) {
-      auto symbol = control()->newTypeAliasSymbol(nullptr, {});
-      symbol->setType(*type);
-      Symbol* value = symbol;
-      argument = value;
-      continue;
-    }
-    if (auto value = std::get_if<ConstValue>(&argument)) {
-      auto symbol = control()->newVariableSymbol(nullptr, {});
-      symbol->setConstexpr(true);
-      symbol->setConstValue(*value);
-      Symbol* materialized = symbol;
-      argument = materialized;
-      continue;
-    }
-    auto expression = std::get_if<ExpressionAST*>(&argument);
-    if (!expression || !*expression) continue;
-    if (auto id = ast_cast<IdExpressionAST>(*expression); id && id->symbol) {
-      argument = id->symbol;
-      continue;
-    }
-    if (auto value = ASTInterpreter{unit}.evaluate(*expression)) {
-      auto symbol = control()->newVariableSymbol(nullptr, {});
-      symbol->setType((*expression)->type);
-      symbol->setConstexpr(true);
-      symbol->setConstValue(*value);
-      Symbol* materialized = symbol;
-      argument = materialized;
-    }
-  }
-  return templateArguments;
 }
 
 auto ASTRewriter::RewritePartialSpecialization::findPattern(
@@ -1598,48 +314,18 @@ auto ASTRewriter::RewritePartialSpecialization::findPattern(
   if (primary && primary->isSpecialization())
     primary = primary->primaryTemplateSymbol();
 
-  auto primaryDeclaration = primary ? primary->templateDeclaration() : nullptr;
-  if (!primaryDeclaration) return nullptr;
+  if (!primary) return nullptr;
 
-  auto templateArguments = materializeTemplateArguments(
-      Substitution(unit, primaryDeclaration, templateArgumentList)
-          .templateArguments());
-
-  auto selected =
-      select(primary->specializations(), templateArguments, primary->location(),
-             &RewritePartialSpecialization::collectClassCandidate);
-
-  if (!selected.candidate) return nullptr;
-  return selected.candidate->specClass->resolvedDefinition();
-}
-
-auto ASTRewriter::RewritePartialSpecialization::findUndeducedParameter(
-    TemplateDeclarationAST* templateDeclaration,
-    SimpleTemplateIdAST* templateId,
-    const std::vector<TemplateArgument>& templateArguments)
-    -> TemplateParameterAST* {
-  if (!templateDeclaration || !templateId) return nullptr;
-
-  auto [parameterCount, parameterPosition] =
-      makeParamPosition(templateDeclaration);
-  if (parameterCount == 0) return nullptr;
-
-  DeducedArguments deduced(parameterCount);
-  NestedTemplatePattern pattern;
-  pattern.root = templateId;
-  buildNestedTemplatePattern(templateId, pattern);
-  PartialSpecMatcher matcher{unit, &pattern, deduced, parameterPosition, true};
-
-  auto patternArguments = materializeTemplateArguments(templateArguments);
-  for (std::size_t index = 0; index < patternArguments.size(); ++index) {
-    const auto& argument = patternArguments[index];
-    (void)matcher.matchArg(argument, argument, index);
-  }
-
-  std::size_t index = 0;
-  for (auto parameter : ListView{templateDeclaration->templateParameterList}) {
-    if (!deduced.get(static_cast<int>(index))) return parameter;
-    ++index;
+  for (const auto& specialization : primary->declaredSpecializations()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(specialization.symbol);
+    if (!classSymbol) continue;
+    auto definition = classSymbol->resolvedDefinition();
+    if (!definition->templateDeclaration()) continue;
+    auto templateId = writtenTemplateId(definition);
+    if (!templateId) continue;
+    if (TemplateEquivalence{unit}.same(templateId->templateArgumentList,
+                                       templateArgumentList))
+      return definition;
   }
 
   return nullptr;
@@ -1649,19 +335,22 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
     ClassSymbol* classSymbol,
     const std::vector<TemplateArgument>& templateArguments)
     -> PartialSpecializationResult {
-  auto selection = select(classSymbol->specializations(), templateArguments,
-                          classSymbol->location(),
-                          &RewritePartialSpecialization::collectClassCandidate);
+  auto selection = select(classSymbol, classSymbol->declaredSpecializations(),
+                          templateArguments);
 
   if (!selection.candidate) return {.resolutionFailed = selection.ambiguous};
   auto& selected = *selection.candidate;
+  auto specClass = symbol_cast<ClassSymbol>(selected.symbol);
+  auto specBody = ast_cast<ClassSpecifierAST>(specClass->declaration());
+  if (!specBody) return {.resolutionFailed = true};
 
+  TimeTrace::Scope trace{unit->timeTrace(), "Instantiate", specClass};
   if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kInstantiations);
-  auto specParentScope = selected.specClass->parent();
+  auto specParentScope = specClass->parent();
   auto specRewriter = ASTRewriter{unit, specParentScope, selected.deducedArgs};
   specRewriter.depth_ = selected.specTemplateDecl->depth;
   specRewriter.inheritEnclosingTemplateArguments(specParentScope);
-  specRewriter.binder().setInstantiatingSymbol(selected.specClass);
+  specRewriter.binder().setInstantiatingSymbol(specClass);
 
   auto pendingInstance = symbol_cast<ClassSymbol>(
       classSymbol->findSpecialization(unit, templateArguments));
@@ -1672,15 +361,14 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
     pendingInstance->setType(unit->control()->getClassType(pendingInstance));
     classSymbol->addSpecialization(unit, templateArguments, pendingInstance);
   }
-  pendingInstance->setInstantiationPattern(selected.specClass);
+  pendingInstance->setInstantiationPattern(specClass);
   specRewriter.setClassInstanceToComplete(pendingInstance);
 
-  auto instance =
-      ast_cast<ClassSpecifierAST>(specRewriter.specifier(selected.specBody));
+  auto instance = ast_cast<ClassSpecifierAST>(specRewriter.specifier(specBody));
   if (!instance || !instance->symbol) return {.resolutionFailed = true};
 
   if (auto instanceClass = symbol_cast<ClassSymbol>(instance->symbol)) {
-    instanceClass->setInstantiationPattern(selected.specClass);
+    instanceClass->setInstantiationPattern(specClass);
     classSymbol->addSpecialization(unit, templateArguments, instanceClass);
   }
 
@@ -1692,34 +380,34 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
     const std::vector<TemplateArgument>& templateArguments)
     -> PartialSpecializationResult {
   auto selection =
-      select(variableSymbol->specializations(), templateArguments,
-             variableSymbol->location(),
-             &RewritePartialSpecialization::collectVariableCandidate);
+      select(variableSymbol, variableSymbol->declaredSpecializations(),
+             templateArguments);
 
   if (!selection.candidate) return {.resolutionFailed = selection.ambiguous};
   auto& selected = *selection.candidate;
+  auto specVar = symbol_cast<VariableSymbol>(selected.symbol);
 
-  if (auto cached =
-          selected.specVar->findSpecialization(unit, selected.deducedArgs)) {
+  if (auto cached = specVar->findSpecialization(unit, selected.deducedArgs)) {
     if (auto cachedVar = symbol_cast<VariableSymbol>(cached)) {
       variableSymbol->addSpecialization(unit, templateArguments, cachedVar);
     }
     return {.symbol = cached};
   }
 
-  auto specTemplateDecl = selected.specVar->templateDeclaration();
+  auto specTemplateDecl = specVar->templateDeclaration();
   if (!specTemplateDecl) return {.resolutionFailed = true};
 
   auto simpleDecl =
       ast_cast<SimpleDeclarationAST>(specTemplateDecl->declaration);
   if (!simpleDecl) return {.resolutionFailed = true};
 
+  TimeTrace::Scope trace{unit->timeTrace(), "Instantiate", specVar};
   if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kInstantiations);
-  auto specParentScope = selected.specVar->parent();
+  auto specParentScope = specVar->parent();
   auto specRewriter = ASTRewriter{unit, specParentScope, selected.deducedArgs};
   specRewriter.depth_ = selected.specTemplateDecl->depth;
   specRewriter.inheritEnclosingTemplateArguments(specParentScope);
-  specRewriter.binder().setInstantiatingSymbol(selected.specVar);
+  specRewriter.binder().setInstantiatingSymbol(specVar);
 
   auto instance =
       ast_cast<SimpleDeclarationAST>(specRewriter.declaration(simpleDecl));
@@ -1747,11 +435,12 @@ auto ASTRewriter::findPartialSpecializationPattern(
 
 auto ASTRewriter::findUndeducedPartialSpecializationParameter(
     TranslationUnit* unit, TemplateDeclarationAST* templateDeclaration,
-    SimpleTemplateIdAST* templateId,
     const std::vector<TemplateArgument>& templateArguments)
     -> TemplateParameterAST* {
-  return RewritePartialSpecialization{unit}.findUndeducedParameter(
-      templateDeclaration, templateId, templateArguments);
+  if (!templateDeclaration) return nullptr;
+  TypeDeduction deduction{unit, templateDeclaration};
+  (void)deduction.deduce(templateArguments, templateArguments);
+  return deduction.undeducedParameter();
 }
 
 auto ASTRewriter::tryPartialSpecialization(

@@ -95,6 +95,15 @@ auto semanticTokenModifierMask(SemanticTokenModifiers modifier) -> long {
 }
 
 auto templateParametersOf(Symbol* symbol) -> TemplateParametersSymbol*;
+
+[[nodiscard]] auto writtenSpellingIn(Symbol* declarationScope)
+    -> TypePrintOptions {
+  return TypePrintOptions{
+      .sourceSpelling = true,
+      .declarationScope = declarationScope,
+  };
+}
+
 auto signatureLabelOf(FunctionSymbol* function) -> std::string;
 
 struct TextPosition {
@@ -462,6 +471,9 @@ class SymbolOccurrences final : public ASTVisitor {
     collectScope(templateParametersOf(symbol));
     collectScope(symbol->asScopeSymbol());
 
+    if (auto lambda = symbol_cast<LambdaSymbol>(symbol))
+      collectMember(lambda->closureType());
+
     for (auto redeclaration : redeclarationsOf(symbol))
       collectMember(redeclaration);
   }
@@ -606,7 +618,9 @@ auto hoverTextOf(Symbol* symbol) -> std::string {
                              std::is_same_v<SymbolType, ScopedEnumSymbol>) {
           return std::format("enum {}", name);
         } else if constexpr (std::is_same_v<SymbolType, TypeAliasSymbol>) {
-          return std::format("using {} = {}", name, to_string(symbol->type()));
+          return std::format(
+              "using {} = {}", name,
+              to_string(symbol->type(), "", writtenSpellingIn(symbol)));
         } else if constexpr (std::is_same_v<SymbolType, ConceptSymbol>) {
           return std::format("concept {}", name);
         } else if constexpr (std::is_same_v<SymbolType, OverloadSetSymbol>) {
@@ -620,7 +634,8 @@ auto hoverTextOf(Symbol* symbol) -> std::string {
           return label;
         } else {
           if (!symbol->type()) return name;
-          return to_string(symbol->type(), symbol->name());
+          return to_string(symbol->type(), symbol->name(),
+                           writtenSpellingIn(symbol));
         }
       },
       symbol);
@@ -980,7 +995,7 @@ struct CompletionSink {
 };
 
 auto signatureLabelOf(FunctionSymbol* function) -> std::string {
-  TypePrintOptions options;
+  auto options = writtenSpellingIn(function);
   options.omitFunctionReturnType = function->isConstructor();
   return to_string(function->type(), function->name(), options);
 }
@@ -999,11 +1014,13 @@ struct TemplateParameterLabel {
   }
 
   auto operator()(NonTypeParameterSymbol* symbol) const -> std::string {
-    return named(to_string(symbol->objectType()), symbol);
+    return named(to_string(symbol->objectType(), "", writtenSpellingIn(symbol)),
+                 symbol);
   }
 
   auto operator()(Symbol* symbol) const -> std::string {
-    return named(to_string(symbol->type()), symbol);
+    return named(to_string(symbol->type(), "", writtenSpellingIn(symbol)),
+                 symbol);
   }
 
  private:
@@ -1107,8 +1124,9 @@ struct SignatureHelpSink {
           if (!parameterSymbol) continue;
 
           auto parameterInfo = parameterList.emplace_back();
-          parameterInfo.label(
-              to_string(parameterSymbol->type(), parameterSymbol->name()));
+          parameterInfo.label(to_string(parameterSymbol->type(),
+                                        parameterSymbol->name(),
+                                        writtenSpellingIn(function)));
 
           ++parameterCount;
         }

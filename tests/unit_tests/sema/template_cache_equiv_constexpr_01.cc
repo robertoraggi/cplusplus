@@ -35,7 +35,6 @@ Box<k> c;
 // CHECK-NEXT:  function constexpr inline int three()
 // CHECK-NEXT:    parameters
 // CHECK-NEXT:    block
-// CHECK-NEXT:      variable static constexpr const char __func__[6]
 // CHECK-NEXT:  variable constexpr const int k
 // CHECK-NEXT:  variable ::Box<3> a
 // CHECK-NEXT:  variable ::Box<3> b

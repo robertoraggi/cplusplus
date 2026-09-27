@@ -88,6 +88,10 @@ class Triple {
 
   [[nodiscard]] auto isWebAssembly() const -> bool;
 
+  [[nodiscard]] auto isWasi() const -> bool;
+
+  [[nodiscard]] auto withArchName(std::string_view archName) const -> Triple;
+
   [[nodiscard]] auto osVersion() const -> std::optional<std::pair<int, int>>;
 
   [[nodiscard]] auto str() const -> std::string;

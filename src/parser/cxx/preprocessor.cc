@@ -185,6 +185,7 @@ struct SourceFile {
   }
 
   std::string fileName;
+  std::string identity;
   std::string source;
   mutable std::vector<int> lines;
   mutable unsigned lastLineOffset_ = ~0u;
@@ -444,7 +445,6 @@ struct Preprocessor::Private {
   DiagnosticsClient* diagnosticsClient_ = nullptr;
   CommentHandler* commentHandler_ = nullptr;
   LanguageKind language_ = LanguageKind::kCXX;
-  bool canResolveFiles_ = true;
   bool disableCurrentDirSearch_ = false;
   std::vector<std::string> systemIncludePaths_;
   std::vector<std::string> quoteIncludePaths_;
@@ -459,7 +459,7 @@ struct Preprocessor::Private {
   std::unordered_set<std::string> pragmaOnceProtectedFiles_;
   std::vector<std::unique_ptr<SourceFile>> sourceFiles_;
   fs::path currentPath_;
-  std::string currentFileName_;
+  mutable std::unordered_map<std::string, std::string> fileIdentities_;
   std::vector<bool> evaluating_;
   std::vector<bool> skipping_;
   std::string date_;
@@ -648,6 +648,9 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto createSourceFile(std::string fileName, std::string source)
       -> SourceFile*;
+
+  [[nodiscard]] auto fileIdentity(const std::string& fileName) const
+      -> const std::string&;
 
   [[nodiscard]] auto tokenize(const std::string_view& source, int sourceFile,
                               bool bol) -> TokVector;
@@ -1197,6 +1200,14 @@ void Preprocessor::Private::initialize() {
   adddBuiltinFunctionMacro("__has_include_next", hasInclude);
 }
 
+auto Preprocessor::Private::fileIdentity(const std::string& fileName) const
+    -> const std::string& {
+  if (auto it = fileIdentities_.find(fileName); it != fileIdentities_.end())
+    return it->second;
+  auto identity = fs::file_identity(fileName).string();
+  return fileIdentities_.emplace(fileName, std::move(identity)).first->second;
+}
+
 auto Preprocessor::Private::createSourceFile(std::string fileName,
                                              std::string source)
     -> SourceFile* {
@@ -1211,6 +1222,7 @@ auto Preprocessor::Private::createSourceFile(std::string fileName,
           std::move(fileName), std::move(source), sourceFileId));
 
   sourceFileIndex_[sourceFile->fileName] = sourceFile;
+  sourceFile->identity = fileIdentity(sourceFile->fileName);
 
   sourceFile->tokens = tokenize(sourceFile->source, sourceFileId, true);
 
@@ -2364,7 +2376,6 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
   }
 
   auto source = cursor.sourceFile;
-  currentFileName_ = source->fileName;
   currentPath_ = cursor.currentPath;
   includeDepth_ = cursor.includeDepth;
 
@@ -2502,7 +2513,6 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
       }
 
       source = cursor.sourceFile;
-      currentFileName_ = source->fileName;
       currentPath_ = cursor.currentPath;
       includeDepth_ = cursor.includeDepth;
     }
@@ -2645,7 +2655,7 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
           break;
         }
         if (hasTrailingTokens) {
-          ifndefProtectedFiles_.erase(currentFileName_);
+          ifndefProtectedFiles_.erase(source->identity);
         }
       }
       break;
@@ -2741,7 +2751,7 @@ auto Preprocessor::Private::handlePragma(std::uint32_t fileId,
     if (fileId > 0 && fileId <= sourceFiles_.size()) {
       auto sourceFile = sourceFiles_[fileId - 1].get();
       sourceFile->pragmaOnceProtected = true;
-      pragmaOnceProtectedFiles_.insert(sourceFile->fileName);
+      pragmaOnceProtectedFiles_.insert(sourceFile->identity);
     }
     return std::nullopt;
   }
@@ -3223,8 +3233,6 @@ auto Preprocessor::Private::checkHeaderProtection(const TokVector& tokens) const
 auto Preprocessor::Private::resolve(const Include& include,
                                     bool isIncludeNext) const
     -> std::optional<ResolveResult> {
-  if (!canResolveFiles_) return std::nullopt;
-
   const auto headerName = getHeaderName(include);
   const bool isQuoted = std::holds_alternative<QuoteInclude>(include);
 
@@ -3539,14 +3547,6 @@ auto Preprocessor::commentHandler() const -> CommentHandler* {
 
 void Preprocessor::setCommentHandler(CommentHandler* commentHandler) {
   d->commentHandler_ = commentHandler;
-}
-
-auto Preprocessor::canResolveFiles() const -> bool {
-  return d->canResolveFiles_;
-}
-
-void Preprocessor::setCanResolveFiles(bool canResolveFiles) {
-  d->canResolveFiles_ = canResolveFiles;
 }
 
 auto Preprocessor::currentPath() const -> std::string {
@@ -3957,14 +3957,14 @@ auto Preprocessor::snapshot() const -> PreprocessorSnapshot {
   }
 
   for (const auto& sourceFile : d->sourceFiles_) {
-    auto it = protectedFiles.find(sourceFile->fileName);
+    auto it = protectedFiles.find(sourceFile->identity);
     if (it == protectedFiles.end()) continue;
     it->second.headerProtectionLevel = sourceFile->headerProtectionLevel;
     it->second.isSystemHeader = sourceFile->isSystemHeader;
   }
 
   for (const auto& [fileName, isSystemHeader] : d->includedFiles_) {
-    auto it = protectedFiles.find(fileName);
+    auto it = protectedFiles.find(d->fileIdentity(fileName));
     if (it == protectedFiles.end()) continue;
     if (isSystemHeader) it->second.isSystemHeader = true;
   }
@@ -4187,9 +4187,10 @@ void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,
   auto fileName = resolvedFileName.value();
 
   auto resume = [=, this]() -> std::optional<PreprocessingState> {
-    if (d->pragmaOnceProtectedFiles_.contains(fileName)) return std::nullopt;
+    const auto& identity = d->fileIdentity(fileName);
+    if (d->pragmaOnceProtectedFiles_.contains(identity)) return std::nullopt;
 
-    if (auto it = d->ifndefProtectedFiles_.find(fileName);
+    if (auto it = d->ifndefProtectedFiles_.find(identity);
         it != d->ifndefProtectedFiles_.end() &&
         d->macros_.contains(it->second)) {
       return std::nullopt;
@@ -4249,7 +4250,7 @@ void PendingFileContent::setContent(std::optional<std::string> content) const {
 
   if (!sourceFile->headerGuardName.empty()) {
     sourceFile->headerProtectionLevel = int(d->evaluating_.size());
-    d->ifndefProtectedFiles_.insert_or_assign(sourceFile->fileName,
+    d->ifndefProtectedFiles_.insert_or_assign(sourceFile->identity,
                                               sourceFile->headerGuardName);
   }
 

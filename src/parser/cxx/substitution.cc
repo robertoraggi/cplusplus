@@ -73,6 +73,22 @@ struct HasDefaultTemplateArgument {
     return parameter->equalLoc && parameter->typeId;
   }
 };
+
+[[nodiscard]] auto substitutionScope(TemplateDeclarationAST* templateDecl)
+    -> ScopeSymbol* {
+  if (!templateDecl->symbol) return nullptr;
+  return templateDecl->symbol->parent();
+}
+
+[[nodiscard]] auto declaredTypeId(Arena* arena,
+                                  ParameterDeclarationAST* declaration)
+    -> TypeIdAST* {
+  auto typeId = TypeIdAST::create(arena);
+  typeId->typeSpecifierList = declaration->typeSpecifierList;
+  typeId->declarator = declaration->declarator;
+  typeId->type = declaration->type;
+  return typeId;
+}
 }  // namespace
 
 auto isPackParameter(TemplateParameterAST* parameter) -> bool {
@@ -84,6 +100,88 @@ auto isPackExpansion(TypeIdAST* typeId) -> bool {
   if (!typeId || !typeId->declarator) return false;
   return ast_cast<ParameterPackAST>(typeId->declarator->coreDeclarator) !=
          nullptr;
+}
+
+namespace {
+
+[[nodiscard]] auto injectedTypeArgument(Arena* arena, Symbol* parameter)
+    -> TemplateArgumentAST* {
+  auto specifier = NamedTypeSpecifierAST::create(arena);
+  specifier->unqualifiedId =
+      NameIdAST::create(arena, name_cast<Identifier>(parameter->name()));
+  specifier->symbol = parameter;
+
+  auto typeId = TypeIdAST::create(arena);
+  typeId->typeSpecifierList = make_list_node<SpecifierAST>(arena, specifier);
+  typeId->type = parameter->type();
+
+  if (is_template_parameter_pack(parameter)) {
+    typeId->declarator = DeclaratorAST::create(arena);
+    typeId->declarator->coreDeclarator = ParameterPackAST::create(arena);
+  }
+
+  return TypeTemplateArgumentAST::create(arena, typeId);
+}
+
+[[nodiscard]] auto injectedValueArgument(Arena* arena,
+                                         NonTypeParameterSymbol* parameter)
+    -> TemplateArgumentAST* {
+  auto id = IdExpressionAST::create(arena);
+  id->unqualifiedId =
+      NameIdAST::create(arena, name_cast<Identifier>(parameter->name()));
+  id->symbol = parameter;
+  id->type = parameter->type();
+  id->valueCategory = ValueCategory::kPrValue;
+
+  if (!parameter->isParameterPack())
+    return ExpressionTemplateArgumentAST::create(arena, id);
+
+  auto expansion = PackExpansionExpressionAST::create(arena);
+  expansion->expression = id;
+  expansion->type = id->type;
+  expansion->valueCategory = id->valueCategory;
+  return ExpressionTemplateArgumentAST::create(arena, expansion);
+}
+
+[[nodiscard]] auto injectedArgument(Arena* arena, Symbol* parameter)
+    -> TemplateArgumentAST* {
+  if (auto value = symbol_cast<NonTypeParameterSymbol>(parameter))
+    return injectedValueArgument(arena, value);
+  return injectedTypeArgument(arena, parameter);
+}
+
+}  // namespace
+
+auto injected_template_argument_list(TranslationUnit* unit,
+                                     List<TemplateParameterAST*>* parameters)
+    -> List<TemplateArgumentAST*>* {
+  List<TemplateArgumentAST*>* arguments = nullptr;
+  auto out = &arguments;
+  for (auto parameter : ListView{parameters}) {
+    if (!parameter->symbol) return nullptr;
+    *out = make_list_node(unit->arena(),
+                          injectedArgument(unit->arena(), parameter->symbol));
+    out = &(*out)->next;
+  }
+  return arguments;
+}
+
+auto class_template_arguments(TranslationUnit* unit, ClassSymbol* classSymbol)
+    -> std::vector<TemplateArgument> {
+  if (!classSymbol) return {};
+
+  if (classSymbol->isSpecialization()) {
+    auto arguments = classSymbol->templateArguments();
+    return std::vector<TemplateArgument>{arguments.begin(), arguments.end()};
+  }
+
+  auto declaration = classSymbol->templateDeclaration();
+  if (!declaration) return {};
+
+  auto arguments = Substitution::writtenTemplateArguments(
+      unit, injected_template_argument_list(
+                unit, declaration->templateParameterList));
+  return arguments.value_or(std::vector<TemplateArgument>{});
 }
 
 auto hasWrittenDefaultTemplateArgument(TemplateParameterAST* parameter)
@@ -110,6 +208,134 @@ void recordDefaultTemplateArgument(TemplateParameterAST* parameter,
 auto hasDefaultTemplateArgument(TemplateParameterAST* parameter) -> bool {
   if (!parameter) return false;
   return default_template_argument(parameter->symbol) != nullptr;
+}
+
+namespace {
+
+[[nodiscard]] auto declaratorIsEmptyOrPackExpansion(TypeIdAST* typeId) -> bool {
+  auto declarator = typeId->declarator;
+  if (!declarator) return true;
+  if (declarator->ptrOpList || declarator->declaratorChunkList) return false;
+  return !declarator->coreDeclarator || isPackExpansion(typeId);
+}
+
+[[nodiscard]] auto writtenTemplateArgumentName(TemplateArgumentAST* argument)
+    -> NamedTypeSpecifierAST* {
+  auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
+  if (!typeArgument || !typeArgument->typeId) return nullptr;
+  auto typeId = typeArgument->typeId;
+  if (!declaratorIsEmptyOrPackExpansion(typeId)) return nullptr;
+  auto specifiers = typeId->typeSpecifierList;
+  if (!specifiers || specifiers->next) return nullptr;
+  auto named = ast_cast<NamedTypeSpecifierAST>(specifiers->value);
+  if (!named) return nullptr;
+  if (ast_cast<SimpleTemplateIdAST>(named->unqualifiedId)) return nullptr;
+  return named;
+}
+
+struct DenotesTemplate {
+  [[nodiscard]] auto operator()(ClassSymbol* symbol) const -> bool {
+    return symbol->templateParameters() || symbol->isSpecialization();
+  }
+
+  [[nodiscard]] auto operator()(InjectedClassNameSymbol* symbol) const -> bool {
+    return symbol->classSymbol() && (*this)(symbol->classSymbol());
+  }
+
+  [[nodiscard]] auto operator()(TypeAliasSymbol* symbol) const -> bool {
+    return symbol->templateParameters() != nullptr;
+  }
+
+  [[nodiscard]] auto operator()(TemplateTypeParameterSymbol*) const -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(ParameterPackSymbol*) const -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(Symbol*) const -> bool { return false; }
+};
+
+struct DenotesTemplateNotType {
+  [[nodiscard]] auto operator()(ClassSymbol* symbol) const -> bool {
+    return symbol->templateParameters() && !symbol->isSpecialization();
+  }
+
+  [[nodiscard]] auto operator()(TypeAliasSymbol* symbol) const -> bool {
+    return symbol->templateParameters() != nullptr;
+  }
+
+  [[nodiscard]] auto operator()(TemplateTypeParameterSymbol*) const -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(Symbol*) const -> bool { return false; }
+};
+
+struct DenotesValue {
+  [[nodiscard]] auto operator()(VariableSymbol*) const -> bool { return true; }
+
+  [[nodiscard]] auto operator()(NonTypeParameterSymbol*) const -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(ParameterPackSymbol*) const -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(Symbol*) const -> bool { return false; }
+};
+
+}  // namespace
+
+auto denotesTemplateName(TemplateArgumentAST* argument) -> bool {
+  auto named = writtenTemplateArgumentName(argument);
+  if (!named || !named->symbol) return false;
+  return visit(DenotesTemplateNotType{}, named->symbol);
+}
+
+namespace {
+
+struct MatchesTemplateParameterKind {
+  TemplateArgumentAST* argument;
+
+  [[nodiscard]] auto isTypeId() const -> bool {
+    auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
+    if (!typeArgument || !typeArgument->typeId) return false;
+    return !denotesTemplateName(argument);
+  }
+
+  [[nodiscard]] auto operator()(TypenameTypeParameterAST*) const -> bool {
+    return isTypeId();
+  }
+
+  [[nodiscard]] auto operator()(ConstraintTypeParameterAST*) const -> bool {
+    return isTypeId();
+  }
+
+  [[nodiscard]] auto operator()(TemplateTypeParameterAST*) const -> bool {
+    auto named = writtenTemplateArgumentName(argument);
+    if (!named) return false;
+    if (!named->symbol) return true;
+    return visit(DenotesTemplate{}, named->symbol);
+  }
+
+  [[nodiscard]] auto operator()(NonTypeTemplateParameterAST*) const -> bool {
+    if (auto expression = ast_cast<ExpressionTemplateArgumentAST>(argument))
+      return expression->expression != nullptr;
+    auto named = writtenTemplateArgumentName(argument);
+    if (!named || !named->symbol) return false;
+    return visit(DenotesValue{}, named->symbol);
+  }
+};
+
+}  // namespace
+
+auto matchesTemplateParameterKind(TemplateParameterAST* parameter,
+                                  TemplateArgumentAST* argument) -> bool {
+  if (!parameter || !argument) return false;
+  return visit(MatchesTemplateParameterKind{argument}, parameter);
 }
 
 auto TemplateArguments::isPackExpansion(TemplateArgumentAST* argument) -> bool {
@@ -249,7 +475,7 @@ auto TemplateArguments::defaultArgument(
       if (argumentsSoFar.empty() || !templateDecl) return nullptr;
       expression = ASTRewriter::substituteDefaultExpression(
           unit_, expression, argumentsSoFar, templateDecl->depth,
-          templateDecl->symbol);
+          substitutionScope(templateDecl));
       if (!expression) return nullptr;
     }
     auto argument = ExpressionTemplateArgumentAST::create(arena);
@@ -272,11 +498,11 @@ auto TemplateArguments::defaultArgument(
 
   if (!typeId) return nullptr;
 
-  if (!typeId->type || isDependent(unit_, typeId->type)) {
+  if (!typeId->type || isDependent(unit_, typeId)) {
     if (argumentsSoFar.empty() || !templateDecl) return nullptr;
     auto substituted = ASTRewriter::substituteDefaultTypeId(
         unit_, typeId, argumentsSoFar, templateDecl->depth,
-        templateDecl->symbol);
+        substitutionScope(templateDecl));
     if (!substituted || !substituted->type ||
         type_cast<UnresolvedNameType>(substituted->type)) {
       return nullptr;
@@ -352,9 +578,13 @@ struct Substitution::CollectRawTemplateArgument {
     if (!ast_cast<NameIdAST>(named->unqualifiedId)) return nullptr;
 
     auto classSymbol = symbol_cast<ClassSymbol>(named->symbol);
-    if (!classSymbol || !classSymbol->isSpecialization()) return nullptr;
-
-    return classSymbol->primaryTemplateSymbol();
+    if (auto injected = symbol_cast<InjectedClassNameSymbol>(named->symbol))
+      classSymbol = injected->classSymbol();
+    if (!classSymbol) return nullptr;
+    if (classSymbol->isSpecialization())
+      return classSymbol->primaryTemplateSymbol();
+    if (classSymbol->templateParameters()) return classSymbol;
+    return nullptr;
   }
 
   return nullptr;
@@ -395,21 +625,21 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
   }
 
   const Type* declaredType = parameter->declaration->type;
+  auto typeId = declaredTypeId(subst.unit_->arena(), parameter->declaration);
 
-  if (declaredType && isDependent(subst.unit_, declaredType) &&
+  if (declaredType && isDependent(subst.unit_, typeId) &&
       !subst.templateArguments_.empty() && subst.templateDecl_) {
-    auto typeId = TypeIdAST::create(subst.unit_->arena());
-    typeId->typeSpecifierList = parameter->declaration->typeSpecifierList;
-    typeId->declarator = parameter->declaration->declarator;
-
     auto substituted = ASTRewriter::substituteDefaultTypeId(
         subst.unit_, typeId, subst.templateArguments_,
-        subst.templateDecl_->depth, subst.templateDecl_->symbol);
+        subst.templateDecl_->depth, substitutionScope(subst.templateDecl_));
 
-    if (!substituted || !substituted->type ||
-        type_cast<UnresolvedNameType>(substituted->type)) {
+    if (!substituted || !substituted->type) {
+      subst.maybeReportDefaultArgumentSubstitutionFailure(
+          parameter->firstSourceLocation());
       return std::nullopt;
     }
+
+    if (type_cast<UnresolvedNameType>(substituted->type)) return std::nullopt;
 
     declaredType = substituted->type;
   }
@@ -418,10 +648,14 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
 
   if (isDependent(subst.unit_, expression) &&
       !subst.templateArguments_.empty() && subst.templateDecl_) {
-    if (auto substituted = ASTRewriter::substituteDefaultExpression(
-            subst.unit_, expression, subst.templateArguments_,
-            subst.templateDecl_->depth, subst.templateDecl_->symbol)) {
-      expression = substituted;
+    expression = ASTRewriter::substituteDefaultExpression(
+        subst.unit_, expression, subst.templateArguments_,
+        subst.templateDecl_->depth, substitutionScope(subst.templateDecl_));
+
+    if (!expression) {
+      subst.maybeReportDefaultArgumentSubstitutionFailure(
+          parameter->firstSourceLocation());
+      return std::nullopt;
     }
   }
 
@@ -467,12 +701,16 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
 
   auto typeId = parameter->typeId;
 
-  if ((!typeId->type || isDependent(subst.unit_, typeId->type)) &&
+  if ((!typeId->type || isDependent(subst.unit_, typeId)) &&
       !subst.templateArguments_.empty() && subst.templateDecl_) {
     auto substituted = ASTRewriter::substituteDefaultTypeId(
         subst.unit_, typeId, subst.templateArguments_,
-        subst.templateDecl_->depth, subst.templateDecl_->symbol);
-    if (!substituted || !substituted->type) return std::nullopt;
+        subst.templateDecl_->depth, substitutionScope(subst.templateDecl_));
+    if (!substituted || !substituted->type) {
+      subst.maybeReportDefaultArgumentSubstitutionFailure(
+          parameter->firstSourceLocation());
+      return std::nullopt;
+    }
     typeId = substituted;
   }
 
@@ -496,12 +734,16 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
 
   auto typeId = parameter->typeId;
 
-  if (isDependent(subst.unit_, typeId->type) &&
-      !subst.templateArguments_.empty() && subst.templateDecl_) {
+  if (isDependent(subst.unit_, typeId) && !subst.templateArguments_.empty() &&
+      subst.templateDecl_) {
     auto substituted = ASTRewriter::substituteDefaultTypeId(
         subst.unit_, typeId, subst.templateArguments_,
-        subst.templateDecl_->depth, subst.templateDecl_->symbol);
-    if (!substituted || !substituted->type) return std::nullopt;
+        subst.templateDecl_->depth, substitutionScope(subst.templateDecl_));
+    if (!substituted || !substituted->type) {
+      subst.maybeReportDefaultArgumentSubstitutionFailure(
+          parameter->firstSourceLocation());
+      return std::nullopt;
+    }
     typeId = substituted;
   }
 
@@ -532,13 +774,7 @@ auto Substitution::CollectRawTemplateArgument::operator()(
 
   if (!value.has_value()) {
     if (isDependent) {
-      auto expandedPattern = expression;
-      if (auto packExpansion =
-              ast_cast<PackExpansionExpressionAST>(expandedPattern)) {
-        expandedPattern = packExpansion->expression;
-      }
-
-      if (auto idExpr = ast_cast<IdExpressionAST>(expandedPattern)) {
+      if (auto idExpr = ast_cast<IdExpressionAST>(expression)) {
         if (auto nttp = symbol_cast<NonTypeParameterSymbol>(idExpr->symbol)) {
           return nttp;
         }
@@ -552,6 +788,13 @@ auto Substitution::CollectRawTemplateArgument::operator()(
       if (expression->type) {
         templateArgument->setType(expression->type);
       }
+      return templateArgument;
+    }
+
+    if (subst.valueDependsOnParameterType(expression)) {
+      auto templateArgument = control->newVariableSymbol(nullptr, {});
+      templateArgument->setInitializer(expression);
+      templateArgument->setType(expression->type);
       return templateArgument;
     }
 
@@ -610,7 +853,12 @@ auto Substitution::CollectRawTemplateArgument::operator()(
     }
     if (auto templateParameter =
             symbol_cast<TemplateTypeParameterSymbol>(named->symbol)) {
-      return templateParameter;
+      if (!cxx::isPackExpansion(ast->typeId)) return templateParameter;
+      auto templateArgument = control->newTypeAliasSymbol(nullptr, {});
+      templateArgument->setType(
+          control->getPackExpansionType(templateParameter->type()));
+      templateArgument->setExpansionTypeId(ast->typeId);
+      return templateArgument;
     }
     break;
   }
@@ -624,8 +872,12 @@ auto Substitution::CollectRawTemplateArgument::operator()(
     return std::nullopt;
   }
 
+  auto type = ast->typeId->type;
+  if (cxx::isPackExpansion(ast->typeId))
+    type = control->getPackExpansionType(type);
+
   auto templateArgument = control->newTypeAliasSymbol(nullptr, {});
-  templateArgument->setType(ast->typeId->type);
+  templateArgument->setType(type);
   return templateArgument;
 }
 
@@ -639,6 +891,31 @@ Substitution::Substitution(TranslationUnit* unit,
       argsComplete_(argsComplete),
       fillDefaults_(fillDefaults) {
   doMake();
+}
+
+Substitution::Substitution(TranslationUnit* unit,
+                           List<TemplateArgumentAST*>* templateArgumentList)
+    : unit_(unit), templateArgumentList_(templateArgumentList) {}
+
+auto Substitution::writtenTemplateArguments(
+    TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList)
+    -> std::optional<std::vector<TemplateArgument>> {
+  Substitution subst{unit, templateArgumentList};
+  if (!subst.collectWrittenArguments()) return std::nullopt;
+  return std::vector<TemplateArgument>(subst.collectedArguments_.begin(),
+                                       subst.collectedArguments_.end());
+}
+
+auto Substitution::collectWrittenArguments() -> bool {
+  for (auto argument : ListView{templateArgumentList_}) {
+    auto arg = visit(CollectRawTemplateArgument{*this}, argument);
+    if (!arg.has_value()) return false;
+    collectedArguments_.push_back(*arg);
+    collectedNodes_.push_back(argument);
+    collectedIsPackExpansion_.push_back(
+        TemplateArguments::isPackExpansion(argument));
+  }
+  return true;
 }
 
 auto Substitution::make(TranslationUnit* unit,
@@ -666,17 +943,7 @@ void Substitution::doMake() {
 
   auto control = unit_->control();
 
-  std::vector<Symbol*> collectedArguments;
-  std::vector<TemplateArgumentAST*> collectedNodes;
-  std::vector<bool> collectedIsPackExpansion;
-  for (auto argument : ListView{templateArgumentList_}) {
-    auto arg = visit(CollectRawTemplateArgument{*this}, argument);
-    if (!arg.has_value()) return;
-    collectedArguments.push_back(*arg);
-    collectedNodes.push_back(argument);
-    collectedIsPackExpansion.push_back(
-        TemplateArguments::isPackExpansion(argument));
-  }
+  if (!collectWrittenArguments()) return;
 
   std::vector<TemplateParameterAST*> parameters;
   for (auto parameter : ListView{templateDecl_->templateParameterList}) {
@@ -684,7 +951,7 @@ void Substitution::doMake() {
   }
 
   const int paramCount = static_cast<int>(parameters.size());
-  const int argCount = static_cast<int>(collectedArguments.size());
+  const int argCount = static_cast<int>(collectedArguments_.size());
 
   int packIndex = -1;
   int packSize = 0;
@@ -718,15 +985,7 @@ void Substitution::doMake() {
 
   auto deducedPackAt = [&](int index) -> ParameterPackSymbol* {
     if (index >= argCount) return nullptr;
-    return symbol_cast<ParameterPackSymbol>(collectedArguments[index]);
-  };
-
-  auto argumentAt = [&](TemplateParameterAST* parameter, int index) -> Symbol* {
-    auto symbol = collectedArguments[index];
-    if (!ast_cast<TemplateTypeParameterAST>(parameter)) return symbol;
-    if (auto templateName = injectedClassNameAsTemplate(collectedNodes[index]))
-      return templateName;
-    return symbol;
+    return symbol_cast<ParameterPackSymbol>(collectedArguments_[index]);
   };
 
   for (int i = 0; i < paramCount; ++i) {
@@ -750,7 +1009,8 @@ void Substitution::doMake() {
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
 
       for (int k = 0; k < packSize && argumentIndex < argCount; ++k) {
-        auto symbol = argumentAt(parameter, argumentIndex++);
+        if (!checkArgumentKind(parameter, argumentIndex)) return;
+        auto symbol = argumentFor(parameter, argumentIndex++);
         symbol = normalizeNonTypeArgument(nonTypeParam, symbol);
         pack->addElement(symbol);
       }
@@ -760,8 +1020,10 @@ void Substitution::doMake() {
     }
 
     if (argumentIndex < argCount) {
-      if (collectedIsPackExpansion[argumentIndex]) argumentCountIsKnown = false;
-      auto symbol = argumentAt(parameter, argumentIndex++);
+      if (collectedIsPackExpansion_[argumentIndex])
+        argumentCountIsKnown = false;
+      if (!checkArgumentKind(parameter, argumentIndex)) return;
+      auto symbol = argumentFor(parameter, argumentIndex++);
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
       if (nonTypeParam && !checkNonTypeParameterType(nonTypeParam)) return;
       symbol = normalizeNonTypeArgument(nonTypeParam, symbol);
@@ -781,8 +1043,52 @@ void Substitution::doMake() {
   }
 }
 
+auto Substitution::argumentFor(TemplateParameterAST* parameter, int index) const
+    -> Symbol* {
+  auto symbol = collectedArguments_[index];
+  if (ast_cast<TemplateTypeParameterAST>(parameter)) {
+    if (auto templateName = injectedClassNameAsTemplate(collectedNodes_[index]))
+      return templateName;
+    return symbol;
+  }
+  if (auto classTemplate =
+          symbol_cast<ClassSymbol>(template_name_symbol(symbol)))
+    return injectedClassNameAsType(classTemplate);
+  return symbol;
+}
+
+auto Substitution::checkArgumentKind(TemplateParameterAST* parameter, int index)
+    -> bool {
+  auto argument = collectedNodes_[index];
+  if (matchesTemplateParameterKind(parameter, argument)) return true;
+  error(argument->firstSourceLocation(),
+        "template argument does not match the form of its template "
+        "parameter");
+  return false;
+}
+
+auto Substitution::injectedClassNameAsType(ClassSymbol* classTemplate) const
+    -> Symbol* {
+  auto argument = unit_->control()->newTypeAliasSymbol(nullptr, {});
+  argument->setType(classTemplate->type());
+  return argument;
+}
+
 void Substitution::maybeReportInvalidConstantExpression(SourceLocation loc) {
   error(loc, "template argument is not a constant expression");
+}
+
+void Substitution::maybeReportDefaultArgumentSubstitutionFailure(
+    SourceLocation loc) {
+  if (hasDependentArguments()) return;
+  error(loc, "substitution failure in default template argument");
+}
+
+auto Substitution::hasDependentArguments() const -> bool {
+  return std::ranges::any_of(
+      templateArguments_, [&](const TemplateArgument& argument) {
+        return isDependentTemplateArgument(unit_, argument);
+      });
 }
 
 void Substitution::maybeReportMalformedTemplateArgument(SourceLocation loc) {
@@ -810,21 +1116,16 @@ auto Substitution::checkNonTypeParameterType(
     NonTypeTemplateParameterAST* parameter) -> bool {
   if (!parameter->declaration) return true;
 
-  const Type* declaredType = parameter->declaration->type;
-  if (!declaredType) return true;
-  if (!isDependent(unit_, declaredType)) return true;
+  if (!parameter->declaration->type) return true;
+  auto typeId = declaredTypeId(unit_->arena(), parameter->declaration);
+  if (!isDependent(unit_, typeId)) return true;
   if (templateArguments_.empty() || !templateDecl_) return true;
-
-  auto typeId = TypeIdAST::create(unit_->arena());
-  typeId->typeSpecifierList = parameter->declaration->typeSpecifierList;
-  typeId->declarator = parameter->declaration->declarator;
 
   auto substituted = ASTRewriter::substituteDefaultTypeId(
       unit_, typeId, templateArguments_, templateDecl_->depth,
-      templateDecl_->symbol);
+      substitutionScope(templateDecl_));
 
-  if (!substituted || !substituted->type ||
-      type_cast<UnresolvedNameType>(substituted->type)) {
+  if (!substituted || !substituted->type) {
     error(parameter->firstSourceLocation(),
           "substitution failure in the type of a non-type template "
           "parameter");
@@ -869,6 +1170,7 @@ auto Substitution::normalizeNonTypeArgument(
       !type_cast<TemplateTypeParameterType>(targetType)) {
     if (parameter && parameter->declaration && parameter->declaration->type) {
       const Type* declaredType = parameter->declaration->type;
+      auto typeId = declaredTypeId(unit->arena(), parameter->declaration);
       if (containsPlaceholderType(declaredType)) {
         auto checker = TypeChecker{unit};
         if (auto initializer = variableArgument->initializer()) {
@@ -876,16 +1178,12 @@ auto Substitution::normalizeNonTypeArgument(
         } else {
           targetType = checker.deduceAutoType(declaredType, targetType);
         }
-      } else if (!isDependent(unit, declaredType)) {
+      } else if (!isDependent(unit, typeId)) {
         targetType = declaredType;
       } else if (templateDecl_) {
-        auto typeId = TypeIdAST::create(unit->arena());
-        typeId->typeSpecifierList = parameter->declaration->typeSpecifierList;
-        typeId->declarator = parameter->declaration->declarator;
-
         auto substituted = ASTRewriter::substituteDefaultTypeId(
             unit, typeId, templateArguments_, templateDecl_->depth,
-            templateDecl_->symbol);
+            substitutionScope(templateDecl_));
 
         if (substituted && substituted->type &&
             !type_cast<UnresolvedNameType>(substituted->type) &&
@@ -900,18 +1198,108 @@ auto Substitution::normalizeNonTypeArgument(
 
   convertNonTypeArgument(normalizedArgument, targetType);
 
+  if (auto value = normalizedArgument->constValue();
+      value && !isConstexprRepresentable(*value)) {
+    maybeReportInvalidConstantExpression(
+        normalizedArgument->initializer()->firstSourceLocation());
+  }
+
+  if (lacksConvertedValue(normalizedArgument)) {
+    maybeReportInvalidConstantExpression(
+        normalizedArgument->initializer()->firstSourceLocation());
+  }
+
   return normalizedArgument;
+}
+
+auto Substitution::valueDependsOnParameterType(ExpressionAST* expression) const
+    -> bool {
+  if (!expression->type) return false;
+  if (is_glvalue(expression)) return true;
+  return unit_->typeTraits().is_class(expression->type);
+}
+
+namespace {
+
+[[nodiscard]] auto designatesObject(Symbol* referent) -> bool {
+  if (symbol_cast<VariableSymbol>(referent)) return true;
+  auto field = symbol_cast<FieldSymbol>(referent);
+  return field && field->isStatic();
+}
+
+}  // namespace
+
+auto Substitution::isConstexprRepresentable(const ConstValue& value) const
+    -> bool {
+  if (auto address = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
+    if (!*address) return false;
+    if ((*address)->stringLiteral() || (*address)->typeInfoFor()) return false;
+    auto referent = (*address)->symbol();
+    if (!referent || (*address)->owner()) return true;
+    if (!designatesObject(referent)) return true;
+    return has_static_storage_duration(referent);
+  }
+  if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
+    if (!*object) return false;
+    return std::ranges::all_of((*object)->members(), [&](const auto& member) {
+      return isConstexprRepresentable(member.value);
+    });
+  }
+  if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+    if (!*list) return false;
+    return std::ranges::all_of((*list)->elements, [&](const auto& element) {
+      return isConstexprRepresentable(std::get<0>(element));
+    });
+  }
+  return true;
+}
+
+auto Substitution::lacksConvertedValue(VariableSymbol* argument) const -> bool {
+  if (argument->constValue()) return false;
+  auto initializer = argument->initializer();
+  if (!initializer || !valueDependsOnParameterType(initializer)) return false;
+  return !isDependent(unit_, initializer);
+}
+
+void Substitution::bindReferenceArgument(VariableSymbol* argument,
+                                         const Type* targetType) {
+  argument->setConstValue(std::nullopt);
+
+  auto expression = argument->initializer();
+  if (!is_glvalue(expression)) return;
+
+  auto traits = unit_->typeTraits();
+  if (!traits.is_reference_compatible(traits.remove_reference(targetType),
+                                      expression->type))
+    return;
+
+  auto converted = expression;
+  if (!TypeChecker{unit_}.implicit_conversion(converted, targetType)) return;
+
+  auto address = ASTInterpreter{unit_}.evaluateAddress(converted);
+  if (!address.has_value()) return;
+
+  argument->setInitializer(converted);
+  argument->setConstexpr(true);
+  argument->setConstValue(std::move(address));
 }
 
 void Substitution::convertNonTypeArgument(VariableSymbol* argument,
                                           const Type* targetType) {
   if (!targetType) return;
-  if (!unit_->typeTraits().is_class(targetType)) return;
+
+  auto traits = unit_->typeTraits();
+  if (isDependent(unit_, targetType)) return;
 
   auto expression = argument->initializer();
   if (!expression || !expression->type) return;
+  if (isDependent(unit_, expression)) return;
 
-  auto traits = unit_->typeTraits();
+  if (traits.is_reference(targetType)) {
+    bindReferenceArgument(argument, targetType);
+    return;
+  }
+
   if (traits.is_same(traits.remove_cv(expression->type),
                      traits.remove_cv(targetType)))
     return;

@@ -957,6 +957,9 @@ void ASTVisitor::visit(ClassSpecifierAST* ast) {
   for (auto node : ListView{ast->declarationList}) {
     accept(node);
   }
+  for (auto node : ListView{ast->trailingAttributeList}) {
+    accept(node);
+  }
 }
 
 void ASTVisitor::visit(TypenameSpecifierAST* ast) {
@@ -993,7 +996,13 @@ void ASTVisitor::visit(PtrToMemberOperatorAST* ast) {
 
 void ASTVisitor::visit(BitfieldDeclaratorAST* ast) {
   accept(ast->unqualifiedId);
+  for (auto node : ListView{ast->attributeList}) {
+    accept(node);
+  }
   accept(ast->sizeExpression);
+  for (auto node : ListView{ast->trailingAttributeList}) {
+    accept(node);
+  }
 }
 
 void ASTVisitor::visit(ParameterPackAST* ast) { accept(ast->coreDeclarator); }
@@ -1115,10 +1124,7 @@ void ASTVisitor::visit(CompoundRequirementAST* ast) {
   accept(ast->typeConstraint);
 }
 
-void ASTVisitor::visit(TypeRequirementAST* ast) {
-  accept(ast->nestedNameSpecifier);
-  accept(ast->unqualifiedId);
-}
+void ASTVisitor::visit(TypeRequirementAST* ast) { accept(ast->typeId); }
 
 void ASTVisitor::visit(NestedRequirementAST* ast) { accept(ast->expression); }
 

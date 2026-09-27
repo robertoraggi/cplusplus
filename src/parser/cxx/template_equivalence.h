@@ -86,6 +86,20 @@ class TemplateEquivalence {
       -> TemplateDeclarationAST*;
 
  private:
+  struct SameExpression;
+  struct SameUnqualifiedId;
+  struct SameRequirement;
+
+  [[nodiscard]] auto same(List<ExpressionAST*>* a,
+                          List<ExpressionAST*>* b) const -> bool;
+  [[nodiscard]] auto same(IdExpressionAST* a, IdExpressionAST* b) const -> bool;
+  [[nodiscard]] auto same(RequiresExpressionAST* a,
+                          RequiresExpressionAST* b) const -> bool;
+  [[nodiscard]] auto same(TypeConstraintAST* a, TypeConstraintAST* b) const
+      -> bool;
+  [[nodiscard]] auto sameCallee(CallExpressionAST* a,
+                                CallExpressionAST* b) const -> bool;
+  [[nodiscard]] auto sameEntity(Symbol* a, Symbol* b) const -> bool;
   [[nodiscard]] auto same(NamedTypeSpecifierAST* a,
                           NamedTypeSpecifierAST* b) const -> bool;
   [[nodiscard]] auto same(TypenameSpecifierAST* a,
@@ -115,6 +129,8 @@ class TemplateEquivalence {
   [[nodiscard]] auto walkArguments(List<TemplateArgumentAST*>* a,
                                    List<TemplateArgumentAST*>* b,
                                    ArgumentMatch match) const -> bool;
+
+  [[nodiscard]] auto sameQualifyingEntity(Symbol* a, Symbol* b) const -> bool;
 
   TranslationUnit* unit_ = nullptr;
   ParameterCorrespondence correspondence_;

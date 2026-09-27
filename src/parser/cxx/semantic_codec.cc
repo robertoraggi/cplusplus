@@ -57,7 +57,6 @@ auto SemanticEncoder::operator()(const SemanticArchiveRoots& roots,
   session.varU32(static_cast<std::uint32_t>(symbolRef(roots.globalScope)));
   session.varU32(static_cast<std::uint32_t>(astRef(roots.ast)));
   session.varI32(roots.anonymousIdCount);
-  session.varI32(roots.closureNameCount);
   session.varU32(roots.prefixTokenCount);
 
   session.varU32(
@@ -80,6 +79,9 @@ auto SemanticEncoder::operator()(const SemanticArchiveRoots& roots,
     session.varU64(key);
     session.varU32(static_cast<std::uint32_t>(stringRef(text)));
   }
+
+  session.varU32(static_cast<std::uint32_t>(typeRef(roots.alignValType)));
+  session.varU32(static_cast<std::uint32_t>(typeRef(roots.nothrowType)));
 
   drain();
   resolveLocations();
@@ -281,6 +283,18 @@ void SemanticEncoder::writeType(ByteWriter& out, const cxx::Type* type) {
     case cxx::TypeKind::kTemplateTypeParameter:
       writeTypeTemplateTypeParameterType(
           out, static_cast<const cxx::TemplateTypeParameterType*>(type));
+      break;
+    case cxx::TypeKind::kTemplateTypeParameterSpecialization:
+      writeTypeTemplateTypeParameterSpecializationType(
+          out, static_cast<const cxx::TemplateTypeParameterSpecializationType*>(
+                   type));
+      break;
+    case cxx::TypeKind::kPackExpansion:
+      writeTypePackExpansionType(
+          out, static_cast<const cxx::PackExpansionType*>(type));
+      break;
+    case cxx::TypeKind::kDecltype:
+      writeTypeDecltypeType(out, static_cast<const cxx::DecltypeType*>(type));
       break;
     case cxx::TypeKind::kUnresolvedName:
       writeTypeUnresolvedNameType(
@@ -1734,6 +1748,7 @@ void SemanticEncoder::writeTypeFunctionType(
   out.varU32(static_cast<std::uint32_t>(self->cvQualifiers()));
   // refQualifier
   out.varU32(static_cast<std::uint32_t>(self->refQualifier()));
+  // exceptionSpecification
   out.u8(static_cast<std::uint8_t>(self->exceptionSpecification().index()));
   switch (self->exceptionSpecification().index()) {
     case 0: {
@@ -1815,6 +1830,33 @@ void SemanticEncoder::writeTypeTemplateTypeParameterType(
   for (const auto& element1 : self->templateParameters()) {
     out.varU32(static_cast<std::uint32_t>(typeRef(element1)));
   }
+}
+
+void SemanticEncoder::writeTypeTemplateTypeParameterSpecializationType(
+    ByteWriter& out,
+    [[maybe_unused]] const cxx::TemplateTypeParameterSpecializationType* self) {
+  // unit
+  // templateParameter
+  out.varU32(static_cast<std::uint32_t>(typeRef(self->templateParameter())));
+  // templateArguments
+  out.varU32(
+      static_cast<std::uint32_t>(std::ranges::size(self->templateArguments())));
+  for (const auto& element1 : self->templateArguments()) {
+    writeTemplateArgument(out, element1);
+  }
+}
+
+void SemanticEncoder::writeTypePackExpansionType(
+    ByteWriter& out, [[maybe_unused]] const cxx::PackExpansionType* self) {
+  // pattern
+  out.varU32(static_cast<std::uint32_t>(typeRef(self->pattern())));
+}
+
+void SemanticEncoder::writeTypeDecltypeType(
+    ByteWriter& out, [[maybe_unused]] const cxx::DecltypeType* self) {
+  // unit
+  // expression
+  out.varU32(static_cast<std::uint32_t>(astRef(self->expression())));
 }
 
 void SemanticEncoder::writeTypeUnresolvedNameType(
@@ -1929,6 +1971,9 @@ void SemanticEncoder::writeSymbolSymbol(ByteWriter& out,
   out.varU32(static_cast<std::uint32_t>(typeRef(self->type())));
   // ::cxx::Symbol::parent_
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->parent())));
+  // ::cxx::Symbol::instantiationPattern_
+  out.varU32(
+      static_cast<std::uint32_t>(symbolRef(self->instantiationPattern())));
   // ::cxx::Symbol::abiTags_
   writeAbiTags(out, self->abiTagList());
   // ::cxx::Symbol::attributes_
@@ -2109,9 +2154,6 @@ void SemanticEncoder::writeSymbolClassSymbol(
   for (const auto& element7 : self->templateFriendships()) {
     writecxxTemplateFriendship(out, &element7);
   }
-  // ::cxx::ClassSymbol::instantiationPattern_
-  out.varU32(
-      static_cast<std::uint32_t>(symbolRef(self->instantiationPattern())));
   // ::cxx::ClassSymbol::instantiationSubstitutionArguments_
   out.varU32(static_cast<std::uint32_t>(
       std::ranges::size(self->instantiationSubstitutionArguments())));
@@ -2237,13 +2279,13 @@ void SemanticEncoder::writeSymbolFunctionSymbol(
   // ::cxx::FunctionSymbol::pendingBody_
   out.boolean(self->pendingBody() != nullptr);
   if (self->pendingBody()) {
-    writecxxPendingBodyInstantiation(out, &(*self->pendingBody()));
+    writecxxPendingInstantiation(out, &(*self->pendingBody()));
   }
   // ::cxx::FunctionSymbol::pendingExceptionSpecification_
   out.boolean(self->pendingExceptionSpecification() != nullptr);
   if (self->pendingExceptionSpecification()) {
-    writecxxPendingExceptionSpecification(
-        out, &(*self->pendingExceptionSpecification()));
+    writecxxPendingInstantiation(out,
+                                 &(*self->pendingExceptionSpecification()));
   }
   // ::cxx::FunctionSymbol::hostScope_
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->hostScope())));
@@ -2338,9 +2380,14 @@ void SemanticEncoder::writeSymbolFunctionSymbol(
   out.varU32(static_cast<std::uint32_t>(self->hasExplicitObjectParameter()));
   // ::cxx::FunctionSymbol::isNoReturn_
   out.varU32(static_cast<std::uint32_t>(self->isNoReturn()));
+  // ::cxx::FunctionSymbol::hasFriendDefaultArgument_
   out.varU32(static_cast<std::uint32_t>(self->hasFriendDefaultArgument()));
+  // ::cxx::FunctionSymbol::hasFriendDefaultTemplateArgument_
   out.varU32(
       static_cast<std::uint32_t>(self->hasFriendDefaultTemplateArgument()));
+  // ::cxx::FunctionSymbol::hasDeferredImplicitExceptionSpecification_
+  out.varU32(static_cast<std::uint32_t>(
+      self->hasDeferredImplicitExceptionSpecification()));
 }
 
 void SemanticEncoder::writeSymbolTypeAliasSymbol(
@@ -2448,6 +2495,8 @@ void SemanticEncoder::writeSymbolVariableSymbol(
   out.varU32(static_cast<std::uint32_t>(self->isConstinit()));
   // ::cxx::VariableSymbol::isInline_
   out.varU32(static_cast<std::uint32_t>(self->isInline()));
+  // ::cxx::VariableSymbol::isFunctionLocalPredefined_
+  out.varU32(static_cast<std::uint32_t>(self->isFunctionLocalPredefined()));
 }
 
 void SemanticEncoder::writeSymbolFieldSymbol(
@@ -2458,8 +2507,7 @@ void SemanticEncoder::writeSymbolFieldSymbol(
   // ::cxx::FieldSymbol::pendingInitializer_
   out.boolean(self->pendingInitializer() != nullptr);
   if (self->pendingInitializer()) {
-    writecxxPendingFieldInitializerInstantiation(
-        out, &(*self->pendingInitializer()));
+    writecxxPendingInstantiation(out, &(*self->pendingInitializer()));
   }
   // ::cxx::FieldSymbol::constValue_
   out.boolean(self->constValue().has_value());
@@ -2488,6 +2536,8 @@ void SemanticEncoder::writeSymbolFieldSymbol(
   out.varI32(static_cast<std::int32_t>(self->localOffset()));
   // ::cxx::FieldSymbol::alignment_
   out.varI32(static_cast<std::int32_t>(self->alignment()));
+  // ::cxx::FieldSymbol::explicitAlignment_
+  out.varI32(static_cast<std::int32_t>(self->explicitAlignment()));
   // ::cxx::FieldSymbol::bitFieldOffset_
   out.varI32(static_cast<std::int32_t>(self->bitFieldOffset()));
   // ::cxx::FieldSymbol::bitFieldWidth_
@@ -2506,8 +2556,18 @@ void SemanticEncoder::writeSymbolParameterSymbol(
   writeSymbolSymbol(out, self);
   // ::cxx::ParameterSymbol::defaultArgument_
   out.varU32(static_cast<std::uint32_t>(astRef(self->defaultArgument())));
+  // ::cxx::ParameterSymbol::pendingDefaultArgument_
+  out.boolean(self->pendingDefaultArgument() != nullptr);
+  if (self->pendingDefaultArgument()) {
+    writecxxPendingInstantiation(out, &(*self->pendingDefaultArgument()));
+  }
+  // ::cxx::ParameterSymbol::defaultArgumentSource_
+  out.varU32(
+      static_cast<std::uint32_t>(symbolRef(self->defaultArgumentSource())));
   // ::cxx::ParameterSymbol::isExplicitObject_
   out.boolean(self->isExplicitObject());
+  // ::cxx::ParameterSymbol::isParameterPack_
+  out.boolean(self->isParameterPack());
 }
 
 void SemanticEncoder::writeSymbolParameterPackSymbol(
@@ -2533,6 +2593,7 @@ void SemanticEncoder::writeSymbolEnumeratorSymbol(
 void SemanticEncoder::writeSymbolFunctionParametersSymbol(
     ByteWriter& out, [[maybe_unused]] cxx::FunctionParametersSymbol* self) {
   writeSymbolScopeSymbol(out, self);
+  // ::cxx::FunctionParametersSymbol::cvQualifiers_
   out.varU32(static_cast<std::uint32_t>(self->cvQualifiers()));
 }
 
@@ -4731,6 +4792,8 @@ void SemanticEncoder::writeAstNewExpressionAST(
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->constructorSymbol)));
   // ::cxx::NewExpressionAST::symbol
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->symbol)));
+  // ::cxx::NewExpressionAST::hasAlignmentArgument
+  out.boolean(self->hasAlignmentArgument);
 }
 
 void SemanticEncoder::writeAstDeleteExpressionAST(
@@ -4961,6 +5024,8 @@ void SemanticEncoder::writeAstBracedInitListAST(
   out.varU32(static_cast<std::uint32_t>(locationRef(self->commaLoc)));
   // ::cxx::BracedInitListAST::rbraceLoc
   out.varU32(static_cast<std::uint32_t>(locationRef(self->rbraceLoc)));
+  // ::cxx::BracedInitListAST::implicitElement
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->implicitElement)));
 }
 
 void SemanticEncoder::writeAstParenInitializerAST(
@@ -5089,6 +5154,8 @@ void SemanticEncoder::writeAstTypenameTypeParameterAST(
   out.varU32(static_cast<std::uint32_t>(identifierRef(self->identifier)));
   // ::cxx::TypenameTypeParameterAST::isPack
   out.boolean(self->isPack);
+  // ::cxx::TypenameTypeParameterAST::isSynthesized
+  out.boolean(self->isSynthesized);
 }
 
 void SemanticEncoder::writeAstConstraintTypeParameterAST(
@@ -5106,6 +5173,8 @@ void SemanticEncoder::writeAstConstraintTypeParameterAST(
   out.varU32(static_cast<std::uint32_t>(astRef(self->typeId)));
   // ::cxx::ConstraintTypeParameterAST::identifier
   out.varU32(static_cast<std::uint32_t>(identifierRef(self->identifier)));
+  // ::cxx::ConstraintTypeParameterAST::isSynthesized
+  out.boolean(self->isSynthesized);
 }
 
 void SemanticEncoder::writeAstTypedefSpecifierAST(
@@ -5515,6 +5584,8 @@ void SemanticEncoder::writeAstClassSpecifierAST(
   writeAstList(out, self->declarationList);
   // ::cxx::ClassSpecifierAST::rbraceLoc
   out.varU32(static_cast<std::uint32_t>(locationRef(self->rbraceLoc)));
+  // ::cxx::ClassSpecifierAST::trailingAttributeList
+  writeAstList(out, self->trailingAttributeList);
   // ::cxx::ClassSpecifierAST::classKey
   out.varU32(static_cast<std::uint32_t>(self->classKey));
   // ::cxx::ClassSpecifierAST::symbol
@@ -5589,10 +5660,14 @@ void SemanticEncoder::writeAstBitfieldDeclaratorAST(
   writeAstCoreDeclaratorAST(out, self);
   // ::cxx::BitfieldDeclaratorAST::unqualifiedId
   out.varU32(static_cast<std::uint32_t>(astRef(self->unqualifiedId)));
+  // ::cxx::BitfieldDeclaratorAST::attributeList
+  writeAstList(out, self->attributeList);
   // ::cxx::BitfieldDeclaratorAST::colonLoc
   out.varU32(static_cast<std::uint32_t>(locationRef(self->colonLoc)));
   // ::cxx::BitfieldDeclaratorAST::sizeExpression
   out.varU32(static_cast<std::uint32_t>(astRef(self->sizeExpression)));
+  // ::cxx::BitfieldDeclaratorAST::trailingAttributeList
+  writeAstList(out, self->trailingAttributeList);
 }
 
 void SemanticEncoder::writeAstParameterPackAST(
@@ -5950,16 +6025,10 @@ void SemanticEncoder::writeAstTypeRequirementAST(
   writeAstRequirementAST(out, self);
   // ::cxx::TypeRequirementAST::typenameLoc
   out.varU32(static_cast<std::uint32_t>(locationRef(self->typenameLoc)));
-  // ::cxx::TypeRequirementAST::nestedNameSpecifier
-  out.varU32(static_cast<std::uint32_t>(astRef(self->nestedNameSpecifier)));
-  // ::cxx::TypeRequirementAST::templateLoc
-  out.varU32(static_cast<std::uint32_t>(locationRef(self->templateLoc)));
-  // ::cxx::TypeRequirementAST::unqualifiedId
-  out.varU32(static_cast<std::uint32_t>(astRef(self->unqualifiedId)));
+  // ::cxx::TypeRequirementAST::typeId
+  out.varU32(static_cast<std::uint32_t>(astRef(self->typeId)));
   // ::cxx::TypeRequirementAST::semicolonLoc
   out.varU32(static_cast<std::uint32_t>(locationRef(self->semicolonLoc)));
-  // ::cxx::TypeRequirementAST::isTemplateIntroduced
-  out.boolean(self->isTemplateIntroduced);
 }
 
 void SemanticEncoder::writeAstNestedRequirementAST(
@@ -6311,6 +6380,8 @@ void SemanticEncoder::writecxxConstObject(
   for (const auto& element1 : self->members()) {
     writecxxConstObjectMember(out, &element1);
   }
+  // ::cxx::ConstObject::constexprUnknown_
+  out.boolean(self->isConstexprUnknown());
 }
 
 void SemanticEncoder::writecxxConstObjectMember(
@@ -6351,8 +6422,6 @@ void SemanticEncoder::writecxxConstComplex(
 
 void SemanticEncoder::writecxxTemplateSpecialization(
     ByteWriter& out, [[maybe_unused]] const cxx::TemplateSpecialization* self) {
-  // ::cxx::TemplateSpecialization::templateSymbol
-  out.varU32(static_cast<std::uint32_t>(symbolRef(self->templateSymbol)));
   // ::cxx::TemplateSpecialization::arguments
   out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->arguments)));
   for (const auto& element1 : self->arguments) {
@@ -6412,16 +6481,23 @@ void SemanticEncoder::writecxxClassLayout(
     out.varU32(static_cast<std::uint32_t>(symbolRef(element2.first)));
     writecxxClassLayoutMemberInfo(out, &element2.second);
   }
+  // ::cxx::ClassLayout::virtualBaseInfos_
+  out.varU32(static_cast<std::uint32_t>(
+      std::ranges::size(self->sortedVirtualBaseInfos())));
+  for (const auto& element3 : self->sortedVirtualBaseInfos()) {
+    out.varU32(static_cast<std::uint32_t>(symbolRef(element3.first)));
+    writecxxClassLayoutMemberInfo(out, &element3.second);
+  }
   // ::cxx::ClassLayout::virtualBases_
   out.varU32(
       static_cast<std::uint32_t>(std::ranges::size(self->virtualBases())));
-  for (const auto& element3 : self->virtualBases()) {
-    out.varU32(static_cast<std::uint32_t>(symbolRef(element3)));
+  for (const auto& element4 : self->virtualBases()) {
+    out.varU32(static_cast<std::uint32_t>(symbolRef(element4)));
   }
   // ::cxx::ClassLayout::padding_
   out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->padding())));
-  for (const auto& element4 : self->padding()) {
-    writecxxClassLayoutPaddingInfo(out, &element4);
+  for (const auto& element5 : self->padding()) {
+    writecxxClassLayoutPaddingInfo(out, &element5);
   }
   // ::cxx::ClassLayout::size_
   out.varU64(static_cast<std::uint64_t>(self->size()));
@@ -6475,14 +6551,41 @@ void SemanticEncoder::writecxxClassLayoutPaddingInfo(
 
 void SemanticEncoder::writecxxVTableLayout(
     ByteWriter& out, [[maybe_unused]] const cxx::VTableLayout* self) {
-  // ::cxx::VTableLayout::primary
-  writecxxVTableLayoutGroup(out, &self->primary);
-  // ::cxx::VTableLayout::virtualBasePrimary
-  writecxxVTableLayoutGroup(out, &self->virtualBasePrimary);
-  // ::cxx::VTableLayout::secondary
-  out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->secondary)));
-  for (const auto& element1 : self->secondary) {
+  // ::cxx::VTableLayout::main
+  writecxxVTableLayoutGroup(out, &self->main);
+  // ::cxx::VTableLayout::constructionGroups
+  out.varU32(
+      static_cast<std::uint32_t>(std::ranges::size(self->constructionGroups)));
+  for (const auto& element1 : self->constructionGroups) {
     writecxxVTableLayoutGroup(out, &element1);
+  }
+  // ::cxx::VTableLayout::vtt
+  out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->vtt)));
+  for (const auto& element2 : self->vtt) {
+    writecxxVTableLayoutVTTEntry(out, &element2);
+  }
+  // ::cxx::VTableLayout::tableVTTIndices
+  out.varU32(
+      static_cast<std::uint32_t>(std::ranges::size(self->tableVTTIndices)));
+  for (const auto& element3 : self->tableVTTIndices) {
+    out.varI32(static_cast<std::int32_t>(element3));
+  }
+  // ::cxx::VTableLayout::baseSubVTTs
+  out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->baseSubVTTs)));
+  for (const auto& element4 : self->baseSubVTTs) {
+    writecxxVTableLayoutSubVTT(out, &element4);
+  }
+  // ::cxx::VTableLayout::virtualBaseSubVTTs
+  out.varU32(
+      static_cast<std::uint32_t>(std::ranges::size(self->virtualBaseSubVTTs)));
+  for (const auto& element5 : self->virtualBaseSubVTTs) {
+    writecxxVTableLayoutSubVTT(out, &element5);
+  }
+  // ::cxx::VTableLayout::adjustingEntryPoints
+  out.varU32(static_cast<std::uint32_t>(
+      std::ranges::size(self->adjustingEntryPoints)));
+  for (const auto& element6 : self->adjustingEntryPoints) {
+    writecxxVTableLayoutEntryPoint(out, &element6);
   }
   // ::cxx::VTableLayout::keyFunction
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->keyFunction)));
@@ -6494,23 +6597,41 @@ void SemanticEncoder::writecxxVTableLayoutGroup(
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->base)));
   // ::cxx::VTableLayout::Group::offset
   out.varU64(static_cast<std::uint64_t>(self->offset));
-  // ::cxx::VTableLayout::Group::vbaseOffsets
-  out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->vbaseOffsets)));
-  for (const auto& element1 : self->vbaseOffsets) {
-    out.varU32(static_cast<std::uint32_t>(symbolRef(element1.first)));
-    out.varI64(static_cast<std::int64_t>(element1.second));
+  // ::cxx::VTableLayout::Group::tables
+  out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->tables)));
+  for (const auto& element1 : self->tables) {
+    writecxxVTableLayoutTable(out, &element1);
   }
-  // ::cxx::VTableLayout::Group::vcallOffsets
-  out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->vcallOffsets)));
-  for (const auto& element2 : self->vcallOffsets) {
-    out.varU32(static_cast<std::uint32_t>(symbolRef(element2.first)));
-    out.varI64(static_cast<std::int64_t>(element2.second));
+}
+
+void SemanticEncoder::writecxxVTableLayoutTable(
+    ByteWriter& out, [[maybe_unused]] const cxx::VTableLayout::Table* self) {
+  // ::cxx::VTableLayout::Table::base
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->base)));
+  // ::cxx::VTableLayout::Table::offset
+  out.varU64(static_cast<std::uint64_t>(self->offset));
+  // ::cxx::VTableLayout::Table::enclosingVirtualBase
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->enclosingVirtualBase)));
+  // ::cxx::VTableLayout::Table::offsetToTop
+  out.varI64(static_cast<std::int64_t>(self->offsetToTop));
+  // ::cxx::VTableLayout::Table::offsets
+  out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->offsets)));
+  for (const auto& element1 : self->offsets) {
+    writecxxVTableLayoutOffset(out, &element1);
   }
-  // ::cxx::VTableLayout::Group::slots
+  // ::cxx::VTableLayout::Table::slots
   out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->slots)));
-  for (const auto& element3 : self->slots) {
-    writecxxVTableLayoutSlot(out, &element3);
+  for (const auto& element2 : self->slots) {
+    writecxxVTableLayoutSlot(out, &element2);
   }
+}
+
+void SemanticEncoder::writecxxVTableLayoutOffset(
+    ByteWriter& out, [[maybe_unused]] const cxx::VTableLayout::Offset* self) {
+  // ::cxx::VTableLayout::Offset::subject
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->subject)));
+  // ::cxx::VTableLayout::Offset::value
+  out.varI64(static_cast<std::int64_t>(self->value));
 }
 
 void SemanticEncoder::writecxxVTableLayoutSlot(
@@ -6521,78 +6642,68 @@ void SemanticEncoder::writecxxVTableLayoutSlot(
   out.varU32(static_cast<std::uint32_t>(self->kind));
   // ::cxx::VTableLayout::Slot::introducingFunction
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->introducingFunction)));
-  // ::cxx::VTableLayout::Slot::vcallBase
-  out.varU32(static_cast<std::uint32_t>(symbolRef(self->vcallBase)));
   // ::cxx::VTableLayout::Slot::thisAdjustment
-  out.varI64(static_cast<std::int64_t>(self->thisAdjustment));
-  // ::cxx::VTableLayout::Slot::vcallOffsetIndex
-  out.varI32(static_cast<std::int32_t>(self->vcallOffsetIndex));
-  // ::cxx::VTableLayout::Slot::usesVcallOffset
-  out.boolean(self->usesVcallOffset);
+  writecxxVTableLayoutCallOffset(out, &self->thisAdjustment);
+  // ::cxx::VTableLayout::Slot::returnAdjustment
+  writecxxVTableLayoutCallOffset(out, &self->returnAdjustment);
 }
 
-void SemanticEncoder::writecxxPendingBodyInstantiation(
+void SemanticEncoder::writecxxVTableLayoutCallOffset(
     ByteWriter& out,
-    [[maybe_unused]] const cxx::PendingBodyInstantiation* self) {
-  // ::cxx::PendingBodyInstantiation::originalDefinition
-  out.varU32(static_cast<std::uint32_t>(astRef(self->originalDefinition)));
-  // ::cxx::PendingBodyInstantiation::templateArguments
-  out.varU32(
-      static_cast<std::uint32_t>(std::ranges::size(self->templateArguments)));
-  for (const auto& element1 : self->templateArguments) {
-    writeTemplateArgument(out, element1);
-  }
-  // ::cxx::PendingBodyInstantiation::parentScope
-  out.varU32(static_cast<std::uint32_t>(symbolRef(self->parentScope)));
-  // ::cxx::PendingBodyInstantiation::depth
-  out.varI32(static_cast<std::int32_t>(self->depth));
+    [[maybe_unused]] const cxx::VTableLayout::CallOffset* self) {
+  // ::cxx::VTableLayout::CallOffset::nonVirtual
+  out.varI64(static_cast<std::int64_t>(self->nonVirtual));
+  // ::cxx::VTableLayout::CallOffset::virtualOffset
+  out.varI64(static_cast<std::int64_t>(self->virtualOffset));
 }
 
-void SemanticEncoder::writecxxPendingExceptionSpecification(
-    ByteWriter& out,
-    [[maybe_unused]] const cxx::PendingExceptionSpecification* self) {
-  // ::cxx::PendingExceptionSpecification::original
-  out.varU32(static_cast<std::uint32_t>(astRef(self->original)));
-  // ::cxx::PendingExceptionSpecification::instance
-  out.varU32(static_cast<std::uint32_t>(astRef(self->instance)));
-  // ::cxx::PendingExceptionSpecification::originalFunction
-  out.varU32(static_cast<std::uint32_t>(symbolRef(self->originalFunction)));
-  // ::cxx::PendingExceptionSpecification::templateArguments
-  out.varU32(
-      static_cast<std::uint32_t>(std::ranges::size(self->templateArguments)));
-  for (const auto& element1 : self->templateArguments) {
-    writeTemplateArgument(out, element1);
-  }
-  // ::cxx::PendingExceptionSpecification::parentScope
-  out.varU32(static_cast<std::uint32_t>(symbolRef(self->parentScope)));
-  // ::cxx::PendingExceptionSpecification::depth
-  out.varI32(static_cast<std::int32_t>(self->depth));
-  // ::cxx::PendingExceptionSpecification::state
-  out.varU32(static_cast<std::uint32_t>(self->state));
-  // ::cxx::PendingExceptionSpecification::recursionDiagnosed
-  out.boolean(self->recursionDiagnosed);
+void SemanticEncoder::writecxxVTableLayoutVTTEntry(
+    ByteWriter& out, [[maybe_unused]] const cxx::VTableLayout::VTTEntry* self) {
+  // ::cxx::VTableLayout::VTTEntry::group
+  out.varI32(static_cast<std::int32_t>(self->group));
+  // ::cxx::VTableLayout::VTTEntry::table
+  out.varU32(static_cast<std::uint32_t>(self->table));
 }
 
-void SemanticEncoder::writecxxPendingFieldInitializerInstantiation(
+void SemanticEncoder::writecxxVTableLayoutSubVTT(
+    ByteWriter& out, [[maybe_unused]] const cxx::VTableLayout::SubVTT* self) {
+  // ::cxx::VTableLayout::SubVTT::base
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->base)));
+  // ::cxx::VTableLayout::SubVTT::index
+  out.varU32(static_cast<std::uint32_t>(self->index));
+}
+
+void SemanticEncoder::writecxxVTableLayoutEntryPoint(
     ByteWriter& out,
-    [[maybe_unused]] const cxx::PendingFieldInitializerInstantiation* self) {
-  // ::cxx::PendingFieldInitializerInstantiation::unit
-  // ::cxx::PendingFieldInitializerInstantiation::pattern
+    [[maybe_unused]] const cxx::VTableLayout::EntryPoint* self) {
+  // ::cxx::VTableLayout::EntryPoint::function
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->function)));
+  // ::cxx::VTableLayout::EntryPoint::kind
+  out.varU32(static_cast<std::uint32_t>(self->kind));
+  // ::cxx::VTableLayout::EntryPoint::thisAdjustment
+  writecxxVTableLayoutCallOffset(out, &self->thisAdjustment);
+  // ::cxx::VTableLayout::EntryPoint::returnAdjustment
+  writecxxVTableLayoutCallOffset(out, &self->returnAdjustment);
+}
+
+void SemanticEncoder::writecxxPendingInstantiation(
+    ByteWriter& out, [[maybe_unused]] const cxx::PendingInstantiation* self) {
+  // ::cxx::PendingInstantiation::pattern
   out.varU32(static_cast<std::uint32_t>(astRef(self->pattern)));
-  // ::cxx::PendingFieldInitializerInstantiation::instance
+  // ::cxx::PendingInstantiation::instance
   out.varU32(static_cast<std::uint32_t>(astRef(self->instance)));
-  // ::cxx::PendingFieldInitializerInstantiation::typeSpecifier
-  out.varU32(static_cast<std::uint32_t>(astRef(self->typeSpecifier)));
-  // ::cxx::PendingFieldInitializerInstantiation::templateArguments
+  // ::cxx::PendingInstantiation::templateArguments
   out.varU32(
       static_cast<std::uint32_t>(std::ranges::size(self->templateArguments)));
   for (const auto& element1 : self->templateArguments) {
     writeTemplateArgument(out, element1);
   }
-  // ::cxx::PendingFieldInitializerInstantiation::parentScope
+  // ::cxx::PendingInstantiation::parentScope
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->parentScope)));
-  // ::cxx::PendingFieldInitializerInstantiation::depth
+  // ::cxx::PendingInstantiation::depth
   out.varI32(static_cast<std::int32_t>(self->depth));
+  // ::cxx::PendingInstantiation::state
+  out.varU32(static_cast<std::uint32_t>(self->state));
 }
 
 void SemanticEncoder::writecxxDefaultInitializerContext(
@@ -6750,7 +6861,6 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
       symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{session.varU32()}));
   roots.ast = ast_cast<UnitAST>(astAt(AstRef{session.varU32()}));
   roots.anonymousIdCount = session.varI32();
-  roots.closureNameCount = session.varI32();
   roots.prefixTokenCount = session.varU32();
 
   {
@@ -6785,6 +6895,8 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
           key, std::string{stringAt(StringRef{session.varU32()})});
     }
   }
+  roots.alignValType = typeAt(TypeRef{session.varU32()});
+  roots.nothrowType = typeAt(TypeRef{session.varU32()});
 
   if (!session.ok()) fail("session section is truncated");
 
@@ -7395,7 +7507,7 @@ auto SemanticDecoder::typeAt(TypeRef ref) -> const cxx::Type* {
   if (typeDecoded_[index - 1]) return types_[index - 1];
   typeDecoded_[index - 1] = true;
   ByteReader in{typeRecords_[index - 1].bytes};
-  const auto kind = static_cast<cxx::TypeKind>(readEnum(in, 55));
+  const auto kind = static_cast<cxx::TypeKind>(readEnum(in, 58));
   const cxx::Type* type = nullptr;
   switch (kind) {
     case cxx::TypeKind::kVoid:
@@ -7520,6 +7632,15 @@ auto SemanticDecoder::typeAt(TypeRef ref) -> const cxx::Type* {
       break;
     case cxx::TypeKind::kTemplateTypeParameter:
       type = readTypeTemplateTypeParameterType(in);
+      break;
+    case cxx::TypeKind::kTemplateTypeParameterSpecialization:
+      type = readTypeTemplateTypeParameterSpecializationType(in);
+      break;
+    case cxx::TypeKind::kPackExpansion:
+      type = readTypePackExpansionType(in);
+      break;
+    case cxx::TypeKind::kDecltype:
+      type = readTypeDecltypeType(in);
       break;
     case cxx::TypeKind::kUnresolvedName:
       type = readTypeUnresolvedNameType(in);
@@ -9107,6 +9228,36 @@ auto SemanticDecoder::readTypeTemplateTypeParameterType(ByteReader& in)
       std::move(argument4));
 }
 
+auto SemanticDecoder::readTypeTemplateTypeParameterSpecializationType(
+    ByteReader& in) -> const cxx::Type* {
+  cxx::TranslationUnit* argument1 = unit();
+  const cxx::TemplateTypeParameterType* argument2 =
+      type_cast<TemplateTypeParameterType>(typeAt(TypeRef{in.varU32()}));
+  std::vector<cxx::TemplateArgument> argument3;
+  {
+    const auto count4 = in.varCount(1);
+    for (std::uint32_t i5 = 0; ok() && i5 < count4; ++i5) {
+      cxx::TemplateArgument element6 = readTemplateArgument(in);
+      argument3.push_back(std::move(element6));
+    }
+  }
+  return control()->restoreTemplateTypeParameterSpecializationType(
+      std::move(argument1), std::move(argument2), std::move(argument3));
+}
+
+auto SemanticDecoder::readTypePackExpansionType(ByteReader& in)
+    -> const cxx::Type* {
+  const cxx::Type* argument1 = typeAt(TypeRef{in.varU32()});
+  return control()->getPackExpansionType(std::move(argument1));
+}
+
+auto SemanticDecoder::readTypeDecltypeType(ByteReader& in) -> const cxx::Type* {
+  cxx::TranslationUnit* argument1 = unit();
+  cxx::ExpressionAST* argument2 =
+      ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
+  return control()->getDecltypeType(std::move(argument1), std::move(argument2));
+}
+
 auto SemanticDecoder::readTypeUnresolvedNameType(ByteReader& in)
     -> const cxx::Type* {
   cxx::TranslationUnit* argument1 = unit();
@@ -9236,39 +9387,42 @@ void SemanticDecoder::readSymbolSymbol([[maybe_unused]] ByteReader& in,
   cxx::ScopeSymbol* value3 =
       symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->setParent(std::move(value3));
+  // ::cxx::Symbol::instantiationPattern_
+  cxx::Symbol* value4 = symbolAt(SymbolRef{in.varU32()});
+  self->setInstantiationPattern(std::move(value4));
   // ::cxx::Symbol::abiTags_
-  const std::vector<const cxx::Identifier*>* value4 = readAbiTags(in);
-  self->setAbiTags(std::move(value4));
+  const std::vector<const cxx::Identifier*>* value5 = readAbiTags(in);
+  self->setAbiTags(std::move(value5));
   // ::cxx::Symbol::attributes_
-  const std::vector<cxx::Attribute>* value5 = readAttributes(in);
-  self->setAttributes(std::move(value5));
+  const std::vector<cxx::Attribute>* value6 = readAttributes(in);
+  self->setAttributes(std::move(value6));
   // ::cxx::Symbol::location_
-  cxx::SourceLocation value6 = locationAt(LocationRef{in.varU32()});
-  self->setLocation(std::move(value6));
+  cxx::SourceLocation value7 = locationAt(LocationRef{in.varU32()});
+  self->setLocation(std::move(value7));
   // ::cxx::Symbol::isHidden_
-  bool value7 = in.boolean();
-  self->setHidden(std::move(value7));
-  // ::cxx::Symbol::isNodiscard_
   bool value8 = in.boolean();
-  self->setNodiscard(std::move(value8));
-  // ::cxx::Symbol::isUsed_
+  self->setHidden(std::move(value8));
+  // ::cxx::Symbol::isNodiscard_
   bool value9 = in.boolean();
-  self->setUsed(std::move(value9));
-  // ::cxx::Symbol::isExcludedFromExplicitInstantiation_
+  self->setNodiscard(std::move(value9));
+  // ::cxx::Symbol::isUsed_
   bool value10 = in.boolean();
-  self->setExcludedFromExplicitInstantiation(std::move(value10));
-  // ::cxx::Symbol::isTrivialAbi_
+  self->setUsed(std::move(value10));
+  // ::cxx::Symbol::isExcludedFromExplicitInstantiation_
   bool value11 = in.boolean();
-  self->setTrivialAbi(std::move(value11));
-  // ::cxx::Symbol::hasDeducedReturnType_
+  self->setExcludedFromExplicitInstantiation(std::move(value11));
+  // ::cxx::Symbol::isTrivialAbi_
   bool value12 = in.boolean();
-  self->setDeducedReturnType(std::move(value12));
+  self->setTrivialAbi(std::move(value12));
+  // ::cxx::Symbol::hasDeducedReturnType_
+  bool value13 = in.boolean();
+  self->setDeducedReturnType(std::move(value13));
   // ::cxx::Symbol::accessSpecifier_
   static_assert(
       static_cast<std::uint32_t>(::cxx::AccessSpecifier::kPrivate) + 1 == 3);
-  ::cxx::AccessSpecifier value13 =
+  ::cxx::AccessSpecifier value14 =
       static_cast<::cxx::AccessSpecifier>(readEnum(in, 3));
-  self->setAccessSpecifier(std::move(value13));
+  self->setAccessSpecifier(std::move(value14));
 }
 
 void SemanticDecoder::readSymbolScopeSymbol(
@@ -9567,108 +9721,104 @@ void SemanticDecoder::readSymbolClassSymbol(
   for (auto&& element40 : value36) {
     self->addBefriendingClass(element40.befriendingClass, element40.arguments);
   }
-  // ::cxx::ClassSymbol::instantiationPattern_
-  cxx::ClassSymbol* value41 =
-      symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setInstantiationPattern(std::move(value41));
   // ::cxx::ClassSymbol::instantiationSubstitutionArguments_
-  std::vector<cxx::TemplateArgument> value42;
+  std::vector<cxx::TemplateArgument> value41;
   {
-    const auto count43 = in.varCount(1);
-    for (std::uint32_t i44 = 0; ok() && i44 < count43; ++i44) {
-      cxx::TemplateArgument element45 = readTemplateArgument(in);
-      value42.push_back(std::move(element45));
+    const auto count42 = in.varCount(1);
+    for (std::uint32_t i43 = 0; ok() && i43 < count42; ++i43) {
+      cxx::TemplateArgument element44 = readTemplateArgument(in);
+      value41.push_back(std::move(element44));
     }
   }
   self->setInstantiationSubstitution(self->instantiationSubstitutionDepth(),
-                                     std::move(std::move(value42)));
+                                     std::move(std::move(value41)));
   // ::cxx::ClassSymbol::instantiationSubstitutionDepth_
-  int value46 = static_cast<int>(in.varI32());
+  int value45 = static_cast<int>(in.varI32());
   self->setInstantiationSubstitution(
-      std::move(value46), self->instantiationSubstitutionArguments());
+      std::move(value45), self->instantiationSubstitutionArguments());
   // ::cxx::ClassSymbol::constructorOverloadSet_
-  cxx::OverloadSetSymbol* value47 =
+  cxx::OverloadSetSymbol* value46 =
       symbol_cast<OverloadSetSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setConstructorOverloadSet(std::move(value47));
+  self->setConstructorOverloadSet(std::move(value46));
   // ::cxx::ClassSymbol::deductionGuides_
-  std::vector<cxx::DeductionGuideSymbol*> value48;
+  std::vector<cxx::DeductionGuideSymbol*> value47;
   {
-    const auto count49 = in.varCount(1);
-    for (std::uint32_t i50 = 0; ok() && i50 < count49; ++i50) {
-      cxx::DeductionGuideSymbol* element51 =
+    const auto count48 = in.varCount(1);
+    for (std::uint32_t i49 = 0; ok() && i49 < count48; ++i49) {
+      cxx::DeductionGuideSymbol* element50 =
           symbol_cast<DeductionGuideSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value48.push_back(std::move(element51));
+      value47.push_back(std::move(element50));
     }
   }
-  for (auto&& element52 : value48) {
-    self->addDeductionGuide(element52);
+  for (auto&& element51 : value47) {
+    self->addDeductionGuide(element51);
   }
   // ::cxx::ClassSymbol::layout_
-  std::unique_ptr<cxx::ClassLayout> value53;
+  std::unique_ptr<cxx::ClassLayout> value52;
   if (in.boolean()) {
-    value53 = std::make_unique<cxx::ClassLayout>();
-    readcxxClassLayout(in, value53.get());
+    value52 = std::make_unique<cxx::ClassLayout>();
+    readcxxClassLayout(in, value52.get());
   }
-  self->setLayout(std::move(std::move(value53)));
+  self->setLayout(std::move(std::move(value52)));
   // ::cxx::ClassSymbol::vtableLayout_
-  std::unique_ptr<cxx::VTableLayout> value54;
+  std::unique_ptr<cxx::VTableLayout> value53;
   if (in.boolean()) {
-    value54 = std::make_unique<cxx::VTableLayout>();
-    readcxxVTableLayout(in, value54.get());
+    value53 = std::make_unique<cxx::VTableLayout>();
+    readcxxVTableLayout(in, value53.get());
   }
-  self->setVTableLayout(std::move(std::move(value54)));
+  self->setVTableLayout(std::move(std::move(value53)));
   // ::cxx::ClassSymbol::capturedThisField_
-  cxx::FieldSymbol* value55 =
+  cxx::FieldSymbol* value54 =
       symbol_cast<FieldSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setCapturedThisField(std::move(value55));
+  self->setCapturedThisField(std::move(value54));
   // ::cxx::ClassSymbol::closureDiscriminator_
-  int value56 = static_cast<int>(in.varI32());
-  self->setClosureDiscriminator(std::move(value56));
+  int value55 = static_cast<int>(in.varI32());
+  self->setClosureDiscriminator(std::move(value55));
   // ::cxx::ClassSymbol::sizeInBytes_
-  int value57 = static_cast<int>(in.varI32());
-  self->setSizeInBytes(std::move(value57));
+  int value56 = static_cast<int>(in.varI32());
+  self->setSizeInBytes(std::move(value56));
   // ::cxx::ClassSymbol::alignment_
-  int value58 = static_cast<int>(in.varI32());
-  self->setAlignment(std::move(value58));
+  int value57 = static_cast<int>(in.varI32());
+  self->setAlignment(std::move(value57));
   // ::cxx::ClassSymbol::explicitAlignment_
-  int value59 = static_cast<int>(in.varI32());
-  self->setExplicitAlignment(std::move(value59));
+  int value58 = static_cast<int>(in.varI32());
+  self->setExplicitAlignment(std::move(value58));
   // ::cxx::ClassSymbol::packAlignment_
-  int value60 = static_cast<int>(in.varI32());
-  self->setPackAlignment(std::move(value60));
+  int value59 = static_cast<int>(in.varI32());
+  self->setPackAlignment(std::move(value59));
   // ::cxx::ClassSymbol::isUnion_
-  unsigned int value61 = static_cast<unsigned int>(in.varU32());
-  self->setIsUnion(std::move(value61));
+  unsigned int value60 = static_cast<unsigned int>(in.varU32());
+  self->setIsUnion(std::move(value60));
   // ::cxx::ClassSymbol::isFinal_
-  unsigned int value62 = static_cast<unsigned int>(in.varU32());
-  self->setFinal(std::move(value62));
+  unsigned int value61 = static_cast<unsigned int>(in.varU32());
+  self->setFinal(std::move(value61));
   // ::cxx::ClassSymbol::isComplete_
-  unsigned int value63 = static_cast<unsigned int>(in.varU32());
-  self->setComplete(std::move(value63));
+  unsigned int value62 = static_cast<unsigned int>(in.varU32());
+  self->setComplete(std::move(value62));
   // ::cxx::ClassSymbol::isFriend_
-  unsigned int value64 = static_cast<unsigned int>(in.varU32());
-  self->setFriend(std::move(value64));
+  unsigned int value63 = static_cast<unsigned int>(in.varU32());
+  self->setFriend(std::move(value63));
   // ::cxx::ClassSymbol::isAccessControlDisabled_
-  unsigned int value65 = static_cast<unsigned int>(in.varU32());
-  self->setAccessControlDisabled(std::move(value65));
+  unsigned int value64 = static_cast<unsigned int>(in.varU32());
+  self->setAccessControlDisabled(std::move(value64));
   // ::cxx::ClassSymbol::isPolymorphic_
-  unsigned int value66 = static_cast<unsigned int>(in.varU32());
-  self->setPolymorphic(std::move(value66));
+  unsigned int value65 = static_cast<unsigned int>(in.varU32());
+  self->setPolymorphic(std::move(value65));
   // ::cxx::ClassSymbol::isAbstract_
-  unsigned int value67 = static_cast<unsigned int>(in.varU32());
-  self->setAbstract(std::move(value67));
+  unsigned int value66 = static_cast<unsigned int>(in.varU32());
+  self->setAbstract(std::move(value66));
   // ::cxx::ClassSymbol::hasVirtualDestructor_
-  unsigned int value68 = static_cast<unsigned int>(in.varU32());
-  self->setHasVirtualDestructor(std::move(value68));
+  unsigned int value67 = static_cast<unsigned int>(in.varU32());
+  self->setHasVirtualDestructor(std::move(value67));
   // ::cxx::ClassSymbol::isClosureType_
-  unsigned int value69 = static_cast<unsigned int>(in.varU32());
-  self->setIsClosureType(std::move(value69));
+  unsigned int value68 = static_cast<unsigned int>(in.varU32());
+  self->setIsClosureType(std::move(value68));
   // ::cxx::ClassSymbol::hasLambdaCapture_
-  unsigned int value70 = static_cast<unsigned int>(in.varU32());
-  self->setHasLambdaCapture(std::move(value70));
+  unsigned int value69 = static_cast<unsigned int>(in.varU32());
+  self->setHasLambdaCapture(std::move(value69));
   // ::cxx::ClassSymbol::hasUserDeclaredConstructors_
-  unsigned int value71 = static_cast<unsigned int>(in.varU32());
-  self->setHasUserDeclaredConstructors(std::move(value71));
+  unsigned int value70 = static_cast<unsigned int>(in.varU32());
+  self->setHasUserDeclaredConstructors(std::move(value70));
 }
 
 void SemanticDecoder::readSymbolEnumSymbol(
@@ -9776,17 +9926,17 @@ void SemanticDecoder::readSymbolFunctionSymbol(
     self->addRedeclaration(element25);
   }
   // ::cxx::FunctionSymbol::pendingBody_
-  std::unique_ptr<cxx::PendingBodyInstantiation> value26;
+  std::unique_ptr<cxx::PendingInstantiation> value26;
   if (in.boolean()) {
-    value26 = std::make_unique<cxx::PendingBodyInstantiation>();
-    readcxxPendingBodyInstantiation(in, value26.get());
+    value26 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value26.get());
   }
   self->setPendingBody(std::move(std::move(value26)));
   // ::cxx::FunctionSymbol::pendingExceptionSpecification_
-  std::unique_ptr<cxx::PendingExceptionSpecification> value27;
+  std::unique_ptr<cxx::PendingInstantiation> value27;
   if (in.boolean()) {
-    value27 = std::make_unique<cxx::PendingExceptionSpecification>();
-    readcxxPendingExceptionSpecification(in, value27.get());
+    value27 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value27.get());
   }
   self->setPendingExceptionSpecification(std::move(std::move(value27)));
   // ::cxx::FunctionSymbol::hostScope_
@@ -9878,9 +10028,9 @@ void SemanticDecoder::readSymbolFunctionSymbol(
   static_assert(static_cast<std::uint32_t>(
                     ::cxx::BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE) +
                     1 ==
-                453);
+                454);
   ::cxx::BuiltinFunctionKind value56 =
-      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 453));
+      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 454));
   self->setBuiltinKind(std::move(value56));
   // ::cxx::FunctionSymbol::isDefined_
   unsigned int value57 = static_cast<unsigned int>(in.varU32());
@@ -9946,10 +10096,15 @@ void SemanticDecoder::readSymbolFunctionSymbol(
   // ::cxx::FunctionSymbol::isNoReturn_
   unsigned int value77 = static_cast<unsigned int>(in.varU32());
   self->setNoReturn(std::move(value77));
+  // ::cxx::FunctionSymbol::hasFriendDefaultArgument_
   unsigned int value78 = static_cast<unsigned int>(in.varU32());
   self->setFriendDefaultArgument(std::move(value78));
+  // ::cxx::FunctionSymbol::hasFriendDefaultTemplateArgument_
   unsigned int value79 = static_cast<unsigned int>(in.varU32());
   self->setFriendDefaultTemplateArgument(std::move(value79));
+  // ::cxx::FunctionSymbol::hasDeferredImplicitExceptionSpecification_
+  unsigned int value80 = static_cast<unsigned int>(in.varU32());
+  self->setDeferredImplicitExceptionSpecification(std::move(value80));
 }
 
 void SemanticDecoder::readSymbolTypeAliasSymbol(
@@ -10149,6 +10304,9 @@ void SemanticDecoder::readSymbolVariableSymbol(
   // ::cxx::VariableSymbol::isInline_
   unsigned int value36 = static_cast<unsigned int>(in.varU32());
   self->setInline(std::move(value36));
+  // ::cxx::VariableSymbol::isFunctionLocalPredefined_
+  unsigned int value37 = static_cast<unsigned int>(in.varU32());
+  self->setFunctionLocalPredefined(std::move(value37));
 }
 
 void SemanticDecoder::readSymbolFieldSymbol(
@@ -10159,10 +10317,10 @@ void SemanticDecoder::readSymbolFieldSymbol(
       symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->setDefinition(std::move(value1));
   // ::cxx::FieldSymbol::pendingInitializer_
-  std::unique_ptr<cxx::PendingFieldInitializerInstantiation> value2;
+  std::unique_ptr<cxx::PendingInstantiation> value2;
   if (in.boolean()) {
-    value2 = std::make_unique<cxx::PendingFieldInitializerInstantiation>();
-    readcxxPendingFieldInitializerInstantiation(in, value2.get());
+    value2 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value2.get());
   }
   self->setPendingInitializer(std::move(std::move(value2)));
   // ::cxx::FieldSymbol::constValue_
@@ -10205,24 +10363,27 @@ void SemanticDecoder::readSymbolFieldSymbol(
   // ::cxx::FieldSymbol::alignment_
   int value15 = static_cast<int>(in.varI32());
   self->setAlignment(std::move(value15));
-  // ::cxx::FieldSymbol::bitFieldOffset_
+  // ::cxx::FieldSymbol::explicitAlignment_
   int value16 = static_cast<int>(in.varI32());
-  self->setBitFieldOffset(std::move(value16));
+  self->setExplicitAlignment(std::move(value16));
+  // ::cxx::FieldSymbol::bitFieldOffset_
+  int value17 = static_cast<int>(in.varI32());
+  self->setBitFieldOffset(std::move(value17));
   // ::cxx::FieldSymbol::bitFieldWidth_
-  std::optional<cxx::ConstValue> value17;
+  std::optional<cxx::ConstValue> value18;
   if (in.boolean()) {
-    cxx::ConstValue value18 = readConstValue(in);
-    value17 = std::move(value18);
+    cxx::ConstValue value19 = readConstValue(in);
+    value18 = std::move(value19);
   }
-  self->setBitFieldWidth(std::move(value17));
+  self->setBitFieldWidth(std::move(value18));
   // ::cxx::FieldSymbol::initializer_
-  cxx::ExpressionAST* value19 =
+  cxx::ExpressionAST* value20 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-  self->setInitializer(std::move(value19));
+  self->setInitializer(std::move(value20));
   // ::cxx::FieldSymbol::constructor_
-  cxx::FunctionSymbol* value20 =
+  cxx::FunctionSymbol* value21 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setConstructor(std::move(value20));
+  self->setConstructor(std::move(value21));
 }
 
 void SemanticDecoder::readSymbolParameterSymbol(
@@ -10233,9 +10394,23 @@ void SemanticDecoder::readSymbolParameterSymbol(
   cxx::ExpressionAST* value1 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->setDefaultArgument(std::move(value1));
+  // ::cxx::ParameterSymbol::pendingDefaultArgument_
+  std::unique_ptr<cxx::PendingInstantiation> value2;
+  if (in.boolean()) {
+    value2 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value2.get());
+  }
+  self->setPendingDefaultArgument(std::move(value2));
+  // ::cxx::ParameterSymbol::defaultArgumentSource_
+  cxx::ParameterSymbol* value3 =
+      symbol_cast<ParameterSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->setDefaultArgumentSource(std::move(value3));
   // ::cxx::ParameterSymbol::isExplicitObject_
-  bool value2 = in.boolean();
-  self->setExplicitObject(std::move(value2));
+  bool value4 = in.boolean();
+  self->setExplicitObject(std::move(value4));
+  // ::cxx::ParameterSymbol::isParameterPack_
+  bool value5 = in.boolean();
+  self->setParameterPack(std::move(value5));
 }
 
 void SemanticDecoder::readSymbolParameterPackSymbol(
@@ -10273,6 +10448,7 @@ void SemanticDecoder::readSymbolFunctionParametersSymbol(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::FunctionParametersSymbol* self) {
   readSymbolScopeSymbol(in, self);
+  // ::cxx::FunctionParametersSymbol::cvQualifiers_
   static_assert(
       static_cast<std::uint32_t>(::cxx::CvQualifiers::kConstVolatile) + 1 == 4);
   ::cxx::CvQualifiers value1 =
@@ -13555,6 +13731,9 @@ void SemanticDecoder::readAstNewExpressionAST(
   cxx::FunctionSymbol* value11 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->symbol = std::move(value11);
+  // ::cxx::NewExpressionAST::hasAlignmentArgument
+  bool value12 = in.boolean();
+  self->hasAlignmentArgument = std::move(value12);
 }
 
 void SemanticDecoder::readAstDeleteExpressionAST(
@@ -13910,6 +14089,10 @@ void SemanticDecoder::readAstBracedInitListAST(
   // ::cxx::BracedInitListAST::rbraceLoc
   cxx::SourceLocation value4 = locationAt(LocationRef{in.varU32()});
   self->rbraceLoc = std::move(value4);
+  // ::cxx::BracedInitListAST::implicitElement
+  cxx::VariableSymbol* value5 =
+      symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->implicitElement = std::move(value5);
 }
 
 void SemanticDecoder::readAstParenInitializerAST(
@@ -14096,6 +14279,9 @@ void SemanticDecoder::readAstTypenameTypeParameterAST(
   // ::cxx::TypenameTypeParameterAST::isPack
   bool value7 = in.boolean();
   self->isPack = std::move(value7);
+  // ::cxx::TypenameTypeParameterAST::isSynthesized
+  bool value8 = in.boolean();
+  self->isSynthesized = std::move(value8);
 }
 
 void SemanticDecoder::readAstConstraintTypeParameterAST(
@@ -14121,6 +14307,9 @@ void SemanticDecoder::readAstConstraintTypeParameterAST(
   // ::cxx::ConstraintTypeParameterAST::identifier
   const cxx::Identifier* value6 = identifierAt(StringRef{in.varU32()});
   self->identifier = std::move(value6);
+  // ::cxx::ConstraintTypeParameterAST::isSynthesized
+  bool value7 = in.boolean();
+  self->isSynthesized = std::move(value7);
 }
 
 void SemanticDecoder::readAstTypedefSpecifierAST(
@@ -14699,16 +14888,20 @@ void SemanticDecoder::readAstClassSpecifierAST(
   // ::cxx::ClassSpecifierAST::rbraceLoc
   cxx::SourceLocation value10 = locationAt(LocationRef{in.varU32()});
   self->rbraceLoc = std::move(value10);
+  // ::cxx::ClassSpecifierAST::trailingAttributeList
+  cxx::List<cxx::AttributeSpecifierAST*>* value11 =
+      readAstList<cxx::AttributeSpecifierAST>(in);
+  self->trailingAttributeList = std::move(value11);
   // ::cxx::ClassSpecifierAST::classKey
-  ::cxx::TokenKind value11 = static_cast<::cxx::TokenKind>(readEnum(in, 217));
-  self->classKey = std::move(value11);
+  ::cxx::TokenKind value12 = static_cast<::cxx::TokenKind>(readEnum(in, 217));
+  self->classKey = std::move(value12);
   // ::cxx::ClassSpecifierAST::symbol
-  cxx::ClassSymbol* value12 =
+  cxx::ClassSymbol* value13 =
       symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->symbol = std::move(value12);
+  self->symbol = std::move(value13);
   // ::cxx::ClassSpecifierAST::isFinal
-  bool value13 = in.boolean();
-  self->isFinal = std::move(value13);
+  bool value14 = in.boolean();
+  self->isFinal = std::move(value14);
 }
 
 void SemanticDecoder::readAstTypenameSpecifierAST(
@@ -14808,13 +15001,21 @@ void SemanticDecoder::readAstBitfieldDeclaratorAST(
   // ::cxx::BitfieldDeclaratorAST::unqualifiedId
   cxx::NameIdAST* value1 = ast_cast<NameIdAST>(astAt(AstRef{in.varU32()}));
   self->unqualifiedId = std::move(value1);
+  // ::cxx::BitfieldDeclaratorAST::attributeList
+  cxx::List<cxx::AttributeSpecifierAST*>* value2 =
+      readAstList<cxx::AttributeSpecifierAST>(in);
+  self->attributeList = std::move(value2);
   // ::cxx::BitfieldDeclaratorAST::colonLoc
-  cxx::SourceLocation value2 = locationAt(LocationRef{in.varU32()});
-  self->colonLoc = std::move(value2);
+  cxx::SourceLocation value3 = locationAt(LocationRef{in.varU32()});
+  self->colonLoc = std::move(value3);
   // ::cxx::BitfieldDeclaratorAST::sizeExpression
-  cxx::ExpressionAST* value3 =
+  cxx::ExpressionAST* value4 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-  self->sizeExpression = std::move(value3);
+  self->sizeExpression = std::move(value4);
+  // ::cxx::BitfieldDeclaratorAST::trailingAttributeList
+  cxx::List<cxx::AttributeSpecifierAST*>* value5 =
+      readAstList<cxx::AttributeSpecifierAST>(in);
+  self->trailingAttributeList = std::move(value5);
 }
 
 void SemanticDecoder::readAstParameterPackAST(
@@ -15328,23 +15529,12 @@ void SemanticDecoder::readAstTypeRequirementAST(
   // ::cxx::TypeRequirementAST::typenameLoc
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->typenameLoc = std::move(value1);
-  // ::cxx::TypeRequirementAST::nestedNameSpecifier
-  cxx::NestedNameSpecifierAST* value2 =
-      ast_cast<NestedNameSpecifierAST>(astAt(AstRef{in.varU32()}));
-  self->nestedNameSpecifier = std::move(value2);
-  // ::cxx::TypeRequirementAST::templateLoc
-  cxx::SourceLocation value3 = locationAt(LocationRef{in.varU32()});
-  self->templateLoc = std::move(value3);
-  // ::cxx::TypeRequirementAST::unqualifiedId
-  cxx::UnqualifiedIdAST* value4 =
-      ast_cast<UnqualifiedIdAST>(astAt(AstRef{in.varU32()}));
-  self->unqualifiedId = std::move(value4);
+  // ::cxx::TypeRequirementAST::typeId
+  cxx::TypeIdAST* value2 = ast_cast<TypeIdAST>(astAt(AstRef{in.varU32()}));
+  self->typeId = std::move(value2);
   // ::cxx::TypeRequirementAST::semicolonLoc
-  cxx::SourceLocation value5 = locationAt(LocationRef{in.varU32()});
-  self->semicolonLoc = std::move(value5);
-  // ::cxx::TypeRequirementAST::isTemplateIntroduced
-  bool value6 = in.boolean();
-  self->isTemplateIntroduced = std::move(value6);
+  cxx::SourceLocation value3 = locationAt(LocationRef{in.varU32()});
+  self->semicolonLoc = std::move(value3);
 }
 
 void SemanticDecoder::readAstNestedRequirementAST(
@@ -15869,6 +16059,9 @@ void SemanticDecoder::readcxxConstObject(
   for (auto&& element6 : value2) {
     self->addMember(element6.symbol, element6.value);
   }
+  // ::cxx::ConstObject::constexprUnknown_
+  bool value7 = in.boolean();
+  self->setConstexprUnknown(std::move(value7));
 }
 
 void SemanticDecoder::readcxxConstObjectMember(
@@ -15924,43 +16117,40 @@ void SemanticDecoder::readcxxConstComplex(
 void SemanticDecoder::readcxxTemplateSpecialization(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::TemplateSpecialization* self) {
-  // ::cxx::TemplateSpecialization::templateSymbol
-  cxx::Symbol* value1 = symbolAt(SymbolRef{in.varU32()});
-  self->templateSymbol = std::move(value1);
   // ::cxx::TemplateSpecialization::arguments
-  decltype(self->arguments) value2;
+  decltype(self->arguments) value1;
   {
-    const auto count3 = in.varCount(1);
-    for (std::uint32_t i4 = 0; ok() && i4 < count3; ++i4) {
-      decltype(value2)::value_type element5 = readTemplateArgument(in);
-      value2.push_back(std::move(element5));
+    const auto count2 = in.varCount(1);
+    for (std::uint32_t i3 = 0; ok() && i3 < count2; ++i3) {
+      decltype(value1)::value_type element4 = readTemplateArgument(in);
+      value1.push_back(std::move(element4));
     }
   }
-  self->arguments = std::move(value2);
+  self->arguments = std::move(value1);
   // ::cxx::TemplateSpecialization::symbol
-  cxx::Symbol* value6 = symbolAt(SymbolRef{in.varU32()});
-  self->symbol = std::move(value6);
+  cxx::Symbol* value5 = symbolAt(SymbolRef{in.varU32()});
+  self->symbol = std::move(value5);
   // ::cxx::TemplateSpecialization::instantiationErrors
-  decltype(self->instantiationErrors) value7;
+  decltype(self->instantiationErrors) value6;
   {
-    const auto count8 = in.varCount(1);
-    for (std::uint32_t i9 = 0; ok() && i9 < count8; ++i9) {
-      decltype(value7)::value_type element10{};
-      readcxxInstantiationError(in, &element10);
-      value7.push_back(std::move(element10));
+    const auto count7 = in.varCount(1);
+    for (std::uint32_t i8 = 0; ok() && i8 < count7; ++i8) {
+      decltype(value6)::value_type element9{};
+      readcxxInstantiationError(in, &element9);
+      value6.push_back(std::move(element9));
     }
   }
-  self->instantiationErrors = std::move(value7);
+  self->instantiationErrors = std::move(value6);
   // ::cxx::TemplateSpecialization::pendingArgumentList
-  cxx::List<cxx::TemplateArgumentAST*>* value11 =
+  cxx::List<cxx::TemplateArgumentAST*>* value10 =
       readAstList<cxx::TemplateArgumentAST>(in);
-  self->pendingArgumentList = std::move(value11);
+  self->pendingArgumentList = std::move(value10);
   // ::cxx::TemplateSpecialization::pendingInstantiationLoc
-  cxx::SourceLocation value12 = locationAt(LocationRef{in.varU32()});
-  self->pendingInstantiationLoc = std::move(value12);
+  cxx::SourceLocation value11 = locationAt(LocationRef{in.varU32()});
+  self->pendingInstantiationLoc = std::move(value11);
   // ::cxx::TemplateSpecialization::isPendingInstantiation
-  bool value13 = in.boolean();
-  self->isPendingInstantiation = std::move(value13);
+  bool value12 = in.boolean();
+  self->isPendingInstantiation = std::move(value12);
 }
 
 void SemanticDecoder::readcxxInstantiationError(
@@ -16037,66 +16227,85 @@ void SemanticDecoder::readcxxClassLayout(
   for (auto&& element14 : value8) {
     self->setBaseInfo(element14.first, element14.second);
   }
-  // ::cxx::ClassLayout::virtualBases_
-  std::vector<cxx::ClassSymbol*> value15;
+  // ::cxx::ClassLayout::virtualBaseInfos_
+  std::remove_cvref_t<decltype(self->sortedVirtualBaseInfos())> value15;
   {
     const auto count16 = in.varCount(1);
     for (std::uint32_t i17 = 0; ok() && i17 < count16; ++i17) {
-      cxx::ClassSymbol* element18 =
-          symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
+      decltype(value15)::value_type element18;
+      {
+        decltype(element18.first) first19 =
+            symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
+        decltype(element18.second) second20{};
+        readcxxClassLayoutMemberInfo(in, &second20);
+        element18 = {std::move(first19), std::move(second20)};
+      }
       value15.push_back(std::move(element18));
     }
   }
-  for (auto&& element19 : value15) {
-    self->addVirtualBase(element19);
+  for (auto&& element21 : value15) {
+    self->setVirtualBaseInfo(element21.first, element21.second);
   }
-  // ::cxx::ClassLayout::padding_
-  std::vector<cxx::ClassLayout::PaddingInfo> value20;
+  // ::cxx::ClassLayout::virtualBases_
+  std::vector<cxx::ClassSymbol*> value22;
   {
-    const auto count21 = in.varCount(1);
-    for (std::uint32_t i22 = 0; ok() && i22 < count21; ++i22) {
-      cxx::ClassLayout::PaddingInfo element23{};
-      readcxxClassLayoutPaddingInfo(in, &element23);
-      value20.push_back(std::move(element23));
+    const auto count23 = in.varCount(1);
+    for (std::uint32_t i24 = 0; ok() && i24 < count23; ++i24) {
+      cxx::ClassSymbol* element25 =
+          symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
+      value22.push_back(std::move(element25));
     }
   }
-  for (auto&& element24 : value20) {
-    self->addPadding(element24.index, element24.offset, element24.sizeInBytes);
+  for (auto&& element26 : value22) {
+    self->addVirtualBase(element26);
+  }
+  // ::cxx::ClassLayout::padding_
+  std::vector<cxx::ClassLayout::PaddingInfo> value27;
+  {
+    const auto count28 = in.varCount(1);
+    for (std::uint32_t i29 = 0; ok() && i29 < count28; ++i29) {
+      cxx::ClassLayout::PaddingInfo element30{};
+      readcxxClassLayoutPaddingInfo(in, &element30);
+      value27.push_back(std::move(element30));
+    }
+  }
+  for (auto&& element31 : value27) {
+    self->addPadding(element31.index, element31.offset, element31.sizeInBytes);
   }
   // ::cxx::ClassLayout::size_
-  unsigned long long value25 = static_cast<unsigned long long>(in.varU64());
-  self->setSize(std::move(value25));
+  unsigned long long value32 = static_cast<unsigned long long>(in.varU64());
+  self->setSize(std::move(value32));
   // ::cxx::ClassLayout::dataSize_
-  unsigned long long value26 = static_cast<unsigned long long>(in.varU64());
-  self->setDataSize(std::move(value26));
+  unsigned long long value33 = static_cast<unsigned long long>(in.varU64());
+  self->setDataSize(std::move(value33));
   // ::cxx::ClassLayout::alignment_
-  unsigned long long value27 = static_cast<unsigned long long>(in.varU64());
-  self->setAlignment(std::move(value27));
+  unsigned long long value34 = static_cast<unsigned long long>(in.varU64());
+  self->setAlignment(std::move(value34));
   // ::cxx::ClassLayout::nonVirtualSize_
-  unsigned long long value28 = static_cast<unsigned long long>(in.varU64());
-  self->setNonVirtualSize(std::move(value28));
+  unsigned long long value35 = static_cast<unsigned long long>(in.varU64());
+  self->setNonVirtualSize(std::move(value35));
   // ::cxx::ClassLayout::nonVirtualAlignment_
-  unsigned long long value29 = static_cast<unsigned long long>(in.varU64());
-  self->setNonVirtualAlignment(std::move(value29));
+  unsigned long long value36 = static_cast<unsigned long long>(in.varU64());
+  self->setNonVirtualAlignment(std::move(value36));
   // ::cxx::ClassLayout::vtableIndex_
-  unsigned int value30 = static_cast<unsigned int>(in.varU32());
-  self->setVtableIndex(std::move(value30));
+  unsigned int value37 = static_cast<unsigned int>(in.varU32());
+  self->setVtableIndex(std::move(value37));
   // ::cxx::ClassLayout::primaryBase_
-  cxx::ClassSymbol* value31 =
+  cxx::ClassSymbol* value38 =
       symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setPrimaryBase(std::move(value31), self->primaryBaseIsVirtual());
+  self->setPrimaryBase(std::move(value38), self->primaryBaseIsVirtual());
   // ::cxx::ClassLayout::hasVtable_
-  bool value32 = in.boolean();
-  self->setHasVtable(std::move(value32));
+  bool value39 = in.boolean();
+  self->setHasVtable(std::move(value39));
   // ::cxx::ClassLayout::hasDirectVtable_
-  bool value33 = in.boolean();
-  self->setHasDirectVtable(std::move(value33));
+  bool value40 = in.boolean();
+  self->setHasDirectVtable(std::move(value40));
   // ::cxx::ClassLayout::primaryBaseIsVirtual_
-  bool value34 = in.boolean();
-  self->setPrimaryBase(self->primaryBase(), std::move(value34));
+  bool value41 = in.boolean();
+  self->setPrimaryBase(self->primaryBase(), std::move(value41));
   // ::cxx::ClassLayout::abiEmpty_
-  bool value35 = in.boolean();
-  self->setAbiEmpty(std::move(value35));
+  bool value42 = in.boolean();
+  self->setAbiEmpty(std::move(value42));
 }
 
 void SemanticDecoder::readcxxClassLayoutMemberInfo(
@@ -16135,29 +16344,80 @@ void SemanticDecoder::readcxxClassLayoutPaddingInfo(
 
 void SemanticDecoder::readcxxVTableLayout(
     [[maybe_unused]] ByteReader& in, [[maybe_unused]] cxx::VTableLayout* self) {
-  // ::cxx::VTableLayout::primary
+  // ::cxx::VTableLayout::main
   cxx::VTableLayout::Group value1{};
   readcxxVTableLayoutGroup(in, &value1);
-  self->primary = std::move(value1);
-  // ::cxx::VTableLayout::virtualBasePrimary
-  cxx::VTableLayout::Group value2{};
-  readcxxVTableLayoutGroup(in, &value2);
-  self->virtualBasePrimary = std::move(value2);
-  // ::cxx::VTableLayout::secondary
-  decltype(self->secondary) value3;
+  self->main = std::move(value1);
+  // ::cxx::VTableLayout::constructionGroups
+  decltype(self->constructionGroups) value2;
   {
-    const auto count4 = in.varCount(1);
-    for (std::uint32_t i5 = 0; ok() && i5 < count4; ++i5) {
-      decltype(value3)::value_type element6{};
-      readcxxVTableLayoutGroup(in, &element6);
-      value3.push_back(std::move(element6));
+    const auto count3 = in.varCount(1);
+    for (std::uint32_t i4 = 0; ok() && i4 < count3; ++i4) {
+      decltype(value2)::value_type element5{};
+      readcxxVTableLayoutGroup(in, &element5);
+      value2.push_back(std::move(element5));
     }
   }
-  self->secondary = std::move(value3);
+  self->constructionGroups = std::move(value2);
+  // ::cxx::VTableLayout::vtt
+  decltype(self->vtt) value6;
+  {
+    const auto count7 = in.varCount(1);
+    for (std::uint32_t i8 = 0; ok() && i8 < count7; ++i8) {
+      decltype(value6)::value_type element9{};
+      readcxxVTableLayoutVTTEntry(in, &element9);
+      value6.push_back(std::move(element9));
+    }
+  }
+  self->vtt = std::move(value6);
+  // ::cxx::VTableLayout::tableVTTIndices
+  decltype(self->tableVTTIndices) value10;
+  {
+    const auto count11 = in.varCount(1);
+    for (std::uint32_t i12 = 0; ok() && i12 < count11; ++i12) {
+      decltype(value10)::value_type element13 =
+          static_cast<decltype(value10)::value_type>(in.varI32());
+      value10.push_back(std::move(element13));
+    }
+  }
+  self->tableVTTIndices = std::move(value10);
+  // ::cxx::VTableLayout::baseSubVTTs
+  decltype(self->baseSubVTTs) value14;
+  {
+    const auto count15 = in.varCount(1);
+    for (std::uint32_t i16 = 0; ok() && i16 < count15; ++i16) {
+      decltype(value14)::value_type element17{};
+      readcxxVTableLayoutSubVTT(in, &element17);
+      value14.push_back(std::move(element17));
+    }
+  }
+  self->baseSubVTTs = std::move(value14);
+  // ::cxx::VTableLayout::virtualBaseSubVTTs
+  decltype(self->virtualBaseSubVTTs) value18;
+  {
+    const auto count19 = in.varCount(1);
+    for (std::uint32_t i20 = 0; ok() && i20 < count19; ++i20) {
+      decltype(value18)::value_type element21{};
+      readcxxVTableLayoutSubVTT(in, &element21);
+      value18.push_back(std::move(element21));
+    }
+  }
+  self->virtualBaseSubVTTs = std::move(value18);
+  // ::cxx::VTableLayout::adjustingEntryPoints
+  decltype(self->adjustingEntryPoints) value22;
+  {
+    const auto count23 = in.varCount(1);
+    for (std::uint32_t i24 = 0; ok() && i24 < count23; ++i24) {
+      decltype(value22)::value_type element25{};
+      readcxxVTableLayoutEntryPoint(in, &element25);
+      value22.push_back(std::move(element25));
+    }
+  }
+  self->adjustingEntryPoints = std::move(value22);
   // ::cxx::VTableLayout::keyFunction
-  cxx::FunctionSymbol* value7 =
+  cxx::FunctionSymbol* value26 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->keyFunction = std::move(value7);
+  self->keyFunction = std::move(value26);
 }
 
 void SemanticDecoder::readcxxVTableLayoutGroup(
@@ -16170,51 +16430,69 @@ void SemanticDecoder::readcxxVTableLayoutGroup(
   // ::cxx::VTableLayout::Group::offset
   unsigned long long value2 = static_cast<unsigned long long>(in.varU64());
   self->offset = std::move(value2);
-  // ::cxx::VTableLayout::Group::vbaseOffsets
-  decltype(self->vbaseOffsets) value3;
+  // ::cxx::VTableLayout::Group::tables
+  decltype(self->tables) value3;
   {
     const auto count4 = in.varCount(1);
     for (std::uint32_t i5 = 0; ok() && i5 < count4; ++i5) {
-      decltype(value3)::value_type element6;
-      {
-        decltype(element6.first) first7 =
-            symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-        decltype(element6.second) second8 =
-            static_cast<decltype(element6.second)>(in.varI64());
-        element6 = {std::move(first7), std::move(second8)};
-      }
+      decltype(value3)::value_type element6{};
+      readcxxVTableLayoutTable(in, &element6);
       value3.push_back(std::move(element6));
     }
   }
-  self->vbaseOffsets = std::move(value3);
-  // ::cxx::VTableLayout::Group::vcallOffsets
-  decltype(self->vcallOffsets) value9;
+  self->tables = std::move(value3);
+}
+
+void SemanticDecoder::readcxxVTableLayoutTable(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::VTableLayout::Table* self) {
+  // ::cxx::VTableLayout::Table::base
+  cxx::ClassSymbol* value1 =
+      symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->base = std::move(value1);
+  // ::cxx::VTableLayout::Table::offset
+  unsigned long long value2 = static_cast<unsigned long long>(in.varU64());
+  self->offset = std::move(value2);
+  // ::cxx::VTableLayout::Table::enclosingVirtualBase
+  cxx::ClassSymbol* value3 =
+      symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->enclosingVirtualBase = std::move(value3);
+  // ::cxx::VTableLayout::Table::offsetToTop
+  long long value4 = static_cast<long long>(in.varI64());
+  self->offsetToTop = std::move(value4);
+  // ::cxx::VTableLayout::Table::offsets
+  decltype(self->offsets) value5;
+  {
+    const auto count6 = in.varCount(1);
+    for (std::uint32_t i7 = 0; ok() && i7 < count6; ++i7) {
+      decltype(value5)::value_type element8{};
+      readcxxVTableLayoutOffset(in, &element8);
+      value5.push_back(std::move(element8));
+    }
+  }
+  self->offsets = std::move(value5);
+  // ::cxx::VTableLayout::Table::slots
+  decltype(self->slots) value9;
   {
     const auto count10 = in.varCount(1);
     for (std::uint32_t i11 = 0; ok() && i11 < count10; ++i11) {
-      decltype(value9)::value_type element12;
-      {
-        decltype(element12.first) first13 =
-            symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-        decltype(element12.second) second14 =
-            static_cast<decltype(element12.second)>(in.varI64());
-        element12 = {std::move(first13), std::move(second14)};
-      }
+      decltype(value9)::value_type element12{};
+      readcxxVTableLayoutSlot(in, &element12);
       value9.push_back(std::move(element12));
     }
   }
-  self->vcallOffsets = std::move(value9);
-  // ::cxx::VTableLayout::Group::slots
-  decltype(self->slots) value15;
-  {
-    const auto count16 = in.varCount(1);
-    for (std::uint32_t i17 = 0; ok() && i17 < count16; ++i17) {
-      decltype(value15)::value_type element18{};
-      readcxxVTableLayoutSlot(in, &element18);
-      value15.push_back(std::move(element18));
-    }
-  }
-  self->slots = std::move(value15);
+  self->slots = std::move(value9);
+}
+
+void SemanticDecoder::readcxxVTableLayoutOffset(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::VTableLayout::Offset* self) {
+  // ::cxx::VTableLayout::Offset::subject
+  cxx::Symbol* value1 = symbolAt(SymbolRef{in.varU32()});
+  self->subject = std::move(value1);
+  // ::cxx::VTableLayout::Offset::value
+  long long value2 = static_cast<long long>(in.varI64());
+  self->value = std::move(value2);
 }
 
 void SemanticDecoder::readcxxVTableLayoutSlot(
@@ -16236,127 +16514,109 @@ void SemanticDecoder::readcxxVTableLayoutSlot(
   cxx::FunctionSymbol* value3 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->introducingFunction = std::move(value3);
-  // ::cxx::VTableLayout::Slot::vcallBase
-  cxx::ClassSymbol* value4 =
-      symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->vcallBase = std::move(value4);
   // ::cxx::VTableLayout::Slot::thisAdjustment
-  long long value5 = static_cast<long long>(in.varI64());
-  self->thisAdjustment = std::move(value5);
-  // ::cxx::VTableLayout::Slot::vcallOffsetIndex
-  int value6 = static_cast<int>(in.varI32());
-  self->vcallOffsetIndex = std::move(value6);
-  // ::cxx::VTableLayout::Slot::usesVcallOffset
-  bool value7 = in.boolean();
-  self->usesVcallOffset = std::move(value7);
+  cxx::VTableLayout::CallOffset value4{};
+  readcxxVTableLayoutCallOffset(in, &value4);
+  self->thisAdjustment = std::move(value4);
+  // ::cxx::VTableLayout::Slot::returnAdjustment
+  cxx::VTableLayout::CallOffset value5{};
+  readcxxVTableLayoutCallOffset(in, &value5);
+  self->returnAdjustment = std::move(value5);
 }
 
-void SemanticDecoder::readcxxPendingBodyInstantiation(
+void SemanticDecoder::readcxxVTableLayoutCallOffset(
     [[maybe_unused]] ByteReader& in,
-    [[maybe_unused]] cxx::PendingBodyInstantiation* self) {
-  // ::cxx::PendingBodyInstantiation::originalDefinition
-  cxx::FunctionDefinitionAST* value1 =
-      ast_cast<FunctionDefinitionAST>(astAt(AstRef{in.varU32()}));
-  self->originalDefinition = std::move(value1);
-  // ::cxx::PendingBodyInstantiation::templateArguments
-  decltype(self->templateArguments) value2;
-  {
-    const auto count3 = in.varCount(1);
-    for (std::uint32_t i4 = 0; ok() && i4 < count3; ++i4) {
-      decltype(value2)::value_type element5 = readTemplateArgument(in);
-      value2.push_back(std::move(element5));
-    }
-  }
-  self->templateArguments = std::move(value2);
-  // ::cxx::PendingBodyInstantiation::parentScope
-  cxx::ScopeSymbol* value6 =
-      symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->parentScope = std::move(value6);
-  // ::cxx::PendingBodyInstantiation::depth
-  int value7 = static_cast<int>(in.varI32());
-  self->depth = std::move(value7);
+    [[maybe_unused]] cxx::VTableLayout::CallOffset* self) {
+  // ::cxx::VTableLayout::CallOffset::nonVirtual
+  long long value1 = static_cast<long long>(in.varI64());
+  self->nonVirtual = std::move(value1);
+  // ::cxx::VTableLayout::CallOffset::virtualOffset
+  long long value2 = static_cast<long long>(in.varI64());
+  self->virtualOffset = std::move(value2);
 }
 
-void SemanticDecoder::readcxxPendingExceptionSpecification(
+void SemanticDecoder::readcxxVTableLayoutVTTEntry(
     [[maybe_unused]] ByteReader& in,
-    [[maybe_unused]] cxx::PendingExceptionSpecification* self) {
-  // ::cxx::PendingExceptionSpecification::original
-  cxx::NoexceptSpecifierAST* value1 =
-      ast_cast<NoexceptSpecifierAST>(astAt(AstRef{in.varU32()}));
-  self->original = std::move(value1);
-  // ::cxx::PendingExceptionSpecification::instance
-  cxx::NoexceptSpecifierAST* value2 =
-      ast_cast<NoexceptSpecifierAST>(astAt(AstRef{in.varU32()}));
-  self->instance = std::move(value2);
-  // ::cxx::PendingExceptionSpecification::originalFunction
-  cxx::FunctionSymbol* value3 =
+    [[maybe_unused]] cxx::VTableLayout::VTTEntry* self) {
+  // ::cxx::VTableLayout::VTTEntry::group
+  int value1 = static_cast<int>(in.varI32());
+  self->group = std::move(value1);
+  // ::cxx::VTableLayout::VTTEntry::table
+  unsigned int value2 = static_cast<unsigned int>(in.varU32());
+  self->table = std::move(value2);
+}
+
+void SemanticDecoder::readcxxVTableLayoutSubVTT(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::VTableLayout::SubVTT* self) {
+  // ::cxx::VTableLayout::SubVTT::base
+  cxx::ClassSymbol* value1 =
+      symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->base = std::move(value1);
+  // ::cxx::VTableLayout::SubVTT::index
+  unsigned int value2 = static_cast<unsigned int>(in.varU32());
+  self->index = std::move(value2);
+}
+
+void SemanticDecoder::readcxxVTableLayoutEntryPoint(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::VTableLayout::EntryPoint* self) {
+  // ::cxx::VTableLayout::EntryPoint::function
+  cxx::FunctionSymbol* value1 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->originalFunction = std::move(value3);
-  // ::cxx::PendingExceptionSpecification::templateArguments
-  decltype(self->templateArguments) value4;
-  {
-    const auto count5 = in.varCount(1);
-    for (std::uint32_t i6 = 0; ok() && i6 < count5; ++i6) {
-      decltype(value4)::value_type element7 = readTemplateArgument(in);
-      value4.push_back(std::move(element7));
-    }
-  }
-  self->templateArguments = std::move(value4);
-  // ::cxx::PendingExceptionSpecification::parentScope
-  cxx::ScopeSymbol* value8 =
-      symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->parentScope = std::move(value8);
-  // ::cxx::PendingExceptionSpecification::depth
-  int value9 = static_cast<int>(in.varI32());
-  self->depth = std::move(value9);
-  // ::cxx::PendingExceptionSpecification::state
-  static_assert(static_cast<std::uint32_t>(
-                    ::cxx::PendingExceptionSpecificationState::kResolved) +
-                    1 ==
-                3);
-  ::cxx::PendingExceptionSpecificationState value10 =
-      static_cast<::cxx::PendingExceptionSpecificationState>(readEnum(in, 3));
-  self->state = std::move(value10);
-  // ::cxx::PendingExceptionSpecification::recursionDiagnosed
-  bool value11 = in.boolean();
-  self->recursionDiagnosed = std::move(value11);
+  self->function = std::move(value1);
+  // ::cxx::VTableLayout::EntryPoint::kind
+  static_assert(
+      static_cast<std::uint32_t>(::cxx::VTableLayout::SlotKind::kDeletingDtor) +
+          1 ==
+      3);
+  ::cxx::VTableLayout::SlotKind value2 =
+      static_cast<::cxx::VTableLayout::SlotKind>(readEnum(in, 3));
+  self->kind = std::move(value2);
+  // ::cxx::VTableLayout::EntryPoint::thisAdjustment
+  cxx::VTableLayout::CallOffset value3{};
+  readcxxVTableLayoutCallOffset(in, &value3);
+  self->thisAdjustment = std::move(value3);
+  // ::cxx::VTableLayout::EntryPoint::returnAdjustment
+  cxx::VTableLayout::CallOffset value4{};
+  readcxxVTableLayoutCallOffset(in, &value4);
+  self->returnAdjustment = std::move(value4);
 }
 
-void SemanticDecoder::readcxxPendingFieldInitializerInstantiation(
+void SemanticDecoder::readcxxPendingInstantiation(
     [[maybe_unused]] ByteReader& in,
-    [[maybe_unused]] cxx::PendingFieldInitializerInstantiation* self) {
-  // ::cxx::PendingFieldInitializerInstantiation::unit
-  cxx::TranslationUnit* value1 = unit();
-  self->unit = std::move(value1);
-  // ::cxx::PendingFieldInitializerInstantiation::pattern
-  cxx::InitDeclaratorAST* value2 =
-      ast_cast<InitDeclaratorAST>(astAt(AstRef{in.varU32()}));
-  self->pattern = std::move(value2);
-  // ::cxx::PendingFieldInitializerInstantiation::instance
-  cxx::InitDeclaratorAST* value3 =
-      ast_cast<InitDeclaratorAST>(astAt(AstRef{in.varU32()}));
-  self->instance = std::move(value3);
-  // ::cxx::PendingFieldInitializerInstantiation::typeSpecifier
-  cxx::SpecifierAST* value4 =
-      ast_cast<SpecifierAST>(astAt(AstRef{in.varU32()}));
-  self->typeSpecifier = std::move(value4);
-  // ::cxx::PendingFieldInitializerInstantiation::templateArguments
-  decltype(self->templateArguments) value5;
+    [[maybe_unused]] cxx::PendingInstantiation* self) {
+  // ::cxx::PendingInstantiation::pattern
+  cxx::AST* value1 = astAt(AstRef{in.varU32()});
+  self->pattern = std::move(value1);
+  // ::cxx::PendingInstantiation::instance
+  cxx::AST* value2 = astAt(AstRef{in.varU32()});
+  self->instance = std::move(value2);
+  // ::cxx::PendingInstantiation::templateArguments
+  decltype(self->templateArguments) value3;
   {
-    const auto count6 = in.varCount(1);
-    for (std::uint32_t i7 = 0; ok() && i7 < count6; ++i7) {
-      decltype(value5)::value_type element8 = readTemplateArgument(in);
-      value5.push_back(std::move(element8));
+    const auto count4 = in.varCount(1);
+    for (std::uint32_t i5 = 0; ok() && i5 < count4; ++i5) {
+      decltype(value3)::value_type element6 = readTemplateArgument(in);
+      value3.push_back(std::move(element6));
     }
   }
-  self->templateArguments = std::move(value5);
-  // ::cxx::PendingFieldInitializerInstantiation::parentScope
-  cxx::ScopeSymbol* value9 =
+  self->templateArguments = std::move(value3);
+  // ::cxx::PendingInstantiation::parentScope
+  cxx::ScopeSymbol* value7 =
       symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->parentScope = std::move(value9);
-  // ::cxx::PendingFieldInitializerInstantiation::depth
-  int value10 = static_cast<int>(in.varI32());
-  self->depth = std::move(value10);
+  self->parentScope = std::move(value7);
+  // ::cxx::PendingInstantiation::depth
+  int value8 = static_cast<int>(in.varI32());
+  self->depth = std::move(value8);
+  // ::cxx::PendingInstantiation::state
+  static_assert(
+      static_cast<std::uint32_t>(::cxx::PendingInstantiationState::kResolved) +
+          1 ==
+      4);
+  ::cxx::PendingInstantiationState value9 =
+      static_cast<::cxx::PendingInstantiationState>(readEnum(in, 4));
+  self->state = std::move(value9);
 }
 
 void SemanticDecoder::readcxxDefaultInitializerContext(
