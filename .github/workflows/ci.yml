@@ -160,13 +160,17 @@ jobs:
           retention-days: 1
 
   build-macos:
-    runs-on: macos-latest
+    runs-on: xcode-27
+
+    env:
+      CMAKE_PREFIX_PATH: /opt/homebrew/opt/llvm:/opt/homebrew/opt/lld
 
     steps:
       - uses: actions/checkout@v7
 
       - name: Install unit tests requirements
         run: |
+          brew install llvm lld
           npm ci --ignore-scripts
           pipx install uv
           uv sync
@@ -175,14 +179,23 @@ jobs:
         run: |
           . .venv/bin/activate
 
-          cmake --preset default
+          cmake --preset default-mlir
 
           cmake --build build --parallel
 
       - name: Test
-        working-directory: build
         run: |
-          ctest --verbose
+          ctest --verbose --test-dir build
+
+      - name: Stage 1 bootstrap
+        run: |
+          cmake --workflow stage1-macos
+          ls -la build-stage1/src/frontend/cxx
+
+      - name: Stage 2 bootstrap
+        run: |
+          cmake --workflow stage2-macos
+          ls -la build-stage2/src/frontend/cxx
 
   build-wasi:
     runs-on: ubuntu-26.04

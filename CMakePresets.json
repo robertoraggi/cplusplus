@@ -110,6 +110,48 @@
       "name": "wasi-threads",
       "inherits": "wasi",
       "toolchainFile": "$env{WASI_SDK_PATH}/share/cmake/wasi-sdk-pthread.cmake"
+    },
+    {
+      "name": "self-host-mlir",
+      "hidden": true,
+      "inherits": "default-mlir",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "toolchainFile": "${sourceDir}/scripts/cxx-native-toolchain.cmake",
+      "cacheVariables": {
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "NO",
+        "CMAKE_CXX_FLAGS": "-fno-exceptions -DSIMDJSON_IMPLEMENTATION_ARM64=0 -DSIMDJSON_EXPERIMENTAL_HAS_NEON=0",
+        "CXX_BUILD_TESTS": "OFF",
+        "LLVM_ENABLE_LIBCXX": "ON",
+        "FETCHCONTENT_SOURCE_DIR_SIMDJSON": "${sourceDir}/build/_deps/simdjson-src",
+        "FETCHCONTENT_SOURCE_DIR_WASI_SYSROOT": "${sourceDir}/build/_deps/wasi_sysroot-src",
+        "FETCHCONTENT_SOURCE_DIR_WASI_BUILTINS": "${sourceDir}/build/_deps/wasi_builtins-src"
+      }
+    },
+    {
+      "name": "stage1-macos",
+      "displayName": "Self-host stage 1 with MLIR",
+      "inherits": "self-host-mlir",
+      "binaryDir": "${sourceDir}/build-stage1",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "${sourceDir}/build/src/frontend/cxx",
+        "CMAKE_CXX_COMPILER": "${sourceDir}/build/src/frontend/cxx",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build-stage1/install"
+      }
+    },
+    {
+      "name": "stage2-macos",
+      "displayName": "Self-host stage 2 with MLIR",
+      "inherits": "self-host-mlir",
+      "binaryDir": "${sourceDir}/build-stage2",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "${sourceDir}/build-stage1/src/frontend/cxx",
+        "CMAKE_CXX_COMPILER": "${sourceDir}/build-stage1/src/frontend/cxx",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build-stage2/install"
+      }
     }
   ],
   "buildPresets": [
@@ -124,9 +166,7 @@
     {
       "name": "install",
       "configurePreset": "default",
-      "targets": [
-        "install"
-      ]
+      "targets": ["install"]
     },
     {
       "name": "build-emscripten",
@@ -135,18 +175,12 @@
     {
       "name": "build-emscripten-mlir",
       "configurePreset": "emscripten-mlir",
-      "targets": [
-        "cxx-js",
-        "link_cxx_include",
-        "link_wasi_sysroot"
-      ]
+      "targets": ["cxx-js", "link_cxx_include", "link_wasi_sysroot"]
     },
     {
       "name": "install-emscripten",
       "configurePreset": "emscripten",
-      "targets": [
-        "install"
-      ]
+      "targets": ["install"]
     },
     {
       "name": "build-wasi",
@@ -155,9 +189,7 @@
     {
       "name": "install-wasi",
       "configurePreset": "wasi",
-      "targets": [
-        "install"
-      ]
+      "targets": ["install"]
     },
     {
       "name": "build-wasi-threads",
@@ -166,9 +198,19 @@
     {
       "name": "install-wasi-threads",
       "configurePreset": "wasi-threads",
-      "targets": [
-        "install"
-      ]
+      "targets": ["install"]
+    },
+    {
+      "name": "stage1-macos",
+      "configurePreset": "stage1-macos",
+      "targets": ["cxx"],
+      "cleanFirst": true
+    },
+    {
+      "name": "stage2-macos",
+      "configurePreset": "stage2-macos",
+      "targets": ["cxx"],
+      "cleanFirst": true
     }
   ],
   "testPresets": [
@@ -247,6 +289,32 @@
         {
           "type": "build",
           "name": "install-wasi-threads"
+        }
+      ]
+    },
+    {
+      "name": "stage1-macos",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "stage1-macos"
+        },
+        {
+          "type": "build",
+          "name": "stage1-macos"
+        }
+      ]
+    },
+    {
+      "name": "stage2-macos",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "stage2-macos"
+        },
+        {
+          "type": "build",
+          "name": "stage2-macos"
         }
       ]
     }

@@ -35,6 +35,16 @@ Options:
 ...
 ```
 
+## Stage 2 bootstrap (on macOS)
+
+```bash
+cmake --workflow default-mlir
+cmake --workflow stage1-macos
+cmake --workflow stage2-macos
+
+ls -la build-stage*/src/frontend/cxx
+```
+
 ## Build the NPM package and the Playground
 
 The playground uses the Monaco Editor to demonstrate how to use the compiler frontend LSP implementation,
