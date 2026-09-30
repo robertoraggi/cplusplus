@@ -819,7 +819,8 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
         elaboratedTypeSpecifierTargetScope(declSpecs.isFriend, isDeclaration);
 
     auto candidate = [&]() -> Symbol* {
-      if (declSpecs.isFriend) return lookupFriendClass(name);
+      if (declSpecs.isFriend)
+        return lookupFriendClass(name, declSpecs.templateHead != nullptr);
       if (ast->nestedNameSpecifier)
         return qualifiedLookup(ast->nestedNameSpecifier->symbol, name,
                                is_class);
@@ -938,11 +939,19 @@ void Binder::undoSpeculativeMutations(std::size_t count) {
   }
 }
 
-auto Binder::lookupFriendClass(const Identifier* name) -> ClassSymbol* {
-  auto isClass = [](Symbol* symbol) { return symbol->isClass(); };
+auto Binder::lookupFriendClass(const Identifier* name, bool namesTemplate)
+    -> ClassSymbol* {
+  auto isClass = [](Symbol* symbol) {
+    return symbol->isClass() || symbol_cast<InjectedClassNameSymbol>(symbol);
+  };
   for (auto scope = declaringScope(); scope; scope = scope->parent()) {
-    if (auto found = qualifiedLookup(scope, name, isClass))
+    if (auto found = qualifiedLookup(scope, name, isClass)) {
+      if (namesTemplate)
+        return symbol_cast<ClassSymbol>(templated_symbol(found));
+      if (auto injected = symbol_cast<InjectedClassNameSymbol>(found))
+        return injected->classSymbol();
       return symbol_cast<ClassSymbol>(found);
+    }
     for (auto candidate : scope->find(name) | views::classes) {
       if (candidate->isFriend()) return candidate;
     }
@@ -1164,8 +1173,25 @@ auto Binder::nextEnumeratorValue(TranslationUnit* unit,
   return std::nullopt;
 }
 
-void Binder::bind(EnumeratorAST* ast, const Type* type,
+auto Binder::enumeratorType(EnumeratorAST* ast, const Type* previousType) const
+    -> const Type* {
+  if (isC()) return scope()->type();
+  if (auto scopedEnum = symbol_cast<ScopedEnumSymbol>(scope()))
+    return scopedEnum->underlyingType();
+  if (auto unscopedEnum = symbol_cast<EnumSymbol>(scope());
+      unscopedEnum && unscopedEnum->hasFixedUnderlyingType())
+    return unscopedEnum->underlyingType();
+  if (!ast->expression)
+    return previousType ? previousType : control()->getIntType();
+  auto type = traits.remove_cv(ast->expression->type);
+  if (auto enumType = type_cast<EnumType>(type))
+    return enumType->underlyingType();
+  return type;
+}
+
+void Binder::bind(EnumeratorAST* ast, const Type* previousType,
                   std::optional<ConstValue> value) {
+  auto type = enumeratorType(ast, previousType);
   if (isCxx()) {
     auto symbol = control()->newEnumeratorSymbol(scope(), ast->identifierLoc);
     ast->symbol = symbol;
@@ -1528,8 +1554,7 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   const auto checkTemplates = unit_->config().checkTypes;
 
   if (ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol) {
-    (void)reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
-    return;
+    if (reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier)) return;
   }
 
   Symbol* symbol = nullptr;
@@ -1542,6 +1567,15 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   } else {
     symbol = resolve(ast->nestedNameSpecifier, ast->unqualifiedId,
                      checkTemplates, resolvedType);
+  }
+
+  if (!symbol && isDependent(unit_, ast->nestedNameSpecifier)) {
+    auto alias = control()->newTypeAliasSymbol(
+        scope(), ast->unqualifiedId->firstSourceLocation());
+    alias->setName(get_name(control(), ast->unqualifiedId));
+    alias->setType(control()->getUnresolvedNameType(
+        unit_, ast->nestedNameSpecifier, ast->unqualifiedId));
+    symbol = alias;
   }
 
   if (auto typeAlias = symbol_cast<TypeAliasSymbol>(symbol)) {

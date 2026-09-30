@@ -710,10 +710,8 @@ class Parser final {
   [[nodiscard]] auto parse_enum_base(SourceLocation& colonLoc,
                                      List<SpecifierAST*>*& typeSpecifierList,
                                      DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto enumeratorTypeInEnumSpecifier(Symbol* enumSymbol)
-      -> const Type*;
-  void parse_enumerator_list(List<EnumeratorAST*>*& yyast, const Type* type);
-  void parse_enumerator(EnumeratorAST*& yyast, const Type* type);
+  void parse_enumerator_list(List<EnumeratorAST*>*& yyast);
+  void parse_enumerator(EnumeratorAST*& yyast, const Type* previousType);
   [[nodiscard]] auto parse_using_enum_declaration(DeclarationAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_namespace_definition(DeclarationAST*& yyast) -> bool;

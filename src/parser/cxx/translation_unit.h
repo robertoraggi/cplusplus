@@ -88,7 +88,11 @@ class TranslationUnit {
                                    std::vector<TemplateArgument> arguments,
                                    bool value);
 
-  void addPendingBodyCompletion(FunctionSymbol* function);
+  void addPendingBodyCompletion(FunctionSymbol* function,
+                                SourceLocation location = {},
+                                FunctionSymbol* caller = nullptr);
+  [[nodiscard]] auto pendingBodyCompletionRequest(FunctionSymbol* function)
+      const -> std::pair<SourceLocation, FunctionSymbol*>;
   [[nodiscard]] auto takePendingBodyCompletions()
       -> std::vector<FunctionSymbol*>;
 
@@ -128,6 +132,10 @@ class TranslationUnit {
 
   [[nodiscard]] auto requiresDefinitions() const -> bool {
     return potentiallyEvaluated_ && !templatedContext_;
+  }
+
+  [[nodiscard]] auto isTemplatedContext() const -> bool {
+    return templatedContext_;
   }
 
   class TemplatedContextScope {
@@ -429,8 +437,12 @@ class TranslationUnit {
   NamespaceSymbol* globalNamespace_ = nullptr;
   ParserConfiguration config_;
   std::vector<ClassSymbol*> pendingMemberInstantiations_;
+  std::unordered_set<ClassSymbol*> pendingMemberInstantiationIndex_;
   std::unordered_set<ClassSymbol*> instantiatedMemberClasses_;
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
+  std::unordered_map<FunctionSymbol*,
+                     std::pair<SourceLocation, FunctionSymbol*>>
+      pendingBodyCompletionRequests_;
   std::vector<FunctionSymbol*> explicitInstantiationDefinitions_;
   std::unordered_set<FunctionDefinitionAST*> unparsedFunctionBodies_;
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>

@@ -196,6 +196,7 @@ struct SourceFile {
   std::string headerGuardName;
   int headerProtectionLevel = 0;
   int id = 0;
+  Token includedFrom;
   bool pragmaOnceProtected = false;
   bool isSystemHeader = false;
 
@@ -648,6 +649,9 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto createSourceFile(std::string fileName, std::string source)
       -> SourceFile*;
+
+  void enterIncludedFile(SourceFile* sourceFile, const void* location,
+                         bool isSystemHeader);
 
   [[nodiscard]] auto fileIdentity(const std::string& fileName) const
       -> const std::string&;
@@ -1227,6 +1231,28 @@ auto Preprocessor::Private::createSourceFile(std::string fileName,
   sourceFile->tokens = tokenize(sourceFile->source, sourceFileId, true);
 
   return sourceFile;
+}
+
+void Preprocessor::Private::enterIncludedFile(SourceFile* sourceFile,
+                                              const void* location,
+                                              bool isSystemHeader) {
+  if (sourceFile->includedFrom || sourceFile->id == mainSourceFileId_) {
+    sourceFile = createSourceFile(sourceFile->fileName, sourceFile->source);
+  }
+  sourceFile->includedFrom = diagnosticTokenAt(location);
+  sourceFile->isSystemHeader = isSystemHeader;
+
+  Cursor fileCursor;
+  fileCursor.kind = Cursor::FileCursor;
+  fileCursor.sourceFile = sourceFile;
+  fileCursor.currentPath = fs::path(sourceFile->fileName).parent_path();
+  fileCursor.includeDepth = includeDepth_ + 1;
+  fileCursor.initFromSourceFile();
+  cursors_.push_back(std::move(fileCursor));
+  includedFiles_.emplace_back(sourceFile->fileName, isSystemHeader);
+
+  if (willIncludeHeader_)
+    willIncludeHeader_(sourceFile->fileName, includeDepth_ + 1);
 }
 
 auto Preprocessor::Private::tokenize(const std::string_view& source,
@@ -4130,6 +4156,19 @@ auto Preprocessor::tokenEndPosition(const Token& token) const
   return sourceFile.getTokenStartPosition(token.offset() + token.length());
 }
 
+auto Preprocessor::includeStack(const Token& token) const
+    -> std::vector<SourcePosition> {
+  std::vector<SourcePosition> stack;
+  auto fileId = token.fileId();
+  while (fileId && fileId <= d->sourceFiles_.size()) {
+    const auto& includedFrom = d->sourceFiles_[fileId - 1]->includedFrom;
+    if (!includedFrom.fileId()) break;
+    stack.push_back(tokenStartPosition(includedFrom));
+    fileId = includedFrom.fileId();
+  }
+  return stack;
+}
+
 auto Preprocessor::getTextLine(const Token& token) const -> std::string_view {
   if (token.fileId() == 0) return {};
   const SourceFile* file = d->sourceFiles_[token.fileId() - 1].get();
@@ -4207,20 +4246,7 @@ void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,
       return request;
     }
 
-    auto dirpath = fs::path(sourceFile->fileName).parent_path();
-
-    Preprocessor::Private::Cursor fileCursor;
-    fileCursor.kind = Preprocessor::Private::Cursor::FileCursor;
-    fileCursor.sourceFile = sourceFile;
-    fileCursor.currentPath = dirpath;
-    fileCursor.includeDepth = d->includeDepth_ + 1;
-    fileCursor.initFromSourceFile();
-    d->cursors_.push_back(std::move(fileCursor));
-    d->includedFiles_.emplace_back(fileName, isSystemHeader);
-
-    if (d->willIncludeHeader_) {
-      d->willIncludeHeader_(fileName, d->includeDepth_ + 1);
-    }
+    d->enterIncludedFile(sourceFile, loc, isSystemHeader);
 
     return std::nullopt;
   };
@@ -4254,20 +4280,7 @@ void PendingFileContent::setContent(std::optional<std::string> content) const {
                                               sourceFile->headerGuardName);
   }
 
-  auto dirpath = fs::path(sourceFile->fileName).parent_path();
-
-  Preprocessor::Private::Cursor fileCursor;
-  fileCursor.kind = Preprocessor::Private::Cursor::FileCursor;
-  fileCursor.sourceFile = sourceFile;
-  fileCursor.currentPath = dirpath;
-  fileCursor.includeDepth = d->includeDepth_ + 1;
-  fileCursor.initFromSourceFile();
-  d->cursors_.push_back(std::move(fileCursor));
-  d->includedFiles_.emplace_back(fileName, sourceFile->isSystemHeader);
-
-  if (d->willIncludeHeader_) {
-    d->willIncludeHeader_(fileName, d->includeDepth_ + 1);
-  }
+  d->enterIncludedFile(sourceFile, loc, isSystemHeader);
 }
 
 void DefaultPreprocessorState::operator()(const ProcessingComplete&) {

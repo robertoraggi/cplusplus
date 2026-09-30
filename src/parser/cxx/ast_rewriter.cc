@@ -37,6 +37,12 @@ ASTRewriter::ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
 
 ASTRewriter::~ASTRewriter() {}
 
+auto ASTRewriter::shouldStopSubstitution() const -> bool {
+  auto diagnostics = unit_->diagnosticsClient();
+  if (!diagnostics || !diagnostics->isSfinae()) return false;
+  return substitutionFailed_ || diagnostics->errorCount() != 0;
+}
+
 void ASTRewriter::addSymbolRemap(Symbol* oldSym, Symbol* newSym) {
   if (!oldSym || !newSym || oldSym == newSym) return;
   symbolRemap_[oldSym] = newSym;

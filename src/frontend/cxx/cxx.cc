@@ -54,12 +54,6 @@ auto makeTempObject(const std::string& source, int index) -> std::string {
 
 auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
     -> int {
-  if (!cxx::haveEmbeddedLinker()) {
-    std::cerr << "cxx: -flink requires a build with an embedded linker (lld)"
-              << std::endl;
-    return EXIT_FAILURE;
-  }
-
   auto language = cxx::LanguageKind::kC;
   for (const auto& fileName : inputFiles) {
     if (cxx::languageOf(cli, fileName) == cxx::LanguageKind::kCXX) {
@@ -92,12 +86,13 @@ auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
     auto runOnFile = std::make_unique<cxx::Frontend>(cli, fileName);
     runOnFile->setObjectOutput(objectFile);
 
+    tempObjects.push_back(objectFile);
+
     if (!(*runOnFile)()) {
       exitStatus = EXIT_FAILURE;
       continue;
     }
 
-    tempObjects.push_back(objectFile);
     objectsToLink.push_back(objectFile);
     frontends.push_back(std::move(runOnFile));
   }
@@ -124,7 +119,7 @@ auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
 
 auto main(int argc, char* argv[]) -> int {
   cxx::CLI cli;
-  cli.parse(argc, argv);
+  if (!cli.parse(argc, argv)) return EXIT_FAILURE;
 
   if (cli.opt_help) {
     cli.showHelp();
@@ -177,8 +172,8 @@ auto main(int argc, char* argv[]) -> int {
 
   auto output = cli.getSingle("-o");
   const bool wantsExecutable = output.has_value() && output != "-";
-  const bool doLink = cli.opt_link || (wantsExecutable && !stopBeforeLink &&
-                                       cxx::haveEmbeddedLinker());
+  const bool doLink = cli.opt_link || cli.getSingle("-fuse-ld").has_value() ||
+                      (wantsExecutable && !stopBeforeLink);
 
   if (doLink && !stopBeforeLink) {
     return compileAndLink(cli, inputFiles);

@@ -169,6 +169,9 @@ class Preprocessor final : public SourceResolver {
   [[nodiscard]] auto getTokenText(const Token& token) const
       -> std::string_view override;
 
+  [[nodiscard]] auto includeStack(const Token& token) const
+      -> std::vector<SourcePosition> override;
+
   [[nodiscard]] auto resolve(const Include& include, bool isIncludeNext) const
       -> std::optional<std::string>;
 

@@ -37,6 +37,10 @@ class MacOSToolchain final : public Toolchain {
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
 
+  [[nodiscard]] auto linkerFlavor() const -> LinkerFlavor override {
+    return LinkerFlavor::kDarwin;
+  }
+
  protected:
   [[nodiscard]] auto defaultResourceDir() const -> std::string override;
   [[nodiscard]] auto defaultSysroot() const -> std::string override;

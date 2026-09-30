@@ -99,6 +99,19 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
     pos = sourceResolver_->tokenStartPosition(diag.token());
   }
 
+  if (sourceResolver_ && diag.token().fileId() != lastIncludeFileId_ &&
+      (diag.severity() == Severity::Warning ||
+       diag.severity() == Severity::Error ||
+       diag.severity() == Severity::Fatal)) {
+    lastIncludeFileId_ = diag.token().fileId();
+    auto stack = sourceResolver_->includeStack(diag.token());
+    std::string_view prefix = "In file included from ";
+    for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
+      std::cerr << std::format("{}{}:{}:\n", prefix, it->fileName, it->line);
+      prefix = "                 from ";
+    }
+  }
+
   if (pos.fileName.empty()) {
     std::cerr << std::format("{}\n", diag.message());
   } else {

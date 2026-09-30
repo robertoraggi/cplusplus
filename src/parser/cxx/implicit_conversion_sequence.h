@@ -164,6 +164,7 @@ struct ImplicitConversionSequence {
     FunctionSymbol* function = nullptr;
     const Type* aggregateInitializedClass = nullptr;
     const Type* secondTarget = nullptr;
+    std::vector<Step> firstSteps;
     std::vector<Step> secondSteps;
     ConversionRank secondRank = ConversionRank::kNone;
   };
@@ -182,6 +183,7 @@ struct ImplicitConversionSequence {
 
   const Type* sourceType = nullptr;
   const Type* destinationType = nullptr;
+  FunctionSymbol* resolvedFunction = nullptr;
   FunctionSymbol* copyConstructor = nullptr;
   bool requiresCopyConstruction = false;
   bool isStaticMemberObjectParameter = false;

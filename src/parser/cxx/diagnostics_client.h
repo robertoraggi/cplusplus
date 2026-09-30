@@ -48,6 +48,7 @@ class DiagnosticsClient {
 
   void setSourceResolver(SourceResolver* sourceResolver) {
     sourceResolver_ = sourceResolver;
+    lastIncludeFileId_ = 0;
   }
 
   [[nodiscard]] auto fatalErrors() const -> bool { return fatalErrors_; }
@@ -89,6 +90,7 @@ class DiagnosticsClient {
   SourceResolver* sourceResolver_ = nullptr;
   int errorCount_ = 0;
   int errorLimit_ = 0;
+  unsigned lastIncludeFileId_ = 0;
   bool blockErrors_ = false;
   bool fatalErrors_ = false;
 };

@@ -513,9 +513,12 @@ struct ASTRewriter::Instantiate {
       auto instance =
           ast_cast<FunctionDefinitionAST>(rewriter.declaration(functionDef));
       if (!instance) return nullptr;
-      if (declarationOnly)
+      rewriter.addSymbolRemap(symbol, instance->symbol);
+      if (declarationOnly) {
         attachDeferredBody(instance,
                            deferredPattern ? deferredPattern : functionDef);
+        rewriter.completePendingExceptionSpecifiers(0);
+      }
       return instance->symbol;
     }
 
@@ -533,6 +536,7 @@ struct ASTRewriter::Instantiate {
       return nullptr;
     }
 
+    if (declarationOnly) rewriter.completePendingExceptionSpecifiers(0);
     return instance->initDeclaratorList->value->symbol;
   }
 
@@ -1302,21 +1306,37 @@ void ASTRewriter::attachPatternDefinition(TranslationUnit* unit,
   unit->addPendingBodyCompletion(function);
 }
 
+void ASTRewriter::notePendingBodyInstantiation(TranslationUnit* unit,
+                                               FunctionSymbol* function) {
+  auto client = unit->reportingDiagnosticsClient();
+  if (!client) return;
+  std::vector<FunctionSymbol*> visited;
+  while (function && !std::ranges::contains(visited, function)) {
+    visited.push_back(function);
+    auto [location, caller] = unit->pendingBodyCompletionRequest(function);
+    if (auto primary = function->primaryTemplateSymbol()) {
+      if (auto spec = specialization_entry_of(primary, function))
+        noteInstantiationRequestedHere(unit, primary, spec->arguments,
+                                       spec->pendingInstantiationLoc);
+    } else {
+      auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
+      if (!location || !classSymbol) return;
+      unit->report(
+          client, location, Severity::Note,
+          std::format(
+              "in instantiation of member function '{}::{}' requested here",
+              to_string(classSymbol->type()), to_string(function->name())));
+    }
+    function = caller;
+  }
+}
+
 void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
   if (!unit || !unit->config().checkTypes) return;
 
   auto stopRequested = [unit] {
     const auto& stopParsing = unit->config().stopParsingPredicate;
     return stopParsing && stopParsing();
-  };
-
-  auto noteRequestedHere = [unit](FunctionSymbol* function) {
-    auto primary = function->primaryTemplateSymbol();
-    if (!primary) return;
-    auto spec = specialization_entry_of(primary, function);
-    if (!spec) return;
-    noteInstantiationRequestedHere(unit, primary, spec->arguments,
-                                   spec->pendingInstantiationLoc);
   };
 
   auto completeBodies = [&] {
@@ -1330,7 +1350,7 @@ void ASTRewriter::completePendingMemberInstantiations(TranslationUnit* unit) {
       auto bodyErrors =
           rewriter.completePendingBody(function, /*captureBodyErrors=*/true);
       if (reportOutsideImmediateContext(unit, bodyErrors))
-        noteRequestedHere(function);
+        notePendingBodyInstantiation(unit, function);
     }
     return progressed;
   };

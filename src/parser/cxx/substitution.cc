@@ -1012,6 +1012,7 @@ void Substitution::doMake() {
         if (!checkArgumentKind(parameter, argumentIndex)) return;
         auto symbol = argumentFor(parameter, argumentIndex++);
         symbol = normalizeNonTypeArgument(nonTypeParam, symbol);
+        if (hadError_) return;
         pack->addElement(symbol);
       }
 
@@ -1025,8 +1026,8 @@ void Substitution::doMake() {
       if (!checkArgumentKind(parameter, argumentIndex)) return;
       auto symbol = argumentFor(parameter, argumentIndex++);
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
-      if (nonTypeParam && !checkNonTypeParameterType(nonTypeParam)) return;
       symbol = normalizeNonTypeArgument(nonTypeParam, symbol);
+      if (hadError_) return;
       templateArguments_.push_back(symbol);
       continue;
     }
@@ -1112,14 +1113,14 @@ void Substitution::warning(SourceLocation loc, std::string message) {
   unit->warning(loc, std::move(message));
 }
 
-auto Substitution::checkNonTypeParameterType(
-    NonTypeTemplateParameterAST* parameter) -> bool {
-  if (!parameter->declaration) return true;
+auto Substitution::substitutedNonTypeParameterType(
+    NonTypeTemplateParameterAST* parameter) -> std::optional<const Type*> {
+  if (!parameter->declaration) return nullptr;
 
-  if (!parameter->declaration->type) return true;
+  if (!parameter->declaration->type) return nullptr;
   auto typeId = declaredTypeId(unit_->arena(), parameter->declaration);
-  if (!isDependent(unit_, typeId)) return true;
-  if (templateArguments_.empty() || !templateDecl_) return true;
+  if (!isDependent(unit_, typeId)) return typeId->type;
+  if (templateArguments_.empty() || !templateDecl_) return typeId->type;
 
   auto substituted = ASTRewriter::substituteDefaultTypeId(
       unit_, typeId, templateArguments_, templateDecl_->depth,
@@ -1129,15 +1130,18 @@ auto Substitution::checkNonTypeParameterType(
     error(parameter->firstSourceLocation(),
           "substitution failure in the type of a non-type template "
           "parameter");
-    return false;
+    return std::nullopt;
   }
 
-  return true;
+  return substituted->type;
 }
 
 auto Substitution::normalizeNonTypeArgument(
     NonTypeTemplateParameterAST* parameter, Symbol* argument) -> Symbol* {
   if (!parameter) return argument;
+
+  auto parameterType = substitutedNonTypeParameterType(parameter);
+  if (!parameterType) return argument;
 
   auto unit = unit_;
   auto control = unit->control();
@@ -1152,9 +1156,8 @@ auto Substitution::normalizeNonTypeArgument(
 
     auto normalizedArgument = control->newVariableSymbol(nullptr, {});
     const Type* targetType = typeAliasArgument->type();
-    if (parameter && parameter->declaration && parameter->declaration->type) {
+    if (parameter->declaration && parameter->declaration->type)
       targetType = parameter->declaration->type;
-    }
     normalizedArgument->setType(targetType);
     return normalizedArgument;
   }
@@ -1168,9 +1171,8 @@ auto Substitution::normalizeNonTypeArgument(
 
   if (!type_cast<TypeParameterType>(targetType) &&
       !type_cast<TemplateTypeParameterType>(targetType)) {
-    if (parameter && parameter->declaration && parameter->declaration->type) {
+    if (parameter->declaration && parameter->declaration->type) {
       const Type* declaredType = parameter->declaration->type;
-      auto typeId = declaredTypeId(unit->arena(), parameter->declaration);
       if (containsPlaceholderType(declaredType)) {
         auto checker = TypeChecker{unit};
         if (auto initializer = variableArgument->initializer()) {
@@ -1178,18 +1180,10 @@ auto Substitution::normalizeNonTypeArgument(
         } else {
           targetType = checker.deduceAutoType(declaredType, targetType);
         }
-      } else if (!isDependent(unit, typeId)) {
-        targetType = declaredType;
-      } else if (templateDecl_) {
-        auto substituted = ASTRewriter::substituteDefaultTypeId(
-            unit, typeId, templateArguments_, templateDecl_->depth,
-            substitutionScope(templateDecl_));
-
-        if (substituted && substituted->type &&
-            !type_cast<UnresolvedNameType>(substituted->type) &&
-            !isDependent(unit, substituted->type)) {
-          targetType = substituted->type;
-        }
+      } else if (*parameterType &&
+                 !type_cast<UnresolvedNameType>(*parameterType) &&
+                 !isDependent(unit, *parameterType)) {
+        targetType = *parameterType;
       }
     }
   }

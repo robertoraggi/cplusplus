@@ -38,6 +38,21 @@
 #include <format>
 
 namespace cxx {
+namespace {
+[[nodiscard]] auto functionBodyPattern(FunctionDefinitionAST* definition)
+    -> FunctionDefinitionAST* {
+  while (definition && !definition->functionBody) {
+    auto function = definition->symbol;
+    if (!function || !function->hasPendingBody()) return definition;
+    auto pattern =
+        ast_cast<FunctionDefinitionAST>(function->pendingBody()->pattern);
+    if (!pattern || pattern == definition) return definition;
+    definition = pattern;
+  }
+  return definition;
+}
+}  // namespace
+
 struct ASTRewriter::SpecifierVisitor : VisitorBase {
   TemplateDeclarationAST* templateHead = nullptr;
 
@@ -316,7 +331,7 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
   return copy;
 }
 
-auto ASTRewriter::enumerator(EnumeratorAST* ast, const Type* underlyingType,
+auto ASTRewriter::enumerator(EnumeratorAST* ast, const Type*& previousType,
                              std::optional<ConstValue>& lastValue)
     -> EnumeratorAST* {
   if (!ast) return {};
@@ -337,12 +352,13 @@ auto ASTRewriter::enumerator(EnumeratorAST* ast, const Type* underlyingType,
     auto interp = ASTInterpreter{unit_};
     value = interp.evaluate(copy->expression);
   } else {
-    value = Binder::nextEnumeratorValue(unit_, underlyingType, lastValue);
+    value = Binder::nextEnumeratorValue(unit_, previousType, lastValue);
   }
 
   lastValue = value;
 
-  binder_.bind(copy, binder().scope()->type(), std::move(value));
+  binder_.bind(copy, previousType, std::move(value));
+  previousType = copy->symbol->type();
 
   if (ast->symbol && copy->symbol) addSymbolRemap(ast->symbol, copy->symbol);
 
@@ -702,12 +718,6 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
     if (auto substituted = rewrite.substitutedSymbol(ast->symbol)) {
       copy->symbol = substituted;
     }
-    auto written = rewrite.writtenTypeArgumentSpecifierFor(ast->symbol);
-    if (written) {
-      copy->nestedNameSpecifier = written->nestedNameSpecifier;
-      copy->unqualifiedId = written->unqualifiedId;
-      copy->isTemplateIntroduced = written->isTemplateIntroduced;
-    }
   } else if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol) &&
              !ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId)) {
     if (auto substituted = rewrite.substitutedSymbol(ast->symbol)) {
@@ -749,6 +759,14 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
                       to_string(get_name(control(), copy->unqualifiedId)),
                       to_string(copy->nestedNameSpecifier->symbol->type())));
     }
+  }
+
+  if (auto written = rewrite.writtenTypeArgumentSpecifierFor(ast->symbol)) {
+    if (symbol_cast<TemplateTypeParameterSymbol>(ast->symbol))
+      copy->symbol = written->symbol;
+    copy->nestedNameSpecifier = written->nestedNameSpecifier;
+    copy->unqualifiedId = written->unqualifiedId;
+    copy->isTemplateIntroduced = written->isTemplateIntroduced;
   }
 
   return copy;
@@ -938,15 +956,14 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
     rewrite.addSymbolRemap(ast->symbol, copy->symbol);
   }
 
-  auto enumSymbol = symbol_cast<EnumSymbol>(binder()->scope());
-
-  auto underlyingType = copy->symbol->type();
-  if (enumSymbol) underlyingType = enumSymbol->underlyingType();
-
+  const Type* previousType = nullptr;
   std::optional<ConstValue> lastValue;
   ListAppender<EnumeratorAST> append{arena(), copy->enumeratorList};
   for (auto node : ListView{ast->enumeratorList})
-    append(rewrite.enumerator(node, underlyingType, lastValue));
+    append(rewrite.enumerator(node, previousType, lastValue));
+
+  for (auto node : ListView{copy->enumeratorList})
+    if (node->symbol) node->symbol->setType(copy->symbol->type());
 
   copy->commaLoc = ast->commaLoc;
   copy->rbraceLoc = ast->rbraceLoc;
@@ -1216,20 +1233,13 @@ void ASTRewriter::SpecifierVisitor::rewriteClassBody(ClassSpecifierAST* ast,
 
     if (auto newFunc = ast_cast<FunctionDefinitionAST>(newDecl)) {
       auto oldFunc = ast_cast<FunctionDefinitionAST>(oldDecl);
-      if (oldFunc && !oldFunc->functionBody) {
-        if (auto patternFunction = symbol_cast<FunctionSymbol>(oldFunc->symbol);
-            patternFunction && patternFunction->hasPendingBody()) {
-          (void)completePendingBodyFor(rewrite.unit_, patternFunction);
-        }
-      }
-
       if (newFunc->symbol) {
         Symbol* oldSymbol = nullptr;
         if (oldFunc) oldSymbol = oldFunc->symbol;
         rewrite.addSymbolRemap(oldSymbol, newFunc->symbol);
 
         newFunc->symbol->setPendingBody(rewrite.pendingInstantiationOf(
-            oldFunc, nullptr, copy->symbol->parent()));
+            functionBodyPattern(oldFunc), nullptr, copy->symbol->parent()));
 
         bool isMemberFunctionTemplate = false;
         if (auto funcSymbol = symbol_cast<FunctionSymbol>(newFunc->symbol)) {

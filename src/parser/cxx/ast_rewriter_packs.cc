@@ -189,7 +189,9 @@ auto ASTRewriter::writtenTypeArgumentSpecifierFor(
 
     auto named =
         ast_cast<NamedTypeSpecifierAST>(typeId->typeSpecifierList->value);
-    if (!named || !ast_cast<SimpleTemplateIdAST>(named->unqualifiedId))
+    if (!named) return nullptr;
+    if (!symbol_cast<TemplateTypeParameterSymbol>(templateParameter) &&
+        !ast_cast<SimpleTemplateIdAST>(named->unqualifiedId))
       return nullptr;
     return named->clone(arena());
   }

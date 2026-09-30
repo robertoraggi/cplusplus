@@ -39,13 +39,16 @@ struct CLIFlag : std::tuple<std::string> {
   using tuple::tuple;
 };
 
-using CLIMatch = std::variant<CLIFlag, CLIOption, CLIPositional>;
+struct CLIForwarded : std::tuple<std::string> {
+  using tuple::tuple;
+};
+
+using CLIMatch = std::variant<CLIFlag, CLIOption, CLIPositional, CLIForwarded>;
 
 auto to_string(const CLIMatch& match) -> std::string;
 
 class CLI {
   std::vector<CLIMatch> result_;
-  std::vector<std::string> forwardedArgs_;
 
  public:
   CLI();
@@ -100,7 +103,7 @@ class CLI {
 
   [[nodiscard]] auto optimizationLevel() const -> int;
 
-  void parse(int& argc, char**& argv);
+  auto parse(int& argc, char**& argv) -> bool;
 
   [[nodiscard]] auto count(const std::string& flag) const -> int;
   [[nodiscard]] auto getSingle(const std::string& opt) const
@@ -108,10 +111,6 @@ class CLI {
   [[nodiscard]] auto get(const std::string& opt) const
       -> std::vector<std::string>;
   [[nodiscard]] auto positionals() const -> std::vector<std::string>;
-
-  [[nodiscard]] auto linkerArgs() const -> const std::vector<std::string>& {
-    return forwardedArgs_;
-  }
 
   void showHelp();
 

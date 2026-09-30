@@ -60,7 +60,9 @@ def Cxx_LinkageKind : Cxx_I32EnumAttr<"LinkageKind", "linkageKind", [
   I32EnumAttrCase<"LinkOnceODR", 2, "linkonce_odr">,
   I32EnumAttrCase<"WeakODR", 3, "weak_odr">,
   I32EnumAttrCase<"AvailableExternally", 4, "available_externally">,
-  I32EnumAttrCase<"Appending", 5, "appending">
+  I32EnumAttrCase<"Appending", 5, "appending">,
+  I32EnumAttrCase<"Weak", 6, "weak">,
+  I32EnumAttrCase<"ExternalWeak", 7, "extern_weak">
 ]>;
 
 def Cxx_Visibility : Cxx_I32EnumAttr<"Visibility", "visibility", [

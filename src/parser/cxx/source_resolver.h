@@ -23,6 +23,7 @@
 #include <cxx/source_location.h>
 
 #include <string_view>
+#include <vector>
 
 namespace cxx {
 
@@ -43,6 +44,9 @@ class SourceResolver {
 
   [[nodiscard]] virtual auto getTokenText(const Token& token) const
       -> std::string_view = 0;
+
+  [[nodiscard]] virtual auto includeStack(const Token& token) const
+      -> std::vector<SourcePosition>;
 
  protected:
   SourceResolver() = default;

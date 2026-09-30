@@ -146,6 +146,8 @@ enum class Linkage {
   WeakODR,
   AvailableExternally,
   Appending,
+  Weak,
+  ExternalWeak,
 };
 
 enum class Visibility {

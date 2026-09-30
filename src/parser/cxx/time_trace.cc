@@ -61,7 +61,8 @@ void TimeTrace::write(std::ostream& out) const {
                              "type_dependence_visits",
                              "type_dependence_cache_hits",
                              "specialization_comparisons",
-                             "partial_specialization_visits"};
+                             "partial_specialization_visits",
+                             "specialization_index_visits"};
   out << "{\"traceEvents\":[";
   bool first = true;
   for (const auto& event : events_) {

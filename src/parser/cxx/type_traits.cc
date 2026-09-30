@@ -1571,6 +1571,25 @@ auto TypeTraits::underlying_type(const Type* type) const -> const Type* {
   return visit(UnderlyingType{}, remove_cv(type));
 }
 
+auto TypeTraits::size_of(const Type* type) -> std::optional<std::size_t> {
+  return control()->memoryLayout()->sizeOf(requireLayoutType(type));
+}
+
+auto TypeTraits::alignment_of(const Type* type) -> std::optional<std::size_t> {
+  return control()->memoryLayout()->alignmentOf(requireLayoutType(type));
+}
+
+auto TypeTraits::requireLayoutType(const Type* type) -> const Type* {
+  if (!type) return nullptr;
+  auto objectType = remove_reference(type);
+  if (unit_ && isDependent(unit_, objectType)) return nullptr;
+  auto elementType = remove_cv(remove_all_extents(objectType));
+  if (auto elementClass = type_cast<ClassType>(elementType)) {
+    if (!requireCompleteClass(elementClass->symbol())) return nullptr;
+  }
+  return objectType;
+}
+
 auto TypeTraits::remove_reference(const Type* type) const -> const Type* {
   if (!type) return type;
   return visit(RemoveReference{}, type);
@@ -1740,6 +1759,15 @@ auto TypeTraits::integer_type_of_size(std::size_t size, bool isUnsigned) const
 auto TypeTraits::corresponding_integer_type(const Type* type,
                                             bool isUnsigned) const
     -> const Type* {
+  if (auto bitInt = type_cast<BitIntType>(type)) {
+    if (isUnsigned) return control()->getUnsignedBitIntType(bitInt->numBits());
+    return type;
+  }
+  if (auto bitInt = type_cast<UnsignedBitIntType>(type)) {
+    if (!isUnsigned) return control()->getBitIntType(bitInt->numBits());
+    return type;
+  }
+
   switch (type->kind()) {
     case TypeKind::kSignedChar:
     case TypeKind::kUnsignedChar:
@@ -2388,26 +2416,94 @@ auto TypeTraits::is_qualification_convertible(const Type* from,
   return is_same(qualification_combined_type(from, to), to);
 }
 
+auto TypeTraits::is_vla_compatible(const Type* left, const Type* right) const
+    -> bool {
+  for (;;) {
+    left = remove_cv(left);
+    right = remove_cv(right);
+    if (is_same(left, right)) return true;
+    auto leftArray = type_cast<UnresolvedBoundedArrayType>(left);
+    auto rightArray = type_cast<UnresolvedBoundedArrayType>(right);
+    if (!leftArray || !rightArray) return false;
+    left = leftArray->elementType();
+    right = rightArray->elementType();
+  }
+}
+
 auto TypeTraits::is_reference_related(const Type* lhs, const Type* rhs)
     -> bool {
   if (is_similar(remove_cv(lhs), remove_cv(rhs))) return true;
   return is_base_of(lhs, rhs);
 }
 
+auto TypeTraits::integer_conversion_rank(const Type* type) const
+    -> std::pair<int, int> {
+  struct Rank {
+    [[nodiscard]] auto operator()(const BoolType*) const -> int { return 1; }
+    [[nodiscard]] auto operator()(const CharType*) const -> int { return 2; }
+    [[nodiscard]] auto operator()(const SignedCharType*) const -> int {
+      return 2;
+    }
+    [[nodiscard]] auto operator()(const UnsignedCharType*) const -> int {
+      return 2;
+    }
+    [[nodiscard]] auto operator()(const ShortIntType*) const -> int {
+      return 3;
+    }
+    [[nodiscard]] auto operator()(const UnsignedShortIntType*) const -> int {
+      return 3;
+    }
+    [[nodiscard]] auto operator()(const IntType*) const -> int { return 4; }
+    [[nodiscard]] auto operator()(const UnsignedIntType*) const -> int {
+      return 4;
+    }
+    [[nodiscard]] auto operator()(const LongIntType*) const -> int { return 5; }
+    [[nodiscard]] auto operator()(const UnsignedLongIntType*) const -> int {
+      return 5;
+    }
+    [[nodiscard]] auto operator()(const LongLongIntType*) const -> int {
+      return 6;
+    }
+    [[nodiscard]] auto operator()(const UnsignedLongLongIntType*) const -> int {
+      return 6;
+    }
+    [[nodiscard]] auto operator()(const Int128Type*) const -> int { return 7; }
+    [[nodiscard]] auto operator()(const UnsignedInt128Type*) const -> int {
+      return 7;
+    }
+    [[nodiscard]] auto operator()(const Type*) const -> int { return 0; }
+  };
+  auto representation = integral_representation(type);
+  if (!representation) return {};
+  return {representation->bits, visit(Rank{}, remove_cv(type))};
+}
+
+auto TypeTraits::floating_point_conversion_rank(const Type* type) const -> int {
+  struct Rank {
+    [[nodiscard]] auto operator()(const Float16Type*) const -> int { return 1; }
+    [[nodiscard]] auto operator()(const FloatType*) const -> int { return 2; }
+    [[nodiscard]] auto operator()(const DoubleType*) const -> int { return 3; }
+    [[nodiscard]] auto operator()(const LongDoubleType*) const -> int {
+      return 4;
+    }
+    [[nodiscard]] auto operator()(const Type*) const -> int { return 0; }
+  };
+  return type ? visit(Rank{}, remove_cv(type)) : 0;
+}
+
 auto TypeTraits::representsAllValuesOf(const Type* target,
                                        const Type* source) const -> bool {
-  auto memoryLayout = control()->memoryLayout();
-  auto targetSize = memoryLayout->sizeOf(target).value_or(0);
-  auto sourceSize = memoryLayout->sizeOf(source).value_or(0);
-  if (!targetSize || !sourceSize) return false;
-
-  if (is_unsigned(source)) {
-    if (is_unsigned(target)) return targetSize >= sourceSize;
-    return targetSize > sourceSize;
+  auto targetRepresentation = integral_representation(target);
+  auto sourceRepresentation = integral_representation(source);
+  if (!targetRepresentation || !sourceRepresentation) return false;
+  auto targetWidth = targetRepresentation->bits;
+  auto sourceWidth = sourceRepresentation->bits;
+  if (!sourceRepresentation->isSigned) {
+    if (!targetRepresentation->isSigned) return targetWidth >= sourceWidth;
+    return targetWidth > sourceWidth;
   }
-
-  if (is_unsigned(target)) return false;
-  return targetSize >= sourceSize;
+  if (!targetRepresentation->isSigned) return false;
+  return targetWidth >= sourceWidth;
 }
 
 auto TypeTraits::integralPromotionCandidates() const
@@ -2716,9 +2812,7 @@ auto TypeTraits::can_initialize(const Type* to, const Type* from,
     initializationKind = InitializationKind::kDirectInitialization;
   auto sequence = conversions.computeConversionSequence(declval(from), to,
                                                         initializationKind);
-  if (!sequence) return false;
-  if (!is_accessible_from_unrelated_context(sequence.udc.function))
-    return false;
+  if (!conversions.isAccessible(sequence)) return false;
 
   if (is_reference(to)) return true;
   auto classType = unqualified_cast<ClassType>(to);

@@ -1,5 +1,4 @@
-// RUN: %cxx -fsyntax-only -c %s 2>&1 | %filecheck %s --allow-empty
-// CHECK-NOT: error
+// RUN: %cxx -fsyntax-only -verify %s
 
 struct ConstValue {
   void zero();

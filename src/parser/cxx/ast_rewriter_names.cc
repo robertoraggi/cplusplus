@@ -194,6 +194,7 @@ auto ASTRewriter::rewriteTemplateArgumentList(
   List<TemplateArgumentAST*>* result = nullptr;
   ListAppender<TemplateArgumentAST> append{arena(), result};
   for (auto node : ListView{source}) {
+    if (shouldStopSubstitution()) break;
     if (expandPackArgument(node, append)) continue;
     append(templateArgument(node));
   }
@@ -434,6 +435,8 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   if (hasDependentTemplateArguments(rewrite.unit_, copy->templateId))
     return copy;
+
+  if (isDependent(rewrite.unit_, copy->nestedNameSpecifier)) return copy;
 
   if (copy->templateId->identifier &&
       (!copy->templateId->symbol ||

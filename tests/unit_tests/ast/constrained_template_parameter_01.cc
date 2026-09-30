@@ -59,8 +59,8 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:                      core-declarator: id-declarator
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: value
-// CHECK-NEXT:                    initializer: equal-initializer
-// CHECK-NEXT:                      expression: id-expression
+// CHECK-NEXT:                    initializer: equal-initializer [prvalue <dependent-type>]
+// CHECK-NEXT:                      expression: id-expression [prvalue <dependent-type>]
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: x
 // CHECK-NEXT:    template-declaration
@@ -97,7 +97,7 @@ constexpr auto ident_v = ident<x>::value;
 // CHECK-NEXT:                    identifier: ident
 // CHECK-NEXT:                    template-argument-list
 // CHECK-NEXT:                      expression-template-argument
-// CHECK-NEXT:                        expression: id-expression
+// CHECK-NEXT:                        expression: id-expression [prvalue <dependent-type>]
 // CHECK-NEXT:                          unqualified-id: name-id
 // CHECK-NEXT:                            identifier: x
 // CHECK-NEXT:                unqualified-id: name-id

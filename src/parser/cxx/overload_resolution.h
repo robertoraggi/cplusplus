@@ -32,6 +32,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace cxx {
@@ -85,9 +86,26 @@ struct FoundCandidates {
                                                   ClassSymbol* classSymbol,
                                                   int argCount) -> bool;
 
+struct ArgumentCountMismatch {
+  int parameterCount;
+  int argumentCount;
+};
+
+struct FailedArgumentConversion {
+  const Type* source;
+  const Type* destination;
+  std::size_t argumentIndex;
+};
+
+using CandidateRejection =
+    std::variant<std::string, ArgumentCountMismatch, FailedArgumentConversion>;
+
+[[nodiscard]] auto to_string(const CandidateRejection& rejection)
+    -> std::string;
+
 struct RejectedCandidate {
   FunctionSymbol* symbol = nullptr;
-  std::string reason;
+  CandidateRejection reason;
 };
 
 enum class ConstructorSelectionFailure {

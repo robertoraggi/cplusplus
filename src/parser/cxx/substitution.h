@@ -178,8 +178,8 @@ class Substitution {
   [[nodiscard]] auto isConstexprRepresentable(const ConstValue& value) const
       -> bool;
 
-  [[nodiscard]] auto checkNonTypeParameterType(
-      NonTypeTemplateParameterAST* parameter) -> bool;
+  [[nodiscard]] auto substitutedNonTypeParameterType(
+      NonTypeTemplateParameterAST* parameter) -> std::optional<const Type*>;
 
   [[nodiscard]] auto getDefaultTemplateArgument(TemplateParameterAST* parameter)
       -> std::optional<TemplateArgument>;
