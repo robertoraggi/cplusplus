@@ -66,6 +66,23 @@ void applyConstexprConstness(const TypeTraits& traits, FieldSymbol* field) {
   if (!field->isConstexpr()) return;
   field->setType(traits.add_const(field->type()));
 }
+
+[[nodiscard]] auto isFunctionExceptionSpecifier(
+    FunctionSymbol* function, const ExceptionSpecifierAST* specifier) -> bool {
+  if (!function) return false;
+  auto declaration = template_declaration_ast(function);
+  if (auto definition = ast_cast<FunctionDefinitionAST>(declaration)) {
+    auto prototype = getFunctionPrototype(definition->declarator);
+    return prototype && prototype->exceptionSpecifier == specifier;
+  }
+  auto simple = ast_cast<SimpleDeclarationAST>(declaration);
+  if (!simple) return false;
+  for (auto init : ListView{simple->initDeclaratorList}) {
+    auto prototype = getFunctionPrototype(init->declarator);
+    if (prototype && prototype->exceptionSpecifier == specifier) return true;
+  }
+  return false;
+}
 }  // namespace
 
 struct ASTRewriter::CoreDeclaratorVisitor : VisitorBase {
@@ -297,6 +314,7 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
                                                copy->parameterDeclarationList};
 
   for (auto node : ListView{ast->parameterDeclarationList}) {
+    if (shouldStopSubstitution()) break;
     if (auto pack = expandedFunctionParameterPack(node)) {
       auto elements =
           control()->newParameterPackSymbol(binder().scope(), SourceLocation{});
@@ -350,6 +368,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
   const auto pendingExceptionSpecifierMark =
       this->pendingExceptionSpecifierMark();
   copy->declarator = declarator(ast->declarator);
+
+  if (shouldStopSubstitution()) return nullptr;
 
   auto decl = Decl{declSpecs, copy->declarator};
   if (functionTemplateHead) {
@@ -633,6 +653,8 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
       rewrite.parameterDeclarationClause(ast->parameterDeclarationClause);
   copy->rparenLoc = ast->rparenLoc;
 
+  if (rewrite.shouldStopSubstitution()) return copy;
+
   auto _ = Binder::ScopeGuard{binder()};
 
   if (copy->parameterDeclarationClause) {
@@ -719,8 +741,12 @@ auto ASTRewriter::ExceptionSpecifierVisitor::operator()(
   copy->lparenLoc = ast->lparenLoc;
   copy->rparenLoc = ast->rparenLoc;
 
-  if (ast->expression && rewrite.classBodyDepth_ > 0 &&
-      rewrite.restrictedToDeclarations_) {
+  if (ast->expression && rewrite.restrictedToDeclarations_ &&
+      (rewrite.classBodyDepth_ > 0 ||
+       (rewrite.instantiatingFunctionTemplateSpecialization_ &&
+        isFunctionExceptionSpecifier(
+            symbol_cast<FunctionSymbol>(binder()->instantiatingSymbol()),
+            ast)))) {
     rewrite.pendingExceptionSpecifiers_.push_back(
         {rewrite.pendingInstantiationOf(ast, copy, binder()->scope())});
   } else {

@@ -643,6 +643,10 @@ static auto fromMlir(mlir::cxx::LinkageKind kind) -> Linkage {
       return Linkage::AvailableExternally;
     case mlir::cxx::LinkageKind::Appending:
       return Linkage::Appending;
+    case mlir::cxx::LinkageKind::Weak:
+      return Linkage::Weak;
+    case mlir::cxx::LinkageKind::ExternalWeak:
+      return Linkage::ExternalWeak;
   }
   llvm_unreachable("unknown linkage");
 }
@@ -997,6 +1001,10 @@ auto toMlir(Linkage linkage) -> mlir::cxx::LinkageKind {
       return mlir::cxx::LinkageKind::AvailableExternally;
     case Linkage::Appending:
       return mlir::cxx::LinkageKind::Appending;
+    case Linkage::Weak:
+      return mlir::cxx::LinkageKind::Weak;
+    case Linkage::ExternalWeak:
+      return mlir::cxx::LinkageKind::ExternalWeak;
   }
 }
 

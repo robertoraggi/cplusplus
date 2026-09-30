@@ -24,4 +24,9 @@ namespace cxx {
 
 SourceResolver::~SourceResolver() = default;
 
+auto SourceResolver::includeStack(const Token& token) const
+    -> std::vector<SourcePosition> {
+  return {};
+}
+
 }  // namespace cxx

@@ -1383,19 +1383,7 @@ auto Codegen::navigateToClass(SourceLocation loc, ir::ValueRef value,
 
     if (!isReachableFrom(baseSym, to)) continue;
 
-    if (base->isVirtual()) {
-      auto op = emitVirtualBaseAddress(loc, value, from, baseSym);
-      return navigateToClass(loc, op, baseSym, to);
-    }
-
-    std::uint32_t baseIndex = 0;
-    if (fromLayout) {
-      if (auto bi = fromLayout->getBaseInfo(baseSym)) {
-        baseIndex = bi->index;
-      }
-    }
-
-    auto op = memberAddress(loc, value, baseSym->type(), baseIndex);
+    auto op = emitBaseClassAddress(loc, value, from, baseSym);
     return navigateToClass(loc, op, baseSym, to);
   }
 
@@ -2272,8 +2260,8 @@ auto Codegen::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(AlignofTypeExpressionAST* ast)
     -> ExpressionResult {
   if (ast->typeId && ast->typeId->type) {
-    auto memoryLayout = control()->memoryLayout();
-    auto alignment = memoryLayout->alignmentOf(ast->typeId->type).value();
+    auto alignment =
+        gen.unit_->typeTraits().alignment_of(ast->typeId->type).value();
 
     auto resultlType = gen.convertType(ast->type);
     auto loc = ast->firstSourceLocation();
@@ -2290,8 +2278,8 @@ auto Codegen::ExpressionVisitor::operator()(AlignofTypeExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
     -> ExpressionResult {
   if (ast->expression && ast->expression->type) {
-    auto memoryLayout = control()->memoryLayout();
-    auto alignment = memoryLayout->alignmentOf(ast->expression->type).value();
+    auto alignment =
+        gen.unit_->typeTraits().alignment_of(ast->expression->type).value();
     auto resultlType = gen.convertType(ast->type);
     auto loc = ast->firstSourceLocation();
     auto op = gen.emitter_.constantInt(loc, resultlType, alignment);
@@ -2896,6 +2884,17 @@ auto Codegen::ExpressionVisitor::emitNumericConversion(
   auto expressionResult = gen.expression(ast->expression);
   auto resultType = gen.convertType(ast->type);
 
+  if (is_bool(ast->type)) {
+    auto zero = gen.emitter_.constantZero(
+        loc, gen.emitter_.typeOf(expressionResult.value));
+    if (gen.traits.is_floating_point(ast->expression->type))
+      return {gen.emitter_.compareFloat(loc,
+                                        ir::FloatPredicate::UnorderedNotEqual,
+                                        expressionResult.value, zero)};
+    return {gen.emitter_.compareInt(loc, ir::IntPredicate::NotEqual,
+                                    expressionResult.value, zero)};
+  }
+
   switch (ast->castKind) {
     case ImplicitCastKind::kIntegralConversion:
     case ImplicitCastKind::kIntegralPromotion: {
@@ -2904,13 +2903,6 @@ auto Codegen::ExpressionVisitor::emitNumericConversion(
         auto intVal =
             gen.emitter_.pointerToInt(loc, resultType, expressionResult.value);
         return {intVal};
-      }
-
-      if (is_bool(ast->type)) {
-        auto zero = gen.emitter_.constantInt(
-            loc, gen.emitter_.typeOf(expressionResult.value), 0);
-        return {gen.emitter_.compareInt(loc, ir::IntPredicate::NotEqual,
-                                        expressionResult.value, zero)};
       }
 
       if (is_bool(ast->expression->type)) {
@@ -2963,17 +2955,6 @@ auto Codegen::ExpressionVisitor::emitNumericConversion(
     }
 
     case ImplicitCastKind::kFloatingIntegralConversion:
-      if (is_bool(ast->type)) {
-        auto zero = gen.emitter_.constantZero(
-            loc, gen.emitter_.typeOf(expressionResult.value));
-
-        auto op = gen.emitter_.compareFloat(
-            loc, ir::FloatPredicate::UnorderedNotEqual, expressionResult.value,
-            zero);
-
-        return {op};
-      }
-
       if (gen.traits.is_floating_point(ast->type)) {
         if (gen.traits.is_signed(ast->expression->type)) {
           auto op = gen.emitter_.signedIntToFloat(loc, expressionResult.value,
@@ -3042,9 +3023,11 @@ auto Codegen::ExpressionVisitor::emitPointerConversion(
       if (expressionResult.value &&
           (gen.emitter_.typeKind(gen.emitter_.typeOf(expressionResult.value)) ==
            ir::TypeKind::Integer)) {
-        auto op = gen.emitter_.nullPointer(loc, resultType);
-
-        return {op};
+        auto sourceType = gen.traits.underlying_type(ast->expression->type);
+        if (!sourceType) sourceType = ast->expression->type;
+        auto value = emitArithmeticConversion(
+            loc, expressionResult.value, sourceType, control()->getSizeType());
+        return {gen.emitter_.intToPointer(loc, resultType, value)};
       }
 
       if (expressionResult.value &&
@@ -3274,6 +3257,8 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     case ImplicitCastKind::kBooleanConversion:
       if (gen.traits.is_complex(ast->expression->type))
         return emitComplexToBoolean(ast);
+      if (gen.traits.is_arithmetic_or_unscoped_enum(ast->expression->type))
+        return emitNumericConversion(ast);
       [[fallthrough]];
 
     case ImplicitCastKind::kFunctionToPointerConversion:

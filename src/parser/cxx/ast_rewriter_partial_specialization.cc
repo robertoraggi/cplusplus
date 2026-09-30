@@ -316,7 +316,8 @@ auto ASTRewriter::RewritePartialSpecialization::findPattern(
 
   if (!primary) return nullptr;
 
-  for (const auto& specialization : primary->declaredSpecializations()) {
+  for (const auto& specialization :
+       primary->declaredSpecializations(unit->timeTrace())) {
     auto classSymbol = symbol_cast<ClassSymbol>(specialization.symbol);
     if (!classSymbol) continue;
     auto definition = classSymbol->resolvedDefinition();
@@ -335,8 +336,9 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
     ClassSymbol* classSymbol,
     const std::vector<TemplateArgument>& templateArguments)
     -> PartialSpecializationResult {
-  auto selection = select(classSymbol, classSymbol->declaredSpecializations(),
-                          templateArguments);
+  auto selection = select(
+      classSymbol, classSymbol->declaredSpecializations(unit->timeTrace()),
+      templateArguments);
 
   if (!selection.candidate) return {.resolutionFailed = selection.ambiguous};
   auto& selected = *selection.candidate;
@@ -380,7 +382,8 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
     const std::vector<TemplateArgument>& templateArguments)
     -> PartialSpecializationResult {
   auto selection =
-      select(variableSymbol, variableSymbol->declaredSpecializations(),
+      select(variableSymbol,
+             variableSymbol->declaredSpecializations(unit->timeTrace()),
              templateArguments);
 
   if (!selection.candidate) return {.resolutionFailed = selection.ambiguous};

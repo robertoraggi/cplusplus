@@ -136,6 +136,14 @@ struct IsDependent {
     int localTemplateDepth;
   };
 
+  struct NonDependentInitializer {
+    ExpressionAST* expression = nullptr;
+    std::optional<int> localTemplateDepth;
+  };
+
+  NonDependentInitializer firstNonDependentInitializer;
+  std::vector<NonDependentInitializer> nonDependentInitializers;
+
   struct TypeExamination {
     const Type* type;
     TypeExamination* previous;
@@ -384,7 +392,28 @@ struct IsDependent {
                                                   bool isConstexpr) -> bool {
     if (!initializer || !isPotentiallyConstant(symbol, isConstexpr))
       return false;
-    return isDependent(initializer);
+    return isDependentInitializer(initializer);
+  }
+
+  [[nodiscard]] auto isDependentInitializer(ExpressionAST* expression) -> bool {
+    if (!expression) return false;
+    if (firstNonDependentInitializer.expression == expression &&
+        firstNonDependentInitializer.localTemplateDepth == localTemplateDepth)
+      return false;
+    for (const auto& entry : nonDependentInitializers) {
+      if (entry.expression == expression &&
+          entry.localTemplateDepth == localTemplateDepth)
+        return false;
+    }
+    const auto cyclesBefore = cycles;
+    const auto dependent = isDependent(expression);
+    if (dependent || cycles != cyclesBefore) return dependent;
+    if (!firstNonDependentInitializer.expression) {
+      firstNonDependentInitializer = {expression, localTemplateDepth};
+    } else {
+      nonDependentInitializers.push_back({expression, localTemplateDepth});
+    }
+    return false;
   }
 
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
@@ -541,7 +570,7 @@ struct IsDependent {
     if (auto var = symbol_cast<VariableSymbol>(symbol)) {
       if (!var->constValue().has_value()) {
         if (!var->initializer()) return true;
-        if (isDependent(var->initializer())) return true;
+        if (isDependentInitializer(var->initializer())) return true;
       }
     }
 

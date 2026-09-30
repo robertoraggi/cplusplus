@@ -183,7 +183,9 @@ class [[nodiscard]] ASTRewriter {
   static void requireDestructorOfType(TranslationUnit* unit, const Type* type);
 
   static void requireFunctionDefinition(TranslationUnit* unit,
-                                        FunctionSymbol* function);
+                                        FunctionSymbol* function,
+                                        SourceLocation location = {},
+                                        FunctionSymbol* caller = nullptr);
 
   static void requireFieldDefinition(TranslationUnit* unit, FieldSymbol* field);
 
@@ -341,6 +343,8 @@ class [[nodiscard]] ASTRewriter {
     return substitutionFailed_;
   }
 
+  [[nodiscard]] auto shouldStopSubstitution() const -> bool;
+
   class ImmediateContextGuard {
    public:
     explicit ImmediateContextGuard(ASTRewriter& rewrite);
@@ -472,7 +476,7 @@ class [[nodiscard]] ASTRewriter {
       -> InitDeclaratorAST*;
   auto declarator(DeclaratorAST* ast) -> DeclaratorAST*;
   auto usingDeclarator(UsingDeclaratorAST* ast) -> UsingDeclaratorAST*;
-  auto enumerator(EnumeratorAST* ast, const Type* underlyingType,
+  auto enumerator(EnumeratorAST* ast, const Type*& previousType,
                   std::optional<ConstValue>& lastValue) -> EnumeratorAST*;
   auto typeId(TypeIdAST* ast) -> TypeIdAST*;
   auto handler(HandlerAST* ast) -> HandlerAST*;
@@ -598,7 +602,10 @@ class [[nodiscard]] ASTRewriter {
     if (!size.has_value()) return false;
     auto packs = expandedPacksOf(pattern, additionalPack);
     const int elementCount = *size;
-    for (int i = 0; i < elementCount; ++i) expandPackElement(packs, i, expand);
+    for (int i = 0; i < elementCount; ++i) {
+      if (shouldStopSubstitution()) break;
+      expandPackElement(packs, i, expand);
+    }
     return true;
   }
 
@@ -611,8 +618,10 @@ class [[nodiscard]] ASTRewriter {
     if (!size.has_value()) return false;
     auto packs = expandedPacksOf(pattern, additionalPack);
     const int elementCount = *size;
-    for (int i = elementCount - 1; i >= 0; --i)
+    for (int i = elementCount - 1; i >= 0; --i) {
+      if (shouldStopSubstitution()) break;
       expandPackElement(packs, i, expand);
+    }
     return true;
   }
 
@@ -654,6 +663,9 @@ class [[nodiscard]] ASTRewriter {
   void remapScopeMembers(ScopeSymbol* oldScope, ScopeSymbol* newScope);
 
   void remapInstantiatedMember(Symbol* member);
+  void remapInstantiationPatterns(Symbol* instance);
+  static void notePendingBodyInstantiation(TranslationUnit* unit,
+                                           FunctionSymbol* function);
 
   void remapInitCaptures(LambdaSymbol* pattern, LambdaSymbol* instance);
 

@@ -318,6 +318,8 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
           control()->getRvalueReferenceType(control()->getAutoType());
       (void)check.deducePlaceholderType(rangeType, braced);
     }
+    if (braced->type)
+      check.initializeBracedArgument(rangeInitializer, braced->type);
   }
 
   const bool needsDeduction = var && containsPlaceholderType(var->type());

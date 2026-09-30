@@ -1022,6 +1022,9 @@ void Frontend::Private::emitCode() {
   }
 
   withRawOutputStream(emitAssembly ? ".s" : ".o", emit);
+#else
+  std::cerr << "cxx: object and assembly output require a build with MLIR\n";
+  fail();
 #endif
 }
 

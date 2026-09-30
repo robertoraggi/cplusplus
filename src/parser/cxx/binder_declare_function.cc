@@ -142,6 +142,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
   [[nodiscard]] auto namesConversionFunction() const -> bool;
   void mergeAsCRedeclaration(FunctionSymbol* otherFunction);
   auto mergeWithMatchingOverload(OverloadSetSymbol* overloadSet) -> bool;
+  [[nodiscard]] auto hasDistinctDependentFriendContext(
+      FunctionSymbol* existingFunction) const -> bool;
   void checkCRedeclaration(ScopeSymbol* declaringScope);
   [[nodiscard]] auto isLexicallyInsideClass() const -> bool;
   void reportDifferentKindOfSymbol(ScopeSymbol* declaringScope);
@@ -457,10 +459,26 @@ void Binder::DeclareFunction::mergeAsCRedeclaration(
   mergeRedeclaration();
 }
 
+auto Binder::DeclareFunction::hasDistinctDependentFriendContext(
+    FunctionSymbol* existingFunction) const -> bool {
+  if (!existingFunction->isFriend() && !functionSymbol->isFriend())
+    return false;
+  auto existingClass = existingFunction->enclosingClass();
+  auto currentClass = functionSymbol->enclosingClass();
+  if (existingClass == currentClass) return false;
+  if (existingClass && currentClass &&
+      existingClass->canonical() == currentClass->canonical())
+    return false;
+  if (isEnclosedInDependentTemplate(binder.unit_, existingClass, true))
+    return true;
+  return isEnclosedInDependentTemplate(binder.unit_, currentClass, true);
+}
+
 auto Binder::DeclareFunction::mergeWithMatchingOverload(
     OverloadSetSymbol* overloadSet) -> bool {
   for (auto existingFunction : overloadSet->declaredFunctions()) {
     if (existingFunction->isSpecialization()) continue;
+    if (hasDistinctDependentFriendContext(existingFunction)) continue;
 
     auto existingTemplateDecl = existingFunction->templateDeclaration();
     auto newTemplateHead = decl.specs.templateHead;

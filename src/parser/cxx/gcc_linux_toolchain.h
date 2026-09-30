@@ -37,6 +37,10 @@ class GCCLinuxToolchain final : public Toolchain {
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
 
+  [[nodiscard]] auto linkerFlavor() const -> LinkerFlavor override {
+    return LinkerFlavor::kGnu;
+  }
+
  private:
   [[nodiscard]] auto multiarchName() const -> std::string;
   [[nodiscard]] auto gccInstallDir() const -> std::optional<std::string>;

@@ -296,6 +296,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   copy->declSpecifierList = rewrite.rewriteSpecifierList(
       ast->declSpecifierList, declSpecifierListCtx, templateHead);
 
+  if (rewrite.shouldStopSubstitution()) return nullptr;
+
   if (declSpecifierListCtx.isFriend) {
     auto friendType =
         rewrite.unit_->typeTraits().remove_cv(declSpecifierListCtx.type());
@@ -337,8 +339,11 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
   ListAppender<InitDeclaratorAST> appendInitDeclarator{
       arena(), copy->initDeclaratorList};
-  for (auto node : ListView{ast->initDeclaratorList})
-    appendInitDeclarator(rewrite.initDeclarator(node, declSpecifierListCtx));
+  for (auto node : ListView{ast->initDeclaratorList}) {
+    auto value = rewrite.initDeclarator(node, declSpecifierListCtx);
+    if (!value) return nullptr;
+    appendInitDeclarator(value);
+  }
 
   copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
   copy->semicolonLoc = ast->semicolonLoc;
@@ -530,6 +535,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
   copy->semicolonLoc = ast->semicolonLoc;
   copy->identifier = ast->identifier;
 
+  if (rewrite.shouldStopSubstitution()) return nullptr;
+
   const auto addSymbolToParentScope =
       rewrite.binder().instantiatingSymbol() != ast->symbol;
 
@@ -607,9 +614,13 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   copy->declSpecifierList = rewrite.rewriteSpecifierList(ast->declSpecifierList,
                                                          declSpecifierListCtx);
 
+  if (rewrite.shouldStopSubstitution()) return nullptr;
+
   const auto pendingExceptionSpecifierMark =
       rewrite.pendingExceptionSpecifierMark();
   copy->declarator = rewrite.declarator(ast->declarator);
+
+  if (rewrite.shouldStopSubstitution()) return nullptr;
 
   auto declaratorDecl = Decl{declSpecifierListCtx, copy->declarator};
   auto declaratorType = getDeclaratorType(translationUnit(), copy->declarator,
@@ -641,7 +652,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       std::exchange(rewrite.functionInstanceToDefine_, nullptr);
   const bool definesExistingInstance = functionSymbol != nullptr;
   if (!functionSymbol && (!isTemplateInstantiation || isOutOfClassMemberDef) &&
-      !isFunctionTemplateSpecialization) {
+      !isFunctionTemplateSpecialization &&
+      !(ast->symbol && ast->symbol->isFriend())) {
     functionSymbol = binder()->getFunction(
         binder()->scope(), declaratorDecl.getName(), declaratorType,
         functionTemplateHead, copy->requiresClause);
@@ -667,6 +679,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   if (ast->symbol && ast->symbol->isConstexpr())
     functionSymbol->setConstexpr(true);
+
+  if (functionSymbol->isFriend() && !definesExistingInstance)
+    binder()->recordFunctionDefinition(functionSymbol);
 
   if (isOutOfClassMemberDef) {
     functionSymbol->setDefined(true);

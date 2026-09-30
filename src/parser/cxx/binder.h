@@ -363,7 +363,7 @@ class Binder {
 
   void bind(TypenameSpecifierAST* ast);
 
-  void bind(EnumeratorAST* ast, const Type* type,
+  void bind(EnumeratorAST* ast, const Type* previousType,
             std::optional<ConstValue> value);
 
   [[nodiscard]] static auto nextEnumeratorValue(
@@ -506,7 +506,8 @@ class Binder {
   [[nodiscard]] auto reportUnresolvedNestedNameSpecifier(
       NestedNameSpecifierAST* ast) -> bool;
 
-  [[nodiscard]] auto lookupFriendClass(const Identifier* name) -> ClassSymbol*;
+  [[nodiscard]] auto lookupFriendClass(const Identifier* name,
+                                       bool namesTemplate) -> ClassSymbol*;
 
   [[nodiscard]] auto adoptFriendDeclaredClass(ScopeSymbol* targetScope,
                                               const Identifier* name)
@@ -704,6 +705,9 @@ class Binder {
   }
 
  private:
+  [[nodiscard]] auto enumeratorType(EnumeratorAST* ast,
+                                    const Type* previousType) const
+      -> const Type*;
   void inheritDefaultArgument(ParameterSymbol* target, ParameterSymbol* source);
 
   [[nodiscard]] static auto functionBodyBlock(ScopeSymbol* scope)

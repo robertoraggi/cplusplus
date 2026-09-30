@@ -499,3 +499,42 @@ using Throwing = Function<false>;
   EXPECT_TRUE(nothrowType->isNoexcept());
   EXPECT_FALSE(throwingType->isNoexcept());
 }
+
+TEST(PrecompiledHeader, RestoresMemberInstantiationQueueMembership) {
+  Prefix prefix{"struct First {}; struct Second {};"};
+  auto first = symbol_cast<ClassSymbol>(
+      findMember(prefix.unit()->globalScope(), "First"));
+  auto second = symbol_cast<ClassSymbol>(
+      findMember(prefix.unit()->globalScope(), "Second"));
+  ASSERT_TRUE(first);
+  ASSERT_TRUE(second);
+  ASSERT_TRUE(prefix.unit()->beginMemberInstantiation(first));
+  prefix.unit()->addPendingMemberInstantiation(second);
+
+  const auto data = prefix.emit();
+  ASSERT_TRUE(prefix.errors().empty());
+  ASSERT_FALSE(data.empty());
+
+  DiagnosticsClient diagnostics;
+  TranslationUnit consumer{&diagnostics};
+  consumer.setSource("", "consumer.cc");
+  PrecompiledHeaderReader reader{&consumer, keys()};
+  ASSERT_TRUE(reader(data)) << reader.error();
+
+  first = symbol_cast<ClassSymbol>(findMember(consumer.globalScope(), "First"));
+  second =
+      symbol_cast<ClassSymbol>(findMember(consumer.globalScope(), "Second"));
+  ASSERT_TRUE(first);
+  ASSERT_TRUE(second);
+  consumer.addPendingMemberInstantiation(first);
+  consumer.addPendingMemberInstantiation(second);
+  EXPECT_EQ(consumer.takePendingMemberInstantiations(),
+            (std::vector<ClassSymbol*>{second}));
+  EXPECT_FALSE(consumer.beginMemberInstantiation(first));
+  EXPECT_TRUE(consumer.beginMemberInstantiation(second));
+
+  consumer.reopenMemberInstantiation(first);
+  EXPECT_EQ(consumer.takePendingMemberInstantiations(),
+            (std::vector<ClassSymbol*>{first}));
+  EXPECT_TRUE(consumer.beginMemberInstantiation(first));
+}

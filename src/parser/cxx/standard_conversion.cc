@@ -81,6 +81,26 @@ void bindResultToReference(ImplicitConversionSequence& seq,
       unqualified_cast<FunctionType>(referencedType) != nullptr;
 }
 
+[[nodiscard]] auto completedSequence(ImplicitConversionSequence sequence,
+                                     ImplicitCastKind kind, const Type* type)
+    -> ImplicitConversionSequence {
+  if (sequence.form == ConversionSequenceForm::kNone)
+    sequence.form = ConversionSequenceForm::kStandard;
+  sequence.steps.push_back({kind, type});
+  return sequence;
+}
+
+[[nodiscard]] auto conversionResultValueCategory(const Type* type)
+    -> ValueCategory {
+  if (auto reference = type_cast<RvalueReferenceType>(type)) {
+    if (unqualified_cast<FunctionType>(reference->elementType()))
+      return ValueCategory::kLValue;
+    return ValueCategory::kXValue;
+  }
+  if (type_cast<LvalueReferenceType>(type)) return ValueCategory::kLValue;
+  return ValueCategory::kPrValue;
+}
+
 struct OverloadSetTarget {
   const FunctionType* functionType = nullptr;
   bool isMemberPointer = false;
@@ -113,10 +133,7 @@ struct SelectedFunction {
                                              const FunctionType* type,
                                              const FunctionType* target)
     -> bool {
-  auto traits = unit->typeTraits();
-  if (traits.is_same(type, target)) return true;
-  if (!type->isNoexcept() || target->isNoexcept()) return false;
-  return traits.is_same(traits.remove_noexcept(type), target);
+  return unit->typeTraits().is_reference_compatible(target, type);
 }
 
 [[nodiscard]] auto selectedFunctionFor(TranslationUnit* unit,
@@ -244,21 +261,17 @@ auto StandardConversion::hasUniqueNonVirtualBase(const ClassType* derived,
   auto derivedDefinition = derivedClass->resolvedDefinition();
   traits.requireCompleteClass(derivedDefinition);
 
-  return derivedDefinition->baseClassOffset(baseClass).has_value();
+  auto baseDefinition = baseClass->resolvedDefinition();
+  if (!derivedDefinition->baseSubobjectInfo(baseDefinition).isUniqueSubobject())
+    return false;
+  return !derivedDefinition->hasVirtualBasePath(baseDefinition);
 }
 
 auto StandardConversion::isMemberPointeeConvertible(const Type* source,
-                                                    const Type* target) const
+                                                    const Type* target)
     -> bool {
-  if (auto sourceFunction = type_cast<FunctionType>(source)) {
-    auto targetFunction = type_cast<FunctionType>(target);
-    if (!targetFunction) return false;
-    if (traits.is_same(sourceFunction, targetFunction)) return true;
-    if (!sourceFunction->isNoexcept() || targetFunction->isNoexcept())
-      return false;
-    return traits.is_same(traits.remove_noexcept(sourceFunction),
-                          targetFunction);
-  }
+  if (traits.is_function(source))
+    return traits.is_reference_compatible(target, source);
 
   return traits.is_qualification_convertible(control_->getPointerType(source),
                                              control_->getPointerType(target));
@@ -298,23 +311,28 @@ auto StandardConversion::readsValueDirectly(const Type* type) const -> bool {
   return !traits.is_class(traits.remove_cv(traits.remove_reference(type)));
 }
 
-auto StandardConversion::lvalueToRvalue(ExpressionAST*& expr) -> bool {
-  if (!is_glvalue(expr)) return false;
-  if (traits.is_function(expr->type)) return false;
-  if (traits.is_array(expr->type)) return false;
-  if (!traits.is_complete(expr->type)) return false;
-  if (!readsValueDirectly(expr->type)) return false;
-
-  auto cast = ImplicitCastExpressionAST::create(arena_);
-  cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
-  cast->expression = expr;
-  cast->type = traits.remove_reference(expr->type);
-  cast->valueCategory = ValueCategory::kPrValue;
-  adjustCv(cast);
-  expr = cast;
-  foldConstantRead(expr);
-  atomicToNonAtomic(expr);
-  return true;
+auto StandardConversion::valueTransformation(ExpressionAST* expr)
+    -> std::optional<ImplicitConversionSequence::Step> {
+  auto type = traits.remove_reference(expr->type);
+  if (traits.is_array(type)) {
+    auto kind = type_cast<UnresolvedBoundedArrayType>(type)
+                    ? ImplicitCastKind::kLValueToRValueConversion
+                    : ImplicitCastKind::kArrayToPointerConversion;
+    return ImplicitConversionSequence::Step{
+        kind, traits.add_pointer(traits.remove_extent(type))};
+  }
+  if (traits.is_function(type)) {
+    if (is_prvalue(expr)) return std::nullopt;
+    return ImplicitConversionSequence::Step{
+        ImplicitCastKind::kFunctionToPointerConversion,
+        traits.add_pointer(type)};
+  }
+  if (!is_glvalue(expr)) return std::nullopt;
+  if (!traits.is_complete(type)) return std::nullopt;
+  if (!readsValueDirectly(type)) return std::nullopt;
+  return ImplicitConversionSequence::Step{
+      ImplicitCastKind::kLValueToRValueConversion,
+      traits.adjusted_cv_type(type)};
 }
 
 void StandardConversion::atomicToNonAtomic(ExpressionAST*& expr) {
@@ -375,153 +393,47 @@ void StandardConversion::foldConstantRead(ExpressionAST*& expression) {
   }
 }
 
-auto StandardConversion::arrayToPointer(ExpressionAST*& expr) -> bool {
-  auto unref = traits.remove_reference(expr->type);
-  if (!traits.is_array(unref)) return false;
-
-  auto cast = ImplicitCastExpressionAST::create(arena_);
-  cast->expression = expr;
-  cast->type = traits.add_pointer(traits.remove_extent(unref));
-  cast->valueCategory = ValueCategory::kPrValue;
-
-  if (type_cast<UnresolvedBoundedArrayType>(unref)) {
-    cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
-  } else {
-    cast->castKind = ImplicitCastKind::kArrayToPointerConversion;
-  }
-
-  expr = cast;
-  return true;
-}
-
-auto StandardConversion::functionToPointer(ExpressionAST*& expr) -> bool {
-  auto unref = traits.remove_reference(expr->type);
-  if (!traits.is_function(unref)) return false;
-  if (is_prvalue(expr)) return false;
-
-  requireNamedFunction(expr);
-
-  auto cast = ImplicitCastExpressionAST::create(arena_);
-  cast->castKind = ImplicitCastKind::kFunctionToPointerConversion;
-  cast->expression = expr;
-  cast->type = traits.add_pointer(unref);
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-  return true;
-}
-
-auto StandardConversion::integralPromotion(ExpressionAST*& expr,
-                                           const Type* destinationType)
-    -> bool {
+auto StandardConversion::integralPromotion(ExpressionAST*& expr) -> bool {
   if (!is_prvalue(expr)) return false;
   if (!traits.is_integral(expr->type) && !traits.is_enum(expr->type))
     return false;
 
-  auto make = [&](const Type* type) {
-    auto cast = ImplicitCastExpressionAST::create(arena_);
-    cast->castKind = ImplicitCastKind::kIntegralPromotion;
-    cast->expression = expr;
-    cast->type = type;
-    cast->valueCategory = ValueCategory::kPrValue;
-    expr = cast;
-  };
-
-  if (destinationType) {
-    if (!traits.is_integral_promotion(expr->type, destinationType))
-      return false;
-    make(destinationType);
-    return true;
-  }
-
   auto promotedType = traits.promoted_integer_type(expr->type);
   if (traits.is_same(promotedType, expr->type)) return false;
 
-  make(promotedType);
+  wrapWithImplicitCast(ImplicitCastKind::kIntegralPromotion, promotedType,
+                       expr);
   return true;
 }
 
-auto StandardConversion::floatingPointPromotion(ExpressionAST*& expr,
-                                                const Type* destinationType)
-    -> bool {
+auto StandardConversion::floatingPointPromotion(ExpressionAST*& expr) -> bool {
   if (!is_prvalue(expr)) return false;
   if (!traits.is_floating_point(expr->type)) return false;
-  if (!destinationType) destinationType = control_->getDoubleType();
-  if (!traits.is_floating_point(destinationType)) return false;
-  if (expr->type->kind() != TypeKind::kFloat) return false;
-
-  auto cast = ImplicitCastExpressionAST::create(arena_);
-  cast->castKind = ImplicitCastKind::kFloatingPointPromotion;
-  cast->expression = expr;
-  cast->type = control_->getDoubleType();
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
+  auto destinationType = control_->getDoubleType();
+  if (!traits.is_floating_point_promotion(expr->type, destinationType))
+    return false;
+  wrapWithImplicitCast(ImplicitCastKind::kFloatingPointPromotion,
+                       destinationType, expr);
   return true;
 }
 
-auto StandardConversion::integralConversion(ExpressionAST*& expr,
-                                            const Type* destinationType)
-    -> bool {
-  if (!is_prvalue(expr)) return false;
-  if (!traits.is_integral_or_unscoped_enum(expr->type)) return false;
-  if (!traits.is_integer(destinationType)) return false;
-
-  auto cast = ImplicitCastExpressionAST::create(arena_);
-  cast->castKind = ImplicitCastKind::kIntegralConversion;
-  cast->expression = expr;
-  cast->type = destinationType;
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-  return true;
-}
-
-auto StandardConversion::floatingPointConversion(ExpressionAST*& expr,
-                                                 const Type* destinationType)
-    -> bool {
-  if (!is_prvalue(expr)) return false;
-  if (traits.is_same(expr->type, destinationType)) return true;
-  if (!traits.is_floating_point(expr->type)) return false;
-  if (!traits.is_floating_point(destinationType)) return false;
-
-  auto cast = ImplicitCastExpressionAST::create(arena_);
-  cast->castKind = ImplicitCastKind::kFloatingPointConversion;
-  cast->expression = expr;
-  cast->type = destinationType;
-  cast->valueCategory = ValueCategory::kPrValue;
-  expr = cast;
-  return true;
-}
-
-auto StandardConversion::floatingIntegralConversion(ExpressionAST*& expr,
-                                                    const Type* destinationType)
-    -> bool {
-  if (!is_prvalue(expr)) return false;
-
-  auto make = [&] {
-    auto cast = ImplicitCastExpressionAST::create(arena_);
-    cast->castKind = ImplicitCastKind::kFloatingIntegralConversion;
-    cast->expression = expr;
-    cast->type = destinationType;
-    cast->valueCategory = ValueCategory::kPrValue;
-    expr = cast;
-  };
-
-  if (traits.is_integral_or_unscoped_enum(expr->type) &&
-      traits.is_floating_point(destinationType)) {
-    make();
-    return true;
-  }
-
-  if (!traits.is_floating_point(expr->type)) return false;
-  if (!traits.is_integer(destinationType)) return false;
-  make();
-  return true;
-}
-
-auto StandardConversion::ensurePrvalue(ExpressionAST*& expr) -> bool {
-  if (lvalueToRvalue(expr)) return true;
-  if (arrayToPointer(expr)) return true;
-  if (functionToPointer(expr)) return true;
-  return false;
+auto StandardConversion::arithmeticConversionKind(const Type* source,
+                                                  const Type* target) const
+    -> std::optional<ImplicitCastKind> {
+  if (!traits.is_arithmetic_or_unscoped_enum(source)) return std::nullopt;
+  if (!traits.is_arithmetic(target)) return std::nullopt;
+  if (traits.is_same(source, target)) return ImplicitCastKind::kIdentity;
+  if (traits.is_same(target, control_->getBoolType()))
+    return ImplicitCastKind::kBooleanConversion;
+  if (traits.is_integral_promotion(source, target))
+    return ImplicitCastKind::kIntegralPromotion;
+  if (traits.is_floating_point_promotion(source, target))
+    return ImplicitCastKind::kFloatingPointPromotion;
+  if (traits.is_integral_or_unscoped_enum(source) && traits.is_integral(target))
+    return ImplicitCastKind::kIntegralConversion;
+  if (traits.is_floating_point(source) && traits.is_floating_point(target))
+    return ImplicitCastKind::kFloatingPointConversion;
+  return ImplicitCastKind::kFloatingIntegralConversion;
 }
 
 void StandardConversion::adjustCv(ExpressionAST* expr) {
@@ -530,7 +442,12 @@ void StandardConversion::adjustCv(ExpressionAST* expr) {
 }
 
 void StandardConversion::prepareOperand(ExpressionAST*& expr) {
-  (void)ensurePrvalue(expr);
+  if (auto step = valueTransformation(expr)) {
+    if (step->kind == ImplicitCastKind::kFunctionToPointerConversion)
+      requireNamedFunction(expr);
+    wrapWithImplicitCast(step->kind, step->type, expr);
+    atomicToNonAtomic(expr);
+  }
   adjustCv(expr);
 }
 
@@ -541,8 +458,9 @@ void StandardConversion::promoteOperand(ExpressionAST*& expr) {
 }
 
 void StandardConversion::decayOperand(ExpressionAST*& expr) {
-  if (arrayToPointer(expr)) return;
-  (void)functionToPointer(expr);
+  auto type = traits.remove_reference(expr->type);
+  if (!traits.is_array(type) && !traits.is_function(type)) return;
+  prepareOperand(expr);
 }
 
 auto StandardConversion::temporaryMaterialization(ExpressionAST*& expr)
@@ -703,11 +621,15 @@ auto StandardConversion::usualArithmeticConversion(ExpressionAST*& expr,
 
 auto StandardConversion::commonArithmeticType(const Type* a, const Type* b)
     -> const Type* {
-  auto isArith = [&](const Type* t) {
-    return traits.is_arithmetic(t) ||
-           (traits.is_enum(t) && !traits.is_scoped_enum(t));
-  };
-  if (!isArith(a) || !isArith(b)) return nullptr;
+  a = traits.remove_cv(a);
+  b = traits.remove_cv(b);
+  if (!traits.is_arithmetic_or_unscoped_enum(a)) return nullptr;
+  if (!traits.is_arithmetic_or_unscoped_enum(b)) return nullptr;
+
+  if (!isC_ && traits.is_enum(a) && !traits.is_same(a, b)) {
+    if (traits.is_enum(b) || traits.is_floating_point(b)) return nullptr;
+  }
+  if (!isC_ && traits.is_enum(b) && traits.is_floating_point(a)) return nullptr;
 
   if (traits.is_complex(a) || traits.is_complex(b)) {
     auto commonReal = commonArithmeticType(traits.complex_element_type(a),
@@ -715,116 +637,26 @@ auto StandardConversion::commonArithmeticType(const Type* a, const Type* b)
     if (!commonReal) return nullptr;
     return control_->getComplexType(commonReal);
   }
-
-  auto fpRank = [](const Type* t) -> int {
-    switch (t->kind()) {
-      case TypeKind::kLongDouble:
-        return 4;
-      case TypeKind::kDouble:
-        return 3;
-      case TypeKind::kFloat:
-        return 2;
-      case TypeKind::kFloat16:
-        return 1;
-      default:
-        return -1;
-    }
-  };
-  if (traits.is_floating_point(a) || traits.is_floating_point(b))
-    return fpRank(a) >= fpRank(b) ? a : b;
-
-  auto isBitInt = [](const Type* t) {
-    return t->kind() == TypeKind::kBitInt ||
-           t->kind() == TypeKind::kUnsignedBitInt;
-  };
-
-  if (isBitInt(a) || isBitInt(b)) {
-    if (traits.is_same(a, b)) return a;
-    auto numBitsOf = [&](const Type* t) -> int {
-      if (t->kind() == TypeKind::kBitInt)
-        return type_cast<BitIntType>(t)->numBits();
-      if (t->kind() == TypeKind::kUnsignedBitInt)
-        return type_cast<UnsignedBitIntType>(t)->numBits();
-      return 0;
-    };
-    int bitsA = numBitsOf(a);
-    int bitsB = numBitsOf(b);
-    if (bitsA <= 0 || bitsB <= 0) return nullptr;
-    int bits = std::max(bitsA, bitsB);
-    bool anyUnsigned = traits.is_unsigned(a) || traits.is_unsigned(b);
-    if (anyUnsigned) return control_->getUnsignedBitIntType(bits);
-    return control_->getBitIntType(bits);
+  if (traits.is_floating_point(a) || traits.is_floating_point(b)) {
+    return traits.floating_point_conversion_rank(a) >=
+                   traits.floating_point_conversion_rank(b)
+               ? a
+               : b;
   }
-
-  auto layout = control_->memoryLayout();
-  auto sizeOf = [&](const Type* t) -> std::size_t {
-    if (layout)
-      if (auto s = layout->sizeOf(t)) return *s;
-    return 0;
-  };
-
-  auto rank = [&](const Type* t) -> int {
-    switch (t->kind()) {
-      case TypeKind::kBool:
-        return 1;
-      case TypeKind::kSignedChar:
-      case TypeKind::kUnsignedChar:
-      case TypeKind::kChar:
-        return 2;
-      case TypeKind::kShortInt:
-      case TypeKind::kUnsignedShortInt:
-        return 3;
-      case TypeKind::kInt:
-      case TypeKind::kUnsignedInt:
-        return 4;
-      case TypeKind::kLongInt:
-      case TypeKind::kUnsignedLongInt:
-        return 5;
-      case TypeKind::kLongLongInt:
-      case TypeKind::kUnsignedLongLongInt:
-        return 6;
-      case TypeKind::kInt128:
-      case TypeKind::kUnsignedInt128:
-        return 7;
-      default:
-        return 0;
-    }
-  };
-
-  auto pa = traits.promoted_integer_type(a);
-  auto pb = traits.promoted_integer_type(b);
-
-  if (traits.is_same(pa, pb)) return pa;
-
-  const bool ua = traits.is_unsigned(pa);
-  const bool ub = traits.is_unsigned(pb);
-  const auto ra = rank(pa);
-  const auto rb = rank(pb);
-
-  if (ua == ub) return ra >= rb ? pa : pb;
-
-  const Type* u = ua ? pa : pb;
-  const Type* s = ua ? pb : pa;
-  const auto ru = ua ? ra : rb;
-  const auto rs = ua ? rb : ra;
-
-  if (ru >= rs) return u;
-  if (sizeOf(s) > sizeOf(u)) return s;
-
-  switch (s->kind()) {
-    case TypeKind::kShortInt:
-      return control_->getUnsignedShortIntType();
-    case TypeKind::kInt:
-      return control_->getUnsignedIntType();
-    case TypeKind::kLongInt:
-      return control_->getUnsignedLongIntType();
-    case TypeKind::kLongLongInt:
-      return control_->getUnsignedLongLongIntType();
-    case TypeKind::kInt128:
-      return control_->getUnsignedInt128Type();
-    default:
-      return u;
-  }
+  a = traits.promoted_integer_type(a);
+  b = traits.promoted_integer_type(b);
+  if (traits.is_same(a, b)) return a;
+  auto rankA = traits.integer_conversion_rank(a);
+  auto rankB = traits.integer_conversion_rank(b);
+  if (traits.is_unsigned(a) == traits.is_unsigned(b))
+    return rankA >= rankB ? a : b;
+  auto unsignedType = traits.is_unsigned(a) ? a : b;
+  auto signedType = traits.is_unsigned(a) ? b : a;
+  if (traits.integer_conversion_rank(unsignedType) >=
+      traits.integer_conversion_rank(signedType))
+    return unsignedType;
+  if (traits.representsAllValuesOf(signedType, unsignedType)) return signedType;
+  return traits.make_unsigned(signedType);
 }
 
 auto StandardConversion::convertArithmetic(ExpressionAST*& expr,
@@ -849,21 +681,10 @@ auto StandardConversion::convertArithmetic(ExpressionAST*& expr,
     return true;
   }
 
-  if (traits.is_floating_point(destinationType)) {
-    if (traits.is_floating_point(expr->type))
-      return floatingPointConversion(expr, destinationType);
-    return floatingIntegralConversion(expr, destinationType);
-  }
-
-  if (traits.is_floating_point(expr->type))
-    return floatingIntegralConversion(expr, destinationType);
-
-  if (integralPromotion(expr, destinationType) &&
-      traits.is_same(expr->type, destinationType))
-    return true;
-  (void)integralPromotion(expr);
-  if (traits.is_same(expr->type, destinationType)) return true;
-  return integralConversion(expr, destinationType);
+  auto kind = arithmeticConversionKind(expr->type, destinationType);
+  if (!kind || !is_prvalue(expr)) return false;
+  wrapWithImplicitCast(*kind, destinationType, expr);
+  return true;
 }
 
 auto StandardConversion::compositeVoidPointerType(const Type* left,
@@ -1054,7 +875,9 @@ auto StandardConversion::directReferenceBindingCastKind(
   if (traits.is_base_of(target, source))
     return ImplicitCastKind::kDerivedToBaseConversion;
 
-  return ImplicitCastKind::kIdentity;
+  if (traits.is_function(target))
+    return ImplicitCastKind::kFunctionPointerConversion;
+  return ImplicitCastKind::kQualificationConversion;
 }
 
 void StandardConversion::appendDirectBindingSteps(
@@ -1077,6 +900,18 @@ void StandardConversion::appendDirectBindingSteps(
   seq.steps.push_back({castKind, referencedType});
 }
 
+auto StandardConversion::directReferenceBinding(
+    ImplicitConversionSequence sequence, ValueCategory category)
+    -> ImplicitConversionSequence {
+  bindResultToReference(sequence, sequence.destinationType, category);
+  sequence.binding.isDirect = true;
+  sequence.form = ConversionSequenceForm::kStandard;
+  appendDirectBindingSteps(sequence, sequence.binding.referencedType,
+                           traits.remove_reference(sequence.sourceType),
+                           category);
+  return sequence;
+}
+
 auto StandardConversion::referenceBinding(const Type* targetType,
                                           const Type* sourceUnadjustedType,
                                           ValueCategory valueCategory)
@@ -1095,7 +930,6 @@ auto StandardConversion::referenceBinding(const Type* targetType,
 
   auto sourceType = traits.remove_reference(sourceUnadjustedType);
   const bool sourceIsLvalue = valueCategory == ValueCategory::kLValue;
-  const bool sourceIsPrvalue = valueCategory == ValueCategory::kPrValue;
   const bool referenceCompatible =
       traits.is_reference_compatible(referencedType, sourceType);
 
@@ -1104,17 +938,8 @@ auto StandardConversion::referenceBinding(const Type* targetType,
   seq.destinationType = targetType;
   seq.binding.isRvalueRef = isRvalueReference;
 
-  auto bindDirectly =
-      [&](ValueCategory category) -> ImplicitConversionSequence {
-    bindResultToReference(seq, targetType, category);
-    seq.binding.isDirect = true;
-    seq.form = ConversionSequenceForm::kStandard;
-    appendDirectBindingSteps(seq, referencedType, sourceType, category);
-    return seq;
-  };
-
   if (!isRvalueReference && sourceIsLvalue && referenceCompatible)
-    return bindDirectly(ValueCategory::kLValue);
+    return directReferenceBinding(seq, ValueCategory::kLValue);
 
   const bool convertsThroughConversionFunction =
       traits.is_class(traits.remove_cv(sourceType)) &&
@@ -1130,7 +955,7 @@ auto StandardConversion::referenceBinding(const Type* targetType,
 
   if (referenceCompatible &&
       (!sourceIsLvalue || traits.is_function(sourceType)))
-    return bindDirectly(valueCategory);
+    return directReferenceBinding(seq, valueCategory);
 
   if (traits.is_reference_related(referencedType, sourceType)) {
     if (isRvalueReference && sourceIsLvalue) return seq;
@@ -1149,6 +974,39 @@ auto StandardConversion::isDesignatedInitializerList(
   return false;
 }
 
+auto StandardConversion::classListInitializationSequence(
+    ImplicitConversionSequence sequence, const Type* targetType)
+    -> ImplicitConversionSequence {
+  auto type = traits.remove_cvref(targetType);
+  sequence.form = ConversionSequenceForm::kUserDefined;
+  sequence.udc.aggregateInitializedClass = type;
+  bindResultToReference(sequence, targetType, ValueCategory::kPrValue);
+  return completedSequence(sequence, ImplicitCastKind::kIdentity, type);
+}
+
+auto StandardConversion::aggregateListInitializationSequence(
+    ImplicitConversionSequence sequence, BracedInitListAST* initializer,
+    const Type* targetType) -> ImplicitConversionSequence {
+  auto conversion =
+      aggregateListConversion(initializer, traits.remove_cvref(targetType));
+  if (!conversion.viable) return sequence;
+  sequence.list.narrowsElement = conversion.narrows;
+  return classListInitializationSequence(sequence, targetType);
+}
+
+auto StandardConversion::listElementSequence(
+    ExpressionAST* element, const Type* targetType,
+    InitializationKind initializationKind) -> ImplicitConversionSequence {
+  auto sequence =
+      computeConversionSequence(element, targetType, initializationKind);
+  sequence.list.isListInitialization = true;
+  sequence.list.fromSingleElement = bool(sequence);
+  sequence.list.elementCount = 1;
+  sequence.list.narrowsElement = traits.is_narrowing_list_element(
+      element, traits.remove_cvref(targetType));
+  return sequence;
+}
+
 auto StandardConversion::listInitializationSequence(
     BracedInitListAST* bracedInitList, const Type* targetType,
     InitializationKind initializationKind) -> ImplicitConversionSequence {
@@ -1158,45 +1016,10 @@ auto StandardConversion::listInitializationSequence(
 
   auto listTarget = traits.remove_cv(traits.remove_reference(targetType));
 
-  auto complete = [&](ImplicitCastKind kind,
-                      const Type* type) -> ImplicitConversionSequence {
-    if (seq.form == ConversionSequenceForm::kNone)
-      seq.form = ConversionSequenceForm::kStandard;
-    seq.steps.push_back({kind, type});
-    return seq;
-  };
-
-  auto aggregateInitialization = [&]() -> ImplicitConversionSequence {
-    seq.form = ConversionSequenceForm::kUserDefined;
-    seq.udc.aggregateInitializedClass = listTarget;
-    bindResultToReference(seq, targetType, ValueCategory::kPrValue);
-    return complete(ImplicitCastKind::kIdentity, listTarget);
-  };
-
-  auto convertSingleElement =
-      [&](ExpressionAST* element,
-          const Type* elementTarget) -> ImplicitConversionSequence {
-    const bool narrows = traits.is_narrowing_list_element(element, listTarget);
-    auto elementSeq =
-        computeConversionSequence(element, elementTarget, initializationKind);
-    elementSeq.list.isListInitialization = true;
-    elementSeq.list.fromSingleElement = bool(elementSeq);
-    elementSeq.list.elementCount = 1;
-    elementSeq.list.narrowsElement = narrows;
-    return elementSeq;
-  };
-
-  auto classAggregateInitialization = [&]() -> ImplicitConversionSequence {
-    auto conversion = aggregateListConversion(bracedInitList, listTarget);
-    if (!conversion.viable) return seq;
-    seq.list.narrowsElement = conversion.narrows;
-    return aggregateInitialization();
-  };
-
   if (!traits.is_reference(targetType) &&
       isDesignatedInitializerList(bracedInitList)) {
     if (!traits.is_aggregate(listTarget)) return seq;
-    return classAggregateInitialization();
+    return aggregateListInitializationSequence(seq, bracedInitList, targetType);
   }
 
   if (traits.is_class(listTarget) && traits.is_aggregate(listTarget)) {
@@ -1206,7 +1029,7 @@ auto StandardConversion::listInitializationSequence(
           traits.remove_cv(traits.remove_reference(element->type));
       if (traits.is_same(elementType, listTarget) ||
           traits.is_base_of(listTarget, elementType))
-        return convertSingleElement(element, targetType);
+        return listElementSequence(element, targetType, initializationKind);
     }
   }
 
@@ -1214,7 +1037,7 @@ auto StandardConversion::listInitializationSequence(
           traits, !isC_, listTarget, singleInitializerClause(bracedInitList));
       stringInit && stringInit->compatible) {
     bindResultToReference(seq, targetType, ValueCategory::kPrValue);
-    return complete(ImplicitCastKind::kIdentity, listTarget);
+    return completedSequence(seq, ImplicitCastKind::kIdentity, listTarget);
   }
 
   if (auto elemType = traits.initializer_list_element_type(targetType)) {
@@ -1233,7 +1056,7 @@ auto StandardConversion::listInitializationSequence(
     seq.list.initializerListElementType = elemType;
     seq.list.elementCount = elementCount;
     seq.list.elementRank = worstRank;
-    return complete(ImplicitCastKind::kIdentity, targetType);
+    return completedSequence(seq, ImplicitCastKind::kIdentity, targetType);
   }
 
   if (traits.is_array(listTarget)) {
@@ -1249,27 +1072,153 @@ auto StandardConversion::listInitializationSequence(
     seq.list.elementRank = conversion.elementRank;
     seq.list.targetIsUnboundedArray = traits.is_unbounded_array(listTarget);
     bindResultToReference(seq, targetType, ValueCategory::kPrValue);
-    return complete(ImplicitCastKind::kIdentity, listTarget);
+    return completedSequence(seq, ImplicitCastKind::kIdentity, listTarget);
   }
 
   if (traits.is_class(listTarget)) {
-    if (traits.is_aggregate(listTarget)) return classAggregateInitialization();
+    if (traits.is_aggregate(listTarget))
+      return aggregateListInitializationSequence(seq, bracedInitList,
+                                                 targetType);
     if (!listInitializes(bracedInitList, listTarget, initializationKind))
       return seq;
-    return aggregateInitialization();
+    return classListInitializationSequence(seq, targetType);
   }
 
   if (auto element = singleInitializerClause(bracedInitList)) {
     if (ast_cast<BracedInitListAST>(element)) return seq;
-    return convertSingleElement(element, listTarget);
+    return listElementSequence(element, targetType, initializationKind);
   }
 
   if (!bracedInitList->expressionList) {
     bindResultToReference(seq, targetType, ValueCategory::kPrValue);
-    return complete(ImplicitCastKind::kIdentity, listTarget);
+    return completedSequence(seq, ImplicitCastKind::kIdentity, listTarget);
   }
 
   return seq;
+}
+
+auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
+                                                       const Type* targetType)
+    -> std::optional<ImplicitConversionSequence> {
+  ImplicitConversionSequence seq;
+  seq.sourceType = expr->type;
+  seq.destinationType = targetType;
+  auto unreferencedSourceType = traits.remove_reference(expr->type);
+  auto overloadSetType = type_cast<OverloadSetType>(unreferencedSourceType);
+  auto sourceIsAddressOfOverloadSet = false;
+
+  if (!overloadSetType) {
+    if (auto sourcePointer = type_cast<PointerType>(unreferencedSourceType)) {
+      overloadSetType =
+          type_cast<OverloadSetType>(sourcePointer->elementType());
+      sourceIsAddressOfOverloadSet = overloadSetType != nullptr;
+    }
+  }
+
+  OverloadSetSymbol* overloadSet =
+      overloadSetType ? overloadSetType->symbol() : nullptr;
+  if (!overloadSet) {
+    auto designator = stripNestedExpressions(expr);
+    if (auto address = ast_cast<UnaryExpressionAST>(designator);
+        address && address->op == TokenKind::T_AMP) {
+      sourceIsAddressOfOverloadSet = true;
+      designator = stripNestedExpressions(address->expression);
+    }
+    if (auto id = ast_cast<IdExpressionAST>(designator))
+      overloadSet = symbol_cast<OverloadSetSymbol>(id->symbol);
+    else if (auto member = ast_cast<MemberExpressionAST>(designator))
+      overloadSet = symbol_cast<OverloadSetSymbol>(member->symbol);
+  }
+  if (!overloadSet) return std::nullopt;
+
+  auto target = overloadSetTargetOf(unit_, targetType);
+  if (!target) return std::nullopt;
+  if (target->isMemberPointer && !sourceIsAddressOfOverloadSet) return seq;
+  if (traits.is_reference(targetType) && sourceIsAddressOfOverloadSet)
+    return seq;
+  auto resolved = resolveOverloadSetAgainstTarget(unit_, overloadSet, *target,
+                                                  expr->firstSourceLocation());
+  if (!resolved) return seq;
+  auto source = IdExpressionAST::create(arena_);
+  source->type = resolved->type();
+  source->valueCategory = ValueCategory::kLValue;
+  if (sourceIsAddressOfOverloadSet) {
+    source->type = traits.address_of_function(resolved);
+    source->valueCategory = ValueCategory::kPrValue;
+  }
+  seq = computeConversionSequence(source, targetType,
+                                  InitializationKind::kCopyInitialization,
+                                  ConversionContext::kStandardOnly);
+  seq.sourceType = expr->type;
+  seq.resolvedFunction = resolved;
+  return seq;
+}
+
+auto StandardConversion::pointerConversionSequence(
+    ImplicitConversionSequence sequence, const Type* sourceType,
+    const Type* targetType) -> std::optional<ImplicitConversionSequence> {
+  auto source = type_cast<PointerType>(sourceType);
+  auto target = unqualified_cast<PointerType>(targetType);
+  if (!source || !target) return std::nullopt;
+  auto sourceElement = source->elementType();
+  auto targetElement = target->elementType();
+  auto sourceCv = cv_qualifiers(sourceElement);
+  auto targetCv = cv_qualifiers(targetElement);
+  if (!is_at_least_as_cv_qualified(targetCv, sourceCv)) return sequence;
+  auto sourceUnqualified = traits.remove_cv(sourceElement);
+  auto targetUnqualified = traits.remove_cv(targetElement);
+  sequence.pointeeUnqual = targetUnqualified;
+  sequence.pointeeCv = targetCv;
+  if (traits.is_qualification_convertible(sourceType,
+                                          traits.remove_cv(targetType)))
+    return completedSequence(
+        sequence, ImplicitCastKind::kQualificationConversion, targetType);
+  if (traits.is_void(targetUnqualified) && traits.is_object(sourceUnqualified))
+    return completedSequence(sequence, ImplicitCastKind::kPointerConversion,
+                             targetType);
+  if (pointeeClassAdjustment(sourceType, targetType) ==
+      ClassAdjustment::kDerivedToBase)
+    return completedSequence(
+        sequence, ImplicitCastKind::kDerivedToBaseConversion, targetType);
+  if (traits.is_function(sourceElement) && traits.is_function(targetElement) &&
+      traits.is_reference_compatible(targetElement, sourceElement))
+    return completedSequence(
+        sequence, ImplicitCastKind::kFunctionPointerConversion, targetType);
+  if (!isC_) return sequence;
+  if (traits.is_void(sourceUnqualified))
+    return completedSequence(sequence, ImplicitCastKind::kPointerConversion,
+                             targetType);
+  if (traits.is_vla_compatible(sourceUnqualified, targetUnqualified))
+    return completedSequence(sequence, ImplicitCastKind::kPointerConversion,
+                             targetType);
+  return sequence;
+}
+
+auto StandardConversion::memberPointerConversionSequence(
+    ImplicitConversionSequence sequence, const Type* sourceType,
+    const Type* targetType) -> std::optional<ImplicitConversionSequence> {
+  auto source = decomposeMemberPointer(sourceType);
+  auto target = decomposeMemberPointer(traits.remove_cv(targetType));
+  if (!source || !target) return std::nullopt;
+  if (!isMemberPointeeConvertible(source.pointeeType, target.pointeeType))
+    return sequence;
+  if (!traits.is_same(source.classType, target.classType)) {
+    auto targetClass = type_cast<ClassType>(target.classType);
+    auto sourceClass = type_cast<ClassType>(source.classType);
+    if (!hasUniqueNonVirtualBase(targetClass, sourceClass)) return sequence;
+    auto adjusted =
+        control_->getMemberPointerType(target.classType, source.pointeeType);
+    sequence.steps.push_back(
+        {ImplicitCastKind::kPointerToMemberConversion, adjusted});
+    if (traits.is_same(adjusted, traits.remove_cv(targetType))) {
+      sequence.form = ConversionSequenceForm::kStandard;
+      return sequence;
+    }
+  }
+  auto kind = traits.is_function(source.pointeeType)
+                  ? ImplicitCastKind::kFunctionPointerConversion
+                  : ImplicitCastKind::kQualificationConversion;
+  return completedSequence(sequence, kind, targetType);
 }
 
 auto StandardConversion::computeConversionSequenceSteps(
@@ -1294,48 +1243,8 @@ auto StandardConversion::computeConversionSequenceSteps(
   const Type* currentType = expr->type;
   ValueCategory currentValCat = expr->valueCategory;
 
-  auto addStep = [&](ImplicitCastKind kind, const Type* type) {
-    seq.steps.push_back({kind, type});
-  };
-
-  auto complete = [&](ImplicitCastKind kind,
-                      const Type* type) -> ImplicitConversionSequence {
-    if (seq.form == ConversionSequenceForm::kNone)
-      seq.form = ConversionSequenceForm::kStandard;
-    seq.steps.push_back({kind, type});
-    return seq;
-  };
-
-  auto unreferencedSourceType = traits.remove_reference(currentType);
-  auto overloadSetType = type_cast<OverloadSetType>(unreferencedSourceType);
-  auto sourceIsAddressOfOverloadSet = false;
-
-  if (!overloadSetType) {
-    if (auto sourcePointer = type_cast<PointerType>(unreferencedSourceType)) {
-      overloadSetType =
-          type_cast<OverloadSetType>(sourcePointer->elementType());
-      sourceIsAddressOfOverloadSet = overloadSetType != nullptr;
-    }
-  }
-
-  if (overloadSetType) {
-    auto target = overloadSetTargetOf(unit_, targetType);
-    if (!target) return seq;
-    if (target->isMemberPointer && !sourceIsAddressOfOverloadSet) return seq;
-    auto resolved = resolveOverloadSetAgainstTarget(
-        unit_, overloadSetType->symbol(), *target, expr->firstSourceLocation());
-    if (!resolved) return seq;
-    if (traits.is_reference(targetType)) {
-      if (sourceIsAddressOfOverloadSet) return seq;
-      return referenceBinding(targetType, resolved->type(),
-                              ValueCategory::kLValue)
-          .value_or(seq);
-    }
-    return complete(sourceIsAddressOfOverloadSet
-                        ? ImplicitCastKind::kIdentity
-                        : ImplicitCastKind::kFunctionToPointerConversion,
-                    targetType);
-  }
+  if (auto overload = overloadSetConversionSequence(expr, targetType))
+    return *overload;
 
   if (auto bracedInitList = ast_cast<BracedInitListAST>(expr)) {
     return listInitializationSequence(bracedInitList, targetType,
@@ -1346,26 +1255,10 @@ auto StandardConversion::computeConversionSequenceSteps(
           referenceBinding(targetType, expr->type, expr->valueCategory))
     return *referenceSequence;
 
-  if (traits.is_array(traits.remove_reference(currentType))) {
-    auto unref = traits.remove_reference(currentType);
-    currentType = traits.add_pointer(traits.remove_extent(unref));
+  if (auto step = valueTransformation(expr)) {
+    currentType = step->type;
     currentValCat = ValueCategory::kPrValue;
-    if (type_cast<UnresolvedBoundedArrayType>(unref)) {
-      addStep(ImplicitCastKind::kLValueToRValueConversion, currentType);
-    } else {
-      addStep(ImplicitCastKind::kArrayToPointerConversion, currentType);
-    }
-  } else if (traits.is_function(traits.remove_reference(currentType))) {
-    auto unref = traits.remove_reference(currentType);
-    currentType = traits.add_pointer(unref);
-    currentValCat = ValueCategory::kPrValue;
-    addStep(ImplicitCastKind::kFunctionToPointerConversion, currentType);
-  } else if (currentValCat != ValueCategory::kPrValue) {
-    currentType = traits.adjusted_cv_type(traits.remove_reference(currentType));
-    if (readsValueDirectly(currentType)) {
-      currentValCat = ValueCategory::kPrValue;
-      addStep(ImplicitCastKind::kLValueToRValueConversion, currentType);
-    }
+    seq.steps.push_back(*step);
   }
 
   auto comparisonTargetType = traits.remove_reference(targetType);
@@ -1374,7 +1267,7 @@ auto StandardConversion::computeConversionSequenceSteps(
       traits.is_atomic(currentType) &&
       !traits.is_atomic(comparisonTargetType)) {
     currentType = traits.adjusted_cv_type(traits.remove_atomic(currentType));
-    addStep(ImplicitCastKind::kAtomicToNonAtomic, currentType);
+    seq.steps.push_back({ImplicitCastKind::kAtomicToNonAtomic, currentType});
   }
 
   auto unqualFrom = traits.remove_cv(currentType);
@@ -1383,14 +1276,17 @@ auto StandardConversion::computeConversionSequenceSteps(
   if (isDirectInitialization(initializationKind) &&
       traits.is_null_pointer(unqualFrom) &&
       traits.is_same(unqualTo, control_->getBoolType())) {
-    return complete(ImplicitCastKind::kBooleanConversion, comparisonTargetType);
+    return completedSequence(seq, ImplicitCastKind::kBooleanConversion,
+                             comparisonTargetType);
   }
 
   if (traits.is_same(unqualFrom, unqualTo)) {
     seq.requiresCopyConstruction = requiresCopyConstruction(expr, targetType);
-    seq.copyConstructor = selectCopyConstructor(expr, targetType);
+    seq.copyConstructor =
+        selectCopyConstructor(expr, targetType, initializationKind);
     bindResultToReference(seq, targetType, currentValCat);
-    return complete(ImplicitCastKind::kIdentity, comparisonTargetType);
+    return completedSequence(seq, ImplicitCastKind::kIdentity,
+                             comparisonTargetType);
   }
 
   if (auto targetAtomic = type_cast<AtomicType>(unqualTo)) {
@@ -1407,25 +1303,25 @@ auto StandardConversion::computeConversionSequenceSteps(
       !traits.is_class_or_union(unqualTo) &&
       (traits.is_complex(unqualFrom) || traits.is_complex(unqualTo))) {
     if (traits.is_complex(unqualFrom) && traits.is_complex(unqualTo)) {
-      return complete(ImplicitCastKind::kComplexConversion,
-                      comparisonTargetType);
+      return completedSequence(seq, ImplicitCastKind::kComplexConversion,
+                               comparisonTargetType);
     }
 
     if (traits.is_complex(unqualTo)) {
       if (!traits.is_arithmetic(unqualFrom)) return seq;
-      return complete(ImplicitCastKind::kRealToComplexConversion,
-                      comparisonTargetType);
+      return completedSequence(seq, ImplicitCastKind::kRealToComplexConversion,
+                               comparisonTargetType);
     }
 
     if (traits.is_same(unqualTo, control_->getBoolType())) {
-      return complete(ImplicitCastKind::kBooleanConversion,
-                      comparisonTargetType);
+      return completedSequence(seq, ImplicitCastKind::kBooleanConversion,
+                               comparisonTargetType);
     }
 
     if (!isC_ && context != ConversionContext::kStandardOnly) return seq;
     if (!traits.is_arithmetic(unqualTo)) return seq;
-    return complete(ImplicitCastKind::kComplexToRealConversion,
-                    comparisonTargetType);
+    return completedSequence(seq, ImplicitCastKind::kComplexToRealConversion,
+                             comparisonTargetType);
   }
 
   if (auto targetVector = unqualified_cast<VectorType>(unqualTo)) {
@@ -1435,15 +1331,16 @@ auto StandardConversion::computeConversionSequenceSteps(
       const auto width = traits.vector_width_in_bytes(sourceVector);
       if (!bothExt && width &&
           width == traits.vector_width_in_bytes(targetVector)) {
-        return complete(ImplicitCastKind::kVectorConversion,
-                        comparisonTargetType);
+        return completedSequence(seq, ImplicitCastKind::kVectorConversion,
+                                 comparisonTargetType);
       }
       return seq;
     }
 
     if (targetVector->vectorKind() == VectorKind::kExt &&
         canSplatIntoVector(expr, targetVector)) {
-      return complete(ImplicitCastKind::kVectorSplat, comparisonTargetType);
+      return completedSequence(seq, ImplicitCastKind::kVectorSplat,
+                               comparisonTargetType);
     }
 
     return seq;
@@ -1454,409 +1351,241 @@ auto StandardConversion::computeConversionSequenceSteps(
   if (!isC_ && classAdjustment(unqualFrom, unqualTo) ==
                    ClassAdjustment::kDerivedToBase) {
     bindResultToReference(seq, targetType, currentValCat);
-    return complete(ImplicitCastKind::kDerivedToBaseConversion,
-                    comparisonTargetType);
+    return completedSequence(seq, ImplicitCastKind::kDerivedToBaseConversion,
+                             comparisonTargetType);
+  }
+
+  if (isNullPointerConstant(expr) && traits.is_null_pointer(unqualTo)) {
+    return completedSequence(seq, ImplicitCastKind::kPointerConversion,
+                             comparisonTargetType);
   }
 
   if (traits.is_null_pointer(unqualFrom) && traits.is_pointer(unqualTo)) {
-    return complete(ImplicitCastKind::kPointerConversion, comparisonTargetType);
+    return completedSequence(seq, ImplicitCastKind::kPointerConversion,
+                             comparisonTargetType);
   }
 
   if (traits.is_integral(unqualFrom) && traits.is_pointer(unqualTo) &&
       isNullPointerConstant(expr)) {
-    return complete(ImplicitCastKind::kPointerConversion, comparisonTargetType);
+    return completedSequence(seq, ImplicitCastKind::kPointerConversion,
+                             comparisonTargetType);
   }
 
-  if (traits.is_pointer(unqualFrom) && traits.is_pointer(unqualTo)) {
-    auto fromPtr = unqualified_cast<PointerType>(unqualFrom);
-    auto toPtr = unqualified_cast<PointerType>(unqualTo);
-
-    if (fromPtr && toPtr) {
-      auto fromPointee = fromPtr->elementType();
-      auto toPointee = toPtr->elementType();
-
-      auto fromCv = cv_qualifiers(fromPointee);
-      auto toCv = cv_qualifiers(toPointee);
-
-      if (is_at_least_as_cv_qualified(toCv, fromCv)) {
-        auto fromUnqual = traits.remove_cv(fromPointee);
-        auto toUnqual = traits.remove_cv(toPointee);
-
-        if (traits.is_qualification_convertible(
-                control_->getPointerType(fromPointee),
-                control_->getPointerType(toPointee))) {
-          seq.pointeeUnqual = toUnqual;
-          seq.pointeeCv = toCv;
-          return complete(ImplicitCastKind::kQualificationConversion,
-                          comparisonTargetType);
-        }
-
-        if (traits.is_void(toUnqual)) {
-          seq.pointeeUnqual = toUnqual;
-          seq.pointeeCv = toCv;
-          return complete(ImplicitCastKind::kPointerConversion,
-                          comparisonTargetType);
-        }
-
-        if (pointeeClassAdjustment(unqualFrom, unqualTo) ==
-            ClassAdjustment::kDerivedToBase) {
-          seq.pointeeUnqual = toUnqual;
-          seq.pointeeCv = toCv;
-          return complete(ImplicitCastKind::kDerivedToBaseConversion,
-                          comparisonTargetType);
-        }
-
-        if (isC_ && traits.is_void(fromUnqual)) {
-          return complete(ImplicitCastKind::kPointerConversion,
-                          comparisonTargetType);
-        }
-
-        if (isC_) {
-          auto areVlaCompatible = [&](auto& self, const Type* a,
-                                      const Type* b) -> bool {
-            a = traits.remove_cv(a);
-            b = traits.remove_cv(b);
-            if (traits.is_same(a, b)) return true;
-            auto va = type_cast<UnresolvedBoundedArrayType>(a);
-            auto vb = type_cast<UnresolvedBoundedArrayType>(b);
-            if (va && vb)
-              return self(self, va->elementType(), vb->elementType());
-            return false;
-          };
-          if (type_cast<UnresolvedBoundedArrayType>(fromUnqual) &&
-              type_cast<UnresolvedBoundedArrayType>(toUnqual) &&
-              areVlaCompatible(areVlaCompatible, fromUnqual, toUnqual)) {
-            return complete(ImplicitCastKind::kPointerConversion,
-                            comparisonTargetType);
-          }
-        }
-      }
-    }
-  }
-
-  if (traits.is_integral_promotion(unqualFrom, unqualTo)) {
-    return complete(ImplicitCastKind::kIntegralPromotion, comparisonTargetType);
-  }
-
-  if (traits.is_floating_point_promotion(unqualFrom, unqualTo)) {
-    return complete(ImplicitCastKind::kFloatingPointPromotion,
-                    comparisonTargetType);
-  }
-
-  if ((traits.is_arithmetic(unqualFrom) ||
-       (traits.is_enum(unqualFrom) && !traits.is_scoped_enum(unqualFrom))) &&
-      traits.is_arithmetic(unqualTo)) {
-    if (traits.is_integral_or_unscoped_enum(unqualFrom) &&
-        traits.is_integral(unqualTo)) {
-      return complete(ImplicitCastKind::kIntegralConversion,
-                      comparisonTargetType);
-    }
-
-    if (traits.is_floating_point(unqualFrom) &&
-        traits.is_floating_point(unqualTo)) {
-      return complete(ImplicitCastKind::kFloatingPointConversion,
-                      comparisonTargetType);
-    }
-
-    return complete(ImplicitCastKind::kFloatingIntegralConversion,
-                    comparisonTargetType);
-  }
-
-  {
-    auto source = decomposeMemberPointer(unqualFrom);
-    auto target = decomposeMemberPointer(unqualTo);
-
-    if (source && target &&
-        isMemberPointeeConvertible(source.pointeeType, target.pointeeType)) {
-      if (traits.is_same(source.classType, target.classType)) {
-        return complete(ImplicitCastKind::kQualificationConversion,
-                        comparisonTargetType);
-      }
-
-      auto targetClass = type_cast<ClassType>(target.classType);
-      auto sourceClass = type_cast<ClassType>(source.classType);
-      if (targetClass && sourceClass &&
-          hasUniqueNonVirtualBase(targetClass, sourceClass)) {
-        return complete(ImplicitCastKind::kPointerToMemberConversion,
-                        comparisonTargetType);
-      }
-    }
-  }
-
-  if (traits.is_member_pointer(unqualTo) && isNullPointerConstant(expr)) {
-    return complete(ImplicitCastKind::kPointerToMemberConversion,
-                    comparisonTargetType);
-  }
-
-  if (traits.is_pointer(unqualFrom) && traits.is_pointer(unqualTo)) {
-    auto srcPtr = type_cast<PointerType>(unqualFrom);
-    auto dstPtr = type_cast<PointerType>(unqualTo);
-    if (srcPtr && dstPtr) {
-      auto srcFunc = type_cast<FunctionType>(srcPtr->elementType());
-      auto dstFunc = type_cast<FunctionType>(dstPtr->elementType());
-      if (srcFunc && dstFunc && srcFunc->isNoexcept() &&
-          !dstFunc->isNoexcept() &&
-          traits.is_same(traits.remove_noexcept(srcFunc), dstFunc)) {
-        return complete(ImplicitCastKind::kFunctionPointerConversion,
-                        comparisonTargetType);
-      }
-    }
-  }
+  if (auto pointer =
+          pointerConversionSequence(seq, unqualFrom, comparisonTargetType))
+    return *pointer;
 
   if (traits.is_same(unqualTo, control_->getBoolType())) {
     if (traits.is_arithmetic_or_unscoped_enum(unqualFrom) ||
         traits.is_pointer(unqualFrom) || traits.is_member_pointer(unqualFrom)) {
-      return complete(ImplicitCastKind::kBooleanConversion,
-                      comparisonTargetType);
+      return completedSequence(seq, ImplicitCastKind::kBooleanConversion,
+                               comparisonTargetType);
     }
+  }
+
+  if (auto kind = arithmeticConversionKind(unqualFrom, unqualTo))
+    return completedSequence(seq, *kind, comparisonTargetType);
+
+  if (auto member = memberPointerConversionSequence(seq, unqualFrom,
+                                                    comparisonTargetType))
+    return *member;
+
+  if (traits.is_member_pointer(unqualTo) && isNullPointerConstant(expr)) {
+    return completedSequence(seq, ImplicitCastKind::kPointerToMemberConversion,
+                             comparisonTargetType);
   }
 
   if (isC_ && traits.is_integral_or_unscoped_enum(unqualFrom) &&
       traits.is_enum(unqualTo) && !traits.is_scoped_enum(unqualTo)) {
-    return complete(ImplicitCastKind::kIntegralConversion,
-                    comparisonTargetType);
+    return completedSequence(seq, ImplicitCastKind::kIntegralConversion,
+                             comparisonTargetType);
   }
 
   if (context == ConversionContext::kStandardOnly) return seq;
 
-  auto candidateConversionFunctions =
-      [&](ClassSymbol* classSymbol) -> std::vector<FunctionSymbol*> {
-    auto result = classSymbol->visibleConversionFunctions();
-    if (!isDirectInitialization(initializationKind)) {
-      std::erase_if(result,
-                    [](FunctionSymbol* func) { return func->isExplicit(); });
-    }
-    return result;
-  };
+  return userDefinedConversionSequence(expr, targetType, initializationKind);
+}
 
-  const bool bindsNonConstLvalueReference = [&] {
-    auto lvalueRef = type_cast<LvalueReferenceType>(targetType);
-    if (!lvalueRef) return false;
-    auto qual = type_cast<QualType>(lvalueRef->elementType());
-    return !qual || !qual->isConst();
-  }();
+auto StandardConversion::conversionFunctionResultType(
+    FunctionSymbol* function, const Type* targetType) const -> const Type* {
+  if (function->isConstructor()) return traits.remove_reference(targetType);
+  auto type = type_cast<FunctionType>(function->type());
+  return type ? type->returnType() : nullptr;
+}
 
-  auto referenceBindsConversionResult = [&](const Type* reference,
-                                            const Type* resultType) {
-    const bool resultIsLvalue =
-        type_cast<LvalueReferenceType>(resultType) != nullptr;
-
-    if (auto lvalueRef = type_cast<LvalueReferenceType>(reference)) {
-      auto inner = lvalueRef->elementType();
-      auto qual = type_cast<QualType>(inner);
-      if (qual && qual->isConst()) return true;
-      if (!resultIsLvalue) return false;
-      return traits.is_reference_compatible(
-          inner, traits.remove_reference(resultType));
-    }
-
-    if (type_cast<RvalueReferenceType>(reference)) return !resultIsLvalue;
-
-    return true;
-  };
-
-  auto conversionResultType = [&](FunctionSymbol* func) -> const Type* {
-    auto funcType = type_cast<FunctionType>(func->type());
-    if (!funcType) return comparisonTargetType;
-    if (func->isConstructor()) return comparisonTargetType;
-    return funcType->returnType();
-  };
-
-  auto makeUserDefinedSeq =
-      [&](const Candidate& candidate) -> ImplicitConversionSequence {
-    auto func = candidate.symbol;
-
-    ImplicitConversionSequence uds;
-    uds.form = ConversionSequenceForm::kUserDefined;
-    uds.sourceType = expr->type;
-    uds.destinationType = targetType;
-    uds.udc.function = func;
-    uds.udc.secondRank = candidate.resultConversion->rank();
-    uds.udc.secondSteps = candidate.resultConversion->steps;
-
-    auto resultType = conversionResultType(func);
-    auto resultValueCategory = ValueCategory::kPrValue;
-    if (type_cast<LvalueReferenceType>(resultType))
-      resultValueCategory = ValueCategory::kLValue;
-    else if (type_cast<RvalueReferenceType>(resultType))
-      resultValueCategory = ValueCategory::kXValue;
-    bindResultToReference(uds, targetType, resultValueCategory);
-    uds.steps.push_back({ImplicitCastKind::kUserDefinedConversion, resultType});
-
-    const bool bindsToConversionResult =
-        traits.is_reference(targetType) &&
-        resultValueCategory != ValueCategory::kPrValue &&
-        traits.is_reference_compatible(traits.remove_reference(targetType),
-                                       traits.remove_reference(resultType));
-
-    if (!bindsToConversionResult &&
-        !traits.is_same(traits.remove_cv(resultType), comparisonTargetType)) {
-      uds.udc.secondTarget = comparisonTargetType;
-    } else {
-      uds.udc.secondSteps.clear();
-    }
-
-    return uds;
-  };
-
-  std::vector<Candidate> userDefinedCandidates;
-
-  auto objectArgumentConversion =
-      [&](FunctionSymbol* func) -> std::optional<ImplicitConversionSequence> {
-    if (!func->isImplicitObjectMemberFunction()) return std::nullopt;
-    OverloadResolution resolution{unit_};
-    auto conversion = resolution.implicitObjectArgumentConversion(
-        func,
-        {.type = expr->type,
-         .cv = cv_qualifiers(traits.remove_reference(expr->type)),
-         .valueCategory = expr->valueCategory},
-        nullptr);
-    if (!conversion) return std::nullopt;
-    return *conversion;
-  };
-
-  auto standardConversionSequence =
-      [&](ExpressionAST* source, const Type* to) -> ImplicitConversionSequence {
-    return computeConversionSequence(source, to,
-                                     InitializationKind::kCopyInitialization,
-                                     ConversionContext::kStandardOnly);
-  };
-
-  auto identitySequence = [&](const Type* type) -> ImplicitConversionSequence {
-    ImplicitConversionSequence identity;
-    identity.form = ConversionSequenceForm::kStandard;
-    identity.sourceType = type;
-    identity.destinationType = type;
-    return identity;
-  };
-
-  auto addCandidate =
-      [&](FunctionSymbol* func,
-          std::optional<ImplicitConversionSequence> argumentConversion,
-          ImplicitConversionSequence resultConversion,
-          std::optional<ImplicitConversionSequence> objectConversion =
-              std::nullopt) {
-        const auto hasSameSymbol = [func](const Candidate& candidate) {
-          return candidate.symbol == func;
-        };
-        if (std::ranges::any_of(userDefinedCandidates, hasSameSymbol)) return;
-
-        Candidate candidate;
-        candidate.symbol = func;
-        candidate.objectConversion = std::move(objectConversion);
-        if (argumentConversion)
-          candidate.conversions.push_back(std::move(*argumentConversion));
-        candidate.resultConversion = std::move(resultConversion);
-        candidate.viable = true;
-        candidate.fromTemplate = func->isSpecialization();
-        userDefinedCandidates.push_back(std::move(candidate));
-      };
-
-  if (auto destClassType = bindsNonConstLvalueReference
-                               ? nullptr
-                               : type_cast<ClassType>(unqualTo)) {
-    if (auto destClass = destClassType->symbol()) {
-      traits.requireCompleteClass(destClass);
-
-      for (auto ctor : destClass->convertingConstructors()) {
-        if (isExcludedInheritedConstructor(traits, ctor, destClass,
-                                           /*argCount=*/1))
-          continue;
-
-        if (ctor->templateDeclaration() && !ctor->isSpecialization()) {
-          auto args = make_list_node<ExpressionAST>(unit_->arena(), expr);
-
-          TemplateArgumentDeduction deduction(unit_);
-          auto deducedArgs = deduction.deduce(
-              ctor, args, /*explicitTemplateArguments=*/nullptr);
-          if (!deducedArgs.has_value()) continue;
-
-          auto instCtor = ASTRewriter::instantiateOverloadCandidate(
-              unit_, *deducedArgs, ctor, expr->firstSourceLocation(),
-              /*argsComplete=*/false);
-          if (!instCtor) continue;
-
-          ctor = instCtor;
-        }
-
-        auto funcType = type_cast<FunctionType>(ctor->type());
-        if (!funcType) continue;
-        auto& params = funcType->parameterTypes();
-        if (!is_callable_with_one_argument(ctor)) continue;
-        if (ASTRewriter::evaluateAssociatedConstraints(unit_, ctor) == false)
-          continue;
-
-        auto argumentSequence = standardConversionSequence(expr, params[0]);
-        if (argumentSequence)
-          addCandidate(ctor, std::move(argumentSequence),
-                       identitySequence(comparisonTargetType));
-      }
-    }
+auto StandardConversion::userDefinedSequence(const Candidate& candidate,
+                                             ExpressionAST* expr,
+                                             const Type* targetType)
+    -> ImplicitConversionSequence {
+  ImplicitConversionSequence sequence;
+  sequence.form = ConversionSequenceForm::kUserDefined;
+  sequence.sourceType = expr->type;
+  sequence.destinationType = targetType;
+  sequence.udc.function = candidate.symbol;
+  sequence.udc.secondRank = candidate.resultConversion->rank();
+  sequence.udc.secondSteps = candidate.resultConversion->steps;
+  sequence.copyConstructor = candidate.resultConversion->copyConstructor;
+  sequence.requiresCopyConstruction =
+      candidate.resultConversion->requiresCopyConstruction;
+  if (!candidate.conversions.empty()) {
+    const auto& first = candidate.conversions.front();
+    sequence.udc.firstSteps = first.steps;
+    sequence.resolvedFunction = first.resolvedFunction;
   }
+  sequence.binding = candidate.resultConversion->binding;
+  sequence.steps.push_back(
+      {ImplicitCastKind::kUserDefinedConversion,
+       conversionFunctionResultType(candidate.symbol, targetType)});
+  if (!sequence.udc.secondSteps.empty())
+    sequence.udc.secondTarget = traits.remove_reference(targetType);
+  return sequence;
+}
 
-  if (auto srcClassType = type_cast<ClassType>(unqualFrom)) {
-    if (auto srcClass = srcClassType->symbol()) {
-      traits.requireCompleteClass(srcClass);
-
-      materializeClosureConversion(srcClass, unqualTo);
-
-      for (auto convFunc : candidateConversionFunctions(srcClass)) {
-        if (convFunc->templateDeclaration() && !convFunc->isSpecialization()) {
-          convFunc =
-              instantiateConversionFunctionTemplate(convFunc, unqualTo, expr);
-          if (!convFunc) continue;
-        }
-
-        auto convFuncType = type_cast<FunctionType>(convFunc->type());
-        if (!convFuncType) continue;
-        if (ASTRewriter::evaluateAssociatedConstraints(unit_, convFunc) ==
-            false)
-          continue;
-
-        auto objectConversion = objectArgumentConversion(convFunc);
-        if (convFunc->isImplicitObjectMemberFunction() && !objectConversion)
-          continue;
-
-        auto returnType = convFuncType->returnType();
-        if (!returnType) continue;
-
-        if (!referenceBindsConversionResult(targetType, returnType)) continue;
-
-        auto retUnqual = traits.remove_cv(traits.remove_reference(returnType));
-
-        if (convFunc->isExplicit()) {
-          if (traits.is_qualification_convertible(retUnqual, unqualTo))
-            addCandidate(convFunc, std::nullopt,
-                         identitySequence(comparisonTargetType),
-                         objectConversion);
-          continue;
-        }
-
-        auto result = IdExpressionAST::create(arena_);
-        result->type = retUnqual;
-        result->valueCategory = ValueCategory::kPrValue;
-        if (type_cast<LvalueReferenceType>(returnType))
-          result->valueCategory = ValueCategory::kLValue;
-        else if (type_cast<RvalueReferenceType>(returnType))
-          result->valueCategory = ValueCategory::kXValue;
-        auto secondSequence = standardConversionSequence(result, unqualTo);
-        if (secondSequence)
-          addCandidate(convFunc, std::nullopt, std::move(secondSequence),
-                       objectConversion);
-      }
-    }
-  }
-
-  if (userDefinedCandidates.empty()) return seq;
-
+auto StandardConversion::objectArgumentConversion(FunctionSymbol* function,
+                                                  ExpressionAST* expr)
+    -> std::optional<ImplicitConversionSequence> {
+  if (!function->isImplicitObjectMemberFunction()) return std::nullopt;
   OverloadResolution resolution{unit_};
-  auto best = resolution.selectBestViableFunction(userDefinedCandidates,
-                                                  /*preferNonTemplate=*/true);
-  if (!best.best) return seq;
+  auto conversion = resolution.implicitObjectArgumentConversion(
+      function,
+      {.type = expr->type,
+       .cv = cv_qualifiers(traits.remove_reference(expr->type)),
+       .valueCategory = expr->valueCategory},
+      nullptr);
+  if (!conversion) return std::nullopt;
+  return *conversion;
+}
 
-  auto bestUserDefined = makeUserDefinedSeq(*best.best);
-  if (best.ambiguous) bestUserDefined.form = ConversionSequenceForm::kAmbiguous;
-  return bestUserDefined;
+void StandardConversion::addUserDefinedCandidate(
+    std::vector<Candidate>& candidates, FunctionSymbol* function,
+    std::optional<ImplicitConversionSequence> argumentConversion,
+    ImplicitConversionSequence resultConversion,
+    std::optional<ImplicitConversionSequence> objectConversion) {
+  if (std::ranges::contains(candidates, function, &Candidate::symbol)) return;
+  Candidate candidate;
+  candidate.symbol = function;
+  candidate.objectConversion = std::move(objectConversion);
+  if (argumentConversion)
+    candidate.conversions.push_back(std::move(*argumentConversion));
+  candidate.resultConversion = std::move(resultConversion);
+  candidate.viable = true;
+  candidate.fromTemplate = function->isSpecialization();
+  candidates.push_back(std::move(candidate));
+}
+
+void StandardConversion::addConstructorCandidates(
+    std::vector<Candidate>& candidates, ExpressionAST* expr,
+    const Type* targetType) {
+  auto lvalueRef = type_cast<LvalueReferenceType>(targetType);
+  if (lvalueRef && !traits.is_const(lvalueRef->elementType())) return;
+  auto classType = type_cast<ClassType>(traits.remove_cvref(targetType));
+  if (!classType || !classType->symbol()) return;
+  auto classSymbol = classType->symbol()->resolvedDefinition();
+  traits.requireCompleteClass(classSymbol);
+  for (auto constructor : classSymbol->convertingConstructors())
+    addConstructorCandidate(candidates, constructor, classSymbol, expr,
+                            targetType);
+}
+
+void StandardConversion::addConstructorCandidate(
+    std::vector<Candidate>& candidates, FunctionSymbol* constructor,
+    ClassSymbol* classSymbol, ExpressionAST* expr, const Type* targetType) {
+  if (isExcludedInheritedConstructor(traits, constructor, classSymbol, 1))
+    return;
+  if (constructor->templateDeclaration() && !constructor->isSpecialization()) {
+    auto args = make_list_node<ExpressionAST>(arena_, expr);
+    TemplateArgumentDeduction deduction(unit_);
+    auto deducedArgs = deduction.deduce(constructor, args, nullptr);
+    if (!deducedArgs) return;
+    constructor = ASTRewriter::instantiateOverloadCandidate(
+        unit_, *deducedArgs, constructor, expr->firstSourceLocation(), false);
+    if (!constructor) return;
+  }
+  auto functionType = type_cast<FunctionType>(constructor->type());
+  if (!functionType || !is_callable_with_one_argument(constructor)) return;
+  if (ASTRewriter::evaluateAssociatedConstraints(unit_, constructor) == false)
+    return;
+  auto argument =
+      computeConversionSequence(expr, functionType->parameterTypes().front(),
+                                InitializationKind::kCopyInitialization,
+                                ConversionContext::kStandardOnly);
+  if (!argument) return;
+  auto resultType = traits.remove_reference(targetType);
+  auto result = IdExpressionAST::create(arena_);
+  result->type = resultType;
+  result->valueCategory = ValueCategory::kPrValue;
+  auto resultSequence = computeConversionSequence(
+      result, targetType, InitializationKind::kCopyInitialization,
+      ConversionContext::kStandardOnly);
+  if (!resultSequence) return;
+  addUserDefinedCandidate(candidates, constructor, std::move(argument),
+                          std::move(resultSequence), std::nullopt);
+}
+
+void StandardConversion::addConversionFunctionCandidates(
+    std::vector<Candidate>& candidates, ExpressionAST* expr,
+    const Type* targetType, InitializationKind initializationKind) {
+  auto classType = type_cast<ClassType>(traits.remove_cvref(expr->type));
+  if (!classType || !classType->symbol()) return;
+  auto classSymbol = classType->symbol()->resolvedDefinition();
+  traits.requireCompleteClass(classSymbol);
+  materializeClosureConversion(classSymbol, traits.remove_cvref(targetType));
+  for (auto function : classSymbol->visibleConversionFunctions())
+    addConversionFunctionCandidate(candidates, function, expr, targetType,
+                                   initializationKind);
+}
+
+void StandardConversion::addConversionFunctionCandidate(
+    std::vector<Candidate>& candidates, FunctionSymbol* function,
+    ExpressionAST* expr, const Type* targetType,
+    InitializationKind initializationKind) {
+  if (function->isExplicit() && !isDirectInitialization(initializationKind))
+    return;
+  if (function->templateDeclaration() && !function->isSpecialization()) {
+    function = instantiateConversionFunctionTemplate(
+        function, traits.remove_cvref(targetType), expr);
+    if (!function) return;
+  }
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType) return;
+  if (ASTRewriter::evaluateAssociatedConstraints(unit_, function) == false)
+    return;
+  auto objectConversion = objectArgumentConversion(function, expr);
+  if (function->isImplicitObjectMemberFunction() && !objectConversion) return;
+  auto returnType = functionType->returnType();
+  if (!returnType) return;
+  auto resultType = traits.remove_reference(returnType);
+  if (traits.is_rvalue_reference(targetType) &&
+      traits.is_lvalue_reference(returnType) && !traits.is_function(resultType))
+    return;
+  if (function->isExplicit() &&
+      !traits.is_qualification_convertible(traits.remove_cv(resultType),
+                                           traits.remove_cvref(targetType)))
+    return;
+  auto result = IdExpressionAST::create(arena_);
+  result->type = resultType;
+  result->valueCategory = conversionResultValueCategory(returnType);
+  auto second = computeConversionSequence(
+      result, targetType, InitializationKind::kCopyInitialization,
+      ConversionContext::kStandardOnly);
+  if (!second) return;
+  addUserDefinedCandidate(candidates, function, std::nullopt, std::move(second),
+                          std::move(objectConversion));
+}
+
+auto StandardConversion::userDefinedConversionSequence(
+    ExpressionAST* expr, const Type* targetType,
+    InitializationKind initializationKind) -> ImplicitConversionSequence {
+  std::vector<Candidate> candidates;
+  addConstructorCandidates(candidates, expr, targetType);
+  addConversionFunctionCandidates(candidates, expr, targetType,
+                                  initializationKind);
+  OverloadResolution resolution{unit_};
+  auto best = resolution.selectBestViableFunction(candidates, true);
+  if (!best.best) return {};
+  auto sequence = userDefinedSequence(*best.best, expr, targetType);
+  if (best.ambiguous) sequence.form = ConversionSequenceForm::kAmbiguous;
+  return sequence;
 }
 
 void StandardConversion::materializeClosureConversion(ClassSymbol* srcClass,
@@ -1911,13 +1640,73 @@ auto checkBaseClassConversion(TranslationUnit* unit,
   return false;
 }
 
-void StandardConversion::checkDerivedToBaseConversion(const Type* sourceType,
-                                                      const Type* targetType,
-                                                      SourceLocation loc) {
-  auto derived = convertedClassSymbol(sourceType);
-  auto base = convertedClassSymbol(targetType);
-  if (!derived || !base) return;
+auto StandardConversion::baseConversionClasses(const Type* sourceType,
+                                               const Type* targetType,
+                                               ImplicitCastKind kind) const
+    -> std::pair<ClassSymbol*, ClassSymbol*> {
+  if (kind == ImplicitCastKind::kDerivedToBaseConversion)
+    return {convertedClassSymbol(sourceType), convertedClassSymbol(targetType)};
+  if (kind != ImplicitCastKind::kPointerToMemberConversion) return {};
+  auto source = decomposeMemberPointer(traits.remove_cv(sourceType));
+  auto target = decomposeMemberPointer(traits.remove_cv(targetType));
+  if (!source || !target) return {};
+  if (traits.is_same(source.classType, target.classType)) return {};
+  return {convertedClassSymbol(target.classType),
+          convertedClassSymbol(source.classType)};
+}
 
+auto StandardConversion::isAccessibleBaseConversion(const Type* sourceType,
+                                                    const Type* targetType,
+                                                    ImplicitCastKind kind) const
+    -> bool {
+  auto [derived, base] = baseConversionClasses(sourceType, targetType, kind);
+  if (!derived || !base) return true;
+  derived = derived->resolvedDefinition();
+  base = base->resolvedDefinition();
+  if (!derived->baseSubobjectInfo(base).isUniqueSubobject()) return false;
+  return AccessContext{unit_, accessingScope()}.isAccessibleBaseClass(derived,
+                                                                      base);
+}
+
+auto StandardConversion::isAccessible(
+    const ImplicitConversionSequence& sequence) -> bool {
+  if (!sequence || sequence.form == ConversionSequenceForm::kAmbiguous)
+    return false;
+  if (sequence.requiresCopyConstruction && !sequence.copyConstructor)
+    return false;
+  AccessContext access{unit_, accessingScope()};
+  for (auto function : {sequence.udc.function, sequence.copyConstructor}) {
+    if (!function) continue;
+    if (function->isDeleted()) return false;
+    auto declaringClass = declaringClassOf(function);
+    if (!declaringClass) continue;
+    auto sourceClass = convertedClassSymbol(sequence.sourceType);
+    auto designatingClass = declaringClass;
+    if (!function->isConstructor() && sourceClass)
+      designatingClass = sourceClass;
+    if (!access.isAccessible(function, designatingClass, sourceClass))
+      return false;
+  }
+  auto sourceType = sequence.sourceType;
+  if (sequence.resolvedFunction)
+    sourceType = traits.address_of_function(sequence.resolvedFunction);
+  for (const auto* steps :
+       {&sequence.udc.firstSteps, &sequence.steps, &sequence.udc.secondSteps}) {
+    for (const auto& step : *steps) {
+      if (!isAccessibleBaseConversion(sourceType, step.type, step.kind))
+        return false;
+      sourceType = step.type;
+    }
+  }
+  return true;
+}
+
+void StandardConversion::checkBaseConversion(const Type* sourceType,
+                                             const Type* targetType,
+                                             ImplicitCastKind kind,
+                                             SourceLocation loc) {
+  auto [derived, base] = baseConversionClasses(sourceType, targetType, kind);
+  if (!derived || !base) return;
   (void)checkBaseClassConversion(unit_, accessingScope(),
                                  derived->resolvedDefinition(),
                                  base->resolvedDefinition(), loc);
@@ -1957,10 +1746,9 @@ void StandardConversion::applyStep(const ImplicitConversionSequence& sequence,
     return;
   }
 
-  if (step.kind == ImplicitCastKind::kDerivedToBaseConversion) {
-    checkDerivedToBaseConversion(expr->type, step.type,
-                                 expr->firstSourceLocation());
-  } else if (step.kind == ImplicitCastKind::kUserDefinedConversion) {
+  checkBaseConversion(expr->type, step.type, step.kind,
+                      expr->firstSourceLocation());
+  if (step.kind == ImplicitCastKind::kUserDefinedConversion) {
     checkUserDefinedConversionAccess(sequence, expr);
   }
 
@@ -1968,14 +1756,16 @@ void StandardConversion::applyStep(const ImplicitConversionSequence& sequence,
 
   if (step.kind != ImplicitCastKind::kUserDefinedConversion) return;
   if (auto cast = ast_cast<ImplicitCastExpressionAST>(expr))
-    recordUserDefinedConversion(cast, sequence.udc.function);
+    recordUserDefinedConversion(cast, sequence.udc.function,
+                                !sequence.udc.firstSteps.empty());
 }
 
 void StandardConversion::applyConversionSequence(
     const ImplicitConversionSequence& sequence, ExpressionAST*& expr) {
   if (!sequence) return;
 
-  resolveOverloadSet(expr, sequence.destinationType);
+  if (sequence.resolvedFunction)
+    applyResolvedFunction(expr, sequence.resolvedFunction);
 
   if (sequence.list.fromSingleElement) {
     if (auto braced = ast_cast<BracedInitListAST>(expr);
@@ -1983,6 +1773,9 @@ void StandardConversion::applyConversionSequence(
       expr = braced->expressionList->value;
     }
   }
+
+  for (const auto& step : sequence.udc.firstSteps)
+    applyStep(sequence, step, expr);
 
   for (const auto& step : sequence.steps) applyStep(sequence, step, expr);
   for (const auto& step : sequence.udc.secondSteps)
@@ -2019,7 +1812,11 @@ void StandardConversion::recordConversionFunction(
                       ? sequence.udc.function
                       : sequence.copyConstructor;
   if (!function) return;
-  recordUserDefinedConversion(cast, function);
+  if (sequence.resolvedFunction)
+    applyResolvedFunction(cast->expression, sequence.resolvedFunction);
+  for (const auto& step : sequence.udc.firstSteps)
+    applyStep(sequence, step, cast->expression);
+  recordUserDefinedConversion(cast, function, !sequence.udc.firstSteps.empty());
 }
 
 auto StandardConversion::requiresCopyConstruction(
@@ -2041,9 +1838,9 @@ auto StandardConversion::requiresCopyConstruction(
   return traits.is_same(sourceType, classType);
 }
 
-auto StandardConversion::selectCopyConstructor(ExpressionAST* expr,
-                                               const Type* destinationType)
-    -> FunctionSymbol* {
+auto StandardConversion::selectCopyConstructor(
+    ExpressionAST* expr, const Type* destinationType,
+    InitializationKind initializationKind) -> FunctionSymbol* {
   if (!requiresCopyConstruction(expr, destinationType)) return nullptr;
 
   auto classType = unqualified_cast<ClassType>(destinationType);
@@ -2052,7 +1849,8 @@ auto StandardConversion::selectCopyConstructor(ExpressionAST* expr,
   if (!control_->beginCopyConstructorSelection(classSymbol)) return nullptr;
 
   OverloadResolution resolution(unit_);
-  auto resolved = resolution.resolveConstructor(classSymbol, {expr});
+  auto resolved =
+      resolution.resolveConstructor(classSymbol, {expr}, initializationKind);
 
   control_->endCopyConstructorSelection(classSymbol);
 
@@ -2060,7 +1858,8 @@ auto StandardConversion::selectCopyConstructor(ExpressionAST* expr,
 }
 
 void StandardConversion::materializeConstructorArguments(
-    ImplicitCastExpressionAST* cast, FunctionSymbol* constructor) {
+    ImplicitCastExpressionAST* cast, FunctionSymbol* constructor,
+    bool argumentConverted) {
   if (ast_cast<ParenInitializerAST>(cast->expression)) return;
 
   auto functionType = type_cast<FunctionType>(constructor->type());
@@ -2070,9 +1869,11 @@ void StandardConversion::materializeConstructorArguments(
 
   auto arguments = make_list_node<ExpressionAST>(arena_, cast->expression);
 
-  auto sequence =
-      computeConversionSequence(arguments->value, parameterTypes[0]);
-  applyConversionSequence(sequence, arguments->value);
+  if (!argumentConverted) {
+    auto sequence =
+        computeConversionSequence(arguments->value, parameterTypes[0]);
+    applyConversionSequence(sequence, arguments->value);
+  }
 
   appendDefaultArguments(constructor, &arguments, cast->firstSourceLocation());
 
@@ -2210,14 +2011,15 @@ void StandardConversion::requireNamedFunction(ExpressionAST* expr) {
 }
 
 void StandardConversion::recordUserDefinedConversion(
-    ImplicitCastExpressionAST* cast, FunctionSymbol* function) {
+    ImplicitCastExpressionAST* cast, FunctionSymbol* function,
+    bool argumentConverted) {
   if (!function) return;
 
   cast->conversionFunction = function;
   ASTRewriter::requireFunctionDefinition(unit_, function);
 
   if (function->isConstructor()) {
-    materializeConstructorArguments(cast, function);
+    materializeConstructorArguments(cast, function, argumentConverted);
     return;
   }
 
@@ -2305,6 +2107,12 @@ void StandardConversion::convertPointer(ExpressionAST*& expr,
 
 void StandardConversion::setResolvedFunction(ExpressionAST* expr,
                                              FunctionSymbol* function) {
+  if (auto nested = ast_cast<NestedExpressionAST>(expr)) {
+    setResolvedFunction(nested->expression, function);
+    nested->type = nested->expression->type;
+    nested->valueCategory = nested->expression->valueCategory;
+    return;
+  }
   if (auto idExpr = ast_cast<IdExpressionAST>(expr)) {
     idExpr->symbol = function;
     idExpr->type = function->type();
@@ -2314,35 +2122,22 @@ void StandardConversion::setResolvedFunction(ExpressionAST* expr,
   }
 }
 
-void StandardConversion::resolveOverloadSet(ExpressionAST* expr,
-                                            const Type* targetType) {
-  auto target = overloadSetTargetOf(unit_, targetType);
-  if (!target) return;
-
+void StandardConversion::applyResolvedFunction(ExpressionAST* expr,
+                                               FunctionSymbol* function) {
+  if (auto nested = ast_cast<NestedExpressionAST>(expr)) {
+    applyResolvedFunction(nested->expression, function);
+    nested->type = nested->expression->type;
+    nested->valueCategory = nested->expression->valueCategory;
+    return;
+  }
   auto stripped = stripNestedExpressions(expr);
   auto addressOf = ast_cast<UnaryExpressionAST>(stripped);
-  const bool takesAddress = addressOf && addressOf->op == TokenKind::T_AMP;
-  auto designator =
-      takesAddress ? stripNestedExpressions(addressOf->expression) : stripped;
-  if (!designator || !designator->type) return;
-
-  auto overloadSetType =
-      type_cast<OverloadSetType>(traits.remove_reference(designator->type));
-  auto overloadSet = overloadSetType ? overloadSetType->symbol() : nullptr;
-  if (!overloadSet) {
-    if (auto id = ast_cast<IdExpressionAST>(designator))
-      overloadSet = symbol_cast<OverloadSetSymbol>(id->symbol);
-    else if (auto member = ast_cast<MemberExpressionAST>(designator))
-      overloadSet = symbol_cast<OverloadSetSymbol>(member->symbol);
+  if (addressOf && addressOf->op == TokenKind::T_AMP) {
+    setResolvedFunction(addressOf->expression, function);
+    addressOf->type = traits.address_of_function(function);
+    return;
   }
-  if (!overloadSet) return;
-
-  auto resolved = resolveOverloadSetAgainstTarget(unit_, overloadSet, *target,
-                                                  expr->firstSourceLocation());
-  if (!resolved) return;
-
-  setResolvedFunction(designator, resolved);
-  if (takesAddress) addressOf->type = traits.address_of_function(resolved);
+  setResolvedFunction(stripped, function);
 }
 
 void StandardConversion::wrapWithImplicitCast(ImplicitCastKind castKind,
@@ -2355,6 +2150,9 @@ void StandardConversion::wrapWithImplicitCast(ImplicitCastKind castKind,
   cast->valueCategory = ValueCategory::kPrValue;
   if (castKind == ImplicitCastKind::kQualificationConversion)
     cast->valueCategory = expr->valueCategory;
+  if (castKind == ImplicitCastKind::kFunctionPointerConversion &&
+      traits.is_function(type))
+    cast->valueCategory = expr->valueCategory;
 
   if (castKind == ImplicitCastKind::kUserDefinedConversion) {
     if (auto lvalueRef = type_cast<LvalueReferenceType>(type)) {
@@ -2362,7 +2160,7 @@ void StandardConversion::wrapWithImplicitCast(ImplicitCastKind castKind,
       cast->valueCategory = ValueCategory::kLValue;
     } else if (auto rvalueRef = type_cast<RvalueReferenceType>(type)) {
       cast->type = rvalueRef->elementType();
-      cast->valueCategory = ValueCategory::kXValue;
+      cast->valueCategory = conversionResultValueCategory(type);
     }
   }
 

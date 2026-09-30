@@ -2316,9 +2316,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AwaitExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
     -> ExpressionResult {
   if (!ast->expression || !ast->expression->type) return std::nullopt;
-  if (auto ct = unqualified_cast<ClassType>(ast->expression->type))
-    unit()->typeTraits().requireCompleteClass(ct->symbol());
-  auto size = memoryLayout()->sizeOf(ast->expression->type);
+  auto size = unit()->typeTraits().size_of(ast->expression->type);
   if (!size.has_value()) return std::nullopt;
   return ExpressionResult(
       std::bit_cast<std::intmax_t>(static_cast<std::uintmax_t>(*size)));
@@ -2327,9 +2325,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
     -> ExpressionResult {
   if (!ast->typeId || !ast->typeId->type) return std::nullopt;
-  if (auto ct = unqualified_cast<ClassType>(ast->typeId->type))
-    unit()->typeTraits().requireCompleteClass(ct->symbol());
-  auto size = memoryLayout()->sizeOf(ast->typeId->type);
+  auto size = unit()->typeTraits().size_of(ast->typeId->type);
   if (!size.has_value()) return std::nullopt;
   return ExpressionResult(
       std::bit_cast<std::intmax_t>(static_cast<std::uintmax_t>(*size)));
@@ -2343,9 +2339,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
 auto ASTInterpreter::ExpressionVisitor::operator()(
     AlignofTypeExpressionAST* ast) -> ExpressionResult {
   if (!ast->typeId || !ast->typeId->type) return std::nullopt;
-  if (auto ct = unqualified_cast<ClassType>(ast->typeId->type))
-    unit()->typeTraits().requireCompleteClass(ct->symbol());
-  auto size = memoryLayout()->alignmentOf(ast->typeId->type);
+  auto size = unit()->typeTraits().alignment_of(ast->typeId->type);
   if (!size.has_value()) return std::nullopt;
   return ExpressionResult(
       std::bit_cast<std::intmax_t>(static_cast<std::uintmax_t>(*size)));
@@ -2354,7 +2348,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
 auto ASTInterpreter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
     -> ExpressionResult {
   if (!ast->expression || !ast->expression->type) return std::nullopt;
-  auto typeAlignment = memoryLayout()->alignmentOf(ast->expression->type);
+  auto typeAlignment = unit()->typeTraits().alignment_of(ast->expression->type);
   if (!typeAlignment.has_value()) return std::nullopt;
   auto alignment =
       declaredAlignment(declarationNamedBy(ast->expression), *typeAlignment);

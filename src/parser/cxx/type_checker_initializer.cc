@@ -395,22 +395,13 @@ auto InitDeclaratorChecker::checkInitialization(S* var,
     -> bool {
   auto entity = InitializedEntity::variable(var->type(), var, location);
   entity.setArrayCopyPolicy(arrayCopyPolicy);
-  Initializer init{initializer};
+  auto result = initialize(
+      ctx, entity, Initializer{initializer}.initializationKind(), initializer);
+  if (result.status != InitializationStatus::kComplete)
+    return result.status != InitializationStatus::kFailed;
 
-  auto sequence = computeInitializationSequence(
-      ctx, entity, init.initializationKind(), init);
-
-  if (!sequence)
-    return !diagnoseInitializationFailure(ctx, sequence, entity, init);
-
-  auto result = applyInitializationSequence(ctx, sequence, entity, init);
-
-  if (sequence.constructor) var->setConstructor(sequence.constructor);
-
-  if (result) {
-    initializer = result;
-    var->setInitializer(result);
-  }
+  if (result.constructor) var->setConstructor(result.constructor);
+  if (initializer) var->setInitializer(initializer);
 
   if (var->constructor() &&
       ctx.checker.evaluateImmediateConstruction(
@@ -569,18 +560,7 @@ auto TypeChecker::check_member_initialization(FieldSymbol* field,
   auto entity =
       InitializedEntity::member(field->type(), field, field->location());
   entity.setArrayCopyPolicy(arrayCopyPolicy);
-  Initializer init{initializer};
-
-  auto sequence = computeInitializationSequence(ctx, entity, kind, init);
-
-  if (!sequence) {
-    (void)diagnoseInitializationFailure(ctx, sequence, entity, init);
-    return nullptr;
-  }
-
-  auto result = applyInitializationSequence(ctx, sequence, entity, init);
-  if (result) initializer = result;
-  return sequence.constructor;
+  return initialize(ctx, entity, kind, initializer).constructor;
 }
 
 void TypeChecker::check_condition_declaration(ConditionExpressionAST* ast) {

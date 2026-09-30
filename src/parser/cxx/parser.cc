@@ -7747,15 +7747,11 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
     }
 
     if (auto paramsScope = symbol_cast<FunctionParametersSymbol>(scope())) {
-      const auto& members = paramsScope->members();
-      if (!members.empty()) {
-        if (auto parameterSymbol =
-                symbol_cast<ParameterSymbol>(members.back())) {
-          parameterSymbol->setDefaultArgument(ast->expression);
-          if (deferred)
-            pendingDefaultArguments_.push_back(
-                {ast, parameterSymbol, paramsScope});
-        }
+      if (auto parameterSymbol = ast->symbol) {
+        parameterSymbol->setDefaultArgument(ast->expression);
+        if (deferred)
+          pendingDefaultArguments_.push_back(
+              {ast, parameterSymbol, paramsScope});
       }
     }
   }
@@ -8184,8 +8180,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     pushScope(enumScope);
 
   if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
-    parse_enumerator_list(ast->enumeratorList,
-                          enumeratorTypeInEnumSpecifier(ast->symbol));
+    parse_enumerator_list(ast->enumeratorList);
 
     match(TokenKind::T_COMMA, ast->commaLoc);
 
@@ -8307,30 +8302,16 @@ auto Parser::parse_enum_base(SourceLocation& colonLoc,
   return true;
 }
 
-auto Parser::enumeratorTypeInEnumSpecifier(Symbol* enumSymbol) -> const Type* {
-  if (auto scopedEnum = symbol_cast<ScopedEnumSymbol>(enumSymbol))
-    return scopedEnum->underlyingType();
-
-  if (auto unscopedEnum = symbol_cast<EnumSymbol>(enumSymbol);
-      unscopedEnum && unscopedEnum->hasFixedUnderlyingType()) {
-    return unscopedEnum->underlyingType();
-  }
-
-  return enumSymbol->type();
-}
-
-void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
-                                   const Type* type) {
+void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) {
   auto it = &yyast;
 
   EnumeratorAST* enumerator = nullptr;
-  parse_enumerator(enumerator, type);
+  parse_enumerator(enumerator, nullptr);
 
   *it = make_list_node(pool_, enumerator);
   it = &(*it)->next;
 
   std::optional<ConstValue> lastValue;
-  ASTInterpreter interp{unit_};
 
   if (enumerator->expression) {
     lastValue = enumerator->symbol->value();
@@ -8340,6 +8321,7 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
   }
 
   SourceLocation commaLoc;
+  auto previousType = enumerator->symbol->type();
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
     if (lookat(TokenKind::T_RBRACE)) {
@@ -8348,23 +8330,24 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast,
     }
 
     EnumeratorAST* enumerator = nullptr;
-    parse_enumerator(enumerator, type);
+    parse_enumerator(enumerator, previousType);
 
     if (!enumerator->expression) {
       if (lastValue.has_value()) {
-        lastValue = Binder::nextEnumeratorValue(unit_, type, lastValue);
+        lastValue = Binder::nextEnumeratorValue(unit_, previousType, lastValue);
         enumerator->symbol->setValue(lastValue);
       }
     } else {
       lastValue = enumerator->symbol->value();
     }
+    previousType = enumerator->symbol->type();
 
     *it = make_list_node(pool_, enumerator);
     it = &(*it)->next;
   }
 }
 
-void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* type) {
+void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* previousType) {
   auto ast = EnumeratorAST::create(pool_);
   yyast = ast;
 
@@ -8382,7 +8365,7 @@ void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* type) {
     }
   }
 
-  binder_.bind(ast, type, std::move(value));
+  binder_.bind(ast, previousType, std::move(value));
 }
 
 auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
@@ -10973,17 +10956,6 @@ auto Parser::parse_type_parameter(TemplateParameterAST*& yyast) -> bool {
 
 auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
     -> bool {
-  auto maybe_elaborated_type_spec = [this]() {
-    if (!lookat(TokenKind::T_TYPENAME, TokenKind::T_IDENTIFIER)) return false;
-
-    if (!LA(2).isOneOf(TokenKind::T_COLON_COLON, TokenKind::T_LESS))
-      return false;
-
-    return true;
-  };
-
-  if (maybe_elaborated_type_spec()) return false;
-
   SourceLocation classKeyLoc;
 
   if (!parse_type_parameter_key(classKeyLoc)) return false;
@@ -11005,6 +10977,8 @@ auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
     if (!parse_type_id(ast->typeId, TypeNameContext::kTypeOnly))
       report_failed_parse("expected a type id");
   }
+
+  if (!LA().isOneOf(TokenKind::T_GREATER, TokenKind::T_COMMA)) return false;
 
   binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
 

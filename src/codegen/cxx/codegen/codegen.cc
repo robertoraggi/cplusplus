@@ -88,6 +88,7 @@ auto Codegen::hasInternalLinkage(Symbol* symbol) const -> bool {
 
 auto Codegen::symbolLinkage(Symbol* symbol) const -> ir::Linkage {
   if (hasInternalLinkage(symbol)) return ir::Linkage::Internal;
+  if (symbol && symbol->isWeak()) return ir::Linkage::Weak;
   if (unit_->isExplicitInstantiationDefinition(
           symbol_cast<FunctionSymbol>(symbol))) {
     return ir::Linkage::WeakODR;
@@ -1122,6 +1123,15 @@ auto Codegen::subobjectIndex(ClassSymbol* classSymbol, Symbol* subobject) const
 auto Codegen::subobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
                                ClassSymbol* classSymbol, Symbol* subobject)
     -> ir::ValueRef {
+  if (auto base = symbol_cast<BaseClassSymbol>(subobject)) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    auto layout = classSymbol->layout();
+    if (!baseClass || !layout) return {};
+    auto info = layout->getBaseInfo(baseClass, base->isVirtual());
+    if (!info) return {};
+    return subobjectAddress(loc, objectPtr, baseClass, info->offset);
+  }
+
   auto type = subobjectType(subobject);
   if (!type) return {};
 
@@ -1623,13 +1633,13 @@ auto Codegen::emitBaseClassAddress(SourceLocation loc, ir::ValueRef objectPtr,
     if (step->isVirtual()) {
       current = emitVirtualBaseAddress(loc, current, currentClass, baseClass);
     } else {
-      int index = 0;
+      std::uint64_t offset = 0;
       if (auto layout = currentClass->layout()) {
         if (auto baseInfo = layout->getBaseInfo(baseClass)) {
-          index = baseInfo->index;
+          offset = baseInfo->offset;
         }
       }
-      current = memberAddress(loc, current, baseClass->type(), index);
+      current = subobjectAddress(loc, current, baseClass, offset);
     }
 
     currentClass = baseClass;
@@ -2281,6 +2291,10 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     if (auto canon = variableSymbol->canonical()) {
       if (canon->definition() || !canon->isExtern()) isExternalOnly = false;
     }
+  }
+
+  if (isExternalOnly && linkageAttr == ir::Linkage::Weak) {
+    linkageAttr = ir::Linkage::ExternalWeak;
   }
 
   if (!initializer && !isExternalOnly && !needsRegionInit) {
@@ -3203,7 +3217,7 @@ auto Codegen::resolveVptrField(ir::ValueRef basePtr, ClassSymbol* baseClassSym,
     }
     if (!baseSym) break;
 
-    current = memberAddress(loc, current, baseSym->type(), baseIdx);
+    current = emitBaseClassAddress(loc, current, currentClass, baseSym);
     currentClass = baseSym;
     currentLayout = baseSym->layout();
   }

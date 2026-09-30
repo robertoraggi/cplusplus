@@ -398,14 +398,15 @@ struct TypeChecker::Visitor {
   }
 
   [[nodiscard]] auto in_template() const -> bool {
-    return isEnclosedInDependentTemplate(check.unit_, scope(), true);
+    return check.unit_->isTemplatedContext() ||
+           isEnclosedInDependentTemplate(check.unit_, scope(), true);
   }
 
   [[nodiscard]] auto require_complete_for_sizeof(SourceLocation loc,
                                                  const Type* type) -> bool {
     if (!type) return false;
     if (is_dependent_type(type)) return false;
-    auto stripped = traits.remove_cv(type);
+    auto stripped = traits.remove_cvref(type);
     while (traits.is_array(stripped)) {
       stripped = traits.remove_cv(traits.get_element_type(stripped));
     }
@@ -440,6 +441,7 @@ struct TypeChecker::Visitor {
       -> const Type*;
 
   [[nodiscard]] auto named_symbol_type(Symbol* symbol) -> const Type*;
+  void setNamedSymbolResult(ExpressionAST* ast, Symbol* symbol);
 
   [[nodiscard]] auto explicit_template_arguments(ExpressionAST* base)
       -> List<TemplateArgumentAST*>*;
@@ -649,10 +651,9 @@ struct TypeChecker::Visitor {
   void check_member_pointer_access(BinaryExpressionAST* ast);
   [[nodiscard]] auto checkBuiltinAtomic(CallExpressionAST* ast) -> bool;
   void resolveBuiltinLibcall(CallExpressionAST* ast);
-  [[nodiscard]] auto try_c_style_cast(CastExpressionAST* ast,
-                                      ExpressionAST*& expr,
-                                      const Type* targetType,
-                                      ValueCategory targetVC) -> bool;
+  [[nodiscard]] auto check_c_style_cast(ExpressionAST*& expr,
+                                        const Type* targetType,
+                                        ValueCategory targetVC) -> bool;
 
   void check_addition(BinaryExpressionAST* ast);
   void check_subtraction(BinaryExpressionAST* ast);
@@ -1115,15 +1116,8 @@ void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
     return;
   }
 
-  ast->type = traits.remove_reference(named_symbol_type(ast->symbol));
-
-  if (ast->symbol->isEnumerator() || ast->symbol->isNonTypeParameter()) {
-    ast->valueCategory = ValueCategory::kPrValue;
-    adjust_result_type(ast);
-    return;
-  }
-
-  ast->valueCategory = ValueCategory::kLValue;
+  setNamedSymbolResult(ast, ast->symbol);
+  if (ast->valueCategory == ValueCategory::kPrValue) return;
 
   auto field = symbol_cast<FieldSymbol>(ast->symbol);
   if (!field) return;
@@ -1363,7 +1357,27 @@ auto TypeChecker::Visitor::designated_function_type(
 }
 
 auto TypeChecker::Visitor::named_symbol_type(Symbol* symbol) -> const Type* {
+  if (auto parameter = symbol_cast<NonTypeParameterSymbol>(symbol))
+    return traits.constantTemplateParameterType(parameter);
   return ASTRewriter::completedSymbolType(check.unit_, symbol);
+}
+
+void TypeChecker::Visitor::setNamedSymbolResult(ExpressionAST* ast,
+                                                Symbol* symbol) {
+  auto type = named_symbol_type(symbol);
+  ast->type = traits.remove_reference(type);
+  ast->valueCategory = ValueCategory::kLValue;
+  if (symbol->isNonTypeParameter()) {
+    if (traits.is_reference(type)) return;
+    if (traits.is_class(type)) {
+      ast->type = traits.add_const(type);
+      return;
+    }
+  } else if (!symbol->isEnumerator()) {
+    return;
+  }
+  ast->valueCategory = ValueCategory::kPrValue;
+  adjust_result_type(ast);
 }
 
 auto TypeChecker::Visitor::overload_set_of(ExpressionAST* base)
@@ -1415,7 +1429,7 @@ struct TypeChecker::Visitor::CallCandidateSelection {
   SourceLocation location;
   ScopeSymbol* lookupScope = nullptr;
   std::vector<Candidate> candidates;
-  std::vector<std::pair<FunctionSymbol*, std::string>> rejected;
+  std::vector<RejectedCandidate> rejected;
 
   int argCount = 0;
   bool isMemberCall = false;
@@ -1441,14 +1455,12 @@ struct TypeChecker::Visitor::CallCandidateSelection {
   void noteRejectedCandidates();
   void noteViableCandidates();
 
-  void reject(FunctionSymbol* function, std::string reason) {
+  void reject(FunctionSymbol* function, CandidateRejection reason) {
     rejected.emplace_back(function, std::move(reason));
   }
 
   void rejectArity(FunctionSymbol* function, int parameterCount) {
-    reject(function, std::format("requires {} argument{}, but {} {} provided",
-                                 parameterCount, parameterCount == 1 ? "" : "s",
-                                 argCount, argCount == 1 ? "was" : "were"));
+    reject(function, ArgumentCountMismatch{parameterCount, argCount});
   }
 };
 
@@ -1723,13 +1735,10 @@ auto TypeChecker::Visitor::CallCandidateSelection::buildCandidate(
 
     if (!conversion) {
       reject(function,
-             std::format("no known conversion from '{}' to '{}' for "
-                         "argument {}",
-                         to_string(argumentIt->value->type),
-                         to_string(*parameterIt),
-                         std::distance(functionType->parameterTypes().begin(),
-                                       parameterIt) +
-                             1));
+             FailedArgumentConversion{
+                 argumentIt->value->type, *parameterIt,
+                 static_cast<std::size_t>(std::distance(
+                     functionType->parameterTypes().begin(), parameterIt))});
       return std::nullopt;
     }
 
@@ -1758,8 +1767,9 @@ void TypeChecker::Visitor::CallCandidateSelection::buildViableCandidates(
 void TypeChecker::Visitor::CallCandidateSelection::noteRejectedCandidates() {
   for (auto& [function, reason] : rejected) {
     if (!function->location()) continue;
-    check.note(function->location(),
-               std::format("candidate function not viable: {}", reason));
+    check.note(
+        function->location(),
+        std::format("candidate function not viable: {}", to_string(reason)));
   }
 }
 
@@ -1954,7 +1964,7 @@ struct TypeChecker::Visitor::ResolveCallOperator {
   [[nodiscard]] auto applySelection(FunctionSymbol* operatorFunction)
       -> const FunctionType*;
 
-  void reject(FunctionSymbol* function, std::string reason) {
+  void reject(FunctionSymbol* function, CandidateRejection reason) {
     rejected.push_back({function, std::move(reason)});
   }
 };
@@ -2132,8 +2142,9 @@ void TypeChecker::Visitor::ResolveCallOperator::reportNoViableCallOperator() {
                   to_string(ast->baseExpression->type)));
 
   for (auto& [function, reason] : rejected) {
-    check.note(function->location(),
-               std::format("candidate function not viable: {}", reason));
+    check.note(
+        function->location(),
+        std::format("candidate function not viable: {}", to_string(reason)));
   }
 
   diagnosed = true;
@@ -3080,6 +3091,13 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
             std::format("called object of type '{}' is not a function or "
                         "function pointer",
                         to_string(ast->baseExpression->type)));
+      if (is_dependent_type(ast->baseExpression->type)) {
+        if (auto symbol = base_symbol(ast->baseExpression);
+            symbol && symbol->name() && symbol->location())
+          check.note(symbol->location(),
+                     std::format("called object '{}' declared here",
+                                 to_string(symbol->name())));
+      }
     }
 
     return;
@@ -3311,8 +3329,15 @@ void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {
     ast->constructorSymbol = check.check_class_initializer(
         ast->type, initializer, ast->lparenLoc, &ast->expressionList);
   } else if (ast->expressionList && !ast->expressionList->next) {
-    (void)check_static_cast(ast->expressionList->value, ast->type,
-                            ValueCategory::kPrValue);
+    auto& initializer = ast->expressionList->value;
+    if (!initializer || !initializer->type) return;
+    if (is_dependent_type(ast->type) || is_dependent_type(initializer->type))
+      return;
+    if (check_c_style_cast(initializer, ast->type, ValueCategory::kPrValue))
+      return;
+    error(ast->lparenLoc,
+          std::format("invalid functional cast of '{}' to '{}'",
+                      to_string(initializer->type), to_string(ast->type)));
   }
 }
 
@@ -3419,14 +3444,11 @@ void TypeChecker::Visitor::operator()(SpliceMemberExpressionAST* ast) {
   if (!ast->symbol) ast->symbol = splicedSymbol(ast->splicer);
 
   if (ast->symbol) {
-    ast->type = traits.remove_reference(named_symbol_type(ast->symbol));
-    if (ast->symbol->isEnumerator() || ast->symbol->isNonTypeParameter()) {
-      ast->valueCategory = ValueCategory::kPrValue;
-    } else if (ast->accessOp == TokenKind::T_DOT &&
-               ast->baseExpression->valueCategory == ValueCategory::kPrValue) {
+    setNamedSymbolResult(ast, ast->symbol);
+    if (!ast->symbol->isEnumerator() && !ast->symbol->isNonTypeParameter() &&
+        ast->accessOp == TokenKind::T_DOT &&
+        ast->baseExpression->valueCategory == ValueCategory::kPrValue) {
       ast->valueCategory = ValueCategory::kXValue;
-    } else {
-      ast->valueCategory = ValueCategory::kLValue;
     }
     return;
   }
@@ -4026,7 +4048,8 @@ auto TypeChecker::Visitor::check_const_cast(ExpressionAST*& expression,
   const Type* T2 = nullptr;
   bool prepareOperand = false;
 
-  if (auto targetPtr = unqualified_cast<PointerType>(targetType)) {
+  if (auto targetPtr = unqualified_cast<PointerType>(targetType);
+      targetPtr && decaysOperand) {
     auto sourcePtr = unqualified_cast<PointerType>(sourceType);
     if (!sourcePtr) return false;
 
@@ -4035,7 +4058,8 @@ auto TypeChecker::Visitor::check_const_cast(ExpressionAST*& expression,
     T1 = sourcePtr->elementType();
     T2 = targetPtr->elementType();
   } else if (auto targetPtrm =
-                 unqualified_cast<MemberObjectPointerType>(targetType)) {
+                 unqualified_cast<MemberObjectPointerType>(targetType);
+             targetPtrm && decaysOperand) {
     auto sourcePtrm = unqualified_cast<MemberObjectPointerType>(sourceType);
     if (!sourcePtrm) return false;
 
@@ -4149,6 +4173,8 @@ auto TypeChecker::Visitor::check_reinterpret_cast(ExpressionAST*& expression,
   if ((traits.is_integral(sourceType) || traits.is_enum(sourceType) ||
        traits.is_scoped_enum(sourceType)) &&
       traits.is_pointer(targetType)) {
+    emit_implicit_cast(expression, expression, targetType,
+                       ImplicitCastKind::kPointerConversion);
     return true;
   }
 
@@ -4492,10 +4518,7 @@ void TypeChecker::Visitor::operator()(SpliceExpressionAST* ast) {
   }
 
   if (auto symbol = splicedSymbol(ast->splicer)) {
-    ast->type = traits.remove_reference(named_symbol_type(symbol));
-    ast->valueCategory = symbol->isEnumerator() || symbol->isNonTypeParameter()
-                             ? ValueCategory::kPrValue
-                             : ValueCategory::kLValue;
+    setNamedSymbolResult(ast, symbol);
   }
 }
 
@@ -4814,7 +4837,7 @@ void TypeChecker::Visitor::operator()(SizeofExpressionAST* ast) {
 
   if (ast->expression && require_complete_for_sizeof(ast->firstSourceLocation(),
                                                      ast->expression->type)) {
-    ast->value = control()->memoryLayout()->sizeOf(ast->expression->type);
+    ast->value = traits.size_of(ast->expression->type);
   }
 }
 
@@ -4824,7 +4847,7 @@ void TypeChecker::Visitor::operator()(SizeofTypeExpressionAST* ast) {
 
   if (ast->typeId && require_complete_for_sizeof(ast->firstSourceLocation(),
                                                  ast->typeId->type)) {
-    ast->value = control()->memoryLayout()->sizeOf(ast->typeId->type);
+    ast->value = traits.size_of(ast->typeId->type);
   }
 }
 
@@ -5201,14 +5224,11 @@ void TypeChecker::Visitor::operator()(DeleteExpressionAST* ast) {
                               ast->deleteLoc);
 }
 
-auto TypeChecker::Visitor::try_c_style_cast(CastExpressionAST* ast,
-                                            ExpressionAST*& expr,
-                                            const Type* targetType,
-                                            ValueCategory targetVC) -> bool {
+auto TypeChecker::Visitor::check_c_style_cast(ExpressionAST*& expr,
+                                              const Type* targetType,
+                                              ValueCategory targetVC) -> bool {
   if (check_const_cast(expr, targetType, targetVC)) return true;
   if (check_static_cast(expr, targetType, targetVC)) return true;
-  if (traits.is_pointer(targetType) && traits.is_pointer(expr->type))
-    if (check_static_cast(expr, targetType, targetVC)) return true;
   if (check_reinterpret_cast(expr, targetType, targetVC)) return true;
   if (check_reinterpret_cast_permissive(expr, targetType, targetVC))
     return true;
@@ -5221,7 +5241,7 @@ void TypeChecker::Visitor::operator()(CastExpressionAST* ast) {
   classify_reference_type(ast, ast->typeId->type);
 
   auto expr = ast->expression;
-  if (try_c_style_cast(ast, expr, ast->type, ast->valueCategory))
+  if (check_c_style_cast(expr, ast->type, ast->valueCategory))
     ast->expression = expr;
 
   adjust_result_type(ast);
@@ -6015,7 +6035,9 @@ auto TypeChecker::Visitor::CheckConditionalExpression::checkArithmeticOperands()
 auto TypeChecker::Visitor::CheckConditionalExpression::checkCompatiblePointers()
     -> bool {
   if (!traits.is_pointer(ast->iftrueExpression->type) &&
-      !traits.is_pointer(ast->iffalseExpression->type))
+      !traits.is_pointer(ast->iffalseExpression->type) &&
+      !traits.is_member_pointer(ast->iftrueExpression->type) &&
+      !traits.is_member_pointer(ast->iffalseExpression->type))
     return false;
 
   stdconv.prepareOperand(ast->iftrueExpression);
@@ -6028,13 +6050,10 @@ auto TypeChecker::Visitor::CheckConditionalExpression::checkCompatiblePointers()
 
   if (!ast->type) return false;
 
-  const auto insertPointerCast = [&](ExpressionAST*& expression) {
-    if (traits.is_same(expression->type, ast->type)) return;
-    stdconv.convertPointer(expression, ast->type);
-  };
-
-  insertPointerCast(ast->iftrueExpression);
-  insertPointerCast(ast->iffalseExpression);
+  if (!visitor.implicit_conversion(ast->iftrueExpression, ast->type))
+    return false;
+  if (!visitor.implicit_conversion(ast->iffalseExpression, ast->type))
+    return false;
 
   return true;
 }
@@ -8472,7 +8491,9 @@ auto TypeChecker::useFunction(FunctionSymbol* function, SourceLocation loc)
     -> bool {
   if (!function) return false;
 
-  requireFunctionDefinition(function);
+  ASTRewriter::requireFunctionDefinition(
+      unit_, function, loc,
+      scope_ ? scope_->enclosingFunctionOrSelf() : nullptr);
 
   if (!function->isDeleted()) return false;
 
@@ -8543,11 +8564,9 @@ void TypeChecker::initializeBracedArgument(ExpressionAST*& argument,
 
   auto traits = unit_->typeTraits();
 
-  if (auto elementType = traits.initializer_list_element_type(parameterType)) {
-    argument->type = parameterType;
-    argument->valueCategory = ValueCategory::kPrValue;
-    for (auto it = bracedInitList->expressionList; it; it = it->next)
-      (void)implicit_conversion(it->value, elementType);
+  if (traits.initializer_list_element_type(parameterType)) {
+    check_braced_init_list(traits.remove_cvref(parameterType), bracedInitList,
+                           InitializationKind::kCopyListInitialization);
     return;
   }
 

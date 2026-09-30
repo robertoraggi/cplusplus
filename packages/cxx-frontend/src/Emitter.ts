@@ -55,7 +55,9 @@ export type Linkage =
   | "LinkOnceODR"
   | "WeakODR"
   | "AvailableExternally"
-  | "Appending";
+  | "Appending"
+  | "Weak"
+  | "ExternalWeak";
 
 export type BinaryOp =
   | "AddInt"

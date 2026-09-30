@@ -304,6 +304,9 @@ void TranslationUnit::adoptPrefix(SemanticArchiveRoots roots,
   // drained at the freeze boundary.
   pendingBodyCompletions_ = std::move(roots.pendingBodyCompletions);
   pendingMemberInstantiations_ = std::move(roots.pendingMemberInstantiations);
+  pendingMemberInstantiationIndex_.clear();
+  pendingMemberInstantiationIndex_.insert(pendingMemberInstantiations_.begin(),
+                                          pendingMemberInstantiations_.end());
 
   for (auto instance : roots.instantiatedMemberClasses)
     instantiatedMemberClasses_.insert(instance);
@@ -394,7 +397,8 @@ auto TranslationUnit::globalScope() const -> ScopeSymbol* {
 
 void TranslationUnit::addPendingMemberInstantiation(ClassSymbol* instance) {
   if (!instance) return;
-  if (std::ranges::contains(pendingMemberInstantiations_, instance)) return;
+  if (instantiatedMemberClasses_.contains(instance)) return;
+  if (!pendingMemberInstantiationIndex_.insert(instance).second) return;
   pendingMemberInstantiations_.push_back(instance);
 }
 
@@ -455,6 +459,7 @@ auto TranslationUnit::takePendingMemberInstantiations()
     -> std::vector<ClassSymbol*> {
   auto pending = std::move(pendingMemberInstantiations_);
   pendingMemberInstantiations_.clear();
+  pendingMemberInstantiationIndex_.clear();
   return pending;
 }
 
@@ -477,11 +482,15 @@ auto TranslationUnit::isExplicitInstantiationDefinition(
   return std::ranges::contains(explicitInstantiationDefinitions_, function);
 }
 
-void TranslationUnit::addPendingBodyCompletion(FunctionSymbol* function) {
+void TranslationUnit::addPendingBodyCompletion(FunctionSymbol* function,
+                                               SourceLocation location,
+                                               FunctionSymbol* caller) {
   if (!function) return;
   if (!function->hasUninstantiatedBody()) return;
   if (!function->isDefinitionRequired()) return;
   if (isEnclosedInDependentTemplate(this, function, true)) return;
+  if (location)
+    pendingBodyCompletionRequests_.try_emplace(function, location, caller);
   if (std::ranges::contains(pendingBodyCompletions_, function)) return;
   pendingBodyCompletions_.push_back(function);
 }
@@ -491,6 +500,14 @@ auto TranslationUnit::takePendingBodyCompletions()
   auto pending = std::move(pendingBodyCompletions_);
   pendingBodyCompletions_.clear();
   return pending;
+}
+
+auto TranslationUnit::pendingBodyCompletionRequest(FunctionSymbol* function)
+    const -> std::pair<SourceLocation, FunctionSymbol*> {
+  auto it = pendingBodyCompletionRequests_.find(function);
+  return it == pendingBodyCompletionRequests_.end()
+             ? std::pair<SourceLocation, FunctionSymbol*>{}
+             : it->second;
 }
 
 void TranslationUnit::markFunctionBodyUnparsed(

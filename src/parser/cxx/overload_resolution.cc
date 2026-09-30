@@ -40,6 +40,28 @@
 
 namespace cxx {
 namespace {
+struct CandidateRejectionPrinter {
+  [[nodiscard]] auto operator()(const std::string& reason) const
+      -> std::string {
+    return reason;
+  }
+
+  [[nodiscard]] auto operator()(const ArgumentCountMismatch& reason) const
+      -> std::string {
+    return std::format(
+        "requires {} argument{}, but {} {} provided", reason.parameterCount,
+        reason.parameterCount == 1 ? "" : "s", reason.argumentCount,
+        reason.argumentCount == 1 ? "was" : "were");
+  }
+
+  [[nodiscard]] auto operator()(const FailedArgumentConversion& reason) const
+      -> std::string {
+    return std::format("no known conversion from '{}' to '{}' for argument {}",
+                       to_string(reason.source), to_string(reason.destination),
+                       reason.argumentIndex + 1);
+  }
+};
+
 [[nodiscard]] auto callArgumentCount(const Candidate& candidate)
     -> std::size_t {
   auto count = candidate.conversions.size();
@@ -105,6 +127,10 @@ namespace {
   return rightType && traits.is_class(traits.remove_cvref(rightType));
 }
 }  // namespace
+
+auto to_string(const CandidateRejection& rejection) -> std::string {
+  return std::visit(CandidateRejectionPrinter{}, rejection);
+}
 
 auto compareNonTemplateConstraints(TranslationUnit* unit,
                                    FunctionSymbol* candidate,
@@ -469,14 +495,12 @@ auto OverloadResolution::resolveConstructor(
 
   const auto constructors = classSymbol->constructors();
 
-  auto reject = [&](FunctionSymbol* ctor, std::string reason) {
+  auto reject = [&](FunctionSymbol* ctor, CandidateRejection reason) {
     result.rejected.push_back({ctor, std::move(reason)});
   };
 
   auto rejectArity = [&](FunctionSymbol* ctor, int paramCount) {
-    reject(ctor, std::format("requires {} argument{}, but {} {} provided",
-                             paramCount, paramCount == 1 ? "" : "s", argCount,
-                             argCount == 1 ? "was" : "were"));
+    reject(ctor, ArgumentCountMismatch{paramCount, argCount});
   };
 
   auto bindsReferenceToInitializedClass = [&](const Type* parameterType) {
@@ -595,10 +619,7 @@ auto OverloadResolution::resolveConstructor(
               : ConversionContext::kImplicit);
       if (!conv) {
         cand.viable = false;
-        reject(ctor, std::format(
-                         "no known conversion from '{}' to '{}' for argument "
-                         "{}",
-                         to_string(args[i]->type), to_string(*paramIt), i + 1));
+        reject(ctor, FailedArgumentConversion{args[i]->type, *paramIt, i});
         break;
       }
       cand.conversions.push_back(conv);
@@ -665,14 +686,12 @@ auto OverloadResolution::buildCallCandidate(
   const auto argCount = static_cast<int>(args.size());
   const auto paramCount = static_cast<int>(type->parameterTypes().size());
 
-  auto reject = [&](std::string reason) {
+  auto reject = [&](CandidateRejection reason) {
     if (rejected) rejected->push_back({function, std::move(reason)});
   };
 
   auto rejectArity = [&] {
-    reject(std::format("requires {} argument{}, but {} {} provided", paramCount,
-                       paramCount == 1 ? "" : "s", argCount,
-                       argCount == 1 ? "was" : "were"));
+    reject(ArgumentCountMismatch{paramCount, argCount});
   };
 
   if (argCount > paramCount && !type->isVariadic()) {
@@ -699,9 +718,8 @@ auto OverloadResolution::buildCallCandidate(
   for (int i = 0; i < argCount && paramIt != paramEnd; ++i, ++paramIt) {
     auto conv = computeImplicitConversionSequence(args[i], *paramIt);
     if (!conv) {
-      reject(
-          std::format("no known conversion from '{}' to '{}' for argument {}",
-                      to_string(args[i]->type), to_string(*paramIt), i + 1));
+      reject(FailedArgumentConversion{args[i]->type, *paramIt,
+                                      static_cast<std::size_t>(i)});
       return std::nullopt;
     }
     cand.conversions.push_back(conv);

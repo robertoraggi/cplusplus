@@ -23,6 +23,7 @@ class TimeTrace {
     kTypeDependenceCacheHits,
     kSpecializationComparisons,
     kPartialSpecializationVisits,
+    kSpecializationIndexVisits,
     kCount
   };
   using Counts = std::array<std::uint64_t, kCount>;
@@ -46,7 +47,9 @@ class TimeTrace {
     Counts counts_{};
   };
 
-  void count(Counter counter) { ++counts_[counter]; }
+  void count(Counter counter, std::uint64_t amount = 1) {
+    counts_[counter] += amount;
+  }
   void write(std::ostream& out) const;
 
  private:

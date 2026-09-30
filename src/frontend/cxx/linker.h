@@ -27,8 +27,6 @@ namespace cxx {
 class CLI;
 class Toolchain;
 
-[[nodiscard]] auto haveEmbeddedLinker() -> bool;
-
 [[nodiscard]] auto link(const CLI& cli, Toolchain* toolchain,
                         const std::vector<std::string>& inputs,
                         const std::string& outputPath) -> bool;

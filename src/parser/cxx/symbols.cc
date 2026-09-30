@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <bit>
 #include <format>
+#include <functional>
 #include <limits>
 #include <ranges>
 #include <unordered_set>
@@ -101,6 +102,22 @@ auto nonTypeParameterIdentity(Symbol* symbol)
 }
 
 struct HoldsAST {
+  mutable const Type* firstExaminedType = nullptr;
+  mutable std::vector<const Type*> examinedTypes;
+
+  [[nodiscard]] auto alreadyExamined(const Type* type) const -> bool {
+    if (type == firstExaminedType) return true;
+    return std::ranges::contains(examinedTypes, type);
+  }
+
+  void recordExamined(const Type* type) const {
+    if (!firstExaminedType) {
+      firstExaminedType = type;
+      return;
+    }
+    examinedTypes.push_back(type);
+  }
+
   [[nodiscard]] auto operator()(const DecltypeType*) const -> bool {
     return true;
   }
@@ -182,13 +199,21 @@ struct HoldsAST {
 
   [[nodiscard]] auto operator()(const TemplateTypeParameterType* type) const
       -> bool {
-    return std::ranges::any_of(type->templateParameters(), *this);
+    if (alreadyExamined(type)) return false;
+    if (std::ranges::any_of(type->templateParameters(), std::ref(*this)))
+      return true;
+    recordExamined(type);
+    return false;
   }
 
   [[nodiscard]] auto operator()(const FunctionType* type) const -> bool {
+    if (alreadyExamined(type)) return false;
     if (type->noexceptExpression()) return true;
     if (visit(*this, type->returnType())) return true;
-    return std::ranges::any_of(type->parameterTypes(), *this);
+    if (std::ranges::any_of(type->parameterTypes(), std::ref(*this)))
+      return true;
+    recordExamined(type);
+    return false;
   }
 
   [[nodiscard]] auto operator()(const Type* type) const -> bool {
@@ -355,10 +380,9 @@ auto SpecializationTable::find(
 
 auto SpecializationTable::entryOf(const Symbol* specialization)
     -> TemplateSpecialization* {
-  auto it = std::ranges::find(entries_, specialization,
-                              &TemplateSpecialization::symbol);
-  if (it == entries_.end()) return nullptr;
-  return &*it;
+  auto it = bySymbol_.find(specialization);
+  if (it == bySymbol_.end()) return nullptr;
+  return &entries_[it->second];
 }
 
 auto SpecializationTable::add(TranslationUnit* unit,
@@ -418,6 +442,7 @@ auto SpecializationTable::findIndex(TranslationUnit* unit,
 void SpecializationTable::index(std::size_t index) {
   auto key = hash_template_arguments(entries_[index].arguments);
   auto position = static_cast<std::uint32_t>(index);
+  bySymbol_.try_emplace(entries_[index].symbol, position);
   if (key.has_value())
     byArguments_[*key].push_back(position);
   else
@@ -509,8 +534,8 @@ struct TemplateArgumentHasher {
   std::size_t seed;
 
   [[nodiscard]] auto operator()(const Type* type) -> bool {
-    if (holds_ast(type)) return false;
-    hash_combine(seed, std::hash<const void*>{}(type));
+    auto key = holds_ast(type) ? 0 : std::hash<const void*>{}(type);
+    hash_combine(seed, key);
     return true;
   }
 
@@ -529,19 +554,35 @@ struct TemplateArgumentHasher {
       hash_combine(seed, std::hash<const void*>{}(templateName->canonical()));
       return true;
     }
-    if (nonTypeParameterIdentity(symbol)) return false;
-    if (auto variable = symbol_cast<VariableSymbol>(symbol)) {
-      if (!variable->constValue()) return false;
-      return (*this)(*variable->constValue());
+    return visit(*this, symbol);
+  }
+
+  [[nodiscard]] auto operator()(NonTypeParameterSymbol* symbol) -> bool {
+    hash_combine(seed, symbol->depth());
+    hash_combine(seed, symbol->index());
+    hash_combine(seed, symbol->isParameterPack());
+    return (*this)(unqualified_type(symbol->objectType()));
+  }
+
+  [[nodiscard]] auto operator()(VariableSymbol* symbol) -> bool {
+    if (auto value = symbol->constValue();
+        value && std::holds_alternative<ConstInt>(*value))
+      return (*this)(*value);
+    if (!symbol->type()) return false;
+    return (*this)(symbol->type());
+  }
+
+  [[nodiscard]] auto operator()(ParameterPackSymbol* pack) -> bool {
+    if (pack->type()) return false;
+    hash_combine(seed, pack->elements().size());
+    for (auto element : pack->elements()) {
+      if (!(*this)(element)) return false;
     }
-    if (auto pack = symbol_cast<ParameterPackSymbol>(symbol)) {
-      if (pack->type()) return false;
-      hash_combine(seed, pack->elements().size());
-      for (auto element : pack->elements()) {
-        if (!(*this)(element)) return false;
-      }
-      return true;
-    }
+    return true;
+  }
+
+  template <typename S>
+  [[nodiscard]] auto operator()(S* symbol) -> bool {
     if (!symbol->type()) return false;
     return (*this)(symbol->type());
   }
@@ -670,6 +711,10 @@ auto Symbol::location() const -> SourceLocation { return location_; }
 void Symbol::setLocation(SourceLocation location) { location_ = location; }
 
 auto Symbol::parent() const -> ScopeSymbol* { return parent_; }
+
+auto Symbol::isWeak() const -> bool {
+  return findAttribute(canonical()->attributes(), "weak") != nullptr;
+}
 
 auto Symbol::abiTags() const -> std::span<const Identifier* const> {
   if (!abiTags_) return {};

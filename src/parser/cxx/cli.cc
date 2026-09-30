@@ -42,6 +42,10 @@ auto to_string(const CLIMatch& match) -> std::string {
     auto operator()(const CLIPositional& o) const -> std::string {
       return std::format("{}", std::get<0>(o));
     }
+
+    auto operator()(const CLIForwarded& o) const -> std::string {
+      return std::get<0>(o);
+    }
   };
   return std::visit(Process(), match);
 }
@@ -105,6 +109,12 @@ std::vector<CLIOptionDescr> options{
      CLIOptionDescrKind::kSeparated},
 
     {"-L", "<dir>", "Add <dir> to the end of the library path",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-F", "<dir>", "Add <dir> to the framework search path",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-framework", "<name>", "Link the named framework",
      CLIOptionDescrKind::kSeparated},
 
     {"-U", "<macro>", "Undefine <macro>", CLIOptionDescrKind::kSeparated},
@@ -176,6 +186,12 @@ std::vector<CLIOptionDescr> options{
 
     {"-flink", "Compile the inputs and link them into an executable",
      &CLI::opt_link, CLIOptionVisibility::kExperimental},
+
+    {"-fuse-ld", "<driver>", "Use an external compiler driver for linking",
+     CLIOptionDescrKind::kJoined},
+
+    {"-fuse-ld", "<driver>", "Use an external compiler driver for linking",
+     CLIOptionDescrKind::kSeparated},
 
     {"-l", "<library>", "Link against the library named <library>",
      CLIOptionDescrKind::kSeparated, CLIOptionVisibility::kExperimental},
@@ -401,7 +417,8 @@ auto CLI::optimizationLevel() const -> int {
   return 0;
 }
 
-void CLI::parse(int& argc, char**& argv) {
+auto CLI::parse(int& argc, char**& argv) -> bool {
+  bool valid = true;
   app_name = argv[0];
 
   if (fs::path(app_name).remove_filename().empty()) {
@@ -429,15 +446,18 @@ void CLI::parse(int& argc, char**& argv) {
       std::string payload = arg.substr(4);
       std::istringstream iss(payload);
       std::string token;
-      while (std::getline(iss, token, ',')) forwardedArgs_.push_back(token);
+      while (std::getline(iss, token, ',')) {
+        result_.emplace_back(CLIOption("-Xlinker", token));
+      }
       continue;
     }
 
     if (arg == "-Xlinker") {
       if (i < argc) {
-        forwardedArgs_.emplace_back(argv[i++]);
+        result_.emplace_back(CLIOption("-Xlinker", argv[i++]));
       } else {
         std::cerr << std::format("missing argument after '{}'\n", arg);
+        valid = false;
       }
       continue;
     }
@@ -478,6 +498,7 @@ void CLI::parse(int& argc, char**& argv) {
         }
 
         std::cerr << std::format("missing argument after '{}'\n", arg);
+        valid = false;
         continue;
       }
     }
@@ -493,8 +514,9 @@ void CLI::parse(int& argc, char**& argv) {
       continue;
     }
 
-    forwardedArgs_.push_back(arg);
+    result_.emplace_back(CLIForwarded(arg));
   }
+  return valid;
 }
 
 void CLI::showHelp() {

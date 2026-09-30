@@ -25,6 +25,7 @@
 #include <cxx/types_fwd.h>
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -126,6 +127,9 @@ class TypeTraits {
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto remove_reference(const Type* type) const -> const Type*;
+  [[nodiscard]] auto size_of(const Type* type) -> std::optional<std::size_t>;
+  [[nodiscard]] auto alignment_of(const Type* type)
+      -> std::optional<std::size_t>;
   [[nodiscard]] auto add_lvalue_reference(const Type* type) const
       -> const Type*;
   [[nodiscard]] auto add_rvalue_reference(const Type* type) const
@@ -226,6 +230,9 @@ class TypeTraits {
   [[nodiscard]] auto is_qualification_convertible(const Type* from,
                                                   const Type* to) const -> bool;
 
+  [[nodiscard]] auto is_vla_compatible(const Type* left,
+                                       const Type* right) const -> bool;
+
   [[nodiscard]] auto is_reference_related(const Type* lhs, const Type* rhs)
       -> bool;
 
@@ -243,6 +250,12 @@ class TypeTraits {
 
   [[nodiscard]] auto is_floating_point_promotion(const Type* from,
                                                  const Type* to) const -> bool;
+
+  [[nodiscard]] auto integer_conversion_rank(const Type* type) const
+      -> std::pair<int, int>;
+
+  [[nodiscard]] auto floating_point_conversion_rank(const Type* type) const
+      -> int;
 
   [[nodiscard]] auto representsAllValuesOf(const Type* target,
                                            const Type* source) const -> bool;
@@ -330,6 +343,7 @@ class TypeTraits {
   [[nodiscard]] auto has_mutable_subobject(const Type* type) -> bool;
 
  private:
+  [[nodiscard]] auto requireLayoutType(const Type* type) -> const Type*;
   [[nodiscard]] auto integralPromotionCandidates() const
       -> std::array<const Type*, 6>;
 

@@ -411,7 +411,7 @@ auto Codegen::MemInitializerVisitor::emitDelegationOrVirtualBaseInit(
     if (layout) baseInfo = layout->getVirtualBaseInfo(targetClass);
     if (!baseInfo) return {};
     targetPtr =
-        gen.memberAddress(loc, thisPtr, targetClass->type(), baseInfo->index);
+        gen.subobjectAddress(loc, thisPtr, targetClass, baseInfo->offset);
   }
 
   const bool delegatesToOwnBaseObjectVariant =

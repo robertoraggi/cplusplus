@@ -419,6 +419,15 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
   if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
 
   auto classSymbol = symbol_cast<ClassSymbol>(fn->parent());
+  if (!classSymbol && fn->isFriend()) {
+    auto parameters = comparisonParameters(fn);
+    if (parameters.empty()) return;
+    auto classType =
+        unqualified_cast<ClassType>(traits.remove_cvref(parameters[0]->type()));
+    if (!classType) return;
+    classSymbol = classType->symbol();
+    if (!isFriendDeclaredIn(fn, classSymbol)) return;
+  }
   if (!classSymbol) return;
   classSymbol = classSymbol->resolvedDefinition();
   if (classSymbol->isUnion()) return;
@@ -429,6 +438,26 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
   };
 
   CompleteClass cc{*this, classSymbol};
+  if (auto operatorId = name_cast<OperatorId>(fn->name())) {
+    switch (operatorId->op()) {
+      case TokenKind::T_EQUAL_EQUAL:
+        cc.synthesizeDefaultedEqualityBody(fn);
+        return;
+      case TokenKind::T_LESS_EQUAL_GREATER:
+        cc.deduceDefaultedThreeWayReturnTypes();
+        cc.synthesizeDefaultedThreeWayBody(fn);
+        return;
+      case TokenKind::T_EXCLAIM_EQUAL:
+      case TokenKind::T_LESS:
+      case TokenKind::T_LESS_EQUAL:
+      case TokenKind::T_GREATER:
+      case TokenKind::T_GREATER_EQUAL:
+        cc.synthesizeDefaultedSecondaryComparisonBody(fn, operatorId->op());
+        return;
+      default:
+        break;
+    }
+  }
   if (matches(classSymbol->defaultConstructor()))
     cc.synthesizeDefaultConstructorBody(fn);
   else if (matches(classSymbol->copyConstructor()))

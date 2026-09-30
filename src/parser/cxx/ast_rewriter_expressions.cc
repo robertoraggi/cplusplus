@@ -1344,7 +1344,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofExpressionAST* ast)
   copy->expression = rewrite.unevaluatedExpression(ast->expression);
 
   if (copy->expression && copy->expression->type) {
-    copy->value = control()->memoryLayout()->sizeOf(copy->expression->type);
+    copy->value =
+        translationUnit()->typeTraits().size_of(copy->expression->type);
   }
 
   return copy;
@@ -1362,7 +1363,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
   copy->rparenLoc = ast->rparenLoc;
 
   if (copy->typeId && copy->typeId->type) {
-    copy->value = control()->memoryLayout()->sizeOf(copy->typeId->type);
+    copy->value = translationUnit()->typeTraits().size_of(copy->typeId->type);
   }
 
   return copy;

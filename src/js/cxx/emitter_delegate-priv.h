@@ -142,6 +142,10 @@ inline auto toVal(cxx::ir::Linkage value) -> val {
       return val("AvailableExternally");
     case cxx::ir::Linkage::Appending:
       return val("Appending");
+    case cxx::ir::Linkage::Weak:
+      return val("Weak");
+    case cxx::ir::Linkage::ExternalWeak:
+      return val("ExternalWeak");
   }
   return val::undefined();
 }
@@ -156,6 +160,8 @@ inline auto toEnum<cxx::ir::Linkage>(const val& value) -> cxx::ir::Linkage {
   if (name == "AvailableExternally")
     return cxx::ir::Linkage::AvailableExternally;
   if (name == "Appending") return cxx::ir::Linkage::Appending;
+  if (name == "Weak") return cxx::ir::Linkage::Weak;
+  if (name == "ExternalWeak") return cxx::ir::Linkage::ExternalWeak;
   return cxx::ir::Linkage{};
 }
 

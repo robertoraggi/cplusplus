@@ -35,6 +35,7 @@ namespace cxx {
 class Arena;
 class Control;
 class TranslationUnit;
+struct Candidate;
 
 enum class ClassAdjustment { kNone, kDerivedToBase, kBaseToDerived };
 
@@ -63,6 +64,9 @@ class StandardConversion {
           InitializationKind::kCopyInitialization,
       ConversionContext context = ConversionContext::kImplicit)
       -> ImplicitConversionSequence;
+
+  [[nodiscard]] auto isAccessible(const ImplicitConversionSequence& sequence)
+      -> bool;
 
   void applyConversionSequence(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
@@ -134,6 +138,64 @@ class StandardConversion {
       -> std::optional<ImplicitConversionSequence>;
 
  private:
+  [[nodiscard]] auto conversionFunctionResultType(FunctionSymbol* function,
+                                                  const Type* targetType) const
+      -> const Type*;
+  [[nodiscard]] auto userDefinedSequence(const Candidate& candidate,
+                                         ExpressionAST* expr,
+                                         const Type* targetType)
+      -> ImplicitConversionSequence;
+  [[nodiscard]] auto objectArgumentConversion(FunctionSymbol* function,
+                                              ExpressionAST* expr)
+      -> std::optional<ImplicitConversionSequence>;
+  void addUserDefinedCandidate(
+      std::vector<Candidate>& candidates, FunctionSymbol* function,
+      std::optional<ImplicitConversionSequence> argument,
+      ImplicitConversionSequence result,
+      std::optional<ImplicitConversionSequence> object);
+  void addConstructorCandidates(std::vector<Candidate>& candidates,
+                                ExpressionAST* expr, const Type* targetType);
+  void addConstructorCandidate(std::vector<Candidate>& candidates,
+                               FunctionSymbol* constructor,
+                               ClassSymbol* classSymbol, ExpressionAST* expr,
+                               const Type* targetType);
+  void addConversionFunctionCandidates(std::vector<Candidate>& candidates,
+                                       ExpressionAST* expr,
+                                       const Type* targetType,
+                                       InitializationKind initializationKind);
+  void addConversionFunctionCandidate(std::vector<Candidate>& candidates,
+                                      FunctionSymbol* function,
+                                      ExpressionAST* expr,
+                                      const Type* targetType,
+                                      InitializationKind initializationKind);
+  [[nodiscard]] auto userDefinedConversionSequence(
+      ExpressionAST* expr, const Type* targetType,
+      InitializationKind initializationKind) -> ImplicitConversionSequence;
+
+  [[nodiscard]] auto directReferenceBinding(ImplicitConversionSequence sequence,
+                                            ValueCategory category)
+      -> ImplicitConversionSequence;
+  [[nodiscard]] auto classListInitializationSequence(
+      ImplicitConversionSequence sequence, const Type* targetType)
+      -> ImplicitConversionSequence;
+  [[nodiscard]] auto aggregateListInitializationSequence(
+      ImplicitConversionSequence sequence, BracedInitListAST* initializer,
+      const Type* targetType) -> ImplicitConversionSequence;
+  [[nodiscard]] auto listElementSequence(ExpressionAST* element,
+                                         const Type* targetType,
+                                         InitializationKind initializationKind)
+      -> ImplicitConversionSequence;
+
+  [[nodiscard]] auto overloadSetConversionSequence(ExpressionAST* expr,
+                                                   const Type* targetType)
+      -> std::optional<ImplicitConversionSequence>;
+  [[nodiscard]] auto pointerConversionSequence(
+      ImplicitConversionSequence sequence, const Type* sourceType,
+      const Type* targetType) -> std::optional<ImplicitConversionSequence>;
+  [[nodiscard]] auto memberPointerConversionSequence(
+      ImplicitConversionSequence sequence, const Type* sourceType,
+      const Type* targetType) -> std::optional<ImplicitConversionSequence>;
+
   void applyStep(const ImplicitConversionSequence& sequence,
                  const ImplicitConversionSequence::Step& step,
                  ExpressionAST*& expr);
@@ -144,11 +206,12 @@ class StandardConversion {
   void appendTemporaryMaterialization(ImplicitConversionSequence& sequence);
 
   void recordUserDefinedConversion(ImplicitCastExpressionAST* cast,
-                                   FunctionSymbol* function);
+                                   FunctionSymbol* function,
+                                   bool argumentConverted = false);
 
-  [[nodiscard]] auto selectCopyConstructor(ExpressionAST* expr,
-                                           const Type* destinationType)
-      -> FunctionSymbol*;
+  [[nodiscard]] auto selectCopyConstructor(
+      ExpressionAST* expr, const Type* destinationType,
+      InitializationKind initializationKind) -> FunctionSymbol*;
 
   [[nodiscard]] auto listInitializationSequence(
       BracedInitListAST* bracedInitList, const Type* targetType,
@@ -190,13 +253,22 @@ class StandardConversion {
 
   [[nodiscard]] auto accessingScope() const -> ScopeSymbol*;
 
-  void checkDerivedToBaseConversion(const Type* sourceType,
-                                    const Type* targetType, SourceLocation loc);
+  [[nodiscard]] auto baseConversionClasses(const Type* sourceType,
+                                           const Type* targetType,
+                                           ImplicitCastKind kind) const
+      -> std::pair<ClassSymbol*, ClassSymbol*>;
+  [[nodiscard]] auto isAccessibleBaseConversion(const Type* sourceType,
+                                                const Type* targetType,
+                                                ImplicitCastKind kind) const
+      -> bool;
+
+  void checkBaseConversion(const Type* sourceType, const Type* targetType,
+                           ImplicitCastKind kind, SourceLocation loc);
 
   void checkUserDefinedConversionAccess(
       const ImplicitConversionSequence& sequence, ExpressionAST* expr);
 
-  void resolveOverloadSet(ExpressionAST* expr, const Type* targetType);
+  void applyResolvedFunction(ExpressionAST* expr, FunctionSymbol* function);
 
   void setResolvedFunction(ExpressionAST* expr, FunctionSymbol* function);
 
@@ -204,38 +276,23 @@ class StandardConversion {
                                             const Type* targetType)
       -> ClassAdjustment;
 
-  [[nodiscard]] auto ensurePrvalue(ExpressionAST*& expr) -> bool;
-
   void adjustCv(ExpressionAST* expr);
 
   [[nodiscard]] auto readsValueDirectly(const Type* type) const -> bool;
 
-  [[nodiscard]] auto lvalueToRvalue(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto valueTransformation(ExpressionAST* expr)
+      -> std::optional<ImplicitConversionSequence::Step>;
 
-  [[nodiscard]] auto functionToPointer(ExpressionAST*& expr) -> bool;
+  [[nodiscard]] auto integralPromotion(ExpressionAST*& expr) -> bool;
 
-  [[nodiscard]] auto arrayToPointer(ExpressionAST*& expr) -> bool;
-
-  [[nodiscard]] auto integralPromotion(ExpressionAST*& expr,
-                                       const Type* destinationType = nullptr)
-      -> bool;
-
-  [[nodiscard]] auto floatingPointPromotion(
-      ExpressionAST*& expr, const Type* destinationType = nullptr) -> bool;
+  [[nodiscard]] auto floatingPointPromotion(ExpressionAST*& expr) -> bool;
 
   [[nodiscard]] auto convertArithmetic(ExpressionAST*& expr,
                                        const Type* destinationType) -> bool;
 
-  [[nodiscard]] auto integralConversion(ExpressionAST*& expr,
-                                        const Type* destinationType) -> bool;
-
-  [[nodiscard]] auto floatingPointConversion(ExpressionAST*& expr,
-                                             const Type* destinationType)
-      -> bool;
-
-  [[nodiscard]] auto floatingIntegralConversion(ExpressionAST*& expr,
-                                                const Type* destinationType)
-      -> bool;
+  [[nodiscard]] auto arithmeticConversionKind(const Type* source,
+                                              const Type* target) const
+      -> std::optional<ImplicitCastKind>;
 
   void requireDefinitionOfDesignatedField(ExpressionAST* expr);
 
@@ -244,7 +301,8 @@ class StandardConversion {
   void requireNamedFunction(ExpressionAST* expr);
 
   void materializeConstructorArguments(ImplicitCastExpressionAST* cast,
-                                       FunctionSymbol* constructor);
+                                       FunctionSymbol* constructor,
+                                       bool argumentConverted);
 
   [[nodiscard]] auto requiresCopyConstruction(ExpressionAST* expr,
                                               const Type* destinationType) const
@@ -281,8 +339,7 @@ class StandardConversion {
   void normalizeCompositePointerClass(const Type*& left, const Type*& right);
 
   [[nodiscard]] auto isMemberPointeeConvertible(const Type* source,
-                                                const Type* target) const
-      -> bool;
+                                                const Type* target) -> bool;
 
  private:
   TranslationUnit* unit_;

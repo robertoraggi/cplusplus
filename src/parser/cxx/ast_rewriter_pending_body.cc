@@ -73,14 +73,21 @@ void ASTRewriter::remapScopeMembers(ScopeSymbol* oldScope,
   for (auto member : newScope->members()) remapInstantiatedMember(member);
 }
 
+void ASTRewriter::remapInstantiationPatterns(Symbol* instance) {
+  for (auto pattern = instance->instantiationPattern(); pattern;
+       pattern = pattern->instantiationPattern()) {
+    addSymbolRemap(pattern, instance);
+  }
+}
+
 void ASTRewriter::remapInstantiatedMember(Symbol* member) {
   for (auto function : views::declared_functions(member))
-    addSymbolRemap(function->instantiationPattern(), function);
+    remapInstantiationPatterns(function);
 
   auto pattern = member->instantiationPattern();
   if (!pattern) return;
 
-  addSymbolRemap(pattern, member);
+  remapInstantiationPatterns(member);
 
   if (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(member)) {
     if (auto patternUsing = symbol_cast<UsingDeclarationSymbol>(pattern))
@@ -400,12 +407,14 @@ void ASTRewriter::requireExplicitInstantiationMembers(TranslationUnit* unit,
 }
 
 void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
-                                            FunctionSymbol* function) {
+                                            FunctionSymbol* function,
+                                            SourceLocation location,
+                                            FunctionSymbol* caller) {
   if (!unit || !function) return;
   if (!unit->requiresDefinitions()) return;
   const auto alreadyRequired = function->isDefinitionRequired();
   function->setDefinitionRequired(true);
-  unit->addPendingBodyCompletion(function);
+  unit->addPendingBodyCompletion(function, location, caller);
   if (alreadyRequired) return;
   if (!function->hasPendingBody()) {
     auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
@@ -705,6 +714,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
   TimeTrace::Scope trace{unit_->timeTrace(), "Function body", func};
   if (auto trace = unit_->timeTrace()) trace->count(TimeTrace::kFunctionBodies);
   TranslationUnit::TemplateInstantiationScope instantiationScope{unit_};
+  const auto errorsBefore = unit_->diagnosticsClient()->errorCount();
 
   const bool deferDiagnostics =
       !captureBodyErrors && unit_->diagnosticsClient()->isSfinae();
@@ -724,7 +734,10 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
     if (captureBodyErrors) return bodyErrors;
 
-    reportOutsideImmediateContext(unit_, bodyErrors);
+    const auto reported = reportOutsideImmediateContext(unit_, bodyErrors);
+    if (!func->primaryTemplateSymbol() &&
+        (reported || unit_->diagnosticsClient()->errorCount() != errorsBefore))
+      notePendingBodyInstantiation(unit_, func);
     return {};
   };
 
@@ -794,11 +807,15 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
     auto oldClass = symbol_cast<ClassSymbol>(oldFunc->parent());
     auto newClass = symbol_cast<ClassSymbol>(func->parent());
 
+    std::vector<std::pair<ClassSymbol*, ClassSymbol*>> enclosingClasses;
     while (oldClass && newClass && oldClass != newClass) {
-      rewriter.remapScopeMembers(oldClass, newClass);
+      enclosingClasses.emplace_back(oldClass, newClass);
       oldClass = symbol_cast<ClassSymbol>(oldClass->parent());
       newClass = symbol_cast<ClassSymbol>(newClass->parent());
     }
+    std::ranges::reverse(enclosingClasses);
+    for (auto [patternClass, instanceClass] : enclosingClasses)
+      rewriter.remapScopeMembers(patternClass, instanceClass);
 
     if (auto oldParams = oldFunc->functionParameters()) {
       if (auto newParams = func->functionParameters()) {

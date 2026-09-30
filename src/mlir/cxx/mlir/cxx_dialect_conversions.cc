@@ -127,6 +127,10 @@ static auto convertLinkage(mlir::cxx::LinkageKind kind)
       return LLVM::linkage::Linkage::AvailableExternally;
     case mlir::cxx::LinkageKind::Appending:
       return LLVM::linkage::Linkage::Appending;
+    case mlir::cxx::LinkageKind::Weak:
+      return LLVM::linkage::Linkage::Weak;
+    case mlir::cxx::LinkageKind::ExternalWeak:
+      return LLVM::linkage::Linkage::ExternWeak;
     default:
       return LLVM::linkage::Linkage::External;
   }
@@ -255,7 +259,10 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
     }
 
     if (op.getBody().empty()) {
-      func.setLinkage(LLVM::linkage::Linkage::External);
+      const auto declarationLinkage = linkage == LLVM::linkage::Linkage::Weak
+                                          ? LLVM::linkage::Linkage::ExternWeak
+                                          : LLVM::linkage::Linkage::External;
+      func.setLinkage(declarationLinkage);
     } else if (needsComdat_ && linkageNeedsComdat(linkage)) {
       auto module = op->getParentOfType<ModuleOp>();
       auto comdatRef = getOrCreateComdat(rewriter, module, op.getSymName());
@@ -455,9 +462,11 @@ static void emitAggregateInit(ConversionPatternRewriter& rewriter, Location loc,
 }
 
 static auto isGlobalDefinition(cxx::GlobalOp op) -> bool {
-  return op.getValue() || !op.getInitializer().empty() ||
-         convertLinkage(op.getLinkageKind().value_or(
-             cxx::LinkageKind::External)) != LLVM::linkage::Linkage::External;
+  if (op.getValue() || !op.getInitializer().empty()) return true;
+  auto linkage =
+      convertLinkage(op.getLinkageKind().value_or(cxx::LinkageKind::External));
+  return linkage != LLVM::linkage::Linkage::External &&
+         linkage != LLVM::linkage::Linkage::ExternWeak;
 }
 
 class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {

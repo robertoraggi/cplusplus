@@ -27,6 +27,7 @@
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
+#include <cxx/time_trace.h>
 #include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
@@ -277,6 +278,7 @@ class SpecializationTable {
 
   std::vector<TemplateSpecialization> entries_;
   std::unordered_map<std::size_t, std::vector<std::uint32_t>> byArguments_;
+  std::unordered_map<const Symbol*, std::uint32_t> bySymbol_;
   std::vector<std::uint32_t> unkeyed_;
 };
 
@@ -359,6 +361,7 @@ class MaybeTemplate {
   }
 
   void setTemplateDeclaration(TemplateDeclarationAST* templateDeclaration) {
+    if (this->templateDeclaration() == templateDeclaration) return;
     ensureTemplate().templateDeclaration = templateDeclaration;
     if (auto primary = primaryTemplateSymbol())
       primary->ensureTemplate().declaredSpecializations.reset();
@@ -408,12 +411,14 @@ class MaybeTemplate {
     return template_->specializations.find(unit, arguments);
   }
 
-  [[nodiscard]] auto declaredSpecializations() const
+  [[nodiscard]] auto declaredSpecializations(TimeTrace* trace = nullptr) const
       -> std::vector<TemplateSpecialization> {
     if (!template_) return {};
     auto& indices = template_->declaredSpecializations;
     auto entries = specializations();
     if (!indices) {
+      if (trace)
+        trace->count(TimeTrace::kSpecializationIndexVisits, entries.size());
       indices.emplace();
       for (std::size_t index = 0; index < entries.size(); ++index) {
         auto symbol = static_cast<S*>(entries[index].symbol);
@@ -585,6 +590,8 @@ class Symbol {
   }
 
   void setAbiTags(const std::vector<const Identifier*>* abiTags);
+
+  [[nodiscard]] auto isWeak() const -> bool;
 
   [[nodiscard]] auto attributes() const -> const AttributeMap* {
     return attributes_;
