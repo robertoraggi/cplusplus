@@ -76,6 +76,9 @@ inline constexpr std::uint32_t kHandleMaxIndex = kHandleIndexMask;
   return static_cast<std::uint8_t>(id >> kHandleIndexBits);
 }
 
+using DebugTypeRef = Handle<struct DebugTypeTag>;
+using DebugScopeRef = Handle<struct DebugScopeTag>;
+
 using TypeRef = Handle<struct TypeTag>;
 using ValueRef = Handle<struct ValueTag>;
 using BlockRef = Handle<struct BlockTag>;

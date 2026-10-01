@@ -351,6 +351,7 @@ void StandardConversion::foldConstantRead(ExpressionAST*& expression) {
   auto cast = ast_cast<ImplicitCastExpressionAST>(expression);
   if (!cast) return;
   if (cast->castKind != ImplicitCastKind::kLValueToRValueConversion) return;
+  if (isDependent(unit_, cast)) return;
 
   auto operand = cast->expression;
   while (auto nested = ast_cast<NestedExpressionAST>(operand))

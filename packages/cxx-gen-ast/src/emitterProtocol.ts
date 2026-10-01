@@ -28,12 +28,9 @@ import type {
 import { unqualified } from "./parseModel.ts";
 
 export const EMITTER = "::cxx::ir::Emitter";
+export const DEBUG_EMITTER = "::cxx::ir::DebugEmitter";
 
 const NAMESPACE = "::cxx::ir::";
-
-export const UNDELEGATED: Record<string, { cppBody: string }> = {
-  debug: { cppBody: "return nullptr;" },
-};
 
 export type Wire =
   | { kind: "void" }
@@ -81,7 +78,7 @@ export interface ProtocolEnum {
 
 export interface Protocol {
   methods: ProtocolMethod[];
-  undelegated: { name: string; cppResult: string; cppBody: string }[];
+  debugMethods: ProtocolMethod[];
   structs: ProtocolStruct[];
   enums: ProtocolEnum[];
   handles: string[];
@@ -116,43 +113,38 @@ class ProtocolBuilder {
           "included by src/parser/cxx/private/model_inputs.h?",
       );
 
-    const methods: ProtocolMethod[] = [];
-    const undelegated: Protocol["undelegated"] = [];
-
-    for (const method of this.protocolMethodsOf(emitter)) {
-      const exception = UNDELEGATED[method.name];
-      if (exception) {
-        undelegated.push({
-          name: method.name,
-          cppResult: this.cppTypeName(method.returnType),
-          cppBody: exception.cppBody,
-        });
-        continue;
-      }
-      methods.push({
-        name: method.name,
-        result: this.wireOf(method.returnType, `${method.name}()`),
-        parameters: method.parameters.map((parameter) => ({
-          name: parameter.name,
-          wire: this.wireOf(
-            parameter.type,
-            `${method.name}(${parameter.name})`,
-          ),
-          byConstRef: isConstReference(parameter.type),
-        })),
-      });
-    }
+    const methods = this.methodsOf(emitter)
+      .filter((method) => method.name !== "debug")
+      .map((method) => this.delegateMethod(method));
+    const debugEmitter = this.#index.classOf(DEBUG_EMITTER);
+    if (!debugEmitter)
+      throw new Error(`${DEBUG_EMITTER} is not in the semantic model`);
+    const debugMethods = this.methodsOf(debugEmitter).map((method) =>
+      this.delegateMethod(method),
+    );
 
     return {
       methods,
-      undelegated,
+      debugMethods,
       structs: [...this.#structs.values()],
       enums: [...this.#enums.values()],
       handles: [...this.#handles].sort(),
     };
   }
 
-  protocolMethodsOf(entry: ModelClass): ModelMethod[] {
+  delegateMethod(method: ModelMethod): ProtocolMethod {
+    return {
+      name: method.name,
+      result: this.wireOf(method.returnType, `${method.name}()`),
+      parameters: method.parameters.map((parameter) => ({
+        name: parameter.name,
+        wire: this.wireOf(parameter.type, `${method.name}(${parameter.name})`),
+        byConstRef: isConstReference(parameter.type),
+      })),
+    };
+  }
+
+  methodsOf(entry: ModelClass): ModelMethod[] {
     const methods = entry.methods.filter(
       (method) =>
         method.isVirtual && method.isPure && method.access === "public",
@@ -186,8 +178,7 @@ class ProtocolBuilder {
     if (!wire)
       throw new Error(
         `${where}: no JavaScript representation for ${describe(type)}. ` +
-          "Extend the wire table in emitterProtocol.ts, or keep the method " +
-          "off the delegated protocol by listing it in UNDELEGATED.",
+          "Extend the wire table in emitterProtocol.ts.",
       );
     return wire;
   }
@@ -291,13 +282,6 @@ class ProtocolBuilder {
       }
     }
     return { kind: "struct", name, cpp: cppName(qualified) };
-  }
-
-  cppTypeName(type: ModelType): string {
-    if (type.kind === "pointer") return `${this.cppTypeName(type.element)}*`;
-    if (type.kind === "class") return cppName(type.name);
-    if (type.kind === "builtin") return type.name;
-    throw new Error(`cannot spell ${describe(type)} in C++`);
   }
 }
 

@@ -174,8 +174,8 @@ class [[nodiscard]] ASTRewriter {
   static void requireVTableForKeyFunction(TranslationUnit* unit,
                                           FunctionSymbol* function);
 
-  static void requireSubobjectDefaultConstructors(TranslationUnit* unit,
-                                                  FunctionSymbol* constructor);
+  static void requireConstructorInitializers(TranslationUnit* unit,
+                                             FunctionSymbol* constructor);
 
   static void requirePotentiallyInvokedDestructors(TranslationUnit* unit,
                                                    FunctionSymbol* destructor);

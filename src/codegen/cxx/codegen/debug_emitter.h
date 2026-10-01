@@ -19,23 +19,127 @@
 // SOFTWARE.
 
 #pragma once
+
 #include <cxx/codegen/emitter_handles.h>
 #include <cxx/source_location.h>
-#include <cxx/symbols_fwd.h>
-#include <cxx/types_fwd.h>
 
+#include <span>
 #include <string_view>
+
 namespace cxx::ir {
+
+enum class DebugEncoding {
+  Unspecified,
+  Boolean,
+  Signed,
+  Unsigned,
+  Utf,
+  Float,
+  ComplexFloat
+};
+enum class DebugDerivedKind {
+  Pointer,
+  Reference,
+  RvalueReference,
+  Const,
+  Volatile,
+  Atomic,
+  MemberPointer,
+  Inheritance,
+  Member
+};
+enum class DebugCompositeKind { Structure, Union, Enumeration };
+
+struct DebugLocation {
+  std::string_view file;
+  unsigned line = 0;
+  unsigned column = 0;
+};
+
+struct DebugCompileUnitInfo {
+  std::string_view file;
+  std::string_view directory;
+  bool isCxx = true;
+};
+
+struct DebugBasicTypeInfo {
+  std::string_view name;
+  std::uint64_t sizeInBits = 0;
+  DebugEncoding encoding = DebugEncoding::Unspecified;
+};
+
+struct DebugDerivedTypeInfo {
+  DebugDerivedKind kind;
+  DebugTypeRef baseType;
+  std::uint64_t sizeInBits = 0;
+  std::uint64_t alignInBits = 0;
+  std::uint64_t offsetInBits = 0;
+  std::string_view name;
+  DebugTypeRef classType;
+};
+
+struct DebugCompositeTypeInfo {
+  DebugCompositeKind kind;
+  std::string_view name;
+  DebugLocation location;
+  DebugScopeRef scope;
+  DebugTypeRef baseType;
+  std::uint64_t sizeInBits = 0;
+  std::uint64_t alignInBits = 0;
+  std::span<const DebugTypeRef> elements;
+  bool isScopedEnum = false;
+};
+
+struct DebugArrayTypeInfo {
+  DebugTypeRef elementType;
+  std::uint64_t count = 0;
+  unsigned countBitWidth = 0;
+  std::uint64_t sizeInBits = 0;
+  std::uint64_t alignInBits = 0;
+};
+
+struct DebugFunctionInfo {
+  std::string_view name;
+  DebugScopeRef scope;
+  DebugTypeRef type;
+  DebugLocation location;
+  unsigned scopeLine = 0;
+};
+
+struct DebugVariableInfo {
+  std::string_view name;
+  DebugScopeRef scope;
+  DebugTypeRef type;
+  DebugLocation location;
+  unsigned argument = 0;
+  bool isObjectParameter = false;
+};
+
 class DebugEmitter {
  public:
   virtual ~DebugEmitter() = default;
-  virtual void defineFunction(FunctionSymbol* symbol, FunctionRef function,
-                              SourceLocation loc, SourceLocation declaratorLoc,
-                              SourceLocation bodyLoc) = 0;
-  virtual void localVariable(ValueRef address, Symbol* symbol,
-                             std::string_view name, unsigned arg) = 0;
-  virtual void objectParameter(ValueRef address, const Type* type,
-                               FunctionSymbol* function, std::string_view name,
-                               unsigned arg) = 0;
+  [[nodiscard]] virtual auto compileUnit(const DebugCompileUnitInfo& info)
+      -> DebugScopeRef = 0;
+  [[nodiscard]] virtual auto fileScope(std::string_view file)
+      -> DebugScopeRef = 0;
+  [[nodiscard]] virtual auto lexicalBlock(DebugScopeRef parent,
+                                          DebugLocation location)
+      -> DebugScopeRef = 0;
+  [[nodiscard]] virtual auto typeScope(DebugTypeRef type) -> DebugScopeRef = 0;
+  [[nodiscard]] virtual auto basicType(const DebugBasicTypeInfo& info)
+      -> DebugTypeRef = 0;
+  [[nodiscard]] virtual auto derivedType(const DebugDerivedTypeInfo& info)
+      -> DebugTypeRef = 0;
+  [[nodiscard]] virtual auto compositeType(const DebugCompositeTypeInfo& info)
+      -> DebugTypeRef = 0;
+  [[nodiscard]] virtual auto arrayType(const DebugArrayTypeInfo& info)
+      -> DebugTypeRef = 0;
+  [[nodiscard]] virtual auto subroutineType(std::span<const DebugTypeRef> types)
+      -> DebugTypeRef = 0;
+  virtual auto defineFunction(FunctionRef function, SourceLocation loc,
+                              const DebugFunctionInfo& info)
+      -> DebugScopeRef = 0;
+  virtual void localVariable(ValueRef address,
+                             const DebugVariableInfo& info) = 0;
 };
 }  // namespace cxx::ir

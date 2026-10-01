@@ -247,7 +247,7 @@ void MlirEmitter::defineVTable(SourceLocation loc, const VTableInfo& info) {
 }
 
 auto MlirEmitter::debug() -> DebugEmitter* {
-  if (!debug_) debug_ = std::make_unique<MlirDebugEmitter>(*this, unit_);
+  if (!debug_) debug_ = std::make_unique<MlirDebugEmitter>(*this);
   return debug_.get();
 }
 
@@ -1257,11 +1257,14 @@ void MlirEmitter::condBranch(mlir::Location loc, mlir::Value condition,
 
 void MlirEmitter::switchBranch(SourceLocation loc, ValueRef flag,
                                BlockRef defaultDest,
-                               std::span<const std::int64_t> caseValues,
+                               std::span<const ConstInt> caseValues,
                                std::span<const BlockRef> caseDestinations) {
+  std::vector<std::int64_t> values;
+  values.reserve(caseValues.size());
+  for (const auto& value : caseValues) values.push_back(value.toIntMax());
   switchBranch(getLocation(loc), value(flag),
                mlir::cast<mlir::IntegerType>(value(flag).getType()),
-               defaultDest, {caseValues.data(), caseValues.size()},
+               defaultDest, values,
                {caseDestinations.data(), caseDestinations.size()});
 }
 

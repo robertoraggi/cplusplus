@@ -17,6 +17,8 @@ include(TableGen)
 include(HandleLLVMOptions)
 
 SET(CXX_MLIR_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-SET(CXX_MLIR_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
+add_subdirectory(dialect)
+add_subdirectory(transforms)
 add_subdirectory(cxx/mlir)
+add_subdirectory(opt)

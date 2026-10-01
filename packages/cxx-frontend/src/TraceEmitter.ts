@@ -37,6 +37,17 @@ import {
   type CleanupRegionRef,
   type CleanupTarget,
   type EmitterDelegate,
+  type DebugEmitterDelegate,
+  type DebugTypeRef,
+  type DebugScopeRef,
+  type DebugCompileUnitInfo,
+  type DebugLocation,
+  type DebugBasicTypeInfo,
+  type DebugDerivedTypeInfo,
+  type DebugCompositeTypeInfo,
+  type DebugArrayTypeInfo,
+  type DebugFunctionInfo,
+  type DebugVariableInfo,
   type FunctionInfo,
   type FunctionRef,
   type GlobalInfo,
@@ -101,7 +112,124 @@ interface GlobalRecord {
   linkage: Linkage;
 }
 
+export type TraceDebugType =
+  | { kind: "Basic"; info: DebugBasicTypeInfo }
+  | { kind: "Derived"; info: DebugDerivedTypeInfo }
+  | { kind: "Composite"; info: DebugCompositeTypeInfo }
+  | { kind: "Array"; info: DebugArrayTypeInfo }
+  | { kind: "Subroutine"; info: { types: readonly DebugTypeRef[] } };
+
+export type TraceDebugScope =
+  | { kind: "CompileUnit"; info: DebugCompileUnitInfo }
+  | { kind: "File"; info: { file: string } }
+  | { kind: "Block"; info: { parent: DebugScopeRef; location: DebugLocation } }
+  | { kind: "Type"; info: { type: DebugTypeRef } }
+  | {
+      kind: "Function";
+      info: DebugFunctionInfo & { function: FunctionRef; loc: TokenIndex };
+    };
+
+export class TraceDebugEmitter implements DebugEmitterDelegate {
+  #nextType = 1;
+  #nextScope = 1;
+  #types = new Map<DebugTypeRef, TraceDebugType>();
+  #scopes = new Map<DebugScopeRef, TraceDebugScope>();
+  #typeScopes = new Map<DebugTypeRef, DebugScopeRef>();
+  #variables = new Map<ValueRef, DebugVariableInfo>();
+  readonly #emit: (text: string) => void;
+
+  constructor(emit: (text: string) => void) {
+    this.#emit = emit;
+  }
+
+  get types(): ReadonlyMap<DebugTypeRef, TraceDebugType> {
+    return this.#types;
+  }
+  get scopes(): ReadonlyMap<DebugScopeRef, TraceDebugScope> {
+    return this.#scopes;
+  }
+  get variables(): ReadonlyMap<ValueRef, DebugVariableInfo> {
+    return this.#variables;
+  }
+
+  #defineType(record: TraceDebugType): DebugTypeRef {
+    const ref = this.#nextType++;
+    this.#types.set(ref, record);
+    this.#emit(
+      `!dt${ref} = debug.${record.kind} ${JSON.stringify(record.info)}`,
+    );
+    return ref;
+  }
+
+  #defineScope(record: TraceDebugScope): DebugScopeRef {
+    const ref = this.#nextScope++;
+    this.#scopes.set(ref, record);
+    this.#emit(
+      `!ds${ref} = debug.${record.kind} ${JSON.stringify(record.info)}`,
+    );
+    return ref;
+  }
+
+  compileUnit(info: DebugCompileUnitInfo): DebugScopeRef {
+    return this.#defineScope({ kind: "CompileUnit", info });
+  }
+
+  fileScope(file: string): DebugScopeRef {
+    return this.#defineScope({ kind: "File", info: { file } });
+  }
+
+  lexicalBlock(parent: DebugScopeRef, location: DebugLocation): DebugScopeRef {
+    return this.#defineScope({ kind: "Block", info: { parent, location } });
+  }
+
+  typeScope(type: DebugTypeRef): DebugScopeRef {
+    if (this.#types.get(type)?.kind !== "Composite") return 0;
+    const existing = this.#typeScopes.get(type);
+    if (existing !== undefined) return existing;
+    const scope = this.#defineScope({ kind: "Type", info: { type } });
+    this.#typeScopes.set(type, scope);
+    return scope;
+  }
+
+  basicType(info: DebugBasicTypeInfo): DebugTypeRef {
+    return this.#defineType({ kind: "Basic", info });
+  }
+
+  derivedType(info: DebugDerivedTypeInfo): DebugTypeRef {
+    return this.#defineType({ kind: "Derived", info });
+  }
+
+  compositeType(info: DebugCompositeTypeInfo): DebugTypeRef {
+    return this.#defineType({ kind: "Composite", info });
+  }
+
+  arrayType(info: DebugArrayTypeInfo): DebugTypeRef {
+    return this.#defineType({ kind: "Array", info });
+  }
+
+  subroutineType(types: readonly DebugTypeRef[]): DebugTypeRef {
+    return this.#defineType({ kind: "Subroutine", info: { types } });
+  }
+
+  defineFunction(
+    function_: FunctionRef,
+    loc: TokenIndex,
+    info: DebugFunctionInfo,
+  ): DebugScopeRef {
+    return this.#defineScope({
+      kind: "Function",
+      info: { ...info, function: function_, loc },
+    });
+  }
+
+  localVariable(address: ValueRef, info: DebugVariableInfo): void {
+    this.#variables.set(address, info);
+    this.#emit(`debug.local %${address} ${JSON.stringify(info)}`);
+  }
+}
+
 export class TraceEmitter implements EmitterDelegate {
+  readonly debug = new TraceDebugEmitter((text) => this.#emitTop(text));
   #lines: string[] = [];
 
   #nextType = 1;
@@ -664,7 +792,7 @@ export class TraceEmitter implements EmitterDelegate {
     loc: TokenIndex,
     flag: ValueRef,
     defaultDest: BlockRef,
-    caseValues: readonly number[],
+    caseValues: readonly bigint[],
     caseDestinations: readonly BlockRef[],
   ): void {
     const cases = caseValues.map(

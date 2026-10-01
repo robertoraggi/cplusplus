@@ -353,42 +353,16 @@ void ASTRewriter::requireDestructorOfType(TranslationUnit* unit,
   requireFunctionDefinition(unit, classSymbol->destructor());
 }
 
-void ASTRewriter::requireSubobjectDefaultConstructors(
-    TranslationUnit* unit, FunctionSymbol* constructor) {
-  auto classSymbol = symbol_cast<ClassSymbol>(constructor->parent());
-  if (!classSymbol) return;
-  classSymbol = classSymbol->resolvedDefinition();
-  if (classSymbol->isUnion()) return;
-
-  TypeTraits traits{unit};
-
-  auto requireDefaultConstructorOf = [&](const Type* type) {
-    if (!type) return;
-    auto subobjectType = traits.remove_cv(traits.remove_all_extents(type));
-    auto classType = unqualified_cast<ClassType>(subobjectType);
-    if (!classType || !classType->symbol()) return;
-    auto subobjectClass = classType->symbol()->resolvedDefinition();
-    if (subobjectClass == classSymbol) return;
-    OverloadResolution overloadResolution{unit};
-    requireFunctionDefinition(
-        unit,
-        overloadResolution.resolveConstructor(subobjectClass, {}).selected());
-  };
-
-  for (auto baseClass : classSymbol->baseClasses()) {
-    if (auto base = baseClass->symbol())
-      requireDefaultConstructorOf(base->type());
-  }
-
-  if (auto layout = classSymbol->layout()) {
-    for (auto virtualBase : layout->virtualBases())
-      requireDefaultConstructorOf(virtualBase->type());
-  }
-
-  for (auto field : classSymbol->members() | views::non_static_fields) {
-    if (field->hasInitializer()) continue;
-    requireDefaultConstructorOf(field->type());
-  }
+void ASTRewriter::requireConstructorInitializers(TranslationUnit* unit,
+                                                 FunctionSymbol* constructor) {
+  if (constructor->hasPendingBody()) return;
+  auto declaration = constructor->declaration();
+  if (!declaration) return;
+  auto body =
+      ast_cast<CompoundStatementFunctionBodyAST>(declaration->functionBody);
+  if (!body) return;
+  for (auto initializer : ListView{body->memInitializerList})
+    requireDefinitionsNamedBy(unit, initializer);
 }
 
 void ASTRewriter::requireExplicitInstantiationMembers(TranslationUnit* unit,
@@ -428,13 +402,8 @@ void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
   if (function->isDestructor() && definesBody)
     requirePotentiallyInvokedDestructors(unit, definition);
 
-  if (function->isConstructor() && function->isDefaulted()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
-    if (classSymbol &&
-        classSymbol->resolvedDefinition()->defaultConstructor() == function) {
-      requireSubobjectDefaultConstructors(unit, function);
-    }
-  }
+  if (function->isConstructor())
+    requireConstructorInitializers(unit, definition);
 }
 
 namespace {
@@ -448,6 +417,16 @@ struct RequireNamedDefinitions final : ASTVisitor {
     ASTRewriter::requireFunctionDefinition(unit,
                                            symbol_cast<FunctionSymbol>(symbol));
     ASTRewriter::requireFieldDefinition(unit, symbol_cast<FieldSymbol>(symbol));
+  }
+
+  void visit(ParenMemInitializerAST* ast) override {
+    requireEntity(ast->constructor);
+    ASTVisitor::visit(ast);
+  }
+
+  void visit(BracedMemInitializerAST* ast) override {
+    requireEntity(ast->constructor);
+    ASTVisitor::visit(ast);
   }
 
   void visit(IdExpressionAST* ast) override {

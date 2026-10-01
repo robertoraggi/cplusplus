@@ -1004,7 +1004,7 @@ class Codegen {
       -> CleanupSnapshot;
 
   struct Switch {
-    std::vector<std::int64_t> caseValues;
+    std::vector<ConstInt> caseValues;
     std::vector<ir::BlockRef> caseDestinations;
     ir::BlockRef defaultDestination;
   };
@@ -1032,6 +1032,16 @@ class Codegen {
   struct AttributeTokenVisitor;
 
   struct ConvertType;
+  struct ConvertDebugType;
+  struct DebugScopeVisitor;
+
+  [[nodiscard]] auto debugEmitter() -> ir::DebugEmitter*;
+  [[nodiscard]] auto debugLocation(SourceLocation loc) -> ir::DebugLocation;
+  [[nodiscard]] auto convertDebugType(const Type* type) -> ir::DebugTypeRef;
+  [[nodiscard]] auto getOrCreateDebugScope(Symbol* symbol) -> ir::DebugScopeRef;
+  [[nodiscard]] auto debugSubroutineType(const FunctionType* type,
+                                         const Type* objectType = nullptr)
+      -> ir::DebugTypeRef;
   struct TypeInfoIncompleteClassVisitor;
   struct TypeInfoInternalLinkageVisitor;
   struct ConstructorArgumentsVisitor;
@@ -1047,6 +1057,10 @@ class Codegen {
                            FunctionDefinitionAST* ast, ir::FunctionRef func,
                            SourceLocation loc);
 
+  ir::DebugEmitter* debugEmitter_ = nullptr;
+  ir::DebugScopeRef debugCompileUnit_;
+  std::unordered_map<const Type*, ir::DebugTypeRef> debugTypeCache_;
+  std::unordered_map<Symbol*, ir::DebugScopeRef> debugScopes_;
   ir::Emitter& emitter_;
   ir::FunctionRef function_;
   TranslationUnit* unit_ = nullptr;

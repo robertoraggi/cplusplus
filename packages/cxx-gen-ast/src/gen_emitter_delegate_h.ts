@@ -102,6 +102,14 @@ function body(method: ProtocolMethod): string {
   return `return ${decode(method.result, call)};`;
 }
 
+function delegateMethods(methods: readonly ProtocolMethod[]): string[] {
+  const lines: string[] = [];
+  for (const method of methods) {
+    lines.push(`  ${signature(method)} {`, `    ${body(method)}`, `  }`, "");
+  }
+  return lines;
+}
+
 export function gen_emitter_delegate_h({
   model,
   output,
@@ -120,6 +128,7 @@ export function gen_emitter_delegate_h({
   emit(`#include <cxx/codegen/emitter.h>`);
   emit();
   emit(`#include "emitter_marshal.h"`);
+  emit(`#include <memory>`);
   emit();
   emit(`namespace cxx::js {`);
   emit();
@@ -158,29 +167,33 @@ export function gen_emitter_delegate_h({
     emit();
   }
 
-  emit(`class JsEmitter final : public ir::Emitter {`);
+  emit(`class JsDebugEmitter final : public ir::DebugEmitter {`);
   emit(` public:`);
   emit(
-    `  explicit JsEmitter(val delegate) : delegate_(std::move(delegate)) {}`,
+    `  explicit JsDebugEmitter(val delegate) : delegate_(std::move(delegate)) {}`,
   );
   emit();
+  for (const line of delegateMethods(protocol.debugMethods)) emit(line);
+  emit(` private:`);
+  emit(`  val delegate_;`);
+  emit(`};`);
+  emit();
 
-  for (const entry of protocol.undelegated) {
-    emit(`  auto ${entry.name}() -> ${entry.cppResult} override {`);
-    emit(`    ${entry.cppBody}`);
-    emit(`  }`);
-    emit();
-  }
-
-  for (const method of protocol.methods) {
-    emit(`  ${signature(method)} {`);
-    emit(`    ${body(method)}`);
-    emit(`  }`);
-    emit();
-  }
+  emit(`class JsEmitter final : public ir::Emitter {`);
+  emit(` public:`);
+  emit(`  explicit JsEmitter(val delegate) : delegate_(std::move(delegate)) {`);
+  emit(`    auto debug = delegate_["debug"];`);
+  emit(`    if (!debug.isUndefined() && !debug.isNull())`);
+  emit(`      debug_ = std::make_unique<JsDebugEmitter>(std::move(debug));`);
+  emit(`  }`);
+  emit();
+  emit(`  auto debug() -> ir::DebugEmitter* override { return debug_.get(); }`);
+  emit();
+  for (const line of delegateMethods(protocol.methods)) emit(line);
 
   emit(` private:`);
   emit(`  val delegate_;`);
+  emit(`  std::unique_ptr<JsDebugEmitter> debug_;`);
   emit(`};`);
   emit();
   emit(`}  // namespace cxx::js`);

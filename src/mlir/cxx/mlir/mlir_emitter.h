@@ -72,7 +72,7 @@ class MlirEmitter final : public Emitter {
       -> ValueRef override;
 
   void switchBranch(SourceLocation loc, ValueRef flag, BlockRef defaultDest,
-                    std::span<const std::int64_t> caseValues,
+                    std::span<const ConstInt> caseValues,
                     std::span<const BlockRef> caseDestinations) override;
 
   void defineLabel(SourceLocation loc, std::string_view name,

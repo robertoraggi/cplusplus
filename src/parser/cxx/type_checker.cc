@@ -6894,7 +6894,6 @@ void TypeChecker::CheckMemInitializers::completeResolvedConstructorCall(
 
 void TypeChecker::CheckMemInitializers::requireMemInitializerDefinitions() {
   for (auto memInit : ListView{ast->memInitializerList}) {
-    check.requireFunctionDefinition(memInit->constructor);
     ASTRewriter::requireDefinitionsNamedBy(unit, memInit);
   }
 }

@@ -833,8 +833,7 @@ void Frontend::Private::emitCxxIR() {
 
   mlir::OpPrintingFlags flags;
   if (cli.opt_g) {
-    auto prettyForm = true;
-    flags.enableDebugInfo(true, prettyForm);
+    flags.enableDebugInfo(true);
   }
 
   withRawOutputStream(
@@ -872,8 +871,7 @@ void Frontend::Private::emitMLIR() {
 
   mlir::OpPrintingFlags flags;
   if (cli.opt_g) {
-    auto prettyForm = true;
-    flags.enableDebugInfo(true, prettyForm);
+    flags.enableDebugInfo(true);
   }
 
   withRawOutputStream(

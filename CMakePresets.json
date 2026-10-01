@@ -203,13 +203,13 @@
     {
       "name": "stage1-macos",
       "configurePreset": "stage1-macos",
-      "targets": ["cxx"],
+      "targets": ["cxx", "link_cxx_include", "link_wasi_sysroot"],
       "cleanFirst": true
     },
     {
       "name": "stage2-macos",
       "configurePreset": "stage2-macos",
-      "targets": ["cxx"],
+      "targets": ["cxx", "link_cxx_include", "link_wasi_sysroot"],
       "cleanFirst": true
     }
   ],

@@ -161,7 +161,7 @@ struct WrappedUnit {
 
     cxx::js::JsEmitter emitter{delegate};
 
-    cxx::Codegen codegen(emitter, unit.get(), {.debugInfo = false});
+    cxx::Codegen codegen(emitter, unit.get(), {.debugInfo = debugInfo});
 
     (void)codegen(unit->ast());
   }
