@@ -21,6 +21,8 @@
 
 export type BlockRef = number;
 export type CleanupRegionRef = number;
+export type DebugScopeRef = number;
+export type DebugTypeRef = number;
 export type FunctionRef = number;
 export type GlobalRef = number;
 export type InsertionPointRef = number;
@@ -139,6 +141,28 @@ export type Visibility = "Default" | "Hidden" | "Protected";
 
 export type InlineKind = "NoInline" | "InlineHint";
 
+export type DebugEncoding =
+  | "Unspecified"
+  | "Boolean"
+  | "Signed"
+  | "Unsigned"
+  | "Utf"
+  | "Float"
+  | "ComplexFloat";
+
+export type DebugDerivedKind =
+  | "Pointer"
+  | "Reference"
+  | "RvalueReference"
+  | "Const"
+  | "Volatile"
+  | "Atomic"
+  | "MemberPointer"
+  | "Inheritance"
+  | "Member";
+
+export type DebugCompositeKind = "Structure" | "Union" | "Enumeration";
+
 export interface InsertionPoint {
   kind: InsertionPointKind;
   block: BlockRef;
@@ -240,7 +264,91 @@ export interface GlobalInfo {
   isUsed: boolean;
 }
 
+export interface DebugCompileUnitInfo {
+  file: string;
+  directory: string;
+  isCxx: boolean;
+}
+
+export interface DebugLocation {
+  file: string;
+  line: number;
+  column: number;
+}
+
+export interface DebugBasicTypeInfo {
+  name: string;
+  sizeInBits: number;
+  encoding: DebugEncoding;
+}
+
+export interface DebugDerivedTypeInfo {
+  kind: DebugDerivedKind;
+  baseType: DebugTypeRef;
+  sizeInBits: number;
+  alignInBits: number;
+  offsetInBits: number;
+  name: string;
+  classType: DebugTypeRef;
+}
+
+export interface DebugCompositeTypeInfo {
+  kind: DebugCompositeKind;
+  name: string;
+  location: DebugLocation;
+  scope: DebugScopeRef;
+  baseType: DebugTypeRef;
+  sizeInBits: number;
+  alignInBits: number;
+  elements: readonly DebugTypeRef[];
+  isScopedEnum: boolean;
+}
+
+export interface DebugArrayTypeInfo {
+  elementType: DebugTypeRef;
+  count: number;
+  countBitWidth: number;
+  sizeInBits: number;
+  alignInBits: number;
+}
+
+export interface DebugFunctionInfo {
+  name: string;
+  scope: DebugScopeRef;
+  type: DebugTypeRef;
+  location: DebugLocation;
+  scopeLine: number;
+}
+
+export interface DebugVariableInfo {
+  name: string;
+  scope: DebugScopeRef;
+  type: DebugTypeRef;
+  location: DebugLocation;
+  argument: number;
+  isObjectParameter: boolean;
+}
+
+export interface DebugEmitterDelegate {
+  compileUnit(info: DebugCompileUnitInfo): DebugScopeRef;
+  fileScope(file: string): DebugScopeRef;
+  lexicalBlock(parent: DebugScopeRef, location: DebugLocation): DebugScopeRef;
+  typeScope(type: DebugTypeRef): DebugScopeRef;
+  basicType(info: DebugBasicTypeInfo): DebugTypeRef;
+  derivedType(info: DebugDerivedTypeInfo): DebugTypeRef;
+  compositeType(info: DebugCompositeTypeInfo): DebugTypeRef;
+  arrayType(info: DebugArrayTypeInfo): DebugTypeRef;
+  subroutineType(types: readonly DebugTypeRef[]): DebugTypeRef;
+  defineFunction(
+    function_: FunctionRef,
+    loc: TokenIndex,
+    info: DebugFunctionInfo,
+  ): DebugScopeRef;
+  localVariable(address: ValueRef, info: DebugVariableInfo): void;
+}
+
 export interface EmitterDelegate {
+  readonly debug?: DebugEmitterDelegate;
   saveInsertionPoint(): InsertionPointRef;
   restoreInsertionPoint(point: InsertionPointRef): void;
   setInsertionPoint(point: InsertionPoint): void;
@@ -272,7 +380,7 @@ export interface EmitterDelegate {
     loc: TokenIndex,
     flag: ValueRef,
     defaultDest: BlockRef,
-    caseValues: readonly number[],
+    caseValues: readonly bigint[],
     caseDestinations: readonly BlockRef[],
   ): void;
   defineLabel(loc: TokenIndex, name: string, cleanupDepth: number): void;

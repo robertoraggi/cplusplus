@@ -35,6 +35,28 @@ Options:
 ...
 ```
 
+## Inspect and transform MLIR
+
+After an MLIR-enabled build, use cxx and cxx-mlir-opt to inspect and transform MLIR, for example:
+
+Convert the C++ code to MLIR and lift control flow to structured control flow.
+
+```sh
+echo 'int f(int n) { return n < 10 ? 123 : 321; }' |
+    ./build/src/frontend/cxx -emit-ir -xc++ -std=c++26 - |
+    ./build/src/mlir/opt/cxx-mlir-opt --cxx-lift-cf-to-scf
+```
+
+Compile to MLIR, lift control flow to structured control flow, convert back to control flow, and lower to LLVM IR:
+
+```sh
+echo 'int f(int n) { return n < 10 ? 123 : 321; }' |
+    ./build/src/frontend/cxx -emit-ir -xc++ -std=c++26 - |
+    ./build/src/mlir/opt/cxx-mlir-opt --cxx-lift-cf-to-scf |
+    ./build/src/mlir/opt/cxx-mlir-opt --convert-scf-to-cf --cxx-to-llvm |
+    mlir-translate --mlir-to-llvmir
+```
+
 ## Stage 2 bootstrap (on macOS)
 
 ```bash

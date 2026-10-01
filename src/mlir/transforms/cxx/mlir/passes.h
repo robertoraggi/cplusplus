@@ -20,24 +20,19 @@
 
 #pragma once
 
-#include <cxx/mlir/passes.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/Passes/OptimizationLevel.h>
-#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Pass/Pass.h>
 
-namespace llvm {
-class TargetMachine;
-}
+#include <memory>
 
 namespace cxx {
 
-[[nodiscard]] auto lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult;
+[[nodiscard]] auto createLowerToLLVMPass() -> std::unique_ptr<mlir::Pass>;
 
-[[nodiscard]] auto exportToLLVMIR(mlir::ModuleOp module,
-                                  llvm::LLVMContext& context)
-    -> std::unique_ptr<llvm::Module>;
+void registerCxxToLLVMPass();
 
-void optimizeLLVMIR(llvm::Module& module, llvm::TargetMachine* targetMachine,
-                    llvm::OptimizationLevel level);
+[[nodiscard]] auto createLiftCxxControlFlowToSCFPass()
+    -> std::unique_ptr<mlir::Pass>;
+
+void registerLiftCxxControlFlowToSCFPass();
 
 }  // namespace cxx

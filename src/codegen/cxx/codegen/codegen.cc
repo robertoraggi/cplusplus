@@ -879,33 +879,6 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<ir::ValueRef> {
   return address;
 }
 
-void Codegen::attachDebugInfo(ir::ValueRef address, Symbol* symbol,
-                              std::string_view name, unsigned arg) {
-  if (debugInfo_ && function_)
-    if (auto debug = emitter_.debug())
-      debug->localVariable(address, symbol, name, arg);
-}
-
-void Codegen::attachDebugInfo(ir::ValueRef address, const Type* type,
-                              std::string_view name, unsigned arg) {
-  if (debugInfo_ && function_)
-    if (auto debug = emitter_.debug())
-      debug->objectParameter(address, type, currentFunctionSymbol_, name, arg);
-}
-
-void Codegen::buildSubprogramAttr(FunctionSymbol* symbol,
-                                  FunctionDefinitionAST* ast,
-                                  ir::FunctionRef function,
-                                  SourceLocation loc) {
-  auto declarator = getDeclaratorId(ast->declarator);
-  if (auto debug = emitter_.debug())
-    debug->defineFunction(
-        symbol, function, loc,
-        declarator ? declarator->firstSourceLocation() : SourceLocation{},
-        ast->functionBody ? ast->functionBody->firstSourceLocation()
-                          : SourceLocation{});
-}
-
 auto Codegen::newTemp(const Type* type, SourceLocation loc) -> ir::ValueRef {
   return emitter_.allocate(loc, emitter_.pointerType(convertType(type)),
                            getAlignment(type));

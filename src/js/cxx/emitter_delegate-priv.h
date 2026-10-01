@@ -23,6 +23,8 @@
 
 #include <cxx/codegen/emitter.h>
 
+#include <memory>
+
 #include "emitter_marshal.h"
 
 namespace cxx::js {
@@ -522,6 +524,103 @@ inline auto toEnum<cxx::ir::InlineKind>(const val& value)
   return cxx::ir::InlineKind{};
 }
 
+inline auto toVal(cxx::ir::DebugEncoding value) -> val {
+  switch (value) {
+    case cxx::ir::DebugEncoding::Unspecified:
+      return val("Unspecified");
+    case cxx::ir::DebugEncoding::Boolean:
+      return val("Boolean");
+    case cxx::ir::DebugEncoding::Signed:
+      return val("Signed");
+    case cxx::ir::DebugEncoding::Unsigned:
+      return val("Unsigned");
+    case cxx::ir::DebugEncoding::Utf:
+      return val("Utf");
+    case cxx::ir::DebugEncoding::Float:
+      return val("Float");
+    case cxx::ir::DebugEncoding::ComplexFloat:
+      return val("ComplexFloat");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::DebugEncoding>(const val& value)
+    -> cxx::ir::DebugEncoding {
+  const auto name = toString(value);
+  if (name == "Unspecified") return cxx::ir::DebugEncoding::Unspecified;
+  if (name == "Boolean") return cxx::ir::DebugEncoding::Boolean;
+  if (name == "Signed") return cxx::ir::DebugEncoding::Signed;
+  if (name == "Unsigned") return cxx::ir::DebugEncoding::Unsigned;
+  if (name == "Utf") return cxx::ir::DebugEncoding::Utf;
+  if (name == "Float") return cxx::ir::DebugEncoding::Float;
+  if (name == "ComplexFloat") return cxx::ir::DebugEncoding::ComplexFloat;
+  return cxx::ir::DebugEncoding{};
+}
+
+inline auto toVal(cxx::ir::DebugDerivedKind value) -> val {
+  switch (value) {
+    case cxx::ir::DebugDerivedKind::Pointer:
+      return val("Pointer");
+    case cxx::ir::DebugDerivedKind::Reference:
+      return val("Reference");
+    case cxx::ir::DebugDerivedKind::RvalueReference:
+      return val("RvalueReference");
+    case cxx::ir::DebugDerivedKind::Const:
+      return val("Const");
+    case cxx::ir::DebugDerivedKind::Volatile:
+      return val("Volatile");
+    case cxx::ir::DebugDerivedKind::Atomic:
+      return val("Atomic");
+    case cxx::ir::DebugDerivedKind::MemberPointer:
+      return val("MemberPointer");
+    case cxx::ir::DebugDerivedKind::Inheritance:
+      return val("Inheritance");
+    case cxx::ir::DebugDerivedKind::Member:
+      return val("Member");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::DebugDerivedKind>(const val& value)
+    -> cxx::ir::DebugDerivedKind {
+  const auto name = toString(value);
+  if (name == "Pointer") return cxx::ir::DebugDerivedKind::Pointer;
+  if (name == "Reference") return cxx::ir::DebugDerivedKind::Reference;
+  if (name == "RvalueReference")
+    return cxx::ir::DebugDerivedKind::RvalueReference;
+  if (name == "Const") return cxx::ir::DebugDerivedKind::Const;
+  if (name == "Volatile") return cxx::ir::DebugDerivedKind::Volatile;
+  if (name == "Atomic") return cxx::ir::DebugDerivedKind::Atomic;
+  if (name == "MemberPointer") return cxx::ir::DebugDerivedKind::MemberPointer;
+  if (name == "Inheritance") return cxx::ir::DebugDerivedKind::Inheritance;
+  if (name == "Member") return cxx::ir::DebugDerivedKind::Member;
+  return cxx::ir::DebugDerivedKind{};
+}
+
+inline auto toVal(cxx::ir::DebugCompositeKind value) -> val {
+  switch (value) {
+    case cxx::ir::DebugCompositeKind::Structure:
+      return val("Structure");
+    case cxx::ir::DebugCompositeKind::Union:
+      return val("Union");
+    case cxx::ir::DebugCompositeKind::Enumeration:
+      return val("Enumeration");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::DebugCompositeKind>(const val& value)
+    -> cxx::ir::DebugCompositeKind {
+  const auto name = toString(value);
+  if (name == "Structure") return cxx::ir::DebugCompositeKind::Structure;
+  if (name == "Union") return cxx::ir::DebugCompositeKind::Union;
+  if (name == "Enumeration") return cxx::ir::DebugCompositeKind::Enumeration;
+  return cxx::ir::DebugCompositeKind{};
+}
+
 auto toVal(const cxx::ir::InsertionPoint& value) -> val;
 auto toVal(const cxx::ir::Initializer& value) -> val;
 auto toVal(const cxx::ir::VTableInfo& value) -> val;
@@ -535,6 +634,14 @@ auto toVal(const cxx::ir::CallInfo& value) -> val;
 auto toVal(const cxx::ir::ParameterAbi& value) -> val;
 auto toVal(const cxx::ir::FunctionInfo& value) -> val;
 auto toVal(const cxx::ir::GlobalInfo& value) -> val;
+auto toVal(const cxx::ir::DebugCompileUnitInfo& value) -> val;
+auto toVal(const cxx::ir::DebugLocation& value) -> val;
+auto toVal(const cxx::ir::DebugBasicTypeInfo& value) -> val;
+auto toVal(const cxx::ir::DebugDerivedTypeInfo& value) -> val;
+auto toVal(const cxx::ir::DebugCompositeTypeInfo& value) -> val;
+auto toVal(const cxx::ir::DebugArrayTypeInfo& value) -> val;
+auto toVal(const cxx::ir::DebugFunctionInfo& value) -> val;
+auto toVal(const cxx::ir::DebugVariableInfo& value) -> val;
 
 inline auto toVal(const cxx::ir::InsertionPoint& value) -> val {
   auto result = val::object();
@@ -690,11 +797,176 @@ inline auto toVal(const cxx::ir::GlobalInfo& value) -> val {
   return result;
 }
 
+inline auto toVal(const cxx::ir::DebugCompileUnitInfo& value) -> val {
+  auto result = val::object();
+  result.set("file", toVal(value.file));
+  result.set("directory", toVal(value.directory));
+  result.set("isCxx", toVal(value.isCxx));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::DebugLocation& value) -> val {
+  auto result = val::object();
+  result.set("file", toVal(value.file));
+  result.set("line", toVal(value.line));
+  result.set("column", toVal(value.column));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::DebugBasicTypeInfo& value) -> val {
+  auto result = val::object();
+  result.set("name", toVal(value.name));
+  result.set("sizeInBits", toVal(value.sizeInBits));
+  result.set("encoding", toVal(value.encoding));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::DebugDerivedTypeInfo& value) -> val {
+  auto result = val::object();
+  result.set("kind", toVal(value.kind));
+  result.set("baseType", toVal(value.baseType));
+  result.set("sizeInBits", toVal(value.sizeInBits));
+  result.set("alignInBits", toVal(value.alignInBits));
+  result.set("offsetInBits", toVal(value.offsetInBits));
+  result.set("name", toVal(value.name));
+  result.set("classType", toVal(value.classType));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::DebugCompositeTypeInfo& value) -> val {
+  auto result = val::object();
+  result.set("kind", toVal(value.kind));
+  result.set("name", toVal(value.name));
+  result.set("location", toVal(value.location));
+  result.set("scope", toVal(value.scope));
+  result.set("baseType", toVal(value.baseType));
+  result.set("sizeInBits", toVal(value.sizeInBits));
+  result.set("alignInBits", toVal(value.alignInBits));
+  result.set("elements",
+             arrayVal(value.elements, [](const cxx::ir::DebugTypeRef& item) {
+               return toVal(item);
+             }));
+  result.set("isScopedEnum", toVal(value.isScopedEnum));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::DebugArrayTypeInfo& value) -> val {
+  auto result = val::object();
+  result.set("elementType", toVal(value.elementType));
+  result.set("count", toVal(value.count));
+  result.set("countBitWidth", toVal(value.countBitWidth));
+  result.set("sizeInBits", toVal(value.sizeInBits));
+  result.set("alignInBits", toVal(value.alignInBits));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::DebugFunctionInfo& value) -> val {
+  auto result = val::object();
+  result.set("name", toVal(value.name));
+  result.set("scope", toVal(value.scope));
+  result.set("type", toVal(value.type));
+  result.set("location", toVal(value.location));
+  result.set("scopeLine", toVal(value.scopeLine));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::DebugVariableInfo& value) -> val {
+  auto result = val::object();
+  result.set("name", toVal(value.name));
+  result.set("scope", toVal(value.scope));
+  result.set("type", toVal(value.type));
+  result.set("location", toVal(value.location));
+  result.set("argument", toVal(value.argument));
+  result.set("isObjectParameter", toVal(value.isObjectParameter));
+  return result;
+}
+
+class JsDebugEmitter final : public ir::DebugEmitter {
+ public:
+  explicit JsDebugEmitter(val delegate) : delegate_(std::move(delegate)) {}
+
+  auto compileUnit(const cxx::ir::DebugCompileUnitInfo& info)
+      -> cxx::ir::DebugScopeRef override {
+    return toHandle<cxx::ir::DebugScopeTag>(
+        delegate_.call<val>("compileUnit", toVal(info)));
+  }
+
+  auto fileScope(std::string_view file) -> cxx::ir::DebugScopeRef override {
+    return toHandle<cxx::ir::DebugScopeTag>(
+        delegate_.call<val>("fileScope", toVal(file)));
+  }
+
+  auto lexicalBlock(cxx::ir::DebugScopeRef parent,
+                    cxx::ir::DebugLocation location)
+      -> cxx::ir::DebugScopeRef override {
+    return toHandle<cxx::ir::DebugScopeTag>(
+        delegate_.call<val>("lexicalBlock", toVal(parent), toVal(location)));
+  }
+
+  auto typeScope(cxx::ir::DebugTypeRef type)
+      -> cxx::ir::DebugScopeRef override {
+    return toHandle<cxx::ir::DebugScopeTag>(
+        delegate_.call<val>("typeScope", toVal(type)));
+  }
+
+  auto basicType(const cxx::ir::DebugBasicTypeInfo& info)
+      -> cxx::ir::DebugTypeRef override {
+    return toHandle<cxx::ir::DebugTypeTag>(
+        delegate_.call<val>("basicType", toVal(info)));
+  }
+
+  auto derivedType(const cxx::ir::DebugDerivedTypeInfo& info)
+      -> cxx::ir::DebugTypeRef override {
+    return toHandle<cxx::ir::DebugTypeTag>(
+        delegate_.call<val>("derivedType", toVal(info)));
+  }
+
+  auto compositeType(const cxx::ir::DebugCompositeTypeInfo& info)
+      -> cxx::ir::DebugTypeRef override {
+    return toHandle<cxx::ir::DebugTypeTag>(
+        delegate_.call<val>("compositeType", toVal(info)));
+  }
+
+  auto arrayType(const cxx::ir::DebugArrayTypeInfo& info)
+      -> cxx::ir::DebugTypeRef override {
+    return toHandle<cxx::ir::DebugTypeTag>(
+        delegate_.call<val>("arrayType", toVal(info)));
+  }
+
+  auto subroutineType(std::span<const cxx::ir::DebugTypeRef> types)
+      -> cxx::ir::DebugTypeRef override {
+    return toHandle<cxx::ir::DebugTypeTag>(delegate_.call<val>(
+        "subroutineType",
+        arrayVal(types, [](const cxx::ir::DebugTypeRef& item) {
+          return toVal(item);
+        })));
+  }
+
+  auto defineFunction(cxx::ir::FunctionRef function, cxx::SourceLocation loc,
+                      const cxx::ir::DebugFunctionInfo& info)
+      -> cxx::ir::DebugScopeRef override {
+    return toHandle<cxx::ir::DebugScopeTag>(delegate_.call<val>(
+        "defineFunction", toVal(function), toVal(loc), toVal(info)));
+  }
+
+  void localVariable(cxx::ir::ValueRef address,
+                     const cxx::ir::DebugVariableInfo& info) override {
+    delegate_.call<val>("localVariable", toVal(address), toVal(info));
+  }
+
+ private:
+  val delegate_;
+};
+
 class JsEmitter final : public ir::Emitter {
  public:
-  explicit JsEmitter(val delegate) : delegate_(std::move(delegate)) {}
+  explicit JsEmitter(val delegate) : delegate_(std::move(delegate)) {
+    auto debug = delegate_["debug"];
+    if (!debug.isUndefined() && !debug.isNull())
+      debug_ = std::make_unique<JsDebugEmitter>(std::move(debug));
+  }
 
-  auto debug() -> cxx::ir::DebugEmitter* override { return nullptr; }
+  auto debug() -> ir::DebugEmitter* override { return debug_.get(); }
 
   auto saveInsertionPoint() -> cxx::ir::InsertionPointRef override {
     return toHandle<cxx::ir::InsertionPointTag>(
@@ -787,11 +1059,12 @@ class JsEmitter final : public ir::Emitter {
 
   void switchBranch(
       cxx::SourceLocation loc, cxx::ir::ValueRef flag,
-      cxx::ir::BlockRef defaultDest, std::span<const long long> caseValues,
+      cxx::ir::BlockRef defaultDest, std::span<const cxx::ConstInt> caseValues,
       std::span<const cxx::ir::BlockRef> caseDestinations) override {
     delegate_.call<val>(
         "switchBranch", toVal(loc), toVal(flag), toVal(defaultDest),
-        arrayVal(caseValues, [](const long long& item) { return toVal(item); }),
+        arrayVal(caseValues,
+                 [](const cxx::ConstInt& item) { return toVal(item); }),
         arrayVal(caseDestinations,
                  [](const cxx::ir::BlockRef& item) { return toVal(item); }));
   }
@@ -1157,6 +1430,7 @@ class JsEmitter final : public ir::Emitter {
 
  private:
   val delegate_;
+  std::unique_ptr<JsDebugEmitter> debug_;
 };
 
 }  // namespace cxx::js

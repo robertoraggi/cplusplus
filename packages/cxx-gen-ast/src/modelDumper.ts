@@ -37,7 +37,7 @@ import type {
 
 const MODELLED_DIRECTORIES = ["src/parser/cxx/", "src/codegen/cxx/"];
 
-function isModelled(location: Location | undefined): boolean {
+function isModelled(location: Location | undefined): location is Location {
   if (!location) return false;
   return MODELLED_DIRECTORIES.some((directory) =>
     location.file.includes(directory),

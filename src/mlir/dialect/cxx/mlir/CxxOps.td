@@ -32,6 +32,7 @@ def Cxx_Dialect : Dialect {
   let name = "cxx";
   let cppNamespace = "mlir::cxx";
   let useDefaultTypePrinterParser = 1;
+  let useDefaultAttributePrinterParser = 1;
   let dependentDialects = ["mlir::arith::ArithDialect", "mlir::cf::ControlFlowDialect", "mlir::DLTIDialect", "mlir::LLVM::LLVMDialect", "mlir::vector::VectorDialect"];
 }
 
@@ -47,14 +48,22 @@ class Cxx_Op<string mnemonic, list<Trait> traits = []>
 class Cxx_I32EnumAttr<string name, string summary, list<I32EnumAttrCase> cases>
     : I32EnumAttr<name, summary, cases> {
   let cppNamespace = "mlir::cxx";
+  let genSpecializedAttr = 0;
 }
 
-def Cxx_InlineKind : Cxx_I32EnumAttr<"InlineKind", "inlineKind", [
+class Cxx_EnumAttr<EnumInfo info, string mnemonic>
+    : EnumAttr<Cxx_Dialect, info, mnemonic> {
+  let assemblyFormat = "`<` $value `>`";
+}
+
+def Cxx_InlineKindEnum : Cxx_I32EnumAttr<"InlineKind", "inlineKind", [
   I32EnumAttrCase<"NoInline", 0, "no_inline">,
   I32EnumAttrCase<"InlineHint", 1, "inline">
 ]>;
 
-def Cxx_LinkageKind : Cxx_I32EnumAttr<"LinkageKind", "linkageKind", [
+def Cxx_InlineKind : Cxx_EnumAttr<Cxx_InlineKindEnum, "inline_kind">;
+
+def Cxx_LinkageKindEnum : Cxx_I32EnumAttr<"LinkageKind", "linkageKind", [
   I32EnumAttrCase<"External", 0, "external">,
   I32EnumAttrCase<"Internal", 1, "internal">,
   I32EnumAttrCase<"LinkOnceODR", 2, "linkonce_odr">,
@@ -65,11 +74,15 @@ def Cxx_LinkageKind : Cxx_I32EnumAttr<"LinkageKind", "linkageKind", [
   I32EnumAttrCase<"ExternalWeak", 7, "extern_weak">
 ]>;
 
-def Cxx_Visibility : Cxx_I32EnumAttr<"Visibility", "visibility", [
+def Cxx_LinkageKind : Cxx_EnumAttr<Cxx_LinkageKindEnum, "linkage_kind">;
+
+def Cxx_VisibilityEnum : Cxx_I32EnumAttr<"Visibility", "visibility", [
   I32EnumAttrCase<"Default", 0, "default">,
   I32EnumAttrCase<"Hidden", 1, "hidden">,
   I32EnumAttrCase<"Protected", 2, "protected">
 ]>;
+
+def Cxx_Visibility : Cxx_EnumAttr<Cxx_VisibilityEnum, "visibility">;
 
 // types
 
@@ -80,13 +93,13 @@ def Cxx_VoidType : Cxx_Type<"Void", "void">;
 def Cxx_PointerType : Cxx_Type<"Pointer", "ptr"> {
   let parameters = (ins "Type":$elementType);
 
-  let assemblyFormat = "`<` $elementType `>`";
+  let hasCustomAssemblyFormat = 1;
 }
 
 def Cxx_ArrayType : Cxx_Type<"Array", "array"> {
   let parameters = (ins "Type":$elementType, "unsigned":$size);
 
-  let assemblyFormat = "`<` $elementType `,` $size `>`";
+  let hasCustomAssemblyFormat = 1;
 }
 
 def Cxx_ClassType : Cxx_Type<"Class", "class", [MutableType]> {
@@ -117,7 +130,7 @@ def Cxx_FunctionType : Cxx_Type<"Function", "function"> {
     , "bool":$variadic
   );
 
-  let assemblyFormat = "`<` $inputs `,` $results `,` $variadic `>`";
+  let hasCustomAssemblyFormat = 1;
 
   let extraClassDeclaration = [{
     auto clone(mlir::TypeRange inputs, mlir::TypeRange results) const -> FunctionType;

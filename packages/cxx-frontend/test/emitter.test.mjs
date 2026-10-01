@@ -9,14 +9,16 @@ const wasm = await readFile(
 
 await loadCxx({ wasm });
 
-async function trace(source, { path = "trace.cc" } = {}) {
-  const parser = await Parser.parse({ path, source });
+async function trace(
+  source,
+  { path = "trace.cc", debugInfo = true, emitter = new TraceEmitter() } = {},
+) {
+  const parser = await Parser.parse({ path, source, debugInfo });
   try {
     const errors = parser.diagnostics.filter(
       (d) => d.severity === "error" || d.severity === "fatal",
     );
     assert.deepEqual(errors, [], "the source must compile cleanly");
-    const emitter = new TraceEmitter();
     parser.emitWith(emitter);
     return emitter.trace;
   } finally {
@@ -218,4 +220,158 @@ test("nothing is emitted for a translation unit with errors", async () => {
   } finally {
     parser.dispose();
   }
+});
+
+test("debug metadata crosses the WASM boundary as typed objects and handles", async () => {
+  const emitter = new TraceEmitter();
+  const text = await trace(
+    `
+struct Node {
+  Node* next;
+  const volatile int* value;
+  int data[3];
+  int method(int arg) { return data[0] + arg; }
+};
+enum class Choice : unsigned { one, two };
+int inspect(Node* node, Choice choice, int Node::* member) {
+  int result = node->method(2);
+  { int nested = node->data[1]; result += nested; }
+  return result + (choice == Choice::one) + node->*member;
+}
+`,
+    { path: "debug.cc", emitter },
+  );
+  checkWellFormed(text);
+  const types = [...emitter.debug.types.values()];
+  const scopes = [...emitter.debug.scopes.values()];
+  const variables = [...emitter.debug.variables.values()];
+  const unit = scopes.find((record) => record.kind === "CompileUnit");
+  assert.deepEqual(unit.info, { file: "debug.cc", directory: "", isCxx: true });
+  const node = types.find(
+    (record) =>
+      record.kind === "Composite" &&
+      record.info.name === "Node" &&
+      record.info.elements.length,
+  );
+  assert.equal(node.info.kind, "Structure");
+  assert.equal(node.info.sizeInBits, 160);
+  assert.equal(node.info.alignInBits, 32);
+  assert.deepEqual(node.info.location, {
+    file: "debug.cc",
+    line: 2,
+    column: 8,
+  });
+  const members = node.info.elements.map((ref) => emitter.debug.types.get(ref));
+  assert.deepEqual(
+    members.map((record) => record.info.name),
+    ["next", "value", "data"],
+  );
+  assert.deepEqual(
+    members.map((record) => record.info.offsetInBits),
+    [0, 32, 64],
+  );
+  const array = types.find((record) => record.kind === "Array");
+  assert.equal(array.info.count, 3);
+  assert.equal(array.info.countBitWidth, 32);
+  assert.equal(array.info.sizeInBits, 96);
+  assert.ok(
+    types.some(
+      (record) => record.kind === "Derived" && record.info.kind === "Const",
+    ),
+  );
+  assert.ok(
+    types.some(
+      (record) => record.kind === "Derived" && record.info.kind === "Volatile",
+    ),
+  );
+  const choice = types.find(
+    (record) => record.kind === "Composite" && record.info.name === "Choice",
+  );
+  assert.equal(choice.info.kind, "Enumeration");
+  assert.equal(choice.info.isScopedEnum, true);
+  const memberPointer = types.find(
+    (record) =>
+      record.kind === "Derived" && record.info.kind === "MemberPointer",
+  );
+  assert.equal(
+    emitter.debug.types.get(memberPointer.info.classType).info.name,
+    "Node",
+  );
+  const method = scopes.find(
+    (record) => record.kind === "Function" && record.info.name === "method",
+  );
+  assert.equal(emitter.debug.scopes.get(method.info.scope).kind, "Type");
+  assert.equal(emitter.debug.types.get(method.info.type).info.types.length, 3);
+  assert.ok(method.info.loc > 0);
+  const objectParameter = variables.find((info) => info.name === "this");
+  assert.equal(objectParameter.isObjectParameter, true);
+  assert.equal(objectParameter.argument, 1);
+  assert.equal(
+    emitter.debug.scopes.get(objectParameter.scope).info.name,
+    "method",
+  );
+  const arg = variables.find((info) => info.name === "arg");
+  assert.equal(arg.argument, 2);
+  const nested = variables.find((info) => info.name === "nested");
+  const block = emitter.debug.scopes.get(nested.scope);
+  assert.equal(block.kind, "Block");
+  assert.equal(block.info.location.line, 11);
+  assert.equal(
+    emitter.debug.scopes.get(block.info.parent).info.name,
+    "inspect",
+  );
+});
+
+test("debug emission respects the parser debugInfo option", async () => {
+  const emitter = new TraceEmitter();
+  const text = await trace("int f(int value) { return value; }", {
+    debugInfo: false,
+    emitter,
+  });
+  assert.equal(emitter.debug.types.size, 0);
+  assert.equal(emitter.debug.scopes.size, 0);
+  assert.equal(emitter.debug.variables.size, 0);
+  assert.doesNotMatch(text, /debug[.]/);
+});
+
+test("delegates can omit the optional debug emitter", async () => {
+  const emitter = new TraceEmitter();
+  const delegate = new Proxy(emitter, {
+    get(target, property) {
+      if (property === "debug") return undefined;
+      const value = Reflect.get(target, property, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  const text = await trace("int f(int value) { return value; }", {
+    emitter: delegate,
+  });
+  checkWellFormed(text);
+  assert.match(text, /func @_Z1fi/);
+  assert.equal(emitter.debug.scopes.size, 0);
+});
+
+test("switch constants cross the generated delegate boundary as exact bigint values", async () => {
+  class SwitchTrace extends TraceEmitter {
+    caseValues = [];
+    switchBranch(loc, flag, defaultDest, values, destinations) {
+      this.caseValues.push(...values);
+      super.switchBranch(loc, flag, defaultDest, values, destinations);
+    }
+  }
+  const emitter = new SwitchTrace();
+  const text = await trace(
+    `
+int classify(unsigned long long value) {
+  switch (value) {
+    case 9007199254740993ULL: return 1;
+    case 18446744073709551615ULL: return 2;
+    default: return 0;
+  }
+}
+`,
+    { emitter },
+  );
+  assert.deepEqual(emitter.caseValues, [9007199254740993n, -1n]);
+  assert.match(text, /9007199254740993: \^bb\d+/);
 });

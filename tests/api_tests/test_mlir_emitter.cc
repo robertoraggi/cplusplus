@@ -20,13 +20,20 @@
 
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/mlir_emitter.h>
-#include <gtest/gtest.h>
+
+// mlir
 #include <llvm/IR/DataLayout.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
+
+// gtest
+#undef GTEST_HAS_CXXABI_H_
+#define GTEST_HAS_CXXABI_H_ 0
+
+#include <gtest/gtest.h>
 
 namespace {
 

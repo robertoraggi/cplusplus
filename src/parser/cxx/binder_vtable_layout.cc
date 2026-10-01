@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
@@ -32,6 +33,7 @@
 #include <format>
 #include <optional>
 #include <ranges>
+#include <tuple>
 #include <vector>
 
 namespace cxx {
@@ -204,6 +206,12 @@ class SubobjectGraph {
   std::vector<std::size_t> preorder_;
 };
 
+[[nodiscard]] auto virtualFunctionDeclarationOrder(FunctionSymbol* function) {
+  auto declaration = function->canonical()->declaration();
+  const bool synthesized = declaration && !declaration->firstSourceLocation();
+  return std::tuple{synthesized, function->canonical()->location()};
+}
+
 [[nodiscard]] auto declaredVirtualFunctions(ClassSymbol* classSymbol)
     -> std::vector<FunctionSymbol*> {
   std::vector<FunctionSymbol*> functions;
@@ -214,6 +222,7 @@ class SubobjectGraph {
       functions.push_back(function);
     }
   }
+  std::ranges::stable_sort(functions, {}, virtualFunctionDeclarationOrder);
   return functions;
 }
 

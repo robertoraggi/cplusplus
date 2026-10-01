@@ -472,7 +472,7 @@ class Emitter {
 
   virtual void switchBranch(SourceLocation loc, ValueRef flag,
                             BlockRef defaultDest,
-                            std::span<const std::int64_t> caseValues,
+                            std::span<const ConstInt> caseValues,
                             std::span<const BlockRef> caseDestinations) = 0;
 
   virtual void defineLabel(SourceLocation loc, std::string_view name,

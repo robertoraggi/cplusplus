@@ -18,29 +18,29 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/control.h>
+#include <cxx/cxx_fwd.h>
 #include <cxx/mlir/mlir_debug_emitter.h>
 #include <cxx/mlir/mlir_emitter.h>
-#include <cxx/names.h>
-#include <cxx/symbols.h>
-#include <cxx/translation_unit.h>
-#include <cxx/types.h>
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/TargetParser/Triple.h>
 
+#include <array>
 #include <filesystem>
-#include <format>
+#include <limits>
 
 namespace cxx::ir {
-static auto targetNeedsAppleNameTable(mlir::ModuleOp module) -> bool {
+namespace {
+
+[[nodiscard]] static auto targetNeedsAppleNameTable(mlir::ModuleOp module)
+    -> bool {
   auto tripleAttr = module->getAttrOfType<mlir::StringAttr>("cxx.triple");
   if (!tripleAttr) return false;
   llvm::Triple triple(tripleAttr.getValue());
   return triple.isAppleMachO();
 }
 
-static auto debugFilePath(const std::string& filename,
-                          const std::string& compilationDirectory)
+[[nodiscard]] static auto debugFilePath(const std::string& filename,
+                                        const std::string& compilationDirectory)
     -> std::pair<std::string, std::string> {
   const auto filePath = std::filesystem::path{filename};
 
@@ -67,57 +67,7 @@ static auto debugFilePath(const std::string& filename,
   return {relativePath.string(), commonPrefix.string()};
 }
 
-MlirDebugEmitter::MlirDebugEmitter(MlirEmitter& emitter, TranslationUnit* unit)
-    : emitter_(emitter),
-      context_(emitter.context()),
-      builder_(emitter.builder()),
-      unit_(unit),
-      traits(unit) {}
-auto MlirDebugEmitter::control() const -> Control* { return unit_->control(); }
-
-auto MlirDebugEmitter::getOrCreateDIScope(Symbol* symbol)
-    -> mlir::LLVM::DIScopeAttr {
-  if (!symbol) return {};
-
-  if (auto it = diScopes_.find(symbol); it != diScopes_.end())
-    return it->second;
-
-  if (symbol_cast<FunctionParametersSymbol>(symbol))
-    return getOrCreateDIScope(symbol->parent());
-
-  if (auto block = symbol_cast<BlockSymbol>(symbol)) {
-    if (symbol_cast<FunctionParametersSymbol>(block->parent()) ||
-        symbol_cast<FunctionSymbol>(block->parent()))
-      return getOrCreateDIScope(block->parent());
-
-    auto parentScope = getOrCreateDIScope(block->parent());
-    if (!parentScope) return {};
-    auto [filename, line, column] =
-        unit_->tokenStartPosition(block->location());
-    auto fileAttr = getFileAttr(filename);
-    auto lexicalBlock = mlir::LLVM::DILexicalBlockAttr::get(
-        context_, parentScope, fileAttr, line, column);
-    diScopes_[symbol] = lexicalBlock;
-    return lexicalBlock;
-  }
-
-  if (auto func = symbol_cast<FunctionSymbol>(symbol)) {
-    if (auto it = funcOps_.find(func); it != funcOps_.end()) {
-      if (auto fusedLoc = mlir::dyn_cast<mlir::FusedLoc>(
-              emitter_.function(it->second).getLoc())) {
-        if (auto sp = mlir::dyn_cast_or_null<mlir::LLVM::DISubprogramAttr>(
-                fusedLoc.getMetadata())) {
-          diScopes_[symbol] = sp;
-          return sp;
-        }
-      }
-    }
-  }
-
-  return getFileAttrAt(symbol->location());
-}
-
-static auto subprogramOf(mlir::LLVM::DIScopeAttr scope)
+[[nodiscard]] static auto subprogramOf(mlir::LLVM::DIScopeAttr scope)
     -> mlir::LLVM::DISubprogramAttr {
   while (scope) {
     if (auto sp = mlir::dyn_cast<mlir::LLVM::DISubprogramAttr>(scope))
@@ -129,7 +79,7 @@ static auto subprogramOf(mlir::LLVM::DIScopeAttr scope)
   return {};
 }
 
-static auto enclosingSubprogram(mlir::Operation* op)
+[[nodiscard]] static auto enclosingSubprogram(mlir::Operation* op)
     -> mlir::LLVM::DISubprogramAttr {
   for (; op; op = op->getParentOp()) {
     auto fused = mlir::dyn_cast<mlir::FusedLoc>(op->getLoc());
@@ -141,248 +91,266 @@ static auto enclosingSubprogram(mlir::Operation* op)
   return {};
 }
 
-static auto scopeForOperation(mlir::Operation* op,
-                              mlir::LLVM::DIScopeAttr declared)
+[[nodiscard]] static auto scopeForOperation(mlir::Operation* op,
+                                            mlir::LLVM::DIScopeAttr declared)
     -> mlir::LLVM::DIScopeAttr {
   auto enclosing = enclosingSubprogram(op);
   if (enclosing && subprogramOf(declared) != enclosing) return enclosing;
   return declared;
 }
 
-void MlirDebugEmitter::localVariable(ir::ValueRef address, Symbol* symbol,
-                                     std::string_view name, unsigned arg) {
-  auto definingOp = emitter_.value(address).getDefiningOp();
-  if (!definingOp) return;
-
-  auto scope =
-      scopeForOperation(definingOp, getOrCreateDIScope(symbol->parent()));
-  if (!scope) return;
-
-  auto ctx = context_;
-  auto nameAttr = mlir::StringAttr::get(
-      ctx, name.empty() ? to_string(symbol->name()) : name);
-  auto file = getFileAttrAt(symbol->location());
-  unsigned line = unit_->tokenStartPosition(symbol->location()).line;
-  auto typeAttr = convertDebugType(symbol->type());
-  if (!typeAttr)
-    cxx_runtime_error(
-        std::format("cannot describe the type '{}' of local variable '{}'",
-                    to_string(symbol->type()), nameAttr.getValue().str()));
-
-  auto localVar = mlir::LLVM::DILocalVariableAttr::get(
-      ctx, scope, nameAttr, file, line, arg, 0, typeAttr,
-      mlir::LLVM::DIFlags::Zero);
-
-  definingOp->setAttr("cxx.di_local", localVar);
+template <typename Tag, typename Attr>
+auto retain(std::vector<Attr>& values, Attr value) -> Handle<Tag> {
+  if (!value) return {};
+  if (values.size() >= std::numeric_limits<std::uint32_t>::max())
+    cxx_runtime_error("too many debug metadata nodes");
+  auto ref = HandleAccess::make<Tag>(static_cast<std::uint32_t>(values.size()));
+  values.push_back(value);
+  return ref;
 }
 
-void MlirDebugEmitter::objectParameter(ir::ValueRef address, const Type* type,
-                                       FunctionSymbol* currentFunctionSymbol_,
-                                       std::string_view name, unsigned arg) {
-  auto definingOp = emitter_.value(address).getDefiningOp();
-  if (!definingOp) return;
-
-  auto scope =
-      scopeForOperation(definingOp, getOrCreateDIScope(currentFunctionSymbol_));
-  if (!scope) return;
-
-  auto ctx = context_;
-  auto nameAttr = mlir::StringAttr::get(ctx, name);
-  auto typeAttr = convertDebugType(type);
-  if (!typeAttr)
-    cxx_runtime_error(std::format(
-        "cannot describe the type '{}' of the object parameter of '{}'",
-        to_string(type), to_string(currentFunctionSymbol_->name())));
-
-  mlir::LLVM::DIFileAttr file;
-  unsigned line = 0;
-  if (auto sp = mlir::dyn_cast<mlir::LLVM::DISubprogramAttr>(scope)) {
-    file = sp.getFile();
-    line = sp.getLine();
-  }
-
-  auto localVar = mlir::LLVM::DILocalVariableAttr::get(
-      ctx, scope, nameAttr, file, line, arg, 0, typeAttr,
-      mlir::LLVM::DIFlags::Artificial | mlir::LLVM::DIFlags::ObjectPointer);
-
-  definingOp->setAttr("cxx.di_local", localVar);
+[[nodiscard]] auto encoding(DebugEncoding value) -> unsigned {
+  constexpr std::array values{0u,
+                              unsigned(llvm::dwarf::DW_ATE_boolean),
+                              unsigned(llvm::dwarf::DW_ATE_signed),
+                              unsigned(llvm::dwarf::DW_ATE_unsigned),
+                              unsigned(llvm::dwarf::DW_ATE_UTF),
+                              unsigned(llvm::dwarf::DW_ATE_float),
+                              unsigned(llvm::dwarf::DW_ATE_complex_float)};
+  return values.at(static_cast<unsigned>(value));
 }
 
-auto MlirDebugEmitter::buildSubroutineTypeAttr(FunctionSymbol* functionSymbol)
-    -> mlir::LLVM::DISubroutineTypeAttr {
-  auto functionType = type_cast<FunctionType>(functionSymbol->type());
-
-  mlir::SmallVector<mlir::LLVM::DITypeAttr> signatureType;
-  signatureType.push_back(convertDebugType(functionType->returnType()));
-
-  if (functionSymbol->isImplicitObjectMemberFunction()) {
-    auto classType = type_cast<ClassType>(functionSymbol->parent()->type());
-    signatureType.push_back(convertDebugType(traits.add_pointer(classType)));
-  }
-
-  for (auto paramType : functionType->parameterTypes()) {
-    signatureType.push_back(convertDebugType(paramType));
-  }
-
-  return mlir::LLVM::DISubroutineTypeAttr::get(context_, signatureType);
+[[nodiscard]] auto derivedTag(DebugDerivedKind value) -> unsigned {
+  constexpr std::array values{
+      unsigned(llvm::dwarf::DW_TAG_pointer_type),
+      unsigned(llvm::dwarf::DW_TAG_reference_type),
+      unsigned(llvm::dwarf::DW_TAG_rvalue_reference_type),
+      unsigned(llvm::dwarf::DW_TAG_const_type),
+      unsigned(llvm::dwarf::DW_TAG_volatile_type),
+      unsigned(llvm::dwarf::DW_TAG_atomic_type),
+      unsigned(llvm::dwarf::DW_TAG_ptr_to_member_type),
+      unsigned(llvm::dwarf::DW_TAG_inheritance),
+      unsigned(llvm::dwarf::DW_TAG_member)};
+  return values.at(static_cast<unsigned>(value));
 }
 
-void MlirDebugEmitter::defineFunction(FunctionSymbol* functionSymbol,
-                                      ir::FunctionRef func, SourceLocation loc,
-                                      SourceLocation declaratorLoc,
-                                      SourceLocation bodyLoc) {
-  auto ctx = context_;
+[[nodiscard]] auto compositeTag(DebugCompositeKind value) -> unsigned {
+  constexpr std::array values{unsigned(llvm::dwarf::DW_TAG_structure_type),
+                              unsigned(llvm::dwarf::DW_TAG_union_type),
+                              unsigned(llvm::dwarf::DW_TAG_enumeration_type)};
+  return values.at(static_cast<unsigned>(value));
+}
 
-  mlir::DistinctAttr id = mlir::DistinctAttr::create(builder_.getUnitAttr());
+}  // namespace
 
-  mlir::LLVM::DIScopeAttr scope;
+MlirDebugEmitter::MlirDebugEmitter(MlirEmitter& emitter)
+    : emitter_(emitter),
+      context_(emitter.context()),
+      builder_(emitter.builder()) {}
 
-  if (functionSymbol->isImplicitObjectMemberFunction()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
-    scope = mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(
-        convertDebugType(classSymbol->type()));
-  }
+auto MlirDebugEmitter::type(DebugTypeRef ref) const -> mlir::LLVM::DITypeAttr {
+  return types_.at(HandleAccess::id(ref));
+}
 
-  auto symbolName = emitter_.functionName(func);
-  auto sourceName = to_string(functionSymbol->name());
+auto MlirDebugEmitter::scope(DebugScopeRef ref) const
+    -> mlir::LLVM::DIScopeAttr {
+  return scopes_.at(HandleAccess::id(ref));
+}
 
-  mlir::StringAttr name = mlir::StringAttr::get(
-      ctx, sourceName.empty() ? std::string{symbolName} : sourceName);
+auto MlirDebugEmitter::compileUnit(const DebugCompileUnitInfo& info)
+    -> DebugScopeRef {
+  compilationDirectory_ = info.directory;
+  auto distinct = mlir::DistinctAttr::create(builder_.getUnitAttr());
+  auto language =
+      info.isCxx ? llvm::dwarf::DW_LANG_C_plus_plus_20 : llvm::dwarf::DW_LANG_C;
+  auto nameTable = targetNeedsAppleNameTable(emitter_.module())
+                       ? mlir::LLVM::DINameTableKind::Apple
+                       : mlir::LLVM::DINameTableKind::Default;
+  compileUnitAttr_ = mlir::LLVM::DICompileUnitAttr::get(
+      distinct, language, getOrCreateFileAttr(info.file),
+      mlir::StringAttr::get(context_, "cxx"), false,
+      mlir::LLVM::DIEmissionKind::Full,
+#if LLVM_VERSION_MAJOR > 22
+      false,
+#endif
+      nameTable);
+  return retain<DebugScopeTag>(scopes_,
+                               mlir::LLVM::DIScopeAttr{compileUnitAttr_});
+}
+
+auto MlirDebugEmitter::fileScope(std::string_view file) -> DebugScopeRef {
+  return retain<DebugScopeTag>(scopes_,
+                               mlir::LLVM::DIScopeAttr{getFileAttr(file)});
+}
+
+auto MlirDebugEmitter::lexicalBlock(DebugScopeRef parent,
+                                    DebugLocation location) -> DebugScopeRef {
+  return retain<DebugScopeTag>(
+      scopes_, mlir::LLVM::DIScopeAttr{mlir::LLVM::DILexicalBlockAttr::get(
+                   context_, scope(parent), getFileAttr(location.file),
+                   location.line, location.column)});
+}
+
+auto MlirDebugEmitter::typeScope(DebugTypeRef ref) -> DebugScopeRef {
+  return retain<DebugScopeTag>(
+      scopes_, mlir::dyn_cast_or_null<mlir::LLVM::DIScopeAttr>(type(ref)));
+}
+
+auto MlirDebugEmitter::basicType(const DebugBasicTypeInfo& info)
+    -> DebugTypeRef {
+  auto tag = info.encoding == DebugEncoding::Unspecified
+                 ? llvm::dwarf::DW_TAG_unspecified_type
+                 : llvm::dwarf::DW_TAG_base_type;
+  return retain<DebugTypeTag>(
+      types_,
+      mlir::LLVM::DITypeAttr{mlir::LLVM::DIBasicTypeAttr::get(
+          context_, tag, info.name, info.sizeInBits, encoding(info.encoding))});
+}
+
+auto MlirDebugEmitter::derivedType(const DebugDerivedTypeInfo& info)
+    -> DebugTypeRef {
+  auto name = mlir::StringAttr::get(context_, info.name);
+  auto tag = derivedTag(info.kind);
+#if LLVM_VERSION_MAJOR < 23
+  auto attr = mlir::LLVM::DIDerivedTypeAttr::get(
+      context_, tag, name, type(info.baseType), info.sizeInBits,
+      info.alignInBits, info.offsetInBits, {}, type(info.classType));
+#else
+  auto attr = mlir::LLVM::DIDerivedTypeAttr::get(
+      context_, tag, name, {}, 0, {}, type(info.baseType), info.sizeInBits,
+      info.alignInBits, info.offsetInBits, std::nullopt, mlir::LLVM::DIFlags{},
+      type(info.classType));
+#endif
+  return retain<DebugTypeTag>(types_, mlir::LLVM::DITypeAttr{attr});
+}
+
+auto MlirDebugEmitter::compositeType(const DebugCompositeTypeInfo& info)
+    -> DebugTypeRef {
+  mlir::SmallVector<mlir::LLVM::DINodeAttr> elements;
+  for (auto element : info.elements) elements.push_back(type(element));
+  return retain<DebugTypeTag>(
+      types_,
+      compositeTypeAttr(compositeTag(info.kind), info.name, info.location,
+                        info.scope, info.baseType, info.sizeInBits,
+                        info.alignInBits, info.isScopedEnum, elements));
+}
+
+auto MlirDebugEmitter::arrayType(const DebugArrayTypeInfo& info)
+    -> DebugTypeRef {
+  auto count = mlir::IntegerAttr::get(
+      mlir::IntegerType::get(context_, info.countBitWidth), info.count);
+  mlir::SmallVector<mlir::LLVM::DINodeAttr> elements{
+      mlir::LLVM::DISubrangeAttr::get(context_, count, {}, {}, {})};
+  return retain<DebugTypeTag>(
+      types_, compositeTypeAttr(llvm::dwarf::DW_TAG_array_type, {}, {}, {},
+                                info.elementType, info.sizeInBits,
+                                info.alignInBits, false, elements));
+}
+
+auto MlirDebugEmitter::compositeTypeAttr(
+    unsigned tag, std::string_view name, DebugLocation location,
+    DebugScopeRef parent, DebugTypeRef baseType, std::uint64_t sizeInBits,
+    std::uint64_t alignInBits, bool scopedEnum,
+    llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements) -> mlir::LLVM::DITypeAttr {
+  auto file =
+      location.line ? getFileAttr(location.file) : mlir::LLVM::DIFileAttr{};
+  auto flags =
+      scopedEnum ? mlir::LLVM::DIFlags::EnumClass : mlir::LLVM::DIFlags::Zero;
+  return mlir::LLVM::DICompositeTypeAttr::get(
+      context_, tag, mlir::StringAttr::get(context_, name), file, location.line,
+      scope(parent), type(baseType), flags, sizeInBits, alignInBits,
+#if LLVM_VERSION_MAJOR < 22
+      elements, {}, {}, {}, {}
+#else
+      {}, {}, {}, {},
+#if LLVM_VERSION_MAJOR > 22
+      {}, {},
+#endif
+      elements
+#endif
+  );
+}
+
+auto MlirDebugEmitter::subroutineType(std::span<const DebugTypeRef> types)
+    -> DebugTypeRef {
+  mlir::SmallVector<mlir::LLVM::DITypeAttr> signature;
+  for (auto ref : types) signature.push_back(type(ref));
+  return retain<DebugTypeTag>(
+      types_, mlir::LLVM::DITypeAttr{
+                  mlir::LLVM::DISubroutineTypeAttr::get(context_, signature)});
+}
+
+auto MlirDebugEmitter::defineFunction(FunctionRef function, SourceLocation loc,
+                                      const DebugFunctionInfo& info)
+    -> DebugScopeRef {
+  auto symbolName = emitter_.functionName(function);
+  auto name = mlir::StringAttr::get(context_,
+                                    info.name.empty() ? symbolName : info.name);
   mlir::StringAttr linkageName;
   if (std::string_view{name.getValue()} != symbolName)
-    linkageName = mlir::StringAttr::get(ctx, symbolName);
-
-  funcOps_[functionSymbol] = func;
-
-  auto compileUnitAttr = getCompileUnitAttr();
-
-  mlir::LLVM::DIFileAttr fileAttr;
-  unsigned line = 0;
-  unsigned scopeLine = 0;
-
-  if (declaratorLoc) {
-    auto funcLoc = unit_->tokenStartPosition(declaratorLoc);
-    fileAttr = getFileAttr(funcLoc.fileName);
-    line = funcLoc.line;
-  }
-
-  {
-    if (bodyLoc) {
-      scopeLine = unit_->tokenStartPosition(bodyLoc).line;
-    }
-  }
-
-  if (!fileAttr) {
-    auto symbolLoc = functionSymbol->location();
-    fileAttr = getFileAttrAt(symbolLoc);
-    if (symbolLoc) {
-      line = unit_->tokenStartPosition(symbolLoc).line;
-      scopeLine = line;
-    }
-  }
-
-  if (!scope) scope = fileAttr;
-
-  auto subprogramFlags = mlir::LLVM::DISubprogramFlags::Definition;
-
-  if (emitter_.functionLinkage(func) == Linkage::Internal)
-    subprogramFlags =
-        subprogramFlags | mlir::LLVM::DISubprogramFlags::LocalToUnit;
-
-  auto type = buildSubroutineTypeAttr(functionSymbol);
-
+    linkageName = mlir::StringAttr::get(context_, symbolName);
+  auto file = getFileAttr(info.location.file);
+  auto parent = scope(info.scope);
+  if (!parent) parent = file;
+  auto flags = mlir::LLVM::DISubprogramFlags::Definition;
+  if (emitter_.functionLinkage(function) == Linkage::Internal)
+    flags = flags | mlir::LLVM::DISubprogramFlags::LocalToUnit;
 #if LLVM_VERSION_MAJOR < 23
   mlir::SmallVector<mlir::LLVM::DINodeAttr> retainedNodes;
 #else
   mlir::SmallVector<mlir::Attribute> retainedNodes;
 #endif
   mlir::SmallVector<mlir::LLVM::DINodeAttr> annotations;
-
   auto subprogram = mlir::LLVM::DISubprogramAttr::get(
-      ctx, id, compileUnitAttr, scope, name, linkageName, fileAttr, line,
-      scopeLine, subprogramFlags, type, retainedNodes, annotations);
-
-  emitter_.function(func)->setLoc(
-      mlir::FusedLoc::get({emitter_.getLocation(loc)}, subprogram, ctx));
-
-  diScopes_[functionSymbol] = subprogram;
+      context_, mlir::DistinctAttr::create(builder_.getUnitAttr()),
+      compileUnitAttr_, parent, name, linkageName, file, info.location.line,
+      info.scopeLine, flags,
+      mlir::cast<mlir::LLVM::DISubroutineTypeAttr>(type(info.type)),
+      retainedNodes, annotations);
+  emitter_.function(function)->setLoc(
+      mlir::FusedLoc::get({emitter_.getLocation(loc)}, subprogram, context_));
+  return retain<DebugScopeTag>(scopes_, mlir::LLVM::DIScopeAttr{subprogram});
 }
 
-auto MlirDebugEmitter::getCompileUnitAttr() -> mlir::LLVM::DICompileUnitAttr {
-  if (compileUnitAttr_) return compileUnitAttr_;
-
-  auto ctx = context_;
-
-  auto distinct = mlir::DistinctAttr::create(builder_.getUnitAttr());
-
-  auto sourceLanguage = unit_->language() == LanguageKind::kCXX
-                            ? llvm::dwarf::DW_LANG_C_plus_plus_20
-                            : llvm::dwarf::DW_LANG_C;
-
-  auto fileAttr = getOrCreateFileAttr(unit_->fileName());
-  auto producer = mlir::StringAttr::get(ctx, "cxx");
-  auto isOptimized = false;
-  auto emissionKind = mlir::LLVM::DIEmissionKind::Full;
-
-  mlir::LLVM::DINameTableKind nameTableKind =
-      mlir::LLVM::DINameTableKind::Default;
-
-  if (targetNeedsAppleNameTable(emitter_.module())) {
-    nameTableKind = mlir::LLVM::DINameTableKind::Apple;
+void MlirDebugEmitter::localVariable(ValueRef address,
+                                     const DebugVariableInfo& info) {
+  auto op = emitter_.value(address).getDefiningOp();
+  if (!op) return;
+  auto parent = scopeForOperation(op, scope(info.scope));
+  if (!parent) return;
+  auto file = getFileAttr(info.location.file);
+  auto line = info.location.line;
+  auto flags = mlir::LLVM::DIFlags::Zero;
+  if (info.isObjectParameter) {
+    flags =
+        mlir::LLVM::DIFlags::Artificial | mlir::LLVM::DIFlags::ObjectPointer;
+    file = {};
+    line = 0;
+    if (auto sp = mlir::dyn_cast<mlir::LLVM::DISubprogramAttr>(parent)) {
+      file = sp.getFile();
+      line = sp.getLine();
+    }
   }
-
-  auto compileUnit = mlir::LLVM::DICompileUnitAttr::get(
-      distinct, sourceLanguage, fileAttr, producer, isOptimized, emissionKind,
-#if LLVM_VERSION_MAJOR > 22
-      /*isDebugInfoForProfiling*/ false,
-#endif
-      nameTableKind);
-
-  compileUnitAttr_ = compileUnit;
-
-  return compileUnit;
+  auto variable = mlir::LLVM::DILocalVariableAttr::get(
+      context_, parent, mlir::StringAttr::get(context_, info.name), file, line,
+      info.argument, 0, type(info.type), flags);
+  op->setAttr("cxx.di_local", variable);
 }
 
-auto MlirDebugEmitter::compilationDirectory() -> const std::string& {
-  if (!compilationDirectory_.has_value()) {
-    auto attr = emitter_.module()->getAttrOfType<mlir::StringAttr>(
-        "cxx.debug-compilation-dir");
-    compilationDirectory_ = attr ? attr.getValue().str() : std::string{};
-  }
-  return compilationDirectory_.value();
-}
-
-auto MlirDebugEmitter::getOrCreateFileAttr(const std::string& filename)
+auto MlirDebugEmitter::getOrCreateFileAttr(std::string_view filename)
     -> mlir::LLVM::DIFileAttr {
-  if (auto it = fileAttrs_.find(filename); it != fileAttrs_.end()) {
-    return it->second;
-  }
-
-  auto [file, directory] = debugFilePath(filename, compilationDirectory());
+  auto key = std::string{filename};
+  if (auto it = fileAttrs_.find(key); it != fileAttrs_.end()) return it->second;
+  auto [file, directory] = debugFilePath(key, compilationDirectory_);
   auto attr = mlir::LLVM::DIFileAttr::get(context_, file, directory);
-
-  fileAttrs_.insert_or_assign(filename, attr);
-
+  fileAttrs_.emplace(std::move(key), attr);
   return attr;
-}
-
-auto MlirDebugEmitter::getFileAttr(const std::string& filename)
-    -> mlir::LLVM::DIFileAttr {
-  if (filename.empty()) return getCompileUnitAttr().getFile();
-
-  return getOrCreateFileAttr(filename);
 }
 
 auto MlirDebugEmitter::getFileAttr(std::string_view filename)
     -> mlir::LLVM::DIFileAttr {
-  return getFileAttr(std::string{filename});
-}
-
-auto MlirDebugEmitter::getFileAttrAt(SourceLocation location)
-    -> mlir::LLVM::DIFileAttr {
-  if (!location) return getCompileUnitAttr().getFile();
-
-  return getFileAttr(unit_->tokenStartPosition(location).fileName);
+  if (filename.empty()) return compileUnitAttr_.getFile();
+  return getOrCreateFileAttr(filename);
 }
 
 }  // namespace cxx::ir

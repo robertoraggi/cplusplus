@@ -10,6 +10,8 @@ add_library(cxx-codegen
     cxx/codegen/codegen_rtti.cc
     cxx/codegen/codegen_expressions.cc
     cxx/codegen/codegen_units.cc
+    cxx/codegen/debug_info.cc
+    cxx/codegen/convert_debug_type.cc
     cxx/codegen/convert_type.cc
 )
 target_include_directories(cxx-codegen PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -20,8 +20,37 @@
 
 import * as fs from "node:fs";
 import { cpy_header } from "./cpy_header.ts";
-import { emitterProtocol, tsIdentifier, tsType } from "./emitterProtocol.ts";
+import {
+  emitterProtocol,
+  tsIdentifier,
+  tsType,
+  type ProtocolMethod,
+} from "./emitterProtocol.ts";
 import type { ModelIndex } from "./parseModel.ts";
+
+function delegateInterface(
+  name: string,
+  methods: readonly ProtocolMethod[],
+  properties: readonly string[] = [],
+): string[] {
+  const lines = [`export interface ${name} {`, ...properties];
+  for (const method of methods) {
+    const parameters = method.parameters
+      .map((parameter) => {
+        const type =
+          parameter.wire.kind === "location"
+            ? "TokenIndex"
+            : tsType(parameter.wire, "in");
+        return `${tsIdentifier(parameter.name)}: ${type}`;
+      })
+      .join(", ");
+    lines.push(
+      `  ${method.name}(${parameters}): ${tsType(method.result, "out")};`,
+    );
+  }
+  lines.push("}", "");
+  return lines;
+}
 
 export function gen_emitter_ts({
   model,
@@ -62,21 +91,15 @@ export function gen_emitter_ts({
     emit();
   }
 
-  emit(`export interface EmitterDelegate {`);
-  for (const method of protocol.methods) {
-    const parameters = method.parameters
-      .map((parameter) => {
-        const type =
-          parameter.wire.kind === "location"
-            ? "TokenIndex"
-            : tsType(parameter.wire, "in");
-        return `${tsIdentifier(parameter.name)}: ${type}`;
-      })
-      .join(", ");
-    emit(`  ${method.name}(${parameters}): ${tsType(method.result, "out")};`);
-  }
-  emit(`}`);
-  emit();
+  for (const line of delegateInterface(
+    "DebugEmitterDelegate",
+    protocol.debugMethods,
+  ))
+    emit(line);
+  for (const line of delegateInterface("EmitterDelegate", protocol.methods, [
+    "  readonly debug?: DebugEmitterDelegate;",
+  ]))
+    emit(line);
 
   fs.writeFileSync(output, lines.join("\n"));
 }

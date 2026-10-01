@@ -67,7 +67,11 @@ struct SourceScopePrefix {
   }
 
   [[nodiscard]] auto operator()(ClassSymbol* symbol) const -> std::string {
-    return to_string(symbol->type(), "", options) + "::";
+    std::string prefix;
+    auto parent = symbol->parent();
+    if (parent && parent->isBlock())
+      prefix = sourceScopePrefix(parent, options);
+    return prefix + to_string(symbol->type(), "", options) + "::";
   }
 
   [[nodiscard]] auto operator()(FunctionSymbol* symbol) const -> std::string {
@@ -440,11 +444,12 @@ class TypePrinter {
   }
 
   void appendEnclosingScope(Symbol* symbol) {
+    auto parent = symbol->parent();
     if (options_.sourceSpelling) {
-      specifiers_.append(sourceScopePrefix(symbol->parent(), nestedOptions_));
+      if (parent && parent->isBlock()) return;
+      specifiers_.append(sourceScopePrefix(parent, nestedOptions_));
       return;
     }
-    auto parent = symbol->parent();
     if (!parent) return;
     while (symbol_cast<TemplateParametersSymbol>(parent)) {
       parent = parent->parent();

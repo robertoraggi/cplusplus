@@ -19,51 +19,55 @@
 // SOFTWARE.
 
 #pragma once
+
 #include <cxx/codegen/debug_emitter.h>
-#include <cxx/type_traits.h>
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
 #include <mlir/IR/Builders.h>
 
-#include <optional>
+#include <string>
 #include <unordered_map>
-namespace cxx {
-class Control;
-class TranslationUnit;
-}  // namespace cxx
+#include <vector>
+
 namespace cxx::ir {
 class MlirEmitter;
+
 class MlirDebugEmitter final : public DebugEmitter {
  public:
-  MlirDebugEmitter(MlirEmitter& emitter, TranslationUnit* unit);
-  void defineFunction(FunctionSymbol*, FunctionRef, SourceLocation,
-                      SourceLocation, SourceLocation) override;
-  void localVariable(ValueRef, Symbol*, std::string_view, unsigned) override;
-  void objectParameter(ValueRef, const Type*, FunctionSymbol*, std::string_view,
-                       unsigned) override;
+  explicit MlirDebugEmitter(MlirEmitter& emitter);
+  auto compileUnit(const DebugCompileUnitInfo& info) -> DebugScopeRef override;
+  auto fileScope(std::string_view file) -> DebugScopeRef override;
+  auto lexicalBlock(DebugScopeRef parent, DebugLocation location)
+      -> DebugScopeRef override;
+  auto typeScope(DebugTypeRef type) -> DebugScopeRef override;
+  auto basicType(const DebugBasicTypeInfo& info) -> DebugTypeRef override;
+  auto derivedType(const DebugDerivedTypeInfo& info) -> DebugTypeRef override;
+  auto compositeType(const DebugCompositeTypeInfo& info)
+      -> DebugTypeRef override;
+  auto arrayType(const DebugArrayTypeInfo& info) -> DebugTypeRef override;
+  auto subroutineType(std::span<const DebugTypeRef> types)
+      -> DebugTypeRef override;
+  auto defineFunction(FunctionRef function, SourceLocation loc,
+                      const DebugFunctionInfo& info) -> DebugScopeRef override;
+  void localVariable(ValueRef address, const DebugVariableInfo& info) override;
 
  private:
-  struct ConvertDebugType;
-  auto control() const -> Control*;
-  auto convertDebugType(const Type*) -> mlir::LLVM::DITypeAttr;
-  auto getOrCreateDIScope(Symbol*) -> mlir::LLVM::DIScopeAttr;
-  auto buildSubroutineTypeAttr(FunctionSymbol*)
-      -> mlir::LLVM::DISubroutineTypeAttr;
-  auto getCompileUnitAttr() -> mlir::LLVM::DICompileUnitAttr;
-  auto compilationDirectory() -> const std::string&;
-  auto getOrCreateFileAttr(const std::string&) -> mlir::LLVM::DIFileAttr;
-  auto getFileAttr(const std::string&) -> mlir::LLVM::DIFileAttr;
-  auto getFileAttr(std::string_view) -> mlir::LLVM::DIFileAttr;
-  auto getFileAttrAt(SourceLocation) -> mlir::LLVM::DIFileAttr;
+  [[nodiscard]] auto type(DebugTypeRef ref) const -> mlir::LLVM::DITypeAttr;
+  [[nodiscard]] auto scope(DebugScopeRef ref) const -> mlir::LLVM::DIScopeAttr;
+  auto getFileAttr(std::string_view file) -> mlir::LLVM::DIFileAttr;
+  auto getOrCreateFileAttr(std::string_view file) -> mlir::LLVM::DIFileAttr;
+  auto compositeTypeAttr(unsigned tag, std::string_view name,
+                         DebugLocation location, DebugScopeRef parent,
+                         DebugTypeRef baseType, std::uint64_t sizeInBits,
+                         std::uint64_t alignInBits, bool scopedEnum,
+                         llvm::ArrayRef<mlir::LLVM::DINodeAttr> elements)
+      -> mlir::LLVM::DITypeAttr;
   MlirEmitter& emitter_;
   mlir::MLIRContext* context_;
   mlir::OpBuilder& builder_;
-  TranslationUnit* unit_;
-  TypeTraits traits;
-  std::unordered_map<FunctionSymbol*, FunctionRef> funcOps_;
+  std::string compilationDirectory_;
   std::unordered_map<std::string, mlir::LLVM::DIFileAttr> fileAttrs_;
   mlir::LLVM::DICompileUnitAttr compileUnitAttr_;
-  std::optional<std::string> compilationDirectory_;
-  std::unordered_map<const Type*, mlir::LLVM::DITypeAttr> debugTypeCache_;
-  std::unordered_map<Symbol*, mlir::LLVM::DIScopeAttr> diScopes_;
+  std::vector<mlir::LLVM::DITypeAttr> types_{{}};
+  std::vector<mlir::LLVM::DIScopeAttr> scopes_{{}};
 };
 }  // namespace cxx::ir

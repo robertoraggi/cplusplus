@@ -64,6 +64,7 @@ struct ClassTypeStorage;
 #include <cxx/mlir/CxxOpsEnums.h.inc>
 
 // attributes
+#define GET_ATTRDEF_CLASSES
 #include <cxx/mlir/CxxOpsAttributes.h.inc>
 
 #define GET_TYPEDEF_CLASSES
