@@ -95,6 +95,8 @@ class Token {
   [[nodiscard]] static auto spell(BuiltinFunctionKind kind)
       -> const std::string&;
 
+  [[nodiscard]] static auto spell(SveTypeKind kind) -> const std::string&;
+
   [[nodiscard]] static auto builtinFunctionKind(std::string_view spelling)
       -> BuiltinFunctionKind;
 
@@ -118,9 +120,9 @@ class Token {
       std::uint64_t length_ : 17;
       std::uint64_t offset_ : 25;
     };
-    std::uint64_t raw_;
+    std::uint64_t raw_ = 0;
   };
-  TokenValue value_;
+  TokenValue value_{};
 };
 
 inline Token::Token(TokenKind kind, unsigned offset, unsigned length,

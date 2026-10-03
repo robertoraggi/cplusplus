@@ -55,6 +55,7 @@ enum class CLIOptionDescrKind {
   kFlag,
   kJoined,
   kSeparated,
+  kPrefixed,
 };
 
 enum class CLIOptionVisibility {
@@ -118,6 +119,9 @@ std::vector<CLIOptionDescr> options{
      CLIOptionDescrKind::kSeparated},
 
     {"-U", "<macro>", "Undefine <macro>", CLIOptionDescrKind::kSeparated},
+
+    {"-W", "<warning>", "Configure the diagnostic <warning>",
+     CLIOptionDescrKind::kPrefixed},
 
     {"-std", "<standard>",
      "Assume that the input sources are for <standard>, one of 'c++14', "
@@ -462,6 +466,18 @@ auto CLI::parse(int& argc, char**& argv) -> bool {
       continue;
     }
 
+    auto prefixed = std::find_if(
+        options.begin(), options.end(), [&](const CLIOptionDescr& o) {
+          return o.kind == CLIOptionDescrKind::kPrefixed &&
+                 arg.starts_with(o.option);
+        });
+
+    if (prefixed != options.end()) {
+      result_.emplace_back(
+          CLIOption(prefixed->option, arg.substr(prefixed->option.length())));
+      continue;
+    }
+
     const auto eq = arg.find_first_of('=');
 
     if (eq != std::string::npos) {
@@ -539,6 +555,10 @@ void CLI::showHelp() {
       }
       case CLIOptionDescrKind::kJoined: {
         info = std::format("{}={}", opt.option, opt.arg);
+        break;
+      }
+      case CLIOptionDescrKind::kPrefixed: {
+        info = std::format("{}{}", opt.option, opt.arg);
         break;
       }
       case CLIOptionDescrKind::kFlag: {

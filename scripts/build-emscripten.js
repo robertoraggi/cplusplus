@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { access, copyFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { $ } from "zx";
@@ -31,18 +31,44 @@ function shouldSkipWasmOpt() {
   throw new Error("CXX_NO_WASM_OPT must be 0 or 1");
 }
 
-async function configure() {
+async function hasMlir() {
+  const mlirConfig = path.join(
+    buildDirectory,
+    "llvm-project/install/lib/cmake/mlir/MLIRConfig.cmake",
+  );
+
+  try {
+    await access(mlirConfig);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function selectPresets() {
+  if (await hasMlir()) {
+    return { configure: "emscripten-mlir", build: "build-emscripten-mlir" };
+  }
+
+  console.log(
+    "MLIR for emscripten not found in build.em/llvm-project/install, building without MLIR",
+  );
+
+  return { configure: "emscripten", build: "build-emscripten" };
+}
+
+async function configure(preset) {
   let linkerFlags = "";
 
   if (shouldSkipWasmOpt()) {
     linkerFlags = "-O1 -sERROR_ON_WASM_CHANGES_AFTER_LINK";
   }
 
-  await $`cmake --preset emscripten-mlir -DCMAKE_EXE_LINKER_FLAGS_RELEASE=${linkerFlags}`;
+  await $`cmake --preset ${preset} -DCMAKE_EXE_LINKER_FLAGS_RELEASE=${linkerFlags}`;
 }
 
-async function build() {
-  await $`cmake --build --preset build-emscripten-mlir`;
+async function build(preset) {
+  await $`cmake --build --preset ${preset}`;
 }
 
 async function installArtifacts() {
@@ -68,8 +94,9 @@ async function installArtifacts() {
 }
 
 async function main() {
-  await configure();
-  await build();
+  const presets = await selectPresets();
+  await configure(presets.configure);
+  await build(presets.build);
   await installArtifacts();
 }
 

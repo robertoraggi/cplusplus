@@ -29,6 +29,14 @@
 #include <cxx/views/symbols.h>
 
 namespace cxx {
+namespace {
+[[nodiscard]] auto isPotentiallyOverlapping(Symbol* subobject) -> bool {
+  if (symbol_cast<BaseClassSymbol>(subobject)) return true;
+  auto field = symbol_cast<FieldSymbol>(subobject);
+  return field && field->isNoUniqueAddress();
+}
+}  // namespace
+
 struct Codegen::PtrOperatorVisitor {
   Codegen& gen;
 
@@ -509,6 +517,11 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
   if (!bracedInitList && copiesArrayElementwise(targetType, expressionList)) {
     gen.emitArrayInitialization(loc, fieldPtr, targetType, ast->constructor,
                                 expressionList->value);
+    return {};
+  }
+
+  if (wholeObject && !isPotentiallyOverlapping(symbol)) {
+    (void)gen.emitPrvalueInto(fieldPtr, targetType, expressionList->value, loc);
     return {};
   }
 

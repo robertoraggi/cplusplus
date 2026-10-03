@@ -399,6 +399,10 @@ void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
   const bool definesBody =
       definition->isDefined() || definition->hasPendingBody();
 
+  if (definition->isDefaulted())
+    if (auto declaration = definition->declaration())
+      requireDefinitionsNamedBy(unit, declaration->functionBody);
+
   if (function->isDestructor() && definesBody)
     requirePotentiallyInvokedDestructors(unit, definition);
 

@@ -57,7 +57,8 @@
       "displayName": "emscripten",
       "inherits": "emscripten-base",
       "cacheVariables": {
-        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES"
+        "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "YES",
+        "CXX_ENABLE_MLIR": "NO"
       }
     },
     {
@@ -115,11 +116,6 @@
       "name": "self-host-mlir",
       "hidden": true,
       "inherits": "default-mlir",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      },
       "toolchainFile": "${sourceDir}/scripts/cxx-native-toolchain.cmake",
       "cacheVariables": {
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "NO",
@@ -132,7 +128,7 @@
       }
     },
     {
-      "name": "stage1-macos",
+      "name": "stage1",
       "displayName": "Self-host stage 1 with MLIR",
       "inherits": "self-host-mlir",
       "binaryDir": "${sourceDir}/build-stage1",
@@ -143,7 +139,7 @@
       }
     },
     {
-      "name": "stage2-macos",
+      "name": "stage2",
       "displayName": "Self-host stage 2 with MLIR",
       "inherits": "self-host-mlir",
       "binaryDir": "${sourceDir}/build-stage2",
@@ -201,14 +197,14 @@
       "targets": ["install"]
     },
     {
-      "name": "stage1-macos",
-      "configurePreset": "stage1-macos",
+      "name": "stage1",
+      "configurePreset": "stage1",
       "targets": ["cxx", "link_cxx_include", "link_wasi_sysroot"],
       "cleanFirst": true
     },
     {
-      "name": "stage2-macos",
-      "configurePreset": "stage2-macos",
+      "name": "stage2",
+      "configurePreset": "stage2",
       "targets": ["cxx", "link_cxx_include", "link_wasi_sysroot"],
       "cleanFirst": true
     }
@@ -293,28 +289,28 @@
       ]
     },
     {
-      "name": "stage1-macos",
+      "name": "stage1",
       "steps": [
         {
           "type": "configure",
-          "name": "stage1-macos"
+          "name": "stage1"
         },
         {
           "type": "build",
-          "name": "stage1-macos"
+          "name": "stage1"
         }
       ]
     },
     {
-      "name": "stage2-macos",
+      "name": "stage2",
       "steps": [
         {
           "type": "configure",
-          "name": "stage2-macos"
+          "name": "stage2"
         },
         {
           "type": "build",
-          "name": "stage2-macos"
+          "name": "stage2"
         }
       ]
     }

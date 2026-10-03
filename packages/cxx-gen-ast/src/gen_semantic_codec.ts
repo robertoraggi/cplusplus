@@ -147,6 +147,9 @@ class SemanticEncoder final : public SemanticEncoderBase {
   [[nodiscard]] auto operator()(const SemanticArchiveRoots& roots,
                                 ArchiveWriter& archive) -> bool;
 
+  [[nodiscard]] auto reachableSymbolCounts(const SemanticArchiveRoots& roots)
+      -> SymbolCounts;
+
  private:
   [[nodiscard]] auto nameRef(const cxx::Name* name) -> NameRef {
     return NameRef{names_.reference(name)};
@@ -204,6 +207,8 @@ ${sharedConstKindsOf(plan)
   void writeSymbol(ByteWriter& out, cxx::Symbol* symbol);
   void writeAst(ByteWriter& out, cxx::AST* ast);
   void writeConstNode(ByteWriter& out, const ConstNode& node);
+
+  void writeSession(const SemanticArchiveRoots& roots, ByteWriter& session);
 
   void drain();
 
@@ -343,13 +348,9 @@ function encoderEntryPoint(plan: CodecPlan): string {
   const lines: string[] = [];
 
   lines.push(
-    `auto SemanticEncoder::operator()(const SemanticArchiveRoots& roots,`,
+    `void SemanticEncoder::writeSession(const SemanticArchiveRoots& roots,`,
   );
-  lines.push(
-    `                                 ArchiveWriter& archive) -> bool {`,
-  );
-  lines.push(`  ByteWriter session;`);
-  lines.push(``);
+  lines.push(`                                   ByteWriter& session) {`);
   lines.push(
     `  session.varU32(static_cast<std::uint32_t>(symbolRef(roots.globalScope)));`,
   );
@@ -384,6 +385,16 @@ function encoderEntryPoint(plan: CodecPlan): string {
       `  session.varU32(static_cast<std::uint32_t>(typeRef(roots.${type})));`,
     );
   }
+  lines.push(`}`);
+  lines.push(``);
+  lines.push(
+    `auto SemanticEncoder::operator()(const SemanticArchiveRoots& roots,`,
+  );
+  lines.push(
+    `                                 ArchiveWriter& archive) -> bool {`,
+  );
+  lines.push(`  ByteWriter session;`);
+  lines.push(`  writeSession(roots, session);`);
   lines.push(``);
   lines.push(`  drain();`);
   lines.push(`  resolveLocations();`);
@@ -417,6 +428,20 @@ function encoderEntryPoint(plan: CodecPlan): string {
   lines.push(`  archive.addSection(ArchiveSection::kSession, session.take());`);
   lines.push(``);
   lines.push(`  return errors().empty();`);
+  lines.push(`}`);
+  lines.push(``);
+  lines.push(
+    `auto SemanticEncoder::reachableSymbolCounts(const SemanticArchiveRoots& roots)`,
+  );
+  lines.push(`    -> SymbolCounts {`);
+  lines.push(`  ByteWriter session;`);
+  lines.push(`  writeSession(roots, session);`);
+  lines.push(`  drain();`);
+  lines.push(``);
+  lines.push(`  SymbolCounts counts{};`);
+  lines.push(`  for (auto symbol : symbols_.pending)`);
+  lines.push(`    ++counts[std::to_underlying(symbol->kind())];`);
+  lines.push(`  return counts;`);
   lines.push(`}`);
   lines.push(``);
 
@@ -574,6 +599,7 @@ function decoderEntryPoint(plan: CodecPlan): string {
   lines.push(`    for (auto symbol : symbols_) {`);
   lines.push(`      if (auto scope = symbol_cast<ScopeSymbol>(symbol))`);
   lines.push(`        scope->rebuildLookupTable();`);
+  lines.push(`      rebuild_specialization_index(symbol);`);
   lines.push(`    }`);
   lines.push(`  }`);
   lines.push(``);

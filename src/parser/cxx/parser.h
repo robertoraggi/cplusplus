@@ -34,7 +34,6 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <set>
 #include <unordered_map>
 
 namespace cxx {
@@ -260,6 +259,8 @@ class Parser final {
       UnqualifiedIdAST*& yyast, NestedNameSpecifierAST* nestedNameSpecifier,
       bool isTemplateIntroduced, bool inRequiresClause,
       MemberAccess memberAccess = {}) -> bool;
+  [[nodiscard]] auto lookat_nested_name_specifier_start() -> bool;
+  [[nodiscard]] auto lookat_placeholder_type_specifier_start() -> bool;
   void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast,
                                             NestedNameSpecifierContext ctx);
   [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
@@ -1129,10 +1130,8 @@ class Parser final {
   int classDepth_ = 0;
   int uncheckedInitializerDepth_ = 0;
   int unevaluatedOperandDepth_ = 0;
-  std::uint32_t lastErrorCursor_ = 0;
   std::uint32_t cursor_ = 0;
   FailedParse deepestFailedParse_;
-  std::set<std::pair<unsigned, std::string>> reportedDiagnostics_;
   int anonNamespaceCount_ = 0;
   int templateParameterDepth_ = -1;
   int templateParameterCount_ = 0;

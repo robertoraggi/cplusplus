@@ -132,6 +132,18 @@ class ClassTemplateArgumentDeduction {
   [[nodiscard]] auto argumentList(const Initializer& init)
       -> List<ExpressionAST*>*;
 
+  [[nodiscard]] auto classTemplateArguments(
+      const Guide& guide, List<TemplateArgumentAST*>* deducedArgs)
+      -> List<TemplateArgumentAST*>*;
+
+  [[nodiscard]] auto satisfiesGuideConstraints(
+      ClassSymbol* primaryTemplate, const Guide& guide,
+      List<TemplateArgumentAST*>* deducedArgs) -> bool;
+
+  [[nodiscard]] auto satisfiesConstraints(
+      Symbol* templateSymbol, TemplateDeclarationAST* templateDeclaration,
+      List<TemplateArgumentAST*>* templateArguments) -> bool;
+
   [[nodiscard]] auto specializationFor(ClassSymbol* primaryTemplate,
                                        const Guide& guide,
                                        List<TemplateArgumentAST*>* deducedArgs,

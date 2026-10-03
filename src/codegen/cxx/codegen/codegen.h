@@ -374,6 +374,7 @@ class Codegen {
   [[nodiscard]] auto getAlignment(const Type* type) -> uint64_t;
   [[nodiscard]] auto getAlignment(VariableSymbol* var) -> uint64_t;
   [[nodiscard]] auto lvalueAlignment(ExpressionAST* expression) -> uint64_t;
+  [[nodiscard]] auto objectVariable(Symbol* symbol) -> VariableSymbol*;
   [[nodiscard]] auto memberAlignment(MemberExpressionAST* member) -> uint64_t;
   [[nodiscard]] auto elementAlignment(SubscriptExpressionAST* subscript)
       -> uint64_t;
@@ -585,6 +586,8 @@ class Codegen {
   [[nodiscard]] auto findOrCreateGlobal(Symbol* symbol)
       -> std::optional<ir::GlobalRef>;
 
+  [[nodiscard]] auto staticStorageAddress(SourceLocation loc, Symbol* symbol)
+      -> ir::ValueRef;
   [[nodiscard]] auto findOrCreateStaticField(FieldSymbol* field)
       -> ir::GlobalRef;
 
@@ -767,9 +770,8 @@ class Codegen {
                                            const VTableLayout::Table& table,
                                            bool usesVTT) -> ir::ValueRef;
 
-  [[nodiscard]] auto resolveVptrField(ir::ValueRef basePtr,
-                                      ClassSymbol* baseClassSym,
-                                      SourceLocation loc) -> ir::ValueRef;
+  [[nodiscard]] auto vptrAddress(SourceLocation loc, ir::ValueRef objectPtr)
+      -> ir::ValueRef;
 
   [[nodiscard]] auto newTemp(const Type* type, SourceLocation loc)
       -> ir::ValueRef;
@@ -977,6 +979,12 @@ class Codegen {
 
   [[nodiscard]] auto takeResultObject(ExpressionAST* ast) -> ir::ValueRef;
 
+  [[nodiscard]] auto emitIntoResultObject(ExpressionAST* owner,
+                                          ExpressionAST* operand)
+      -> ir::ValueRef;
+  [[nodiscard]] auto emitAggregateObject(ExpressionAST* owner, const Type* type,
+                                         BracedInitListAST* initializer,
+                                         SourceLocation loc) -> ir::ValueRef;
   [[nodiscard]] auto takeIndirectResultObject(ExpressionAST* ast,
                                               const FunctionType* functionType)
       -> ir::ValueRef;

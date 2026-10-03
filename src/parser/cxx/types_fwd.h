@@ -94,7 +94,8 @@ using ExceptionSpecification = std::variant<bool, ExpressionAST*>;
   V(Vector)                              \
   V(UnresolvedVector)                    \
   V(Complex)                             \
-  V(Atomic)
+  V(Atomic)                              \
+  V(Sve)
 
 class Type;
 

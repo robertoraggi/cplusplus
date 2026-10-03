@@ -211,6 +211,8 @@ class Control {
       -> const UnresolvedVectorType*;
   [[nodiscard]] auto getComplexType(const Type* elementType)
       -> const ComplexType*;
+  [[nodiscard]] auto getSveType(SveTypeKind sveKind) -> const SveType*;
+
   [[nodiscard]] auto getAtomicType(const Type* elementType)
       -> const AtomicType*;
 
@@ -262,6 +264,13 @@ class Control {
   [[nodiscard]] auto newTypeAliasSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation sourceLocation)
       -> TypeAliasSymbol*;
+  [[nodiscard]] auto getTypeArgumentSymbol(const Type* type)
+      -> TypeAliasSymbol*;
+  [[nodiscard]] auto getConstantArgumentSymbol(const Type* type,
+                                               const ConstValue& value)
+      -> VariableSymbol*;
+  [[nodiscard]] auto getPackArgumentSymbol(std::span<Symbol* const> elements)
+      -> ParameterPackSymbol*;
   [[nodiscard]] auto newVariableSymbol(ScopeSymbol* enclosingScope,
                                        SourceLocation sourceLocation)
       -> VariableSymbol*;
@@ -302,6 +311,8 @@ class Control {
   [[nodiscard]] auto beginCopyConstructorSelection(ClassSymbol* classSymbol)
       -> bool;
   void endCopyConstructorSelection(ClassSymbol* classSymbol);
+
+  [[nodiscard]] auto allocatedSymbolCounts() const -> SymbolCounts;
 
   [[nodiscard]] auto anonymousIdCount() const -> int;
   void setAnonymousIdCount(int count);

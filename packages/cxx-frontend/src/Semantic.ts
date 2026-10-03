@@ -936,6 +936,7 @@ const VectorTypeSlotBase = UnresolvedBitIntTypeSlotBase + 2;
 const UnresolvedVectorTypeSlotBase = VectorTypeSlotBase + 3;
 const ComplexTypeSlotBase = UnresolvedVectorTypeSlotBase + 4;
 const AtomicTypeSlotBase = ComplexTypeSlotBase + 1;
+const SveTypeSlotBase = AtomicTypeSlotBase + 1;
 export class DefaultInitializerContext extends ModelObject {}
 export class InitializerList extends ModelObject {}
 export class ConstComplex extends ModelObject {
@@ -8898,6 +8899,11 @@ export class AtomicType extends Type {
     );
   }
 }
+export class SveType extends Type {
+  get sveKind(): SveTypeKind {
+    return sveTypeKindNames[cxx.readType(this.handle, SveTypeSlotBase + 0)]!;
+  }
+}
 export type ASTKind =
   | "TranslationUnit"
   | "ModuleUnit"
@@ -9506,7 +9512,8 @@ export type TypeKind =
   | "Vector"
   | "UnresolvedVector"
   | "Complex"
-  | "Atomic";
+  | "Atomic"
+  | "Sve";
 const typeKindNames: Record<number, TypeKind> = {
   0: "Void",
   1: "Nullptr",
@@ -9566,6 +9573,7 @@ const typeKindNames: Record<number, TypeKind> = {
   55: "UnresolvedVector",
   56: "Complex",
   57: "Atomic",
+  58: "Sve",
 };
 export type NameKind =
   | "Identifier"
@@ -9645,6 +9653,7 @@ const implicitCastKindNames: Record<number, ImplicitCastKind> = {
 export type BuiltinTypeTraitKind =
   | "none"
   | "__builtin_types_compatible_p"
+  | "__has_trivial_constructor"
   | "__has_trivial_destructor"
   | "__has_unique_object_representations"
   | "__has_virtual_destructor"
@@ -9707,65 +9716,66 @@ export type BuiltinTypeTraitKind =
 const builtinTypeTraitKindNames: Record<number, BuiltinTypeTraitKind> = {
   0: "none",
   1: "__builtin_types_compatible_p",
-  2: "__has_trivial_destructor",
-  3: "__has_unique_object_representations",
-  4: "__has_virtual_destructor",
-  5: "__is_abstract",
-  6: "__is_aggregate",
-  7: "__is_arithmetic",
-  8: "__is_array",
-  9: "__is_assignable",
-  10: "__is_base_of",
-  11: "__is_bounded_array",
-  12: "__is_class",
-  13: "__is_compound",
-  14: "__is_const",
-  15: "__is_constructible",
-  16: "__is_convertible_to",
-  17: "__is_convertible",
-  18: "__is_destructible",
-  19: "__is_empty",
-  20: "__is_enum",
-  21: "__is_final",
-  22: "__is_floating_point",
-  23: "__is_function",
-  24: "__is_fundamental",
-  25: "__is_integral",
-  26: "__is_layout_compatible",
-  27: "__is_literal_type",
-  28: "__is_lvalue_reference",
-  29: "__is_member_function_pointer",
-  30: "__is_member_object_pointer",
-  31: "__is_member_pointer",
-  32: "__is_nothrow_assignable",
-  33: "__is_nothrow_constructible",
-  34: "__is_nothrow_destructible",
-  35: "__is_null_pointer",
-  36: "__is_object",
-  37: "__is_pod",
-  38: "__is_pointer",
-  39: "__is_polymorphic",
-  40: "__is_reference",
-  41: "__is_rvalue_reference",
-  42: "__is_same_as",
-  43: "__is_same",
-  44: "__is_scalar",
-  45: "__is_scoped_enum",
-  46: "__is_signed",
-  47: "__is_standard_layout",
-  48: "__is_swappable_with",
-  49: "__is_trivial",
-  50: "__is_trivially_assignable",
-  51: "__is_trivially_constructible",
-  52: "__is_trivially_copyable",
-  53: "__is_trivially_destructible",
-  54: "__is_unbounded_array",
-  55: "__is_union",
-  56: "__is_unsigned",
-  57: "__is_void",
-  58: "__is_volatile",
-  59: "__reference_constructs_from_temporary",
-  60: "__reference_converts_from_temporary",
+  2: "__has_trivial_constructor",
+  3: "__has_trivial_destructor",
+  4: "__has_unique_object_representations",
+  5: "__has_virtual_destructor",
+  6: "__is_abstract",
+  7: "__is_aggregate",
+  8: "__is_arithmetic",
+  9: "__is_array",
+  10: "__is_assignable",
+  11: "__is_base_of",
+  12: "__is_bounded_array",
+  13: "__is_class",
+  14: "__is_compound",
+  15: "__is_const",
+  16: "__is_constructible",
+  17: "__is_convertible_to",
+  18: "__is_convertible",
+  19: "__is_destructible",
+  20: "__is_empty",
+  21: "__is_enum",
+  22: "__is_final",
+  23: "__is_floating_point",
+  24: "__is_function",
+  25: "__is_fundamental",
+  26: "__is_integral",
+  27: "__is_layout_compatible",
+  28: "__is_literal_type",
+  29: "__is_lvalue_reference",
+  30: "__is_member_function_pointer",
+  31: "__is_member_object_pointer",
+  32: "__is_member_pointer",
+  33: "__is_nothrow_assignable",
+  34: "__is_nothrow_constructible",
+  35: "__is_nothrow_destructible",
+  36: "__is_null_pointer",
+  37: "__is_object",
+  38: "__is_pod",
+  39: "__is_pointer",
+  40: "__is_polymorphic",
+  41: "__is_reference",
+  42: "__is_rvalue_reference",
+  43: "__is_same_as",
+  44: "__is_same",
+  45: "__is_scalar",
+  46: "__is_scoped_enum",
+  47: "__is_signed",
+  48: "__is_standard_layout",
+  49: "__is_swappable_with",
+  50: "__is_trivial",
+  51: "__is_trivially_assignable",
+  52: "__is_trivially_constructible",
+  53: "__is_trivially_copyable",
+  54: "__is_trivially_destructible",
+  55: "__is_unbounded_array",
+  56: "__is_union",
+  57: "__is_unsigned",
+  58: "__is_void",
+  59: "__is_volatile",
+  60: "__reference_constructs_from_temporary",
+  61: "__reference_converts_from_temporary",
 };
 export type UnaryBuiltinTypeKind =
   | "none"
@@ -10764,6 +10774,7 @@ export type WellKnownName =
   | "none"
   | "std"
   | "align_val_t"
+  | "byte"
   | "destroying_delete_t"
   | "initializer_list"
   | "nothrow_t"
@@ -10786,24 +10797,25 @@ const wellKnownNameNames: Record<number, WellKnownName> = {
   0: "none",
   1: "std",
   2: "align_val_t",
-  3: "destroying_delete_t",
-  4: "initializer_list",
-  5: "nothrow_t",
-  6: "partial_ordering",
-  7: "source_location",
-  8: "strong_ordering",
-  9: "tuple_element",
-  10: "tuple_size",
-  11: "type_info",
-  12: "weak_ordering",
-  13: "equal",
-  14: "equivalent",
-  15: "greater",
-  16: "less",
-  17: "unordered",
-  18: "__func__",
-  19: "__FUNCTION__",
-  20: "__PRETTY_FUNCTION__",
+  3: "byte",
+  4: "destroying_delete_t",
+  5: "initializer_list",
+  6: "nothrow_t",
+  7: "partial_ordering",
+  8: "source_location",
+  9: "strong_ordering",
+  10: "tuple_element",
+  11: "tuple_size",
+  12: "type_info",
+  13: "weak_ordering",
+  14: "equal",
+  15: "equivalent",
+  16: "greater",
+  17: "less",
+  18: "unordered",
+  19: "__func__",
+  20: "__FUNCTION__",
+  21: "__PRETTY_FUNCTION__",
 };
 export type AccessSpecifier = "Public" | "Protected" | "Private";
 const accessSpecifierNames: Record<number, AccessSpecifier> = {
@@ -10864,6 +10876,39 @@ export type VectorSizeKind = "Bytes" | "Elements";
 const vectorSizeKindNames: Record<number, VectorSizeKind> = {
   0: "Bytes",
   1: "Elements",
+};
+export type SveTypeKind =
+  | "T___SVBFLOAT16_T"
+  | "T___SVBOOL_T"
+  | "T___SVCOUNT_T"
+  | "T___SVFLOAT16_T"
+  | "T___SVFLOAT32_T"
+  | "T___SVFLOAT64_T"
+  | "T___SVINT16_T"
+  | "T___SVINT32_T"
+  | "T___SVINT64_T"
+  | "T___SVINT8_T"
+  | "T___SVMFLOAT8_T"
+  | "T___SVUINT16_T"
+  | "T___SVUINT32_T"
+  | "T___SVUINT64_T"
+  | "T___SVUINT8_T";
+const sveTypeKindNames: Record<number, SveTypeKind> = {
+  0: "T___SVBFLOAT16_T",
+  1: "T___SVBOOL_T",
+  2: "T___SVCOUNT_T",
+  3: "T___SVFLOAT16_T",
+  4: "T___SVFLOAT32_T",
+  5: "T___SVFLOAT64_T",
+  6: "T___SVINT16_T",
+  7: "T___SVINT32_T",
+  8: "T___SVINT64_T",
+  9: "T___SVINT8_T",
+  10: "T___SVMFLOAT8_T",
+  11: "T___SVUINT16_T",
+  12: "T___SVUINT32_T",
+  13: "T___SVUINT64_T",
+  14: "T___SVUINT8_T",
 };
 const astConstructors: Record<
   ASTKind,
@@ -11209,6 +11254,7 @@ const typeConstructors: Record<
   UnresolvedVector: UnresolvedVectorType,
   Complex: ComplexType,
   Atomic: AtomicType,
+  Sve: SveType,
 };
 const nameConstructors: Record<
   NameKind,

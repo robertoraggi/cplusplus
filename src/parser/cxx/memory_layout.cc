@@ -25,6 +25,7 @@
 #include <bit>
 #include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <optional>
 
 namespace cxx {
@@ -395,6 +396,10 @@ struct SizeOf {
     if (!width) return std::nullopt;
     return *width / 8;
   }
+
+  auto operator()(const SveType* type) const -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
 };
 
 struct AlignmentOf {
@@ -462,11 +467,60 @@ struct AlignmentOf {
     return memoryLayout.alignmentOf(type->elementType());
   }
 
+  auto operator()(const SveType* type) const -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
   auto operator()(auto type) const -> std::optional<std::size_t> {
     if (!type) return std::nullopt;
     return memoryLayout.sizeOf(type);
   }
 };
+
+[[nodiscard]] auto round_shift_right(std::uint64_t value, int count)
+    -> ConstInt::UWide {
+  if (count >= 64) return 0;
+  const auto quotient = value >> count;
+  const auto remainder = value & ((std::uint64_t(1) << count) - 1);
+  const auto half = std::uint64_t(1) << (count - 1);
+  if (remainder > half) return ConstInt::UWide(quotient) + 1;
+  if (remainder == half && (quotient & 1)) return ConstInt::UWide(quotient) + 1;
+  return quotient;
+}
+
+struct RoundedSignificand {
+  int exponent = 0;
+  ConstInt::UWide significand = 0;
+};
+
+[[nodiscard]] auto round_to_format(double magnitude,
+                                   const FloatingPointFormat& format)
+    -> RoundedSignificand {
+  constexpr int kDoubleDigits = std::numeric_limits<double>::digits;
+  const int digits = format.significandDigits;
+  int binaryExponent = 0;
+  const auto fraction = std::frexp(magnitude, &binaryExponent);
+  const auto integer =
+      static_cast<std::uint64_t>(std::ldexp(fraction, kDoubleDigits));
+  RoundedSignificand rounded;
+  rounded.exponent = std::max(binaryExponent - 1, 1 - format.maxExponent());
+  const int shift =
+      (binaryExponent - kDoubleDigits) - (rounded.exponent - (digits - 1));
+  rounded.significand = shift >= 0 ? ConstInt::UWide(integer) << shift
+                                   : round_shift_right(integer, -shift);
+  if (rounded.significand >> digits) {
+    rounded.significand >>= 1;
+    ++rounded.exponent;
+  }
+  return rounded;
+}
+
+[[nodiscard]] auto stored_significand(ConstInt::UWide significand,
+                                      const FloatingPointFormat& format)
+    -> ConstInt::UWide {
+  if (format.explicitIntegerBit) return significand;
+  return significand & ((ConstInt::UWide(1) << format.fractionBits()) - 1);
+}
 }  // namespace
 
 MemoryLayout::MemoryLayout(std::size_t bits) : bits_(bits) {
@@ -568,6 +622,61 @@ auto FloatingPointFormat::representsInteger(std::intmax_t value) const -> bool {
   const int significant = width - std::countr_zero(magnitude);
   if (significant > significandDigits) return false;
   return width - 1 <= maxExponent();
+}
+
+auto FloatingPointFormat::representation(double value) const
+    -> ConstInt::UWide {
+  const auto integerBit = ConstInt::UWide(1) << (significandDigits - 1);
+  const auto sign = ConstInt::UWide(std::signbit(value) ? 1 : 0)
+                    << (exponentBits + fractionBits());
+  const auto maxBiasedExponent = (ConstInt::UWide(1) << exponentBits) - 1;
+  const auto infinity = (maxBiasedExponent << fractionBits()) |
+                        stored_significand(integerBit, *this);
+
+  if (std::isnan(value)) {
+    return sign | infinity |
+           stored_significand(integerBit | (integerBit >> 1), *this);
+  }
+  if (std::isinf(value)) return sign | infinity;
+  if (value == 0) return sign;
+
+  const auto rounded = round_to_format(std::fabs(value), *this);
+  if (rounded.exponent > maxExponent()) return sign | infinity;
+
+  const bool isNormal = (rounded.significand & integerBit) != 0;
+  const auto biasedExponent =
+      isNormal ? ConstInt::UWide(rounded.exponent + maxExponent()) : 0;
+  return sign | (biasedExponent << fractionBits()) |
+         stored_significand(rounded.significand, *this);
+}
+
+auto FloatingPointFormat::value(ConstInt::UWide representation) const
+    -> double {
+  const auto integerBit = ConstInt::UWide(1) << (significandDigits - 1);
+  const auto fractionMask = (ConstInt::UWide(1) << fractionBits()) - 1;
+  const auto maxBiasedExponent = (ConstInt::UWide(1) << exponentBits) - 1;
+  const bool negative = (representation >> (exponentBits + fractionBits())) & 1;
+  const auto biasedExponent =
+      (representation >> fractionBits()) & maxBiasedExponent;
+  auto significand = representation & fractionMask;
+  if (explicitIntegerBit) significand |= representation & integerBit;
+
+  const auto sign = negative ? -1.0 : 1.0;
+
+  if (biasedExponent == maxBiasedExponent) {
+    if (significand & (integerBit - 1))
+      return std::numeric_limits<double>::quiet_NaN();
+    return sign * std::numeric_limits<double>::infinity();
+  }
+
+  if (biasedExponent != 0 && !explicitIntegerBit) significand |= integerBit;
+
+  const int exponent = biasedExponent != 0
+                           ? static_cast<int>(biasedExponent) - maxExponent()
+                           : 1 - maxExponent();
+
+  return sign * std::ldexp(static_cast<double>(significand),
+                           exponent - (significandDigits - 1));
 }
 
 auto FloatingPointFormat::rangeContains(double value) const -> bool {

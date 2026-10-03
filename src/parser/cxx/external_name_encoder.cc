@@ -335,89 +335,11 @@ struct IsExpressionPrimary {
   return op == TokenKind::T_PLUS_PLUS || op == TokenKind::T_MINUS_MINUS;
 }
 
-#ifdef __SIZEOF_INT128__
-using FloatingBits = unsigned __int128;
-#else
-using FloatingBits = std::uint64_t;
-#endif
-
-[[nodiscard]] auto round_shift_right(std::uint64_t value, int count)
-    -> FloatingBits {
-  if (count >= 64) return 0;
-  const auto quotient = value >> count;
-  const auto remainder = value & ((std::uint64_t(1) << count) - 1);
-  const auto half = std::uint64_t(1) << (count - 1);
-  if (remainder > half) return FloatingBits(quotient) + 1;
-  if (remainder == half && (quotient & 1)) return FloatingBits(quotient) + 1;
-  return quotient;
-}
-
-struct RoundedSignificand {
-  int exponent = 0;
-  FloatingBits significand = 0;
-};
-
-[[nodiscard]] auto round_to_format(double magnitude,
-                                   const FloatingPointFormat& format)
-    -> RoundedSignificand {
-  constexpr int kDoubleDigits = std::numeric_limits<double>::digits;
-  const int digits = format.significandDigits;
-  int binaryExponent = 0;
-  const auto fraction = std::frexp(magnitude, &binaryExponent);
-  const auto integer =
-      static_cast<std::uint64_t>(std::ldexp(fraction, kDoubleDigits));
-  RoundedSignificand rounded;
-  rounded.exponent = std::max(binaryExponent - 1, 1 - format.maxExponent());
-  const int shift =
-      (binaryExponent - kDoubleDigits) - (rounded.exponent - (digits - 1));
-  rounded.significand = shift >= 0 ? FloatingBits(integer) << shift
-                                   : round_shift_right(integer, -shift);
-  if (rounded.significand >> digits) {
-    rounded.significand >>= 1;
-    ++rounded.exponent;
-  }
-  return rounded;
-}
-
-[[nodiscard]] auto stored_significand(FloatingBits significand,
-                                      const FloatingPointFormat& format)
-    -> FloatingBits {
-  if (format.explicitIntegerBit) return significand;
-  return significand & ((FloatingBits(1) << format.fractionBits()) - 1);
-}
-
-[[nodiscard]] auto floating_representation(double value,
-                                           const FloatingPointFormat& format)
-    -> FloatingBits {
-  const auto integerBit = FloatingBits(1) << (format.significandDigits - 1);
-  const auto sign = FloatingBits(std::signbit(value) ? 1 : 0)
-                    << (format.exponentBits + format.fractionBits());
-  const auto maxBiasedExponent = (FloatingBits(1) << format.exponentBits) - 1;
-  const auto infinity = (maxBiasedExponent << format.fractionBits()) |
-                        stored_significand(integerBit, format);
-
-  if (std::isnan(value)) {
-    return sign | infinity |
-           stored_significand(integerBit | (integerBit >> 1), format);
-  }
-  if (std::isinf(value)) return sign | infinity;
-  if (value == 0) return sign;
-
-  const auto rounded = round_to_format(std::fabs(value), format);
-  if (rounded.exponent > format.maxExponent()) return sign | infinity;
-
-  const bool isNormal = (rounded.significand & integerBit) != 0;
-  const auto biasedExponent =
-      isNormal ? FloatingBits(rounded.exponent + format.maxExponent()) : 0;
-  return sign | (biasedExponent << format.fractionBits()) |
-         stored_significand(rounded.significand, format);
-}
-
 [[nodiscard]] auto floating_digits(double value,
                                    const FloatingPointFormat& format)
     -> std::string {
   const int bitCount = 1 + format.exponentBits + format.fractionBits();
-  const auto bits = floating_representation(value, format);
+  const auto bits = format.representation(value);
   std::string digits;
   for (int shift = bitCount - 4; shift >= 0; shift -= 4) {
     digits += "0123456789abcdef"[static_cast<int>((bits >> shift) & 0xf)];
@@ -868,6 +790,12 @@ struct ExternalNameEncoder::EncodeType {
     return true;
   }
 
+  auto operator()(const SveType* type) -> bool {
+    const auto& name = Token::spell(type->sveKind());
+    encoder.out(std::format("u{}{}", name.size(), name));
+    return true;
+  }
+
   auto operator()(const BitIntType* type) -> bool {
     encoder.out(std::format("DB{}_", type->numBits()));
     return false;
@@ -1193,8 +1121,6 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
   void operator()(const Identifier* id) {
     if (encodeConstructor()) return;
 
-    if (encoder.encodeTemplateNameSubstitution(symbol)) return;
-
     if (needsInternalLinkageMarker(symbol)) out("L");
 
     out(std::format("{}{}", id->name().length(), id->name()));
@@ -1278,7 +1204,6 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
       cxx_runtime_error(
           std::format("cannot encode template-id '{}'", to_string(name)));
     }
-    if (encoder.encodeTemplateNameSubstitution(symbol)) return;
 
     out(std::format("{}{}", baseId->name().length(), baseId->name()));
     encodeAbiTagsAndTemplateArguments(symbol);
@@ -1483,9 +1408,13 @@ auto ExternalNameEncoder::encodeTemplateTemplateArgument(Symbol* symbol)
 }
 
 void ExternalNameEncoder::encodeTemplateName(Symbol* symbol) {
+  auto templateName = template_name(symbol);
+  if (templateName && encodeSubstitution(templateName)) return;
   auto saved = std::exchange(templateNameOnly_, symbol);
   encodeName(symbol);
   templateNameOnly_ = saved;
+  if (templateName && std_template_abbreviation(templateName).empty())
+    enterSubstitution(templateName);
 }
 
 void ExternalNameEncoder::encodeClosureTypeName(ClassSymbol* closure) {
@@ -1771,13 +1700,6 @@ auto ExternalNameEncoder::encodeNestedName(Symbol* symbol) -> bool {
   if (is_global_namespace(parent)) return false;
   if (is_abi_std_namespace(parent)) return false;
 
-  if (templateNameOnly_ == symbol) {
-    if (auto templateName = template_name(symbol);
-        templateName && encodeSubstitution(templateName)) {
-      return true;
-    }
-  }
-
   out("N");
 
   if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
@@ -1818,6 +1740,7 @@ auto ExternalNameEncoder::encodeStdTemplateAbbreviation(Symbol* symbol)
 auto ExternalNameEncoder::encodeUnscopedName(Symbol* symbol) -> bool {
   if (encodeStdTypeAbbreviation(symbol)) return true;
   if (encodeStdTemplateAbbreviation(symbol)) return true;
+  if (encodeTemplateNameSubstitution(symbol)) return true;
 
   if (is_abi_std_namespace(mangling_parent(symbol))) {
     out("St");
@@ -1837,7 +1760,8 @@ void ExternalNameEncoder::encodePrefix(Symbol* symbol) {
 
   if (encodeStdTypeAbbreviation(symbol)) return;
 
-  if (encodeStdTemplateAbbreviation(symbol)) {
+  if (encodeStdTemplateAbbreviation(symbol) ||
+      encodeTemplateNameSubstitution(symbol)) {
     enterSubstitution(symbol->type());
     return;
   }
@@ -3058,8 +2982,18 @@ struct CollectAbiTags {
 
   void collect(std::span<const TemplateArgument> args) {
     for (const auto& arg : args) {
-      if (auto sym = std::get_if<Symbol*>(&arg)) collect((*sym)->type());
+      if (auto sym = std::get_if<Symbol*>(&arg)) collect(*sym);
+      if (auto type = std::get_if<const Type*>(&arg)) collect(*type);
     }
+  }
+
+  void collect(Symbol* symbol) {
+    if (!symbol) return;
+    if (auto pack = symbol_cast<ParameterPackSymbol>(symbol)) {
+      for (auto element : pack->elements()) collect(element);
+      return;
+    }
+    collect(symbol->type());
   }
 
   void operator()(const QualType* type) { collect(type->elementType()); }
@@ -3092,11 +3026,21 @@ struct CollectAbiTags {
   void operator()(const EnumType* type) { addTags(type->symbol()); }
   void operator()(const ScopedEnumType* type) { addTags(type->symbol()); }
 
+  void operator()(const FunctionType* type) {
+    collect(type->returnType());
+    for (auto parameterType : type->parameterTypes()) collect(parameterType);
+  }
+
   void operator()(const Type*) {}
 
   void addTags(Symbol* symbol) {
     if (!symbol) return;
     for (auto tag : symbol->abiTags()) tags.insert(tag);
+    for (auto enclosing : symbol->enclosingSymbols()) {
+      auto ns = symbol_cast<NamespaceSymbol>(enclosing);
+      if (!ns || !ns->isInline()) continue;
+      for (auto tag : ns->abiTags()) tags.insert(tag);
+    }
   }
 };
 
@@ -3105,6 +3049,7 @@ struct CollectAbiTags {
 auto ExternalNameEncoder::mangledAbiTags(Symbol* symbol)
     -> std::vector<const Identifier*> {
   if (!symbol) return {};
+  if (symbol_cast<NamespaceSymbol>(symbol)) return {};
 
   std::set<const Identifier*> declaredTags;
   auto addDeclaredTags = [&](Symbol* declaration) {

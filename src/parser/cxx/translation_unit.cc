@@ -380,6 +380,7 @@ void TranslationUnit::endParsing() {
   if (!parser_) return;
   parser_->endParsing();
   parser_.reset();
+  nonDependentTypes_ = {};
 }
 
 auto TranslationUnit::language() const -> LanguageKind {
@@ -420,29 +421,16 @@ auto TranslationUnit::cachedConstraintSatisfaction(
   auto cacheIt = constraintSatisfactionCaches_.find(symbol);
   if (cacheIt == constraintSatisfactionCaches_.end()) return std::nullopt;
 
-  auto& cache = cacheIt->second;
-  auto matches = [&](const ConstraintSatisfaction& entry) {
-    if (entry.constraints != constraints) return false;
-    return compare_args(this, entry.arguments, arguments);
-  };
-
-  if (cache.lastIndex) {
-    auto index = *cache.lastIndex;
-    if (index < cache.entries.size()) {
-      if (matches(cache.entries[index])) return cache.entries[index].value;
-    }
-  }
-
-  for (std::size_t i = 0; i < cache.entries.size(); ++i) {
-    if (cache.lastIndex) {
-      if (i == *cache.lastIndex) continue;
-    }
-    if (!matches(cache.entries[i])) continue;
-    cache.lastIndex = i;
-    return cache.entries[i].value;
-  }
-
-  return std::nullopt;
+  const auto& cache = cacheIt->second;
+  auto index = findTemplateArguments(
+      arguments, cache.entries.size(), cache.byArguments, cache.unkeyed,
+      [&](std::size_t index) {
+        const auto& entry = cache.entries[index];
+        if (entry.constraints != constraints) return false;
+        return compare_args(this, entry.arguments, arguments);
+      });
+  if (!index) return std::nullopt;
+  return cache.entries[*index].value;
 }
 
 void TranslationUnit::cacheConstraintSatisfaction(
@@ -450,9 +438,18 @@ void TranslationUnit::cacheConstraintSatisfaction(
     std::vector<TemplateArgument> arguments, bool value) {
   if (!symbol) return;
   auto& cache = constraintSatisfactionCaches_[symbol];
+  auto position = static_cast<std::uint32_t>(cache.entries.size());
+  indexTemplateArguments(arguments, position, cache.byArguments, cache.unkeyed);
   cache.entries.push_back(
       {std::move(constraints), std::move(arguments), value});
-  cache.lastIndex = cache.entries.size() - 1;
+}
+
+auto TranslationUnit::isNonDependentType(const Type* type) const -> bool {
+  return nonDependentTypes_.contains(type);
+}
+
+void TranslationUnit::addNonDependentType(const Type* type) {
+  nonDependentTypes_.insert(type);
 }
 
 auto TranslationUnit::takePendingMemberInstantiations()

@@ -48,10 +48,6 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
 
   [[nodiscard]] auto control() const -> Control* { return gen.control(); }
 
-  [[nodiscard]] auto is_bool(const Type* type) const -> bool {
-    return unqualified_cast<BoolType>(type);
-  }
-
   [[nodiscard]] auto emitMemberAccess(MemberExpressionAST* ast)
       -> std::optional<std::pair<ir::ValueRef, ClassLayout::MemberInfo>>;
 
@@ -215,8 +211,6 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto emitThreeWayComparison(ThreeWayComparisonExpressionAST* ast,
                               ExpressionResult left, ExpressionResult right)
       -> ExpressionResult;
-  [[nodiscard]] auto comparisonCategoryAddress(SourceLocation loc,
-                                               Symbol* symbol) -> ir::ValueRef;
   auto emitBinaryBitwiseOp(SourceLocation loc, TokenKind op,
                            ir::TypeRef resultType, ir::ValueRef left,
                            ir::ValueRef right) -> ExpressionResult;
@@ -684,11 +678,8 @@ auto Codegen::ExpressionVisitor::operator()(
   if (gen.defaultInitializerObject_)
     thisValue.emplace(gen, gen.defaultInitializerObject_);
 
-  if (auto object = gen.takeResultObject(ast)) {
-    (void)gen.emitPrvalueInto(object, ast->type, ast->expression,
-                              ast->firstSourceLocation());
+  if (auto object = gen.emitIntoResultObject(ast, ast->expression))
     return {object};
-  }
 
   return gen.expression(ast->expression, format);
 }
@@ -732,24 +723,9 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     }
   } else if (auto field = symbol_cast<FieldSymbol>(ast->symbol)) {
     if (field->isStatic()) {
-      if (auto def = field->definition()) {
-        if (auto global = gen.findOrCreateGlobal(def)) {
-          auto loc = ast->firstSourceLocation();
-          auto resultType =
-              gen.emitter_.pointerType(gen.convertType(def->type()));
-          return {gen.emitter_.addressOfSymbol(loc, resultType,
-                                               gen.globalName(*global))};
-        }
-      }
-
-      if (!field->definition()) {
-        auto global = gen.findOrCreateStaticField(field);
-        auto loc = ast->firstSourceLocation();
-        auto resultType =
-            gen.emitter_.pointerType(gen.convertType(field->type()));
-        return {gen.emitter_.addressOfSymbol(loc, resultType,
-                                             gen.globalName(global))};
-      }
+      if (auto address =
+              gen.staticStorageAddress(ast->firstSourceLocation(), field))
+        return {address};
     }
 
     if (!field->isStatic()) {
@@ -1282,19 +1258,9 @@ auto Codegen::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
           ast->constructorSymbol);
     }
 
-    auto object = gen.takeResultObject(ast);
-    const bool ownsTemporary = !object;
-    if (ownsTemporary)
-      object = gen.newTemp(targetType, ast->firstSourceLocation());
-
-    if (ast->bracedInitList) {
-      ast->bracedInitList->type = targetType;
-      gen.emitAggregateInit(object, targetType, ast->bracedInitList);
-    }
-
-    if (ownsTemporary) gen.addTemporaryCleanup(object, targetType);
-
-    return {object};
+    if (ast->bracedInitList) ast->bracedInitList->type = targetType;
+    return {gen.emitAggregateObject(ast, targetType, ast->bracedInitList,
+                                    ast->firstSourceLocation())};
   }
 
   if (ast->bracedInitList && !ast->bracedInitList->type) {
@@ -1707,6 +1673,8 @@ auto Codegen::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
   if (gen.dynamicCastNeedsRuntimeCheck(ast)) {
     return {gen.emitDynamicCast(ast), ast->valueCategory};
   }
+  if (auto object = gen.emitIntoResultObject(ast, ast->expression))
+    return {object};
   auto expressionResult = gen.expression(ast->expression);
   return expressionResult;
 }
@@ -1852,7 +1820,7 @@ auto Codegen::ExpressionVisitor::emitRealImag(UnaryExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::emitUnaryOpNot(UnaryExpressionAST* ast)
     -> ExpressionResult {
-  if (unqualified_cast<BoolType>(ast->type)) {
+  if (gen.traits.is_bool(ast->type)) {
     auto loc = ast->opLoc;
     auto expressionResult = gen.expression(ast->expression);
     auto resultType = gen.convertType(ast->type);
@@ -2735,8 +2703,8 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
     auto i8PtrType = gen.emitter_.pointerType(i8Type);
     auto i8PtrPtrType = gen.emitter_.pointerType(i8PtrType);
 
-    auto vptrFieldPtr = gen.memberAddress(loc, ptrValue, i8PtrPtrType, 0);
-    auto vtablePtr = gen.emitter_.load(loc, i8PtrPtrType, vptrFieldPtr, 8);
+    auto vtablePtr =
+        gen.emitter_.load(loc, i8PtrPtrType, gen.vptrAddress(loc, ptrValue), 8);
 
     int slotIndex = gen.vtableSlotIndex(destructor) + 1;
 
@@ -2796,6 +2764,9 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(CastExpressionAST* ast)
     -> ExpressionResult {
+  if (auto object = gen.emitIntoResultObject(ast, ast->expression))
+    return {object};
+
   auto expressionResult = gen.expression(ast->expression);
   if (!expressionResult.value) return expressionResult;
 
@@ -2884,7 +2855,7 @@ auto Codegen::ExpressionVisitor::emitNumericConversion(
   auto expressionResult = gen.expression(ast->expression);
   auto resultType = gen.convertType(ast->type);
 
-  if (is_bool(ast->type)) {
+  if (gen.traits.is_bool(ast->type)) {
     auto zero = gen.emitter_.constantZero(
         loc, gen.emitter_.typeOf(expressionResult.value));
     if (gen.traits.is_floating_point(ast->expression->type))
@@ -2905,7 +2876,7 @@ auto Codegen::ExpressionVisitor::emitNumericConversion(
         return {intVal};
       }
 
-      if (is_bool(ast->expression->type)) {
+      if (gen.traits.is_bool(ast->expression->type)) {
         return {
             gen.emitter_.zeroExtend(loc, expressionResult.value, resultType)};
       }
@@ -3894,37 +3865,6 @@ auto Codegen::ExpressionVisitor::emitBinaryComparisonOp(
   return {gen.emitTodoExpr(loc, "comparison operator")};
 }
 
-auto Codegen::ExpressionVisitor::comparisonCategoryAddress(SourceLocation loc,
-                                                           Symbol* symbol)
-    -> ir::ValueRef {
-  if (auto field = symbol_cast<FieldSymbol>(symbol)) {
-    if (auto definition = field->definition()) {
-      auto global = gen.findOrCreateGlobal(definition);
-      if (!global) return {};
-      auto pointerType =
-          gen.emitter_.pointerType(gen.convertType(definition->type()));
-      return gen.emitter_.addressOfSymbol(loc, pointerType,
-                                          gen.globalName(*global));
-    }
-
-    auto global = gen.findOrCreateStaticField(field);
-    auto pointerType = gen.emitter_.pointerType(gen.convertType(field->type()));
-    return gen.emitter_.addressOfSymbol(loc, pointerType,
-                                        gen.globalName(global));
-  }
-
-  if (auto variable = symbol_cast<VariableSymbol>(symbol)) {
-    auto global = gen.findOrCreateGlobal(variable);
-    if (!global) return {};
-    auto pointerType =
-        gen.emitter_.pointerType(gen.convertType(variable->type()));
-    return gen.emitter_.addressOfSymbol(loc, pointerType,
-                                        gen.globalName(*global));
-  }
-
-  return {};
-}
-
 auto Codegen::ExpressionVisitor::emitThreeWayComparison(
     ThreeWayComparisonExpressionAST* ast, ExpressionResult left,
     ExpressionResult right) -> ExpressionResult {
@@ -3974,7 +3914,7 @@ auto Codegen::ExpressionVisitor::emitThreeWayComparison(
 
   auto emitCategory = [&](ir::BlockRef block, Symbol* symbol) {
     gen.emitter_.setInsertionBlock(block);
-    auto address = comparisonCategoryAddress(comparison->opLoc, symbol);
+    auto address = gen.staticStorageAddress(comparison->opLoc, symbol);
     auto categoryType = gen.convertType(ast->type);
     auto value = gen.emitter_.load(loc, categoryType, address,
                                    gen.getAlignment(ast->type));
@@ -4477,6 +4417,14 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
   }
 
   auto loc = ast->firstSourceLocation();
+  if (gen.traits.is_class(ast->type))
+    return {gen.emitAggregateObject(ast, ast->type, ast, loc)};
+
+  if (auto object = gen.takeResultObject(ast)) {
+    gen.emitAggregateInit(object, ast->type, ast);
+    return {object};
+  }
+
   auto type = gen.convertType(ast->type);
   auto ptrType = gen.emitter_.pointerType(type);
   auto temp = gen.emitter_.allocate(loc, ptrType, gen.getAlignment(ast->type));
@@ -5267,9 +5215,8 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
     auto i8PtrType = emitter_.pointerType(i8Type);
     auto i8PtrPtrType = emitter_.pointerType(i8PtrType);
 
-    auto vptrFieldPtr = memberAddress(loc, objectPtr, i8PtrPtrType, 0);
-
-    auto vtablePtr = emitter_.load(loc, i8PtrPtrType, vptrFieldPtr, 8);
+    auto vtablePtr =
+        emitter_.load(loc, i8PtrPtrType, vptrAddress(loc, objectPtr), 8);
 
     auto offsetType = convertType(control()->getIntType());
     auto offsetOp = emitter_.constantInt(loc, offsetType, slotIndex);

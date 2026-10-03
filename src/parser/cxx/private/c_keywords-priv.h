@@ -1294,37 +1294,7 @@ static inline auto classifyC16(const char* s) -> cxx::TokenKind {
 static inline auto classifyC17(const char* s) -> cxx::TokenKind {
   if (s[0] == '_') {
     if (s[1] == '_') {
-      if (s[2] == 'b') {
-        if (s[3] == 'u') {
-          if (s[4] == 'i') {
-            if (s[5] == 'l') {
-              if (s[6] == 't') {
-                if (s[7] == 'i') {
-                  if (s[8] == 'n') {
-                    if (s[9] == '_') {
-                      if (s[10] == 'v') {
-                        if (s[11] == 'a') {
-                          if (s[12] == '_') {
-                            if (s[13] == 'l') {
-                              if (s[14] == 'i') {
-                                if (s[15] == 's') {
-                                  if (s[16] == 't') {
-                                    return cxx::TokenKind::T___BUILTIN_VA_LIST;
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      } else if (s[2] == 'u') {
+      if (s[2] == 'u') {
         if (s[3] == 'n') {
           if (s[4] == 'd') {
             if (s[5] == 'e') {
@@ -1340,6 +1310,36 @@ static inline auto classifyC17(const char* s) -> cxx::TokenKind {
                                 if (s[15] == 'p') {
                                   if (s[16] == 'e') {
                                     return cxx::TokenKind::T___UNDERLYING_TYPE;
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'v') {
+                        if (s[11] == 'a') {
+                          if (s[12] == '_') {
+                            if (s[13] == 'l') {
+                              if (s[14] == 'i') {
+                                if (s[15] == 's') {
+                                  if (s[16] == 't') {
+                                    return cxx::TokenKind::T___BUILTIN_VA_LIST;
                                   }
                                 }
                               }

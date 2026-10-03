@@ -146,6 +146,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
       FunctionSymbol* existingFunction) const -> bool;
   void checkCRedeclaration(ScopeSymbol* declaringScope);
   [[nodiscard]] auto isLexicallyInsideClass() const -> bool;
+  [[nodiscard]] auto isDefinedInClassDefinition() const -> bool;
+  [[nodiscard]] auto declaresInlineFunction() const -> bool;
   void reportDifferentKindOfSymbol(ScopeSymbol* declaringScope);
   void reportMemberRedeclaration(FunctionSymbol* previous);
 
@@ -649,8 +651,22 @@ void Binder::DeclareFunction::checkConstructor() {
   checkDefaultArgumentOrder();
 }
 
+auto Binder::DeclareFunction::isDefinedInClassDefinition() const -> bool {
+  if (!decl.isFunctionDefinition) return false;
+  auto classBeingDefined = binder.classBeingDefined();
+  return classBeingDefined && binder.declaringScope() == classBeingDefined;
+}
+
+auto Binder::DeclareFunction::declaresInlineFunction() const -> bool {
+  if (decl.specs.isInline) return true;
+  if (decl.specs.isConstexpr) return true;
+  if (decl.specs.isConsteval) return true;
+  return isDefinedInClassDefinition();
+}
+
 void Binder::DeclareFunction::checkDeclSpecifiers() {
   binder.applySpecifiers(functionSymbol, decl.specs);
+  functionSymbol->setInline(declaresInlineFunction());
 
   if (!symbol_cast<ClassSymbol>(functionSymbol->parent())) return;
 

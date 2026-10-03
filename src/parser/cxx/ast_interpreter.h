@@ -370,7 +370,11 @@ class ASTInterpreter {
   [[nodiscard]] auto bindReferenceTo(Frame& frame, Symbol* reference,
                                      ExpressionAST* initializer) -> bool;
 
-  void interpretInitDeclarator(InitDeclaratorAST* initDecl);
+  auto initializeAutomaticVariable(Symbol* symbol, ExpressionAST* initializer)
+      -> bool;
+
+  auto initializeDecisionVariable(ConditionExpressionAST* condition)
+      -> VariableSymbol*;
 
   void interpretStructuredBinding(StructuredBindingDeclarationAST* ast);
 
@@ -493,6 +497,9 @@ class ASTInterpreter {
   [[nodiscard]] auto addressOfLvalue(ExpressionAST* ast)
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto variableAddress(Symbol* variable)
+      -> std::optional<ConstValue>;
+
   void pushFrame();
   void popFrame();
   void retireFrame();
@@ -577,6 +584,10 @@ class ASTInterpreter {
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto evaluateBuiltinHugeVall(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto bitCast(const ConstValue& value, const Type* sourceType,
+                             const Type* targetType)
       -> std::optional<ConstValue>;
 
  private:

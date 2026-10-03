@@ -105,6 +105,8 @@ struct ClassValueAbiRules {
   [[nodiscard]] auto classifySingleScalar(const Type* type,
                                           ClassValueAbiContext context)
       -> ClassValueAbi;
+  [[nodiscard]] auto ignoresAArch64EmptyRecord(
+      const Type* type, ClassValueAbiContext context) const -> bool;
   [[nodiscard]] auto classifyAArch64(const Type* type,
                                      ClassValueAbiContext context)
       -> ClassValueAbi;
@@ -354,10 +356,18 @@ auto ClassValueAbiRules::classifySingleScalar(const Type* type,
   return indirect(context, type, /*byValue=*/true);
 }
 
+auto ClassValueAbiRules::ignoresAArch64EmptyRecord(
+    const Type* type, ClassValueAbiContext context) const -> bool {
+  if (context == ClassValueAbiContext::Return) return true;
+  if (memoryLayout->isDarwin()) return true;
+  return sizeOf(type) == 0;
+}
+
 auto ClassValueAbiRules::classifyAArch64(const Type* type,
                                          ClassValueAbiContext context)
     -> ClassValueAbi {
-  if (isEmptyRecord(type)) return {.kind = ClassValueAbi::Kind::Empty};
+  if (isEmptyRecord(type) && ignoresAArch64EmptyRecord(type, context))
+    return {.kind = ClassValueAbi::Kind::Empty};
 
   const Type* base = nullptr;
   std::size_t members = 0;

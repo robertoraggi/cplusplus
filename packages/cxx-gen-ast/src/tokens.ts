@@ -95,7 +95,15 @@ export const OPERATORS: Array<[kind: string, spelling: string]> = [
   ["TILDE", "~"],
 ];
 
+export const BUILTIN_KEYWORD_OPERATORS: string[] = [
+  "__builtin_bit_cast",
+  "__builtin_offsetof",
+  "__builtin_va_arg",
+  "__underlying_type",
+];
+
 export const CXX_KEYWORDS: string[] = [
+  ...BUILTIN_KEYWORD_OPERATORS,
   "alignas",
   "alignof",
   "asm",
@@ -170,6 +178,7 @@ export const CXX_KEYWORDS: string[] = [
   "typedef",
   "typeid",
   "typename",
+  "typeof",
   "union",
   "unsigned",
   "using",
@@ -180,9 +189,6 @@ export const CXX_KEYWORDS: string[] = [
   "while",
 
   "__attribute__",
-  "__builtin_bit_cast",
-  "__builtin_offsetof",
-  "__builtin_va_arg",
   "__builtin_va_list",
   "__builtin_meta_info",
   "__complex__",
@@ -197,7 +203,6 @@ export const CXX_KEYWORDS: string[] = [
   "__restrict__",
   "__thread",
   "__uint128_t",
-  "__underlying_type",
   "_Atomic",
   "_BitInt",
   "_Complex",
@@ -207,6 +212,7 @@ export const CXX_KEYWORDS: string[] = [
 
 export const BUILTIN_TYPE_TRAITS: string[] = [
   "__builtin_types_compatible_p",
+  "__has_trivial_constructor",
   "__has_trivial_destructor",
   "__has_unique_object_representations",
   "__has_virtual_destructor",
@@ -293,6 +299,7 @@ export const BINARY_BUILTIN_TYPE_SPECIFIERS: string[] = [];
 export const WELL_KNOWN_NAMES: string[] = [
   "std",
   "align_val_t",
+  "byte",
   "destroying_delete_t",
   "initializer_list",
   "nothrow_t",
@@ -354,6 +361,7 @@ export const CXX_TOKEN_ALIASES = {
 };
 
 export const C_KEYWORDS: string[] = [
+  ...BUILTIN_KEYWORD_OPERATORS,
   "asm",
   "alignas",
   "alignof",
@@ -411,9 +419,6 @@ export const C_KEYWORDS: string[] = [
   "_Noreturn",
 
   "__attribute__",
-  "__builtin_bit_cast",
-  "__builtin_offsetof",
-  "__builtin_va_arg",
   "__builtin_va_list",
   "__complex__",
   "__extension__",
@@ -426,7 +431,6 @@ export const C_KEYWORDS: string[] = [
   "__real__",
   "__thread",
   "__uint128_t",
-  "__underlying_type",
   "_Complex",
   "_Float16",
 ];
@@ -455,8 +459,26 @@ export const C_TOKEN_ALIASES = {
   _Thread_local: "THREAD_LOCAL",
 };
 
+export const SVE_TYPES: string[] = [
+  "__SVBfloat16_t",
+  "__SVBool_t",
+  "__SVCount_t",
+  "__SVFloat16_t",
+  "__SVFloat32_t",
+  "__SVFloat64_t",
+  "__SVInt16_t",
+  "__SVInt32_t",
+  "__SVInt64_t",
+  "__SVInt8_t",
+  "__SVMfloat8_t",
+  "__SVUint16_t",
+  "__SVUint32_t",
+  "__SVUint64_t",
+  "__SVUint8_t",
+];
+
 export const C_AND_CXX_KEYWORDS = Array.from(
-  new Set([...CXX_KEYWORDS, ...C_KEYWORDS]),
+  new Set([...CXX_KEYWORDS, ...C_KEYWORDS, ...SVE_TYPES]),
 ).sort();
 
 export const C_AND_CXX_TOKEN_ALIASES = {

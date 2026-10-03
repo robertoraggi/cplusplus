@@ -189,15 +189,16 @@ auto TemplateArgumentDeduction::specifyExplicitArguments(
     auto parameter = deduction_->parameter(slot);
 
     if (isPackParameter(parameter)) {
-      auto prefix = control_->newParameterPackSymbol(nullptr, {});
+      std::vector<Symbol*> elements;
       for (; index < written.size(); ++index) {
         if (!matchesTemplateParameterKind(parameter, written[index]))
           return false;
         for (const auto& element :
              expand_template_arguments(std::span{&(*arguments)[index], 1}))
-          prefix->addElement(std::get<Symbol*>(element));
+          elements.push_back(std::get<Symbol*>(element));
       }
-      deduction_->specifyPackPrefix(slot, prefix);
+      deduction_->specifyPackPrefix(slot,
+                                    control_->getPackArgumentSymbol(elements));
       break;
     }
 
@@ -440,6 +441,8 @@ auto TemplateArgumentDeduction::deduceFromBaseClass(const Type* P,
   auto classType = type_cast<ClassType>(unqualified_type(argumentClass));
   if (!classType || !classType->symbol()) return false;
 
+  traits.requireCompleteClass(classType->symbol());
+
   struct Candidate {
     ClassSymbol* base = nullptr;
     TypeDeduction::State state;
@@ -516,11 +519,7 @@ auto TemplateArgumentDeduction::valueSymbol(Symbol* value,
       traits.converted_constant_value(valueType, *variable->constValue());
   if (!converted) return nullptr;
 
-  auto argument = control_->newVariableSymbol(nullptr, {});
-  argument->setType(valueType);
-  argument->setConstexpr(true);
-  argument->setConstValue(*converted);
-  return argument;
+  return control_->getConstantArgumentSymbol(valueType, *converted);
 }
 
 auto TemplateArgumentDeduction::symbolArgument(Symbol* symbol,
@@ -549,21 +548,23 @@ auto TemplateArgumentDeduction::typeArgument(const Type* type) const
 }
 
 auto TemplateArgumentDeduction::packArgument(int slot) -> TemplateArgumentAST* {
-  auto pack = control_->newParameterPackSymbol(nullptr, {});
   auto deduced = symbol_cast<ParameterPackSymbol>(deduction_->deduced(slot));
-  if (!deduced) return symbolArgument(pack, nullptr);
+  if (!deduced)
+    return symbolArgument(control_->getPackArgumentSymbol({}), nullptr);
 
   const auto isValuePack = static_cast<bool>(
       ast_cast<NonTypeTemplateParameterAST>(deduction_->parameter(slot)));
   auto elementType = nonTypeParameterType(slot);
 
+  std::vector<Symbol*> elements;
+  elements.reserve(deduced->elements().size());
   for (auto element : deduced->elements()) {
     if (isValuePack) element = valueSymbol(element, elementType);
     if (!element) return nullptr;
-    pack->addElement(element);
+    elements.push_back(element);
   }
 
-  return symbolArgument(pack, nullptr);
+  return symbolArgument(control_->getPackArgumentSymbol(elements), nullptr);
 }
 
 auto TemplateArgumentDeduction::deducedArgument(

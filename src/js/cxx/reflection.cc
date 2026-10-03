@@ -808,6 +808,8 @@ constexpr int ComplexTypeSlotBase = UnresolvedVectorTypeSlotBase + 4;
 
 constexpr int AtomicTypeSlotBase = ComplexTypeSlotBase + 1;
 
+constexpr int SveTypeSlotBase = AtomicTypeSlotBase + 1;
+
 template <typename T, typename F>
 auto optionalValue(const T& value, F convert) -> val {
   if (!value) return val::undefined();
@@ -12107,6 +12109,11 @@ auto readType(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::Type*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Type*>(self->elementType())));
+    }
+    case SveTypeSlotBase + 0: {
+      auto self = static_cast<const ::cxx::SveType*>(
+          reinterpret_cast<const ::cxx::Type*>(handle));
+      return static_cast<double>(self->sveKind());
     }
   }
   cxx_runtime_error("unknown model slot");

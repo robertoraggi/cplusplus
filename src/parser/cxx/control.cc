@@ -29,23 +29,71 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <format>
 #include <forward_list>
 #include <set>
+#include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
 namespace cxx {
 namespace {
+template <typename... Fields>
+[[nodiscard]] auto typeFields(const std::tuple<Fields...>& fields)
+    -> const std::tuple<Fields...>& {
+  return fields;
+}
+
+void combineHash(std::size_t& seed, std::size_t value) {
+  seed ^= value + 0x9e3779b97f4a7c15 + (seed << 6) + (seed >> 2);
+}
+
+template <typename Field>
+[[nodiscard]] auto hashField(const Field& field) -> std::size_t {
+  return std::hash<Field>{}(field);
+}
+
+template <typename Element>
+[[nodiscard]] auto hashField(const std::vector<Element>& elements)
+    -> std::size_t {
+  std::size_t seed = elements.size();
+  for (const auto& element : elements) combineHash(seed, hashField(element));
+  return seed;
+}
+
+struct TypeFieldsHash {
+  template <typename T>
+  [[nodiscard]] auto operator()(const T& type) const -> std::size_t {
+    return std::apply(
+        [](const auto&... fields) {
+          std::size_t seed = 0;
+          (combineHash(seed, hashField(fields)), ...);
+          return seed;
+        },
+        typeFields(type));
+  }
+};
+
+struct TypeFieldsEqual {
+  template <typename T>
+  [[nodiscard]] auto operator()(const T& lhs, const T& rhs) const -> bool {
+    return typeFields(lhs) == typeFields(rhs);
+  }
+};
+
+template <typename T>
+using TypeSet = std::unordered_set<T, TypeFieldsHash, TypeFieldsEqual>;
+
 template <typename T, typename... Args>
-[[nodiscard]] auto internType(std::set<T>& types, Args&&... args) -> const T* {
+[[nodiscard]] auto internType(TypeSet<T>& types, Args&&... args) -> const T* {
   T type{std::forward<Args>(args)...};
-  auto position = types.lower_bound(type);
-  if (position != types.end() && !types.key_comp()(type, *position))
+  if (auto position = types.find(type); position != types.end())
     return &*position;
-  return &*types.emplace_hint(position, std::move(type));
+  return &*types.insert(std::move(type)).first;
 }
 
 [[nodiscard]] auto withCompletedTemplateArguments(
@@ -102,6 +150,16 @@ template <typename T, typename... Args>
   }
 
   return nullptr;
+}
+
+[[nodiscard]] auto newConstantArgumentSymbol(Control* control, const Type* type,
+                                             const ConstValue& value)
+    -> VariableSymbol* {
+  auto symbol = control->newVariableSymbol(nullptr, {});
+  symbol->setType(type);
+  symbol->setConstexpr(true);
+  symbol->setConstValue(value);
+  return symbol;
 }
 
 template <typename Literal>
@@ -191,38 +249,39 @@ struct Control::Private {
   LongDoubleType longDoubleType;
   Float16Type float16Type;
 
-  std::set<QualType> qualTypes;
-  std::set<BoundedArrayType> boundedArrayTypes;
-  std::set<UnboundedArrayType> unboundedArrayTypes;
-  std::set<PointerType> pointerTypes;
-  std::set<LvalueReferenceType> lvalueReferenceTypes;
-  std::set<RvalueReferenceType> rvalueReferenceTypes;
-  std::set<OverloadSetType> overloadSetTypes;
-  std::set<FunctionType> functionTypes;
-  std::set<MemberObjectPointerType> memberObjectPointerTypes;
-  std::set<MemberFunctionPointerType> memberFunctionPointerTypes;
-  std::set<TypeParameterType> typeParameterTypes;
-  std::set<TemplateTypeParameterType> templateTypeParameterTypes;
+  TypeSet<QualType> qualTypes;
+  TypeSet<BoundedArrayType> boundedArrayTypes;
+  TypeSet<UnboundedArrayType> unboundedArrayTypes;
+  TypeSet<PointerType> pointerTypes;
+  TypeSet<LvalueReferenceType> lvalueReferenceTypes;
+  TypeSet<RvalueReferenceType> rvalueReferenceTypes;
+  TypeSet<OverloadSetType> overloadSetTypes;
+  TypeSet<FunctionType> functionTypes;
+  TypeSet<MemberObjectPointerType> memberObjectPointerTypes;
+  TypeSet<MemberFunctionPointerType> memberFunctionPointerTypes;
+  TypeSet<TypeParameterType> typeParameterTypes;
+  TypeSet<TemplateTypeParameterType> templateTypeParameterTypes;
   std::map<const TemplateTypeParameterType*,
            std::forward_list<TemplateTypeParameterSpecializationType>>
       templateTypeParameterSpecializationTypes;
-  std::set<PackExpansionType> packExpansionTypes;
-  std::set<DecltypeType> decltypeTypes;
-  std::set<UnresolvedNameType> unresolvedNameTypes;
-  std::set<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
-  std::set<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
-  std::set<UnresolvedBuiltinType> unresolvedBuiltinTypes;
-  std::set<ClassType> classTypes;
-  std::set<NamespaceType> namespaceTypes;
-  std::set<EnumType> enumTypes;
-  std::set<ScopedEnumType> scopedEnumTypes;
-  std::set<BitIntType> bitIntTypes;
-  std::set<UnsignedBitIntType> unsignedBitIntTypes;
-  std::set<UnresolvedBitIntType> unresolvedBitIntTypes;
-  std::set<VectorType> vectorTypes;
-  std::set<UnresolvedVectorType> unresolvedVectorTypes;
-  std::set<ComplexType> complexTypes;
-  std::set<AtomicType> atomicTypes;
+  TypeSet<PackExpansionType> packExpansionTypes;
+  TypeSet<DecltypeType> decltypeTypes;
+  TypeSet<UnresolvedNameType> unresolvedNameTypes;
+  TypeSet<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
+  TypeSet<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
+  TypeSet<UnresolvedBuiltinType> unresolvedBuiltinTypes;
+  TypeSet<ClassType> classTypes;
+  TypeSet<NamespaceType> namespaceTypes;
+  TypeSet<EnumType> enumTypes;
+  TypeSet<ScopedEnumType> scopedEnumTypes;
+  TypeSet<BitIntType> bitIntTypes;
+  TypeSet<SveType> sveTypes;
+  TypeSet<UnsignedBitIntType> unsignedBitIntTypes;
+  TypeSet<UnresolvedBitIntType> unresolvedBitIntTypes;
+  TypeSet<VectorType> vectorTypes;
+  TypeSet<UnresolvedVectorType> unresolvedVectorTypes;
+  TypeSet<ComplexType> complexTypes;
+  TypeSet<AtomicType> atomicTypes;
 
   std::set<std::vector<const Identifier*>> abiTags;
   std::set<AttributeMap> attributes;
@@ -243,6 +302,11 @@ struct Control::Private {
   std::forward_list<BlockSymbol> blockSymbols;
   std::forward_list<TypeAliasSymbol> typeAliasSymbols;
   std::forward_list<VariableSymbol> variableSymbols;
+  std::unordered_map<const Type*, TypeAliasSymbol*> typeArgumentSymbols;
+  std::map<std::tuple<const Type*, std::uint64_t, std::uint64_t, int, bool>,
+           VariableSymbol*>
+      constantArgumentSymbols;
+  std::map<std::vector<Symbol*>, ParameterPackSymbol*> packArgumentSymbols;
   std::forward_list<FieldSymbol> fieldSymbols;
   std::forward_list<ParameterSymbol> parameterSymbols;
   std::forward_list<ParameterPackSymbol> parameterPackSymbols;
@@ -261,6 +325,44 @@ struct Control::Private {
   std::forward_list<BuiltinTemplateIdentifierInfo> builtinTemplateInfos;
   std::forward_list<WellKnownNameIdentifierInfo> wellKnownNameInfos;
   std::array<const Identifier*, kWellKnownNameCount> wellKnownIdentifiers{};
+
+  [[nodiscard]] auto allocatedSymbolCounts() const -> SymbolCounts {
+    SymbolCounts counts{};
+    auto count = [&](const auto& symbols) {
+      using SymbolType =
+          typename std::remove_cvref_t<decltype(symbols)>::value_type;
+      counts[std::to_underlying(SymbolType::Kind)] =
+          static_cast<std::size_t>(std::ranges::distance(symbols));
+    };
+    count(namespaceSymbols);
+    count(conceptSymbols);
+    count(deductionGuideSymbols);
+    count(baseClassSymbols);
+    count(injectedClassNameSymbols);
+    count(unresolvedSymbols);
+    count(classSymbols);
+    count(enumSymbols);
+    count(scopedEnumSymbols);
+    count(overloadSetSymbols);
+    count(functionSymbols);
+    count(lambdaSymbols);
+    count(functionParametersSymbol);
+    count(templateParametersSymbol);
+    count(blockSymbols);
+    count(typeAliasSymbols);
+    count(variableSymbols);
+    count(fieldSymbols);
+    count(parameterSymbols);
+    count(parameterPackSymbols);
+    count(typeParameterSymbols);
+    count(nonTypeParameterSymbols);
+    count(templateTypeParameterSymbols);
+    count(constraintTypeParameterSymbols);
+    count(enumeratorSymbols);
+    count(usingDeclarationSymbols);
+    count(namespaceAliasSymbols);
+    return counts;
+  }
 
   int anonymousIdCount = 0;
   const Type* alignValType = nullptr;
@@ -787,6 +889,10 @@ auto Control::getComplexType(const Type* elementType) -> const ComplexType* {
   return internType(d->complexTypes, elementType);
 }
 
+auto Control::getSveType(SveTypeKind sveKind) -> const SveType* {
+  return internType(d->sveTypes, sveKind);
+}
+
 auto Control::getAtomicType(const Type* elementType) -> const AtomicType* {
   return internType(d->atomicTypes, elementType);
 }
@@ -913,6 +1019,37 @@ auto Control::newTypeAliasSymbol(ScopeSymbol* enclosingScope,
   return symbol;
 }
 
+auto Control::getTypeArgumentSymbol(const Type* type) -> TypeAliasSymbol* {
+  auto& symbol = d->typeArgumentSymbols[type];
+  if (symbol) return symbol;
+  symbol = newTypeAliasSymbol(nullptr, {});
+  symbol->setType(type);
+  return symbol;
+}
+
+auto Control::getPackArgumentSymbol(std::span<Symbol* const> elements)
+    -> ParameterPackSymbol* {
+  auto& symbol =
+      d->packArgumentSymbols[std::vector(elements.begin(), elements.end())];
+  if (symbol) return symbol;
+  symbol = newParameterPackSymbol(nullptr, {});
+  for (auto element : elements) symbol->addElement(element);
+  return symbol;
+}
+
+auto Control::getConstantArgumentSymbol(const Type* type,
+                                        const ConstValue& value)
+    -> VariableSymbol* {
+  auto integer = std::get_if<ConstInt>(&value);
+  if (!integer) return newConstantArgumentSymbol(this, type, value);
+
+  auto& symbol = d->constantArgumentSymbols[std::make_tuple(
+      type, integer->lowBits(), integer->highBits(), integer->width(),
+      integer->isSigned())];
+  if (!symbol) symbol = newConstantArgumentSymbol(this, type, value);
+  return symbol;
+}
+
 auto Control::newVariableSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> VariableSymbol* {
   auto symbol = &d->variableSymbols.emplace_front(enclosingScope);
@@ -1024,6 +1161,10 @@ auto Control::beginCopyConstructorSelection(ClassSymbol* classSymbol) -> bool {
 
 void Control::endCopyConstructorSelection(ClassSymbol* classSymbol) {
   d->copyConstructorSelections.erase(classSymbol);
+}
+
+auto Control::allocatedSymbolCounts() const -> SymbolCounts {
+  return d->allocatedSymbolCounts();
 }
 
 auto Control::anonymousIdCount() const -> int { return d->anonymousIdCount; }

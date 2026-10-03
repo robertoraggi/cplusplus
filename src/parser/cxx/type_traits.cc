@@ -131,16 +131,6 @@ struct QualificationDecompositionPair {
   return traits.is_same(lhs.classType, rhs.classType);
 }
 
-struct IsVoid {
-  auto operator()(const VoidType*) const -> bool { return true; }
-
-  auto operator()(const QualType* type) const -> bool {
-    return visit(*this, type->elementType());
-  }
-
-  auto operator()(const Type*) const -> bool { return false; }
-};
-
 struct IsNullPointer {
   auto operator()(const NullptrType*) const -> bool { return true; }
 
@@ -989,6 +979,10 @@ struct IsSameVisitor {
     return type->numBits() == otherType->numBits();
   }
 
+  auto operator()(const SveType* type, const SveType* otherType) const -> bool {
+    return type->sveKind() == otherType->sveKind();
+  }
+
   auto operator()(const UnsignedBitIntType* type,
                   const UnsignedBitIntType* otherType) const -> bool {
     return type->numBits() == otherType->numBits();
@@ -1031,21 +1025,93 @@ struct IsSameVisitor {
 
 enum class TrivialCopyKind { kCopyable, kForCalls };
 
+[[nodiscard]] auto eligibleSpecialMembers(TranslationUnit* unit,
+                                          std::vector<FunctionSymbol*> members)
+    -> std::vector<FunctionSymbol*> {
+  std::erase_if(members, [unit](FunctionSymbol* member) {
+    return ASTRewriter::evaluateAssociatedConstraints(unit, member) == false;
+  });
+
+  std::vector<FunctionSymbol*> eligible;
+  for (auto member : members) {
+    if (member->isDeleted()) continue;
+    const auto hasMoreConstrained =
+        std::ranges::any_of(members, [unit, member](FunctionSymbol* other) {
+          return ASTRewriter::isMorePartialOrderingConstrained(unit, other,
+                                                               member);
+        });
+    if (!hasMoreConstrained) eligible.push_back(member);
+  }
+  return eligible;
+}
+
+[[nodiscard]] auto prospectiveDestructors(ClassSymbol* cls)
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> destructors;
+  for (auto function : cls->members() | views::member_functions) {
+    if (name_cast<DestructorId>(function->name()))
+      destructors.push_back(function);
+  }
+  return destructors;
+}
+
+[[nodiscard]] auto specialMembersOfKind(
+    ClassSymbol* cls, std::vector<FunctionSymbol*> candidates,
+    bool (ClassSymbol::*isKind)(FunctionSymbol*) const)
+    -> std::vector<FunctionSymbol*> {
+  std::erase_if(candidates, [cls, isKind](FunctionSymbol* candidate) {
+    return !(cls->*isKind)(candidate);
+  });
+  return candidates;
+}
+
+[[nodiscard]] auto declaredAssignmentOperators(ClassSymbol* cls)
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> operators;
+  for (auto function : cls->find(TokenKind::T_EQUAL) | views::member_functions)
+    operators.push_back(function);
+  return operators;
+}
+
+[[nodiscard]] auto hasUserProvidedEligibleMember(
+    TranslationUnit* unit, std::vector<FunctionSymbol*> members) -> bool {
+  return std::ranges::any_of(eligibleSpecialMembers(unit, std::move(members)),
+                             isUserProvided);
+}
+
 auto has_trivial_copy_members(TypeTraits& traits, ClassSymbol* cls,
                               TrivialCopyKind kind) -> bool {
   if (!cls || !cls->isComplete()) return false;
 
-  auto dtor = cls->destructor();
-  if (dtor && dtor->isDeleted()) return false;
-  if (isUserProvided(dtor)) return false;
-  if (dtor && dtor->isVirtual()) return false;
+  auto unit = traits.unit();
+  auto destructors = prospectiveDestructors(cls);
+  auto eligibleDestructors = eligibleSpecialMembers(unit, destructors);
+  if (!destructors.empty() && eligibleDestructors.empty()) return false;
+  for (auto dtor : eligibleDestructors) {
+    if (isUserProvided(dtor)) return false;
+    if (dtor->isVirtual()) return false;
+  }
 
-  if (isUserProvided(cls->copyConstructor())) return false;
-  if (isUserProvided(cls->moveConstructor())) return false;
+  auto declaredConstructors = cls->declaredConstructors();
+  if (hasUserProvidedEligibleMember(
+          unit, specialMembersOfKind(cls, declaredConstructors,
+                                     &ClassSymbol::isCopyConstructor)))
+    return false;
+  if (hasUserProvidedEligibleMember(
+          unit, specialMembersOfKind(cls, declaredConstructors,
+                                     &ClassSymbol::isMoveConstructor)))
+    return false;
 
   if (kind == TrivialCopyKind::kCopyable) {
-    if (isUserProvided(cls->copyAssignmentOperator())) return false;
-    if (isUserProvided(cls->moveAssignmentOperator())) return false;
+    auto assignments = declaredAssignmentOperators(cls);
+    if (hasUserProvidedEligibleMember(
+            unit, specialMembersOfKind(cls, assignments,
+                                       &ClassSymbol::isCopyAssignmentOperator)))
+      return false;
+    if (hasUserProvidedEligibleMember(
+            unit, specialMembersOfKind(cls, assignments,
+                                       &ClassSymbol::isMoveAssignmentOperator)))
+      return false;
   }
 
   if (cls->isPolymorphic()) return false;
@@ -1068,14 +1134,16 @@ auto has_trivial_copy_members(TypeTraits& traits, ClassSymbol* cls,
 }
 
 auto has_non_deleted_copy_or_move_constructor(ClassSymbol* cls) -> bool {
-  auto copyConstructor = cls->copyConstructor();
-  auto moveConstructor = cls->moveConstructor();
-
-  if (!copyConstructor && !moveConstructor) return true;
-  if (copyConstructor && !copyConstructor->isDeleted()) return true;
-  if (moveConstructor && !moveConstructor->isDeleted()) return true;
-
-  return false;
+  auto isCopyOrMove = [cls](FunctionSymbol* constructor) {
+    return cls->isCopyConstructor(constructor) ||
+           cls->isMoveConstructor(constructor);
+  };
+  auto copyOrMove =
+      cls->declaredConstructors() | std::views::filter(isCopyOrMove);
+  if (std::ranges::empty(copyOrMove)) return true;
+  return std::ranges::any_of(copyOrMove, [](FunctionSymbol* constructor) {
+    return !constructor->isDeleted();
+  });
 }
 
 auto is_trivially_copyable_class(TypeTraits& traits, ClassSymbol* cls) -> bool {
@@ -1128,30 +1196,35 @@ auto constructorFor(ClassSymbol* cls, TrivialConstructorKind kind)
 }
 
 auto has_trivial_constructor(TypeTraits& traits, ClassSymbol* cls,
-                             TrivialConstructorKind kind) -> bool {
+                             TrivialConstructorKind kind,
+                             bool allowDeleted = false) -> bool {
   if (!cls || !cls->isComplete()) return false;
   auto constructor = constructorFor(cls, kind);
-  if (!constructor || constructor->isDeleted()) return false;
+  if (!constructor || (!allowDeleted && constructor->isDeleted())) return false;
   if (isUserProvided(constructor)) return false;
   if (cls->hasVirtualFunctions()) return false;
   if (cls->hasVirtualBaseClasses()) return false;
+  if (kind == TrivialConstructorKind::kDefault &&
+      std::ranges::any_of(cls->members() | views::non_static_fields,
+                          &FieldSymbol::hasInitializer))
+    return false;
   if (cls->isUnion()) return true;
 
   for (auto base : cls->baseClasses()) {
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClass) continue;
     baseClass = baseClass->resolvedDefinition();
-    if (!has_trivial_constructor(traits, baseClass, kind)) return false;
+    if (!has_trivial_constructor(traits, baseClass, kind, allowDeleted))
+      return false;
   }
 
   for (auto field : cls->members() | views::non_static_fields) {
-    if (kind == TrivialConstructorKind::kDefault && field->hasInitializer())
-      return false;
     auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
     auto classType = type_cast<ClassType>(fieldType);
     if (!classType) continue;
     auto fieldClass = classType->definition();
-    if (!has_trivial_constructor(traits, fieldClass, kind)) return false;
+    if (!has_trivial_constructor(traits, fieldClass, kind, allowDeleted))
+      return false;
   }
 
   return true;
@@ -1319,7 +1392,11 @@ TypeTraits::TypeTraits(TranslationUnit* unit) : unit_(unit) {}
 auto TypeTraits::control() const -> Control* { return unit_->control(); }
 
 auto TypeTraits::is_void(const Type* type) const -> bool {
-  return type && visit(IsVoid{}, type);
+  return unqualified_cast<VoidType>(type) != nullptr;
+}
+
+auto TypeTraits::is_bool(const Type* type) const -> bool {
+  return unqualified_cast<BoolType>(type) != nullptr;
 }
 
 auto TypeTraits::is_null_pointer(const Type* type) const -> bool {
@@ -2633,12 +2710,16 @@ auto TypeTraits::is_reference_compatible(const Type* target, const Type* source)
     -> bool {
   if (!target || !source) return false;
 
+  auto targetUnqualified = remove_cv(target);
+  auto sourceUnqualified = remove_cv(source);
+
+  if (targetUnqualified == sourceUnqualified)
+    return is_at_least_as_cv_qualified(cv_qualifiers(target),
+                                       cv_qualifiers(source));
+
   if (is_qualification_convertible(control()->getPointerType(source),
                                    control()->getPointerType(target)))
     return true;
-
-  auto targetUnqualified = remove_cv(target);
-  auto sourceUnqualified = remove_cv(source);
 
   if (is_function(targetUnqualified) && is_function(sourceUnqualified)) {
     return is_same(remove_noexcept(sourceUnqualified), targetUnqualified);
@@ -3519,6 +3600,28 @@ auto TypeTraits::is_trivially_copyable(const Type* type) -> bool {
   return false;
 }
 
+auto TypeTraits::has_constexpr_unknown_representation(const Type* type)
+    -> bool {
+  if (is_reference(type)) return true;
+  auto element = remove_all_extents(type);
+  if (is_volatile(element)) return true;
+  auto unqualified = remove_cv(element);
+  if (is_union(unqualified)) return true;
+  if (is_pointer(unqualified) || is_member_pointer(unqualified)) return true;
+  if (type_cast<BuiltinMetaInfoType>(unqualified)) return true;
+
+  auto classType = type_cast<ClassType>(unqualified);
+  if (!classType) return false;
+  auto cls = classType->definition();
+  requireCompleteClass(cls);
+  if (!cls || !cls->isComplete()) return true;
+
+  return std::ranges::any_of(aggregate_elements(cls), [this](Symbol* element) {
+    return has_constexpr_unknown_representation(
+        aggregate_element_type(element));
+  });
+}
+
 auto TypeTraits::is_non_trivial_for_calls(const Type* type) -> bool {
   auto classType = type_cast<ClassType>(remove_cv(type));
   if (!classType) return false;
@@ -3591,8 +3694,19 @@ auto TypeTraits::is_nothrow_destructible(const Type* type) -> bool {
   auto destructor = cls->destructor();
   if (!destructor) return true;
 
-  auto destructorType = type_cast<FunctionType>(destructor->type());
-  return !destructorType || destructorType->isNoexcept();
+  return is_nothrow_function(destructor);
+}
+
+auto TypeTraits::has_trivial_default_constructor(const Type* type) -> bool {
+  auto unqual = remove_cv(remove_all_extents(type));
+  if (is_scalar_or_vector(unqual)) return true;
+  if (auto classType = type_cast<ClassType>(unqual)) {
+    auto cls = classType->definition();
+    requireCompleteClass(cls);
+    return has_trivial_constructor(*this, cls, TrivialConstructorKind::kDefault,
+                                   true);
+  }
+  return false;
 }
 
 auto TypeTraits::has_trivial_destructor(const Type* type) -> bool {

@@ -294,6 +294,13 @@ auto ASTRewriter::expression(ExpressionAST* ast) -> ExpressionAST* {
   return expr;
 }
 
+auto ASTRewriter::contextuallyConvertedBool(ExpressionAST* ast)
+    -> ExpressionAST* {
+  auto copy = expression(ast);
+  if (copy) typeChecker().check_bool_condition(copy);
+  return copy;
+}
+
 auto ASTRewriter::unevaluatedExpression(ExpressionAST* ast) -> ExpressionAST* {
   TranslationUnit::PotentiallyEvaluatedScope unevaluated{unit_, false};
   ++unevaluatedOperandDepth_;
@@ -353,6 +360,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(CharLiteralExpressionAST* ast)
   copy->type = ast->type;
   copy->literalLoc = ast->literalLoc;
   copy->literal = ast->literal;
+  copy->literalOperatorCall = rewrite.expression(ast->literalOperatorCall);
 
   return copy;
 }
@@ -377,6 +385,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(IntLiteralExpressionAST* ast)
   copy->type = ast->type;
   copy->literalLoc = ast->literalLoc;
   copy->literal = ast->literal;
+  copy->literalOperatorCall = rewrite.expression(ast->literalOperatorCall);
 
   return copy;
 }
@@ -389,6 +398,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
   copy->type = ast->type;
   copy->literalLoc = ast->literalLoc;
   copy->literal = ast->literal;
+  copy->literalOperatorCall = rewrite.expression(ast->literalOperatorCall);
 
   return copy;
 }
@@ -425,6 +435,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   copy->type = ast->type;
   copy->literalLoc = ast->literalLoc;
   copy->literal = ast->literal;
+  copy->literalOperatorCall = rewrite.expression(ast->literalOperatorCall);
 
   return copy;
 }
@@ -1777,8 +1788,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(ParenInitializerAST* ast)
     -> ExpressionAST* {
   auto copy = ParenInitializerAST::create(arena());
 
-  copy->valueCategory = ast->valueCategory;
-  copy->type = ast->type;
   copy->lparenLoc = ast->lparenLoc;
 
   copy->expressionList = rewrite.rewriteExpressionList(ast->expressionList);

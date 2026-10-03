@@ -757,6 +757,17 @@ class AtomicType final : public Type, public std::tuple<const Type*> {
   }
 };
 
+class SveType final : public Type, public std::tuple<SveTypeKind> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kSve;
+
+  explicit SveType(SveTypeKind sveKind) : Type(Kind), tuple(sveKind) {}
+
+  [[nodiscard]] auto sveKind() const -> SveTypeKind {
+    return std::get<0>(*this);
+  }
+};
+
 template <typename Visitor>
 auto visit(Visitor&& visitor, const Type* type) {
 #define PROCESS_TYPE(K) \

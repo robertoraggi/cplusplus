@@ -35,13 +35,27 @@ namespace cxx {
 
 DiagnosticsClient::~DiagnosticsClient() = default;
 
+void DiagnosticsClient::emit(const Diagnostic& diagnostic) {
+  if (blockErrors_) return;
+
+  const auto severity = diagnostic.severity();
+  if (severity == Severity::Error || severity == Severity::Fatal) {
+    ++errorCount_;
+    if (errorLimit_ > 0 && errorCount_ > errorLimit_) return;
+    if (diagnostic.location())
+      errorLocations_.insert(diagnostic.location().index());
+  }
+
+  report(diagnostic);
+}
+
 auto reportOutsideImmediateContext(TranslationUnit* unit,
                                    const std::vector<Diagnostic>& diagnostics)
     -> bool {
   if (diagnostics.empty()) return false;
   auto client = unit->reportingDiagnosticsClient();
   if (!client) return false;
-  for (const auto& diagnostic : diagnostics) client->report(diagnostic);
+  for (const auto& diagnostic : diagnostics) client->emit(diagnostic);
   return true;
 }
 

@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/token.h>
 
 #include <functional>
 #include <optional>
@@ -61,7 +62,7 @@ struct PendingInclude {
   Preprocessor& preprocessor;
   Include include;
   bool isIncludeNext = false;
-  void* loc = nullptr;
+  Token location;
   std::function<auto()->std::vector<IncludeCandidate>> candidates;
 
   void resolveWith(std::optional<std::string> fileName,
@@ -86,7 +87,7 @@ struct PendingFileContent {
   Preprocessor& preprocessor;
   std::string fileName;
   bool isSystemHeader = false;
-  void* loc = nullptr;
+  Token location;
 
   void setContent(std::optional<std::string> content) const;
 };

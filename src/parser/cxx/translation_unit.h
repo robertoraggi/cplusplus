@@ -88,6 +88,9 @@ class TranslationUnit {
                                    std::vector<TemplateArgument> arguments,
                                    bool value);
 
+  [[nodiscard]] auto isNonDependentType(const Type* type) const -> bool;
+  void addNonDependentType(const Type* type);
+
   void addPendingBodyCompletion(FunctionSymbol* function,
                                 SourceLocation location = {},
                                 FunctionSymbol* caller = nullptr);
@@ -131,8 +134,26 @@ class TranslationUnit {
   };
 
   [[nodiscard]] auto requiresDefinitions() const -> bool {
-    return potentiallyEvaluated_ && !templatedContext_;
+    return potentiallyEvaluated_ && !templatedContext_ && !definitionsDeferred_;
   }
+
+  class DeferredDefinitionsScope {
+   public:
+    DeferredDefinitionsScope(const DeferredDefinitionsScope&) = delete;
+    auto operator=(const DeferredDefinitionsScope&)
+        -> DeferredDefinitionsScope& = delete;
+
+    DeferredDefinitionsScope(TranslationUnit* unit, bool deferred)
+        : unit_(unit), saved_(unit->definitionsDeferred_) {
+      unit_->definitionsDeferred_ = deferred;
+    }
+
+    ~DeferredDefinitionsScope() { unit_->definitionsDeferred_ = saved_; }
+
+   private:
+    TranslationUnit* unit_;
+    bool saved_;
+  };
 
   [[nodiscard]] auto isTemplatedContext() const -> bool {
     return templatedContext_;
@@ -222,15 +243,30 @@ class TranslationUnit {
   class TemplateInstantiationScope {
    public:
     explicit TemplateInstantiationScope(TranslationUnit* unit)
-        : unit_(unit), templatedContext_(unit, false) {
+        : unit_(unit),
+          templatedContext_(unit, false),
+          potentiallyEvaluated_(unit, true),
+          definitionsDeferred_(unit, false),
+          savedImmediateFunctionContext_(unit->immediateFunctionContext_),
+          savedDeferredInitializer_(unit->deferredInitializer_) {
       ++unit_->templateInstantiationDepth_;
+      unit_->immediateFunctionContext_ = false;
+      unit_->deferredInitializer_ = false;
     }
 
-    ~TemplateInstantiationScope() { --unit_->templateInstantiationDepth_; }
+    ~TemplateInstantiationScope() {
+      --unit_->templateInstantiationDepth_;
+      unit_->immediateFunctionContext_ = savedImmediateFunctionContext_;
+      unit_->deferredInitializer_ = savedDeferredInitializer_;
+    }
 
    private:
     TranslationUnit* unit_;
     TemplatedContextScope templatedContext_;
+    PotentiallyEvaluatedScope potentiallyEvaluated_;
+    DeferredDefinitionsScope definitionsDeferred_;
+    bool savedImmediateFunctionContext_;
+    bool savedDeferredInitializer_;
   };
 
   static constexpr int kMaxTemplateInstantiationDepth = 1024;
@@ -420,7 +456,8 @@ class TranslationUnit {
 
   struct ConstraintSatisfactionCache {
     std::vector<ConstraintSatisfaction> entries;
-    std::optional<std::size_t> lastIndex;
+    std::unordered_map<std::size_t, std::vector<std::uint32_t>> byArguments;
+    std::vector<std::uint32_t> unkeyed;
   };
 
   std::unique_ptr<Control> control_;
@@ -447,6 +484,7 @@ class TranslationUnit {
   std::unordered_set<FunctionDefinitionAST*> unparsedFunctionBodies_;
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
+  std::unordered_set<const Type*> nonDependentTypes_;
   std::unordered_map<std::uint64_t, const Identifier*> snippets_;
   std::vector<std::pair<unsigned, int>> packAlignments_;
   std::unique_ptr<PrefixSourceMap> prefixSourceMap_;
@@ -454,6 +492,7 @@ class TranslationUnit {
   int templateInstantiationDepth_ = 0;
   bool potentiallyEvaluated_ = true;
   bool templatedContext_ = false;
+  bool definitionsDeferred_ = false;
   bool immediateFunctionContext_ = false;
   bool deferredInitializer_ = false;
 };

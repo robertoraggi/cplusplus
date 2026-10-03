@@ -21,6 +21,7 @@
 #include <cxx/lexer.h>
 #include <cxx/private/c_keywords-priv.h>
 #include <cxx/private/keywords-priv.h>
+#include <cxx/private/sve_types-priv.h>
 #include <cxx/private/utf8.h>
 
 #include <cctype>
@@ -291,7 +292,7 @@ auto Lexer::readToken() -> TokenKind {
 
       if (preprocessing_) return TokenKind::T_IDENTIFIER;
 
-      return classifyKeyword(text_, lang_);
+      return classifyKeyword(text_, lang_, TripleArch::kUnknown);
     }
   }
 
@@ -668,12 +669,14 @@ auto Lexer::skipSpaces() -> bool {
   return pos_ != end_;
 }
 
-auto Lexer::classifyKeyword(const std::string_view& text, LanguageKind lang)
-    -> TokenKind {
-  if (lang == LanguageKind::kCXX) {
-    return classify(text.data(), static_cast<int>(text.size()));
-  }
-  return classifyC(text.data(), static_cast<int>(text.size()));
+auto Lexer::classifyKeyword(const std::string_view& text, LanguageKind lang,
+                            TripleArch arch) -> TokenKind {
+  const auto size = static_cast<int>(text.size());
+  auto kind = lang == LanguageKind::kCXX ? classify(text.data(), size)
+                                         : classifyC(text.data(), size);
+  if (kind != TokenKind::T_IDENTIFIER) return kind;
+  if (arch != TripleArch::kAArch64) return kind;
+  return classifySveType(text.data(), size);
 }
 
 void Lexer::clearBuffer() { buffer_.clear(); }

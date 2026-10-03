@@ -123,6 +123,7 @@ struct Codegen::ConvertDebugType {
   [[nodiscard]] auto operator()(const VectorType* type) -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const UnresolvedVectorType* type)
       -> ir::DebugTypeRef;
+  [[nodiscard]] auto operator()(const SveType* type) -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const ComplexType* type) -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const AtomicType* type) -> ir::DebugTypeRef;
 
@@ -590,6 +591,11 @@ struct Codegen::ConvertDebugType {
 
 [[nodiscard]] auto Codegen::ConvertDebugType::operator()(
     const UnresolvedVectorType* type) -> ir::DebugTypeRef {
+  return {};
+}
+
+[[nodiscard]] auto Codegen::ConvertDebugType::operator()(const SveType* type)
+    -> ir::DebugTypeRef {
   return {};
 }
 

@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/control.h>
 #include <cxx/diagnostics_client.h>
+#include <cxx/preprocessor.h>
 #include <cxx/source_resolver.h>
 #include <cxx/token.h>
 #include <cxx/types.h>
@@ -62,13 +64,16 @@ class ArchivedSourceResolver final : public SourceResolver {
   std::string_view textLine_;
 };
 
-auto reportedText(SourceResolver& resolver) -> std::string {
+auto reportedText(SourceResolver& resolver,
+                  Token token = Token{TokenKind::T_IDENTIFIER},
+                  int repetitions = 1) -> std::string {
   DiagnosticsClient client;
   client.setSourceResolver(&resolver);
 
   std::ostringstream captured;
   auto* saved = std::cerr.rdbuf(captured.rdbuf());
-  client.report(Token{TokenKind::T_IDENTIFIER}, Severity::Error, "message");
+  for (int i = 0; i < repetitions; ++i)
+    client.report(token, Severity::Error, "message");
   std::cerr.rdbuf(saved);
 
   return captured.str();
@@ -87,6 +92,63 @@ TEST(Diagnostics, ReportsCaretWhenSourceTextIsAvailable) {
 
   ASSERT_EQ(reportedText(resolver),
             "archived.cc:12:3: error: message\n  int x;\n  ^\n");
+}
+
+TEST(Diagnostics, RetainsIncludeChainForEachHeaderOccurrence) {
+  Control control;
+  DiagnosticsClient diagnostics;
+  Preprocessor pp{&control, &diagnostics};
+  std::vector<Token> tokens;
+  pp.beginPreprocessing("#include \"first.h\"\n#include \"second.h\"\n",
+                        "main.cc", tokens);
+  while (true) {
+    auto state = pp.continuePreprocessing(tokens);
+    if (std::holds_alternative<ProcessingComplete>(state)) break;
+    if (auto include = std::get_if<PendingInclude>(&state)) {
+      include->resolveWith(std::get<QuoteInclude>(include->include).fileName);
+    } else if (auto content = std::get_if<PendingFileContent>(&state)) {
+      content->setContent(content->fileName == "shared.h"
+                              ? "int broken;\n"
+                              : "#include \"shared.h\"\n");
+    }
+  }
+  pp.endPreprocessing(tokens);
+
+  std::vector<Token> occurrences;
+  for (const auto& token : tokens) {
+    if (pp.getTokenText(token) == "broken") occurrences.push_back(token);
+  }
+  ASSERT_EQ(occurrences.size(), 2);
+  EXPECT_NE(occurrences[0].fileId(), occurrences[1].fileId());
+
+  auto first = pp.includeStack(occurrences[0]);
+  auto second = pp.includeStack(occurrences[1]);
+  ASSERT_EQ(first.size(), 2);
+  ASSERT_EQ(second.size(), 2);
+  EXPECT_EQ(first[0].fileName, "first.h");
+  EXPECT_EQ(first[1].fileName, "main.cc");
+  EXPECT_EQ(first[1].line, 1);
+  EXPECT_EQ(second[0].fileName, "second.h");
+  EXPECT_EQ(second[1].fileName, "main.cc");
+  EXPECT_EQ(second[1].line, 2);
+
+  const auto text = reportedText(pp, occurrences[1]);
+  EXPECT_NE(text.find("shared.h:1:5: error: message"), std::string::npos);
+  EXPECT_NE(text.find("In file included from main.cc:2:"), std::string::npos);
+  EXPECT_NE(text.find("from second.h:1:"), std::string::npos);
+  EXPECT_LT(text.find("In file included from main.cc:2:"),
+            text.find("shared.h:1:5: error: message"));
+  EXPECT_EQ(text.find("included from here"), std::string::npos);
+  EXPECT_EQ(text.find("first.h:"), std::string::npos);
+
+  const auto repeated = reportedText(pp, occurrences[1], 2);
+  const auto firstTrace = repeated.find("In file included from");
+  ASSERT_NE(firstTrace, std::string::npos);
+  EXPECT_EQ(repeated.find("In file included from", firstTrace + 1),
+            std::string::npos);
+  const auto firstError = repeated.find("error: message");
+  ASSERT_NE(firstError, std::string::npos);
+  EXPECT_NE(repeated.find("error: message", firstError + 1), std::string::npos);
 }
 
 TEST(Snippets, UnresolvedTypesPrintFromCapturedText) {

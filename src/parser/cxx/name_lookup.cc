@@ -189,14 +189,14 @@ template <typename Predicate>
 void collectQualifiedNamespaceDeclarations(NamespaceSymbol* scope,
                                            const Name* name, Predicate accept,
                                            std::vector<Symbol*>& found,
-                                           std::vector<ScopeSymbol*>& visited) {
+                                           VisitedScopes& visited) {
   if (!scope || std::ranges::contains(visited, scope)) return;
   auto inlineSet = inlineNamespaceSet(scope);
 
   const auto start = found.size();
   for (auto ns : inlineSet) {
     if (std::ranges::contains(visited, ns)) continue;
-    std::vector<ScopeSymbol*> directVisited;
+    VisitedScopes directVisited;
     if (auto symbol =
             detail::searchScope(ns, name, directVisited, accept, false))
       found.push_back(symbol);
@@ -228,8 +228,7 @@ auto uniqueLookupDeclaration(const std::vector<Symbol*>& found) -> Symbol* {
 }
 
 auto lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
-                           std::vector<ScopeSymbol*>& visited)
-    -> NamespaceSymbol* {
+                           VisitedScopes& visited) -> NamespaceSymbol* {
   std::vector<Symbol*> found;
   collectQualifiedNamespaceDeclarations(
       symbol_cast<NamespaceSymbol>(scope), id,
@@ -239,8 +238,7 @@ auto lookupNamespaceHelper(ScopeSymbol* scope, const Identifier* id,
 }
 
 auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
-                      std::vector<ScopeSymbol*>& visited,
-                      bool tagsAreTypes = true,
+                      VisitedScopes& visited, bool tagsAreTypes = true,
                       bool discardHiddenClassNames = false,
                       bool followUsingDirectives = true,
                       bool* ambiguous = nullptr) -> Symbol* {
@@ -292,7 +290,7 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
 
   if (followUsingDirectives) {
     std::vector<Symbol*> found;
-    std::vector<ScopeSymbol*> namespaceVisited;
+    VisitedScopes namespaceVisited;
     collectQualifiedNamespaceDeclarations(symbol_cast<NamespaceSymbol>(scope),
                                           id, accept, found, namespaceVisited);
     auto result = uniqueLookupDeclaration(found);
@@ -348,7 +346,7 @@ auto qualifiedLookupType(Symbol* scopeOrAlias, const Identifier* id)
     -> Symbol* {
   auto resolved = resolveTypeScope(scopeOrAlias);
   if (!resolved) return nullptr;
-  std::vector<ScopeSymbol*> visited;
+  VisitedScopes visited;
   if (auto ns = symbol_cast<NamespaceSymbol>(resolved)) {
     std::vector<Symbol*> found;
     collectQualifiedNamespaceDeclarations(
@@ -366,7 +364,7 @@ auto qualifiedLookupNamespace(Symbol* scopeOrAlias, const Identifier* id)
     -> NamespaceSymbol* {
   auto base = resolve_namespace_alias(scopeOrAlias);
   if (!base) return nullptr;
-  std::vector<ScopeSymbol*> visited;
+  VisitedScopes visited;
   return lookupNamespaceHelper(base, id, visited);
 }
 
@@ -443,7 +441,7 @@ auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id,
     std::vector<Symbol*> found;
     bool ambiguous = false;
     auto search = [&](ScopeSymbol* scope) {
-      std::vector<ScopeSymbol*> visited;
+      VisitedScopes visited;
       if (auto symbol =
               lookupTypeHelper(scope, id, visited, tagsAreTypes,
                                discardHiddenClassNames, false, &ambiguous))
@@ -483,8 +481,8 @@ template <typename Predicate>
 [[nodiscard]] auto searchNonClassScope(Control* control, ScopeSymbol* scope,
                                        const Name* name, Predicate accept,
                                        std::vector<NamespaceSymbol*>& nominated,
-                                       std::vector<ScopeSymbol*>& visited,
-                                       bool* ambiguous) -> Symbol* {
+                                       VisitedScopes& visited, bool* ambiguous)
+    -> Symbol* {
   collectActiveNominatedNamespaces(scope, nominated);
 
   std::vector<Symbol*> found;
@@ -521,7 +519,7 @@ auto unqualifiedLookupIncludingInlineNamespaces(Control* control,
   };
 
   std::vector<NamespaceSymbol*> nominated;
-  std::vector<ScopeSymbol*> visited;
+  VisitedScopes visited;
 
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     auto scope = sc->symbol;
@@ -554,7 +552,7 @@ auto unqualifiedNonMemberLookup(Control* control, ScopeSymbol* scope,
   auto accept = [](Symbol*) { return true; };
 
   std::vector<NamespaceSymbol*> nominated;
-  std::vector<ScopeSymbol*> visited;
+  VisitedScopes visited;
 
   for (; scope; scope = scope->parent()) {
     if (scope->isClass()) continue;
@@ -580,7 +578,7 @@ auto qualifiedLookupIncludingInlineNamespaces(Control* control,
     return qualifiedLookup(scopeOrAlias, name);
   }
   std::vector<Symbol*> found;
-  std::vector<ScopeSymbol*> visited;
+  VisitedScopes visited;
   collectQualifiedNamespaceDeclarations(
       ns, name, [](Symbol*) { return true; }, found, visited);
   if (found.empty()) return nullptr;
@@ -1002,7 +1000,7 @@ auto lookupClassMember(ClassSymbol* scope, const Name* name,
   if (!scope || !name) return {};
   scope = scope->resolvedDefinition();
   if (!scope) return {};
-  std::vector<ScopeSymbol*> visited;
+  VisitedScopes visited;
   if (auto symbol =
           detail::searchScope(scope, name, visited, accept, false, false))
     return {symbol, false};
@@ -1068,7 +1066,7 @@ auto lookupClassMember(ClassSymbol* scope, const Name* name,
   auto lookup = [&](auto&& self, int index) -> LookupSet {
     if (cache[index]) return *cache[index];
     LookupSet result;
-    std::vector<ScopeSymbol*> directVisited;
+    VisitedScopes directVisited;
     result.declaration = detail::searchScope(
         graph[index].type, name, directVisited, accept, false, false);
     if (result.declaration) {

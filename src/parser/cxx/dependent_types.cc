@@ -154,6 +154,7 @@ struct IsDependent {
   std::size_t nonDependentTypeCount = 0;
   std::vector<NonDependentType> dynamicNonDependentTypes;
   std::size_t cycles = 0;
+  std::size_t unsettledClasses = 0;
   std::optional<int> localTemplateDepth;
 
   [[nodiscard]] auto isLocalTemplateDepth(int depth) const -> bool {
@@ -418,6 +419,11 @@ struct IsDependent {
 
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
     if (!type) return false;
+    if (unit && unit->isNonDependentType(type)) {
+      if (unit->timeTrace())
+        unit->timeTrace()->count(TimeTrace::kTypeDependenceCacheHits);
+      return false;
+    }
     for (auto entry = typesUnderExamination; entry; entry = entry->previous) {
       if (entry->type != type) continue;
       ++cycles;
@@ -433,6 +439,7 @@ struct IsDependent {
       return false;
     }
     const auto cyclesBefore = cycles;
+    const auto unsettledClassesBefore = unsettledClasses;
     TypeExamination examination{type, typesUnderExamination};
     typesUnderExamination = &examination;
     if (unit && unit->timeTrace())
@@ -440,6 +447,9 @@ struct IsDependent {
     const auto dependent = visit(*this, type);
     typesUnderExamination = examination.previous;
     if (dependent || cycles != cyclesBefore) return dependent;
+    if (unit && !localTemplateDepth &&
+        unsettledClasses == unsettledClassesBefore)
+      unit->addNonDependentType(type);
     if (nonDependentTypeCount < nonDependentTypes.size()) {
       nonDependentTypes[nonDependentTypeCount++] = {type, depth};
       return dependent;
@@ -515,7 +525,15 @@ struct IsDependent {
 
   auto operator()(const ClassType* type) -> bool {
     auto sym = type->symbol();
+    if (!hasSettledDeclaration(sym)) ++unsettledClasses;
+    return isDependentClass(sym);
+  }
 
+  [[nodiscard]] static auto hasSettledDeclaration(ClassSymbol* sym) -> bool {
+    return sym->isSpecialization() || sym->isComplete();
+  }
+
+  [[nodiscard]] auto isDependentClass(ClassSymbol* sym) -> bool {
     if (auto ownParameters = sym->templateParameters();
         ownParameters && !ownParameters->members().empty())
       return true;
@@ -647,6 +665,8 @@ struct IsDependent {
   auto operator()(const BuiltinVaListType* type) -> bool { return false; }
 
   auto operator()(const BuiltinMetaInfoType* type) -> bool { return false; }
+
+  auto operator()(const SveType* type) -> bool { return false; }
 
   auto operator()(const BitIntType* type) -> bool { return false; }
 

@@ -23,6 +23,7 @@
 #include <cxx/preprocessor_fwd.h>
 #include <cxx/preprocessor_snapshot.h>
 #include <cxx/source_resolver.h>
+#include <cxx/triple.h>
 
 #include <functional>
 #include <iosfwd>
@@ -64,6 +65,9 @@ class Preprocessor final : public SourceResolver {
 
   [[nodiscard]] auto language() const -> LanguageKind;
   void setLanguage(LanguageKind lang);
+
+  [[nodiscard]] auto targetArch() const -> TripleArch;
+  void setTargetArch(TripleArch arch);
 
   [[nodiscard]] auto preprocessorDelegate() const -> PreprocessorDelegate*;
 

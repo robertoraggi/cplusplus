@@ -342,6 +342,7 @@ class Binder {
   struct DeferredMemberContexts {
     bool exceptionSpecifications;
     bool fieldInitializers;
+    bool completedForMemberContexts;
   };
 
   void complete(ClassSpecifierAST* ast, DeferredMemberContexts deferred = {});
@@ -549,7 +550,7 @@ class Binder {
 
   void computeClassFlags(ClassSymbol* classSymbol);
 
-  void completeForMemberContexts(ClassSymbol* classSymbol);
+  void completeForMemberContexts(ClassSpecifierAST* ast);
 
   void buildVTableLayout(ClassSymbol* classSymbol);
 

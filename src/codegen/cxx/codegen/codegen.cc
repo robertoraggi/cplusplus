@@ -183,19 +183,26 @@ auto Codegen::lvalueAlignment(ExpressionAST* expression) -> uint64_t {
     return lvalueAlignment(targetExpression_);
 
   if (auto id = ast_cast<IdExpressionAST>(expression)) {
-    if (auto variable = symbol_cast<VariableSymbol>(id->symbol))
+    if (auto variable = objectVariable(id->symbol))
       return getAlignment(variable);
   }
 
   return getAlignment(expression->type);
 }
 
+auto Codegen::objectVariable(Symbol* symbol) -> VariableSymbol* {
+  auto variable = symbol_cast<VariableSymbol>(symbol);
+  if (!variable || traits.is_reference(variable->type())) return nullptr;
+  return variable;
+}
+
 auto Codegen::memberAlignment(MemberExpressionAST* member) -> uint64_t {
-  if (auto variable = symbol_cast<VariableSymbol>(member->symbol))
+  if (auto variable = objectVariable(member->symbol))
     return getAlignment(variable);
 
   auto field = symbol_cast<FieldSymbol>(member->symbol);
   if (!field || field->isStatic()) return getAlignment(member->type);
+  if (traits.is_reference(field->type())) return getAlignment(member->type);
 
   auto baseAlignment = getAlignment(member->type);
   if (member->accessOp == TokenKind::T_MINUS_GREATER) {
@@ -543,20 +550,16 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
             loc, irPtrType,
             emitter_.pointerAdd(loc, bytePointerType, base, offsetValue));
       }
-      if (symbol_cast<VariableSymbol>(symbol)) {
-        if (auto glo = findOrCreateGlobal(symbol)) {
-          ir::ValueRef result = emitter_.addressOfSymbol(
-              loc, irPtrType, std::string_view{this->globalName(*glo)});
-          if (offset != 0) {
-            auto offsetVal =
-                emitter_.constantLiteral(loc, emitter_.integerType(64),
-                                         ir::Initializer::integerValue(
-                                             emitter_.integerType(64), offset));
-            result = emitter_.pointerAdd(loc, irPtrType, result, offsetVal);
-          }
-          return result;
+      if (auto result = staticStorageAddress(loc, symbol)) {
+        if (offset != 0) {
+          auto offsetVal = emitter_.constantLiteral(
+              loc, emitter_.integerType(64),
+              ir::Initializer::integerValue(emitter_.integerType(64), offset));
+          result = emitter_.pointerAdd(loc, irPtrType, result, offsetVal);
         }
-      } else if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
+        return result;
+      }
+      if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
         auto funcOp = findOrCreateFunction(funcSym);
         return emitter_.addressOfSymbol(loc, irPtrType,
                                         this->functionName(funcOp));
@@ -1258,6 +1261,26 @@ auto Codegen::takeResultObject(ExpressionAST* ast) -> ir::ValueRef {
   return std::exchange(resultObjectAddress_, ir::ValueRef{});
 }
 
+auto Codegen::emitIntoResultObject(ExpressionAST* owner, ExpressionAST* operand)
+    -> ir::ValueRef {
+  auto object = takeResultObject(owner);
+  if (!object) return {};
+  (void)emitPrvalueInto(object, owner->type, operand,
+                        owner->firstSourceLocation());
+  return object;
+}
+
+auto Codegen::emitAggregateObject(ExpressionAST* owner, const Type* type,
+                                  BracedInitListAST* initializer,
+                                  SourceLocation loc) -> ir::ValueRef {
+  auto object = takeResultObject(owner);
+  const bool ownsTemporary = !object;
+  if (ownsTemporary) object = newTemp(type, loc);
+  if (initializer) emitAggregateInit(object, type, initializer);
+  if (ownsTemporary) addTemporaryCleanup(object, type);
+  return object;
+}
+
 auto Codegen::takeIndirectResultObject(ExpressionAST* ast,
                                        const FunctionType* functionType)
     -> ir::ValueRef {
@@ -1571,8 +1594,8 @@ auto Codegen::adjustByVtableWord(SourceLocation loc, ir::ValueRef objectPtrI8,
   const auto wordSize = pointerSize();
   auto wordType = pointerSizedIntType();
 
-  auto vptrAddr = emitter_.bitcast(loc, i8PtrPtrType, objectPtrI8);
-  auto vptr = emitter_.load(loc, i8PtrType, vptrAddr, wordSize);
+  auto vptr =
+      emitter_.load(loc, i8PtrType, vptrAddress(loc, objectPtrI8), wordSize);
 
   auto offsetConstOp = emitter_.constantInt(loc, wordType, byteOffset);
   auto slotAddr = emitter_.pointerAdd(loc, i8PtrType, vptr, offsetConstOp);
@@ -2308,6 +2331,25 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     emitGlobalVarInit(variableSymbol, var);
 
   return var;
+}
+
+auto Codegen::staticStorageAddress(SourceLocation loc, Symbol* symbol)
+    -> ir::ValueRef {
+  if (auto field = symbol_cast<FieldSymbol>(symbol)) {
+    if (!field->isStatic()) return {};
+    if (auto definition = field->definition())
+      return staticStorageAddress(loc, definition);
+    auto global = findOrCreateStaticField(field);
+    auto pointerType = emitter_.pointerType(convertType(field->type()));
+    return emitter_.addressOfSymbol(loc, pointerType, globalName(global));
+  }
+
+  auto variable = symbol_cast<VariableSymbol>(symbol);
+  if (!variable) return {};
+  auto global = findOrCreateGlobal(variable);
+  if (!global) return {};
+  auto pointerType = emitter_.pointerType(convertType(variable->type()));
+  return emitter_.addressOfSymbol(loc, pointerType, globalName(*global));
 }
 
 auto Codegen::findOrCreateStaticField(FieldSymbol* field) -> ir::GlobalRef {
@@ -3080,8 +3122,7 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
       subobjectPtr =
           tableSubobjectAddress(loc, thisPtr, classSymbol, table, usesVTT);
 
-    auto vptrFieldPtr = resolveVptrField(subobjectPtr, table.base, loc);
-    emitter_.store(loc, tableAddress, vptrFieldPtr, 8);
+    emitter_.store(loc, tableAddress, vptrAddress(loc, subobjectPtr), 8);
   }
 }
 
@@ -3160,43 +3201,10 @@ auto Codegen::memberAddress(SourceLocation loc, ir::ValueRef objectPtr,
   return emitter_.memberAddress(loc, ptrType, objectPtr, index);
 }
 
-auto Codegen::resolveVptrField(ir::ValueRef basePtr, ClassSymbol* baseClassSym,
-                               SourceLocation loc) -> ir::ValueRef {
-  auto i8Type = emitter_.integerType(8);
-  auto i8PtrType = emitter_.pointerType(i8Type);
-
-  auto layout = baseClassSym->layout();
-  if (!layout) return {};
-
-  if (layout->hasDirectVtable()) {
-    return memberAddress(loc, basePtr, i8PtrType, layout->vtableIndex());
-  }
-
-  ir::ValueRef current = basePtr;
-  auto currentClass = baseClassSym;
-  auto currentLayout = layout;
-
-  while (currentLayout && !currentLayout->hasDirectVtable()) {
-    auto baseIdx = currentLayout->vtableIndex();
-    ClassSymbol* baseSym = nullptr;
-    for (auto base : currentClass->baseClasses()) {
-      auto bs = symbol_cast<ClassSymbol>(base->symbol());
-      if (!bs) continue;
-      auto bi = currentLayout->getBaseInfo(bs, base->isVirtual());
-      if (bi && bi->index == baseIdx) {
-        baseSym = bs;
-        break;
-      }
-    }
-    if (!baseSym) break;
-
-    current = emitBaseClassAddress(loc, current, currentClass, baseSym);
-    currentClass = baseSym;
-    currentLayout = baseSym->layout();
-  }
-
-  auto vtableIdx = currentLayout ? currentLayout->vtableIndex() : 0;
-  return memberAddress(loc, current, i8PtrType, vtableIdx);
+auto Codegen::vptrAddress(SourceLocation loc, ir::ValueRef objectPtr)
+    -> ir::ValueRef {
+  auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
+  return emitter_.bitcast(loc, emitter_.pointerType(i8PtrType), objectPtr);
 }
 
 auto Codegen::requiresVTT(ClassSymbol* classSymbol) const -> bool {

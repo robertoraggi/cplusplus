@@ -189,12 +189,12 @@ jobs:
 
       - name: Stage 1 bootstrap
         run: |
-          cmake --workflow stage1-macos
+          cmake --workflow stage1
           ls -la build-stage1/src/frontend/cxx
 
       - name: Stage 2 bootstrap
         run: |
-          cmake --workflow stage2-macos
+          cmake --workflow stage2
           ls -la build-stage2/src/frontend/cxx
 
   build-wasi:

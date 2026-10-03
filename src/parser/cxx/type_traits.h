@@ -55,6 +55,7 @@ class TypeTraits {
   auto requireCompleteClass(const Type* type) -> bool;
 
   [[nodiscard]] auto is_void(const Type* type) const -> bool;
+  [[nodiscard]] auto is_bool(const Type* type) const -> bool;
   [[nodiscard]] auto is_null_pointer(const Type* type) const -> bool;
   [[nodiscard]] auto is_integral(const Type* type) const -> bool;
   [[nodiscard]] auto is_floating_point(const Type* type) const -> bool;
@@ -333,10 +334,12 @@ class TypeTraits {
   auto is_nothrow_assignable(const Type* to, const Type* from) -> bool;
   auto is_trivially_assignable(const Type* to, const Type* from) -> bool;
   auto is_trivially_copyable(const Type* type) -> bool;
+  auto has_constexpr_unknown_representation(const Type* type) -> bool;
   auto is_non_trivial_for_calls(const Type* type) -> bool;
   auto is_abstract(const Type* type) -> bool;
   auto is_destructible(const Type* type) -> bool;
   auto is_nothrow_destructible(const Type* type) -> bool;
+  [[nodiscard]] auto has_trivial_default_constructor(const Type* type) -> bool;
   auto has_trivial_destructor(const Type* type) -> bool;
   auto is_trivially_destructible(const Type* type) -> bool;
   auto has_virtual_destructor(const Type* type) -> bool;

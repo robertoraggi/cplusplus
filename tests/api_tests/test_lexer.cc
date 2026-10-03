@@ -19,8 +19,11 @@
 // SOFTWARE.
 
 #include <cxx/lexer.h>
+#include <cxx/token.h>
 #include <gtest/gtest.h>
 
+#include <cstring>
+#include <new>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -209,4 +212,19 @@ TEST(Lexer, ScansUnterminatedRawStringLiteralsUpToTheEndOfTheSource) {
 TEST(Lexer, ScansEmptyRawStringLiterals) {
   EXPECT_EQ(scanOne(R"src(R"()")src").text, R"src(R"()")src");
   EXPECT_EQ(scanOne(R"src(R"x()x")src").text, R"src(R"x()x")src");
+}
+
+TEST(Token, DefaultInitializationYieldsTheEmptyToken) {
+  alignas(Token) unsigned char storage[sizeof(Token)];
+  std::memset(storage, 0xA5, sizeof(storage));
+
+  auto token = new (storage) Token;
+
+  EXPECT_EQ(token->raw(), 0u);
+  EXPECT_EQ(token->fileId(), 0u);
+  EXPECT_EQ(token->offset(), 0u);
+  EXPECT_EQ(token->length(), 0u);
+  EXPECT_EQ(token->value().ptrValue, nullptr);
+
+  token->~Token();
 }

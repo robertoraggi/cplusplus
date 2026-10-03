@@ -2,6 +2,10 @@ if (NOT CXX_BUILD_TESTS)
     return()
 endif()
 
+if (EMSCRIPTEN)
+    set(CMAKE_EXECUTABLE_SUFFIX ".cjs")
+endif()
+
 aux_source_directory(. SOURCES)
 add_executable(test_lsp ${SOURCES})
 

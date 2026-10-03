@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// cxx
+#include <cxx/codegen/debug_emitter.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/mlir_emitter.h>
 
@@ -292,6 +294,78 @@ TEST_F(EmitterFixture,
   EXPECT_TRUE(mlir::isa<mlir::LLVM::ZeroAttr>(nested[1]));
   EXPECT_EQ(backend.globalLinkage(ref), ir::Linkage::Internal);
   EXPECT_EQ(global->getAttrOfType<mlir::IntegerAttr>("alignment").getInt(), 8);
+  backend.endModule();
+}
+
+TEST_F(EmitterFixture, DebugMetadataDoesNotRequireAParserTranslationUnit) {
+  ir::Emitter& backend = emitter_;
+  auto module = backend.beginModule({.name = "debug.cc"});
+  auto function =
+      backend.declareFunction({}, {.name = "debugged",
+                                   .type = backend.functionType({}, {}, false),
+                                   .linkage = ir::Linkage::Internal});
+  auto debug = backend.debug();
+  ASSERT_NE(debug, nullptr);
+  auto unit =
+      debug->compileUnit({.file = "/source/debug.cc", .directory = "/source"});
+  auto integer = debug->basicType(
+      {.name = "int", .sizeInBits = 32, .encoding = ir::DebugEncoding::Signed});
+  std::array signature{integer};
+  auto subprogram =
+      debug->defineFunction(function, {},
+                            {.name = "sourceName",
+                             .type = debug->subroutineType(signature),
+                             .location = {"/source/debug.cc", 7, 1},
+                             .scopeLine = 8});
+  auto fused = mlir::cast<mlir::FusedLoc>(emitter_.function(function).getLoc());
+  auto metadata = mlir::cast<mlir::LLVM::DISubprogramAttr>(fused.getMetadata());
+  EXPECT_EQ(metadata.getCompileUnit().getFile().getName().getValue(),
+            "debug.cc");
+  EXPECT_EQ(metadata.getCompileUnit().getFile().getDirectory().getValue(),
+            "/source");
+  EXPECT_EQ(metadata.getName().getValue(), "sourceName");
+  EXPECT_EQ(metadata.getLinkageName().getValue(), "debugged");
+  EXPECT_EQ(metadata.getLine(), 7u);
+  EXPECT_EQ(metadata.getScopeLine(), 8u);
+  EXPECT_EQ(metadata.getSubprogramFlags(),
+            mlir::LLVM::DISubprogramFlags::Definition |
+                mlir::LLVM::DISubprogramFlags::LocalToUnit);
+  backend.beginFunctionBody(function);
+  auto block = debug->lexicalBlock(subprogram, {"/source/debug.cc", 9, 3});
+  auto address =
+      backend.allocate({}, backend.pointerType(backend.integerType(32)), 4);
+  debug->localVariable(address, {.name = "local",
+                                 .scope = block,
+                                 .type = integer,
+                                 .location = {"/source/debug.cc", 10, 5}});
+  auto variable =
+      emitter_.value(address)
+          .getDefiningOp()
+          ->getAttrOfType<mlir::LLVM::DILocalVariableAttr>("cxx.di_local");
+  ASSERT_TRUE(variable);
+  EXPECT_EQ(variable.getName().getValue(), "local");
+  EXPECT_EQ(variable.getLine(), 10u);
+  auto lexical =
+      mlir::cast<mlir::LLVM::DILexicalBlockAttr>(variable.getScope());
+  EXPECT_EQ(lexical.getScope(), metadata);
+  EXPECT_EQ(lexical.getLine(), 9u);
+  EXPECT_EQ(lexical.getColumn(), 3u);
+  debug->localVariable(address, {.name = "this",
+                                 .scope = subprogram,
+                                 .type = integer,
+                                 .argument = 1,
+                                 .isObjectParameter = true});
+  variable =
+      emitter_.value(address)
+          .getDefiningOp()
+          ->getAttrOfType<mlir::LLVM::DILocalVariableAttr>("cxx.di_local");
+  EXPECT_EQ(variable.getLine(), 7u);
+  EXPECT_EQ(variable.getArg(), 1u);
+  EXPECT_EQ(variable.getFlags(), mlir::LLVM::DIFlags::Artificial |
+                                     mlir::LLVM::DIFlags::ObjectPointer);
+  EXPECT_TRUE(static_cast<bool>(unit));
+  EXPECT_TRUE(static_cast<bool>(module));
+  backend.endFunctionBody(function);
   backend.endModule();
 }
 

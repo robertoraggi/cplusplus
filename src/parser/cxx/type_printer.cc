@@ -226,6 +226,10 @@ class TypePrinter {
     specifiers_.append("__builtin_meta_info");
   }
 
+  void operator()(const SveType* type) {
+    specifiers_.append(Token::spell(type->sveKind()));
+  }
+
   void operator()(const VoidType* type) { specifiers_.append("void"); }
 
   void operator()(const BoolType* type) { specifiers_.append("bool"); }

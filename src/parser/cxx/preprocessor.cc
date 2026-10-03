@@ -61,7 +61,8 @@ std::unordered_set<std::string_view> enabledBuiltins{
     FOR_EACH_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
     FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
     FOR_EACH_BINARY_BUILTIN_TYPE_TRAIT(VISIT_BUILTIN)
-#undef VISIT_BUILTIN_FUNCTION
+    FOR_EACH_BUILTIN_KEYWORD_OPERATOR(VISIT_BUILTIN)
+#undef VISIT_BUILTIN
 
 };
 // clang-format on
@@ -446,6 +447,7 @@ struct Preprocessor::Private {
   DiagnosticsClient* diagnosticsClient_ = nullptr;
   CommentHandler* commentHandler_ = nullptr;
   LanguageKind language_ = LanguageKind::kCXX;
+  TripleArch targetArch_ = TripleArch::kUnknown;
   bool disableCurrentDirSearch_ = false;
   std::vector<std::string> systemIncludePaths_;
   std::vector<std::string> quoteIncludePaths_;
@@ -580,11 +582,6 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto copyTok(const Tok& src) -> Tok { return src; }
 
-  [[nodiscard]] auto diagnosticTokenAt(const void* loc) const -> Token {
-    if (!loc) return Token{};
-    return tokenForDiagnostic(*static_cast<const Tok*>(loc));
-  }
-
   [[nodiscard]] auto tokenForDiagnostic(const Tok& tk) const -> Token {
     Token token(tk.kind, tk.offset, tk.length);
     token.setFileId(tk.sourceFile);
@@ -650,7 +647,7 @@ struct Preprocessor::Private {
   [[nodiscard]] auto createSourceFile(std::string fileName, std::string source)
       -> SourceFile*;
 
-  void enterIncludedFile(SourceFile* sourceFile, const void* location,
+  void enterIncludedFile(SourceFile* sourceFile, const Token& location,
                          bool isSystemHeader);
 
   [[nodiscard]] auto fileIdentity(const std::string& fileName) const
@@ -664,7 +661,7 @@ struct Preprocessor::Private {
   struct ParsedIncludeDirective {
     Include header;
     bool includeNext = false;
-    const Tok* loc = nullptr;
+    Token location;
   };
 
   struct ParsedIfDirective {
@@ -1234,12 +1231,12 @@ auto Preprocessor::Private::createSourceFile(std::string fileName,
 }
 
 void Preprocessor::Private::enterIncludedFile(SourceFile* sourceFile,
-                                              const void* location,
+                                              const Token& location,
                                               bool isSystemHeader) {
   if (sourceFile->includedFrom || sourceFile->id == mainSourceFileId_) {
     sourceFile = createSourceFile(sourceFile->fileName, sourceFile->source);
   }
-  sourceFile->includedFrom = diagnosticTokenAt(location);
+  sourceFile->includedFrom = location;
   sourceFile->isSystemHeader = isSystemHeader;
 
   Cursor fileCursor;
@@ -2452,7 +2449,7 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
             .preprocessor = *preprocessor_,
             .include = pi->header,
             .isIncludeNext = pi->includeNext,
-            .loc = const_cast<void*>(static_cast<const void*>(pi->loc)),
+            .location = pi->location,
             .candidates =
                 [this, include = pi->header, isIncludeNext = pi->includeNext] {
                   return buildCandidates(include, isIncludeNext);
@@ -3033,7 +3030,7 @@ auto Preprocessor::Private::parseIncludeDirective(const Tok* directive,
         return ParsedIncludeDirective{
             .header = *headerFile,
             .includeNext = isIncludeNext,
-            .loc = loc,
+            .location = tokenForDiagnostic(*loc),
         };
       }
       return std::nullopt;
@@ -3050,7 +3047,7 @@ auto Preprocessor::Private::parseIncludeDirective(const Tok* directive,
     return ParsedIncludeDirective{
         .header = *headerFile,
         .includeNext = isIncludeNext,
-        .loc = loc,
+        .location = tokenForDiagnostic(*loc),
     };
   }
 
@@ -3098,7 +3095,8 @@ auto Preprocessor::Private::shouldInsertCodeCompletionBefore(
   if (codeCompletionOffset_ != tokenEnd) return false;
 
   if (tk.kind != TokenKind::T_IDENTIFIER) return false;
-  return Lexer::classifyKeyword(text, language_) == TokenKind::T_IDENTIFIER;
+  return Lexer::classifyKeyword(text, language_, targetArch_) ==
+         TokenKind::T_IDENTIFIER;
 }
 
 void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
@@ -3126,7 +3124,7 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
 
   switch (tk.kind) {
     case TokenKind::T_IDENTIFIER: {
-      kind = Lexer::classifyKeyword(text, language_);
+      kind = Lexer::classifyKeyword(text, language_, targetArch_);
       if (kind == TokenKind::T_IDENTIFIER) {
         value.idValue = control_->getIdentifier(text);
       }
@@ -3562,6 +3560,10 @@ auto Preprocessor::diagnosticsClient() const -> DiagnosticsClient* {
 auto Preprocessor::language() const -> LanguageKind { return d->language_; }
 
 void Preprocessor::setLanguage(LanguageKind lang) { d->language_ = lang; }
+
+auto Preprocessor::targetArch() const -> TripleArch { return d->targetArch_; }
+
+void Preprocessor::setTargetArch(TripleArch arch) { d->targetArch_ = arch; }
 
 auto Preprocessor::preprocessorDelegate() const -> PreprocessorDelegate* {
   return nullptr;
@@ -4218,8 +4220,7 @@ void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,
 
   if (!resolvedFileName.has_value()) {
     const auto& header = getHeaderName(include);
-    d->error(d->diagnosticTokenAt(loc),
-             std::format("file '{}' not found", header));
+    d->error(location, std::format("file '{}' not found", header));
     return;
   }
 
@@ -4241,12 +4242,12 @@ void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,
           .preprocessor = preprocessor,
           .fileName = fileName,
           .isSystemHeader = isSystemHeader,
-          .loc = loc,
+          .location = location,
       };
       return request;
     }
 
-    d->enterIncludedFile(sourceFile, loc, isSystemHeader);
+    d->enterIncludedFile(sourceFile, location, isSystemHeader);
 
     return std::nullopt;
   };
@@ -4264,8 +4265,7 @@ void PendingFileContent::setContent(std::optional<std::string> content) const {
   auto d = preprocessor.d.get();
 
   if (!content.has_value()) {
-    d->error(d->diagnosticTokenAt(loc),
-             std::format("cannot read file '{}'", fileName));
+    d->error(location, std::format("cannot read file '{}'", fileName));
     return;
   }
 
@@ -4280,7 +4280,7 @@ void PendingFileContent::setContent(std::optional<std::string> content) const {
                                               sourceFile->headerGuardName);
   }
 
-  d->enterIncludedFile(sourceFile, loc, isSystemHeader);
+  d->enterIncludedFile(sourceFile, location, isSystemHeader);
 }
 
 void DefaultPreprocessorState::operator()(const ProcessingComplete&) {
