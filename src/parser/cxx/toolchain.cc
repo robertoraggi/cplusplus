@@ -102,6 +102,7 @@ auto findLanguageStandard(std::string_view name) -> const LanguageStandard* {
 Toolchain::Toolchain(Preprocessor* preprocessor, Triple triple)
     : preprocessor_(preprocessor), triple_(std::move(triple)) {
   setMemoryLayout(std::make_unique<MemoryLayout>(64));
+  if (preprocessor_) preprocessor_->setTargetArch(triple_.arch());
 }
 
 Toolchain::~Toolchain() = default;

@@ -96,7 +96,8 @@ auto ASTInterpreter::zeroInitialize(const Type* type)
   if (!type) return std::nullopt;
   if (traits.is_integral_or_enum(type)) return std::intmax_t{0};
   if (traits.is_floating_point(type)) return double{0.0};
-  if (traits.is_pointer(type)) return std::intmax_t{0};
+  if (traits.is_pointer(type) || traits.is_null_pointer(type))
+    return std::intmax_t{0};
   if (traits.is_member_pointer(type))
     return ConstValue{
         std::make_shared<ConstAddress>(static_cast<Symbol*>(nullptr))};
@@ -879,6 +880,12 @@ auto ASTInterpreter::lvalue(ExpressionAST* ast) -> ConstValue* {
           .lvalue;
   }
 
+  if (auto condition = ast_cast<ConditionExpressionAST>(ast)) {
+    auto variable = initializeDecisionVariable(condition);
+    if (!variable) return nullptr;
+    return lookupLocalSlot(variable);
+  }
+
   if (auto id = ast_cast<IdExpressionAST>(ast)) {
     auto sym = id->symbol;
     if (!sym) return nullptr;
@@ -1363,6 +1370,20 @@ auto ASTInterpreter::typeInfoAddress(const Type* type)
       traits.remove_cv(traits.remove_reference(type)));
 }
 
+auto ASTInterpreter::variableAddress(Symbol* variable)
+    -> std::optional<ConstValue> {
+  if (!traits.is_reference(variable->type()))
+    return std::make_shared<ConstAddress>(variable);
+  for (auto frame = frames_.rbegin(); frame != frames_.rend(); ++frame) {
+    auto address = frame->referenceAddresses.find(variable);
+    if (address != frame->referenceAddresses.end()) return address->second;
+  }
+  if (auto declared = symbol_cast<VariableSymbol>(variable)) {
+    if (declared->constValue()) return declared->constValue();
+  }
+  return std::nullopt;
+}
+
 auto ASTInterpreter::addressOfLvalue(ExpressionAST* ast)
     -> std::optional<ConstValue> {
   while (ast) {
@@ -1399,19 +1420,15 @@ auto ASTInterpreter::addressOfLvalue(ExpressionAST* ast)
       if (auto owner = fieldOwner(ast)) return memberAddress(owner, field);
       return std::nullopt;
     }
-    if (traits.is_reference(idExpr->symbol->type())) {
-      for (auto frame = frames_.rbegin(); frame != frames_.rend(); ++frame) {
-        auto address = frame->referenceAddresses.find(idExpr->symbol);
-        if (address != frame->referenceAddresses.end()) return address->second;
-      }
-      if (auto variable = symbol_cast<VariableSymbol>(idExpr->symbol)) {
-        if (variable->constValue()) return variable->constValue();
-      }
-      return std::nullopt;
-    }
     if (auto function = designatedFunction(idExpr->symbol))
       return std::make_shared<ConstAddress>(function);
-    return std::make_shared<ConstAddress>(idExpr->symbol);
+    return variableAddress(idExpr->symbol);
+  }
+
+  if (auto condition = ast_cast<ConditionExpressionAST>(ast)) {
+    auto variable = initializeDecisionVariable(condition);
+    if (!variable) return std::nullopt;
+    return variableAddress(variable);
   }
 
   if (auto member = ast_cast<MemberExpressionAST>(ast)) {
@@ -2036,10 +2053,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(CppCastExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
     BuiltinBitCastExpressionAST* ast) -> ExpressionResult {
-  auto typeIdResult = interp.typeId(ast->typeId);
-  auto expressionResult = interp.expression(ast->expression);
-
-  return ExpressionResult{std::nullopt};
+  auto value = interp.expression(ast->expression);
+  if (!value) return std::nullopt;
+  return interp.bitCast(*value, ast->expression->type, ast->type);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(
@@ -3206,6 +3222,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
       case BuiltinTypeTraitKind::T___IS_NOTHROW_DESTRUCTIBLE:
         return unit()->typeTraits().is_nothrow_destructible(firstType);
 
+      case BuiltinTypeTraitKind::T___HAS_TRIVIAL_CONSTRUCTOR:
+        return unit()->typeTraits().has_trivial_default_constructor(firstType);
+
       case BuiltinTypeTraitKind::T___HAS_TRIVIAL_DESTRUCTOR:
         return unit()->typeTraits().has_trivial_destructor(firstType);
 
@@ -3289,18 +3308,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(ConditionExpressionAST* ast)
     -> ExpressionResult {
-  for (auto node : ListView{ast->attributeList}) {
-    auto value = interp.attributeSpecifier(node);
-  }
-
-  for (auto node : ListView{ast->declSpecifierList}) {
-    auto value = interp.specifier(node);
-  }
-
-  auto declaratorResult = interp.declarator(ast->declarator);
-  auto initializerResult = interp.expression(ast->initializer);
-
-  return ExpressionResult{std::nullopt};
+  auto variable = interp.initializeDecisionVariable(ast);
+  if (!variable) return std::nullopt;
+  return interp.lookupLocal(variable);
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(EqualInitializerAST* ast)

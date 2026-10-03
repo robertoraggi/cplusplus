@@ -24,6 +24,7 @@
 #include <cxx/source_resolver.h>
 
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 namespace cxx {
@@ -74,19 +75,17 @@ class DiagnosticsClient {
 
   void report(const Token& token, Severity severity, std::string message,
               SourceLocation location = {}) {
-    if (blockErrors_) return;
+    emit(Diagnostic{severity, token, std::move(message), location});
+  }
 
-    if (severity == Severity::Error || severity == Severity::Fatal) {
-      ++errorCount_;
-      if (errorLimit_ > 0 && errorCount_ > errorLimit_) return;
-    }
+  void emit(const Diagnostic& diagnostic);
 
-    Diagnostic diag{severity, token, std::move(message), location};
-
-    report(diag);
+  [[nodiscard]] auto hasErrorAt(SourceLocation location) const -> bool {
+    return errorLocations_.contains(location.index());
   }
 
  private:
+  std::unordered_set<unsigned> errorLocations_;
   SourceResolver* sourceResolver_ = nullptr;
   int errorCount_ = 0;
   int errorLimit_ = 0;
@@ -128,7 +127,7 @@ struct CapturingDiagnosticsClient final : DiagnosticsClient {
 
   void report(const Diagnostic& diagnostic) override {
     diagnostics.push_back(diagnostic);
-    if (parent) parent->report(diagnostic);
+    if (parent) parent->emit(diagnostic);
   }
 };
 

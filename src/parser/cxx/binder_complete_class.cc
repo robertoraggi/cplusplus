@@ -47,6 +47,19 @@
 #include <unordered_set>
 
 namespace cxx {
+namespace {
+class ImplicitDefinitionScope {
+ public:
+  ImplicitDefinitionScope(TranslationUnit* unit, FunctionSymbol* function)
+      : evaluated_(unit, true),
+        deferred_(unit, !function->isDefinitionRequired()) {}
+
+ private:
+  TranslationUnit::PotentiallyEvaluatedScope evaluated_;
+  TranslationUnit::DeferredDefinitionsScope deferred_;
+};
+}  // namespace
+
 [[nodiscard]] static auto hasUninstantiatedDefaultMemberInitializer(
     ClassSymbol* classSymbol) -> bool {
   return std::ranges::any_of(
@@ -199,6 +212,8 @@ struct [[nodiscard]] Binder::CompleteClass {
 
   auto control() const -> Control* { return binder.control(); }
 
+  void recordUserDeclaredConstructors();
+  void completeDefinition();
   void complete(DeferredMemberContexts deferred);
 
   void markComplete();
@@ -335,7 +350,9 @@ struct [[nodiscard]] Binder::CompleteClass {
   [[nodiscard]] auto variableValue(VariableSymbol* variable) -> ExpressionAST*;
   auto makeStructorCallStatement(FunctionSymbol* callee,
                                  ExpressionAST* objectPtr) -> StatementAST*;
-  auto pickVBaseConstructor(ClassSymbol* vbase, bool isCopy, bool isMove)
+  [[nodiscard]] auto selectSubobjectConstructor(ClassSymbol* subobject,
+                                                const Type* type, bool isCopy,
+                                                bool isMove) const
       -> FunctionSymbol*;
   void synthesizeCompleteObjectCtor(FunctionSymbol* ctor);
   void synthesizeDelegatingCompleteObjectCtor(FunctionSymbol* ctor);
@@ -358,15 +375,13 @@ struct [[nodiscard]] Binder::CompleteClass {
   void synthesizeCopyMoveAssignBody(FunctionSymbol* fn, bool isMove);
 };
 
-void Binder::completeForMemberContexts(ClassSymbol* classSymbol) {
-  if (!classSymbol) return;
-  if (classSymbol->isComplete()) return;
-  if (defersClassSemanticCompletion(unit_, classSymbol)) return;
+void Binder::completeForMemberContexts(ClassSpecifierAST* ast) {
+  if (!ast || !ast->symbol) return;
+  if (ast->symbol->isComplete()) return;
+  if (defersClassSemanticCompletion(unit_, ast->symbol)) return;
 
-  auto status = buildRecordLayout(classSymbol);
-  if (!status.has_value()) return;
-
-  classSymbol->setComplete(true);
+  CompleteClass{*this, ast}.completeDefinition();
+  ast->symbol->setComplete(true);
 }
 
 void Binder::complete(ClassSpecifierAST* ast, DeferredMemberContexts deferred) {
@@ -433,9 +448,6 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
   if (classSymbol->isUnion()) return;
 
   auto canon = fn->canonical();
-  auto matches = [&](FunctionSymbol* member) {
-    return member && member->canonical() == canon;
-  };
 
   CompleteClass cc{*this, classSymbol};
   if (auto operatorId = name_cast<OperatorId>(fn->name())) {
@@ -458,15 +470,15 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
         break;
     }
   }
-  if (matches(classSymbol->defaultConstructor()))
+  if (classSymbol->isDefaultConstructor(canon))
     cc.synthesizeDefaultConstructorBody(fn);
-  else if (matches(classSymbol->copyConstructor()))
+  else if (classSymbol->isCopyConstructor(canon))
     cc.synthesizeCopyMoveCtorBody(fn, /*isMove=*/false);
-  else if (matches(classSymbol->moveConstructor()))
+  else if (classSymbol->isMoveConstructor(canon))
     cc.synthesizeCopyMoveCtorBody(fn, /*isMove=*/true);
-  else if (matches(classSymbol->copyAssignmentOperator()))
+  else if (classSymbol->isCopyAssignmentOperator(canon))
     cc.synthesizeCopyMoveAssignBody(fn, /*isMove=*/false);
-  else if (matches(classSymbol->moveAssignmentOperator()))
+  else if (classSymbol->isMoveAssignmentOperator(canon))
     cc.synthesizeCopyMoveAssignBody(fn, /*isMove=*/true);
 }
 
@@ -656,8 +668,7 @@ void Binder::CompleteClass::synthesizeInheritedConstructorBody(
   check.setScope(fn);
   check.setReportErrors(false);
 
-  TranslationUnit::PotentiallyEvaluatedScope unusedUntilOdrUsed{
-      binder.unit_, fn->isDefinitionRequired()};
+  ImplicitDefinitionScope implicitDefinition{binder.unit_, fn};
   check.check_mem_initializers(body);
 }
 
@@ -666,14 +677,13 @@ auto Binder::CompleteClass::buildRecordLayout()
   return binder.buildRecordLayout(classSymbol);
 }
 
-void Binder::CompleteClass::complete(DeferredMemberContexts deferred) {
+void Binder::CompleteClass::recordUserDeclaredConstructors() {
   classSymbol->setHasUserDeclaredConstructors(
       !classSymbol->declaredConstructors().empty());
+}
 
-  if (defersClassSemanticCompletion(binder.unit_, classSymbol)) {
-    markComplete();
-    return;
-  }
+void Binder::CompleteClass::completeDefinition() {
+  recordUserDeclaredConstructors();
 
   if (shouldSynthesizeSpecialMembers()) synthesizeSpecialMembers();
 
@@ -684,6 +694,16 @@ void Binder::CompleteClass::complete(DeferredMemberContexts deferred) {
     binder.error(classSymbol->location(), status.error());
 
   binder.computeClassFlags(classSymbol);
+}
+
+void Binder::CompleteClass::complete(DeferredMemberContexts deferred) {
+  if (defersClassSemanticCompletion(binder.unit_, classSymbol)) {
+    recordUserDeclaredConstructors();
+    markComplete();
+    return;
+  }
+
+  if (!deferred.completedForMemberContexts) completeDefinition();
 
   if (!deferred.fieldInitializers) typeFieldInitializers();
 
@@ -744,13 +764,13 @@ struct Binder::ImplicitExceptionSpecification {
       : binder(b),
         fn(f),
         classSymbol(cls),
-        isMoveForm(f == cls->moveConstructor() ||
-                   f == cls->moveAssignmentOperator()),
-        isAssignment(f == cls->copyAssignmentOperator() ||
-                     f == cls->moveAssignmentOperator()),
-        isCopyOrMoveConstructor(f == cls->copyConstructor() ||
-                                f == cls->moveConstructor()),
-        isDefaultConstructor(f == cls->defaultConstructor()) {
+        isMoveForm(cls->isMoveConstructor(f) ||
+                   cls->isMoveAssignmentOperator(f)),
+        isAssignment(cls->isCopyAssignmentOperator(f) ||
+                     cls->isMoveAssignmentOperator(f)),
+        isCopyOrMoveConstructor(cls->isCopyConstructor(f) ||
+                                cls->isMoveConstructor(f)),
+        isDefaultConstructor(cls->isDefaultConstructor(f)) {
     if (auto inherited = f->inheritedConstructor()) {
       inheritedBase = symbol_cast<ClassSymbol>(inherited->parent());
       if (inheritedBase) inheritedBase = inheritedBase->resolvedDefinition();
@@ -819,6 +839,8 @@ struct Binder::ImplicitExceptionSpecification {
     if (!classType) return false;
 
     if (isInheritedBase(classType)) {
+      ASTRewriter::completePendingExceptionSpecification(
+          binder.unit_, fn->inheritedConstructor());
       auto inheritedType =
           type_cast<FunctionType>(fn->inheritedConstructor()->type());
       return !inheritedType || !inheritedType->isNoexcept();
@@ -839,26 +861,22 @@ struct Binder::ImplicitExceptionSpecification {
   }
 };
 
-void Binder::applyImplicitExceptionSpecification(FunctionSymbol* fn) {
-  if (!fn || fn->hasExceptionSpecifier()) return;
-  if (!fn->isDestructor() && !fn->isDefaulted()) return;
-  if (isComparisonOperatorFunction(fn)) return;
-
-  if (!type_cast<FunctionType>(fn->type())) return;
-
+namespace {
+[[nodiscard]] auto classOfImplicitExceptionSpecification(FunctionSymbol* fn)
+    -> ClassSymbol* {
+  if (!fn || fn->hasExceptionSpecifier()) return nullptr;
+  if (!fn->isDestructor() && !fn->isDefaulted()) return nullptr;
+  if (isComparisonOperatorFunction(fn)) return nullptr;
+  if (!type_cast<FunctionType>(fn->type())) return nullptr;
   auto classSymbol = symbol_cast<ClassSymbol>(fn->parent());
-  if (!classSymbol) return;
-  classSymbol = classSymbol->resolvedDefinition();
+  if (!classSymbol) return nullptr;
+  return classSymbol->resolvedDefinition();
+}
+}  // namespace
 
-  ImplicitExceptionSpecification specification{*this, fn, classSymbol};
-
-  if (specification.isDefaultConstructor &&
-      hasUninstantiatedDefaultMemberInitializer(classSymbol)) {
-    fn->setDeferredImplicitExceptionSpecification(true);
-    return;
-  }
-
-  setFunctionNoexcept(control(), fn, !specification.isPotentiallyThrowing());
+void Binder::applyImplicitExceptionSpecification(FunctionSymbol* fn) {
+  if (!classOfImplicitExceptionSpecification(fn)) return;
+  fn->setDeferredImplicitExceptionSpecification(true);
 }
 
 void Binder::completeDeferredImplicitExceptionSpecification(
@@ -866,11 +884,18 @@ void Binder::completeDeferredImplicitExceptionSpecification(
   if (!fn->hasDeferredImplicitExceptionSpecification()) return;
   fn->setDeferredImplicitExceptionSpecification(false);
 
-  auto classSymbol = symbol_cast<ClassSymbol>(fn->parent());
-  for (auto field : views::members(classSymbol) | views::non_static_fields)
-    ASTRewriter::requireFieldInitializer(unit_, field);
+  auto classSymbol = classOfImplicitExceptionSpecification(fn);
+  if (!classSymbol) return;
 
-  applyImplicitExceptionSpecification(fn);
+  ImplicitExceptionSpecification specification{*this, fn, classSymbol};
+
+  if (specification.isDefaultConstructor &&
+      hasUninstantiatedDefaultMemberInitializer(classSymbol)) {
+    for (auto field : views::members(classSymbol) | views::non_static_fields)
+      ASTRewriter::requireFieldInitializer(unit_, field);
+  }
+
+  setFunctionNoexcept(control(), fn, !specification.isPotentiallyThrowing());
 }
 
 void Binder::refreshImplicitExceptionSpecifications(ClassSymbol* classSymbol) {
@@ -1266,8 +1291,7 @@ struct Binder::CompleteClass::DefaultedThreeWayComparison {
 
   [[nodiscard]] auto elementComparison(const ComparisonElement& element)
       -> ExpressionAST* {
-    TranslationUnit::PotentiallyEvaluatedScope unevaluated{owner.binder.unit_,
-                                                           false};
+    ImplicitDefinitionScope implicitDefinition{owner.binder.unit_, fn};
     auto threeWay = ThreeWayComparisonExpressionAST::create(pool());
     threeWay->comparison = subobjectBinary(element, ComparisonSide::kLeft,
                                            TokenKind::T_LESS_EQUAL_GREATER,
@@ -1355,8 +1379,7 @@ struct Binder::CompleteClass::DefaultedThreeWayComparison {
     auto subobjects = owner.comparisonSubobjects(fn);
     if (fn->isDeleted()) return nullptr;
 
-    TranslationUnit::PotentiallyEvaluatedScope evaluated{owner.binder.unit_,
-                                                         true};
+    ImplicitDefinitionScope implicitDefinition{owner.binder.unit_, fn};
     auto block = owner.newBlock(fn, fn->location());
     std::vector<StatementAST*> statements;
     for (auto subobject : subobjects) {
@@ -1747,7 +1770,7 @@ void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
   TypeChecker check{binder.unit_};
   check.setReportErrors(true);
   CapturingDiagnosticsScope diagnostics{binder.unit_};
-  TranslationUnit::PotentiallyEvaluatedScope unevaluated{binder.unit_, false};
+  ImplicitDefinitionScope implicitDefinition{binder.unit_, fn};
 
   auto block = newBlock(fn, fn->location());
   std::vector<StatementAST*> statements;
@@ -1942,9 +1965,9 @@ auto Binder::CompleteClass::hasNonCopyConstructibleSubobject(
         destructor && !isSubobjectMemberUsable(destructor, subobject))
       return true;
 
-    auto constructor = moveForm ? subobject->moveConstructor() : nullptr;
-    if (!constructor) constructor = subobject->copyConstructor();
-    return constructor && !isSubobjectMemberUsable(constructor, subobject);
+    auto constructor =
+        selectSubobjectConstructor(subobject, type, !moveForm, moveForm);
+    return !constructor || !isSubobjectMemberUsable(constructor, subobject);
   };
 
   for (auto base : classSymbol->baseClasses()) {
@@ -2201,10 +2224,8 @@ auto Binder::CompleteClass::makeQualifier(ClassSymbol* cls)
 }
 
 auto Binder::CompleteClass::typeSpecifier(const Type* type) -> SpecifierAST* {
-  auto alias = control()->newTypeAliasSymbol(nullptr, {});
-  alias->setType(type);
   auto specifier = NamedTypeSpecifierAST::create(pool);
-  specifier->symbol = alias;
+  specifier->symbol = control()->getTypeArgumentSymbol(type);
   return specifier;
 }
 
@@ -2278,12 +2299,21 @@ auto Binder::CompleteClass::makeStructorCallStatement(FunctionSymbol* callee,
   return stmt;
 }
 
-auto Binder::CompleteClass::pickVBaseConstructor(ClassSymbol* vbase,
-                                                 bool isCopy, bool isMove)
+auto Binder::CompleteClass::selectSubobjectConstructor(ClassSymbol* subobject,
+                                                       const Type* type,
+                                                       bool isCopy,
+                                                       bool isMove) const
     -> FunctionSymbol* {
-  if (isCopy) return vbase->copyConstructor();
-  if (isMove) return vbase->moveConstructor();
-  return vbase->defaultConstructor();
+  auto traits = binder.traits;
+  if (isCopy) {
+    const Type* source = traits.add_const_ref(type);
+    return traits.selectConstructor(subobject, std::span{&source, 1});
+  }
+  if (isMove) {
+    const Type* source = control()->getRvalueReferenceType(type);
+    return traits.selectConstructor(subobject, std::span{&source, 1});
+  }
+  return traits.selectConstructor(subobject, {});
 }
 
 void Binder::CompleteClass::synthesizeDelegatingCompleteObjectCtor(
@@ -2350,7 +2380,8 @@ void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
   auto memInitsTail = &memInits;
 
   for (auto vbase : virtual_base_initialization_order(classSymbol)) {
-    auto vbaseCtor = pickVBaseConstructor(vbase, isCopy, isMove);
+    auto vbaseCtor =
+        selectSubobjectConstructor(vbase, vbase->type(), isCopy, isMove);
     ASTRewriter::requireFunctionDefinition(binder.unit_, vbaseCtor);
 
     auto init = ParenMemInitializerAST::create(pool);
@@ -2566,14 +2597,22 @@ void Binder::CompleteClass::synthesizeMemberwiseBodies() {
       synthesizeInheritedConstructorBody(fn);
   }
 
-  if (auto fn = classSymbol->copyConstructor(); needsBodyNow(fn))
-    synthesizeCopyMoveCtorBody(fn, /*isMove=*/false);
-  if (auto fn = classSymbol->moveConstructor(); needsBodyNow(fn))
-    synthesizeCopyMoveCtorBody(fn, /*isMove=*/true);
-  if (auto fn = classSymbol->copyAssignmentOperator(); needsBodyNow(fn))
-    synthesizeCopyMoveAssignBody(fn, /*isMove=*/false);
-  if (auto fn = classSymbol->moveAssignmentOperator(); needsBodyNow(fn))
-    synthesizeCopyMoveAssignBody(fn, /*isMove=*/true);
+  for (auto fn : classSymbol->declaredConstructors()) {
+    if (!needsBodyNow(fn)) continue;
+    if (classSymbol->isCopyConstructor(fn))
+      synthesizeCopyMoveCtorBody(fn, /*isMove=*/false);
+    else if (classSymbol->isMoveConstructor(fn))
+      synthesizeCopyMoveCtorBody(fn, /*isMove=*/true);
+  }
+
+  for (auto fn :
+       classSymbol->find(TokenKind::T_EQUAL) | views::member_functions) {
+    if (!needsBodyNow(fn)) continue;
+    if (classSymbol->isCopyAssignmentOperator(fn))
+      synthesizeCopyMoveAssignBody(fn, /*isMove=*/false);
+    else if (classSymbol->isMoveAssignmentOperator(fn))
+      synthesizeCopyMoveAssignBody(fn, /*isMove=*/true);
+  }
 }
 
 void Binder::CompleteClass::typeFieldInitializers() {
@@ -3795,7 +3834,7 @@ void Binder::BuildRecordLayout::finalize() {
 
   calculatedSize = std::max(calculatedSize, static_cast<int>(runningSizeof));
 
-  if (calculatedSize == 0) calculatedSize = 1;
+  if (calculatedSize == 0 && !binder.isC()) calculatedSize = 1;
 
   calculatedSize = align_to(calculatedSize, calculatedAlignment);
 

@@ -398,7 +398,13 @@ auto SpecializationTable::add(TranslationUnit* unit,
 
 void SpecializationTable::restore(TemplateSpecialization specialization) {
   entries_.push_back(std::move(specialization));
-  index(entries_.size() - 1);
+}
+
+void SpecializationTable::rebuildIndex() {
+  byArguments_.clear();
+  bySymbol_.clear();
+  unkeyed_.clear();
+  for (std::size_t i = 0; i < entries_.size(); ++i) index(i);
 }
 
 auto SpecializationTable::matches(TranslationUnit* unit, std::size_t index,
@@ -416,37 +422,29 @@ auto SpecializationTable::findIndex(TranslationUnit* unit,
                                     std::span<const TemplateArgument> arguments,
                                     const Symbol* specialization) const
     -> std::optional<std::size_t> {
-  auto isMatch = [&](std::size_t index) {
-    return matches(unit, index, arguments, specialization);
-  };
-
-  auto key = hash_template_arguments(arguments);
-
-  if (!key.has_value()) {
-    auto indices = std::views::iota(std::size_t{0}, entries_.size());
-    auto it = std::ranges::find_if(indices, isMatch);
-    if (it == indices.end()) return std::nullopt;
-    return *it;
-  }
-
-  if (auto bucket = byArguments_.find(*key); bucket != byArguments_.end()) {
-    auto it = std::ranges::find_if(bucket->second, isMatch);
-    if (it != bucket->second.end()) return *it;
-  }
-
-  auto it = std::ranges::find_if(unkeyed_, isMatch);
-  if (it == unkeyed_.end()) return std::nullopt;
-  return *it;
+  return findTemplateArguments(arguments, entries_.size(), byArguments_,
+                               unkeyed_, [&](std::size_t index) {
+                                 return matches(unit, index, arguments,
+                                                specialization);
+                               });
 }
 
 void SpecializationTable::index(std::size_t index) {
-  auto key = hash_template_arguments(entries_[index].arguments);
   auto position = static_cast<std::uint32_t>(index);
   bySymbol_.try_emplace(entries_[index].symbol, position);
+  indexTemplateArguments(entries_[index].arguments, position, byArguments_,
+                         unkeyed_);
+}
+
+void indexTemplateArguments(
+    std::span<const TemplateArgument> arguments, std::uint32_t position,
+    std::unordered_map<std::size_t, std::vector<std::uint32_t>>& byArguments,
+    std::vector<std::uint32_t>& unkeyed) {
+  auto key = hash_template_arguments(arguments);
   if (key.has_value())
-    byArguments_[*key].push_back(position);
+    byArguments[*key].push_back(position);
   else
-    unkeyed_.push_back(position);
+    unkeyed.push_back(position);
 }
 
 auto expand_template_arguments(std::span<const TemplateArgument> arguments)
@@ -891,6 +889,15 @@ struct GetTemplateDeclaration {
   auto operator()(Symbol*) const -> TemplateDeclarationAST* { return nullptr; }
 };
 
+struct RebuildSpecializationIndex {
+  template <Templatable S>
+  void operator()(S* symbol) {
+    symbol->rebuildSpecializationIndex();
+  }
+
+  void operator()(Symbol*) {}
+};
+
 struct AddExternInstantiationDeclaration {
   std::vector<TemplateArgument> arguments;
 
@@ -1017,6 +1024,11 @@ auto specialization_entry_of(Symbol* templateSymbol, Symbol* specialization)
     -> TemplateSpecialization* {
   if (!templateSymbol || !specialization) return nullptr;
   return visit(GetSpecializationEntry{specialization}, templateSymbol);
+}
+
+void rebuild_specialization_index(Symbol* symbol) {
+  if (!symbol) return;
+  visit(RebuildSpecializationIndex{}, symbol);
 }
 
 void add_extern_instantiation_declaration(
@@ -2168,17 +2180,19 @@ auto ClassSymbol::destructor() const -> FunctionSymbol* {
   });
 }
 
+auto ClassSymbol::isDefaultConstructor(FunctionSymbol* function) const -> bool {
+  if (!function || !function->isConstructor()) return false;
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType) return false;
+  const auto parameterCount =
+      static_cast<int>(functionType->parameterTypes().size());
+  return required_parameter_count(function, parameterCount) == 0;
+}
+
 auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
   for (auto ctor : constructors()) {
     if (ctor->canonical() != ctor) continue;
-    auto funcType = type_cast<FunctionType>(ctor->type());
-    if (!funcType) continue;
-
-    const auto paramTypeCount =
-        static_cast<int>(funcType->parameterTypes().size());
-    if (paramTypeCount == 0) return ctor;
-
-    if (required_parameter_count(ctor, paramTypeCount) == 0) return ctor;
+    if (isDefaultConstructor(ctor)) return ctor;
   }
   return nullptr;
 }
@@ -2241,32 +2255,52 @@ template <typename Reference>
 
 }  // namespace
 
+auto ClassSymbol::isCopyConstructor(FunctionSymbol* function) const -> bool {
+  if (!function || !function->isConstructor()) return false;
+  return isCopyOrMoveConstructorFor<LvalueReferenceType>(function, this);
+}
+
+auto ClassSymbol::isMoveConstructor(FunctionSymbol* function) const -> bool {
+  if (!function || !function->isConstructor()) return false;
+  return isCopyOrMoveConstructorFor<RvalueReferenceType>(function, this);
+}
+
+auto ClassSymbol::isCopyAssignmentOperator(FunctionSymbol* function) const
+    -> bool {
+  return function && isCopyAssignmentFor(function, this);
+}
+
+auto ClassSymbol::isMoveAssignmentOperator(FunctionSymbol* function) const
+    -> bool {
+  return function && isMoveAssignmentFor(function, this);
+}
+
 auto ClassSymbol::copyConstructor() const -> FunctionSymbol* {
   for (auto ctor : constructors()) {
-    if (isCopyOrMoveConstructorFor<LvalueReferenceType>(ctor, this))
-      return ctor;
+    if (isCopyConstructor(ctor)) return ctor;
   }
   return nullptr;
 }
 
 auto ClassSymbol::moveConstructor() const -> FunctionSymbol* {
   for (auto ctor : constructors()) {
-    if (isCopyOrMoveConstructorFor<RvalueReferenceType>(ctor, this))
-      return ctor;
+    if (isMoveConstructor(ctor)) return ctor;
   }
   return nullptr;
 }
 
 auto ClassSymbol::copyAssignmentOperator() const -> FunctionSymbol* {
-  return views::find_function(
-      find(TokenKind::T_EQUAL),
-      [this](FunctionSymbol* func) { return isCopyAssignmentFor(func, this); });
+  return views::find_function(find(TokenKind::T_EQUAL),
+                              [this](FunctionSymbol* function) {
+                                return isCopyAssignmentOperator(function);
+                              });
 }
 
 auto ClassSymbol::moveAssignmentOperator() const -> FunctionSymbol* {
-  return views::find_function(
-      find(TokenKind::T_EQUAL),
-      [this](FunctionSymbol* func) { return isMoveAssignmentFor(func, this); });
+  return views::find_function(find(TokenKind::T_EQUAL),
+                              [this](FunctionSymbol* function) {
+                                return isMoveAssignmentOperator(function);
+                              });
 }
 
 auto ClassSymbol::hasUserDeclaredConstructors() const -> bool {

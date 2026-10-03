@@ -1042,21 +1042,14 @@ auto TypeChecker::Visitor::add_implicit_object_cv(const Type* fieldType,
   auto fieldClass = symbol_cast<ClassSymbol>(field->parent());
   if (!fieldClass) return fieldType;
 
-  auto func = enclosing_function();
-  if (!func) return fieldType;
+  auto binder = Binder{check.unit_};
+  auto thisType = binder.enclosingThisType(scope());
+  if (!thisType) return fieldType;
 
-  auto funcClass = symbol_cast<ClassSymbol>(func->parent());
+  auto objectType = traits.remove_pointer(thisType);
+  if (!traits.is_base_of(fieldClass->type(), objectType)) return fieldType;
 
-  if (!funcClass) return fieldType;
-  if (!traits.is_base_of(fieldClass->type(), funcClass->type()))
-    return fieldType;
-
-  auto funcType = type_cast<FunctionType>(func->type());
-  if (!funcType) return fieldType;
-
-  const auto objectCv = funcType->cvQualifiers();
-
-  auto cv = objectCv;
+  auto cv = cv_qualifiers(objectType);
   if (field->isMutable()) cv &= ~CvQualifiers::kConst;
 
   return traits.add_cv(fieldType, cv);
@@ -3416,8 +3409,13 @@ void TypeChecker::Visitor::operator()(BracedTypeConstructionAST* ast) {
     if (!classType->symbol()) return;
 
     ExpressionAST* initializer = ast->bracedInitList;
-    ast->constructorSymbol = check.check_class_initializer(
-        ast->type, initializer, ast->bracedInitList->lbraceLoc);
+    check.check_list_initialization(
+        ast->type, initializer, InitializationKind::kDirectListInitialization);
+    ast->constructorSymbol = nullptr;
+    if (auto construction = ast_cast<BracedTypeConstructionAST>(initializer)) {
+      ast->constructorSymbol = construction->constructorSymbol;
+      ast->bracedInitList = construction->bracedInitList;
+    }
     return;
   }
 
@@ -3534,8 +3532,9 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
     if (isC() && !traits.is_arithmetic_or_unscoped_enum(valueType))
       return false;
 
+    if (traits.is_bool(valueType)) return false;
+
     auto ty = traits.remove_cv(valueType);
-    if (type_cast<BoolType>(ty)) return false;
 
     ast->type = ty;
     ast->valueCategory = ValueCategory::kPrValue;

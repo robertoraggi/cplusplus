@@ -80,7 +80,7 @@ class RecordingDiagnosticsClient : public DiagnosticsClient {
 
   void reportTo(DiagnosticsClient* client) {
     for (const auto& message : messages_) {
-      client->report(message);
+      client->emit(message);
     }
   }
 
@@ -495,9 +495,9 @@ void Parser::parse_warn(SourceLocation loc, std::string message) {
 
 void Parser::parse_error(std::string message) {
   if (uncheckedInitializerDepth_) return;
-  if (lastErrorCursor_ == cursor_) return;
-  lastErrorCursor_ = cursor_;
-  unit_->error(unit_->locationOfIndex(cursor_), std::move(message));
+  auto location = unit_->locationOfIndex(cursor_);
+  if (unit_->diagnosticsClient()->hasErrorAt(location)) return;
+  unit_->error(location, std::move(message));
 }
 
 void Parser::parse_error(SourceLocation loc, std::string message) {
@@ -528,16 +528,13 @@ void Parser::report_failed_parse(std::string message) {
     return;
   }
 
-  if (lastErrorCursor_ == cursor_) return;
-  lastErrorCursor_ = cursor_;
-
+  auto client = unit_->diagnosticsClient();
   for (const auto& diagnostic : failedParse.messages) {
-    const auto& token = diagnostic.token();
-    if (!reportedDiagnostics_.emplace(token.offset(), diagnostic.message())
-             .second)
-      continue;
-    unit_->diagnosticsClient()->report(diagnostic);
+    if (client->hasErrorAt(diagnostic.location())) continue;
+    client->emit(diagnostic);
   }
+
+  rewind(unit_->locationOfIndex(failedParse.reach));
 }
 
 void Parser::type_error(SourceLocation loc, std::string message) {
@@ -1628,15 +1625,25 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
 void Parser::parse_optional_nested_name_specifier(
     NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) {
   if (!isCxx()) return;
+  if (!lookat_nested_name_specifier_start()) return;
 
   LookaheadParser lookahead(this);
   if (!parse_nested_name_specifier(yyast, ctx)) return;
   lookahead.commit();
 }
 
+auto Parser::lookat_nested_name_specifier_start() -> bool {
+  if (lookat(TokenKind::T_COLON_COLON)) return true;
+  if (lookat(TokenKind::T_DECLTYPE)) return true;
+  if (lookat(TokenKind::T_TEMPLATE)) return true;
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) return true;
+  return lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS);
+}
+
 auto Parser::parse_decltype_nested_name_specifier(
     NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) -> bool {
   if (!isCxx()) return false;
+  if (!lookat(TokenKind::T_DECLTYPE, TokenKind::T_LPAREN)) return false;
 
   LookaheadParser lookahead{this};
 
@@ -1738,6 +1745,10 @@ struct IsReferencingTemplateParameter {
 auto Parser::parse_template_nested_name_specifier(
     NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx, int depth)
     -> bool {
+  if (!lookat(TokenKind::T_TEMPLATE) &&
+      !lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS))
+    return false;
+
   LookaheadParser lookahead{this};
 
   SourceLocation templateLoc;
@@ -3116,6 +3127,8 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_typename_expression(ExpressionAST*& yyast,
                                        const ExprContext& ctx) -> bool {
+  if (!lookat(TokenKind::T_TYPENAME)) return false;
+
   LookaheadParser lookahead{this};
 
   SpecifierAST* typenameSpecifier = nullptr;
@@ -3307,6 +3320,8 @@ auto Parser::parse_unary_expression(ExpressionAST*& yyast,
 
 auto Parser::parse_label_address(ExpressionAST*& yyast, const ExprContext& ctx)
     -> bool {
+  if (!lookat(TokenKind::T_AMP_AMP, TokenKind::T_IDENTIFIER)) return false;
+
   LookaheadParser lookahead{this};
 
   SourceLocation ampAmpLoc;
@@ -5471,8 +5486,6 @@ auto Parser::parse_simple_declaration(
 
     binder_.recordFunctionDefinition(functionSymbol);
 
-    if (classDepth_) functionSymbol->setInline(true);
-
     if (auto params = functionDeclarator->parameterDeclarationClause) {
       setScope(params->functionParametersSymbol);
     } else {
@@ -5662,8 +5675,6 @@ auto Parser::parse_notypespec_function_definition(
   }
 
   binder_.recordFunctionDefinition(functionSymbol);
-
-  if (classDepth_) functionSymbol->setInline(true);
 
   if (auto params = functionDeclarator->parameterDeclarationClause) {
     setScope(params->functionParametersSymbol);
@@ -6008,6 +6019,8 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
       parse_error("expected a expression");
     }
 
+    check_bool_condition(ast->expression);
+
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
 
@@ -6261,6 +6274,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
     return false;
 
   if (checkUnqualifiedCompletion()) return false;
+  if (!lookat(TokenKind::T_IDENTIFIER) && !lookat_nested_name_specifier_start())
+    return false;
 
   LookaheadParser lookahead{this};
 
@@ -6477,6 +6492,9 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
   };
 
   switch (auto tk = LA(); tk.kind()) {
+#define SVE_TYPE_CASE(id, _) case TokenKind::T_##id:
+    FOR_EACH_SVE_TYPE(SVE_TYPE_CASE)
+#undef SVE_TYPE_CASE
     case TokenKind::T___BUILTIN_VA_LIST:
     case TokenKind::T___BUILTIN_META_INFO: {
       auto ast = BuiltinTypeSpecifierAST::create(pool_);
@@ -6948,8 +6966,21 @@ auto Parser::parse_decltype_specifier(DecltypeSpecifierAST*& yyast) -> bool {
   return true;
 }
 
+auto Parser::lookat_placeholder_type_specifier_start() -> bool {
+  if (lookat(TokenKind::T_AUTO)) return true;
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_AUTO)) return true;
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DECLTYPE)) return true;
+  if (lookat(TokenKind::T_IDENTIFIER)) {
+    return lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS) ||
+           lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON);
+  }
+  return lookat_nested_name_specifier_start();
+}
+
 auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
                                               DeclSpecs& specs) -> bool {
+  if (!lookat_placeholder_type_specifier_start()) return false;
+
   TypeConstraintAST* typeConstraint = nullptr;
 
   auto lookat_placeholder_type_specifier = [&] {
@@ -8127,6 +8158,8 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
 
 auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
+  if (!lookat(TokenKind::T_ENUM)) return false;
+
   LookaheadParser lookahead{this};
 
   SourceLocation enumLoc;
@@ -8510,6 +8543,10 @@ auto Parser::parse_namespace_definition(DeclarationAST*& yyast) -> bool {
       enterOrCreateNamespace(ast->identifier, location, ast->isInline);
 
   parse_optional_attribute_specifier_seq(ast->extraAttributeList);
+
+  binder_.applyDeclarationAttributes(ast->symbol, ast->attributeList, nullptr);
+  binder_.applyDeclarationAttributes(ast->symbol, ast->extraAttributeList,
+                                     nullptr);
 
   expect(TokenKind::T_LBRACE, ast->lbraceLoc);
 
@@ -9686,11 +9723,14 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
                                          AllowedAttributes::kGnuAttribute);
   binder_.applyDeclarationAttributes(ast->symbol, ast->trailingAttributeList);
 
+  auto completedForMemberContexts = false;
+
   if (classDepth_ == 1) {
     if (pendingDefaultArguments_.size() > pendingDefaultArgumentsMark ||
         pendingFieldInitializers_.size() > pendingFieldInitializersMark ||
         pendingNoexceptSpecifiers_.size() > pendingNoexceptSpecifiersMark) {
-      binder_.completeForMemberContexts(ast->symbol);
+      binder_.completeForMemberContexts(ast);
+      completedForMemberContexts = ast->symbol && ast->symbol->isComplete();
     }
 
     while (pendingDefaultArguments_.size() > pendingDefaultArgumentsMark ||
@@ -9707,9 +9747,11 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
   if (deferFieldInitializers)
     classesWithDeferredFieldInitializers_.push_back(ast->symbol);
 
-  binder_.complete(ast, {.exceptionSpecifications = hasPendingNoexceptSpecifier(
-                             ast->symbol, pendingNoexceptSpecifiersMark),
-                         .fieldInitializers = deferFieldInitializers});
+  binder_.complete(ast,
+                   {.exceptionSpecifications = hasPendingNoexceptSpecifier(
+                        ast->symbol, pendingNoexceptSpecifiersMark),
+                    .fieldInitializers = deferFieldInitializers,
+                    .completedForMemberContexts = completedForMemberContexts});
 
   return true;
 }
@@ -9938,8 +9980,6 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
     }
 
     binder_.recordFunctionDefinition(functionSymbol);
-
-    if (classDepth_) functionSymbol->setInline(true);
 
     binder_.applyFunctionDefinitionKind(functionSymbol, functionBody);
 
@@ -10261,6 +10301,8 @@ auto Parser::parse_pure_specifier(SourceLocation& equalLoc,
 
 auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
     -> bool {
+  if (!lookat(TokenKind::T_OPERATOR)) return false;
+
   LookaheadParser lookahead{this};
 
   SourceLocation operatorLoc;
@@ -10676,6 +10718,8 @@ auto Parser::parse_operator(TokenKind& op, SourceLocation& opLoc,
 }
 
 auto Parser::parse_literal_operator_id(LiteralOperatorIdAST*& yyast) -> bool {
+  if (!lookat(TokenKind::T_OPERATOR)) return false;
+
   SourceLocation operatorLoc;
 
   auto lookat_literal_operator_id = [&] {
@@ -11098,20 +11142,13 @@ auto Parser::parse_type_constraint(TypeConstraintAST*& yyast,
 
     Symbol* symbol = nullptr;
     if (nestedNameSpecifier && nestedNameSpecifier->symbol) {
-      symbol = qualifiedLookup(
-          nestedNameSpecifier->symbol, identifier, [](Symbol* symbol) {
-            return symbol_cast<ConceptSymbol>(symbol) != nullptr;
-          });
+      symbol = qualifiedLookup(nestedNameSpecifier->symbol, identifier);
     } else {
-      symbol =
-          unqualifiedLookup(lexicalScope(), identifier, [](Symbol* symbol) {
-            return symbol_cast<ConceptSymbol>(symbol) != nullptr;
-          });
+      symbol = unqualifiedLookup(lexicalScope(), identifier);
     }
 
-    if (!symbol) return false;
-
     conceptSymbol = symbol_cast<ConceptSymbol>(symbol);
+    if (!conceptSymbol) return false;
 
     lookahead.commit();
 
@@ -11631,6 +11668,9 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
 auto Parser::parse_splicer_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     -> bool {
   if (specs.hasTypeOrSizeSpecifier()) return false;
+  if (!lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON) &&
+      !lookat(TokenKind::T_TYPENAME, TokenKind::T_LBRACKET, TokenKind::T_COLON))
+    return false;
   LookaheadParser lookahead{this};
   SourceLocation typenameLoc;
   match(TokenKind::T_TYPENAME, typenameLoc);
@@ -12015,6 +12055,8 @@ auto Parser::parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool {
     if (!parse_constant_expression(ast->expression, constValue)) {
       report_failed_parse("expected an expression");
     }
+
+    check_bool_condition(ast->expression);
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }

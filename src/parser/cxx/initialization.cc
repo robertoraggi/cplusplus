@@ -79,10 +79,8 @@ auto makeClassConstruction(TranslationUnit* unit, const Type* type,
                            FunctionSymbol* constructor,
                            BracedInitListAST* arguments)
     -> BracedTypeConstructionAST* {
-  auto alias = unit->control()->newTypeAliasSymbol(nullptr, {});
-  alias->setType(type);
   auto specifier = NamedTypeSpecifierAST::create(unit->arena());
-  specifier->symbol = alias;
+  specifier->symbol = unit->control()->getTypeArgumentSymbol(type);
   auto construction = BracedTypeConstructionAST::create(unit->arena());
   construction->typeSpecifier = specifier;
   construction->bracedInitList = arguments;
@@ -1115,9 +1113,71 @@ auto AggregateInitializerBuilder::build(const Type* aggregateType,
   return plan;
 }
 
-struct DesignatedInitChecker {
+struct AggregateInitChecker {
   InitContext& ctx;
   ElementInitChecker& elemChecker;
+  void checkUnion(ClassSymbol* classSymbol, BracedInitListAST* ast);
+  void checkStruct(ClassSymbol* classSymbol, BracedInitListAST* ast);
+
+  [[nodiscard]] auto makeEmptyListInitializer(const Type* type,
+                                              SourceLocation location)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto makeValueInitialization(const Type* type,
+                                             SourceLocation location)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto makeImplicitInitializer(const Type* type,
+                                             InitializerForm form,
+                                             SourceLocation location)
+      -> ExpressionAST*;
+
+  [[nodiscard]] auto makeImplicitElement(const Type* elementType,
+                                         InitializerForm form,
+                                         SourceLocation location)
+      -> VariableSymbol*;
+
+  void checkElementInit(ExpressionAST*& expr, const Type* type,
+                        const std::string& description,
+                        InitializationKind initializationKind =
+                            InitializationKind::kCopyListInitialization);
+
+  [[nodiscard]] auto checkParenthesizedAggregate(
+      ClassSymbol* classSymbol, const Type* classType,
+      List<ExpressionAST*>* expressionList, SourceLocation location)
+      -> BracedInitListAST*;
+
+ private:
+  [[nodiscard]] static auto firstNonStaticField(ClassSymbol* symbol)
+      -> FieldSymbol* {
+    for (auto field : views::members(symbol) | views::non_static_fields)
+      return field;
+    return nullptr;
+  }
+
+  [[nodiscard]] auto defaultMemberInitializer(FieldSymbol* field,
+                                              SourceLocation location)
+      -> ExpressionAST*;
+  [[nodiscard]] auto implicitElementInitializer(Symbol* element,
+                                                InitializerForm form,
+                                                SourceLocation location)
+      -> ExpressionAST*;
+
+  void checkElementInit(ExpressionAST*& expr, Symbol* element);
+  void checkElementDestructor(Symbol* element, SourceLocation location);
+  void checkAnonUnionFieldInit(ExpressionAST*& expr, const Type* fieldType);
+  void initializeUnionByDefault(ClassSymbol* classSymbol,
+                                BracedInitListAST* ast);
+  void recordUnionInitializer(BracedInitListAST* ast, FieldSymbol* field,
+                              const Type* type, ExpressionAST* initializer);
+
+  [[nodiscard]] auto makeEmptyInitializerList(SourceLocation location)
+      -> BracedInitListAST*;
+};
+
+struct DesignatedInitChecker {
+  InitContext& ctx;
+  AggregateInitChecker& aggregateChecker;
 
   void check(const Type* currentType, DesignatedInitializerClauseAST* ast);
 
@@ -1199,87 +1259,14 @@ void DesignatedInitChecker::check(const Type* currentType,
     return;
   }
 
-  if (auto equal = ast_cast<EqualInitializerAST>(ast->initializer)) {
-    if (auto nested = ast_cast<BracedInitListAST>(equal->expression)) {
-      ctx.checker.check_braced_init_list(
-          targetType, nested, InitializationKind::kCopyListInitialization);
-    } else if (equal->expression) {
-      elemChecker.check(
-          equal->expression, targetType,
-          std::format("cannot initialize type '{}' with expression of "
-                      "type '{}'",
-                      to_string(targetType),
-                      to_string(equal->expression->type)));
-    }
-  } else if (auto braced = ast_cast<BracedInitListAST>(ast->initializer)) {
-    ctx.checker.check_braced_init_list(
-        targetType, braced, InitializationKind::kCopyListInitialization);
-  }
+  auto equal = ast_cast<EqualInitializerAST>(ast->initializer);
+  auto& initializer = equal ? equal->expression : ast->initializer;
+  if (initializer)
+    aggregateChecker.checkElementInit(initializer, targetType,
+                                      "designated element");
 
   ast->type = targetType;
 }
-
-struct AggregateInitChecker {
-  InitContext& ctx;
-  ElementInitChecker& elemChecker;
-  void checkUnion(ClassSymbol* classSymbol, BracedInitListAST* ast);
-  void checkStruct(ClassSymbol* classSymbol, BracedInitListAST* ast);
-
-  [[nodiscard]] auto makeEmptyListInitializer(const Type* type,
-                                              SourceLocation location)
-      -> ExpressionAST*;
-
-  [[nodiscard]] auto makeValueInitialization(const Type* type,
-                                             SourceLocation location)
-      -> ExpressionAST*;
-
-  [[nodiscard]] auto makeImplicitInitializer(const Type* type,
-                                             InitializerForm form,
-                                             SourceLocation location)
-      -> ExpressionAST*;
-
-  [[nodiscard]] auto makeImplicitElement(const Type* elementType,
-                                         InitializerForm form,
-                                         SourceLocation location)
-      -> VariableSymbol*;
-
-  void checkElementInit(ExpressionAST*& expr, const Type* type,
-                        const std::string& description,
-                        InitializationKind initializationKind =
-                            InitializationKind::kCopyListInitialization);
-
-  [[nodiscard]] auto checkParenthesizedAggregate(
-      ClassSymbol* classSymbol, const Type* classType,
-      List<ExpressionAST*>* expressionList, SourceLocation location)
-      -> BracedInitListAST*;
-
- private:
-  [[nodiscard]] static auto firstNonStaticField(ClassSymbol* symbol)
-      -> FieldSymbol* {
-    for (auto field : views::members(symbol) | views::non_static_fields)
-      return field;
-    return nullptr;
-  }
-
-  [[nodiscard]] auto defaultMemberInitializer(FieldSymbol* field,
-                                              SourceLocation location)
-      -> ExpressionAST*;
-  [[nodiscard]] auto implicitElementInitializer(Symbol* element,
-                                                InitializerForm form,
-                                                SourceLocation location)
-      -> ExpressionAST*;
-
-  void checkElementInit(ExpressionAST*& expr, Symbol* element);
-  void checkElementDestructor(Symbol* element, SourceLocation location);
-  void checkAnonUnionFieldInit(ExpressionAST*& expr, const Type* fieldType);
-  void initializeUnionByDefault(ClassSymbol* classSymbol,
-                                BracedInitListAST* ast);
-  void recordUnionInitializer(BracedInitListAST* ast, FieldSymbol* field,
-                              const Type* type, ExpressionAST* initializer);
-
-  [[nodiscard]] auto makeEmptyInitializerList(SourceLocation location)
-      -> BracedInitListAST*;
-};
 
 auto AggregateInitChecker::defaultMemberInitializer(FieldSymbol* field,
                                                     SourceLocation location)
@@ -1800,15 +1787,9 @@ void ListInitChecker::checkArrayElements(const Type* type,
     if (auto designated =
             ast_cast<DesignatedInitializerClauseAST>(initializer)) {
       desigChecker.check(type, designated);
-    } else if (auto nested = ast_cast<BracedInitListAST>(initializer)) {
-      ctx.checker.check_braced_init_list(
-          elementType, nested, InitializationKind::kCopyListInitialization);
     } else {
-      elemChecker.check(
-          initializer, elementType,
-          std::format("cannot initialize array element of type '{}' with "
-                      "expression of type '{}'",
-                      to_string(elementType), to_string(initializer->type)));
+      aggregateChecker.checkElementInit(initializer, elementType,
+                                        "array element");
     }
 
     list.append(initializer);
@@ -2348,8 +2329,8 @@ auto ReferenceInitChecker::check(const Type* targetType,
 struct InitializationEngine {
   InitContext& ctx;
   ElementInitChecker elemChecker;
-  DesignatedInitChecker desigChecker;
   AggregateInitChecker aggregateChecker;
+  DesignatedInitChecker desigChecker;
   ClassInitChecker classChecker;
   ListInitChecker listChecker;
   ScalarInitChecker scalarChecker;
@@ -2358,8 +2339,8 @@ struct InitializationEngine {
   explicit InitializationEngine(InitContext& ctx)
       : ctx(ctx),
         elemChecker(ctx),
-        desigChecker{ctx, elemChecker},
         aggregateChecker{ctx, elemChecker},
+        desigChecker{ctx, aggregateChecker},
         classChecker{ctx, elemChecker, aggregateChecker},
         listChecker{ctx, elemChecker, desigChecker, aggregateChecker},
         scalarChecker{ctx, elemChecker},

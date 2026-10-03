@@ -1954,6 +1954,16 @@ struct OdrUsedLocalFinder : ASTVisitor {
   if (!lastChunk) return nullptr;
   return visit([](auto chunk) { return chunk->attributeList; }, lastChunk);
 }
+
+[[nodiscard]] auto abiTagsOf(Symbol* symbol, const Attribute& abiTag)
+    -> std::vector<const Identifier*> {
+  if (!abiTag.arguments.empty()) return abiTag.arguments;
+  auto ns = symbol_cast<NamespaceSymbol>(symbol);
+  if (!ns || !ns->isInline()) return {};
+  auto name = name_cast<Identifier>(ns->name());
+  if (!name) return {};
+  return {name};
+}
 }  // namespace
 
 void Binder::applyFunctionDefinitionKind(FunctionSymbol* functionSymbol,
@@ -2012,8 +2022,8 @@ void Binder::applyAttributeMap(Symbol* symbol, AttributeMap collected) {
   canonical->setAttributes(merged);
 
   if (auto tags = findAttribute(merged, "abi_tag");
-      tags && !tags->arguments.empty() && canonical->abiTags().empty()) {
-    symbol->setAbiTags(control()->getAbiTags(tags->arguments));
+      tags && canonical->abiTags().empty()) {
+    symbol->setAbiTags(control()->getAbiTags(abiTagsOf(symbol, *tags)));
     canonical->setAbiTags(symbol->abiTagList());
   }
 
@@ -3853,10 +3863,6 @@ void Binder::applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs) {
   symbol->setFriend(specs.isFriend);
   symbol->setConstexpr(specs.isConstexpr);
   symbol->setConsteval(specs.isConsteval);
-  auto isInline = specs.isInline;
-  if (specs.isConstexpr) isInline = true;
-  if (specs.isConsteval) isInline = true;
-  symbol->setInline(isInline);
   symbol->setVirtual(specs.isVirtual);
   symbol->setExplicit(specs.isExplicit);
 }

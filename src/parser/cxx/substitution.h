@@ -22,11 +22,13 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/const_int.h>
+#include <cxx/const_value.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 
 #include <optional>
+#include <variant>
 #include <vector>
 
 namespace cxx {
@@ -153,8 +155,38 @@ class Substitution {
 
   [[nodiscard]] auto collectWrittenArguments() -> bool;
 
+  struct NonTypeArgumentValue {
+    const Type* type = nullptr;
+    ExpressionAST* initializer = nullptr;
+    bool isConstexpr = false;
+    std::optional<ConstValue> value;
+  };
+
+  using CollectedArgument = std::variant<Symbol*, NonTypeArgumentValue>;
+
+  struct WrittenArgument {
+    CollectedArgument argument;
+    TemplateArgumentAST* node = nullptr;
+    bool isPackExpansion = false;
+  };
+
   [[nodiscard]] auto argumentFor(TemplateParameterAST* parameter,
-                                 int index) const -> Symbol*;
+                                 int index) const -> CollectedArgument;
+
+  [[nodiscard]] auto argumentSymbol(const CollectedArgument& argument) const
+      -> Symbol*;
+
+  [[nodiscard]] auto symbolOf(const NonTypeArgumentValue& value) const
+      -> Symbol*;
+
+  [[nodiscard]] auto valueOf(VariableSymbol* variable) const
+      -> NonTypeArgumentValue;
+
+  [[nodiscard]] auto spelledInitializer(const NonTypeArgumentValue& value) const
+      -> ExpressionAST*;
+
+  [[nodiscard]] static auto isSpellableIntegerConstant(
+      const NonTypeArgumentValue& value) -> bool;
 
   [[nodiscard]] auto checkArgumentKind(TemplateParameterAST* parameter,
                                        int index) -> bool;
@@ -163,17 +195,20 @@ class Substitution {
       -> Symbol*;
 
   [[nodiscard]] auto normalizeNonTypeArgument(
-      NonTypeTemplateParameterAST* parameter, Symbol* argument) -> Symbol*;
+      NonTypeTemplateParameterAST* parameter, const CollectedArgument& argument)
+      -> Symbol*;
 
-  void convertNonTypeArgument(VariableSymbol* argument, const Type* targetType);
+  void convertNonTypeArgument(NonTypeArgumentValue& argument,
+                              const Type* targetType);
 
-  void bindReferenceArgument(VariableSymbol* argument, const Type* targetType);
+  void bindReferenceArgument(NonTypeArgumentValue& argument,
+                             const Type* targetType);
 
   [[nodiscard]] auto valueDependsOnParameterType(
       ExpressionAST* expression) const -> bool;
 
-  [[nodiscard]] auto lacksConvertedValue(VariableSymbol* argument) const
-      -> bool;
+  [[nodiscard]] auto lacksConvertedValue(
+      const NonTypeArgumentValue& argument) const -> bool;
 
   [[nodiscard]] auto isConstexprRepresentable(const ConstValue& value) const
       -> bool;
@@ -201,9 +236,7 @@ class Substitution {
   TemplateDeclarationAST* templateDecl_ = nullptr;
   List<TemplateArgumentAST*>* templateArgumentList_ = nullptr;
   std::vector<TemplateArgument> templateArguments_;
-  std::vector<Symbol*> collectedArguments_;
-  std::vector<TemplateArgumentAST*> collectedNodes_;
-  std::vector<bool> collectedIsPackExpansion_;
+  std::vector<WrittenArgument> writtenArguments_;
   bool hadError_ = false;
   bool argsComplete_ = false;
   bool fillDefaults_ = true;

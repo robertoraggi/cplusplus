@@ -27,6 +27,7 @@
 #include <cxx/control.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -59,6 +60,316 @@ namespace {
   return type_cast<PointerType>(ast->type);
 }
 
+class ObjectRepresentation {
+ public:
+  ObjectRepresentation(ASTInterpreter& interp, std::size_t size)
+      : interp_(interp),
+        traits_(interp.translationUnit()->typeTraits()),
+        bytes_(size),
+        defined_(size) {}
+
+  [[nodiscard]] auto store(const Type* type, const ConstValue& value,
+                           std::uint64_t offset) -> bool;
+
+  [[nodiscard]] auto load(const Type* type, std::uint64_t offset)
+      -> std::optional<ConstValue>;
+
+ private:
+  struct BitRange {
+    std::uint64_t offset = 0;
+    std::uint32_t position = 0;
+    std::uint32_t width = 0;
+  };
+
+  struct Placement {
+    const Type* type = nullptr;
+    std::uint64_t offset = 0;
+    std::optional<BitRange> bitField;
+  };
+
+  [[nodiscard]] auto placement(const ClassLayout& layout, Symbol* element,
+                               std::uint64_t offset) const
+      -> std::optional<Placement>;
+
+  [[nodiscard]] auto valueRange(const Type* type, std::uint64_t offset)
+      -> std::optional<BitRange>;
+
+  [[nodiscard]] auto valueBits(const Type* type, const ConstValue& value)
+      -> std::optional<ConstInt::UWide>;
+
+  [[nodiscard]] auto scalarValue(const Type* type, ConstInt::UWide bits)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto storeBits(BitRange range, ConstInt::UWide bits) -> bool;
+
+  [[nodiscard]] auto loadBits(BitRange range) const
+      -> std::optional<ConstInt::UWide>;
+
+  [[nodiscard]] auto storeScalar(const Type* type, const ConstValue& value,
+                                 std::uint64_t offset) -> bool;
+
+  [[nodiscard]] auto loadScalar(const Type* type, std::uint64_t offset)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto storeArray(const BoundedArrayType* type,
+                                const ConstValue& value, std::uint64_t offset)
+      -> bool;
+
+  [[nodiscard]] auto loadArray(const BoundedArrayType* type,
+                               std::uint64_t offset)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto storeObject(const ClassType* type, const ConstValue& value,
+                                 std::uint64_t offset) -> bool;
+
+  [[nodiscard]] auto loadObject(const ClassType* type, std::uint64_t offset)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto storeElement(const Placement& placement,
+                                  const ConstValue& value) -> bool;
+
+  [[nodiscard]] auto loadElement(const Placement& placement)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto receivesIndeterminateValue(const Type* type) -> bool;
+
+  [[nodiscard]] auto memoryLayout() const -> MemoryLayout* {
+    return interp_.control()->memoryLayout();
+  }
+
+  ASTInterpreter& interp_;
+  TypeTraits traits_;
+  std::vector<std::uint8_t> bytes_;
+  std::vector<std::uint8_t> defined_;
+};
+
+auto ObjectRepresentation::store(const Type* type, const ConstValue& value,
+                                 std::uint64_t offset) -> bool {
+  if (std::holds_alternative<IndeterminateValue>(value)) return true;
+  auto unqualified = traits_.remove_cv(type);
+  if (auto arrayType = type_cast<BoundedArrayType>(unqualified))
+    return storeArray(arrayType, value, offset);
+  if (auto classType = type_cast<ClassType>(unqualified))
+    return storeObject(classType, value, offset);
+  return storeScalar(unqualified, value, offset);
+}
+
+auto ObjectRepresentation::load(const Type* type, std::uint64_t offset)
+    -> std::optional<ConstValue> {
+  auto unqualified = traits_.remove_cv(type);
+  if (auto arrayType = type_cast<BoundedArrayType>(unqualified))
+    return loadArray(arrayType, offset);
+  if (auto classType = type_cast<ClassType>(unqualified))
+    return loadObject(classType, offset);
+  return loadScalar(unqualified, offset);
+}
+
+auto ObjectRepresentation::placement(const ClassLayout& layout, Symbol* element,
+                                     std::uint64_t offset) const
+    -> std::optional<Placement> {
+  if (auto base = symbol_cast<BaseClassSymbol>(element)) {
+    auto baseClass = resolved_base_class(base);
+    if (!baseClass) return std::nullopt;
+    auto info = layout.getBaseInfo(baseClass);
+    if (!info) return std::nullopt;
+    return Placement{baseClass->type(), offset + info->offset};
+  }
+
+  auto field = symbol_cast<FieldSymbol>(element);
+  if (!field) return std::nullopt;
+  auto info = layout.getFieldInfo(field);
+  if (!info) return std::nullopt;
+  Placement result{field->type(), offset + info->offset};
+  if (field->isBitField())
+    result.bitField = BitRange{result.offset, info->bitOffset, info->bitWidth};
+  return result;
+}
+
+auto ObjectRepresentation::valueRange(const Type* type, std::uint64_t offset)
+    -> std::optional<BitRange> {
+  if (auto representation = traits_.integral_representation(type)) {
+    return BitRange{offset, 0,
+                    static_cast<std::uint32_t>(representation->bits)};
+  }
+  if (auto format = memoryLayout()->floatingPointFormat(type)) {
+    auto width = 1 + format->exponentBits + format->fractionBits();
+    return BitRange{offset, 0, static_cast<std::uint32_t>(width)};
+  }
+  return std::nullopt;
+}
+
+auto ObjectRepresentation::valueBits(const Type* type, const ConstValue& value)
+    -> std::optional<ConstInt::UWide> {
+  if (auto format = memoryLayout()->floatingPointFormat(type)) {
+    auto real = interp_.toDouble(value);
+    if (!real) return std::nullopt;
+    return format->representation(*real);
+  }
+  auto converted = interp_.toArithmeticType(value, type);
+  if (!converted) return std::nullopt;
+  auto integer = std::get_if<ConstInt>(&*converted);
+  if (!integer) return std::nullopt;
+  return static_cast<ConstInt::UWide>(integer->toWide());
+}
+
+auto ObjectRepresentation::scalarValue(const Type* type, ConstInt::UWide bits)
+    -> std::optional<ConstValue> {
+  if (auto format = memoryLayout()->floatingPointFormat(type))
+    return interp_.toArithmeticType(ConstValue{format->value(bits)}, type);
+  auto integer =
+      traits_.integral_constant(type, static_cast<ConstInt::Wide>(bits));
+  if (!integer) return std::nullopt;
+  if (traits_.is_bool(type) && integer->toUWide() > 1) return std::nullopt;
+  return ConstValue{*integer};
+}
+
+auto ObjectRepresentation::storeBits(BitRange range, ConstInt::UWide bits)
+    -> bool {
+  for (std::uint32_t index = 0; index < range.width; ++index) {
+    auto position = range.position + index;
+    auto byte = range.offset + position / 8;
+    if (byte >= bytes_.size()) return false;
+    auto mask = static_cast<std::uint8_t>(1u << (position % 8));
+    defined_[byte] |= mask;
+    if ((bits >> index) & 1) bytes_[byte] |= mask;
+  }
+  return true;
+}
+
+auto ObjectRepresentation::loadBits(BitRange range) const
+    -> std::optional<ConstInt::UWide> {
+  ConstInt::UWide bits = 0;
+  for (std::uint32_t index = 0; index < range.width; ++index) {
+    auto position = range.position + index;
+    auto byte = range.offset + position / 8;
+    if (byte >= bytes_.size()) return std::nullopt;
+    auto mask = static_cast<std::uint8_t>(1u << (position % 8));
+    if (!(defined_[byte] & mask)) return std::nullopt;
+    if (bytes_[byte] & mask) bits |= ConstInt::UWide(1) << index;
+  }
+  return bits;
+}
+
+auto ObjectRepresentation::storeScalar(const Type* type,
+                                       const ConstValue& value,
+                                       std::uint64_t offset) -> bool {
+  if (traits_.is_null_pointer(type)) return true;
+  auto range = valueRange(type, offset);
+  if (!range) return false;
+  auto bits = valueBits(type, value);
+  if (!bits) return false;
+  return storeBits(*range, *bits);
+}
+
+auto ObjectRepresentation::loadScalar(const Type* type, std::uint64_t offset)
+    -> std::optional<ConstValue> {
+  if (traits_.is_null_pointer(type)) return interp_.zeroInitialize(type);
+  auto range = valueRange(type, offset);
+  if (!range) return std::nullopt;
+  auto bits = loadBits(*range);
+  if (!bits) {
+    if (receivesIndeterminateValue(type)) return IndeterminateValue{};
+    return std::nullopt;
+  }
+  return scalarValue(type, *bits);
+}
+
+auto ObjectRepresentation::storeArray(const BoundedArrayType* type,
+                                      const ConstValue& value,
+                                      std::uint64_t offset) -> bool {
+  auto list = std::get_if<std::shared_ptr<InitializerList>>(&value);
+  if (!list || !*list) return false;
+  auto stride = memoryLayout()->sizeOf(type->elementType());
+  if (!stride) return false;
+  std::uint64_t elementOffset = offset;
+  for (const auto& [element, elementType] : (*list)->elements) {
+    if (!store(type->elementType(), element, elementOffset)) return false;
+    elementOffset += *stride;
+  }
+  return true;
+}
+
+auto ObjectRepresentation::loadArray(const BoundedArrayType* type,
+                                     std::uint64_t offset)
+    -> std::optional<ConstValue> {
+  auto stride = memoryLayout()->sizeOf(type->elementType());
+  if (!stride) return std::nullopt;
+  auto list = std::make_shared<InitializerList>();
+  list->elements.reserve(type->size());
+  for (std::size_t index = 0; index < type->size(); ++index) {
+    auto element = load(type->elementType(), offset + index * *stride);
+    if (!element) return std::nullopt;
+    list->elements.emplace_back(std::move(*element), type->elementType());
+  }
+  return ConstValue{std::move(list)};
+}
+
+auto ObjectRepresentation::storeObject(const ClassType* type,
+                                       const ConstValue& value,
+                                       std::uint64_t offset) -> bool {
+  auto object = std::get_if<std::shared_ptr<ConstObject>>(&value);
+  if (!object || !*object || (*object)->isConstexprUnknown()) return false;
+  auto layout = type->symbol()->resolvedDefinition()->layout();
+  if (!layout) return false;
+  for (const auto& member : (*object)->members()) {
+    auto where = placement(*layout, const_cast<Symbol*>(member.symbol), offset);
+    if (!where || !storeElement(*where, member.value)) return false;
+  }
+  return true;
+}
+
+auto ObjectRepresentation::loadObject(const ClassType* type,
+                                      std::uint64_t offset)
+    -> std::optional<ConstValue> {
+  auto classSymbol = type->symbol()->resolvedDefinition();
+  auto layout = classSymbol->layout();
+  if (!layout) return std::nullopt;
+  auto object = std::make_shared<ConstObject>(type);
+  for (auto element : traits_.aggregate_elements(classSymbol)) {
+    auto where = placement(*layout, element, offset);
+    if (!where) return std::nullopt;
+    auto value = loadElement(*where);
+    if (!value) return std::nullopt;
+    object->addMember(element, std::move(*value));
+  }
+  return ConstValue{std::move(object)};
+}
+
+auto ObjectRepresentation::storeElement(const Placement& placement,
+                                        const ConstValue& value) -> bool {
+  if (!placement.bitField)
+    return store(placement.type, value, placement.offset);
+  if (std::holds_alternative<IndeterminateValue>(value)) return true;
+  auto bits = valueBits(traits_.remove_cv(placement.type), value);
+  if (!bits) return false;
+  return storeBits(*placement.bitField, *bits);
+}
+
+auto ObjectRepresentation::loadElement(const Placement& placement)
+    -> std::optional<ConstValue> {
+  if (!placement.bitField) return load(placement.type, placement.offset);
+  auto type = traits_.remove_cv(placement.type);
+  auto bits = loadBits(*placement.bitField);
+  if (!bits) return std::nullopt;
+  auto representation = traits_.integral_representation(type);
+  if (!representation) return std::nullopt;
+  auto narrow = ConstInt::make(static_cast<ConstInt::Wide>(*bits),
+                               static_cast<int>(placement.bitField->width),
+                               representation->isSigned);
+  if (!narrow) return std::nullopt;
+  return scalarValue(type, static_cast<ConstInt::UWide>(narrow->toWide()));
+}
+
+auto ObjectRepresentation::receivesIndeterminateValue(const Type* type)
+    -> bool {
+  if (traits_.is_narrow_char_type(type) && traits_.is_unsigned(type))
+    return true;
+  auto enumType = type_cast<ScopedEnumType>(type);
+  if (!enumType) return false;
+  auto byte = lookupStandardLibraryType(interp_.translationUnit(),
+                                        WellKnownName::T_BYTE);
+  return byte && enumType->symbol() == byte;
+}
 }  // namespace
 
 auto ASTInterpreter::evaluateBuiltinArithmeticOverflow(CallExpressionAST* ast)
@@ -474,6 +785,18 @@ auto ASTInterpreter::evaluateBuiltinC11AtomicIsLockFree(CallExpressionAST* ast)
     -> std::optional<ConstValue> {
   return evaluateBuiltinLockFree(ast, /*alwaysLockFree=*/false,
                                  /*ignoresPointerOperand=*/true);
+}
+
+auto ASTInterpreter::bitCast(const ConstValue& value, const Type* sourceType,
+                             const Type* targetType)
+    -> std::optional<ConstValue> {
+  if (traits.has_constexpr_unknown_representation(sourceType)) return {};
+  if (traits.has_constexpr_unknown_representation(targetType)) return {};
+  auto size = control()->memoryLayout()->sizeOf(targetType);
+  if (!size) return std::nullopt;
+  ObjectRepresentation representation{*this, *size};
+  if (!representation.store(sourceType, value, 0)) return std::nullopt;
+  return representation.load(targetType, 0);
 }
 
 }  // namespace cxx

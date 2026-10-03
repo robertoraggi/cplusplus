@@ -594,6 +594,21 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
   return copy;
 }
 
+namespace {
+
+[[nodiscard]] auto definesDefaultedFunction(FunctionDefinitionAST* ast)
+    -> bool {
+  if (ast->symbol) return ast->symbol->isDefaulted();
+  return ast_cast<DefaultFunctionBodyAST>(ast->functionBody) != nullptr;
+}
+
+[[nodiscard]] auto definesDeletedFunction(FunctionDefinitionAST* ast) -> bool {
+  if (ast->symbol) return ast->symbol->isDeleted();
+  return ast_cast<DeleteFunctionBodyAST>(ast->functionBody) != nullptr;
+}
+
+}  // namespace
+
 auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationAST* {
   const auto errorsBefore =
@@ -722,10 +737,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
         functionSymbol->setType(type);
       });
 
-  if (ast_cast<DefaultFunctionBodyAST>(ast->functionBody))
-    functionSymbol->setDefaulted(true);
-  if (ast_cast<DeleteFunctionBodyAST>(ast->functionBody))
-    functionSymbol->setDeleted(true);
+  if (definesDefaultedFunction(ast)) functionSymbol->setDefaulted(true);
+  if (definesDeletedFunction(ast)) functionSymbol->setDeleted(true);
 
   if (ast->symbol) functionSymbol->setAbiTags(ast->symbol->abiTagList());
 
@@ -825,6 +838,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(DeductionGuideAST* ast)
     -> DeclarationAST* {
   auto copy = DeductionGuideAST::create(arena());
 
+  copy->attributeList =
+      rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
   copy->explicitSpecifier = rewrite.specifier(ast->explicitSpecifier);
   copy->identifierLoc = ast->identifierLoc;
   copy->lparenLoc = ast->lparenLoc;

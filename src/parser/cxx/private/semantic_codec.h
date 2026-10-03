@@ -46,6 +46,9 @@ class SemanticEncoder final : public SemanticEncoderBase {
   [[nodiscard]] auto operator()(const SemanticArchiveRoots& roots,
                                 ArchiveWriter& archive) -> bool;
 
+  [[nodiscard]] auto reachableSymbolCounts(const SemanticArchiveRoots& roots)
+      -> SymbolCounts;
+
  private:
   [[nodiscard]] auto nameRef(const cxx::Name* name) -> NameRef {
     return NameRef{names_.reference(name)};
@@ -124,6 +127,8 @@ class SemanticEncoder final : public SemanticEncoderBase {
   void writeSymbol(ByteWriter& out, cxx::Symbol* symbol);
   void writeAst(ByteWriter& out, cxx::AST* ast);
   void writeConstNode(ByteWriter& out, const ConstNode& node);
+
+  void writeSession(const SemanticArchiveRoots& roots, ByteWriter& session);
 
   void drain();
 
@@ -225,6 +230,7 @@ class SemanticEncoder final : public SemanticEncoderBase {
                                      const cxx::UnresolvedVectorType* self);
   void writeTypeComplexType(ByteWriter& out, const cxx::ComplexType* self);
   void writeTypeAtomicType(ByteWriter& out, const cxx::AtomicType* self);
+  void writeTypeSveType(ByteWriter& out, const cxx::SveType* self);
   void writeSymbolSymbol(ByteWriter& out, cxx::Symbol* self);
   void writeSymbolScopeSymbol(ByteWriter& out, cxx::ScopeSymbol* self);
   void writeSymbolNamespaceSymbol(ByteWriter& out, cxx::NamespaceSymbol* self);
@@ -934,6 +940,7 @@ class SemanticDecoder final : public SemanticDecoderBase {
       -> const cxx::Type*;
   [[nodiscard]] auto readTypeComplexType(ByteReader& in) -> const cxx::Type*;
   [[nodiscard]] auto readTypeAtomicType(ByteReader& in) -> const cxx::Type*;
+  [[nodiscard]] auto readTypeSveType(ByteReader& in) -> const cxx::Type*;
   void readSymbolSymbol(ByteReader& in, cxx::Symbol* self);
   void readSymbolScopeSymbol(ByteReader& in, cxx::ScopeSymbol* self);
   void readSymbolNamespaceSymbol(ByteReader& in, cxx::NamespaceSymbol* self);

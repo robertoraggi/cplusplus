@@ -30,7 +30,7 @@ template <typename Predicate>
 [[nodiscard]] auto unqualifiedLookup(Scope* lexicalScope, const Name* name,
                                      Predicate accept) -> Symbol* {
   if (!name) return nullptr;
-  std::vector<ScopeSymbol*> visited;
+  VisitedScopes visited;
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     if (!sc->symbol) continue;
     if (auto s = detail::searchScope(sc->symbol, name, visited, accept))

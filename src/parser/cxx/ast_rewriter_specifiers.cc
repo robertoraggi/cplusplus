@@ -590,7 +590,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(ExplicitSpecifierAST* ast)
 
   copy->explicitLoc = ast->explicitLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.contextuallyConvertedBool(ast->expression);
   copy->rparenLoc = ast->rparenLoc;
 
   return copy;

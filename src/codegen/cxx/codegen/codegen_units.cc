@@ -63,8 +63,12 @@ struct Codegen::UnitVisitor {
       return;
     for (auto member : classSymbol->members()) {
       if (auto field = symbol_cast<FieldSymbol>(member)) {
-        if (field->isInline() || field->isConstexpr())
+        if (auto definition = field->definition()) {
+          if (auto global = gen.findOrCreateGlobal(definition))
+            gen.emitGlobalVarInit(definition, *global);
+        } else if (field->isInline() || field->isConstexpr()) {
           (void)gen.findOrCreateStaticField(field);
+        }
         continue;
       }
       if (auto nestedClass = symbol_cast<ClassSymbol>(member))

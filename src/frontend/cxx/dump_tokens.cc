@@ -31,17 +31,11 @@ namespace cxx {
 DumpTokens::DumpTokens(const CLI& cli) : cli(cli) {}
 
 void DumpTokens::operator()(TranslationUnit& unit, std::ostream& output) {
-  auto lang = LanguageKind::kCXX;
-
-  if (auto x = cli.getSingle("x")) {
-    if (x == "c") lang = LanguageKind::kC;
-  } else if (unit.fileName().ends_with(".c")) {
-    lang = LanguageKind::kC;
-  }
+  auto preprocessor = unit.preprocessor();
 
   std::string flags;
 
-  const auto builtinsFileId = unit.preprocessor()->builtinsFileId();
+  const auto builtinsFileId = preprocessor->builtinsFileId();
 
   for (auto loc = unit.locationOfIndex(1);; loc = loc.next()) {
     const auto& tk = unit.tokenAt(loc);
@@ -63,7 +57,8 @@ void DumpTokens::operator()(TranslationUnit& unit, std::ostream& output) {
 
     auto kind = tk.kind();
     if (kind == TokenKind::T_IDENTIFIER) {
-      kind = Lexer::classifyKeyword(tk.spell(), lang);
+      kind = Lexer::classifyKeyword(tk.spell(), preprocessor->language(),
+                                    preprocessor->targetArch());
     }
 
     output << std::format("{} '{}'{}", Token::name(kind), tk.spell(), flags);

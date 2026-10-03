@@ -631,20 +631,15 @@ auto TypeDeduction::record(int slot, Symbol* value) -> bool {
 }
 
 auto TypeDeduction::typeArgument(const Type* type) const -> Symbol* {
-  auto argument = control()->newTypeAliasSymbol(nullptr, {});
-  argument->setType(type);
-  return argument;
+  return control()->getTypeArgumentSymbol(type);
 }
 
 auto TypeDeduction::sizeArgument(std::size_t size) const -> Symbol* {
   auto value = unit_->typeTraits().integral_constant(
       control()->getSizeType(), static_cast<ConstInt::Wide>(size));
   if (!value) return nullptr;
-  auto argument = control()->newVariableSymbol(nullptr, {});
-  argument->setType(control()->getSizeType());
-  argument->setConstexpr(true);
-  argument->setConstValue(ConstValue{*value});
-  return argument;
+  return control()->getConstantArgumentSymbol(control()->getSizeType(),
+                                              ConstValue{*value});
 }
 
 auto TypeDeduction::skipNonDeducedContext() -> bool {
@@ -899,11 +894,8 @@ auto TypeDeduction::deduceExceptionSpecification(
   auto value = unit_->typeTraits().integral_constant(control()->getBoolType(),
                                                      A->isNoexcept());
   if (!value) return false;
-  auto argument = control()->newVariableSymbol(nullptr, {});
-  argument->setType(control()->getBoolType());
-  argument->setConstexpr(true);
-  argument->setConstValue(ConstValue{*value});
-  return record(slot, argument);
+  return record(slot, control()->getConstantArgumentSymbol(
+                          control()->getBoolType(), ConstValue{*value}));
 }
 
 auto TypeDeduction::deduceArrayBound(ExpressionAST* P, std::size_t size)
@@ -1016,11 +1008,8 @@ auto TypeDeduction::deduceNonTypeParameter(NonTypeParameterSymbol* parameter,
 
   auto value = template_argument_value(A);
   if (!value) return skipNonDeducedContext();
-  auto argument = control()->newVariableSymbol(nullptr, {});
-  argument->setType(parameter->objectType());
-  argument->setConstexpr(true);
-  argument->setConstValue(*value);
-  return record(slot, argument);
+  return record(slot, control()->getConstantArgumentSymbol(
+                          parameter->objectType(), *value));
 }
 
 auto TypeDeduction::deduceTemplateArgumentValue(

@@ -852,8 +852,8 @@ auto ASTRewriter::instantiate(
     }
   }
 
-  if (!checkAssociatedConstraints(unit, symbol, templateArguments,
-                                  templateDecl->depth)) {
+  if (!checkTemplateIdConstraints(unit, symbol, templateArguments,
+                                  templateDecl->depth, instantiationLoc)) {
     return nullptr;
   }
 

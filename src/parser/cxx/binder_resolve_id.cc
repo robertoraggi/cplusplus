@@ -120,6 +120,16 @@ auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
     return cached;
   }
 
+  const auto dependent =
+      hasDependentTemplateArguments(binder.unit_, templateId);
+
+  if (!dependent && !ASTRewriter::checkTemplateIdConstraints(
+                        binder.unit_, classSymbol, templateArgs,
+                        classSymbol->templateDeclaration()->depth,
+                        templateId->identifierLoc)) {
+    return nullptr;
+  }
+
   auto parentScope = classSymbol->parent();
   auto spec = control()->newClassSymbol(parentScope, classSymbol->location());
   spec->setName(classSymbol->name());

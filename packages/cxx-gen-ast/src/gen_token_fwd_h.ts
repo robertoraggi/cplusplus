@@ -71,6 +71,18 @@ export function gen_token_fwd_h({ output }: { output: string }) {
 
 
   emit();
+  emit("#define FOR_EACH_BUILTIN_KEYWORD_OPERATOR(V) \\");
+  tokens.BUILTIN_KEYWORD_OPERATORS.forEach((tk) =>
+    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
+  );
+
+  emit();
+  emit("#define FOR_EACH_SVE_TYPE(V) \\");
+  tokens.SVE_TYPES.forEach((tk) =>
+    emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
+  );
+
+  emit();
   emit("#define FOR_EACH_BUILTIN_TEMPLATE(V) \\");
   tokens.BUILTIN_TEMPLATES.forEach((tk) =>
     emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
@@ -149,6 +161,10 @@ enum class BuiltinFunctionKind {
 
 [[nodiscard]] auto builtinLibcallOperator(BuiltinFunctionKind kind)
     -> TokenKind;
+
+enum class SveTypeKind {
+  FOR_EACH_SVE_TYPE(TOKEN_ENUM)
+};
 
 enum class BuiltinTemplateKind {
   T_NONE,

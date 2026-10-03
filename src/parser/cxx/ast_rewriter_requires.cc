@@ -333,6 +333,20 @@ auto ASTRewriter::checkConstraintExpression(
   return boolVal.value_or(false);
 }
 
+auto ASTRewriter::checkTemplateIdConstraints(
+    TranslationUnit* unit, Symbol* symbol,
+    const std::vector<TemplateArgument>& templateArguments, int depth,
+    SourceLocation location) -> bool {
+  if (checkAssociatedConstraints(unit, symbol, templateArguments, depth))
+    return true;
+  if (!symbol_cast<FunctionSymbol>(symbol)) {
+    unit->error(location,
+                std::format("associated constraints of '{}' are not satisfied",
+                            to_string(symbol->name())));
+  }
+  return false;
+}
+
 auto ASTRewriter::checkAssociatedConstraints(
     TranslationUnit* unit, Symbol* symbol,
     const std::vector<TemplateArgument>& templateArguments, int depth) -> bool {
@@ -354,6 +368,7 @@ auto ASTRewriter::checkAssociatedConstraints(
     }
   }
 
+  TimeTrace::Scope trace{unit->timeTrace(), "Check constraints", symbol};
   bool determinate = true;
   for (auto constraint : constraints) {
     auto result = checkConstraintExpression(unit, symbol, constraint,
@@ -454,6 +469,7 @@ auto ASTRewriter::evaluateConcept(
     }
   }
 
+  TimeTrace::Scope trace{unit->timeTrace(), "Evaluate concept", conceptSymbol};
   auto result = evaluateConstraintExpression(
       unit, conceptSymbol->parent(), definition->expression, templateArguments,
       templateDecl->depth);

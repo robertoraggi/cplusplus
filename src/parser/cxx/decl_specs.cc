@@ -218,6 +218,13 @@ void DeclSpecs::Visitor::operator()(BuiltinTypeSpecifierAST* ast) {
       specs.type_ = control()->getBuiltinMetaInfoType();
       break;
 
+#define SVE_TYPE_CASE(id, _)                                  \
+  case TokenKind::T_##id:                                     \
+    specs.type_ = control()->getSveType(SveTypeKind::T_##id); \
+    break;
+      FOR_EACH_SVE_TYPE(SVE_TYPE_CASE)
+#undef SVE_TYPE_CASE
+
     default:
       break;
   }

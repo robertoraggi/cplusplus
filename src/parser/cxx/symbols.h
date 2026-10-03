@@ -150,6 +150,8 @@ void add_extern_instantiation_declaration(
                                            Symbol* specialization)
     -> TemplateSpecialization*;
 
+void rebuild_specialization_index(Symbol* symbol);
+
 [[nodiscard]] auto template_parameters_of(Symbol* symbol)
     -> TemplateParametersSymbol*;
 
@@ -244,6 +246,39 @@ class MaybeDefaultTemplateArgument {
   TemplateParameterAST* defaultArgument_ = nullptr;
 };
 
+void indexTemplateArguments(
+    std::span<const TemplateArgument> arguments, std::uint32_t position,
+    std::unordered_map<std::size_t, std::vector<std::uint32_t>>& byArguments,
+    std::vector<std::uint32_t>& unkeyed);
+
+template <typename Match>
+[[nodiscard]] auto findTemplateArguments(
+    std::span<const TemplateArgument> arguments, std::size_t entryCount,
+    const std::unordered_map<std::size_t, std::vector<std::uint32_t>>&
+        byArguments,
+    std::span<const std::uint32_t> unkeyed, Match isMatch)
+    -> std::optional<std::size_t> {
+  auto key = hash_template_arguments(arguments);
+
+  if (!key.has_value()) {
+    for (std::size_t index = 0; index < entryCount; ++index) {
+      if (isMatch(index)) return index;
+    }
+    return std::nullopt;
+  }
+
+  if (auto bucket = byArguments.find(*key); bucket != byArguments.end()) {
+    for (auto index : bucket->second) {
+      if (isMatch(index)) return index;
+    }
+  }
+
+  for (auto index : unkeyed) {
+    if (isMatch(index)) return index;
+  }
+  return std::nullopt;
+}
+
 class SpecializationTable {
  public:
   [[nodiscard]] auto entries() const
@@ -263,6 +298,8 @@ class SpecializationTable {
                          Symbol* specialization) -> std::size_t;
 
   void restore(TemplateSpecialization specialization);
+
+  void rebuildIndex();
 
  private:
   [[nodiscard]] auto findIndex(TranslationUnit* unit,
@@ -451,6 +488,11 @@ class MaybeTemplate {
   void restoreSpecialization(TemplateSpecialization specialization) {
     ensureTemplate().specializations.restore(std::move(specialization));
     template_->declaredSpecializations.reset();
+  }
+
+  void rebuildSpecializationIndex() {
+    if (!template_) return;
+    template_->specializations.rebuildIndex();
   }
 
   void restoreSpecializationInfo(S* primaryTemplateSymbol, int index) {
@@ -1156,6 +1198,14 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto moveConstructor() const -> FunctionSymbol*;
   [[nodiscard]] auto copyAssignmentOperator() const -> FunctionSymbol*;
   [[nodiscard]] auto moveAssignmentOperator() const -> FunctionSymbol*;
+  [[nodiscard]] auto isDefaultConstructor(FunctionSymbol* function) const
+      -> bool;
+  [[nodiscard]] auto isCopyConstructor(FunctionSymbol* function) const -> bool;
+  [[nodiscard]] auto isMoveConstructor(FunctionSymbol* function) const -> bool;
+  [[nodiscard]] auto isCopyAssignmentOperator(FunctionSymbol* function) const
+      -> bool;
+  [[nodiscard]] auto isMoveAssignmentOperator(FunctionSymbol* function) const
+      -> bool;
   [[nodiscard]] auto hasUserDeclaredConstructors() const -> bool;
   void setHasUserDeclaredConstructors(bool value);
 

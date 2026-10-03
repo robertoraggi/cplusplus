@@ -562,9 +562,11 @@ struct Substitution::CollectRawTemplateArgument {
                                          /*stopAtConcreteSpecialization=*/true);
   }
 
-  auto operator()(ExpressionTemplateArgumentAST* ast) -> std::optional<Symbol*>;
+  auto operator()(ExpressionTemplateArgumentAST* ast)
+      -> std::optional<CollectedArgument>;
 
-  auto operator()(TypeTemplateArgumentAST* ast) -> std::optional<Symbol*>;
+  auto operator()(TypeTemplateArgumentAST* ast)
+      -> std::optional<CollectedArgument>;
 };
 
 [[nodiscard]] auto injectedClassNameAsTemplate(TemplateArgumentAST* argument)
@@ -669,11 +671,6 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     return std::nullopt;
   }
 
-  auto argument = control()->newVariableSymbol(nullptr, {});
-  argument->setInitializer(expression);
-  argument->setConstexpr(true);
-  if (value) argument->setConstValue(*value);
-
   const Type* argumentType = declaredType;
   if (!argumentType && expression) argumentType = expression->type;
 
@@ -686,8 +683,10 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     return std::nullopt;
   }
 
-  argument->setType(argumentType);
-  return argument;
+  return subst.symbolOf({.type = argumentType,
+                         .initializer = expression,
+                         .isConstexpr = true,
+                         .value = value});
 }
 
 auto Substitution::MakeDefaultTemplateArgument::operator()(
@@ -720,9 +719,7 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     return std::nullopt;
   }
 
-  auto argument = control()->newTypeAliasSymbol(nullptr, {});
-  argument->setType(typeId->type);
-  return argument;
+  return control()->getTypeArgumentSymbol(typeId->type);
 }
 
 auto Substitution::MakeDefaultTemplateArgument::operator()(
@@ -747,13 +744,11 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     typeId = substituted;
   }
 
-  auto argument = control()->newTypeAliasSymbol(nullptr, {});
-  argument->setType(typeId->type);
-  return argument;
+  return control()->getTypeArgumentSymbol(typeId->type);
 }
 
 auto Substitution::CollectRawTemplateArgument::operator()(
-    ExpressionTemplateArgumentAST* ast) -> std::optional<Symbol*> {
+    ExpressionTemplateArgumentAST* ast) -> std::optional<CollectedArgument> {
   auto loc = ast->firstSourceLocation();
 
   auto expression = ast->expression;
@@ -783,19 +778,13 @@ auto Substitution::CollectRawTemplateArgument::operator()(
           return var;
         }
       }
-      auto templateArgument = control->newVariableSymbol(nullptr, {});
-      templateArgument->setInitializer(expression);
-      if (expression->type) {
-        templateArgument->setType(expression->type);
-      }
-      return templateArgument;
+      return NonTypeArgumentValue{.type = expression->type,
+                                  .initializer = expression};
     }
 
     if (subst.valueDependsOnParameterType(expression)) {
-      auto templateArgument = control->newVariableSymbol(nullptr, {});
-      templateArgument->setInitializer(expression);
-      templateArgument->setType(expression->type);
-      return templateArgument;
+      return NonTypeArgumentValue{.type = expression->type,
+                                  .initializer = expression};
     }
 
     subst.maybeReportInvalidConstantExpression(loc);
@@ -803,29 +792,20 @@ auto Substitution::CollectRawTemplateArgument::operator()(
     return std::nullopt;
   }
 
-  auto templateArgument = control->newVariableSymbol(nullptr, {});
-  templateArgument->setInitializer(expression);
-
   auto argumentType = expression->type;
 
-  if (!argumentType) {
-    templateArgument->setConstexpr(true);
-    templateArgument->setConstValue(value);
-    return templateArgument;
-  }
-
-  if (!subst.unit_->typeTraits().is_scalar(argumentType)) {
+  if (argumentType && !subst.unit_->typeTraits().is_scalar(argumentType)) {
     argumentType = subst.unit_->typeTraits().add_pointer(expression->type);
   }
 
-  templateArgument->setType(argumentType);
-  templateArgument->setConstexpr(true);
-  templateArgument->setConstValue(value);
-  return templateArgument;
+  return NonTypeArgumentValue{.type = argumentType,
+                              .initializer = expression,
+                              .isConstexpr = true,
+                              .value = value};
 }
 
 auto Substitution::CollectRawTemplateArgument::operator()(
-    TypeTemplateArgumentAST* ast) -> std::optional<Symbol*> {
+    TypeTemplateArgumentAST* ast) -> std::optional<CollectedArgument> {
   if (!ast->typeId) {
     return std::nullopt;
   }
@@ -876,9 +856,7 @@ auto Substitution::CollectRawTemplateArgument::operator()(
   if (cxx::isPackExpansion(ast->typeId))
     type = control->getPackExpansionType(type);
 
-  auto templateArgument = control->newTypeAliasSymbol(nullptr, {});
-  templateArgument->setType(type);
-  return templateArgument;
+  return control->getTypeArgumentSymbol(type);
 }
 
 Substitution::Substitution(TranslationUnit* unit,
@@ -902,18 +880,23 @@ auto Substitution::writtenTemplateArguments(
     -> std::optional<std::vector<TemplateArgument>> {
   Substitution subst{unit, templateArgumentList};
   if (!subst.collectWrittenArguments()) return std::nullopt;
-  return std::vector<TemplateArgument>(subst.collectedArguments_.begin(),
-                                       subst.collectedArguments_.end());
+  std::vector<TemplateArgument> arguments;
+  arguments.reserve(subst.writtenArguments_.size());
+  for (const auto& written : subst.writtenArguments_)
+    arguments.push_back(subst.argumentSymbol(written.argument));
+  return arguments;
 }
 
 auto Substitution::collectWrittenArguments() -> bool {
-  for (auto argument : ListView{templateArgumentList_}) {
+  const auto view = ListView{templateArgumentList_};
+  writtenArguments_.reserve(std::ranges::distance(view));
+  for (auto argument : view) {
     auto arg = visit(CollectRawTemplateArgument{*this}, argument);
     if (!arg.has_value()) return false;
-    collectedArguments_.push_back(*arg);
-    collectedNodes_.push_back(argument);
-    collectedIsPackExpansion_.push_back(
-        TemplateArguments::isPackExpansion(argument));
+    writtenArguments_.push_back(
+        {.argument = *arg,
+         .node = argument,
+         .isPackExpansion = TemplateArguments::isPackExpansion(argument)});
   }
   return true;
 }
@@ -951,7 +934,7 @@ void Substitution::doMake() {
   }
 
   const int paramCount = static_cast<int>(parameters.size());
-  const int argCount = static_cast<int>(collectedArguments_.size());
+  const int argCount = static_cast<int>(writtenArguments_.size());
 
   int packIndex = -1;
   int packSize = 0;
@@ -985,7 +968,9 @@ void Substitution::doMake() {
 
   auto deducedPackAt = [&](int index) -> ParameterPackSymbol* {
     if (index >= argCount) return nullptr;
-    return symbol_cast<ParameterPackSymbol>(collectedArguments_[index]);
+    auto symbol = std::get_if<Symbol*>(&writtenArguments_[index].argument);
+    if (!symbol) return nullptr;
+    return symbol_cast<ParameterPackSymbol>(*symbol);
   };
 
   for (int i = 0; i < paramCount; ++i) {
@@ -998,35 +983,35 @@ void Substitution::doMake() {
         continue;
       }
       if (argumentIndex >= argCount) {
-        auto pack = control->newParameterPackSymbol(nullptr, {});
-        templateArguments_.push_back(pack);
+        templateArguments_.push_back(control->getPackArgumentSymbol({}));
         continue;
       }
     }
 
     if (i == packIndex) {
-      auto pack = control->newParameterPackSymbol(nullptr, {});
+      std::vector<Symbol*> elements;
+      elements.reserve(packSize);
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
 
       for (int k = 0; k < packSize && argumentIndex < argCount; ++k) {
         if (!checkArgumentKind(parameter, argumentIndex)) return;
-        auto symbol = argumentFor(parameter, argumentIndex++);
-        symbol = normalizeNonTypeArgument(nonTypeParam, symbol);
+        auto symbol = normalizeNonTypeArgument(
+            nonTypeParam, argumentFor(parameter, argumentIndex++));
         if (hadError_) return;
-        pack->addElement(symbol);
+        elements.push_back(symbol);
       }
 
-      templateArguments_.push_back(pack);
+      templateArguments_.push_back(control->getPackArgumentSymbol(elements));
       continue;
     }
 
     if (argumentIndex < argCount) {
-      if (collectedIsPackExpansion_[argumentIndex])
+      if (writtenArguments_[argumentIndex].isPackExpansion)
         argumentCountIsKnown = false;
       if (!checkArgumentKind(parameter, argumentIndex)) return;
-      auto symbol = argumentFor(parameter, argumentIndex++);
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
-      symbol = normalizeNonTypeArgument(nonTypeParam, symbol);
+      auto symbol = normalizeNonTypeArgument(
+          nonTypeParam, argumentFor(parameter, argumentIndex++));
       if (hadError_) return;
       templateArguments_.push_back(symbol);
       continue;
@@ -1045,22 +1030,70 @@ void Substitution::doMake() {
 }
 
 auto Substitution::argumentFor(TemplateParameterAST* parameter, int index) const
-    -> Symbol* {
-  auto symbol = collectedArguments_[index];
+    -> CollectedArgument {
+  const auto& collected = writtenArguments_[index].argument;
   if (ast_cast<TemplateTypeParameterAST>(parameter)) {
-    if (auto templateName = injectedClassNameAsTemplate(collectedNodes_[index]))
+    if (auto templateName =
+            injectedClassNameAsTemplate(writtenArguments_[index].node))
       return templateName;
-    return symbol;
+    return collected;
   }
+  auto symbol = std::get_if<Symbol*>(&collected);
+  if (!symbol) return collected;
   if (auto classTemplate =
-          symbol_cast<ClassSymbol>(template_name_symbol(symbol)))
+          symbol_cast<ClassSymbol>(template_name_symbol(*symbol)))
     return injectedClassNameAsType(classTemplate);
+  return collected;
+}
+
+auto Substitution::argumentSymbol(const CollectedArgument& argument) const
+    -> Symbol* {
+  if (auto symbol = std::get_if<Symbol*>(&argument)) return *symbol;
+  return symbolOf(std::get<NonTypeArgumentValue>(argument));
+}
+
+auto Substitution::valueOf(VariableSymbol* variable) const
+    -> NonTypeArgumentValue {
+  NonTypeArgumentValue result{.type = variable->type(),
+                              .initializer = variable->initializer(),
+                              .isConstexpr = variable->isConstexpr(),
+                              .value = variable->constValue()};
+  if (!result.initializer) result.initializer = spelledInitializer(result);
+  return result;
+}
+
+auto Substitution::spelledInitializer(const NonTypeArgumentValue& value) const
+    -> ExpressionAST* {
+  if (!isSpellableIntegerConstant(value)) return nullptr;
+  return TemplateArguments{unit_}.integerLiteralExpression(
+      std::get<ConstInt>(*value.value), value.type);
+}
+
+auto Substitution::isSpellableIntegerConstant(const NonTypeArgumentValue& value)
+    -> bool {
+  if (!value.type || !value.value) return false;
+  auto integer = std::get_if<ConstInt>(&*value.value);
+  return integer && integer->magnitudeFitsInUIntMax();
+}
+
+auto Substitution::symbolOf(const NonTypeArgumentValue& value) const
+    -> Symbol* {
+  auto control = unit_->control();
+
+  if (isSpellableIntegerConstant(value))
+    return control->getConstantArgumentSymbol(value.type, *value.value);
+
+  auto symbol = control->newVariableSymbol(nullptr, {});
+  symbol->setInitializer(value.initializer);
+  symbol->setConstexpr(value.isConstexpr);
+  symbol->setConstValue(value.value);
+  symbol->setType(value.type);
   return symbol;
 }
 
 auto Substitution::checkArgumentKind(TemplateParameterAST* parameter, int index)
     -> bool {
-  auto argument = collectedNodes_[index];
+  auto argument = writtenArguments_[index].node;
   if (matchesTemplateParameterKind(parameter, argument)) return true;
   error(argument->firstSourceLocation(),
         "template argument does not match the form of its template "
@@ -1070,9 +1103,7 @@ auto Substitution::checkArgumentKind(TemplateParameterAST* parameter, int index)
 
 auto Substitution::injectedClassNameAsType(ClassSymbol* classTemplate) const
     -> Symbol* {
-  auto argument = unit_->control()->newTypeAliasSymbol(nullptr, {});
-  argument->setType(classTemplate->type());
-  return argument;
+  return unit_->control()->getTypeArgumentSymbol(classTemplate->type());
 }
 
 void Substitution::maybeReportInvalidConstantExpression(SourceLocation loc) {
@@ -1137,37 +1168,41 @@ auto Substitution::substitutedNonTypeParameterType(
 }
 
 auto Substitution::normalizeNonTypeArgument(
-    NonTypeTemplateParameterAST* parameter, Symbol* argument) -> Symbol* {
-  if (!parameter) return argument;
+    NonTypeTemplateParameterAST* parameter, const CollectedArgument& argument)
+    -> Symbol* {
+  if (!parameter) return argumentSymbol(argument);
 
   auto parameterType = substitutedNonTypeParameterType(parameter);
-  if (!parameterType) return argument;
+  if (!parameterType) return argumentSymbol(argument);
 
   auto unit = unit_;
-  auto control = unit->control();
 
-  auto variableArgument = symbol_cast<VariableSymbol>(argument);
-  if (!variableArgument) {
-    auto typeAliasArgument = symbol_cast<TypeAliasSymbol>(argument);
-    if (!typeAliasArgument || !typeAliasArgument->type()) return argument;
-    if (typeAliasArgument->templateParameters()) return argument;
-    if (!isDependent(unit, typeAliasArgument->type())) return argument;
-    if (type_cast<ClassType>(typeAliasArgument->type())) return argument;
+  NonTypeArgumentValue normalized;
 
-    auto normalizedArgument = control->newVariableSymbol(nullptr, {});
-    const Type* targetType = typeAliasArgument->type();
-    if (parameter->declaration && parameter->declaration->type)
-      targetType = parameter->declaration->type;
-    normalizedArgument->setType(targetType);
-    return normalizedArgument;
+  if (auto written = std::get_if<NonTypeArgumentValue>(&argument)) {
+    normalized = *written;
+  } else {
+    auto symbol = std::get<Symbol*>(argument);
+    auto variableArgument = symbol_cast<VariableSymbol>(symbol);
+
+    if (!variableArgument) {
+      auto typeAliasArgument = symbol_cast<TypeAliasSymbol>(symbol);
+      if (!typeAliasArgument || !typeAliasArgument->type()) return symbol;
+      if (typeAliasArgument->templateParameters()) return symbol;
+      if (!isDependent(unit, typeAliasArgument->type())) return symbol;
+      if (type_cast<ClassType>(typeAliasArgument->type())) return symbol;
+
+      NonTypeArgumentValue placeholder;
+      placeholder.type = typeAliasArgument->type();
+      if (parameter->declaration && parameter->declaration->type)
+        placeholder.type = parameter->declaration->type;
+      return symbolOf(placeholder);
+    }
+
+    normalized = valueOf(variableArgument);
   }
 
-  auto normalizedArgument = control->newVariableSymbol(nullptr, {});
-  normalizedArgument->setInitializer(variableArgument->initializer());
-  normalizedArgument->setConstexpr(variableArgument->isConstexpr());
-  normalizedArgument->setConstValue(variableArgument->constValue());
-
-  const Type* targetType = variableArgument->type();
+  const Type* targetType = normalized.type;
 
   if (!type_cast<TypeParameterType>(targetType) &&
       !type_cast<TemplateTypeParameterType>(targetType)) {
@@ -1175,7 +1210,7 @@ auto Substitution::normalizeNonTypeArgument(
       const Type* declaredType = parameter->declaration->type;
       if (containsPlaceholderType(declaredType)) {
         auto checker = TypeChecker{unit};
-        if (auto initializer = variableArgument->initializer()) {
+        if (auto initializer = normalized.initializer) {
           targetType = checker.deducePlaceholderType(declaredType, initializer);
         } else {
           targetType = checker.deduceAutoType(declaredType, targetType);
@@ -1188,22 +1223,21 @@ auto Substitution::normalizeNonTypeArgument(
     }
   }
 
-  normalizedArgument->setType(targetType);
+  normalized.type = targetType;
 
-  convertNonTypeArgument(normalizedArgument, targetType);
+  convertNonTypeArgument(normalized, targetType);
 
-  if (auto value = normalizedArgument->constValue();
-      value && !isConstexprRepresentable(*value)) {
+  if (normalized.value && !isConstexprRepresentable(*normalized.value)) {
     maybeReportInvalidConstantExpression(
-        normalizedArgument->initializer()->firstSourceLocation());
+        normalized.initializer->firstSourceLocation());
   }
 
-  if (lacksConvertedValue(normalizedArgument)) {
+  if (lacksConvertedValue(normalized)) {
     maybeReportInvalidConstantExpression(
-        normalizedArgument->initializer()->firstSourceLocation());
+        normalized.initializer->firstSourceLocation());
   }
 
-  return normalizedArgument;
+  return symbolOf(normalized);
 }
 
 auto Substitution::valueDependsOnParameterType(ExpressionAST* expression) const
@@ -1248,18 +1282,19 @@ auto Substitution::isConstexprRepresentable(const ConstValue& value) const
   return true;
 }
 
-auto Substitution::lacksConvertedValue(VariableSymbol* argument) const -> bool {
-  if (argument->constValue()) return false;
-  auto initializer = argument->initializer();
+auto Substitution::lacksConvertedValue(
+    const NonTypeArgumentValue& argument) const -> bool {
+  if (argument.value) return false;
+  auto initializer = argument.initializer;
   if (!initializer || !valueDependsOnParameterType(initializer)) return false;
   return !isDependent(unit_, initializer);
 }
 
-void Substitution::bindReferenceArgument(VariableSymbol* argument,
+void Substitution::bindReferenceArgument(NonTypeArgumentValue& argument,
                                          const Type* targetType) {
-  argument->setConstValue(std::nullopt);
+  argument.value = std::nullopt;
 
-  auto expression = argument->initializer();
+  auto expression = argument.initializer;
   if (!is_glvalue(expression)) return;
 
   auto traits = unit_->typeTraits();
@@ -1273,19 +1308,19 @@ void Substitution::bindReferenceArgument(VariableSymbol* argument,
   auto address = ASTInterpreter{unit_}.evaluateAddress(converted);
   if (!address.has_value()) return;
 
-  argument->setInitializer(converted);
-  argument->setConstexpr(true);
-  argument->setConstValue(std::move(address));
+  argument.initializer = converted;
+  argument.isConstexpr = true;
+  argument.value = std::move(address);
 }
 
-void Substitution::convertNonTypeArgument(VariableSymbol* argument,
+void Substitution::convertNonTypeArgument(NonTypeArgumentValue& argument,
                                           const Type* targetType) {
   if (!targetType) return;
 
   auto traits = unit_->typeTraits();
   if (isDependent(unit_, targetType)) return;
 
-  auto expression = argument->initializer();
+  auto expression = argument.initializer;
   if (!expression || !expression->type) return;
   if (isDependent(unit_, expression)) return;
 
@@ -1306,9 +1341,9 @@ void Substitution::convertNonTypeArgument(VariableSymbol* argument,
   auto value = interp.evaluate(converted);
   if (!value.has_value()) return;
 
-  argument->setInitializer(converted);
-  argument->setConstexpr(true);
-  argument->setConstValue(value);
+  argument.initializer = converted;
+  argument.isConstexpr = true;
+  argument.value = value;
 }
 
 auto Substitution::getDefaultTemplateArgument(TemplateParameterAST* parameter)

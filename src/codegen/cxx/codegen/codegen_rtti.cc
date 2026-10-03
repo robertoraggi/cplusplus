@@ -813,8 +813,8 @@ auto Codegen::emitTypeidOfPolymorphicGlvalue(SourceLocation loc,
 
   const auto wordSize = pointerSize();
 
-  auto vptrAddr = emitter_.bitcast(loc, wordPtrType, objectPtr);
-  auto vptr = emitter_.load(loc, i8PtrType, vptrAddr, wordSize);
+  auto vptr =
+      emitter_.load(loc, i8PtrType, vptrAddress(loc, objectPtr), wordSize);
 
   auto wordType = pointerSizedIntType();
   auto offset = emitter_.constantInt(loc, wordType, -wordSize);

@@ -44,6 +44,11 @@ std::string builtin_function_spell[] = {
 #define BUILTIN_FUNCTION_SPELL(_, s) s,
     "", FOR_EACH_BUILTIN_FUNCTION(BUILTIN_FUNCTION_SPELL)};
 #undef BUILTIN_FUNCTION_SPELL
+
+std::string sve_type_spell[] = {
+#define SVE_TYPE_SPELL(_, s) s,
+    FOR_EACH_SVE_TYPE(SVE_TYPE_SPELL)};
+#undef SVE_TYPE_SPELL
 }  // namespace
 
 auto Token::spell(TokenKind kind) -> const std::string& {
@@ -56,6 +61,10 @@ auto Token::spell(BuiltinTypeTraitKind kind) -> const std::string& {
 
 auto Token::spell(BuiltinFunctionKind kind) -> const std::string& {
   return builtin_function_spell[static_cast<int>(kind)];
+}
+
+auto Token::spell(SveTypeKind kind) -> const std::string& {
+  return sve_type_spell[static_cast<int>(kind)];
 }
 
 auto Token::builtinFunctionKind(std::string_view spelling)

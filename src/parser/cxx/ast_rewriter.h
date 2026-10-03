@@ -233,6 +233,11 @@ class [[nodiscard]] ASTRewriter {
       const std::vector<TemplateArgument>& templateArguments, int depth)
       -> bool;
 
+  [[nodiscard]] static auto checkTemplateIdConstraints(
+      TranslationUnit* unit, Symbol* symbol,
+      const std::vector<TemplateArgument>& templateArguments, int depth,
+      SourceLocation location) -> bool;
+
   [[nodiscard]] static auto typeConstraintExpression(
       TranslationUnit* unit, ConstraintTypeParameterSymbol* parameter)
       -> ExpressionAST*;
@@ -416,6 +421,7 @@ class [[nodiscard]] ASTRewriter {
 
   auto unit(UnitAST* ast) -> UnitAST*;
   auto expression(ExpressionAST* ast) -> ExpressionAST*;
+  auto contextuallyConvertedBool(ExpressionAST* ast) -> ExpressionAST*;
   auto unevaluatedExpression(ExpressionAST* ast) -> ExpressionAST*;
 
   auto rewriteExpressionList(List<ExpressionAST*>* source)

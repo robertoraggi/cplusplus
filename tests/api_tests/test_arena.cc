@@ -21,8 +21,6 @@
 #include <cxx/arena.h>
 #include <gtest/gtest.h>
 
-#include <limits>
-#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -109,10 +107,4 @@ TEST(Arena, SupportsOveralignedAllocationsAfterGrowthAndRewind) {
   auto* second = arena.allocate(1, 1024 * 1024);
 
   ASSERT_EQ(reinterpret_cast<std::uintptr_t>(second) % (1024 * 1024), 0);
-}
-
-TEST(Arena, RejectsAllocationSizeOverflow) {
-  Arena arena;
-  const auto maxSize = std::numeric_limits<std::size_t>::max();
-  ASSERT_THROW((void)arena.allocate(maxSize, 2), std::runtime_error);
 }

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/ast_rewriter.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -293,6 +294,7 @@ struct DumpSymbols {
   }
 
   void operator()(FunctionSymbol* symbol) {
+    if (unit) ASTRewriter::completePendingExceptionSpecification(unit, symbol);
     indent();
 
     if (symbol->templateParameters()) {

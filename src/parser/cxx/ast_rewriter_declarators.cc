@@ -190,7 +190,7 @@ void ASTRewriter::resolvePendingExceptionSpecifier(std::size_t index) {
 
   auto _ = Binder::ScopeGuard{&binder_};
   binder_.setScope(record->parentScope);
-  instance->expression = expression(pattern->expression);
+  instance->expression = contextuallyConvertedBool(pattern->expression);
 
   for (auto& refreshType : pending.typeRefreshers) refreshType();
 
@@ -275,7 +275,8 @@ void ASTRewriter::completePendingExceptionSpecification(
   if (oldParameters && newParameters)
     rewriter.remapFunctionParameters(oldParameters, newParameters);
 
-  instance->expression = rewriter.expression(pattern->expression);
+  instance->expression =
+      rewriter.contextuallyConvertedBool(pattern->expression);
   const bool isNoexcept = exceptionSpecifierIsNoexcept(unit, instance);
   setFunctionNoexcept(unit->control(), function, isNoexcept);
 
@@ -538,6 +539,10 @@ auto ASTRewriter::declarator(DeclaratorAST* ast) -> DeclaratorAST* {
 
   copy->coreDeclarator = coreDeclarator(ast->coreDeclarator);
 
+  auto scopeGuard = Binder::ScopeGuard{&binder_};
+  auto decl = Decl{DeclSpecs{unit_}, copy};
+  if (auto scope = decl.getScope()) binder_.setScope(scope);
+
   copy->declaratorChunkList =
       rewriteList(ast->declaratorChunkList, &ASTRewriter::declaratorChunk);
 
@@ -750,7 +755,7 @@ auto ASTRewriter::ExceptionSpecifierVisitor::operator()(
     rewrite.pendingExceptionSpecifiers_.push_back(
         {rewrite.pendingInstantiationOf(ast, copy, binder()->scope())});
   } else {
-    copy->expression = rewrite.expression(ast->expression);
+    copy->expression = rewrite.contextuallyConvertedBool(ast->expression);
   }
 
   return copy;

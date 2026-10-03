@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/token.h>
+#include <cxx/triple.h>
 
 #include <string>
 #include <string_view>
@@ -82,7 +83,8 @@ class Lexer {
   [[nodiscard]] auto text() -> std::string& { return text_; }
   [[nodiscard]] auto text() const -> const std::string& { return text_; }
 
-  static auto classifyKeyword(const std::string_view& text, LanguageKind lang)
+  [[nodiscard]] static auto classifyKeyword(const std::string_view& text,
+                                            LanguageKind lang, TripleArch arch)
       -> TokenKind;
 
   struct State {

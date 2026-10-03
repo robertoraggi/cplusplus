@@ -29,6 +29,7 @@
 #include <cxx/views/symbol_chain.h>
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <optional>
 #include <span>
@@ -50,11 +51,37 @@ struct ClassMemberLookup {
                                      const std::function<bool(Symbol*)>& accept)
     -> ClassMemberLookup;
 
+class VisitedScopes {
+ public:
+  [[nodiscard]] auto begin() const -> ScopeSymbol* const* { return data(); }
+  [[nodiscard]] auto end() const -> ScopeSymbol* const* {
+    return data() + size_;
+  }
+
+  void push_back(ScopeSymbol* scope) {
+    if (overflow_.empty() && size_ < inline_.size()) {
+      inline_[size_++] = scope;
+      return;
+    }
+    if (overflow_.empty()) overflow_.assign(inline_.begin(), inline_.end());
+    overflow_.push_back(scope);
+    ++size_;
+  }
+
+ private:
+  [[nodiscard]] auto data() const -> ScopeSymbol* const* {
+    return overflow_.empty() ? inline_.data() : overflow_.data();
+  }
+
+  std::array<ScopeSymbol*, 32> inline_;
+  std::vector<ScopeSymbol*> overflow_;
+  std::size_t size_ = 0;
+};
+
 namespace detail {
 template <typename Predicate>
 [[nodiscard]] auto searchScope(ScopeSymbol* scope, const Name* name,
-                               std::vector<ScopeSymbol*>& visited,
-                               Predicate accept,
+                               VisitedScopes& visited, Predicate accept,
                                bool followUsingDirectives = true,
                                bool searchBaseClasses = true) -> Symbol* {
   if (std::ranges::contains(visited, scope)) return nullptr;
@@ -132,7 +159,7 @@ template <typename Predicate>
     case SymbolKind::kClass:
     case SymbolKind::kEnum:
     case SymbolKind::kScopedEnum: {
-      std::vector<ScopeSymbol*> visited;
+      VisitedScopes visited;
       return searchScope(scopeSymbol->asScopeSymbol(), name, visited, accept);
     }
     case SymbolKind::kNamespaceAlias: {
@@ -142,7 +169,7 @@ template <typename Predicate>
     case SymbolKind::kInjectedClassName: {
       auto injected = symbol_cast<InjectedClassNameSymbol>(scopeSymbol);
       if (auto cls = injected->classSymbol()) {
-        std::vector<ScopeSymbol*> visited;
+        VisitedScopes visited;
         return searchScope(cls, name, visited, accept);
       }
       return nullptr;
@@ -158,7 +185,7 @@ template <typename Predicate>
 [[nodiscard]] auto qualifiedLookup(ScopeSymbol* scope, const Name* name,
                                    Predicate accept) -> Symbol* {
   if (!scope || !name) return nullptr;
-  std::vector<ScopeSymbol*> visited;
+  VisitedScopes visited;
   return detail::searchScope(scope, name, visited, accept);
 }
 

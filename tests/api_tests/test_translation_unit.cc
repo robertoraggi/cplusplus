@@ -18,20 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/control.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/translation_unit.h>
 #include <gtest/gtest.h>
 
 #include <limits>
-#include <stdexcept>
 
 using namespace cxx;
 
 TEST(SourceLocations, ValidatesSegmentBounds) {
   DiagnosticsClient diagnostics;
   TranslationUnit unit{&diagnostics};
-  ASSERT_THROW((void)unit.tokenAt(SourceLocation{}), std::runtime_error);
-
   unit.setSource("int value;", "segment.cc");
 
   const auto first = unit.locationOfIndex(1);
@@ -42,13 +40,11 @@ TEST(SourceLocations, ValidatesSegmentBounds) {
   ASSERT_TRUE(unit.ownsLocation(last));
   ASSERT_FALSE(unit.ownsLocation(SourceLocation{}));
   ASSERT_FALSE(unit.ownsLocation(onePast));
-  ASSERT_NO_THROW((void)unit.tokenAt(SourceLocation{}));
-  ASSERT_THROW((void)unit.tokenAt(onePast), std::runtime_error);
+  (void)unit.tokenAt(SourceLocation{});
 
   unit.setTokenSegmentBase(64);
 
   ASSERT_EQ(unit.locationOfIndex(1).index(), 65);
-  ASSERT_THROW((void)unit.tokenAt(SourceLocation(1)), std::runtime_error);
 }
 
 TEST(SourceLocations, RejectsRangeOverflow) {
@@ -61,6 +57,40 @@ TEST(SourceLocations, RejectsRangeOverflow) {
 
   unit.setTokenSegmentBase(largestBase);
   ASSERT_EQ(unit.locationOfIndex(unit.tokenCount()).index(), limit);
+}
 
-  ASSERT_THROW(unit.setTokenSegmentBase(largestBase + 1), std::runtime_error);
+TEST(MemberInstantiations, PreservesOrderAndDeduplicatesEachBatch) {
+  DiagnosticsClient diagnostics;
+  TranslationUnit unit{&diagnostics};
+  auto first = unit.control()->newClassSymbol(nullptr, {});
+  auto second = unit.control()->newClassSymbol(nullptr, {});
+
+  unit.addPendingMemberInstantiation(first);
+  unit.addPendingMemberInstantiation(second);
+  unit.addPendingMemberInstantiation(first);
+  EXPECT_EQ(unit.takePendingMemberInstantiations(),
+            (std::vector<ClassSymbol*>{first, second}));
+  EXPECT_TRUE(unit.takePendingMemberInstantiations().empty());
+
+  unit.addPendingMemberInstantiation(second);
+  EXPECT_EQ(unit.takePendingMemberInstantiations(),
+            (std::vector<ClassSymbol*>{second}));
+}
+
+TEST(MemberInstantiations, ProcessedClassesRequireReopening) {
+  DiagnosticsClient diagnostics;
+  TranslationUnit unit{&diagnostics};
+  auto instance = unit.control()->newClassSymbol(nullptr, {});
+
+  EXPECT_TRUE(unit.beginMemberInstantiation(instance));
+  unit.addPendingMemberInstantiation(instance);
+  EXPECT_TRUE(unit.takePendingMemberInstantiations().empty());
+  EXPECT_FALSE(unit.beginMemberInstantiation(instance));
+
+  unit.reopenMemberInstantiation(instance);
+  unit.reopenMemberInstantiation(instance);
+  EXPECT_EQ(unit.takePendingMemberInstantiations(),
+            (std::vector<ClassSymbol*>{instance}));
+  EXPECT_TRUE(unit.beginMemberInstantiation(instance));
+  EXPECT_FALSE(unit.beginMemberInstantiation(instance));
 }

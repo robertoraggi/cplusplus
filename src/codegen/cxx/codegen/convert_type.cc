@@ -106,6 +106,7 @@ struct Codegen::ConvertType {
   auto operator()(const VectorType* type) -> ir::TypeRef;
 
   auto operator()(const UnresolvedVectorType* type) -> ir::TypeRef;
+  auto operator()(const SveType* type) -> ir::TypeRef;
   auto operator()(const ComplexType* type) -> ir::TypeRef;
   auto operator()(const AtomicType* type) -> ir::TypeRef;
 };
@@ -758,6 +759,10 @@ auto Codegen::ConvertType::operator()(const VectorType* type) -> ir::TypeRef {
 
 auto Codegen::ConvertType::operator()(const UnresolvedVectorType* type)
     -> ir::TypeRef {
+  return getExprType();
+}
+
+auto Codegen::ConvertType::operator()(const SveType* type) -> ir::TypeRef {
   return getExprType();
 }
 

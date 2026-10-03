@@ -41,6 +41,7 @@ import { gen_token_fwd_h } from "./gen_token_fwd_h.ts";
 import { gen_tokenkind_ts } from "./gen_tokenkind_ts.ts";
 import { gen_keywords_kwgen } from "./gen_keywords_kwgen.ts";
 import { gen_c_keywords_kwgen } from "./gen_c_keywords_kwgen.ts";
+import { gen_sve_types_kwgen } from "./gen_sve_types_kwgen.ts";
 import { gen_pp_keywords_kwgen } from "./gen_pp_keywords_kwgen.ts";
 import { gen_builtin_function_kwgen } from "./gen_builtin_function_kwgen.ts";
 import { gen_ast_pretty_printer_h } from "./gen_ast_pretty_printer_h.ts";
@@ -166,6 +167,9 @@ gen_keywords_kwgen({
 gen_c_keywords_kwgen({
   output: path.join(outdir, "src/parser/cxx/private/c_keywords-priv.h"),
 });
+gen_sve_types_kwgen({
+  output: path.join(outdir, "src/parser/cxx/private/sve_types-priv.h"),
+});
 gen_pp_keywords_kwgen({
   output: path.join(outdir, "src/parser/cxx/private/pp_directives-priv.h"),
 });
@@ -188,12 +192,15 @@ child_process.execSync("clang-format -i *.h *.cc", {
   cwd: path.join(outdir, "src/frontend/cxx"),
 });
 
-child_process.execSync("clang-format -i emitter_delegate-priv.h", {
+child_process.execSync("clang-format -i emitter_delegate-priv.h reflection.cc", {
   cwd: path.join(outdir, "src/js/cxx"),
 });
 
-child_process.execFileSync(
-  path.join(outdir, "node_modules/.bin/prettier"),
-  ["--write", path.join(outdir, "packages/cxx-frontend/src/Emitter.ts")],
-  { stdio: "ignore" },
-);
+child_process.execSync("clang-format -i builtins_codegen-priv.h", {
+  cwd: path.join(outdir, "src/codegen/cxx/codegen"),
+});
+
+child_process.execSync("npm run --silent prettier:fix", {
+  cwd: path.join(outdir, "packages/cxx-frontend"),
+  stdio: "ignore",
+});

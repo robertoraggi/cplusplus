@@ -77,6 +77,22 @@ struct ASTInterpreter::StatementVisitor {
 
   [[nodiscard]] auto operator()(TryBlockStatementAST* ast) -> StatementResult;
 
+  [[nodiscard]] auto evaluateCondition(ExpressionAST* condition)
+      -> std::optional<bool>;
+
+  [[nodiscard]] auto evaluateSwitchCondition(ExpressionAST* condition)
+      -> std::optional<std::intmax_t>;
+
+  [[nodiscard]] auto loopIteration(ExpressionAST* condition,
+                                   StatementAST* statement,
+                                   ExpressionAST* expression)
+      -> StatementResult;
+
+  [[nodiscard]] auto runLoopIteration(ExpressionAST* condition,
+                                      StatementAST* statement,
+                                      ExpressionAST* expression)
+      -> StatementResult;
+
   void bindRangeElementBindings(ForRangeStatementAST* ast);
 
   [[nodiscard]] auto forRangeOverList(ForRangeStatementAST* ast,
@@ -167,18 +183,10 @@ auto ASTInterpreter::StatementVisitor::operator()(IfStatementAST* ast)
   auto mark = interp.beginAutomaticScope();
   auto result = [&]() -> StatementResult {
     (void)interp.statement(ast->initializer);
-    auto conditionResult = interp.expression(ast->condition);
-
-    if (conditionResult.has_value()) {
-      auto boolVal = interp.toBool(*conditionResult);
-      if (boolVal.has_value()) {
-        if (*boolVal) return interp.statement(ast->statement);
-        return interp.statement(ast->elseStatement);
-      }
-    }
-
-    interp.aborted_ = true;
-    return {};
+    auto condition = evaluateCondition(ast->condition);
+    if (!condition.has_value()) return {};
+    if (*condition) return interp.statement(ast->statement);
+    return interp.statement(ast->elseStatement);
   }();
 
   if (!interp.endAutomaticScope(mark)) return {};
@@ -201,9 +209,7 @@ auto ASTInterpreter::StatementVisitor::operator()(SwitchStatementAST* ast)
   auto switchResult = [&]() -> StatementResult {
     (void)interp.statement(ast->initializer);
 
-    auto conditionResult = interp.expression(ast->condition);
-    if (!conditionResult.has_value()) return {};
-    auto condValue = interp.toInt(*conditionResult);
+    auto condValue = evaluateSwitchCondition(ast->condition);
     if (!condValue.has_value()) return {};
 
     auto body = ast_cast<CompoundStatementAST>(ast->statement);
@@ -248,13 +254,7 @@ auto ASTInterpreter::StatementVisitor::operator()(WhileStatementAST* ast)
   for (;;) {
     if (!interp.tick()) return {};
 
-    auto conditionResult = interp.expression(ast->condition);
-    if (!conditionResult.has_value()) return {};
-    auto boolVal = interp.toBool(*conditionResult);
-    if (!boolVal.has_value()) return {};
-    if (!*boolVal) break;
-
-    auto result = interp.statement(ast->statement);
+    auto result = loopIteration(ast->condition, ast->statement, nullptr);
     if (interp.aborted()) return {};
     if (result.flow == ControlFlow::kBreak) break;
     if (result.flow == ControlFlow::kReturn) return result;
@@ -273,11 +273,61 @@ auto ASTInterpreter::StatementVisitor::operator()(DoStatementAST* ast)
     if (result.flow == ControlFlow::kBreak) break;
     if (result.flow == ControlFlow::kReturn) return result;
 
-    auto conditionResult = interp.expression(ast->expression);
-    if (!conditionResult.has_value()) return {};
-    auto boolVal = interp.toBool(*conditionResult);
-    if (!boolVal.has_value()) return {};
-    if (!*boolVal) break;
+    auto condition = evaluateCondition(ast->expression);
+    if (!condition.has_value()) return {};
+    if (!*condition) break;
+  }
+
+  return {};
+}
+
+auto ASTInterpreter::StatementVisitor::evaluateCondition(
+    ExpressionAST* condition) -> std::optional<bool> {
+  auto value = interp.expression(condition);
+  if (value.has_value()) {
+    if (auto truth = interp.toBool(*value)) return truth;
+  }
+  interp.aborted_ = true;
+  return std::nullopt;
+}
+
+auto ASTInterpreter::StatementVisitor::evaluateSwitchCondition(
+    ExpressionAST* condition) -> std::optional<std::intmax_t> {
+  auto value = interp.expression(condition);
+  if (value.has_value()) {
+    if (auto integer = interp.toInt(*value)) return integer;
+  }
+  interp.aborted_ = true;
+  return std::nullopt;
+}
+
+auto ASTInterpreter::StatementVisitor::loopIteration(ExpressionAST* condition,
+                                                     StatementAST* statement,
+                                                     ExpressionAST* expression)
+    -> StatementResult {
+  auto mark = interp.beginAutomaticScope();
+  auto result = runLoopIteration(condition, statement, expression);
+  if (!interp.endAutomaticScope(mark)) return {};
+  return result;
+}
+
+auto ASTInterpreter::StatementVisitor::runLoopIteration(
+    ExpressionAST* condition, StatementAST* statement,
+    ExpressionAST* expression) -> StatementResult {
+  if (condition) {
+    auto truth = evaluateCondition(condition);
+    if (!truth.has_value()) return {};
+    if (!*truth) return {ControlFlow::kBreak};
+  }
+
+  auto result = interp.statement(statement);
+  if (interp.aborted()) return {};
+  if (result.flow == ControlFlow::kBreak) return result;
+  if (result.flow == ControlFlow::kReturn) return result;
+
+  if (expression && !interp.discardedValue(expression)) {
+    interp.aborted_ = true;
+    return {};
   }
 
   return {};
@@ -307,7 +357,7 @@ void ASTInterpreter::StatementVisitor::bindRangeElementBindings(
       ast_cast<StructuredBindingDeclarationAST>(ast->rangeDeclaration);
   if (!structuredBinding) return;
   for (auto initDecl : ListView{structuredBinding->bindingDeclaratorList})
-    interp.interpretInitDeclarator(initDecl);
+    interp.initializeAutomaticVariable(initDecl->symbol, initDecl->initializer);
 }
 
 auto ASTInterpreter::StatementVisitor::forRangeOverList(
@@ -530,23 +580,11 @@ auto ASTInterpreter::StatementVisitor::operator()(ForStatementAST* ast)
     for (;;) {
       if (!interp.tick()) return {};
 
-      if (ast->condition) {
-        auto conditionResult = interp.expression(ast->condition);
-        if (!conditionResult.has_value()) return {};
-        auto boolVal = interp.toBool(*conditionResult);
-        if (!boolVal.has_value()) return {};
-        if (!*boolVal) break;
-      }
-
-      auto result = interp.statement(ast->statement);
+      auto result =
+          loopIteration(ast->condition, ast->statement, ast->expression);
       if (interp.aborted()) return {};
       if (result.flow == ControlFlow::kBreak) break;
       if (result.flow == ControlFlow::kReturn) return result;
-
-      if (ast->expression) {
-        auto expressionResult = interp.expression(ast->expression);
-        if (!expressionResult.has_value()) return {};
-      }
     }
     return {};
   }();
@@ -599,44 +637,52 @@ auto ASTInterpreter::StatementVisitor::operator()(GotoStatementAST* ast)
   return {};
 }
 
-void ASTInterpreter::interpretInitDeclarator(InitDeclaratorAST* initDecl) {
-  if (!initDecl || !initDecl->symbol) return;
+auto ASTInterpreter::initializeAutomaticVariable(Symbol* symbol,
+                                                 ExpressionAST* initializer)
+    -> bool {
+  if (!symbol) return false;
 
-  auto var = symbol_cast<VariableSymbol>(initDecl->symbol);
+  auto var = symbol_cast<VariableSymbol>(symbol);
 
   if (var && traits.is_reference(var->type())) {
     if (frames_.empty()) frames_.push_back({});
-    auto initExpr = Initializer{initDecl->initializer}.clause();
-    (void)bindReferenceTo(frames_.back(), var, initExpr);
-    return;
+    return bindReferenceTo(frames_.back(), var,
+                           Initializer{initializer}.clause());
   }
 
   ExpressionResult initVal;
   if (var) {
-    initVal = initializationValue(var->type(), var->constructor(),
-                                  initDecl->initializer);
+    initVal = initializationValue(var->type(), var->constructor(), initializer);
   } else {
-    initVal = expression(initDecl->initializer);
+    initVal = expression(initializer);
   }
 
-  if (!initVal.has_value() && !initDecl->initializer) {
+  if (!initVal.has_value() && !initializer) {
     if (var) initVal = defaultConstruct(var->type());
   }
 
-  if (initVal.has_value()) {
-    if (var && !traits.is_reference(var->type()) &&
-        traits.is_class(traits.remove_cv(var->type())))
-      initVal = cloneValue(*initVal);
-    setLocal(initDecl->symbol, *initVal);
-    if (var) registerAutomaticObject(var);
-  }
+  if (!initVal.has_value()) return false;
+
+  if (var && traits.is_class(traits.remove_cv(var->type())))
+    initVal = cloneValue(*initVal);
+  setLocal(symbol, *initVal);
+  if (var) registerAutomaticObject(var);
+  return true;
+}
+
+auto ASTInterpreter::initializeDecisionVariable(
+    ConditionExpressionAST* condition) -> VariableSymbol* {
+  if (!initializeAutomaticVariable(condition->symbol, condition->initializer))
+    return nullptr;
+  return condition->symbol;
 }
 
 void ASTInterpreter::interpretStructuredBinding(
     StructuredBindingDeclarationAST* ast) {
-  interpretInitDeclarator(ast->hiddenVariable);
+  if (auto hidden = ast->hiddenVariable)
+    initializeAutomaticVariable(hidden->symbol, hidden->initializer);
   for (auto initDecl : ListView{ast->bindingDeclaratorList})
-    interpretInitDeclarator(initDecl);
+    initializeAutomaticVariable(initDecl->symbol, initDecl->initializer);
 }
 
 auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
@@ -645,7 +691,8 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
 
   if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(ast->declaration)) {
     for (auto initDecl : ListView{simpleDecl->initDeclaratorList})
-      interp.interpretInitDeclarator(initDecl);
+      interp.initializeAutomaticVariable(initDecl->symbol,
+                                         initDecl->initializer);
   } else if (auto structuredBinding =
                  ast_cast<StructuredBindingDeclarationAST>(ast->declaration)) {
     interp.interpretStructuredBinding(structuredBinding);

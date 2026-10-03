@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/const_int.h>
 #include <cxx/types_fwd.h>
 
 #include <cstddef>
@@ -53,6 +54,8 @@ struct FloatingPointFormat {
   [[nodiscard]] auto maxExponent() const -> int;
   [[nodiscard]] auto representsInteger(std::intmax_t value) const -> bool;
   [[nodiscard]] auto rangeContains(double value) const -> bool;
+  [[nodiscard]] auto representation(double value) const -> ConstInt::UWide;
+  [[nodiscard]] auto value(ConstInt::UWide representation) const -> double;
 };
 
 class MemoryLayout {

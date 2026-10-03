@@ -23,6 +23,8 @@
 #include <cxx/cxx_fwd.h>
 #include <cxx/token_fwd.h>
 
+#include <array>
+#include <cstddef>
 #include <iosfwd>
 
 namespace cxx {
@@ -70,6 +72,13 @@ CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL)
 #define PROCESS_SYMBOL(S) k##S,
 enum class SymbolKind { CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL) };
 #undef PROCESS_SYMBOL
+
+#define PROCESS_SYMBOL(S) +1
+inline constexpr std::size_t kSymbolKindCount =
+    0 CXX_FOR_EACH_SYMBOL(PROCESS_SYMBOL);
+#undef PROCESS_SYMBOL
+
+using SymbolCounts = std::array<std::size_t, kSymbolKindCount>;
 
 enum class AccessSpecifier {
   kPublic,

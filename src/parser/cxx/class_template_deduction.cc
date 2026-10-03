@@ -521,8 +521,6 @@ auto ClassTemplateArgumentDeduction::specializationFor(
     ClassSymbol* primaryTemplate, const Guide& guide,
     List<TemplateArgumentAST*>* deducedArgs, SourceLocation location,
     ScopeSymbol* scope) -> ClassSymbol* {
-  List<TemplateArgumentAST*>* classArgs = nullptr;
-
   if (guide.returnTemplateId) {
     auto substitution =
         Substitution::make(unit_, guide.templateDeclaration, deducedArgs);
@@ -546,6 +544,17 @@ auto ClassTemplateArgumentDeduction::specializationFor(
     return deducedClassType->symbol();
   }
 
+  auto specialization = ASTRewriter::instantiate(
+      unit_, classTemplateArguments(guide, deducedArgs), primaryTemplate,
+      location);
+
+  return symbol_cast<ClassSymbol>(specialization);
+}
+
+auto ClassTemplateArgumentDeduction::classTemplateArguments(
+    const Guide& guide, List<TemplateArgumentAST*>* deducedArgs)
+    -> List<TemplateArgumentAST*>* {
+  List<TemplateArgumentAST*>* classArgs = nullptr;
   auto out = &classArgs;
   int remaining = guide.classParameterCount;
   for (auto argument : ListView{deducedArgs}) {
@@ -553,11 +562,30 @@ auto ClassTemplateArgumentDeduction::specializationFor(
     *out = make_list_node(arena_, argument);
     out = &(*out)->next;
   }
+  return classArgs;
+}
 
-  auto specialization =
-      ASTRewriter::instantiate(unit_, classArgs, primaryTemplate, location);
+auto ClassTemplateArgumentDeduction::satisfiesGuideConstraints(
+    ClassSymbol* primaryTemplate, const Guide& guide,
+    List<TemplateArgumentAST*>* deducedArgs) -> bool {
+  if (!satisfiesConstraints(guide.function, guide.templateDeclaration,
+                            deducedArgs))
+    return false;
+  if (guide.returnTemplateId) return true;
+  return satisfiesConstraints(primaryTemplate,
+                              primaryTemplate->templateDeclaration(),
+                              classTemplateArguments(guide, deducedArgs));
+}
 
-  return symbol_cast<ClassSymbol>(specialization);
+auto ClassTemplateArgumentDeduction::satisfiesConstraints(
+    Symbol* templateSymbol, TemplateDeclarationAST* templateDeclaration,
+    List<TemplateArgumentAST*>* templateArguments) -> bool {
+  auto substitution =
+      Substitution::make(unit_, templateDeclaration, templateArguments);
+  if (!substitution) return false;
+  return ASTRewriter::checkAssociatedConstraints(
+      unit_, templateSymbol, std::move(*substitution).templateArguments(),
+      templateDeclaration->depth);
 }
 
 auto ClassTemplateArgumentDeduction::deduce(ClassSymbol* primaryTemplate,
@@ -588,6 +616,7 @@ auto ClassTemplateArgumentDeduction::deduce(ClassSymbol* primaryTemplate,
     if (!guideType) continue;
 
     std::optional<List<TemplateArgumentAST*>*> deduced;
+    std::optional<std::vector<const Type*>> substituted;
 
     {
       SilentDiagnosticsScope silent{unit_};
@@ -595,12 +624,15 @@ auto ClassTemplateArgumentDeduction::deduce(ClassSymbol* primaryTemplate,
       TemplateArgumentDeduction deduction{unit_};
       deduced =
           deduction.deduceForGuide(guide.templateDeclaration, guideType, args);
+
+      if (deduced &&
+          satisfiesGuideConstraints(primaryTemplate, guide, *deduced))
+        substituted = guideParameterTypes(primaryTemplate, guide, *deduced,
+                                          initializer, location, scope);
+
+      if (silent.hadError()) substituted.reset();
     }
 
-    if (!deduced) continue;
-
-    auto substituted = guideParameterTypes(primaryTemplate, guide, *deduced,
-                                           initializer, location, scope);
     if (!substituted) continue;
     auto parameterTypes = std::move(*substituted);
 
