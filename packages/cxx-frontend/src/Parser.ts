@@ -24,10 +24,11 @@ import { isCxxLoaded } from "./loadCxx.js";
 import { type Diagnostic } from "./Diagnostic.js";
 import { type EmitterDelegate } from "./Emitter.js";
 import { type Unit } from "./Unit.js";
-import { modelOf, type UnitAST } from "./Semantic.js";
+import { unitOf, type UnitAST } from "./model.js";
 import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
 import { continueWithEventLoopYields } from "./eventLoop.js";
 
+/** @category Parsing */
 export const OutputCodeFormat = [
   "cxxir",
   "mlir",
@@ -35,16 +36,20 @@ export const OutputCodeFormat = [
   "asm",
   "obj",
 ] as const;
+/** @category Parsing */
 export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
 
 /**
  * The result of {@link Parser.emitCode} for a given output format.
  *
  * Textual formats produce a `string`, object code produces a `Uint8Array`.
+ *
+ * @category Parsing
  */
 export type OutputCode<Format extends OutputCodeFormat = OutputCodeFormat> =
   Format extends "obj" ? Uint8Array : string;
 
+/** @category Parsing */
 export const CxxStandard = [
   "c++14",
   "c++17",
@@ -52,8 +57,10 @@ export const CxxStandard = [
   "c++23",
   "c++26",
 ] as const;
+/** @category Parsing */
 export type CxxStandard = (typeof CxxStandard)[number];
 
+/** @category Parsing */
 export interface ParseOptions extends Omit<UnitOptions, "shouldContinue"> {
   /**
    * Path to the file to parse.
@@ -89,6 +96,8 @@ export interface ParseOptions extends Omit<UnitOptions, "shouldContinue"> {
  *
  * The AST and the tokens are owned by the parser, they must not be used after
  * the parser has been disposed.
+ *
+ * @category Parsing
  */
 export class Parser implements Disposable, AsyncDisposable {
   #unit: Unit | undefined;
@@ -148,9 +157,11 @@ export class Parser implements Disposable, AsyncDisposable {
 
   /**
    * Returns the root of the AST.
+   *
+   * The global scope is available as `ast.symbol`.
    */
   get ast(): UnitAST {
-    return this.model.ast;
+    return unitOf(this);
   }
 
   /**
@@ -163,10 +174,6 @@ export class Parser implements Disposable, AsyncDisposable {
   /**
    * Returns the diagnostics collected while preprocessing and parsing.
    */
-  get model() {
-    return modelOf(this);
-  }
-
   get diagnostics(): Diagnostic[] {
     return this.#nativeUnit().getDiagnostics();
   }

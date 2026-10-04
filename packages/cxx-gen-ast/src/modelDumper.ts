@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Parser, Token } from "cxx-frontend";
+import { Parser, type SourceLocation, type Token } from "cxx-frontend";
 import * as S from "cxx-frontend/model";
 import { traverse } from "cxx-frontend/traverse";
 import type {
@@ -196,15 +196,15 @@ export function typeModel(type: S.Type | undefined): ModelType {
 
 export function dumpModel(parser: Parser): Model {
   const model: Model = { enums: [], classes: [], aliases: [] };
-  function location(loc: number): Location | undefined {
-    if (!loc) return;
-    const pos = new Token(loc, parser).getLocation();
+  function location(pos: SourceLocation | undefined): Location | undefined {
+    if (!pos) return;
     return { file: pos.fileName, line: pos.startLine, column: pos.startColumn };
   }
-  function span(first: number, last: number): Span | undefined {
-    if (!first || !last) return;
-    const start = new Token(first, parser).getLocation();
-    const end = new Token(last, parser).getLocation();
+  function span(
+    start: SourceLocation | undefined,
+    end: SourceLocation | undefined,
+  ): Span | undefined {
+    if (!start || !end) return;
     return {
       file: start.fileName,
       startLine: start.startLine,
@@ -316,10 +316,10 @@ export function dumpModel(parser: Parser): Model {
     }
     return result;
   }
-  traverse(parser.model.ast, {
+  traverse(parser.ast, {
     ClassSpecifier({ node }) {
       if (!node.symbol?.name) return;
-      const loc = location(node.classLoc);
+      const loc = location(node.classToken?.location);
       if (isModelled(loc)) {
         const symbol = node.symbol;
         const entry: ModelClass = {
@@ -355,7 +355,10 @@ export function dumpModel(parser: Parser): Model {
             })),
           methods: methods(node.declarationList),
         };
-        const body = span(node.lbraceLoc, node.rbraceLoc);
+        const body = span(
+          node.lbraceToken?.location,
+          node.rbraceToken?.location,
+        );
         if (body) entry.body = body;
         model.classes.push(entry);
       }
@@ -364,7 +367,7 @@ export function dumpModel(parser: Parser): Model {
     AliasDeclaration({ node }) {
       if (!node.symbol) return;
       const symbol = node.symbol;
-      const loc = location(node.usingLoc);
+      const loc = location(node.usingToken?.location);
       if (
         isModelled(loc) &&
         symbol.parent instanceof S.NamespaceSymbol &&
@@ -383,7 +386,7 @@ export function dumpModel(parser: Parser): Model {
 
     EnumSpecifier({ node }) {
       if (!node.symbol?.name) return;
-      const loc = location(node.enumLoc);
+      const loc = location(node.enumToken?.location);
       if (isModelled(loc)) {
         const symbol = node.symbol;
         let underlyingType = "int";

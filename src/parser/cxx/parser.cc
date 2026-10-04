@@ -8328,7 +8328,7 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast,
   ast->unqualifiedId = name;
   ast->colonLoc = colonLoc;
   ast->typeSpecifierList = typeSpecifierList;
-  ast->emicolonLoc = semicolonLoc;
+  ast->semicolonLoc = semicolonLoc;
 
   binder_.bind(ast, underlyingTypeSpecs);
 

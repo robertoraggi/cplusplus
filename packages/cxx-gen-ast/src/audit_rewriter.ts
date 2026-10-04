@@ -114,7 +114,7 @@ async function main(): Promise<number> {
     });
 
     try {
-      traverse(parser.model.ast, {
+      traverse(parser.ast, {
         FunctionDefinition(definition: any) {
           const body = definition.node.functionBody;
           const fn = definition.node.symbol;

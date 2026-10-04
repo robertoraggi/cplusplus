@@ -1,0 +1,13 @@
+name: Setup emsdk
+description: Install and activate the emscripten version pinned in .emsdk-version
+
+runs:
+  using: composite
+  steps:
+    - name: Install emsdk
+      shell: bash
+      run: |
+        version="$(tr -d '[:space:]' < "${{ github.workspace }}/.emsdk-version")"
+        git clone --depth 1 https://github.com/emscripten-core/emsdk.git /opt/emsdk
+        /opt/emsdk/emsdk install "$version"
+        /opt/emsdk/emsdk activate "$version"

@@ -3084,8 +3084,8 @@ void SemanticEncoder::writeAstOpaqueEnumDeclarationAST(
   out.varU32(static_cast<std::uint32_t>(locationRef(self->colonLoc)));
   // ::cxx::OpaqueEnumDeclarationAST::typeSpecifierList
   writeAstList(out, self->typeSpecifierList);
-  // ::cxx::OpaqueEnumDeclarationAST::emicolonLoc
-  out.varU32(static_cast<std::uint32_t>(locationRef(self->emicolonLoc)));
+  // ::cxx::OpaqueEnumDeclarationAST::semicolonLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->semicolonLoc)));
   // ::cxx::OpaqueEnumDeclarationAST::symbol
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->symbol)));
 }
@@ -11154,9 +11154,9 @@ void SemanticDecoder::readAstOpaqueEnumDeclarationAST(
   // ::cxx::OpaqueEnumDeclarationAST::typeSpecifierList
   cxx::List<cxx::SpecifierAST*>* value7 = readAstList<cxx::SpecifierAST>(in);
   self->typeSpecifierList = std::move(value7);
-  // ::cxx::OpaqueEnumDeclarationAST::emicolonLoc
+  // ::cxx::OpaqueEnumDeclarationAST::semicolonLoc
   cxx::SourceLocation value8 = locationAt(LocationRef{in.varU32()});
-  self->emicolonLoc = std::move(value8);
+  self->semicolonLoc = std::move(value8);
   // ::cxx::OpaqueEnumDeclarationAST::symbol
   cxx::Symbol* value9 = symbolAt(SymbolRef{in.varU32()});
   self->symbol = std::move(value9);

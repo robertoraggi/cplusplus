@@ -26,7 +26,7 @@ test("a typed visitor is called for the nodes it names", async () => {
   const parser = await parse();
   try {
     const names = [];
-    traverse(parser.model.ast, {
+    traverse(parser.ast, {
       NamespaceDefinition(path) {
         assert.ok(path.node instanceof S.NamespaceDefinitionAST);
         names.push(path.node.identifier?.name);
@@ -44,7 +44,7 @@ test("enter and exit bracket every node", async () => {
     let entered = 0;
     let exited = 0;
     let deepest = 0;
-    traverse(parser.model.ast, {
+    traverse(parser.ast, {
       enter(path) {
         ++entered;
         deepest = Math.max(deepest, path.depth);
@@ -65,7 +65,7 @@ test("a category key visits every node deriving from it", async () => {
   const parser = await parse();
   try {
     const declarations = [];
-    traverse(parser.model.ast, {
+    traverse(parser.ast, {
       Declaration(path) {
         declarations.push(path.node.kind);
       },
@@ -81,7 +81,7 @@ test("an object visitor separates enter from exit", async () => {
   const parser = await parse();
   try {
     const order = [];
-    traverse(parser.model.ast, {
+    traverse(parser.ast, {
       NamespaceDefinition: {
         enter(path) {
           order.push(`enter ${path.node.identifier?.name}`);
@@ -106,7 +106,7 @@ test("skip prunes the subtree and stop ends the traversal", async () => {
   const parser = await parse();
   try {
     const skipped = [];
-    traverse(parser.model.ast, {
+    traverse(parser.ast, {
       NamespaceDefinition(path) {
         skipped.push(path.node.identifier?.name);
         path.skip();
@@ -115,14 +115,14 @@ test("skip prunes the subtree and stop ends the traversal", async () => {
     assert.deepEqual(skipped, ["outer"]);
 
     let visited = 0;
-    traverse(parser.model.ast, {
+    traverse(parser.ast, {
       enter(path) {
         ++visited;
         if (path.isFunctionDefinition()) path.stop();
       },
     });
     const total = traverse(
-      parser.model.ast,
+      parser.ast,
       { enter: (_path, state) => ++state.count },
       { count: 0 },
     ).count;
@@ -136,7 +136,7 @@ test("state is threaded through and returned", async () => {
   const parser = await parse();
   try {
     const state = traverse(
-      parser.model.ast,
+      parser.ast,
       {
         FunctionDefinition(path, state) {
           state.functions.push(path.node.kind);
@@ -154,7 +154,7 @@ test("a path knows its parent, its key and its ancestors", async () => {
   const parser = await parse();
   try {
     let inner;
-    traverse(parser.model.ast, {
+    traverse(parser.ast, {
       NamespaceDefinition(path) {
         if (path.node.identifier?.name === "inner") inner = path;
       },
@@ -169,7 +169,7 @@ test("a path knows its parent, its key and its ancestors", async () => {
     assert.deepEqual(ancestors, ["NamespaceDefinition", "TranslationUnit"]);
 
     const unit = inner.find((path) => path.isTranslationUnit());
-    assert.equal(unit.node.handle, parser.model.ast.handle);
+    assert.equal(unit.node.handle, parser.ast.handle);
     assert.equal(
       inner.findParent((path) => path.isTranslationUnit()),
       unit,
@@ -182,18 +182,18 @@ test("a path knows its parent, its key and its ancestors", async () => {
 test("walk yields every path and honours skip", async () => {
   const parser = await parse();
   try {
-    const all = [...walk(parser.model.ast)];
+    const all = [...walk(parser.ast)];
     assert.equal(all[0].node.kind, "TranslationUnit");
     assert.ok(all.every((path) => path instanceof NodePath));
 
     const namespaces = [];
-    for (const path of walk(parser.model.ast))
+    for (const path of walk(parser.ast))
       if (path.isNamespaceDefinition())
         namespaces.push(path.node.identifier?.name);
     assert.deepEqual(namespaces, ["outer", "inner"]);
 
     const pruned = [];
-    for (const path of walk(parser.model.ast)) {
+    for (const path of walk(parser.ast)) {
       if (path.isFunctionDefinition()) {
         path.skip();
         continue;
@@ -203,7 +203,7 @@ test("walk yields every path and honours skip", async () => {
     assert.ok(!pruned.includes("answer"));
 
     const names = [];
-    for (const path of walk(parser.model.ast))
+    for (const path of walk(parser.ast))
       if (path.isNameId()) names.push(path.node.identifier?.name);
     assert.ok(names.includes("answer"));
   } finally {
@@ -214,7 +214,7 @@ test("walk yields every path and honours skip", async () => {
 test("a path traverses and iterates its own subtree", async () => {
   const parser = await parse();
   try {
-    const root = new NodePath(parser.model.ast);
+    const root = new NodePath(parser.ast);
     const top = [...root];
     assert.ok(top.every((path) => path.isDeclaration()));
     assert.equal(top.filter((path) => path.isNamespaceDefinition()).length, 1);

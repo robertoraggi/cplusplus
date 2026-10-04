@@ -18,6 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/**
+ * The cxx C++ compiler front end.
+ *
+ * @module cxx-frontend
+ */
+
 export { loadCxx as default, loadCxx, isCxxLoaded } from "./loadCxx.js";
 export type { LoadCxxOptions, WasmSource } from "./loadCxx.js";
 

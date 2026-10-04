@@ -120,6 +120,7 @@ interface GlobalRecord {
   linkage: Linkage;
 }
 
+/** @category Tracing */
 export type TraceDebugType =
   | { kind: "Basic"; info: DebugBasicTypeInfo }
   | { kind: "Derived"; info: DebugDerivedTypeInfo }
@@ -127,6 +128,7 @@ export type TraceDebugType =
   | { kind: "Array"; info: DebugArrayTypeInfo }
   | { kind: "Subroutine"; info: { types: readonly DebugTypeRef[] } };
 
+/** @category Tracing */
 export type TraceDebugScope =
   | { kind: "CompileUnit"; info: DebugCompileUnitInfo }
   | { kind: "File"; info: { file: string } }
@@ -137,6 +139,7 @@ export type TraceDebugScope =
       info: DebugFunctionInfo & { function: FunctionRef; loc: TokenIndex };
     };
 
+/** @category Tracing */
 export class TraceDebugEmitter implements DebugEmitterDelegate {
   #nextType = 1;
   #nextScope = 1;
@@ -236,6 +239,7 @@ export class TraceDebugEmitter implements DebugEmitterDelegate {
   }
 }
 
+/** @category Tracing */
 export class TraceEmitter implements EmitterDelegate {
   readonly debug = new TraceDebugEmitter((text) => this.#emitTop(text));
   #lines: string[] = [];

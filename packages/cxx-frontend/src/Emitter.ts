@@ -19,22 +19,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/** @category Backend Handles */
 export type BlockRef = number;
+/** @category Backend Handles */
 export type CleanupRegionRef = number;
+/** @category Debug Information */
 export type DebugScopeRef = number;
+/** @category Debug Information */
 export type DebugTypeRef = number;
+/** @category Backend Handles */
 export type FunctionRef = number;
+/** @category Backend Handles */
 export type GlobalRef = number;
+/** @category Backend Handles */
 export type InsertionPointRef = number;
+/** @category Backend Handles */
 export type ModuleRef = number;
+/** @category Backend Handles */
 export type TypeRef = number;
+/** @category Backend Handles */
 export type ValueRef = number;
 
+/** @category Backend Handles */
 export type TokenIndex = number;
 
+/** @category Backend Enumerations */
 export type InsertionPointKind =
   "BlockStart" | "BlockEnd" | "ModuleStart" | "ModuleEnd";
 
+/** @category Backend Enumerations */
 export type InitializerKind =
   | "None"
   | "Integer"
@@ -47,10 +60,13 @@ export type InitializerKind =
   | "Undef"
   | "SignalingNaN";
 
+/** @category Backend Enumerations */
 export type TodoKind = "Expression" | "Statement";
 
+/** @category Backend Enumerations */
 export type UnaryOp = "NegateFloat";
 
+/** @category Backend Enumerations */
 export type Linkage =
   | "External"
   | "Internal"
@@ -61,6 +77,7 @@ export type Linkage =
   | "Weak"
   | "ExternalWeak";
 
+/** @category Backend Enumerations */
 export type BinaryOp =
   | "AddInt"
   | "SubInt"
@@ -83,6 +100,7 @@ export type BinaryOp =
   | "MulFloat"
   | "DivFloat";
 
+/** @category Backend Enumerations */
 export type IntPredicate =
   | "Equal"
   | "NotEqual"
@@ -95,6 +113,7 @@ export type IntPredicate =
   | "UnsignedGreater"
   | "UnsignedGreaterEqual";
 
+/** @category Backend Enumerations */
 export type FloatPredicate =
   | "OrderedEqual"
   | "OrderedNotEqual"
@@ -105,9 +124,11 @@ export type FloatPredicate =
   | "UnorderedNotEqual"
   | "Unordered";
 
+/** @category Backend Enumerations */
 export type FloatKind =
   "Half" | "Single" | "Double" | "X87DoubleExtended" | "Quad";
 
+/** @category Backend Enumerations */
 export type CastKind =
   | "Truncate"
   | "SignExtend"
@@ -125,6 +146,7 @@ export type CastKind =
   | "PointerToInt"
   | "IntToPointer";
 
+/** @category Backend Enumerations */
 export type TypeKind =
   | "Void"
   | "Integer"
@@ -136,14 +158,19 @@ export type TypeKind =
   | "Unresolved"
   | "Other";
 
+/** @category Backend Enumerations */
 export type CallKind = "Direct" | "Builtin";
 
+/** @category Backend Enumerations */
 export type ParameterAbiKind = "Default" | "StructReturn" | "ByValue";
 
+/** @category Backend Enumerations */
 export type Visibility = "Default" | "Hidden" | "Protected";
 
+/** @category Backend Enumerations */
 export type InlineKind = "Default" | "NoInline" | "InlineHint" | "AlwaysInline";
 
+/** @category Debug Information */
 export type DebugEncoding =
   | "Unspecified"
   | "Boolean"
@@ -153,6 +180,7 @@ export type DebugEncoding =
   | "Float"
   | "ComplexFloat";
 
+/** @category Debug Information */
 export type DebugDerivedKind =
   | "Pointer"
   | "Reference"
@@ -164,13 +192,16 @@ export type DebugDerivedKind =
   | "Inheritance"
   | "Member";
 
+/** @category Debug Information */
 export type DebugCompositeKind = "Structure" | "Union" | "Enumeration";
 
+/** @category Backend Descriptors */
 export interface InsertionPoint {
   kind: InsertionPointKind;
   block: BlockRef;
 }
 
+/** @category Backend Descriptors */
 export interface Initializer {
   kind: InitializerKind;
   type: TypeRef;
@@ -180,6 +211,7 @@ export interface Initializer {
   elements: readonly Initializer[];
 }
 
+/** @category Backend Descriptors */
 export interface VTableInfo {
   name: string;
   typeInfo: string;
@@ -187,12 +219,14 @@ export interface VTableInfo {
   linkage: Linkage;
 }
 
+/** @category Backend Descriptors */
 export interface VTableTableInfo {
   offsets: readonly number[];
   offsetToTop: number;
   slots: readonly FunctionRef[];
 }
 
+/** @category Backend Descriptors */
 export interface ModuleInfo {
   name: string;
   sourceFile: string;
@@ -201,11 +235,13 @@ export interface ModuleInfo {
   framePointer: string;
 }
 
+/** @category Backend Descriptors */
 export interface CleanupTarget {
   block: BlockRef;
   label: string;
 }
 
+/** @category Backend Descriptors */
 export interface CleanupAction {
   address: ValueRef;
   destructor: FunctionRef;
@@ -214,18 +250,21 @@ export interface CleanupAction {
   elementCount: number;
 }
 
+/** @category Backend Descriptors */
 export interface Access {
   alignment: number;
   bitfield: BitfieldInfo | undefined;
   isSigned: boolean;
 }
 
+/** @category Backend Descriptors */
 export interface BitfieldInfo {
   bitOffset: number;
   bitWidth: number;
   alignment: number;
 }
 
+/** @category Backend Descriptors */
 export interface CallInfo {
   kind: CallKind;
   callee: string;
@@ -236,12 +275,14 @@ export interface CallInfo {
   variadicCalleeType: TypeRef;
 }
 
+/** @category Backend Descriptors */
 export interface ParameterAbi {
   kind: ParameterAbiKind;
   indirectType: TypeRef;
   alignment: number;
 }
 
+/** @category Backend Descriptors */
 export interface FunctionInfo {
   name: string;
   type: TypeRef;
@@ -256,6 +297,7 @@ export interface FunctionInfo {
   parameters: readonly ParameterAbi[];
 }
 
+/** @category Backend Descriptors */
 export interface GlobalInfo {
   name: string;
   type: TypeRef;
@@ -267,24 +309,28 @@ export interface GlobalInfo {
   isUsed: boolean;
 }
 
+/** @category Debug Information */
 export interface DebugCompileUnitInfo {
   file: string;
   directory: string;
   isCxx: boolean;
 }
 
+/** @category Debug Information */
 export interface DebugLocation {
   file: string;
   line: number;
   column: number;
 }
 
+/** @category Debug Information */
 export interface DebugBasicTypeInfo {
   name: string;
   sizeInBits: number;
   encoding: DebugEncoding;
 }
 
+/** @category Debug Information */
 export interface DebugDerivedTypeInfo {
   kind: DebugDerivedKind;
   baseType: DebugTypeRef;
@@ -295,6 +341,7 @@ export interface DebugDerivedTypeInfo {
   classType: DebugTypeRef;
 }
 
+/** @category Debug Information */
 export interface DebugCompositeTypeInfo {
   kind: DebugCompositeKind;
   name: string;
@@ -307,6 +354,7 @@ export interface DebugCompositeTypeInfo {
   isScopedEnum: boolean;
 }
 
+/** @category Debug Information */
 export interface DebugArrayTypeInfo {
   elementType: DebugTypeRef;
   count: number;
@@ -315,6 +363,7 @@ export interface DebugArrayTypeInfo {
   alignInBits: number;
 }
 
+/** @category Debug Information */
 export interface DebugFunctionInfo {
   name: string;
   scope: DebugScopeRef;
@@ -323,6 +372,7 @@ export interface DebugFunctionInfo {
   scopeLine: number;
 }
 
+/** @category Debug Information */
 export interface DebugVariableInfo {
   name: string;
   scope: DebugScopeRef;
@@ -332,6 +382,7 @@ export interface DebugVariableInfo {
   isObjectParameter: boolean;
 }
 
+/** @category Debug Information */
 export interface DebugEmitterDelegate {
   compileUnit(info: DebugCompileUnitInfo): DebugScopeRef;
   fileScope(file: string): DebugScopeRef;
@@ -350,6 +401,7 @@ export interface DebugEmitterDelegate {
   localVariable(address: ValueRef, info: DebugVariableInfo): void;
 }
 
+/** @category Backend */
 export interface EmitterDelegate {
   readonly debug?: DebugEmitterDelegate;
   saveInsertionPoint(): InsertionPointRef;

@@ -17,7 +17,8 @@ test("read-only model exposes symbol identity, types and integer constants", asy
   });
   try {
     assert.deepEqual(parser.diagnostics, []);
-    const { globalScope, ast } = parser.model;
+    const { ast } = parser;
+    const globalScope = ast.symbol;
     assert.ok(ast instanceof S.TranslationUnitAST);
     const point = [...globalScope.members].find((s) => s.text === "Point");
     assert.ok(point instanceof S.ClassSymbol);
@@ -49,7 +50,7 @@ test("the AST is traversed by kind, by children and by visitor", async () => {
 
   assert.deepEqual(parser.diagnostics, []);
 
-  const { ast } = parser.model;
+  const { ast } = parser;
   assert.equal(ast.kind, "TranslationUnit");
 
   const declarations = [...ast.declarationList];
@@ -83,10 +84,9 @@ test("declarations link back to the symbols the binder created", async () => {
 
   assert.deepEqual(parser.diagnostics, []);
 
-  const { ast, globalScope } = parser.model;
+  const { ast } = parser;
 
   assert.ok(ast.symbol instanceof S.NamespaceSymbol);
-  assert.equal(ast.symbol.handle, globalScope.handle);
 
   const namespaceDefinition = [...ast.declarationList].find(
     (declaration) => declaration instanceof S.NamespaceDefinitionAST,
@@ -119,7 +119,7 @@ test("declarations link back to the symbols the binder created", async () => {
 
 test("a disposed parser fails every model read", async () => {
   const parser = await Parser.parse({ path: "/dispose.cc", source: "int a;" });
-  const { ast } = parser.model;
+  const { ast } = parser;
   const declarations = ast.declarationList;
   parser.dispose();
 

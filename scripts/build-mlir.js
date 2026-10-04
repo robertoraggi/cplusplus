@@ -49,7 +49,7 @@ async function downloadLLVM({ packages, version, outdir }) {
 }
 
 async function main() {
-  const version = "23.1.0-rc3";
+  const version = "23.1.2";
   const packages = ["llvm-project"];
 
   const llvm_source_dir = zx.path.resolve(
@@ -71,7 +71,7 @@ async function main() {
     "-DCMAKE_CXX_FLAGS=-DLLVM_BUILD_STATIC",
     "-DCMAKE_EXE_LINKER_FLAGS=-sNODERAWFS -sEXIT_RUNTIME -sALLOW_MEMORY_GROWTH",
     "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-    "-DCMAKE_CXX_FLAGS=-Wno-c2y-extensions",
+    "-DCMAKE_CXX_FLAGS=-fno-exceptions -Wno-c2y-extensions",
     "-DLLVM_BUILD_EXTERNAL_COMPILER_RT=OFF",
     "-DLLVM_BUILD_TOOLS=OFF",
     "-DLLVM_ENABLE_EH=OFF",

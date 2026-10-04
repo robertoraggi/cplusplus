@@ -18,36 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { cpy_header } from "./cpy_header.ts";
-import * as fs from "node:fs";
-import * as tokens from "./tokens.ts";
+/**
+ * Node.js initialization of the bundled wasm module.
+ *
+ * @module cxx-frontend/node
+ */
 
-export function gen_tokenkind_ts({ output }: { output: string }) {
-  const names = [
-    ...tokens.BASE_TOKENS.map((tk) => tk.toLowerCase()),
-    ...tokens.OPERATORS.map(([, spelling]) => spelling),
-    ...tokens.C_AND_CXX_KEYWORDS,
-  ];
+// @ts-ignore: node typings are intentionally not a dependency
+import { readFile } from "node:fs/promises";
+import { loadCxx as loadCxxFromBytes } from "./loadCxx.js";
 
-  const duplicate = names.find((name, index) => names.indexOf(name) !== index);
-  if (duplicate) throw new Error(`duplicate token spelling '${duplicate}'`);
-
-  const out = `// Generated file by: gen_tokenkind_ts.ts
-${cpy_header}
-/** @category Tokens */
-export type TokenKind =
-${names.map((name) => `  | "${name}"`).join("\n")};
-
-/** @category Tokens */
-export const tokenKindNames: Record<number, TokenKind> = {
-${names.map((name, value) => `  ${value}: "${name}",`).join("\n")}
-};
-
-/** @category Tokens */
-export const tokenKindValues: Record<TokenKind, number> = {
-${names.map((name, value) => `  "${name}": ${value},`).join("\n")}
-};
-`;
-
-  fs.writeFileSync(output, out);
+/**
+ * Loads the cxx wasm module bundled with this package.
+ *
+ * Node.js only. Must be awaited before `Parser` is used.
+ *
+ * Safe to call multiple times, see the `loadCxx` of `cxx-frontend`.
+ */
+export async function loadCxx(): Promise<void> {
+  const wasm = await readFile(new URL("./wasm/cxx-js.wasm", import.meta.url));
+  await loadCxxFromBytes({ wasm });
 }
+
+export default loadCxx;

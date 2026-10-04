@@ -1639,8 +1639,11 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
     accept(it->value);
   }
 
-  if (ast->emicolonLoc) {
-    accept.writeToken(ast->emicolonLoc);
+  if (ast->semicolonLoc) {
+    nospace();
+    nonewline();
+    accept.writeToken(ast->semicolonLoc);
+    newline();
   }
 }
 

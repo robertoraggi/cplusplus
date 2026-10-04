@@ -102,10 +102,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install emsdk
-        run: |
-          git clone --depth 1 http://github.com/emscripten-core/emsdk.git /opt/emsdk
-          /opt/emsdk/emsdk install 5.0.7
-          /opt/emsdk/emsdk activate 5.0.7
+        uses: ./.github/actions/setup-emsdk
 
       - name: Setup emscripten cache
         uses: actions/cache@v6
@@ -136,7 +133,12 @@ jobs:
           export EMSCRIPTEN_ROOT="/opt/emsdk/upstream/emscripten"
           npm run build:cxx-frontend
           npm run build:playground-sysroot
-          npm -w cxx-frontend pack
+          mkdir -p cxx-frontend-package
+          npm -w cxx-frontend pack --pack-destination cxx-frontend-package
+
+      - name: Test
+        run: |
+          npm -w cxx-frontend test
 
       - name: Build Docs
         working-directory: packages/cxx-frontend
@@ -150,6 +152,13 @@ jobs:
           path: |
             packages/cxx-frontend/dist/
             packages/cxx-frontend/docs/
+          retention-days: 1
+
+      - name: Upload npm package
+        uses: actions/upload-artifact@v7
+        with:
+          name: cxx-frontend-package
+          path: cxx-frontend-package/*.tgz
           retention-days: 1
 
       - name: Upload playground sysroot

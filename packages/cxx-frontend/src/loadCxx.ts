@@ -22,9 +22,12 @@ import { cxx, instantiateCxx } from "./cxx.js";
 
 /**
  * The wasm binary of the cxx frontend.
+ *
+ * @category Loading
  */
 export type WasmSource = Uint8Array | ArrayBuffer | WebAssembly.Module;
 
+/** @category Loading */
 export interface LoadCxxOptions {
   /**
    * Raw wasm bytes or a precompiled module.
@@ -54,6 +57,8 @@ let loading: Promise<void> | undefined;
  * wasm binary cannot be loaded in the same JS realm.
  *
  * @param options the location of the wasm binary.
+ *
+ * @category Loading
  */
 export function loadCxx(options: LoadCxxOptions): Promise<void> {
   loading ??= load(options).catch((error) => {
@@ -66,6 +71,8 @@ export function loadCxx(options: LoadCxxOptions): Promise<void> {
 
 /**
  * Returns true if `loadCxx` has already resolved.
+ *
+ * @category Loading
  */
 export function isCxxLoaded(): boolean {
   return cxx !== undefined && cxx !== null;

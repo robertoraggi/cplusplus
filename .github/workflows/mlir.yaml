@@ -14,10 +14,7 @@ jobs:
           npm ci
 
       - name: Install emsdk
-        run: |
-          git clone --depth 1 http://github.com/emscripten-core/emsdk.git /opt/emsdk
-          /opt/emsdk/emsdk install 5.0.7
-          /opt/emsdk/emsdk activate 5.0.7
+        uses: ./.github/actions/setup-emsdk
 
       - name: Build
         run: |

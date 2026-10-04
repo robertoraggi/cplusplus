@@ -719,7 +719,7 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
   NameIdAST* unqualifiedId = nullptr;
   SourceLocation colonLoc;
   List<SpecifierAST*>* typeSpecifierList = nullptr;
-  SourceLocation emicolonLoc;
+  SourceLocation semicolonLoc;
   Symbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -736,7 +736,7 @@ class OpaqueEnumDeclarationAST final : public DeclarationAST {
       List<AttributeSpecifierAST*>* attributeList,
       NestedNameSpecifierAST* nestedNameSpecifier, NameIdAST* unqualifiedId,
       SourceLocation colonLoc, List<SpecifierAST*>* typeSpecifierList,
-      SourceLocation emicolonLoc, Symbol* symbol) -> OpaqueEnumDeclarationAST*;
+      SourceLocation semicolonLoc, Symbol* symbol) -> OpaqueEnumDeclarationAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    List<AttributeSpecifierAST*>* attributeList,

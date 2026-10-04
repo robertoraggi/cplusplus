@@ -19,9 +19,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/**
+ * The AST, the symbols, the types and the other classes of the semantic model.
+ *
+ * @module cxx-frontend/model
+ */
+
 import { cxx } from "./cxx.js";
 import { type SourceLocation } from "./SourceLocation.js";
+import { Token } from "./Token.js";
 
+/** @category Core */
 export interface ModelOwner {
   getUnitHandle(): number;
   readonly disposed: boolean;
@@ -31,6 +39,7 @@ function disposedError(): Error {
   return new Error("Parser has been disposed");
 }
 
+/** @category Core */
 export abstract class ModelObject {
   readonly #handle: number;
 
@@ -193,6 +202,7 @@ function* typeValItems(
   }
 }
 import { type TokenKind, tokenKindNames } from "./TokenKind.js";
+/** @category Data Structures */
 export type ConstValue =
   | bigint
   | StringLiteral
@@ -204,15 +214,18 @@ export type ConstValue =
   | ConstLabelAddress
   | ConstComplex
   | undefined;
+/** @category Data Structures */
 export interface ConstObject_Member {
   readonly symbol: Symbol | undefined;
   readonly value: ConstValue;
 }
+/** @category Data Structures */
 export interface Attribute {
   readonly attributeNamespace: Identifier | undefined;
   readonly name: Identifier | undefined;
   readonly arguments: ReadonlyArray<Identifier | undefined>;
 }
+/** @category Data Structures */
 export interface IntegerLiteral_Components {
   readonly value: bigint;
   readonly integerPart: string;
@@ -225,6 +238,7 @@ export interface IntegerLiteral_Components {
   readonly isWB: boolean;
   readonly bitIntWidth: number;
 }
+/** @category Data Structures */
 export interface FloatLiteral_Components {
   readonly value: number;
   readonly literalPart: string;
@@ -234,40 +248,49 @@ export interface FloatLiteral_Components {
   readonly isFloat: boolean;
   readonly isLongDouble: boolean;
 }
+/** @category Data Structures */
 export interface StringLiteral_Components {
   readonly value: string;
   readonly userSuffix: string;
   readonly encoding: StringLiteralEncoding;
   readonly isRaw: boolean;
 }
+/** @category Data Structures */
 export interface CharLiteral_Components {
   readonly value: number;
   readonly prefix: string;
   readonly userSuffix: string;
 }
+/** @category Data Structures */
 export type TemplateArgument =
   Type | Symbol | ConstValue | ExpressionAST | undefined;
+/** @category Data Structures */
 export interface InstantiationError {
-  readonly location: number;
+  readonly location: Token | undefined;
   readonly message: string;
   readonly severity: Severity;
 }
+/** @category Data Structures */
 export interface TemplateFriendship {
   readonly arguments: ReadonlyArray<TemplateArgument>;
   readonly befriendingClass: ClassSymbol | undefined;
 }
+/** @category Data Structures */
 export interface ClassSymbol_BaseClassRepetition {
   readonly nonDiamondRepeat: boolean;
   readonly diamondShaped: boolean;
 }
+/** @category Data Structures */
 export interface VTableLayout_Offset {
   readonly subject: Symbol | undefined;
   readonly value: bigint;
 }
+/** @category Data Structures */
 export interface VTableLayout_CallOffset {
   readonly nonVirtual: bigint;
   readonly virtualOffset: bigint;
 }
+/** @category Data Structures */
 export interface VTableLayout_Slot {
   readonly function: FunctionSymbol | undefined;
   readonly kind: VTableLayout_SlotKind;
@@ -275,6 +298,7 @@ export interface VTableLayout_Slot {
   readonly thisAdjustment: VTableLayout_CallOffset;
   readonly returnAdjustment: VTableLayout_CallOffset;
 }
+/** @category Data Structures */
 export interface VTableLayout_Table {
   readonly base: ClassSymbol | undefined;
   readonly offset: bigint;
@@ -283,25 +307,30 @@ export interface VTableLayout_Table {
   readonly offsets: ReadonlyArray<VTableLayout_Offset>;
   readonly slots: ReadonlyArray<VTableLayout_Slot>;
 }
+/** @category Data Structures */
 export interface VTableLayout_Group {
   readonly base: ClassSymbol | undefined;
   readonly offset: bigint;
   readonly tables: ReadonlyArray<VTableLayout_Table>;
 }
+/** @category Data Structures */
 export interface VTableLayout_VTTEntry {
   readonly group: number;
   readonly table: number;
 }
+/** @category Data Structures */
 export interface VTableLayout_SubVTT {
   readonly base: ClassSymbol | undefined;
   readonly index: number;
 }
+/** @category Data Structures */
 export interface VTableLayout_EntryPoint {
   readonly function: FunctionSymbol | undefined;
   readonly kind: VTableLayout_SlotKind;
   readonly thisAdjustment: VTableLayout_CallOffset;
   readonly returnAdjustment: VTableLayout_CallOffset;
 }
+/** @category Data Structures */
 export interface VTableLayout {
   readonly main: VTableLayout_Group;
   readonly constructionGroups: ReadonlyArray<VTableLayout_Group>;
@@ -312,6 +341,7 @@ export interface VTableLayout {
   readonly adjustingEntryPoints: ReadonlyArray<VTableLayout_EntryPoint>;
   readonly keyFunction: FunctionSymbol | undefined;
 }
+/** @category Data Structures */
 export interface PendingInstantiation {
   readonly pattern: AST | undefined;
   readonly instance: AST | undefined;
@@ -320,8 +350,13 @@ export interface PendingInstantiation {
   readonly depth: number;
   readonly state: PendingInstantiationState;
 }
+/** @category Data Structures */
 export type ExceptionSpecification = boolean | ExpressionAST | undefined;
-export type SourceLocationRange = readonly [number, number];
+/** @category Data Structures */
+export type SourceLocationRange = readonly [
+  Token | undefined,
+  Token | undefined,
+];
 function decodeConstValue(value: any, owner: ModelOwner): ConstValue {
   switch (value.index) {
     case 0:
@@ -428,7 +463,7 @@ function decodeInstantiationError(
   owner: ModelOwner,
 ): InstantiationError {
   return {
-    location: value.location,
+    location: Token.from(value.location, owner),
     message: value.message,
     severity: severityNames[value.severity]!,
   };
@@ -570,6 +605,12 @@ function decodeExceptionSpecification(
     default:
       return value.value;
   }
+}
+function decodeSourceLocationRange(
+  value: any,
+  owner: ModelOwner,
+): SourceLocationRange {
+  return [Token.from(value[0], owner), Token.from(value[1], owner)] as const;
 }
 const ConstComplexSlotBase = 0;
 const ConstObjectSlotBase = ConstComplexSlotBase + 2;
@@ -937,8 +978,11 @@ const UnresolvedVectorTypeSlotBase = VectorTypeSlotBase + 3;
 const ComplexTypeSlotBase = UnresolvedVectorTypeSlotBase + 4;
 const AtomicTypeSlotBase = ComplexTypeSlotBase + 1;
 const SveTypeSlotBase = AtomicTypeSlotBase + 1;
+/** @category Constant Values */
 export class DefaultInitializerContext extends ModelObject {}
+/** @category Constant Values */
 export class InitializerList extends ModelObject {}
+/** @category Constant Values */
 export class ConstComplex extends ModelObject {
   get real(): ConstValue {
     return decodeConstValue(
@@ -953,6 +997,7 @@ export class ConstComplex extends ModelObject {
     );
   }
 }
+/** @category Constant Values */
 export class ConstObject extends ModelObject {
   get type(): Type | undefined {
     return typeOf(
@@ -975,7 +1020,9 @@ export class ConstObject extends ModelObject {
     return cxx.readMisc(this.handle, ConstObjectSlotBase + 3) !== 0;
   }
 }
+/** @category Constant Values */
 export class Meta extends ModelObject {}
+/** @category Constant Values */
 export class ConstAddress extends ModelObject {
   get symbol(): Symbol | undefined {
     return symbolOf(
@@ -1010,6 +1057,7 @@ export class ConstAddress extends ModelObject {
     return cxx.readMisc(this.handle, ConstAddressSlotBase + 5) !== 0;
   }
 }
+/** @category Constant Values */
 export class ConstLabelAddress extends ModelObject {
   get name(): string {
     return cxx.readMiscString(
@@ -1018,6 +1066,7 @@ export class ConstLabelAddress extends ModelObject {
     ) as string;
   }
 }
+/** @category AST Nodes */
 export abstract class AST extends ModelObject {
   readonly kind: ASTKind;
   constructor(handle: number, owner: ModelOwner, kind: ASTKind) {
@@ -1033,13 +1082,20 @@ export abstract class AST extends ModelObject {
   get internalId(): number {
     return cxx.readAST(this.handle, ASTSlotBase + 0);
   }
-  get firstSourceLocation(): number {
-    return cxx.readAST(this.handle, ASTSlotBase + 1);
+  get firstSourceLocation(): SourceLocation | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ASTSlotBase + 1),
+      this.modelOwner,
+    )?.location;
   }
-  get lastSourceLocation(): number {
-    return cxx.readAST(this.handle, ASTSlotBase + 2);
+  get lastSourceLocation(): SourceLocation | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ASTSlotBase + 2),
+      this.modelOwner,
+    )?.location;
   }
 }
+/** @category AST Nodes */
 export abstract class AttributeSpecifierAST extends AST {
   get attributes(): ReadonlyArray<Attribute> | undefined {
     return optionalOf(
@@ -1051,13 +1107,21 @@ export abstract class AttributeSpecifierAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export abstract class AttributeTokenAST extends AST {}
+/** @category AST Nodes */
 export abstract class CoreDeclaratorAST extends AST {}
+/** @category AST Nodes */
 export abstract class DeclarationAST extends AST {}
+/** @category AST Nodes */
 export abstract class DeclaratorChunkAST extends AST {}
+/** @category AST Nodes */
 export abstract class DesignatorAST extends AST {}
+/** @category AST Nodes */
 export abstract class ExceptionDeclarationAST extends AST {}
+/** @category AST Nodes */
 export abstract class ExceptionSpecifierAST extends AST {}
+/** @category AST Nodes */
 export abstract class ExpressionAST extends AST {
   get valueCategory(): ValueCategory {
     return valueCategoryNames[
@@ -1071,9 +1135,13 @@ export abstract class ExpressionAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export abstract class FunctionBodyAST extends AST {}
+/** @category AST Nodes */
 export abstract class GenericAssociationAST extends AST {}
+/** @category AST Nodes */
 export abstract class LambdaCaptureAST extends AST {}
+/** @category AST Nodes */
 export abstract class MemInitializerAST extends AST {
   get symbol(): Symbol | undefined {
     return symbolOf(
@@ -1088,6 +1156,7 @@ export abstract class MemInitializerAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export abstract class NestedNameSpecifierAST extends AST {
   get symbol(): Symbol | undefined {
     return symbolOf(
@@ -1096,12 +1165,19 @@ export abstract class NestedNameSpecifierAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export abstract class NewInitializerAST extends AST {}
+/** @category AST Nodes */
 export abstract class PtrOperatorAST extends AST {}
+/** @category AST Nodes */
 export abstract class RequirementAST extends AST {}
+/** @category AST Nodes */
 export abstract class SpecifierAST extends AST {}
+/** @category AST Nodes */
 export abstract class StatementAST extends AST {}
+/** @category AST Nodes */
 export abstract class TemplateArgumentAST extends AST {}
+/** @category AST Nodes */
 export abstract class TemplateParameterAST extends AST {
   get symbol(): Symbol | undefined {
     return symbolOf(
@@ -1116,6 +1192,7 @@ export abstract class TemplateParameterAST extends AST {
     return cxx.readAST(this.handle, TemplateParameterASTSlotBase + 2);
   }
 }
+/** @category AST Nodes */
 export abstract class UnitAST extends AST {
   get symbol(): NamespaceSymbol | undefined {
     return symbolOf(
@@ -1124,7 +1201,9 @@ export abstract class UnitAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export abstract class UnqualifiedIdAST extends AST {}
+/** @category AST Nodes */
 export class TranslationUnitAST extends UnitAST {
   get declarationList(): Iterable<DeclarationAST | undefined> {
     return listOf(
@@ -1134,6 +1213,7 @@ export class TranslationUnitAST extends UnitAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ModuleUnitAST extends UnitAST {
   get globalModuleFragment(): GlobalModuleFragmentAST | undefined {
     return astOf(
@@ -1161,6 +1241,7 @@ export class ModuleUnitAST extends UnitAST {
     );
   }
 }
+/** @category AST Nodes */
 export class SimpleDeclarationAST extends DeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1189,10 +1270,14 @@ export class SimpleDeclarationAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, SimpleDeclarationASTSlotBase + 4);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleDeclarationASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class AsmDeclarationAST extends DeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1208,14 +1293,23 @@ export class AsmDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get asmLoc(): number {
-    return cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 2);
+  get asmToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 3);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 4);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get outputOperandList(): Iterable<AsmOperandAST | undefined> {
     return listOf(
@@ -1245,11 +1339,17 @@ export class AsmDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 9);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 9),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 10);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmDeclarationASTSlotBase + 10),
+      this.modelOwner,
+    );
   }
   get literal(): Literal | undefined {
     return objOf(
@@ -1259,15 +1359,25 @@ export class AsmDeclarationAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class NamespaceAliasDefinitionAST extends DeclarationAST {
-  get namespaceLoc(): number {
-    return cxx.readAST(this.handle, NamespaceAliasDefinitionASTSlotBase + 0);
+  get namespaceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceAliasDefinitionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, NamespaceAliasDefinitionASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceAliasDefinitionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, NamespaceAliasDefinitionASTSlotBase + 2);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceAliasDefinitionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -1281,8 +1391,11 @@ export class NamespaceAliasDefinitionAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, NamespaceAliasDefinitionASTSlotBase + 5);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceAliasDefinitionASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -1297,9 +1410,13 @@ export class NamespaceAliasDefinitionAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class UsingDeclarationAST extends DeclarationAST {
-  get usingLoc(): number {
-    return cxx.readAST(this.handle, UsingDeclarationASTSlotBase + 0);
+  get usingToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get usingDeclaratorList(): Iterable<UsingDeclaratorAST | undefined> {
     return listOf(
@@ -1308,13 +1425,20 @@ export class UsingDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, UsingDeclarationASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingDeclarationASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class UsingEnumDeclarationAST extends DeclarationAST {
-  get usingLoc(): number {
-    return cxx.readAST(this.handle, UsingEnumDeclarationASTSlotBase + 0);
+  get usingToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingEnumDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get enumTypeSpecifier(): ElaboratedTypeSpecifierAST | undefined {
     return astOf(
@@ -1322,10 +1446,14 @@ export class UsingEnumDeclarationAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, UsingEnumDeclarationASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingEnumDeclarationASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class UsingDirectiveAST extends DeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1334,11 +1462,17 @@ export class UsingDirectiveAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get usingLoc(): number {
-    return cxx.readAST(this.handle, UsingDirectiveASTSlotBase + 1);
+  get usingToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingDirectiveASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get namespaceLoc(): number {
-    return cxx.readAST(this.handle, UsingDirectiveASTSlotBase + 2);
+  get namespaceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingDirectiveASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -1352,16 +1486,26 @@ export class UsingDirectiveAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, UsingDirectiveASTSlotBase + 5);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingDirectiveASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class StaticAssertDeclarationAST extends DeclarationAST {
-  get staticAssertLoc(): number {
-    return cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 0);
+  get staticAssertToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -1369,11 +1513,17 @@ export class StaticAssertDeclarationAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 3);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 4);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get literal(): Literal | undefined {
     return objOf(
@@ -1382,11 +1532,17 @@ export class StaticAssertDeclarationAST extends DeclarationAST {
       Literal,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 6);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 7);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StaticAssertDeclarationASTSlotBase + 7),
+      this.modelOwner,
+    );
   }
   get value(): boolean | undefined {
     return optionalOf(
@@ -1395,12 +1551,19 @@ export class StaticAssertDeclarationAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class AliasDeclarationAST extends DeclarationAST {
-  get usingLoc(): number {
-    return cxx.readAST(this.handle, AliasDeclarationASTSlotBase + 0);
+  get usingToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AliasDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, AliasDeclarationASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AliasDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1409,8 +1572,11 @@ export class AliasDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, AliasDeclarationASTSlotBase + 3);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AliasDeclarationASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get gnuAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1425,8 +1591,11 @@ export class AliasDeclarationAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, AliasDeclarationASTSlotBase + 6);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AliasDeclarationASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -1441,12 +1610,19 @@ export class AliasDeclarationAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class OpaqueEnumDeclarationAST extends DeclarationAST {
-  get enumLoc(): number {
-    return cxx.readAST(this.handle, OpaqueEnumDeclarationASTSlotBase + 0);
+  get enumToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OpaqueEnumDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get classLoc(): number {
-    return cxx.readAST(this.handle, OpaqueEnumDeclarationASTSlotBase + 1);
+  get classToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OpaqueEnumDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1467,8 +1643,11 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, OpaqueEnumDeclarationASTSlotBase + 5);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OpaqueEnumDeclarationASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get typeSpecifierList(): Iterable<SpecifierAST | undefined> {
     return listOf(
@@ -1477,8 +1656,11 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get emicolonLoc(): number {
-    return cxx.readAST(this.handle, OpaqueEnumDeclarationASTSlotBase + 7);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OpaqueEnumDeclarationASTSlotBase + 7),
+      this.modelOwner,
+    );
   }
   get symbol(): Symbol | undefined {
     return symbolOf(
@@ -1487,6 +1669,7 @@ export class OpaqueEnumDeclarationAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class FunctionDefinitionAST extends DeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1527,12 +1710,19 @@ export class FunctionDefinitionAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TemplateDeclarationAST extends DeclarationAST {
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, TemplateDeclarationASTSlotBase + 0);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lessLoc(): number {
-    return cxx.readAST(this.handle, TemplateDeclarationASTSlotBase + 1);
+  get lessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get templateParameterList(): Iterable<TemplateParameterAST | undefined> {
     return listOf(
@@ -1541,8 +1731,11 @@ export class TemplateDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get greaterLoc(): number {
-    return cxx.readAST(this.handle, TemplateDeclarationASTSlotBase + 3);
+  get greaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateDeclarationASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get requiresClause(): RequiresClauseAST | undefined {
     return astOf(
@@ -1566,15 +1759,25 @@ export class TemplateDeclarationAST extends DeclarationAST {
     return cxx.readAST(this.handle, TemplateDeclarationASTSlotBase + 7);
   }
 }
+/** @category AST Nodes */
 export class ConceptDefinitionAST extends DeclarationAST {
-  get conceptLoc(): number {
-    return cxx.readAST(this.handle, ConceptDefinitionASTSlotBase + 0);
+  get conceptToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConceptDefinitionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, ConceptDefinitionASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConceptDefinitionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, ConceptDefinitionASTSlotBase + 2);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConceptDefinitionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -1582,8 +1785,11 @@ export class ConceptDefinitionAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, ConceptDefinitionASTSlotBase + 4);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConceptDefinitionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -1598,6 +1804,7 @@ export class ConceptDefinitionAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DeductionGuideAST extends DeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1612,11 +1819,17 @@ export class DeductionGuideAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, DeductionGuideASTSlotBase + 2);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeductionGuideASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, DeductionGuideASTSlotBase + 3);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeductionGuideASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get parameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
     return astOf(
@@ -1624,11 +1837,17 @@ export class DeductionGuideAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, DeductionGuideASTSlotBase + 5);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeductionGuideASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
-  get arrowLoc(): number {
-    return cxx.readAST(this.handle, DeductionGuideASTSlotBase + 6);
+  get arrowToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeductionGuideASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get templateId(): SimpleTemplateIdAST | undefined {
     return astOf(
@@ -1636,8 +1855,11 @@ export class DeductionGuideAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, DeductionGuideASTSlotBase + 8);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeductionGuideASTSlotBase + 8),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -1652,12 +1874,19 @@ export class DeductionGuideAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ExplicitInstantiationAST extends DeclarationAST {
-  get externLoc(): number {
-    return cxx.readAST(this.handle, ExplicitInstantiationASTSlotBase + 0);
+  get externToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExplicitInstantiationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, ExplicitInstantiationASTSlotBase + 1);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExplicitInstantiationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get declaration(): DeclarationAST | undefined {
     return astOf(
@@ -1666,9 +1895,13 @@ export class ExplicitInstantiationAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ExportDeclarationAST extends DeclarationAST {
-  get exportLoc(): number {
-    return cxx.readAST(this.handle, ExportDeclarationASTSlotBase + 0);
+  get exportToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExportDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get declaration(): DeclarationAST | undefined {
     return astOf(
@@ -1677,12 +1910,19 @@ export class ExportDeclarationAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ExportCompoundDeclarationAST extends DeclarationAST {
-  get exportLoc(): number {
-    return cxx.readAST(this.handle, ExportCompoundDeclarationASTSlotBase + 0);
+  get exportToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExportCompoundDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, ExportCompoundDeclarationASTSlotBase + 1);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExportCompoundDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get declarationList(): Iterable<DeclarationAST | undefined> {
     return listOf(
@@ -1691,19 +1931,32 @@ export class ExportCompoundDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, ExportCompoundDeclarationASTSlotBase + 3);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExportCompoundDeclarationASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class LinkageSpecificationAST extends DeclarationAST {
-  get externLoc(): number {
-    return cxx.readAST(this.handle, LinkageSpecificationASTSlotBase + 0);
+  get externToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LinkageSpecificationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get stringliteralLoc(): number {
-    return cxx.readAST(this.handle, LinkageSpecificationASTSlotBase + 1);
+  get stringliteralToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LinkageSpecificationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, LinkageSpecificationASTSlotBase + 2);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LinkageSpecificationASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get declarationList(): Iterable<DeclarationAST | undefined> {
     return listOf(
@@ -1712,8 +1965,11 @@ export class LinkageSpecificationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, LinkageSpecificationASTSlotBase + 4);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LinkageSpecificationASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get stringLiteral(): StringLiteral | undefined {
     return objOf(
@@ -1723,12 +1979,19 @@ export class LinkageSpecificationAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class NamespaceDefinitionAST extends DeclarationAST {
-  get inlineLoc(): number {
-    return cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 0);
+  get inlineToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get namespaceLoc(): number {
-    return cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 1);
+  get namespaceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1746,8 +2009,11 @@ export class NamespaceDefinitionAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 4);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get extraAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1756,8 +2022,11 @@ export class NamespaceDefinitionAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 6);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get declarationList(): Iterable<DeclarationAST | undefined> {
     return listOf(
@@ -1766,8 +2035,11 @@ export class NamespaceDefinitionAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 8);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 8),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -1785,11 +2057,16 @@ export class NamespaceDefinitionAST extends DeclarationAST {
     return cxx.readAST(this.handle, NamespaceDefinitionASTSlotBase + 11) !== 0;
   }
 }
+/** @category AST Nodes */
 export class EmptyDeclarationAST extends DeclarationAST {
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, EmptyDeclarationASTSlotBase + 0);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EmptyDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class AttributeDeclarationAST extends DeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1798,13 +2075,20 @@ export class AttributeDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, AttributeDeclarationASTSlotBase + 1);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AttributeDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ModuleImportDeclarationAST extends DeclarationAST {
-  get importLoc(): number {
-    return cxx.readAST(this.handle, ModuleImportDeclarationASTSlotBase + 0);
+  get importToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModuleImportDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get importName(): ImportNameAST | undefined {
     return astOf(
@@ -1819,10 +2103,14 @@ export class ModuleImportDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, ModuleImportDeclarationASTSlotBase + 3);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModuleImportDeclarationASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ParameterDeclarationAST extends DeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1831,8 +2119,11 @@ export class ParameterDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get thisLoc(): number {
-    return cxx.readAST(this.handle, ParameterDeclarationASTSlotBase + 1);
+  get thisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParameterDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeSpecifierList(): Iterable<SpecifierAST | undefined> {
     return listOf(
@@ -1847,8 +2138,11 @@ export class ParameterDeclarationAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, ParameterDeclarationASTSlotBase + 4);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParameterDeclarationASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -1881,12 +2175,19 @@ export class ParameterDeclarationAST extends DeclarationAST {
     return cxx.readAST(this.handle, ParameterDeclarationASTSlotBase + 10) !== 0;
   }
 }
+/** @category AST Nodes */
 export class AccessDeclarationAST extends DeclarationAST {
-  get accessLoc(): number {
-    return cxx.readAST(this.handle, AccessDeclarationASTSlotBase + 0);
+  get accessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AccessDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, AccessDeclarationASTSlotBase + 1);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AccessDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get accessSpecifier(): TokenKind {
     return tokenKindNames[
@@ -1894,7 +2195,9 @@ export class AccessDeclarationAST extends DeclarationAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class ForRangeDeclarationAST extends DeclarationAST {}
+/** @category AST Nodes */
 export class StructuredBindingDeclarationAST extends DeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -1910,16 +2213,16 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get refQualifierLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      StructuredBindingDeclarationASTSlotBase + 2,
+  get refQualifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StructuredBindingDeclarationASTSlotBase + 2),
+      this.modelOwner,
     );
   }
-  get lbracketLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      StructuredBindingDeclarationASTSlotBase + 3,
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StructuredBindingDeclarationASTSlotBase + 3),
+      this.modelOwner,
     );
   }
   get bindingList(): Iterable<NameIdAST | undefined> {
@@ -1929,10 +2232,10 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      StructuredBindingDeclarationASTSlotBase + 5,
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StructuredBindingDeclarationASTSlotBase + 5),
+      this.modelOwner,
     );
   }
   get initializer(): ExpressionAST | undefined {
@@ -1941,10 +2244,10 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      StructuredBindingDeclarationASTSlotBase + 7,
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StructuredBindingDeclarationASTSlotBase + 7),
+      this.modelOwner,
     );
   }
   get hiddenVariable(): InitDeclaratorAST | undefined {
@@ -1961,21 +2264,37 @@ export class StructuredBindingDeclarationAST extends DeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class AsmOperandAST extends AST {
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, AsmOperandASTSlotBase + 0);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmOperandASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get symbolicNameLoc(): number {
-    return cxx.readAST(this.handle, AsmOperandASTSlotBase + 1);
+  get symbolicNameToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmOperandASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, AsmOperandASTSlotBase + 2);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmOperandASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get constraintLiteralLoc(): number {
-    return cxx.readAST(this.handle, AsmOperandASTSlotBase + 3);
+  get constraintLiteralToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmOperandASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, AsmOperandASTSlotBase + 4);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmOperandASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -1983,8 +2302,11 @@ export class AsmOperandAST extends AST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, AsmOperandASTSlotBase + 6);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmOperandASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get symbolicName(): Identifier | undefined {
     return nameOf(
@@ -2000,9 +2322,13 @@ export class AsmOperandAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class AsmQualifierAST extends AST {
-  get qualifierLoc(): number {
-    return cxx.readAST(this.handle, AsmQualifierASTSlotBase + 0);
+  get qualifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmQualifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get qualifier(): TokenKind {
     return tokenKindNames[
@@ -2010,9 +2336,13 @@ export class AsmQualifierAST extends AST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class AsmClobberAST extends AST {
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, AsmClobberASTSlotBase + 0);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmClobberASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get literal(): StringLiteral | undefined {
     return objOf(
@@ -2022,9 +2352,13 @@ export class AsmClobberAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class AsmGotoLabelAST extends AST {
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, AsmGotoLabelASTSlotBase + 0);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmGotoLabelASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -2033,15 +2367,25 @@ export class AsmGotoLabelAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class SplicerAST extends AST {
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, SplicerASTSlotBase + 0);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SplicerASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, SplicerASTSlotBase + 1);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SplicerASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, SplicerASTSlotBase + 2);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SplicerASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -2049,19 +2393,32 @@ export class SplicerAST extends AST {
       this.modelOwner,
     );
   }
-  get secondColonLoc(): number {
-    return cxx.readAST(this.handle, SplicerASTSlotBase + 4);
+  get secondColonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SplicerASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, SplicerASTSlotBase + 5);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SplicerASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class GlobalModuleFragmentAST extends AST {
-  get moduleLoc(): number {
-    return cxx.readAST(this.handle, GlobalModuleFragmentASTSlotBase + 0);
+  get moduleToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GlobalModuleFragmentASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, GlobalModuleFragmentASTSlotBase + 1);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GlobalModuleFragmentASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get declarationList(): Iterable<DeclarationAST | undefined> {
     return listOf(
@@ -2071,18 +2428,31 @@ export class GlobalModuleFragmentAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class PrivateModuleFragmentAST extends AST {
-  get moduleLoc(): number {
-    return cxx.readAST(this.handle, PrivateModuleFragmentASTSlotBase + 0);
+  get moduleToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PrivateModuleFragmentASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, PrivateModuleFragmentASTSlotBase + 1);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PrivateModuleFragmentASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get privateLoc(): number {
-    return cxx.readAST(this.handle, PrivateModuleFragmentASTSlotBase + 2);
+  get privateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PrivateModuleFragmentASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, PrivateModuleFragmentASTSlotBase + 3);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PrivateModuleFragmentASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get declarationList(): Iterable<DeclarationAST | undefined> {
     return listOf(
@@ -2092,12 +2462,19 @@ export class PrivateModuleFragmentAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class ModuleDeclarationAST extends AST {
-  get exportLoc(): number {
-    return cxx.readAST(this.handle, ModuleDeclarationASTSlotBase + 0);
+  get exportToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModuleDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get moduleLoc(): number {
-    return cxx.readAST(this.handle, ModuleDeclarationASTSlotBase + 1);
+  get moduleToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModuleDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get moduleName(): ModuleNameAST | undefined {
     return astOf(
@@ -2118,10 +2495,14 @@ export class ModuleDeclarationAST extends AST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, ModuleDeclarationASTSlotBase + 5);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModuleDeclarationASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ModuleNameAST extends AST {
   get moduleQualifier(): ModuleQualifierAST | undefined {
     return astOf(
@@ -2129,8 +2510,11 @@ export class ModuleNameAST extends AST {
       this.modelOwner,
     );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, ModuleNameASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModuleNameASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -2139,6 +2523,7 @@ export class ModuleNameAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class ModuleQualifierAST extends AST {
   get moduleQualifier(): ModuleQualifierAST | undefined {
     return astOf(
@@ -2146,11 +2531,17 @@ export class ModuleQualifierAST extends AST {
       this.modelOwner,
     );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, ModuleQualifierASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModuleQualifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get dotLoc(): number {
-    return cxx.readAST(this.handle, ModuleQualifierASTSlotBase + 2);
+  get dotToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModuleQualifierASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -2159,9 +2550,13 @@ export class ModuleQualifierAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class ModulePartitionAST extends AST {
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, ModulePartitionASTSlotBase + 0);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ModulePartitionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get moduleName(): ModuleNameAST | undefined {
     return astOf(
@@ -2170,9 +2565,13 @@ export class ModulePartitionAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class ImportNameAST extends AST {
-  get headerLoc(): number {
-    return cxx.readAST(this.handle, ImportNameASTSlotBase + 0);
+  get headerToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ImportNameASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get modulePartition(): ModulePartitionAST | undefined {
     return astOf(
@@ -2187,6 +2586,7 @@ export class ImportNameAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class InitDeclaratorAST extends AST {
   get declarator(): DeclaratorAST | undefined {
     return astOf(
@@ -2213,6 +2613,7 @@ export class InitDeclaratorAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class DeclaratorAST extends AST {
   get ptrOpList(): Iterable<PtrOperatorAST | undefined> {
     return listOf(
@@ -2235,9 +2636,13 @@ export class DeclaratorAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class UsingDeclaratorAST extends AST {
-  get typenameLoc(): number {
-    return cxx.readAST(this.handle, UsingDeclaratorASTSlotBase + 0);
+  get typenameToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingDeclaratorASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -2251,8 +2656,11 @@ export class UsingDeclaratorAST extends AST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, UsingDeclaratorASTSlotBase + 3);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UsingDeclaratorASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get symbol(): UsingDeclarationSymbol | undefined {
     return symbolOf(
@@ -2264,9 +2672,13 @@ export class UsingDeclaratorAST extends AST {
     return cxx.readAST(this.handle, UsingDeclaratorASTSlotBase + 5) !== 0;
   }
 }
+/** @category AST Nodes */
 export class EnumeratorAST extends AST {
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, EnumeratorASTSlotBase + 0);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EnumeratorASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2275,8 +2687,11 @@ export class EnumeratorAST extends AST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, EnumeratorASTSlotBase + 2);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EnumeratorASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -2297,6 +2712,7 @@ export class EnumeratorAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class TypeIdAST extends AST {
   get typeSpecifierList(): Iterable<SpecifierAST | undefined> {
     return listOf(
@@ -2325,12 +2741,19 @@ export class TypeIdAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class HandlerAST extends AST {
-  get catchLoc(): number {
-    return cxx.readAST(this.handle, HandlerASTSlotBase + 0);
+  get catchToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, HandlerASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, HandlerASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, HandlerASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get exceptionDeclaration(): ExceptionDeclarationAST | undefined {
     return astOf(
@@ -2338,8 +2761,11 @@ export class HandlerAST extends AST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, HandlerASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, HandlerASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get statement(): CompoundStatementAST | undefined {
     return astOf(
@@ -2354,6 +2780,7 @@ export class HandlerAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class BaseSpecifierAST extends AST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2362,11 +2789,17 @@ export class BaseSpecifierAST extends AST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get virtualOrAccessLoc(): number {
-    return cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 1);
+  get virtualOrAccessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get otherVirtualOrAccessLoc(): number {
-    return cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 2);
+  get otherVirtualOrAccessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -2374,8 +2807,11 @@ export class BaseSpecifierAST extends AST {
       this.modelOwner,
     );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 4);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get unqualifiedId(): UnqualifiedIdAST | undefined {
     return astOf(
@@ -2383,8 +2819,11 @@ export class BaseSpecifierAST extends AST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 6);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get isTemplateIntroduced(): boolean {
     return cxx.readAST(this.handle, BaseSpecifierASTSlotBase + 7) !== 0;
@@ -2407,9 +2846,13 @@ export class BaseSpecifierAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class RequiresClauseAST extends AST {
-  get requiresLoc(): number {
-    return cxx.readAST(this.handle, RequiresClauseASTSlotBase + 0);
+  get requiresToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RequiresClauseASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -2418,6 +2861,7 @@ export class RequiresClauseAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class ParameterDeclarationClauseAST extends AST {
   get parameterDeclarationList(): Iterable<
     ParameterDeclarationAST | undefined
@@ -2428,11 +2872,17 @@ export class ParameterDeclarationClauseAST extends AST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, ParameterDeclarationClauseASTSlotBase + 1);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParameterDeclarationClauseASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, ParameterDeclarationClauseASTSlotBase + 2);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParameterDeclarationClauseASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get functionParametersSymbol(): FunctionParametersSymbol | undefined {
     return symbolOf(
@@ -2446,9 +2896,13 @@ export class ParameterDeclarationClauseAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class TrailingReturnTypeAST extends AST {
-  get minusGreaterLoc(): number {
-    return cxx.readAST(this.handle, TrailingReturnTypeASTSlotBase + 0);
+  get minusGreaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TrailingReturnTypeASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -2457,9 +2911,13 @@ export class TrailingReturnTypeAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class LambdaSpecifierAST extends AST {
-  get specifierLoc(): number {
-    return cxx.readAST(this.handle, LambdaSpecifierASTSlotBase + 0);
+  get specifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LambdaSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get specifier(): TokenKind {
     return tokenKindNames[
@@ -2467,6 +2925,7 @@ export class LambdaSpecifierAST extends AST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class TypeConstraintAST extends AST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -2474,11 +2933,17 @@ export class TypeConstraintAST extends AST {
       this.modelOwner,
     );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, TypeConstraintASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeConstraintASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lessLoc(): number {
-    return cxx.readAST(this.handle, TypeConstraintASTSlotBase + 2);
+  get lessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeConstraintASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get templateArgumentList(): Iterable<TemplateArgumentAST | undefined> {
     return listOf(
@@ -2487,8 +2952,11 @@ export class TypeConstraintAST extends AST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get greaterLoc(): number {
-    return cxx.readAST(this.handle, TypeConstraintASTSlotBase + 4);
+  get greaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeConstraintASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -2503,9 +2971,13 @@ export class TypeConstraintAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class AttributeArgumentClauseAST extends AST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, AttributeArgumentClauseASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AttributeArgumentClauseASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expressionList(): Iterable<ExpressionAST | undefined> {
     return listOf(
@@ -2514,10 +2986,14 @@ export class AttributeArgumentClauseAST extends AST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, AttributeArgumentClauseASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AttributeArgumentClauseASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class AttributeAST extends AST {
   get attributeToken(): AttributeTokenAST | undefined {
     return astOf(
@@ -2531,24 +3007,41 @@ export class AttributeAST extends AST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, AttributeASTSlotBase + 2);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AttributeASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class AttributeUsingPrefixAST extends AST {
-  get usingLoc(): number {
-    return cxx.readAST(this.handle, AttributeUsingPrefixASTSlotBase + 0);
+  get usingToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AttributeUsingPrefixASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get attributeNamespaceLoc(): number {
-    return cxx.readAST(this.handle, AttributeUsingPrefixASTSlotBase + 1);
+  get attributeNamespaceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AttributeUsingPrefixASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, AttributeUsingPrefixASTSlotBase + 2);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AttributeUsingPrefixASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class NewPlacementAST extends AST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, NewPlacementASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NewPlacementASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expressionList(): Iterable<ExpressionAST | undefined> {
     return listOf(
@@ -2557,19 +3050,32 @@ export class NewPlacementAST extends AST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, NewPlacementASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NewPlacementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class NestedNamespaceSpecifierAST extends AST {
-  get inlineLoc(): number {
-    return cxx.readAST(this.handle, NestedNamespaceSpecifierASTSlotBase + 0);
+  get inlineToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedNamespaceSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, NestedNamespaceSpecifierASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedNamespaceSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get scopeLoc(): number {
-    return cxx.readAST(this.handle, NestedNamespaceSpecifierASTSlotBase + 2);
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedNamespaceSpecifierASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -2589,12 +3095,19 @@ export class NestedNamespaceSpecifierAST extends AST {
     );
   }
 }
+/** @category AST Nodes */
 export class LabeledStatementAST extends StatementAST {
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, LabeledStatementASTSlotBase + 0);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LabeledStatementASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, LabeledStatementASTSlotBase + 1);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LabeledStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get statement(): StatementAST | undefined {
     return astOf(
@@ -2609,9 +3122,13 @@ export class LabeledStatementAST extends StatementAST {
     );
   }
 }
+/** @category AST Nodes */
 export class CaseStatementAST extends StatementAST {
-  get caseLoc(): number {
-    return cxx.readAST(this.handle, CaseStatementASTSlotBase + 0);
+  get caseToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CaseStatementASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -2619,8 +3136,11 @@ export class CaseStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, CaseStatementASTSlotBase + 2);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CaseStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get caseValue(): bigint {
     return cxx.readASTBigInt(
@@ -2629,14 +3149,22 @@ export class CaseStatementAST extends StatementAST {
     ) as bigint;
   }
 }
+/** @category AST Nodes */
 export class DefaultStatementAST extends StatementAST {
-  get defaultLoc(): number {
-    return cxx.readAST(this.handle, DefaultStatementASTSlotBase + 0);
+  get defaultToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DefaultStatementASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, DefaultStatementASTSlotBase + 1);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DefaultStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ExpressionStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2651,10 +3179,14 @@ export class ExpressionStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, ExpressionStatementASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExpressionStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class CompoundStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2663,8 +3195,11 @@ export class CompoundStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, CompoundStatementASTSlotBase + 1);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get statementList(): Iterable<StatementAST | undefined> {
     return listOf(
@@ -2673,8 +3208,11 @@ export class CompoundStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, CompoundStatementASTSlotBase + 3);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundStatementASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get symbol(): BlockSymbol | undefined {
     return symbolOf(
@@ -2683,6 +3221,7 @@ export class CompoundStatementAST extends StatementAST {
     );
   }
 }
+/** @category AST Nodes */
 export class IfStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2691,14 +3230,23 @@ export class IfStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get ifLoc(): number {
-    return cxx.readAST(this.handle, IfStatementASTSlotBase + 1);
+  get ifToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IfStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get constexprLoc(): number {
-    return cxx.readAST(this.handle, IfStatementASTSlotBase + 2);
+  get constexprToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IfStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, IfStatementASTSlotBase + 3);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IfStatementASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get initializer(): StatementAST | undefined {
     return astOf(
@@ -2712,8 +3260,11 @@ export class IfStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, IfStatementASTSlotBase + 6);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IfStatementASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get statement(): StatementAST | undefined {
     return astOf(
@@ -2721,8 +3272,11 @@ export class IfStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get elseLoc(): number {
-    return cxx.readAST(this.handle, IfStatementASTSlotBase + 8);
+  get elseToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IfStatementASTSlotBase + 8),
+      this.modelOwner,
+    );
   }
   get elseStatement(): StatementAST | undefined {
     return astOf(
@@ -2737,6 +3291,7 @@ export class IfStatementAST extends StatementAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ConstevalIfStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2745,14 +3300,23 @@ export class ConstevalIfStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get ifLoc(): number {
-    return cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 1);
+  get ifToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get exclaimLoc(): number {
-    return cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 2);
+  get exclaimToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get constvalLoc(): number {
-    return cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 3);
+  get constvalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get statement(): StatementAST | undefined {
     return astOf(
@@ -2760,8 +3324,11 @@ export class ConstevalIfStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get elseLoc(): number {
-    return cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 5);
+  get elseToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get elseStatement(): StatementAST | undefined {
     return astOf(
@@ -2773,6 +3340,7 @@ export class ConstevalIfStatementAST extends StatementAST {
     return cxx.readAST(this.handle, ConstevalIfStatementASTSlotBase + 7) !== 0;
   }
 }
+/** @category AST Nodes */
 export class SwitchStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2781,11 +3349,17 @@ export class SwitchStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get switchLoc(): number {
-    return cxx.readAST(this.handle, SwitchStatementASTSlotBase + 1);
+  get switchToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SwitchStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, SwitchStatementASTSlotBase + 2);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SwitchStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get initializer(): StatementAST | undefined {
     return astOf(
@@ -2799,8 +3373,11 @@ export class SwitchStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, SwitchStatementASTSlotBase + 5);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SwitchStatementASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get statement(): StatementAST | undefined {
     return astOf(
@@ -2815,6 +3392,7 @@ export class SwitchStatementAST extends StatementAST {
     );
   }
 }
+/** @category AST Nodes */
 export class WhileStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2823,11 +3401,17 @@ export class WhileStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get whileLoc(): number {
-    return cxx.readAST(this.handle, WhileStatementASTSlotBase + 1);
+  get whileToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, WhileStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, WhileStatementASTSlotBase + 2);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, WhileStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get condition(): ExpressionAST | undefined {
     return astOf(
@@ -2835,8 +3419,11 @@ export class WhileStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, WhileStatementASTSlotBase + 4);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, WhileStatementASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get statement(): StatementAST | undefined {
     return astOf(
@@ -2851,6 +3438,7 @@ export class WhileStatementAST extends StatementAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DoStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2859,8 +3447,11 @@ export class DoStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get doLoc(): number {
-    return cxx.readAST(this.handle, DoStatementASTSlotBase + 1);
+  get doToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DoStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get statement(): StatementAST | undefined {
     return astOf(
@@ -2868,11 +3459,17 @@ export class DoStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get whileLoc(): number {
-    return cxx.readAST(this.handle, DoStatementASTSlotBase + 3);
+  get whileToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DoStatementASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, DoStatementASTSlotBase + 4);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DoStatementASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -2880,13 +3477,20 @@ export class DoStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, DoStatementASTSlotBase + 6);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DoStatementASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, DoStatementASTSlotBase + 7);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DoStatementASTSlotBase + 7),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ForRangeStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -2895,11 +3499,17 @@ export class ForRangeStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get forLoc(): number {
-    return cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 1);
+  get forToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 2);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get initializer(): StatementAST | undefined {
     return astOf(
@@ -2913,8 +3523,11 @@ export class ForRangeStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 5);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get rangeInitializer(): ExpressionAST | undefined {
     return astOf(
@@ -2922,8 +3535,11 @@ export class ForRangeStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 7);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 7),
+      this.modelOwner,
+    );
   }
   get statement(): StatementAST | undefined {
     return astOf(
@@ -3028,6 +3644,7 @@ export class ForRangeStatementAST extends StatementAST {
     return cxx.readAST(this.handle, ForRangeStatementASTSlotBase + 26) !== 0;
   }
 }
+/** @category AST Nodes */
 export class ForStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -3036,11 +3653,17 @@ export class ForStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get forLoc(): number {
-    return cxx.readAST(this.handle, ForStatementASTSlotBase + 1);
+  get forToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ForStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, ForStatementASTSlotBase + 2);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ForStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get initializer(): StatementAST | undefined {
     return astOf(
@@ -3054,8 +3677,11 @@ export class ForStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, ForStatementASTSlotBase + 5);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ForStatementASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3063,8 +3689,11 @@ export class ForStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, ForStatementASTSlotBase + 7);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ForStatementASTSlotBase + 7),
+      this.modelOwner,
+    );
   }
   get statement(): StatementAST | undefined {
     return astOf(
@@ -3079,6 +3708,7 @@ export class ForStatementAST extends StatementAST {
     );
   }
 }
+/** @category AST Nodes */
 export class BreakStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -3087,13 +3717,20 @@ export class BreakStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get breakLoc(): number {
-    return cxx.readAST(this.handle, BreakStatementASTSlotBase + 1);
+  get breakToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BreakStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, BreakStatementASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BreakStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ContinueStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -3102,13 +3739,20 @@ export class ContinueStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get continueLoc(): number {
-    return cxx.readAST(this.handle, ContinueStatementASTSlotBase + 1);
+  get continueToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ContinueStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, ContinueStatementASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ContinueStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ReturnStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -3117,8 +3761,11 @@ export class ReturnStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get returnLoc(): number {
-    return cxx.readAST(this.handle, ReturnStatementASTSlotBase + 1);
+  get returnToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ReturnStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3126,10 +3773,14 @@ export class ReturnStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, ReturnStatementASTSlotBase + 3);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ReturnStatementASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class CoroutineReturnStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -3138,8 +3789,11 @@ export class CoroutineReturnStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get coreturnLoc(): number {
-    return cxx.readAST(this.handle, CoroutineReturnStatementASTSlotBase + 1);
+  get coreturnToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CoroutineReturnStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3147,10 +3801,14 @@ export class CoroutineReturnStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, CoroutineReturnStatementASTSlotBase + 3);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CoroutineReturnStatementASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class GotoStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -3165,17 +3823,29 @@ export class GotoStatementAST extends StatementAST {
       this.modelOwner,
     );
   }
-  get gotoLoc(): number {
-    return cxx.readAST(this.handle, GotoStatementASTSlotBase + 2);
+  get gotoToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GotoStatementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get starLoc(): number {
-    return cxx.readAST(this.handle, GotoStatementASTSlotBase + 3);
+  get starToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GotoStatementASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, GotoStatementASTSlotBase + 4);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GotoStatementASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, GotoStatementASTSlotBase + 5);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GotoStatementASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -3187,6 +3857,7 @@ export class GotoStatementAST extends StatementAST {
     return cxx.readAST(this.handle, GotoStatementASTSlotBase + 7) !== 0;
   }
 }
+/** @category AST Nodes */
 export class DeclarationStatementAST extends StatementAST {
   get declaration(): DeclarationAST | undefined {
     return astOf(
@@ -3195,6 +3866,7 @@ export class DeclarationStatementAST extends StatementAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TryBlockStatementAST extends StatementAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -3203,8 +3875,11 @@ export class TryBlockStatementAST extends StatementAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get tryLoc(): number {
-    return cxx.readAST(this.handle, TryBlockStatementASTSlotBase + 1);
+  get tryToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TryBlockStatementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get statement(): CompoundStatementAST | undefined {
     return astOf(
@@ -3220,9 +3895,13 @@ export class TryBlockStatementAST extends StatementAST {
     );
   }
 }
+/** @category AST Nodes */
 export class CharLiteralExpressionAST extends ExpressionAST {
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, CharLiteralExpressionASTSlotBase + 0);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CharLiteralExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get literal(): CharLiteral | undefined {
     return objOf(
@@ -3238,17 +3917,25 @@ export class CharLiteralExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class BoolLiteralExpressionAST extends ExpressionAST {
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, BoolLiteralExpressionASTSlotBase + 0);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BoolLiteralExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get isTrue(): boolean {
     return cxx.readAST(this.handle, BoolLiteralExpressionASTSlotBase + 1) !== 0;
   }
 }
+/** @category AST Nodes */
 export class IntLiteralExpressionAST extends ExpressionAST {
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, IntLiteralExpressionASTSlotBase + 0);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IntLiteralExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get literal(): IntegerLiteral | undefined {
     return objOf(
@@ -3264,9 +3951,13 @@ export class IntLiteralExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class FloatLiteralExpressionAST extends ExpressionAST {
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, FloatLiteralExpressionASTSlotBase + 0);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FloatLiteralExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get literal(): FloatLiteral | undefined {
     return objOf(
@@ -3282,9 +3973,13 @@ export class FloatLiteralExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class NullptrLiteralExpressionAST extends ExpressionAST {
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, NullptrLiteralExpressionASTSlotBase + 0);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NullptrLiteralExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get literal(): TokenKind {
     return tokenKindNames[
@@ -3292,9 +3987,13 @@ export class NullptrLiteralExpressionAST extends ExpressionAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class StringLiteralExpressionAST extends ExpressionAST {
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, StringLiteralExpressionASTSlotBase + 0);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StringLiteralExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get literal(): StringLiteral | undefined {
     return objOf(
@@ -3309,11 +4008,15 @@ export class StringLiteralExpressionAST extends ExpressionAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
-  get literalLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      UserDefinedStringLiteralExpressionASTSlotBase + 0,
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(
+        this.handle,
+        UserDefinedStringLiteralExpressionASTSlotBase + 0,
+      ),
+      this.modelOwner,
     );
   }
   get literal(): StringLiteral | undefined {
@@ -3344,9 +4047,13 @@ export class UserDefinedStringLiteralExpressionAST extends ExpressionAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class ObjectLiteralExpressionAST extends ExpressionAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, ObjectLiteralExpressionASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ObjectLiteralExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -3354,8 +4061,11 @@ export class ObjectLiteralExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, ObjectLiteralExpressionASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ObjectLiteralExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get bracedInitList(): BracedInitListAST | undefined {
     return astOf(
@@ -3370,11 +4080,16 @@ export class ObjectLiteralExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ThisExpressionAST extends ExpressionAST {
-  get thisLoc(): number {
-    return cxx.readAST(this.handle, ThisExpressionASTSlotBase + 0);
+  get thisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ThisExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class PackIndexExpressionAST extends ExpressionAST {
   get packExpression(): IdExpressionAST | undefined {
     return astOf(
@@ -3382,11 +4097,17 @@ export class PackIndexExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, PackIndexExpressionASTSlotBase + 1);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PackIndexExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, PackIndexExpressionASTSlotBase + 2);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PackIndexExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get indexExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3394,16 +4115,26 @@ export class PackIndexExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, PackIndexExpressionASTSlotBase + 4);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PackIndexExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class GenericSelectionExpressionAST extends ExpressionAST {
-  get genericLoc(): number {
-    return cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 0);
+  get genericToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3411,8 +4142,11 @@ export class GenericSelectionExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 3);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get genericAssociationList(): Iterable<GenericAssociationAST | undefined> {
     return listOf(
@@ -3421,16 +4155,23 @@ export class GenericSelectionExpressionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 5);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get matchedAssocIndex(): number {
     return cxx.readAST(this.handle, GenericSelectionExpressionASTSlotBase + 6);
   }
 }
+/** @category AST Nodes */
 export class NestedStatementExpressionAST extends ExpressionAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, NestedStatementExpressionASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedStatementExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get statement(): CompoundStatementAST | undefined {
     return astOf(
@@ -3438,10 +4179,14 @@ export class NestedStatementExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, NestedStatementExpressionASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedStatementExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class DefaultInitializerExpressionAST extends ExpressionAST {
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3457,9 +4202,13 @@ export class DefaultInitializerExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class NestedExpressionAST extends ExpressionAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, NestedExpressionASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3467,10 +4216,14 @@ export class NestedExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, NestedExpressionASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class IdExpressionAST extends ExpressionAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -3478,8 +4231,11 @@ export class IdExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, IdExpressionASTSlotBase + 1);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IdExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get unqualifiedId(): UnqualifiedIdAST | undefined {
     return astOf(
@@ -3497,12 +4253,19 @@ export class IdExpressionAST extends ExpressionAST {
     return cxx.readAST(this.handle, IdExpressionASTSlotBase + 4) !== 0;
   }
 }
+/** @category AST Nodes */
 export class LambdaExpressionAST extends ExpressionAST {
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 0);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get captureDefaultLoc(): number {
-    return cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 1);
+  get captureDefaultToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get captureList(): Iterable<LambdaCaptureAST | undefined> {
     return listOf(
@@ -3511,11 +4274,17 @@ export class LambdaExpressionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 3);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get lessLoc(): number {
-    return cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 4);
+  get lessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get templateParameterList(): Iterable<TemplateParameterAST | undefined> {
     return listOf(
@@ -3524,8 +4293,11 @@ export class LambdaExpressionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get greaterLoc(): number {
-    return cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 6);
+  get greaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get templateRequiresClause(): RequiresClauseAST | undefined {
     return astOf(
@@ -3540,8 +4312,11 @@ export class LambdaExpressionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 9);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 9),
+      this.modelOwner,
+    );
   }
   get parameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
     return astOf(
@@ -3549,8 +4324,11 @@ export class LambdaExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 11);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LambdaExpressionASTSlotBase + 11),
+      this.modelOwner,
+    );
   }
   get gnuAtributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -3615,9 +4393,13 @@ export class LambdaExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class FoldExpressionAST extends ExpressionAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, FoldExpressionASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FoldExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get leftExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3625,14 +4407,23 @@ export class FoldExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get opLoc(): number {
-    return cxx.readAST(this.handle, FoldExpressionASTSlotBase + 2);
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FoldExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, FoldExpressionASTSlotBase + 3);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FoldExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get foldOpLoc(): number {
-    return cxx.readAST(this.handle, FoldExpressionASTSlotBase + 4);
+  get foldOpToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FoldExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get rightExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3640,8 +4431,11 @@ export class FoldExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, FoldExpressionASTSlotBase + 6);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FoldExpressionASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get op(): TokenKind {
     return tokenKindNames[
@@ -3654,9 +4448,13 @@ export class FoldExpressionAST extends ExpressionAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class RightFoldExpressionAST extends ExpressionAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, RightFoldExpressionASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RightFoldExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3664,14 +4462,23 @@ export class RightFoldExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get opLoc(): number {
-    return cxx.readAST(this.handle, RightFoldExpressionASTSlotBase + 2);
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RightFoldExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, RightFoldExpressionASTSlotBase + 3);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RightFoldExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, RightFoldExpressionASTSlotBase + 4);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RightFoldExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get op(): TokenKind {
     return tokenKindNames[
@@ -3679,15 +4486,25 @@ export class RightFoldExpressionAST extends ExpressionAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class LeftFoldExpressionAST extends ExpressionAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, LeftFoldExpressionASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LeftFoldExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, LeftFoldExpressionASTSlotBase + 1);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LeftFoldExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get opLoc(): number {
-    return cxx.readAST(this.handle, LeftFoldExpressionASTSlotBase + 2);
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LeftFoldExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3695,8 +4512,11 @@ export class LeftFoldExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, LeftFoldExpressionASTSlotBase + 4);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LeftFoldExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get op(): TokenKind {
     return tokenKindNames[
@@ -3704,12 +4524,19 @@ export class LeftFoldExpressionAST extends ExpressionAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class RequiresExpressionAST extends ExpressionAST {
-  get requiresLoc(): number {
-    return cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 0);
+  get requiresToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get parameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
     return astOf(
@@ -3717,11 +4544,17 @@ export class RequiresExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 4);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get requirementList(): Iterable<RequirementAST | undefined> {
     return listOf(
@@ -3730,16 +4563,26 @@ export class RequiresExpressionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 6);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RequiresExpressionASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class VaArgExpressionAST extends ExpressionAST {
-  get vaArgLoc(): number {
-    return cxx.readAST(this.handle, VaArgExpressionASTSlotBase + 0);
+  get vaArgToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, VaArgExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, VaArgExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, VaArgExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3747,8 +4590,11 @@ export class VaArgExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, VaArgExpressionASTSlotBase + 3);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, VaArgExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -3756,10 +4602,14 @@ export class VaArgExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, VaArgExpressionASTSlotBase + 5);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, VaArgExpressionASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class SubscriptExpressionAST extends ExpressionAST {
   get baseExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3767,8 +4617,11 @@ export class SubscriptExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, SubscriptExpressionASTSlotBase + 1);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SubscriptExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get indexExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3776,8 +4629,11 @@ export class SubscriptExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, SubscriptExpressionASTSlotBase + 3);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SubscriptExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get symbol(): FunctionSymbol | undefined {
     return symbolOf(
@@ -3789,6 +4645,7 @@ export class SubscriptExpressionAST extends ExpressionAST {
     return cxx.readAST(this.handle, SubscriptExpressionASTSlotBase + 5) !== 0;
   }
 }
+/** @category AST Nodes */
 export class CallExpressionAST extends ExpressionAST {
   get baseExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3796,8 +4653,11 @@ export class CallExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, CallExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CallExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expressionList(): Iterable<ExpressionAST | undefined> {
     return listOf(
@@ -3806,8 +4666,11 @@ export class CallExpressionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, CallExpressionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CallExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get isVirtualDispatch(): boolean {
     return cxx.readAST(this.handle, CallExpressionASTSlotBase + 4) !== 0;
@@ -3819,6 +4682,7 @@ export class CallExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TypeConstructionAST extends ExpressionAST {
   get typeSpecifier(): SpecifierAST | undefined {
     return astOf(
@@ -3826,8 +4690,11 @@ export class TypeConstructionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, TypeConstructionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeConstructionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expressionList(): Iterable<ExpressionAST | undefined> {
     return listOf(
@@ -3836,8 +4703,11 @@ export class TypeConstructionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, TypeConstructionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeConstructionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get constructorSymbol(): FunctionSymbol | undefined {
     return symbolOf(
@@ -3846,6 +4716,7 @@ export class TypeConstructionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class BracedTypeConstructionAST extends ExpressionAST {
   get typeSpecifier(): SpecifierAST | undefined {
     return astOf(
@@ -3866,6 +4737,7 @@ export class BracedTypeConstructionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class SpliceMemberExpressionAST extends ExpressionAST {
   get baseExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3873,11 +4745,17 @@ export class SpliceMemberExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get accessLoc(): number {
-    return cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 1);
+  get accessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 2);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get splicer(): SplicerAST | undefined {
     return astOf(
@@ -3902,6 +4780,7 @@ export class SpliceMemberExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class MemberExpressionAST extends ExpressionAST {
   get baseExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3909,8 +4788,11 @@ export class MemberExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get accessLoc(): number {
-    return cxx.readAST(this.handle, MemberExpressionASTSlotBase + 1);
+  get accessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, MemberExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -3918,8 +4800,11 @@ export class MemberExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, MemberExpressionASTSlotBase + 3);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, MemberExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get unqualifiedId(): UnqualifiedIdAST | undefined {
     return astOf(
@@ -3942,6 +4827,7 @@ export class MemberExpressionAST extends ExpressionAST {
     return cxx.readAST(this.handle, MemberExpressionASTSlotBase + 7) !== 0;
   }
 }
+/** @category AST Nodes */
 export class PostIncrExpressionAST extends ExpressionAST {
   get baseExpression(): ExpressionAST | undefined {
     return astOf(
@@ -3949,8 +4835,11 @@ export class PostIncrExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get opLoc(): number {
-    return cxx.readAST(this.handle, PostIncrExpressionASTSlotBase + 1);
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PostIncrExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get op(): TokenKind {
     return tokenKindNames[
@@ -3967,12 +4856,19 @@ export class PostIncrExpressionAST extends ExpressionAST {
     return cxx.readAST(this.handle, PostIncrExpressionASTSlotBase + 4) !== 0;
   }
 }
+/** @category AST Nodes */
 export class CppCastExpressionAST extends ExpressionAST {
-  get castLoc(): number {
-    return cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 0);
+  get castToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lessLoc(): number {
-    return cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 1);
+  get lessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -3980,11 +4876,17 @@ export class CppCastExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get greaterLoc(): number {
-    return cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 3);
+  get greaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 4);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -3992,8 +4894,11 @@ export class CppCastExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 6);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CppCastExpressionASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get castOp(): TokenKind {
     return tokenKindNames[
@@ -4001,12 +4906,19 @@ export class CppCastExpressionAST extends ExpressionAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class BuiltinBitCastExpressionAST extends ExpressionAST {
-  get castLoc(): number {
-    return cxx.readAST(this.handle, BuiltinBitCastExpressionASTSlotBase + 0);
+  get castToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinBitCastExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, BuiltinBitCastExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinBitCastExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4014,8 +4926,11 @@ export class BuiltinBitCastExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, BuiltinBitCastExpressionASTSlotBase + 3);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinBitCastExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4023,16 +4938,26 @@ export class BuiltinBitCastExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, BuiltinBitCastExpressionASTSlotBase + 5);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinBitCastExpressionASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class BuiltinOffsetofExpressionAST extends ExpressionAST {
-  get offsetofLoc(): number {
-    return cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 0);
+  get offsetofToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4040,11 +4965,17 @@ export class BuiltinOffsetofExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 3);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 4);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get designatorList(): Iterable<DesignatorAST | undefined> {
     return listOf(
@@ -4053,8 +4984,11 @@ export class BuiltinOffsetofExpressionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 6);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinOffsetofExpressionASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -4069,12 +5003,19 @@ export class BuiltinOffsetofExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TypeidExpressionAST extends ExpressionAST {
-  get typeidLoc(): number {
-    return cxx.readAST(this.handle, TypeidExpressionASTSlotBase + 0);
+  get typeidToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeidExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, TypeidExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeidExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4082,16 +5023,26 @@ export class TypeidExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, TypeidExpressionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeidExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class TypeidOfTypeExpressionAST extends ExpressionAST {
-  get typeidLoc(): number {
-    return cxx.readAST(this.handle, TypeidOfTypeExpressionASTSlotBase + 0);
+  get typeidToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeidOfTypeExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, TypeidOfTypeExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeidOfTypeExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4099,10 +5050,14 @@ export class TypeidOfTypeExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, TypeidOfTypeExpressionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeidOfTypeExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class SpliceExpressionAST extends ExpressionAST {
   get splicer(): SplicerAST | undefined {
     return astOf(
@@ -4111,26 +5066,34 @@ export class SpliceExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class GlobalScopeReflectExpressionAST extends ExpressionAST {
-  get caretCaretLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      GlobalScopeReflectExpressionASTSlotBase + 0,
+  get caretCaretToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GlobalScopeReflectExpressionASTSlotBase + 0),
+      this.modelOwner,
     );
   }
-  get scopeLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      GlobalScopeReflectExpressionASTSlotBase + 1,
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GlobalScopeReflectExpressionASTSlotBase + 1),
+      this.modelOwner,
     );
   }
 }
+/** @category AST Nodes */
 export class NamespaceReflectExpressionAST extends ExpressionAST {
-  get caretCaretLoc(): number {
-    return cxx.readAST(this.handle, NamespaceReflectExpressionASTSlotBase + 0);
+  get caretCaretToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceReflectExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, NamespaceReflectExpressionASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamespaceReflectExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -4145,9 +5108,13 @@ export class NamespaceReflectExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TypeIdReflectExpressionAST extends ExpressionAST {
-  get caretCaretLoc(): number {
-    return cxx.readAST(this.handle, TypeIdReflectExpressionASTSlotBase + 0);
+  get caretCaretToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeIdReflectExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4156,9 +5123,13 @@ export class TypeIdReflectExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ReflectExpressionAST extends ExpressionAST {
-  get caretCaretLoc(): number {
-    return cxx.readAST(this.handle, ReflectExpressionASTSlotBase + 0);
+  get caretCaretToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ReflectExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4167,12 +5138,19 @@ export class ReflectExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class LabelAddressExpressionAST extends ExpressionAST {
-  get ampAmpLoc(): number {
-    return cxx.readAST(this.handle, LabelAddressExpressionASTSlotBase + 0);
+  get ampAmpToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LabelAddressExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, LabelAddressExpressionASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LabelAddressExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -4181,9 +5159,13 @@ export class LabelAddressExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class UnaryExpressionAST extends ExpressionAST {
-  get opLoc(): number {
-    return cxx.readAST(this.handle, UnaryExpressionASTSlotBase + 0);
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UnaryExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4206,9 +5188,13 @@ export class UnaryExpressionAST extends ExpressionAST {
     return cxx.readAST(this.handle, UnaryExpressionASTSlotBase + 4) !== 0;
   }
 }
+/** @category AST Nodes */
 export class AwaitExpressionAST extends ExpressionAST {
-  get awaitLoc(): number {
-    return cxx.readAST(this.handle, AwaitExpressionASTSlotBase + 0);
+  get awaitToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AwaitExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4217,9 +5203,13 @@ export class AwaitExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class SizeofExpressionAST extends ExpressionAST {
-  get sizeofLoc(): number {
-    return cxx.readAST(this.handle, SizeofExpressionASTSlotBase + 0);
+  get sizeofToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4232,12 +5222,19 @@ export class SizeofExpressionAST extends ExpressionAST {
       bigint | undefined;
   }
 }
+/** @category AST Nodes */
 export class SizeofTypeExpressionAST extends ExpressionAST {
-  get sizeofLoc(): number {
-    return cxx.readAST(this.handle, SizeofTypeExpressionASTSlotBase + 0);
+  get sizeofToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofTypeExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, SizeofTypeExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofTypeExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4245,29 +5242,48 @@ export class SizeofTypeExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, SizeofTypeExpressionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofTypeExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get value(): bigint | undefined {
     return cxx.readASTVal(this.handle, SizeofTypeExpressionASTSlotBase + 4) as
       bigint | undefined;
   }
 }
+/** @category AST Nodes */
 export class SizeofPackExpressionAST extends ExpressionAST {
-  get sizeofLoc(): number {
-    return cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 0);
+  get sizeofToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 1);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 2);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 3);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 4);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeofPackExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -4282,12 +5298,19 @@ export class SizeofPackExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class AlignofTypeExpressionAST extends ExpressionAST {
-  get alignofLoc(): number {
-    return cxx.readAST(this.handle, AlignofTypeExpressionASTSlotBase + 0);
+  get alignofToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignofTypeExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, AlignofTypeExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignofTypeExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4295,13 +5318,20 @@ export class AlignofTypeExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, AlignofTypeExpressionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignofTypeExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class AlignofExpressionAST extends ExpressionAST {
-  get alignofLoc(): number {
-    return cxx.readAST(this.handle, AlignofExpressionASTSlotBase + 0);
+  get alignofToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignofExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4310,12 +5340,19 @@ export class AlignofExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class NoexceptExpressionAST extends ExpressionAST {
-  get noexceptLoc(): number {
-    return cxx.readAST(this.handle, NoexceptExpressionASTSlotBase + 0);
+  get noexceptToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NoexceptExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, NoexceptExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NoexceptExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4323,8 +5360,11 @@ export class NoexceptExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, NoexceptExpressionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NoexceptExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get value(): boolean | undefined {
     return optionalOf(
@@ -4333,12 +5373,19 @@ export class NoexceptExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class NewExpressionAST extends ExpressionAST {
-  get scopeLoc(): number {
-    return cxx.readAST(this.handle, NewExpressionASTSlotBase + 0);
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NewExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get newLoc(): number {
-    return cxx.readAST(this.handle, NewExpressionASTSlotBase + 1);
+  get newToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NewExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get newPlacement(): NewPlacementAST | undefined {
     return astOf(
@@ -4346,8 +5393,11 @@ export class NewExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, NewExpressionASTSlotBase + 3);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NewExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get typeSpecifierList(): Iterable<SpecifierAST | undefined> {
     return listOf(
@@ -4362,8 +5412,11 @@ export class NewExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, NewExpressionASTSlotBase + 6);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NewExpressionASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
   get newInitalizer(): NewInitializerAST | undefined {
     return astOf(
@@ -4393,18 +5446,31 @@ export class NewExpressionAST extends ExpressionAST {
     return cxx.readAST(this.handle, NewExpressionASTSlotBase + 11) !== 0;
   }
 }
+/** @category AST Nodes */
 export class DeleteExpressionAST extends ExpressionAST {
-  get scopeLoc(): number {
-    return cxx.readAST(this.handle, DeleteExpressionASTSlotBase + 0);
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeleteExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get deleteLoc(): number {
-    return cxx.readAST(this.handle, DeleteExpressionASTSlotBase + 1);
+  get deleteToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeleteExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, DeleteExpressionASTSlotBase + 2);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeleteExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, DeleteExpressionASTSlotBase + 3);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeleteExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4419,9 +5485,13 @@ export class DeleteExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class CastExpressionAST extends ExpressionAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, CastExpressionASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CastExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4429,8 +5499,11 @@ export class CastExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, CastExpressionASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CastExpressionASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4439,6 +5512,7 @@ export class CastExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ImplicitCastExpressionAST extends ExpressionAST {
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4463,6 +5537,7 @@ export class ImplicitCastExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ConstExpressionAST extends ExpressionAST {
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4477,6 +5552,7 @@ export class ConstExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class BinaryExpressionAST extends ExpressionAST {
   get leftExpression(): ExpressionAST | undefined {
     return astOf(
@@ -4484,8 +5560,11 @@ export class BinaryExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get opLoc(): number {
-    return cxx.readAST(this.handle, BinaryExpressionASTSlotBase + 1);
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BinaryExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get rightExpression(): ExpressionAST | undefined {
     return astOf(
@@ -4508,6 +5587,7 @@ export class BinaryExpressionAST extends ExpressionAST {
     return cxx.readAST(this.handle, BinaryExpressionASTSlotBase + 5) !== 0;
   }
 }
+/** @category AST Nodes */
 export class ConditionalExpressionAST extends ExpressionAST {
   get condition(): ExpressionAST | undefined {
     return astOf(
@@ -4515,8 +5595,11 @@ export class ConditionalExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get questionLoc(): number {
-    return cxx.readAST(this.handle, ConditionalExpressionASTSlotBase + 1);
+  get questionToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConditionalExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get iftrueExpression(): ExpressionAST | undefined {
     return astOf(
@@ -4524,8 +5607,11 @@ export class ConditionalExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, ConditionalExpressionASTSlotBase + 3);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConditionalExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get iffalseExpression(): ExpressionAST | undefined {
     return astOf(
@@ -4534,9 +5620,13 @@ export class ConditionalExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class YieldExpressionAST extends ExpressionAST {
-  get yieldLoc(): number {
-    return cxx.readAST(this.handle, YieldExpressionASTSlotBase + 0);
+  get yieldToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, YieldExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4545,9 +5635,13 @@ export class YieldExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ThrowExpressionAST extends ExpressionAST {
-  get throwLoc(): number {
-    return cxx.readAST(this.handle, ThrowExpressionASTSlotBase + 0);
+  get throwToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ThrowExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4556,6 +5650,7 @@ export class ThrowExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class AssignmentExpressionAST extends ExpressionAST {
   get leftExpression(): ExpressionAST | undefined {
     return astOf(
@@ -4563,8 +5658,11 @@ export class AssignmentExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get opLoc(): number {
-    return cxx.readAST(this.handle, AssignmentExpressionASTSlotBase + 1);
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AssignmentExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get rightExpression(): ExpressionAST | undefined {
     return astOf(
@@ -4587,8 +5685,11 @@ export class AssignmentExpressionAST extends ExpressionAST {
     return cxx.readAST(this.handle, AssignmentExpressionASTSlotBase + 5) !== 0;
   }
 }
+/** @category AST Nodes */
 export class TargetExpressionAST extends ExpressionAST {}
+/** @category AST Nodes */
 export class RightExpressionAST extends ExpressionAST {}
+/** @category AST Nodes */
 export class CompoundAssignmentExpressionAST extends ExpressionAST {
   get targetExpression(): ExpressionAST | undefined {
     return astOf(
@@ -4596,10 +5697,10 @@ export class CompoundAssignmentExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get opLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      CompoundAssignmentExpressionASTSlotBase + 1,
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundAssignmentExpressionASTSlotBase + 1),
+      this.modelOwner,
     );
   }
   get leftExpression(): ExpressionAST | undefined {
@@ -4638,6 +5739,7 @@ export class CompoundAssignmentExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class PackExpansionExpressionAST extends ExpressionAST {
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4645,10 +5747,14 @@ export class PackExpansionExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, PackExpansionExpressionASTSlotBase + 1);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PackExpansionExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class DesignatedInitializerClauseAST extends ExpressionAST {
   get designatorList(): Iterable<DesignatorAST | undefined> {
     return listOf(
@@ -4670,12 +5776,19 @@ export class DesignatedInitializerClauseAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TypeTraitExpressionAST extends ExpressionAST {
-  get typeTraitLoc(): number {
-    return cxx.readAST(this.handle, TypeTraitExpressionASTSlotBase + 0);
+  get typeTraitToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeTraitExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, TypeTraitExpressionASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeTraitExpressionASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeIdList(): Iterable<TypeIdAST | undefined> {
     return listOf(
@@ -4684,8 +5797,11 @@ export class TypeTraitExpressionAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, TypeTraitExpressionASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeTraitExpressionASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get typeTrait(): BuiltinTypeTraitKind {
     return builtinTypeTraitKindNames[
@@ -4699,6 +5815,7 @@ export class TypeTraitExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ConditionExpressionAST extends ExpressionAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -4733,9 +5850,13 @@ export class ConditionExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class EqualInitializerAST extends ExpressionAST {
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, EqualInitializerASTSlotBase + 0);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EqualInitializerASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4744,9 +5865,13 @@ export class EqualInitializerAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class BracedInitListAST extends ExpressionAST {
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, BracedInitListASTSlotBase + 0);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BracedInitListASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expressionList(): Iterable<ExpressionAST | undefined> {
     return listOf(
@@ -4755,11 +5880,17 @@ export class BracedInitListAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, BracedInitListASTSlotBase + 2);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BracedInitListASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, BracedInitListASTSlotBase + 3);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BracedInitListASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get implicitElement(): VariableSymbol | undefined {
     return symbolOf(
@@ -4768,9 +5899,13 @@ export class BracedInitListAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ParenInitializerAST extends ExpressionAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, ParenInitializerASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParenInitializerASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expressionList(): Iterable<ExpressionAST | undefined> {
     return listOf(
@@ -4779,10 +5914,14 @@ export class ParenInitializerAST extends ExpressionAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, ParenInitializerASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParenInitializerASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ThreeWayComparisonExpressionAST extends ExpressionAST {
   get comparison(): BinaryExpressionAST | undefined {
     return astOf(
@@ -4815,12 +5954,19 @@ export class ThreeWayComparisonExpressionAST extends ExpressionAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DefaultGenericAssociationAST extends GenericAssociationAST {
-  get defaultLoc(): number {
-    return cxx.readAST(this.handle, DefaultGenericAssociationASTSlotBase + 0);
+  get defaultToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DefaultGenericAssociationASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, DefaultGenericAssociationASTSlotBase + 1);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DefaultGenericAssociationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4829,6 +5975,7 @@ export class DefaultGenericAssociationAST extends GenericAssociationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TypeGenericAssociationAST extends GenericAssociationAST {
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4836,8 +5983,11 @@ export class TypeGenericAssociationAST extends GenericAssociationAST {
       this.modelOwner,
     );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, TypeGenericAssociationASTSlotBase + 1);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeGenericAssociationASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4846,12 +5996,19 @@ export class TypeGenericAssociationAST extends GenericAssociationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DotDesignatorAST extends DesignatorAST {
-  get dotLoc(): number {
-    return cxx.readAST(this.handle, DotDesignatorASTSlotBase + 0);
+  get dotToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DotDesignatorASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, DotDesignatorASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DotDesignatorASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -4866,9 +6023,13 @@ export class DotDesignatorAST extends DesignatorAST {
     );
   }
 }
+/** @category AST Nodes */
 export class SubscriptDesignatorAST extends DesignatorAST {
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, SubscriptDesignatorASTSlotBase + 0);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SubscriptDesignatorASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -4876,16 +6037,26 @@ export class SubscriptDesignatorAST extends DesignatorAST {
       this.modelOwner,
     );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, SubscriptDesignatorASTSlotBase + 2);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SubscriptDesignatorASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class TemplateTypeParameterAST extends TemplateParameterAST {
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 0);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lessLoc(): number {
-    return cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 1);
+  get lessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get templateParameterList(): Iterable<TemplateParameterAST | undefined> {
     return listOf(
@@ -4894,8 +6065,11 @@ export class TemplateTypeParameterAST extends TemplateParameterAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get greaterLoc(): number {
-    return cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 3);
+  get greaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get requiresClause(): RequiresClauseAST | undefined {
     return astOf(
@@ -4903,17 +6077,29 @@ export class TemplateTypeParameterAST extends TemplateParameterAST {
       this.modelOwner,
     );
   }
-  get classKeyLoc(): number {
-    return cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 5);
+  get classKeyToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 6);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 7);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 7),
+      this.modelOwner,
+    );
   }
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 8);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateTypeParameterASTSlotBase + 8),
+      this.modelOwner,
+    );
   }
   get idExpression(): IdExpressionAST | undefined {
     return astOf(
@@ -4933,6 +6119,7 @@ export class TemplateTypeParameterAST extends TemplateParameterAST {
     );
   }
 }
+/** @category AST Nodes */
 export class NonTypeTemplateParameterAST extends TemplateParameterAST {
   get declaration(): ParameterDeclarationAST | undefined {
     return astOf(
@@ -4941,18 +6128,31 @@ export class NonTypeTemplateParameterAST extends TemplateParameterAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TypenameTypeParameterAST extends TemplateParameterAST {
-  get classKeyLoc(): number {
-    return cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 0);
+  get classKeyToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 1);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 2);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 3);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -4973,6 +6173,7 @@ export class TypenameTypeParameterAST extends TemplateParameterAST {
     return cxx.readAST(this.handle, TypenameTypeParameterASTSlotBase + 7) !== 0;
   }
 }
+/** @category AST Nodes */
 export class ConstraintTypeParameterAST extends TemplateParameterAST {
   get typeConstraint(): TypeConstraintAST | undefined {
     return astOf(
@@ -4980,14 +6181,23 @@ export class ConstraintTypeParameterAST extends TemplateParameterAST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, ConstraintTypeParameterASTSlotBase + 1);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstraintTypeParameterASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, ConstraintTypeParameterASTSlotBase + 2);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstraintTypeParameterASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, ConstraintTypeParameterASTSlotBase + 3);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstraintTypeParameterASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -5007,82 +6217,145 @@ export class ConstraintTypeParameterAST extends TemplateParameterAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TypedefSpecifierAST extends SpecifierAST {
-  get typedefLoc(): number {
-    return cxx.readAST(this.handle, TypedefSpecifierASTSlotBase + 0);
+  get typedefToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypedefSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class FriendSpecifierAST extends SpecifierAST {
-  get friendLoc(): number {
-    return cxx.readAST(this.handle, FriendSpecifierASTSlotBase + 0);
+  get friendToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FriendSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ConstevalSpecifierAST extends SpecifierAST {
-  get constevalLoc(): number {
-    return cxx.readAST(this.handle, ConstevalSpecifierASTSlotBase + 0);
+  get constevalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstevalSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ConstinitSpecifierAST extends SpecifierAST {
-  get constinitLoc(): number {
-    return cxx.readAST(this.handle, ConstinitSpecifierASTSlotBase + 0);
+  get constinitToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstinitSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ConstexprSpecifierAST extends SpecifierAST {
-  get constexprLoc(): number {
-    return cxx.readAST(this.handle, ConstexprSpecifierASTSlotBase + 0);
+  get constexprToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstexprSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class InlineSpecifierAST extends SpecifierAST {
-  get inlineLoc(): number {
-    return cxx.readAST(this.handle, InlineSpecifierASTSlotBase + 0);
+  get inlineToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, InlineSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class NoreturnSpecifierAST extends SpecifierAST {
-  get noreturnLoc(): number {
-    return cxx.readAST(this.handle, NoreturnSpecifierASTSlotBase + 0);
+  get noreturnToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NoreturnSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class StaticSpecifierAST extends SpecifierAST {
-  get staticLoc(): number {
-    return cxx.readAST(this.handle, StaticSpecifierASTSlotBase + 0);
+  get staticToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, StaticSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ExternSpecifierAST extends SpecifierAST {
-  get externLoc(): number {
-    return cxx.readAST(this.handle, ExternSpecifierASTSlotBase + 0);
+  get externToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExternSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class RegisterSpecifierAST extends SpecifierAST {
-  get registerLoc(): number {
-    return cxx.readAST(this.handle, RegisterSpecifierASTSlotBase + 0);
+  get registerToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RegisterSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ThreadLocalSpecifierAST extends SpecifierAST {
-  get threadLocalLoc(): number {
-    return cxx.readAST(this.handle, ThreadLocalSpecifierASTSlotBase + 0);
+  get threadLocalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ThreadLocalSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ThreadSpecifierAST extends SpecifierAST {
-  get threadLoc(): number {
-    return cxx.readAST(this.handle, ThreadSpecifierASTSlotBase + 0);
+  get threadToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ThreadSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class MutableSpecifierAST extends SpecifierAST {
-  get mutableLoc(): number {
-    return cxx.readAST(this.handle, MutableSpecifierASTSlotBase + 0);
+  get mutableToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, MutableSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class VirtualSpecifierAST extends SpecifierAST {
-  get virtualLoc(): number {
-    return cxx.readAST(this.handle, VirtualSpecifierASTSlotBase + 0);
+  get virtualToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, VirtualSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ExplicitSpecifierAST extends SpecifierAST {
-  get explicitLoc(): number {
-    return cxx.readAST(this.handle, ExplicitSpecifierASTSlotBase + 0);
+  get explicitToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExplicitSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, ExplicitSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExplicitSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -5090,23 +6363,38 @@ export class ExplicitSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, ExplicitSpecifierASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ExplicitSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class AutoTypeSpecifierAST extends SpecifierAST {
-  get autoLoc(): number {
-    return cxx.readAST(this.handle, AutoTypeSpecifierASTSlotBase + 0);
+  get autoToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AutoTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class VoidTypeSpecifierAST extends SpecifierAST {
-  get voidLoc(): number {
-    return cxx.readAST(this.handle, VoidTypeSpecifierASTSlotBase + 0);
+  get voidToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, VoidTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class SizeTypeSpecifierAST extends SpecifierAST {
-  get specifierLoc(): number {
-    return cxx.readAST(this.handle, SizeTypeSpecifierASTSlotBase + 0);
+  get specifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SizeTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get specifier(): TokenKind {
     return tokenKindNames[
@@ -5114,9 +6402,13 @@ export class SizeTypeSpecifierAST extends SpecifierAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class SignTypeSpecifierAST extends SpecifierAST {
-  get specifierLoc(): number {
-    return cxx.readAST(this.handle, SignTypeSpecifierASTSlotBase + 0);
+  get specifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SignTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get specifier(): TokenKind {
     return tokenKindNames[
@@ -5124,9 +6416,13 @@ export class SignTypeSpecifierAST extends SpecifierAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class BuiltinTypeSpecifierAST extends SpecifierAST {
-  get specifierLoc(): number {
-    return cxx.readAST(this.handle, BuiltinTypeSpecifierASTSlotBase + 0);
+  get specifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BuiltinTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get specifier(): TokenKind {
     return tokenKindNames[
@@ -5134,12 +6430,19 @@ export class BuiltinTypeSpecifierAST extends SpecifierAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class UnaryBuiltinTypeSpecifierAST extends SpecifierAST {
-  get builtinLoc(): number {
-    return cxx.readAST(this.handle, UnaryBuiltinTypeSpecifierASTSlotBase + 0);
+  get builtinToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UnaryBuiltinTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, UnaryBuiltinTypeSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UnaryBuiltinTypeSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -5147,8 +6450,11 @@ export class UnaryBuiltinTypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, UnaryBuiltinTypeSpecifierASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UnaryBuiltinTypeSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get builtinKind(): UnaryBuiltinTypeKind {
     return unaryBuiltinTypeKindNames[
@@ -5156,12 +6462,19 @@ export class UnaryBuiltinTypeSpecifierAST extends SpecifierAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class BinaryBuiltinTypeSpecifierAST extends SpecifierAST {
-  get builtinLoc(): number {
-    return cxx.readAST(this.handle, BinaryBuiltinTypeSpecifierASTSlotBase + 0);
+  get builtinToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BinaryBuiltinTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, BinaryBuiltinTypeSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BinaryBuiltinTypeSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get leftTypeId(): TypeIdAST | undefined {
     return astOf(
@@ -5169,8 +6482,11 @@ export class BinaryBuiltinTypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, BinaryBuiltinTypeSpecifierASTSlotBase + 3);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BinaryBuiltinTypeSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get rightTypeId(): TypeIdAST | undefined {
     return astOf(
@@ -5178,8 +6494,11 @@ export class BinaryBuiltinTypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, BinaryBuiltinTypeSpecifierASTSlotBase + 5);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BinaryBuiltinTypeSpecifierASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get builtinKind(): BinaryBuiltinTypeKind {
     return binaryBuiltinTypeKindNames[
@@ -5187,9 +6506,13 @@ export class BinaryBuiltinTypeSpecifierAST extends SpecifierAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class IntegralTypeSpecifierAST extends SpecifierAST {
-  get specifierLoc(): number {
-    return cxx.readAST(this.handle, IntegralTypeSpecifierASTSlotBase + 0);
+  get specifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IntegralTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get specifier(): TokenKind {
     return tokenKindNames[
@@ -5197,9 +6520,13 @@ export class IntegralTypeSpecifierAST extends SpecifierAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class FloatingPointTypeSpecifierAST extends SpecifierAST {
-  get specifierLoc(): number {
-    return cxx.readAST(this.handle, FloatingPointTypeSpecifierASTSlotBase + 0);
+  get specifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FloatingPointTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get specifier(): TokenKind {
     return tokenKindNames[
@@ -5207,11 +6534,16 @@ export class FloatingPointTypeSpecifierAST extends SpecifierAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class ComplexTypeSpecifierAST extends SpecifierAST {
-  get complexLoc(): number {
-    return cxx.readAST(this.handle, ComplexTypeSpecifierASTSlotBase + 0);
+  get complexToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ComplexTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class NamedTypeSpecifierAST extends SpecifierAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -5219,8 +6551,11 @@ export class NamedTypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, NamedTypeSpecifierASTSlotBase + 1);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NamedTypeSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get unqualifiedId(): UnqualifiedIdAST | undefined {
     return astOf(
@@ -5238,12 +6573,19 @@ export class NamedTypeSpecifierAST extends SpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class AtomicTypeSpecifierAST extends SpecifierAST {
-  get atomicLoc(): number {
-    return cxx.readAST(this.handle, AtomicTypeSpecifierASTSlotBase + 0);
+  get atomicToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AtomicTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, AtomicTypeSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AtomicTypeSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -5251,16 +6593,26 @@ export class AtomicTypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, AtomicTypeSpecifierASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AtomicTypeSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class BitIntTypeSpecifierAST extends SpecifierAST {
-  get bitintLoc(): number {
-    return cxx.readAST(this.handle, BitIntTypeSpecifierASTSlotBase + 0);
+  get bitintToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BitIntTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, BitIntTypeSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BitIntTypeSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get sizeExpression(): ExpressionAST | undefined {
     return astOf(
@@ -5268,19 +6620,29 @@ export class BitIntTypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, BitIntTypeSpecifierASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BitIntTypeSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get bitCount(): number {
     return cxx.readAST(this.handle, BitIntTypeSpecifierASTSlotBase + 4);
   }
 }
+/** @category AST Nodes */
 export class UnderlyingTypeSpecifierAST extends SpecifierAST {
-  get underlyingTypeLoc(): number {
-    return cxx.readAST(this.handle, UnderlyingTypeSpecifierASTSlotBase + 0);
+  get underlyingTypeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UnderlyingTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, UnderlyingTypeSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UnderlyingTypeSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -5288,13 +6650,20 @@ export class UnderlyingTypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, UnderlyingTypeSpecifierASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, UnderlyingTypeSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ElaboratedTypeSpecifierAST extends SpecifierAST {
-  get classLoc(): number {
-    return cxx.readAST(this.handle, ElaboratedTypeSpecifierASTSlotBase + 0);
+  get classToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ElaboratedTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -5309,8 +6678,11 @@ export class ElaboratedTypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, ElaboratedTypeSpecifierASTSlotBase + 3);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ElaboratedTypeSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get unqualifiedId(): UnqualifiedIdAST | undefined {
     return astOf(
@@ -5335,26 +6707,46 @@ export class ElaboratedTypeSpecifierAST extends SpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DecltypeAutoSpecifierAST extends SpecifierAST {
-  get decltypeLoc(): number {
-    return cxx.readAST(this.handle, DecltypeAutoSpecifierASTSlotBase + 0);
+  get decltypeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DecltypeAutoSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, DecltypeAutoSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DecltypeAutoSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get autoLoc(): number {
-    return cxx.readAST(this.handle, DecltypeAutoSpecifierASTSlotBase + 2);
+  get autoToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DecltypeAutoSpecifierASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, DecltypeAutoSpecifierASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DecltypeAutoSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class DecltypeSpecifierAST extends SpecifierAST {
-  get decltypeLoc(): number {
-    return cxx.readAST(this.handle, DecltypeSpecifierASTSlotBase + 0);
+  get decltypeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DecltypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, DecltypeSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DecltypeSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -5362,8 +6754,11 @@ export class DecltypeSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, DecltypeSpecifierASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DecltypeSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get type(): Type | undefined {
     return typeOf(
@@ -5372,6 +6767,7 @@ export class DecltypeSpecifierAST extends SpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class PlaceholderTypeSpecifierAST extends SpecifierAST {
   get typeConstraint(): TypeConstraintAST | undefined {
     return astOf(
@@ -5386,32 +6782,55 @@ export class PlaceholderTypeSpecifierAST extends SpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ConstQualifierAST extends SpecifierAST {
-  get constLoc(): number {
-    return cxx.readAST(this.handle, ConstQualifierASTSlotBase + 0);
+  get constToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstQualifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class VolatileQualifierAST extends SpecifierAST {
-  get volatileLoc(): number {
-    return cxx.readAST(this.handle, VolatileQualifierASTSlotBase + 0);
+  get volatileToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, VolatileQualifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class AtomicQualifierAST extends SpecifierAST {
-  get atomicLoc(): number {
-    return cxx.readAST(this.handle, AtomicQualifierASTSlotBase + 0);
+  get atomicToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AtomicQualifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class RestrictQualifierAST extends SpecifierAST {
-  get restrictLoc(): number {
-    return cxx.readAST(this.handle, RestrictQualifierASTSlotBase + 0);
+  get restrictToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RestrictQualifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class EnumSpecifierAST extends SpecifierAST {
-  get enumLoc(): number {
-    return cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 0);
+  get enumToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get classLoc(): number {
-    return cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 1);
+  get classToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -5432,8 +6851,11 @@ export class EnumSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 5);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get typeSpecifierList(): Iterable<SpecifierAST | undefined> {
     return listOf(
@@ -5442,8 +6864,11 @@ export class EnumSpecifierAST extends SpecifierAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 7);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 7),
+      this.modelOwner,
+    );
   }
   get enumeratorList(): Iterable<EnumeratorAST | undefined> {
     return listOf(
@@ -5452,11 +6877,17 @@ export class EnumSpecifierAST extends SpecifierAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get commaLoc(): number {
-    return cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 9);
+  get commaToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 9),
+      this.modelOwner,
+    );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 10);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EnumSpecifierASTSlotBase + 10),
+      this.modelOwner,
+    );
   }
   get symbol(): Symbol | undefined {
     return symbolOf(
@@ -5465,9 +6896,13 @@ export class EnumSpecifierAST extends SpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ClassSpecifierAST extends SpecifierAST {
-  get classLoc(): number {
-    return cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 0);
+  get classToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -5488,11 +6923,17 @@ export class ClassSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get finalLoc(): number {
-    return cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 4);
+  get finalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 5);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
   get baseSpecifierList(): Iterable<BaseSpecifierAST | undefined> {
     return listOf(
@@ -5501,8 +6942,11 @@ export class ClassSpecifierAST extends SpecifierAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 7);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 7),
+      this.modelOwner,
+    );
   }
   get declarationList(): Iterable<DeclarationAST | undefined> {
     return listOf(
@@ -5511,8 +6955,11 @@ export class ClassSpecifierAST extends SpecifierAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 9);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 9),
+      this.modelOwner,
+    );
   }
   get trailingAttributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -5536,9 +6983,13 @@ export class ClassSpecifierAST extends SpecifierAST {
     return cxx.readAST(this.handle, ClassSpecifierASTSlotBase + 13) !== 0;
   }
 }
+/** @category AST Nodes */
 export class TypenameSpecifierAST extends SpecifierAST {
-  get typenameLoc(): number {
-    return cxx.readAST(this.handle, TypenameSpecifierASTSlotBase + 0);
+  get typenameToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypenameSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -5546,8 +6997,11 @@ export class TypenameSpecifierAST extends SpecifierAST {
       this.modelOwner,
     );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, TypenameSpecifierASTSlotBase + 2);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypenameSpecifierASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get unqualifiedId(): UnqualifiedIdAST | undefined {
     return astOf(
@@ -5565,9 +7019,13 @@ export class TypenameSpecifierAST extends SpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class SplicerTypeSpecifierAST extends SpecifierAST {
-  get typenameLoc(): number {
-    return cxx.readAST(this.handle, SplicerTypeSpecifierASTSlotBase + 0);
+  get typenameToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SplicerTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get splicer(): SplicerAST | undefined {
     return astOf(
@@ -5576,9 +7034,13 @@ export class SplicerTypeSpecifierAST extends SpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class PointerOperatorAST extends PtrOperatorAST {
-  get starLoc(): number {
-    return cxx.readAST(this.handle, PointerOperatorASTSlotBase + 0);
+  get starToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PointerOperatorASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -5595,9 +7057,13 @@ export class PointerOperatorAST extends PtrOperatorAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ReferenceOperatorAST extends PtrOperatorAST {
-  get refLoc(): number {
-    return cxx.readAST(this.handle, ReferenceOperatorASTSlotBase + 0);
+  get refToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ReferenceOperatorASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -5612,6 +7078,7 @@ export class ReferenceOperatorAST extends PtrOperatorAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class PtrToMemberOperatorAST extends PtrOperatorAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -5619,8 +7086,11 @@ export class PtrToMemberOperatorAST extends PtrOperatorAST {
       this.modelOwner,
     );
   }
-  get starLoc(): number {
-    return cxx.readAST(this.handle, PtrToMemberOperatorASTSlotBase + 1);
+  get starToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PtrToMemberOperatorASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -5637,6 +7107,7 @@ export class PtrToMemberOperatorAST extends PtrOperatorAST {
     );
   }
 }
+/** @category AST Nodes */
 export class BitfieldDeclaratorAST extends CoreDeclaratorAST {
   get unqualifiedId(): NameIdAST | undefined {
     return astOf(
@@ -5651,8 +7122,11 @@ export class BitfieldDeclaratorAST extends CoreDeclaratorAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, BitfieldDeclaratorASTSlotBase + 2);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BitfieldDeclaratorASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get sizeExpression(): ExpressionAST | undefined {
     return astOf(
@@ -5668,9 +7142,13 @@ export class BitfieldDeclaratorAST extends CoreDeclaratorAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ParameterPackAST extends CoreDeclaratorAST {
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, ParameterPackASTSlotBase + 0);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParameterPackASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get coreDeclarator(): CoreDeclaratorAST | undefined {
     return astOf(
@@ -5679,6 +7157,7 @@ export class ParameterPackAST extends CoreDeclaratorAST {
     );
   }
 }
+/** @category AST Nodes */
 export class IdDeclaratorAST extends CoreDeclaratorAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -5686,8 +7165,11 @@ export class IdDeclaratorAST extends CoreDeclaratorAST {
       this.modelOwner,
     );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, IdDeclaratorASTSlotBase + 1);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, IdDeclaratorASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get unqualifiedId(): UnqualifiedIdAST | undefined {
     return astOf(
@@ -5706,9 +7188,13 @@ export class IdDeclaratorAST extends CoreDeclaratorAST {
     return cxx.readAST(this.handle, IdDeclaratorASTSlotBase + 4) !== 0;
   }
 }
+/** @category AST Nodes */
 export class NestedDeclaratorAST extends CoreDeclaratorAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, NestedDeclaratorASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedDeclaratorASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get declarator(): DeclaratorAST | undefined {
     return astOf(
@@ -5716,13 +7202,20 @@ export class NestedDeclaratorAST extends CoreDeclaratorAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, NestedDeclaratorASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedDeclaratorASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, FunctionDeclaratorChunkASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FunctionDeclaratorChunkASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get parameterDeclarationClause(): ParameterDeclarationClauseAST | undefined {
     return astOf(
@@ -5730,8 +7223,11 @@ export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, FunctionDeclaratorChunkASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FunctionDeclaratorChunkASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get cvQualifierList(): Iterable<SpecifierAST | undefined> {
     return listOf(
@@ -5740,8 +7236,11 @@ export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get refLoc(): number {
-    return cxx.readAST(this.handle, FunctionDeclaratorChunkASTSlotBase + 4);
+  get refToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, FunctionDeclaratorChunkASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get exceptionSpecifier(): ExceptionSpecifierAST | undefined {
     return astOf(
@@ -5783,9 +7282,13 @@ export class FunctionDeclaratorChunkAST extends DeclaratorChunkAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 0);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get typeQualifierList(): Iterable<SpecifierAST | undefined> {
     return listOf(
@@ -5800,8 +7303,11 @@ export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
       this.modelOwner,
     );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 3);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -5811,9 +7317,13 @@ export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
     );
   }
 }
+/** @category AST Nodes */
 export class NameIdAST extends UnqualifiedIdAST {
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, NameIdASTSlotBase + 0);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NameIdASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -5822,9 +7332,13 @@ export class NameIdAST extends UnqualifiedIdAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DestructorIdAST extends UnqualifiedIdAST {
-  get tildeLoc(): number {
-    return cxx.readAST(this.handle, DestructorIdASTSlotBase + 0);
+  get tildeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DestructorIdASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get id(): UnqualifiedIdAST | undefined {
     return astOf(
@@ -5833,6 +7347,7 @@ export class DestructorIdAST extends UnqualifiedIdAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DecltypeIdAST extends UnqualifiedIdAST {
   get decltypeSpecifier(): DecltypeSpecifierAST | undefined {
     return astOf(
@@ -5841,18 +7356,31 @@ export class DecltypeIdAST extends UnqualifiedIdAST {
     );
   }
 }
+/** @category AST Nodes */
 export class OperatorFunctionIdAST extends UnqualifiedIdAST {
-  get operatorLoc(): number {
-    return cxx.readAST(this.handle, OperatorFunctionIdASTSlotBase + 0);
+  get operatorToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OperatorFunctionIdASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get opLoc(): number {
-    return cxx.readAST(this.handle, OperatorFunctionIdASTSlotBase + 1);
+  get opToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OperatorFunctionIdASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get openLoc(): number {
-    return cxx.readAST(this.handle, OperatorFunctionIdASTSlotBase + 2);
+  get openToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OperatorFunctionIdASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get closeLoc(): number {
-    return cxx.readAST(this.handle, OperatorFunctionIdASTSlotBase + 3);
+  get closeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OperatorFunctionIdASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get op(): TokenKind {
     return tokenKindNames[
@@ -5860,15 +7388,25 @@ export class OperatorFunctionIdAST extends UnqualifiedIdAST {
     ]!;
   }
 }
+/** @category AST Nodes */
 export class LiteralOperatorIdAST extends UnqualifiedIdAST {
-  get operatorLoc(): number {
-    return cxx.readAST(this.handle, LiteralOperatorIdASTSlotBase + 0);
+  get operatorToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LiteralOperatorIdASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, LiteralOperatorIdASTSlotBase + 1);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LiteralOperatorIdASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, LiteralOperatorIdASTSlotBase + 2);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LiteralOperatorIdASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get literal(): Literal | undefined {
     return objOf(
@@ -5884,9 +7422,13 @@ export class LiteralOperatorIdAST extends UnqualifiedIdAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ConversionFunctionIdAST extends UnqualifiedIdAST {
-  get operatorLoc(): number {
-    return cxx.readAST(this.handle, ConversionFunctionIdASTSlotBase + 0);
+  get operatorToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConversionFunctionIdASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -5895,12 +7437,19 @@ export class ConversionFunctionIdAST extends UnqualifiedIdAST {
     );
   }
 }
+/** @category AST Nodes */
 export class SimpleTemplateIdAST extends UnqualifiedIdAST {
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, SimpleTemplateIdASTSlotBase + 0);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleTemplateIdASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lessLoc(): number {
-    return cxx.readAST(this.handle, SimpleTemplateIdASTSlotBase + 1);
+  get lessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleTemplateIdASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get templateArgumentList(): Iterable<TemplateArgumentAST | undefined> {
     return listOf(
@@ -5909,8 +7458,11 @@ export class SimpleTemplateIdAST extends UnqualifiedIdAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get greaterLoc(): number {
-    return cxx.readAST(this.handle, SimpleTemplateIdASTSlotBase + 3);
+  get greaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleTemplateIdASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -5925,6 +7477,7 @@ export class SimpleTemplateIdAST extends UnqualifiedIdAST {
     );
   }
 }
+/** @category AST Nodes */
 export class LiteralOperatorTemplateIdAST extends UnqualifiedIdAST {
   get literalOperatorId(): LiteralOperatorIdAST | undefined {
     return astOf(
@@ -5932,8 +7485,11 @@ export class LiteralOperatorTemplateIdAST extends UnqualifiedIdAST {
       this.modelOwner,
     );
   }
-  get lessLoc(): number {
-    return cxx.readAST(this.handle, LiteralOperatorTemplateIdASTSlotBase + 1);
+  get lessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LiteralOperatorTemplateIdASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get templateArgumentList(): Iterable<TemplateArgumentAST | undefined> {
     return listOf(
@@ -5942,10 +7498,14 @@ export class LiteralOperatorTemplateIdAST extends UnqualifiedIdAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get greaterLoc(): number {
-    return cxx.readAST(this.handle, LiteralOperatorTemplateIdASTSlotBase + 3);
+  get greaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, LiteralOperatorTemplateIdASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class OperatorFunctionTemplateIdAST extends UnqualifiedIdAST {
   get operatorFunctionId(): OperatorFunctionIdAST | undefined {
     return astOf(
@@ -5953,8 +7513,11 @@ export class OperatorFunctionTemplateIdAST extends UnqualifiedIdAST {
       this.modelOwner,
     );
   }
-  get lessLoc(): number {
-    return cxx.readAST(this.handle, OperatorFunctionTemplateIdASTSlotBase + 1);
+  get lessToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OperatorFunctionTemplateIdASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get templateArgumentList(): Iterable<TemplateArgumentAST | undefined> {
     return listOf(
@@ -5963,15 +7526,23 @@ export class OperatorFunctionTemplateIdAST extends UnqualifiedIdAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get greaterLoc(): number {
-    return cxx.readAST(this.handle, OperatorFunctionTemplateIdASTSlotBase + 3);
+  get greaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, OperatorFunctionTemplateIdASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class GlobalNestedNameSpecifierAST extends NestedNameSpecifierAST {
-  get scopeLoc(): number {
-    return cxx.readAST(this.handle, GlobalNestedNameSpecifierASTSlotBase + 0);
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GlobalNestedNameSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class SimpleNestedNameSpecifierAST extends NestedNameSpecifierAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -5979,8 +7550,11 @@ export class SimpleNestedNameSpecifierAST extends NestedNameSpecifierAST {
       this.modelOwner,
     );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, SimpleNestedNameSpecifierASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleNestedNameSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -5988,10 +7562,14 @@ export class SimpleNestedNameSpecifierAST extends NestedNameSpecifierAST {
       this.modelOwner,
     );
   }
-  get scopeLoc(): number {
-    return cxx.readAST(this.handle, SimpleNestedNameSpecifierASTSlotBase + 3);
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleNestedNameSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class DecltypeNestedNameSpecifierAST extends NestedNameSpecifierAST {
   get decltypeSpecifier(): DecltypeSpecifierAST | undefined {
     return astOf(
@@ -5999,10 +7577,14 @@ export class DecltypeNestedNameSpecifierAST extends NestedNameSpecifierAST {
       this.modelOwner,
     );
   }
-  get scopeLoc(): number {
-    return cxx.readAST(this.handle, DecltypeNestedNameSpecifierASTSlotBase + 1);
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DecltypeNestedNameSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -6010,8 +7592,11 @@ export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
       this.modelOwner,
     );
   }
-  get templateLoc(): number {
-    return cxx.readAST(this.handle, TemplateNestedNameSpecifierASTSlotBase + 1);
+  get templateToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateNestedNameSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get templateId(): SimpleTemplateIdAST | undefined {
     return astOf(
@@ -6019,8 +7604,11 @@ export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
       this.modelOwner,
     );
   }
-  get scopeLoc(): number {
-    return cxx.readAST(this.handle, TemplateNestedNameSpecifierASTSlotBase + 3);
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TemplateNestedNameSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get isTemplateIntroduced(): boolean {
     return (
@@ -6028,22 +7616,33 @@ export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DefaultFunctionBodyAST extends FunctionBodyAST {
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, DefaultFunctionBodyASTSlotBase + 0);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DefaultFunctionBodyASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get defaultLoc(): number {
-    return cxx.readAST(this.handle, DefaultFunctionBodyASTSlotBase + 1);
+  get defaultToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DefaultFunctionBodyASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, DefaultFunctionBodyASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DefaultFunctionBodyASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
-  get colonLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      CompoundStatementFunctionBodyASTSlotBase + 0,
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundStatementFunctionBodyASTSlotBase + 0),
+      this.modelOwner,
     );
   }
   get memInitializerList(): Iterable<MemInitializerAST | undefined> {
@@ -6060,12 +7659,19 @@ export class CompoundStatementFunctionBodyAST extends FunctionBodyAST {
     );
   }
 }
+/** @category AST Nodes */
 export class TryStatementFunctionBodyAST extends FunctionBodyAST {
-  get tryLoc(): number {
-    return cxx.readAST(this.handle, TryStatementFunctionBodyASTSlotBase + 0);
+  get tryToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TryStatementFunctionBodyASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get colonLoc(): number {
-    return cxx.readAST(this.handle, TryStatementFunctionBodyASTSlotBase + 1);
+  get colonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TryStatementFunctionBodyASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get memInitializerList(): Iterable<MemInitializerAST | undefined> {
     return listOf(
@@ -6088,17 +7694,28 @@ export class TryStatementFunctionBodyAST extends FunctionBodyAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DeleteFunctionBodyAST extends FunctionBodyAST {
-  get equalLoc(): number {
-    return cxx.readAST(this.handle, DeleteFunctionBodyASTSlotBase + 0);
+  get equalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeleteFunctionBodyASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get deleteLoc(): number {
-    return cxx.readAST(this.handle, DeleteFunctionBodyASTSlotBase + 1);
+  get deleteToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeleteFunctionBodyASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, DeleteFunctionBodyASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DeleteFunctionBodyASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class TypeTemplateArgumentAST extends TemplateArgumentAST {
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -6107,6 +7724,7 @@ export class TypeTemplateArgumentAST extends TemplateArgumentAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ExpressionTemplateArgumentAST extends TemplateArgumentAST {
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -6115,23 +7733,40 @@ export class ExpressionTemplateArgumentAST extends TemplateArgumentAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ThrowExceptionSpecifierAST extends ExceptionSpecifierAST {
-  get throwLoc(): number {
-    return cxx.readAST(this.handle, ThrowExceptionSpecifierASTSlotBase + 0);
+  get throwToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ThrowExceptionSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, ThrowExceptionSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ThrowExceptionSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, ThrowExceptionSpecifierASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ThrowExceptionSpecifierASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class NoexceptSpecifierAST extends ExceptionSpecifierAST {
-  get noexceptLoc(): number {
-    return cxx.readAST(this.handle, NoexceptSpecifierASTSlotBase + 0);
+  get noexceptToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NoexceptSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, NoexceptSpecifierASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NoexceptSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -6139,10 +7774,14 @@ export class NoexceptSpecifierAST extends ExceptionSpecifierAST {
       this.modelOwner,
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, NoexceptSpecifierASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NoexceptSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class SimpleRequirementAST extends RequirementAST {
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -6150,13 +7789,20 @@ export class SimpleRequirementAST extends RequirementAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, SimpleRequirementASTSlotBase + 1);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleRequirementASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class CompoundRequirementAST extends RequirementAST {
-  get lbraceLoc(): number {
-    return cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 0);
+  get lbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -6164,14 +7810,23 @@ export class CompoundRequirementAST extends RequirementAST {
       this.modelOwner,
     );
   }
-  get rbraceLoc(): number {
-    return cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 2);
+  get rbraceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get noexceptLoc(): number {
-    return cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 3);
+  get noexceptToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get minusGreaterLoc(): number {
-    return cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 4);
+  get minusGreaterToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get typeConstraint(): TypeConstraintAST | undefined {
     return astOf(
@@ -6179,13 +7834,20 @@ export class CompoundRequirementAST extends RequirementAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 6);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CompoundRequirementASTSlotBase + 6),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class TypeRequirementAST extends RequirementAST {
-  get typenameLoc(): number {
-    return cxx.readAST(this.handle, TypeRequirementASTSlotBase + 0);
+  get typenameToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeRequirementASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -6193,13 +7855,20 @@ export class TypeRequirementAST extends RequirementAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, TypeRequirementASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, TypeRequirementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class NestedRequirementAST extends RequirementAST {
-  get requiresLoc(): number {
-    return cxx.readAST(this.handle, NestedRequirementASTSlotBase + 0);
+  get requiresToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedRequirementASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -6207,13 +7876,20 @@ export class NestedRequirementAST extends RequirementAST {
       this.modelOwner,
     );
   }
-  get semicolonLoc(): number {
-    return cxx.readAST(this.handle, NestedRequirementASTSlotBase + 2);
+  get semicolonToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NestedRequirementASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class NewParenInitializerAST extends NewInitializerAST {
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, NewParenInitializerASTSlotBase + 0);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NewParenInitializerASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get expressionList(): Iterable<ExpressionAST | undefined> {
     return listOf(
@@ -6222,10 +7898,14 @@ export class NewParenInitializerAST extends NewInitializerAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, NewParenInitializerASTSlotBase + 2);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, NewParenInitializerASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class NewBracedInitializerAST extends NewInitializerAST {
   get bracedInitList(): BracedInitListAST | undefined {
     return astOf(
@@ -6234,6 +7914,7 @@ export class NewBracedInitializerAST extends NewInitializerAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ParenMemInitializerAST extends MemInitializerAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -6247,8 +7928,11 @@ export class ParenMemInitializerAST extends MemInitializerAST {
       this.modelOwner,
     );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, ParenMemInitializerASTSlotBase + 2);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParenMemInitializerASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get expressionList(): Iterable<ExpressionAST | undefined> {
     return listOf(
@@ -6257,13 +7941,20 @@ export class ParenMemInitializerAST extends MemInitializerAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, ParenMemInitializerASTSlotBase + 4);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParenMemInitializerASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, ParenMemInitializerASTSlotBase + 5);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ParenMemInitializerASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class BracedMemInitializerAST extends MemInitializerAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -6283,13 +7974,20 @@ export class BracedMemInitializerAST extends MemInitializerAST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, BracedMemInitializerASTSlotBase + 3);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, BracedMemInitializerASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class ThisLambdaCaptureAST extends LambdaCaptureAST {
-  get thisLoc(): number {
-    return cxx.readAST(this.handle, ThisLambdaCaptureASTSlotBase + 0);
+  get thisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ThisLambdaCaptureASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get initializer(): ExpressionAST | undefined {
     return astOf(
@@ -6304,12 +8002,19 @@ export class ThisLambdaCaptureAST extends LambdaCaptureAST {
     );
   }
 }
+/** @category AST Nodes */
 export class DerefThisLambdaCaptureAST extends LambdaCaptureAST {
-  get starLoc(): number {
-    return cxx.readAST(this.handle, DerefThisLambdaCaptureASTSlotBase + 0);
+  get starToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DerefThisLambdaCaptureASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get thisLoc(): number {
-    return cxx.readAST(this.handle, DerefThisLambdaCaptureASTSlotBase + 1);
+  get thisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, DerefThisLambdaCaptureASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get symbol(): FieldSymbol | undefined {
     return symbolOf(
@@ -6318,12 +8023,19 @@ export class DerefThisLambdaCaptureAST extends LambdaCaptureAST {
     );
   }
 }
+/** @category AST Nodes */
 export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, SimpleLambdaCaptureASTSlotBase + 0);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleLambdaCaptureASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, SimpleLambdaCaptureASTSlotBase + 1);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleLambdaCaptureASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -6344,15 +8056,25 @@ export class SimpleLambdaCaptureAST extends LambdaCaptureAST {
     );
   }
 }
+/** @category AST Nodes */
 export class RefLambdaCaptureAST extends LambdaCaptureAST {
-  get ampLoc(): number {
-    return cxx.readAST(this.handle, RefLambdaCaptureASTSlotBase + 0);
+  get ampToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RefLambdaCaptureASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, RefLambdaCaptureASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RefLambdaCaptureASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, RefLambdaCaptureASTSlotBase + 2);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RefLambdaCaptureASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -6373,15 +8095,25 @@ export class RefLambdaCaptureAST extends LambdaCaptureAST {
     );
   }
 }
+/** @category AST Nodes */
 export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
-  get ampLoc(): number {
-    return cxx.readAST(this.handle, RefInitLambdaCaptureASTSlotBase + 0);
+  get ampToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RefInitLambdaCaptureASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, RefInitLambdaCaptureASTSlotBase + 1);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RefInitLambdaCaptureASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, RefInitLambdaCaptureASTSlotBase + 2);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, RefInitLambdaCaptureASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get initializer(): ExpressionAST | undefined {
     return astOf(
@@ -6402,12 +8134,19 @@ export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
     );
   }
 }
+/** @category AST Nodes */
 export class InitLambdaCaptureAST extends LambdaCaptureAST {
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, InitLambdaCaptureASTSlotBase + 0);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, InitLambdaCaptureASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, InitLambdaCaptureASTSlotBase + 1);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, InitLambdaCaptureASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get initializer(): ExpressionAST | undefined {
     return astOf(
@@ -6428,14 +8167,16 @@ export class InitLambdaCaptureAST extends LambdaCaptureAST {
     );
   }
 }
+/** @category AST Nodes */
 export class EllipsisExceptionDeclarationAST extends ExceptionDeclarationAST {
-  get ellipsisLoc(): number {
-    return cxx.readAST(
-      this.handle,
-      EllipsisExceptionDeclarationASTSlotBase + 0,
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, EllipsisExceptionDeclarationASTSlotBase + 0),
+      this.modelOwner,
     );
   }
 }
+/** @category AST Nodes */
 export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
@@ -6464,12 +8205,19 @@ export class TypeExceptionDeclarationAST extends ExceptionDeclarationAST {
     );
   }
 }
+/** @category AST Nodes */
 export class CxxAttributeAST extends AttributeSpecifierAST {
-  get lbracketLoc(): number {
-    return cxx.readAST(this.handle, CxxAttributeASTSlotBase + 0);
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CxxAttributeASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lbracket2Loc(): number {
-    return cxx.readAST(this.handle, CxxAttributeASTSlotBase + 1);
+  get lbracket2Token(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CxxAttributeASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get attributeUsingPrefix(): AttributeUsingPrefixAST | undefined {
     return astOf(
@@ -6484,22 +8232,38 @@ export class CxxAttributeAST extends AttributeSpecifierAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rbracketLoc(): number {
-    return cxx.readAST(this.handle, CxxAttributeASTSlotBase + 4);
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CxxAttributeASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
-  get rbracket2Loc(): number {
-    return cxx.readAST(this.handle, CxxAttributeASTSlotBase + 5);
+  get rbracket2Token(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, CxxAttributeASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class GccAttributeAST extends AttributeSpecifierAST {
-  get attributeLoc(): number {
-    return cxx.readAST(this.handle, GccAttributeASTSlotBase + 0);
+  get attributeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GccAttributeASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, GccAttributeASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GccAttributeASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get lparen2Loc(): number {
-    return cxx.readAST(this.handle, GccAttributeASTSlotBase + 2);
+  get lparen2Token(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GccAttributeASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get attributeList(): Iterable<AttributeAST | undefined> {
     return listOf(
@@ -6508,19 +8272,32 @@ export class GccAttributeAST extends AttributeSpecifierAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, GccAttributeASTSlotBase + 4);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GccAttributeASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
-  get rparen2Loc(): number {
-    return cxx.readAST(this.handle, GccAttributeASTSlotBase + 5);
+  get rparen2Token(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, GccAttributeASTSlotBase + 5),
+      this.modelOwner,
+    );
   }
 }
+/** @category AST Nodes */
 export class AlignasAttributeAST extends AttributeSpecifierAST {
-  get alignasLoc(): number {
-    return cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 0);
+  get alignasToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -6528,22 +8305,35 @@ export class AlignasAttributeAST extends AttributeSpecifierAST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 3);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 4);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get isPack(): boolean {
     return cxx.readAST(this.handle, AlignasAttributeASTSlotBase + 5) !== 0;
   }
 }
+/** @category AST Nodes */
 export class AlignasTypeAttributeAST extends AttributeSpecifierAST {
-  get alignasLoc(): number {
-    return cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 0);
+  get alignasToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -6551,28 +8341,47 @@ export class AlignasTypeAttributeAST extends AttributeSpecifierAST {
       this.modelOwner,
     );
   }
-  get ellipsisLoc(): number {
-    return cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 3);
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 4);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 4),
+      this.modelOwner,
+    );
   }
   get isPack(): boolean {
     return cxx.readAST(this.handle, AlignasTypeAttributeASTSlotBase + 5) !== 0;
   }
 }
+/** @category AST Nodes */
 export class AsmAttributeAST extends AttributeSpecifierAST {
-  get asmLoc(): number {
-    return cxx.readAST(this.handle, AsmAttributeASTSlotBase + 0);
+  get asmToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmAttributeASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get lparenLoc(): number {
-    return cxx.readAST(this.handle, AsmAttributeASTSlotBase + 1);
+  get lparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmAttributeASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get literalLoc(): number {
-    return cxx.readAST(this.handle, AsmAttributeASTSlotBase + 2);
+  get literalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmAttributeASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
-  get rparenLoc(): number {
-    return cxx.readAST(this.handle, AsmAttributeASTSlotBase + 3);
+  get rparenToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, AsmAttributeASTSlotBase + 3),
+      this.modelOwner,
+    );
   }
   get literal(): Literal | undefined {
     return objOf(
@@ -6582,15 +8391,25 @@ export class AsmAttributeAST extends AttributeSpecifierAST {
     );
   }
 }
+/** @category AST Nodes */
 export class ScopedAttributeTokenAST extends AttributeTokenAST {
-  get attributeNamespaceLoc(): number {
-    return cxx.readAST(this.handle, ScopedAttributeTokenASTSlotBase + 0);
+  get attributeNamespaceToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ScopedAttributeTokenASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get scopeLoc(): number {
-    return cxx.readAST(this.handle, ScopedAttributeTokenASTSlotBase + 1);
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ScopedAttributeTokenASTSlotBase + 1),
+      this.modelOwner,
+    );
   }
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, ScopedAttributeTokenASTSlotBase + 2);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ScopedAttributeTokenASTSlotBase + 2),
+      this.modelOwner,
+    );
   }
   get attributeNamespace(): Identifier | undefined {
     return nameOf(
@@ -6605,9 +8424,13 @@ export class ScopedAttributeTokenAST extends AttributeTokenAST {
     );
   }
 }
+/** @category AST Nodes */
 export class SimpleAttributeTokenAST extends AttributeTokenAST {
-  get identifierLoc(): number {
-    return cxx.readAST(this.handle, SimpleAttributeTokenASTSlotBase + 0);
+  get identifierToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, SimpleAttributeTokenASTSlotBase + 0),
+      this.modelOwner,
+    );
   }
   get identifier(): Identifier | undefined {
     return nameOf(
@@ -6616,6 +8439,7 @@ export class SimpleAttributeTokenAST extends AttributeTokenAST {
     );
   }
 }
+/** @category Literals */
 export class Literal extends ModelObject {
   get value(): string {
     return cxx.readLiteralString(this.handle, LiteralSlotBase + 0) as string;
@@ -6624,6 +8448,7 @@ export class Literal extends ModelObject {
     return cxx.readLiteral(this.handle, LiteralSlotBase + 1);
   }
 }
+/** @category Literals */
 export class IntegerLiteral extends Literal {
   get integerValue(): bigint {
     return cxx.readLiteralBigInt(
@@ -6638,6 +8463,7 @@ export class IntegerLiteral extends Literal {
     );
   }
 }
+/** @category Literals */
 export class FloatLiteral extends Literal {
   get floatValue(): number {
     return cxx.readLiteral(this.handle, FloatLiteralSlotBase + 0);
@@ -6649,6 +8475,7 @@ export class FloatLiteral extends Literal {
     );
   }
 }
+/** @category Literals */
 export class StringLiteral extends Literal {
   get encoding(): StringLiteralEncoding {
     return stringLiteralEncodingNames[
@@ -6677,6 +8504,7 @@ export class StringLiteral extends Literal {
     );
   }
 }
+/** @category Literals */
 export class CharLiteral extends Literal {
   get charValue(): number {
     return cxx.readLiteral(this.handle, CharLiteralSlotBase + 0);
@@ -6688,7 +8516,9 @@ export class CharLiteral extends Literal {
     ) as CharLiteral_Components;
   }
 }
+/** @category Literals */
 export class CommentLiteral extends Literal {}
+/** @category Names */
 export abstract class Name extends ModelObject {
   readonly kind: NameKind;
   constructor(handle: number, owner: ModelOwner, kind: NameKind) {
@@ -6702,6 +8532,7 @@ export abstract class Name extends ModelObject {
     return cxx.readNameString(this.handle, NameSlotBase + 1) as string;
   }
 }
+/** @category Names */
 export class Identifier extends Name {
   get isAnonymous(): boolean {
     return cxx.readName(this.handle, IdentifierSlotBase + 0) !== 0;
@@ -6736,11 +8567,13 @@ export class Identifier extends Name {
     ]!;
   }
 }
+/** @category Names */
 export class OperatorId extends Name {
   get op(): TokenKind {
     return tokenKindNames[cxx.readName(this.handle, OperatorIdSlotBase + 0)]!;
   }
 }
+/** @category Names */
 export class DestructorId extends Name {
   get name(): Name | undefined {
     return nameOf(
@@ -6749,6 +8582,7 @@ export class DestructorId extends Name {
     );
   }
 }
+/** @category Names */
 export class LiteralOperatorId extends Name {
   get name(): string {
     return cxx.readNameString(
@@ -6757,6 +8591,7 @@ export class LiteralOperatorId extends Name {
     ) as string;
   }
 }
+/** @category Names */
 export class ConversionFunctionId extends Name {
   get type(): Type | undefined {
     return typeOf(
@@ -6765,6 +8600,7 @@ export class ConversionFunctionId extends Name {
     );
   }
 }
+/** @category Names */
 export class TemplateId extends Name {
   get name(): Name | undefined {
     return nameOf(
@@ -6781,6 +8617,7 @@ export class TemplateId extends Name {
     );
   }
 }
+/** @category Symbols */
 export abstract class Symbol extends ModelObject {
   readonly kind: SymbolKind;
   constructor(handle: number, owner: ModelOwner, kind: SymbolKind) {
@@ -6799,8 +8636,11 @@ export abstract class Symbol extends ModelObject {
       this.modelOwner,
     );
   }
-  get location(): number {
-    return cxx.readSymbol(this.handle, SymbolSlotBase + 2);
+  get location(): SourceLocation | undefined {
+    return Token.from(
+      cxx.readSymbol(this.handle, SymbolSlotBase + 2),
+      this.modelOwner,
+    )?.location;
   }
   get parent(): ScopeSymbol | undefined {
     return symbolOf(
@@ -7012,6 +8852,7 @@ export abstract class Symbol extends ModelObject {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 57) !== 0;
   }
 }
+/** @category Symbols */
 export abstract class ScopeSymbol extends Symbol {
   get empty(): boolean {
     return cxx.readSymbol(this.handle, ScopeSymbolSlotBase + 0) !== 0;
@@ -7033,6 +8874,7 @@ export abstract class ScopeSymbol extends Symbol {
     return cxx.readSymbol(this.handle, ScopeSymbolSlotBase + 3) !== 0;
   }
 }
+/** @category Symbols */
 export class NamespaceSymbol extends ScopeSymbol {
   get isInline(): boolean {
     return cxx.readSymbol(this.handle, NamespaceSymbolSlotBase + 0) !== 0;
@@ -7051,6 +8893,7 @@ export class NamespaceSymbol extends ScopeSymbol {
       number | undefined;
   }
 }
+/** @category Symbols */
 export class ConceptSymbol extends Symbol {
   get declaration(): ConceptDefinitionAST | undefined {
     return astOf(
@@ -7107,6 +8950,7 @@ export class ConceptSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class DeductionGuideSymbol extends Symbol {
   get declaration(): DeductionGuideAST | undefined {
     return astOf(
@@ -7166,6 +9010,7 @@ export class DeductionGuideSymbol extends Symbol {
     return cxx.readSymbol(this.handle, DeductionGuideSymbolSlotBase + 9) !== 0;
   }
 }
+/** @category Symbols */
 export class BaseClassSymbol extends Symbol {
   get isVirtual(): boolean {
     return cxx.readSymbol(this.handle, BaseClassSymbolSlotBase + 0) !== 0;
@@ -7177,6 +9022,7 @@ export class BaseClassSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class InjectedClassNameSymbol extends Symbol {
   get classSymbol(): ClassSymbol | undefined {
     return symbolOf(
@@ -7185,7 +9031,9 @@ export class InjectedClassNameSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class UnresolvedSymbol extends Symbol {}
+/** @category Symbols */
 export class ClassSymbol extends ScopeSymbol {
   get canonical(): ClassSymbol | undefined {
     return symbolOf(
@@ -7530,6 +9378,7 @@ export class ClassSymbol extends ScopeSymbol {
     );
   }
 }
+/** @category Symbols */
 export class EnumSymbol extends ScopeSymbol {
   get hasFixedUnderlyingType(): boolean {
     return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 0) !== 0;
@@ -7544,6 +9393,7 @@ export class EnumSymbol extends ScopeSymbol {
     );
   }
 }
+/** @category Symbols */
 export class ScopedEnumSymbol extends ScopeSymbol {
   get underlyingType(): Type | undefined {
     return typeOf(
@@ -7555,6 +9405,7 @@ export class ScopedEnumSymbol extends ScopeSymbol {
     return cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 1) !== 0;
   }
 }
+/** @category Symbols */
 export class FunctionSymbol extends ScopeSymbol {
   get canonical(): FunctionSymbol | undefined {
     return symbolOf(
@@ -7903,6 +9754,7 @@ export class FunctionSymbol extends ScopeSymbol {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 73) !== 0;
   }
 }
+/** @category Symbols */
 export class OverloadSetSymbol extends Symbol {
   get functions(): Iterable<FunctionSymbol | undefined> {
     return symbolItems(
@@ -7932,6 +9784,7 @@ export class OverloadSetSymbol extends Symbol {
     return cxx.readSymbol(this.handle, OverloadSetSymbolSlotBase + 3) !== 0;
   }
 }
+/** @category Symbols */
 export class LambdaSymbol extends ScopeSymbol {
   get isConstexpr(): boolean {
     return cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 0) !== 0;
@@ -7958,6 +9811,7 @@ export class LambdaSymbol extends ScopeSymbol {
     );
   }
 }
+/** @category Symbols */
 export class FunctionParametersSymbol extends ScopeSymbol {
   get cvQualifiers(): CvQualifiers {
     return cvQualifiersNames[
@@ -7965,6 +9819,7 @@ export class FunctionParametersSymbol extends ScopeSymbol {
     ]!;
   }
 }
+/** @category Symbols */
 export class TemplateParametersSymbol extends ScopeSymbol {
   get isExplicitTemplateSpecialization(): boolean {
     return (
@@ -7972,6 +9827,7 @@ export class TemplateParametersSymbol extends ScopeSymbol {
     );
   }
 }
+/** @category Symbols */
 export class BlockSymbol extends ScopeSymbol {
   get isOutermostBlockScope(): boolean {
     return cxx.readSymbol(this.handle, BlockSymbolSlotBase + 0) !== 0;
@@ -7980,6 +9836,7 @@ export class BlockSymbol extends ScopeSymbol {
     return cxx.readSymbol(this.handle, BlockSymbolSlotBase + 1) !== 0;
   }
 }
+/** @category Symbols */
 export class TypeAliasSymbol extends Symbol {
   get canonical(): TypeAliasSymbol | undefined {
     return symbolOf(
@@ -8082,6 +9939,7 @@ export class TypeAliasSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class VariableSymbol extends Symbol {
   get canonical(): VariableSymbol | undefined {
     return symbolOf(
@@ -8220,6 +10078,7 @@ export class VariableSymbol extends Symbol {
     return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 25);
   }
 }
+/** @category Symbols */
 export class FieldSymbol extends Symbol {
   get definition(): VariableSymbol | undefined {
     return symbolOf(
@@ -8316,6 +10175,7 @@ export class FieldSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class ParameterSymbol extends Symbol {
   get isParameterPack(): boolean {
     return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 0) !== 0;
@@ -8345,6 +10205,7 @@ export class ParameterSymbol extends Symbol {
     return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 5) !== 0;
   }
 }
+/** @category Symbols */
 export class ParameterPackSymbol extends Symbol {
   get elements(): Iterable<Symbol | undefined> {
     return symbolItems(
@@ -8355,6 +10216,7 @@ export class ParameterPackSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class TypeParameterSymbol extends Symbol {
   get defaultArgument(): TemplateParameterAST | undefined {
     return astOf(
@@ -8363,6 +10225,7 @@ export class TypeParameterSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class NonTypeParameterSymbol extends Symbol {
   get isParameterPack(): boolean {
     return (
@@ -8388,6 +10251,7 @@ export class NonTypeParameterSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class TemplateTypeParameterSymbol extends Symbol {
   get defaultArgument(): TemplateParameterAST | undefined {
     return astOf(
@@ -8396,6 +10260,7 @@ export class TemplateTypeParameterSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class ConstraintTypeParameterSymbol extends Symbol {
   get isParameterPack(): boolean {
     return (
@@ -8434,6 +10299,7 @@ export class ConstraintTypeParameterSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class EnumeratorSymbol extends Symbol {
   get value(): ConstValue | undefined {
     return optionalOf(
@@ -8442,6 +10308,7 @@ export class EnumeratorSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class NamespaceAliasSymbol extends Symbol {
   get namespaceSymbol(): NamespaceSymbol | undefined {
     return symbolOf(
@@ -8450,6 +10317,7 @@ export class NamespaceAliasSymbol extends Symbol {
     );
   }
 }
+/** @category Symbols */
 export class UsingDeclarationSymbol extends Symbol {
   get isUnresolved(): boolean {
     return (
@@ -8477,6 +10345,7 @@ export class UsingDeclarationSymbol extends Symbol {
     );
   }
 }
+/** @category Types */
 export abstract class Type extends ModelObject {
   readonly kind: TypeKind;
   constructor(handle: number, owner: ModelOwner, kind: TypeKind) {
@@ -8487,34 +10356,63 @@ export abstract class Type extends ModelObject {
     return cxx.readTypeString(this.handle, TypeSlotBase + 0) as string;
   }
 }
+/** @category Types */
 export class BuiltinVaListType extends Type {}
+/** @category Types */
 export class BuiltinMetaInfoType extends Type {}
+/** @category Types */
 export class VoidType extends Type {}
+/** @category Types */
 export class NullptrType extends Type {}
+/** @category Types */
 export class DecltypeAutoType extends Type {}
+/** @category Types */
 export class AutoType extends Type {}
+/** @category Types */
 export class BoolType extends Type {}
+/** @category Types */
 export class SignedCharType extends Type {}
+/** @category Types */
 export class ShortIntType extends Type {}
+/** @category Types */
 export class IntType extends Type {}
+/** @category Types */
 export class LongIntType extends Type {}
+/** @category Types */
 export class LongLongIntType extends Type {}
+/** @category Types */
 export class Int128Type extends Type {}
+/** @category Types */
 export class UnsignedCharType extends Type {}
+/** @category Types */
 export class UnsignedShortIntType extends Type {}
+/** @category Types */
 export class UnsignedIntType extends Type {}
+/** @category Types */
 export class UnsignedLongIntType extends Type {}
+/** @category Types */
 export class UnsignedLongLongIntType extends Type {}
+/** @category Types */
 export class UnsignedInt128Type extends Type {}
+/** @category Types */
 export class CharType extends Type {}
+/** @category Types */
 export class Char8Type extends Type {}
+/** @category Types */
 export class Char16Type extends Type {}
+/** @category Types */
 export class Char32Type extends Type {}
+/** @category Types */
 export class WideCharType extends Type {}
+/** @category Types */
 export class FloatType extends Type {}
+/** @category Types */
 export class DoubleType extends Type {}
+/** @category Types */
 export class LongDoubleType extends Type {}
+/** @category Types */
 export class Float16Type extends Type {}
+/** @category Types */
 export class QualType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8532,6 +10430,7 @@ export class QualType extends Type {
     return cxx.readType(this.handle, QualTypeSlotBase + 3) !== 0;
   }
 }
+/** @category Types */
 export class BoundedArrayType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8543,6 +10442,7 @@ export class BoundedArrayType extends Type {
     return cxx.readType(this.handle, BoundedArrayTypeSlotBase + 1);
   }
 }
+/** @category Types */
 export class UnboundedArrayType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8551,6 +10451,7 @@ export class UnboundedArrayType extends Type {
     );
   }
 }
+/** @category Types */
 export class PointerType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8559,6 +10460,7 @@ export class PointerType extends Type {
     );
   }
 }
+/** @category Types */
 export class LvalueReferenceType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8567,6 +10469,7 @@ export class LvalueReferenceType extends Type {
     );
   }
 }
+/** @category Types */
 export class RvalueReferenceType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8575,6 +10478,7 @@ export class RvalueReferenceType extends Type {
     );
   }
 }
+/** @category Types */
 export class OverloadSetType extends Type {
   get symbol(): OverloadSetSymbol | undefined {
     return symbolOf(
@@ -8583,6 +10487,7 @@ export class OverloadSetType extends Type {
     );
   }
 }
+/** @category Types */
 export class FunctionType extends Type {
   get returnType(): Type | undefined {
     return typeOf(
@@ -8627,6 +10532,7 @@ export class FunctionType extends Type {
     );
   }
 }
+/** @category Types */
 export class ClassType extends Type {
   get symbol(): ClassSymbol | undefined {
     return symbolOf(
@@ -8647,6 +10553,7 @@ export class ClassType extends Type {
     return cxx.readType(this.handle, ClassTypeSlotBase + 3) !== 0;
   }
 }
+/** @category Types */
 export class EnumType extends Type {
   get symbol(): EnumSymbol | undefined {
     return symbolOf(
@@ -8661,6 +10568,7 @@ export class EnumType extends Type {
     );
   }
 }
+/** @category Types */
 export class ScopedEnumType extends Type {
   get symbol(): ScopedEnumSymbol | undefined {
     return symbolOf(
@@ -8675,6 +10583,7 @@ export class ScopedEnumType extends Type {
     );
   }
 }
+/** @category Types */
 export class MemberObjectPointerType extends Type {
   get classType(): Type | undefined {
     return typeOf(
@@ -8689,6 +10598,7 @@ export class MemberObjectPointerType extends Type {
     );
   }
 }
+/** @category Types */
 export class MemberFunctionPointerType extends Type {
   get classType(): Type | undefined {
     return typeOf(
@@ -8703,6 +10613,7 @@ export class MemberFunctionPointerType extends Type {
     );
   }
 }
+/** @category Types */
 export class NamespaceType extends Type {
   get symbol(): NamespaceSymbol | undefined {
     return symbolOf(
@@ -8711,6 +10622,7 @@ export class NamespaceType extends Type {
     );
   }
 }
+/** @category Types */
 export class TypeParameterType extends Type {
   get index(): number {
     return cxx.readType(this.handle, TypeParameterTypeSlotBase + 0);
@@ -8722,6 +10634,7 @@ export class TypeParameterType extends Type {
     return cxx.readType(this.handle, TypeParameterTypeSlotBase + 2) !== 0;
   }
 }
+/** @category Types */
 export class TemplateTypeParameterType extends Type {
   get index(): number {
     return cxx.readType(this.handle, TemplateTypeParameterTypeSlotBase + 0);
@@ -8743,6 +10656,7 @@ export class TemplateTypeParameterType extends Type {
     );
   }
 }
+/** @category Types */
 export class TemplateTypeParameterSpecializationType extends Type {
   get templateParameter(): TemplateTypeParameterType | undefined {
     return typeOf(
@@ -8762,6 +10676,7 @@ export class TemplateTypeParameterSpecializationType extends Type {
     );
   }
 }
+/** @category Types */
 export class PackExpansionType extends Type {
   get pattern(): Type | undefined {
     return typeOf(
@@ -8770,6 +10685,7 @@ export class PackExpansionType extends Type {
     );
   }
 }
+/** @category Types */
 export class DecltypeType extends Type {
   get expression(): ExpressionAST | undefined {
     return astOf(
@@ -8778,6 +10694,7 @@ export class DecltypeType extends Type {
     );
   }
 }
+/** @category Types */
 export class UnresolvedNameType extends Type {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -8792,12 +10709,13 @@ export class UnresolvedNameType extends Type {
     );
   }
   get sourceLocationRange(): SourceLocationRange {
-    return cxx.readTypeVal(
-      this.handle,
-      UnresolvedNameTypeSlotBase + 2,
-    ) as SourceLocationRange;
+    return decodeSourceLocationRange(
+      cxx.readTypeVal(this.handle, UnresolvedNameTypeSlotBase + 2),
+      this.modelOwner,
+    );
   }
 }
+/** @category Types */
 export class UnresolvedBoundedArrayType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8812,6 +10730,7 @@ export class UnresolvedBoundedArrayType extends Type {
     );
   }
 }
+/** @category Types */
 export class UnresolvedUnderlyingType extends Type {
   get typeId(): TypeIdAST | undefined {
     return astOf(
@@ -8820,6 +10739,7 @@ export class UnresolvedUnderlyingType extends Type {
     );
   }
 }
+/** @category Types */
 export class UnresolvedBuiltinType extends Type {
   get builtinKind(): UnaryBuiltinTypeKind {
     return unaryBuiltinTypeKindNames[
@@ -8833,16 +10753,19 @@ export class UnresolvedBuiltinType extends Type {
     );
   }
 }
+/** @category Types */
 export class BitIntType extends Type {
   get numBits(): number {
     return cxx.readType(this.handle, BitIntTypeSlotBase + 0);
   }
 }
+/** @category Types */
 export class UnsignedBitIntType extends Type {
   get numBits(): number {
     return cxx.readType(this.handle, UnsignedBitIntTypeSlotBase + 0);
   }
 }
+/** @category Types */
 export class UnresolvedBitIntType extends Type {
   get sizeExpression(): ExpressionAST | undefined {
     return astOf(
@@ -8854,6 +10777,7 @@ export class UnresolvedBitIntType extends Type {
     return cxx.readType(this.handle, UnresolvedBitIntTypeSlotBase + 1) !== 0;
   }
 }
+/** @category Types */
 export class VectorType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8868,6 +10792,7 @@ export class VectorType extends Type {
     return vectorKindNames[cxx.readType(this.handle, VectorTypeSlotBase + 2)]!;
   }
 }
+/** @category Types */
 export class UnresolvedVectorType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8892,6 +10817,7 @@ export class UnresolvedVectorType extends Type {
     ]!;
   }
 }
+/** @category Types */
 export class ComplexType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8900,6 +10826,7 @@ export class ComplexType extends Type {
     );
   }
 }
+/** @category Types */
 export class AtomicType extends Type {
   get elementType(): Type | undefined {
     return typeOf(
@@ -8908,11 +10835,13 @@ export class AtomicType extends Type {
     );
   }
 }
+/** @category Types */
 export class SveType extends Type {
   get sveKind(): SveTypeKind {
     return sveTypeKindNames[cxx.readType(this.handle, SveTypeSlotBase + 0)]!;
   }
 }
+/** @category Enumerations */
 export type ASTKind =
   | "TranslationUnit"
   | "ModuleUnit"
@@ -9406,6 +11335,7 @@ const astKindNames: Record<number, ASTKind> = {
   243: "ScopedAttributeToken",
   244: "SimpleAttributeToken",
 };
+/** @category Enumerations */
 export type SymbolKind =
   | "Namespace"
   | "NamespaceAlias"
@@ -9463,6 +11393,7 @@ const symbolKindNames: Record<number, SymbolKind> = {
   25: "Unresolved",
   26: "UsingDeclaration",
 };
+/** @category Enumerations */
 export type TypeKind =
   | "Void"
   | "Nullptr"
@@ -9584,6 +11515,7 @@ const typeKindNames: Record<number, TypeKind> = {
   57: "Atomic",
   58: "Sve",
 };
+/** @category Enumerations */
 export type NameKind =
   | "Identifier"
   | "OperatorId"
@@ -9599,6 +11531,7 @@ const nameKindNames: Record<number, NameKind> = {
   4: "ConversionFunctionId",
   5: "TemplateId",
 };
+/** @category Enumerations */
 export type ValueCategory = "None" | "LValue" | "XValue" | "PrValue";
 const valueCategoryNames: Record<number, ValueCategory> = {
   0: "None",
@@ -9606,6 +11539,7 @@ const valueCategoryNames: Record<number, ValueCategory> = {
   2: "XValue",
   3: "PrValue",
 };
+/** @category Enumerations */
 export type ImplicitCastKind =
   | "Identity"
   | "LValueToRValueConversion"
@@ -9659,6 +11593,7 @@ const implicitCastKindNames: Record<number, ImplicitCastKind> = {
   23: "TemporaryMaterializationConversion",
   24: "UserDefinedConversion",
 };
+/** @category Enumerations */
 export type BuiltinTypeTraitKind =
   | "none"
   | "__builtin_types_compatible_p"
@@ -9786,6 +11721,7 @@ const builtinTypeTraitKindNames: Record<number, BuiltinTypeTraitKind> = {
   60: "__reference_constructs_from_temporary",
   61: "__reference_converts_from_temporary",
 };
+/** @category Enumerations */
 export type UnaryBuiltinTypeKind =
   | "none"
   | "__add_lvalue_reference"
@@ -9821,10 +11757,12 @@ const unaryBuiltinTypeKindNames: Record<number, UnaryBuiltinTypeKind> = {
   14: "__remove_restrict",
   15: "__remove_volatile",
 };
+/** @category Enumerations */
 export type BinaryBuiltinTypeKind = "none";
 const binaryBuiltinTypeKindNames: Record<number, BinaryBuiltinTypeKind> = {
   0: "none",
 };
+/** @category Enumerations */
 export type IntegerLiteral_Radix =
   "Decimal" | "Hexadecimal" | "Octal" | "Binary";
 const integerLiteral_RadixNames: Record<number, IntegerLiteral_Radix> = {
@@ -9833,6 +11771,7 @@ const integerLiteral_RadixNames: Record<number, IntegerLiteral_Radix> = {
   2: "Octal",
   3: "Binary",
 };
+/** @category Enumerations */
 export type FloatLiteral_Components_FloatingPointSuffix =
   "None" | "F" | "L" | "F16" | "F32" | "F64" | "F128" | "BF16";
 const floatLiteral_Components_FloatingPointSuffixNames: Record<
@@ -9848,6 +11787,7 @@ const floatLiteral_Components_FloatingPointSuffixNames: Record<
   6: "F128",
   7: "BF16",
 };
+/** @category Enumerations */
 export type StringLiteralEncoding =
   "None" | "Wide" | "Utf8" | "Utf16" | "Utf32";
 const stringLiteralEncodingNames: Record<number, StringLiteralEncoding> = {
@@ -9857,6 +11797,7 @@ const stringLiteralEncodingNames: Record<number, StringLiteralEncoding> = {
   3: "Utf16",
   4: "Utf32",
 };
+/** @category Enumerations */
 export type BuiltinFunctionKind =
   | "none"
   | "__atomic_add_fetch"
@@ -10768,6 +12709,7 @@ const builtinFunctionKindNames: Record<number, BuiltinFunctionKind> = {
   452: "__c11_atomic_store",
   453: "__c11_atomic_thread_fence",
 };
+/** @category Enumerations */
 export type BuiltinTemplateKind =
   | "none"
   | "__make_integer_seq"
@@ -10779,6 +12721,7 @@ const builtinTemplateKindNames: Record<number, BuiltinTemplateKind> = {
   2: "__type_pack_element",
   3: "__builtin_common_type",
 };
+/** @category Enumerations */
 export type WellKnownName =
   | "none"
   | "std"
@@ -10826,12 +12769,14 @@ const wellKnownNameNames: Record<number, WellKnownName> = {
   20: "__FUNCTION__",
   21: "__PRETTY_FUNCTION__",
 };
+/** @category Enumerations */
 export type AccessSpecifier = "Public" | "Protected" | "Private";
 const accessSpecifierNames: Record<number, AccessSpecifier> = {
   0: "Public",
   1: "Protected",
   2: "Private",
 };
+/** @category Enumerations */
 export type Severity = "Message" | "Note" | "Warning" | "Error" | "Fatal";
 const severityNames: Record<number, Severity> = {
   0: "Message",
@@ -10840,6 +12785,7 @@ const severityNames: Record<number, Severity> = {
   3: "Error",
   4: "Fatal",
 };
+/** @category Enumerations */
 export type VTableLayout_SlotKind =
   "Function" | "CompleteDtor" | "DeletingDtor";
 const vTableLayout_SlotKindNames: Record<number, VTableLayout_SlotKind> = {
@@ -10847,11 +12793,13 @@ const vTableLayout_SlotKindNames: Record<number, VTableLayout_SlotKind> = {
   1: "CompleteDtor",
   2: "DeletingDtor",
 };
+/** @category Enumerations */
 export type LanguageKind = "C" | "CXX";
 const languageKindNames: Record<number, LanguageKind> = {
   0: "C",
   1: "CXX",
 };
+/** @category Enumerations */
 export type PendingInstantiationState =
   "Unresolved" | "Resolving" | "RecursionDiagnosed" | "Resolved";
 const pendingInstantiationStateNames: Record<
@@ -10863,6 +12811,7 @@ const pendingInstantiationStateNames: Record<
   2: "RecursionDiagnosed",
   3: "Resolved",
 };
+/** @category Enumerations */
 export type CvQualifiers = "None" | "Const" | "Volatile" | "ConstVolatile";
 const cvQualifiersNames: Record<number, CvQualifiers> = {
   0: "None",
@@ -10870,22 +12819,26 @@ const cvQualifiersNames: Record<number, CvQualifiers> = {
   2: "Volatile",
   3: "ConstVolatile",
 };
+/** @category Enumerations */
 export type RefQualifier = "None" | "Lvalue" | "Rvalue";
 const refQualifierNames: Record<number, RefQualifier> = {
   0: "None",
   1: "Lvalue",
   2: "Rvalue",
 };
+/** @category Enumerations */
 export type VectorKind = "Gnu" | "Ext";
 const vectorKindNames: Record<number, VectorKind> = {
   0: "Gnu",
   1: "Ext",
 };
+/** @category Enumerations */
 export type VectorSizeKind = "Bytes" | "Elements";
 const vectorSizeKindNames: Record<number, VectorSizeKind> = {
   0: "Bytes",
   1: "Elements",
 };
+/** @category Enumerations */
 export type SveTypeKind =
   | "T___SVBFLOAT16_T"
   | "T___SVBOOL_T"
@@ -12001,12 +13954,14 @@ const childSlots: Partial<
   SimpleAttributeToken: [],
 };
 
+/** @category Traversal */
 export interface ASTChild {
   readonly node: AST;
   readonly key: string | number;
   readonly listKey: string | undefined;
 }
 
+/** @category Traversal */
 export function* children(node: AST): Generator<ASTChild> {
   for (const [slot, isList, key] of childSlots[node.kind] ?? []) {
     const value = cxx.readAST(node.handle, slot);
@@ -12025,13 +13980,7 @@ export function* children(node: AST): Generator<ASTChild> {
   }
 }
 
-export function modelOf(owner: ModelOwner): {
-  ast: UnitAST;
-  globalScope: ScopeSymbol;
-} {
-  const unit = owner.getUnitHandle();
-  return {
-    ast: astOf(cxx.getUnitAST(unit), owner),
-    globalScope: symbolOf(cxx.getGlobalScope(unit), owner),
-  };
+/** @category Core */
+export function unitOf(owner: ModelOwner): UnitAST {
+  return astOf(cxx.getUnitAST(owner.getUnitHandle()), owner);
 }

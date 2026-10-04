@@ -590,7 +590,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
   copy->typeSpecifierList = rewrite.rewriteSpecifierList(ast->typeSpecifierList,
                                                          typeSpecifierListCtx);
 
-  copy->emicolonLoc = ast->emicolonLoc;
+  copy->semicolonLoc = ast->semicolonLoc;
   copy->symbol = rewrite.remapSymbol(ast->symbol);
 
   return copy;

@@ -18,12 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { loadCxx, Token, TraceEmitter } from "cxx-frontend";
+import { TraceEmitter } from "cxx-frontend";
+import loadCxx from "cxx-frontend/node";
 import parse from "cxx-frontend/parse";
 import { walk } from "cxx-frontend/traverse";
 import { statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 const usage = `Usage: node index.js [options] <file...>
@@ -182,13 +182,13 @@ function printAst(node, depth = 0) {
     );
 }
 
-function fileOf(parser, location) {
-  return Token.from(location, parser)?.getLocation()?.fileName;
+function fileOf(location) {
+  return location?.fileName;
 }
 
-function printSymbols(parser, scope, path) {
+function printSymbols(scope, path) {
   for (const symbol of scope.members) {
-    if (!symbol || fileOf(parser, symbol.location) !== path) continue;
+    if (!symbol || fileOf(symbol.location) !== path) continue;
     const type = symbol.type ? ` : ${symbol.type.text}` : "";
     console.log(
       `${style("cyan", symbol.kind)} ${symbol.text}${style("dim", type)}`,
@@ -207,10 +207,7 @@ async function main() {
     return values.help ? 0 : 1;
   }
 
-  const wasm = await readFile(
-    fileURLToPath(import.meta.resolve("cxx-frontend/wasm")),
-  );
-  await loadCxx({ wasm });
+  await loadCxx();
 
   let failed = 0;
 
@@ -235,7 +232,7 @@ async function main() {
       continue;
     }
 
-    const { ast, globalScope } = parser.model;
+    const { ast } = parser;
 
     if (
       (values.ast || values.symbols || values.trace) &&
@@ -250,7 +247,7 @@ async function main() {
           printAst(declaration, 1);
     }
 
-    if (values.symbols) printSymbols(parser, globalScope, path);
+    if (values.symbols && ast.symbol) printSymbols(ast.symbol, path);
 
     if (values.trace) {
       const emitter = new TraceEmitter();

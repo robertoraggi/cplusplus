@@ -350,7 +350,7 @@ test("token kinds are the spelling of the token", async () => {
     source: "struct S { public: int x = 1 + 2; };",
   });
 
-  const { ast } = parser.model;
+  const { ast } = parser;
   const classSpecifier = [...walk(ast)].find((path) => path.isClassSpecifier());
   assert.equal(classSpecifier.node.classKey, "struct");
 
@@ -360,15 +360,12 @@ test("token kinds are the spelling of the token", async () => {
   const binary = [...walk(ast)].find((path) => path.isBinaryExpression());
   assert.equal(binary.node.op, "+");
 
-  const classKey = Token.from(classSpecifier.node.classLoc, parser);
-  assert.equal(classKey.getKind(), "struct");
-  assert.equal(classKey.getText(), "struct");
+  const classKey = classSpecifier.node.classToken;
+  assert.equal(classKey.kind, "struct");
+  assert.equal(classKey.text, "struct");
   assert.ok(classKey.is("struct"));
 
-  const name = Token.from(
-    classSpecifier.node.unqualifiedId.identifierLoc,
-    parser,
-  );
-  assert.equal(name.getKind(), "identifier");
-  assert.equal(name.getText(), "S");
+  const name = classSpecifier.node.unqualifiedId.identifierToken;
+  assert.equal(name.kind, "identifier");
+  assert.equal(name.text, "S");
 });

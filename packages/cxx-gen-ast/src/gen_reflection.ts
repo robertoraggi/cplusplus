@@ -68,6 +68,36 @@ const rootlessClasses = [
   "DefaultInitializerContext",
 ];
 
+const tokenType = "Token | undefined";
+
+const locationPropertyNames = [
+  "location",
+  "firstSourceLocation",
+  "lastSourceLocation",
+];
+
+function propertyNameOf(name: string, element: ModelType): string {
+  if (name === "constructor") return "constructorSymbol";
+  if (element.kind !== "class" || element.name !== "::cxx::SourceLocation")
+    return name;
+  if (locationPropertyNames.includes(name)) return name;
+  return name.replace(/Loc$/, "Token");
+}
+
+const categoryOfFamily: Record<string, string> = {
+  AST: "AST Nodes",
+  Symbol: "Symbols",
+  Type: "Types",
+  Name: "Names",
+  Literal: "Literals",
+  Misc: "Constant Values",
+};
+
+const enumerationCategory = "Enumerations";
+const dataCategory = "Data Structures";
+
+const categoryComment = (category: string) => `/** @category ${category} */`;
+
 const wrapperOf: Record<string, string> = {
   AST: "astOf",
   Symbol: "symbolOf",
@@ -366,7 +396,8 @@ export function gen_reflection(index: ModelIndex, root: string) {
       return {
         channel: "num",
         cpp: `static_cast<double>(${expr}.index())`,
-        ts: "number",
+        ts: tokenType,
+        decode: (value, owner) => `Token.from(${value}, ${owner})`,
       };
 
     if (type.name === "::std::shared_ptr") {
@@ -417,7 +448,11 @@ export function gen_reflection(index: ModelIndex, root: string) {
       const alias = index.aliasOf(type);
       const elements = `readonly [${values.map((value) => value.ts).join(", ")}]`;
       const ts = alias ? short(alias.name) : elements;
-      if (alias) declareType(ts, `export type ${ts} = ${elements};`);
+      if (alias)
+        declareType(
+          ts,
+          `${categoryComment(dataCategory)}\nexport type ${ts} = ${elements};`,
+        );
       if (!values.some((value) => value.decode))
         return { channel: "val", cpp, ts };
       const decode = declareDecoder(
@@ -459,7 +494,11 @@ export function gen_reflection(index: ModelIndex, root: string) {
       const alias = index.aliasOf(type);
       const union = unionOf(values.map((value) => value.ts));
       const ts = alias ? short(alias.name) : union;
-      if (alias) declareType(ts, `export type ${ts} = ${union};`);
+      if (alias)
+        declareType(
+          ts,
+          `${categoryComment(dataCategory)}\nexport type ${ts} = ${union};`,
+        );
 
       if (!values.some((value) => value.decode))
         return { channel: "val", cpp, ts, decode: (raw) => `${raw}.value` };
@@ -524,7 +563,7 @@ export function gen_reflection(index: ModelIndex, root: string) {
     const ts = short(record.name);
     declareType(
       ts,
-      `export interface ${ts} {\n${fields
+      `${categoryComment(dataCategory)}\nexport interface ${ts} {\n${fields
         .map((field) => `  readonly ${field.name}: ${field.value.ts};`)
         .join("\n")}\n}`,
     );
@@ -749,6 +788,7 @@ export function gen_reflection(index: ModelIndex, root: string) {
 
     const abstract = kindedRoots.includes(family) && !entry.isFinal;
     ts.push(
+      categoryComment(categoryOfFamily[family]!),
       `export ${abstract ? "abstract " : ""}class ${name} extends ${base} {`,
     );
 
@@ -779,11 +819,10 @@ export function gen_reflection(index: ModelIndex, root: string) {
       const slotIndex = slots.get(family)!;
       const slot = `${slotBase} + ${slotIndex - firstSlot}`;
       const declared = peel(reader.type);
-      const property =
-        reader.name === "constructor" ? "constructorSymbol" : reader.name;
       const element = unqualified(
         declared.kind === "pointer" ? declared.element : declared,
       );
+      const property = propertyNameOf(reader.name, element);
 
       if (
         declared.kind === "pointer" &&
@@ -858,7 +897,12 @@ export function gen_reflection(index: ModelIndex, root: string) {
         : value.ts === "number"
           ? raw
           : `${raw} as ${value.ts}`;
-      ts.push(`get ${property}(): ${value.ts} { return ${decoded}; }`);
+      const exposesLocation = locationPropertyNames.includes(property) && value.ts === tokenType;
+      ts.push(
+        exposesLocation
+          ? `get ${property}(): SourceLocation | undefined { return ${decoded}?.location; }`
+          : `get ${property}(): ${value.ts} { return ${decoded}; }`,
+      );
       slotMap.set(reader.name, {
         reader,
         child: isASTChild(reader)
@@ -1010,9 +1054,17 @@ auto getGlobalScope(std::intptr_t handle) -> std::intptr_t {
     const head: string[] = [];
     const imports: string[] = [];
     head.push(`// Generated file by: gen_reflection.ts\n${cpy_header}
+/**
+ * The AST, the symbols, the types and the other classes of the semantic model.
+ *
+ * @module cxx-frontend/model
+ */
+
 import { cxx } from "./cxx.js";
 import { type SourceLocation } from "./SourceLocation.js";
+import { Token } from "./Token.js";
 
+/** @category Core */
 export interface ModelOwner {
   getUnitHandle(): number;
   readonly disposed: boolean;
@@ -1022,6 +1074,7 @@ function disposedError(): Error {
   return new Error("Parser has been disposed");
 }
 
+/** @category Core */
 export abstract class ModelObject {
   readonly #handle: number;
 
@@ -1107,7 +1160,9 @@ function optionalOf<T>(value: any, of: (item: any) => T): T | undefined {
     for (const name of enumNames) {
       const entry = index.enumOf(name);
       if (!entry) {
-        tail.push(`export type ${short(name)} = number;`);
+        tail.push(
+          `${categoryComment(enumerationCategory)}\nexport type ${short(name)} = number;`,
+        );
         continue;
       }
       const members = new Map<number, string>();
@@ -1126,7 +1181,9 @@ function optionalOf<T>(value: any, of: (item: any) => T): T | undefined {
         continue;
       }
       tail.push(
-        `export type ${short(name)} =\n${[...members.values()]
+        `${categoryComment(enumerationCategory)}\nexport type ${short(name)} =\n${[
+          ...members.values(),
+        ]
           .map((member) => `  | "${member}"`)
           .join("\n")};`,
         `const ${tableOf(name)}: Record<number, ${short(name)}> = {\n${[
@@ -1155,12 +1212,14 @@ ${constructorTable.get(family)!.join("\n")}
 ${childSlots.join("\n")}
 };
 
+/** @category Traversal */
 export interface ASTChild {
   readonly node: AST;
   readonly key: string | number;
   readonly listKey: string | undefined;
 }
 
+/** @category Traversal */
 export function* children(node: AST): Generator<ASTChild> {
   for (const [slot, isList, key] of childSlots[node.kind] ?? []) {
     const value = cxx.readAST(node.handle, slot);
@@ -1180,19 +1239,13 @@ export function* children(node: AST): Generator<ASTChild> {
 }
 
 
-export function modelOf(owner: ModelOwner): {
-  ast: UnitAST;
-  globalScope: ScopeSymbol;
-} {
-  const unit = owner.getUnitHandle();
-  return {
-    ast: astOf(cxx.getUnitAST(unit), owner),
-    globalScope: symbolOf(cxx.getGlobalScope(unit), owner),
-  };
+/** @category Core */
+export function unitOf(owner: ModelOwner): UnitAST {
+  return astOf(cxx.getUnitAST(owner.getUnitHandle()), owner);
 }`);
 
     fs.writeFileSync(
-      `${root}/packages/cxx-frontend/src/Semantic.ts`,
+      `${root}/packages/cxx-frontend/src/model.ts`,
       [
         ...head,
         ...imports,
@@ -1217,7 +1270,7 @@ export function modelOf(owner: ModelOwner): {
     ["clang-format", ["-i", `${root}/src/js/cxx/reflection.cc`]],
     [
       `${root}/node_modules/.bin/prettier`,
-      ["--write", `${root}/packages/cxx-frontend/src/Semantic.ts`],
+      ["--write", `${root}/packages/cxx-frontend/src/model.ts`],
     ],
   ] as const;
   for (const [command, args] of commands) {
