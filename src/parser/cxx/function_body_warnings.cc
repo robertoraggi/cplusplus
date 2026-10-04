@@ -24,6 +24,7 @@
 #include <cxx/attributes.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
+#include <cxx/function_body.h>
 #include <cxx/function_body_warnings.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -33,6 +34,7 @@
 #include <cxx/types.h>
 
 #include <format>
+#include <vector>
 
 namespace cxx {
 
@@ -389,11 +391,15 @@ class DiscardedValueChecker final : ASTVisitor {
   TranslationUnit* unit_;
 };
 
-[[nodiscard]] auto bodyStatement(FunctionBodyAST* functionBody)
-    -> CompoundStatementAST* {
-  if (auto compound = ast_cast<CompoundStatementFunctionBodyAST>(functionBody))
-    return compound->statement;
-  return nullptr;
+[[nodiscard]] auto bodyStatements(FunctionBodyAST* functionBody)
+    -> std::vector<CompoundStatementAST*> {
+  auto statement = body_statement(functionBody);
+  if (!statement) return {};
+
+  std::vector<CompoundStatementAST*> statements{statement};
+  for (auto handler : ListView{body_handlers(functionBody)})
+    statements.push_back(handler->statement);
+  return statements;
 }
 
 void checkFallingOffTheEnd(TranslationUnit* unit, const Type* returnType,
@@ -424,18 +430,16 @@ void checkDiscardedValueWarnings(TranslationUnit* unit,
                                  FunctionBodyAST* functionBody) {
   if (!reportsBodyWarnings(unit) || !functionBody) return;
 
-  auto statement = bodyStatement(functionBody);
-  if (!statement) return;
-
-  DiscardedValueChecker{unit}.check(statement);
+  for (auto statement : bodyStatements(functionBody))
+    DiscardedValueChecker{unit}.check(statement);
 }
 
 void checkReturnPathWarnings(TranslationUnit* unit, FunctionSymbol* function,
                              FunctionBodyAST* functionBody) {
   if (!reportsBodyWarnings(unit) || !function || !functionBody) return;
 
-  auto statement = bodyStatement(functionBody);
-  if (!statement) return;
+  const auto statements = bodyStatements(functionBody);
+  if (statements.empty()) return;
 
   if (function->isConstructor() || function->isDestructor()) return;
   if (function->name() == unit->control()->getIdentifier("main") &&
@@ -445,8 +449,10 @@ void checkReturnPathWarnings(TranslationUnit* unit, FunctionSymbol* function,
   auto functionType = type_cast<FunctionType>(function->type());
   if (!functionType) return;
 
-  checkFallingOffTheEnd(unit, functionType->returnType(), functionBody,
-                        statement, statement->rbraceLoc);
+  for (auto statement : statements) {
+    checkFallingOffTheEnd(unit, functionType->returnType(), functionBody,
+                          statement, statement->rbraceLoc);
+  }
 }
 
 void checkLambdaBodyWarnings(TranslationUnit* unit, LambdaExpressionAST* ast) {

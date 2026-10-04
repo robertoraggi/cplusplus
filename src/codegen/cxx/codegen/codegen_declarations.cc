@@ -23,6 +23,7 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/external_name_encoder.h>
+#include <cxx/function_body.h>
 #include <cxx/initialization.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -78,6 +79,7 @@ struct Codegen::FunctionBodyVisitor {
   auto operator()(DefaultFunctionBodyAST* ast) -> FunctionBodyResult;
   auto operator()(CompoundStatementFunctionBodyAST* ast) -> FunctionBodyResult;
   auto operator()(TryStatementFunctionBodyAST* ast) -> FunctionBodyResult;
+  auto emitBody(FunctionBodyAST* ast) -> FunctionBodyResult;
   auto operator()(DeleteFunctionBodyAST* ast) -> FunctionBodyResult;
 };
 
@@ -1061,9 +1063,9 @@ auto Codegen::FunctionBodyVisitor::emitAnonymousUnionInitializer(
   return false;
 }
 
-auto Codegen::FunctionBodyVisitor::operator()(
-    CompoundStatementFunctionBodyAST* ast) -> FunctionBodyResult {
-  for (auto node : ListView{ast->memInitializerList}) {
+auto Codegen::FunctionBodyVisitor::emitBody(FunctionBodyAST* ast)
+    -> FunctionBodyResult {
+  for (auto node : ListView{ctor_initializers(ast)}) {
     auto value = gen.memInitializer(node);
   }
 
@@ -1072,16 +1074,24 @@ auto Codegen::FunctionBodyVisitor::operator()(
     gen.emitCtorVtableInit(gen.currentFunctionSymbol_, loc);
   }
 
-  gen.statement(ast->statement);
+  gen.statement(body_statement(ast));
 
   return {};
 }
 
+auto Codegen::FunctionBodyVisitor::operator()(
+    CompoundStatementFunctionBodyAST* ast) -> FunctionBodyResult {
+  return emitBody(ast);
+}
+
 auto Codegen::FunctionBodyVisitor::operator()(TryStatementFunctionBodyAST* ast)
     -> FunctionBodyResult {
-  gen.statement(ast->statement);
+  if (gen.unit_->config().exceptionsEnabled) {
+    (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+    return {};
+  }
 
-  return {};
+  return emitBody(ast);
 }
 
 auto Codegen::FunctionBodyVisitor::operator()(DeleteFunctionBodyAST* ast)

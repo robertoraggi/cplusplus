@@ -25,6 +25,7 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
+#include <cxx/function_body.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/substitution.h>
@@ -194,6 +195,7 @@ auto ASTRewriter::rewriteMemberTemplateHead(Symbol* patternSymbol)
 auto ASTRewriter::functionBody(FunctionBodyAST* ast) -> FunctionBodyAST* {
   if (!ast) return {};
   BodyErrorScope bodyErrors{*this};
+  Binder::FunctionBodyGuard functionBodyScope{&binder_, binder_.scope()};
   return visit(FunctionBodyVisitor{*this}, ast);
 }
 
@@ -790,9 +792,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
     binder()->synthesizeCompleteObjectCtor(functionSymbol);
 
-    if (auto compoundBody =
-            ast_cast<CompoundStatementFunctionBodyAST>(copy->functionBody)) {
-      rewrite.checkMemInitializers(functionSymbol, compoundBody);
+    if (body_statement(copy->functionBody)) {
+      rewrite.checkMemInitializers(functionSymbol, copy->functionBody);
       binder()->finishAutoReturnType(functionSymbol);
     }
 

@@ -48,6 +48,14 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
 
   [[nodiscard]] auto control() const -> Control* { return gen.control(); }
 
+  [[nodiscard]] auto hasUndefinedOverflow(const Type* type) const -> bool;
+
+  [[nodiscard]] auto outerFunctionConstant(ImplicitCastExpressionAST* ast) const
+      -> const ConstValue*;
+
+  [[nodiscard]] auto integerOp(const Type* type, ir::BinaryOp op) const
+      -> ir::BinaryOp;
+
   [[nodiscard]] auto emitMemberAccess(MemberExpressionAST* ast)
       -> std::optional<std::pair<ir::ValueRef, ClassLayout::MemberInfo>>;
 
@@ -1463,6 +1471,30 @@ auto Codegen::ExpressionVisitor::emitBitFieldAccess(ExpressionAST* ast)
   return BitFieldAccess{access->first, access->second, field};
 }
 
+auto Codegen::ExpressionVisitor::hasUndefinedOverflow(const Type* type) const
+    -> bool {
+  if (!gen.traits.is_integral(type)) return false;
+  if (!gen.traits.is_signed(type)) return false;
+  const auto promoted = gen.traits.promoted_integer_type(type);
+  return gen.traits.is_same(promoted, gen.traits.remove_cv(type));
+}
+
+auto Codegen::ExpressionVisitor::integerOp(const Type* type,
+                                           ir::BinaryOp op) const
+    -> ir::BinaryOp {
+  if (!hasUndefinedOverflow(type)) return op;
+  switch (op) {
+    case ir::BinaryOp::AddInt:
+      return ir::BinaryOp::AddSignedInt;
+    case ir::BinaryOp::SubInt:
+      return ir::BinaryOp::SubSignedInt;
+    case ir::BinaryOp::MulInt:
+      return ir::BinaryOp::MulSignedInt;
+    default:
+      return op;
+  }
+}
+
 auto Codegen::ExpressionVisitor::emitBitFieldIncrDecr(SourceLocation loc,
                                                       ExpressionAST* operand,
                                                       TokenKind op,
@@ -1597,8 +1629,9 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     auto resultTy = gen.convertType(ast->baseExpression->type);
     auto oneOp = gen.emitter_.constantInt(
         loc, resultTy, ast->op == TokenKind::T_PLUS_PLUS ? 1 : -1);
-    auto addOp =
-        gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, loadOp, oneOp);
+    auto addOp = gen.emitter_.binaryOp(
+        loc, integerOp(ast->baseExpression->type, ir::BinaryOp::AddInt), loadOp,
+        oneOp);
     gen.emitter_.store(loc, addOp, expressionResult.value,
                        gen.lvalueAlignment(ast->baseExpression));
     return {loadOp};
@@ -1859,8 +1892,9 @@ auto Codegen::ExpressionVisitor::emitUnaryOpMinus(UnaryExpressionAST* ast)
 
   if (gen.traits.is_integral_or_unscoped_enum(ast->type)) {
     auto zero = gen.emitter_.constantInt(loc, resultType, 0);
-    auto op = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, zero,
-                                    expressionResult.value);
+    auto op =
+        gen.emitter_.binaryOp(loc, integerOp(ast->type, ir::BinaryOp::SubInt),
+                              zero, expressionResult.value);
 
     return {op};
   }
@@ -1968,9 +2002,13 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrIntegral(
   ir::ValueRef addOp;
 
   if (ast->op == TokenKind::T_MINUS_MINUS)
-    addOp = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, loadOp, oneOp);
+    addOp = gen.emitter_.binaryOp(
+        loc, integerOp(ast->expression->type, ir::BinaryOp::SubInt), loadOp,
+        oneOp);
   else
-    addOp = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, loadOp, oneOp);
+    addOp = gen.emitter_.binaryOp(
+        loc, integerOp(ast->expression->type, ir::BinaryOp::AddInt), loadOp,
+        oneOp);
 
   gen.emitter_.store(loc, addOp, expressionResult.value,
                      gen.lvalueAlignment(ast->expression));
@@ -2813,9 +2851,28 @@ auto Codegen::ExpressionVisitor::operator()(CastExpressionAST* ast)
   return expressionResult;
 }
 
+auto Codegen::ExpressionVisitor::outerFunctionConstant(
+    ImplicitCastExpressionAST* ast) const -> const ConstValue* {
+  auto id = ast_cast<IdExpressionAST>(ast->expression);
+  if (!id) return nullptr;
+  if (gen.traits.is_class(ast->type)) return nullptr;
+
+  auto variable = symbol_cast<VariableSymbol>(id->symbol);
+  if (!variable || variable->isStatic()) return nullptr;
+  if (!variable->constValue().has_value()) return nullptr;
+  if (!isUsableInConstantExpressions(variable)) return nullptr;
+  if (variable->enclosingFunction() == gen.currentFunctionSymbol_)
+    return nullptr;
+
+  return &*variable->constValue();
+}
+
 auto Codegen::ExpressionVisitor::emitLValueToRValueConversion(
     ImplicitCastExpressionAST* ast) -> ExpressionResult {
   auto loc = ast->firstSourceLocation();
+
+  if (auto constant = outerFunctionConstant(ast))
+    return {gen.emitConstInitValue(loc, ast->type, *constant)};
 
   auto expressionResult = gen.expression(ast->expression);
 
@@ -3567,13 +3624,16 @@ auto Codegen::ExpressionVisitor::emitBinaryArithmeticOpIntegral(
   const bool isSigned = gen.traits.is_signed(leftType);
   switch (binop) {
     case TokenKind::T_PLUS:
-      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, left, right)};
+      return {gen.emitter_.binaryOp(
+          loc, integerOp(leftType, ir::BinaryOp::AddInt), left, right)};
 
     case TokenKind::T_MINUS:
-      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, left, right)};
+      return {gen.emitter_.binaryOp(
+          loc, integerOp(leftType, ir::BinaryOp::SubInt), left, right)};
 
     case TokenKind::T_STAR:
-      return {gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, left, right)};
+      return {gen.emitter_.binaryOp(
+          loc, integerOp(leftType, ir::BinaryOp::MulInt), left, right)};
 
     case TokenKind::T_SLASH:
       return {isSigned ? gen.emitter_.binaryOp(loc, ir::BinaryOp::SignedDiv,

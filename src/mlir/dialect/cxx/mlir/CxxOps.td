@@ -58,7 +58,8 @@ class Cxx_EnumAttr<EnumInfo info, string mnemonic>
 
 def Cxx_InlineKindEnum : Cxx_I32EnumAttr<"InlineKind", "inlineKind", [
   I32EnumAttrCase<"NoInline", 0, "no_inline">,
-  I32EnumAttrCase<"InlineHint", 1, "inline">
+  I32EnumAttrCase<"InlineHint", 1, "inline">,
+  I32EnumAttrCase<"AlwaysInline", 2, "always_inline">
 ]>;
 
 def Cxx_InlineKind : Cxx_EnumAttr<Cxx_InlineKindEnum, "inline_kind">;

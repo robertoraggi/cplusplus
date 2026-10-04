@@ -1667,6 +1667,18 @@ auto TypeTraits::requireLayoutType(const Type* type) -> const Type* {
   return objectType;
 }
 
+auto TypeTraits::overload_set_operand(const Type* type) const
+    -> OverloadSetOperand {
+  auto unreferenced = remove_reference(type);
+  if (auto overloadSet = type_cast<OverloadSetType>(unreferenced))
+    return {overloadSet, false};
+  auto pointer = type_cast<PointerType>(unreferenced);
+  if (!pointer) return {};
+  auto overloadSet = type_cast<OverloadSetType>(pointer->elementType());
+  if (!overloadSet) return {};
+  return {overloadSet, true};
+}
+
 auto TypeTraits::remove_reference(const Type* type) const -> const Type* {
   if (!type) return type;
   return visit(RemoveReference{}, type);
@@ -2084,6 +2096,8 @@ auto TypeTraits::is_narrowing_list_element(ExpressionAST* expr,
 auto TypeTraits::integer_constant_fits_in_type(std::uint64_t value,
                                                const Type* targetType) const
     -> bool {
+  if (type_cast<BoolType>(remove_cv(targetType))) return value <= 1;
+
   auto representation = integral_representation(targetType);
   if (!representation) return false;
 

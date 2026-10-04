@@ -28,6 +28,7 @@
 #include <cxx/control.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
+#include <cxx/function_body.h>
 #include <cxx/implicit_conversion_sequence.h>
 #include <cxx/initialization.h>
 #include <cxx/literals.h>
@@ -6605,7 +6606,7 @@ void applyDeducedFunctionType(ScopeSymbol* functionScope, const Type* type) {
 }  // namespace
 
 void TypeChecker::bind_template_parameter_base_initializers(
-    CompoundStatementFunctionBodyAST* ast) {
+    FunctionBodyAST* ast) {
   auto functionSymbol = symbol_cast<FunctionSymbol>(scope_);
   if (!functionSymbol || !functionSymbol->isConstructor()) return;
 
@@ -6614,7 +6615,7 @@ void TypeChecker::bind_template_parameter_base_initializers(
 
   auto control = unit_->control();
 
-  for (auto memInit : ListView{ast->memInitializerList}) {
+  for (auto memInit : ListView{ctor_initializers(ast)}) {
     if (memInit->symbol) continue;
 
     auto unqualifiedId = memInitializerId(memInit);
@@ -6637,7 +6638,7 @@ void TypeChecker::bind_template_parameter_base_initializers(
 
 struct TypeChecker::CheckMemInitializers {
   TypeChecker& check;
-  CompoundStatementFunctionBodyAST* ast;
+  FunctionBodyAST* ast;
   FunctionSymbol* functionSymbol;
   ClassSymbol* classSymbol;
   ArrayCopyPolicy arrayCopyPolicy;
@@ -6657,8 +6658,7 @@ struct TypeChecker::CheckMemInitializers {
   std::unordered_map<MemInitializerAST*, int> canonicalPos;
   int position = 0;
 
-  CheckMemInitializers(TypeChecker& check,
-                       CompoundStatementFunctionBodyAST* ast,
+  CheckMemInitializers(TypeChecker& check, FunctionBodyAST* ast,
                        FunctionSymbol* functionSymbol, ClassSymbol* classSymbol,
                        ArrayCopyPolicy arrayCopyPolicy)
       : check(check),
@@ -6684,6 +6684,8 @@ struct TypeChecker::CheckMemInitializers {
   [[nodiscard]] auto findInAnonymousMember(ClassSymbol* enclosing,
                                            const Name* name) -> FieldSymbol*;
   void checkMemberInitialization(MemInitializerAST* memInit, Symbol* member);
+  void checkScalarMemberInitializer(ExpressionAST*& initializer,
+                                    const Type* targetType);
 
   void completeResolvedConstructorCall(MemInitializerAST* memInit);
   void foldImmediateConstruction(MemInitializerAST* memInit);
@@ -6737,6 +6739,23 @@ struct TypeChecker::CheckMemInitializers {
     return !resolveDefaultConstructor(cls);
   }
 
+  [[nodiscard]] auto defaultInitializationIsIllFormed(const Type* type)
+      -> bool {
+    if (traits.is_reference(type)) return true;
+    if (!traits.is_const(type)) return false;
+    return !traits.is_const_default_constructible(type);
+  }
+
+  void reportUninitializableMember(const Type* type, FieldSymbol* field) {
+    check.error(
+        functionSymbol->location(),
+        std::format("constructor for '{}' must explicitly initialize the {} "
+                    "member '{}'",
+                    to_string(classSymbol->type()),
+                    traits.is_reference(type) ? "reference" : "const",
+                    to_string(field->name())));
+  }
+
   void reportMissingInitializer(std::string_view entityKind,
                                 std::string_view entityName) {
     check.error(
@@ -6784,7 +6803,7 @@ struct TypeChecker::CheckMemInitializers {
       -> ParenMemInitializerAST*;
 };
 
-void TypeChecker::check_mem_initializers(CompoundStatementFunctionBodyAST* ast,
+void TypeChecker::check_mem_initializers(FunctionBodyAST* ast,
                                          ArrayCopyPolicy arrayCopyPolicy) {
   if (!unit_->config().checkTypes) return;
 
@@ -6801,14 +6820,14 @@ void TypeChecker::check_mem_initializers(CompoundStatementFunctionBodyAST* ast,
 }
 
 void TypeChecker::CheckMemInitializers::operator()() {
-  for (auto memInit : ListView{ast->memInitializerList})
+  for (auto memInit : ListView{ctor_initializers(ast)})
     resolveWrittenInitializer(memInit);
 
-  for (auto memInit : ListView{ast->memInitializerList})
+  for (auto memInit : ListView{ctor_initializers(ast)})
     foldImmediateConstruction(memInit);
 
   if (delegatingInit) {
-    if (ast->memInitializerList->next) {
+    if (ctor_initializers(ast)->next) {
       check.error(
           delegatingInit->firstSourceLocation(),
           "an initializer for a delegating constructor must appear alone");
@@ -6819,7 +6838,7 @@ void TypeChecker::CheckMemInitializers::operator()() {
 
   buildCanonicalOrder();
 
-  ast->memInitializerList = newList;
+  set_ctor_initializers(ast, newList);
 
   requireMemInitializerDefinitions();
 
@@ -6892,7 +6911,7 @@ void TypeChecker::CheckMemInitializers::completeResolvedConstructorCall(
 }
 
 void TypeChecker::CheckMemInitializers::requireMemInitializerDefinitions() {
-  for (auto memInit : ListView{ast->memInitializerList}) {
+  for (auto memInit : ListView{ctor_initializers(ast)}) {
     ASTRewriter::requireDefinitionsNamedBy(unit, memInit);
   }
 }
@@ -7120,11 +7139,28 @@ void TypeChecker::CheckMemInitializers::checkMemberInitialization(
     check.check_braced_init_list(targetType, braced->bracedInitList,
                                  InitializationKind::kDirectListInitialization);
   } else if (args.size() == 1) {
-    (void)check.implicit_conversion(*args[0], targetType);
+    checkScalarMemberInitializer(*args[0], targetType);
   } else if (args.size() > 1) {
     check.error(memInit->firstSourceLocation(),
                 "too many initializers for scalar member");
   }
+}
+
+void TypeChecker::CheckMemInitializers::checkScalarMemberInitializer(
+    ExpressionAST*& initializer, const Type* targetType) {
+  if (!initializer || !initializer->type) return;
+
+  const auto sourceType = initializer->type;
+
+  if (check.implicit_conversion(initializer, targetType,
+                                InitializationKind::kDirectInitialization))
+    return;
+
+  check.error(initializer->firstSourceLocation(),
+              std::format("cannot initialize type '{}' with expression of "
+                          "type '{}'",
+                          to_string(traits.remove_cv(targetType)),
+                          to_string(sourceType)));
 }
 
 auto TypeChecker::CheckMemInitializers::makeClassNsdmiInit(
@@ -7210,7 +7246,7 @@ auto TypeChecker::CheckMemInitializers::makeNsdmiInit(
 }
 
 void TypeChecker::CheckMemInitializers::buildCanonicalOrder() {
-  for (auto memInit : ListView{ast->memInitializerList})
+  for (auto memInit : ListView{ctor_initializers(ast)})
     if (memInit->symbol) written.push_back(memInit);
 
   writtenOrder = written;
@@ -7266,7 +7302,7 @@ void TypeChecker::CheckMemInitializers::checkUninitializedVirtualBases() {
   for (auto vbase : layout->virtualBases()) {
     auto definition = vbase->resolvedDefinition();
     const bool designated = std::ranges::any_of(
-        ListView{ast->memInitializerList}, [&](MemInitializerAST* node) {
+        ListView{ctor_initializers(ast)}, [&](MemInitializerAST* node) {
           return designatedVirtualBase(node) == definition;
         });
     if (designated) continue;
@@ -7338,6 +7374,9 @@ void TypeChecker::CheckMemInitializers::appendFieldInitializers(
     ASTRewriter::requireFieldInitializer(unit, field);
     if (auto initializer = field->initializer()) {
       syntheticInit = makeNsdmiInit(field, initializer);
+    } else if (defaultInitializationIsIllFormed(field->type())) {
+      reportUninitializableMember(field->type(), field);
+      continue;
     } else if (auto classType = type_cast<ClassType>(
                    traits.remove_cv(traits.remove_all_extents(fieldType)))) {
       auto fieldClassSymbol = classType->symbol();
@@ -7383,15 +7422,14 @@ void TypeChecker::CheckMemInitializers::propagateVirtualBaseInitializers() {
     variant = functionSymbol->canonical()->completeObjectVariant();
   if (!variant || !variant->declaration()) return;
 
-  auto variantBody = ast_cast<CompoundStatementFunctionBodyAST>(
-      variant->declaration()->functionBody);
-  if (!variantBody) return;
+  auto variantBody = variant->declaration()->functionBody;
+  if (!ctor_initializers(variantBody)) return;
 
-  for (auto memInit : ListView{ast->memInitializerList}) {
+  for (auto memInit : ListView{ctor_initializers(ast)}) {
     auto vbase = designatedVirtualBase(memInit);
     if (!vbase) continue;
 
-    for (auto node : ListView{variantBody->memInitializerList}) {
+    for (auto node : ListView{ctor_initializers(variantBody)}) {
       auto placeholder = ast_cast<ParenMemInitializerAST>(node);
       if (!placeholder || placeholder->symbol != vbase) continue;
 
@@ -8281,6 +8319,66 @@ auto TypeChecker::deducesReturnTypeAtInstantiation(ScopeSymbol* function,
   return isEnclosedInDependentTemplate(unit_, function, true);
 }
 
+namespace {
+[[nodiscard]] auto isInFunctionTryHandler(ScopeSymbol* scope,
+                                          ScopeSymbol* functionScope) -> bool {
+  for (; scope && scope != functionScope; scope = scope->parent()) {
+    auto block = symbol_cast<BlockSymbol>(scope);
+    if (block && block->isFunctionTryHandler()) return true;
+  }
+  return false;
+}
+}  // namespace
+
+auto TypeChecker::returnPlaceholder(ScopeSymbol* function,
+                                    const Type* returnType) const
+    -> const Type* {
+  if (containsPlaceholderType(returnType)) return returnType;
+  return unit_->placeholderReturnType(function);
+}
+
+auto TypeChecker::deduceReturnType(ScopeSymbol* function,
+                                   const Type* placeholder,
+                                   ExpressionAST* expression,
+                                   SourceLocation location) -> bool {
+  const auto traits = unit_->typeTraits();
+
+  const Type* deducedType = nullptr;
+  if (expression) {
+    deducedType = deducePlaceholderType(placeholder, expression);
+  } else if (type_cast<AutoType>(traits.remove_cv(placeholder)) ||
+             type_cast<DecltypeAutoType>(placeholder)) {
+    deducedType = unit_->control()->getVoidType();
+  } else {
+    error(location, std::format("cannot deduce '{}' from a return statement "
+                                "with no operand",
+                                to_string(placeholder)));
+  }
+
+  auto funcType = type_cast<FunctionType>(function->type());
+  if (!deducedType || !funcType) return false;
+
+  if (!containsPlaceholderType(funcType->returnType())) {
+    if (traits.is_same(funcType->returnType(), deducedType)) return true;
+    error(
+        location,
+        std::format("inconsistent deduction for return type: deduced '{}' "
+                    "here but '{}' earlier",
+                    to_string(deducedType), to_string(funcType->returnType())));
+    return false;
+  }
+
+  auto newFuncType = unit_->control()->getFunctionType(
+      deducedType,
+      std::vector<const Type*>(funcType->parameterTypes().begin(),
+                               funcType->parameterTypes().end()),
+      funcType->isVariadic(), funcType->cvQualifiers(),
+      funcType->refQualifier(), funcType->exceptionSpecification());
+  unit_->setPlaceholderReturnType(function, placeholder);
+  applyDeducedFunctionType(function, newFuncType);
+  return true;
+}
+
 void TypeChecker::check_return_statement(ReturnStatementAST* ast,
                                          bool isDiscarded) {
   const Type* targetType = nullptr;
@@ -8302,6 +8400,12 @@ void TypeChecker::check_return_statement(ReturnStatementAST* ast,
 
   if (auto function = symbol_cast<FunctionSymbol>(functionScope);
       function && (function->isConstructor() || function->isDestructor())) {
+    if (function->isConstructor() &&
+        isInFunctionTryHandler(scope_, functionScope)) {
+      error(ast->returnLoc,
+            "a return statement shall not appear in a handler of the "
+            "function-try-block of a constructor");
+    }
     if (ast->expression) {
       error(ast->expression->firstSourceLocation(),
             std::format(
@@ -8313,6 +8417,13 @@ void TypeChecker::check_return_statement(ReturnStatementAST* ast,
 
   if (!ast->expression) {
     if (isDiscarded && hasDeducedReturnType(functionScope, targetType)) return;
+    if (auto placeholder = returnPlaceholder(functionScope, targetType);
+        placeholder && !isDiscarded) {
+      if (!deducesReturnTypeAtInstantiation(functionScope, targetType))
+        (void)deduceReturnType(functionScope, placeholder, nullptr,
+                               ast->returnLoc);
+      return;
+    }
     if (!containsPlaceholderType(targetType) &&
         !isDependent(unit_, targetType) && !traits.is_void(targetType)) {
       error(ast->returnLoc,
@@ -8336,20 +8447,13 @@ void TypeChecker::check_return_statement(ReturnStatementAST* ast,
 
   if (deducesReturnTypeAtInstantiation(functionScope, targetType)) return;
 
-  if (!isDiscarded && containsPlaceholderType(targetType) && ast->expression &&
-      ast->expression->type && !isDependent(unit_, ast->expression->type)) {
-    auto deducedType = deducePlaceholderType(targetType, ast->expression);
-    auto funcType = type_cast<FunctionType>(functionScope->type());
-    if (deducedType && funcType) {
-      auto newFuncType = unit_->control()->getFunctionType(
-          deducedType,
-          std::vector<const Type*>(funcType->parameterTypes().begin(),
-                                   funcType->parameterTypes().end()),
-          funcType->isVariadic(), funcType->cvQualifiers(),
-          funcType->refQualifier(), funcType->exceptionSpecification());
-      applyDeducedFunctionType(functionScope, newFuncType);
-      targetType = deducedType;
-    }
+  if (auto placeholder = returnPlaceholder(functionScope, targetType);
+      placeholder && !isDiscarded && ast->expression->type &&
+      !isDependent(unit_, ast->expression->type)) {
+    if (!deduceReturnType(functionScope, placeholder, ast->expression,
+                          ast->expression->firstSourceLocation()))
+      return;
+    targetType = type_cast<FunctionType>(functionScope->type())->returnType();
   }
 
   if (isDependent(unit_, targetType)) return;

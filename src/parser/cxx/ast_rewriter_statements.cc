@@ -261,6 +261,8 @@ auto ASTRewriter::handler(HandlerAST* ast) -> HandlerAST* {
 
   if (ast->symbol) {
     copy->symbol = binder_.enterBlock(ast->symbol->location());
+    copy->symbol->setOutermostBlockScope(ast->symbol->isOutermostBlockScope());
+    copy->symbol->setFunctionTryHandler(ast->symbol->isFunctionTryHandler());
   }
 
   copy->catchLoc = ast->catchLoc;

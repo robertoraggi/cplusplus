@@ -535,20 +535,27 @@ auto Binder::functionLocalPredefinedVariable(ScopeSymbol* scope,
   const auto wellKnownName = identifier->wellKnownName();
   if (!isFunctionLocalPredefinedName(wellKnownName)) return nullptr;
 
-  auto body = functionBodyBlock(scope);
-  if (!body) return nullptr;
+  auto owner = functionParameterScope(scope);
+  if (!owner) return nullptr;
 
-  for (auto candidate : body->find(identifier)) {
+  for (auto candidate : owner->find(identifier)) {
     auto variable = symbol_cast<VariableSymbol>(candidate);
     if (variable && variable->isFunctionLocalPredefined()) return variable;
   }
 
-  auto function = functionOfBody(body->parent());
+  auto function = functionOfBody(owner);
   return declarePredefinedVariable(
-      body, identifier, functionLocalPredefinedValue(function, wellKnownName));
+      owner, identifier, functionLocalPredefinedValue(function, wellKnownName));
 }
 
-auto Binder::declarePredefinedVariable(BlockSymbol* body,
+auto Binder::functionParameterScope(ScopeSymbol* scope) const -> ScopeSymbol* {
+  if (scope && scope == functionBodyScope_ && functionOfBody(scope))
+    return scope;
+  if (auto body = functionBodyBlock(scope)) return body->parent();
+  return nullptr;
+}
+
+auto Binder::declarePredefinedVariable(ScopeSymbol* owner,
                                        const Identifier* name,
                                        std::string_view value)
     -> VariableSymbol* {
@@ -562,7 +569,7 @@ auto Binder::declarePredefinedVariable(BlockSymbol* body,
   initializer->type = type;
   initializer->valueCategory = ValueCategory::kLValue;
 
-  auto variable = control()->newVariableSymbol(body, body->location());
+  auto variable = control()->newVariableSymbol(owner, owner->location());
   variable->setName(name);
   variable->setType(type);
   variable->setStatic(true);
@@ -571,7 +578,7 @@ auto Binder::declarePredefinedVariable(BlockSymbol* body,
   variable->setInitializer(initializer);
   variable->setConstValue(
       ASTInterpreter{unit_}.evaluateInitializer(type, initializer));
-  body->addSymbol(variable);
+  owner->addSymbol(variable);
   return variable;
 }
 

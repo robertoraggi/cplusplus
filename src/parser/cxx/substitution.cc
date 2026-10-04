@@ -1337,6 +1337,14 @@ void Substitution::convertNonTypeArgument(NonTypeArgumentValue& argument,
   auto converted = expression;
   if (!conversions.convertImplicitly(converted, targetType)) return;
 
+  if (traits.is_narrowing_list_element(expression, targetType)) {
+    error(expression->firstSourceLocation(),
+          std::format("narrowing conversion from '{}' to '{}' in converted "
+                      "constant expression",
+                      to_string(expression->type), to_string(targetType)));
+    return;
+  }
+
   auto interp = ASTInterpreter{unit_};
   auto value = interp.evaluate(converted);
   if (!value.has_value()) return;

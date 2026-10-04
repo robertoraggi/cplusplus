@@ -2634,6 +2634,8 @@ void SemanticEncoder::writeSymbolBlockSymbol(
   writeSymbolScopeSymbol(out, self);
   // ::cxx::BlockSymbol::isOutermostBlockScope_
   out.boolean(self->isOutermostBlockScope());
+  // ::cxx::BlockSymbol::isFunctionTryHandler_
+  out.boolean(self->isFunctionTryHandler());
 }
 
 void SemanticEncoder::writeSymbolLambdaSymbol(
@@ -10508,6 +10510,9 @@ void SemanticDecoder::readSymbolBlockSymbol(
   // ::cxx::BlockSymbol::isOutermostBlockScope_
   bool value1 = in.boolean();
   self->setOutermostBlockScope(std::move(value1));
+  // ::cxx::BlockSymbol::isFunctionTryHandler_
+  bool value2 = in.boolean();
+  self->setFunctionTryHandler(std::move(value2));
 }
 
 void SemanticDecoder::readSymbolLambdaSymbol(

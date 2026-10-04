@@ -486,13 +486,34 @@ struct TypeDeduction::DeduceType {
     return deduceNextLevel(P->elementType(), pointer->elementType());
   }
 
+  [[nodiscard]] auto specifiedElementType(const Type* element) const
+      -> const Type* {
+    auto qualified = type_cast<QualType>(element);
+    auto slot =
+        deduction.slotOf(qualified ? qualified->elementType() : element);
+    if (slot < 0 || !deduction.isSpecified(slot)) return nullptr;
+    auto alias = symbol_cast<TypeAliasSymbol>(deduction.deduced(slot));
+    if (!alias || !alias->type()) return nullptr;
+    auto traits = deduction.unit_->typeTraits();
+    if (!qualified || traits.is_reference(alias->type())) return alias->type();
+    return traits.add_cv(alias->type(), qualified->cvQualifiers());
+  }
+
   [[nodiscard]] auto operator()(const LvalueReferenceType* P) -> bool {
+    if (auto specified = specifiedElementType(P->elementType())) {
+      auto traits = deduction.unit_->typeTraits();
+      return deduction.deduce(traits.add_lvalue_reference(specified), A);
+    }
     auto reference = type_cast<LvalueReferenceType>(A);
     if (!reference) return false;
     return deduction.deduce(P->elementType(), reference->elementType());
   }
 
   [[nodiscard]] auto operator()(const RvalueReferenceType* P) -> bool {
+    if (auto specified = specifiedElementType(P->elementType())) {
+      auto traits = deduction.unit_->typeTraits();
+      return deduction.deduce(traits.add_rvalue_reference(specified), A);
+    }
     auto reference = type_cast<RvalueReferenceType>(A);
     if (!reference) return false;
     return deduction.deduce(P->elementType(), reference->elementType());

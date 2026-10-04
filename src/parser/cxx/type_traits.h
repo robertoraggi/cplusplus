@@ -38,9 +38,15 @@ class Control;
 class ExpressionAST;
 class FieldSymbol;
 class FunctionSymbol;
+class OverloadSetType;
 class Symbol;
 class TranslationUnit;
 class Type;
+
+struct OverloadSetOperand {
+  const OverloadSetType* type = nullptr;
+  bool takesAddress = false;
+};
 
 class TypeTraits {
   TranslationUnit* unit_;
@@ -65,6 +71,8 @@ class TypeTraits {
   [[nodiscard]] auto is_class(const Type* type) const -> bool;
   [[nodiscard]] auto is_function(const Type* type) const -> bool;
   [[nodiscard]] auto is_pointer(const Type* type) const -> bool;
+  [[nodiscard]] auto overload_set_operand(const Type* type) const
+      -> OverloadSetOperand;
   [[nodiscard]] auto is_vector(const Type* type) const -> bool;
 
   /**

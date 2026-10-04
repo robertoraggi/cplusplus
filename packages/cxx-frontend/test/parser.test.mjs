@@ -325,6 +325,25 @@ test("aborting during parsing stops a translation unit with no includes", async 
   );
 });
 
+test("return type deduction is checked across resumed parsing", async () => {
+  let source = "";
+  for (let i = 0; i < 4000; ++i) {
+    source += `auto same${i}(bool b) { if (b) return ${i}; return ${i + 1}; }\n`;
+    if (i === 1500)
+      source += "auto middle(bool b) { if (b) return 1; return 2.0; }\n";
+  }
+  source += "auto last(bool b) { if (b) return 1; return; }\n";
+  source += "static_assert(__is_same(decltype(same3999(true)), int));\n";
+
+  await using parser = await Parser.parse({ source, path: "/source/auto.cc" });
+
+  const errors = parser.diagnostics.filter((d) => d.severity === "error");
+
+  assert.equal(errors.length, 2);
+  assert.match(errors[0].message, /inconsistent deduction for return type/);
+  assert.match(errors[1].message, /inconsistent deduction for return type/);
+});
+
 test("token kinds are the spelling of the token", async () => {
   await using parser = await Parser.parse({
     path: "/tokens.cc",

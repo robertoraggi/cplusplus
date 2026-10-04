@@ -99,11 +99,10 @@ class TypeChecker {
       -> FunctionSymbol*;
   void check_condition_declaration(ConditionExpressionAST* ast);
   void check_field_initializer(FieldSymbol* field);
-  void check_mem_initializers(CompoundStatementFunctionBodyAST* ast,
+  void check_mem_initializers(FunctionBodyAST* ast,
                               ArrayCopyPolicy arrayCopyPolicy =
                                   ArrayCopyPolicy::kBracedInitializerOnly);
-  void bind_template_parameter_base_initializers(
-      CompoundStatementFunctionBodyAST* ast);
+  void bind_template_parameter_base_initializers(FunctionBodyAST* ast);
   void check_braced_init_list(const Type* type, BracedInitListAST* ast,
                               InitializationKind initializationKind);
   void check_list_initialization(const Type* type, ExpressionAST*& expression,
@@ -220,6 +219,15 @@ class TypeChecker {
                                                   const Type* initializerType,
                                                   bool forwardsLvalue)
       -> const Type*;
+
+  [[nodiscard]] auto returnPlaceholder(ScopeSymbol* function,
+                                       const Type* returnType) const
+      -> const Type*;
+
+  [[nodiscard]] auto deduceReturnType(ScopeSymbol* function,
+                                      const Type* placeholder,
+                                      ExpressionAST* expression,
+                                      SourceLocation location) -> bool;
 
   [[nodiscard]] auto deducesReturnTypeAtInstantiation(
       ScopeSymbol* function, const Type* returnType) const -> bool;

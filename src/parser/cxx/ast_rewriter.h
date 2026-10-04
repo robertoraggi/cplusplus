@@ -716,8 +716,7 @@ class [[nodiscard]] ASTRewriter {
       Symbol* pattern, SimpleTemplateIdAST* templateId, CallExpressionAST* call,
       SourceLocation location) -> Symbol*;
 
-  void checkMemInitializers(FunctionSymbol* function,
-                            CompoundStatementFunctionBodyAST* body);
+  void checkMemInitializers(FunctionSymbol* function, FunctionBodyAST* body);
 
   void remapFunctionParameters(FunctionParametersSymbol* patternParameters,
                                FunctionParametersSymbol* instanceParameters);

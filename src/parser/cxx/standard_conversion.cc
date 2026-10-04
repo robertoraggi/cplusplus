@@ -33,6 +33,7 @@
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
@@ -1104,20 +1105,11 @@ auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
   ImplicitConversionSequence seq;
   seq.sourceType = expr->type;
   seq.destinationType = targetType;
-  auto unreferencedSourceType = traits.remove_reference(expr->type);
-  auto overloadSetType = type_cast<OverloadSetType>(unreferencedSourceType);
-  auto sourceIsAddressOfOverloadSet = false;
-
-  if (!overloadSetType) {
-    if (auto sourcePointer = type_cast<PointerType>(unreferencedSourceType)) {
-      overloadSetType =
-          type_cast<OverloadSetType>(sourcePointer->elementType());
-      sourceIsAddressOfOverloadSet = overloadSetType != nullptr;
-    }
-  }
+  const auto operand = traits.overload_set_operand(expr->type);
+  auto sourceIsAddressOfOverloadSet = operand.takesAddress;
 
   OverloadSetSymbol* overloadSet =
-      overloadSetType ? overloadSetType->symbol() : nullptr;
+      operand.type ? operand.type->symbol() : nullptr;
   if (!overloadSet) {
     auto designator = stripNestedExpressions(expr);
     if (auto address = ast_cast<UnaryExpressionAST>(designator);
@@ -1976,6 +1968,8 @@ void StandardConversion::appendDefaultArguments(FunctionSymbol* function,
         make_list_node<ExpressionAST>(arena_, defaultArgument->clone(arena_));
     auto sequence =
         computeConversionSequence((*tail)->value, params[i]->type());
+    TypeChecker{unit_}.initializeBracedArgument((*tail)->value,
+                                                params[i]->type());
     applyConversionSequence(sequence, (*tail)->value);
     (*tail)->value = makeDefaultInitializer(unit_, (*tail)->value, location,
                                             accessingScope_);

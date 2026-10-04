@@ -297,6 +297,8 @@ inline constexpr FieldDescriptor kSemanticFieldModelStorage[] = {
      FieldPersistence::kPersisted, ""},
     {"::cxx::BlockSymbol", "isOutermostBlockScope_",
      FieldPersistence::kPersisted, ""},
+    {"::cxx::BlockSymbol", "isFunctionTryHandler_",
+     FieldPersistence::kPersisted, ""},
     {"::cxx::LambdaSymbol", "closureType_", FieldPersistence::kPersisted, ""},
     {"::cxx::LambdaSymbol", "flags_", FieldPersistence::kDerived,
      "the individual bit-fields are persisted"},

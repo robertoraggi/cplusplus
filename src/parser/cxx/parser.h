@@ -901,6 +901,8 @@ class Parser final {
       -> bool;
 
   [[nodiscard]] auto parse_function_try_block(FunctionBodyAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_skip_handler_seq() -> bool;
+  [[nodiscard]] auto defersFunctionBody() const -> bool;
   [[nodiscard]] auto parse_handler(HandlerAST*& yyast) -> bool;
   [[nodiscard]] auto parse_handler_seq(List<HandlerAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_exception_declaration(
@@ -1072,6 +1074,8 @@ class Parser final {
 
   void deferAccessCheck(NestedNameSpecifierAST* nestedNameSpecifier,
                         Symbol* symbol, SourceLocation loc);
+
+  void checkInjectedClassName(Symbol* symbol, SourceLocation loc);
 
   ScopeSymbol* accessCheckScope_ = nullptr;
 

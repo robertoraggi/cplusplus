@@ -381,6 +381,7 @@ void TranslationUnit::endParsing() {
   parser_->endParsing();
   parser_.reset();
   nonDependentTypes_ = {};
+  placeholderReturnTypes_ = {};
 }
 
 auto TranslationUnit::language() const -> LanguageKind {
@@ -450,6 +451,18 @@ auto TranslationUnit::isNonDependentType(const Type* type) const -> bool {
 
 void TranslationUnit::addNonDependentType(const Type* type) {
   nonDependentTypes_.insert(type);
+}
+
+auto TranslationUnit::placeholderReturnType(const ScopeSymbol* function) const
+    -> const Type* {
+  auto it = placeholderReturnTypes_.find(function);
+  if (it == placeholderReturnTypes_.end()) return nullptr;
+  return it->second;
+}
+
+void TranslationUnit::setPlaceholderReturnType(const ScopeSymbol* function,
+                                               const Type* placeholder) {
+  placeholderReturnTypes_.insert_or_assign(function, placeholder);
 }
 
 auto TranslationUnit::takePendingMemberInstantiations()

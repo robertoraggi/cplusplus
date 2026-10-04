@@ -254,9 +254,7 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
     auto func = LLVM::LLVMFuncOp::create(rewriter, op.getLoc(), op.getSymName(),
                                          llvmFuncType, linkage);
 
-    if (op.getInlineKind() != cxx::InlineKind::InlineHint) {
-      func.setNoInline(true);
-    }
+    setInlineAttributes(op, func);
 
     if (op.getBody().empty()) {
       const auto declarationLinkage = linkage == LLVM::linkage::Linkage::Weak
@@ -285,6 +283,23 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
     rewriter.eraseOp(op);
 
     return success();
+  }
+
+  static void setInlineAttributes(cxx::FuncOp op, LLVM::LLVMFuncOp func) {
+    const auto inlineKind = op.getInlineKind();
+    if (!inlineKind) return;
+
+    switch (*inlineKind) {
+      case cxx::InlineKind::NoInline:
+        func.setNoInline(true);
+        break;
+      case cxx::InlineKind::InlineHint:
+        func.setInlineHint(true);
+        break;
+      case cxx::InlineKind::AlwaysInline:
+        func.setAlwaysInline(true);
+        break;
+    }
   }
 
   static void setTargetFunctionAttributes(ConversionPatternRewriter& rewriter,
@@ -1878,7 +1893,8 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
 
     rewriter.replaceOp(
         op, LLVM::GEPOp::create(rewriter, op.getLoc(), resultType, elementType,
-                                adaptor.getBase(), indices));
+                                adaptor.getBase(), indices,
+                                LLVM::GEPNoWrapFlags::inbounds));
 
     return success();
   }
@@ -1929,7 +1945,8 @@ class PtrAddOpLowering : public OpConversionPattern<cxx::PtrAddOp> {
 
     rewriter.replaceOp(
         op, LLVM::GEPOp::create(rewriter, op.getLoc(), resultType, elementType,
-                                adaptor.getBase(), indices));
+                                adaptor.getBase(), indices,
+                                LLVM::GEPNoWrapFlags::inbounds));
 
     return success();
   }
@@ -1975,8 +1992,10 @@ class PtrDiffOpLowering : public OpConversionPattern<cxx::PtrDiffOp> {
                 rewriter, loc, resultType,
                 rewriter.getIntegerAttr(resultType,
                                         static_cast<int64_t>(elementSize)));
-            diff = LLVM::SDivOp::create(rewriter, loc, resultType, diff,
-                                        sizeConst);
+            auto division = LLVM::SDivOp::create(rewriter, loc, resultType,
+                                                 diff, sizeConst);
+            division.setIsExact(true);
+            diff = division;
           }
         }
       }
@@ -2026,7 +2045,8 @@ class MemberOpLowering : public OpConversionPattern<cxx::MemberOp> {
 
     rewriter.replaceOp(
         op, LLVM::GEPOp::create(rewriter, op.getLoc(), resultType, elementType,
-                                adaptor.getBase(), indices));
+                                adaptor.getBase(), indices,
+                                LLVM::GEPNoWrapFlags::inbounds));
 
     return success();
   }
@@ -2089,7 +2109,8 @@ class ArrayToPointerOpLowering
 
     rewriter.replaceOp(
         op, LLVM::GEPOp::create(rewriter, op.getLoc(), resultType, elementType,
-                                adaptor.getValue(), indices));
+                                adaptor.getValue(), indices,
+                                LLVM::GEPNoWrapFlags::inbounds));
 
     return success();
   }
