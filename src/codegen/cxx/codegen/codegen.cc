@@ -168,6 +168,14 @@ namespace {
   return expression;
 }
 
+[[nodiscard]] auto functionInlineKind(FunctionSymbol* function)
+    -> ir::InlineKind {
+  if (function->isNoInline()) return ir::InlineKind::NoInline;
+  if (function->isAlwaysInline()) return ir::InlineKind::AlwaysInline;
+  if (function->isInline()) return ir::InlineKind::InlineHint;
+  return ir::InlineKind::Default;
+}
+
 }  // namespace
 
 auto Codegen::lvalueAlignment(ExpressionAST* expression) -> uint64_t {
@@ -1984,8 +1992,7 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   emitter_.setModuleInsertionPoint(true);
 
-  auto inlineKind = emittedSymbol->isInline() ? ir::InlineKind::InlineHint
-                                              : ir::InlineKind::NoInline;
+  auto inlineKind = functionInlineKind(emittedSymbol);
 
   auto linkage = symbolLinkage(emittedSymbol);
 
@@ -2058,8 +2065,7 @@ auto Codegen::findOrCreateSecondaryFunctionName(FunctionSymbol* functionSymbol,
   auto visibility = ir::Visibility::Default;
   if (emittedSymbol->hasHiddenVisibility()) visibility = ir::Visibility::Hidden;
 
-  auto inlineKind = ir::InlineKind::NoInline;
-  if (emittedSymbol->isInline()) inlineKind = ir::InlineKind::InlineHint;
+  auto inlineKind = functionInlineKind(emittedSymbol);
 
   auto guard = ir::InsertionGuard(emitter_);
   emitter_.setModuleInsertionPoint(true);

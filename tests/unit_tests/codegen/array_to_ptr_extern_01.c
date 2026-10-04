@@ -16,6 +16,6 @@ char get_first(void) {
 
 // CHECK-LABEL: @get_int
 int get_int(int i) {
-  // CHECK: getelementptr [0 x i32]
+  // CHECK: getelementptr inbounds [0 x i32]
   return arr[i];
 }

@@ -175,6 +175,12 @@ inline auto toVal(cxx::ir::BinaryOp value) -> val {
       return val("SubInt");
     case cxx::ir::BinaryOp::MulInt:
       return val("MulInt");
+    case cxx::ir::BinaryOp::AddSignedInt:
+      return val("AddSignedInt");
+    case cxx::ir::BinaryOp::SubSignedInt:
+      return val("SubSignedInt");
+    case cxx::ir::BinaryOp::MulSignedInt:
+      return val("MulSignedInt");
     case cxx::ir::BinaryOp::SignedDiv:
       return val("SignedDiv");
     case cxx::ir::BinaryOp::UnsignedDiv:
@@ -213,6 +219,9 @@ inline auto toEnum<cxx::ir::BinaryOp>(const val& value) -> cxx::ir::BinaryOp {
   if (name == "AddInt") return cxx::ir::BinaryOp::AddInt;
   if (name == "SubInt") return cxx::ir::BinaryOp::SubInt;
   if (name == "MulInt") return cxx::ir::BinaryOp::MulInt;
+  if (name == "AddSignedInt") return cxx::ir::BinaryOp::AddSignedInt;
+  if (name == "SubSignedInt") return cxx::ir::BinaryOp::SubSignedInt;
+  if (name == "MulSignedInt") return cxx::ir::BinaryOp::MulSignedInt;
   if (name == "SignedDiv") return cxx::ir::BinaryOp::SignedDiv;
   if (name == "UnsignedDiv") return cxx::ir::BinaryOp::UnsignedDiv;
   if (name == "SignedRem") return cxx::ir::BinaryOp::SignedRem;
@@ -507,10 +516,14 @@ inline auto toEnum<cxx::ir::Visibility>(const val& value)
 
 inline auto toVal(cxx::ir::InlineKind value) -> val {
   switch (value) {
+    case cxx::ir::InlineKind::Default:
+      return val("Default");
     case cxx::ir::InlineKind::NoInline:
       return val("NoInline");
     case cxx::ir::InlineKind::InlineHint:
       return val("InlineHint");
+    case cxx::ir::InlineKind::AlwaysInline:
+      return val("AlwaysInline");
   }
   return val::undefined();
 }
@@ -519,8 +532,10 @@ template <>
 inline auto toEnum<cxx::ir::InlineKind>(const val& value)
     -> cxx::ir::InlineKind {
   const auto name = toString(value);
+  if (name == "Default") return cxx::ir::InlineKind::Default;
   if (name == "NoInline") return cxx::ir::InlineKind::NoInline;
   if (name == "InlineHint") return cxx::ir::InlineKind::InlineHint;
+  if (name == "AlwaysInline") return cxx::ir::InlineKind::AlwaysInline;
   return cxx::ir::InlineKind{};
 }
 

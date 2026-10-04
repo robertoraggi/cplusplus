@@ -714,6 +714,14 @@ auto Symbol::isWeak() const -> bool {
   return findAttribute(canonical()->attributes(), "weak") != nullptr;
 }
 
+auto Symbol::isNoInline() const -> bool {
+  return findAttribute(canonical()->attributes(), "noinline") != nullptr;
+}
+
+auto Symbol::isAlwaysInline() const -> bool {
+  return findAttribute(canonical()->attributes(), "always_inline") != nullptr;
+}
+
 auto Symbol::abiTags() const -> std::span<const Identifier* const> {
   if (!abiTags_) return {};
   return *abiTags_;

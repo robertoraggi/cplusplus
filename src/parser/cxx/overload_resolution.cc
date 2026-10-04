@@ -1011,6 +1011,7 @@ auto OverloadResolution::resolveBinaryOperator(
       } else {
         if (params.size() != 2) continue;
         left = stdconv_.computeConversionSequence(candidateLeftExpr, params[0]);
+        if (!left) continue;
         right =
             stdconv_.computeConversionSequence(candidateRightExpr, params[1]);
       }

@@ -875,7 +875,7 @@ const LiteralOperatorIdSlotBase = DestructorIdSlotBase + 1;
 const ConversionFunctionIdSlotBase = LiteralOperatorIdSlotBase + 1;
 const TemplateIdSlotBase = ConversionFunctionIdSlotBase + 1;
 const SymbolSlotBase = 0;
-const ScopeSymbolSlotBase = SymbolSlotBase + 56;
+const ScopeSymbolSlotBase = SymbolSlotBase + 58;
 const NamespaceSymbolSlotBase = ScopeSymbolSlotBase + 4;
 const ConceptSymbolSlotBase = NamespaceSymbolSlotBase + 4;
 const DeductionGuideSymbolSlotBase = ConceptSymbolSlotBase + 9;
@@ -890,7 +890,7 @@ const LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 4;
 const FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 7;
 const TemplateParametersSymbolSlotBase = FunctionParametersSymbolSlotBase + 1;
 const BlockSymbolSlotBase = TemplateParametersSymbolSlotBase + 1;
-const TypeAliasSymbolSlotBase = BlockSymbolSlotBase + 1;
+const TypeAliasSymbolSlotBase = BlockSymbolSlotBase + 2;
 const VariableSymbolSlotBase = TypeAliasSymbolSlotBase + 16;
 const FieldSymbolSlotBase = VariableSymbolSlotBase + 26;
 const ParameterSymbolSlotBase = FieldSymbolSlotBase + 25;
@@ -6864,9 +6864,15 @@ export abstract class Symbol extends ModelObject {
   get isWeak(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 13) !== 0;
   }
+  get isNoInline(): boolean {
+    return cxx.readSymbol(this.handle, SymbolSlotBase + 14) !== 0;
+  }
+  get isAlwaysInline(): boolean {
+    return cxx.readSymbol(this.handle, SymbolSlotBase + 15) !== 0;
+  }
   get attributes(): ReadonlyArray<Attribute> | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, SymbolSlotBase + 14),
+      cxx.readSymbolVal(this.handle, SymbolSlotBase + 16),
       (item: any) =>
         (item as any[]).map((element: any) =>
           decodeAttribute(element, this.modelOwner),
@@ -6874,136 +6880,136 @@ export abstract class Symbol extends ModelObject {
     );
   }
   get isNodiscard(): boolean {
-    return cxx.readSymbol(this.handle, SymbolSlotBase + 15) !== 0;
-  }
-  get isUsed(): boolean {
-    return cxx.readSymbol(this.handle, SymbolSlotBase + 16) !== 0;
-  }
-  get isExcludedFromExplicitInstantiation(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 17) !== 0;
   }
-  get isTrivialAbi(): boolean {
+  get isUsed(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 18) !== 0;
   }
-  get hasDeducedReturnType(): boolean {
+  get isExcludedFromExplicitInstantiation(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 19) !== 0;
   }
+  get isTrivialAbi(): boolean {
+    return cxx.readSymbol(this.handle, SymbolSlotBase + 20) !== 0;
+  }
+  get hasDeducedReturnType(): boolean {
+    return cxx.readSymbol(this.handle, SymbolSlotBase + 21) !== 0;
+  }
   get canonical(): Symbol | undefined {
-    return symbolOf(
-      cxx.readSymbol(this.handle, SymbolSlotBase + 20),
-      this.modelOwner,
-    );
-  }
-  get definition(): Symbol | undefined {
-    return symbolOf(
-      cxx.readSymbol(this.handle, SymbolSlotBase + 21),
-      this.modelOwner,
-    );
-  }
-  get instantiationPattern(): Symbol | undefined {
     return symbolOf(
       cxx.readSymbol(this.handle, SymbolSlotBase + 22),
       this.modelOwner,
     );
   }
+  get definition(): Symbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, SymbolSlotBase + 23),
+      this.modelOwner,
+    );
+  }
+  get instantiationPattern(): Symbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, SymbolSlotBase + 24),
+      this.modelOwner,
+    );
+  }
   get isNamespace(): boolean {
-    return cxx.readSymbol(this.handle, SymbolSlotBase + 23) !== 0;
-  }
-  get isNamespaceAlias(): boolean {
-    return cxx.readSymbol(this.handle, SymbolSlotBase + 24) !== 0;
-  }
-  get isConcept(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 25) !== 0;
   }
-  get isDeductionGuide(): boolean {
+  get isNamespaceAlias(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 26) !== 0;
   }
-  get isClass(): boolean {
+  get isConcept(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 27) !== 0;
   }
-  get isEnum(): boolean {
+  get isDeductionGuide(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 28) !== 0;
   }
-  get isScopedEnum(): boolean {
+  get isClass(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 29) !== 0;
   }
-  get isFunction(): boolean {
+  get isEnum(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 30) !== 0;
   }
-  get isTypeAlias(): boolean {
+  get isScopedEnum(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 31) !== 0;
   }
-  get isVariable(): boolean {
+  get isFunction(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 32) !== 0;
   }
-  get isField(): boolean {
+  get isTypeAlias(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 33) !== 0;
   }
-  get isParameter(): boolean {
+  get isVariable(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 34) !== 0;
   }
-  get isParameterPack(): boolean {
+  get isField(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 35) !== 0;
   }
-  get isEnumerator(): boolean {
+  get isParameter(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 36) !== 0;
   }
-  get isFunctionParameters(): boolean {
+  get isParameterPack(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 37) !== 0;
   }
-  get isTemplateParameters(): boolean {
+  get isEnumerator(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 38) !== 0;
   }
-  get isBlock(): boolean {
+  get isFunctionParameters(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 39) !== 0;
   }
-  get isLambda(): boolean {
+  get isTemplateParameters(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 40) !== 0;
   }
-  get isTypeParameter(): boolean {
+  get isBlock(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 41) !== 0;
   }
-  get isNonTypeParameter(): boolean {
+  get isLambda(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 42) !== 0;
   }
-  get isTemplateTypeParameter(): boolean {
+  get isTypeParameter(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 43) !== 0;
   }
-  get isConstraintTypeParameter(): boolean {
+  get isNonTypeParameter(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 44) !== 0;
   }
-  get isOverloadSet(): boolean {
+  get isTemplateTypeParameter(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 45) !== 0;
   }
-  get isBaseClass(): boolean {
+  get isConstraintTypeParameter(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 46) !== 0;
   }
-  get isInjectedClassName(): boolean {
+  get isOverloadSet(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 47) !== 0;
   }
-  get isUnresolved(): boolean {
+  get isBaseClass(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 48) !== 0;
   }
-  get isUsingDeclaration(): boolean {
+  get isInjectedClassName(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 49) !== 0;
   }
-  get isClassOrNamespace(): boolean {
+  get isUnresolved(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 50) !== 0;
   }
-  get isNamespaceName(): boolean {
+  get isUsingDeclaration(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 51) !== 0;
   }
-  get isEnumOrScopedEnum(): boolean {
+  get isClassOrNamespace(): boolean {
     return cxx.readSymbol(this.handle, SymbolSlotBase + 52) !== 0;
   }
+  get isNamespaceName(): boolean {
+    return cxx.readSymbol(this.handle, SymbolSlotBase + 53) !== 0;
+  }
+  get isEnumOrScopedEnum(): boolean {
+    return cxx.readSymbol(this.handle, SymbolSlotBase + 54) !== 0;
+  }
   get internalId(): number {
-    return cxx.readSymbol(this.handle, SymbolSlotBase + 53);
+    return cxx.readSymbol(this.handle, SymbolSlotBase + 55);
   }
   get text(): string {
-    return cxx.readSymbolString(this.handle, SymbolSlotBase + 54) as string;
+    return cxx.readSymbolString(this.handle, SymbolSlotBase + 56) as string;
   }
   get isType(): boolean {
-    return cxx.readSymbol(this.handle, SymbolSlotBase + 55) !== 0;
+    return cxx.readSymbol(this.handle, SymbolSlotBase + 57) !== 0;
   }
 }
 export abstract class ScopeSymbol extends Symbol {
@@ -7969,6 +7975,9 @@ export class TemplateParametersSymbol extends ScopeSymbol {
 export class BlockSymbol extends ScopeSymbol {
   get isOutermostBlockScope(): boolean {
     return cxx.readSymbol(this.handle, BlockSymbolSlotBase + 0) !== 0;
+  }
+  get isFunctionTryHandler(): boolean {
+    return cxx.readSymbol(this.handle, BlockSymbolSlotBase + 1) !== 0;
   }
 }
 export class TypeAliasSymbol extends Symbol {

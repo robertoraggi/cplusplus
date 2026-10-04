@@ -75,9 +75,82 @@ int add(int a, int b) { return a + b; }
 
   assert.match(text, /^module "trace\.cc"/m);
   assert.match(text, /func @_Z3addii : \(i32, i32\) -> \(i32\) External/);
-  assert.match(text, /AddInt %\d+, %\d+ : i32/);
+  assert.match(text, /AddSignedInt %\d+, %\d+ : i32/);
   assert.match(text, /^\s*return %\d+$/m);
   assert.match(text, /^endmodule$/m);
+});
+
+test("only signed arithmetic in a promoted type carries undefined overflow", async () => {
+  const cases = [
+    ["int f(int a, int b) { return a + b; }", /AddSignedInt/],
+    ["long f(long a, long b) { return a - b; }", /SubSignedInt/],
+    ["int f(int a, int b) { return a * b; }", /MulSignedInt/],
+    ["int f(int a) { return -a; }", /SubSignedInt/],
+    ["int f(int a) { return ++a; }", /AddSignedInt/],
+    ["int f(int a) { return a--; }", /AddSignedInt/],
+    ["int f(int& a, int b) { return a += b; }", /AddSignedInt/],
+    [
+      "unsigned f(unsigned a, unsigned b) { return a + b; }",
+      /AddInt/,
+      /(Add|Sub|Mul)SignedInt/,
+    ],
+    [
+      "unsigned long f(unsigned long a) { a++; return a; }",
+      /AddInt/,
+      /(Add|Sub|Mul)SignedInt/,
+    ],
+    [
+      "int f(int& a, unsigned b) { return a += b; }",
+      /AddInt/,
+      /(Add|Sub|Mul)SignedInt/,
+    ],
+    ["short f(short a, short b) { return a + b; }", /AddSignedInt/],
+    ["void f(short& a) { a++; }", /AddInt/, /(Add|Sub|Mul)SignedInt/],
+    ["void f(char& a) { ++a; }", /AddInt/, /(Add|Sub|Mul)SignedInt/],
+  ];
+
+  for (const [source, expected, forbidden] of cases) {
+    const text = await trace(source);
+    checkWellFormed(text);
+    assert.match(text, expected, source);
+    if (forbidden) assert.doesNotMatch(text, forbidden, source);
+  }
+});
+
+test("inline attributes reach the emitter", async () => {
+  const text = await trace(`
+__attribute__((noinline)) int kept(int a) { return a + 1; }
+__attribute__((always_inline)) inline int forced(int a) { return a + 2; }
+inline int hinted(int a) { return a + 3; }
+int plain(int a) { return a + 4; }
+int entry(int a) { return kept(a) + forced(a) + hinted(a) + plain(a); }
+`);
+
+  checkWellFormed(text);
+
+  assert.match(text, /func @_Z4kepti : \(i32\) -> \(i32\) External noinline$/m);
+  assert.match(text, /func @_Z6forcedi : .* alwaysinline$/m);
+  assert.match(text, /func @_Z6hintedi : .* inlinehint$/m);
+  assert.match(text, /func @_Z5plaini : \(i32\) -> \(i32\) External$/m);
+});
+
+test("a function-try-block is reported as unsupported like a try statement", async () => {
+  const functionTryBlock = await trace(`
+struct A {
+  int m;
+  A(int v) try : m(v + 1) { m += 2; } catch (...) { }
+};
+A make(int v) { return A(v); }
+`);
+  const tryStatement = await trace(`
+void f() { try { } catch (...) { } }
+`);
+
+  checkWellFormed(functionTryBlock);
+  checkWellFormed(tryStatement);
+
+  assert.match(functionTryBlock, /todo "try-statement-function-body"/);
+  assert.match(tryStatement, /todo "try-block-statement"/);
 });
 
 test("control flow produces blocks that are opened before they are entered", async () => {

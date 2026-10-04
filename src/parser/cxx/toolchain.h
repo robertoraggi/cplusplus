@@ -44,6 +44,7 @@ struct LanguageStandard {
   std::string_view name;
   LanguageKind language;
   std::string_view versionMacroValue;
+  bool gnuExtensions;
 };
 
 [[nodiscard]] auto findLanguageStandard(std::string_view name)
@@ -153,6 +154,7 @@ class Toolchain {
  private:
   [[nodiscard]] auto cplusplusMacroValue() const -> std::string_view;
   [[nodiscard]] auto stdcVersionMacroValue() const -> std::string_view;
+  [[nodiscard]] auto definesStrictAnsi() const -> bool;
 
   Preprocessor* preprocessor_;
   Triple triple_;

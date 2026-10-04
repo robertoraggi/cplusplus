@@ -73,6 +73,11 @@ struct NamesDeducedTemplateSpecialization {
   return visit(NamesDeducedTemplateSpecialization{}, id);
 }
 
+[[nodiscard]] auto isOperatorTemplateId(UnqualifiedIdAST* id) -> bool {
+  return ast_cast<OperatorFunctionTemplateIdAST>(id) ||
+         ast_cast<LiteralOperatorTemplateIdAST>(id);
+}
+
 [[nodiscard]] auto defaultArgumentOrigin(ParameterSymbol* parameter)
     -> ParameterSymbol* {
   while (!parameter->defaultArgument() && parameter->defaultArgumentSource())
@@ -124,6 +129,14 @@ struct [[nodiscard]] Binder::DeclareFunction {
   }
 
   auto declaringScopeForFunction() const -> ScopeSymbol*;
+  [[nodiscard]] auto templateName() const -> const Name*;
+  [[nodiscard]] auto withPrimaryExceptionSpecification(
+      FunctionSymbol* primary, const FunctionType* functionType) const
+      -> const FunctionType*;
+  [[nodiscard]] auto findSpecialization(
+      const FunctionType* functionType,
+      List<TemplateArgumentAST*>* templateArgumentList) const
+      -> std::optional<NamedTemplateSpecialization>;
   auto namedTemplateSpecialization() const
       -> std::optional<NamedTemplateSpecialization>;
   [[nodiscard]] auto deducedSpecializationOf(
@@ -168,6 +181,8 @@ struct [[nodiscard]] Binder::DeclareFunction {
   void checkDeclSpecifiers();
   void checkFriendDefaults();
   void checkExternalLinkageSpec();
+  void checkExplicitInstantiation(
+      const std::optional<NamedTemplateSpecialization>& specialization);
 
   void attachFunctionParameters();
   [[nodiscard]] auto declarationsInHostScope() const
@@ -249,6 +264,8 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
 
   auto namedSpecialization = namedTemplateSpecialization();
 
+  checkExplicitInstantiation(namedSpecialization);
+
   const auto instantiatesExplicitly =
       namedSpecialization && binder.inExplicitInstantiation();
 
@@ -297,6 +314,24 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   return functionSymbol;
 }
 
+auto Binder::DeclareFunction::withPrimaryExceptionSpecification(
+    FunctionSymbol* primary, const FunctionType* functionType) const
+    -> const FunctionType* {
+  if (!binder.inExplicitInstantiation()) return functionType;
+  if (functionDeclarator && functionDeclarator->exceptionSpecifier)
+    return functionType;
+
+  auto primaryType = type_cast<FunctionType>(primary->type());
+  if (!primaryType) return functionType;
+
+  return binder.control()->getFunctionType(
+      functionType->returnType(),
+      std::vector<const Type*>(functionType->parameterTypes().begin(),
+                               functionType->parameterTypes().end()),
+      functionType->isVariadic(), functionType->cvQualifiers(),
+      functionType->refQualifier(), primaryType->exceptionSpecification());
+}
+
 auto Binder::DeclareFunction::deducedSpecializationOf(
     FunctionSymbol* primary, const FunctionType* functionType,
     List<TemplateArgumentAST*>* templateArgumentList) const
@@ -304,8 +339,9 @@ auto Binder::DeclareFunction::deducedSpecializationOf(
   if (!primary || !primary->templateDeclaration()) return std::nullopt;
 
   TemplateArgumentDeduction deduction{binder.unit_};
-  auto deducedArgs = deduction.deduceFromTargetType(primary, functionType,
-                                                    templateArgumentList);
+  auto deducedArgs = deduction.deduceFromTargetType(
+      primary, withPrimaryExceptionSpecification(primary, functionType),
+      templateArgumentList);
   if (!deducedArgs.has_value()) return std::nullopt;
 
   auto substitution = Substitution::make(
@@ -356,7 +392,7 @@ auto Binder::DeclareFunction::specializedPrimaryTemplates() const
     return primaries;
   }
 
-  for (auto candidate : declaringScopeForFunction()->find(decl.getName())) {
+  for (auto candidate : declaringScopeForFunction()->find(templateName())) {
     for (auto function : views::each_function(candidate)) consider(function);
   }
   return primaries;
@@ -389,14 +425,34 @@ auto Binder::DeclareFunction::namedTemplateSpecialization() const
         templateId->templateArgumentList);
   }
 
+  if (isOperatorTemplateId(declaratorName)) {
+    if (hasDependentTemplateArguments(binder.unit_, declaratorName))
+      return std::nullopt;
+    return findSpecialization(functionType,
+                              get_template_arguments(declaratorName));
+  }
+
   if (!namesDeducedTemplateSpecialization(declaratorName)) return std::nullopt;
   if (!isExplicitSpecializationHead() && !binder.inExplicitInstantiation())
     return std::nullopt;
 
+  return findSpecialization(functionType, nullptr);
+}
+
+auto Binder::DeclareFunction::templateName() const -> const Name* {
+  auto name = decl.getName();
+  if (auto templateId = name_cast<TemplateId>(name)) return templateId->name();
+  return name;
+}
+
+auto Binder::DeclareFunction::findSpecialization(
+    const FunctionType* functionType,
+    List<TemplateArgumentAST*>* templateArgumentList) const
+    -> std::optional<NamedTemplateSpecialization> {
   std::vector<NamedTemplateSpecialization> matches;
   for (auto primary : specializedPrimaryTemplates()) {
     auto specialization =
-        deducedSpecializationOf(primary, functionType, nullptr);
+        deducedSpecializationOf(primary, functionType, templateArgumentList);
     if (specialization) matches.push_back(std::move(*specialization));
   }
 
@@ -780,6 +836,18 @@ void Binder::DeclareFunction::checkExplicitObjectParameter() {
                  "a member function with an explicit object parameter cannot "
                  "have a ref-qualifier");
   }
+}
+
+void Binder::DeclareFunction::checkExplicitInstantiation(
+    const std::optional<NamedTemplateSpecialization>& specialization) {
+  if (specialization) return;
+  if (!binder.inExplicitInstantiation()) return;
+  if (symbol_cast<ClassSymbol>(decl.getScope())) return;
+
+  binder.error(decl.location(),
+               std::format("explicit instantiation of '{}' does not refer to a "
+                           "function template specialization",
+                           to_string(templateName())));
 }
 
 void Binder::DeclareFunction::checkExternalLinkageSpec() {

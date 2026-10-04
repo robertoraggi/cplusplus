@@ -31,12 +31,24 @@ namespace cxx {
 namespace {
 
 constexpr LanguageStandard kLanguageStandards[] = {
-    {"c++14", LanguageKind::kCXX, "201402L"},
-    {"c++17", LanguageKind::kCXX, "201703L"},
-    {"c++20", LanguageKind::kCXX, "202002L"},
-    {"c++23", LanguageKind::kCXX, "202302L"},
-    {"c++26", LanguageKind::kCXX, "202400L"},
-    {"c23", LanguageKind::kC, "202311L"},
+    {"c++14", LanguageKind::kCXX, "201402L", false},
+    {"c++17", LanguageKind::kCXX, "201703L", false},
+    {"c++20", LanguageKind::kCXX, "202002L", false},
+    {"c++23", LanguageKind::kCXX, "202302L", false},
+    {"c++26", LanguageKind::kCXX, "202400L", false},
+    {"gnu++14", LanguageKind::kCXX, "201402L", true},
+    {"gnu++17", LanguageKind::kCXX, "201703L", true},
+    {"gnu++20", LanguageKind::kCXX, "202002L", true},
+    {"gnu++23", LanguageKind::kCXX, "202302L", true},
+    {"gnu++26", LanguageKind::kCXX, "202400L", true},
+    {"c99", LanguageKind::kC, "199901L", false},
+    {"c11", LanguageKind::kC, "201112L", false},
+    {"c17", LanguageKind::kC, "201710L", false},
+    {"c23", LanguageKind::kC, "202311L", false},
+    {"gnu99", LanguageKind::kC, "199901L", true},
+    {"gnu11", LanguageKind::kC, "201112L", true},
+    {"gnu17", LanguageKind::kC, "201710L", true},
+    {"gnu23", LanguageKind::kC, "202311L", true},
 };
 
 constexpr std::string_view kDefaultCplusplusMacroValue = "202400L";
@@ -121,6 +133,10 @@ auto Toolchain::cplusplusMacroValue() const -> std::string_view {
     return languageStandard_->versionMacroValue;
   }
   return kDefaultCplusplusMacroValue;
+}
+
+auto Toolchain::definesStrictAnsi() const -> bool {
+  return !languageStandard_ || !languageStandard_->gnuExtensions;
 }
 
 auto Toolchain::stdcVersionMacroValue() const -> std::string_view {
@@ -645,7 +661,7 @@ void Toolchain::addCommonLinuxMacros() {
   defineMacro("__SIZE_TYPE__", "long unsigned int");
   defineMacro("__SIZE_WIDTH__", "64");
   defineMacro("__STDC__", "1");
-  defineMacro("__STRICT_ANSI__", "1");
+  if (definesStrictAnsi()) defineMacro("__STRICT_ANSI__", "1");
   defineMacro("__UINT64_C(c)", "c##UL");
   defineMacro("__UINT64_C_SUFFIX__", "UL");
   defineMacro("__UINT64_FMTX__", "\"lX\"");
@@ -809,7 +825,7 @@ void Toolchain::addCommonMacOSMacros() {
   defineMacro("__SSP__", "1");
   defineMacro("__STDC_NO_THREADS__", "1");
   defineMacro("__STDC__", "1");
-  defineMacro("__STRICT_ANSI__", "1");
+  if (definesStrictAnsi()) defineMacro("__STRICT_ANSI__", "1");
   defineMacro("__UINT64_C(c)", "c##ULL");
   defineMacro("__UINT64_C_SUFFIX__", "ULL");
   defineMacro("__UINT64_FMTX__", "\"llX\"");
@@ -1090,7 +1106,7 @@ void Toolchain::addCommonWASIMacros() {
   defineMacro("__SIZE_TYPE__", "long unsigned int");
   defineMacro("__SIZE_WIDTH__", "32");
   defineMacro("__STDC__", "1");
-  defineMacro("__STRICT_ANSI__", "1");
+  if (definesStrictAnsi()) defineMacro("__STRICT_ANSI__", "1");
   defineMacro("__UINT64_C(c)", "c##ULL");
   defineMacro("__UINT64_C_SUFFIX__", "ULL");
   defineMacro("__UINT64_FMTX__", "\"llX\"");

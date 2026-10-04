@@ -65,6 +65,9 @@ export type BinaryOp =
   | "AddInt"
   | "SubInt"
   | "MulInt"
+  | "AddSignedInt"
+  | "SubSignedInt"
+  | "MulSignedInt"
   | "SignedDiv"
   | "UnsignedDiv"
   | "SignedRem"
@@ -139,7 +142,7 @@ export type ParameterAbiKind = "Default" | "StructReturn" | "ByValue";
 
 export type Visibility = "Default" | "Hidden" | "Protected";
 
-export type InlineKind = "NoInline" | "InlineHint";
+export type InlineKind = "Default" | "NoInline" | "InlineHint" | "AlwaysInline";
 
 export type DebugEncoding =
   | "Unspecified"

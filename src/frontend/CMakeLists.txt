@@ -33,6 +33,10 @@ add_executable(cxx
 
 target_link_libraries(cxx PRIVATE cxx-lsp)
 
+if (CXX_ENABLE_MIMALLOC)
+    target_sources(cxx PRIVATE $<TARGET_OBJECTS:mimalloc-obj>)
+endif()
+
 if (CXX_ENABLE_MLIR)
     target_link_libraries(cxx PRIVATE cxx-mlir)
 

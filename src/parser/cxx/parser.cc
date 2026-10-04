@@ -27,6 +27,7 @@
 #include <cxx/decl.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
+#include <cxx/function_body.h>
 #include <cxx/function_body_warnings.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
@@ -53,6 +54,37 @@
 #include <ranges>
 
 namespace cxx {
+
+namespace {
+[[nodiscard]] auto integerLiteralType(
+    Control* control, const TypeTraits& traits,
+    const IntegerLiteral::Components& components) -> const Type* {
+  const Type* const types[3][2] = {
+      {control->getIntType(), control->getUnsignedIntType()},
+      {control->getLongIntType(), control->getUnsignedLongIntType()},
+      {control->getLongLongIntType(), control->getUnsignedLongLongIntType()},
+  };
+
+  const auto isDecimal = components.radix == IntegerLiteral::Radix::kDecimal;
+  const auto allowsSigned = !components.isUnsigned;
+  const auto allowsUnsigned = components.isUnsigned || !isDecimal;
+
+  int rank = 0;
+  if (components.isLong) rank = 1;
+  if (components.isLongLong) rank = 2;
+
+  for (; rank < 3; ++rank) {
+    if (allowsSigned &&
+        traits.integer_constant_fits_in_type(components.value, types[rank][0]))
+      return types[rank][0];
+    if (allowsUnsigned &&
+        traits.integer_constant_fits_in_type(components.value, types[rank][1]))
+      return types[rank][1];
+  }
+
+  return control->getUnsignedLongLongIntType();
+}
+}  // namespace
 namespace {
 [[nodiscard]] auto namesMemberType(NestedNameSpecifierAST* nestedNameSpecifier,
                                    const Identifier* identifier) -> bool {
@@ -738,39 +770,9 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
           ast->type = control_->getUnsignedBitIntType(components.bitIntWidth);
         else
           ast->type = control_->getBitIntType(components.bitIntWidth);
-      } else if (components.isLongLong && components.isUnsigned)
-        ast->type = control_->getUnsignedLongLongIntType();
-      else if (components.isLongLong)
-        ast->type = control_->getLongLongIntType();
-      else if (components.isLong && components.isUnsigned)
-        ast->type = control_->getUnsignedLongIntType();
-      else if (components.isLong)
-        ast->type = control_->getLongIntType();
-      else if (components.isUnsigned) {
-        const auto v = ast->literal->integerValue();
-        if (v <= std::numeric_limits<unsigned int>::max())
-          ast->type = control_->getUnsignedIntType();
-        else if (v <= std::numeric_limits<unsigned long>::max())
-          ast->type = control_->getUnsignedLongIntType();
-        else
-          ast->type = control_->getUnsignedLongLongIntType();
       } else {
-        const auto v = ast->literal->integerValue();
-        const bool isDecimal =
-            components.radix == IntegerLiteral::Radix::kDecimal;
-        if (v <= static_cast<uint64_t>(std::numeric_limits<int>::max()))
-          ast->type = control_->getIntType();
-        else if (!isDecimal && v <= std::numeric_limits<unsigned int>::max())
-          ast->type = control_->getUnsignedIntType();
-        else if (v <= static_cast<uint64_t>(std::numeric_limits<long>::max()))
-          ast->type = control_->getLongIntType();
-        else if (!isDecimal && v <= std::numeric_limits<unsigned long>::max())
-          ast->type = control_->getUnsignedLongIntType();
-        else if (v <=
-                 static_cast<uint64_t>(std::numeric_limits<long long>::max()))
-          ast->type = control_->getLongLongIntType();
-        else
-          ast->type = control_->getUnsignedLongLongIntType();
+        ast->type =
+            integerLiteralType(control_, unit_->typeTraits(), components);
       }
 
       return true;
@@ -5002,6 +5004,24 @@ void Parser::deferAccessCheck(NestedNameSpecifierAST* nestedNameSpecifier,
   deferredAccessChecks_.push_back({symbol, designatingClass, loc});
 }
 
+void Parser::checkInjectedClassName(Symbol* symbol, SourceLocation loc) {
+  auto classSymbol = symbol_cast<ClassSymbol>(symbol);
+  if (!classSymbol || !classSymbol->name()) return;
+
+  for (auto member :
+       classSymbol->resolvedDefinition()->find(classSymbol->name())) {
+    auto injected = symbol_cast<InjectedClassNameSymbol>(member);
+    if (!injected) continue;
+
+    auto namingClass = implicitObjectClassOf(unit_, injected, scope());
+    if (!namingClass) return;
+
+    (void)checkMemberAccess(unit_, scope(), injected, namingClass, nullptr,
+                            loc);
+    return;
+  }
+}
+
 Parser::AccessCheckScopeGuard::AccessCheckScopeGuard(Parser* parser,
                                                      const Decl& decl)
     : AccessCheckScopeGuard(parser, decl.getScope()) {}
@@ -5519,7 +5539,7 @@ auto Parser::parse_simple_declaration(
     if (classDepth_) {
       unit_->markFunctionBodyUnparsed(ast);
       pendingFunctionDefinitions_.push_back(ast);
-    } else if (ast_cast<CompoundStatementFunctionBodyAST>(functionBody)) {
+    } else if (body_statement(functionBody)) {
       if (!binder_.inTemplate()) binder_.finishAutoReturnType(functionSymbol);
       check_function_body(functionSymbol, functionBody);
     }
@@ -6363,6 +6383,9 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
 
   deferAccessCheck(nestedNameSpecifier, symbol,
                    unqualifiedId->firstSourceLocation());
+
+  if (!nestedNameSpecifier)
+    checkInjectedClassName(symbol, unqualifiedId->firstSourceLocation());
 
   specs.accept(ast);
 
@@ -8096,6 +8119,7 @@ auto Parser::lookat_function_body() -> bool {
 
 auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
   AccessCheckScopeGuard accessCheckScope{this, scope()};
+  Binder::FunctionBodyGuard functionBody{&binder_, scope()};
   if (lookat(TokenKind::T_SEMICOLON)) return false;
 
   if (parse_function_try_block(yyast)) return true;
@@ -8147,7 +8171,7 @@ auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
   ast->colonLoc = colonLoc;
   ast->memInitializerList = memInitializerList;
 
-  const bool skip = skipFunctionBody_ || classDepth_ > 0;
+  const bool skip = defersFunctionBody();
 
   if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr, skip)) {
     parse_error("expected a compound statement");
@@ -11930,13 +11954,37 @@ auto Parser::parse_function_try_block(FunctionBodyAST*& yyast) -> bool {
     }
   }
 
-  if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr,
-                                /*skip=*/false)) {
+  const bool skip = defersFunctionBody();
+
+  if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr, skip)) {
     parse_error("expected a compound statement");
+  }
+
+  if (skip) {
+    if (!parse_skip_handler_seq()) {
+      parse_error("expected an exception handler");
+    }
+    return true;
   }
 
   if (!parse_handler_seq(ast->handlerList)) {
     parse_error("expected an exception handler");
+  }
+
+  return true;
+}
+
+auto Parser::defersFunctionBody() const -> bool {
+  return skipFunctionBody_ || classDepth_ > 0;
+}
+
+auto Parser::parse_skip_handler_seq() -> bool {
+  if (!lookat(TokenKind::T_CATCH)) return false;
+
+  while (lookat(TokenKind::T_CATCH)) {
+    consumeToken();
+    if (!lookat(TokenKind::T_LPAREN) || !parse_skip_balanced()) return false;
+    if (!lookat(TokenKind::T_LBRACE) || !parse_skip_balanced()) return false;
   }
 
   return true;
@@ -11951,8 +11999,10 @@ auto Parser::parse_handler(HandlerAST*& yyast) -> bool {
 
   auto blockSymbol = binder_.enterBlock(catchLoc);
   if (blockSymbol->parent()->isFunction() ||
-      blockSymbol->parent()->isFunctionParameters())
+      blockSymbol->parent()->isFunctionParameters()) {
     blockSymbol->setOutermostBlockScope(true);
+    blockSymbol->setFunctionTryHandler(true);
+  }
 
   pushScope(blockSymbol);
 
@@ -12354,12 +12404,10 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
 
   if (!ast->functionBody) return;
 
-  auto functionBody =
-      ast_cast<CompoundStatementFunctionBodyAST>(ast->functionBody);
+  auto functionBody = ast->functionBody;
+  auto statement = body_statement(functionBody);
 
-  if (!functionBody) return;
-
-  if (!functionBody->statement || !functionBody->statement->lbraceLoc) return;
+  if (!statement || !statement->lbraceLoc) return;
 
   auto _ = RestoredScopeChain{this, ast->symbol};
 
@@ -12370,9 +12418,11 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
     }
   }
 
+  Binder::FunctionBodyGuard functionBodyScope{&binder_, scope()};
+
   const auto saved = currentLocation();
 
-  for (auto memInitializer : ListView{functionBody->memInitializerList}) {
+  for (auto memInitializer : ListView{ctor_initializers(functionBody)}) {
     if (auto parenMemInitializer =
             ast_cast<ParenMemInitializerAST>(memInitializer)) {
       if (!parenMemInitializer->lparenLoc) {
@@ -12419,9 +12469,17 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
       context.check.check_mem_initializers(functionBody);
   }
 
-  rewind(functionBody->statement->lbraceLoc.next());
+  rewind(statement->lbraceLoc.next());
 
-  finish_compound_statement(functionBody->statement);
+  finish_compound_statement(statement);
+
+  if (auto tryBody = ast_cast<TryStatementFunctionBodyAST>(functionBody)) {
+    rewind(statement->rbraceLoc.next());
+
+    if (!parse_handler_seq(tryBody->handlerList)) {
+      parse_error("expected an exception handler");
+    }
+  }
 
   if (!binder_.inTemplate()) binder_.finishAutoReturnType(ast->symbol);
 
@@ -12795,9 +12853,8 @@ void Parser::check(ExpressionAST** ast) {
 void Parser::check_mem_initializers(FunctionDefinitionAST* ast) {
   if (classDepth_) return;
 
-  auto functionBody =
-      ast_cast<CompoundStatementFunctionBodyAST>(ast->functionBody);
-  if (!functionBody) return;
+  auto functionBody = ast->functionBody;
+  if (!body_statement(functionBody)) return;
 
   CheckContext context{this, ast->symbol};
 

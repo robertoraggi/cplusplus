@@ -682,6 +682,18 @@ auto MlirEmitter::binaryOp(SourceLocation loc, BinaryOp op, ValueRef lhs,
       return wrap(mlir::arith::SubIOp::create(builder_, location, lhs_, rhs_));
     case BinaryOp::MulInt:
       return wrap(mlir::arith::MulIOp::create(builder_, location, lhs_, rhs_));
+    case BinaryOp::AddSignedInt:
+      return wrap(
+          mlir::arith::AddIOp::create(builder_, location, lhs_, rhs_,
+                                      mlir::arith::IntegerOverflowFlags::nsw));
+    case BinaryOp::SubSignedInt:
+      return wrap(
+          mlir::arith::SubIOp::create(builder_, location, lhs_, rhs_,
+                                      mlir::arith::IntegerOverflowFlags::nsw));
+    case BinaryOp::MulSignedInt:
+      return wrap(
+          mlir::arith::MulIOp::create(builder_, location, lhs_, rhs_,
+                                      mlir::arith::IntegerOverflowFlags::nsw));
     case BinaryOp::SignedDiv:
       return wrap(mlir::arith::DivSIOp::create(builder_, location, lhs_, rhs_));
     case BinaryOp::UnsignedDiv:
@@ -1021,10 +1033,13 @@ auto toMlir(Visibility visibility) -> mlir::cxx::Visibility {
 
 auto toMlir(InlineKind kind) -> mlir::cxx::InlineKind {
   switch (kind) {
+    case InlineKind::Default:
     case InlineKind::NoInline:
       return mlir::cxx::InlineKind::NoInline;
     case InlineKind::InlineHint:
       return mlir::cxx::InlineKind::InlineHint;
+    case InlineKind::AlwaysInline:
+      return mlir::cxx::InlineKind::AlwaysInline;
   }
 }
 
@@ -1127,7 +1142,9 @@ auto MlirEmitter::declareFunction(mlir::Location loc, const FunctionInfo& info)
       builder_, loc, mlir::StringRef{info.name.data(), info.name.size()},
       functionType,
       mlir::cxx::LinkageKindAttr::get(context, toMlir(info.linkage)),
-      mlir::cxx::InlineKindAttr::get(context, toMlir(info.inlineKind)),
+      info.inlineKind == InlineKind::Default
+          ? mlir::cxx::InlineKindAttr{}
+          : mlir::cxx::InlineKindAttr::get(context, toMlir(info.inlineKind)),
       info.visibility == Visibility::Default
           ? mlir::cxx::VisibilityAttr{}
           : mlir::cxx::VisibilityAttr::get(context, toMlir(info.visibility)),

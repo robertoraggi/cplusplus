@@ -310,13 +310,8 @@ auto TemplateArgumentDeduction::deduceFromCallArgument(const Type* P,
 
   if (!deduction_->mentionsDeducibleParameter(P)) return true;
 
-  if (auto overloadSet = type_cast<OverloadSetType>(A))
-    return deduceFromOverloadSet(P, overloadSet, /*takesAddress=*/false);
-
-  if (auto pointer = type_cast<PointerType>(A)) {
-    if (auto overloadSet = type_cast<OverloadSetType>(pointer->elementType()))
-      return deduceFromOverloadSet(P, overloadSet, /*takesAddress=*/true);
-  }
+  if (auto operand = traits.overload_set_operand(A); operand.type)
+    return deduceFromOverloadSet(P, operand.type, operand.takesAddress);
 
   return deduceFromArgumentType(call_deduction_parameter_type(traits, P),
                                 callArgumentType(P, A, argument));

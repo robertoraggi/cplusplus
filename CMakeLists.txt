@@ -47,6 +47,7 @@ option(CXX_ENABLE_MLIR "Enable MLIR" OFF)
 option(CXX_LIBCXX_WITH_CLANG "Link with libc++" OFF)
 option(CXX_BUILD_TESTS "Build tests" ON)
 option(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
+option(CXX_ENABLE_MIMALLOC "Link the cxx executable with mimalloc" ON)
 
 if (EMSCRIPTEN)
     set(cxx_llvm_optimizer_default OFF)
@@ -112,6 +113,24 @@ set_target_properties(simdjson PROPERTIES
 if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
     target_compile_definitions(simdjson PUBLIC _WASI_EMULATED_MMAN)
     target_link_libraries(simdjson PUBLIC wasi-emulated-mman)
+endif()
+
+if(CXX_ENABLE_MIMALLOC AND NOT EMSCRIPTEN AND NOT CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    set(MI_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(MI_BUILD_OBJECT ON CACHE BOOL "" FORCE)
+    set(MI_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(MI_OVERRIDE ON CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        mimalloc
+        URL         https://github.com/microsoft/mimalloc/archive/v3.5.3.tar.gz
+        URL_HASH    SHA256=3b4a15153a59905995f7070296ed604bb5ccc00cabb8b93446931aff77224d47
+        EXCLUDE_FROM_ALL
+    )
+
+    FetchContent_MakeAvailable(mimalloc)
+else()
+    set(CXX_ENABLE_MIMALLOC OFF)
 endif()
 
 FetchContent_Declare(

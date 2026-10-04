@@ -121,6 +121,7 @@
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "NO",
         "CMAKE_CXX_FLAGS": "-fno-exceptions -DSIMDJSON_IMPLEMENTATION_ARM64=0 -DSIMDJSON_EXPERIMENTAL_HAS_NEON=0",
         "CXX_BUILD_TESTS": "OFF",
+        "CXX_ENABLE_MIMALLOC": "OFF",
         "LLVM_ENABLE_LIBCXX": "ON",
         "FETCHCONTENT_SOURCE_DIR_SIMDJSON": "${sourceDir}/build/_deps/simdjson-src",
         "FETCHCONTENT_SOURCE_DIR_WASI_SYSROOT": "${sourceDir}/build/_deps/wasi_sysroot-src",

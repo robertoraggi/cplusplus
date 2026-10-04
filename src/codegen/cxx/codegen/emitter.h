@@ -119,6 +119,9 @@ enum class BinaryOp {
   AddInt,
   SubInt,
   MulInt,
+  AddSignedInt,
+  SubSignedInt,
+  MulSignedInt,
   SignedDiv,
   UnsignedDiv,
   SignedRem,
@@ -157,8 +160,10 @@ enum class Visibility {
 };
 
 enum class InlineKind {
+  Default,
   NoInline,
   InlineHint,
+  AlwaysInline,
 };
 
 [[nodiscard]] inline auto singleValue(std::span<const ValueRef> values)

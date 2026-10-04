@@ -7,9 +7,9 @@ void test(void) {
 
 // CHECK: alloca [7 x i32]
 // CHECK: call void @llvm.memset
-// CHECK: getelementptr i32, {{.*}}, i32 2
+// CHECK: getelementptr inbounds i32, {{.*}}, i32 2
 // CHECK: store i32 1
-// CHECK: getelementptr i32, {{.*}}, i32 4
+// CHECK: getelementptr inbounds i32, {{.*}}, i32 4
 // CHECK: store i32 2
-// CHECK: getelementptr i32, {{.*}}, i32 6
+// CHECK: getelementptr inbounds i32, {{.*}}, i32 6
 // CHECK: store i32 3

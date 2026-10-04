@@ -24,6 +24,7 @@ import {
   type FloatKind,
   type FloatPredicate,
   type InitializerKind,
+  type InlineKind,
   type InsertionPointKind,
   type IntPredicate,
   type Linkage,
@@ -62,6 +63,13 @@ import {
   type ValueRef,
   type VTableInfo,
 } from "./Emitter.js";
+
+const INLINE_KIND_TEXT: Record<InlineKind, string> = {
+  Default: "",
+  NoInline: " noinline",
+  InlineHint: " inlinehint",
+  AlwaysInline: " alwaysinline",
+};
 
 const FLOAT_WIDTH: Record<FloatKind, number> = {
   Half: 16,
@@ -883,7 +891,8 @@ export class TraceEmitter implements EmitterDelegate {
         (info.importModule ? ` import_module "${info.importModule}"` : "") +
         (info.importName ? ` import_name "${info.importName}"` : "") +
         (info.exportName ? ` export_name "${info.exportName}"` : "") +
-        (info.isUsed ? " used" : ""),
+        (info.isUsed ? " used" : "") +
+        INLINE_KIND_TEXT[info.inlineKind],
     );
     return ref;
   }

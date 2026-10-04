@@ -635,6 +635,10 @@ class Symbol {
 
   [[nodiscard]] auto isWeak() const -> bool;
 
+  [[nodiscard]] auto isNoInline() const -> bool;
+
+  [[nodiscard]] auto isAlwaysInline() const -> bool;
+
   [[nodiscard]] auto attributes() const -> const AttributeMap* {
     return attributes_;
   }
@@ -1798,8 +1802,15 @@ class BlockSymbol final : public ScopeSymbol {
 
   void setOutermostBlockScope(bool value) { isOutermostBlockScope_ = value; }
 
+  [[nodiscard]] auto isFunctionTryHandler() const -> bool {
+    return isFunctionTryHandler_;
+  }
+
+  void setFunctionTryHandler(bool value) { isFunctionTryHandler_ = value; }
+
  private:
   bool isOutermostBlockScope_ = false;
+  bool isFunctionTryHandler_ = false;
 };
 
 class TypeAliasSymbol final

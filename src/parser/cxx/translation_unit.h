@@ -89,6 +89,10 @@ class TranslationUnit {
                                    bool value);
 
   [[nodiscard]] auto isNonDependentType(const Type* type) const -> bool;
+  [[nodiscard]] auto placeholderReturnType(const ScopeSymbol* function) const
+      -> const Type*;
+  void setPlaceholderReturnType(const ScopeSymbol* function,
+                                const Type* placeholder);
   void addNonDependentType(const Type* type);
 
   void addPendingBodyCompletion(FunctionSymbol* function,
@@ -485,6 +489,7 @@ class TranslationUnit {
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
   std::unordered_set<const Type*> nonDependentTypes_;
+  std::unordered_map<const ScopeSymbol*, const Type*> placeholderReturnTypes_;
   std::unordered_map<std::uint64_t, const Identifier*> snippets_;
   std::vector<std::pair<unsigned, int>> packAlignments_;
   std::unique_ptr<PrefixSourceMap> prefixSourceMap_;

@@ -657,6 +657,12 @@ auto TypeChecker::deducePlaceholderType(const Type* declaredType,
     if (!instance) return nullptr;
     braced->type = instance->type();
   }
+  if (unit_->typeTraits().overload_set_operand(initializer->type).type) {
+    error(initializer->firstSourceLocation(),
+          std::format("cannot deduce '{}' from an overload set",
+                      to_string(declaredType)));
+    return nullptr;
+  }
   if (type_cast<DecltypeAutoType>(declaredType))
     return unit_->typeTraits().decltype_of(initializer);
   return deducePlaceholderReplacement(

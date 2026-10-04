@@ -545,6 +545,22 @@ class Binder {
     ~ScopeGuard() { p->setScope(savedScope); }
   };
 
+  class FunctionBodyGuard {
+   public:
+    Binder* p = nullptr;
+    ScopeSymbol* savedScope = nullptr;
+
+    FunctionBodyGuard(const FunctionBodyGuard&) = delete;
+    auto operator=(const FunctionBodyGuard&) -> FunctionBodyGuard& = delete;
+
+    FunctionBodyGuard(Binder* p, ScopeSymbol* parameterScope)
+        : p(p), savedScope(p->functionBodyScope_) {
+      p->functionBodyScope_ = parameterScope;
+    }
+
+    ~FunctionBodyGuard() { p->functionBodyScope_ = savedScope; }
+  };
+
   [[nodiscard]] auto isC() const -> bool;
   [[nodiscard]] auto isCxx() const -> bool;
 
@@ -714,7 +730,10 @@ class Binder {
   [[nodiscard]] static auto functionBodyBlock(ScopeSymbol* scope)
       -> BlockSymbol*;
 
-  [[nodiscard]] auto declarePredefinedVariable(BlockSymbol* body,
+  [[nodiscard]] auto functionParameterScope(ScopeSymbol* scope) const
+      -> ScopeSymbol*;
+
+  [[nodiscard]] auto declarePredefinedVariable(ScopeSymbol* owner,
                                                const Identifier* name,
                                                std::string_view value)
       -> VariableSymbol*;
@@ -809,6 +828,7 @@ class Binder {
   TranslationUnit* unit_ = nullptr;
   TypeTraits traits;
   ScopeSymbol* scope_ = nullptr;
+  ScopeSymbol* functionBodyScope_ = nullptr;
   std::vector<ClassBodyState> classBodyStack_;
   Symbol* instantiatingSymbol_ = nullptr;
   SourceLocation instantiationLoc_{};

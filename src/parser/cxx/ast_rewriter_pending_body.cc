@@ -26,6 +26,7 @@
 #include <cxx/decl.h>
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
+#include <cxx/function_body.h>
 #include <cxx/function_body_warnings.h>
 #include <cxx/names.h>
 #include <cxx/overload_resolution.h>
@@ -272,14 +273,14 @@ void ASTRewriter::remapFunctionParameters(
 }
 
 void ASTRewriter::checkMemInitializers(FunctionSymbol* function,
-                                       CompoundStatementFunctionBodyAST* body) {
+                                       FunctionBodyAST* body) {
   OutsideImmediateContextScope outsideImmediateContext{unit_};
 
   TypeChecker check{unit_};
   check.setScope(function);
   check.setReportErrors(unit_->config().checkTypes);
   auto hasDependentInitializer = [&] {
-    for (auto memInit : ListView{body->memInitializerList}) {
+    for (auto memInit : ListView{ctor_initializers(body)}) {
       if (auto paren = ast_cast<ParenMemInitializerAST>(memInit)) {
         for (auto expression : ListView{paren->expressionList})
           if (isDependent(unit_, expression)) return true;
@@ -358,10 +359,8 @@ void ASTRewriter::requireConstructorInitializers(TranslationUnit* unit,
   if (constructor->hasPendingBody()) return;
   auto declaration = constructor->declaration();
   if (!declaration) return;
-  auto body =
-      ast_cast<CompoundStatementFunctionBodyAST>(declaration->functionBody);
-  if (!body) return;
-  for (auto initializer : ListView{body->memInitializerList})
+  for (auto initializer :
+       ListView{ctor_initializers(declaration->functionBody)})
     requireDefinitionsNamedBy(unit, initializer);
 }
 
@@ -824,9 +823,8 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
   if (ast_cast<DefaultFunctionBodyAST>(newAst->functionBody)) {
     rewriter.binder_.synthesizeDefaultedMemberBody(func);
-  } else if (auto compoundBody = ast_cast<CompoundStatementFunctionBodyAST>(
-                 newAst->functionBody)) {
-    rewriter.checkMemInitializers(func, compoundBody);
+  } else if (body_statement(newAst->functionBody)) {
+    rewriter.checkMemInitializers(func, newAst->functionBody);
     rewriter.binder_.finishAutoReturnType(func);
   }
 
