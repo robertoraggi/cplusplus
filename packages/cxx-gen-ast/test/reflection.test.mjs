@@ -37,7 +37,7 @@ test("reflection slots use matching class bases and isolate field additions", ()
         "utf8",
       );
       const ts = fs.readFileSync(
-        path.join(output, "packages/cxx-frontend/src/Semantic.ts"),
+        path.join(output, "packages/cxx-frontend/src/model.ts"),
         "utf8",
       );
       assert.deepEqual(bases(cpp), bases(ts));

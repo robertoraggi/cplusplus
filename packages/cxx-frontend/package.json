@@ -12,21 +12,29 @@
       "default": "./dist/parse.js"
     },
     "./model": {
-      "types": "./dist/Semantic.d.ts",
-      "default": "./dist/Semantic.js"
+      "types": "./dist/model.d.ts",
+      "default": "./dist/model.js"
     },
     "./traverse": {
-      "types": "./dist/Traverse.d.ts",
-      "default": "./dist/Traverse.js"
+      "types": "./dist/traverse.d.ts",
+      "default": "./dist/traverse.js"
     },
     "./lsp": {
-      "types": "./dist/LanguageServer.d.ts",
-      "default": "./dist/LanguageServer.js"
+      "types": "./dist/lsp.d.ts",
+      "default": "./dist/lsp.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
     },
     "./wasm": "./dist/wasm/cxx-js.wasm",
     "./package.json": "./package.json"
   },
   "type": "module",
+  "files": [
+    "dist",
+    "!dist/**/*.map"
+  ],
   "browser": {
     "url": false
   },
@@ -35,26 +43,27 @@
     "build": "tsc",
     "test": "tsc -p test/tsconfig.json && node --test test/*.test.mjs",
     "example": "node examples/cxx-parse/index.js",
-    "docs": "typedoc src/index.ts src/parse.ts src/Semantic.ts src/Traverse.ts src/LanguageServer.ts",
+    "docs": "typedoc",
     "prettier": "npx prettier --check .",
-    "prettier:fix": "npx prettier --write . "
+    "prettier:fix": "npx prettier --write . ",
+    "prepack": "node scripts/prepack.mjs"
   },
   "keywords": [
     "c++",
     "compiler",
-    "lexer",
-    "parser",
-    "preprocessor",
-    "syntax"
+    "mlir",
+    "wasm"
   ],
   "author": {
     "name": "Roberto Raggi",
     "email": "roberto.raggi@gmail.com"
   },
   "license": "MIT",
+  "homepage": "https://github.com/robertoraggi/cplusplus#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/robertoraggi/cplusplus.git"
+    "url": "git+https://github.com/robertoraggi/cplusplus.git",
+    "directory": "packages/cxx-frontend"
   },
   "bugs": {
     "url": "https://github.com/robertoraggi/cplusplus/issues"
@@ -64,5 +73,9 @@
     "prettier": "^3.9.6",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.2"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

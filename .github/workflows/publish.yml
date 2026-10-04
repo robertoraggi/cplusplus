@@ -11,26 +11,33 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup emscripten cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.emscripten-cache
-          key: ${{ runner.os }}-emscripten
-          restore-keys: |
-            ${{ runner.os }}-emscripten
+      - name: Install emsdk
+        uses: ./.github/actions/setup-emsdk
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           registry-url: https://registry.npmjs.org/
 
-      - name: Build
+      - name: Install dependencies
         run: |
           npm ci
-          npm -w cxx-frontend run build
+
+      - name: Download MLIR
+        run: |
+          npm run download-mlir
+        env:
+          GH_TOKEN: ${{ github.token }}
+        continue-on-error: true
+
+      - name: Build
+        run: |
+          source "/opt/emsdk/emsdk_env.sh"
+          export EMSCRIPTEN_ROOT="/opt/emsdk/upstream/emscripten"
+          npm run build:cxx-frontend
 
       - name: Publish
         working-directory: packages/cxx-frontend

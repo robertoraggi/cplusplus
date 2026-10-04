@@ -1,0 +1,39 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/index.ts",
+    "src/parse.ts",
+    "src/model.ts",
+    "src/traverse.ts",
+    "src/lsp.ts",
+    "src/node.ts"
+  ],
+  "categorizeByGroup": false,
+  "excludeReferences": true,
+  "validation": {
+    "notExported": false
+  },
+  "categoryOrder": [
+    "Loading",
+    "Parsing",
+    "Diagnostics",
+    "Tokens",
+    "Core",
+    "AST Nodes",
+    "Symbols",
+    "Types",
+    "Names",
+    "Literals",
+    "Constant Values",
+    "Enumerations",
+    "Data Structures",
+    "Traversal",
+    "Backend",
+    "Debug Information",
+    "Tracing",
+    "Backend Enumerations",
+    "Backend Descriptors",
+    "Backend Handles",
+    "*"
+  ]
+}

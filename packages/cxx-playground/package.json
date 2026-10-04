@@ -38,7 +38,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17",
-    "monaco-editor": "^0.56.0",
+    "monaco-editor": "^0.57.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "typescript": "~6",

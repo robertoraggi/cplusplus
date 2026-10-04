@@ -1259,7 +1259,7 @@ auto readAST(std::intptr_t handle, int slot) -> double {
     case OpaqueEnumDeclarationASTSlotBase + 7: {
       auto self = static_cast<const ::cxx::OpaqueEnumDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(self->emicolonLoc.index());
+      return static_cast<double>(self->semicolonLoc.index());
     }
     case OpaqueEnumDeclarationASTSlotBase + 8: {
       auto self = static_cast<const ::cxx::OpaqueEnumDeclarationAST*>(

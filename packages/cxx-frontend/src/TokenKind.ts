@@ -19,6 +19,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/** @category Tokens */
 export type TokenKind =
   | "eof_symbol"
   | "error"
@@ -221,6 +222,7 @@ export type TokenKind =
   | "wchar_t"
   | "while";
 
+/** @category Tokens */
 export const tokenKindNames: Record<number, TokenKind> = {
   0: "eof_symbol",
   1: "error",
@@ -424,6 +426,7 @@ export const tokenKindNames: Record<number, TokenKind> = {
   199: "while",
 };
 
+/** @category Tokens */
 export const tokenKindValues: Record<TokenKind, number> = {
   eof_symbol: 0,
   error: 1,

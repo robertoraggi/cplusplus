@@ -19,7 +19,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { type ASTKind, children } from "./Semantic.js";
+/**
+ * Traversal of the AST with visitors and paths.
+ *
+ * @module cxx-frontend/traverse
+ */
+
+import { type ASTKind, children } from "./model.js";
 import type {
   AST,
   TranslationUnitAST,
@@ -290,9 +296,9 @@ import type {
   TemplateParameterAST,
   UnitAST,
   UnqualifiedIdAST,
-} from "./Semantic.js";
+} from "./model.js";
 
-export interface ASTNodes {
+interface ASTNodes {
   TranslationUnit: TranslationUnitAST;
   ModuleUnit: ModuleUnitAST;
   SimpleDeclaration: SimpleDeclarationAST;
@@ -540,7 +546,7 @@ export interface ASTNodes {
   SimpleAttributeToken: SimpleAttributeTokenAST;
 }
 
-export interface ASTCategories {
+interface ASTCategories {
   AttributeSpecifier: AttributeSpecifierAST;
   AttributeToken: AttributeTokenAST;
   CoreDeclarator: CoreDeclaratorAST;
@@ -2324,7 +2330,7 @@ function visit<S>(root: NodePath, visitor: Visitor<S>, state: S): boolean {
   return false;
 }
 
-export function traverse<S = undefined>(
+export default function traverse<S = undefined>(
   root: AST | NodePath,
   visitor: Visitor<S>,
   state?: S,
@@ -2332,3 +2338,5 @@ export function traverse<S = undefined>(
   visit(pathOf(root), visitor, state as S);
   return state as S;
 }
+
+export { traverse };

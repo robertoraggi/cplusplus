@@ -472,7 +472,7 @@ inline constexpr FieldDescriptor kSemanticFieldModelStorage[] = {
      FieldPersistence::kPersisted, ""},
     {"::cxx::OpaqueEnumDeclarationAST", "typeSpecifierList",
      FieldPersistence::kPersisted, ""},
-    {"::cxx::OpaqueEnumDeclarationAST", "emicolonLoc",
+    {"::cxx::OpaqueEnumDeclarationAST", "semicolonLoc",
      FieldPersistence::kPersisted, ""},
     {"::cxx::OpaqueEnumDeclarationAST", "symbol", FieldPersistence::kPersisted,
      ""},

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/** @category Diagnostics */
 export const DiagnosticSeverity = [
   "message",
   "note",
@@ -26,8 +27,10 @@ export const DiagnosticSeverity = [
   "fatal",
 ] as const;
 
+/** @category Diagnostics */
 export type DiagnosticSeverity = (typeof DiagnosticSeverity)[number];
 
+/** @category Diagnostics */
 export interface DiagnosticNote {
   fileName: string;
   startLine: number;
@@ -37,6 +40,7 @@ export interface DiagnosticNote {
   message: string;
 }
 
+/** @category Diagnostics */
 export interface Diagnostic extends DiagnosticNote {
   severity: DiagnosticSeverity;
   notes: DiagnosticNote[];

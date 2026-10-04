@@ -26,6 +26,7 @@ interface TranslationUnitLike {
   getUnitHandle(): number;
 }
 
+/** @category Tokens */
 export class Token {
   #handle: number;
   #unit: number;
@@ -35,27 +36,23 @@ export class Token {
     this.#unit = parser.getUnitHandle();
   }
 
-  getHandle() {
+  get handle(): number {
     return this.#handle;
   }
 
-  getKind(): TokenKind {
+  get kind(): TokenKind {
     return tokenKindNames[cxx.getTokenKind(this.#handle, this.#unit)]!;
   }
 
-  is(kind: TokenKind) {
-    return this.getKind() === kind;
+  is(kind: TokenKind): boolean {
+    return this.kind === kind;
   }
 
-  isNot(kind: TokenKind) {
-    return this.getKind() !== kind;
-  }
-
-  getText(): string {
+  get text(): string {
     return cxx.getTokenText(this.#handle, this.#unit);
   }
 
-  getLocation(): SourceLocation {
+  get location(): SourceLocation {
     return cxx.getTokenLocation(this.#handle, this.#unit);
   }
 

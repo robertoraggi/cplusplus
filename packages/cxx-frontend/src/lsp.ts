@@ -18,6 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/**
+ * A language server for C++.
+ *
+ * @module cxx-frontend/lsp
+ */
+
 import { cxx } from "./cxx.js";
 import {
   type LanguageServer as NativeLanguageServer,
@@ -30,13 +36,12 @@ import { continueWithEventLoopYields } from "./eventLoop.js";
 /**
  * The id of a JSON-RPC request.
  */
-export type JsonRpcId = number | string;
+type JsonRpcId = number | string;
 
 /**
  * A JSON value.
  */
-export type JsonValue =
-  string | number | boolean | null | JsonObject | JsonArray;
+type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 
 /**
  * A JSON object.
@@ -48,14 +53,14 @@ export interface JsonObject {
 /**
  * A JSON array.
  */
-export interface JsonArray extends Array<JsonValue> {}
+interface JsonArray extends Array<JsonValue> {}
 
 /**
  * A JSON-RPC request or notification.
  *
  * Notifications are the messages without an `id`.
  */
-export interface JsonRpcRequestMessage {
+interface JsonRpcRequestMessage {
   jsonrpc: "2.0";
   method: string;
   params?: JsonArray | JsonObject;
@@ -68,7 +73,7 @@ export interface JsonRpcRequestMessage {
  *
  * Either `result` or `error` is set.
  */
-export interface JsonRpcResponseMessage {
+interface JsonRpcResponseMessage {
   jsonrpc: "2.0";
   result?: JsonValue;
   error?: { code: number; message: string; data?: JsonValue };
@@ -84,14 +89,14 @@ export type JsonRpcMessage = JsonRpcRequestMessage | JsonRpcResponseMessage;
 /**
  * Subscribes a listener and returns its subscription.
  */
-export interface Event<T> {
+interface Event<T> {
   (listener: (e: T) => void): { dispose(): void };
 }
 
 /**
  * A value that notifies its observers when it changes.
  */
-export interface ValueWithChangeEvent<T> {
+interface ValueWithChangeEvent<T> {
   readonly value: T;
   readonly onChange: Event<T>;
 }
@@ -99,7 +104,7 @@ export interface ValueWithChangeEvent<T> {
 /**
  * The state of the connection to a language server.
  */
-export type ConnectionState =
+type ConnectionState =
   | { state: "connecting" }
   | { state: "open" }
   | { state: "closed"; error: Error | undefined };

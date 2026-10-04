@@ -18,10 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/**
+ * The default entry point for parsing a source file.
+ *
+ * @module cxx-frontend/parse
+ */
+
 import { Parser, type ParseOptions } from "./Parser.js";
 
 export * from "./Parser.js";
 
+/** @category Parsing */
 export const parse = (options: ParseOptions): Promise<Parser> =>
   Parser.parse(options);
 

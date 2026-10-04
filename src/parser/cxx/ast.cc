@@ -219,12 +219,12 @@ auto OpaqueEnumDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(unqualifiedId)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(typeSpecifierList)) return loc;
-  if (auto loc = cxx::firstSourceLocation(emicolonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
   return {};
 }
 
 auto OpaqueEnumDeclarationAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(emicolonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(typeSpecifierList)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(unqualifiedId)) return loc;
@@ -4639,7 +4639,7 @@ auto OpaqueEnumDeclarationAST::clone(Arena* arena)
     }
   }
 
-  node->emicolonLoc = emicolonLoc;
+  node->semicolonLoc = semicolonLoc;
   node->symbol = symbol;
 
   return node;
@@ -4656,7 +4656,7 @@ auto OpaqueEnumDeclarationAST::create(
     List<AttributeSpecifierAST*>* attributeList,
     NestedNameSpecifierAST* nestedNameSpecifier, NameIdAST* unqualifiedId,
     SourceLocation colonLoc, List<SpecifierAST*>* typeSpecifierList,
-    SourceLocation emicolonLoc, Symbol* symbol) -> OpaqueEnumDeclarationAST* {
+    SourceLocation semicolonLoc, Symbol* symbol) -> OpaqueEnumDeclarationAST* {
   auto node = new (arena) OpaqueEnumDeclarationAST();
   node->enumLoc = enumLoc;
   node->classLoc = classLoc;
@@ -4665,7 +4665,7 @@ auto OpaqueEnumDeclarationAST::create(
   node->unqualifiedId = unqualifiedId;
   node->colonLoc = colonLoc;
   node->typeSpecifierList = typeSpecifierList;
-  node->emicolonLoc = emicolonLoc;
+  node->semicolonLoc = semicolonLoc;
   node->symbol = symbol;
   return node;
 }

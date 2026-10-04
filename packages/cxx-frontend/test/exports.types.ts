@@ -17,8 +17,8 @@ export async function main(): Promise<void> {
   const diagnostics: ReadonlyArray<Diagnostic> = parser.diagnostics;
   void diagnostics;
 
-  const unit: model.UnitAST = parser.model.ast;
-  const scope: model.ScopeSymbol = parser.model.globalScope;
+  const unit: model.UnitAST = parser.ast;
+  const scope: model.ScopeSymbol | undefined = unit.symbol;
   void scope;
 
   for (const path of walk(unit))

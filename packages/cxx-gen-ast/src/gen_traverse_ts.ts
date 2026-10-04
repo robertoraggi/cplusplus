@@ -60,17 +60,23 @@ export function gen_traverse_ts({
   const out: string[] = [];
 
   out.push(`// Generated file by: gen_traverse_ts.ts\n${cpy_header}
-import { type ASTKind, children } from "./Semantic.js";
+/**
+ * Traversal of the AST with visitors and paths.
+ *
+ * @module cxx-frontend/traverse
+ */
+
+import { type ASTKind, children } from "./model.js";
 import type {
   AST,
 ${[...nodes, ...categories].map((name) => `  ${name},`).join("\n")}
-} from "./Semantic.js";`);
+} from "./model.js";`);
 
-  out.push(`export interface ASTNodes {
+  out.push(`interface ASTNodes {
 ${ast.nodes.map((node) => `  ${kindOf(node.name)}: ${node.name};`).join("\n")}
 }
 
-export interface ASTCategories {
+interface ASTCategories {
 ${categories.map((name) => `  ${kindOf(name)}: ${name};`).join("\n")}
 }
 
@@ -300,16 +306,18 @@ function visit<S>(root: NodePath, visitor: Visitor<S>, state: S): boolean {
   return false;
 }
 
-export function traverse<S = undefined>(
+export default function traverse<S = undefined>(
   root: AST | NodePath,
   visitor: Visitor<S>,
   state?: S,
 ): S {
   visit(pathOf(root), visitor, state as S);
   return state as S;
-}`);
+}
 
-  const output = `${root}/packages/cxx-frontend/src/Traverse.ts`;
+export { traverse };`);
+
+  const output = `${root}/packages/cxx-frontend/src/traverse.ts`;
   fs.writeFileSync(output, out.join("\n\n"));
 
   const result = spawnSync(
