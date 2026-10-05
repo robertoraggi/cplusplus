@@ -4278,27 +4278,24 @@ void Binder::resolveIdExpression(IdExpressionAST* ast, bool isCallee) {
   }
 }
 
-auto Binder::denotesCurrentInstantiation(NestedNameSpecifierAST* nns,
-                                         ClassSymbol* currentInstantiation)
-    -> bool {
-  if (!nns || !currentInstantiation) return false;
+auto Binder::currentInstantiationOf(NestedNameSpecifierAST* nns,
+                                    ClassSymbol* currentInstantiation)
+    -> ClassSymbol* {
+  if (!nns || !currentInstantiation) return nullptr;
   auto qualifier = symbol_cast<ClassSymbol>(nns->symbol);
-  if (!qualifier) return false;
-
-  auto enclosesCurrentInstantiation = false;
-  for (auto cls = currentInstantiation; cls;
-       cls = symbol_cast<ClassSymbol>(cls->parent())) {
-    if (cls == qualifier) {
-      enclosesCurrentInstantiation = true;
-      break;
-    }
-  }
-  if (!enclosesCurrentInstantiation) return false;
+  if (!qualifier) return nullptr;
 
   auto templateNns = ast_cast<TemplateNestedNameSpecifierAST>(nns);
-  if (!templateNns) return true;
-
-  return names_template_head_parameters(templateNns->templateId, qualifier);
+  for (auto cls = currentInstantiation; cls; cls = cls->enclosingClass()) {
+    if (!templateNns) {
+      if (cls->canonical() == qualifier->canonical()) return cls;
+      continue;
+    }
+    if (class_template_of(cls) != class_template_of(qualifier)) continue;
+    if (names_current_instantiation(unit_, templateNns->templateId, cls))
+      return cls;
+  }
+  return nullptr;
 }
 
 auto Binder::currentInstantiationOf(ScopeSymbol* scope) -> ClassSymbol* {
@@ -4310,11 +4307,11 @@ auto Binder::resolveMemberOfCurrentInstantiation(
     NestedNameSpecifierAST* nestedNameSpecifier,
     UnqualifiedIdAST* unqualifiedId, ClassSymbol* currentInstantiation)
     -> Symbol* {
-  if (!denotesCurrentInstantiation(nestedNameSpecifier, currentInstantiation))
-    return nullptr;
+  auto qualifier =
+      currentInstantiationOf(nestedNameSpecifier, currentInstantiation);
+  if (!qualifier) return nullptr;
   auto nameId = ast_cast<NameIdAST>(unqualifiedId);
   if (!nameId) return nullptr;
-  auto qualifier = symbol_cast<ClassSymbol>(nestedNameSpecifier->symbol);
   return qualifiedLookup(qualifier, nameId->identifier,
                          [](Symbol* s) { return is_type(s); });
 }

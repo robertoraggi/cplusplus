@@ -645,6 +645,8 @@ struct TypeChecker::Visitor {
                                 const FunctionType* functionType);
   [[nodiscard]] auto typeCheckBuiltinDispatch(CallExpressionAST* ast,
                                               BuiltinFunctionKind kind) -> bool;
+  void validateBuiltinArguments(CallExpressionAST* ast,
+                                BuiltinFunctionKind kind);
   [[nodiscard]] auto checkBuiltinArithmeticOverflow(CallExpressionAST* ast)
       -> bool;
   [[nodiscard]] auto checkBuiltinFloatComparison(CallExpressionAST* ast)
@@ -652,7 +654,8 @@ struct TypeChecker::Visitor {
 
   [[nodiscard]] auto checkBuiltinInvoke(CallExpressionAST* ast) -> bool;
   [[nodiscard]] auto checkBuiltinAddressof(CallExpressionAST* ast) -> bool;
-  [[nodiscard]] auto checkBuiltinAssumeAligned(CallExpressionAST* ast) -> bool;
+  void validateBuiltinAssumeAligned(CallExpressionAST* ast);
+  void validateBuiltinAllocaWithAlign(CallExpressionAST* ast);
   [[nodiscard]] auto checkBuiltinVectorReduce(CallExpressionAST* ast) -> bool;
   void check_member_pointer_access(BinaryExpressionAST* ast);
   [[nodiscard]] auto checkBuiltinAtomic(CallExpressionAST* ast) -> bool;
@@ -2583,53 +2586,71 @@ void TypeChecker::Visitor::check_member_pointer_access(
                     Token::spell(ast->op), to_string(memberPointer->type)));
 }
 
-auto TypeChecker::Visitor::checkBuiltinAssumeAligned(CallExpressionAST* ast)
-    -> bool {
+void TypeChecker::Visitor::validateBuiltinAllocaWithAlign(
+    CallExpressionAST* ast) {
+  auto sizeArg = ast->expressionList;
+  auto alignmentArg = sizeArg ? sizeArg->next : nullptr;
+  if (!alignmentArg || alignmentArg->next) return;
+  if (!alignmentArg->value) return;
+  if (isDependent(check.unit_, alignmentArg->value)) return;
+
+  auto sizeType = control()->getSizeType();
+  if (alignmentArg->value->type != sizeType) return;
+
+  auto interp = ASTInterpreter{check.unit_, check.scope_};
+  auto loc = alignmentArg->value->firstSourceLocation();
+  auto value = interp.evaluate(alignmentArg->value);
+  auto alignment = value ? interp.toUInt(*value) : std::nullopt;
+  if (!alignment) {
+    error(
+        loc,
+        "argument to '__builtin_alloca_with_align' must be a constant integer");
+    return;
+  }
+  if (!std::has_single_bit(*alignment)) {
+    error(loc, "requested alignment is not a power of 2");
+    return;
+  }
+  if (*alignment < 8) {
+    error(loc, "requested alignment must be 8 bits or greater");
+    return;
+  }
+  if (*alignment > 2147483647) {
+    error(loc, "requested alignment must be 2147483647 bits or smaller");
+    return;
+  }
+
+  alignmentArg->value = ConstExpressionAST::create(
+      check.unit_->arena(), alignmentArg->value,
+      check.unit_->arena()->make<ConstValue>(std::move(*value)),
+      ValueCategory::kPrValue, sizeType);
+}
+
+void TypeChecker::Visitor::validateBuiltinAssumeAligned(
+    CallExpressionAST* ast) {
   auto pointerArg = ast->expressionList;
   auto alignmentArg = pointerArg ? pointerArg->next : nullptr;
-  auto misalignmentArg = alignmentArg ? alignmentArg->next : nullptr;
-
-  if (!alignmentArg) {
-    error(ast->firstSourceLocation(),
-          "too few arguments to '__builtin_assume_aligned', expected 2");
-    return true;
-  }
-
-  if (misalignmentArg && misalignmentArg->next) {
-    error(ast->firstSourceLocation(),
-          "too many arguments to '__builtin_assume_aligned', expected at "
-          "most 3");
-    return true;
-  }
-
-  if (!alignmentArg->value) return false;
-
-  if (misalignmentArg && misalignmentArg->value) {
-    auto sizeType = control()->getSizeType();
-    if (!implicit_conversion(misalignmentArg->value, sizeType)) {
-      error(misalignmentArg->value->firstSourceLocation(),
-            std::format("invalid argument of type '{}' for parameter of type "
-                        "'{}'",
-                        to_string(misalignmentArg->value->type),
-                        to_string(sizeType)));
-    }
-  }
+  if (!alignmentArg || !alignmentArg->value) return;
+  if (alignmentArg->value->type != control()->getSizeType()) return;
 
   auto interp = ASTInterpreter{check.unit_, check.scope_};
   auto alignmentLoc = alignmentArg->value->firstSourceLocation();
-  auto value = interp.evaluate(alignmentArg->value);
+  auto operand = alignmentArg->value;
+  while (auto conversion = ast_cast<ImplicitCastExpressionAST>(operand))
+    operand = conversion->expression;
+  auto value = interp.evaluate(operand);
   auto alignment = value.has_value() ? interp.toUInt(*value) : std::nullopt;
 
   if (!alignment.has_value()) {
-    if (isDependent(check.unit_, alignmentArg->value)) return false;
+    if (isDependent(check.unit_, alignmentArg->value)) return;
     error(alignmentLoc,
           "argument to '__builtin_assume_aligned' must be a constant integer");
-    return true;
+    return;
   }
 
   if (!std::has_single_bit(*alignment)) {
     error(alignmentLoc, "requested alignment is not a power of 2");
-    return true;
+    return;
   }
 
   if (*alignment > kMaximumAlignment) {
@@ -2640,18 +2661,11 @@ auto TypeChecker::Visitor::checkBuiltinAssumeAligned(CallExpressionAST* ast)
     alignment = kMaximumAlignment;
   }
 
-  auto sizeType = control()->getSizeType();
-  (void)implicit_conversion(alignmentArg->value, sizeType);
-
-  auto folded = ConstExpressionAST::create(check.unit_->arena());
-  folded->expression = alignmentArg->value;
-  folded->type = alignmentArg->value->type;
-  folded->valueCategory = ValueCategory::kPrValue;
-  folded->constValue = check.unit_->arena()->make<ConstValue>(
-      static_cast<std::intmax_t>(*alignment));
-  alignmentArg->value = folded;
-
-  return false;
+  alignmentArg->value = ConstExpressionAST::create(
+      check.unit_->arena(), alignmentArg->value,
+      check.unit_->arena()->make<ConstValue>(
+          static_cast<std::intmax_t>(*alignment)),
+      ValueCategory::kPrValue, alignmentArg->value->type);
 }
 
 struct TypeChecker::Visitor::CheckBuiltinAtomic {
@@ -3123,6 +3137,11 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
 
   check_function_arguments(ast->expressionList, ast->firstSourceLocation(),
                            functionType);
+
+  auto builtinKind = resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression));
+  if (builtinKind != BuiltinFunctionKind::T_NONE)
+    validateBuiltinArguments(ast, builtinKind);
 
   mark_virtual_dispatch(ast);
 

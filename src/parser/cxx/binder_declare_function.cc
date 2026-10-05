@@ -25,6 +25,7 @@
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/dependent_types.h>
+#include <cxx/diagnostics_client.h>
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/overload_resolution.h>
@@ -338,15 +339,16 @@ auto Binder::DeclareFunction::deducedSpecializationOf(
     -> std::optional<NamedTemplateSpecialization> {
   if (!primary || !primary->templateDeclaration()) return std::nullopt;
 
+  SilentDiagnosticsScope silent{binder.unit_};
   TemplateArgumentDeduction deduction{binder.unit_};
   auto deducedArgs = deduction.deduceFromTargetType(
       primary, withPrimaryExceptionSpecification(primary, functionType),
       templateArgumentList);
-  if (!deducedArgs.has_value()) return std::nullopt;
+  if (!deducedArgs.has_value() || silent.hadError()) return std::nullopt;
 
   auto substitution = Substitution::make(
       binder.unit_, primary->templateDeclaration(), *deducedArgs);
-  if (!substitution) return std::nullopt;
+  if (!substitution || silent.hadError()) return std::nullopt;
   return NamedTemplateSpecialization{
       primary, std::move(*substitution).templateArguments(), *deducedArgs};
 }
@@ -376,6 +378,8 @@ auto Binder::DeclareFunction::specializedPrimaryTemplates() const
     -> std::vector<FunctionSymbol*> {
   std::vector<FunctionSymbol*> primaries;
   auto canonical = functionSymbol->canonical();
+  auto declaringScope = decl.getScope();
+  if (!declaringScope) declaringScope = declaringScopeForFunction();
 
   auto consider = [&](FunctionSymbol* function) {
     if (function->canonical() == canonical) return;
@@ -386,13 +390,13 @@ auto Binder::DeclareFunction::specializedPrimaryTemplates() const
   };
 
   if (namesConversionFunction()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(declaringScopeForFunction());
+    auto classSymbol = symbol_cast<ClassSymbol>(declaringScope);
     if (!classSymbol) return primaries;
     for (auto function : classSymbol->conversionFunctions()) consider(function);
     return primaries;
   }
 
-  for (auto candidate : declaringScopeForFunction()->find(templateName())) {
+  for (auto candidate : declaringScope->find(templateName())) {
     for (auto function : views::each_function(candidate)) consider(function);
   }
   return primaries;
@@ -417,15 +421,8 @@ auto Binder::DeclareFunction::namedTemplateSpecialization() const
   if (!functionType || isDependent(binder.unit_, functionType))
     return std::nullopt;
 
-  if (auto templateId = ast_cast<SimpleTemplateIdAST>(declaratorName)) {
-    if (hasDependentTemplateArguments(binder.unit_, templateId))
-      return std::nullopt;
-    return deducedSpecializationOf(
-        symbol_cast<FunctionSymbol>(templateId->symbol), functionType,
-        templateId->templateArgumentList);
-  }
-
-  if (isOperatorTemplateId(declaratorName)) {
+  if (ast_cast<SimpleTemplateIdAST>(declaratorName) ||
+      isOperatorTemplateId(declaratorName)) {
     if (hasDependentTemplateArguments(binder.unit_, declaratorName))
       return std::nullopt;
     return findSpecialization(functionType,

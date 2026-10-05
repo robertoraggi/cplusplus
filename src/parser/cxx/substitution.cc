@@ -1335,7 +1335,13 @@ void Substitution::convertNonTypeArgument(NonTypeArgumentValue& argument,
 
   StandardConversion conversions{unit_};
   auto converted = expression;
-  if (!conversions.convertImplicitly(converted, targetType)) return;
+  if (!conversions.convertImplicitly(converted, targetType)) {
+    error(expression->firstSourceLocation(),
+          std::format("template argument of type '{}' cannot be converted to "
+                      "'{}'",
+                      to_string(expression->type), to_string(targetType)));
+    return;
+  }
 
   if (traits.is_narrowing_list_element(expression, targetType)) {
     error(expression->firstSourceLocation(),

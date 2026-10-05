@@ -91,9 +91,12 @@ auto Binder::ResolveUnqualifiedId::shouldKeepTemplateIdAsDependent(
   if (!classSymbol) return true;
 
   for (auto scope = binder.scope(); scope; scope = scope->parent()) {
-    if (auto enclosing = symbol_cast<ClassSymbol>(scope);
-        enclosing && enclosing->canonical() == classSymbol->canonical())
-      return names_template_head_parameters(templateId, classSymbol);
+    auto enclosing = symbol_cast<ClassSymbol>(scope);
+    if (!enclosing) continue;
+    if (class_template_of(enclosing) != class_template_of(classSymbol))
+      continue;
+    if (names_current_instantiation(binder.unit_, templateId, enclosing))
+      return true;
   }
   return false;
 }

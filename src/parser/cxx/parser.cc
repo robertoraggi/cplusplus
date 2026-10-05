@@ -5646,7 +5646,9 @@ auto Parser::parse_notypespec_function_definition(
   }
 
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
-  if (!parse_function_declarator(functionDeclarator)) return false;
+  if (!parse_function_declarator(functionDeclarator, decl,
+                                 DeclaratorKind::kDeclarator))
+    return false;
 
   AccessCheckScopeGuard accessCheckScope{this, decl};
 
@@ -7243,7 +7245,8 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
       it = &(*it)->next;
     } else if (FunctionDeclaratorChunkAST* functionDeclaratorChunk = nullptr;
                declaratorKind != DeclaratorKind::kNewDeclarator &&
-               parse_function_declarator(functionDeclaratorChunk)) {
+               parse_function_declarator(functionDeclaratorChunk, decl,
+                                         declaratorKind)) {
       *it = make_list_node<DeclaratorChunkAST>(pool_, functionDeclaratorChunk);
       it = &(*it)->next;
       if (declaratorKind == DeclaratorKind::kAbstractDeclarator &&
@@ -7342,7 +7345,8 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
 }
 
 auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
-                                       bool acceptTrailingReturnType) -> bool {
+                                       const Decl& decl,
+                                       DeclaratorKind declaratorKind) -> bool {
   LookaheadParser lookahead{this};
 
   SourceLocation lparenLoc;
@@ -7360,9 +7364,10 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
   SourceLocation rparenLoc;
   ParameterDeclarationClauseAST* parameterDeclarationClause = nullptr;
   auto parameterTypeNameContext = TypeNameContext::kGeneral;
-  if (symbol_cast<ClassSymbol>(binder_.declaringScope())) {
+  if (declaratorKind == DeclaratorKind::kDeclarator &&
+      (decl.getNestedNameSpecifier() ||
+       symbol_cast<ClassSymbol>(binder_.declaringScope())))
     parameterTypeNameContext = TypeNameContext::kTypeOnly;
-  }
 
   if (!match(TokenKind::T_RPAREN, rparenLoc)) {
     if (!parse_parameter_declaration_clause(parameterDeclarationClause,
@@ -7428,9 +7433,7 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
       pendingNoexceptSpecifiers_.push_back({ast, scope()});
   }
 
-  if (acceptTrailingReturnType) {
-    (void)parse_trailing_return_type(ast->trailingReturnType);
-  }
+  (void)parse_trailing_return_type(ast->trailingReturnType);
 
   parse_optional_attribute_specifier_seq(ast->attributeList,
                                          AllowedAttributes::kAll);

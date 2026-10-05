@@ -658,8 +658,8 @@ class Parser final {
   [[nodiscard]] auto parse_array_declarator(ArrayDeclaratorChunkAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_function_declarator(
-      FunctionDeclaratorChunkAST*& yyast, bool acceptTrailingReturnType = true)
-      -> bool;
+      FunctionDeclaratorChunkAST*& yyast, const Decl& decl,
+      DeclaratorKind declaratorKind) -> bool;
   [[nodiscard]] auto parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast,
                                             DeclSpecs& declSpecs) -> bool;
   [[nodiscard]] auto parse_trailing_return_type(TrailingReturnTypeAST*& yyast)

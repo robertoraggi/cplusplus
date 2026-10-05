@@ -673,9 +673,9 @@ class Binder {
 
   void addImplicitCaptures(LambdaExpressionAST* ast, ClassSymbol* classSymbol);
 
-  [[nodiscard]] auto denotesCurrentInstantiation(
+  [[nodiscard]] auto currentInstantiationOf(
       NestedNameSpecifierAST* nestedNameSpecifier,
-      ClassSymbol* currentInstantiation) -> bool;
+      ClassSymbol* currentInstantiation) -> ClassSymbol*;
 
   [[nodiscard]] auto currentInstantiationOf(ScopeSymbol* scope) -> ClassSymbol*;
 
