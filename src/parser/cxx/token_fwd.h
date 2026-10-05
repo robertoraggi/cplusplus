@@ -523,6 +523,7 @@ class Token;
   V(__BUILTIN_EXPM1L, "__builtin_expm1l")                                     \
   V(__BUILTIN_FABS, "__builtin_fabs")                                         \
   V(__BUILTIN_FABSF, "__builtin_fabsf")                                       \
+  V(__BUILTIN_FABSF128, "__builtin_fabsf128")                                 \
   V(__BUILTIN_FABSL, "__builtin_fabsl")                                       \
   V(__BUILTIN_FDIM, "__builtin_fdim")                                         \
   V(__BUILTIN_FDIMF, "__builtin_fdimf")                                       \
@@ -564,6 +565,7 @@ class Token;
   V(__BUILTIN_HYPOT, "__builtin_hypot")                                       \
   V(__BUILTIN_HYPOTF, "__builtin_hypotf")                                     \
   V(__BUILTIN_HYPOTL, "__builtin_hypotl")                                     \
+  V(__BUILTIN_IA32_PAUSE, "__builtin_ia32_pause")                             \
   V(__BUILTIN_ILOGB, "__builtin_ilogb")                                       \
   V(__BUILTIN_ILOGBF, "__builtin_ilogbf")                                     \
   V(__BUILTIN_ILOGBL, "__builtin_ilogbl")                                     \

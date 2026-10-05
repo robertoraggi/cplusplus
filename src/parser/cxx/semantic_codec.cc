@@ -246,6 +246,9 @@ void SemanticEncoder::writeType(ByteWriter& out, const cxx::Type* type) {
     case cxx::TypeKind::kFloat16:
       writeTypeFloat16Type(out, static_cast<const cxx::Float16Type*>(type));
       break;
+    case cxx::TypeKind::kFloat128:
+      writeTypeFloat128Type(out, static_cast<const cxx::Float128Type*>(type));
+      break;
     case cxx::TypeKind::kQual:
       writeTypeQualType(out, static_cast<const cxx::QualType*>(type));
       break;
@@ -1715,6 +1718,9 @@ void SemanticEncoder::writeTypeLongDoubleType(
 void SemanticEncoder::writeTypeFloat16Type(
     ByteWriter& out, [[maybe_unused]] const cxx::Float16Type* self) {}
 
+void SemanticEncoder::writeTypeFloat128Type(
+    ByteWriter& out, [[maybe_unused]] const cxx::Float128Type* self) {}
+
 void SemanticEncoder::writeTypeQualType(
     ByteWriter& out, [[maybe_unused]] const cxx::QualType* self) {
   // elementType
@@ -2751,6 +2757,10 @@ void SemanticEncoder::writeSymbolUsingDeclarationSymbol(
   writeSymbolSymbol(out, self);
   // ::cxx::UsingDeclarationSymbol::target_
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->target())));
+  // ::cxx::UsingDeclarationSymbol::targetFunctionCount_
+  out.varI32(static_cast<std::int32_t>(self->targetFunctionCount()));
+  // ::cxx::UsingDeclarationSymbol::targetUsingDeclarationCount_
+  out.varI32(static_cast<std::int32_t>(self->targetUsingDeclarationCount()));
   // ::cxx::UsingDeclarationSymbol::declarator_
   out.varU32(static_cast<std::uint32_t>(astRef(self->declarator())));
 }
@@ -7559,7 +7569,7 @@ auto SemanticDecoder::typeAt(TypeRef ref) -> const cxx::Type* {
   if (typeDecoded_[index - 1]) return types_[index - 1];
   typeDecoded_[index - 1] = true;
   ByteReader in{typeRecords_[index - 1].bytes};
-  const auto kind = static_cast<cxx::TypeKind>(readEnum(in, 59));
+  const auto kind = static_cast<cxx::TypeKind>(readEnum(in, 60));
   const cxx::Type* type = nullptr;
   switch (kind) {
     case cxx::TypeKind::kVoid:
@@ -7639,6 +7649,9 @@ auto SemanticDecoder::typeAt(TypeRef ref) -> const cxx::Type* {
       break;
     case cxx::TypeKind::kFloat16:
       type = readTypeFloat16Type(in);
+      break;
+    case cxx::TypeKind::kFloat128:
+      type = readTypeFloat128Type(in);
       break;
     case cxx::TypeKind::kQual:
       type = readTypeQualType(in);
@@ -9132,6 +9145,10 @@ auto SemanticDecoder::readTypeFloat16Type(ByteReader& in) -> const cxx::Type* {
   return control()->getFloat16Type();
 }
 
+auto SemanticDecoder::readTypeFloat128Type(ByteReader& in) -> const cxx::Type* {
+  return control()->getFloat128Type();
+}
+
 auto SemanticDecoder::readTypeQualType(ByteReader& in) -> const cxx::Type* {
   const cxx::Type* argument1 = typeAt(TypeRef{in.varU32()});
   static_assert(
@@ -10095,9 +10112,9 @@ void SemanticDecoder::readSymbolFunctionSymbol(
   static_assert(static_cast<std::uint32_t>(
                     ::cxx::BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE) +
                     1 ==
-                460);
+                462);
   ::cxx::BuiltinFunctionKind value56 =
-      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 460));
+      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 462));
   self->setBuiltinKind(std::move(value56));
   // ::cxx::FunctionSymbol::isDefined_
   unsigned int value57 = static_cast<unsigned int>(in.varU32());
@@ -10706,10 +10723,16 @@ void SemanticDecoder::readSymbolUsingDeclarationSymbol(
   // ::cxx::UsingDeclarationSymbol::target_
   cxx::Symbol* value1 = symbolAt(SymbolRef{in.varU32()});
   self->setTarget(std::move(value1));
+  // ::cxx::UsingDeclarationSymbol::targetFunctionCount_
+  int value2 = static_cast<int>(in.varI32());
+  self->setTargetFunctionCount(std::move(value2));
+  // ::cxx::UsingDeclarationSymbol::targetUsingDeclarationCount_
+  int value3 = static_cast<int>(in.varI32());
+  self->setTargetUsingDeclarationCount(std::move(value3));
   // ::cxx::UsingDeclarationSymbol::declarator_
-  cxx::UsingDeclaratorAST* value2 =
+  cxx::UsingDeclaratorAST* value4 =
       ast_cast<UsingDeclaratorAST>(astAt(AstRef{in.varU32()}));
-  self->setDeclarator(std::move(value2));
+  self->setDeclarator(std::move(value4));
 }
 
 void SemanticDecoder::readAstManaged([[maybe_unused]] ByteReader& in,

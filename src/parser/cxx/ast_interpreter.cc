@@ -388,6 +388,8 @@ auto ASTInterpreter::toArithmeticType(const ConstValue& value, const Type* type)
       break;
   }
 
+  if (traits.is_floating_point(type)) return std::nullopt;
+
   return toIntegralType(value, type);
 }
 

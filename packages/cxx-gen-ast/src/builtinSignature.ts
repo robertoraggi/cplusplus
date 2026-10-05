@@ -110,6 +110,11 @@ export const BUILTIN_LEAF_TYPES: BuiltinLeafType[] = [
     expr: "control->getFloat16Type()",
   },
   {
+    op: "kFloat128",
+    spellings: ["__float128"],
+    expr: "control->getFloat128Type()",
+  },
+  {
     op: "kWideChar",
     spellings: ["wchar_t"],
     expr: "control->getWideCharType()",

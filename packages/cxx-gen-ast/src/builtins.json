@@ -1336,6 +1336,13 @@
     "libcall": true
   },
   {
+    "name": "__builtin_fabsf128",
+    "prototype": "constexpr __float128 __builtin_fabsf128(__float128)",
+    "constexpr": true,
+    "noexcept": true,
+    "libcall": true
+  },
+  {
     "name": "__builtin_fabsl",
     "prototype": "constexpr long double __builtin_fabsl(long double)",
     "constexpr": true,
@@ -4428,6 +4435,12 @@
     "eval": "evaluateBuiltinFloatComparison",
     "codegen": "codegenBuiltinFloatComparison",
     "typeCheck": "checkBuiltinFloatComparison"
+  },
+  {
+    "name": "__builtin_ia32_pause",
+    "prototype": "void __builtin_ia32_pause()",
+    "constexpr": false,
+    "noexcept": true
   },
   {
     "name": "__builtin_trap",

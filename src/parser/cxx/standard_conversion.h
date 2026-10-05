@@ -98,6 +98,8 @@ class StandardConversion {
   [[nodiscard]] auto canSplatIntoVector(ExpressionAST* expr,
                                         const VectorType* vectorType) -> bool;
 
+  [[nodiscard]] auto commonFloatingPointType(const Type* a, const Type* b)
+      -> const Type*;
   [[nodiscard]] auto commonArithmeticType(const Type* a, const Type* b)
       -> const Type*;
 
@@ -155,6 +157,9 @@ class StandardConversion {
       std::optional<ImplicitConversionSequence> object);
   void addConstructorCandidates(std::vector<Candidate>& candidates,
                                 ExpressionAST* expr, const Type* targetType);
+  [[nodiscard]] auto constructorArgumentConversion(
+      ExpressionAST* expr, const FunctionType* constructorType)
+      -> ImplicitConversionSequence;
   void addConstructorCandidate(std::vector<Candidate>& candidates,
                                FunctionSymbol* constructor,
                                ClassSymbol* classSymbol, ExpressionAST* expr,

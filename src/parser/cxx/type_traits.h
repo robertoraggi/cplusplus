@@ -25,6 +25,7 @@
 #include <cxx/types_fwd.h>
 
 #include <array>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -263,7 +264,11 @@ class TypeTraits {
   [[nodiscard]] auto integer_conversion_rank(const Type* type) const
       -> std::pair<int, int>;
 
-  [[nodiscard]] auto floating_point_conversion_rank(const Type* type) const
+  [[nodiscard]] auto floating_point_conversion_order(const Type* a,
+                                                     const Type* b) const
+      -> std::partial_ordering;
+
+  [[nodiscard]] auto floating_point_conversion_subrank(const Type* type) const
       -> int;
 
   [[nodiscard]] auto representsAllValuesOf(const Type* target,

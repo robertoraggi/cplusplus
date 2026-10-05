@@ -181,11 +181,19 @@ template <typename Key, typename Value>
   return false;
 }
 
+[[nodiscard]] auto declaredFunctionOf(FunctionSymbol* function)
+    -> FunctionSymbol* {
+  if (auto primary = symbol_cast<FunctionSymbol>(primary_template_of(function)))
+    function = primary;
+  return function->canonical();
+}
+
 [[nodiscard]] auto introduces(UsingDeclarationSymbol* usingDeclaration,
                               Symbol* member) -> bool {
   if (auto function = symbol_cast<FunctionSymbol>(member)) {
     for (auto introduced : usingDeclaration->introducedFunctions()) {
-      if (introduced->canonical() == function->canonical()) return true;
+      if (declaredFunctionOf(introduced) == declaredFunctionOf(function))
+        return true;
     }
     return false;
   }

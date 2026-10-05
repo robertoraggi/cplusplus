@@ -611,6 +611,11 @@ struct ExternalNameEncoder::EncodeType {
     return false;
   }
 
+  auto operator()(const Float128Type* type) -> bool {
+    encoder.out("g");
+    return false;
+  }
+
   auto operator()(const QualType* type) -> bool {
     encoder.encodeCvQualifiers(type->cvQualifiers());
     encoder.encodeType(type->elementType());

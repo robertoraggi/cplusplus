@@ -1363,13 +1363,19 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc,
 
 namespace {
 
+[[nodiscard]] auto introducesFunctions(UsingDeclarationSymbol* usingDeclaration)
+    -> bool {
+  return !usingDeclaration->isUnresolved() &&
+         !usingDeclaration->introducedFunctions().empty();
+}
+
 [[nodiscard]] auto joinsFunctionOverloadSet(Symbol* candidate) -> bool {
   if (symbol_cast<OverloadSetSymbol>(candidate)) return true;
   if (symbol_cast<FunctionSymbol>(candidate)) return true;
   auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(candidate);
   if (!usingDeclaration) return false;
-  if (usingDeclaration->isUnresolved()) return true;
-  return !usingDeclaration->introducedFunctions().empty();
+  return usingDeclaration->isUnresolved() ||
+         introducesFunctions(usingDeclaration);
 }
 
 struct TerminalNestedNameSpecifierName {
@@ -1492,8 +1498,9 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
   if (redeclaresOnlyMembersOf(symbol, scope())) return;
 
   const auto joinsAnOverloadSet =
-      joinsFunctionOverloadSet(symbol) &&
-      std::ranges::any_of(scope()->find(name), joinsFunctionOverloadSet);
+      introducesFunctions(symbol) ||
+      (joinsFunctionOverloadSet(symbol) &&
+       std::ranges::any_of(scope()->find(name), joinsFunctionOverloadSet));
 
   if (!joinsAnOverloadSet) {
     scope()->addSymbol(symbol);

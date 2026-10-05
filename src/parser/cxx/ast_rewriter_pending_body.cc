@@ -85,6 +85,11 @@ void ASTRewriter::remapInstantiatedMember(Symbol* member) {
   for (auto function : views::declared_functions(member))
     remapInstantiationPatterns(function);
 
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(member)) {
+    for (auto usingDeclaration : overloadSet->usingDeclarations())
+      remapInstantiatedMember(usingDeclaration);
+  }
+
   auto pattern = member->instantiationPattern();
   if (!pattern) return;
 

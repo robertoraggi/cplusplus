@@ -462,6 +462,11 @@ class Codegen {
                                          FunctionSymbol* functionSymbol)
       -> std::vector<ir::ParameterAbi>;
 
+  [[nodiscard]] auto variadicCalleeType(std::span<const ir::ValueRef> args,
+                                        std::size_t ellipsisArgumentCount,
+                                        std::span<const ir::TypeRef> results)
+      -> ir::TypeRef;
+
   [[nodiscard]] auto classValueLoad(SourceLocation loc, const Type* type,
                                     ir::ValueRef value) -> ir::ValueRef;
 
@@ -617,6 +622,8 @@ class Codegen {
   struct VTableEmission;
 
   [[nodiscard]] auto requiresVTT(ClassSymbol* classSymbol) const -> bool;
+  [[nodiscard]] auto takesVTTParameter(FunctionSymbol* function) const -> bool;
+  [[nodiscard]] auto vttParameter(FunctionSymbol* function) -> ir::ValueRef;
   [[nodiscard]] auto constructionVTableName(ClassSymbol* completeClass,
                                             const VTableLayout::Group& group)
       -> std::string;
@@ -782,13 +789,11 @@ class Codegen {
   [[nodiscard]] auto implicitLocation(SourceLocation loc) const
       -> SourceLocation;
 
-  [[nodiscard]] auto emitCall(SourceLocation loc, FunctionSymbol* symbol,
-                              ExpressionResult thisValue,
-                              std::vector<ExpressionResult> arguments,
-                              bool isVirtualDispatch = false,
-                              ExpressionAST* resultOwner = nullptr,
-                              bool baseObjectStructor = false)
-      -> ExpressionResult;
+  [[nodiscard]] auto emitCall(
+      SourceLocation loc, FunctionSymbol* symbol, ExpressionResult thisValue,
+      std::vector<ExpressionResult> arguments, bool isVirtualDispatch = false,
+      ExpressionAST* resultOwner = nullptr, bool baseObjectStructor = false,
+      ir::ValueRef structorVTT = {}) -> ExpressionResult;
 
   [[nodiscard]] auto baseStructorVTTArgument(SourceLocation loc,
                                              ClassSymbol* targetClass)
@@ -799,7 +804,8 @@ class Codegen {
       FunctionSymbol* symbol, bool isVirtualDispatch,
       ExpressionResult thisValue, std::vector<ExpressionResult> arguments,
       ir::ValueRef resultObject = {}, ir::ValueRef calleeValue = {},
-      bool baseObjectStructor = false) -> ExpressionResult;
+      bool baseObjectStructor = false, ir::ValueRef structorVTT = {})
+      -> ExpressionResult;
 
   [[nodiscard]] auto uniqueClassTypeName(std::string name) -> std::string;
 

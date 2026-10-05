@@ -1696,6 +1696,10 @@ class OverloadSetSymbol final : public Symbol {
 
   [[nodiscard]] auto functions() const -> std::vector<FunctionSymbol*>;
 
+  [[nodiscard]] auto functionsWithin(std::size_t functionCount,
+                                     std::size_t usingDeclarationCount) const
+      -> std::vector<FunctionSymbol*>;
+
   [[nodiscard]] auto declaredFunctions() const
       -> const std::vector<FunctionSymbol*>&;
 
@@ -2191,6 +2195,12 @@ class UsingDeclarationSymbol final : public Symbol {
   [[nodiscard]] auto target() const -> Symbol*;
   void setTarget(Symbol* symbol);
 
+  [[nodiscard]] auto targetFunctionCount() const -> int;
+  void setTargetFunctionCount(int count);
+
+  [[nodiscard]] auto targetUsingDeclarationCount() const -> int;
+  void setTargetUsingDeclarationCount(int count);
+
   [[nodiscard]] auto introducedFunctions() const
       -> std::vector<FunctionSymbol*>;
 
@@ -2198,6 +2208,8 @@ class UsingDeclarationSymbol final : public Symbol {
 
  private:
   Symbol* target_ = nullptr;
+  int targetFunctionCount_ = 0;
+  int targetUsingDeclarationCount_ = 0;
   UsingDeclaratorAST* declarator_ = nullptr;
 };
 

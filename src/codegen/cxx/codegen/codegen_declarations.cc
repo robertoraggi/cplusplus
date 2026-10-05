@@ -527,23 +527,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
         gen.getAlignment(gen.traits.add_pointer(classSymbol->type())));
   }
 
-  if ((functionSymbol->isConstructor() || functionSymbol->isDestructor()) &&
-      gen.requiresVTT(symbol_cast<ClassSymbol>(functionSymbol->parent()))) {
-    std::size_t ordinaryArguments = 1;
-    if (auto functionType = type_cast<FunctionType>(functionSymbol->type())) {
-      for (auto parameterType : functionType->parameterTypes()) {
-        if (gen.classifyClassValueAbi(parameterType,
-                                      ClassValueAbiContext::Argument)
-                .kind != ClassValueAbi::Kind::Empty)
-          ++ordinaryArguments;
-      }
-    }
-    const auto entryArgumentCount =
-        gen.emitter_.blockParameterCount(gen.entryBlock_);
-    if (entryArgumentCount > ordinaryArguments)
-      gen.structorVTTValue_ =
-          gen.emitter_.blockParameter(gen.entryBlock_, entryArgumentCount - 1);
-  }
+  gen.structorVTTValue_ = gen.vttParameter(functionSymbol);
 
   FunctionParametersSymbol* params = nullptr;
   for (auto member : views::members(ast->symbol)) {
@@ -558,6 +542,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       ++argc;
       ++debugArgc;
     }
+    if (gen.structorVTTValue_) ++argc;
     for (auto param : views::members(params)) {
       auto arg = symbol_cast<ParameterSymbol>(param);
       if (!arg) continue;

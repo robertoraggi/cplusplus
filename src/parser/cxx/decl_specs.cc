@@ -381,6 +381,7 @@ void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
       break;
 
     case TokenKind::T___FLOAT128:
+      specs.type_ = control()->getFloat128Type();
       break;
 
     default:

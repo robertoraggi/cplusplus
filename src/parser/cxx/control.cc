@@ -248,6 +248,7 @@ struct Control::Private {
   DoubleType doubleType;
   LongDoubleType longDoubleType;
   Float16Type float16Type;
+  Float128Type float128Type;
 
   TypeSet<QualType> qualTypes;
   TypeSet<BoundedArrayType> boundedArrayTypes;
@@ -657,6 +658,10 @@ auto Control::getLongDoubleType() -> const LongDoubleType* {
 }
 
 auto Control::getFloat16Type() -> const Float16Type* { return &d->float16Type; }
+
+auto Control::getFloat128Type() -> const Float128Type* {
+  return &d->float128Type;
+}
 
 auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)
     -> const QualType* {

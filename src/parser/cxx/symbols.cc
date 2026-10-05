@@ -2360,7 +2360,7 @@ auto ClassSymbol::convertingConstructors() const
     if (ctor->isExplicit()) continue;
     auto funcType = type_cast<FunctionType>(ctor->type());
     if (!funcType) continue;
-    if (funcType->parameterTypes().empty()) continue;
+    if (funcType->parameterTypes().empty() && !funcType->isVariadic()) continue;
     result.push_back(ctor);
   }
   return result;
@@ -2902,12 +2902,18 @@ auto OverloadSetSymbol::hasUnresolvedUsingDeclaration() const -> bool {
 }
 
 auto OverloadSetSymbol::functions() const -> std::vector<FunctionSymbol*> {
-  if (usingDeclarations_.empty()) return declaredFunctions_;
+  return functionsWithin(declaredFunctions_.size(), usingDeclarations_.size());
+}
 
-  auto result = declaredFunctions_;
+auto OverloadSetSymbol::functionsWithin(std::size_t functionCount,
+                                        std::size_t usingDeclarationCount) const
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> result(
+      declaredFunctions_.begin(),
+      declaredFunctions_.begin() + static_cast<std::ptrdiff_t>(functionCount));
 
-  for (auto usingDeclaration : usingDeclarations_) {
-    for (auto introduced : usingDeclaration->introducedFunctions()) {
+  for (std::size_t i = 0; i < usingDeclarationCount; ++i) {
+    for (auto introduced : usingDeclarations_[i]->introducedFunctions()) {
       auto canonical = introduced->canonical();
 
       const auto isHidden =
@@ -3371,12 +3377,39 @@ UsingDeclarationSymbol::~UsingDeclarationSymbol() {}
 
 auto UsingDeclarationSymbol::target() const -> Symbol* { return target_; }
 
-void UsingDeclarationSymbol::setTarget(Symbol* symbol) { target_ = symbol; }
+void UsingDeclarationSymbol::setTarget(Symbol* symbol) {
+  target_ = symbol;
+  targetFunctionCount_ = 0;
+  targetUsingDeclarationCount_ = 0;
+  auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
+  if (!overloadSet) return;
+  targetFunctionCount_ =
+      static_cast<int>(overloadSet->declaredFunctions().size());
+  targetUsingDeclarationCount_ =
+      static_cast<int>(overloadSet->usingDeclarations().size());
+}
+
+auto UsingDeclarationSymbol::targetFunctionCount() const -> int {
+  return targetFunctionCount_;
+}
+
+void UsingDeclarationSymbol::setTargetFunctionCount(int count) {
+  targetFunctionCount_ = count;
+}
+
+auto UsingDeclarationSymbol::targetUsingDeclarationCount() const -> int {
+  return targetUsingDeclarationCount_;
+}
+
+void UsingDeclarationSymbol::setTargetUsingDeclarationCount(int count) {
+  targetUsingDeclarationCount_ = count;
+}
 
 auto UsingDeclarationSymbol::introducedFunctions() const
     -> std::vector<FunctionSymbol*> {
   if (auto overloadSet = symbol_cast<OverloadSetSymbol>(target_))
-    return overloadSet->functions();
+    return overloadSet->functionsWithin(targetFunctionCount_,
+                                        targetUsingDeclarationCount_);
   if (auto function = symbol_cast<FunctionSymbol>(target_)) return {function};
   return {};
 }

@@ -73,6 +73,7 @@ auto isFundamentalTypeInfoInRuntime(const Type* type) -> bool {
     case TypeKind::kDouble:
     case TypeKind::kLongDouble:
     case TypeKind::kFloat16:
+    case TypeKind::kFloat128:
       return true;
     default:
       return false;

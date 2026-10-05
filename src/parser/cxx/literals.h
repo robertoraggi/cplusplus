@@ -96,6 +96,7 @@ class FloatLiteral final : public Literal {
       kF64,
       kF128,
       kBF16,
+      kQ,
     };
 
     double value = 0;

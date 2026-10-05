@@ -72,6 +72,7 @@ struct Codegen::ConvertType {
   auto operator()(const DoubleType* type) -> ir::TypeRef;
   auto operator()(const LongDoubleType* type) -> ir::TypeRef;
   auto operator()(const Float16Type* type) -> ir::TypeRef;
+  auto operator()(const Float128Type* type) -> ir::TypeRef;
   auto operator()(const QualType* type) -> ir::TypeRef;
   auto operator()(const BoundedArrayType* type) -> ir::TypeRef;
   auto operator()(const UnboundedArrayType* type) -> ir::TypeRef;
@@ -246,6 +247,10 @@ auto Codegen::ConvertType::operator()(const LongDoubleType* type)
 
 auto Codegen::ConvertType::operator()(const Float16Type* type) -> ir::TypeRef {
   return gen.emitter_.floatingType(ir::FloatKind::Half);
+}
+
+auto Codegen::ConvertType::operator()(const Float128Type* type) -> ir::TypeRef {
+  return gen.emitter_.floatingType(ir::FloatKind::Quad);
 }
 
 auto Codegen::ConvertType::operator()(const QualType* type) -> ir::TypeRef {

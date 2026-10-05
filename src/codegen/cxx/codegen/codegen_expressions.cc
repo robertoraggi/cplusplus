@@ -499,7 +499,8 @@ auto Codegen::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
 
   auto type = gen.convertType(ast->type);
 
-  if (!gen.traits.is_floating_point(ast->type)) {
+  if (!gen.traits.is_floating_point(ast->type) ||
+      type_cast<Float128Type>(gen.traits.remove_cv(ast->type))) {
     auto op =
         gen.emitTodoExpr(ast->firstSourceLocation(), "unsupported float type");
     return {op};
@@ -5196,9 +5197,7 @@ auto Codegen::baseStructorVTTArgument(SourceLocation loc,
   }
 
   auto currentVTT = structorVTTValue_;
-  const auto entryArgumentCount = emitter_.blockParameterCount(entryBlock_);
-  if (!currentVTT && entryBlock_ && entryArgumentCount > 1)
-    currentVTT = emitter_.blockParameter(entryBlock_, entryArgumentCount - 1);
+  if (!currentVTT) currentVTT = vttParameter(currentFunctionSymbol_);
   if (!currentVTT) return {};
 
   if (targetClass == currentClass) return currentVTT;
@@ -5216,13 +5215,14 @@ auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
                        ExpressionResult thisValue,
                        std::vector<ExpressionResult> arguments,
                        bool isVirtualDispatch, ExpressionAST* resultOwner,
-                       bool baseObjectStructor) -> ExpressionResult {
+                       bool baseObjectStructor, ir::ValueRef structorVTT)
+    -> ExpressionResult {
   auto functionType = type_cast<FunctionType>(symbol->type());
 
   return emitCall(loc, functionType, symbol, isVirtualDispatch, thisValue,
                   std::move(arguments),
                   takeIndirectResultObject(resultOwner, functionType), {},
-                  baseObjectStructor);
+                  baseObjectStructor, structorVTT);
 }
 
 auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
@@ -5230,7 +5230,8 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
                        ExpressionResult thisValue,
                        std::vector<ExpressionResult> arguments,
                        ir::ValueRef resultObject, ir::ValueRef calleeValue,
-                       bool baseObjectStructor) -> ExpressionResult {
+                       bool baseObjectStructor, ir::ValueRef structorVTT)
+    -> ExpressionResult {
   if (!functionType) return {};
 
   loc = implicitLocation(loc);
@@ -5240,15 +5241,10 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
                               : findOrCreateFunction(callee);
   };
 
-  if (symbol && thisValue.value) {
+  if (!structorVTT && !isVirtualDispatch && thisValue.value &&
+      takesVTTParameter(symbol)) {
     auto targetClass = symbol_cast<ClassSymbol>(symbol->parent());
-    auto function = calleeOf(symbol);
-    const auto suppliedCount = arguments.size() + 1;
-    if (requiresVTT(targetClass) &&
-        emitter_.functionParameterTypes(function).size() > suppliedCount) {
-      auto vtt = baseStructorVTTArgument(loc, targetClass);
-      if (vtt) arguments.push_back({vtt});
-    }
+    structorVTT = baseStructorVTTArgument(loc, targetClass);
   }
 
   const auto& paramTypes = functionType->parameterTypes();
@@ -5257,6 +5253,9 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
   if (thisValue.value) {
     args.push_back(thisValue.value);
   }
+  if (structorVTT) args.push_back(structorVTT);
+
+  std::size_t ellipsisArgumentCount = 0;
 
   for (size_t i = 0; i < arguments.size(); ++i) {
     auto val = arguments[i].value;
@@ -5264,6 +5263,7 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
 
     if (i >= paramTypes.size()) {
       args.push_back(val);
+      ++ellipsisArgumentCount;
       continue;
     }
 
@@ -5346,19 +5346,7 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
   } else if (!symbol) {
     callInfo.indirectCallee = calleeValue;
   } else {
-    auto funcOp = calleeOf(symbol);
-    if (emitter_.functionParameterTypes(funcOp).size() > args.size()) {
-      auto targetClass = symbol_cast<ClassSymbol>(symbol->parent());
-      if (requiresVTT(targetClass)) {
-        auto vtt = baseStructorVTTArgument(loc, targetClass);
-        if (vtt) args.push_back(vtt);
-      }
-    }
-    callInfo.callee = this->functionName(funcOp);
-  }
-
-  if (functionType->isVariadic()) {
-    callInfo.variadicCalleeType = convertType(functionType);
+    callInfo.callee = this->functionName(calleeOf(symbol));
   }
 
   std::vector<ir::ValueRef> argumentRefs;
@@ -5366,6 +5354,11 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
 
   std::vector<ir::TypeRef> resultTypeRefs;
   for (auto resultType : resultTypes) resultTypeRefs.push_back(resultType);
+
+  if (functionType->isVariadic()) {
+    callInfo.variadicCalleeType =
+        variadicCalleeType(argumentRefs, ellipsisArgumentCount, resultTypeRefs);
+  }
 
   auto parameterAbi = computeParameterAbi(functionType, symbol);
 
@@ -5418,13 +5411,11 @@ auto Codegen::emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,
 
   auto targetClass = symbol_cast<ClassSymbol>(target->parent());
   if (targetClass) targetClass = targetClass->resolvedDefinition();
-  if (!completeObject && target->isConstructor() && requiresVTT(targetClass)) {
-    if (!vtt) vtt = baseStructorVTTArgument(loc, targetClass);
-    if (vtt) args.push_back({vtt});
-  }
+  if (!vtt && !completeObject && takesVTTParameter(target))
+    vtt = baseStructorVTTArgument(loc, targetClass);
   return emitCall(loc, target, {thisPtr}, std::move(args),
                   /*isVirtualDispatch=*/false, /*resultOwner=*/nullptr,
-                  /*baseObjectStructor=*/!completeObject);
+                  /*baseObjectStructor=*/!completeObject, vtt);
 }
 
 auto Codegen::ExpressionVisitor::emitArithmeticConversion(

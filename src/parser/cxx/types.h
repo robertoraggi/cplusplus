@@ -211,6 +211,12 @@ class Float16Type final : public Type {
   Float16Type() : Type(Kind) {}
 };
 
+class Float128Type final : public Type {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kFloat128;
+  Float128Type() : Type(Kind) {}
+};
+
 class QualType final : public Type,
                        public std::tuple<const Type*, CvQualifiers> {
  public:
@@ -335,6 +341,10 @@ class FunctionType final
   }
 
   [[nodiscard]] auto isVariadic() const -> bool { return std::get<2>(*this); }
+
+  [[nodiscard]] auto isEllipsisOnly() const -> bool {
+    return parameterTypes().empty() && isVariadic();
+  }
 
   [[nodiscard]] auto cvQualifiers() const -> CvQualifiers {
     return std::get<3>(*this);

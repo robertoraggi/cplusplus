@@ -2958,6 +2958,23 @@ static inline auto classifyBuiltinFunction18(const char* s)
                             }
                           }
                         }
+                      } else if (s[10] == 'f') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'b') {
+                            if (s[13] == 's') {
+                              if (s[14] == 'f') {
+                                if (s[15] == '1') {
+                                  if (s[16] == '2') {
+                                    if (s[17] == '8') {
+                                      return cxx::BuiltinFunctionKind::
+                                          T___BUILTIN_FABSF128;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
                       } else if (s[10] == 'h') {
                         if (s[11] == 'u') {
                           if (s[12] == 'g') {
@@ -3599,6 +3616,27 @@ static inline auto classifyBuiltinFunction20(const char* s)
                                         if (s[19] == 'y') {
                                           return cxx::BuiltinFunctionKind::
                                               T___BUILTIN_FPCLASSIFY;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      } else if (s[10] == 'i') {
+                        if (s[11] == 'a') {
+                          if (s[12] == '3') {
+                            if (s[13] == '2') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'p') {
+                                  if (s[16] == 'a') {
+                                    if (s[17] == 'u') {
+                                      if (s[18] == 's') {
+                                        if (s[19] == 'e') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___BUILTIN_IA32_PAUSE;
                                         }
                                       }
                                     }
