@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { $, fs } from "zx";
+import { $, fs, which } from "zx";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
@@ -38,13 +38,38 @@ const wasm32WasiIncludeDir = path.join(
 
 const cxxIncludeDir = path.join(workspacePath, "build.em/src/lib/cxx/include");
 
+const wasm32WasiLibraryDir = path.join(
+  workspacePath,
+  "build.em/src/lib/wasi-sysroot/lib/wasm32-wasip1",
+);
+
+const libraryFiles = [
+  "crt1.o",
+  "libc.a",
+  "libc++.a",
+  "libc++abi.a",
+  "libclang_rt.builtins-wasm32.a",
+];
+
 const outputZip = path.join(
   workspacePath,
   "packages/cxx-playground/public/sysroot.zip",
 );
 
+async function findStrip() {
+  const strip = await which("emstrip", { nothrow: true });
+  if (!strip) {
+    console.warn("emstrip not found, the libraries keep their debug sections");
+  }
+  return strip;
+}
+
 async function main() {
-  for (const dir of [wasm32WasiIncludeDir, cxxIncludeDir]) {
+  for (const dir of [
+    wasm32WasiIncludeDir,
+    cxxIncludeDir,
+    wasm32WasiLibraryDir,
+  ]) {
     if (!(await fs.pathExists(dir))) {
       throw new Error(
         `${dir} does not exist, run "npm run build:emscripten" first`,
@@ -52,11 +77,19 @@ async function main() {
     }
   }
 
+  const strip = await findStrip();
   const stageDir = await fs.mkdtemp(
     path.join(os.tmpdir(), "cxx-playground-sysroot-"),
   );
+  const stageLibraryDir = path.join(stageDir, "lib/wasm32-wasip1");
 
   try {
+    await fs.ensureDir(stageLibraryDir);
+    for (const file of libraryFiles) {
+      const staged = path.join(stageLibraryDir, file);
+      await fs.copy(path.join(wasm32WasiLibraryDir, file), staged);
+      if (strip) await $`${strip} --strip-debug ${staged}`;
+    }
     await fs.copy(
       wasm32WasiIncludeDir,
       path.join(stageDir, "include/wasm32-wasip1"),

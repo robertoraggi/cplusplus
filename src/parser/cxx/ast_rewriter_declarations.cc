@@ -543,8 +543,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
       rewrite.binder().instantiatingSymbol() != ast->symbol;
 
   auto symbol = binder()->declareTypeAlias(
-      copy->identifierLoc, copy->identifier, copy->typeId,
-      addSymbolToParentScope, templateHead);
+      copy->identifierLoc, copy->identifier, copy->typeId, copy->attributeList,
+      copy->gnuAttributeList, addSymbolToParentScope, templateHead);
   const auto declarationIsValid =
       translationUnit()->diagnosticsClient()->errorCount() == errorsBefore;
   if (declarationIsValid && !addSymbolToParentScope &&
@@ -564,8 +564,11 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
   rewrite.addSymbolRemap(ast->symbol, symbol);
 
   rewrite.associatePendingExceptionSpecifiers(
-      pendingExceptionSpecifierMark, nullptr, nullptr,
-      [copy, symbol] { symbol->setType(copy->typeId->type); });
+      pendingExceptionSpecifierMark, nullptr, nullptr, [this, copy, symbol] {
+        symbol->setType(binder()->aliasedType(copy->identifierLoc, copy->typeId,
+                                              copy->attributeList,
+                                              copy->gnuAttributeList));
+      });
 
   return copy;
 }

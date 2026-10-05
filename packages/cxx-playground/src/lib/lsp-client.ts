@@ -1,5 +1,9 @@
 import * as monaco from "monaco-editor"
-import type { JsonObject, JsonRpcMessage, MessageTransport } from "cxx-frontend/lsp"
+import type {
+  JsonObject,
+  JsonRpcMessage,
+  MessageTransport,
+} from "cxx-frontend/lsp"
 
 interface PendingRequest {
   resolve: (result: unknown) => void

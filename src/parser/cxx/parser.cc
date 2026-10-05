@@ -2739,6 +2739,7 @@ auto Parser::parse_start_of_postfix_expression(ExpressionAST*& yyast,
   if (parse_typename_expression(yyast, ctx)) return true;
   if (parse_cpp_type_cast_expression(yyast, ctx)) return true;
   if (parse_builtin_bit_cast_expression(yyast, ctx)) return true;
+  if (parse_builtin_convertvector_expression(yyast, ctx)) return true;
   return parse_primary_expression(yyast, ctx);
 }
 
@@ -2932,6 +2933,32 @@ auto Parser::parse_builtin_bit_cast_expression(ExpressionAST*& yyast,
 
   expect(TokenKind::T_COMMA, ast->commaLoc);
   parse_expression(ast->expression, ctx);
+  expect(TokenKind::T_RPAREN, ast->rparenLoc);
+
+  check(&yyast);
+
+  return true;
+}
+
+auto Parser::parse_builtin_convertvector_expression(ExpressionAST*& yyast,
+                                                    const ExprContext& ctx)
+    -> bool {
+  SourceLocation convertVectorLoc;
+  if (!match(TokenKind::T___BUILTIN_CONVERTVECTOR, convertVectorLoc)) {
+    return false;
+  }
+
+  auto ast = BuiltinConvertVectorExpressionAST::create(pool_);
+  yyast = ast;
+
+  ast->convertVectorLoc = convertVectorLoc;
+  expect(TokenKind::T_LPAREN, ast->lparenLoc);
+  parse_assignment_expression(ast->expression, ctx);
+  expect(TokenKind::T_COMMA, ast->commaLoc);
+
+  if (!parse_type_id(ast->typeId, TypeNameContext::kTypeOnly))
+    report_failed_parse("expected a type id");
+
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   check(&yyast);
@@ -5130,9 +5157,9 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast,
 
   expect(TokenKind::T_SEMICOLON, semicolonLoc);
 
-  auto symbol =
-      binder_.declareTypeAlias(identifierLoc, unit_->identifier(identifierLoc),
-                               typeId, true, templateHead);
+  auto symbol = binder_.declareTypeAlias(
+      identifierLoc, unit_->identifier(identifierLoc), typeId, attributes,
+      gnuAttributeList, true, templateHead);
 
   auto ast = AliasDeclarationAST::create(pool_);
   yyast = ast;

@@ -668,6 +668,11 @@ void ASTVisitor::visit(BuiltinBitCastExpressionAST* ast) {
   accept(ast->expression);
 }
 
+void ASTVisitor::visit(BuiltinConvertVectorExpressionAST* ast) {
+  accept(ast->expression);
+  accept(ast->typeId);
+}
+
 void ASTVisitor::visit(BuiltinOffsetofExpressionAST* ast) {
   accept(ast->typeId);
   for (auto node : ListView{ast->designatorList}) {

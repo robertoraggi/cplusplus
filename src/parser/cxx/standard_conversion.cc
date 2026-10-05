@@ -27,6 +27,7 @@
 #include <cxx/dependent_types.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/overload_resolution.h>
 #include <cxx/standard_conversion.h>
@@ -1125,13 +1126,18 @@ auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
   if (!overloadSet) return std::nullopt;
 
   auto target = overloadSetTargetOf(unit_, targetType);
-  if (!target) return std::nullopt;
-  if (target->isMemberPointer && !sourceIsAddressOfOverloadSet) return seq;
-  if (traits.is_reference(targetType) && sourceIsAddressOfOverloadSet)
-    return seq;
-  auto resolved = resolveOverloadSetAgainstTarget(unit_, overloadSet, *target,
-                                                  expr->firstSourceLocation());
-  if (!resolved) return seq;
+  FunctionSymbol* resolved = nullptr;
+  if (target) {
+    if (target->isMemberPointer && !sourceIsAddressOfOverloadSet) return seq;
+    if (traits.is_reference(targetType) && sourceIsAddressOfOverloadSet)
+      return seq;
+    resolved = resolveOverloadSetAgainstTarget(unit_, overloadSet, *target,
+                                               expr->firstSourceLocation());
+    if (!resolved) return seq;
+  } else if (traits.is_bool(targetType)) {
+    resolved = designatedFunction(overloadSet);
+  }
+  if (!resolved) return std::nullopt;
   auto source = IdExpressionAST::create(arena_);
   source->type = resolved->type();
   source->valueCategory = ValueCategory::kLValue;

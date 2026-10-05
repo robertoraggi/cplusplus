@@ -60,6 +60,7 @@ auto asyncParse(AsyncParseRequest request) -> val {
   auto unit = request.unit;
   auto exists = request.exists;
   auto readFile = request.readFile;
+  auto readDirectory = request.readDirectory;
   auto shouldContinue = request.shouldContinue;
   auto didFinishPhase = std::move(request.didFinishPhase);
 
@@ -117,6 +118,28 @@ auto asyncParse(AsyncParseRequest request) -> val {
         auto candidates = hasInclude.candidates();
         hasInclude.setExists(findCandidate(candidates) != nullptr);
       }
+    } else if (auto pendingIncludeCompletion =
+                   std::get_if<PendingIncludeCompletion>(&state)) {
+      std::vector<DirectoryEntry> entries;
+
+      if (!readDirectory.isUndefined()) {
+        for (const auto& directory :
+             pendingIncludeCompletion->request.directories) {
+          val names = readDirectory(directory);
+          if (!names.isArray()) continue;
+
+          for (auto name : emscripten::vecFromJSArray<std::string>(names)) {
+            const bool isDirectory = name.ends_with('/');
+            if (isDirectory) name.pop_back();
+            entries.push_back(DirectoryEntry{
+                .name = std::move(name),
+                .isDirectory = isDirectory,
+            });
+          }
+        }
+      }
+
+      pendingIncludeCompletion->setEntries(std::move(entries));
     } else if (auto pendingFileContent =
                    std::get_if<PendingFileContent>(&state)) {
       if (readFile.isUndefined()) {

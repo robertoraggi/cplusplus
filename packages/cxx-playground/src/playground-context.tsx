@@ -9,6 +9,7 @@ import {
 import { inputCodeModel } from "./input-code-model"
 import { outputCodeModel } from "./output-code-model"
 import { defaultSample, samples } from "./samples"
+import { programRunner, type RunnerState } from "./program-runner"
 
 const outputLanguageByFormat: Record<TextOutputCodeFormat, string> = {
   cxxir: "mlir",
@@ -19,6 +20,8 @@ const outputLanguageByFormat: Record<TextOutputCodeFormat, string> = {
 
 const emitCodeDebounceMs = 300
 
+export type OutputTab = "output" | "console"
+
 interface PlaygroundContextValue {
   isReady: boolean
   isCompiling: boolean
@@ -28,10 +31,15 @@ interface PlaygroundContextValue {
   outputFormat: TextOutputCodeFormat
   debugInfo: boolean
   optimize: boolean
+  activeTab: OutputTab
+  runnerState: RunnerState
   loadSample: (id: string) => void
   setOutputFormat: (format: TextOutputCodeFormat) => void
   setDebugInfo: (debugInfo: boolean) => void
   setOptimize: (optimize: boolean) => void
+  setActiveTab: (tab: OutputTab) => void
+  runProgram: () => void
+  stopProgram: () => void
 }
 
 const PlaygroundContext = React.createContext<PlaygroundContextValue | null>(
@@ -62,6 +70,11 @@ export function PlaygroundProvider({
     React.useState<TextOutputCodeFormat>("cxxir")
   const [debugInfo, setDebugInfoState] = React.useState(false)
   const [optimize, setOptimizeState] = React.useState(false)
+  const [activeTab, setActiveTab] = React.useState<OutputTab>("console")
+  const runnerState = React.useSyncExternalStore(
+    programRunner.subscribe,
+    programRunner.getState
+  )
 
   const isCompilingRef = React.useRef(false)
   const pendingCompileRef = React.useRef(false)
@@ -202,6 +215,33 @@ export function PlaygroundProvider({
     [scheduleEmitCode]
   )
 
+  const runProgram = React.useCallback(() => {
+    setActiveTab("console")
+    void programRunner.run({
+      debugInfo: debugInfoRef.current,
+      optimizationLevel: optimizeRef.current ? 2 : 0,
+    })
+  }, [])
+
+  const stopProgram = React.useCallback(() => {
+    programRunner.stop()
+  }, [])
+
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || !(event.ctrlKey || event.metaKey)) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (programRunner.getState() === "idle") runProgram()
+    }
+
+    window.addEventListener("keydown", onKeyDown, { capture: true })
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, { capture: true })
+    }
+  }, [runProgram])
+
   const value = React.useMemo<PlaygroundContextValue>(
     () => ({
       isReady,
@@ -212,10 +252,15 @@ export function PlaygroundProvider({
       outputFormat,
       debugInfo,
       optimize,
+      activeTab,
+      runnerState,
       loadSample,
       setOutputFormat,
       setDebugInfo,
       setOptimize,
+      setActiveTab,
+      runProgram,
+      stopProgram,
     }),
     [
       isReady,
@@ -226,10 +271,14 @@ export function PlaygroundProvider({
       outputFormat,
       debugInfo,
       optimize,
+      activeTab,
+      runnerState,
       loadSample,
       setOutputFormat,
       setDebugInfo,
       setOptimize,
+      runProgram,
+      stopProgram,
     ]
   )
 

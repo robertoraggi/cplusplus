@@ -4477,5 +4477,45 @@
     "prototype": "void* __builtin_coro_noop()",
     "constexpr": false,
     "noexcept": true
+  },
+  {
+    "name": "__builtin_reduce_add",
+    "prototype": "constexpr int __builtin_reduce_add(...)",
+    "constexpr": false,
+    "noexcept": true,
+    "typeCheck": "checkBuiltinVectorReduce",
+    "codegen": "codegenBuiltinVectorReduce"
+  },
+  {
+    "name": "__builtin_reduce_mul",
+    "prototype": "constexpr int __builtin_reduce_mul(...)",
+    "constexpr": false,
+    "noexcept": true,
+    "typeCheck": "checkBuiltinVectorReduce",
+    "codegen": "codegenBuiltinVectorReduce"
+  },
+  {
+    "name": "__builtin_reduce_and",
+    "prototype": "constexpr int __builtin_reduce_and(...)",
+    "constexpr": false,
+    "noexcept": true,
+    "typeCheck": "checkBuiltinVectorReduce",
+    "codegen": "codegenBuiltinVectorReduce"
+  },
+  {
+    "name": "__builtin_reduce_or",
+    "prototype": "constexpr int __builtin_reduce_or(...)",
+    "constexpr": false,
+    "noexcept": true,
+    "typeCheck": "checkBuiltinVectorReduce",
+    "codegen": "codegenBuiltinVectorReduce"
+  },
+  {
+    "name": "__builtin_reduce_xor",
+    "prototype": "constexpr int __builtin_reduce_xor(...)",
+    "constexpr": false,
+    "noexcept": true,
+    "typeCheck": "checkBuiltinVectorReduce",
+    "codegen": "codegenBuiltinVectorReduce"
   }
 ]

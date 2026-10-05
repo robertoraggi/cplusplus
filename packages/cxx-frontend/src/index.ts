@@ -29,6 +29,7 @@ export type { LoadCxxOptions, WasmSource } from "./loadCxx.js";
 
 export * from "./Diagnostic.js";
 export * from "./Emitter.js";
+export * from "./Linker.js";
 export * from "./parse.js";
 export * from "./SourceLocation.js";
 export * from "./Token.js";

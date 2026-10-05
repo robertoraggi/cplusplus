@@ -203,6 +203,7 @@ class MemberExpressionAST;
 class PostIncrExpressionAST;
 class CppCastExpressionAST;
 class BuiltinBitCastExpressionAST;
+class BuiltinConvertVectorExpressionAST;
 class BuiltinOffsetofExpressionAST;
 class TypeidExpressionAST;
 class TypeidOfTypeExpressionAST;

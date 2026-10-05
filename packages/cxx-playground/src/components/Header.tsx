@@ -4,6 +4,7 @@ import { SampleSelector } from "./sample-selector"
 import { OutputFormatSelector } from "./output-format-selector"
 import { DebugInfoToggle } from "./debug-info-toggle"
 import { OptimizeToggle } from "./optimize-toggle"
+import { RunButton } from "./run-button"
 
 function statusLabel({
   diagnosticCount,
@@ -33,23 +34,33 @@ export function Header() {
   const state = usePlayground()
 
   return (
-    <header className="grid h-12 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b border-border/60 bg-background/85 px-4 backdrop-blur-md">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="flex h-12 items-center gap-2 border-b border-border/60 bg-background/85 px-4 backdrop-blur-md lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-3">
+      <div className="flex min-w-0 flex-none items-center gap-3">
+        <div className="max-lg:hidden">
+          <RunButton />
+        </div>
         <SampleSelector
           sampleId={state.currentSampleId}
           onSelect={state.loadSample}
         />
-        <span className="hidden w-32 flex-none font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums md:block">
+        <span className="hidden w-32 flex-none font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums lg:block">
           {statusLabel(state)}
         </span>
       </div>
 
-      <OutputFormatSelector
-        outputFormat={state.outputFormat}
-        setOutputFormat={state.setOutputFormat}
-      />
+      <div className="flex min-w-0 flex-1 justify-center overflow-x-auto lg:flex-none lg:overflow-visible">
+        <OutputFormatSelector
+          outputFormat={state.outputFormat}
+          consoleActive={state.activeTab === "console"}
+          setOutputFormat={(format) => {
+            state.setOutputFormat(format)
+            state.setActiveTab("output")
+          }}
+          showConsole={() => state.setActiveTab("console")}
+        />
+      </div>
 
-      <div className="flex items-center gap-1 justify-self-end">
+      <div className="flex flex-none items-center gap-1 lg:justify-self-end">
         <DebugInfoToggle
           debugInfo={state.debugInfo}
           setDebugInfo={state.setDebugInfo}

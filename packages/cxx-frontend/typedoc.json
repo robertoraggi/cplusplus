@@ -3,6 +3,7 @@
   "entryPoints": [
     "src/index.ts",
     "src/parse.ts",
+    "src/link.ts",
     "src/model.ts",
     "src/traverse.ts",
     "src/lsp.ts",
@@ -16,6 +17,7 @@
   "categoryOrder": [
     "Loading",
     "Parsing",
+    "Linking",
     "Diagnostics",
     "Tokens",
     "Core",

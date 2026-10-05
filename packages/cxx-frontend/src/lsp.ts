@@ -29,6 +29,7 @@ import {
   type LanguageServer as NativeLanguageServer,
   type LanguageServerOptions as NativeLanguageServerOptions,
 } from "./cxx-js.js";
+import { type Linker } from "./Linker.js";
 import { isCxxLoaded } from "./loadCxx.js";
 import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
 import { continueWithEventLoopYields } from "./eventLoop.js";
@@ -127,8 +128,16 @@ export interface MessageTransport {
  */
 export interface LanguageServerOptions extends Omit<
   NativeLanguageServerOptions,
-  "onMessage" | "onTrace" | "shouldContinue"
+  "onMessage" | "onTrace" | "shouldContinue" | "link"
 > {
+  /**
+   * Links the object code of the `wasm` format of `cxx/emitCode` with the
+   * payloads this linker already holds. Without it the format answers `null`.
+   * A function lets the server start before the linker finished loading, the
+   * linking fails until it returns a linker.
+   */
+  linker?: Linker | (() => Linker | undefined);
+
   /**
    * Cache leading literal include directives as an in-memory PCH. Defaults to true.
    * Body edits reuse the preamble; changing includes or closing the document
@@ -204,7 +213,7 @@ export class LanguageServer implements Disposable, AsyncDisposable {
    * @returns the started language server.
    */
   static async start(options: LanguageServerOptions): Promise<LanguageServer> {
-    const { onMessage, onTrace, ...serverOptions } = options;
+    const { onMessage, onTrace, linker, ...serverOptions } = options;
 
     if (typeof onMessage !== "function") {
       throw new TypeError("expected parameter 'onMessage' of type 'function'");
@@ -227,6 +236,7 @@ export class LanguageServer implements Disposable, AsyncDisposable {
       ...serverOptions,
       shouldContinue,
       onTrace,
+      link: linker && linkWith(linker),
       onMessage: (message: string) => {
         if (!languageServer) return;
         languageServer.#dispatch(JSON.parse(message) as JsonRpcMessage);
@@ -344,6 +354,21 @@ export class LanguageServer implements Disposable, AsyncDisposable {
 
     return this.#server;
   }
+}
+
+function linkWith(source: Linker | (() => Linker | undefined)) {
+  return (object: Uint8Array, debugInfo: boolean) => {
+    try {
+      const linker = typeof source === "function" ? source() : source;
+      if (!linker) throw new Error("the linker is still loading");
+      const strip = debugInfo ? "none" : "all";
+      const output = linker.linkSync([{ data: object }], { strip });
+      return { output, error: "" };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { output: new Uint8Array(), error: message };
+    }
+  };
 }
 
 class ConnectionStateValue implements ValueWithChangeEvent<ConnectionState> {

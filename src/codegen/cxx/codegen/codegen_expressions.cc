@@ -115,6 +115,7 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto operator()(PostIncrExpressionAST* ast) -> ExpressionResult;
   auto operator()(CppCastExpressionAST* ast) -> ExpressionResult;
   auto operator()(BuiltinBitCastExpressionAST* ast) -> ExpressionResult;
+  auto operator()(BuiltinConvertVectorExpressionAST* ast) -> ExpressionResult;
   auto operator()(BuiltinOffsetofExpressionAST* ast) -> ExpressionResult;
   auto operator()(TypeidExpressionAST* ast) -> ExpressionResult;
   auto operator()(TypeidOfTypeExpressionAST* ast) -> ExpressionResult;
@@ -255,6 +256,14 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
                                 const Type* sourceType, const Type* targetType)
       -> ir::ValueRef;
 
+  auto emitElementConversion(SourceLocation loc, ir::ValueRef value,
+                             const Type* sourceType, const Type* targetType,
+                             ir::TypeRef sourceScalar, ir::TypeRef resultType)
+      -> ir::ValueRef;
+
+  auto emitVectorBooleanConversion(SourceLocation loc, ir::ValueRef value,
+                                   const Type* sourceType) -> ir::ValueRef;
+
   auto emitComplexPart(SourceLocation loc, ir::ValueRef value,
                        const ComplexType* complexType, std::int64_t position)
       -> ir::ValueRef;
@@ -324,6 +333,7 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
                                      BinaryExpressionAST* access)
       -> ExpressionResult;
   auto codegenBuiltinAssumeAligned(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinVectorReduce(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinIsNan(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinIsInf(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinIsFinite(CallExpressionAST* ast) -> ExpressionResult;
@@ -1733,6 +1743,52 @@ auto Codegen::ExpressionVisitor::operator()(BuiltinBitCastExpressionAST* ast)
   auto target =
       gen.emitter_.bitcast(loc, gen.emitter_.pointerType(targetType), storage);
   return {gen.emitter_.load(loc, targetType, target, alignment)};
+}
+
+auto Codegen::ExpressionVisitor::operator()(
+    BuiltinConvertVectorExpressionAST* ast) -> ExpressionResult {
+  auto source = gen.expression(ast->expression);
+  if (!source.value) return source;
+
+  auto loc = ast->firstSourceLocation();
+  auto sourceVector = unqualified_cast<VectorType>(ast->expression->type);
+  auto targetVector = unqualified_cast<VectorType>(ast->type);
+
+  if (!sourceVector || !targetVector) {
+    return {gen.emitTodoExpr(loc, "__builtin_convertvector requires vectors")};
+  }
+
+  auto sourceElement = sourceVector->elementType();
+  auto targetElement = targetVector->elementType();
+
+  if (gen.traits.is_bool(targetElement)) {
+    return {emitVectorBooleanConversion(loc, source.value, sourceElement)};
+  }
+
+  auto resultType = gen.convertType(ast->type);
+  auto sourceScalar = gen.convertType(sourceElement);
+  return {emitElementConversion(loc, source.value, sourceElement, targetElement,
+                                sourceScalar, resultType)};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinVectorReduce(
+    CallExpressionAST* ast) -> ExpressionResult {
+  auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression);
+  auto name = std::string{Token::spell(resolveBuiltinFunctionKind(idExpr))};
+
+  auto args = ListView{ast->expressionList};
+  auto it = args.begin();
+  if (it == args.end()) return {};
+
+  auto operand = gen.expression(*it);
+  if (!operand.value) return {};
+
+  auto reduction = gen.emitter_.builtinCall(
+      ast->firstSourceLocation(),
+      std::vector<ir::TypeRef>{gen.convertType(ast->type)}, name,
+      std::vector<ir::ValueRef>{operand.value});
+
+  return {reduction};
 }
 
 auto Codegen::ExpressionVisitor::operator()(BuiltinOffsetofExpressionAST* ast)
@@ -5376,14 +5432,21 @@ auto Codegen::ExpressionVisitor::emitArithmeticConversion(
     const Type* targetType) -> ir::ValueRef {
   if (gen.traits.is_same(sourceType, targetType)) return value;
 
-  auto resultType = gen.convertType(targetType);
+  return emitElementConversion(loc, value, sourceType, targetType,
+                               gen.emitter_.typeOf(value),
+                               gen.convertType(targetType));
+}
 
+auto Codegen::ExpressionVisitor::emitElementConversion(
+    SourceLocation loc, ir::ValueRef value, const Type* sourceType,
+    const Type* targetType, ir::TypeRef sourceScalar, ir::TypeRef resultType)
+    -> ir::ValueRef {
   const auto sourceIsFloating = gen.traits.is_floating_point(sourceType);
   const auto targetIsFloating = gen.traits.is_floating_point(targetType);
+  const auto sourceWidth = gen.emitter_.scalarWidth(sourceScalar);
 
   if (sourceIsFloating && targetIsFloating) {
-    auto sourceWidth = gen.emitter_.scalarWidth(gen.emitter_.typeOf(value));
-    auto targetWidth = gen.emitter_.scalarWidth(resultType);
+    auto targetWidth = gen.emitter_.scalarWidth(gen.convertType(targetType));
     if (sourceWidth == targetWidth) return value;
     if (sourceWidth < targetWidth)
       return gen.emitter_.floatExtend(loc, value, resultType);
@@ -5402,8 +5465,7 @@ auto Codegen::ExpressionVisitor::emitArithmeticConversion(
     return gen.emitter_.floatToUnsignedInt(loc, value, resultType);
   }
 
-  auto sourceWidth = gen.emitter_.scalarWidth(gen.emitter_.typeOf(value));
-  auto targetWidth = gen.emitter_.scalarWidth(resultType);
+  auto targetWidth = gen.emitter_.scalarWidth(gen.convertType(targetType));
 
   if (sourceWidth == targetWidth) return value;
   if (targetWidth < sourceWidth)
@@ -5411,6 +5473,17 @@ auto Codegen::ExpressionVisitor::emitArithmeticConversion(
   if (gen.traits.is_signed(sourceType))
     return gen.emitter_.signExtend(loc, value, resultType);
   return gen.emitter_.zeroExtend(loc, value, resultType);
+}
+
+auto Codegen::ExpressionVisitor::emitVectorBooleanConversion(
+    SourceLocation loc, ir::ValueRef value, const Type* sourceType)
+    -> ir::ValueRef {
+  auto zero = gen.emitter_.zero(loc, gen.emitter_.typeOf(value));
+  if (gen.traits.is_floating_point(sourceType)) {
+    return gen.emitter_.compareFloat(loc, ir::FloatPredicate::UnorderedNotEqual,
+                                     value, zero);
+  }
+  return gen.emitter_.compareInt(loc, ir::IntPredicate::NotEqual, value, zero);
 }
 
 auto Codegen::ExpressionVisitor::emitComplexPart(SourceLocation loc,

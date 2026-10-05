@@ -909,6 +909,26 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       case BuiltinFunctionKind::T___BUILTIN_POPCOUNT:
         return lowerSimpleIntrinsic(op, adaptor, rewriter, "llvm.ctpop");
 
+      case BuiltinFunctionKind::T___BUILTIN_REDUCE_ADD:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter,
+                                    "llvm.vector.reduce.add");
+
+      case BuiltinFunctionKind::T___BUILTIN_REDUCE_MUL:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter,
+                                    "llvm.vector.reduce.mul");
+
+      case BuiltinFunctionKind::T___BUILTIN_REDUCE_AND:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter,
+                                    "llvm.vector.reduce.and");
+
+      case BuiltinFunctionKind::T___BUILTIN_REDUCE_OR:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter,
+                                    "llvm.vector.reduce.or");
+
+      case BuiltinFunctionKind::T___BUILTIN_REDUCE_XOR:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter,
+                                    "llvm.vector.reduce.xor");
+
       case BuiltinFunctionKind::T___ATOMIC_LOAD_N:
       case BuiltinFunctionKind::T___C11_ATOMIC_LOAD:
         return lowerAtomicLoad(op, adaptor, rewriter, /*hasOutParam=*/false);

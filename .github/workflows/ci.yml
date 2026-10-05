@@ -44,7 +44,7 @@ jobs:
 
       - name: Install LLVM and MLIR deps
         run: |
-          sudo apt-get install -y libmlir-22-dev mlir-22-tools liblld-22-dev
+          sudo apt-get install -y libmlir-22-dev mlir-22-tools
 
       - name: Install unit tests requirements
         run: |
@@ -172,14 +172,14 @@ jobs:
     runs-on: xcode-27
 
     env:
-      CMAKE_PREFIX_PATH: /opt/homebrew/opt/llvm:/opt/homebrew/opt/lld
+      CMAKE_PREFIX_PATH: /opt/homebrew/opt/llvm
 
     steps:
       - uses: actions/checkout@v7
 
       - name: Install unit tests requirements
         run: |
-          brew install llvm lld
+          brew install llvm
           npm ci --ignore-scripts
           pipx install uv
           uv sync

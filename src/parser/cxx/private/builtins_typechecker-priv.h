@@ -494,6 +494,21 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
       return checkBuiltinArithmeticOverflow(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_ADD:
+      return checkBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_MUL:
+      return checkBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_AND:
+      return checkBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_OR:
+      return checkBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_XOR:
+      return checkBuiltinVectorReduce(ast);
+
     default:
       return false;
   }

@@ -404,6 +404,7 @@ enum class EmitCodeFormat {
   kMLIR,
   kLLVMIR,
   kAssembly,
+  kExecutable,
 };
 
 auto to_string(SemanticTokenTypes value) -> std::string;

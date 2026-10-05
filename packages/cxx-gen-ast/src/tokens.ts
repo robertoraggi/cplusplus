@@ -97,6 +97,7 @@ export const OPERATORS: Array<[kind: string, spelling: string]> = [
 
 export const BUILTIN_KEYWORD_OPERATORS: string[] = [
   "__builtin_bit_cast",
+  "__builtin_convertvector",
   "__builtin_offsetof",
   "__builtin_va_arg",
   "__underlying_type",

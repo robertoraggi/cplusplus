@@ -244,19 +244,21 @@ void Server::sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
       "emit event=started file={} version={} format={} interruptible=false",
       document.fileName(), document.version(), to_string(format)));
 
-  auto text = host_->emitCode(document, format, debugInfo, optimizationLevel);
+  auto emitted =
+      host_->emitCode(document, format, debugInfo, optimizationLevel);
 
   logTrace(std::format(
       "emit event=finished file={} version={} format={} duration_ms={:.1f}",
       document.fileName(), document.version(), to_string(format),
       elapsedMilliseconds(startedAt)));
 
-  if (!text.has_value()) {
+  if (!emitted.has_value()) {
     response.get().emplace("result", nullptr);
   } else {
     auto result = response.result<EmitCodeResult>();
     result.format(format);
-    result.text(std::move(*text));
+    result.text(std::move(emitted->text));
+    if (!emitted->error.empty()) result.error(std::move(emitted->error));
   }
 
   sendToClient(response);
@@ -569,7 +571,7 @@ void Server::operator()(InitializeRequest request) {
     auto completionOptions =
         capabilities.completionProvider<CompletionOptions>();
 
-    completionOptions.triggerCharacters({":", ".", ">"});
+    completionOptions.triggerCharacters({":", ".", ">", "/", "<", "\""});
 
     auto signatureHelpOptions =
         capabilities.signatureHelpProvider<SignatureHelpOptions>();
@@ -908,6 +910,20 @@ void Server::operator()(DocumentHighlightRequest request) {
       });
 }
 
+namespace {
+
+[[nodiscard]] auto isHeaderNameTrigger(CompletionRequest& request) -> bool {
+  auto context = request.params().context();
+  if (!context) return false;
+
+  auto trigger = context->triggerCharacter();
+  if (!trigger) return false;
+
+  return *trigger == "<" || *trigger == "\"" || *trigger == "/";
+}
+
+}  // namespace
+
 void Server::operator()(CompletionRequest request) {
   logTrace(std::format("Did receive CompletionRequest"));
 
@@ -942,6 +958,10 @@ void Server::operator()(CompletionRequest request) {
   response.id(id);
 
   auto document = std::make_shared<CxxDocument>(std::move(*fileName), version);
+  if (const auto offset = snapshot->offsetAt(line, column);
+      offset != std::string::npos) {
+    document->setCompletionOffset(offset);
+  }
   auto completionItems = response.result<Vector<CompletionItem>>();
   document->requestCodeCompletionAt(
       std::uint32_t(line + 1), std::uint32_t(column + 1),
@@ -950,7 +970,7 @@ void Server::operator()(CompletionRequest request) {
           .startColumn = std::uint32_t(completionStartColumn),
           .endColumn = std::uint32_t(column),
       },
-      completionItems);
+      completionItems, isHeaderNameTrigger(request));
 
   auto parserRequest = registerPendingParserRequest(document, uri, "completion",
                                                     snapshot->value.size(), id);
@@ -967,6 +987,7 @@ void Server::operator()(CompletionRequest request) {
     host_->process(*parserRequest->document, std::move(source),
                    [this, storage, parserRequest, response, startedAt] {
                      if (!finishParserRequest(parserRequest, startedAt)) return;
+                     parserRequest->document->finishCodeCompletion();
                      sendToClient(response);
                    });
   });

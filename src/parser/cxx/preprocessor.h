@@ -181,6 +181,12 @@ class Preprocessor final : public SourceResolver {
 
   void requestCodeCompletionAt(std::uint32_t line, std::uint32_t column);
 
+  [[nodiscard]] auto includeCompletion() const -> const IncludeCompletion*;
+
+  [[nodiscard]] static auto isInsideIncludeDirective(std::string_view source,
+                                                     std::size_t offset)
+      -> bool;
+
   [[nodiscard]] auto hasCodeCompletionRequest() const -> bool;
 
   void squeeze();
@@ -190,6 +196,7 @@ class Preprocessor final : public SourceResolver {
   struct ParseArguments;
   friend struct PendingInclude;
   friend struct PendingFileContent;
+  friend struct PendingIncludeCompletion;
   friend class DefaultPreprocessorState;
   std::unique_ptr<Private> d;
 };
@@ -208,6 +215,7 @@ class DefaultPreprocessorState {
   void operator()(const PendingInclude& status);
   void operator()(const PendingHasIncludes& status);
   void operator()(const PendingFileContent& status);
+  void operator()(const PendingIncludeCompletion& status);
   void operator()(const EnteringFile&);
   void operator()(const LeavingFile&);
 };

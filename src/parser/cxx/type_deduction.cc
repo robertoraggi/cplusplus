@@ -22,6 +22,7 @@
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
+#include <cxx/memory_layout.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -440,8 +441,8 @@ struct TypeDeduction::CollectSlots {
   }
 
   void operator()(const UnresolvedVectorType* type) {
-    collectInNonDeducedContext(type->elementType());
-    collectReferencedParameters(type->sizeExpression());
+    collect(type->elementType());
+    collect(type->sizeExpression());
   }
 
   void operator()(const VectorType* type) {
@@ -541,6 +542,15 @@ struct TypeDeduction::DeduceType {
       return deduceNextLevel(P->elementType(), array->elementType());
     }
     return false;
+  }
+
+  [[nodiscard]] auto operator()(const UnresolvedVectorType* P) -> bool {
+    auto vector = type_cast<VectorType>(A);
+    if (!vector || vector->vectorKind() != P->vectorKind()) return false;
+    auto size = deduction.vectorSizeIn(P->sizeKind(), vector);
+    if (!size) return false;
+    if (!deduction.deduceArrayBound(P->sizeExpression(), *size)) return false;
+    return deduceNextLevel(P->elementType(), vector->elementType());
   }
 
   [[nodiscard]] auto operator()(const FunctionType* P) -> bool {
@@ -924,6 +934,15 @@ auto TypeDeduction::deduceArrayBound(ExpressionAST* P, std::size_t size)
   auto parameter = nonTypeParameterOf(P);
   if (slotOf(parameter) < 0) return skipNonDeducedContext();
   return deduceNonTypeParameter(parameter, sizeArgument(size));
+}
+
+auto TypeDeduction::vectorSizeIn(VectorSizeKind sizeKind,
+                                 const VectorType* vector) const
+    -> std::optional<std::size_t> {
+  if (sizeKind == VectorSizeKind::kElements) return vector->elementCount();
+  auto elementSize = control()->memoryLayout()->sizeOf(vector->elementType());
+  if (!elementSize) return std::nullopt;
+  return vector->elementCount() * *elementSize;
 }
 
 auto TypeDeduction::deduceArrayBound(ExpressionAST* P, const Type* A) -> bool {

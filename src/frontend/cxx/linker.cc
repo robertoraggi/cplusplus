@@ -21,9 +21,9 @@
 #include "linker.h"
 
 #include <cxx/cli.h>
+#include <cxx/linker/driver.h>
 #include <cxx/toolchain.h>
 
-#include <array>
 #include <cerrno>
 #include <cstring>
 #include <format>
@@ -36,13 +36,6 @@
 #include <sys/wait.h>
 
 extern char** environ;
-#endif
-
-#ifdef CXX_WITH_LLD
-#include <lld/Common/Driver.h>
-#include <llvm/Support/raw_ostream.h>
-
-LLD_HAS_DRIVER(wasm)
 #endif
 
 namespace cxx {
@@ -169,13 +162,12 @@ auto linkExternal(const CLI& cli, Toolchain* toolchain,
 auto linkEmbedded(const CLI& cli, Toolchain* toolchain,
                   const std::vector<std::string>& inputs,
                   const std::string& outputPath) -> bool {
-#ifdef CXX_WITH_LLD
   if (toolchain->linkerFlavor() != LinkerFlavor::kWasm) {
     std::cerr
         << "cxx: embedded linker does not support the selected toolchain\n";
     return false;
   }
-  std::vector<std::string> args{"wasm-ld"};
+  std::vector<std::string> args;
   toolchain->addLinkerStartArgs(args);
   addLinkInputs(cli, inputs, args, false);
   toolchain->addLinkerEndArgs(args);
@@ -183,17 +175,10 @@ auto linkEmbedded(const CLI& cli, Toolchain* toolchain,
   args.push_back(outputPath);
   printLinkCommand(cli, args);
 
-  std::vector<const char*> argv;
-  for (const auto& arg : args) argv.push_back(arg.c_str());
-  const std::array<lld::DriverDef, 1> drivers = {
-      lld::DriverDef{lld::Wasm, &lld::wasm::link}};
-  auto result = lld::lldMain(argv, llvm::outs(), llvm::errs(), drivers);
-  return result.retCode == 0;
-#else
-  std::cerr << "cxx: this build does not have an embedded linker (rebuild with "
-               "lld)\n";
+  std::string error;
+  if (linker::link(args, error)) return true;
+  std::cerr << std::format("cxx-link: error: {}\n", error);
   return false;
-#endif
 }
 
 }  // namespace

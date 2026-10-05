@@ -1761,6 +1761,17 @@ void ASTPrinter::visit(BuiltinBitCastExpressionAST* ast) {
   accept(ast->expression, "expression");
 }
 
+void ASTPrinter::visit(BuiltinConvertVectorExpressionAST* ast) {
+  out_ << "builtin-convert-vector-expression";
+  if (ast->type) {
+    out_ << std::format(" [{} {}]", to_string(ast->valueCategory),
+                        to_string(ast->type));
+  }
+  out_ << "\n";
+  accept(ast->expression, "expression");
+  accept(ast->typeId, "type-id");
+}
+
 void ASTPrinter::visit(BuiltinOffsetofExpressionAST* ast) {
   out_ << "builtin-offsetof-expression";
   if (ast->type) {

@@ -757,6 +757,7 @@ struct IsDependent {
   auto operator()(PostIncrExpressionAST* ast) -> bool;
   auto operator()(CppCastExpressionAST* ast) -> bool;
   auto operator()(BuiltinBitCastExpressionAST* ast) -> bool;
+  auto operator()(BuiltinConvertVectorExpressionAST* ast) -> bool;
   auto operator()(BuiltinOffsetofExpressionAST* ast) -> bool;
   auto operator()(TypeidExpressionAST* ast) -> bool;
   auto operator()(TypeidOfTypeExpressionAST* ast) -> bool;
@@ -1209,6 +1210,13 @@ auto IsDependent::operator()(CppCastExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(BuiltinBitCastExpressionAST* ast) -> bool {
+  if (isDependent(ast->typeId)) return true;
+  if (isDependent(ast->expression)) return true;
+
+  return false;
+}
+
+auto IsDependent::operator()(BuiltinConvertVectorExpressionAST* ast) -> bool {
   if (isDependent(ast->typeId)) return true;
   if (isDependent(ast->expression)) return true;
 

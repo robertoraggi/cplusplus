@@ -148,6 +148,7 @@ class ASTVisitor {
   virtual void visit(PostIncrExpressionAST* ast);
   virtual void visit(CppCastExpressionAST* ast);
   virtual void visit(BuiltinBitCastExpressionAST* ast);
+  virtual void visit(BuiltinConvertVectorExpressionAST* ast);
   virtual void visit(BuiltinOffsetofExpressionAST* ast);
   virtual void visit(TypeidExpressionAST* ast);
   virtual void visit(TypeidOfTypeExpressionAST* ast);

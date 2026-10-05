@@ -31,6 +31,11 @@ namespace cxx::lsp {
 
 class CxxDocument;
 
+struct EmittedCode {
+  std::string text;
+  std::string error;
+};
+
 class ServerHost {
  public:
   ServerHost() = default;
@@ -50,7 +55,7 @@ class ServerHost {
   [[nodiscard]] virtual auto emitCode(CxxDocument& document,
                                       EmitCodeFormat format, bool debugInfo,
                                       int optimizationLevel)
-      -> std::optional<std::string>;
+      -> std::optional<EmittedCode>;
 
   virtual void run(std::function<void()> task);
 

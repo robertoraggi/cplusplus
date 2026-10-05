@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@wterm/react/css";
 
 @custom-variant dark (&:is(.dark *));
 

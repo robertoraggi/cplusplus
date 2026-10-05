@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import loadCxx, {
   isCxxLoaded,
+  Linker,
   Parser,
   parse as namedParse,
 } from "cxx-frontend";
 import loadCxxNode from "cxx-frontend/node";
 import parse from "cxx-frontend/parse";
+import link from "cxx-frontend/link";
 import * as model from "cxx-frontend/model";
 import traverseDefault, {
   NodePath,
@@ -22,6 +24,8 @@ test("each entry point exports what it says", async () => {
   assert.equal(typeof loadCxxNode, "function");
   assert.equal(isCxxLoaded(), true);
   assert.equal(parse, namedParse);
+  assert.equal(typeof link, "function");
+  assert.equal(typeof Linker.create, "function");
   assert.equal(typeof Parser.parse, "function");
   assert.equal(typeof LanguageServer, "function");
   assert.equal(typeof traverse, "function");

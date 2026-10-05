@@ -950,6 +950,85 @@ class CompletionItemCollector {
   std::vector<ScopeSymbol*> visitedScopes_;
 };
 
+auto utf16LengthOf(std::string_view text) -> std::uint32_t {
+  auto first = text.begin();
+  const auto last = text.end();
+  std::uint32_t length = 0;
+
+  while (first != last) {
+    const auto codepoint = utf8::next(first, last);
+    ++length;
+    if (codepoint > 0xFFFF) ++length;
+  }
+
+  return length;
+}
+
+struct IncludeCompletionSink {
+  Vector<CompletionItem> completionItems;
+  CompletionEditRange editRange;
+
+  void operator()(const IncludeCompletion& completion) {
+    const auto& request = completion.request;
+
+    auto range = editRange;
+    range.startColumn = range.endColumn - utf16LengthOf(request.namePrefix);
+
+    std::vector<std::string> labels;
+
+    for (const auto& entry : completion.entries) {
+      if (!entry.name.starts_with(request.namePrefix)) continue;
+      if (entry.name.starts_with('.') && !request.namePrefix.starts_with('.'))
+        continue;
+
+      auto label = entry.name;
+      if (entry.isDirectory) label += '/';
+      if (std::ranges::contains(labels, label)) continue;
+
+      auto newText = label;
+      if (!entry.isDirectory && !request.hasClosingDelimiter) {
+        newText += request.isQuoted ? '"' : '>';
+      }
+
+      addItem(label, newText, entry.isDirectory, range);
+      labels.push_back(std::move(label));
+    }
+  }
+
+ private:
+  void addItem(const std::string& label, const std::string& newText,
+               bool isDirectory, const CompletionEditRange& range) {
+    auto item = completionItems.emplace_back();
+    item.label(label);
+    item.kind(isDirectory ? CompletionItemKind::kFolder
+                          : CompletionItemKind::kFile);
+
+    json startStorage;
+    Position start{startStorage};
+    start.line(range.line).character(range.startColumn);
+
+    json endStorage;
+    Position end{endStorage};
+    end.line(range.line).character(range.endColumn);
+
+    json rangeStorage;
+    Range editRange{rangeStorage};
+    editRange.start(start).end(end);
+
+    json textEditStorage;
+    TextEdit textEdit{textEditStorage};
+    textEdit.range(editRange).newText(newText);
+    item.textEdit(std::variant<TextEdit, InsertReplaceEdit>{textEdit});
+
+    if (!isDirectory) return;
+
+    json commandStorage;
+    Command command{commandStorage};
+    command.title("Suggest").command("editor.action.triggerSuggest");
+    item.command(command);
+  }
+};
+
 struct CompletionSink {
   TranslationUnit* unit;
   Vector<CompletionItem> completionItems;
@@ -1173,6 +1252,8 @@ struct CxxDocument::Private {
   TranslationUnit unit{&diagnosticsClient};
   std::shared_ptr<Toolchain> toolchain;
   std::function<void(const CodeCompletionContext&)> complete;
+  std::optional<IncludeCompletionSink> includeCompletionSink;
+  std::optional<std::size_t> completionOffset;
 
 #ifndef CXX_NO_THREADS
   std::atomic<bool> cancelled{false};
@@ -1269,20 +1350,51 @@ void CxxDocument::setToolchain(std::shared_ptr<Toolchain> toolchain) {
   d->toolchain = std::move(toolchain);
 }
 
+auto CxxDocument::toolchain() const -> Toolchain* { return d->toolchain.get(); }
+
 void CxxDocument::requestCodeCompletionAt(std::uint32_t line,
                                           std::uint32_t column,
                                           CompletionEditRange editRange,
-                                          Vector<CompletionItem> result) {
+                                          Vector<CompletionItem> result,
+                                          bool includeDirectivesOnly) {
   auto& unit = d->unit;
 
   (void)unit.blockErrors(true);
 
   unit.preprocessor()->requestCodeCompletionAt(line, column);
 
+  d->includeCompletionSink = IncludeCompletionSink{result, editRange};
+
+  if (includeDirectivesOnly) return;
+
   d->complete = [sink = CompletionSink{&unit, result, editRange}](
                     const CodeCompletionContext& context) mutable {
     std::visit(sink, context);
   };
+}
+
+void CxxDocument::setCompletionOffset(std::size_t offset) {
+  d->completionOffset = offset;
+}
+
+auto CxxDocument::completionIsWithin(std::size_t prefixSize) const -> bool {
+  if (!d->completionOffset.has_value()) return false;
+  return *d->completionOffset <= prefixSize;
+}
+
+auto CxxDocument::completionIsInIncludeDirective(std::string_view source) const
+    -> bool {
+  if (!d->completionOffset.has_value()) return false;
+  return Preprocessor::isInsideIncludeDirective(source, *d->completionOffset);
+}
+
+void CxxDocument::finishCodeCompletion() {
+  if (!d->includeCompletionSink.has_value()) return;
+
+  auto completion = d->unit.preprocessor()->includeCompletion();
+  if (!completion) return;
+
+  (*d->includeCompletionSink)(*completion);
 }
 
 void CxxDocument::requestSignatureHelpAt(std::uint32_t line,

@@ -67,10 +67,21 @@ class CxxDocument {
   [[nodiscard]] auto parserConfiguration() const -> ParserConfiguration;
 
   void setToolchain(std::shared_ptr<Toolchain> toolchain);
+  [[nodiscard]] auto toolchain() const -> Toolchain*;
 
   void requestCodeCompletionAt(std::uint32_t line, std::uint32_t column,
                                CompletionEditRange editRange,
-                               Vector<CompletionItem> result);
+                               Vector<CompletionItem> result,
+                               bool includeDirectivesOnly = false);
+
+  void finishCodeCompletion();
+
+  void setCompletionOffset(std::size_t offset);
+
+  [[nodiscard]] auto completionIsWithin(std::size_t prefixSize) const -> bool;
+
+  [[nodiscard]] auto completionIsInIncludeDirective(
+      std::string_view source) const -> bool;
 
   void requestSignatureHelpAt(std::uint32_t line, std::uint32_t column,
                               SignatureHelp result);
