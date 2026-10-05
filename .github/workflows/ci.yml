@@ -39,6 +39,9 @@ jobs:
   build-linux-mlir:
     runs-on: ubuntu-26.04
 
+    env:
+      CMAKE_PREFIX_PATH: /usr/lib/llvm-22
+
     steps:
       - uses: actions/checkout@v7
 
@@ -56,8 +59,6 @@ jobs:
         run: |
           . .venv/bin/activate
 
-          PATH=/usr/lib/llvm-22/bin:$PATH
-
           cmake --preset default-mlir
 
           cmake --build build --parallel
@@ -67,7 +68,17 @@ jobs:
         run: |
           ctest --output-on-failure
 
-      - name: Bootstrap the cxx frontend
+      - name: Stage 1 bootstrap
+        run: |
+          cmake --workflow stage1
+          ls -la build-stage1/src/frontend/cxx
+
+      - name: Stage 2 bootstrap
+        run: |
+          cmake --workflow stage2
+          ls -la build-stage2/src/frontend/cxx
+
+      - name: Stage 1 bootstrap (wasm32-wasi)
         run: |
           node scripts/bootstrap.js --cxx=build/src/frontend/cxx
 
