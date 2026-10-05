@@ -146,6 +146,7 @@ auto cxx::isBuiltinLibcall(cxx::BuiltinFunctionKind kind) -> bool {
     case BuiltinFunctionKind::T___BUILTIN_EXPM1L:
     case BuiltinFunctionKind::T___BUILTIN_FABSF:
     case BuiltinFunctionKind::T___BUILTIN_FABS:
+    case BuiltinFunctionKind::T___BUILTIN_FABSF128:
     case BuiltinFunctionKind::T___BUILTIN_FABSL:
     case BuiltinFunctionKind::T___BUILTIN_FDIMF:
     case BuiltinFunctionKind::T___BUILTIN_FDIM:

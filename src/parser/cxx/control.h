@@ -119,6 +119,7 @@ class Control {
   [[nodiscard]] auto getDoubleType() -> const DoubleType*;
   [[nodiscard]] auto getLongDoubleType() -> const LongDoubleType*;
   [[nodiscard]] auto getFloat16Type() -> const Float16Type*;
+  [[nodiscard]] auto getFloat128Type() -> const Float128Type*;
   [[nodiscard]] auto getQualType(const Type* elementType,
                                  CvQualifiers cvQualifiers) -> const QualType*;
   [[nodiscard]] auto getBoundedArrayType(const Type* elementType,

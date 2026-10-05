@@ -66,6 +66,11 @@ struct FloatingPointFormatOf {
     }
   }
 
+  [[nodiscard]] auto operator()(const Float128Type*) const
+      -> std::optional<FloatingPointFormat> {
+    return FloatingPointFormat{.exponentBits = 15, .significandDigits = 113};
+  }
+
   [[nodiscard]] auto operator()(const QualType* type) const
       -> std::optional<FloatingPointFormat> {
     return visit(*this, type->elementType());
@@ -237,6 +242,11 @@ struct SizeOf {
 
   auto operator()(const Float16Type* type) const -> std::optional<std::size_t> {
     return 2;
+  }
+
+  auto operator()(const Float128Type* type) const
+      -> std::optional<std::size_t> {
+    return 16;
   }
 
   auto operator()(const QualType* type) const -> std::optional<std::size_t> {

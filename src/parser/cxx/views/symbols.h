@@ -178,14 +178,6 @@ constexpr auto virtual_functions =
 constexpr auto constructors =
     member_functions | std::views::filter(&FunctionSymbol::isConstructor);
 
-constexpr auto converting_constructors =
-    constructors | std::views::filter([](FunctionSymbol* f) {
-      if (f->isExplicit()) return false;
-      auto funcType = type_cast<FunctionType>(f->type());
-      if (!funcType) return false;
-      return !funcType->parameterTypes().empty();
-    });
-
 template <std::ranges::input_range R, typename Pred>
   requires std::convertible_to<std::ranges::range_value_t<R>, Symbol*> &&
            std::predicate<Pred, FunctionSymbol*>

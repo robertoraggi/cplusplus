@@ -172,6 +172,7 @@ struct IsIntegral {
 
 struct IsFloatingPoint {
   auto operator()(const Float16Type*) const -> bool { return true; }
+  auto operator()(const Float128Type*) const -> bool { return true; }
   auto operator()(const FloatType*) const -> bool { return true; }
   auto operator()(const DoubleType*) const -> bool { return true; }
   auto operator()(const LongDoubleType*) const -> bool { return true; }
@@ -205,6 +206,7 @@ struct IsSigned {
   auto operator()(const DoubleType*) const -> bool { return true; }
   auto operator()(const LongDoubleType*) const -> bool { return true; }
   auto operator()(const Float16Type*) const -> bool { return true; }
+  auto operator()(const Float128Type*) const -> bool { return true; }
   auto operator()(const BitIntType*) const -> bool { return true; }
 
   auto operator()(const QualType* type) const -> bool {
@@ -803,6 +805,10 @@ struct IsSameVisitor {
   }
 
   auto operator()(const Float16Type*, const Float16Type*) const -> bool {
+    return true;
+  }
+
+  auto operator()(const Float128Type*, const Float128Type*) const -> bool {
     return true;
   }
 
@@ -2569,17 +2575,89 @@ auto TypeTraits::integer_conversion_rank(const Type* type) const
   return {representation->bits, visit(Rank{}, remove_cv(type))};
 }
 
-auto TypeTraits::floating_point_conversion_rank(const Type* type) const -> int {
-  struct Rank {
-    [[nodiscard]] auto operator()(const Float16Type*) const -> int { return 1; }
-    [[nodiscard]] auto operator()(const FloatType*) const -> int { return 2; }
-    [[nodiscard]] auto operator()(const DoubleType*) const -> int { return 3; }
-    [[nodiscard]] auto operator()(const LongDoubleType*) const -> int {
-      return 4;
-    }
-    [[nodiscard]] auto operator()(const Type*) const -> int { return 0; }
-  };
-  return type ? visit(Rank{}, remove_cv(type)) : 0;
+namespace {
+
+struct StandardFloatingPointRank {
+  [[nodiscard]] auto operator()(const FloatType*) const -> int { return 1; }
+  [[nodiscard]] auto operator()(const DoubleType*) const -> int { return 2; }
+  [[nodiscard]] auto operator()(const LongDoubleType*) const -> int {
+    return 3;
+  }
+  [[nodiscard]] auto operator()(const Type*) const -> int { return 0; }
+};
+
+[[nodiscard]] auto standardFloatingPointRank(const Type* type) -> int {
+  return visit(StandardFloatingPointRank{}, type);
+}
+
+[[nodiscard]] auto compareValueSets(const FloatingPointFormat& a,
+                                    const FloatingPointFormat& b)
+    -> std::partial_ordering {
+  const auto aInB = a.exponentBits <= b.exponentBits &&
+                    a.significandDigits <= b.significandDigits;
+  const auto bInA = b.exponentBits <= a.exponentBits &&
+                    b.significandDigits <= a.significandDigits;
+  if (aInB && bInA) return std::partial_ordering::equivalent;
+  if (aInB) return std::partial_ordering::less;
+  if (bInA) return std::partial_ordering::greater;
+  return std::partial_ordering::unordered;
+}
+
+[[nodiscard]] auto floatingPointRankRepresentative(Control* control,
+                                                   const Type* type)
+    -> const Type* {
+  if (standardFloatingPointRank(type)) return type;
+
+  auto format = control->memoryLayout()->floatingPointFormat(type);
+  if (!format) return type;
+
+  const Type* standardTypes[] = {control->getFloatType(),
+                                 control->getDoubleType(),
+                                 control->getLongDoubleType()};
+
+  const Type* sameValues = nullptr;
+  int sameValuesCount = 0;
+  for (auto standard : standardTypes) {
+    auto standardFormat =
+        control->memoryLayout()->floatingPointFormat(standard);
+    if (!standardFormat) continue;
+    if (compareValueSets(*format, *standardFormat) !=
+        std::partial_ordering::equivalent)
+      continue;
+    sameValues = standard;
+    ++sameValuesCount;
+  }
+
+  if (sameValuesCount == 1) return sameValues;
+  if (sameValuesCount > 1) return control->getDoubleType();
+  return type;
+}
+
+}  // namespace
+
+auto TypeTraits::floating_point_conversion_order(const Type* a,
+                                                 const Type* b) const
+    -> std::partial_ordering {
+  a = remove_cv(a);
+  b = remove_cv(b);
+  if (a == b) return std::partial_ordering::equivalent;
+
+  a = floatingPointRankRepresentative(control(), a);
+  b = floatingPointRankRepresentative(control(), b);
+
+  const auto standardA = standardFloatingPointRank(a);
+  const auto standardB = standardFloatingPointRank(b);
+  if (standardA && standardB) return standardA <=> standardB;
+
+  auto formatA = control()->memoryLayout()->floatingPointFormat(a);
+  auto formatB = control()->memoryLayout()->floatingPointFormat(b);
+  if (!formatA || !formatB) return std::partial_ordering::unordered;
+  return compareValueSets(*formatA, *formatB);
+}
+
+auto TypeTraits::floating_point_conversion_subrank(const Type* type) const
+    -> int {
+  return standardFloatingPointRank(remove_cv(type)) ? 0 : 1;
 }
 
 auto TypeTraits::representsAllValuesOf(const Type* target,

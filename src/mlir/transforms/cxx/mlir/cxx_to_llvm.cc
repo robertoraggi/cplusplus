@@ -891,6 +891,10 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       case BuiltinFunctionKind::T___BUILTIN_BSWAP64:
         return lowerSimpleIntrinsic(op, adaptor, rewriter, "llvm.bswap");
 
+      case BuiltinFunctionKind::T___BUILTIN_IA32_PAUSE:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter,
+                                    "llvm.x86.sse2.pause");
+
       case BuiltinFunctionKind::T___BUILTIN_MEMCPY:
         return lowerMemIntrinsic(op, adaptor, rewriter, "llvm.memcpy");
 

@@ -425,6 +425,8 @@ auto to_string(FloatingPointSuffix suffix) -> std::string_view {
       return "bf16";
     case FloatingPointSuffix::kF128:
       return "f128";
+    case FloatingPointSuffix::kQ:
+      return "q";
     default:
       cxx_runtime_error("invalid floating point suffix");
   }  // switch
@@ -441,6 +443,8 @@ auto classifyFloatingPointSuffix(std::string_view s) -> FloatingPointSuffix {
       return FloatingPointSuffix::kF;
     } else if (s[0] == 'l') {
       return FloatingPointSuffix::kL;
+    } else if (s[0] == 'Q' || s[0] == 'q') {
+      return FloatingPointSuffix::kQ;
     }
     return FloatingPointSuffix::kNone;
   };

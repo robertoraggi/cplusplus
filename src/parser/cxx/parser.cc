@@ -801,6 +801,9 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       else if (components.suffix ==
                FloatLiteral::Components::FloatingPointSuffix::kF16)
         ast->type = control_->getFloat16Type();
+      else if (components.suffix ==
+               FloatLiteral::Components::FloatingPointSuffix::kQ)
+        ast->type = control_->getFloat128Type();
       else
         ast->type = control_->getDoubleType();
 

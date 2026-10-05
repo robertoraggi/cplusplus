@@ -223,8 +223,10 @@ struct ASTInterpreter::ExpressionVisitor {
         return ConstValue{op(toFloat(*left), toFloat(*right))};
       case TypeKind::kLongDouble:
         return ConstValue{op(toLongDouble(*left), toLongDouble(*right))};
-      default:
+      case TypeKind::kDouble:
         return ConstValue{op(toDouble(*left), toDouble(*right))};
+      default:
+        return std::nullopt;
     }
   }
 
@@ -2603,6 +2605,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
       return interp.toArithmeticType(*value, ast->type);
 
     default:
+      if (unit()->typeTraits().is_floating_point(ast->type)) {
+        return interp.toArithmeticType(*value, ast->type);
+      }
+
       if (unit()->typeTraits().is_integral_or_enum(ast->type)) {
         return interp.toIntegralType(*value, ast->type);
       }

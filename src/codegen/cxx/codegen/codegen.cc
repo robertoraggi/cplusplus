@@ -1781,6 +1781,17 @@ auto Codegen::computeFunctionSignature(const FunctionType* functionType,
   return computeFunctionAbi(functionType, functionSymbol).signature;
 }
 
+auto Codegen::variadicCalleeType(std::span<const ir::ValueRef> args,
+                                 std::size_t ellipsisArgumentCount,
+                                 std::span<const ir::TypeRef> results)
+    -> ir::TypeRef {
+  std::vector<ir::TypeRef> fixedParameters;
+  const auto fixedCount = args.size() - ellipsisArgumentCount;
+  for (std::size_t i = 0; i < fixedCount; ++i)
+    fixedParameters.push_back(emitter_.typeOf(args[i]));
+  return emitter_.functionType(fixedParameters, results, /*isVariadic=*/true);
+}
+
 auto Codegen::computeParameterAbi(const FunctionType* functionType,
                                   FunctionSymbol* functionSymbol)
     -> std::vector<ir::ParameterAbi> {
@@ -1823,6 +1834,10 @@ auto Codegen::computeFunctionAbi(const FunctionType* functionType,
   if (functionSymbol && functionSymbol->isImplicitObjectMemberFunction()) {
     auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
     addInput(emitter_.pointerType(convertType(classSymbol->type())));
+    if (takesVTTParameter(functionSymbol)) {
+      auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
+      addInput(emitter_.pointerType(i8PtrType));
+    }
   }
 
   for (auto paramTy : functionType->parameterTypes()) {
@@ -1852,16 +1867,6 @@ auto Codegen::computeFunctionAbi(const FunctionType* functionType,
                      : ir::ParameterAbi{});
         break;
       }
-    }
-  }
-
-  if (functionSymbol &&
-      (functionSymbol->isConstructor() || functionSymbol->isDestructor()) &&
-      !functionSymbol->isStructorVariant()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
-    if (requiresVTT(classSymbol)) {
-      auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
-      addInput(emitter_.pointerType(i8PtrType));
     }
   }
 
@@ -3082,10 +3087,7 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
   auto i8PtrType = emitter_.pointerType(i8Type);
   auto addressPointType = emitter_.pointerType(i8PtrType);
   auto activeVTT = structorVTTValue_;
-  const auto entryArgumentCount = emitter_.blockParameterCount(entryBlock_);
-  if (!activeVTT && !functionSymbol->isStructorVariant() && entryBlock_ &&
-      entryArgumentCount > 1)
-    activeVTT = emitter_.blockParameter(entryBlock_, entryArgumentCount - 1);
+  if (!activeVTT) activeVTT = vttParameter(functionSymbol);
   const auto usesVTT = activeVTT && requiresVTT(classSymbol) &&
                        !functionSymbol->isStructorVariant();
 
@@ -3216,6 +3218,18 @@ auto Codegen::vptrAddress(SourceLocation loc, ir::ValueRef objectPtr)
 auto Codegen::requiresVTT(ClassSymbol* classSymbol) const -> bool {
   if (!classSymbol) return false;
   return classSymbol->hasVirtualBaseSubobjects();
+}
+
+auto Codegen::takesVTTParameter(FunctionSymbol* function) const -> bool {
+  if (!function || function->isStructorVariant()) return false;
+  if (!function->isConstructor() && !function->isDestructor()) return false;
+  return requiresVTT(symbol_cast<ClassSymbol>(function->parent()));
+}
+
+auto Codegen::vttParameter(FunctionSymbol* function) -> ir::ValueRef {
+  constexpr unsigned kVTTParameterIndex = 1;
+  if (!entryBlock_ || !takesVTTParameter(function)) return {};
+  return emitter_.blockParameter(entryBlock_, kVTTParameterIndex);
 }
 
 auto Codegen::constructionVTableName(ClassSymbol* completeClass,

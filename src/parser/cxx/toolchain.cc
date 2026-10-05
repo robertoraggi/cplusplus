@@ -1501,6 +1501,12 @@ void Toolchain::addWASIC23Macros() {
 void Toolchain::addLinuxCxx26Macros() {
   defineMacro("_GNU_SOURCE", "1");
   if (exceptionsEnabled()) defineMacro("__EXCEPTIONS", "1");
+  if constexpr (ConstInt::supportsInt128) {
+    if (!definesStrictAnsi()) {
+      defineMacro("__GLIBCXX_BITSIZE_INT_N_0", "128");
+      defineMacro("__GLIBCXX_TYPE_INT_N_0", "__int128");
+    }
+  }
   defineMacro("__GNUC_GNU_INLINE__", "1");
   defineMacro("__GNUG__", "4");
   defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");

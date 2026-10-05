@@ -141,19 +141,23 @@ struct SelectedFunction {
 [[nodiscard]] auto selectedFunctionFor(TranslationUnit* unit,
                                        FunctionSymbol* function,
                                        const OverloadSetTarget& target,
+                                       SimpleTemplateIdAST* writtenTemplateId,
                                        SourceLocation loc)
     -> std::optional<SelectedFunction> {
   if (function->canonical() != function) return std::nullopt;
   if (function->isSpecialization()) return std::nullopt;
   if (function->isImplicitObjectMemberFunction() != target.isMemberPointer)
     return std::nullopt;
+  if (writtenTemplateId && !function->templateDeclaration())
+    return std::nullopt;
 
   SelectedFunction selected{.function = function};
 
   if (function->templateDeclaration()) {
     TemplateArgumentDeduction deduction(unit);
-    auto deducedArguments =
-        deduction.deduceFromTargetType(function, target.functionType);
+    auto deducedArguments = deduction.deduceFromTargetType(
+        function, target.functionType,
+        writtenTemplateId ? writtenTemplateId->templateArgumentList : nullptr);
     if (!deducedArguments.has_value()) return std::nullopt;
     selected.function = ASTRewriter::instantiateOverloadCandidate(
         unit, *deducedArguments, function, loc, /*argsComplete=*/true);
@@ -198,10 +202,12 @@ struct SelectedFunction {
 
 [[nodiscard]] auto resolveOverloadSetAgainstTarget(
     TranslationUnit* unit, OverloadSetSymbol* ovl,
-    const OverloadSetTarget& target, SourceLocation loc) -> FunctionSymbol* {
+    const OverloadSetTarget& target, SimpleTemplateIdAST* writtenTemplateId,
+    SourceLocation loc) -> FunctionSymbol* {
   std::vector<SelectedFunction> selected;
   for (auto function : ovl->functions()) {
-    auto candidate = selectedFunctionFor(unit, function, target, loc);
+    auto candidate =
+        selectedFunctionFor(unit, function, target, writtenTemplateId, loc);
     if (!candidate) continue;
     if (std::ranges::contains(selected, candidate->function,
                               &SelectedFunction::function))
@@ -228,6 +234,30 @@ struct SelectedFunction {
   while (auto nested = ast_cast<NestedExpressionAST>(expr))
     expr = nested->expression;
   return expr;
+}
+
+struct OverloadSetDesignator {
+  ExpressionAST* expression = nullptr;
+  bool takesAddress = false;
+};
+
+[[nodiscard]] auto overloadSetDesignatorOf(ExpressionAST* expr)
+    -> OverloadSetDesignator {
+  auto designator = stripNestedExpressions(expr);
+  auto address = ast_cast<UnaryExpressionAST>(designator);
+  if (!address || address->op != TokenKind::T_AMP)
+    return {.expression = designator};
+  return {.expression = stripNestedExpressions(address->expression),
+          .takesAddress = true};
+}
+
+[[nodiscard]] auto writtenTemplateIdOf(ExpressionAST* designator)
+    -> SimpleTemplateIdAST* {
+  if (auto id = ast_cast<IdExpressionAST>(designator))
+    return ast_cast<SimpleTemplateIdAST>(id->unqualifiedId);
+  if (auto member = ast_cast<MemberExpressionAST>(designator))
+    return ast_cast<SimpleTemplateIdAST>(member->unqualifiedId);
+  return nullptr;
 }
 
 }  // namespace
@@ -622,6 +652,22 @@ auto StandardConversion::usualArithmeticConversion(ExpressionAST*& expr,
   return common;
 }
 
+auto StandardConversion::commonFloatingPointType(const Type* a, const Type* b)
+    -> const Type* {
+  if (traits.is_same(a, b)) return a;
+  if (!traits.is_floating_point(a)) return b;
+  if (!traits.is_floating_point(b)) return a;
+
+  const auto order = traits.floating_point_conversion_order(a, b);
+  if (order == std::partial_ordering::unordered) return nullptr;
+  if (order == std::partial_ordering::greater) return a;
+  if (order == std::partial_ordering::less) return b;
+
+  const auto subrankA = traits.floating_point_conversion_subrank(a);
+  const auto subrankB = traits.floating_point_conversion_subrank(b);
+  return subrankA >= subrankB ? a : b;
+}
+
 auto StandardConversion::commonArithmeticType(const Type* a, const Type* b)
     -> const Type* {
   a = traits.remove_cv(a);
@@ -640,12 +686,8 @@ auto StandardConversion::commonArithmeticType(const Type* a, const Type* b)
     if (!commonReal) return nullptr;
     return control_->getComplexType(commonReal);
   }
-  if (traits.is_floating_point(a) || traits.is_floating_point(b)) {
-    return traits.floating_point_conversion_rank(a) >=
-                   traits.floating_point_conversion_rank(b)
-               ? a
-               : b;
-  }
+  if (traits.is_floating_point(a) || traits.is_floating_point(b))
+    return commonFloatingPointType(a, b);
   a = traits.promoted_integer_type(a);
   b = traits.promoted_integer_type(b);
   if (traits.is_same(a, b)) return a;
@@ -1109,18 +1151,15 @@ auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
   const auto operand = traits.overload_set_operand(expr->type);
   auto sourceIsAddressOfOverloadSet = operand.takesAddress;
 
+  const auto designator = overloadSetDesignatorOf(expr);
+
   OverloadSetSymbol* overloadSet =
       operand.type ? operand.type->symbol() : nullptr;
   if (!overloadSet) {
-    auto designator = stripNestedExpressions(expr);
-    if (auto address = ast_cast<UnaryExpressionAST>(designator);
-        address && address->op == TokenKind::T_AMP) {
-      sourceIsAddressOfOverloadSet = true;
-      designator = stripNestedExpressions(address->expression);
-    }
-    if (auto id = ast_cast<IdExpressionAST>(designator))
+    if (designator.takesAddress) sourceIsAddressOfOverloadSet = true;
+    if (auto id = ast_cast<IdExpressionAST>(designator.expression))
       overloadSet = symbol_cast<OverloadSetSymbol>(id->symbol);
-    else if (auto member = ast_cast<MemberExpressionAST>(designator))
+    else if (auto member = ast_cast<MemberExpressionAST>(designator.expression))
       overloadSet = symbol_cast<OverloadSetSymbol>(member->symbol);
   }
   if (!overloadSet) return std::nullopt;
@@ -1131,8 +1170,9 @@ auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
     if (target->isMemberPointer && !sourceIsAddressOfOverloadSet) return seq;
     if (traits.is_reference(targetType) && sourceIsAddressOfOverloadSet)
       return seq;
-    resolved = resolveOverloadSetAgainstTarget(unit_, overloadSet, *target,
-                                               expr->firstSourceLocation());
+    resolved = resolveOverloadSetAgainstTarget(
+        unit_, overloadSet, *target, writtenTemplateIdOf(designator.expression),
+        expr->firstSourceLocation());
     if (!resolved) return seq;
   } else if (traits.is_bool(targetType)) {
     resolved = designatedFunction(overloadSet);
@@ -1486,6 +1526,20 @@ void StandardConversion::addConstructorCandidates(
                             targetType);
 }
 
+auto StandardConversion::constructorArgumentConversion(
+    ExpressionAST* expr, const FunctionType* constructorType)
+    -> ImplicitConversionSequence {
+  if (constructorType->isEllipsisOnly()) {
+    ImplicitConversionSequence ellipsisConversion;
+    ellipsisConversion.form = ConversionSequenceForm::kEllipsis;
+    return ellipsisConversion;
+  }
+  return computeConversionSequence(expr,
+                                   constructorType->parameterTypes().front(),
+                                   InitializationKind::kCopyInitialization,
+                                   ConversionContext::kStandardOnly);
+}
+
 void StandardConversion::addConstructorCandidate(
     std::vector<Candidate>& candidates, FunctionSymbol* constructor,
     ClassSymbol* classSymbol, ExpressionAST* expr, const Type* targetType) {
@@ -1501,13 +1555,13 @@ void StandardConversion::addConstructorCandidate(
     if (!constructor) return;
   }
   auto functionType = type_cast<FunctionType>(constructor->type());
-  if (!functionType || !is_callable_with_one_argument(constructor)) return;
+  if (!functionType) return;
+  if (!functionType->isEllipsisOnly() &&
+      !is_callable_with_one_argument(constructor))
+    return;
   if (ASTRewriter::evaluateAssociatedConstraints(unit_, constructor) == false)
     return;
-  auto argument =
-      computeConversionSequence(expr, functionType->parameterTypes().front(),
-                                InitializationKind::kCopyInitialization,
-                                ConversionContext::kStandardOnly);
+  auto argument = constructorArgumentConversion(expr, functionType);
   if (!argument) return;
   auto resultType = traits.remove_reference(targetType);
   auto result = IdExpressionAST::create(arena_);
@@ -1864,17 +1918,22 @@ void StandardConversion::materializeConstructorArguments(
   auto functionType = type_cast<FunctionType>(constructor->type());
   if (!functionType) return;
   auto parameterTypes = functionType->parameterTypes();
-  if (parameterTypes.empty()) return;
+  if (parameterTypes.empty() && !functionType->isVariadic()) return;
 
   auto arguments = make_list_node<ExpressionAST>(arena_, cast->expression);
 
-  if (!argumentConverted) {
-    auto sequence =
-        computeConversionSequence(arguments->value, parameterTypes[0]);
-    applyConversionSequence(sequence, arguments->value);
-  }
+  if (functionType->isEllipsisOnly()) {
+    promoteOperand(arguments->value);
+  } else {
+    if (!argumentConverted) {
+      auto sequence =
+          computeConversionSequence(arguments->value, parameterTypes[0]);
+      applyConversionSequence(sequence, arguments->value);
+    }
 
-  appendDefaultArguments(constructor, &arguments, cast->firstSourceLocation());
+    appendDefaultArguments(constructor, &arguments,
+                           cast->firstSourceLocation());
+  }
 
   auto paren = ParenInitializerAST::create(
       arena_, cast->firstSourceLocation(), arguments,
