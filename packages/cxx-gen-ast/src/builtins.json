@@ -3799,11 +3799,22 @@
     "codegen": "codegenBuiltinAlloca"
   },
   {
-    "name": "__builtin_assume_aligned",
-    "prototype": "void* __builtin_assume_aligned(const void*, __SIZE_TYPE__, ...)",
+    "name": "__builtin_alloca_with_align",
+    "prototype": "void* __builtin_alloca_with_align(__SIZE_TYPE__, __SIZE_TYPE__)",
     "constexpr": false,
     "noexcept": true,
-    "typeCheck": "checkBuiltinAssumeAligned",
+    "validate": "validateBuiltinAllocaWithAlign",
+    "codegen": "codegenBuiltinAlloca"
+  },
+  {
+    "name": "__builtin_assume_aligned",
+    "prototype": [
+      "void* __builtin_assume_aligned(const void*, __SIZE_TYPE__)",
+      "void* __builtin_assume_aligned(const void*, __SIZE_TYPE__, __SIZE_TYPE__)"
+    ],
+    "constexpr": false,
+    "noexcept": true,
+    "validate": "validateBuiltinAssumeAligned",
     "codegen": "codegenBuiltinAssumeAligned"
   },
   {

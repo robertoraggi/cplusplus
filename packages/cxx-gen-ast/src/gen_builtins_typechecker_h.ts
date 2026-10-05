@@ -87,5 +87,23 @@ export function gen_builtins_typechecker_h({ output }: { output: string }) {
   lines.push(`}`);
   lines.push(``);
 
+  lines.push(`void cxx::TypeChecker::Visitor::validateBuiltinArguments(`);
+  lines.push(
+    `    cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind) {`,
+  );
+  lines.push(`  switch (kind) {`);
+  for (const builtin of BUILTINS) {
+    if (!builtin.validate) continue;
+    lines.push(`    case ${enumName(builtin.name)}:`);
+    lines.push(`      ${builtin.validate}(ast);`);
+    lines.push(`      return;`);
+    lines.push(``);
+  }
+  lines.push(`    default:`);
+  lines.push(`      return;`);
+  lines.push(`  }`);
+  lines.push(`}`);
+  lines.push(``);
+
   fs.writeFileSync(output, lines.join("\n"));
 }

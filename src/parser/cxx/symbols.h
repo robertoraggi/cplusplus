@@ -224,8 +224,10 @@ void set_default_template_argument(Symbol* symbol,
 [[nodiscard]] auto names_current_instantiation(ClassSymbol* classSymbol,
                                                ScopeSymbol* scope) -> bool;
 
-[[nodiscard]] auto names_template_head_parameters(
-    SimpleTemplateIdAST* templateId, ClassSymbol* classSymbol) -> bool;
+[[nodiscard]] auto names_current_instantiation(TranslationUnit* unit,
+                                               SimpleTemplateIdAST* templateId,
+                                               ClassSymbol* classSymbol)
+    -> bool;
 
 [[nodiscard]] auto template_parameter_info(Symbol* symbol)
     -> std::optional<TypeParamInfo>;

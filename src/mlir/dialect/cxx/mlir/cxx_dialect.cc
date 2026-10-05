@@ -268,8 +268,8 @@ auto FuncOp::parse(OpAsmParser& parser, OperationState& result) -> ParseResult {
   parseLinkage(parser, result);
 
   StringRef inlineKind;
-  if (succeeded(
-          parser.parseOptionalKeyword(&inlineKind, {"no_inline", "inline", "always_inline"}))) {
+  if (succeeded(parser.parseOptionalKeyword(
+          &inlineKind, {"no_inline", "inline", "always_inline"}))) {
     result.addAttribute("inline_kind",
                         InlineKindAttr::get(parser.getContext(),
                                             *symbolizeInlineKind(inlineKind)));

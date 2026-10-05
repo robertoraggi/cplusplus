@@ -879,6 +879,7 @@ auto TemplateEquivalence::sameCallee(CallExpressionAST* a,
 }
 
 auto TemplateEquivalence::sameEntity(Symbol* a, Symbol* b) const -> bool {
+  if (a == b) return true;
   if (!a || !b) return !namesParameter(a) && !namesParameter(b);
 
   auto aTemplateParameter = template_parameter_info(a);
@@ -896,8 +897,10 @@ auto TemplateEquivalence::sameEntity(Symbol* a, Symbol* b) const -> bool {
     return correspondingFunctionParameters(aParameter, bParameter);
   }
 
-  return resolve_using_declaration(a)->canonical() ==
-         resolve_using_declaration(b)->canonical();
+  a = resolve_using_declaration(a);
+  b = resolve_using_declaration(b);
+  if (!a || !b) return false;
+  return a->canonical() == b->canonical();
 }
 
 auto TemplateEquivalence::same(RequiresExpressionAST* a,

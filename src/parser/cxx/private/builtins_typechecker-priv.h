@@ -458,9 +458,6 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_SOURCE_LOCATION:
       return checkBuiltinSourceLocation(ast);
 
-    case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
-      return checkBuiltinAssumeAligned(ast);
-
     case BuiltinFunctionKind::T___BUILTIN_INVOKE:
       return checkBuiltinInvoke(ast);
 
@@ -511,5 +508,21 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
 
     default:
       return false;
+  }
+}
+
+void cxx::TypeChecker::Visitor::validateBuiltinArguments(
+    cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind) {
+  switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_ALLOCA_WITH_ALIGN:
+      validateBuiltinAllocaWithAlign(ast);
+      return;
+
+    case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
+      validateBuiltinAssumeAligned(ast);
+      return;
+
+    default:
+      return;
   }
 }

@@ -48,6 +48,7 @@ export interface BuiltinDef {
   libcall?: boolean | string;
   eval?: string | BuiltinEval;
   typeCheck?: string;
+  validate?: string;
   codegen?: string;
 }
 

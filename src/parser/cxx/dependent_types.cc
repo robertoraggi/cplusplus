@@ -219,6 +219,10 @@ struct IsDependent {
     [[nodiscard]] auto operator()(FieldSymbol* field) -> bool {
       return self.isDependent(field->type());
     }
+    [[nodiscard]] auto operator()(UsingDeclarationSymbol* symbol) -> bool {
+      auto declaration = symbol->declarator();
+      return declaration && self.isDependent(declaration->nestedNameSpecifier);
+    }
     [[nodiscard]] auto operator()(Symbol*) -> bool { return false; }
   };
 
@@ -981,6 +985,8 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
   }
   if (isDependent(ast->nestedNameSpecifier)) return true;
   if (isDependent(ast->unqualifiedId)) return true;
+  if (ast->symbol && visit(ReferencedMemberIsDependent{*this}, ast->symbol))
+    return true;
 
   if (namesDependentTemplateParameter(ast->symbol)) return true;
 

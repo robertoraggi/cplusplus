@@ -1409,7 +1409,8 @@ auto is_member_template(Symbol* symbol) -> bool {
 }
 
 namespace {
-auto denotes_template_parameter(Symbol* symbol, Symbol* parameter) -> bool {
+[[nodiscard]] auto denotes_template_parameter(Symbol* symbol, Symbol* parameter)
+    -> bool {
   auto symbolInfo = template_parameter_info(symbol);
   auto parameterInfo = template_parameter_info(parameter);
   if (!symbolInfo || !parameterInfo) return false;
@@ -1418,8 +1419,8 @@ auto denotes_template_parameter(Symbol* symbol, Symbol* parameter) -> bool {
   return symbolInfo->isPack == parameterInfo->isPack;
 }
 
-auto is_equivalent_to_template_parameter(TemplateArgumentAST* argument,
-                                         Symbol* parameter) -> bool {
+[[nodiscard]] auto is_equivalent_to_template_parameter(
+    TemplateArgumentAST* argument, Symbol* parameter) -> bool {
   if (auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument)) {
     if (!typeArgument->typeId) return false;
     return typeArgument->typeId->type == parameter->type();
@@ -1439,10 +1440,22 @@ auto is_equivalent_to_template_parameter(TemplateArgumentAST* argument,
 }
 }  // namespace
 
-auto names_template_head_parameters(SimpleTemplateIdAST* templateId,
-                                    ClassSymbol* classSymbol) -> bool {
+auto names_current_instantiation(TranslationUnit* unit,
+                                 SimpleTemplateIdAST* templateId,
+                                 ClassSymbol* classSymbol) -> bool {
+  if (!templateId || !classSymbol) return false;
+  classSymbol = classSymbol->resolvedDefinition();
   auto templateParameters = classSymbol->templateParameters();
   if (!templateParameters) return false;
+
+  if (classSymbol->isSpecialization()) {
+    auto declaration = ast_cast<ClassSpecifierAST>(classSymbol->declaration());
+    if (!declaration) return false;
+    auto pattern = ast_cast<SimpleTemplateIdAST>(declaration->unqualifiedId);
+    if (!pattern) return false;
+    return TemplateEquivalence{unit}.same(templateId->templateArgumentList,
+                                          pattern->templateArgumentList);
+  }
 
   const auto& parameters = templateParameters->members();
 

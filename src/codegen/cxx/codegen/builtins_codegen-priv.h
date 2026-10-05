@@ -68,6 +68,9 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_ALLOCA:
       return codegenBuiltinAlloca(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_ALLOCA_WITH_ALIGN:
+      return codegenBuiltinAlloca(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
       return codegenBuiltinAssumeAligned(ast);
 

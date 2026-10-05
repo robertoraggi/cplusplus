@@ -5013,6 +5013,58 @@ static inline auto classifyBuiltinFunction27(const char* s)
             }
           }
         }
+      } else if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'a') {
+                        if (s[11] == 'l') {
+                          if (s[12] == 'l') {
+                            if (s[13] == 'o') {
+                              if (s[14] == 'c') {
+                                if (s[15] == 'a') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'w') {
+                                      if (s[18] == 'i') {
+                                        if (s[19] == 't') {
+                                          if (s[20] == 'h') {
+                                            if (s[21] == '_') {
+                                              if (s[22] == 'a') {
+                                                if (s[23] == 'l') {
+                                                  if (s[24] == 'i') {
+                                                    if (s[25] == 'g') {
+                                                      if (s[26] == 'n') {
+                                                        return cxx::
+                                                            BuiltinFunctionKind::
+                                                                T___BUILTIN_ALLOCA_WITH_ALIGN;
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

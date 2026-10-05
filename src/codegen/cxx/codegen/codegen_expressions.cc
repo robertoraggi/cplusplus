@@ -5745,8 +5745,16 @@ auto Codegen::ExpressionVisitor::codegenBuiltinAlloca(CallExpressionAST* ast)
   if (!sizeVal.value) return {};
   auto i8Type = gen.emitter_.integerType(8);
   auto ptrType = gen.emitter_.pointerType(i8Type);
-  return {gen.emitter_.dynamicAllocate(loc, ptrType, sizeVal.value,
-                                       /*alignment=*/1)};
+  auto alignment = control()->memoryLayout()->alignedAttributeAlignment();
+  ++it;
+  if (it != args.end()) {
+    auto constant = ast_cast<ConstExpressionAST>(*it);
+    if (!constant || !constant->constValue) return {};
+    auto integer = std::get_if<ConstInt>(constant->constValue);
+    if (!integer) return {};
+    alignment = integer->toUIntMax() / 8;
+  }
+  return {gen.emitter_.dynamicAllocate(loc, ptrType, sizeVal.value, alignment)};
 }
 
 auto Codegen::ExpressionVisitor::floatClassificationOperand(
