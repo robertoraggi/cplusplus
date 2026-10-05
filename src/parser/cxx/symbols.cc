@@ -813,8 +813,8 @@ auto has_internal_linkage(Symbol* symbol) -> bool {
   if (variable->templateParameters() || variable->isSpecialization())
     return false;
 
-  auto qualType = type_cast<QualType>(variable->type());
-  return qualType && qualType->isConst() && !qualType->isVolatile();
+  const auto cv = cv_qualifiers(variable->type());
+  return has_const(cv) && !has_volatile(cv);
 }
 
 auto Symbol::enclosingFunction() const -> FunctionSymbol* {

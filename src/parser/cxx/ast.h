@@ -4013,6 +4013,44 @@ class BuiltinBitCastExpressionAST final : public ExpressionAST {
   BuiltinBitCastExpressionAST() : ExpressionAST(Kind) {}
 };
 
+class BuiltinConvertVectorExpressionAST final : public ExpressionAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::BuiltinConvertVectorExpression;
+
+  SourceLocation convertVectorLoc;
+  SourceLocation lparenLoc;
+  ExpressionAST* expression = nullptr;
+  SourceLocation commaLoc;
+  TypeIdAST* typeId = nullptr;
+  SourceLocation rparenLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena)
+      -> BuiltinConvertVectorExpressionAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> BuiltinConvertVectorExpressionAST*;
+
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation convertVectorLoc, SourceLocation lparenLoc,
+      ExpressionAST* expression, SourceLocation commaLoc, TypeIdAST* typeId,
+      SourceLocation rparenLoc, ValueCategory valueCategory, const Type* type)
+      -> BuiltinConvertVectorExpressionAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   TypeIdAST* typeId,
+                                   ValueCategory valueCategory,
+                                   const Type* type)
+      -> BuiltinConvertVectorExpressionAST*;
+
+ protected:
+  BuiltinConvertVectorExpressionAST() : ExpressionAST(Kind) {}
+};
+
 class BuiltinOffsetofExpressionAST final : public ExpressionAST {
  public:
   static constexpr ASTKind Kind = ASTKind::BuiltinOffsetofExpression;
@@ -8679,6 +8717,9 @@ auto visit(Visitor&& visitor, ExpressionAST* ast) {
     case BuiltinBitCastExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<BuiltinBitCastExpressionAST*>(ast));
+    case BuiltinConvertVectorExpressionAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<BuiltinConvertVectorExpressionAST*>(ast));
     case BuiltinOffsetofExpressionAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<BuiltinOffsetofExpressionAST*>(ast));
@@ -8832,6 +8873,7 @@ template <>
     case PostIncrExpressionAST::Kind:
     case CppCastExpressionAST::Kind:
     case BuiltinBitCastExpressionAST::Kind:
+    case BuiltinConvertVectorExpressionAST::Kind:
     case BuiltinOffsetofExpressionAST::Kind:
     case TypeidExpressionAST::Kind:
     case TypeidOfTypeExpressionAST::Kind:

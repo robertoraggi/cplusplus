@@ -259,6 +259,10 @@ struct IsPotentiallyThrowing {
     return apply(ast->expression);
   }
 
+  auto operator()(BuiltinConvertVectorExpressionAST* ast) -> bool {
+    return apply(ast->expression);
+  }
+
   auto operator()(VaArgExpressionAST* ast) -> bool {
     return apply(ast->expression);
   }
@@ -649,6 +653,7 @@ struct TypeChecker::Visitor {
   [[nodiscard]] auto checkBuiltinInvoke(CallExpressionAST* ast) -> bool;
   [[nodiscard]] auto checkBuiltinAddressof(CallExpressionAST* ast) -> bool;
   [[nodiscard]] auto checkBuiltinAssumeAligned(CallExpressionAST* ast) -> bool;
+  [[nodiscard]] auto checkBuiltinVectorReduce(CallExpressionAST* ast) -> bool;
   void check_member_pointer_access(BinaryExpressionAST* ast);
   [[nodiscard]] auto checkBuiltinAtomic(CallExpressionAST* ast) -> bool;
   void resolveBuiltinLibcall(CallExpressionAST* ast);
@@ -759,6 +764,7 @@ struct TypeChecker::Visitor {
   void operator()(PostIncrExpressionAST* ast);
   void operator()(CppCastExpressionAST* ast);
   void operator()(BuiltinBitCastExpressionAST* ast);
+  void operator()(BuiltinConvertVectorExpressionAST* ast);
   void operator()(BuiltinOffsetofExpressionAST* ast);
   void operator()(TypeidExpressionAST* ast);
   void operator()(TypeidOfTypeExpressionAST* ast);
@@ -4340,6 +4346,94 @@ void TypeChecker::Visitor::operator()(BuiltinBitCastExpressionAST* ast) {
 
   ast->type = ast->typeId->type;
   ast->valueCategory = ValueCategory::kPrValue;
+}
+
+void TypeChecker::Visitor::operator()(BuiltinConvertVectorExpressionAST* ast) {
+  if (!ast->typeId || !ast->typeId->type) {
+    error(ast->firstSourceLocation(), "expected a type");
+    return;
+  }
+
+  if (!ast->expression || !ast->expression->type) return;
+
+  stdconv_.prepareOperand(ast->expression);
+
+  auto targetType = ast->typeId->type;
+  auto sourceType = ast->expression->type;
+
+  if (is_dependent_type(targetType) || is_dependent_type(sourceType)) {
+    ast->type = targetType;
+    ast->valueCategory = ValueCategory::kPrValue;
+    return;
+  }
+
+  auto source = unqualified_cast<VectorType>(sourceType);
+  if (!source) {
+    error(ast->expression->firstSourceLocation(),
+          std::format("the operand of '__builtin_convertvector' must be a "
+                      "vector (was '{}')",
+                      to_string(sourceType)));
+    return;
+  }
+
+  auto target = unqualified_cast<VectorType>(targetType);
+  if (!target) {
+    error(ast->typeId->firstSourceLocation(),
+          std::format("the target of '__builtin_convertvector' must be a "
+                      "vector type (was '{}')",
+                      to_string(targetType)));
+    return;
+  }
+
+  if (source->elementCount() != target->elementCount()) {
+    error(ast->firstSourceLocation(),
+          std::format("'__builtin_convertvector' requires vectors with the "
+                      "same number of elements ('{}' and '{}')",
+                      to_string(sourceType), to_string(targetType)));
+    return;
+  }
+
+  ast->type = targetType;
+  ast->valueCategory = ValueCategory::kPrValue;
+}
+
+auto TypeChecker::Visitor::checkBuiltinVectorReduce(CallExpressionAST* ast)
+    -> bool {
+  auto idExpression = ast_cast<IdExpressionAST>(ast->baseExpression);
+  const std::string_view name =
+      Token::spell(resolveBuiltinFunctionKind(idExpression));
+
+  auto argument = ast->expressionList;
+
+  if (!argument || argument->next) {
+    error(ast->firstSourceLocation(),
+          std::format("'{}' takes exactly one argument", name));
+    return true;
+  }
+
+  if (!argument->value || !argument->value->type) return false;
+
+  stdconv_.prepareOperand(argument->value);
+
+  if (is_dependent_type(argument->value->type)) {
+    ast->type = dependent_type();
+    ast->valueCategory = ValueCategory::kPrValue;
+    return true;
+  }
+
+  auto vector = unqualified_cast<VectorType>(argument->value->type);
+
+  if (!vector || !traits.is_integral(vector->elementType())) {
+    error(argument->value->firstSourceLocation(),
+          std::format("the operand of '{}' must be a vector of integers (was "
+                      "'{}')",
+                      name, to_string(argument->value->type)));
+    return true;
+  }
+
+  ast->type = traits.remove_cv(vector->elementType());
+  ast->valueCategory = ValueCategory::kPrValue;
+  return true;
 }
 
 auto TypeChecker::Visitor::comparison_category_type(SourceLocation loc,

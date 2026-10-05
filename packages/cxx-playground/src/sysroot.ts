@@ -40,7 +40,7 @@ export function exists(path: string): boolean {
   if (fileExistsCache.has(path)) {
     return fileExistsCache.get(path)!
   }
-  let isFile = false
+  let isFile: boolean
   try {
     isFile = fs.statSync(path).isFile()
   } catch {
@@ -48,6 +48,18 @@ export function exists(path: string): boolean {
   }
   fileExistsCache.set(path, isFile)
   return isFile
+}
+
+export function readDirectory(path: string): string[] | undefined {
+  try {
+    return fs
+      .readdirSync(path)
+      .map((name) =>
+        fs.statSync(`${path}/${name}`).isDirectory() ? `${name}/` : name
+      )
+  } catch {
+    return undefined
+  }
 }
 
 export async function readFile(path: string): Promise<string | undefined> {
@@ -58,6 +70,16 @@ export async function readFile(path: string): Promise<string | undefined> {
     const content = await fs.promises.readFile(path, "utf8")
     fileCache.set(path, content)
     return content
+  } catch {
+    return undefined
+  }
+}
+
+export async function readBinaryFile(
+  path: string
+): Promise<Uint8Array | undefined> {
+  try {
+    return await fs.promises.readFile(path)
   } catch {
     return undefined
   }

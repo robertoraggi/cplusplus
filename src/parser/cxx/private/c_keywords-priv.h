@@ -1419,6 +1419,58 @@ static inline auto classifyC18(const char* s) -> cxx::TokenKind {
   return cxx::TokenKind::T_IDENTIFIER;
 }
 
+static inline auto classifyC23(const char* s) -> cxx::TokenKind {
+  if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'c') {
+                        if (s[11] == 'o') {
+                          if (s[12] == 'n') {
+                            if (s[13] == 'v') {
+                              if (s[14] == 'e') {
+                                if (s[15] == 'r') {
+                                  if (s[16] == 't') {
+                                    if (s[17] == 'v') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == 'c') {
+                                          if (s[20] == 't') {
+                                            if (s[21] == 'o') {
+                                              if (s[22] == 'r') {
+                                                return cxx::TokenKind::
+                                                    T___BUILTIN_CONVERTVECTOR;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return cxx::TokenKind::T_IDENTIFIER;
+}
+
 static auto classifyC(const char* s, int n) -> cxx::TokenKind {
   switch (n) {
     case 2:
@@ -1453,6 +1505,8 @@ static auto classifyC(const char* s, int n) -> cxx::TokenKind {
       return classifyC17(s);
     case 18:
       return classifyC18(s);
+    case 23:
+      return classifyC23(s);
     default:
       return cxx::TokenKind::T_IDENTIFIER;
   }  // switch

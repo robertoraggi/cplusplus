@@ -867,6 +867,10 @@ void SemanticEncoder::writeAst(ByteWriter& out, cxx::AST* ast) {
       writeAstBuiltinBitCastExpressionAST(
           out, static_cast<cxx::BuiltinBitCastExpressionAST*>(ast));
       break;
+    case cxx::ASTKind::BuiltinConvertVectorExpression:
+      writeAstBuiltinConvertVectorExpressionAST(
+          out, static_cast<cxx::BuiltinConvertVectorExpressionAST*>(ast));
+      break;
     case cxx::ASTKind::BuiltinOffsetofExpression:
       writeAstBuiltinOffsetofExpressionAST(
           out, static_cast<cxx::BuiltinOffsetofExpressionAST*>(ast));
@@ -4570,6 +4574,24 @@ void SemanticEncoder::writeAstBuiltinBitCastExpressionAST(
   out.varU32(static_cast<std::uint32_t>(locationRef(self->rparenLoc)));
 }
 
+void SemanticEncoder::writeAstBuiltinConvertVectorExpressionAST(
+    ByteWriter& out,
+    [[maybe_unused]] cxx::BuiltinConvertVectorExpressionAST* self) {
+  writeAstExpressionAST(out, self);
+  // ::cxx::BuiltinConvertVectorExpressionAST::convertVectorLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->convertVectorLoc)));
+  // ::cxx::BuiltinConvertVectorExpressionAST::lparenLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->lparenLoc)));
+  // ::cxx::BuiltinConvertVectorExpressionAST::expression
+  out.varU32(static_cast<std::uint32_t>(astRef(self->expression)));
+  // ::cxx::BuiltinConvertVectorExpressionAST::commaLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->commaLoc)));
+  // ::cxx::BuiltinConvertVectorExpressionAST::typeId
+  out.varU32(static_cast<std::uint32_t>(astRef(self->typeId)));
+  // ::cxx::BuiltinConvertVectorExpressionAST::rparenLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->rparenLoc)));
+}
+
 void SemanticEncoder::writeAstBuiltinOffsetofExpressionAST(
     ByteWriter& out, [[maybe_unused]] cxx::BuiltinOffsetofExpressionAST* self) {
   writeAstExpressionAST(out, self);
@@ -6834,7 +6856,7 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
     nodes_.reserve(nodeRecords_.size());
     for (const auto& record : nodeRecords_) {
       ByteReader in{record.bytes};
-      const auto kind = static_cast<cxx::ASTKind>(readEnum(in, 245));
+      const auto kind = static_cast<cxx::ASTKind>(readEnum(in, 246));
       if (!ok()) return false;
       auto node = allocateAst(kind);
       if (!node) {
@@ -6864,7 +6886,7 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
                            countDetail(nodeRecords_.size())};
     for (std::size_t i = 0; ok() && i < nodeRecords_.size(); ++i) {
       ByteReader in{nodeRecords_[i].bytes};
-      const auto kind = readEnum(in, 245);
+      const auto kind = readEnum(in, 246);
       decodeAstFields(in, nodes_[i]);
       if (ok() && !in.atEnd()) {
         fail(std::format("AST record {} of kind {} has {} trailing bytes", i,
@@ -7205,6 +7227,8 @@ auto SemanticDecoder::allocateAst(cxx::ASTKind kind) -> cxx::AST* {
       return cxx::CppCastExpressionAST::create(arena());
     case cxx::ASTKind::BuiltinBitCastExpression:
       return cxx::BuiltinBitCastExpressionAST::create(arena());
+    case cxx::ASTKind::BuiltinConvertVectorExpression:
+      return cxx::BuiltinConvertVectorExpressionAST::create(arena());
     case cxx::ASTKind::BuiltinOffsetofExpression:
       return cxx::BuiltinOffsetofExpressionAST::create(arena());
     case cxx::ASTKind::TypeidExpression:
@@ -8223,6 +8247,10 @@ void SemanticDecoder::decodeAstFields(ByteReader& in, cxx::AST* ast) {
       readAstBuiltinBitCastExpressionAST(
           in, static_cast<cxx::BuiltinBitCastExpressionAST*>(ast));
       break;
+    case cxx::ASTKind::BuiltinConvertVectorExpression:
+      readAstBuiltinConvertVectorExpressionAST(
+          in, static_cast<cxx::BuiltinConvertVectorExpressionAST*>(ast));
+      break;
     case cxx::ASTKind::BuiltinOffsetofExpression:
       readAstBuiltinOffsetofExpressionAST(
           in, static_cast<cxx::BuiltinOffsetofExpressionAST*>(ast));
@@ -8956,7 +8984,7 @@ auto SemanticDecoder::readNameIdentifier(ByteReader& in) -> const cxx::Name* {
 }
 
 auto SemanticDecoder::readNameOperatorId(ByteReader& in) -> const cxx::Name* {
-  ::cxx::TokenKind argument1 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind argument1 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   return control()->getOperatorId(std::move(argument1));
 }
 
@@ -10067,9 +10095,9 @@ void SemanticDecoder::readSymbolFunctionSymbol(
   static_assert(static_cast<std::uint32_t>(
                     ::cxx::BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE) +
                     1 ==
-                454);
+                459);
   ::cxx::BuiltinFunctionKind value56 =
-      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 454));
+      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 459));
   self->setBuiltinKind(std::move(value56));
   // ::cxx::FunctionSymbol::isDefined_
   unsigned int value57 = static_cast<unsigned int>(in.varU32());
@@ -11514,7 +11542,7 @@ void SemanticDecoder::readAstAccessDeclarationAST(
   cxx::SourceLocation value2 = locationAt(LocationRef{in.varU32()});
   self->colonLoc = std::move(value2);
   // ::cxx::AccessDeclarationAST::accessSpecifier
-  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->accessSpecifier = std::move(value3);
 }
 
@@ -11606,7 +11634,7 @@ void SemanticDecoder::readAstAsmQualifierAST(
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->qualifierLoc = std::move(value1);
   // ::cxx::AsmQualifierAST::qualifier
-  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->qualifier = std::move(value2);
 }
 
@@ -11964,7 +11992,7 @@ void SemanticDecoder::readAstBaseSpecifierAST(
   bool value10 = in.boolean();
   self->isVariadic = std::move(value10);
   // ::cxx::BaseSpecifierAST::accessSpecifier
-  ::cxx::TokenKind value11 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value11 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->accessSpecifier = std::move(value11);
   // ::cxx::BaseSpecifierAST::symbol
   cxx::BaseClassSymbol* value12 =
@@ -12028,7 +12056,7 @@ void SemanticDecoder::readAstLambdaSpecifierAST(
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->specifierLoc = std::move(value1);
   // ::cxx::LambdaSpecifierAST::specifier
-  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->specifier = std::move(value2);
 }
 
@@ -12765,7 +12793,7 @@ void SemanticDecoder::readAstNullptrLiteralExpressionAST(
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->literalLoc = std::move(value1);
   // ::cxx::NullptrLiteralExpressionAST::literal
-  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->literal = std::move(value2);
 }
 
@@ -12780,7 +12808,7 @@ void SemanticDecoder::readAstStringLiteralExpressionAST(
   const cxx::StringLiteral* value2 = readStringLiteral(in);
   self->literal = std::move(value2);
   // ::cxx::StringLiteralExpressionAST::encoding
-  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->encoding = std::move(value3);
 }
 
@@ -12799,7 +12827,7 @@ void SemanticDecoder::readAstUserDefinedStringLiteralExpressionAST(
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->literalOperatorCall = std::move(value3);
   // ::cxx::UserDefinedStringLiteralExpressionAST::encoding
-  ::cxx::TokenKind value4 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value4 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->encoding = std::move(value4);
 }
 
@@ -13030,7 +13058,7 @@ void SemanticDecoder::readAstLambdaExpressionAST(
       ast_cast<CompoundStatementAST>(astAt(AstRef{in.varU32()}));
   self->statement = std::move(value19);
   // ::cxx::LambdaExpressionAST::captureDefault
-  ::cxx::TokenKind value20 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value20 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->captureDefault = std::move(value20);
   // ::cxx::LambdaExpressionAST::symbol
   cxx::LambdaSymbol* value21 =
@@ -13070,10 +13098,10 @@ void SemanticDecoder::readAstFoldExpressionAST(
   cxx::SourceLocation value7 = locationAt(LocationRef{in.varU32()});
   self->rparenLoc = std::move(value7);
   // ::cxx::FoldExpressionAST::op
-  ::cxx::TokenKind value8 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value8 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value8);
   // ::cxx::FoldExpressionAST::foldOp
-  ::cxx::TokenKind value9 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value9 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->foldOp = std::move(value9);
 }
 
@@ -13098,7 +13126,7 @@ void SemanticDecoder::readAstRightFoldExpressionAST(
   cxx::SourceLocation value5 = locationAt(LocationRef{in.varU32()});
   self->rparenLoc = std::move(value5);
   // ::cxx::RightFoldExpressionAST::op
-  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value6);
 }
 
@@ -13123,7 +13151,7 @@ void SemanticDecoder::readAstLeftFoldExpressionAST(
   cxx::SourceLocation value5 = locationAt(LocationRef{in.varU32()});
   self->rparenLoc = std::move(value5);
   // ::cxx::LeftFoldExpressionAST::op
-  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value6);
 }
 
@@ -13296,7 +13324,7 @@ void SemanticDecoder::readAstSpliceMemberExpressionAST(
   cxx::Symbol* value5 = symbolAt(SymbolRef{in.varU32()});
   self->symbol = std::move(value5);
   // ::cxx::SpliceMemberExpressionAST::accessOp
-  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->accessOp = std::move(value6);
   // ::cxx::SpliceMemberExpressionAST::isTemplateIntroduced
   bool value7 = in.boolean();
@@ -13329,7 +13357,7 @@ void SemanticDecoder::readAstMemberExpressionAST(
   cxx::Symbol* value6 = symbolAt(SymbolRef{in.varU32()});
   self->symbol = std::move(value6);
   // ::cxx::MemberExpressionAST::accessOp
-  ::cxx::TokenKind value7 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value7 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->accessOp = std::move(value7);
   // ::cxx::MemberExpressionAST::isTemplateIntroduced
   bool value8 = in.boolean();
@@ -13348,7 +13376,7 @@ void SemanticDecoder::readAstPostIncrExpressionAST(
   cxx::SourceLocation value2 = locationAt(LocationRef{in.varU32()});
   self->opLoc = std::move(value2);
   // ::cxx::PostIncrExpressionAST::op
-  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value3);
   // ::cxx::PostIncrExpressionAST::symbol
   cxx::FunctionSymbol* value4 =
@@ -13386,7 +13414,7 @@ void SemanticDecoder::readAstCppCastExpressionAST(
   cxx::SourceLocation value7 = locationAt(LocationRef{in.varU32()});
   self->rparenLoc = std::move(value7);
   // ::cxx::CppCastExpressionAST::castOp
-  ::cxx::TokenKind value8 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value8 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->castOp = std::move(value8);
 }
 
@@ -13411,6 +13439,31 @@ void SemanticDecoder::readAstBuiltinBitCastExpressionAST(
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->expression = std::move(value5);
   // ::cxx::BuiltinBitCastExpressionAST::rparenLoc
+  cxx::SourceLocation value6 = locationAt(LocationRef{in.varU32()});
+  self->rparenLoc = std::move(value6);
+}
+
+void SemanticDecoder::readAstBuiltinConvertVectorExpressionAST(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::BuiltinConvertVectorExpressionAST* self) {
+  readAstExpressionAST(in, self);
+  // ::cxx::BuiltinConvertVectorExpressionAST::convertVectorLoc
+  cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
+  self->convertVectorLoc = std::move(value1);
+  // ::cxx::BuiltinConvertVectorExpressionAST::lparenLoc
+  cxx::SourceLocation value2 = locationAt(LocationRef{in.varU32()});
+  self->lparenLoc = std::move(value2);
+  // ::cxx::BuiltinConvertVectorExpressionAST::expression
+  cxx::ExpressionAST* value3 =
+      ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
+  self->expression = std::move(value3);
+  // ::cxx::BuiltinConvertVectorExpressionAST::commaLoc
+  cxx::SourceLocation value4 = locationAt(LocationRef{in.varU32()});
+  self->commaLoc = std::move(value4);
+  // ::cxx::BuiltinConvertVectorExpressionAST::typeId
+  cxx::TypeIdAST* value5 = ast_cast<TypeIdAST>(astAt(AstRef{in.varU32()}));
+  self->typeId = std::move(value5);
+  // ::cxx::BuiltinConvertVectorExpressionAST::rparenLoc
   cxx::SourceLocation value6 = locationAt(LocationRef{in.varU32()});
   self->rparenLoc = std::move(value6);
 }
@@ -13578,7 +13631,7 @@ void SemanticDecoder::readAstUnaryExpressionAST(
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->expression = std::move(value2);
   // ::cxx::UnaryExpressionAST::op
-  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value3);
   // ::cxx::UnaryExpressionAST::symbol
   cxx::FunctionSymbol* value4 =
@@ -13878,7 +13931,7 @@ void SemanticDecoder::readAstBinaryExpressionAST(
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->rightExpression = std::move(value3);
   // ::cxx::BinaryExpressionAST::op
-  ::cxx::TokenKind value4 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value4 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value4);
   // ::cxx::BinaryExpressionAST::symbol
   cxx::FunctionSymbol* value5 =
@@ -13955,7 +14008,7 @@ void SemanticDecoder::readAstAssignmentExpressionAST(
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->rightExpression = std::move(value3);
   // ::cxx::AssignmentExpressionAST::op
-  ::cxx::TokenKind value4 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value4 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value4);
   // ::cxx::AssignmentExpressionAST::symbol
   cxx::FunctionSymbol* value5 =
@@ -14002,7 +14055,7 @@ void SemanticDecoder::readAstCompoundAssignmentExpressionAST(
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->adjustExpression = std::move(value5);
   // ::cxx::CompoundAssignmentExpressionAST::op
-  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value6);
   // ::cxx::CompoundAssignmentExpressionAST::symbol
   cxx::FunctionSymbol* value7 =
@@ -14525,7 +14578,7 @@ void SemanticDecoder::readAstSizeTypeSpecifierAST(
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->specifierLoc = std::move(value1);
   // ::cxx::SizeTypeSpecifierAST::specifier
-  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->specifier = std::move(value2);
 }
 
@@ -14537,7 +14590,7 @@ void SemanticDecoder::readAstSignTypeSpecifierAST(
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->specifierLoc = std::move(value1);
   // ::cxx::SignTypeSpecifierAST::specifier
-  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->specifier = std::move(value2);
 }
 
@@ -14549,7 +14602,7 @@ void SemanticDecoder::readAstBuiltinTypeSpecifierAST(
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->specifierLoc = std::move(value1);
   // ::cxx::BuiltinTypeSpecifierAST::specifier
-  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->specifier = std::move(value2);
 }
 
@@ -14618,7 +14671,7 @@ void SemanticDecoder::readAstIntegralTypeSpecifierAST(
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->specifierLoc = std::move(value1);
   // ::cxx::IntegralTypeSpecifierAST::specifier
-  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->specifier = std::move(value2);
 }
 
@@ -14630,7 +14683,7 @@ void SemanticDecoder::readAstFloatingPointTypeSpecifierAST(
   cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
   self->specifierLoc = std::move(value1);
   // ::cxx::FloatingPointTypeSpecifierAST::specifier
-  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value2 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->specifier = std::move(value2);
 }
 
@@ -14747,7 +14800,7 @@ void SemanticDecoder::readAstElaboratedTypeSpecifierAST(
       ast_cast<UnqualifiedIdAST>(astAt(AstRef{in.varU32()}));
   self->unqualifiedId = std::move(value5);
   // ::cxx::ElaboratedTypeSpecifierAST::classKey
-  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->classKey = std::move(value6);
   // ::cxx::ElaboratedTypeSpecifierAST::isTemplateIntroduced
   bool value7 = in.boolean();
@@ -14935,7 +14988,7 @@ void SemanticDecoder::readAstClassSpecifierAST(
       readAstList<cxx::AttributeSpecifierAST>(in);
   self->trailingAttributeList = std::move(value11);
   // ::cxx::ClassSpecifierAST::classKey
-  ::cxx::TokenKind value12 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value12 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->classKey = std::move(value12);
   // ::cxx::ClassSpecifierAST::symbol
   cxx::ClassSymbol* value13 =
@@ -15012,7 +15065,7 @@ void SemanticDecoder::readAstReferenceOperatorAST(
       readAstList<cxx::AttributeSpecifierAST>(in);
   self->attributeList = std::move(value2);
   // ::cxx::ReferenceOperatorAST::refOp
-  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->refOp = std::move(value3);
 }
 
@@ -15146,7 +15199,7 @@ void SemanticDecoder::readAstFunctionDeclaratorChunkAST(
       ast_cast<TrailingReturnTypeAST>(astAt(AstRef{in.varU32()}));
   self->trailingReturnType = std::move(value8);
   // ::cxx::FunctionDeclaratorChunkAST::refOp
-  ::cxx::TokenKind value9 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value9 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->refOp = std::move(value9);
   // ::cxx::FunctionDeclaratorChunkAST::isFinal
   bool value10 = in.boolean();
@@ -15233,7 +15286,7 @@ void SemanticDecoder::readAstOperatorFunctionIdAST(
   cxx::SourceLocation value4 = locationAt(LocationRef{in.varU32()});
   self->closeLoc = std::move(value4);
   // ::cxx::OperatorFunctionIdAST::op
-  ::cxx::TokenKind value5 = static_cast<::cxx::TokenKind>(readEnum(in, 232));
+  ::cxx::TokenKind value5 = static_cast<::cxx::TokenKind>(readEnum(in, 233));
   self->op = std::move(value5);
 }
 

@@ -212,9 +212,17 @@ class Binder {
   void giveTypedefNameForLinkage(TypeAliasSymbol* alias,
                                  SpecifierAST* specifier);
 
+  [[nodiscard]] auto aliasedType(SourceLocation identifierLoc,
+                                 TypeIdAST* typeId,
+                                 List<AttributeSpecifierAST*>* attributeList,
+                                 List<AttributeSpecifierAST*>* gnuAttributeList)
+      -> const Type*;
+
   [[nodiscard]] auto declareTypeAlias(
       SourceLocation identifierLoc, const Identifier* identifier,
-      TypeIdAST* typeId, bool addSymbolToParentScope = true,
+      TypeIdAST* typeId, List<AttributeSpecifierAST*>* attributeList,
+      List<AttributeSpecifierAST*>* gnuAttributeList,
+      bool addSymbolToParentScope = true,
       TemplateDeclarationAST* templateHead = nullptr) -> TypeAliasSymbol*;
 
   [[nodiscard]] auto declareTypedef(DeclaratorAST* declarator, const Decl& decl)

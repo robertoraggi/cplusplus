@@ -139,6 +139,7 @@ enum class ASTKind {
   PostIncrExpression,
   CppCastExpression,
   BuiltinBitCastExpression,
+  BuiltinConvertVectorExpression,
   BuiltinOffsetofExpression,
   TypeidExpression,
   TypeidOfTypeExpression,

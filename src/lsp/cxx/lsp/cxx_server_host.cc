@@ -52,7 +52,8 @@ void CxxServerHost::process(CxxDocument& document, std::string source,
     document.setToolchain(std::move(toolchain));
   }
 
-  if (document.preambleCache) {
+  if (document.preambleCache &&
+      !document.completionIsInIncludeDirective(source)) {
     auto cached = document.preambleCache->get(source);
     if (!cached) {
       CxxDocument producer(document.fileName(), document.version());
@@ -77,7 +78,7 @@ void CxxServerHost::process(CxxDocument& document, std::string source,
         }
       }
     }
-    if (cached) {
+    if (cached && !document.completionIsWithin(cached->source.size())) {
       PrecompiledHeaderReader reader(unit, preambleKeys());
       if (reader(cached->bytes)) maskPreamble(source, cached->source.size());
     }

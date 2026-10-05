@@ -84,7 +84,16 @@
             "kind": "base",
             "name": "string"
           },
-          "documentation": "The generated code. Empty when the document has errors."
+          "documentation": "The generated code, base64 encoded for the binary formats. Empty when the document has errors."
+        },
+        {
+          "name": "error",
+          "type": {
+            "kind": "base",
+            "name": "string"
+          },
+          "optional": true,
+          "documentation": "Why no code was generated for a document without errors, for instance a link error."
         }
       ]
     }
@@ -92,7 +101,7 @@
   "enumerations": [
     {
       "name": "EmitCodeFormat",
-      "documentation": "The textual formats the cxx code generator can emit.",
+      "documentation": "The formats the cxx code generator can emit.",
       "type": {
         "kind": "base",
         "name": "string"
@@ -117,6 +126,11 @@
           "name": "Assembly",
           "value": "asm",
           "documentation": "Target assembly."
+        },
+        {
+          "name": "Executable",
+          "value": "wasm",
+          "documentation": "A WebAssembly executable, the object code linked with the libraries of the server, base64 encoded."
         }
       ]
     }

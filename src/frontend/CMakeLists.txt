@@ -31,7 +31,7 @@ add_executable(cxx
     cxx/check_expression_types.cc
 )
 
-target_link_libraries(cxx PRIVATE cxx-lsp)
+target_link_libraries(cxx PRIVATE cxx-lsp cxx-link)
 
 if (CXX_ENABLE_MIMALLOC)
     target_sources(cxx PRIVATE $<TARGET_OBJECTS:mimalloc-obj>)
@@ -40,20 +40,9 @@ endif()
 if (CXX_ENABLE_MLIR)
     target_link_libraries(cxx PRIVATE cxx-mlir)
 
-    find_package(LLD CONFIG QUIET)
-
-    if (LLD_FOUND)
-        message(STATUS "Found LLD ${LLD_PACKAGE_VERSION}: embedded linker enabled")
-        target_compile_definitions(cxx PRIVATE CXX_WITH_LLD)
-        target_include_directories(cxx PRIVATE ${LLD_INCLUDE_DIRS})
-        target_link_libraries(cxx PRIVATE lldWasm lldCommon)
-    else()
-        message(STATUS "LLD not found: embedded linker disabled")
-    endif()
-
     # Expose whether the embedded linker is available to the test suite.
-    set(CXX_HAVE_EMBEDDED_LINKER ${LLD_FOUND} CACHE INTERNAL
-        "cxx was built with an embedded lld linker")
+    set(CXX_HAVE_EMBEDDED_LINKER ON CACHE INTERNAL
+        "cxx was built with an embedded linker")
 endif()
 
 if(EMSCRIPTEN)

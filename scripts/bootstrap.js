@@ -39,7 +39,8 @@ Usage: node scripts/bootstrap.js [options] [-- extra cxx args]
 Compiles the cxx frontend with cxx itself, links the result and runs it on a
 preprocessed translation unit.
 
-The wasm32 toolchain links with the cxx driver and runs under a wasi runtime.
+The wasm32 toolchain links with the cxx driver, which uses the embedded cxx-link
+linker, and runs under a wasi runtime.
 Every other toolchain links with an external C++ driver (clang++ by default),
 because the cxx driver only implements linking for wasm32, and runs the native
 executable directly.
@@ -78,6 +79,7 @@ const sourcePatterns = [
   "src/parser/cxx/*.cc",
   "src/codegen/cxx/codegen/*.cc",
   "src/lsp/cxx/lsp/*.cc",
+  "src/linker/cxx/linker/*.cc",
   "src/frontend/cxx/*.cc",
   "build/_deps/simdjson-src/simdjson.cpp",
 ];
@@ -86,6 +88,7 @@ const includePaths = [
   "src/parser",
   "src/codegen",
   "src/lsp",
+  "src/linker",
   "src/frontend",
   "build/_deps/simdjson-src",
 ];

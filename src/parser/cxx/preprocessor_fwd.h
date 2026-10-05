@@ -92,6 +92,30 @@ struct PendingFileContent {
   void setContent(std::optional<std::string> content) const;
 };
 
+struct DirectoryEntry {
+  std::string name;
+  bool isDirectory = false;
+};
+
+struct IncludeCompletionRequest {
+  bool isQuoted = false;
+  bool hasClosingDelimiter = false;
+  std::string namePrefix;
+  std::vector<std::string> directories;
+};
+
+struct IncludeCompletion {
+  IncludeCompletionRequest request;
+  std::vector<DirectoryEntry> entries;
+};
+
+struct PendingIncludeCompletion {
+  Preprocessor& preprocessor;
+  IncludeCompletionRequest request;
+
+  void setEntries(std::vector<DirectoryEntry> entries) const;
+};
+
 struct CanContinuePreprocessing {};
 
 struct ProcessingComplete {};
@@ -111,7 +135,7 @@ struct LeavingFile {
 
 using PreprocessingState =
     std::variant<PendingInclude, PendingHasIncludes, PendingFileContent,
-                 CanContinuePreprocessing, ProcessingComplete, EnteringFile,
-                 LeavingFile>;
+                 PendingIncludeCompletion, CanContinuePreprocessing,
+                 ProcessingComplete, EnteringFile, LeavingFile>;
 
 }  // namespace cxx

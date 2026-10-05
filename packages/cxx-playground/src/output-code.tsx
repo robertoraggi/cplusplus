@@ -5,6 +5,7 @@ export default function OutputCode() {
   const containerRef = useMonacoEditor(outputCodeModel, {
     readOnly: true,
     cursorBlinking: "solid",
+    minimap: { enabled: true },
   })
 
   return <div ref={containerRef} className="min-h-0 w-full flex-1" />

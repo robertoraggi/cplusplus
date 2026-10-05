@@ -558,6 +558,13 @@ struct TemplateEquivalence::SameExpression {
     return equivalence.same(ast->expression, b->expression);
   }
 
+  [[nodiscard]] auto operator()(BuiltinConvertVectorExpressionAST* ast) const
+      -> bool {
+    auto b = counterpart(ast);
+    if (!equivalence.same(ast->typeId, b->typeId)) return false;
+    return equivalence.same(ast->expression, b->expression);
+  }
+
   [[nodiscard]] auto operator()(BuiltinOffsetofExpressionAST* ast) const
       -> bool {
     auto b = counterpart(ast);

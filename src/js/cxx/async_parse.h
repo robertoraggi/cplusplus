@@ -39,6 +39,7 @@ struct AsyncParseRequest {
   std::string fileName;
   emscripten::val exists = emscripten::val::undefined();
   emscripten::val readFile = emscripten::val::undefined();
+  emscripten::val readDirectory = emscripten::val::undefined();
   emscripten::val shouldContinue = emscripten::val::undefined();
   std::function<void(std::string_view, double, bool)> didFinishPhase;
   ParserConfiguration config;

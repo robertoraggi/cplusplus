@@ -69,6 +69,10 @@ class TypeDeduction {
   [[nodiscard]] auto deduceArrayBound(ExpressionAST* P, std::size_t size)
       -> bool;
 
+  [[nodiscard]] auto vectorSizeIn(VectorSizeKind sizeKind,
+                                  const VectorType* vector) const
+      -> std::optional<std::size_t>;
+
   void specify(int slot, Symbol* argument);
   void specifyPackPrefix(int slot, ParameterPackSymbol* prefix);
 

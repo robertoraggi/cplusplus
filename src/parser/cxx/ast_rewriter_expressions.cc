@@ -161,6 +161,9 @@ struct ASTRewriter::ExpressionVisitor : VisitorBase {
   [[nodiscard]] auto operator()(BuiltinBitCastExpressionAST* ast)
       -> ExpressionAST*;
 
+  [[nodiscard]] auto operator()(BuiltinConvertVectorExpressionAST* ast)
+      -> ExpressionAST*;
+
   [[nodiscard]] auto operator()(BuiltinOffsetofExpressionAST* ast)
       -> ExpressionAST*;
 
@@ -1185,6 +1188,22 @@ auto ASTRewriter::ExpressionVisitor::operator()(
   copy->typeId = rewrite.typeId(ast->typeId);
   copy->commaLoc = ast->commaLoc;
   copy->expression = rewrite.expression(ast->expression);
+  copy->rparenLoc = ast->rparenLoc;
+
+  return copy;
+}
+
+auto ASTRewriter::ExpressionVisitor::operator()(
+    BuiltinConvertVectorExpressionAST* ast) -> ExpressionAST* {
+  auto copy = BuiltinConvertVectorExpressionAST::create(arena());
+
+  copy->valueCategory = ast->valueCategory;
+  copy->type = ast->type;
+  copy->convertVectorLoc = ast->convertVectorLoc;
+  copy->lparenLoc = ast->lparenLoc;
+  copy->expression = rewrite.expression(ast->expression);
+  copy->commaLoc = ast->commaLoc;
+  copy->typeId = rewrite.typeId(ast->typeId);
   copy->rparenLoc = ast->rparenLoc;
 
   return copy;

@@ -18,6 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 add_subdirectory(lib)
+add_subdirectory(linker)
 add_subdirectory(parser)
 add_subdirectory(codegen)
 add_subdirectory(lsp)

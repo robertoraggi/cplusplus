@@ -133,6 +133,7 @@ import type {
   PostIncrExpressionAST,
   CppCastExpressionAST,
   BuiltinBitCastExpressionAST,
+  BuiltinConvertVectorExpressionAST,
   BuiltinOffsetofExpressionAST,
   TypeidExpressionAST,
   TypeidOfTypeExpressionAST,
@@ -404,6 +405,7 @@ interface ASTNodes {
   PostIncrExpression: PostIncrExpressionAST;
   CppCastExpression: CppCastExpressionAST;
   BuiltinBitCastExpression: BuiltinBitCastExpressionAST;
+  BuiltinConvertVectorExpression: BuiltinConvertVectorExpressionAST;
   BuiltinOffsetofExpression: BuiltinOffsetofExpressionAST;
   TypeidExpression: TypeidExpressionAST;
   TypeidOfTypeExpression: TypeidOfTypeExpressionAST;
@@ -659,6 +661,7 @@ for (const [category, kinds] of Object.entries({
     "PostIncrExpression",
     "CppCastExpression",
     "BuiltinBitCastExpression",
+    "BuiltinConvertVectorExpression",
     "BuiltinOffsetofExpression",
     "TypeidExpression",
     "TypeidOfTypeExpression",
@@ -1402,6 +1405,12 @@ export class NodePath<T extends AST = AST> {
     this: NodePath,
   ): this is NodePath<BuiltinBitCastExpressionAST> {
     return this.node.kind === "BuiltinBitCastExpression";
+  }
+
+  isBuiltinConvertVectorExpression(
+    this: NodePath,
+  ): this is NodePath<BuiltinConvertVectorExpressionAST> {
+    return this.node.kind === "BuiltinConvertVectorExpression";
   }
 
   isBuiltinOffsetofExpression(

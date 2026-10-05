@@ -307,8 +307,11 @@ constexpr int CppCastExpressionASTSlotBase = PostIncrExpressionASTSlotBase + 5;
 constexpr int BuiltinBitCastExpressionASTSlotBase =
     CppCastExpressionASTSlotBase + 8;
 
-constexpr int BuiltinOffsetofExpressionASTSlotBase =
+constexpr int BuiltinConvertVectorExpressionASTSlotBase =
     BuiltinBitCastExpressionASTSlotBase + 6;
+
+constexpr int BuiltinOffsetofExpressionASTSlotBase =
+    BuiltinConvertVectorExpressionASTSlotBase + 6;
 
 constexpr int TypeidExpressionASTSlotBase =
     BuiltinOffsetofExpressionASTSlotBase + 9;
@@ -3998,6 +4001,38 @@ auto readAST(std::intptr_t handle, int slot) -> double {
     }
     case BuiltinBitCastExpressionASTSlotBase + 5: {
       auto self = static_cast<const ::cxx::BuiltinBitCastExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->rparenLoc.index());
+    }
+    case BuiltinConvertVectorExpressionASTSlotBase + 0: {
+      auto self = static_cast<const ::cxx::BuiltinConvertVectorExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->convertVectorLoc.index());
+    }
+    case BuiltinConvertVectorExpressionASTSlotBase + 1: {
+      auto self = static_cast<const ::cxx::BuiltinConvertVectorExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->lparenLoc.index());
+    }
+    case BuiltinConvertVectorExpressionASTSlotBase + 2: {
+      auto self = static_cast<const ::cxx::BuiltinConvertVectorExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->expression)));
+    }
+    case BuiltinConvertVectorExpressionASTSlotBase + 3: {
+      auto self = static_cast<const ::cxx::BuiltinConvertVectorExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->commaLoc.index());
+    }
+    case BuiltinConvertVectorExpressionASTSlotBase + 4: {
+      auto self = static_cast<const ::cxx::BuiltinConvertVectorExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->typeId)));
+    }
+    case BuiltinConvertVectorExpressionASTSlotBase + 5: {
+      auto self = static_cast<const ::cxx::BuiltinConvertVectorExpressionAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(self->rparenLoc.index());
     }

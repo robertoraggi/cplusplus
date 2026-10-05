@@ -666,6 +666,9 @@ struct ASTInterpreter::ExpressionVisitor {
   [[nodiscard]] auto operator()(BuiltinBitCastExpressionAST* ast)
       -> ExpressionResult;
 
+  [[nodiscard]] auto operator()(BuiltinConvertVectorExpressionAST* ast)
+      -> ExpressionResult;
+
   [[nodiscard]] auto operator()(BuiltinOffsetofExpressionAST* ast)
       -> ExpressionResult;
 
@@ -2056,6 +2059,11 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   auto value = interp.expression(ast->expression);
   if (!value) return std::nullopt;
   return interp.bitCast(*value, ast->expression->type, ast->type);
+}
+
+auto ASTInterpreter::ExpressionVisitor::operator()(
+    BuiltinConvertVectorExpressionAST*) -> ExpressionResult {
+  return std::nullopt;
 }
 
 auto ASTInterpreter::ExpressionVisitor::operator()(

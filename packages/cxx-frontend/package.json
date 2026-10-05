@@ -11,6 +11,10 @@
       "types": "./dist/parse.d.ts",
       "default": "./dist/parse.js"
     },
+    "./link": {
+      "types": "./dist/link.d.ts",
+      "default": "./dist/link.js"
+    },
     "./model": {
       "types": "./dist/model.d.ts",
       "default": "./dist/model.js"

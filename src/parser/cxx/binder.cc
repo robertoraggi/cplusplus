@@ -1321,8 +1321,20 @@ void Binder::giveTypedefNameForLinkage(TypeAliasSymbol* alias,
   unnamed->setName(alias->name());
 }
 
+auto Binder::aliasedType(SourceLocation identifierLoc, TypeIdAST* typeId,
+                         List<AttributeSpecifierAST*>* attributeList,
+                         List<AttributeSpecifierAST*>* gnuAttributeList)
+    -> const Type* {
+  if (!typeId) return nullptr;
+  auto type =
+      applyTypeAttributes(unit_, attributeList, typeId->type, identifierLoc);
+  return applyTypeAttributes(unit_, gnuAttributeList, type, identifierLoc);
+}
+
 auto Binder::declareTypeAlias(SourceLocation identifierLoc,
                               const Identifier* identifier, TypeIdAST* typeId,
+                              List<AttributeSpecifierAST*>* attributeList,
+                              List<AttributeSpecifierAST*>* gnuAttributeList,
                               bool addSymbolToParentScope,
                               TemplateDeclarationAST* templateHead)
     -> TypeAliasSymbol* {
@@ -1332,7 +1344,10 @@ auto Binder::declareTypeAlias(SourceLocation identifierLoc,
   auto name = identifier;
   symbol->setName(name);
 
-  if (typeId) symbol->setType(typeId->type);
+  if (typeId) {
+    symbol->setType(
+        aliasedType(identifierLoc, typeId, attributeList, gnuAttributeList));
+  }
   setTemplateHead(symbol, templateHead);
   checkTemplateParameterDefaultOrder(symbol->canonical()->templateParameters());
 

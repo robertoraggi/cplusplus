@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx } from "cxx-frontend";
+import { Linker, loadCxx } from "cxx-frontend";
 import { LanguageServer } from "cxx-frontend/lsp";
 
 const wasm = await readFile(
@@ -73,6 +74,135 @@ function decodeSemanticTokens(data, legend) {
 
   return tokens;
 }
+
+test("LanguageServer completes the header names of #include directives", async () => {
+  const headers = new Map([
+    ["/include/vector", ""],
+    ["/include/variant", ""],
+    ["/include/stdio.h", ""],
+    ["/include/sys/types.h", ""],
+    ["/include/sys/stat.h", ""],
+  ]);
+
+  const readDirectory = (path) => {
+    const prefix = path.endsWith("/") ? path : `${path}/`;
+    const names = new Set();
+    for (const file of headers.keys()) {
+      if (!file.startsWith(prefix)) continue;
+      const [head, ...rest] = file.slice(prefix.length).split("/");
+      names.add(rest.length ? `${head}/` : head);
+    }
+    return [...names];
+  };
+
+  const messages = [];
+  const server = await LanguageServer.start({
+    exists: (path) => headers.has(path),
+    readFile: async (path) => headers.get(path),
+    readDirectory,
+    systemIncludePaths: ["/include"],
+    onMessage: (message) => messages.push(message),
+  });
+
+  const complete = async (id, text, character, triggerCharacter) => {
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: { uri, languageId: "cpp", version: id, text },
+      },
+    });
+    await server.receive({
+      jsonrpc: "2.0",
+      id,
+      method: "textDocument/completion",
+      params: {
+        textDocument: { uri },
+        position: { line: 0, character },
+        ...(triggerCharacter && {
+          context: { triggerKind: 2, triggerCharacter },
+        }),
+      },
+    });
+    return responseOf(messages, id).result;
+  };
+
+  try {
+    await server.receive({ jsonrpc: "2.0", id: 1, method: "initialize" });
+
+    const vee = await complete(2, "#include <ve", 12);
+    assert.deepEqual(vee.map((item) => item.label).sort(), ["vector"]);
+    assert.equal(vee[0].kind, 17);
+    assert.deepEqual(vee[0].textEdit, {
+      newText: "vector>",
+      range: {
+        start: { line: 0, character: 10 },
+        end: { line: 0, character: 12 },
+      },
+    });
+
+    const everything = await complete(3, "#include <", 10);
+    assert.deepEqual(everything.map((item) => item.label).sort(), [
+      "stdio.h",
+      "sys/",
+      "variant",
+      "vector",
+    ]);
+    assert.equal(everything.find((item) => item.label === "sys/").kind, 19);
+
+    const sys = await complete(4, "#include <sys/st>", 16);
+    assert.deepEqual(
+      sys.map((item) => item.label),
+      ["stat.h"],
+    );
+    assert.equal(sys[0].textEdit.newText, "stat.h");
+    assert.equal(sys[0].textEdit.range.start.character, 14);
+
+    const closed = await complete(5, "#include <vector>", 17);
+    assert.deepEqual(closed ?? [], []);
+
+    const typedClosing = await complete(
+      10,
+      "#include <vector>\nint x;\n",
+      17,
+      ">",
+    );
+    assert.deepEqual(typedClosing ?? [], []);
+
+    const typedClosingAgain = await complete(
+      11,
+      "#include <vector>\nint x;\n",
+      17,
+      ">",
+    );
+    assert.deepEqual(typedClosingAgain ?? [], []);
+
+    const closedQuote = await complete(6, '#include "vector"', 17);
+    assert.deepEqual(closedQuote ?? [], []);
+
+    const opened = await complete(7, '#include "', 10, '"');
+    assert.deepEqual(opened.map((item) => item.label).sort(), [
+      "include/",
+      "stdio.h",
+      "sys/",
+      "variant",
+      "vector",
+    ]);
+
+    const comparison = await complete(
+      8,
+      "bool f(int a, int b) { return a < b; }",
+      34,
+      "<",
+    );
+    assert.deepEqual(comparison ?? [], []);
+
+    const text = await complete(9, 'const char* s = "abc";', 17, '"');
+    assert.deepEqual(text ?? [], []);
+  } finally {
+    server.dispose();
+  }
+});
 
 test("LanguageServer answers initialize, diagnostics and completion", async () => {
   const { server, messages } = await startServer();
@@ -1160,3 +1290,92 @@ test("LanguageServer keeps the preamble when the text after the includes changes
     server.dispose();
   }
 });
+
+const sysroot = new URL(
+  "../../../build.em/src/lib/wasi-sysroot",
+  import.meta.url,
+).pathname;
+
+test(
+  "cxx/emitCode links the executable format with the payloads of the linker",
+  { skip: existsSync(sysroot) ? false : "the wasi sysroot is not built" },
+  async () => {
+    const readBinary = async (path) => {
+      try {
+        return await readFile(path);
+      } catch {
+        return undefined;
+      }
+    };
+
+    const linker = await Linker.create({ sysroot, readFile: readBinary });
+    const messages = [];
+    const server = await LanguageServer.start({
+      ...resolvers,
+      linker,
+      onMessage: (message) => messages.push(message),
+    });
+
+    try {
+      await server.receive({ jsonrpc: "2.0", id: 1, method: "initialize" });
+
+      const open = (version, text) =>
+        server.receive({
+          jsonrpc: "2.0",
+          method:
+            version === 0 ? "textDocument/didOpen" : "textDocument/didChange",
+          params:
+            version === 0
+              ? {
+                  textDocument: { uri, languageId: "cpp", version, text },
+                }
+              : {
+                  textDocument: { uri, version },
+                  contentChanges: [{ text }],
+                },
+        });
+
+      const emit = async (id, format = "wasm") => {
+        await server.receive({
+          jsonrpc: "2.0",
+          id,
+          method: "cxx/emitCode",
+          params: { textDocument: { uri }, format },
+        });
+        await scheduled();
+        return responseOf(messages, id).result;
+      };
+
+      await open(
+        0,
+        'extern "C" int puts(const char*);\nint main() { puts("lsp"); }\n',
+      );
+
+      const linked = await emit(2);
+      assert.equal(linked.format, "wasm");
+      assert.equal(linked.error, undefined);
+
+      const bytes = Buffer.from(linked.text, "base64");
+      assert.deepEqual([...bytes.subarray(0, 4)], [0, 0x61, 0x73, 0x6d]);
+      assert.ok(WebAssembly.validate(bytes));
+
+      await open(
+        1,
+        'extern "C" int missing();\nint main() { return missing(); }\n',
+      );
+
+      const failed = await emit(3);
+      assert.equal(failed.text.length, 0);
+      assert.match(failed.error, /undefined symbol: missing/);
+
+      await open(2, "int main() { return undefined_name; }\n");
+
+      const broken = await emit(4);
+      assert.equal(broken.text.length, 0);
+      assert.equal(broken.error, undefined);
+    } finally {
+      server.dispose();
+      linker.dispose();
+    }
+  },
+);

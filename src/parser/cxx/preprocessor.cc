@@ -32,8 +32,10 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cctype>
 #include <cstring>
 #include <deque>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <functional>
@@ -481,6 +483,8 @@ struct Preprocessor::Private {
   std::optional<SourcePosition> codeCompletionLocation_;
   std::uint32_t codeCompletionOffset_ = 0;
   bool hasCodeCompletionRequest_ = false;
+  std::optional<IncludeCompletion> includeCompletion_;
+  bool includeCompletionOnly_ = false;
   int localCount_ = 0;
 
   int counter_ = 0;
@@ -680,6 +684,15 @@ struct Preprocessor::Private {
   [[nodiscard]] auto parseIncludeDirective(const Tok* directive, const Tok* ts,
                                            const Tok* lineEnd)
       -> std::optional<ParsedIncludeDirective>;
+
+  struct IncludeCursor {
+    bool inDirective = false;
+    std::optional<IncludeCompletionRequest> request;
+  };
+
+  [[nodiscard]] auto locateCursorInInclude(const SourceFile* source,
+                                           const Tok* directiveLine) const
+      -> IncludeCursor;
 
   [[nodiscard]] auto parseHeaderName(const Tok*& ts, const Tok* lineEnd)
       -> std::optional<Include>;
@@ -2437,6 +2450,20 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
         preambleDirectiveEnd_ = lastToken.offset + lastToken.length;
       }
 
+      if (!skipping && source->id == mainSourceFileId_) {
+        auto includeCursor = locateCursorInInclude(source, directiveStart);
+
+        if (includeCursor.inDirective) codeCompletionLocation_ = std::nullopt;
+
+        if (includeCursor.request) {
+          cursors_.clear();
+          return PendingIncludeCompletion{
+              .preprocessor = *preprocessor_,
+              .request = std::move(*includeCursor.request),
+          };
+        }
+      }
+
       std::optional<Tok> pragmaToken;
 
       auto parsedDirective =
@@ -2444,7 +2471,8 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
 
       if (pragmaToken.has_value()) emitToken(*pragmaToken);
 
-      if (auto pi = std::get_if<ParsedIncludeDirective>(&parsedDirective)) {
+      if (auto pi = std::get_if<ParsedIncludeDirective>(&parsedDirective);
+          pi && !includeCompletionOnly_) {
         PendingInclude nextState{
             .preprocessor = *preprocessor_,
             .include = pi->header,
@@ -3052,6 +3080,107 @@ auto Preprocessor::Private::parseIncludeDirective(const Tok* directive,
   }
 
   return std::nullopt;
+}
+
+namespace {
+
+[[nodiscard]] auto includeKeywordEnd(std::string_view text, std::size_t offset)
+    -> std::optional<std::size_t> {
+  if (offset > text.size()) return std::nullopt;
+
+  const auto newline =
+      offset == 0 ? std::string_view::npos : text.rfind('\n', offset - 1);
+  auto position = newline == std::string_view::npos ? 0 : newline + 1;
+
+  const auto skipBlanks = [&] {
+    while (position < text.size() &&
+           (text[position] == ' ' || text[position] == '\t')) {
+      ++position;
+    }
+  };
+
+  skipBlanks();
+  if (position >= text.size() || text[position] != '#') return std::nullopt;
+  ++position;
+  skipBlanks();
+
+  for (const std::string_view keyword : {"include_next", "include"}) {
+    if (!text.substr(position).starts_with(keyword)) continue;
+    const auto end = position + keyword.size();
+    if (end < text.size() &&
+        (std::isalnum(static_cast<unsigned char>(text[end])) ||
+         text[end] == '_')) {
+      continue;
+    }
+    return end;
+  }
+
+  return std::nullopt;
+}
+
+}  // namespace
+
+auto Preprocessor::isInsideIncludeDirective(std::string_view source,
+                                            std::size_t offset) -> bool {
+  const auto keywordEnd = includeKeywordEnd(source, offset);
+  return keywordEnd.has_value() && offset >= *keywordEnd;
+}
+
+auto Preprocessor::Private::locateCursorInInclude(
+    const SourceFile* source, const Tok* directiveLine) const -> IncludeCursor {
+  if (!codeCompletionLocation_.has_value()) return {};
+
+  const std::string_view text = source->source;
+
+  const auto directiveOffset = std::size_t(directiveLine->offset);
+  if (directiveOffset > codeCompletionOffset_) return {};
+
+  const auto cursorLine =
+      text.substr(directiveOffset, codeCompletionOffset_ - directiveOffset);
+  if (cursorLine.find('\n') != std::string_view::npos) return {};
+
+  const auto keywordEnd = includeKeywordEnd(text, codeCompletionOffset_);
+  if (!keywordEnd.has_value()) return {};
+  if (codeCompletionOffset_ < *keywordEnd) return {};
+
+  auto lineEndOffset = text.find('\n', *keywordEnd);
+  if (lineEndOffset == std::string_view::npos) lineEndOffset = text.size();
+
+  IncludeCursor cursor{.inDirective = true};
+
+  auto before = text.substr(*keywordEnd, codeCompletionOffset_ - *keywordEnd);
+  const auto after =
+      text.substr(codeCompletionOffset_, lineEndOffset - codeCompletionOffset_);
+
+  const auto firstNonBlank = before.find_first_not_of(" \t");
+  if (firstNonBlank == std::string_view::npos) return cursor;
+  before.remove_prefix(firstNonBlank);
+
+  if (before.front() != '<' && before.front() != '"') return cursor;
+
+  const bool isQuoted = before.front() == '"';
+  const char closing = isQuoted ? '"' : '>';
+  const auto typed = before.substr(1);
+  if (typed.find(closing) != std::string_view::npos) return cursor;
+
+  const auto slash = typed.rfind('/');
+  const auto directoryPart = slash == std::string_view::npos
+                                 ? std::string_view{}
+                                 : typed.substr(0, slash + 1);
+
+  cursor.request = IncludeCompletionRequest{
+      .isQuoted = isQuoted,
+      .hasClosingDelimiter = after.find(closing) != std::string_view::npos,
+      .namePrefix = std::string(typed.substr(directoryPart.size())),
+  };
+
+  for (const auto& [directory, isSystem] :
+       buildSearchDirs(currentPath_.string(), isQuoted)) {
+    cursor.request->directories.push_back(
+        (fs::path(*directory) / std::string(directoryPart)).string());
+  }
+
+  return cursor;
 }
 
 auto Preprocessor::Private::parseHeaderName(const Tok*& ts, const Tok* lineEnd)
@@ -3684,6 +3813,8 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
 
   if (auto loc = d->codeCompletionLocation_) {
     d->codeCompletionOffset_ = sourceFile->offsetAt(loc->line, loc->column);
+    d->includeCompletionOnly_ =
+        isInsideIncludeDirective(sourceFile->source, d->codeCompletionOffset_);
   }
 }
 
@@ -4210,8 +4341,19 @@ void Preprocessor::requestCodeCompletionAt(std::uint32_t line,
   d->hasCodeCompletionRequest_ = true;
 }
 
+auto Preprocessor::includeCompletion() const -> const IncludeCompletion* {
+  if (!d->includeCompletion_.has_value()) return nullptr;
+  return &*d->includeCompletion_;
+}
+
 auto Preprocessor::hasCodeCompletionRequest() const -> bool {
   return d->hasCodeCompletionRequest_;
+}
+
+void PendingIncludeCompletion::setEntries(
+    std::vector<DirectoryEntry> entries) const {
+  preprocessor.d->includeCompletion_ =
+      IncludeCompletion{.request = request, .entries = std::move(entries)};
 }
 
 void PendingInclude::resolveWith(std::optional<std::string> resolvedFileName,
@@ -4325,6 +4467,25 @@ void DefaultPreprocessorState::operator()(const PendingFileContent& request) {
   in.seekg(0);
   in.read(content.data(), size);
   request.setContent(std::move(content));
+}
+
+void DefaultPreprocessorState::operator()(
+    const PendingIncludeCompletion& status) {
+  std::vector<DirectoryEntry> entries;
+
+  for (const auto& directory : status.request.directories) {
+    std::error_code error;
+    for (std::filesystem::directory_iterator it(directory, error), end;
+         !error && it != end; it.increment(error)) {
+      std::error_code statusError;
+      entries.push_back(DirectoryEntry{
+          .name = it->path().filename().string(),
+          .isDirectory = it->is_directory(statusError),
+      });
+    }
+  }
+
+  status.setEntries(std::move(entries));
 }
 
 void DefaultPreprocessorState::operator()(const EnteringFile&) {}

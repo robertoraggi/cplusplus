@@ -1787,6 +1787,27 @@ auto BuiltinBitCastExpressionAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto BuiltinConvertVectorExpressionAST::firstSourceLocation()
+    -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(convertVectorLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
+  return {};
+}
+
+auto BuiltinConvertVectorExpressionAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeId)) return loc;
+  if (auto loc = cxx::lastSourceLocation(commaLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(convertVectorLoc)) return loc;
+  return {};
+}
+
 auto BuiltinOffsetofExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(offsetofLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
@@ -3852,6 +3873,7 @@ std::string_view kASTKindNames[] = {
     "post-incr-expression",
     "cpp-cast-expression",
     "builtin-bit-cast-expression",
+    "builtin-convert-vector-expression",
     "builtin-offsetof-expression",
     "typeid-expression",
     "typeid-of-type-expression",
@@ -9463,6 +9485,63 @@ auto BuiltinBitCastExpressionAST::create(Arena* arena, TypeIdAST* typeId,
   auto node = new (arena) BuiltinBitCastExpressionAST();
   node->typeId = typeId;
   node->expression = expression;
+  node->valueCategory = valueCategory;
+  node->type = type;
+  return node;
+}
+
+auto BuiltinConvertVectorExpressionAST::clone(Arena* arena)
+    -> BuiltinConvertVectorExpressionAST* {
+  auto node = create(arena);
+
+  node->convertVectorLoc = convertVectorLoc;
+  node->lparenLoc = lparenLoc;
+
+  if (expression) node->expression = expression->clone(arena);
+
+  node->commaLoc = commaLoc;
+
+  if (typeId) node->typeId = typeId->clone(arena);
+
+  node->rparenLoc = rparenLoc;
+  node->valueCategory = valueCategory;
+  node->type = type;
+
+  return node;
+}
+
+auto BuiltinConvertVectorExpressionAST::create(Arena* arena)
+    -> BuiltinConvertVectorExpressionAST* {
+  auto node = new (arena) BuiltinConvertVectorExpressionAST();
+  return node;
+}
+
+auto BuiltinConvertVectorExpressionAST::create(
+    Arena* arena, SourceLocation convertVectorLoc, SourceLocation lparenLoc,
+    ExpressionAST* expression, SourceLocation commaLoc, TypeIdAST* typeId,
+    SourceLocation rparenLoc, ValueCategory valueCategory, const Type* type)
+    -> BuiltinConvertVectorExpressionAST* {
+  auto node = new (arena) BuiltinConvertVectorExpressionAST();
+  node->convertVectorLoc = convertVectorLoc;
+  node->lparenLoc = lparenLoc;
+  node->expression = expression;
+  node->commaLoc = commaLoc;
+  node->typeId = typeId;
+  node->rparenLoc = rparenLoc;
+  node->valueCategory = valueCategory;
+  node->type = type;
+  return node;
+}
+
+auto BuiltinConvertVectorExpressionAST::create(Arena* arena,
+                                               ExpressionAST* expression,
+                                               TypeIdAST* typeId,
+                                               ValueCategory valueCategory,
+                                               const Type* type)
+    -> BuiltinConvertVectorExpressionAST* {
+  auto node = new (arena) BuiltinConvertVectorExpressionAST();
+  node->expression = expression;
+  node->typeId = typeId;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;

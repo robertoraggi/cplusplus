@@ -26,6 +26,7 @@
 #include <cxx/lsp/transport.h>
 #include <cxx/lsp/types.h>
 #include <cxx/preprocessor.h>
+#include <cxx/toolchain.h>
 #include <cxx/translation_unit.h>
 #include <cxx/wasm32_wasi_toolchain.h>
 #include <emscripten/bind.h>
@@ -37,6 +38,8 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "async_parse.h"
 #include "emit_code.h"
@@ -51,6 +54,12 @@ EMSCRIPTEN_DECLARE_VAL_TYPE(LanguageServerOptions);
 class JsServerHost final : public cxx::lsp::ServerHost {
  public:
   explicit JsServerHost(val options) : options_(options) {}
+
+  void retainedBy(std::weak_ptr<void> owner) { owner_ = std::move(owner); }
+
+  void close() { *closed_ = true; }
+
+  [[nodiscard]] auto isClosed() const -> bool { return *closed_; }
 
   void run(std::function<void()> task) override {
     tasks_.push_back(std::move(task));
@@ -77,8 +86,16 @@ class JsServerHost final : public cxx::lsp::ServerHost {
   [[nodiscard]] auto emitCode(cxx::lsp::CxxDocument& document,
                               cxx::lsp::EmitCodeFormat format, bool debugInfo,
                               int optimizationLevel)
-      -> std::optional<std::string> override {
-    if (document.hasErrors()) return std::string{};
+      -> std::optional<cxx::lsp::EmittedCode> override {
+    if (document.hasErrors()) return cxx::lsp::EmittedCode{};
+
+    if (auto toolchain = document.toolchain()) {
+      toolchain->applyEntryPointAbi(document.translationUnit());
+    }
+
+    if (format == cxx::lsp::EmitCodeFormat::kExecutable) {
+      return emitExecutable(document, debugInfo, optimizationLevel);
+    }
 
     auto generated =
         cxx::js::generateCode(document.translationUnit(), to_string(format),
@@ -86,25 +103,26 @@ class JsServerHost final : public cxx::lsp::ServerHost {
 
     if (!generated) return std::nullopt;
 
-    return std::move(generated->text);
+    return cxx::lsp::EmittedCode{.text = std::move(generated->text)};
   }
 
   void runLater(std::chrono::milliseconds delay,
                 std::function<void()> task) override {
-    auto scheduled = new std::function<void()>(std::move(task));
+    auto scheduled = new ScheduledTask{std::move(task), closed_};
 
     emscripten_set_timeout(
         [](void* userData) {
-          std::unique_ptr<std::function<void()>> task{
-              static_cast<std::function<void()>*>(userData)};
-          (*task)();
+          std::unique_ptr<ScheduledTask> scheduled{
+              static_cast<ScheduledTask*>(userData)};
+          if (*scheduled->closed) return;
+          scheduled->task();
         },
         double(delay.count()), scheduled);
   }
 
   void trace(const std::string& message,
              const std::optional<std::string>& verbose) override {
-    if (options_.isUndefined()) return;
+    if (isClosed() || options_.isUndefined()) return;
 
     auto onTrace = options_["onTrace"];
     if (onTrace.isUndefined()) return;
@@ -125,7 +143,65 @@ class JsServerHost final : public cxx::lsp::ServerHost {
   }
 
  private:
+  [[nodiscard]] auto emitExecutable(cxx::lsp::CxxDocument& document,
+                                    bool debugInfo, int optimizationLevel)
+      -> std::optional<cxx::lsp::EmittedCode> {
+    if (options_.isUndefined()) return std::nullopt;
+
+    val link = options_["link"];
+    if (link.isUndefined()) return std::nullopt;
+
+    auto generated = cxx::js::generateCode(document.translationUnit(), "obj",
+                                           debugInfo, optimizationLevel);
+
+    if (!generated || generated->objectCode.empty()) {
+      return cxx::lsp::EmittedCode{.error = "code generation failed"};
+    }
+
+    auto& objectCode = generated->objectCode;
+    auto object = val::global("Uint8Array").new_(objectCode.size());
+    object.call<void>(
+        "set", val(typed_memory_view(objectCode.size(), objectCode.data())));
+
+    val linked = link(object, debugInfo);
+
+    if (auto error = linked["error"].as<std::string>(); !error.empty()) {
+      return cxx::lsp::EmittedCode{.error = std::move(error)};
+    }
+
+    return cxx::lsp::EmittedCode{.text = base64Encode(linked["output"])};
+  }
+
+  [[nodiscard]] static auto base64Encode(const val& bytes) -> std::string {
+    constexpr std::string_view alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    const auto size = bytes["length"].as<std::size_t>();
+    std::vector<std::uint8_t> data(size);
+    val(typed_memory_view(size, data.data())).call<void>("set", bytes);
+
+    std::string text;
+    text.reserve((size + 2) / 3 * 4);
+
+    const auto byteAt = [&](std::size_t index) -> std::uint32_t {
+      return index < size ? data[index] : 0;
+    };
+
+    for (std::size_t i = 0; i < size; i += 3) {
+      const auto remaining = size - i;
+      const auto chunk = byteAt(i) << 16 | byteAt(i + 1) << 8 | byteAt(i + 2);
+      text.push_back(alphabet[chunk >> 18 & 63]);
+      text.push_back(alphabet[chunk >> 12 & 63]);
+      text.push_back(remaining > 1 ? alphabet[chunk >> 6 & 63] : '=');
+      text.push_back(remaining > 2 ? alphabet[chunk & 63] : '=');
+    }
+
+    return text;
+  }
+
   auto drain() -> val {
+    auto retained = owner_.lock();
+
     while (!tasks_.empty()) {
       auto task = std::move(tasks_.front());
       tasks_.pop_front();
@@ -146,6 +222,7 @@ class JsServerHost final : public cxx::lsp::ServerHost {
 
   auto processAsync(cxx::lsp::CxxDocument& document, std::string source,
                     std::function<void()> done) -> val {
+    auto retained = owner_.lock();
     auto unit = document.translationUnit();
     const auto fileName = document.fileName();
     const auto version = document.version();
@@ -162,6 +239,7 @@ class JsServerHost final : public cxx::lsp::ServerHost {
     if (!options_.isUndefined()) {
       request.exists = options_["exists"];
       request.readFile = options_["readFile"];
+      request.readDirectory = options_["readDirectory"];
       request.shouldContinue = options_["shouldContinue"];
     }
 
@@ -179,7 +257,8 @@ class JsServerHost final : public cxx::lsp::ServerHost {
       auto enabled = options_["preamble"];
       if (!enabled.isUndefined()) usePreamble = enabled.as<bool>();
     }
-    if (document.preambleCache && usePreamble) {
+    if (document.preambleCache && usePreamble &&
+        !document.completionIsInIncludeDirective(source)) {
       auto cached = document.preambleCache->get(source);
       if (!cached) {
         const auto started = std::chrono::steady_clock::now();
@@ -224,7 +303,7 @@ class JsServerHost final : public cxx::lsp::ServerHost {
                           fileName, elapsed),
               {});
       }
-      if (cached) {
+      if (cached && !document.completionIsWithin(cached->source.size())) {
         const auto started = std::chrono::steady_clock::now();
         cxx::PrecompiledHeaderReader reader(unit, cxx::lsp::preambleKeys());
         if (reader(cached->bytes)) {
@@ -251,7 +330,14 @@ class JsServerHost final : public cxx::lsp::ServerHost {
     co_return val::undefined();
   }
 
+  struct ScheduledTask {
+    std::function<void()> task;
+    std::shared_ptr<bool> closed;
+  };
+
   val options_;
+  std::shared_ptr<bool> closed_ = std::make_shared<bool>(false);
+  std::weak_ptr<void> owner_;
   std::deque<std::function<void()>> tasks_;
   std::deque<val> pending_;
   std::optional<val> inFlight_;
@@ -271,8 +357,10 @@ class JsTransport final : public cxx::lsp::Transport {
     return message;
   }
 
+  void close() { closed_ = true; }
+
   void sendMessage(const cxx::lsp::json& message) override {
-    if (options_.isUndefined()) return;
+    if (closed_ || options_.isUndefined()) return;
 
     val onMessage = options_["onMessage"];
     if (onMessage.isUndefined()) return;
@@ -284,26 +372,43 @@ class JsTransport final : public cxx::lsp::Transport {
 
  private:
   val options_;
+  bool closed_ = false;
   std::deque<cxx::lsp::json> inbox_;
+};
+
+struct LanguageServerCore {
+  explicit LanguageServerCore(LanguageServerOptions options)
+      : host(options),
+        transport(new JsTransport(options)),
+        server(host, std::unique_ptr<cxx::lsp::Transport>(transport)) {}
+
+  JsServerHost host;
+  JsTransport* transport;
+  cxx::lsp::Server server;
 };
 
 class WrappedLanguageServer {
  public:
   explicit WrappedLanguageServer(LanguageServerOptions options)
-      : host_(options),
-        transport_(new JsTransport(options)),
-        server_(host_, std::unique_ptr<cxx::lsp::Transport>(transport_)) {
-    server_.startProcessing();
+      : core_(std::make_shared<LanguageServerCore>(options)) {
+    core_->host.retainedBy(core_);
+    core_->server.startProcessing();
   }
 
-  ~WrappedLanguageServer() { server_.stopProcessing(); }
+  ~WrappedLanguageServer() {
+    core_->host.close();
+    core_->transport->close();
+    core_->server.stopProcessing();
+  }
 
   auto receive(std::string message) -> val {
-    transport_->push(cxx::lsp::json::parse(message));
+    auto core = core_;
 
-    server_.continueProcessing();
+    core->transport->push(cxx::lsp::json::parse(message));
 
-    while (auto pending = host_.takePending()) {
+    core->server.continueProcessing();
+
+    while (auto pending = core->host.takePending()) {
       co_await *pending;
     }
 
@@ -311,9 +416,7 @@ class WrappedLanguageServer {
   }
 
  private:
-  JsServerHost host_;
-  JsTransport* transport_;
-  cxx::lsp::Server server_;
+  std::shared_ptr<LanguageServerCore> core_;
 };
 
 auto createLanguageServer(LanguageServerOptions options)
@@ -326,7 +429,7 @@ auto createLanguageServer(LanguageServerOptions options)
 EMSCRIPTEN_BINDINGS(cxx_lsp) {
   register_type<LanguageServerOptions>(
       "LanguageServerOptions",
-      R"({ preamble?: boolean | undefined; appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined; onTrace?: ((message: string, verbose: string | undefined) => void) | undefined; onMessage: (message: string) => void })");
+      R"({ preamble?: boolean | undefined; appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; readDirectory?: ((path: string) => string[] | undefined) | undefined; link?: ((object: Uint8Array, debugInfo: boolean) => { output: Uint8Array; error: string }) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined; onTrace?: ((message: string, verbose: string | undefined) => void) | undefined; onMessage: (message: string) => void })");
 
   class_<WrappedLanguageServer>("LanguageServer")
       .function("receive", &WrappedLanguageServer::receive);

@@ -23828,6 +23828,16 @@ auto EmitCodeResult::text() const -> std::string {
   return value.get<std::string>();
 }
 
+auto EmitCodeResult::error() const -> std::optional<std::string> {
+  if (!repr_->contains("error")) return std::nullopt;
+
+  auto& value = (*repr_)["error"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
 auto EmitCodeResult::format(EmitCodeFormat format) -> EmitCodeResult& {
   (*repr_)["format"] = to_string(format);
   return *this;
@@ -23835,6 +23845,16 @@ auto EmitCodeResult::format(EmitCodeFormat format) -> EmitCodeResult& {
 
 auto EmitCodeResult::text(std::string text) -> EmitCodeResult& {
   (*repr_)["text"] = std::move(text);
+  return *this;
+}
+
+auto EmitCodeResult::error(std::optional<std::string> error)
+    -> EmitCodeResult& {
+  if (!error.has_value()) {
+    repr_->erase("error");
+    return *this;
+  }
+  (*repr_)["error"] = std::move(error.value());
   return *this;
 }
 }  // namespace cxx::lsp

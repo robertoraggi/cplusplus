@@ -173,6 +173,21 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
       return codegenBuiltinArithmeticOverflow(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_ADD:
+      return codegenBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_MUL:
+      return codegenBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_AND:
+      return codegenBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_OR:
+      return codegenBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_REDUCE_XOR:
+      return codegenBuiltinVectorReduce(ast);
+
     default:
       return std::nullopt;
   }

@@ -159,6 +159,8 @@ struct WrappedUnit {
   void emitWith(EmitterDelegate delegate) {
     if (diagnosticsClient->hasErrors) return;
 
+    toolchain->applyEntryPointAbi(unit.get());
+
     cxx::js::JsEmitter emitter{delegate};
 
     cxx::Codegen codegen(emitter, unit.get(), {.debugInfo = debugInfo});
@@ -175,6 +177,8 @@ struct WrappedUnit {
     };
 
     if (diagnosticsClient->hasErrors) return emptyOutput();
+
+    toolchain->applyEntryPointAbi(unit.get());
 
     auto generated =
         cxx::js::generateCode(unit.get(), format, debugInfo, optimizationLevel);

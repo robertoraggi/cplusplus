@@ -12787,8 +12787,18 @@ class EmitCodeResult final : public LSPObject {
 
   [[nodiscard]] auto text() const -> std::string;
 
+  [[nodiscard]] auto error() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto error() -> T {
+    auto& value = (*repr_)["error"];
+    return T(value);
+  }
+
   auto format(EmitCodeFormat format) -> EmitCodeResult&;
 
   auto text(std::string text) -> EmitCodeResult&;
+
+  auto error(std::optional<std::string> error) -> EmitCodeResult&;
 };
 }  // namespace cxx::lsp
