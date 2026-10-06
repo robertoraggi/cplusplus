@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/position_independence.h>
 #include <cxx/triple.h>
 
 #include <memory>
@@ -73,6 +74,11 @@ class Toolchain {
   void setExceptionsEnabled(bool exceptionsEnabled) {
     exceptionsEnabled_ = exceptionsEnabled;
   }
+
+  [[nodiscard]] auto supportsPositionIndependence() const -> bool;
+
+  [[nodiscard]] auto defaultPositionIndependence() const
+      -> PositionIndependence;
 
   [[nodiscard]] virtual auto hasThreads() const -> bool { return true; }
 
@@ -165,6 +171,6 @@ class Toolchain {
   std::unique_ptr<MemoryLayout> memoryLayout_;
   LanguageKind language_ = LanguageKind::kCXX;
   const LanguageStandard* languageStandard_ = nullptr;
-  bool exceptionsEnabled_ = true;
+  bool exceptionsEnabled_ = false;
 };
 }  // namespace cxx

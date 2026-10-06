@@ -20,8 +20,11 @@
 
 #pragma once
 
+#include <cxx/position_independence.h>
+
 #include <optional>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <variant>
 #include <vector>
@@ -49,6 +52,17 @@ auto to_string(const CLIMatch& match) -> std::string;
 
 class CLI {
   std::vector<CLIMatch> result_;
+
+  template <typename Predicate>
+  [[nodiscard]] auto lastFlag(Predicate&& matches) const
+      -> std::optional<std::string_view> {
+    std::optional<std::string_view> result;
+    for (const auto& match : result_) {
+      auto flag = std::get_if<CLIFlag>(&match);
+      if (flag && matches(std::get<0>(*flag))) result = std::get<0>(*flag);
+    }
+    return result;
+  }
 
  public:
   CLI();
@@ -80,7 +94,6 @@ class CLI {
   bool opt_fvalidate_ast = false;
   bool opt_freport_missing_types = false;
   bool opt_fno_reflect = false;
-  bool opt_fno_exceptions = false;
   bool opt_fno_strict_prototypes = false;
   bool opt_verify = false;
   bool opt_v = false;
@@ -102,6 +115,11 @@ class CLI {
   bool opt_MP = false;
 
   [[nodiscard]] auto optimizationLevel() const -> int;
+
+  [[nodiscard]] auto exceptionsEnabled() const -> bool;
+
+  [[nodiscard]] auto positionIndependence(PositionIndependence defaults) const
+      -> PositionIndependence;
 
   auto parse(int& argc, char**& argv) -> bool;
 

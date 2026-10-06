@@ -712,6 +712,8 @@ inline auto toVal(const cxx::ir::ModuleInfo& value) -> val {
   result.set("debugCompilationDirectory",
              toVal(value.debugCompilationDirectory));
   result.set("framePointer", toVal(value.framePointer));
+  result.set("picLevel", toVal(value.picLevel));
+  result.set("pieLevel", toVal(value.pieLevel));
   return result;
 }
 

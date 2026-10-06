@@ -113,6 +113,10 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
       .debugCompilationDirectory = gen.debugCompilationDirectory(),
       .framePointer =
           to_string(gen.control()->memoryLayout()->framePointerKind()),
+      .picLevel =
+          gen.control()->memoryLayout()->positionIndependence().picLevel,
+      .pieLevel =
+          gen.control()->memoryLayout()->positionIndependence().pieLevel,
   });
 
   visitGlobals(gen.unit_->globalScope());

@@ -134,6 +134,8 @@ struct Frontend::Private {
 #ifdef CXX_WITH_MLIR
   [[nodiscard]] auto llvmOptimizationLevel() const -> llvm::OptimizationLevel;
   [[nodiscard]] auto targetMachine() -> llvm::TargetMachine*;
+  [[nodiscard]] auto relocationModel() const
+      -> std::optional<llvm::Reloc::Model>;
 #endif
 
   [[nodiscard]] auto debugCompilationDirectory() const -> std::string;
@@ -930,6 +932,16 @@ auto Frontend::Private::llvmOptimizationLevel() const
   }
 }
 
+auto Frontend::Private::relocationModel() const
+    -> std::optional<llvm::Reloc::Model> {
+  if (!toolchain_->supportsPositionIndependence()) return std::nullopt;
+  if (toolchain_->memoryLayout()
+          ->positionIndependence()
+          .isPositionIndependent())
+    return llvm::Reloc::PIC_;
+  return llvm::Reloc::Static;
+}
+
 auto Frontend::Private::targetMachine() -> llvm::TargetMachine* {
   if (targetMachine_) return targetMachine_.get();
 
@@ -963,8 +975,8 @@ auto Frontend::Private::targetMachine() -> llvm::TargetMachine* {
 
   targetMachine_ =
       std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
-          llvm::Triple{triple}, "generic", "", opt,
-          std::optional<llvm::Reloc::Model>(), std::nullopt, codeGenOptLevel));
+          llvm::Triple{triple}, "generic", "", opt, relocationModel(),
+          std::nullopt, codeGenOptLevel));
 
   if (!targetMachine_) {
     std::cerr << std::format("cxx: cannot create target machine for '{}': {}\n",

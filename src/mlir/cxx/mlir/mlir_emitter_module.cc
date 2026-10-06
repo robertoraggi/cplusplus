@@ -69,6 +69,14 @@ auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
                         info.framePointer.data(), info.framePointer.size()}));
   }
 
+  if (info.picLevel != 0) {
+    module->setAttr("cxx.pic-level", builder_.getI32IntegerAttr(info.picLevel));
+  }
+
+  if (info.pieLevel != 0) {
+    module->setAttr("cxx.pie-level", builder_.getI32IntegerAttr(info.pieLevel));
+  }
+
   if (!info.debugCompilationDirectory.empty()) {
     module->setAttr("cxx.debug-compilation-dir",
                     builder_.getStringAttr(mlir::StringRef{

@@ -119,6 +119,27 @@ Toolchain::Toolchain(Preprocessor* preprocessor, Triple triple)
 
 Toolchain::~Toolchain() = default;
 
+auto Toolchain::supportsPositionIndependence() const -> bool {
+  switch (linkerFlavor()) {
+    case LinkerFlavor::kGnu:
+    case LinkerFlavor::kDarwin:
+      return true;
+    default:
+      return false;
+  }
+}
+
+auto Toolchain::defaultPositionIndependence() const -> PositionIndependence {
+  switch (linkerFlavor()) {
+    case LinkerFlavor::kGnu:
+      return {.picLevel = 2, .pieLevel = 2};
+    case LinkerFlavor::kDarwin:
+      return {.picLevel = 2};
+    default:
+      return {};
+  }
+}
+
 void Toolchain::setLanguage(LanguageKind language) {
   language_ = language;
   if (preprocessor_) preprocessor_->setLanguage(language);

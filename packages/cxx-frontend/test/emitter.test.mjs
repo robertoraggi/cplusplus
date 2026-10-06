@@ -80,6 +80,29 @@ int add(int a, int b) { return a + b; }
   assert.match(text, /^endmodule$/m);
 });
 
+test("the module header carries the position independence levels", () => {
+  const info = {
+    name: "module.cc",
+    sourceFile: "module.cc",
+    targetTriple: "x86_64-unknown-linux-gnu",
+    debugCompilationDirectory: "",
+    framePointer: "none",
+    picLevel: 2,
+    pieLevel: 2,
+  };
+
+  const position = new TraceEmitter();
+  position.beginModule(info);
+  assert.match(
+    position.trace,
+    /^module "module\.cc" source "module\.cc" triple "x86_64-unknown-linux-gnu" pic 2 pie 2$/m,
+  );
+
+  const plain = new TraceEmitter();
+  plain.beginModule({ ...info, picLevel: 0, pieLevel: 0 });
+  assert.doesNotMatch(plain.trace, /\bpic\b|\bpie\b/);
+});
+
 test("only signed arithmetic in a promoted type carries undefined overflow", async () => {
   const cases = [
     ["int f(int a, int b) { return a + b; }", /AddSignedInt/],

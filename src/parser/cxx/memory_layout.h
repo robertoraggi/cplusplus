@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/const_int.h>
+#include <cxx/position_independence.h>
 #include <cxx/types_fwd.h>
 
 #include <cstddef>
@@ -113,6 +114,14 @@ class MemoryLayout {
   [[nodiscard]] auto framePointerKind() const -> FramePointerKind;
   void setTriple(std::string triple);
 
+  [[nodiscard]] auto positionIndependence() const -> PositionIndependence {
+    return positionIndependence_;
+  }
+
+  void setPositionIndependence(PositionIndependence positionIndependence) {
+    positionIndependence_ = positionIndependence;
+  }
+
  private:
   std::size_t bits_ = 0;
   std::size_t sizeOfPointer_ = 0;
@@ -124,6 +133,7 @@ class MemoryLayout {
   bool wideCharIsSigned_ = true;
   std::size_t defaultNewAlignment_ = 16;
   std::string triple_;
+  PositionIndependence positionIndependence_;
 };
 
 #undef DECLARE_METHOD

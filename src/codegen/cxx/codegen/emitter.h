@@ -177,6 +177,8 @@ struct ModuleInfo {
   std::string_view targetTriple;
   std::string_view debugCompilationDirectory;
   std::string_view framePointer;
+  std::int32_t picLevel = 0;
+  std::int32_t pieLevel = 0;
 };
 
 struct VTableTableInfo {
