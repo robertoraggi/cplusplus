@@ -237,6 +237,11 @@ auto FunctionTemplateOrdering::transform(FunctionSymbol* function,
 
   if (primary->isStatic() && primary->hasImplicitObjectParameter()) {
     transformed.types.push_back({.matchesAnyObject = true});
+  } else if (context_.kind == PartialOrderingContext::Kind::kCall &&
+             primary->hasImplicitObjectParameter() &&
+             primaryTemplateOf(other)->hasImplicitObjectParameter() &&
+             context_.candidateReversed == context_.otherReversed) {
+    transformed.types.push_back({.matchesAnyObject = true});
   } else if (primary->hasImplicitObjectParameter()) {
     auto otherFirst = firstExplicitParameter(primaryTemplateOf(other));
     transformed.types.push_back(

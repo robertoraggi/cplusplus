@@ -478,6 +478,8 @@ inline auto toVal(cxx::ir::ParameterAbiKind value) -> val {
       return val("StructReturn");
     case cxx::ir::ParameterAbiKind::ByValue:
       return val("ByValue");
+    case cxx::ir::ParameterAbiKind::ZeroExtend:
+      return val("ZeroExtend");
   }
   return val::undefined();
 }
@@ -489,6 +491,7 @@ inline auto toEnum<cxx::ir::ParameterAbiKind>(const val& value)
   if (name == "Default") return cxx::ir::ParameterAbiKind::Default;
   if (name == "StructReturn") return cxx::ir::ParameterAbiKind::StructReturn;
   if (name == "ByValue") return cxx::ir::ParameterAbiKind::ByValue;
+  if (name == "ZeroExtend") return cxx::ir::ParameterAbiKind::ZeroExtend;
   return cxx::ir::ParameterAbiKind{};
 }
 
@@ -770,6 +773,7 @@ inline auto toVal(const cxx::ir::CallInfo& value) -> val {
              arrayVal(value.parameters, [](const cxx::ir::ParameterAbi& item) {
                return toVal(item);
              }));
+  result.set("resultAbi", toVal(value.resultAbi));
   result.set("variadicCalleeType", toVal(value.variadicCalleeType));
   return result;
 }
@@ -798,6 +802,7 @@ inline auto toVal(const cxx::ir::FunctionInfo& value) -> val {
              arrayVal(value.parameters, [](const cxx::ir::ParameterAbi& item) {
                return toVal(item);
              }));
+  result.set("resultAbi", toVal(value.resultAbi));
   return result;
 }
 
@@ -811,6 +816,7 @@ inline auto toVal(const cxx::ir::GlobalInfo& value) -> val {
   result.set("initializer", toVal(value.initializer));
   result.set("unknownLocation", toVal(value.unknownLocation));
   result.set("isUsed", toVal(value.isUsed));
+  result.set("isThreadLocal", toVal(value.isThreadLocal));
   return result;
 }
 

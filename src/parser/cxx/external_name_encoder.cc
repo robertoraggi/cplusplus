@@ -1508,17 +1508,7 @@ auto ExternalNameEncoder::encodeLocalName(Symbol* symbol) -> bool {
     return true;
   }
 
-  if (auto memberFunction = symbol_cast<FunctionSymbol>(symbol)) {
-    if (auto classSymbol = symbol_cast<ClassSymbol>(memberFunction->parent());
-        classSymbol && classSymbol->isClosureType()) {
-      out("N");
-      encodeObjectParameterQualifiers(memberFunction);
-      encodeClosureTypeName(classSymbol);
-      encodeUnqualifiedName(memberFunction);
-      out("E");
-      return true;
-    }
-  }
+  if (encodeNestedName(symbol)) return true;
 
   encodeUnqualifiedName(symbol);
   return true;

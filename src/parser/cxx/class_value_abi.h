@@ -55,6 +55,10 @@ struct ClassValueAbi {
                                          ClassValueAbiContext context)
     -> ClassValueAbi;
 
+[[nodiscard]] auto classifyFunctionParametersAbi(
+    TranslationUnit* unit, const FunctionType* type,
+    std::size_t implicitParameterCount) -> std::vector<ClassValueAbi>;
+
 [[nodiscard]] auto isClassValueDestroyedInCallee(const Type* type) -> bool;
 
 }  // namespace cxx

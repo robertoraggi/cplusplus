@@ -162,7 +162,8 @@ export type TypeKind =
 export type CallKind = "Direct" | "Builtin";
 
 /** @category Backend Enumerations */
-export type ParameterAbiKind = "Default" | "StructReturn" | "ByValue";
+export type ParameterAbiKind =
+  "Default" | "StructReturn" | "ByValue" | "ZeroExtend";
 
 /** @category Backend Enumerations */
 export type Visibility = "Default" | "Hidden" | "Protected";
@@ -274,6 +275,7 @@ export interface CallInfo {
   arguments: readonly ValueRef[];
   results: readonly TypeRef[];
   parameters: readonly ParameterAbi[];
+  resultAbi: ParameterAbi;
   variadicCalleeType: TypeRef;
 }
 
@@ -297,6 +299,7 @@ export interface FunctionInfo {
   exportName: string;
   isUsed: boolean;
   parameters: readonly ParameterAbi[];
+  resultAbi: ParameterAbi;
 }
 
 /** @category Backend Descriptors */
@@ -309,6 +312,7 @@ export interface GlobalInfo {
   initializer: Initializer;
   unknownLocation: boolean;
   isUsed: boolean;
+  isThreadLocal: boolean;
 }
 
 /** @category Debug Information */

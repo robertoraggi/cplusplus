@@ -33,6 +33,7 @@
 #include <mlir/IR/Region.h>
 #include <mlir/IR/SymbolTable.h>
 
+#include <array>
 #include <format>
 
 namespace cxx::ir {
@@ -1103,7 +1104,13 @@ auto MlirEmitter::parameterAbiAttrs(std::span<const ParameterAbi> parameters,
   for (std::size_t i = 0; i < count; ++i) {
     auto parameter = i < parameters.size() ? parameters[i] : ParameterAbi{};
     mlir::SmallVector<mlir::NamedAttribute> attrs;
-    if (parameter.kind != ParameterAbiKind::Default) {
+    if (parameter.kind == ParameterAbiKind::ZeroExtend) {
+      attrs.emplace_back(
+          mlir::StringAttr::get(context,
+                                mlir::LLVM::LLVMDialect::getZExtAttrName()),
+          builder_.getUnitAttr());
+      hasAttr = true;
+    } else if (parameter.kind != ParameterAbiKind::Default) {
       auto name = parameter.kind == ParameterAbiKind::StructReturn
                       ? mlir::LLVM::LLVMDialect::getStructRetAttrName()
                       : mlir::LLVM::LLVMDialect::getByValAttrName();
@@ -1152,7 +1159,8 @@ auto MlirEmitter::declareFunction(mlir::Location loc, const FunctionInfo& info)
       optionalString(info.importName), optionalString(info.exportName),
       info.isUsed,
       parameterAbiAttrs(info.parameters, functionType.getInputs().size()),
-      mlir::ArrayAttr{}));
+      parameterAbiAttrs(std::array{info.resultAbi},
+                        functionType.getResults().size())));
 }
 
 auto MlirEmitter::functionName(FunctionRef ref) -> std::string_view {
@@ -1193,7 +1201,7 @@ auto MlirEmitter::declareGlobal(SourceLocation loc, const GlobalInfo& info)
       mlir::StringRef{info.name.data(), info.name.size()},
       initializerAttribute(info.initializer),
       mlir::cxx::LinkageKindAttr::get(context(), toMlir(info.linkage)),
-      alignmentAttr, info.isUsed));
+      alignmentAttr, info.isUsed, info.isThreadLocal));
 }
 
 auto MlirEmitter::constantInt(mlir::Location loc, TypeRef typeRef,
@@ -1237,6 +1245,11 @@ auto MlirEmitter::call(mlir::Location loc, const CallInfo& info)
 
   if (auto argAttrs = parameterAbiAttrs(info.parameters, arguments.size())) {
     callOp.setArgAttrsAttr(argAttrs);
+  }
+
+  if (auto resAttrs =
+          parameterAbiAttrs(std::array{info.resultAbi}, resultTypes.size())) {
+    callOp.setResAttrsAttr(resAttrs);
   }
 
   if (info.variadicCalleeType) {

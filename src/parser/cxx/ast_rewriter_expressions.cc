@@ -582,6 +582,11 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
       copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
       copy->isTemplateIntroduced = ast->isTemplateIntroduced;
       copy->symbol = expandedParam;
+      if (auto field = rewrite.lambdaCaptureField(expandedParam)) {
+        copy->symbol = field;
+        copy->type =
+            translationUnit()->typeTraits().remove_reference(field->type());
+      }
       return copy;
     }
   }
@@ -614,6 +619,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
         }
       }
     }
+  } else if (!isCallee && symbol_cast<FunctionSymbol>(ast->symbol) &&
+             ast->type && !isDependent(translationUnit(), ast->type)) {
+    copy->symbol = rewrite.remapSymbol(ast->symbol);
+    copy->type = copy->symbol->type();
   } else if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
     binder()->qualifiedLookupIdExpression(copy, isCallee);
   } else if (is_function_local_predefined_variable(ast->symbol)) {
@@ -677,8 +686,15 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
   if (needsFreshClosure) binder()->bind(copy);
 
-  copy->captureList =
-      rewrite.rewriteList(ast->captureList, &ASTRewriter::lambdaCapture);
+  ListAppender<LambdaCaptureAST> appendCapture{arena(), copy->captureList};
+  for (auto capture : ListView{ast->captureList}) {
+    if (is_pack_capture(capture) &&
+        rewrite.forEachPackElement(
+            capture_initializer(capture), capture->firstSourceLocation(),
+            [&] { appendCapture(rewrite.lambdaCapture(capture)); }))
+      continue;
+    appendCapture(rewrite.lambdaCapture(capture));
+  }
 
   copy->rbracketLoc = ast->rbracketLoc;
   copy->lessLoc = ast->lessLoc;

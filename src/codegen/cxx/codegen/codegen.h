@@ -452,15 +452,16 @@ class Codegen {
   struct FunctionAbi {
     ir::TypeRef signature;
     std::vector<ir::ParameterAbi> parameters;
+    std::vector<ClassValueAbi> arguments;
+    ir::ParameterAbi resultAbi;
   };
+
+  [[nodiscard]] auto scalarExtensionAbi(const Type* type) const
+      -> ir::ParameterAbi;
 
   [[nodiscard]] auto computeFunctionAbi(const FunctionType* functionType,
                                         FunctionSymbol* functionSymbol)
       -> FunctionAbi;
-
-  [[nodiscard]] auto computeParameterAbi(const FunctionType* functionType,
-                                         FunctionSymbol* functionSymbol)
-      -> std::vector<ir::ParameterAbi>;
 
   [[nodiscard]] auto variadicCalleeType(std::span<const ir::ValueRef> args,
                                         std::size_t ellipsisArgumentCount,
@@ -471,7 +472,7 @@ class Codegen {
                                     ir::ValueRef value) -> ir::ValueRef;
 
   void abiLowerClassArgument(SourceLocation loc, const Type* paramType,
-                             ir::ValueRef value,
+                             const ClassValueAbi& abi, ir::ValueRef value,
                              std::vector<ir::ValueRef>& args);
 
   [[nodiscard]] auto abiPrepareResult(SourceLocation loc,
@@ -601,6 +602,7 @@ class Codegen {
                               ExpressionAST* initializer);
 
   [[nodiscard]] auto findOrCreateGuardVariable(Symbol* symbol,
+                                               ir::GlobalRef global,
                                                ir::Linkage linkage,
                                                SourceLocation loc)
       -> ir::GlobalRef;
@@ -722,7 +724,12 @@ class Codegen {
                                                       std::string_view name)
       -> ir::FunctionRef;
 
-  [[nodiscard]] auto findOrCreateCxaAtexit(SourceLocation loc)
+  [[nodiscard]] auto findOrCreateCxaAtexit(SourceLocation loc,
+                                           bool threadLocal = false)
+      -> ir::FunctionRef;
+
+  [[nodiscard]] auto findOrCreateCxaGuardFunction(SourceLocation loc,
+                                                  bool acquire)
       -> ir::FunctionRef;
 
   [[nodiscard]] auto findOrCreateDsoHandle(SourceLocation loc) -> ir::GlobalRef;
