@@ -4,12 +4,21 @@ import {
   type DebugDerivedKind,
   type DebugTypeRef,
   type EmitterDelegate,
+  type ParameterAbi,
+  type ParameterAbiKind,
 } from "cxx-frontend";
 
 const emitter: EmitterDelegate = new TraceEmitter();
 const debug: DebugEmitterDelegate | undefined = emitter.debug;
 const types: readonly DebugTypeRef[] = [1, 2];
 const kind: DebugDerivedKind = "MemberPointer";
+const extension: ParameterAbiKind = "ZeroExtend";
+const resultAbi: ParameterAbi = {
+  kind: extension,
+  indirectType: 0,
+  alignment: 0,
+};
+void resultAbi;
 
 if (debug) {
   const unit = debug.compileUnit({

@@ -1186,7 +1186,10 @@ auto is_templated_class(ClassSymbol* classSymbol) -> bool {
   for (Symbol* symbol = classSymbol; symbol; symbol = symbol->parent()) {
     auto enclosingClass = symbol_cast<ClassSymbol>(symbol);
     if (!enclosingClass) continue;
-    if (enclosingClass->templateParameters()) return true;
+    if (auto parameters = enclosingClass->templateParameters()) {
+      if (parameters->isExplicitTemplateSpecialization()) continue;
+      return true;
+    }
     if (enclosingClass->isSpecialization()) return true;
   }
   return false;
@@ -1249,8 +1252,11 @@ auto is_inline_or_templated(FunctionSymbol* function) -> bool {
   if (!function) return false;
   if (!function->isSpecialization()) function = function->canonical();
   if (function->isInline()) return true;
-  if (function->templateDeclaration() || function->isSpecialization())
+  if (auto declaration = function->templateDeclaration()) {
+    if (declaration->templateParameterList) return true;
+  } else if (function->isSpecialization()) {
     return true;
+  }
   for (auto scope = function->parent(); scope; scope = scope->parent()) {
     if (auto enclosingClass = symbol_cast<ClassSymbol>(scope))
       return is_templated_class(enclosingClass);
@@ -1265,6 +1271,14 @@ auto has_static_storage_duration(Symbol* symbol) -> bool {
   if (!variable || variable->isThreadLocal()) return false;
   if (variable->isStatic() || variable->isExtern()) return true;
   return !variable->enclosingFunction();
+}
+
+auto has_thread_storage_duration(Symbol* symbol) -> bool {
+  if (auto variable = symbol_cast<VariableSymbol>(symbol))
+    return variable->isThreadLocal();
+  if (auto field = symbol_cast<FieldSymbol>(symbol))
+    return field->isThreadLocal();
+  return false;
 }
 
 auto closure_mangling_context(ClassSymbol* closure) -> FunctionSymbol* {

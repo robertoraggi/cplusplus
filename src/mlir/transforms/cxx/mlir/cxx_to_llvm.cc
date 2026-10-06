@@ -300,6 +300,11 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
       func.setArgAttrsAttr(argAttrs);
     }
 
+    if (auto resAttrs =
+            convertArgumentAttrs(*typeConverter, op.getResAttrsAttr())) {
+      func.setResAttrsAttr(resAttrs);
+    }
+
     rewriter.inlineRegionBefore(op.getRegion(), func.getBody(), func.end());
 
     rewriter.eraseOp(op);
@@ -566,6 +571,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
     if (auto alignment = op.getAlignment()) {
       globalOp.setAlignment(*alignment);
     }
+    globalOp.setThreadLocal_(op.getThreadLocal_());
 
     if (hasRegionInit) {
       auto& llvmRegion = globalOp.getInitializerRegion();
@@ -855,6 +861,11 @@ class CallOpLowering : public OpConversionPattern<cxx::CallOp> {
       llvmCallOp.setArgAttrsAttr(argAttrs);
     }
 
+    if (auto resAttrs =
+            convertArgumentAttrs(*typeConverter, op.getResAttrsAttr())) {
+      llvmCallOp.setResAttrsAttr(resAttrs);
+    }
+
     if (resultTypes.size() <= 1) {
       rewriter.replaceOp(op, llvmCallOp);
       return success();
@@ -916,6 +927,9 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       case BuiltinFunctionKind::T___BUILTIN_IA32_PAUSE:
         return lowerSimpleIntrinsic(op, adaptor, rewriter,
                                     "llvm.x86.sse2.pause");
+
+      case BuiltinFunctionKind::T___BUILTIN_TRAP:
+        return lowerSimpleIntrinsic(op, adaptor, rewriter, "llvm.trap");
 
       case BuiltinFunctionKind::T___BUILTIN_MEMCPY:
         return lowerMemIntrinsic(op, adaptor, rewriter, "llvm.memcpy");

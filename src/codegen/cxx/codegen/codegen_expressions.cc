@@ -1553,6 +1553,16 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionResult {
   auto symbol = resolve_using_declaration(ast->symbol);
 
+  if (auto field = symbol_cast<FieldSymbol>(symbol);
+      field && field->isStatic()) {
+    (void)gen.expression(ast->baseExpression, ExpressionFormat::kSideEffect);
+    if (format == ExpressionFormat::kSideEffect) return {};
+    if (auto address =
+            gen.staticStorageAddress(ast->firstSourceLocation(), field))
+      return {gen.loadReferenceBinding(ast->firstSourceLocation(),
+                                       field->type(), address)};
+  }
+
   if (auto enumerator = symbol_cast<EnumeratorSymbol>(symbol)) {
     (void)gen.expression(ast->baseExpression, ExpressionFormat::kSideEffect);
     if (enumerator->value().has_value()) {
@@ -1562,14 +1572,6 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
         auto op = gen.emitter_.constantInt(loc, type, val->toIntMax());
         return {op};
       }
-    }
-  }
-
-  if (format == ExpressionFormat::kSideEffect) {
-    if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
-        field && field->isStatic()) {
-      (void)gen.expression(ast->baseExpression, ExpressionFormat::kSideEffect);
-      return {};
     }
   }
 
@@ -5248,6 +5250,7 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
   }
 
   const auto& paramTypes = functionType->parameterTypes();
+  const auto functionAbi = computeFunctionAbi(functionType, symbol);
 
   std::vector<ir::ValueRef> args;
   if (thisValue.value) {
@@ -5286,7 +5289,8 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
 
     if (isClassValueDestroyedInCallee(paramTypes[i])) cancelCleanup(val);
 
-    abiLowerClassArgument(loc, paramTypes[i], val, args);
+    abiLowerClassArgument(loc, paramTypes[i], functionAbi.arguments[i], val,
+                          args);
   }
 
   const auto returnsThis = structorReturnsThis(symbol);
@@ -5360,11 +5364,10 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
         variadicCalleeType(argumentRefs, ellipsisArgumentCount, resultTypeRefs);
   }
 
-  auto parameterAbi = computeParameterAbi(functionType, symbol);
-
   callInfo.arguments = argumentRefs;
   callInfo.results = resultTypeRefs;
-  callInfo.parameters = parameterAbi;
+  callInfo.parameters = functionAbi.parameters;
+  callInfo.resultAbi = functionAbi.resultAbi;
 
   auto callResults = emitter_.call(loc, callInfo);
 

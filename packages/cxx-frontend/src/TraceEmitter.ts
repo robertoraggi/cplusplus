@@ -58,6 +58,7 @@ import {
   type InsertionPointRef,
   type ModuleInfo,
   type ModuleRef,
+  type ParameterAbi,
   type TokenIndex,
   type TypeRef,
   type ValueRef,
@@ -305,6 +306,30 @@ export class TraceEmitter implements EmitterDelegate {
 
   #typeText(ref: TypeRef): string {
     return this.#types.get(ref)?.text ?? "?";
+  }
+
+  #abiText(abi: ParameterAbi): string {
+    switch (abi.kind) {
+      case "Default":
+        return "";
+      case "ZeroExtend":
+        return "zeroext";
+      case "StructReturn":
+      case "ByValue":
+        return (
+          `${abi.kind === "StructReturn" ? "sret" : "byval"}(${this.#typeText(abi.indirectType)})` +
+          (abi.alignment ? ` align(${abi.alignment})` : "")
+        );
+    }
+  }
+
+  #signatureAbiText(info: Pick<CallInfo, "parameters" | "resultAbi">): string {
+    const parameters = info.parameters.map((abi) => this.#abiText(abi));
+    const result = this.#abiText(info.resultAbi);
+    const argumentsText = parameters.some(Boolean)
+      ? ` args_abi(${parameters.map((text) => text || "default").join(", ")})`
+      : "";
+    return argumentsText + (result ? ` result_abi(${result})` : "");
   }
 
   #intern(text: string, info: Omit<TypeInfo, "text">): TypeRef {
@@ -688,7 +713,9 @@ export class TraceEmitter implements EmitterDelegate {
 
   call(loc: TokenIndex, info: CallInfo): ValueRef[] {
     const callee = info.callee ? `@${info.callee}` : `%${info.indirectCallee}`;
-    const text = `call ${callee}(${this.#valueList(info.arguments)})`;
+    const text =
+      `call ${callee}(${this.#valueList(info.arguments)})` +
+      this.#signatureAbiText(info);
     if (!info.results.length) {
       this.#emit(text);
       return [];
@@ -898,7 +925,8 @@ export class TraceEmitter implements EmitterDelegate {
         (info.importName ? ` import_name "${info.importName}"` : "") +
         (info.exportName ? ` export_name "${info.exportName}"` : "") +
         (info.isUsed ? " used" : "") +
-        INLINE_KIND_TEXT[info.inlineKind],
+        INLINE_KIND_TEXT[info.inlineKind] +
+        this.#signatureAbiText(info),
     );
     return ref;
   }
@@ -935,6 +963,7 @@ export class TraceEmitter implements EmitterDelegate {
       `global @${info.name} : ${this.#typeText(info.type)} ` +
         `${info.linkage}${info.isConstant ? " const" : ""}` +
         `${info.isUsed ? " used" : ""}` +
+        `${info.isThreadLocal ? " thread_local" : ""}` +
         ` = ${this.#initializerText(info.initializer)}`,
     );
     return ref;

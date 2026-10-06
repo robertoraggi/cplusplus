@@ -194,7 +194,7 @@ struct VTableInfo {
   Linkage linkage = Linkage::LinkOnceODR;
 };
 
-enum class ParameterAbiKind { Default, StructReturn, ByValue };
+enum class ParameterAbiKind { Default, StructReturn, ByValue, ZeroExtend };
 
 struct ParameterAbi {
   ParameterAbiKind kind = ParameterAbiKind::Default;
@@ -214,6 +214,7 @@ struct FunctionInfo {
   std::string_view exportName;
   bool isUsed = false;
   std::span<const ParameterAbi> parameters;
+  ParameterAbi resultAbi;
 };
 
 struct Initializer {
@@ -309,6 +310,7 @@ struct GlobalInfo {
   Initializer initializer;
   bool unknownLocation = false;
   bool isUsed = false;
+  bool isThreadLocal = false;
 };
 
 struct CleanupAction {
@@ -348,6 +350,7 @@ struct CallInfo {
   std::span<const ValueRef> arguments;
   std::span<const TypeRef> results;
   std::span<const ParameterAbi> parameters;
+  ParameterAbi resultAbi;
   TypeRef variadicCalleeType;
 };
 

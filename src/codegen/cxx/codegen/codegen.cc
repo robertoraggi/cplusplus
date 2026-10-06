@@ -31,6 +31,7 @@
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
@@ -43,15 +44,6 @@
 #include <map>
 
 namespace cxx {
-static auto isMemberOfClassTemplateSpecialization(Symbol* symbol) -> bool {
-  for (auto scope = symbol->parent(); scope; scope = scope->parent()) {
-    if (auto cls = symbol_cast<ClassSymbol>(scope)) {
-      if (cls->isSpecialization()) return true;
-    }
-  }
-  return false;
-}
-
 auto Codegen::hasVagueFunctionEmission(FunctionSymbol* function) const -> bool {
   if (!function) return false;
   if (is_inline_or_templated(function)) return true;
@@ -69,7 +61,7 @@ auto Codegen::hasVagueEmission(Symbol* symbol) const -> bool {
     if (variable->isInline()) return true;
     if (variable->isSpecialization()) return true;
   }
-  if (isMemberOfClassTemplateSpecialization(symbol)) return true;
+  if (is_templated_class(symbol->enclosingClass())) return true;
   return hasVagueFunctionEmission(symbol->enclosingFunction());
 }
 
@@ -116,6 +108,13 @@ static auto isMemberOfExplicitInstantiationDeclaredClass(TranslationUnit* unit,
   if (unit->isExplicitInstantiationDefinition(function)) return false;
   if (function->isExplicitInstantiationDeclared(unit)) return true;
   if (function->isInline()) return false;
+  auto pattern = function->primaryTemplateSymbol();
+  if (!pattern) pattern = function;
+  if (auto head = TemplateEquivalence{unit}.ownFunctionTemplateHead(
+          symbol_cast<ClassSymbol>(pattern->parent()),
+          pattern->templateDeclaration());
+      head && head->templateParameterList)
+    return false;
   return isMemberOfExplicitInstantiationDeclaredClass(unit, function);
 }
 
@@ -819,7 +818,7 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<ir::ValueRef> {
   auto var = symbol_cast<VariableSymbol>(symbol);
   if (!var) return std::nullopt;
 
-  if (var->isStatic()) return std::nullopt;
+  if (var->isStatic() || var->isThreadLocal()) return std::nullopt;
   if (!var->parent()->isBlock()) return std::nullopt;
 
   auto loc = var->location();
@@ -1467,11 +1466,9 @@ auto Codegen::classValueLoad(SourceLocation loc, const Type* type,
 }
 
 void Codegen::abiLowerClassArgument(SourceLocation loc, const Type* paramType,
+                                    const ClassValueAbi& abi,
                                     ir::ValueRef value,
                                     std::vector<ir::ValueRef>& args) {
-  const auto abi =
-      classifyClassValueAbi(paramType, ClassValueAbiContext::Argument);
-
   switch (abi.kind) {
     case ClassValueAbi::Kind::Direct:
       args.push_back(classValueLoad(loc, paramType, value));
@@ -1792,10 +1789,12 @@ auto Codegen::variadicCalleeType(std::span<const ir::ValueRef> args,
   return emitter_.functionType(fixedParameters, results, /*isVariadic=*/true);
 }
 
-auto Codegen::computeParameterAbi(const FunctionType* functionType,
-                                  FunctionSymbol* functionSymbol)
-    -> std::vector<ir::ParameterAbi> {
-  return computeFunctionAbi(functionType, functionSymbol).parameters;
+auto Codegen::scalarExtensionAbi(const Type* type) const -> ir::ParameterAbi {
+  if (control()->memoryLayout()->classValueAbiKind() !=
+      ClassValueAbiKind::kX86_64)
+    return {};
+  if (!traits.is_bool(traits.remove_cv(type))) return {};
+  return {.kind = ir::ParameterAbiKind::ZeroExtend};
 }
 
 auto Codegen::computeFunctionAbi(const FunctionType* functionType,
@@ -1840,13 +1839,15 @@ auto Codegen::computeFunctionAbi(const FunctionType* functionType,
     }
   }
 
+  abi.arguments =
+      classifyFunctionParametersAbi(unit_, functionType, inputTypes.size());
+  auto parameterIndex = std::size_t{0};
   for (auto paramTy : functionType->parameterTypes()) {
-    const auto paramAbi =
-        classifyClassValueAbi(paramTy, ClassValueAbiContext::Argument);
+    const auto& paramAbi = abi.arguments[parameterIndex++];
 
     switch (paramAbi.kind) {
       case ClassValueAbi::Kind::Direct:
-        addInput(convertType(paramTy));
+        addInput(convertType(paramTy), scalarExtensionAbi(paramTy));
         break;
 
       case ClassValueAbi::Kind::Empty:
@@ -1876,6 +1877,7 @@ auto Codegen::computeFunctionAbi(const FunctionType* functionType,
     switch (returnAbi.kind) {
       case ClassValueAbi::Kind::Direct:
         resultTypes.push_back(convertType(returnType));
+        abi.resultAbi = scalarExtensionAbi(returnType);
         break;
       case ClassValueAbi::Kind::Coerce:
         for (const auto& slot : returnAbi.slots)
@@ -2016,7 +2018,8 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
                .importName = identifierName(emittedSymbol->importName()),
                .exportName = identifierName(emittedSymbol->exportName()),
                .isUsed = emittedSymbol->isUsed(),
-               .parameters = functionAbi.parameters});
+               .parameters = functionAbi.parameters,
+               .resultAbi = functionAbi.resultAbi});
 
   funcOps_.insert_or_assign(emittedSymbol, func);
 
@@ -2084,7 +2087,8 @@ auto Codegen::findOrCreateSecondaryFunctionName(FunctionSymbol* functionSymbol,
                        .inlineKind = inlineKind,
                        .aliasee = aliaseeName,
                        .isUsed = emittedSymbol->isUsed(),
-                       .parameters = functionAbi.parameters});
+                       .parameters = functionAbi.parameters,
+                       .resultAbi = functionAbi.resultAbi});
 }
 
 auto Codegen::findOrCreateBaseObjectStructor(FunctionSymbol* functionSymbol)
@@ -2154,7 +2158,8 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     return it->second;
   }
 
-  if (!variableSymbol->isStatic() && !variableSymbol->parent()->isNamespace()) {
+  if (!variableSymbol->isStatic() && !variableSymbol->isThreadLocal() &&
+      !variableSymbol->parent()->isNamespace()) {
     return {};
   }
 
@@ -2192,11 +2197,13 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
     name = to_string(symbol->name());
   } else {
     std::string suffix;
-    if (variableSymbol->isStatic()) {
+    if (variableSymbol->isStatic() || variableSymbol->isThreadLocal()) {
       if (auto function = symbol->enclosingFunction()) {
         auto& count = staticLocalCounts_[symbol->name()];
         if (count > 0) {
-          suffix = std::format("_{}", count - 1);
+          const auto discriminator = count - 1;
+          suffix = discriminator < 10 ? std::format("_{}", discriminator)
+                                      : std::format("__{}_", discriminator);
         }
         ++count;
       }
@@ -2318,15 +2325,17 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   auto alignmentAttr = ir::Initializer::integerValue(
       emitter_.integerType(64), static_cast<int64_t>(getAlignment(defVar)));
 
-  auto var = this->declareGlobal(loc, {.name = std::string_view(name),
-                                       .type = varType,
-                                       .linkage = linkageAttr,
-                                       .isConstant = isConstant,
-                                       .alignment = static_cast<std::uint64_t>(
-                                           alignmentAttr.integer.toUIntMax()),
-                                       .initializer = initializer,
-                                       .unknownLocation = false,
-                                       .isUsed = defVar->isUsed()});
+  auto var = this->declareGlobal(
+      loc, {.name = std::string_view(name),
+            .type = varType,
+            .linkage = linkageAttr,
+            .isConstant = isConstant,
+            .alignment =
+                static_cast<std::uint64_t>(alignmentAttr.integer.toUIntMax()),
+            .initializer = initializer,
+            .unknownLocation = false,
+            .isUsed = defVar->isUsed(),
+            .isThreadLocal = defVar->isThreadLocal()});
 
   globalOps_.insert_or_assign(canonicalVar, var);
 
@@ -2418,15 +2427,17 @@ auto Codegen::findOrCreateStaticField(FieldSymbol* field) -> ir::GlobalRef {
 
   ir::Initializer alignmentAttr;
 
-  auto var = this->declareGlobal(loc, {.name = std::string_view(name),
-                                       .type = varType,
-                                       .linkage = linkageAttr,
-                                       .isConstant = isConstant,
-                                       .alignment = static_cast<std::uint64_t>(
-                                           alignmentAttr.integer.toUIntMax()),
-                                       .initializer = initializer,
-                                       .unknownLocation = false,
-                                       .isUsed = field->isUsed()});
+  auto var = this->declareGlobal(
+      loc, {.name = std::string_view(name),
+            .type = varType,
+            .linkage = linkageAttr,
+            .isConstant = isConstant,
+            .alignment =
+                static_cast<std::uint64_t>(alignmentAttr.integer.toUIntMax()),
+            .initializer = initializer,
+            .unknownLocation = false,
+            .isUsed = field->isUsed(),
+            .isThreadLocal = field->isThreadLocal()});
 
   staticFieldGlobalOps_.insert_or_assign(field, var);
 
@@ -2549,19 +2560,34 @@ void Codegen::emitGlobalVarInit(VariableSymbol* var, ir::GlobalRef global) {
                  cleanup, global, linkage == ir::Linkage::LinkOnceODR);
 }
 
-auto Codegen::findOrCreateGuardVariable(Symbol* symbol, ir::Linkage linkage,
-                                        SourceLocation loc) -> ir::GlobalRef {
+auto Codegen::findOrCreateGuardVariable(Symbol* symbol, ir::GlobalRef global,
+                                        ir::Linkage linkage, SourceLocation loc)
+    -> ir::GlobalRef {
   ExternalNameEncoder encoder{unit_};
   auto guardName = encoder.encodeGuardVariable(symbol);
+
+  if (auto storageName = this->globalName(global);
+      symbol->enclosingFunction() && storageName.starts_with("_Z")) {
+    guardName = std::format("_ZGV{}", storageName.substr(2));
+  }
 
   if (auto existing = this->findGlobal(guardName)) return existing;
 
   auto insertionGuard = ir::InsertionGuard(emitter_);
   emitter_.setModuleInsertionPoint(true);
 
-  const bool isInternal = linkage == ir::Linkage::Internal;
-  auto guardType = isInternal ? emitter_.integerType(8) : pointerSizedIntType();
-  auto alignment = isInternal ? std::size_t(1) : pointerSize();
+  const bool threadLocal = has_thread_storage_duration(symbol);
+  const bool inlineVariable = [&] {
+    if (auto var = symbol_cast<VariableSymbol>(symbol)) return var->isInline();
+    if (auto field = symbol_cast<FieldSymbol>(symbol)) return field->isInline();
+    return false;
+  }();
+  const bool threadSafe = !isWasmTarget_ && !threadLocal &&
+                          (symbol->enclosingFunction() || inlineVariable);
+  const bool byteGuard = linkage == ir::Linkage::Internal && !threadSafe;
+  auto alignment = isWasmTarget_ ? pointerSize() : std::size_t(8);
+  if (byteGuard) alignment = 1;
+  auto guardType = emitter_.integerType(alignment * 8);
 
   return this->declareGlobal(
       loc, {.name = guardName,
@@ -2570,7 +2596,8 @@ auto Codegen::findOrCreateGuardVariable(Symbol* symbol, ir::Linkage linkage,
             .isConstant = false,
             .alignment = static_cast<std::uint64_t>(alignment),
             .initializer = ir::Initializer::integerValue(guardType, 0),
-            .unknownLocation = false});
+            .unknownLocation = false,
+            .isThreadLocal = threadLocal});
 }
 
 void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
@@ -2595,13 +2622,25 @@ void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
       initializer ? initializer->firstSourceLocation() : var->location();
 
   auto initGuard = findOrCreateGuardVariable(
-      canonicalVar, emitter_.globalLinkage(global), loc);
+      canonicalVar, global, emitter_.globalLinkage(global), loc);
 
   auto guardByteType = emitter_.integerType(8);
   auto guardBytePtrType = emitter_.pointerType(guardByteType);
   auto guardAddress = emitter_.addressOfSymbol(loc, guardBytePtrType,
                                                this->globalName(initGuard));
-  auto guardValue = emitter_.load(loc, guardByteType, guardAddress, 1);
+  const bool threadSafe = !isWasmTarget_ && !defVar->isThreadLocal();
+  auto guardValue = [&] {
+    if (!threadSafe) return emitter_.load(loc, guardByteType, guardAddress, 1);
+    const ir::TypeRef results[] = {guardByteType};
+    const ir::ValueRef arguments[] = {
+        guardAddress, emitter_.constantInt(loc, emitter_.integerType(32), 2)};
+    return emitter_.builtinCall(loc, results, "__c11_atomic_load", arguments);
+  }();
+  auto arch = control()->memoryLayout()->arch();
+  if (threadSafe && (arch == "aarch64" || arch == "arm64")) {
+    auto one = emitter_.constantInt(loc, guardByteType, 1);
+    guardValue = emitter_.binaryOp(loc, ir::BinaryOp::AndInt, guardValue, one);
+  }
   auto zero = emitter_.constantInt(loc, guardByteType, 0);
   auto needsInitialization =
       emitter_.compareInt(loc, ir::IntPredicate::Equal, guardValue, zero);
@@ -2611,6 +2650,22 @@ void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
   emitter_.condBranch(loc, needsInitialization, initBlock, continueBlock);
 
   emitter_.setInsertionBlock(initBlock);
+
+  if (threadSafe) {
+    auto acquire = findOrCreateCxaGuardFunction(loc, true);
+    const ir::ValueRef arguments[] = {guardAddress};
+    const ir::TypeRef results[] = {emitter_.integerType(32)};
+    auto acquired = emitter_.call(loc, {.callee = functionName(acquire),
+                                        .arguments = arguments,
+                                        .results = results});
+    auto zero = emitter_.constantInt(loc, emitter_.integerType(32), 0);
+    auto ownsInitialization = emitter_.compareInt(
+        loc, ir::IntPredicate::NotEqual, acquired.front(), zero);
+    auto initializeBlock = newBlock();
+    emitter_.condBranch(loc, ownsInitialization, initializeBlock,
+                        continueBlock);
+    emitter_.setInsertionBlock(initializeBlock);
+  }
 
   auto ptrType = emitter_.pointerType(convertType(defVar->type()));
   auto addr = emitter_.addressOfSymbol(loc, ptrType, this->globalName(global));
@@ -2631,8 +2686,15 @@ void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
                                   completeObjectDtor(destructor), global, loc);
   }
 
-  auto one = emitter_.constantInt(loc, guardByteType, 1);
-  emitter_.store(loc, one, guardAddress, 1);
+  if (threadSafe) {
+    auto release = findOrCreateCxaGuardFunction(loc, false);
+    const ir::ValueRef arguments[] = {guardAddress};
+    (void)emitter_.call(
+        loc, {.callee = functionName(release), .arguments = arguments});
+  } else {
+    auto one = emitter_.constantInt(loc, guardByteType, 1);
+    emitter_.store(loc, one, guardAddress, 1);
+  }
 
   branch(initLoc, continueBlock);
 
@@ -2654,8 +2716,8 @@ void Codegen::emitGlobalInit(Symbol* symbol, const Type* type,
 
   ir::GlobalRef initGuard;
   if (guarded)
-    initGuard =
-        findOrCreateGuardVariable(symbol, ir::Linkage::LinkOnceODR, loc);
+    initGuard = findOrCreateGuardVariable(symbol, global,
+                                          ir::Linkage::LinkOnceODR, loc);
 
   std::string name = "__cxx_global_var_init";
   if (globalVarInitCount_ > 0) {
@@ -2942,10 +3004,13 @@ void Codegen::emitForwardingBody(
   callArgs[thisIndex] =
       emitter_.bitcast(loc, emitter_.typeOf(rawThis), adjustedThis);
 
-  auto results = emitter_.call(
-      loc, {.callee = this->functionName(targetFuncOp),
-            .arguments = callArgs,
-            .results = emitter_.functionResultTypes(targetFuncOp)});
+  const auto targetAbi = computeFunctionAbi(functionType, target);
+  auto results =
+      emitter_.call(loc, {.callee = this->functionName(targetFuncOp),
+                          .arguments = callArgs,
+                          .results = emitter_.functionResultTypes(targetFuncOp),
+                          .parameters = targetAbi.parameters,
+                          .resultAbi = targetAbi.resultAbi});
 
   if (returnAdjustment.isEmpty() || results.empty()) {
     emitter_.ret(loc, results);
@@ -3355,8 +3420,32 @@ auto Codegen::findOrCreateUnimplementedVirtual(SourceLocation loc,
       loc, {.name = name, .type = funcType, .linkage = ir::Linkage::External});
 }
 
-auto Codegen::findOrCreateCxaAtexit(SourceLocation loc) -> ir::FunctionRef {
-  const std::string_view name = "__cxa_atexit";
+auto Codegen::findOrCreateCxaGuardFunction(SourceLocation loc, bool acquire)
+    -> ir::FunctionRef {
+  const std::string_view name =
+      acquire ? "__cxa_guard_acquire" : "__cxa_guard_release";
+  if (auto existing = findFunction(name)) return existing;
+  auto guard = ir::InsertionGuard(emitter_);
+  emitter_.setModuleInsertionPoint(true);
+  const ir::TypeRef parameters[] = {
+      emitter_.pointerType(emitter_.integerType(64))};
+  std::vector<ir::TypeRef> results;
+  if (acquire) results.push_back(emitter_.integerType(32));
+  auto type = emitter_.functionType(parameters, results, false);
+  return declareFunction(
+      loc, {.name = name, .type = type, .linkage = ir::Linkage::External});
+}
+
+auto Codegen::findOrCreateCxaAtexit(SourceLocation loc, bool threadLocal)
+    -> ir::FunctionRef {
+  std::string_view name;
+  if (!threadLocal) {
+    name = "__cxa_atexit";
+  } else if (control()->memoryLayout()->isDarwin()) {
+    name = "_tlv_atexit";
+  } else {
+    name = "__cxa_thread_atexit";
+  }
 
   if (auto existingFunc = this->findFunction(name)) {
     return existingFunc;
@@ -3411,6 +3500,8 @@ void Codegen::emitGlobalVarDtorRegistration(Symbol* symbol, const Type* type,
                                             SourceLocation loc) {
   auto savedInsertionPoint = emitter_.saveInsertionPoint();
 
+  const bool threadLocal = has_thread_storage_duration(symbol);
+
   auto i8Type = emitter_.integerType(8);
   auto i8PtrType = emitter_.pointerType(i8Type);
 
@@ -3434,11 +3525,13 @@ void Codegen::emitGlobalVarDtorRegistration(Symbol* symbol, const Type* type,
   auto functionBodyGuard = ir::FunctionBodyGuard{emitter_, thunkFunc};
 
   auto entryBlock = emitter_.createBlock(thunkFunc);
-  (void)emitter_.addBlockParameter(entryBlock, i8PtrType, loc);
+  auto object = emitter_.addBlockParameter(entryBlock, i8PtrType, loc);
   emitter_.setInsertionBlock(entryBlock);
 
   auto ptrType = emitter_.pointerType(convertType(type));
-  auto addr = emitter_.addressOfSymbol(loc, ptrType, this->globalName(global));
+  auto addr = threadLocal ? emitter_.bitcast(loc, ptrType, object)
+                          : emitter_.addressOfSymbol(loc, ptrType,
+                                                     this->globalName(global));
 
   if (traits.is_array(type)) {
     auto count =
@@ -3455,18 +3548,20 @@ void Codegen::emitGlobalVarDtorRegistration(Symbol* symbol, const Type* type,
 
   emitter_.setModuleInsertionPoint(false);
 
-  auto atexitFunc = findOrCreateCxaAtexit(loc);
+  auto atexitFunc = findOrCreateCxaAtexit(loc, threadLocal);
   auto dsoHandle = findOrCreateDsoHandle(loc);
 
   emitter_.restoreInsertionPoint(savedInsertionPoint);
 
   auto thunkPtr =
       emitter_.addressOfSymbol(loc, i8PtrType, this->functionName(thunkFunc));
-  auto nullPtr = emitter_.nullPointer(loc, i8PtrType);
+  auto objectPtr = threadLocal ? emitter_.addressOfSymbol(
+                                     loc, i8PtrType, this->globalName(global))
+                               : emitter_.nullPointer(loc, i8PtrType);
   auto dsoHandlePtr =
       emitter_.addressOfSymbol(loc, i8PtrType, this->globalName(dsoHandle));
 
-  std::vector<ir::ValueRef> args{thunkPtr, nullPtr, dsoHandlePtr};
+  std::vector<ir::ValueRef> args{thunkPtr, objectPtr, dsoHandlePtr};
   std::vector<ir::TypeRef> callResultTypes{emitter_.integerType(32)};
   (void)emitter_.call(implicitLocation(loc),
                       {.callee = this->functionName(atexitFunc),

@@ -564,10 +564,11 @@ auto ASTRewriter::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
   rewrite.addSymbolRemap(ast->symbol, symbol);
 
   rewrite.associatePendingExceptionSpecifiers(
-      pendingExceptionSpecifierMark, nullptr, nullptr, [this, copy, symbol] {
-        symbol->setType(binder()->aliasedType(copy->identifierLoc, copy->typeId,
-                                              copy->attributeList,
-                                              copy->gnuAttributeList));
+      pendingExceptionSpecifierMark, nullptr, nullptr,
+      [binder = binder(), copy, symbol] {
+        symbol->setType(binder->aliasedType(copy->identifierLoc, copy->typeId,
+                                            copy->attributeList,
+                                            copy->gnuAttributeList));
       });
 
   return copy;
@@ -736,9 +737,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   rewrite.associatePendingExceptionSpecifiers(
       pendingExceptionSpecifierMark, functionSymbol,
       functionDeclarator->exceptionSpecifier,
-      [this, copy, functionSymbol, baseType = declSpecifierListCtx.type()] {
-        auto type = getDeclaratorType(rewrite.translationUnit(),
-                                      copy->declarator, baseType);
+      [unit = translationUnit(), copy, functionSymbol,
+       baseType = declSpecifierListCtx.type()] {
+        auto type = getDeclaratorType(unit, copy->declarator, baseType);
         functionSymbol->setType(type);
       });
 
@@ -1011,11 +1012,17 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
       binder()->scope()->isTemplateParameters() ||
       rewrite.rewritingTemplateParameterDeclaration();
 
+  auto patternParameter = symbol_cast<ParameterSymbol>(ast->symbol);
+  const bool hasDefaultArgument =
+      ast->expression ||
+      (patternParameter && patternParameter->hasDefaultArgument());
   auto defaultArgument =
-      ASTRewriter::patternDefaultArgument(translationUnit(), ast);
+      inTemplateParameters
+          ? ASTRewriter::patternDefaultArgument(translationUnit(), ast)
+          : ast->expression;
   auto defaultArgumentScope = binder()->scope();
 
-  if (defaultArgument && !ast->expression) {
+  if (hasDefaultArgument && !ast->expression) {
     auto parameter = symbol_cast<ParameterSymbol>(ast->symbol);
     if (auto patternClass = parameter->enclosingClass()) {
       if (auto instanceClass =
@@ -1024,7 +1031,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
     }
   }
 
-  const auto defersDefaultArgument = defaultArgument && !inTemplateParameters;
+  const auto defersDefaultArgument =
+      hasDefaultArgument && !inTemplateParameters;
 
   if (defaultArgument && !defersDefaultArgument) {
     auto _ = Binder::ScopeGuard{binder()};
@@ -1037,6 +1045,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
   binder()->bind(copy, declaratorDecl, inTemplateParameters);
 
   auto parameter = copy->symbol;
+  if (parameter && ast->symbol && parameter != ast->symbol)
+    parameter->setInstantiationPattern(ast->symbol);
 
   if (defersDefaultArgument && parameter) {
     parameter->setPendingDefaultArgument(
@@ -1045,9 +1055,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
 
   rewrite.associatePendingExceptionSpecifiers(
       pendingExceptionSpecifierMark, nullptr, nullptr,
-      [this, copy, parameter, baseType = typeSpecifierListCtx.type()] {
-        copy->type = getDeclaratorType(rewrite.translationUnit(),
-                                       copy->declarator, baseType);
+      [unit = translationUnit(), copy, parameter,
+       baseType = typeSpecifierListCtx.type()] {
+        copy->type = getDeclaratorType(unit, copy->declarator, baseType);
         if (parameter) parameter->setType(copy->type);
       });
 

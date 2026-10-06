@@ -174,6 +174,7 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
     , OptionalAttr<Cxx_LinkageKind>:$linkage_kind
     , OptionalAttr<I64Attr>:$alignment
     , UnitAttr:$used
+    , UnitAttr:$thread_local_
   );
 
   let regions = (region AnyRegion:$initializer);
@@ -243,6 +244,7 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
     , Variadic<AnyType>:$inputs
     , OptionalAttr<TypeAttrOf<Cxx_FunctionType>>:$var_callee_type
     , OptionalAttr<DictArrayAttr>:$arg_attrs
+    , OptionalAttr<DictArrayAttr>:$res_attrs
   );
 
   let results = (outs Variadic<AnyType>:$results);
@@ -258,7 +260,7 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
                    "::mlir::FlatSymbolRefAttr":$callee,
                    "::mlir::ValueRange":$inputs), [{
       build($_builder, $_state, resultTypes, callee, ::mlir::Value{}, inputs,
-            ::mlir::TypeAttr{}, ::mlir::ArrayAttr{});
+            ::mlir::TypeAttr{}, ::mlir::ArrayAttr{}, ::mlir::ArrayAttr{});
     }]>,
     OpBuilder<(ins "::mlir::TypeRange":$resultTypes, "::llvm::StringRef":$callee,
                    "::mlir::ValueRange":$inputs), [{
@@ -269,7 +271,8 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
     OpBuilder<(ins "::mlir::TypeRange":$resultTypes, "::mlir::Value":$callee,
                    "::mlir::ValueRange":$inputs), [{
       build($_builder, $_state, resultTypes, ::mlir::FlatSymbolRefAttr{},
-            callee, inputs, ::mlir::TypeAttr{}, ::mlir::ArrayAttr{});
+            callee, inputs, ::mlir::TypeAttr{}, ::mlir::ArrayAttr{},
+            ::mlir::ArrayAttr{});
     }]>
   ];
 

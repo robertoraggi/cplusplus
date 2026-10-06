@@ -560,4 +560,65 @@ auto classifyClassValueAbi(TranslationUnit* unit, const Type* type,
   return {};
 }
 
+auto classifyFunctionParametersAbi(TranslationUnit* unit,
+                                   const FunctionType* type,
+                                   std::size_t implicitParameterCount)
+    -> std::vector<ClassValueAbi> {
+  ClassValueAbiRules rules{unit};
+  const auto tracksRegisters =
+      rules.memoryLayout->classValueAbiKind() == ClassValueAbiKind::kX86_64;
+  auto integerRegisters = 6 - std::min<std::size_t>(implicitParameterCount, 6);
+  auto sseRegisters = std::size_t{8};
+  std::vector<ClassValueAbi> parameters;
+
+  for (auto parameterType : type->parameterTypes()) {
+    auto abi = classifyClassValueAbi(unit, parameterType,
+                                     ClassValueAbiContext::Argument);
+    if (!tracksRegisters) {
+      parameters.push_back(std::move(abi));
+      continue;
+    }
+
+    auto integers = std::size_t{0};
+    auto sse = std::size_t{0};
+    switch (abi.kind) {
+      case ClassValueAbi::Kind::Direct: {
+        auto scalarType = rules.abiType(parameterType);
+        if (rules.traits.is_floating_point(scalarType)) {
+          if (!type_cast<LongDoubleType>(scalarType)) ++sse;
+          break;
+        }
+        const auto size = rules.sizeOf(scalarType);
+        if (size <= 16) integers = (size + 7) / 8;
+        break;
+      }
+      case ClassValueAbi::Kind::Coerce:
+        for (const auto& slot : abi.slots) {
+          if (rules.traits.is_floating_point(slot.type))
+            ++sse;
+          else
+            ++integers;
+        }
+        break;
+      case ClassValueAbi::Kind::Indirect:
+        if (!abi.passedInMemory) ++integers;
+        break;
+      case ClassValueAbi::Kind::Empty:
+        break;
+    }
+
+    if (integers > integerRegisters || sse > sseRegisters) {
+      if (abi.kind == ClassValueAbi::Kind::Coerce)
+        abi = rules.indirect(ClassValueAbiContext::Argument, parameterType,
+                             true, 8);
+    } else {
+      integerRegisters -= integers;
+      sseRegisters -= sse;
+    }
+    parameters.push_back(std::move(abi));
+  }
+
+  return parameters;
+}
+
 }  // namespace cxx

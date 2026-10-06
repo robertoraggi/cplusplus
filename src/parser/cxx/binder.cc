@@ -2188,8 +2188,9 @@ auto Binder::captureEntity(ClassSymbol* closure, Symbol* entity,
   reference->type = entityType;
   reference->valueCategory = ValueCategory::kLValue;
 
-  auto fieldType =
-      byReference ? control()->getLvalueReferenceType(entityType) : entityType;
+  auto fieldType = byReference || traits.is_function(entityType)
+                       ? control()->getLvalueReferenceType(entityType)
+                       : entityType;
 
   EntityCapture capture{declareCaptureField(closure, name, fieldType, loc),
                         reference};
@@ -2431,6 +2432,25 @@ void Binder::complete(LambdaExpressionAST* ast) {
 
   if (isCxx()) declareInitCapturesInLambdaScope(ast);
 
+  if (isCxx() && inDependentContext) {
+    for (auto captureNode : ListView{ast->captureList}) {
+      if (!ast_cast<SimpleLambdaCaptureAST>(captureNode) &&
+          !ast_cast<RefLambdaCaptureAST>(captureNode))
+        continue;
+      auto entity =
+          lookupCapturedEntity(parentScope, capture_identifier(captureNode),
+                               captureNode->firstSourceLocation());
+      if (!entity) continue;
+      auto reference = IdExpressionAST::create(unit_->arena());
+      reference->unqualifiedId =
+          NameIdAST::create(unit_->arena(), capture_identifier(captureNode));
+      reference->symbol = entity;
+      reference->type = traits.remove_reference(entity->type());
+      reference->valueCategory = ValueCategory::kLValue;
+      *capture_initializer_slot(captureNode) = reference;
+    }
+  }
+
   if (isCxx() && !inDependentContext) {
     auto classSymbol = control()->newClassSymbol(parentScope, ast->lbracketLoc);
 
@@ -2476,16 +2496,23 @@ void Binder::complete(LambdaExpressionAST* ast) {
       auto ar = unit_->arena();
 
       if (auto simple = ast_cast<SimpleLambdaCaptureAST>(captureNode)) {
-        auto entity = lookupCapturedEntity(parentScope, simple->identifier,
-                                           simple->identifierLoc);
+        auto reference = ast_cast<IdExpressionAST>(simple->initializer);
+        auto entity =
+            reference && reference->symbol
+                ? reference->symbol
+                : lookupCapturedEntity(parentScope, simple->identifier,
+                                       simple->identifierLoc);
         if (!entity) continue;
         auto capture = captureEntity(classSymbol, entity, simple->identifier,
                                      false, parentScope, captureLoc);
         simple->initializer = capture.initializer;
         simple->symbol = capture.field;
       } else if (auto ref = ast_cast<RefLambdaCaptureAST>(captureNode)) {
-        auto entity = lookupCapturedEntity(parentScope, ref->identifier,
-                                           ref->identifierLoc);
+        auto reference = ast_cast<IdExpressionAST>(ref->initializer);
+        auto entity = reference && reference->symbol
+                          ? reference->symbol
+                          : lookupCapturedEntity(parentScope, ref->identifier,
+                                                 ref->identifierLoc);
         if (!entity) continue;
         auto capture = captureEntity(classSymbol, entity, ref->identifier, true,
                                      parentScope, captureLoc);

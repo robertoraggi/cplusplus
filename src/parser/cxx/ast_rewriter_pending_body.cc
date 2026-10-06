@@ -246,34 +246,25 @@ void ASTRewriter::remapFunctionParameters(
   const auto patternMembers = parametersOf(patternParameters);
   const auto instanceMembers = parametersOf(instanceParameters);
 
-  std::size_t instanceIndex = 0;
-
-  for (std::size_t i = 0; i < patternMembers.size(); ++i) {
-    std::size_t reservedForTrailingParameters = 0;
-    for (auto j = i + 1; j < patternMembers.size(); ++j)
-      if (!patternMembers[j]->isParameterPack())
-        ++reservedForTrailingParameters;
-
-    const auto available = instanceMembers.size() - instanceIndex;
-
-    const auto stillPacked = instanceIndex < instanceMembers.size() &&
-                             instanceMembers[instanceIndex]->isParameterPack();
-
-    if (!patternMembers[i]->isParameterPack() || stillPacked) {
-      if (available <= reservedForTrailingParameters) break;
-      addSymbolRemap(patternMembers[i], instanceMembers[instanceIndex++]);
+  for (auto pattern : patternMembers) {
+    std::vector<ParameterSymbol*> matches;
+    for (auto instance : instanceMembers) {
+      for (auto origin = static_cast<Symbol*>(instance); origin;
+           origin = origin->instantiationPattern()) {
+        if (origin != pattern) continue;
+        matches.push_back(instance);
+        break;
+      }
+    }
+    if (!pattern->isParameterPack() ||
+        (matches.size() == 1 && matches.front()->isParameterPack())) {
+      if (!matches.empty()) addSymbolRemap(pattern, matches.front());
       continue;
     }
-
     auto pack =
         control()->newParameterPackSymbol(instanceParameters, SourceLocation{});
-
-    for (auto last = instanceIndex + available - reservedForTrailingParameters;
-         instanceIndex < last; ++instanceIndex) {
-      pack->addElement(instanceMembers[instanceIndex]);
-    }
-
-    functionParamPacks_[patternMembers[i]] = pack;
+    for (auto parameter : matches) pack->addElement(parameter);
+    functionParamPacks_[pattern] = pack;
   }
 }
 

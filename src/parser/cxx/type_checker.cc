@@ -2557,6 +2557,29 @@ void TypeChecker::Visitor::check_member_pointer_access(
 
   const auto objectQualifiers = cv_qualifiers(objectType);
 
+  auto pointer = decomposeMemberPointer(memberPointer->type);
+  if (pointer) {
+    auto objectClass = unqualified_cast<ClassType>(objectType);
+    auto memberClass = unqualified_cast<ClassType>(pointer.classType);
+    if (!objectClass || !traits.is_base_of(pointer.classType, objectType)) {
+      error(ast->opLoc,
+            "left operand does not designate an object of the member's class "
+            "or a derived class");
+      return;
+    }
+    if (!requireValidBaseConversion(
+            objectClass->symbol(), memberClass->symbol(),
+            BaseConversionKind::kDerivedToBase, ast->opLoc))
+      return;
+    auto baseType = traits.add_cv(pointer.classType, objectQualifiers);
+    if (throughPointer) {
+      stdconv_.convertPointer(object, control()->getPointerType(baseType));
+    } else {
+      (void)stdconv_.temporaryMaterialization(object);
+      (void)stdconv_.convertToBaseClass(object, baseType);
+    }
+  }
+
   const auto qualified = [&](const Type* memberType) {
     const auto memberQualifiers = cv_qualifiers(memberType);
     const auto combined = objectQualifiers | memberQualifiers;
@@ -6659,6 +6682,8 @@ void TypeChecker::operator()(ExpressionAST** ast) { check(ast); }
 void TypeChecker::check(ExpressionAST** ast) {
   if (!ast || !*ast) return;
   visit(Visitor{*this}, *ast);
+  if (unit_->isPotentiallyEvaluated() && is_prvalue(*ast))
+    unit_->typeTraits().requireCompleteClass((*ast)->type);
   evaluateImmediateInvocation(ast);
 }
 

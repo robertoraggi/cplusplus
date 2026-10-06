@@ -103,6 +103,123 @@ test("the module header carries the position independence levels", () => {
   assert.doesNotMatch(plain.trace, /\bpic\b|\bpie\b/);
 });
 
+test("function and call traces preserve ABI attributes", () => {
+  const emitter = new TraceEmitter();
+  const scalar = emitter.integerType(1);
+  const pointer = emitter.pointerType(scalar);
+  const plain = { kind: "Default", indirectType: 0, alignment: 0 };
+  const extension = { ...plain, kind: "ZeroExtend" };
+  const parameters = [
+    { kind: "StructReturn", indirectType: scalar, alignment: 8 },
+    { kind: "ByValue", indirectType: scalar, alignment: 16 },
+    plain,
+    extension,
+  ];
+  const info = {
+    name: "attributes",
+    type: emitter.functionType([pointer, pointer, scalar, scalar], [], false),
+    linkage: "External",
+    visibility: "Default",
+    inlineKind: "Default",
+    aliasee: "",
+    importModule: "",
+    importName: "",
+    exportName: "",
+    isUsed: false,
+    parameters,
+    resultAbi: plain,
+  };
+  emitter.declareFunction(0, info);
+  const value = emitter.constant(0, scalar, {
+    kind: "Integer",
+    type: scalar,
+    integer: 0n,
+    floating: 0,
+    bytes: new Uint8Array(),
+    elements: [],
+  });
+  const address = emitter.allocate(0, pointer, value, 16);
+  emitter.call(0, {
+    kind: "Direct",
+    callee: info.name,
+    indirectCallee: 0,
+    arguments: [address, address, value, value],
+    results: [],
+    parameters,
+    resultAbi: plain,
+    variadicCalleeType: 0,
+  });
+  const attributes =
+    /args_abi\(sret\(i1\) align\(8\), byval\(i1\) align\(16\), default, zeroext\)/;
+  assert.match(
+    emitter.trace
+      .split("\n")
+      .find((line) => line.startsWith("func @attributes")),
+    attributes,
+  );
+
+  emitter.declareFunction(0, {
+    ...info,
+    name: "boolean",
+    type: emitter.functionType([scalar], [scalar], false),
+    parameters: [extension],
+    resultAbi: extension,
+  });
+  emitter.call(0, {
+    kind: "Direct",
+    callee: "boolean",
+    indirectCallee: 0,
+    arguments: [value],
+    results: [scalar],
+    parameters: [extension],
+    resultAbi: extension,
+    variadicCalleeType: 0,
+  });
+  const booleanAttributes = /args_abi\(zeroext\) result_abi\(zeroext\)/;
+  assert.match(
+    emitter.trace.split("\n").find((line) => line.startsWith("func @boolean")),
+    booleanAttributes,
+  );
+  assert.match(
+    emitter.trace.split("\n").find((line) => line.includes("call @boolean")),
+    booleanAttributes,
+  );
+  checkWellFormed(emitter.trace);
+  assert.match(
+    emitter.trace.split("\n").find((line) => line.includes("call @attributes")),
+    attributes,
+  );
+
+  const defaults = new TraceEmitter();
+  defaults.declareFunction(0, { ...info, parameters: [], resultAbi: plain });
+  assert.doesNotMatch(defaults.trace, /args_abi|result_abi/);
+});
+
+test("the wasm binding supplies result ABI descriptors", async () => {
+  class CaptureEmitter extends TraceEmitter {
+    functions = [];
+    calls = [];
+    declareFunction(loc, info) {
+      this.functions.push(info);
+      return super.declareFunction(loc, info);
+    }
+    call(loc, info) {
+      this.calls.push(info);
+      return super.call(loc, info);
+    }
+  }
+  const emitter = new CaptureEmitter();
+  await trace("int callee(); int caller() { return callee(); }", { emitter });
+  for (const info of [...emitter.functions, ...emitter.calls])
+    assert.deepEqual(info.resultAbi, {
+      kind: "Default",
+      indirectType: 0,
+      alignment: 0,
+    });
+  assert.ok(emitter.functions.length >= 2);
+  assert.ok(emitter.calls.length >= 1);
+});
+
 test("only signed arithmetic in a promoted type carries undefined overflow", async () => {
   const cases = [
     ["int f(int a, int b) { return a + b; }", /AddSignedInt/],
@@ -226,8 +343,101 @@ int use() {
 
   assert.match(text, /global @counter : i32/);
   assert.match(text, /member %\d+\.\d+ : ptr<i32>/);
-  assert.match(text, /call @_Z3sum5Point\(%\d+\) : i32/);
+  assert.match(
+    text,
+    /call @_Z3sum5Point\(%\d+\) args_abi\(byval\(!Point\) align\(4\)\) : i32/,
+  );
   assert.match(text, /addressof @counter : ptr<i32>/);
+});
+
+test("global traces distinguish thread-local storage", () => {
+  const emitter = new TraceEmitter();
+  const info = {
+    name: "plain",
+    type: emitter.integerType(32),
+    linkage: "Internal",
+    isConstant: false,
+    alignment: 4,
+    initializer: {
+      kind: "Zero",
+      type: 0,
+      integer: 0n,
+      floating: 0,
+      bytes: new Uint8Array(),
+      elements: [],
+    },
+    unknownLocation: false,
+    isUsed: false,
+    isThreadLocal: false,
+  };
+  emitter.declareGlobal(0, info);
+  emitter.declareGlobal(0, { ...info, name: "local", isThreadLocal: true });
+  assert.match(emitter.trace, /^global @plain : i32 Internal = /m);
+  assert.match(emitter.trace, /^global @local : i32 Internal thread_local = /m);
+});
+
+test("thread-local objects and initialization guards cross the emitter protocol", async () => {
+  class CaptureGlobals extends TraceEmitter {
+    globals = [];
+    declareGlobal(loc, info) {
+      this.globals.push(info);
+      return super.declareGlobal(loc, info);
+    }
+  }
+  const emitter = new CaptureGlobals();
+  const text = await trace(
+    `
+thread_local int counter;
+int initialize() { return 7; }
+int& depth() {
+  thread_local int value = initialize();
+  return value;
+}
+int use() { return ++counter + ++depth(); }
+`,
+    { emitter },
+  );
+  checkWellFormed(text);
+  for (const name of ["counter", "_ZZ5depthvE5value", "_ZGVZ5depthvE5value"]) {
+    const global = emitter.globals.find((info) => info.name === name);
+    assert.ok(global, `missing global ${name}`);
+    assert.equal(global.isThreadLocal, true);
+  }
+  assert.match(
+    text,
+    /global @_ZGVZ5depthvE5value : i8 Internal thread_local = /,
+  );
+  assert.match(
+    text,
+    /global @_ZZ5depthvE5value : i32 Internal thread_local = /,
+  );
+});
+
+test("same-named local statics have distinct initialization guards", async () => {
+  const text = await trace(`
+int initialize(int n) { return n; }
+int select(int branch) {
+  if (branch) { static int value = initialize(1); return value; }
+  static int value = initialize(2);
+  return value;
+}
+`);
+  checkWellFormed(text);
+  assert.match(text, /global @_ZZ6selectiE5value : i32 Internal = /);
+  assert.match(text, /global @_ZZ6selectiE5value_0 : i32 Internal = /);
+  assert.match(text, /global @_ZGVZ6selectiE5value : i8 Internal = /);
+  assert.match(text, /global @_ZGVZ6selectiE5value_0 : i8 Internal = /);
+});
+
+test("thread-local object destructors are registered for thread exit", async () => {
+  const text = await trace(`
+int destroyed;
+struct Object { ~Object() { ++destroyed; } };
+Object& object() { thread_local Object value; return value; }
+`);
+  checkWellFormed(text);
+  assert.match(text, /call @__cxa_thread_atexit\(/);
+  assert.doesNotMatch(text, /call @__cxa_atexit\(/);
 });
 
 test("floating point and casts keep their result types", async () => {

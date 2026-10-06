@@ -185,6 +185,8 @@ void rebuild_specialization_index(Symbol* symbol);
 
 [[nodiscard]] auto has_static_storage_duration(Symbol* symbol) -> bool;
 
+[[nodiscard]] auto has_thread_storage_duration(Symbol* symbol) -> bool;
+
 [[nodiscard]] auto closure_mangling_context(ClassSymbol* closure)
     -> FunctionSymbol*;
 

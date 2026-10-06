@@ -159,7 +159,7 @@ void Codegen::DeclarationVisitor::allocateLocals(ScopeSymbol* block) {
     }
 
     if (auto var = symbol_cast<VariableSymbol>(symbol)) {
-      if (var->isStatic()) continue;
+      if (var->isStatic() || var->isThreadLocal()) continue;
       if (type_cast<UnresolvedBoundedArrayType>(var->type())) continue;
 
       auto local = gen.findOrCreateLocal(var);
@@ -211,7 +211,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
 
   const auto loc = var->location();
 
-  if (var->isStatic()) {
+  if (var->isStatic() || var->isThreadLocal()) {
     auto glo = findOrCreateGlobal(var);
     if (!glo) {
       unit_->error(
@@ -528,6 +528,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   }
 
   gen.structorVTTValue_ = gen.vttParameter(functionSymbol);
+  const auto functionAbi = gen.computeFunctionAbi(functionType, functionSymbol);
 
   FunctionParametersSymbol* params = nullptr;
   for (auto member : views::members(ast->symbol)) {
@@ -543,14 +544,15 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
       ++debugArgc;
     }
     if (gen.structorVTTValue_) ++argc;
+    auto parameterIndex = std::size_t{0};
     for (auto param : views::members(params)) {
       auto arg = symbol_cast<ParameterSymbol>(param);
       if (!arg) continue;
+      if (gen.traits.is_void(arg->type())) continue;
 
       ++debugArgc;
 
-      const auto paramAbi = gen.classifyClassValueAbi(
-          arg->type(), ClassValueAbiContext::Argument);
+      const auto& paramAbi = functionAbi.arguments[parameterIndex++];
       auto loc = arg->location();
 
       if (paramAbi.kind == ClassValueAbi::Kind::Indirect) {

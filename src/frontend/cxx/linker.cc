@@ -126,7 +126,13 @@ auto runLinkDriver(std::vector<std::string>& args) -> bool {
         WTERMSIG(status));
     return false;
   }
-  return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+  if (!WIFEXITED(status)) return false;
+  const auto exitStatus = WEXITSTATUS(status);
+  if (exitStatus) {
+    std::cerr << std::format("cxx: linker driver '{}' exited with status {}\n",
+                             args.front(), exitStatus);
+  }
+  return exitStatus == 0;
 #else
   std::cerr
       << "cxx: external linker processes are unavailable on this platform\n";
