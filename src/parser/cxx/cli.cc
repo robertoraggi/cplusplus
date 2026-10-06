@@ -243,7 +243,21 @@ std::vector<CLIOptionDescr> options{
 
     {"-fno-reflect", "Disable reflection", &CLI::opt_fno_reflect},
 
-    {"-fno-exceptions", "Disable C++ exceptions", &CLI::opt_fno_exceptions},
+    {"-fexceptions", "Enable C++ exceptions (not supported yet)"},
+
+    {"-fno-exceptions", "Disable C++ exceptions (the default)"},
+
+    {"-fPIC", "Generate position-independent code"},
+
+    {"-fpic", "Generate position-independent code (small GOT)"},
+
+    {"-fPIE", "Generate position-independent code for executables"},
+
+    {"-fpie", "Generate position-independent code for executables (small GOT)"},
+
+    {"-fno-pic", "Do not generate position-independent code"},
+
+    {"-fno-pie", "Do not generate position-independent executable code"},
 
     {"-fno-strict-prototypes",
      "Allow unprototyped C declarations (pre-C23 behavior)",
@@ -411,6 +425,47 @@ auto CLI::positionals() const -> std::vector<std::string> {
     }
   }
   return result;
+}
+
+namespace {
+
+struct PositionIndependenceFlag {
+  std::string_view name;
+  PositionIndependence value;
+};
+
+constexpr PositionIndependenceFlag positionIndependenceFlags[] = {
+    {"-fPIC", {.picLevel = 2}},
+    {"-fpic", {.picLevel = 1}},
+    {"-fPIE", {.picLevel = 2, .pieLevel = 2}},
+    {"-fpie", {.picLevel = 1, .pieLevel = 1}},
+    {"-fno-pic", {}},
+    {"-fno-pie", {}},
+};
+
+[[nodiscard]] auto findPositionIndependenceFlag(std::string_view name)
+    -> const PositionIndependenceFlag* {
+  auto it = std::ranges::find(positionIndependenceFlags, name,
+                              &PositionIndependenceFlag::name);
+  return it == std::end(positionIndependenceFlags) ? nullptr : &*it;
+}
+
+}  // namespace
+
+auto CLI::exceptionsEnabled() const -> bool {
+  auto flag = lastFlag([](std::string_view name) {
+    return name == "-fexceptions" || name == "-fno-exceptions";
+  });
+  return flag == "-fexceptions";
+}
+
+auto CLI::positionIndependence(PositionIndependence defaults) const
+    -> PositionIndependence {
+  auto flag = lastFlag([](std::string_view name) {
+    return findPositionIndependenceFlag(name) != nullptr;
+  });
+  if (!flag) return defaults;
+  return findPositionIndependenceFlag(*flag)->value;
 }
 
 auto CLI::optimizationLevel() const -> int {

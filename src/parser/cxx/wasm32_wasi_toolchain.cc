@@ -51,7 +51,6 @@ namespace {
 Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor,
                                          Triple triple)
     : Toolchain(preprocessor, std::move(triple)) {
-  setExceptionsEnabled(false);
   setMemoryLayout(std::make_unique<MemoryLayout>(32));
   memoryLayout()->setSizeOfLongDouble(16, 113);
   memoryLayout()->setSizeOfLongLong(8);

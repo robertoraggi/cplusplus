@@ -149,6 +149,28 @@ static auto convertVisibility(mlir::cxx::Visibility visibility)
   return LLVM::Visibility::Default;
 }
 
+static void emitPositionIndependenceFlags(ModuleOp module) {
+  auto context = module.getContext();
+
+  SmallVector<Attribute> flags;
+  if (auto level = module->getAttrOfType<IntegerAttr>("cxx.pic-level")) {
+    flags.push_back(LLVM::ModuleFlagAttr::get(
+        context, LLVM::ModFlagBehavior::Min,
+        StringAttr::get(context, "PIC Level"), level));
+  }
+  if (auto level = module->getAttrOfType<IntegerAttr>("cxx.pie-level")) {
+    flags.push_back(LLVM::ModuleFlagAttr::get(
+        context, LLVM::ModFlagBehavior::Max,
+        StringAttr::get(context, "PIE Level"), level));
+  }
+  if (flags.empty()) return;
+
+  OpBuilder builder(context);
+  builder.setInsertionPointToEnd(module.getBody());
+  LLVM::ModuleFlagsOp::create(builder, module.getLoc(),
+                              builder.getArrayAttr(flags));
+}
+
 static auto targetNeedsComdat(ModuleOp module) -> bool {
   auto tripleAttr = module->getAttrOfType<mlir::StringAttr>("cxx.triple");
   if (!tripleAttr) return false;
@@ -2894,8 +2916,11 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     module->setAttr(LLVM::LLVMDialect::getDataLayoutAttrName(), layout);
   }
 
-  for (auto name : {"cxx.triple", "cxx.data-layout", "cxx.frame-pointer",
-                    "cxx.debug-compilation-dir"}) {
+  emitPositionIndependenceFlags(module);
+
+  for (auto name :
+       {"cxx.triple", "cxx.data-layout", "cxx.frame-pointer",
+        "cxx.debug-compilation-dir", "cxx.pic-level", "cxx.pie-level"}) {
     module->removeAttr(name);
   }
 }

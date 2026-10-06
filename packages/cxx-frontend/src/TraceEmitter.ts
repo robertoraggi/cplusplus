@@ -338,7 +338,9 @@ export class TraceEmitter implements EmitterDelegate {
     this.#emitTop(
       `module "${info.name}"` +
         (info.sourceFile ? ` source "${info.sourceFile}"` : "") +
-        (info.targetTriple ? ` triple "${info.targetTriple}"` : ""),
+        (info.targetTriple ? ` triple "${info.targetTriple}"` : "") +
+        (info.picLevel ? ` pic ${info.picLevel}` : "") +
+        (info.pieLevel ? ` pie ${info.pieLevel}` : ""),
     );
     return ref;
   }

@@ -233,6 +233,8 @@ export interface ModuleInfo {
   targetTriple: string;
   debugCompilationDirectory: string;
   framePointer: string;
+  picLevel: number;
+  pieLevel: number;
 }
 
 /** @category Backend Descriptors */

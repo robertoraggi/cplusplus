@@ -274,7 +274,11 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
   if (!toolchain) return {};
 
   toolchain->setLanguage(language);
-  if (cli.opt_fno_exceptions) toolchain->setExceptionsEnabled(false);
+  toolchain->setExceptionsEnabled(cli.exceptionsEnabled());
+  if (toolchain->supportsPositionIndependence()) {
+    toolchain->memoryLayout()->setPositionIndependence(
+        cli.positionIndependence(toolchain->defaultPositionIndependence()));
+  }
   toolchain->initMemoryLayout();
 
   if (auto name = cli.getSingle("-stdlib");
