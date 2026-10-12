@@ -22,6 +22,7 @@
 
 #include <cxx/ast_fwd.h>
 #include <cxx/source_location.h>
+#include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
 namespace cxx {
@@ -83,10 +84,9 @@ class [[nodiscard]] DeclSpecs {
   AtomicQualifierAST* atomicQualifier = nullptr;
 
   bool isStatic = false;
-  bool isThreadLocal = false;
+  ThreadLocalKind threadLocalKind = ThreadLocalKind::None;
   bool isExtern = false;
   bool isMutable = false;
-  bool isThread = false;
   bool isRegister = false;
 
   bool isVirtual = false;

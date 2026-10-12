@@ -274,25 +274,6 @@ int entry(int a) { return kept(a) + forced(a) + hinted(a) + plain(a); }
   assert.match(text, /func @_Z5plaini : \(i32\) -> \(i32\) External$/m);
 });
 
-test("a function-try-block is reported as unsupported like a try statement", async () => {
-  const functionTryBlock = await trace(`
-struct A {
-  int m;
-  A(int v) try : m(v + 1) { m += 2; } catch (...) { }
-};
-A make(int v) { return A(v); }
-`);
-  const tryStatement = await trace(`
-void f() { try { } catch (...) { } }
-`);
-
-  checkWellFormed(functionTryBlock);
-  checkWellFormed(tryStatement);
-
-  assert.match(functionTryBlock, /todo "try-statement-function-body"/);
-  assert.match(tryStatement, /todo "try-block-statement"/);
-});
-
 test("control flow produces blocks that are opened before they are entered", async () => {
   const text = await trace(`
 int clamp(int x) {

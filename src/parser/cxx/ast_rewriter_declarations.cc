@@ -334,7 +334,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     if (auto classSpec =
             ast_cast<ClassSpecifierAST>(declSpecifierListCtx.typeSpecifier())) {
       if (classSpec->symbol && !classSpec->symbol->name()) {
-        rewrite.binder().declareAnonymousField(classSpec);
+        rewrite.binder().declareAnonymousObject(classSpec,
+                                                declSpecifierListCtx);
       }
     }
   }
@@ -1012,10 +1013,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
       binder()->scope()->isTemplateParameters() ||
       rewrite.rewritingTemplateParameterDeclaration();
 
-  auto patternParameter = symbol_cast<ParameterSymbol>(ast->symbol);
-  const bool hasDefaultArgument =
-      ast->expression ||
-      (patternParameter && patternParameter->hasDefaultArgument());
+  const bool hasDefaultArgument = ASTRewriter::declaresDefaultArgument(ast);
   auto defaultArgument =
       inTemplateParameters
           ? ASTRewriter::patternDefaultArgument(translationUnit(), ast)

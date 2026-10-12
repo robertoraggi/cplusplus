@@ -1423,7 +1423,10 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(AsmDeclarationAST* ast) {
   if (ast->literalLoc) {
     accept.writeToken(ast->literalLoc);
   }
-  if (ast->outputOperandList) accept.write(":");
+  if (ast->colonLoc) {
+    nospace();
+    accept.writeToken(ast->colonLoc);
+  }
 
   for (auto it = ast->outputOperandList; it; it = it->next) {
     accept(it->value);
@@ -1980,11 +1983,6 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
     accept.writeToken(ast->semicolonLoc);
     newline();
   }
-  accept(ast->hiddenVariable);
-
-  for (auto it = ast->bindingDeclaratorList; it; it = it->next) {
-    accept(it->value);
-  }
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(LabeledStatementAST* ast) {
@@ -2004,11 +2002,16 @@ void ASTPrettyPrinter::StatementVisitor::operator()(CaseStatementAST* ast) {
     accept.writeToken(ast->caseLoc);
   }
   accept(ast->expression);
+  if (ast->ellipsisLoc) {
+    accept.writeToken(ast->ellipsisLoc);
+  }
+  accept(ast->upperExpression);
   if (ast->colonLoc) {
     nospace();
     accept.writeToken(ast->colonLoc);
     newline();
   }
+  accept(ast->statement);
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(DefaultStatementAST* ast) {
@@ -2019,6 +2022,7 @@ void ASTPrettyPrinter::StatementVisitor::operator()(DefaultStatementAST* ast) {
     nospace();
     accept.writeToken(ast->colonLoc);
   }
+  accept(ast->statement);
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(
@@ -2209,11 +2213,6 @@ void ASTPrettyPrinter::StatementVisitor::operator()(ForRangeStatementAST* ast) {
     accept.writeToken(ast->rparenLoc);
   }
   accept(ast->statement);
-  accept(ast->beginInitializer);
-  accept(ast->endInitializer);
-  accept(ast->condition);
-  accept(ast->increment);
-  accept(ast->element);
 }
 
 void ASTPrettyPrinter::StatementVisitor::operator()(ForStatementAST* ast) {
@@ -3417,6 +3416,10 @@ void ASTPrettyPrinter::DesignatorVisitor::operator()(
     nospace();
   }
   accept(ast->expression);
+  if (ast->ellipsisLoc) {
+    accept.writeToken(ast->ellipsisLoc);
+  }
+  accept(ast->upperExpression);
   if (ast->rbracketLoc) {
     nospace();
     accept.writeToken(ast->rbracketLoc);

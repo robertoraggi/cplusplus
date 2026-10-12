@@ -112,6 +112,8 @@ class InitializedEntity {
 
   [[nodiscard]] auto description() const -> std::string;
 
+  [[nodiscard]] auto isPotentiallyOverlapping() const -> bool;
+
  private:
   enum class Kind {
     kVariable,
@@ -159,11 +161,16 @@ class Initializer {
 
   [[nodiscard]] auto arguments() const -> std::vector<ExpressionAST*>;
 
+  [[nodiscard]] auto expressionList() const -> List<ExpressionAST*>*;
+
  private:
   [[nodiscard]] auto unwrapEqual() const -> ExpressionAST*;
 
   ExpressionAST* node_ = nullptr;
 };
+
+[[nodiscard]] auto initializerListSlot(Arena* arena, ExpressionAST* initializer)
+    -> List<ExpressionAST*>**;
 
 [[nodiscard]] auto memInitializerClause(Arena* arena,
                                         MemInitializerAST* memInitializer)
@@ -213,22 +220,15 @@ struct AggregateInitializerPlan {
   std::vector<Symbol*> elements;
   std::vector<AggregateInitializerElement> initializedElements;
   const Type* arrayElementType = nullptr;
-  std::size_t elementCount = 0;
+  std::optional<std::size_t> elementCount = 0;
   bool isUnion = false;
   bool isVector = false;
   bool valid = true;
 };
 
-struct MaterializedTemporary {
-  ExpressionAST* expression = nullptr;
-  bool conditional = false;
-
-  [[nodiscard]] explicit operator bool() const { return expression != nullptr; }
-};
-
-[[nodiscard]] auto materializedTemporary(const TypeTraits& traits,
-                                         ExpressionAST* initializer)
-    -> MaterializedTemporary;
+[[nodiscard]] auto materializedTemporaries(const TypeTraits& traits,
+                                           ExpressionAST* initializer)
+    -> std::vector<ExpressionAST*>;
 
 struct StringLiteralInitialization {
   const Type* destinationElementType = nullptr;
@@ -249,17 +249,16 @@ struct StringLiteralInitialization {
 
 struct ArrayElementRange {
   std::size_t begin = 0;
-  std::size_t end = 0;
+  std::optional<std::size_t> end;
 };
 
-[[nodiscard]] auto designatedArrayIndex(TranslationUnit* unit,
-                                        DesignatedInitializerClauseAST* clause)
-    -> std::optional<std::size_t>;
+[[nodiscard]] auto designatedArrayRange(TranslationUnit* unit,
+                                        SubscriptDesignatorAST* subscript)
+    -> std::optional<ArrayElementRange>;
 
-[[nodiscard]] auto implicitlyInitializedElements(TranslationUnit* unit,
-                                                 BracedInitListAST* list,
-                                                 std::size_t elementCount)
-    -> std::vector<ArrayElementRange>;
+[[nodiscard]] auto implicitlyInitializedElements(
+    TranslationUnit* unit, BracedInitListAST* list,
+    std::optional<std::size_t> elementCount) -> std::vector<ArrayElementRange>;
 
 [[nodiscard]] auto stringLiteralInitialization(const TypeTraits& traits,
                                                bool isCxx,

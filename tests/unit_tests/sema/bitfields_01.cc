@@ -7,9 +7,9 @@ struct S {
   int : 0; // OK
   int c : -1; // expected-error {{bit-field width is negative}}
   float d : 3; // expected-error {{bit-field has non-integral type}}
-  int e : 33; // expected-error {{width of bit-field exceeds width of its type}}
+  int e : 33; // OK
   long long f : 64; // OK
-  long long g : 65; // expected-error {{width of bit-field exceeds width of its type}}
+  long long g : 65; // OK
   int h : 1 + 2; // OK
 };
 

@@ -23,6 +23,7 @@
 // cxx
 #include <cxx/ast.h>
 #include <cxx/control.h>
+#include <cxx/function_body.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/parser.h>
@@ -543,7 +544,7 @@ auto ASTInterpreter::FunctionBodyVisitor::operator()(
 
 auto ASTInterpreter::FunctionBodyVisitor::operator()(
     CompoundStatementFunctionBodyAST* ast) -> FunctionBodyResult {
-  for (auto node : ListView{ast->memInitializerList}) {
+  for (auto node : ListView{ctor_initializers(interp.currentFunction_)}) {
     auto value = interp.memInitializer(node);
   }
 
@@ -554,7 +555,7 @@ auto ASTInterpreter::FunctionBodyVisitor::operator()(
 
 auto ASTInterpreter::FunctionBodyVisitor::operator()(
     TryStatementFunctionBodyAST* ast) -> FunctionBodyResult {
-  for (auto node : ListView{ast->memInitializerList}) {
+  for (auto node : ListView{ctor_initializers(interp.currentFunction_)}) {
     auto value = interp.memInitializer(node);
   }
 

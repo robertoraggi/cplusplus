@@ -20,6 +20,8 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_visitor.h>
+#include <cxx/attributes.h>
+#include <cxx/binder.h>
 #include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
@@ -30,24 +32,26 @@
 
 namespace cxx {
 namespace {
-[[nodiscard]] auto isUninstantiatedTemplate(FunctionSymbol* symbol) -> bool {
-  if (!symbol || !symbol->templateDeclaration()) return false;
-  return !symbol->isSpecialization();
-}
-
 struct ForEachExternalDefinition final : ASTVisitor {
   std::function<void(FunctionDefinitionAST*)> functionCallback;
+  std::function<void(AsmDeclarationAST*)> asmCallback;
+  std::size_t functionDepth = 0;
 
   void visit(TemplateDeclarationAST* ast) override {
     if (ast->templateParameterList) return;
     ASTVisitor::visit(ast);
   }
 
-  void visit(FunctionDefinitionAST* ast) override {
-    if (isUninstantiatedTemplate(ast->symbol)) return;
-    if (functionCallback) functionCallback(ast);
+  void visit(AsmDeclarationAST* ast) override {
+    if (!functionDepth && asmCallback) asmCallback(ast);
+  }
 
+  void visit(FunctionDefinitionAST* ast) override {
+    if (ast->symbol && ast->symbol->isTemplatePattern()) return;
+    if (functionCallback) functionCallback(ast);
+    ++functionDepth;
     ASTVisitor::visit(ast);
+    --functionDepth;
   }
 };
 }  // namespace
@@ -58,17 +62,35 @@ struct Codegen::UnitVisitor {
   auto operator()(TranslationUnitAST* ast) -> UnitResult;
   auto operator()(ModuleUnitAST* ast) -> UnitResult;
 
-  void visitClassStatics(ClassSymbol* classSymbol) {
-    if (classSymbol->templateParameters() && !classSymbol->isSpecialization())
+  void visitStaticField(FieldSymbol* field) {
+    if (auto definition = field->definition()) {
+      if (definition->instantiationPattern()) return;
+      if (auto global = gen.findOrCreateGlobal(definition)) {
+        gen.emitGlobalVarInit(definition, *global);
+        if (gen.isNonLocalThreadLocal(definition))
+          (void)gen.findOrCreateThreadLocalWrapper(definition, *global);
+      }
       return;
+    }
+    if (!field->isInline() || field->instantiationPattern()) return;
+    if (field->constValue()) return;
+    auto global = gen.findOrCreateStaticField(field);
+    if (gen.isNonLocalThreadLocal(field))
+      (void)gen.findOrCreateThreadLocalWrapper(field, global);
+  }
+
+  void visitClassStatics(ClassSymbol* classSymbol) {
+    if (classSymbol->isTemplatePattern()) {
+      for (const auto& specialization : classSymbol->specializations()) {
+        auto instance = symbol_cast<ClassSymbol>(specialization.symbol);
+        visitClassStatics(instance->resolvedDefinition());
+      }
+      return;
+    }
+    visitFunctionAliases(classSymbol);
     for (auto member : classSymbol->members()) {
       if (auto field = symbol_cast<FieldSymbol>(member)) {
-        if (auto definition = field->definition()) {
-          if (auto global = gen.findOrCreateGlobal(definition))
-            gen.emitGlobalVarInit(definition, *global);
-        } else if (field->isInline() || field->isConstexpr()) {
-          (void)gen.findOrCreateStaticField(field);
-        }
+        visitStaticField(field);
         continue;
       }
       if (auto nestedClass = symbol_cast<ClassSymbol>(member))
@@ -76,16 +98,31 @@ struct Codegen::UnitVisitor {
     }
   }
 
+  void visitVariable(VariableSymbol* var) {
+    if (var->isTemplatePattern()) {
+      for (const auto& specialization : var->specializations())
+        visitVariable(symbol_cast<VariableSymbol>(specialization.symbol));
+      return;
+    }
+    if (var->instantiationPattern()) return;
+    if (var->isInline() && var->resolvedDefinition()->constValue()) return;
+    if (auto glo = gen.findOrCreateGlobal(var)) {
+      gen.emitGlobalVarInit(var, *glo);
+      if (gen.isNonLocalThreadLocal(var) &&
+          Binder::declaresVariableDefinition(var->resolvedDefinition()))
+        (void)gen.findOrCreateThreadLocalWrapper(var, *glo);
+    }
+  }
+
   void visitGlobals(ScopeSymbol* scope) {
     auto ns = symbol_cast<NamespaceSymbol>(scope);
     if (!ns) return;
 
+    visitFunctionAliases(ns);
+
     for (auto member : views::members(ns)) {
       if (auto var = symbol_cast<VariableSymbol>(member)) {
-        if (var->templateParameters()) continue;
-        if (auto glo = gen.findOrCreateGlobal(var)) {
-          gen.emitGlobalVarInit(var, *glo);
-        }
+        visitVariable(var);
         continue;
       }
 
@@ -96,6 +133,15 @@ struct Codegen::UnitVisitor {
 
       if (auto classSymbol = symbol_cast<ClassSymbol>(member))
         visitClassStatics(classSymbol);
+    }
+  }
+
+  void visitFunctionAliases(ScopeSymbol* scope) {
+    for (auto member : views::members(scope)) {
+      for (auto function : views::declared_functions{member}) {
+        if (attributeArgument(function->canonical()->attributes(), "alias"))
+          (void)gen.findOrCreateFunction(function);
+      }
     }
   }
 };
@@ -123,9 +169,15 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   ForEachExternalDefinition forEachExternalDefinition;
 
+  forEachExternalDefinition.asmCallback = [&](AsmDeclarationAST* assembly) {
+    (void)gen.declaration(assembly);
+  };
+
   forEachExternalDefinition.functionCallback =
       [&](FunctionDefinitionAST* function) {
-        if (gen.hasVagueFunctionEmission(function->symbol)) return;
+        if (!function->symbol->canonical()->isUsed() &&
+            gen.hasVagueFunctionEmission(function->symbol))
+          return;
         (void)gen.declaration(function);
       };
 
@@ -139,6 +191,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
 
   gen.processPendingFunctions();
 
+  gen.emitThreadLocalInitializers();
   gen.emitter_.endModule();
 
   UnitResult result{module};
@@ -160,6 +213,7 @@ auto Codegen::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitResult {
   auto privateModuleFragmentResult =
       gen.privateModuleFragment(ast->privateModuleFragment);
 
+  gen.emitThreadLocalInitializers();
   gen.emitter_.endModule();
 
   UnitResult result{module};

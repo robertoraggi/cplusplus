@@ -153,7 +153,7 @@ class ConstAddress {
   ConstAddress() = default;
 
   explicit ConstAddress(Symbol* symbol, std::intmax_t offset = 0)
-      : symbol_(symbol), offset_(offset) {}
+      : symbol_(symbol), offset_(offset), root_(symbol) {}
 
   explicit ConstAddress(const StringLiteral* string, std::intmax_t offset = 0)
       : string_(string), offset_(offset) {}
@@ -173,6 +173,10 @@ class ConstAddress {
     return string_;
   }
   [[nodiscard]] auto offset() const -> std::intmax_t { return offset_; }
+  [[nodiscard]] auto root() const -> Symbol* { return root_; }
+  [[nodiscard]] auto displacement() const -> std::intmax_t {
+    return displacement_;
+  }
 
   [[nodiscard]] auto sameTarget(const ConstAddress& other) const -> bool;
 
@@ -187,6 +191,11 @@ class ConstAddress {
   void setStringLiteral(const StringLiteral* string) { string_ = string; }
   void setTypeInfoFor(const Type* type) { typeInfoFor_ = type; }
   void setOffset(std::intmax_t offset) { offset_ = offset; }
+  void setRoot(Symbol* root) { root_ = root; }
+  void setDisplacement(std::intmax_t displacement) {
+    displacement_ = displacement;
+  }
+  void displace(std::intmax_t bytes) { displacement_ += bytes; }
 
  private:
   Symbol* symbol_ = nullptr;
@@ -194,6 +203,8 @@ class ConstAddress {
   const StringLiteral* string_ = nullptr;
   const Type* typeInfoFor_ = nullptr;
   std::intmax_t offset_ = 0;
+  Symbol* root_ = nullptr;
+  std::intmax_t displacement_ = 0;
 };
 
 class ConstLabelAddress {

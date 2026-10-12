@@ -73,6 +73,16 @@ class ClassTemplateArgumentDeduction {
     DeductionCandidateInfo info;
   };
 
+  [[nodiscard]] auto deduceFromGuides(ClassSymbol* primaryTemplate,
+                                      const Initializer& initializer,
+                                      SourceLocation location,
+                                      ScopeSymbol* scope,
+                                      bool initializerListGuidesOnly)
+      -> ClassSymbol*;
+
+  [[nodiscard]] auto takesInitializerList(const FunctionType* guideType) const
+      -> bool;
+
   void collectGuides(ClassSymbol* primaryTemplate, const Initializer& init,
                      ScopeSymbol* scope);
 

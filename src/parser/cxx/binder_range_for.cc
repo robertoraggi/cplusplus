@@ -24,18 +24,15 @@
 #include <cxx/dependent_types.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
-#include <cxx/overload_resolution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
-#include <vector>
-
 namespace cxx {
 namespace {
-auto rangeDeclarationVariable(DeclarationAST* rangeDeclaration)
+[[nodiscard]] auto rangeDeclarationVariable(DeclarationAST* rangeDeclaration)
     -> VariableSymbol* {
   auto simpleDecl = ast_cast<SimpleDeclarationAST>(rangeDeclaration);
   if (!simpleDecl || !simpleDecl->initDeclaratorList) return nullptr;
@@ -59,106 +56,6 @@ auto rangeDeclarationVariable(DeclarationAST* rangeDeclaration)
   return qualifiedLookup(classSymbol, control->getIdentifier("end")) != nullptr;
 }
 
-auto resolveRangeIteration(TranslationUnit* unit, ForRangeStatementAST* ast,
-                           const Type* rangeType) -> const Type* {
-  auto traits = unit->typeTraits();
-
-  if (auto arrayType = type_cast<BoundedArrayType>(rangeType)) {
-    ast->isPointerIterator = true;
-    return arrayType->elementType();
-  }
-
-  auto classType = type_cast<ClassType>(rangeType);
-  if (!classType) return nullptr;
-
-  auto classSymbol = classType->symbol();
-  if (classSymbol) classSymbol = classSymbol->resolvedDefinition();
-  if (!classSymbol) return nullptr;
-
-  (void)traits.requireCompleteClass(classSymbol);
-
-  auto beginName = unit->control()->getIdentifier("begin");
-  auto endName = unit->control()->getIdentifier("end");
-
-  const bool memberBeginEnd = usesMemberBeginEnd(unit->control(), classSymbol);
-
-  FunctionSymbol* beginFunc = nullptr;
-  FunctionSymbol* endFunc = nullptr;
-
-  if (memberBeginEnd) {
-    OverloadResolution memberLookup(unit);
-    auto beginMembers = memberLookup.findCandidates(classSymbol, beginName);
-    auto endMembers = memberLookup.findCandidates(classSymbol, endName);
-    if (!beginMembers.functions.empty())
-      beginFunc = beginMembers.functions.front();
-    if (!endMembers.functions.empty()) endFunc = endMembers.functions.front();
-  } else {
-    std::vector<const Type*> argTypes = {rangeType};
-
-    auto beginCandidates = argumentDependentLookup(unit, beginName, argTypes);
-    auto endCandidates = argumentDependentLookup(unit, endName, argTypes);
-
-    if (!beginCandidates.empty()) beginFunc = beginCandidates.front();
-    if (!endCandidates.empty()) endFunc = endCandidates.front();
-  }
-
-  if (!beginFunc || !endFunc) return nullptr;
-
-  ast->beginFunction = beginFunc;
-  ast->endFunction = endFunc;
-  ast->usesMemberBeginEnd = memberBeginEnd;
-
-  auto beginFuncType = type_cast<FunctionType>(beginFunc->type());
-  if (!beginFuncType) return nullptr;
-
-  auto iterType = traits.remove_cvref(beginFuncType->returnType());
-
-  if (traits.is_pointer(iterType)) {
-    ast->isPointerIterator = true;
-    return traits.get_element_type(iterType);
-  }
-
-  auto iterClassType = type_cast<ClassType>(iterType);
-  if (!iterClassType) {
-    ast->isPointerIterator = true;
-    return nullptr;
-  }
-
-  auto iterClass = iterClassType->symbol();
-  if (iterClass) iterClass = iterClass->resolvedDefinition();
-  if (!iterClass) return nullptr;
-
-  (void)traits.requireCompleteClass(iterClass);
-
-  auto definedIterType = iterClass->type();
-
-  auto placeholder = ThisExpressionAST::create(
-      unit->arena(), ValueCategory::kLValue, definedIterType);
-
-  OverloadResolution resolution(unit);
-  ast->derefFunction = resolution.lookupOperator(
-      ast->symbol, definedIterType, TokenKind::T_STAR, nullptr, placeholder);
-  ast->incrementFunction =
-      resolution.lookupOperator(ast->symbol, definedIterType,
-                                TokenKind::T_PLUS_PLUS, nullptr, placeholder);
-  ast->notEqualFunction = resolution.lookupOperator(
-      ast->symbol, definedIterType, TokenKind::T_EXCLAIM_EQUAL, definedIterType,
-      placeholder, placeholder);
-  ast->notEqualRewritten = resolution.wasLastOperatorRewritten();
-  ast->notEqualReversed = resolution.wasLastOperatorReversed();
-
-  if (!ast->derefFunction) return nullptr;
-
-  auto derefFuncType = type_cast<FunctionType>(ast->derefFunction->type());
-  if (!derefFuncType) return nullptr;
-
-  auto returnType = derefFuncType->returnType();
-  if (traits.is_lvalue_reference(returnType) ||
-      traits.is_rvalue_reference(returnType)) {
-    return traits.remove_reference(returnType);
-  }
-  return returnType;
-}
 }  // namespace
 
 auto Binder::declareRangeStructuredBindingEntity(
@@ -173,35 +70,49 @@ auto Binder::declareRangeStructuredBindingEntity(
       /*initializer=*/nullptr, /*addSymbolToParentScope=*/false);
   if (!entityDeclarator) return nullptr;
 
-  ast->hiddenVariable = entityDeclarator;
+  ast->binding.hiddenVariable = entityDeclarator;
   return symbol_cast<VariableSymbol>(entityDeclarator->symbol);
 }
 
-struct Binder::ClassRangeRewrite {
+struct Binder::RangeForRewrite {
   Binder& binder;
   ForRangeStatementAST* ast;
   TypeChecker& check;
+  ExpressionAST* rangeInitializer;
+  VariableSymbol* rangeVariable = nullptr;
+  VariableSymbol* beginVariable = nullptr;
+  VariableSymbol* endVariable = nullptr;
+  ForStatementAST* loop = nullptr;
   bool memberBeginEnd = false;
   SourceLocation implicitLoc;
 
-  ClassRangeRewrite(Binder& b, ForRangeStatementAST* a, TypeChecker& c,
-                    const ClassType* classType)
-      : binder(b), ast(a), check(c) {
-    if (auto classSymbol = classType->symbol()) {
-      memberBeginEnd =
-          usesMemberBeginEnd(b.control(), classSymbol->resolvedDefinition());
+  RangeForRewrite(Binder& b, ForRangeStatementAST* a, TypeChecker& c,
+                  ExpressionAST* initializer)
+      : binder(b),
+        ast(a),
+        check(c),
+        rangeInitializer(initializer),
+        implicitLoc(a->colonLoc) {
+    auto rangeType = binder.traits.remove_cvref(initializer->type);
+    if (auto classType = type_cast<ClassType>(rangeType)) {
+      auto symbol = classType->symbol()->resolvedDefinition();
+      (void)binder.traits.requireCompleteClass(symbol);
+      memberBeginEnd = usesMemberBeginEnd(b.control(), symbol);
     }
-    implicitLoc = a->rangeInitializer->firstSourceLocation();
   }
 
   [[nodiscard]] auto arena() const -> Arena* { return binder.unit_->arena(); }
   [[nodiscard]] auto control() const -> Control* { return binder.control(); }
 
-  [[nodiscard]] auto declareVariable(const Type* type) const
+  auto declareVariable(const Type* type, ExpressionAST* initializer)
       -> VariableSymbol* {
-    auto symbol = control()->newVariableSymbol(ast->symbol, ast->colonLoc);
+    auto symbol = control()->newVariableSymbol(ast->symbol, implicitLoc);
     symbol->setType(type);
     ast->symbol->addSymbol(symbol);
+    ExpressionAST* equal = EqualInitializerAST::create(
+        arena(), implicitLoc, initializer, initializer->valueCategory,
+        initializer->type);
+    check.check_variable_initializer(symbol, equal, implicitLoc);
     return symbol;
   }
 
@@ -220,31 +131,29 @@ struct Binder::ClassRangeRewrite {
     return id;
   }
 
-  [[nodiscard]] auto callee(const Identifier* name) const -> ExpressionAST* {
+  auto callee(const Identifier* name) -> ExpressionAST* {
     if (memberBeginEnd) {
       auto member = MemberExpressionAST::create(arena());
-      member->baseExpression = reference(ast->rangeVariable);
+      member->baseExpression = reference(rangeVariable);
       member->unqualifiedId = implicitName(name);
       member->accessOp = TokenKind::T_DOT;
       member->accessLoc = implicitLoc;
       return member;
     }
-
     auto id = IdExpressionAST::create(arena());
     id->unqualifiedId = implicitName(name);
     binder.declareArgumentDependentCallee(id);
     return id;
   }
 
-  [[nodiscard]] auto beginEndCall(const Identifier* name) const
-      -> ExpressionAST* {
+  auto beginEndCall(const Identifier* name) -> ExpressionAST* {
     auto call = CallExpressionAST::create(arena());
     call->baseExpression = callee(name);
     call->lparenLoc = implicitLoc;
     call->rparenLoc = implicitLoc;
     if (!memberBeginEnd) {
       call->expressionList =
-          make_list_node<ExpressionAST>(arena(), reference(ast->rangeVariable));
+          make_list_node<ExpressionAST>(arena(), reference(rangeVariable));
     }
     check.check(&call->baseExpression);
     ExpressionAST* result = call;
@@ -252,52 +161,109 @@ struct Binder::ClassRangeRewrite {
     return result;
   }
 
-  [[nodiscard]] auto rangeReferenceType() const -> const Type* {
-    auto rangeInitializer = ast->rangeInitializer;
-    if (rangeInitializer->valueCategory == ValueCategory::kLValue)
-      return control()->getLvalueReferenceType(rangeInitializer->type);
-    return control()->getRvalueReferenceType(rangeInitializer->type);
+  auto arrayEnd(const BoundedArrayType* arrayType) -> ExpressionAST* {
+    auto size = IntLiteralExpressionAST::create(arena());
+    size->literal =
+        control()->integerLiteral(std::to_string(arrayType->size()));
+    size->type = control()->getSizeType();
+    size->valueCategory = ValueCategory::kPrValue;
+    auto addition = BinaryExpressionAST::create(arena());
+    addition->leftExpression = reference(rangeVariable);
+    addition->rightExpression = size;
+    addition->op = TokenKind::T_PLUS;
+    addition->opLoc = implicitLoc;
+    ExpressionAST* result = addition;
+    check.check(&result);
+    return result;
   }
 
-  [[nodiscard]] auto iteratorOperation(TokenKind op) const
-      -> UnaryExpressionAST* {
+  auto iteratorOperation(TokenKind op) -> ExpressionAST* {
     auto operation = UnaryExpressionAST::create(arena());
-    operation->expression = reference(ast->beginVariable);
+    operation->expression = reference(beginVariable);
     operation->op = op;
-    operation->opLoc = ast->colonLoc;
-    return operation;
+    operation->opLoc = implicitLoc;
+    ExpressionAST* result = operation;
+    check.check(&result);
+    return result;
   }
 
-  [[nodiscard]] auto operator()() -> const Type* {
-    ast->rangeVariable = declareVariable(rangeReferenceType());
+  auto operator()() -> ExpressionAST* {
+    auto rangeType = rangeInitializer->type;
+    const Type* referenceType = control()->getRvalueReferenceType(rangeType);
+    if (rangeInitializer->valueCategory == ValueCategory::kLValue)
+      referenceType = control()->getLvalueReferenceType(rangeType);
+    rangeVariable = declareVariable(referenceType, rangeInitializer);
 
-    ast->beginInitializer = beginEndCall(control()->getIdentifier("begin"));
-    ast->endInitializer = beginEndCall(control()->getIdentifier("end"));
-    if (!ast->beginInitializer->type || !ast->endInitializer->type)
-      return nullptr;
-
-    auto& traits = binder.traits;
-    ast->beginVariable =
-        declareVariable(traits.remove_cvref(ast->beginInitializer->type));
-    ast->endVariable =
-        declareVariable(traits.remove_cvref(ast->endInitializer->type));
+    ExpressionAST* begin = nullptr;
+    ExpressionAST* end = nullptr;
+    if (auto arrayType = type_cast<BoundedArrayType>(rangeType)) {
+      begin = reference(rangeVariable);
+      if (!check.implicit_conversion(
+              begin, control()->getPointerType(arrayType->elementType())))
+        return nullptr;
+      end = arrayEnd(arrayType);
+    } else {
+      begin = beginEndCall(control()->getIdentifier("begin"));
+      end = beginEndCall(control()->getIdentifier("end"));
+    }
+    if (!begin->type || !end->type) return nullptr;
+    beginVariable =
+        declareVariable(binder.traits.remove_cvref(begin->type), begin);
+    endVariable = declareVariable(binder.traits.remove_cvref(end->type), end);
 
     auto notEqual = BinaryExpressionAST::create(arena());
-    notEqual->leftExpression = reference(ast->beginVariable);
-    notEqual->rightExpression = reference(ast->endVariable);
+    notEqual->leftExpression = reference(beginVariable);
+    notEqual->rightExpression = reference(endVariable);
     notEqual->op = TokenKind::T_EXCLAIM_EQUAL;
-    notEqual->opLoc = ast->colonLoc;
-    ExpressionAST* condition = notEqual;
-    check.check(&condition);
-    check.check_bool_condition(condition);
-    ast->condition = condition;
+    notEqual->opLoc = implicitLoc;
+    loop = ForStatementAST::create(arena());
+    loop->forLoc = ast->forLoc;
+    loop->lparenLoc = ast->lparenLoc;
+    loop->semicolonLoc = implicitLoc;
+    loop->condition = notEqual;
+    check.check(&loop->condition);
+    check.check_bool_condition(loop->condition);
+    loop->expression = iteratorOperation(TokenKind::T_PLUS_PLUS);
+    return iteratorOperation(TokenKind::T_STAR);
+  }
 
-    ast->increment = iteratorOperation(TokenKind::T_PLUS_PLUS);
-    check.check(&ast->increment);
+  [[nodiscard]] auto declaration(DeclarationAST* declaration) const
+      -> DeclarationStatementAST* {
+    auto statement = DeclarationStatementAST::create(arena());
+    statement->declaration = declaration;
+    return statement;
+  }
 
-    ast->element = iteratorOperation(TokenKind::T_STAR);
-    check.check(&ast->element);
-    return ast->element->type;
+  [[nodiscard]] auto declaration(VariableSymbol* variable) const
+      -> DeclarationStatementAST* {
+    auto declarator = InitDeclaratorAST::create(arena());
+    declarator->symbol = variable;
+    auto simple = SimpleDeclarationAST::create(arena());
+    simple->initDeclaratorList = make_list_node(arena(), declarator);
+    simple->semicolonLoc = implicitLoc;
+    return declaration(simple);
+  }
+
+  void finish() {
+    auto body = CompoundStatementAST::create(arena());
+    body->lbraceLoc = implicitLoc;
+    body->statementList = make_list_node<StatementAST>(
+        arena(), declaration(ast->rangeDeclaration));
+    loop->statement = body;
+    auto outer = CompoundStatementAST::create(arena());
+    outer->lbraceLoc = ast->forLoc;
+    auto tail = &outer->statementList;
+    for (auto statement :
+         {ast->initializer,
+          static_cast<StatementAST*>(declaration(rangeVariable)),
+          static_cast<StatementAST*>(declaration(beginVariable)),
+          static_cast<StatementAST*>(declaration(endVariable)),
+          static_cast<StatementAST*>(loop)}) {
+      if (!statement) continue;
+      *tail = make_list_node(arena(), statement);
+      tail = &(*tail)->next;
+    }
+    ast->range.statement = outer;
   }
 };
 
@@ -342,21 +308,10 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
     return;
   }
 
-  auto rangeType = traits.remove_cvref(rangeInitializer->type);
-
-  auto elementType = resolveRangeIteration(unit_, ast, rangeType);
-
-  if (auto classType = type_cast<ClassType>(rangeType)) {
-    ClassRangeRewrite rewrite{*this, ast, check, classType};
-    if (auto rewrittenElementType = rewrite())
-      elementType = rewrittenElementType;
-  }
-
-  auto elementExpression = ast->element;
-  if (!elementExpression && elementType) {
-    elementExpression = ThisExpressionAST::create(
-        unit_->arena(), ValueCategory::kLValue, elementType);
-  }
+  RangeForRewrite rewrite{*this, ast, check, rangeInitializer};
+  auto elementExpression = rewrite();
+  if (!elementExpression || !elementExpression->type) return;
+  auto elementType = elementExpression->type;
 
   if (elementType && needsDeduction) {
     auto deduced = check.deducePlaceholderType(var->type(), elementExpression);
@@ -391,12 +346,27 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
     var = entity;
   }
 
-  if (var && ast->element && var->type()) {
-    ast->element = EqualInitializerAST::create(
-        unit_->arena(), ast->colonLoc, ast->element,
-        ast->element->valueCategory, ast->element->type);
-    check.check_variable_initializer(var, ast->element, ast->colonLoc,
-                                     rangeElementCopyPolicy(structuredBinding));
+  if (!var || !var->type()) return;
+  ExpressionAST* initializer = EqualInitializerAST::create(
+      unit_->arena(), ast->colonLoc, elementExpression,
+      elementExpression->valueCategory, elementExpression->type);
+  check.check_variable_initializer(var, initializer, ast->colonLoc,
+                                   rangeElementCopyPolicy(structuredBinding));
+  rewrite.finish();
+}
+
+void Binder::finishForRangeStatement(ForRangeStatementAST* ast) {
+  auto outer = ast->range.statement;
+  if (!outer || !ast->statement) return;
+  outer->rbraceLoc = ast->statement->lastSourceLocation();
+  for (auto statement : ListView{outer->statementList}) {
+    auto loop = ast_cast<ForStatementAST>(statement);
+    if (!loop) continue;
+    loop->rparenLoc = ast->rparenLoc;
+    auto body = ast_cast<CompoundStatementAST>(loop->statement);
+    body->rbraceLoc = outer->rbraceLoc;
+    body->statementList->next = make_list_node(unit_->arena(), ast->statement);
   }
 }
+
 }  // namespace cxx

@@ -21,9 +21,12 @@
 #pragma once
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/symbols_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 namespace cxx {
@@ -48,6 +51,15 @@ struct ClassValueAbi {
   std::uint64_t coerceAlignment = 0;
 };
 
+struct ArgumentRegisterUsage {
+  std::size_t general = 0;
+  std::size_t vector = 0;
+};
+
+[[nodiscard]] auto requiresArrayCookie(
+    TranslationUnit* unit, const Type* elementType,
+    FunctionSymbol* allocationFunction = nullptr) -> bool;
+
 [[nodiscard]] auto usesClassValueAbi(const Type* type) -> bool;
 
 [[nodiscard]] auto classifyClassValueAbi(TranslationUnit* unit,
@@ -55,9 +67,16 @@ struct ClassValueAbi {
                                          ClassValueAbiContext context)
     -> ClassValueAbi;
 
+[[nodiscard]] auto classifyArgumentRegisterUsage(TranslationUnit* unit,
+                                                 const Type* type,
+                                                 const ClassValueAbi& abi)
+    -> ArgumentRegisterUsage;
+
 [[nodiscard]] auto classifyFunctionParametersAbi(
     TranslationUnit* unit, const FunctionType* type,
-    std::size_t implicitParameterCount) -> std::vector<ClassValueAbi>;
+    std::size_t implicitParameterCount,
+    std::span<const Type* const> variadicArguments = {})
+    -> std::vector<ClassValueAbi>;
 
 [[nodiscard]] auto isClassValueDestroyedInCallee(const Type* type) -> bool;
 

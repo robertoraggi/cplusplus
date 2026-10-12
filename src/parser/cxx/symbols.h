@@ -45,6 +45,7 @@
 namespace cxx {
 class SymbolChainView;
 class TranslationUnit;
+class TypeTraits;
 
 struct InstantiationError {
   SourceLocation location;
@@ -169,7 +170,7 @@ void rebuild_specialization_index(Symbol* symbol);
 
 [[nodiscard]] auto is_templated_class(ClassSymbol* classSymbol) -> bool;
 
-[[nodiscard]] auto anonymous_member_class(FieldSymbol* field) -> ClassSymbol*;
+[[nodiscard]] auto anonymous_member_class(Symbol* object) -> ClassSymbol*;
 
 [[nodiscard]] auto resolved_base_class(BaseClassSymbol* baseClass)
     -> ClassSymbol*;
@@ -202,9 +203,12 @@ void rebuild_specialization_index(Symbol* symbol);
 
 [[nodiscard]] auto is_declared_extern(VariableSymbol* variable) -> bool;
 
-[[nodiscard]] auto has_internal_linkage(Symbol* symbol) -> bool;
+[[nodiscard]] auto has_internal_linkage(
+    Symbol* symbol, LanguageKind language = LanguageKind::kCXX) -> bool;
 
 [[nodiscard]] auto is_non_static_member(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_potentially_overlapping_subobject(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto introduces_variable(Symbol* symbol) -> bool;
 
@@ -429,7 +433,15 @@ class MaybeTemplate {
   }
 
   [[nodiscard]] auto isTemplatePattern() const -> bool {
-    return templateParameters() != nullptr && !isSpecialization();
+    auto parameters = templateParameters();
+    if (!parameters) return false;
+    return !parameters->isExplicitTemplateSpecialization();
+  }
+
+  [[nodiscard]] auto isExplicitSpecialization() const -> bool {
+    auto parameters = templateParameters();
+    if (!parameters) return false;
+    return parameters->isExplicitTemplateSpecialization();
   }
 
   [[nodiscard]] auto templateArguments() const
@@ -1166,6 +1178,8 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto isUnion() const -> bool;
   void setIsUnion(bool isUnion);
 
+  [[nodiscard]] auto anonymousVariable() const -> VariableSymbol*;
+
   [[nodiscard]] auto baseClasses() const
       -> const std::vector<BaseClassSymbol*>&;
 
@@ -1496,6 +1510,13 @@ class FunctionSymbol final
   void setBuiltinKind(BuiltinFunctionKind builtinKind);
 
   [[nodiscard]] auto trailingRequiresClause() const -> RequiresClauseAST*;
+  [[nodiscard]] auto enableIfConditions() const
+      -> const std::vector<ExpressionAST*>& {
+    return enableIfConditions_;
+  }
+  void setEnableIfConditions(std::vector<ExpressionAST*> conditions) {
+    enableIfConditions_ = std::move(conditions);
+  }
   void setTrailingRequiresClause(RequiresClauseAST* requiresClause);
 
   [[nodiscard]] auto isConstructor() const -> bool;
@@ -1526,6 +1547,7 @@ class FunctionSymbol final
 
   [[nodiscard]] auto hasPendingBody() const -> bool;
   [[nodiscard]] auto hasUninstantiatedBody() const -> bool;
+  [[nodiscard]] auto isExplicitlySpecialized() const -> bool;
   [[nodiscard]] auto pendingBody() const -> PendingInstantiation*;
   void setPendingBody(std::unique_ptr<PendingInstantiation> pending);
   void clearPendingBody();
@@ -1537,6 +1559,11 @@ class FunctionSymbol final
     hasDeferredImplicitExceptionSpecification_ = deferred;
   }
 
+  [[nodiscard]] auto hasDeferredDeletion() const -> bool {
+    return hasDeferredDeletion_;
+  }
+  void setDeferredDeletion(bool deferred) { hasDeferredDeletion_ = deferred; }
+
   [[nodiscard]] auto pendingExceptionSpecification() const
       -> PendingInstantiation*;
   void setPendingExceptionSpecification(
@@ -1544,6 +1571,14 @@ class FunctionSymbol final
 
   [[nodiscard]] auto vtableSlotIndex() const -> int { return vtableSlotIndex_; }
   void setVtableSlotIndex(int index) { vtableSlotIndex_ = index; }
+
+  [[nodiscard]] auto constructorPriority() const
+      -> std::optional<std::uint32_t> {
+    return constructorPriority_;
+  }
+  void setConstructorPriority(std::optional<std::uint32_t> priority) {
+    constructorPriority_ = priority;
+  }
 
   void addOverriddenFunction(FunctionSymbol* function);
   [[nodiscard]] auto overriddenFunctions() const
@@ -1562,6 +1597,14 @@ class FunctionSymbol final
   [[nodiscard]] auto templateFriendships() const
       -> const std::vector<TemplateFriendship>& {
     return templateFriendships_;
+  }
+
+  [[nodiscard]] auto constructorInitializers() const
+      -> std::optional<List<MemInitializerAST*>*> {
+    return constructorInitializers_;
+  }
+  void setConstructorInitializers(List<MemInitializerAST*>* initializers) {
+    constructorInitializers_ = initializers;
   }
 
   [[nodiscard]] auto delegatingConstructor() const -> FunctionSymbol* {
@@ -1644,6 +1687,7 @@ class FunctionSymbol final
   ScopeSymbol* hostScope_ = nullptr;
   FunctionSymbol* completeObjectVariant_ = nullptr;
   FunctionSymbol* delegatingConstructor_ = nullptr;
+  std::optional<List<MemInitializerAST*>*> constructorInitializers_;
   FunctionSymbol* deletingDtorVariant_ = nullptr;
   FunctionSymbol* structorPrincipal_ = nullptr;
   FunctionSymbol* inheritedConstructor_ = nullptr;
@@ -1651,12 +1695,14 @@ class FunctionSymbol final
   std::vector<ClassSymbol*> befriendingClasses_;
   std::vector<TemplateFriendship> templateFriendships_;
   int vtableSlotIndex_ = -1;
+  std::optional<std::uint32_t> constructorPriority_;
   const Identifier* externalName_ = nullptr;
   const Identifier* aliasName_ = nullptr;
   const Identifier* importModule_ = nullptr;
   const Identifier* importName_ = nullptr;
   const Identifier* exportName_ = nullptr;
   RequiresClauseAST* trailingRequiresClause_ = nullptr;
+  std::vector<ExpressionAST*> enableIfConditions_;
   BuiltinFunctionKind builtinKind_ = BuiltinFunctionKind::T_NONE;
   union {
     std::uint32_t flags_{};
@@ -1685,6 +1731,7 @@ class FunctionSymbol final
       std::uint32_t hasFriendDefaultArgument_ : 1;
       std::uint32_t hasFriendDefaultTemplateArgument_ : 1;
       std::uint32_t hasDeferredImplicitExceptionSpecification_ : 1;
+      std::uint32_t hasDeferredDeletion_ : 1;
     };
   };
 };
@@ -1861,7 +1908,8 @@ class VariableSymbol final
   void setStatic(bool isStatic);
 
   [[nodiscard]] auto isThreadLocal() const -> bool;
-  void setThreadLocal(bool isThreadLocal);
+  [[nodiscard]] auto threadLocalKind() const -> ThreadLocalKind;
+  void setThreadLocalKind(ThreadLocalKind kind);
 
   [[nodiscard]] auto isExtern() const -> bool;
   void setExtern(bool isExtern);
@@ -1878,6 +1926,9 @@ class VariableSymbol final
   [[nodiscard]] auto isFunctionLocalPredefined() const -> bool;
   void setFunctionLocalPredefined(bool isFunctionLocalPredefined);
 
+  [[nodiscard]] auto isStructuredBindingAlias() const -> bool;
+  void setStructuredBindingAlias(bool isStructuredBindingAlias);
+
   [[nodiscard]] auto initializer() const -> ExpressionAST*;
   void setInitializer(ExpressionAST*);
 
@@ -1891,6 +1942,7 @@ class VariableSymbol final
   void setExplicitAlignment(int alignment);
 
  private:
+  ThreadLocalKind threadLocalKind_ = ThreadLocalKind::None;
   ExpressionAST* initializer_ = nullptr;
   FunctionSymbol* constructor_ = nullptr;
   std::optional<ConstValue> constValue_;
@@ -1900,12 +1952,12 @@ class VariableSymbol final
     std::uint32_t flags_{};
     struct {
       std::uint32_t isStatic_ : 1;
-      std::uint32_t isThreadLocal_ : 1;
       std::uint32_t isExtern_ : 1;
       std::uint32_t isConstexpr_ : 1;
       std::uint32_t isConstinit_ : 1;
       std::uint32_t isInline_ : 1;
       std::uint32_t isFunctionLocalPredefined_ : 1;
+      std::uint32_t isStructuredBindingAlias_ : 1;
     };
   };
 };
@@ -1932,7 +1984,8 @@ class FieldSymbol final : public Symbol {
   void setStatic(bool isStatic);
 
   [[nodiscard]] auto isThreadLocal() const -> bool;
-  void setThreadLocal(bool isThreadLocal);
+  [[nodiscard]] auto threadLocalKind() const -> ThreadLocalKind;
+  void setThreadLocalKind(ThreadLocalKind kind);
 
   [[nodiscard]] auto isConstexpr() const -> bool;
   void setConstexpr(bool isConstexpr);
@@ -1996,6 +2049,7 @@ class FieldSymbol final : public Symbol {
   void clearPendingInitializer();
 
  private:
+  ThreadLocalKind threadLocalKind_ = ThreadLocalKind::None;
   VariableSymbol* definition_ = nullptr;
   std::unique_ptr<PendingInstantiation> pendingInitializer_;
   std::optional<ConstValue> constValue_;
@@ -2005,7 +2059,6 @@ class FieldSymbol final : public Symbol {
       std::uint32_t isDefinitionRequired_ : 1;
       std::uint32_t isBitField_ : 1;
       std::uint32_t isStatic_ : 1;
-      std::uint32_t isThreadLocal_ : 1;
       std::uint32_t isConstexpr_ : 1;
       std::uint32_t isConstinit_ : 1;
       std::uint32_t isInline_ : 1;
@@ -2265,4 +2318,7 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
 [[nodiscard]] auto isDeclaredConstant(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto isUsableInConstantExpressions(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto isPotentiallyConstant(const TypeTraits& traits,
+                                         Symbol* symbol) -> bool;
 }  // namespace cxx

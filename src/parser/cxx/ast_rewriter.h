@@ -73,6 +73,9 @@ class [[nodiscard]] ASTRewriter {
   static auto ensureCompleteClass(TranslationUnit* unit,
                                   ClassSymbol* classSymbol) -> bool;
 
+  static void requireExplicitInstantiationMember(TranslationUnit* unit,
+                                                 FunctionSymbol* function);
+
   static void requireExplicitInstantiationMembers(TranslationUnit* unit,
                                                   ClassSymbol* instance);
 
@@ -148,6 +151,9 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] auto substitutedSymbol(Symbol* templateParameter) const
       -> Symbol*;
 
+  [[nodiscard]] auto substitutedNonTypeValue(IdExpressionAST* ast)
+      -> ExpressionAST*;
+
   [[nodiscard]] auto hasUnresolvedParameterPack(AST* ast) const -> bool;
 
   void inheritEnclosingTemplateArguments(Symbol* symbol);
@@ -178,7 +184,7 @@ class [[nodiscard]] ASTRewriter {
                                              FunctionSymbol* constructor);
 
   static void requirePotentiallyInvokedDestructors(TranslationUnit* unit,
-                                                   FunctionSymbol* destructor);
+                                                   FunctionSymbol* function);
 
   static void requireDestructorOfType(TranslationUnit* unit, const Type* type);
 
@@ -197,6 +203,11 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] static auto requireDefaultArgument(TranslationUnit* unit,
                                                    ParameterSymbol* parameter)
       -> ExpressionAST*;
+
+  static void inheritTemplateDefaultArguments(
+      TranslationUnit* unit, FunctionSymbol* primary,
+      std::span<const TemplateArgument> templateArguments,
+      FunctionDeclaratorChunkAST* specialization);
 
   static void completeDeducedReturnType(TranslationUnit* unit, Symbol* symbol);
 
@@ -259,6 +270,9 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] static auto patternDefaultArgument(
       TranslationUnit* unit, ParameterDeclarationAST* pattern)
       -> ExpressionAST*;
+
+  [[nodiscard]] static auto declaresDefaultArgument(
+      ParameterDeclarationAST* pattern) -> bool;
 
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);

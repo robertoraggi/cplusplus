@@ -47,6 +47,9 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_ISNAN:
       return codegenBuiltinIsNan(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN___CFSTRINGMAKECONSTANTSTRING:
+      return codegenBuiltinCFStringMakeConstantString(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_HUGE_VAL:
       return codegenBuiltinHugeVal(ast);
 
@@ -70,6 +73,9 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
 
     case BuiltinFunctionKind::T___BUILTIN_ALLOCA_WITH_ALIGN:
       return codegenBuiltinAlloca(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ASSUME:
+      return codegenBuiltinAssume(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
       return codegenBuiltinAssumeAligned(ast);

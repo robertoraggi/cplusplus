@@ -90,7 +90,9 @@ class Control {
 
   [[nodiscard]] auto getSizeType() -> const Type*;
 
-  [[nodiscard]] auto getBuiltinVaListType() -> const BuiltinVaListType*;
+  [[nodiscard]] auto getBuiltinVaListType() -> const Type*;
+  [[nodiscard]] auto getBuiltinVaListReferenceType() -> const Type*;
+  [[nodiscard]] auto getConstantStringType() -> const Type*;
   [[nodiscard]] auto getBuiltinMetaInfoType() -> const BuiltinMetaInfoType*;
   [[nodiscard]] auto getVoidType() -> const VoidType*;
   [[nodiscard]] auto getNullptrType() -> const NullptrType*;

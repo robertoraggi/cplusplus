@@ -133,6 +133,12 @@ struct ConstructorResult {
 
 [[nodiscard]] auto haveSameParameterTypes(FunctionSymbol* lhs,
                                           FunctionSymbol* rhs) -> bool;
+[[nodiscard]] auto haveSameEnableIfConditions(TranslationUnit* unit,
+                                              FunctionSymbol* lhs,
+                                              FunctionSymbol* rhs) -> bool;
+[[nodiscard]] auto hasConstantTrueEnableIfConditions(TranslationUnit* unit,
+                                                     FunctionSymbol* function)
+    -> bool;
 
 [[nodiscard]] auto compareDeductionCandidates(const DeductionCandidateInfo& lhs,
                                               const DeductionCandidateInfo& rhs)
@@ -179,6 +185,9 @@ struct PartialOrderingContext {
 
 class OverloadResolution {
  public:
+  [[nodiscard]] auto commonEnumerationType(const Type* left, const Type* right)
+      -> const Type*;
+
   explicit OverloadResolution(TranslationUnit* unit);
 
   [[nodiscard]] auto computeImplicitConversionSequence(ExpressionAST* expr,
@@ -196,6 +205,9 @@ class OverloadResolution {
   [[nodiscard]] auto selectBestViableFunction(
       std::vector<Candidate>& candidates, bool preferNonTemplate = false)
       -> OverloadResult;
+  [[nodiscard]] auto enableIfConditionsSatisfied(
+      const Candidate& candidate, std::span<ExpressionAST* const> arguments)
+      -> bool;
 
   [[nodiscard]] auto resolveConstructor(
       ClassSymbol* classSymbol, const std::vector<ExpressionAST*>& args,
@@ -252,6 +264,9 @@ class OverloadResolution {
   }
 
  private:
+  [[nodiscard]] auto enumerationTypesOf(const Type* type)
+      -> std::vector<const Type*>;
+
   struct DeducedCandidate {
     FunctionSymbol* specialization = nullptr;
     List<TemplateArgumentAST*>* templateArguments = nullptr;

@@ -20,6 +20,7 @@
 
 #include <cxx/codegen/codegen.h>
 #include <cxx/codegen/emitter.h>
+#include <cxx/const_int.h>
 #include <cxx/control.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/literals.h>
@@ -32,6 +33,7 @@
 #include <cxx/views/symbols.h>
 
 #include <algorithm>
+#include <bit>
 #include <format>
 #include <limits>
 
@@ -354,11 +356,7 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> ir::TypeRef {
 
     if (largestMemberType) {
       memberTypes.push_back(largestMemberType);
-      auto unionSize = static_cast<std::size_t>(classSymbol->sizeInBytes());
-      if (largestMemberSize < unionSize) {
-        memberTypes.push_back(gen.arrayType(gen.emitter_.integerType(8),
-                                            unionSize - largestMemberSize));
-      }
+      gen.completeUnionStorage(memberTypes, classSymbol, largestMemberSize);
     } else {
       memberTypes.push_back(gen.emitter_.integerType(8));
     }
@@ -374,6 +372,24 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> ir::TypeRef {
   gen.defineClassType(classType, members, packed);
 
   return classType;
+}
+
+void Codegen::completeUnionStorage(std::vector<ir::TypeRef>& members,
+                                   ClassSymbol* symbol,
+                                   std::uint64_t payloadSize) {
+  if (payloadSize < symbol->sizeInBytes())
+    members.push_back(arrayType(emitter_.integerType(8),
+                                symbol->sizeInBytes() - payloadSize));
+  const Type* alignmentType = nullptr;
+  for (auto field : views::members(symbol) | views::non_static_fields)
+    if (!alignmentType ||
+        getAlignment(field->type()) > getAlignment(alignmentType))
+      alignmentType = field->type();
+  if (!alignmentType) return;
+  if (storageAlignment(members.front(), pointerSize()) >=
+      getAlignment(alignmentType))
+    return;
+  members.push_back(arrayType(convertType(alignmentType), 0));
 }
 
 auto Codegen::arrayType(ir::TypeRef elementType, std::uint64_t size)
@@ -464,6 +480,13 @@ auto Codegen::storageAlignment(ir::TypeRef type, std::uint64_t pointerSize)
   }
 }
 
+auto Codegen::bitFieldStorageType(std::uint64_t sizeInBytes) -> ir::TypeRef {
+  const auto bits = static_cast<int>(sizeInBytes * 8);
+  if (std::has_single_bit(sizeInBytes) && ConstInt::isRepresentableWidth(bits))
+    return emitter_.integerType(static_cast<unsigned>(bits));
+  return arrayType(emitter_.integerType(8), sizeInBytes);
+}
+
 auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
                                     bool includeVirtualBases)
     -> ClassMemberTypes {
@@ -531,8 +554,7 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
 
     offsetByIndex[info->index] = info->offset;
     if (info->bitWidth > 0 && info->allocUnitSizeBytes > 0) {
-      memberMap[info->index] = emitter_.integerType(
-          static_cast<unsigned>(info->allocUnitSizeBytes * 8));
+      memberMap[info->index] = bitFieldStorageType(info->allocUnitSizeBytes);
     } else if (field->isNoUniqueAddress()) {
       ClassSymbol* fieldSymbol = nullptr;
       if (auto fieldClass = unqualified_cast<ClassType>(field->type())) {
@@ -564,8 +586,9 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
     memberMap[index] = convertBaseEmbedding(baseSym, available);
   }
 
-  const auto recordLimit =
-      includeVirtualBases ? layout->size() : layout->nonVirtualSize();
+  const auto recordLimit = includeVirtualBases
+                               ? layout->size()
+                               : traits.non_virtual_size(classSymbol->type());
 
   auto i8Type = emitter_.integerType(8);
   for (auto const& padding : layout->padding()) {
@@ -607,7 +630,7 @@ auto Codegen::convertBaseEmbedding(ClassSymbol* baseSymbol,
   auto layout = baseSymbol->layout();
   if (!layout || layout->virtualBases().empty()) return rep;
 
-  if (layout->nonVirtualSize() <= availableBytes) return rep;
+  if (traits.non_virtual_size(baseSymbol->type()) <= availableBytes) return rep;
 
   auto i8Type = emitter_.integerType(8);
   return this->arrayType(i8Type, availableBytes);
@@ -622,7 +645,7 @@ auto Codegen::convertBaseSubobjectType(ClassSymbol* classSymbol)
   if (!layout) return convertType(classSymbol->type());
 
   if (layout->virtualBases().empty() &&
-      layout->nonVirtualSize() >= layout->size()) {
+      traits.non_virtual_size(classSymbol->type()) >= layout->size()) {
     return convertType(classSymbol->type());
   }
 

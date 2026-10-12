@@ -51,10 +51,10 @@ void test() {
 // CHECK-NEXT:    parameters
 // CHECK-NEXT:      parameter const char* a
 // CHECK-NEXT:      parameter const char* b
-// CHECK-NEXT:  function extern "C" void abort()
+// CHECK-NEXT:  function extern extern "C" void abort()
 // CHECK-NEXT:    parameters
 // CHECK-NEXT:    [redeclarations]
-// CHECK-NEXT:      function extern "C" void abort()
+// CHECK-NEXT:      function extern extern "C" void abort()
 // CHECK-NEXT:        parameters
 // CHECK-NEXT:  namespace std
 // CHECK-NEXT:    function extern "C" void* malloc(unsigned long)

@@ -235,7 +235,7 @@ namespace {
 
 struct DenotesTemplate {
   [[nodiscard]] auto operator()(ClassSymbol* symbol) const -> bool {
-    return symbol->templateParameters() || symbol->isSpecialization();
+    return symbol->isTemplatePattern() || symbol->isSpecialization();
   }
 
   [[nodiscard]] auto operator()(InjectedClassNameSymbol* symbol) const -> bool {
@@ -259,7 +259,7 @@ struct DenotesTemplate {
 
 struct DenotesTemplateNotType {
   [[nodiscard]] auto operator()(ClassSymbol* symbol) const -> bool {
-    return symbol->templateParameters() && !symbol->isSpecialization();
+    return symbol->isTemplatePattern() && !symbol->isSpecialization();
   }
 
   [[nodiscard]] auto operator()(TypeAliasSymbol* symbol) const -> bool {
@@ -1150,8 +1150,9 @@ auto Substitution::substitutedNonTypeParameterType(
 
   if (!parameter->declaration->type) return nullptr;
   auto typeId = declaredTypeId(unit_->arena(), parameter->declaration);
-  if (!isDependent(unit_, typeId)) return typeId->type;
-  if (templateArguments_.empty() || !templateDecl_) return typeId->type;
+  if (!isDependent(unit_, typeId)) return templateParameterType(typeId->type);
+  if (templateArguments_.empty() || !templateDecl_)
+    return templateParameterType(typeId->type);
 
   auto substituted = ASTRewriter::substituteDefaultTypeId(
       unit_, typeId, templateArguments_, templateDecl_->depth,
@@ -1164,7 +1165,13 @@ auto Substitution::substitutedNonTypeParameterType(
     return std::nullopt;
   }
 
-  return substituted->type;
+  return templateParameterType(substituted->type);
+}
+
+auto Substitution::templateParameterType(const Type* declaredType) const
+    -> const Type* {
+  return unqualified_type(
+      TypeTraits::adjusted_parameter_type(unit_->control(), declaredType));
 }
 
 auto Substitution::normalizeNonTypeArgument(

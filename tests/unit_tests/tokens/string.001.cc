@@ -3,10 +3,9 @@
 // clang-format off
 
 "string1"
-// CHECK: STRING_LITERAL '"string1"' [start-of-line]
+// CHECK: WIDE_STRING_LITERAL '"string1" L"string2"' [start-of-line]
 
 L"string2"
-// CHECK: WIDE_STRING_LITERAL 'L"string2"' [start-of-line]
 
 u8"string3"
 // CHECK: UTF8_STRING_LITERAL 'u8"string3"' [start-of-line]

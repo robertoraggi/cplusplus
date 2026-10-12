@@ -215,6 +215,8 @@ class Substitution {
 
   [[nodiscard]] auto substitutedNonTypeParameterType(
       NonTypeTemplateParameterAST* parameter) -> std::optional<const Type*>;
+  [[nodiscard]] auto templateParameterType(const Type* declaredType) const
+      -> const Type*;
 
   [[nodiscard]] auto getDefaultTemplateArgument(TemplateParameterAST* parameter)
       -> std::optional<TemplateArgument>;

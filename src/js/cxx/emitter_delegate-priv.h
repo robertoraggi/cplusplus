@@ -495,6 +495,25 @@ inline auto toEnum<cxx::ir::ParameterAbiKind>(const val& value)
   return cxx::ir::ParameterAbiKind{};
 }
 
+inline auto toVal(cxx::ir::CallingConvention value) -> val {
+  switch (value) {
+    case cxx::ir::CallingConvention::C:
+      return val("C");
+    case cxx::ir::CallingConvention::CxxFastTls:
+      return val("CxxFastTls");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::CallingConvention>(const val& value)
+    -> cxx::ir::CallingConvention {
+  const auto name = toString(value);
+  if (name == "C") return cxx::ir::CallingConvention::C;
+  if (name == "CxxFastTls") return cxx::ir::CallingConvention::CxxFastTls;
+  return cxx::ir::CallingConvention{};
+}
+
 inline auto toVal(cxx::ir::Visibility value) -> val {
   switch (value) {
     case cxx::ir::Visibility::Default:
@@ -639,6 +658,7 @@ inline auto toEnum<cxx::ir::DebugCompositeKind>(const val& value)
   return cxx::ir::DebugCompositeKind{};
 }
 
+auto toVal(const cxx::ir::InlineAsmInfo& value) -> val;
 auto toVal(const cxx::ir::InsertionPoint& value) -> val;
 auto toVal(const cxx::ir::Initializer& value) -> val;
 auto toVal(const cxx::ir::VTableInfo& value) -> val;
@@ -660,6 +680,26 @@ auto toVal(const cxx::ir::DebugCompositeTypeInfo& value) -> val;
 auto toVal(const cxx::ir::DebugArrayTypeInfo& value) -> val;
 auto toVal(const cxx::ir::DebugFunctionInfo& value) -> val;
 auto toVal(const cxx::ir::DebugVariableInfo& value) -> val;
+
+inline auto toVal(const cxx::ir::InlineAsmInfo& value) -> val {
+  auto result = val::object();
+  result.set("asmString", toVal(value.asmString));
+  result.set("constraints", toVal(value.constraints));
+  result.set("arguments",
+             arrayVal(value.arguments, [](const cxx::ir::ValueRef& item) {
+               return toVal(item);
+             }));
+  result.set("results",
+             arrayVal(value.results, [](const cxx::ir::TypeRef& item) {
+               return toVal(item);
+             }));
+  result.set("argumentElementTypes", arrayVal(value.argumentElementTypes,
+                                              [](const cxx::ir::TypeRef& item) {
+                                                return toVal(item);
+                                              }));
+  result.set("hasSideEffects", toVal(value.hasSideEffects));
+  return result;
+}
 
 inline auto toVal(const cxx::ir::InsertionPoint& value) -> val {
   auto result = val::object();
@@ -734,6 +774,7 @@ inline auto toVal(const cxx::ir::CleanupAction& value) -> val {
   result.set("depth", toVal(value.depth));
   result.set("activeFlag", toVal(value.activeFlag));
   result.set("elementCount", toVal(value.elementCount));
+  result.set("initializedCount", toVal(value.initializedCount));
   return result;
 }
 
@@ -752,6 +793,7 @@ inline auto toVal(const cxx::ir::BitfieldInfo& value) -> val {
   auto result = val::object();
   result.set("bitOffset", toVal(value.bitOffset));
   result.set("bitWidth", toVal(value.bitWidth));
+  result.set("storageSize", toVal(value.storageSize));
   result.set("alignment", toVal(value.alignment));
   return result;
 }
@@ -775,6 +817,9 @@ inline auto toVal(const cxx::ir::CallInfo& value) -> val {
              }));
   result.set("resultAbi", toVal(value.resultAbi));
   result.set("variadicCalleeType", toVal(value.variadicCalleeType));
+  result.set("normalDestination", toVal(value.normalDestination));
+  result.set("unwindDestination", toVal(value.unwindDestination));
+  result.set("callingConvention", toVal(value.callingConvention));
   return result;
 }
 
@@ -803,6 +848,8 @@ inline auto toVal(const cxx::ir::FunctionInfo& value) -> val {
                return toVal(item);
              }));
   result.set("resultAbi", toVal(value.resultAbi));
+  result.set("section", toVal(value.section));
+  result.set("callingConvention", toVal(value.callingConvention));
   return result;
 }
 
@@ -817,6 +864,7 @@ inline auto toVal(const cxx::ir::GlobalInfo& value) -> val {
   result.set("unknownLocation", toVal(value.unknownLocation));
   result.set("isUsed", toVal(value.isUsed));
   result.set("isThreadLocal", toVal(value.isThreadLocal));
+  result.set("section", toVal(value.section));
   return result;
 }
 
@@ -991,6 +1039,55 @@ class JsEmitter final : public ir::Emitter {
 
   auto debug() -> ir::DebugEmitter* override { return debug_.get(); }
 
+  void moduleAsm(cxx::SourceLocation loc, std::string_view assembly) override {
+    delegate_.call<val>("moduleAsm", toVal(loc), toVal(assembly));
+  }
+
+  void functionPersonality(cxx::ir::FunctionRef function,
+                           std::string_view personality) override {
+    delegate_.call<val>("functionPersonality", toVal(function),
+                        toVal(personality));
+  }
+
+  auto landingPad(cxx::SourceLocation loc,
+                  std::span<const cxx::ir::ValueRef> clauses, bool cleanup)
+      -> std::vector<cxx::ir::ValueRef> override {
+    return toHandleVector<cxx::ir::ValueTag>(delegate_.call<val>(
+        "landingPad", toVal(loc),
+        arrayVal(clauses,
+                 [](const cxx::ir::ValueRef& item) { return toVal(item); }),
+        toVal(cleanup)));
+  }
+
+  auto exceptionTypeId(cxx::SourceLocation loc, cxx::ir::ValueRef typeInfo)
+      -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(
+        delegate_.call<val>("exceptionTypeId", toVal(loc), toVal(typeInfo)));
+  }
+
+  void resumeException(cxx::SourceLocation loc, cxx::ir::ValueRef exception,
+                       cxx::ir::ValueRef selector) override {
+    delegate_.call<val>("resumeException", toVal(loc), toVal(exception),
+                        toVal(selector));
+  }
+
+  auto inlineAsm(cxx::SourceLocation loc, const cxx::ir::InlineAsmInfo& info)
+      -> std::vector<cxx::ir::ValueRef> override {
+    return toHandleVector<cxx::ir::ValueTag>(
+        delegate_.call<val>("inlineAsm", toVal(loc), toVal(info)));
+  }
+
+  auto inlineAsmGoto(cxx::SourceLocation loc,
+                     const cxx::ir::InlineAsmInfo& info,
+                     cxx::ir::BlockRef fallthrough,
+                     std::span<const cxx::ir::BlockRef> destinations)
+      -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(delegate_.call<val>(
+        "inlineAsmGoto", toVal(loc), toVal(info), toVal(fallthrough),
+        arrayVal(destinations,
+                 [](const cxx::ir::BlockRef& item) { return toVal(item); })));
+  }
+
   auto saveInsertionPoint() -> cxx::ir::InsertionPointRef override {
     return toHandle<cxx::ir::InsertionPointTag>(
         delegate_.call<val>("saveInsertionPoint"));
@@ -1008,9 +1105,10 @@ class JsEmitter final : public ir::Emitter {
     delegate_.call<val>("beginGlobalInitializer", toVal(global));
   }
 
-  void globalConstructor(cxx::SourceLocation loc,
-                         cxx::ir::FunctionRef function) override {
-    delegate_.call<val>("globalConstructor", toVal(loc), toVal(function));
+  void globalConstructor(cxx::SourceLocation loc, cxx::ir::FunctionRef function,
+                         unsigned int priority) override {
+    delegate_.call<val>("globalConstructor", toVal(loc), toVal(function),
+                        toVal(priority));
   }
 
   auto constant(cxx::SourceLocation loc, cxx::ir::TypeRef type,

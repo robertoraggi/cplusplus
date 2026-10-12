@@ -353,6 +353,17 @@ export function gen_reflection(index: ModelIndex, root: string) {
       case "pointer": {
         const target = unqualified(type.element);
         if (target.kind !== "class") return;
+        if (target.name === "::cxx::List") {
+          const element = wire(typeArguments(target)[0]!, "item");
+          if (!element?.decode) return;
+          return {
+            channel: "num",
+            cpp: `static_cast<double>(reinterpret_cast<std::intptr_t>(${expr}))`,
+            ts: `Iterable<${element.ts}>`,
+            decode: (raw, owner) =>
+              `listOf(${owner}, ${raw}, (item: any) => ${element.decode!("item", owner)})`,
+          };
+        }
         if (classNames.has(target.name)) {
           const record = index.classOf(target.name)!;
           return {
@@ -897,7 +908,8 @@ export function gen_reflection(index: ModelIndex, root: string) {
         : value.ts === "number"
           ? raw
           : `${raw} as ${value.ts}`;
-      const exposesLocation = locationPropertyNames.includes(property) && value.ts === tokenType;
+      const exposesLocation =
+        locationPropertyNames.includes(property) && value.ts === tokenType;
       ts.push(
         exposesLocation
           ? `get ${property}(): SourceLocation | undefined { return ${decoded}?.location; }`

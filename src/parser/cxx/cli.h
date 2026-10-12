@@ -118,6 +118,8 @@ class CLI {
 
   [[nodiscard]] auto exceptionsEnabled() const -> bool;
 
+  [[nodiscard]] auto rttiEnabled() const -> bool;
+
   [[nodiscard]] auto positionIndependence(PositionIndependence defaults) const
       -> PositionIndependence;
 

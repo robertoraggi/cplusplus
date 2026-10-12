@@ -336,6 +336,7 @@ class FriendshipCollector {
 
   void collect(ClassSymbol* seed) {
     auto arguments = templateArgumentsOf(seed);
+    const auto dependent = isDependentSeed(arguments, seed);
     std::vector<ClassSymbol*> visited;
     std::vector<ClassSymbol*> pending{seed};
 
@@ -347,7 +348,8 @@ class FriendshipCollector {
       visited.push_back(classSymbol);
 
       addFriendClasses(classSymbol->befriendingClasses());
-      addTemplateFriendships(classSymbol->templateFriendships(), arguments);
+      addTemplateFriendships(classSymbol->templateFriendships(), arguments,
+                             dependent);
 
       pending.push_back(classSymbol->canonical());
       pending.push_back(classSymbol->resolvedDefinition());
@@ -358,12 +360,14 @@ class FriendshipCollector {
 
   void collect(FunctionSymbol* seed) {
     auto arguments = templateArgumentsOf(seed);
+    const auto dependent = isDependentSeed(arguments, seed);
 
     for (auto function = seed; function;
          function = function->canonical()->primaryTemplateSymbol()) {
       auto canonical = function->canonical();
       addFriendClasses(canonical->befriendingClasses());
-      addTemplateFriendships(canonical->templateFriendships(), arguments);
+      addTemplateFriendships(canonical->templateFriendships(), arguments,
+                             dependent);
     }
   }
 
@@ -373,12 +377,18 @@ class FriendshipCollector {
       addUnique(friendClasses_, befriendingClass);
   }
 
+  [[nodiscard]] auto isDependentSeed(
+      const std::vector<TemplateArgument>& arguments, ScopeSymbol* seed) const
+      -> bool {
+    return hasDependentArgument(unit_, arguments) ||
+           isEnclosedInDependentTemplate(unit_, seed,
+                                         /*stopAtConcreteSpecialization=*/true);
+  }
+
   void addTemplateFriendships(
       const std::vector<TemplateFriendship>& friendships,
-      const std::vector<TemplateArgument>& arguments) {
+      const std::vector<TemplateArgument>& arguments, bool dependent) {
     if (friendships.empty()) return;
-
-    const auto dependent = hasDependentArgument(unit_, arguments);
 
     for (const auto& friendship : friendships) {
       if (!dependent && !compare_args(unit_, friendship.arguments, arguments))

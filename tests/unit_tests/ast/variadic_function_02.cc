@@ -49,11 +49,11 @@ void ff(int count, ...) {
 // CHECK-NEXT:                          identifier: args
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: call-expression [prvalue void]
-// CHECK-NEXT:                base-expression: id-expression [lvalue void (__builtin_va_list&...) noexcept]
+// CHECK-NEXT:                base-expression: id-expression [lvalue void (void*&...) noexcept]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: __builtin_va_start
 // CHECK-NEXT:                expression-list
-// CHECK-NEXT:                  id-expression [lvalue __builtin_va_list]
+// CHECK-NEXT:                  id-expression [lvalue void*]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: args
 // CHECK-NEXT:                  implicit-cast-expression [prvalue int]
@@ -101,7 +101,7 @@ void ff(int count, ...) {
 // CHECK-NEXT:                        type-specifier-list
 // CHECK-NEXT:                          void-type-specifier
 // CHECK-NEXT:                      expression: va-arg-expression [prvalue int]
-// CHECK-NEXT:                        expression: id-expression [lvalue __builtin_va_list]
+// CHECK-NEXT:                        expression: id-expression [lvalue void*]
 // CHECK-NEXT:                          unqualified-id: name-id
 // CHECK-NEXT:                            identifier: args
 // CHECK-NEXT:                        type-id: type-id
@@ -110,10 +110,10 @@ void ff(int count, ...) {
 // CHECK-NEXT:                              specifier: int
 // CHECK-NEXT:            expression-statement
 // CHECK-NEXT:              expression: call-expression [prvalue void]
-// CHECK-NEXT:                base-expression: id-expression [lvalue void (__builtin_va_list&) noexcept]
+// CHECK-NEXT:                base-expression: id-expression [lvalue void (void*&) noexcept]
 // CHECK-NEXT:                  unqualified-id: name-id
 // CHECK-NEXT:                    identifier: __builtin_va_end
 // CHECK-NEXT:                expression-list
-// CHECK-NEXT:                  id-expression [lvalue __builtin_va_list]
+// CHECK-NEXT:                  id-expression [lvalue void*]
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: args

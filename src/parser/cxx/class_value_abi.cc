@@ -21,6 +21,7 @@
 #include <cxx/class_value_abi.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
+#include <cxx/name_lookup.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
@@ -33,6 +34,23 @@
 
 namespace cxx {
 namespace {
+
+[[nodiscard]] auto isReservedPlacementAllocation(TranslationUnit* unit,
+                                                 FunctionSymbol* function)
+    -> bool {
+  if (!function || function->enclosingClass()) return false;
+  if (function->templateDeclaration() || function->isSpecialization())
+    return false;
+  auto type = type_cast<FunctionType>(function->type());
+  if (!type || type->isVariadic()) return false;
+  auto parameters = std::span{type->parameterTypes()};
+  if (parameters.size() != 2) return false;
+  auto control = unit->control();
+  auto traits = unit->typeTraits();
+  if (!traits.is_same(parameters[0], control->getSizeType())) return false;
+  return traits.is_same(parameters[1],
+                        control->getPointerType(control->getVoidType()));
+}
 
 struct Subobject {
   const Type* type = nullptr;
@@ -520,6 +538,13 @@ auto usesClassValueAbi(const Type* type) -> bool {
 
 auto classifyClassValueAbi(TranslationUnit* unit, const Type* type,
                            ClassValueAbiContext context) -> ClassValueAbi {
+  ClassValueAbiRules rules{unit};
+  const auto abiKind = rules.memoryLayout->classValueAbiKind();
+  if (context == ClassValueAbiContext::Argument &&
+      unqualified_cast<VectorType>(type)) {
+    if (abiKind == ClassValueAbiKind::kX86_64 && rules.sizeOf(type) > 16)
+      return rules.indirect(context, type, true, 8);
+  }
   if (!usesClassValueAbi(type)) return {};
 
   auto complexType = unqualified_cast<ComplexType>(type);
@@ -528,9 +553,6 @@ auto classifyClassValueAbi(TranslationUnit* unit, const Type* type,
   const Type* valueType = classType ? static_cast<const Type*>(classType)
                                     : static_cast<const Type*>(complexType);
 
-  ClassValueAbiRules rules{unit};
-
-  const auto abiKind = rules.memoryLayout->classValueAbiKind();
   if (abiKind == ClassValueAbiKind::kDefault) return {};
 
   if (classType) {
@@ -560,9 +582,48 @@ auto classifyClassValueAbi(TranslationUnit* unit, const Type* type,
   return {};
 }
 
-auto classifyFunctionParametersAbi(TranslationUnit* unit,
-                                   const FunctionType* type,
-                                   std::size_t implicitParameterCount)
+auto classifyArgumentRegisterUsage(TranslationUnit* unit, const Type* type,
+                                   const ClassValueAbi& abi)
+    -> ArgumentRegisterUsage {
+  ClassValueAbiRules rules{unit};
+  ArgumentRegisterUsage usage;
+  if (abi.kind == ClassValueAbi::Kind::Empty || abi.passedInMemory)
+    return usage;
+  if (abi.kind == ClassValueAbi::Kind::Indirect) return {.general = 1};
+  if (abi.kind == ClassValueAbi::Kind::Coerce) {
+    for (const auto& slot : abi.slots) {
+      auto slotType = slot.type;
+      std::size_t count = 1;
+      if (auto array = type_cast<BoundedArrayType>(slotType)) {
+        slotType = array->elementType();
+        count = array->size();
+      }
+      if (rules.traits.is_floating_point(slotType) ||
+          rules.traits.is_vector(slotType)) {
+        usage.vector += count;
+      } else {
+        usage.general += count * ((rules.sizeOf(slotType) + 7) / 8);
+      }
+    }
+    return usage;
+  }
+  auto scalarType = rules.abiType(type);
+  const auto size = rules.sizeOf(scalarType);
+  if (rules.traits.is_vector(scalarType)) return {.vector = 1};
+  if (rules.traits.is_floating_point(scalarType)) {
+    if (type_cast<LongDoubleType>(scalarType) &&
+        rules.memoryLayout->classValueAbiKind() == ClassValueAbiKind::kX86_64)
+      return usage;
+    return {.vector = 1};
+  }
+  if (size <= 16) usage.general = (size + 7) / 8;
+  return usage;
+}
+
+auto classifyFunctionParametersAbi(
+    TranslationUnit* unit, const FunctionType* type,
+    std::size_t implicitParameterCount,
+    std::span<const Type* const> variadicArguments)
     -> std::vector<ClassValueAbi> {
   ClassValueAbiRules rules{unit};
   const auto tracksRegisters =
@@ -571,7 +632,10 @@ auto classifyFunctionParametersAbi(TranslationUnit* unit,
   auto sseRegisters = std::size_t{8};
   std::vector<ClassValueAbi> parameters;
 
-  for (auto parameterType : type->parameterTypes()) {
+  auto parameterTypes = type->parameterTypes();
+  parameterTypes.insert(parameterTypes.end(), variadicArguments.begin(),
+                        variadicArguments.end());
+  for (auto parameterType : parameterTypes) {
     auto abi = classifyClassValueAbi(unit, parameterType,
                                      ClassValueAbiContext::Argument);
     if (!tracksRegisters) {
@@ -579,33 +643,9 @@ auto classifyFunctionParametersAbi(TranslationUnit* unit,
       continue;
     }
 
-    auto integers = std::size_t{0};
-    auto sse = std::size_t{0};
-    switch (abi.kind) {
-      case ClassValueAbi::Kind::Direct: {
-        auto scalarType = rules.abiType(parameterType);
-        if (rules.traits.is_floating_point(scalarType)) {
-          if (!type_cast<LongDoubleType>(scalarType)) ++sse;
-          break;
-        }
-        const auto size = rules.sizeOf(scalarType);
-        if (size <= 16) integers = (size + 7) / 8;
-        break;
-      }
-      case ClassValueAbi::Kind::Coerce:
-        for (const auto& slot : abi.slots) {
-          if (rules.traits.is_floating_point(slot.type))
-            ++sse;
-          else
-            ++integers;
-        }
-        break;
-      case ClassValueAbi::Kind::Indirect:
-        if (!abi.passedInMemory) ++integers;
-        break;
-      case ClassValueAbi::Kind::Empty:
-        break;
-    }
+    auto usage = classifyArgumentRegisterUsage(unit, parameterType, abi);
+    auto integers = usage.general;
+    auto sse = usage.vector;
 
     if (integers > integerRegisters || sse > sseRegisters) {
       if (abi.kind == ClassValueAbi::Kind::Coerce)
@@ -619,6 +659,21 @@ auto classifyFunctionParametersAbi(TranslationUnit* unit,
   }
 
   return parameters;
+}
+
+auto requiresArrayCookie(TranslationUnit* unit, const Type* elementType,
+                         FunctionSymbol* allocationFunction) -> bool {
+  auto traits = unit->typeTraits();
+  elementType = traits.remove_cv(elementType);
+  if (isReservedPlacementAllocation(unit, allocationFunction)) return false;
+  if (!traits.has_trivial_destructor(elementType)) return true;
+  auto classType = type_cast<ClassType>(elementType);
+  if (!classType) return false;
+  auto function =
+      resolveUsualOperatorDelete(unit, classType->symbol(), elementType, true,
+                                 DeallocationContext::kArrayCookie);
+  auto signature = deallocationSignatureOf(unit, function);
+  return signature && signature->hasSize;
 }
 
 }  // namespace cxx

@@ -59,7 +59,8 @@ class EmitterFixture : public ::testing::Test {
         mlir::cxx::InlineKindAttr{}, mlir::cxx::VisibilityAttr{},
         mlir::StringAttr{}, mlir::StringAttr{}, mlir::StringAttr{},
         mlir::StringAttr{}, /*used=*/false, mlir::ArrayAttr{},
-        mlir::ArrayAttr{});
+        mlir::ArrayAttr{}, mlir::StringAttr{},
+        mlir::cxx::CallingConventionAttr{});
 
     builder.setInsertionPointToEnd(builder.createBlock(&func_.getBody()));
   }
@@ -69,6 +70,38 @@ class EmitterFixture : public ::testing::Test {
   mlir::ModuleOp module_;
   mlir::cxx::FuncOp func_;
 };
+
+TEST_F(EmitterFixture, ClassDefinitionsPreserveLayout) {
+  auto classType = emitter_.declareClassType("Layout");
+  const ir::TypeRef members[] = {emitter_.integerType(32)};
+  emitter_.defineClassType(classType, members, true);
+  emitter_.defineClassType(classType, members, true);
+  auto type = mlir::cast<mlir::cxx::ClassType>(emitter_.type(classType));
+  ASSERT_EQ(type.getBody().size(), 1u);
+  EXPECT_EQ(type.getBody().front(), emitter_.type(members[0]));
+  EXPECT_TRUE(type.isPacked());
+}
+
+#if GTEST_HAS_DEATH_TEST
+TEST_F(EmitterFixture, ConflictingClassDefinitionsFail) {
+  auto classType = emitter_.declareClassType("Conflict");
+  const ir::TypeRef members[] = {emitter_.integerType(32)};
+  const ir::TypeRef differentMembers[] = {emitter_.integerType(64)};
+  emitter_.defineClassType(classType, members, false);
+  EXPECT_DEATH(emitter_.defineClassType(classType, differentMembers, false),
+               "conflicting definition of class 'Conflict'");
+  EXPECT_DEATH(emitter_.defineClassType(classType, members, true),
+               "conflicting definition of class 'Conflict'");
+  auto type = mlir::cast<mlir::cxx::ClassType>(emitter_.type(classType));
+  EXPECT_EQ(type.getBody().front(), emitter_.type(members[0]));
+  EXPECT_FALSE(type.isPacked());
+}
+
+TEST_F(EmitterFixture, InvalidFloatingTypeFails) {
+  EXPECT_DEATH((void)emitter_.floatingType(static_cast<ir::FloatKind>(99)),
+               "invalid floating type kind");
+}
+#endif
 
 TEST_F(EmitterFixture, DefaultBlockRefIsNull) {
   ir::BlockRef ref;

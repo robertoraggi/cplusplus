@@ -275,6 +275,7 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
 
   toolchain->setLanguage(language);
   toolchain->setExceptionsEnabled(cli.exceptionsEnabled());
+  toolchain->setRttiEnabled(cli.rttiEnabled());
   if (toolchain->supportsPositionIndependence()) {
     toolchain->memoryLayout()->setPositionIndependence(
         cli.positionIndependence(toolchain->defaultPositionIndependence()));

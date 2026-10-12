@@ -22,6 +22,7 @@
 
 #include <cxx/const_int.h>
 #include <cxx/position_independence.h>
+#include <cxx/triple.h>
 #include <cxx/types_fwd.h>
 
 #include <cstddef>
@@ -67,6 +68,7 @@ class MemoryLayout {
   [[nodiscard]] auto bits() const -> std::size_t;
   [[nodiscard]] auto sizeOfSizeType() const -> std::size_t;
   [[nodiscard]] auto sizeOfPointer() const -> std::size_t;
+  [[nodiscard]] auto unwindExceptionSize() const -> std::size_t;
   [[nodiscard]] auto sizeOfLong() const -> std::size_t;
   [[nodiscard]] auto sizeOfLongLong() const -> std::size_t;
   [[nodiscard]] auto sizeOfLongDouble() const -> std::size_t;
@@ -93,11 +95,15 @@ class MemoryLayout {
 
   [[nodiscard]] auto triple() const -> const std::string&;
   [[nodiscard]] auto arch() const -> std::string_view;
+  [[nodiscard]] auto targetArch() const -> TripleArch;
+  [[nodiscard]] auto isAArch64() const -> bool;
+  [[nodiscard]] auto isX86_64() const -> bool;
   [[nodiscard]] auto isWebAssembly() const -> bool;
   [[nodiscard]] auto isDarwin() const -> bool;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
   [[nodiscard]] auto zeroWidthBitFieldAlignsAggregate() const -> bool;
   [[nodiscard]] auto structorsReturnThis() const -> bool;
+  [[nodiscard]] auto arrayCookieHasElementSize() const -> bool;
   [[nodiscard]] auto defaultNewAlignment() const -> std::size_t;
   [[nodiscard]] auto alignedAttributeAlignment() const -> std::size_t;
   [[nodiscard]] auto maxAtomicInlineWidth() const -> std::size_t;

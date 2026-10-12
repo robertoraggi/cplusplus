@@ -148,6 +148,7 @@ struct [[nodiscard]] Binder::DeclareFunction {
       std::vector<NamedTemplateSpecialization> matches) const
       -> std::optional<NamedTemplateSpecialization>;
   void instantiateExplicitly(const NamedTemplateSpecialization& specialization);
+  void instantiateMemberExplicitly();
 
   [[nodiscard]] auto isExplicitSpecializationHead() const -> bool;
   [[nodiscard]] auto specializedPrimaryTemplates() const
@@ -175,8 +176,12 @@ struct [[nodiscard]] Binder::DeclareFunction {
 
   auto declare() -> FunctionSymbol*;
 
+  [[nodiscard]] auto targetScopeFor(ScopeSymbol* originalScope) const
+      -> ScopeSymbol*;
   void checkRedeclaration();
   void checkConstructor();
+  void recordFriendship(
+      std::optional<NamedTemplateSpecialization> namedSpecialization);
 
   void inheritAbiTags(FunctionSymbol* canonical);
   void checkDeclSpecifiers();
@@ -217,9 +222,7 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
           binder.currentInstantiationOf(binder.declaringScope())));
 
   auto originalScope = binder.declaringScope();
-  auto targetScope = !decl.specs.isFriend
-                         ? binder.scopeForBlockDecl(originalScope)
-                         : originalScope;
+  auto targetScope = targetScopeFor(originalScope);
 
   functionSymbol = control()->newFunctionSymbol(targetScope, decl.location());
   functionSymbol->setName(name);
@@ -235,6 +238,10 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
                          : nullptr));
 
   attachFunctionParameters();
+  binder.applyEnableIfAttributes(functionSymbol, decl.specs.attributeList);
+  if (functionDeclarator)
+    binder.applyEnableIfAttributes(functionSymbol,
+                                   functionDeclarator->attributeList);
 
   if (functionDeclarator && functionDeclarator->exceptionSpecifier)
     functionSymbol->setExceptionSpecifier(true);
@@ -260,6 +267,8 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
 
   if (functionSymbol->isConstructor()) {
     checkConstructor();
+    if (binder.inExplicitInstantiation()) instantiateMemberExplicitly();
+    recordFriendship(std::nullopt);
     return functionSymbol;
   }
 
@@ -284,35 +293,50 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
 
   if (instantiatesExplicitly) {
     instantiateExplicitly(*namedSpecialization);
+  } else if (binder.inExplicitInstantiation()) {
+    instantiateMemberExplicitly();
   } else if (namedSpecialization && !decl.specs.isFriend) {
     namedSpecialization->primary->addSpecialization(
         binder.unit_, namedSpecialization->arguments, functionSymbol);
+    if (namedSpecialization->primary->isStatic())
+      functionSymbol->setStatic(true);
+    ASTRewriter::inheritTemplateDefaultArguments(
+        binder.unit_, namedSpecialization->primary,
+        namedSpecialization->arguments, functionDeclarator);
   }
 
-  if (targetScope != originalScope) {
+  if (originalScope->isBlock() && targetScope != originalScope) {
     if (functionSymbol->canonical() == functionSymbol)
       functionSymbol->setHidden(true);
     binder.injectUsing(originalScope, name, functionSymbol->canonical(),
                        functionSymbol->location());
   }
 
-  if (decl.specs.isFriend) {
-    ClassSymbol* befriendingClass = nullptr;
-    for (auto symbol = static_cast<Symbol*>(originalScope); symbol;
-         symbol = symbol->parent()) {
-      befriendingClass = symbol_cast<ClassSymbol>(symbol);
-      if (befriendingClass) break;
-    }
-
-    if (namedSpecialization) {
-      namedSpecialization->primary->canonical()->addBefriendingClass(
-          befriendingClass, std::move(namedSpecialization->arguments));
-    } else {
-      functionSymbol->canonical()->addBefriendingClass(befriendingClass);
-    }
-  }
+  recordFriendship(std::move(namedSpecialization));
 
   return functionSymbol;
+}
+
+auto Binder::DeclareFunction::targetScopeFor(ScopeSymbol* originalScope) const
+    -> ScopeSymbol* {
+  if (decl.specs.isFriend) return originalScope;
+  if (auto nominated = decl.getScope()) return nominated;
+  return binder.scopeForBlockDecl(originalScope);
+}
+
+void Binder::DeclareFunction::recordFriendship(
+    std::optional<NamedTemplateSpecialization> namedSpecialization) {
+  if (!decl.specs.isFriend) return;
+
+  auto befriendingClass = binder.classBeingDefined();
+
+  if (namedSpecialization) {
+    namedSpecialization->primary->canonical()->addBefriendingClass(
+        befriendingClass, std::move(namedSpecialization->arguments));
+    return;
+  }
+
+  functionSymbol->canonical()->addBefriendingClass(befriendingClass);
 }
 
 auto Binder::DeclareFunction::withPrimaryExceptionSpecification(
@@ -368,6 +392,13 @@ void Binder::DeclareFunction::instantiateExplicitly(
   auto instanceFunction = symbol_cast<FunctionSymbol>(instance);
   ASTRewriter::requireFunctionDefinition(binder.unit_, instanceFunction);
   binder.unit_->addExplicitInstantiationDefinition(instanceFunction);
+}
+
+void Binder::DeclareFunction::instantiateMemberExplicitly() {
+  if (!binder.inExplicitInstantiationDefinition()) return;
+  auto member = functionSymbol->canonical();
+  if (member == functionSymbol) return;
+  ASTRewriter::requireExplicitInstantiationMember(binder.unit_, member);
 }
 
 auto Binder::DeclareFunction::isExplicitSpecializationHead() const -> bool {
@@ -483,6 +514,9 @@ auto Binder::DeclareFunction::declaringScopeForFunction() const
   auto declaringScope = binder.declaringScope();
 
   if (!functionSymbol->isFriend()) {
+    if (auto qualifier = symbol_cast<ClassSymbol>(decl.getScope()))
+      return qualifier;
+
     if (!declaringScope->isClassOrNamespace()) {
       if (auto ns = declaringScope->enclosingNamespace()) return ns;
     }
@@ -533,6 +567,9 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
     OverloadSetSymbol* overloadSet) -> bool {
   for (auto existingFunction : overloadSet->declaredFunctions()) {
     if (existingFunction->isSpecialization()) continue;
+    if (!haveSameEnableIfConditions(binder.unit_, existingFunction,
+                                    functionSymbol))
+      continue;
     if (hasDistinctDependentFriendContext(existingFunction)) continue;
 
     auto existingTemplateDecl = existingFunction->templateDeclaration();

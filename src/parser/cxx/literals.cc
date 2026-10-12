@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/diagnostics_client.h>
+#include <cxx/private/utf8.h>
 
 #include <bit>
 #include <charconv>
@@ -330,6 +331,10 @@ struct StringLiteralParser {
   };
 
   void parseStringLiteral() {
+    while (LA()) parseStringLiteralSegment();
+  }
+
+  void parseStringLiteralSegment() {
     bool isRaw = false;
 
     while (auto ch = LA()) {
@@ -366,6 +371,7 @@ struct StringLiteralParser {
             }
           }
           if (matched && LA(1 + static_cast<int>(delimiter.size())) == '"') {
+            consume(2 + static_cast<int>(delimiter.size()));
             break;
           }
         }
@@ -381,6 +387,7 @@ struct StringLiteralParser {
         emitChar(ch);
         consume();
       }
+      if (LA() == '"') consume();
     }
   }
 
@@ -1030,6 +1037,23 @@ auto StringLiteral::codeUnitSize() const -> std::size_t {
       return 4;
   }
   return 1;
+}
+
+auto StringLiteral::utf16CodeUnits() const -> std::vector<std::uint16_t> {
+  std::vector<std::uint16_t> units;
+  const auto value = stringValue();
+  auto it = value.begin();
+  while (it != value.end()) {
+    auto codePoint = utf8::next(it, value.end());
+    if (codePoint <= 0xFFFF) {
+      units.push_back(static_cast<std::uint16_t>(codePoint));
+      continue;
+    }
+    codePoint -= 0x10000;
+    units.push_back(static_cast<std::uint16_t>(0xD800 | (codePoint >> 10)));
+    units.push_back(static_cast<std::uint16_t>(0xDC00 | (codePoint & 0x3FF)));
+  }
+  return units;
 }
 
 auto StringLiteral::charAt(std::size_t index) const -> std::uint32_t {

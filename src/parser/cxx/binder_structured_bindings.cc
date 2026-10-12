@@ -154,7 +154,7 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
       structuredBindingArrayCopyType(ast, specs.type(),
                                      ast->initializer->type));
   if (!eInitDeclarator) return;
-  ast->hiddenVariable = eInitDeclarator;
+  ast->binding.hiddenVariable = eInitDeclarator;
 
   auto eSymbol = symbol_cast<VariableSymbol>(eInitDeclarator->symbol);
   if (!eSymbol) return;
@@ -197,7 +197,7 @@ struct Binder::DecomposeStructuredBinding {
         entity(e),
         arena(b.unit_->arena()),
         entityType(b.traits.remove_reference(e->type())),
-        bindingTail(&a->bindingDeclaratorList) {
+        bindingTail(&a->binding.bindingDeclaratorList) {
     for (auto it = ast->bindingList; it; it = it->next) ++count;
   }
 
@@ -258,6 +258,13 @@ struct Binder::DecomposeStructuredBinding {
   void appendBinding(InitDeclaratorAST* declarator) {
     *bindingTail = make_list_node<InitDeclaratorAST>(arena, declarator);
     bindingTail = &(*bindingTail)->next;
+  }
+
+  [[nodiscard]] auto memberReferencedType(FieldSymbol* field,
+                                          ExpressionAST* access) const
+      -> const Type* {
+    if (binder.traits.is_reference(field->type())) return field->type();
+    return access ? access->type : nullptr;
   }
 
   [[nodiscard]] auto entityReference(ValueCategory valueCategory) const
@@ -327,6 +334,41 @@ struct Binder::DecomposeStructuredBinding {
     appendBinding(bindingInitDeclarator);
   }
 
+  void declareAliasBinding(NameIdAST* nameId, ExpressionAST* access,
+                           const Type* referencedType) {
+    auto name = asExpression(nameId);
+    if (!name) return;
+
+    if (!access || !access->type) {
+      binder.error(
+          nameId->identifierLoc,
+          std::format("cannot decompose initializer into '{}'", name->name()));
+      return;
+    }
+
+    DeclSpecs bindingSpecs{binder.unit_};
+    bindingSpecs.setType(referencedType);
+    bindingSpecs.finish();
+
+    auto bindingDeclarator = binder.declareStructuredBindingEntity(
+        nameId->identifierLoc, name, bindingSpecs, TokenKind::T_EOF_SYMBOL,
+        nullptr, true);
+    if (!bindingDeclarator) return;
+
+    auto equalInit = EqualInitializerAST::create(arena);
+    equalInit->expression = access;
+    equalInit->valueCategory = access->valueCategory;
+    equalInit->type = access->type;
+    bindingDeclarator->initializer = equalInit;
+
+    if (auto binding = symbol_cast<VariableSymbol>(bindingDeclarator->symbol)) {
+      binding->setStructuredBindingAlias(true);
+      binding->setInitializer(access);
+    }
+
+    appendBinding(bindingDeclarator);
+  }
+
   void decomposeArray(const BoundedArrayType* arrayType) {
     if (static_cast<std::size_t>(count) != arrayType->size()) {
       binder.error(ast->lbracketLoc,
@@ -347,7 +389,7 @@ struct Binder::DecomposeStructuredBinding {
       subscript->valueCategory = ValueCategory::kLValue;
       subscript->type = elementType;
 
-      declareBinding(it->value, subscript);
+      declareAliasBinding(it->value, subscript, elementType);
     }
   }
 
@@ -441,7 +483,7 @@ struct Binder::DecomposeStructuredBinding {
     } else {
       auto calleeIdExpr = IdExpressionAST::create(arena);
       calleeIdExpr->unqualifiedId = templateId;
-      binder.bind(calleeIdExpr, true);
+      binder.bind(calleeIdExpr, true, true);
       callExpr->baseExpression = calleeIdExpr;
       check.check(&callExpr->baseExpression);
       callExpr->expressionList = make_list_node<ExpressionAST>(
@@ -552,7 +594,8 @@ struct Binder::DecomposeStructuredBinding {
 
       if (memberExpr->symbol != field) access = nullptr;
 
-      declareBinding(it->value, access);
+      declareAliasBinding(it->value, access,
+                          memberReferencedType(field, access));
     }
   }
 };

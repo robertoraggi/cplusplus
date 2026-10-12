@@ -108,6 +108,7 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   LLVMInitializeWebAssemblyTarget();
   LLVMInitializeWebAssemblyTargetMC();
   LLVMInitializeWebAssemblyAsmPrinter();
+  LLVMInitializeWebAssemblyAsmParser();
 
   const auto codeGenOptLevel = [&] {
     switch (optimizationLevel) {
@@ -140,9 +141,11 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   std::string error;
   auto target = llvm::TargetRegistry::lookupTarget(triple, error);
 
+  llvm::TargetOptions targetOptions;
+  targetOptions.UseInitArray = true;
   auto targetMachine =
       std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
-          llvm::Triple{triple}, "generic", "", llvm::TargetOptions{},
+          llvm::Triple{triple}, "generic", "", targetOptions,
           std::optional<llvm::Reloc::Model>(), std::nullopt, codeGenOptLevel));
 
   llvm::LLVMContext llvmContext;
@@ -172,6 +175,7 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   }
 
   pm.run(*llvmModule);
+  if (llvmContext.getDiagHandlerPtr()->HasErrors) return GeneratedCode{};
 
   if (!objectFile) {
     return GeneratedCode{

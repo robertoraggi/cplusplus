@@ -23,6 +23,7 @@
 #include <cxx/mlir/mlir_debug_emitter.h>
 #include <cxx/mlir/mlir_emitter.h>
 #include <cxx/translation_unit.h>
+#include <llvm/Support/ErrorHandling.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMAttrs.h>
@@ -37,12 +38,113 @@
 #include <format>
 
 namespace cxx::ir {
-namespace {}  // namespace
+namespace {
+[[nodiscard]] auto isZeroInitializer(mlir::Attribute attribute) -> bool {
+  if (mlir::isa<mlir::LLVM::ZeroAttr>(attribute)) return true;
+  if (auto integer = mlir::dyn_cast<mlir::IntegerAttr>(attribute))
+    return integer.getValue().isZero();
+  if (auto floating = mlir::dyn_cast<mlir::FloatAttr>(attribute))
+    return floating.getValue().isPosZero();
+  if (auto aggregate = mlir::dyn_cast<mlir::ArrayAttr>(attribute))
+    return llvm::all_of(aggregate, isZeroInitializer);
+  return false;
+}
+
+[[nodiscard]] auto callingConventionAttr(mlir::MLIRContext* context,
+                                         CallingConvention convention)
+    -> mlir::cxx::CallingConventionAttr {
+  if (convention == CallingConvention::C) return {};
+  return mlir::cxx::CallingConventionAttr::get(
+      context, mlir::cxx::CallingConvention::CxxFastTls);
+}
+}  // namespace
 
 MlirEmitter::MlirEmitter(mlir::MLIRContext& context, TranslationUnit* unit)
     : unit_(unit), builder_(&context) {}
 
 MlirEmitter::~MlirEmitter() = default;
+
+void MlirEmitter::moduleAsm(SourceLocation loc, std::string_view assembly) {
+  mlir::cxx::ModuleAsmOp::create(builder_, getLocation(loc),
+                                 builder_.getStringAttr(assembly));
+}
+
+void MlirEmitter::functionPersonality(FunctionRef functionRef,
+                                      std::string_view personality) {
+  function(functionRef)
+      ->setAttr("personality",
+                mlir::FlatSymbolRefAttr::get(context(), personality));
+}
+
+auto MlirEmitter::landingPad(SourceLocation loc,
+                             std::span<const ValueRef> clauses, bool cleanup)
+    -> std::vector<ValueRef> {
+  auto pointer = mlir::cxx::PointerType::get(context(), builder_.getI8Type());
+  auto op = mlir::cxx::LandingPadOp::create(
+      builder_, getLocation(loc), pointer, builder_.getI32Type(),
+      values(clauses), cleanup ? builder_.getUnitAttr() : mlir::UnitAttr{});
+  return {wrap(op.getException()), wrap(op.getSelector())};
+}
+
+auto MlirEmitter::exceptionTypeId(SourceLocation loc, ValueRef typeInfo)
+    -> ValueRef {
+  return wrap(mlir::cxx::ExceptionTypeIdOp::create(
+      builder_, getLocation(loc), builder_.getI32Type(), value(typeInfo)));
+}
+
+void MlirEmitter::resumeException(SourceLocation loc, ValueRef exception,
+                                  ValueRef selector) {
+  mlir::cxx::ResumeOp::create(builder_, getLocation(loc), value(exception),
+                              value(selector));
+}
+
+auto MlirEmitter::inlineAsm(SourceLocation loc, const InlineAsmInfo& info)
+    -> std::vector<ValueRef> {
+  auto inputs = values(info.arguments);
+  auto resultTypes = types(info.results);
+  llvm::SmallVector<mlir::Attribute> elementTypes;
+  for (auto elementType : info.argumentElementTypes) {
+    if (elementType) {
+      elementTypes.push_back(mlir::TypeAttr::get(type(elementType)));
+    } else {
+      elementTypes.push_back(builder_.getUnitAttr());
+    }
+  }
+  auto op = mlir::cxx::InlineAsmOp::create(
+      builder_, getLocation(loc), resultTypes, inputs,
+      builder_.getStringAttr(info.asmString),
+      builder_.getStringAttr(info.constraints),
+      info.hasSideEffects ? builder_.getUnitAttr() : mlir::UnitAttr{},
+      builder_.getArrayAttr(elementTypes));
+  std::vector<ValueRef> results;
+  for (auto result : op.getResults()) results.push_back(wrap(result));
+  return results;
+}
+
+auto MlirEmitter::inlineAsmGoto(SourceLocation loc, const InlineAsmInfo& info,
+                                BlockRef fallthrough,
+                                std::span<const BlockRef> destinations)
+    -> ValueRef {
+  auto inputs = values(info.arguments);
+  auto resultTypes = types(info.results);
+  mlir::Type resultType;
+  if (resultTypes.size() == 1) resultType = resultTypes.front();
+  if (resultTypes.size() > 1) resultType = builder_.getTupleType(resultTypes);
+  llvm::SmallVector<mlir::Attribute> elementTypes;
+  for (auto elementType : info.argumentElementTypes)
+    elementTypes.push_back(
+        elementType ? mlir::Attribute{mlir::TypeAttr::get(type(elementType))}
+                    : mlir::Attribute{builder_.getUnitAttr()});
+  llvm::SmallVector<mlir::Block*> targets;
+  for (auto destination : destinations) targets.push_back(block(destination));
+  auto op = mlir::cxx::AsmGotoOp::create(
+      builder_, getLocation(loc), resultType, inputs,
+      builder_.getStringAttr(info.asmString),
+      builder_.getStringAttr(info.constraints),
+      builder_.getArrayAttr(elementTypes), block(fallthrough), targets);
+  if (!resultType) return {};
+  return wrap(op.getResult());
+}
 auto MlirEmitter::saveInsertionPoint() -> InsertionPointRef {
   std::uint32_t id = 0;
 
@@ -86,9 +188,10 @@ void MlirEmitter::beginGlobalInitializer(GlobalRef ref) {
   auto b = builder_.createBlock(&global(ref).getInitializer());
   builder_.setInsertionPointToStart(b);
 }
-void MlirEmitter::globalConstructor(SourceLocation loc, FunctionRef ref) {
-  mlir::cxx::GlobalCtorOp::create(builder_, getLocation(loc),
-                                  functionName(ref));
+void MlirEmitter::globalConstructor(SourceLocation loc, FunctionRef ref,
+                                    std::uint32_t priority) {
+  mlir::cxx::GlobalCtorOp::create(builder_, getLocation(loc), functionName(ref),
+                                  priority);
 }
 auto MlirEmitter::isZeroConstant(ValueRef ref) -> bool {
   auto op = value(ref).getDefiningOp();
@@ -96,6 +199,9 @@ auto MlirEmitter::isZeroConstant(ValueRef ref) -> bool {
     if (auto i = mlir::dyn_cast<mlir::IntegerAttr>(c.getValue()))
       return i.getValue().isZero();
   }
+  if (auto aggregate =
+          mlir::dyn_cast_or_null<mlir::cxx::AggregateConstantOp>(op))
+    return isZeroInitializer(aggregate.getValue());
   return mlir::isa_and_nonnull<mlir::cxx::ZeroOp>(op);
 }
 auto MlirEmitter::symbolExists(std::string_view name) -> bool {
@@ -187,14 +293,19 @@ auto MlirEmitter::constant(SourceLocation loc, TypeRef resultType,
                                               floatType.getFloatSemantics()))));
     }
 
+    case Initializer::Kind::Aggregate:
+      return wrap(mlir::cxx::AggregateConstantOp::create(
+          builder_, location, type(resultType),
+          mlir::cast<mlir::ArrayAttr>(initializerAttribute(init))));
+
     case Initializer::Kind::Integer:
     case Initializer::Kind::Floating:
     case Initializer::Kind::Bytes:
-    case Initializer::Kind::Aggregate:
       return wrap(mlir::arith::ConstantOp::create(
           builder_, location, type(resultType),
           mlir::cast<mlir::TypedAttr>(initializerAttribute(init))));
   }
+  llvm::report_fatal_error("invalid initializer kind");
 }
 
 auto MlirEmitter::todo(SourceLocation loc, TodoKind kind,
@@ -209,6 +320,7 @@ auto MlirEmitter::todo(SourceLocation loc, TodoKind kind,
       mlir::cxx::TodoStmtOp::create(builder_, location, message);
       return {};
   }
+  llvm::report_fatal_error("invalid todo kind");
 }
 auto MlirEmitter::unaryOp(SourceLocation loc, UnaryOp op, TypeRef t, ValueRef v)
     -> ValueRef {
@@ -217,9 +329,10 @@ auto MlirEmitter::unaryOp(SourceLocation loc, UnaryOp op, TypeRef t, ValueRef v)
       return wrap(mlir::arith::NegFOp::create(builder_, getLocation(loc),
                                               type(t), value(v)));
   }
+  llvm::report_fatal_error("invalid unary operation");
 }
 namespace {
-auto toMlir(Linkage linkage) -> mlir::cxx::LinkageKind;
+[[nodiscard]] auto toMlir(Linkage linkage) -> mlir::cxx::LinkageKind;
 }
 void MlirEmitter::defineVTable(SourceLocation loc, const VTableInfo& info) {
   std::vector<mlir::Attribute> offsets;
@@ -242,7 +355,9 @@ void MlirEmitter::defineVTable(SourceLocation loc, const VTableInfo& info) {
   mlir::cxx::VTableOp::create(
       builder_, getLocation(loc), info.name, builder_.getArrayAttr(offsets),
       builder_.getI64ArrayAttr(offsetsToTop),
-      mlir::FlatSymbolRefAttr::get(context(), info.typeInfo),
+      info.typeInfo.empty()
+          ? mlir::FlatSymbolRefAttr{}
+          : mlir::FlatSymbolRefAttr::get(context(), info.typeInfo),
       builder_.getArrayAttr(slots),
       mlir::cxx::LinkageKindAttr::get(context(), toMlir(info.linkage)));
 }
@@ -259,7 +374,8 @@ static auto mintHandleId(std::vector<T>& objects,
   const auto index = static_cast<std::uint32_t>(objects.size());
 
   if (index > kHandleMaxIndex)
-    cxx_runtime_error(std::format("too many {} in one module", what));
+    llvm::report_fatal_error(
+        llvm::Twine(std::format("too many {} in one module", what)));
 
   if (index >= generations.size()) generations.resize(index + 1, 0);
 
@@ -277,8 +393,8 @@ static auto resolveHandleId(const std::vector<T>& objects,
   const auto index = handleIndex(id);
 
   if (index >= objects.size() || generations[index] != handleGeneration(id)) {
-    cxx_runtime_error(std::format(
-        "{} handle outlived the function body that created it", what));
+    llvm::report_fatal_error(llvm::Twine(std::format(
+        "{} handle outlived the function body that created it", what)));
   }
 
   return objects[index];
@@ -310,7 +426,7 @@ void MlirEmitter::beginFunctionBody(FunctionRef function) {
 
 void MlirEmitter::endFunctionBody(FunctionRef function) {
   if (functionBodies_.empty() || functionBodies_.back().function != function)
-    cxx_runtime_error("unbalanced function body scope");
+    llvm::report_fatal_error("unbalanced function body scope");
 
   const auto scope = functionBodies_.back();
   functionBodies_.pop_back();
@@ -360,7 +476,7 @@ auto MlirEmitter::createBlock(FunctionRef ref) -> BlockRef {
   } else if (auto insertionPoint = builder_.getBlock()) {
     region = insertionPoint->getParent();
   } else {
-    cxx_runtime_error("cannot create a block outside of a region");
+    llvm::report_fatal_error("cannot create a block outside of a region");
   }
 
   auto block = new mlir::Block();
@@ -444,6 +560,7 @@ auto MlirEmitter::floatingType(FloatKind kind) -> TypeRef {
     case FloatKind::Quad:
       return wrap(mlir::Float128Type::get(context()));
   }
+  llvm::report_fatal_error("invalid floating type kind");
 }
 
 auto MlirEmitter::pointerType(TypeRef elementType) -> TypeRef {
@@ -483,8 +600,12 @@ auto MlirEmitter::declareClassType(std::string_view name) -> TypeRef {
 void MlirEmitter::defineClassType(TypeRef classType,
                                   std::span<const TypeRef> members,
                                   bool isPacked) {
-  mlir::cast<mlir::cxx::ClassType>(type(classType))
-      .setBody(types({members.data(), members.size()}), isPacked);
+  auto target = mlir::cast<mlir::cxx::ClassType>(type(classType));
+  if (mlir::failed(
+          target.setBody(types({members.data(), members.size()}), isPacked))) {
+    llvm::report_fatal_error(llvm::Twine(std::format(
+        "conflicting definition of class '{}'", target.getName().str())));
+  }
 }
 
 auto MlirEmitter::typeKind(TypeRef ref) -> TypeKind {
@@ -572,6 +693,7 @@ auto MlirEmitter::convert(SourceLocation loc, CastKind kind, ValueRef value,
       return wrap(mlir::cxx::IntToPtrOp::create(builder_, location, resultType,
                                                 operand));
   }
+  llvm::report_fatal_error("invalid cast kind");
 }
 
 auto MlirEmitter::createBlock(mlir::Region& region) -> BlockRef {
@@ -724,11 +846,13 @@ auto MlirEmitter::binaryOp(SourceLocation loc, BinaryOp op, ValueRef lhs,
     case BinaryOp::DivFloat:
       return wrap(mlir::arith::DivFOp::create(builder_, location, lhs_, rhs_));
   }
+  llvm::report_fatal_error("invalid binary operation");
 }
 
 namespace {
 
-auto toMlir(IntPredicate predicate) -> mlir::arith::CmpIPredicate {
+[[nodiscard]] auto toMlir(IntPredicate predicate)
+    -> mlir::arith::CmpIPredicate {
   switch (predicate) {
     case IntPredicate::Equal:
       return mlir::arith::CmpIPredicate::eq;
@@ -751,9 +875,11 @@ auto toMlir(IntPredicate predicate) -> mlir::arith::CmpIPredicate {
     case IntPredicate::UnsignedGreaterEqual:
       return mlir::arith::CmpIPredicate::uge;
   }
+  llvm::report_fatal_error("invalid integer predicate");
 }
 
-auto toMlir(FloatPredicate predicate) -> mlir::arith::CmpFPredicate {
+[[nodiscard]] auto toMlir(FloatPredicate predicate)
+    -> mlir::arith::CmpFPredicate {
   switch (predicate) {
     case FloatPredicate::OrderedEqual:
       return mlir::arith::CmpFPredicate::OEQ;
@@ -772,6 +898,7 @@ auto toMlir(FloatPredicate predicate) -> mlir::arith::CmpFPredicate {
     case FloatPredicate::Unordered:
       return mlir::arith::CmpFPredicate::UNO;
   }
+  llvm::report_fatal_error("invalid floating predicate");
 }
 
 }  // namespace
@@ -853,6 +980,7 @@ auto MlirEmitter::load(SourceLocation loc, TypeRef valueType, ValueRef address,
       builder_, getLocation(loc), type(valueType), value(address),
       builder_.getI32IntegerAttr(field.bitOffset),
       builder_.getI32IntegerAttr(field.bitWidth),
+      builder_.getI64IntegerAttr(field.storageSize),
       builder_.getI64IntegerAttr(access.alignment),
       builder_.getBoolAttr(access.isSigned)));
 }
@@ -960,6 +1088,7 @@ void MlirEmitter::store(SourceLocation loc, ValueRef value, ValueRef address,
       builder_, getLocation(loc), this->value(value), this->value(address),
       builder_.getI32IntegerAttr(field.bitOffset),
       builder_.getI32IntegerAttr(field.bitWidth),
+      builder_.getI64IntegerAttr(field.storageSize),
       builder_.getI64IntegerAttr(access.alignment));
 }
 
@@ -1000,7 +1129,7 @@ void MlirEmitter::unreachable(mlir::Location loc) {
 
 namespace {
 
-auto toMlir(Linkage linkage) -> mlir::cxx::LinkageKind {
+[[nodiscard]] auto toMlir(Linkage linkage) -> mlir::cxx::LinkageKind {
   switch (linkage) {
     case Linkage::External:
       return mlir::cxx::LinkageKind::External;
@@ -1019,9 +1148,10 @@ auto toMlir(Linkage linkage) -> mlir::cxx::LinkageKind {
     case Linkage::ExternalWeak:
       return mlir::cxx::LinkageKind::ExternalWeak;
   }
+  llvm::report_fatal_error("invalid linkage kind");
 }
 
-auto toMlir(Visibility visibility) -> mlir::cxx::Visibility {
+[[nodiscard]] auto toMlir(Visibility visibility) -> mlir::cxx::Visibility {
   switch (visibility) {
     case Visibility::Default:
       return mlir::cxx::Visibility::Default;
@@ -1030,9 +1160,10 @@ auto toMlir(Visibility visibility) -> mlir::cxx::Visibility {
     case Visibility::Protected:
       return mlir::cxx::Visibility::Protected;
   }
+  llvm::report_fatal_error("invalid visibility");
 }
 
-auto toMlir(InlineKind kind) -> mlir::cxx::InlineKind {
+[[nodiscard]] auto toMlir(InlineKind kind) -> mlir::cxx::InlineKind {
   switch (kind) {
     case InlineKind::Default:
     case InlineKind::NoInline:
@@ -1042,6 +1173,7 @@ auto toMlir(InlineKind kind) -> mlir::cxx::InlineKind {
     case InlineKind::AlwaysInline:
       return mlir::cxx::InlineKind::AlwaysInline;
   }
+  llvm::report_fatal_error("invalid inline kind");
 }
 
 }  // namespace
@@ -1160,7 +1292,9 @@ auto MlirEmitter::declareFunction(mlir::Location loc, const FunctionInfo& info)
       info.isUsed,
       parameterAbiAttrs(info.parameters, functionType.getInputs().size()),
       parameterAbiAttrs(std::array{info.resultAbi},
-                        functionType.getResults().size())));
+                        functionType.getResults().size()),
+      optionalString(info.section),
+      callingConventionAttr(context, info.callingConvention)));
 }
 
 auto MlirEmitter::functionName(FunctionRef ref) -> std::string_view {
@@ -1201,7 +1335,10 @@ auto MlirEmitter::declareGlobal(SourceLocation loc, const GlobalInfo& info)
       mlir::StringRef{info.name.data(), info.name.size()},
       initializerAttribute(info.initializer),
       mlir::cxx::LinkageKindAttr::get(context(), toMlir(info.linkage)),
-      alignmentAttr, info.isUsed, info.isThreadLocal));
+      alignmentAttr, info.isUsed, info.isThreadLocal,
+      info.section.empty() ? mlir::StringAttr{}
+                           : builder_.getStringAttr(mlir::StringRef{
+                                 info.section.data(), info.section.size()})));
 }
 
 auto MlirEmitter::constantInt(mlir::Location loc, TypeRef typeRef,
@@ -1234,6 +1371,25 @@ auto MlirEmitter::call(mlir::Location loc, const CallInfo& info)
     return builtinResults;
   }
 
+  if (info.unwindDestination) {
+    mlir::FlatSymbolRefAttr callee;
+    if (!info.indirectCallee)
+      callee = mlir::FlatSymbolRefAttr::get(context(), info.callee);
+    mlir::TypeAttr variadicType;
+    if (info.variadicCalleeType)
+      variadicType = mlir::TypeAttr::get(type(info.variadicCalleeType));
+    auto op = mlir::cxx::InvokeOp::create(
+        builder_, loc, resultTypes, callee, value(info.indirectCallee),
+        arguments, variadicType,
+        parameterAbiAttrs(info.parameters, arguments.size()),
+        parameterAbiAttrs(std::array{info.resultAbi}, resultTypes.size()),
+        callingConventionAttr(context(), info.callingConvention),
+        block(info.normalDestination), block(info.unwindDestination));
+    std::vector<ValueRef> results;
+    for (auto result : op.getResults()) results.push_back(wrap(result));
+    return results;
+  }
+
   auto callOp =
       info.indirectCallee
           ? mlir::cxx::CallOp::create(builder_, loc, resultTypes,
@@ -1242,6 +1398,9 @@ auto MlirEmitter::call(mlir::Location loc, const CallInfo& info)
                 builder_, loc, resultTypes,
                 mlir::StringRef{info.callee.data(), info.callee.size()},
                 arguments);
+
+  callOp.setCallingConventionAttr(
+      callingConventionAttr(context(), info.callingConvention));
 
   if (auto argAttrs = parameterAbiAttrs(info.parameters, arguments.size())) {
     callOp.setArgAttrsAttr(argAttrs);

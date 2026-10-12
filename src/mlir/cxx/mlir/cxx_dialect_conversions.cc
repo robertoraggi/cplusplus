@@ -27,6 +27,10 @@
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
 
+namespace cxx {
+void registerCxxLLVMTranslation(mlir::MLIRContext& context);
+}
+
 auto cxx::lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult {
   mlir::PassManager pm(module->getName());
 
@@ -85,6 +89,7 @@ void cxx::optimizeLLVMIR(llvm::Module& module,
 auto cxx::exportToLLVMIR(mlir::ModuleOp module, llvm::LLVMContext& context)
     -> std::unique_ptr<llvm::Module> {
   mlir::registerBuiltinDialectTranslation(*module->getContext());
+  registerCxxLLVMTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());
 
   auto llvmModule = mlir::translateModuleToLLVMIR(module, context);

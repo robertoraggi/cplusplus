@@ -797,8 +797,16 @@ class SemanticEncoder final : public SemanticEncoderBase {
       ByteWriter& out, const cxx::VTableLayout::EntryPoint* self);
   void writecxxPendingInstantiation(ByteWriter& out,
                                     const cxx::PendingInstantiation* self);
+  void writecxxStructuredBindingInfo(ByteWriter& out,
+                                     const cxx::StructuredBindingInfo* self);
+  void writecxxForRangeStatementInfo(ByteWriter& out,
+                                     const cxx::ForRangeStatementInfo* self);
   void writecxxDefaultInitializerContext(
       ByteWriter& out, const cxx::DefaultInitializerContext* self);
+  void writecxxObjectInitializationInfo(
+      ByteWriter& out, const cxx::ObjectInitializationInfo* self);
+  void writecxxInitializerInfo(ByteWriter& out,
+                               const cxx::InitializerInfo* self);
 };
 
 class SemanticDecoder final : public SemanticDecoderBase {
@@ -1476,8 +1484,15 @@ class SemanticDecoder final : public SemanticDecoderBase {
                                      cxx::VTableLayout::EntryPoint* self);
   void readcxxPendingInstantiation(ByteReader& in,
                                    cxx::PendingInstantiation* self);
+  void readcxxStructuredBindingInfo(ByteReader& in,
+                                    cxx::StructuredBindingInfo* self);
+  void readcxxForRangeStatementInfo(ByteReader& in,
+                                    cxx::ForRangeStatementInfo* self);
   void readcxxDefaultInitializerContext(ByteReader& in,
                                         cxx::DefaultInitializerContext* self);
+  void readcxxObjectInitializationInfo(ByteReader& in,
+                                       cxx::ObjectInitializationInfo* self);
+  void readcxxInitializerInfo(ByteReader& in, cxx::InitializerInfo* self);
 };
 
 }  // namespace cxx

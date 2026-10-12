@@ -40,12 +40,6 @@ namespace cxx {
 
 namespace {
 
-[[nodiscard]] auto stripParentheses(ExpressionAST* expr) -> ExpressionAST* {
-  while (auto nested = ast_cast<NestedExpressionAST>(expr))
-    expr = nested->expression;
-  return expr;
-}
-
 [[nodiscard]] auto foldCondition(TranslationUnit* unit, ExpressionAST* expr)
     -> std::optional<bool> {
   if (!expr) return std::nullopt;
@@ -69,7 +63,19 @@ class ReachabilityAnalysis {
   [[nodiscard]] auto foldsToTrue(ExpressionAST* expr) -> bool;
   [[nodiscard]] auto conditionValue(ExpressionAST* expr) -> std::optional<bool>;
 
+  struct JumpTargetResult {
+    bool completesNormally = false;
+    bool breakReached = false;
+    bool continueReached = false;
+  };
+
+  [[nodiscard]] auto analyzeJumpTarget(StatementAST* body) -> JumpTargetResult;
+  [[nodiscard]] auto completesEitherBranch(StatementAST* thenStatement,
+                                           StatementAST* elseStatement) -> bool;
+
   TranslationUnit* unit_;
+  bool breakReached_ = false;
+  bool continueReached_ = false;
 };
 
 [[nodiscard]] auto isLabel(StatementAST* stmt) -> bool {
@@ -77,60 +83,6 @@ class ReachabilityAnalysis {
          ast_cast<CaseStatementAST>(stmt) ||
          ast_cast<DefaultStatementAST>(stmt);
 }
-
-class JumpFinder final : ASTVisitor {
- public:
-  [[nodiscard]] static auto hasBreak(TranslationUnit* unit, StatementAST* stmt)
-      -> bool {
-    JumpFinder finder{unit, /*lookingForBreak=*/true};
-    finder.accept(stmt);
-    return finder.found_;
-  }
-
-  [[nodiscard]] static auto hasContinue(TranslationUnit* unit,
-                                        StatementAST* stmt) -> bool {
-    JumpFinder finder{unit, /*lookingForBreak=*/false};
-    finder.accept(stmt);
-    return finder.found_;
-  }
-
- private:
-  JumpFinder(TranslationUnit* unit, bool lookingForBreak)
-      : unit_(unit), lookingForBreak_(lookingForBreak) {}
-
-  auto preVisit(AST*) -> bool override { return !found_; }
-
-  void visit(IfStatementAST* ast) override {
-    if (auto taken = foldCondition(unit_, ast->condition)) {
-      accept(*taken ? ast->statement : ast->elseStatement);
-      return;
-    }
-    ASTVisitor::visit(ast);
-  }
-
-  void visit(BreakStatementAST*) override {
-    if (lookingForBreak_) found_ = true;
-  }
-
-  void visit(ContinueStatementAST*) override {
-    if (!lookingForBreak_) found_ = true;
-  }
-
-  void visit(WhileStatementAST*) override {}
-  void visit(DoStatementAST*) override {}
-  void visit(ForStatementAST*) override {}
-  void visit(ForRangeStatementAST*) override {}
-  void visit(LambdaExpressionAST*) override {}
-
-  void visit(SwitchStatementAST* ast) override {
-    if (lookingForBreak_) return;
-    ASTVisitor::visit(ast);
-  }
-
-  TranslationUnit* unit_;
-  bool lookingForBreak_;
-  bool found_ = false;
-};
 
 class DefaultLabelFinder final : ASTVisitor {
  public:
@@ -166,8 +118,39 @@ auto ReachabilityAnalysis::isDivergentExpression(ExpressionAST* expr) -> bool {
 
   if (ast_cast<ThrowExpressionAST>(expr)) return true;
 
+  if (auto comma = ast_cast<BinaryExpressionAST>(expr);
+      comma && comma->op == TokenKind::T_COMMA && !comma->symbol)
+    return isDivergentExpression(comma->leftExpression) ||
+           isDivergentExpression(comma->rightExpression);
+
+  if (auto cast = ast_cast<CastExpressionAST>(expr))
+    return isDivergentExpression(cast->expression);
+  if (auto cast = ast_cast<CppCastExpressionAST>(expr))
+    return isDivergentExpression(cast->expression);
+  if (auto cast = ast_cast<ImplicitCastExpressionAST>(expr))
+    return isDivergentExpression(cast->expression);
+
   auto [callee, function] = calledFunction(expr);
   return function && function->isNoReturn();
+}
+
+auto ReachabilityAnalysis::completesEitherBranch(StatementAST* thenStatement,
+                                                 StatementAST* elseStatement)
+    -> bool {
+  auto thenCompletes = completesNormally(thenStatement);
+  auto elseCompletes = completesNormally(elseStatement);
+  return thenCompletes || elseCompletes;
+}
+
+auto ReachabilityAnalysis::analyzeJumpTarget(StatementAST* body)
+    -> JumpTargetResult {
+  auto savedBreak = std::exchange(breakReached_, false);
+  auto savedContinue = std::exchange(continueReached_, false);
+  JumpTargetResult result;
+  result.completesNormally = completesNormally(body);
+  result.breakReached = std::exchange(breakReached_, savedBreak);
+  result.continueReached = std::exchange(continueReached_, savedContinue);
+  return result;
 }
 
 auto ReachabilityAnalysis::completesNormally(CompoundStatementAST* ast)
@@ -197,8 +180,14 @@ auto ReachabilityAnalysis::completesNormally(StatementAST* stmt) -> bool {
     case ASTKind::ReturnStatement:
     case ASTKind::CoroutineReturnStatement:
     case ASTKind::GotoStatement:
+      return false;
+
     case ASTKind::BreakStatement:
+      breakReached_ = true;
+      return false;
+
     case ASTKind::ContinueStatement:
+      continueReached_ = true;
       return false;
 
     case ASTKind::ExpressionStatement:
@@ -214,43 +203,50 @@ auto ReachabilityAnalysis::completesNormally(StatementAST* stmt) -> bool {
         if (*value) return completesNormally(ast->statement);
         return completesNormally(ast->elseStatement);
       }
-      if (!ast->elseStatement) return true;
-      return completesNormally(ast->statement) ||
-             completesNormally(ast->elseStatement);
+      return completesEitherBranch(ast->statement, ast->elseStatement);
     }
 
     case ASTKind::ConstevalIfStatement: {
       auto ast = static_cast<ConstevalIfStatementAST*>(stmt);
-      if (!ast->elseStatement) return true;
-      return completesNormally(ast->statement) ||
-             completesNormally(ast->elseStatement);
+      return completesEitherBranch(ast->statement, ast->elseStatement);
     }
 
     case ASTKind::WhileStatement: {
       auto ast = static_cast<WhileStatementAST*>(stmt);
+      auto body = analyzeJumpTarget(ast->statement);
       if (!foldsToTrue(ast->condition)) return true;
-      return JumpFinder::hasBreak(unit_, ast->statement);
+      return body.breakReached;
     }
 
     case ASTKind::DoStatement: {
       auto ast = static_cast<DoStatementAST*>(stmt);
-      if (JumpFinder::hasBreak(unit_, ast->statement)) return true;
+      auto body = analyzeJumpTarget(ast->statement);
+      if (body.breakReached) return true;
       if (foldsToTrue(ast->expression)) return false;
-      return completesNormally(ast->statement) ||
-             JumpFinder::hasContinue(unit_, ast->statement);
+      return body.completesNormally || body.continueReached;
     }
 
     case ASTKind::ForStatement: {
       auto ast = static_cast<ForStatementAST*>(stmt);
+      auto body = analyzeJumpTarget(ast->statement);
       if (ast->condition && !foldsToTrue(ast->condition)) return true;
-      return JumpFinder::hasBreak(unit_, ast->statement);
+      return body.breakReached;
+    }
+
+    case ASTKind::ForRangeStatement: {
+      auto ast = static_cast<ForRangeStatementAST*>(stmt);
+      (void)analyzeJumpTarget(ast->statement);
+      return true;
     }
 
     case ASTKind::SwitchStatement: {
       auto ast = static_cast<SwitchStatementAST*>(stmt);
+      auto savedContinue = continueReached_;
+      auto body = analyzeJumpTarget(ast->statement);
+      continueReached_ = savedContinue || body.continueReached;
       if (!DefaultLabelFinder::hasDefaultLabel(ast->statement)) return true;
-      if (JumpFinder::hasBreak(unit_, ast->statement)) return true;
-      return completesNormally(ast->statement);
+      if (body.breakReached) return true;
+      return body.completesNormally;
     }
 
     case ASTKind::TryBlockStatement: {

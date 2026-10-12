@@ -388,6 +388,14 @@ auto TranslationUnit::language() const -> LanguageKind {
   return preprocessor_->language();
 }
 
+auto TranslationUnit::rejectsEnumerationArithmeticConversions() const -> bool {
+  return preprocessor_->cplusplusVersion() > 202302L;
+}
+
+auto TranslationUnit::hasRewrittenComparisonCandidates() const -> bool {
+  return preprocessor_->cplusplusVersion() >= 202002L;
+}
+
 auto TranslationUnit::config() const -> const ParserConfiguration& {
   return config_;
 }
@@ -490,6 +498,23 @@ auto TranslationUnit::isExplicitInstantiationDefinition(
     FunctionSymbol* function) const -> bool {
   if (!function) return false;
   return std::ranges::contains(explicitInstantiationDefinitions_, function);
+}
+
+void TranslationUnit::addExplicitInstantiationDefinition(
+    ClassSymbol* classSymbol) {
+  if (!classSymbol) return;
+  classSymbol = classSymbol->resolvedDefinition();
+  if (std::ranges::contains(explicitInstantiationClassDefinitions_,
+                            classSymbol))
+    return;
+  explicitInstantiationClassDefinitions_.push_back(classSymbol);
+}
+
+auto TranslationUnit::isExplicitInstantiationDefinition(
+    ClassSymbol* classSymbol) const -> bool {
+  if (!classSymbol) return false;
+  return std::ranges::contains(explicitInstantiationClassDefinitions_,
+                               classSymbol->resolvedDefinition());
 }
 
 void TranslationUnit::addPendingBodyCompletion(FunctionSymbol* function,

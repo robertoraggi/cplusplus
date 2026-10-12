@@ -33,11 +33,16 @@
 #include <optional>
 #include <string_view>
 #include <unordered_set>
+#include <utility>
 
 namespace cxx {
 class TranslationUnit;
 
 [[nodiscard]] auto isUntypedAfterError(ExpressionAST* expr) -> bool;
+
+[[nodiscard]] auto stripParentheses(ExpressionAST* expr) -> ExpressionAST*;
+
+[[nodiscard]] auto stripImplicitCasts(ExpressionAST* expr) -> ExpressionAST*;
 
 struct CalledFunction {
   ExpressionAST* callee = nullptr;
@@ -84,6 +89,7 @@ class TypeChecker {
 
   auto check_bool_condition(ExpressionAST*& ast) -> bool;
   void check_integral_condition(ExpressionAST*& ast);
+  void set_named_symbol_result(ExpressionAST* ast, Symbol* symbol);
   void check_init_declarator(InitDeclaratorAST* initDecl,
                              SpecifierAST* typeSpecifier,
                              ArrayCopyPolicy arrayCopyPolicy =
@@ -93,6 +99,7 @@ class TypeChecker {
                                   SourceLocation location,
                                   ArrayCopyPolicy arrayCopyPolicy =
                                       ArrayCopyPolicy::kBracedInitializerOnly);
+  void check_exception_initializer(TypeExceptionDeclarationAST* ast);
   [[nodiscard]] auto check_member_initialization(
       FieldSymbol* field, ExpressionAST*& initializer, InitializationKind kind,
       ArrayCopyPolicy arrayCopyPolicy = ArrayCopyPolicy::kBracedInitializerOnly)
@@ -122,8 +129,8 @@ class TypeChecker {
 
   [[nodiscard]] auto check_class_initializer(
       const Type* targetType, ExpressionAST*& initializer,
-      SourceLocation location, List<ExpressionAST*>** argumentList = nullptr)
-      -> FunctionSymbol*;
+      SourceLocation location, List<ExpressionAST*>** argumentList = nullptr,
+      Symbol* subobject = nullptr) -> FunctionSymbol*;
 
   [[nodiscard]] auto deduceAutoType(const Type* declaredType,
                                     const Type* initializerType) -> const Type*;
@@ -213,6 +220,26 @@ class TypeChecker {
       -> bool;
 
   void leaveAggregateInitialization(ClassSymbol* classSymbol);
+
+  class SeparateObjectInitialization {
+   public:
+    explicit SeparateObjectInitialization(TypeChecker& checker)
+        : checker_(checker),
+          enclosingAggregates_(
+              std::exchange(checker.aggregatesBeingInitialized_, {})) {}
+
+    ~SeparateObjectInitialization() {
+      checker_.aggregatesBeingInitialized_ = std::move(enclosingAggregates_);
+    }
+
+    SeparateObjectInitialization(const SeparateObjectInitialization&) = delete;
+    auto operator=(const SeparateObjectInitialization&)
+        -> SeparateObjectInitialization& = delete;
+
+   private:
+    TypeChecker& checker_;
+    std::unordered_set<ClassSymbol*> enclosingAggregates_;
+  };
 
  private:
   [[nodiscard]] auto deducePlaceholderReplacement(const Type* declaredType,

@@ -22,6 +22,7 @@
 #include <cxx/mlir/mlir_emitter.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/ErrorHandling.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
@@ -43,13 +44,15 @@ auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
 
     auto triple = llvm::Triple{llvm::StringRef{info.targetTriple}};
     std::string error;
     auto target = llvm::TargetRegistry::lookupTarget(triple, error);
     if (!target) {
-      cxx_runtime_error(std::format("failed to find target for triple '{}': {}",
-                                    triple.getTriple(), error));
+      llvm::report_fatal_error(
+          llvm::Twine(std::format("failed to find target for triple '{}': {}",
+                                  triple.getTriple(), error)));
     }
     llvm::TargetOptions options;
     auto targetMachine = std::unique_ptr<llvm::TargetMachine>(

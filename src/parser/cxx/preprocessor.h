@@ -66,6 +66,9 @@ class Preprocessor final : public SourceResolver {
   [[nodiscard]] auto language() const -> LanguageKind;
   void setLanguage(LanguageKind lang);
 
+  [[nodiscard]] auto cplusplusVersion() const -> long;
+  void setCplusplusVersion(long version);
+
   [[nodiscard]] auto targetArch() const -> TripleArch;
   void setTargetArch(TripleArch arch);
 
@@ -114,6 +117,11 @@ class Preprocessor final : public SourceResolver {
       -> const std::vector<std::string>&;
 
   void addSystemIncludePath(std::string path);
+
+  [[nodiscard]] auto systemFrameworkPaths() const
+      -> const std::vector<std::string>&;
+
+  void addSystemFrameworkPath(std::string path);
 
   [[nodiscard]] auto quoteIncludePaths() const
       -> const std::vector<std::string>&;

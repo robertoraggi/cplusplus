@@ -22,6 +22,7 @@
 #pragma once
 
 #include <cxx/arena.h>
+#include <cxx/ast_attributes.h>
 #include <cxx/ast_fwd.h>
 #include <cxx/ast_kind.h>
 #include <cxx/ast_visitor.h>
@@ -266,6 +267,7 @@ class MemInitializerAST : public AST {
 
   Symbol* symbol = nullptr;
   FunctionSymbol* constructor = nullptr;
+  ObjectInitializationInfo initialization;
 
   [[nodiscard]] auto clone(Arena* arena) -> MemInitializerAST* override = 0;
 };
@@ -449,6 +451,7 @@ class AsmDeclarationAST final : public DeclarationAST {
   SourceLocation asmLoc;
   SourceLocation lparenLoc;
   SourceLocation literalLoc;
+  SourceLocation colonLoc;
   List<AsmOperandAST*>* outputOperandList = nullptr;
   List<AsmOperandAST*>* inputOperandList = nullptr;
   List<AsmClobberAST*>* clobberList = nullptr;
@@ -470,7 +473,7 @@ class AsmDeclarationAST final : public DeclarationAST {
       Arena* arena, List<AttributeSpecifierAST*>* attributeList,
       List<AsmQualifierAST*>* asmQualifierList, SourceLocation asmLoc,
       SourceLocation lparenLoc, SourceLocation literalLoc,
-      List<AsmOperandAST*>* outputOperandList,
+      SourceLocation colonLoc, List<AsmOperandAST*>* outputOperandList,
       List<AsmOperandAST*>* inputOperandList, List<AsmClobberAST*>* clobberList,
       List<AsmGotoLabelAST*>* gotoLabelList, SourceLocation rparenLoc,
       SourceLocation semicolonLoc, const Literal* literal)
@@ -1259,8 +1262,7 @@ class StructuredBindingDeclarationAST final : public DeclarationAST {
   SourceLocation rbracketLoc;
   ExpressionAST* initializer = nullptr;
   SourceLocation semicolonLoc;
-  InitDeclaratorAST* hiddenVariable = nullptr;
-  List<InitDeclaratorAST*>* bindingDeclaratorList = nullptr;
+  StructuredBindingInfo binding;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -1278,15 +1280,15 @@ class StructuredBindingDeclarationAST final : public DeclarationAST {
       List<SpecifierAST*>* declSpecifierList, SourceLocation refQualifierLoc,
       SourceLocation lbracketLoc, List<NameIdAST*>* bindingList,
       SourceLocation rbracketLoc, ExpressionAST* initializer,
-      SourceLocation semicolonLoc, InitDeclaratorAST* hiddenVariable,
-      List<InitDeclaratorAST*>* bindingDeclaratorList)
+      SourceLocation semicolonLoc, StructuredBindingInfo binding)
       -> StructuredBindingDeclarationAST*;
 
-  [[nodiscard]] static auto create(
-      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
-      List<SpecifierAST*>* declSpecifierList, List<NameIdAST*>* bindingList,
-      ExpressionAST* initializer, InitDeclaratorAST* hiddenVariable,
-      List<InitDeclaratorAST*>* bindingDeclaratorList)
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   List<SpecifierAST*>* declSpecifierList,
+                                   List<NameIdAST*>* bindingList,
+                                   ExpressionAST* initializer,
+                                   StructuredBindingInfo binding)
       -> StructuredBindingDeclarationAST*;
 
  protected:
@@ -2249,8 +2251,11 @@ class CaseStatementAST final : public StatementAST {
 
   SourceLocation caseLoc;
   ExpressionAST* expression = nullptr;
+  SourceLocation ellipsisLoc;
+  ExpressionAST* upperExpression = nullptr;
   SourceLocation colonLoc;
   std::int64_t caseValue = 0;
+  StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2261,13 +2266,17 @@ class CaseStatementAST final : public StatementAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> CaseStatementAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation caseLoc,
-                                   ExpressionAST* expression,
-                                   SourceLocation colonLoc,
-                                   std::int64_t caseValue) -> CaseStatementAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation caseLoc, ExpressionAST* expression,
+      SourceLocation ellipsisLoc, ExpressionAST* upperExpression,
+      SourceLocation colonLoc, std::int64_t caseValue, StatementAST* statement)
+      -> CaseStatementAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
-                                   std::int64_t caseValue) -> CaseStatementAST*;
+                                   ExpressionAST* upperExpression,
+                                   std::int64_t caseValue,
+                                   StatementAST* statement)
+      -> CaseStatementAST*;
 
  protected:
   CaseStatementAST() : StatementAST(Kind) {}
@@ -2279,6 +2288,7 @@ class DefaultStatementAST final : public StatementAST {
 
   SourceLocation defaultLoc;
   SourceLocation colonLoc;
+  StatementAST* statement = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2290,7 +2300,11 @@ class DefaultStatementAST final : public StatementAST {
   [[nodiscard]] static auto create(Arena* arena) -> DefaultStatementAST*;
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation defaultLoc,
-                                   SourceLocation colonLoc)
+                                   SourceLocation colonLoc,
+                                   StatementAST* statement)
+      -> DefaultStatementAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, StatementAST* statement)
       -> DefaultStatementAST*;
 
  protected:
@@ -2536,6 +2550,7 @@ class DoStatementAST final : public StatementAST {
   ExpressionAST* expression = nullptr;
   SourceLocation rparenLoc;
   SourceLocation semicolonLoc;
+  BlockSymbol* symbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2550,13 +2565,14 @@ class DoStatementAST final : public StatementAST {
       Arena* arena, List<AttributeSpecifierAST*>* attributeList,
       SourceLocation doLoc, StatementAST* statement, SourceLocation whileLoc,
       SourceLocation lparenLoc, ExpressionAST* expression,
-      SourceLocation rparenLoc, SourceLocation semicolonLoc) -> DoStatementAST*;
+      SourceLocation rparenLoc, SourceLocation semicolonLoc,
+      BlockSymbol* symbol) -> DoStatementAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    List<AttributeSpecifierAST*>* attributeList,
                                    StatementAST* statement,
-                                   ExpressionAST* expression)
-      -> DoStatementAST*;
+                                   ExpressionAST* expression,
+                                   BlockSymbol* symbol) -> DoStatementAST*;
 
  protected:
   DoStatementAST() : StatementAST(Kind) {}
@@ -2575,24 +2591,8 @@ class ForRangeStatementAST final : public StatementAST {
   ExpressionAST* rangeInitializer = nullptr;
   SourceLocation rparenLoc;
   StatementAST* statement = nullptr;
-  ExpressionAST* beginInitializer = nullptr;
-  ExpressionAST* endInitializer = nullptr;
-  ExpressionAST* condition = nullptr;
-  ExpressionAST* increment = nullptr;
-  ExpressionAST* element = nullptr;
   BlockSymbol* symbol = nullptr;
-  VariableSymbol* rangeVariable = nullptr;
-  VariableSymbol* beginVariable = nullptr;
-  VariableSymbol* endVariable = nullptr;
-  FunctionSymbol* beginFunction = nullptr;
-  FunctionSymbol* endFunction = nullptr;
-  FunctionSymbol* derefFunction = nullptr;
-  FunctionSymbol* incrementFunction = nullptr;
-  FunctionSymbol* notEqualFunction = nullptr;
-  bool usesMemberBeginEnd = false;
-  bool isPointerIterator = false;
-  bool notEqualRewritten = false;
-  bool notEqualReversed = false;
+  ForRangeStatementInfo range;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -2608,30 +2608,17 @@ class ForRangeStatementAST final : public StatementAST {
       SourceLocation forLoc, SourceLocation lparenLoc,
       StatementAST* initializer, DeclarationAST* rangeDeclaration,
       SourceLocation colonLoc, ExpressionAST* rangeInitializer,
-      SourceLocation rparenLoc, StatementAST* statement,
-      ExpressionAST* beginInitializer, ExpressionAST* endInitializer,
-      ExpressionAST* condition, ExpressionAST* increment,
-      ExpressionAST* element, BlockSymbol* symbol,
-      VariableSymbol* rangeVariable, VariableSymbol* beginVariable,
-      VariableSymbol* endVariable, FunctionSymbol* beginFunction,
-      FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
-      FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
-      bool usesMemberBeginEnd, bool isPointerIterator, bool notEqualRewritten,
-      bool notEqualReversed) -> ForRangeStatementAST*;
+      SourceLocation rparenLoc, StatementAST* statement, BlockSymbol* symbol,
+      ForRangeStatementInfo range) -> ForRangeStatementAST*;
 
-  [[nodiscard]] static auto create(
-      Arena* arena, List<AttributeSpecifierAST*>* attributeList,
-      StatementAST* initializer, DeclarationAST* rangeDeclaration,
-      ExpressionAST* rangeInitializer, StatementAST* statement,
-      ExpressionAST* beginInitializer, ExpressionAST* endInitializer,
-      ExpressionAST* condition, ExpressionAST* increment,
-      ExpressionAST* element, BlockSymbol* symbol,
-      VariableSymbol* rangeVariable, VariableSymbol* beginVariable,
-      VariableSymbol* endVariable, FunctionSymbol* beginFunction,
-      FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
-      FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
-      bool usesMemberBeginEnd, bool isPointerIterator, bool notEqualRewritten,
-      bool notEqualReversed) -> ForRangeStatementAST*;
+  [[nodiscard]] static auto create(Arena* arena,
+                                   List<AttributeSpecifierAST*>* attributeList,
+                                   StatementAST* initializer,
+                                   DeclarationAST* rangeDeclaration,
+                                   ExpressionAST* rangeInitializer,
+                                   StatementAST* statement, BlockSymbol* symbol,
+                                   ForRangeStatementInfo range)
+      -> ForRangeStatementAST*;
 
  protected:
   ForRangeStatementAST() : StatementAST(Kind) {}
@@ -3800,6 +3787,7 @@ class BracedTypeConstructionAST final : public ExpressionAST {
   SpecifierAST* typeSpecifier = nullptr;
   BracedInitListAST* bracedInitList = nullptr;
   FunctionSymbol* constructorSymbol = nullptr;
+  ObjectInitializationInfo initialization;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3813,6 +3801,7 @@ class BracedTypeConstructionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier,
                                    BracedInitListAST* bracedInitList,
                                    FunctionSymbol* constructorSymbol,
+                                   ObjectInitializationInfo initialization,
                                    ValueCategory valueCategory,
                                    const Type* type)
       -> BracedTypeConstructionAST*;
@@ -4635,6 +4624,8 @@ class NewExpressionAST final : public ExpressionAST {
   const Type* objectType = nullptr;
   FunctionSymbol* constructorSymbol = nullptr;
   FunctionSymbol* symbol = nullptr;
+  FunctionSymbol* deallocationFunction = nullptr;
+  bool arrayCookieRequired = false;
   bool hasAlignmentArgument = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -4652,7 +4643,8 @@ class NewExpressionAST final : public ExpressionAST {
       List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
       SourceLocation rparenLoc, NewInitializerAST* newInitalizer,
       const Type* objectType, FunctionSymbol* constructorSymbol,
-      FunctionSymbol* symbol, bool hasAlignmentArgument,
+      FunctionSymbol* symbol, FunctionSymbol* deallocationFunction,
+      bool arrayCookieRequired, bool hasAlignmentArgument,
       ValueCategory valueCategory, const Type* type) -> NewExpressionAST*;
 
   [[nodiscard]] static auto create(
@@ -4660,6 +4652,7 @@ class NewExpressionAST final : public ExpressionAST {
       List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
       NewInitializerAST* newInitalizer, const Type* objectType,
       FunctionSymbol* constructorSymbol, FunctionSymbol* symbol,
+      FunctionSymbol* deallocationFunction, bool arrayCookieRequired,
       bool hasAlignmentArgument, ValueCategory valueCategory, const Type* type)
       -> NewExpressionAST*;
 
@@ -4677,6 +4670,7 @@ class DeleteExpressionAST final : public ExpressionAST {
   SourceLocation rbracketLoc;
   ExpressionAST* expression = nullptr;
   FunctionSymbol* symbol = nullptr;
+  bool arrayCookieRequired = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4691,10 +4685,12 @@ class DeleteExpressionAST final : public ExpressionAST {
       Arena* arena, SourceLocation scopeLoc, SourceLocation deleteLoc,
       SourceLocation lbracketLoc, SourceLocation rbracketLoc,
       ExpressionAST* expression, FunctionSymbol* symbol,
-      ValueCategory valueCategory, const Type* type) -> DeleteExpressionAST*;
+      bool arrayCookieRequired, ValueCategory valueCategory, const Type* type)
+      -> DeleteExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
                                    FunctionSymbol* symbol,
+                                   bool arrayCookieRequired,
                                    ValueCategory valueCategory,
                                    const Type* type) -> DeleteExpressionAST*;
 
@@ -5209,6 +5205,7 @@ class BracedInitListAST final : public ExpressionAST {
   SourceLocation commaLoc;
   SourceLocation rbraceLoc;
   VariableSymbol* implicitElement = nullptr;
+  InitializerInfo initialization;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -5224,12 +5221,14 @@ class BracedInitListAST final : public ExpressionAST {
                                    SourceLocation commaLoc,
                                    SourceLocation rbraceLoc,
                                    VariableSymbol* implicitElement,
+                                   InitializerInfo initialization,
                                    ValueCategory valueCategory,
                                    const Type* type) -> BracedInitListAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    List<ExpressionAST*>* expressionList,
                                    VariableSymbol* implicitElement,
+                                   InitializerInfo initialization,
                                    ValueCategory valueCategory,
                                    const Type* type) -> BracedInitListAST*;
 
@@ -5244,6 +5243,7 @@ class ParenInitializerAST final : public ExpressionAST {
   SourceLocation lparenLoc;
   List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rparenLoc;
+  InitializerInfo initialization;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -5257,11 +5257,13 @@ class ParenInitializerAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena, SourceLocation lparenLoc,
                                    List<ExpressionAST*>* expressionList,
                                    SourceLocation rparenLoc,
+                                   InitializerInfo initialization,
                                    ValueCategory valueCategory,
                                    const Type* type) -> ParenInitializerAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    List<ExpressionAST*>* expressionList,
+                                   InitializerInfo initialization,
                                    ValueCategory valueCategory,
                                    const Type* type) -> ParenInitializerAST*;
 
@@ -5397,6 +5399,8 @@ class SubscriptDesignatorAST final : public DesignatorAST {
 
   SourceLocation lbracketLoc;
   ExpressionAST* expression = nullptr;
+  SourceLocation ellipsisLoc;
+  ExpressionAST* upperExpression = nullptr;
   SourceLocation rbracketLoc;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
@@ -5410,10 +5414,13 @@ class SubscriptDesignatorAST final : public DesignatorAST {
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation lbracketLoc,
                                    ExpressionAST* expression,
+                                   SourceLocation ellipsisLoc,
+                                   ExpressionAST* upperExpression,
                                    SourceLocation rbracketLoc)
       -> SubscriptDesignatorAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ExpressionAST* upperExpression)
       -> SubscriptDesignatorAST*;
 
  protected:
@@ -7833,14 +7840,15 @@ class ParenMemInitializerAST final : public MemInitializerAST {
       Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
       UnqualifiedIdAST* unqualifiedId, SourceLocation lparenLoc,
       List<ExpressionAST*>* expressionList, SourceLocation rparenLoc,
-      SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor)
-      -> ParenMemInitializerAST*;
+      SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor,
+      ObjectInitializationInfo initialization) -> ParenMemInitializerAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    UnqualifiedIdAST* unqualifiedId,
                                    List<ExpressionAST*>* expressionList,
-                                   Symbol* symbol, FunctionSymbol* constructor)
+                                   Symbol* symbol, FunctionSymbol* constructor,
+                                   ObjectInitializationInfo initialization)
       -> ParenMemInitializerAST*;
 
  protected:
@@ -7865,19 +7873,18 @@ class BracedMemInitializerAST final : public MemInitializerAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> BracedMemInitializerAST*;
 
-  [[nodiscard]] static auto create(Arena* arena,
-                                   NestedNameSpecifierAST* nestedNameSpecifier,
-                                   UnqualifiedIdAST* unqualifiedId,
-                                   BracedInitListAST* bracedInitList,
-                                   SourceLocation ellipsisLoc, Symbol* symbol,
-                                   FunctionSymbol* constructor)
-      -> BracedMemInitializerAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
+      UnqualifiedIdAST* unqualifiedId, BracedInitListAST* bracedInitList,
+      SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor,
+      ObjectInitializationInfo initialization) -> BracedMemInitializerAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    UnqualifiedIdAST* unqualifiedId,
                                    BracedInitListAST* bracedInitList,
-                                   Symbol* symbol, FunctionSymbol* constructor)
+                                   Symbol* symbol, FunctionSymbol* constructor,
+                                   ObjectInitializationInfo initialization)
       -> BracedMemInitializerAST*;
 
  protected:
@@ -8116,6 +8123,7 @@ class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
   List<SpecifierAST*>* typeSpecifierList = nullptr;
   DeclaratorAST* declarator = nullptr;
   VariableSymbol* symbol = nullptr;
+  VariableSymbol* exceptionObject = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -8132,7 +8140,8 @@ class TypeExceptionDeclarationAST final : public ExceptionDeclarationAST {
                                    List<AttributeSpecifierAST*>* attributeList,
                                    List<SpecifierAST*>* typeSpecifierList,
                                    DeclaratorAST* declarator,
-                                   VariableSymbol* symbol)
+                                   VariableSymbol* symbol,
+                                   VariableSymbol* exceptionObject)
       -> TypeExceptionDeclarationAST*;
 
  protected:

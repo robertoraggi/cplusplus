@@ -26,6 +26,7 @@
 #include <cxx/decl.h>
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
+#include <cxx/function_body.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
@@ -218,6 +219,7 @@ struct [[nodiscard]] Binder::CompleteClass {
 
   void markComplete();
   auto shouldSynthesizeSpecialMembers() const -> bool;
+  void completeSubobjectTypes();
   void synthesizeSpecialMembers();
 
   auto buildRecordLayout() -> std::expected<bool, std::string>;
@@ -367,6 +369,8 @@ struct [[nodiscard]] Binder::CompleteClass {
                                                    bool moveForm) const -> bool;
   [[nodiscard]] auto hasNonCopyConstructibleSubobject(bool moveForm) const
       -> bool;
+  void deferCopyAndMoveDeletion();
+  void determineDeletion(FunctionSymbol* fn);
   auto ensureSourceParameter(FunctionSymbol* fn) -> ParameterSymbol*;
   auto makeSourceSubobjectRef(ExpressionAST* expr, const Type* type,
                               bool isMove) -> ExpressionAST*;
@@ -413,7 +417,7 @@ auto Binder::inheritedConstructorFor(ClassSymbol* classSymbol,
 
 void Binder::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
   if (!ctor || !ctor->isConstructor()) return;
-  if (ctor->isDeleted()) return;
+  if (isDeletedFunction(unit_, ctor)) return;
   if (!type_cast<FunctionType>(ctor->type())) return;
   if (ctor->completeObjectVariant() && !ctor->delegatingConstructor()) return;
 
@@ -428,10 +432,12 @@ void Binder::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
 }
 
 void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
-  if (!fn || fn->isDeleted()) return;
+  if (!fn || isDeletedFunction(unit_, fn)) return;
 
   auto def = fn->declaration();
   if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
+
+  if (fn->isConstructor()) synthesizeCompleteObjectCtor(fn);
 
   auto classSymbol = symbol_cast<ClassSymbol>(fn->parent());
   if (!classSymbol && fn->isFriend()) {
@@ -514,37 +520,78 @@ void Binder::CompleteClass::synthesizeSpecialMembers() {
   }
 
   addCopyConstructor();
-  if (!userDeclaredCopyConstructor) {
-    if (auto copyConstructor = classSymbol->copyConstructor()) {
-      if (deleteCopyMembers || hasNonCopyConstructibleSubobject(false))
-        copyConstructor->setDeleted(true);
-    }
+  if (!userDeclaredCopyConstructor && deleteCopyMembers) {
+    if (auto copyConstructor = classSymbol->copyConstructor())
+      copyConstructor->setDeleted(true);
   }
 
-  if (!suppressMoveMembers && !hasNonCopyConstructibleSubobject(true))
-    addMoveConstructor();
+  if (!suppressMoveMembers) addMoveConstructor();
 
   addCopyAssignmentOperator();
-  if (!userDeclaredCopyAssignment) {
-    if (auto copyAssignment = classSymbol->copyAssignmentOperator()) {
-      if (isCapturingClosure()) {
-        copyAssignment->setDeleted(true);
-      } else if (deleteCopyMembers ||
-                 hasNonAssignableSubobject(/*moveForm=*/false)) {
-        copyAssignment->setDeleted(true);
-      }
-    }
+  if (!userDeclaredCopyAssignment &&
+      (isCapturingClosure() || deleteCopyMembers)) {
+    if (auto copyAssignment = classSymbol->copyAssignmentOperator())
+      copyAssignment->setDeleted(true);
   }
 
-  if (!isCapturingClosure() && !suppressMoveMembers) {
-    if (!hasNonAssignableSubobject(/*moveForm=*/true)) {
-      addMoveAssignmentOperator();
-    }
-  }
+  if (!isCapturingClosure() && !suppressMoveMembers)
+    addMoveAssignmentOperator();
+
+  deferCopyAndMoveDeletion();
 
   addDestructor();
 
   addInheritedConstructors();
+}
+
+void Binder::CompleteClass::deferCopyAndMoveDeletion() {
+  FunctionSymbol* members[] = {classSymbol->copyConstructor(),
+                               classSymbol->moveConstructor(),
+                               classSymbol->copyAssignmentOperator(),
+                               classSymbol->moveAssignmentOperator()};
+  for (auto member : members) {
+    if (!member || !member->isDefaulted() || member->isDeleted()) continue;
+    member->setDeferredDeletion(true);
+  }
+}
+
+void Binder::CompleteClass::determineDeletion(FunctionSymbol* fn) {
+  if (classSymbol->isCopyConstructor(fn)) {
+    fn->setDeleted(hasNonCopyConstructibleSubobject(/*moveForm=*/false));
+  } else if (classSymbol->isMoveConstructor(fn)) {
+    fn->setDeleted(hasNonCopyConstructibleSubobject(/*moveForm=*/true));
+  } else if (classSymbol->isCopyAssignmentOperator(fn)) {
+    fn->setDeleted(hasNonAssignableSubobject(/*moveForm=*/false));
+  } else if (classSymbol->isMoveAssignmentOperator(fn)) {
+    fn->setDeleted(hasNonAssignableSubobject(/*moveForm=*/true));
+  }
+}
+
+void Binder::completeDeferredDeletion(FunctionSymbol* fn) {
+  if (!fn || !fn->hasDeferredDeletion()) return;
+  fn->setDeferredDeletion(false);
+  auto classSymbol = symbol_cast<ClassSymbol>(fn->parent());
+  if (!classSymbol) return;
+  CompleteClass{*this, classSymbol->resolvedDefinition()}.determineDeletion(fn);
+}
+
+auto isDeletedFunction(TranslationUnit* unit, FunctionSymbol* function)
+    -> bool {
+  if (!function) return false;
+  Binder{unit}.completeDeferredDeletion(function);
+  return function->isDeleted();
+}
+
+auto isExcludedDefaultedMoveMember(TranslationUnit* unit,
+                                   FunctionSymbol* function) -> bool {
+  if (!function || !function->isDefaulted()) return false;
+  auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
+  if (!classSymbol) return false;
+  classSymbol = classSymbol->resolvedDefinition();
+  if (!classSymbol->isMoveConstructor(function) &&
+      !classSymbol->isMoveAssignmentOperator(function))
+    return false;
+  return isDeletedFunction(unit, function);
 }
 
 void Binder::CompleteClass::addInheritedConstructors() {
@@ -552,8 +599,7 @@ void Binder::CompleteClass::addInheritedConstructors() {
   if (overloadSet->usingDeclarations().empty()) return;
 
   for (auto inherited : overloadSet->functions()) {
-    if (inherited->templateDeclaration() && !inherited->isSpecialization())
-      continue;
+    if (inherited->isTemplatePattern()) continue;
     (void)declareInheritedConstructor(inherited);
   }
 }
@@ -682,8 +728,26 @@ void Binder::CompleteClass::recordUserDeclaredConstructors() {
       !classSymbol->declaredConstructors().empty());
 }
 
+void Binder::CompleteClass::completeSubobjectTypes() {
+  auto& traits = binder.traits;
+
+  for (auto base : classSymbol->baseClasses()) {
+    if (auto baseClass = resolved_base_class(base))
+      traits.requireCompleteClass(baseClass);
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
+    auto element = traits.remove_cv(
+        traits.remove_all_extents(traits.remove_cv(field->type())));
+    if (auto classType = type_cast<ClassType>(element))
+      traits.requireCompleteClass(classType->symbol());
+  }
+}
+
 void Binder::CompleteClass::completeDefinition() {
   recordUserDeclaredConstructors();
+
+  completeSubobjectTypes();
 
   if (shouldSynthesizeSpecialMembers()) synthesizeSpecialMembers();
 
@@ -922,7 +986,7 @@ void Binder::finalizeExceptionSpecifications(ClassSymbol* classSymbol) {
 void Binder::CompleteClass::checkOverriderExceptionSpecifications() {
   for (auto member : classSymbol->members()) {
     for (auto func : views::declared_functions(member)) {
-      if (!func->isVirtual() || func->isDeleted()) continue;
+      if (!func->isVirtual() || isDeletedFunction(binder.unit_, func)) continue;
 
       ASTRewriter::completePendingExceptionSpecification(binder.unit_, func);
 
@@ -1808,7 +1872,7 @@ void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
 auto Binder::CompleteClass::isSubobjectMemberUsable(
     FunctionSymbol* function, ClassSymbol* subobject) const -> bool {
   if (!function) return false;
-  if (function->isDeleted()) return false;
+  if (isDeletedFunction(binder.unit_, function)) return false;
 
   AccessContext accessContext{binder.unit_, classSymbol};
   return accessContext.isAccessible(function, subobject, nullptr);
@@ -2063,7 +2127,7 @@ void Binder::CompleteClass::synthesizeStructorVariants() {
   if (hasVirtualBases) {
     for (auto ctor : classSymbol->declaredConstructors()) {
       if (ctor->completeObjectVariant()) continue;
-      if (ctor->isDeleted()) continue;
+      if (ctor->hasDeferredDeletion() || ctor->isDeleted()) continue;
       if (ctor->templateDeclaration()) continue;
       if (!type_cast<FunctionType>(ctor->type())) continue;
       synthesizeCompleteObjectCtor(ctor);
@@ -2338,6 +2402,7 @@ void Binder::CompleteClass::synthesizeDelegatingCompleteObjectCtor(
   auto variant = newStructorVariant(ctor);
   binder.attachSynthesizedBody(variant, makeCtorNameId(),
                                definition->functionBody);
+  variant->setConstructorInitializers(ctor_initializers(ctor));
   ctor->setCompleteObjectVariant(variant);
 }
 
@@ -2436,8 +2501,6 @@ void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
 }
 
 void Binder::CompleteClass::synthesizeCompleteObjectDtor(FunctionSymbol* dtor) {
-  auto layout = classSymbol->layout();
-
   auto variant = newStructorVariant(dtor);
   variant->setVirtual(dtor->isVirtual());
 
@@ -2445,48 +2508,9 @@ void Binder::CompleteClass::synthesizeCompleteObjectDtor(FunctionSymbol* dtor) {
   compound->symbol = control()->newBlockSymbol(variant, dtor->location());
   variant->addSymbol(compound->symbol);
 
-  std::vector<StatementAST*> statements;
-  std::vector<std::pair<FunctionSymbol*, VariableSymbol*>> virtualBases;
-  for (auto vbase :
-       virtual_base_initialization_order(classSymbol) | std::views::reverse) {
-    auto vbaseDtor = vbase->destructor();
-    if (!vbaseDtor) continue;
-
-    auto address = ImplicitCastExpressionAST::create(pool);
-    address->castKind = ImplicitCastKind::kDerivedToBaseConversion;
-    address->expression = makeThisExpr();
-    address->type = control()->getPointerType(vbase->type());
-    address->valueCategory = ValueCategory::kPrValue;
-
-    auto variable =
-        control()->newVariableSymbol(compound->symbol, dtor->location());
-    variable->setName(control()->getIdentifier(
-        std::format("$vbase{}", compound->symbol->members().size())));
-    variable->setType(address->type);
-    variable->setInitializer(address);
-    compound->symbol->addSymbol(variable);
-
-    statements.push_back(declarationStatement(variable));
-    virtualBases.emplace_back(vbaseDtor, variable);
-  }
-
-  statements.push_back(makeStructorCallStatement(dtor, makeThisExpr()));
-  for (auto [vbaseDtor, variable] : virtualBases)
-    statements.push_back(
-        makeStructorCallStatement(vbaseDtor, variableValue(variable)));
-
-  auto tail = &compound->statementList;
-  for (auto statement : statements) {
-    *tail = make_list_node(pool, statement);
-    tail = &(*tail)->next;
-  }
-
   auto body = CompoundStatementFunctionBodyAST::create(pool);
   body->statement = compound;
-
-  auto dtorId = makeDestructorId(classSymbol);
-
-  binder.attachSynthesizedBody(variant, dtorId, body);
+  binder.attachSynthesizedBody(variant, makeDestructorId(classSymbol), body);
   dtor->setCompleteObjectVariant(variant);
 }
 
@@ -2494,16 +2518,10 @@ void Binder::CompleteClass::synthesizeDeletingDtor(FunctionSymbol* dtor) {
   auto variant = newStructorVariant(dtor);
   variant->setVirtual(true);
 
-  List<StatementAST*>* stmts = nullptr;
-  auto stmtsTail = &stmts;
-  auto appendStatement = [&](StatementAST* stmt) {
-    *stmtsTail = make_list_node<StatementAST>(pool, stmt);
-    stmtsTail = &(*stmtsTail)->next;
-  };
-
   auto completeDtor = dtor->completeObjectVariant();
   if (!completeDtor) completeDtor = dtor;
-  appendStatement(makeStructorCallStatement(completeDtor, makeThisExpr()));
+  auto destructionStatement =
+      makeStructorCallStatement(completeDtor, makeThisExpr());
 
   auto operatorDelete = resolveUsualOperatorDelete(binder.unit_, classSymbol,
                                                    classSymbol->type(), false);
@@ -2563,10 +2581,39 @@ void Binder::CompleteClass::synthesizeDeletingDtor(FunctionSymbol* dtor) {
 
   auto stmt = ExpressionStatementAST::create(pool);
   stmt->expression = call;
-  appendStatement(stmt);
 
   auto compound = CompoundStatementAST::create(pool);
-  compound->statementList = stmts;
+  compound->symbol = control()->newBlockSymbol(variant, dtor->location());
+  variant->addSymbol(compound->symbol);
+
+  auto destruction = CompoundStatementAST::create(pool);
+  destruction->statementList =
+      make_list_node<StatementAST>(pool, destructionStatement);
+  auto cleanup = CompoundStatementAST::create(pool);
+  auto rethrow = ThrowExpressionAST::create(pool);
+  rethrow->throwLoc = dtor->location();
+  rethrow->type = control()->getVoidType();
+  rethrow->valueCategory = ValueCategory::kPrValue;
+  auto rethrowStatement = ExpressionStatementAST::create(pool);
+  rethrowStatement->expression = rethrow;
+  cleanup->statementList =
+      make_list_node<StatementAST>(pool, stmt->clone(pool));
+  cleanup->statementList->next =
+      make_list_node<StatementAST>(pool, rethrowStatement);
+  auto handler = HandlerAST::create(pool);
+  handler->catchLoc = dtor->location();
+  handler->symbol =
+      control()->newBlockSymbol(compound->symbol, dtor->location());
+  compound->symbol->addSymbol(handler->symbol);
+  handler->exceptionDeclaration = EllipsisExceptionDeclarationAST::create(pool);
+  handler->statement = cleanup;
+  auto guardedDestruction = TryBlockStatementAST::create(pool);
+  guardedDestruction->tryLoc = dtor->location();
+  guardedDestruction->statement = destruction;
+  guardedDestruction->handlerList = make_list_node(pool, handler);
+  compound->statementList =
+      make_list_node<StatementAST>(pool, guardedDestruction);
+  compound->statementList->next = make_list_node<StatementAST>(pool, stmt);
 
   auto body = CompoundStatementFunctionBodyAST::create(pool);
   body->statement = compound;
@@ -2580,16 +2627,21 @@ void Binder::CompleteClass::synthesizeDeletingDtor(FunctionSymbol* dtor) {
 void Binder::CompleteClass::synthesizeMemberwiseBodies() {
   if (classSymbol->isUnion()) return;
 
-  auto needsBody = [&](FunctionSymbol* fn) {
-    if (!fn || fn->isDeleted()) return false;
+  auto hasDefaultedBody = [&](FunctionSymbol* fn) {
+    if (!fn) return false;
     auto def = fn->declaration();
     return def && ast_cast<DefaultFunctionBodyAST>(def->functionBody);
   };
 
+  auto needsBody = [&](FunctionSymbol* fn) {
+    return hasDefaultedBody(fn) && !isDeletedFunction(binder.unit_, fn);
+  };
+
   auto needsBodyNow = [&](FunctionSymbol* fn) {
-    if (!needsBody(fn)) return false;
+    if (!hasDefaultedBody(fn) || fn->isDeleted()) return false;
     (void)ensureSourceParameter(fn);
-    return fn->isDefinitionRequired();
+    if (!fn->isDefinitionRequired()) return false;
+    return !isDeletedFunction(binder.unit_, fn);
   };
 
   for (auto fn : classSymbol->declaredConstructors()) {
@@ -2948,10 +3000,12 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   void propagateBaseFields();
   void propagateAnonymousFields(ClassSymbol* owner,
                                 const ClassLayout* ownerLayout,
-                                std::uint64_t ownerOffset);
+                                std::uint64_t ownerOffset,
+                                std::optional<std::uint32_t> containingIndex);
   void copyFieldInfos(ClassSymbol* owner, const ClassLayout* ownerLayout,
-                      std::uint64_t ownerOffset);
+                      std::uint64_t ownerOffset, std::uint32_t containingIndex);
   void finalize();
+  [[nodiscard]] auto excessWidthContainer(int bitWidth) const -> const Type*;
   void buildVTableLayout();
 };
 
@@ -3546,6 +3600,14 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
       static_cast<int>(memoryLayout->sizeOf(field->type()).value_or(0));
   auto fieldSizeBits = fieldSizeBytes * 8;
 
+  const bool hasExcessWidth = fieldSizeBits > 0 && bitWidth > fieldSizeBits;
+  auto valueBits = bitWidth;
+  if (hasExcessWidth) {
+    fieldAlign = static_cast<int>(
+        memoryLayout->alignmentOf(excessWidthContainer(bitWidth)).value_or(1));
+    valueBits = fieldSizeBits;
+  }
+
   if (isUnion) {
     field->setLocalOffset(0);
     field->setBitFieldOffset(0);
@@ -3554,7 +3616,7 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
     fieldInfo.offset = 0;
     fieldInfo.index = 0;
     fieldInfo.bitOffset = 0;
-    fieldInfo.bitWidth = bitWidth;
+    fieldInfo.bitWidth = valueBits;
     fieldInfo.allocUnitSizeBytes = (bitWidth + 7) / 8;
     layout->setFieldInfo(field, fieldInfo);
 
@@ -3564,7 +3626,11 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
     return true;
   }
 
-  if (fieldSizeBits > 0 && keepsBitFieldInAllocationUnit(field)) {
+  if (hasExcessWidth) {
+    closeBitfieldRun();
+    nextBitPos = align_to(nextBitPos, fieldAlign * 8);
+    calculatedSize = nextBitPos / 8;
+  } else if (fieldSizeBits > 0 && keepsBitFieldInAllocationUnit(field)) {
     auto startUnit = nextBitPos / fieldSizeBits;
     auto endUnit = (nextBitPos + bitWidth - 1) / fieldSizeBits;
     if (startUnit != endUnit) {
@@ -3594,7 +3660,7 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
   fieldInfo.offset = runStartByte;
   fieldInfo.index = runIndex;
   fieldInfo.bitOffset = bitOffsetInRun;
-  fieldInfo.bitWidth = bitWidth;
+  fieldInfo.bitWidth = valueBits;
   layout->setFieldInfo(field, fieldInfo);
 
   runFields.push_back(field);
@@ -3602,6 +3668,25 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
   calculatedAlignment = std::max(calculatedAlignment, fieldAlign);
 
   return true;
+}
+
+auto Binder::BuildRecordLayout::excessWidthContainer(int bitWidth) const
+    -> const Type* {
+  auto control = binder.control();
+  const Type* candidates[] = {
+      control->getSignedCharType(),  control->getShortIntType(),
+      control->getIntType(),         control->getLongIntType(),
+      control->getLongLongIntType(), control->getInt128Type()};
+  const Type* container = nullptr;
+  std::size_t containerSize = 0;
+  for (auto candidate : candidates) {
+    auto size = memoryLayout->sizeOf(candidate);
+    if (!size || *size * 8 > static_cast<std::size_t>(bitWidth)) continue;
+    if (*size <= containerSize) continue;
+    container = candidate;
+    containerSize = *size;
+  }
+  return container;
 }
 
 void Binder::BuildRecordLayout::layoutZeroWidthBitfield(FieldSymbol* field) {
@@ -3772,15 +3857,16 @@ void Binder::BuildRecordLayout::propagateBaseFields() {
     auto baseInfo = layout->getBaseInfo(baseClassSymbol, base->isVirtual());
     if (!baseInfo) continue;
 
-    copyFieldInfos(baseClassSymbol, baseLayout, baseInfo->offset);
+    copyFieldInfos(baseClassSymbol, baseLayout, baseInfo->offset,
+                   baseInfo->index);
   }
 
-  propagateAnonymousFields(classSymbol, layout.get(), 0);
+  propagateAnonymousFields(classSymbol, layout.get(), 0, std::nullopt);
 }
 
 void Binder::BuildRecordLayout::propagateAnonymousFields(
     ClassSymbol* owner, const ClassLayout* ownerLayout,
-    std::uint64_t ownerOffset) {
+    std::uint64_t ownerOffset, std::optional<std::uint32_t> containingIndex) {
   for (auto field : views::members(owner) | views::non_static_fields) {
     auto anonymous = anonymous_member_class(field);
     if (!anonymous) continue;
@@ -3792,18 +3878,22 @@ void Binder::BuildRecordLayout::propagateAnonymousFields(
     if (!fieldInfo) continue;
 
     const auto anonymousOffset = ownerOffset + fieldInfo->offset;
-    copyFieldInfos(anonymous, anonymousLayout, anonymousOffset);
-    propagateAnonymousFields(anonymous, anonymousLayout, anonymousOffset);
+    const auto index = containingIndex.value_or(fieldInfo->index);
+    copyFieldInfos(anonymous, anonymousLayout, anonymousOffset, index);
+    propagateAnonymousFields(anonymous, anonymousLayout, anonymousOffset,
+                             index);
   }
 }
 
 void Binder::BuildRecordLayout::copyFieldInfos(ClassSymbol* owner,
                                                const ClassLayout* ownerLayout,
-                                               std::uint64_t ownerOffset) {
+                                               std::uint64_t ownerOffset,
+                                               std::uint32_t containingIndex) {
   for (auto field : views::members(owner) | views::non_static_fields) {
     auto info = ownerLayout->getFieldInfo(field);
     if (!info) continue;
     info->offset += ownerOffset;
+    info->index = containingIndex;
     layout->setFieldInfo(field, *info);
   }
 }

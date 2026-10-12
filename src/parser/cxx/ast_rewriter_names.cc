@@ -268,6 +268,8 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(SimpleTemplateIdAST* ast)
 
   if (is_member_template(ast->symbol)) {
     copy->symbol = rewrite.remapSymbol(ast->symbol);
+    if (auto primary = primary_template_of(copy->symbol))
+      copy->symbol = primary;
     if (hasDependentTemplateArguments(rewrite.unit_, copy)) {
       if (auto templateSymbol = templated_symbol(copy->symbol))
         copy->symbol = templateSymbol;

@@ -46,6 +46,7 @@ option(CXX_INSTALL_WASI_SYSROOT "Install wasi sysroot" OFF)
 option(CXX_ENABLE_MLIR "Enable MLIR" OFF)
 option(CXX_LIBCXX_WITH_CLANG "Link with libc++" OFF)
 option(CXX_BUILD_TESTS "Build tests" ON)
+option(CXX_TESTS_WITH_EXCEPTIONS "Enable exceptions in GoogleTest and its consumers" ON)
 option(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
 option(CXX_ENABLE_MIMALLOC "Link the cxx executable with mimalloc" ON)
 
@@ -90,6 +91,18 @@ if(CXX_BUILD_TESTS)
     )
 
     FetchContent_MakeAvailable(googletest)
+
+    if(NOT CXX_TESTS_WITH_EXCEPTIONS)
+        foreach(test_library gtest gtest_main gmock gmock_main)
+            if(NOT TARGET ${test_library})
+                continue()
+            endif()
+            target_compile_options(${test_library} PUBLIC
+                $<$<CXX_COMPILER_ID:Clang,AppleClang,GNU>:-fno-exceptions>
+                $<$<CXX_COMPILER_ID:MSVC>:/EHs-c->)
+            target_compile_definitions(${test_library} PUBLIC GTEST_HAS_EXCEPTIONS=0)
+        endforeach()
+    endif()
 
     include(GoogleTest)
 

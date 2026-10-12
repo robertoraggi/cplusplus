@@ -42,9 +42,12 @@ namespace cxx {
 [[nodiscard]] auto inlineNamespaceSet(NamespaceSymbol* namespaceSymbol)
     -> std::vector<NamespaceSymbol*>;
 
+enum class NameUse { kOrdinary, kTemplateName };
+
 struct ClassMemberLookup {
   Symbol* symbol = nullptr;
   bool ambiguous = false;
+  Symbol* injectedClassTemplate = nullptr;
 };
 
 [[nodiscard]] auto lookupClassMember(ClassSymbol* scope, const Name* name,
@@ -117,15 +120,15 @@ template <typename Predicate>
 
   if (classOrEnumDeclaration) return classOrEnumDeclaration;
 
-  if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
-    for (auto member : classSymbol->find(/*unnamed=*/nullptr)) {
-      auto nestedClass = symbol_cast<ClassSymbol>(member);
-      if (!nestedClass) continue;
-      if (auto s = searchScope(nestedClass, name, visited, accept,
-                               followUsingDirectives))
-        return s;
-    }
+  for (auto object : scope->find(nullptr)) {
+    auto anonymous = anonymous_member_class(object);
+    if (!anonymous) continue;
+    if (auto found = searchScope(anonymous, name, visited, accept,
+                                 followUsingDirectives))
+      return found;
+  }
 
+  if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
     if (searchBaseClasses && !classSymbol->baseClasses().empty())
       return lookupClassMember(classSymbol, name, accept).symbol;
   }
@@ -210,6 +213,9 @@ template <typename Predicate>
 [[nodiscard]] auto qualifiedLookupType(Symbol* scopeOrAlias,
                                        const Identifier* id) -> Symbol*;
 
+[[nodiscard]] auto qualifiedLookupType(ScopeSymbol* scope, const Identifier* id)
+    -> Symbol*;
+
 [[nodiscard]] auto qualifiedLookupNamespace(Symbol* scopeOrAlias,
                                             const Identifier* id)
     -> NamespaceSymbol*;
@@ -251,14 +257,24 @@ struct DeallocationSignature {
   bool hasAlignment = false;
 };
 
+enum class DeallocationContext {
+  kDeleteExpression,
+  kFailedInitialization,
+  kArrayCookie,
+};
+
+[[nodiscard]] auto isPlacementAllocationFunction(TranslationUnit* unit,
+                                                 FunctionSymbol* function)
+    -> bool;
+
 [[nodiscard]] auto deallocationSignatureOf(TranslationUnit* unit,
                                            FunctionSymbol* fn)
     -> std::optional<DeallocationSignature>;
 
-[[nodiscard]] auto resolveUsualOperatorDelete(TranslationUnit* unit,
-                                              ClassSymbol* classSymbol,
-                                              const Type* objectType,
-                                              bool isArrayDelete)
+[[nodiscard]] auto resolveUsualOperatorDelete(
+    TranslationUnit* unit, ClassSymbol* classSymbol, const Type* objectType,
+    bool isArrayDelete,
+    DeallocationContext context = DeallocationContext::kDeleteExpression)
     -> FunctionSymbol*;
 
 void declareImplicitAllocationFunctions(TranslationUnit* unit, TokenKind op);
@@ -275,6 +291,10 @@ void declareImplicitAllocationFunctions(TranslationUnit* unit, TokenKind op);
 
 [[nodiscard]] auto namesBuiltinFunction(Symbol* symbol,
                                         BuiltinFunctionKind kind) -> bool;
+
+void declareBuiltinBitIntOverloads(TranslationUnit* unit,
+                                   BuiltinFunctionKind kind,
+                                   std::span<const Type* const> argumentTypes);
 
 [[nodiscard]] auto resolveBuiltinFunctionSymbol(TranslationUnit* unit,
                                                 const Identifier* name,

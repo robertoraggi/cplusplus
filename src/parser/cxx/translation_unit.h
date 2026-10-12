@@ -34,6 +34,7 @@
 #include <cxx/token.h>
 #include <cxx/type_traits.h>
 
+#include <algorithm>
 #include <format>
 #include <functional>
 #include <limits>
@@ -109,6 +110,10 @@ class TranslationUnit {
 
   [[nodiscard]] auto isExplicitInstantiationDefinition(
       FunctionSymbol* function) const -> bool;
+
+  void addExplicitInstantiationDefinition(ClassSymbol* classSymbol);
+  [[nodiscard]] auto isExplicitInstantiationDefinition(
+      ClassSymbol* classSymbol) const -> bool;
 
   void markFunctionBodyUnparsed(FunctionDefinitionAST* definition);
   void markFunctionBodyParsed(FunctionDefinitionAST* definition);
@@ -244,6 +249,25 @@ class TranslationUnit {
     return templateInstantiationDepth_ > 0;
   }
 
+  [[nodiscard]] auto isInstantiatingClass(const ClassSymbol* classSymbol) const
+      -> bool {
+    return std::ranges::contains(instantiatingClasses_, classSymbol);
+  }
+
+  class ClassInstantiationScope {
+   public:
+    ClassInstantiationScope(TranslationUnit* unit,
+                            const ClassSymbol* classSymbol)
+        : unit_(unit) {
+      unit_->instantiatingClasses_.push_back(classSymbol);
+    }
+
+    ~ClassInstantiationScope() { unit_->instantiatingClasses_.pop_back(); }
+
+   private:
+    TranslationUnit* unit_;
+  };
+
   class TemplateInstantiationScope {
    public:
     explicit TemplateInstantiationScope(TranslationUnit* unit)
@@ -282,6 +306,9 @@ class TranslationUnit {
   }
 
   [[nodiscard]] auto language() const -> LanguageKind;
+
+  [[nodiscard]] auto hasRewrittenComparisonCandidates() const -> bool;
+  [[nodiscard]] auto rejectsEnumerationArithmeticConversions() const -> bool;
 
   void parse(ParserConfiguration config = {});
 
@@ -485,6 +512,7 @@ class TranslationUnit {
                      std::pair<SourceLocation, FunctionSymbol*>>
       pendingBodyCompletionRequests_;
   std::vector<FunctionSymbol*> explicitInstantiationDefinitions_;
+  std::vector<ClassSymbol*> explicitInstantiationClassDefinitions_;
   std::unordered_set<FunctionDefinitionAST*> unparsedFunctionBodies_;
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
@@ -495,6 +523,7 @@ class TranslationUnit {
   std::unique_ptr<PrefixSourceMap> prefixSourceMap_;
   std::unique_ptr<TimeTrace> timeTrace_;
   int templateInstantiationDepth_ = 0;
+  std::vector<const ClassSymbol*> instantiatingClasses_;
   bool potentiallyEvaluated_ = true;
   bool templatedContext_ = false;
   bool definitionsDeferred_ = false;

@@ -32,6 +32,13 @@
 namespace cxx {
 
 class TranslationUnit;
+class MemoryLayout;
+
+[[nodiscard]] auto canonicalAttributeSpelling(std::string_view name)
+    -> std::string_view;
+
+[[nodiscard]] auto supportsGnuAttribute(std::string_view name,
+                                        const MemoryLayout& layout) -> bool;
 
 struct Attribute {
   const Identifier* attributeNamespace = nullptr;
@@ -84,6 +91,10 @@ struct AttributeRef {
 
   explicit operator bool() const { return spelling != nullptr; }
 };
+
+[[nodiscard]] auto findAttributesBySpelling(
+    TranslationUnit* unit, List<AttributeSpecifierAST*>* attributeList,
+    std::span<const AttributeSpelling> spellings) -> std::vector<AttributeRef>;
 
 /**
  * Returns the first attribute of the list matching one of the given spellings,

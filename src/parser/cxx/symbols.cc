@@ -794,7 +794,7 @@ auto is_declared_extern(VariableSymbol* variable) -> bool {
                              &VariableSymbol::isExtern);
 }
 
-auto has_internal_linkage(Symbol* symbol) -> bool {
+auto has_internal_linkage(Symbol* symbol, LanguageKind language) -> bool {
   if (!symbol) return false;
 
   if (is_in_unnamed_namespace(symbol)) return true;
@@ -809,6 +809,7 @@ auto has_internal_linkage(Symbol* symbol) -> bool {
   if (!variable) return false;
 
   if (variable->isStatic()) return true;
+  if (language == LanguageKind::kC) return false;
   if (variable->isInline() || is_declared_extern(variable)) return false;
   if (variable->templateParameters() || variable->isSpecialization())
     return false;
@@ -1158,8 +1159,17 @@ auto required_parameter_count(FunctionSymbol* function, int parameterCount)
   return parameterCount - defaultCount;
 }
 
+auto is_potentially_overlapping_subobject(Symbol* symbol) -> bool {
+  if (symbol_cast<BaseClassSymbol>(symbol)) return true;
+  auto field = symbol_cast<FieldSymbol>(symbol);
+  return field && field->isNoUniqueAddress();
+}
+
 auto is_non_static_member(Symbol* symbol) -> bool {
-  if (auto field = symbol_cast<FieldSymbol>(symbol)) return !field->isStatic();
+  if (auto field = symbol_cast<FieldSymbol>(symbol)) {
+    if (field->isStatic()) return false;
+    return !static_cast<ClassSymbol*>(field->parent())->anonymousVariable();
+  }
   if (auto function = symbol_cast<FunctionSymbol>(symbol))
     return !function->isStatic();
   if (symbol_cast<OverloadSetSymbol>(symbol)) {
@@ -1186,18 +1196,17 @@ auto is_templated_class(ClassSymbol* classSymbol) -> bool {
   for (Symbol* symbol = classSymbol; symbol; symbol = symbol->parent()) {
     auto enclosingClass = symbol_cast<ClassSymbol>(symbol);
     if (!enclosingClass) continue;
-    if (auto parameters = enclosingClass->templateParameters()) {
-      if (parameters->isExplicitTemplateSpecialization()) continue;
-      return true;
-    }
+    if (enclosingClass->isExplicitSpecialization()) return false;
+    if (enclosingClass->isTemplatePattern()) return true;
     if (enclosingClass->isSpecialization()) return true;
   }
   return false;
 }
 
-auto anonymous_member_class(FieldSymbol* field) -> ClassSymbol* {
-  if (field->name()) return nullptr;
-  auto classType = unqualified_cast<ClassType>(field->type());
+auto anonymous_member_class(Symbol* object) -> ClassSymbol* {
+  if (!object || object->name()) return nullptr;
+  if (!object->isField() && !object->isVariable()) return nullptr;
+  auto classType = unqualified_cast<ClassType>(object->type());
   if (!classType) return nullptr;
   auto classSymbol = classType->symbol();
   if (classSymbol->name()) return nullptr;
@@ -1252,6 +1261,7 @@ auto is_inline_or_templated(FunctionSymbol* function) -> bool {
   if (!function) return false;
   if (!function->isSpecialization()) function = function->canonical();
   if (function->isInline()) return true;
+  if (function->resolvedDefinition()->isExplicitSpecialization()) return false;
   if (auto declaration = function->templateDeclaration()) {
     if (declaration->templateParameterList) return true;
   } else if (function->isSpecialization()) {
@@ -1784,6 +1794,14 @@ ClassSymbol::~ClassSymbol() {}
 auto ClassSymbol::flags() const -> std::uint32_t { return flags_; }
 
 void ClassSymbol::setFlags(std::uint32_t flags) { flags_ = flags; }
+
+auto ClassSymbol::anonymousVariable() const -> VariableSymbol* {
+  if (name() || !isUnion()) return nullptr;
+  for (auto variable : parent()->find(nullptr) | views::variables) {
+    if (anonymous_member_class(variable) == this) return variable;
+  }
+  return nullptr;
+}
 
 auto ClassSymbol::isUnion() const -> bool { return isUnion_; }
 
@@ -2832,7 +2850,26 @@ auto FunctionSymbol::hasPendingBody() const -> bool {
   return pendingBody_ != nullptr;
 }
 
+namespace {
+
+[[nodiscard]] auto declaresExplicitSpecialization(FunctionSymbol* declaration)
+    -> bool {
+  if (!declaration) return false;
+  auto templateHead = declaration->templateDeclaration();
+  return templateHead && !templateHead->templateParameterList;
+}
+
+}  // namespace
+
+auto FunctionSymbol::isExplicitlySpecialized() const -> bool {
+  auto canonical = this->canonical();
+  if (declaresExplicitSpecialization(canonical->definition())) return true;
+  return std::ranges::any_of(canonical->declarations(),
+                             declaresExplicitSpecialization);
+}
+
 auto FunctionSymbol::hasUninstantiatedBody() const -> bool {
+  if (isExplicitlySpecialized()) return false;
   if (hasPendingBody()) return true;
   return isSpecialization() && !declaration() && !isDefined();
 }
@@ -3017,10 +3054,16 @@ auto VariableSymbol::isStatic() const -> bool { return isStatic_; }
 
 void VariableSymbol::setStatic(bool isStatic) { isStatic_ = isStatic; }
 
-auto VariableSymbol::isThreadLocal() const -> bool { return isThreadLocal_; }
+auto VariableSymbol::isThreadLocal() const -> bool {
+  return threadLocalKind_ != ThreadLocalKind::None;
+}
 
-void VariableSymbol::setThreadLocal(bool isThreadLocal) {
-  isThreadLocal_ = isThreadLocal;
+auto VariableSymbol::threadLocalKind() const -> ThreadLocalKind {
+  return threadLocalKind_;
+}
+
+void VariableSymbol::setThreadLocalKind(ThreadLocalKind kind) {
+  threadLocalKind_ = kind;
 }
 
 auto VariableSymbol::isExtern() const -> bool { return isExtern_; }
@@ -3050,6 +3093,14 @@ auto VariableSymbol::isFunctionLocalPredefined() const -> bool {
 void VariableSymbol::setFunctionLocalPredefined(
     bool isFunctionLocalPredefined) {
   isFunctionLocalPredefined_ = isFunctionLocalPredefined;
+}
+
+auto VariableSymbol::isStructuredBindingAlias() const -> bool {
+  return isStructuredBindingAlias_;
+}
+
+void VariableSymbol::setStructuredBindingAlias(bool isStructuredBindingAlias) {
+  isStructuredBindingAlias_ = isStructuredBindingAlias;
 }
 
 auto VariableSymbol::initializer() const -> ExpressionAST* {
@@ -3136,10 +3187,16 @@ auto FieldSymbol::isExtern() const -> bool {
 
 void FieldSymbol::setStatic(bool isStatic) { isStatic_ = isStatic; }
 
-auto FieldSymbol::isThreadLocal() const -> bool { return isThreadLocal_; }
+auto FieldSymbol::isThreadLocal() const -> bool {
+  return threadLocalKind_ != ThreadLocalKind::None;
+}
 
-void FieldSymbol::setThreadLocal(bool isThreadLocal) {
-  isThreadLocal_ = isThreadLocal;
+auto FieldSymbol::threadLocalKind() const -> ThreadLocalKind {
+  return threadLocalKind_;
+}
+
+void FieldSymbol::setThreadLocalKind(ThreadLocalKind kind) {
+  threadLocalKind_ = kind;
 }
 
 auto FieldSymbol::isConstexpr() const -> bool { return isConstexpr_; }
@@ -3491,6 +3548,19 @@ auto isDeclaredConstant(Symbol* symbol) -> bool {
     return field->isConstexpr() || isConstQualified(field->type());
 
   return false;
+}
+
+auto isPotentiallyConstant(const TypeTraits& traits, Symbol* symbol) -> bool {
+  if (!symbol || !symbol->type()) return false;
+  if (auto var = symbol_cast<VariableSymbol>(symbol); var && var->isConstexpr())
+    return true;
+  if (auto field = symbol_cast<FieldSymbol>(symbol);
+      field && field->isConstexpr())
+    return true;
+  if (traits.is_reference(symbol->type())) return true;
+  if (cv_qualifiers(symbol->type()) != CvQualifiers::kConst) return false;
+  auto type = traits.remove_cv(symbol->type());
+  return traits.is_integral(type) || traits.is_enum(type);
 }
 
 auto isUsableInConstantExpressions(Symbol* symbol) -> bool {

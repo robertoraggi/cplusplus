@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/binder.h>
 #include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -40,6 +41,7 @@ struct Codegen::DeclarationVisitor {
   Codegen& gen;
 
   void allocateLocals(ScopeSymbol* block);
+  void emitFunctionBody(FunctionBodyAST* body);
 
   auto operator()(SimpleDeclarationAST* ast) -> DeclarationResult;
   auto operator()(AsmDeclarationAST* ast) -> DeclarationResult;
@@ -51,6 +53,8 @@ struct Codegen::DeclarationVisitor {
   auto operator()(AliasDeclarationAST* ast) -> DeclarationResult;
   auto operator()(OpaqueEnumDeclarationAST* ast) -> DeclarationResult;
   auto operator()(FunctionDefinitionAST* ast) -> DeclarationResult;
+  auto emitFunctionDefinition(FunctionDefinitionAST* ast, ir::FunctionRef func)
+      -> DeclarationResult;
   auto operator()(TemplateDeclarationAST* ast) -> DeclarationResult;
   auto operator()(ConceptDefinitionAST* ast) -> DeclarationResult;
   auto operator()(DeductionGuideAST* ast) -> DeclarationResult;
@@ -91,6 +95,12 @@ struct Codegen::TemplateParameterVisitor {
   auto operator()(TypenameTypeParameterAST* ast) -> TemplateParameterResult;
   auto operator()(ConstraintTypeParameterAST* ast) -> TemplateParameterResult;
 };
+
+namespace {
+[[nodiscard]] auto initializesMember(MemInitializerAST* initializer) -> bool {
+  return symbol_cast<FieldSymbol>(initializer->symbol) != nullptr;
+}
+}  // namespace
 
 auto Codegen::declaration(DeclarationAST* ast) -> DeclarationResult {
   if (ast) return visit(DeclarationVisitor{*this}, ast);
@@ -160,6 +170,7 @@ void Codegen::DeclarationVisitor::allocateLocals(ScopeSymbol* block) {
 
     if (auto var = symbol_cast<VariableSymbol>(symbol)) {
       if (var->isStatic() || var->isThreadLocal()) continue;
+      if (var->isStructuredBindingAlias()) continue;
       if (type_cast<UnresolvedBoundedArrayType>(var->type())) continue;
 
       auto local = gen.findOrCreateLocal(var);
@@ -174,6 +185,19 @@ void Codegen::DeclarationVisitor::allocateLocals(ScopeSymbol* block) {
 
 auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     -> DeclarationResult {
+  if (!ast->initDeclaratorList) {
+    for (auto specifier : ListView{ast->declSpecifierList}) {
+      auto classSpecifier = ast_cast<ClassSpecifierAST>(specifier);
+      if (!classSpecifier) continue;
+      auto variable = classSpecifier->symbol->anonymousVariable();
+      if (!variable) continue;
+      if (gen.function_) {
+        gen.emitLocalVariableInit(variable, variable->initializer());
+      } else if (auto global = gen.findOrCreateGlobal(variable)) {
+        gen.emitGlobalVarInit(variable, *global);
+      }
+    }
+  }
   if (!gen.function_) {
     for (auto node : ListView{ast->initDeclaratorList}) {
       auto var = symbol_cast<VariableSymbol>(node->symbol);
@@ -196,7 +220,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   for (auto node : ListView{ast->initDeclaratorList}) {
     auto var = symbol_cast<VariableSymbol>(node->symbol);
     if (!var) continue;
-    gen.emitLocalVariableInit(var, node->initializer);
+    gen.emitLocalVariableInit(var, var->initializer());
   }
 
   return {};
@@ -204,6 +228,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
 void Codegen::emitLocalVariableInit(VariableSymbol* var,
                                     ExpressionAST* initializer) {
+  if (var->isStructuredBindingAlias()) return;
   const bool isVLA =
       type_cast<UnresolvedBoundedArrayType>(var->type()) != nullptr;
   const bool isConstructed = var->constructor() || traits.is_class(var->type());
@@ -308,37 +333,26 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
 
 void Codegen::emitReferenceInit(VariableSymbol* var, ir::ValueRef local,
                                 ExpressionAST* initExpr, SourceLocation loc) {
-  auto temporary = materializedTemporary(traits, initExpr);
-
-  if (!temporary || temporary.conditional) {
+  auto temporaries = materializedTemporaries(traits, initExpr);
+  if (temporaries.size() != 1 || temporaries.front() != initExpr) {
+    auto extension = LifetimeExtension{*this, temporaries};
     auto expressionResult = expression(initExpr);
-    emitter_.store(loc, expressionResult.value, local, 8);
+    emitter_.store(loc, expressionResult.value, local,
+                   getAlignment(var->type()));
     return;
   }
 
-  auto temporaryType = traits.remove_cv(temporary.expression->type);
-  auto tempPtrType = emitter_.pointerType(convertType(temporaryType));
-  auto extendedTemporary =
-      emitter_.allocate(loc, tempPtrType, getAlignment(temporaryType));
-
-  ir::ValueRef address = extendedTemporary;
-
-  if (temporary.expression == initExpr) {
-    (void)emitPrvalueInto(address, temporaryType, initExpr,
-                          initExpr->firstSourceLocation());
-  } else {
-    auto resultObject = ResultObject{*this, temporary.expression, address};
-    address = expression(initExpr).value;
-  }
-
+  auto temporaryType = traits.remove_cv(initExpr->type);
+  auto extendedTemporary = newTemp(temporaryType, loc);
+  (void)emitPrvalueInto(extendedTemporary, temporaryType, initExpr,
+                        initExpr->firstSourceLocation());
   if (auto classType = unqualified_cast<ClassType>(temporaryType)) {
     if (classType->symbol()) {
       if (auto dtor = classType->symbol()->resolvedDefinition()->destructor())
         addCleanup(extendedTemporary, completeObjectDtor(dtor));
     }
   }
-
-  emitter_.store(loc, address, local, 8);
+  emitter_.store(loc, extendedTemporary, local, getAlignment(var->type()));
 }
 
 auto Codegen::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
@@ -347,25 +361,7 @@ auto Codegen::DeclarationVisitor::operator()(AsmDeclarationAST* ast)
     auto value = gen.attributeSpecifier(node);
   }
 
-  for (auto node : ListView{ast->asmQualifierList}) {
-    gen.asmQualifier(node);
-  }
-
-  for (auto node : ListView{ast->outputOperandList}) {
-    gen.asmOperand(node);
-  }
-
-  for (auto node : ListView{ast->inputOperandList}) {
-    gen.asmOperand(node);
-  }
-
-  for (auto node : ListView{ast->clobberList}) {
-    gen.asmClobber(node);
-  }
-
-  for (auto node : ListView{ast->gotoLabelList}) {
-    gen.asmGotoLabel(node);
-  }
+  gen.inlineAsm(ast);
 
   return {};
 }
@@ -408,13 +404,10 @@ auto Codegen::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
   auto functionSymbol = ast->symbol;
-  if (functionSymbol &&
-      (functionSymbol->isConsteval() || functionSymbol->isDeleted()))
+  if (functionSymbol && (functionSymbol->isConsteval() ||
+                         isDeletedFunction(gen.unit_, functionSymbol)))
     return {};
-  const auto isUninstantiatedTemplate = functionSymbol &&
-                                        functionSymbol->templateDeclaration() &&
-                                        !functionSymbol->isSpecialization();
-  if (isUninstantiatedTemplate) return {};
+  if (functionSymbol && functionSymbol->isTemplatePattern()) return {};
 
   const auto functionType =
       functionSymbol ? type_cast<FunctionType>(functionSymbol->type())
@@ -433,6 +426,23 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   if (gen.emitter_.functionHasBody(func)) return {};
 
   gen.emitBaseObjectStructor(functionSymbol, func);
+
+  auto result = emitFunctionDefinition(ast, func);
+
+  if (gen.duplicatesBaseObjectStructorBody(functionSymbol)) {
+    auto baseObjectFunc = gen.findOrCreateBaseObjectStructor(functionSymbol);
+    if (baseObjectFunc && !gen.emitter_.functionHasBody(baseObjectFunc))
+      (void)emitFunctionDefinition(ast, baseObjectFunc);
+  }
+
+  return result;
+}
+
+auto Codegen::DeclarationVisitor::emitFunctionDefinition(
+    FunctionDefinitionAST* ast, ir::FunctionRef func) -> DeclarationResult {
+  auto functionSymbol = ast->symbol;
+  const auto functionType = type_cast<FunctionType>(functionSymbol->type());
+  const auto returnType = functionType->returnType();
 
   const auto needsExitValue = !gen.traits.is_void(returnType);
 
@@ -487,6 +497,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::unordered_map<Symbol*, ir::ValueRef> locals;
   std::unordered_map<const Name*, int> staticLocalCounts;
   std::vector<Codegen::CleanupScope> cleanupStack;
+  std::vector<Codegen::ExceptionScope> exceptionScopes;
+  std::vector<Codegen::CleanupLabel> cleanupLabels;
+  std::vector<Codegen::CleanupGoto> cleanupGotos;
 
   std::swap(gen.function_, func);
   std::swap(gen.entryBlock_, entryBlock);
@@ -495,6 +508,9 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.locals_, locals);
   std::swap(gen.staticLocalCounts_, staticLocalCounts);
   std::swap(gen.cleanupStack_, cleanupStack);
+  std::swap(gen.exceptionScopes_, exceptionScopes);
+  std::swap(gen.cleanupLabels_, cleanupLabels);
+  std::swap(gen.cleanupGotos_, cleanupGotos);
 
   ir::ValueRef structorVTTValue;
   std::swap(gen.structorVTTValue_, structorVTTValue);
@@ -654,28 +670,23 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.structorVTTValue_, structorVTTValue);
 
   allocateLocals(functionSymbol);
+  auto body = ast->functionBody;
+  if (auto principal = functionSymbol->structorPrincipal();
+      principal && principal->isDestructor() &&
+      principal->completeObjectVariant() == functionSymbol) {
+    allocateLocals(principal);
+    body = principal->declaration()->functionBody;
+  }
 
-  auto functionBodyResult = gen.functionBody(ast->functionBody);
+  if (type_cast<FunctionType>(functionSymbol->type())->isNoexcept()) {
+    gen.emitTerminateOnException([&] { emitFunctionBody(body); }, loc);
+  } else {
+    emitFunctionBody(body);
+  }
 
   const auto endLoc = lastTokenLocation(ast);
 
-  gen.emitBranchWithCleanups(lastTokenLocation(ast), gen.exitBlock_, 0);
-
   gen.emitter_.setInsertionBlock(gen.exitBlock_);
-
-  if (name_cast<DestructorId>(functionSymbol->name()) && gen.thisValue_ &&
-      !functionSymbol->isStructorVariant()) {
-    auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
-    if (classSymbol) {
-      auto thisPtr = gen.loadThisPointer(endLoc, classSymbol);
-      auto subobjects = gen.subobjectsInDeclarationOrder(classSymbol);
-
-      for (auto it = subobjects.rbegin(); it != subobjects.rend(); ++it) {
-        gen.emitSubobjectDestruction(lastTokenLocation(ast), thisPtr,
-                                     classSymbol, *it);
-      }
-    }
-  }
 
   if (gen.exitValue_) {
     if (sretReturn) {
@@ -706,6 +717,7 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     gen.emitter_.ret(endLoc, {});
   }
 
+  gen.resolveCleanupGotos();
   gen.emitter_.resolveFunctionControlFlow(gen.function_);
 
   std::swap(gen.thisValue_, thisValue);
@@ -718,8 +730,16 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   std::swap(gen.locals_, locals);
   std::swap(gen.staticLocalCounts_, staticLocalCounts);
   std::swap(gen.cleanupStack_, cleanupStack);
+  std::swap(gen.exceptionScopes_, exceptionScopes);
+  std::swap(gen.cleanupLabels_, cleanupLabels);
+  std::swap(gen.cleanupGotos_, cleanupGotos);
 
   return {};
+}
+
+void Codegen::DeclarationVisitor::emitFunctionBody(FunctionBodyAST* body) {
+  (void)gen.functionBody(body);
+  gen.emitBranchWithCleanups(lastTokenLocation(body), gen.exitBlock_, 0);
 }
 
 auto Codegen::DeclarationVisitor::operator()(TemplateDeclarationAST* ast)
@@ -834,16 +854,13 @@ auto Codegen::DeclarationVisitor::operator()(
     StructuredBindingDeclarationAST* ast) -> DeclarationResult {
   if (!gen.function_) return {};
 
-  if (ast->hiddenVariable) {
-    if (auto var = symbol_cast<VariableSymbol>(ast->hiddenVariable->symbol)) {
-      gen.emitLocalVariableInit(var, ast->hiddenVariable->initializer);
-    }
+  if (auto hidden = ast->binding.hiddenVariable) {
+    auto variable = symbol_cast<VariableSymbol>(hidden->symbol);
+    if (variable) gen.emitLocalVariableInit(variable, variable->initializer());
   }
-
-  for (auto node : ListView{ast->bindingDeclaratorList}) {
-    auto var = symbol_cast<VariableSymbol>(node->symbol);
-    if (!var) continue;
-    gen.emitLocalVariableInit(var, node->initializer);
+  for (auto node : ListView{ast->binding.bindingDeclaratorList}) {
+    auto variable = symbol_cast<VariableSymbol>(node->symbol);
+    if (variable) gen.emitLocalVariableInit(variable, variable->initializer());
   }
 
   return {};
@@ -862,6 +879,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
   auto loc = sourceLoc;
 
   if (functionSymbol->isDestructor()) {
+    auto destructionScope = CleanupScopeGuard{gen, loc};
+    gen.addDestructorSubobjectCleanups(loc, functionSymbol);
     gen.emitCtorVtableInit(functionSymbol, loc);
     return {};
   }
@@ -897,6 +916,8 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
     return {};
   }
 
+  auto constructionScope = CleanupScopeGuard{gen, loc};
+
   bool isCopyCtor = (functionSymbol == classSymbol->copyConstructor());
   bool isMoveCtor = (functionSymbol == classSymbol->moveConstructor());
 
@@ -914,6 +935,16 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
   }
 
   for (auto subobject : gen.subobjectsInDeclarationOrder(classSymbol)) {
+    if (auto base = symbol_cast<BaseClassSymbol>(subobject)) {
+      gen.emitSubobjectDefaultConstruction(ast->firstSourceLocation(), thisPtr,
+                                           classSymbol, base);
+    }
+  }
+
+  gen.emitCtorVtableInit(functionSymbol, loc);
+
+  for (auto subobject : gen.subobjectsInDeclarationOrder(classSymbol)) {
+    if (symbol_cast<BaseClassSymbol>(subobject)) continue;
     auto field = symbol_cast<FieldSymbol>(subobject);
 
     if (field) {
@@ -922,6 +953,9 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
             ast->firstSourceLocation(), field,
             gen.subobjectAddress(loc, thisPtr, classSymbol, field),
             initializer);
+        gen.addSubobjectCleanup(
+            loc, gen.subobjectAddress(loc, thisPtr, classSymbol, field),
+            field->type(), true);
         continue;
       }
 
@@ -934,8 +968,6 @@ auto Codegen::FunctionBodyVisitor::operator()(DefaultFunctionBodyAST* ast)
                                          classSymbol, subobject);
   }
 
-  gen.emitCtorVtableInit(functionSymbol, loc);
-
   return {};
 }
 
@@ -943,6 +975,7 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
                                    ir::ValueRef fieldPtr,
                                    ExpressionAST* initializer) {
   if (!fieldPtr || !initializer) return;
+  auto fullExpression = FullExpression{*this, lastTokenLocation(initializer)};
 
   auto loc = sourceLoc;
 
@@ -972,7 +1005,7 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
     auto ctor = field->constructor();
     if (!ctor) return;
     std::vector<ExpressionResult> args;
-    for (auto it = paren->expressionList; it; it = it->next)
+    for (auto it = Initializer{paren}.expressionList(); it; it = it->next)
       args.push_back(expression(it->value));
     (void)emitCtorCall(sourceLoc, ctor, fieldPtr, args,
                        /*completeObject=*/true);
@@ -988,7 +1021,7 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
       if (passListWhole) {
         args.push_back(expression(braced));
       } else {
-        for (auto it = braced->expressionList; it; it = it->next)
+        for (auto it = Initializer{braced}.expressionList(); it; it = it->next)
           args.push_back(expression(it->value));
       }
       (void)emitCtorCall(sourceLoc, ctor, fieldPtr, args,
@@ -1052,13 +1085,23 @@ auto Codegen::FunctionBodyVisitor::emitAnonymousUnionInitializer(
 
 auto Codegen::FunctionBodyVisitor::emitBody(FunctionBodyAST* ast)
     -> FunctionBodyResult {
-  for (auto node : ListView{ctor_initializers(ast)}) {
+  auto constructionScope = CleanupScopeGuard{gen, lastTokenLocation(ast)};
+  gen.addDestructorSubobjectCleanups(ast->firstSourceLocation(),
+                                     gen.currentFunctionSymbol_);
+  auto initializers = ListView{ctor_initializers(gen.currentFunctionSymbol_)};
+  for (auto node : initializers) {
+    if (initializesMember(node)) continue;
     auto value = gen.memInitializer(node);
   }
 
   if (gen.currentFunctionSymbol_) {
     auto loc = ast->firstSourceLocation();
     gen.emitCtorVtableInit(gen.currentFunctionSymbol_, loc);
+  }
+
+  for (auto node : initializers) {
+    if (!initializesMember(node)) continue;
+    auto value = gen.memInitializer(node);
   }
 
   gen.statement(body_statement(ast));
@@ -1074,7 +1117,11 @@ auto Codegen::FunctionBodyVisitor::operator()(
 auto Codegen::FunctionBodyVisitor::operator()(TryStatementFunctionBodyAST* ast)
     -> FunctionBodyResult {
   if (gen.unit_->config().exceptionsEnabled) {
-    (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+    auto symbol = gen.currentFunctionSymbol_;
+    auto rethrow = symbol && (symbol->isConstructor() ||
+                              name_cast<DestructorId>(symbol->name()));
+    gen.emitTry([&] { (void)emitBody(ast); }, ast->handlerList,
+                ast->firstSourceLocation(), rethrow);
     return {};
   }
 
@@ -1121,13 +1168,4 @@ auto Codegen::TemplateParameterVisitor::operator()(
   return {};
 }
 
-void Codegen::asmOperand(AsmOperandAST* ast) {
-  auto expressionResult = expression(ast->expression);
-}
-
-void Codegen::asmQualifier(AsmQualifierAST* ast) {}
-
-void Codegen::asmClobber(AsmClobberAST* ast) {}
-
-void Codegen::asmGotoLabel(AsmGotoLabelAST* ast) {}
 }  // namespace cxx

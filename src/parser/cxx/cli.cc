@@ -243,9 +243,13 @@ std::vector<CLIOptionDescr> options{
 
     {"-fno-reflect", "Disable reflection", &CLI::opt_fno_reflect},
 
-    {"-fexceptions", "Enable C++ exceptions (not supported yet)"},
+    {"-fexceptions", "Enable C++ exceptions (the default)"},
 
-    {"-fno-exceptions", "Disable C++ exceptions (the default)"},
+    {"-fno-exceptions", "Disable C++ exceptions"},
+
+    {"-frtti", "Enable run-time type information (the default)"},
+
+    {"-fno-rtti", "Disable run-time type information"},
 
     {"-fPIC", "Generate position-independent code"},
 
@@ -456,7 +460,14 @@ auto CLI::exceptionsEnabled() const -> bool {
   auto flag = lastFlag([](std::string_view name) {
     return name == "-fexceptions" || name == "-fno-exceptions";
   });
-  return flag == "-fexceptions";
+  return flag != "-fno-exceptions";
+}
+
+auto CLI::rttiEnabled() const -> bool {
+  auto flag = lastFlag([](std::string_view name) {
+    return name == "-frtti" || name == "-fno-rtti";
+  });
+  return flag != "-fno-rtti";
 }
 
 auto CLI::positionIndependence(PositionIndependence defaults) const

@@ -81,6 +81,10 @@ class TemplateEquivalence {
                                      List<TemplateParameterAST*>* b) const
       -> bool;
 
+  [[nodiscard]] auto specializesMemberOfImplicitInstantiation(
+      ClassSymbol* enclosingClass, TemplateDeclarationAST* templateHead) const
+      -> bool;
+
   [[nodiscard]] auto ownFunctionTemplateHead(
       ClassSymbol* enclosingClass, TemplateDeclarationAST* templateHead) const
       -> TemplateDeclarationAST*;

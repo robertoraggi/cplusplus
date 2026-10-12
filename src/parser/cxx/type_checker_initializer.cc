@@ -35,6 +35,7 @@
 #include <cxx/template_argument_deduction.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_checker.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
@@ -104,20 +105,16 @@ void TypeDeducer::deduceArraySizeFromBraced(S* var,
     return;
   }
 
-  auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
   size_t currentIndex = 0;
   size_t maxIndex = 0;
   bool hasElements = false;
-
-  for (auto it = braced->expressionList; it; it = it->next) {
-    if (auto desig = ast_cast<DesignatedInitializerClauseAST>(it->value)) {
-      if (desig->designatorList) {
-        if (auto subscript = ast_cast<SubscriptDesignatorAST>(
-                desig->designatorList->value)) {
-          if (auto value = interp.evaluate(subscript->expression))
-            if (auto idx = interp.toUInt(*value)) currentIndex = *idx;
-        }
-      }
+  for (auto node : ListView{braced->expressionList}) {
+    if (auto designated = ast_cast<DesignatedInitializerClauseAST>(node);
+        designated && designated->designatorList) {
+      auto subscript =
+          ast_cast<SubscriptDesignatorAST>(designated->designatorList->value);
+      if (auto range = designatedArrayRange(ctx.unit, subscript))
+        currentIndex = *range->end - 1;
     }
     if (!hasElements || currentIndex > maxIndex) maxIndex = currentIndex;
     hasElements = true;
@@ -343,16 +340,17 @@ struct InitDeclaratorChecker {
 
 void InitDeclaratorChecker::checkInitDeclarator(InitDeclaratorAST* ast,
                                                 SpecifierAST* typeSpecifier) {
+  auto initializer = ast->initializer;
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
       field && field->isStatic()) {
-    checkVariable(field, ast->initializer, field->location(), typeSpecifier);
+    checkVariable(field, initializer, field->location(), typeSpecifier);
     return;
   }
 
   auto var = symbol_cast<VariableSymbol>(ast->symbol);
   if (!var) return;
 
-  checkVariable(var, ast->initializer,
+  checkVariable(var, initializer,
                 ctx.checker.getInitDeclaratorLocation(ast, var), typeSpecifier);
 }
 
@@ -386,6 +384,14 @@ void InitDeclaratorChecker::checkVariable(S* var, ExpressionAST*& initializer,
 
   if constexpr (std::is_same_v<S, VariableSymbol>)
     evaluateConstValue(var, initializer);
+  else
+    evaluateFieldConstValue(var);
+
+  if (!var->isConstinit() || var->constValue()) return;
+  if (!initializer && !var->constructor()) return;
+  if (isDependent(ctx.unit, var->type()) || isDependent(ctx.unit, initializer))
+    return;
+  ctx.error(location, "constinit variable must have static initialization");
 }
 
 template <typename S>
@@ -433,19 +439,15 @@ void InitDeclaratorChecker::checkFieldInitializer(FieldSymbol* field) {
 
 void InitDeclaratorChecker::evaluateFieldConstValue(FieldSymbol* field) {
   if (!field->isStatic()) return;
-  if (!field->isConstexpr() && !field->isConstinit()) return;
   if (isDependent(ctx.unit, field->type())) return;
 
   auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
 
   std::optional<ConstValue> value;
   if (field->initializer())
-    value = interp.initialValue(field->type(), field->initializer());
-
-  if (!value.has_value() || field->constructor()) {
-    if (auto ctorValue = constexprEval.tryEvaluateConstructor(field, interp))
-      value = std::move(ctorValue);
-  }
+    value = interp.initializationValue(field->type(), field->constructor(),
+                                       field->initializer());
+  if (!value) value = constexprEval.tryEvaluateConstructor(field, interp);
 
   if (value.has_value() && !isFullyInitialized(*value)) value.reset();
 
@@ -459,20 +461,29 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var,
   if (!dependent && var->initializer())
     dependent = isDependent(ctx.unit, var->initializer());
 
+  const auto hasStaticStorage =
+      has_static_storage_duration(var) || has_thread_storage_duration(var);
+  auto mayConstantInitialize = hasStaticStorage;
+  if (var->isConstexpr() || var->isConstinit()) mayConstantInitialize = true;
+
   if (var->initializer()) {
     auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
-    auto value = interp.initialValue(var->type(), var->initializer());
+    auto value = interp.initializationValue(var->type(), var->constructor(),
+                                            var->initializer());
 
-    if (var->constructor()) value.reset();
-
-    if (!value.has_value() && var->isConstexpr()) {
+    if (!value.has_value() && mayConstantInitialize) {
       value = constexprEval.tryEvaluateConstructor(var, interp);
     }
 
     if (value.has_value() && !isFullyInitialized(*value)) value.reset();
 
     var->setConstValue(value);
-  } else if (var->isConstexpr() && var->constructor()) {
+    if (!ctx.isCxx() && !value && hasStaticStorage) {
+      ctx.error(var->location(),
+                "initializer for an object with static or thread storage "
+                "duration must be constant");
+    }
+  } else if (mayConstantInitialize && var->constructor()) {
     auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
     var->setConstValue(constexprEval.tryEvaluateConstructor(var, interp));
   }
@@ -512,7 +523,7 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var,
           ctx.unit->arena()->make<ConstValue>(std::move(*constantValue));
       constant->type = (*target)->type;
       constant->valueCategory = (*target)->valueCategory;
-      *target = constant;
+      initializer = constant;
       var->setInitializer(initializer);
     }
   }
@@ -545,8 +556,37 @@ void TypeChecker::check_variable_initializer(VariableSymbol* var,
                                              SourceLocation location,
                                              ArrayCopyPolicy arrayCopyPolicy) {
   if (!var || !var->type()) return;
+  checkPotentiallyInvokedDestructor(var->type(), location);
   (void)InitDeclaratorChecker{*this, arrayCopyPolicy}.checkInitialization(
       var, initializer, location);
+}
+
+void TypeChecker::check_exception_initializer(
+    TypeExceptionDeclarationAST* ast) {
+  auto type = ast->symbol->type();
+  auto traits = unit_->typeTraits();
+  if (!traits.is_class_or_union(type) || isDependent(unit_, type)) return;
+
+  auto location = ast->firstSourceLocation();
+  auto objectType = traits.remove_cv(type);
+  auto object = unit_->control()->newVariableSymbol(scope_, location);
+  object->setName(unit_->control()->newAnonymousId("exception"));
+  object->setType(objectType);
+  ast->exceptionObject = object;
+  auto source = IdExpressionAST::create(unit_->arena());
+  source->unqualifiedId =
+      NameIdAST::create(unit_->arena(), name_cast<Identifier>(object->name()));
+  source->symbol = object;
+  source->type = objectType;
+  source->valueCategory = ValueCategory::kLValue;
+  auto initializer = EqualInitializerAST::create(unit_->arena());
+  initializer->equalLoc = location;
+  initializer->expression = source;
+  ExpressionAST* checkedInitializer = initializer;
+  check_variable_initializer(ast->symbol, checkedInitializer, location);
+  object->setInitializer(checkedInitializer);
+  ast->symbol->setInitializer(nullptr);
+  ASTRewriter::requireDestructorOfType(unit_, type);
 }
 
 auto TypeChecker::check_member_initialization(FieldSymbol* field,
@@ -626,7 +666,9 @@ auto TypeChecker::deducePlaceholderType(const Type* declaredType,
     const Type* elementType = nullptr;
     const auto traits = unit_->typeTraits();
     for (auto element : ListView{braced->expressionList}) {
-      if (!element || !element->type) return nullptr;
+      if (!element) return nullptr;
+      if (ast_cast<BracedInitListAST>(element)) continue;
+      if (!element->type) return nullptr;
       auto candidate = traits.decay(element->type);
       if (elementType && !traits.is_same(elementType, candidate)) {
         error(braced->firstSourceLocation(),
@@ -723,7 +765,7 @@ void TypeChecker::checkPotentiallyInvokedDestructor(const Type* type,
 
   auto destructor = classType->symbol()->resolvedDefinition()->destructor();
 
-  if (destructor && destructor->isDeleted()) {
+  if (destructor && isDeletedFunction(unit_, destructor)) {
     error(location, "attempt to use a deleted destructor");
     return;
   }
@@ -760,8 +802,7 @@ auto TypeChecker::deduceClassTemplateSpecialization(
   if (!primaryTemplate) return nullptr;
 
   for (auto argument : arguments) {
-    if (!argument || !argument->type) return nullptr;
-    if (isDependent(unit_, argument->type)) return nullptr;
+    if (!hasConcreteType(unit_, argument)) return nullptr;
   }
 
   ClassTemplateArgumentDeduction::Initializer initializer{

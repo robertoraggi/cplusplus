@@ -66,6 +66,9 @@ auto ClassTemplateArgumentDeduction::placeholderClassTemplate(
   if (!classSymbol) return nullptr;
   if (!classSymbol->templateDeclaration()) return nullptr;
   if (classSymbol->isSpecialization()) return nullptr;
+  if (auto parameters = classSymbol->templateParameters();
+      parameters && parameters->isExplicitTemplateSpecialization())
+    return nullptr;
 
   if (names_current_instantiation(classSymbol, scope)) return nullptr;
 
@@ -110,6 +113,7 @@ auto ClassTemplateArgumentDeduction::makeGuideTemplateDeclaration(
 
   auto templateDeclaration = TemplateDeclarationAST::create(arena_);
   templateDeclaration->depth = classTemplateDeclaration->depth;
+  templateDeclaration->symbol = classTemplateDeclaration->symbol;
 
   auto out = &templateDeclaration->templateParameterList;
   for (auto parameter : ListView{classParameters}) {
@@ -118,6 +122,7 @@ auto ClassTemplateArgumentDeduction::makeGuideTemplateDeclaration(
   }
 
   if (ownTemplateDeclaration) {
+    templateDeclaration->symbol = ownTemplateDeclaration->symbol;
     for (auto parameter :
          ListView{ownTemplateDeclaration->templateParameterList}) {
       *out = make_list_node(arena_, parameter);
@@ -364,6 +369,7 @@ void ClassTemplateArgumentDeduction::addWrittenGuide(
 
   auto templateDeclaration = TemplateDeclarationAST::create(arena_);
   if (auto ownTemplateParameters = guideSymbol->templateParameters()) {
+    templateDeclaration->symbol = ownTemplateParameters;
     if (auto ownTemplateDeclaration = guideSymbol->templateDeclaration()) {
       templateDeclaration->templateParameterList =
           ownTemplateDeclaration->templateParameterList;
@@ -601,6 +607,35 @@ auto ClassTemplateArgumentDeduction::deduce(ClassSymbol* primaryTemplate,
   collectGuides(primaryTemplate, initializer, scope);
   if (guides_.empty()) return nullptr;
 
+  if (initializer.isListInitialization) {
+    auto wholeList = BracedInitListAST::create(arena_);
+    wholeList->expressionList = argumentList(initializer);
+    wholeList->valueCategory = ValueCategory::kPrValue;
+
+    Initializer firstPhase = initializer;
+    firstPhase.arguments = {wholeList};
+    if (auto deduced =
+            deduceFromGuides(primaryTemplate, firstPhase, location, scope,
+                             /*initializerListGuidesOnly=*/true))
+      return deduced;
+  }
+
+  return deduceFromGuides(primaryTemplate, initializer, location, scope,
+                          /*initializerListGuidesOnly=*/false);
+}
+
+auto ClassTemplateArgumentDeduction::takesInitializerList(
+    const FunctionType* guideType) const -> bool {
+  auto parameters = guideType->parameterTypes();
+  if (parameters.empty()) return false;
+  return TypeTraits{unit_}.initializer_list_element_type(parameters.front()) !=
+         nullptr;
+}
+
+auto ClassTemplateArgumentDeduction::deduceFromGuides(
+    ClassSymbol* primaryTemplate, const Initializer& initializer,
+    SourceLocation location, ScopeSymbol* scope, bool initializerListGuidesOnly)
+    -> ClassSymbol* {
   auto args = argumentList(initializer);
 
   OverloadResolution overloadResolution{unit_};
@@ -614,6 +649,7 @@ auto ClassTemplateArgumentDeduction::deduce(ClassSymbol* primaryTemplate,
   for (const auto& guide : guides_) {
     auto guideType = type_cast<FunctionType>(guide.function->type());
     if (!guideType) continue;
+    if (initializerListGuidesOnly && !takesInitializerList(guideType)) continue;
 
     std::optional<List<TemplateArgumentAST*>*> deduced;
     std::optional<std::vector<const Type*>> substituted;

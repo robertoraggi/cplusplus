@@ -105,7 +105,8 @@ auto ConstObject::mutableSubobject(const Symbol* symbol) -> ConstValue* {
 
 auto ConstAddress::sameTarget(const ConstAddress& other) const -> bool {
   return symbol_ == other.symbol_ && owner_ == other.owner_ &&
-         string_ == other.string_ && typeInfoFor_ == other.typeInfoFor_;
+         string_ == other.string_ && typeInfoFor_ == other.typeInfoFor_ &&
+         root_ == other.root_;
 }
 
 auto ConstObject::operator==(const ConstObject& other) const -> bool {
@@ -172,7 +173,8 @@ struct EquivalentValues {
       -> bool {
     auto value = other<std::shared_ptr<ConstAddress>>();
     if (!value || !*value || !lhs) return false;
-    return lhs->sameTarget(**value) && lhs->offset() == (*value)->offset();
+    return lhs->sameTarget(**value) && lhs->offset() == (*value)->offset() &&
+           lhs->displacement() == (*value)->displacement();
   }
 
   [[nodiscard]] auto operator()(const std::shared_ptr<ConstComplex>& lhs) const

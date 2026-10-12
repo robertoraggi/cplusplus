@@ -125,6 +125,9 @@ class TypeTraits {
   [[nodiscard]] auto integral_representation(const Type* type) const
       -> std::optional<IntegralRepresentation>;
 
+  [[nodiscard]] auto value_representation(const Type* type) const
+      -> std::optional<IntegralRepresentation>;
+
   [[nodiscard]] auto integral_constant(const Type* type,
                                        ConstInt::Wide value) const
       -> std::optional<ConstInt>;
@@ -228,7 +231,8 @@ class TypeTraits {
 
   [[nodiscard]] auto adjusted_cv_type(const Type* type) const -> const Type*;
 
-  [[nodiscard]] auto adjusted_parameter_type(const Type* type) const
+  [[nodiscard]] static auto adjusted_parameter_type(Control* control,
+                                                    const Type* type)
       -> const Type*;
 
   [[nodiscard]] auto is_similar(const Type* lhs, const Type* rhs) const -> bool;
@@ -309,6 +313,7 @@ class TypeTraits {
 
   auto is_pod(const Type* type) -> bool;
   [[nodiscard]] auto is_pod_for_layout(const Type* type) -> bool;
+  [[nodiscard]] auto has_pod_object_sizes(const Type* type) -> bool;
   [[nodiscard]] auto data_size(const Type* type) -> std::uint64_t;
   [[nodiscard]] auto non_virtual_size(const Type* type) -> std::uint64_t;
   auto is_trivial(const Type* type) -> bool;

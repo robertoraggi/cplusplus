@@ -22,12 +22,47 @@
 #include <cxx/attributes.h>
 #include <cxx/control.h>
 #include <cxx/literals.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/translation_unit.h>
 
 #include <algorithm>
 
 namespace cxx {
+
+auto canonicalAttributeSpelling(std::string_view name) -> std::string_view {
+  if (name.size() > 4 && name.starts_with("__") && name.ends_with("__"))
+    return name.substr(2, name.size() - 4);
+  return name;
+}
+
+auto supportsGnuAttribute(std::string_view name, const MemoryLayout& layout)
+    -> bool {
+  name = canonicalAttributeSpelling(name);
+  static constexpr std::string_view supported[] = {
+      "abi_tag",
+      "alias",
+      "aligned",
+      "always_inline",
+      "exclude_from_explicit_instantiation",
+      "gnu_inline",
+      "noinline",
+      "noreturn",
+      "nothrow",
+      "packed",
+      "section",
+      "trivial_abi",
+      "used",
+      "vector_size",
+      "warn_unused_result",
+      "weak"};
+  if (name == "constructor") return true;
+  if (name == "enable_if") return true;
+  if (std::ranges::find(supported, name) != std::end(supported)) return true;
+  if (!layout.isWebAssembly()) return false;
+  return name == "import_module" || name == "import_name" ||
+         name == "export_name";
+}
 
 namespace {
 
@@ -65,13 +100,8 @@ namespace {
                                           const Identifier* id)
     -> const Identifier* {
   if (!id) return nullptr;
-  const auto spelling = id->name();
-  if (spelling.size() > 4 && spelling.starts_with("__") &&
-      spelling.ends_with("__")) {
-    return control->getIdentifier(
-        std::string(spelling.substr(2, spelling.size() - 4)));
-  }
-  return id;
+  return control->getIdentifier(
+      std::string(canonicalAttributeSpelling(id->name())));
 }
 
 void collectStringArguments(TranslationUnit* unit,
@@ -129,6 +159,15 @@ void addAttribute(AttributeMap& map, Attribute attribute) {
     }
   } else if (auto gccAttribute = ast_cast<GccAttributeAST>(specifier)) {
     entries = gccAttribute->attributeList;
+  } else if (auto assembly = ast_cast<AsmAttributeAST>(specifier)) {
+    if (!assembly->literal) return nullptr;
+    auto components = StringLiteral::Components::from(
+        assembly->literal->value(), StringLiteralEncoding::kNone);
+    Attribute attribute{
+        .name = control->getIdentifier("asm"),
+        .arguments = {control->getIdentifier(components.value)}};
+    specifier->attributes = control->getAttributes({attribute});
+    return specifier->attributes;
   } else {
     return nullptr;
   }
@@ -186,7 +225,9 @@ auto collectGnuAttributes(TranslationUnit* unit,
     -> AttributeMap {
   AttributeMap map;
   for (auto specifier : ListView{attributes}) {
-    if (!ast_cast<GccAttributeAST>(specifier)) continue;
+    if (!ast_cast<GccAttributeAST>(specifier) &&
+        !ast_cast<AsmAttributeAST>(specifier))
+      continue;
     addSpecifierAttributes(unit, map, specifier);
   }
   std::ranges::sort(map);
@@ -236,11 +277,12 @@ namespace {
 
 }  // namespace
 
-auto findAttributeBySpelling(TranslationUnit* unit,
-                             List<AttributeSpecifierAST*>* attributeList,
-                             std::span<const AttributeSpelling> spellings)
-    -> AttributeRef {
+auto findAttributesBySpelling(TranslationUnit* unit,
+                              List<AttributeSpecifierAST*>* attributeList,
+                              std::span<const AttributeSpelling> spellings)
+    -> std::vector<AttributeRef> {
   auto control = unit->control();
+  std::vector<AttributeRef> result;
 
   for (auto specifier : ListView{attributeList}) {
     List<AttributeAST*>* entries = nullptr;
@@ -278,13 +320,23 @@ auto findAttributeBySpelling(TranslationUnit* unit,
         if (!matchesSpelling(spelling, syntax, attributeNamespace, name))
           continue;
 
-        return AttributeRef{&spelling, entry->attributeArgumentClause,
-                            entry->firstSourceLocation()};
+        result.push_back({&spelling, entry->attributeArgumentClause,
+                          entry->firstSourceLocation()});
+        break;
       }
     }
   }
 
-  return {};
+  return result;
+}
+
+auto findAttributeBySpelling(TranslationUnit* unit,
+                             List<AttributeSpecifierAST*>* attributeList,
+                             std::span<const AttributeSpelling> spellings)
+    -> AttributeRef {
+  auto attributes = findAttributesBySpelling(unit, attributeList, spellings);
+  if (attributes.empty()) return {};
+  return attributes.front();
 }
 
 }  // namespace cxx

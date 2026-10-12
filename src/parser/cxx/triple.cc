@@ -51,13 +51,6 @@ auto stripVersion(std::string_view name) -> std::string_view {
   return name.substr(0, end);
 }
 
-auto parseArch(std::string_view name) -> TripleArch {
-  if (name == "aarch64" || name == "arm64") return TripleArch::kAArch64;
-  if (name == "x86_64" || name == "amd64") return TripleArch::kX86_64;
-  if (name == "wasm32") return TripleArch::kWasm32;
-  return TripleArch::kUnknown;
-}
-
 auto parseVendor(std::string_view name) -> TripleVendor {
   if (name == "apple") return TripleVendor::kApple;
   if (name == "pc") return TripleVendor::kPC;
@@ -107,7 +100,7 @@ Triple::Triple(std::string_view text) {
     const auto& component = components[index];
 
     int found = -1;
-    if (slot <= 0 && parseArch(component) != TripleArch::kUnknown) {
+    if (slot <= 0 && parseTripleArch(component) != TripleArch::kUnknown) {
       found = 0;
     } else if (slot <= 1 && parseVendor(component) != TripleVendor::kUnknown) {
       found = 1;
@@ -129,7 +122,7 @@ Triple::Triple(std::string_view text) {
     if (found + 1 > printedComponents_) printedComponents_ = found + 1;
   }
 
-  arch_ = parseArch(names_[0]);
+  arch_ = parseTripleArch(names_[0]);
   vendor_ = parseVendor(names_[1]);
   os_ = parseOS(names_[2]);
   environment_ = parseEnvironment(names_[3]);
@@ -191,6 +184,13 @@ auto Triple::str() const -> std::string {
     }
   }
   return result;
+}
+
+auto parseTripleArch(std::string_view name) -> TripleArch {
+  if (name == "aarch64" || name == "arm64") return TripleArch::kAArch64;
+  if (name == "x86_64" || name == "amd64") return TripleArch::kX86_64;
+  if (name == "wasm32") return TripleArch::kWasm32;
+  return TripleArch::kUnknown;
 }
 
 auto to_string(TripleArch arch) -> std::string_view {

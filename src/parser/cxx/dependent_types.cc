@@ -144,12 +144,23 @@ struct IsDependent {
   NonDependentInitializer firstNonDependentInitializer;
   std::vector<NonDependentInitializer> nonDependentInitializers;
 
-  struct TypeExamination {
-    const Type* type;
-    TypeExamination* previous;
+  template <typename Node>
+  struct Examination {
+    Node node;
+    Examination* previous;
   };
 
-  TypeExamination* typesUnderExamination = nullptr;
+  template <typename Node>
+  [[nodiscard]] static auto isUnderExamination(const Examination<Node>* chain,
+                                               Node node) -> bool {
+    for (auto entry = chain; entry; entry = entry->previous) {
+      if (entry->node == node) return true;
+    }
+    return false;
+  }
+
+  Examination<const Type*>* typesUnderExamination = nullptr;
+  Examination<ExpressionAST*>* initializersUnderExamination = nullptr;
   std::array<NonDependentType, 8> nonDependentTypes;
   std::size_t nonDependentTypeCount = 0;
   std::vector<NonDependentType> dynamicNonDependentTypes;
@@ -377,26 +388,11 @@ struct IsDependent {
                                        /*stopAtConcreteSpecialization=*/true);
   }
 
-  [[nodiscard]] auto isPotentiallyConstant(Symbol* symbol, bool isConstexpr)
-      -> bool {
-    if (isConstexpr) return true;
-    if (!symbol || !symbol->type() || !unit) return false;
-
-    auto traits = unit->typeTraits();
-    if (traits.is_reference(symbol->type())) return true;
-
-    auto cv = cv_qualifiers(symbol->type());
-    if (cv != CvQualifiers::kConst) return false;
-
-    auto type = traits.remove_cv(symbol->type());
-    return traits.is_integral(type) || traits.is_enum(type);
-  }
-
   [[nodiscard]] auto hasValueDependentInitializer(Symbol* symbol,
-                                                  ExpressionAST* initializer,
-                                                  bool isConstexpr) -> bool {
-    if (!initializer || !isPotentiallyConstant(symbol, isConstexpr))
-      return false;
+                                                  ExpressionAST* initializer)
+      -> bool {
+    if (!initializer || !unit) return false;
+    if (!isPotentiallyConstant(unit->typeTraits(), symbol)) return false;
     return isDependentInitializer(initializer);
   }
 
@@ -410,8 +406,16 @@ struct IsDependent {
           entry.localTemplateDepth == localTemplateDepth)
         return false;
     }
+    if (isUnderExamination(initializersUnderExamination, expression)) {
+      ++cycles;
+      return false;
+    }
     const auto cyclesBefore = cycles;
+    Examination<ExpressionAST*> examination{expression,
+                                            initializersUnderExamination};
+    initializersUnderExamination = &examination;
     const auto dependent = isDependent(expression);
+    initializersUnderExamination = examination.previous;
     if (dependent || cycles != cyclesBefore) return dependent;
     if (!firstNonDependentInitializer.expression) {
       firstNonDependentInitializer = {expression, localTemplateDepth};
@@ -428,8 +432,7 @@ struct IsDependent {
         unit->timeTrace()->count(TimeTrace::kTypeDependenceCacheHits);
       return false;
     }
-    for (auto entry = typesUnderExamination; entry; entry = entry->previous) {
-      if (entry->type != type) continue;
+    if (isUnderExamination(typesUnderExamination, type)) {
       ++cycles;
       return false;
     }
@@ -444,7 +447,7 @@ struct IsDependent {
     }
     const auto cyclesBefore = cycles;
     const auto unsettledClassesBefore = unsettledClasses;
-    TypeExamination examination{type, typesUnderExamination};
+    Examination<const Type*> examination{type, typesUnderExamination};
     typesUnderExamination = &examination;
     if (unit && unit->timeTrace())
       unit->timeTrace()->count(TimeTrace::kTypeDependenceVisits);
@@ -534,6 +537,12 @@ struct IsDependent {
     return isDependentClass(sym);
   }
 
+  [[nodiscard]] static auto declaresExplicitSpecialization(ClassSymbol* sym)
+      -> bool {
+    auto parameters = sym->templateParameters();
+    return parameters && parameters->isExplicitTemplateSpecialization();
+  }
+
   [[nodiscard]] static auto hasSettledDeclaration(ClassSymbol* sym) -> bool {
     return sym->isSpecialization() || sym->isComplete();
   }
@@ -543,7 +552,8 @@ struct IsDependent {
         ownParameters && !ownParameters->members().empty())
       return true;
 
-    if (sym->templateDeclaration() && !sym->primaryTemplateSymbol())
+    if (sym->templateDeclaration() && !sym->primaryTemplateSymbol() &&
+        !declaresExplicitSpecialization(sym))
       return true;
 
     if (enclosedInDependentTemplate(sym->parent(), true)) return true;
@@ -998,16 +1008,12 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol)) {
     if (field->isStatic() && !field->initializer() && isInTemplateScope(field))
       return true;
-    if (hasValueDependentInitializer(field, field->initializer(),
-                                     field->isConstexpr()))
-      return true;
+    if (hasValueDependentInitializer(field, field->initializer())) return true;
     if (isDependent(field->type())) return true;
   }
   if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
     if (namesTypeDependentPredefinedVariable(unit, var)) return true;
-    if (hasValueDependentInitializer(var, var->initializer(),
-                                     var->isConstexpr()))
-      return true;
+    if (hasValueDependentInitializer(var, var->initializer())) return true;
     if (isDependent(var->type())) return true;
   }
   auto hasDependentPlaceholderReturn = [&](FunctionSymbol* function) {
@@ -1481,6 +1487,16 @@ auto IsDependent::operator()(ParenInitializerAST* ast) -> bool {
 
 auto isDependent(TranslationUnit* unit, ExpressionAST* ast) -> bool {
   return IsDependent{unit}.isDependent(ast);
+}
+
+auto hasConcreteType(TranslationUnit* unit, ExpressionAST* ast) -> bool {
+  if (!ast) return false;
+  auto braced = ast_cast<BracedInitListAST>(ast);
+  if (!braced) return ast->type && !isDependent(unit, ast->type);
+  for (auto element : ListView{braced->expressionList}) {
+    if (!hasConcreteType(unit, element)) return false;
+  }
+  return true;
 }
 
 auto isDependent(TranslationUnit* unit, TypeIdAST* ast) -> bool {

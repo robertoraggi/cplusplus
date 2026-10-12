@@ -202,6 +202,8 @@ struct ParameterAbi {
   std::uint64_t alignment = 0;
 };
 
+enum class CallingConvention { C, CxxFastTls };
+
 struct FunctionInfo {
   std::string_view name;
   TypeRef type;
@@ -215,6 +217,8 @@ struct FunctionInfo {
   bool isUsed = false;
   std::span<const ParameterAbi> parameters;
   ParameterAbi resultAbi;
+  std::string_view section;
+  CallingConvention callingConvention = CallingConvention::C;
 };
 
 struct Initializer {
@@ -311,6 +315,7 @@ struct GlobalInfo {
   bool unknownLocation = false;
   bool isUsed = false;
   bool isThreadLocal = false;
+  std::string_view section;
 };
 
 struct CleanupAction {
@@ -319,6 +324,7 @@ struct CleanupAction {
   std::int64_t depth = 0;
   ValueRef activeFlag;
   std::int64_t elementCount = 1;
+  ValueRef initializedCount;
 };
 
 struct CleanupTarget {
@@ -329,6 +335,7 @@ struct CleanupTarget {
 struct BitfieldInfo {
   std::uint32_t bitOffset = 0;
   std::uint32_t bitWidth = 0;
+  std::uint64_t storageSize = 0;
   std::uint64_t alignment = 0;
 };
 
@@ -352,10 +359,39 @@ struct CallInfo {
   std::span<const ParameterAbi> parameters;
   ParameterAbi resultAbi;
   TypeRef variadicCalleeType;
+  BlockRef normalDestination;
+  BlockRef unwindDestination;
+  CallingConvention callingConvention = CallingConvention::C;
+};
+
+struct InlineAsmInfo {
+  std::string_view asmString;
+  std::string_view constraints;
+  std::span<const ValueRef> arguments;
+  std::span<const TypeRef> results;
+  std::span<const TypeRef> argumentElementTypes;
+  bool hasSideEffects = false;
 };
 
 class Emitter {
  public:
+  virtual void moduleAsm(SourceLocation loc, std::string_view assembly) = 0;
+  virtual void functionPersonality(FunctionRef function,
+                                   std::string_view personality) = 0;
+  [[nodiscard]] virtual auto landingPad(SourceLocation loc,
+                                        std::span<const ValueRef> clauses,
+                                        bool cleanup)
+      -> std::vector<ValueRef> = 0;
+  [[nodiscard]] virtual auto exceptionTypeId(SourceLocation loc,
+                                             ValueRef typeInfo) -> ValueRef = 0;
+  virtual void resumeException(SourceLocation loc, ValueRef exception,
+                               ValueRef selector) = 0;
+  [[nodiscard]] virtual auto inlineAsm(SourceLocation loc,
+                                       const InlineAsmInfo& info)
+      -> std::vector<ValueRef> = 0;
+  [[nodiscard]] virtual auto inlineAsmGoto(
+      SourceLocation loc, const InlineAsmInfo& info, BlockRef fallthrough,
+      std::span<const BlockRef> destinations) -> ValueRef = 0;
   // todo: remove
   [[nodiscard]] auto functionType(std::initializer_list<TypeRef> inputs,
                                   std::initializer_list<TypeRef> results,
@@ -392,7 +428,8 @@ class Emitter {
   }
 
   virtual void beginGlobalInitializer(GlobalRef global) = 0;
-  virtual void globalConstructor(SourceLocation loc, FunctionRef function) = 0;
+  virtual void globalConstructor(SourceLocation loc, FunctionRef function,
+                                 std::uint32_t priority = 65535) = 0;
   virtual auto constant(SourceLocation loc, TypeRef type,
                         const Initializer& value) -> ValueRef = 0;
 

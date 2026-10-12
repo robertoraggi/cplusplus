@@ -151,6 +151,10 @@ struct WrappedUnit {
       request.exists = api["exists"];
       request.readFile = api["readFile"];
       request.shouldContinue = api["shouldContinue"];
+      if (val value = api["exceptions"]; value.isTrue() || value.isFalse())
+        request.config.exceptionsEnabled = value.as<bool>();
+      if (val value = api["rtti"]; value.isTrue() || value.isFalse())
+        request.config.rttiEnabled = value.as<bool>();
     }
 
     return cxx::js::asyncParse(std::move(request));
@@ -255,7 +259,7 @@ auto createUnit(std::string source, std::string fileName, UnitOptions api)
 EMSCRIPTEN_BINDINGS(cxx) {
   register_type<UnitOptions>(
       "UnitOptions",
-      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; optimizationLevel?: number | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
+      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; optimizationLevel?: number | undefined; exceptions?: boolean | undefined; rtti?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
 
   register_type<EmitterDelegate>("EmitterDelegate",
                                  R"(import("./Emitter.js").EmitterDelegate)");

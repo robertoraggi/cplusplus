@@ -1,4 +1,5 @@
-// RUN: %cxx -fsyntax-only %s
+// RUN: %cxx -fsyntax-only -DEXCEPTIONS %s
+// RUN: %cxx -fno-exceptions -fsyntax-only %s
 // RUN: %cxx -fexceptions -fno-exceptions -fsyntax-only %s
 // RUN: %cxx -fexceptions -fsyntax-only -DEXCEPTIONS %s
 // RUN: %cxx -fno-exceptions -fexceptions -fsyntax-only -DEXCEPTIONS %s

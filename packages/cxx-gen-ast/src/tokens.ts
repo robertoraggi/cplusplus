@@ -305,6 +305,7 @@ export const WELL_KNOWN_NAMES: string[] = [
   "initializer_list",
   "nothrow_t",
   "partial_ordering",
+  "reference_wrapper",
   "source_location",
   "strong_ordering",
   "tuple_element",
@@ -438,6 +439,7 @@ export const C_KEYWORDS: string[] = [
 
 export const C_TOKEN_ALIASES = {
   restrict: "__RESTRICT__",
+  __auto_type: "AUTO",
   __alignof__: "ALIGNOF",
   __alignof: "ALIGNOF",
   __asm__: "ASM",

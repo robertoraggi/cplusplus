@@ -220,7 +220,8 @@ struct Control::Private {
   std::unordered_set<ConversionFunctionId> conversionFunctionIds;
   std::unordered_set<TemplateId> templateIds;
 
-  BuiltinVaListType builtinVaListType;
+  const Type* builtinVaListType = nullptr;
+  const Type* constantStringType = nullptr;
   BuiltinMetaInfoType builtinMetaInfoType;
   VoidType voidType;
   NullptrType nullptrType;
@@ -527,6 +528,8 @@ auto Control::memoryLayout() const -> MemoryLayout* { return d->memoryLayout; }
 
 void Control::setMemoryLayout(MemoryLayout* memoryLayout) {
   d->memoryLayout = memoryLayout;
+  d->builtinVaListType = nullptr;
+  d->constantStringType = nullptr;
 }
 
 auto Control::newAnonymousId(std::string_view base) -> const Identifier* {
@@ -575,8 +578,104 @@ auto Control::getSizeType() -> const Type* {
   return getUnsignedLongLongIntType();
 }
 
-auto Control::getBuiltinVaListType() -> const BuiltinVaListType* {
-  return &d->builtinVaListType;
+namespace {
+
+[[nodiscard]] auto newBuiltinRecord(
+    Control& control, ScopeSymbol* scope, std::string_view name,
+    std::span<const std::pair<std::string_view, const Type*>> fields)
+    -> ClassSymbol* {
+  auto layout = control.memoryLayout();
+  auto record = control.newClassSymbol(scope, {});
+  record->setName(control.getIdentifier(name));
+  auto recordLayout = std::make_unique<ClassLayout>();
+  std::uint64_t offset = 0;
+  std::uint64_t alignment = 1;
+  std::uint32_t index = 0;
+  for (const auto& [fieldName, fieldType] : fields) {
+    auto field = control.newFieldSymbol(record, {});
+    field->setName(control.getIdentifier(fieldName));
+    field->setType(fieldType);
+    record->addSymbol(field);
+    const std::uint64_t fieldAlignment = *layout->alignmentOf(fieldType);
+    alignment = std::max(alignment, fieldAlignment);
+    offset = (offset + fieldAlignment - 1) / fieldAlignment * fieldAlignment;
+    recordLayout->setFieldInfo(field, {.offset = offset, .index = index++});
+    offset += *layout->sizeOf(fieldType);
+  }
+  auto size = (offset + alignment - 1) / alignment * alignment;
+  recordLayout->setSize(size);
+  recordLayout->setDataSize(size);
+  recordLayout->setAlignment(alignment);
+  recordLayout->setNonVirtualSize(size);
+  recordLayout->setNonVirtualAlignment(alignment);
+  record->setSizeInBytes(size);
+  record->setAlignment(alignment);
+  record->setLayout(std::move(recordLayout));
+  record->setComplete(true);
+  return record;
+}
+
+}  // namespace
+
+auto Control::getBuiltinVaListType() -> const Type* {
+  if (d->builtinVaListType) return d->builtinVaListType;
+  auto layout = memoryLayout();
+  if (layout && layout->isWebAssembly()) {
+    d->builtinVaListType = getPointerType(getVoidType());
+    return d->builtinVaListType;
+  }
+  if (!layout || (layout->classValueAbiKind() == ClassValueAbiKind::kAArch64 &&
+                  layout->isDarwin())) {
+    d->builtinVaListType = getPointerType(getCharType());
+    return d->builtinVaListType;
+  }
+
+  ScopeSymbol* scope = nullptr;
+  std::string_view name = "__va_list_tag";
+  auto bytePointer = getPointerType(getVoidType());
+  std::vector<std::pair<std::string_view, const Type*>> fields;
+  if (layout->classValueAbiKind() == ClassValueAbiKind::kAArch64) {
+    auto global = newNamespaceSymbol(nullptr, {});
+    auto ns = newNamespaceSymbol(global, {});
+    ns->setName(getIdentifier("std"));
+    scope = ns;
+    name = "__va_list";
+    fields = {{"__stack", bytePointer},
+              {"__gr_top", bytePointer},
+              {"__vr_top", bytePointer},
+              {"__gr_offs", getIntType()},
+              {"__vr_offs", getIntType()}};
+  } else {
+    fields = {{"gp_offset", getUnsignedIntType()},
+              {"fp_offset", getUnsignedIntType()},
+              {"overflow_arg_area", bytePointer},
+              {"reg_save_area", bytePointer}};
+  }
+  auto record = newBuiltinRecord(*this, scope, name, fields);
+  d->builtinVaListType = record->type();
+  if (layout->classValueAbiKind() == ClassValueAbiKind::kX86_64)
+    d->builtinVaListType = getBoundedArrayType(record->type(), 1);
+  return d->builtinVaListType;
+}
+
+auto Control::getConstantStringType() -> const Type* {
+  if (d->constantStringType) return d->constantStringType;
+  const std::pair<std::string_view, const Type*> fields[] = {
+      {"isa", getPointerType(getQualType(getIntType(), CvQualifiers::kConst))},
+      {"flags", getIntType()},
+      {"str", getPointerType(getQualType(getCharType(), CvQualifiers::kConst))},
+      {"length", getLongIntType()}};
+  auto record = newBuiltinRecord(*this, newNamespaceSymbol(nullptr, {}),
+                                 "__NSConstantString_tag", fields);
+  d->constantStringType = record->type();
+  return d->constantStringType;
+}
+
+auto Control::getBuiltinVaListReferenceType() -> const Type* {
+  auto type = getBuiltinVaListType();
+  if (auto array = type_cast<BoundedArrayType>(type))
+    return getPointerType(array->elementType());
+  return getLvalueReferenceType(type);
 }
 
 auto Control::getBuiltinMetaInfoType() -> const BuiltinMetaInfoType* {

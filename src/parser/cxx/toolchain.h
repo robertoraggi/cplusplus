@@ -71,6 +71,10 @@ class Toolchain {
     return exceptionsEnabled_;
   }
 
+  [[nodiscard]] auto rttiEnabled() const -> bool { return rttiEnabled_; }
+
+  void setRttiEnabled(bool rttiEnabled) { rttiEnabled_ = rttiEnabled; }
+
   void setExceptionsEnabled(bool exceptionsEnabled) {
     exceptionsEnabled_ = exceptionsEnabled;
   }
@@ -127,6 +131,7 @@ class Toolchain {
   void undefMacro(const std::string& name);
 
   void addSystemIncludePath(std::string path);
+  void addSystemFrameworkPath(std::string path);
   void addBuiltinIncludePath();
 
   void addCommonMacros();
@@ -172,5 +177,6 @@ class Toolchain {
   LanguageKind language_ = LanguageKind::kCXX;
   const LanguageStandard* languageStandard_ = nullptr;
   bool exceptionsEnabled_ = false;
+  bool rttiEnabled_ = true;
 };
 }  // namespace cxx

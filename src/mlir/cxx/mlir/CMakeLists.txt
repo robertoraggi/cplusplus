@@ -4,6 +4,7 @@ set(SOURCES
     mlir_emitter_module.cc
     mlir_emitter_control_flow.cc
     cxx_dialect_conversions.cc
+    cxx_llvm_translation.cc
 )
 
 add_library(cxx-mlir ${SOURCES})
@@ -46,7 +47,7 @@ else()
 endif()
 
 if (EMSCRIPTEN)
-    target_link_libraries(cxx-mlir PUBLIC LLVMWebAssemblyCodeGen)
+    target_link_libraries(cxx-mlir PUBLIC LLVMWebAssemblyCodeGen LLVMWebAssemblyAsmParser)
 endif()
 
 target_compile_definitions(cxx-mlir PUBLIC CXX_WITH_MLIR)

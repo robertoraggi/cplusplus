@@ -38,7 +38,7 @@ int main() {
 // CHECK-NEXT:                        array-declarator-chunk
 // CHECK-NEXT:                          expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                            literal: 2
-// CHECK-NEXT:                    initializer: equal-initializer
+// CHECK-NEXT:                    initializer: equal-initializer [prvalue int [1][2]]
 // CHECK-NEXT:                      expression: braced-init-list [prvalue int [1][2]]
 // CHECK-NEXT:                        expression-list
 // CHECK-NEXT:                          braced-init-list [prvalue int [2]]
@@ -48,7 +48,6 @@ int main() {
 // CHECK-NEXT:                              int-literal-expression [prvalue int]
 // CHECK-NEXT:                                literal: 2
 // CHECK-NEXT:            for-range-statement
-// CHECK-NEXT:              is-pointer-iterator: true
 // CHECK-NEXT:              range-declaration: structured-binding-declaration
 // CHECK-NEXT:                decl-specifier-list
 // CHECK-NEXT:                  const-qualifier
@@ -58,45 +57,6 @@ int main() {
 // CHECK-NEXT:                    identifier: key
 // CHECK-NEXT:                  name-id
 // CHECK-NEXT:                    identifier: value
-// CHECK-NEXT:                hidden-variable: init-declarator
-// CHECK-NEXT:                  declarator: declarator
-// CHECK-NEXT:                    ptr-op-list
-// CHECK-NEXT:                      reference-operator
-// CHECK-NEXT:                        ref-op: &
-// CHECK-NEXT:                    core-declarator: id-declarator
-// CHECK-NEXT:                      unqualified-id: name-id
-// CHECK-NEXT:                        identifier: $e
-// CHECK-NEXT:                binding-declarator-list
-// CHECK-NEXT:                  init-declarator
-// CHECK-NEXT:                    declarator: declarator
-// CHECK-NEXT:                      ptr-op-list
-// CHECK-NEXT:                        reference-operator
-// CHECK-NEXT:                          ref-op: &
-// CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: key
-// CHECK-NEXT:                    initializer: equal-initializer [lvalue const int]
-// CHECK-NEXT:                      expression: subscript-expression [lvalue const int]
-// CHECK-NEXT:                        base-expression: id-expression [lvalue const int [2]]
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: $e
-// CHECK-NEXT:                        index-expression: int-literal-expression [prvalue unsigned long]
-// CHECK-NEXT:                          literal: 0
-// CHECK-NEXT:                  init-declarator
-// CHECK-NEXT:                    declarator: declarator
-// CHECK-NEXT:                      ptr-op-list
-// CHECK-NEXT:                        reference-operator
-// CHECK-NEXT:                          ref-op: &
-// CHECK-NEXT:                      core-declarator: id-declarator
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: value
-// CHECK-NEXT:                    initializer: equal-initializer [lvalue const int]
-// CHECK-NEXT:                      expression: subscript-expression [lvalue const int]
-// CHECK-NEXT:                        base-expression: id-expression [lvalue const int [2]]
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: $e
-// CHECK-NEXT:                        index-expression: int-literal-expression [prvalue unsigned long]
-// CHECK-NEXT:                          literal: 1
 // CHECK-NEXT:              range-initializer: id-expression [lvalue int [1][2]]
 // CHECK-NEXT:                unqualified-id: name-id
 // CHECK-NEXT:                  identifier: map

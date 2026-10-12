@@ -123,6 +123,11 @@ export const BUILTIN_LEAF_TYPES: BuiltinLeafType[] = [
   { op: "kChar16", spellings: ["char16_t"], expr: "control->getChar16Type()" },
   { op: "kChar32", spellings: ["char32_t"], expr: "control->getChar32Type()" },
   {
+    op: "kUnsignedBitIntAny",
+    spellings: ["unsigned _BitInt(N)"],
+    expr: "nullptr",
+  },
+  {
     op: "kNullptr",
     spellings: ["decltype(nullptr)"],
     expr: "control->getNullptrType()",
@@ -136,6 +141,16 @@ export const BUILTIN_LEAF_TYPES: BuiltinLeafType[] = [
     op: "kBuiltinVaList",
     spellings: ["__builtin_va_list"],
     expr: "control->getBuiltinVaListType()",
+  },
+  {
+    op: "kBuiltinVaListReference",
+    spellings: ["__builtin_va_list&"],
+    expr: "control->getBuiltinVaListReferenceType()",
+  },
+  {
+    op: "kConstantString",
+    spellings: ["__NSConstantString"],
+    expr: "control->getConstantStringType()",
   },
   {
     op: "kAlignValType",
@@ -205,6 +220,7 @@ export function parsePrototype(prototype: string): BuiltinPrototype {
 
 export function encodeType(spelling: string): string[] {
   let text = spelling.trim();
+  if (text === "__builtin_va_list&") return ["kBuiltinVaListReference"];
 
   const declarators: string[] = [];
 

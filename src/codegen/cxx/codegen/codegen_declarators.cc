@@ -29,14 +29,6 @@
 #include <cxx/views/symbols.h>
 
 namespace cxx {
-namespace {
-[[nodiscard]] auto isPotentiallyOverlapping(Symbol* subobject) -> bool {
-  if (symbol_cast<BaseClassSymbol>(subobject)) return true;
-  auto field = symbol_cast<FieldSymbol>(subobject);
-  return field && field->isNoUniqueAddress();
-}
-}  // namespace
-
 struct Codegen::PtrOperatorVisitor {
   Codegen& gen;
 
@@ -194,8 +186,9 @@ auto Codegen::requirement(RequirementAST* ast) -> RequirementResult {
 }
 
 auto Codegen::memInitializer(MemInitializerAST* ast) -> MemInitializerResult {
-  if (ast) return visit(MemInitializerVisitor{*this}, ast);
-  return {};
+  if (!ast) return {};
+  auto fullExpression = FullExpression{*this, lastTokenLocation(ast)};
+  return visit(MemInitializerVisitor{*this}, ast);
 }
 
 auto Codegen::lambdaCapture(LambdaCaptureAST* ast) -> LambdaCaptureResult {
@@ -381,15 +374,21 @@ auto Codegen::RequirementVisitor::operator()(NestedRequirementAST* ast)
 
 auto Codegen::MemInitializerVisitor::operator()(ParenMemInitializerAST* ast)
     -> MemInitializerResult {
-  return emitSubobjectInit(ast, /*bracedInitList=*/nullptr, ast->expressionList,
-                           /*isWritten=*/static_cast<bool>(ast->lparenLoc));
+  return emitSubobjectInit(
+      ast,
+      Initializer{memInitializerClause(gen.unit_->arena(), ast)}
+          .bracedInitList(),
+      *memInitializerListSlot(ast),
+      /*isWritten=*/static_cast<bool>(ast->lparenLoc));
 }
 
 auto Codegen::MemInitializerVisitor::operator()(BracedMemInitializerAST* ast)
     -> MemInitializerResult {
   return emitSubobjectInit(
-      ast, ast->bracedInitList,
-      ast->bracedInitList ? ast->bracedInitList->expressionList : nullptr,
+      ast,
+      Initializer{memInitializerClause(gen.unit_->arena(), ast)}
+          .bracedInitList(),
+      *memInitializerListSlot(ast),
       /*isWritten=*/ast->bracedInitList != nullptr);
 }
 
@@ -432,6 +431,10 @@ auto Codegen::MemInitializerVisitor::emitDelegationOrVirtualBaseInit(
                          targetPtr, args,
                          /*completeObject=*/delegatesToTargetConstructor &&
                              inCompleteObjectVariant);
+  gen.addSubobjectCleanup(
+      loc, targetPtr, targetClass->type(),
+      delegatesToTargetConstructor && inCompleteObjectVariant, true,
+      initializesVirtualBase);
   return {};
 }
 
@@ -466,6 +469,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
     targetType = base->symbol() ? base->symbol()->type() : nullptr;
   }
 
+  const auto writtenBraced = bracedInitList != nullptr;
+
   if (!bracedInitList && expressionList && !expressionList->next)
     bracedInitList = Initializer{expressionList->value}.bracedInitList();
 
@@ -484,7 +489,9 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
   auto evaluateArguments = [&] {
     std::vector<ExpressionResult> values;
     if (aggregateInit) return values;
-    for (auto node : ListView{expressionList})
+    auto arguments = writtenBraced ? gen.constructorArgumentList(bracedInitList)
+                                   : expressionList;
+    for (auto node : ListView{arguments})
       values.push_back(gen.expression(node));
     return values;
   };
@@ -517,11 +524,13 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
   if (!bracedInitList && copiesArrayElementwise(targetType, expressionList)) {
     gen.emitArrayInitialization(loc, fieldPtr, targetType, ast->constructor,
                                 expressionList->value);
+    gen.addSubobjectCleanup(loc, fieldPtr, targetType, true);
     return {};
   }
 
-  if (wholeObject && !isPotentiallyOverlapping(symbol)) {
+  if (wholeObject && !is_potentially_overlapping_subobject(symbol)) {
     (void)gen.emitPrvalueInto(fieldPtr, targetType, expressionList->value, loc);
+    gen.addSubobjectCleanup(loc, fieldPtr, targetType, true);
     return {};
   }
 
@@ -535,8 +544,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
         gen.requiresZeroInitialization(shape->elementType, ast->constructor)) {
       gen.emitZeroInitialization(loc, fieldPtr, targetType);
     }
-    gen.forEachSubobjectElement(
-        loc, fieldPtr, *shape, /*reverse=*/false, [&](ir::ValueRef element) {
+    gen.emitSubobjectConstruction(
+        loc, fieldPtr, *shape, completeObject, [&](ir::ValueRef element) {
           (void)gen.emitCtorCall(loc, ast->constructor, element, args,
                                  completeObject);
         });
@@ -545,6 +554,7 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
 
   if (aggregateInit) {
     gen.emitAggregateInit(fieldPtr, targetType, bracedInitList);
+    gen.addSubobjectCleanup(loc, fieldPtr, targetType, true);
     return {};
   }
 
@@ -560,7 +570,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
         auto zero = gen.emitter_.constantZero(loc, gen.convertType(targetType));
         gen.emitter_.storeBitfield(
             loc, zero, fieldPtr,
-            {fi->bitOffset, fi->bitWidth, fi->allocUnitSizeBytes});
+            Codegen::bitfieldInfo(symbol_cast<ClassSymbol>(bitField->parent()),
+                                  *fi));
       }
       return {};
     }
@@ -584,7 +595,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
     if (auto fi = layout->getFieldInfo(bitField)) {
       gen.emitter_.storeBitfield(
           loc, value, fieldPtr,
-          {fi->bitOffset, fi->bitWidth, fi->allocUnitSizeBytes});
+          Codegen::bitfieldInfo(symbol_cast<ClassSymbol>(bitField->parent()),
+                                *fi));
       return {};
     }
   }

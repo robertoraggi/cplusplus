@@ -5,9 +5,69 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Parser/Parser.h>
 
+#include <initializer_list>
+#include <limits>
+
 #undef GTEST_HAS_CXXABI_H_
 #define GTEST_HAS_CXXABI_H_ 0
 #include <gtest/gtest.h>
+
+template <typename Attr, typename Enum>
+void verifyEnumAttributes(mlir::MLIRContext& context,
+                          std::initializer_list<Enum> values) {
+  llvm::SmallVector<mlir::Attribute> attributes;
+  for (auto value : values) {
+    auto attribute = Attr::get(&context, value);
+    EXPECT_EQ(attribute.getValue(), value);
+    EXPECT_EQ(attribute, Attr::get(&context, value));
+    for (auto previous : attributes) EXPECT_NE(attribute, previous);
+    attributes.push_back(attribute);
+
+    std::string text;
+    llvm::raw_string_ostream stream(text);
+    mlir::Attribute(attribute).print(stream);
+    EXPECT_EQ(mlir::parseAttribute(text, &context), attribute);
+  }
+}
+
+TEST(CxxDialect, EnumAttributesPreserveValuesAndIdentity) {
+  mlir::MLIRContext context;
+  context.loadDialect<mlir::cxx::CxxDialect>();
+  using namespace mlir::cxx;
+  verifyEnumAttributes<InlineKindAttr>(
+      context,
+      {InlineKind::NoInline, InlineKind::InlineHint, InlineKind::AlwaysInline});
+  verifyEnumAttributes<LinkageKindAttr>(
+      context,
+      {LinkageKind::External, LinkageKind::Internal, LinkageKind::LinkOnceODR,
+       LinkageKind::WeakODR, LinkageKind::AvailableExternally,
+       LinkageKind::Appending, LinkageKind::Weak, LinkageKind::ExternalWeak});
+  verifyEnumAttributes<VisibilityAttr>(
+      context,
+      {Visibility::Default, Visibility::Hidden, Visibility::Protected});
+  verifyEnumAttributes<CallingConventionAttr>(
+      context, {CallingConvention::C, CallingConvention::CxxFastTls});
+}
+
+TEST(CxxDialect, ArraySizesRoundTripWithoutTruncation) {
+  mlir::MLIRContext context;
+  context.loadDialect<mlir::cxx::CxxDialect>();
+  auto element = mlir::IntegerType::get(&context, 8);
+  constexpr std::uint64_t sizes[] = {0, 2, std::uint64_t{1} << 32,
+                                     std::numeric_limits<std::uint64_t>::max()};
+  for (auto size : sizes) {
+    auto type = mlir::cxx::ArrayType::get(&context, element, size);
+    EXPECT_EQ(type.getSize(), size);
+    EXPECT_EQ(type, mlir::cxx::ArrayType::get(&context, element, size));
+    std::string text;
+    llvm::raw_string_ostream stream(text);
+    mlir::Type(type).print(stream);
+    EXPECT_EQ(mlir::parseType(text, &context), type);
+  }
+  EXPECT_NE(
+      mlir::cxx::ArrayType::get(&context, element, 0),
+      mlir::cxx::ArrayType::get(&context, element, std::uint64_t{1} << 32));
+}
 
 constexpr unsigned kClassCount = 18;
 

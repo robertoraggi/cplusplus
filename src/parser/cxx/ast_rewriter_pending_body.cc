@@ -179,6 +179,19 @@ struct ASTRewriter::MemberTemplateInstantiation {
         /*declarationOnly=*/true));
   }
 
+  [[nodiscard]] auto addressedSpecialization(FunctionSymbol* instanceTemplate,
+                                             FunctionSymbol* pattern)
+      -> FunctionSymbol* {
+    auto targetType = type_cast<FunctionType>(pattern->type());
+    if (!targetType) return nullptr;
+    TemplateArgumentDeduction deduction{rewrite.unit_};
+    auto deduced = deduction.deduceFromTargetType(instanceTemplate, targetType);
+    if (!deduced) return nullptr;
+    return symbol_cast<FunctionSymbol>(
+        ASTRewriter::instantiate(rewrite.unit_, *deduced, instanceTemplate,
+                                 location, false, true, true));
+  }
+
   template <typename S>
   [[nodiscard]] auto writtenSpecialization(S* instanceTemplate) -> S* {
     if (!templateId) return nullptr;
@@ -189,9 +202,11 @@ struct ASTRewriter::MemberTemplateInstantiation {
   }
 
   template <typename S>
-  [[nodiscard]] auto specializationOf(S* instanceTemplate) -> S* {
+  [[nodiscard]] auto specializationOf(S* instanceTemplate, S* pattern) -> S* {
     if constexpr (std::is_same_v<S, FunctionSymbol>) {
       if (call) return calledSpecialization(instanceTemplate);
+      if (!templateId)
+        return addressedSpecialization(instanceTemplate, pattern);
     }
     return writtenSpecialization(instanceTemplate);
   }
@@ -213,7 +228,7 @@ struct ASTRewriter::MemberTemplateInstantiation {
     if (!instanceTemplate) return nullptr;
     if (!pattern->isSpecialization()) return instanceTemplate;
 
-    if (auto specialization = specializationOf(instanceTemplate))
+    if (auto specialization = specializationOf(instanceTemplate, pattern))
       return specialization;
     return instanceTemplate;
   }
@@ -235,7 +250,6 @@ auto ASTRewriter::instantiatedMemberTemplateFor(Symbol* pattern,
                                                 SourceLocation location)
     -> Symbol* {
   if (!pattern) return nullptr;
-  if (!templateId && !call) return nullptr;
   return visit(MemberTemplateInstantiation{*this, templateId, call, location},
                pattern);
 }
@@ -308,29 +322,34 @@ auto ASTRewriter::completePendingBodyFor(TranslationUnit* unit,
 }
 
 void ASTRewriter::requirePotentiallyInvokedDestructors(
-    TranslationUnit* unit, FunctionSymbol* destructor) {
-  if (!unit || !destructor || !destructor->isDestructor()) return;
+    TranslationUnit* unit, FunctionSymbol* function) {
+  if (!unit || !function) return;
+  if (!function->isDestructor() && !function->isConstructor()) return;
   if (!unit->requiresDefinitions()) return;
 
-  auto classSymbol = symbol_cast<ClassSymbol>(destructor->parent());
+  auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
   if (!classSymbol) return;
   classSymbol = classSymbol->resolvedDefinition();
 
-  auto requireDestructorOf = [&](const Type* type) {
-    requireDestructorOfType(unit, type);
-  };
-
-  for (auto baseClass : classSymbol->baseClasses()) {
-    if (auto base = baseClass->symbol()) requireDestructorOf(base->type());
+  if (function->delegatingConstructor()) {
+    requireDestructorOfType(unit, classSymbol->type());
+    return;
   }
 
-  if (auto layout = classSymbol->layout()) {
+  for (auto baseClass : classSymbol->baseClasses()) {
+    if (baseClass->isVirtual()) continue;
+    if (auto base = baseClass->symbol())
+      requireDestructorOfType(unit, base->type());
+  }
+
+  if (auto layout = classSymbol->layout();
+      layout && !classSymbol->isAbstract()) {
     for (auto virtualBase : layout->virtualBases())
-      requireDestructorOf(virtualBase->type());
+      requireDestructorOfType(unit, virtualBase->type());
   }
 
   for (auto field : classSymbol->members() | views::non_static_fields) {
-    requireDestructorOf(field->type());
+    requireDestructorOfType(unit, field->type());
   }
 }
 
@@ -355,8 +374,7 @@ void ASTRewriter::requireConstructorInitializers(TranslationUnit* unit,
   if (constructor->hasPendingBody()) return;
   auto declaration = constructor->declaration();
   if (!declaration) return;
-  for (auto initializer :
-       ListView{ctor_initializers(declaration->functionBody)})
+  for (auto initializer : ListView{ctor_initializers(constructor)})
     requireDefinitionsNamedBy(unit, initializer);
 }
 
@@ -364,15 +382,35 @@ void ASTRewriter::requireExplicitInstantiationMembers(TranslationUnit* unit,
                                                       ClassSymbol* instance) {
   if (!unit || !instance) return;
 
-  for (auto function : views::members(instance->resolvedDefinition()) |
-                           views::member_functions) {
-    if (function->isExcludedFromExplicitInstantiation()) continue;
-    if (!isUserProvided(function)) continue;
-    auto definition = function->resolvedDefinition();
-    if (!definition->isDefined() && !definition->hasPendingBody()) continue;
-    requireFunctionDefinition(unit, function);
-    unit->addExplicitInstantiationDefinition(function);
+  unit->addExplicitInstantiationDefinition(instance);
+
+  auto classDefinition = instance->resolvedDefinition();
+
+  for (auto function :
+       views::members(classDefinition) | views::member_functions)
+    requireExplicitInstantiationMember(unit, function);
+
+  for (auto constructor : classDefinition->constructors())
+    requireExplicitInstantiationMember(unit, constructor);
+
+  for (auto member : views::members(classDefinition)) {
+    auto memberClass = symbol_cast<ClassSymbol>(member);
+    if (!memberClass || memberClass->isTemplatePattern()) continue;
+    if (!ensureCompleteClass(unit, memberClass)) continue;
+    requireExplicitInstantiationMembers(unit, memberClass);
   }
+}
+
+void ASTRewriter::requireExplicitInstantiationMember(TranslationUnit* unit,
+                                                     FunctionSymbol* function) {
+  if (function->isExcludedFromExplicitInstantiation()) return;
+  if (function->isTemplatePattern()) return;
+  if (!isUserProvided(function)) return;
+  auto definition = function->resolvedDefinition();
+  attachPatternDefinition(unit, definition);
+  if (!definition->isDefined() && !definition->hasPendingBody()) return;
+  requireFunctionDefinition(unit, function);
+  unit->addExplicitInstantiationDefinition(function);
 }
 
 void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
@@ -398,8 +436,7 @@ void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
     if (auto declaration = definition->declaration())
       requireDefinitionsNamedBy(unit, declaration->functionBody);
 
-  if (function->isDestructor() && definesBody)
-    requirePotentiallyInvokedDestructors(unit, definition);
+  if (definesBody) requirePotentiallyInvokedDestructors(unit, definition);
 
   if (function->isConstructor())
     requireConstructorInitializers(unit, definition);
@@ -468,9 +505,16 @@ struct RequireNamedDefinitions final : ASTVisitor {
     ASTVisitor::visit(ast);
   }
 
+  void visit(TypeExceptionDeclarationAST* ast) override {
+    if (ast->symbol) requireEntity(ast->symbol->constructor());
+    if (ast->exceptionObject) accept(ast->exceptionObject->initializer());
+    ASTVisitor::visit(ast);
+  }
+
   void visit(NewExpressionAST* ast) override {
     requireEntity(ast->symbol);
     requireEntity(ast->constructorSymbol);
+    requireEntity(ast->deallocationFunction);
     ASTVisitor::visit(ast);
   }
 
@@ -591,6 +635,13 @@ auto ASTRewriter::patternDefaultArgument(TranslationUnit* unit,
                                 symbol_cast<ParameterSymbol>(pattern->symbol));
 }
 
+auto ASTRewriter::declaresDefaultArgument(ParameterDeclarationAST* pattern)
+    -> bool {
+  if (pattern->expression) return true;
+  auto parameter = symbol_cast<ParameterSymbol>(pattern->symbol);
+  return parameter && parameter->hasDefaultArgument();
+}
+
 auto ASTRewriter::requireDefaultArgument(TranslationUnit* unit,
                                          ParameterSymbol* parameter)
     -> ExpressionAST* {
@@ -634,6 +685,52 @@ auto ASTRewriter::requireDefaultArgument(TranslationUnit* unit,
   return instance->expression;
 }
 
+namespace {
+[[nodiscard]] auto declaredFunctionPrototype(AST* declaration)
+    -> FunctionDeclaratorChunkAST* {
+  if (auto definition = ast_cast<FunctionDefinitionAST>(declaration))
+    return getFunctionPrototype(definition->declarator);
+  auto simple = ast_cast<SimpleDeclarationAST>(declaration);
+  if (!simple || !simple->initDeclaratorList) return nullptr;
+  return getFunctionPrototype(simple->initDeclaratorList->value->declarator);
+}
+
+[[nodiscard]] auto parameterDeclarations(FunctionDeclaratorChunkAST* prototype)
+    -> List<ParameterDeclarationAST*>* {
+  if (!prototype || !prototype->parameterDeclarationClause) return nullptr;
+  return prototype->parameterDeclarationClause->parameterDeclarationList;
+}
+}  // namespace
+
+void ASTRewriter::inheritTemplateDefaultArguments(
+    TranslationUnit* unit, FunctionSymbol* primary,
+    std::span<const TemplateArgument> templateArguments,
+    FunctionDeclaratorChunkAST* specialization) {
+  auto templateDecl = template_declaration_of(primary);
+  if (!templateDecl) return;
+
+  auto patterns = parameterDeclarations(
+      declaredFunctionPrototype(template_declaration_ast(primary)));
+  auto instances = parameterDeclarations(specialization);
+
+  for (; patterns && instances;
+       patterns = patterns->next, instances = instances->next) {
+    auto pattern = patterns->value;
+    auto instance = instances->value;
+    auto parameter = symbol_cast<ParameterSymbol>(instance->symbol);
+    if (!parameter || parameter->hasDefaultArgument()) continue;
+    if (!declaresDefaultArgument(pattern)) continue;
+
+    parameter->setPendingDefaultArgument(std::make_unique<PendingInstantiation>(
+        PendingInstantiation{.pattern = pattern,
+                             .instance = instance,
+                             .templateArguments = {templateArguments.begin(),
+                                                   templateArguments.end()},
+                             .parentScope = primary->parent(),
+                             .depth = templateDecl->depth}));
+  }
+}
+
 auto ASTRewriter::instantiateSeparately(ExpressionAST* pattern, Symbol* owner,
                                         std::string_view construct)
     -> ExpressionAST* {
@@ -670,6 +767,10 @@ void ASTRewriter::completeDeducedReturnType(TranslationUnit* unit,
 auto ASTRewriter::completedSymbolType(TranslationUnit* unit, Symbol* symbol)
     -> const Type* {
   if (!symbol) return nullptr;
+  if (auto field = symbol_cast<FieldSymbol>(symbol);
+      field && field->isStatic()) {
+    if (auto definition = field->definition()) return definition->type();
+  }
   completeDeducedReturnType(unit, symbol);
   if (auto function = symbol_cast<FunctionSymbol>(symbol))
     completePendingExceptionSpecification(unit, function);
@@ -680,6 +781,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
                                       bool captureBodyErrors)
     -> std::vector<Diagnostic> {
   if (!func || !func->hasPendingBody()) return {};
+  if (func->isExplicitlySpecialized()) return {};
 
   auto pending = func->pendingBody();
 

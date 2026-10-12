@@ -36,6 +36,7 @@ class Arena;
 class Control;
 class TranslationUnit;
 struct Candidate;
+struct ConstructorResult;
 
 enum class ClassAdjustment { kNone, kDerivedToBase, kBaseToDerived };
 
@@ -65,6 +66,10 @@ class StandardConversion {
       ConversionContext context = ConversionContext::kImplicit)
       -> ImplicitConversionSequence;
 
+  [[nodiscard]] auto conversionFunctionSequence(ExpressionAST* expr,
+                                                FunctionSymbol* function)
+      -> ImplicitConversionSequence;
+
   [[nodiscard]] auto isAccessible(const ImplicitConversionSequence& sequence)
       -> bool;
 
@@ -82,6 +87,7 @@ class StandardConversion {
 
   void atomicToNonAtomic(ExpressionAST*& expr);
   void prepareOperand(ExpressionAST*& expr);
+  void bindDesignatedFunction(ExpressionAST* expr);
   void promoteOperand(ExpressionAST*& expr);
   void decayOperand(ExpressionAST*& expr);
 
@@ -120,12 +126,31 @@ class StandardConversion {
 
   void convertPointer(ExpressionAST*& expr, const Type* targetType);
 
-  [[nodiscard]] auto convertClassOperandForBuiltinOperator(ExpressionAST*& expr)
+  [[nodiscard]] auto constructClassByDirectInitialization(ExpressionAST*& expr,
+                                                          const Type* classType)
       -> bool;
+
+  [[nodiscard]] auto convertClassOperandToIntegralOrEnumeration(
+      ExpressionAST*& expr) -> bool;
+
+  [[nodiscard]] auto convertClassTargetForBuiltinCompoundAssignment(
+      ExpressionAST*& expr) -> bool;
+
+  [[nodiscard]] auto convertClassOperandForBuiltinOperator(
+      ExpressionAST*& expr, const Type* enumeration = nullptr) -> bool;
 
   [[nodiscard]] auto isNullPointerConstant(ExpressionAST* expr) const -> bool;
 
   void foldConstantRead(ExpressionAST*& expression);
+  [[nodiscard]] auto readOfPotentialResult(ImplicitCastExpressionAST* read,
+                                           ExpressionAST* operand)
+      -> ExpressionAST*;
+  void foldConditionalRead(ExpressionAST*& expression,
+                           ImplicitCastExpressionAST* read,
+                           ConditionalExpressionAST* conditional);
+  void foldCommaRead(ExpressionAST*& expression,
+                     ImplicitCastExpressionAST* read,
+                     BinaryExpressionAST* comma);
 
   void appendDefaultArguments(FunctionSymbol* function,
                               List<ExpressionAST*>** list,
@@ -136,8 +161,11 @@ class StandardConversion {
 
   [[nodiscard]] auto referenceBinding(const Type* targetType,
                                       const Type* sourceType,
-                                      ValueCategory valueCategory)
+                                      ValueCategory valueCategory,
+                                      bool sourceIsBitField)
       -> std::optional<ImplicitConversionSequence>;
+
+  [[nodiscard]] static auto designatesBitField(ExpressionAST* expr) -> bool;
 
  private:
   [[nodiscard]] auto conversionFunctionResultType(FunctionSymbol* function,
@@ -156,7 +184,8 @@ class StandardConversion {
       ImplicitConversionSequence result,
       std::optional<ImplicitConversionSequence> object);
   void addConstructorCandidates(std::vector<Candidate>& candidates,
-                                ExpressionAST* expr, const Type* targetType);
+                                ExpressionAST* expr, const Type* targetType,
+                                InitializationKind initializationKind);
   [[nodiscard]] auto constructorArgumentConversion(
       ExpressionAST* expr, const FunctionType* constructorType)
       -> ImplicitConversionSequence;
@@ -211,8 +240,10 @@ class StandardConversion {
   void appendTemporaryMaterialization(ImplicitConversionSequence& sequence);
 
   void recordUserDefinedConversion(ImplicitCastExpressionAST* cast,
-                                   FunctionSymbol* function,
-                                   bool argumentConverted = false);
+                                   FunctionSymbol* function);
+
+  void applyConversionFunctionObjectSteps(
+      const ImplicitConversionSequence& sequence, ExpressionAST*& expr);
 
   [[nodiscard]] auto selectCopyConstructor(
       ExpressionAST* expr, const Type* destinationType,
@@ -220,7 +251,8 @@ class StandardConversion {
 
   [[nodiscard]] auto listInitializationSequence(
       BracedInitListAST* bracedInitList, const Type* targetType,
-      InitializationKind initializationKind) -> ImplicitConversionSequence;
+      InitializationKind initializationKind, ConversionContext context)
+      -> ImplicitConversionSequence;
 
   [[nodiscard]] auto isDesignatedInitializerList(
       BracedInitListAST* bracedInitList) const -> bool;
@@ -306,17 +338,15 @@ class StandardConversion {
   void requireNamedFunction(ExpressionAST* expr);
 
   void materializeConstructorArguments(ImplicitCastExpressionAST* cast,
-                                       FunctionSymbol* constructor,
-                                       bool argumentConverted);
+                                       FunctionSymbol* constructor);
 
   [[nodiscard]] auto requiresCopyConstruction(ExpressionAST* expr,
                                               const Type* destinationType) const
       -> bool;
 
-  [[nodiscard]] auto listInitializes(BracedInitListAST* bracedInitList,
-                                     const Type* targetType,
-                                     InitializationKind initializationKind)
-      -> bool;
+  [[nodiscard]] auto selectListInitializationConstructor(
+      BracedInitListAST* bracedInitList, const Type* targetType,
+      InitializationKind initializationKind) -> ConstructorResult;
 
   [[nodiscard]] auto instantiateConversionFunctionTemplate(
       FunctionSymbol* convFunc, const Type* targetType, ExpressionAST* expr)

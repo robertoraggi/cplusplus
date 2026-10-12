@@ -238,10 +238,6 @@ void ASTVisitor::visit(StructuredBindingDeclarationAST* ast) {
     accept(node);
   }
   accept(ast->initializer);
-  accept(ast->hiddenVariable);
-  for (auto node : ListView{ast->bindingDeclaratorList}) {
-    accept(node);
-  }
 }
 
 void ASTVisitor::visit(AsmOperandAST* ast) { accept(ast->expression); }
@@ -380,9 +376,13 @@ void ASTVisitor::visit(NestedNamespaceSpecifierAST* ast) {}
 
 void ASTVisitor::visit(LabeledStatementAST* ast) { accept(ast->statement); }
 
-void ASTVisitor::visit(CaseStatementAST* ast) { accept(ast->expression); }
+void ASTVisitor::visit(CaseStatementAST* ast) {
+  accept(ast->expression);
+  accept(ast->upperExpression);
+  accept(ast->statement);
+}
 
-void ASTVisitor::visit(DefaultStatementAST* ast) {}
+void ASTVisitor::visit(DefaultStatementAST* ast) { accept(ast->statement); }
 
 void ASTVisitor::visit(ExpressionStatementAST* ast) {
   for (auto node : ListView{ast->attributeList}) {
@@ -451,11 +451,6 @@ void ASTVisitor::visit(ForRangeStatementAST* ast) {
   accept(ast->rangeDeclaration);
   accept(ast->rangeInitializer);
   accept(ast->statement);
-  accept(ast->beginInitializer);
-  accept(ast->endInitializer);
-  accept(ast->condition);
-  accept(ast->increment);
-  accept(ast->element);
 }
 
 void ASTVisitor::visit(ForStatementAST* ast) {
@@ -822,7 +817,10 @@ void ASTVisitor::visit(TypeGenericAssociationAST* ast) {
 
 void ASTVisitor::visit(DotDesignatorAST* ast) {}
 
-void ASTVisitor::visit(SubscriptDesignatorAST* ast) { accept(ast->expression); }
+void ASTVisitor::visit(SubscriptDesignatorAST* ast) {
+  accept(ast->expression);
+  accept(ast->upperExpression);
+}
 
 void ASTVisitor::visit(TemplateTypeParameterAST* ast) {
   for (auto node : ListView{ast->templateParameterList}) {

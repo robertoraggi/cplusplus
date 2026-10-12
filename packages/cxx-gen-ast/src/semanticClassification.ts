@@ -193,6 +193,11 @@ export const bindings: Record<string, ClassBindings> = {
       writeElement:
         "$->addBefriendingClass($element.befriendingClass, $element.arguments)",
     },
+    constructorInitializers_: {
+      cls: "P",
+      read: "$->constructorInitializers()",
+      write: "if ($value) $->setConstructorInitializers(*$value)",
+    },
     pendingBody_: {
       cls: "P",
       read: "$->pendingBody()",

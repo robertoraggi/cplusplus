@@ -3754,6 +3754,14 @@
     "consteval": true
   },
   {
+    "name": "__builtin___CFStringMakeConstantString",
+    "prototype": "const __NSConstantString* __builtin___CFStringMakeConstantString(const char*)",
+    "constexpr": false,
+    "noexcept": true,
+    "validate": "validateBuiltinCFStringMakeConstantString",
+    "codegen": "codegenBuiltinCFStringMakeConstantString"
+  },
+  {
     "name": "__builtin_huge_val",
     "prototype": "constexpr double __builtin_huge_val()",
     "constexpr": true,
@@ -3812,6 +3820,14 @@
     "noexcept": true,
     "validate": "validateBuiltinAllocaWithAlign",
     "codegen": "codegenBuiltinAlloca"
+  },
+  {
+    "name": "__builtin_assume",
+    "prototype": "void __builtin_assume(bool)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinAssume",
+    "codegen": "codegenBuiltinAssume"
   },
   {
     "name": "__builtin_assume_aligned",
@@ -4094,12 +4110,14 @@
       "constexpr int __builtin_clzg(unsigned long)",
       "constexpr int __builtin_clzg(unsigned long long)",
       "constexpr int __builtin_clzg(unsigned __int128)",
+      "constexpr int __builtin_clzg(unsigned _BitInt(N))",
       "constexpr int __builtin_clzg(unsigned char, int)",
       "constexpr int __builtin_clzg(unsigned short, int)",
       "constexpr int __builtin_clzg(unsigned int, int)",
       "constexpr int __builtin_clzg(unsigned long, int)",
       "constexpr int __builtin_clzg(unsigned long long, int)",
-      "constexpr int __builtin_clzg(unsigned __int128, int)"
+      "constexpr int __builtin_clzg(unsigned __int128, int)",
+      "constexpr int __builtin_clzg(unsigned _BitInt(N), int)"
     ],
     "constexpr": true,
     "noexcept": true,
@@ -4115,12 +4133,14 @@
       "constexpr int __builtin_ctzg(unsigned long)",
       "constexpr int __builtin_ctzg(unsigned long long)",
       "constexpr int __builtin_ctzg(unsigned __int128)",
+      "constexpr int __builtin_ctzg(unsigned _BitInt(N))",
       "constexpr int __builtin_ctzg(unsigned char, int)",
       "constexpr int __builtin_ctzg(unsigned short, int)",
       "constexpr int __builtin_ctzg(unsigned int, int)",
       "constexpr int __builtin_ctzg(unsigned long, int)",
       "constexpr int __builtin_ctzg(unsigned long long, int)",
-      "constexpr int __builtin_ctzg(unsigned __int128, int)"
+      "constexpr int __builtin_ctzg(unsigned __int128, int)",
+      "constexpr int __builtin_ctzg(unsigned _BitInt(N), int)"
     ],
     "constexpr": true,
     "noexcept": true,
@@ -4135,7 +4155,8 @@
       "constexpr int __builtin_popcountg(unsigned int)",
       "constexpr int __builtin_popcountg(unsigned long)",
       "constexpr int __builtin_popcountg(unsigned long long)",
-      "constexpr int __builtin_popcountg(unsigned __int128)"
+      "constexpr int __builtin_popcountg(unsigned __int128)",
+      "constexpr int __builtin_popcountg(unsigned _BitInt(N))"
     ],
     "constexpr": true,
     "noexcept": true,
@@ -4451,7 +4472,7 @@
   },
   {
     "name": "__builtin_vsnprintf",
-    "prototype": "int __builtin_vsnprintf(char*, __SIZE_TYPE__, const char*, __builtin_va_list&)",
+    "prototype": "int __builtin_vsnprintf(char*, __SIZE_TYPE__, const char*, __builtin_va_list)",
     "constexpr": false,
     "noexcept": true,
     "libcall": true
@@ -4541,5 +4562,25 @@
     "noexcept": true,
     "typeCheck": "checkBuiltinVectorReduce",
     "codegen": "codegenBuiltinVectorReduce"
+  },
+  {
+    "name": "__builtin_frame_address",
+    "prototype": "void* __builtin_frame_address(unsigned int)",
+    "constexpr": false,
+    "noexcept": true,
+    "validate": "validateBuiltinStackFrameLevel"
+  },
+  {
+    "name": "__builtin_return_address",
+    "prototype": "void* __builtin_return_address(unsigned int)",
+    "constexpr": false,
+    "noexcept": true,
+    "validate": "validateBuiltinStackFrameLevel"
+  },
+  {
+    "name": "__builtin_thread_pointer",
+    "prototype": "void* __builtin_thread_pointer()",
+    "constexpr": false,
+    "noexcept": true
   }
 ]
