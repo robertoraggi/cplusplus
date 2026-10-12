@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
@@ -150,12 +151,44 @@ namespace {
 }
 }  // namespace
 
+auto hasConstantTrueEnableIfConditions(TranslationUnit* unit,
+                                       FunctionSymbol* function) -> bool {
+  if (function->enableIfConditions().empty()) return true;
+  ASTInterpreter interpreter{unit};
+  for (auto condition : function->enableIfConditions()) {
+    auto value = interpreter.evaluate(condition);
+    if (!value || interpreter.toBool(*value) != true) return false;
+  }
+  return true;
+}
+
+auto haveSameEnableIfConditions(TranslationUnit* unit, FunctionSymbol* lhs,
+                                FunctionSymbol* rhs) -> bool {
+  const auto& left = lhs->enableIfConditions();
+  const auto& right = rhs->enableIfConditions();
+  if (left.size() != right.size()) return false;
+  for (std::size_t index = 0; index < left.size(); ++index)
+    if (!TemplateEquivalence{unit}.same(left[index], right[index]))
+      return false;
+  return true;
+}
+
 auto compareCandidateOrdering(TranslationUnit* unit, FunctionSymbol* candidate,
                               bool candidateFromTemplate, FunctionSymbol* other,
                               bool otherFromTemplate, bool preferNonTemplate,
                               const PartialOrderingContext& context) -> int {
   candidate = orderedFunction(candidate);
   other = orderedFunction(other);
+
+  const auto& leftConditions = candidate->enableIfConditions();
+  const auto& rightConditions = other->enableIfConditions();
+  for (std::size_t index = 0;
+       index < std::min(leftConditions.size(), rightConditions.size()); ++index)
+    if (!TemplateEquivalence{unit}.same(leftConditions[index],
+                                        rightConditions[index]))
+      return 0;
+  if (leftConditions.size() != rightConditions.size())
+    return leftConditions.size() > rightConditions.size() ? 1 : -1;
 
   if (preferNonTemplate && candidateFromTemplate != otherFromTemplate)
     return candidateFromTemplate ? -1 : 1;
@@ -418,8 +451,6 @@ auto OverloadResolution::selectBestViableFunction(
   if (best.empty()) return {};
   if (best.size() > 1) return {best[0], true};
 
-  ASTRewriter::instantiateSelectedSpecializationDefinition(
-      unit_, best[0]->symbol, best[0]->deducedTemplateArgs);
   return {best[0], false};
 }
 
@@ -509,6 +540,11 @@ auto OverloadResolution::resolveConstructor(
     return traits.is_same(traits.remove_cv(referencedType),
                           classSymbol->type());
   };
+
+  const bool singleNestedBracedElement =
+      isListInitialization(initializationKind) &&
+      !initializerListConstructorsOnly && args.size() == 1 &&
+      ast_cast<BracedInitListAST>(args.front()) != nullptr;
 
   auto isInitializerListConstructor = [&](FunctionSymbol* ctor) {
     if (!is_callable_with_one_argument(ctor)) return false;
@@ -602,7 +638,9 @@ auto OverloadResolution::resolveConstructor(
     auto paramEnd = type->parameterTypes().end();
     for (size_t i = 0; i < args.size() && paramIt != paramEnd; ++i, ++paramIt) {
       const auto convertsFirstCopyInitializationArgument =
-          excludesExplicitConstructors && i == 0;
+          (excludesExplicitConstructors && i == 0) ||
+          (singleNestedBracedElement && i == 0 &&
+           bindsReferenceToInitializedClass(*paramIt));
 
       const auto admitsExplicitConversionFunctions =
           i == 0 && args.size() == 1 &&
@@ -633,7 +671,10 @@ auto OverloadResolution::resolveConstructor(
       }
     }
 
-    if (cand.viable) result.candidates.push_back(std::move(cand));
+    if (!cand.viable) continue;
+    if (isExcludedDefaultedMoveMember(unit_, ctor)) continue;
+
+    result.candidates.push_back(std::move(cand));
   }
 
   auto [bestPtr, ambiguous] =
@@ -733,7 +774,31 @@ auto OverloadResolution::buildCallCandidate(
     }
   }
 
+  if (!enableIfConditionsSatisfied(cand, args)) {
+    reject("enable_if condition is not satisfied");
+    return std::nullopt;
+  }
+
+  if (isExcludedDefaultedMoveMember(unit_, function)) return std::nullopt;
+
   return cand;
+}
+
+auto OverloadResolution::enableIfConditionsSatisfied(
+    const Candidate& candidate, std::span<ExpressionAST* const> arguments)
+    -> bool {
+  auto function = candidate.symbol;
+  if (function->enableIfConditions().empty()) return true;
+  std::vector<ExpressionAST*> converted(arguments.begin(), arguments.end());
+  for (std::size_t index = 0; index < candidate.conversions.size(); ++index)
+    applyImplicitConversion(candidate.conversions[index], converted[index]);
+  ASTInterpreter interpreter{unit_};
+  for (auto condition : function->enableIfConditions()) {
+    auto value =
+        interpreter.evaluateWithParameters(function, converted, condition);
+    if (!value || interpreter.toBool(*value) != true) return false;
+  }
+  return true;
 }
 
 auto OverloadResolution::deduceTemplateCandidate(
@@ -764,6 +829,40 @@ auto OverloadResolution::collectCandidates(Symbol* symbol) const
     -> std::vector<FunctionSymbol*> {
   auto functions = views::each_function(symbol);
   return {functions.begin(), functions.end()};
+}
+
+auto OverloadResolution::enumerationTypesOf(const Type* type)
+    -> std::vector<const Type*> {
+  if (traits.is_enum(type)) return {type};
+
+  std::vector<const Type*> types;
+  auto classType = type_cast<ClassType>(type);
+  if (!classType) return types;
+
+  auto classSymbol = classType->definition();
+  traits.requireCompleteClass(classSymbol);
+  for (auto function : classSymbol->visibleConversionFunctions()) {
+    if (function->isExplicit()) continue;
+    auto functionType = type_cast<FunctionType>(function->type());
+    if (!functionType) continue;
+    auto result = traits.remove_cvref(functionType->returnType());
+    if (!traits.is_enum(result)) continue;
+    if (std::ranges::find(types, result) == types.end())
+      types.push_back(result);
+  }
+  return types;
+}
+
+auto OverloadResolution::commonEnumerationType(const Type* left,
+                                               const Type* right)
+    -> const Type* {
+  auto rightTypes = enumerationTypesOf(right);
+  for (auto candidate : enumerationTypesOf(left)) {
+    for (auto other : rightTypes) {
+      if (traits.is_same(candidate, other)) return candidate;
+    }
+  }
+  return nullptr;
 }
 
 auto OverloadResolution::builtinBinaryOperatorParameterType(
@@ -806,8 +905,10 @@ auto OverloadResolution::builtinBinaryOperatorParameterType(
   auto left = traits.remove_cvref(leftType);
   auto right = traits.remove_cvref(rightType);
 
-  if (isComparison && traits.is_enum(left) && traits.is_same(left, right))
-    return left;
+  if (isComparison) {
+    if (auto enumeration = commonEnumerationType(left, right))
+      return enumeration;
+  }
 
   const auto isArithmeticOperand = [&](const Type* type) {
     return traits.is_arithmetic(type) ||
@@ -945,7 +1046,7 @@ auto OverloadResolution::resolveBinaryOperator(
     bool isMember = candidate->isImplicitObjectMemberFunction();
     List<TemplateArgumentAST*>* deducedArgsForCandidate = nullptr;
 
-    if (candidate->templateDeclaration() && !candidate->isSpecialization()) {
+    if (candidate->isTemplatePattern()) {
       int operandCount = rightExpr ? (isMember ? 1 : 2) : (isMember ? 0 : 1);
       if (templateCandidateArityRejects(candidate, operandCount)) continue;
 
@@ -1040,6 +1141,7 @@ auto OverloadResolution::resolveBinaryOperator(
 
     if (!left) continue;
     if (candidateRightExpr && (!right || !*right)) continue;
+    if (isExcludedDefaultedMoveMember(unit_, candidate)) continue;
 
     if (operatorCandidate.reversed && right) std::swap(left, *right);
     viable.push_back({candidate, left, right, deducedArgsForCandidate,
@@ -1279,7 +1381,7 @@ auto OverloadResolution::lookupOperator(
   const bool isEquality =
       op == TokenKind::T_EQUAL_EQUAL || op == TokenKind::T_EXCLAIM_EQUAL;
 
-  if (rightType) {
+  if (rightType && unit_->hasRewrittenComparisonCandidates()) {
     if (isRelational) {
       addRewrittenCandidates(TokenKind::T_LESS_EQUAL_GREATER, type, rightType,
                              false);

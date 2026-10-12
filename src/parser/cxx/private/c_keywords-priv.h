@@ -960,7 +960,23 @@ static inline auto classifyC11(const char* s) -> cxx::TokenKind {
           }
         }
       } else if (s[2] == 'a') {
-        if (s[3] == 'l') {
+        if (s[3] == 'u') {
+          if (s[4] == 't') {
+            if (s[5] == 'o') {
+              if (s[6] == '_') {
+                if (s[7] == 't') {
+                  if (s[8] == 'y') {
+                    if (s[9] == 'p') {
+                      if (s[10] == 'e') {
+                        return cxx::TokenKind::T___AUTO_TYPE;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } else if (s[3] == 'l') {
           if (s[4] == 'i') {
             if (s[5] == 'g') {
               if (s[6] == 'n') {

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
 #include <cxx/builtin_signature.h>
 #include <cxx/const_value.h>
@@ -77,11 +78,23 @@ struct AssociatedNamespaceCollector {
     if (cls && !std::ranges::contains(classes, cls)) classes.push_back(cls);
   }
 
-  void collect(const Symbol* symbol) {
+  void collect(Symbol* symbol) {
     if (!symbol) return;
+    if (auto pack = symbol_cast<ParameterPackSymbol>(symbol)) {
+      for (auto element : pack->elements()) collectPackElement(element);
+      return;
+    }
     collect(symbol->type());
     addEnclosingClass(symbol);
     addNamespace(symbol->enclosingNamespace());
+  }
+
+  void collectPackElement(Symbol* element) {
+    if (auto variable = symbol_cast<VariableSymbol>(element)) {
+      if (auto value = variable->constValue()) collect(*value);
+      return;
+    }
+    collect(element);
   }
 
   void collect(const ConstValue& value) {
@@ -215,14 +228,19 @@ void collectQualifiedNamespaceDeclarations(NamespaceSymbol* scope,
   }
 }
 
+[[nodiscard]] auto declaresSameEntity(Symbol* first, Symbol* second) -> bool {
+  if (first == second) return true;
+  auto ns = resolve_namespace_alias(first);
+  if (ns && ns == resolve_namespace_alias(second)) return true;
+  if (!is_type(first) || !is_type(second)) return false;
+  return first->type() == second->type();
+}
+
 auto uniqueLookupDeclaration(const std::vector<Symbol*>& found) -> Symbol* {
   if (found.empty()) return nullptr;
   auto first = found.front();
   for (auto symbol : found) {
-    if (symbol == first) continue;
-    auto ns = resolve_namespace_alias(first);
-    if (ns && ns == resolve_namespace_alias(symbol)) continue;
-    return nullptr;
+    if (!declaresSameEntity(first, symbol)) return nullptr;
   }
   return first;
 }
@@ -344,10 +362,13 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
 
 auto qualifiedLookupType(Symbol* scopeOrAlias, const Identifier* id)
     -> Symbol* {
-  auto resolved = resolveTypeScope(scopeOrAlias);
-  if (!resolved) return nullptr;
+  return qualifiedLookupType(resolveTypeScope(scopeOrAlias), id);
+}
+
+auto qualifiedLookupType(ScopeSymbol* scope, const Identifier* id) -> Symbol* {
+  if (!scope) return nullptr;
   VisitedScopes visited;
-  if (auto ns = symbol_cast<NamespaceSymbol>(resolved)) {
+  if (auto ns = symbol_cast<NamespaceSymbol>(scope)) {
     std::vector<Symbol*> found;
     collectQualifiedNamespaceDeclarations(
         ns, id,
@@ -357,7 +378,7 @@ auto qualifiedLookupType(Symbol* scopeOrAlias, const Identifier* id)
         found, visited);
     return uniqueLookupDeclaration(found);
   }
-  return lookupTypeHelper(resolved, id, visited);
+  return lookupTypeHelper(scope, id, visited);
 }
 
 auto qualifiedLookupNamespace(Symbol* scopeOrAlias, const Identifier* id)
@@ -507,11 +528,9 @@ template <typename Predicate>
 
 }  // namespace
 
-auto unqualifiedLookupIncludingInlineNamespaces(Control* control,
-                                                Scope* lexicalScope,
-                                                const Name* name,
-                                                bool skipClassNames,
-                                                bool* ambiguous) -> Symbol* {
+auto unqualifiedLookupIncludingInlineNamespaces(
+    Control* control, Scope* lexicalScope, const Name* name,
+    bool skipClassNames, bool* ambiguous, NameUse use) -> Symbol* {
   if (!name) return nullptr;
 
   auto accept = [skipClassNames](Symbol* symbol) {
@@ -535,6 +554,9 @@ auto unqualifiedLookupIncludingInlineNamespaces(Control* control,
     }
 
     auto result = lookupClassMember(cls, name, accept);
+    if (result.ambiguous && use == NameUse::kTemplateName &&
+        result.injectedClassTemplate)
+      return result.injectedClassTemplate;
     if (result.ambiguous) {
       if (ambiguous) *ambiguous = true;
       return ambiguous ? result.symbol : nullptr;
@@ -598,8 +620,7 @@ auto designatedFunction(Symbol* symbol) -> FunctionSymbol* {
   if (functions.size() != 1) return nullptr;
 
   auto function = functions.front();
-  if (function->templateDeclaration() && !function->isSpecialization())
-    return nullptr;
+  if (function->isTemplatePattern()) return nullptr;
 
   return function;
 }
@@ -728,12 +749,29 @@ void declareGlobalFunction(TranslationUnit* unit, ScopeSymbol* globalScope,
 
 }  // namespace
 
+auto isPlacementAllocationFunction(TranslationUnit* unit,
+                                   FunctionSymbol* function) -> bool {
+  if (!function) return false;
+  auto type = type_cast<FunctionType>(function->type());
+  if (!type) return false;
+  if (function->templateDeclaration() || function->isSpecialization())
+    return true;
+  if (type->isVariadic()) return true;
+  const auto& parameters = type->parameterTypes();
+  if (parameters.size() == 1) return false;
+  if (parameters.size() == 2 &&
+      unit->typeTraits().is_align_val_t(parameters[1]))
+    return false;
+  return true;
+}
+
 auto deallocationSignatureOf(TranslationUnit* unit, FunctionSymbol* fn)
     -> std::optional<DeallocationSignature> {
   if (!fn) return std::nullopt;
   auto funcType = type_cast<FunctionType>(fn->type());
   if (!funcType) return std::nullopt;
-  if (fn->isSpecialization()) return std::nullopt;
+  if (funcType->isVariadic()) return std::nullopt;
+  if (fn->templateDeclaration() || fn->isSpecialization()) return std::nullopt;
 
   const std::span parameterTypes{funcType->parameterTypes()};
   if (parameterTypes.empty()) return std::nullopt;
@@ -776,7 +814,8 @@ auto deallocationSignatureOf(TranslationUnit* unit, FunctionSymbol* fn)
 }
 
 auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
-                                const Type* objectType, bool isArrayDelete)
+                                const Type* objectType, bool isArrayDelete,
+                                DeallocationContext context)
     -> FunctionSymbol* {
   auto control = unit->control();
   const auto op =
@@ -787,8 +826,14 @@ auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
 
   auto collect = [&](Symbol* declarations) {
     for (auto fn : views::each_function(declarations)) {
-      if (auto signature = deallocationSignatureOf(unit, fn))
-        candidates.emplace_back(fn, *signature);
+      auto signature = deallocationSignatureOf(unit, fn);
+      if (!signature) continue;
+      if (context != DeallocationContext::kDeleteExpression &&
+          signature->isDestroying)
+        continue;
+      auto constraints = ASTRewriter::evaluateAssociatedConstraints(unit, fn);
+      if (!constraints || !*constraints) continue;
+      candidates.emplace_back(fn, *signature);
     }
   };
 
@@ -803,6 +848,7 @@ auto resolveUsualOperatorDelete(TranslationUnit* unit, ClassSymbol* classSymbol,
   }
 
   if (!inClassScope) {
+    if (context == DeallocationContext::kArrayCookie) return nullptr;
     declareImplicitAllocationFunctions(unit, op);
     collect(qualifiedLookup(unit->globalScope(), name));
   }
@@ -929,7 +975,6 @@ auto resolveBuiltinLibcallSymbol(TranslationUnit* unit, const char* nameStr,
   fn->setName(name);
   fn->setType(funcType);
   fn->setLanguageLinkage(LanguageKind::kC);
-  globalScope->addSymbol(fn);
   return fn;
 }
 
@@ -951,9 +996,11 @@ namespace {
 void declareAvailableBuiltinOverloads(
     TranslationUnit* unit, const Identifier* name, BuiltinFunctionKind kind,
     const BuiltinSignature& signature,
-    const std::vector<FunctionSymbol*>& declared) {
+    const std::vector<FunctionSymbol*>& declared,
+    const Type* bitIntType = nullptr) {
   for (std::size_t index = 0; index < signature.count; ++index) {
-    auto overload = decodeBuiltinSignature(unit->control(), signature, index);
+    auto overload =
+        decodeBuiltinSignature(unit->control(), signature, index, bitIntType);
     if (overload.status != BuiltinOverloadStatus::kOk) continue;
     auto isDeclared = [&](FunctionSymbol* function) {
       return hasParameterTypes(function, overload.type);
@@ -966,6 +1013,23 @@ void declareAvailableBuiltinOverloads(
 }
 
 }  // namespace
+
+void declareBuiltinBitIntOverloads(TranslationUnit* unit,
+                                   BuiltinFunctionKind kind,
+                                   std::span<const Type* const> argumentTypes) {
+  auto signature = builtinSignatureOf(kind);
+  if (!contains(signature.flags, BuiltinFlags::kBitIntFamily)) return;
+  if (!isAvailableIn(unit, signature)) return;
+
+  auto name = unit->control()->getIdentifier(Token::spell(kind));
+  for (auto argumentType : argumentTypes) {
+    auto bitIntType = unqualified_cast<UnsignedBitIntType>(argumentType);
+    if (!bitIntType) continue;
+    auto declared = declaredBuiltinOverloads(unit, name, kind);
+    declareAvailableBuiltinOverloads(unit, name, kind, signature, declared,
+                                     bitIntType);
+  }
+}
 
 auto namesBuiltinFunction(Symbol* symbol, BuiltinFunctionKind kind) -> bool {
   return std::ranges::any_of(views::each_function(symbol),
@@ -994,6 +1058,16 @@ auto resolveBuiltinFunctionSymbol(TranslationUnit* unit, const Identifier* name,
   return nullptr;
 }
 
+namespace {
+
+[[nodiscard]] auto templateOfInjectedClassName(Symbol* symbol) -> Symbol* {
+  auto injected = symbol_cast<InjectedClassNameSymbol>(symbol);
+  if (!injected || !injected->classSymbol()) return nullptr;
+  return injected->classSymbol()->resolvedDefinition()->primaryTemplateSymbol();
+}
+
+}  // namespace
+
 auto lookupClassMember(ClassSymbol* scope, const Name* name,
                        const std::function<bool(Symbol*)>& accept)
     -> ClassMemberLookup {
@@ -1014,6 +1088,7 @@ auto lookupClassMember(ClassSymbol* scope, const Name* name,
     Symbol* declaration = nullptr;
     std::vector<int> subobjects;
     bool ambiguous = false;
+    Symbol* injectedClassTemplate = nullptr;
   };
   std::vector<Subobject> graph;
   std::vector<std::pair<ClassSymbol*, int>> virtualBases;
@@ -1071,6 +1146,8 @@ auto lookupClassMember(ClassSymbol* scope, const Name* name,
         graph[index].type, name, directVisited, accept, false, false);
     if (result.declaration) {
       result.subobjects.push_back(index);
+      result.injectedClassTemplate =
+          templateOfInjectedClassName(result.declaration);
     } else {
       for (auto base : graph[index].bases) {
         auto incoming = self(self, base);
@@ -1093,6 +1170,8 @@ auto lookupClassMember(ClassSymbol* scope, const Name* name,
         result.ambiguous =
             result.ambiguous || incoming.ambiguous ||
             !sameDeclaration(result.declaration, incoming.declaration);
+        if (result.injectedClassTemplate != incoming.injectedClassTemplate)
+          result.injectedClassTemplate = nullptr;
         for (auto subobject : incoming.subobjects)
           if (!std::ranges::contains(result.subobjects, subobject))
             result.subobjects.push_back(subobject);
@@ -1102,7 +1181,7 @@ auto lookupClassMember(ClassSymbol* scope, const Name* name,
     return result;
   };
   auto result = lookup(lookup, 0);
-  return {result.declaration, result.ambiguous};
+  return {result.declaration, result.ambiguous, result.injectedClassTemplate};
 }
 
 }  // namespace cxx

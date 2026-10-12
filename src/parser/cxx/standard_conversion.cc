@@ -181,13 +181,10 @@ struct SelectedFunction {
                                   const SelectedFunction& function,
                                   const SelectedFunction& other) -> bool {
   if (function.function == other.function) return false;
-  if (function.isTemplateSpecialization != other.isTemplateSpecialization)
-    return function.isTemplateSpecialization;
-  if (function.isTemplateSpecialization)
-    return compareFunctionTemplateSpecializations(unit, other.function,
-                                                  function.function) > 0;
-  return compareNonTemplateConstraints(unit, other.function,
-                                       function.function) > 0;
+  return compareCandidateOrdering(
+             unit, other.function, other.isTemplateSpecialization,
+             function.function, function.isTemplateSpecialization, true,
+             {}) > 0;
 }
 
 [[nodiscard]] auto isEliminated(TranslationUnit* unit,
@@ -209,6 +206,7 @@ struct SelectedFunction {
     auto candidate =
         selectedFunctionFor(unit, function, target, writtenTemplateId, loc);
     if (!candidate) continue;
+    if (!hasConstantTrueEnableIfConditions(unit, candidate->function)) continue;
     if (std::ranges::contains(selected, candidate->function,
                               &SelectedFunction::function))
       continue;
@@ -389,6 +387,17 @@ void StandardConversion::foldConstantRead(ExpressionAST*& expression) {
   while (auto nested = ast_cast<NestedExpressionAST>(operand))
     operand = nested->expression;
 
+  if (auto conditional = ast_cast<ConditionalExpressionAST>(operand)) {
+    foldConditionalRead(expression, cast, conditional);
+    return;
+  }
+
+  if (auto comma = ast_cast<BinaryExpressionAST>(operand);
+      comma && comma->op == TokenKind::T_COMMA) {
+    foldCommaRead(expression, cast, comma);
+    return;
+  }
+
   FieldSymbol* field = nullptr;
   MemberExpressionAST* member = nullptr;
   if (auto id = ast_cast<IdExpressionAST>(operand)) {
@@ -401,6 +410,7 @@ void StandardConversion::foldConstantRead(ExpressionAST*& expression) {
   if (!field) return;
   if (!field->isStatic()) return;
   if (!traits.is_scalar(field->type())) return;
+  if (!isPotentiallyConstant(traits, field)) return;
 
   if (!member && field->definition()) return;
 
@@ -424,6 +434,60 @@ void StandardConversion::foldConstantRead(ExpressionAST*& expression) {
     comma->valueCategory = constExpression->valueCategory;
     expression = comma;
   }
+}
+
+auto StandardConversion::readOfPotentialResult(ImplicitCastExpressionAST* read,
+                                               ExpressionAST* operand)
+    -> ExpressionAST* {
+  auto cast = ImplicitCastExpressionAST::create(arena_);
+  cast->castKind = ImplicitCastKind::kLValueToRValueConversion;
+  cast->expression = operand;
+  cast->type = read->type;
+  cast->valueCategory = read->valueCategory;
+  ExpressionAST* result = cast;
+  foldConstantRead(result);
+  return result;
+}
+
+void StandardConversion::foldConditionalRead(
+    ExpressionAST*& expression, ImplicitCastExpressionAST* read,
+    ConditionalExpressionAST* conditional) {
+  if (!is_glvalue(conditional->iftrueExpression)) return;
+  if (!is_glvalue(conditional->iffalseExpression)) return;
+
+  auto iftrue = readOfPotentialResult(read, conditional->iftrueExpression);
+  auto iffalse = readOfPotentialResult(read, conditional->iffalseExpression);
+  if (ast_cast<ImplicitCastExpressionAST>(iftrue) &&
+      ast_cast<ImplicitCastExpressionAST>(iffalse))
+    return;
+
+  auto copy = ConditionalExpressionAST::create(arena_);
+  copy->condition = conditional->condition;
+  copy->questionLoc = conditional->questionLoc;
+  copy->iftrueExpression = iftrue;
+  copy->colonLoc = conditional->colonLoc;
+  copy->iffalseExpression = iffalse;
+  copy->type = read->type;
+  copy->valueCategory = read->valueCategory;
+  expression = copy;
+}
+
+void StandardConversion::foldCommaRead(ExpressionAST*& expression,
+                                       ImplicitCastExpressionAST* read,
+                                       BinaryExpressionAST* comma) {
+  if (!is_glvalue(comma->rightExpression)) return;
+
+  auto right = readOfPotentialResult(read, comma->rightExpression);
+  if (ast_cast<ImplicitCastExpressionAST>(right)) return;
+
+  auto copy = BinaryExpressionAST::create(arena_);
+  copy->leftExpression = comma->leftExpression;
+  copy->opLoc = comma->opLoc;
+  copy->rightExpression = right;
+  copy->op = TokenKind::T_COMMA;
+  copy->type = read->type;
+  copy->valueCategory = read->valueCategory;
+  expression = copy;
 }
 
 auto StandardConversion::integralPromotion(ExpressionAST*& expr) -> bool {
@@ -474,10 +538,27 @@ void StandardConversion::adjustCv(ExpressionAST* expr) {
   expr->type = traits.adjusted_cv_type(expr->type);
 }
 
+void StandardConversion::bindDesignatedFunction(ExpressionAST* expr) {
+  auto overloadSet = symbol_cast<OverloadSetSymbol>(namedEntity(expr));
+  if (!overloadSet) return;
+  auto function = designatedFunction(overloadSet);
+  if (!function) return;
+  setResolvedFunction(expr, function);
+}
+
 void StandardConversion::prepareOperand(ExpressionAST*& expr) {
   if (auto step = valueTransformation(expr)) {
-    if (step->kind == ImplicitCastKind::kFunctionToPointerConversion)
+    if (step->kind == ImplicitCastKind::kFunctionToPointerConversion) {
+      auto function = designatedFunction(namedEntity(expr));
+      if (function && !hasConstantTrueEnableIfConditions(unit_, function)) {
+        unit_->error(expr->firstSourceLocation(),
+                     "cannot take the address of a function whose enable_if "
+                     "conditions are not constant true");
+        return;
+      }
+      bindDesignatedFunction(expr);
       requireNamedFunction(expr);
+    }
     wrapWithImplicitCast(step->kind, step->type, expr);
     atomicToNonAtomic(expr);
   }
@@ -529,7 +610,131 @@ auto StandardConversion::convertImplicitly(
   return true;
 }
 
+auto StandardConversion::constructClassByDirectInitialization(
+    ExpressionAST*& expr, const Type* classType) -> bool {
+  if (!expr || !expr->type) return false;
+
+  auto target = unqualified_cast<ClassType>(traits.remove_cv(classType));
+  if (!target || !target->symbol()) return false;
+
+  auto classSymbol = target->symbol()->resolvedDefinition();
+  traits.requireCompleteClass(classSymbol);
+
+  OverloadResolution resolution{unit_};
+  auto resolved = resolution.resolveConstructor(
+      classSymbol, {expr}, InitializationKind::kDirectInitialization);
+  if (!resolved) return false;
+
+  wrapWithImplicitCast(ImplicitCastKind::kUserDefinedConversion,
+                       traits.remove_cv(classType), expr);
+  recordUserDefinedConversion(ast_cast<ImplicitCastExpressionAST>(expr),
+                              resolved.selected());
+  ASTRewriter::requireDestructorOfType(unit_, classType);
+  return true;
+}
+
+namespace {
+
+template <class Select>
+[[nodiscard]] auto uniqueConversionTarget(TypeTraits& traits,
+                                          ClassSymbol* classSymbol,
+                                          Select select, const Type* preferred)
+    -> const Type* {
+  const Type* target = nullptr;
+
+  for (auto convFunc : classSymbol->visibleConversionFunctions()) {
+    if (convFunc->isExplicit()) continue;
+
+    auto convFuncType = type_cast<FunctionType>(convFunc->type());
+    if (!convFuncType) continue;
+
+    auto declared = convFuncType->returnType();
+    if (!declared) continue;
+
+    auto value = traits.remove_cvref(declared);
+    if (preferred && traits.is_same(value, preferred)) return value;
+
+    auto candidate = select(declared);
+    if (!candidate) continue;
+
+    if (target && !traits.is_same(target, candidate)) return nullptr;
+
+    target = candidate;
+  }
+
+  return target;
+}
+
+template <class Accepts>
+[[nodiscard]] auto convertedValue(TypeTraits& traits, Accepts accepts) {
+  return [&traits, accepts](const Type* declared) -> const Type* {
+    auto value = traits.remove_cvref(declared);
+    if (!accepts(value)) return nullptr;
+    return value;
+  };
+}
+
+[[nodiscard]] auto modifiableArithmeticOrPointerLvalue(TypeTraits& traits,
+                                                       const Type* declared)
+    -> const Type* {
+  auto reference = type_cast<LvalueReferenceType>(declared);
+  if (!reference || traits.is_const(reference->elementType())) return nullptr;
+  auto referred = traits.remove_cv(reference->elementType());
+  if (!traits.is_arithmetic(referred) && !traits.is_pointer(referred))
+    return nullptr;
+  return reference;
+}
+
+}  // namespace
+
 auto StandardConversion::convertClassOperandForBuiltinOperator(
+    ExpressionAST*& expr, const Type* enumeration) -> bool {
+  if (!expr || !expr->type) return false;
+
+  auto classType = type_cast<ClassType>(traits.remove_cvref(expr->type));
+  if (!classType) return false;
+
+  auto classSymbol = classType->symbol();
+  if (!classSymbol) return false;
+
+  traits.requireCompleteClass(classSymbol);
+
+  auto target = uniqueConversionTarget(
+      traits, classSymbol,
+      convertedValue(traits,
+                     [&](const Type* type) {
+                       return traits.is_arithmetic_or_unscoped_enum(type) ||
+                              traits.is_pointer(type);
+                     }),
+      enumeration);
+
+  if (!target) return false;
+
+  return convertImplicitly(expr, target);
+}
+
+auto StandardConversion::convertClassTargetForBuiltinCompoundAssignment(
+    ExpressionAST*& expr) -> bool {
+  if (!expr || !expr->type) return false;
+
+  auto classType = type_cast<ClassType>(traits.remove_cvref(expr->type));
+  if (!classType || !classType->symbol()) return false;
+
+  auto classSymbol = classType->symbol();
+  traits.requireCompleteClass(classSymbol);
+
+  auto target = uniqueConversionTarget(
+      traits, classSymbol,
+      [&](const Type* declared) {
+        return modifiableArithmeticOrPointerLvalue(traits, declared);
+      },
+      nullptr);
+
+  if (!target) return false;
+  return convertImplicitly(expr, target);
+}
+
+auto StandardConversion::convertClassOperandToIntegralOrEnumeration(
     ExpressionAST*& expr) -> bool {
   if (!expr || !expr->type) return false;
 
@@ -541,25 +746,13 @@ auto StandardConversion::convertClassOperandForBuiltinOperator(
 
   traits.requireCompleteClass(classSymbol);
 
-  const Type* target = nullptr;
-
-  for (auto convFunc : classSymbol->visibleConversionFunctions()) {
-    if (convFunc->isExplicit()) continue;
-
-    auto convFuncType = type_cast<FunctionType>(convFunc->type());
-    if (!convFuncType) continue;
-
-    auto returnType = traits.remove_cvref(convFuncType->returnType());
-    if (!returnType) continue;
-
-    if (!traits.is_arithmetic_or_unscoped_enum(returnType) &&
-        !traits.is_pointer(returnType))
-      continue;
-
-    if (target && !traits.is_same(target, returnType)) return false;
-
-    target = returnType;
-  }
+  auto target = uniqueConversionTarget(
+      traits, classSymbol,
+      convertedValue(traits,
+                     [&](const Type* type) {
+                       return traits.is_integral(type) || traits.is_enum(type);
+                     }),
+      nullptr);
 
   if (!target) return false;
 
@@ -675,10 +868,12 @@ auto StandardConversion::commonArithmeticType(const Type* a, const Type* b)
   if (!traits.is_arithmetic_or_unscoped_enum(a)) return nullptr;
   if (!traits.is_arithmetic_or_unscoped_enum(b)) return nullptr;
 
-  if (!isC_ && traits.is_enum(a) && !traits.is_same(a, b)) {
-    if (traits.is_enum(b) || traits.is_floating_point(b)) return nullptr;
+  if (!isC_ && unit_->rejectsEnumerationArithmeticConversions()) {
+    if (traits.is_enum(a) && !traits.is_same(a, b)) {
+      if (traits.is_enum(b) || traits.is_floating_point(b)) return nullptr;
+    }
+    if (traits.is_enum(b) && traits.is_floating_point(a)) return nullptr;
   }
-  if (!isC_ && traits.is_enum(b) && traits.is_floating_point(a)) return nullptr;
 
   if (traits.is_complex(a) || traits.is_complex(b)) {
     auto commonReal = commonArithmeticType(traits.complex_element_type(a),
@@ -959,7 +1154,8 @@ auto StandardConversion::directReferenceBinding(
 
 auto StandardConversion::referenceBinding(const Type* targetType,
                                           const Type* sourceUnadjustedType,
-                                          ValueCategory valueCategory)
+                                          ValueCategory valueCategory,
+                                          bool sourceIsBitField)
     -> std::optional<ImplicitConversionSequence> {
   const Type* referencedType = nullptr;
   bool isRvalueReference = false;
@@ -977,13 +1173,14 @@ auto StandardConversion::referenceBinding(const Type* targetType,
   const bool sourceIsLvalue = valueCategory == ValueCategory::kLValue;
   const bool referenceCompatible =
       traits.is_reference_compatible(referencedType, sourceType);
+  const bool bindsDirectly = referenceCompatible && !sourceIsBitField;
 
   ImplicitConversionSequence seq;
   seq.sourceType = sourceUnadjustedType;
   seq.destinationType = targetType;
   seq.binding.isRvalueRef = isRvalueReference;
 
-  if (!isRvalueReference && sourceIsLvalue && referenceCompatible)
+  if (!isRvalueReference && sourceIsLvalue && bindsDirectly)
     return directReferenceBinding(seq, ValueCategory::kLValue);
 
   const bool convertsThroughConversionFunction =
@@ -998,8 +1195,7 @@ auto StandardConversion::referenceBinding(const Type* targetType,
       (!has_const(referencedCv) || has_volatile(referencedCv)))
     return seq;
 
-  if (referenceCompatible &&
-      (!sourceIsLvalue || traits.is_function(sourceType)))
+  if (bindsDirectly && (!sourceIsLvalue || traits.is_function(sourceType)))
     return directReferenceBinding(seq, valueCategory);
 
   if (traits.is_reference_related(referencedType, sourceType)) {
@@ -1054,7 +1250,8 @@ auto StandardConversion::listElementSequence(
 
 auto StandardConversion::listInitializationSequence(
     BracedInitListAST* bracedInitList, const Type* targetType,
-    InitializationKind initializationKind) -> ImplicitConversionSequence {
+    InitializationKind initializationKind, ConversionContext context)
+    -> ImplicitConversionSequence {
   ImplicitConversionSequence seq;
   seq.destinationType = targetType;
   seq.list.isListInitialization = true;
@@ -1121,11 +1318,23 @@ auto StandardConversion::listInitializationSequence(
   }
 
   if (traits.is_class(listTarget)) {
+    if (context == ConversionContext::kStandardOnly) return seq;
     if (traits.is_aggregate(listTarget))
       return aggregateListInitializationSequence(seq, bracedInitList,
                                                  targetType);
-    if (!listInitializes(bracedInitList, listTarget, initializationKind))
-      return seq;
+    auto selection = selectListInitializationConstructor(
+        bracedInitList, listTarget, initializationKind);
+    if (!selection) return seq;
+    if (!selection.fromInitializerListConstructor) {
+      if (auto element = singleInitializerClause(bracedInitList);
+          element && element->type) {
+        auto elementType =
+            traits.remove_cv(traits.remove_reference(element->type));
+        if (traits.is_same(elementType, listTarget) ||
+            traits.is_base_of(listTarget, elementType))
+          return listElementSequence(element, targetType, initializationKind);
+      }
+    }
     return classListInitializationSequence(seq, targetType);
   }
 
@@ -1178,6 +1387,7 @@ auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
     resolved = designatedFunction(overloadSet);
   }
   if (!resolved) return std::nullopt;
+  if (!hasConstantTrueEnableIfConditions(unit_, resolved)) return seq;
   auto source = IdExpressionAST::create(arena_);
   source->type = resolved->type();
   source->valueCategory = ValueCategory::kLValue;
@@ -1285,13 +1495,20 @@ auto StandardConversion::computeConversionSequenceSteps(
   if (auto overload = overloadSetConversionSequence(expr, targetType))
     return *overload;
 
+  if (traits.is_function(sourceObjectType)) {
+    auto function = designatedFunction(namedEntity(expr));
+    if (function && !hasConstantTrueEnableIfConditions(unit_, function))
+      return seq;
+  }
+
   if (auto bracedInitList = ast_cast<BracedInitListAST>(expr)) {
     return listInitializationSequence(bracedInitList, targetType,
-                                      initializationKind);
+                                      initializationKind, context);
   }
 
   if (auto referenceSequence =
-          referenceBinding(targetType, expr->type, expr->valueCategory))
+          referenceBinding(targetType, expr->type, expr->valueCategory,
+                           designatesBitField(expr)))
     return *referenceSequence;
 
   if (auto step = valueTransformation(expr)) {
@@ -1389,6 +1606,9 @@ auto StandardConversion::computeConversionSequenceSteps(
 
   if (!isC_ && classAdjustment(unqualFrom, unqualTo) ==
                    ClassAdjustment::kDerivedToBase) {
+    seq.requiresCopyConstruction = requiresCopyConstruction(expr, targetType);
+    seq.copyConstructor =
+        selectCopyConstructor(expr, targetType, initializationKind);
     bindResultToReference(seq, targetType, currentValCat);
     return completedSequence(seq, ImplicitCastKind::kDerivedToBaseConversion,
                              comparisonTargetType);
@@ -1466,7 +1686,9 @@ auto StandardConversion::userDefinedSequence(const Candidate& candidate,
   sequence.copyConstructor = candidate.resultConversion->copyConstructor;
   sequence.requiresCopyConstruction =
       candidate.resultConversion->requiresCopyConstruction;
-  if (!candidate.conversions.empty()) {
+  if (!candidate.conversions.empty() &&
+      candidate.conversions.front().form !=
+          ConversionSequenceForm::kUserDefined) {
     const auto& first = candidate.conversions.front();
     sequence.udc.firstSteps = first.steps;
     sequence.resolvedFunction = first.resolvedFunction;
@@ -1514,14 +1736,20 @@ void StandardConversion::addUserDefinedCandidate(
 
 void StandardConversion::addConstructorCandidates(
     std::vector<Candidate>& candidates, ExpressionAST* expr,
-    const Type* targetType) {
+    const Type* targetType, InitializationKind initializationKind) {
   auto lvalueRef = type_cast<LvalueReferenceType>(targetType);
   if (lvalueRef && !traits.is_const(lvalueRef->elementType())) return;
   auto classType = type_cast<ClassType>(traits.remove_cvref(targetType));
   if (!classType || !classType->symbol()) return;
   auto classSymbol = classType->symbol()->resolvedDefinition();
   traits.requireCompleteClass(classSymbol);
-  for (auto constructor : classSymbol->convertingConstructors())
+  const auto initializesObjectDirectly =
+      isDirectInitialization(initializationKind) &&
+      !traits.is_reference(targetType);
+  auto constructors = initializesObjectDirectly
+                          ? classSymbol->constructors()
+                          : classSymbol->convertingConstructors();
+  for (auto constructor : constructors)
     addConstructorCandidate(candidates, constructor, classSymbol, expr,
                             targetType);
 }
@@ -1545,7 +1773,7 @@ void StandardConversion::addConstructorCandidate(
     ClassSymbol* classSymbol, ExpressionAST* expr, const Type* targetType) {
   if (isExcludedInheritedConstructor(traits, constructor, classSymbol, 1))
     return;
-  if (constructor->templateDeclaration() && !constructor->isSpecialization()) {
+  if (constructor->isTemplatePattern()) {
     auto args = make_list_node<ExpressionAST>(arena_, expr);
     TemplateArgumentDeduction deduction(unit_);
     auto deducedArgs = deduction.deduce(constructor, args, nullptr);
@@ -1571,6 +1799,7 @@ void StandardConversion::addConstructorCandidate(
       result, targetType, InitializationKind::kCopyInitialization,
       ConversionContext::kStandardOnly);
   if (!resultSequence) return;
+  if (isExcludedDefaultedMoveMember(unit_, constructor)) return;
   addUserDefinedCandidate(candidates, constructor, std::move(argument),
                           std::move(resultSequence), std::nullopt);
 }
@@ -1594,7 +1823,7 @@ void StandardConversion::addConversionFunctionCandidate(
     InitializationKind initializationKind) {
   if (function->isExplicit() && !isDirectInitialization(initializationKind))
     return;
-  if (function->templateDeclaration() && !function->isSpecialization()) {
+  if (function->isTemplatePattern()) {
     function = instantiateConversionFunctionTemplate(
         function, traits.remove_cvref(targetType), expr);
     if (!function) return;
@@ -1626,11 +1855,24 @@ void StandardConversion::addConversionFunctionCandidate(
                           std::move(objectConversion));
 }
 
+auto StandardConversion::conversionFunctionSequence(ExpressionAST* expr,
+                                                    FunctionSymbol* function)
+    -> ImplicitConversionSequence {
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType) return {};
+  auto targetType = functionType->returnType();
+  std::vector<Candidate> candidates;
+  addConversionFunctionCandidate(candidates, function, expr, targetType,
+                                 InitializationKind::kCopyInitialization);
+  if (candidates.empty()) return {};
+  return userDefinedSequence(candidates.front(), expr, targetType);
+}
+
 auto StandardConversion::userDefinedConversionSequence(
     ExpressionAST* expr, const Type* targetType,
     InitializationKind initializationKind) -> ImplicitConversionSequence {
   std::vector<Candidate> candidates;
-  addConstructorCandidates(candidates, expr, targetType);
+  addConstructorCandidates(candidates, expr, targetType, initializationKind);
   addConversionFunctionCandidates(candidates, expr, targetType,
                                   initializationKind);
   OverloadResolution resolution{unit_};
@@ -1730,7 +1972,7 @@ auto StandardConversion::isAccessible(
   AccessContext access{unit_, accessingScope()};
   for (auto function : {sequence.udc.function, sequence.copyConstructor}) {
     if (!function) continue;
-    if (function->isDeleted()) return false;
+    if (isDeletedFunction(unit_, function)) return false;
     auto declaringClass = declaringClassOf(function);
     if (!declaringClass) continue;
     auto sourceClass = convertedClassSymbol(sequence.sourceType);
@@ -1809,8 +2051,14 @@ void StandardConversion::applyStep(const ImplicitConversionSequence& sequence,
 
   if (step.kind != ImplicitCastKind::kUserDefinedConversion) return;
   if (auto cast = ast_cast<ImplicitCastExpressionAST>(expr))
-    recordUserDefinedConversion(cast, sequence.udc.function,
-                                !sequence.udc.firstSteps.empty());
+    recordUserDefinedConversion(cast, sequence.udc.function);
+}
+
+void StandardConversion::applyConversionFunctionObjectSteps(
+    const ImplicitConversionSequence& sequence, ExpressionAST*& expr) {
+  if (sequence.udc.function && sequence.udc.function->isConstructor()) return;
+  for (const auto& step : sequence.udc.firstSteps)
+    applyStep(sequence, step, expr);
 }
 
 void StandardConversion::applyConversionSequence(
@@ -1827,12 +2075,14 @@ void StandardConversion::applyConversionSequence(
     }
   }
 
-  for (const auto& step : sequence.udc.firstSteps)
-    applyStep(sequence, step, expr);
+  applyConversionFunctionObjectSteps(sequence, expr);
 
-  for (const auto& step : sequence.steps) applyStep(sequence, step, expr);
-  for (const auto& step : sequence.udc.secondSteps)
-    applyStep(sequence, step, expr);
+  if (sequence.form != ConversionSequenceForm::kStandard ||
+      !sequence.copyConstructor) {
+    for (const auto& step : sequence.steps) applyStep(sequence, step, expr);
+    for (const auto& step : sequence.udc.secondSteps)
+      applyStep(sequence, step, expr);
+  }
 
   if (sequence.copyConstructor) applyCopyConstruction(sequence, expr);
 
@@ -1867,15 +2117,13 @@ void StandardConversion::recordConversionFunction(
   if (!function) return;
   if (sequence.resolvedFunction)
     applyResolvedFunction(cast->expression, sequence.resolvedFunction);
-  for (const auto& step : sequence.udc.firstSteps)
-    applyStep(sequence, step, cast->expression);
-  recordUserDefinedConversion(cast, function, !sequence.udc.firstSteps.empty());
+  applyConversionFunctionObjectSteps(sequence, cast->expression);
+  recordUserDefinedConversion(cast, function);
 }
 
 auto StandardConversion::requiresCopyConstruction(
     ExpressionAST* expr, const Type* destinationType) const -> bool {
   if (isC_ || !expr || !expr->type || !destinationType) return false;
-  if (!is_glvalue(expr)) return false;
   if (traits.is_reference(destinationType)) return false;
 
   auto classType = unqualified_cast<ClassType>(destinationType);
@@ -1888,7 +2136,9 @@ auto StandardConversion::requiresCopyConstruction(
     return false;
 
   auto sourceType = traits.remove_cvref(expr->type);
-  return traits.is_same(sourceType, classType);
+  if (traits.is_same(sourceType, classType)) return is_glvalue(expr);
+  auto typeTraits = traits;
+  return typeTraits.is_base_of(classType, sourceType);
 }
 
 auto StandardConversion::selectCopyConstructor(
@@ -1911,8 +2161,7 @@ auto StandardConversion::selectCopyConstructor(
 }
 
 void StandardConversion::materializeConstructorArguments(
-    ImplicitCastExpressionAST* cast, FunctionSymbol* constructor,
-    bool argumentConverted) {
+    ImplicitCastExpressionAST* cast, FunctionSymbol* constructor) {
   if (ast_cast<ParenInitializerAST>(cast->expression)) return;
 
   auto functionType = type_cast<FunctionType>(constructor->type());
@@ -1925,11 +2174,9 @@ void StandardConversion::materializeConstructorArguments(
   if (functionType->isEllipsisOnly()) {
     promoteOperand(arguments->value);
   } else {
-    if (!argumentConverted) {
-      auto sequence =
-          computeConversionSequence(arguments->value, parameterTypes[0]);
-      applyConversionSequence(sequence, arguments->value);
-    }
+    auto sequence =
+        computeConversionSequence(arguments->value, parameterTypes[0]);
+    applyConversionSequence(sequence, arguments->value);
 
     appendDefaultArguments(constructor, &arguments,
                            cast->firstSourceLocation());
@@ -1937,7 +2184,7 @@ void StandardConversion::materializeConstructorArguments(
 
   auto paren = ParenInitializerAST::create(
       arena_, cast->firstSourceLocation(), arguments,
-      cast->firstSourceLocation(), ValueCategory::kPrValue, cast->type);
+      cast->firstSourceLocation(), {}, ValueCategory::kPrValue, cast->type);
   cast->expression = paren;
 }
 
@@ -1987,29 +2234,28 @@ auto StandardConversion::rankAggregateElements(
   return result;
 }
 
-auto StandardConversion::listInitializes(BracedInitListAST* bracedInitList,
-                                         const Type* targetType,
-                                         InitializationKind initializationKind)
-    -> bool {
+auto StandardConversion::selectListInitializationConstructor(
+    BracedInitListAST* bracedInitList, const Type* targetType,
+    InitializationKind initializationKind) -> ConstructorResult {
   auto classType = unqualified_cast<ClassType>(targetType);
-  if (!classType || !classType->symbol()) return false;
+  if (!classType || !classType->symbol()) return {};
 
   auto classSymbol = classType->symbol()->resolvedDefinition();
   traits.requireCompleteClass(classSymbol);
-  if (!classSymbol->isComplete()) return false;
+  if (!classSymbol->isComplete()) return {};
 
   std::vector<ExpressionAST*> elements;
   for (auto it = bracedInitList->expressionList; it; it = it->next) {
-    if (!it->value) return false;
+    if (!it->value) return {};
     if (!it->value->type && !ast_cast<BracedInitListAST>(it->value) &&
         !ast_cast<DesignatedInitializerClauseAST>(it->value))
-      return false;
+      return {};
     elements.push_back(it->value);
   }
 
   OverloadResolution resolution(unit_);
-  return bool(resolution.selectListConstructor(classSymbol, bracedInitList,
-                                               elements, initializationKind));
+  return resolution.selectListConstructor(classSymbol, bracedInitList, elements,
+                                          initializationKind);
 }
 
 void StandardConversion::appendDefaultArguments(FunctionSymbol* function,
@@ -2042,6 +2288,47 @@ void StandardConversion::appendDefaultArguments(FunctionSymbol* function,
   }
 }
 
+auto StandardConversion::designatesBitField(ExpressionAST* expr) -> bool {
+  if (auto nested = ast_cast<NestedExpressionAST>(expr))
+    return designatesBitField(nested->expression);
+
+  if (auto conditional = ast_cast<ConditionalExpressionAST>(expr)) {
+    if (!is_glvalue(conditional)) return false;
+    return designatesBitField(conditional->iftrueExpression) ||
+           designatesBitField(conditional->iffalseExpression);
+  }
+
+  if (auto binary = ast_cast<BinaryExpressionAST>(expr)) {
+    if (binary->op != TokenKind::T_COMMA) return false;
+    return designatesBitField(binary->rightExpression);
+  }
+
+  if (auto assignment = ast_cast<AssignmentExpressionAST>(expr))
+    return designatesBitField(assignment->leftExpression);
+
+  if (auto compound = ast_cast<CompoundAssignmentExpressionAST>(expr))
+    return designatesBitField(compound->targetExpression);
+
+  if (auto unary = ast_cast<UnaryExpressionAST>(expr)) {
+    if (unary->op != TokenKind::T_PLUS_PLUS &&
+        unary->op != TokenKind::T_MINUS_MINUS)
+      return false;
+    return designatesBitField(unary->expression);
+  }
+
+  Symbol* designated = nullptr;
+  if (auto id = ast_cast<IdExpressionAST>(expr)) designated = id->symbol;
+
+  if (auto binding = symbol_cast<VariableSymbol>(designated);
+      binding && binding->isStructuredBindingAlias())
+    return designatesBitField(binding->initializer());
+  if (auto member = ast_cast<MemberExpressionAST>(expr))
+    designated = member->symbol;
+
+  auto field = symbol_cast<FieldSymbol>(designated);
+  return field && field->isBitField();
+}
+
 auto StandardConversion::namedEntity(ExpressionAST* expr) -> Symbol* {
   while (expr) {
     if (auto nested = ast_cast<NestedExpressionAST>(expr)) {
@@ -2056,6 +2343,7 @@ auto StandardConversion::namedEntity(ExpressionAST* expr) -> Symbol* {
   }
 
   if (auto id = ast_cast<IdExpressionAST>(expr)) return id->symbol;
+  if (auto member = ast_cast<MemberExpressionAST>(expr)) return member->symbol;
   return nullptr;
 }
 
@@ -2071,15 +2359,14 @@ void StandardConversion::requireNamedFunction(ExpressionAST* expr) {
 }
 
 void StandardConversion::recordUserDefinedConversion(
-    ImplicitCastExpressionAST* cast, FunctionSymbol* function,
-    bool argumentConverted) {
+    ImplicitCastExpressionAST* cast, FunctionSymbol* function) {
   if (!function) return;
 
   cast->conversionFunction = function;
   ASTRewriter::requireFunctionDefinition(unit_, function);
 
   if (function->isConstructor()) {
-    materializeConstructorArguments(cast, function, argumentConverted);
+    materializeConstructorArguments(cast, function);
     return;
   }
 
@@ -2190,6 +2477,7 @@ void StandardConversion::applyResolvedFunction(ExpressionAST* expr,
     nested->valueCategory = nested->expression->valueCategory;
     return;
   }
+  ASTRewriter::requireFunctionDefinition(unit_, function);
   auto stripped = stripNestedExpressions(expr);
   auto addressOf = ast_cast<UnaryExpressionAST>(stripped);
   if (addressOf && addressOf->op == TokenKind::T_AMP) {

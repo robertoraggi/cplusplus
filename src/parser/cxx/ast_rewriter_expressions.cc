@@ -75,18 +75,6 @@ struct ASTRewriter::ExpressionVisitor : VisitorBase {
     return rewrite.typeChecker();
   }
 
-  [[nodiscard]] auto spelledIntegerLiteral(VariableSymbol* var,
-                                           const Type* type) const
-      -> ExpressionAST* {
-    if (!var->constValue()) return nullptr;
-
-    auto value = std::get_if<ConstInt>(&*var->constValue());
-    if (!value) return nullptr;
-
-    return TemplateArguments{translationUnit()}.integerLiteralExpression(*value,
-                                                                         type);
-  }
-
   [[nodiscard]] auto operator()(CharLiteralExpressionAST* ast)
       -> ExpressionAST*;
 
@@ -211,6 +199,11 @@ struct ASTRewriter::ExpressionVisitor : VisitorBase {
 
   [[nodiscard]] auto operator()(CastExpressionAST* ast) -> ExpressionAST*;
 
+  [[nodiscard]] auto namesRemappedClass(const Type* type) const -> bool;
+
+  [[nodiscard]] auto resolveNamedSpecialization(MemberExpressionAST* copy)
+      -> ExpressionAST*;
+
   [[nodiscard]] auto operator()(ImplicitCastExpressionAST* ast)
       -> ExpressionAST*;
 
@@ -287,8 +280,35 @@ struct ASTRewriter::LambdaCaptureVisitor : VisitorBase {
   [[nodiscard]] auto operator()(InitLambdaCaptureAST* ast) -> LambdaCaptureAST*;
 };
 
+auto ASTRewriter::substitutedNonTypeValue(IdExpressionAST* ast)
+    -> ExpressionAST* {
+  auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
+  if (!param || !templateArgumentFor(param)) return nullptr;
+
+  auto var = symbol_cast<VariableSymbol>(substitutedSymbol(param));
+  if (!var) return nullptr;
+
+  const auto type = var->type() ? var->type() : ast->type;
+
+  if (auto value = var->constValue()) {
+    if (auto integer = std::get_if<ConstInt>(&*value))
+      return TemplateArguments{unit_}.integerLiteralExpression(*integer, type);
+  }
+
+  if (auto initializer = var->initializer()) return initializer->clone(arena());
+
+  return nullptr;
+}
+
 auto ASTRewriter::expression(ExpressionAST* ast) -> ExpressionAST* {
   if (!ast) return {};
+  if (auto id = ast_cast<IdExpressionAST>(ast)) {
+    if (auto value = substitutedNonTypeValue(id)) {
+      rewritingCall_ = nullptr;
+      StandardConversion{unit_}.foldConstantRead(value);
+      return value;
+    }
+  }
   auto expr = visit(ExpressionVisitor{*this}, ast);
   if (expr) {
     expr = check(expr);
@@ -601,6 +621,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
+  if (auto value = rewrite.substitutedNonTypeValue(ast)) return value;
+
   if (auto param = symbol_cast<NonTypeParameterSymbol>(ast->symbol);
       param && rewrite.templateArgumentFor(param)) {
     copy->symbol = param;
@@ -610,18 +632,17 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
 
       if (auto var = symbol_cast<VariableSymbol>(substituted)) {
         if (var->type()) copy->type = var->type();
-
-        if (auto literal = spelledIntegerLiteral(var, copy->type))
-          return literal;
-
-        if (auto initializer = var->initializer()) {
-          return initializer->clone(arena());
-        }
       }
     }
   } else if (!isCallee && symbol_cast<FunctionSymbol>(ast->symbol) &&
              ast->type && !isDependent(translationUnit(), ast->type)) {
     copy->symbol = rewrite.remapSymbol(ast->symbol);
+    if (copy->symbol == ast->symbol) {
+      auto templateId = ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId);
+      if (auto member = rewrite.instantiatedMemberTemplateFor(
+              copy->symbol, templateId, nullptr, ast->firstSourceLocation()))
+        copy->symbol = member;
+    }
     copy->type = copy->symbol->type();
   } else if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
     binder()->qualifiedLookupIdExpression(copy, isCallee);
@@ -657,15 +678,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     if (auto usingDecl = symbol_cast<UsingDeclarationSymbol>(copy->symbol);
         usingDecl && usingDecl->target() && !isCallee) {
       copy->symbol = usingDecl->target();
-      copy->type = copy->symbol->type();
+      rewrite.typeChecker().set_named_symbol_result(copy, copy->symbol);
       return copy;
     }
 
     binder()->resolveIdExpression(copy, isCallee);
 
-    if (copy->symbol != ast->symbol && copy->symbol) {
-      copy->type = copy->symbol->type();
-    }
+    if (copy->symbol != ast->symbol && copy->symbol)
+      rewrite.typeChecker().set_named_symbol_result(copy, copy->symbol);
   }
 
   return fold_concept_id(translationUnit(), copy);
@@ -815,7 +835,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     return copy;
   }
 
-  copy->statement = rewrite.lambdaBody(ast->statement);
+  copy->statement = ast->statement;
   copy->symbol = ast->symbol;
   copy->constructorSymbol = ast->constructorSymbol;
 
@@ -1118,6 +1138,9 @@ auto ASTRewriter::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
     -> ExpressionAST* {
+  const auto isCallee =
+      std::exchange(rewrite.rewritingCall_, nullptr) != nullptr;
+
   auto copy = MemberExpressionAST::create(arena());
 
   copy->baseExpression = rewrite.expression(ast->baseExpression);
@@ -1137,12 +1160,21 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
   }
 
   auto member = rewrite.remapSymbol(ast->symbol);
-  if (!member) return copy;
-
-  if (memberBelongsToObjectType(translationUnit(), objectType, member))
+  if (member &&
+      memberBelongsToObjectType(translationUnit(), objectType, member))
     copy->symbol = member;
 
-  return copy;
+  if (isCallee) return copy;
+  return resolveNamedSpecialization(copy);
+}
+
+auto ASTRewriter::ExpressionVisitor::resolveNamedSpecialization(
+    MemberExpressionAST* copy) -> ExpressionAST* {
+  if (!ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId)) return copy;
+  auto checked = rewrite.check(copy);
+  auto member = ast_cast<MemberExpressionAST>(checked);
+  if (!member || !binder()->resolveMemberTemplateId(member)) return checked;
+  return rewrite.check(checked);
 }
 
 void ASTRewriter::ExpressionVisitor::bindDestroyedType(
@@ -1543,9 +1575,22 @@ auto ASTRewriter::ExpressionVisitor::operator()(CastExpressionAST* ast)
   return copy;
 }
 
+auto ASTRewriter::ExpressionVisitor::namesRemappedClass(const Type* type) const
+    -> bool {
+  auto traits = rewrite.unit_->typeTraits();
+  auto referent = traits.remove_cvref(type);
+  while (traits.is_pointer(referent) || traits.is_array(referent))
+    referent = traits.remove_cv(traits.get_element_type(referent));
+  auto classType = type_cast<ClassType>(referent);
+  if (!classType || !classType->symbol()) return false;
+  return rewrite.remapSymbol(classType->symbol()) != classType->symbol();
+}
+
 auto ASTRewriter::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
     -> ExpressionAST* {
   auto expression = rewrite.expression(ast->expression);
+
+  if (namesRemappedClass(ast->type)) return expression;
 
   if (ast->castKind == ImplicitCastKind::kUserDefinedConversion &&
       (!ast->type || isDependent(rewrite.unit_, ast->type))) {

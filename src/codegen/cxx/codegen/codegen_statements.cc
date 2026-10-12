@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
 #include <cxx/memory_layout.h>
@@ -46,7 +47,6 @@ struct Codegen::StatementVisitor {
   void operator()(WhileStatementAST* ast);
   void operator()(DoStatementAST* ast);
   void operator()(ForRangeStatementAST* ast);
-  void emitRangeElementBindings(ForRangeStatementAST* ast);
   void operator()(ForStatementAST* ast);
   void operator()(BreakStatementAST* ast);
   void operator()(ContinueStatementAST* ast);
@@ -104,8 +104,7 @@ void Codegen::StatementVisitor::operator()(LabeledStatementAST* ast) {
   gen.branch(loc, targetBlock);
   gen.emitter_.setInsertionBlock(targetBlock);
 
-  gen.emitter_.defineLabel(loc, ast->identifier->name(),
-                           static_cast<std::int64_t>(gen.cleanupStack_.size()));
+  gen.defineCleanupLabel(loc, ast->identifier->name());
 
   gen.statement(ast->statement);
 }
@@ -116,8 +115,25 @@ void Codegen::StatementVisitor::operator()(CaseStatementAST* ast) {
   gen.branch(ast->firstSourceLocation(), block);
   gen.emitter_.setInsertionBlock(block);
 
-  gen.switch_.caseValues.push_back(ast->caseValue);
-  gen.switch_.caseDestinations.push_back(block);
+  if (ast->upperExpression) {
+    ASTInterpreter interp{gen.unit_};
+    if (auto value = interp.evaluate(ast->upperExpression)) {
+      auto lowerValue = interp.toArithmeticType(
+          ConstValue{ConstInt{ast->caseValue}}, gen.switch_.conditionType);
+      auto upperValue =
+          interp.toArithmeticType(*value, gen.switch_.conditionType);
+      if (lowerValue && upperValue) {
+        auto lower = std::get_if<ConstInt>(&*lowerValue);
+        auto upper = std::get_if<ConstInt>(&*upperValue);
+        if (lower && upper && *lower <= *upper)
+          gen.switch_.ranges.push_back({*lower, *upper, block});
+      }
+    }
+  } else {
+    gen.switch_.caseValues.push_back(ast->caseValue);
+    gen.switch_.caseDestinations.push_back(block);
+  }
+  gen.statement(ast->statement);
 }
 
 void Codegen::StatementVisitor::operator()(DefaultStatementAST* ast) {
@@ -126,6 +142,7 @@ void Codegen::StatementVisitor::operator()(DefaultStatementAST* ast) {
   gen.emitter_.setInsertionBlock(block);
 
   gen.switch_.defaultDestination = block;
+  gen.statement(ast->statement);
 }
 
 void Codegen::StatementVisitor::operator()(ExpressionStatementAST* ast) {
@@ -214,6 +231,7 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
   previousLoop.breakCleanupDepth = gen.cleanupStack_.size();
   std::swap(gen.loop_, previousLoop);
 
+  gen.switch_.conditionType = ast->condition->type;
   gen.statement(ast->statement);
   gen.branch(lastTokenLocation(ast), endSwitchBlock);
 
@@ -221,6 +239,20 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
 
   if (!gen.switch_.defaultDestination) {
     gen.switch_.defaultDestination = endSwitchBlock;
+  }
+
+  for (const auto& range : gen.switch_.ranges) {
+    auto loc = ast->firstSourceLocation();
+    auto lower = gen.emitter_.constantInt(loc, elementTy, range.lower);
+    auto upper = gen.emitter_.constantInt(loc, elementTy, range.upper);
+    auto offset = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt,
+                                        conditionResult.value, lower);
+    auto width = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, upper, lower);
+    auto matches = gen.emitter_.compareInt(
+        loc, ir::IntPredicate::UnsignedLessEqual, offset, width);
+    auto next = gen.newBlock();
+    gen.emitter_.condBranch(loc, matches, range.destination, next);
+    gen.emitter_.setInsertionBlock(next);
   }
 
   gen.emitter_.switchBranch(ast->firstSourceLocation(), conditionResult.value,
@@ -302,305 +334,8 @@ void Codegen::StatementVisitor::operator()(DoStatementAST* ast) {
   std::swap(gen.loop_, loop);
 }
 
-namespace {
-
-auto rangeDeclarationVariable(DeclarationAST* rangeDeclaration)
-    -> VariableSymbol* {
-  if (auto simpleDecl = ast_cast<SimpleDeclarationAST>(rangeDeclaration)) {
-    auto initDecl = simpleDecl->initDeclaratorList
-                        ? simpleDecl->initDeclaratorList->value
-                        : nullptr;
-    return initDecl ? symbol_cast<VariableSymbol>(initDecl->symbol) : nullptr;
-  }
-
-  if (auto structuredBinding =
-          ast_cast<StructuredBindingDeclarationAST>(rangeDeclaration)) {
-    if (auto hidden = structuredBinding->hiddenVariable)
-      return symbol_cast<VariableSymbol>(hidden->symbol);
-  }
-
-  return nullptr;
-}
-
-}  // namespace
-
-void Codegen::StatementVisitor::emitRangeElementBindings(
-    ForRangeStatementAST* ast) {
-  auto structuredBinding =
-      ast_cast<StructuredBindingDeclarationAST>(ast->rangeDeclaration);
-  if (!structuredBinding) return;
-
-  for (auto node : ListView{structuredBinding->bindingDeclaratorList}) {
-    auto var = symbol_cast<VariableSymbol>(node->symbol);
-    if (!var) continue;
-    gen.emitLocalVariableInit(var, node->initializer);
-  }
-}
-
 void Codegen::StatementVisitor::operator()(ForRangeStatementAST* ast) {
-  auto loc = ast->firstSourceLocation();
-
-  auto forRangeScope = CleanupScopeGuard{gen, lastTokenLocation(ast)};
-
-  gen.statement(ast->initializer);
-
-  if (ast->rangeVariable && ast->beginVariable && ast->endVariable &&
-      ast->beginInitializer && ast->endInitializer && ast->condition &&
-      ast->increment && ast->element) {
-    gen.emitLocalVariableInit(ast->rangeVariable, ast->rangeInitializer);
-    gen.emitLocalVariableInit(ast->beginVariable, ast->beginInitializer);
-    gen.emitLocalVariableInit(ast->endVariable, ast->endInitializer);
-
-    auto conditionBlock = gen.newBlock();
-    auto bodyBlock = gen.newBlock();
-    auto stepBlock = gen.newBlock();
-    auto exitBlock = gen.newBlock();
-
-    const auto iterationDepth = gen.cleanupStack_.size();
-    gen.pushCleanup();
-
-    Loop loop;
-    loop.continueBlock = stepBlock;
-    loop.breakBlock = exitBlock;
-    loop.continueCleanupDepth = iterationDepth;
-    loop.breakCleanupDepth = iterationDepth;
-    std::swap(gen.loop_, loop);
-
-    gen.branch(loc, conditionBlock);
-    gen.emitter_.setInsertionBlock(conditionBlock);
-    gen.conditionWithCleanups(ast->condition, bodyBlock, exitBlock);
-
-    gen.emitter_.setInsertionBlock(bodyBlock);
-    if (auto loopVar = rangeDeclarationVariable(ast->rangeDeclaration))
-      gen.emitLocalVariableInit(loopVar, ast->element);
-    emitRangeElementBindings(ast);
-    gen.statement(ast->statement);
-    auto bodyEndLoc = ast->rparenLoc;
-    if (ast->statement) bodyEndLoc = lastTokenLocation(ast->statement);
-    gen.emitBranchWithCleanups(bodyEndLoc, stepBlock, iterationDepth);
-    gen.popCleanup(bodyEndLoc);
-
-    gen.emitter_.setInsertionBlock(stepBlock);
-    (void)gen.expression(ast->increment);
-    gen.branch(loc, conditionBlock);
-
-    gen.emitter_.setInsertionBlock(exitBlock);
-    std::swap(gen.loop_, loop);
-    return;
-  }
-
-  auto rangeResult = gen.expression(ast->rangeInitializer);
-
-  auto rangeType = ast->rangeInitializer->type;
-  if (!rangeType) {
-    (void)gen.emitTodoStmt(ast->firstSourceLocation(), "for-range: no type");
-    return;
-  }
-  rangeType = gen.traits.remove_cvref(rangeType);
-
-  ir::ValueRef beginVal, endVal;
-  bool isPointerIterator = false;
-  FunctionSymbol* derefFunc = nullptr;
-  FunctionSymbol* incrFunc = nullptr;
-  FunctionSymbol* neqFunc = nullptr;
-
-  if (auto arrayType = type_cast<BoundedArrayType>(rangeType)) {
-    isPointerIterator = true;
-
-    auto elementIrType = gen.convertType(arrayType->elementType());
-    auto ptrType = gen.emitter_.pointerType(elementIrType);
-
-    auto intTy = gen.emitter_.integerType(64);
-
-    auto zeroOp = gen.emitter_.constantInt(loc, intTy, 0);
-    beginVal = gen.emitter_.pointerAdd(loc, ptrType, rangeResult.value, zeroOp);
-
-    auto sizeOp = gen.emitter_.constantInt(loc, intTy, arrayType->size());
-    endVal = gen.emitter_.pointerAdd(loc, ptrType, beginVal, sizeOp);
-  } else if (type_cast<ClassType>(rangeType)) {
-    auto beginFunc = ast->beginFunction;
-    auto endFunc = ast->endFunction;
-
-    if (!beginFunc || !endFunc) {
-      (void)gen.emitTodoStmt(ast->firstSourceLocation(),
-                             "for-range: no begin/end");
-      return;
-    }
-
-    if (ast->usesMemberBeginEnd) {
-      beginVal = gen.emitCall(ast->colonLoc, beginFunc, rangeResult, {}).value;
-      endVal = gen.emitCall(ast->colonLoc, endFunc, rangeResult, {}).value;
-    } else {
-      beginVal =
-          gen.emitCall(ast->colonLoc, beginFunc, {}, {rangeResult}).value;
-      endVal = gen.emitCall(ast->colonLoc, endFunc, {}, {rangeResult}).value;
-    }
-
-    if (!beginVal || !endVal) {
-      (void)gen.emitTodoStmt(ast->firstSourceLocation(),
-                             "for-range: begin/end call failed");
-      return;
-    }
-
-    isPointerIterator = ast->isPointerIterator;
-    derefFunc = ast->derefFunction;
-    incrFunc = ast->incrementFunction;
-    neqFunc = ast->notEqualFunction;
-
-    if (!isPointerIterator && (!derefFunc || !incrFunc || !neqFunc)) {
-      (void)gen.emitTodoStmt(ast->firstSourceLocation(),
-                             "for-range: missing iterator ops");
-      return;
-    }
-  } else {
-    (void)gen.emitTodoStmt(ast->firstSourceLocation(),
-                           "for-range: unsupported range type");
-    return;
-  }
-
-  auto condBlock = gen.newBlock();
-  auto bodyBlock = gen.newBlock();
-  auto stepBlock = gen.newBlock();
-  auto exitBlock = gen.newBlock();
-
-  const auto iterationDepth = gen.cleanupStack_.size();
-  gen.pushCleanup();
-
-  auto iterType = gen.emitter_.typeOf(beginVal);
-  auto iterPtrType = gen.emitter_.pointerType(iterType);
-  auto iterAlloca = gen.emitter_.allocate(loc, iterPtrType, 8);
-  gen.emitter_.store(loc, beginVal, iterAlloca, 8);
-
-  auto endPtrType = gen.emitter_.pointerType(gen.emitter_.typeOf(endVal));
-  auto endAlloca = gen.emitter_.allocate(loc, endPtrType, 8);
-  gen.emitter_.store(loc, endVal, endAlloca, 8);
-
-  Loop loop;
-  loop.continueBlock = stepBlock;
-  loop.breakBlock = exitBlock;
-  loop.continueCleanupDepth = iterationDepth;
-  loop.breakCleanupDepth = iterationDepth;
-  std::swap(gen.loop_, loop);
-
-  gen.branch(loc, condBlock);
-
-  gen.emitter_.setInsertionBlock(condBlock);
-
-  auto iterLoad = gen.emitter_.load(loc, iterType, iterAlloca, 8);
-  auto endLoad =
-      gen.emitter_.load(loc, gen.emitter_.typeOf(endVal), endAlloca, 8);
-
-  ir::ValueRef condVal;
-  if (isPointerIterator || !neqFunc) {
-    auto intPtrType = gen.emitter_.integerType(64);
-    auto leftInt = gen.emitter_.pointerToInt(loc, intPtrType, iterLoad);
-    auto rightInt = gen.emitter_.pointerToInt(loc, intPtrType, endLoad);
-    condVal = gen.emitter_.compareInt(loc, ir::IntPredicate::NotEqual, leftInt,
-                                      rightInt);
-  } else {
-    auto neqParent = neqFunc->parent();
-    bool isMemberNeq = neqParent && neqParent->kind() == SymbolKind::kClass;
-
-    ir::ValueRef firstArg = iterAlloca;
-    ir::ValueRef secondArg = endAlloca;
-    if (ast->notEqualReversed) std::swap(firstArg, secondArg);
-
-    ExpressionResult neqResult;
-    if (isMemberNeq) {
-      neqResult =
-          gen.emitCall(ast->colonLoc, neqFunc, {firstArg}, {{secondArg}});
-    } else {
-      neqResult =
-          gen.emitCall(ast->colonLoc, neqFunc, {}, {{firstArg}, {secondArg}});
-    }
-    condVal = neqResult.value;
-
-    if (condVal && ast->notEqualRewritten) {
-      auto boolType = gen.emitter_.typeOf(condVal);
-      auto trueConst = gen.emitter_.constantInt(loc, boolType, 1);
-      condVal =
-          gen.emitter_.binaryOp(loc, ir::BinaryOp::XorInt, condVal, trueConst);
-    }
-  }
-
-  if (!condVal) {
-    auto intPtrType = gen.emitter_.integerType(64);
-    auto leftInt = gen.emitter_.pointerToInt(loc, intPtrType, iterLoad);
-    auto rightInt = gen.emitter_.pointerToInt(loc, intPtrType, endLoad);
-    condVal = gen.emitter_.compareInt(loc, ir::IntPredicate::NotEqual, leftInt,
-                                      rightInt);
-  }
-
-  gen.emitter_.condBranch(loc, condVal, bodyBlock, exitBlock);
-
-  gen.emitter_.setInsertionBlock(bodyBlock);
-
-  auto loopVar = rangeDeclarationVariable(ast->rangeDeclaration);
-
-  if (loopVar) {
-    auto local = gen.findOrCreateLocal(loopVar);
-    if (local) {
-      auto iterInBody = gen.emitter_.load(loc, iterType, iterAlloca, 8);
-
-      if (isPointerIterator) {
-        if (gen.traits.is_reference(loopVar->type())) {
-          gen.emitter_.store(loc, iterInBody, local.value(),
-                             gen.getAlignment(loopVar->type()));
-        } else {
-          auto elemType =
-              gen.convertType(gen.traits.remove_cvref(loopVar->type()));
-          auto elem = gen.emitter_.load(
-              loc, elemType, iterInBody,
-              gen.getAlignment(gen.traits.remove_cvref(loopVar->type())));
-          gen.emitter_.store(loc, elem, local.value(),
-                             gen.getAlignment(loopVar->type()));
-        }
-      } else if (derefFunc) {
-        auto derefResult =
-            gen.emitCall(ast->colonLoc, derefFunc, {iterAlloca}, {});
-        if (derefResult.value) {
-          if (gen.traits.is_reference(loopVar->type())) {
-            gen.emitter_.store(loc, derefResult.value, local.value(),
-                               gen.getAlignment(loopVar->type()));
-          } else {
-            auto elemType =
-                gen.convertType(gen.traits.remove_cvref(loopVar->type()));
-            auto elem = gen.emitter_.load(
-                loc, elemType, derefResult.value,
-                gen.getAlignment(gen.traits.remove_cvref(loopVar->type())));
-            gen.emitter_.store(loc, elem, local.value(),
-                               gen.getAlignment(loopVar->type()));
-          }
-        }
-      }
-    }
-  }
-
-  emitRangeElementBindings(ast);
-
-  gen.statement(ast->statement);
-  auto bodyEndLoc = ast->rparenLoc;
-  if (ast->statement) bodyEndLoc = lastTokenLocation(ast->statement);
-  gen.emitBranchWithCleanups(bodyEndLoc, stepBlock, iterationDepth);
-  gen.popCleanup(bodyEndLoc);
-
-  gen.emitter_.setInsertionBlock(stepBlock);
-
-  if (isPointerIterator) {
-    auto iterInStep = gen.emitter_.load(loc, iterType, iterAlloca, 8);
-    auto intTy = gen.emitter_.integerType(32);
-    auto oneOp = gen.emitter_.constantInt(loc, intTy, 1);
-    auto nextIter = gen.emitter_.pointerAdd(loc, iterType, iterInStep, oneOp);
-    gen.emitter_.store(loc, nextIter, iterAlloca, 8);
-  } else if (incrFunc) {
-    (void)gen.emitCall(ast->colonLoc, incrFunc, {iterAlloca}, {});
-  }
-
-  gen.branch(loc, condBlock);
-
-  gen.emitter_.setInsertionBlock(exitBlock);
-
-  std::swap(gen.loop_, loop);
+  gen.statement(ast->range.statement);
 }
 
 void Codegen::StatementVisitor::operator()(ForStatementAST* ast) {
@@ -691,9 +426,13 @@ void Codegen::StatementVisitor::storeReturnValue(ReturnStatementAST* ast) {
 
   (void)gen.emitPrvalueInto(gen.exitValue_, gen.returnType_, ast->expression,
                             ast->firstSourceLocation());
+  if (gen.traits.has_trivial_destructor(gen.returnType_)) return;
+  if (auto destructor = gen.objectDestructor(gen.returnType_))
+    gen.addCleanup(gen.exitValue_, gen.completeObjectDtor(destructor), 1, true);
 }
 
 void Codegen::StatementVisitor::operator()(ReturnStatementAST* ast) {
+  auto returnScope = CleanupScopeGuard{gen, lastTokenLocation(ast)};
   {
     auto fullExpression = FullExpression{gen, lastTokenLocation(ast)};
     storeReturnValue(ast);
@@ -724,10 +463,7 @@ void Codegen::StatementVisitor::operator()(GotoStatementAST* ast) {
     return;
   }
 
-  auto cleanupSnapshot = gen.collectCleanupSnapshot();
-
-  gen.emitter_.gotoLabel(ast->firstSourceLocation(), ast->identifier->name(),
-                         cleanupSnapshot);
+  gen.emitGotoLabel(ast->firstSourceLocation(), ast->identifier->name());
 
   auto nextBlock = gen.newBlock();
   gen.branch(ast->firstSourceLocation(), nextBlock);
@@ -742,7 +478,8 @@ void Codegen::StatementVisitor::operator()(DeclarationStatementAST* ast) {
 
 void Codegen::StatementVisitor::operator()(TryBlockStatementAST* ast) {
   if (gen.unit_->config().exceptionsEnabled) {
-    (void)gen.emitTodoStmt(ast->firstSourceLocation(), to_string(ast->kind()));
+    gen.emitTry([&] { gen.statement(ast->statement); }, ast->handlerList,
+                ast->firstSourceLocation());
     return;
   }
   gen.statement(ast->statement);

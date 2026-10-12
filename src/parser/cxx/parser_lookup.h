@@ -46,7 +46,8 @@ template <typename Predicate>
 
 [[nodiscard]] auto unqualifiedLookupIncludingInlineNamespaces(
     Control* control, Scope* lexicalScope, const Name* name,
-    bool skipClassNames = false, bool* ambiguous = nullptr) -> Symbol*;
+    bool skipClassNames = false, bool* ambiguous = nullptr,
+    NameUse use = NameUse::kOrdinary) -> Symbol*;
 
 [[nodiscard]] auto unqualifiedLookupType(Scope* lexicalScope,
                                          const Identifier* id,

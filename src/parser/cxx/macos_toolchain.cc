@@ -151,9 +151,10 @@ void MacOSToolchain::addSystemIncludePaths() {
   addSystemIncludePath(std::format("{}/usr/local/include", sysroot));
   addBuiltinIncludePath();
   addSystemIncludePath(std::format("{}/usr/include", sysroot));
-  addSystemIncludePath(std::format("{}/System/Library/Frameworks", sysroot));
-  addSystemIncludePath(std::format("{}/System/Library/SubFrameworks", sysroot));
-  addSystemIncludePath(std::format("{}/Library/Frameworks", sysroot));
+  addSystemFrameworkPath(std::format("{}/System/Library/Frameworks", sysroot));
+  addSystemFrameworkPath(
+      std::format("{}/System/Library/SubFrameworks", sysroot));
+  addSystemFrameworkPath(std::format("{}/Library/Frameworks", sysroot));
 }
 
 void MacOSToolchain::addSystemCppIncludePaths() {

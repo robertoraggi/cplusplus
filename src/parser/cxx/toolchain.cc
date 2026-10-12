@@ -54,6 +54,15 @@ constexpr LanguageStandard kLanguageStandards[] = {
 constexpr std::string_view kDefaultCplusplusMacroValue = "202400L";
 constexpr std::string_view kDefaultStdcVersionMacroValue = "202311L";
 
+[[nodiscard]] auto standardValue(std::string_view macroValue) -> long {
+  long value = 0;
+  for (auto ch : macroValue) {
+    if (ch < '0' || ch > '9') break;
+    value = value * 10 + (ch - '0');
+  }
+  return value;
+}
+
 void removeTrailingSeparators(std::string& path) {
   while (path.size() > 1 && path.back() == '/') path.pop_back();
 }
@@ -147,6 +156,11 @@ void Toolchain::setLanguage(LanguageKind language) {
 
 void Toolchain::setLanguageStandard(const LanguageStandard* languageStandard) {
   languageStandard_ = languageStandard;
+  if (preprocessor_ && languageStandard &&
+      languageStandard->language == LanguageKind::kCXX) {
+    preprocessor_->setCplusplusVersion(
+        standardValue(languageStandard->versionMacroValue));
+  }
 }
 
 auto Toolchain::cplusplusMacroValue() const -> std::string_view {
@@ -186,6 +200,10 @@ void Toolchain::initMemoryLayout() {
 
 void Toolchain::addSystemIncludePath(std::string path) {
   preprocessor_->addSystemIncludePath(std::move(path));
+}
+
+void Toolchain::addSystemFrameworkPath(std::string path) {
+  preprocessor_->addSystemFrameworkPath(std::move(path));
 }
 
 void Toolchain::addBuiltinIncludePath() {
@@ -546,14 +564,6 @@ const FeatureTestMacro kFeatureTestMacros[] = {
     {"__cpp_variadic_using", "201703L", "201611L"},
 };
 
-[[nodiscard]] auto standardValue(std::string_view macroValue) -> long {
-  long value = 0;
-  for (auto ch : macroValue) {
-    if (ch < '0' || ch > '9') break;
-    value = value * 10 + (ch - '0');
-  }
-  return value;
-}
 }  // namespace
 
 void Toolchain::addFeatureTestMacros() {
@@ -572,6 +582,7 @@ void Toolchain::addFeatureTestMacros() {
     if (macro.name != name) flush();
     if (standardValue(macro.standard) > selected) continue;
     if (!exceptionsEnabled() && macro.name == "__cpp_exceptions") continue;
+    if (!rttiEnabled() && macro.name == "__cpp_rtti") continue;
     if (!hasThreads() && macro.name == "__cpp_threadsafe_static_init") {
       continue;
     }
@@ -1531,7 +1542,7 @@ void Toolchain::addLinuxCxx26Macros() {
   defineMacro("__GNUC_GNU_INLINE__", "1");
   defineMacro("__GNUG__", "4");
   defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");
-  defineMacro("__GXX_RTTI", "1");
+  if (rttiEnabled()) defineMacro("__GXX_RTTI", "1");
   defineMacro("__GXX_WEAK__", "1");
   defineMacro("__STDCPP_DEFAULT_NEW_ALIGNMENT__", "16UL");
   defineMacro("__STDCPP_THREADS__", "1");
@@ -1544,7 +1555,7 @@ void Toolchain::addMacOSCxx26Macros() {
   defineMacro("__GNUC_GNU_INLINE__", "1");
   defineMacro("__GNUG__", "4");
   defineMacro("__GXX_EXPERIMENTAL_CXX0X__", "1");
-  defineMacro("__GXX_RTTI", "1");
+  if (rttiEnabled()) defineMacro("__GXX_RTTI", "1");
   defineMacro("__GXX_WEAK__", "1");
   defineMacro("__STDCPP_DEFAULT_NEW_ALIGNMENT__", "16UL");
   defineMacro("__STDCPP_THREADS__", "1");
@@ -1553,7 +1564,7 @@ void Toolchain::addMacOSCxx26Macros() {
 }
 
 void Toolchain::addWindowsCxx26Macros() {
-  defineMacro("_CPPRTTI", "1");
+  if (rttiEnabled()) defineMacro("_CPPRTTI", "1");
   if (exceptionsEnabled()) defineMacro("_CPPUNWIND", "1");
   defineMacro("_HAS_CHAR16_T_LANGUAGE_SUPPORT", "1");
   defineMacro("_MSVC_LANG", "202400L");

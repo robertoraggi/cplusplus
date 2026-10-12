@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/dependent_types.h>
@@ -1318,28 +1319,35 @@ auto TemplateEquivalence::same(TemplateDeclarationAST* a,
       .same(a->requiresClause->expression, b->requiresClause->expression);
 }
 
+auto TemplateEquivalence::specializesMemberOfImplicitInstantiation(
+    ClassSymbol* enclosingClass, TemplateDeclarationAST* templateHead) const
+    -> bool {
+  if (!isExplicitSpecializationHead(templateHead)) return false;
+  for (auto current = enclosingClass; current;
+       current = symbol_cast<ClassSymbol>(current->parent())) {
+    if (current->templateDeclaration() || !current->isSpecialization())
+      continue;
+    auto primary = current->primaryTemplateSymbol();
+    auto primaryHead = primary ? primary->templateDeclaration() : nullptr;
+    if (primaryHead && primaryHead->depth == templateHead->depth) return true;
+  }
+  return false;
+}
+
 auto TemplateEquivalence::ownFunctionTemplateHead(
     ClassSymbol* enclosingClass, TemplateDeclarationAST* templateHead) const
     -> TemplateDeclarationAST* {
   if (!templateHead) return nullptr;
 
-  const bool isExplicitSpecializationHead =
-      templateHead->symbol &&
-      templateHead->symbol->isExplicitTemplateSpecialization();
-
   for (auto current = enclosingClass; current;
        current = symbol_cast<ClassSymbol>(current->parent())) {
     auto enclosingHead = current->templateDeclaration();
-    const bool isClassSpecialization = current->isSpecialization();
-    if (!enclosingHead && isClassSpecialization) {
+    if (!enclosingHead && current->isSpecialization()) {
       auto primary = current->primaryTemplateSymbol();
       if (primary) enclosingHead = primary->templateDeclaration();
     }
     if (!enclosingHead || enclosingHead->depth != templateHead->depth) {
       continue;
-    }
-    if (isExplicitSpecializationHead && isClassSpecialization) {
-      return nullptr;
     }
     if (same(enclosingHead, templateHead)) {
       return nullptr;

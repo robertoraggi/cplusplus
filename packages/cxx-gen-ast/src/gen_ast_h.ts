@@ -205,6 +205,7 @@ ${cpy_header}
 
 #include <cxx/arena.h>
 #include <cxx/ast_fwd.h>
+#include <cxx/ast_attributes.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/source_location.h>
 #include <cxx/token.h>

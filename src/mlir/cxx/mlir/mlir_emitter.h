@@ -43,12 +43,30 @@ class MlirEmitter final : public Emitter {
   MlirEmitter(mlir::MLIRContext& context, TranslationUnit* unit);
   ~MlirEmitter() override;
   auto debug() -> DebugEmitter* override;
+  void moduleAsm(SourceLocation loc, std::string_view assembly) override;
+  void functionPersonality(FunctionRef function,
+                           std::string_view personality) override;
+  [[nodiscard]] auto landingPad(SourceLocation loc,
+                                std::span<const ValueRef> clauses, bool cleanup)
+      -> std::vector<ValueRef> override;
+  [[nodiscard]] auto exceptionTypeId(SourceLocation loc, ValueRef typeInfo)
+      -> ValueRef override;
+  void resumeException(SourceLocation loc, ValueRef exception,
+                       ValueRef selector) override;
+  [[nodiscard]] auto inlineAsm(SourceLocation loc, const InlineAsmInfo& info)
+      -> std::vector<ValueRef> override;
+  [[nodiscard]] auto inlineAsmGoto(SourceLocation loc,
+                                   const InlineAsmInfo& info,
+                                   BlockRef fallthrough,
+                                   std::span<const BlockRef> destinations)
+      -> ValueRef override;
 
   auto saveInsertionPoint() -> InsertionPointRef override;
   void restoreInsertionPoint(InsertionPointRef point) override;
   void setInsertionPoint(InsertionPoint point) override;
   void beginGlobalInitializer(GlobalRef global) override;
-  void globalConstructor(SourceLocation loc, FunctionRef function) override;
+  void globalConstructor(SourceLocation loc, FunctionRef function,
+                         std::uint32_t priority = 65535) override;
   auto constant(SourceLocation loc, TypeRef type, const Initializer& value)
       -> ValueRef override;
   auto isZeroConstant(ValueRef value) -> bool override;

@@ -66,56 +66,12 @@ struct Pair {
 // CHECK-NEXT:                            identifier: a
 // CHECK-NEXT:                          name-id
 // CHECK-NEXT:                            identifier: b
-// CHECK-NEXT:                        initializer: equal-initializer [lvalue ::Pair]
+// CHECK-NEXT:                        initializer: equal-initializer [lvalue const ::Pair]
 // CHECK-NEXT:                          expression: implicit-cast-expression [lvalue const ::Pair]
 // CHECK-NEXT:                            cast-kind: qualification-conversion
 // CHECK-NEXT:                            expression: unary-expression [lvalue ::Pair]
 // CHECK-NEXT:                              op: *
 // CHECK-NEXT:                              expression: this-expression [prvalue ::Pair*]
-// CHECK-NEXT:                        hidden-variable: init-declarator
-// CHECK-NEXT:                          declarator: declarator
-// CHECK-NEXT:                            core-declarator: id-declarator
-// CHECK-NEXT:                              unqualified-id: name-id
-// CHECK-NEXT:                                identifier: $e
-// CHECK-NEXT:                          initializer: equal-initializer [lvalue ::Pair]
-// CHECK-NEXT:                            expression: implicit-cast-expression [lvalue const ::Pair]
-// CHECK-NEXT:                              cast-kind: qualification-conversion
-// CHECK-NEXT:                              expression: unary-expression [lvalue ::Pair]
-// CHECK-NEXT:                                op: *
-// CHECK-NEXT:                                expression: this-expression [prvalue ::Pair*]
-// CHECK-NEXT:                        binding-declarator-list
-// CHECK-NEXT:                          init-declarator
-// CHECK-NEXT:                            declarator: declarator
-// CHECK-NEXT:                              ptr-op-list
-// CHECK-NEXT:                                reference-operator
-// CHECK-NEXT:                                  ref-op: &
-// CHECK-NEXT:                              core-declarator: id-declarator
-// CHECK-NEXT:                                unqualified-id: name-id
-// CHECK-NEXT:                                  identifier: a
-// CHECK-NEXT:                            initializer: equal-initializer [lvalue int]
-// CHECK-NEXT:                              expression: member-expression [lvalue int]
-// CHECK-NEXT:                                access-op: .
-// CHECK-NEXT:                                base-expression: id-expression [lvalue ::Pair]
-// CHECK-NEXT:                                  unqualified-id: name-id
-// CHECK-NEXT:                                    identifier: $e
-// CHECK-NEXT:                                unqualified-id: name-id
-// CHECK-NEXT:                                  identifier: first
-// CHECK-NEXT:                          init-declarator
-// CHECK-NEXT:                            declarator: declarator
-// CHECK-NEXT:                              ptr-op-list
-// CHECK-NEXT:                                reference-operator
-// CHECK-NEXT:                                  ref-op: &
-// CHECK-NEXT:                              core-declarator: id-declarator
-// CHECK-NEXT:                                unqualified-id: name-id
-// CHECK-NEXT:                                  identifier: b
-// CHECK-NEXT:                            initializer: equal-initializer [lvalue int]
-// CHECK-NEXT:                              expression: member-expression [lvalue int]
-// CHECK-NEXT:                                access-op: .
-// CHECK-NEXT:                                base-expression: id-expression [lvalue ::Pair]
-// CHECK-NEXT:                                  unqualified-id: name-id
-// CHECK-NEXT:                                    identifier: $e
-// CHECK-NEXT:                                unqualified-id: name-id
-// CHECK-NEXT:                                  identifier: second
 // CHECK-NEXT:                    return-statement
 // CHECK-NEXT:                      expression: binary-expression [prvalue int]
 // CHECK-NEXT:                        op: +

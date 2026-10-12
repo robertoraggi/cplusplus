@@ -515,12 +515,24 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
 void cxx::TypeChecker::Visitor::validateBuiltinArguments(
     cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind) {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN___CFSTRINGMAKECONSTANTSTRING:
+      validateBuiltinCFStringMakeConstantString(ast);
+      return;
+
     case BuiltinFunctionKind::T___BUILTIN_ALLOCA_WITH_ALIGN:
       validateBuiltinAllocaWithAlign(ast);
       return;
 
     case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
       validateBuiltinAssumeAligned(ast);
+      return;
+
+    case BuiltinFunctionKind::T___BUILTIN_FRAME_ADDRESS:
+      validateBuiltinStackFrameLevel(ast);
+      return;
+
+    case BuiltinFunctionKind::T___BUILTIN_RETURN_ADDRESS:
+      validateBuiltinStackFrameLevel(ast);
       return;
 
     default:

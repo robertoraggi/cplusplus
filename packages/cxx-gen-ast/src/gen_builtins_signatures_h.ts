@@ -46,6 +46,8 @@ function flagsOf(builtin: BuiltinDef): string {
   if (builtin.noexcept) flags.push(`BuiltinFlags::kNoexcept`);
   if (builtin.noreturn) flags.push(`BuiltinFlags::kNoReturn`);
   if (builtin.cplusplus) flags.push(`BuiltinFlags::kCplusplus`);
+  if (prototypesOf(builtin).some((p) => p.includes("_BitInt(N)")))
+    flags.push(`BuiltinFlags::kBitIntFamily`);
   if (!flags.length) return `BuiltinFlags::kNone`;
   return flags.join(` | `);
 }

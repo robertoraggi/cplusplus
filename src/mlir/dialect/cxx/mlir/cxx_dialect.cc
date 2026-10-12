@@ -35,6 +35,28 @@
 #include <numeric>
 
 namespace mlir::cxx {
+template <typename Enum>
+struct detail::EnumAttrStorage : public AttributeStorage {
+  using KeyTy = Enum;
+
+  explicit EnumAttrStorage(Enum value) : value(value) {}
+
+  [[nodiscard]] auto operator==(KeyTy key) const -> bool {
+    return value == key;
+  }
+
+  [[nodiscard]] static auto hashKey(KeyTy key) -> llvm::hash_code {
+    return llvm::hash_value(key);
+  }
+
+  static auto construct(AttributeStorageAllocator& allocator, KeyTy key)
+      -> EnumAttrStorage* {
+    return new (allocator.allocate<EnumAttrStorage>()) EnumAttrStorage(key);
+  }
+
+  Enum value;
+};
+
 struct detail::ClassTypeStorage : public TypeStorage {
  public:
   using KeyTy = StringRef;
@@ -289,6 +311,40 @@ auto FuncOp::parse(OpAsmParser& parser, OperationState& result) -> ParseResult {
       getResAttrsAttrName(result.name));
 }
 
+namespace {
+[[nodiscard]] auto verifyAsmArgumentElementTypes(Operation* op,
+                                                 ValueRange inputs,
+                                                 ArrayAttr elementTypes)
+    -> LogicalResult {
+  if (elementTypes.size() != inputs.size())
+    return op->emitOpError("expects an element type entry for each input");
+  for (auto [input, elementType] : llvm::zip(inputs, elementTypes)) {
+    if (isa<UnitAttr>(elementType)) continue;
+    if (!isa<TypeAttr>(elementType))
+      return op->emitOpError(
+          "expects type or unit attributes for input element types");
+    if (isa<LLVM::LLVMPointerType>(input.getType())) continue;
+    auto pointer = dyn_cast<PointerType>(input.getType());
+    if (!pointer)
+      return op->emitOpError("expects a pointer input for an indirect operand");
+    if (pointer.getElementType() != cast<TypeAttr>(elementType).getValue())
+      return op->emitOpError(
+          "indirect operand element type does not match its pointer type");
+  }
+  return success();
+}
+}  // namespace
+
+auto InlineAsmOp::verify() -> LogicalResult {
+  return verifyAsmArgumentElementTypes(*this, getInputs(),
+                                       getArgumentElementTypes());
+}
+
+auto AsmGotoOp::verify() -> LogicalResult {
+  return verifyAsmArgumentElementTypes(*this, getInputs(),
+                                       getArgumentElementTypes());
+}
+
 auto CallOp::verify() -> LogicalResult {
   if (getCalleeAttr() && getCalleeOperand()) {
     return emitOpError("expects either a callee symbol or a callee operand");
@@ -337,7 +393,7 @@ void ArrayType::print(AsmPrinter& p) const {
 
 auto ArrayType::parse(AsmParser& parser) -> Type {
   Type elementType;
-  unsigned size;
+  std::uint64_t size;
   if (parser.parseLess() || parser.parseType(elementType) ||
       parser.parseComma() || parser.parseInteger(size) || parser.parseGreater())
     return {};

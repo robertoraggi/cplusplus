@@ -22,6 +22,7 @@
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
+#include <cxx/function_body.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
@@ -242,9 +243,21 @@ auto isFullyInitialized(const ConstValue& value) -> bool {
   if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
     if (!*object) return false;
     if ((*object)->isConstexprUnknown()) return false;
+    if (auto type = unqualified_cast<ClassType>((*object)->type())) {
+      auto symbol = type->definition();
+      if (!symbol) return false;
+      for (auto base : symbol->baseClasses())
+        if (!(*object)->subobject(base)) return false;
+    }
     for (const auto& member : (*object)->members()) {
       if (!isFullyInitialized(member.value)) return false;
     }
+  }
+
+  if (auto address = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
+    if (!*address) return false;
+    auto owner = (*address)->owner();
+    if (owner && owner->isConstexprUnknown()) return false;
   }
 
   if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
@@ -384,6 +397,14 @@ auto ASTInterpreter::toArithmeticType(const ConstValue& value, const Type* type)
       return ConstValue{*result};
     }
 
+    case TypeKind::kFloat16: {
+      auto result = toDouble(value);
+      auto format = control()->memoryLayout()->floatingPointFormat(type);
+      if (!result || !format) return std::nullopt;
+      return ConstValue{
+          static_cast<float>(format->value(format->representation(*result)))};
+    }
+
     default:
       break;
   }
@@ -489,6 +510,32 @@ auto ASTInterpreter::definingDeclarationOf(FunctionSymbol* function)
   return definition;
 }
 
+auto ASTInterpreter::evaluateWithParameters(
+    FunctionSymbol* function, std::span<ExpressionAST* const> arguments,
+    ExpressionAST* condition) -> std::optional<ConstValue> {
+  if (aborted_) return std::nullopt;
+  auto guard = EvaluationScope{*this};
+  pushFrame();
+  auto parameters = function->parameters();
+  for (std::size_t index = 0; index < parameters.size(); ++index) {
+    auto argument = index < arguments.size() ? arguments[index] : nullptr;
+    if (!argument)
+      argument = ASTRewriter::requireDefaultArgument(unit_, parameters[index]);
+    const auto bound =
+        argument &&
+        bindOneParameter(frames_.back(), parameters[index], argument);
+    if (std::exchange(aborted_, false) || !bound) {
+      frames_.back().refs.erase(parameters[index]);
+      frames_.back().referenceAddresses.erase(parameters[index]);
+      frames_.back().locals.insert_or_assign(parameters[index],
+                                             IndeterminateValue{});
+    }
+  }
+  auto result = evaluate(condition);
+  popFrame();
+  return result;
+}
+
 auto ASTInterpreter::bindParameters(Frame& frame, FunctionSymbol* func,
                                     std::vector<ConstValue>& args) -> bool {
   auto params = definingDeclarationOf(func)->parameters();
@@ -545,7 +592,7 @@ void ASTInterpreter::applyNsdmis(const std::shared_ptr<ConstObject>& obj) {
   auto classType = unqualified_cast<ClassType>(obj->type());
   auto classSymbol = classType ? classType->symbol() : nullptr;
   if (!classSymbol) return;
-  auto savedThis = std::exchange(thisObject_, obj);
+  ThisScope thisScope{*this, obj};
   for (auto member : classSymbol->members()) {
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field || field->isStatic() || !field->initializer()) continue;
@@ -554,24 +601,20 @@ void ASTInterpreter::applyNsdmis(const std::shared_ptr<ConstObject>& obj) {
     obj->setMember(field, std::move(*value));
     if (classSymbol->isUnion()) break;
   }
-  thisObject_ = std::move(savedThis);
 }
 
 auto ASTInterpreter::initializeDefaultedObject(
     const std::shared_ptr<ConstObject>& obj, ClassSymbol* classSymbol) -> bool {
   if (!obj || !classSymbol) return false;
   classSymbol = classSymbol->resolvedDefinition();
-  auto savedThis = std::exchange(thisObject_, obj);
+  ThisScope thisScope{*this, obj};
 
   for (auto base : classSymbol->baseClasses()) {
     if (base->isVirtual()) continue;
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClass) continue;
     auto value = defaultConstruct(baseClass->type());
-    if (!value) {
-      thisObject_ = std::move(savedThis);
-      return false;
-    }
+    if (!value) return false;
     obj->addMember(base, std::move(*value));
   }
 
@@ -580,11 +623,9 @@ auto ASTInterpreter::initializeDefaultedObject(
     if (!field || field->isStatic()) continue;
 
     if (field->initializer()) {
-      auto value = initialValue(field->type(), field->initializer());
-      if (!value) {
-        thisObject_ = std::move(savedThis);
-        return false;
-      }
+      auto value = initializationValue(field->type(), field->constructor(),
+                                       field->initializer());
+      if (!value) return false;
       obj->setMember(field, std::move(*value));
       if (classSymbol->isUnion()) break;
       continue;
@@ -592,16 +633,12 @@ auto ASTInterpreter::initializeDefaultedObject(
 
     if (!obj->subobject(field)) {
       auto value = defaultConstruct(field->type());
-      if (!value) {
-        thisObject_ = std::move(savedThis);
-        return false;
-      }
+      if (!value) return false;
       obj->setMember(field, std::move(*value));
     }
     if (classSymbol->isUnion()) break;
   }
 
-  thisObject_ = std::move(savedThis);
   return true;
 }
 
@@ -714,8 +751,10 @@ auto ASTInterpreter::constructSubobject(
     return elements;
   }
   auto paren = ast_cast<ParenMemInitializerAST>(ast);
+  auto braced = ast_cast<BracedMemInitializerAST>(ast);
   const auto valueInitialized =
-      paren && paren->lparenLoc && !paren->expressionList;
+      arguments.empty() &&
+      ((paren && paren->lparenLoc) || (braced && braced->bracedInitList));
 
   if (valueInitialized &&
       traits.requires_zero_initialization(type, ast->constructor)) {
@@ -869,7 +908,7 @@ auto ASTInterpreter::destroyValue(const Type* type, ConstValue& value) -> bool {
   traits.requireCompleteClass(classSymbol);
   if (!classSymbol || !classSymbol->isComplete()) return false;
   auto destructor = classSymbol->destructor();
-  if (!destructor || destructor->isDeleted()) return false;
+  if (!destructor || isDeletedFunction(unit_, destructor)) return false;
 
   if (!destructor->isDefaulted()) {
     if (!destructor->isConstexpr()) return false;
@@ -899,10 +938,10 @@ auto ASTInterpreter::destroyValue(const Type* type, ConstValue& value) -> bool {
   return true;
 }
 
-auto ASTInterpreter::executeFunction(FunctionSymbol* function, Frame frame,
-                                     CallResultKind kind,
-                                     std::shared_ptr<ConstObject> object,
-                                     bool constructor) -> CallResult {
+auto ASTInterpreter::executeFunction(
+    FunctionSymbol* function, Frame frame, CallResultKind kind,
+    std::shared_ptr<ConstObject> object, bool constructor,
+    std::shared_ptr<ConstAddress> objectAddress) -> CallResult {
   if (!function || !function->isConstexpr() || depth_ >= kMaxDepth) return {};
   auto definition = definingDeclarationOf(function);
   auto declaration = definition->declaration();
@@ -917,10 +956,14 @@ auto ASTInterpreter::executeFunction(FunctionSymbol* function, Frame frame,
   auto savedCaptureLValue =
       std::exchange(captureReturnLValue_, kind == CallResultKind::kLValue);
   auto savedCaptureAddress =
-      std::exchange(captureReturnAddress_, kind == CallResultKind::kAddress);
+      std::exchange(captureReturnAddress_, kind == CallResultKind::kAddress ||
+                                               kind == CallResultKind::kObject);
+  auto savedAddressFallback = std::exchange(returnAddressFallsBackToValue_,
+                                            kind == CallResultKind::kObject);
   auto savedFunction = std::exchange(currentFunction_, function);
-  auto savedThis = thisObject_;
-  if (object) thisObject_ = std::move(object);
+  std::optional<ThisScope> thisScope;
+  if (object)
+    thisScope.emplace(*this, std::move(object), std::move(objectAddress));
   auto savedConstructor = std::exchange(
       currentConstructorClass_,
       constructor ? symbol_cast<ClassSymbol>(function->parent()) : nullptr);
@@ -929,7 +972,7 @@ auto ASTInterpreter::executeFunction(FunctionSymbol* function, Frame frame,
   ++depth_;
   frames_.push_back(std::move(frame));
   if (constructor) {
-    for (auto initializer : ListView{body->memInitializerList}) {
+    for (auto initializer : ListView{ctor_initializers(function)}) {
       (void)memInitializer(initializer);
       if (aborted_) break;
     }
@@ -939,6 +982,7 @@ auto ASTInterpreter::executeFunction(FunctionSymbol* function, Frame frame,
            views::members(currentConstructorClass_->resolvedDefinition()) |
                views::non_static_fields) {
         if (thisObject_->subobject(field)) continue;
+        if (anonymous_member_class(field)) continue;
         auto value = defaultConstruct(field->type());
         if (!value) {
           aborted_ = true;
@@ -957,7 +1001,10 @@ auto ASTInterpreter::executeFunction(FunctionSymbol* function, Frame frame,
     result.value = thisObject_;
   else if (kind == CallResultKind::kAddress)
     result.value = returnAddress_;
-  else if (kind == CallResultKind::kLValue)
+  else if (kind == CallResultKind::kObject && returnAddress_) {
+    result.value = returnAddress_;
+    result.isAddress = true;
+  } else if (kind == CallResultKind::kLValue)
     result.lvalue = returnLValue_;
   else
     result.value = returnValue_;
@@ -971,8 +1018,9 @@ auto ASTInterpreter::executeFunction(FunctionSymbol* function, Frame frame,
   returnAddress_ = std::move(savedAddress);
   captureReturnLValue_ = savedCaptureLValue;
   captureReturnAddress_ = savedCaptureAddress;
+  returnAddressFallsBackToValue_ = savedAddressFallback;
   currentFunction_ = savedFunction;
-  thisObject_ = std::move(savedThis);
+  thisScope.reset();
   currentConstructorClass_ = savedConstructor;
   defaultInitializerContext_ = savedContext;
   if (aborted_) return {};

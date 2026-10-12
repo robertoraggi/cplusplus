@@ -467,6 +467,7 @@ void Frontend::Private::parse() {
       .validateAst = cli.opt_fvalidate_ast,
       .allowUnprototypedFunctions = cli.opt_fno_strict_prototypes,
       .exceptionsEnabled = toolchain_->exceptionsEnabled(),
+      .rttiEnabled = toolchain_->rttiEnabled(),
       .stopParsingPredicate = [this]() -> bool {
         return diagnosticsClient_->errorLimitReached();
       },
@@ -795,11 +796,17 @@ void Frontend::Private::showSearchPaths(std::ostream& out) {
   collectExistingDirectories(out, preprocessor->systemIncludePaths(),
                              anglePaths);
 
+  std::vector<std::string> frameworkPaths;
+  collectExistingDirectories(out, preprocessor->systemFrameworkPaths(),
+                             frameworkPaths);
+
   out << std::format("#include \"...\" search starts here:\n");
   for (const auto& path : quotePaths) out << std::format(" {}\n", path);
 
   out << std::format("#include <...> search starts here:\n");
   for (const auto& path : anglePaths) out << std::format(" {}\n", path);
+  for (const auto& path : frameworkPaths)
+    out << std::format(" {} (framework directory)\n", path);
 
   out << std::format("End of search list.\n");
 }
@@ -809,7 +816,12 @@ void Frontend::Private::generateIR() {
   if (!needsIR()) return;
 
 #ifdef CXX_WITH_MLIR
+#ifdef __wasm__
+  context_ = std::make_unique<mlir::MLIRContext>(
+      mlir::MLIRContext::Threading::DISABLED);
+#else
   context_ = std::make_unique<mlir::MLIRContext>();
+#endif
   context_->loadDialect<mlir::cxx::CxxDialect>();
 
   auto emitter = cxx::ir::MlirEmitter{*context_, unit_.get()};
@@ -972,6 +984,7 @@ auto Frontend::Private::targetMachine() -> llvm::TargetMachine* {
   }();
 
   llvm::TargetOptions opt;
+  opt.UseInitArray = true;
 
   targetMachine_ =
       std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
@@ -1015,6 +1028,7 @@ void Frontend::Private::emitCode() {
     }
 
     pm.run(*llvmModule_);
+    if (llvmContext_->getDiagHandlerPtr()->HasErrors) fail();
     out.flush();
   };
 

@@ -45,16 +45,19 @@ end:;
 // CHECK-NEXT:                literal: "nop"
 // CHECK-NEXT:                asm-qualifier-list
 // CHECK-NEXT:                  asm-qualifier
+// CHECK-NEXT:                    qualifier: inline
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: asm-declaration
 // CHECK-NEXT:                literal: "nop"
 // CHECK-NEXT:                asm-qualifier-list
 // CHECK-NEXT:                  asm-qualifier
+// CHECK-NEXT:                    qualifier: goto
 // CHECK-NEXT:            declaration-statement
 // CHECK-NEXT:              declaration: asm-declaration
 // CHECK-NEXT:                literal: "nop"
 // CHECK-NEXT:                asm-qualifier-list
 // CHECK-NEXT:                  asm-qualifier
+// CHECK-NEXT:                    qualifier: volatile
 // CHECK-NEXT:    function-definition
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        void-type-specifier
@@ -156,6 +159,7 @@ end:;
 // CHECK-NEXT:                literal: "nop"
 // CHECK-NEXT:                asm-qualifier-list
 // CHECK-NEXT:                  asm-qualifier
+// CHECK-NEXT:                    qualifier: goto
 // CHECK-NEXT:                goto-label-list
 // CHECK-NEXT:                  asm-goto-label
 // CHECK-NEXT:                    identifier: end

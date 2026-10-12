@@ -558,16 +558,6 @@ void ASTPrinter::visit(StructuredBindingDeclarationAST* ast) {
     --indent_;
   }
   accept(ast->initializer, "initializer");
-  accept(ast->hiddenVariable, "hidden-variable");
-  if (ast->bindingDeclaratorList) {
-    ++indent_;
-    out_ << std::format("{:{}}", "", indent_ * 2);
-    out_ << std::format("{}\n", "binding-declarator-list");
-    for (auto node : ListView{ast->bindingDeclaratorList}) {
-      accept(node);
-    }
-    --indent_;
-  }
 }
 
 void ASTPrinter::visit(AsmOperandAST* ast) {
@@ -914,10 +904,13 @@ void ASTPrinter::visit(LabeledStatementAST* ast) {
 void ASTPrinter::visit(CaseStatementAST* ast) {
   out_ << std::format("{}\n", "case-statement");
   accept(ast->expression, "expression");
+  accept(ast->upperExpression, "upper-expression");
+  accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(DefaultStatementAST* ast) {
   out_ << std::format("{}\n", "default-statement");
+  accept(ast->statement, "statement");
 }
 
 void ASTPrinter::visit(ExpressionStatementAST* ast) {
@@ -1042,30 +1035,6 @@ void ASTPrinter::visit(DoStatementAST* ast) {
 
 void ASTPrinter::visit(ForRangeStatementAST* ast) {
   out_ << std::format("{}\n", "for-range-statement");
-  if (ast->usesMemberBeginEnd) {
-    ++indent_;
-    out_ << std::format("{:{}}", "", indent_ * 2);
-    out_ << std::format("uses-member-begin-end: {}\n", ast->usesMemberBeginEnd);
-    --indent_;
-  }
-  if (ast->isPointerIterator) {
-    ++indent_;
-    out_ << std::format("{:{}}", "", indent_ * 2);
-    out_ << std::format("is-pointer-iterator: {}\n", ast->isPointerIterator);
-    --indent_;
-  }
-  if (ast->notEqualRewritten) {
-    ++indent_;
-    out_ << std::format("{:{}}", "", indent_ * 2);
-    out_ << std::format("not-equal-rewritten: {}\n", ast->notEqualRewritten);
-    --indent_;
-  }
-  if (ast->notEqualReversed) {
-    ++indent_;
-    out_ << std::format("{:{}}", "", indent_ * 2);
-    out_ << std::format("not-equal-reversed: {}\n", ast->notEqualReversed);
-    --indent_;
-  }
   if (ast->attributeList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1079,11 +1048,6 @@ void ASTPrinter::visit(ForRangeStatementAST* ast) {
   accept(ast->rangeDeclaration, "range-declaration");
   accept(ast->rangeInitializer, "range-initializer");
   accept(ast->statement, "statement");
-  accept(ast->beginInitializer, "begin-initializer");
-  accept(ast->endInitializer, "end-initializer");
-  accept(ast->condition, "condition");
-  accept(ast->increment, "increment");
-  accept(ast->element, "element");
 }
 
 void ASTPrinter::visit(ForStatementAST* ast) {
@@ -1970,6 +1934,13 @@ void ASTPrinter::visit(NewExpressionAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
+  if (ast->arrayCookieRequired) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("array-cookie-required: {}\n",
+                        ast->arrayCookieRequired);
+    --indent_;
+  }
   if (ast->hasAlignmentArgument) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);
@@ -1998,6 +1969,13 @@ void ASTPrinter::visit(DeleteExpressionAST* ast) {
                         to_string(ast->type));
   }
   out_ << "\n";
+  if (ast->arrayCookieRequired) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("array-cookie-required: {}\n",
+                        ast->arrayCookieRequired);
+    --indent_;
+  }
   accept(ast->expression, "expression");
 }
 
@@ -2314,6 +2292,7 @@ void ASTPrinter::visit(DotDesignatorAST* ast) {
 void ASTPrinter::visit(SubscriptDesignatorAST* ast) {
   out_ << std::format("{}\n", "subscript-designator");
   accept(ast->expression, "expression");
+  accept(ast->upperExpression, "upper-expression");
 }
 
 void ASTPrinter::visit(TemplateTypeParameterAST* ast) {

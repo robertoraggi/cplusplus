@@ -35,6 +35,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 
 namespace cxx {
 class TranslationUnit;
@@ -73,6 +74,7 @@ class Codegen {
     ir::ValueRef value;
     ValueCategory category = ValueCategory::kNone;
     bool isRValueMaterialized = false;
+    const Type* type = nullptr;
   };
 
   struct TemplateParameterResult {};
@@ -253,10 +255,7 @@ class Codegen {
   [[nodiscard]] auto nestedNamespaceSpecifier(NestedNamespaceSpecifierAST* ast)
       -> NestedNamespaceSpecifierResult;
 
-  void asmOperand(AsmOperandAST* ast);
-  void asmQualifier(AsmQualifierAST* ast);
-  void asmClobber(AsmClobberAST* ast);
-  void asmGotoLabel(AsmGotoLabelAST* ast);
+  void inlineAsm(AsmDeclarationAST* ast);
   void arrayInit(ir::ValueRef address, const Type* type, ExpressionAST* init);
 
   void emitArrayInitialization(SourceLocation loc, ir::ValueRef address,
@@ -266,6 +265,8 @@ class Codegen {
   void emitArrayCopy(SourceLocation loc, ir::ValueRef destination,
                      ir::ValueRef source, const Type* arrayType,
                      FunctionSymbol* elementConstructor);
+  void emitArrayDestruction(SourceLocation loc, ir::ValueRef address,
+                            const Type* elementType, ir::ValueRef count);
 
   [[nodiscard]] auto emitWholeArrayCopy(SourceLocation loc,
                                         ir::ValueRef address, const Type* type,
@@ -280,10 +281,16 @@ class Codegen {
                                              ExpressionAST* ast) -> bool;
 
   void emitAggregateInit(ir::ValueRef address, const Type* type,
-                         BracedInitListAST* ast);
+                         BracedInitListAST* ast,
+                         ir::ValueRef elementCount = {});
   void emitAggregateInit(ir::ValueRef address, const Type* type,
                          List<ExpressionAST*>* initializerList,
                          SourceLocation location);
+  void emitAggregateElements(ir::ValueRef address, const Type* type,
+                             List<ExpressionAST*>* initializerList,
+                             SourceLocation location,
+                             ir::ValueRef initializedCount,
+                             ir::ValueRef elementCount = {});
   void emitConstructorInitialization(SourceLocation loc, ir::ValueRef address,
                                      const Type* type,
                                      FunctionSymbol* constructor,
@@ -291,17 +298,38 @@ class Codegen {
   void emitArrayElementInit(ir::ValueRef elementAddress,
                             const Type* elementType, ExpressionAST* node);
   void emitImplicitArrayElements(ir::ValueRef address, const Type* type,
-                                 BracedInitListAST* ast);
+                                 BracedInitListAST* ast,
+                                 ir::ValueRef initializedCount,
+                                 ir::ValueRef elementCount);
   void emitLocalVariableInit(VariableSymbol* var, ExpressionAST* initializer);
   void emitReferenceInit(VariableSymbol* var, ir::ValueRef local,
                          ExpressionAST* initExpr, SourceLocation loc);
   void emitDesignatedInit(ir::ValueRef address, const Type* type,
                           DesignatedInitializerClauseAST* ast);
   void emitBitFieldInit(SourceLocation loc, ir::ValueRef address,
-                        const Type* type, const ClassLayout::MemberInfo& info,
-                        ExpressionAST* init);
+                        FieldSymbol* field, ExpressionAST* init);
 
  private:
+  struct InlineAsmBuilder;
+  struct BitFieldAccess {
+    ir::ValueRef address;
+    ClassLayout::MemberInfo info;
+    FieldSymbol* field = nullptr;
+  };
+  [[nodiscard]] auto bitFieldAccess(ExpressionAST* expression)
+      -> std::optional<BitFieldAccess>;
+  [[nodiscard]] auto uncapturedStructuredBindingAlias(Symbol* symbol) const
+      -> VariableSymbol*;
+  [[nodiscard]] static auto bitfieldInfo(const ClassSymbol* owner,
+                                         const ClassLayout::MemberInfo& info)
+      -> ir::BitfieldInfo;
+  struct VaArgBuilder;
+  [[nodiscard]] auto emitPointerVaArg(SourceLocation loc, ir::ValueRef list,
+                                      const Type* type) -> ExpressionResult;
+  [[nodiscard]] auto emitAArch64VaArg(SourceLocation loc, ir::ValueRef list,
+                                      const Type* type) -> ExpressionResult;
+  [[nodiscard]] auto emitX86VaArg(SourceLocation loc, ir::ValueRef list,
+                                  const Type* type) -> ExpressionResult;
   [[nodiscard]] auto emitTodoStmt(SourceLocation loc, std::string_view message)
       -> ir::ValueRef;
 
@@ -346,6 +374,9 @@ class Codegen {
                                       std::uint64_t pointerSize)
       -> std::uint64_t;
 
+  [[nodiscard]] auto bitFieldStorageType(std::uint64_t sizeInBytes)
+      -> ir::TypeRef;
+
   [[nodiscard]] auto declareFunction(SourceLocation loc,
                                      const ir::FunctionInfo& info)
       -> ir::FunctionRef;
@@ -388,10 +419,23 @@ class Codegen {
       -> bool;
   [[nodiscard]] auto hasVagueEmission(Symbol* symbol) const -> bool;
   [[nodiscard]] auto symbolLinkage(Symbol* symbol) const -> ir::Linkage;
+  [[nodiscard]] static auto isMaterializedTemporary(Symbol* symbol) -> bool;
+  struct ReferenceTemporary;
+  void assignReferenceTemporaries(const ReferenceTemporary& owner,
+                                  const ConstValue& value, std::size_t& count);
+  void assignReferenceTemporaries(Symbol* owner, std::string_view ownerSuffix,
+                                  ir::Linkage linkage,
+                                  const std::optional<ConstValue>& value);
+  [[nodiscard]] auto globalSymbolName(VariableSymbol* variable,
+                                      std::string_view suffix) -> std::string;
+  [[nodiscard]] auto globalLinkage(VariableSymbol* variable) const
+      -> ir::Linkage;
 
   [[nodiscard]] auto findOrCreateBaseObjectStructor(
       FunctionSymbol* functionSymbol) -> ir::FunctionRef;
 
+  [[nodiscard]] auto duplicatesBaseObjectStructorBody(
+      FunctionSymbol* functionSymbol) -> bool;
   void emitBaseObjectStructor(FunctionSymbol* functionSymbol,
                               ir::FunctionRef completeObjectFunc);
 
@@ -475,6 +519,22 @@ class Codegen {
                              const ClassValueAbi& abi, ir::ValueRef value,
                              std::vector<ir::ValueRef>& args);
 
+  void appendCallArgument(SourceLocation loc, const Type* paramType,
+                          const ClassValueAbi& abi, ir::ValueRef value,
+                          std::vector<ir::ValueRef>& args);
+
+  struct CallArguments {
+    std::vector<ir::ValueRef> values;
+    std::vector<ir::ParameterAbi> parameters;
+    std::size_t ellipsisCount = 0;
+  };
+
+  [[nodiscard]] auto lowerCallArguments(
+      SourceLocation loc, const FunctionType* functionType,
+      const FunctionAbi& functionAbi,
+      std::span<const ExpressionResult> arguments,
+      std::vector<ir::ValueRef> implicitArguments = {}) -> CallArguments;
+
   [[nodiscard]] auto abiPrepareResult(SourceLocation loc,
                                       const Type* returnType,
                                       std::vector<ir::TypeRef>& resultTypes,
@@ -506,6 +566,17 @@ class Codegen {
                                              ir::ValueRef objectPtr,
                                              ClassSymbol* fromClass,
                                              ClassSymbol* targetClass)
+      -> ir::ValueRef;
+
+  enum class ClassPointerConversion { kDerivedToBase, kBaseToDerived };
+
+  [[nodiscard]] auto baseClassPathChangesAddress(ClassSymbol* derivedClass,
+                                                 ClassSymbol* baseClass)
+      -> bool;
+
+  [[nodiscard]] auto emitNullPreservingClassAddress(
+      SourceLocation loc, ir::ValueRef pointer, ClassSymbol* fromClass,
+      ClassSymbol* targetClass, ClassPointerConversion conversion)
       -> ir::ValueRef;
 
   [[nodiscard]] auto emitMemberFunctionPointerValue(
@@ -578,9 +649,6 @@ class Codegen {
   [[nodiscard]] auto defaultConstructorArguments(FunctionSymbol* constructor)
       -> std::vector<ExpressionResult>;
 
-  void emitSubobjectDestruction(SourceLocation loc, ir::ValueRef objectPtr,
-                                ClassSymbol* classSymbol, Symbol* subobject);
-
   void emitSubobjectDefaultConstruction(SourceLocation loc,
                                         ir::ValueRef objectPtr,
                                         ClassSymbol* classSymbol,
@@ -598,6 +666,16 @@ class Codegen {
       -> ir::GlobalRef;
 
   void emitGlobalVarInit(VariableSymbol* var, ir::GlobalRef global);
+  [[nodiscard]] auto globalObjectAddress(SourceLocation loc, Symbol* symbol,
+                                         ir::GlobalRef global) -> ir::ValueRef;
+  [[nodiscard]] auto isNonLocalThreadLocal(Symbol* symbol) const -> bool;
+  [[nodiscard]] auto threadLocalCallingConvention() const
+      -> ir::CallingConvention;
+  [[nodiscard]] auto findOrCreateThreadLocalWrapper(Symbol* symbol,
+                                                    ir::GlobalRef global)
+      -> ir::FunctionRef;
+  [[nodiscard]] auto findOrCreateThreadLocalInitializer() -> ir::FunctionRef;
+  void emitThreadLocalInitializers();
   void emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
                               ExpressionAST* initializer);
 
@@ -611,6 +689,11 @@ class Codegen {
                       ExpressionAST* initializer, FunctionSymbol* constructor,
                       FunctionSymbol* destructor, ir::GlobalRef global,
                       bool guarded);
+  void emitGlobalObjectInitialization(Symbol* symbol, const Type* type,
+                                      ExpressionAST* initializer,
+                                      FunctionSymbol* constructor,
+                                      FunctionSymbol* destructor,
+                                      ir::GlobalRef global, SourceLocation loc);
 
   [[nodiscard]] auto constructorArgumentList(BracedInitListAST* bracedInitList)
       -> List<ExpressionAST*>*;
@@ -694,6 +777,22 @@ class Codegen {
       -> ir::ValueRef;
 
   void emitThrow(ThrowExpressionAST* ast);
+  void emitTry(const std::function<void()>& body, List<HandlerAST*>* handlers,
+               SourceLocation loc, bool rethrowOnFallthrough = false);
+  [[nodiscard]] auto emitCallWithUnwind(SourceLocation loc, ir::CallInfo info)
+      -> std::vector<ir::ValueRef>;
+  void ensureExceptionPersonality(SourceLocation loc);
+  void emitTerminateOnException(const std::function<void()>& body,
+                                SourceLocation loc);
+  struct ExceptionScope {
+    List<HandlerAST*>* handlers;
+    ir::BlockRef dispatch;
+    ir::ValueRef exception;
+    ir::ValueRef selector;
+    std::size_t cleanupDepth;
+    bool terminates = false;
+  };
+  std::vector<ExceptionScope> exceptionScopes_;
 
   [[nodiscard]] auto findOrCreateNoreturnRuntimeCall(SourceLocation loc,
                                                      std::string_view name)
@@ -803,7 +902,8 @@ class Codegen {
       ir::ValueRef structorVTT = {}) -> ExpressionResult;
 
   [[nodiscard]] auto baseStructorVTTArgument(SourceLocation loc,
-                                             ClassSymbol* targetClass)
+                                             ClassSymbol* targetClass,
+                                             bool virtualBase = false)
       -> ir::ValueRef;
 
   [[nodiscard]] auto emitCall(
@@ -826,12 +926,13 @@ class Codegen {
   void emitZeroInitialization(SourceLocation loc, ir::ValueRef address,
                               const Type* type);
 
-  [[nodiscard]] auto isReservedPlacementAllocation(FunctionSymbol* symbol)
-      -> bool;
+  [[nodiscard]] auto arrayCookieSize() -> std::uint64_t;
 
-  [[nodiscard]] auto arrayCookieSize(const Type* elementType) -> std::uint64_t;
+  [[nodiscard]] auto arrayCookiePrefixSize(const Type* elementType,
+                                           bool cookieRequired)
+      -> std::uint64_t;
 
-  [[nodiscard]] auto arrayCookiePrefixSize(const Type* elementType)
+  [[nodiscard]] auto arrayCookieCountOffset(std::uint64_t prefixSize) const
       -> std::uint64_t;
 
   [[nodiscard]] auto arrayElementCount(SourceLocation loc,
@@ -865,6 +966,14 @@ class Codegen {
   [[nodiscard]] auto newUniqueSymbolName(std::string_view prefix)
       -> std::string;
 
+  [[nodiscard]] auto constantStringRecord(SourceLocation loc,
+                                          const StringLiteral* literal)
+      -> std::string;
+
+  [[nodiscard]] auto constantStringData(SourceLocation loc,
+                                        const StringLiteral* literal,
+                                        bool isUtf16) -> std::string;
+
   [[nodiscard]] auto makeFloatInitializer(const Type* type, double value)
       -> ir::Initializer;
 
@@ -872,22 +981,82 @@ class Codegen {
                                   const Type* type)
       -> std::optional<ir::Initializer>;
 
-  using ConstantSlot = std::optional<std::tuple<ConstValue, const Type*>>;
+  struct ClassConstantSlot {
+    ConstValue value;
+    const Type* type = nullptr;
+    bool isBaseSubobject = false;
+  };
+
+  struct BitFieldStorageSlot {
+    std::vector<std::uint8_t> bytes;
+  };
+
+  using ConstantSlotValue =
+      std::variant<ClassConstantSlot, BitFieldStorageSlot>;
+  using ConstantSlot = std::optional<ConstantSlotValue>;
+
+  [[nodiscard]] auto bitFieldStorageInitializer(
+      std::span<const std::uint8_t> storage) -> ir::Initializer;
+
+  [[nodiscard]] auto emitBitFieldStorageValue(
+      SourceLocation loc, std::span<const std::uint8_t> storage)
+      -> ir::ValueRef;
+
+  [[nodiscard]] auto emitConstantSlotValue(SourceLocation loc,
+                                           const ConstantSlotValue& slot,
+                                           ir::TypeRef layoutType = {})
+      -> ir::ValueRef;
+
+  [[nodiscard]] auto constantSlotInitializer(const ConstantSlotValue& slot,
+                                             ir::TypeRef layoutType = {})
+      -> std::optional<ir::Initializer>;
+
+  void completeUnionStorage(std::vector<ir::TypeRef>& members,
+                            ClassSymbol* symbol, std::uint64_t payloadSize);
+
+  struct ConstantStorageTypeVisitor;
+
+  [[nodiscard]] auto constantStorageType(const ConstValue& value,
+                                         const Type* type,
+                                         ir::TypeRef layoutType = {})
+      -> ir::TypeRef;
 
   [[nodiscard]] auto classConstantSlots(const ConstValue& value,
                                         const ClassType* classType)
       -> std::optional<std::vector<ConstantSlot>>;
 
+  [[nodiscard]] auto emitConstantVptrs(SourceLocation loc, ir::ValueRef value,
+                                       ClassSymbol* classSymbol,
+                                       ClassSymbol* completeClass,
+                                       std::uint64_t offset = 0)
+      -> ir::ValueRef;
+
   [[nodiscard]] auto constValueToInitializer(const ConstValue& value,
-                                             const Type* type)
+                                             const Type* type,
+                                             ir::TypeRef layoutType = {})
       -> std::optional<ir::Initializer>;
+
+  [[nodiscard]] auto displacedAddress(SourceLocation loc,
+                                      ir::TypeRef pointerType,
+                                      ir::ValueRef address, std::intmax_t bytes)
+      -> ir::ValueRef;
+
+  [[nodiscard]] auto stringLiteralInitializer(const StringLiteral* literal,
+                                              const Type* arrayType)
+      -> std::optional<ir::Initializer>;
+
+  [[nodiscard]] auto emitConstantAggregate(SourceLocation loc,
+                                           ir::TypeRef irType, const Type* type,
+                                           const ConstValue& value)
+      -> ir::ValueRef;
 
   [[nodiscard]] auto emitStringLiteralAddress(SourceLocation loc,
                                               ir::TypeRef pointerType,
                                               const StringLiteral* literal)
       -> ir::ValueRef;
   [[nodiscard]] auto emitConstInitValue(SourceLocation loc, const Type* type,
-                                        const ConstValue& value)
+                                        const ConstValue& value,
+                                        ir::TypeRef layoutType = {})
       -> ir::ValueRef;
 
   void branch(SourceLocation loc, ir::BlockRef block,
@@ -903,28 +1072,105 @@ class Codegen {
   struct CleanupScope {
     struct Entry {
       ir::ValueRef address;
-      FunctionSymbol* destructor;
+      ir::FunctionRef destructor;
       ir::ValueRef activeFlag;
       std::int64_t elementCount = 1;
+      ir::ValueRef initializedCount;
+      std::vector<ir::ValueRef> additionalArguments;
+      std::vector<ir::ParameterAbi> parameters;
+      ir::TypeRef variadicCalleeType;
+      bool exceptionalOnly = false;
     };
     std::vector<Entry> entries;
     bool isFullExpression = false;
     ir::CleanupRegionRef region;
   };
 
+  using CleanupSnapshot = std::vector<CleanupScope::Entry>;
+
+  struct CleanupLabel {
+    std::string_view name;
+    ir::BlockRef block;
+    CleanupSnapshot cleanups;
+  };
+
+  struct CleanupGoto {
+    SourceLocation location;
+    std::string_view label;
+    ir::BlockRef block;
+    std::vector<CleanupScope> cleanups;
+    std::vector<ExceptionScope> exceptions;
+  };
+
+  void defineCleanupLabel(SourceLocation loc, std::string_view name);
+  void emitGotoLabel(SourceLocation loc, std::string_view name);
+  void resolveCleanupGotos();
+
   void pushCleanup();
   void pushFullExpressionCleanup();
   void popCleanup(SourceLocation loc);
   void emitBranchWithCleanups(SourceLocation loc, ir::BlockRef target,
                               std::size_t targetDepth);
+  void emitCleanupSnapshot(SourceLocation loc, const CleanupSnapshot& snapshot,
+                           bool exceptional);
+  void emitCleanupCall(SourceLocation loc, const CleanupScope::Entry& cleanup,
+                       bool exceptional);
+  void emitCleanupDestructorCall(SourceLocation loc,
+                                 const CleanupScope::Entry& cleanup,
+                                 ir::ValueRef address);
+  void removeCleanup(ir::ValueRef address, ir::FunctionRef destructor);
   void addCleanup(ir::ValueRef address, FunctionSymbol* dtor,
-                  std::int64_t elementCount = 1);
+                  std::int64_t elementCount = 1, bool exceptionalOnly = false);
   void addArrayCleanup(ir::ValueRef address, const Type* arrayType);
+  void addSubobjectCleanup(SourceLocation loc, ir::ValueRef address,
+                           const Type* type, bool completeObject,
+                           bool exceptionalOnly = true,
+                           bool virtualBase = false);
+  void addSubobjectCleanup(SourceLocation loc, ir::ValueRef address,
+                           const ClassSubobjectShape& shape,
+                           bool completeObject, bool exceptionalOnly = true,
+                           bool virtualBase = false);
+  [[nodiscard]] auto subobjectCleanup(SourceLocation loc, ir::ValueRef address,
+                                      const ClassSubobjectShape& shape,
+                                      bool completeObject,
+                                      bool virtualBase = false)
+      -> std::optional<CleanupScope::Entry>;
+  void addDestructorSubobjectCleanups(SourceLocation loc,
+                                      FunctionSymbol* function);
+  void emitSubobjectConstruction(SourceLocation loc, ir::ValueRef address,
+                                 const ClassSubobjectShape& shape,
+                                 bool completeObject,
+                                 const std::function<void(ir::ValueRef)>& body);
+  [[nodiscard]] auto beginArrayConstruction(SourceLocation loc,
+                                            ir::ValueRef address,
+                                            const Type* type) -> ir::ValueRef;
+  [[nodiscard]] auto beginConstructionRange(SourceLocation loc,
+                                            ir::ValueRef address,
+                                            const ClassSubobjectShape& shape,
+                                            bool completeObject)
+      -> ir::ValueRef;
+  void advanceArrayConstruction(SourceLocation loc, ir::ValueRef count,
+                                const Type* type);
   [[nodiscard]] auto objectDestructor(const Type* type) const
       -> FunctionSymbol*;
   void addTemporaryCleanup(ir::ValueRef address, const Type* type);
 
   void cancelCleanup(ir::ValueRef address);
+
+  class LifetimeExtension {
+   public:
+    LifetimeExtension(Codegen& gen,
+                      std::span<ExpressionAST* const> temporaries);
+    ~LifetimeExtension();
+
+    void extend(ExpressionAST* expression, ir::ValueRef address);
+
+   private:
+    Codegen& gen_;
+    std::span<ExpressionAST* const> temporaries_;
+    std::optional<std::size_t> targetScope_;
+    LifetimeExtension* previous_;
+  };
 
   class FullExpression {
    public:
@@ -1019,12 +1265,18 @@ class Codegen {
     bool savedInitialized_;
   };
 
-  using CleanupSnapshot = std::vector<ir::CleanupAction>;
-
-  [[nodiscard]] auto collectCleanupSnapshot(std::size_t targetDepth = 0)
+  [[nodiscard]] auto collectCleanupSnapshot(std::size_t targetDepth = 0,
+                                            bool exceptional = false)
       -> CleanupSnapshot;
 
   struct Switch {
+    struct Range {
+      ConstInt lower;
+      ConstInt upper;
+      ir::BlockRef destination;
+    };
+    const Type* conditionType = nullptr;
+    std::vector<Range> ranges;
     std::vector<ConstInt> caseValues;
     std::vector<ir::BlockRef> caseDestinations;
     ir::BlockRef defaultDestination;
@@ -1121,11 +1373,19 @@ class Codegen {
   std::unordered_map<VariableSymbol*, ir::GlobalRef> globalOps_;
   std::unordered_map<FieldSymbol*, ir::GlobalRef> staticFieldGlobalOps_;
   std::unordered_set<Symbol*> emittedGlobalInits_;
+  std::unordered_map<Symbol*, ir::FunctionRef> threadLocalWrappers_;
+  std::unordered_map<Symbol*, ir::FunctionRef> threadLocalInitFunctions_;
+  std::vector<ir::FunctionRef> threadLocalInitializers_;
+  ir::FunctionRef threadLocalInitializer_;
   std::unordered_map<std::string_view, int> uniqueSymbolNames_;
   std::unordered_map<const StringLiteral*, std::string> stringLiterals_;
+  std::unordered_map<std::string_view, std::string> constantStrings_;
   Loop loop_;
   Switch switch_;
   std::vector<CleanupScope> cleanupStack_;
+  LifetimeExtension* lifetimeExtension_ = nullptr;
+  std::vector<CleanupLabel> cleanupLabels_;
+  std::vector<CleanupGoto> cleanupGotos_;
   ExpressionAST* resultObjectOwner_ = nullptr;
   bool resultObjectInitialized_ = false;
   int conditionalEvaluationDepth_ = 0;
@@ -1134,6 +1394,13 @@ class Codegen {
   int globalVarInitCount_ = 0;
   int globalVarDtorCount_ = 0;
   std::unordered_map<const Name*, int> staticLocalCounts_;
+  struct ReferenceTemporary {
+    Symbol* owner = nullptr;
+    std::string ownerSuffix;
+    std::size_t index = 0;
+    ir::Linkage linkage = ir::Linkage::Internal;
+  };
+  std::unordered_map<Symbol*, ReferenceTemporary> referenceTemporaries_;
   Options options_;
   bool debugInfo_ = true;
   bool isWasmTarget_ = false;

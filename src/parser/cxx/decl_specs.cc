@@ -128,11 +128,11 @@ void DeclSpecs::Visitor::operator()(RegisterSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(ThreadLocalSpecifierAST* ast) {
-  specs.isThreadLocal = true;
+  specs.threadLocalKind = ThreadLocalKind::Cxx;
 }
 
 void DeclSpecs::Visitor::operator()(ThreadSpecifierAST* ast) {
-  specs.isThread = true;
+  specs.threadLocalKind = ThreadLocalKind::Gnu;
 }
 
 void DeclSpecs::Visitor::operator()(MutableSpecifierAST* ast) {

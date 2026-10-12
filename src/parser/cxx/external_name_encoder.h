@@ -62,12 +62,20 @@ class ExternalNameEncoder {
       FunctionSymbol* target, const VTableLayout::CallOffset& thisAdjustment,
       const VTableLayout::CallOffset& returnAdjustment) -> std::string;
   [[nodiscard]] auto encodeGuardVariable(Symbol* symbol) -> std::string;
+  [[nodiscard]] auto encodeReferenceTemporary(Symbol* owner,
+                                              std::string_view ownerSuffix,
+                                              std::size_t index) -> std::string;
+  [[nodiscard]] auto encodeThreadLocalInitializer(Symbol* symbol)
+      -> std::string;
+  [[nodiscard]] auto encodeThreadLocalWrapper(Symbol* symbol) -> std::string;
   [[nodiscard]] auto encodeTypeInfo(const Type* type) -> std::string;
   [[nodiscard]] auto encodeTypeInfoName(const Type* type) -> std::string;
   [[nodiscard]] auto encodeLambdaSignature(FunctionSymbol* callOperator)
       -> std::string;
 
  private:
+  [[nodiscard]] auto encodeSpecialName(std::string_view prefix, Symbol* symbol)
+      -> std::string;
   [[nodiscard]] auto encodeFunction(FunctionSymbol* function) -> std::string;
   [[nodiscard]] auto isUnmangledData(Symbol* symbol) -> bool;
 
@@ -75,6 +83,7 @@ class ExternalNameEncoder {
 
   void encodePrefix(Symbol* symbol);
   void encodeTemplatePrefix(Symbol* symbol);
+  [[nodiscard]] auto encodeAnonymousUnionName(ClassSymbol* classSymbol) -> bool;
   void encodeUnqualifiedName(Symbol* symbol);
 
   void encodeName(Symbol* symbol);

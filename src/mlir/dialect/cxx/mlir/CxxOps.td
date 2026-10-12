@@ -53,6 +53,10 @@ class Cxx_I32EnumAttr<string name, string summary, list<I32EnumAttrCase> cases>
 
 class Cxx_EnumAttr<EnumInfo info, string mnemonic>
     : EnumAttr<Cxx_Dialect, info, mnemonic> {
+  let storageClass = "EnumAttrStorage<" # info.cppNamespace # "::" # info.className # ">";
+  let genStorageClass = 0;
+  let extraClassDefinition = "[[nodiscard]] auto $cppClass::getValue() const -> " # info.cppType #
+                            " { return getImpl()->value; }";
   let assemblyFormat = "`<` $value `>`";
 }
 
@@ -85,6 +89,13 @@ def Cxx_VisibilityEnum : Cxx_I32EnumAttr<"Visibility", "visibility", [
 
 def Cxx_Visibility : Cxx_EnumAttr<Cxx_VisibilityEnum, "visibility">;
 
+def Cxx_CallingConventionEnum : Cxx_I32EnumAttr<"CallingConvention", "callingConvention", [
+  I32EnumAttrCase<"C", 0, "c">,
+  I32EnumAttrCase<"CxxFastTls", 17, "cxx_fast_tls">
+]>;
+
+def Cxx_CallingConvention : Cxx_EnumAttr<Cxx_CallingConventionEnum, "calling_convention">;
+
 // types
 
 def Cxx_ExprType : Cxx_Type<"Expr", "expr">;
@@ -98,7 +109,7 @@ def Cxx_PointerType : Cxx_Type<"Pointer", "ptr"> {
 }
 
 def Cxx_ArrayType : Cxx_Type<"Array", "array"> {
-  let parameters = (ins "Type":$elementType, "unsigned":$size);
+  let parameters = (ins "Type":$elementType, "uint64_t":$size);
 
   let hasCustomAssemblyFormat = 1;
 }
@@ -152,7 +163,9 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
       OptionalAttr<StrAttr>:$wasm_export_name,
       UnitAttr:$used,
       OptionalAttr<DictArrayAttr>:$arg_attrs,
-      OptionalAttr<DictArrayAttr>:$res_attrs);
+      OptionalAttr<DictArrayAttr>:$res_attrs,
+      OptionalAttr<StrAttr>:$section,
+      OptionalAttr<Cxx_CallingConvention>:$calling_convention);
 
   let regions = (region AnyRegion:$body);
 
@@ -175,6 +188,7 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
     , OptionalAttr<I64Attr>:$alignment
     , UnitAttr:$used
     , UnitAttr:$thread_local_
+    , OptionalAttr<StrAttr>:$section
   );
 
   let regions = (region AnyRegion:$initializer);
@@ -185,7 +199,8 @@ def Cxx_GlobalOp : Cxx_Op<"global"> {
 def Cxx_GlobalCtorOp : Cxx_Op<"global_ctor"> {
   let summary = "run a function before main, in module order";
 
-  let arguments = (ins FlatSymbolRefAttr:$ctor);
+  let arguments = (ins FlatSymbolRefAttr:$ctor,
+      DefaultValuedAttr<I32Attr, "65535">:$priority);
 
   let assemblyFormat = "$ctor attr-dict";
 }
@@ -245,6 +260,7 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
     , OptionalAttr<TypeAttrOf<Cxx_FunctionType>>:$var_callee_type
     , OptionalAttr<DictArrayAttr>:$arg_attrs
     , OptionalAttr<DictArrayAttr>:$res_attrs
+    , OptionalAttr<Cxx_CallingConvention>:$calling_convention
   );
 
   let results = (outs Variadic<AnyType>:$results);
@@ -260,7 +276,8 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
                    "::mlir::FlatSymbolRefAttr":$callee,
                    "::mlir::ValueRange":$inputs), [{
       build($_builder, $_state, resultTypes, callee, ::mlir::Value{}, inputs,
-            ::mlir::TypeAttr{}, ::mlir::ArrayAttr{}, ::mlir::ArrayAttr{});
+            ::mlir::TypeAttr{}, ::mlir::ArrayAttr{}, ::mlir::ArrayAttr{},
+            ::mlir::cxx::CallingConventionAttr{});
     }]>,
     OpBuilder<(ins "::mlir::TypeRange":$resultTypes, "::llvm::StringRef":$callee,
                    "::mlir::ValueRange":$inputs), [{
@@ -272,10 +289,81 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
                    "::mlir::ValueRange":$inputs), [{
       build($_builder, $_state, resultTypes, ::mlir::FlatSymbolRefAttr{},
             callee, inputs, ::mlir::TypeAttr{}, ::mlir::ArrayAttr{},
-            ::mlir::ArrayAttr{});
+            ::mlir::ArrayAttr{}, ::mlir::cxx::CallingConventionAttr{});
     }]>
   ];
 
+  let hasVerifier = 1;
+}
+
+def Cxx_InvokeOp : Cxx_Op<"invoke", [AttrSizedOperandSegments, Terminator]> {
+  let arguments = (ins OptionalAttr<FlatSymbolRefAttr>:$callee,
+      Optional<Cxx_PointerType>:$callee_operand, Variadic<AnyType>:$inputs,
+      OptionalAttr<TypeAttrOf<Cxx_FunctionType>>:$var_callee_type,
+      OptionalAttr<DictArrayAttr>:$arg_attrs,
+      OptionalAttr<DictArrayAttr>:$res_attrs,
+      OptionalAttr<Cxx_CallingConvention>:$calling_convention);
+  let results = (outs Variadic<AnyType>:$results);
+  let successors = (successor AnySuccessor:$normal, AnySuccessor:$unwind);
+  let assemblyFormat = [{
+    ($callee^)? (`indirect` $callee_operand^ `:` type($callee_operand))?
+    `(` $inputs `)` `to` $normal `unwind` $unwind attr-dict
+    `:` functional-type($inputs, results)
+  }];
+}
+
+def Cxx_LandingPadOp : Cxx_Op<"landing_pad"> {
+  let arguments = (ins Variadic<AnyType>:$clauses, UnitAttr:$cleanup);
+  let results = (outs Cxx_PointerType:$exception, I32:$selector);
+  let assemblyFormat = [{
+    (`cleanup` $cleanup^)? `(` $clauses `)` attr-dict
+    `:` functional-type($clauses, results)
+  }];
+}
+
+def Cxx_ExceptionTypeIdOp : Cxx_Op<"exception_typeid"> {
+  let arguments = (ins Cxx_PointerType:$type_info);
+  let results = (outs I32:$result);
+  let assemblyFormat = "$type_info attr-dict `:` type($type_info)";
+}
+
+def Cxx_ResumeOp : Cxx_Op<"resume", [Terminator]> {
+  let arguments = (ins Cxx_PointerType:$exception, I32:$selector);
+  let assemblyFormat = "$exception `,` $selector attr-dict `:` type($exception)";
+}
+
+def Cxx_ModuleAsmOp : Cxx_Op<"module_asm"> {
+  let arguments = (ins StrAttr:$assembly);
+  let assemblyFormat = "$assembly attr-dict";
+}
+
+def Cxx_InlineAsmOp : Cxx_Op<"inline_asm"> {
+  let arguments = (ins
+      Variadic<AnyType>:$inputs,
+      StrAttr:$asm_string,
+      StrAttr:$constraints,
+      UnitAttr:$has_side_effects,
+      ArrayAttr:$argument_element_types
+  );
+  let results = (outs Variadic<AnyType>:$results);
+  let assemblyFormat = [{
+    (`has_side_effects` $has_side_effects^)?
+    $asm_string `,` $constraints `(` $inputs `)` attr-dict
+    `:` functional-type($inputs, results)
+  }];
+  let hasVerifier = 1;
+}
+
+def Cxx_AsmGotoOp : Cxx_Op<"asm_goto", [Terminator]> {
+  let arguments = (ins Variadic<AnyType>:$inputs, StrAttr:$asm_string,
+      StrAttr:$constraints, ArrayAttr:$argument_element_types);
+  let results = (outs Optional<AnyType>:$result);
+  let successors = (successor AnySuccessor:$fallthrough,
+                              VariadicSuccessor<AnySuccessor>:$destinations);
+  let assemblyFormat = [{
+    $asm_string `,` $constraints `(` $inputs `)` `to` $fallthrough
+    `[` $destinations `]` attr-dict `:` functional-type($inputs, results)
+  }];
   let hasVerifier = 1;
 }
 
@@ -371,6 +459,14 @@ def Cxx_NullPtrConstantOp : Cxx_Op<"constant.null", [
   let results = (outs Cxx_PointerType:$result);
 
   let assemblyFormat = "attr-dict `:` type($result)";
+}
+
+def Cxx_AggregateConstantOp : Cxx_Op<"constant.aggregate", [Pure]> {
+  let arguments = (ins ArrayAttr:$value);
+
+  let results = (outs AnyType:$result);
+
+  let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
 def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr"> {
@@ -474,10 +570,12 @@ def Cxx_GotoOp : Cxx_Op<"goto", [AttrSizedOperandSegments]> {
     , ArrayAttr:$depths
     , DenseI32ArrayAttr:$activeFlagIndices
     , DenseI64ArrayAttr:$elementCounts
+    , Variadic<Cxx_PointerType>:$initializedCounts
+    , DefaultValuedAttr<DenseI32ArrayAttr, "{}">:$initializedCountIndices
     , StringProp:$label
   );
 
-  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts attr-dict";
+  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts (`initialized` `(` $initializedCounts^ `:` type($initializedCounts) `)`)? attr-dict";
 }
 
 def Cxx_LabelAddressOp : Cxx_Op<"label_address"> {
@@ -504,11 +602,13 @@ def Cxx_CleanupBranchOp : Cxx_Op<"cleanup_branch",
     , ArrayAttr:$destructors
     , DenseI32ArrayAttr:$activeFlagIndices
     , DenseI64ArrayAttr:$elementCounts
+    , Variadic<Cxx_PointerType>:$initializedCounts
+    , DefaultValuedAttr<DenseI32ArrayAttr, "{}">:$initializedCountIndices
   );
 
   let successors = (successor AnySuccessor:$dest);
 
-  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts $dest attr-dict";
+  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts (`initialized` `(` $initializedCounts^ `:` type($initializedCounts) `)`)? $dest attr-dict";
 }
 
 //
@@ -549,7 +649,8 @@ def Cxx_TodoStmtOp : Cxx_Op<"todo.stmt"> {
 def BitfieldLoadOp : Cxx_Op<"bitfield.load"> {
   let arguments = (ins Cxx_PointerType:$addr,
                        I32Attr:$bit_offset, I32Attr:$bit_width,
-                       I64Attr:$alignment, BoolAttr:$is_signed);
+                       I64Attr:$storage_size, I64Attr:$alignment,
+                       BoolAttr:$is_signed);
   let results = (outs AnySignlessInteger:$result);
   let assemblyFormat = "$addr attr-dict `:` type($addr) `->` type($result)";
 }
@@ -557,6 +658,6 @@ def BitfieldLoadOp : Cxx_Op<"bitfield.load"> {
 def BitfieldStoreOp : Cxx_Op<"bitfield.store"> {
   let arguments = (ins AnySignlessInteger:$value, Cxx_PointerType:$addr,
                        I32Attr:$bit_offset, I32Attr:$bit_width,
-                       I64Attr:$alignment);
+                       I64Attr:$storage_size, I64Attr:$alignment);
   let assemblyFormat = "$value `,` $addr attr-dict `:` type($value) `,` type($addr)";
 }

@@ -22,7 +22,7 @@ const int values[] = {
 // CHECK-NEXT:                identifier: values
 // CHECK-NEXT:            declarator-chunk-list
 // CHECK-NEXT:              array-declarator-chunk
-// CHECK-NEXT:          initializer: equal-initializer
+// CHECK-NEXT:          initializer: equal-initializer [prvalue const int [3]]
 // CHECK-NEXT:            expression: braced-init-list [prvalue const int [3]]
 // CHECK-NEXT:              expression-list
 // CHECK-NEXT:                int-literal-expression [prvalue int]

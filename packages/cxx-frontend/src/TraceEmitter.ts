@@ -52,6 +52,7 @@ import {
   type FunctionInfo,
   type FunctionRef,
   type GlobalInfo,
+  type InlineAsmInfo,
   type GlobalRef,
   type Initializer,
   type InsertionPoint,
@@ -342,10 +343,24 @@ export class TraceEmitter implements EmitterDelegate {
   }
 
   #define(type: TypeRef, text: string): ValueRef {
-    const ref = this.#nextValue++;
-    this.#values.set(ref, { type });
-    this.#emit(`%${ref} = ${text} : ${this.#typeText(type)}`);
-    return ref;
+    return this.#defineResults([type], text)[0]!;
+  }
+
+  #defineResults(types: readonly TypeRef[], text: string): ValueRef[] {
+    const results = types.map((type) => {
+      const ref = this.#nextValue++;
+      this.#values.set(ref, { type });
+      return ref;
+    });
+    if (!results.length) {
+      this.#emit(text);
+      return results;
+    }
+    const resultTypes = types.map((type) => this.#typeText(type));
+    const signature =
+      resultTypes.length === 1 ? resultTypes[0] : `(${resultTypes.join(", ")})`;
+    this.#emit(`${this.#valueList(results)} = ${text} : ${signature}`);
+    return results;
   }
 
   #terminate(text: string): void {
@@ -714,13 +729,85 @@ export class TraceEmitter implements EmitterDelegate {
   call(loc: TokenIndex, info: CallInfo): ValueRef[] {
     const callee = info.callee ? `@${info.callee}` : `%${info.indirectCallee}`;
     const text =
-      `call ${callee}(${this.#valueList(info.arguments)})` +
-      this.#signatureAbiText(info);
-    if (!info.results.length) {
-      this.#emit(text);
-      return [];
+      `${info.unwindDestination ? "invoke" : "call"}${info.callingConvention === "CxxFastTls" ? " cxx_fast_tlscc" : ""} ${callee}(${this.#valueList(info.arguments)})` +
+      this.#signatureAbiText(info) +
+      (info.unwindDestination
+        ? ` to ^bb${info.normalDestination} unwind ^bb${info.unwindDestination}`
+        : "");
+    const results = this.#defineResults(info.results, text);
+    if (info.unwindDestination) {
+      const block = this.#blocks.get(this.#insertionBlock);
+      if (block) block.terminated = true;
     }
-    return info.results.map((type) => this.#define(type, text));
+    return results;
+  }
+
+  functionPersonality(function_: FunctionRef, personality: string): void {
+    this.#emitTop(
+      `personality @${this.#functions.get(function_)?.name} @${personality}`,
+    );
+  }
+
+  landingPad(
+    loc: TokenIndex,
+    clauses: readonly ValueRef[],
+    cleanup: boolean,
+  ): ValueRef[] {
+    const text = `landing_pad${cleanup ? " cleanup" : ""} (${this.#valueList(clauses)})`;
+    return this.#defineResults(
+      [this.pointerType(this.integerType(8)), this.integerType(32)],
+      text,
+    );
+  }
+
+  exceptionTypeId(loc: TokenIndex, typeInfo: ValueRef): ValueRef {
+    return this.#define(this.integerType(32), `exception_typeid %${typeInfo}`);
+  }
+
+  resumeException(
+    loc: TokenIndex,
+    exception: ValueRef,
+    selector: ValueRef,
+  ): void {
+    this.#terminate(`resume %${exception}, %${selector}`);
+  }
+
+  inlineAsmGoto(
+    loc: TokenIndex,
+    info: InlineAsmInfo,
+    fallthrough: BlockRef,
+    destinations: readonly BlockRef[],
+  ): ValueRef {
+    const text =
+      `asm_goto ${JSON.stringify(info.asmString)}, ${JSON.stringify(info.constraints)}` +
+      `(${this.#valueList(info.arguments)}) to ^bb${fallthrough} [${destinations.map((target) => `^bb${target}`).join(", ")}]`;
+    if (!info.results.length) {
+      this.#terminate(text);
+      return 0;
+    }
+    let type = info.results[0]!;
+    if (info.results.length > 1)
+      type = this.#intern(
+        `{${info.results.map((result) => this.#typeText(result)).join(", ")}}`,
+        { kind: "Class", members: [...info.results] },
+      );
+    const result = this.#define(type, text);
+    const block = this.#blocks.get(this.#insertionBlock);
+    if (block) block.terminated = true;
+    return result;
+  }
+
+  moduleAsm(loc: TokenIndex, assembly: string): void {
+    this.#emit(`module_asm ${JSON.stringify(assembly)}`);
+  }
+
+  inlineAsm(loc: TokenIndex, info: InlineAsmInfo): ValueRef[] {
+    const text =
+      `inline_asm ${JSON.stringify(info.asmString)}, ` +
+      `${JSON.stringify(info.constraints)}(${this.#valueList(info.arguments)})` +
+      (info.hasSideEffects ? " sideeffect" : "") +
+      ` elementtypes [${info.argumentElementTypes.map((type) => (type ? this.#typeText(type) : "none")).join(", ")}]`;
+    return this.#defineResults(info.results, text);
   }
 
   ret(loc: TokenIndex, values: readonly ValueRef[]): void {
@@ -854,6 +941,9 @@ export class TraceEmitter implements EmitterDelegate {
       (action) =>
         `%${action.address} ~@${action.destructor} depth ${action.depth}` +
         (action.elementCount > 1 ? ` count ${action.elementCount}` : "") +
+        (action.initializedCount
+          ? ` initialized %${action.initializedCount}`
+          : "") +
         (action.activeFlag ? ` if %${action.activeFlag}` : ""),
     );
     return ` cleanups [${actions.join(", ")}]`;
@@ -920,10 +1010,12 @@ export class TraceEmitter implements EmitterDelegate {
     this.#emitTop(
       `func @${info.name} : ${this.#typeText(info.type)} ` +
         `${info.linkage}` +
+        (info.callingConvention === "CxxFastTls" ? " cxx_fast_tlscc" : "") +
         (info.aliasee ? ` aliasee @${info.aliasee}` : "") +
         (info.importModule ? ` import_module "${info.importModule}"` : "") +
         (info.importName ? ` import_name "${info.importName}"` : "") +
         (info.exportName ? ` export_name "${info.exportName}"` : "") +
+        (info.section ? ` section ${JSON.stringify(info.section)}` : "") +
         (info.isUsed ? " used" : "") +
         INLINE_KIND_TEXT[info.inlineKind] +
         this.#signatureAbiText(info),
@@ -964,6 +1056,7 @@ export class TraceEmitter implements EmitterDelegate {
         `${info.linkage}${info.isConstant ? " const" : ""}` +
         `${info.isUsed ? " used" : ""}` +
         `${info.isThreadLocal ? " thread_local" : ""}` +
+        (info.section ? ` section ${JSON.stringify(info.section)}` : "") +
         ` = ${this.#initializerText(info.initializer)}`,
     );
     return ref;
@@ -985,8 +1078,12 @@ export class TraceEmitter implements EmitterDelegate {
     this.#emit(`init @${this.#globals.get(global)?.name ?? global}`);
   }
 
-  globalConstructor(loc: TokenIndex, function_: FunctionRef): void {
-    this.#emit(`global_ctor @${function_}`);
+  globalConstructor(
+    loc: TokenIndex,
+    function_: FunctionRef,
+    priority = 65535,
+  ): void {
+    this.#emit(`global_ctor @${function_} priority ${priority}`);
   }
 
   defineVTable(loc: TokenIndex, info: VTableInfo): void {

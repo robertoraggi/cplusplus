@@ -61,6 +61,13 @@ class TranslationUnit;
     TemplateDeclarationAST* lhsHead, TemplateDeclarationAST* rhsHead,
     bool isOutOfLineDeclaration) -> bool;
 
+[[nodiscard]] auto isDeletedFunction(TranslationUnit* unit,
+                                     FunctionSymbol* function) -> bool;
+
+[[nodiscard]] auto isExcludedDefaultedMoveMember(TranslationUnit* unit,
+                                                 FunctionSymbol* function)
+    -> bool;
+
 [[nodiscard]] auto isExplicitSpecializationHead(
     TemplateDeclarationAST* templateHead) -> bool;
 
@@ -106,6 +113,8 @@ class Binder {
 
   [[nodiscard]] auto languageLinkage() const -> LanguageKind;
   void setLanguageLinkage(LanguageKind linkage);
+  void applyEnableIfAttributes(FunctionSymbol* function,
+                               List<AttributeSpecifierAST*>* attributes);
 
   [[nodiscard]] auto changeLanguageLinkage(LanguageKind linkage)
       -> LanguageKind;
@@ -262,7 +271,8 @@ class Binder {
   [[nodiscard]] auto declareField(DeclaratorAST* declarator, const Decl& decl)
       -> FieldSymbol*;
 
-  void declareAnonymousField(ClassSpecifierAST* classSpecifier);
+  void declareAnonymousObject(ClassSpecifierAST* classSpecifier,
+                              const DeclSpecs& specs);
 
   [[nodiscard]] static auto declaresDefaultTemplateArgument(Symbol* parameter)
       -> bool;
@@ -289,8 +299,9 @@ class Binder {
   [[nodiscard]] static auto redeclaresOnlyMembersOf(
       UsingDeclarationSymbol* usingDeclaration, ScopeSymbol* scope) -> bool;
 
-  [[nodiscard]] auto staticDataMemberOf(ClassSymbol* classSymbol,
-                                        const Name* name) -> FieldSymbol*;
+  [[nodiscard]] static auto staticDataMemberOf(ClassSymbol* classSymbol,
+                                               const Name* name)
+      -> FieldSymbol*;
 
   [[nodiscard]] auto variableMemberOf(ClassSymbol* classSymbol,
                                       const Name* name) -> VariableSymbol*;
@@ -334,6 +345,8 @@ class Binder {
   void finishForRangeDeclaration(ForRangeStatementAST* ast,
                                  const DeclSpecs& specs);
 
+  void finishForRangeStatement(ForRangeStatementAST* ast);
+
   void applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs);
@@ -357,6 +370,7 @@ class Binder {
   void completeFieldInitializers(ClassSymbol* classSymbol);
   void refreshImplicitExceptionSpecifications(ClassSymbol* classSymbol);
   void completeDeferredImplicitExceptionSpecification(FunctionSymbol* fn);
+  void completeDeferredDeletion(FunctionSymbol* fn);
 
   void finalizeExceptionSpecifications(ClassSymbol* classSymbol);
 
@@ -494,11 +508,13 @@ class Binder {
 
   void bind(TypeIdAST* ast, const Decl& decl);
 
-  void bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup);
+  void bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup,
+            bool isCallee);
 
   void bind(OperatorFunctionIdAST* ast);
 
   void resolveIdExpression(IdExpressionAST* ast, bool isCallee);
+  [[nodiscard]] auto resolveMemberTemplateId(MemberExpressionAST* ast) -> bool;
 
   void qualifiedLookupIdExpression(IdExpressionAST* ast, bool isCallee = false);
   [[nodiscard]] auto lookupQualifiedIdExpression(IdExpressionAST* ast) -> bool;
@@ -632,6 +648,9 @@ class Binder {
   void inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern);
 
   void applyAttributeMap(Symbol* symbol, AttributeMap collected);
+
+  void applyConstructorAttribute(FunctionSymbol* function,
+                                 List<AttributeSpecifierAST*>* attributes);
 
   void applyWasmFunctionAttributes(FunctionSymbol* function,
                                    const AttributeMap* attributes);
@@ -803,7 +822,7 @@ class Binder {
   };
 
   struct EnumerationHeadOf;
-  struct ClassRangeRewrite;
+  struct RangeForRewrite;
   struct DecomposeStructuredBinding;
   struct ImplicitExceptionSpecification;
   struct NestedNameSpecifierScope;

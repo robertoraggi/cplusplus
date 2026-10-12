@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/ast.h>
+#include <cxx/symbols.h>
 
 namespace cxx {
 
@@ -47,6 +48,15 @@ namespace cxx {
   if (auto tryBody = ast_cast<TryStatementFunctionBodyAST>(body))
     return tryBody->memInitializerList;
   return nullptr;
+}
+
+[[nodiscard]] inline auto ctor_initializers(FunctionSymbol* function)
+    -> List<MemInitializerAST*>* {
+  if (!function) return nullptr;
+  if (auto initializers = function->constructorInitializers())
+    return *initializers;
+  auto declaration = function->declaration();
+  return declaration ? ctor_initializers(declaration->functionBody) : nullptr;
 }
 
 inline void set_ctor_initializers(FunctionBodyAST* body,

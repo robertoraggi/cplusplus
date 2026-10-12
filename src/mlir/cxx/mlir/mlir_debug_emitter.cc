@@ -22,6 +22,7 @@
 #include <cxx/mlir/mlir_debug_emitter.h>
 #include <cxx/mlir/mlir_emitter.h>
 #include <llvm/BinaryFormat/Dwarf.h>
+#include <llvm/Support/ErrorHandling.h>
 #include <llvm/TargetParser/Triple.h>
 
 #include <array>
@@ -103,7 +104,7 @@ template <typename Tag, typename Attr>
 auto retain(std::vector<Attr>& values, Attr value) -> Handle<Tag> {
   if (!value) return {};
   if (values.size() >= std::numeric_limits<std::uint32_t>::max())
-    cxx_runtime_error("too many debug metadata nodes");
+    llvm::report_fatal_error("too many debug metadata nodes");
   auto ref = HandleAccess::make<Tag>(static_cast<std::uint32_t>(values.size()));
   values.push_back(value);
   return ref;

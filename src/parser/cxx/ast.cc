@@ -75,6 +75,7 @@ auto AsmDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(asmLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(literalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(outputOperandList)) return loc;
   if (auto loc = cxx::firstSourceLocation(inputOperandList)) return loc;
   if (auto loc = cxx::firstSourceLocation(clobberList)) return loc;
@@ -91,6 +92,7 @@ auto AsmDeclarationAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(clobberList)) return loc;
   if (auto loc = cxx::lastSourceLocation(inputOperandList)) return loc;
   if (auto loc = cxx::lastSourceLocation(outputOperandList)) return loc;
+  if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(literalLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(lparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(asmLoc)) return loc;
@@ -494,14 +496,10 @@ auto StructuredBindingDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(initializer)) return loc;
   if (auto loc = cxx::firstSourceLocation(semicolonLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(hiddenVariable)) return loc;
-  if (auto loc = cxx::firstSourceLocation(bindingDeclaratorList)) return loc;
   return {};
 }
 
 auto StructuredBindingDeclarationAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(bindingDeclaratorList)) return loc;
-  if (auto loc = cxx::lastSourceLocation(hiddenVariable)) return loc;
   if (auto loc = cxx::lastSourceLocation(semicolonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(initializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
@@ -956,12 +954,18 @@ auto LabeledStatementAST::lastSourceLocation() -> SourceLocation {
 auto CaseStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(caseLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(upperExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   return {};
 }
 
 auto CaseStatementAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(upperExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(caseLoc)) return loc;
   return {};
@@ -970,10 +974,12 @@ auto CaseStatementAST::lastSourceLocation() -> SourceLocation {
 auto DefaultStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(defaultLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(colonLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
   return {};
 }
 
 auto DefaultStatementAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(colonLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(defaultLoc)) return loc;
   return {};
@@ -1135,20 +1141,10 @@ auto ForRangeStatementAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(rangeInitializer)) return loc;
   if (auto loc = cxx::firstSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(statement)) return loc;
-  if (auto loc = cxx::firstSourceLocation(beginInitializer)) return loc;
-  if (auto loc = cxx::firstSourceLocation(endInitializer)) return loc;
-  if (auto loc = cxx::firstSourceLocation(condition)) return loc;
-  if (auto loc = cxx::firstSourceLocation(increment)) return loc;
-  if (auto loc = cxx::firstSourceLocation(element)) return loc;
   return {};
 }
 
 auto ForRangeStatementAST::lastSourceLocation() -> SourceLocation {
-  if (auto loc = cxx::lastSourceLocation(element)) return loc;
-  if (auto loc = cxx::lastSourceLocation(increment)) return loc;
-  if (auto loc = cxx::lastSourceLocation(condition)) return loc;
-  if (auto loc = cxx::lastSourceLocation(endInitializer)) return loc;
-  if (auto loc = cxx::lastSourceLocation(beginInitializer)) return loc;
   if (auto loc = cxx::lastSourceLocation(statement)) return loc;
   if (auto loc = cxx::lastSourceLocation(rparenLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(rangeInitializer)) return loc;
@@ -2371,12 +2367,16 @@ auto DotDesignatorAST::lastSourceLocation() -> SourceLocation {
 auto SubscriptDesignatorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(expression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(upperExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   return {};
 }
 
 auto SubscriptDesignatorAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(upperExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(expression)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
   return {};
@@ -4225,6 +4225,7 @@ auto AsmDeclarationAST::clone(Arena* arena) -> AsmDeclarationAST* {
   node->asmLoc = asmLoc;
   node->lparenLoc = lparenLoc;
   node->literalLoc = literalLoc;
+  node->colonLoc = colonLoc;
 
   if (outputOperandList) {
     auto it = &node->outputOperandList;
@@ -4274,7 +4275,7 @@ auto AsmDeclarationAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     List<AsmQualifierAST*>* asmQualifierList, SourceLocation asmLoc,
     SourceLocation lparenLoc, SourceLocation literalLoc,
-    List<AsmOperandAST*>* outputOperandList,
+    SourceLocation colonLoc, List<AsmOperandAST*>* outputOperandList,
     List<AsmOperandAST*>* inputOperandList, List<AsmClobberAST*>* clobberList,
     List<AsmGotoLabelAST*>* gotoLabelList, SourceLocation rparenLoc,
     SourceLocation semicolonLoc, const Literal* literal) -> AsmDeclarationAST* {
@@ -4284,6 +4285,7 @@ auto AsmDeclarationAST::create(
   node->asmLoc = asmLoc;
   node->lparenLoc = lparenLoc;
   node->literalLoc = literalLoc;
+  node->colonLoc = colonLoc;
   node->outputOperandList = outputOperandList;
   node->inputOperandList = inputOperandList;
   node->clobberList = clobberList;
@@ -5476,16 +5478,7 @@ auto StructuredBindingDeclarationAST::clone(Arena* arena)
   if (initializer) node->initializer = initializer->clone(arena);
 
   node->semicolonLoc = semicolonLoc;
-
-  if (hiddenVariable) node->hiddenVariable = hiddenVariable->clone(arena);
-
-  if (bindingDeclaratorList) {
-    auto it = &node->bindingDeclaratorList;
-    for (auto node : ListView{bindingDeclaratorList}) {
-      *it = make_list_node<InitDeclaratorAST>(arena, node->clone(arena));
-      it = &(*it)->next;
-    }
-  }
+  node->binding = binding;
 
   return node;
 }
@@ -5501,8 +5494,7 @@ auto StructuredBindingDeclarationAST::create(
     List<SpecifierAST*>* declSpecifierList, SourceLocation refQualifierLoc,
     SourceLocation lbracketLoc, List<NameIdAST*>* bindingList,
     SourceLocation rbracketLoc, ExpressionAST* initializer,
-    SourceLocation semicolonLoc, InitDeclaratorAST* hiddenVariable,
-    List<InitDeclaratorAST*>* bindingDeclaratorList)
+    SourceLocation semicolonLoc, StructuredBindingInfo binding)
     -> StructuredBindingDeclarationAST* {
   auto node = new (arena) StructuredBindingDeclarationAST();
   node->attributeList = attributeList;
@@ -5513,24 +5505,21 @@ auto StructuredBindingDeclarationAST::create(
   node->rbracketLoc = rbracketLoc;
   node->initializer = initializer;
   node->semicolonLoc = semicolonLoc;
-  node->hiddenVariable = hiddenVariable;
-  node->bindingDeclaratorList = bindingDeclaratorList;
+  node->binding = binding;
   return node;
 }
 
 auto StructuredBindingDeclarationAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     List<SpecifierAST*>* declSpecifierList, List<NameIdAST*>* bindingList,
-    ExpressionAST* initializer, InitDeclaratorAST* hiddenVariable,
-    List<InitDeclaratorAST*>* bindingDeclaratorList)
+    ExpressionAST* initializer, StructuredBindingInfo binding)
     -> StructuredBindingDeclarationAST* {
   auto node = new (arena) StructuredBindingDeclarationAST();
   node->attributeList = attributeList;
   node->declSpecifierList = declSpecifierList;
   node->bindingList = bindingList;
   node->initializer = initializer;
-  node->hiddenVariable = hiddenVariable;
-  node->bindingDeclaratorList = bindingDeclaratorList;
+  node->binding = binding;
   return node;
 }
 
@@ -6794,8 +6783,14 @@ auto CaseStatementAST::clone(Arena* arena) -> CaseStatementAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
+  node->ellipsisLoc = ellipsisLoc;
+
+  if (upperExpression) node->upperExpression = upperExpression->clone(arena);
+
   node->colonLoc = colonLoc;
   node->caseValue = caseValue;
+
+  if (statement) node->statement = statement->clone(arena);
 
   return node;
 }
@@ -6807,21 +6802,30 @@ auto CaseStatementAST::create(Arena* arena) -> CaseStatementAST* {
 
 auto CaseStatementAST::create(Arena* arena, SourceLocation caseLoc,
                               ExpressionAST* expression,
-                              SourceLocation colonLoc, std::int64_t caseValue)
-    -> CaseStatementAST* {
+                              SourceLocation ellipsisLoc,
+                              ExpressionAST* upperExpression,
+                              SourceLocation colonLoc, std::int64_t caseValue,
+                              StatementAST* statement) -> CaseStatementAST* {
   auto node = new (arena) CaseStatementAST();
   node->caseLoc = caseLoc;
   node->expression = expression;
+  node->ellipsisLoc = ellipsisLoc;
+  node->upperExpression = upperExpression;
   node->colonLoc = colonLoc;
   node->caseValue = caseValue;
+  node->statement = statement;
   return node;
 }
 
 auto CaseStatementAST::create(Arena* arena, ExpressionAST* expression,
-                              std::int64_t caseValue) -> CaseStatementAST* {
+                              ExpressionAST* upperExpression,
+                              std::int64_t caseValue, StatementAST* statement)
+    -> CaseStatementAST* {
   auto node = new (arena) CaseStatementAST();
   node->expression = expression;
+  node->upperExpression = upperExpression;
   node->caseValue = caseValue;
+  node->statement = statement;
   return node;
 }
 
@@ -6830,6 +6834,8 @@ auto DefaultStatementAST::clone(Arena* arena) -> DefaultStatementAST* {
 
   node->defaultLoc = defaultLoc;
   node->colonLoc = colonLoc;
+
+  if (statement) node->statement = statement->clone(arena);
 
   return node;
 }
@@ -6840,11 +6846,20 @@ auto DefaultStatementAST::create(Arena* arena) -> DefaultStatementAST* {
 }
 
 auto DefaultStatementAST::create(Arena* arena, SourceLocation defaultLoc,
-                                 SourceLocation colonLoc)
+                                 SourceLocation colonLoc,
+                                 StatementAST* statement)
     -> DefaultStatementAST* {
   auto node = new (arena) DefaultStatementAST();
   node->defaultLoc = defaultLoc;
   node->colonLoc = colonLoc;
+  node->statement = statement;
+  return node;
+}
+
+auto DefaultStatementAST::create(Arena* arena, StatementAST* statement)
+    -> DefaultStatementAST* {
+  auto node = new (arena) DefaultStatementAST();
+  node->statement = statement;
   return node;
 }
 
@@ -7234,6 +7249,7 @@ auto DoStatementAST::clone(Arena* arena) -> DoStatementAST* {
 
   node->rparenLoc = rparenLoc;
   node->semicolonLoc = semicolonLoc;
+  node->symbol = symbol;
 
   return node;
 }
@@ -7248,7 +7264,8 @@ auto DoStatementAST::create(Arena* arena,
                             SourceLocation doLoc, StatementAST* statement,
                             SourceLocation whileLoc, SourceLocation lparenLoc,
                             ExpressionAST* expression, SourceLocation rparenLoc,
-                            SourceLocation semicolonLoc) -> DoStatementAST* {
+                            SourceLocation semicolonLoc, BlockSymbol* symbol)
+    -> DoStatementAST* {
   auto node = new (arena) DoStatementAST();
   node->attributeList = attributeList;
   node->doLoc = doLoc;
@@ -7258,17 +7275,19 @@ auto DoStatementAST::create(Arena* arena,
   node->expression = expression;
   node->rparenLoc = rparenLoc;
   node->semicolonLoc = semicolonLoc;
+  node->symbol = symbol;
   return node;
 }
 
 auto DoStatementAST::create(Arena* arena,
                             List<AttributeSpecifierAST*>* attributeList,
-                            StatementAST* statement, ExpressionAST* expression)
-    -> DoStatementAST* {
+                            StatementAST* statement, ExpressionAST* expression,
+                            BlockSymbol* symbol) -> DoStatementAST* {
   auto node = new (arena) DoStatementAST();
   node->attributeList = attributeList;
   node->statement = statement;
   node->expression = expression;
+  node->symbol = symbol;
   return node;
 }
 
@@ -7298,29 +7317,8 @@ auto ForRangeStatementAST::clone(Arena* arena) -> ForRangeStatementAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
-  if (beginInitializer) node->beginInitializer = beginInitializer->clone(arena);
-
-  if (endInitializer) node->endInitializer = endInitializer->clone(arena);
-
-  if (condition) node->condition = condition->clone(arena);
-
-  if (increment) node->increment = increment->clone(arena);
-
-  if (element) node->element = element->clone(arena);
-
   node->symbol = symbol;
-  node->rangeVariable = rangeVariable;
-  node->beginVariable = beginVariable;
-  node->endVariable = endVariable;
-  node->beginFunction = beginFunction;
-  node->endFunction = endFunction;
-  node->derefFunction = derefFunction;
-  node->incrementFunction = incrementFunction;
-  node->notEqualFunction = notEqualFunction;
-  node->usesMemberBeginEnd = usesMemberBeginEnd;
-  node->isPointerIterator = isPointerIterator;
-  node->notEqualRewritten = notEqualRewritten;
-  node->notEqualReversed = notEqualReversed;
+  node->range = range;
 
   return node;
 }
@@ -7335,15 +7333,8 @@ auto ForRangeStatementAST::create(
     SourceLocation forLoc, SourceLocation lparenLoc, StatementAST* initializer,
     DeclarationAST* rangeDeclaration, SourceLocation colonLoc,
     ExpressionAST* rangeInitializer, SourceLocation rparenLoc,
-    StatementAST* statement, ExpressionAST* beginInitializer,
-    ExpressionAST* endInitializer, ExpressionAST* condition,
-    ExpressionAST* increment, ExpressionAST* element, BlockSymbol* symbol,
-    VariableSymbol* rangeVariable, VariableSymbol* beginVariable,
-    VariableSymbol* endVariable, FunctionSymbol* beginFunction,
-    FunctionSymbol* endFunction, FunctionSymbol* derefFunction,
-    FunctionSymbol* incrementFunction, FunctionSymbol* notEqualFunction,
-    bool usesMemberBeginEnd, bool isPointerIterator, bool notEqualRewritten,
-    bool notEqualReversed) -> ForRangeStatementAST* {
+    StatementAST* statement, BlockSymbol* symbol, ForRangeStatementInfo range)
+    -> ForRangeStatementAST* {
   auto node = new (arena) ForRangeStatementAST();
   node->attributeList = attributeList;
   node->forLoc = forLoc;
@@ -7354,24 +7345,8 @@ auto ForRangeStatementAST::create(
   node->rangeInitializer = rangeInitializer;
   node->rparenLoc = rparenLoc;
   node->statement = statement;
-  node->beginInitializer = beginInitializer;
-  node->endInitializer = endInitializer;
-  node->condition = condition;
-  node->increment = increment;
-  node->element = element;
   node->symbol = symbol;
-  node->rangeVariable = rangeVariable;
-  node->beginVariable = beginVariable;
-  node->endVariable = endVariable;
-  node->beginFunction = beginFunction;
-  node->endFunction = endFunction;
-  node->derefFunction = derefFunction;
-  node->incrementFunction = incrementFunction;
-  node->notEqualFunction = notEqualFunction;
-  node->usesMemberBeginEnd = usesMemberBeginEnd;
-  node->isPointerIterator = isPointerIterator;
-  node->notEqualRewritten = notEqualRewritten;
-  node->notEqualReversed = notEqualReversed;
+  node->range = range;
   return node;
 }
 
@@ -7379,39 +7354,15 @@ auto ForRangeStatementAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     StatementAST* initializer, DeclarationAST* rangeDeclaration,
     ExpressionAST* rangeInitializer, StatementAST* statement,
-    ExpressionAST* beginInitializer, ExpressionAST* endInitializer,
-    ExpressionAST* condition, ExpressionAST* increment, ExpressionAST* element,
-    BlockSymbol* symbol, VariableSymbol* rangeVariable,
-    VariableSymbol* beginVariable, VariableSymbol* endVariable,
-    FunctionSymbol* beginFunction, FunctionSymbol* endFunction,
-    FunctionSymbol* derefFunction, FunctionSymbol* incrementFunction,
-    FunctionSymbol* notEqualFunction, bool usesMemberBeginEnd,
-    bool isPointerIterator, bool notEqualRewritten, bool notEqualReversed)
-    -> ForRangeStatementAST* {
+    BlockSymbol* symbol, ForRangeStatementInfo range) -> ForRangeStatementAST* {
   auto node = new (arena) ForRangeStatementAST();
   node->attributeList = attributeList;
   node->initializer = initializer;
   node->rangeDeclaration = rangeDeclaration;
   node->rangeInitializer = rangeInitializer;
   node->statement = statement;
-  node->beginInitializer = beginInitializer;
-  node->endInitializer = endInitializer;
-  node->condition = condition;
-  node->increment = increment;
-  node->element = element;
   node->symbol = symbol;
-  node->rangeVariable = rangeVariable;
-  node->beginVariable = beginVariable;
-  node->endVariable = endVariable;
-  node->beginFunction = beginFunction;
-  node->endFunction = endFunction;
-  node->derefFunction = derefFunction;
-  node->incrementFunction = incrementFunction;
-  node->notEqualFunction = notEqualFunction;
-  node->usesMemberBeginEnd = usesMemberBeginEnd;
-  node->isPointerIterator = isPointerIterator;
-  node->notEqualRewritten = notEqualRewritten;
-  node->notEqualReversed = notEqualReversed;
+  node->range = range;
   return node;
 }
 
@@ -9169,6 +9120,7 @@ auto BracedTypeConstructionAST::clone(Arena* arena)
   if (bracedInitList) node->bracedInitList = bracedInitList->clone(arena);
 
   node->constructorSymbol = constructorSymbol;
+  node->initialization = initialization;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -9181,17 +9133,16 @@ auto BracedTypeConstructionAST::create(Arena* arena)
   return node;
 }
 
-auto BracedTypeConstructionAST::create(Arena* arena,
-                                       SpecifierAST* typeSpecifier,
-                                       BracedInitListAST* bracedInitList,
-                                       FunctionSymbol* constructorSymbol,
-                                       ValueCategory valueCategory,
-                                       const Type* type)
-    -> BracedTypeConstructionAST* {
+auto BracedTypeConstructionAST::create(
+    Arena* arena, SpecifierAST* typeSpecifier,
+    BracedInitListAST* bracedInitList, FunctionSymbol* constructorSymbol,
+    ObjectInitializationInfo initialization, ValueCategory valueCategory,
+    const Type* type) -> BracedTypeConstructionAST* {
   auto node = new (arena) BracedTypeConstructionAST();
   node->typeSpecifier = typeSpecifier;
   node->bracedInitList = bracedInitList;
   node->constructorSymbol = constructorSymbol;
+  node->initialization = initialization;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10366,6 +10317,8 @@ auto NewExpressionAST::clone(Arena* arena) -> NewExpressionAST* {
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
   node->symbol = symbol;
+  node->deallocationFunction = deallocationFunction;
+  node->arrayCookieRequired = arrayCookieRequired;
   node->hasAlignmentArgument = hasAlignmentArgument;
   node->valueCategory = valueCategory;
   node->type = type;
@@ -10384,7 +10337,8 @@ auto NewExpressionAST::create(
     List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
     SourceLocation rparenLoc, NewInitializerAST* newInitalizer,
     const Type* objectType, FunctionSymbol* constructorSymbol,
-    FunctionSymbol* symbol, bool hasAlignmentArgument,
+    FunctionSymbol* symbol, FunctionSymbol* deallocationFunction,
+    bool arrayCookieRequired, bool hasAlignmentArgument,
     ValueCategory valueCategory, const Type* type) -> NewExpressionAST* {
   auto node = new (arena) NewExpressionAST();
   node->scopeLoc = scopeLoc;
@@ -10398,20 +10352,21 @@ auto NewExpressionAST::create(
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
   node->symbol = symbol;
+  node->deallocationFunction = deallocationFunction;
+  node->arrayCookieRequired = arrayCookieRequired;
   node->hasAlignmentArgument = hasAlignmentArgument;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
 }
 
-auto NewExpressionAST::create(Arena* arena, NewPlacementAST* newPlacement,
-                              List<SpecifierAST*>* typeSpecifierList,
-                              DeclaratorAST* declarator,
-                              NewInitializerAST* newInitalizer,
-                              const Type* objectType,
-                              FunctionSymbol* constructorSymbol,
-                              FunctionSymbol* symbol, bool hasAlignmentArgument,
-                              ValueCategory valueCategory, const Type* type)
+auto NewExpressionAST::create(
+    Arena* arena, NewPlacementAST* newPlacement,
+    List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
+    NewInitializerAST* newInitalizer, const Type* objectType,
+    FunctionSymbol* constructorSymbol, FunctionSymbol* symbol,
+    FunctionSymbol* deallocationFunction, bool arrayCookieRequired,
+    bool hasAlignmentArgument, ValueCategory valueCategory, const Type* type)
     -> NewExpressionAST* {
   auto node = new (arena) NewExpressionAST();
   node->newPlacement = newPlacement;
@@ -10421,6 +10376,8 @@ auto NewExpressionAST::create(Arena* arena, NewPlacementAST* newPlacement,
   node->objectType = objectType;
   node->constructorSymbol = constructorSymbol;
   node->symbol = symbol;
+  node->deallocationFunction = deallocationFunction;
+  node->arrayCookieRequired = arrayCookieRequired;
   node->hasAlignmentArgument = hasAlignmentArgument;
   node->valueCategory = valueCategory;
   node->type = type;
@@ -10438,6 +10395,7 @@ auto DeleteExpressionAST::clone(Arena* arena) -> DeleteExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->symbol = symbol;
+  node->arrayCookieRequired = arrayCookieRequired;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -10452,7 +10410,7 @@ auto DeleteExpressionAST::create(Arena* arena) -> DeleteExpressionAST* {
 auto DeleteExpressionAST::create(
     Arena* arena, SourceLocation scopeLoc, SourceLocation deleteLoc,
     SourceLocation lbracketLoc, SourceLocation rbracketLoc,
-    ExpressionAST* expression, FunctionSymbol* symbol,
+    ExpressionAST* expression, FunctionSymbol* symbol, bool arrayCookieRequired,
     ValueCategory valueCategory, const Type* type) -> DeleteExpressionAST* {
   auto node = new (arena) DeleteExpressionAST();
   node->scopeLoc = scopeLoc;
@@ -10461,6 +10419,7 @@ auto DeleteExpressionAST::create(
   node->rbracketLoc = rbracketLoc;
   node->expression = expression;
   node->symbol = symbol;
+  node->arrayCookieRequired = arrayCookieRequired;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10468,11 +10427,13 @@ auto DeleteExpressionAST::create(
 
 auto DeleteExpressionAST::create(Arena* arena, ExpressionAST* expression,
                                  FunctionSymbol* symbol,
+                                 bool arrayCookieRequired,
                                  ValueCategory valueCategory, const Type* type)
     -> DeleteExpressionAST* {
   auto node = new (arena) DeleteExpressionAST();
   node->expression = expression;
   node->symbol = symbol;
+  node->arrayCookieRequired = arrayCookieRequired;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11207,6 +11168,7 @@ auto BracedInitListAST::clone(Arena* arena) -> BracedInitListAST* {
   node->commaLoc = commaLoc;
   node->rbraceLoc = rbraceLoc;
   node->implicitElement = implicitElement;
+  node->initialization = initialization;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -11223,6 +11185,7 @@ auto BracedInitListAST::create(Arena* arena, SourceLocation lbraceLoc,
                                SourceLocation commaLoc,
                                SourceLocation rbraceLoc,
                                VariableSymbol* implicitElement,
+                               InitializerInfo initialization,
                                ValueCategory valueCategory, const Type* type)
     -> BracedInitListAST* {
   auto node = new (arena) BracedInitListAST();
@@ -11231,6 +11194,7 @@ auto BracedInitListAST::create(Arena* arena, SourceLocation lbraceLoc,
   node->commaLoc = commaLoc;
   node->rbraceLoc = rbraceLoc;
   node->implicitElement = implicitElement;
+  node->initialization = initialization;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11239,11 +11203,13 @@ auto BracedInitListAST::create(Arena* arena, SourceLocation lbraceLoc,
 auto BracedInitListAST::create(Arena* arena,
                                List<ExpressionAST*>* expressionList,
                                VariableSymbol* implicitElement,
+                               InitializerInfo initialization,
                                ValueCategory valueCategory, const Type* type)
     -> BracedInitListAST* {
   auto node = new (arena) BracedInitListAST();
   node->expressionList = expressionList;
   node->implicitElement = implicitElement;
+  node->initialization = initialization;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11263,6 +11229,7 @@ auto ParenInitializerAST::clone(Arena* arena) -> ParenInitializerAST* {
   }
 
   node->rparenLoc = rparenLoc;
+  node->initialization = initialization;
   node->valueCategory = valueCategory;
   node->type = type;
 
@@ -11277,12 +11244,14 @@ auto ParenInitializerAST::create(Arena* arena) -> ParenInitializerAST* {
 auto ParenInitializerAST::create(Arena* arena, SourceLocation lparenLoc,
                                  List<ExpressionAST*>* expressionList,
                                  SourceLocation rparenLoc,
+                                 InitializerInfo initialization,
                                  ValueCategory valueCategory, const Type* type)
     -> ParenInitializerAST* {
   auto node = new (arena) ParenInitializerAST();
   node->lparenLoc = lparenLoc;
   node->expressionList = expressionList;
   node->rparenLoc = rparenLoc;
+  node->initialization = initialization;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11290,10 +11259,12 @@ auto ParenInitializerAST::create(Arena* arena, SourceLocation lparenLoc,
 
 auto ParenInitializerAST::create(Arena* arena,
                                  List<ExpressionAST*>* expressionList,
+                                 InitializerInfo initialization,
                                  ValueCategory valueCategory, const Type* type)
     -> ParenInitializerAST* {
   auto node = new (arena) ParenInitializerAST();
   node->expressionList = expressionList;
+  node->initialization = initialization;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -11457,6 +11428,10 @@ auto SubscriptDesignatorAST::clone(Arena* arena) -> SubscriptDesignatorAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
+  node->ellipsisLoc = ellipsisLoc;
+
+  if (upperExpression) node->upperExpression = upperExpression->clone(arena);
+
   node->rbracketLoc = rbracketLoc;
 
   return node;
@@ -11469,19 +11444,25 @@ auto SubscriptDesignatorAST::create(Arena* arena) -> SubscriptDesignatorAST* {
 
 auto SubscriptDesignatorAST::create(Arena* arena, SourceLocation lbracketLoc,
                                     ExpressionAST* expression,
+                                    SourceLocation ellipsisLoc,
+                                    ExpressionAST* upperExpression,
                                     SourceLocation rbracketLoc)
     -> SubscriptDesignatorAST* {
   auto node = new (arena) SubscriptDesignatorAST();
   node->lbracketLoc = lbracketLoc;
   node->expression = expression;
+  node->ellipsisLoc = ellipsisLoc;
+  node->upperExpression = upperExpression;
   node->rbracketLoc = rbracketLoc;
   return node;
 }
 
-auto SubscriptDesignatorAST::create(Arena* arena, ExpressionAST* expression)
+auto SubscriptDesignatorAST::create(Arena* arena, ExpressionAST* expression,
+                                    ExpressionAST* upperExpression)
     -> SubscriptDesignatorAST* {
   auto node = new (arena) SubscriptDesignatorAST();
   node->expression = expression;
+  node->upperExpression = upperExpression;
   return node;
 }
 
@@ -14543,6 +14524,7 @@ auto ParenMemInitializerAST::clone(Arena* arena) -> ParenMemInitializerAST* {
   node->ellipsisLoc = ellipsisLoc;
   node->symbol = symbol;
   node->constructor = constructor;
+  node->initialization = initialization;
 
   return node;
 }
@@ -14556,8 +14538,8 @@ auto ParenMemInitializerAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
     UnqualifiedIdAST* unqualifiedId, SourceLocation lparenLoc,
     List<ExpressionAST*>* expressionList, SourceLocation rparenLoc,
-    SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor)
-    -> ParenMemInitializerAST* {
+    SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor,
+    ObjectInitializationInfo initialization) -> ParenMemInitializerAST* {
   auto node = new (arena) ParenMemInitializerAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
@@ -14567,6 +14549,7 @@ auto ParenMemInitializerAST::create(
   node->ellipsisLoc = ellipsisLoc;
   node->symbol = symbol;
   node->constructor = constructor;
+  node->initialization = initialization;
   return node;
 }
 
@@ -14574,7 +14557,8 @@ auto ParenMemInitializerAST::create(Arena* arena,
                                     NestedNameSpecifierAST* nestedNameSpecifier,
                                     UnqualifiedIdAST* unqualifiedId,
                                     List<ExpressionAST*>* expressionList,
-                                    Symbol* symbol, FunctionSymbol* constructor)
+                                    Symbol* symbol, FunctionSymbol* constructor,
+                                    ObjectInitializationInfo initialization)
     -> ParenMemInitializerAST* {
   auto node = new (arena) ParenMemInitializerAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
@@ -14582,6 +14566,7 @@ auto ParenMemInitializerAST::create(Arena* arena,
   node->expressionList = expressionList;
   node->symbol = symbol;
   node->constructor = constructor;
+  node->initialization = initialization;
   return node;
 }
 
@@ -14598,6 +14583,7 @@ auto BracedMemInitializerAST::clone(Arena* arena) -> BracedMemInitializerAST* {
   node->ellipsisLoc = ellipsisLoc;
   node->symbol = symbol;
   node->constructor = constructor;
+  node->initialization = initialization;
 
   return node;
 }
@@ -14610,8 +14596,8 @@ auto BracedMemInitializerAST::create(Arena* arena) -> BracedMemInitializerAST* {
 auto BracedMemInitializerAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
     UnqualifiedIdAST* unqualifiedId, BracedInitListAST* bracedInitList,
-    SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor)
-    -> BracedMemInitializerAST* {
+    SourceLocation ellipsisLoc, Symbol* symbol, FunctionSymbol* constructor,
+    ObjectInitializationInfo initialization) -> BracedMemInitializerAST* {
   auto node = new (arena) BracedMemInitializerAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
@@ -14619,19 +14605,22 @@ auto BracedMemInitializerAST::create(
   node->ellipsisLoc = ellipsisLoc;
   node->symbol = symbol;
   node->constructor = constructor;
+  node->initialization = initialization;
   return node;
 }
 
 auto BracedMemInitializerAST::create(
     Arena* arena, NestedNameSpecifierAST* nestedNameSpecifier,
     UnqualifiedIdAST* unqualifiedId, BracedInitListAST* bracedInitList,
-    Symbol* symbol, FunctionSymbol* constructor) -> BracedMemInitializerAST* {
+    Symbol* symbol, FunctionSymbol* constructor,
+    ObjectInitializationInfo initialization) -> BracedMemInitializerAST* {
   auto node = new (arena) BracedMemInitializerAST();
   node->nestedNameSpecifier = nestedNameSpecifier;
   node->unqualifiedId = unqualifiedId;
   node->bracedInitList = bracedInitList;
   node->symbol = symbol;
   node->constructor = constructor;
+  node->initialization = initialization;
   return node;
 }
 
@@ -14937,6 +14926,7 @@ auto TypeExceptionDeclarationAST::clone(Arena* arena)
   if (declarator) node->declarator = declarator->clone(arena);
 
   node->symbol = symbol;
+  node->exceptionObject = exceptionObject;
 
   return node;
 }
@@ -14950,12 +14940,14 @@ auto TypeExceptionDeclarationAST::create(Arena* arena)
 auto TypeExceptionDeclarationAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     List<SpecifierAST*>* typeSpecifierList, DeclaratorAST* declarator,
-    VariableSymbol* symbol) -> TypeExceptionDeclarationAST* {
+    VariableSymbol* symbol, VariableSymbol* exceptionObject)
+    -> TypeExceptionDeclarationAST* {
   auto node = new (arena) TypeExceptionDeclarationAST();
   node->attributeList = attributeList;
   node->typeSpecifierList = typeSpecifierList;
   node->declarator = declarator;
   node->symbol = symbol;
+  node->exceptionObject = exceptionObject;
   return node;
 }
 

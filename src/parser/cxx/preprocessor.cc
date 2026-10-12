@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/attributes.h>
 #include <cxx/control.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/lexer.h>
@@ -33,6 +34,7 @@
 #include <array>
 #include <cassert>
 #include <cctype>
+#include <compare>
 #include <cstring>
 #include <deque>
 #include <filesystem>
@@ -303,6 +305,35 @@ struct FunctionMacro {
         variadic(variadic) {}
 };
 
+[[nodiscard]] auto invocationArgumentCount(const FunctionMacro& macro,
+                                           std::size_t parsedArguments)
+    -> std::size_t {
+  if (parsedArguments > 0) return parsedArguments;
+  if (macro.formals.empty() && !macro.variadic) return 0;
+  return 1;
+}
+
+[[nodiscard]] auto hasValidArgumentCount(const FunctionMacro& macro,
+                                         std::size_t argumentCount) -> bool {
+  if (macro.variadic) return argumentCount >= macro.formals.size();
+  return argumentCount == macro.formals.size();
+}
+
+[[nodiscard]] auto argumentCountMismatch(const FunctionMacro& macro,
+                                         std::size_t argumentCount)
+    -> std::string {
+  if (macro.variadic) {
+    return std::format(
+        "the invocation of function-like macro '{}' has {} arguments; there "
+        "shall be at least as many arguments as parameters ({})",
+        macro.name, argumentCount, macro.formals.size());
+  }
+  return std::format(
+      "the invocation of function-like macro '{}' has {} arguments; the "
+      "number of arguments shall equal the number of parameters ({})",
+      macro.name, argumentCount, macro.formals.size());
+}
+
 struct MacroExpansionContext {
   const Tok* tok = nullptr;
   const Tok* pos = nullptr;
@@ -400,6 +431,157 @@ static auto isSameBody(
   return true;
 }
 
+struct PreprocessingInteger {
+  std::uintmax_t bits = 0;
+  bool isUnsigned = false;
+
+  [[nodiscard]] static auto makeSigned(std::intmax_t value)
+      -> PreprocessingInteger {
+    return {static_cast<std::uintmax_t>(value), false};
+  }
+
+  [[nodiscard]] static auto makeUnsigned(std::uintmax_t value)
+      -> PreprocessingInteger {
+    return {value, true};
+  }
+
+  [[nodiscard]] static auto makeBoolean(bool value) -> PreprocessingInteger {
+    return makeSigned(value ? 1 : 0);
+  }
+
+  [[nodiscard]] auto asSigned() const -> std::intmax_t {
+    return static_cast<std::intmax_t>(bits);
+  }
+
+  [[nodiscard]] auto isTrue() const -> bool { return bits != 0; }
+
+  [[nodiscard]] auto isNegative() const -> bool {
+    return !isUnsigned && asSigned() < 0;
+  }
+};
+
+[[nodiscard]] auto resultIsUnsigned(PreprocessingInteger left,
+                                    PreprocessingInteger right) -> bool {
+  return left.isUnsigned || right.isUnsigned;
+}
+
+[[nodiscard]] auto compareIntegers(PreprocessingInteger left,
+                                   PreprocessingInteger right)
+    -> std::strong_ordering {
+  if (resultIsUnsigned(left, right)) return left.bits <=> right.bits;
+  return left.asSigned() <=> right.asSigned();
+}
+
+[[nodiscard]] auto withSignedness(std::uintmax_t bits, bool isUnsigned)
+    -> PreprocessingInteger {
+  return {bits, isUnsigned};
+}
+
+[[nodiscard]] auto magnitudeOf(PreprocessingInteger value)
+    -> PreprocessingInteger {
+  return PreprocessingInteger::makeUnsigned(std::uintmax_t{0} - value.bits);
+}
+
+[[nodiscard]] auto shiftLeft(PreprocessingInteger value,
+                             PreprocessingInteger count)
+    -> PreprocessingInteger;
+
+[[nodiscard]] auto shiftRight(PreprocessingInteger value,
+                              PreprocessingInteger count)
+    -> PreprocessingInteger {
+  if (count.isNegative()) return shiftLeft(value, magnitudeOf(count));
+  constexpr std::uintmax_t kWidth = std::numeric_limits<std::uintmax_t>::digits;
+  if (count.bits >= kWidth) {
+    const auto fill =
+        value.isNegative() ? ~std::uintmax_t{0} : std::uintmax_t{0};
+    return withSignedness(fill, value.isUnsigned);
+  }
+  if (value.isUnsigned)
+    return PreprocessingInteger::makeUnsigned(value.bits >> count.bits);
+  return PreprocessingInteger::makeSigned(value.asSigned() >> count.bits);
+}
+
+[[nodiscard]] auto shiftLeft(PreprocessingInteger value,
+                             PreprocessingInteger count)
+    -> PreprocessingInteger {
+  if (count.isNegative()) return shiftRight(value, magnitudeOf(count));
+  constexpr std::uintmax_t kWidth = std::numeric_limits<std::uintmax_t>::digits;
+  if (count.bits >= kWidth) return withSignedness(0, value.isUnsigned);
+  return withSignedness(value.bits << count.bits, value.isUnsigned);
+}
+
+[[nodiscard]] auto divideIntegers(PreprocessingInteger left,
+                                  PreprocessingInteger right)
+    -> PreprocessingInteger {
+  if (right.bits == 0) return PreprocessingInteger::makeSigned(0);
+  if (resultIsUnsigned(left, right))
+    return PreprocessingInteger::makeUnsigned(left.bits / right.bits);
+  if (left.asSigned() == std::numeric_limits<std::intmax_t>::min() &&
+      right.asSigned() == -1)
+    return left;
+  return PreprocessingInteger::makeSigned(left.asSigned() / right.asSigned());
+}
+
+[[nodiscard]] auto remainderIntegers(PreprocessingInteger left,
+                                     PreprocessingInteger right)
+    -> PreprocessingInteger {
+  if (right.bits == 0) return PreprocessingInteger::makeSigned(0);
+  if (resultIsUnsigned(left, right))
+    return PreprocessingInteger::makeUnsigned(left.bits % right.bits);
+  if (right.asSigned() == -1) return PreprocessingInteger::makeSigned(0);
+  return PreprocessingInteger::makeSigned(left.asSigned() % right.asSigned());
+}
+
+[[nodiscard]] auto applyBinaryOperator(TokenKind op, PreprocessingInteger left,
+                                       PreprocessingInteger right)
+    -> PreprocessingInteger {
+  const auto isUnsigned = resultIsUnsigned(left, right);
+  switch (op) {
+    case TokenKind::T_STAR:
+      return withSignedness(left.bits * right.bits, isUnsigned);
+    case TokenKind::T_SLASH:
+      return divideIntegers(left, right);
+    case TokenKind::T_PERCENT:
+      return remainderIntegers(left, right);
+    case TokenKind::T_PLUS:
+      return withSignedness(left.bits + right.bits, isUnsigned);
+    case TokenKind::T_MINUS:
+      return withSignedness(left.bits - right.bits, isUnsigned);
+    case TokenKind::T_LESS_LESS:
+      return shiftLeft(left, right);
+    case TokenKind::T_GREATER_GREATER:
+      return shiftRight(left, right);
+    case TokenKind::T_LESS_EQUAL:
+      return PreprocessingInteger::makeBoolean(compareIntegers(left, right) <=
+                                               0);
+    case TokenKind::T_GREATER_EQUAL:
+      return PreprocessingInteger::makeBoolean(compareIntegers(left, right) >=
+                                               0);
+    case TokenKind::T_LESS:
+      return PreprocessingInteger::makeBoolean(compareIntegers(left, right) <
+                                               0);
+    case TokenKind::T_GREATER:
+      return PreprocessingInteger::makeBoolean(compareIntegers(left, right) >
+                                               0);
+    case TokenKind::T_EQUAL_EQUAL:
+      return PreprocessingInteger::makeBoolean(left.bits == right.bits);
+    case TokenKind::T_EXCLAIM_EQUAL:
+      return PreprocessingInteger::makeBoolean(left.bits != right.bits);
+    case TokenKind::T_AMP:
+      return withSignedness(left.bits & right.bits, isUnsigned);
+    case TokenKind::T_CARET:
+      return withSignedness(left.bits ^ right.bits, isUnsigned);
+    case TokenKind::T_BAR:
+      return withSignedness(left.bits | right.bits, isUnsigned);
+    case TokenKind::T_AMP_AMP:
+      return PreprocessingInteger::makeBoolean(left.isTrue() && right.isTrue());
+    case TokenKind::T_BAR_BAR:
+      return PreprocessingInteger::makeBoolean(left.isTrue() || right.isTrue());
+    default:
+      cxx_runtime_error(std::format("invalid operator '{}'", Token::spell(op)));
+  }
+}
+
 }  // namespace
 
 struct Preprocessor::Private {
@@ -449,9 +631,17 @@ struct Preprocessor::Private {
   DiagnosticsClient* diagnosticsClient_ = nullptr;
   CommentHandler* commentHandler_ = nullptr;
   LanguageKind language_ = LanguageKind::kCXX;
+  long cplusplusVersion_ = 202400L;
   TripleArch targetArch_ = TripleArch::kUnknown;
   bool disableCurrentDirSearch_ = false;
+  struct PendingConcatenation {
+    std::string spelling;
+    std::string encodingPrefix;
+  };
+
+  std::optional<PendingConcatenation> pendingConcatenation_;
   std::vector<std::string> systemIncludePaths_;
+  std::vector<std::string> systemFrameworkPaths_;
   std::vector<std::string> quoteIncludePaths_;
   std::vector<std::string> userIncludePaths_;
   std::vector<std::pair<std::string, bool>> includedFiles_;
@@ -657,6 +847,8 @@ struct Preprocessor::Private {
   [[nodiscard]] auto fileIdentity(const std::string& fileName) const
       -> const std::string&;
 
+  void releaseTokens(SourceFile* sourceFile);
+
   [[nodiscard]] auto tokenize(const std::string_view& source, int sourceFile,
                               bool bol) -> TokVector;
 
@@ -778,14 +970,19 @@ struct Preprocessor::Private {
                                                const Tok* lineEnd) -> TokVector;
 
   [[nodiscard]] auto evaluateConstantExpression(const Tok*& ts, const Tok* end)
-      -> long;
+      -> bool;
   [[nodiscard]] auto conditionalExpression(const Tok*& ts, const Tok* end)
-      -> long;
-  [[nodiscard]] auto binaryExpression(const Tok*& ts, const Tok* end) -> long;
+      -> PreprocessingInteger;
+  [[nodiscard]] auto binaryExpression(const Tok*& ts, const Tok* end)
+      -> PreprocessingInteger;
   [[nodiscard]] auto binaryExpressionHelper(const Tok*& ts, const Tok* end,
-                                            long lhs, int minPrec) -> long;
-  [[nodiscard]] auto unaryExpression(const Tok*& ts, const Tok* end) -> long;
-  [[nodiscard]] auto primaryExpression(const Tok*& ts, const Tok* end) -> long;
+                                            PreprocessingInteger lhs,
+                                            int minPrec)
+      -> PreprocessingInteger;
+  [[nodiscard]] auto unaryExpression(const Tok*& ts, const Tok* end)
+      -> PreprocessingInteger;
+  [[nodiscard]] auto primaryExpression(const Tok*& ts, const Tok* end)
+      -> PreprocessingInteger;
 
   struct ParsedArgs {
     std::vector<TokRange> args;
@@ -831,9 +1028,19 @@ struct Preprocessor::Private {
                                  const std::string& curDir, bool isQuoted) const
       -> std::optional<ResolveResult>;
 
+  struct SearchDirectory {
+    const std::string* path = nullptr;
+    bool isSystem = false;
+    bool isFramework = false;
+  };
+
   [[nodiscard]] auto buildSearchDirs(const std::string& curDir,
                                      bool isQuoted) const
-      -> std::vector<std::pair<const std::string*, bool>>;
+      -> std::vector<SearchDirectory>;
+
+  [[nodiscard]] static auto candidateFileNames(const SearchDirectory& directory,
+                                               std::string_view headerName)
+      -> std::vector<fs::path>;
 
   [[nodiscard]] auto isDefined(std::string_view id) const -> bool {
     return macros_.contains(id);
@@ -887,8 +1094,10 @@ struct Preprocessor::Private {
     return control_->stringLiteral(text);
   }
 
-  [[nodiscard]] auto updateStringLiteralValue(Token& lastToken, const Tok& tk)
-      -> bool {
+  [[nodiscard]] auto updateStringLiteralValue(std::vector<Token>& tokens,
+                                              const Tok& tk) -> bool {
+    if (tokens.empty()) return false;
+    auto& lastToken = tokens.back();
     if (!isStringLiteral(lastToken.kind())) return false;
     if (!isStringLiteral(tk.kind)) return false;
 
@@ -896,10 +1105,13 @@ struct Preprocessor::Private {
         tk.is(TokenKind::T_USER_DEFINED_STRING_LITERAL) ||
         lastToken.kind() == TokenKind::T_USER_DEFINED_STRING_LITERAL;
 
-    auto newText = lastToken.value().literalValue->value();
+    const std::string_view lastText =
+        pendingConcatenation_
+            ? std::string_view(pendingConcatenation_->spelling)
+            : std::string_view(lastToken.value().literalValue->value());
     auto tkText = getText(tk);
 
-    const auto lastQuote = newText.find_last_of('"');
+    const auto lastQuote = lastText.find_last_of('"');
     const auto tkFirstQuote = tkText.find_first_of('"');
     const auto tkLastQuote = tkText.find_last_of('"');
 
@@ -908,60 +1120,80 @@ struct Preprocessor::Private {
       return false;
     }
 
-    const auto lastPrefix = encodingPrefixOf(newText);
+    const auto lastPrefix =
+        pendingConcatenation_
+            ? std::string_view(pendingConcatenation_->encodingPrefix)
+            : encodingPrefixOf(lastText);
     const auto tkPrefix = encodingPrefixOf(tkText);
 
-    if (!concatenatesUserDefined) {
-      if (tk.isNot(TokenKind::T_STRING_LITERAL) && tk.kind != lastToken.kind())
-        return false;
-    } else if (!lastPrefix.empty() && !tkPrefix.empty() &&
-               lastPrefix != tkPrefix) {
+    if (!lastPrefix.empty() && !tkPrefix.empty() && lastPrefix != tkPrefix) {
       return false;
     }
 
-    const auto lastSuffix = newText.substr(lastQuote + 1);
+    const auto lastSuffix = std::string(lastText.substr(lastQuote + 1));
     const auto tkSuffix = tkText.substr(tkLastQuote + 1);
 
     if (!lastSuffix.empty() && !tkSuffix.empty() && lastSuffix != tkSuffix) {
       error(&tk, "concatenating string literals with different ud-suffixes");
     }
 
-    newText.erase(lastQuote);
-    newText += tkText.substr(tkFirstQuote + 1, tkLastQuote - tkFirstQuote);
-    newText += lastSuffix.empty() ? std::string(tkSuffix) : lastSuffix;
+    const auto encodingPrefix =
+        std::string(lastPrefix.empty() ? tkPrefix : lastPrefix);
 
+    if (!pendingConcatenation_)
+      pendingConcatenation_ =
+          PendingConcatenation{.spelling = std::string(lastText)};
+
+    auto& pending = *pendingConcatenation_;
+    if (pending.encodingPrefix.empty()) pending.encodingPrefix = encodingPrefix;
+
+    pending.spelling.erase(lastQuote + 1);
+    pending.spelling += ' ';
+    pending.spelling += tkText.substr(0, tkLastQuote + 1);
+    pending.spelling += lastSuffix.empty() ? std::string(tkSuffix) : lastSuffix;
+
+    if (concatenatesUserDefined)
+      lastToken.setKind(TokenKind::T_USER_DEFINED_STRING_LITERAL);
+    else if (lastToken.kind() == TokenKind::T_STRING_LITERAL)
+      lastToken.setKind(tk.kind);
+
+    return true;
+  }
+
+  void flushStringConcatenation(std::vector<Token>& tokens) {
+    if (!pendingConcatenation_) return;
+    auto pending = std::move(*pendingConcatenation_);
+    pendingConcatenation_.reset();
+    if (tokens.empty()) return;
+
+    auto& lastToken = tokens.back();
     TokenValue value = lastToken.value();
 
-    if (concatenatesUserDefined) {
-      value.literalValue = internStringLiteral(
-          lastPrefix.empty() ? tkPrefix : lastPrefix, newText);
-      lastToken.setValue(value);
-      lastToken.setKind(TokenKind::T_USER_DEFINED_STRING_LITERAL);
-      return true;
-    }
-
     switch (lastToken.kind()) {
+      case TokenKind::T_USER_DEFINED_STRING_LITERAL:
+        value.literalValue =
+            internStringLiteral(pending.encodingPrefix, pending.spelling);
+        break;
       case TokenKind::T_STRING_LITERAL:
-        value.literalValue = control_->stringLiteral(newText);
+        value.literalValue = control_->stringLiteral(pending.spelling);
         break;
       case TokenKind::T_WIDE_STRING_LITERAL:
-        value.literalValue = control_->wideStringLiteral(newText);
+        value.literalValue = control_->wideStringLiteral(pending.spelling);
         break;
       case TokenKind::T_UTF8_STRING_LITERAL:
-        value.literalValue = control_->utf8StringLiteral(newText);
+        value.literalValue = control_->utf8StringLiteral(pending.spelling);
         break;
       case TokenKind::T_UTF16_STRING_LITERAL:
-        value.literalValue = control_->utf16StringLiteral(newText);
+        value.literalValue = control_->utf16StringLiteral(pending.spelling);
         break;
       case TokenKind::T_UTF32_STRING_LITERAL:
-        value.literalValue = control_->utf32StringLiteral(newText);
+        value.literalValue = control_->utf32StringLiteral(pending.spelling);
         break;
       default:
         break;
     }
 
     lastToken.setValue(value);
-    return true;
   }
 
   void adddBuiltinMacro(
@@ -1152,9 +1384,14 @@ void Preprocessor::Private::initialize() {
         auto end = context.end;
         auto macroId = *context.tok;
         if (pos < end && pos->is(TokenKind::T_LPAREN)) ++pos;
-        if (pos < end && pos->is(TokenKind::T_IDENTIFIER)) ++pos;
+        std::string_view name;
+        if (pos < end && pos->is(TokenKind::T_IDENTIFIER)) {
+          name = getText(*pos);
+          ++pos;
+        }
         if (pos < end && pos->is(TokenKind::T_RPAREN)) ++pos;
-        result.push_back(replaceWithBoolLiteral(macroId, true));
+        result.push_back(replaceWithBoolLiteral(
+            macroId, supportsGnuAttribute(name, *control_->memoryLayout())));
         return result;
       });
 
@@ -1352,20 +1589,23 @@ auto Preprocessor::Private::prepareConstantExpression(const Tok* ts,
 }
 
 auto Preprocessor::Private::evaluateConstantExpression(const Tok*& ts,
-                                                       const Tok* end) -> long {
-  return conditionalExpression(ts, end);
+                                                       const Tok* end) -> bool {
+  return conditionalExpression(ts, end).isTrue();
 }
 
 auto Preprocessor::Private::conditionalExpression(const Tok*& ts,
-                                                  const Tok* end) -> long {
-  if (ts >= end) return 0;
+                                                  const Tok* end)
+    -> PreprocessingInteger {
+  if (ts >= end) return {};
   const auto value = binaryExpression(ts, end);
   if (ts < end && ts->is(TokenKind::T_QUESTION)) {
     ++ts;
     const auto iftrue = conditionalExpression(ts, end);
     if (ts < end && ts->is(TokenKind::T_COLON)) ++ts;
     const auto iffalse = conditionalExpression(ts, end);
-    return value ? iftrue : iffalse;
+    auto selected = value.isTrue() ? iftrue : iffalse;
+    selected.isUnsigned = resultIsUnsigned(iftrue, iffalse);
+    return selected;
   }
   return value;
 }
@@ -1421,14 +1661,16 @@ static auto prec(const Tok* ts, const Tok* end) -> int {
 }
 
 auto Preprocessor::Private::binaryExpression(const Tok*& ts, const Tok* end)
-    -> long {
+    -> PreprocessingInteger {
   auto e = unaryExpression(ts, end);
   return binaryExpressionHelper(ts, end, e, 0);
 }
 
 auto Preprocessor::Private::binaryExpressionHelper(const Tok*& ts,
-                                                   const Tok* end, long lhs,
-                                                   int minPrec) -> long {
+                                                   const Tok* end,
+                                                   PreprocessingInteger lhs,
+                                                   int minPrec)
+    -> PreprocessingInteger {
   while (prec(ts, end) >= minPrec) {
     const auto p = prec(ts, end);
     const auto op = ts->kind;
@@ -1437,75 +1679,18 @@ auto Preprocessor::Private::binaryExpressionHelper(const Tok*& ts,
     while (prec(ts, end) > p) {
       rhs = binaryExpressionHelper(ts, end, rhs, prec(ts, end));
     }
-    switch (op) {
-      case TokenKind::T_STAR:
-        lhs = lhs * rhs;
-        break;
-      case TokenKind::T_SLASH:
-        lhs = rhs != 0 ? lhs / rhs : 0;
-        break;
-      case TokenKind::T_PERCENT:
-        lhs = rhs != 0 ? lhs % rhs : 0;
-        break;
-      case TokenKind::T_PLUS:
-        lhs = lhs + rhs;
-        break;
-      case TokenKind::T_MINUS:
-        lhs = lhs - rhs;
-        break;
-      case TokenKind::T_LESS_LESS:
-        lhs = lhs << rhs;
-        break;
-      case TokenKind::T_GREATER_GREATER:
-        lhs = lhs >> rhs;
-        break;
-      case TokenKind::T_LESS_EQUAL:
-        lhs = lhs <= rhs;
-        break;
-      case TokenKind::T_GREATER_EQUAL:
-        lhs = lhs >= rhs;
-        break;
-      case TokenKind::T_LESS:
-        lhs = lhs < rhs;
-        break;
-      case TokenKind::T_GREATER:
-        lhs = lhs > rhs;
-        break;
-      case TokenKind::T_EQUAL_EQUAL:
-        lhs = lhs == rhs;
-        break;
-      case TokenKind::T_EXCLAIM_EQUAL:
-        lhs = lhs != rhs;
-        break;
-      case TokenKind::T_AMP:
-        lhs = lhs & rhs;
-        break;
-      case TokenKind::T_CARET:
-        lhs = lhs ^ rhs;
-        break;
-      case TokenKind::T_BAR:
-        lhs = lhs | rhs;
-        break;
-      case TokenKind::T_AMP_AMP:
-        lhs = lhs && rhs;
-        break;
-      case TokenKind::T_BAR_BAR:
-        lhs = lhs || rhs;
-        break;
-      default:
-        cxx_runtime_error(
-            std::format("invalid operator '{}'", Token::spell(op)));
-    }
+    lhs = applyBinaryOperator(op, lhs, rhs);
   }
   return lhs;
 }
 
 auto Preprocessor::Private::unaryExpression(const Tok*& ts, const Tok* end)
-    -> long {
-  if (ts >= end) return 0;
+    -> PreprocessingInteger {
+  if (ts >= end) return {};
   if (ts->is(TokenKind::T_MINUS)) {
     ++ts;
-    return -unaryExpression(ts, end);
+    auto operand = unaryExpression(ts, end);
+    return withSignedness(std::uintmax_t{0} - operand.bits, operand.isUnsigned);
   }
   if (ts->is(TokenKind::T_PLUS)) {
     ++ts;
@@ -1513,27 +1698,35 @@ auto Preprocessor::Private::unaryExpression(const Tok*& ts, const Tok* end)
   }
   if (ts->is(TokenKind::T_TILDE)) {
     ++ts;
-    return ~unaryExpression(ts, end);
+    auto operand = unaryExpression(ts, end);
+    return withSignedness(~operand.bits, operand.isUnsigned);
   }
   if (ts->is(TokenKind::T_EXCLAIM)) {
     ++ts;
-    return !unaryExpression(ts, end);
+    return PreprocessingInteger::makeBoolean(
+        !unaryExpression(ts, end).isTrue());
   }
   return primaryExpression(ts, end);
 }
 
 auto Preprocessor::Private::primaryExpression(const Tok*& ts, const Tok* end)
-    -> long {
-  if (ts >= end) return 0;
+    -> PreprocessingInteger {
+  if (ts >= end) return {};
   const auto& tk = *ts;
   auto text = getText(tk);
 
   if (tk.is(TokenKind::T_INTEGER_LITERAL)) {
     ++ts;
-    return IntegerLiteral::Components::from(text).value;
+    const auto literal = IntegerLiteral::Components::from(text);
+    const auto value = static_cast<std::uintmax_t>(literal.value);
+    const auto exceedsSigned =
+        value >
+        static_cast<std::uintmax_t>(std::numeric_limits<std::intmax_t>::max());
+    return withSignedness(value, literal.isUnsigned || exceedsSigned);
   } else if (tk.is(TokenKind::T_CHARACTER_LITERAL)) {
     ++ts;
-    return CharLiteral::Components::from(text).value;
+    return PreprocessingInteger::makeSigned(
+        static_cast<std::intmax_t>(CharLiteral::Components::from(text).value));
   } else if (tk.is(TokenKind::T_LPAREN)) {
     ++ts;
     auto result = conditionalExpression(ts, end);
@@ -1541,21 +1734,21 @@ auto Preprocessor::Private::primaryExpression(const Tok*& ts, const Tok* end)
     return result;
   } else if (tk.is(TokenKind::T_IDENTIFIER) && text == "true") {
     ++ts;
-    return 1;
+    return PreprocessingInteger::makeBoolean(true);
   } else if (tk.is(TokenKind::T_IDENTIFIER) && text == "false") {
     ++ts;
-    return 0;
+    return PreprocessingInteger::makeBoolean(false);
   } else if (tk.is(TokenKind::T_PP_INTERNAL_VARIABLE)) {
     for (const auto& dep : dependencies_) {
       if (dep.local == text) {
         ++ts;
-        return dep.exists;
+        return PreprocessingInteger::makeBoolean(dep.exists);
       }
     }
   }
 
   ++ts;
-  return 0;
+  return {};
 }
 
 auto Preprocessor::Private::parseArguments(const Tok* pos, const Tok* end,
@@ -2200,6 +2393,11 @@ auto Preprocessor::Private::expandFunctionLikeMacro(
   auto actuals = argsResult.args;
   auto rest = originalRest ? originalRest : argsResult.rest;
 
+  const auto argumentCount = invocationArgumentCount(*macro, actuals.size());
+  if (!hasValidArgumentCount(*macro, argumentCount)) {
+    error(&tk, argumentCountMismatch(*macro, argumentCount));
+  }
+
   std::vector<TokRange> expandedArgs;
   expandedArgs.reserve(actuals.size());
 
@@ -2522,9 +2720,13 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
         if (cur.atEnd() || cur.current().is(TokenKind::T_EOF_SYMBOL)) {
           auto id = cur.untaintOnPop;
           auto kind = cur.kind;
+          auto finishedFile = cur.sourceFile;
           cursors_.pop_back();
           if (id) untaint(id);
-          if (kind == Cursor::FileCursor) break;
+          if (kind == Cursor::FileCursor) {
+            releaseTokens(finishedFile);
+            break;
+          }
           continue;
         }
 
@@ -2569,8 +2771,16 @@ auto Preprocessor::Private::expand(const EmitToken& emitToken)
     }
   }
 
+  if (cursor.atEnd() || cursor.current().is(TokenKind::T_EOF_SYMBOL))
+    releaseTokens(source);
+
   if (cursors_.empty()) return ProcessingComplete{};
   return CanContinuePreprocessing{};
+}
+
+void Preprocessor::Private::releaseTokens(SourceFile* sourceFile) {
+  if (!sourceFile) return;
+  TokVector().swap(sourceFile->tokens);
 }
 
 auto Preprocessor::Private::parseDirective(SourceFile* source,
@@ -3174,10 +3384,10 @@ auto Preprocessor::Private::locateCursorInInclude(
       .namePrefix = std::string(typed.substr(directoryPart.size())),
   };
 
-  for (const auto& [directory, isSystem] :
+  for (const auto& directory :
        buildSearchDirs(currentPath_.string(), isQuoted)) {
-    cursor.request->directories.push_back(
-        (fs::path(*directory) / std::string(directoryPart)).string());
+    for (const auto& candidate : candidateFileNames(directory, directoryPart))
+      cursor.request->directories.push_back(candidate.string());
   }
 
   return cursor;
@@ -3265,32 +3475,32 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
       break;
 
     case TokenKind::T_WIDE_STRING_LITERAL:
-      if (updateStringLiteralValue(tokens.back(), tk)) return;
+      if (updateStringLiteralValue(tokens, tk)) return;
       value.literalValue = control_->wideStringLiteral(text);
       break;
 
     case TokenKind::T_UTF8_STRING_LITERAL:
-      if (updateStringLiteralValue(tokens.back(), tk)) return;
+      if (updateStringLiteralValue(tokens, tk)) return;
       value.literalValue = control_->utf8StringLiteral(text);
       break;
 
     case TokenKind::T_UTF16_STRING_LITERAL:
-      if (updateStringLiteralValue(tokens.back(), tk)) return;
+      if (updateStringLiteralValue(tokens, tk)) return;
       value.literalValue = control_->utf16StringLiteral(text);
       break;
 
     case TokenKind::T_UTF32_STRING_LITERAL:
-      if (updateStringLiteralValue(tokens.back(), tk)) return;
+      if (updateStringLiteralValue(tokens, tk)) return;
       value.literalValue = control_->utf32StringLiteral(text);
       break;
 
     case TokenKind::T_STRING_LITERAL:
-      if (updateStringLiteralValue(tokens.back(), tk)) return;
+      if (updateStringLiteralValue(tokens, tk)) return;
       value.literalValue = control_->stringLiteral(text);
       break;
 
     case TokenKind::T_USER_DEFINED_STRING_LITERAL:
-      if (updateStringLiteralValue(tokens.back(), tk)) return;
+      if (updateStringLiteralValue(tokens, tk)) return;
       value.literalValue =
           internStringLiteral(encodingPrefixOf(text), std::string(text));
       break;
@@ -3310,6 +3520,8 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
     default:
       break;
   }
+
+  flushStringConcatenation(tokens);
 
   if (tk.kind == TokenKind::T_GREATER_GREATER) {
     value.tokenKindValue = tk.kind;
@@ -3412,9 +3624,10 @@ auto Preprocessor::Private::resolveUncached(const Include& include,
                                             bool isQuoted) const
     -> std::optional<ResolveResult> {
   auto tryCandidate =
-      [&](const std::string& dir) -> std::optional<std::string> {
-    auto candidate = fs::path(dir) / headerName;
-    if (fileExists(candidate)) return candidate.string();
+      [&](const SearchDirectory& dir) -> std::optional<std::string> {
+    for (const auto& candidate : candidateFileNames(dir, headerName)) {
+      if (fileExists(candidate)) return candidate.string();
+    }
     return std::nullopt;
   };
 
@@ -3431,21 +3644,34 @@ auto Preprocessor::Private::resolveUncached(const Include& include,
 
 auto Preprocessor::Private::buildSearchDirs(const std::string& curDir,
                                             bool isQuoted) const
-    -> std::vector<std::pair<const std::string*, bool>> {
-  std::vector<std::pair<const std::string*, bool>> dirs;
+    -> std::vector<SearchDirectory> {
+  std::vector<SearchDirectory> dirs;
   if (isQuoted) {
     if (!disableCurrentDirSearch_ && !curDir.empty())
-      dirs.push_back({&curDir, false});
-    for (auto it = quoteIncludePaths_.begin(); it != quoteIncludePaths_.end();
-         ++it)
-      dirs.push_back({&*it, false});
+      dirs.push_back({.path = &curDir});
+    for (const auto& path : quoteIncludePaths_) dirs.push_back({.path = &path});
   }
-  for (auto it = userIncludePaths_.begin(); it != userIncludePaths_.end(); ++it)
-    dirs.push_back({&*it, false});
-  for (auto it = systemIncludePaths_.begin(); it != systemIncludePaths_.end();
-       ++it)
-    dirs.push_back({&*it, true});
+  for (const auto& path : userIncludePaths_) dirs.push_back({.path = &path});
+  for (const auto& path : systemIncludePaths_)
+    dirs.push_back({.path = &path, .isSystem = true});
+  for (const auto& path : systemFrameworkPaths_)
+    dirs.push_back({.path = &path, .isSystem = true, .isFramework = true});
   return dirs;
+}
+
+auto Preprocessor::Private::candidateFileNames(const SearchDirectory& directory,
+                                               std::string_view headerName)
+    -> std::vector<fs::path> {
+  if (!directory.isFramework) return {fs::path(*directory.path) / headerName};
+
+  const auto slash = headerName.find('/');
+  if (slash == std::string_view::npos || slash == 0) return {};
+
+  const auto framework =
+      fs::path(*directory.path) /
+      std::format("{}.framework", headerName.substr(0, slash));
+  const auto file = headerName.substr(slash + 1);
+  return {framework / "Headers" / file, framework / "PrivateHeaders" / file};
 }
 
 auto Preprocessor::Private::buildCandidates(const Include& include,
@@ -3460,7 +3686,7 @@ auto Preprocessor::Private::buildCandidates(const Include& include,
 
   if (isIncludeNext) {
     for (std::size_t i = 0; i < dirs.size(); ++i) {
-      if (*dirs[i].first == curDir) {
+      if (*dirs[i].path == curDir) {
         startIndex = i + 1;
         break;
       }
@@ -3473,10 +3699,12 @@ auto Preprocessor::Private::buildCandidates(const Include& include,
   candidates.reserve(dirs.size() - startIndex);
 
   for (std::size_t i = startIndex; i < dirs.size(); ++i) {
-    candidates.push_back({
-        .fileName = (fs::path(*dirs[i].first) / headerName).string(),
-        .isSystemHeader = dirs[i].second,
-    });
+    for (const auto& fileName : candidateFileNames(dirs[i], headerName)) {
+      candidates.push_back({
+          .fileName = fileName.string(),
+          .isSystemHeader = dirs[i].isSystem,
+      });
+    }
   }
 
   return candidates;
@@ -3487,8 +3715,9 @@ auto Preprocessor::Private::resolveNormal(const TryCandidate& tryCandidate,
                                           const std::string& curDir,
                                           bool isQuoted) const
     -> std::optional<ResolveResult> {
-  for (auto& [dir, isSys] : buildSearchDirs(curDir, isQuoted)) {
-    if (auto r = tryCandidate(*dir)) return ResolveResult{std::move(*r), isSys};
+  for (const auto& dir : buildSearchDirs(curDir, isQuoted)) {
+    if (auto r = tryCandidate(dir))
+      return ResolveResult{std::move(*r), dir.isSystem};
   }
   return std::nullopt;
 }
@@ -3502,15 +3731,15 @@ auto Preprocessor::Private::resolveNext(const TryCandidate& tryCandidate,
 
   std::size_t startIndex = 0;
   for (std::size_t i = 0; i < dirs.size(); ++i) {
-    if (*dirs[i].first == curDir) {
+    if (*dirs[i].path == curDir) {
       startIndex = i + 1;
       break;
     }
   }
 
   for (std::size_t i = startIndex; i < dirs.size(); ++i) {
-    if (auto r = tryCandidate(*dirs[i].first))
-      return ResolveResult{std::move(*r), dirs[i].second};
+    if (auto r = tryCandidate(dirs[i]))
+      return ResolveResult{std::move(*r), dirs[i].isSystem};
   }
   return std::nullopt;
 }
@@ -3690,6 +3919,14 @@ auto Preprocessor::language() const -> LanguageKind { return d->language_; }
 
 void Preprocessor::setLanguage(LanguageKind lang) { d->language_ = lang; }
 
+auto Preprocessor::cplusplusVersion() const -> long {
+  return d->cplusplusVersion_;
+}
+
+void Preprocessor::setCplusplusVersion(long version) {
+  d->cplusplusVersion_ = version;
+}
+
 auto Preprocessor::targetArch() const -> TripleArch { return d->targetArch_; }
 
 void Preprocessor::setTargetArch(TripleArch arch) { d->targetArch_ = arch; }
@@ -3799,6 +4036,8 @@ void Preprocessor::beginPreprocessing(std::string source, std::string fileName,
     tokens.pop_back();
   }
 
+  d->flushStringConcatenation(tokens);
+
   if (tokens.empty()) {
     tokens.emplace_back(TokenKind::T_ERROR);
   }
@@ -3858,12 +4097,17 @@ auto Preprocessor::continuePreprocessing(std::vector<Token>& tokens)
   std::swap(continuation, d->continuation_);
   if (continuation) {
     auto next = continuation();
-    if (next) return *next;
+    if (next) {
+      d->flushStringConcatenation(tokens);
+      return *next;
+    }
   }
 
   auto emitToken = [&](const Tok& tk) { d->finalizeToken(tokens, tk); };
 
-  return d->expand(emitToken);
+  auto state = d->expand(emitToken);
+  d->flushStringConcatenation(tokens);
+  return state;
 }
 
 void Preprocessor::getPreprocessedText(
@@ -3988,6 +4232,16 @@ static void stripTrailingSep(std::string& path) {
 void Preprocessor::addSystemIncludePath(std::string path) {
   stripTrailingSep(path);
   d->systemIncludePaths_.push_back(std::move(path));
+}
+
+auto Preprocessor::systemFrameworkPaths() const
+    -> const std::vector<std::string>& {
+  return d->systemFrameworkPaths_;
+}
+
+void Preprocessor::addSystemFrameworkPath(std::string path) {
+  stripTrailingSep(path);
+  d->systemFrameworkPaths_.push_back(std::move(path));
 }
 
 void Preprocessor::addQuoteIncludePath(std::string path) {

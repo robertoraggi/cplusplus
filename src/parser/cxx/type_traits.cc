@@ -1040,7 +1040,7 @@ enum class TrivialCopyKind { kCopyable, kForCalls };
 
   std::vector<FunctionSymbol*> eligible;
   for (auto member : members) {
-    if (member->isDeleted()) continue;
+    if (isDeletedFunction(unit, member)) continue;
     const auto hasMoreConstrained =
         std::ranges::any_of(members, [unit, member](FunctionSymbol* other) {
           return ASTRewriter::isMorePartialOrderingConstrained(unit, other,
@@ -1139,7 +1139,8 @@ auto has_trivial_copy_members(TypeTraits& traits, ClassSymbol* cls,
   return true;
 }
 
-auto has_non_deleted_copy_or_move_constructor(ClassSymbol* cls) -> bool {
+auto has_non_deleted_copy_or_move_constructor(TranslationUnit* unit,
+                                              ClassSymbol* cls) -> bool {
   auto isCopyOrMove = [cls](FunctionSymbol* constructor) {
     return cls->isCopyConstructor(constructor) ||
            cls->isMoveConstructor(constructor);
@@ -1147,8 +1148,8 @@ auto has_non_deleted_copy_or_move_constructor(ClassSymbol* cls) -> bool {
   auto copyOrMove =
       cls->declaredConstructors() | std::views::filter(isCopyOrMove);
   if (std::ranges::empty(copyOrMove)) return true;
-  return std::ranges::any_of(copyOrMove, [](FunctionSymbol* constructor) {
-    return !constructor->isDeleted();
+  return std::ranges::any_of(copyOrMove, [unit](FunctionSymbol* constructor) {
+    return !isDeletedFunction(unit, constructor);
   });
 }
 
@@ -1191,13 +1192,13 @@ auto constructorKind(ClassSymbol* cls, FunctionSymbol* constructor)
   return std::nullopt;
 }
 
-auto constructorFor(ClassSymbol* cls, TrivialConstructorKind kind)
-    -> FunctionSymbol* {
+auto constructorFor(TranslationUnit* unit, ClassSymbol* cls,
+                    TrivialConstructorKind kind) -> FunctionSymbol* {
   if (kind == TrivialConstructorKind::kDefault)
     return cls->defaultConstructor();
   if (kind == TrivialConstructorKind::kCopy) return cls->copyConstructor();
   auto move = cls->moveConstructor();
-  if (move) return move;
+  if (move && !isExcludedDefaultedMoveMember(unit, move)) return move;
   return cls->copyConstructor();
 }
 
@@ -1205,8 +1206,10 @@ auto has_trivial_constructor(TypeTraits& traits, ClassSymbol* cls,
                              TrivialConstructorKind kind,
                              bool allowDeleted = false) -> bool {
   if (!cls || !cls->isComplete()) return false;
-  auto constructor = constructorFor(cls, kind);
-  if (!constructor || (!allowDeleted && constructor->isDeleted())) return false;
+  auto constructor = constructorFor(traits.unit(), cls, kind);
+  if (!constructor ||
+      (!allowDeleted && isDeletedFunction(traits.unit(), constructor)))
+    return false;
   if (isUserProvided(constructor)) return false;
   if (cls->hasVirtualFunctions()) return false;
   if (cls->hasVirtualBaseClasses()) return false;
@@ -1238,20 +1241,20 @@ auto has_trivial_constructor(TypeTraits& traits, ClassSymbol* cls,
 
 enum class TrivialAssignmentKind { kCopy, kMove };
 
-auto assignmentFor(ClassSymbol* cls, TrivialAssignmentKind kind)
-    -> FunctionSymbol* {
+auto assignmentFor(TranslationUnit* unit, ClassSymbol* cls,
+                   TrivialAssignmentKind kind) -> FunctionSymbol* {
   if (kind == TrivialAssignmentKind::kCopy)
     return cls->copyAssignmentOperator();
   auto move = cls->moveAssignmentOperator();
-  if (move) return move;
+  if (move && !isExcludedDefaultedMoveMember(unit, move)) return move;
   return cls->copyAssignmentOperator();
 }
 
 auto has_trivial_assignment(TypeTraits& traits, ClassSymbol* cls,
                             TrivialAssignmentKind kind) -> bool {
   if (!cls || !cls->isComplete()) return false;
-  auto assignment = assignmentFor(cls, kind);
-  if (!assignment || assignment->isDeleted()) return false;
+  auto assignment = assignmentFor(traits.unit(), cls, kind);
+  if (!assignment || isDeletedFunction(traits.unit(), assignment)) return false;
   if (isUserProvided(assignment)) return false;
   if (cls->hasVirtualFunctions()) return false;
   if (cls->hasVirtualBaseClasses()) return false;
@@ -1563,6 +1566,22 @@ auto TypeTraits::is_signed(const Type* type) const -> bool {
 auto TypeTraits::is_unsigned(const Type* type) const -> bool {
   return type &&
          visit(IsUnsigned{control()->memoryLayout()->isWideCharSigned()}, type);
+}
+
+auto TypeTraits::value_representation(const Type* type) const
+    -> std::optional<IntegralRepresentation> {
+  if (!type) return std::nullopt;
+
+  auto unqualifiedType = remove_cv(type);
+
+  if (is_bool(unqualifiedType)) return IntegralRepresentation{1, false};
+
+  if (auto enumType = type_cast<EnumType>(unqualifiedType);
+      enumType && enumType->symbol() &&
+      !enumType->symbol()->hasFixedUnderlyingType())
+    return integral_representation(promoted_integer_type(enumType));
+
+  return integral_representation(unqualifiedType);
 }
 
 auto TypeTraits::integral_constant(const Type* type, ConstInt::Wide value) const
@@ -1976,6 +1995,18 @@ auto TypeTraits::is_char_type(const Type* type) const -> bool {
   return type && visit(V{}, type);
 }
 
+namespace {
+
+[[nodiscard]] auto representsAllValues(
+    const TypeTraits::IntegralRepresentation& target,
+    const TypeTraits::IntegralRepresentation& source) -> bool {
+  if (source.isSigned == target.isSigned) return source.bits <= target.bits;
+  if (target.isSigned) return source.bits < target.bits;
+  return false;
+}
+
+}  // namespace
+
 auto TypeTraits::is_narrowing_conversion(const Type* from, const Type* to) const
     -> bool {
   if (!from || !to) return false;
@@ -1996,12 +2027,9 @@ auto TypeTraits::is_narrowing_conversion(const Type* from, const Type* to) const
   if (is_integral_or_unscoped_enum(from) && is_floating_point(to)) return true;
 
   if (is_integral_or_unscoped_enum(from) && is_integral(to)) {
-    auto fromSize = control()->memoryLayout()->sizeOf(from);
-    auto toSize = control()->memoryLayout()->sizeOf(to);
-    if (fromSize && toSize) {
-      if (*fromSize > *toSize) return true;
-      if (*fromSize == *toSize && is_signed(from) != is_signed(to)) return true;
-    }
+    auto source = value_representation(from);
+    auto target = value_representation(to);
+    if (source && target) return !representsAllValues(*target, *source);
   }
 
   return false;
@@ -2045,6 +2073,8 @@ auto TypeTraits::is_narrowing_list_element(ExpressionAST* expr,
   auto source = listElementSource(expr);
   if (!source) return false;
   if (isDependent(unit_, source)) return false;
+
+  targetType = remove_reference(targetType);
 
   auto sourceType = source->type ? source->type : expr->type;
   if (!is_narrowing_conversion(sourceType, targetType)) return false;
@@ -2420,10 +2450,12 @@ auto TypeTraits::adjusted_cv_type(const Type* type) const -> const Type* {
   return qualType->elementType();
 }
 
-auto TypeTraits::adjusted_parameter_type(const Type* type) const
+auto TypeTraits::adjusted_parameter_type(Control* control, const Type* type)
     -> const Type* {
-  if (is_array(type)) return add_pointer(remove_extent(type));
-  if (is_function(type)) return add_pointer(type);
+  if (!type) return type;
+  if (visit(IsArray{}, type))
+    return control->getPointerType(visit(RemoveExtent{}, type));
+  if (visit(IsFunction{}, type)) return control->getPointerType(type);
   return type;
 }
 
@@ -2993,7 +3025,7 @@ auto TypeTraits::can_initialize(const Type* to, const Type* from,
   auto classSymbol = classType->definition();
   if (!classSymbol) return false;
   auto destructor = classSymbol->destructor();
-  if (destructor && destructor->isDeleted()) return false;
+  if (destructor && isDeletedFunction(unit_, destructor)) return false;
   return is_accessible_from_unrelated_context(destructor);
 }
 
@@ -3134,12 +3166,16 @@ auto TypeTraits::is_pod(const Type* type) -> bool {
   return false;
 }
 
+auto TypeTraits::has_pod_object_sizes(const Type* type) -> bool {
+  return is_pod_for_layout(type) || is_pod(type);
+}
+
 auto TypeTraits::data_size(const Type* type) -> std::uint64_t {
   auto classType = type_cast<ClassType>(remove_cv(type));
   auto cls = classType ? classType->definition() : nullptr;
   auto layout = cls ? cls->layout() : nullptr;
   if (!layout) return 0;
-  if (is_pod_for_layout(type)) return layout->size();
+  if (has_pod_object_sizes(type)) return layout->size();
   return layout->dataSize();
 }
 
@@ -3148,7 +3184,7 @@ auto TypeTraits::non_virtual_size(const Type* type) -> std::uint64_t {
   auto cls = classType ? classType->definition() : nullptr;
   auto layout = cls ? cls->layout() : nullptr;
   if (!layout) return 0;
-  if (is_pod_for_layout(type)) return layout->size();
+  if (has_pod_object_sizes(type)) return layout->size();
   return layout->nonVirtualSize();
 }
 
@@ -3276,14 +3312,15 @@ auto TypeTraits::is_literal_type(const Type* type) -> bool {
     if (cls->isClosureType() || is_aggregate(unqual)) return true;
 
     for (auto constructor : cls->constructors()) {
-      if (constructor->isDeleted()) continue;
       if (constructor == cls->copyConstructor()) continue;
       if (constructor == cls->moveConstructor()) continue;
+      if (isDeletedFunction(unit_, constructor)) continue;
       if (constructor->isConstexpr()) return true;
     }
 
     auto defaultConstructor = cls->defaultConstructor();
-    if (!defaultConstructor || defaultConstructor->isDeleted()) return false;
+    if (!defaultConstructor || isDeletedFunction(unit_, defaultConstructor))
+      return false;
     if (!defaultConstructor->isDefaulted()) return false;
 
     for (auto base : cls->baseClasses()) {
@@ -3291,7 +3328,8 @@ auto TypeTraits::is_literal_type(const Type* type) -> bool {
       if (!baseClass) continue;
       baseClass = baseClass->resolvedDefinition();
       auto baseConstructor = baseClass->defaultConstructor();
-      if (!baseConstructor || baseConstructor->isDeleted()) return false;
+      if (!baseConstructor || isDeletedFunction(unit_, baseConstructor))
+        return false;
       if (!baseConstructor->isConstexpr()) return false;
     }
 
@@ -3302,7 +3340,8 @@ auto TypeTraits::is_literal_type(const Type* type) -> bool {
       if (!fieldClassType) continue;
       auto fieldConstructor =
           fieldClassType->definition()->defaultConstructor();
-      if (!fieldConstructor || fieldConstructor->isDeleted()) return false;
+      if (!fieldConstructor || isDeletedFunction(unit_, fieldConstructor))
+        return false;
       if (!fieldConstructor->isConstexpr()) return false;
     }
     return true;
@@ -3393,7 +3432,7 @@ auto TypeTraits::requires_zero_initialization(const Type* type,
   if (!is_class(type)) return false;
   if (is_empty(type)) return false;
   if (!constructor) return true;
-  return constructor->isDefaulted() || constructor->isDeleted();
+  return constructor->isDefaulted() || isDeletedFunction(unit_, constructor);
 }
 
 auto TypeTraits::is_empty(const Type* type) -> bool {
@@ -3477,11 +3516,11 @@ auto TypeTraits::is_constructible(const Type* type,
     if (!cls || !cls->isComplete()) return false;
 
     auto selected = selectConstructor(cls, argTypes);
-    if (!selected || selected->isDeleted()) return false;
+    if (!selected || isDeletedFunction(unit_, selected)) return false;
     if (cls->isAbstract()) return false;
     if (!is_accessible_from_unrelated_context(selected)) return false;
     auto destructor = cls->destructor();
-    if (destructor && destructor->isDeleted()) return false;
+    if (destructor && isDeletedFunction(unit_, destructor)) return false;
     return is_accessible_from_unrelated_context(destructor);
   }
 
@@ -3570,7 +3609,7 @@ auto TypeTraits::is_nothrow_constructible(const Type* type,
     for (auto argType : argTypes) args.push_back(declval(argType));
     auto result = OverloadResolution{unit_}.resolveConstructor(cls, args);
     auto selected = result.selected();
-    if (!selected || selected->isDeleted()) return false;
+    if (!selected || isDeletedFunction(unit_, selected)) return false;
     if (!is_nothrow_function(selected)) return false;
     if (!is_nothrow_function(cls->destructor())) return false;
     for (const auto& conversion : result.best->conversions) {
@@ -3619,7 +3658,7 @@ auto TypeTraits::selectAssignmentOperator(const Type* to, const Type* from)
       nullptr, lhs->type, TokenKind::T_EQUAL, rhs->type, lhs, rhs);
 
   if (resolution.wasLastLookupAmbiguous()) return nullptr;
-  if (selected && selected->isDeleted()) return nullptr;
+  if (selected && isDeletedFunction(unit_, selected)) return nullptr;
   if (!is_accessible_from_unrelated_context(selected)) return nullptr;
   return selected;
 }
@@ -3726,7 +3765,7 @@ auto TypeTraits::is_non_trivial_for_calls(const Type* type) -> bool {
   if (!has_trivial_copy_members(*this, cls, TrivialCopyKind::kForCalls))
     return true;
 
-  return !has_non_deleted_copy_or_move_constructor(cls);
+  return !has_non_deleted_copy_or_move_constructor(unit_, cls);
 }
 
 auto TypeTraits::is_abstract(const Type* type) -> bool {
@@ -3759,7 +3798,7 @@ auto TypeTraits::is_destructible(const Type* type) -> bool {
     if (!cls || !cls->isComplete()) return false;
 
     auto dtor = cls->destructor();
-    if (dtor && dtor->isDeleted()) return false;
+    if (dtor && isDeletedFunction(unit_, dtor)) return false;
     return is_accessible_from_unrelated_context(dtor);
   }
 

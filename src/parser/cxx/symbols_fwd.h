@@ -29,6 +29,8 @@
 
 namespace cxx {
 
+enum class ThreadLocalKind { None, Cxx, Gnu };
+
 #define CXX_FOR_EACH_SYMBOL(V) \
   V(Namespace)                 \
   V(NamespaceAlias)            \

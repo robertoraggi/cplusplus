@@ -592,6 +592,7 @@ auto ASTRewriter::substituteDefaultTypeId(
   auto rewriter = ASTRewriter{unit, scope,
                               std::vector<TemplateArgument>(templateArguments)};
   rewriter.depth_ = depth;
+  rewriter.inheritEnclosingTemplateArguments(scope);
   auto substituted = rewriter.typeId(typeId);
   if (silent.hadError()) return nullptr;
   return substituted;
@@ -606,6 +607,7 @@ auto ASTRewriter::substituteDefaultExpression(
   auto rewriter = ASTRewriter{unit, scope,
                               std::vector<TemplateArgument>(templateArguments)};
   rewriter.depth_ = depth;
+  rewriter.inheritEnclosingTemplateArguments(scope);
   auto substituted = rewriter.expression(expression);
   if (silent.hadError()) return nullptr;
   return substituted;
@@ -620,6 +622,7 @@ auto ASTRewriter::substituteParameterClause(
   auto rewriter = ASTRewriter{unit, scope,
                               std::vector<TemplateArgument>(templateArguments)};
   rewriter.depth_ = depth;
+  rewriter.inheritEnclosingTemplateArguments(scope);
 
   return rewriter.parameterDeclarationClause(parameters);
 }
@@ -992,6 +995,8 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
     auto pattern = memberPattern->resolvedDefinition();
     auto declaration = ast_cast<ClassSpecifierAST>(pattern->declaration());
     if (!declaration) return false;
+    if (unit->isInstantiatingClass(classSymbol)) return false;
+    TranslationUnit::ClassInstantiationScope instantiating{unit, classSymbol};
     InstantiationDepthGuard depthGuard{unit};
     if (depthGuard.exceeded()) return false;
     ASTRewriter rewriter{unit, classSymbol->parent(),

@@ -1284,6 +1284,15 @@ static inline auto classifyBuiltinFunction16(const char* s)
                                 }
                               }
                             }
+                          } else if (s[12] == 's') {
+                            if (s[13] == 'u') {
+                              if (s[14] == 'm') {
+                                if (s[15] == 'e') {
+                                  return cxx::BuiltinFunctionKind::
+                                      T___BUILTIN_ASSUME;
+                                }
+                              }
+                            }
                           }
                         } else if (s[11] == 't') {
                           if (s[12] == 'a') {
@@ -4561,6 +4570,31 @@ static inline auto classifyBuiltinFunction23(const char* s)
                               }
                             }
                           }
+                        } else if (s[11] == 'r') {
+                          if (s[12] == 'a') {
+                            if (s[13] == 'm') {
+                              if (s[14] == 'e') {
+                                if (s[15] == '_') {
+                                  if (s[16] == 'a') {
+                                    if (s[17] == 'd') {
+                                      if (s[18] == 'd') {
+                                        if (s[19] == 'r') {
+                                          if (s[20] == 'e') {
+                                            if (s[21] == 's') {
+                                              if (s[22] == 's') {
+                                                return cxx::BuiltinFunctionKind::
+                                                    T___BUILTIN_FRAME_ADDRESS;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
                         }
                       } else if (s[10] == 'i') {
                         if (s[11] == 's') {
@@ -4703,6 +4737,64 @@ static inline auto classifyBuiltinFunction24(const char* s)
                                                 if (s[23] == 'l') {
                                                   return cxx::BuiltinFunctionKind::
                                                       T___BUILTIN_ISGREATEREQUAL;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      } else if (s[10] == 'r') {
+                        if (s[11] == 'e') {
+                          if (s[12] == 't') {
+                            if (s[13] == 'u') {
+                              if (s[14] == 'r') {
+                                if (s[15] == 'n') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'a') {
+                                      if (s[18] == 'd') {
+                                        if (s[19] == 'd') {
+                                          if (s[20] == 'r') {
+                                            if (s[21] == 'e') {
+                                              if (s[22] == 's') {
+                                                if (s[23] == 's') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___BUILTIN_RETURN_ADDRESS;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      } else if (s[10] == 't') {
+                        if (s[11] == 'h') {
+                          if (s[12] == 'r') {
+                            if (s[13] == 'e') {
+                              if (s[14] == 'a') {
+                                if (s[15] == 'd') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'p') {
+                                      if (s[18] == 'o') {
+                                        if (s[19] == 'i') {
+                                          if (s[20] == 'n') {
+                                            if (s[21] == 't') {
+                                              if (s[22] == 'e') {
+                                                if (s[23] == 'r') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___BUILTIN_THREAD_POINTER;
                                                 }
                                               }
                                             }
@@ -5346,6 +5438,98 @@ static inline auto classifyBuiltinFunction36(const char* s)
   return cxx::BuiltinFunctionKind::T_NONE;
 }
 
+static inline auto classifyBuiltinFunction38(const char* s)
+    -> cxx::BuiltinFunctionKind {
+  if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == '_') {
+                        if (s[11] == '_') {
+                          if (s[12] == 'C') {
+                            if (s[13] == 'F') {
+                              if (s[14] == 'S') {
+                                if (s[15] == 't') {
+                                  if (s[16] == 'r') {
+                                    if (s[17] == 'i') {
+                                      if (s[18] == 'n') {
+                                        if (s[19] == 'g') {
+                                          if (s[20] == 'M') {
+                                            if (s[21] == 'a') {
+                                              if (s[22] == 'k') {
+                                                if (s[23] == 'e') {
+                                                  if (s[24] == 'C') {
+                                                    if (s[25] == 'o') {
+                                                      if (s[26] == 'n') {
+                                                        if (s[27] == 's') {
+                                                          if (s[28] == 't') {
+                                                            if (s[29] == 'a') {
+                                                              if (s[30] ==
+                                                                  'n') {
+                                                                if (s[31] ==
+                                                                    't') {
+                                                                  if (s[32] ==
+                                                                      'S') {
+                                                                    if (s[33] ==
+                                                                        't') {
+                                                                      if (s[34] ==
+                                                                          'r') {
+                                                                        if (s[35] ==
+                                                                            'i') {
+                                                                          if (s[36] ==
+                                                                              'n') {
+                                                                            if (s[37] ==
+                                                                                'g') {
+                                                                              return cxx::
+                                                                                  BuiltinFunctionKind::
+                                                                                      T___BUILTIN___CFSTRINGMAKECONSTANTSTRING;
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return cxx::BuiltinFunctionKind::T_NONE;
+}
+
 static auto classifyBuiltinFunction(const char* s, int n)
     -> cxx::BuiltinFunctionKind {
   switch (n) {
@@ -5383,6 +5567,8 @@ static auto classifyBuiltinFunction(const char* s, int n)
       return classifyBuiltinFunction34(s);
     case 36:
       return classifyBuiltinFunction36(s);
+    case 38:
+      return classifyBuiltinFunction38(s);
     default:
       return cxx::BuiltinFunctionKind::T_NONE;
   }  // switch

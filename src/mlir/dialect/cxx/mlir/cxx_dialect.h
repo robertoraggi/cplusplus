@@ -55,8 +55,10 @@
 namespace mlir::cxx::detail {
 
 struct ClassTypeStorage;
+template <typename Enum>
+struct EnumAttrStorage;
 
-}
+}  // namespace mlir::cxx::detail
 
 #include <cxx/mlir/CxxOpsDialect.h.inc>
 

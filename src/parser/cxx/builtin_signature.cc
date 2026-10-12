@@ -21,6 +21,7 @@
 #include <cxx/builtin_signature.h>
 #include <cxx/const_int.h>
 #include <cxx/control.h>
+#include <cxx/type_traits.h>
 #include <cxx/types.h>
 
 #include <algorithm>
@@ -35,8 +36,9 @@ namespace {
 
 class BuiltinSignatureDecoder {
  public:
-  BuiltinSignatureDecoder(Control* control, std::size_t offset)
-      : control_(control), pos_(offset) {}
+  BuiltinSignatureDecoder(Control* control, std::size_t offset,
+                          const Type* bitIntType)
+      : control_(control), pos_(offset), bitIntType_(bitIntType) {}
 
   [[nodiscard]] auto decodeFunctionType(BuiltinFlags flags)
       -> const FunctionType* {
@@ -54,7 +56,8 @@ class BuiltinSignatureDecoder {
         break;
       }
 
-      parameterTypes.push_back(decodeType());
+      parameterTypes.push_back(
+          TypeTraits::adjusted_parameter_type(control_, decodeType()));
     }
 
     if (peek() != BuiltinTypeOp::kEnd) return nullptr;
@@ -136,7 +139,10 @@ class BuiltinSignatureDecoder {
 
   [[nodiscard]] auto decodeLeafType(BuiltinTypeOp op) -> const Type* {
     const Type* type = nullptr;
-    if (isRepresentable(op)) type = decodeBuiltinLeafType(control_, op);
+    if (op == BuiltinTypeOp::kUnsignedBitIntAny)
+      type = bitIntType_;
+    else if (isRepresentable(op))
+      type = decodeBuiltinLeafType(control_, op);
     if (!type) unavailable_ = true;
     return type;
   }
@@ -148,6 +154,7 @@ class BuiltinSignatureDecoder {
 
   Control* control_;
   std::size_t pos_;
+  const Type* bitIntType_;
   bool unavailable_ = false;
 };
 
@@ -167,10 +174,11 @@ auto implicitDeclarationSignatureOf(TokenKind op) -> BuiltinSignature {
 }
 
 auto decodeBuiltinSignature(Control* control, BuiltinSignature signature,
-                            std::size_t index) -> BuiltinOverload {
+                            std::size_t index, const Type* bitIntType)
+    -> BuiltinOverload {
   if (index >= signature.count) return {};
 
-  BuiltinSignatureDecoder decoder{control, signature.offset};
+  BuiltinSignatureDecoder decoder{control, signature.offset, bitIntType};
 
   const FunctionType* functionType = nullptr;
 

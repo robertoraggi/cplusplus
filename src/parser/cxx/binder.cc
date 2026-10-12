@@ -1061,8 +1061,8 @@ void Binder::bind(TypeExceptionDeclarationAST* ast, const Decl& decl) {
           "'alignas' attribute cannot be applied to an exception declaration");
   }
 
-  auto type = traits.adjusted_parameter_type(
-      getDeclaratorType(unit_, ast->declarator, decl.specs.type()));
+  auto type = TypeTraits::adjusted_parameter_type(
+      control(), getDeclaratorType(unit_, ast->declarator, decl.specs.type()));
 
   auto declaredType = traits.remove_reference(type);
 
@@ -1085,12 +1085,15 @@ void Binder::bind(TypeExceptionDeclarationAST* ast, const Decl& decl) {
   ast->symbol = symbol;
 
   if (symbol->name()) scope_->addSymbol(symbol);
+  TypeChecker check{unit_};
+  check.setScope(scope_);
+  check.check_exception_initializer(ast);
 }
 
 auto Binder::parameterObjectType(ParameterDeclarationAST* ast,
                                  const Type* specifiersType) -> const Type* {
-  return traits.adjusted_parameter_type(
-      getDeclaratorType(unit_, ast->declarator, specifiersType));
+  return TypeTraits::adjusted_parameter_type(
+      control(), getDeclaratorType(unit_, ast->declarator, specifiersType));
 }
 
 void Binder::rebindParameterType(ParameterDeclarationAST* ast,
@@ -2026,6 +2029,12 @@ void Binder::applyDeclarationAttributes(
   collected = mergeAttributes(std::move(collected), &gnuAttributes);
   applyAttributeMap(symbol, std::move(collected));
 
+  if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
+    applyConstructorAttribute(function, attributes);
+    applyConstructorAttribute(function, declaratorIdAttributes(declarator));
+    applyConstructorAttribute(function, terminatingAttributes(declarator));
+  }
+
   applyAlignedAttribute(symbol, attributes);
   applyAlignedAttribute(symbol, declaratorIdAttributes(declarator));
   applyAlignedAttribute(symbol, terminatingAttributes(declarator));
@@ -2036,6 +2045,69 @@ void Binder::inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern) {
   auto attributes = pattern->attributes();
   if (!attributes) return;
   applyAttributeMap(symbol, *attributes);
+  auto function = symbol_cast<FunctionSymbol>(symbol);
+  auto source = symbol_cast<FunctionSymbol>(pattern);
+  if (function && source)
+    function->setConstructorPriority(source->constructorPriority());
+}
+
+void Binder::applyEnableIfAttributes(FunctionSymbol* function,
+                                     List<AttributeSpecifierAST*>* attributes) {
+  static constexpr AttributeSpelling spellings[] = {
+      {AttributeSyntax::kGnu, "", "enable_if"},
+      {AttributeSyntax::kCxx, "clang", "enable_if"},
+  };
+  auto conditions = function->enableIfConditions();
+  for (auto attribute :
+       findAttributesBySpelling(unit_, attributes, spellings)) {
+    auto clause = attribute.argumentClause;
+    if (!clause || !clause->expressionList || !clause->expressionList->next ||
+        clause->expressionList->next->next) {
+      error(attribute.location, "'enable_if' attribute requires two arguments");
+      continue;
+    }
+    auto condition = clause->expressionList->value;
+    auto message = clause->expressionList->next->value;
+    if (!ast_cast<StringLiteralExpressionAST>(message)) {
+      error(attribute.location, "'enable_if' message must be a string literal");
+      continue;
+    }
+    conditions.push_back(condition);
+  }
+  function->setEnableIfConditions(std::move(conditions));
+}
+
+void Binder::applyConstructorAttribute(
+    FunctionSymbol* function, List<AttributeSpecifierAST*>* attributes) {
+  static constexpr AttributeSpelling spellings[] = {
+      {AttributeSyntax::kGnu, "", "constructor"},
+      {AttributeSyntax::kCxx, "gnu", "constructor"},
+  };
+  auto attribute = findAttributeBySpelling(unit_, attributes, spellings);
+  if (!attribute) return;
+  std::uint32_t priority = 65535;
+  auto clause = attribute.argumentClause;
+  if (clause && clause->expressionList) {
+    if (clause->expressionList->next) {
+      error(attribute.location,
+            "'constructor' attribute requires at most one argument");
+      return;
+    }
+    ASTInterpreter interp{unit_};
+    auto value = interp.evaluate(clause->expressionList->value);
+    auto integer = value ? interp.toInt(*value) : std::nullopt;
+    if (!integer || *integer < 0 || *integer > 65535) {
+      error(
+          attribute.location,
+          "'constructor' priority must be an integer constant from 0 to 65535");
+      return;
+    }
+    priority = static_cast<std::uint32_t>(*integer);
+  }
+  function->setConstructorPriority(priority);
+  function->canonical()->setConstructorPriority(priority);
+  function->setUsed(true);
+  function->canonical()->setUsed(true);
 }
 
 void Binder::applyAttributeMap(Symbol* symbol, AttributeMap collected) {
@@ -2879,8 +2951,26 @@ void Binder::completeLambdaBody(LambdaExpressionAST* ast) {
     }
   }
 
+  BlockSymbol* previousBodyScope = nullptr;
+  if (auto definition = operatorFunc->declaration()) {
+    if (auto body = ast_cast<CompoundStatementFunctionBodyAST>(
+            definition->functionBody)) {
+      if (body->statement) previousBodyScope = body->statement->symbol;
+    }
+  }
+
+  if (!previousBodyScope && ast->statement)
+    previousBodyScope = ast->statement->symbol;
+
+  const auto memberCount = bodyScope->members().size();
   auto reboundBody = ast_cast<CompoundStatementAST>(
       ASTRewriter::paste(unit_, bodyScope, ast->statement));
+  if (previousBodyScope && previousBodyScope->parent() == bodyScope &&
+      reboundBody && reboundBody->symbol) {
+    bodyScope->truncate(memberCount);
+    reboundBody->symbol->setParent(bodyScope);
+    bodyScope->replaceSymbol(previousBodyScope, reboundBody->symbol);
+  }
 
   auto funcDef = closureCallOperatorDefinition(ast, operatorFunc, reboundBody);
   operatorFunc->setDeclaration(funcDef);
@@ -3576,9 +3666,9 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
             error(decl.location(), "bit-field width is negative");
           } else if (width == 0 && name) {
             error(decl.location(), "zero-width bit-field must be unnamed");
-          } else if (!inTemplate()) {
-            auto typeSize = control()->memoryLayout()->sizeOf(type);
-            if (typeSize && width > static_cast<std::intmax_t>(*typeSize) * 8) {
+          } else if (isC()) {
+            auto representation = traits.value_representation(type);
+            if (representation && width > representation->bits) {
               error(decl.location(),
                     "width of bit-field exceeds width of its type");
             }
@@ -3599,10 +3689,27 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
   return fieldSymbol;
 }
 
-void Binder::declareAnonymousField(ClassSpecifierAST* classSpecifier) {
+void Binder::declareAnonymousObject(ClassSpecifierAST* classSpecifier,
+                                    const DeclSpecs& specs) {
   auto classSymbol = classSpecifier->symbol;
   if (!classSymbol) return;
   if (classSymbol->name()) return;
+
+  if (!scope()->isClass()) {
+    if (!classSymbol->isUnion()) return;
+    auto variable =
+        control()->newVariableSymbol(scope(), classSymbol->location());
+    applySpecifiers(variable, specs);
+    variable->setType(classSymbol->type());
+    scope()->addSymbol(variable);
+    TypeChecker checker{unit_};
+    checker.setScope(scope());
+    ExpressionAST* initializer = nullptr;
+    checker.check_variable_initializer(variable, initializer,
+                                       variable->location());
+    variable->setInitializer(initializer);
+    return;
+  }
 
   auto fieldSymbol =
       control()->newFieldSymbol(scope(), classSymbol->location());
@@ -3629,7 +3736,8 @@ namespace {
     -> bool {
   if (variable->canonical() != variable) return false;
   if (!variable->parent() || !variable->parent()->isClass()) return false;
-  return !Binder::definedStaticDataMember(variable);
+  return !Binder::staticDataMemberOf(
+      symbol_cast<ClassSymbol>(variable->parent()), variable->name());
 }
 
 [[nodiscard]] auto redeclaresConstexprStaticDataMember(VariableSymbol* variable)
@@ -3648,16 +3756,20 @@ namespace {
 }  // namespace
 
 auto Binder::declaresVariableDefinition(VariableSymbol* variable) -> bool {
+  if (variable->isExplicitSpecialization() && variable->parent()->isClass())
+    return variable->initializer() != nullptr;
+  if (redeclaresConstexprStaticDataMember(variable)) return false;
+  if (variable->definition() == variable) return true;
   if (declaresStaticDataMemberInClass(variable))
     return variable->isInline() || variable->isConstexpr();
-  if (redeclaresConstexprStaticDataMember(variable)) return false;
   if (variable->isExtern()) return variable->initializer() != nullptr;
   return true;
 }
 
 auto Binder::isInitializedInClass(VariableSymbol* variable) -> bool {
   if (variable->initializer()) return true;
-  auto field = definedStaticDataMember(variable);
+  auto field = staticDataMemberOf(symbol_cast<ClassSymbol>(variable->parent()),
+                                  variable->name());
   return field && field->hasInitializer();
 }
 
@@ -3673,6 +3785,10 @@ auto Binder::redefinesVariable(VariableSymbol* previous,
 
 void Binder::recordVariableDefinition(VariableSymbol* variable) {
   if (!declaresVariableDefinition(variable)) return;
+
+  if (auto field = staticDataMemberOf(
+          symbol_cast<ClassSymbol>(variable->parent()), variable->name()))
+    recordStaticDataMemberDefinition(field, variable);
 
   auto canonical = variable->canonical();
   auto previous = definingDeclaration(canonical);
@@ -3693,6 +3809,7 @@ namespace {
 [[nodiscard]] auto staticDataMemberDefinition(FieldSymbol* field) -> Symbol* {
   if (auto definition = field->definition()) return definition;
   if (field->isConstexpr()) return nullptr;
+  if (field->instantiationPattern()) return nullptr;
   if (field->isInline()) return field;
   return nullptr;
 }
@@ -3714,6 +3831,7 @@ void Binder::recordStaticDataMemberDefinition(FieldSymbol* field,
   setSpeculativeValue(
       field->definition(), definition,
       [field](VariableSymbol* value) { field->setDefinition(value); });
+  inheritDeclarationAttributes(definition, field);
 }
 
 namespace {
@@ -3801,12 +3919,16 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
   symbol->setType(type);
 
   if (isOutOfClassStaticMemberDef) {
-    recordStaticDataMemberDefinition(outOfClassMemberField, symbol);
+    inheritDeclarationAttributes(symbol, outOfClassMemberField);
     symbol->setStatic(true);
     symbol->setInitializer(outOfClassMemberField->initializer());
   }
 
-  if (isOutOfClassMemberTemplateDef) symbol->setStatic(true);
+  if (isOutOfClassMemberTemplateDef) {
+    symbol->setStatic(true);
+    if (!declaresVariableDefinition(outOfClassMemberTemplate->canonical()))
+      symbol->setDefinition(symbol);
+  }
 
   if (auto classType = unqualified_cast<ClassType>(type)) {
     traits.requireCompleteClass(classType->symbol());
@@ -3887,8 +4009,11 @@ void Binder::declareVariableTemplate(VariableSymbol* symbol,
   auto templateId = ast_cast<SimpleTemplateIdAST>(declaratorId->unqualifiedId);
   if (!templateId) return;
 
+  auto targetScope = symbol_cast<ScopeSymbol>(symbol->parent());
+  if (!targetScope) return;
+
   for (auto candidate :
-       declaringScope()->find(templateId->identifier) | views::variables) {
+       targetScope->find(templateId->identifier) | views::variables) {
     if (candidate == symbol) continue;
     if (!candidate->templateDeclaration()) continue;
 
@@ -3926,7 +4051,7 @@ void Binder::applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs) {
 void Binder::applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs) {
   applyAccessSpecifier(symbol);
   symbol->setStatic(specs.isStatic);
-  symbol->setThreadLocal(specs.isThreadLocal);
+  symbol->setThreadLocalKind(specs.threadLocalKind);
   symbol->setExtern(specs.isExtern);
   symbol->setConstexpr(specs.isConstexpr);
   symbol->setConstinit(specs.isConstinit);
@@ -3936,7 +4061,7 @@ void Binder::applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs) {
 void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
   applyAccessSpecifier(symbol);
   symbol->setStatic(specs.isStatic);
-  symbol->setThreadLocal(specs.isThreadLocal);
+  symbol->setThreadLocalKind(specs.threadLocalKind);
   symbol->setConstexpr(specs.isConstexpr);
   symbol->setConstinit(specs.isConstinit);
   symbol->setInline(specs.isInline);
@@ -4106,7 +4231,8 @@ void Binder::bind(OperatorFunctionIdAST* ast) {
   declareImplicitAllocationFunctions(unit_, ast->op);
 }
 
-void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup) {
+void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup,
+                  bool isCallee) {
   if (!ast->unqualifiedId) {
     error(ast->firstSourceLocation(),
           "expected an unqualified identifier in id expression");
@@ -4129,7 +4255,7 @@ void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup) {
     declareArgumentDependentCallee(ast);
   }
 
-  resolveIdExpression(ast, mayUseArgumentDependentLookup);
+  resolveIdExpression(ast, isCallee);
 }
 
 auto Binder::lookupQualifiedIdExpression(IdExpressionAST* ast) -> bool {
@@ -4182,6 +4308,7 @@ void Binder::resolveIdExpression(IdExpressionAST* ast, bool isCallee) {
         auto arity = TemplateArity::of(templateDecl);
         auto argc = TemplateArguments::count(templateId->templateArgumentList);
         if (argc < arity.minArgs) return true;
+        if (isCallee && argc < arity.maxArgs) return true;
         if (arity.packCount > 0 && (isCallee || argc <= arity.minArgs))
           return true;
         return arity.packCount > 1;
@@ -4310,6 +4437,27 @@ void Binder::resolveIdExpression(IdExpressionAST* ast, bool isCallee) {
       }
     }
   }
+}
+
+auto Binder::resolveMemberTemplateId(MemberExpressionAST* ast) -> bool {
+  if (!unit_->config().checkTypes) return false;
+  if (!ast->symbol || !ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId))
+    return false;
+  if (!ast->baseExpression || isDependent(unit_, ast->baseExpression->type))
+    return false;
+
+  auto id = IdExpressionAST::create(unit_->arena());
+  id->unqualifiedId = ast->unqualifiedId;
+  id->symbol = ast->symbol;
+  id->type = ast->type;
+
+  resolveIdExpression(id, /*isCallee=*/false);
+
+  if (id->symbol == ast->symbol) return false;
+  if (!symbol_cast<FunctionSymbol>(id->symbol)) return false;
+
+  ast->symbol = id->symbol;
+  return true;
 }
 
 auto Binder::currentInstantiationOf(NestedNameSpecifierAST* nns,
@@ -4649,14 +4797,27 @@ auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type,
   return views::find_function(scope->find(name), matches);
 }
 
+namespace {
+
+[[nodiscard]] auto declaredTemplateHead(TranslationUnit* unit,
+                                        ClassSymbol* enclosingClass,
+                                        TemplateDeclarationAST* head)
+    -> TemplateDeclarationAST* {
+  TemplateEquivalence equivalence{unit};
+  if (equivalence.specializesMemberOfImplicitInstantiation(enclosingClass,
+                                                           head))
+    return nullptr;
+  return equivalence.ownFunctionTemplateHead(enclosingClass, head);
+}
+
+}  // namespace
+
 auto areFunctionTemplateHeadsEquivalentForRedeclaration(
     TranslationUnit* unit, ClassSymbol* enclosingClass,
     TemplateDeclarationAST* existingHead, TemplateDeclarationAST* newHead)
     -> bool {
-  existingHead = TemplateEquivalence{unit}.ownFunctionTemplateHead(
-      enclosingClass, existingHead);
-  newHead = TemplateEquivalence{unit}.ownFunctionTemplateHead(enclosingClass,
-                                                              newHead);
+  existingHead = declaredTemplateHead(unit, enclosingClass, existingHead);
+  newHead = declaredTemplateHead(unit, enclosingClass, newHead);
   return TemplateEquivalence{unit}.same(existingHead, newHead);
 }
 }  // namespace cxx

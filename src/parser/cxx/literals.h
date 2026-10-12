@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace cxx {
 
@@ -163,6 +164,8 @@ class StringLiteral final : public Literal {
   [[nodiscard]] auto charCount() const -> std::size_t;
 
   [[nodiscard]] auto charAt(std::size_t index) const -> std::uint32_t;
+
+  [[nodiscard]] auto utf16CodeUnits() const -> std::vector<std::uint16_t>;
 
   [[nodiscard]] auto components() const { return components_; }
 

@@ -480,19 +480,16 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
     }
   }
 
-  copy->initializer = expression(ast->initializer);
-
   addSymbolRemap(ast->symbol, copy->symbol);
 
-  if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol)) {
-    if (copy->initializer) {
-      fieldSymbol->setInitializer(copy->initializer);
+  copy->initializer = expression(ast->initializer);
 
-      if (fieldSymbol->isStatic())
-        typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier());
-      else
-        typeChecker().check_field_initializer(fieldSymbol);
-    }
+  if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol)) {
+    if (copy->initializer) fieldSymbol->setInitializer(copy->initializer);
+    if (fieldSymbol->isStatic())
+      typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier());
+    else if (copy->initializer)
+      typeChecker().check_field_initializer(fieldSymbol);
   } else if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
     if (!rewritingForRangeDeclaration_)
       typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier());
@@ -722,6 +719,8 @@ auto ASTRewriter::DesignatorVisitor::operator()(SubscriptDesignatorAST* ast)
 
   copy->lbracketLoc = ast->lbracketLoc;
   copy->expression = rewrite.expression(ast->expression);
+  copy->ellipsisLoc = ast->ellipsisLoc;
+  copy->upperExpression = rewrite.expression(ast->upperExpression);
   copy->rbracketLoc = ast->rbracketLoc;
 
   return copy;

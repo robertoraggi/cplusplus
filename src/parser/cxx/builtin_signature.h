@@ -38,6 +38,7 @@ enum class BuiltinFlags : std::uint8_t {
   kNoexcept = 4,
   kNoReturn = 8,
   kCplusplus = 16,
+  kBitIntFamily = 32,
 };
 
 [[nodiscard]] constexpr auto operator|(BuiltinFlags a, BuiltinFlags b)
@@ -85,6 +86,8 @@ struct BuiltinOverload {
 
 [[nodiscard]] auto decodeBuiltinSignature(Control* control,
                                           BuiltinSignature signature,
-                                          std::size_t index) -> BuiltinOverload;
+                                          std::size_t index,
+                                          const Type* bitIntType = nullptr)
+    -> BuiltinOverload;
 
 }  // namespace cxx

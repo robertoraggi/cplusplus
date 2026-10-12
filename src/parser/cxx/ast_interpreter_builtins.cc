@@ -688,6 +688,70 @@ auto ASTInterpreter::evaluateBuiltinLockFree(CallExpressionAST* ast,
   return ConstValue{std::intmax_t(0)};
 }
 
+auto ASTInterpreter::fieldOffsetIn(const Type* type, FieldSymbol* field)
+    -> std::optional<std::uintmax_t> {
+  if (!field) return std::nullopt;
+  auto classType = type_cast<ClassType>(traits.remove_cvref(type));
+  if (!classType) return std::nullopt;
+  auto classSymbol = classType->symbol();
+  traits.requireCompleteClass(classSymbol);
+  auto layout = classSymbol->resolvedDefinition()->layout();
+  if (!layout) return std::nullopt;
+  auto info = layout->getFieldInfo(field);
+  if (!info) return std::nullopt;
+  return info->offset;
+}
+
+auto ASTInterpreter::offsetOfDesignated(BuiltinOffsetofExpressionAST* ast)
+    -> std::optional<std::uintmax_t> {
+  if (!ast->symbol || !ast->typeId) return std::nullopt;
+  auto offset = fieldOffsetIn(ast->typeId->type, ast->symbol);
+  if (!offset) return std::nullopt;
+
+  const Type* designatedType = ast->symbol->type();
+  for (auto designator : ListView{ast->designatorList}) {
+    if (auto dot = ast_cast<DotDesignatorAST>(designator)) {
+      auto fieldOffset = fieldOffsetIn(designatedType, dot->symbol);
+      if (!fieldOffset) return std::nullopt;
+      *offset += *fieldOffset;
+      designatedType = dot->symbol->type();
+      continue;
+    }
+
+    auto subscript = ast_cast<SubscriptDesignatorAST>(designator);
+    if (!subscript) return std::nullopt;
+
+    auto indexValue = evaluate(subscript->expression);
+    auto index = indexValue ? toInt(*indexValue) : std::nullopt;
+    if (!index) return std::nullopt;
+
+    auto elementType = traits.remove_extent(designatedType);
+    auto elementSize = control()->memoryLayout()->sizeOf(elementType);
+    if (!elementSize) return std::nullopt;
+
+    *offset += static_cast<std::uintmax_t>(*index) * *elementSize;
+    designatedType = elementType;
+  }
+
+  return offset;
+}
+
+auto ASTInterpreter::evaluateBuiltinAssume(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  if (!ast) return std::nullopt;
+
+  auto argument = argumentAt(ast, 0);
+  if (!argument) return std::nullopt;
+
+  auto value = evaluate(argument);
+  if (!value) return std::nullopt;
+
+  auto holds = toBool(*value);
+  if (!holds || !*holds) return std::nullopt;
+
+  return ConstValue{ConstInt{std::intmax_t{0}}};
+}
+
 auto ASTInterpreter::evaluateBuiltinBitCount(CallExpressionAST* ast)
     -> std::optional<ConstValue> {
   if (!ast) return std::nullopt;

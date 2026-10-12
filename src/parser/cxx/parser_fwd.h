@@ -79,6 +79,7 @@ struct ParserConfiguration {
   bool validateAst = false;
   bool allowUnprototypedFunctions = false;
   bool exceptionsEnabled = true;
+  bool rttiEnabled = true;
   std::function<bool()> stopParsingPredicate;
   std::function<void(const CodeCompletionContext&)> complete;
 };

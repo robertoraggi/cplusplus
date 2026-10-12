@@ -107,6 +107,8 @@ class Triple {
   int printedComponents_ = 1;
 };
 
+[[nodiscard]] auto parseTripleArch(std::string_view name) -> TripleArch;
+
 [[nodiscard]] auto to_string(TripleArch arch) -> std::string_view;
 
 }  // namespace cxx

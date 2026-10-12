@@ -53,6 +53,9 @@ class BaseClassSymbol;
 [[nodiscard]] auto isDependent(TranslationUnit* unit, ExpressionAST* ast)
     -> bool;
 
+[[nodiscard]] auto hasConcreteType(TranslationUnit* unit, ExpressionAST* ast)
+    -> bool;
+
 [[nodiscard]] auto containsUnexpandedParameterPack(AST* ast) -> bool;
 
 [[nodiscard]] auto isDependent(TranslationUnit* unit, TypeIdAST* ast) -> bool;

@@ -58,6 +58,7 @@ auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
     case BuiltinFunctionKind::T___BUILTIN_HUGE_VAL:
     case BuiltinFunctionKind::T___BUILTIN_HUGE_VALF:
     case BuiltinFunctionKind::T___BUILTIN_HUGE_VALL:
+    case BuiltinFunctionKind::T___BUILTIN_ASSUME:
     case BuiltinFunctionKind::T___BUILTIN_MUL_OVERFLOW:
     case BuiltinFunctionKind::T___BUILTIN_ADDRESSOF:
     case BuiltinFunctionKind::T___BUILTIN_CLZ:
@@ -155,6 +156,9 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
     case BuiltinFunctionKind::T___BUILTIN_HUGE_VALL:
       return evaluateBuiltinHugeVall(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ASSUME:
+      return evaluateBuiltinAssume(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_MUL_OVERFLOW:
       return evaluateBuiltinArithmeticOverflow(ast);

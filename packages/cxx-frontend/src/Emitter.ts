@@ -166,6 +166,9 @@ export type ParameterAbiKind =
   "Default" | "StructReturn" | "ByValue" | "ZeroExtend";
 
 /** @category Backend Enumerations */
+export type CallingConvention = "C" | "CxxFastTls";
+
+/** @category Backend Enumerations */
 export type Visibility = "Default" | "Hidden" | "Protected";
 
 /** @category Backend Enumerations */
@@ -195,6 +198,16 @@ export type DebugDerivedKind =
 
 /** @category Debug Information */
 export type DebugCompositeKind = "Structure" | "Union" | "Enumeration";
+
+/** @category Backend Descriptors */
+export interface InlineAsmInfo {
+  asmString: string;
+  constraints: string;
+  arguments: readonly ValueRef[];
+  results: readonly TypeRef[];
+  argumentElementTypes: readonly TypeRef[];
+  hasSideEffects: boolean;
+}
 
 /** @category Backend Descriptors */
 export interface InsertionPoint {
@@ -251,6 +264,7 @@ export interface CleanupAction {
   depth: number;
   activeFlag: ValueRef;
   elementCount: number;
+  initializedCount: ValueRef;
 }
 
 /** @category Backend Descriptors */
@@ -264,6 +278,7 @@ export interface Access {
 export interface BitfieldInfo {
   bitOffset: number;
   bitWidth: number;
+  storageSize: number;
   alignment: number;
 }
 
@@ -277,6 +292,9 @@ export interface CallInfo {
   parameters: readonly ParameterAbi[];
   resultAbi: ParameterAbi;
   variadicCalleeType: TypeRef;
+  normalDestination: BlockRef;
+  unwindDestination: BlockRef;
+  callingConvention: CallingConvention;
 }
 
 /** @category Backend Descriptors */
@@ -300,6 +318,8 @@ export interface FunctionInfo {
   isUsed: boolean;
   parameters: readonly ParameterAbi[];
   resultAbi: ParameterAbi;
+  section: string;
+  callingConvention: CallingConvention;
 }
 
 /** @category Backend Descriptors */
@@ -313,6 +333,7 @@ export interface GlobalInfo {
   unknownLocation: boolean;
   isUsed: boolean;
   isThreadLocal: boolean;
+  section: string;
 }
 
 /** @category Debug Information */
@@ -410,11 +431,35 @@ export interface DebugEmitterDelegate {
 /** @category Backend */
 export interface EmitterDelegate {
   readonly debug?: DebugEmitterDelegate;
+  moduleAsm(loc: TokenIndex, assembly: string): void;
+  functionPersonality(function_: FunctionRef, personality: string): void;
+  landingPad(
+    loc: TokenIndex,
+    clauses: readonly ValueRef[],
+    cleanup: boolean,
+  ): ValueRef[];
+  exceptionTypeId(loc: TokenIndex, typeInfo: ValueRef): ValueRef;
+  resumeException(
+    loc: TokenIndex,
+    exception: ValueRef,
+    selector: ValueRef,
+  ): void;
+  inlineAsm(loc: TokenIndex, info: InlineAsmInfo): ValueRef[];
+  inlineAsmGoto(
+    loc: TokenIndex,
+    info: InlineAsmInfo,
+    fallthrough: BlockRef,
+    destinations: readonly BlockRef[],
+  ): ValueRef;
   saveInsertionPoint(): InsertionPointRef;
   restoreInsertionPoint(point: InsertionPointRef): void;
   setInsertionPoint(point: InsertionPoint): void;
   beginGlobalInitializer(global: GlobalRef): void;
-  globalConstructor(loc: TokenIndex, function_: FunctionRef): void;
+  globalConstructor(
+    loc: TokenIndex,
+    function_: FunctionRef,
+    priority: number,
+  ): void;
   constant(loc: TokenIndex, type: TypeRef, value: Initializer): ValueRef;
   isZeroConstant(value: ValueRef): boolean;
   symbolExists(name: string): boolean;

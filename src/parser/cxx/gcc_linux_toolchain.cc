@@ -72,7 +72,7 @@ GCCLinuxToolchain::GCCLinuxToolchain(Preprocessor* preprocessor, Triple triple)
                                     this->triple().archName()));
   }
 
-  memoryLayout()->setTriple(this->triple().withArchName(to_string(arch)).str());
+  memoryLayout()->setTriple(this->triple().str());
 }
 
 auto GCCLinuxToolchain::multiarchName() const -> std::string {

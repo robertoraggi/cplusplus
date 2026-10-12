@@ -85,19 +85,15 @@ struct Handle {
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: value_
 // CHECK-NEXT:                    expression-list
-// CHECK-NEXT:                      implicit-cast-expression [prvalue int]
-// CHECK-NEXT:                        cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                        expression: id-expression [lvalue int]
-// CHECK-NEXT:                          unqualified-id: name-id
-// CHECK-NEXT:                            identifier: value
+// CHECK-NEXT:                      id-expression [lvalue int]
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: value
 // CHECK-NEXT:                  braced-mem-initializer
 // CHECK-NEXT:                    unqualified-id: name-id
 // CHECK-NEXT:                      identifier: otherValue_
-// CHECK-NEXT:                    braced-init-list: braced-init-list
+// CHECK-NEXT:                    braced-init-list: braced-init-list [prvalue int]
 // CHECK-NEXT:                      expression-list
-// CHECK-NEXT:                        implicit-cast-expression [prvalue int]
-// CHECK-NEXT:                          cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                          expression: id-expression [lvalue int]
-// CHECK-NEXT:                            unqualified-id: name-id
-// CHECK-NEXT:                              identifier: otherValue
+// CHECK-NEXT:                        id-expression [lvalue int]
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: otherValue
 // CHECK-NEXT:                statement: compound-statement

@@ -292,9 +292,12 @@ auto ASTRewriter::StatementVisitor::operator()(CaseStatementAST* ast)
 
   copy->caseLoc = ast->caseLoc;
   copy->expression = rewrite.expression(ast->expression);
+  copy->ellipsisLoc = ast->ellipsisLoc;
+  copy->upperExpression = rewrite.expression(ast->upperExpression);
   copy->colonLoc = ast->colonLoc;
 
   copy->caseValue = ast->caseValue;
+  copy->statement = rewrite.statement(ast->statement);
   if (copy->expression) {
     auto interp = ASTInterpreter{translationUnit()};
     if (auto value = interp.evaluate(copy->expression)) {
@@ -315,6 +318,7 @@ auto ASTRewriter::StatementVisitor::operator()(DefaultStatementAST* ast)
 
   copy->defaultLoc = ast->defaultLoc;
   copy->colonLoc = ast->colonLoc;
+  copy->statement = rewrite.statement(ast->statement);
 
   return copy;
 }
@@ -484,6 +488,12 @@ auto ASTRewriter::StatementVisitor::operator()(DoStatementAST* ast)
   copy->attributeList =
       rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
+  auto _ = Binder::ScopeGuard(binder());
+
+  if (ast->symbol) {
+    copy->symbol = binder()->enterBlock(ast->symbol->location());
+  }
+
   copy->doLoc = ast->doLoc;
   copy->statement = rewrite.statement(ast->statement);
   copy->whileLoc = ast->whileLoc;
@@ -542,6 +552,8 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
 
   copy->rparenLoc = ast->rparenLoc;
   copy->statement = rewrite.statement(ast->statement);
+
+  binder()->finishForRangeStatement(copy);
 
   return copy;
 }

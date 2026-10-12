@@ -334,6 +334,7 @@ if (ast->op == TokenKind::T_NEW_ARRAY) {
           case "node-list": {
             switch (m.name) {
               case "outputOperandList":
+                break;
               case "inputOperandList":
               case "clobberList":
               case "gotoLabelList":

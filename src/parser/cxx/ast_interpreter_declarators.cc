@@ -97,6 +97,7 @@ struct ASTInterpreter::MemInitializerVisitor {
 
   [[nodiscard]] auto operator()(BracedMemInitializerAST* ast)
       -> MemInitializerResult;
+  [[nodiscard]] auto initialize(MemInitializerAST* ast) -> MemInitializerResult;
 };
 
 struct ASTInterpreter::LambdaCaptureVisitor {
@@ -369,12 +370,7 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
 
-  std::vector<ExpressionAST*> arguments;
-  for (auto node : ListView{ast->expressionList}) arguments.push_back(node);
-
-  interp.applyMemInitializer(ast, arguments);
-
-  return {};
+  return initialize(ast);
 }
 
 auto ASTInterpreter::MemInitializerVisitor::operator()(
@@ -383,12 +379,20 @@ auto ASTInterpreter::MemInitializerVisitor::operator()(
       interp.nestedNameSpecifier(ast->nestedNameSpecifier);
   auto unqualifiedIdResult = interp.unqualifiedId(ast->unqualifiedId);
 
+  return initialize(ast);
+}
+
+auto ASTInterpreter::MemInitializerVisitor::initialize(MemInitializerAST* ast)
+    -> MemInitializerResult {
+  auto initializer =
+      memInitializerClause(interp.translationUnit()->arena(), ast);
   std::vector<ExpressionAST*> arguments;
-  if (ast->constructor && ast->bracedInitList) {
-    for (auto node : ListView{ast->bracedInitList->expressionList})
-      arguments.push_back(node);
-  } else if (ast->bracedInitList) {
-    arguments.push_back(ast->bracedInitList);
+  if (ast->constructor) {
+    arguments = Initializer{initializer}.arguments();
+  } else if (auto braced = Initializer{initializer}.bracedInitList()) {
+    arguments.push_back(braced);
+  } else {
+    arguments = Initializer{initializer}.arguments();
   }
 
   interp.applyMemInitializer(ast, arguments);

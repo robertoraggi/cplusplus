@@ -40,7 +40,7 @@ constexpr int ConstObjectSlotBase = ConstComplexSlotBase + 2;
 
 constexpr int ConstAddressSlotBase = ConstObjectSlotBase + 4;
 
-constexpr int ConstLabelAddressSlotBase = ConstAddressSlotBase + 6;
+constexpr int ConstLabelAddressSlotBase = ConstAddressSlotBase + 8;
 
 constexpr int ASTSlotBase = 0;
 
@@ -50,7 +50,7 @@ constexpr int ExpressionASTSlotBase = AttributeSpecifierASTSlotBase + 1;
 
 constexpr int MemInitializerASTSlotBase = ExpressionASTSlotBase + 2;
 
-constexpr int NestedNameSpecifierASTSlotBase = MemInitializerASTSlotBase + 2;
+constexpr int NestedNameSpecifierASTSlotBase = MemInitializerASTSlotBase + 3;
 
 constexpr int TemplateParameterASTSlotBase = NestedNameSpecifierASTSlotBase + 1;
 
@@ -65,7 +65,7 @@ constexpr int SimpleDeclarationASTSlotBase = ModuleUnitASTSlotBase + 4;
 constexpr int AsmDeclarationASTSlotBase = SimpleDeclarationASTSlotBase + 5;
 
 constexpr int NamespaceAliasDefinitionASTSlotBase =
-    AsmDeclarationASTSlotBase + 12;
+    AsmDeclarationASTSlotBase + 13;
 
 constexpr int UsingDeclarationASTSlotBase =
     NamespaceAliasDefinitionASTSlotBase + 8;
@@ -124,7 +124,7 @@ constexpr int StructuredBindingDeclarationASTSlotBase =
     AccessDeclarationASTSlotBase + 3;
 
 constexpr int AsmOperandASTSlotBase =
-    StructuredBindingDeclarationASTSlotBase + 10;
+    StructuredBindingDeclarationASTSlotBase + 9;
 
 constexpr int AsmQualifierASTSlotBase = AsmOperandASTSlotBase + 9;
 
@@ -192,9 +192,9 @@ constexpr int LabeledStatementASTSlotBase =
 
 constexpr int CaseStatementASTSlotBase = LabeledStatementASTSlotBase + 4;
 
-constexpr int DefaultStatementASTSlotBase = CaseStatementASTSlotBase + 4;
+constexpr int DefaultStatementASTSlotBase = CaseStatementASTSlotBase + 7;
 
-constexpr int ExpressionStatementASTSlotBase = DefaultStatementASTSlotBase + 2;
+constexpr int ExpressionStatementASTSlotBase = DefaultStatementASTSlotBase + 3;
 
 constexpr int CompoundStatementASTSlotBase = ExpressionStatementASTSlotBase + 3;
 
@@ -208,9 +208,9 @@ constexpr int WhileStatementASTSlotBase = SwitchStatementASTSlotBase + 8;
 
 constexpr int DoStatementASTSlotBase = WhileStatementASTSlotBase + 7;
 
-constexpr int ForRangeStatementASTSlotBase = DoStatementASTSlotBase + 8;
+constexpr int ForRangeStatementASTSlotBase = DoStatementASTSlotBase + 9;
 
-constexpr int ForStatementASTSlotBase = ForRangeStatementASTSlotBase + 27;
+constexpr int ForStatementASTSlotBase = ForRangeStatementASTSlotBase + 11;
 
 constexpr int BreakStatementASTSlotBase = ForStatementASTSlotBase + 10;
 
@@ -295,7 +295,7 @@ constexpr int BracedTypeConstructionASTSlotBase =
     TypeConstructionASTSlotBase + 5;
 
 constexpr int SpliceMemberExpressionASTSlotBase =
-    BracedTypeConstructionASTSlotBase + 3;
+    BracedTypeConstructionASTSlotBase + 4;
 
 constexpr int MemberExpressionASTSlotBase =
     SpliceMemberExpressionASTSlotBase + 7;
@@ -359,9 +359,9 @@ constexpr int NoexceptExpressionASTSlotBase = AlignofExpressionASTSlotBase + 2;
 
 constexpr int NewExpressionASTSlotBase = NoexceptExpressionASTSlotBase + 5;
 
-constexpr int DeleteExpressionASTSlotBase = NewExpressionASTSlotBase + 12;
+constexpr int DeleteExpressionASTSlotBase = NewExpressionASTSlotBase + 14;
 
-constexpr int CastExpressionASTSlotBase = DeleteExpressionASTSlotBase + 6;
+constexpr int CastExpressionASTSlotBase = DeleteExpressionASTSlotBase + 7;
 
 constexpr int ImplicitCastExpressionASTSlotBase = CastExpressionASTSlotBase + 4;
 
@@ -398,10 +398,10 @@ constexpr int EqualInitializerASTSlotBase = ConditionExpressionASTSlotBase + 5;
 
 constexpr int BracedInitListASTSlotBase = EqualInitializerASTSlotBase + 2;
 
-constexpr int ParenInitializerASTSlotBase = BracedInitListASTSlotBase + 5;
+constexpr int ParenInitializerASTSlotBase = BracedInitListASTSlotBase + 6;
 
 constexpr int ThreeWayComparisonExpressionASTSlotBase =
-    ParenInitializerASTSlotBase + 3;
+    ParenInitializerASTSlotBase + 4;
 
 constexpr int DefaultGenericAssociationASTSlotBase =
     ThreeWayComparisonExpressionASTSlotBase + 5;
@@ -414,7 +414,7 @@ constexpr int DotDesignatorASTSlotBase = TypeGenericAssociationASTSlotBase + 3;
 constexpr int SubscriptDesignatorASTSlotBase = DotDesignatorASTSlotBase + 4;
 
 constexpr int TemplateTypeParameterASTSlotBase =
-    SubscriptDesignatorASTSlotBase + 3;
+    SubscriptDesignatorASTSlotBase + 5;
 
 constexpr int NonTypeTemplateParameterASTSlotBase =
     TemplateTypeParameterASTSlotBase + 12;
@@ -644,7 +644,7 @@ constexpr int EllipsisExceptionDeclarationASTSlotBase =
 constexpr int TypeExceptionDeclarationASTSlotBase =
     EllipsisExceptionDeclarationASTSlotBase + 1;
 
-constexpr int CxxAttributeASTSlotBase = TypeExceptionDeclarationASTSlotBase + 4;
+constexpr int CxxAttributeASTSlotBase = TypeExceptionDeclarationASTSlotBase + 5;
 
 constexpr int GccAttributeASTSlotBase = CxxAttributeASTSlotBase + 6;
 
@@ -667,7 +667,7 @@ constexpr int FloatLiteralSlotBase = IntegerLiteralSlotBase + 2;
 
 constexpr int StringLiteralSlotBase = FloatLiteralSlotBase + 2;
 
-constexpr int CharLiteralSlotBase = StringLiteralSlotBase + 6;
+constexpr int CharLiteralSlotBase = StringLiteralSlotBase + 7;
 
 constexpr int NameSlotBase = 0;
 
@@ -691,21 +691,21 @@ constexpr int NamespaceSymbolSlotBase = ScopeSymbolSlotBase + 4;
 
 constexpr int ConceptSymbolSlotBase = NamespaceSymbolSlotBase + 4;
 
-constexpr int DeductionGuideSymbolSlotBase = ConceptSymbolSlotBase + 9;
+constexpr int DeductionGuideSymbolSlotBase = ConceptSymbolSlotBase + 11;
 
-constexpr int BaseClassSymbolSlotBase = DeductionGuideSymbolSlotBase + 10;
+constexpr int BaseClassSymbolSlotBase = DeductionGuideSymbolSlotBase + 12;
 
 constexpr int InjectedClassNameSymbolSlotBase = BaseClassSymbolSlotBase + 2;
 
 constexpr int ClassSymbolSlotBase = InjectedClassNameSymbolSlotBase + 1;
 
-constexpr int EnumSymbolSlotBase = ClassSymbolSlotBase + 63;
+constexpr int EnumSymbolSlotBase = ClassSymbolSlotBase + 66;
 
 constexpr int ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 3;
 
 constexpr int FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 2;
 
-constexpr int OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 74;
+constexpr int OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 81;
 
 constexpr int LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 4;
 
@@ -718,11 +718,11 @@ constexpr int BlockSymbolSlotBase = TemplateParametersSymbolSlotBase + 1;
 
 constexpr int TypeAliasSymbolSlotBase = BlockSymbolSlotBase + 2;
 
-constexpr int VariableSymbolSlotBase = TypeAliasSymbolSlotBase + 16;
+constexpr int VariableSymbolSlotBase = TypeAliasSymbolSlotBase + 18;
 
-constexpr int FieldSymbolSlotBase = VariableSymbolSlotBase + 26;
+constexpr int FieldSymbolSlotBase = VariableSymbolSlotBase + 30;
 
-constexpr int ParameterSymbolSlotBase = FieldSymbolSlotBase + 25;
+constexpr int ParameterSymbolSlotBase = FieldSymbolSlotBase + 26;
 
 constexpr int ParameterPackSymbolSlotBase = ParameterSymbolSlotBase + 6;
 
@@ -982,38 +982,43 @@ auto readAST(std::intptr_t handle, int slot) -> double {
     case AsmDeclarationASTSlotBase + 5: {
       auto self = static_cast<const ::cxx::AsmDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(
-          reinterpret_cast<std::intptr_t>(self->outputOperandList));
+      return static_cast<double>(self->colonLoc.index());
     }
     case AsmDeclarationASTSlotBase + 6: {
       auto self = static_cast<const ::cxx::AsmDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(
-          reinterpret_cast<std::intptr_t>(self->inputOperandList));
+          reinterpret_cast<std::intptr_t>(self->outputOperandList));
     }
     case AsmDeclarationASTSlotBase + 7: {
       auto self = static_cast<const ::cxx::AsmDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(
-          reinterpret_cast<std::intptr_t>(self->clobberList));
+          reinterpret_cast<std::intptr_t>(self->inputOperandList));
     }
     case AsmDeclarationASTSlotBase + 8: {
       auto self = static_cast<const ::cxx::AsmDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(
-          reinterpret_cast<std::intptr_t>(self->gotoLabelList));
+          reinterpret_cast<std::intptr_t>(self->clobberList));
     }
     case AsmDeclarationASTSlotBase + 9: {
       auto self = static_cast<const ::cxx::AsmDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(self->rparenLoc.index());
+      return static_cast<double>(
+          reinterpret_cast<std::intptr_t>(self->gotoLabelList));
     }
     case AsmDeclarationASTSlotBase + 10: {
       auto self = static_cast<const ::cxx::AsmDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(self->semicolonLoc.index());
+      return static_cast<double>(self->rparenLoc.index());
     }
     case AsmDeclarationASTSlotBase + 11: {
+      auto self = static_cast<const ::cxx::AsmDeclarationAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->semicolonLoc.index());
+    }
+    case AsmDeclarationASTSlotBase + 12: {
       auto self = static_cast<const ::cxx::AsmDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
@@ -1754,18 +1759,6 @@ auto readAST(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(self->semicolonLoc.index());
     }
-    case StructuredBindingDeclarationASTSlotBase + 8: {
-      auto self = static_cast<const ::cxx::StructuredBindingDeclarationAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::AST*>(self->hiddenVariable)));
-    }
-    case StructuredBindingDeclarationASTSlotBase + 9: {
-      auto self = static_cast<const ::cxx::StructuredBindingDeclarationAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(
-          reinterpret_cast<std::intptr_t>(self->bindingDeclaratorList));
-    }
     case AsmOperandASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::AsmOperandAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
@@ -2479,7 +2472,24 @@ auto readAST(std::intptr_t handle, int slot) -> double {
     case CaseStatementASTSlotBase + 2: {
       auto self = static_cast<const ::cxx::CaseStatementAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->ellipsisLoc.index());
+    }
+    case CaseStatementASTSlotBase + 3: {
+      auto self = static_cast<const ::cxx::CaseStatementAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->upperExpression)));
+    }
+    case CaseStatementASTSlotBase + 4: {
+      auto self = static_cast<const ::cxx::CaseStatementAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(self->colonLoc.index());
+    }
+    case CaseStatementASTSlotBase + 6: {
+      auto self = static_cast<const ::cxx::CaseStatementAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->statement)));
     }
     case DefaultStatementASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::DefaultStatementAST*>(
@@ -2490,6 +2500,12 @@ auto readAST(std::intptr_t handle, int slot) -> double {
       auto self = static_cast<const ::cxx::DefaultStatementAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(self->colonLoc.index());
+    }
+    case DefaultStatementASTSlotBase + 2: {
+      auto self = static_cast<const ::cxx::DefaultStatementAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->statement)));
     }
     case ExpressionStatementASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::ExpressionStatementAST*>(
@@ -2767,6 +2783,12 @@ auto readAST(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(self->semicolonLoc.index());
     }
+    case DoStatementASTSlotBase + 8: {
+      auto self = static_cast<const ::cxx::DoStatementAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->symbol)));
+    }
     case ForRangeStatementASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
@@ -2821,105 +2843,7 @@ auto readAST(std::intptr_t handle, int slot) -> double {
       auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::AST*>(self->beginInitializer)));
-    }
-    case ForRangeStatementASTSlotBase + 10: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::AST*>(self->endInitializer)));
-    }
-    case ForRangeStatementASTSlotBase + 11: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::AST*>(self->condition)));
-    }
-    case ForRangeStatementASTSlotBase + 12: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::AST*>(self->increment)));
-    }
-    case ForRangeStatementASTSlotBase + 13: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::AST*>(self->element)));
-    }
-    case ForRangeStatementASTSlotBase + 14: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->symbol)));
-    }
-    case ForRangeStatementASTSlotBase + 15: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->rangeVariable)));
-    }
-    case ForRangeStatementASTSlotBase + 16: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->beginVariable)));
-    }
-    case ForRangeStatementASTSlotBase + 17: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->endVariable)));
-    }
-    case ForRangeStatementASTSlotBase + 18: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->beginFunction)));
-    }
-    case ForRangeStatementASTSlotBase + 19: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->endFunction)));
-    }
-    case ForRangeStatementASTSlotBase + 20: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->derefFunction)));
-    }
-    case ForRangeStatementASTSlotBase + 21: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->incrementFunction)));
-    }
-    case ForRangeStatementASTSlotBase + 22: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->notEqualFunction)));
-    }
-    case ForRangeStatementASTSlotBase + 23: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(self->usesMemberBeginEnd);
-    }
-    case ForRangeStatementASTSlotBase + 24: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(self->isPointerIterator);
-    }
-    case ForRangeStatementASTSlotBase + 25: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(self->notEqualRewritten);
-    }
-    case ForRangeStatementASTSlotBase + 26: {
-      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
-          reinterpret_cast<const ::cxx::AST*>(handle));
-      return static_cast<double>(self->notEqualReversed);
     }
     case ForStatementASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::ForStatementAST*>(
@@ -4428,6 +4352,17 @@ auto readAST(std::intptr_t handle, int slot) -> double {
     case NewExpressionASTSlotBase + 11: {
       auto self = static_cast<const ::cxx::NewExpressionAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->deallocationFunction)));
+    }
+    case NewExpressionASTSlotBase + 12: {
+      auto self = static_cast<const ::cxx::NewExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->arrayCookieRequired);
+    }
+    case NewExpressionASTSlotBase + 13: {
+      auto self = static_cast<const ::cxx::NewExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(self->hasAlignmentArgument);
     }
     case DeleteExpressionASTSlotBase + 0: {
@@ -4461,6 +4396,11 @@ auto readAST(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->symbol)));
+    }
+    case DeleteExpressionASTSlotBase + 6: {
+      auto self = static_cast<const ::cxx::DeleteExpressionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->arrayCookieRequired);
     }
     case CastExpressionASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::CastExpressionAST*>(
@@ -4909,6 +4849,17 @@ auto readAST(std::intptr_t handle, int slot) -> double {
           static_cast<const ::cxx::AST*>(self->expression)));
     }
     case SubscriptDesignatorASTSlotBase + 2: {
+      auto self = static_cast<const ::cxx::SubscriptDesignatorAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->ellipsisLoc.index());
+    }
+    case SubscriptDesignatorASTSlotBase + 3: {
+      auto self = static_cast<const ::cxx::SubscriptDesignatorAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->upperExpression)));
+    }
+    case SubscriptDesignatorASTSlotBase + 4: {
       auto self = static_cast<const ::cxx::SubscriptDesignatorAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(self->rbracketLoc.index());
@@ -6619,6 +6570,12 @@ auto readAST(std::intptr_t handle, int slot) -> double {
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->symbol)));
     }
+    case TypeExceptionDeclarationASTSlotBase + 4: {
+      auto self = static_cast<const ::cxx::TypeExceptionDeclarationAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->exceptionObject)));
+    }
     case CxxAttributeASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::CxxAttributeAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
@@ -6814,7 +6771,7 @@ auto readAST(std::intptr_t handle, int slot) -> double {
 
 auto readASTBigInt(std::intptr_t handle, int slot) -> std::int64_t {
   switch (slot) {
-    case CaseStatementASTSlotBase + 3: {
+    case CaseStatementASTSlotBase + 5: {
       auto self = static_cast<const ::cxx::CaseStatementAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<std::int64_t>(self->caseValue);
@@ -6850,12 +6807,63 @@ auto readASTVal(std::intptr_t handle, int slot) -> val {
         });
       });
     }
+    case MemInitializerASTSlotBase + 2: {
+      auto self = static_cast<const ::cxx::MemInitializerAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return [&]() -> val {
+        auto result = val::object();
+        result.set("expression",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::AST*>(
+                           (self->initialization).expression)))));
+        return result;
+      }();
+    }
     case StaticAssertDeclarationASTSlotBase + 8: {
       auto self = static_cast<const ::cxx::StaticAssertDeclarationAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return optionalValue(self->value, [&](const auto& item) {
         return val(static_cast<double>(item));
       });
+    }
+    case StructuredBindingDeclarationASTSlotBase + 8: {
+      auto self = static_cast<const ::cxx::StructuredBindingDeclarationAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return [&]() -> val {
+        auto result = val::object();
+        result.set("hiddenVariable",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::AST*>(
+                           (self->binding).hiddenVariable)))));
+        result.set("bindingDeclaratorList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (self->binding).bindingDeclaratorList))));
+        return result;
+      }();
+    }
+    case ForRangeStatementASTSlotBase + 10: {
+      auto self = static_cast<const ::cxx::ForRangeStatementAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "statement",
+            val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                static_cast<const ::cxx::AST*>((self->range).statement)))));
+        return result;
+      }();
+    }
+    case BracedTypeConstructionASTSlotBase + 3: {
+      auto self = static_cast<const ::cxx::BracedTypeConstructionAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return [&]() -> val {
+        auto result = val::object();
+        result.set("expression",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::AST*>(
+                           (self->initialization).expression)))));
+        return result;
+      }();
     }
     case SizeofExpressionASTSlotBase + 2: {
       auto self = static_cast<const ::cxx::SizeofExpressionAST*>(
@@ -6954,6 +6962,34 @@ auto readASTVal(std::intptr_t handle, int slot) -> val {
       return optionalValue(self->value, [&](const auto& item) {
         return val(static_cast<double>(item));
       });
+    }
+    case BracedInitListASTSlotBase + 5: {
+      auto self = static_cast<const ::cxx::BracedInitListAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return [&]() -> val {
+        auto result = val::object();
+        result.set("arguments",
+                   optionalValue((self->initialization).arguments,
+                                 [&](const auto& item) {
+                                   return val(static_cast<double>(
+                                       reinterpret_cast<std::intptr_t>(item)));
+                                 }));
+        return result;
+      }();
+    }
+    case ParenInitializerASTSlotBase + 3: {
+      auto self = static_cast<const ::cxx::ParenInitializerAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return [&]() -> val {
+        auto result = val::object();
+        result.set("arguments",
+                   optionalValue((self->initialization).arguments,
+                                 [&](const auto& item) {
+                                   return val(static_cast<double>(
+                                       reinterpret_cast<std::intptr_t>(item)));
+                                 }));
+        return result;
+      }();
     }
   }
   cxx_runtime_error("unknown model slot");
@@ -7254,6 +7290,11 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isTemplatePattern());
     }
+    case ConceptSymbolSlotBase + 7: {
+      auto self = static_cast<const ::cxx::ConceptSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitSpecialization());
+    }
     case DeductionGuideSymbolSlotBase + 0: {
       auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
@@ -7293,7 +7334,12 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isTemplatePattern());
     }
-    case DeductionGuideSymbolSlotBase + 9: {
+    case DeductionGuideSymbolSlotBase + 7: {
+      auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitSpecialization());
+    }
+    case DeductionGuideSymbolSlotBase + 11: {
       auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isExplicit());
@@ -7366,189 +7412,200 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isTemplatePattern());
     }
-    case ClassSymbolSlotBase + 11: {
+    case ClassSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::ClassSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitSpecialization());
+    }
+    case ClassSymbolSlotBase + 13: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->canonicalOrNull())));
     }
-    case ClassSymbolSlotBase + 12: {
+    case ClassSymbolSlotBase + 14: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->resolvedDefinition())));
     }
-    case ClassSymbolSlotBase + 15: {
+    case ClassSymbolSlotBase + 17: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->instantiationSubstitutionDepth());
     }
-    case ClassSymbolSlotBase + 17: {
+    case ClassSymbolSlotBase + 19: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isUnion());
     }
-    case ClassSymbolSlotBase + 21: {
+    case ClassSymbolSlotBase + 20: {
+      auto self = static_cast<const ::cxx::ClassSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->anonymousVariable())));
+    }
+    case ClassSymbolSlotBase + 24: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->constructorOverloadSet())));
     }
-    case ClassSymbolSlotBase + 26: {
+    case ClassSymbolSlotBase + 29: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->destructor())));
     }
-    case ClassSymbolSlotBase + 27: {
+    case ClassSymbolSlotBase + 30: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->defaultConstructor())));
     }
-    case ClassSymbolSlotBase + 28: {
+    case ClassSymbolSlotBase + 31: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->copyConstructor())));
     }
-    case ClassSymbolSlotBase + 29: {
+    case ClassSymbolSlotBase + 32: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->moveConstructor())));
     }
-    case ClassSymbolSlotBase + 30: {
+    case ClassSymbolSlotBase + 33: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->copyAssignmentOperator())));
     }
-    case ClassSymbolSlotBase + 31: {
+    case ClassSymbolSlotBase + 34: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->moveAssignmentOperator())));
     }
-    case ClassSymbolSlotBase + 32: {
+    case ClassSymbolSlotBase + 35: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasUserDeclaredConstructors());
     }
-    case ClassSymbolSlotBase + 33: {
+    case ClassSymbolSlotBase + 36: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasInheritedConstructors());
     }
-    case ClassSymbolSlotBase + 34: {
+    case ClassSymbolSlotBase + 37: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasVirtualFunctions());
     }
-    case ClassSymbolSlotBase + 35: {
+    case ClassSymbolSlotBase + 38: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasVirtualBaseClasses());
     }
-    case ClassSymbolSlotBase + 37: {
+    case ClassSymbolSlotBase + 40: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isFinal());
     }
-    case ClassSymbolSlotBase + 38: {
+    case ClassSymbolSlotBase + 41: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isComplete());
     }
-    case ClassSymbolSlotBase + 39: {
+    case ClassSymbolSlotBase + 42: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isFriend());
     }
-    case ClassSymbolSlotBase + 40: {
+    case ClassSymbolSlotBase + 43: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isPolymorphic());
     }
-    case ClassSymbolSlotBase + 41: {
+    case ClassSymbolSlotBase + 44: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isAbstract());
     }
-    case ClassSymbolSlotBase + 42: {
+    case ClassSymbolSlotBase + 45: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasVirtualDestructor());
     }
-    case ClassSymbolSlotBase + 43: {
+    case ClassSymbolSlotBase + 46: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isAccessControlDisabled());
     }
-    case ClassSymbolSlotBase + 44: {
+    case ClassSymbolSlotBase + 47: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->sizeInBytes());
     }
-    case ClassSymbolSlotBase + 45: {
+    case ClassSymbolSlotBase + 48: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->alignment());
     }
-    case ClassSymbolSlotBase + 46: {
+    case ClassSymbolSlotBase + 49: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->explicitAlignment());
     }
-    case ClassSymbolSlotBase + 47: {
+    case ClassSymbolSlotBase + 50: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->packAlignment());
     }
-    case ClassSymbolSlotBase + 51: {
+    case ClassSymbolSlotBase + 54: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->flags());
     }
-    case ClassSymbolSlotBase + 52: {
+    case ClassSymbolSlotBase + 55: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasVirtualBaseSubobjects());
     }
-    case ClassSymbolSlotBase + 54: {
+    case ClassSymbolSlotBase + 57: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isClosureType());
     }
-    case ClassSymbolSlotBase + 55: {
-      auto self = static_cast<const ::cxx::ClassSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->hasLambdaCapture());
-    }
-    case ClassSymbolSlotBase + 56: {
-      auto self = static_cast<const ::cxx::ClassSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->capturedThisField())));
-    }
-    case ClassSymbolSlotBase + 57: {
-      auto self = static_cast<const ::cxx::ClassSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->functionCallOperator())));
-    }
     case ClassSymbolSlotBase + 58: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->closureDiscriminator());
+      return static_cast<double>(self->hasLambdaCapture());
     }
     case ClassSymbolSlotBase + 59: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->instantiationTemplate())));
+          static_cast<const ::cxx::Symbol*>(self->capturedThisField())));
     }
     case ClassSymbolSlotBase + 60: {
+      auto self = static_cast<const ::cxx::ClassSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->functionCallOperator())));
+    }
+    case ClassSymbolSlotBase + 61: {
+      auto self = static_cast<const ::cxx::ClassSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->closureDiscriminator());
+    }
+    case ClassSymbolSlotBase + 62: {
+      auto self = static_cast<const ::cxx::ClassSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->instantiationTemplate())));
+    }
+    case ClassSymbolSlotBase + 63: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(
@@ -7633,296 +7690,311 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isTemplatePattern());
     }
-    case FunctionSymbolSlotBase + 11: {
+    case FunctionSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitSpecialization());
+    }
+    case FunctionSymbolSlotBase + 13: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->canonicalOrNull())));
     }
-    case FunctionSymbolSlotBase + 12: {
+    case FunctionSymbolSlotBase + 14: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->resolvedDefinition())));
     }
-    case FunctionSymbolSlotBase + 15: {
+    case FunctionSymbolSlotBase + 17: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->functionParameters())));
     }
-    case FunctionSymbolSlotBase + 16: {
+    case FunctionSymbolSlotBase + 18: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isDefined());
     }
-    case FunctionSymbolSlotBase + 17: {
+    case FunctionSymbolSlotBase + 19: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isStatic());
     }
-    case FunctionSymbolSlotBase + 18: {
+    case FunctionSymbolSlotBase + 20: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isExtern());
     }
-    case FunctionSymbolSlotBase + 19: {
+    case FunctionSymbolSlotBase + 21: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isFriend());
     }
-    case FunctionSymbolSlotBase + 20: {
+    case FunctionSymbolSlotBase + 22: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isImplicitObjectMemberFunction());
     }
-    case FunctionSymbolSlotBase + 21: {
+    case FunctionSymbolSlotBase + 23: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isNonStaticMemberFunction());
     }
-    case FunctionSymbolSlotBase + 22: {
+    case FunctionSymbolSlotBase + 24: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasImplicitObjectParameter());
     }
-    case FunctionSymbolSlotBase + 23: {
+    case FunctionSymbolSlotBase + 25: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasExplicitObjectParameter());
     }
-    case FunctionSymbolSlotBase + 24: {
+    case FunctionSymbolSlotBase + 26: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->explicitObjectParameter())));
     }
-    case FunctionSymbolSlotBase + 26: {
+    case FunctionSymbolSlotBase + 28: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isConstexpr());
     }
-    case FunctionSymbolSlotBase + 27: {
+    case FunctionSymbolSlotBase + 29: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isConsteval());
     }
-    case FunctionSymbolSlotBase + 28: {
+    case FunctionSymbolSlotBase + 30: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isInline());
     }
-    case FunctionSymbolSlotBase + 29: {
+    case FunctionSymbolSlotBase + 31: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isVirtual());
     }
-    case FunctionSymbolSlotBase + 30: {
+    case FunctionSymbolSlotBase + 32: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isExplicit());
     }
-    case FunctionSymbolSlotBase + 31: {
+    case FunctionSymbolSlotBase + 33: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isDeleted());
     }
-    case FunctionSymbolSlotBase + 32: {
+    case FunctionSymbolSlotBase + 34: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isDefaulted());
     }
-    case FunctionSymbolSlotBase + 33: {
+    case FunctionSymbolSlotBase + 35: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isPure());
     }
-    case FunctionSymbolSlotBase + 34: {
+    case FunctionSymbolSlotBase + 36: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isOverride());
     }
-    case FunctionSymbolSlotBase + 35: {
+    case FunctionSymbolSlotBase + 37: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isFinal());
     }
-    case FunctionSymbolSlotBase + 36: {
+    case FunctionSymbolSlotBase + 38: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasNoPrototype());
     }
-    case FunctionSymbolSlotBase + 37: {
+    case FunctionSymbolSlotBase + 39: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasExceptionSpecifier());
     }
-    case FunctionSymbolSlotBase + 38: {
+    case FunctionSymbolSlotBase + 40: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isDefinitionRequired());
     }
-    case FunctionSymbolSlotBase + 39: {
+    case FunctionSymbolSlotBase + 41: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isNoReturn());
     }
-    case FunctionSymbolSlotBase + 40: {
+    case FunctionSymbolSlotBase + 42: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->builtinKind());
     }
-    case FunctionSymbolSlotBase + 41: {
+    case FunctionSymbolSlotBase + 43: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::AST*>(self->trailingRequiresClause())));
     }
-    case FunctionSymbolSlotBase + 42: {
+    case FunctionSymbolSlotBase + 45: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isConstructor());
     }
-    case FunctionSymbolSlotBase + 43: {
+    case FunctionSymbolSlotBase + 46: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isDestructor());
     }
-    case FunctionSymbolSlotBase + 44: {
+    case FunctionSymbolSlotBase + 47: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->languageLinkage());
     }
-    case FunctionSymbolSlotBase + 45: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->hasCLinkage());
-    }
-    case FunctionSymbolSlotBase + 46: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Name*>(self->externalName())));
-    }
-    case FunctionSymbolSlotBase + 47: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Name*>(self->aliasName())));
-    }
     case FunctionSymbolSlotBase + 48: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->hasHiddenVisibility());
+      return static_cast<double>(self->hasCLinkage());
     }
     case FunctionSymbolSlotBase + 49: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Name*>(self->importModule())));
+          static_cast<const ::cxx::Name*>(self->externalName())));
     }
     case FunctionSymbolSlotBase + 50: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Name*>(self->importName())));
+          static_cast<const ::cxx::Name*>(self->aliasName())));
     }
     case FunctionSymbolSlotBase + 51: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->hasHiddenVisibility());
+    }
+    case FunctionSymbolSlotBase + 52: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Name*>(self->importModule())));
+    }
+    case FunctionSymbolSlotBase + 53: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Name*>(self->importName())));
+    }
+    case FunctionSymbolSlotBase + 54: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Name*>(self->exportName())));
     }
-    case FunctionSymbolSlotBase + 52: {
+    case FunctionSymbolSlotBase + 55: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasPendingBody());
     }
-    case FunctionSymbolSlotBase + 53: {
+    case FunctionSymbolSlotBase + 56: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasUninstantiatedBody());
     }
-    case FunctionSymbolSlotBase + 55: {
+    case FunctionSymbolSlotBase + 57: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitlySpecialized());
+    }
+    case FunctionSymbolSlotBase + 59: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(
           self->hasDeferredImplicitExceptionSpecification());
     }
-    case FunctionSymbolSlotBase + 57: {
+    case FunctionSymbolSlotBase + 60: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->vtableSlotIndex());
-    }
-    case FunctionSymbolSlotBase + 61: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->delegatingConstructor())));
+      return static_cast<double>(self->hasDeferredDeletion());
     }
     case FunctionSymbolSlotBase + 62: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->completeObjectVariant())));
-    }
-    case FunctionSymbolSlotBase + 63: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->deletingDtorVariant())));
-    }
-    case FunctionSymbolSlotBase + 64: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->structorPrincipal())));
-    }
-    case FunctionSymbolSlotBase + 65: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isStructorVariant());
-    }
-    case FunctionSymbolSlotBase + 66: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isStructor());
-    }
-    case FunctionSymbolSlotBase + 67: {
-      auto self = static_cast<const ::cxx::FunctionSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->hasBaseObjectVariant());
+      return static_cast<double>(self->vtableSlotIndex());
     }
     case FunctionSymbolSlotBase + 68: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->inheritedConstructor())));
+          static_cast<const ::cxx::Symbol*>(self->delegatingConstructor())));
     }
     case FunctionSymbolSlotBase + 69: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->completeObjectVariant())));
+    }
+    case FunctionSymbolSlotBase + 70: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->deletingDtorVariant())));
+    }
+    case FunctionSymbolSlotBase + 71: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->structorPrincipal())));
+    }
+    case FunctionSymbolSlotBase + 72: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isStructorVariant());
+    }
+    case FunctionSymbolSlotBase + 73: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isStructor());
+    }
+    case FunctionSymbolSlotBase + 74: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->hasBaseObjectVariant());
+    }
+    case FunctionSymbolSlotBase + 75: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->inheritedConstructor())));
+    }
+    case FunctionSymbolSlotBase + 76: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(
           reinterpret_cast<std::intptr_t>(static_cast<const ::cxx::Symbol*>(
               self->inheritedConstructorOrigin())));
     }
-    case FunctionSymbolSlotBase + 70: {
+    case FunctionSymbolSlotBase + 77: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isDeletingDtorVariant());
     }
-    case FunctionSymbolSlotBase + 71: {
+    case FunctionSymbolSlotBase + 78: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->hostScope())));
     }
-    case FunctionSymbolSlotBase + 72: {
+    case FunctionSymbolSlotBase + 79: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasFriendDefaultArgument());
     }
-    case FunctionSymbolSlotBase + 73: {
+    case FunctionSymbolSlotBase + 80: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasFriendDefaultTemplateArgument());
@@ -8039,19 +8111,24 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isTemplatePattern());
     }
-    case TypeAliasSymbolSlotBase + 11: {
+    case TypeAliasSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitSpecialization());
+    }
+    case TypeAliasSymbolSlotBase + 13: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->canonicalOrNull())));
     }
-    case TypeAliasSymbolSlotBase + 12: {
+    case TypeAliasSymbolSlotBase + 14: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->resolvedDefinition())));
     }
-    case TypeAliasSymbolSlotBase + 15: {
+    case TypeAliasSymbolSlotBase + 17: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
@@ -8108,66 +8185,81 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isTemplatePattern());
     }
-    case VariableSymbolSlotBase + 11: {
+    case VariableSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::VariableSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitSpecialization());
+    }
+    case VariableSymbolSlotBase + 13: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->canonicalOrNull())));
     }
-    case VariableSymbolSlotBase + 12: {
+    case VariableSymbolSlotBase + 14: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->resolvedDefinition())));
     }
-    case VariableSymbolSlotBase + 15: {
+    case VariableSymbolSlotBase + 17: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isStatic());
     }
-    case VariableSymbolSlotBase + 16: {
+    case VariableSymbolSlotBase + 18: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isThreadLocal());
     }
-    case VariableSymbolSlotBase + 17: {
-      auto self = static_cast<const ::cxx::VariableSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isExtern());
-    }
-    case VariableSymbolSlotBase + 18: {
-      auto self = static_cast<const ::cxx::VariableSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isConstexpr());
-    }
     case VariableSymbolSlotBase + 19: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isConstinit());
+      return static_cast<double>(self->threadLocalKind());
     }
     case VariableSymbolSlotBase + 20: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isInline());
+      return static_cast<double>(self->isExtern());
     }
     case VariableSymbolSlotBase + 21: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isFunctionLocalPredefined());
+      return static_cast<double>(self->isConstexpr());
     }
     case VariableSymbolSlotBase + 22: {
+      auto self = static_cast<const ::cxx::VariableSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isConstinit());
+    }
+    case VariableSymbolSlotBase + 23: {
+      auto self = static_cast<const ::cxx::VariableSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isInline());
+    }
+    case VariableSymbolSlotBase + 24: {
+      auto self = static_cast<const ::cxx::VariableSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isFunctionLocalPredefined());
+    }
+    case VariableSymbolSlotBase + 25: {
+      auto self = static_cast<const ::cxx::VariableSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isStructuredBindingAlias());
+    }
+    case VariableSymbolSlotBase + 26: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::AST*>(self->initializer())));
     }
-    case VariableSymbolSlotBase + 23: {
+    case VariableSymbolSlotBase + 27: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->constructor())));
     }
-    case VariableSymbolSlotBase + 25: {
+    case VariableSymbolSlotBase + 29: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->explicitAlignment());
@@ -8206,76 +8298,81 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
     case FieldSymbolSlotBase + 7: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isConstexpr());
+      return static_cast<double>(self->threadLocalKind());
     }
     case FieldSymbolSlotBase + 8: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isConstinit());
+      return static_cast<double>(self->isConstexpr());
     }
     case FieldSymbolSlotBase + 9: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isInline());
+      return static_cast<double>(self->isConstinit());
     }
     case FieldSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isMutable());
+      return static_cast<double>(self->isInline());
     }
     case FieldSymbolSlotBase + 11: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isNoUniqueAddress());
+      return static_cast<double>(self->isMutable());
     }
-    case FieldSymbolSlotBase + 13: {
+    case FieldSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->localOffset());
+      return static_cast<double>(self->isNoUniqueAddress());
     }
     case FieldSymbolSlotBase + 14: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->alignment());
+      return static_cast<double>(self->localOffset());
     }
     case FieldSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->explicitAlignment());
+      return static_cast<double>(self->alignment());
     }
     case FieldSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isPacked());
+      return static_cast<double>(self->explicitAlignment());
     }
     case FieldSymbolSlotBase + 17: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->effectiveAlignment());
+      return static_cast<double>(self->isPacked());
     }
     case FieldSymbolSlotBase + 18: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::AST*>(self->initializer())));
+      return static_cast<double>(self->effectiveAlignment());
     }
     case FieldSymbolSlotBase + 19: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->constructor())));
+          static_cast<const ::cxx::AST*>(self->initializer())));
     }
-    case FieldSymbolSlotBase + 21: {
+    case FieldSymbolSlotBase + 20: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isDefinitionRequired());
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->constructor())));
     }
     case FieldSymbolSlotBase + 22: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->hasPendingInitializer());
+      return static_cast<double>(self->isDefinitionRequired());
     }
     case FieldSymbolSlotBase + 23: {
+      auto self = static_cast<const ::cxx::FieldSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->hasPendingInitializer());
+    }
+    case FieldSymbolSlotBase + 24: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasInitializer());
@@ -8476,7 +8573,7 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         return val(static_cast<double>(item));
       });
     }
-    case ClassSymbolSlotBase + 50: {
+    case ClassSymbolSlotBase + 53: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return [&]() -> val {
@@ -8490,7 +8587,7 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         return result;
       }();
     }
-    case ClassSymbolSlotBase + 53: {
+    case ClassSymbolSlotBase + 56: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->vtableLayout(), [&](const auto& item) {
@@ -8776,7 +8873,7 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         }();
       });
     }
-    case FunctionSymbolSlotBase + 54: {
+    case FunctionSymbolSlotBase + 58: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->pendingBody(), [&](const auto& item) {
@@ -8912,7 +9009,7 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         }();
       });
     }
-    case FunctionSymbolSlotBase + 56: {
+    case FunctionSymbolSlotBase + 61: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(
@@ -9058,7 +9155,23 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
             }();
           });
     }
-    case VariableSymbolSlotBase + 24: {
+    case FunctionSymbolSlotBase + 63: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return optionalValue(self->constructorPriority(), [&](const auto& item) {
+        return val(static_cast<double>(item));
+      });
+    }
+    case FunctionSymbolSlotBase + 67: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return optionalValue(
+          self->constructorInitializers(), [&](const auto& item) {
+            return val(
+                static_cast<double>(reinterpret_cast<std::intptr_t>(item)));
+          });
+    }
+    case VariableSymbolSlotBase + 28: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->constValue(), [&](const auto& item) {
@@ -9198,14 +9311,14 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         }();
       });
     }
-    case FieldSymbolSlotBase + 12: {
+    case FieldSymbolSlotBase + 13: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->offsetInClass(), [&](const auto& item) {
         return val(static_cast<std::uint64_t>(item));
       });
     }
-    case FieldSymbolSlotBase + 20: {
+    case FieldSymbolSlotBase + 21: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->constValue(), [&](const auto& item) {
@@ -9275,7 +9388,7 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         }();
       });
     }
-    case FieldSymbolSlotBase + 24: {
+    case FieldSymbolSlotBase + 25: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->pendingInitializer(), [&](const auto& item) {
@@ -9633,113 +9746,128 @@ auto readSymbolSize(std::intptr_t handle, std::intptr_t unit, int slot) -> int {
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->members()));
     }
-    case ConceptSymbolSlotBase + 7: {
+    case ConceptSymbolSlotBase + 8: {
       auto self = static_cast<const ::cxx::ConceptSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->templateArguments()));
     }
-    case ConceptSymbolSlotBase + 8: {
+    case ConceptSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::ConceptSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->specializations()));
+    }
+    case ConceptSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::ConceptSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(
           std::size(self->externInstantiationDeclarations()));
-    }
-    case DeductionGuideSymbolSlotBase + 7: {
-      auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<int>(std::size(self->templateArguments()));
     }
     case DeductionGuideSymbolSlotBase + 8: {
       auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->templateArguments()));
+    }
+    case DeductionGuideSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->specializations()));
+    }
+    case DeductionGuideSymbolSlotBase + 10: {
+      auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(
           std::size(self->externInstantiationDeclarations()));
-    }
-    case ClassSymbolSlotBase + 9: {
-      auto self = static_cast<const ::cxx::ClassSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<int>(std::size(self->templateArguments()));
     }
     case ClassSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->templateArguments()));
+    }
+    case ClassSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::ClassSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->specializations()));
+    }
+    case ClassSymbolSlotBase + 12: {
+      auto self = static_cast<const ::cxx::ClassSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(
           std::size(self->externInstantiationDeclarations()));
     }
-    case ClassSymbolSlotBase + 13: {
+    case ClassSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->redeclarations()));
     }
-    case ClassSymbolSlotBase + 14: {
+    case ClassSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->declarations()));
     }
-    case ClassSymbolSlotBase + 16: {
+    case ClassSymbolSlotBase + 18: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(
           std::size(self->instantiationSubstitutionArguments()));
     }
-    case ClassSymbolSlotBase + 18: {
+    case ClassSymbolSlotBase + 21: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->baseClasses()));
     }
-    case ClassSymbolSlotBase + 19: {
+    case ClassSymbolSlotBase + 22: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->constructors()));
     }
-    case ClassSymbolSlotBase + 20: {
+    case ClassSymbolSlotBase + 23: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->declaredConstructors()));
     }
-    case ClassSymbolSlotBase + 22: {
+    case ClassSymbolSlotBase + 25: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->deductionGuides()));
     }
-    case ClassSymbolSlotBase + 23: {
+    case ClassSymbolSlotBase + 26: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->conversionFunctions()));
     }
-    case ClassSymbolSlotBase + 24: {
+    case ClassSymbolSlotBase + 27: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->implicitConversionFunctions()));
     }
-    case ClassSymbolSlotBase + 25: {
+    case ClassSymbolSlotBase + 28: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->visibleConversionFunctions()));
     }
-    case ClassSymbolSlotBase + 36: {
+    case ClassSymbolSlotBase + 39: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->convertingConstructors()));
     }
-    case ClassSymbolSlotBase + 48: {
+    case ClassSymbolSlotBase + 51: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->befriendingClasses()));
     }
-    case ClassSymbolSlotBase + 49: {
+    case ClassSymbolSlotBase + 52: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->templateFriendships()));
     }
-    case ClassSymbolSlotBase + 61: {
+    case ClassSymbolSlotBase + 64: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(expand_template_arguments(
           class_template_arguments(reinterpret_cast<TranslationUnit*>(unit),
                                    const_cast<ClassSymbol*>(self)))));
     }
-    case ClassSymbolSlotBase + 62: {
+    case ClassSymbolSlotBase + 65: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size([&] {
@@ -9752,43 +9880,53 @@ auto readSymbolSize(std::intptr_t handle, std::intptr_t unit, int slot) -> int {
         return result;
       }()));
     }
-    case FunctionSymbolSlotBase + 9: {
+    case FunctionSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->templateArguments()));
     }
-    case FunctionSymbolSlotBase + 10: {
+    case FunctionSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->specializations()));
+    }
+    case FunctionSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(
           std::size(self->externInstantiationDeclarations()));
     }
-    case FunctionSymbolSlotBase + 13: {
+    case FunctionSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->redeclarations()));
     }
-    case FunctionSymbolSlotBase + 14: {
+    case FunctionSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->declarations()));
     }
-    case FunctionSymbolSlotBase + 25: {
+    case FunctionSymbolSlotBase + 27: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->parameters()));
     }
-    case FunctionSymbolSlotBase + 58: {
+    case FunctionSymbolSlotBase + 44: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->enableIfConditions()));
+    }
+    case FunctionSymbolSlotBase + 64: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->overriddenFunctions()));
     }
-    case FunctionSymbolSlotBase + 59: {
+    case FunctionSymbolSlotBase + 65: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->befriendingClasses()));
     }
-    case FunctionSymbolSlotBase + 60: {
+    case FunctionSymbolSlotBase + 66: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->templateFriendships()));
@@ -9808,44 +9946,54 @@ auto readSymbolSize(std::intptr_t handle, std::intptr_t unit, int slot) -> int {
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->usingDeclarations()));
     }
-    case TypeAliasSymbolSlotBase + 9: {
+    case TypeAliasSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->templateArguments()));
     }
-    case TypeAliasSymbolSlotBase + 10: {
+    case TypeAliasSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->specializations()));
+    }
+    case TypeAliasSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(
           std::size(self->externInstantiationDeclarations()));
     }
-    case TypeAliasSymbolSlotBase + 13: {
+    case TypeAliasSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->redeclarations()));
     }
-    case TypeAliasSymbolSlotBase + 14: {
+    case TypeAliasSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->declarations()));
     }
-    case VariableSymbolSlotBase + 9: {
+    case VariableSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->templateArguments()));
     }
-    case VariableSymbolSlotBase + 10: {
+    case VariableSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::VariableSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->specializations()));
+    }
+    case VariableSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(
           std::size(self->externInstantiationDeclarations()));
     }
-    case VariableSymbolSlotBase + 13: {
+    case VariableSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->redeclarations()));
     }
-    case VariableSymbolSlotBase + 14: {
+    case VariableSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<int>(std::size(self->declarations()));
@@ -9882,7 +10030,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 13: {
+    case ClassSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->redeclarations();
@@ -9890,7 +10038,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 14: {
+    case ClassSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->declarations();
@@ -9898,7 +10046,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 18: {
+    case ClassSymbolSlotBase + 21: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->baseClasses();
@@ -9906,7 +10054,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 19: {
+    case ClassSymbolSlotBase + 22: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->constructors();
@@ -9914,7 +10062,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 20: {
+    case ClassSymbolSlotBase + 23: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->declaredConstructors();
@@ -9922,7 +10070,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 22: {
+    case ClassSymbolSlotBase + 25: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->deductionGuides();
@@ -9930,7 +10078,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 23: {
+    case ClassSymbolSlotBase + 26: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->conversionFunctions();
@@ -9938,7 +10086,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 24: {
+    case ClassSymbolSlotBase + 27: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->implicitConversionFunctions();
@@ -9946,7 +10094,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 25: {
+    case ClassSymbolSlotBase + 28: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->visibleConversionFunctions();
@@ -9954,7 +10102,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 36: {
+    case ClassSymbolSlotBase + 39: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->convertingConstructors();
@@ -9962,7 +10110,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case ClassSymbolSlotBase + 48: {
+    case ClassSymbolSlotBase + 51: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->befriendingClasses();
@@ -9970,7 +10118,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case FunctionSymbolSlotBase + 13: {
+    case FunctionSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->redeclarations();
@@ -9978,7 +10126,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case FunctionSymbolSlotBase + 14: {
+    case FunctionSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->declarations();
@@ -9986,7 +10134,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case FunctionSymbolSlotBase + 25: {
+    case FunctionSymbolSlotBase + 27: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->parameters();
@@ -9994,7 +10142,15 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case FunctionSymbolSlotBase + 58: {
+    case FunctionSymbolSlotBase + 44: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->enableIfConditions();
+      const auto& item = *std::next(std::begin(container), index);
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(item)));
+    }
+    case FunctionSymbolSlotBase + 64: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->overriddenFunctions();
@@ -10002,7 +10158,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case FunctionSymbolSlotBase + 59: {
+    case FunctionSymbolSlotBase + 65: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->befriendingClasses();
@@ -10034,7 +10190,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case TypeAliasSymbolSlotBase + 13: {
+    case TypeAliasSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->redeclarations();
@@ -10042,7 +10198,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case TypeAliasSymbolSlotBase + 14: {
+    case TypeAliasSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->declarations();
@@ -10050,7 +10206,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case VariableSymbolSlotBase + 13: {
+    case VariableSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->redeclarations();
@@ -10058,7 +10214,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(item)));
     }
-    case VariableSymbolSlotBase + 14: {
+    case VariableSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->declarations();
@@ -10089,7 +10245,7 @@ auto readSymbolItem(std::intptr_t handle, std::intptr_t unit, int slot,
 auto readSymbolItemString(std::intptr_t handle, std::intptr_t unit, int slot,
                           int index) -> std::string {
   switch (slot) {
-    case ClassSymbolSlotBase + 62: {
+    case ClassSymbolSlotBase + 65: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = [&] {
@@ -10111,7 +10267,7 @@ auto readSymbolItemString(std::intptr_t handle, std::intptr_t unit, int slot,
 auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
                        int index) -> val {
   switch (slot) {
-    case ConceptSymbolSlotBase + 7: {
+    case ConceptSymbolSlotBase + 8: {
       auto self = static_cast<const ::cxx::ConceptSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->templateArguments();
@@ -10216,7 +10372,154 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case ConceptSymbolSlotBase + 8: {
+    case ConceptSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::ConceptSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->specializations();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "arguments", arrayValue((item).arguments, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("index", item.index());
+                switch (item.index()) {
+                  case 0:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Type*>(
+                                std::get<0>(item))))));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Symbol*>(
+                                std::get<1>(item))))));
+                    break;
+                  case 2:
+                    result.set("value", [&]() -> val {
+                      auto result = val::object();
+                      result.set("index", std::get<2>(item).index());
+                      switch (std::get<2>(item).index()) {
+                        case 0:
+                          result.set(
+                              "value",
+                              val(std::get<0>(std::get<2>(item)).toString()));
+                          break;
+                        case 1:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      static_cast<const ::cxx::Literal*>(
+                                          std::get<1>(std::get<2>(item)))))));
+                          break;
+                        case 2:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<2>(std::get<2>(item)))));
+                          break;
+                        case 3:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<3>(std::get<2>(item)))));
+                          break;
+                        case 4:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<4>(std::get<2>(item)))));
+                          break;
+                        case 5:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<5>(std::get<2>(item)).get()))));
+                          break;
+                        case 6:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<6>(std::get<2>(item)).get()))));
+                          break;
+                        case 7:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<7>(std::get<2>(item)).get()))));
+                          break;
+                        case 8:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<8>(std::get<2>(item)).get()))));
+                          break;
+                        case 9:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<9>(std::get<2>(item)).get()))));
+                          break;
+                        case 10:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<10>(std::get<2>(item)).get()))));
+                          break;
+                        case 11:
+                          result.set("value", val::undefined());
+                          break;
+                      }
+                      return result;
+                    }());
+                    break;
+                  case 3:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::AST*>(
+                                std::get<3>(item))))));
+                    break;
+                }
+                return result;
+              }();
+            }));
+        result.set("symbol",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::Symbol*>((item).symbol)))));
+        result.set(
+            "instantiationErrors",
+            arrayValue((item).instantiationErrors, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("location",
+                           val(static_cast<double>((item).location.index())));
+                result.set("message", val(std::string((item).message)));
+                result.set("severity",
+                           val(static_cast<double>((item).severity)));
+                return result;
+              }();
+            }));
+        result.set("pendingArgumentList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (item).pendingArgumentList))));
+        result.set(
+            "pendingInstantiationLoc",
+            val(static_cast<double>((item).pendingInstantiationLoc.index())));
+        result.set("isPendingInstantiation",
+                   val(static_cast<double>((item).isPendingInstantiation)));
+        return result;
+      }();
+    }
+    case ConceptSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::ConceptSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->externInstantiationDeclarations();
@@ -10319,115 +10622,262 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
           return result;
         }();
       });
-    }
-    case DeductionGuideSymbolSlotBase + 7: {
-      auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
-          reinterpret_cast<const ::cxx::Symbol*>(handle));
-      const auto& container = self->templateArguments();
-      const auto& item = *std::next(std::begin(container), index);
-      return [&]() -> val {
-        auto result = val::object();
-        result.set("index", item.index());
-        switch (item.index()) {
-          case 0:
-            result.set(
-                "value",
-                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                    static_cast<const ::cxx::Type*>(std::get<0>(item))))));
-            break;
-          case 1:
-            result.set(
-                "value",
-                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                    static_cast<const ::cxx::Symbol*>(std::get<1>(item))))));
-            break;
-          case 2:
-            result.set("value", [&]() -> val {
-              auto result = val::object();
-              result.set("index", std::get<2>(item).index());
-              switch (std::get<2>(item).index()) {
-                case 0:
-                  result.set("value",
-                             val(std::get<0>(std::get<2>(item)).toString()));
-                  break;
-                case 1:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                          static_cast<const ::cxx::Literal*>(
-                              std::get<1>(std::get<2>(item)))))));
-                  break;
-                case 2:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(std::get<2>(std::get<2>(item)))));
-                  break;
-                case 3:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(std::get<3>(std::get<2>(item)))));
-                  break;
-                case 4:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(std::get<4>(std::get<2>(item)))));
-                  break;
-                case 5:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                          std::get<5>(std::get<2>(item)).get()))));
-                  break;
-                case 6:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                          std::get<6>(std::get<2>(item)).get()))));
-                  break;
-                case 7:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                          std::get<7>(std::get<2>(item)).get()))));
-                  break;
-                case 8:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                          std::get<8>(std::get<2>(item)).get()))));
-                  break;
-                case 9:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                          std::get<9>(std::get<2>(item)).get()))));
-                  break;
-                case 10:
-                  result.set(
-                      "value",
-                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                          std::get<10>(std::get<2>(item)).get()))));
-                  break;
-                case 11:
-                  result.set("value", val::undefined());
-                  break;
-              }
-              return result;
-            }());
-            break;
-          case 3:
-            result.set(
-                "value",
-                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
-                    static_cast<const ::cxx::AST*>(std::get<3>(item))))));
-            break;
-        }
-        return result;
-      }();
     }
     case DeductionGuideSymbolSlotBase + 8: {
       auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->templateArguments();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set("index", item.index());
+        switch (item.index()) {
+          case 0:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::Type*>(std::get<0>(item))))));
+            break;
+          case 1:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::Symbol*>(std::get<1>(item))))));
+            break;
+          case 2:
+            result.set("value", [&]() -> val {
+              auto result = val::object();
+              result.set("index", std::get<2>(item).index());
+              switch (std::get<2>(item).index()) {
+                case 0:
+                  result.set("value",
+                             val(std::get<0>(std::get<2>(item)).toString()));
+                  break;
+                case 1:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          static_cast<const ::cxx::Literal*>(
+                              std::get<1>(std::get<2>(item)))))));
+                  break;
+                case 2:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<2>(std::get<2>(item)))));
+                  break;
+                case 3:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<3>(std::get<2>(item)))));
+                  break;
+                case 4:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<4>(std::get<2>(item)))));
+                  break;
+                case 5:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<5>(std::get<2>(item)).get()))));
+                  break;
+                case 6:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<6>(std::get<2>(item)).get()))));
+                  break;
+                case 7:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<7>(std::get<2>(item)).get()))));
+                  break;
+                case 8:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<8>(std::get<2>(item)).get()))));
+                  break;
+                case 9:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<9>(std::get<2>(item)).get()))));
+                  break;
+                case 10:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<10>(std::get<2>(item)).get()))));
+                  break;
+                case 11:
+                  result.set("value", val::undefined());
+                  break;
+              }
+              return result;
+            }());
+            break;
+          case 3:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::AST*>(std::get<3>(item))))));
+            break;
+        }
+        return result;
+      }();
+    }
+    case DeductionGuideSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->specializations();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "arguments", arrayValue((item).arguments, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("index", item.index());
+                switch (item.index()) {
+                  case 0:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Type*>(
+                                std::get<0>(item))))));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Symbol*>(
+                                std::get<1>(item))))));
+                    break;
+                  case 2:
+                    result.set("value", [&]() -> val {
+                      auto result = val::object();
+                      result.set("index", std::get<2>(item).index());
+                      switch (std::get<2>(item).index()) {
+                        case 0:
+                          result.set(
+                              "value",
+                              val(std::get<0>(std::get<2>(item)).toString()));
+                          break;
+                        case 1:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      static_cast<const ::cxx::Literal*>(
+                                          std::get<1>(std::get<2>(item)))))));
+                          break;
+                        case 2:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<2>(std::get<2>(item)))));
+                          break;
+                        case 3:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<3>(std::get<2>(item)))));
+                          break;
+                        case 4:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<4>(std::get<2>(item)))));
+                          break;
+                        case 5:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<5>(std::get<2>(item)).get()))));
+                          break;
+                        case 6:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<6>(std::get<2>(item)).get()))));
+                          break;
+                        case 7:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<7>(std::get<2>(item)).get()))));
+                          break;
+                        case 8:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<8>(std::get<2>(item)).get()))));
+                          break;
+                        case 9:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<9>(std::get<2>(item)).get()))));
+                          break;
+                        case 10:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<10>(std::get<2>(item)).get()))));
+                          break;
+                        case 11:
+                          result.set("value", val::undefined());
+                          break;
+                      }
+                      return result;
+                    }());
+                    break;
+                  case 3:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::AST*>(
+                                std::get<3>(item))))));
+                    break;
+                }
+                return result;
+              }();
+            }));
+        result.set("symbol",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::Symbol*>((item).symbol)))));
+        result.set(
+            "instantiationErrors",
+            arrayValue((item).instantiationErrors, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("location",
+                           val(static_cast<double>((item).location.index())));
+                result.set("message", val(std::string((item).message)));
+                result.set("severity",
+                           val(static_cast<double>((item).severity)));
+                return result;
+              }();
+            }));
+        result.set("pendingArgumentList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (item).pendingArgumentList))));
+        result.set(
+            "pendingInstantiationLoc",
+            val(static_cast<double>((item).pendingInstantiationLoc.index())));
+        result.set("isPendingInstantiation",
+                   val(static_cast<double>((item).isPendingInstantiation)));
+        return result;
+      }();
+    }
+    case DeductionGuideSymbolSlotBase + 10: {
+      auto self = static_cast<const ::cxx::DeductionGuideSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->externInstantiationDeclarations();
       const auto& item = *std::next(std::begin(container), index);
       return arrayValue(item, [&](const auto& item) {
@@ -10529,7 +10979,7 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         }();
       });
     }
-    case ClassSymbolSlotBase + 9: {
+    case ClassSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->templateArguments();
@@ -10634,7 +11084,154 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case ClassSymbolSlotBase + 10: {
+    case ClassSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::ClassSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->specializations();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "arguments", arrayValue((item).arguments, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("index", item.index());
+                switch (item.index()) {
+                  case 0:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Type*>(
+                                std::get<0>(item))))));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Symbol*>(
+                                std::get<1>(item))))));
+                    break;
+                  case 2:
+                    result.set("value", [&]() -> val {
+                      auto result = val::object();
+                      result.set("index", std::get<2>(item).index());
+                      switch (std::get<2>(item).index()) {
+                        case 0:
+                          result.set(
+                              "value",
+                              val(std::get<0>(std::get<2>(item)).toString()));
+                          break;
+                        case 1:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      static_cast<const ::cxx::Literal*>(
+                                          std::get<1>(std::get<2>(item)))))));
+                          break;
+                        case 2:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<2>(std::get<2>(item)))));
+                          break;
+                        case 3:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<3>(std::get<2>(item)))));
+                          break;
+                        case 4:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<4>(std::get<2>(item)))));
+                          break;
+                        case 5:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<5>(std::get<2>(item)).get()))));
+                          break;
+                        case 6:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<6>(std::get<2>(item)).get()))));
+                          break;
+                        case 7:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<7>(std::get<2>(item)).get()))));
+                          break;
+                        case 8:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<8>(std::get<2>(item)).get()))));
+                          break;
+                        case 9:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<9>(std::get<2>(item)).get()))));
+                          break;
+                        case 10:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<10>(std::get<2>(item)).get()))));
+                          break;
+                        case 11:
+                          result.set("value", val::undefined());
+                          break;
+                      }
+                      return result;
+                    }());
+                    break;
+                  case 3:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::AST*>(
+                                std::get<3>(item))))));
+                    break;
+                }
+                return result;
+              }();
+            }));
+        result.set("symbol",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::Symbol*>((item).symbol)))));
+        result.set(
+            "instantiationErrors",
+            arrayValue((item).instantiationErrors, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("location",
+                           val(static_cast<double>((item).location.index())));
+                result.set("message", val(std::string((item).message)));
+                result.set("severity",
+                           val(static_cast<double>((item).severity)));
+                return result;
+              }();
+            }));
+        result.set("pendingArgumentList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (item).pendingArgumentList))));
+        result.set(
+            "pendingInstantiationLoc",
+            val(static_cast<double>((item).pendingInstantiationLoc.index())));
+        result.set("isPendingInstantiation",
+                   val(static_cast<double>((item).isPendingInstantiation)));
+        return result;
+      }();
+    }
+    case ClassSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->externInstantiationDeclarations();
@@ -10738,7 +11335,7 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         }();
       });
     }
-    case ClassSymbolSlotBase + 16: {
+    case ClassSymbolSlotBase + 18: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->instantiationSubstitutionArguments();
@@ -10843,7 +11440,7 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case ClassSymbolSlotBase + 49: {
+    case ClassSymbolSlotBase + 52: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->templateFriendships();
@@ -10970,7 +11567,7 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case ClassSymbolSlotBase + 61: {
+    case ClassSymbolSlotBase + 64: {
       auto self = static_cast<const ::cxx::ClassSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = expand_template_arguments(
@@ -11077,7 +11674,7 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case FunctionSymbolSlotBase + 9: {
+    case FunctionSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->templateArguments();
@@ -11182,7 +11779,154 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case FunctionSymbolSlotBase + 10: {
+    case FunctionSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::FunctionSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->specializations();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "arguments", arrayValue((item).arguments, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("index", item.index());
+                switch (item.index()) {
+                  case 0:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Type*>(
+                                std::get<0>(item))))));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Symbol*>(
+                                std::get<1>(item))))));
+                    break;
+                  case 2:
+                    result.set("value", [&]() -> val {
+                      auto result = val::object();
+                      result.set("index", std::get<2>(item).index());
+                      switch (std::get<2>(item).index()) {
+                        case 0:
+                          result.set(
+                              "value",
+                              val(std::get<0>(std::get<2>(item)).toString()));
+                          break;
+                        case 1:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      static_cast<const ::cxx::Literal*>(
+                                          std::get<1>(std::get<2>(item)))))));
+                          break;
+                        case 2:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<2>(std::get<2>(item)))));
+                          break;
+                        case 3:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<3>(std::get<2>(item)))));
+                          break;
+                        case 4:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<4>(std::get<2>(item)))));
+                          break;
+                        case 5:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<5>(std::get<2>(item)).get()))));
+                          break;
+                        case 6:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<6>(std::get<2>(item)).get()))));
+                          break;
+                        case 7:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<7>(std::get<2>(item)).get()))));
+                          break;
+                        case 8:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<8>(std::get<2>(item)).get()))));
+                          break;
+                        case 9:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<9>(std::get<2>(item)).get()))));
+                          break;
+                        case 10:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<10>(std::get<2>(item)).get()))));
+                          break;
+                        case 11:
+                          result.set("value", val::undefined());
+                          break;
+                      }
+                      return result;
+                    }());
+                    break;
+                  case 3:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::AST*>(
+                                std::get<3>(item))))));
+                    break;
+                }
+                return result;
+              }();
+            }));
+        result.set("symbol",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::Symbol*>((item).symbol)))));
+        result.set(
+            "instantiationErrors",
+            arrayValue((item).instantiationErrors, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("location",
+                           val(static_cast<double>((item).location.index())));
+                result.set("message", val(std::string((item).message)));
+                result.set("severity",
+                           val(static_cast<double>((item).severity)));
+                return result;
+              }();
+            }));
+        result.set("pendingArgumentList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (item).pendingArgumentList))));
+        result.set(
+            "pendingInstantiationLoc",
+            val(static_cast<double>((item).pendingInstantiationLoc.index())));
+        result.set("isPendingInstantiation",
+                   val(static_cast<double>((item).isPendingInstantiation)));
+        return result;
+      }();
+    }
+    case FunctionSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->externInstantiationDeclarations();
@@ -11286,7 +12030,7 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         }();
       });
     }
-    case FunctionSymbolSlotBase + 60: {
+    case FunctionSymbolSlotBase + 66: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->templateFriendships();
@@ -11413,7 +12157,7 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case TypeAliasSymbolSlotBase + 9: {
+    case TypeAliasSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->templateArguments();
@@ -11518,7 +12262,154 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case TypeAliasSymbolSlotBase + 10: {
+    case TypeAliasSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->specializations();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "arguments", arrayValue((item).arguments, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("index", item.index());
+                switch (item.index()) {
+                  case 0:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Type*>(
+                                std::get<0>(item))))));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Symbol*>(
+                                std::get<1>(item))))));
+                    break;
+                  case 2:
+                    result.set("value", [&]() -> val {
+                      auto result = val::object();
+                      result.set("index", std::get<2>(item).index());
+                      switch (std::get<2>(item).index()) {
+                        case 0:
+                          result.set(
+                              "value",
+                              val(std::get<0>(std::get<2>(item)).toString()));
+                          break;
+                        case 1:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      static_cast<const ::cxx::Literal*>(
+                                          std::get<1>(std::get<2>(item)))))));
+                          break;
+                        case 2:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<2>(std::get<2>(item)))));
+                          break;
+                        case 3:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<3>(std::get<2>(item)))));
+                          break;
+                        case 4:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<4>(std::get<2>(item)))));
+                          break;
+                        case 5:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<5>(std::get<2>(item)).get()))));
+                          break;
+                        case 6:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<6>(std::get<2>(item)).get()))));
+                          break;
+                        case 7:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<7>(std::get<2>(item)).get()))));
+                          break;
+                        case 8:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<8>(std::get<2>(item)).get()))));
+                          break;
+                        case 9:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<9>(std::get<2>(item)).get()))));
+                          break;
+                        case 10:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<10>(std::get<2>(item)).get()))));
+                          break;
+                        case 11:
+                          result.set("value", val::undefined());
+                          break;
+                      }
+                      return result;
+                    }());
+                    break;
+                  case 3:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::AST*>(
+                                std::get<3>(item))))));
+                    break;
+                }
+                return result;
+              }();
+            }));
+        result.set("symbol",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::Symbol*>((item).symbol)))));
+        result.set(
+            "instantiationErrors",
+            arrayValue((item).instantiationErrors, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("location",
+                           val(static_cast<double>((item).location.index())));
+                result.set("message", val(std::string((item).message)));
+                result.set("severity",
+                           val(static_cast<double>((item).severity)));
+                return result;
+              }();
+            }));
+        result.set("pendingArgumentList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (item).pendingArgumentList))));
+        result.set(
+            "pendingInstantiationLoc",
+            val(static_cast<double>((item).pendingInstantiationLoc.index())));
+        result.set("isPendingInstantiation",
+                   val(static_cast<double>((item).isPendingInstantiation)));
+        return result;
+      }();
+    }
+    case TypeAliasSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::TypeAliasSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->externInstantiationDeclarations();
@@ -11622,7 +12513,7 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         }();
       });
     }
-    case VariableSymbolSlotBase + 9: {
+    case VariableSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->templateArguments();
@@ -11727,7 +12618,154 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         return result;
       }();
     }
-    case VariableSymbolSlotBase + 10: {
+    case VariableSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::VariableSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->specializations();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "arguments", arrayValue((item).arguments, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("index", item.index());
+                switch (item.index()) {
+                  case 0:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Type*>(
+                                std::get<0>(item))))));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Symbol*>(
+                                std::get<1>(item))))));
+                    break;
+                  case 2:
+                    result.set("value", [&]() -> val {
+                      auto result = val::object();
+                      result.set("index", std::get<2>(item).index());
+                      switch (std::get<2>(item).index()) {
+                        case 0:
+                          result.set(
+                              "value",
+                              val(std::get<0>(std::get<2>(item)).toString()));
+                          break;
+                        case 1:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      static_cast<const ::cxx::Literal*>(
+                                          std::get<1>(std::get<2>(item)))))));
+                          break;
+                        case 2:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<2>(std::get<2>(item)))));
+                          break;
+                        case 3:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<3>(std::get<2>(item)))));
+                          break;
+                        case 4:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<4>(std::get<2>(item)))));
+                          break;
+                        case 5:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<5>(std::get<2>(item)).get()))));
+                          break;
+                        case 6:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<6>(std::get<2>(item)).get()))));
+                          break;
+                        case 7:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<7>(std::get<2>(item)).get()))));
+                          break;
+                        case 8:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<8>(std::get<2>(item)).get()))));
+                          break;
+                        case 9:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<9>(std::get<2>(item)).get()))));
+                          break;
+                        case 10:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<10>(std::get<2>(item)).get()))));
+                          break;
+                        case 11:
+                          result.set("value", val::undefined());
+                          break;
+                      }
+                      return result;
+                    }());
+                    break;
+                  case 3:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::AST*>(
+                                std::get<3>(item))))));
+                    break;
+                }
+                return result;
+              }();
+            }));
+        result.set("symbol",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::Symbol*>((item).symbol)))));
+        result.set(
+            "instantiationErrors",
+            arrayValue((item).instantiationErrors, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("location",
+                           val(static_cast<double>((item).location.index())));
+                result.set("message", val(std::string((item).message)));
+                result.set("severity",
+                           val(static_cast<double>((item).severity)));
+                return result;
+              }();
+            }));
+        result.set("pendingArgumentList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (item).pendingArgumentList))));
+        result.set(
+            "pendingInstantiationLoc",
+            val(static_cast<double>((item).pendingInstantiationLoc.index())));
+        result.set("isPendingInstantiation",
+                   val(static_cast<double>((item).isPendingInstantiation)));
+        return result;
+      }();
+    }
+    case VariableSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::VariableSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       const auto& container = self->externInstantiationDeclarations();
@@ -12720,7 +13758,7 @@ auto readLiteralVal(std::intptr_t handle, int slot) -> val {
         return result;
       }();
     }
-    case StringLiteralSlotBase + 5: {
+    case StringLiteralSlotBase + 6: {
       auto self = static_cast<const ::cxx::StringLiteral*>(
           reinterpret_cast<const ::cxx::Literal*>(handle));
       return [&]() -> val {
@@ -12747,6 +13785,32 @@ auto readLiteralVal(std::intptr_t handle, int slot) -> val {
                    val(std::string((self->components()).userSuffix)));
         return result;
       }();
+    }
+  }
+  cxx_runtime_error("unknown model slot");
+}
+
+auto readLiteralSize(std::intptr_t handle, std::intptr_t unit, int slot)
+    -> int {
+  switch (slot) {
+    case StringLiteralSlotBase + 5: {
+      auto self = static_cast<const ::cxx::StringLiteral*>(
+          reinterpret_cast<const ::cxx::Literal*>(handle));
+      return static_cast<int>(std::size(self->utf16CodeUnits()));
+    }
+  }
+  cxx_runtime_error("unknown model slot");
+}
+
+auto readLiteralItem(std::intptr_t handle, std::intptr_t unit, int slot,
+                     int index) -> double {
+  switch (slot) {
+    case StringLiteralSlotBase + 5: {
+      auto self = static_cast<const ::cxx::StringLiteral*>(
+          reinterpret_cast<const ::cxx::Literal*>(handle));
+      const auto& container = self->utf16CodeUnits();
+      const auto& item = *std::next(std::begin(container), index);
+      return static_cast<double>(item);
     }
   }
   cxx_runtime_error("unknown model slot");
@@ -12789,6 +13853,11 @@ auto readMisc(std::intptr_t handle, int slot) -> double {
     }
     case ConstAddressSlotBase + 5: {
       auto self = reinterpret_cast<const ::cxx::ConstAddress*>(handle);
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->root())));
+    }
+    case ConstAddressSlotBase + 7: {
+      auto self = reinterpret_cast<const ::cxx::ConstAddress*>(handle);
       return static_cast<double>(self->denotesWholeOwner());
     }
   }
@@ -12800,6 +13869,10 @@ auto readMiscBigInt(std::intptr_t handle, int slot) -> std::int64_t {
     case ConstAddressSlotBase + 4: {
       auto self = reinterpret_cast<const ::cxx::ConstAddress*>(handle);
       return static_cast<std::int64_t>(self->offset());
+    }
+    case ConstAddressSlotBase + 6: {
+      auto self = reinterpret_cast<const ::cxx::ConstAddress*>(handle);
+      return static_cast<std::int64_t>(self->displacement());
     }
   }
   cxx_runtime_error("unknown model slot");
@@ -13111,6 +14184,8 @@ EMSCRIPTEN_BINDINGS(cxx_reflection) {
   emscripten::function("readLiteralBigInt", &cxx::js::readLiteralBigInt);
   emscripten::function("readLiteralString", &cxx::js::readLiteralString);
   emscripten::function("readLiteralVal", &cxx::js::readLiteralVal);
+  emscripten::function("readLiteralSize", &cxx::js::readLiteralSize);
+  emscripten::function("readLiteralItem", &cxx::js::readLiteralItem);
   emscripten::function("readMisc", &cxx::js::readMisc);
   emscripten::function("readMiscBigInt", &cxx::js::readMiscBigInt);
   emscripten::function("readMiscString", &cxx::js::readMiscString);

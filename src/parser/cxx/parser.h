@@ -113,6 +113,7 @@ class Parser final {
 
   enum class BindingContext {
     kNamespace,
+    kLinkage,
     kClass,
     kTemplate,
     kBlock,
@@ -441,8 +442,10 @@ class Parser final {
   void parse_condition(ExpressionAST*& yyast, const ExprContext& ctx);
 
   [[nodiscard]] auto parse_labeled_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_case_statement(StatementAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_default_statement(StatementAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_case_statement(StatementAST*& yyast,
+                                          bool isSubstatement) -> bool;
+  [[nodiscard]] auto parse_default_statement(StatementAST*& yyast,
+                                             bool isSubstatement) -> bool;
 
   [[nodiscard]] auto parse_expression_statement(
       StatementAST*& yyast, List<AttributeSpecifierAST*>* attributes) -> bool;
@@ -730,6 +733,8 @@ class Parser final {
   [[nodiscard]] auto parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool;
   [[nodiscard]] auto parse_asm_operand(AsmOperandAST*& yyast) -> bool;
   [[nodiscard]] auto parse_asm_declaration(DeclarationAST*& yyast) -> bool;
+  [[nodiscard]] auto match_asm_colon(SourceLocation& location,
+                                     bool& pendingColon) -> bool;
   [[nodiscard]] auto parse_linkage_specification(DeclarationAST*& yyast)
       -> bool;
 
@@ -1002,6 +1007,8 @@ class Parser final {
   void setScope(ScopeSymbol* scope);
 
   void enterScopeChain(ScopeSymbol* scope);
+  void enterDeclaratorScopeChain(ScopeSymbol* scope);
+  [[nodiscard]] auto declaresMemberTemplateOf(ScopeSymbol* scope) const -> bool;
 
   [[nodiscard]] auto isOnLexicalScopeChain(ScopeSymbol* symbol) const -> bool;
 
@@ -1068,6 +1075,12 @@ class Parser final {
 
   void synthesizeLambdaAbbreviatedTemplateParams(LambdaExpressionAST* ast);
 
+  [[nodiscard]] auto lookupUnqualifiedName(const Name* name) -> Symbol*;
+  auto rebindParenthesizedCallee(ExpressionAST*& callee) -> bool;
+  void lookupUnqualifiedIdExpression(IdExpressionAST* ast,
+                                     IdExpressionContext ctx);
+  [[nodiscard]] auto lookupUnqualifiedTemplateName(const Name* name) -> Symbol*;
+
   struct DeferredAccessCheck {
     Symbol* member = nullptr;
     ClassSymbol* designatingClass = nullptr;
@@ -1082,6 +1095,9 @@ class Parser final {
   ScopeSymbol* accessCheckScope_ = nullptr;
 
   void flushDeferredAccessChecks(ScopeSymbol* accessingScope);
+
+  [[nodiscard]] auto declareFunction(DeclaratorAST* declarator, Decl& decl)
+      -> FunctionSymbol*;
 
   struct DeferredAccessChecksGuard {
     explicit DeferredAccessChecksGuard(Parser* parser) : parser_(parser) {}
@@ -1098,7 +1114,8 @@ class Parser final {
   };
 
   struct AccessCheckScopeGuard {
-    AccessCheckScopeGuard(Parser* parser, const Decl& decl);
+    AccessCheckScopeGuard(Parser* parser, const Decl& decl,
+                          DeclaratorAST* declarator);
     AccessCheckScopeGuard(Parser* parser, ScopeSymbol* scope);
     ~AccessCheckScopeGuard() { parser_->accessCheckScope_ = saved_; }
 
@@ -1183,6 +1200,13 @@ class Parser final {
         return it->second;
       }
       return std::nullopt;
+    }
+
+    void erase(SourceLocation loc) {
+      auto it = this->map_.find(loc);
+      if (it == this->map_.end()) return;
+      queue_.erase(std::find(queue_.begin(), queue_.end(), it));
+      this->map_.erase(it);
     }
 
     void set(SourceLocation startLoc, SourceLocation endLoc, T* ast,

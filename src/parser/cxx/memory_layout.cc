@@ -567,6 +567,12 @@ auto MemoryLayout::longDoubleMantissaDigits() const -> std::size_t {
   return longDoubleMantissaDigits_;
 }
 
+auto MemoryLayout::unwindExceptionSize() const -> std::size_t {
+  const auto size = 3 * sizeof(std::uint64_t) + sizeOfPointer_;
+  const auto alignment = 2 * sizeOfPointer_;
+  return (size + alignment - 1) / alignment * alignment;
+}
+
 void MemoryLayout::setSizeOfPointer(std::size_t sizeOfPointer) {
   sizeOfPointer_ = sizeOfPointer;
 }
@@ -702,6 +708,18 @@ auto MemoryLayout::arch() const -> std::string_view {
   return std::string_view{triple_}.substr(0, triple_.find('-'));
 }
 
+auto MemoryLayout::targetArch() const -> TripleArch {
+  return parseTripleArch(arch());
+}
+
+auto MemoryLayout::isAArch64() const -> bool {
+  return targetArch() == TripleArch::kAArch64;
+}
+
+auto MemoryLayout::isX86_64() const -> bool {
+  return targetArch() == TripleArch::kX86_64;
+}
+
 auto MemoryLayout::isWebAssembly() const -> bool {
   return arch().starts_with("wasm");
 }
@@ -714,24 +732,23 @@ auto MemoryLayout::isDarwin() const -> bool {
 }
 
 auto MemoryLayout::usesArmMemberPointerAbi() const -> bool {
-  const auto arch = this->arch();
-  return arch.starts_with("arm") || arch.starts_with("aarch64") ||
-         arch.starts_with("thumb") || isWebAssembly();
+  return isAArch64() || isWebAssembly();
 }
 
 auto MemoryLayout::zeroWidthBitFieldAlignsAggregate() const -> bool {
   if (isDarwin()) return false;
-  const auto arch = this->arch();
-  return arch.starts_with("arm") || arch.starts_with("aarch64") ||
-         arch.starts_with("thumb");
+  return isAArch64();
 }
 
 auto MemoryLayout::structorsReturnThis() const -> bool {
   if (isWebAssembly()) return true;
-  const auto arch = this->arch();
-  if (arch.starts_with("aarch64") || arch.starts_with("arm64"))
-    return isDarwin();
-  return arch.starts_with("arm") || arch.starts_with("thumb");
+  if (isAArch64()) return isDarwin();
+  return false;
+}
+
+auto MemoryLayout::arrayCookieHasElementSize() const -> bool {
+  if (isAArch64()) return isDarwin();
+  return false;
 }
 
 auto MemoryLayout::defaultNewAlignment() const -> std::size_t {
@@ -747,21 +764,17 @@ auto MemoryLayout::alignedAttributeAlignment() const -> std::size_t {
 }
 
 auto MemoryLayout::maxAtomicInlineWidth() const -> std::size_t {
-  const auto arch = this->arch();
-  if (arch.starts_with("aarch64") || arch.starts_with("arm64")) return 128;
+  if (isAArch64()) return 128;
   return 64;
 }
 
 auto MemoryLayout::maxAtomicPromoteWidth() const -> std::size_t {
-  const auto arch = this->arch();
-  if (arch.starts_with("aarch64") || arch.starts_with("arm64")) return 128;
-  if (arch.starts_with("x86_64")) return 128;
+  if (isAArch64() || isX86_64()) return 128;
   return 64;
 }
 
 auto MemoryLayout::maxVectorAlignment() const -> std::size_t {
-  const auto arch = this->arch();
-  if (arch.starts_with("aarch64") || arch.starts_with("arm64")) return 16;
+  if (isAArch64()) return 16;
   return 0;
 }
 
@@ -770,12 +783,9 @@ auto MemoryLayout::nullMemberObjectPointer() const -> std::int64_t {
 }
 
 auto MemoryLayout::classValueAbiKind() const -> ClassValueAbiKind {
-  const auto arch = this->arch();
   if (isWebAssembly()) return ClassValueAbiKind::kSingleScalar;
-  if (arch.starts_with("aarch64") || arch.starts_with("arm64"))
-    return ClassValueAbiKind::kAArch64;
-  if (arch.starts_with("x86_64") || arch.starts_with("amd64"))
-    return ClassValueAbiKind::kX86_64;
+  if (isAArch64()) return ClassValueAbiKind::kAArch64;
+  if (isX86_64()) return ClassValueAbiKind::kX86_64;
   return ClassValueAbiKind::kDefault;
 }
 
@@ -793,9 +803,7 @@ auto to_string(FramePointerKind kind) -> std::string_view {
 
 auto MemoryLayout::framePointerKind() const -> FramePointerKind {
   if (!isDarwin()) return FramePointerKind::kNone;
-  const auto arch = this->arch();
-  if (arch.starts_with("aarch64") || arch.starts_with("arm64"))
-    return FramePointerKind::kNonLeaf;
+  if (isAArch64()) return FramePointerKind::kNonLeaf;
   return FramePointerKind::kAll;
 }
 

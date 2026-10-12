@@ -356,6 +356,8 @@ class Token;
   V(__BUILTIN_FUNCTION, "__builtin_FUNCTION")                                 \
   V(__BUILTIN_LINE, "__builtin_LINE")                                         \
   V(__BUILTIN__EXIT, "__builtin__Exit")                                       \
+  V(__BUILTIN___CFSTRINGMAKECONSTANTSTRING,                                   \
+    "__builtin___CFStringMakeConstantString")                                 \
   V(__BUILTIN___COSPI, "__builtin___cospi")                                   \
   V(__BUILTIN___COSPIF, "__builtin___cospif")                                 \
   V(__BUILTIN___EXP10, "__builtin___exp10")                                   \
@@ -386,6 +388,7 @@ class Token;
   V(__BUILTIN_ASINHF, "__builtin_asinhf")                                     \
   V(__BUILTIN_ASINHL, "__builtin_asinhl")                                     \
   V(__BUILTIN_ASINL, "__builtin_asinl")                                       \
+  V(__BUILTIN_ASSUME, "__builtin_assume")                                     \
   V(__BUILTIN_ASSUME_ALIGNED, "__builtin_assume_aligned")                     \
   V(__BUILTIN_ATAN, "__builtin_atan")                                         \
   V(__BUILTIN_ATAN2, "__builtin_atan2")                                       \
@@ -556,6 +559,7 @@ class Token;
   V(__BUILTIN_FMODF, "__builtin_fmodf")                                       \
   V(__BUILTIN_FMODL, "__builtin_fmodl")                                       \
   V(__BUILTIN_FPCLASSIFY, "__builtin_fpclassify")                             \
+  V(__BUILTIN_FRAME_ADDRESS, "__builtin_frame_address")                       \
   V(__BUILTIN_FREXP, "__builtin_frexp")                                       \
   V(__BUILTIN_FREXPF, "__builtin_frexpf")                                     \
   V(__BUILTIN_FREXPL, "__builtin_frexpl")                                     \
@@ -681,6 +685,7 @@ class Token;
   V(__BUILTIN_REMQUO, "__builtin_remquo")                                     \
   V(__BUILTIN_REMQUOF, "__builtin_remquof")                                   \
   V(__BUILTIN_REMQUOL, "__builtin_remquol")                                   \
+  V(__BUILTIN_RETURN_ADDRESS, "__builtin_return_address")                     \
   V(__BUILTIN_RINDEX, "__builtin_rindex")                                     \
   V(__BUILTIN_RINT, "__builtin_rint")                                         \
   V(__BUILTIN_RINTF, "__builtin_rintf")                                       \
@@ -752,6 +757,7 @@ class Token;
   V(__BUILTIN_TGAMMA, "__builtin_tgamma")                                     \
   V(__BUILTIN_TGAMMAF, "__builtin_tgammaf")                                   \
   V(__BUILTIN_TGAMMAL, "__builtin_tgammal")                                   \
+  V(__BUILTIN_THREAD_POINTER, "__builtin_thread_pointer")                     \
   V(__BUILTIN_TOLOWER, "__builtin_tolower")                                   \
   V(__BUILTIN_TOUPPER, "__builtin_toupper")                                   \
   V(__BUILTIN_TRAP, "__builtin_trap")                                         \
@@ -825,6 +831,7 @@ class Token;
   V(INITIALIZER_LIST, "initializer_list")       \
   V(NOTHROW_T, "nothrow_t")                     \
   V(PARTIAL_ORDERING, "partial_ordering")       \
+  V(REFERENCE_WRAPPER, "reference_wrapper")     \
   V(SOURCE_LOCATION, "source_location")         \
   V(STRONG_ORDERING, "strong_ordering")         \
   V(TUPLE_ELEMENT, "tuple_element")             \
@@ -842,6 +849,7 @@ class Token;
 
 #define FOR_EACH_TOKEN_ALIAS(V)    \
   V(RESTRICT, __RESTRICT__)        \
+  V(__AUTO_TYPE, AUTO)             \
   V(__ALIGNOF__, ALIGNOF)          \
   V(__ALIGNOF, ALIGNOF)            \
   V(__ASM__, ASM)                  \

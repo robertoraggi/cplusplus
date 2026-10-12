@@ -43,10 +43,21 @@ auto ASTRewriter::shouldStopSubstitution() const -> bool {
   return substitutionFailed_ || diagnostics->errorCount() != 0;
 }
 
+namespace {
+
+[[nodiscard]] auto templateNameDenotes(Symbol* pattern, Symbol* instance)
+    -> bool {
+  if (primary_template_of(instance) != pattern) return true;
+  return symbol_cast<ClassSymbol>(instance) != nullptr;
+}
+
+}  // namespace
+
 void ASTRewriter::addSymbolRemap(Symbol* oldSym, Symbol* newSym) {
   if (!oldSym || !newSym || oldSym == newSym) return;
-  symbolRemap_[oldSym] = newSym;
   if (!newSym->instantiationPattern()) newSym->setInstantiationPattern(oldSym);
+  if (!templateNameDenotes(oldSym, newSym)) return;
+  symbolRemap_[oldSym] = newSym;
 }
 
 void ASTRewriter::remapStructuredBindingSymbols(
@@ -54,12 +65,13 @@ void ASTRewriter::remapStructuredBindingSymbols(
     StructuredBindingDeclarationAST* to) {
   if (!from || !to) return;
 
-  if (from->hiddenVariable && to->hiddenVariable) {
-    addSymbolRemap(from->hiddenVariable->symbol, to->hiddenVariable->symbol);
+  if (from->binding.hiddenVariable && to->binding.hiddenVariable) {
+    addSymbolRemap(from->binding.hiddenVariable->symbol,
+                   to->binding.hiddenVariable->symbol);
   }
 
-  for (auto oldNode = from->bindingDeclaratorList,
-            newNode = to->bindingDeclaratorList;
+  for (auto oldNode = from->binding.bindingDeclaratorList,
+            newNode = to->binding.bindingDeclaratorList;
        oldNode && newNode; oldNode = oldNode->next, newNode = newNode->next) {
     addSymbolRemap(oldNode->value->symbol, newNode->value->symbol);
   }
