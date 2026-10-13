@@ -3217,6 +3217,39 @@ static inline auto classifyBuiltinFunction18(const char* s)
             }
           }
         }
+      } else if (s[2] == 's') {
+        if (s[3] == 'y') {
+          if (s[4] == 'n') {
+            if (s[5] == 'c') {
+              if (s[6] == '_') {
+                if (s[7] == 's') {
+                  if (s[8] == 'y') {
+                    if (s[9] == 'n') {
+                      if (s[10] == 'c') {
+                        if (s[11] == 'h') {
+                          if (s[12] == 'r') {
+                            if (s[13] == 'o') {
+                              if (s[14] == 'n') {
+                                if (s[15] == 'i') {
+                                  if (s[16] == 'z') {
+                                    if (s[17] == 'e') {
+                                      return cxx::BuiltinFunctionKind::
+                                          T___SYNC_SYNCHRONIZE;
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -3574,6 +3607,91 @@ static inline auto classifyBuiltinFunction19(const char* s)
             }
           }
         }
+      } else if (s[2] == 's') {
+        if (s[3] == 'y') {
+          if (s[4] == 'n') {
+            if (s[5] == 'c') {
+              if (s[6] == '_') {
+                if (s[7] == 'f') {
+                  if (s[8] == 'e') {
+                    if (s[9] == 't') {
+                      if (s[10] == 'c') {
+                        if (s[11] == 'h') {
+                          if (s[12] == '_') {
+                            if (s[13] == 'a') {
+                              if (s[14] == 'n') {
+                                if (s[15] == 'd') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'r') {
+                                        return cxx::BuiltinFunctionKind::
+                                            T___SYNC_FETCH_AND_OR;
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else if (s[7] == 'l') {
+                  if (s[8] == 'o') {
+                    if (s[9] == 'c') {
+                      if (s[10] == 'k') {
+                        if (s[11] == '_') {
+                          if (s[12] == 'r') {
+                            if (s[13] == 'e') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'e') {
+                                  if (s[16] == 'a') {
+                                    if (s[17] == 's') {
+                                      if (s[18] == 'e') {
+                                        return cxx::BuiltinFunctionKind::
+                                            T___SYNC_LOCK_RELEASE;
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else if (s[7] == 'o') {
+                  if (s[8] == 'r') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'a') {
+                        if (s[11] == 'n') {
+                          if (s[12] == 'd') {
+                            if (s[13] == '_') {
+                              if (s[14] == 'f') {
+                                if (s[15] == 'e') {
+                                  if (s[16] == 't') {
+                                    if (s[17] == 'c') {
+                                      if (s[18] == 'h') {
+                                        return cxx::BuiltinFunctionKind::
+                                            T___SYNC_OR_AND_FETCH;
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -3827,6 +3945,168 @@ static inline auto classifyBuiltinFunction20(const char* s)
                                         if (s[19] == 'p') {
                                           return cxx::BuiltinFunctionKind::
                                               T___BUILTIN_STRCASECMP;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 's') {
+        if (s[3] == 'y') {
+          if (s[4] == 'n') {
+            if (s[5] == 'c') {
+              if (s[6] == '_') {
+                if (s[7] == 'a') {
+                  if (s[8] == 'd') {
+                    if (s[9] == 'd') {
+                      if (s[10] == '_') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'n') {
+                            if (s[13] == 'd') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'f') {
+                                  if (s[16] == 'e') {
+                                    if (s[17] == 't') {
+                                      if (s[18] == 'c') {
+                                        if (s[19] == 'h') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___SYNC_ADD_AND_FETCH;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  } else if (s[8] == 'n') {
+                    if (s[9] == 'd') {
+                      if (s[10] == '_') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'n') {
+                            if (s[13] == 'd') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'f') {
+                                  if (s[16] == 'e') {
+                                    if (s[17] == 't') {
+                                      if (s[18] == 'c') {
+                                        if (s[19] == 'h') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___SYNC_AND_AND_FETCH;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else if (s[7] == 'f') {
+                  if (s[8] == 'e') {
+                    if (s[9] == 't') {
+                      if (s[10] == 'c') {
+                        if (s[11] == 'h') {
+                          if (s[12] == '_') {
+                            if (s[13] == 'a') {
+                              if (s[14] == 'n') {
+                                if (s[15] == 'd') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'a') {
+                                      if (s[18] == 'd') {
+                                        if (s[19] == 'd') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___SYNC_FETCH_AND_ADD;
+                                        }
+                                      } else if (s[18] == 'n') {
+                                        if (s[19] == 'd') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___SYNC_FETCH_AND_AND;
+                                        }
+                                      }
+                                    } else if (s[17] == 's') {
+                                      if (s[18] == 'u') {
+                                        if (s[19] == 'b') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___SYNC_FETCH_AND_SUB;
+                                        }
+                                      }
+                                    } else if (s[17] == 'x') {
+                                      if (s[18] == 'o') {
+                                        if (s[19] == 'r') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___SYNC_FETCH_AND_XOR;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else if (s[7] == 's') {
+                  if (s[8] == 'u') {
+                    if (s[9] == 'b') {
+                      if (s[10] == '_') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'n') {
+                            if (s[13] == 'd') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'f') {
+                                  if (s[16] == 'e') {
+                                    if (s[17] == 't') {
+                                      if (s[18] == 'c') {
+                                        if (s[19] == 'h') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___SYNC_SUB_AND_FETCH;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else if (s[7] == 'x') {
+                  if (s[8] == 'o') {
+                    if (s[9] == 'r') {
+                      if (s[10] == '_') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'n') {
+                            if (s[13] == 'd') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'f') {
+                                  if (s[16] == 'e') {
+                                    if (s[17] == 't') {
+                                      if (s[18] == 'c') {
+                                        if (s[19] == 'h') {
+                                          return cxx::BuiltinFunctionKind::
+                                              T___SYNC_XOR_AND_FETCH;
                                         }
                                       }
                                     }
@@ -4157,6 +4437,74 @@ static inline auto classifyBuiltinFunction21(const char* s)
                                           if (s[20] == 'r') {
                                             return cxx::BuiltinFunctionKind::
                                                 T___C11_ATOMIC_FETCH_OR;
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 's') {
+        if (s[3] == 'y') {
+          if (s[4] == 'n') {
+            if (s[5] == 'c') {
+              if (s[6] == '_') {
+                if (s[7] == 'f') {
+                  if (s[8] == 'e') {
+                    if (s[9] == 't') {
+                      if (s[10] == 'c') {
+                        if (s[11] == 'h') {
+                          if (s[12] == '_') {
+                            if (s[13] == 'a') {
+                              if (s[14] == 'n') {
+                                if (s[15] == 'd') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'n') {
+                                      if (s[18] == 'a') {
+                                        if (s[19] == 'n') {
+                                          if (s[20] == 'd') {
+                                            return cxx::BuiltinFunctionKind::
+                                                T___SYNC_FETCH_AND_NAND;
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else if (s[7] == 'n') {
+                  if (s[8] == 'a') {
+                    if (s[9] == 'n') {
+                      if (s[10] == 'd') {
+                        if (s[11] == '_') {
+                          if (s[12] == 'a') {
+                            if (s[13] == 'n') {
+                              if (s[14] == 'd') {
+                                if (s[15] == '_') {
+                                  if (s[16] == 'f') {
+                                    if (s[17] == 'e') {
+                                      if (s[18] == 't') {
+                                        if (s[19] == 'c') {
+                                          if (s[20] == 'h') {
+                                            return cxx::BuiltinFunctionKind::
+                                                T___SYNC_NAND_AND_FETCH;
                                           }
                                         }
                                       }
@@ -4816,6 +5164,51 @@ static inline auto classifyBuiltinFunction24(const char* s)
             }
           }
         }
+      } else if (s[2] == 's') {
+        if (s[3] == 'y') {
+          if (s[4] == 'n') {
+            if (s[5] == 'c') {
+              if (s[6] == '_') {
+                if (s[7] == 'l') {
+                  if (s[8] == 'o') {
+                    if (s[9] == 'c') {
+                      if (s[10] == 'k') {
+                        if (s[11] == '_') {
+                          if (s[12] == 't') {
+                            if (s[13] == 'e') {
+                              if (s[14] == 's') {
+                                if (s[15] == 't') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'a') {
+                                      if (s[18] == 'n') {
+                                        if (s[19] == 'd') {
+                                          if (s[20] == '_') {
+                                            if (s[21] == 's') {
+                                              if (s[22] == 'e') {
+                                                if (s[23] == 't') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___SYNC_LOCK_TEST_AND_SET;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -5171,6 +5564,122 @@ static inline auto classifyBuiltinFunction27(const char* s)
                                                         return cxx::
                                                             BuiltinFunctionKind::
                                                                 T___BUILTIN_ALLOCA_WITH_ALIGN;
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 's') {
+        if (s[3] == 'y') {
+          if (s[4] == 'n') {
+            if (s[5] == 'c') {
+              if (s[6] == '_') {
+                if (s[7] == 'v') {
+                  if (s[8] == 'a') {
+                    if (s[9] == 'l') {
+                      if (s[10] == '_') {
+                        if (s[11] == 'c') {
+                          if (s[12] == 'o') {
+                            if (s[13] == 'm') {
+                              if (s[14] == 'p') {
+                                if (s[15] == 'a') {
+                                  if (s[16] == 'r') {
+                                    if (s[17] == 'e') {
+                                      if (s[18] == '_') {
+                                        if (s[19] == 'a') {
+                                          if (s[20] == 'n') {
+                                            if (s[21] == 'd') {
+                                              if (s[22] == '_') {
+                                                if (s[23] == 's') {
+                                                  if (s[24] == 'w') {
+                                                    if (s[25] == 'a') {
+                                                      if (s[26] == 'p') {
+                                                        return cxx::
+                                                            BuiltinFunctionKind::
+                                                                T___SYNC_VAL_COMPARE_AND_SWAP;
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return cxx::BuiltinFunctionKind::T_NONE;
+}
+
+static inline auto classifyBuiltinFunction28(const char* s)
+    -> cxx::BuiltinFunctionKind {
+  if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 's') {
+        if (s[3] == 'y') {
+          if (s[4] == 'n') {
+            if (s[5] == 'c') {
+              if (s[6] == '_') {
+                if (s[7] == 'b') {
+                  if (s[8] == 'o') {
+                    if (s[9] == 'o') {
+                      if (s[10] == 'l') {
+                        if (s[11] == '_') {
+                          if (s[12] == 'c') {
+                            if (s[13] == 'o') {
+                              if (s[14] == 'm') {
+                                if (s[15] == 'p') {
+                                  if (s[16] == 'a') {
+                                    if (s[17] == 'r') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == '_') {
+                                          if (s[20] == 'a') {
+                                            if (s[21] == 'n') {
+                                              if (s[22] == 'd') {
+                                                if (s[23] == '_') {
+                                                  if (s[24] == 's') {
+                                                    if (s[25] == 'w') {
+                                                      if (s[26] == 'a') {
+                                                        if (s[27] == 'p') {
+                                                          return cxx::
+                                                              BuiltinFunctionKind::
+                                                                  T___SYNC_BOOL_COMPARE_AND_SWAP;
+                                                        }
                                                       }
                                                     }
                                                   }
@@ -5561,6 +6070,8 @@ static auto classifyBuiltinFunction(const char* s, int n)
       return classifyBuiltinFunction25(s);
     case 27:
       return classifyBuiltinFunction27(s);
+    case 28:
+      return classifyBuiltinFunction28(s);
     case 31:
       return classifyBuiltinFunction31(s);
     case 34:

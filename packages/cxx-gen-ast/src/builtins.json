@@ -4582,5 +4582,107 @@
     "prototype": "void* __builtin_thread_pointer()",
     "constexpr": false,
     "noexcept": true
+  },
+  {
+    "name": "__sync_fetch_and_add",
+    "prototype": "long long __sync_fetch_and_add(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_add_and_fetch",
+    "prototype": "long long __sync_add_and_fetch(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_fetch_and_sub",
+    "prototype": "long long __sync_fetch_and_sub(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_sub_and_fetch",
+    "prototype": "long long __sync_sub_and_fetch(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_fetch_and_and",
+    "prototype": "long long __sync_fetch_and_and(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_and_and_fetch",
+    "prototype": "long long __sync_and_and_fetch(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_fetch_and_or",
+    "prototype": "long long __sync_fetch_and_or(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_or_and_fetch",
+    "prototype": "long long __sync_or_and_fetch(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_fetch_and_xor",
+    "prototype": "long long __sync_fetch_and_xor(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_xor_and_fetch",
+    "prototype": "long long __sync_xor_and_fetch(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_fetch_and_nand",
+    "prototype": "long long __sync_fetch_and_nand(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_nand_and_fetch",
+    "prototype": "long long __sync_nand_and_fetch(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_bool_compare_and_swap",
+    "prototype": "bool __sync_bool_compare_and_swap(volatile void*, long long, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_val_compare_and_swap",
+    "prototype": "long long __sync_val_compare_and_swap(volatile void*, long long, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_lock_test_and_set",
+    "prototype": "long long __sync_lock_test_and_set(volatile void*, long long, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_lock_release",
+    "prototype": "void __sync_lock_release(volatile void*, ...)",
+    "constexpr": false,
+    "typeCheck": "checkBuiltinAtomic"
+  },
+  {
+    "name": "__sync_synchronize",
+    "prototype": "void __sync_synchronize()",
+    "constexpr": false,
+    "noexcept": true
   }
 ]

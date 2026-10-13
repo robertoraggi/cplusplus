@@ -10188,11 +10188,11 @@ void SemanticDecoder::readSymbolFunctionSymbol(
   self->setEnableIfConditions(std::move(value60));
   // ::cxx::FunctionSymbol::builtinKind_
   static_assert(static_cast<std::uint32_t>(
-                    ::cxx::BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE) +
+                    ::cxx::BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH) +
                     1 ==
-                467);
+                484);
   ::cxx::BuiltinFunctionKind value64 =
-      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 467));
+      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 484));
   self->setBuiltinKind(std::move(value64));
   // ::cxx::FunctionSymbol::isDefined_
   unsigned int value65 = static_cast<unsigned int>(in.varU32());
