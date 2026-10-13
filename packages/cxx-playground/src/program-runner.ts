@@ -19,6 +19,7 @@ export interface TerminalSink {
 }
 
 export interface RunOptions {
+  mlirPipeline?: string
   debugInfo: boolean
   optimizationLevel: number
 }

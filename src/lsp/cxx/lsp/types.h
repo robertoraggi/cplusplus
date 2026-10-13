@@ -12767,6 +12767,14 @@ class EmitCodeParams final : public LSPObject {
     return T(value);
   }
 
+  [[nodiscard]] auto mlirPipeline() const -> std::optional<std::string>;
+
+  template <typename T>
+  [[nodiscard]] auto mlirPipeline() -> T {
+    auto& value = (*repr_)["mlirPipeline"];
+    return T(value);
+  }
+
   auto textDocument(TextDocumentIdentifier textDocument) -> EmitCodeParams&;
 
   auto format(EmitCodeFormat format) -> EmitCodeParams&;
@@ -12775,6 +12783,8 @@ class EmitCodeParams final : public LSPObject {
 
   auto optimizationLevel(std::optional<long> optimizationLevel)
       -> EmitCodeParams&;
+
+  auto mlirPipeline(std::optional<std::string> mlirPipeline) -> EmitCodeParams&;
 };
 
 class EmitCodeResult final : public LSPObject {

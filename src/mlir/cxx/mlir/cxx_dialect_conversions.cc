@@ -37,9 +37,11 @@ auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
     -> mlir::LogicalResult {
   if (passPipeline.empty()) return mlir::success();
 
+  registerCxxToLLVMPass();
   registerConvertCxxToPtrPass();
   registerLiftCxxControlFlowToSCFPass();
   mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
+  mlir::registerCanonicalizerPass();
 
   mlir::PassManager pm(module->getName());
   if (failed(mlir::parsePassPipeline(passPipeline, pm))) return mlir::failure();
@@ -51,7 +53,7 @@ auto cxx::lowerToMLIR(mlir::ModuleOp module, llvm::StringRef passPipeline)
   if (failed(runMLIRPassPipeline(module, passPipeline))) return mlir::failure();
 
   mlir::PassManager pm(module->getName());
-
+  pm.addPass(mlir::createSCFToControlFlowPass());
   pm.addPass(cxx::createLowerToLLVMPass());
   pm.addPass(mlir::createCanonicalizerPass());
 

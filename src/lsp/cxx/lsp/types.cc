@@ -23771,6 +23771,16 @@ auto EmitCodeParams::optimizationLevel() const -> std::optional<long> {
   return value.get<long>();
 }
 
+auto EmitCodeParams::mlirPipeline() const -> std::optional<std::string> {
+  if (!repr_->contains("mlirPipeline")) return std::nullopt;
+
+  auto& value = (*repr_)["mlirPipeline"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
 auto EmitCodeParams::textDocument(TextDocumentIdentifier textDocument)
     -> EmitCodeParams& {
   (*repr_)["textDocument"] = textDocument;
@@ -23799,6 +23809,16 @@ auto EmitCodeParams::optimizationLevel(std::optional<long> optimizationLevel)
     return *this;
   }
   (*repr_)["optimizationLevel"] = std::move(optimizationLevel.value());
+  return *this;
+}
+
+auto EmitCodeParams::mlirPipeline(std::optional<std::string> mlirPipeline)
+    -> EmitCodeParams& {
+  if (!mlirPipeline.has_value()) {
+    repr_->erase("mlirPipeline");
+    return *this;
+  }
+  (*repr_)["mlirPipeline"] = std::move(mlirPipeline.value());
   return *this;
 }
 

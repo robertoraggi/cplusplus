@@ -237,15 +237,16 @@ void Server::sendNullResult(std::optional<std::variant<long, std::string>> id) {
 
 void Server::sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
                              EmitCodeFormat format, bool debugInfo,
-                             int optimizationLevel) {
+                             int optimizationLevel,
+                             const std::string& mlirPipeline) {
   const auto startedAt = std::chrono::steady_clock::now();
 
   logTrace(std::format(
       "emit event=started file={} version={} format={} interruptible=false",
       document.fileName(), document.version(), to_string(format)));
 
-  auto emitted =
-      host_->emitCode(document, format, debugInfo, optimizationLevel);
+  auto emitted = host_->emitCode(document, format, debugInfo, optimizationLevel,
+                                 mlirPipeline);
 
   logTrace(std::format(
       "emit event=finished file={} version={} format={} duration_ms={:.1f}",
@@ -1057,6 +1058,7 @@ void Server::operator()(EmitCodeRequest request) {
   auto id = request.id();
   auto format = params.format();
   auto debugInfo = params.debugInfo().value_or(false);
+  auto mlirPipeline = params.mlirPipeline().value_or("");
   auto optimizationLevel =
       static_cast<int>(params.optimizationLevel().value_or(0));
 
@@ -1092,7 +1094,7 @@ void Server::operator()(EmitCodeRequest request) {
                                                     snapshot->value.size(), id);
 
   host_->run([this, storage, parserRequest, response, uri, version, format,
-              debugInfo, optimizationLevel,
+              debugInfo, optimizationLevel, mlirPipeline,
               source = std::move(snapshot->value)]() mutable {
     if (parserRequestIsInvalidated(parserRequest)) {
       skipParserRequest(parserRequest);
@@ -1106,7 +1108,7 @@ void Server::operator()(EmitCodeRequest request) {
     if (canReuse) {
       reuseParserRequest(parserRequest);
       sendEmittedCode(response, *parsedDocument, format, debugInfo,
-                      optimizationLevel);
+                      optimizationLevel, mlirPipeline);
       return;
     }
 
@@ -1114,10 +1116,11 @@ void Server::operator()(EmitCodeRequest request) {
 
     host_->process(*parserRequest->document, std::move(source),
                    [this, storage, parserRequest, response, format, debugInfo,
-                    optimizationLevel, startedAt] {
+                    optimizationLevel, mlirPipeline, startedAt] {
                      if (!finishParserRequest(parserRequest, startedAt)) return;
                      sendEmittedCode(response, *parserRequest->document, format,
-                                     debugInfo, optimizationLevel);
+                                     debugInfo, optimizationLevel,
+                                     mlirPipeline);
                    });
   });
 }

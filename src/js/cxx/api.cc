@@ -111,6 +111,7 @@ struct WrappedUnit {
   std::string fileName;
   bool debugInfo = true;
   int optimizationLevel = 0;
+  std::string mlirPipeline;
 
   WrappedUnit(std::string source, std::string fileName, UnitOptions api)
       : api(api), source(std::move(source)), fileName(std::move(fileName)) {
@@ -121,6 +122,10 @@ struct WrappedUnit {
     if (!api.isUndefined()) {
       if (val value = api["debugInfo"]; value.isTrue() || value.isFalse()) {
         debugInfo = value.as<bool>();
+      }
+
+      if (val value = api["mlirPipeline"]; value.isString()) {
+        mlirPipeline = value.as<std::string>();
       }
 
       if (val value = api["optimizationLevel"]; value.isNumber()) {
@@ -184,8 +189,8 @@ struct WrappedUnit {
 
     toolchain->applyEntryPointAbi(unit.get());
 
-    auto generated =
-        cxx::js::generateCode(unit.get(), format, debugInfo, optimizationLevel);
+    auto generated = cxx::js::generateCode(unit.get(), format, debugInfo,
+                                           optimizationLevel, mlirPipeline);
 
     if (!generated) return emptyOutput();
 
@@ -259,7 +264,7 @@ auto createUnit(std::string source, std::string fileName, UnitOptions api)
 EMSCRIPTEN_BINDINGS(cxx) {
   register_type<UnitOptions>(
       "UnitOptions",
-      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; optimizationLevel?: number | undefined; exceptions?: boolean | undefined; rtti?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
+      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; mlirPipeline?: string | undefined; optimizationLevel?: number | undefined; exceptions?: boolean | undefined; rtti?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
 
   register_type<EmitterDelegate>("EmitterDelegate",
                                  R"(import("./Emitter.js").EmitterDelegate)");

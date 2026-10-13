@@ -26,8 +26,8 @@ ServerHost::~ServerHost() = default;
 
 auto ServerHost::supportsEmitCode() const -> bool { return false; }
 
-auto ServerHost::emitCode(CxxDocument&, EmitCodeFormat, bool, int)
-    -> std::optional<EmittedCode> {
+auto ServerHost::emitCode(CxxDocument&, EmitCodeFormat, bool, int,
+                          const std::string&) -> std::optional<EmittedCode> {
   return std::nullopt;
 }
 

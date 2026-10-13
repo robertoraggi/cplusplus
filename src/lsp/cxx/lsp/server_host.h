@@ -54,7 +54,8 @@ class ServerHost {
 
   [[nodiscard]] virtual auto emitCode(CxxDocument& document,
                                       EmitCodeFormat format, bool debugInfo,
-                                      int optimizationLevel)
+                                      int optimizationLevel,
+                                      const std::string& mlirPipeline)
       -> std::optional<EmittedCode>;
 
   virtual void run(std::function<void()> task);

@@ -119,7 +119,7 @@ class Server {
 
   void sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
                        EmitCodeFormat format, bool debugInfo,
-                       int optimizationLevel);
+                       int optimizationLevel, const std::string& mlirPipeline);
 
   void logTrace(std::string message, std::optional<std::string> verbose = {});
 

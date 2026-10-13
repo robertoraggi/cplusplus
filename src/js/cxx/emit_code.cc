@@ -48,8 +48,8 @@ namespace cxx::js {
 
 auto hasCodeGenerator() -> bool { return false; }
 
-auto generateCode(TranslationUnit*, std::string_view, bool, int)
-    -> std::optional<GeneratedCode> {
+auto generateCode(TranslationUnit*, std::string_view, bool, int,
+                  std::string_view) -> std::optional<GeneratedCode> {
   return std::nullopt;
 }
 
@@ -58,7 +58,8 @@ auto generateCode(TranslationUnit*, std::string_view, bool, int)
 auto hasCodeGenerator() -> bool { return true; }
 
 auto generateCode(TranslationUnit* unit, std::string_view format,
-                  bool debugInfo, int optimizationLevel)
+                  bool debugInfo, int optimizationLevel,
+                  std::string_view mlirPipeline)
     -> std::optional<GeneratedCode> {
   const auto objectFile = format == "obj";
 
@@ -88,6 +89,11 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
     if (debugInfo) flags.enableDebugInfo(true);
     return flags;
   };
+
+  if (failed(runMLIRPassPipeline(module, mlirPipeline))) {
+    if (objectFile) return GeneratedCode{};
+    return GeneratedCode{.text = "<error running MLIR pipeline>"};
+  }
 
   if (format == "cxxir") {
     module->print(os, printingFlags());
