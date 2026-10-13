@@ -149,6 +149,8 @@ auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
   auto toolchain = instantiateToolchain(cli, preprocessor, target);
   if (!toolchain) return {};
 
+  toolchain->setExceptionsEnabled(
+      cli.exceptionsEnabled(!toolchain->triple().isWebAssembly()));
   toolchain->setAppdir(applicationDirectory(cli).string());
 
   if (auto paths = cli.get("-resource-dir"); !paths.empty()) {
@@ -274,7 +276,6 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
   if (!toolchain) return {};
 
   toolchain->setLanguage(language);
-  toolchain->setExceptionsEnabled(cli.exceptionsEnabled());
   toolchain->setRttiEnabled(cli.rttiEnabled());
   if (toolchain->supportsPositionIndependence()) {
     toolchain->memoryLayout()->setPositionIndependence(

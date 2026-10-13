@@ -1286,7 +1286,8 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
     return;
 
   if (in_template() && (is_dependent_type(ast->baseExpression->type) ||
-                        is_dependent_type(ast->indexExpression->type))) {
+                        is_dependent_type(ast->indexExpression->type) ||
+                        isDependent(check.unit_, ast->indexExpression))) {
     ast->type = dependent_type();
     ast->valueCategory = ValueCategory::kLValue;
     return;
