@@ -369,3 +369,24 @@ test("token kinds are the spelling of the token", async () => {
   assert.equal(name.kind, "identifier");
   assert.equal(name.text, "S");
 });
+
+test("token text preserves keyword aliases with canonical token kinds", async () => {
+  await using parser = await Parser.parse({
+    path: "/aliases.cc",
+    source: "__inline__ __typeof__(1) f() { return true and not false; }",
+  });
+  assert.deepEqual(parser.diagnostics, []);
+  const paths = [...walk(parser.ast)];
+  const inline = paths.find((path) => path.isInlineSpecifier());
+  assert.equal(inline.node.inlineToken.kind, "inline");
+  assert.equal(inline.node.inlineToken.text, "__inline__");
+  const type = paths.find((path) => path.isDecltypeSpecifier());
+  assert.equal(type.node.decltypeToken.kind, "typeof");
+  assert.equal(type.node.decltypeToken.text, "__typeof__");
+  const binary = paths.find((path) => path.isBinaryExpression());
+  assert.equal(binary.node.op, "&&");
+  assert.equal(binary.node.opToken.text, "and");
+  const unary = paths.find((path) => path.isUnaryExpression());
+  assert.equal(unary.node.op, "!");
+  assert.equal(unary.node.opToken.text, "not");
+});

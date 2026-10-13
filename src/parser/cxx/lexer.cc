@@ -205,6 +205,7 @@ auto Lexer::readToken() -> TokenKind {
   const auto hasMoreChars = skipSpaces();
 
   tokenIsClean_ = true;
+  tokenValue_ = {};
   tokenPos_ = int(pos_ - cbegin(source_));
   text_.clear();
 
@@ -292,7 +293,8 @@ auto Lexer::readToken() -> TokenKind {
 
       if (preprocessing_) return TokenKind::T_IDENTIFIER;
 
-      return classifyKeyword(text_, lang_, TripleArch::kUnknown);
+      return classifyKeyword(text_, lang_, TripleArch::kUnknown,
+                             &tokenValue_.intValue);
     }
   }
 
@@ -670,10 +672,12 @@ auto Lexer::skipSpaces() -> bool {
 }
 
 auto Lexer::classifyKeyword(const std::string_view& text, LanguageKind lang,
-                            TripleArch arch) -> TokenKind {
+                            TripleArch arch, int* aliasId) -> TokenKind {
   const auto size = static_cast<int>(text.size());
-  auto kind = lang == LanguageKind::kCXX ? classify(text.data(), size)
-                                         : classifyC(text.data(), size);
+  int value = 0;
+  auto kind = lang == LanguageKind::kCXX ? classify(text.data(), size, value)
+                                         : classifyC(text.data(), size, value);
+  if (aliasId) *aliasId = value;
   if (kind != TokenKind::T_IDENTIFIER) return kind;
   if (arch != TripleArch::kAArch64) return kind;
   return classifySveType(text.data(), size);

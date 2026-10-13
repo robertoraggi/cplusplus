@@ -54,6 +54,7 @@ const OptionsSchema = z.object({
     .string()
     .default("classify")
     .describe("Function name prefix for the keyword classification"),
+  tokenValues: z.record(z.string(), z.number().int()).optional(),
   copyright: z.string().optional().describe("Optional copyright notice"),
 });
 

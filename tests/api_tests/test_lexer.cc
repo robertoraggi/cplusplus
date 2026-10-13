@@ -228,3 +228,25 @@ TEST(Token, DefaultInitializationYieldsTheEmptyToken) {
 
   token->~Token();
 }
+
+TEST(Lexer, PreservesAliasSpellingsWithoutChangingTokenKinds) {
+  for (auto language : {LanguageKind::kC, LanguageKind::kCXX}) {
+#define TOKEN_ALIAS_SPELLING(spelling)                                     \
+  {                                                                        \
+    Lexer lexer{std::string_view{spelling " int identifier"}, language};   \
+    const auto kind = lexer.next();                                        \
+    if (kind != TokenKind::T_IDENTIFIER) {                                 \
+      EXPECT_GT(lexer.tokenValue().intValue, 0) << spelling;               \
+      EXPECT_EQ(                                                           \
+          Token(kind, 0, lexer.tokenLength(), lexer.tokenValue()).spell(), \
+          spelling);                                                       \
+    }                                                                      \
+    ASSERT_EQ(lexer.next(), TokenKind::T_INT);                             \
+    EXPECT_EQ(lexer.tokenValue().intValue, 0);                             \
+    ASSERT_EQ(lexer.next(), TokenKind::T_IDENTIFIER);                      \
+    EXPECT_EQ(lexer.tokenValue().intValue, 0);                             \
+  }
+    FOR_EACH_TOKEN_ALIAS_SPELLING(TOKEN_ALIAS_SPELLING)
+#undef TOKEN_ALIAS_SPELLING
+  }
+}

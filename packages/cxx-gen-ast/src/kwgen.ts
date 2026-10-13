@@ -10,6 +10,7 @@ interface Options {
   toUpper: boolean;
   defaultToken: string;
   classifier: string;
+  tokenValues?: Record<string, number>;
 }
 
 export default function kwgen(options: Options) {
@@ -62,11 +63,14 @@ export default function kwgen(options: Options) {
     emit("");
   }
 
+  const valueParameter = options.tokenValues ? ", int& value" : "";
+  const valueArgument = options.tokenValues ? ", value" : "";
+
   for (const length of lengths) {
     const items = keywordsByLength.get(length)!;
 
     emit(
-      `static inline auto ${classifier}${length}(const char* s) -> ${tokenType} {`,
+      `static inline auto ${classifier}${length}(const char* s${valueParameter}) -> ${tokenType} {`,
     );
     gen({ items, n: 0, emit, options });
     emit(`  return ${defaultToken};`);
@@ -74,12 +78,15 @@ export default function kwgen(options: Options) {
     emit("");
   }
 
-  emit(`static auto ${classifier}(const char* s, int n) -> ${tokenType} {`);
+  emit(
+    `static auto ${classifier}(const char* s, int n${valueParameter}) -> ${tokenType} {`,
+  );
+  if (options.tokenValues) emit("  value = 0;");
   emit(`  switch (n) {`);
 
   for (const length of lengths) {
     emit(`  case ${length}:`);
-    emit(`    return ${classifier}${length}(s);`);
+    emit(`    return ${classifier}${length}(s${valueArgument});`);
   }
 
   emit(`  default:`);
@@ -138,6 +145,8 @@ function gen({
   if (groups.has("")) {
     const item = groups.get("")![0]!;
     const x = toUpper ? item.toUpperCase() : item;
+    const value = options.tokenValues?.[item];
+    if (value !== undefined) emit(`${ind}  value = ${value};`);
     emit(`${ind}  return ${tokenPrefix}${x};`);
   }
 }
