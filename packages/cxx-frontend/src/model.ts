@@ -12545,7 +12545,24 @@ export type BuiltinFunctionKind =
   | "__c11_atomic_load"
   | "__c11_atomic_signal_fence"
   | "__c11_atomic_store"
-  | "__c11_atomic_thread_fence";
+  | "__c11_atomic_thread_fence"
+  | "__sync_add_and_fetch"
+  | "__sync_and_and_fetch"
+  | "__sync_bool_compare_and_swap"
+  | "__sync_fetch_and_add"
+  | "__sync_fetch_and_and"
+  | "__sync_fetch_and_nand"
+  | "__sync_fetch_and_or"
+  | "__sync_fetch_and_sub"
+  | "__sync_fetch_and_xor"
+  | "__sync_lock_release"
+  | "__sync_lock_test_and_set"
+  | "__sync_nand_and_fetch"
+  | "__sync_or_and_fetch"
+  | "__sync_sub_and_fetch"
+  | "__sync_synchronize"
+  | "__sync_val_compare_and_swap"
+  | "__sync_xor_and_fetch";
 const builtinFunctionKindNames: Record<number, BuiltinFunctionKind> = {
   0: "none",
   1: "__atomic_add_fetch",
@@ -13014,6 +13031,23 @@ const builtinFunctionKindNames: Record<number, BuiltinFunctionKind> = {
   464: "__c11_atomic_signal_fence",
   465: "__c11_atomic_store",
   466: "__c11_atomic_thread_fence",
+  467: "__sync_add_and_fetch",
+  468: "__sync_and_and_fetch",
+  469: "__sync_bool_compare_and_swap",
+  470: "__sync_fetch_and_add",
+  471: "__sync_fetch_and_and",
+  472: "__sync_fetch_and_nand",
+  473: "__sync_fetch_and_or",
+  474: "__sync_fetch_and_sub",
+  475: "__sync_fetch_and_xor",
+  476: "__sync_lock_release",
+  477: "__sync_lock_test_and_set",
+  478: "__sync_nand_and_fetch",
+  479: "__sync_or_and_fetch",
+  480: "__sync_sub_and_fetch",
+  481: "__sync_synchronize",
+  482: "__sync_val_compare_and_swap",
+  483: "__sync_xor_and_fetch",
 };
 /** @category Enumerations */
 export type BuiltinTemplateKind =

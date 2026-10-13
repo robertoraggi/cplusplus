@@ -2888,6 +2888,7 @@ struct TypeChecker::Visitor::CheckBuiltinAtomic {
 
   [[nodiscard]] auto bindPointerOperand() -> bool;
 
+  [[nodiscard]] auto requireSyncPointee() -> bool;
   [[nodiscard]] auto requireAtomicPointee() -> bool;
   [[nodiscard]] auto requireSupportedAtomicSize() -> bool;
   [[nodiscard]] auto requireIntegralOrEnum() -> bool;
@@ -2903,12 +2904,20 @@ struct TypeChecker::Visitor::CheckBuiltinAtomic {
   }
 
   [[nodiscard]] auto finish(const Type* returnType,
-                            std::vector<const Type*> parameterTypes) -> bool {
-    auto functionType =
-        control()->getFunctionType(returnType, std::move(parameterTypes));
+                            std::vector<const Type*> parameterTypes,
+                            bool ignoreTrailingArguments = false) -> bool {
+    auto parameterCount = parameterTypes.size();
+    auto functionType = control()->getFunctionType(
+        returnType, std::move(parameterTypes), ignoreTrailingArguments);
     visitor.check_function_arguments(ast->expressionList,
                                      ast->firstSourceLocation(), functionType);
     visitor.setResultTypeAndValueCategory(ast, functionType);
+    if (ignoreTrailingArguments) {
+      auto argument = &ast->expressionList;
+      for (std::size_t index = 0; index < parameterCount && *argument; ++index)
+        argument = &(*argument)->next;
+      *argument = nullptr;
+    }
     return true;
   }
 };
@@ -2941,6 +2950,19 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::bindPointerOperand() -> bool {
   elementType =
       traits.remove_atomic(unqualified_type(pointerType->elementType()));
 
+  return true;
+}
+
+auto TypeChecker::Visitor::CheckBuiltinAtomic::requireSyncPointee() -> bool {
+  if (!requireIntegerEnumOrPointer()) return false;
+  if (!requireSupportedAtomicSize()) return false;
+  if (traits.is_const(pointerType->elementType()) ||
+      traits.is_same(elementType, control()->getBoolType())) {
+    visitor.error(pointerArg->firstSourceLocation(),
+                  "address argument to sync operation must point to a "
+                  "non-const integer or pointer type other than bool");
+    return false;
+  }
   return true;
 }
 
@@ -3020,6 +3042,34 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::operator()() -> bool {
   auto boolType = control()->getBoolType();
 
   switch (kind) {
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_ADD:
+    case BuiltinFunctionKind::T___SYNC_ADD_AND_FETCH:
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_SUB:
+    case BuiltinFunctionKind::T___SYNC_SUB_AND_FETCH:
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_AND:
+    case BuiltinFunctionKind::T___SYNC_AND_AND_FETCH:
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_OR:
+    case BuiltinFunctionKind::T___SYNC_OR_AND_FETCH:
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_XOR:
+    case BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH:
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_NAND:
+    case BuiltinFunctionKind::T___SYNC_NAND_AND_FETCH:
+    case BuiltinFunctionKind::T___SYNC_LOCK_TEST_AND_SET:
+      if (!requireSyncPointee()) return true;
+      return finish(elementType, {pointerArg->type, elementType}, true);
+
+    case BuiltinFunctionKind::T___SYNC_LOCK_RELEASE:
+      if (!requireSyncPointee()) return true;
+      return finish(control()->getVoidType(), {pointerArg->type}, true);
+
+    case BuiltinFunctionKind::T___SYNC_BOOL_COMPARE_AND_SWAP:
+    case BuiltinFunctionKind::T___SYNC_VAL_COMPARE_AND_SWAP:
+      if (!requireSyncPointee()) return true;
+      return finish(kind == BuiltinFunctionKind::T___SYNC_BOOL_COMPARE_AND_SWAP
+                        ? boolType
+                        : elementType,
+                    {pointerArg->type, elementType, elementType}, true);
+
     case BuiltinFunctionKind::T___C11_ATOMIC_INIT:
       if (!requireAtomicPointee()) return true;
       if (!requireSupportedAtomicSize()) return true;

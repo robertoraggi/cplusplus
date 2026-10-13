@@ -1307,6 +1307,54 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
         return lowerSimpleIntrinsic(op, adaptor, rewriter,
                                     "llvm.vector.reduce.xor");
 
+      case BuiltinFunctionKind::T___SYNC_FETCH_AND_ADD:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::add,
+                              false, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_ADD_AND_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::add,
+                              true, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_FETCH_AND_SUB:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::sub,
+                              false, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_SUB_AND_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::sub,
+                              true, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_FETCH_AND_AND:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_and,
+                              false, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_AND_AND_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_and,
+                              true, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_FETCH_AND_OR:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_or,
+                              false, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_OR_AND_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_or,
+                              true, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_FETCH_AND_XOR:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_xor,
+                              false, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::_xor,
+                              true, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_FETCH_AND_NAND:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::nand,
+                              false, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_NAND_AND_FETCH:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::nand,
+                              true, false, LLVM::AtomicOrdering::seq_cst);
+      case BuiltinFunctionKind::T___SYNC_LOCK_TEST_AND_SET:
+        return lowerAtomicRmw(op, adaptor, rewriter, LLVM::AtomicBinOp::xchg,
+                              false, false, LLVM::AtomicOrdering::acquire);
+      case BuiltinFunctionKind::T___SYNC_LOCK_RELEASE:
+        return lowerSyncLockRelease(op, adaptor, rewriter);
+      case BuiltinFunctionKind::T___SYNC_BOOL_COMPARE_AND_SWAP:
+        return lowerSyncCompareExchange(op, adaptor, rewriter, true);
+      case BuiltinFunctionKind::T___SYNC_VAL_COMPARE_AND_SWAP:
+        return lowerSyncCompareExchange(op, adaptor, rewriter, false);
+      case BuiltinFunctionKind::T___SYNC_SYNCHRONIZE:
+        return lowerAtomicFence(op, adaptor, rewriter, false);
+
       case BuiltinFunctionKind::T___ATOMIC_LOAD_N:
       case BuiltinFunctionKind::T___C11_ATOMIC_LOAD:
         return lowerAtomicLoad(op, adaptor, rewriter, /*hasOutParam=*/false);
@@ -1917,11 +1965,52 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     return success();
   }
 
-  auto lowerAtomicRmw(cxx::BuiltinCallOp op, OpAdaptor adaptor,
-                      ConversionPatternRewriter& rewriter,
-                      LLVM::AtomicBinOp binOp, bool returnsPostOp,
-                      bool scalePointerAddend = false) const -> LogicalResult {
-    if (adaptor.getInputs().size() < 3) {
+  auto lowerSyncCompareExchange(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                                ConversionPatternRewriter& rewriter,
+                                bool returnsSuccess) const -> LogicalResult {
+    auto elementType = atomicPointeeIntegerType(op, 0);
+    if (!elementType || adaptor.getInputs().size() < 3) return failure();
+    auto loc = op.getLoc();
+    auto expected = reinterpretAsInteger(adaptor.getInputs()[1], *elementType,
+                                         loc, rewriter);
+    auto desired = reinterpretAsInteger(adaptor.getInputs()[2], *elementType,
+                                        loc, rewriter);
+    auto cmpxchg = LLVM::AtomicCmpXchgOp::create(
+        rewriter, loc, adaptor.getInputs()[0], expected, desired,
+        LLVM::AtomicOrdering::seq_cst, LLVM::AtomicOrdering::seq_cst);
+    Value result = LLVM::ExtractValueOp::create(
+        rewriter, loc, cmpxchg, ArrayRef<std::int64_t>{returnsSuccess ? 1 : 0});
+    if (!returnsSuccess && isa<cxx::PointerType>(op.getResult().getType())) {
+      result = LLVM::IntToPtrOp::create(
+          rewriter, loc, LLVM::LLVMPointerType::get(getContext()), result);
+    }
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+
+  auto lowerSyncLockRelease(cxx::BuiltinCallOp op, OpAdaptor adaptor,
+                            ConversionPatternRewriter& rewriter) const
+      -> LogicalResult {
+    auto elementType = atomicPointeeIntegerType(op, 0);
+    if (!elementType) return failure();
+    auto zero =
+        LLVM::ConstantOp::create(rewriter, op.getLoc(), *elementType,
+                                 rewriter.getIntegerAttr(*elementType, 0));
+    auto width = static_cast<unsigned>(dataLayout_.getTypeSize(*elementType));
+    LLVM::StoreOp::create(rewriter, op.getLoc(), zero, adaptor.getInputs()[0],
+                          width, false, false, false,
+                          LLVM::AtomicOrdering::release);
+    rewriter.eraseOp(op);
+    return success();
+  }
+
+  auto lowerAtomicRmw(
+      cxx::BuiltinCallOp op, OpAdaptor adaptor,
+      ConversionPatternRewriter& rewriter, LLVM::AtomicBinOp binOp,
+      bool returnsPostOp, bool scalePointerAddend = false,
+      std::optional<LLVM::AtomicOrdering> fixedOrder = std::nullopt) const
+      -> LogicalResult {
+    if (adaptor.getInputs().size() < (fixedOrder ? 2 : 3)) {
       return rewriter.notifyMatchFailure(op, "atomic RMW expects 3 arguments");
     }
     auto loc = op.getLoc();
@@ -1929,7 +2018,13 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     auto valueType = adaptor.getInputs()[1].getType();
     auto val =
         widenToAtomicMemory(op, 0, adaptor.getInputs()[1], loc, rewriter);
-    auto order = atomicOrderingFromValue(adaptor.getInputs()[2]);
+    auto order = fixedOrder ? *fixedOrder
+                            : atomicOrderingFromValue(adaptor.getInputs()[2]);
+    if (isa<LLVM::LLVMPointerType>(val.getType())) {
+      auto intType = atomicPointeeIntegerType(op, 0);
+      if (!intType) return failure();
+      val = reinterpretAsInteger(val, *intType, loc, rewriter);
+    }
 
     if (scalePointerAddend) {
       if (auto stride = atomicPointerElementStrideBytes(op, 0);

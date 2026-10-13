@@ -263,10 +263,16 @@ inline constexpr std::uint8_t kBuiltinSignatureOps[] = {
     15, 0,  19, 2,  6,  8,  19, 15, 0,  19, 2,  6,  8,  19, 15, 0,  19, 2,  6,
     8,  19, 15, 0,  19, 2,  6,  8,  19, 15, 0,  8,  2,  6,  8,  19, 0,  9,  34,
     0,  19, 2,  6,  8,  15, 0,  8,  15, 0,  8,  2,  6,  8,  19, 15, 0,  8,  15,
-    0,  2,  8,  34, 0,  2,  8,  34, 38, 0,  2,  8,  34, 0,  2,  8,  34, 38, 0,
-    8,  2,  8,  0,  8,  2,  8,  34, 0,  8,  2,  8,  38, 0,  8,  2,  8,  34, 38,
+    0,  19, 2,  6,  8,  19, 1,  0,  19, 2,  6,  8,  19, 1,  0,  9,  2,  6,  8,
+    19, 19, 1,  0,  19, 2,  6,  8,  19, 1,  0,  19, 2,  6,  8,  19, 1,  0,  19,
+    2,  6,  8,  19, 1,  0,  19, 2,  6,  8,  19, 1,  0,  19, 2,  6,  8,  19, 1,
+    0,  19, 2,  6,  8,  19, 1,  0,  8,  2,  6,  8,  1,  0,  19, 2,  6,  8,  19,
+    1,  0,  19, 2,  6,  8,  19, 1,  0,  19, 2,  6,  8,  19, 1,  0,  19, 2,  6,
+    8,  19, 1,  0,  8,  0,  19, 2,  6,  8,  19, 19, 1,  0,  19, 2,  6,  8,  19,
+    1,  0,  2,  8,  34, 0,  2,  8,  34, 38, 0,  2,  8,  34, 0,  2,  8,  34, 38,
     0,  8,  2,  8,  0,  8,  2,  8,  34, 0,  8,  2,  8,  38, 0,  8,  2,  8,  34,
-    38, 0,
+    38, 0,  8,  2,  8,  0,  8,  2,  8,  34, 0,  8,  2,  8,  38, 0,  8,  2,  8,
+    34, 38, 0,
 };
 
 inline constexpr BuiltinSignature kBuiltinSignatures[] = {
@@ -1065,21 +1071,37 @@ inline constexpr BuiltinSignature kBuiltinSignatures[] = {
     {2268, 1, BuiltinFlags::kNoexcept},  // __c11_atomic_signal_fence
     {2271, 1, BuiltinFlags::kNone},      // __c11_atomic_store
     {2278, 1, BuiltinFlags::kNoexcept},  // __c11_atomic_thread_fence
+    {2281, 1, BuiltinFlags::kNone},      // __sync_add_and_fetch
+    {2288, 1, BuiltinFlags::kNone},      // __sync_and_and_fetch
+    {2295, 1, BuiltinFlags::kNone},      // __sync_bool_compare_and_swap
+    {2303, 1, BuiltinFlags::kNone},      // __sync_fetch_and_add
+    {2310, 1, BuiltinFlags::kNone},      // __sync_fetch_and_and
+    {2317, 1, BuiltinFlags::kNone},      // __sync_fetch_and_nand
+    {2324, 1, BuiltinFlags::kNone},      // __sync_fetch_and_or
+    {2331, 1, BuiltinFlags::kNone},      // __sync_fetch_and_sub
+    {2338, 1, BuiltinFlags::kNone},      // __sync_fetch_and_xor
+    {2345, 1, BuiltinFlags::kNone},      // __sync_lock_release
+    {2351, 1, BuiltinFlags::kNone},      // __sync_lock_test_and_set
+    {2358, 1, BuiltinFlags::kNone},      // __sync_nand_and_fetch
+    {2365, 1, BuiltinFlags::kNone},      // __sync_or_and_fetch
+    {2372, 1, BuiltinFlags::kNone},      // __sync_sub_and_fetch
+    {2379, 1, BuiltinFlags::kNoexcept},  // __sync_synchronize
+    {2381, 1, BuiltinFlags::kNone},      // __sync_val_compare_and_swap
+    {2389, 1, BuiltinFlags::kNone},      // __sync_xor_and_fetch
 };
 
 inline constexpr ImplicitDeclarationSignature kImplicitDeclarationSignatures[] =
     {
-        {TokenKind::T_NEW, {2281, 2, BuiltinFlags::kCplusplus}},
-        {TokenKind::T_NEW_ARRAY, {2290, 2, BuiltinFlags::kCplusplus}},
+        {TokenKind::T_NEW, {2396, 2, BuiltinFlags::kCplusplus}},
+        {TokenKind::T_NEW_ARRAY, {2405, 2, BuiltinFlags::kCplusplus}},
         {TokenKind::T_DELETE,
-         {2299, 4, BuiltinFlags::kNoexcept | BuiltinFlags::kCplusplus}},
+         {2414, 4, BuiltinFlags::kNoexcept | BuiltinFlags::kCplusplus}},
         {TokenKind::T_DELETE_ARRAY,
-         {2319, 4, BuiltinFlags::kNoexcept | BuiltinFlags::kCplusplus}},
+         {2434, 4, BuiltinFlags::kNoexcept | BuiltinFlags::kCplusplus}},
 };
 
 static_assert(
     std::size(kBuiltinSignatures) ==
-    static_cast<std::size_t>(BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE) +
-        1);
+    static_cast<std::size_t>(BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH) + 1);
 
 }  // namespace cxx

@@ -507,6 +507,54 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_REDUCE_XOR:
       return checkBuiltinVectorReduce(ast);
 
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_ADD:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_ADD_AND_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_SUB:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_SUB_AND_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_AND:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_AND_AND_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_OR:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_OR_AND_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_XOR:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_NAND:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_NAND_AND_FETCH:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_BOOL_COMPARE_AND_SWAP:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_VAL_COMPARE_AND_SWAP:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_LOCK_TEST_AND_SET:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_LOCK_RELEASE:
+      return checkBuiltinAtomic(ast);
+
     default:
       return false;
   }

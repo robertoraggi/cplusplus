@@ -238,72 +238,71 @@ class Token;
   V(WCHAR_T, "wchar_t")                                 \
   V(WHILE, "while")
 
-#define FOR_EACH_BUILTIN_TYPE_TRAIT(V)                            \
-  V(__BUILTIN_TYPES_COMPATIBLE_P, "__builtin_types_compatible_p") \
-  V(__HAS_TRIVIAL_CONSTRUCTOR, "__has_trivial_constructor")       \
-  V(__HAS_TRIVIAL_DESTRUCTOR, "__has_trivial_destructor")         \
-  V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                          \
-    "__has_unique_object_representations")                        \
-  V(__HAS_VIRTUAL_DESTRUCTOR, "__has_virtual_destructor")         \
-  V(__IS_ABSTRACT, "__is_abstract")                               \
-  V(__IS_AGGREGATE, "__is_aggregate")                             \
-  V(__IS_ARITHMETIC, "__is_arithmetic")                           \
-  V(__IS_ARRAY, "__is_array")                                     \
-  V(__IS_ASSIGNABLE, "__is_assignable")                           \
-  V(__IS_BASE_OF, "__is_base_of")                                 \
-  V(__IS_BOUNDED_ARRAY, "__is_bounded_array")                     \
-  V(__IS_CLASS, "__is_class")                                     \
-  V(__IS_COMPOUND, "__is_compound")                               \
-  V(__IS_CONST, "__is_const")                                     \
-  V(__IS_CONSTRUCTIBLE, "__is_constructible")                     \
-  V(__IS_CONVERTIBLE_TO, "__is_convertible_to")                   \
-  V(__IS_CONVERTIBLE, "__is_convertible")                         \
-  V(__IS_DESTRUCTIBLE, "__is_destructible")                       \
-  V(__IS_EMPTY, "__is_empty")                                     \
-  V(__IS_ENUM, "__is_enum")                                       \
-  V(__IS_FINAL, "__is_final")                                     \
-  V(__IS_FLOATING_POINT, "__is_floating_point")                   \
-  V(__IS_FUNCTION, "__is_function")                               \
-  V(__IS_FUNDAMENTAL, "__is_fundamental")                         \
-  V(__IS_INTEGRAL, "__is_integral")                               \
-  V(__IS_LAYOUT_COMPATIBLE, "__is_layout_compatible")             \
-  V(__IS_LITERAL_TYPE, "__is_literal_type")                       \
-  V(__IS_LVALUE_REFERENCE, "__is_lvalue_reference")               \
-  V(__IS_MEMBER_FUNCTION_POINTER, "__is_member_function_pointer") \
-  V(__IS_MEMBER_OBJECT_POINTER, "__is_member_object_pointer")     \
-  V(__IS_MEMBER_POINTER, "__is_member_pointer")                   \
-  V(__IS_NOTHROW_ASSIGNABLE, "__is_nothrow_assignable")           \
-  V(__IS_NOTHROW_CONSTRUCTIBLE, "__is_nothrow_constructible")     \
-  V(__IS_NOTHROW_DESTRUCTIBLE, "__is_nothrow_destructible")       \
-  V(__IS_NULL_POINTER, "__is_null_pointer")                       \
-  V(__IS_OBJECT, "__is_object")                                   \
-  V(__IS_POD, "__is_pod")                                         \
-  V(__IS_POINTER, "__is_pointer")                                 \
-  V(__IS_POLYMORPHIC, "__is_polymorphic")                         \
-  V(__IS_REFERENCE, "__is_reference")                             \
-  V(__IS_RVALUE_REFERENCE, "__is_rvalue_reference")               \
-  V(__IS_SAME_AS, "__is_same_as")                                 \
-  V(__IS_SAME, "__is_same")                                       \
-  V(__IS_SCALAR, "__is_scalar")                                   \
-  V(__IS_SCOPED_ENUM, "__is_scoped_enum")                         \
-  V(__IS_SIGNED, "__is_signed")                                   \
-  V(__IS_STANDARD_LAYOUT, "__is_standard_layout")                 \
-  V(__IS_SWAPPABLE_WITH, "__is_swappable_with")                   \
-  V(__IS_TRIVIAL, "__is_trivial")                                 \
-  V(__IS_TRIVIALLY_ASSIGNABLE, "__is_trivially_assignable")       \
-  V(__IS_TRIVIALLY_CONSTRUCTIBLE, "__is_trivially_constructible") \
-  V(__IS_TRIVIALLY_COPYABLE, "__is_trivially_copyable")           \
-  V(__IS_TRIVIALLY_DESTRUCTIBLE, "__is_trivially_destructible")   \
-  V(__IS_UNBOUNDED_ARRAY, "__is_unbounded_array")                 \
-  V(__IS_UNION, "__is_union")                                     \
-  V(__IS_UNSIGNED, "__is_unsigned")                               \
-  V(__IS_VOID, "__is_void")                                       \
-  V(__IS_VOLATILE, "__is_volatile")                               \
-  V(__REFERENCE_CONSTRUCTS_FROM_TEMPORARY,                        \
-    "__reference_constructs_from_temporary")                      \
-  V(__REFERENCE_CONVERTS_FROM_TEMPORARY,                          \
-    "__reference_converts_from_"                                  \
-    "temporary")
+#define FOR_EACH_BUILTIN_TYPE_TRAIT(V)                                \
+  V(__BUILTIN_TYPES_COMPATIBLE_P, "__builtin_types_compatible_p")     \
+  V(__HAS_TRIVIAL_CONSTRUCTOR, "__has_trivial_constructor")           \
+  V(__HAS_TRIVIAL_DESTRUCTOR, "__has_trivial_destructor")             \
+  V(__HAS_UNIQUE_OBJECT_REPRESENTATIONS,                              \
+    "__has_unique_object_representations")                            \
+  V(__HAS_VIRTUAL_DESTRUCTOR, "__has_virtual_destructor")             \
+  V(__IS_ABSTRACT, "__is_abstract")                                   \
+  V(__IS_AGGREGATE, "__is_aggregate")                                 \
+  V(__IS_ARITHMETIC, "__is_arithmetic")                               \
+  V(__IS_ARRAY, "__is_array")                                         \
+  V(__IS_ASSIGNABLE, "__is_assignable")                               \
+  V(__IS_BASE_OF, "__is_base_of")                                     \
+  V(__IS_BOUNDED_ARRAY, "__is_bounded_array")                         \
+  V(__IS_CLASS, "__is_class")                                         \
+  V(__IS_COMPOUND, "__is_compound")                                   \
+  V(__IS_CONST, "__is_const")                                         \
+  V(__IS_CONSTRUCTIBLE, "__is_constructible")                         \
+  V(__IS_CONVERTIBLE_TO, "__is_convertible_to")                       \
+  V(__IS_CONVERTIBLE, "__is_convertible")                             \
+  V(__IS_DESTRUCTIBLE, "__is_destructible")                           \
+  V(__IS_EMPTY, "__is_empty")                                         \
+  V(__IS_ENUM, "__is_enum")                                           \
+  V(__IS_FINAL, "__is_final")                                         \
+  V(__IS_FLOATING_POINT, "__is_floating_point")                       \
+  V(__IS_FUNCTION, "__is_function")                                   \
+  V(__IS_FUNDAMENTAL, "__is_fundamental")                             \
+  V(__IS_INTEGRAL, "__is_integral")                                   \
+  V(__IS_LAYOUT_COMPATIBLE, "__is_layout_compatible")                 \
+  V(__IS_LITERAL_TYPE, "__is_literal_type")                           \
+  V(__IS_LVALUE_REFERENCE, "__is_lvalue_reference")                   \
+  V(__IS_MEMBER_FUNCTION_POINTER, "__is_member_function_pointer")     \
+  V(__IS_MEMBER_OBJECT_POINTER, "__is_member_object_pointer")         \
+  V(__IS_MEMBER_POINTER, "__is_member_pointer")                       \
+  V(__IS_NOTHROW_ASSIGNABLE, "__is_nothrow_assignable")               \
+  V(__IS_NOTHROW_CONSTRUCTIBLE, "__is_nothrow_constructible")         \
+  V(__IS_NOTHROW_DESTRUCTIBLE, "__is_nothrow_destructible")           \
+  V(__IS_NULL_POINTER, "__is_null_pointer")                           \
+  V(__IS_OBJECT, "__is_object")                                       \
+  V(__IS_POD, "__is_pod")                                             \
+  V(__IS_POINTER, "__is_pointer")                                     \
+  V(__IS_POLYMORPHIC, "__is_polymorphic")                             \
+  V(__IS_REFERENCE, "__is_reference")                                 \
+  V(__IS_RVALUE_REFERENCE, "__is_rvalue_reference")                   \
+  V(__IS_SAME_AS, "__is_same_as")                                     \
+  V(__IS_SAME, "__is_same")                                           \
+  V(__IS_SCALAR, "__is_scalar")                                       \
+  V(__IS_SCOPED_ENUM, "__is_scoped_enum")                             \
+  V(__IS_SIGNED, "__is_signed")                                       \
+  V(__IS_STANDARD_LAYOUT, "__is_standard_layout")                     \
+  V(__IS_SWAPPABLE_WITH, "__is_swappable_with")                       \
+  V(__IS_TRIVIAL, "__is_trivial")                                     \
+  V(__IS_TRIVIALLY_ASSIGNABLE, "__is_trivially_assignable")           \
+  V(__IS_TRIVIALLY_CONSTRUCTIBLE, "__is_trivially_constructible")     \
+  V(__IS_TRIVIALLY_COPYABLE, "__is_trivially_copyable")               \
+  V(__IS_TRIVIALLY_DESTRUCTIBLE, "__is_trivially_destructible")       \
+  V(__IS_UNBOUNDED_ARRAY, "__is_unbounded_array")                     \
+  V(__IS_UNION, "__is_union")                                         \
+  V(__IS_UNSIGNED, "__is_unsigned")                                   \
+  V(__IS_VOID, "__is_void")                                           \
+  V(__IS_VOLATILE, "__is_volatile")                                   \
+  V(__REFERENCE_CONSTRUCTS_FROM_TEMPORARY,                            \
+    "__reference_constructs_from_temporary")                          \
+  V(__REFERENCE_CONVERTS_FROM_TEMPORARY, "__reference_converts_from_" \
+                                         "temporary")
 
 #define FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(V)          \
   V(__ADD_LVALUE_REFERENCE, "__add_lvalue_reference") \
@@ -792,7 +791,24 @@ class Token;
   V(__C11_ATOMIC_LOAD, "__c11_atomic_load")                                   \
   V(__C11_ATOMIC_SIGNAL_FENCE, "__c11_atomic_signal_fence")                   \
   V(__C11_ATOMIC_STORE, "__c11_atomic_store")                                 \
-  V(__C11_ATOMIC_THREAD_FENCE, "__c11_atomic_thread_fence")
+  V(__C11_ATOMIC_THREAD_FENCE, "__c11_atomic_thread_fence")                   \
+  V(__SYNC_ADD_AND_FETCH, "__sync_add_and_fetch")                             \
+  V(__SYNC_AND_AND_FETCH, "__sync_and_and_fetch")                             \
+  V(__SYNC_BOOL_COMPARE_AND_SWAP, "__sync_bool_compare_and_swap")             \
+  V(__SYNC_FETCH_AND_ADD, "__sync_fetch_and_add")                             \
+  V(__SYNC_FETCH_AND_AND, "__sync_fetch_and_and")                             \
+  V(__SYNC_FETCH_AND_NAND, "__sync_fetch_and_nand")                           \
+  V(__SYNC_FETCH_AND_OR, "__sync_fetch_and_or")                               \
+  V(__SYNC_FETCH_AND_SUB, "__sync_fetch_and_sub")                             \
+  V(__SYNC_FETCH_AND_XOR, "__sync_fetch_and_xor")                             \
+  V(__SYNC_LOCK_RELEASE, "__sync_lock_release")                               \
+  V(__SYNC_LOCK_TEST_AND_SET, "__sync_lock_test_and_set")                     \
+  V(__SYNC_NAND_AND_FETCH, "__sync_nand_and_fetch")                           \
+  V(__SYNC_OR_AND_FETCH, "__sync_or_and_fetch")                               \
+  V(__SYNC_SUB_AND_FETCH, "__sync_sub_and_fetch")                             \
+  V(__SYNC_SYNCHRONIZE, "__sync_synchronize")                                 \
+  V(__SYNC_VAL_COMPARE_AND_SWAP, "__sync_val_compare_and_swap")               \
+  V(__SYNC_XOR_AND_FETCH, "__sync_xor_and_fetch")
 
 #define FOR_EACH_BUILTIN_KEYWORD_OPERATOR(V)            \
   V(__BUILTIN_BIT_CAST, "__builtin_bit_cast")           \
