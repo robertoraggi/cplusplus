@@ -125,6 +125,7 @@ struct Frontend::Private {
   void dumpAst();
   void printAstIfNeeded();
   void generateIR();
+  void runIRPassPipeline();
   void emitCxxIR();
   void lowerIR();
   void emitMLIR();
@@ -236,6 +237,7 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
       [this]() { toolchain_->applyEntryPointAbi(unit_.get()); });
   actions_.emplace_back([this]() { generateIR(); });
   actions_.emplace_back([this]() { exitIfErrors(); });
+  actions_.emplace_back([this]() { runIRPassPipeline(); });
   actions_.emplace_back([this]() { emitCxxIR(); });
   actions_.emplace_back([this]() { lowerIR(); });
   actions_.emplace_back([this]() { emitMLIR(); });
@@ -834,6 +836,19 @@ void Frontend::Private::generateIR() {
   auto ir = codegen(unit_->ast());
   module_ = emitter.module(ir.module);
 
+#endif
+}
+
+void Frontend::Private::runIRPassPipeline() {
+#ifdef CXX_WITH_MLIR
+  if (!module_) return;
+
+  auto pipeline = cli.getSingle("-mlir-pass-pipeline").value_or("");
+  if (succeeded(runMLIRPassPipeline(module_, pipeline))) return;
+
+  std::cerr << "cxx: failed to run MLIR pass pipeline" << std::endl;
+  fail();
+  module_ = nullptr;
 #endif
 }
 

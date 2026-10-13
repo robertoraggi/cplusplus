@@ -25,6 +25,8 @@
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/Ptr/IR/PtrAttrs.h>
+#include <mlir/Dialect/Ptr/IR/PtrDialect.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
 #include <mlir/Dialect/Vector/IR/VectorOps.h>
 #include <mlir/IR/Builders.h>
@@ -98,6 +100,46 @@ struct detail::ClassTypeStorage : public TypeStorage {
 };
 
 namespace {
+[[nodiscard]] auto isValidPointerMemorySpace(Attribute memorySpace) -> bool {
+  if (!memorySpace) return true;
+  if (auto integer = dyn_cast<IntegerAttr>(memorySpace)) {
+    auto type = dyn_cast<IntegerType>(integer.getType());
+    if (!type) return false;
+    if (!type.isUnsigned() && integer.getValue().isNegative()) return false;
+    return integer.getValue().getActiveBits() <= 32;
+  }
+  return isa<ptr::MemorySpaceAttrInterface>(memorySpace);
+}
+
+[[nodiscard]] auto canonicalPointerMemorySpace(Attribute memorySpace)
+    -> Attribute {
+  if (!memorySpace) return {};
+  if (isa<ptr::GenericSpaceAttr>(memorySpace)) return {};
+  if (auto space = dyn_cast<LLVM::LLVMAddrSpaceAttrInterface>(memorySpace)) {
+    auto value = space.getAddressSpace();
+    if (!value) return {};
+    return IntegerAttr::get(IntegerType::get(memorySpace.getContext(), 64),
+                            value);
+  }
+  if (auto integer = dyn_cast<IntegerAttr>(memorySpace)) {
+    if (integer.getValue().isZero()) return {};
+    return IntegerAttr::get(IntegerType::get(memorySpace.getContext(), 64),
+                            integer.getValue().getZExtValue());
+  }
+  return memorySpace;
+}
+
+[[nodiscard]] auto verifyPointerMemorySpaces(Operation* op, Type input,
+                                             Type result) -> LogicalResult {
+  auto inputPointer = dyn_cast<PtrLikeTypeInterface>(input);
+  auto resultPointer = dyn_cast<PtrLikeTypeInterface>(result);
+  if (!inputPointer || !resultPointer) return success();
+  if (canonicalPointerMemorySpace(inputPointer.getMemorySpace()) ==
+      canonicalPointerMemorySpace(resultPointer.getMemorySpace()))
+    return success();
+  return op->emitOpError("requires matching pointer memory spaces");
+}
+
 class TypeGraphPrinter {
  public:
   explicit TypeGraphPrinter(AsmPrinter& printer) : printer_(printer) {}
@@ -119,6 +161,14 @@ class TypeGraphPrinter {
   void printBody(PointerType type) {
     printer_ << '<';
     printType(type.getElementType());
+    if (auto memorySpace = type.getAddressSpace()) {
+      printer_ << ", ";
+      if (auto integer = dyn_cast<IntegerAttr>(memorySpace);
+          integer && integer.getType().isSignlessInteger(64))
+        printer_.printAttributeWithoutType(memorySpace);
+      else
+        printer_ << memorySpace;
+    }
     printer_ << '>';
   }
 
@@ -380,11 +430,68 @@ void PointerType::print(AsmPrinter& p) const {
 }
 
 auto PointerType::parse(AsmParser& parser) -> Type {
+  auto location = parser.getCurrentLocation();
   Type elementType;
-  if (parser.parseLess() || parser.parseType(elementType) ||
-      parser.parseGreater())
+  Attribute memorySpace;
+  if (parser.parseLess() || parser.parseType(elementType)) return {};
+  if (succeeded(parser.parseOptionalComma()) &&
+      parser.parseAttribute(memorySpace))
     return {};
-  return get(parser.getContext(), elementType);
+  if (parser.parseGreater()) return {};
+  return parser.getChecked<PointerType>(location, parser.getContext(),
+                                        elementType, memorySpace);
+}
+
+auto PointerType::verify(function_ref<InFlightDiagnostic()> emitError,
+                         Type elementType, Attribute memorySpace)
+    -> LogicalResult {
+  if (!elementType) return emitError() << "expected pointer element type";
+  if (isValidPointerMemorySpace(memorySpace)) return success();
+  return emitError() << "expected a nonnegative 32-bit integer memory space or "
+                        "an attribute implementing MemorySpaceAttrInterface";
+}
+
+auto PointerType::getMemorySpace() const -> Attribute {
+  auto space = getAddressSpace();
+  if (!space) return ptr::GenericSpaceAttr::get(getContext());
+  if (auto integer = dyn_cast<IntegerAttr>(space))
+    return LLVM::AddressSpaceAttr::get(getContext(),
+                                       integer.getValue().getZExtValue());
+  return space;
+}
+
+auto PointerType::clonePtrWith(Attribute memorySpace,
+                               std::optional<Type> elementType) const
+    -> FailureOr<PtrLikeTypeInterface> {
+  if (!isValidPointerMemorySpace(memorySpace)) return failure();
+  auto element = elementType.value_or(getElementType());
+  if (!element) return failure();
+  return cast<PtrLikeTypeInterface>(get(getContext(), element, memorySpace));
+}
+
+auto SubscriptOp::verify() -> LogicalResult {
+  return verifyPointerMemorySpaces(*this, getBase().getType(), getType());
+}
+
+auto MemberOp::verify() -> LogicalResult {
+  return verifyPointerMemorySpaces(*this, getBase().getType(), getType());
+}
+
+auto PtrAddOp::verify() -> LogicalResult {
+  return verifyPointerMemorySpaces(*this, getBase().getType(), getType());
+}
+
+auto PtrDiffOp::verify() -> LogicalResult {
+  return verifyPointerMemorySpaces(*this, getLhs().getType(),
+                                   getRhs().getType());
+}
+
+auto ArrayToPointerOp::verify() -> LogicalResult {
+  return verifyPointerMemorySpaces(*this, getValue().getType(), getType());
+}
+
+auto BitcastOp::verify() -> LogicalResult {
+  return verifyPointerMemorySpaces(*this, getValue().getType(), getType());
 }
 
 void ArrayType::print(AsmPrinter& p) const {

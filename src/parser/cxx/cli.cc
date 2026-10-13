@@ -236,6 +236,10 @@ std::vector<CLIOptionDescr> options{
      "Write declaration timings in Chrome JSON format",
      CLIOptionDescrKind::kJoined},
 
+    {"-mlir-pass-pipeline", "<pipeline>",
+     "Run an MLIR pass pipeline before lowering to LLVM",
+     CLIOptionDescrKind::kJoined},
+
     {"-fsyntax-only", "Check only the syntax", &CLI::opt_fsyntax_only},
 
     {"-freport-missing-types", "Report missing types",

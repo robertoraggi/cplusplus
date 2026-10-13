@@ -6,6 +6,7 @@
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/Ptr/IR/PtrDialect.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
 #include <mlir/Dialect/Vector/IR/VectorOps.h>
 #include <mlir/Tools/mlir-opt/MlirOptMain.h>
@@ -13,6 +14,7 @@
 
 int main(int argc, char** argv) {
   cxx::registerCxxToLLVMPass();
+  cxx::registerConvertCxxToPtrPass();
   cxx::registerLiftCxxControlFlowToSCFPass();
   mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
   mlir::registerCanonicalizerPass();
@@ -20,7 +22,8 @@ int main(int argc, char** argv) {
   registry.insert<mlir::cxx::CxxDialect, mlir::arith::ArithDialect,
                   mlir::cf::ControlFlowDialect, mlir::DLTIDialect,
                   mlir::func::FuncDialect, mlir::LLVM::LLVMDialect,
-                  mlir::scf::SCFDialect, mlir::vector::VectorDialect>();
+                  mlir::ptr::PtrDialect, mlir::scf::SCFDialect,
+                  mlir::vector::VectorDialect>();
   return mlir::asMainReturnCode(
       mlir::MlirOptMain(argc, argv, "Cxx MLIR optimizer", registry));
 }

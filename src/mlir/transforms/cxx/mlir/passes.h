@@ -30,6 +30,10 @@ namespace cxx {
 
 void registerCxxToLLVMPass();
 
+[[nodiscard]] auto createConvertCxxToPtrPass() -> std::unique_ptr<mlir::Pass>;
+
+void registerConvertCxxToPtrPass();
+
 [[nodiscard]] auto createLiftCxxControlFlowToSCFPass()
     -> std::unique_ptr<mlir::Pass>;
 
