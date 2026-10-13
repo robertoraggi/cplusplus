@@ -200,24 +200,7 @@ auto TranslationUnit::tokenText(SourceLocation loc) const
     static const std::string empty;
     return empty;
   }
-  const auto& tk = tokenAt(loc);
-  switch (tk.kind()) {
-    case TokenKind::T_IDENTIFIER:
-      return tk.value().idValue->name();
-
-    case TokenKind::T_STRING_LITERAL:
-    case TokenKind::T_WIDE_STRING_LITERAL:
-    case TokenKind::T_UTF8_STRING_LITERAL:
-    case TokenKind::T_UTF16_STRING_LITERAL:
-    case TokenKind::T_UTF32_STRING_LITERAL:
-    case TokenKind::T_USER_DEFINED_STRING_LITERAL:
-    case TokenKind::T_CHARACTER_LITERAL:
-    case TokenKind::T_INTEGER_LITERAL:
-      return tk.value().literalValue->value();
-
-    default:
-      return Token::spell(tk.kind());
-  }
+  return tokenAt(loc).spell();
 }
 
 auto TranslationUnit::presumedTokenStartPosition(SourceLocation loc) const

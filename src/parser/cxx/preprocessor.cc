@@ -1247,7 +1247,9 @@ void Preprocessor::Private::initialize() {
                                           ->presumedTokenStartPosition(
                                               tokenForDiagnostic(*context.tok))
                                           .fileName));
-        tk.space = true;
+        tk.space = context.tok->space;
+        tk.bol = context.tok->bol;
+        tk.offset = context.tok->offset;
         tk.sourceFile = context.tok->sourceFile;
         result.push_back(tk);
         return result;
@@ -1261,7 +1263,9 @@ void Preprocessor::Private::initialize() {
         auto tk =
             genTok(TokenKind::T_INTEGER_LITERAL, std::to_string(start.line));
         tk.sourceFile = context.tok->sourceFile;
-        tk.space = true;
+        tk.space = context.tok->space;
+        tk.bol = context.tok->bol;
+        tk.offset = context.tok->offset;
         result.push_back(tk);
         return result;
       });
@@ -1272,7 +1276,9 @@ void Preprocessor::Private::initialize() {
         auto tk =
             genTok(TokenKind::T_INTEGER_LITERAL, std::to_string(counter_++));
         tk.sourceFile = context.tok->sourceFile;
-        tk.space = true;
+        tk.space = context.tok->space;
+        tk.bol = context.tok->bol;
+        tk.offset = context.tok->offset;
         result.push_back(tk);
         return result;
       });
@@ -1282,7 +1288,9 @@ void Preprocessor::Private::initialize() {
                      TokVector result;
                      auto tk = genTok(TokenKind::T_STRING_LITERAL, date_);
                      tk.sourceFile = context.tok->sourceFile;
-                     tk.space = true;
+                     tk.space = context.tok->space;
+                     tk.bol = context.tok->bol;
+                     tk.offset = context.tok->offset;
                      result.push_back(tk);
                      return result;
                    });
@@ -1292,7 +1300,9 @@ void Preprocessor::Private::initialize() {
                      TokVector result;
                      auto tk = genTok(TokenKind::T_STRING_LITERAL, time_);
                      tk.sourceFile = context.tok->sourceFile;
-                     tk.space = true;
+                     tk.space = context.tok->space;
+                     tk.bol = context.tok->bol;
+                     tk.offset = context.tok->offset;
                      result.push_back(tk);
                      return result;
                    });
@@ -1922,8 +1932,14 @@ auto Preprocessor::Private::substitute(
     }
   };
 
-  auto appendTokens = [&](const Tok* begin, const Tok* end) {
+  auto appendTokens = [&](const Tok* begin, const Tok* end,
+                          const Tok* parameter = nullptr) {
+    const auto start = os.size();
     for (auto it = begin; it < end; ++it) appendToken(*it);
+    if (parameter && start < os.size()) {
+      os[start].space = parameter->space;
+      os[start].bol = parameter->bol;
+    }
   };
 
   const TokVector* macroBody = getMacroBody(*macro);
@@ -2034,10 +2050,11 @@ auto Preprocessor::Private::substitute(
           const Tok* cTs = contentTokens.data();
           const Tok* cEnd = cTs + contentTokens.size();
           while (cTs < cEnd && cTs->isNot(TokenKind::T_EOF_SYMBOL)) {
+            const auto parameter = cTs;
             if (auto actual =
                     lookupMacroArgument(cTs, cEnd, macro, expandedActuals)) {
               auto [ab, ae] = *actual;
-              if (ab && ab < ae) appendTokens(ab, ae);
+              if (ab && ab < ae) appendTokens(ab, ae, parameter);
               continue;
             }
             appendToken(*cTs);
@@ -2048,9 +2065,10 @@ auto Preprocessor::Private::substitute(
       }
     }
 
+    const auto parameter = ts;
     if (auto actual = lookupMacroArgument(ts, tsEnd, macro, expandedActuals)) {
       auto [ab, ae] = *actual;
-      if (ab && ab < ae) appendTokens(ab, ae);
+      if (ab && ab < ae) appendTokens(ab, ae, parameter);
       continue;
     }
 
@@ -3463,7 +3481,8 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
 
   switch (tk.kind) {
     case TokenKind::T_IDENTIFIER: {
-      kind = Lexer::classifyKeyword(text, language_, targetArch_);
+      kind =
+          Lexer::classifyKeyword(text, language_, targetArch_, &value.intValue);
       if (kind == TokenKind::T_IDENTIFIER) {
         value.idValue = control_->getIdentifier(text);
       }
@@ -3526,7 +3545,7 @@ void Preprocessor::Private::finalizeToken(std::vector<Token>& tokens,
   if (tk.kind == TokenKind::T_GREATER_GREATER) {
     value.tokenKindValue = tk.kind;
 
-    Token token(TokenKind::T_GREATER, tk.offset, 1);
+    Token token(TokenKind::T_GREATER, tk.offset, 1, value);
     token.setFileId(fileId);
     token.setLeadingSpace(tk.space);
     token.setStartOfLine(tk.bol);
@@ -3859,6 +3878,37 @@ static auto wantSpace(TokenKind kind) -> bool {
   }
 }
 
+[[nodiscard]] static auto needsTokenSeparator(std::string_view left,
+                                              std::string_view right,
+                                              LanguageKind language,
+                                              bool precedingDot) -> bool {
+  if (precedingDot && left == "." && right.starts_with('.')) return true;
+  if (left == "R" && right.starts_with('\'')) return true;
+
+  std::string text(left);
+  text += right;
+  if (left.size() == 1) {
+    for (auto digraph : {"<:", "<%", ":>", "%>", "%:", "#%"}) {
+      if (text.starts_with(digraph)) return true;
+    }
+  }
+
+  Lexer lexer(text, language);
+  lexer.setPreprocessing(true);
+  lexer.next();
+  if (lexer.tokenPos() != 0) return true;
+  while (lexer.tokenKind() != TokenKind::T_EOF_SYMBOL &&
+         lexer.tokenPos() + lexer.tokenLength() < left.size()) {
+    lexer.next();
+  }
+  if (lexer.tokenPos() + lexer.tokenLength() != left.size()) return true;
+  if (lexer.tokenKind() == TokenKind::T_INTEGER_LITERAL ||
+      lexer.tokenKind() == TokenKind::T_FLOATING_POINT_LITERAL) {
+    return right.starts_with('+') || right.starts_with('-');
+  }
+  return false;
+}
+
 static auto needSpace(const Tok* prev, const Tok& current) -> bool {
   if (!prev || current.space) return current.space;
   return wantSpace(prev->kind) && wantSpace(current.kind);
@@ -4156,24 +4206,20 @@ void Preprocessor::getPreprocessedText(
     atStartOfLine = true;
   };
 
-  auto emitTokenSpacing = [&](const Token& token, std::size_t index,
-                              const std::vector<Token>& toks) {
+  std::string_view previousSpelling;
+  bool precedingDot = false;
+
+  auto emitTokenSpacing = [&](const Token& token, std::string_view spelling) {
     if (token.startOfLine()) {
+      if (!atStartOfLine) out << '\n';
       atStartOfLine = true;
-      out << '\n';
-    } else if (token.leadingSpace()) {
-      atStartOfLine = false;
+      return;
+    }
+    if (atStartOfLine) return;
+    if (token.leadingSpace() ||
+        needsTokenSeparator(previousSpelling, spelling, d->language_,
+                            precedingDot)) {
       out << ' ';
-    } else if (index > 2) {
-      const auto& prevToken = toks[index - 2];
-      std::string s = prevToken.spell();
-      s += token.spell();
-      Lexer lex(s, d->language_);
-      lex.next();
-      if (lex.tokenKind() != prevToken.kind() ||
-          lex.tokenLength() != prevToken.length()) {
-        out << ' ';
-      }
     }
   };
 
@@ -4203,16 +4249,25 @@ void Preprocessor::getPreprocessedText(
     }
     if (d->builtinsFileId_ && token.fileId() == d->builtinsFileId_) continue;
 
+    std::string_view spelling = token.spell();
+    if (token.is(TokenKind::T_GREATER) &&
+        token.value().tokenKindValue == TokenKind::T_GREATER_GREATER) {
+      spelling = Token::spell(TokenKind::T_GREATER_GREATER);
+      ++index;
+    }
+
     const auto fileId = token.fileId();
     if (!d->omitLineMarkers_ && fileId && fileId != lastFileId) {
       emitLineMarker(token, fileId);
     } else {
-      emitTokenSpacing(token, index, tokens);
+      emitTokenSpacing(token, spelling);
     }
 
     emitColumnPadding(token);
 
-    out << token.spell();
+    out << spelling;
+    precedingDot = previousSpelling == ".";
+    previousSpelling = spelling;
   }
 
   out << '\n';

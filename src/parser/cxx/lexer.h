@@ -84,7 +84,8 @@ class Lexer {
   [[nodiscard]] auto text() const -> const std::string& { return text_; }
 
   [[nodiscard]] static auto classifyKeyword(const std::string_view& text,
-                                            LanguageKind lang, TripleArch arch)
+                                            LanguageKind lang, TripleArch arch,
+                                            int* aliasId = nullptr)
       -> TokenKind;
 
   struct State {

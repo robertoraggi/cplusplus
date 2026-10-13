@@ -19,8 +19,6 @@
 // SOFTWARE.
 
 /**
- * The persistence classification of section 9 of docs/design/symbol-storage.md.
- *
  * P — persisted in the artifact
  * R — rebuilt on load; never written
  * C — a compatibility key, validated rather than restored

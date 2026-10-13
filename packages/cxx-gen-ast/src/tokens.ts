@@ -488,3 +488,10 @@ export const C_AND_CXX_TOKEN_ALIASES = {
   ...C_TOKEN_ALIASES,
   ...CXX_TOKEN_ALIASES,
 };
+
+export const TOKEN_ALIAS_VALUES: Record<string, number> = Object.fromEntries(
+  Object.keys(C_AND_CXX_TOKEN_ALIASES).map((spelling, index) => [
+    spelling,
+    index + 1,
+  ]),
+);

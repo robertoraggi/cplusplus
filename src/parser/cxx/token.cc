@@ -30,6 +30,11 @@ std::string token_spell[] = {
     FOR_EACH_TOKEN(TOKEN_SPELL)};
 #undef TOKEN_SPELL
 
+std::string token_alias_spell[] = {
+#define TOKEN_ALIAS_SPELL(s) s,
+    "", FOR_EACH_TOKEN_ALIAS_SPELLING(TOKEN_ALIAS_SPELL)};
+#undef TOKEN_ALIAS_SPELL
+
 std::string token_name[] = {
 #define TOKEN_SPELL(s, _) #s,
     FOR_EACH_TOKEN(TOKEN_SPELL)};
@@ -89,6 +94,12 @@ auto Token::spell() const -> const std::string& {
     case TokenKind::T_FLOATING_POINT_LITERAL:
     case TokenKind::T_COMMENT:
       return value_.literalValue ? value_.literalValue->value() : spell(kind());
+
+#define ALIASED_TOKEN(tk) case TokenKind::T_##tk:
+      FOR_EACH_ALIASED_TOKEN(ALIASED_TOKEN)
+#undef ALIASED_TOKEN
+      if (value_.intValue) return token_alias_spell[value_.intValue];
+      return spell(kind());
 
     default:
       return spell(kind());

@@ -538,3 +538,26 @@ TEST(PrecompiledHeader, RestoresMemberInstantiationQueueMembership) {
             (std::vector<ClassSymbol*>{first}));
   EXPECT_TRUE(consumer.beginMemberInstantiation(first));
 }
+
+TEST(PrecompiledHeader, RestoresMacroAliasSpellings) {
+  Prefix prefix{"#define TYPE __typeof__\n#define AND and\nint anchor;\n"};
+  const auto data = prefix.emit();
+  ASSERT_TRUE(prefix.errors().empty());
+
+  DiagnosticsClient diagnostics;
+  TranslationUnit consumer{&diagnostics};
+  consumer.setSource("", "consumer.cc");
+  PrecompiledHeaderReader reader{&consumer, keys()};
+  ASSERT_TRUE(reader(data)) << reader.error();
+
+  std::vector<Token> tokens;
+  consumer.preprocessor()->preprocess("TYPE(anchor) AND true", "macro.cc",
+                                      tokens);
+  ASSERT_EQ(tokens.size(), 8u);
+  EXPECT_EQ(tokens[1].kind(), TokenKind::T_TYPEOF);
+  EXPECT_EQ(tokens[1].spell(), "__typeof__");
+  EXPECT_GT(tokens[1].value().intValue, 0);
+  EXPECT_EQ(tokens[5].kind(), TokenKind::T_AMP_AMP);
+  EXPECT_EQ(tokens[5].spell(), "and");
+  EXPECT_GT(tokens[5].value().intValue, 0);
+}

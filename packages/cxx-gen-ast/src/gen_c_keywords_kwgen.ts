@@ -35,6 +35,7 @@ export function gen_c_keywords_kwgen({ output }: { output: string }) {
     copyright: cpy_header,
     output,
     keywords,
+    tokenValues: tokens.TOKEN_ALIAS_VALUES,
     tokenPrefix: "cxx::TokenKind::T_",
     tokenType: "cxx::TokenKind",
     toUpper: true,

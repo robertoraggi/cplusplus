@@ -69,7 +69,6 @@ export function gen_token_fwd_h({ output }: { output: string }) {
     emit(`  V(${tk.toUpperCase()}, "${tk}") \\`),
   );
 
-
   emit();
   emit("#define FOR_EACH_BUILTIN_KEYWORD_OPERATOR(V) \\");
   tokens.BUILTIN_KEYWORD_OPERATORS.forEach((tk) =>
@@ -98,6 +97,18 @@ export function gen_token_fwd_h({ output }: { output: string }) {
   emit("#define FOR_EACH_TOKEN_ALIAS(V) \\");
   Object.entries(tokens.C_AND_CXX_TOKEN_ALIASES).forEach(([tk, other]) =>
     emit(`  V(${tk.toUpperCase()}, ${other}) \\`),
+  );
+
+  emit();
+  emit("#define FOR_EACH_TOKEN_ALIAS_SPELLING(V) \\");
+  Object.keys(tokens.C_AND_CXX_TOKEN_ALIASES).forEach((tk) =>
+    emit(`  V("${tk}") \\`),
+  );
+
+  emit();
+  emit("#define FOR_EACH_ALIASED_TOKEN(V) \\");
+  new Set(Object.values(tokens.C_AND_CXX_TOKEN_ALIASES)).forEach((tk) =>
+    emit(`  V(${tk}) \\`),
   );
 
   const firstKeyword = tokens.C_AND_CXX_KEYWORDS[0];
