@@ -243,7 +243,7 @@ std::vector<CLIOptionDescr> options{
 
     {"-fno-reflect", "Disable reflection", &CLI::opt_fno_reflect},
 
-    {"-fexceptions", "Enable C++ exceptions (the default)"},
+    {"-fexceptions", "Enable C++ exceptions (the default for native targets)"},
 
     {"-fno-exceptions", "Disable C++ exceptions"},
 
@@ -456,11 +456,12 @@ constexpr PositionIndependenceFlag positionIndependenceFlags[] = {
 
 }  // namespace
 
-auto CLI::exceptionsEnabled() const -> bool {
+auto CLI::exceptionsEnabled(bool defaults) const -> bool {
   auto flag = lastFlag([](std::string_view name) {
     return name == "-fexceptions" || name == "-fno-exceptions";
   });
-  return flag != "-fno-exceptions";
+  if (!flag) return defaults;
+  return flag == "-fexceptions";
 }
 
 auto CLI::rttiEnabled() const -> bool {

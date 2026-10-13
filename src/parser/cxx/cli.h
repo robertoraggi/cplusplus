@@ -116,7 +116,7 @@ class CLI {
 
   [[nodiscard]] auto optimizationLevel() const -> int;
 
-  [[nodiscard]] auto exceptionsEnabled() const -> bool;
+  [[nodiscard]] auto exceptionsEnabled(bool defaults = true) const -> bool;
 
   [[nodiscard]] auto rttiEnabled() const -> bool;
 

@@ -595,3 +595,54 @@ test("written initializers retain types and share expressions with normalization
     [...range.expressionList][0].handle,
   );
 });
+
+test("constexpr folding and reference conversions preserve written initializers", async () => {
+  await using parser = await Parser.parse({
+    path: "/normalized-initializers.cc",
+    source: `
+      constexpr int answer() { return 123; }
+      constexpr int value = answer();
+      constexpr const int& reference() { return value; }
+      constexpr const int& alias = reference();
+      struct A { int a; };
+      struct P { int p; };
+      struct B : P, A { int b; };
+      struct HoldsBase { A& r; };
+      void bind(B& object) { HoldsBase holder{object}; }
+    `,
+  });
+  assert.deepEqual(parser.diagnostics, []);
+  const declarations = traverse(
+    parser.ast,
+    {
+      InitDeclarator(path, found) {
+        if (["value", "alias", "holder"].includes(path.node.symbol?.text))
+          found.push(path.node);
+      },
+    },
+    [],
+  );
+  const [value, alias, holder] = declarations;
+  for (const declaration of [value, alias]) {
+    assert.ok(declaration.initializer instanceof S.EqualInitializerAST);
+    assert.ok(
+      declaration.initializer.expression instanceof S.CallExpressionAST,
+    );
+    assert.ok(declaration.symbol.initializer instanceof S.ConstExpressionAST);
+    assert.equal(
+      declaration.symbol.initializer.expression.handle,
+      declaration.initializer.expression.handle,
+    );
+  }
+  assert.equal(value.symbol.constValue, 123n);
+  assert.ok(alias.symbol.constValue instanceof S.ConstAddress);
+  assert.equal(alias.symbol.constValue.symbol.handle, value.symbol.handle);
+  const written = [...holder.initializer.expressionList][0];
+  assert.ok(written instanceof S.IdExpressionAST);
+  assert.equal(written.type.symbol.text, "B");
+  const converted = [...holder.initializer.initialization.arguments][0];
+  assert.ok(converted instanceof S.ImplicitCastExpressionAST);
+  assert.equal(converted.castKind, "DerivedToBaseConversion");
+  assert.equal(converted.type.symbol.text, "A");
+  assert.equal(converted.expression.handle, written.handle);
+});

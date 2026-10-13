@@ -576,6 +576,9 @@ struct DenseArrayShape {
     return denseArrayConstant(rewriter, loc, type, attr);
   auto constant = constantAggregateAttr(rewriter.getContext(), type, attr);
   if (!constant) return {};
+  if (isa<LLVM::ZeroAttr>(constant))
+    return LLVM::ZeroOp::create(rewriter, loc, type);
+  if (!isa<LLVM::LLVMStructType>(type.getElementType())) return {};
   return LLVM::ConstantOp::create(rewriter, loc, type, constant);
 }
 
@@ -641,6 +644,10 @@ static void emitAggregateInit(ConversionPatternRewriter& rewriter, Location loc,
     if (!element) return {};
     converted.push_back(element);
   }
+  if (llvm::all_of(converted, [](Attribute element) {
+        return isa<LLVM::ZeroAttr>(element);
+      }))
+    return LLVM::ZeroAttr::get(context);
   return ArrayAttr::get(context, converted);
 }
 

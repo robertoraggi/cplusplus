@@ -457,9 +457,11 @@ void StandardConversion::foldConditionalRead(
 
   auto iftrue = readOfPotentialResult(read, conditional->iftrueExpression);
   auto iffalse = readOfPotentialResult(read, conditional->iffalseExpression);
-  if (ast_cast<ImplicitCastExpressionAST>(iftrue) &&
-      ast_cast<ImplicitCastExpressionAST>(iffalse))
-    return;
+  if (!designatesBitField(conditional)) {
+    if (ast_cast<ImplicitCastExpressionAST>(iftrue) &&
+        ast_cast<ImplicitCastExpressionAST>(iffalse))
+      return;
+  }
 
   auto copy = ConditionalExpressionAST::create(arena_);
   copy->condition = conditional->condition;
@@ -478,7 +480,8 @@ void StandardConversion::foldCommaRead(ExpressionAST*& expression,
   if (!is_glvalue(comma->rightExpression)) return;
 
   auto right = readOfPotentialResult(read, comma->rightExpression);
-  if (ast_cast<ImplicitCastExpressionAST>(right)) return;
+  if (!designatesBitField(comma) && ast_cast<ImplicitCastExpressionAST>(right))
+    return;
 
   auto copy = BinaryExpressionAST::create(arena_);
   copy->leftExpression = comma->leftExpression;
