@@ -1,5 +1,6 @@
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/passes.h>
+#include <llvm/ADT/DepthFirstIterator.h>
 #include <mlir/Conversion/ControlFlowToSCF/ControlFlowToSCF.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -22,6 +23,43 @@ class CxxControlFlowToSCFTransformation
     return cxx::UnreachableOp::create(builder, loc).getOperation();
   }
 };
+
+template <typename Transformation>
+[[nodiscard]] auto canLiftBranch(Operation* operation,
+                                 Transformation& transformation) -> bool {
+  if (!operation->getNumSuccessors()) return true;
+  auto branch = dyn_cast<BranchOpInterface>(operation);
+  if (!branch) return false;
+  if (!isMemoryEffectFree(operation)) return false;
+  for (unsigned index = 0; index < operation->getNumSuccessors(); ++index) {
+    if (branch.getSuccessorOperands(index).getProducedOperandCount())
+      return false;
+  }
+  if (operation->getNumSuccessors() == 1) return true;
+  if constexpr (requires {
+                  transformation.canConvertMultiSuccessorBranchOp(operation);
+                }) {
+    return transformation.canConvertMultiSuccessorBranchOp(operation);
+  } else {
+    return isa<cf::CondBranchOp, cf::SwitchOp>(operation);
+  }
+}
+
+[[nodiscard]] auto canLiftRegion(Region& region,
+                                 CFGToSCFInterface& transformation) -> bool {
+  llvm::df_iterator_default_set<Block*, 16> reachable;
+  for (auto block : llvm::depth_first_ext(&region.front(), reachable))
+    (void)block;
+  for (auto& block : region) {
+    if (!reachable.contains(&block)) return false;
+  }
+  auto result = region.walk([&](Operation* operation) {
+    if (!canLiftBranch(operation, transformation))
+      return WalkResult::interrupt();
+    return WalkResult::advance();
+  });
+  return !result.wasInterrupted();
+}
 
 class LiftCxxControlFlowToSCFPass
     : public PassWrapper<LiftCxxControlFlowToSCFPass,
@@ -51,6 +89,10 @@ class LiftCxxControlFlowToSCFPass
     }
 
     CxxControlFlowToSCFTransformation transformation;
+    if (!canLiftRegion(body, transformation)) {
+      markAllAnalysesPreserved();
+      return;
+    }
     auto changed =
         transformCFGToSCF(body, transformation, getAnalysis<DominanceInfo>());
     if (failed(changed)) {

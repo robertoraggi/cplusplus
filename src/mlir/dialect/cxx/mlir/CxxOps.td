@@ -23,6 +23,7 @@ include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/EnumAttr.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
+include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
@@ -33,7 +34,7 @@ def Cxx_Dialect : Dialect {
   let cppNamespace = "mlir::cxx";
   let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
-  let dependentDialects = ["mlir::arith::ArithDialect", "mlir::cf::ControlFlowDialect", "mlir::DLTIDialect", "mlir::LLVM::LLVMDialect", "mlir::vector::VectorDialect"];
+  let dependentDialects = ["mlir::arith::ArithDialect", "mlir::cf::ControlFlowDialect", "mlir::DLTIDialect", "mlir::LLVM::LLVMDialect", "mlir::ptr::PtrDialect", "mlir::vector::VectorDialect"];
 }
 
 class Cxx_Type<string name, string typeMnemonic, list<Trait> traits = []>
@@ -102,10 +103,26 @@ def Cxx_ExprType : Cxx_Type<"Expr", "expr">;
 
 def Cxx_VoidType : Cxx_Type<"Void", "void">;
 
-def Cxx_PointerType : Cxx_Type<"Pointer", "ptr"> {
-  let parameters = (ins "Type":$elementType);
+def Cxx_PointerType : Cxx_Type<"Pointer", "ptr", [PtrLikeTypeInterface]> {
+  let parameters = (ins "Type":$elementType,
+      OptionalParameter<"Attribute">:$addressSpace);
 
   let hasCustomAssemblyFormat = 1;
+  let genVerifyDecl = 1;
+  let skipDefaultBuilders = 1;
+  let builders = [
+    TypeBuilder<(ins "Type":$elementType,
+        CArg<"Attribute", "{}">:$addressSpace), [{
+      return $_get($_ctxt, elementType, addressSpace);
+    }]>
+  ];
+
+  let extraClassDeclaration = [{
+    [[nodiscard]] auto getMemorySpace() const -> Attribute;
+    [[nodiscard]] auto hasPtrMetadata() const -> bool { return false; }
+    [[nodiscard]] auto clonePtrWith(Attribute memorySpace,
+        std::optional<Type> elementType) const -> FailureOr<PtrLikeTypeInterface>;
+  }];
 }
 
 def Cxx_ArrayType : Cxx_Type<"Array", "array"> {
@@ -178,7 +195,7 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
   let hasCustomAssemblyFormat = 1;
 }
 
-def Cxx_GlobalOp : Cxx_Op<"global"> {
+def Cxx_GlobalOp : Cxx_Op<"global", [IsolatedFromAbove]> {
   let arguments = (ins
       TypeAttrOf<AnyType>:$global_type
     , UnitAttr:$constant
@@ -412,6 +429,7 @@ def Cxx_MemCpyOp : Cxx_Op<"memcpy"> {
 }
 
 def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
+  let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$base, AnyType:$index);
 
   let results = (outs Cxx_PointerType:$result);
@@ -420,6 +438,7 @@ def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
 }
 
 def Cxx_MemberOp : Cxx_Op<"member"> {
+  let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$base, I32Prop:$member_index);
 
   let results = (outs Cxx_PointerType:$result);
@@ -428,6 +447,7 @@ def Cxx_MemberOp : Cxx_Op<"member"> {
 }
 
 def Cxx_PtrAddOp : Cxx_Op<"ptradd"> {
+  let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$base, AnySignlessInteger:$offset);
 
   let results = (outs Cxx_PointerType:$result);
@@ -436,6 +456,7 @@ def Cxx_PtrAddOp : Cxx_Op<"ptradd"> {
 }
 
 def Cxx_PtrDiffOp : Cxx_Op<"ptrdiff"> {
+  let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$lhs, Cxx_PointerType:$rhs);
 
   let results = (outs AnySignlessInteger:$result);
@@ -470,6 +491,7 @@ def Cxx_AggregateConstantOp : Cxx_Op<"constant.aggregate", [Pure]> {
 }
 
 def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr"> {
+  let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$value);
 
   let results = (outs Cxx_PointerType:$result);
@@ -478,6 +500,7 @@ def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr"> {
 }
 
 def Cxx_BitcastOp : Cxx_Op<"bitcast"> {
+  let hasVerifier = 1;
   let arguments = (ins AnyType:$value);
 
   let results = (outs AnyType:$result);

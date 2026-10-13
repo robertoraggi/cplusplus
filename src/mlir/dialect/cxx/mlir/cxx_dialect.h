@@ -26,6 +26,7 @@
 #endif
 
 #include <mlir/Bytecode/BytecodeOpInterface.h>
+#include <mlir/IR/BuiltinTypeInterfaces.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/SymbolTable.h>
@@ -47,6 +48,7 @@
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
 #include <cstdint>
+#include <optional>
 
 #if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop

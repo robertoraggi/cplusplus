@@ -1,4 +1,4 @@
-add_library(cxx-mlir-transforms cxx_to_llvm.cc cxx_to_scf.cc)
+add_library(cxx-mlir-transforms cxx_to_llvm.cc cxx_to_scf.cc cxx_to_ptr.cc)
 
 llvm_update_compile_flags(cxx-mlir-transforms)
 
@@ -15,6 +15,7 @@ mlir_target_link_libraries(cxx-mlir-transforms PUBLIC
     MLIRControlFlowToSCF
     MLIRLLVMCommonConversion
     MLIRPass
+    MLIRPtrToLLVM
     MLIRSCFToControlFlow
     MLIRTransforms
     MLIRVectorToLLVM

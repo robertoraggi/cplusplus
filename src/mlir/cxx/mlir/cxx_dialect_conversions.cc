@@ -20,6 +20,7 @@
 
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <llvm/IR/Module.h>
+#include <mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h>
@@ -31,13 +32,25 @@ namespace cxx {
 void registerCxxLLVMTranslation(mlir::MLIRContext& context);
 }
 
-auto cxx::lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult {
-  mlir::PassManager pm(module->getName());
+auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
+                              llvm::StringRef passPipeline)
+    -> mlir::LogicalResult {
+  if (passPipeline.empty()) return mlir::success();
 
-#if false
-  module->getContext()->disableMultithreading();
-  pm.enableIRPrinting();
-#endif
+  registerConvertCxxToPtrPass();
+  registerLiftCxxControlFlowToSCFPass();
+  mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
+
+  mlir::PassManager pm(module->getName());
+  if (failed(mlir::parsePassPipeline(passPipeline, pm))) return mlir::failure();
+  return pm.run(module);
+}
+
+auto cxx::lowerToMLIR(mlir::ModuleOp module, llvm::StringRef passPipeline)
+    -> mlir::LogicalResult {
+  if (failed(runMLIRPassPipeline(module, passPipeline))) return mlir::failure();
+
+  mlir::PassManager pm(module->getName());
 
   pm.addPass(cxx::createLowerToLLVMPass());
   pm.addPass(mlir::createCanonicalizerPass());

@@ -35,11 +35,14 @@
 #include <mlir/Conversion/ArithToLLVM/ArithToLLVM.h>
 #include <mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
+#include <mlir/Conversion/PtrToLLVM/PtrToLLVM.h>
 #include <mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/Ptr/IR/PtrAttrs.h>
+#include <mlir/Dialect/Ptr/IR/PtrOps.h>
 #include <mlir/Dialect/Vector/IR/VectorOps.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassRegistry.h>
@@ -51,7 +54,8 @@
 namespace mlir {
 namespace {
 constexpr std::uint32_t kDefaultGlobalCtorPriority = 65535;
-}
+constexpr std::uint32_t kMaxLLVMAddressSpace = 0x00ffffff;
+}  // namespace
 namespace {
 static auto getBoolMemoryType(MLIRContext* context) -> IntegerType {
   return IntegerType::get(context, 8);
@@ -1988,8 +1992,10 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     Value result = LLVM::ExtractValueOp::create(
         rewriter, loc, cmpxchg, ArrayRef<std::int64_t>{returnsSuccess ? 1 : 0});
     if (!returnsSuccess && isa<cxx::PointerType>(op.getResult().getType())) {
-      result = LLVM::IntToPtrOp::create(
-          rewriter, loc, LLVM::LLVMPointerType::get(getContext()), result);
+      auto resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
+      if (!resultType) return failure();
+      result = LLVM::IntToPtrOp::create(rewriter, loc, resultType, result);
     }
     rewriter.replaceOp(op, result);
     return success();
@@ -2056,8 +2062,9 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       if (!isa<cxx::PointerType>(op.getResult().getType())) {
         return narrowFromAtomicMemory(op, 0, value, valueType, loc, rewriter);
       }
-      return LLVM::IntToPtrOp::create(
-          rewriter, loc, LLVM::LLVMPointerType::get(getContext()), value);
+      auto resultType =
+          getTypeConverter()->convertType(op.getResult().getType());
+      return LLVM::IntToPtrOp::create(rewriter, loc, resultType, value);
     };
 
     if (!returnsPostOp) {
@@ -2200,6 +2207,80 @@ class AddressOfOpLowering : public OpConversionPattern<cxx::AddressOfOp> {
   }
 };
 
+template <typename Op>
+class CxxPtrBridgeLowering : public OpConversionPattern<Op> {
+ public:
+  using OpConversionPattern<Op>::OpConversionPattern;
+  using OpAdaptor = typename Op::Adaptor;
+
+  auto matchAndRewrite(Op op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    if (!isa<cxx::PointerType>(op.getPtr().getType()) &&
+        !isa<cxx::PointerType>(op.getType()))
+      return failure();
+    auto type = this->getTypeConverter()->convertType(op.getType());
+    if (!type || type != adaptor.getPtr().getType()) return failure();
+    rewriter.replaceOp(op, adaptor.getPtr());
+    return success();
+  }
+};
+
+[[nodiscard]] auto convertPtrAtomicOrdering(ptr::AtomicOrdering ordering)
+    -> LLVM::AtomicOrdering {
+  switch (ordering) {
+    case ptr::AtomicOrdering::not_atomic:
+      return LLVM::AtomicOrdering::not_atomic;
+    case ptr::AtomicOrdering::unordered:
+      return LLVM::AtomicOrdering::unordered;
+    case ptr::AtomicOrdering::monotonic:
+      return LLVM::AtomicOrdering::monotonic;
+    case ptr::AtomicOrdering::acquire:
+      return LLVM::AtomicOrdering::acquire;
+    case ptr::AtomicOrdering::release:
+      return LLVM::AtomicOrdering::release;
+    case ptr::AtomicOrdering::acq_rel:
+      return LLVM::AtomicOrdering::acq_rel;
+    case ptr::AtomicOrdering::seq_cst:
+      return LLVM::AtomicOrdering::seq_cst;
+  }
+  llvm_unreachable("invalid Ptr atomic ordering");
+}
+
+class PtrLoadOpLowering : public OpConversionPattern<ptr::LoadOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(ptr::LoadOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto type = getTypeConverter()->convertType(op.getType());
+    if (!type) return failure();
+    rewriter.replaceOpWithNewOp<LLVM::LoadOp>(
+        op, type, adaptor.getPtr(), op.getAlignment().value_or(0),
+        op.getVolatile_(), op.getNontemporal(), op.getInvariant(),
+        op.getInvariantGroup(), convertPtrAtomicOrdering(op.getOrdering()),
+        op.getSyncscope().value_or(StringRef()));
+    return success();
+  }
+};
+
+class PtrStoreOpLowering : public OpConversionPattern<ptr::StoreOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(ptr::StoreOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    rewriter.replaceOpWithNewOp<LLVM::StoreOp>(
+        op, adaptor.getValue(), adaptor.getPtr(), op.getAlignment().value_or(0),
+        op.getVolatile_(), op.getNontemporal(), op.getInvariantGroup(),
+        convertPtrAtomicOrdering(op.getOrdering()),
+        op.getSyncscope().value_or(StringRef()));
+    return success();
+  }
+};
+
 class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
  public:
   AllocaOpLowering(const TypeConverter& typeConverter,
@@ -2219,7 +2300,9 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
           op, "expected result type to be a pointer type");
     }
 
-    auto resultType = LLVM::LLVMPointerType::get(context);
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType)
+      return rewriter.notifyMatchFailure(op, "failed to convert alloca type");
 
     auto elementType = isBoolElementType(ptrTy)
                            ? getBoolMemoryType(context)
@@ -2258,7 +2341,10 @@ class DynAllocaOpLowering : public OpConversionPattern<cxx::DynAllocaOp> {
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto i8Type = rewriter.getIntegerType(8);
-    auto resultType = LLVM::LLVMPointerType::get(getContext());
+    auto resultType = getTypeConverter()->convertType(op.getType());
+    if (!resultType)
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert dyn_alloca type");
     auto x = LLVM::AllocaOp::create(rewriter, op.getLoc(), resultType, i8Type,
                                     adaptor.getSize(), op.getAlignment());
     rewriter.replaceOp(op, x);
@@ -2416,7 +2502,6 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
-    auto context = getContext();
 
     auto ptrType = dyn_cast<cxx::PointerType>(op.getBase().getType());
 
@@ -2443,7 +2528,10 @@ class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
     indices.push_back(0);
     indices.push_back(adaptor.getIndex());
 
-    auto resultType = LLVM::LLVMPointerType::get(context);
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType)
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert subscript type");
     auto elementType = typeConverter->convertType(ptrType.getElementType());
 
     rewriter.replaceOp(
@@ -2639,7 +2727,6 @@ class ArrayToPointerOpLowering
                        ConversionPatternRewriter& rewriter) const
       -> LogicalResult override {
     auto typeConverter = getTypeConverter();
-    auto context = getContext();
 
     auto ptrType = dyn_cast<cxx::PointerType>(op.getValue().getType());
 
@@ -2659,7 +2746,10 @@ class ArrayToPointerOpLowering
     indices.push_back(0);
     indices.push_back(0);
 
-    auto resultType = LLVM::LLVMPointerType::get(context);
+    auto resultType = typeConverter->convertType(op.getType());
+    if (!resultType)
+      return rewriter.notifyMatchFailure(op,
+                                         "failed to convert array_to_ptr type");
     auto elementType = typeConverter->convertType(ptrType.getElementType());
 
     rewriter.replaceOp(
@@ -2734,6 +2824,9 @@ class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
 
     if (isa<LLVM::LLVMPointerType>(inputType) &&
         isa<LLVM::LLVMPointerType>(resultType)) {
+      if (inputType != resultType)
+        return rewriter.notifyMatchFailure(
+            op, "bitcast requires matching pointer memory spaces");
       rewriter.replaceOp(op, adaptor.getValue());
       return success();
     }
@@ -2838,7 +2931,10 @@ class LabelAddressOpLowering : public OpConversionPattern<cxx::LabelAddressOp> {
     auto blockAddrAttr = LLVM::BlockAddressAttr::get(
         ctx, mlir::FlatSymbolRefAttr::get(ctx, funcName),
         LLVM::BlockTagAttr::get(ctx, tagId));
-    auto ptrType = LLVM::LLVMPointerType::get(ctx);
+    auto ptrType = getTypeConverter()->convertType(op.getType());
+    if (!ptrType)
+      return rewriter.notifyMatchFailure(
+          op, "failed to convert label address type");
     rewriter.replaceOpWithNewOp<LLVM::BlockAddressOp>(op, ptrType,
                                                       blockAddrAttr);
     return success();
@@ -3229,7 +3325,7 @@ class CxxToLLVMLoweringPass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(CxxToLLVMLoweringPass)
 
   [[nodiscard]] auto getArgument() const -> StringRef override {
-    return "cxx-to-llvm";
+    return "convert-cxx-to-llvm";
   }
 
   [[nodiscard]] auto getDescription() const -> StringRef override {
@@ -3268,8 +3364,27 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     return LLVM::LLVMVoidType::get(type.getContext());
   });
 
-  typeConverter.addConversion([](cxx::PointerType type) {
-    return LLVM::LLVMPointerType::get(type.getContext());
+  typeConverter.addTypeAttributeConversion(
+      [](PtrLikeTypeInterface type,
+         LLVM::LLVMAddrSpaceAttrInterface memorySpace)
+          -> TypeConverter::AttributeConversionResult {
+        if (memorySpace.getAddressSpace() > kMaxLLVMAddressSpace) {
+          emitError(UnknownLoc::get(type.getContext()),
+                    "LLVM address spaces must fit in 24 bits");
+          return TypeConverter::AttributeConversionResult::abort();
+        }
+        return IntegerAttr::get(IntegerType::get(type.getContext(), 64),
+                                memorySpace.getAddressSpace());
+      });
+
+  typeConverter.addConversion([&](cxx::PointerType type) -> Type {
+    auto memorySpace = type.getMemorySpace();
+    auto converted = typeConverter.convertTypeAttribute(type, memorySpace);
+    auto integer =
+        converted ? dyn_cast_or_null<IntegerAttr>(*converted) : IntegerAttr();
+    if (!integer) return {};
+    return LLVM::LLVMPointerType::get(type.getContext(),
+                                      integer.getValue().getZExtValue());
   });
 
   typeConverter.addConversion([&](cxx::ArrayType type) -> Type {
@@ -3278,6 +3393,7 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                            : typeConverter.convertType(type.getElementType());
     auto size = type.getSize();
 
+    if (!elementType) return {};
     return LLVM::LLVMArrayType::get(elementType, size);
   });
 
@@ -3285,11 +3401,13 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     SmallVector<Type> inputs;
     for (auto argType : type.getInputs()) {
       auto convertedType = typeConverter.convertType(argType);
+      if (!convertedType) return {};
       inputs.push_back(convertedType);
     }
     SmallVector<Type> results;
     for (auto resultType : type.getResults()) {
       auto convertedType = typeConverter.convertType(resultType);
+      if (!convertedType) return {};
       results.push_back(convertedType);
     }
     auto context = type.getContext();
@@ -3317,6 +3435,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
       auto convertedFieldType = field.isInteger(1)
                                     ? getBoolMemoryType(type.getContext())
                                     : typeConverter.convertType(field);
+      if (!convertedFieldType) {
+        convertedClassTypes.erase(type);
+        return {};
+      }
       fieldTypes.push_back(convertedFieldType);
     }
 
@@ -3342,6 +3464,7 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   target.addLegalDialect<LLVM::LLVMDialect>();
   target.addIllegalDialect<cxx::CxxDialect>();
+  target.addIllegalDialect<ptr::PtrDialect>();
   target.addIllegalDialect<arith::ArithDialect>();
   target.addIllegalDialect<vector::VectorDialect>();
   target.addDynamicallyLegalOp<cxx::InlineAsmOp>([](cxx::InlineAsmOp op) {
@@ -3388,6 +3511,11 @@ void CxxToLLVMLoweringPass::runOnOperation() {
 
   patterns.insert<PtrAddOpLowering, PtrDiffOpLowering>(typeConverter,
                                                        dataLayout, context);
+
+  ptr::populatePtrToLLVMConversionPatterns(typeConverter, patterns);
+  patterns.insert<CxxPtrBridgeLowering<ptr::ToPtrOp>,
+                  CxxPtrBridgeLowering<ptr::FromPtrOp>, PtrLoadOpLowering,
+                  PtrStoreOpLowering>(typeConverter, context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,
                                                                 typeConverter);

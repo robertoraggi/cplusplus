@@ -35,6 +35,7 @@ mlir_target_link_libraries(cxx-mlir-dialect PUBLIC
     MLIRFuncDialect
     MLIRIR
     MLIRLLVMDialect
+    MLIRPtrDialect
     MLIRSCFDialect
     MLIRVectorDialect
 )

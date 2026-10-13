@@ -31,7 +31,13 @@ class TargetMachine;
 
 namespace cxx {
 
-[[nodiscard]] auto lowerToMLIR(mlir::ModuleOp module) -> mlir::LogicalResult;
+[[nodiscard]] auto runMLIRPassPipeline(mlir::ModuleOp module,
+                                       llvm::StringRef passPipeline)
+    -> mlir::LogicalResult;
+
+[[nodiscard]] auto lowerToMLIR(mlir::ModuleOp module,
+                               llvm::StringRef passPipeline = {})
+    -> mlir::LogicalResult;
 
 [[nodiscard]] auto exportToLLVMIR(mlir::ModuleOp module,
                                   llvm::LLVMContext& context)

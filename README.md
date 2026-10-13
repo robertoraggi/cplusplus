@@ -53,8 +53,26 @@ Compile to MLIR, lift control flow to structured control flow, convert back to c
 echo 'int f(int n) { return n < 10 ? 123 : 321; }' |
     ./build/src/frontend/cxx -emit-ir -xc++ -std=c++26 - |
     ./build/src/mlir/opt/cxx-mlir-opt --cxx-lift-cf-to-scf |
-    ./build/src/mlir/opt/cxx-mlir-opt --convert-scf-to-cf --cxx-to-llvm |
+    ./build/src/mlir/opt/cxx-mlir-opt --convert-scf-to-cf --convert-cxx-to-llvm |
     mlir-translate --mlir-to-llvmir
+```
+
+Covert to the ptr dialect and lower to LLVM IR
+
+```sh
+echo 'int read(int* p, int n) { return p[n]; }' |
+    ./build/src/frontend/cxx -emit-ir -xc++ -std=c++26 - |
+    ./build/src/mlir/opt/cxx-mlir-opt --cxx-lift-cf-to-scf --convert-cxx-to-ptr |
+    ./build/src/mlir/opt/cxx-mlir-opt --convert-scf-to-cf --convert-cxx-to-llvm |
+    mlir-translate --mlir-to-llvmir
+```
+
+Define a pipeline that outputs a mix of cxx, scf and ptr dialects:
+
+```sh
+./build/src/frontend/cxx -emit-ir\
+    '-mlir-pass-pipeline=cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-ptr' \
+    source.cc -o source.mlir
 ```
 
 ## Stage 2 bootstrap (on macOS)
