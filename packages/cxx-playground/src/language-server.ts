@@ -26,6 +26,7 @@ export type ExecutableResult =
 async function requestEmitCode(params: {
   format: string
   debugInfo: boolean
+  mlirPipeline?: string
   optimizationLevel: number
 }): Promise<EmitCodeResult | null> {
   const client = startLanguageServer()
@@ -41,26 +42,36 @@ async function requestEmitCode(params: {
 export async function emitCode({
   format,
   debugInfo,
+  mlirPipeline,
   optimizationLevel,
 }: {
   format: TextOutputCodeFormat
   debugInfo: boolean
+  mlirPipeline?: string
   optimizationLevel: number
 }): Promise<string> {
-  const result = await requestEmitCode({ format, debugInfo, optimizationLevel })
+  const result = await requestEmitCode({
+    format,
+    debugInfo,
+    mlirPipeline,
+    optimizationLevel,
+  })
   return result?.text ?? ""
 }
 
 export async function emitExecutable({
   debugInfo,
+  mlirPipeline,
   optimizationLevel,
 }: {
   debugInfo: boolean
+  mlirPipeline?: string
   optimizationLevel: number
 }): Promise<ExecutableResult> {
   const result = await requestEmitCode({
     format: "wasm",
     debugInfo,
+    mlirPipeline,
     optimizationLevel,
   })
 

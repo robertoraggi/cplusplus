@@ -156,8 +156,8 @@ class ConvertCxxToPtrPass
   }
 };
 
-}
-}
+}  // namespace
+}  // namespace mlir
 
 auto cxx::createConvertCxxToPtrPass() -> std::unique_ptr<mlir::Pass> {
   return std::make_unique<mlir::ConvertCxxToPtrPass>();

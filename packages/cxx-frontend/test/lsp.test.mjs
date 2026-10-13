@@ -1335,12 +1335,12 @@ test(
                 },
         });
 
-      const emit = async (id, format = "wasm") => {
+      const emit = async (id, format = "wasm", mlirPipeline = "") => {
         await server.receive({
           jsonrpc: "2.0",
           id,
           method: "cxx/emitCode",
-          params: { textDocument: { uri }, format },
+          params: { textDocument: { uri }, format, mlirPipeline },
         });
         await scheduled();
         return responseOf(messages, id).result;
@@ -1358,6 +1358,14 @@ test(
       const bytes = Buffer.from(linked.text, "base64");
       assert.deepEqual([...bytes.subarray(0, 4)], [0, 0x61, 0x73, 0x6d]);
       assert.ok(WebAssembly.validate(bytes));
+
+      const transformed = await emit(
+        "pipeline-executable",
+        "wasm",
+        "cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-ptr",
+      );
+      assert.equal(transformed.error, undefined);
+      assert.ok(WebAssembly.validate(Buffer.from(transformed.text, "base64")));
 
       await open(
         1,
@@ -1379,3 +1387,62 @@ test(
     }
   },
 );
+
+test("cxx/emitCode selects MLIR pipelines independently on a reused document", async () => {
+  const { server, messages } = await startServer();
+  try {
+    await server.receive({ jsonrpc: "2.0", id: 1, method: "initialize" });
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: {
+        textDocument: {
+          uri,
+          languageId: "cpp",
+          version: 0,
+          text: "int choose(int* p, int n) { if (n > 0) return p[1]; return p[0]; }",
+        },
+      },
+    });
+    for (const mlirPipeline of [
+      "cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-ptr",
+      "cxx.func(cxx-lift-cf-to-scf)",
+      "convert-cxx-to-ptr",
+      "",
+      "canonicalize",
+      "unknown-pass",
+      "",
+    ]) {
+      for (const format of ["cxxir", "mlir", "llvm"]) {
+        const id = messages.length + "-" + format;
+        await server.receive({
+          jsonrpc: "2.0",
+          id,
+          method: "cxx/emitCode",
+          params: { textDocument: { uri }, format, mlirPipeline },
+        });
+        const result = responseOf(messages, id).result;
+        assert.equal(result.format, format);
+        if (mlirPipeline === "unknown-pass") {
+          assert.equal(result.text, "<error running MLIR pipeline>");
+        } else if (format === "cxxir") {
+          assert.equal(
+            /\bscf\./.test(result.text),
+            mlirPipeline.includes("scf"),
+            result.text,
+          );
+          assert.equal(
+            /\bptr\.load\b/.test(result.text),
+            mlirPipeline.includes("ptr"),
+            result.text,
+          );
+        } else {
+          assert.match(result.text, /choose/);
+          assert.doesNotMatch(result.text, /\b(?:scf\.|ptr\.load)/);
+        }
+      }
+    }
+  } finally {
+    server.dispose();
+  }
+});

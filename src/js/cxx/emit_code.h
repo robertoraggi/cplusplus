@@ -40,7 +40,8 @@ struct GeneratedCode {
 [[nodiscard]] auto hasCodeGenerator() -> bool;
 
 [[nodiscard]] auto generateCode(TranslationUnit* unit, std::string_view format,
-                                bool debugInfo, int optimizationLevel)
+                                bool debugInfo, int optimizationLevel,
+                                std::string_view mlirPipeline = {})
     -> std::optional<GeneratedCode>;
 
 }  // namespace cxx::js

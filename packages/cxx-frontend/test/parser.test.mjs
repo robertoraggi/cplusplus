@@ -390,3 +390,52 @@ test("token text preserves keyword aliases with canonical token kinds", async ()
   assert.equal(unary.node.op, "!");
   assert.equal(unary.node.opToken.text, "not");
 });
+
+test("Parser emits the selected MLIR pipeline in every output format", async () => {
+  const source =
+    "int choose(int* p, int n) { if (n > 0) return p[1]; return p[0]; }";
+  for (const mlirPipeline of [
+    "",
+    "cxx.func(cxx-lift-cf-to-scf)",
+    "convert-cxx-to-ptr",
+    "cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-ptr",
+  ]) {
+    const parser = await Parser.parse({
+      path: "/pipeline.cc",
+      source,
+      debugInfo: false,
+      mlirPipeline,
+    });
+    try {
+      assert.deepEqual(parser.diagnostics, []);
+      const ir = parser.emitCode({ format: "cxxir" });
+      assert.equal(/\bscf\./.test(ir), mlirPipeline.includes("scf"), ir);
+      assert.equal(/\bptr\.load\b/.test(ir), mlirPipeline.includes("ptr"), ir);
+      const lowered = parser.emitCode({ format: "mlir" });
+      assert.match(lowered, /llvm.func/);
+      assert.doesNotMatch(lowered, /\b(?:scf\.|ptr\.load)/);
+      assert.match(parser.emitCode({ format: "llvm" }), /define.*choose/);
+      assert.match(parser.emitCode({ format: "asm" }), /choose/);
+      assert.ok(WebAssembly.validate(parser.emitCode({ format: "obj" })));
+    } finally {
+      parser.dispose();
+    }
+  }
+});
+
+test("Parser reports an invalid MLIR pipeline", async () => {
+  const parser = await Parser.parse({
+    path: "/pipeline.cc",
+    source: "int answer() { return 42; }",
+    mlirPipeline: "unknown-pass",
+  });
+  try {
+    assert.equal(
+      parser.emitCode({ format: "cxxir" }),
+      "<error running MLIR pipeline>",
+    );
+    assert.equal(parser.emitCode({ format: "obj" }).length, 0);
+  } finally {
+    parser.dispose();
+  }
+});

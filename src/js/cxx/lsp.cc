@@ -85,7 +85,8 @@ class JsServerHost final : public cxx::lsp::ServerHost {
 
   [[nodiscard]] auto emitCode(cxx::lsp::CxxDocument& document,
                               cxx::lsp::EmitCodeFormat format, bool debugInfo,
-                              int optimizationLevel)
+                              int optimizationLevel,
+                              const std::string& mlirPipeline)
       -> std::optional<cxx::lsp::EmittedCode> override {
     if (document.hasErrors()) return cxx::lsp::EmittedCode{};
 
@@ -94,12 +95,13 @@ class JsServerHost final : public cxx::lsp::ServerHost {
     }
 
     if (format == cxx::lsp::EmitCodeFormat::kExecutable) {
-      return emitExecutable(document, debugInfo, optimizationLevel);
+      return emitExecutable(document, debugInfo, optimizationLevel,
+                            mlirPipeline);
     }
 
     auto generated =
         cxx::js::generateCode(document.translationUnit(), to_string(format),
-                              debugInfo, optimizationLevel);
+                              debugInfo, optimizationLevel, mlirPipeline);
 
     if (!generated) return std::nullopt;
 
@@ -144,15 +146,17 @@ class JsServerHost final : public cxx::lsp::ServerHost {
 
  private:
   [[nodiscard]] auto emitExecutable(cxx::lsp::CxxDocument& document,
-                                    bool debugInfo, int optimizationLevel)
+                                    bool debugInfo, int optimizationLevel,
+                                    const std::string& mlirPipeline)
       -> std::optional<cxx::lsp::EmittedCode> {
     if (options_.isUndefined()) return std::nullopt;
 
     val link = options_["link"];
     if (link.isUndefined()) return std::nullopt;
 
-    auto generated = cxx::js::generateCode(document.translationUnit(), "obj",
-                                           debugInfo, optimizationLevel);
+    auto generated =
+        cxx::js::generateCode(document.translationUnit(), "obj", debugInfo,
+                              optimizationLevel, mlirPipeline);
 
     if (!generated || generated->objectCode.empty()) {
       return cxx::lsp::EmittedCode{.error = "code generation failed"};

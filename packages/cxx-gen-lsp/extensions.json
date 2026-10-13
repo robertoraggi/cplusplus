@@ -63,6 +63,15 @@
           },
           "optional": true,
           "documentation": "The optimization level the code is generated with, from 0 to 3. Defaults to 0."
+        },
+        {
+          "name": "mlirPipeline",
+          "type": {
+            "kind": "base",
+            "name": "string"
+          },
+          "optional": true,
+          "documentation": "The MLIR pass pipeline to run before emission. Cxx IR displays its result; other formats continue through LLVM lowering. Defaults to an empty pipeline."
         }
       ]
     },
