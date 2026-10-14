@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <mlir/IR/Dominance.h>
 #include <mlir/Pass/Pass.h>
 
 #include <memory>
@@ -34,9 +35,18 @@ void registerCxxToLLVMPass();
 
 void registerConvertCxxToPtrPass();
 
+[[nodiscard]] auto createConvertCxxToMemRefPass()
+    -> std::unique_ptr<mlir::Pass>;
+
+void registerConvertCxxToMemRefPass();
+
 [[nodiscard]] auto createLiftCxxControlFlowToSCFPass()
     -> std::unique_ptr<mlir::Pass>;
 
 void registerLiftCxxControlFlowToSCFPass();
+
+[[nodiscard]] auto liftCxxControlFlowRegion(mlir::Region& region,
+                                            mlir::DominanceInfo& dominance)
+    -> mlir::FailureOr<bool>;
 
 }  // namespace cxx

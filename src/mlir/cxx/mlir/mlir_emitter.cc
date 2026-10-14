@@ -65,6 +65,8 @@ MlirEmitter::MlirEmitter(mlir::MLIRContext& context, TranslationUnit* unit)
 MlirEmitter::~MlirEmitter() = default;
 
 void MlirEmitter::moduleAsm(SourceLocation loc, std::string_view assembly) {
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToEnd(module_.getBody());
   mlir::cxx::ModuleAsmOp::create(builder_, getLocation(loc),
                                  builder_.getStringAttr(assembly));
 }

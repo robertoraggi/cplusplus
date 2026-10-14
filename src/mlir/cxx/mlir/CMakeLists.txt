@@ -23,6 +23,7 @@ target_link_libraries(cxx-mlir PUBLIC
 )
 
 mlir_target_link_libraries(cxx-mlir PUBLIC
+    MLIRAffineToStandard
     MLIRArithDialect
     MLIRBuiltinToLLVMIRTranslation
     MLIRControlFlowDialect

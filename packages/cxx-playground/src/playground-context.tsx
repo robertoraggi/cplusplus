@@ -10,19 +10,17 @@ import { inputCodeModel } from "./input-code-model"
 import { outputCodeModel } from "./output-code-model"
 import { defaultSample, samples } from "./samples"
 import { programRunner, type RunnerState } from "./program-runner"
+import {
+  buildMLIRPipeline,
+  defaultMLIRPasses,
+  type MLIRPass,
+} from "./mlir-pipeline"
 
 const outputLanguageByFormat: Record<TextOutputCodeFormat, string> = {
   cxxir: "mlir",
   mlir: "mlir",
   llvm: "llvm",
   asm: "asm",
-}
-
-function buildMLIRPipeline(useSCF: boolean, usePtr: boolean): string {
-  const passes: string[] = []
-  if (useSCF) passes.push("cxx.func(cxx-lift-cf-to-scf)")
-  if (usePtr) passes.push("convert-cxx-to-ptr")
-  return passes.join(",")
 }
 
 const emitCodeDebounceMs = 300
@@ -37,16 +35,14 @@ interface PlaygroundContextValue {
   currentSampleId: string
   outputFormat: TextOutputCodeFormat
   debugInfo: boolean
-  useSCF: boolean
-  usePtr: boolean
+  mlirPasses: MLIRPass[]
   optimize: boolean
   activeTab: OutputTab
   runnerState: RunnerState
   loadSample: (id: string) => void
   setOutputFormat: (format: TextOutputCodeFormat) => void
   setDebugInfo: (debugInfo: boolean) => void
-  setUseSCF: (useSCF: boolean) => void
-  setUsePtr: (usePtr: boolean) => void
+  setMLIRPasses: (passes: MLIRPass[]) => void
   setOptimize: (optimize: boolean) => void
   setActiveTab: (tab: OutputTab) => void
   runProgram: () => void
@@ -80,8 +76,7 @@ export function PlaygroundProvider({
   const [outputFormat, setOutputFormatState] =
     React.useState<TextOutputCodeFormat>("cxxir")
   const [debugInfo, setDebugInfoState] = React.useState(false)
-  const [useSCF, setUseSCFState] = React.useState(true)
-  const [usePtr, setUsePtrState] = React.useState(true)
+  const [mlirPasses, setMLIRPassesState] = React.useState(defaultMLIRPasses)
   const [optimize, setOptimizeState] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState<OutputTab>("console")
   const runnerState = React.useSyncExternalStore(
@@ -94,8 +89,7 @@ export function PlaygroundProvider({
   const compileRevisionRef = React.useRef(0)
   const outputFormatRef = React.useRef(outputFormat)
   const debugInfoRef = React.useRef(debugInfo)
-  const useSCFRef = React.useRef(useSCF)
-  const usePtrRef = React.useRef(usePtr)
+  const mlirPassesRef = React.useRef(mlirPasses)
   const optimizeRef = React.useRef(optimize)
   const compileTimeoutRef = React.useRef<ReturnType<typeof setTimeout>>(null)
 
@@ -117,7 +111,7 @@ export function PlaygroundProvider({
         const output = await emitCode({
           format: outputFormatRef.current,
           debugInfo: debugInfoRef.current,
-          mlirPipeline: buildMLIRPipeline(useSCFRef.current, usePtrRef.current),
+          mlirPipeline: buildMLIRPipeline(mlirPassesRef.current),
           optimizationLevel: optimizeRef.current ? 2 : 0,
         })
 
@@ -221,21 +215,10 @@ export function PlaygroundProvider({
     [scheduleEmitCode]
   )
 
-  const setUseSCF = React.useCallback(
-    (useSCF: boolean) => {
-      if (useSCFRef.current === useSCF) return
-      useSCFRef.current = useSCF
-      setUseSCFState(useSCF)
-      scheduleEmitCode(false)
-    },
-    [scheduleEmitCode]
-  )
-
-  const setUsePtr = React.useCallback(
-    (usePtr: boolean) => {
-      if (usePtrRef.current === usePtr) return
-      usePtrRef.current = usePtr
-      setUsePtrState(usePtr)
+  const setMLIRPasses = React.useCallback(
+    (passes: MLIRPass[]) => {
+      mlirPassesRef.current = passes
+      setMLIRPassesState(passes)
       scheduleEmitCode(false)
     },
     [scheduleEmitCode]
@@ -255,7 +238,7 @@ export function PlaygroundProvider({
     setActiveTab("console")
     void programRunner.run({
       debugInfo: debugInfoRef.current,
-      mlirPipeline: buildMLIRPipeline(useSCFRef.current, usePtrRef.current),
+      mlirPipeline: buildMLIRPipeline(mlirPassesRef.current),
       optimizationLevel: optimizeRef.current ? 2 : 0,
     })
   }, [])
@@ -288,16 +271,14 @@ export function PlaygroundProvider({
       currentSampleId,
       outputFormat,
       debugInfo,
-      useSCF,
-      usePtr,
+      mlirPasses,
       optimize,
       activeTab,
       runnerState,
       loadSample,
       setOutputFormat,
       setDebugInfo,
-      setUseSCF,
-      setUsePtr,
+      setMLIRPasses,
       setOptimize,
       setActiveTab,
       runProgram,
@@ -311,16 +292,14 @@ export function PlaygroundProvider({
       currentSampleId,
       outputFormat,
       debugInfo,
-      useSCF,
-      usePtr,
+      mlirPasses,
       optimize,
       activeTab,
       runnerState,
       loadSample,
       setOutputFormat,
       setDebugInfo,
-      setUseSCF,
-      setUsePtr,
+      setMLIRPasses,
       setOptimize,
       runProgram,
       stopProgram,

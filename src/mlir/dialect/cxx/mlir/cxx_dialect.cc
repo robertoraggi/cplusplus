@@ -27,6 +27,7 @@
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/Ptr/IR/PtrAttrs.h>
 #include <mlir/Dialect/Ptr/IR/PtrDialect.h>
+#include <mlir/Dialect/Ptr/IR/PtrTypes.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
 #include <mlir/Dialect/Vector/IR/VectorOps.h>
 #include <mlir/IR/Builders.h>
@@ -134,9 +135,7 @@ namespace {
   auto inputPointer = dyn_cast<PtrLikeTypeInterface>(input);
   auto resultPointer = dyn_cast<PtrLikeTypeInterface>(result);
   if (!inputPointer || !resultPointer) return success();
-  if (canonicalPointerMemorySpace(inputPointer.getMemorySpace()) ==
-      canonicalPointerMemorySpace(resultPointer.getMemorySpace()))
-    return success();
+  if (haveSamePointerMemorySpace(inputPointer, resultPointer)) return success();
   return op->emitOpError("requires matching pointer memory spaces");
 }
 
@@ -274,6 +273,12 @@ struct CxxGenerateAliases : public OpAsmDialectInterface {
   }
 };
 }  // namespace
+
+auto haveSamePointerMemorySpace(PtrLikeTypeInterface left,
+                                PtrLikeTypeInterface right) -> bool {
+  return canonicalPointerMemorySpace(left.getMemorySpace()) ==
+         canonicalPointerMemorySpace(right.getMemorySpace());
+}
 
 void CxxDialect::initialize() {
   addOperations<
@@ -467,6 +472,48 @@ auto PointerType::clonePtrWith(Attribute memorySpace,
   auto element = elementType.value_or(getElementType());
   if (!element) return failure();
   return cast<PtrLikeTypeInterface>(get(getContext(), element, memorySpace));
+}
+
+namespace {
+[[nodiscard]] auto getPointerLayoutType(PointerType pointer) -> Type {
+  auto space = pointer.getMemorySpace();
+  if (isa<ptr::GenericSpaceAttr>(space))
+    return LLVM::LLVMPointerType::get(pointer.getContext());
+  if (auto llvmSpace = dyn_cast<LLVM::LLVMAddrSpaceAttrInterface>(space))
+    return LLVM::LLVMPointerType::get(pointer.getContext(),
+                                      llvmSpace.getAddressSpace());
+  return ptr::PtrType::get(cast<ptr::MemorySpaceAttrInterface>(space));
+}
+}
+
+auto PointerType::getTypeSizeInBits(const DataLayout& layout,
+                                    DataLayoutEntryListRef) const
+    -> llvm::TypeSize {
+  return layout.getTypeSizeInBits(getPointerLayoutType(*this));
+}
+
+auto PointerType::getABIAlignment(const DataLayout& layout,
+                                  DataLayoutEntryListRef) const -> uint64_t {
+  return layout.getTypeABIAlignment(getPointerLayoutType(*this));
+}
+
+auto PointerType::getPreferredAlignment(const DataLayout& layout,
+                                        DataLayoutEntryListRef) const
+    -> uint64_t {
+  return layout.getTypePreferredAlignment(getPointerLayoutType(*this));
+}
+
+auto PointerType::getIndexBitwidth(const DataLayout& layout,
+                                   DataLayoutEntryListRef) const
+    -> std::optional<uint64_t> {
+  return layout.getTypeIndexBitwidth(getPointerLayoutType(*this));
+}
+
+auto PointerType::verifyEntries(DataLayoutEntryListRef entries,
+                                Location location) const -> LogicalResult {
+  if (entries.empty()) return success();
+  return emitError(location,
+                   "specify Cxx pointer layout using LLVM or Ptr layout keys");
 }
 
 auto SubscriptOp::verify() -> LogicalResult {

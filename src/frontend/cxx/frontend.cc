@@ -818,6 +818,7 @@ void Frontend::Private::generateIR() {
   if (!needsIR()) return;
 
 #ifdef CXX_WITH_MLIR
+  TimeTrace::Scope trace(unit_->timeTrace(), "Generate IR");
 #ifdef __wasm__
   context_ = std::make_unique<mlir::MLIRContext>(
       mlir::MLIRContext::Threading::DISABLED);
@@ -842,6 +843,7 @@ void Frontend::Private::generateIR() {
 void Frontend::Private::runIRPassPipeline() {
 #ifdef CXX_WITH_MLIR
   if (!module_) return;
+  TimeTrace::Scope trace(unit_->timeTrace(), "IR pipeline");
 
   auto pipeline = cli.getSingle("-mlir-pass-pipeline").value_or("");
   if (succeeded(runMLIRPassPipeline(module_, pipeline))) return;

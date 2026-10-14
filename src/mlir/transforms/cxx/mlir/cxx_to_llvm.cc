@@ -32,17 +32,25 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Error.h>
 #include <llvm/TargetParser/Triple.h>
+#include <mlir/Conversion/AffineToStandard/AffineToStandard.h>
 #include <mlir/Conversion/ArithToLLVM/ArithToLLVM.h>
 #include <mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h>
+#include <mlir/Conversion/LLVMCommon/LoweringOptions.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
+#include <mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h>
 #include <mlir/Conversion/PtrToLLVM/PtrToLLVM.h>
+#include <mlir/Conversion/UBToLLVM/UBToLLVM.h>
 #include <mlir/Conversion/VectorToLLVM/ConvertVectorToLLVM.h>
+#include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/MemRef/IR/MemRef.h>
+#include <mlir/Dialect/MemRef/Transforms/Transforms.h>
 #include <mlir/Dialect/Ptr/IR/PtrAttrs.h>
 #include <mlir/Dialect/Ptr/IR/PtrOps.h>
+#include <mlir/Dialect/UB/IR/UBOps.h>
 #include <mlir/Dialect/Vector/IR/VectorOps.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassRegistry.h>
@@ -2226,6 +2234,21 @@ class CxxPtrBridgeLowering : public OpConversionPattern<Op> {
   }
 };
 
+class PtrNullConstantOpLowering : public OpConversionPattern<ptr::ConstantOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(ptr::ConstantOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    if (!isa<ptr::NullAttr>(op.getValue())) return failure();
+    auto type = getTypeConverter()->convertType(op.getType());
+    if (!type) return failure();
+    rewriter.replaceOpWithNewOp<LLVM::ZeroOp>(op, type);
+    return success();
+  }
+};
+
 [[nodiscard]] auto convertPtrAtomicOrdering(ptr::AtomicOrdering ordering)
     -> LLVM::AtomicOrdering {
   switch (ordering) {
@@ -3335,6 +3358,8 @@ class CxxToLLVMLoweringPass
   void getDependentDialects(DialectRegistry& registry) const override {
     registry.insert<cxx::CxxDialect, cf::ControlFlowDialect, DLTIDialect>();
     registry.insert<LLVM::LLVMDialect>();
+    registry.insert<memref::MemRefDialect, affine::AffineDialect>();
+    registry.insert<ub::UBDialect>();
     registry.insert<arith::ArithDialect>();
     registry.insert<vector::VectorDialect>();
   }
@@ -3356,7 +3381,13 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     return;
   }
 
-  LLVMTypeConverter typeConverter{context};
+  DataLayout dataLayout{module};
+  LowerToLLVMOptions loweringOptions(context, dataLayout);
+  auto pointerIndexBits =
+      dataLayout.getTypeIndexBitwidth(LLVM::LLVMPointerType::get(context));
+  if (pointerIndexBits)
+    loweringOptions.overrideIndexBitwidth(*pointerIndexBits);
+  LLVMTypeConverter typeConverter{context, loweringOptions};
 
   typeConverter.addConversion([](cxx::ExprType type) -> Type { return type; });
 
@@ -3465,6 +3496,9 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   target.addLegalDialect<LLVM::LLVMDialect>();
   target.addIllegalDialect<cxx::CxxDialect>();
   target.addIllegalDialect<ptr::PtrDialect>();
+  target.addIllegalDialect<memref::MemRefDialect>();
+  target.addIllegalDialect<affine::AffineDialect>();
+  target.addIllegalDialect<ub::UBDialect>();
   target.addIllegalDialect<arith::ArithDialect>();
   target.addIllegalDialect<vector::VectorDialect>();
   target.addDynamicallyLegalOp<cxx::InlineAsmOp>([](cxx::InlineAsmOp op) {
@@ -3490,8 +3524,6 @@ void CxxToLLVMLoweringPass::runOnOperation() {
               InlineAsmOpLowering, AddressOfOpLowering, DynAllocaOpLowering>(
           typeConverter, context);
 
-  DataLayout dataLayout{module};
-
   patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering,
                   MemSetZeroOpLowering, SubscriptOpLowering, MemberOpLowering,
                   BitfieldLoadOpLowering, BitfieldStoreOpLowering,
@@ -3513,9 +3545,14 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                                                        dataLayout, context);
 
   ptr::populatePtrToLLVMConversionPatterns(typeConverter, patterns);
+  memref::populateExpandStridedMetadataPatterns(patterns);
+  populateAffineToStdConversionPatterns(patterns);
+  populateFinalizeMemRefToLLVMConversionPatterns(typeConverter, patterns);
+  ub::populateUBToLLVMConversionPatterns(typeConverter, patterns);
   patterns.insert<CxxPtrBridgeLowering<ptr::ToPtrOp>,
                   CxxPtrBridgeLowering<ptr::FromPtrOp>, PtrLoadOpLowering,
-                  PtrStoreOpLowering>(typeConverter, context);
+                  PtrStoreOpLowering, PtrNullConstantOpLowering>(typeConverter,
+                                                                 context);
 
   populateFunctionOpInterfaceTypeConversionPattern<cxx::FuncOp>(patterns,
                                                                 typeConverter);
