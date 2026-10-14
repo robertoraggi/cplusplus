@@ -7,7 +7,7 @@ target_link_libraries(cxx-mlir-opt PRIVATE
     MLIRMlirOptMain
 )
 
-mlir_target_link_libraries(cxx-mlir-opt PRIVATE MLIRFuncDialect)
+mlir_target_link_libraries(cxx-mlir-opt PRIVATE MLIRAffineToStandard MLIRFuncDialect)
 
 if (CXX_INSTALL_TOOLS)
     install(TARGETS cxx-mlir-opt RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

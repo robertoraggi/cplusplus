@@ -3283,9 +3283,10 @@ auto Codegen::findOrCreateThreadLocalWrapper(Symbol* symbol,
     auto pointerType = emitter_.pointerType(emitter_.integerType(8));
     auto functionAddress =
         emitter_.addressOfSymbol(loc, pointerType, functionName(initializer));
-    auto present =
-        emitter_.compareInt(loc, ir::IntPredicate::NotEqual, functionAddress,
-                            emitter_.nullPointer(loc, pointerType));
+    auto wordType = pointerSizedIntType();
+    auto address = emitter_.pointerToInt(loc, wordType, functionAddress);
+    auto present = emitter_.compareInt(loc, ir::IntPredicate::NotEqual, address,
+                                       emitter_.constantInt(loc, wordType, 0));
     auto initialize = emitter_.createBlock(wrapper);
     merge = emitter_.createBlock(wrapper);
     emitter_.condBranch(loc, present, initialize, merge);

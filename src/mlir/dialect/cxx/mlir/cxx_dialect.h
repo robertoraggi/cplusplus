@@ -26,12 +26,14 @@
 #endif
 
 #include <mlir/Bytecode/BytecodeOpInterface.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypeInterfaces.h>
 #include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/SymbolTable.h>
 #include <mlir/Interfaces/CallInterfaces.h>
 #include <mlir/Interfaces/CastInterfaces.h>
+#include <mlir/Interfaces/DataLayoutInterfaces.h>
 #include <mlir/Interfaces/FunctionInterfaces.h>
 
 #if defined(__clang__)
@@ -53,6 +55,14 @@
 #if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+
+namespace mlir::cxx {
+
+[[nodiscard]] auto haveSamePointerMemorySpace(PtrLikeTypeInterface left,
+                                              PtrLikeTypeInterface right)
+    -> bool;
+
+}
 
 namespace mlir::cxx::detail {
 

@@ -18,48 +18,66 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { Layers, MemoryStick, Workflow } from "lucide-react"
+import {
+  Boxes,
+  Eraser,
+  Layers,
+  MemoryStick,
+  TrendingUp,
+  Workflow,
+} from "lucide-react"
+import type { MLIRPass } from "../mlir-pipeline"
 import { usePlayground } from "../playground-context"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "./ui/select"
 
-export function IRDialectMenu() {
+export function IRPassMenu() {
   const state = usePlayground()
   const choices = [
+    {
+      name: "MemRef",
+      description: "Typed local storage",
+      icon: Boxes,
+      pass: "convert-cxx-to-memref" as const,
+    },
+    {
+      name: "mem2reg",
+      description: "Promote local slots",
+      icon: TrendingUp,
+      pass: "mem2reg" as const,
+    },
+    {
+      name: "canonicalize",
+      description: "Simplify IR",
+      icon: Eraser,
+      pass: "canonicalize" as const,
+    },
     {
       name: "SCF",
       description: "Structured control flow",
       icon: Workflow,
-      checked: state.useSCF,
-      onCheckedChange: state.setUseSCF,
+      pass: "cxx-lift-cf-to-scf" as const,
     },
     {
       name: "Ptr",
       description: "Pointer memory operations",
       icon: MemoryStick,
-      checked: state.usePtr,
-      onCheckedChange: state.setUsePtr,
+      pass: "convert-cxx-to-ptr" as const,
     },
   ]
-  const selected = choices
-    .filter((choice) => choice.checked)
-    .map((choice) => choice.name)
+  const selected = state.mlirPasses
 
   return (
     <Select
       multiple
       value={selected}
-      onValueChange={(names) => {
-        for (const choice of choices) {
-          choice.onCheckedChange(names.includes(choice.name))
-        }
-      }}
+      onValueChange={(names: MLIRPass[]) => state.setMLIRPasses(names)}
     >
       <SelectTrigger
-        aria-label="Select IR dialects"
+        aria-label="Select MLIR passes"
         className="h-8 border-border/80 bg-muted/40 text-xs font-medium"
       >
         <Layers />
-        Dialects
+        Passes
         <span className="rounded bg-foreground/10 px-1.5 text-[10px] text-muted-foreground tabular-nums">
           {selected.length}
         </span>
@@ -71,8 +89,8 @@ export function IRDialectMenu() {
       >
         {choices.map((choice) => (
           <SelectItem
-            key={choice.name}
-            value={choice.name}
+            key={choice.pass}
+            value={choice.pass}
             className="py-2 pr-9 pl-3 text-xs"
           >
             <choice.icon className="text-muted-foreground" />

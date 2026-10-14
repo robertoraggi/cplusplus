@@ -2,7 +2,7 @@ import { usePlayground } from "../playground-context"
 import { Button } from "./ui/button"
 import { SampleSelector } from "./sample-selector"
 import { OutputFormatSelector } from "./output-format-selector"
-import { IRDialectMenu } from "./ir-dialect-menu"
+import { IRPassMenu } from "./ir-pass-menu"
 import { DebugInfoToggle } from "./debug-info-toggle"
 import { OptimizeToggle } from "./optimize-toggle"
 import { RunButton } from "./run-button"
@@ -62,7 +62,7 @@ export function Header() {
       </div>
 
       <div className="flex flex-none items-center gap-1 lg:justify-self-end">
-        <IRDialectMenu />
+        <IRPassMenu />
 
         <DebugInfoToggle
           debugInfo={state.debugInfo}

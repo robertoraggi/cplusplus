@@ -28,6 +28,7 @@ include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/DataLayoutInterfaces.td"
 
 def Cxx_Dialect : Dialect {
   let name = "cxx";
@@ -103,7 +104,10 @@ def Cxx_ExprType : Cxx_Type<"Expr", "expr">;
 
 def Cxx_VoidType : Cxx_Type<"Void", "void">;
 
-def Cxx_PointerType : Cxx_Type<"Pointer", "ptr", [PtrLikeTypeInterface]> {
+def Cxx_PointerType : Cxx_Type<"Pointer", "ptr", [
+    PtrLikeTypeInterface, MemRefElementTypeInterface,
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface, [
+      "getPreferredAlignment", "getIndexBitwidth", "verifyEntries"]>]> {
   let parameters = (ins "Type":$elementType,
       OptionalParameter<"Attribute">:$addressSpace);
 
@@ -168,7 +172,8 @@ def Cxx_FunctionType : Cxx_Type<"Function", "function"> {
 
 // ops
 
-def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove]> {
+def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove,
+                               AutomaticAllocationScope]> {
   let arguments = (ins SymbolNameAttr:$sym_name,
       TypeAttrOf<Cxx_FunctionType>:$function_type,
       OptionalAttr<Cxx_LinkageKind>:$linkage_kind,
@@ -349,7 +354,7 @@ def Cxx_ResumeOp : Cxx_Op<"resume", [Terminator]> {
   let assemblyFormat = "$exception `,` $selector attr-dict `:` type($exception)";
 }
 
-def Cxx_ModuleAsmOp : Cxx_Op<"module_asm"> {
+def Cxx_ModuleAsmOp : Cxx_Op<"module_asm", [HasParent<"::mlir::ModuleOp">]> {
   let arguments = (ins StrAttr:$assembly);
   let assemblyFormat = "$assembly attr-dict";
 }

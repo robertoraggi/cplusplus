@@ -20,16 +20,35 @@
 
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <llvm/IR/Module.h>
+#include <mlir/Conversion/AffineToStandard/AffineToStandard.h>
 #include <mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/MemRef/Transforms/Passes.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
+#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
 #include <mlir/Transforms/Passes.h>
 
 namespace cxx {
 void registerCxxLLVMTranslation(mlir::MLIRContext& context);
+}
+
+namespace {
+void canonicalizeLLVM(mlir::ModuleOp module) {
+  auto* context = module.getContext();
+  auto* dialect = context->getOrLoadDialect<mlir::LLVM::LLVMDialect>();
+  mlir::RewritePatternSet patterns(context);
+  dialect->getCanonicalizationPatterns(patterns);
+  for (auto operation : context->getRegisteredOperations()) {
+    if (&operation.getDialect() == dialect)
+      operation.getCanonicalizationPatterns(patterns, context);
+  }
+  mlir::GreedyRewriteConfig config;
+  config.setRegionSimplificationLevel(mlir::GreedySimplifyRegionLevel::Normal);
+  (void)mlir::applyPatternsGreedily(module, std::move(patterns), config);
+}
 }
 
 auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
@@ -39,9 +58,13 @@ auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
 
   registerCxxToLLVMPass();
   registerConvertCxxToPtrPass();
+  registerConvertCxxToMemRefPass();
   registerLiftCxxControlFlowToSCFPass();
   mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
   mlir::registerCanonicalizerPass();
+  mlir::registerMem2RegPass();
+  mlir::memref::registerExpandStridedMetadataPass();
+  mlir::registerPass([] { return mlir::createLowerAffinePass(); });
 
   mlir::PassManager pm(module->getName());
   if (failed(mlir::parsePassPipeline(passPipeline, pm))) return mlir::failure();
@@ -55,16 +78,12 @@ auto cxx::lowerToMLIR(mlir::ModuleOp module, llvm::StringRef passPipeline)
   mlir::PassManager pm(module->getName());
   pm.addPass(mlir::createSCFToControlFlowPass());
   pm.addPass(cxx::createLowerToLLVMPass());
-  pm.addPass(mlir::createCanonicalizerPass());
-
-#if false
-  pm.addPass(mlir::createCSEPass());
-#endif
 
   if (failed(pm.run(module))) {
     return mlir::failure();
   }
 
+  canonicalizeLLVM(module);
   return mlir::success();
 }
 

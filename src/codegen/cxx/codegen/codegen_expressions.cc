@@ -4127,8 +4127,14 @@ auto Codegen::ExpressionVisitor::emitBinaryComparisonOp(
 
   auto comparisonType = gen.traits.underlying_type(leftType);
 
+  if (gen.traits.is_null_pointer(comparisonType)) {
+    if (op == TokenKind::T_EQUAL_EQUAL || op == TokenKind::T_EXCLAIM_EQUAL)
+      return {gen.emitter_.constantInt(loc, resultType,
+                                       op == TokenKind::T_EQUAL_EQUAL)};
+    return {gen.emitTodoExpr(loc, "nullptr comparison operator")};
+  }
+
   if (gen.traits.is_integral(comparisonType) ||
-      gen.traits.is_null_pointer(comparisonType) ||
       gen.traits.is_member_object_pointer(comparisonType)) {
     return emitBinaryComparisonOpIntegral(loc, op, resultType, comparisonType,
                                           left, right);

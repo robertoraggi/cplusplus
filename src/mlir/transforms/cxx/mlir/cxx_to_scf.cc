@@ -1,6 +1,7 @@
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/passes.h>
 #include <llvm/ADT/DepthFirstIterator.h>
+#include <llvm/Config/llvm-config.h>
 #include <mlir/Conversion/ControlFlowToSCF/ControlFlowToSCF.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
@@ -31,6 +32,12 @@ template <typename Transformation>
   auto branch = dyn_cast<BranchOpInterface>(operation);
   if (!branch) return false;
   if (!isMemoryEffectFree(operation)) return false;
+#if LLVM_VERSION_MAJOR < 23
+  if (auto switchOp = dyn_cast<cf::SwitchOp>(operation)) {
+    if (cast<IntegerType>(switchOp.getFlag().getType()).getWidth() > 32)
+      return false;
+  }
+#endif
   for (unsigned index = 0; index < operation->getNumSuccessors(); ++index) {
     if (branch.getSuccessorOperands(index).getProducedOperandCount())
       return false;
@@ -67,6 +74,15 @@ class LiftCxxControlFlowToSCFPass
  public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(LiftCxxControlFlowToSCFPass)
 
+  LiftCxxControlFlowToSCFPass() = default;
+  LiftCxxControlFlowToSCFPass(const LiftCxxControlFlowToSCFPass& other)
+      : PassWrapper(other) {}
+
+  Option<unsigned> maxBlocks{
+      *this, "max-blocks",
+      llvm::cl::desc("Maximum CFG blocks to lift (0 is unlimited)"),
+      llvm::cl::init(0)};
+
   [[nodiscard]] auto getArgument() const -> StringRef override {
     return "cxx-lift-cf-to-scf";
   }
@@ -88,13 +104,18 @@ class LiftCxxControlFlowToSCFPass
       return;
     }
 
-    CxxControlFlowToSCFTransformation transformation;
-    if (!canLiftRegion(body, transformation)) {
+    auto blockCount = body.getBlocks().size();
+    if (maxBlocks && blockCount > maxBlocks) {
+      emitRemark(getOperation().getLoc())
+          << "leaving @" << getOperation().getSymName()
+          << " in CF: " << blockCount
+          << " blocks exceeds max-blocks=" << maxBlocks.getValue();
       markAllAnalysesPreserved();
       return;
     }
+
     auto changed =
-        transformCFGToSCF(body, transformation, getAnalysis<DominanceInfo>());
+        ::cxx::liftCxxControlFlowRegion(body, getAnalysis<DominanceInfo>());
     if (failed(changed)) {
       signalPassFailure();
       return;
@@ -112,4 +133,13 @@ auto cxx::createLiftCxxControlFlowToSCFPass() -> std::unique_ptr<mlir::Pass> {
 
 void cxx::registerLiftCxxControlFlowToSCFPass() {
   mlir::registerPass(createLiftCxxControlFlowToSCFPass);
+}
+
+auto cxx::liftCxxControlFlowRegion(mlir::Region& region,
+                                   mlir::DominanceInfo& dominance)
+    -> mlir::FailureOr<bool> {
+  if (region.empty()) return false;
+  mlir::CxxControlFlowToSCFTransformation transformation;
+  if (!mlir::canLiftRegion(region, transformation)) return false;
+  return mlir::transformCFGToSCF(region, transformation, dominance);
 }
