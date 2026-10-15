@@ -23,6 +23,7 @@
 #include <cxx/ast_fwd.h>
 #include <cxx/class_value_abi.h>
 #include <cxx/codegen/emitter.h>
+#include <cxx/codegen/source_context_observer.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 #include <cxx/symbols.h>
@@ -46,6 +47,7 @@ class Codegen {
   struct Options {
     bool debugInfo = true;
     std::string debugCompilationDirectory;
+    SourceContextObserver* sourceObserver = nullptr;
   };
 
   explicit Codegen(ir::Emitter& emitter, TranslationUnit* unit,
@@ -1070,6 +1072,7 @@ class Codegen {
   };
 
   struct CleanupScope {
+    std::uint64_t sourceScope = 0;
     struct Entry {
       ir::ValueRef address;
       ir::FunctionRef destructor;
@@ -1100,6 +1103,7 @@ class Codegen {
     ir::BlockRef block;
     std::vector<CleanupScope> cleanups;
     std::vector<ExceptionScope> exceptions;
+    std::uint64_t sourceContext = 0;
   };
 
   void defineCleanupLabel(SourceLocation loc, std::string_view name);

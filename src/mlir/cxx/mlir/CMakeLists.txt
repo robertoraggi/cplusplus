@@ -1,5 +1,7 @@
 set(SOURCES
     mlir_debug_emitter.cc
+    mlir_source_contexts.cc
+    mlir_source_region.cc
     mlir_emitter.cc
     mlir_emitter_module.cc
     mlir_emitter_control_flow.cc

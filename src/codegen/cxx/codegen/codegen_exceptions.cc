@@ -131,6 +131,8 @@ auto Codegen::emitCallWithUnwind(SourceLocation loc, ir::CallInfo info)
   auto cleanups = collectCleanupSnapshot(depth, true);
   if (exceptionScopes_.empty() && cleanups.empty())
     return emitter_.call(loc, info);
+  auto context = SourceContextGuard{options_.sourceObserver,
+                                    SyntheticSourceContext::Unwind};
   ensureExceptionPersonality(loc);
   auto pointer = emitter_.pointerType(emitter_.integerType(8));
   std::vector<ir::ValueRef> clauses;

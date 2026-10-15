@@ -76,6 +76,7 @@ void Codegen::statement(StatementAST* ast) {
     emitter_.setInsertionBlock(deadBlock);
   }
 
+  auto context = SourceContextGuard{options_.sourceObserver, ast->kind()};
   visit(StatementVisitor{*this}, ast);
 }
 
@@ -162,6 +163,11 @@ void Codegen::StatementVisitor::operator()(IfStatementAST* ast) {
   auto trueBlock = gen.newBlock();
   auto falseBlock = gen.newBlock();
   auto mergeBlock = gen.newBlock();
+  if (auto observer = gen.options_.sourceObserver) {
+    observer->recordBlock(SourceBlockRole::Then, trueBlock);
+    observer->recordBlock(SourceBlockRole::Else, falseBlock);
+    observer->recordBlock(SourceBlockRole::Continuation, mergeBlock);
+  }
 
   gen.pushCleanup();
   gen.statement(ast->initializer);
@@ -199,6 +205,11 @@ void Codegen::StatementVisitor::operator()(SwitchStatementAST* ast) {
   auto beginSwitchBlock = gen.newBlock();
   auto bodySwitchBlock = gen.newBlock();
   auto endSwitchBlock = gen.newBlock();
+  if (auto observer = gen.options_.sourceObserver) {
+    observer->recordBlock(SourceBlockRole::Condition, beginSwitchBlock);
+    observer->recordBlock(SourceBlockRole::Body, bodySwitchBlock);
+    observer->recordBlock(SourceBlockRole::Continuation, endSwitchBlock);
+  }
 
   gen.branch(ast->firstSourceLocation(), beginSwitchBlock);
 
@@ -274,6 +285,12 @@ void Codegen::StatementVisitor::operator()(WhileStatementAST* ast) {
   auto bodyLoopBlock = gen.newBlock();
   auto conditionFalseBlock = gen.newBlock();
   auto endLoopBlock = gen.newBlock();
+  if (auto observer = gen.options_.sourceObserver) {
+    observer->recordBlock(SourceBlockRole::Condition, beginLoopBlock);
+    observer->recordBlock(SourceBlockRole::Body, bodyLoopBlock);
+    observer->recordBlock(SourceBlockRole::ConditionFalse, conditionFalseBlock);
+    observer->recordBlock(SourceBlockRole::Continuation, endLoopBlock);
+  }
 
   const auto iterationDepth = gen.cleanupStack_.size();
 
@@ -311,6 +328,11 @@ void Codegen::StatementVisitor::operator()(DoStatementAST* ast) {
   auto loopBlock = gen.newBlock();
   auto conditionBlock = gen.newBlock();
   auto endLoopBlock = gen.newBlock();
+  if (auto observer = gen.options_.sourceObserver) {
+    observer->recordBlock(SourceBlockRole::Body, loopBlock);
+    observer->recordBlock(SourceBlockRole::Condition, conditionBlock);
+    observer->recordBlock(SourceBlockRole::Continuation, endLoopBlock);
+  }
 
   Loop loop;
   loop.continueBlock = conditionBlock;
@@ -347,6 +369,13 @@ void Codegen::StatementVisitor::operator()(ForStatementAST* ast) {
   auto stepLoopBlock = gen.newBlock();
   auto conditionFalseBlock = gen.newBlock();
   auto endLoopBlock = gen.newBlock();
+  if (auto observer = gen.options_.sourceObserver) {
+    observer->recordBlock(SourceBlockRole::Condition, beginLoopBlock);
+    observer->recordBlock(SourceBlockRole::Body, loopBodyBlock);
+    observer->recordBlock(SourceBlockRole::Step, stepLoopBlock);
+    observer->recordBlock(SourceBlockRole::ConditionFalse, conditionFalseBlock);
+    observer->recordBlock(SourceBlockRole::Continuation, endLoopBlock);
+  }
 
   const auto iterationDepth = gen.cleanupStack_.size();
 
@@ -400,6 +429,8 @@ void Codegen::StatementVisitor::operator()(ForStatementAST* ast) {
 
 void Codegen::StatementVisitor::operator()(BreakStatementAST* ast) {
   if (auto target = gen.loop_.breakBlock) {
+    if (auto observer = gen.options_.sourceObserver)
+      observer->recordBlock(SourceBlockRole::ExitTarget, target);
     gen.emitBranchWithCleanups(ast->firstSourceLocation(), target,
                                gen.loop_.breakCleanupDepth);
     return;
@@ -410,6 +441,8 @@ void Codegen::StatementVisitor::operator()(BreakStatementAST* ast) {
 
 void Codegen::StatementVisitor::operator()(ContinueStatementAST* ast) {
   if (auto target = gen.loop_.continueBlock) {
+    if (auto observer = gen.options_.sourceObserver)
+      observer->recordBlock(SourceBlockRole::ExitTarget, target);
     gen.emitBranchWithCleanups(ast->firstSourceLocation(), target,
                                gen.loop_.continueCleanupDepth);
     return;
@@ -438,6 +471,8 @@ void Codegen::StatementVisitor::operator()(ReturnStatementAST* ast) {
     storeReturnValue(ast);
   }
 
+  if (auto observer = gen.options_.sourceObserver)
+    observer->recordBlock(SourceBlockRole::ExitTarget, gen.exitBlock_);
   gen.emitBranchWithCleanups(ast->firstSourceLocation(), gen.exitBlock_, 0);
 }
 

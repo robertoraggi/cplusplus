@@ -236,6 +236,11 @@ std::vector<CLIOptionDescr> options{
      "Write declaration timings in Chrome JSON format",
      CLIOptionDescrKind::kJoined},
 
+    {"-fexperimental-scf",
+     "Construct structured MLIR control flow from source contexts"},
+
+    {"-fno-experimental-scf", "Disable experimental structured MLIR emission"},
+
     {"-mlir-pass-pipeline", "<pipeline>",
      "Run an MLIR pass pipeline before lowering to LLVM",
      CLIOptionDescrKind::kJoined},
@@ -466,6 +471,14 @@ auto CLI::exceptionsEnabled(bool defaults) const -> bool {
   });
   if (!flag) return defaults;
   return flag == "-fexceptions";
+}
+
+auto CLI::experimentalSCFEnabled(bool defaults) const -> bool {
+  auto flag = lastFlag([](std::string_view name) {
+    return name == "-fexperimental-scf" || name == "-fno-experimental-scf";
+  });
+  if (!flag) return defaults;
+  return flag == "-fexperimental-scf";
 }
 
 auto CLI::rttiEnabled() const -> bool {
