@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cxx/codegen/emitter.h>
+#include <cxx/codegen/source_context_observer.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/Support/Casting.h>
@@ -37,11 +38,15 @@ class TranslationUnit;
 namespace cxx::ir {
 
 class MlirDebugEmitter;
+class MlirSourceContexts;
+struct SourceContextOptions;
 
 class MlirEmitter final : public Emitter {
  public:
   MlirEmitter(mlir::MLIRContext& context, TranslationUnit* unit);
   ~MlirEmitter() override;
+  [[nodiscard]] auto enableSourceContexts(SourceContextOptions options)
+      -> SourceContextObserver*;
   auto debug() -> DebugEmitter* override;
   void moduleAsm(SourceLocation loc, std::string_view assembly) override;
   void functionPersonality(FunctionRef function,
@@ -382,6 +387,8 @@ class MlirEmitter final : public Emitter {
                     llvm::ArrayRef<BlockRef> caseDestinations);
 
  private:
+  std::unique_ptr<MlirSourceContexts> sourceContexts_;
+
   struct CleanupRegion {
     mlir::Block* startBlock = nullptr;
     mlir::Operation* startAnchor = nullptr;

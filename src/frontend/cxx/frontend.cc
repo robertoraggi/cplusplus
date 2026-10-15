@@ -44,6 +44,8 @@
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/mlir/mlir_emitter.h>
+#include <cxx/mlir/mlir_source_contexts.h>
+#include <cxx/mlir/mlir_source_region.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
@@ -53,6 +55,7 @@
 #include <llvm/Target/TargetMachine.h>
 #endif
 
+#include <cstdlib>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -828,15 +831,40 @@ void Frontend::Private::generateIR() {
   context_->loadDialect<mlir::cxx::CxxDialect>();
 
   auto emitter = cxx::ir::MlirEmitter{*context_, unit_.get()};
+  auto mode = std::getenv("CXX_SOURCE_CONTEXT_MODE");
+  ir::SourceContextOptions options;
+  options.timeTrace = unit_->timeTrace();
+  if (mode && std::string_view(mode) == "scf") {
+    options.mode = ir::SourceContextOptions::Mode::Structured;
+  } else if (mode && std::string_view(mode) == "if") {
+    options.mode = ir::SourceContextOptions::Mode::StructuredIf;
+  } else if (mode) {
+    llvm::errs() << "cxx: invalid CXX_SOURCE_CONTEXT_MODE: " << mode << "\n";
+    fail();
+    return;
+  }
+  bool enabled = mode;
+  if (cli.count("-fexperimental-scf") || cli.count("-fno-experimental-scf")) {
+    enabled = cli.experimentalSCFEnabled();
+    options.mode = ir::SourceContextOptions::Mode::Structured;
+  }
+  auto observer = enabled ? emitter.enableSourceContexts(options) : nullptr;
   auto codegen =
       cxx::Codegen{emitter,
                    unit_.get(),
                    {.debugInfo = cli.opt_g,
-                    .debugCompilationDirectory = debugCompilationDirectory()}};
+                    .debugCompilationDirectory = debugCompilationDirectory(),
+                    .sourceObserver = observer}};
 
   auto ir = codegen(unit_->ast());
   module_ = emitter.module(ir.module);
-
+  if (observer && options.mode == ir::SourceContextOptions::Mode::Structured) {
+    TimeTrace::Scope trace(unit_->timeTrace(), "SCF finish");
+    if (failed(ir::finalizeSourceRegions(module_, unit_->timeTrace()))) {
+      fail();
+      module_ = nullptr;
+    }
+  }
 #endif
 }
 

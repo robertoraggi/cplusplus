@@ -1349,7 +1349,11 @@ auto Codegen::newTemp(const Type* type, SourceLocation loc) -> ir::ValueRef {
                            getAlignment(type));
 }
 
-void Codegen::pushCleanup() { cleanupStack_.emplace_back(); }
+void Codegen::pushCleanup() {
+  auto& scope = cleanupStack_.emplace_back();
+  if (auto observer = options_.sourceObserver)
+    scope.sourceScope = observer->beginLifetime();
+}
 
 void Codegen::defineCleanupLabel(SourceLocation loc, std::string_view name) {
   cleanupLabels_.push_back(
@@ -1360,7 +1364,10 @@ void Codegen::defineCleanupLabel(SourceLocation loc, std::string_view name) {
 void Codegen::emitGotoLabel(SourceLocation loc, std::string_view name) {
   auto block = newBlock();
   branch(loc, block);
-  cleanupGotos_.push_back({loc, name, block, cleanupStack_, exceptionScopes_});
+  cleanupGotos_.push_back({loc, name, block, cleanupStack_, exceptionScopes_,
+                           options_.sourceObserver
+                               ? options_.sourceObserver->currentContext()
+                               : 0});
 }
 
 void Codegen::resolveCleanupGotos() {
@@ -1368,6 +1375,8 @@ void Codegen::resolveCleanupGotos() {
   auto savedCleanups = std::exchange(cleanupStack_, {});
   auto savedExceptions = std::exchange(exceptionScopes_, {});
   for (const auto& jump : cleanupGotos_) {
+    auto context =
+        SourceContextActivation{options_.sourceObserver, jump.sourceContext};
     auto label =
         std::ranges::find(cleanupLabels_, jump.label, &CleanupLabel::name);
     if (label == cleanupLabels_.end()) {
@@ -1377,6 +1386,8 @@ void Codegen::resolveCleanupGotos() {
     cleanupStack_ = jump.cleanups;
     exceptionScopes_ = jump.exceptions;
     emitter_.setInsertionBlock(jump.block);
+    if (auto observer = options_.sourceObserver)
+      observer->recordBlock(SourceBlockRole::ExitTarget, label->block);
     auto snapshot = collectCleanupSnapshot();
     std::erase_if(snapshot, [&](const auto& cleanup) {
       return std::ranges::any_of(label->cleanups, [&](const auto& retained) {
@@ -1394,11 +1405,15 @@ void Codegen::resolveCleanupGotos() {
 void Codegen::pushFullExpressionCleanup() {
   auto& scope = cleanupStack_.emplace_back();
   scope.isFullExpression = true;
+  if (auto observer = options_.sourceObserver)
+    scope.sourceScope = observer->beginLifetime();
   scope.region = emitter_.beginCleanupRegion();
 }
 
 void Codegen::popCleanup(SourceLocation loc) {
   auto& scope = cleanupStack_.back();
+  if (auto observer = options_.sourceObserver)
+    observer->endLifetime(scope.sourceScope);
   if (scope.entries.empty() || currentBlockMightHaveTerminator()) {
     emitter_.endCleanupRegion(scope.region);
     cleanupStack_.pop_back();
@@ -1458,6 +1473,11 @@ void Codegen::emitCleanupDestructorCall(SourceLocation loc,
 void Codegen::emitCleanupCall(SourceLocation loc,
                               const CleanupScope::Entry& cleanup,
                               bool exceptional) {
+  auto context =
+      SourceContextGuard{options_.sourceObserver,
+                         cleanup.elementCount > 1 || cleanup.initializedCount
+                             ? SyntheticSourceContext::ArrayCleanup
+                             : SyntheticSourceContext::Destructor};
   if (cleanup.elementCount <= 1 && !cleanup.initializedCount) {
     removeCleanup(cleanup.address, cleanup.destructor);
     if (exceptional)
@@ -1489,6 +1509,11 @@ void Codegen::emitCleanupCall(SourceLocation loc,
   auto condition = newBlock();
   auto body = newBlock();
   auto merge = newBlock();
+  if (auto observer = options_.sourceObserver) {
+    observer->recordBlock(SourceBlockRole::Condition, condition);
+    observer->recordBlock(SourceBlockRole::Body, body);
+    observer->recordBlock(SourceBlockRole::Continuation, merge);
+  }
   branch(loc, condition);
   emitter_.setInsertionBlock(condition);
   auto remaining = emitter_.load(loc, convertType(countType), count, 8);
@@ -1516,14 +1541,22 @@ void Codegen::emitCleanupCall(SourceLocation loc,
 void Codegen::emitCleanupSnapshot(SourceLocation loc,
                                   const CleanupSnapshot& snapshot,
                                   bool exceptional) {
+  auto context = SourceContextGuard{options_.sourceObserver,
+                                    SyntheticSourceContext::Cleanup};
   auto savedCleanups = cleanupStack_;
   for (const auto& cleanup : snapshot) {
     if (!cleanup.activeFlag) {
       emitCleanupCall(loc, cleanup, exceptional);
       continue;
     }
+    auto conditionalContext = SourceContextGuard{
+        options_.sourceObserver, SyntheticSourceContext::ConditionalCleanup};
     auto body = newBlock();
     auto merge = newBlock();
+    if (auto observer = options_.sourceObserver) {
+      observer->recordBlock(SourceBlockRole::Then, body);
+      observer->recordBlock(SourceBlockRole::Continuation, merge);
+    }
     auto type = emitter_.elementType(emitter_.typeOf(cleanup.activeFlag));
     auto active = emitter_.load(loc, type, cleanup.activeFlag, 1);
     emitter_.condBranch(loc, active, body, merge);

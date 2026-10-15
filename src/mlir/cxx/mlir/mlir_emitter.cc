@@ -22,6 +22,7 @@
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/mlir_debug_emitter.h>
 #include <cxx/mlir/mlir_emitter.h>
+#include <cxx/mlir/mlir_source_contexts.h>
 #include <cxx/translation_unit.h>
 #include <llvm/Support/ErrorHandling.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
@@ -63,6 +64,13 @@ MlirEmitter::MlirEmitter(mlir::MLIRContext& context, TranslationUnit* unit)
     : unit_(unit), builder_(&context) {}
 
 MlirEmitter::~MlirEmitter() = default;
+
+auto MlirEmitter::enableSourceContexts(SourceContextOptions options)
+    -> SourceContextObserver* {
+  sourceContexts_ = std::make_unique<MlirSourceContexts>(*this, options);
+  builder_.setListener(sourceContexts_.get());
+  return sourceContexts_.get();
+}
 
 void MlirEmitter::moduleAsm(SourceLocation loc, std::string_view assembly) {
   mlir::OpBuilder::InsertionGuard guard(builder_);
@@ -420,6 +428,7 @@ auto MlirEmitter::block(BlockRef ref) -> mlir::Block* {
 }
 
 void MlirEmitter::beginFunctionBody(FunctionRef function) {
+  if (sourceContexts_) sourceContexts_->beginFunction(function);
   functionBodies_.push_back(
       {.function = function,
        .blockMark = static_cast<std::uint32_t>(blocks_.size()),
@@ -429,6 +438,8 @@ void MlirEmitter::beginFunctionBody(FunctionRef function) {
 void MlirEmitter::endFunctionBody(FunctionRef function) {
   if (functionBodies_.empty() || functionBodies_.back().function != function)
     llvm::report_fatal_error("unbalanced function body scope");
+
+  if (sourceContexts_) sourceContexts_->endFunction(function);
 
   const auto scope = functionBodies_.back();
   functionBodies_.pop_back();
@@ -483,6 +494,7 @@ auto MlirEmitter::createBlock(FunctionRef ref) -> BlockRef {
 
   auto block = new mlir::Block();
   region->getBlocks().push_back(block);
+  if (sourceContexts_) sourceContexts_->blockCreated(block);
 
   return wrap(block);
 }
@@ -727,7 +739,8 @@ void MlirEmitter::eraseBlock(BlockRef ref) {
   blockIds_.erase(target);
   blocks_[handleIndex(HandleAccess::id(ref))] = nullptr;
 
-  target->erase();
+  mlir::IRRewriter rewriter(builder_.getContext(), sourceContexts_.get());
+  rewriter.eraseBlock(target);
 }
 
 auto MlirEmitter::hasTerminator(BlockRef ref) -> bool {

@@ -421,6 +421,8 @@ void Codegen::conditionWithCleanups(ExpressionAST* ast, ir::BlockRef trueBlock,
                                     ir::BlockRef falseBlock) {
   if (!ast) return;
 
+  auto context = SourceContextGuard{options_.sourceObserver,
+                                    SyntheticSourceContext::Condition};
   const auto outerDepth = cleanupStack_.size();
   const auto endLoc = lastTokenLocation(ast);
 

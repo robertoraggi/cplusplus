@@ -118,6 +118,9 @@ class CLI {
 
   [[nodiscard]] auto exceptionsEnabled(bool defaults = true) const -> bool;
 
+  [[nodiscard]] auto experimentalSCFEnabled(bool defaults = false) const
+      -> bool;
+
   [[nodiscard]] auto rttiEnabled() const -> bool;
 
   [[nodiscard]] auto positionIndependence(PositionIndependence defaults) const

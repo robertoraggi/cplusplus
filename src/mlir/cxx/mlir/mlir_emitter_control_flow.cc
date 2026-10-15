@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/mlir/mlir_emitter.h>
+#include <cxx/mlir/mlir_source_contexts.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
@@ -310,7 +311,8 @@ auto MlirEmitter::labelAddress(SourceLocation loc, TypeRef resultType,
 }
 
 void MlirEmitter::resolveFunctionControlFlow(FunctionRef funcOp) {
-  mlir::IRRewriter rewriter(function(funcOp).getContext());
+  mlir::IRRewriter rewriter(function(funcOp).getContext(),
+                            sourceContexts_.get());
 
   llvm::DenseMap<llvm::StringRef, mlir::Block*> labels;
   llvm::DenseMap<llvm::StringRef, std::int64_t> labelCleanupDepths;
@@ -359,6 +361,9 @@ void MlirEmitter::resolveFunctionControlFlow(FunctionRef funcOp) {
   }
 
   for (auto gotoOp : gotoOps) {
+    auto context = SourceContextActivation{
+        sourceContexts_.get(),
+        sourceContexts_ ? sourceContexts_->contextOf(gotoOp) : 0};
     auto targetBlock = labels.lookup(gotoOp.getLabel());
     if (!targetBlock) continue;
 
@@ -431,6 +436,9 @@ void MlirEmitter::resolveFunctionControlFlow(FunctionRef funcOp) {
   }
 
   for (auto cbOp : cleanupBranchOps) {
+    auto context = SourceContextActivation{
+        sourceContexts_.get(),
+        sourceContexts_ ? sourceContexts_->contextOf(cbOp) : 0};
     rewriter.setInsertionPoint(cbOp);
 
     emitCleanupCalls(
