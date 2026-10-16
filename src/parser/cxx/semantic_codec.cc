@@ -5718,8 +5718,12 @@ void SemanticEncoder::writeAstReferenceOperatorAST(
   out.varU32(static_cast<std::uint32_t>(locationRef(self->refLoc)));
   // ::cxx::ReferenceOperatorAST::attributeList
   writeAstList(out, self->attributeList);
+  // ::cxx::ReferenceOperatorAST::restrictLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->restrictLoc)));
   // ::cxx::ReferenceOperatorAST::refOp
   out.varU32(static_cast<std::uint32_t>(self->refOp));
+  // ::cxx::ReferenceOperatorAST::isRestrict
+  out.boolean(self->isRestrict);
 }
 
 void SemanticEncoder::writeAstPtrToMemberOperatorAST(
@@ -15179,9 +15183,15 @@ void SemanticDecoder::readAstReferenceOperatorAST(
   cxx::List<cxx::AttributeSpecifierAST*>* value2 =
       readAstList<cxx::AttributeSpecifierAST>(in);
   self->attributeList = std::move(value2);
+  // ::cxx::ReferenceOperatorAST::restrictLoc
+  cxx::SourceLocation value3 = locationAt(LocationRef{in.varU32()});
+  self->restrictLoc = std::move(value3);
   // ::cxx::ReferenceOperatorAST::refOp
-  ::cxx::TokenKind value3 = static_cast<::cxx::TokenKind>(readEnum(in, 234));
-  self->refOp = std::move(value3);
+  ::cxx::TokenKind value4 = static_cast<::cxx::TokenKind>(readEnum(in, 234));
+  self->refOp = std::move(value4);
+  // ::cxx::ReferenceOperatorAST::isRestrict
+  bool value5 = in.boolean();
+  self->isRestrict = std::move(value5);
 }
 
 void SemanticDecoder::readAstPtrToMemberOperatorAST(

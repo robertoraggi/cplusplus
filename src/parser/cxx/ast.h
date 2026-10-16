@@ -6738,7 +6738,9 @@ class ReferenceOperatorAST final : public PtrOperatorAST {
 
   SourceLocation refLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
+  SourceLocation restrictLoc;
   TokenKind refOp = TokenKind::T_EOF_SYMBOL;
+  bool isRestrict = false;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -6751,11 +6753,13 @@ class ReferenceOperatorAST final : public PtrOperatorAST {
 
   [[nodiscard]] static auto create(Arena* arena, SourceLocation refLoc,
                                    List<AttributeSpecifierAST*>* attributeList,
-                                   TokenKind refOp) -> ReferenceOperatorAST*;
+                                   SourceLocation restrictLoc, TokenKind refOp,
+                                   bool isRestrict) -> ReferenceOperatorAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
                                    List<AttributeSpecifierAST*>* attributeList,
-                                   TokenKind refOp) -> ReferenceOperatorAST*;
+                                   TokenKind refOp, bool isRestrict)
+      -> ReferenceOperatorAST*;
 
  protected:
   ReferenceOperatorAST() : PtrOperatorAST(Kind) {}

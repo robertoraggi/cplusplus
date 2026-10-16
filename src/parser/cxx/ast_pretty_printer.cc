@@ -3988,6 +3988,10 @@ void ASTPrettyPrinter::PtrOperatorVisitor::operator()(
   for (auto it = ast->attributeList; it; it = it->next) {
     accept(it->value);
   }
+
+  if (ast->restrictLoc) {
+    accept.writeToken(ast->restrictLoc);
+  }
 }
 
 void ASTPrettyPrinter::PtrOperatorVisitor::operator()(

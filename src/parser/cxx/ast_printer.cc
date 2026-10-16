@@ -2745,6 +2745,12 @@ void ASTPrinter::visit(ReferenceOperatorAST* ast) {
     out_ << std::format("ref-op: {}\n", Token::spell(ast->refOp));
     --indent_;
   }
+  if (ast->isRestrict) {
+    ++indent_;
+    out_ << std::format("{:{}}", "", indent_ * 2);
+    out_ << std::format("is-restrict: {}\n", ast->isRestrict);
+    --indent_;
+  }
   if (ast->attributeList) {
     ++indent_;
     out_ << std::format("{:{}}", "", indent_ * 2);

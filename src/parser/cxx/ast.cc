@@ -2997,10 +2997,12 @@ auto PointerOperatorAST::lastSourceLocation() -> SourceLocation {
 auto ReferenceOperatorAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(refLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
+  if (auto loc = cxx::firstSourceLocation(restrictLoc)) return loc;
   return {};
 }
 
 auto ReferenceOperatorAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(restrictLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(attributeList)) return loc;
   if (auto loc = cxx::lastSourceLocation(refLoc)) return loc;
   return {};
@@ -13098,7 +13100,9 @@ auto ReferenceOperatorAST::clone(Arena* arena) -> ReferenceOperatorAST* {
     }
   }
 
+  node->restrictLoc = restrictLoc;
   node->refOp = refOp;
+  node->isRestrict = isRestrict;
 
   return node;
 }
@@ -13110,20 +13114,25 @@ auto ReferenceOperatorAST::create(Arena* arena) -> ReferenceOperatorAST* {
 
 auto ReferenceOperatorAST::create(Arena* arena, SourceLocation refLoc,
                                   List<AttributeSpecifierAST*>* attributeList,
-                                  TokenKind refOp) -> ReferenceOperatorAST* {
+                                  SourceLocation restrictLoc, TokenKind refOp,
+                                  bool isRestrict) -> ReferenceOperatorAST* {
   auto node = new (arena) ReferenceOperatorAST();
   node->refLoc = refLoc;
   node->attributeList = attributeList;
+  node->restrictLoc = restrictLoc;
   node->refOp = refOp;
+  node->isRestrict = isRestrict;
   return node;
 }
 
 auto ReferenceOperatorAST::create(Arena* arena,
                                   List<AttributeSpecifierAST*>* attributeList,
-                                  TokenKind refOp) -> ReferenceOperatorAST* {
+                                  TokenKind refOp, bool isRestrict)
+    -> ReferenceOperatorAST* {
   auto node = new (arena) ReferenceOperatorAST();
   node->attributeList = attributeList;
   node->refOp = refOp;
+  node->isRestrict = isRestrict;
   return node;
 }
 
