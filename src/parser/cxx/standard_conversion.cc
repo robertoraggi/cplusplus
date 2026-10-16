@@ -333,7 +333,26 @@ auto StandardConversion::isNullPointerConstant(ExpressionAST* expr) const
   if (auto integerLiteral = ast_cast<IntLiteralExpressionAST>(expr))
     return integerLiteral->literal->integerValue() == 0;
 
-  return false;
+  if (!isC_) return false;
+
+  if (auto cast = ast_cast<CastExpressionAST>(expr)) {
+    auto pointer = type_cast<PointerType>(cast->type);
+    if (pointer &&
+        traits.is_same(pointer->elementType(), control_->getVoidType())) {
+      expr = cast->expression;
+      if (auto conversion = ast_cast<ImplicitCastExpressionAST>(expr);
+          conversion &&
+          conversion->castKind == ImplicitCastKind::kPointerConversion)
+        expr = conversion->expression;
+    }
+  }
+
+  if (!expr || !traits.is_integral_or_unscoped_enum(expr->type)) return false;
+  ASTInterpreter interpreter{unit_};
+  auto value = interpreter.evaluate(expr);
+  if (!value) return false;
+  auto integer = interpreter.toIntegralType(*value, expr->type);
+  return integer && std::get<ConstInt>(*integer).isZero();
 }
 
 auto StandardConversion::readsValueDirectly(const Type* type) const -> bool {
@@ -939,6 +958,7 @@ auto StandardConversion::compositeVoidPointerType(const Type* left,
 
   auto leftElement = leftPointer->elementType();
   auto rightElement = rightPointer->elementType();
+  if (address_space(leftElement) != address_space(rightElement)) return nullptr;
 
   auto leftIsVoid = traits.is_void(leftElement);
   auto rightIsVoid = traits.is_void(rightElement);
@@ -949,7 +969,8 @@ auto StandardConversion::compositeVoidPointerType(const Type* left,
     return nullptr;
 
   auto cv = cv_qualifiers(leftElement) | cv_qualifiers(rightElement);
-  return control_->getPointerType(traits.add_cv(control_->getVoidType(), cv));
+  return control_->getPointerType(traits.add_qualifiers(
+      control_->getVoidType(), cv, address_space(leftElement)));
 }
 
 auto StandardConversion::compositeFunctionPointerType(const Type* left,
@@ -991,8 +1012,8 @@ auto StandardConversion::compositeClassAdjustedType(const Type* type,
     -> const Type* {
   if (auto pointerType = type_cast<PointerType>(type)) {
     auto element = pointerType->elementType();
-    return control_->getPointerType(
-        traits.add_cv(classType, cv_qualifiers(element)));
+    return control_->getPointerType(traits.add_qualifiers(
+        classType, cv_qualifiers(element), address_space(element)));
   }
 
   auto member = decomposeMemberPointer(traits.remove_cv(type));
@@ -1414,6 +1435,8 @@ auto StandardConversion::pointerConversionSequence(
   if (!source || !target) return std::nullopt;
   auto sourceElement = source->elementType();
   auto targetElement = target->elementType();
+  if (address_space(sourceElement) != address_space(targetElement))
+    return sequence;
   auto sourceCv = cv_qualifiers(sourceElement);
   auto targetCv = cv_qualifiers(targetElement);
   if (!is_at_least_as_cv_qualified(targetCv, sourceCv)) return sequence;
@@ -1627,8 +1650,7 @@ auto StandardConversion::computeConversionSequenceSteps(
                              comparisonTargetType);
   }
 
-  if (traits.is_integral(unqualFrom) && traits.is_pointer(unqualTo) &&
-      isNullPointerConstant(expr)) {
+  if (traits.is_pointer(unqualTo) && isNullPointerConstant(expr)) {
     return completedSequence(seq, ImplicitCastKind::kPointerConversion,
                              comparisonTargetType);
   }
@@ -2050,7 +2072,22 @@ void StandardConversion::applyStep(const ImplicitConversionSequence& sequence,
     checkUserDefinedConversionAccess(sequence, expr);
   }
 
+  const bool foldsNullPointer =
+      isC_ && step.kind == ImplicitCastKind::kPointerConversion &&
+      traits.is_pointer(expr->type) && traits.is_pointer(step.type) &&
+      isNullPointerConstant(expr);
+
   wrapWithImplicitCast(step.kind, step.type, expr);
+
+  if (foldsNullPointer) {
+    auto constant = ConstExpressionAST::create(arena_);
+    constant->expression = expr;
+    constant->constValue =
+        arena_->make<ConstValue>(std::make_shared<ConstAddress>());
+    constant->type = step.type;
+    constant->valueCategory = ValueCategory::kPrValue;
+    expr = constant;
+  }
 
   if (step.kind != ImplicitCastKind::kUserDefinedConversion) return;
   if (auto cast = ast_cast<ImplicitCastExpressionAST>(expr))

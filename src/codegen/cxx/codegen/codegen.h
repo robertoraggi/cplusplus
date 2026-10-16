@@ -815,6 +815,12 @@ class Codegen {
 
   [[nodiscard]] auto emitDynamicCast(CppCastExpressionAST* ast) -> ir::ValueRef;
 
+  [[nodiscard]] auto emitDynamicCastAddress(SourceLocation loc,
+                                            const Type* sourceType,
+                                            const Type* targetType,
+                                            ir::ValueRef sourceAddress)
+      -> ir::ValueRef;
+
   [[nodiscard]] auto emitTypeidOfPolymorphicGlvalue(SourceLocation loc,
                                                     ir::ValueRef objectPtr)
       -> ir::ValueRef;
@@ -1037,6 +1043,9 @@ class Codegen {
                                              const Type* type,
                                              ir::TypeRef layoutType = {})
       -> std::optional<ir::Initializer>;
+
+  [[nodiscard]] auto pointerCast(SourceLocation loc, ir::TypeRef pointerType,
+                                 ir::ValueRef address) -> ir::ValueRef;
 
   [[nodiscard]] auto displacedAddress(SourceLocation loc,
                                       ir::TypeRef pointerType,

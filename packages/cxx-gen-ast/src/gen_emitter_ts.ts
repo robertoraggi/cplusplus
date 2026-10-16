@@ -51,12 +51,15 @@ function delegateInterface(
   ];
   for (const method of methods) {
     const parameters = method.parameters
-      .map((parameter) => {
+      .map((parameter, index) => {
         const type =
           parameter.wire.kind === "location"
             ? "TokenIndex"
             : tsType(parameter.wire, "in");
-        return `${tsIdentifier(parameter.name)}: ${type}`;
+        const optional =
+          parameter.wire.kind === "optional" &&
+          method.parameters.slice(index).every((p) => p.wire.kind === "optional");
+        return `${tsIdentifier(parameter.name)}${optional ? "?" : ""}: ${type}`;
       })
       .join(", ");
     lines.push(
@@ -107,7 +110,7 @@ export function gen_emitter_ts({
     emit(categoryComment(categoryOf(struct.name, "Backend Descriptors")));
     emit(`export interface ${struct.name} {`);
     for (const field of struct.fields)
-      emit(`  ${field.name}: ${tsType(field.wire, "in")};`);
+      emit(`  ${field.name}${field.wire.kind === "optional" ? "?" : ""}: ${tsType(field.wire, "in")};`);
     emit(`}`);
     emit();
   }

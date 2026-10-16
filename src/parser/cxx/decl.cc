@@ -436,8 +436,8 @@ constexpr AttributeSpelling kVectorSizeSpellings[] = {
   return true;
 }
 
-[[nodiscard]] auto vectorSizeExpression(AttributeArgumentClauseAST* clause)
-    -> ExpressionAST* {
+[[nodiscard]] auto attributeArgumentExpression(
+    AttributeArgumentClauseAST* clause) -> ExpressionAST* {
   if (!clause || !clause->expressionList) return nullptr;
   if (clause->expressionList->next) return nullptr;
   return clause->expressionList->value;
@@ -445,10 +445,11 @@ constexpr AttributeSpelling kVectorSizeSpellings[] = {
 
 }  // namespace
 
-auto applyTypeAttributes(TranslationUnit* unit,
-                         List<AttributeSpecifierAST*>* attributeList,
-                         const Type* type, SourceLocation location)
-    -> const Type* {
+namespace {
+
+[[nodiscard]] auto applyVectorTypeAttributes(
+    TranslationUnit* unit, List<AttributeSpecifierAST*>* attributeList,
+    const Type* type, SourceLocation location) -> const Type* {
   if (!type || !attributeList) return type;
 
   auto attribute =
@@ -461,7 +462,7 @@ auto applyTypeAttributes(TranslationUnit* unit,
   const auto sizeKind = vectorSizeKindOf(*attribute.spelling);
   const auto attributeName = attribute.spelling->name;
 
-  auto sizeExpression = vectorSizeExpression(attribute.argumentClause);
+  auto sizeExpression = attributeArgumentExpression(attribute.argumentClause);
 
   if (!sizeExpression) {
     unit->error(
@@ -519,6 +520,67 @@ auto applyTypeAttributes(TranslationUnit* unit,
   }
 
   return control->getVectorType(type, elementCount, vectorKind);
+}
+
+[[nodiscard]] auto applyAddressSpaceAttribute(TranslationUnit* unit,
+                                              const AttributeRef& attribute,
+                                              const Type* type,
+                                              SourceLocation location)
+    -> const Type* {
+  const auto at = attribute.location ? attribute.location : location;
+  auto expression = attributeArgumentExpression(attribute.argumentClause);
+  if (!expression) {
+    unit->error(at, "'address_space' attribute takes one argument");
+    return type;
+  }
+  auto traits = unit->typeTraits();
+  if (traits.is_reference(type) || traits.is_function(type)) {
+    unit->error(at,
+                "address space cannot qualify a reference or function type");
+    return type;
+  }
+  if (isDependent(unit, expression)) {
+    unit->error(at, "'address_space' attribute requires an integer constant");
+    return type;
+  }
+  ASTInterpreter interpreter{unit};
+  auto value = interpreter.evaluate(expression);
+  auto number = value ? std::get_if<ConstInt>(&*value) : nullptr;
+  if (!number) {
+    unit->error(at, "'address_space' attribute requires an integer constant");
+    return type;
+  }
+  if (number->isNegative() || number->toUWide() > QualType::MaxAddressSpace) {
+    unit->error(at, "address space must be between 0 and 16777215");
+    return type;
+  }
+  const auto space = std::uint32_t(number->toUIntMax());
+  if (auto previous = address_space(type)) {
+    if (*previous == space)
+      unit->warning(at, "duplicate address space qualifier");
+    else
+      unit->error(at, "conflicting address space qualifiers");
+    return type;
+  }
+  return traits.add_qualifiers(type, CvQualifiers::kNone, space);
+}
+
+}  // namespace
+
+auto applyTypeAttributes(TranslationUnit* unit,
+                         List<AttributeSpecifierAST*>* attributeList,
+                         const Type* type, SourceLocation location)
+    -> const Type* {
+  if (!type || !attributeList) return type;
+  constexpr AttributeSpelling spellings[] = {
+      {AttributeSyntax::kGnu, "", "address_space"},
+      {AttributeSyntax::kCxx, "clang", "address_space"},
+  };
+  for (const auto& attribute :
+       findAttributesBySpelling(unit, attributeList, spellings)) {
+    type = applyAddressSpaceAttribute(unit, attribute, type, location);
+  }
+  return applyVectorTypeAttributes(unit, attributeList, type, location);
 }
 
 [[nodiscard]] auto getGenericSelectionExpression(

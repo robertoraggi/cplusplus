@@ -234,7 +234,7 @@ auto call_deduction_argument_type(const TypeTraits& traits, const Type* P,
   A = traits.remove_reference(A);
   if (traits.is_reference(P)) return A;
   if (traits.is_array(A) || traits.is_function(A)) return traits.decay(A);
-  return traits.remove_cv(A);
+  return unqualified_type(A);
 }
 
 auto TemplateArgumentDeduction::bindsLvalueToForwardingReference(

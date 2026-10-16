@@ -734,9 +734,14 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
       }
     }
 
+    if (auto space = op.getAddressSpace();
+        space && std::uint64_t(*space) > kMaxLLVMAddressSpace)
+      return op.emitError("global address space does not fit LLVM's 24 bits");
+
     auto globalOp = LLVM::GlobalOp::create(rewriter, op.getLoc(), elementType,
                                            op.getConstant(), linkage,
                                            op.getSymName(), initialValue);
+    if (auto space = op.getAddressSpace()) globalOp.setAddrSpace(*space);
 
     if (auto alignment = op.getAlignment()) {
       globalOp.setAlignment(*alignment);
@@ -2830,6 +2835,26 @@ class IntToPtrOpLowering : public OpConversionPattern<cxx::IntToPtrOp> {
   }
 };
 
+class AddressSpaceCastOpLowering
+    : public OpConversionPattern<cxx::AddressSpaceCastOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(cxx::AddressSpaceCastOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto resultType = getTypeConverter()->convertType(op.getType());
+    if (!resultType) return failure();
+    if (resultType == adaptor.getValue().getType()) {
+      rewriter.replaceOp(op, adaptor.getValue());
+      return success();
+    }
+    rewriter.replaceOpWithNewOp<LLVM::AddrSpaceCastOp>(op, resultType,
+                                                       adaptor.getValue());
+    return success();
+  }
+};
+
 class BitcastOpLowering : public OpConversionPattern<cxx::BitcastOp> {
  public:
   using OpConversionPattern::OpConversionPattern;
@@ -3529,9 +3554,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                   BitfieldLoadOpLowering, BitfieldStoreOpLowering,
                   BuiltinCallOpLowering>(typeConverter, dataLayout, context);
 
-  patterns.insert<ArrayToPointerOpLowering, PtrToIntOpLowering,
-                  IntToPtrOpLowering, BitcastOpLowering, MemCpyOpLowering>(
-      typeConverter, context);
+  patterns
+      .insert<ArrayToPointerOpLowering, PtrToIntOpLowering, IntToPtrOpLowering,
+              BitcastOpLowering, AddressSpaceCastOpLowering, MemCpyOpLowering>(
+          typeConverter, context);
 
   patterns.insert<LabelAddressOpLowering, IndirectGotoOpLowering>(typeConverter,
                                                                   context);

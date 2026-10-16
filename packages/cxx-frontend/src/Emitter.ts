@@ -144,7 +144,8 @@ export type CastKind =
   | "Reshape"
   | "ArrayToPointer"
   | "PointerToInt"
-  | "IntToPointer";
+  | "IntToPointer"
+  | "AddressSpace";
 
 /** @category Backend Enumerations */
 export type TypeKind =
@@ -270,7 +271,7 @@ export interface CleanupAction {
 /** @category Backend Descriptors */
 export interface Access {
   alignment: number;
-  bitfield: BitfieldInfo | undefined;
+  bitfield?: BitfieldInfo | undefined;
   isSigned: boolean;
 }
 
@@ -334,6 +335,7 @@ export interface GlobalInfo {
   isUsed: boolean;
   isThreadLocal: boolean;
   section: string;
+  addressSpace?: number | undefined;
 }
 
 /** @category Debug Information */
@@ -552,7 +554,8 @@ export interface EmitterDelegate {
   unresolvedType(): TypeRef;
   integerType(bits: number): TypeRef;
   floatingType(kind: FloatKind): TypeRef;
-  pointerType(elementType: TypeRef): TypeRef;
+  pointerType(elementType: TypeRef, addressSpace?: number | undefined): TypeRef;
+  rebindPointerType(pointerType: TypeRef, elementType: TypeRef): TypeRef;
   arrayType(elementType: TypeRef, size: number): TypeRef;
   vectorType(elementType: TypeRef, elementCount: number): TypeRef;
   vectorSplat(loc: TokenIndex, vectorType: TypeRef, scalar: ValueRef): ValueRef;

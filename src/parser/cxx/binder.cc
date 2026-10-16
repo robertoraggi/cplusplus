@@ -1092,8 +1092,12 @@ void Binder::bind(TypeExceptionDeclarationAST* ast, const Decl& decl) {
 
 auto Binder::parameterObjectType(ParameterDeclarationAST* ast,
                                  const Type* specifiersType) -> const Type* {
-  return TypeTraits::adjusted_parameter_type(
+  auto type = TypeTraits::adjusted_parameter_type(
       control(), getDeclaratorType(unit_, ast->declarator, specifiersType));
+  if (address_space(type))
+    error(ast->firstSourceLocation(),
+          "function parameter cannot have an address space qualifier");
+  return type;
 }
 
 void Binder::rebindParameterType(ParameterDeclarationAST* ast,
@@ -3262,6 +3266,8 @@ auto redeclarationTypesEquivalent(TranslationUnit* unit,
     if (!existingQual || !incomingQual) return false;
     if (existingQual->cvQualifiers() != incomingQual->cvQualifiers())
       return false;
+    if (existingQual->addressSpace() != incomingQual->addressSpace())
+      return false;
     return redeclarationTypesEquivalent(unit, existingQual->elementType(),
                                         incomingQual->elementType(),
                                         ignoresArrayBound);
@@ -3640,6 +3646,9 @@ auto Binder::declareField(DeclaratorAST* declarator, const Decl& decl)
   fieldSymbol->setName(name);
   fieldSymbol->setType(type);
   fieldSymbol->setMutable(decl.specs.isMutable);
+  if (!decl.specs.isStatic && address_space(type))
+    error(decl.location(),
+          "non-static data member cannot have an address space qualifier");
   fieldSymbol->setNoUniqueAddress(decl.specs.isNoUniqueAddress);
 
   if (auto alignment = control()->memoryLayout()->alignmentOf(type)) {
@@ -3917,6 +3926,10 @@ auto Binder::declareVariable(DeclaratorAST* declarator, const Decl& decl,
   applySpecifiers(symbol, decl.specs);
   symbol->setName(name);
   symbol->setType(type);
+  if (address_space(type) && !has_static_storage_duration(symbol) &&
+      !has_thread_storage_duration(symbol))
+    error(decl.location(),
+          "automatic variable cannot have an address space qualifier");
 
   if (isOutOfClassStaticMemberDef) {
     inheritDeclarationAttributes(symbol, outOfClassMemberField);
@@ -4659,7 +4672,8 @@ struct Binder::MemberOfCurrentInstantiationType {
   [[nodiscard]] auto operator()(const QualType* type) const -> const Type* {
     auto elementType = resolve(type->elementType());
     if (elementType == type->elementType()) return type;
-    return control()->getQualType(elementType, type->cvQualifiers());
+    return control()->getQualType(elementType, type->cvQualifiers(),
+                                  type->addressSpace());
   }
 
   [[nodiscard]] auto operator()(const PointerType* type) const -> const Type* {

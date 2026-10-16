@@ -61,6 +61,19 @@ namespace cxx {
 
 namespace {
 
+[[nodiscard]] auto changesAddressSpace(const TypeTraits& traits,
+                                       const Type* source, const Type* target,
+                                       ValueCategory targetCategory) -> bool {
+  if (targetCategory != ValueCategory::kPrValue)
+    return address_space(source) != address_space(target);
+  auto targetPointer = unqualified_cast<PointerType>(target);
+  if (!targetPointer) return false;
+  auto sourcePointer = unqualified_cast<PointerType>(traits.decay(source));
+  if (!sourcePointer) return false;
+  return address_space(sourcePointer->elementType()) !=
+         address_space(targetPointer->elementType());
+}
+
 [[nodiscard]] auto object_member_value_category(MemberExpressionAST* ast)
     -> ValueCategory {
   if (is_lvalue(ast->baseExpression)) return ValueCategory::kLValue;
@@ -2705,7 +2718,8 @@ void TypeChecker::Visitor::check_member_pointer_access(
             objectClass->symbol(), memberClass->symbol(),
             BaseConversionKind::kDerivedToBase, ast->opLoc))
       return;
-    auto baseType = traits.add_cv(pointer.classType, objectQualifiers);
+    auto baseType = traits.add_qualifiers(pointer.classType, objectQualifiers,
+                                          address_space(objectType));
     if (throughPointer) {
       stdconv_.convertPointer(object, control()->getPointerType(baseType));
     } else {
@@ -2717,8 +2731,7 @@ void TypeChecker::Visitor::check_member_pointer_access(
   const auto qualified = [&](const Type* memberType) {
     const auto memberQualifiers = cv_qualifiers(memberType);
     const auto combined = objectQualifiers | memberQualifiers;
-    if (combined == memberQualifiers) return memberType;
-    return traits.add_cv(unqualified_type(memberType), combined);
+    return traits.add_cv(memberType, combined);
   };
 
   if (auto dataPointer =
@@ -3933,6 +3946,8 @@ auto TypeChecker::Visitor::check_static_cast(ExpressionAST*& expression,
 
 auto TypeChecker::Visitor::CheckStaticCast::operator()() -> bool {
   if (!expression || !expression->type) return false;
+  if (changesAddressSpace(traits, expression->type, targetType, targetVC))
+    return false;
 
   if (traits.is_void(targetType)) return true;
 
@@ -4215,6 +4230,8 @@ auto TypeChecker::Visitor::check_dynamic_cast(ExpressionAST*& expression,
                                               const Type* targetType,
                                               ValueCategory targetVC) -> bool {
   if (!expression || !expression->type || !targetType) return false;
+  if (changesAddressSpace(traits, expression->type, targetType, targetVC))
+    return false;
 
   const Type* targetObjectType = nullptr;
 
@@ -4327,7 +4344,7 @@ auto TypeChecker::Visitor::requireCompleteTypeidOperand(const Type* type,
     -> bool {
   auto objectType = traits.remove_cv(traits.remove_reference(type));
   if (is_dependent_type(objectType)) return true;
-  auto classType = type_cast<ClassType>(objectType);
+  auto classType = unqualified_cast<ClassType>(objectType);
   if (!classType || traits.is_complete(classType)) return true;
 
   error(loc,
@@ -4408,6 +4425,7 @@ auto TypeChecker::Visitor::are_similar_types(const Type* T1, const Type* T2)
   const Type* curr2 = T2;
 
   while (true) {
+    if (address_space(curr1) != address_space(curr2)) return false;
     if (traits.is_same(traits.remove_cv(curr1), traits.remove_cv(curr2))) {
       return true;
     }
@@ -4441,6 +4459,8 @@ auto TypeChecker::Visitor::check_reinterpret_cast(ExpressionAST*& expression,
                                                   ValueCategory targetVC)
     -> bool {
   if (!expression || !expression->type) return false;
+  if (changesAddressSpace(traits, expression->type, targetType, targetVC))
+    return false;
 
   auto sourceType = expression->type;
 
@@ -4806,11 +4826,13 @@ void TypeChecker::Visitor::check_three_way_comparison(
     if (traits.is_pointer(rightType)) {
       auto compositeType = stdconv_.compositePointerType(ast->leftExpression,
                                                          ast->rightExpression);
-      (void)implicit_conversion(ast->leftExpression, compositeType);
-      (void)implicit_conversion(ast->rightExpression, compositeType);
-      ast->type = comparison_category_type(ast->opLoc,
-                                           WellKnownName::T_STRONG_ORDERING);
-      return;
+      if (compositeType) {
+        (void)implicit_conversion(ast->leftExpression, compositeType);
+        (void)implicit_conversion(ast->rightExpression, compositeType);
+        ast->type = comparison_category_type(ast->opLoc,
+                                             WellKnownName::T_STRONG_ORDERING);
+        return;
+      }
     }
   }
 
@@ -5800,6 +5822,23 @@ void TypeChecker::Visitor::operator()(DeleteExpressionAST* ast) {
 auto TypeChecker::Visitor::check_c_style_cast(ExpressionAST*& expr,
                                               const Type* targetType,
                                               ValueCategory targetVC) -> bool {
+  if (expr && changesAddressSpace(traits, expr->type, targetType, targetVC)) {
+    if (targetVC == ValueCategory::kPrValue) {
+      stdconv_.prepareOperand(expr);
+      emit_implicit_cast(expr, expr, targetType,
+                         ImplicitCastKind::kAddressSpaceConversion);
+      return true;
+    }
+    if (!is_glvalue(expr)) return false;
+    auto sourceCategory = expr->valueCategory;
+    auto sourceInTargetSpace =
+        traits.add_qualifiers(traits.remove_address_space(expr->type),
+                              CvQualifiers::kNone, address_space(targetType));
+    emit_implicit_cast(expr, expr, sourceInTargetSpace,
+                       ImplicitCastKind::kAddressSpaceConversion);
+    expr->valueCategory = sourceCategory;
+    return check_c_style_cast(expr, targetType, targetVC);
+  }
   if (targetVC != ValueCategory::kPrValue && traits.is_function(targetType)) {
     if (!check_function_address(expr, expr->firstSourceLocation())) return true;
   }
@@ -6022,9 +6061,11 @@ void TypeChecker::Visitor::check_relational(BinaryExpressionAST* ast) {
       traits.is_pointer(ast->rightExpression->type)) {
     auto compositeType = stdconv_.compositePointerType(ast->leftExpression,
                                                        ast->rightExpression);
-    (void)implicit_conversion(ast->leftExpression, compositeType);
-    (void)implicit_conversion(ast->rightExpression, compositeType);
-    return;
+    if (compositeType) {
+      (void)implicit_conversion(ast->leftExpression, compositeType);
+      (void)implicit_conversion(ast->rightExpression, compositeType);
+      return;
+    }
   }
 
   error(ast->firstSourceLocation(),
@@ -6108,9 +6149,11 @@ void TypeChecker::Visitor::check_equality(BinaryExpressionAST* ast) {
       isEqualityComparablePointerOperand(ast->rightExpression)) {
     auto compositeType = stdconv_.compositePointerType(ast->leftExpression,
                                                        ast->rightExpression);
-    (void)implicit_conversion(ast->leftExpression, compositeType);
-    (void)implicit_conversion(ast->rightExpression, compositeType);
-    return;
+    if (compositeType) {
+      (void)implicit_conversion(ast->leftExpression, compositeType);
+      (void)implicit_conversion(ast->rightExpression, compositeType);
+      return;
+    }
   }
 
   error(ast->firstSourceLocation(),
@@ -8202,10 +8245,10 @@ void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
 
   if (traits.is_pointer(ast->rightExpression->type)) {
     auto leftElementType =
-        unqualified_type(traits.get_element_type(ast->leftExpression->type));
+        traits.remove_cv(traits.get_element_type(ast->leftExpression->type));
 
     auto rightElementType =
-        unqualified_type(traits.get_element_type(ast->rightExpression->type));
+        traits.remove_cv(traits.get_element_type(ast->rightExpression->type));
 
     if (traits.is_same(leftElementType, rightElementType)) {
       ast->type = control()->getLongIntType();
@@ -8734,7 +8777,6 @@ auto TypeChecker::Visitor::CheckMemberAccess::dereferenceObject() -> bool {
 
   objectType = pointerType->elementType();
   objectCv = cv_qualifiers(objectType);
-  objectType = unqualified_type(objectType);
 
   return true;
 }
@@ -8742,7 +8784,6 @@ auto TypeChecker::Visitor::CheckMemberAccess::dereferenceObject() -> bool {
 auto TypeChecker::Visitor::CheckMemberAccess::bindObjectClass() -> bool {
   objectType = ast->baseExpression->type;
   objectCv = cv_qualifiers(objectType);
-  objectType = unqualified_type(objectType);
 
   if (ast->accessOp == TokenKind::T_MINUS_GREATER && !dereferenceObject())
     return false;
@@ -8763,7 +8804,8 @@ auto TypeChecker::Visitor::CheckMemberAccess::checkDestructorId(
     if (auto injected = symbol_cast<InjectedClassNameSymbol>(typeSymbol))
       return injected->classSymbol();
     if (!typeSymbol) return nullptr;
-    if (!traits.is_same(typeSymbol->type(), objectType)) return nullptr;
+    if (!traits.is_same(typeSymbol->type(), unqualified_type(objectType)))
+      return nullptr;
     return classSymbol;
   }();
 
@@ -8880,7 +8922,7 @@ void TypeChecker::Visitor::CheckMemberAccess::setMemberResult(Symbol* symbol) {
   auto cv = objectCv | memberCv;
   if (field->isMutable()) cv &= ~CvQualifiers::kConst;
 
-  ast->type = traits.add_cv(ast->type, cv);
+  ast->type = traits.add_qualifiers(ast->type, cv, address_space(objectType));
 }
 
 auto TypeChecker::Visitor::resolveDestructorIdType(MemberExpressionAST* ast,

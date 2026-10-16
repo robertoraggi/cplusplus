@@ -2317,7 +2317,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
     BracedTypeConstructionAST* ast) -> ExpressionResult {
   auto typeSpecifierResult = interp.specifier(ast->typeSpecifier);
 
-  auto classType = type_cast<ClassType>(ast->type);
+  auto classType = unqualified_cast<ClassType>(ast->type);
   auto classSymbol = classType ? classType->symbol() : nullptr;
 
   if (classSymbol && ast->constructorSymbol) {
@@ -2869,6 +2869,14 @@ auto ASTInterpreter::ExpressionVisitor::evaluateMemberObjectPointerConversion(
 auto ASTInterpreter::ExpressionVisitor::operator()(
     ImplicitCastExpressionAST* ast) -> ExpressionResult {
   if (!ast->type) return std::nullopt;
+
+  if (ast->castKind == ImplicitCastKind::kLValueToRValueConversion &&
+      unit()->typeTraits().is_volatile(ast->expression->type))
+    return std::nullopt;
+
+  if (ast->castKind == ImplicitCastKind::kAddressSpaceConversion &&
+      unit()->language() == LanguageKind::kCXX && !is_glvalue(ast))
+    return std::nullopt;
 
   if (ast->castKind == ImplicitCastKind::kUserDefinedConversion &&
       ast->conversionFunction) {
@@ -3885,7 +3893,7 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BracedInitListAST* ast)
   if (auto complexType = unqualified_cast<ComplexType>(ast->type))
     return complexValue(ast, complexType);
 
-  if (auto classType = type_cast<ClassType>(ast->type)) {
+  if (auto classType = unqualified_cast<ClassType>(ast->type)) {
     if (traits.is_aggregate(ast->type))
       return aggregateObject(ast, classType->symbol());
     if (!traits.initializer_list_element_type(ast->type)) return std::nullopt;

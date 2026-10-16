@@ -113,6 +113,7 @@ enum class CastKind {
   ArrayToPointer,
   PointerToInt,
   IntToPointer,
+  AddressSpace,
 };
 
 enum class BinaryOp {
@@ -316,6 +317,7 @@ struct GlobalInfo {
   bool isUsed = false;
   bool isThreadLocal = false;
   std::string_view section;
+  std::optional<std::uint32_t> addressSpace;
 };
 
 struct CleanupAction {
@@ -600,7 +602,12 @@ class Emitter {
 
   [[nodiscard]] virtual auto floatingType(FloatKind kind) -> TypeRef = 0;
 
-  [[nodiscard]] virtual auto pointerType(TypeRef elementType) -> TypeRef = 0;
+  [[nodiscard]] virtual auto pointerType(
+      TypeRef elementType,
+      std::optional<std::uint32_t> addressSpace = std::nullopt) -> TypeRef = 0;
+  [[nodiscard]] virtual auto rebindPointerType(TypeRef pointerType,
+                                               TypeRef elementType)
+      -> TypeRef = 0;
 
   [[nodiscard]] virtual auto arrayType(TypeRef elementType, std::uint64_t size)
       -> TypeRef = 0;

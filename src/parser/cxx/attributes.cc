@@ -40,21 +40,14 @@ auto supportsGnuAttribute(std::string_view name, const MemoryLayout& layout)
     -> bool {
   name = canonicalAttributeSpelling(name);
   static constexpr std::string_view supported[] = {
-      "abi_tag",
-      "alias",
-      "aligned",
-      "always_inline",
-      "exclude_from_explicit_instantiation",
-      "gnu_inline",
-      "noinline",
-      "noreturn",
-      "nothrow",
-      "packed",
-      "section",
-      "trivial_abi",
-      "used",
-      "vector_size",
-      "warn_unused_result",
+      "abi_tag",       "address_space",
+      "alias",         "aligned",
+      "always_inline", "exclude_from_explicit_instantiation",
+      "gnu_inline",    "noinline",
+      "noreturn",      "nothrow",
+      "packed",        "section",
+      "trivial_abi",   "used",
+      "vector_size",   "warn_unused_result",
       "weak"};
   if (name == "constructor") return true;
   if (name == "enable_if") return true;

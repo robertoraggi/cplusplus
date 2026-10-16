@@ -273,19 +273,22 @@ auto Codegen::ConvertType::operator()(const UnboundedArrayType* type)
 
 auto Codegen::ConvertType::operator()(const PointerType* type) -> ir::TypeRef {
   auto elementType = gen.convertType(type->elementType());
-  return gen.emitter_.pointerType(elementType);
+  return gen.emitter_.pointerType(elementType,
+                                  address_space(type->elementType()));
 }
 
 auto Codegen::ConvertType::operator()(const LvalueReferenceType* type)
     -> ir::TypeRef {
   auto elementType = gen.convertType(type->elementType());
-  return gen.emitter_.pointerType(elementType);
+  return gen.emitter_.pointerType(elementType,
+                                  address_space(type->elementType()));
 }
 
 auto Codegen::ConvertType::operator()(const RvalueReferenceType* type)
     -> ir::TypeRef {
   auto elementType = gen.convertType(type->elementType());
-  return gen.emitter_.pointerType(elementType);
+  return gen.emitter_.pointerType(elementType,
+                                  address_space(type->elementType()));
 }
 
 auto Codegen::ConvertType::operator()(const FunctionType* type) -> ir::TypeRef {

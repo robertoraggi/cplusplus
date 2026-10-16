@@ -63,6 +63,7 @@ enum class ImplicitCastKind {
   kComplexConversion,
   kTemporaryMaterializationConversion,
   kUserDefinedConversion,
+  kAddressSpaceConversion,
 };
 
 class AttributeSpecifierAST;

@@ -618,6 +618,10 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const QualType* type) -> bool {
+    if (auto space = type->addressSpace(); space && *space != 0) {
+      auto qualifier = std::format("AS{}", *space);
+      encoder.out(std::format("U{}{}", qualifier.size(), qualifier));
+    }
     encoder.encodeCvQualifiers(type->cvQualifiers());
     encoder.encodeType(type->elementType());
     return true;

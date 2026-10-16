@@ -27,6 +27,7 @@
 #include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <cstdint>
 #include <optional>
 #include <tuple>
 #include <vector>
@@ -218,19 +219,32 @@ class Float128Type final : public Type {
 };
 
 class QualType final : public Type,
-                       public std::tuple<const Type*, CvQualifiers> {
+                       public std::tuple<const Type*, std::uint32_t> {
  public:
   static constexpr TypeKind Kind = TypeKind::kQual;
+  static constexpr std::uint32_t MaxAddressSpace = 0x00ffffff;
 
-  QualType(const Type* elementType, CvQualifiers cvQualifiers)
-      : Type(Kind), tuple(elementType, cvQualifiers) {}
+  QualType(const Type* elementType, CvQualifiers cvQualifiers,
+           std::optional<std::uint32_t> addressSpace = std::nullopt)
+      : Type(Kind),
+        tuple(elementType, std::uint32_t(std::to_underlying(cvQualifiers)) |
+                               (addressSpace ? (*addressSpace + 1) << 4 : 0)) {
+    if (addressSpace && *addressSpace > MaxAddressSpace)
+      cxx_runtime_error("address space must be between 0 and 16777215");
+  }
 
   [[nodiscard]] auto elementType() const -> const Type* {
     return std::get<0>(*this);
   }
 
   [[nodiscard]] auto cvQualifiers() const -> CvQualifiers {
-    return std::get<1>(*this);
+    return CvQualifiers(std::get<1>(*this) & 15);
+  }
+
+  [[nodiscard]] auto addressSpace() const -> std::optional<std::uint32_t> {
+    const auto encoded = std::get<1>(*this) >> 4;
+    if (!encoded) return std::nullopt;
+    return encoded - 1;
   }
 
   [[nodiscard]] auto isConst() const -> bool {
@@ -808,6 +822,9 @@ template <typename T>
 [[nodiscard]] auto unqualified_type(const Type* type) -> const Type*;
 
 [[nodiscard]] auto cv_qualifiers(const Type* type) -> CvQualifiers;
+
+[[nodiscard]] auto address_space(const Type* type)
+    -> std::optional<std::uint32_t>;
 
 [[nodiscard]] auto residual_cv_qualifiers(CvQualifiers argumentCv,
                                           CvQualifiers parameterCv)
