@@ -167,7 +167,6 @@ void GCCLinuxToolchain::addLibCxxIncludePaths() {
 void GCCLinuxToolchain::addPredefinedMacros() {
   defineMacro("__extension__", "");
   defineMacro("__null", "nullptr");
-  defineMacro("__signed__", "signed");
   defineMacro("_Nonnull", "");
   defineMacro("_Nullable", "");
 

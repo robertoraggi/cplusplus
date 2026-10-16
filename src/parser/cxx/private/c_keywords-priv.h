@@ -138,7 +138,7 @@ static inline auto classifyC4(const char* s, int& value) -> cxx::TokenKind {
     if (s[1] == 'a') {
       if (s[2] == 's') {
         if (s[3] == 'm') {
-          value = 19;
+          value = 21;
           return cxx::TokenKind::T__ASM;
         }
       }
@@ -230,7 +230,7 @@ static inline auto classifyC5(const char* s, int& value) -> cxx::TokenKind {
       if (s[2] == 'o') {
         if (s[3] == 'o') {
           if (s[4] == 'l') {
-            value = 20;
+            value = 22;
             return cxx::TokenKind::T__BOOL;
           }
         }
@@ -634,8 +634,21 @@ static inline auto classifyC8(const char* s, int& value) -> cxx::TokenKind {
             if (s[5] == 'e') {
               if (s[6] == 'o') {
                 if (s[7] == 'f') {
-                  value = 14;
+                  value = 16;
                   return cxx::TokenKind::T___TYPEOF;
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 's') {
+        if (s[3] == 'i') {
+          if (s[4] == 'g') {
+            if (s[5] == 'n') {
+              if (s[6] == 'e') {
+                if (s[7] == 'd') {
+                  value = 13;
+                  return cxx::TokenKind::T___SIGNED;
                 }
               }
             }
@@ -663,12 +676,12 @@ static inline auto classifyC8(const char* s, int& value) -> cxx::TokenKind {
             if (s[5] == 'n') {
               if (s[6] == 'a') {
                 if (s[7] == 's') {
-                  value = 17;
+                  value = 19;
                   return cxx::TokenKind::T__ALIGNAS;
                 }
               } else if (s[6] == 'o') {
                 if (s[7] == 'f') {
-                  value = 18;
+                  value = 20;
                   return cxx::TokenKind::T__ALIGNOF;
                 }
               }
@@ -875,6 +888,23 @@ static inline auto classifyC10(const char* s, int& value) -> cxx::TokenKind {
             }
           }
         }
+      } else if (s[2] == 's') {
+        if (s[3] == 'i') {
+          if (s[4] == 'g') {
+            if (s[5] == 'n') {
+              if (s[6] == 'e') {
+                if (s[7] == 'd') {
+                  if (s[8] == '_') {
+                    if (s[9] == '_') {
+                      value = 14;
+                      return cxx::TokenKind::T___SIGNED__;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       } else if (s[2] == 't') {
         if (s[3] == 'y') {
           if (s[4] == 'p') {
@@ -883,7 +913,7 @@ static inline auto classifyC10(const char* s, int& value) -> cxx::TokenKind {
                 if (s[7] == 'f') {
                   if (s[8] == '_') {
                     if (s[9] == '_') {
-                      value = 13;
+                      value = 15;
                       return cxx::TokenKind::T___TYPEOF__;
                     }
                   }
@@ -900,7 +930,7 @@ static inline auto classifyC10(const char* s, int& value) -> cxx::TokenKind {
                 if (s[7] == 'i') {
                   if (s[8] == 'l') {
                     if (s[9] == 'e') {
-                      value = 16;
+                      value = 18;
                       return cxx::TokenKind::T___VOLATILE;
                     }
                   }
@@ -1087,7 +1117,7 @@ static inline auto classifyC12(const char* s, int& value) -> cxx::TokenKind {
                     if (s[9] == 'e') {
                       if (s[10] == '_') {
                         if (s[11] == '_') {
-                          value = 15;
+                          value = 17;
                           return cxx::TokenKind::T___VOLATILE__;
                         }
                       }
@@ -1240,7 +1270,7 @@ static inline auto classifyC13(const char* s, int& value) -> cxx::TokenKind {
                       if (s[10] == 'c') {
                         if (s[11] == 'a') {
                           if (s[12] == 'l') {
-                            value = 22;
+                            value = 24;
                             return cxx::TokenKind::T__THREAD_LOCAL;
                           }
                         }
@@ -1273,7 +1303,7 @@ static inline auto classifyC14(const char* s, int& value) -> cxx::TokenKind {
                         if (s[11] == 'e') {
                           if (s[12] == 'r') {
                             if (s[13] == 't') {
-                              value = 21;
+                              value = 23;
                               return cxx::TokenKind::T__STATIC_ASSERT;
                             }
                           }
