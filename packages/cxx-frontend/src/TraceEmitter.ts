@@ -86,6 +86,7 @@ interface TypeInfo {
   kind: TypeKind;
   width?: number;
   element?: TypeRef;
+  addressSpace?: number | undefined;
   parameters?: TypeRef[];
   results?: TypeRef[];
   members?: TypeRef[];
@@ -406,10 +407,12 @@ export class TraceEmitter implements EmitterDelegate {
     return this.#intern(`f${width}`, { kind: "Floating", width });
   }
 
-  pointerType(elementType: TypeRef): TypeRef {
-    return this.#intern(`ptr<${this.#typeText(elementType)}>`, {
+  pointerType(elementType: TypeRef, addressSpace?: number): TypeRef {
+    const annotation = addressSpace === undefined ? "" : `, ${addressSpace}`;
+    return this.#intern(`ptr<${this.#typeText(elementType)}${annotation}>`, {
       kind: "Pointer",
       element: elementType,
+      addressSpace,
     });
   }
 
@@ -418,6 +421,13 @@ export class TraceEmitter implements EmitterDelegate {
       kind: "Array",
       element: elementType,
     });
+  }
+
+  rebindPointerType(pointerType: TypeRef, elementType: TypeRef): TypeRef {
+    return this.pointerType(
+      elementType,
+      this.#types.get(pointerType)?.addressSpace,
+    );
   }
 
   vectorType(elementType: TypeRef, elementCount: number): TypeRef {
@@ -1057,6 +1067,9 @@ export class TraceEmitter implements EmitterDelegate {
         `${info.isUsed ? " used" : ""}` +
         `${info.isThreadLocal ? " thread_local" : ""}` +
         (info.section ? ` section ${JSON.stringify(info.section)}` : "") +
+        (info.addressSpace === undefined
+          ? ""
+          : ` address_space(${info.addressSpace})`) +
         ` = ${this.#initializerText(info.initializer)}`,
     );
     return ref;

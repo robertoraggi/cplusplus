@@ -157,7 +157,11 @@ class MlirEmitter final : public Emitter {
 
   [[nodiscard]] auto floatingType(FloatKind kind) -> TypeRef override;
 
-  [[nodiscard]] auto pointerType(TypeRef elementType) -> TypeRef override;
+  [[nodiscard]] auto pointerType(TypeRef elementType,
+                                 std::optional<std::uint32_t> addressSpace =
+                                     std::nullopt) -> TypeRef override;
+  [[nodiscard]] auto rebindPointerType(TypeRef pointerType, TypeRef elementType)
+      -> TypeRef override;
 
   [[nodiscard]] auto arrayType(TypeRef elementType, std::uint64_t size)
       -> TypeRef override;

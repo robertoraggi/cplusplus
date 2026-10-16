@@ -211,6 +211,7 @@ def Cxx_GlobalOp : Cxx_Op<"global", [IsolatedFromAbove]> {
     , UnitAttr:$used
     , UnitAttr:$thread_local_
     , OptionalAttr<StrAttr>:$section
+    , OptionalAttr<I32Attr>:$address_space
   );
 
   let regions = (region AnyRegion:$initializer);
@@ -510,6 +511,12 @@ def Cxx_BitcastOp : Cxx_Op<"bitcast"> {
 
   let results = (outs AnyType:$result);
 
+  let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
+}
+
+def Cxx_AddressSpaceCastOp : Cxx_Op<"addrspace_cast", [Pure]> {
+  let arguments = (ins Cxx_PointerType:$value);
+  let results = (outs Cxx_PointerType:$result);
   let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
 }
 

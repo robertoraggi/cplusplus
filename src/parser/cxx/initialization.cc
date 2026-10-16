@@ -2023,7 +2023,7 @@ void ClassInitChecker::checkClassInit(Target& target) {
   if (!ctx.unit->config().checkTypes) return;
 
   auto targetType = ctx.traits.remove_cv(target.type);
-  auto classType = type_cast<ClassType>(targetType);
+  auto classType = unqualified_cast<ClassType>(targetType);
   if (!classType || !classType->symbol()) return;
   auto classSymbol = classType->definition();
 
@@ -2187,6 +2187,13 @@ auto ClassInitChecker::checkConstructorInit(Target& target,
   if (!resolution) {
     diagnoseConstructorSelection(resolution, classSymbol, location,
                                  diagnoseUnresolved);
+    return ConstructorSelection::kAttempted;
+  }
+
+  if (address_space(target.type)) {
+    ctx.error(location,
+              "constructor cannot initialize an object with an address space "
+              "qualifier");
     return ConstructorSelection::kAttempted;
   }
 

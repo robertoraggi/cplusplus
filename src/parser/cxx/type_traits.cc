@@ -111,6 +111,7 @@ struct DecomposeQualificationComponent {
 
 struct QualificationDecomposition {
   std::vector<CvQualifiers> cv;
+  std::vector<std::optional<std::uint32_t>> addressSpaces;
   std::vector<QualificationComponent> components;
   const Type* terminal = nullptr;
 };
@@ -530,44 +531,50 @@ struct AddRvalueReference {
   }
 };
 
-struct AddCvQualifiers {
+struct AddTypeQualifiers {
   const TypeTraits& typeTraits;
   CvQualifiers qualifiers;
+  std::optional<std::uint32_t> addressSpace;
 
   [[nodiscard]] auto control() const -> Control* {
     return typeTraits.control();
   }
 
-  auto operator()(const BoundedArrayType* type) const -> const Type* {
+  [[nodiscard]] auto operator()(const BoundedArrayType* type) const
+      -> const Type* {
     auto elementType = visit(*this, type->elementType());
     return control()->getBoundedArrayType(elementType, type->size());
   }
 
-  auto operator()(const UnboundedArrayType* type) const -> const Type* {
+  [[nodiscard]] auto operator()(const UnboundedArrayType* type) const
+      -> const Type* {
     auto elementType = visit(*this, type->elementType());
     return control()->getUnboundedArrayType(elementType);
   }
 
-  auto operator()(const UnresolvedBoundedArrayType* type) const -> const Type* {
+  [[nodiscard]] auto operator()(const UnresolvedBoundedArrayType* type) const
+      -> const Type* {
     auto elementType = visit(*this, type->elementType());
     return control()->getUnresolvedBoundedArrayType(type->translationUnit(),
                                                     elementType, type->size());
   }
 
-  auto operator()(const FunctionType* type) const -> const Type* {
+  [[nodiscard]] auto operator()(const FunctionType* type) const -> const Type* {
     return type;
   }
 
-  auto operator()(const LvalueReferenceType* type) const -> const Type* {
+  [[nodiscard]] auto operator()(const LvalueReferenceType* type) const
+      -> const Type* {
     return type;
   }
 
-  auto operator()(const RvalueReferenceType* type) const -> const Type* {
+  [[nodiscard]] auto operator()(const RvalueReferenceType* type) const
+      -> const Type* {
     return type;
   }
 
-  auto operator()(auto type) const -> const Type* {
-    return control()->getQualType(type, qualifiers);
+  [[nodiscard]] auto operator()(auto type) const -> const Type* {
+    return control()->getQualType(type, qualifiers, addressSpace);
   }
 };
 
@@ -630,6 +637,7 @@ struct GetElementType {
 struct RemoveQualifiers {
   const TypeTraits& typeTraits;
   CvQualifiers qualifiers;
+  bool removeAddressSpace = false;
 
   [[nodiscard]] auto control() const -> Control* {
     return typeTraits.control();
@@ -637,9 +645,11 @@ struct RemoveQualifiers {
 
   auto operator()(const QualType* type) const -> const Type* {
     auto remaining = type->cvQualifiers() & ~qualifiers;
-    if (remaining == type->cvQualifiers()) return type;
-    if (remaining == CvQualifiers::kNone) return type->elementType();
-    return control()->getQualType(type->elementType(), remaining);
+    auto space = removeAddressSpace ? std::nullopt : type->addressSpace();
+    if (remaining == type->cvQualifiers() && space == type->addressSpace())
+      return type;
+    if (remaining == CvQualifiers::kNone && !space) return type->elementType();
+    return control()->getQualType(type->elementType(), remaining, space);
   }
 
   auto operator()(const BoundedArrayType* type) const -> const Type* {
@@ -815,6 +825,7 @@ struct IsSameVisitor {
   auto operator()(const QualType* type, const QualType* otherType) const
       -> bool {
     if (type->cvQualifiers() != otherType->cvQualifiers()) return false;
+    if (type->addressSpace() != otherType->addressSpace()) return false;
     return typeTraits.is_same(type->elementType(), otherType->elementType());
   }
 
@@ -1657,7 +1668,7 @@ auto TypeTraits::is_member_of_object_type(const Type* objectType,
   auto memberClass = symbol_cast<ClassSymbol>(member->parent());
   if (!memberClass) return false;
 
-  auto objectClass = type_cast<ClassType>(remove_cv(objectType));
+  auto objectClass = unqualified_cast<ClassType>(objectType);
   if (!objectClass || !objectClass->symbol()) return false;
 
   if (memberClass->resolvedDefinition() ==
@@ -1950,10 +1961,10 @@ auto TypeTraits::apply_sign(const Type* type, bool isUnsigned) const
     -> const Type* {
   if (!type) return type;
 
-  auto result = corresponding_integer_type(remove_cv(type), isUnsigned);
+  auto result = corresponding_integer_type(unqualified_type(type), isUnsigned);
   if (!result) return type;
 
-  return add_cv(result, cv_qualifiers(type));
+  return add_qualifiers(result, cv_qualifiers(type), address_space(type));
 }
 
 auto TypeTraits::is_class_or_union(const Type* type) const -> bool {
@@ -2224,7 +2235,7 @@ auto TypeTraits::requireCompleteClass(ClassSymbol* classSymbol) -> bool {
 }
 
 auto TypeTraits::requireCompleteClass(const Type* type) -> bool {
-  auto classType = type_cast<ClassType>(remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return false;
   return requireCompleteClass(classType->symbol());
 }
@@ -2246,11 +2257,22 @@ auto TypeTraits::remove_volatile(const Type* type) const -> const Type* {
   return visit(RemoveQualifiers{*this, CvQualifiers::kVolatile}, type);
 }
 
+auto TypeTraits::remove_address_space(const Type* type) const -> const Type* {
+  if (!type) return type;
+  return visit(RemoveQualifiers{*this, CvQualifiers::kNone, true}, type);
+}
+
 auto TypeTraits::add_cv(const Type* type, CvQualifiers cv) const
     -> const Type* {
+  return add_qualifiers(type, cv, std::nullopt);
+}
+
+auto TypeTraits::add_qualifiers(const Type* type, CvQualifiers cv,
+                                std::optional<std::uint32_t> addressSpace) const
+    -> const Type* {
   if (!type) return type;
-  if (cv == CvQualifiers::kNone) return type;
-  return visit(AddCvQualifiers{*this, cv}, type);
+  if (cv == CvQualifiers::kNone && !addressSpace) return type;
+  return visit(AddTypeQualifiers{*this, cv, addressSpace}, type);
 }
 
 auto TypeTraits::remove_noexcept(const Type* type) const -> const Type* {
@@ -2278,7 +2300,8 @@ auto TypeTraits::replace_placeholder_types(const Type* type,
   if (auto qualType = type_cast<QualType>(type)) {
     auto elementType =
         replace_placeholder_types(qualType->elementType(), replacement);
-    return add_cv(elementType, qualType->cvQualifiers());
+    return add_qualifiers(elementType, qualType->cvQualifiers(),
+                          qualType->addressSpace());
   }
 
   if (auto arrayType = type_cast<BoundedArrayType>(type)) {
@@ -2354,9 +2377,9 @@ auto TypeTraits::replace_placeholder_types(const Type* type,
 }
 
 auto TypeTraits::is_base_of(const Type* base, const Type* derived) -> bool {
-  auto baseClassType = type_cast<ClassType>(remove_cv(base));
+  auto baseClassType = unqualified_cast<ClassType>(base);
   if (!baseClassType) return false;
-  auto derivedClassType = type_cast<ClassType>(remove_cv(derived));
+  auto derivedClassType = unqualified_cast<ClassType>(derived);
   if (!derivedClassType) return false;
   if (derivedClassType->symbol() == baseClassType->symbol()) return true;
 
@@ -2374,8 +2397,10 @@ namespace {
   QualificationDecompositionPair result;
 
   for (;;) {
+    if (address_space(lhs) != address_space(rhs)) return std::nullopt;
     result.left.cv.push_back(cv_qualifiers(lhs));
     result.right.cv.push_back(cv_qualifiers(rhs));
+    result.left.addressSpaces.push_back(address_space(lhs));
 
     auto leftStep = decomposeQualificationComponent(lhs);
     auto rightStep = decomposeQualificationComponent(rhs);
@@ -2391,8 +2416,8 @@ namespace {
     rhs = rightStep.next;
   }
 
-  result.left.terminal = unqualified_type(lhs);
-  result.right.terminal = unqualified_type(rhs);
+  result.left.terminal = traits.remove_cv(lhs);
+  result.right.terminal = traits.remove_cv(rhs);
 
   if (!traits.is_same(result.left.terminal, result.right.terminal))
     return std::nullopt;
@@ -2534,7 +2559,7 @@ auto TypeTraits::qualification_combined_type(const Type* lhs,
         result = control()->getUnboundedArrayType(result);
         break;
     }
-    result = add_cv(result, cv[i]);
+    result = add_qualifiers(result, cv[i], left.addressSpaces[i]);
   }
 
   return result;
@@ -2833,6 +2858,7 @@ auto TypeTraits::is_floating_point_promotion(const Type* from,
 auto TypeTraits::is_reference_compatible(const Type* target, const Type* source)
     -> bool {
   if (!target || !source) return false;
+  if (address_space(target) != address_space(source)) return false;
 
   auto targetUnqualified = remove_cv(target);
   auto sourceUnqualified = remove_cv(source);
@@ -2857,9 +2883,9 @@ auto TypeTraits::is_reference_compatible(const Type* target, const Type* source)
 
 auto TypeTraits::is_virtual_base_of(const Type* base, const Type* derived) const
     -> bool {
-  auto baseClassType = type_cast<ClassType>(remove_cv(base));
+  auto baseClassType = unqualified_cast<ClassType>(base);
   if (!baseClassType) return false;
-  auto derivedClassType = type_cast<ClassType>(remove_cv(derived));
+  auto derivedClassType = unqualified_cast<ClassType>(derived);
   if (!derivedClassType) return false;
   if (derivedClassType->symbol() == baseClassType->symbol()) return false;
   return derivedClassType->symbol()->hasVirtualBasePath(
@@ -3171,7 +3197,7 @@ auto TypeTraits::has_pod_object_sizes(const Type* type) -> bool {
 }
 
 auto TypeTraits::data_size(const Type* type) -> std::uint64_t {
-  auto classType = type_cast<ClassType>(remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   auto cls = classType ? classType->definition() : nullptr;
   auto layout = cls ? cls->layout() : nullptr;
   if (!layout) return 0;
@@ -3180,7 +3206,7 @@ auto TypeTraits::data_size(const Type* type) -> std::uint64_t {
 }
 
 auto TypeTraits::non_virtual_size(const Type* type) -> std::uint64_t {
-  auto classType = type_cast<ClassType>(remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   auto cls = classType ? classType->definition() : nullptr;
   auto layout = cls ? cls->layout() : nullptr;
   if (!layout) return 0;
@@ -3387,7 +3413,7 @@ auto TypeTraits::is_aggregate(const Type* type) -> bool {
   if (is_array(type)) return true;
   if (is_vector(type)) return true;
   if (is_complex(type)) return true;
-  auto classType = type_cast<ClassType>(remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return false;
   auto cls = classType->definition();
   requireCompleteClass(cls);
@@ -3436,7 +3462,7 @@ auto TypeTraits::requires_zero_initialization(const Type* type,
 }
 
 auto TypeTraits::is_empty(const Type* type) -> bool {
-  auto classType = type_cast<ClassType>(remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return false;
   if (classType->isUnion()) return false;
   auto cls = classType->definition();
@@ -3456,7 +3482,7 @@ auto TypeTraits::is_empty(const Type* type) -> bool {
 }
 
 auto TypeTraits::is_polymorphic(const Type* type) -> bool {
-  auto classType = type_cast<ClassType>(remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return false;
   auto cls = classType->definition();
   requireCompleteClass(cls);
@@ -3465,7 +3491,7 @@ auto TypeTraits::is_polymorphic(const Type* type) -> bool {
 }
 
 auto TypeTraits::is_final(const Type* type) -> bool {
-  auto classType = type_cast<ClassType>(remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return false;
   auto cls = classType->definition();
   if (!cls) return false;
@@ -3754,7 +3780,7 @@ auto TypeTraits::has_constexpr_unknown_representation(const Type* type)
 }
 
 auto TypeTraits::is_non_trivial_for_calls(const Type* type) -> bool {
-  auto classType = type_cast<ClassType>(remove_cv(type));
+  auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return false;
 
   auto cls = classType->definition();

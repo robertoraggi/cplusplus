@@ -261,6 +261,10 @@ auto OverloadResolution::implicitObjectArgumentConversion(
   auto functionType = type_cast<FunctionType>(function->type());
   if (!functionType) return conversion;
 
+  if (address_space(traits.remove_reference(object.type)))
+    return std::unexpected(
+        "implicit object argument has an address space qualifier");
+
   const auto functionCv = functionType->cvQualifiers();
   const auto functionRef = functionType->refQualifier();
   if (!is_at_least_as_cv_qualified(functionCv, object.cv)) {

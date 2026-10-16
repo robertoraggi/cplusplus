@@ -386,6 +386,8 @@ inline auto toVal(cxx::ir::CastKind value) -> val {
       return val("PointerToInt");
     case cxx::ir::CastKind::IntToPointer:
       return val("IntToPointer");
+    case cxx::ir::CastKind::AddressSpace:
+      return val("AddressSpace");
   }
   return val::undefined();
 }
@@ -410,6 +412,7 @@ inline auto toEnum<cxx::ir::CastKind>(const val& value) -> cxx::ir::CastKind {
   if (name == "ArrayToPointer") return cxx::ir::CastKind::ArrayToPointer;
   if (name == "PointerToInt") return cxx::ir::CastKind::PointerToInt;
   if (name == "IntToPointer") return cxx::ir::CastKind::IntToPointer;
+  if (name == "AddressSpace") return cxx::ir::CastKind::AddressSpace;
   return cxx::ir::CastKind{};
 }
 
@@ -865,6 +868,9 @@ inline auto toVal(const cxx::ir::GlobalInfo& value) -> val {
   result.set("isUsed", toVal(value.isUsed));
   result.set("isThreadLocal", toVal(value.isThreadLocal));
   result.set("section", toVal(value.section));
+  result.set("addressSpace",
+             optionalVal(value.addressSpace,
+                         [](const unsigned int& item) { return toVal(item); }));
   return result;
 }
 
@@ -1336,9 +1342,20 @@ class JsEmitter final : public ir::Emitter {
         delegate_.call<val>("floatingType", toVal(kind)));
   }
 
-  auto pointerType(cxx::ir::TypeRef elementType) -> cxx::ir::TypeRef override {
-    return toHandle<cxx::ir::TypeTag>(
-        delegate_.call<val>("pointerType", toVal(elementType)));
+  auto pointerType(cxx::ir::TypeRef elementType,
+                   std::optional<unsigned int> addressSpace)
+      -> cxx::ir::TypeRef override {
+    return toHandle<cxx::ir::TypeTag>(delegate_.call<val>(
+        "pointerType", toVal(elementType),
+        optionalVal(addressSpace,
+                    [](const unsigned int& item) { return toVal(item); })));
+  }
+
+  auto rebindPointerType(cxx::ir::TypeRef pointerType,
+                         cxx::ir::TypeRef elementType)
+      -> cxx::ir::TypeRef override {
+    return toHandle<cxx::ir::TypeTag>(delegate_.call<val>(
+        "rebindPointerType", toVal(pointerType), toVal(elementType)));
   }
 
   auto arrayType(cxx::ir::TypeRef elementType, unsigned long long size)

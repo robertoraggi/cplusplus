@@ -762,14 +762,16 @@ auto Control::getFloat128Type() -> const Float128Type* {
   return &d->float128Type;
 }
 
-auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers)
+auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers,
+                          std::optional<std::uint32_t> addressSpace)
     -> const QualType* {
   if (auto qualType = type_cast<QualType>(elementType)) {
     cvQualifiers |= qualType->cvQualifiers();
+    if (!addressSpace) addressSpace = qualType->addressSpace();
     elementType = qualType->elementType();
   }
 
-  return internType(d->qualTypes, elementType, cvQualifiers);
+  return internType(d->qualTypes, elementType, cvQualifiers, addressSpace);
 }
 
 auto Control::getBoundedArrayType(const Type* elementType, std::size_t size)

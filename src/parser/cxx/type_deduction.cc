@@ -497,7 +497,8 @@ struct TypeDeduction::DeduceType {
     if (!alias || !alias->type()) return nullptr;
     auto traits = deduction.unit_->typeTraits();
     if (!qualified || traits.is_reference(alias->type())) return alias->type();
-    return traits.add_cv(alias->type(), qualified->cvQualifiers());
+    return traits.add_qualifiers(alias->type(), qualified->cvQualifiers(),
+                                 qualified->addressSpace());
   }
 
   [[nodiscard]] auto operator()(const LvalueReferenceType* P) -> bool {
@@ -883,8 +884,10 @@ auto TypeDeduction::deduceQualifiedType(const QualType* P, const Type* A,
       !is_at_least_as_cv_qualified(cv, P->cvQualifiers()))
     return false;
   auto traits = unit_->typeTraits();
+  if (P->addressSpace() && P->addressSpace() != address_space(A)) return false;
   auto remainder = residual_cv_qualifiers(cv, P->cvQualifiers());
-  auto element = traits.add_cv(traits.remove_cv(A), remainder);
+  auto element = P->addressSpace() ? unqualified_type(A) : traits.remove_cv(A);
+  element = traits.add_cv(element, remainder);
   return deduceAtLevel(P->elementType(), element,
                        allowsQualificationConversion);
 }

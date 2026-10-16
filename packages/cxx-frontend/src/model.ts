@@ -1042,7 +1042,7 @@ const NamespaceAliasSymbolSlotBase = EnumeratorSymbolSlotBase + 1;
 const UsingDeclarationSymbolSlotBase = NamespaceAliasSymbolSlotBase + 1;
 const TypeSlotBase = 0;
 const QualTypeSlotBase = TypeSlotBase + 1;
-const BoundedArrayTypeSlotBase = QualTypeSlotBase + 4;
+const BoundedArrayTypeSlotBase = QualTypeSlotBase + 5;
 const UnboundedArrayTypeSlotBase = BoundedArrayTypeSlotBase + 2;
 const PointerTypeSlotBase = UnboundedArrayTypeSlotBase + 1;
 const LvalueReferenceTypeSlotBase = PointerTypeSlotBase + 1;
@@ -10695,11 +10695,15 @@ export class QualType extends Type {
   get cvQualifiers(): CvQualifiers {
     return cvQualifiersNames[cxx.readType(this.handle, QualTypeSlotBase + 1)]!;
   }
+  get addressSpace(): number | undefined {
+    return cxx.readTypeVal(this.handle, QualTypeSlotBase + 2) as
+      number | undefined;
+  }
   get isConst(): boolean {
-    return cxx.readType(this.handle, QualTypeSlotBase + 2) !== 0;
+    return cxx.readType(this.handle, QualTypeSlotBase + 3) !== 0;
   }
   get isVolatile(): boolean {
-    return cxx.readType(this.handle, QualTypeSlotBase + 3) !== 0;
+    return cxx.readType(this.handle, QualTypeSlotBase + 4) !== 0;
   }
 }
 /** @category Types */
@@ -11844,7 +11848,8 @@ export type ImplicitCastKind =
   | "ComplexToRealConversion"
   | "ComplexConversion"
   | "TemporaryMaterializationConversion"
-  | "UserDefinedConversion";
+  | "UserDefinedConversion"
+  | "AddressSpaceConversion";
 const implicitCastKindNames: Record<number, ImplicitCastKind> = {
   0: "Identity",
   1: "LValueToRValueConversion",
@@ -11871,6 +11876,7 @@ const implicitCastKindNames: Record<number, ImplicitCastKind> = {
   22: "ComplexConversion",
   23: "TemporaryMaterializationConversion",
   24: "UserDefinedConversion",
+  25: "AddressSpaceConversion",
 };
 /** @category Enumerations */
 export type BuiltinTypeTraitKind =

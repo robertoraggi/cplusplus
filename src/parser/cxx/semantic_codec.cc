@@ -1727,6 +1727,11 @@ void SemanticEncoder::writeTypeQualType(
   out.varU32(static_cast<std::uint32_t>(typeRef(self->elementType())));
   // cvQualifiers
   out.varU32(static_cast<std::uint32_t>(self->cvQualifiers()));
+  // addressSpace
+  out.boolean(self->addressSpace().has_value());
+  if (self->addressSpace().has_value()) {
+    out.varU32(static_cast<std::uint32_t>((*self->addressSpace())));
+  }
 }
 
 void SemanticEncoder::writeTypeBoundedArrayType(
@@ -9207,7 +9212,13 @@ auto SemanticDecoder::readTypeQualType(ByteReader& in) -> const cxx::Type* {
       static_cast<std::uint32_t>(::cxx::CvQualifiers::kConstVolatile) + 1 == 4);
   ::cxx::CvQualifiers argument2 =
       static_cast<::cxx::CvQualifiers>(readEnum(in, 4));
-  return control()->getQualType(std::move(argument1), std::move(argument2));
+  std::optional<unsigned int> argument3;
+  if (in.boolean()) {
+    unsigned int value4 = static_cast<unsigned int>(in.varU32());
+    argument3 = std::move(value4);
+  }
+  return control()->getQualType(std::move(argument1), std::move(argument2),
+                                std::move(argument3));
 }
 
 auto SemanticDecoder::readTypeBoundedArrayType(ByteReader& in)
@@ -13975,11 +13986,11 @@ void SemanticDecoder::readAstImplicitCastExpressionAST(
   self->expression = std::move(value1);
   // ::cxx::ImplicitCastExpressionAST::castKind
   static_assert(static_cast<std::uint32_t>(
-                    ::cxx::ImplicitCastKind::kUserDefinedConversion) +
+                    ::cxx::ImplicitCastKind::kAddressSpaceConversion) +
                     1 ==
-                25);
+                26);
   ::cxx::ImplicitCastKind value2 =
-      static_cast<::cxx::ImplicitCastKind>(readEnum(in, 25));
+      static_cast<::cxx::ImplicitCastKind>(readEnum(in, 26));
   self->castKind = std::move(value2);
   // ::cxx::ImplicitCastExpressionAST::conversionFunction
   cxx::FunctionSymbol* value3 =

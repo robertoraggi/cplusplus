@@ -816,11 +816,22 @@ auto Codegen::constValueToInitializer(const ConstValue& value, const Type* type,
   return std::nullopt;
 }
 
+auto Codegen::pointerCast(SourceLocation loc, ir::TypeRef pointerType,
+                          ir::ValueRef address) -> ir::ValueRef {
+  auto rebound = emitter_.rebindPointerType(emitter_.typeOf(address),
+                                            emitter_.elementType(pointerType));
+  if (rebound == pointerType)
+    return emitter_.bitcast(loc, pointerType, address);
+  return emitter_.convert(loc, ir::CastKind::AddressSpace, address,
+                          pointerType);
+}
+
 auto Codegen::displacedAddress(SourceLocation loc, ir::TypeRef pointerType,
                                ir::ValueRef address, std::intmax_t bytes)
     -> ir::ValueRef {
   if (bytes == 0) return emitter_.bitcast(loc, pointerType, address);
-  auto bytePointerType = emitter_.pointerType(emitter_.integerType(8));
+  auto bytePointerType = emitter_.rebindPointerType(emitter_.typeOf(address),
+                                                    emitter_.integerType(8));
   auto offset = emitter_.constantInt(loc, pointerSizedIntType(),
                                      static_cast<std::int64_t>(bytes));
   return emitter_.bitcast(
@@ -2362,12 +2373,14 @@ auto Codegen::emitVirtualBaseAddress(SourceLocation loc, ir::ValueRef objectPtr,
   const auto slotByteOffset = -wordSize * words;
 
   auto i8Type = emitter_.integerType(8);
-  auto i8PtrType = emitter_.pointerType(i8Type);
+  auto i8PtrType =
+      emitter_.rebindPointerType(emitter_.typeOf(objectPtr), i8Type);
 
   auto objectI8 = emitter_.bitcast(loc, i8PtrType, objectPtr);
   auto adjusted = adjustByVtableWord(loc, objectI8, slotByteOffset);
 
-  auto vbasePtrType = emitter_.pointerType(convertType(vbaseClass->type()));
+  auto vbasePtrType = emitter_.rebindPointerType(
+      emitter_.typeOf(objectPtr), convertType(vbaseClass->type()));
   return emitter_.bitcast(loc, vbasePtrType, adjusted);
 }
 
@@ -2375,7 +2388,6 @@ auto Codegen::adjustByVtableWord(SourceLocation loc, ir::ValueRef objectPtrI8,
                                  std::int64_t byteOffset) -> ir::ValueRef {
   auto i8Type = emitter_.integerType(8);
   auto i8PtrType = emitter_.pointerType(i8Type);
-  auto i8PtrPtrType = emitter_.pointerType(i8PtrType);
 
   const auto wordSize = pointerSize();
   auto wordType = pointerSizedIntType();
@@ -2389,7 +2401,8 @@ auto Codegen::adjustByVtableWord(SourceLocation loc, ir::ValueRef objectPtrI8,
   auto slotPtr = emitter_.bitcast(loc, wordPtrType, slotAddr);
   auto word = emitter_.load(loc, wordType, slotPtr, wordSize);
 
-  return emitter_.pointerAdd(loc, i8PtrType, objectPtrI8, word);
+  return emitter_.pointerAdd(loc, emitter_.typeOf(objectPtrI8), objectPtrI8,
+                             word);
 }
 
 auto Codegen::emitBaseClassAddress(SourceLocation loc, ir::ValueRef objectPtr,
@@ -2527,7 +2540,8 @@ auto Codegen::emitDerivedClassAddress(SourceLocation loc,
     currentClass = baseClass;
   }
 
-  auto derivedPtrType = emitter_.pointerType(convertType(targetClass->type()));
+  auto derivedPtrType = emitter_.rebindPointerType(
+      emitter_.typeOf(objectPtr), convertType(targetClass->type()));
   return displacedAddress(loc, derivedPtrType, objectPtr, -byteOffset);
 }
 
@@ -2809,6 +2823,21 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
                         : ir::Visibility::Default;
 
   if (auto existingFunc = findFunction(name)) {
+    if (emittedSymbol->resolvedDefinition()->isDefined()) {
+      for (const auto& [previous, function] : funcOps_) {
+        if (function != existingFunc ||
+            !previous->resolvedDefinition()->isDefined())
+          continue;
+        if (traits.is_same(previous->type(), emittedSymbol->type())) continue;
+        unit_->error(
+            emittedSymbol->location(),
+            std::format(
+                "definition has the same mangled name '{}' as another function",
+                name));
+        unit_->note(previous->location(), "previous definition is here");
+        return existingFunc;
+      }
+    }
     functionTypes_[existingFunc] = functionAbi.signature;
     funcOps_.insert_or_assign(emittedSymbol, existingFunc);
     if (aliasee) emitter_.setFunctionAliasee(existingFunc, aliasee->name());
@@ -3168,17 +3197,19 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   auto alignmentAttr = ir::Initializer::integerValue(
       emitter_.integerType(64), static_cast<int64_t>(getAlignment(defVar)));
 
-  auto var = this->declareGlobal(loc, {.name = std::string_view(name),
-                                       .type = varType,
-                                       .linkage = linkageAttr,
-                                       .isConstant = isConstant,
-                                       .alignment = static_cast<std::uint64_t>(
-                                           alignmentAttr.integer.toUIntMax()),
-                                       .initializer = initializer,
-                                       .unknownLocation = false,
-                                       .isUsed = defVar->isUsed(),
-                                       .isThreadLocal = defVar->isThreadLocal(),
-                                       .section = sectionNameOf(defVar)});
+  auto var = this->declareGlobal(
+      loc, {.name = std::string_view(name),
+            .type = varType,
+            .linkage = linkageAttr,
+            .isConstant = isConstant,
+            .alignment =
+                static_cast<std::uint64_t>(alignmentAttr.integer.toUIntMax()),
+            .initializer = initializer,
+            .unknownLocation = false,
+            .isUsed = defVar->isUsed(),
+            .isThreadLocal = defVar->isThreadLocal(),
+            .section = sectionNameOf(defVar),
+            .addressSpace = address_space(defVar->type())});
 
   globalOps_.insert_or_assign(canonicalVar, var);
 
@@ -3276,8 +3307,8 @@ auto Codegen::findOrCreateThreadLocalWrapper(Symbol* symbol,
   emitter_.setModuleInsertionPoint(false);
   ExternalNameEncoder encoder{unit_};
   auto name = encoder.encodeThreadLocalWrapper(symbol);
-  auto resultType = emitter_.pointerType(
-      convertType(traits.remove_reference(symbol->type())));
+  auto resultType =
+      convertType(traits.add_pointer(traits.remove_reference(symbol->type())));
   std::array results{resultType};
   auto wrapperLinkage = linkage;
   if (!darwin && linkage != ir::Linkage::Internal)
@@ -3331,7 +3362,8 @@ auto Codegen::findOrCreateThreadLocalWrapper(Symbol* symbol,
     emitter_.branch(loc, merge);
     emitter_.setInsertionBlock(merge);
   }
-  auto storageType = emitter_.pointerType(convertType(symbol->type()));
+  auto storageType = emitter_.pointerType(convertType(symbol->type()),
+                                          address_space(symbol->type()));
   auto address = emitter_.addressOfSymbol(loc, storageType, globalName(global));
   auto object = loadReferenceBinding(loc, symbol->type(), address);
   emitter_.ret(loc, {&object, 1});
@@ -3356,7 +3388,8 @@ auto Codegen::globalObjectAddress(SourceLocation loc, Symbol* symbol,
               .callingConvention = threadLocalCallingConvention()});
     return values.front();
   }
-  auto pointerType = emitter_.pointerType(convertType(symbol->type()));
+  auto pointerType = emitter_.pointerType(convertType(symbol->type()),
+                                          address_space(symbol->type()));
   auto address = emitter_.addressOfSymbol(loc, pointerType, globalName(global));
   return loadReferenceBinding(loc, symbol->type(), address);
 }
@@ -3435,17 +3468,19 @@ auto Codegen::findOrCreateStaticField(FieldSymbol* field) -> ir::GlobalRef {
 
   ir::Initializer alignmentAttr;
 
-  auto var = this->declareGlobal(loc, {.name = std::string_view(name),
-                                       .type = varType,
-                                       .linkage = linkageAttr,
-                                       .isConstant = isConstant,
-                                       .alignment = static_cast<std::uint64_t>(
-                                           alignmentAttr.integer.toUIntMax()),
-                                       .initializer = initializer,
-                                       .unknownLocation = false,
-                                       .isUsed = field->isUsed(),
-                                       .isThreadLocal = field->isThreadLocal(),
-                                       .section = sectionNameOf(field)});
+  auto var = this->declareGlobal(
+      loc, {.name = std::string_view(name),
+            .type = varType,
+            .linkage = linkageAttr,
+            .isConstant = isConstant,
+            .alignment =
+                static_cast<std::uint64_t>(alignmentAttr.integer.toUIntMax()),
+            .initializer = initializer,
+            .unknownLocation = false,
+            .isUsed = field->isUsed(),
+            .isThreadLocal = field->isThreadLocal(),
+            .section = sectionNameOf(field),
+            .addressSpace = address_space(field->type())});
 
   staticFieldGlobalOps_.insert_or_assign(field, var);
   if (!isDefinition) return var;
@@ -4292,8 +4327,8 @@ auto Codegen::tableSubobjectAddress(SourceLocation loc, ir::ValueRef thisPtr,
 auto Codegen::subobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
                                ClassSymbol* subobjectClass,
                                std::uint64_t byteOffset) -> ir::ValueRef {
-  auto subobjectPtrType =
-      emitter_.pointerType(convertType(subobjectClass->type()));
+  auto subobjectPtrType = emitter_.rebindPointerType(
+      emitter_.typeOf(objectPtr), convertType(subobjectClass->type()));
   return displacedAddress(loc, subobjectPtrType, objectPtr,
                           static_cast<std::intmax_t>(byteOffset));
 }
@@ -4332,14 +4367,17 @@ auto Codegen::vtableEmission(ClassSymbol* classSymbol) -> VTableEmission {
 auto Codegen::memberAddress(SourceLocation loc, ir::ValueRef objectPtr,
                             ir::TypeRef memberType, std::uint32_t index)
     -> ir::ValueRef {
-  auto ptrType = emitter_.pointerType(memberType);
+  auto ptrType =
+      emitter_.rebindPointerType(emitter_.typeOf(objectPtr), memberType);
   return emitter_.memberAddress(loc, ptrType, objectPtr, index);
 }
 
 auto Codegen::vptrAddress(SourceLocation loc, ir::ValueRef objectPtr)
     -> ir::ValueRef {
   auto i8PtrType = emitter_.pointerType(emitter_.integerType(8));
-  return emitter_.bitcast(loc, emitter_.pointerType(i8PtrType), objectPtr);
+  auto addressType =
+      emitter_.rebindPointerType(emitter_.typeOf(objectPtr), i8PtrType);
+  return emitter_.bitcast(loc, addressType, objectPtr);
 }
 
 auto Codegen::requiresVTT(ClassSymbol* classSymbol) const -> bool {

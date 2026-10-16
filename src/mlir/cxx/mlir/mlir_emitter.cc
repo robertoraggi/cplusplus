@@ -577,13 +577,26 @@ auto MlirEmitter::floatingType(FloatKind kind) -> TypeRef {
   llvm::report_fatal_error("invalid floating type kind");
 }
 
-auto MlirEmitter::pointerType(TypeRef elementType) -> TypeRef {
-  return wrap(mlir::cxx::PointerType::get(context(), type(elementType)));
+auto MlirEmitter::pointerType(TypeRef elementType,
+                              std::optional<std::uint32_t> addressSpace)
+    -> TypeRef {
+  auto annotation = addressSpace ? builder_.getI64IntegerAttr(*addressSpace)
+                                 : mlir::IntegerAttr{};
+  return wrap(
+      mlir::cxx::PointerType::get(context(), type(elementType), annotation));
 }
 
 auto MlirEmitter::arrayType(TypeRef elementType, std::uint64_t size)
     -> TypeRef {
   return wrap(mlir::cxx::ArrayType::get(context(), type(elementType), size));
+}
+
+auto MlirEmitter::rebindPointerType(TypeRef pointerType, TypeRef elementType)
+    -> TypeRef {
+  auto pointer = mlir::cast<mlir::cxx::PointerType>(type(pointerType));
+  auto rebound =
+      pointer.clonePtrWith(pointer.getAddressSpace(), type(elementType));
+  return wrap(mlir::cast<mlir::cxx::PointerType>(*rebound));
 }
 
 auto MlirEmitter::vectorType(TypeRef elementType, std::uint64_t elementCount)
@@ -694,6 +707,9 @@ auto MlirEmitter::convert(SourceLocation loc, CastKind kind, ValueRef value,
     case CastKind::Bitcast:
       return wrap(mlir::cxx::BitcastOp::create(builder_, location, resultType,
                                                operand));
+    case CastKind::AddressSpace:
+      return wrap(mlir::cxx::AddressSpaceCastOp::create(builder_, location,
+                                                        resultType, operand));
     case CastKind::Reshape:
       return wrap(mlir::cxx::ReshapeOp::create(builder_, location, resultType,
                                                operand));
@@ -1353,7 +1369,9 @@ auto MlirEmitter::declareGlobal(SourceLocation loc, const GlobalInfo& info)
       alignmentAttr, info.isUsed, info.isThreadLocal,
       info.section.empty() ? mlir::StringAttr{}
                            : builder_.getStringAttr(mlir::StringRef{
-                                 info.section.data(), info.section.size()})));
+                                 info.section.data(), info.section.size()}),
+      info.addressSpace ? builder_.getI32IntegerAttr(*info.addressSpace)
+                        : mlir::IntegerAttr{}));
 }
 
 auto MlirEmitter::constantInt(mlir::Location loc, TypeRef typeRef,

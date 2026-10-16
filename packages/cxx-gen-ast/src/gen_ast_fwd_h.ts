@@ -94,6 +94,7 @@ enum class ImplicitCastKind {
   kComplexConversion,
   kTemporaryMaterializationConversion,
   kUserDefinedConversion,
+  kAddressSpaceConversion,
 };
 
 ${code.join("\n")}

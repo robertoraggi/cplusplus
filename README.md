@@ -67,11 +67,11 @@ echo 'int read(int* p, int n) { return p[n]; }' |
     mlir-translate --mlir-to-llvmir
 ```
 
-Define a pipeline that outputs a mix of cxx, scf and ptr dialects:
+Define a pipeline that outputs a mix of cxx, memref, ptr, and scf dialects:
 
 ```sh
-./build/src/frontend/cxx -emit-ir\
-    '-mlir-pass-pipeline=cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-ptr' \
+./build/src/frontend/cxx -emit-ir \
+    '-mlir-pass-pipeline=cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-memref,convert-cxx-to-ptr' \
     source.cc -o source.mlir
 ```
 

@@ -211,17 +211,20 @@ struct Codegen::TypeInfoInternalLinkageVisitor {
 };
 
 auto Codegen::typeInfoHasIncompleteClass(const Type* type) -> bool {
-  type = traits.remove_cv(traits.remove_reference(type));
+  type = traits.remove_address_space(
+      traits.remove_cv(traits.remove_reference(type)));
   return visit(TypeInfoIncompleteClassVisitor{*this}, type);
 }
 
 auto Codegen::typeInfoHasInternalLinkage(const Type* type) const -> bool {
-  type = traits.remove_cv(traits.remove_reference(type));
+  type = traits.remove_address_space(
+      traits.remove_cv(traits.remove_reference(type)));
   return visit(TypeInfoInternalLinkageVisitor{*this}, type);
 }
 
 auto Codegen::typeInfoEmission(const Type* type) -> VTableEmission {
-  type = traits.remove_cv(traits.remove_reference(type));
+  type = traits.remove_address_space(
+      traits.remove_cv(traits.remove_reference(type)));
 
   if (typeInfoHasIncompleteClass(type) || typeInfoHasInternalLinkage(type))
     return {.emitDefinition = true, .linkage = ir::Linkage::Internal};
@@ -445,7 +448,7 @@ void Codegen::emitClassTypeInfoBases(
 }
 
 auto Codegen::findOrCreateTypeInfo(const Type* type) -> std::string {
-  type = traits.remove_cv(type);
+  type = traits.remove_address_space(traits.remove_cv(type));
 
   ExternalNameEncoder encoder{unit_};
   auto name = encoder.encodeTypeInfo(type);
@@ -666,12 +669,40 @@ auto Codegen::dynamicCastNeedsRuntimeCheck(CppCastExpressionAST* ast) -> bool {
                          traits.remove_cv(sourceObjectType));
 }
 
+auto Codegen::emitDynamicCastAddress(SourceLocation loc, const Type* sourceType,
+                                     const Type* targetType,
+                                     ir::ValueRef sourceAddress)
+    -> ir::ValueRef {
+  if (traits.is_void(targetType))
+    return adjustByVtableWord(loc, sourceAddress, -2 * pointerSize());
+
+  auto i8Type = emitter_.integerType(8);
+  auto i8PtrType = emitter_.pointerType(i8Type);
+  auto sourceClass = unqualified_cast<ClassType>(sourceType)->definition();
+  auto targetClass = unqualified_cast<ClassType>(targetType)->definition();
+  auto hintType = pointerSizedIntType();
+  auto hint = emitter_.constantLiteral(
+      loc, hintType,
+      ir::Initializer::integerValue(
+          hintType, dynamicCastOffsetHint(sourceClass, targetClass)));
+  std::vector<ir::ValueRef> args{pointerCast(loc, i8PtrType, sourceAddress),
+                                 typeInfoAddress(loc, sourceClass->type()),
+                                 typeInfoAddress(loc, targetClass->type()),
+                                 hint};
+  auto callee = findOrCreateDynamicCast(loc);
+  auto result = ir::singleValue(emitter_.call(
+      implicitLocation(loc), {.callee = functionName(callee),
+                              .arguments = args,
+                              .results = std::vector<ir::TypeRef>{i8PtrType}}));
+  auto resultType = convertType(traits.add_pointer(targetType));
+  return pointerCast(loc, emitter_.rebindPointerType(resultType, i8Type),
+                     result);
+}
+
 auto Codegen::emitDynamicCast(CppCastExpressionAST* ast) -> ir::ValueRef {
   const auto loc = ast->firstSourceLocation();
 
   auto i8Type = emitter_.integerType(8);
-  auto i8PtrType = emitter_.pointerType(i8Type);
-
   const bool isPointerCast = ast->valueCategory == ValueCategory::kPrValue;
 
   const auto objectTypeOf = [&](const Type* type) {
@@ -683,43 +714,18 @@ auto Codegen::emitDynamicCast(CppCastExpressionAST* ast) -> ir::ValueRef {
   auto targetObjectType = objectTypeOf(ast->type);
 
   auto sourceValue = expression(ast->expression).value;
-  auto sourceI8 = emitter_.bitcast(loc, i8PtrType, sourceValue);
+  auto sourceI8Type =
+      emitter_.rebindPointerType(emitter_.typeOf(sourceValue), i8Type);
+  auto sourceI8 = emitter_.bitcast(loc, sourceI8Type, sourceValue);
 
   const auto resultType = isPointerCast
                               ? convertType(ast->type)
-                              : emitter_.pointerType(convertType(ast->type));
-
-  const auto emitCast = [&]() -> ir::ValueRef {
-    if (traits.is_void(traits.remove_cv(targetObjectType))) {
-      return adjustByVtableWord(loc, sourceI8, -2 * pointerSize());
-    }
-
-    auto callee = findOrCreateDynamicCast(loc);
-    auto hintType = pointerSizedIntType();
-
-    auto sourceClass =
-        unqualified_cast<ClassType>(sourceObjectType)->definition();
-    auto targetClass =
-        unqualified_cast<ClassType>(targetObjectType)->definition();
-
-    auto hint = emitter_.constantLiteral(
-        loc, hintType,
-        ir::Initializer::integerValue(
-            hintType, dynamicCastOffsetHint(sourceClass, targetClass)));
-
-    std::vector<ir::ValueRef> args{
-        sourceI8, typeInfoAddress(loc, sourceClass->type()),
-        typeInfoAddress(loc, targetClass->type()), hint};
-
-    return ir::singleValue(
-        emitter_.call(implicitLocation(loc),
-                      {.callee = this->functionName(callee),
-                       .arguments = args,
-                       .results = std::vector<ir::TypeRef>{i8PtrType}}));
-  };
+                              : convertType(traits.add_pointer(ast->type));
+  auto resultI8Type = emitter_.rebindPointerType(resultType, i8Type);
 
   if (!isPointerCast) {
-    auto castedI8 = emitCast();
+    auto castedI8 = emitDynamicCastAddress(loc, sourceObjectType,
+                                           targetObjectType, sourceI8);
 
     auto failedBlock = newBlock();
     auto succeededBlock = newBlock();
@@ -743,17 +749,19 @@ auto Codegen::emitDynamicCast(CppCastExpressionAST* ast) -> ir::ValueRef {
   auto nullBlock = newBlock();
   auto castBlock = newBlock();
   auto endBlock = newBlock();
-  auto endBlockResult = emitter_.addBlockParameter(endBlock, i8PtrType, loc);
+  auto endBlockResult = emitter_.addBlockParameter(endBlock, resultI8Type, loc);
 
   emitter_.condBranch(loc, emitPointerIsNull(loc, sourceI8), nullBlock,
                       castBlock);
 
   emitter_.setInsertionBlock(nullBlock);
   branch(loc, endBlock,
-         std::vector<ir::ValueRef>{emitter_.nullPointer(loc, i8PtrType)});
+         std::vector<ir::ValueRef>{emitter_.nullPointer(loc, resultI8Type)});
 
   emitter_.setInsertionBlock(castBlock);
-  branch(loc, endBlock, std::vector<ir::ValueRef>{emitCast()});
+  auto casted =
+      emitDynamicCastAddress(loc, sourceObjectType, targetObjectType, sourceI8);
+  branch(loc, endBlock, std::vector<ir::ValueRef>{casted});
 
   emitter_.setInsertionBlock(endBlock);
   return emitter_.bitcast(loc, resultType, endBlockResult);

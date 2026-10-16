@@ -1478,7 +1478,7 @@ auto Codegen::ExpressionVisitor::emitMemberAccess(MemberExpressionAST* ast)
       baseExpressionResult = {temp};
     }
 
-    auto classType = type_cast<ClassType>(baseType);
+    auto classType = unqualified_cast<ClassType>(baseType);
 
     if (!classType) {
       (void)gen.emitTodoExpr(
@@ -2522,7 +2522,8 @@ void Codegen::emitArrayLoop(SourceLocation loc, ir::ValueRef base,
                             bool reverse,
                             const std::function<void(ir::ValueRef)>& body) {
   if (!base) return;
-  auto elementPtrType = emitter_.pointerType(convertType(elementType));
+  auto elementPtrType = emitter_.rebindPointerType(emitter_.typeOf(base),
+                                                   convertType(elementType));
   emitIndexLoop(loc, count, reverse, [&](ir::ValueRef index) {
     body(emitter_.pointerAdd(loc, elementPtrType, base, index));
   });
@@ -3005,7 +3006,8 @@ auto Codegen::ExpressionVisitor::operator()(CastExpressionAST* ast)
   if (!expressionResult.value) return expressionResult;
 
   auto loc = ast->firstSourceLocation();
-  auto resultType = gen.convertType(ast->type);
+  auto type = is_glvalue(ast) ? gen.traits.add_pointer(ast->type) : ast->type;
+  auto resultType = gen.convertType(type);
   if (!resultType) return expressionResult;
 
   const auto sourceLoc = ast->firstSourceLocation();
@@ -3248,6 +3250,8 @@ auto Codegen::ExpressionVisitor::emitPointerConversion(
       return expressionResult;
 
     case ImplicitCastKind::kPointerConversion: {
+      if (gen.traits.is_null_pointer(ast->expression->type))
+        return {gen.emitter_.nullPointer(loc, resultType)};
       if (expressionResult.value &&
           (gen.emitter_.typeKind(gen.emitter_.typeOf(expressionResult.value)) ==
            ir::TypeKind::Integer)) {
@@ -3484,6 +3488,17 @@ auto Codegen::ExpressionVisitor::operator()(ImplicitCastExpressionAST* ast)
   switch (ast->castKind) {
     case ImplicitCastKind::kIdentity:
       return gen.expression(ast->expression);
+
+    case ImplicitCastKind::kAddressSpaceConversion: {
+      auto operand = gen.expression(ast->expression);
+      auto type = ast->type;
+      if (is_glvalue(ast)) type = gen.traits.add_pointer(type);
+      auto resultType = gen.convertType(type);
+      return {gen.emitter_.convert(ast->firstSourceLocation(),
+                                   ir::CastKind::AddressSpace, operand.value,
+                                   resultType),
+              ast->valueCategory};
+    }
 
     case ImplicitCastKind::kLValueToRValueConversion:
       return emitLValueToRValueConversion(ast);
@@ -4745,7 +4760,8 @@ auto Codegen::arrayElementAddress(SourceLocation loc, ir::ValueRef address,
   auto indexType = emitter_.integerType(32);
   auto indexOp =
       emitter_.constantInt(loc, indexType, static_cast<std::int64_t>(index));
-  auto elementPtrType = emitter_.pointerType(convertType(elementType));
+  auto elementPtrType = emitter_.rebindPointerType(emitter_.typeOf(address),
+                                                   convertType(elementType));
   return emitter_.pointerAdd(loc, elementPtrType, address, indexOp);
 }
 
@@ -6163,7 +6179,8 @@ auto Codegen::ExpressionVisitor::emitMemberPointerAccess(
   if (!object.value || !memberPointer.value) return {};
 
   auto charPointerType =
-      gen.convertType(control()->getPointerType(control()->getCharType()));
+      gen.emitter_.rebindPointerType(gen.emitter_.typeOf(object.value),
+                                     gen.convertType(control()->getCharType()));
 
   auto base = gen.emitter_.bitcast(loc, charPointerType, object.value);
 
@@ -6172,7 +6189,7 @@ auto Codegen::ExpressionVisitor::emitMemberPointerAccess(
 
   auto resultType = gen.convertType(control()->getPointerType(ast->type));
 
-  return {gen.emitter_.bitcast(loc, resultType, address)};
+  return {gen.pointerCast(loc, resultType, address)};
 }
 
 auto Codegen::ExpressionVisitor::emitMemberFunctionPointerCall(
@@ -6203,7 +6220,7 @@ auto Codegen::ExpressionVisitor::emitMemberFunctionPointerCall(
   auto [pointerField, adjustmentField] =
       gen.memberFunctionPointerFields(loc, pointerType, memberPointer.value);
 
-  auto objectAddress = gen.emitter_.bitcast(loc, i8PtrType, object.value);
+  auto objectAddress = gen.pointerCast(loc, i8PtrType, object.value);
 
   auto thisAdjustment =
       gen.emitter_.binaryOp(loc, ir::BinaryOp::ArithmeticShiftRight,

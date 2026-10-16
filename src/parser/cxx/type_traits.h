@@ -209,8 +209,13 @@ class TypeTraits {
   [[nodiscard]] auto remove_all_extents(const Type* type) const -> const Type*;
   [[nodiscard]] auto remove_const(const Type* type) const -> const Type*;
   [[nodiscard]] auto remove_volatile(const Type* type) const -> const Type*;
+  [[nodiscard]] auto remove_address_space(const Type* type) const
+      -> const Type*;
   [[nodiscard]] auto add_cv(const Type* type, CvQualifiers cv) const
       -> const Type*;
+  [[nodiscard]] auto add_qualifiers(
+      const Type* type, CvQualifiers cv,
+      std::optional<std::uint32_t> addressSpace) const -> const Type*;
   [[nodiscard]] auto remove_noexcept(const Type* type) const -> const Type*;
 
   [[nodiscard]] auto remove_function_qualifiers(const FunctionType* type) const

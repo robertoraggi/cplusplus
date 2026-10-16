@@ -108,23 +108,46 @@ auto unqualified_type(const Type* type) -> const Type* {
   return type;
 }
 
-auto cv_qualifiers(const Type* type) -> CvQualifiers {
-  auto cv = CvQualifiers::kNone;
-  while (type) {
-    if (auto qualType = type_cast<QualType>(type)) {
-      cv |= qualType->cvQualifiers();
-      type = qualType->elementType();
-    } else if (auto arrayType = type_cast<BoundedArrayType>(type)) {
-      type = arrayType->elementType();
-    } else if (auto arrayType = type_cast<UnboundedArrayType>(type)) {
-      type = arrayType->elementType();
-    } else if (auto arrayType = type_cast<UnresolvedBoundedArrayType>(type)) {
-      type = arrayType->elementType();
-    } else {
-      break;
-    }
+namespace {
+struct ObjectQualifiers {
+  CvQualifiers cv = CvQualifiers::kNone;
+  std::optional<std::uint32_t> addressSpace;
+
+  [[nodiscard]] auto operator()(const QualType* type) -> const Type* {
+    cv |= type->cvQualifiers();
+    if (!addressSpace) addressSpace = type->addressSpace();
+    return type->elementType();
   }
-  return cv;
+
+  [[nodiscard]] auto operator()(const BoundedArrayType* type) -> const Type* {
+    return type->elementType();
+  }
+
+  [[nodiscard]] auto operator()(const UnboundedArrayType* type) -> const Type* {
+    return type->elementType();
+  }
+
+  [[nodiscard]] auto operator()(const UnresolvedBoundedArrayType* type)
+      -> const Type* {
+    return type->elementType();
+  }
+
+  [[nodiscard]] auto operator()(const Type*) -> const Type* { return nullptr; }
+};
+
+[[nodiscard]] auto objectQualifiers(const Type* type) -> ObjectQualifiers {
+  ObjectQualifiers result;
+  while (type) type = visit(result, type);
+  return result;
+}
+}  // namespace
+
+auto address_space(const Type* type) -> std::optional<std::uint32_t> {
+  return objectQualifiers(type).addressSpace;
+}
+
+auto cv_qualifiers(const Type* type) -> CvQualifiers {
+  return objectQualifiers(type).cv;
 }
 
 namespace {
@@ -174,8 +197,8 @@ auto ClassType::isUnion() const -> bool { return definition()->isUnion(); }
 auto classSubobjectOffset(const Type* derivedClassType,
                           const Type* baseClassType)
     -> std::optional<std::int64_t> {
-  auto derived = type_cast<ClassType>(derivedClassType);
-  auto base = type_cast<ClassType>(baseClassType);
+  auto derived = unqualified_cast<ClassType>(derivedClassType);
+  auto base = unqualified_cast<ClassType>(baseClassType);
   if (!derived || !base) return std::nullopt;
 
   auto derivedClass = derived->symbol();

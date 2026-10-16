@@ -747,7 +747,7 @@ constexpr int TypeSlotBase = 0;
 
 constexpr int QualTypeSlotBase = TypeSlotBase + 1;
 
-constexpr int BoundedArrayTypeSlotBase = QualTypeSlotBase + 4;
+constexpr int BoundedArrayTypeSlotBase = QualTypeSlotBase + 5;
 
 constexpr int UnboundedArrayTypeSlotBase = BoundedArrayTypeSlotBase + 2;
 
@@ -12886,12 +12886,12 @@ auto readType(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::Type*>(handle));
       return static_cast<double>(self->cvQualifiers());
     }
-    case QualTypeSlotBase + 2: {
+    case QualTypeSlotBase + 3: {
       auto self = static_cast<const ::cxx::QualType*>(
           reinterpret_cast<const ::cxx::Type*>(handle));
       return static_cast<double>(self->isConst());
     }
-    case QualTypeSlotBase + 3: {
+    case QualTypeSlotBase + 4: {
       auto self = static_cast<const ::cxx::QualType*>(
           reinterpret_cast<const ::cxx::Type*>(handle));
       return static_cast<double>(self->isVolatile());
@@ -13232,6 +13232,13 @@ auto readTypeString(std::intptr_t handle, int slot) -> std::string {
 
 auto readTypeVal(std::intptr_t handle, int slot) -> val {
   switch (slot) {
+    case QualTypeSlotBase + 2: {
+      auto self = static_cast<const ::cxx::QualType*>(
+          reinterpret_cast<const ::cxx::Type*>(handle));
+      return optionalValue(self->addressSpace(), [&](const auto& item) {
+        return val(static_cast<double>(item));
+      });
+    }
     case FunctionTypeSlotBase + 6: {
       auto self = static_cast<const ::cxx::FunctionType*>(
           reinterpret_cast<const ::cxx::Type*>(handle));

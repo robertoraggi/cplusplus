@@ -15291,6 +15291,8 @@ auto to_string(ImplicitCastKind implicitCastKind) -> std::string_view {
   switch (implicitCastKind) {
     case ImplicitCastKind::kIdentity:
       return "identity";
+    case ImplicitCastKind::kAddressSpaceConversion:
+      return "address-space-conversion";
     case ImplicitCastKind::kLValueToRValueConversion:
       return "lvalue-to-rvalue-conversion";
     case ImplicitCastKind::kArrayToPointerConversion:

@@ -28,7 +28,9 @@
 #include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -122,8 +124,10 @@ class Control {
   [[nodiscard]] auto getLongDoubleType() -> const LongDoubleType*;
   [[nodiscard]] auto getFloat16Type() -> const Float16Type*;
   [[nodiscard]] auto getFloat128Type() -> const Float128Type*;
-  [[nodiscard]] auto getQualType(const Type* elementType,
-                                 CvQualifiers cvQualifiers) -> const QualType*;
+  [[nodiscard]] auto getQualType(
+      const Type* elementType, CvQualifiers cvQualifiers,
+      std::optional<std::uint32_t> addressSpace = std::nullopt)
+      -> const QualType*;
   [[nodiscard]] auto getBoundedArrayType(const Type* elementType,
                                          std::size_t size)
       -> const BoundedArrayType*;

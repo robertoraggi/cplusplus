@@ -79,7 +79,10 @@ class ProgramRunner {
     this.#line = []
 
     try {
-      const result = await emitExecutable(options)
+      const mlirPipeline = [options.mlirPipeline, "convert-scf-to-cf"]
+        .filter(Boolean)
+        .join(",")
+      const result = await emitExecutable({ ...options, mlirPipeline })
       if (generation !== this.#generation) return
 
       if (result.kind === "built") {

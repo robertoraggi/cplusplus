@@ -312,6 +312,10 @@ class TypePrinter {
         op += " volatile";
       }
 
+      if (auto space = type->addressSpace()) {
+        op += std::format(" __attribute__((address_space({})))", *space);
+      }
+
       ptrOps_ = op + ptrOps_;
 
       return;
@@ -323,6 +327,10 @@ class TypePrinter {
 
     if (type->isVolatile()) {
       specifiers_.append("volatile ");
+    }
+
+    if (auto space = type->addressSpace()) {
+      specifiers_ += std::format("__attribute__((address_space({}))) ", *space);
     }
 
     accept(type->elementType());

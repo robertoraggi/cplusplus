@@ -26,44 +26,40 @@ import {
   TrendingUp,
   Workflow,
 } from "lucide-react"
-import type { MLIRPass } from "../mlir-pipeline"
+import { mlirPassOrder, type MLIRPass } from "../mlir-pipeline"
 import { usePlayground } from "../playground-context"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "./ui/select"
 
+const passDetails = {
+  "convert-cxx-to-memref": {
+    name: "MemRef",
+    description: "Typed local storage",
+    icon: Boxes,
+  },
+  "convert-cxx-to-ptr": {
+    name: "Ptr",
+    description: "Pointer memory operations",
+    icon: MemoryStick,
+  },
+  mem2reg: {
+    name: "mem2reg",
+    description: "Promote local slots",
+    icon: TrendingUp,
+  },
+  "cxx-lift-cf-to-scf": {
+    name: "SCF",
+    description: "Structured control flow",
+    icon: Workflow,
+  },
+  canonicalize: {
+    name: "canonicalize",
+    description: "Simplify IR",
+    icon: Eraser,
+  },
+}
+
 export function IRPassMenu() {
   const state = usePlayground()
-  const choices = [
-    {
-      name: "MemRef",
-      description: "Typed local storage",
-      icon: Boxes,
-      pass: "convert-cxx-to-memref" as const,
-    },
-    {
-      name: "mem2reg",
-      description: "Promote local slots",
-      icon: TrendingUp,
-      pass: "mem2reg" as const,
-    },
-    {
-      name: "canonicalize",
-      description: "Simplify IR",
-      icon: Eraser,
-      pass: "canonicalize" as const,
-    },
-    {
-      name: "SCF",
-      description: "Structured control flow",
-      icon: Workflow,
-      pass: "cxx-lift-cf-to-scf" as const,
-    },
-    {
-      name: "Ptr",
-      description: "Pointer memory operations",
-      icon: MemoryStick,
-      pass: "convert-cxx-to-ptr" as const,
-    },
-  ]
   const selected = state.mlirPasses
 
   return (
@@ -87,17 +83,20 @@ export function IRPassMenu() {
         alignItemWithTrigger={false}
         className="max-h-80 w-72 max-w-[calc(100vw-2rem)]"
       >
-        {choices.map((choice) => (
-          <SelectItem
-            key={choice.pass}
-            value={choice.pass}
-            className="py-2 pr-9 pl-3 text-xs"
-          >
-            <choice.icon className="text-muted-foreground" />
-            <span>{choice.name}</span>
-            <span className="text-muted-foreground">{choice.description}</span>
-          </SelectItem>
-        ))}
+        {mlirPassOrder.map((pass) => {
+          const choice = passDetails[pass]
+          return (
+            <SelectItem
+              key={pass}
+              value={pass}
+              className="py-2 pr-9 pl-3 text-xs"
+            >
+              <choice.icon className="text-muted-foreground" />
+              <span>{choice.name}</span>
+              <span className="text-muted-foreground">{choice.description}</span>
+            </SelectItem>
+          )
+        })}
       </SelectContent>
     </Select>
   )
