@@ -529,7 +529,7 @@ constexpr int PointerOperatorASTSlotBase = SplicerTypeSpecifierASTSlotBase + 2;
 
 constexpr int ReferenceOperatorASTSlotBase = PointerOperatorASTSlotBase + 3;
 
-constexpr int PtrToMemberOperatorASTSlotBase = ReferenceOperatorASTSlotBase + 3;
+constexpr int PtrToMemberOperatorASTSlotBase = ReferenceOperatorASTSlotBase + 5;
 
 constexpr int BitfieldDeclaratorASTSlotBase =
     PtrToMemberOperatorASTSlotBase + 4;
@@ -5670,7 +5670,17 @@ auto readAST(std::intptr_t handle, int slot) -> double {
     case ReferenceOperatorASTSlotBase + 2: {
       auto self = static_cast<const ::cxx::ReferenceOperatorAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->restrictLoc.index());
+    }
+    case ReferenceOperatorASTSlotBase + 3: {
+      auto self = static_cast<const ::cxx::ReferenceOperatorAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(self->refOp);
+    }
+    case ReferenceOperatorASTSlotBase + 4: {
+      auto self = static_cast<const ::cxx::ReferenceOperatorAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(self->isRestrict);
     }
     case PtrToMemberOperatorASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::PtrToMemberOperatorAST*>(

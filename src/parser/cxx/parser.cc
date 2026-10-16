@@ -7607,6 +7607,8 @@ auto Parser::parse_ptr_operator(PtrOperatorAST*& yyast) -> bool {
 
     parse_optional_attribute_specifier_seq(ast->attributeList);
 
+    ast->isRestrict = match(TokenKind::T___RESTRICT__, ast->restrictLoc);
+
     return true;
   }
 

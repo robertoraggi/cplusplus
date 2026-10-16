@@ -936,7 +936,7 @@ const TypenameSpecifierASTSlotBase = ClassSpecifierASTSlotBase + 14;
 const SplicerTypeSpecifierASTSlotBase = TypenameSpecifierASTSlotBase + 6;
 const PointerOperatorASTSlotBase = SplicerTypeSpecifierASTSlotBase + 2;
 const ReferenceOperatorASTSlotBase = PointerOperatorASTSlotBase + 3;
-const PtrToMemberOperatorASTSlotBase = ReferenceOperatorASTSlotBase + 3;
+const PtrToMemberOperatorASTSlotBase = ReferenceOperatorASTSlotBase + 5;
 const BitfieldDeclaratorASTSlotBase = PtrToMemberOperatorASTSlotBase + 4;
 const ParameterPackASTSlotBase = BitfieldDeclaratorASTSlotBase + 5;
 const IdDeclaratorASTSlotBase = ParameterPackASTSlotBase + 2;
@@ -7209,10 +7209,19 @@ export class ReferenceOperatorAST extends PtrOperatorAST {
       (item: any) => astOf(item, this.modelOwner),
     );
   }
+  get restrictToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ReferenceOperatorASTSlotBase + 2),
+      this.modelOwner,
+    );
+  }
   get refOp(): TokenKind {
     return tokenKindNames[
-      cxx.readAST(this.handle, ReferenceOperatorASTSlotBase + 2)
+      cxx.readAST(this.handle, ReferenceOperatorASTSlotBase + 3)
     ]!;
+  }
+  get isRestrict(): boolean {
+    return cxx.readAST(this.handle, ReferenceOperatorASTSlotBase + 4) !== 0;
   }
 }
 /** @category AST Nodes */

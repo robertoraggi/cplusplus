@@ -566,11 +566,13 @@ auto ASTRewriter::PtrOperatorVisitor::operator()(ReferenceOperatorAST* ast)
   auto copy = ReferenceOperatorAST::create(arena());
 
   copy->refLoc = ast->refLoc;
+  copy->restrictLoc = ast->restrictLoc;
 
   copy->attributeList =
       rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->refOp = ast->refOp;
+  copy->isRestrict = ast->isRestrict;
 
   return copy;
 }
