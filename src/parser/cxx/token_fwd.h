@@ -876,6 +876,8 @@ class Token;
   V(__INLINE__, INLINE)            \
   V(__INLINE, INLINE)              \
   V(__RESTRICT, __RESTRICT__)      \
+  V(__SIGNED, SIGNED)              \
+  V(__SIGNED__, SIGNED)            \
   V(__TYPEOF__, TYPEOF)            \
   V(__TYPEOF, TYPEOF)              \
   V(__VOLATILE__, VOLATILE)        \
@@ -911,6 +913,8 @@ class Token;
   V("__inline__")                        \
   V("__inline")                          \
   V("__restrict")                        \
+  V("__signed")                          \
+  V("__signed__")                        \
   V("__typeof__")                        \
   V("__typeof")                          \
   V("__volatile__")                      \
@@ -941,6 +945,7 @@ class Token;
   V(__ATTRIBUTE__)                \
   V(DECLTYPE)                     \
   V(INLINE)                       \
+  V(SIGNED)                       \
   V(TYPEOF)                       \
   V(VOLATILE)                     \
   V(ALIGNAS)                      \
