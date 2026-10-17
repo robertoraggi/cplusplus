@@ -569,10 +569,19 @@ struct Substitution::CollectRawTemplateArgument {
       -> std::optional<CollectedArgument>;
 };
 
+[[nodiscard]] auto appliesTypeOperators(TypeIdAST* typeId) -> bool {
+  auto declarator = typeId->declarator;
+  if (!declarator) return false;
+  if (declarator->ptrOpList || declarator->declaratorChunkList) return true;
+  return declarator->coreDeclarator &&
+         !ast_cast<ParameterPackAST>(declarator->coreDeclarator);
+}
+
 [[nodiscard]] auto injectedClassNameAsTemplate(TemplateArgumentAST* argument)
     -> Symbol* {
   auto typeArgument = ast_cast<TypeTemplateArgumentAST>(argument);
   if (!typeArgument || !typeArgument->typeId) return nullptr;
+  if (appliesTypeOperators(typeArgument->typeId)) return nullptr;
 
   for (auto spec : ListView{typeArgument->typeId->typeSpecifierList}) {
     auto named = ast_cast<NamedTypeSpecifierAST>(spec);
@@ -825,6 +834,7 @@ auto Substitution::CollectRawTemplateArgument::operator()(
       return variable;
     }
     if (!ast_cast<NameIdAST>(named->unqualifiedId)) break;
+    if (appliesTypeOperators(ast->typeId)) break;
     if (auto alias = symbol_cast<TypeAliasSymbol>(named->symbol)) {
       if (alias->templateParameters()) return alias;
     }
