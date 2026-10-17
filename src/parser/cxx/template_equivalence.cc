@@ -165,17 +165,7 @@ auto TemplateEquivalence::same(const Type* a, const Type* b) const -> bool {
            same(lhs->unqualifiedId(), rhs->unqualifiedId());
   }
 
-  if (correspondence_.applies()) return corresponds(a, b, correspondence_);
-
-  auto aParam = type_cast<TypeParameterType>(a);
-  auto bParam = type_cast<TypeParameterType>(b);
-  if (aParam && bParam) {
-    return aParam->depth() == bParam->depth() &&
-           aParam->index() == bParam->index();
-  }
-  if (aParam || bParam) return false;
-
-  return unit_->typeTraits().is_same(a, b);
+  return corresponds(a, b, correspondence_);
 }
 
 auto TemplateEquivalence::sameQualifiedName(NestedNameSpecifierAST* aQualifier,
@@ -1144,14 +1134,30 @@ auto TemplateEquivalence::sameQualifyingEntity(Symbol* a, Symbol* b) const
     -> bool {
   if (a == b) return true;
   if (!a || !b) return false;
-  if (!template_parameter_info(a) && !template_parameter_info(b)) return false;
+  if (!a->type() || !b->type()) return false;
   return same(a->type(), b->type());
 }
+
+namespace {
+[[nodiscard]] auto qualifyingEntityOf(NestedNameSpecifierAST* ast) -> Symbol* {
+  if (auto simple = ast_cast<SimpleNestedNameSpecifierAST>(ast))
+    return simple->symbol;
+  if (auto templateId = ast_cast<TemplateNestedNameSpecifierAST>(ast))
+    return templateId->templateId ? templateId->templateId->symbol : nullptr;
+  return nullptr;
+}
+}  // namespace
 
 auto TemplateEquivalence::same(NestedNameSpecifierAST* a,
                                NestedNameSpecifierAST* b) const -> bool {
   if (a == b) return true;
   if (!a || !b) return false;
+
+  if (a->kind() != b->kind()) {
+    auto aEntity = qualifyingEntityOf(a);
+    auto bEntity = qualifyingEntityOf(b);
+    return aEntity && bEntity && sameQualifyingEntity(aEntity, bEntity);
+  }
 
   if (auto aTemplate = ast_cast<TemplateNestedNameSpecifierAST>(a)) {
     auto bTemplate = ast_cast<TemplateNestedNameSpecifierAST>(b);
