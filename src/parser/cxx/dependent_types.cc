@@ -1049,6 +1049,11 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(LambdaExpressionAST* ast) -> bool {
+  if (ast->symbol &&
+      enclosedInDependentTemplate(ast->symbol->parent(),
+                                  /*stopAtConcreteSpecialization=*/true))
+    return true;
+
   for (auto node : ListView{ast->captureList}) {
     if (isDependent(node)) return true;
   }

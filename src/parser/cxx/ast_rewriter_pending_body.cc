@@ -921,9 +921,10 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
 
   if (ast_cast<DefaultFunctionBodyAST>(newAst->functionBody)) {
     rewriter.binder_.synthesizeDefaultedMemberBody(func);
-  } else if (body_statement(newAst->functionBody)) {
+  } else if (auto statement = body_statement(newAst->functionBody)) {
     rewriter.checkMemInitializers(func, newAst->functionBody);
     rewriter.binder_.finishAutoReturnType(func);
+    rewriter.binder_.resolveDeferredCaptures(func, statement);
   }
 
   if (bodyErrors.empty() && !deferDiagnostics) {

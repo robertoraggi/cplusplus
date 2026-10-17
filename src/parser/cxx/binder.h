@@ -471,6 +471,8 @@ class Binder {
                                                    CompoundStatementAST* body)
       -> FunctionDefinitionAST*;
   void completeLambdaBody(LambdaExpressionAST* ast);
+  void resolveDeferredCaptures(FunctionSymbol* callOperator,
+                               CompoundStatementAST* body);
   [[nodiscard]] auto declareClosureMemberFunction(ClassSymbol* classSymbol,
                                                   const Name* name,
                                                   const Type* type,
@@ -689,6 +691,19 @@ class Binder {
                                             const Type* thisType,
                                             SourceLocation loc)
       -> ThisLambdaCaptureAST*;
+
+  [[nodiscard]] auto implicitCaptureIdentifier(
+      IdExpressionAST* use, ClassSymbol* classSymbol, LambdaSymbol* lambda,
+      const std::vector<const Identifier*>& explicitlyCaptured)
+      -> const Identifier*;
+
+  [[nodiscard]] auto capturedFieldNamed(ClassSymbol* closure,
+                                        const Identifier* name) -> FieldSymbol*;
+
+  [[nodiscard]] auto appendImplicitCapture(
+      LambdaExpressionAST* ast, ClassSymbol* classSymbol, Symbol* outerSymbol,
+      const Identifier* identifier,
+      std::vector<std::pair<Symbol*, FieldSymbol*>>& captured) -> FieldSymbol*;
 
   void addImplicitCaptures(LambdaExpressionAST* ast, ClassSymbol* classSymbol);
 
