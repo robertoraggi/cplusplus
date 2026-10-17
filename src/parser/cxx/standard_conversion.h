@@ -130,6 +130,10 @@ class StandardConversion {
                                                           const Type* classType)
       -> bool;
 
+  [[nodiscard]] auto bestConversionTarget(
+      ExpressionAST* expr, const std::vector<const Type*>& targets)
+      -> const Type*;
+
   [[nodiscard]] auto convertClassOperandToIntegralOrEnumeration(
       ExpressionAST*& expr) -> bool;
 

@@ -658,11 +658,11 @@ auto StandardConversion::constructClassByDirectInitialization(
 namespace {
 
 template <class Select>
-[[nodiscard]] auto uniqueConversionTarget(TypeTraits& traits,
-                                          ClassSymbol* classSymbol,
-                                          Select select, const Type* preferred)
-    -> const Type* {
-  const Type* target = nullptr;
+[[nodiscard]] auto conversionTargets(TypeTraits& traits,
+                                     ClassSymbol* classSymbol, Select select,
+                                     const Type* preferred)
+    -> std::vector<const Type*> {
+  std::vector<const Type*> targets;
 
   for (auto convFunc : classSymbol->visibleConversionFunctions()) {
     if (convFunc->isExplicit()) continue;
@@ -674,23 +674,24 @@ template <class Select>
     if (!declared) continue;
 
     auto value = traits.remove_cvref(declared);
-    if (preferred && traits.is_same(value, preferred)) return value;
+    if (preferred && traits.is_same(value, preferred)) return {value};
 
     auto candidate = select(declared);
     if (!candidate) continue;
 
-    if (target && !traits.is_same(target, candidate)) return nullptr;
-
-    target = candidate;
+    const auto known = std::ranges::any_of(targets, [&](auto target) {
+      return traits.is_same(target, candidate);
+    });
+    if (!known) targets.push_back(candidate);
   }
 
-  return target;
+  return targets;
 }
 
 template <class Accepts>
 [[nodiscard]] auto convertedValue(TypeTraits& traits, Accepts accepts) {
   return [&traits, accepts](const Type* declared) -> const Type* {
-    auto value = traits.remove_cvref(declared);
+    auto value = traits.decay(declared);
     if (!accepts(value)) return nullptr;
     return value;
   };
@@ -709,6 +710,28 @@ template <class Accepts>
 
 }  // namespace
 
+auto StandardConversion::bestConversionTarget(
+    ExpressionAST* expr, const std::vector<const Type*>& targets)
+    -> const Type* {
+  if (targets.size() == 1) return targets.front();
+
+  std::vector<std::pair<const Type*, ImplicitConversionSequence>> viable;
+  for (auto target : targets) {
+    auto sequence = computeConversionSequence(expr, target);
+    if (sequence) viable.emplace_back(target, std::move(sequence));
+  }
+
+  for (const auto& [target, sequence] : viable) {
+    const auto beatsAll = std::ranges::all_of(viable, [&](const auto& other) {
+      return &other.second == &sequence ||
+             sequence.isBetterThan(other.second, traits);
+    });
+    if (beatsAll) return target;
+  }
+
+  return nullptr;
+}
+
 auto StandardConversion::convertClassOperandForBuiltinOperator(
     ExpressionAST*& expr, const Type* enumeration) -> bool {
   if (!expr || !expr->type) return false;
@@ -721,14 +744,16 @@ auto StandardConversion::convertClassOperandForBuiltinOperator(
 
   traits.requireCompleteClass(classSymbol);
 
-  auto target = uniqueConversionTarget(
-      traits, classSymbol,
-      convertedValue(traits,
-                     [&](const Type* type) {
-                       return traits.is_arithmetic_or_unscoped_enum(type) ||
-                              traits.is_pointer(type);
-                     }),
-      enumeration);
+  auto target = bestConversionTarget(
+      expr,
+      conversionTargets(
+          traits, classSymbol,
+          convertedValue(traits,
+                         [&](const Type* type) {
+                           return traits.is_arithmetic_or_unscoped_enum(type) ||
+                                  traits.is_pointer(type);
+                         }),
+          enumeration));
 
   if (!target) return false;
 
@@ -745,12 +770,13 @@ auto StandardConversion::convertClassTargetForBuiltinCompoundAssignment(
   auto classSymbol = classType->symbol();
   traits.requireCompleteClass(classSymbol);
 
-  auto target = uniqueConversionTarget(
-      traits, classSymbol,
-      [&](const Type* declared) {
-        return modifiableArithmeticOrPointerLvalue(traits, declared);
-      },
-      nullptr);
+  auto target = bestConversionTarget(
+      expr, conversionTargets(
+                traits, classSymbol,
+                [&](const Type* declared) {
+                  return modifiableArithmeticOrPointerLvalue(traits, declared);
+                },
+                nullptr));
 
   if (!target) return false;
   return convertImplicitly(expr, target);
@@ -768,13 +794,15 @@ auto StandardConversion::convertClassOperandToIntegralOrEnumeration(
 
   traits.requireCompleteClass(classSymbol);
 
-  auto target = uniqueConversionTarget(
-      traits, classSymbol,
-      convertedValue(traits,
-                     [&](const Type* type) {
-                       return traits.is_integral(type) || traits.is_enum(type);
-                     }),
-      nullptr);
+  auto target = bestConversionTarget(
+      expr,
+      conversionTargets(traits, classSymbol,
+                        convertedValue(traits,
+                                       [&](const Type* type) {
+                                         return traits.is_integral(type) ||
+                                                traits.is_enum(type);
+                                       }),
+                        nullptr));
 
   if (!target) return false;
 
