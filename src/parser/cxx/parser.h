@@ -685,6 +685,9 @@ class Parser final {
       TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_initializer(ExpressionAST*& yyast,
                                        const ExprContext& ctx) -> bool;
+  [[nodiscard]] auto declaresFunctionParameterPack(
+      ParameterDeclarationAST* ast) const -> bool;
+  void releaseClauseEllipsis(ParameterDeclarationAST* ast, Decl& decl);
   [[nodiscard]] auto parse_brace_or_equal_initializer(ExpressionAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_initializer_clause(ExpressionAST*& yyast,
