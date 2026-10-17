@@ -66,6 +66,9 @@ class Decl {
                                      ParameterDeclarationClauseAST* clause)
     -> std::vector<const Type*>;
 
+[[nodiscard]] auto declaresFunction(DeclaratorAST* declarator, const Type* type)
+    -> bool;
+
 [[nodiscard]] auto getDeclaratorType(TranslationUnit* unit,
                                      DeclaratorAST* declarator,
                                      const Type* type) -> const Type*;

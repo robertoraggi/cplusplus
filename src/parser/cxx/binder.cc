@@ -4183,7 +4183,7 @@ auto Binder::declareMemberSymbol(DeclaratorAST* declarator, const Decl& decl,
                                  bool addSymbolToParentScope) -> Symbol* {
   if (decl.specs.isTypedef) return declareTypedef(declarator, decl);
 
-  if (getFunctionPrototype(declarator))
+  if (declaresFunction(declarator, decl.specs.type()))
     return declareFunction(declarator, decl, addSymbolToParentScope);
 
   return declareField(declarator, decl);
