@@ -701,9 +701,9 @@ constexpr int ClassSymbolSlotBase = InjectedClassNameSymbolSlotBase + 1;
 
 constexpr int EnumSymbolSlotBase = ClassSymbolSlotBase + 66;
 
-constexpr int ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 3;
+constexpr int ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 14;
 
-constexpr int FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 2;
+constexpr int FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 13;
 
 constexpr int OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 81;
 
@@ -7625,14 +7625,58 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
     case EnumSymbolSlotBase + 0: {
       auto self = static_cast<const ::cxx::EnumSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->hasFixedUnderlyingType());
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->declaration())));
     }
     case EnumSymbolSlotBase + 1: {
       auto self = static_cast<const ::cxx::EnumSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isDefined());
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->templateDeclaration())));
     }
     case EnumSymbolSlotBase + 2: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->templateParameters())));
+    }
+    case EnumSymbolSlotBase + 3: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->primaryTemplateSymbol())));
+    }
+    case EnumSymbolSlotBase + 4: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->templateSpecializationIndex());
+    }
+    case EnumSymbolSlotBase + 5: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isSpecialization());
+    }
+    case EnumSymbolSlotBase + 6: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isTemplatePattern());
+    }
+    case EnumSymbolSlotBase + 7: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitSpecialization());
+    }
+    case EnumSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->hasFixedUnderlyingType());
+    }
+    case EnumSymbolSlotBase + 12: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isDefined());
+    }
+    case EnumSymbolSlotBase + 13: {
       auto self = static_cast<const ::cxx::EnumSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
@@ -7642,9 +7686,53 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
       auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Type*>(self->underlyingType())));
+          static_cast<const ::cxx::AST*>(self->declaration())));
     }
     case ScopedEnumSymbolSlotBase + 1: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->templateDeclaration())));
+    }
+    case ScopedEnumSymbolSlotBase + 2: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->templateParameters())));
+    }
+    case ScopedEnumSymbolSlotBase + 3: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->primaryTemplateSymbol())));
+    }
+    case ScopedEnumSymbolSlotBase + 4: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->templateSpecializationIndex());
+    }
+    case ScopedEnumSymbolSlotBase + 5: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isSpecialization());
+    }
+    case ScopedEnumSymbolSlotBase + 6: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isTemplatePattern());
+    }
+    case ScopedEnumSymbolSlotBase + 7: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isExplicitSpecialization());
+    }
+    case ScopedEnumSymbolSlotBase + 11: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Type*>(self->underlyingType())));
+    }
+    case ScopedEnumSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->isDefined());
@@ -9890,6 +9978,38 @@ auto readSymbolSize(std::intptr_t handle, std::intptr_t unit, int slot) -> int {
         return result;
       }()));
     }
+    case EnumSymbolSlotBase + 8: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->templateArguments()));
+    }
+    case EnumSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->specializations()));
+    }
+    case EnumSymbolSlotBase + 10: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(
+          std::size(self->externInstantiationDeclarations()));
+    }
+    case ScopedEnumSymbolSlotBase + 8: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->templateArguments()));
+    }
+    case ScopedEnumSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(std::size(self->specializations()));
+    }
+    case ScopedEnumSymbolSlotBase + 10: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<int>(
+          std::size(self->externInstantiationDeclarations()));
+    }
     case FunctionSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
@@ -11683,6 +11803,718 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
         }
         return result;
       }();
+    }
+    case EnumSymbolSlotBase + 8: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->templateArguments();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set("index", item.index());
+        switch (item.index()) {
+          case 0:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::Type*>(std::get<0>(item))))));
+            break;
+          case 1:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::Symbol*>(std::get<1>(item))))));
+            break;
+          case 2:
+            result.set("value", [&]() -> val {
+              auto result = val::object();
+              result.set("index", std::get<2>(item).index());
+              switch (std::get<2>(item).index()) {
+                case 0:
+                  result.set("value",
+                             val(std::get<0>(std::get<2>(item)).toString()));
+                  break;
+                case 1:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          static_cast<const ::cxx::Literal*>(
+                              std::get<1>(std::get<2>(item)))))));
+                  break;
+                case 2:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<2>(std::get<2>(item)))));
+                  break;
+                case 3:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<3>(std::get<2>(item)))));
+                  break;
+                case 4:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<4>(std::get<2>(item)))));
+                  break;
+                case 5:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<5>(std::get<2>(item)).get()))));
+                  break;
+                case 6:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<6>(std::get<2>(item)).get()))));
+                  break;
+                case 7:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<7>(std::get<2>(item)).get()))));
+                  break;
+                case 8:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<8>(std::get<2>(item)).get()))));
+                  break;
+                case 9:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<9>(std::get<2>(item)).get()))));
+                  break;
+                case 10:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<10>(std::get<2>(item)).get()))));
+                  break;
+                case 11:
+                  result.set("value", val::undefined());
+                  break;
+              }
+              return result;
+            }());
+            break;
+          case 3:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::AST*>(std::get<3>(item))))));
+            break;
+        }
+        return result;
+      }();
+    }
+    case EnumSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->specializations();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "arguments", arrayValue((item).arguments, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("index", item.index());
+                switch (item.index()) {
+                  case 0:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Type*>(
+                                std::get<0>(item))))));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Symbol*>(
+                                std::get<1>(item))))));
+                    break;
+                  case 2:
+                    result.set("value", [&]() -> val {
+                      auto result = val::object();
+                      result.set("index", std::get<2>(item).index());
+                      switch (std::get<2>(item).index()) {
+                        case 0:
+                          result.set(
+                              "value",
+                              val(std::get<0>(std::get<2>(item)).toString()));
+                          break;
+                        case 1:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      static_cast<const ::cxx::Literal*>(
+                                          std::get<1>(std::get<2>(item)))))));
+                          break;
+                        case 2:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<2>(std::get<2>(item)))));
+                          break;
+                        case 3:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<3>(std::get<2>(item)))));
+                          break;
+                        case 4:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<4>(std::get<2>(item)))));
+                          break;
+                        case 5:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<5>(std::get<2>(item)).get()))));
+                          break;
+                        case 6:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<6>(std::get<2>(item)).get()))));
+                          break;
+                        case 7:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<7>(std::get<2>(item)).get()))));
+                          break;
+                        case 8:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<8>(std::get<2>(item)).get()))));
+                          break;
+                        case 9:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<9>(std::get<2>(item)).get()))));
+                          break;
+                        case 10:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<10>(std::get<2>(item)).get()))));
+                          break;
+                        case 11:
+                          result.set("value", val::undefined());
+                          break;
+                      }
+                      return result;
+                    }());
+                    break;
+                  case 3:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::AST*>(
+                                std::get<3>(item))))));
+                    break;
+                }
+                return result;
+              }();
+            }));
+        result.set("symbol",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::Symbol*>((item).symbol)))));
+        result.set(
+            "instantiationErrors",
+            arrayValue((item).instantiationErrors, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("location",
+                           val(static_cast<double>((item).location.index())));
+                result.set("message", val(std::string((item).message)));
+                result.set("severity",
+                           val(static_cast<double>((item).severity)));
+                return result;
+              }();
+            }));
+        result.set("pendingArgumentList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (item).pendingArgumentList))));
+        result.set(
+            "pendingInstantiationLoc",
+            val(static_cast<double>((item).pendingInstantiationLoc.index())));
+        result.set("isPendingInstantiation",
+                   val(static_cast<double>((item).isPendingInstantiation)));
+        return result;
+      }();
+    }
+    case EnumSymbolSlotBase + 10: {
+      auto self = static_cast<const ::cxx::EnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->externInstantiationDeclarations();
+      const auto& item = *std::next(std::begin(container), index);
+      return arrayValue(item, [&](const auto& item) {
+        return [&]() -> val {
+          auto result = val::object();
+          result.set("index", item.index());
+          switch (item.index()) {
+            case 0:
+              result.set(
+                  "value",
+                  val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                      static_cast<const ::cxx::Type*>(std::get<0>(item))))));
+              break;
+            case 1:
+              result.set(
+                  "value",
+                  val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                      static_cast<const ::cxx::Symbol*>(std::get<1>(item))))));
+              break;
+            case 2:
+              result.set("value", [&]() -> val {
+                auto result = val::object();
+                result.set("index", std::get<2>(item).index());
+                switch (std::get<2>(item).index()) {
+                  case 0:
+                    result.set("value",
+                               val(std::get<0>(std::get<2>(item)).toString()));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Literal*>(
+                                std::get<1>(std::get<2>(item)))))));
+                    break;
+                  case 2:
+                    result.set("value", val(static_cast<double>(
+                                            std::get<2>(std::get<2>(item)))));
+                    break;
+                  case 3:
+                    result.set("value", val(static_cast<double>(
+                                            std::get<3>(std::get<2>(item)))));
+                    break;
+                  case 4:
+                    result.set("value", val(static_cast<double>(
+                                            std::get<4>(std::get<2>(item)))));
+                    break;
+                  case 5:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<5>(std::get<2>(item)).get()))));
+                    break;
+                  case 6:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<6>(std::get<2>(item)).get()))));
+                    break;
+                  case 7:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<7>(std::get<2>(item)).get()))));
+                    break;
+                  case 8:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<8>(std::get<2>(item)).get()))));
+                    break;
+                  case 9:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<9>(std::get<2>(item)).get()))));
+                    break;
+                  case 10:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<10>(std::get<2>(item)).get()))));
+                    break;
+                  case 11:
+                    result.set("value", val::undefined());
+                    break;
+                }
+                return result;
+              }());
+              break;
+            case 3:
+              result.set(
+                  "value",
+                  val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                      static_cast<const ::cxx::AST*>(std::get<3>(item))))));
+              break;
+          }
+          return result;
+        }();
+      });
+    }
+    case ScopedEnumSymbolSlotBase + 8: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->templateArguments();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set("index", item.index());
+        switch (item.index()) {
+          case 0:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::Type*>(std::get<0>(item))))));
+            break;
+          case 1:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::Symbol*>(std::get<1>(item))))));
+            break;
+          case 2:
+            result.set("value", [&]() -> val {
+              auto result = val::object();
+              result.set("index", std::get<2>(item).index());
+              switch (std::get<2>(item).index()) {
+                case 0:
+                  result.set("value",
+                             val(std::get<0>(std::get<2>(item)).toString()));
+                  break;
+                case 1:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          static_cast<const ::cxx::Literal*>(
+                              std::get<1>(std::get<2>(item)))))));
+                  break;
+                case 2:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<2>(std::get<2>(item)))));
+                  break;
+                case 3:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<3>(std::get<2>(item)))));
+                  break;
+                case 4:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(std::get<4>(std::get<2>(item)))));
+                  break;
+                case 5:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<5>(std::get<2>(item)).get()))));
+                  break;
+                case 6:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<6>(std::get<2>(item)).get()))));
+                  break;
+                case 7:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<7>(std::get<2>(item)).get()))));
+                  break;
+                case 8:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<8>(std::get<2>(item)).get()))));
+                  break;
+                case 9:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<9>(std::get<2>(item)).get()))));
+                  break;
+                case 10:
+                  result.set(
+                      "value",
+                      val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                          std::get<10>(std::get<2>(item)).get()))));
+                  break;
+                case 11:
+                  result.set("value", val::undefined());
+                  break;
+              }
+              return result;
+            }());
+            break;
+          case 3:
+            result.set(
+                "value",
+                val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                    static_cast<const ::cxx::AST*>(std::get<3>(item))))));
+            break;
+        }
+        return result;
+      }();
+    }
+    case ScopedEnumSymbolSlotBase + 9: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->specializations();
+      const auto& item = *std::next(std::begin(container), index);
+      return [&]() -> val {
+        auto result = val::object();
+        result.set(
+            "arguments", arrayValue((item).arguments, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("index", item.index());
+                switch (item.index()) {
+                  case 0:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Type*>(
+                                std::get<0>(item))))));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Symbol*>(
+                                std::get<1>(item))))));
+                    break;
+                  case 2:
+                    result.set("value", [&]() -> val {
+                      auto result = val::object();
+                      result.set("index", std::get<2>(item).index());
+                      switch (std::get<2>(item).index()) {
+                        case 0:
+                          result.set(
+                              "value",
+                              val(std::get<0>(std::get<2>(item)).toString()));
+                          break;
+                        case 1:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      static_cast<const ::cxx::Literal*>(
+                                          std::get<1>(std::get<2>(item)))))));
+                          break;
+                        case 2:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<2>(std::get<2>(item)))));
+                          break;
+                        case 3:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<3>(std::get<2>(item)))));
+                          break;
+                        case 4:
+                          result.set("value",
+                                     val(static_cast<double>(
+                                         std::get<4>(std::get<2>(item)))));
+                          break;
+                        case 5:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<5>(std::get<2>(item)).get()))));
+                          break;
+                        case 6:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<6>(std::get<2>(item)).get()))));
+                          break;
+                        case 7:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<7>(std::get<2>(item)).get()))));
+                          break;
+                        case 8:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<8>(std::get<2>(item)).get()))));
+                          break;
+                        case 9:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<9>(std::get<2>(item)).get()))));
+                          break;
+                        case 10:
+                          result.set(
+                              "value",
+                              val(static_cast<double>(
+                                  reinterpret_cast<std::intptr_t>(
+                                      std::get<10>(std::get<2>(item)).get()))));
+                          break;
+                        case 11:
+                          result.set("value", val::undefined());
+                          break;
+                      }
+                      return result;
+                    }());
+                    break;
+                  case 3:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::AST*>(
+                                std::get<3>(item))))));
+                    break;
+                }
+                return result;
+              }();
+            }));
+        result.set("symbol",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       static_cast<const ::cxx::Symbol*>((item).symbol)))));
+        result.set(
+            "instantiationErrors",
+            arrayValue((item).instantiationErrors, [&](const auto& item) {
+              return [&]() -> val {
+                auto result = val::object();
+                result.set("location",
+                           val(static_cast<double>((item).location.index())));
+                result.set("message", val(std::string((item).message)));
+                result.set("severity",
+                           val(static_cast<double>((item).severity)));
+                return result;
+              }();
+            }));
+        result.set("pendingArgumentList",
+                   val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                       (item).pendingArgumentList))));
+        result.set(
+            "pendingInstantiationLoc",
+            val(static_cast<double>((item).pendingInstantiationLoc.index())));
+        result.set("isPendingInstantiation",
+                   val(static_cast<double>((item).isPendingInstantiation)));
+        return result;
+      }();
+    }
+    case ScopedEnumSymbolSlotBase + 10: {
+      auto self = static_cast<const ::cxx::ScopedEnumSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      const auto& container = self->externInstantiationDeclarations();
+      const auto& item = *std::next(std::begin(container), index);
+      return arrayValue(item, [&](const auto& item) {
+        return [&]() -> val {
+          auto result = val::object();
+          result.set("index", item.index());
+          switch (item.index()) {
+            case 0:
+              result.set(
+                  "value",
+                  val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                      static_cast<const ::cxx::Type*>(std::get<0>(item))))));
+              break;
+            case 1:
+              result.set(
+                  "value",
+                  val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                      static_cast<const ::cxx::Symbol*>(std::get<1>(item))))));
+              break;
+            case 2:
+              result.set("value", [&]() -> val {
+                auto result = val::object();
+                result.set("index", std::get<2>(item).index());
+                switch (std::get<2>(item).index()) {
+                  case 0:
+                    result.set("value",
+                               val(std::get<0>(std::get<2>(item)).toString()));
+                    break;
+                  case 1:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            static_cast<const ::cxx::Literal*>(
+                                std::get<1>(std::get<2>(item)))))));
+                    break;
+                  case 2:
+                    result.set("value", val(static_cast<double>(
+                                            std::get<2>(std::get<2>(item)))));
+                    break;
+                  case 3:
+                    result.set("value", val(static_cast<double>(
+                                            std::get<3>(std::get<2>(item)))));
+                    break;
+                  case 4:
+                    result.set("value", val(static_cast<double>(
+                                            std::get<4>(std::get<2>(item)))));
+                    break;
+                  case 5:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<5>(std::get<2>(item)).get()))));
+                    break;
+                  case 6:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<6>(std::get<2>(item)).get()))));
+                    break;
+                  case 7:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<7>(std::get<2>(item)).get()))));
+                    break;
+                  case 8:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<8>(std::get<2>(item)).get()))));
+                    break;
+                  case 9:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<9>(std::get<2>(item)).get()))));
+                    break;
+                  case 10:
+                    result.set(
+                        "value",
+                        val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                            std::get<10>(std::get<2>(item)).get()))));
+                    break;
+                  case 11:
+                    result.set("value", val::undefined());
+                    break;
+                }
+                return result;
+              }());
+              break;
+            case 3:
+              result.set(
+                  "value",
+                  val(static_cast<double>(reinterpret_cast<std::intptr_t>(
+                      static_cast<const ::cxx::AST*>(std::get<3>(item))))));
+              break;
+          }
+          return result;
+        }();
+      });
     }
     case FunctionSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::FunctionSymbol*>(

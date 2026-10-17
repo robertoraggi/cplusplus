@@ -1384,7 +1384,8 @@ class ClassSymbol final : public ScopeSymbol,
   };
 };
 
-class EnumSymbol final : public ScopeSymbol {
+class EnumSymbol final : public ScopeSymbol,
+                         public MaybeTemplate<EnumSymbol, EnumSpecifierAST> {
  public:
   constexpr static auto Kind = SymbolKind::kEnum;
 
@@ -1406,7 +1407,9 @@ class EnumSymbol final : public ScopeSymbol {
   bool isDefined_ = false;
 };
 
-class ScopedEnumSymbol final : public ScopeSymbol {
+class ScopedEnumSymbol final
+    : public ScopeSymbol,
+      public MaybeTemplate<ScopedEnumSymbol, EnumSpecifierAST> {
  public:
   constexpr static auto Kind = SymbolKind::kScopedEnum;
 
@@ -2314,6 +2317,8 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
   if (symbol->parent()) return false;
   return true;
 }
+
+[[nodiscard]] auto isDefinedEnumeration(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto isDeclaredConstant(Symbol* symbol) -> bool;
 

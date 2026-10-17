@@ -2260,6 +2260,32 @@ void SemanticEncoder::writeSymbolClassSymbol(
 void SemanticEncoder::writeSymbolEnumSymbol(
     ByteWriter& out, [[maybe_unused]] cxx::EnumSymbol* self) {
   writeSymbolScopeSymbol(out, self);
+  // ::cxx::MaybeTemplate::declaration_
+  out.varU32(static_cast<std::uint32_t>(astRef(self->declaration())));
+  // ::cxx::MaybeTemplate::templateDeclaration
+  out.varU32(static_cast<std::uint32_t>(astRef(self->templateDeclaration())));
+  // ::cxx::MaybeTemplate::templateParameters
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->templateParameters())));
+  // ::cxx::MaybeTemplate::specializations
+  out.varU32(
+      static_cast<std::uint32_t>(std::ranges::size(self->specializations())));
+  for (const auto& element1 : self->specializations()) {
+    writecxxTemplateSpecialization(out, &element1);
+  }
+  // ::cxx::MaybeTemplate::primaryTemplateSymbol
+  out.varU32(
+      static_cast<std::uint32_t>(symbolRef(self->primaryTemplateSymbol())));
+  // ::cxx::MaybeTemplate::templateSpecializationIndex
+  out.varI32(static_cast<std::int32_t>(self->templateSpecializationIndex()));
+  // ::cxx::MaybeTemplate::externInstantiationDeclarations
+  out.varU32(static_cast<std::uint32_t>(
+      std::ranges::size(self->externInstantiationDeclarations())));
+  for (const auto& element2 : self->externInstantiationDeclarations()) {
+    out.varU32(static_cast<std::uint32_t>(std::ranges::size(element2)));
+    for (const auto& element3 : element2) {
+      writeTemplateArgument(out, element3);
+    }
+  }
   // ::cxx::EnumSymbol::underlyingType_
   out.varU32(static_cast<std::uint32_t>(typeRef(self->underlyingType())));
   // ::cxx::EnumSymbol::hasFixedUnderlyingType_
@@ -2271,6 +2297,32 @@ void SemanticEncoder::writeSymbolEnumSymbol(
 void SemanticEncoder::writeSymbolScopedEnumSymbol(
     ByteWriter& out, [[maybe_unused]] cxx::ScopedEnumSymbol* self) {
   writeSymbolScopeSymbol(out, self);
+  // ::cxx::MaybeTemplate::declaration_
+  out.varU32(static_cast<std::uint32_t>(astRef(self->declaration())));
+  // ::cxx::MaybeTemplate::templateDeclaration
+  out.varU32(static_cast<std::uint32_t>(astRef(self->templateDeclaration())));
+  // ::cxx::MaybeTemplate::templateParameters
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->templateParameters())));
+  // ::cxx::MaybeTemplate::specializations
+  out.varU32(
+      static_cast<std::uint32_t>(std::ranges::size(self->specializations())));
+  for (const auto& element1 : self->specializations()) {
+    writecxxTemplateSpecialization(out, &element1);
+  }
+  // ::cxx::MaybeTemplate::primaryTemplateSymbol
+  out.varU32(
+      static_cast<std::uint32_t>(symbolRef(self->primaryTemplateSymbol())));
+  // ::cxx::MaybeTemplate::templateSpecializationIndex
+  out.varI32(static_cast<std::int32_t>(self->templateSpecializationIndex()));
+  // ::cxx::MaybeTemplate::externInstantiationDeclarations
+  out.varU32(static_cast<std::uint32_t>(
+      std::ranges::size(self->externInstantiationDeclarations())));
+  for (const auto& element2 : self->externInstantiationDeclarations()) {
+    out.varU32(static_cast<std::uint32_t>(std::ranges::size(element2)));
+    for (const auto& element3 : element2) {
+      writeTemplateArgument(out, element3);
+    }
+  }
   // ::cxx::ScopedEnumSymbol::underlyingType_
   out.varU32(static_cast<std::uint32_t>(typeRef(self->underlyingType())));
   // ::cxx::ScopedEnumSymbol::isDefined_
@@ -9975,27 +10027,133 @@ void SemanticDecoder::readSymbolClassSymbol(
 void SemanticDecoder::readSymbolEnumSymbol(
     [[maybe_unused]] ByteReader& in, [[maybe_unused]] cxx::EnumSymbol* self) {
   readSymbolScopeSymbol(in, self);
+  // ::cxx::MaybeTemplate::declaration_
+  cxx::EnumSpecifierAST* value1 =
+      ast_cast<EnumSpecifierAST>(astAt(AstRef{in.varU32()}));
+  self->setDeclaration(std::move(value1));
+  // ::cxx::MaybeTemplate::templateDeclaration
+  cxx::TemplateDeclarationAST* value2 =
+      ast_cast<TemplateDeclarationAST>(astAt(AstRef{in.varU32()}));
+  self->setTemplateDeclaration(std::move(value2));
+  // ::cxx::MaybeTemplate::templateParameters
+  cxx::TemplateParametersSymbol* value3 =
+      symbol_cast<TemplateParametersSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->setTemplateParameters(std::move(value3));
+  // ::cxx::MaybeTemplate::specializations
+  std::vector<cxx::TemplateSpecialization> value4;
+  {
+    const auto count5 = in.varCount(1);
+    for (std::uint32_t i6 = 0; ok() && i6 < count5; ++i6) {
+      cxx::TemplateSpecialization element7{};
+      readcxxTemplateSpecialization(in, &element7);
+      value4.push_back(std::move(element7));
+    }
+  }
+  for (auto&& element8 : value4) {
+    self->restoreSpecialization(std::move(element8));
+  }
+  // ::cxx::MaybeTemplate::primaryTemplateSymbol
+  cxx::EnumSymbol* value9 =
+      symbol_cast<EnumSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->restoreSpecializationInfo(std::move(value9),
+                                  self->templateSpecializationIndex());
+  // ::cxx::MaybeTemplate::templateSpecializationIndex
+  int value10 = static_cast<int>(in.varI32());
+  self->restoreSpecializationInfo(self->primaryTemplateSymbol(),
+                                  std::move(value10));
+  // ::cxx::MaybeTemplate::externInstantiationDeclarations
+  std::vector<std::vector<cxx::TemplateArgument>> value11;
+  {
+    const auto count12 = in.varCount(1);
+    for (std::uint32_t i13 = 0; ok() && i13 < count12; ++i13) {
+      std::vector<cxx::TemplateArgument> element14;
+      {
+        const auto count15 = in.varCount(1);
+        for (std::uint32_t i16 = 0; ok() && i16 < count15; ++i16) {
+          cxx::TemplateArgument element17 = readTemplateArgument(in);
+          element14.push_back(std::move(element17));
+        }
+      }
+      value11.push_back(std::move(element14));
+    }
+  }
+  for (auto&& element18 : value11) {
+    self->addExternInstantiationDeclaration(element18);
+  }
   // ::cxx::EnumSymbol::underlyingType_
-  const cxx::Type* value1 = typeAt(TypeRef{in.varU32()});
-  self->setUnderlyingType(std::move(value1));
+  const cxx::Type* value19 = typeAt(TypeRef{in.varU32()});
+  self->setUnderlyingType(std::move(value19));
   // ::cxx::EnumSymbol::hasFixedUnderlyingType_
-  bool value2 = in.boolean();
-  self->setHasFixedUnderlyingType(std::move(value2));
+  bool value20 = in.boolean();
+  self->setHasFixedUnderlyingType(std::move(value20));
   // ::cxx::EnumSymbol::isDefined_
-  bool value3 = in.boolean();
-  self->setDefined(std::move(value3));
+  bool value21 = in.boolean();
+  self->setDefined(std::move(value21));
 }
 
 void SemanticDecoder::readSymbolScopedEnumSymbol(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::ScopedEnumSymbol* self) {
   readSymbolScopeSymbol(in, self);
+  // ::cxx::MaybeTemplate::declaration_
+  cxx::EnumSpecifierAST* value1 =
+      ast_cast<EnumSpecifierAST>(astAt(AstRef{in.varU32()}));
+  self->setDeclaration(std::move(value1));
+  // ::cxx::MaybeTemplate::templateDeclaration
+  cxx::TemplateDeclarationAST* value2 =
+      ast_cast<TemplateDeclarationAST>(astAt(AstRef{in.varU32()}));
+  self->setTemplateDeclaration(std::move(value2));
+  // ::cxx::MaybeTemplate::templateParameters
+  cxx::TemplateParametersSymbol* value3 =
+      symbol_cast<TemplateParametersSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->setTemplateParameters(std::move(value3));
+  // ::cxx::MaybeTemplate::specializations
+  std::vector<cxx::TemplateSpecialization> value4;
+  {
+    const auto count5 = in.varCount(1);
+    for (std::uint32_t i6 = 0; ok() && i6 < count5; ++i6) {
+      cxx::TemplateSpecialization element7{};
+      readcxxTemplateSpecialization(in, &element7);
+      value4.push_back(std::move(element7));
+    }
+  }
+  for (auto&& element8 : value4) {
+    self->restoreSpecialization(std::move(element8));
+  }
+  // ::cxx::MaybeTemplate::primaryTemplateSymbol
+  cxx::ScopedEnumSymbol* value9 =
+      symbol_cast<ScopedEnumSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->restoreSpecializationInfo(std::move(value9),
+                                  self->templateSpecializationIndex());
+  // ::cxx::MaybeTemplate::templateSpecializationIndex
+  int value10 = static_cast<int>(in.varI32());
+  self->restoreSpecializationInfo(self->primaryTemplateSymbol(),
+                                  std::move(value10));
+  // ::cxx::MaybeTemplate::externInstantiationDeclarations
+  std::vector<std::vector<cxx::TemplateArgument>> value11;
+  {
+    const auto count12 = in.varCount(1);
+    for (std::uint32_t i13 = 0; ok() && i13 < count12; ++i13) {
+      std::vector<cxx::TemplateArgument> element14;
+      {
+        const auto count15 = in.varCount(1);
+        for (std::uint32_t i16 = 0; ok() && i16 < count15; ++i16) {
+          cxx::TemplateArgument element17 = readTemplateArgument(in);
+          element14.push_back(std::move(element17));
+        }
+      }
+      value11.push_back(std::move(element14));
+    }
+  }
+  for (auto&& element18 : value11) {
+    self->addExternInstantiationDeclaration(element18);
+  }
   // ::cxx::ScopedEnumSymbol::underlyingType_
-  const cxx::Type* value1 = typeAt(TypeRef{in.varU32()});
-  self->setUnderlyingType(std::move(value1));
+  const cxx::Type* value19 = typeAt(TypeRef{in.varU32()});
+  self->setUnderlyingType(std::move(value19));
   // ::cxx::ScopedEnumSymbol::isDefined_
-  bool value2 = in.boolean();
-  self->setDefined(std::move(value2));
+  bool value20 = in.boolean();
+  self->setDefined(std::move(value20));
 }
 
 void SemanticDecoder::readSymbolFunctionSymbol(
