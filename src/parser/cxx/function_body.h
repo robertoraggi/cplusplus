@@ -53,9 +53,12 @@ namespace cxx {
 [[nodiscard]] inline auto ctor_initializers(FunctionSymbol* function)
     -> List<MemInitializerAST*>* {
   if (!function) return nullptr;
+  auto definition = function->resolvedDefinition();
+  if (auto initializers = definition->constructorInitializers())
+    return *initializers;
   if (auto initializers = function->constructorInitializers())
     return *initializers;
-  auto declaration = function->declaration();
+  auto declaration = definition->declaration();
   return declaration ? ctor_initializers(declaration->functionBody) : nullptr;
 }
 
