@@ -377,6 +377,11 @@ class Token;
   V(__BUILTIN_ACOSHL, "__builtin_acoshl")                                     \
   V(__BUILTIN_ACOSL, "__builtin_acosl")                                       \
   V(__BUILTIN_ADD_OVERFLOW, "__builtin_add_overflow")                         \
+  V(__BUILTIN_ADDC, "__builtin_addc")                                         \
+  V(__BUILTIN_ADDCB, "__builtin_addcb")                                       \
+  V(__BUILTIN_ADDCL, "__builtin_addcl")                                       \
+  V(__BUILTIN_ADDCLL, "__builtin_addcll")                                     \
+  V(__BUILTIN_ADDCS, "__builtin_addcs")                                       \
   V(__BUILTIN_ADDRESSOF, "__builtin_addressof")                               \
   V(__BUILTIN_ALIGNED_ALLOC, "__builtin_aligned_alloc")                       \
   V(__BUILTIN_ALLOCA, "__builtin_alloca")                                     \
@@ -695,6 +700,9 @@ class Token;
   V(__BUILTIN_ROUNDEVENL, "__builtin_roundevenl")                             \
   V(__BUILTIN_ROUNDF, "__builtin_roundf")                                     \
   V(__BUILTIN_ROUNDL, "__builtin_roundl")                                     \
+  V(__BUILTIN_SADD_OVERFLOW, "__builtin_sadd_overflow")                       \
+  V(__BUILTIN_SADDL_OVERFLOW, "__builtin_saddl_overflow")                     \
+  V(__BUILTIN_SADDLL_OVERFLOW, "__builtin_saddll_overflow")                   \
   V(__BUILTIN_SCALBLN, "__builtin_scalbln")                                   \
   V(__BUILTIN_SCALBLNF, "__builtin_scalblnf")                                 \
   V(__BUILTIN_SCALBLNL, "__builtin_scalblnl")                                 \
@@ -711,10 +719,16 @@ class Token;
   V(__BUILTIN_SINHF, "__builtin_sinhf")                                       \
   V(__BUILTIN_SINHL, "__builtin_sinhl")                                       \
   V(__BUILTIN_SINL, "__builtin_sinl")                                         \
+  V(__BUILTIN_SMUL_OVERFLOW, "__builtin_smul_overflow")                       \
+  V(__BUILTIN_SMULL_OVERFLOW, "__builtin_smull_overflow")                     \
+  V(__BUILTIN_SMULLL_OVERFLOW, "__builtin_smulll_overflow")                   \
   V(__BUILTIN_SOURCE_LOCATION, "__builtin_source_location")                   \
   V(__BUILTIN_SQRT, "__builtin_sqrt")                                         \
   V(__BUILTIN_SQRTF, "__builtin_sqrtf")                                       \
   V(__BUILTIN_SQRTL, "__builtin_sqrtl")                                       \
+  V(__BUILTIN_SSUB_OVERFLOW, "__builtin_ssub_overflow")                       \
+  V(__BUILTIN_SSUBL_OVERFLOW, "__builtin_ssubl_overflow")                     \
+  V(__BUILTIN_SSUBLL_OVERFLOW, "__builtin_ssubll_overflow")                   \
   V(__BUILTIN_STPCPY, "__builtin_stpcpy")                                     \
   V(__BUILTIN_STPNCPY, "__builtin_stpncpy")                                   \
   V(__BUILTIN_STRCASECMP, "__builtin_strcasecmp")                             \
@@ -747,6 +761,11 @@ class Token;
   V(__BUILTIN_STRTOULL, "__builtin_strtoull")                                 \
   V(__BUILTIN_STRXFRM, "__builtin_strxfrm")                                   \
   V(__BUILTIN_SUB_OVERFLOW, "__builtin_sub_overflow")                         \
+  V(__BUILTIN_SUBC, "__builtin_subc")                                         \
+  V(__BUILTIN_SUBCB, "__builtin_subcb")                                       \
+  V(__BUILTIN_SUBCL, "__builtin_subcl")                                       \
+  V(__BUILTIN_SUBCLL, "__builtin_subcll")                                     \
+  V(__BUILTIN_SUBCS, "__builtin_subcs")                                       \
   V(__BUILTIN_TAN, "__builtin_tan")                                           \
   V(__BUILTIN_TANF, "__builtin_tanf")                                         \
   V(__BUILTIN_TANH, "__builtin_tanh")                                         \
@@ -763,7 +782,16 @@ class Token;
   V(__BUILTIN_TRUNC, "__builtin_trunc")                                       \
   V(__BUILTIN_TRUNCF, "__builtin_truncf")                                     \
   V(__BUILTIN_TRUNCL, "__builtin_truncl")                                     \
+  V(__BUILTIN_UADD_OVERFLOW, "__builtin_uadd_overflow")                       \
+  V(__BUILTIN_UADDL_OVERFLOW, "__builtin_uaddl_overflow")                     \
+  V(__BUILTIN_UADDLL_OVERFLOW, "__builtin_uaddll_overflow")                   \
+  V(__BUILTIN_UMUL_OVERFLOW, "__builtin_umul_overflow")                       \
+  V(__BUILTIN_UMULL_OVERFLOW, "__builtin_umull_overflow")                     \
+  V(__BUILTIN_UMULLL_OVERFLOW, "__builtin_umulll_overflow")                   \
   V(__BUILTIN_UNREACHABLE, "__builtin_unreachable")                           \
+  V(__BUILTIN_USUB_OVERFLOW, "__builtin_usub_overflow")                       \
+  V(__BUILTIN_USUBL_OVERFLOW, "__builtin_usubl_overflow")                     \
+  V(__BUILTIN_USUBLL_OVERFLOW, "__builtin_usubll_overflow")                   \
   V(__BUILTIN_VA_COPY, "__builtin_va_copy")                                   \
   V(__BUILTIN_VA_END, "__builtin_va_end")                                     \
   V(__BUILTIN_VA_START, "__builtin_va_start")                                 \

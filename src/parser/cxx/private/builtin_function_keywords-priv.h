@@ -214,6 +214,12 @@ static inline auto classifyBuiltinFunction14(const char* s)
                               return cxx::BuiltinFunctionKind::T___BUILTIN_ACOS;
                             }
                           }
+                        } else if (s[11] == 'd') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'c') {
+                              return cxx::BuiltinFunctionKind::T___BUILTIN_ADDC;
+                            }
+                          }
                         } else if (s[11] == 's') {
                           if (s[12] == 'i') {
                             if (s[13] == 'n') {
@@ -472,6 +478,12 @@ static inline auto classifyBuiltinFunction14(const char* s)
                               return cxx::BuiltinFunctionKind::T___BUILTIN_SQRT;
                             }
                           }
+                        } else if (s[11] == 'u') {
+                          if (s[12] == 'b') {
+                            if (s[13] == 'c') {
+                              return cxx::BuiltinFunctionKind::T___BUILTIN_SUBC;
+                            }
+                          }
                         }
                       } else if (s[10] == 't') {
                         if (s[11] == 'a') {
@@ -577,6 +589,21 @@ static inline auto classifyBuiltinFunction15(const char* s)
                               } else if (s[14] == 'l') {
                                 return cxx::BuiltinFunctionKind::
                                     T___BUILTIN_ACOSL;
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'd') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'c') {
+                              if (s[14] == 'b') {
+                                return cxx::BuiltinFunctionKind::
+                                    T___BUILTIN_ADDCB;
+                              } else if (s[14] == 'l') {
+                                return cxx::BuiltinFunctionKind::
+                                    T___BUILTIN_ADDCL;
+                              } else if (s[14] == 's') {
+                                return cxx::BuiltinFunctionKind::
+                                    T___BUILTIN_ADDCS;
                               }
                             }
                           }
@@ -1153,6 +1180,21 @@ static inline auto classifyBuiltinFunction15(const char* s)
                               }
                             }
                           }
+                        } else if (s[11] == 'u') {
+                          if (s[12] == 'b') {
+                            if (s[13] == 'c') {
+                              if (s[14] == 'b') {
+                                return cxx::BuiltinFunctionKind::
+                                    T___BUILTIN_SUBCB;
+                              } else if (s[14] == 'l') {
+                                return cxx::BuiltinFunctionKind::
+                                    T___BUILTIN_SUBCL;
+                              } else if (s[14] == 's') {
+                                return cxx::BuiltinFunctionKind::
+                                    T___BUILTIN_SUBCS;
+                              }
+                            }
+                          }
                         }
                       } else if (s[10] == 't') {
                         if (s[11] == 'a') {
@@ -1256,6 +1298,17 @@ static inline auto classifyBuiltinFunction16(const char* s)
                                 } else if (s[15] == 'l') {
                                   return cxx::BuiltinFunctionKind::
                                       T___BUILTIN_ACOSHL;
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'd') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'c') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'l') {
+                                  return cxx::BuiltinFunctionKind::
+                                      T___BUILTIN_ADDCLL;
                                 }
                               }
                             }
@@ -1851,6 +1904,17 @@ static inline auto classifyBuiltinFunction16(const char* s)
                                 } else if (s[15] == 'l') {
                                   return cxx::BuiltinFunctionKind::
                                       T___BUILTIN_STRTOL;
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'u') {
+                          if (s[12] == 'b') {
+                            if (s[13] == 'c') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'l') {
+                                  return cxx::BuiltinFunctionKind::
+                                      T___BUILTIN_SUBCLL;
                                 }
                               }
                             }
@@ -4971,6 +5035,160 @@ static inline auto classifyBuiltinFunction23(const char* s)
                             }
                           }
                         }
+                      } else if (s[10] == 's') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'd') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'o') {
+                                  if (s[16] == 'v') {
+                                    if (s[17] == 'e') {
+                                      if (s[18] == 'r') {
+                                        if (s[19] == 'f') {
+                                          if (s[20] == 'l') {
+                                            if (s[21] == 'o') {
+                                              if (s[22] == 'w') {
+                                                return cxx::BuiltinFunctionKind::
+                                                    T___BUILTIN_SADD_OVERFLOW;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'm') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'l') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'o') {
+                                  if (s[16] == 'v') {
+                                    if (s[17] == 'e') {
+                                      if (s[18] == 'r') {
+                                        if (s[19] == 'f') {
+                                          if (s[20] == 'l') {
+                                            if (s[21] == 'o') {
+                                              if (s[22] == 'w') {
+                                                return cxx::BuiltinFunctionKind::
+                                                    T___BUILTIN_SMUL_OVERFLOW;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 's') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'b') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'o') {
+                                  if (s[16] == 'v') {
+                                    if (s[17] == 'e') {
+                                      if (s[18] == 'r') {
+                                        if (s[19] == 'f') {
+                                          if (s[20] == 'l') {
+                                            if (s[21] == 'o') {
+                                              if (s[22] == 'w') {
+                                                return cxx::BuiltinFunctionKind::
+                                                    T___BUILTIN_SSUB_OVERFLOW;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      } else if (s[10] == 'u') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'd') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'o') {
+                                  if (s[16] == 'v') {
+                                    if (s[17] == 'e') {
+                                      if (s[18] == 'r') {
+                                        if (s[19] == 'f') {
+                                          if (s[20] == 'l') {
+                                            if (s[21] == 'o') {
+                                              if (s[22] == 'w') {
+                                                return cxx::BuiltinFunctionKind::
+                                                    T___BUILTIN_UADD_OVERFLOW;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'm') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'l') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'o') {
+                                  if (s[16] == 'v') {
+                                    if (s[17] == 'e') {
+                                      if (s[18] == 'r') {
+                                        if (s[19] == 'f') {
+                                          if (s[20] == 'l') {
+                                            if (s[21] == 'o') {
+                                              if (s[22] == 'w') {
+                                                return cxx::BuiltinFunctionKind::
+                                                    T___BUILTIN_UMUL_OVERFLOW;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 's') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'b') {
+                              if (s[14] == '_') {
+                                if (s[15] == 'o') {
+                                  if (s[16] == 'v') {
+                                    if (s[17] == 'e') {
+                                      if (s[18] == 'r') {
+                                        if (s[19] == 'f') {
+                                          if (s[20] == 'l') {
+                                            if (s[21] == 'o') {
+                                              if (s[22] == 'w') {
+                                                return cxx::BuiltinFunctionKind::
+                                                    T___BUILTIN_USUB_OVERFLOW;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -5127,6 +5345,89 @@ static inline auto classifyBuiltinFunction24(const char* s)
                             }
                           }
                         }
+                      } else if (s[10] == 's') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'd') {
+                              if (s[14] == 'l') {
+                                if (s[15] == '_') {
+                                  if (s[16] == 'o') {
+                                    if (s[17] == 'v') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == 'r') {
+                                          if (s[20] == 'f') {
+                                            if (s[21] == 'l') {
+                                              if (s[22] == 'o') {
+                                                if (s[23] == 'w') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___BUILTIN_SADDL_OVERFLOW;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'm') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'l') {
+                              if (s[14] == 'l') {
+                                if (s[15] == '_') {
+                                  if (s[16] == 'o') {
+                                    if (s[17] == 'v') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == 'r') {
+                                          if (s[20] == 'f') {
+                                            if (s[21] == 'l') {
+                                              if (s[22] == 'o') {
+                                                if (s[23] == 'w') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___BUILTIN_SMULL_OVERFLOW;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 's') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'b') {
+                              if (s[14] == 'l') {
+                                if (s[15] == '_') {
+                                  if (s[16] == 'o') {
+                                    if (s[17] == 'v') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == 'r') {
+                                          if (s[20] == 'f') {
+                                            if (s[21] == 'l') {
+                                              if (s[22] == 'o') {
+                                                if (s[23] == 'w') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___BUILTIN_SSUBL_OVERFLOW;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
                       } else if (s[10] == 't') {
                         if (s[11] == 'h') {
                           if (s[12] == 'r') {
@@ -5143,6 +5444,89 @@ static inline auto classifyBuiltinFunction24(const char* s)
                                                 if (s[23] == 'r') {
                                                   return cxx::BuiltinFunctionKind::
                                                       T___BUILTIN_THREAD_POINTER;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      } else if (s[10] == 'u') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'd') {
+                              if (s[14] == 'l') {
+                                if (s[15] == '_') {
+                                  if (s[16] == 'o') {
+                                    if (s[17] == 'v') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == 'r') {
+                                          if (s[20] == 'f') {
+                                            if (s[21] == 'l') {
+                                              if (s[22] == 'o') {
+                                                if (s[23] == 'w') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___BUILTIN_UADDL_OVERFLOW;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'm') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'l') {
+                              if (s[14] == 'l') {
+                                if (s[15] == '_') {
+                                  if (s[16] == 'o') {
+                                    if (s[17] == 'v') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == 'r') {
+                                          if (s[20] == 'f') {
+                                            if (s[21] == 'l') {
+                                              if (s[22] == 'o') {
+                                                if (s[23] == 'w') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___BUILTIN_UMULL_OVERFLOW;
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 's') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'b') {
+                              if (s[14] == 'l') {
+                                if (s[15] == '_') {
+                                  if (s[16] == 'o') {
+                                    if (s[17] == 'v') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == 'r') {
+                                          if (s[20] == 'f') {
+                                            if (s[21] == 'l') {
+                                              if (s[22] == 'o') {
+                                                if (s[23] == 'w') {
+                                                  return cxx::BuiltinFunctionKind::
+                                                      T___BUILTIN_USUBL_OVERFLOW;
                                                 }
                                               }
                                             }
@@ -5339,7 +5723,65 @@ static inline auto classifyBuiltinFunction25(const char* s)
                           }
                         }
                       } else if (s[10] == 's') {
-                        if (s[11] == 'o') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'd') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'l') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'v') {
+                                        if (s[19] == 'e') {
+                                          if (s[20] == 'r') {
+                                            if (s[21] == 'f') {
+                                              if (s[22] == 'l') {
+                                                if (s[23] == 'o') {
+                                                  if (s[24] == 'w') {
+                                                    return cxx::BuiltinFunctionKind::
+                                                        T___BUILTIN_SADDLL_OVERFLOW;
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'm') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'l') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'l') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'v') {
+                                        if (s[19] == 'e') {
+                                          if (s[20] == 'r') {
+                                            if (s[21] == 'f') {
+                                              if (s[22] == 'l') {
+                                                if (s[23] == 'o') {
+                                                  if (s[24] == 'w') {
+                                                    return cxx::BuiltinFunctionKind::
+                                                        T___BUILTIN_SMULLL_OVERFLOW;
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'o') {
                           if (s[12] == 'u') {
                             if (s[13] == 'r') {
                               if (s[14] == 'c') {
@@ -5355,6 +5797,124 @@ static inline auto classifyBuiltinFunction25(const char* s)
                                                   if (s[24] == 'n') {
                                                     return cxx::BuiltinFunctionKind::
                                                         T___BUILTIN_SOURCE_LOCATION;
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 's') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'b') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'l') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'v') {
+                                        if (s[19] == 'e') {
+                                          if (s[20] == 'r') {
+                                            if (s[21] == 'f') {
+                                              if (s[22] == 'l') {
+                                                if (s[23] == 'o') {
+                                                  if (s[24] == 'w') {
+                                                    return cxx::BuiltinFunctionKind::
+                                                        T___BUILTIN_SSUBLL_OVERFLOW;
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      } else if (s[10] == 'u') {
+                        if (s[11] == 'a') {
+                          if (s[12] == 'd') {
+                            if (s[13] == 'd') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'l') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'v') {
+                                        if (s[19] == 'e') {
+                                          if (s[20] == 'r') {
+                                            if (s[21] == 'f') {
+                                              if (s[22] == 'l') {
+                                                if (s[23] == 'o') {
+                                                  if (s[24] == 'w') {
+                                                    return cxx::BuiltinFunctionKind::
+                                                        T___BUILTIN_UADDLL_OVERFLOW;
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 'm') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'l') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'l') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'v') {
+                                        if (s[19] == 'e') {
+                                          if (s[20] == 'r') {
+                                            if (s[21] == 'f') {
+                                              if (s[22] == 'l') {
+                                                if (s[23] == 'o') {
+                                                  if (s[24] == 'w') {
+                                                    return cxx::BuiltinFunctionKind::
+                                                        T___BUILTIN_UMULLL_OVERFLOW;
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        } else if (s[11] == 's') {
+                          if (s[12] == 'u') {
+                            if (s[13] == 'b') {
+                              if (s[14] == 'l') {
+                                if (s[15] == 'l') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'v') {
+                                        if (s[19] == 'e') {
+                                          if (s[20] == 'r') {
+                                            if (s[21] == 'f') {
+                                              if (s[22] == 'l') {
+                                                if (s[23] == 'o') {
+                                                  if (s[24] == 'w') {
+                                                    return cxx::BuiltinFunctionKind::
+                                                        T___BUILTIN_USUBLL_OVERFLOW;
                                                   }
                                                 }
                                               }

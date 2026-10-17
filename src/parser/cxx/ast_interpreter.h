@@ -602,6 +602,9 @@ class ASTInterpreter {
     std::shared_ptr<ConstAddress> savedAddress_;
   };
 
+  [[nodiscard]] auto evaluateBuiltinCarryArithmetic(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto evaluateBuiltinArithmeticOverflow(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
 

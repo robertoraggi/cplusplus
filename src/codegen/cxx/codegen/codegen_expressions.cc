@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_printer.h>
+#include <cxx/builtin_arithmetic_overflow.h>
 #include <cxx/builtin_bit_operations.h>
 #include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
@@ -317,7 +318,20 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto codegenBuiltinNansl(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinAlloca(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinBzero(CallExpressionAST* ast) -> ExpressionResult;
+  struct OverflowingResult {
+    ir::ValueRef result;
+    ir::ValueRef overflow;
+  };
+
+  [[nodiscard]] auto emitOverflowingOperation(
+      SourceLocation loc, ArithmeticOverflowOperation operation,
+      ir::ValueRef left, const Type* leftType, ir::ValueRef right,
+      const Type* rightType, const Type* outputType)
+      -> std::optional<OverflowingResult>;
+
   auto codegenBuiltinArithmeticOverflow(CallExpressionAST* ast)
+      -> ExpressionResult;
+  auto codegenBuiltinCarryArithmetic(CallExpressionAST* ast)
       -> ExpressionResult;
   auto codegenBuiltinFloatComparison(CallExpressionAST* ast)
       -> ExpressionResult;
@@ -6374,8 +6388,58 @@ auto Codegen::ExpressionVisitor::codegenBuiltinFloatComparison(
                                     left.value, right.value)};
 }
 
+auto Codegen::ExpressionVisitor::emitOverflowingOperation(
+    SourceLocation loc, ArithmeticOverflowOperation operation,
+    ir::ValueRef left, const Type* leftType, ir::ValueRef right,
+    const Type* rightType, const Type* outputType)
+    -> std::optional<OverflowingResult> {
+  auto resultType =
+      gen.emitter_.asType(ir::TypeKind::Integer, gen.convertType(outputType));
+  auto leftIntegerType =
+      gen.emitter_.asType(ir::TypeKind::Integer, gen.emitter_.typeOf(left));
+  auto rightIntegerType =
+      gen.emitter_.asType(ir::TypeKind::Integer, gen.emitter_.typeOf(right));
+  if (!resultType || !leftIntegerType || !rightIntegerType) return std::nullopt;
+
+  auto width = std::max(gen.emitter_.scalarWidth(leftIntegerType) +
+                            gen.emitter_.scalarWidth(rightIntegerType),
+                        gen.emitter_.scalarWidth(resultType)) +
+               1;
+  auto wideType = gen.emitter_.integerType(width);
+  auto extend = [&](ir::ValueRef value, const Type* type) -> ir::ValueRef {
+    if (gen.unit_->typeTraits().is_signed(type))
+      return gen.emitter_.signExtend(loc, value, wideType);
+    return gen.emitter_.zeroExtend(loc, value, wideType);
+  };
+  auto lhs = extend(left, leftType);
+  auto rhs = extend(right, rightType);
+
+  ir::ValueRef product;
+  switch (operation) {
+    case ArithmeticOverflowOperation::kAdd:
+      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, lhs, rhs);
+      break;
+    case ArithmeticOverflowOperation::kSub:
+      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, lhs, rhs);
+      break;
+    case ArithmeticOverflowOperation::kMul:
+      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, lhs, rhs);
+      break;
+  }
+
+  auto result = gen.emitter_.truncate(loc, product, resultType);
+  auto restored = extend(result, outputType);
+  auto overflow = gen.emitter_.compareInt(loc, ir::IntPredicate::NotEqual,
+                                          product, restored);
+  return OverflowingResult{result, overflow};
+}
+
 auto Codegen::ExpressionVisitor::codegenBuiltinArithmeticOverflow(
     CallExpressionAST* ast) -> ExpressionResult {
+  auto operation = arithmeticOverflowOperation(resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression)));
+  if (!operation) return {};
+
   std::vector<ExpressionAST*> arguments;
   for (auto argument : ListView{ast->expressionList})
     arguments.push_back(argument);
@@ -6387,49 +6451,52 @@ auto Codegen::ExpressionVisitor::codegenBuiltinArithmeticOverflow(
   auto pointer = type_cast<PointerType>(arguments[2]->type);
   if (!pointer) return {};
   auto outputType = pointer->elementType();
-  auto resultType =
-      gen.emitter_.asType(ir::TypeKind::Integer, gen.convertType(outputType));
-  auto leftType = gen.emitter_.asType(ir::TypeKind::Integer,
-                                      gen.emitter_.typeOf(left.value));
-  auto rightType = gen.emitter_.asType(ir::TypeKind::Integer,
-                                       gen.emitter_.typeOf(right.value));
-  if (!resultType || !leftType || !rightType) return {};
-  auto width = std::max(gen.emitter_.scalarWidth(leftType) +
-                            gen.emitter_.scalarWidth(rightType),
-                        gen.emitter_.scalarWidth(resultType)) +
-               1;
-  auto wideType = gen.emitter_.integerType(width);
+
+  auto computed = emitOverflowingOperation(
+      ast->firstSourceLocation(), *operation, left.value, arguments[0]->type,
+      right.value, arguments[1]->type, outputType);
+  if (!computed) return {};
+
+  gen.emitter_.store(ast->firstSourceLocation(), computed->result, output.value,
+                     gen.getAlignment(outputType));
+  return {computed->overflow};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinCarryArithmetic(
+    CallExpressionAST* ast) -> ExpressionResult {
+  auto operation = carryArithmeticOperation(resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression)));
+  if (!operation) return {};
+
+  std::vector<ExpressionAST*> arguments;
+  for (auto argument : ListView{ast->expressionList})
+    arguments.push_back(argument);
+  if (arguments.size() != 4) return {};
+  auto left = gen.expression(arguments[0]);
+  auto right = gen.expression(arguments[1]);
+  auto carryIn = gen.expression(arguments[2]);
+  auto carryOut = gen.expression(arguments[3]);
+  if (!left.value || !right.value || !carryIn.value || !carryOut.value)
+    return {};
+  auto pointer = type_cast<PointerType>(arguments[3]->type);
+  if (!pointer) return {};
+  auto type = pointer->elementType();
   auto loc = ast->firstSourceLocation();
-  auto extend = [&](ir::ValueRef value, const Type* type) -> ir::ValueRef {
-    if (gen.unit_->typeTraits().is_signed(type))
-      return gen.emitter_.signExtend(loc, value, wideType);
-    return gen.emitter_.zeroExtend(loc, value, wideType);
-  };
-  auto lhs = extend(left.value, arguments[0]->type);
-  auto rhs = extend(right.value, arguments[1]->type);
 
-  ir::ValueRef product;
-  switch (resolveBuiltinFunctionKind(
-      ast_cast<IdExpressionAST>(ast->baseExpression))) {
-    case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
-      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::AddInt, lhs, rhs);
-      break;
-    case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
-      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::SubInt, lhs, rhs);
-      break;
-    case BuiltinFunctionKind::T___BUILTIN_MUL_OVERFLOW:
-      product = gen.emitter_.binaryOp(loc, ir::BinaryOp::MulInt, lhs, rhs);
-      break;
-    default:
-      return {};
-  }
+  auto first =
+      emitOverflowingOperation(loc, *operation, left.value, arguments[0]->type,
+                               right.value, arguments[1]->type, type);
+  if (!first) return {};
+  auto second =
+      emitOverflowingOperation(loc, *operation, first->result, type,
+                               carryIn.value, arguments[2]->type, type);
+  if (!second) return {};
 
-  auto result = gen.emitter_.truncate(loc, product, resultType);
-  auto restored = extend(result, outputType);
-  auto overflow = gen.emitter_.compareInt(loc, ir::IntPredicate::NotEqual,
-                                          product, restored);
-  gen.emitter_.store(loc, result, output.value, gen.getAlignment(outputType));
-  return {overflow};
+  auto carry = gen.emitter_.binaryOp(loc, ir::BinaryOp::OrInt, first->overflow,
+                                     second->overflow);
+  auto widened = gen.emitter_.zeroExtend(loc, carry, gen.convertType(type));
+  gen.emitter_.store(loc, widened, carryOut.value, gen.getAlignment(type));
+  return {second->result};
 }
 
 auto Codegen::ExpressionVisitor::codegenBuiltinAddressof(CallExpressionAST* ast)

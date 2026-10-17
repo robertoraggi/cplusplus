@@ -10363,9 +10363,9 @@ void SemanticDecoder::readSymbolFunctionSymbol(
   static_assert(static_cast<std::uint32_t>(
                     ::cxx::BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH) +
                     1 ==
-                484);
+                512);
   ::cxx::BuiltinFunctionKind value64 =
-      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 484));
+      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 512));
   self->setBuiltinKind(std::move(value64));
   // ::cxx::FunctionSymbol::isDefined_
   unsigned int value65 = static_cast<unsigned int>(in.varU32());
