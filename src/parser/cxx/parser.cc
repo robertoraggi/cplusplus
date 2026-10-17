@@ -7933,6 +7933,26 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
     if (auto paramsScope = symbol_cast<FunctionParametersSymbol>(scope())) {
       if (auto parameterSymbol = ast->symbol) {
         parameterSymbol->setDefaultArgument(ast->expression);
+auto Parser::declaresFunctionParameterPack(ParameterDeclarationAST* ast) const
+    -> bool {
+  if (abbreviatedPlaceholderSpecifier(ast)) return true;
+  for (auto specifier : ListView{ast->typeSpecifierList}) {
+    if (containsUnexpandedParameterPack(specifier)) return true;
+  }
+  return containsUnexpandedParameterPack(ast->declarator);
+}
+
+void Parser::releaseClauseEllipsis(ParameterDeclarationAST* ast, Decl& decl) {
+  if (!decl.isPack || !ast->declarator) return;
+  auto pack = ast_cast<ParameterPackAST>(ast->declarator->coreDeclarator);
+  if (!pack || pack->coreDeclarator) return;
+  if (declaresFunctionParameterPack(ast)) return;
+
+  rewind(pack->ellipsisLoc);
+  ast->declarator->coreDeclarator = nullptr;
+  decl.isPack = false;
+}
+
         if (deferred)
           pendingDefaultArguments_.push_back(
               {ast, parameterSymbol, paramsScope});
@@ -7956,6 +7976,8 @@ auto Parser::parse_initializer(ExpressionAST*& yyast, const ExprContext& ctx)
     ast->lparenLoc = lparenLoc;
 
     if (!parse_expression_list(ast->expressionList, ctx)) {
+  if (!templParam) releaseClauseEllipsis(ast, decl);
+
       report_failed_parse("expected an expression");
     }
 
