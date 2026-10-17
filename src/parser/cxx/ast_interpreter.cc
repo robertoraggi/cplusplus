@@ -945,9 +945,7 @@ auto ASTInterpreter::executeFunction(
   if (!function || !function->isConstexpr() || depth_ >= kMaxDepth) return {};
   auto definition = definingDeclarationOf(function);
   auto declaration = definition->declaration();
-  auto body = declaration ? ast_cast<CompoundStatementFunctionBodyAST>(
-                                declaration->functionBody)
-                          : nullptr;
+  auto body = declaration ? body_statement(declaration->functionBody) : nullptr;
   if (!body) return {};
 
   auto savedValue = std::exchange(returnValue_, std::nullopt);
@@ -992,7 +990,7 @@ auto ASTInterpreter::executeFunction(
       }
     }
   }
-  if (!aborted_ && body->statement) (void)statement(body->statement);
+  if (!aborted_) (void)statement(body);
   if (auto type = type_cast<FunctionType>(function->type());
       type && traits.is_void(type->returnType()) && !returnValue_)
     returnValue_ = ConstValue{ConstInt{std::intmax_t{0}}};
