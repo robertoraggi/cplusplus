@@ -589,12 +589,9 @@ auto Binder::DeclareFunction::mergeWithMatchingOverload(
       continue;
     }
 
-    const bool isOutOfLineDeclaration =
-        decl.getNestedNameSpecifier() != nullptr;
-
     if (!areFunctionSignaturesEquivalentForRedeclaration(
             binder.unit_, existingFunction->type(), functionSymbol->type(),
-            existingTemplateDecl, newTemplateHead, isOutOfLineDeclaration))
+            existingTemplateDecl, newTemplateHead))
       continue;
 
     if (!TemplateEquivalence{binder.unit_}.same(
@@ -701,8 +698,7 @@ void Binder::DeclareFunction::checkCRedeclaration(ScopeSymbol* declaringScope) {
          canonical->hasNoPrototype()) ||
         areFunctionSignaturesEquivalentForRedeclaration(
             binder.unit_, canonical->type(), functionSymbol->type(),
-            /*lhsHead=*/nullptr, /*rhsHead=*/nullptr,
-            /*isOutOfLineDeclaration=*/false);
+            /*lhsHead=*/nullptr, /*rhsHead=*/nullptr);
     if (canMerge) {
       mergeAsCRedeclaration(otherFunction);
       checkDefaultArgumentOrder();

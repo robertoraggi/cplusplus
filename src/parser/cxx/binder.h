@@ -58,8 +58,7 @@ class TranslationUnit;
 
 [[nodiscard]] auto areFunctionSignaturesEquivalentForRedeclaration(
     TranslationUnit* unit, const Type* lhs, const Type* rhs,
-    TemplateDeclarationAST* lhsHead, TemplateDeclarationAST* rhsHead,
-    bool isOutOfLineDeclaration) -> bool;
+    TemplateDeclarationAST* lhsHead, TemplateDeclarationAST* rhsHead) -> bool;
 
 [[nodiscard]] auto isDeletedFunction(TranslationUnit* unit,
                                      FunctionSymbol* function) -> bool;
