@@ -1941,19 +1941,48 @@ struct ThisUseFinder : ASTVisitor {
 }
 
 struct OdrUsedLocalFinder : ASTVisitor {
+  OdrUsedLocalFinder(TranslationUnit* unit, bool defersDependentUses,
+                     bool entersNestedLambdaBodies)
+      : unit_(unit),
+        defersDependentUses_(defersDependentUses),
+        entersNestedLambdaBodies_(entersNestedLambdaBodies) {}
+
   std::vector<IdExpressionAST*> uses;
+  std::vector<IdExpressionAST*> deferredUses;
+
+  [[nodiscard]] auto preVisit(AST* ast) -> bool override {
+    if (isTypeDependentExpression(ast)) dependentExpressions_.push_back(ast);
+    return true;
+  }
+
+  void postVisit(AST* ast) override {
+    if (dependentExpressions_.empty()) return;
+    if (dependentExpressions_.back() == ast) dependentExpressions_.pop_back();
+  }
 
   void visit(IdExpressionAST* ast) override {
     if (ast->nestedNameSpecifier) return;
-    if (ast->symbol) uses.push_back(ast);
+    if (!ast->symbol) return;
+    if (std::ranges::contains(nonOdrUses_, ast)) return;
+    if (isOdrUseDeferred(ast->symbol)) return deferredUses.push_back(ast);
+    uses.push_back(ast);
   }
 
   void visit(ImplicitCastExpressionAST* ast) override {
-    if (ast->castKind == ImplicitCastKind::kLValueToRValueConversion) {
-      auto id = ast_cast<IdExpressionAST>(ast->expression);
-      if (id && isUsableInConstantExpressions(id->symbol)) return;
-    }
+    if (ast->castKind == ImplicitCastKind::kLValueToRValueConversion)
+      markNonOdrUses(ast->expression);
     ASTVisitor::visit(ast);
+  }
+
+  void visit(LambdaExpressionAST* ast) override {
+    if (entersNestedLambdaBodies_) {
+      std::vector<AST*> enclosingExpressions;
+      enclosingExpressions.swap(dependentExpressions_);
+      ASTVisitor::visit(ast);
+      dependentExpressions_.swap(enclosingExpressions);
+      return;
+    }
+    for (auto capture : ListView{ast->captureList}) accept(capture);
   }
 
   void visit(SizeofExpressionAST*) override {}
@@ -1962,7 +1991,45 @@ struct OdrUsedLocalFinder : ASTVisitor {
   void visit(NoexceptExpressionAST*) override {}
   void visit(DecltypeSpecifierAST*) override {}
   void visit(RequiresExpressionAST*) override {}
+
+ private:
+  void markNonOdrUses(ExpressionAST* expression) {
+    if (auto nested = ast_cast<NestedExpressionAST>(expression))
+      return markNonOdrUses(nested->expression);
+    if (auto conditional = ast_cast<ConditionalExpressionAST>(expression)) {
+      markNonOdrUses(conditional->iftrueExpression);
+      return markNonOdrUses(conditional->iffalseExpression);
+    }
+    auto binary = ast_cast<BinaryExpressionAST>(expression);
+    if (binary && binary->op == TokenKind::T_COMMA)
+      return markNonOdrUses(binary->rightExpression);
+    auto id = ast_cast<IdExpressionAST>(expression);
+    if (id && isUsableInConstantExpressions(id->symbol))
+      nonOdrUses_.push_back(id);
+  }
+
+  [[nodiscard]] auto isTypeDependentExpression(AST* ast) -> bool {
+    if (!defersDependentUses_) return false;
+    auto expression = ast_cast<ExpressionAST>(ast);
+    return expression && expression->type &&
+           isDependent(unit_, expression->type);
+  }
+
+  [[nodiscard]] auto isOdrUseDeferred(Symbol* symbol) -> bool {
+    if (dependentExpressions_.empty()) return false;
+    return isUsableInConstantExpressions(symbol);
+  }
+
+  TranslationUnit* unit_;
+  bool defersDependentUses_;
+  bool entersNestedLambdaBodies_;
+  std::vector<AST*> dependentExpressions_;
+  std::vector<IdExpressionAST*> nonOdrUses_;
 };
+
+[[nodiscard]] auto defersOdrUseOfConstants(LambdaSymbol* lambda) -> bool {
+  return lambda && (lambda->isTemplate() || lambda->isInTemplate());
+}
 
 [[nodiscard]] auto bitfieldDeclaratorOf(DeclaratorAST* declarator)
     -> BitfieldDeclaratorAST* {
@@ -2297,14 +2364,46 @@ auto Binder::addImplicitThisCapture(ClassSymbol* classSymbol,
                                       capture.field);
 }
 
-void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
-                                 ClassSymbol* classSymbol) {
-  auto ar = unit_->arena();
+auto Binder::implicitCaptureIdentifier(
+    IdExpressionAST* use, ClassSymbol* classSymbol, LambdaSymbol* lambda,
+    const std::vector<const Identifier*>& explicitlyCaptured)
+    -> const Identifier* {
+  auto outerSymbol = use->symbol;
+  if (!isCapturableLocalEntity(outerSymbol)) return nullptr;
+  if (isDeclaredInsideClosure(outerSymbol, classSymbol, lambda)) return nullptr;
+  if (!outerSymbol->type()) return nullptr;
+
+  auto identifier = name_cast<Identifier>(outerSymbol->name());
+  if (!identifier) return nullptr;
+  if (std::ranges::contains(explicitlyCaptured, identifier)) return nullptr;
+  return identifier;
+}
+
+auto Binder::appendImplicitCapture(
+    LambdaExpressionAST* ast, ClassSymbol* classSymbol, Symbol* outerSymbol,
+    const Identifier* identifier,
+    std::vector<std::pair<Symbol*, FieldSymbol*>>& captured) -> FieldSymbol* {
   auto loc = ast->lbracketLoc;
-  const auto hasCaptureDefault = ast->captureDefault != TokenKind::T_EOF_SYMBOL;
   const auto byReference = ast->captureDefault != TokenKind::T_EQUAL;
 
-  OdrUsedLocalFinder finder;
+  auto capture = captureEntity(classSymbol, outerSymbol, identifier,
+                               byReference, scope(), loc);
+  captured.emplace_back(outerSymbol, capture.field);
+
+  auto tail = &ast->captureList;
+  while (*tail) tail = &(*tail)->next;
+  *tail = make_list_node(
+      unit_->arena(),
+      implicitEntityCapture(identifier, capture, byReference, loc));
+  return capture.field;
+}
+
+void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
+                                 ClassSymbol* classSymbol) {
+  auto loc = ast->lbracketLoc;
+  const auto hasCaptureDefault = ast->captureDefault != TokenKind::T_EOF_SYMBOL;
+
+  OdrUsedLocalFinder finder{unit_, defersOdrUseOfConstants(ast->symbol), true};
   finder.accept(ast->statement);
 
   std::vector<const Identifier*> explicitlyCaptured;
@@ -2312,9 +2411,6 @@ void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
     if (auto identifier = capture_identifier(captureNode))
       explicitlyCaptured.push_back(identifier);
   }
-
-  auto tail = &ast->captureList;
-  while (*tail) tail = &(*tail)->next;
 
   std::vector<std::pair<Symbol*, FieldSymbol*>> captured;
   std::vector<Symbol*> reportedUncapturable;
@@ -2329,14 +2425,9 @@ void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
       continue;
     }
 
-    if (!isCapturableLocalEntity(outerSymbol)) continue;
-    if (isDeclaredInsideClosure(outerSymbol, classSymbol, ast->symbol))
-      continue;
-    if (!outerSymbol->type()) continue;
-
-    auto identifier = name_cast<Identifier>(outerSymbol->name());
+    auto identifier = implicitCaptureIdentifier(use, classSymbol, ast->symbol,
+                                                explicitlyCaptured);
     if (!identifier) continue;
-    if (std::ranges::contains(explicitlyCaptured, identifier)) continue;
 
     if (!hasCaptureDefault) {
       if (std::ranges::contains(reportedUncapturable, outerSymbol)) continue;
@@ -2348,21 +2439,69 @@ void Binder::addImplicitCaptures(LambdaExpressionAST* ast,
       continue;
     }
 
-    auto capture = captureEntity(classSymbol, outerSymbol, identifier,
-                                 byReference, scope(), loc);
-    captured.emplace_back(outerSymbol, capture.field);
+    use->symbol = appendImplicitCapture(ast, classSymbol, outerSymbol,
+                                        identifier, captured);
+  }
 
-    *tail = make_list_node(
-        ar, implicitEntityCapture(identifier, capture, byReference, loc));
-    tail = &(*tail)->next;
+  if (hasCaptureDefault) {
+    for (auto use : finder.deferredUses) {
+      auto identifier = implicitCaptureIdentifier(use, classSymbol, ast->symbol,
+                                                  explicitlyCaptured);
+      if (!identifier) continue;
 
-    use->symbol = capture.field;
+      auto known = std::ranges::find(captured, use->symbol,
+                                     &std::pair<Symbol*, FieldSymbol*>::first);
+      if (known == captured.end())
+        (void)appendImplicitCapture(ast, classSymbol, use->symbol, identifier,
+                                    captured);
+    }
   }
 
   if (captured.empty()) return;
 
   auto status = buildRecordLayout(classSymbol);
   if (!status.has_value()) error(loc, status.error());
+}
+
+void Binder::resolveDeferredCaptures(FunctionSymbol* callOperator,
+                                     CompoundStatementAST* body) {
+  auto closure = symbol_cast<ClassSymbol>(callOperator->parent());
+  if (!closure || !closure->isClosureType()) return;
+
+  OdrUsedLocalFinder finder{unit_, false, false};
+  finder.accept(body);
+
+  std::vector<Symbol*> reportedUncapturable;
+
+  for (auto use : finder.uses) {
+    auto outerSymbol = use->symbol;
+    if (!isCapturableLocalEntity(outerSymbol)) continue;
+    if (isDeclaredInsideClosure(outerSymbol, closure, nullptr)) continue;
+    if (!outerSymbol->type()) continue;
+
+    auto identifier = name_cast<Identifier>(outerSymbol->name());
+    if (!identifier) continue;
+
+    if (auto field = capturedFieldNamed(closure, identifier)) {
+      use->symbol = field;
+      continue;
+    }
+
+    if (std::ranges::contains(reportedUncapturable, outerSymbol)) continue;
+    reportedUncapturable.push_back(outerSymbol);
+    error(use->firstSourceLocation(),
+          std::format("variable '{}' cannot be implicitly captured in a "
+                      "lambda with no capture-default specified",
+                      identifier->name()));
+  }
+}
+
+auto Binder::capturedFieldNamed(ClassSymbol* closure, const Identifier* name)
+    -> FieldSymbol* {
+  for (auto candidate : closure->find(name)) {
+    if (auto field = symbol_cast<FieldSymbol>(candidate)) return field;
+  }
+  return nullptr;
 }
 
 auto Binder::implicitEntityCapture(const Identifier* identifier,

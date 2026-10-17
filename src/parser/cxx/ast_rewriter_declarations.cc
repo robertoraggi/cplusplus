@@ -797,9 +797,10 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
     binder()->synthesizeCompleteObjectCtor(functionSymbol);
 
-    if (body_statement(copy->functionBody)) {
+    if (auto statement = body_statement(copy->functionBody)) {
       rewrite.checkMemInitializers(functionSymbol, copy->functionBody);
       binder()->finishAutoReturnType(functionSymbol);
+      binder()->resolveDeferredCaptures(functionSymbol, statement);
     }
 
     binder()->synthesizeDefaultedMemberBody(functionSymbol);

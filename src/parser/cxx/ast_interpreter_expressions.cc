@@ -730,6 +730,10 @@ struct ASTInterpreter::ExpressionVisitor {
   [[nodiscard]] auto operator()(LabelAddressExpressionAST* ast)
       -> ExpressionResult;
 
+  [[nodiscard]] auto operatorOperand(FunctionSymbol* function,
+                                     ExpressionAST* operand)
+      -> ExpressionResult;
+
   [[nodiscard]] auto evaluateOperatorCall(
       FunctionSymbol* function, ExpressionResult operand,
       std::optional<ExpressionResult> extraArgument = std::nullopt)
@@ -1453,7 +1457,7 @@ auto ASTInterpreter::referenceBinding(ExpressionAST* initializer)
 
   EvaluationScope evaluationScope{*this};
   auto address = addressOfLvalue(arguments.front());
-  if (!address) return std::nullopt;
+  if (!address) return constexprUnknownAddress(arguments.front());
   if (!std::holds_alternative<std::shared_ptr<ConstAddress>>(*address))
     return std::nullopt;
   return address;
@@ -2177,21 +2181,18 @@ auto ASTInterpreter::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
 
 auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
     -> ExpressionResult {
+  if (auto op = symbol_cast<FunctionSymbol>(ast->symbol);
+      op && op->isConstexpr()) {
+    auto object = operatorOperand(op, ast->baseExpression);
+    return evaluateOperatorCall(op, std::move(object),
+                                interp.expression(ast->indexExpression));
+  }
+
   auto baseExpressionResult = interp.expression(ast->baseExpression);
   auto indexExpressionResult = interp.expression(ast->indexExpression);
 
   if (!baseExpressionResult.has_value() || !indexExpressionResult.has_value())
     return std::nullopt;
-
-  if (auto op = symbol_cast<FunctionSymbol>(ast->symbol);
-      op && op->isConstexpr()) {
-    if (auto objPtr =
-            std::get_if<std::shared_ptr<ConstObject>>(&*baseExpressionResult)) {
-      ASTInterpreter::ThisScope thisScope{interp, *objPtr};
-      auto result = interp.evaluateCall(op, {*indexExpressionResult});
-      return result;
-    }
-  }
 
   auto idx = interp.toUInt(*indexExpressionResult);
   if (!idx.has_value()) return std::nullopt;
@@ -2379,9 +2380,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
   if (!type) return std::nullopt;
 
   if (ast->symbol) {
-    return evaluateOperatorCall(ast->symbol,
-                                interp.expression(ast->baseExpression),
-                                ExpressionResult{std::intmax_t{0}});
+    return evaluateOperatorCall(
+        ast->symbol, operatorOperand(ast->symbol, ast->baseExpression),
+        ExpressionResult{std::intmax_t{0}});
   }
 
   auto slot = interp.lvalue(ast->baseExpression);
@@ -2497,6 +2498,13 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
     LabelAddressExpressionAST* ast) -> ExpressionResult {
   return ConstValue{
       std::make_shared<ConstLabelAddress>(ast->identifier->name())};
+}
+
+auto ASTInterpreter::ExpressionVisitor::operatorOperand(
+    FunctionSymbol* function, ExpressionAST* operand) -> ExpressionResult {
+  if (!function->isImplicitObjectMemberFunction())
+    return interp.expression(operand);
+  return interp.designatedValue(operand);
 }
 
 auto ASTInterpreter::ExpressionVisitor::evaluateOperatorCall(
@@ -3159,22 +3167,17 @@ auto ASTInterpreter::ExpressionVisitor::operator()(BinaryExpressionAST* ast)
       break;
   }
 
+  if (ast->symbol) {
+    auto operand = operatorOperand(ast->symbol, ast->leftExpression);
+    return evaluateOperatorCall(ast->symbol, std::move(operand),
+                                evaluate(ast->rightExpression));
+  }
+
   auto left = evaluate(ast->leftExpression);
   if (!left.has_value()) return std::nullopt;
 
   auto right = evaluate(ast->rightExpression);
   if (!right.has_value()) return std::nullopt;
-
-  if (ast->symbol) {
-    if (ast->symbol->isImplicitObjectMemberFunction()) {
-      auto object = std::get_if<std::shared_ptr<ConstObject>>(&*left);
-      if (!object || !*object) return std::nullopt;
-      return interp.evaluateCall(ast->symbol, {std::move(*right)}, *object);
-    }
-
-    return interp.evaluateCall(ast->symbol,
-                               {std::move(*left), std::move(*right)});
-  }
 
   auto result = applyBinaryOp(ast->op, ast->leftExpression->type, left, right);
   if (!result.has_value())
@@ -3265,9 +3268,9 @@ auto ASTInterpreter::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
   if (!rightExpressionResult.has_value()) return std::nullopt;
 
   if (ast->symbol)
-    return evaluateOperatorCall(ast->symbol,
-                                interp.expression(ast->leftExpression),
-                                rightExpressionResult);
+    return evaluateOperatorCall(
+        ast->symbol, operatorOperand(ast->symbol, ast->leftExpression),
+        rightExpressionResult);
 
   auto slot = interp.lvalue(ast->leftExpression);
   if (!slot) return std::nullopt;
@@ -3291,7 +3294,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   if (ast->symbol) {
     auto right = interp.expression(ast->rightExpression);
     return evaluateOperatorCall(
-        ast->symbol, interp.expression(ast->targetExpression), right);
+        ast->symbol, operatorOperand(ast->symbol, ast->targetExpression),
+        right);
   }
   TokenKind binOp = TokenKind::T_EOF_SYMBOL;
   switch (ast->op) {
