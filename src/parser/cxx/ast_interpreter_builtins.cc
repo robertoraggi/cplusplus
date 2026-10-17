@@ -22,6 +22,7 @@
 
 // cxx
 #include <cxx/ast.h>
+#include <cxx/builtin_arithmetic_overflow.h>
 #include <cxx/builtin_bit_operations.h>
 #include <cxx/const_int.h>
 #include <cxx/control.h>
@@ -412,41 +413,76 @@ auto ASTInterpreter::evaluateBuiltinArithmeticOverflow(CallExpressionAST* ast)
   const auto lhs = widen(*left, leftExpression->type);
   const auto rhs = widen(*right, rightExpression->type);
 
-  ConstInt::Wide value = 0;
-  switch (resolveBuiltinFunctionKind(
-      ast_cast<IdExpressionAST>(ast->baseExpression))) {
-    case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
-      value = lhs + rhs;
-      break;
-    case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
-      value = lhs - rhs;
-      break;
-    case BuiltinFunctionKind::T___BUILTIN_MUL_OVERFLOW:
-      value = lhs * rhs;
-      break;
-    default:
-      return std::nullopt;
-  }
+  auto operation = arithmeticOverflowOperation(resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression)));
+  if (!operation) return std::nullopt;
 
-  auto fits = [&]() -> bool {
-    if (isSignedOutput) {
-      const auto limit = ConstInt::Wide{1} << (width - 1);
-      return value >= -limit && value < limit;
-    }
-    if (value < 0) return false;
-    const auto limit = width >= ConstInt::maxWidth
-                           ? ~ConstInt::UWide{0}
-                           : (ConstInt::UWide{1} << width) - 1;
-    return static_cast<ConstInt::UWide>(value) <= limit;
-  };
-
-  const auto overflow = !fits();
+  const auto value = applyArithmeticOverflowOperation(*operation, lhs, rhs);
+  const auto overflow = !fitsIntegerWidth(value, width, isSignedOutput);
 
   auto result = ConstInt::make(value, width, isSignedOutput);
   if (!result) return std::nullopt;
 
   *slot = result->toIntMax();
   return ConstValue{overflow};
+}
+
+auto ASTInterpreter::evaluateBuiltinCarryArithmetic(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  auto operation = carryArithmeticOperation(resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression)));
+  if (!operation) return std::nullopt;
+
+  auto leftExpression = argumentAt(ast, 0);
+  auto rightExpression = argumentAt(ast, 1);
+  auto carryInExpression = argumentAt(ast, 2);
+  auto carryOutExpression = argumentAt(ast, 3);
+  if (!leftExpression || !rightExpression || !carryInExpression ||
+      !carryOutExpression)
+    return std::nullopt;
+
+  auto leftValue = evaluate(leftExpression);
+  auto rightValue = evaluate(rightExpression);
+  auto carryInValue = evaluate(carryInExpression);
+  auto carryOutValue = evaluate(carryOutExpression);
+  if (!leftValue || !rightValue || !carryInValue || !carryOutValue)
+    return std::nullopt;
+
+  auto left = toInt(*leftValue);
+  auto right = toInt(*rightValue);
+  auto carryIn = toInt(*carryInValue);
+  auto address = std::get_if<std::shared_ptr<ConstAddress>>(&*carryOutValue);
+  if (!left || !right || !carryIn || !address || !*address) return std::nullopt;
+
+  auto slot = addressSlot(**address, 0);
+  auto pointer = type_cast<PointerType>(carryOutExpression->type);
+  if (!slot || !pointer) return std::nullopt;
+
+  auto type = traits.remove_cv(pointer->elementType());
+  auto size = control()->memoryLayout()->sizeOf(type);
+  if (!size || *size > sizeof(std::intmax_t)) return std::nullopt;
+  const auto width = static_cast<int>(*size * 8);
+
+  auto widen = [](std::intmax_t value) {
+    return static_cast<ConstInt::Wide>(
+        static_cast<ConstInt::UWide>(static_cast<std::uintmax_t>(value)));
+  };
+
+  const auto first =
+      applyArithmeticOverflowOperation(*operation, widen(*left), widen(*right));
+  auto wrappedFirst = ConstInt::make(first, width, /*isSigned=*/false);
+  if (!wrappedFirst) return std::nullopt;
+
+  const auto second = applyArithmeticOverflowOperation(
+      *operation, widen(wrappedFirst->toIntMax()), widen(*carryIn));
+  auto wrappedSecond = ConstInt::make(second, width, /*isSigned=*/false);
+  if (!wrappedSecond) return std::nullopt;
+
+  const auto carry = !fitsIntegerWidth(first, width, /*isSigned=*/false) ||
+                     !fitsIntegerWidth(second, width, /*isSigned=*/false);
+
+  *slot = std::intmax_t{carry ? 1 : 0};
+  return ConstValue{wrappedSecond->toIntMax()};
 }
 
 auto ASTInterpreter::evaluateBuiltinFloatComparison(CallExpressionAST* ast)

@@ -182,6 +182,90 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
       return codegenBuiltinArithmeticOverflow(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_SADD_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SADDL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SADDLL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UADD_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UADDL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UADDLL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SSUB_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SSUBL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SSUBLL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_USUB_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_USUBL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_USUBLL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SMUL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SMULL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SMULLL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UMUL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UMULL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UMULLL_OVERFLOW:
+      return codegenBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDCB:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDCS:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDC:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDCL:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDCLL:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBCB:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBCS:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBC:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBCL:
+      return codegenBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBCLL:
+      return codegenBuiltinCarryArithmetic(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_REDUCE_ADD:
       return codegenBuiltinVectorReduce(ast);
 

@@ -61,6 +61,7 @@ add_library(cxx-parser
     cxx/binder_structured_bindings.cc
     cxx/binder_vtable_layout.cc
     cxx/bind_class.cc
+    cxx/builtin_arithmetic_overflow.cc
     cxx/builtin_bit_operations.cc
     cxx/builtin_signature.cc
     cxx/class_template_deduction.cc

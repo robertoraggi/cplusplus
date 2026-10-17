@@ -92,6 +92,34 @@ auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
     case BuiltinFunctionKind::T___BUILTIN_ISUNORDERED:
     case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
     case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SADD_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SADDL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SADDLL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_UADD_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_UADDL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_UADDLL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SSUB_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SSUBL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SSUBLL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_USUB_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_USUBL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_USUBLL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SMUL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SMULL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_SMULLL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_UMUL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_UMULL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_UMULLL_OVERFLOW:
+    case BuiltinFunctionKind::T___BUILTIN_ADDCB:
+    case BuiltinFunctionKind::T___BUILTIN_ADDCS:
+    case BuiltinFunctionKind::T___BUILTIN_ADDC:
+    case BuiltinFunctionKind::T___BUILTIN_ADDCL:
+    case BuiltinFunctionKind::T___BUILTIN_ADDCLL:
+    case BuiltinFunctionKind::T___BUILTIN_SUBCB:
+    case BuiltinFunctionKind::T___BUILTIN_SUBCS:
+    case BuiltinFunctionKind::T___BUILTIN_SUBC:
+    case BuiltinFunctionKind::T___BUILTIN_SUBCL:
+    case BuiltinFunctionKind::T___BUILTIN_SUBCLL:
       return true;
     default:
       return false;
@@ -258,6 +286,90 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
     case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
       return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SADD_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SADDL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SADDLL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UADD_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UADDL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UADDLL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SSUB_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SSUBL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SSUBLL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_USUB_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_USUBL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_USUBLL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SMUL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SMULL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SMULLL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UMUL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UMULL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_UMULLL_OVERFLOW:
+      return evaluateBuiltinArithmeticOverflow(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDCB:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDCS:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDC:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDCL:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ADDCLL:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBCB:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBCS:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBC:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBCL:
+      return evaluateBuiltinCarryArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_SUBCLL:
+      return evaluateBuiltinCarryArithmetic(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_CONSTANT_P:
       // Reaching here means the argument was successfully constant-evaluated.
