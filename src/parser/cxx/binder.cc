@@ -3583,8 +3583,7 @@ auto areRedeclarationTypesCompatible(TranslationUnit* unit,
 
 auto areFunctionSignaturesEquivalentForRedeclaration(
     TranslationUnit* unit, const Type* lhs, const Type* rhs,
-    TemplateDeclarationAST* lhsHead, TemplateDeclarationAST* rhsHead,
-    bool isOutOfLineDeclaration) -> bool {
+    TemplateDeclarationAST* lhsHead, TemplateDeclarationAST* rhsHead) -> bool {
   if (!unit || !lhs || !rhs) return false;
   if (unit->typeTraits().is_same(lhs, rhs)) return true;
 
@@ -3603,12 +3602,10 @@ auto areFunctionSignaturesEquivalentForRedeclaration(
       return true;
   }
 
-  const bool dependentReturnType =
-      isOutOfLineDeclaration && (isDependent(unit, lhsFn->returnType()) ||
-                                 isDependent(unit, rhsFn->returnType()));
-  if (!dependentReturnType &&
-      !areRedeclarationTypesCompatible(unit, lhsFn->returnType(),
-                                       rhsFn->returnType()))
+  if (!areRedeclarationTypesCompatible(unit, lhsFn->returnType(),
+                                       rhsFn->returnType()) &&
+      !TemplateEquivalence{unit}.corresponds(lhsFn->returnType(),
+                                             rhsFn->returnType(), {}))
     return false;
   if (lhsFn->cvQualifiers() != rhsFn->cvQualifiers()) return false;
   if (lhsFn->refQualifier() != rhsFn->refQualifier()) return false;
@@ -5026,8 +5023,7 @@ auto Binder::getFunction(ScopeSymbol* scope, const Name* name, const Type* type,
   auto matches = [&](FunctionSymbol* function) {
     if (!areFunctionSignaturesEquivalentForRedeclaration(
             unit_, function->type(), type, function->templateDeclaration(),
-            templateHead,
-            /*isOutOfLineDeclaration=*/true)) {
+            templateHead)) {
       return false;
     }
     if (!TemplateEquivalence{unit_}.same(function->trailingRequiresClause(),
