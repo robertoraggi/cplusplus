@@ -78,6 +78,7 @@ class Parser final {
   struct ExplicitTemplateHeadGuard;
   struct EnclosingTemplateHeadGuard;
   struct UnevaluatedOperandGuard;
+  struct ParameterClauseGuard;
   struct CheckContext;
 
   enum class TypeNameContext { kGeneral, kTypeOnly };
@@ -660,9 +661,13 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_array_declarator(ArrayDeclaratorChunkAST*& yyast)
       -> bool;
+  [[nodiscard]] static auto declaresFunctionChunk(
+      DeclaratorKind declaratorKind, CoreDeclaratorAST* coreDeclarator,
+      List<DeclaratorChunkAST*>* precedingChunks) -> bool;
   [[nodiscard]] auto parse_function_declarator(
       FunctionDeclaratorChunkAST*& yyast, const Decl& decl,
-      DeclaratorKind declaratorKind) -> bool;
+      DeclaratorKind declaratorKind, bool declaresFunction) -> bool;
+  void diagnosePlaceholderParameters(ParameterDeclarationClauseAST* clause);
   [[nodiscard]] auto parse_cv_qualifier_seq(List<SpecifierAST*>*& yyast,
                                             DeclSpecs& declSpecs) -> bool;
   [[nodiscard]] auto parse_trailing_return_type(TrailingReturnTypeAST*& yyast)
@@ -680,14 +685,14 @@ class Parser final {
       TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_parameter_declaration_list(
       ParameterDeclarationClauseAST* ast, TypeNameContext context) -> bool;
+  [[nodiscard]] auto declaresFunctionParameterPack(
+      ParameterDeclarationAST* ast) const -> bool;
+  void releaseClauseEllipsis(ParameterDeclarationAST* ast, Decl& decl);
   [[nodiscard]] auto parse_parameter_declaration(
       ParameterDeclarationAST*& yyast, bool templParam,
       TypeNameContext context = TypeNameContext::kGeneral) -> bool;
   [[nodiscard]] auto parse_initializer(ExpressionAST*& yyast,
                                        const ExprContext& ctx) -> bool;
-  [[nodiscard]] auto declaresFunctionParameterPack(
-      ParameterDeclarationAST* ast) const -> bool;
-  void releaseClauseEllipsis(ParameterDeclarationAST* ast, Decl& decl);
   [[nodiscard]] auto parse_brace_or_equal_initializer(ExpressionAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_initializer_clause(ExpressionAST*& yyast,
@@ -1160,6 +1165,7 @@ class Parser final {
   FailedParse deepestFailedParse_;
   int anonNamespaceCount_ = 0;
   int templateParameterDepth_ = -1;
+  int parameterClauseDepth_ = 0;
   int templateParameterCount_ = 0;
   TemplateDeclarationAST* abbreviatedTemplateHead_ = nullptr;
   TemplateDeclarationAST* enclosingExplicitTemplateHead_ = nullptr;

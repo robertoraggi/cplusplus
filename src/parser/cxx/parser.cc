@@ -420,6 +420,25 @@ struct Parser::UnevaluatedOperandGuard {
   ~UnevaluatedOperandGuard() { --parser->unevaluatedOperandDepth_; }
 };
 
+struct Parser::ParameterClauseGuard {
+  Parser* parser;
+
+  explicit ParameterClauseGuard(Parser* parser) : parser(parser) {
+    ++parser->parameterClauseDepth_;
+  }
+
+  ~ParameterClauseGuard() { --parser->parameterClauseDepth_; }
+};
+
+auto Parser::declaresFunctionChunk(DeclaratorKind declaratorKind,
+                                   CoreDeclaratorAST* coreDeclarator,
+                                   List<DeclaratorChunkAST*>* precedingChunks)
+    -> bool {
+  if (declaratorKind != DeclaratorKind::kDeclarator) return false;
+  if (precedingChunks) return false;
+  return ast_cast<IdDeclaratorAST>(coreDeclarator) != nullptr;
+}
+
 Parser::Parser(TranslationUnit* unit)
     : unit_(unit), traits(unit), binder_(unit) {
   control_ = unit_->control();
@@ -5733,7 +5752,8 @@ auto Parser::parse_notypespec_function_definition(
 
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
   if (!parse_function_declarator(functionDeclarator, decl,
-                                 DeclaratorKind::kDeclarator))
+                                 DeclaratorKind::kDeclarator,
+                                 /*declaresFunction=*/true))
     return false;
 
   auto declarator = DeclaratorAST::create(pool_);
@@ -6694,10 +6714,29 @@ auto abbreviatedPlaceholderSpecifier(ParameterDeclarationAST* param)
   return nullptr;
 }
 
+auto parameterPackEllipsis(ParameterDeclarationAST* parameter)
+    -> SourceLocation {
+  if (!parameter->declarator) return {};
+  auto pack = ast_cast<ParameterPackAST>(parameter->declarator->coreDeclarator);
+  return pack ? pack->ellipsisLoc : SourceLocation{};
+}
+
 auto abbreviatedTypeConstraint(SpecifierAST* specifier) -> TypeConstraintAST* {
   auto placeholder = ast_cast<PlaceholderTypeSpecifierAST>(specifier);
   if (!placeholder) return nullptr;
   return placeholder->typeConstraint;
+}
+
+void Parser::diagnosePlaceholderParameters(
+    ParameterDeclarationClauseAST* clause) {
+  if (!clause) return;
+  for (auto parameter : ListView{clause->parameterDeclarationList}) {
+    auto placeholder = abbreviatedPlaceholderSpecifier(parameter);
+    if (!placeholder) continue;
+    parse_error(placeholder->firstSourceLocation(),
+                "a placeholder type is only allowed in a parameter of a "
+                "function declaration or a lambda-expression");
+  }
 }
 
 void Parser::synthesizeAbbreviatedTemplateParams(
@@ -6767,7 +6806,7 @@ void Parser::synthesizeAbbreviatedTemplateParams(
       constrained->typeConstraint = typeConstraint;
       constrained->identifier = syntheticName;
       constrained->isSynthesized = true;
-      if (parameter->isPack) constrained->ellipsisLoc = parameter->thisLoc;
+      constrained->ellipsisLoc = parameterPackEllipsis(parameter);
       tyParam = constrained;
     } else {
       auto typeParameter = TypenameTypeParameterAST::create(pool_);
@@ -6912,7 +6951,7 @@ void Parser::synthesizeLambdaAbbreviatedTemplateParams(
       constrained->typeConstraint = typeConstraint;
       constrained->identifier = syntheticName;
       constrained->isSynthesized = true;
-      if (parameter->isPack) constrained->ellipsisLoc = parameter->thisLoc;
+      constrained->ellipsisLoc = parameterPackEllipsis(parameter);
       tyParam = constrained;
       binder_.bind(constrained, paramIndex, templateParameterDepth_);
     } else {
@@ -7343,8 +7382,10 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
       it = &(*it)->next;
     } else if (FunctionDeclaratorChunkAST* functionDeclaratorChunk = nullptr;
                declaratorKind != DeclaratorKind::kNewDeclarator &&
-               parse_function_declarator(functionDeclaratorChunk, decl,
-                                         declaratorKind)) {
+               parse_function_declarator(
+                   functionDeclaratorChunk, decl, declaratorKind,
+                   declaresFunctionChunk(declaratorKind, coreDeclarator,
+                                         declaratorChunkList))) {
       *it = make_list_node<DeclaratorChunkAST>(pool_, functionDeclaratorChunk);
       it = &(*it)->next;
       if (declaratorKind == DeclaratorKind::kAbstractDeclarator &&
@@ -7444,7 +7485,8 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
 
 auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
                                        const Decl& decl,
-                                       DeclaratorKind declaratorKind) -> bool {
+                                       DeclaratorKind declaratorKind,
+                                       bool declaresFunction) -> bool {
   LookaheadParser lookahead{this};
 
   SourceLocation lparenLoc;
@@ -7491,7 +7533,10 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
   ast->parameterDeclarationClause = parameterDeclarationClause;
   ast->rparenLoc = rparenLoc;
 
-  synthesizeAbbreviatedTemplateParams(parameterDeclarationClause);
+  if (declaresFunction && parameterClauseDepth_ == 0)
+    synthesizeAbbreviatedTemplateParams(parameterDeclarationClause);
+  else
+    diagnosePlaceholderParameters(parameterDeclarationClause);
 
   DeclSpecs cvQualifiers{unit_};
 
@@ -7823,6 +7868,8 @@ auto Parser::parse_parameter_declaration_clause(
 
   auto _ = CombinedScopeGuard{this};
 
+  ParameterClauseGuard parameterClause{this};
+
   auto ast = ParameterDeclarationClauseAST::create(pool_);
 
   binder_.bind(ast);
@@ -7886,6 +7933,26 @@ auto Parser::parse_parameter_declaration_list(
   return true;
 }
 
+auto Parser::declaresFunctionParameterPack(ParameterDeclarationAST* ast) const
+    -> bool {
+  if (abbreviatedPlaceholderSpecifier(ast)) return true;
+  for (auto specifier : ListView{ast->typeSpecifierList}) {
+    if (containsUnexpandedParameterPack(specifier)) return true;
+  }
+  return containsUnexpandedParameterPack(ast->declarator);
+}
+
+void Parser::releaseClauseEllipsis(ParameterDeclarationAST* ast, Decl& decl) {
+  if (!decl.isPack || !ast->declarator) return;
+  auto pack = ast_cast<ParameterPackAST>(ast->declarator->coreDeclarator);
+  if (!pack || pack->coreDeclarator) return;
+  if (declaresFunctionParameterPack(ast)) return;
+
+  rewind(pack->ellipsisLoc);
+  ast->declarator->coreDeclarator = nullptr;
+  decl.isPack = false;
+}
+
 auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
                                          bool templParam,
                                          TypeNameContext context) -> bool {
@@ -7908,6 +7975,8 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
 
   Decl decl{specs};
   parse_optional_declarator_or_abstract_declarator(ast->declarator, decl);
+
+  if (!templParam) releaseClauseEllipsis(ast, decl);
 
   ast->isPack = decl.isPack;
 
@@ -7933,26 +8002,6 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
     if (auto paramsScope = symbol_cast<FunctionParametersSymbol>(scope())) {
       if (auto parameterSymbol = ast->symbol) {
         parameterSymbol->setDefaultArgument(ast->expression);
-auto Parser::declaresFunctionParameterPack(ParameterDeclarationAST* ast) const
-    -> bool {
-  if (abbreviatedPlaceholderSpecifier(ast)) return true;
-  for (auto specifier : ListView{ast->typeSpecifierList}) {
-    if (containsUnexpandedParameterPack(specifier)) return true;
-  }
-  return containsUnexpandedParameterPack(ast->declarator);
-}
-
-void Parser::releaseClauseEllipsis(ParameterDeclarationAST* ast, Decl& decl) {
-  if (!decl.isPack || !ast->declarator) return;
-  auto pack = ast_cast<ParameterPackAST>(ast->declarator->coreDeclarator);
-  if (!pack || pack->coreDeclarator) return;
-  if (declaresFunctionParameterPack(ast)) return;
-
-  rewind(pack->ellipsisLoc);
-  ast->declarator->coreDeclarator = nullptr;
-  decl.isPack = false;
-}
-
         if (deferred)
           pendingDefaultArguments_.push_back(
               {ast, parameterSymbol, paramsScope});
@@ -7976,8 +8025,6 @@ auto Parser::parse_initializer(ExpressionAST*& yyast, const ExprContext& ctx)
     ast->lparenLoc = lparenLoc;
 
     if (!parse_expression_list(ast->expressionList, ctx)) {
-  if (!templParam) releaseClauseEllipsis(ast, decl);
-
       report_failed_parse("expected an expression");
     }
 
