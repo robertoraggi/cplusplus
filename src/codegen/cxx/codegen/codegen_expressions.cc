@@ -243,6 +243,9 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto emitBuiltinCall(CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
       -> ExpressionResult;
 
+  [[nodiscard]] auto builtinOperand(ExpressionAST* expression,
+                                    ir::ValueRef value) -> ir::ValueRef;
+
   auto codegenBuiltinDispatch(CallExpressionAST* ast,
                               BuiltinFunctionKind builtinKind)
       -> std::optional<ExpressionResult>;
@@ -1015,6 +1018,17 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
   return {op};
 }
 
+auto Codegen::ExpressionVisitor::builtinOperand(ExpressionAST* expression,
+                                                ir::ValueRef value)
+    -> ir::ValueRef {
+  auto type = gen.traits.remove_cvref(expression->type);
+  if (!gen.traits.is_class_or_union(type) || !is_prvalue(expression))
+    return value;
+  return gen.emitter_.load(expression->firstSourceLocation(),
+                           gen.convertType(type), value,
+                           gen.getAlignment(type));
+}
+
 auto Codegen::ExpressionVisitor::emitBuiltinCall(
     CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
     -> ExpressionResult {
@@ -1070,7 +1084,7 @@ auto Codegen::ExpressionVisitor::emitBuiltinCall(
   std::vector<ir::ValueRef> arguments;
   for (auto node : ListView{ast->expressionList}) {
     auto value = gen.expression(node);
-    arguments.push_back(value.value);
+    arguments.push_back(builtinOperand(node, value.value));
   }
 
   std::vector<ir::TypeRef> resultTypes;

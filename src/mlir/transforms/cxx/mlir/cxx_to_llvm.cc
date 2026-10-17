@@ -113,11 +113,29 @@ static auto atomicIntegerType(Type llvmElementType, MLIRContext* context,
     case 2:
     case 4:
     case 8:
+    case 16:
       return IntegerType::get(context,
                               dataLayout.getTypeSizeInBits(llvmElementType));
     default:
       return std::nullopt;
   }
+}
+
+static auto reinterpretThroughMemory(Value value, Type resultType, Location loc,
+                                     ConversionPatternRewriter& rewriter)
+    -> Value {
+  auto context = rewriter.getContext();
+  auto one = LLVM::ConstantOp::create(rewriter, loc, rewriter.getI32Type(),
+                                      rewriter.getI32IntegerAttr(1));
+  auto slot =
+      LLVM::AllocaOp::create(rewriter, loc, LLVM::LLVMPointerType::get(context),
+                             value.getType(), one, /*alignment=*/0);
+  LLVM::StoreOp::create(rewriter, loc, value, slot);
+  return LLVM::LoadOp::create(rewriter, loc, resultType, slot);
+}
+
+static auto isAggregateType(Type type) -> bool {
+  return isa<LLVM::LLVMStructType, LLVM::LLVMArrayType>(type);
 }
 
 using ::cxx::BuiltinFunctionKind;
@@ -1706,12 +1724,38 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     auto ptrTy = dyn_cast<cxx::PointerType>(op.getInputs()[argIndex].getType());
     if (!ptrTy) return {};
     if (isBoolAtomic(op, argIndex)) return getBoolMemoryType(getContext());
-    return getTypeConverter()->convertType(ptrTy.getElementType());
+    auto elementType = getTypeConverter()->convertType(ptrTy.getElementType());
+    if (!elementType || !isAggregateType(elementType)) return elementType;
+    if (auto integerType = atomicPointeeIntegerType(op, argIndex))
+      return *integerType;
+    return {};
+  }
+
+  auto atomicAlignment(cxx::BuiltinCallOp op, unsigned argIndex,
+                       Type accessType) const -> unsigned {
+    auto ptrTy = dyn_cast<cxx::PointerType>(op.getInputs()[argIndex].getType());
+    auto elementType =
+        ptrTy ? getTypeConverter()->convertType(ptrTy.getElementType())
+              : Type{};
+    if (elementType && isAggregateType(elementType))
+      return static_cast<unsigned>(
+          dataLayout_.getTypeABIAlignment(elementType));
+    return static_cast<unsigned>(dataLayout_.getTypeSize(accessType));
   }
 
   auto widenToAtomicMemory(cxx::BuiltinCallOp op, unsigned argIndex,
                            Value value, Location loc,
                            ConversionPatternRewriter& rewriter) const -> Value {
+    if (isAggregateType(value.getType())) {
+      auto integerType = atomicPointeeIntegerType(op, argIndex);
+      return reinterpretThroughMemory(value, *integerType, loc, rewriter);
+    }
+    return widenBoolToMemory(op, argIndex, value, loc, rewriter);
+  }
+
+  auto widenBoolToMemory(cxx::BuiltinCallOp op, unsigned argIndex, Value value,
+                         Location loc,
+                         ConversionPatternRewriter& rewriter) const -> Value {
     if (!isBoolAtomic(op, argIndex)) return value;
     return LLVM::ZExtOp::create(rewriter, loc, getBoolMemoryType(getContext()),
                                 value);
@@ -1721,6 +1765,8 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
                               Value value, Type valueType, Location loc,
                               ConversionPatternRewriter& rewriter) const
       -> Value {
+    if (isAggregateType(valueType))
+      return reinterpretThroughMemory(value, valueType, loc, rewriter);
     if (!isBoolAtomic(op, argIndex)) return value;
     return LLVM::TruncOp::create(rewriter, loc, valueType, value);
   }
@@ -1758,7 +1804,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
         return rewriter.notifyMatchFailure(
             op, "unsupported atomic_load element type");
       }
-      auto width = static_cast<unsigned>(dataLayout_.getTypeSize(*elementType));
+      auto width = atomicAlignment(op, 0, *elementType);
       auto order = atomicOrderingFromValue(adaptor.getInputs()[2]);
       auto loaded = LLVM::LoadOp::create(rewriter, loc, *elementType,
                                          adaptor.getInputs()[0], width, false,
@@ -1782,7 +1828,11 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     }
     auto memoryType = atomicMemoryType(op, 0);
     if (!memoryType) memoryType = resultTypes.front();
-    auto width = static_cast<unsigned>(dataLayout_.getTypeSize(memoryType));
+    if (isAggregateType(memoryType)) {
+      return rewriter.notifyMatchFailure(
+          op, "unsupported atomic_load element type");
+    }
+    auto width = atomicAlignment(op, 0, memoryType);
     auto order = atomicOrderingFromValue(adaptor.getInputs()[1]);
     auto loaded =
         LLVM::LoadOp::create(rewriter, loc, memoryType, adaptor.getInputs()[0],
@@ -1808,7 +1858,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
         return rewriter.notifyMatchFailure(
             op, "unsupported atomic_store element type");
       }
-      auto width = static_cast<unsigned>(dataLayout_.getTypeSize(*elementType));
+      auto width = atomicAlignment(op, 0, *elementType);
       auto value = LLVM::LoadOp::create(
           rewriter, loc, *elementType, adaptor.getInputs()[1], width, false,
           false, false, false, LLVM::AtomicOrdering::not_atomic);
@@ -1823,10 +1873,13 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       return rewriter.notifyMatchFailure(op,
                                          "atomic_store expects 3 arguments");
     }
+    if (!atomicMemoryType(op, 0)) {
+      return rewriter.notifyMatchFailure(
+          op, "unsupported atomic_store element type");
+    }
     auto value =
         widenToAtomicMemory(op, 0, adaptor.getInputs()[1], loc, rewriter);
-    auto width =
-        static_cast<unsigned>(dataLayout_.getTypeSize(value.getType()));
+    auto width = atomicAlignment(op, 0, value.getType());
     auto order = atomicOrderingFromValue(adaptor.getInputs()[2]);
     LLVM::StoreOp::create(rewriter, loc, value, adaptor.getInputs()[0], width,
                           false, false, false, order);
@@ -1840,10 +1893,9 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     if (adaptor.getInputs().size() < 2) {
       return rewriter.notifyMatchFailure(op, "atomic_init expects 2 arguments");
     }
-    auto value = widenToAtomicMemory(op, 0, adaptor.getInputs()[1], op.getLoc(),
-                                     rewriter);
-    auto width =
-        static_cast<unsigned>(dataLayout_.getTypeSize(value.getType()));
+    auto value =
+        widenBoolToMemory(op, 0, adaptor.getInputs()[1], op.getLoc(), rewriter);
+    auto width = atomicAlignment(op, 0, value.getType());
     LLVM::StoreOp::create(rewriter, op.getLoc(), value, adaptor.getInputs()[0],
                           width, false, false, false,
                           LLVM::AtomicOrdering::not_atomic);
@@ -1866,7 +1918,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
         return rewriter.notifyMatchFailure(
             op, "unsupported atomic_exchange element type");
       }
-      auto width = static_cast<unsigned>(dataLayout_.getTypeSize(*elementType));
+      auto width = atomicAlignment(op, 0, *elementType);
       auto newValue = LLVM::LoadOp::create(
           rewriter, loc, *elementType, adaptor.getInputs()[1], width, false,
           false, false, false, LLVM::AtomicOrdering::not_atomic);
@@ -1874,6 +1926,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       auto old =
           LLVM::AtomicRMWOp::create(rewriter, loc, LLVM::AtomicBinOp::xchg,
                                     adaptor.getInputs()[0], newValue, order);
+      old.setAlignment(width);
       LLVM::StoreOp::create(rewriter, loc, old, adaptor.getInputs()[2], width,
                             false, false, false,
                             LLVM::AtomicOrdering::not_atomic);
@@ -1885,6 +1938,10 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
       return rewriter.notifyMatchFailure(op,
                                          "atomic_exchange expects 3 arguments");
     }
+    if (!atomicMemoryType(op, 0)) {
+      return rewriter.notifyMatchFailure(
+          op, "unsupported atomic_exchange element type");
+    }
     auto valueType = adaptor.getInputs()[1].getType();
     auto newValue =
         widenToAtomicMemory(op, 0, adaptor.getInputs()[1], loc, rewriter);
@@ -1892,6 +1949,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
     auto old =
         LLVM::AtomicRMWOp::create(rewriter, loc, LLVM::AtomicBinOp::xchg,
                                   adaptor.getInputs()[0], newValue, order);
+    old.setAlignment(atomicAlignment(op, 0, newValue.getType()));
     rewriter.replaceOp(
         op, narrowFromAtomicMemory(op, 0, old, valueType, loc, rewriter));
     return success();
@@ -1920,7 +1978,7 @@ class BuiltinCallOpLowering : public OpConversionPattern<cxx::BuiltinCallOp> {
           op, "unsupported compare_exchange element type");
     }
     IntegerType elementType = *resolved;
-    auto width = static_cast<unsigned>(dataLayout_.getTypeSize(elementType));
+    auto width = atomicAlignment(op, 0, elementType);
 
     Value expectedPtr;
     Value desiredValue;

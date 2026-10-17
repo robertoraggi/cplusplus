@@ -2991,7 +2991,8 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::requireAtomicPointee() -> bool {
 auto TypeChecker::Visitor::CheckBuiltinAtomic::requireSupportedAtomicSize()
     -> bool {
   auto size = control()->memoryLayout()->sizeOf(elementType);
-  if (size == 1 || size == 2 || size == 4 || size == 8) return true;
+  if (size == 1 || size == 2 || size == 4 || size == 8 || size == 16)
+    return true;
   visitor.error(pointerArg->firstSourceLocation(),
                 std::format("atomic operation on type '{}' of unsupported size",
                             to_string(elementType)));
