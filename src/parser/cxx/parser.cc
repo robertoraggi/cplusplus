@@ -8367,6 +8367,7 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   ast->lbraceLoc = lbraceLoc;
 
   binder_.bind(ast, underlyingTypeSpecs);
+  binder_.recordMemberEnumerationDefinition(ast, specs.templateHead);
 
   if (auto enumScope = ast->symbol ? ast->symbol->asScopeSymbol() : nullptr)
     pushScope(enumScope);

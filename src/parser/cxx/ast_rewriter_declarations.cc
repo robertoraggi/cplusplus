@@ -596,7 +596,12 @@ auto ASTRewriter::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
                                                          typeSpecifierListCtx);
 
   copy->semicolonLoc = ast->semicolonLoc;
-  copy->symbol = rewrite.remapSymbol(ast->symbol);
+
+  binder()->bind(copy, typeSpecifierListCtx);
+
+  if (ast->symbol && copy->symbol) {
+    rewrite.addSymbolRemap(ast->symbol, copy->symbol);
+  }
 
   return copy;
 }

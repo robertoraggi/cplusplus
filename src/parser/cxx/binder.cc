@@ -613,7 +613,8 @@ struct MarkEnumerationDefined {
 auto Binder::declareEnum(const Name* name, SourceLocation location,
                          const Type* underlyingType, bool scoped,
                          bool fixedUnderlyingType, bool isDefinition,
-                         bool isValidDeclaration) -> ScopeSymbol* {
+                         bool isValidDeclaration, ScopeSymbol* qualifyingScope)
+    -> ScopeSymbol* {
   auto effectiveUnderlyingType = unit_->typeTraits().remove_cv(underlyingType);
   const auto invalidUnderlyingType =
       (scoped || fixedUnderlyingType) &&
@@ -632,7 +633,20 @@ auto Binder::declareEnum(const Name* name, SourceLocation location,
 
   if (!name) return newEnumeration(name, location, head, true);
 
-  for (auto candidate : declaringScope()->find(name)) {
+  if (qualifyingScope &&
+      !checkQualifiedEnumerationPlacement(qualifyingScope, name, location))
+    return newEnumeration(name, location, head, false);
+
+  auto candidates = enumerationCandidates(qualifyingScope, name);
+
+  if (qualifyingScope && candidates.empty()) {
+    error(location,
+          std::format("enumeration '{}' is not declared in '{}'",
+                      to_string(name), to_string(qualifyingScope->name())));
+    return newEnumeration(name, location, head, false);
+  }
+
+  for (auto candidate : candidates) {
     auto existing = visit(EnumerationHeadOf{}, candidate);
     if (!existing) {
       if (!symbol_cast<ClassSymbol>(candidate) &&
@@ -651,6 +665,89 @@ auto Binder::declareEnum(const Name* name, SourceLocation location,
   }
 
   return newEnumeration(name, location, head, true);
+}
+
+namespace {
+struct RecordEnumerationDefinition {
+  EnumSpecifierAST* ast;
+  TemplateDeclarationAST* templateHead;
+
+  void operator()(EnumSymbol* symbol) const { record(symbol); }
+  void operator()(ScopedEnumSymbol* symbol) const { record(symbol); }
+  void operator()(Symbol*) const {}
+
+ private:
+  template <class S>
+  void record(S* symbol) const {
+    symbol->setDeclaration(ast);
+    symbol->setTemplateDeclaration(templateHead);
+  }
+};
+
+[[nodiscard]] auto scopesDeclaringMembersOf(ScopeSymbol* scope)
+    -> std::vector<ScopeSymbol*> {
+  if (auto namespaceSymbol = symbol_cast<NamespaceSymbol>(scope)) {
+    auto inlineSet = inlineNamespaceSet(namespaceSymbol);
+    return {inlineSet.begin(), inlineSet.end()};
+  }
+  if (auto classSymbol = symbol_cast<ClassSymbol>(scope))
+    return {classSymbol->resolvedDefinition()};
+  return {scope};
+}
+}  // namespace
+
+auto Binder::checkQualifiedEnumerationPlacement(ScopeSymbol* qualifyingScope,
+                                                const Name* name,
+                                                SourceLocation location)
+    -> bool {
+  auto here = declaringScope();
+
+  if (here->isClass()) {
+    error(location,
+          std::format("enumeration '{}' with a nested-name-specifier shall "
+                      "not be declared in a class scope",
+                      to_string(name)));
+    return false;
+  }
+
+  if (!here->isNamespace()) {
+    error(location,
+          std::format("enumeration '{}' with a nested-name-specifier shall be "
+                      "declared in a namespace scope",
+                      to_string(name)));
+    return false;
+  }
+
+  auto target = qualifyingScope->isNamespace()
+                    ? symbol_cast<NamespaceSymbol>(qualifyingScope)
+                    : qualifyingScope->enclosingNamespace();
+  for (auto ns = target; ns; ns = ns->enclosingNamespace()) {
+    if (ns == here) return true;
+  }
+
+  error(location,
+        std::format("enumeration '{}' shall be declared in a namespace "
+                    "enclosing '{}'",
+                    to_string(name), to_string(qualifyingScope->name())));
+  return false;
+}
+
+void Binder::recordMemberEnumerationDefinition(
+    EnumSpecifierAST* ast, TemplateDeclarationAST* templateHead) {
+  if (!ast->nestedNameSpecifier || !templateHead || !ast->symbol) return;
+  visit(RecordEnumerationDefinition{ast, templateHead}, ast->symbol);
+}
+
+auto Binder::enumerationCandidates(ScopeSymbol* qualifyingScope,
+                                   const Name* name) -> std::vector<Symbol*> {
+  std::vector<ScopeSymbol*> scopes{declaringScope()};
+  if (qualifyingScope) scopes = scopesDeclaringMembersOf(qualifyingScope);
+
+  std::vector<Symbol*> candidates;
+  for (auto scope : scopes) {
+    for (auto candidate : scope->find(name)) candidates.push_back(candidate);
+  }
+  return candidates;
 }
 
 auto Binder::newEnumeration(const Name* name, SourceLocation location,
@@ -745,10 +842,20 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
                             : ast->lbraceLoc;
   if (isC() && ast->classLoc)
     error(ast->classLoc, "scoped enums are not allowed in C");
+  ScopeSymbol* qualifyingScope = nullptr;
+  if (ast->nestedNameSpecifier) {
+    qualifyingScope =
+        symbol_cast<ScopeSymbol>(ast->nestedNameSpecifier->symbol);
+    if (!qualifyingScope)
+      (void)reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
+  }
+  const auto isValidDeclaration =
+      !ast->nestedNameSpecifier || qualifyingScope != nullptr;
   ast->symbol = declareEnum(get_name(control(), ast->unqualifiedId), location,
                             underlyingType, ast->classLoc && isCxx(),
-                            ast->typeSpecifierList != nullptr, true);
-  applyAccessSpecifier(ast->symbol);
+                            ast->typeSpecifierList != nullptr, true,
+                            isValidDeclaration, qualifyingScope);
+  if (!qualifyingScope) applyAccessSpecifier(ast->symbol);
   applyDeclarationAttributes(ast->symbol, ast->attributeList);
   setScope(ast->symbol->asScopeSymbol());
 }

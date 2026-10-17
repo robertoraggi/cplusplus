@@ -470,6 +470,8 @@ class Binder {
                                                    FunctionSymbol* operatorFunc,
                                                    CompoundStatementAST* body)
       -> FunctionDefinitionAST*;
+  void recordMemberEnumerationDefinition(EnumSpecifierAST* ast,
+                                         TemplateDeclarationAST* templateHead);
   void completeLambdaBody(LambdaExpressionAST* ast);
   void resolveDeferredCaptures(FunctionSymbol* callOperator,
                                CompoundStatementAST* body);
@@ -826,8 +828,17 @@ class Binder {
   [[nodiscard]] auto declareEnum(const Name* name, SourceLocation location,
                                  const Type* underlyingType, bool scoped,
                                  bool fixedUnderlyingType, bool isDefinition,
-                                 bool isValidDeclaration = true)
+                                 bool isValidDeclaration = true,
+                                 ScopeSymbol* qualifyingScope = nullptr)
       -> ScopeSymbol*;
+
+  [[nodiscard]] auto checkQualifiedEnumerationPlacement(
+      ScopeSymbol* qualifyingScope, const Name* name, SourceLocation location)
+      -> bool;
+
+  [[nodiscard]] auto enumerationCandidates(ScopeSymbol* qualifyingScope,
+                                           const Name* name)
+      -> std::vector<Symbol*>;
 
   struct EnumerationHead {
     const Type* underlyingType = nullptr;

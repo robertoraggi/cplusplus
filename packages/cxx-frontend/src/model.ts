@@ -1020,8 +1020,8 @@ const BaseClassSymbolSlotBase = DeductionGuideSymbolSlotBase + 12;
 const InjectedClassNameSymbolSlotBase = BaseClassSymbolSlotBase + 2;
 const ClassSymbolSlotBase = InjectedClassNameSymbolSlotBase + 1;
 const EnumSymbolSlotBase = ClassSymbolSlotBase + 66;
-const ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 3;
-const FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 2;
+const ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 14;
+const FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 13;
 const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 81;
 const LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 4;
 const FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 7;
@@ -9579,29 +9579,159 @@ export class ClassSymbol extends ScopeSymbol {
 }
 /** @category Symbols */
 export class EnumSymbol extends ScopeSymbol {
+  get declaration(): EnumSpecifierAST | undefined {
+    return astOf(
+      cxx.readSymbol(this.handle, EnumSymbolSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+  get templateDeclaration(): TemplateDeclarationAST | undefined {
+    return astOf(
+      cxx.readSymbol(this.handle, EnumSymbolSlotBase + 1),
+      this.modelOwner,
+    );
+  }
+  get templateParameters(): TemplateParametersSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, EnumSymbolSlotBase + 2),
+      this.modelOwner,
+    );
+  }
+  get primaryTemplateSymbol(): EnumSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, EnumSymbolSlotBase + 3),
+      this.modelOwner,
+    );
+  }
+  get templateSpecializationIndex(): number {
+    return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 4);
+  }
+  get isSpecialization(): boolean {
+    return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 5) !== 0;
+  }
+  get isTemplatePattern(): boolean {
+    return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 6) !== 0;
+  }
+  get isExplicitSpecialization(): boolean {
+    return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 7) !== 0;
+  }
+  get templateArguments(): Iterable<TemplateArgument> {
+    return symbolValItems(
+      this.modelOwner,
+      this.handle,
+      EnumSymbolSlotBase + 8,
+      (item: any) => decodeTemplateArgument(item, this.modelOwner),
+    );
+  }
+  get specializations(): Iterable<TemplateSpecialization> {
+    return symbolValItems(
+      this.modelOwner,
+      this.handle,
+      EnumSymbolSlotBase + 9,
+      (item: any) => decodeTemplateSpecialization(item, this.modelOwner),
+    );
+  }
+  get externInstantiationDeclarations(): Iterable<
+    ReadonlyArray<TemplateArgument>
+  > {
+    return symbolValItems(
+      this.modelOwner,
+      this.handle,
+      EnumSymbolSlotBase + 10,
+      (item: any) =>
+        (item as any[]).map((element: any) =>
+          decodeTemplateArgument(element, this.modelOwner),
+        ),
+    );
+  }
   get hasFixedUnderlyingType(): boolean {
-    return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 0) !== 0;
+    return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 11) !== 0;
   }
   get isDefined(): boolean {
-    return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 1) !== 0;
+    return cxx.readSymbol(this.handle, EnumSymbolSlotBase + 12) !== 0;
   }
   get underlyingType(): Type | undefined {
     return typeOf(
-      cxx.readSymbol(this.handle, EnumSymbolSlotBase + 2),
+      cxx.readSymbol(this.handle, EnumSymbolSlotBase + 13),
       this.modelOwner,
     );
   }
 }
 /** @category Symbols */
 export class ScopedEnumSymbol extends ScopeSymbol {
-  get underlyingType(): Type | undefined {
-    return typeOf(
+  get declaration(): EnumSpecifierAST | undefined {
+    return astOf(
       cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 0),
       this.modelOwner,
     );
   }
+  get templateDeclaration(): TemplateDeclarationAST | undefined {
+    return astOf(
+      cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 1),
+      this.modelOwner,
+    );
+  }
+  get templateParameters(): TemplateParametersSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 2),
+      this.modelOwner,
+    );
+  }
+  get primaryTemplateSymbol(): ScopedEnumSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 3),
+      this.modelOwner,
+    );
+  }
+  get templateSpecializationIndex(): number {
+    return cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 4);
+  }
+  get isSpecialization(): boolean {
+    return cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 5) !== 0;
+  }
+  get isTemplatePattern(): boolean {
+    return cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 6) !== 0;
+  }
+  get isExplicitSpecialization(): boolean {
+    return cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 7) !== 0;
+  }
+  get templateArguments(): Iterable<TemplateArgument> {
+    return symbolValItems(
+      this.modelOwner,
+      this.handle,
+      ScopedEnumSymbolSlotBase + 8,
+      (item: any) => decodeTemplateArgument(item, this.modelOwner),
+    );
+  }
+  get specializations(): Iterable<TemplateSpecialization> {
+    return symbolValItems(
+      this.modelOwner,
+      this.handle,
+      ScopedEnumSymbolSlotBase + 9,
+      (item: any) => decodeTemplateSpecialization(item, this.modelOwner),
+    );
+  }
+  get externInstantiationDeclarations(): Iterable<
+    ReadonlyArray<TemplateArgument>
+  > {
+    return symbolValItems(
+      this.modelOwner,
+      this.handle,
+      ScopedEnumSymbolSlotBase + 10,
+      (item: any) =>
+        (item as any[]).map((element: any) =>
+          decodeTemplateArgument(element, this.modelOwner),
+        ),
+    );
+  }
+  get underlyingType(): Type | undefined {
+    return typeOf(
+      cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 11),
+      this.modelOwner,
+    );
+  }
   get isDefined(): boolean {
-    return cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 1) !== 0;
+    return cxx.readSymbol(this.handle, ScopedEnumSymbolSlotBase + 12) !== 0;
   }
 }
 /** @category Symbols */

@@ -3563,6 +3563,25 @@ auto isPotentiallyConstant(const TypeTraits& traits, Symbol* symbol) -> bool {
   return traits.is_integral(type) || traits.is_enum(type);
 }
 
+namespace {
+struct IsDefinedEnumeration {
+  auto operator()(EnumSymbol* symbol) const -> bool {
+    return symbol->isDefined();
+  }
+
+  auto operator()(ScopedEnumSymbol* symbol) const -> bool {
+    return symbol->isDefined();
+  }
+
+  auto operator()(Symbol*) const -> bool { return false; }
+};
+}  // namespace
+
+auto isDefinedEnumeration(Symbol* symbol) -> bool {
+  if (!symbol) return false;
+  return visit(IsDefinedEnumeration{}, symbol);
+}
+
 auto isUsableInConstantExpressions(Symbol* symbol) -> bool {
   auto var = symbol_cast<VariableSymbol>(symbol);
   if (!var || !var->constValue().has_value()) return false;

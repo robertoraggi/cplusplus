@@ -1095,6 +1095,8 @@ struct ASTRewriter::OutOfClassMemberDefinitions {
         instantiateStaticDataMemberDefinition(field);
       if (auto variable = symbol_cast<VariableSymbol>(member))
         instantiateMemberVariableTemplateDefinition(variable);
+      if (member->isEnumOrScopedEnum())
+        instantiateMemberEnumerationDefinition(member);
     }
   }
 
@@ -1105,6 +1107,7 @@ struct ASTRewriter::OutOfClassMemberDefinitions {
         ASTRewriter{rewrite.unit_, enclosingNonClassScope(definition),
                     std::vector<TemplateArgument>(rewrite.templateArguments_)};
     rewriter.depth_ = depth;
+    rewriter.inheritEnclosingTemplateArguments(instanceClass);
     rewriter.binder_.setInstantiatingSymbol(instantiating);
     rewriter.remapScopeMembers(pattern, instanceClass);
     (void)rewriter.declaration(declaration);
@@ -1184,6 +1187,29 @@ struct ASTRewriter::OutOfClassMemberDefinitions {
                                        rewrite.templateArguments_))
       return;
     instantiateDefinition(definition, definition, declaration,
+                          templateDecl->depth);
+  }
+
+  [[nodiscard]] auto enumerationDefiningPattern(Symbol* member) const
+      -> Symbol* {
+    for (auto pattern = member; pattern;
+         pattern = pattern->instantiationPattern()) {
+      if (template_declaration_of(pattern)) return pattern;
+    }
+    return nullptr;
+  }
+
+  void instantiateMemberEnumerationDefinition(Symbol* member) {
+    auto definingPattern = enumerationDefiningPattern(member);
+    if (!definingPattern) return;
+    auto templateDecl = template_declaration_of(definingPattern);
+    auto declaration =
+        ast_cast<SimpleDeclarationAST>(templateDecl->declaration);
+    if (!declaration) return;
+    auto instance = rewrite.remapSymbol(member);
+    if (!instance || instance == member) return;
+    if (isDefinedEnumeration(instance)) return;
+    instantiateDefinition(definingPattern, definingPattern, declaration,
                           templateDecl->depth);
   }
 
