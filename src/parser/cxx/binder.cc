@@ -4851,6 +4851,16 @@ struct Binder::ResolveCurrentInstantiationMembers {
     return changed;
   }
 
+  [[nodiscard]] auto nestedNameSpecifier(NestedNameSpecifierAST* ast) -> bool {
+    if (auto simple = ast_cast<SimpleNestedNameSpecifierAST>(ast))
+      return nestedNameSpecifier(simple->nestedNameSpecifier);
+    if (auto templateName = ast_cast<TemplateNestedNameSpecifierAST>(ast)) {
+      auto changed = nestedNameSpecifier(templateName->nestedNameSpecifier);
+      return templateId(templateName->templateId) || changed;
+    }
+    return false;
+  }
+
   auto operator()(TypeTemplateArgumentAST* ast) -> bool {
     return typeId(ast->typeId);
   }
@@ -4861,6 +4871,7 @@ struct Binder::ResolveCurrentInstantiationMembers {
 
   auto operator()(TypenameSpecifierAST* ast) -> bool {
     if (ast->symbol) return false;
+    if (nestedNameSpecifier(ast->nestedNameSpecifier)) return true;
     if (templateId(ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId))) {
       return true;
     }
