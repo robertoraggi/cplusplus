@@ -7213,25 +7213,17 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   Symbol* symbol = nullptr;
 
   if (auto declId = decl.declaratorId; declId) {
-    const Type* declaratorType = nullptr;
-    bool declaresFunction = getFunctionPrototype(declarator) != nullptr;
-
-    if (!decl.specs.isTypedef && !declaresFunction) {
-      declaratorType = getDeclaratorType(unit_, declarator, decl.specs.type());
-      declaresFunction = type_cast<FunctionType>(declaratorType) != nullptr;
-    }
-
     if (decl.specs.isTypedef) {
       auto typedefSymbol = binder_.declareTypedef(declarator, decl);
       symbol = typedefSymbol;
-    } else if (declaresFunction) {
+    } else if (cxx::declaresFunction(declarator, decl.specs.type())) {
       auto functionSymbol = declareFunction(declarator, decl);
       associatePendingNoexceptSpecifier(declarator, functionSymbol);
       binder_.setTemplateHead(functionSymbol, templateHead);
       symbol = functionSymbol;
     } else {
       auto variableSymbol = binder_.declareVariable(
-          declarator, decl, /*addSymbolToParentScope=*/true, declaratorType);
+          declarator, decl, /*addSymbolToParentScope=*/true);
       binder_.declareVariableTemplate(variableSymbol, declId, templateHead);
 
       symbol = variableSymbol;

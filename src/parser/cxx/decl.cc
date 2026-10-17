@@ -83,6 +83,10 @@ class GetFunctionPrototype {
     return prototype_;
   }
 
+  [[nodiscard]] auto appliesNoTypeOperator() const -> bool {
+    return kind_ == Kind::Direct;
+  }
+
  private:
   void makeDirect() {
     prototype_ = nullptr;
@@ -108,9 +112,11 @@ class GetFunctionPrototype {
     if (!declarator) return;
     if (declarator->ptrOpList) makePtr();
     if (declarator->declaratorChunkList) {
-      auto prototype = ast_cast<FunctionDeclaratorChunkAST>(
-          declarator->declaratorChunkList->value);
-      if (prototype) makeFunction(prototype);
+      auto chunk = declarator->declaratorChunkList->value;
+      if (auto prototype = ast_cast<FunctionDeclaratorChunkAST>(chunk))
+        makeFunction(prototype);
+      else if (ast_cast<ArrayDeclaratorChunkAST>(chunk))
+        makeArray();
     }
     auto nested = ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator);
     if (nested) process(nested->declarator);
@@ -370,6 +376,13 @@ struct GetDeclaratorType {
     -> FunctionDeclaratorChunkAST* {
   GetFunctionPrototype prototype;
   return prototype(declarator);
+}
+
+auto declaresFunction(DeclaratorAST* declarator, const Type* type) -> bool {
+  GetFunctionPrototype classification;
+  if (classification(declarator)) return true;
+  return classification.appliesNoTypeOperator() &&
+         type_cast<FunctionType>(type) != nullptr;
 }
 
 auto declaresExplicitObjectParameter(ParameterDeclarationClauseAST* clause)
