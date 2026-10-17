@@ -7210,6 +7210,15 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
     if (abbreviatedHead) setScope(abbreviatedHead->symbol);
   }
 
+  RequiresClauseAST* requiresClause = nullptr;
+  if (auto functionDeclarator = getFunctionPrototype(declarator)) {
+    auto scopeGuard = CombinedScopeGuard{this};
+    if (auto memberScope = decl.getScope())
+      enterDeclaratorScopeChain(memberScope);
+    (void)parse_trailing_requires_clause(functionDeclarator, requiresClause);
+    decl.trailingRequiresClause = requiresClause;
+  }
+
   Symbol* symbol = nullptr;
 
   if (auto declId = decl.declaratorId; declId) {
@@ -7230,10 +7239,9 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
     }
   }
 
-  RequiresClauseAST* requiresClause = nullptr;
   ExpressionAST* initializer = nullptr;
 
-  {
+  if (!requiresClause) {
     auto scopeGuard = CombinedScopeGuard{this};
     if (auto memberScope = decl.getScope())
       enterDeclaratorScopeChain(memberScope);
@@ -7255,13 +7263,6 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   ast->requiresClause = requiresClause;
   ast->initializer = initializer;
   ast->symbol = symbol;
-
-  if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol);
-      functionSymbol && requiresClause) {
-    functionSymbol->setTrailingRequiresClause(requiresClause);
-    binder_.checkTrailingRequiresClauseIsTemplated(functionSymbol,
-                                                   templateHead);
-  }
 
   {
     auto scopeGuard = CombinedScopeGuard{this};
