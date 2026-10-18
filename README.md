@@ -75,12 +75,12 @@ Define a pipeline that outputs a mix of cxx, memref, ptr, and scf dialects:
     source.cc -o source.mlir
 ```
 
-## Stage 2 bootstrap (on macOS)
+## Stage 2 bootstrap (on macOS and Linux)
 
 ```bash
 cmake --workflow default-mlir
-cmake --workflow stage1-macos
-cmake --workflow stage2-macos
+cmake --workflow stage1
+cmake --workflow stage2
 
 ls -la build-stage*/src/frontend/cxx
 ```
