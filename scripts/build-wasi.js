@@ -77,4 +77,7 @@ async function main() {
   await $`${docker} run ${dockerRunOpts} cmake ${cmakeBuildOpts}`;
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

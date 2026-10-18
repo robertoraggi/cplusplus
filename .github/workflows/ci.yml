@@ -239,10 +239,9 @@ jobs:
       - name: Test
         run: |
           wasmtime \
-            -W threads=y -S threads=y \
             --dir ${{github.workspace}}/build.wasi/install::/ \
             --dir tests::tests \
-            ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -v -fno-check tests/manual/source.cc
+            ${{github.workspace}}/build.wasi/install/usr/bin/cxx.wasm -v -fsyntax-only tests/manual/source.cc
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7

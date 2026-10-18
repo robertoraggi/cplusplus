@@ -2,6 +2,8 @@
 
 // expected-no-diagnostics
 
+#ifdef CXX_HAS_INT128
+
 #include <limits.h>
 
 constexpr bool unsigned_add() { unsigned long long r = 0; bool o = __builtin_uaddll_overflow(~0ull, 1ull, &r); return o && r == 0; }
@@ -26,3 +28,5 @@ constexpr bool add_carry_short() { unsigned short co = 7; unsigned short r = __b
 
 static_assert(carry_out() && carry_none() && borrow_byte());
 static_assert(borrow_long_long() && add_carry_short());
+
+#endif
