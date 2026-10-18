@@ -50,11 +50,16 @@ if(EMSCRIPTEN)
         "SHELL:-s EXIT_RUNTIME=1"
         "SHELL:-s NODERAWFS=1"
         "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+        "SHELL:-s STACK_SIZE=${cxx_wasm_stack_size}"
     )
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
     set_target_properties(cxx PROPERTIES SUFFIX ".wasm")
+
+    target_link_options(cxx PRIVATE
+        "SHELL:-Wl,-z,stack-size=${cxx_wasm_stack_size}"
+    )
 
     if (Threads_FOUND)
         target_link_options(cxx PRIVATE

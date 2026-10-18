@@ -43,7 +43,7 @@ target_link_options(cxx-js PUBLIC
     "SHELL:-s NO_DYNAMIC_EXECUTION=1"
     "SHELL:-s INCOMING_MODULE_JS_API=[]"
     "SHELL:-s POLYFILL=0"
-    "SHELL:-s STACK_SIZE=16mb"
+    "SHELL:-s STACK_SIZE=${cxx_wasm_stack_size}"
     "SHELL:--emit-tsd cxx-js.d.ts"
 )
 

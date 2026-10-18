@@ -50,6 +50,8 @@ option(CXX_TESTS_WITH_EXCEPTIONS "Enable exceptions in GoogleTest and its consum
 option(CXX_INTERPROCEDURAL_OPTIMIZATION "Enable interprocedural optimization" OFF)
 option(CXX_ENABLE_MIMALLOC "Link the cxx executable with mimalloc" ON)
 
+set(cxx_wasm_stack_size 16777216)
+
 if (EMSCRIPTEN)
     set(cxx_llvm_optimizer_default OFF)
 else()
