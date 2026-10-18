@@ -73,7 +73,7 @@ struct Codegen::UnitVisitor {
       return;
     }
     if (!field->isInline() || field->instantiationPattern()) return;
-    if (field->constValue()) return;
+    if (gen.emitsOnlyWhenReferenced(field, field->constValue())) return;
     auto global = gen.findOrCreateStaticField(field);
     if (gen.isNonLocalThreadLocal(field))
       (void)gen.findOrCreateThreadLocalWrapper(field, global);
@@ -105,7 +105,9 @@ struct Codegen::UnitVisitor {
       return;
     }
     if (var->instantiationPattern()) return;
-    if (var->isInline() && var->resolvedDefinition()->constValue()) return;
+    if (gen.emitsOnlyWhenReferenced(var,
+                                    var->resolvedDefinition()->constValue()))
+      return;
     if (auto glo = gen.findOrCreateGlobal(var)) {
       gen.emitGlobalVarInit(var, *glo);
       if (gen.isNonLocalThreadLocal(var) &&
@@ -139,7 +141,8 @@ struct Codegen::UnitVisitor {
   void visitFunctionAliases(ScopeSymbol* scope) {
     for (auto member : views::members(scope)) {
       for (auto function : views::declared_functions{member}) {
-        if (attributeArgument(function->canonical()->attributes(), "alias"))
+        if (attributeArgument(function->canonical()->attributes(),
+                              AttributeKind::kAlias))
           (void)gen.findOrCreateFunction(function);
       }
     }
@@ -156,9 +159,15 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
       .name = gen.unit_->fileName(),
       .sourceFile = gen.unit_->fileName(),
       .targetTriple = gen.control()->memoryLayout()->triple(),
+      .dataLayout =
+          gen.control()->memoryLayout()->targetDataLayout().value_or(""),
       .debugCompilationDirectory = gen.debugCompilationDirectory(),
       .framePointer =
           to_string(gen.control()->memoryLayout()->framePointerKind()),
+      .deviceProfile =
+          gen.control()->memoryLayout()->deviceProfile() == DeviceProfile::kNone
+              ? std::string_view{}
+              : to_string(gen.control()->memoryLayout()->deviceProfile()),
       .picLevel =
           gen.control()->memoryLayout()->positionIndependence().picLevel,
       .pieLevel =

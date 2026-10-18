@@ -381,6 +381,12 @@ export interface VTableLayout {
   readonly keyFunction: FunctionSymbol | undefined;
 }
 /** @category Data Structures */
+export interface KernelWorkgroupSize {
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+/** @category Data Structures */
 export interface PendingInstantiation {
   readonly pattern: AST | undefined;
   readonly instance: AST | undefined;
@@ -389,6 +395,16 @@ export interface PendingInstantiation {
   readonly depth: number;
   readonly state: PendingInstantiationState;
 }
+/** @category Data Structures */
+export interface KernelBufferBinding {
+  readonly binding: number;
+}
+/** @category Data Structures */
+export interface KernelInvocationId {
+  readonly kind: KernelInvocationIdKind;
+}
+/** @category Data Structures */
+export type KernelParameterBinding = KernelBufferBinding | KernelInvocationId;
 /** @category Data Structures */
 export type ExceptionSpecification = boolean | ExpressionAST | undefined;
 /** @category Data Structures */
@@ -419,6 +435,12 @@ function decodeConstValue(value: any, owner: ModelOwner): ConstValue {
     default:
       return value.value;
   }
+}
+function decodeTuple(
+  value: any,
+  owner: ModelOwner,
+): readonly [ConstValue, Type | undefined] {
+  return [decodeConstValue(value[0], owner), typeOf(value[1], owner)] as const;
 }
 function decodeConstObject_Member(
   value: any,
@@ -687,6 +709,25 @@ function decodePendingInstantiation(
     state: pendingInstantiationStateNames[value.state]!,
   };
 }
+function decodeKernelInvocationId(
+  value: any,
+  owner: ModelOwner,
+): KernelInvocationId {
+  return {
+    kind: kernelInvocationIdKindNames[value.kind]!,
+  };
+}
+function decodeKernelParameterBinding(
+  value: any,
+  owner: ModelOwner,
+): KernelParameterBinding {
+  switch (value.index) {
+    case 1:
+      return decodeKernelInvocationId(value.value, owner);
+    default:
+      return value.value;
+  }
+}
 function decodeExceptionSpecification(
   value: any,
   owner: ModelOwner,
@@ -706,7 +747,8 @@ function decodeSourceLocationRange(
 ): SourceLocationRange {
   return [Token.from(value[0], owner), Token.from(value[1], owner)] as const;
 }
-const ConstComplexSlotBase = 0;
+const InitializerListSlotBase = 0;
+const ConstComplexSlotBase = InitializerListSlotBase + 4;
 const ConstObjectSlotBase = ConstComplexSlotBase + 2;
 const ConstAddressSlotBase = ConstObjectSlotBase + 4;
 const ConstLabelAddressSlotBase = ConstAddressSlotBase + 8;
@@ -1022,7 +1064,7 @@ const ClassSymbolSlotBase = InjectedClassNameSymbolSlotBase + 1;
 const EnumSymbolSlotBase = ClassSymbolSlotBase + 66;
 const ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 14;
 const FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 13;
-const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 81;
+const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 82;
 const LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 4;
 const FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 7;
 const TemplateParametersSymbolSlotBase = FunctionParametersSymbolSlotBase + 1;
@@ -1031,7 +1073,7 @@ const TypeAliasSymbolSlotBase = BlockSymbolSlotBase + 2;
 const VariableSymbolSlotBase = TypeAliasSymbolSlotBase + 18;
 const FieldSymbolSlotBase = VariableSymbolSlotBase + 30;
 const ParameterSymbolSlotBase = FieldSymbolSlotBase + 26;
-const ParameterPackSymbolSlotBase = ParameterSymbolSlotBase + 6;
+const ParameterPackSymbolSlotBase = ParameterSymbolSlotBase + 7;
 const TypeParameterSymbolSlotBase = ParameterPackSymbolSlotBase + 1;
 const NonTypeParameterSymbolSlotBase = TypeParameterSymbolSlotBase + 1;
 const TemplateTypeParameterSymbolSlotBase = NonTypeParameterSymbolSlotBase + 5;
@@ -1077,7 +1119,28 @@ const SveTypeSlotBase = AtomicTypeSlotBase + 1;
 /** @category Constant Values */
 export class DefaultInitializerContext extends ModelObject {}
 /** @category Constant Values */
-export class InitializerList extends ModelObject {}
+export class InitializerList extends ModelObject {
+  get size(): number {
+    return cxx.readMisc(this.handle, InitializerListSlotBase + 0);
+  }
+  get initializedElements(): Iterable<readonly [ConstValue, Type | undefined]> {
+    return miscValItems(
+      this.modelOwner,
+      this.handle,
+      InitializerListSlotBase + 1,
+      (item: any) => decodeTuple(item, this.modelOwner),
+    );
+  }
+  get hasFiller(): boolean {
+    return cxx.readMisc(this.handle, InitializerListSlotBase + 2) !== 0;
+  }
+  get filler(): readonly [ConstValue, Type | undefined] {
+    return decodeTuple(
+      cxx.readMiscVal(this.handle, InitializerListSlotBase + 3),
+      this.modelOwner,
+    );
+  }
+}
 /** @category Constant Values */
 export class ConstComplex extends ModelObject {
   get real(): ConstValue {
@@ -9885,56 +9948,60 @@ export class FunctionSymbol extends ScopeSymbol {
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
-  get isConstexpr(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 28) !== 0;
+  get kernelWorkgroupSize(): KernelWorkgroupSize | undefined {
+    return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 28) as
+      KernelWorkgroupSize | undefined;
   }
-  get isConsteval(): boolean {
+  get isConstexpr(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 29) !== 0;
   }
-  get isInline(): boolean {
+  get isConsteval(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 30) !== 0;
   }
-  get isVirtual(): boolean {
+  get isInline(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 31) !== 0;
   }
-  get isExplicit(): boolean {
+  get isVirtual(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 32) !== 0;
   }
-  get isDeleted(): boolean {
+  get isExplicit(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 33) !== 0;
   }
-  get isDefaulted(): boolean {
+  get isDeleted(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 34) !== 0;
   }
-  get isPure(): boolean {
+  get isDefaulted(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 35) !== 0;
   }
-  get isOverride(): boolean {
+  get isPure(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 36) !== 0;
   }
-  get isFinal(): boolean {
+  get isOverride(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 37) !== 0;
   }
-  get hasNoPrototype(): boolean {
+  get isFinal(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 38) !== 0;
   }
-  get hasExceptionSpecifier(): boolean {
+  get hasNoPrototype(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 39) !== 0;
   }
-  get isDefinitionRequired(): boolean {
+  get hasExceptionSpecifier(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 40) !== 0;
   }
-  get isNoReturn(): boolean {
+  get isDefinitionRequired(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 41) !== 0;
+  }
+  get isNoReturn(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 42) !== 0;
   }
   get builtinKind(): BuiltinFunctionKind {
     return builtinFunctionKindNames[
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 42)
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 43)
     ]!;
   }
   get trailingRequiresClause(): RequiresClauseAST | undefined {
     return astOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 43),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 44),
       this.modelOwner,
     );
   }
@@ -9942,100 +10009,92 @@ export class FunctionSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      FunctionSymbolSlotBase + 44,
+      FunctionSymbolSlotBase + 45,
       (item: any) => astOf(item, this.modelOwner),
     );
   }
   get isConstructor(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 45) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 46) !== 0;
   }
   get isDestructor(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 46) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 47) !== 0;
   }
   get languageLinkage(): LanguageKind {
     return languageKindNames[
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 47)
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 48)
     ]!;
   }
   get hasCLinkage(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 48) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 49) !== 0;
   }
   get externalName(): Identifier | undefined {
-    return nameOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 49),
-      this.modelOwner,
-    );
-  }
-  get aliasName(): Identifier | undefined {
     return nameOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 50),
       this.modelOwner,
     );
   }
-  get hasHiddenVisibility(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 51) !== 0;
-  }
-  get importModule(): Identifier | undefined {
+  get aliasName(): Identifier | undefined {
     return nameOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 52),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 51),
       this.modelOwner,
     );
   }
-  get importName(): Identifier | undefined {
+  get hasHiddenVisibility(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 52) !== 0;
+  }
+  get importModule(): Identifier | undefined {
     return nameOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 53),
       this.modelOwner,
     );
   }
-  get exportName(): Identifier | undefined {
+  get importName(): Identifier | undefined {
     return nameOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 54),
       this.modelOwner,
     );
   }
-  get hasPendingBody(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 55) !== 0;
+  get exportName(): Identifier | undefined {
+    return nameOf(
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 55),
+      this.modelOwner,
+    );
   }
-  get hasUninstantiatedBody(): boolean {
+  get hasPendingBody(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 56) !== 0;
   }
-  get isExplicitlySpecialized(): boolean {
+  get hasUninstantiatedBody(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 57) !== 0;
+  }
+  get isExplicitlySpecialized(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 58) !== 0;
   }
   get pendingBody(): PendingInstantiation | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 58),
+      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 59),
       (item: any) => decodePendingInstantiation(item, this.modelOwner),
     );
   }
   get hasDeferredImplicitExceptionSpecification(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 59) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 60) !== 0;
   }
   get hasDeferredDeletion(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 60) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 61) !== 0;
   }
   get pendingExceptionSpecification(): PendingInstantiation | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 61),
+      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 62),
       (item: any) => decodePendingInstantiation(item, this.modelOwner),
     );
   }
   get vtableSlotIndex(): number {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 62);
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 63);
   }
   get constructorPriority(): number | undefined {
-    return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 63) as
+    return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 64) as
       number | undefined;
   }
   get overriddenFunctions(): Iterable<FunctionSymbol | undefined> {
-    return symbolItems(
-      this.modelOwner,
-      this.handle,
-      FunctionSymbolSlotBase + 64,
-      (item: any) => symbolOf(item, this.modelOwner),
-    );
-  }
-  get befriendingClasses(): Iterable<ClassSymbol | undefined> {
     return symbolItems(
       this.modelOwner,
       this.handle,
@@ -10043,18 +10102,26 @@ export class FunctionSymbol extends ScopeSymbol {
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
+  get befriendingClasses(): Iterable<ClassSymbol | undefined> {
+    return symbolItems(
+      this.modelOwner,
+      this.handle,
+      FunctionSymbolSlotBase + 66,
+      (item: any) => symbolOf(item, this.modelOwner),
+    );
+  }
   get templateFriendships(): Iterable<TemplateFriendship> {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      FunctionSymbolSlotBase + 66,
+      FunctionSymbolSlotBase + 67,
       (item: any) => decodeTemplateFriendship(item, this.modelOwner),
     );
   }
   get constructorInitializers():
     Iterable<MemInitializerAST | undefined> | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 67),
+      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 68),
       (item: any) =>
         listOf(this.modelOwner, item, (item: any) =>
           astOf(item, this.modelOwner),
@@ -10063,63 +10130,63 @@ export class FunctionSymbol extends ScopeSymbol {
   }
   get delegatingConstructor(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 68),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 69),
       this.modelOwner,
     );
   }
   get completeObjectVariant(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 69),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 70),
       this.modelOwner,
     );
   }
   get deletingDtorVariant(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 70),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 71),
       this.modelOwner,
     );
   }
   get structorPrincipal(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 71),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 72),
       this.modelOwner,
     );
   }
   get isStructorVariant(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 72) !== 0;
-  }
-  get isStructor(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 73) !== 0;
   }
-  get hasBaseObjectVariant(): boolean {
+  get isStructor(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 74) !== 0;
   }
-  get inheritedConstructor(): FunctionSymbol | undefined {
-    return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 75),
-      this.modelOwner,
-    );
+  get hasBaseObjectVariant(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 75) !== 0;
   }
-  get inheritedConstructorOrigin(): FunctionSymbol | undefined {
+  get inheritedConstructor(): FunctionSymbol | undefined {
     return symbolOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 76),
       this.modelOwner,
     );
   }
+  get inheritedConstructorOrigin(): FunctionSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 77),
+      this.modelOwner,
+    );
+  }
   get isDeletingDtorVariant(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 77) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 78) !== 0;
   }
   get hostScope(): ScopeSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 78),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 79),
       this.modelOwner,
     );
   }
   get hasFriendDefaultArgument(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 79) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 80) !== 0;
   }
   get hasFriendDefaultTemplateArgument(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 80) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 81) !== 0;
   }
 }
 /** @category Symbols */
@@ -10583,29 +10650,35 @@ export class ParameterSymbol extends Symbol {
   get isParameterPack(): boolean {
     return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 0) !== 0;
   }
+  get kernelParameterBinding(): KernelParameterBinding | undefined {
+    return optionalOf(
+      cxx.readSymbolVal(this.handle, ParameterSymbolSlotBase + 1),
+      (item: any) => decodeKernelParameterBinding(item, this.modelOwner),
+    );
+  }
   get defaultArgument(): ExpressionAST | undefined {
     return astOf(
-      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 1),
+      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 2),
       this.modelOwner,
     );
   }
   get hasDefaultArgument(): boolean {
-    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 2) !== 0;
+    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 3) !== 0;
   }
   get pendingDefaultArgument(): PendingInstantiation | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, ParameterSymbolSlotBase + 3),
+      cxx.readSymbolVal(this.handle, ParameterSymbolSlotBase + 4),
       (item: any) => decodePendingInstantiation(item, this.modelOwner),
     );
   }
   get defaultArgumentSource(): ParameterSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 4),
+      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 5),
       this.modelOwner,
     );
   }
   get isExplicitObject(): boolean {
-    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 5) !== 0;
+    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 6) !== 0;
   }
 }
 /** @category Symbols */
@@ -13368,6 +13441,13 @@ const threadLocalKindNames: Record<number, ThreadLocalKind> = {
   0: "None",
   1: "Cxx",
   2: "Gnu",
+};
+/** @category Enumerations */
+export type KernelInvocationIdKind = "Global" | "Local" | "Workgroup";
+const kernelInvocationIdKindNames: Record<number, KernelInvocationIdKind> = {
+  0: "Global",
+  1: "Local",
+  2: "Workgroup",
 };
 /** @category Enumerations */
 export type RefQualifier = "None" | "Lvalue" | "Rvalue";

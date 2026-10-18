@@ -24,16 +24,31 @@
 
 #include <chrono>
 #include <functional>
+#ifndef CXX_NO_THREADS
+#include <mutex>
+#endif
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace cxx::lsp {
 
 class CxxDocument;
 
+struct EmittedKernel {
+  std::string manifest;
+  std::string code;
+};
+
 struct EmittedCode {
   std::string text;
   std::string error;
+  std::optional<std::vector<EmittedKernel>> kernels;
+};
+
+struct CompileSettings {
+  std::optional<std::string> target;
+  std::optional<std::string> deviceProfile;
 };
 
 class ServerHost {
@@ -58,6 +73,10 @@ class ServerHost {
                                       const std::string& mlirPipeline)
       -> std::optional<EmittedCode>;
 
+  void configure(CompileSettings settings);
+
+  [[nodiscard]] auto compileSettings() const -> CompileSettings;
+
   virtual void run(std::function<void()> task);
 
   virtual void runLater(std::chrono::milliseconds delay,
@@ -69,6 +88,12 @@ class ServerHost {
   virtual void start();
 
   virtual void stop();
+
+ private:
+#ifndef CXX_NO_THREADS
+  mutable std::mutex compileSettingsMutex_;
+#endif
+  CompileSettings compileSettings_;
 };
 
 }  // namespace cxx::lsp

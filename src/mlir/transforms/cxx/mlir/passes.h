@@ -35,10 +35,25 @@ void registerCxxToLLVMPass();
 
 void registerConvertCxxToPtrPass();
 
+[[nodiscard]] auto createConvertCxxToFuncPass() -> std::unique_ptr<mlir::Pass>;
+
+void registerConvertCxxToFuncPass();
+
+[[nodiscard]] auto createConvertCxxToMathPass() -> std::unique_ptr<mlir::Pass>;
+
+void registerConvertCxxToMathPass();
+
 [[nodiscard]] auto createConvertCxxToMemRefPass()
     -> std::unique_ptr<mlir::Pass>;
 
 void registerConvertCxxToMemRefPass();
+
+#ifdef CXX_WITH_SPIRV
+[[nodiscard]] auto createConvertCxxKernelToGpuPass(llvm::StringRef kernel)
+    -> std::unique_ptr<mlir::Pass>;
+
+void registerConvertCxxKernelToGpuPass();
+#endif
 
 [[nodiscard]] auto createLiftCxxControlFlowToSCFPass()
     -> std::unique_ptr<mlir::Pass>;

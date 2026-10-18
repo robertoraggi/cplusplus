@@ -1232,7 +1232,8 @@ auto ExternalNameEncoder::encode(Symbol* symbol, std::string_view suffix)
       return externalName->name();
   }
   auto canonical = symbol->canonical();
-  if (auto assemblyName = attributeArgument(canonical->attributes(), "asm"))
+  if (auto assemblyName =
+          attributeArgument(canonical->attributes(), AttributeKind::kAsm))
     return std::string(1, '\1') + assemblyName->name();
   std::string result;
   if (auto functionSymbol = symbol_cast<FunctionSymbol>(symbol)) {
@@ -1357,6 +1358,15 @@ auto ExternalNameEncoder::encodeReferenceTemporary(Symbol* owner,
   return name;
 }
 
+auto ExternalNameEncoder::encodeReferenceTemporary(std::string_view ownerName,
+                                                   std::size_t index)
+    -> std::string {
+  auto name = std::format("_ZGR{}", ownerName.substr(2));
+  if (index > 0) name += encodeSeqId(static_cast<int>(index - 1));
+  name += '_';
+  return name;
+}
+
 auto ExternalNameEncoder::encodeThreadLocalInitializer(Symbol* symbol)
     -> std::string {
   return encodeSpecialName("_ZTH", symbol);
@@ -1416,6 +1426,7 @@ auto ExternalNameEncoder::encodeFunction(FunctionSymbol* function)
 
   if (id &&
       (function->hasCLinkage() ||
+       function->canonical()->kernelWorkgroupSize().has_value() ||
        (id->name() == "main" && is_global_namespace(function->parent())))) {
     out(id->name());
   } else {
@@ -2972,12 +2983,16 @@ void ExternalNameEncoder::encodeArrayValue(const Type* type,
   out("tl");
   encodeType(type);
 
-  const auto& elements = list.elements;
-  auto count = elements.size();
-  while (count > 0 && isZeroValue(std::get<0>(elements[count - 1]))) --count;
+  auto count = list.size();
+  if (list.hasFiller() && isZeroValue(std::get<0>(list.filler())))
+    count = list.initializedElements().size();
+  while (count > 0 && isZeroValue(std::get<0>(list.element(count - 1))))
+    --count;
 
-  for (const auto& [value, elementType] : elements | std::views::take(count))
+  for (std::size_t index = 0; index < count; ++index) {
+    const auto& [value, elementType] = list.element(index);
     encodeValueExpression(elementType, value);
+  }
   out("E");
 }
 
@@ -2996,9 +3011,12 @@ auto ExternalNameEncoder::isZeroValue(const ConstValue& value) const -> bool {
                                           });
   }
   if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
-    return *list && std::ranges::all_of((*list)->elements, [&](const auto& e) {
-      return isZeroValue(std::get<0>(e));
-    });
+    if (!*list) return false;
+    if ((*list)->hasFiller() && !isZeroValue(std::get<0>((*list)->filler())))
+      return false;
+    return std::ranges::all_of(
+        (*list)->initializedElements(),
+        [&](const auto& e) { return isZeroValue(std::get<0>(e)); });
   }
   return false;
 }

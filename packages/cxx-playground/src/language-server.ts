@@ -1,15 +1,46 @@
 import type * as monaco from "monaco-editor"
+import type { KernelManifest } from "cxx-frontend"
 import { LspClient } from "./lib/lsp-client"
 import { inputCodeModel } from "./input-code-model"
 import LanguageServerWorker from "./lsp.worker?worker"
 
-export const TextOutputCodeFormat = ["cxxir", "mlir", "llvm", "asm"] as const
+export const Device = ["cpu", "gpu"] as const
+export type Device = (typeof Device)[number]
+
+export const TextOutputCodeFormat = [
+  "cxxir",
+  "mlir",
+  "llvm",
+  "asm",
+  "wgsl",
+] as const
 export type TextOutputCodeFormat = (typeof TextOutputCodeFormat)[number]
+
+export const outputFormatsByDevice: Record<Device, TextOutputCodeFormat[]> = {
+  cpu: ["cxxir", "mlir", "llvm", "asm"],
+  gpu: ["cxxir", "mlir", "asm", "wgsl"],
+}
+
+const deviceSettings: Record<Device, Record<string, string>> = {
+  cpu: {},
+  gpu: { target: "spirv32-unknown-unknown" },
+}
+
+export interface EmittedKernel {
+  manifest: KernelManifest
+  code: string
+}
 
 interface EmitCodeResult {
   format: string
   text: string
   error?: string
+  kernels?: EmittedKernel[]
+}
+
+export interface KernelResult {
+  kernels: EmittedKernel[]
+  error: string
 }
 
 let client: LspClient | undefined
@@ -17,6 +48,28 @@ let client: LspClient | undefined
 export function startLanguageServer(): LspClient {
   client ??= new LspClient(new LanguageServerWorker())
   return client
+}
+
+export async function configureDevice(device: Device): Promise<void> {
+  await startLanguageServer().sendNotification(
+    "workspace/didChangeConfiguration",
+    { settings: { cxx: deviceSettings[device] } }
+  )
+}
+
+export async function emitKernels({
+  debugInfo,
+  optimizationLevel,
+}: {
+  debugInfo: boolean
+  optimizationLevel: number
+}): Promise<KernelResult> {
+  const result = await requestEmitCode({
+    format: "wgsl",
+    debugInfo,
+    optimizationLevel,
+  })
+  return { kernels: result?.kernels ?? [], error: result?.error ?? "" }
 }
 
 export type ExecutableResult =
@@ -56,7 +109,13 @@ export async function emitCode({
     mlirPipeline,
     optimizationLevel,
   })
-  return result?.text ?? ""
+  if (!result?.error) return result?.text ?? ""
+  const error = result.error
+    .trimEnd()
+    .split("\n")
+    .map((line) => `// ${line}`)
+    .join("\n")
+  return result.text ? `${result.text}${error}\n` : `${error}\n`
 }
 
 export async function emitExecutable({

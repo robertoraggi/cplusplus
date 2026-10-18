@@ -1292,9 +1292,13 @@ auto Substitution::isConstexprRepresentable(const ConstValue& value) const
   }
   if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
     if (!*list) return false;
-    return std::ranges::all_of((*list)->elements, [&](const auto& element) {
-      return isConstexprRepresentable(std::get<0>(element));
-    });
+    if ((*list)->hasFiller() &&
+        !isConstexprRepresentable(std::get<0>((*list)->filler())))
+      return false;
+    return std::ranges::all_of(
+        (*list)->initializedElements(), [&](const auto& element) {
+          return isConstexprRepresentable(std::get<0>(element));
+        });
   }
   return true;
 }

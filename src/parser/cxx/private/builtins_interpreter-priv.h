@@ -44,6 +44,13 @@ auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
     case BuiltinFunctionKind::T___BUILTIN_NANF:
     case BuiltinFunctionKind::T___BUILTIN_NAN:
     case BuiltinFunctionKind::T___BUILTIN_NANL:
+    case BuiltinFunctionKind::T___BUILTIN_BCMP:
+    case BuiltinFunctionKind::T___BUILTIN_MEMCMP:
+    case BuiltinFunctionKind::T___BUILTIN_MEMMOVE:
+    case BuiltinFunctionKind::T___BUILTIN_STRCASECMP:
+    case BuiltinFunctionKind::T___BUILTIN_STRCMP:
+    case BuiltinFunctionKind::T___BUILTIN_STRNCMP:
+    case BuiltinFunctionKind::T___BUILTIN_STRNCASECMP:
     case BuiltinFunctionKind::T___BUILTIN_INF:
     case BuiltinFunctionKind::T___BUILTIN_INFF:
     case BuiltinFunctionKind::T___BUILTIN_INFL:
@@ -142,6 +149,27 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
     case BuiltinFunctionKind::T___BUILTIN_NANL:
       return evaluateBuiltinNanl(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_BCMP:
+      return evaluateBuiltinCharacterComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_MEMCMP:
+      return evaluateBuiltinCharacterComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_MEMMOVE:
+      return evaluateBuiltinMemmove(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_STRCASECMP:
+      return evaluateBuiltinCharacterComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_STRCMP:
+      return evaluateBuiltinCharacterComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_STRNCMP:
+      return evaluateBuiltinCharacterComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_STRNCASECMP:
+      return evaluateBuiltinCharacterComparison(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_INF:
       return evaluateBuiltinHugeVal(ast);
@@ -422,90 +450,6 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
       }
       return std::nullopt;
     }
-
-    case BuiltinFunctionKind::T___BUILTIN_STRCMP: {
-      auto a = nullTerminatedString(args[0]);
-      auto b = nullTerminatedString(args[1]);
-      if (a && b) {
-        int r = a->compare(*b);
-        return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
-                                                     : r < 0 ? -1
-                                                             : 0)};
-      }
-      return std::nullopt;
-    }
-
-    case BuiltinFunctionKind::T___BUILTIN_STRNCMP: {
-      auto n = toInt(args[2]);
-      if (!n) return std::nullopt;
-      auto a = nullTerminatedString(args[0], static_cast<size_t>(*n));
-      auto b = nullTerminatedString(args[1], static_cast<size_t>(*n));
-      if (a && b) {
-        int r = a->compare(*b);
-        return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
-                                                     : r < 0 ? -1
-                                                             : 0)};
-      }
-      return std::nullopt;
-    }
-
-    case BuiltinFunctionKind::T___BUILTIN_MEMCMP: {
-      auto n = toInt(args[2]);
-      if (!n) return std::nullopt;
-      auto len = static_cast<size_t>(*n);
-      auto a = pointeeCharacters(args[0], len);
-      auto b = pointeeCharacters(args[1], len);
-      if (a && b) {
-        int r = std::memcmp(a->data(), b->data(), len);
-        return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
-                                                     : r < 0 ? -1
-                                                             : 0)};
-      }
-      return std::nullopt;
-    }
-
-    case BuiltinFunctionKind::T___BUILTIN_BCMP: {
-      auto n = toInt(args[2]);
-      if (!n) return std::nullopt;
-      auto len = static_cast<size_t>(*n);
-      auto a = pointeeCharacters(args[0], len);
-      auto b = pointeeCharacters(args[1], len);
-      if (a && b) {
-        int r = std::memcmp(a->data(), b->data(), len);
-        return ConstValue{static_cast<std::intmax_t>(r != 0 ? 1 : 0)};
-      }
-      return std::nullopt;
-    }
-
-#ifndef _MSC_VER
-    case BuiltinFunctionKind::T___BUILTIN_STRCASECMP: {
-      auto a = nullTerminatedString(args[0]);
-      auto b = nullTerminatedString(args[1]);
-      if (a && b) {
-        int r = strcasecmp(a->c_str(), b->c_str());
-        return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
-                                                     : r < 0 ? -1
-                                                             : 0)};
-      }
-      return std::nullopt;
-    }
-#endif
-
-#ifndef _MSC_VER
-    case BuiltinFunctionKind::T___BUILTIN_STRNCASECMP: {
-      auto n = toInt(args[2]);
-      if (!n) return std::nullopt;
-      auto a = nullTerminatedString(args[0], static_cast<size_t>(*n));
-      auto b = nullTerminatedString(args[1], static_cast<size_t>(*n));
-      if (a && b) {
-        int r = strncasecmp(a->c_str(), b->c_str(), static_cast<size_t>(*n));
-        return ConstValue{static_cast<std::intmax_t>(r > 0   ? 1
-                                                     : r < 0 ? -1
-                                                             : 0)};
-      }
-      return std::nullopt;
-    }
-#endif
 
     case BuiltinFunctionKind::T___BUILTIN_STRSPN: {
       auto a = nullTerminatedString(args[0]);

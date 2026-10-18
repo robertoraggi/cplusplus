@@ -2425,6 +2425,11 @@ void SemanticEncoder::writeSymbolFunctionSymbol(
   if (self->constructorPriority().has_value()) {
     out.varU32(static_cast<std::uint32_t>((*self->constructorPriority())));
   }
+  // ::cxx::FunctionSymbol::kernelWorkgroupSize_
+  out.boolean(self->kernelWorkgroupSize().has_value());
+  if (self->kernelWorkgroupSize().has_value()) {
+    writecxxKernelWorkgroupSize(out, &(*self->kernelWorkgroupSize()));
+  }
   // ::cxx::FunctionSymbol::externalName_
   out.varU32(static_cast<std::uint32_t>(identifierRef(self->externalName())));
   // ::cxx::FunctionSymbol::aliasName_
@@ -2676,6 +2681,24 @@ void SemanticEncoder::writeSymbolParameterSymbol(
   // ::cxx::ParameterSymbol::defaultArgumentSource_
   out.varU32(
       static_cast<std::uint32_t>(symbolRef(self->defaultArgumentSource())));
+  // ::cxx::ParameterSymbol::kernelParameterBinding_
+  out.boolean(self->kernelParameterBinding().has_value());
+  if (self->kernelParameterBinding().has_value()) {
+    out.u8(
+        static_cast<std::uint8_t>((*self->kernelParameterBinding()).index()));
+    switch ((*self->kernelParameterBinding()).index()) {
+      case 0: {
+        writecxxKernelBufferBinding(
+            out, &std::get<0>((*self->kernelParameterBinding())));
+        break;
+      }
+      case 1: {
+        writecxxKernelInvocationId(
+            out, &std::get<1>((*self->kernelParameterBinding())));
+        break;
+      }
+    }
+  }
   // ::cxx::ParameterSymbol::isExplicitObject_
   out.boolean(self->isExplicitObject());
   // ::cxx::ParameterSymbol::isParameterPack_
@@ -6501,12 +6524,18 @@ void SemanticEncoder::writecxxConstInt(
 
 void SemanticEncoder::writecxxInitializerList(
     ByteWriter& out, [[maybe_unused]] const cxx::InitializerList* self) {
-  // ::cxx::InitializerList::elements
-  out.varU32(static_cast<std::uint32_t>(std::ranges::size(self->elements)));
-  for (const auto& element1 : self->elements) {
+  // ::cxx::InitializerList::elements_
+  out.varU32(static_cast<std::uint32_t>(
+      std::ranges::size(self->initializedElements())));
+  for (const auto& element1 : self->initializedElements()) {
     writeConstValue(out, std::get<0>(element1));
     out.varU32(static_cast<std::uint32_t>(typeRef(std::get<1>(element1))));
   }
+  // ::cxx::InitializerList::size_
+  out.varU64(static_cast<std::uint64_t>(self->size()));
+  // ::cxx::InitializerList::filler_
+  writeConstValue(out, std::get<0>(self->filler()));
+  out.varU32(static_cast<std::uint32_t>(typeRef(std::get<1>(self->filler()))));
 }
 
 void SemanticEncoder::writecxxConstObject(
@@ -6846,6 +6875,28 @@ void SemanticEncoder::writecxxPendingInstantiation(
   out.varI32(static_cast<std::int32_t>(self->depth));
   // ::cxx::PendingInstantiation::state
   out.varU32(static_cast<std::uint32_t>(self->state));
+}
+
+void SemanticEncoder::writecxxKernelWorkgroupSize(
+    ByteWriter& out, [[maybe_unused]] const cxx::KernelWorkgroupSize* self) {
+  // ::cxx::KernelWorkgroupSize::x
+  out.varU32(static_cast<std::uint32_t>(self->x));
+  // ::cxx::KernelWorkgroupSize::y
+  out.varU32(static_cast<std::uint32_t>(self->y));
+  // ::cxx::KernelWorkgroupSize::z
+  out.varU32(static_cast<std::uint32_t>(self->z));
+}
+
+void SemanticEncoder::writecxxKernelBufferBinding(
+    ByteWriter& out, [[maybe_unused]] const cxx::KernelBufferBinding* self) {
+  // ::cxx::KernelBufferBinding::binding
+  out.varU32(static_cast<std::uint32_t>(self->binding));
+}
+
+void SemanticEncoder::writecxxKernelInvocationId(
+    ByteWriter& out, [[maybe_unused]] const cxx::KernelInvocationId* self) {
+  // ::cxx::KernelInvocationId::kind
+  out.varU32(static_cast<std::uint32_t>(self->kind));
 }
 
 void SemanticEncoder::writecxxStructuredBindingInfo(
@@ -10329,120 +10380,128 @@ void SemanticDecoder::readSymbolFunctionSymbol(
     value52 = std::move(value53);
   }
   self->setConstructorPriority(std::move(value52));
+  // ::cxx::FunctionSymbol::kernelWorkgroupSize_
+  std::optional<cxx::KernelWorkgroupSize> value54;
+  if (in.boolean()) {
+    cxx::KernelWorkgroupSize value55{};
+    readcxxKernelWorkgroupSize(in, &value55);
+    value54 = std::move(value55);
+  }
+  self->setKernelWorkgroupSize(std::move(value54));
   // ::cxx::FunctionSymbol::externalName_
-  const cxx::Identifier* value54 = identifierAt(StringRef{in.varU32()});
-  self->setExternalName(std::move(value54));
-  // ::cxx::FunctionSymbol::aliasName_
-  const cxx::Identifier* value55 = identifierAt(StringRef{in.varU32()});
-  self->setAliasName(std::move(value55));
-  // ::cxx::FunctionSymbol::importModule_
   const cxx::Identifier* value56 = identifierAt(StringRef{in.varU32()});
-  self->setImportModule(std::move(value56));
-  // ::cxx::FunctionSymbol::importName_
+  self->setExternalName(std::move(value56));
+  // ::cxx::FunctionSymbol::aliasName_
   const cxx::Identifier* value57 = identifierAt(StringRef{in.varU32()});
-  self->setImportName(std::move(value57));
-  // ::cxx::FunctionSymbol::exportName_
+  self->setAliasName(std::move(value57));
+  // ::cxx::FunctionSymbol::importModule_
   const cxx::Identifier* value58 = identifierAt(StringRef{in.varU32()});
-  self->setExportName(std::move(value58));
+  self->setImportModule(std::move(value58));
+  // ::cxx::FunctionSymbol::importName_
+  const cxx::Identifier* value59 = identifierAt(StringRef{in.varU32()});
+  self->setImportName(std::move(value59));
+  // ::cxx::FunctionSymbol::exportName_
+  const cxx::Identifier* value60 = identifierAt(StringRef{in.varU32()});
+  self->setExportName(std::move(value60));
   // ::cxx::FunctionSymbol::trailingRequiresClause_
-  cxx::RequiresClauseAST* value59 =
+  cxx::RequiresClauseAST* value61 =
       ast_cast<RequiresClauseAST>(astAt(AstRef{in.varU32()}));
-  self->setTrailingRequiresClause(std::move(value59));
+  self->setTrailingRequiresClause(std::move(value61));
   // ::cxx::FunctionSymbol::enableIfConditions_
-  std::vector<cxx::ExpressionAST*> value60;
+  std::vector<cxx::ExpressionAST*> value62;
   {
-    const auto count61 = in.varCount(1);
-    for (std::uint32_t i62 = 0; ok() && i62 < count61; ++i62) {
-      cxx::ExpressionAST* element63 =
+    const auto count63 = in.varCount(1);
+    for (std::uint32_t i64 = 0; ok() && i64 < count63; ++i64) {
+      cxx::ExpressionAST* element65 =
           ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-      value60.push_back(std::move(element63));
+      value62.push_back(std::move(element65));
     }
   }
-  self->setEnableIfConditions(std::move(value60));
+  self->setEnableIfConditions(std::move(value62));
   // ::cxx::FunctionSymbol::builtinKind_
   static_assert(static_cast<std::uint32_t>(
                     ::cxx::BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH) +
                     1 ==
                 512);
-  ::cxx::BuiltinFunctionKind value64 =
+  ::cxx::BuiltinFunctionKind value66 =
       static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 512));
-  self->setBuiltinKind(std::move(value64));
+  self->setBuiltinKind(std::move(value66));
   // ::cxx::FunctionSymbol::isDefined_
-  unsigned int value65 = static_cast<unsigned int>(in.varU32());
-  self->setDefined(std::move(value65));
-  // ::cxx::FunctionSymbol::isStatic_
-  unsigned int value66 = static_cast<unsigned int>(in.varU32());
-  self->setStatic(std::move(value66));
-  // ::cxx::FunctionSymbol::isExtern_
   unsigned int value67 = static_cast<unsigned int>(in.varU32());
-  self->setExtern(std::move(value67));
-  // ::cxx::FunctionSymbol::isFriend_
+  self->setDefined(std::move(value67));
+  // ::cxx::FunctionSymbol::isStatic_
   unsigned int value68 = static_cast<unsigned int>(in.varU32());
-  self->setFriend(std::move(value68));
-  // ::cxx::FunctionSymbol::isConstexpr_
+  self->setStatic(std::move(value68));
+  // ::cxx::FunctionSymbol::isExtern_
   unsigned int value69 = static_cast<unsigned int>(in.varU32());
-  self->setConstexpr(std::move(value69));
-  // ::cxx::FunctionSymbol::isConsteval_
+  self->setExtern(std::move(value69));
+  // ::cxx::FunctionSymbol::isFriend_
   unsigned int value70 = static_cast<unsigned int>(in.varU32());
-  self->setConsteval(std::move(value70));
-  // ::cxx::FunctionSymbol::isInline_
+  self->setFriend(std::move(value70));
+  // ::cxx::FunctionSymbol::isConstexpr_
   unsigned int value71 = static_cast<unsigned int>(in.varU32());
-  self->setInline(std::move(value71));
-  // ::cxx::FunctionSymbol::isVirtual_
+  self->setConstexpr(std::move(value71));
+  // ::cxx::FunctionSymbol::isConsteval_
   unsigned int value72 = static_cast<unsigned int>(in.varU32());
-  self->setVirtual(std::move(value72));
-  // ::cxx::FunctionSymbol::isExplicit_
+  self->setConsteval(std::move(value72));
+  // ::cxx::FunctionSymbol::isInline_
   unsigned int value73 = static_cast<unsigned int>(in.varU32());
-  self->setExplicit(std::move(value73));
-  // ::cxx::FunctionSymbol::isDeleted_
+  self->setInline(std::move(value73));
+  // ::cxx::FunctionSymbol::isVirtual_
   unsigned int value74 = static_cast<unsigned int>(in.varU32());
-  self->setDeleted(std::move(value74));
-  // ::cxx::FunctionSymbol::isDefaulted_
+  self->setVirtual(std::move(value74));
+  // ::cxx::FunctionSymbol::isExplicit_
   unsigned int value75 = static_cast<unsigned int>(in.varU32());
-  self->setDefaulted(std::move(value75));
-  // ::cxx::FunctionSymbol::isPure_
+  self->setExplicit(std::move(value75));
+  // ::cxx::FunctionSymbol::isDeleted_
   unsigned int value76 = static_cast<unsigned int>(in.varU32());
-  self->setPure(std::move(value76));
-  // ::cxx::FunctionSymbol::hasCLinkage_
+  self->setDeleted(std::move(value76));
+  // ::cxx::FunctionSymbol::isDefaulted_
   unsigned int value77 = static_cast<unsigned int>(in.varU32());
-  self->setLanguageLinkage(std::move(value77) ? LanguageKind::kC
+  self->setDefaulted(std::move(value77));
+  // ::cxx::FunctionSymbol::isPure_
+  unsigned int value78 = static_cast<unsigned int>(in.varU32());
+  self->setPure(std::move(value78));
+  // ::cxx::FunctionSymbol::hasCLinkage_
+  unsigned int value79 = static_cast<unsigned int>(in.varU32());
+  self->setLanguageLinkage(std::move(value79) ? LanguageKind::kC
                                               : LanguageKind::kCXX);
   // ::cxx::FunctionSymbol::isOverride_
-  unsigned int value78 = static_cast<unsigned int>(in.varU32());
-  self->setOverride(std::move(value78));
-  // ::cxx::FunctionSymbol::isFinal_
-  unsigned int value79 = static_cast<unsigned int>(in.varU32());
-  self->setFinal(std::move(value79));
-  // ::cxx::FunctionSymbol::hasNoPrototype_
   unsigned int value80 = static_cast<unsigned int>(in.varU32());
-  self->setNoPrototype(std::move(value80));
-  // ::cxx::FunctionSymbol::hasHiddenVisibility_
+  self->setOverride(std::move(value80));
+  // ::cxx::FunctionSymbol::isFinal_
   unsigned int value81 = static_cast<unsigned int>(in.varU32());
-  self->setHiddenVisibility(std::move(value81));
-  // ::cxx::FunctionSymbol::hasExceptionSpecifier_
+  self->setFinal(std::move(value81));
+  // ::cxx::FunctionSymbol::hasNoPrototype_
   unsigned int value82 = static_cast<unsigned int>(in.varU32());
-  self->setExceptionSpecifier(std::move(value82));
-  // ::cxx::FunctionSymbol::isDefinitionRequired_
+  self->setNoPrototype(std::move(value82));
+  // ::cxx::FunctionSymbol::hasHiddenVisibility_
   unsigned int value83 = static_cast<unsigned int>(in.varU32());
-  self->setDefinitionRequired(std::move(value83));
-  // ::cxx::FunctionSymbol::hasExplicitObjectParameter_
+  self->setHiddenVisibility(std::move(value83));
+  // ::cxx::FunctionSymbol::hasExceptionSpecifier_
   unsigned int value84 = static_cast<unsigned int>(in.varU32());
-  self->setExplicitObjectParameter(std::move(value84));
-  // ::cxx::FunctionSymbol::isNoReturn_
+  self->setExceptionSpecifier(std::move(value84));
+  // ::cxx::FunctionSymbol::isDefinitionRequired_
   unsigned int value85 = static_cast<unsigned int>(in.varU32());
-  self->setNoReturn(std::move(value85));
-  // ::cxx::FunctionSymbol::hasFriendDefaultArgument_
+  self->setDefinitionRequired(std::move(value85));
+  // ::cxx::FunctionSymbol::hasExplicitObjectParameter_
   unsigned int value86 = static_cast<unsigned int>(in.varU32());
-  self->setFriendDefaultArgument(std::move(value86));
-  // ::cxx::FunctionSymbol::hasFriendDefaultTemplateArgument_
+  self->setExplicitObjectParameter(std::move(value86));
+  // ::cxx::FunctionSymbol::isNoReturn_
   unsigned int value87 = static_cast<unsigned int>(in.varU32());
-  self->setFriendDefaultTemplateArgument(std::move(value87));
-  // ::cxx::FunctionSymbol::hasDeferredImplicitExceptionSpecification_
+  self->setNoReturn(std::move(value87));
+  // ::cxx::FunctionSymbol::hasFriendDefaultArgument_
   unsigned int value88 = static_cast<unsigned int>(in.varU32());
-  self->setDeferredImplicitExceptionSpecification(std::move(value88));
-  // ::cxx::FunctionSymbol::hasDeferredDeletion_
+  self->setFriendDefaultArgument(std::move(value88));
+  // ::cxx::FunctionSymbol::hasFriendDefaultTemplateArgument_
   unsigned int value89 = static_cast<unsigned int>(in.varU32());
-  self->setDeferredDeletion(std::move(value89));
+  self->setFriendDefaultTemplateArgument(std::move(value89));
+  // ::cxx::FunctionSymbol::hasDeferredImplicitExceptionSpecification_
+  unsigned int value90 = static_cast<unsigned int>(in.varU32());
+  self->setDeferredImplicitExceptionSpecification(std::move(value90));
+  // ::cxx::FunctionSymbol::hasDeferredDeletion_
+  unsigned int value91 = static_cast<unsigned int>(in.varU32());
+  self->setDeferredDeletion(std::move(value91));
 }
 
 void SemanticDecoder::readSymbolTypeAliasSymbol(
@@ -10752,12 +10811,40 @@ void SemanticDecoder::readSymbolParameterSymbol(
   cxx::ParameterSymbol* value3 =
       symbol_cast<ParameterSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->setDefaultArgumentSource(std::move(value3));
+  // ::cxx::ParameterSymbol::kernelParameterBinding_
+  std::optional<std::variant<cxx::KernelBufferBinding, cxx::KernelInvocationId>>
+      value4;
+  if (in.boolean()) {
+    std::variant<cxx::KernelBufferBinding, cxx::KernelInvocationId> value5;
+    {
+      const auto tag6 = in.u8();
+      switch (tag6) {
+        case 0: {
+          std::variant_alternative_t<0, decltype(value5)> alternative7{};
+          readcxxKernelBufferBinding(in, &alternative7);
+          value5 = std::move(alternative7);
+          break;
+        }
+        case 1: {
+          std::variant_alternative_t<1, decltype(value5)> alternative8{};
+          readcxxKernelInvocationId(in, &alternative8);
+          value5 = std::move(alternative8);
+          break;
+        }
+        default:
+          fail("unknown variant alternative");
+          break;
+      }
+    }
+    value4 = std::move(value5);
+  }
+  self->setKernelParameterBinding(std::move(value4));
   // ::cxx::ParameterSymbol::isExplicitObject_
-  bool value4 = in.boolean();
-  self->setExplicitObject(std::move(value4));
+  bool value9 = in.boolean();
+  self->setExplicitObject(std::move(value9));
   // ::cxx::ParameterSymbol::isParameterPack_
-  bool value5 = in.boolean();
-  self->setParameterPack(std::move(value5));
+  bool value10 = in.boolean();
+  self->setParameterPack(std::move(value10));
 }
 
 void SemanticDecoder::readSymbolParameterPackSymbol(
@@ -16405,12 +16492,12 @@ void SemanticDecoder::readcxxConstInt([[maybe_unused]] ByteReader& in,
 void SemanticDecoder::readcxxInitializerList(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::InitializerList* self) {
-  // ::cxx::InitializerList::elements
-  decltype(self->elements) value1;
+  // ::cxx::InitializerList::elements_
+  std::deque<std::tuple<cxx::ConstValue, const cxx::Type*>> value1;
   {
     const auto count2 = in.varCount(1);
     for (std::uint32_t i3 = 0; ok() && i3 < count2; ++i3) {
-      decltype(value1)::value_type element4;
+      std::tuple<cxx::ConstValue, const cxx::Type*> element4;
       {
         std::tuple_element_t<0, decltype(element4)> item5 = readConstValue(in);
         std::tuple_element_t<1, decltype(element4)> item6 =
@@ -16420,7 +16507,21 @@ void SemanticDecoder::readcxxInitializerList(
       value1.push_back(std::move(element4));
     }
   }
-  self->elements = std::move(value1);
+  for (auto&& element7 : value1) {
+    self->append(std::get<0>(element7), std::get<1>(element7));
+  }
+  // ::cxx::InitializerList::size_
+  unsigned long value8 = static_cast<unsigned long>(in.varU64());
+  self->setSize(std::move(value8));
+  // ::cxx::InitializerList::filler_
+  std::tuple<cxx::ConstValue, const cxx::Type*> value9;
+  {
+    std::tuple_element_t<0, decltype(value9)> item10 = readConstValue(in);
+    std::tuple_element_t<1, decltype(value9)> item11 =
+        typeAt(TypeRef{in.varU32()});
+    value9 = decltype(value9){std::move(item10), std::move(item11)};
+  }
+  self->setFiller(std::move(value9));
 }
 
 void SemanticDecoder::readcxxConstObject(
@@ -17005,6 +17106,41 @@ void SemanticDecoder::readcxxPendingInstantiation(
   ::cxx::PendingInstantiationState value9 =
       static_cast<::cxx::PendingInstantiationState>(readEnum(in, 4));
   self->state = std::move(value9);
+}
+
+void SemanticDecoder::readcxxKernelWorkgroupSize(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::KernelWorkgroupSize* self) {
+  // ::cxx::KernelWorkgroupSize::x
+  unsigned int value1 = static_cast<unsigned int>(in.varU32());
+  self->x = std::move(value1);
+  // ::cxx::KernelWorkgroupSize::y
+  unsigned int value2 = static_cast<unsigned int>(in.varU32());
+  self->y = std::move(value2);
+  // ::cxx::KernelWorkgroupSize::z
+  unsigned int value3 = static_cast<unsigned int>(in.varU32());
+  self->z = std::move(value3);
+}
+
+void SemanticDecoder::readcxxKernelBufferBinding(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::KernelBufferBinding* self) {
+  // ::cxx::KernelBufferBinding::binding
+  unsigned int value1 = static_cast<unsigned int>(in.varU32());
+  self->binding = std::move(value1);
+}
+
+void SemanticDecoder::readcxxKernelInvocationId(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::KernelInvocationId* self) {
+  // ::cxx::KernelInvocationId::kind
+  static_assert(
+      static_cast<std::uint32_t>(::cxx::KernelInvocationIdKind::kWorkgroup) +
+          1 ==
+      3);
+  ::cxx::KernelInvocationIdKind value1 =
+      static_cast<::cxx::KernelInvocationIdKind>(readEnum(in, 3));
+  self->kind = std::move(value1);
 }
 
 void SemanticDecoder::readcxxStructuredBindingInfo(

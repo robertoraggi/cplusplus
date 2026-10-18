@@ -374,7 +374,10 @@ void Toolchain::addCommonMacros() {
   defineMacro("__STDC_EMBED_EMPTY__", "2");
   defineMacro("__STDC_EMBED_FOUND__", "1");
   defineMacro("__STDC_EMBED_NOT_FOUND__", "0");
-  defineMacro("__STDC_HOSTED__", "1");
+  if (triple().isSPIRV())
+    defineMacro("__STDC_HOSTED__", "0");
+  else
+    defineMacro("__STDC_HOSTED__", "1");
   defineMacro("__STDC_UTF_16__", "1");
   defineMacro("__STDC_UTF_32__", "1");
   defineMacro("__UINT16_C(c)", "c");

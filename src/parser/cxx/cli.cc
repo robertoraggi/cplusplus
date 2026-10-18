@@ -287,6 +287,18 @@ std::vector<CLIOptionDescr> options{
 
     {"-emit-mlir", "Emit the MLIR for the source inputs", &CLI::opt_emit_mlir},
 
+    {"-emit-spirv", "Emit the selected Vulkan kernel as SPIR-V",
+     &CLI::opt_emit_spirv},
+    {"-emit-wgsl", "Emit the selected WebGPU kernel as WGSL",
+     &CLI::opt_emit_wgsl},
+
+    {"--kernel", "<name>", "Select the checked device entry point",
+     CLIOptionDescrKind::kJoined},
+
+    {"--resource-manifest", "<path>",
+     "Also write the selected kernel resource manifest",
+     CLIOptionDescrKind::kJoined},
+
     {"-emit-llvm", "Emit the LLVM IR for the source inputs",
      &CLI::opt_emit_llvm},
 
@@ -324,18 +336,24 @@ std::vector<CLIOptionDescr> options{
      "'x86_64-unknown-linux-gnu'",
      CLIOptionDescrKind::kJoined},
 
+    {"--device-profile", "<profile>",
+     "Device ABI profile: 'vulkan1.1-f32' (default for spirv32), 'none'",
+     CLIOptionDescrKind::kJoined},
+
     {"-target", "<triple>",
      "Generate code for the given target triple, e.g. "
      "'x86_64-unknown-linux-gnu'",
      CLIOptionDescrKind::kSeparated},
 
     {"-toolchain", "<id>",
-     "Set the toolchain to 'linux', 'darwin', 'wasm32', or 'windows'. Defaults "
+     "Set the toolchain to 'linux', 'darwin', 'wasm32', 'windows', 'spirv32', "
+     "or 'spirv64'. Defaults "
      "to wasm32.",
      CLIOptionDescrKind::kSeparated, CLIOptionVisibility::kDeprecated},
 
     {"-arch", "<arch>",
-     "Set the architecture to 'x86_64', 'aarch64', 'wasm32'. Defaults to the "
+     "Set the architecture to 'x86_64', 'aarch64', 'wasm32', 'spirv32', or "
+     "'spirv64'. Defaults to the "
      "host architecture.",
      CLIOptionDescrKind::kSeparated},
 
@@ -402,6 +420,10 @@ auto getSystemPaths() -> std::vector<fs::path> {
 
 CLI::CLI() = default;
 
+void CLI::addOption(std::string option, std::string value) {
+  result_.emplace_back(CLIOption(std::move(option), std::move(value)));
+}
+
 auto CLI::count(const std::string& flag) const -> int {
   int n = 0;
   for (const auto& match : result_) {
@@ -416,6 +438,17 @@ auto CLI::getSingle(const std::string& opt) const
     -> std::optional<std::string> {
   auto value = get(opt);
   return !value.empty() ? std::optional{value.back()} : std::nullopt;
+}
+
+auto CLI::getLast(std::initializer_list<std::string_view> spellings) const
+    -> std::optional<std::string> {
+  std::optional<std::string> result;
+  for (const auto& match : result_) {
+    auto option = std::get_if<CLIOption>(&match);
+    if (option && std::ranges::contains(spellings, std::get<0>(*option)))
+      result = std::get<1>(*option);
+  }
+  return result;
 }
 
 auto CLI::get(const std::string& opt) const -> std::vector<std::string> {
@@ -471,6 +504,25 @@ auto CLI::exceptionsEnabled(bool defaults) const -> bool {
   });
   if (!flag) return defaults;
   return flag == "-fexceptions";
+}
+
+auto CLI::stopsBeforeLink() const -> bool {
+  return opt_E || opt_Eonly || opt_fsyntax_only || opt_S || opt_c ||
+         opt_emit_pch || opt_emit_cxx_ir || opt_emit_mlir || opt_emit_llvm ||
+         opt_emit_spirv || opt_emit_wgsl;
+}
+
+auto CLI::links() const -> bool {
+  if (stopsBeforeLink()) return false;
+  auto output = getSingle("-o");
+  const bool wantsExecutable = output.has_value() && output != "-";
+  return opt_link || getSingle("-fuse-ld").has_value() || wantsExecutable;
+}
+
+auto CLI::hostOnlyOutputOption() const -> std::optional<std::string> {
+  if (opt_emit_llvm) return "-emit-llvm";
+  if (links()) return "linking";
+  return std::nullopt;
 }
 
 auto CLI::experimentalSCFEnabled(bool defaults) const -> bool {

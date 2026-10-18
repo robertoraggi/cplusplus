@@ -95,7 +95,13 @@ struct FailedArgumentConversion {
   const Type* source;
   const Type* destination;
   std::size_t argumentIndex;
+  bool fromInitializerList = false;
 };
+
+[[nodiscard]] auto failedArgumentConversion(ExpressionAST* argument,
+                                            const Type* destination,
+                                            std::size_t argumentIndex)
+    -> FailedArgumentConversion;
 
 using CandidateRejection =
     std::variant<std::string, ArgumentCountMismatch, FailedArgumentConversion>;
@@ -121,6 +127,7 @@ struct ConstructorResult {
   Candidate* best = nullptr;
   bool ambiguous = false;
   bool fromInitializerListConstructor = false;
+  ExpressionAST* initializingElement = nullptr;
   ConstructorSelectionFailure failure = ConstructorSelectionFailure::kNone;
 
   [[nodiscard]] auto selected() const -> FunctionSymbol* {
@@ -214,6 +221,9 @@ class OverloadResolution {
       InitializationKind initializationKind =
           InitializationKind::kDirectInitialization) -> ConstructorResult;
 
+  [[nodiscard]] auto sameClassPrvalueElement(
+      ClassSymbol* classSymbol, const std::vector<ExpressionAST*>& elements)
+      -> ExpressionAST*;
   [[nodiscard]] auto selectListConstructor(
       ClassSymbol* classSymbol, BracedInitListAST* bracedInitList,
       const std::vector<ExpressionAST*>& elements,

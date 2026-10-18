@@ -37,6 +37,7 @@
 #include <mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h>
 #include <mlir/Conversion/LLVMCommon/LoweringOptions.h>
 #include <mlir/Conversion/LLVMCommon/TypeConverter.h>
+#include <mlir/Conversion/MathToLLVM/MathToLLVM.h>
 #include <mlir/Conversion/MemRefToLLVM/MemRefToLLVM.h>
 #include <mlir/Conversion/PtrToLLVM/PtrToLLVM.h>
 #include <mlir/Conversion/UBToLLVM/UBToLLVM.h>
@@ -500,6 +501,11 @@ static Value emitAttrAsValue(ConversionPatternRewriter& rewriter, Location loc,
     return LLVM::ZeroOp::create(rewriter, loc, type);
   }
 
+  if (auto dense = dyn_cast<DenseElementsAttr>(attr);
+      dense && dense.getType() == type) {
+    return LLVM::ConstantOp::create(rewriter, loc, type, dense);
+  }
+
   if (auto strAttr = dyn_cast<StringAttr>(attr)) {
     if (isa<LLVM::LLVMPointerType>(type) && module) {
       auto ptrType = cast<LLVM::LLVMPointerType>(type);
@@ -599,6 +605,13 @@ struct DenseArrayShape {
 [[nodiscard]] static auto constantAggregateAttr(MLIRContext* context, Type type,
                                                 Attribute attr) -> Attribute;
 
+[[nodiscard]] static auto isZeroLeaf(Attribute attr) -> bool {
+  if (auto integer = dyn_cast<IntegerAttr>(attr))
+    return integer.getValue().isZero();
+  if (auto real = dyn_cast<FloatAttr>(attr)) return real.getValue().isPosZero();
+  return false;
+}
+
 [[nodiscard]] static auto arrayConstant(ConversionPatternRewriter& rewriter,
                                         Location loc, LLVM::LLVMArrayType type,
                                         ArrayAttr attr) -> Value {
@@ -647,6 +660,14 @@ static void emitAggregateInit(ConversionPatternRewriter& rewriter, Location loc,
 
   if (isa<IntegerType, FloatType>(type)) return denseLeafAttr(attr, type);
 
+  if (isa<VectorType>(type)) {
+    auto dense = dyn_cast<DenseElementsAttr>(attr);
+    if (!dense || dense.getType() != type) return {};
+    if (dense.isSplat() && isZeroLeaf(dense.getSplatValue<Attribute>()))
+      return LLVM::ZeroAttr::get(context);
+    return dense;
+  }
+
   auto elements = dyn_cast<ArrayAttr>(attr);
   if (!elements) return {};
 
@@ -681,6 +702,191 @@ static void emitAggregateInit(ConversionPatternRewriter& rewriter, Location loc,
   return ArrayAttr::get(context, converted);
 }
 
+class GlobalConstantBuilder {
+ public:
+  struct Constant {
+    Type type;
+    Attribute value;
+  };
+
+  GlobalConstantBuilder(MLIRContext* context, const DataLayout& dataLayout)
+      : context_(context), dataLayout_(dataLayout) {}
+
+  [[nodiscard]] auto build(Type type, Attribute attr)
+      -> std::optional<Constant> {
+    if (isa<UnitAttr, LLVM::ZeroAttr>(attr)) return zero(type);
+    if (auto array = dyn_cast<LLVM::LLVMArrayType>(type)) {
+      auto elements = dyn_cast<ArrayAttr>(attr);
+      if (!elements) return std::nullopt;
+      return buildArray(array, elements);
+    }
+    if (auto structType = dyn_cast<LLVM::LLVMStructType>(type)) {
+      auto elements = dyn_cast<ArrayAttr>(attr);
+      if (!elements) return std::nullopt;
+      return buildStruct(structType, elements);
+    }
+    auto value = constantAggregateAttr(context_, type, attr);
+    if (!value) return std::nullopt;
+    if (isZeroLeaf(value)) return zero(type);
+    return Constant{type, value};
+  }
+
+ private:
+  static constexpr std::uint64_t kTrailingZeroThreshold = 8;
+
+  [[nodiscard]] auto zero(Type type) const -> Constant {
+    return {type, LLVM::ZeroAttr::get(context_)};
+  }
+
+  [[nodiscard]] static auto isZero(const Constant& constant) -> bool {
+    return isa<LLVM::ZeroAttr>(constant.value);
+  }
+
+  [[nodiscard]] auto buildArray(LLVM::LLVMArrayType type, ArrayAttr attr)
+      -> std::optional<Constant> {
+    const std::uint64_t bound = type.getNumElements();
+    if (attr.size() > bound) return std::nullopt;
+    SmallVector<Constant> elements;
+    elements.reserve(attr.size());
+    for (auto element : attr) {
+      auto constant = build(type.getElementType(), element);
+      if (!constant) return std::nullopt;
+      elements.push_back(*constant);
+    }
+
+    auto nonzeroLength = elements.size();
+    while (nonzeroLength > 0 && isZero(elements[nonzeroLength - 1]))
+      --nonzeroLength;
+    if (nonzeroLength == 0) return zero(type);
+    elements.truncate(nonzeroLength);
+
+    auto commonType = commonElementType(elements);
+    const auto trailingZeroes = bound - nonzeroLength;
+    if (trailingZeroes >= kTrailingZeroThreshold) {
+      auto fillerType = LLVM::LLVMArrayType::get(
+          commonType ? commonType : type.getElementType(), trailingZeroes);
+      if (commonType && nonzeroLength >= kTrailingZeroThreshold) {
+        auto initial = arrayOf(commonType, elements);
+        elements.assign({initial});
+      }
+      elements.push_back(zero(fillerType));
+      return packedStruct(elements);
+    }
+
+    while (elements.size() < bound)
+      elements.push_back(zero(type.getElementType()));
+    if (commonType != type.getElementType()) commonType = Type{};
+    if (!commonType) commonType = commonElementType(elements);
+    if (commonType) return arrayOf(commonType, elements);
+    return packedStruct(elements);
+  }
+
+  [[nodiscard]] auto buildStruct(LLVM::LLVMStructType type, ArrayAttr attr)
+      -> std::optional<Constant> {
+    if (type.isOpaque()) return std::nullopt;
+    auto body = type.getBody();
+    if (attr.size() > body.size()) return std::nullopt;
+    SmallVector<Constant> fields;
+    fields.reserve(body.size());
+    for (std::size_t index = 0; index < body.size(); ++index) {
+      if (index >= attr.size()) {
+        fields.push_back(zero(body[index]));
+        continue;
+      }
+      auto constant = build(body[index], attr[index]);
+      if (!constant) return std::nullopt;
+      fields.push_back(*constant);
+    }
+    if (llvm::all_of(fields, isZero)) return zero(type);
+
+    SmallVector<Type> types;
+    for (const auto& field : fields) types.push_back(field.type);
+    if (llvm::equal(types, body)) return Constant{type, valuesOf(fields)};
+
+    auto literal =
+        LLVM::LLVMStructType::getLiteral(context_, types, type.isPacked());
+    if (sameLayout(literal, type)) return Constant{literal, valuesOf(fields)};
+    return paddedStruct(type, fields);
+  }
+
+  [[nodiscard]] auto paddedStruct(LLVM::LLVMStructType type,
+                                  ArrayRef<Constant> fields)
+      -> std::optional<Constant> {
+    auto offsets = fieldOffsets(type);
+    SmallVector<Constant> elements;
+    std::uint64_t offset = 0;
+    for (auto [field, fieldOffset] : llvm::zip_equal(fields, offsets)) {
+      if (fieldOffset < offset) return std::nullopt;
+      appendPadding(elements, fieldOffset - offset);
+      elements.push_back(field);
+      offset = fieldOffset + dataLayout_.getTypeSize(field.type);
+    }
+    auto size = dataLayout_.getTypeSize(type);
+    if (size < offset) return std::nullopt;
+    appendPadding(elements, size - offset);
+    return packedStruct(elements);
+  }
+
+  void appendPadding(SmallVector<Constant>& elements, std::uint64_t bytes) {
+    if (bytes == 0) return;
+    elements.push_back(
+        zero(LLVM::LLVMArrayType::get(IntegerType::get(context_, 8), bytes)));
+  }
+
+  [[nodiscard]] auto sameLayout(LLVM::LLVMStructType candidate,
+                                LLVM::LLVMStructType original) const -> bool {
+    return dataLayout_.getTypeSize(candidate) ==
+               dataLayout_.getTypeSize(original) &&
+           fieldOffsets(candidate) == fieldOffsets(original);
+  }
+
+  [[nodiscard]] auto fieldOffsets(LLVM::LLVMStructType type) const
+      -> SmallVector<std::uint64_t> {
+    SmallVector<std::uint64_t> offsets;
+    std::uint64_t offset = 0;
+    for (auto field : type.getBody()) {
+      if (!type.isPacked())
+        offset = llvm::alignTo(offset, dataLayout_.getTypeABIAlignment(field));
+      offsets.push_back(offset);
+      offset += dataLayout_.getTypeSize(field);
+    }
+    return offsets;
+  }
+
+  [[nodiscard]] static auto commonElementType(ArrayRef<Constant> elements)
+      -> Type {
+    if (elements.empty()) return {};
+    auto type = elements.front().type;
+    for (const auto& element : elements)
+      if (element.type != type) return {};
+    return type;
+  }
+
+  [[nodiscard]] auto arrayOf(Type elementType, ArrayRef<Constant> elements)
+      -> Constant {
+    return {LLVM::LLVMArrayType::get(elementType, elements.size()),
+            valuesOf(elements)};
+  }
+
+  [[nodiscard]] auto packedStruct(ArrayRef<Constant> elements) -> Constant {
+    SmallVector<Type> types;
+    for (const auto& element : elements) types.push_back(element.type);
+    return {
+        LLVM::LLVMStructType::getLiteral(context_, types, /*isPacked=*/true),
+        valuesOf(elements)};
+  }
+
+  [[nodiscard]] auto valuesOf(ArrayRef<Constant> elements) -> ArrayAttr {
+    SmallVector<Attribute> values;
+    values.reserve(elements.size());
+    for (const auto& element : elements) values.push_back(element.value);
+    return ArrayAttr::get(context_, values);
+  }
+
+  MLIRContext* context_;
+  const DataLayout& dataLayout_;
+};
+
 static auto isGlobalDefinition(cxx::GlobalOp op) -> bool {
   if (op.getValue() || !op.getInitializer().empty()) return true;
   auto linkage =
@@ -692,9 +898,11 @@ static auto isGlobalDefinition(cxx::GlobalOp op) -> bool {
 class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
  public:
   GlobalOpLowering(const TypeConverter& typeConverter, bool needsComdat,
-                   MLIRContext* context, PatternBenefit benefit = 1)
+                   const DataLayout& dataLayout, MLIRContext* context,
+                   PatternBenefit benefit = 1)
       : OpConversionPattern<cxx::GlobalOp>(typeConverter, context, benefit),
-        needsComdat_(needsComdat) {}
+        needsComdat_(needsComdat),
+        dataLayout_(dataLayout) {}
 
   auto matchAndRewrite(cxx::GlobalOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter& rewriter) const
@@ -746,8 +954,10 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
 
     if (needsAggregateInit) {
       if (auto constant =
-              constantAggregateAttr(op.getContext(), elementType, value)) {
-        initialValue = constant;
+              GlobalConstantBuilder{op.getContext(), dataLayout_}.build(
+                  elementType, value)) {
+        elementType = constant->type;
+        initialValue = constant->value;
         needsAggregateInit = false;
       }
     }
@@ -845,6 +1055,7 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
 
  private:
   bool needsComdat_;
+  const DataLayout& dataLayout_;
 };
 
 class VTableOpLowering : public OpConversionPattern<cxx::VTableOp> {
@@ -2576,6 +2787,78 @@ class MemCpyOpLowering : public OpConversionPattern<cxx::MemCpyOp> {
   }
 };
 
+class ObjectSizeLowering {
+ public:
+  explicit ObjectSizeLowering(const DataLayout& dataLayout)
+      : dataLayout_(dataLayout) {}
+
+ protected:
+  [[nodiscard]] auto objectSize(const TypeConverter& typeConverter,
+                                Value address, Location loc,
+                                ConversionPatternRewriter& rewriter) const
+      -> Value {
+    auto pointer = cast<cxx::PointerType>(address.getType());
+    auto object = typeConverter.convertType(pointer.getElementType());
+    if (!object) return {};
+    auto bytes = dataLayout_.getTypeSize(object).getFixedValue();
+    return LLVM::ConstantOp::create(rewriter, loc, rewriter.getI64Type(),
+                                    rewriter.getI64IntegerAttr(bytes));
+  }
+
+ private:
+  const DataLayout& dataLayout_;
+};
+
+class ZeroInitOpLowering : public OpConversionPattern<cxx::ZeroInitOp>,
+                           ObjectSizeLowering {
+ public:
+  ZeroInitOpLowering(const TypeConverter& typeConverter,
+                     const DataLayout& dataLayout, MLIRContext* context,
+                     PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::ZeroInitOp>(typeConverter, context, benefit),
+        ObjectSizeLowering(dataLayout) {}
+
+  auto matchAndRewrite(cxx::ZeroInitOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto size =
+        objectSize(*getTypeConverter(), op.getAddr(), op.getLoc(), rewriter);
+    if (!size)
+      return rewriter.notifyMatchFailure(op, "failed to size the object");
+    auto zero =
+        LLVM::ConstantOp::create(rewriter, op.getLoc(), rewriter.getI8Type(),
+                                 rewriter.getI8IntegerAttr(0));
+    rewriter.replaceOp(
+        op, LLVM::MemsetOp::create(rewriter, op.getLoc(), adaptor.getAddr(),
+                                   zero, size, /*isVolatile=*/false));
+    return success();
+  }
+};
+
+class CopyOpLowering : public OpConversionPattern<cxx::CopyOp>,
+                       ObjectSizeLowering {
+ public:
+  CopyOpLowering(const TypeConverter& typeConverter,
+                 const DataLayout& dataLayout, MLIRContext* context,
+                 PatternBenefit benefit = 1)
+      : OpConversionPattern<cxx::CopyOp>(typeConverter, context, benefit),
+        ObjectSizeLowering(dataLayout) {}
+
+  auto matchAndRewrite(cxx::CopyOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto size =
+        objectSize(*getTypeConverter(), op.getDest(), op.getLoc(), rewriter);
+    if (!size)
+      return rewriter.notifyMatchFailure(op, "failed to size the object");
+    rewriter.replaceOp(
+        op, LLVM::MemcpyOp::create(rewriter, op.getLoc(), adaptor.getDest(),
+                                   adaptor.getSrc(), size,
+                                   /*isVolatile=*/false));
+    return success();
+  }
+};
+
 class SubscriptOpLowering : public OpConversionPattern<cxx::SubscriptOp> {
  public:
   SubscriptOpLowering(const TypeConverter& typeConverter,
@@ -3598,7 +3881,8 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   RewritePatternSet patterns(context);
 
   patterns.insert<FuncOpLowering>(typeConverter, needsComdat, context);
-  patterns.insert<GlobalOpLowering>(typeConverter, needsComdat, context);
+  patterns.insert<GlobalOpLowering>(typeConverter, needsComdat, dataLayout,
+                                    context);
   patterns.insert<VTableOpLowering>(typeConverter, needsComdat, context);
   patterns
       .insert<ReturnOpLowering, UnreachableOpLowering, CallOpLowering,
@@ -3608,9 +3892,10 @@ void CxxToLLVMLoweringPass::runOnOperation() {
           typeConverter, context);
 
   patterns.insert<AllocaOpLowering, LoadOpLowering, StoreOpLowering,
-                  MemSetZeroOpLowering, SubscriptOpLowering, MemberOpLowering,
-                  BitfieldLoadOpLowering, BitfieldStoreOpLowering,
-                  BuiltinCallOpLowering>(typeConverter, dataLayout, context);
+                  MemSetZeroOpLowering, ZeroInitOpLowering, CopyOpLowering,
+                  SubscriptOpLowering, MemberOpLowering, BitfieldLoadOpLowering,
+                  BitfieldStoreOpLowering, BuiltinCallOpLowering>(
+      typeConverter, dataLayout, context);
 
   patterns
       .insert<ArrayToPointerOpLowering, PtrToIntOpLowering, IntToPtrOpLowering,
@@ -3642,6 +3927,9 @@ void CxxToLLVMLoweringPass::runOnOperation() {
                                                                 typeConverter);
 
   arith::populateArithToLLVMConversionPatterns(typeConverter, patterns);
+
+  populateMathToLLVMConversionPatterns(typeConverter, patterns,
+                                       /*approximateLog1p=*/false);
 
   populateVectorToLLVMConversionPatterns(typeConverter, patterns);
 

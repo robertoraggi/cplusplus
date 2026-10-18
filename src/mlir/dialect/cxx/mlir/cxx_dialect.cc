@@ -34,6 +34,7 @@
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/Interfaces/FunctionImplementation.h>
+#include <mlir/Transforms/InliningUtils.h>
 
 #include <numeric>
 
@@ -280,6 +281,25 @@ auto haveSamePointerMemorySpace(PtrLikeTypeInterface left,
          canonicalPointerMemorySpace(right.getMemorySpace());
 }
 
+namespace {
+
+struct CxxInlinerInterface final : DialectInlinerInterface {
+  using DialectInlinerInterface::DialectInlinerInterface;
+
+  [[nodiscard]] auto isLegalToInline(Region*, Region*, bool, IRMapping&) const
+      -> bool final {
+    return true;
+  }
+
+  [[nodiscard]] auto isLegalToInline(Operation* op, Region*, bool,
+                                     IRMapping&) const -> bool final {
+    return !isa<DynAllocaOp, LabelOp, GotoOp, LabelAddressOp, IndirectGotoOp,
+                AsmGotoOp, LandingPadOp, ResumeOp>(op);
+  }
+};
+
+}  // namespace
+
 void CxxDialect::initialize() {
   addOperations<
 #define GET_OP_LIST
@@ -297,6 +317,7 @@ void CxxDialect::initialize() {
       >();
 
   addInterface<CxxGenerateAliases>();
+  addInterface<CxxInlinerInterface>();
 }
 
 void FuncOp::print(OpAsmPrinter& p) {
@@ -400,6 +421,27 @@ auto AsmGotoOp::verify() -> LogicalResult {
                                        getArgumentElementTypes());
 }
 
+auto CallOp::getCallableForCallee() -> CallInterfaceCallable {
+  if (auto callee = getCalleeAttr()) return callee;
+  return getCalleeOperand();
+}
+
+void CallOp::setCalleeFromCallable(CallInterfaceCallable callee) {
+  if (auto symbol = dyn_cast<SymbolRefAttr>(callee)) {
+    setCalleeAttr(cast<FlatSymbolRefAttr>(symbol));
+    return;
+  }
+  getCalleeOperandMutable().assign(cast<Value>(callee));
+}
+
+auto CallOp::getArgOperands() -> Operation::operand_range {
+  return getInputs();
+}
+
+auto CallOp::getArgOperandsMutable() -> MutableOperandRange {
+  return getInputsMutable();
+}
+
 auto CallOp::verify() -> LogicalResult {
   if (getCalleeAttr() && getCalleeOperand()) {
     return emitOpError("expects either a callee symbol or a callee operand");
@@ -409,6 +451,16 @@ auto CallOp::verify() -> LogicalResult {
     return emitOpError("expects a callee symbol or a callee operand");
   }
 
+  return success();
+}
+
+auto CopyOp::verify() -> LogicalResult {
+  auto destination = cast<PointerType>(getDest().getType());
+  auto source = cast<PointerType>(getSrc().getType());
+  if (destination.getElementType() != source.getElementType())
+    return emitOpError("copies between objects of different types (")
+           << destination.getElementType() << " and " << source.getElementType()
+           << ")";
   return success();
 }
 
@@ -428,6 +480,95 @@ auto StoreOp::verify() -> LogicalResult {
 #endif
 
   return success();
+}
+
+namespace {
+
+[[nodiscard]] auto isPromotableSlotType(Type type) -> bool {
+  return !isa<ClassType, ArrayType, FunctionType>(type);
+}
+
+[[nodiscard]] auto accessesSlotAddress(
+    const SmallPtrSetImpl<OpOperand*>& blockingUses, OpOperand& address)
+    -> bool {
+  return blockingUses.size() == 1 && blockingUses.contains(&address);
+}
+
+}  // namespace
+
+auto AllocaOp::getPromotableSlots() -> SmallVector<MemorySlot> {
+  auto element = cast<PointerType>(getType()).getElementType();
+  if (!isPromotableSlotType(element)) return {};
+  return {MemorySlot{getResult(), element}};
+}
+
+auto AllocaOp::getDefaultValue(const MemorySlot& slot, OpBuilder& builder)
+    -> Value {
+  return UndefOp::create(builder, getLoc(), slot.elemType);
+}
+
+void AllocaOp::handleBlockArgument(const MemorySlot&, BlockArgument,
+                                   OpBuilder&) {}
+
+auto AllocaOp::handlePromotionComplete(const MemorySlot&, Value defaultValue,
+                                       OpBuilder&)
+    -> std::optional<PromotableAllocationOpInterface> {
+  if (defaultValue && defaultValue.use_empty())
+    defaultValue.getDefiningOp()->erase();
+  erase();
+  return std::nullopt;
+}
+
+auto LoadOp::loadsFrom(const MemorySlot& slot) -> bool {
+  return getAddr() == slot.ptr;
+}
+
+auto LoadOp::storesTo(const MemorySlot&) -> bool { return false; }
+
+auto LoadOp::getStored(const MemorySlot&, OpBuilder&, Value, const DataLayout&)
+    -> Value {
+  llvm_unreachable("cxx.load does not store");
+}
+
+auto LoadOp::canUsesBeRemoved(const MemorySlot& slot,
+                              const SmallPtrSetImpl<OpOperand*>& blockingUses,
+                              SmallVectorImpl<OpOperand*>&, const DataLayout&)
+    -> bool {
+  return accessesSlotAddress(blockingUses, getAddrMutable()) &&
+         getType() == slot.elemType;
+}
+
+auto LoadOp::removeBlockingUses(const MemorySlot&,
+                                const SmallPtrSetImpl<OpOperand*>&, OpBuilder&,
+                                Value reachingDefinition, const DataLayout&)
+    -> DeletionKind {
+  getResult().replaceAllUsesWith(reachingDefinition);
+  return DeletionKind::Delete;
+}
+
+auto StoreOp::loadsFrom(const MemorySlot&) -> bool { return false; }
+
+auto StoreOp::storesTo(const MemorySlot& slot) -> bool {
+  return getAddr() == slot.ptr;
+}
+
+auto StoreOp::getStored(const MemorySlot&, OpBuilder&, Value, const DataLayout&)
+    -> Value {
+  return getValue();
+}
+
+auto StoreOp::canUsesBeRemoved(const MemorySlot& slot,
+                               const SmallPtrSetImpl<OpOperand*>& blockingUses,
+                               SmallVectorImpl<OpOperand*>&, const DataLayout&)
+    -> bool {
+  return accessesSlotAddress(blockingUses, getAddrMutable()) &&
+         getValue() != slot.ptr && getValue().getType() == slot.elemType;
+}
+
+auto StoreOp::removeBlockingUses(const MemorySlot&,
+                                 const SmallPtrSetImpl<OpOperand*>&, OpBuilder&,
+                                 Value, const DataLayout&) -> DeletionKind {
+  return DeletionKind::Delete;
 }
 
 void PointerType::print(AsmPrinter& p) const {
@@ -484,7 +625,7 @@ namespace {
                                       llvmSpace.getAddressSpace());
   return ptr::PtrType::get(cast<ptr::MemorySpaceAttrInterface>(space));
 }
-}
+}  // namespace
 
 auto PointerType::getTypeSizeInBits(const DataLayout& layout,
                                     DataLayoutEntryListRef) const
@@ -802,6 +943,67 @@ auto ClassType::getBody() const -> ArrayRef<Type> {
 }
 
 auto ClassType::isPacked() const -> bool { return getImpl()->isPacked(); }
+
+namespace {
+
+[[nodiscard]] auto objectBytes(Type type, const DataLayout& layout)
+    -> uint64_t {
+  return layout.getTypeSize(type).getFixedValue();
+}
+
+[[nodiscard]] auto objectStride(Type type, const DataLayout& layout)
+    -> uint64_t {
+  return llvm::alignTo(objectBytes(type, layout),
+                       layout.getTypeABIAlignment(type));
+}
+
+}  // namespace
+
+auto ArrayType::getTypeSizeInBits(const DataLayout& layout,
+                                  DataLayoutEntryListRef) const
+    -> llvm::TypeSize {
+  return llvm::TypeSize::getFixed(objectStride(getElementType(), layout) *
+                                  getSize() * 8);
+}
+
+auto ArrayType::getABIAlignment(const DataLayout& layout,
+                                DataLayoutEntryListRef) const -> uint64_t {
+  return layout.getTypeABIAlignment(getElementType());
+}
+
+auto ArrayType::getPreferredAlignment(const DataLayout& layout,
+                                      DataLayoutEntryListRef) const
+    -> uint64_t {
+  return layout.getTypePreferredAlignment(getElementType());
+}
+
+auto ClassType::getTypeSizeInBits(const DataLayout& layout,
+                                  DataLayoutEntryListRef) const
+    -> llvm::TypeSize {
+  if (getBody().empty()) return llvm::TypeSize::getFixed(8);
+  uint64_t offset = 0;
+  for (auto field : getBody()) {
+    auto alignment = isPacked() ? 1 : layout.getTypeABIAlignment(field);
+    offset = llvm::alignTo(offset, alignment) + objectBytes(field, layout);
+  }
+  auto alignment = getABIAlignment(layout, {});
+  return llvm::TypeSize::getFixed(llvm::alignTo(offset, alignment) * 8);
+}
+
+auto ClassType::getABIAlignment(const DataLayout& layout,
+                                DataLayoutEntryListRef) const -> uint64_t {
+  if (isPacked()) return 1;
+  uint64_t alignment = 1;
+  for (auto field : getBody())
+    alignment = std::max(alignment, layout.getTypeABIAlignment(field));
+  return alignment;
+}
+
+auto ClassType::getPreferredAlignment(const DataLayout& layout,
+                                      DataLayoutEntryListRef) const
+    -> uint64_t {
+  return getABIAlignment(layout, {});
+}
 }  // namespace mlir::cxx
 
 #define GET_ATTRDEF_CLASSES

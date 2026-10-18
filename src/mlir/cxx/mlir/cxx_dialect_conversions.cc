@@ -49,7 +49,7 @@ void canonicalizeLLVM(mlir::ModuleOp module) {
   config.setRegionSimplificationLevel(mlir::GreedySimplifyRegionLevel::Normal);
   (void)mlir::applyPatternsGreedily(module, std::move(patterns), config);
 }
-}
+}  // namespace
 
 auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
                               llvm::StringRef passPipeline)
@@ -59,7 +59,12 @@ auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
   registerCxxToLLVMPass();
   registerConvertCxxToPtrPass();
   registerConvertCxxToMemRefPass();
+  registerConvertCxxToFuncPass();
+  registerConvertCxxToMathPass();
   registerLiftCxxControlFlowToSCFPass();
+#ifdef CXX_WITH_SPIRV
+  registerConvertCxxKernelToGpuPass();
+#endif
   mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
   mlir::registerCanonicalizerPass();
   mlir::registerMem2RegPass();

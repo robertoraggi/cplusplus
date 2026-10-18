@@ -21,12 +21,15 @@
 #pragma once
 
 #include <cxx/ast_fwd.h>
+#include <cxx/attribute_kind.h>
 #include <cxx/names_fwd.h>
 #include <cxx/source_location.h>
 
 #include <compare>
+#include <cstdint>
 #include <span>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 namespace cxx {
@@ -58,6 +61,34 @@ struct Attribute {
 
 using AttributeMap = std::vector<Attribute>;
 
+struct KernelWorkgroupSize {
+  std::uint32_t x = 1;
+  std::uint32_t y = 1;
+  std::uint32_t z = 1;
+
+  [[nodiscard]] auto operator==(const KernelWorkgroupSize&) const
+      -> bool = default;
+};
+
+struct KernelBufferBinding {
+  std::uint32_t binding = 0;
+
+  [[nodiscard]] auto operator==(const KernelBufferBinding&) const
+      -> bool = default;
+};
+
+enum class KernelInvocationIdKind { kGlobal, kLocal, kWorkgroup };
+
+struct KernelInvocationId {
+  KernelInvocationIdKind kind = KernelInvocationIdKind::kGlobal;
+
+  [[nodiscard]] auto operator==(const KernelInvocationId&) const
+      -> bool = default;
+};
+
+using KernelParameterBinding =
+    std::variant<KernelBufferBinding, KernelInvocationId>;
+
 [[nodiscard]] auto collectAttributes(TranslationUnit* unit,
                                      List<AttributeSpecifierAST*>* attributes)
     -> AttributeMap;
@@ -69,39 +100,71 @@ using AttributeMap = std::vector<Attribute>;
 [[nodiscard]] auto mergeAttributes(AttributeMap lhs, const AttributeMap* rhs)
     -> AttributeMap;
 
-[[nodiscard]] auto findAttribute(const AttributeMap* attributes,
-                                 std::string_view name) -> const Attribute*;
+enum class AttributeSyntax { kGnu, kCxx, kAsmLabel };
 
-[[nodiscard]] auto attributeArgument(const AttributeMap* attributes,
-                                     std::string_view name)
-    -> const Identifier*;
-
-enum class AttributeSyntax { kGnu, kCxx };
+enum class AttributeAvailability { kAlways, kWebAssembly, kDeviceProfile };
 
 struct AttributeSpelling {
   AttributeSyntax syntax;
   std::string_view attributeNamespace;
   std::string_view name;
+  AttributeKind kind;
 };
+
+struct AttributeInfo {
+  AttributeKind kind;
+  std::string_view name;
+  std::span<const AttributeSpelling> spellings;
+  AttributeAvailability availability;
+  bool cplusplusOnly;
+  std::span<const std::string_view> arguments;
+  bool optionalArguments;
+  std::string_view subjects;
+  std::string_view documentation;
+};
+
+[[nodiscard]] auto attributeInfos() -> std::span<const AttributeInfo>;
+
+[[nodiscard]] auto attributeInfo(AttributeKind kind) -> const AttributeInfo&;
+
+[[nodiscard]] auto findAttributeSpelling(AttributeSyntax syntax,
+                                         std::string_view attributeNamespace,
+                                         std::string_view name)
+    -> const AttributeSpelling*;
+
+[[nodiscard]] auto isAttributeAvailable(const AttributeInfo& info,
+                                        const MemoryLayout& layout) -> bool;
+
+[[nodiscard]] auto namesAttribute(const Attribute& attribute,
+                                  AttributeKind kind) -> bool;
+
+[[nodiscard]] auto findAttribute(const AttributeMap* attributes,
+                                 AttributeKind kind) -> const Attribute*;
+
+[[nodiscard]] auto attributeArgument(const AttributeMap* attributes,
+                                     AttributeKind kind) -> const Identifier*;
 
 struct AttributeRef {
   const AttributeSpelling* spelling = nullptr;
   AttributeArgumentClauseAST* argumentClause = nullptr;
   SourceLocation location;
 
+  [[nodiscard]] auto kind() const -> AttributeKind { return spelling->kind; }
+
   explicit operator bool() const { return spelling != nullptr; }
 };
 
-[[nodiscard]] auto findAttributesBySpelling(
-    TranslationUnit* unit, List<AttributeSpecifierAST*>* attributeList,
-    std::span<const AttributeSpelling> spellings) -> std::vector<AttributeRef>;
+[[nodiscard]] auto knownAttributes(TranslationUnit* unit,
+                                   List<AttributeSpecifierAST*>* attributeList)
+    -> std::vector<AttributeRef>;
 
-/**
- * Returns the first attribute of the list matching one of the given spellings,
- * in source order, together with the spelling it matched.
- */
-[[nodiscard]] auto findAttributeBySpelling(
-    TranslationUnit* unit, List<AttributeSpecifierAST*>* attributeList,
-    std::span<const AttributeSpelling> spellings) -> AttributeRef;
+[[nodiscard]] auto findAttributes(TranslationUnit* unit,
+                                  List<AttributeSpecifierAST*>* attributeList,
+                                  AttributeKind kind)
+    -> std::vector<AttributeRef>;
+
+[[nodiscard]] auto findAttribute(TranslationUnit* unit,
+                                 List<AttributeSpecifierAST*>* attributeList,
+                                 AttributeKind kind) -> AttributeRef;
 
 }  // namespace cxx

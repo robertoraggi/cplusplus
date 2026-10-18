@@ -65,6 +65,8 @@ class ExternalNameEncoder {
   [[nodiscard]] auto encodeReferenceTemporary(Symbol* owner,
                                               std::string_view ownerSuffix,
                                               std::size_t index) -> std::string;
+  [[nodiscard]] auto encodeReferenceTemporary(std::string_view ownerName,
+                                              std::size_t index) -> std::string;
   [[nodiscard]] auto encodeThreadLocalInitializer(Symbol* symbol)
       -> std::string;
   [[nodiscard]] auto encodeThreadLocalWrapper(Symbol* symbol) -> std::string;

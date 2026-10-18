@@ -19,12 +19,12 @@
 // SOFTWARE.
 
 /**
- * P — persisted in the artifact
- * R — rebuilt on load; never written
- * C — a compatibility key, validated rather than restored
- * E — required to be at its boundary value, verified at freeze time
- * D — derived from another persisted field of the same entity
- * F — flushed before freezing
+ * P - persisted in the artifact
+ * R - rebuilt on load; never written
+ * C - a compatibility key, validated rather than restored
+ * E - required to be at its boundary value, verified at freeze time
+ * D - derived from another persisted field of the same entity
+ * F - flushed before freezing
  */
 export type FieldClass = "P" | "R" | "C" | "E" | "D" | "F";
 
@@ -92,6 +92,24 @@ export const bindings: Record<string, ClassBindings> = {
       cls: "P",
       read: "$->isConstexprUnknown()",
       write: "$->setConstexprUnknown($value)",
+    },
+  },
+
+  "::cxx::InitializerList": {
+    elements_: {
+      cls: "P",
+      read: "$->initializedElements()",
+      writeElement: "$->append(std::get<0>($element), std::get<1>($element))",
+    },
+    size_: {
+      cls: "P",
+      read: "$->size()",
+      write: "$->setSize($value)",
+    },
+    filler_: {
+      cls: "P",
+      read: "$->filler()",
+      write: "$->setFiller($value)",
     },
   },
 

@@ -468,6 +468,13 @@ void ElementInitChecker::checkInitializerList(const Type* type,
     initializeElement(node->value, elementType, "initializer_list element");
 }
 
+[[nodiscard]] auto describeLane(const TypeTraits& traits, const Type* type)
+    -> std::string {
+  if (traits.is_vector(type)) return "vector element";
+  if (traits.is_complex(type)) return "complex component";
+  return "array element";
+}
+
 [[nodiscard]] auto describeAggregateElement(const TypeTraits& traits,
                                             Symbol* element) -> std::string {
   if (!element) return "array element";
@@ -1071,12 +1078,11 @@ void AggregateInitializerBuilder::placeDesignatedClause(
   }
 
   const auto index = target->index;
-  if (isCxx() && cursor.previousDesignatedIndex &&
+  if (isCxx() && !plan.arrayElementType && cursor.previousDesignatedIndex &&
       index < *cursor.previousDesignatedIndex) {
-    auto element = plan.arrayElementType ? nullptr : plan.elements[index];
     error(clause->firstSourceLocation(),
           std::format("designator for {} is out of declaration order",
-                      describeAggregateElement(traits_, element)));
+                      describeAggregateElement(traits_, plan.elements[index])));
   }
 
   cursor.previousDesignatedIndex = index;
@@ -1723,6 +1729,10 @@ struct ListInitChecker {
  private:
   [[nodiscard]] auto hasDefaultConstructor(const Type* type) const -> bool;
 
+  [[nodiscard]] auto isLaneAggregate(const Type* type) const -> bool;
+  [[nodiscard]] auto initializesLanesFromValue(const Type* type,
+                                               ExpressionAST* element) const
+      -> bool;
   [[nodiscard]] auto initializesFixedUnderlyingTypeEnumeration(
       const Type* type, ExpressionAST* element) const -> bool;
 };
@@ -1749,6 +1759,22 @@ auto ListInitChecker::initializesFixedUnderlyingTypeEnumeration(
   if (!element || !element->type) return false;
   if (!ctx.traits.is_scalar(element->type)) return false;
   return bool(ctx.checker.checkImplicitConversion(element, underlyingType));
+}
+
+auto ListInitChecker::isLaneAggregate(const Type* type) const -> bool {
+  return ctx.traits.is_vector(type) || ctx.traits.is_complex(type);
+}
+
+auto ListInitChecker::initializesLanesFromValue(const Type* type,
+                                                ExpressionAST* element) const
+    -> bool {
+  if (!isLaneAggregate(type) || !element || !element->type) return false;
+  auto elementType = ctx.traits.remove_cvref(element->type);
+  if (ctx.traits.is_vector(type) != ctx.traits.is_vector(elementType))
+    return false;
+  if (ctx.traits.is_complex(type) != ctx.traits.is_complex(elementType))
+    return false;
+  return bool(ctx.checker.checkImplicitConversion(element, type));
 }
 
 auto ListInitChecker::computeBullet(const Type* targetType,
@@ -1782,6 +1808,9 @@ auto ListInitChecker::computeBullet(const Type* targetType,
 
   if (stringLiteralInitialization(ctx.traits, ctx.isCxx(), type, element))
     return ListInitializationBullet::kCharacterArrayFromStringLiteral;
+
+  if (initializesLanesFromValue(type, element))
+    return ListInitializationBullet::kSingleElement;
 
   if (ctx.traits.is_aggregate(type))
     return ListInitializationBullet::kAggregate;
@@ -1846,7 +1875,7 @@ void ListInitChecker::checkArrayElements(const Type* type,
       desigChecker.check(type, designated);
     } else {
       aggregateChecker.checkElementInit(initializer, elementType,
-                                        "array element");
+                                        describeLane(ctx.traits, type));
     }
 
     list.append(initializer);
@@ -1922,7 +1951,8 @@ void ListInitChecker::referenceFromPrvalue(const Type* type,
 
   StandardConversion conversions{ctx.unit, !ctx.isCxx()};
   auto binding = conversions.referenceBinding(type, referencedType,
-                                              ValueCategory::kPrValue, false);
+                                              ValueCategory::kPrValue,
+                                              NonAddressableDesignation::kNone);
 
   if (!binding || !*binding) {
     ctx.error(ast->firstSourceLocation(),
@@ -1967,6 +1997,7 @@ struct ClassInitChecker {
     ExpressionAST* initializer = nullptr;
     SourceLocation location;
     FunctionSymbol* constructor = nullptr;
+    ExpressionAST* initializingElement = nullptr;
     List<ExpressionAST*>** argumentList = nullptr;
     bool diagnoseUnresolved = false;
     InitializationKind initializationKind =
@@ -2183,6 +2214,12 @@ auto ClassInitChecker::checkConstructorInit(Target& target,
                                               target.initializationKind)
           : overloadRes.resolveConstructor(classSymbol, args,
                                            target.initializationKind);
+
+  if (resolution.initializingElement) {
+    target.constructor = nullptr;
+    target.initializingElement = resolution.initializingElement;
+    return ConstructorSelection::kAttempted;
+  }
 
   if (!resolution) {
     diagnoseConstructorSelection(resolution, classSymbol, location,
@@ -2446,6 +2483,7 @@ struct InitializationEngine {
   [[nodiscard]] auto diagnose(const InitializationSequence& sequence,
                               const InitializedEntity& entity) -> bool;
 
+  void adoptSingleElement(BracedInitListAST* list);
   void listInitialize(ClassInitChecker::Target& target,
                       BracedInitListAST* list);
 
@@ -2588,6 +2626,13 @@ auto InitializationEngine::compute(const InitializedEntity& entity,
   return sequence;
 }
 
+void InitializationEngine::adoptSingleElement(BracedInitListAST* list) {
+  auto element = singleInitializerClause(list);
+  if (!element || !element->type) return;
+  list->type = element->type;
+  list->valueCategory = element->valueCategory;
+}
+
 void InitializationEngine::listInitialize(ClassInitChecker::Target& target,
                                           BracedInitListAST* list) {
   auto type = target.type;
@@ -2616,7 +2661,8 @@ void InitializationEngine::listInitialize(ClassInitChecker::Target& target,
 
     case ListInitializationBullet::kAggregateFromSameOrDerivedElement:
       classChecker.checkClassInit(target);
-      if (!target.constructor) listChecker.aggregateInit(objectType, list);
+      if (!target.constructor && !target.initializingElement)
+        listChecker.aggregateInit(objectType, list);
       return;
 
     case ListInitializationBullet::kInitializerList:
@@ -2634,6 +2680,7 @@ void InitializationEngine::listInitialize(ClassInitChecker::Target& target,
 
     case ListInitializationBullet::kSingleElement:
       listChecker.singleElementInit(type, list, initializationKind);
+      if (ctx.traits.is_reference(type)) adoptSingleElement(list);
       return;
 
     case ListInitializationBullet::kReferenceToPrvalue:
@@ -3154,6 +3201,10 @@ struct MaterializedTemporaryCollector {
 
   void collect(ExpressionAST* expression) {
     if (!expression || !expression->type) return;
+    if (auto element = listInitializedElement(traits, expression)) {
+      collect(element);
+      return;
+    }
     if (is_prvalue(expression)) {
       temporaries.push_back(expression);
       return;
@@ -3214,6 +3265,20 @@ struct MaterializedTemporaryCollector {
 };
 
 }  // namespace
+
+auto listInitializedElement(const TypeTraits& traits,
+                            ExpressionAST* initializer) -> ExpressionAST* {
+  auto list = ast_cast<BracedInitListAST>(initializer);
+  if (!list || !list->type) return nullptr;
+  auto element = singleInitializerClause(list);
+  if (!element || !element->type) return nullptr;
+  if (ast_cast<DesignatedInitializerClauseAST>(element)) return nullptr;
+  if (element->valueCategory != list->valueCategory) return nullptr;
+  if (!traits.is_same(traits.remove_cv(element->type),
+                      traits.remove_cv(list->type)))
+    return nullptr;
+  return element;
+}
 
 auto materializedTemporaries(const TypeTraits& traits,
                              ExpressionAST* initializer)

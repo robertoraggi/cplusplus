@@ -818,6 +818,10 @@ auto to_string(EmitCodeFormat value) -> std::string {
       return "asm";
     case EmitCodeFormat::kExecutable:
       return "wasm";
+    case EmitCodeFormat::kWGSL:
+      return "wgsl";
+    case EmitCodeFormat::kSPIRV:
+      return "spirv";
   }
 
   lsp_runtime_error("invalid enumerator value");
@@ -1098,7 +1102,8 @@ auto parseEmitCodeFormat(std::string_view name)
   static std::unordered_map<std::string_view, EmitCodeFormat> map{
       {"cxxir", EmitCodeFormat::kCxxIR},     {"mlir", EmitCodeFormat::kMLIR},
       {"llvm", EmitCodeFormat::kLLVMIR},     {"asm", EmitCodeFormat::kAssembly},
-      {"wasm", EmitCodeFormat::kExecutable},
+      {"wasm", EmitCodeFormat::kExecutable}, {"wgsl", EmitCodeFormat::kWGSL},
+      {"spirv", EmitCodeFormat::kSPIRV},
   };
   const auto it = map.find(name);
   if (it != map.end()) return it->second;

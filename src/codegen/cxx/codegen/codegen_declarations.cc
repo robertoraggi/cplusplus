@@ -331,28 +331,53 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
   }
 }
 
-void Codegen::emitReferenceInit(VariableSymbol* var, ir::ValueRef local,
-                                ExpressionAST* initExpr, SourceLocation loc) {
+void Codegen::emitReferenceInit(Symbol* reference, ir::ValueRef address,
+                                ExpressionAST* initExpr, SourceLocation loc,
+                                ir::GlobalRef staticStorage) {
+  if (auto element = listInitializedElement(traits, initExpr))
+    initExpr = element;
+  auto referenceType = reference->type();
   auto temporaries = materializedTemporaries(traits, initExpr);
+  auto extension =
+      LifetimeExtension{*this, temporaries, reference, staticStorage};
   if (temporaries.size() != 1 || temporaries.front() != initExpr) {
-    auto extension = LifetimeExtension{*this, temporaries};
     auto expressionResult = expression(initExpr);
-    emitter_.store(loc, expressionResult.value, local,
-                   getAlignment(var->type()));
+    emitter_.store(loc, expressionResult.value, address,
+                   getAlignment(referenceType));
     return;
   }
 
   auto temporaryType = traits.remove_cv(initExpr->type);
-  auto extendedTemporary = newTemp(temporaryType, loc);
-  (void)emitPrvalueInto(extendedTemporary, temporaryType, initExpr,
+  auto temporary = extension.temporaryStorage(initExpr, temporaryType, loc);
+  (void)emitPrvalueInto(temporary, temporaryType, initExpr,
                         initExpr->firstSourceLocation());
-  if (auto classType = unqualified_cast<ClassType>(temporaryType)) {
-    if (classType->symbol()) {
-      if (auto dtor = classType->symbol()->resolvedDefinition()->destructor())
-        addCleanup(extendedTemporary, completeObjectDtor(dtor));
-    }
-  }
-  emitter_.store(loc, extendedTemporary, local, getAlignment(var->type()));
+  extension.extendObject(temporary, temporaryType, loc);
+  emitter_.store(loc, temporary, address, getAlignment(referenceType));
+}
+
+auto Codegen::findOrCreateReferenceTemporary(
+    Symbol* reference, const Type* temporaryType, ir::GlobalRef storage,
+    std::size_t index, SourceLocation loc) -> ir::GlobalRef {
+  ExternalNameEncoder encoder{unit_};
+  auto storageName = this->globalName(storage);
+  auto name = reference->enclosingFunction() && storageName.starts_with("_Z")
+                  ? encoder.encodeReferenceTemporary(storageName, index)
+                  : encoder.encodeReferenceTemporary(reference, {}, index);
+
+  if (auto existing = this->findGlobal(name)) return existing;
+
+  auto insertionGuard = ir::InsertionGuard(emitter_);
+  emitter_.setModuleInsertionPoint(true);
+  auto linkage = referenceTemporaryLinkage(emitter_.globalLinkage(storage));
+  return this->declareGlobal(
+      loc, {.name = name,
+            .type = convertType(temporaryType),
+            .linkage = linkage,
+            .isConstant = false,
+            .alignment = getAlignment(temporaryType),
+            .initializer = ir::Initializer::zero(),
+            .unknownLocation = false,
+            .isThreadLocal = has_thread_storage_duration(reference)});
 }
 
 auto Codegen::DeclarationVisitor::operator()(AsmDeclarationAST* ast)

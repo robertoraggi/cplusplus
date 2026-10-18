@@ -20,6 +20,7 @@
 
 #include <cxx/cxx_fwd.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/kernel_contract.h>
 #include <cxx/mlir/mlir_debug_emitter.h>
 #include <cxx/mlir/mlir_emitter.h>
 #include <cxx/mlir/mlir_source_contexts.h>
@@ -57,6 +58,30 @@ namespace {
   if (convention == CallingConvention::C) return {};
   return mlir::cxx::CallingConventionAttr::get(
       context, mlir::cxx::CallingConvention::CxxFastTls);
+}
+
+[[nodiscard]] auto invocationIdKindOf(KernelInvocationIdKind kind)
+    -> mlir::cxx::KernelInvocationIdKind {
+  switch (kind) {
+    case KernelInvocationIdKind::Global:
+      return mlir::cxx::KernelInvocationIdKind::Global;
+    case KernelInvocationIdKind::Local:
+      return mlir::cxx::KernelInvocationIdKind::Local;
+    case KernelInvocationIdKind::Workgroup:
+      return mlir::cxx::KernelInvocationIdKind::Workgroup;
+  }
+  return mlir::cxx::KernelInvocationIdKind::Global;
+}
+
+[[nodiscard]] auto bufferKindOf(KernelBufferKind kind)
+    -> mlir::cxx::KernelBufferKind {
+  switch (kind) {
+    case KernelBufferKind::Storage:
+      return mlir::cxx::KernelBufferKind::Storage;
+    case KernelBufferKind::Uniform:
+      return mlir::cxx::KernelBufferKind::Uniform;
+  }
+  return mlir::cxx::KernelBufferKind::Storage;
 }
 }  // namespace
 
@@ -265,6 +290,13 @@ auto MlirEmitter::initializerAttribute(const Initializer& init)
         values.push_back(initializerAttribute(v));
       return builder_.getArrayAttr(values);
     }
+    case Initializer::Kind::Vector: {
+      llvm::SmallVector<mlir::Attribute> values;
+      for (const auto& v : init.elements)
+        values.push_back(initializerAttribute(v));
+      return mlir::DenseElementsAttr::get(
+          mlir::cast<mlir::VectorType>(type(init.type)), values);
+    }
   }
   return {};
 }
@@ -310,6 +342,7 @@ auto MlirEmitter::constant(SourceLocation loc, TypeRef resultType,
 
     case Initializer::Kind::Integer:
     case Initializer::Kind::Floating:
+    case Initializer::Kind::Vector:
     case Initializer::Kind::Bytes:
       return wrap(mlir::arith::ConstantOp::create(
           builder_, location, type(resultType),
@@ -611,6 +644,56 @@ auto MlirEmitter::vectorSplat(SourceLocation loc, TypeRef vectorType,
       builder_, getLocation(loc), type(vectorType), value(scalar)));
 }
 
+auto MlirEmitter::vectorPosition(mlir::Location loc, ValueRef index,
+                                 bool indexIsSigned) -> mlir::Value {
+  auto indexType = builder_.getIndexType();
+  if (indexIsSigned)
+    return mlir::arith::IndexCastOp::create(builder_, loc, indexType,
+                                            value(index));
+  return mlir::arith::IndexCastUIOp::create(builder_, loc, indexType,
+                                            value(index));
+}
+
+auto MlirEmitter::vectorFromElements(SourceLocation loc, TypeRef vectorType,
+                                     std::span<const ValueRef> elements)
+    -> ValueRef {
+  llvm::SmallVector<mlir::Value> values;
+  for (auto element : elements) values.push_back(value(element));
+  return wrap(mlir::vector::FromElementsOp::create(
+      builder_, getLocation(loc),
+      mlir::cast<mlir::VectorType>(type(vectorType)), values));
+}
+
+auto MlirEmitter::vectorExtract(SourceLocation loc, TypeRef elementType,
+                                ValueRef vector, ValueRef index,
+                                bool indexIsSigned) -> ValueRef {
+  auto location = getLocation(loc);
+  auto position = vectorPosition(location, index, indexIsSigned);
+  auto extract = mlir::vector::ExtractOp::create(
+      builder_, location, value(vector), mlir::OpFoldResult{position});
+  assert(extract.getType() == type(elementType));
+  return wrap(extract);
+}
+
+auto MlirEmitter::vectorInsert(SourceLocation loc, ValueRef vector,
+                               ValueRef element, ValueRef index,
+                               bool indexIsSigned) -> ValueRef {
+  auto location = getLocation(loc);
+  auto position = vectorPosition(location, index, indexIsSigned);
+  return wrap(mlir::vector::InsertOp::create(builder_, location, value(element),
+                                             value(vector),
+                                             mlir::OpFoldResult{position}));
+}
+
+auto MlirEmitter::vectorShuffle(SourceLocation loc, ValueRef first,
+                                ValueRef second,
+                                std::span<const std::int64_t> mask)
+    -> ValueRef {
+  return wrap(mlir::vector::ShuffleOp::create(
+      builder_, getLocation(loc), value(first), value(second),
+      llvm::ArrayRef<std::int64_t>{mask.data(), mask.size()}));
+}
+
 auto MlirEmitter::functionType(std::span<const TypeRef> parameters,
                                std::span<const TypeRef> results,
                                bool isVariadic) -> TypeRef {
@@ -644,6 +727,7 @@ auto MlirEmitter::typeKind(TypeRef ref) -> TypeKind {
   if (mlir::isa<mlir::FloatType>(target)) return TypeKind::Floating;
   if (mlir::isa<mlir::cxx::PointerType>(target)) return TypeKind::Pointer;
   if (mlir::isa<mlir::cxx::ArrayType>(target)) return TypeKind::Array;
+  if (mlir::isa<mlir::VectorType>(target)) return TypeKind::Vector;
   if (mlir::isa<mlir::cxx::ClassType>(target)) return TypeKind::Class;
   if (mlir::isa<mlir::cxx::FunctionType>(target)) return TypeKind::Function;
   return TypeKind::Other;
@@ -659,6 +743,8 @@ auto MlirEmitter::elementType(TypeRef ref) -> TypeRef {
     return wrap(pointer.getElementType());
   if (auto array = mlir::dyn_cast<mlir::cxx::ArrayType>(target))
     return wrap(array.getElementType());
+  if (auto vector = mlir::dyn_cast<mlir::VectorType>(target))
+    return wrap(vector.getElementType());
   return {};
 }
 
@@ -1150,6 +1236,39 @@ void MlirEmitter::memcpy(mlir::Location loc, ValueRef destination,
                               size);
 }
 
+void MlirEmitter::zeroInitialize(SourceLocation loc, ValueRef address,
+                                 TypeRef objectType) {
+  zeroInitialize(getLocation(loc), address, objectType);
+}
+
+void MlirEmitter::zeroInitialize(mlir::Location loc, ValueRef address,
+                                 TypeRef objectType) {
+  mlir::cxx::ZeroInitOp::create(builder_, loc,
+                                objectAddress(loc, address, objectType));
+}
+
+void MlirEmitter::copyObject(SourceLocation loc, ValueRef destination,
+                             ValueRef source, TypeRef objectType) {
+  copyObject(getLocation(loc), destination, source, objectType);
+}
+
+void MlirEmitter::copyObject(mlir::Location loc, ValueRef destination,
+                             ValueRef source, TypeRef objectType) {
+  mlir::cxx::CopyOp::create(builder_, loc,
+                            objectAddress(loc, destination, objectType),
+                            objectAddress(loc, source, objectType));
+}
+
+auto MlirEmitter::objectAddress(mlir::Location loc, ValueRef address,
+                                TypeRef objectType) -> mlir::Value {
+  auto pointer = mlir::cast<mlir::cxx::PointerType>(value(address).getType());
+  auto object = type(objectType);
+  if (pointer.getElementType() == object) return value(address);
+  auto rebound = mlir::cxx::PointerType::get(builder_.getContext(), object,
+                                             pointer.getAddressSpace());
+  return mlir::cxx::BitcastOp::create(builder_, loc, rebound, value(address));
+}
+
 void MlirEmitter::unreachable(SourceLocation loc) {
   unreachable(getLocation(loc));
 }
@@ -1308,7 +1427,7 @@ auto MlirEmitter::declareFunction(mlir::Location loc, const FunctionInfo& info)
 
   auto functionType = mlir::cast<mlir::cxx::FunctionType>(type(info.type));
 
-  return wrap(mlir::cxx::FuncOp::create(
+  auto func = mlir::cxx::FuncOp::create(
       builder_, loc, mlir::StringRef{info.name.data(), info.name.size()},
       functionType,
       mlir::cxx::LinkageKindAttr::get(context, toMlir(info.linkage)),
@@ -1325,7 +1444,48 @@ auto MlirEmitter::declareFunction(mlir::Location loc, const FunctionInfo& info)
       parameterAbiAttrs(std::array{info.resultAbi},
                         functionType.getResults().size()),
       optionalString(info.section),
-      callingConventionAttr(context, info.callingConvention)));
+      callingConventionAttr(context, info.callingConvention));
+  if (info.kernel) {
+    const auto& kernel = *info.kernel;
+    func->setAttr(
+        "cxx.kernel_workgroup_size",
+        builder_.getDenseI32ArrayAttr({static_cast<int32_t>(kernel.x),
+                                       static_cast<int32_t>(kernel.y),
+                                       static_cast<int32_t>(kernel.z)}));
+    llvm::SmallVector<mlir::Attribute> buffers;
+    for (const auto& buffer : kernel.buffers) {
+      buffers.push_back(builder_.getDictionaryAttr({
+          builder_.getNamedAttr("parameter",
+                                builder_.getI32IntegerAttr(buffer.parameter)),
+          builder_.getNamedAttr("binding",
+                                builder_.getI32IntegerAttr(buffer.binding)),
+          builder_.getNamedAttr(
+              "kind",
+              builder_.getStringAttr(mlir::cxx::stringifyKernelBufferKind(
+                  bufferKindOf(buffer.kind)))),
+          builder_.getNamedAttr("read_only",
+                                builder_.getBoolAttr(buffer.readOnly)),
+          builder_.getNamedAttr("name", builder_.getStringAttr(buffer.name)),
+          builder_.getNamedAttr("unsigned",
+                                builder_.getBoolAttr(buffer.unsignedElements)),
+      }));
+    }
+    func->setAttr("cxx.kernel_buffers", builder_.getArrayAttr(buffers));
+    llvm::SmallVector<mlir::Attribute> invocationIds;
+    for (const auto& id : kernel.invocationIds) {
+      invocationIds.push_back(builder_.getDictionaryAttr({
+          builder_.getNamedAttr("parameter",
+                                builder_.getI32IntegerAttr(id.parameter)),
+          builder_.getNamedAttr(
+              "kind",
+              builder_.getStringAttr(mlir::cxx::stringifyKernelInvocationIdKind(
+                  invocationIdKindOf(id.kind)))),
+      }));
+    }
+    func->setAttr("cxx.kernel_invocation_ids",
+                  builder_.getArrayAttr(invocationIds));
+  }
+  return wrap(func);
 }
 
 auto MlirEmitter::functionName(FunctionRef ref) -> std::string_view {

@@ -797,6 +797,12 @@ class SemanticEncoder final : public SemanticEncoderBase {
       ByteWriter& out, const cxx::VTableLayout::EntryPoint* self);
   void writecxxPendingInstantiation(ByteWriter& out,
                                     const cxx::PendingInstantiation* self);
+  void writecxxKernelWorkgroupSize(ByteWriter& out,
+                                   const cxx::KernelWorkgroupSize* self);
+  void writecxxKernelBufferBinding(ByteWriter& out,
+                                   const cxx::KernelBufferBinding* self);
+  void writecxxKernelInvocationId(ByteWriter& out,
+                                  const cxx::KernelInvocationId* self);
   void writecxxStructuredBindingInfo(ByteWriter& out,
                                      const cxx::StructuredBindingInfo* self);
   void writecxxForRangeStatementInfo(ByteWriter& out,
@@ -1484,6 +1490,11 @@ class SemanticDecoder final : public SemanticDecoderBase {
                                      cxx::VTableLayout::EntryPoint* self);
   void readcxxPendingInstantiation(ByteReader& in,
                                    cxx::PendingInstantiation* self);
+  void readcxxKernelWorkgroupSize(ByteReader& in,
+                                  cxx::KernelWorkgroupSize* self);
+  void readcxxKernelBufferBinding(ByteReader& in,
+                                  cxx::KernelBufferBinding* self);
+  void readcxxKernelInvocationId(ByteReader& in, cxx::KernelInvocationId* self);
   void readcxxStructuredBindingInfo(ByteReader& in,
                                     cxx::StructuredBindingInfo* self);
   void readcxxForRangeStatementInfo(ByteReader& in,

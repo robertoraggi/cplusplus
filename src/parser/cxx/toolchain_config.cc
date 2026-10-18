@@ -24,6 +24,7 @@
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
+#include <cxx/spirv_toolchain.h>
 #include <cxx/toolchain.h>
 #include <cxx/toolchain_config.h>
 #include <cxx/triple.h>
@@ -45,6 +46,8 @@ namespace {
 auto applicationDirectory(const CLI& cli) -> fs::path {
 #if __wasi__
   return fs::path("/usr/bin/");
+#elif __EMSCRIPTEN__
+  return fs::path(cli.app_name).remove_filename();
 #else
   return std::filesystem::canonical(
       std::filesystem::path(cli.app_name).remove_filename());
@@ -67,6 +70,8 @@ auto defaultArchOf(std::string_view toolchainId) -> std::string {
 }
 
 auto defaultTripleOf(std::string_view toolchainId) -> Triple {
+  if (toolchainId == "spirv32" || toolchainId == "spirv64")
+    return Triple{std::format("{}-unknown-unknown", toolchainId)};
   const auto arch = defaultArchOf(toolchainId);
   if (toolchainId == "wasm32") return Triple{"wasm32-wasip1"};
   if (toolchainId == "darwin")
@@ -81,6 +86,7 @@ auto defaultTripleOf(std::string_view toolchainId) -> Triple {
 }
 
 auto toolchainForTriple(const Triple& triple) -> std::string {
+  if (triple.isSPIRV()) return "spirv";
   if (triple.isDarwin()) return "darwin";
 
   switch (triple.os()) {
@@ -106,6 +112,9 @@ auto instantiateToolchain(const CLI& cli, Preprocessor* preprocessor,
                           const TargetSelection& target)
     -> std::unique_ptr<Toolchain> {
   auto triple = toolchainTriple(target);
+
+  if (target.toolchain == "spirv")
+    return std::make_unique<SPIRVToolchain>(preprocessor, std::move(triple));
 
   if (target.toolchain == "darwin") {
     return std::make_unique<MacOSToolchain>(preprocessor, std::move(triple));
@@ -149,8 +158,8 @@ auto makeToolchain(const CLI& cli, Preprocessor* preprocessor)
   auto toolchain = instantiateToolchain(cli, preprocessor, target);
   if (!toolchain) return {};
 
-  toolchain->setExceptionsEnabled(
-      cli.exceptionsEnabled(!toolchain->triple().isWebAssembly()));
+  toolchain->setExceptionsEnabled(cli.exceptionsEnabled(
+      !toolchain->triple().isWebAssembly() && !toolchain->triple().isSPIRV()));
   toolchain->setAppdir(applicationDirectory(cli).string());
 
   if (auto paths = cli.get("-resource-dir"); !paths.empty()) {
@@ -194,6 +203,28 @@ void addCommandLineSystemIncludePaths(const CLI& cli, Toolchain* toolchain) {
   }
 }
 
+void applyCommandLineMacros(const CLI& cli, Preprocessor* preprocessor) {
+  for (const auto& match : cli) {
+    auto option = std::get_if<CLIOption>(&match);
+    if (!option) continue;
+
+    const auto& name = std::get<0>(*option);
+    const auto& macro = std::get<1>(*option);
+
+    if (name == "-U") {
+      preprocessor->undefMacro(macro);
+      continue;
+    }
+    if (name != "-D") continue;
+    auto sep = macro.find_first_of('=');
+    if (sep == std::string::npos) {
+      preprocessor->defineMacro(macro, "1");
+    } else {
+      preprocessor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
+    }
+  }
+}
+
 void addStandardIncludePaths(const CLI& cli, Toolchain* toolchain) {
   if (cli.opt_nostdinc) return;
 
@@ -213,9 +244,7 @@ void addStandardIncludePaths(const CLI& cli, Toolchain* toolchain) {
 auto selectTarget(const CLI& cli) -> TargetSelection {
   TargetSelection target;
 
-  std::optional<std::string> requestedTriple;
-  if (auto value = cli.getSingle("--target")) requestedTriple = value;
-  if (auto value = cli.getSingle("-target")) requestedTriple = value;
+  auto requestedTriple = cli.getLast({"--target", "-target"});
 
   if (requestedTriple) {
     target.triple = Triple{*requestedTriple};
@@ -226,6 +255,7 @@ auto selectTarget(const CLI& cli) -> TargetSelection {
     target.toolchain = cli.getSingle("-toolchain").value_or("wasm32");
     if (target.toolchain == "macos") target.toolchain = "darwin";
     target.triple = defaultTripleOf(target.toolchain);
+    if (target.triple.isSPIRV()) target.toolchain = "spirv";
   }
 
   if (auto arch = cli.getSingle("-arch")) {
@@ -275,6 +305,33 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
   auto toolchain = makeToolchain(cli, preprocessor);
   if (!toolchain) return {};
 
+  auto profile = cli.getSingle("--device-profile");
+  if (!profile && toolchain->triple().arch() == TripleArch::kSPIRV32)
+    profile = "vulkan1.1-f32";
+
+  if (profile && *profile != "none") {
+    if (*profile != "vulkan1.1-f32") {
+      error = std::format("cxx: unknown device profile '{}'", *profile);
+      return toolchain;
+    }
+    if (toolchain->triple().arch() != TripleArch::kSPIRV32) {
+      error = "cxx: device profile 'vulkan1.1-f32' requires a spirv32 target";
+      return toolchain;
+    }
+    if (cli.exceptionsEnabled(false)) {
+      error = "cxx: device profile 'vulkan1.1-f32' does not support exceptions";
+      return toolchain;
+    }
+    if (auto option = cli.hostOnlyOutputOption()) {
+      error = std::format(
+          "cxx: {} needs a host target; device profile 'vulkan1.1-f32' "
+          "emits -emit-ir, -emit-mlir, -S, -c, -emit-spirv and -emit-wgsl",
+          *option);
+      return toolchain;
+    }
+    toolchain->memoryLayout()->setDeviceProfile(DeviceProfile::kVulkan11F32);
+  }
+
   toolchain->setLanguage(language);
   toolchain->setRttiEnabled(cli.rttiEnabled());
   if (toolchain->supportsPositionIndependence()) {
@@ -318,17 +375,7 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
   for (const auto& path : cli.get("-I")) {
     preprocessor->addUserIncludePath(path);
   }
-  for (const auto& macro : cli.get("-D")) {
-    auto sep = macro.find_first_of('=');
-    if (sep == std::string::npos) {
-      preprocessor->defineMacro(macro, "1");
-    } else {
-      preprocessor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-    }
-  }
-  for (const auto& macro : cli.get("-U")) {
-    preprocessor->undefMacro(macro);
-  }
+  applyCommandLineMacros(cli, preprocessor);
 
   return toolchain;
 }

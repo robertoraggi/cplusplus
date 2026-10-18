@@ -24,7 +24,7 @@ auto main() -> int {
   // expected-error@1 {{'char*' and 'void*' are not pointers to compatible types}}
   p - vp;
 
-  // expected-error@1 {{invalid operands to binary expression 'int' and 'char*'}}
+  // expected-error@1 {{invalid operands to binary expression ('int' and 'char*')}}
   0 - p;
 
   // clang-format on

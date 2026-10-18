@@ -239,8 +239,8 @@ struct SourceFile {
     const auto lineOffset = static_cast<unsigned>(*it);
 
     // Counting the column means walking the line, so a caller that asks for
-    // one position after another — the archive encoder, the code generator
-    // building MLIR locations, a diagnostic renderer — would rescan the same
+    // one position after another - the archive encoder, the code generator
+    // building MLIR locations, a diagnostic renderer - would rescan the same
     // prefix every time. Continue from the last answer when it is on the same
     // line and no later than this one.
     std::uint32_t column = 0;

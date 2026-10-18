@@ -65,6 +65,10 @@ export class LspClient {
     })
   }
 
+  sendNotification(method: string, params: JsonObject): Promise<void> {
+    return this.#transport.send({ jsonrpc: "2.0", method, params })
+  }
+
   #monacoTransport(): MessageTransport {
     return {
       state: this.#transport.state,

@@ -55,6 +55,8 @@ struct AggregateListConversion {
   ConversionRank elementRank = ConversionRank::kExactMatch;
 };
 
+enum class NonAddressableDesignation { kNone, kBitField, kVectorElement };
+
 class StandardConversion {
  public:
   explicit StandardConversion(TranslationUnit* unit, bool isC = false);
@@ -97,12 +99,23 @@ class StandardConversion {
                                                ExpressionAST*& other)
       -> const Type*;
 
+  [[nodiscard]] auto splatOperand(ExpressionAST*& expr,
+                                  const VectorType* vectorType) -> bool;
+
   [[nodiscard]] auto vectorOperandConversion(ExpressionAST*& expr,
                                              ExpressionAST*& other)
       -> std::optional<const Type*>;
 
+  [[nodiscard]] auto isVectorBooleanConversion(const VectorType* source,
+                                               const VectorType* target)
+      -> bool;
   [[nodiscard]] auto canSplatIntoVector(ExpressionAST* expr,
                                         const VectorType* vectorType) -> bool;
+  [[nodiscard]] auto canSplatIntoExtVector(const Type* scalarType,
+                                           const Type* elementType) -> bool;
+  [[nodiscard]] auto canSplatIntoGnuVector(ExpressionAST* expr,
+                                           const Type* elementType) -> bool;
+  [[nodiscard]] auto integerTypeOrder(const Type* a, const Type* b) -> int;
 
   [[nodiscard]] auto commonFloatingPointType(const Type* a, const Type* b)
       -> const Type*;
@@ -146,6 +159,8 @@ class StandardConversion {
   [[nodiscard]] auto isNullPointerConstant(ExpressionAST* expr) const -> bool;
 
   void foldConstantRead(ExpressionAST*& expression);
+  [[nodiscard]] auto readsConstantVariable(ImplicitCastExpressionAST* read,
+                                           Symbol* variable) -> bool;
   [[nodiscard]] auto readOfPotentialResult(ImplicitCastExpressionAST* read,
                                            ExpressionAST* operand)
       -> ExpressionAST*;
@@ -166,10 +181,14 @@ class StandardConversion {
   [[nodiscard]] auto referenceBinding(const Type* targetType,
                                       const Type* sourceType,
                                       ValueCategory valueCategory,
-                                      bool sourceIsBitField)
+                                      NonAddressableDesignation designation)
       -> std::optional<ImplicitConversionSequence>;
 
-  [[nodiscard]] static auto designatesBitField(ExpressionAST* expr) -> bool;
+  [[nodiscard]] static auto nonAddressableDesignation(ExpressionAST* expr)
+      -> NonAddressableDesignation;
+
+  [[nodiscard]] static auto designatesAddressableStorage(ExpressionAST* expr)
+      -> bool;
 
  private:
   [[nodiscard]] auto conversionFunctionResultType(FunctionSymbol* function,

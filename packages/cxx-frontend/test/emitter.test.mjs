@@ -80,11 +80,30 @@ int add(int a, int b) { return a + b; }
   assert.match(text, /^endmodule$/m);
 });
 
+test("the module header carries a frontend-defined data layout", () => {
+  const trace = new TraceEmitter();
+  trace.beginModule({
+    name: "kernel.cc",
+    sourceFile: "kernel.cc",
+    targetTriple: "spirv32-unknown-unknown",
+    dataLayout: "e-p:32:32-i64:64-n8:16:32:64-G1",
+    debugCompilationDirectory: "",
+    framePointer: "none",
+    picLevel: 0,
+    pieLevel: 0,
+  });
+  assert.match(
+    trace.trace,
+    /^module "kernel\.cc" source "kernel\.cc" triple "spirv32-unknown-unknown" layout "e-p:32:32-i64:64-n8:16:32:64-G1"$/m,
+  );
+});
+
 test("the module header carries the position independence levels", () => {
   const info = {
     name: "module.cc",
     sourceFile: "module.cc",
     targetTriple: "x86_64-unknown-linux-gnu",
+    dataLayout: "",
     debugCompilationDirectory: "",
     framePointer: "none",
     picLevel: 2,

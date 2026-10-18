@@ -23,6 +23,7 @@ import { type UnitOptions } from "./cxx-js.js";
 import { isCxxLoaded } from "./loadCxx.js";
 import { type Diagnostic } from "./Diagnostic.js";
 import { type EmitterDelegate } from "./Emitter.js";
+import { type KernelManifest, type KernelOutput } from "./Kernel.js";
 import { type Unit } from "./Unit.js";
 import { unitOf, type UnitAST } from "./model.js";
 import { asyncDisposeSymbol, disposeSymbol } from "./disposeSymbols.js";
@@ -35,6 +36,8 @@ export const OutputCodeFormat = [
   "llvm",
   "asm",
   "obj",
+  "wgsl",
+  "spirv",
 ] as const;
 /** @category Parsing */
 export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
@@ -42,12 +45,26 @@ export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
 /**
  * The result of {@link Parser.emitCode} for a given output format.
  *
- * Textual formats produce a `string`, object code produces a `Uint8Array`.
+ * Textual formats produce a `string`, object code produces a `Uint8Array`, and
+ * the kernel formats produce every checked kernel of the unit with its
+ * manifest. Under a device profile, `mlir` is the GPU dialect of the kernels,
+ * `asm` their SPIR-V dialect and `obj` the SPIR-V binary of the only kernel.
  *
  * @category Parsing
  */
 export type OutputCode<Format extends OutputCodeFormat = OutputCodeFormat> =
-  Format extends "obj" ? Uint8Array : string;
+  Format extends "obj"
+    ? Uint8Array
+    : Format extends "wgsl"
+      ? KernelOutput<string>
+      : Format extends "spirv"
+        ? KernelOutput<Uint8Array>
+        : string;
+
+interface NativeKernelOutput {
+  kernels: { manifest: string; code: string | Uint8Array }[];
+  error: string;
+}
 
 /** @category Parsing */
 export const CxxStandard = [
@@ -182,15 +199,26 @@ export class Parser implements Disposable, AsyncDisposable {
    * Generates code in the given format.
    *
    * @param options the output format.
-   * @returns the generated code, a `Uint8Array` when the format is `obj` and a
-   * `string` for the textual formats.
+   * @returns the generated code: a `Uint8Array` for `obj`, every checked
+   * kernel with its manifest for `wgsl` and `spirv`, and a `string` for the
+   * textual formats.
    */
   emitCode<Format extends OutputCodeFormat>({
     format,
   }: {
     format: Format;
   }): OutputCode<Format> {
-    return this.#nativeUnit().emitCode(format) as OutputCode<Format>;
+    const output = this.#nativeUnit().emitCode(format);
+    if (format !== "wgsl" && format !== "spirv")
+      return output as OutputCode<Format>;
+    const native = output as unknown as NativeKernelOutput;
+    return {
+      error: native.error,
+      kernels: native.kernels.map(({ manifest, code }) => ({
+        manifest: JSON.parse(manifest) as KernelManifest,
+        code,
+      })),
+    } as OutputCode<Format>;
   }
 
   emitWith(delegate: EmitterDelegate): void {

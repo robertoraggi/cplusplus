@@ -827,7 +827,8 @@ inline constexpr BuiltinSignature kBuiltinSignatures[] = {
     {1434, 1,
      BuiltinFlags::kConstexpr | BuiltinFlags::kNoexcept},  // __builtin_memcmp
     {1443, 1, BuiltinFlags::kNoexcept},                    // __builtin_memcpy
-    {1452, 1, BuiltinFlags::kNoexcept},                    // __builtin_memmove
+    {1452, 1,
+     BuiltinFlags::kConstexpr | BuiltinFlags::kNoexcept},  // __builtin_memmove
     {1461, 1, BuiltinFlags::kNoexcept},                    // __builtin_mempcpy
     {1470, 1, BuiltinFlags::kNoexcept},                    // __builtin_memset
     {1477, 1, BuiltinFlags::kNoexcept},                    // __builtin_modf

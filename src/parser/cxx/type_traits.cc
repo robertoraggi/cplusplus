@@ -1459,6 +1459,14 @@ auto TypeTraits::is_vector(const Type* type) const -> bool {
   return type && visit(IsVector{}, type);
 }
 
+auto TypeTraits::is_vector_element_type(const Type* type, VectorKind kind) const
+    -> bool {
+  if (is_floating_point(type)) return true;
+  if (!is_integral(type)) return false;
+  if (type->kind() == TypeKind::kBool) return kind == VectorKind::kExt;
+  return true;
+}
+
 auto TypeTraits::is_scalar_or_vector(const Type* type) const -> bool {
   return is_scalar(type) || is_vector(type);
 }
@@ -3904,6 +3912,21 @@ auto TypeTraits::has_mutable_subobject(const Type* type) -> bool {
   for (auto field : cls->members() | views::non_static_fields) {
     if (field->isMutable()) return true;
     if (has_mutable_subobject(field->type())) return true;
+  }
+
+  return false;
+}
+
+auto TypeTraits::has_const_member(const Type* type) -> bool {
+  auto classType = type_cast<ClassType>(remove_cv(remove_all_extents(type)));
+  if (!classType) return false;
+  auto cls = classType->definition();
+  requireCompleteClass(cls);
+  if (!cls) return false;
+
+  for (auto field : cls->members() | views::non_static_fields) {
+    if (is_const(field->type())) return true;
+    if (has_const_member(field->type())) return true;
   }
 
   return false;

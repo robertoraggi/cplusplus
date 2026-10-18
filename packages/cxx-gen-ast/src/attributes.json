@@ -1,0 +1,272 @@
+[
+  {
+    "name": "abi_tag",
+    "spellings": ["GNU", "CXX:gnu"],
+    "arguments": ["tags..."],
+    "subjects": "functions, variables and classes",
+    "documentation": "Adds ABI tags to the mangled name of the entity."
+  },
+  {
+    "name": "address_space",
+    "spellings": ["GNU", "CXX:clang"],
+    "arguments": ["space"],
+    "subjects": "types",
+    "documentation": "Places objects of the type in the given target address space."
+  },
+  {
+    "name": "alias",
+    "spellings": ["GNU", "CXX:gnu"],
+    "arguments": ["target"],
+    "subjects": "functions and variables",
+    "documentation": "Defines the entity as an alias of the named symbol."
+  },
+  {
+    "name": "aligned",
+    "spellings": ["GNU", "CXX:gnu"],
+    "arguments": ["alignment"],
+    "optionalArguments": true,
+    "subjects": "variables, data members and types",
+    "documentation": "Raises the alignment to the given number of bytes, or to the largest alignment of the target when no argument is given."
+  },
+  {
+    "name": "always_inline",
+    "spellings": ["GNU", "CXX:gnu", "CXX:clang"],
+    "subjects": "functions",
+    "documentation": "Inlines every call to the function."
+  },
+  {
+    "name": "asm",
+    "spellings": ["ASM"],
+    "arguments": ["label"],
+    "subjects": "functions and variables",
+    "documentation": "Gives the entity the named symbol in the object file."
+  },
+  {
+    "name": "assume",
+    "spellings": ["CXX"],
+    "arguments": ["expression"],
+    "cplusplus": true,
+    "subjects": "null statements",
+    "documentation": "Lets the implementation assume that the expression evaluates to true at this point."
+  },
+  {
+    "name": "buffer",
+    "spellings": ["CXX:cxx"],
+    "arguments": ["index"],
+    "availability": "device",
+    "subjects": "kernel parameters",
+    "documentation": "Binds a kernel parameter to the buffer at the given index: a pointer to address-space-1 or address-space-2 float, int or unsigned int elements is a runtime-sized storage buffer, and a reference to an address-space-2 scalar or vector is a uniform buffer."
+  },
+  {
+    "name": "constructor",
+    "spellings": ["GNU", "CXX:gnu"],
+    "arguments": ["priority"],
+    "optionalArguments": true,
+    "subjects": "functions",
+    "documentation": "Calls the function before main, in increasing priority order."
+  },
+  {
+    "name": "deprecated",
+    "spellings": ["CXX"],
+    "arguments": ["reason"],
+    "optionalArguments": true,
+    "subjects": "names and entities",
+    "documentation": "Marks the entity as deprecated."
+  },
+  {
+    "name": "enable_if",
+    "spellings": ["GNU"],
+    "arguments": ["condition", "message"],
+    "subjects": "functions",
+    "documentation": "Makes the function a viable overload candidate only when the condition is true."
+  },
+  {
+    "name": "exclude_from_explicit_instantiation",
+    "spellings": ["GNU", "CXX:clang"],
+    "subjects": "members of class templates",
+    "documentation": "Excludes the member from explicit instantiation declarations and definitions of its class."
+  },
+  {
+    "name": "export_name",
+    "spellings": ["GNU", "CXX:clang"],
+    "arguments": ["name"],
+    "availability": "webassembly",
+    "subjects": "functions",
+    "documentation": "Exports the function from the WebAssembly module under the given name."
+  },
+  {
+    "name": "ext_vector_type",
+    "spellings": ["GNU", "CXX:clang"],
+    "arguments": ["elements"],
+    "subjects": "types",
+    "documentation": "Declares an extended vector type with the given number of elements."
+  },
+  {
+    "name": "fallthrough",
+    "spellings": ["CXX"],
+    "subjects": "null statements",
+    "documentation": "Marks an intentional fall through to the next switch label."
+  },
+  {
+    "name": "global_id",
+    "spellings": ["CXX:cxx"],
+    "availability": "device",
+    "subjects": "kernel parameters",
+    "documentation": "Binds an unsigned int, or a vector of 2 or 3 unsigned ints, to the global invocation id."
+  },
+  {
+    "name": "gnu_inline",
+    "spellings": ["GNU", "CXX:gnu"],
+    "subjects": "inline functions",
+    "documentation": "Gives the inline function the GNU inline semantics."
+  },
+  {
+    "name": "import_module",
+    "spellings": ["GNU", "CXX:clang"],
+    "arguments": ["module"],
+    "availability": "webassembly",
+    "subjects": "functions",
+    "documentation": "Imports the function from the given WebAssembly module."
+  },
+  {
+    "name": "import_name",
+    "spellings": ["GNU", "CXX:clang"],
+    "arguments": ["name"],
+    "availability": "webassembly",
+    "subjects": "functions",
+    "documentation": "Imports the function under the given WebAssembly field name."
+  },
+  {
+    "name": "indeterminate",
+    "spellings": ["CXX"],
+    "cplusplus": true,
+    "subjects": "automatic variable definitions and function parameters",
+    "documentation": "Gives the object an indeterminate instead of an erroneous value until it is initialized."
+  },
+  {
+    "name": "kernel",
+    "spellings": ["CXX", "CXX:cxx"],
+    "availability": "device",
+    "subjects": "extern \"C\" functions returning void",
+    "documentation": "Declares the function as a compute kernel entry point."
+  },
+  {
+    "name": "likely",
+    "spellings": ["CXX"],
+    "cplusplus": true,
+    "subjects": "labels and statements",
+    "documentation": "Marks the path of execution through the statement as more likely than the alternatives."
+  },
+  {
+    "name": "local_id",
+    "spellings": ["CXX:cxx"],
+    "availability": "device",
+    "subjects": "kernel parameters",
+    "documentation": "Binds an unsigned int, or a vector of 2 or 3 unsigned ints, to the local invocation id."
+  },
+  {
+    "name": "maybe_unused",
+    "spellings": ["CXX"],
+    "subjects": "names and entities",
+    "documentation": "Suppresses warnings about the entity being unused."
+  },
+  {
+    "name": "no_unique_address",
+    "spellings": ["CXX"],
+    "cplusplus": true,
+    "subjects": "non-static data members",
+    "documentation": "Allows the data member to share its address with other subobjects."
+  },
+  {
+    "name": "nodiscard",
+    "spellings": ["CXX"],
+    "arguments": ["reason"],
+    "optionalArguments": true,
+    "subjects": "functions, classes and enumerations",
+    "documentation": "Warns when the result of a call is discarded."
+  },
+  {
+    "name": "noinline",
+    "spellings": ["GNU", "CXX:gnu", "CXX:clang"],
+    "subjects": "functions",
+    "documentation": "Prevents the function from being inlined."
+  },
+  {
+    "name": "noreturn",
+    "spellings": ["CXX", "GNU", "CXX:gnu"],
+    "subjects": "functions",
+    "documentation": "Specifies that the function does not return."
+  },
+  {
+    "name": "nothrow",
+    "spellings": ["GNU", "CXX:gnu"],
+    "subjects": "functions",
+    "documentation": "Declares that the function does not throw exceptions."
+  },
+  {
+    "name": "packed",
+    "spellings": ["GNU", "CXX:gnu"],
+    "subjects": "classes and data members",
+    "documentation": "Lays out the members without padding."
+  },
+  {
+    "name": "section",
+    "spellings": ["GNU", "CXX:gnu"],
+    "arguments": ["name"],
+    "subjects": "functions and variables",
+    "documentation": "Places the entity in the named object-file section."
+  },
+  {
+    "name": "trivial_abi",
+    "spellings": ["GNU", "CXX:clang"],
+    "subjects": "classes",
+    "documentation": "Passes and returns objects of the class in registers even when it has non-trivial special members."
+  },
+  {
+    "name": "unlikely",
+    "spellings": ["CXX"],
+    "cplusplus": true,
+    "subjects": "labels and statements",
+    "documentation": "Marks the path of execution through the statement as less likely than the alternatives."
+  },
+  {
+    "name": "used",
+    "spellings": ["GNU", "CXX:gnu"],
+    "subjects": "functions and variables",
+    "documentation": "Emits the entity even when nothing references it."
+  },
+  {
+    "name": "vector_size",
+    "spellings": ["GNU", "CXX:gnu"],
+    "arguments": ["bytes"],
+    "subjects": "types",
+    "documentation": "Declares a GNU vector type of the given size in bytes."
+  },
+  {
+    "name": "warn_unused_result",
+    "spellings": ["GNU", "CXX:gnu", "CXX:clang"],
+    "subjects": "functions",
+    "documentation": "Warns when the result of a call is discarded."
+  },
+  {
+    "name": "weak",
+    "spellings": ["GNU", "CXX:gnu"],
+    "subjects": "functions and variables",
+    "documentation": "Gives the declaration weak linkage."
+  },
+  {
+    "name": "workgroup_id",
+    "spellings": ["CXX:cxx"],
+    "availability": "device",
+    "subjects": "kernel parameters",
+    "documentation": "Binds an unsigned int, or a vector of 2 or 3 unsigned ints, to the workgroup id."
+  },
+  {
+    "name": "workgroup_size",
+    "spellings": ["CXX:cxx"],
+    "arguments": ["x", "y", "z"],
+    "availability": "device",
+    "subjects": "kernels",
+    "documentation": "Sets the workgroup size of the kernel; the default is 1, 1, 1."
+  }
+]

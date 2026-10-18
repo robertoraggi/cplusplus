@@ -61,22 +61,31 @@ const passDetails = {
 export function IRPassMenu() {
   const state = usePlayground()
   const selected = state.mlirPasses
+  const fixedPipeline = state.device === "gpu"
 
   return (
     <Select
       multiple
+      disabled={fixedPipeline}
       value={selected}
       onValueChange={(names: MLIRPass[]) => state.setMLIRPasses(names)}
     >
       <SelectTrigger
         aria-label="Select MLIR passes"
-        className="h-8 border-border/80 bg-muted/40 text-xs font-medium"
+        title={
+          fixedPipeline
+            ? "GPU kernels use the fixed device pipeline"
+            : "Select MLIR passes"
+        }
+        className="border-border/80 bg-muted/40 text-xs font-medium disabled:opacity-50 data-[size=default]:h-11 md:data-[size=default]:h-8"
       >
         <Layers />
-        Passes
-        <span className="rounded bg-foreground/10 px-1.5 text-[10px] text-muted-foreground tabular-nums">
-          {selected.length}
-        </span>
+        <span className="max-md:hidden">Passes</span>
+        {!fixedPipeline && (
+          <span className="rounded bg-foreground/10 px-1.5 text-[10px] text-muted-foreground tabular-nums">
+            {selected.length}
+          </span>
+        )}
       </SelectTrigger>
       <SelectContent
         align="end"
@@ -93,7 +102,9 @@ export function IRPassMenu() {
             >
               <choice.icon className="text-muted-foreground" />
               <span>{choice.name}</span>
-              <span className="text-muted-foreground">{choice.description}</span>
+              <span className="text-muted-foreground">
+                {choice.description}
+              </span>
             </SelectItem>
           )
         })}

@@ -260,6 +260,15 @@ void Server::sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
     result.format(format);
     result.text(std::move(emitted->text));
     if (!emitted->error.empty()) result.error(std::move(emitted->error));
+    if (emitted->kernels) {
+      auto kernels = result.kernels<Vector<EmitCodeKernel>>();
+      kernels.get() = json::array();
+      for (auto& emittedKernel : *emitted->kernels) {
+        auto kernel = kernels.emplace_back();
+        kernel.get()["manifest"] = json::parse(emittedKernel.manifest);
+        kernel.code(std::move(emittedKernel.code));
+      }
+    }
   }
 
   sendToClient(response);
@@ -536,8 +545,32 @@ void Server::parse(const std::string& uri) {
   });
 }
 
+namespace {
+
+[[nodiscard]] auto supportsCompletionSnippets(InitializeRequest& request)
+    -> bool {
+  const auto& message = request.get();
+  if (!message.contains("params") || !message.at("params").is_object())
+    return false;
+
+  auto textDocument = request.params().capabilities().textDocument();
+  if (!textDocument) return false;
+
+  auto completion = textDocument->completion();
+  if (!completion) return false;
+
+  auto completionItem = completion->completionItem();
+  if (!completionItem) return false;
+
+  return completionItem->snippetSupport().value_or(false);
+}
+
+}  // namespace
+
 void Server::operator()(InitializeRequest request) {
   logTrace(std::format("Did receive InitializeRequest"));
+
+  completionSnippets_ = supportsCompletionSnippets(request);
 
   withUnsafeJson([&](json storage) {
     InitializeResponse response{storage};
@@ -656,6 +689,30 @@ void Server::operator()(DidCloseTextDocumentNotification notification) {
 }
 
 void Server::operator()(DidChangeWatchedFilesNotification notification) {
+  reparseOpenDocuments();
+}
+
+void Server::operator()(DidChangeConfigurationNotification notification) {
+  logTrace(std::format("Did receive DidChangeConfigurationNotification"));
+  auto settings = notification.params().settings();
+  CompileSettings compileSettings;
+  if (settings.is_object() && settings.contains("cxx")) {
+    const auto& cxx = settings.at("cxx");
+    auto stringSetting =
+        [&](std::string_view key) -> std::optional<std::string> {
+      if (!cxx.is_object() || !cxx.contains(key)) return std::nullopt;
+      const auto& value = cxx.at(key);
+      if (!value.is_string()) return std::nullopt;
+      return value.get<std::string>();
+    };
+    compileSettings.target = stringSetting("target");
+    compileSettings.deviceProfile = stringSetting("deviceProfile");
+  }
+  host_->configure(std::move(compileSettings));
+  reparseOpenDocuments();
+}
+
+void Server::reparseOpenDocuments() {
   std::vector<std::string> uris;
   {
 #ifndef CXX_NO_THREADS
@@ -971,7 +1028,11 @@ void Server::operator()(CompletionRequest request) {
           .startColumn = std::uint32_t(completionStartColumn),
           .endColumn = std::uint32_t(column),
       },
-      completionItems, isHeaderNameTrigger(request));
+      completionItems,
+      CompletionRequestOptions{
+          .includeDirectivesOnly = isHeaderNameTrigger(request),
+          .snippetSupport = completionSnippets_,
+      });
 
   auto parserRequest = registerPendingParserRequest(document, uri, "completion",
                                                     snapshot->value.size(), id);

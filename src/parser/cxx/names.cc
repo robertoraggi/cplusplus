@@ -64,7 +64,9 @@ struct ConstValueHash {
   auto operator()(const std::shared_ptr<InitializerList>& value) const
       -> std::size_t {
     std::size_t seed = 0;
-    for (const auto& [element, elementType] : value->elements) {
+    hash_combine(seed, value->size());
+    for (std::size_t index = 0; index < value->size(); ++index) {
+      const auto& element = std::get<0>(value->element(index));
       hash_combine(seed, std::visit(ConstValueHash{}, element));
     }
     return seed;

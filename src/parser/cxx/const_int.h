@@ -212,6 +212,42 @@ class ConstInt {
     return l.rebuild(static_cast<Wide>(l.toUWide() * r.toUWide()));
   }
 
+  friend auto checkedAdd(ConstInt l, ConstInt r) -> std::optional<ConstInt> {
+    auto sum = l + r;
+    if (!l.isSigned_) return sum;
+    if (l.isNegative() == r.isNegative() && sum.isNegative() != l.isNegative())
+      return std::nullopt;
+    return sum;
+  }
+
+  friend auto checkedSub(ConstInt l, ConstInt r) -> std::optional<ConstInt> {
+    auto difference = l - r;
+    if (!l.isSigned_) return difference;
+    if (l.isNegative() != r.isNegative() &&
+        difference.isNegative() != l.isNegative())
+      return std::nullopt;
+    return difference;
+  }
+
+  friend auto checkedMul(ConstInt l, ConstInt r) -> std::optional<ConstInt> {
+    auto product = l * r;
+    if (!l.isSigned_ || l.isZero() || r.isZero()) return product;
+    const auto overflows = [](UWide a, UWide b, UWide limit) {
+      return a > limit / b;
+    };
+    const auto negative = l.isNegative() != r.isNegative();
+    const auto magnitudeLimit =
+        static_cast<UWide>(l.widthMask() >> 1) + (negative ? 1 : 0);
+    if (overflows(l.magnitude(), r.magnitude(), magnitudeLimit))
+      return std::nullopt;
+    return product;
+  }
+
+  [[nodiscard]] auto checkedNegate() const -> std::optional<ConstInt> {
+    if (isSigned_ && toWide() == minSignedValue()) return std::nullopt;
+    return -*this;
+  }
+
   friend auto operator/(ConstInt l, ConstInt r) -> std::optional<ConstInt> {
     if (!l.isDivisible(r)) return std::nullopt;
     if (l.isSigned_) return l.rebuild(l.toWide() / r.toWide());

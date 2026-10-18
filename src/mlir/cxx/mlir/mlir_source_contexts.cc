@@ -136,7 +136,7 @@ struct FinalizeContext {
     finalizeSourceScope(plan, &listener);
   }
 };
-}
+}  // namespace
 
 struct MlirSourceContexts::Data {
   MlirEmitter& emitter;
@@ -584,4 +584,4 @@ void MlirSourceContexts::endFunction(FunctionRef ref) {
       [&](mlir::Block* block) { data_->blocks.erase(block); });
   data_->functions.pop_back();
 }
-}
+}  // namespace cxx::ir

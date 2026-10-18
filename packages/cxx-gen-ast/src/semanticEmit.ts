@@ -281,7 +281,7 @@ export function derivesLocalType(wire: Wire): boolean {
 
 /**
  * The type of the local a value is read into. A declared type that is a view or
- * a reference — `std::string_view` on an interning factory's parameter, say —
+ * a reference - `std::string_view` on an interning factory's parameter, say -
  * would dangle the moment the reader's temporary died, so the local always owns
  * its value.
  */

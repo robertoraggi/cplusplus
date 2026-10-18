@@ -44,6 +44,11 @@ struct CompletionEditRange {
   std::uint32_t endColumn = 0;
 };
 
+struct CompletionRequestOptions {
+  bool includeDirectivesOnly = false;
+  bool snippetSupport = false;
+};
+
 class CxxDocument {
  public:
   [[nodiscard]] static auto semanticTokenTypeLegend()
@@ -72,7 +77,7 @@ class CxxDocument {
   void requestCodeCompletionAt(std::uint32_t line, std::uint32_t column,
                                CompletionEditRange editRange,
                                Vector<CompletionItem> result,
-                               bool includeDirectivesOnly = false);
+                               CompletionRequestOptions options = {});
 
   void finishCodeCompletion();
 

@@ -430,6 +430,16 @@ class SourceCompletions {
                                  operands.front());
       return;
     }
+    if (blocks.size() == 2) {
+      auto selector = mlir::arith::ConstantIntOp::create(rewriter, loc,
+                                                         selectors.front(), 32);
+      auto chosen = mlir::arith::CmpIOp::create(rewriter, loc,
+                                                mlir::arith::CmpIPredicate::eq,
+                                                results.front(), selector);
+      mlir::cf::CondBranchOp::create(rewriter, loc, chosen, blocks[0],
+                                     operands[0], blocks[1], operands[1]);
+      return;
+    }
     mlir::cf::SwitchOp::create(rewriter, loc, results.front(), blocks.front(),
                                operands.front(),
                                llvm::ArrayRef(selectors).drop_front(),
@@ -572,7 +582,7 @@ struct SourceIfDestination {
   return {condition.getResult(0), condition, false};
 }
 
-}
+}  // namespace
 
 auto SourceRegionPlan::continuation() const -> mlir::Operation* {
   if (exits.empty()) return nullptr;
@@ -867,4 +877,4 @@ void finalizeSourceIf(const SourceIfPlan& plan,
   completions.replaceLiveOuts(rewriter, ifOp);
   completions.dispatch(rewriter, ifOp.getLoc(), ifOp.getResults());
 }
-}
+}  // namespace cxx::ir

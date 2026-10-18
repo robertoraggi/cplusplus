@@ -31,6 +31,20 @@ auto ServerHost::emitCode(CxxDocument&, EmitCodeFormat, bool, int,
   return std::nullopt;
 }
 
+void ServerHost::configure(CompileSettings settings) {
+#ifndef CXX_NO_THREADS
+  auto lock = std::unique_lock(compileSettingsMutex_);
+#endif
+  compileSettings_ = std::move(settings);
+}
+
+auto ServerHost::compileSettings() const -> CompileSettings {
+#ifndef CXX_NO_THREADS
+  auto lock = std::unique_lock(compileSettingsMutex_);
+#endif
+  return compileSettings_;
+}
+
 void ServerHost::run(std::function<void()> task) { task(); }
 
 void ServerHost::runLater(std::chrono::milliseconds,

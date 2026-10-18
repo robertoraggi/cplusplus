@@ -27,7 +27,7 @@ export function App() {
       {!isReady ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <p className="animate-pulse font-mono text-xs text-muted-foreground">
-            Loading C++ WASM Compiler…
+            Loading C++ WASM Compiler...
           </p>
         </div>
       ) : (
@@ -66,7 +66,7 @@ export function App() {
               </ResizablePanel>
             </ResizablePanelGroup>
             {!wide && (
-              <div className="absolute right-4 bottom-4">
+              <div className="absolute right-16 bottom-6">
                 <RunButton floating />
               </div>
             )}

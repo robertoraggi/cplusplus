@@ -149,6 +149,7 @@ class Toolchain {
   void addWindowsAArch64Macros();
   void addWindowsX86_64Macros();
   void addWASIWasm32Macros();
+  void addSPIRVMacros();
   void addLinuxC23Macros();
   void addMacOSC23Macros();
   void addWindowsC23Macros();

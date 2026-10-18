@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -62,8 +63,55 @@ using ConstValue =
 
 class InitializerList {
  public:
-  std::vector<std::tuple<ConstValue, const Type*>> elements;
+  using Element = std::tuple<ConstValue, const Type*>;
+
+  InitializerList() = default;
+
+  explicit InitializerList(std::vector<Element> elements)
+      : elements_(std::make_move_iterator(elements.begin()),
+                  std::make_move_iterator(elements.end())),
+        size_(elements_.size()) {}
+
+  InitializerList(std::vector<Element> elements, std::size_t size,
+                  Element filler);
+
+  [[nodiscard]] auto size() const -> std::size_t { return size_; }
+
+  [[nodiscard]] auto initializedElements() const -> const std::deque<Element>& {
+    return elements_;
+  }
+
+  [[nodiscard]] auto hasFiller() const -> bool {
+    return elements_.size() < size_;
+  }
+
+  [[nodiscard]] auto filler() const -> const Element& { return filler_; }
+
+  [[nodiscard]] auto element(std::size_t index) const -> const Element&;
+
+  [[nodiscard]] auto mutableElement(std::size_t index) -> Element&;
+
+  [[nodiscard]] auto distinctElement(std::size_t index) -> const Element&;
+
+  [[nodiscard]] auto mutableInitializedElements() -> std::deque<Element>& {
+    return elements_;
+  }
+
+  void append(ConstValue value, const Type* type);
+
+  void setSize(std::size_t size);
+
+  void setFiller(Element filler);
+
+ private:
+  std::deque<Element> elements_;
+  std::size_t size_ = 0;
+  Element filler_;
 };
+
+[[nodiscard]] auto cloneValue(const ConstValue& value) -> ConstValue;
+
+[[nodiscard]] auto hasObjectIdentity(const ConstValue& value) -> bool;
 
 class ConstComplex {
  public:
@@ -74,6 +122,8 @@ class ConstComplex {
 
   [[nodiscard]] auto real() const -> const ConstValue& { return real_; }
   [[nodiscard]] auto imag() const -> const ConstValue& { return imag_; }
+  [[nodiscard]] auto real() -> ConstValue& { return real_; }
+  [[nodiscard]] auto imag() -> ConstValue& { return imag_; }
 
   void setReal(ConstValue value) { real_ = std::move(value); }
   void setImag(ConstValue value) { imag_ = std::move(value); }

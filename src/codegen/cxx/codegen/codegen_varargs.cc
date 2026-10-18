@@ -49,7 +49,7 @@ struct Codegen::VaArgBuilder {
           gen.emitter_.load(loc, gen.emitter_.pointerType(valueType), address,
                             gen.control()->memoryLayout()->sizeOfPointer());
     if (isAggregate) {
-      gen.emitter_.memcpy(loc, result, address, gen.getSize(type));
+      gen.emitter_.copyObject(loc, result, address, gen.convertType(type));
       return;
     }
     auto value =

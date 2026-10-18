@@ -150,6 +150,10 @@ auto Triple::isWasi() const -> bool {
   }
 }
 
+auto Triple::isSPIRV() const -> bool {
+  return arch_ == TripleArch::kSPIRV32 || arch_ == TripleArch::kSPIRV64;
+}
+
 auto Triple::withArchName(std::string_view archName) const -> Triple {
   auto text = std::string{archName};
   for (int index = 1; index != printedComponents_; ++index) {
@@ -190,6 +194,8 @@ auto parseTripleArch(std::string_view name) -> TripleArch {
   if (name == "aarch64" || name == "arm64") return TripleArch::kAArch64;
   if (name == "x86_64" || name == "amd64") return TripleArch::kX86_64;
   if (name == "wasm32") return TripleArch::kWasm32;
+  if (name == "spirv32") return TripleArch::kSPIRV32;
+  if (name == "spirv64") return TripleArch::kSPIRV64;
   return TripleArch::kUnknown;
 }
 
@@ -201,6 +207,10 @@ auto to_string(TripleArch arch) -> std::string_view {
       return "x86_64";
     case TripleArch::kWasm32:
       return "wasm32";
+    case TripleArch::kSPIRV32:
+      return "spirv32";
+    case TripleArch::kSPIRV64:
+      return "spirv64";
     case TripleArch::kUnknown:
       return "unknown";
   }

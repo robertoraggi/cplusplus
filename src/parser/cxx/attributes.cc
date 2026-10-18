@@ -24,9 +24,12 @@
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
+#include <cxx/private/attributes-priv.h>
 #include <cxx/translation_unit.h>
 
 #include <algorithm>
+#include <ranges>
+#include <tuple>
 
 namespace cxx {
 
@@ -36,25 +39,67 @@ auto canonicalAttributeSpelling(std::string_view name) -> std::string_view {
   return name;
 }
 
+auto attributeInfos() -> std::span<const AttributeInfo> {
+  return attribute_table::kAttributeInfos;
+}
+
+auto attributeInfo(AttributeKind kind) -> const AttributeInfo& {
+  return attribute_table::kAttributeInfos[static_cast<std::size_t>(kind)];
+}
+
+namespace {
+
+[[nodiscard]] constexpr auto spellingKey(const AttributeSpelling& spelling) {
+  return std::tuple{spelling.syntax, spelling.attributeNamespace,
+                    spelling.name};
+}
+
+static_assert(std::ranges::is_sorted(attribute_table::kSortedAttributeSpellings,
+                                     {}, [](const AttributeSpelling* spelling) {
+                                       return spellingKey(*spelling);
+                                     }));
+
+static_assert(std::ranges::all_of(
+    std::views::iota(std::size_t{0},
+                     std::size(attribute_table::kAttributeInfos)),
+    [](std::size_t index) {
+      return static_cast<std::size_t>(
+                 attribute_table::kAttributeInfos[index].kind) == index;
+    }));
+
+}  // namespace
+
+auto findAttributeSpelling(AttributeSyntax syntax,
+                           std::string_view attributeNamespace,
+                           std::string_view name) -> const AttributeSpelling* {
+  const auto key = std::tuple{syntax, attributeNamespace, name};
+  const auto& spellings = attribute_table::kSortedAttributeSpellings;
+  auto it = std::ranges::lower_bound(
+      spellings, key, {},
+      [](const AttributeSpelling* spelling) { return spellingKey(*spelling); });
+  if (it == std::end(spellings) || spellingKey(**it) != key) return nullptr;
+  return *it;
+}
+
+auto isAttributeAvailable(const AttributeInfo& info, const MemoryLayout& layout)
+    -> bool {
+  switch (info.availability) {
+    case AttributeAvailability::kAlways:
+      return true;
+    case AttributeAvailability::kWebAssembly:
+      return layout.isWebAssembly();
+    case AttributeAvailability::kDeviceProfile:
+      return layout.deviceProfile() != DeviceProfile::kNone;
+  }
+  return false;
+}
+
 auto supportsGnuAttribute(std::string_view name, const MemoryLayout& layout)
     -> bool {
-  name = canonicalAttributeSpelling(name);
-  static constexpr std::string_view supported[] = {
-      "abi_tag",       "address_space",
-      "alias",         "aligned",
-      "always_inline", "exclude_from_explicit_instantiation",
-      "gnu_inline",    "noinline",
-      "noreturn",      "nothrow",
-      "packed",        "section",
-      "trivial_abi",   "used",
-      "vector_size",   "warn_unused_result",
-      "weak"};
-  if (name == "constructor") return true;
-  if (name == "enable_if") return true;
-  if (std::ranges::find(supported, name) != std::end(supported)) return true;
-  if (!layout.isWebAssembly()) return false;
-  return name == "import_module" || name == "import_name" ||
-         name == "export_name";
+  auto spelling = findAttributeSpelling(AttributeSyntax::kGnu, "",
+                                        canonicalAttributeSpelling(name));
+  return spelling &&
+         isAttributeAvailable(attributeInfo(spelling->kind), layout);
 }
 
 namespace {
@@ -109,13 +154,6 @@ void collectStringArguments(TranslationUnit* unit,
 
     arguments.push_back(unit->control()->getIdentifier(components.value));
   }
-}
-
-[[nodiscard]] auto isStandardOrVendorNamespace(const Identifier* id) -> bool {
-  if (!id) return true;
-  const auto spelling = id->name();
-  return spelling == "gnu" || spelling == "clang" || spelling == "__gnu__" ||
-         spelling == "__clang__";
 }
 
 void addAttribute(AttributeMap& map, Attribute attribute) {
@@ -238,41 +276,36 @@ auto mergeAttributes(AttributeMap lhs, const AttributeMap* rhs)
   return lhs;
 }
 
-auto findAttribute(const AttributeMap* attributes, std::string_view name)
+auto namesAttribute(const Attribute& attribute, AttributeKind kind) -> bool {
+  if (!attribute.name) return false;
+  return std::ranges::any_of(
+      attributeInfo(kind).spellings, [&](const AttributeSpelling& spelling) {
+        return spelling.name == attribute.name->name() &&
+               spelling.attributeNamespace ==
+                   spellingOf(attribute.attributeNamespace);
+      });
+}
+
+auto findAttribute(const AttributeMap* attributes, AttributeKind kind)
     -> const Attribute* {
   if (!attributes) return nullptr;
 
   auto it = std::ranges::find_if(*attributes, [&](const Attribute& attribute) {
-    return attribute.name && attribute.name->name() == name &&
-           isStandardOrVendorNamespace(attribute.attributeNamespace);
+    return namesAttribute(attribute, kind);
   });
 
   return it == attributes->end() ? nullptr : &*it;
 }
 
-auto attributeArgument(const AttributeMap* attributes, std::string_view name)
+auto attributeArgument(const AttributeMap* attributes, AttributeKind kind)
     -> const Identifier* {
-  auto attribute = findAttribute(attributes, name);
+  auto attribute = findAttribute(attributes, kind);
   if (!attribute || attribute->arguments.empty()) return nullptr;
   return attribute->arguments.front();
 }
 
-namespace {
-
-[[nodiscard]] auto matchesSpelling(const AttributeSpelling& spelling,
-                                   AttributeSyntax syntax,
-                                   const Identifier* attributeNamespace,
-                                   const Identifier* name) -> bool {
-  if (spelling.syntax != syntax) return false;
-  if (spelling.name != spellingOf(name)) return false;
-  return spelling.attributeNamespace == spellingOf(attributeNamespace);
-}
-
-}  // namespace
-
-auto findAttributesBySpelling(TranslationUnit* unit,
-                              List<AttributeSpecifierAST*>* attributeList,
-                              std::span<const AttributeSpelling> spellings)
+auto knownAttributes(TranslationUnit* unit,
+                     List<AttributeSpecifierAST*>* attributeList)
     -> std::vector<AttributeRef> {
   auto control = unit->control();
   std::vector<AttributeRef> result;
@@ -309,27 +342,34 @@ auto findAttributesBySpelling(TranslationUnit* unit,
             canonicalAttributeName(control, scoped->attributeNamespace);
       }
 
-      for (const auto& spelling : spellings) {
-        if (!matchesSpelling(spelling, syntax, attributeNamespace, name))
-          continue;
+      auto spelling = findAttributeSpelling(
+          syntax, spellingOf(attributeNamespace), spellingOf(name));
+      if (!spelling) continue;
 
-        result.push_back({&spelling, entry->attributeArgumentClause,
-                          entry->firstSourceLocation()});
-        break;
-      }
+      result.push_back({spelling, entry->attributeArgumentClause,
+                        entry->firstSourceLocation()});
     }
   }
 
   return result;
 }
 
-auto findAttributeBySpelling(TranslationUnit* unit,
-                             List<AttributeSpecifierAST*>* attributeList,
-                             std::span<const AttributeSpelling> spellings)
-    -> AttributeRef {
-  auto attributes = findAttributesBySpelling(unit, attributeList, spellings);
-  if (attributes.empty()) return {};
-  return attributes.front();
+auto findAttributes(TranslationUnit* unit,
+                    List<AttributeSpecifierAST*>* attributeList,
+                    AttributeKind kind) -> std::vector<AttributeRef> {
+  auto attributes = knownAttributes(unit, attributeList);
+  std::erase_if(attributes, [kind](const AttributeRef& attribute) {
+    return attribute.kind() != kind;
+  });
+  return attributes;
+}
+
+auto findAttribute(TranslationUnit* unit,
+                   List<AttributeSpecifierAST*>* attributeList,
+                   AttributeKind kind) -> AttributeRef {
+  for (auto attribute : knownAttributes(unit, attributeList))
+    if (attribute.kind() == kind) return attribute;
+  return {};
 }
 
 }  // namespace cxx

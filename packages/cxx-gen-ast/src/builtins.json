@@ -113,7 +113,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AcosOp"
   },
   {
     "name": "__builtin_acos",
@@ -127,7 +128,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AcosOp"
   },
   {
     "name": "__builtin_acosl",
@@ -141,7 +143,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AcosOp"
   },
   {
     "name": "__builtin_acoshf",
@@ -197,7 +200,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AsinOp"
   },
   {
     "name": "__builtin_asin",
@@ -211,7 +215,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AsinOp"
   },
   {
     "name": "__builtin_asinl",
@@ -225,7 +230,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AsinOp"
   },
   {
     "name": "__builtin_asinhf",
@@ -281,7 +287,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AtanOp"
   },
   {
     "name": "__builtin_atan",
@@ -295,7 +302,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AtanOp"
   },
   {
     "name": "__builtin_atanl",
@@ -309,7 +317,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AtanOp"
   },
   {
     "name": "__builtin_atan2f",
@@ -324,7 +333,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Atan2Op"
   },
   {
     "name": "__builtin_atan2",
@@ -339,7 +349,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Atan2Op"
   },
   {
     "name": "__builtin_atan2l",
@@ -354,7 +365,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Atan2Op"
   },
   {
     "name": "__builtin_atanhf",
@@ -452,7 +464,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CeilOp"
   },
   {
     "name": "__builtin_ceil",
@@ -466,7 +479,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CeilOp"
   },
   {
     "name": "__builtin_ceill",
@@ -480,7 +494,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CeilOp"
   },
   {
     "name": "__builtin_copysignf",
@@ -495,7 +510,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CopySignOp"
   },
   {
     "name": "__builtin_copysign",
@@ -510,7 +526,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CopySignOp"
   },
   {
     "name": "__builtin_copysignl",
@@ -525,7 +542,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CopySignOp"
   },
   {
     "name": "__builtin_cosf",
@@ -539,7 +557,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CosOp"
   },
   {
     "name": "__builtin_cos",
@@ -553,7 +572,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CosOp"
   },
   {
     "name": "__builtin_cosl",
@@ -567,7 +587,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CosOp"
   },
   {
     "name": "__builtin_coshf",
@@ -581,7 +602,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CoshOp"
   },
   {
     "name": "__builtin_cosh",
@@ -595,7 +617,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CoshOp"
   },
   {
     "name": "__builtin_coshl",
@@ -609,7 +632,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::CoshOp"
   },
   {
     "name": "__builtin_cabsf",
@@ -1193,7 +1217,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::ExpOp"
   },
   {
     "name": "__builtin_exp",
@@ -1207,7 +1232,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::ExpOp"
   },
   {
     "name": "__builtin_expl",
@@ -1221,7 +1247,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::ExpOp"
   },
   {
     "name": "__builtin_exp2f",
@@ -1235,7 +1262,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Exp2Op"
   },
   {
     "name": "__builtin_exp2",
@@ -1249,7 +1277,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Exp2Op"
   },
   {
     "name": "__builtin_exp2l",
@@ -1263,7 +1292,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Exp2Op"
   },
   {
     "name": "__builtin_expm1f",
@@ -1319,7 +1349,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AbsFOp"
   },
   {
     "name": "__builtin_fabs",
@@ -1333,7 +1364,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AbsFOp"
   },
   {
     "name": "__builtin_fabsf128",
@@ -1354,7 +1386,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::AbsFOp"
   },
   {
     "name": "__builtin_fdimf",
@@ -1452,7 +1485,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::FloorOp"
   },
   {
     "name": "__builtin_floor",
@@ -1466,7 +1500,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::FloorOp"
   },
   {
     "name": "__builtin_floorl",
@@ -1480,7 +1515,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::FloorOp"
   },
   {
     "name": "__builtin_fmaf",
@@ -1496,7 +1532,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::FmaOp"
   },
   {
     "name": "__builtin_fma",
@@ -1512,7 +1549,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::FmaOp"
   },
   {
     "name": "__builtin_fmal",
@@ -1528,7 +1566,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::FmaOp"
   },
   {
     "name": "__builtin_fmaxf",
@@ -1543,7 +1582,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::MaxNumFOp"
   },
   {
     "name": "__builtin_fmax",
@@ -1558,7 +1598,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::MaxNumFOp"
   },
   {
     "name": "__builtin_fmaxl",
@@ -1573,7 +1614,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::MaxNumFOp"
   },
   {
     "name": "__builtin_fmaximum_numf",
@@ -1606,7 +1648,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::MinNumFOp"
   },
   {
     "name": "__builtin_fmin",
@@ -1621,7 +1664,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::MinNumFOp"
   },
   {
     "name": "__builtin_fminl",
@@ -1636,7 +1680,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::MinNumFOp"
   },
   {
     "name": "__builtin_fminimum_numf",
@@ -1669,7 +1714,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::RemFOp"
   },
   {
     "name": "__builtin_fmod",
@@ -1684,7 +1730,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::RemFOp"
   },
   {
     "name": "__builtin_fmodl",
@@ -1699,7 +1746,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "arith::RemFOp"
   },
   {
     "name": "__builtin_frexpf",
@@ -1992,7 +2040,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::LogOp"
   },
   {
     "name": "__builtin_log",
@@ -2006,7 +2055,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::LogOp"
   },
   {
     "name": "__builtin_logl",
@@ -2020,7 +2070,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::LogOp"
   },
   {
     "name": "__builtin_log1pf",
@@ -2076,7 +2127,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Log2Op"
   },
   {
     "name": "__builtin_log2",
@@ -2090,7 +2142,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Log2Op"
   },
   {
     "name": "__builtin_log2l",
@@ -2104,7 +2157,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Log2Op"
   },
   {
     "name": "__builtin_log10f",
@@ -2118,7 +2172,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Log10Op"
   },
   {
     "name": "__builtin_log10",
@@ -2132,7 +2187,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Log10Op"
   },
   {
     "name": "__builtin_log10l",
@@ -2146,7 +2202,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::Log10Op"
   },
   {
     "name": "__builtin_logbf",
@@ -2494,7 +2551,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::PowFOp"
   },
   {
     "name": "__builtin_pow",
@@ -2509,7 +2567,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::PowFOp"
   },
   {
     "name": "__builtin_powl",
@@ -2524,7 +2583,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::PowFOp"
   },
   {
     "name": "__builtin_remainderf",
@@ -2646,7 +2706,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::RoundOp"
   },
   {
     "name": "__builtin_round",
@@ -2660,7 +2721,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::RoundOp"
   },
   {
     "name": "__builtin_roundl",
@@ -2674,28 +2736,32 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::RoundOp"
   },
   {
     "name": "__builtin_roundevenf",
     "prototype": "constexpr float __builtin_roundevenf(float)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::RoundEvenOp"
   },
   {
     "name": "__builtin_roundeven",
     "prototype": "constexpr double __builtin_roundeven(double)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::RoundEvenOp"
   },
   {
     "name": "__builtin_roundevenl",
     "prototype": "constexpr long double __builtin_roundevenl(long double)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::RoundEvenOp"
   },
   {
     "name": "__builtin_scalblnf",
@@ -2799,7 +2865,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SinOp"
   },
   {
     "name": "__builtin_sin",
@@ -2813,7 +2880,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SinOp"
   },
   {
     "name": "__builtin_sinl",
@@ -2827,7 +2895,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SinOp"
   },
   {
     "name": "__builtin_sincosf",
@@ -2862,7 +2931,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SinhOp"
   },
   {
     "name": "__builtin_sinh",
@@ -2876,7 +2946,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SinhOp"
   },
   {
     "name": "__builtin_sinhl",
@@ -2890,7 +2961,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SinhOp"
   },
   {
     "name": "__builtin___sinpif",
@@ -2916,7 +2988,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SqrtOp"
   },
   {
     "name": "__builtin_sqrt",
@@ -2930,7 +3003,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SqrtOp"
   },
   {
     "name": "__builtin_sqrtl",
@@ -2944,7 +3018,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::SqrtOp"
   },
   {
     "name": "__builtin_tanf",
@@ -2958,7 +3033,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TanOp"
   },
   {
     "name": "__builtin_tan",
@@ -2972,7 +3048,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TanOp"
   },
   {
     "name": "__builtin_tanl",
@@ -2986,7 +3063,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TanOp"
   },
   {
     "name": "__builtin_tanhf",
@@ -3000,7 +3078,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TanhOp"
   },
   {
     "name": "__builtin_tanh",
@@ -3014,7 +3093,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TanhOp"
   },
   {
     "name": "__builtin_tanhl",
@@ -3028,7 +3108,8 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TanhOp"
   },
   {
     "name": "__builtin___tanpif",
@@ -3096,7 +3177,8 @@
       ],
       "ret": "float"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TruncOp"
   },
   {
     "name": "__builtin_trunc",
@@ -3110,7 +3192,8 @@
       ],
       "ret": "double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TruncOp"
   },
   {
     "name": "__builtin_truncl",
@@ -3124,14 +3207,16 @@
       ],
       "ret": "long double"
     },
-    "libcall": true
+    "libcall": true,
+    "mlir": "math::TruncOp"
   },
   {
     "name": "__builtin_bcmp",
     "prototype": "constexpr int __builtin_bcmp(const void*, const void*, __SIZE_TYPE__)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "eval": "evaluateBuiltinCharacterComparison"
   },
   {
     "name": "__builtin_bzero",
@@ -3167,7 +3252,8 @@
     "prototype": "constexpr int __builtin_memcmp(const void*, const void*, __SIZE_TYPE__)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "eval": "evaluateBuiltinCharacterComparison"
   },
   {
     "name": "__builtin_memcpy",
@@ -3177,9 +3263,10 @@
   },
   {
     "name": "__builtin_memmove",
-    "prototype": "void* __builtin_memmove(void*, const void*, __SIZE_TYPE__)",
-    "constexpr": false,
-    "noexcept": true
+    "prototype": "constexpr void* __builtin_memmove(void*, const void*, __SIZE_TYPE__)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinMemmove"
   },
   {
     "name": "__builtin_memset",
@@ -3225,7 +3312,8 @@
     "name": "__builtin_strcasecmp",
     "prototype": "constexpr int __builtin_strcasecmp(const char*, const char*)",
     "constexpr": true,
-    "libcall": true
+    "libcall": true,
+    "eval": "evaluateBuiltinCharacterComparison"
   },
   {
     "name": "__builtin_strcat",
@@ -3246,7 +3334,8 @@
     "prototype": "constexpr int __builtin_strcmp(const char*, const char*)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "eval": "evaluateBuiltinCharacterComparison"
   },
   {
     "name": "__builtin_strcpy",
@@ -3287,7 +3376,8 @@
     "prototype": "constexpr int __builtin_strncmp(const char*, const char*, __SIZE_TYPE__)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "eval": "evaluateBuiltinCharacterComparison"
   },
   {
     "name": "__builtin_strncpy",
@@ -3339,7 +3429,8 @@
     "name": "__builtin_strncasecmp",
     "prototype": "constexpr int __builtin_strncasecmp(const char*, const char*, __SIZE_TYPE__)",
     "constexpr": true,
-    "libcall": true
+    "libcall": true,
+    "eval": "evaluateBuiltinCharacterComparison"
   },
   {
     "name": "__builtin_strndup",

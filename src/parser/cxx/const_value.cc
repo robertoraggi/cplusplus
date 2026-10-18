@@ -58,6 +58,96 @@ auto ConstObject::isUnion() const -> bool {
   return classSymbol && classSymbol->isUnion();
 }
 
+auto hasObjectIdentity(const ConstValue& value) -> bool {
+  return std::holds_alternative<std::shared_ptr<ConstObject>>(value) ||
+         std::holds_alternative<std::shared_ptr<InitializerList>>(value) ||
+         std::holds_alternative<std::shared_ptr<ConstComplex>>(value);
+}
+
+namespace {
+
+[[nodiscard]] auto cloneValueOfType(const ConstValue& value, const Type* type)
+    -> ConstValue {
+  if (unqualified_cast<PointerType>(type)) return value;
+  return cloneValue(value);
+}
+
+}  // namespace
+
+auto cloneValue(const ConstValue& value) -> ConstValue {
+  if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
+    if (!*object) return value;
+    auto copy = std::make_shared<ConstObject>((*object)->type());
+    for (const auto& member : (*object)->members())
+      copy->addMember(member.symbol,
+                      cloneValueOfType(member.value, member.symbol->type()));
+    return ConstValue{std::move(copy)};
+  }
+
+  if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+    if (!*list) return value;
+    std::vector<InitializerList::Element> elements;
+    elements.reserve((*list)->initializedElements().size());
+    for (const auto& [element, type] : (*list)->initializedElements())
+      elements.emplace_back(cloneValueOfType(element, type), type);
+    if (!(*list)->hasFiller())
+      return ConstValue{std::make_shared<InitializerList>(std::move(elements))};
+    const auto& [filler, fillerType] = (*list)->filler();
+    return ConstValue{std::make_shared<InitializerList>(
+        std::move(elements), (*list)->size(),
+        InitializerList::Element{cloneValueOfType(filler, fillerType),
+                                 fillerType})};
+  }
+
+  if (auto complexValue = std::get_if<std::shared_ptr<ConstComplex>>(&value)) {
+    if (!*complexValue) return value;
+    return ConstValue{
+        std::make_shared<ConstComplex>(cloneValue((*complexValue)->real()),
+                                       cloneValue((*complexValue)->imag()))};
+  }
+
+  return value;
+}
+
+InitializerList::InitializerList(std::vector<Element> elements,
+                                 std::size_t size, Element filler)
+    : elements_(std::make_move_iterator(elements.begin()),
+                std::make_move_iterator(elements.end())),
+      size_(std::max(size, elements_.size())),
+      filler_(std::move(filler)) {}
+
+auto InitializerList::element(std::size_t index) const -> const Element& {
+  if (index < elements_.size()) return elements_[index];
+  return filler_;
+}
+
+auto InitializerList::mutableElement(std::size_t index) -> Element& {
+  if (index >= elements_.size()) {
+    while (elements_.size() <= index) {
+      const auto& [filler, type] = filler_;
+      elements_.emplace_back(cloneValueOfType(filler, type), type);
+    }
+  }
+  return elements_[index];
+}
+
+auto InitializerList::distinctElement(std::size_t index) -> const Element& {
+  if (index >= elements_.size() && hasObjectIdentity(std::get<0>(filler_)))
+    return mutableElement(index);
+  return element(index);
+}
+
+void InitializerList::append(ConstValue value, const Type* type) {
+  elements_.emplace_back(std::move(value), type);
+  size_ = std::max(size_, elements_.size());
+}
+
+void InitializerList::setSize(std::size_t size) {
+  size_ = std::max(size, elements_.size());
+}
+
+void InitializerList::setFiller(Element filler) { filler_ = std::move(filler); }
+
 auto ConstObject::addMember(const Symbol* symbol, ConstValue value)
     -> ConstValue* {
   if (isUnion()) members_.clear();
@@ -156,11 +246,18 @@ struct EquivalentValues {
       const std::shared_ptr<InitializerList>& lhs) const -> bool {
     auto value = other<std::shared_ptr<InitializerList>>();
     if (!value || !*value || !lhs) return false;
-    return std::ranges::equal(lhs->elements, (*value)->elements,
-                              [](const auto& left, const auto& right) {
-                                return equivalent_values(std::get<0>(left),
-                                                         std::get<0>(right));
-                              });
+    const auto& rhs = **value;
+    if (lhs->size() != rhs.size()) return false;
+    const auto initialized = std::max(lhs->initializedElements().size(),
+                                      rhs.initializedElements().size());
+    for (std::size_t index = 0; index < initialized; ++index) {
+      if (!equivalent_values(std::get<0>(lhs->element(index)),
+                             std::get<0>(rhs.element(index))))
+        return false;
+    }
+    if (initialized == lhs->size()) return true;
+    return equivalent_values(std::get<0>(lhs->filler()),
+                             std::get<0>(rhs.filler()));
   }
 
   [[nodiscard]] auto operator()(const std::shared_ptr<ConstObject>& lhs) const

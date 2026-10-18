@@ -133,7 +133,7 @@ struct SemanticArchiveRoots {
 
 /**
  * A pointer-keyed index table. Encoding a translation unit does millions of
- * these lookups — one per reference in every record — and an open-addressing
+ * these lookups - one per reference in every record - and an open-addressing
  * table with a power-of-two mask beats a node-based map by avoiding both the
  * pointer chase and the modulo.
  */

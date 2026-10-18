@@ -23,8 +23,8 @@
 #include <cxx/control.h>
 #include <cxx/preprocessor.h>
 #include <cxx/source_location.h>
+#include <cxx/toolchain.h>
 #include <cxx/translation_unit.h>
-#include <cxx/wasm32_wasi_toolchain.h>
 #include <emscripten.h>
 #include <emscripten/bind.h>
 #include <emscripten/val.h>
@@ -105,7 +105,7 @@ struct DiagnosticsClient final : cxx::DiagnosticsClient {
 struct WrappedUnit {
   std::unique_ptr<DiagnosticsClient> diagnosticsClient;
   std::unique_ptr<cxx::TranslationUnit> unit;
-  std::unique_ptr<cxx::Wasm32WasiToolchain> toolchain;
+  std::unique_ptr<cxx::Toolchain> toolchain;
   UnitOptions api;
   std::string source;
   std::string fileName;
@@ -133,7 +133,11 @@ struct WrappedUnit {
       }
     }
 
-    toolchain = cxx::js::configureToolchain(unit.get(), api);
+    auto configured =
+        cxx::js::configureToolchain(unit.get(), this->fileName, api);
+    if (!configured.error.empty() || !configured.toolchain)
+      val::global("Error").new_(configured.error).throw_();
+    toolchain = std::move(configured.toolchain);
   }
 
   auto getUnitHandle() const -> std::intptr_t {
@@ -177,7 +181,43 @@ struct WrappedUnit {
     (void)codegen(unit->ast());
   }
 
+  auto emitKernels(const std::string& format) -> val {
+    auto result = val::object();
+    auto kernels = val::array();
+    result.set("kernels", kernels);
+    result.set("error", std::string{});
+    if (diagnosticsClient->hasErrors) return result;
+
+    toolchain->applyEntryPointAbi(unit.get());
+
+    auto generated = cxx::js::generateCode(unit.get(), format, debugInfo,
+                                           optimizationLevel, mlirPipeline);
+    if (!generated) return result;
+
+    for (auto& kernel : generated->kernels) {
+      auto entry = val::object();
+      entry.set("manifest", kernel.manifest);
+      if (format == "wgsl") {
+        entry.set("code", std::string(kernel.code.begin(), kernel.code.end()));
+      } else {
+        entry.set("code", bytesOf(kernel.code));
+      }
+      kernels.call<void>("push", entry);
+    }
+    result.set("error", generated->error);
+    return result;
+  }
+
+  [[nodiscard]] static auto bytesOf(std::vector<std::uint8_t>& bytes) -> val {
+    auto result = val::global("Uint8Array").new_(bytes.size());
+    val memory = val(typed_memory_view(bytes.size(), bytes.data()));
+    result.call<void>("set", memory);
+    return result;
+  }
+
   auto emitCode(const std::string& format) -> val {
+    if (format == "wgsl" || format == "spirv") return emitKernels(format);
+
     const auto objectFile = format == "obj";
 
     auto emptyOutput = [&] {
@@ -196,15 +236,7 @@ struct WrappedUnit {
 
     if (!objectFile) return val(std::move(generated->text));
 
-    auto& objectCode = generated->objectCode;
-
-    auto result = val::global("Uint8Array").new_(objectCode.size());
-
-    val memory = val(typed_memory_view(objectCode.size(), objectCode.data()));
-
-    result.call<void>("set", memory);
-
-    return result;
+    return bytesOf(generated->objectCode);
   }
 };
 
@@ -264,7 +296,7 @@ auto createUnit(std::string source, std::string fileName, UnitOptions api)
 EMSCRIPTEN_BINDINGS(cxx) {
   register_type<UnitOptions>(
       "UnitOptions",
-      R"({ appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; mlirPipeline?: string | undefined; optimizationLevel?: number | undefined; exceptions?: boolean | undefined; rtti?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
+      R"({ appdir?: string | undefined; sysroot?: string | undefined; target?: string | undefined; deviceProfile?: "vulkan1.1-f32" | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; debugInfo?: boolean | undefined; mlirPipeline?: string | undefined; optimizationLevel?: number | undefined; exceptions?: boolean | undefined; rtti?: boolean | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined })");
 
   register_type<EmitterDelegate>("EmitterDelegate",
                                  R"(import("./Emitter.js").EmitterDelegate)");

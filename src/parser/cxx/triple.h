@@ -32,6 +32,8 @@ enum class TripleArch {
   kAArch64,
   kX86_64,
   kWasm32,
+  kSPIRV32,
+  kSPIRV64,
 };
 
 enum class TripleVendor {
@@ -87,6 +89,8 @@ class Triple {
   [[nodiscard]] auto isDarwin() const -> bool;
 
   [[nodiscard]] auto isWebAssembly() const -> bool;
+
+  [[nodiscard]] auto isSPIRV() const -> bool;
 
   [[nodiscard]] auto isWasi() const -> bool;
 

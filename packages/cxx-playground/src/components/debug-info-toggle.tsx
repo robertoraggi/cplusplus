@@ -16,6 +16,7 @@ export function DebugInfoToggle({
       onPressedChange={setDebugInfo}
       title={label}
       aria-label={label}
+      className="size-11 p-0 md:size-8"
     >
       {debugInfo ? <Bug /> : <BugOff />}
     </Toggle>

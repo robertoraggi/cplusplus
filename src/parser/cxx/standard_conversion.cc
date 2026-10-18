@@ -37,6 +37,7 @@
 #include <cxx/type_checker.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
+#include <cxx/vector_components.h>
 #include <cxx/views/symbols.h>
 
 #include <algorithm>
@@ -396,6 +397,17 @@ void StandardConversion::atomicToNonAtomic(ExpressionAST*& expr) {
   expr = cast;
 }
 
+auto StandardConversion::readsConstantVariable(ImplicitCastExpressionAST* read,
+                                               Symbol* variable) -> bool {
+  if (!variable || !variable->type()) return false;
+  if (!isUsableInConstantExpressions(traits, variable)) return false;
+  if (traits.is_class(read->type) || traits.is_volatile(read->type))
+    return false;
+  auto object = traits.remove_reference(variable->type());
+  if (traits.is_volatile(object)) return false;
+  return !traits.has_mutable_subobject(traits.remove_cv(object));
+}
+
 void StandardConversion::foldConstantRead(ExpressionAST*& expression) {
   auto cast = ast_cast<ImplicitCastExpressionAST>(expression);
   if (!cast) return;
@@ -417,24 +429,21 @@ void StandardConversion::foldConstantRead(ExpressionAST*& expression) {
     return;
   }
 
-  FieldSymbol* field = nullptr;
+  Symbol* variable = nullptr;
   MemberExpressionAST* member = nullptr;
   if (auto id = ast_cast<IdExpressionAST>(operand)) {
-    field = symbol_cast<FieldSymbol>(id->symbol);
+    variable = id->symbol;
   } else {
     member = ast_cast<MemberExpressionAST>(operand);
-    if (member) field = symbol_cast<FieldSymbol>(member->symbol);
+    if (member && symbol_cast<FieldSymbol>(member->symbol) &&
+        symbol_cast<FieldSymbol>(member->symbol)->isStatic())
+      variable = member->symbol;
   }
 
-  if (!field) return;
-  if (!field->isStatic()) return;
-  if (!traits.is_scalar(field->type())) return;
-  if (!isPotentiallyConstant(traits, field)) return;
-
-  if (!member && field->definition()) return;
+  if (!readsConstantVariable(cast, variable)) return;
 
   auto interp = ASTInterpreter{unit_};
-  if (auto value = interp.evaluateStaticDataMember(field)) {
+  if (auto value = interp.evaluate(cast)) {
     auto constExpression = ConstExpressionAST::create(arena_);
     constExpression->expression = cast;
     constExpression->constValue =
@@ -476,7 +485,7 @@ void StandardConversion::foldConditionalRead(
 
   auto iftrue = readOfPotentialResult(read, conditional->iftrueExpression);
   auto iffalse = readOfPotentialResult(read, conditional->iffalseExpression);
-  if (!designatesBitField(conditional)) {
+  if (designatesAddressableStorage(conditional)) {
     if (ast_cast<ImplicitCastExpressionAST>(iftrue) &&
         ast_cast<ImplicitCastExpressionAST>(iffalse))
       return;
@@ -499,7 +508,8 @@ void StandardConversion::foldCommaRead(ExpressionAST*& expression,
   if (!is_glvalue(comma->rightExpression)) return;
 
   auto right = readOfPotentialResult(read, comma->rightExpression);
-  if (!designatesBitField(comma) && ast_cast<ImplicitCastExpressionAST>(right))
+  if (designatesAddressableStorage(comma) &&
+      ast_cast<ImplicitCastExpressionAST>(right))
     return;
 
   auto copy = BinaryExpressionAST::create(arena_);
@@ -812,28 +822,94 @@ auto StandardConversion::convertClassOperandToIntegralOrEnumeration(
 auto StandardConversion::canSplatIntoVector(ExpressionAST* expr,
                                             const VectorType* vectorType)
     -> bool {
+  if (vectorType->vectorKind() == VectorKind::kExt)
+    return canSplatIntoExtVector(traits.remove_cv(expr->type),
+                                 traits.remove_cv(vectorType->elementType()));
+  return canSplatIntoGnuVector(expr,
+                               traits.remove_cv(vectorType->elementType()));
+}
+
+auto StandardConversion::canSplatIntoExtVector(const Type* scalarType,
+                                               const Type* elementType)
+    -> bool {
+  if (traits.is_integral(elementType)) return traits.is_integral(scalarType);
+  if (traits.is_floating_point(elementType))
+    return traits.is_integral(scalarType) ||
+           traits.is_floating_point(scalarType);
+  return false;
+}
+
+auto StandardConversion::integerTypeOrder(const Type* a, const Type* b) -> int {
+  a = traits.remove_cv(a);
+  b = traits.remove_cv(b);
+  if (traits.is_same(a, b)) return 0;
+  auto rankA = traits.integer_conversion_rank(a);
+  auto rankB = traits.integer_conversion_rank(b);
+  const auto unsignedA = !traits.is_signed(a);
+  const auto unsignedB = !traits.is_signed(b);
+  if (unsignedA == unsignedB)
+    return rankA == rankB ? 0 : rankA > rankB ? 1 : -1;
+  if (unsignedA) return rankA >= rankB ? 1 : -1;
+  return rankB >= rankA ? -1 : 1;
+}
+
+auto StandardConversion::canSplatIntoGnuVector(ExpressionAST* expr,
+                                               const Type* elementType)
+    -> bool {
   auto scalarType = traits.remove_cv(expr->type);
-  if (!traits.is_arithmetic_or_unscoped_enum(scalarType)) return false;
+  if (!traits.is_arithmetic(scalarType) || !traits.is_arithmetic(elementType))
+    return false;
 
-  auto elementType = vectorType->elementType();
+  auto layout = control_->memoryLayout();
+  auto bitsOf = [&](const Type* type) -> std::uint64_t {
+    return layout->sizeOf(type).value_or(0) * 8;
+  };
+  auto value = isDependent(unit_, expr) ? std::nullopt
+                                        : ASTInterpreter{unit_}.evaluate(expr);
 
-  if (vectorType->vectorKind() == VectorKind::kExt) {
-    return !(traits.is_floating_point(scalarType) &&
-             traits.is_integral(elementType));
+  if (traits.is_integral(elementType) && traits.is_integral(scalarType)) {
+    auto order = integerTypeOrder(elementType, scalarType);
+    if (order == 0) return true;
+    auto integer = value ? std::get_if<ConstInt>(&*value) : nullptr;
+    if (!integer) return order > 0;
+    auto significantBits = [](const ConstInt& number) -> std::uint64_t {
+      auto magnitude = number.isNegative()
+                           ? ~static_cast<ConstInt::UWide>(number.toWide())
+                           : number.toUWide();
+      std::uint64_t bits = 0;
+      while (magnitude) {
+        ++bits;
+        magnitude >>= 1;
+      }
+      return number.isNegative() ? bits + 1 : bits;
+    };
+    const auto bits = significantBits(*integer);
+    const auto elementBits = bitsOf(elementType);
+    if (order < 0 && elementBits < bits) return false;
+    return traits.is_signed(scalarType) == traits.is_signed(elementType) ||
+           bits <= elementBits;
   }
 
-  const bool scalarIsFloating = traits.is_floating_point(scalarType);
-  const bool elementIsFloating = traits.is_floating_point(elementType);
+  if (traits.is_integral(elementType))
+    return bitsOf(elementType) == bitsOf(scalarType);
 
-  if (scalarIsFloating && !elementIsFloating) {
-    auto scalarSize = control_->memoryLayout()->sizeOf(scalarType);
-    auto elementSize = control_->memoryLayout()->sizeOf(elementType);
-    return scalarSize && elementSize && *scalarSize == *elementSize;
+  auto format = layout->floatingPointFormat(elementType);
+  if (!format) return false;
+
+  if (traits.is_floating_point(scalarType)) {
+    auto real = value ? ASTInterpreter{unit_}.toDouble(*value) : std::nullopt;
+    if (!real)
+      return traits.floating_point_conversion_order(elementType, scalarType) !=
+             std::partial_ordering::less;
+    return format->value(format->representation(*real)) == *real;
   }
 
-  if (!scalarIsFloating && elementIsFloating) return false;
-
-  return !traits.is_narrowing_list_element(expr, elementType);
+  auto integer = value ? std::get_if<ConstInt>(&*value) : nullptr;
+  if (!integer)
+    return bitsOf(scalarType) <=
+           static_cast<std::uint64_t>(format->significandDigits);
+  return integer->magnitudeFitsInUIntMax() &&
+         format->representsInteger(integer->toIntMax());
 }
 
 auto StandardConversion::vectorOperandConversion(ExpressionAST*& expr,
@@ -869,12 +945,24 @@ auto StandardConversion::vectorOperandConversion(ExpressionAST*& expr,
   auto& scalar = leftVector ? other : expr;
 
   if (!canSplatIntoVector(scalar, vectorType)) return nullptr;
-
-  if (!convertArithmetic(scalar, vectorType->elementType())) return nullptr;
-
-  wrapWithImplicitCast(ImplicitCastKind::kVectorSplat, vectorType, scalar);
-
+  if (!splatOperand(scalar, vectorType)) return nullptr;
   return static_cast<const Type*>(vectorType);
+}
+
+auto StandardConversion::isVectorBooleanConversion(const VectorType* source,
+                                                   const VectorType* target)
+    -> bool {
+  return source->elementCount() == target->elementCount() &&
+         traits.is_bool(target->elementType()) &&
+         !traits.is_bool(source->elementType()) &&
+         traits.is_integral(source->elementType());
+}
+
+auto StandardConversion::splatOperand(ExpressionAST*& expr,
+                                      const VectorType* vectorType) -> bool {
+  if (!convertArithmetic(expr, vectorType->elementType())) return false;
+  wrapWithImplicitCast(ImplicitCastKind::kVectorSplat, vectorType, expr);
+  return true;
 }
 
 auto StandardConversion::usualArithmeticConversion(ExpressionAST*& expr,
@@ -1207,7 +1295,7 @@ auto StandardConversion::directReferenceBinding(
 auto StandardConversion::referenceBinding(const Type* targetType,
                                           const Type* sourceUnadjustedType,
                                           ValueCategory valueCategory,
-                                          bool sourceIsBitField)
+                                          NonAddressableDesignation designation)
     -> std::optional<ImplicitConversionSequence> {
   const Type* referencedType = nullptr;
   bool isRvalueReference = false;
@@ -1225,7 +1313,8 @@ auto StandardConversion::referenceBinding(const Type* targetType,
   const bool sourceIsLvalue = valueCategory == ValueCategory::kLValue;
   const bool referenceCompatible =
       traits.is_reference_compatible(referencedType, sourceType);
-  const bool bindsDirectly = referenceCompatible && !sourceIsBitField;
+  const bool bindsDirectly =
+      referenceCompatible && designation == NonAddressableDesignation::kNone;
 
   ImplicitConversionSequence seq;
   seq.sourceType = sourceUnadjustedType;
@@ -1376,6 +1465,9 @@ auto StandardConversion::listInitializationSequence(
                                                  targetType);
     auto selection = selectListInitializationConstructor(
         bracedInitList, listTarget, initializationKind);
+    if (selection.initializingElement)
+      return listElementSequence(selection.initializingElement, targetType,
+                                 initializationKind);
     if (!selection) return seq;
     if (!selection.fromInitializerListConstructor) {
       if (auto element = singleInitializerClause(bracedInitList);
@@ -1562,7 +1654,7 @@ auto StandardConversion::computeConversionSequenceSteps(
 
   if (auto referenceSequence =
           referenceBinding(targetType, expr->type, expr->valueCategory,
-                           designatesBitField(expr)))
+                           nonAddressableDesignation(expr)))
     return *referenceSequence;
 
   if (auto step = valueTransformation(expr)) {
@@ -1638,6 +1730,10 @@ auto StandardConversion::computeConversionSequenceSteps(
     if (auto sourceVector = unqualified_cast<VectorType>(unqualFrom)) {
       const bool bothExt = sourceVector->vectorKind() == VectorKind::kExt &&
                            targetVector->vectorKind() == VectorKind::kExt;
+      if (bothExt && isVectorBooleanConversion(sourceVector, targetVector)) {
+        return completedSequence(seq, ImplicitCastKind::kBooleanConversion,
+                                 comparisonTargetType);
+      }
       const auto width = traits.vector_width_in_bytes(sourceVector);
       if (!bothExt && width &&
           width == traits.vector_width_in_bytes(targetVector)) {
@@ -1649,6 +1745,11 @@ auto StandardConversion::computeConversionSequenceSteps(
 
     if (targetVector->vectorKind() == VectorKind::kExt &&
         canSplatIntoVector(expr, targetVector)) {
+      auto element = traits.remove_cv(targetVector->elementType());
+      auto elementConversion = arithmeticConversionKind(unqualFrom, element);
+      if (!elementConversion) return seq;
+      if (*elementConversion != ImplicitCastKind::kIdentity)
+        seq = completedSequence(seq, *elementConversion, element);
       return completedSequence(seq, ImplicitCastKind::kVectorSplat,
                                comparisonTargetType);
     }
@@ -2356,32 +2457,54 @@ void StandardConversion::appendDefaultArguments(FunctionSymbol* function,
   }
 }
 
-auto StandardConversion::designatesBitField(ExpressionAST* expr) -> bool {
+namespace {
+
+[[nodiscard]] auto hasVectorType(ExpressionAST* expression) -> bool {
+  return expression &&
+         type_cast<VectorType>(unqualified_type(expression->type));
+}
+
+[[nodiscard]] auto subscriptsVector(SubscriptExpressionAST* subscript) -> bool {
+  return !subscript->symbol && hasVectorType(subscript->baseExpression);
+}
+
+}  // namespace
+
+auto StandardConversion::nonAddressableDesignation(ExpressionAST* expr)
+    -> NonAddressableDesignation {
   if (auto nested = ast_cast<NestedExpressionAST>(expr))
-    return designatesBitField(nested->expression);
+    return nonAddressableDesignation(nested->expression);
 
   if (auto conditional = ast_cast<ConditionalExpressionAST>(expr)) {
-    if (!is_glvalue(conditional)) return false;
-    return designatesBitField(conditional->iftrueExpression) ||
-           designatesBitField(conditional->iffalseExpression);
+    if (!is_glvalue(conditional)) return NonAddressableDesignation::kNone;
+    auto iftrue = nonAddressableDesignation(conditional->iftrueExpression);
+    if (iftrue != NonAddressableDesignation::kNone) return iftrue;
+    return nonAddressableDesignation(conditional->iffalseExpression);
   }
 
   if (auto binary = ast_cast<BinaryExpressionAST>(expr)) {
-    if (binary->op != TokenKind::T_COMMA) return false;
-    return designatesBitField(binary->rightExpression);
+    if (binary->op != TokenKind::T_COMMA)
+      return NonAddressableDesignation::kNone;
+    return nonAddressableDesignation(binary->rightExpression);
   }
 
   if (auto assignment = ast_cast<AssignmentExpressionAST>(expr))
-    return designatesBitField(assignment->leftExpression);
+    return nonAddressableDesignation(assignment->leftExpression);
 
   if (auto compound = ast_cast<CompoundAssignmentExpressionAST>(expr))
-    return designatesBitField(compound->targetExpression);
+    return nonAddressableDesignation(compound->targetExpression);
 
   if (auto unary = ast_cast<UnaryExpressionAST>(expr)) {
     if (unary->op != TokenKind::T_PLUS_PLUS &&
         unary->op != TokenKind::T_MINUS_MINUS)
-      return false;
-    return designatesBitField(unary->expression);
+      return NonAddressableDesignation::kNone;
+    return nonAddressableDesignation(unary->expression);
+  }
+
+  if (auto subscript = ast_cast<SubscriptExpressionAST>(expr)) {
+    if (is_glvalue(subscript) && subscriptsVector(subscript))
+      return NonAddressableDesignation::kVectorElement;
+    return NonAddressableDesignation::kNone;
   }
 
   Symbol* designated = nullptr;
@@ -2389,12 +2512,21 @@ auto StandardConversion::designatesBitField(ExpressionAST* expr) -> bool {
 
   if (auto binding = symbol_cast<VariableSymbol>(designated);
       binding && binding->isStructuredBindingAlias())
-    return designatesBitField(binding->initializer());
-  if (auto member = ast_cast<MemberExpressionAST>(expr))
+    return nonAddressableDesignation(binding->initializer());
+  if (auto member = ast_cast<MemberExpressionAST>(expr)) {
+    if (is_glvalue(member) && vectorComponentAccess(member))
+      return NonAddressableDesignation::kVectorElement;
     designated = member->symbol;
+  }
 
   auto field = symbol_cast<FieldSymbol>(designated);
-  return field && field->isBitField();
+  if (field && field->isBitField()) return NonAddressableDesignation::kBitField;
+  return NonAddressableDesignation::kNone;
+}
+
+auto StandardConversion::designatesAddressableStorage(ExpressionAST* expr)
+    -> bool {
+  return nonAddressableDesignation(expr) == NonAddressableDesignation::kNone;
 }
 
 auto StandardConversion::namedEntity(ExpressionAST* expr) -> Symbol* {

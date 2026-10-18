@@ -51,6 +51,8 @@ import { gen_builtins_signatures_h } from "./gen_builtins_signatures_h.ts";
 import { gen_builtins_interp_h } from "./gen_builtins_interp_h.ts";
 import { gen_builtins_typechecker_h } from "./gen_builtins_typechecker_h.ts";
 import { gen_builtins_codegen_h } from "./gen_builtins_codegen_h.ts";
+import { gen_cxx_to_math_h } from "./gen_cxx_to_math_h.ts";
+import { gen_attribute_kind_h, gen_attributes_h } from "./gen_attributes_h.ts";
 import { gen_emitter_delegate_h } from "./gen_emitter_delegate_h.ts";
 import { gen_emitter_ts } from "./gen_emitter_ts.ts";
 
@@ -148,6 +150,21 @@ gen_builtins_codegen_h({
   output: path.join(outdir, "src/codegen/cxx/codegen/builtins_codegen-priv.h"),
 });
 
+gen_attribute_kind_h({
+  output: path.join(outdir, "src/parser/cxx/attribute_kind.h"),
+});
+
+gen_attributes_h({
+  output: path.join(outdir, "src/parser/cxx/private/attributes-priv.h"),
+});
+
+gen_cxx_to_math_h({
+  output: path.join(
+    outdir,
+    "src/mlir/transforms/cxx/mlir/private/cxx_to_math-priv.h",
+  ),
+});
+
 // js integration
 
 gen_emitter_delegate_h({
@@ -198,6 +215,10 @@ child_process.execSync("clang-format -i emitter_delegate-priv.h reflection.cc", 
 
 child_process.execSync("clang-format -i builtins_codegen-priv.h", {
   cwd: path.join(outdir, "src/codegen/cxx/codegen"),
+});
+
+child_process.execSync("clang-format -i cxx_to_math-priv.h", {
+  cwd: path.join(outdir, "src/mlir/transforms/cxx/mlir/private"),
 });
 
 child_process.execSync("npm run --silent prettier:fix", {
