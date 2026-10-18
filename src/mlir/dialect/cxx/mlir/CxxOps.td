@@ -29,6 +29,7 @@ include "mlir/Interfaces/FunctionInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/DataLayoutInterfaces.td"
+include "mlir/Interfaces/MemorySlotInterfaces.td"
 
 def Cxx_Dialect : Dialect {
   let name = "cxx";
@@ -129,13 +130,17 @@ def Cxx_PointerType : Cxx_Type<"Pointer", "ptr", [
   }];
 }
 
-def Cxx_ArrayType : Cxx_Type<"Array", "array"> {
+def Cxx_ArrayType : Cxx_Type<"Array", "array", [
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface, [
+      "getPreferredAlignment"]>]> {
   let parameters = (ins "Type":$elementType, "uint64_t":$size);
 
   let hasCustomAssemblyFormat = 1;
 }
 
-def Cxx_ClassType : Cxx_Type<"Class", "class", [MutableType]> {
+def Cxx_ClassType : Cxx_Type<"Class", "class", [MutableType,
+    DeclareTypeInterfaceMethods<DataLayoutTypeInterface, [
+      "getPreferredAlignment"]>]> {
 
   let storageClass = "ClassTypeStorage";
   let genStorageClass = 0;
@@ -275,7 +280,8 @@ def Cxx_UnreachableOp : Cxx_Op<"unreachable", [Terminator]> {
   let assemblyFormat = "attr-dict";
 }
 
-def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments]> {
+def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments,
+                                 DeclareOpInterfaceMethods<CallOpInterface>]> {
   let arguments = (ins
       OptionalAttr<FlatSymbolRefAttr>:$callee
     , Optional<Cxx_PointerType>:$callee_operand
@@ -390,10 +396,12 @@ def Cxx_AsmGotoOp : Cxx_Op<"asm_goto", [Terminator]> {
   let hasVerifier = 1;
 }
 
-def Cxx_AllocaOp : Cxx_Op<"alloca"> {
+def Cxx_AllocaOp : Cxx_Op<"alloca", [
+    DeclareOpInterfaceMethods<PromotableAllocationOpInterface>]> {
   let arguments = (ins I64Prop:$alignment);
 
-  let results = (outs Cxx_PointerType:$result);
+  let results = (outs Res<Cxx_PointerType, "",
+                          [MemAlloc<AutomaticAllocationScopeResource>]>:$result);
 
   let assemblyFormat = "attr-dict `:` type($result) `align` $alignment";
 }
@@ -406,16 +414,20 @@ def Cxx_DynAllocaOp : Cxx_Op<"dyn_alloca"> {
   let assemblyFormat = "$size attr-dict `:` type($size) `->` type($result) `align` $alignment";
 }
 
-def Cxx_LoadOp : Cxx_Op<"load"> {
-  let arguments = (ins Cxx_PointerType:$addr, I64Prop:$alignment);
+def Cxx_LoadOp : Cxx_Op<"load", [
+    DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
+  let arguments = (ins Arg<Cxx_PointerType, "", [MemRead]>:$addr,
+                       I64Prop:$alignment);
 
   let results = (outs AnyType:$result);
 
   let assemblyFormat = "$addr attr-dict `:` type($addr) `->` type($result) `align` $alignment";
 }
 
-def Cxx_StoreOp : Cxx_Op<"store"> {
-  let arguments = (ins AnyType:$value, Cxx_PointerType:$addr, I64Prop:$alignment);
+def Cxx_StoreOp : Cxx_Op<"store", [
+    DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
+  let arguments = (ins AnyType:$value, Arg<Cxx_PointerType, "", [MemWrite]>:$addr,
+                       I64Prop:$alignment);
 
   let assemblyFormat = "$value `,` $addr attr-dict `:` type($value) `,` type($addr) `align` $alignment";
 
@@ -423,18 +435,34 @@ def Cxx_StoreOp : Cxx_Op<"store"> {
 }
 
 def Cxx_MemSetZeroOp : Cxx_Op<"memzero"> {
-  let arguments = (ins Cxx_PointerType:$addr, I64Prop:$size);
+  let arguments = (ins Arg<Cxx_PointerType, "", [MemWrite]>:$addr,
+                       I64Prop:$size);
 
   let assemblyFormat = "$addr attr-dict `:` type($addr) `size` $size";
 }
 
 def Cxx_MemCpyOp : Cxx_Op<"memcpy"> {
-  let arguments = (ins Cxx_PointerType:$dest, Cxx_PointerType:$src, I64Prop:$size);
+  let arguments = (ins Arg<Cxx_PointerType, "", [MemWrite]>:$dest,
+                       Arg<Cxx_PointerType, "", [MemRead]>:$src, I64Prop:$size);
 
   let assemblyFormat = "$dest `,` $src attr-dict `:` type($dest) `,` type($src) `size` $size";
 }
 
-def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
+def Cxx_ZeroInitOp : Cxx_Op<"zero_init"> {
+  let arguments = (ins Arg<Cxx_PointerType, "", [MemWrite]>:$addr);
+
+  let assemblyFormat = "$addr attr-dict `:` type($addr)";
+}
+
+def Cxx_CopyOp : Cxx_Op<"copy"> {
+  let hasVerifier = 1;
+  let arguments = (ins Arg<Cxx_PointerType, "", [MemWrite]>:$dest,
+                       Arg<Cxx_PointerType, "", [MemRead]>:$src);
+
+  let assemblyFormat = "$dest `,` $src attr-dict `:` type($dest) `,` type($src)";
+}
+
+def Cxx_SubscriptOp : Cxx_Op<"subscript", [Pure]> {
   let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$base, AnyType:$index);
 
@@ -443,7 +471,7 @@ def Cxx_SubscriptOp : Cxx_Op<"subscript"> {
   let assemblyFormat = "$base `[` $index `]` attr-dict `:` functional-type(operands, results)";
 }
 
-def Cxx_MemberOp : Cxx_Op<"member"> {
+def Cxx_MemberOp : Cxx_Op<"member", [Pure]> {
   let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$base, I32Prop:$member_index);
 
@@ -452,7 +480,7 @@ def Cxx_MemberOp : Cxx_Op<"member"> {
   let assemblyFormat = "$base `[` $member_index `]` attr-dict `:` type($base) `->` type($result)";
 }
 
-def Cxx_PtrAddOp : Cxx_Op<"ptradd"> {
+def Cxx_PtrAddOp : Cxx_Op<"ptradd", [Pure]> {
   let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$base, AnySignlessInteger:$offset);
 
@@ -461,7 +489,7 @@ def Cxx_PtrAddOp : Cxx_Op<"ptradd"> {
   let assemblyFormat = "$base `,` $offset attr-dict `:` functional-type(operands, results)";
 }
 
-def Cxx_PtrDiffOp : Cxx_Op<"ptrdiff"> {
+def Cxx_PtrDiffOp : Cxx_Op<"ptrdiff", [Pure]> {
   let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$lhs, Cxx_PointerType:$rhs);
 
@@ -470,7 +498,7 @@ def Cxx_PtrDiffOp : Cxx_Op<"ptrdiff"> {
   let assemblyFormat = "$lhs `,` $rhs attr-dict `:` functional-type(operands, results)";
 }
 
-def Cxx_AddressOfOp : Cxx_Op<"address_of"> {
+def Cxx_AddressOfOp : Cxx_Op<"address_of", [Pure]> {
   let arguments = (ins FlatSymbolRefAttr:$sym_name);
 
   let results = (outs AnyType:$result);
@@ -496,7 +524,7 @@ def Cxx_AggregateConstantOp : Cxx_Op<"constant.aggregate", [Pure]> {
   let assemblyFormat = "$value attr-dict `:` type($result)";
 }
 
-def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr"> {
+def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr", [Pure]> {
   let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$value);
 
@@ -505,7 +533,7 @@ def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr"> {
   let assemblyFormat = "$value attr-dict `:` type($value) `to` type($result)";
 }
 
-def Cxx_BitcastOp : Cxx_Op<"bitcast"> {
+def Cxx_BitcastOp : Cxx_Op<"bitcast", [Pure]> {
   let hasVerifier = 1;
   let arguments = (ins AnyType:$value);
 
@@ -571,7 +599,7 @@ def Cxx_InsertValueOp : Cxx_Op<"insertvalue", [AllTypesMatch<["container", "resu
   ];
 }
 
-def Cxx_PtrToIntOp : Cxx_Op<"ptrtoint"> {
+def Cxx_PtrToIntOp : Cxx_Op<"ptrtoint", [Pure]> {
   let arguments = (ins Cxx_PointerType:$value);
 
   let results = (outs AnySignlessInteger:$result);

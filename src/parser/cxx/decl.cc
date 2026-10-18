@@ -420,33 +420,19 @@ auto getParameterTypes(TranslationUnit* unit,
 
 namespace {
 
-constexpr AttributeSpelling kVectorSizeSpellings[] = {
-    {AttributeSyntax::kGnu, "", "vector_size"},
-    {AttributeSyntax::kCxx, "gnu", "vector_size"},
-    {AttributeSyntax::kGnu, "", "ext_vector_type"},
-    {AttributeSyntax::kCxx, "clang", "ext_vector_type"},
-};
-
-[[nodiscard]] auto vectorKindOf(const AttributeSpelling& spelling)
-    -> VectorKind {
-  return spelling.name == "ext_vector_type" ? VectorKind::kExt
-                                            : VectorKind::kGnu;
+[[nodiscard]] auto isVectorTypeAttribute(AttributeKind kind) -> bool {
+  return kind == AttributeKind::kVectorSize ||
+         kind == AttributeKind::kExtVectorType;
 }
 
-[[nodiscard]] auto vectorSizeKindOf(const AttributeSpelling& spelling)
-    -> VectorSizeKind {
-  return spelling.name == "ext_vector_type" ? VectorSizeKind::kElements
-                                            : VectorSizeKind::kBytes;
+[[nodiscard]] auto vectorKindOf(AttributeKind kind) -> VectorKind {
+  return kind == AttributeKind::kExtVectorType ? VectorKind::kExt
+                                               : VectorKind::kGnu;
 }
 
-[[nodiscard]] auto isValidVectorElementType(TranslationUnit* unit,
-                                            const Type* type,
-                                            VectorKind vectorKind) -> bool {
-  auto traits = unit->typeTraits();
-  if (traits.is_floating_point(type)) return true;
-  if (!traits.is_integral(type)) return false;
-  if (type->kind() == TypeKind::kBool) return vectorKind == VectorKind::kExt;
-  return true;
+[[nodiscard]] auto vectorSizeKindOf(AttributeKind kind) -> VectorSizeKind {
+  return kind == AttributeKind::kExtVectorType ? VectorSizeKind::kElements
+                                               : VectorSizeKind::kBytes;
 }
 
 [[nodiscard]] auto attributeArgumentExpression(
@@ -465,14 +451,16 @@ namespace {
     const Type* type, SourceLocation location) -> const Type* {
   if (!type || !attributeList) return type;
 
-  auto attribute =
-      findAttributeBySpelling(unit, attributeList, kVectorSizeSpellings);
+  auto attributes = knownAttributes(unit, attributeList);
+  auto found = std::ranges::find_if(attributes, isVectorTypeAttribute,
+                                    &AttributeRef::kind);
 
-  if (!attribute) return type;
+  if (found == attributes.end()) return type;
 
+  const auto attribute = *found;
   const auto at = attribute.location ? attribute.location : location;
-  const auto vectorKind = vectorKindOf(*attribute.spelling);
-  const auto sizeKind = vectorSizeKindOf(*attribute.spelling);
+  const auto vectorKind = vectorKindOf(attribute.kind());
+  const auto sizeKind = vectorSizeKindOf(attribute.kind());
   const auto attributeName = attribute.spelling->name;
 
   auto sizeExpression = attributeArgumentExpression(attribute.argumentClause);
@@ -490,7 +478,7 @@ namespace {
                                             vectorKind, sizeKind);
   }
 
-  if (!isValidVectorElementType(unit, type, vectorKind)) {
+  if (!unit->typeTraits().is_vector_element_type(type, vectorKind)) {
     unit->error(
         at, std::format("invalid vector element type '{}'", to_string(type)));
     return type;
@@ -585,12 +573,8 @@ auto applyTypeAttributes(TranslationUnit* unit,
                          const Type* type, SourceLocation location)
     -> const Type* {
   if (!type || !attributeList) return type;
-  constexpr AttributeSpelling spellings[] = {
-      {AttributeSyntax::kGnu, "", "address_space"},
-      {AttributeSyntax::kCxx, "clang", "address_space"},
-  };
   for (const auto& attribute :
-       findAttributesBySpelling(unit, attributeList, spellings)) {
+       findAttributes(unit, attributeList, AttributeKind::kAddressSpace)) {
     type = applyAddressSpaceAttribute(unit, attribute, type, location);
   }
   return applyVectorTypeAttributes(unit, attributeList, type, location);

@@ -29,6 +29,7 @@
 #include <cxx/control.h>
 #include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
+#include <cxx/device_profile_limits.h>
 #include <cxx/function_body.h>
 #include <cxx/implicit_conversion_sequence.h>
 #include <cxx/initialization.h>
@@ -46,6 +47,7 @@
 #include <cxx/type_checker.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
+#include <cxx/vector_components.h>
 #include <cxx/views/symbols.h>
 
 #include <algorithm>
@@ -616,16 +618,30 @@ struct TypeChecker::Visitor {
 
   void classify_reference_type(ExpressionAST* ast, const Type* fullType);
   void check_address_of(UnaryExpressionAST* ast);
+  [[nodiscard]] auto check_addressable_storage(ExpressionAST* expression,
+                                               SourceLocation loc) -> bool;
   [[nodiscard]] auto check_function_address(ExpressionAST* expression,
                                             SourceLocation loc) -> bool;
   void check_unary_promote(UnaryExpressionAST* ast);
-  void check_shift(BinaryExpressionAST* ast);
   void check_relational(BinaryExpressionAST* ast);
   [[nodiscard]] auto vector_comparison_type(const Type* type) -> const Type*;
   [[nodiscard]] auto element_type_of(const Type* type) -> const Type*;
-  [[nodiscard]] auto check_integral_operands(BinaryExpressionAST* ast) -> bool;
-  [[nodiscard]] auto check_arithmetic_operands(BinaryExpressionAST* ast)
-      -> bool;
+  [[nodiscard]] auto check_builtin_operands(TokenKind op, ExpressionAST*& left,
+                                            ExpressionAST*& right,
+                                            SourceLocation loc) -> const Type*;
+  [[nodiscard]] auto builtin_additive_type(TokenKind op, ExpressionAST*& left,
+                                           ExpressionAST*& right,
+                                           SourceLocation loc) -> const Type*;
+  [[nodiscard]] auto builtin_vector_shift_type(TokenKind op,
+                                               ExpressionAST*& left,
+                                               ExpressionAST*& right,
+                                               SourceLocation loc)
+      -> const Type*;
+  [[nodiscard]] auto builtin_shift_type(TokenKind op, ExpressionAST*& left,
+                                        ExpressionAST*& right,
+                                        SourceLocation loc) -> const Type*;
+  void report_invalid_operands(TokenKind op, SourceLocation loc,
+                               ExpressionAST* left, ExpressionAST* right);
   void check_three_way_comparison(BinaryExpressionAST* ast);
   [[nodiscard]] auto rewrite_not_equal_as_negated_equal(
       BinaryExpressionAST* ast) -> bool;
@@ -688,8 +704,6 @@ struct TypeChecker::Visitor {
                                         const Type* targetType,
                                         ValueCategory targetVC) -> bool;
 
-  void check_addition(BinaryExpressionAST* ast);
-  void check_subtraction(BinaryExpressionAST* ast);
   void check_prefix_increment_decrement(UnaryExpressionAST* ast,
                                         std::string_view action,
                                         std::string_view opWord);
@@ -736,6 +750,14 @@ struct TypeChecker::Visitor {
   void requireStaticFieldValue(FieldSymbol* field);
 
   [[nodiscard]] auto check_member_access(MemberExpressionAST* ast) -> bool;
+  [[nodiscard]] auto is_modifiable_lvalue(ExpressionAST* expr) -> bool;
+  [[nodiscard]] auto isDeviceConstantStorage(const Type* type) -> bool;
+  [[nodiscard]] auto check_modifiable_lvalue(ExpressionAST* expr,
+                                             SourceLocation loc,
+                                             std::string_view action) -> bool;
+  [[nodiscard]] auto check_vector_component_access(MemberExpressionAST* ast,
+                                                   const Type* objectType)
+      -> bool;
   [[nodiscard]] auto check_pseudo_destructor_access(MemberExpressionAST* ast)
       -> bool;
 
@@ -1329,7 +1351,7 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
   auto array_subscript = [this](ExpressionAST* ast, ExpressionAST*& base,
                                 ExpressionAST*& index) {
     if (!traits.is_array(base->type)) return false;
-    if (!traits.is_arithmetic_or_unscoped_enum(index->type)) return false;
+    if (!traits.is_integral_or_unscoped_enum(index->type)) return false;
 
     (void)stdconv_.temporaryMaterialization(base);
     stdconv_.promoteOperand(index);
@@ -1342,7 +1364,7 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
   auto pointer_subscript = [this](ExpressionAST* ast, ExpressionAST*& base,
                                   ExpressionAST*& index) {
     if (!traits.is_pointer(base->type)) return false;
-    if (!traits.is_arithmetic_or_unscoped_enum(index->type)) return false;
+    if (!traits.is_integral_or_unscoped_enum(index->type)) return false;
 
     stdconv_.prepareOperand(base);
 
@@ -1356,12 +1378,13 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
   auto vector_subscript = [this](ExpressionAST* ast, ExpressionAST*& base,
                                  ExpressionAST*& index) {
     if (!traits.is_vector(base->type)) return false;
-    if (!traits.is_arithmetic_or_unscoped_enum(index->type)) return false;
+    if (!traits.is_integral_or_unscoped_enum(index->type)) return false;
 
-    (void)stdconv_.temporaryMaterialization(base);
     stdconv_.promoteOperand(index);
 
-    ast->type = traits.get_element_type(base->type);
+    ast->type = traits.add_qualifiers(traits.get_element_type(base->type),
+                                      cv_qualifiers(base->type),
+                                      address_space(base->type));
     ast->valueCategory = base->valueCategory;
     return true;
   };
@@ -1371,7 +1394,6 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
   if (pointer_subscript(ast, ast->baseExpression, ast->indexExpression)) return;
   if (pointer_subscript(ast, ast->indexExpression, ast->baseExpression)) return;
   if (vector_subscript(ast, ast->baseExpression, ast->indexExpression)) return;
-  if (vector_subscript(ast, ast->indexExpression, ast->baseExpression)) return;
 
   error(ast->firstSourceLocation(),
         std::format("invalid subscript of type '{}' with index type '{}'",
@@ -1773,10 +1795,10 @@ auto TypeChecker::Visitor::CallCandidateSelection::buildCandidate(
 
     if (!conversion) {
       reject(function,
-             FailedArgumentConversion{
-                 argumentIt->value->type, *parameterIt,
+             failedArgumentConversion(
+                 argumentIt->value, *parameterIt,
                  static_cast<std::size_t>(std::distance(
-                     functionType->parameterTypes().begin(), parameterIt))});
+                     functionType->parameterTypes().begin(), parameterIt))));
       return std::nullopt;
     }
 
@@ -2672,6 +2694,8 @@ auto TypeChecker::Visitor::checkBuiltinAddressof(CallExpressionAST* ast)
     error(arg->firstSourceLocation(),
           std::format("cannot take the address of an rvalue of type '{}'",
                       to_string(arg->type)));
+  } else {
+    (void)check_addressable_storage(arg, arg->firstSourceLocation());
   }
 
   ast->type = control()->getPointerType(arg->type);
@@ -3773,10 +3797,58 @@ void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {
 
   if (check_pseudo_destructor_access(ast)) return;
   if (check_member_access(ast)) return;
+  if (check_vector_component_access(ast, objectExpressionType)) return;
 
   error(ast->firstSourceLocation(),
         std::format("invalid member access into expression of type '{}'",
                     to_string(ast->baseExpression->type)));
+}
+
+auto TypeChecker::Visitor::check_vector_component_access(
+    MemberExpressionAST* ast, const Type* objectType) -> bool {
+  if (ast->accessOp == TokenKind::T_MINUS_GREATER &&
+      !traits.is_pointer(ast->baseExpression->type))
+    return false;
+  auto vector = unqualified_cast<VectorType>(objectType);
+  if (!vector || vector->vectorKind() != VectorKind::kExt) return false;
+  auto name = ast_cast<NameIdAST>(ast->unqualifiedId);
+  if (!name || !name->identifier) return false;
+  const auto& spelling = name->identifier->name();
+
+  if (traits.is_bool(vector->elementType())) {
+    error(name->identifierLoc,
+          std::format("'{}' has no components", to_string(objectType)));
+    return true;
+  }
+
+  auto components = vectorComponents(vector, spelling);
+  if (!components) {
+    if (components.error().kind == VectorComponentErrorKind::kOutOfRange)
+      error(name->identifierLoc,
+            std::format("vector component '{}' is out of range for '{}'",
+                        components.error().component, to_string(objectType)));
+    else
+      error(name->identifierLoc,
+            std::format("invalid vector component '{}' in '{}'",
+                        components.error().component, spelling));
+    return true;
+  }
+
+  const auto count = components->lanes.size();
+  const Type* type = vector->elementType();
+  if (count > 1)
+    type = control()->getVectorType(vector->elementType(), count,
+                                    VectorKind::kExt);
+  ast->symbol = nullptr;
+  ast->type = traits.add_qualifiers(type, cv_qualifiers(objectType),
+                                    address_space(objectType));
+  if (ast->accessOp == TokenKind::T_MINUS_GREATER)
+    ast->valueCategory = ValueCategory::kLValue;
+  else
+    ast->valueCategory = ast->baseExpression->valueCategory;
+  if (count > 1 && components->hasRepeatedLane)
+    ast->valueCategory = ValueCategory::kPrValue;
+  return true;
 }
 
 void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
@@ -3806,15 +3878,9 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
   const std::string_view op =
       ast->op == TokenKind::T_PLUS_PLUS ? "increment" : "decrement";
 
-  if (!is_glvalue(ast->baseExpression)) {
-    error(ast->opLoc, std::format("cannot {} an rvalue of type '{}'", op,
-                                  to_string(ast->baseExpression->type)));
-    return;
-  }
+  if (!check_modifiable_lvalue(ast->baseExpression, ast->opLoc, op)) return;
 
   auto incr_arithmetic = [&]() {
-    if (traits.is_const(ast->baseExpression->type)) return false;
-
     auto valueType = traits.remove_atomic(ast->baseExpression->type);
 
     if (isCxx() && !traits.is_arithmetic(valueType)) return false;
@@ -4175,7 +4241,7 @@ auto TypeChecker::Visitor::binds_reference(ExpressionAST*& expression,
 
   auto binding = stdconv_.referenceBinding(
       referenceType, expression->type, expression->valueCategory,
-      StandardConversion::designatesBitField(expression));
+      StandardConversion::nonAddressableDesignation(expression));
   if (!binding) {
     auto converted = expression;
     if (!implicit_conversion(converted, referenceType,
@@ -4414,6 +4480,14 @@ auto TypeChecker::Visitor::check_const_cast(ExpressionAST*& expression,
   if (traits.is_function(T1) || traits.is_function(T2)) return false;
 
   if (!are_similar_types(T1, T2)) return false;
+
+  if (control()->memoryLayout()->deviceProfile() ==
+          DeviceProfile::kVulkan11F32 &&
+      address_space(T1) == kDeviceAddressSpace && traits.is_const(T1) &&
+      !traits.is_const(T2))
+    error(expression->firstSourceLocation(),
+          "the device profile does not permit removing const from a storage "
+          "resource");
 
   if (prepareOperand) stdconv_.prepareOperand(expression);
 
@@ -5043,6 +5117,22 @@ void TypeChecker::Visitor::operator()(LabelAddressExpressionAST* ast) {
   ast->valueCategory = ValueCategory::kPrValue;
 }
 
+auto TypeChecker::Visitor::check_addressable_storage(ExpressionAST* expression,
+                                                     SourceLocation loc)
+    -> bool {
+  switch (StandardConversion::nonAddressableDesignation(expression)) {
+    case NonAddressableDesignation::kNone:
+      return true;
+    case NonAddressableDesignation::kBitField:
+      error(loc, "cannot take the address of a bit-field");
+      return false;
+    case NonAddressableDesignation::kVectorElement:
+      error(loc, "cannot take the address of a vector element");
+      return false;
+  }
+  return true;
+}
+
 auto TypeChecker::Visitor::check_function_address(ExpressionAST* expression,
                                                   SourceLocation loc) -> bool {
   if (auto function = designatedFunction(base_symbol(expression));
@@ -5059,12 +5149,14 @@ void TypeChecker::Visitor::check_address_of(UnaryExpressionAST* ast) {
   if (!ast->expression->type) return;
   if (!check_function_address(ast->expression, ast->opLoc)) return;
 
-  if (!is_glvalue(ast->expression)) {
+  if (!is_lvalue(ast->expression)) {
     error(ast->opLoc,
           std::format("cannot take the address of an rvalue of type '{}'",
                       to_string(ast->expression->type)));
     return;
   }
+
+  if (!check_addressable_storage(ast->expression, ast->opLoc)) return;
 
   auto idExpr = ast_cast<IdExpressionAST>(ast->expression);
   if (idExpr) {
@@ -5238,6 +5330,7 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
 
     case TokenKind::T_EXCLAIM:
       if (auto resultType = vector_comparison_type(ast->expression->type)) {
+        stdconv_.prepareOperand(ast->expression);
         ast->type = resultType;
         ast->valueCategory = ValueCategory::kPrValue;
         break;
@@ -5824,6 +5917,12 @@ auto TypeChecker::Visitor::check_c_style_cast(ExpressionAST*& expr,
                                               const Type* targetType,
                                               ValueCategory targetVC) -> bool {
   if (expr && changesAddressSpace(traits, expr->type, targetType, targetVC)) {
+    if (control()->memoryLayout()->deviceProfile() ==
+        DeviceProfile::kVulkan11F32) {
+      error(expr->firstSourceLocation(),
+            "the device profile does not permit address-space-changing casts");
+      return true;
+    }
     if (targetVC == ValueCategory::kPrValue) {
       stdconv_.prepareOperand(expr);
       emit_implicit_cast(expr, expr, targetType,
@@ -5966,38 +6065,173 @@ void TypeChecker::Visitor::prepare_comparison_operands(
   stdconv_.prepareOperand(ast->rightExpression);
 }
 
-void TypeChecker::Visitor::check_shift(BinaryExpressionAST* ast) {
-  if (resolve_binary_overload(ast)) return;
-  if (!convert_class_operands_for_builtin(ast)) return;
+void TypeChecker::Visitor::report_invalid_operands(TokenKind op,
+                                                   SourceLocation loc,
+                                                   ExpressionAST* left,
+                                                   ExpressionAST* right) {
+  if (get_underlying_binary_op(op) != TokenKind::T_EOF_SYMBOL) {
+    error(loc, std::format("invalid compound assignment operator '{}' for "
+                           "types '{}' and '{}'",
+                           Token::spell(op), to_string(left->type),
+                           to_string(right->type)));
+    return;
+  }
+  error(loc,
+        std::format("invalid operands to binary expression ('{}' and '{}')",
+                    to_string(left->type), to_string(right->type)));
+}
 
-  if (traits.is_vector(ast->leftExpression->type) ||
-      traits.is_vector(ast->rightExpression->type)) {
-    ast->type = stdconv_.usualArithmeticConversion(ast->leftExpression,
-                                                   ast->rightExpression);
-    if (!ast->type) {
-      error(ast->firstSourceLocation(),
-            std::format("invalid operands to binary expression ('{}' and '{}')",
-                        to_string(ast->leftExpression->type),
-                        to_string(ast->rightExpression->type)));
-      return;
+[[nodiscard]] static auto builtin_operator(TokenKind op) -> TokenKind {
+  auto underlying = get_underlying_binary_op(op);
+  return underlying != TokenKind::T_EOF_SYMBOL ? underlying : op;
+}
+
+auto TypeChecker::Visitor::check_builtin_operands(TokenKind op,
+                                                  ExpressionAST*& left,
+                                                  ExpressionAST*& right,
+                                                  SourceLocation loc)
+    -> const Type* {
+  const auto builtin = builtin_operator(op);
+  if (builtin == TokenKind::T_PLUS || builtin == TokenKind::T_MINUS)
+    return builtin_additive_type(op, left, right, loc);
+
+  if (builtin == TokenKind::T_LESS_LESS ||
+      builtin == TokenKind::T_GREATER_GREATER)
+    return builtin_shift_type(op, left, right, loc);
+
+  auto type = stdconv_.usualArithmeticConversion(left, right);
+  if (!type) {
+    report_invalid_operands(op, loc, left, right);
+    return nullptr;
+  }
+
+  auto element = element_type_of(type);
+  const auto requiresIntegral =
+      builtin != TokenKind::T_STAR && builtin != TokenKind::T_SLASH;
+  const auto isBoolVector =
+      traits.is_vector(type) && element->kind() == TypeKind::kBool;
+  const auto isArithmeticVector = builtin == TokenKind::T_STAR ||
+                                  builtin == TokenKind::T_SLASH ||
+                                  builtin == TokenKind::T_PERCENT;
+  if ((requiresIntegral && !traits.is_integral_or_unscoped_enum(element)) ||
+      (isArithmeticVector && isBoolVector)) {
+    report_invalid_operands(op, loc, left, right);
+    return nullptr;
+  }
+  return type;
+}
+
+auto TypeChecker::Visitor::builtin_additive_type(TokenKind op,
+                                                 ExpressionAST*& left,
+                                                 ExpressionAST*& right,
+                                                 SourceLocation loc)
+    -> const Type* {
+  if (auto type = stdconv_.usualArithmeticConversion(left, right)) {
+    if (traits.is_vector(type) &&
+        element_type_of(type)->kind() == TypeKind::kBool) {
+      report_invalid_operands(op, loc, left, right);
+      return nullptr;
     }
-    (void)check_integral_operands(ast);
-    return;
+    return type;
   }
 
-  stdconv_.promoteOperand(ast->leftExpression);
-  stdconv_.promoteOperand(ast->rightExpression);
+  const auto leftIsPointer = traits.is_pointer(left->type);
+  const auto rightIsPointer = traits.is_pointer(right->type);
+  const auto leftIsIntegral = traits.is_integral_or_unscoped_enum(left->type);
+  const auto rightIsIntegral = traits.is_integral_or_unscoped_enum(right->type);
 
-  if (!traits.is_integral_or_unscoped_enum(ast->leftExpression->type) ||
-      !traits.is_integral_or_unscoped_enum(ast->rightExpression->type)) {
-    error(ast->firstSourceLocation(),
-          std::format("invalid operands to binary expression ('{}' and '{}')",
-                      to_string(ast->leftExpression->type),
-                      to_string(ast->rightExpression->type)));
-    return;
+  if (leftIsPointer && rightIsIntegral) {
+    stdconv_.promoteOperand(right);
+    return left->type;
   }
 
-  ast->type = ast->leftExpression->type;
+  if (builtin_operator(op) == TokenKind::T_PLUS && rightIsPointer &&
+      leftIsIntegral) {
+    stdconv_.promoteOperand(left);
+    return right->type;
+  }
+
+  if (builtin_operator(op) == TokenKind::T_MINUS && leftIsPointer &&
+      rightIsPointer) {
+    auto leftElement = traits.remove_cv(traits.get_element_type(left->type));
+    auto rightElement = traits.remove_cv(traits.get_element_type(right->type));
+    if (traits.is_same(leftElement, rightElement))
+      return traits.make_signed(control()->getSizeType());
+    error(loc, std::format("'{}' and '{}' are not pointers to compatible types",
+                           to_string(left->type), to_string(right->type)));
+    return nullptr;
+  }
+
+  report_invalid_operands(op, loc, left, right);
+  return nullptr;
+}
+
+auto TypeChecker::Visitor::builtin_vector_shift_type(TokenKind op,
+                                                     ExpressionAST*& left,
+                                                     ExpressionAST*& right,
+                                                     SourceLocation loc)
+    -> const Type* {
+  stdconv_.prepareOperand(left);
+  stdconv_.prepareOperand(right);
+  auto leftVector = unqualified_cast<VectorType>(left->type);
+  auto rightVector = unqualified_cast<VectorType>(right->type);
+  if (!leftVector) stdconv_.promoteOperand(left);
+  if (!rightVector) stdconv_.promoteOperand(right);
+
+  auto isBoolVector = [&](const VectorType* vector) {
+    return vector && vector->vectorKind() == VectorKind::kExt &&
+           traits.is_bool(vector->elementType());
+  };
+  auto leftElement = leftVector ? leftVector->elementType() : left->type;
+  auto rightElement = rightVector ? rightVector->elementType() : right->type;
+  if (isBoolVector(leftVector) || isBoolVector(rightVector) ||
+      !traits.is_integral_or_unscoped_enum(leftElement) ||
+      !traits.is_integral_or_unscoped_enum(rightElement)) {
+    report_invalid_operands(op, loc, left, right);
+    return nullptr;
+  }
+
+  if (!leftVector) {
+    auto splat =
+        control()->getVectorType(traits.remove_cv(rightElement),
+                                 rightVector->elementCount(), VectorKind::kExt);
+    if (!stdconv_.splatOperand(left, splat)) return nullptr;
+    return splat;
+  }
+
+  if (rightVector) {
+    if (rightVector->elementCount() != leftVector->elementCount()) {
+      report_invalid_operands(op, loc, left, right);
+      return nullptr;
+    }
+    return left->type;
+  }
+
+  auto splat =
+      control()->getVectorType(traits.remove_cv(rightElement),
+                               leftVector->elementCount(), VectorKind::kExt);
+  if (!stdconv_.splatOperand(right, splat)) return nullptr;
+  return left->type;
+}
+
+auto TypeChecker::Visitor::builtin_shift_type(TokenKind op,
+                                              ExpressionAST*& left,
+                                              ExpressionAST*& right,
+                                              SourceLocation loc)
+    -> const Type* {
+  if (traits.is_vector(left->type) || traits.is_vector(right->type))
+    return builtin_vector_shift_type(op, left, right, loc);
+
+  stdconv_.promoteOperand(left);
+  stdconv_.promoteOperand(right);
+
+  if (!traits.is_integral_or_unscoped_enum(left->type) ||
+      !traits.is_integral_or_unscoped_enum(right->type)) {
+    report_invalid_operands(op, loc, left, right);
+    return nullptr;
+  }
+
+  return left->type;
 }
 
 auto TypeChecker::Visitor::vector_comparison_type(const Type* type)
@@ -6191,34 +6425,6 @@ auto TypeChecker::Visitor::element_type_of(const Type* type) -> const Type* {
   return type;
 }
 
-auto TypeChecker::Visitor::check_arithmetic_operands(BinaryExpressionAST* ast)
-    -> bool {
-  if (!ast->type) return false;
-  if (!traits.is_vector(ast->type)) return true;
-  if (element_type_of(ast->type)->kind() != TypeKind::kBool) return true;
-
-  error(ast->firstSourceLocation(),
-        std::format("invalid operands to binary expression ('{}' and '{}')",
-                    to_string(ast->leftExpression->type),
-                    to_string(ast->rightExpression->type)));
-  ast->type = nullptr;
-  return false;
-}
-
-auto TypeChecker::Visitor::check_integral_operands(BinaryExpressionAST* ast)
-    -> bool {
-  if (!ast->type) return false;
-  if (traits.is_integral_or_unscoped_enum(element_type_of(ast->type)))
-    return true;
-
-  error(ast->firstSourceLocation(),
-        std::format("invalid operands to binary expression ('{}' and '{}')",
-                    to_string(ast->leftExpression->type),
-                    to_string(ast->rightExpression->type)));
-  ast->type = nullptr;
-  return false;
-}
-
 void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
   if (!ast->leftExpression) {
     error(ast->firstSourceLocation(), "expected a left operand");
@@ -6267,35 +6473,17 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
     case TokenKind::T_STAR:
     case TokenKind::T_SLASH:
     case TokenKind::T_PERCENT:
-      if (resolve_binary_overload(ast)) break;
-      if (!convert_class_operands_for_builtin(ast)) break;
-      ast->type = stdconv_.usualArithmeticConversion(ast->leftExpression,
-                                                     ast->rightExpression);
-      if (!ast->type) {
-        error(
-            ast->firstSourceLocation(),
-            std::format("invalid operands to binary expression ('{}' and '{}')",
-                        to_string(ast->leftExpression->type),
-                        to_string(ast->rightExpression->type)));
-        break;
-      }
-      if (!check_arithmetic_operands(ast)) break;
-      if (ast->op == TokenKind::T_PERCENT) (void)check_integral_operands(ast);
-      break;
-
     case TokenKind::T_PLUS:
-      if (resolve_binary_overload(ast)) break;
-      check_addition(ast);
-      break;
-
     case TokenKind::T_MINUS:
-      if (resolve_binary_overload(ast)) break;
-      check_subtraction(ast);
-      break;
-
     case TokenKind::T_LESS_LESS:
     case TokenKind::T_GREATER_GREATER:
-      check_shift(ast);
+    case TokenKind::T_AMP:
+    case TokenKind::T_CARET:
+    case TokenKind::T_BAR:
+      if (resolve_binary_overload(ast)) break;
+      if (!convert_class_operands_for_builtin(ast)) break;
+      ast->type = check_builtin_operands(ast->op, ast->leftExpression,
+                                         ast->rightExpression, ast->opLoc);
       break;
 
     case TokenKind::T_LESS_EQUAL_GREATER:
@@ -6313,24 +6501,6 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
     case TokenKind::T_EQUAL_EQUAL:
     case TokenKind::T_EXCLAIM_EQUAL:
       check_equality(ast);
-      break;
-
-    case TokenKind::T_AMP:
-    case TokenKind::T_CARET:
-    case TokenKind::T_BAR:
-      if (resolve_binary_overload(ast)) break;
-      if (!convert_class_operands_for_builtin(ast)) break;
-      ast->type = stdconv_.usualArithmeticConversion(ast->leftExpression,
-                                                     ast->rightExpression);
-      if (!ast->type) {
-        error(
-            ast->firstSourceLocation(),
-            std::format("invalid operands to binary expression ('{}' and '{}')",
-                        to_string(ast->leftExpression->type),
-                        to_string(ast->rightExpression->type)));
-        break;
-      }
-      (void)check_integral_operands(ast);
       break;
 
     case TokenKind::T_AMP_AMP:
@@ -6394,8 +6564,19 @@ struct TypeChecker::Visitor::CheckConditionalExpression {
   [[nodiscard]] auto hasOperands() -> bool;
   [[nodiscard]] auto isDependent() -> bool;
   [[nodiscard]] auto checkVectorCondition() -> bool;
+  [[nodiscard]] auto vectorCondition() -> const VectorType*;
+  [[nodiscard]] auto vectorConditionalResultType(const VectorType* condition)
+      -> const VectorType*;
+  [[nodiscard]] auto scalarVectorConditionalResultType(
+      const VectorType* condition) -> const VectorType*;
+  [[nodiscard]] auto checkVectorConditionalShape(const VectorType* condition,
+                                                 const VectorType* result)
+      -> bool;
+  void reportInvalidOperands();
   [[nodiscard]] auto checkVoidOperand() -> bool;
   [[nodiscard]] auto checkSameTypeAndValueCategory() -> bool;
+  [[nodiscard]] static auto designatesVectorElement(ExpressionAST* operand)
+      -> bool;
   void convertClassOperandsToBuiltinTypes();
   [[nodiscard]] auto checkArithmeticOperands() -> bool;
   [[nodiscard]] auto checkSameTypes() -> bool;
@@ -6449,6 +6630,12 @@ void TypeChecker::Visitor::CheckConditionalExpression::operator()() {
   reportMismatchedOperands();
 }
 
+auto TypeChecker::Visitor::CheckConditionalExpression::designatesVectorElement(
+    ExpressionAST* operand) -> bool {
+  return StandardConversion::nonAddressableDesignation(operand) ==
+         NonAddressableDesignation::kVectorElement;
+}
+
 auto TypeChecker::Visitor::CheckConditionalExpression::hasOperands() -> bool {
   if (!ast->condition) {
     visitor.error(ast->firstSourceLocation(),
@@ -6484,23 +6671,141 @@ auto TypeChecker::Visitor::CheckConditionalExpression::isDependent() -> bool {
 
 auto TypeChecker::Visitor::CheckConditionalExpression::checkVectorCondition()
     -> bool {
-  if (!traits.is_vector(ast->condition->type)) return false;
+  auto condition = vectorCondition();
+  if (!condition) return false;
 
-  auto common = stdconv.usualArithmeticConversion(ast->iftrueExpression,
-                                                  ast->iffalseExpression);
-  if (!common || !traits.is_vector(common)) {
-    visitor.error(ast->questionLoc,
-                  std::format("invalid operands to the conditional operator "
-                              "('{}' and '{}')",
-                              to_string(ast->iftrueExpression->type),
-                              to_string(ast->iffalseExpression->type)));
+  if (!ast->iftrueExpression->type || !ast->iffalseExpression->type)
     return true;
-  }
 
-  ast->type = common;
+  stdconv.prepareOperand(ast->condition);
+
+  auto result = vectorConditionalResultType(condition);
+  if (!result) return true;
+
+  if (!checkVectorConditionalShape(condition, result)) return true;
+
+  ast->type = result;
   ast->valueCategory = ValueCategory::kPrValue;
 
   return true;
+}
+
+auto TypeChecker::Visitor::CheckConditionalExpression::vectorCondition()
+    -> const VectorType* {
+  auto vector = unqualified_cast<VectorType>(ast->condition->type);
+  if (!vector) return nullptr;
+  if (!traits.is_integral(vector->elementType())) return nullptr;
+  if (visitor.isC() && vector->vectorKind() != VectorKind::kExt) return nullptr;
+  return vector;
+}
+
+auto TypeChecker::Visitor::CheckConditionalExpression::
+    vectorConditionalResultType(const VectorType* condition)
+        -> const VectorType* {
+  auto& left = ast->iftrueExpression;
+  auto& right = ast->iffalseExpression;
+
+  stdconv.prepareOperand(left);
+  stdconv.prepareOperand(right);
+
+  if (traits.is_enum(left->type) || traits.is_enum(right->type)) {
+    reportInvalidOperands();
+    return nullptr;
+  }
+
+  auto leftVector = unqualified_cast<VectorType>(left->type);
+  auto rightVector = unqualified_cast<VectorType>(right->type);
+
+  if (!leftVector && !rightVector)
+    return scalarVectorConditionalResultType(condition);
+
+  if (leftVector && rightVector) {
+    if (!traits.is_same(leftVector, rightVector)) {
+      reportInvalidOperands();
+      return nullptr;
+    }
+    return leftVector;
+  }
+
+  auto converted = stdconv.vectorOperandConversion(left, right);
+  if (!converted || !*converted) {
+    reportInvalidOperands();
+    return nullptr;
+  }
+  return unqualified_cast<VectorType>(*converted);
+}
+
+auto TypeChecker::Visitor::CheckConditionalExpression::
+    scalarVectorConditionalResultType(const VectorType* condition)
+        -> const VectorType* {
+  auto& left = ast->iftrueExpression;
+  auto& right = ast->iffalseExpression;
+
+  auto element = traits.remove_cv(left->type);
+  if (!traits.is_same(element, traits.remove_cv(right->type)))
+    element = stdconv.usualArithmeticConversion(left, right);
+
+  if (!element ||
+      !traits.is_vector_element_type(element, condition->vectorKind())) {
+    reportInvalidOperands();
+    return nullptr;
+  }
+
+  auto result = visitor.control()->getVectorType(
+      element, condition->elementCount(), condition->vectorKind());
+
+  if (!stdconv.splatOperand(left, result) ||
+      !stdconv.splatOperand(right, result)) {
+    reportInvalidOperands();
+    return nullptr;
+  }
+
+  return result;
+}
+
+auto TypeChecker::Visitor::CheckConditionalExpression::
+    checkVectorConditionalShape(const VectorType* condition,
+                                const VectorType* result) -> bool {
+  if (condition->vectorKind() != result->vectorKind()) {
+    visitor.error(
+        ast->questionLoc,
+        std::format("vector condition '{}' and result '{}' are "
+                    "different kinds of vector",
+                    to_string(ast->condition->type), to_string(result)));
+    return false;
+  }
+
+  if (condition->elementCount() != result->elementCount()) {
+    visitor.error(
+        ast->questionLoc,
+        std::format("vector condition '{}' and result '{}' have "
+                    "different numbers of elements",
+                    to_string(ast->condition->type), to_string(result)));
+    return false;
+  }
+
+  if (traits.is_bool(condition->elementType())) return true;
+
+  auto layout = visitor.control()->memoryLayout();
+  if (layout->sizeOf(condition->elementType()) !=
+      layout->sizeOf(result->elementType())) {
+    visitor.error(
+        ast->questionLoc,
+        std::format("vector condition '{}' and result '{}' have "
+                    "elements of different sizes",
+                    to_string(ast->condition->type), to_string(result)));
+    return false;
+  }
+
+  return true;
+}
+
+void TypeChecker::Visitor::CheckConditionalExpression::reportInvalidOperands() {
+  visitor.error(ast->questionLoc,
+                std::format("invalid operands to the conditional operator "
+                            "('{}' and '{}')",
+                            to_string(ast->iftrueExpression->type),
+                            to_string(ast->iffalseExpression->type)));
 }
 
 auto TypeChecker::Visitor::CheckConditionalExpression::checkVoidOperand()
@@ -6611,6 +6916,10 @@ auto TypeChecker::Visitor::CheckConditionalExpression::
     checkSameTypeAndValueCategory() -> bool {
   if (ast->iftrueExpression->valueCategory !=
       ast->iffalseExpression->valueCategory)
+    return false;
+
+  if (designatesVectorElement(ast->iftrueExpression) ||
+      designatesVectorElement(ast->iffalseExpression))
     return false;
 
   if (!traits.is_same(traits.remove_cv(ast->iftrueExpression->type),
@@ -6784,11 +7093,8 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
     if (!braced->type) return;
   }
 
-  if (!is_lvalue(ast->leftExpression)) {
-    error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
-                                  to_string(ast->leftExpression->type)));
+  if (!check_modifiable_lvalue(ast->leftExpression, ast->opLoc, "assign to"))
     return;
-  }
 
   ast->type = ast->leftExpression->type;
 
@@ -6797,6 +7103,8 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
   } else {
     ast->valueCategory = ast->leftExpression->valueCategory;
   }
+
+  if (braced) return;
 
   if (!implicit_conversion(ast->rightExpression, ast->type)) {
     if (!ast->rightExpression->type) return;
@@ -6862,11 +7170,8 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
     (void)stdconv_.convertClassTargetForBuiltinCompoundAssignment(
         ast->targetExpression);
 
-  if (!is_lvalue(ast->targetExpression)) {
-    error(ast->opLoc, std::format("cannot assign to an rvalue of type '{}'",
-                                  to_string(ast->targetExpression->type)));
+  if (!check_modifiable_lvalue(ast->targetExpression, ast->opLoc, "assign to"))
     return;
-  }
 
   if (traits.is_class_or_union(ast->rightExpression->type))
     (void)stdconv_.convertClassOperandForBuiltinOperator(ast->rightExpression);
@@ -6881,51 +7186,16 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
     ast->valueCategory = ValueCategory::kPrValue;
   }
 
-  if ((ast->op == TokenKind::T_PLUS_EQUAL ||
-       ast->op == TokenKind::T_MINUS_EQUAL) &&
-      traits.is_pointer(ast->targetExpression->type) &&
-      traits.is_integral_or_unscoped_enum(ast->rightExpression->type)) {
-    stdconv_.prepareOperand(ast->leftExpression);
+  auto resultType = check_builtin_operands(ast->op, ast->leftExpression,
+                                           ast->rightExpression, ast->opLoc);
+  if (!resultType) return;
 
-    stdconv_.promoteOperand(ast->rightExpression);
-
-    if (ast->adjustExpression) {
-      ast->adjustExpression->type = ast->leftExpression->type;
-
-      (void)implicit_conversion(ast->adjustExpression, ast->type);
-    }
-
-    return;
-  }
-
-  if (ast->op == TokenKind::T_LESS_LESS_EQUAL ||
-      ast->op == TokenKind::T_GREATER_GREATER_EQUAL) {
-    stdconv_.promoteOperand(ast->leftExpression);
-    stdconv_.promoteOperand(ast->rightExpression);
-    if (ast->adjustExpression) {
-      ast->adjustExpression->type = ast->leftExpression->type;
-      (void)implicit_conversion(ast->adjustExpression, ast->type);
-    }
-    return;
-  }
-
-  auto commonType = stdconv_.usualArithmeticConversion(ast->leftExpression,
-                                                       ast->rightExpression);
-
-  if (!commonType) {
-    error(
-        ast->opLoc,
-        std::format("invalid compound assignment operator '{}' for types '{}' "
-                    "and '{}'",
-                    Token::spell(ast->op), to_string(ast->leftExpression->type),
-                    to_string(ast->rightExpression->type)));
-    return;
-  }
-
-  if (ast->adjustExpression) {
-    ast->adjustExpression->type = commonType;
-
-    (void)implicit_conversion(ast->adjustExpression, ast->type);
+  if (!ast->adjustExpression) return;
+  ast->adjustExpression->type = resultType;
+  if (!implicit_conversion(ast->adjustExpression, ast->type)) {
+    error(ast->opLoc,
+          std::format("assigning to '{}' from incompatible type '{}'",
+                      to_string(ast->type), to_string(resultType)));
   }
 }
 
@@ -7196,6 +7466,12 @@ void TypeChecker::operator()(ExpressionAST** ast) { check(ast); }
 void TypeChecker::check(ExpressionAST** ast) {
   if (!ast || !*ast) return;
   visit(Visitor{*this}, *ast);
+  if (auto layout = unit_->control()->memoryLayout();
+      layout && layout->deviceProfile() == DeviceProfile::kVulkan11F32 &&
+      unit_->typeTraits().is_volatile((*ast)->type))
+    unit_->error((*ast)->firstSourceLocation(),
+                 "volatile-qualified expressions are not supported by the "
+                 "device profile");
   if (unit_->isPotentiallyEvaluated() && is_prvalue(*ast))
     unit_->typeTraits().requireCompleteClass((*ast)->type);
   evaluateImmediateInvocation(ast);
@@ -8177,94 +8453,36 @@ auto TypeChecker::Visitor::convert_class_operands_for_builtin(
   return false;
 }
 
-void TypeChecker::Visitor::check_addition(BinaryExpressionAST* ast) {
-  if (!convert_class_operands_for_builtin(ast)) return;
-
-  if (auto ty = stdconv_.usualArithmeticConversion(ast->leftExpression,
-                                                   ast->rightExpression)) {
-    ast->type = ty;
-    (void)check_arithmetic_operands(ast);
-    return;
-  }
-
-  const auto left_is_pointer = traits.is_pointer(ast->leftExpression->type);
-
-  const auto right_is_pointer = traits.is_pointer(ast->rightExpression->type);
-
-  const auto left_is_integral =
-      traits.is_integral_or_unscoped_enum(ast->leftExpression->type);
-
-  const auto right_is_integral =
-      traits.is_integral_or_unscoped_enum(ast->rightExpression->type);
-
-  if (left_is_pointer && right_is_integral) {
-    stdconv_.promoteOperand(ast->rightExpression);
-    ast->type = ast->leftExpression->type;
-    return;
-  }
-
-  if (right_is_pointer && left_is_integral) {
-    stdconv_.promoteOperand(ast->leftExpression);
-    ast->type = ast->rightExpression->type;
-    return;
-  }
-
-  error(ast->opLoc,
-        std::format(
-            "invalid operands of types '{}' and '{}' to binary operator '+'",
-            to_string(ast->leftExpression->type),
-            to_string(ast->rightExpression->type)));
+auto TypeChecker::Visitor::is_modifiable_lvalue(ExpressionAST* expr) -> bool {
+  auto type = expr->type;
+  if (traits.is_const(type) || traits.is_function(type)) return false;
+  if (isDeviceConstantStorage(type)) return false;
+  if (!isC()) return true;
+  if (traits.is_array(type)) return false;
+  return !traits.has_const_member(type);
 }
 
-void TypeChecker::Visitor::check_subtraction(BinaryExpressionAST* ast) {
-  if (!convert_class_operands_for_builtin(ast)) return;
+auto TypeChecker::Visitor::isDeviceConstantStorage(const Type* type) -> bool {
+  return control()->memoryLayout()->deviceProfile() ==
+             DeviceProfile::kVulkan11F32 &&
+         address_space(type) == kConstantAddressSpace;
+}
 
-  if (auto ty = stdconv_.usualArithmeticConversion(ast->leftExpression,
-                                                   ast->rightExpression)) {
-    ast->type = ty;
-    (void)check_arithmetic_operands(ast);
-    return;
+auto TypeChecker::Visitor::check_modifiable_lvalue(ExpressionAST* expr,
+                                                   SourceLocation loc,
+                                                   std::string_view action)
+    -> bool {
+  if (!is_lvalue(expr)) {
+    error(loc, std::format("cannot {} an rvalue of type '{}'", action,
+                           to_string(expr->type)));
+    return false;
   }
-
-  auto check_operand_types = [&]() {
-    if (!traits.is_pointer(ast->leftExpression->type)) return false;
-
-    if (!traits.is_arithmetic_or_unscoped_enum(ast->rightExpression->type) &&
-        !traits.is_pointer(ast->rightExpression->type))
-      return false;
-
-    return true;
-  };
-
-  if (!check_operand_types()) {
-    error(ast->opLoc,
-          std::format("invalid operands to binary expression '{}' and '{}'",
-                      to_string(ast->leftExpression->type),
-                      to_string(ast->rightExpression->type)));
-    return;
+  if (!is_modifiable_lvalue(expr)) {
+    error(loc, std::format("cannot {} a non-modifiable lvalue of type '{}'",
+                           action, to_string(expr->type)));
+    return false;
   }
-
-  if (traits.is_pointer(ast->rightExpression->type)) {
-    auto leftElementType =
-        traits.remove_cv(traits.get_element_type(ast->leftExpression->type));
-
-    auto rightElementType =
-        traits.remove_cv(traits.get_element_type(ast->rightExpression->type));
-
-    if (traits.is_same(leftElementType, rightElementType)) {
-      ast->type = control()->getLongIntType();
-    } else {
-      error(ast->opLoc,
-            std::format("'{}' and '{}' are not pointers to compatible types",
-                        to_string(ast->leftExpression->type),
-                        to_string(ast->rightExpression->type)));
-    }
-
-    return;
-  }
-
-  stdconv_.promoteOperand(ast->rightExpression);
-  ast->type = ast->leftExpression->type;
+  return true;
 }
 
 void TypeChecker::Visitor::check_prefix_increment_decrement(
@@ -8275,28 +8493,22 @@ void TypeChecker::Visitor::check_prefix_increment_decrement(
     return;
   }
 
-  if (!is_glvalue(ast->expression)) {
-    error(ast->opLoc, std::format("cannot {} an rvalue of type '{}'", action,
-                                  to_string(ast->expression->type)));
+  if (!check_modifiable_lvalue(ast->expression, ast->opLoc, action)) return;
+
+  auto ty = traits.remove_atomic(ast->expression->type);
+
+  if (isCxx() ? traits.is_arithmetic(ty)
+              : traits.is_arithmetic_or_unscoped_enum(ty)) {
+    ast->type = ty;
+    ast->valueCategory = ValueCategory::kLValue;
     return;
   }
 
-  if (!traits.is_const(ast->expression->type)) {
-    auto ty = traits.remove_atomic(ast->expression->type);
-
-    if (isCxx() ? traits.is_arithmetic(ty)
-                : traits.is_arithmetic_or_unscoped_enum(ty)) {
-      ast->type = ty;
+  if (auto ptrTy = unqualified_cast<PointerType>(ty)) {
+    if (!traits.is_void(ptrTy->elementType())) {
+      ast->type = ptrTy;
       ast->valueCategory = ValueCategory::kLValue;
       return;
-    }
-
-    if (auto ptrTy = unqualified_cast<PointerType>(ty)) {
-      if (!traits.is_void(ptrTy->elementType())) {
-        ast->type = ptrTy;
-        ast->valueCategory = ValueCategory::kLValue;
-        return;
-      }
     }
   }
 

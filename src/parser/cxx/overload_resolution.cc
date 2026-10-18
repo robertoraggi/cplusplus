@@ -40,6 +40,14 @@
 #include <span>
 
 namespace cxx {
+
+auto failedArgumentConversion(ExpressionAST* argument, const Type* destination,
+                              std::size_t argumentIndex)
+    -> FailedArgumentConversion {
+  return {argument->type, destination, argumentIndex,
+          ast_cast<BracedInitListAST>(argument) != nullptr};
+}
+
 namespace {
 struct CandidateRejectionPrinter {
   [[nodiscard]] auto operator()(const std::string& reason) const
@@ -57,6 +65,10 @@ struct CandidateRejectionPrinter {
 
   [[nodiscard]] auto operator()(const FailedArgumentConversion& reason) const
       -> std::string {
+    if (reason.fromInitializerList)
+      return std::format(
+          "no known conversion from initializer list to '{}' for argument {}",
+          to_string(reason.destination), reason.argumentIndex + 1);
     return std::format("no known conversion from '{}' to '{}' for argument {}",
                        to_string(reason.source), to_string(reason.destination),
                        reason.argumentIndex + 1);
@@ -513,8 +525,26 @@ auto OverloadResolution::selectListConstructor(
     }
   }
 
+  if (auto element = sameClassPrvalueElement(classSymbol, elements)) {
+    ConstructorResult result;
+    result.initializingElement = element;
+    return result;
+  }
+
   return resolveConstructor(classSymbol, elements, listInitializationKind,
                             false);
+}
+
+auto OverloadResolution::sameClassPrvalueElement(
+    ClassSymbol* classSymbol, const std::vector<ExpressionAST*>& elements)
+    -> ExpressionAST* {
+  if (elements.size() != 1) return nullptr;
+  auto element = elements.front();
+  if (!element || !element->type || !is_prvalue(element)) return nullptr;
+  if (ast_cast<DesignatedInitializerClauseAST>(element)) return nullptr;
+  if (!traits.is_same(traits.remove_cv(element->type), classSymbol->type()))
+    return nullptr;
+  return element;
 }
 
 auto OverloadResolution::resolveConstructor(
@@ -661,7 +691,7 @@ auto OverloadResolution::resolveConstructor(
               : ConversionContext::kImplicit);
       if (!conv) {
         cand.viable = false;
-        reject(ctor, FailedArgumentConversion{args[i]->type, *paramIt, i});
+        reject(ctor, failedArgumentConversion(args[i], *paramIt, i));
         break;
       }
       cand.conversions.push_back(conv);
@@ -763,8 +793,8 @@ auto OverloadResolution::buildCallCandidate(
   for (int i = 0; i < argCount && paramIt != paramEnd; ++i, ++paramIt) {
     auto conv = computeImplicitConversionSequence(args[i], *paramIt);
     if (!conv) {
-      reject(FailedArgumentConversion{args[i]->type, *paramIt,
-                                      static_cast<std::size_t>(i)});
+      reject(failedArgumentConversion(args[i], *paramIt,
+                                      static_cast<std::size_t>(i)));
       return std::nullopt;
     }
     cand.conversions.push_back(conv);

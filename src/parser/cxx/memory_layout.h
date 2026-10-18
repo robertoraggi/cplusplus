@@ -32,6 +32,10 @@
 
 namespace cxx {
 
+enum class DeviceProfile { kNone, kVulkan11F32 };
+
+[[nodiscard]] auto to_string(DeviceProfile profile) -> std::string_view;
+
 enum class ClassValueAbiKind {
   kDefault,
   kSingleScalar,
@@ -63,7 +67,14 @@ struct FloatingPointFormat {
 class MemoryLayout {
  public:
   explicit MemoryLayout(std::size_t bits);
+  explicit MemoryLayout(const Triple& triple);
   ~MemoryLayout();
+
+  [[nodiscard]] auto deviceProfile() const -> DeviceProfile {
+    return deviceProfile_;
+  }
+
+  void setDeviceProfile(DeviceProfile profile) { deviceProfile_ = profile; }
 
   [[nodiscard]] auto bits() const -> std::size_t;
   [[nodiscard]] auto sizeOfSizeType() const -> std::size_t;
@@ -90,15 +101,24 @@ class MemoryLayout {
   [[nodiscard]] auto alignmentOf(const Type* type) const
       -> std::optional<std::size_t>;
 
+  [[nodiscard]] auto variableAlignmentOf(const Type* type) const
+      -> std::optional<std::size_t>;
+
+  [[nodiscard]] auto largeArrayMinSize() const -> std::size_t;
+  [[nodiscard]] auto largeArrayAlignment() const -> std::size_t;
+
   [[nodiscard]] auto floatingPointFormat(const Type* type) const
       -> std::optional<FloatingPointFormat>;
 
   [[nodiscard]] auto triple() const -> const std::string&;
+  [[nodiscard]] auto targetDataLayout() const
+      -> std::optional<std::string_view>;
   [[nodiscard]] auto arch() const -> std::string_view;
   [[nodiscard]] auto targetArch() const -> TripleArch;
   [[nodiscard]] auto isAArch64() const -> bool;
   [[nodiscard]] auto isX86_64() const -> bool;
   [[nodiscard]] auto isWebAssembly() const -> bool;
+  [[nodiscard]] auto isSPIRV() const -> bool;
   [[nodiscard]] auto isDarwin() const -> bool;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
   [[nodiscard]] auto zeroWidthBitFieldAlignsAggregate() const -> bool;
@@ -139,6 +159,7 @@ class MemoryLayout {
   bool wideCharIsSigned_ = true;
   std::size_t defaultNewAlignment_ = 16;
   std::string triple_;
+  DeviceProfile deviceProfile_ = DeviceProfile::kNone;
   PositionIndependence positionIndependence_;
 };
 

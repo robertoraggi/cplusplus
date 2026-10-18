@@ -460,6 +460,7 @@ class ClientDiagnosticsTagOptions;
 class ClientSemanticTokensRequestFullDelta;
 class EmitCodeParams;
 class EmitCodeResult;
+class EmitCodeKernel;
 // requests
 class ImplementationRequest;
 class ImplementationResponse;

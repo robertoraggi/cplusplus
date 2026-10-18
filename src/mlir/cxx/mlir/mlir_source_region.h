@@ -82,4 +82,4 @@ void finalizeSourceLoop(const SourceLoopPlan& plan,
 
 void finalizeSourceIf(const SourceIfPlan& plan,
                       mlir::RewriterBase::Listener* listener = nullptr);
-}
+}  // namespace cxx::ir

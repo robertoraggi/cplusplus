@@ -33,6 +33,8 @@ const workspacePath = path.resolve(__dirname, "..");
 $.cwd = workspacePath;
 $.quiet = true;
 
+const defaultStackSize = 16 * 1024 * 1024;
+
 const usage = `
 Usage: node scripts/bootstrap.js [options] [-- extra cxx args]
 
@@ -57,7 +59,7 @@ Options:
   --std=<std>           language standard (default: c++26)
   --opt=<flag>          optimization flag (default: -O3, or -O0 with --debug)
   --jobs=<n>            parallel compile jobs (default: number of cpus)
-  --stack-size=<bytes>  wasm linker stack size (default: 131072)
+  --stack-size=<bytes>  wasm linker stack size (default: ${defaultStackSize})
   --only=<substring>    compile only the sources whose path contains <substring>
   --check=<source>      source to syntax check (default: #include <iostream>)
   --clean               remove the build directory before compiling
@@ -104,7 +106,7 @@ const std = String(argv.std ?? "c++26");
 const debugInfo = Boolean(argv.debug);
 const opt = String(argv.opt ?? (debugInfo ? "-O0" : "-O3"));
 const jobs = Number(argv.jobs ?? availableParallelism());
-const stackSize = Number(argv["stack-size"] ?? 128 * 1024);
+const stackSize = Number(argv["stack-size"] ?? defaultStackSize);
 const syntaxOnly = Boolean(argv["syntax-only"]);
 const extraArgs = argv._.map(String);
 

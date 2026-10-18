@@ -27,9 +27,15 @@
 #include <cstdlib>
 #include <limits>
 #include <optional>
+#include <utility>
 
 namespace cxx {
 namespace {
+
+[[nodiscard]] auto pointerBits(TripleArch arch) -> std::size_t {
+  if (arch == TripleArch::kWasm32 || arch == TripleArch::kSPIRV32) return 32;
+  return 64;
+}
 
 struct FloatingPointFormatOf {
   const MemoryLayout& memoryLayout;
@@ -543,6 +549,27 @@ MemoryLayout::MemoryLayout(std::size_t bits) : bits_(bits) {
 
 MemoryLayout::~MemoryLayout() = default;
 
+auto to_string(DeviceProfile profile) -> std::string_view {
+  switch (profile) {
+    case DeviceProfile::kNone:
+      return "none";
+    case DeviceProfile::kVulkan11F32:
+      return "vulkan1.1-f32/as1-device-as2-constant/index32/v2";
+  }
+  std::unreachable();
+}
+
+MemoryLayout::MemoryLayout(const Triple& triple)
+    : MemoryLayout(pointerBits(triple.arch())) {
+  setTriple(triple.str());
+  if (isSPIRV()) {
+    setSizeOfLong(8);
+    setSizeOfLongLong(8);
+    setSizeOfLongDouble(8, 53);
+    setDefaultNewAlignment(8);
+  }
+}
+
 auto MemoryLayout::bits() const -> std::size_t { return bits_; }
 
 auto MemoryLayout::sizeOfSizeType() const -> std::size_t {
@@ -614,6 +641,31 @@ auto MemoryLayout::alignmentOf(const Type* type) const
     -> std::optional<std::size_t> {
   if (!type) return std::nullopt;
   return visit(AlignmentOf{*this}, type);
+}
+
+auto MemoryLayout::variableAlignmentOf(const Type* type) const
+    -> std::optional<std::size_t> {
+  if (auto vla = unqualified_cast<UnresolvedBoundedArrayType>(type)) {
+    auto alignment = variableAlignmentOf(vla->elementType());
+    if (!alignment) return std::nullopt;
+    return std::max(*alignment, largeArrayAlignment());
+  }
+  auto alignment = alignmentOf(type);
+  if (!alignment || !largeArrayMinSize()) return alignment;
+  if (!unqualified_cast<BoundedArrayType>(type)) return alignment;
+  auto size = sizeOf(type);
+  if (!size || *size < largeArrayMinSize()) return alignment;
+  return std::max(*alignment, largeArrayAlignment());
+}
+
+auto MemoryLayout::largeArrayMinSize() const -> std::size_t {
+  if (isX86_64() || isWebAssembly()) return 16;
+  return 0;
+}
+
+auto MemoryLayout::largeArrayAlignment() const -> std::size_t {
+  if (isX86_64() || isWebAssembly()) return 16;
+  return 0;
 }
 
 auto MemoryLayout::floatingPointFormat(const Type* type) const
@@ -722,6 +774,24 @@ auto MemoryLayout::isX86_64() const -> bool {
 
 auto MemoryLayout::isWebAssembly() const -> bool {
   return arch().starts_with("wasm");
+}
+
+auto MemoryLayout::targetDataLayout() const -> std::optional<std::string_view> {
+  switch (targetArch()) {
+    case TripleArch::kSPIRV32:
+      return "e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-"
+             "v256:256-v512:512-v1024:1024-n8:16:32:64-G1";
+    case TripleArch::kSPIRV64:
+      return "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-"
+             "v512:512-v1024:1024-n8:16:32:64-G1";
+    default:
+      return std::nullopt;
+  }
+}
+
+auto MemoryLayout::isSPIRV() const -> bool {
+  auto target = targetArch();
+  return target == TripleArch::kSPIRV32 || target == TripleArch::kSPIRV64;
 }
 
 auto MemoryLayout::isDarwin() const -> bool {

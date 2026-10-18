@@ -66,6 +66,8 @@ inline auto toVal(cxx::ir::Initializer::Kind value) -> val {
       return val("Bytes");
     case cxx::ir::Initializer::Kind::Aggregate:
       return val("Aggregate");
+    case cxx::ir::Initializer::Kind::Vector:
+      return val("Vector");
     case cxx::ir::Initializer::Kind::Null:
       return val("Null");
     case cxx::ir::Initializer::Kind::Zero:
@@ -89,6 +91,7 @@ inline auto toEnum<cxx::ir::Initializer::Kind>(const val& value)
   if (name == "Floating") return cxx::ir::Initializer::Kind::Floating;
   if (name == "Bytes") return cxx::ir::Initializer::Kind::Bytes;
   if (name == "Aggregate") return cxx::ir::Initializer::Kind::Aggregate;
+  if (name == "Vector") return cxx::ir::Initializer::Kind::Vector;
   if (name == "Null") return cxx::ir::Initializer::Kind::Null;
   if (name == "Zero") return cxx::ir::Initializer::Kind::Zero;
   if (name == "ScalarZero") return cxx::ir::Initializer::Kind::ScalarZero;
@@ -428,6 +431,8 @@ inline auto toVal(cxx::ir::TypeKind value) -> val {
       return val("Pointer");
     case cxx::ir::TypeKind::Array:
       return val("Array");
+    case cxx::ir::TypeKind::Vector:
+      return val("Vector");
     case cxx::ir::TypeKind::Class:
       return val("Class");
     case cxx::ir::TypeKind::Function:
@@ -448,6 +453,7 @@ inline auto toEnum<cxx::ir::TypeKind>(const val& value) -> cxx::ir::TypeKind {
   if (name == "Floating") return cxx::ir::TypeKind::Floating;
   if (name == "Pointer") return cxx::ir::TypeKind::Pointer;
   if (name == "Array") return cxx::ir::TypeKind::Array;
+  if (name == "Vector") return cxx::ir::TypeKind::Vector;
   if (name == "Class") return cxx::ir::TypeKind::Class;
   if (name == "Function") return cxx::ir::TypeKind::Function;
   if (name == "Unresolved") return cxx::ir::TypeKind::Unresolved;
@@ -564,6 +570,47 @@ inline auto toEnum<cxx::ir::InlineKind>(const val& value)
   return cxx::ir::InlineKind{};
 }
 
+inline auto toVal(cxx::ir::KernelBufferKind value) -> val {
+  switch (value) {
+    case cxx::ir::KernelBufferKind::Storage:
+      return val("Storage");
+    case cxx::ir::KernelBufferKind::Uniform:
+      return val("Uniform");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::KernelBufferKind>(const val& value)
+    -> cxx::ir::KernelBufferKind {
+  const auto name = toString(value);
+  if (name == "Storage") return cxx::ir::KernelBufferKind::Storage;
+  if (name == "Uniform") return cxx::ir::KernelBufferKind::Uniform;
+  return cxx::ir::KernelBufferKind{};
+}
+
+inline auto toVal(cxx::ir::KernelInvocationIdKind value) -> val {
+  switch (value) {
+    case cxx::ir::KernelInvocationIdKind::Global:
+      return val("Global");
+    case cxx::ir::KernelInvocationIdKind::Local:
+      return val("Local");
+    case cxx::ir::KernelInvocationIdKind::Workgroup:
+      return val("Workgroup");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::KernelInvocationIdKind>(const val& value)
+    -> cxx::ir::KernelInvocationIdKind {
+  const auto name = toString(value);
+  if (name == "Global") return cxx::ir::KernelInvocationIdKind::Global;
+  if (name == "Local") return cxx::ir::KernelInvocationIdKind::Local;
+  if (name == "Workgroup") return cxx::ir::KernelInvocationIdKind::Workgroup;
+  return cxx::ir::KernelInvocationIdKind{};
+}
+
 inline auto toVal(cxx::ir::DebugEncoding value) -> val {
   switch (value) {
     case cxx::ir::DebugEncoding::Unspecified:
@@ -674,6 +721,9 @@ auto toVal(const cxx::ir::BitfieldInfo& value) -> val;
 auto toVal(const cxx::ir::CallInfo& value) -> val;
 auto toVal(const cxx::ir::ParameterAbi& value) -> val;
 auto toVal(const cxx::ir::FunctionInfo& value) -> val;
+auto toVal(const cxx::ir::KernelInfo& value) -> val;
+auto toVal(const cxx::ir::KernelBufferInfo& value) -> val;
+auto toVal(const cxx::ir::KernelInvocationIdInfo& value) -> val;
 auto toVal(const cxx::ir::GlobalInfo& value) -> val;
 auto toVal(const cxx::ir::DebugCompileUnitInfo& value) -> val;
 auto toVal(const cxx::ir::DebugLocation& value) -> val;
@@ -755,9 +805,11 @@ inline auto toVal(const cxx::ir::ModuleInfo& value) -> val {
   result.set("name", toVal(value.name));
   result.set("sourceFile", toVal(value.sourceFile));
   result.set("targetTriple", toVal(value.targetTriple));
+  result.set("dataLayout", toVal(value.dataLayout));
   result.set("debugCompilationDirectory",
              toVal(value.debugCompilationDirectory));
   result.set("framePointer", toVal(value.framePointer));
+  result.set("deviceProfile", toVal(value.deviceProfile));
   result.set("picLevel", toVal(value.picLevel));
   result.set("pieLevel", toVal(value.pieLevel));
   return result;
@@ -853,6 +905,45 @@ inline auto toVal(const cxx::ir::FunctionInfo& value) -> val {
   result.set("resultAbi", toVal(value.resultAbi));
   result.set("section", toVal(value.section));
   result.set("callingConvention", toVal(value.callingConvention));
+  result.set("kernel",
+             optionalVal(value.kernel, [](const cxx::ir::KernelInfo& item) {
+               return toVal(item);
+             }));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::KernelInfo& value) -> val {
+  auto result = val::object();
+  result.set("x", toVal(value.x));
+  result.set("y", toVal(value.y));
+  result.set("z", toVal(value.z));
+  result.set("buffers",
+             arrayVal(value.buffers, [](const cxx::ir::KernelBufferInfo& item) {
+               return toVal(item);
+             }));
+  result.set("invocationIds",
+             arrayVal(value.invocationIds,
+                      [](const cxx::ir::KernelInvocationIdInfo& item) {
+                        return toVal(item);
+                      }));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::KernelBufferInfo& value) -> val {
+  auto result = val::object();
+  result.set("parameter", toVal(value.parameter));
+  result.set("name", toVal(value.name));
+  result.set("binding", toVal(value.binding));
+  result.set("kind", toVal(value.kind));
+  result.set("readOnly", toVal(value.readOnly));
+  result.set("unsignedElements", toVal(value.unsignedElements));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::KernelInvocationIdInfo& value) -> val {
+  auto result = val::object();
+  result.set("parameter", toVal(value.parameter));
+  result.set("kind", toVal(value.kind));
   return result;
 }
 
@@ -1376,6 +1467,39 @@ class JsEmitter final : public ir::Emitter {
         "vectorSplat", toVal(loc), toVal(vectorType), toVal(scalar)));
   }
 
+  auto vectorFromElements(cxx::SourceLocation loc, cxx::ir::TypeRef vectorType,
+                          std::span<const cxx::ir::ValueRef> elements)
+      -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(delegate_.call<val>(
+        "vectorFromElements", toVal(loc), toVal(vectorType),
+        arrayVal(elements,
+                 [](const cxx::ir::ValueRef& item) { return toVal(item); })));
+  }
+
+  auto vectorExtract(cxx::SourceLocation loc, cxx::ir::TypeRef elementType,
+                     cxx::ir::ValueRef vector, cxx::ir::ValueRef index,
+                     bool indexIsSigned) -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(
+        delegate_.call<val>("vectorExtract", toVal(loc), toVal(elementType),
+                            toVal(vector), toVal(index), toVal(indexIsSigned)));
+  }
+
+  auto vectorInsert(cxx::SourceLocation loc, cxx::ir::ValueRef vector,
+                    cxx::ir::ValueRef element, cxx::ir::ValueRef index,
+                    bool indexIsSigned) -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(delegate_.call<val>(
+        "vectorInsert", toVal(loc), toVal(vector), toVal(element), toVal(index),
+        toVal(indexIsSigned)));
+  }
+
+  auto vectorShuffle(cxx::SourceLocation loc, cxx::ir::ValueRef first,
+                     cxx::ir::ValueRef second, std::span<const long long> mask)
+      -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(delegate_.call<val>(
+        "vectorShuffle", toVal(loc), toVal(first), toVal(second),
+        arrayVal(mask, [](const long long& item) { return toVal(item); })));
+  }
+
   auto functionType(std::span<const cxx::ir::TypeRef> parameters,
                     std::span<const cxx::ir::TypeRef> results, bool isVariadic)
       -> cxx::ir::TypeRef override {
@@ -1514,6 +1638,19 @@ class JsEmitter final : public ir::Emitter {
               cxx::ir::ValueRef source, unsigned long long size) override {
     delegate_.call<val>("memcpy", toVal(loc), toVal(destination), toVal(source),
                         toVal(size));
+  }
+
+  void zeroInitialize(cxx::SourceLocation loc, cxx::ir::ValueRef address,
+                      cxx::ir::TypeRef objectType) override {
+    delegate_.call<val>("zeroInitialize", toVal(loc), toVal(address),
+                        toVal(objectType));
+  }
+
+  void copyObject(cxx::SourceLocation loc, cxx::ir::ValueRef destination,
+                  cxx::ir::ValueRef source,
+                  cxx::ir::TypeRef objectType) override {
+    delegate_.call<val>("copyObject", toVal(loc), toVal(destination),
+                        toVal(source), toVal(objectType));
   }
 
   void unreachable(cxx::SourceLocation loc) override {

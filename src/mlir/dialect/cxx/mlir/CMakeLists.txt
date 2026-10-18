@@ -15,7 +15,7 @@ target_sources(MLIRCxxOpsIncGen PRIVATE
     CxxOpsAttributes.cpp.inc
 )
 
-add_library(cxx-mlir-dialect cxx_dialect.cc)
+add_library(cxx-mlir-dialect cxx_dialect.cc kernel_contract.cc)
 
 target_compile_features(cxx-mlir-dialect PUBLIC cxx_std_23)
 
@@ -23,6 +23,7 @@ llvm_update_compile_flags(cxx-mlir-dialect)
 
 target_include_directories(cxx-mlir-dialect PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../..
+    ${PROJECT_SOURCE_DIR}/src/parser
     ${CMAKE_CURRENT_BINARY_DIR}/../..
     ${MLIR_INCLUDE_DIRS}
     ${LLVM_INCLUDE_DIRS}
@@ -30,13 +31,16 @@ target_include_directories(cxx-mlir-dialect PUBLIC
 
 mlir_target_link_libraries(cxx-mlir-dialect PUBLIC
     MLIRArithDialect
+    MLIRCallInterfaces
     MLIRControlFlowDialect
     MLIRDLTIDialect
     MLIRFuncDialect
     MLIRIR
     MLIRLLVMDialect
+    MLIRMemorySlotInterfaces
     MLIRPtrDialect
     MLIRSCFDialect
+    MLIRTransformUtils
     MLIRVectorDialect
 )
 

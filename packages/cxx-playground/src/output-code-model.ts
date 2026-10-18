@@ -2,11 +2,13 @@ import * as monaco from "monaco-editor"
 import { registerMlirLanguage } from "./lib/mlir-language"
 import { registerLlvmLanguage } from "./lib/llvm-language"
 import { registerAsmLanguage } from "./lib/asm-language"
+import { registerWgslLanguage } from "./lib/wgsl-language"
 import { getIRFoldingRanges } from "./lib/ir-folding"
 
 registerMlirLanguage()
 registerLlvmLanguage()
 registerAsmLanguage()
+registerWgslLanguage()
 
 for (const language of ["mlir", "llvm"]) {
   monaco.languages.registerFoldingRangeProvider(language, {

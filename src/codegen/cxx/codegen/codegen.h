@@ -304,10 +304,21 @@ class Codegen {
                                  ir::ValueRef initializedCount,
                                  ir::ValueRef elementCount);
   void emitLocalVariableInit(VariableSymbol* var, ExpressionAST* initializer);
-  void emitReferenceInit(VariableSymbol* var, ir::ValueRef local,
-                         ExpressionAST* initExpr, SourceLocation loc);
+  void emitReferenceInit(Symbol* reference, ir::ValueRef address,
+                         ExpressionAST* initExpr, SourceLocation loc,
+                         ir::GlobalRef staticStorage = {});
+  [[nodiscard]] auto emitsOnlyWhenReferenced(
+      Symbol* variable, const std::optional<ConstValue>& constantValue) -> bool;
+  [[nodiscard]] static auto referenceTemporaryLinkage(ir::Linkage ownerLinkage)
+      -> ir::Linkage;
+  [[nodiscard]] auto findOrCreateReferenceTemporary(
+      Symbol* reference, const Type* temporaryType, ir::GlobalRef storage,
+      std::size_t index, SourceLocation loc) -> ir::GlobalRef;
   void emitDesignatedInit(ir::ValueRef address, const Type* type,
                           DesignatedInitializerClauseAST* ast);
+  [[nodiscard]] auto emitVectorInitializer(const Type* type,
+                                           BracedInitListAST* ast)
+      -> ir::ValueRef;
   void emitBitFieldInit(SourceLocation loc, ir::ValueRef address,
                         FieldSymbol* field, ExpressionAST* init);
 
@@ -318,6 +329,19 @@ class Codegen {
     ClassLayout::MemberInfo info;
     FieldSymbol* field = nullptr;
   };
+  struct DynamicLane {
+    ir::ValueRef index;
+    bool isSigned = false;
+  };
+  using VectorLanes = std::variant<DynamicLane, std::vector<std::int64_t>>;
+  struct VectorElementAccess {
+    ir::ValueRef vectorAddress;
+    const Type* vectorType = nullptr;
+    std::uint64_t alignment = 0;
+    VectorLanes lanes;
+  };
+  using NonAddressableAccess =
+      std::variant<BitFieldAccess, VectorElementAccess>;
   [[nodiscard]] auto bitFieldAccess(ExpressionAST* expression)
       -> std::optional<BitFieldAccess>;
   [[nodiscard]] auto uncapturedStructuredBindingAlias(Symbol* symbol) const
@@ -406,6 +430,9 @@ class Codegen {
 
   [[nodiscard]] auto getAlignment(const Type* type) -> uint64_t;
   [[nodiscard]] auto getAlignment(VariableSymbol* var) -> uint64_t;
+  [[nodiscard]] auto getAlignment(FieldSymbol* field) -> uint64_t;
+  [[nodiscard]] auto variableAlignment(const Type* type, int explicitAlignment)
+      -> uint64_t;
   [[nodiscard]] auto lvalueAlignment(ExpressionAST* expression) -> uint64_t;
   [[nodiscard]] auto objectVariable(Symbol* symbol) -> VariableSymbol*;
   [[nodiscard]] auto memberAlignment(MemberExpressionAST* member) -> uint64_t;
@@ -841,6 +868,11 @@ class Codegen {
 
   [[nodiscard]] auto findOrCreateDsoHandle(SourceLocation loc) -> ir::GlobalRef;
 
+  void emitStaticStorageInitializer(Symbol* symbol, const Type* type,
+                                    ExpressionAST* initializer,
+                                    FunctionSymbol* constructor,
+                                    ir::GlobalRef global, ir::ValueRef address,
+                                    SourceLocation initLoc);
   void emitGlobalVarDtorRegistration(Symbol* symbol, const Type* type,
                                      FunctionSymbol* dtor, ir::GlobalRef global,
                                      SourceLocation loc);
@@ -1039,6 +1071,13 @@ class Codegen {
                                        std::uint64_t offset = 0)
       -> ir::ValueRef;
 
+  [[nodiscard]] auto vectorInitializer(const ConstValue& value,
+                                       const VectorType* vector)
+      -> std::optional<ir::Initializer>;
+  [[nodiscard]] auto arrayInitializer(const InitializerList& list,
+                                      ir::TypeRef storage)
+      -> std::optional<ir::Initializer>;
+
   [[nodiscard]] auto constValueToInitializer(const ConstValue& value,
                                              const Type* type,
                                              ir::TypeRef layoutType = {})
@@ -1172,15 +1211,30 @@ class Codegen {
 
   class LifetimeExtension {
    public:
-    LifetimeExtension(Codegen& gen,
-                      std::span<ExpressionAST* const> temporaries);
+    LifetimeExtension(Codegen& gen, std::span<ExpressionAST* const> temporaries,
+                      Symbol* reference = nullptr,
+                      ir::GlobalRef staticStorage = {});
     ~LifetimeExtension();
 
     void extend(ExpressionAST* expression, ir::ValueRef address);
+    [[nodiscard]] auto extends(ExpressionAST* expression) const -> bool;
+    [[nodiscard]] auto extendsStatically(ExpressionAST* expression) const
+        -> bool;
+    [[nodiscard]] auto temporaryStorage(ExpressionAST* temporary,
+                                        const Type* type, SourceLocation loc)
+        -> ir::ValueRef;
+    void extendObject(ir::ValueRef address, const Type* type,
+                      SourceLocation loc);
 
    private:
+    void relocateCleanup(ir::ValueRef address);
+
     Codegen& gen_;
     std::span<ExpressionAST* const> temporaries_;
+    Symbol* reference_ = nullptr;
+    ir::GlobalRef staticStorage_;
+    std::size_t staticCount_ = 0;
+    std::vector<std::pair<ir::ValueRef, ir::GlobalRef>> staticTemporaries_;
     std::optional<std::size_t> targetScope_;
     LifetimeExtension* previous_;
   };

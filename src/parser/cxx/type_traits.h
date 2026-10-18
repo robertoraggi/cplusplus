@@ -88,6 +88,8 @@ class TypeTraits {
    */
   [[nodiscard]] auto vector_width_in_bytes(const Type* type) const
       -> std::size_t;
+  [[nodiscard]] auto is_vector_element_type(const Type* type,
+                                            VectorKind kind) const -> bool;
   [[nodiscard]] auto is_lvalue_reference(const Type* type) const -> bool;
   [[nodiscard]] auto is_rvalue_reference(const Type* type) const -> bool;
   [[nodiscard]] auto is_member_object_pointer(const Type* type) const -> bool;
@@ -367,6 +369,7 @@ class TypeTraits {
   auto is_trivially_destructible(const Type* type) -> bool;
   auto has_virtual_destructor(const Type* type) -> bool;
   [[nodiscard]] auto has_mutable_subobject(const Type* type) -> bool;
+  [[nodiscard]] auto has_const_member(const Type* type) -> bool;
 
  private:
   [[nodiscard]] auto requireLayoutType(const Type* type) -> const Type*;

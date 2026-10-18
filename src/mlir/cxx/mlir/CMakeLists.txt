@@ -24,6 +24,17 @@ target_link_libraries(cxx-mlir PUBLIC
     cxx-mlir-transforms
 )
 
+get_target_property(cxx_have_spirv cxx-mlir-transforms CXX_WITH_SPIRV)
+if (cxx_have_spirv)
+    target_sources(cxx-mlir PRIVATE device_kernel.cc kernel_manifest.cc spirv_kernel.cc
+                                   wgsl_kernel.cc)
+    mlir_target_link_libraries(cxx-mlir PUBLIC
+        MLIRGPUToSPIRV MLIRMathToSPIRV MLIRMemRefToSPIRV MLIRSPIRVTransforms
+        MLIRUBToSPIRV
+        MLIRSPIRVSerialization MLIRSPIRVDeserialization
+    )
+endif()
+
 mlir_target_link_libraries(cxx-mlir PUBLIC
     MLIRAffineToStandard
     MLIRArithDialect

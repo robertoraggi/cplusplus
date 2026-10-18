@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 
-const machines = ["aarch64", "x86_64", "wasm32"] as const;
-const oses = ["linux", "macosx", "windows", "wasi"] as const;
+const machines = ["aarch64", "x86_64", "wasm32", "spirv32", "spirv64"] as const;
+const oses = ["linux", "macosx", "windows", "wasi", "unknown"] as const;
 const compilers = ["c23", "c++26"];
 
 type Machine = (typeof machines)[number];
@@ -24,6 +24,10 @@ const configs: Config[] = [
   ["x86_64", "macosx", "c23"],
   ["x86_64", "windows", "c++26"],
   ["x86_64", "windows", "c23"],
+  ["spirv32", "unknown", "c++26"],
+  ["spirv32", "unknown", "c23"],
+  ["spirv64", "unknown", "c++26"],
+  ["spirv64", "unknown", "c23"],
 ];
 
 async function main() {
@@ -86,11 +90,24 @@ async function main() {
     getMacros,
   });
 
+  const {
+    commonMacros: spirvCommonMacros,
+    machineMacros: spirvMachineMacros,
+    cMacros: spirvCMacros,
+    cxxMacros: spirvCxxMacros,
+  } = genToolchain({
+    os: "unknown",
+    machineVariants: ["spirv32", "spirv64"],
+    configs,
+    getMacros,
+  });
+
   const commonMacrosByOS: Map<OS, Set<string>> = new Map([
     ["linux", linuxCommonMacros],
     ["macosx", macosxCommonMacros],
     ["windows", windowsCommonMacros],
     ["wasi", wasiCommonMacros],
+    ["unknown", spirvCommonMacros],
   ]);
 
   const machineMacrosByOS: Map<OS, Map<Machine, Set<string>>> = new Map([
@@ -98,6 +115,7 @@ async function main() {
     ["macosx", macosxMachineMacros],
     ["windows", windowsMachineMacros],
     ["wasi", wasiMachineMacros],
+    ["unknown", spirvMachineMacros],
   ]);
 
   const cCompilerMacrosByOS: Map<OS, Set<string>> = new Map([
@@ -105,6 +123,7 @@ async function main() {
     ["macosx", macosxCMacros],
     ["windows", windowsCMacros],
     ["wasi", wasiCMacros],
+    ["unknown", spirvCMacros],
   ]);
 
   const cxxCompilerMacrosByOS: Map<OS, Set<string>> = new Map([
@@ -112,6 +131,7 @@ async function main() {
     ["macosx", macosxCxxMacros],
     ["windows", windowsCxxMacros],
     ["wasi", wasiCxxMacros],
+    ["unknown", spirvCxxMacros],
   ]);
 
   const commonMacros = intersection(commonMacrosByOS.values());
@@ -121,17 +141,17 @@ async function main() {
   oses.forEach((os) => {
     commonMacrosByOS.set(
       os,
-      commonMacrosByOS.get(os)!.difference(commonMacros)
+      commonMacrosByOS.get(os)!.difference(commonMacros),
     );
 
     cCompilerMacrosByOS.set(
       os,
-      cCompilerMacrosByOS.get(os)!.difference(cCompilerCommonMacros)
+      cCompilerMacrosByOS.get(os)!.difference(cCompilerCommonMacros),
     );
 
     cxxCompilerMacrosByOS.set(
       os,
-      cxxCompilerMacrosByOS.get(os)!.difference(cxxCompilerCommonMacros)
+      cxxCompilerMacrosByOS.get(os)!.difference(cxxCompilerCommonMacros),
     );
   });
 
@@ -299,7 +319,8 @@ function emitMacros({
 }) {
   let func = "void Toolchain::add";
   if (common) func += "Common";
-  if (os != undefined) func += `${osToString(os)}`;
+  if (os != undefined && !(os === "unknown" && machine != undefined))
+    func += `${osToString(os)}`;
   if (machine != undefined) func += `${machineToString(machine)}`;
   if (compiler != undefined) func += `${compilerToString(compiler)}`;
   func += "Macros() {";
@@ -337,11 +358,14 @@ async function getPredefinedMacros({
   const [machine, os, compiler] = config;
 
   const lang = compiler.startsWith("c++") ? "c++" : "c";
-  const target = `${machine}-${os}`;
+  let target = `${machine}-${os}`;
+  if (os === "unknown") target = `${machine}-unknown-unknown`;
+  const targetFlags: string[] = [];
+  if (os === "unknown") targetFlags.push("-ffreestanding", "-fno-exceptions");
 
   return new Promise((resolve, reject) => {
     execFile(
-      "/opt/homebrew/opt/llvm/bin/clang",
+      process.env.CLANG ?? "/opt/homebrew/opt/llvm/bin/clang",
       [
         `--target=${target}`,
         "-E",
@@ -349,6 +373,7 @@ async function getPredefinedMacros({
         `-x${lang}`,
         `-std=${compiler}`,
         "-fno-blocks",
+        ...targetFlags,
         "/dev/null",
       ],
       (err, stdout) => {
@@ -363,7 +388,7 @@ async function getPredefinedMacros({
           .filter(Boolean);
 
         resolve(new Set(predefinedMacros));
-      }
+      },
     );
   });
 }
@@ -378,6 +403,8 @@ function osToString(os: OS): string {
       return "Windows";
     case "wasi":
       return "WASI";
+    case "unknown":
+      return "SPIRV";
     default:
       throw new Error(`Unknown OS: ${os}`);
   }
@@ -402,6 +429,10 @@ function machineToString(machine: Machine): string {
       return "X86_64";
     case "wasm32":
       return "Wasm32";
+    case "spirv32":
+      return "SPIRV32";
+    case "spirv64":
+      return "SPIRV64";
     default:
       throw new Error(`Unknown machine: ${machine}`);
   }

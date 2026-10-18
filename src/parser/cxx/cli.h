@@ -22,6 +22,7 @@
 
 #include <cxx/position_independence.h>
 
+#include <initializer_list>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -72,6 +73,8 @@ class CLI {
   bool opt_ast_print = false;
   bool opt_emit_cxx_ir = false;
   bool opt_emit_mlir = false;
+  bool opt_emit_spirv = false;
+  bool opt_emit_wgsl = false;
   bool opt_emit_llvm = false;
   bool opt_dM = false;
   bool opt_dump_symbols = false;
@@ -126,11 +129,21 @@ class CLI {
   [[nodiscard]] auto positionIndependence(PositionIndependence defaults) const
       -> PositionIndependence;
 
+  [[nodiscard]] auto stopsBeforeLink() const -> bool;
+
+  [[nodiscard]] auto links() const -> bool;
+
+  [[nodiscard]] auto hostOnlyOutputOption() const -> std::optional<std::string>;
+
   auto parse(int& argc, char**& argv) -> bool;
+
+  void addOption(std::string option, std::string value);
 
   [[nodiscard]] auto count(const std::string& flag) const -> int;
   [[nodiscard]] auto getSingle(const std::string& opt) const
       -> std::optional<std::string>;
+  [[nodiscard]] auto getLast(std::initializer_list<std::string_view> spellings)
+      const -> std::optional<std::string>;
   [[nodiscard]] auto get(const std::string& opt) const
       -> std::vector<std::string>;
   [[nodiscard]] auto positionals() const -> std::vector<std::string>;

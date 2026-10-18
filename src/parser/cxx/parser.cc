@@ -1258,6 +1258,51 @@ void Parser::checkTemplateSignatureHelp(Symbol* templateSymbol) {
   });
 }
 
+void Parser::checkAttributeSignatureHelp(AttributeSyntax syntax,
+                                         AttributeTokenAST* attributeToken,
+                                         const Identifier* usingNamespace) {
+  if (!lookat(TokenKind::T_LPAREN)) return;
+
+  auto position = findCompletionToken(1, TokenKind::T_RPAREN);
+  if (!position) return;
+
+  auto attributeNamespace = usingNamespace;
+  const Identifier* name = nullptr;
+
+  if (auto simple = ast_cast<SimpleAttributeTokenAST>(attributeToken)) {
+    name = simple->identifier;
+  } else if (auto scoped = ast_cast<ScopedAttributeTokenAST>(attributeToken)) {
+    attributeNamespace = scoped->attributeNamespace;
+    name = scoped->identifier;
+  }
+
+  if (!name) return;
+
+  auto spelling = findAttributeSpelling(
+      syntax,
+      attributeNamespace
+          ? canonicalAttributeSpelling(attributeNamespace->name())
+          : std::string_view{},
+      canonicalAttributeSpelling(name->name()));
+
+  if (!spelling || attributeInfo(spelling->kind).arguments.empty()) return;
+
+  config().complete(AttributeArgumentHintsContext{
+      .kind = spelling->kind,
+      .activeParameter = position->argumentIndex,
+  });
+}
+
+auto Parser::checkAttributeCompletion(AttributeCompletionContext context)
+    -> bool {
+  SourceLocation completionLoc;
+  if (!parse_completion(completionLoc)) return false;
+
+  config().complete(context);
+
+  return true;
+}
+
 auto Parser::constructorCandidatesOf(const Type* type)
     -> std::vector<FunctionSymbol*> {
   if (!type) return {};
@@ -8089,41 +8134,7 @@ auto Parser::parse_braced_init_list(BracedInitListAST*& ast,
 
   ast->lbraceLoc = lbraceLoc;
 
-  if (isCxx() && lookat_designator()) {
-    auto it = &ast->expressionList;
-
-    DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
-
-    if (!parse_designated_initializer_clause(designatedInitializerClause)) {
-      parse_error("expected designated initializer clause");
-    }
-
-    if (designatedInitializerClause) {
-      *it = make_list_node<ExpressionAST>(pool_, designatedInitializerClause);
-      it = &(*it)->next;
-    }
-
-    SourceLocation commaLoc;
-
-    while (match(TokenKind::T_COMMA, commaLoc)) {
-      if (lookat(TokenKind::T_RBRACE)) break;
-
-      DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
-
-      if (!(lookat_designator() &&
-            parse_designated_initializer_clause(designatedInitializerClause))) {
-        parse_error("expected designated initializer clause");
-      }
-
-      if (designatedInitializerClause) {
-        *it = make_list_node<ExpressionAST>(pool_, designatedInitializerClause);
-        it = &(*it)->next;
-      }
-    }
-
-    expect(TokenKind::T_RBRACE, ast->rbraceLoc);
-
-  } else if (match(TokenKind::T_COMMA, ast->commaLoc)) {
+  if (match(TokenKind::T_COMMA, ast->commaLoc)) {
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
 
   } else if (!match(TokenKind::T_RBRACE, ast->rbraceLoc)) {
@@ -8146,7 +8157,7 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 
   ExpressionAST* expression = nullptr;
 
-  if (isC() && lookat_designator()) {
+  if (lookat_designator()) {
     DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
 
     if (!parse_designated_initializer_clause(designatedInitializerClause)) {
@@ -8174,16 +8185,12 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 
   SourceLocation commaLoc;
 
-  bool startedDesignatedOnlyTail = false;
-
   while (match(TokenKind::T_COMMA, commaLoc)) {
     if (lookat(TokenKind::T_RBRACE)) break;
 
     ExpressionAST* expression = nullptr;
 
-    if (lookat_designator() || startedDesignatedOnlyTail) {
-      startedDesignatedOnlyTail = isCxx();
-
+    if (lookat_designator()) {
       DesignatedInitializerClauseAST* designatedInitializerClause = nullptr;
 
       if (!parse_designated_initializer_clause(designatedInitializerClause)) {
@@ -8215,10 +8222,59 @@ auto Parser::parse_initializer_list(List<ExpressionAST*>*& yyast,
 
 auto Parser::lookat_designator() -> bool {
   if (lookat(TokenKind::T_DOT)) return true;
+  if (!lookat(TokenKind::T_LBRACKET)) return false;
+  if (isC()) return true;
+  return lookat_array_designator();
+}
 
-  if (isC() && lookat(TokenKind::T_LBRACKET)) return true;
+auto Parser::lookat_array_designator() const -> bool {
+  switch (LA(1).kind()) {
+    case TokenKind::T_EQUAL:
+    case TokenKind::T_DOT_DOT_DOT:
+    case TokenKind::T_RBRACKET:
+      return false;
+    case TokenKind::T_AMP:
+    case TokenKind::T_THIS:
+    case TokenKind::T_STAR:
+    case TokenKind::T_IDENTIFIER:
+      break;
+    default:
+      return true;
+  }
 
-  return false;
+  if (!lookat_first_capture()) return true;
+
+  int depth = 0;
+  for (int n = 0;; ++n) {
+    const auto& token = LA(n);
+    if (token.is(TokenKind::T_EOF_SYMBOL)) return false;
+    if (token.isOneOf(TokenKind::T_LBRACKET, TokenKind::T_LPAREN,
+                      TokenKind::T_LBRACE)) {
+      ++depth;
+    } else if (token.isOneOf(TokenKind::T_RBRACKET, TokenKind::T_RPAREN,
+                             TokenKind::T_RBRACE)) {
+      if (--depth == 0) return LA(n + 1).is(TokenKind::T_EQUAL);
+    }
+  }
+}
+
+auto Parser::lookat_first_capture() const -> bool {
+  const auto& next = LA(2);
+  switch (LA(1).kind()) {
+    case TokenKind::T_THIS:
+      return next.isOneOf(TokenKind::T_COMMA, TokenKind::T_RBRACKET);
+    case TokenKind::T_STAR:
+      return next.is(TokenKind::T_THIS);
+    case TokenKind::T_AMP:
+      return next.isOneOf(TokenKind::T_IDENTIFIER, TokenKind::T_DOT_DOT_DOT,
+                          TokenKind::T_COMMA, TokenKind::T_RBRACKET);
+    case TokenKind::T_IDENTIFIER:
+      return next.isOneOf(TokenKind::T_COMMA, TokenKind::T_RBRACKET,
+                          TokenKind::T_DOT_DOT_DOT, TokenKind::T_EQUAL,
+                          TokenKind::T_LBRACE, TokenKind::T_LPAREN);
+    default:
+      return false;
+  }
 }
 
 void Parser::parse_designator(DesignatorAST*& yyast) {
@@ -8274,14 +8330,12 @@ auto Parser::parse_designated_initializer_clause(
   *it = make_list_node(pool_, designator);
   it = &(*it)->next;
 
-  if (isC()) {
-    while (lookat_designator()) {
-      DesignatorAST* designator = nullptr;
-      parse_designator(designator);
+  while (lookat_designator()) {
+    DesignatorAST* designator = nullptr;
+    parse_designator(designator);
 
-      *it = make_list_node(pool_, designator);
-      it = &(*it)->next;
-    }
+    *it = make_list_node(pool_, designator);
+    it = &(*it)->next;
   }
 
   if (!parse_brace_or_equal_initializer(ast->initializer)) {
@@ -9311,7 +9365,11 @@ auto Parser::parse_cxx_attribute_specifier(AttributeSpecifierAST*& yyast)
   ast->lbracketLoc = consumeToken();
   ast->lbracket2Loc = consumeToken();
   (void)parse_attribute_using_prefix(ast->attributeUsingPrefix);
-  (void)parse_attribute_list(ast->attributeList);
+  const Identifier* usingNamespace = nullptr;
+  if (auto prefix = ast->attributeUsingPrefix)
+    usingNamespace = unit_->identifier(prefix->attributeNamespaceLoc);
+  (void)parse_attribute_list(ast->attributeList, AttributeSyntax::kCxx,
+                             usingNamespace);
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   expect(TokenKind::T_RBRACKET, ast->rbracket2Loc);
   return true;
@@ -9355,7 +9413,7 @@ auto Parser::parse_gcc_attribute(AttributeSpecifierAST*& yyast) -> bool {
     if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
 
     List<AttributeAST*>* attributeList = nullptr;
-    (void)parse_attribute_list(attributeList);
+    (void)parse_attribute_list(attributeList, AttributeSyntax::kGnu, nullptr);
 
     SourceLocation rparenLoc;
     if (!match(TokenKind::T_RPAREN, rparenLoc)) return false;
@@ -9479,6 +9537,8 @@ auto Parser::parse_attribute_using_prefix(AttributeUsingPrefixAST*& yyast)
   SourceLocation usingLoc;
   if (!match(TokenKind::T_USING, usingLoc)) return false;
 
+  if (checkAttributeCompletion({.namespacesOnly = true})) return false;
+
   SourceLocation attributeNamespaceLoc;
 
   if (!parse_attribute_namespace(attributeNamespaceLoc)) {
@@ -9499,11 +9559,13 @@ auto Parser::parse_attribute_using_prefix(AttributeUsingPrefixAST*& yyast)
   return true;
 }
 
-auto Parser::parse_attribute_list(List<AttributeAST*>*& yyast) -> bool {
+auto Parser::parse_attribute_list(List<AttributeAST*>*& yyast,
+                                  AttributeSyntax syntax,
+                                  const Identifier* usingNamespace) -> bool {
   auto it = &yyast;
 
   AttributeAST* attribute = nullptr;
-  (void)parse_attribute(attribute);
+  (void)parse_attribute(attribute, syntax, usingNamespace);
 
   SourceLocation ellipsisLoc;
   match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
@@ -9519,7 +9581,7 @@ auto Parser::parse_attribute_list(List<AttributeAST*>*& yyast) -> bool {
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
     AttributeAST* attribute = nullptr;
-    (void)parse_attribute(attribute);
+    (void)parse_attribute(attribute, syntax, usingNamespace);
 
     SourceLocation ellipsisLoc;
     match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc);
@@ -9535,10 +9597,14 @@ auto Parser::parse_attribute_list(List<AttributeAST*>*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_attribute(AttributeAST*& yyast) -> bool {
+auto Parser::parse_attribute(AttributeAST*& yyast, AttributeSyntax syntax,
+                             const Identifier* usingNamespace) -> bool {
   AttributeTokenAST* attributeToken = nullptr;
 
-  if (!parse_attribute_token(attributeToken)) return false;
+  if (!parse_attribute_token(attributeToken, syntax, usingNamespace))
+    return false;
+
+  checkAttributeSignatureHelp(syntax, attributeToken, usingNamespace);
 
   AttributeArgumentClauseAST* attributeArgumentClause = nullptr;
 
@@ -9553,8 +9619,14 @@ auto Parser::parse_attribute(AttributeAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_attribute_token(AttributeTokenAST*& yyast) -> bool {
-  if (parse_attribute_scoped_token(yyast)) return true;
+auto Parser::parse_attribute_token(AttributeTokenAST*& yyast,
+                                   AttributeSyntax syntax,
+                                   const Identifier* usingNamespace) -> bool {
+  if (checkAttributeCompletion(
+          {.syntax = syntax, .attributeNamespace = usingNamespace}))
+    return false;
+
+  if (parse_attribute_scoped_token(yyast, syntax)) return true;
 
   rewrite_keyword_as_identifier();
 
@@ -9571,7 +9643,8 @@ auto Parser::parse_attribute_token(AttributeTokenAST*& yyast) -> bool {
   return true;
 }
 
-auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
+auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast,
+                                          AttributeSyntax syntax) -> bool {
   LookaheadParser lookahead{this};
 
   SourceLocation attributeNamespaceLoc;
@@ -9583,6 +9656,11 @@ auto Parser::parse_attribute_scoped_token(AttributeTokenAST*& yyast) -> bool {
   if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
 
   lookahead.commit();
+
+  if (checkAttributeCompletion(
+          {.syntax = syntax,
+           .attributeNamespace = unit_->identifier(attributeNamespaceLoc)}))
+    return false;
 
   rewrite_keyword_as_identifier();
 

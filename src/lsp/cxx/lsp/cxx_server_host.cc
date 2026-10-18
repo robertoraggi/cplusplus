@@ -43,9 +43,15 @@ void CxxServerHost::process(CxxDocument& document, std::string source,
   auto unit = document.translationUnit();
   auto preprocessor = unit->preprocessor();
 
+  auto cli = cli_;
+  auto settings = compileSettings();
+  if (settings.target) cli.addOption("--target", *settings.target);
+  if (settings.deviceProfile)
+    cli.addOption("--device-profile", *settings.deviceProfile);
+
   std::string error;
-  auto toolchain = createToolchain(
-      cli_, preprocessor, languageOf(cli_, document.fileName()), error);
+  auto toolchain = createToolchain(cli, preprocessor,
+                                   languageOf(cli, document.fileName()), error);
 
   if (toolchain && error.empty()) {
     unit->control()->setMemoryLayout(toolchain->memoryLayout());

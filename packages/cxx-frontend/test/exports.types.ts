@@ -2,6 +2,7 @@ import loadCxx, {
   Linker,
   Parser,
   type Diagnostic,
+  type KernelInvocationId,
   type WasmSource,
 } from "cxx-frontend";
 import parse from "cxx-frontend/parse";
@@ -33,6 +34,12 @@ export async function main(): Promise<void> {
   await using parser: Parser = await parse({ path: "/x.cc", source: "int x;" });
   const diagnostics: ReadonlyArray<Diagnostic> = parser.diagnostics;
   void diagnostics;
+
+  const output = parser.emitCode({ format: "wgsl" });
+  for (const kernel of output.kernels) {
+    const ids: KernelInvocationId[] = kernel.manifest.invocationIds;
+    void ids;
+  }
 
   const unit: model.UnitAST = parser.ast;
   const scope: model.ScopeSymbol | undefined = unit.symbol;

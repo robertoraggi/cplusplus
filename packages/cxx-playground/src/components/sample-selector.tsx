@@ -1,6 +1,4 @@
-import { FileCodeIcon } from "lucide-react"
-import { useIsWideLayout } from "../lib/use-media-query"
-import { samples } from "../samples"
+import type { SampleCode } from "../samples"
 import {
   Select,
   SelectContent,
@@ -10,30 +8,25 @@ import {
 } from "./ui/select"
 
 export function SampleSelector({
+  samples,
   sampleId,
   onSelect,
 }: {
+  samples: SampleCode[]
   sampleId: string
   onSelect: (id: string) => void
 }) {
-  const wide = useIsWideLayout()
-
   return (
     <Select value={sampleId} onValueChange={(id) => id && onSelect(id)}>
       <SelectTrigger
         aria-label="Select an example"
         title={sampleId}
-        className={
-          wide
-            ? "h-8 w-56 border-border/80 bg-muted/40 text-xs font-medium"
-            : "size-8 justify-center border-border/80 bg-muted/40 px-0 [&>svg:last-child]:hidden"
-        }
+        className="w-full min-w-0 border-border/80 bg-muted/40 text-xs font-medium data-[size=default]:h-11 md:w-32 md:data-[size=default]:h-8 lg:w-40 xl:w-56"
       >
-        {wide ? (
-          <SelectValue placeholder="Select example..." />
-        ) : (
-          <FileCodeIcon />
-        )}
+        <SelectValue
+          className="min-w-0 truncate"
+          placeholder="Select example..."
+        />
       </SelectTrigger>
       <SelectContent
         align="start"

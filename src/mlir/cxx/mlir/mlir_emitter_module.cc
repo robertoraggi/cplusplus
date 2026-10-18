@@ -33,6 +33,37 @@
 
 namespace cxx::ir {
 
+namespace {
+
+[[nodiscard]] auto backendDataLayout(const llvm::Triple& triple)
+    -> llvm::DataLayout {
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+
+  std::string error;
+  auto target = llvm::TargetRegistry::lookupTarget(triple, error);
+  if (!target) {
+    llvm::report_fatal_error(
+        llvm::Twine(std::format("failed to find target for triple '{}': {}",
+                                triple.getTriple(), error)));
+  }
+  llvm::TargetOptions options;
+  auto targetMachine =
+      std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
+          triple, "generic", "", options, std::optional<llvm::Reloc::Model>()));
+  return targetMachine->createDataLayout();
+}
+
+[[nodiscard]] auto dataLayoutOf(const ModuleInfo& info) -> llvm::DataLayout {
+  if (!info.dataLayout.empty())
+    return llvm::DataLayout(llvm::StringRef{info.dataLayout});
+  return backendDataLayout(llvm::Triple{llvm::StringRef{info.targetTriple}});
+}
+
+}  // namespace
+
 auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
   mlir::Location loc = builder_.getUnknownLoc();
   if (!info.sourceFile.empty())
@@ -41,24 +72,7 @@ auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
   builder_.setInsertionPointToStart(module.getBody());
 
   if (!info.targetTriple.empty()) {
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-
-    auto triple = llvm::Triple{llvm::StringRef{info.targetTriple}};
-    std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(triple, error);
-    if (!target) {
-      llvm::report_fatal_error(
-          llvm::Twine(std::format("failed to find target for triple '{}': {}",
-                                  triple.getTriple(), error)));
-    }
-    llvm::TargetOptions options;
-    auto targetMachine = std::unique_ptr<llvm::TargetMachine>(
-        target->createTargetMachine(triple, "generic", "", options,
-                                    std::optional<llvm::Reloc::Model>()));
-    auto layout = targetMachine->createDataLayout();
+    auto layout = dataLayoutOf(info);
     module->setAttr(mlir::DLTIDialect::kDataLayoutAttrName,
                     mlir::translateDataLayout(layout, context()));
     module->setAttr("cxx.triple", builder_.getStringAttr(info.targetTriple));
@@ -71,6 +85,10 @@ auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
                     builder_.getStringAttr(mlir::StringRef{
                         info.framePointer.data(), info.framePointer.size()}));
   }
+
+  if (!info.deviceProfile.empty())
+    module->setAttr("cxx.device_profile",
+                    builder_.getStringAttr(info.deviceProfile));
 
   if (info.picLevel != 0) {
     module->setAttr("cxx.pic-level", builder_.getI32IntegerAttr(info.picLevel));

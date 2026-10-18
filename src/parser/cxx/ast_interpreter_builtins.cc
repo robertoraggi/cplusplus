@@ -37,6 +37,7 @@
 
 // cstd
 #include <bit>
+#include <cctype>
 #include <cmath>
 #include <limits>
 
@@ -55,8 +56,12 @@ namespace {
 
 [[nodiscard]] auto strippedPointerType(ExpressionAST* ast)
     -> const PointerType* {
-  while (auto cast = ast_cast<ImplicitCastExpressionAST>(ast))
+  while (auto cast = ast_cast<ImplicitCastExpressionAST>(ast)) {
+    auto pointer = type_cast<PointerType>(ast->type);
+    if (pointer && !unqualified_cast<VoidType>(pointer->elementType()))
+      return pointer;
     ast = cast->expression;
+  }
   if (!ast) return nullptr;
   return type_cast<PointerType>(ast->type);
 }
@@ -282,10 +287,10 @@ auto ObjectRepresentation::storeArray(const BoundedArrayType* type,
   if (!list || !*list) return false;
   auto stride = memoryLayout()->sizeOf(type->elementType());
   if (!stride) return false;
-  std::uint64_t elementOffset = offset;
-  for (const auto& [element, elementType] : (*list)->elements) {
-    if (!store(type->elementType(), element, elementOffset)) return false;
-    elementOffset += *stride;
+  for (std::size_t index = 0; index < (*list)->size(); ++index) {
+    const auto& element = std::get<0>((*list)->element(index));
+    if (!store(type->elementType(), element, offset + index * *stride))
+      return false;
   }
   return true;
 }
@@ -296,11 +301,10 @@ auto ObjectRepresentation::loadArray(const BoundedArrayType* type,
   auto stride = memoryLayout()->sizeOf(type->elementType());
   if (!stride) return std::nullopt;
   auto list = std::make_shared<InitializerList>();
-  list->elements.reserve(type->size());
   for (std::size_t index = 0; index < type->size(); ++index) {
     auto element = load(type->elementType(), offset + index * *stride);
     if (!element) return std::nullopt;
-    list->elements.emplace_back(std::move(*element), type->elementType());
+    list->append(std::move(*element), type->elementType());
   }
   return ConstValue{std::move(list)};
 }
@@ -372,6 +376,218 @@ auto ObjectRepresentation::receivesIndeterminateValue(const Type* type)
   return byte && enumType->symbol() == byte;
 }
 }  // namespace
+
+auto ASTInterpreter::memoryRange(const ConstAddress& address,
+                                 const Type* elementType)
+    -> std::optional<MemoryRange> {
+  if (auto literal = address.stringLiteral()) {
+    const Type* type = control()->getCharType();
+    switch (literal->encoding()) {
+      case StringLiteralEncoding::kNone:
+        break;
+      case StringLiteralEncoding::kWide:
+        type = control()->getWideCharType();
+        break;
+      case StringLiteralEncoding::kUtf8:
+        type = control()->getChar8Type();
+        break;
+      case StringLiteralEncoding::kUtf16:
+        type = control()->getChar16Type();
+        break;
+      case StringLiteralEncoding::kUtf32:
+        type = control()->getChar32Type();
+        break;
+    }
+    auto count = literal->charCount() + 1;
+    if (address.offset() < 0) return std::nullopt;
+    auto offset = static_cast<std::uintmax_t>(address.offset());
+    if (offset > count) return std::nullopt;
+    return MemoryRange{type, count - offset, true};
+  }
+
+  auto symbol = address.symbol();
+  if (!symbol || address.offset() < 0 || address.displacement() < 0)
+    return std::nullopt;
+  auto type = symbol->type();
+  bool readOnly = traits.is_const(type);
+  if (traits.is_volatile(type)) return std::nullopt;
+  if (address.root()) {
+    if (traits.is_volatile(address.root()->type())) return std::nullopt;
+    auto field = symbol_cast<FieldSymbol>(symbol);
+    if (!field || !field->isMutable())
+      readOnly |= traits.is_const(address.root()->type());
+  }
+
+  std::uintmax_t displacement = address.displacement();
+  std::uintmax_t offset = address.offset();
+  while (auto array = unqualified_cast<BoundedArrayType>(type)) {
+    type = array->elementType();
+    readOnly |= traits.is_const(type);
+    if (traits.is_volatile(type)) return std::nullopt;
+    auto size = control()->memoryLayout()->sizeOf(type);
+    if (!size || !*size) return std::nullopt;
+    if (symbol == address.root()) offset = displacement / *size;
+    if (offset > array->size()) return std::nullopt;
+    if (!traits.is_array(type) ||
+        traits.is_same(traits.remove_cv(type), elementType))
+      return MemoryRange{traits.remove_cv(type), array->size() - offset,
+                         readOnly};
+    if (offset == array->size()) return std::nullopt;
+    displacement %= *size;
+  }
+  if (offset > 1) return std::nullopt;
+  return MemoryRange{traits.remove_cv(type), 1 - offset, readOnly};
+}
+
+auto ASTInterpreter::assignMemoryValue(ConstValue& destination,
+                                       const ConstValue& source) -> bool {
+  std::vector<std::pair<ConstValue*, const ConstValue*>> pending{
+      {&destination, &source}};
+  while (!pending.empty()) {
+    auto [target, value] = pending.back();
+    pending.pop_back();
+    if (auto object = std::get_if<std::shared_ptr<ConstObject>>(target)) {
+      auto sourceObject = std::get_if<std::shared_ptr<ConstObject>>(value);
+      if (!*object || !sourceObject || !*sourceObject) return false;
+      for (const auto& member : (*sourceObject)->members()) {
+        auto slot = (*object)->mutableSubobject(member.symbol);
+        if (!slot)
+          (*object)->setMember(member.symbol, cloneValue(member.value));
+        else
+          pending.emplace_back(slot, &member.value);
+      }
+      continue;
+    }
+    if (auto list = std::get_if<std::shared_ptr<InitializerList>>(target)) {
+      auto sourceList = std::get_if<std::shared_ptr<InitializerList>>(value);
+      if (!*list || !sourceList || !*sourceList) return false;
+      if ((*list)->size() != (*sourceList)->size()) return false;
+      auto count = std::max((*list)->initializedElements().size(),
+                            (*sourceList)->initializedElements().size());
+      for (std::size_t index = 0; index < count; ++index)
+        pending.emplace_back(&std::get<0>((*list)->mutableElement(index)),
+                             &std::get<0>((*sourceList)->element(index)));
+      if ((*sourceList)->hasFiller())
+        (*list)->setFiller((*sourceList)->filler());
+      continue;
+    }
+    *target = cloneValue(*value);
+  }
+  return true;
+}
+
+auto ASTInterpreter::evaluateBuiltinMemmove(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  auto destinationExpression = argumentAt(ast, 0);
+  auto sourceExpression = argumentAt(ast, 1);
+  auto sizeExpression = argumentAt(ast, 2);
+  if (!destinationExpression || !sourceExpression || !sizeExpression)
+    return std::nullopt;
+
+  auto destinationValue = expression(destinationExpression);
+  auto sourceValue = expression(sourceExpression);
+  auto sizeValue = expression(sizeExpression);
+  if (!destinationValue || !sourceValue || !sizeValue) return std::nullopt;
+  auto size = toUInt(*sizeValue);
+  if (!size) return std::nullopt;
+  if (*size == 0) return destinationValue;
+
+  auto destination =
+      std::get_if<std::shared_ptr<ConstAddress>>(&*destinationValue);
+  auto source = std::get_if<std::shared_ptr<ConstAddress>>(&*sourceValue);
+  if (!destination || !*destination || !source || !*source) return std::nullopt;
+
+  auto destinationType = strippedPointerType(destinationExpression);
+  auto sourceType = strippedPointerType(sourceExpression);
+  if (!destinationType || !sourceType) return std::nullopt;
+  auto destinationRange = memoryRange(
+      **destination, traits.remove_cv(destinationType->elementType()));
+  auto sourceRange =
+      memoryRange(**source, traits.remove_cv(sourceType->elementType()));
+  if (!destinationRange || !sourceRange) return std::nullopt;
+  if (destinationRange->readOnly) return std::nullopt;
+  auto elementType = destinationRange->elementType;
+  if (!traits.is_same(elementType, sourceRange->elementType))
+    return std::nullopt;
+  if (!traits.is_trivially_copyable(elementType)) return std::nullopt;
+
+  auto elementSize = control()->memoryLayout()->sizeOf(elementType);
+  if (!size || !elementSize || !*elementSize) return std::nullopt;
+  if (*size % *elementSize) return std::nullopt;
+  auto count = *size / *elementSize;
+  if (count > destinationRange->count || count > sourceRange->count)
+    return std::nullopt;
+
+  std::vector<ConstValue> values;
+  std::vector<ConstValue*> slots;
+  for (std::uintmax_t index = 0; index < count; ++index) {
+    auto value = loadAddress(**source, index, elementType);
+    auto slot = addressSlot(**destination, index, elementType);
+    if (!value || !slot) return std::nullopt;
+    values.push_back(cloneValue(*value));
+    slots.push_back(slot);
+  }
+  for (std::size_t index = 0; index < values.size(); ++index)
+    if (!assignMemoryValue(*slots[index], values[index])) return std::nullopt;
+  return destinationValue;
+}
+
+auto ASTInterpreter::evaluateBuiltinCharacterComparison(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  auto leftExpression = argumentAt(ast, 0);
+  auto rightExpression = argumentAt(ast, 1);
+  if (!leftExpression || !rightExpression) return std::nullopt;
+  auto left = expression(leftExpression);
+  auto right = expression(rightExpression);
+  if (!left || !right) return std::nullopt;
+
+  auto kind = resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression));
+  bool stopAtNull = true;
+  bool ignoreCase = false;
+  bool booleanResult = false;
+  switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_MEMCMP:
+      stopAtNull = false;
+      break;
+    case BuiltinFunctionKind::T___BUILTIN_BCMP:
+      stopAtNull = false;
+      booleanResult = true;
+      break;
+    case BuiltinFunctionKind::T___BUILTIN_STRCASECMP:
+    case BuiltinFunctionKind::T___BUILTIN_STRNCASECMP:
+      ignoreCase = true;
+      break;
+    default:
+      break;
+  }
+  auto count = std::numeric_limits<std::uintmax_t>::max();
+  if (auto sizeExpression = argumentAt(ast, 2)) {
+    auto sizeValue = expression(sizeExpression);
+    if (!sizeValue) return std::nullopt;
+    auto size = toUInt(*sizeValue);
+    if (!size) return std::nullopt;
+    count = *size;
+  }
+  for (std::uintmax_t index = 0; index < count; ++index) {
+    auto leftUnit = pointeeCharacter(*left, index);
+    auto rightUnit = pointeeCharacter(*right, index);
+    if (!leftUnit || !rightUnit) return std::nullopt;
+    int leftCharacter = static_cast<unsigned char>(*leftUnit);
+    int rightCharacter = static_cast<unsigned char>(*rightUnit);
+    if (ignoreCase) {
+      leftCharacter = std::tolower(leftCharacter);
+      rightCharacter = std::tolower(rightCharacter);
+    }
+    if (leftCharacter != rightCharacter) {
+      if (booleanResult) return ConstValue{std::intmax_t{1}};
+      if (leftCharacter < rightCharacter) return ConstValue{std::intmax_t{-1}};
+      return ConstValue{std::intmax_t{1}};
+    }
+    if (stopAtNull && leftCharacter == 0) return ConstValue{std::intmax_t{0}};
+  }
+  return ConstValue{std::intmax_t{0}};
+}
 
 auto ASTInterpreter::evaluateBuiltinArithmeticOverflow(CallExpressionAST* ast)
     -> std::optional<ConstValue> {

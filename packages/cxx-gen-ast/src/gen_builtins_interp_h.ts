@@ -98,108 +98,6 @@ function emitMathCase(b: {
   return lines;
 }
 
-function stringCmp(name: string, normalize: boolean): string[] {
-  const caseName = enumName(name);
-  const sign = normalize
-    ? `static_cast<std::intmax_t>(r > 0 ? 1 : r < 0 ? -1 : 0)`
-    : `static_cast<std::intmax_t>(r)`;
-  return [
-    `    case ${caseName}: {`,
-    `      auto a = nullTerminatedString(args[0]);`,
-    `      auto b = nullTerminatedString(args[1]);`,
-    `      if (a && b) {`,
-    `        int r = a->compare(*b);`,
-    `        return ConstValue{${sign}};`,
-    `      }`,
-    `      return std::nullopt;`,
-    `    }`,
-  ];
-}
-
-function stringNCmp(name: string): string[] {
-  const caseName = enumName(name);
-  return [
-    `    case ${caseName}: {`,
-    `      auto n = toInt(args[2]);`,
-    `      if (!n) return std::nullopt;`,
-    `      auto a = nullTerminatedString(args[0], static_cast<size_t>(*n));`,
-    `      auto b = nullTerminatedString(args[1], static_cast<size_t>(*n));`,
-    `      if (a && b) {`,
-    `        int r = a->compare(*b);`,
-    `        return ConstValue{static_cast<std::intmax_t>(r > 0 ? 1 : r < 0 ? -1 : 0)};`,
-    `      }`,
-    `      return std::nullopt;`,
-    `    }`,
-  ];
-}
-
-function memCmp(name: string, boolResult: boolean): string[] {
-  const caseName = enumName(name);
-  const retExpr = boolResult
-    ? `static_cast<std::intmax_t>(r != 0 ? 1 : 0)`
-    : `static_cast<std::intmax_t>(r > 0 ? 1 : r < 0 ? -1 : 0)`;
-  return [
-    `    case ${caseName}: {`,
-    `      auto n = toInt(args[2]);`,
-    `      if (!n) return std::nullopt;`,
-    `      auto len = static_cast<size_t>(*n);`,
-    `      auto a = pointeeCharacters(args[0], len);`,
-    `      auto b = pointeeCharacters(args[1], len);`,
-    `      if (a && b) {`,
-    `        int r = std::memcmp(a->data(), b->data(), len);`,
-    `        return ConstValue{${retExpr}};`,
-    `      }`,
-    `      return std::nullopt;`,
-    `    }`,
-  ];
-}
-
-function casecmp(name: string, withN: boolean): string[] {
-  const excludeIfMsvc = [
-    "__builtin_strcasecmp",
-    "__builtin_strncasecmp",
-  ].includes(name);
-
-  const lines: string[] = [];
-
-  if (excludeIfMsvc) {
-    lines.push(`#ifndef _MSC_VER`);
-  }
-
-  const caseName = enumName(name);
-  lines.push(`    case ${caseName}: {`);
-  if (withN) {
-    lines.push(`      auto n = toInt(args[2]);`);
-    lines.push(`      if (!n) return std::nullopt;`);
-    lines.push(
-      `      auto a = nullTerminatedString(args[0], static_cast<size_t>(*n));`,
-    );
-    lines.push(
-      `      auto b = nullTerminatedString(args[1], static_cast<size_t>(*n));`,
-    );
-    lines.push(`      if (a && b) {`);
-    lines.push(`        int r = strncasecmp(a->c_str(), b->c_str(),`);
-    lines.push(`                            static_cast<size_t>(*n));`);
-  } else {
-    lines.push(`      auto a = nullTerminatedString(args[0]);`);
-    lines.push(`      auto b = nullTerminatedString(args[1]);`);
-    lines.push(`      if (a && b) {`);
-    lines.push(`        int r = strcasecmp(a->c_str(), b->c_str());`);
-  }
-  lines.push(
-    `        return ConstValue{static_cast<std::intmax_t>(r > 0 ? 1 : r < 0 ? -1 : 0)};`,
-  );
-  lines.push(`      }`);
-  lines.push(`      return std::nullopt;`);
-  lines.push(`    }`);
-
-  if (excludeIfMsvc) {
-    lines.push(`#endif`);
-  }
-
-  return lines;
-}
-
 function strspan(name: string, complement: boolean): string[] {
   const caseName = enumName(name);
   const func = complement ? "strcspn" : "strspn";
@@ -334,17 +232,11 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
   lines.push(`    }`);
   lines.push(``);
 
-  lines.push(...stringCmp("__builtin_strcmp", true));
   lines.push(``);
-  lines.push(...stringNCmp("__builtin_strncmp"));
   lines.push(``);
-  lines.push(...memCmp("__builtin_memcmp", false));
   lines.push(``);
-  lines.push(...memCmp("__builtin_bcmp", true));
   lines.push(``);
-  lines.push(...casecmp("__builtin_strcasecmp", false));
   lines.push(``);
-  lines.push(...casecmp("__builtin_strncasecmp", true));
   lines.push(``);
   lines.push(...strspan("__builtin_strspn", false));
   lines.push(``);

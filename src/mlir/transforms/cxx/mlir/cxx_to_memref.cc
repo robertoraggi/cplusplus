@@ -21,6 +21,8 @@
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/passes.h>
 #include <llvm/ADT/DenseSet.h>
+#include <llvm/ADT/EquivalenceClasses.h>
+#include <llvm/ADT/SetVector.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/LLVMContext.h>
@@ -33,10 +35,13 @@
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/Ptr/IR/PtrOps.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
+#include <mlir/Dialect/Utils/StaticValueUtils.h>
+#include <mlir/IR/Dominance.h>
 #include <mlir/IR/IRMapping.h>
 #include <mlir/IR/Matchers.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Interfaces/ControlFlowInterfaces.h>
+#include <mlir/Interfaces/FunctionInterfaces.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassRegistry.h>
 #include <mlir/Target/LLVMIR/TypeToLLVM.h>
@@ -54,8 +59,8 @@ namespace {
 }
 
 [[nodiscard]] auto isSupportedLocalAllocation(cxx::AllocaOp op) -> bool {
-  auto function = dyn_cast<cxx::FuncOp>(op->getParentOp());
-  if (!function || op->getBlock() != &function.getBody().front()) return false;
+  auto scope = op->getParentWithTrait<OpTrait::AutomaticAllocationScope>();
+  if (!isa_and_nonnull<FunctionOpInterface>(scope)) return false;
   if (!op->getDiscardableAttrDictionary().empty()) return false;
   if (!isSupportedAlignment(op.getAlignment())) return false;
   auto pointer = cast<cxx::PointerType>(op.getType());
@@ -114,6 +119,16 @@ namespace {
              Float128Type, cxx::PointerType>(element);
 }
 
+[[nodiscard]] auto isSupportedScalarElement(Type element) -> bool {
+  if (isa<IntegerType, FloatType, cxx::PointerType>(element)) return true;
+  auto vector = dyn_cast<VectorType>(element);
+  if (!vector || vector.getRank() != 1 || vector.isScalable()) return false;
+  auto lane = vector.getElementType();
+  if (auto integer = dyn_cast<IntegerType>(lane))
+    return integer.isSignless() && integer.getWidth() != 1;
+  return isa<FloatType>(lane);
+}
+
 [[nodiscard]] auto getScalarStorageType(Type element) -> Type {
   if (element.isInteger(1)) return IntegerType::get(element.getContext(), 8);
   return element;
@@ -132,7 +147,7 @@ struct ScalarStorageAnalysis {
   if (!isSupportedLocalAllocation(op)) return failure();
   auto pointer = cast<cxx::PointerType>(op.getType());
   auto element = pointer.getElementType();
-  if (!isa<IntegerType, FloatType, cxx::PointerType>(element)) return failure();
+  if (!isSupportedScalarElement(element)) return failure();
   ScalarStorageAnalysis result{getScalarStorageType(element), {}, {}, {}};
   for (auto& use : op.getResult().getUses()) {
     auto* user = use.getOwner();
@@ -1013,6 +1028,1316 @@ class BridgedStoreToMemRef : public OpRewritePattern<cxx::StoreOp> {
   }
 };
 
+constexpr unsigned kTypedStorageLeafLimit = 64;
+constexpr uint64_t kUnrolledElementLimit = 16;
+
+[[nodiscard]] auto pointeeOf(Value address) -> Type {
+  return cast<cxx::PointerType>(address.getType()).getElementType();
+}
+
+[[nodiscard]] auto pointerTo(Type element, Value like) -> cxx::PointerType {
+  auto pointer = cast<cxx::PointerType>(like.getType());
+  return cxx::PointerType::get(element.getContext(), element,
+                               pointer.getAddressSpace());
+}
+
+[[nodiscard]] auto isTypedStorageElement(Type type) -> bool {
+  if (isa<cxx::PointerType, FloatType>(type)) return true;
+  if (auto integer = dyn_cast<IntegerType>(type)) return integer.isSignless();
+  auto vector = dyn_cast<VectorType>(type);
+  if (!vector || vector.getRank() != 1 || vector.isScalable()) return false;
+  return isa<FloatType, IntegerType>(vector.getElementType());
+}
+
+[[nodiscard]] auto isTypedAggregate(Type type) -> bool {
+  return isa<cxx::ClassType, cxx::ArrayType>(type);
+}
+
+[[nodiscard]] auto zeroValue(OpBuilder& builder, Location loc, Type type)
+    -> Value {
+  if (isa<cxx::PointerType>(type))
+    return cxx::ZeroOp::create(builder, loc, type);
+  return arith::ConstantOp::create(builder, loc, type,
+                                   cast<TypedAttr>(builder.getZeroAttr(type)));
+}
+
+[[nodiscard]] auto subobject(OpBuilder& builder, Location loc, Value address,
+                             uint64_t index) -> Value {
+  if (auto record = dyn_cast<cxx::ClassType>(pointeeOf(address))) {
+    auto field = record.getBody()[index];
+    return cxx::MemberOp::create(builder, loc, pointerTo(field, address),
+                                 address, int32_t(index));
+  }
+  auto element = cast<cxx::ArrayType>(pointeeOf(address)).getElementType();
+  auto position = arith::ConstantIndexOp::create(builder, loc, index);
+  return cxx::SubscriptOp::create(builder, loc, pointerTo(element, address),
+                                  address, position);
+}
+
+void forEachElement(OpBuilder& builder, Location loc, uint64_t count,
+                    function_ref<void(OpBuilder&, Value)> body) {
+  if (count <= kUnrolledElementLimit) {
+    for (uint64_t index = 0; index < count; ++index)
+      body(builder, arith::ConstantIndexOp::create(builder, loc, index));
+    return;
+  }
+  auto lower = arith::ConstantIndexOp::create(builder, loc, 0);
+  auto upper = arith::ConstantIndexOp::create(builder, loc, count);
+  auto step = arith::ConstantIndexOp::create(builder, loc, 1);
+  scf::ForOp::create(builder, loc, lower, upper, step, ValueRange{},
+                     [&](OpBuilder& nested, Location, Value index, ValueRange) {
+                       body(nested, index);
+                       scf::YieldOp::create(nested, loc);
+                     });
+}
+
+void expandObject(OpBuilder& builder, Location loc, Value destination,
+                  Value source) {
+  auto object = pointeeOf(destination);
+  if (auto record = dyn_cast<cxx::ClassType>(object)) {
+    for (auto [index, field] : llvm::enumerate(record.getBody())) {
+      auto member = [&](Value base) -> Value {
+        return cxx::MemberOp::create(builder, loc, pointerTo(field, base), base,
+                                     int32_t(index));
+      };
+      expandObject(builder, loc, member(destination),
+                   source ? member(source) : Value());
+    }
+    return;
+  }
+  if (auto array = dyn_cast<cxx::ArrayType>(object)) {
+    auto element = array.getElementType();
+    forEachElement(builder, loc, array.getSize(),
+                   [&](OpBuilder& nested, Value index) {
+                     auto at = [&](Value base) -> Value {
+                       return cxx::SubscriptOp::create(
+                           nested, loc, pointerTo(element, base), base, index);
+                     };
+                     expandObject(nested, loc, at(destination),
+                                  source ? at(source) : Value());
+                   });
+    return;
+  }
+  auto value =
+      source
+          ? Value(cxx::LoadOp::create(builder, loc, object, source, int64_t(0)))
+          : zeroValue(builder, loc, object);
+  cxx::StoreOp::create(builder, loc, value, destination, int64_t(0));
+}
+
+[[nodiscard]] auto canExpandObject(Type type) -> bool {
+  if (auto record = dyn_cast<cxx::ClassType>(type))
+    return !record.getBody().empty() &&
+           llvm::all_of(record.getBody(), canExpandObject);
+  if (auto array = dyn_cast<cxx::ArrayType>(type))
+    return canExpandObject(array.getElementType());
+  return isTypedStorageElement(type);
+}
+
+class TypedZeroInit : public OpRewritePattern<cxx::ZeroInitOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(cxx::ZeroInitOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    if (!canExpandObject(pointeeOf(op.getAddr()))) return failure();
+    expandObject(rewriter, op.getLoc(), op.getAddr(), Value());
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+class TypedCopy : public OpRewritePattern<cxx::CopyOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(cxx::CopyOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    if (!canExpandObject(pointeeOf(op.getDest()))) return failure();
+    expandObject(rewriter, op.getLoc(), op.getDest(), op.getSrc());
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+[[nodiscard]] auto writesMemory(Operation* op) -> bool {
+  auto effects = dyn_cast<MemoryEffectOpInterface>(op);
+  return !effects || effects.hasEffect<MemoryEffects::Write>();
+}
+
+[[nodiscard]] auto hasNoWritesBetween(Operation* first, Operation* last)
+    -> bool {
+  if (first->getBlock() != last->getBlock()) return false;
+  for (auto* op = first->getNextNode(); op && op != last;
+       op = op->getNextNode())
+    if (writesMemory(op)) return false;
+  return true;
+}
+
+constexpr uint64_t kScalarizedElementLimit = 64;
+
+[[nodiscard]] auto scalarElementCount(Type type) -> uint64_t {
+  if (auto array = dyn_cast<cxx::ArrayType>(type))
+    return array.getSize() * scalarElementCount(array.getElementType());
+  if (auto record = dyn_cast<cxx::ClassType>(type)) {
+    uint64_t count = 0;
+    for (auto field : record.getBody()) count += scalarElementCount(field);
+    return count;
+  }
+  return 1;
+}
+
+void loadElements(OpBuilder& builder, Location loc, Value address,
+                  SmallVectorImpl<Value>& values) {
+  auto object = pointeeOf(address);
+  if (auto record = dyn_cast<cxx::ClassType>(object)) {
+    for (uint64_t index = 0; index < record.getBody().size(); ++index)
+      loadElements(builder, loc, subobject(builder, loc, address, index),
+                   values);
+    return;
+  }
+  if (auto array = dyn_cast<cxx::ArrayType>(object)) {
+    for (uint64_t index = 0; index < array.getSize(); ++index)
+      loadElements(builder, loc, subobject(builder, loc, address, index),
+                   values);
+    return;
+  }
+  values.push_back(
+      cxx::LoadOp::create(builder, loc, object, address, int64_t(0)));
+}
+
+void storeElements(OpBuilder& builder, Location loc, Value address,
+                   ArrayRef<Value>& values) {
+  auto object = pointeeOf(address);
+  if (auto record = dyn_cast<cxx::ClassType>(object)) {
+    for (uint64_t index = 0; index < record.getBody().size(); ++index)
+      storeElements(builder, loc, subobject(builder, loc, address, index),
+                    values);
+    return;
+  }
+  if (auto array = dyn_cast<cxx::ArrayType>(object)) {
+    for (uint64_t index = 0; index < array.getSize(); ++index)
+      storeElements(builder, loc, subobject(builder, loc, address, index),
+                    values);
+    return;
+  }
+  cxx::StoreOp::create(builder, loc, values.front(), address, int64_t(0));
+  values = values.drop_front();
+}
+
+class AggregateValueCopy : public OpRewritePattern<cxx::StoreOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(cxx::StoreOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto object = op.getValue().getType();
+    if (!isTypedAggregate(object) || pointeeOf(op.getAddr()) != object)
+      return failure();
+    if (!canExpandObject(object)) return failure();
+    auto value = op.getValue().getDefiningOp();
+    if (auto load = dyn_cast_or_null<cxx::LoadOp>(value)) {
+      if (pointeeOf(load.getAddr()) != object) return failure();
+      if (hasNoWritesBetween(load, op)) {
+        expandObject(rewriter, op.getLoc(), op.getAddr(), load.getAddr());
+      } else {
+        if (scalarElementCount(object) > kScalarizedElementLimit)
+          return failure();
+        SmallVector<Value> elements;
+        {
+          OpBuilder::InsertionGuard guard(rewriter);
+          rewriter.setInsertionPointAfter(load);
+          loadElements(rewriter, load.getLoc(), load.getAddr(), elements);
+        }
+        ArrayRef<Value> remaining(elements);
+        storeElements(rewriter, op.getLoc(), op.getAddr(), remaining);
+      }
+    } else if (isa_and_nonnull<cxx::ZeroOp>(value)) {
+      expandObject(rewriter, op.getLoc(), op.getAddr(), Value());
+    } else if (!isa_and_nonnull<cxx::UndefOp>(value)) {
+      return failure();
+    }
+    rewriter.eraseOp(op);
+    if (value && value->use_empty()) rewriter.eraseOp(value);
+    return success();
+  }
+};
+
+class AggregateValueExtract : public OpRewritePattern<cxx::ExtractValueOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(cxx::ExtractValueOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto load = op.getContainer().getDefiningOp<cxx::LoadOp>();
+    if (!load || pointeeOf(load.getAddr()) != load.getType()) return failure();
+    if (!isTypedAggregate(load.getType())) return failure();
+    OpBuilder::InsertionGuard guard(rewriter);
+    rewriter.setInsertionPointAfter(load);
+    auto element = subobject(rewriter, op.getLoc(), load.getAddr(),
+                             uint64_t(op.getPosition()));
+    if (pointeeOf(element) != op.getType()) return failure();
+    rewriter.replaceOpWithNewOp<cxx::LoadOp>(op, op.getType(), element,
+                                             int64_t(0));
+    if (load->use_empty()) rewriter.eraseOp(load);
+    return success();
+  }
+};
+
+[[nodiscard]] auto parentSuccessor(Operation* op) -> RegionSuccessor {
+#if LLVM_VERSION_MAJOR < 23
+  return RegionSuccessor(op, op->getResults());
+#else
+  return RegionSuccessor(op);
+#endif
+}
+
+[[nodiscard]] auto forwardedOperand(MutableOperandRange operands,
+                                    unsigned inputCount, unsigned position)
+    -> OpOperand* {
+  auto leading = inputCount - operands.size();
+  if (position < leading || position - leading >= operands.size())
+    return nullptr;
+  return &operands[position - leading];
+}
+
+[[nodiscard]] auto regionBranchOperands(RegionBranchOpInterface branch,
+                                        RegionSuccessor successor,
+                                        unsigned inputCount, unsigned position,
+                                        SmallVectorImpl<OpOperand*>& operands)
+    -> bool {
+  SmallVector<RegionBranchPoint> predecessors;
+  branch.getPredecessors(successor, predecessors);
+  for (auto point : predecessors) {
+    OpOperand* operand = nullptr;
+    if (point.isParent()) {
+      auto entry = branch.getEntrySuccessorOperands(successor);
+      MutableOperandRange range(branch, entry.getBeginOperandIndex(),
+                                entry.size());
+      operand = forwardedOperand(range, inputCount, position);
+    } else {
+      auto terminator = dyn_cast<RegionBranchTerminatorOpInterface>(
+          static_cast<Operation*>(point.getTerminatorPredecessorOrNull()));
+      if (!terminator) return false;
+      operand =
+          forwardedOperand(terminator.getMutableSuccessorOperands(successor),
+                           inputCount, position);
+    }
+    if (!operand) return false;
+    operands.push_back(operand);
+  }
+  return !operands.empty();
+}
+
+[[nodiscard]] auto incomingOperands(Value value,
+                                    SmallVectorImpl<OpOperand*>& operands)
+    -> bool {
+  if (auto result = dyn_cast<OpResult>(value)) {
+    auto branch = dyn_cast<RegionBranchOpInterface>(result.getOwner());
+    if (!branch) return false;
+    return regionBranchOperands(branch, parentSuccessor(branch),
+                                branch->getNumResults(),
+                                result.getResultNumber(), operands);
+  }
+  auto argument = cast<BlockArgument>(value);
+  auto* block = argument.getOwner();
+  if (block->isEntryBlock()) {
+    auto branch =
+        dyn_cast_or_null<RegionBranchOpInterface>(block->getParentOp());
+    if (!branch) return false;
+    return regionBranchOperands(branch, RegionSuccessor(block->getParent()),
+                                block->getNumArguments(),
+                                argument.getArgNumber(), operands);
+  }
+  for (auto it = block->pred_begin(); it != block->pred_end(); ++it) {
+    auto branch = dyn_cast<BranchOpInterface>((*it)->getTerminator());
+    if (!branch) return false;
+    auto successor = branch.getSuccessorOperands(it.getSuccessorIndex());
+    auto produced = successor.getProducedOperandCount();
+    if (argument.getArgNumber() < produced) return false;
+    operands.push_back(
+        &successor.getMutableForwardedOperands()[argument.getArgNumber() -
+                                                 produced]);
+  }
+  return !operands.empty();
+}
+
+[[nodiscard]] auto isSpeculatableAddress(Value address,
+                                         DenseSet<Value>& visiting) -> bool;
+
+[[nodiscard]] auto isSpeculatableIncoming(Value carried,
+                                          DenseSet<Value>& visiting) -> bool {
+  SmallVector<OpOperand*> operands;
+  if (!incomingOperands(carried, operands)) return false;
+  if (!visiting.insert(carried).second) return true;
+  for (auto* operand : operands)
+    if (!isSpeculatableAddress(operand->get(), visiting)) return false;
+  return true;
+}
+
+[[nodiscard]] auto isSpeculatableAddress(Value address,
+                                         DenseSet<Value>& visiting) -> bool {
+  while (auto* op = address.getDefiningOp()) {
+    if (isa<cxx::AllocaOp, cxx::AddressOfOp>(op)) return true;
+    if (auto member = dyn_cast<cxx::MemberOp>(op)) {
+      address = member.getBase();
+      continue;
+    }
+    if (auto decay = dyn_cast<cxx::ArrayToPointerOp>(op)) {
+      address = decay.getValue();
+      continue;
+    }
+    if (auto subscript = dyn_cast<cxx::SubscriptOp>(op)) {
+      auto array = dyn_cast<cxx::ArrayType>(pointeeOf(subscript.getBase()));
+      auto index = getConstantIntValue(subscript.getIndex());
+      if (!array || !index || *index < 0 || uint64_t(*index) >= array.getSize())
+        return false;
+      address = subscript.getBase();
+      continue;
+    }
+    if (auto select = dyn_cast<arith::SelectOp>(op))
+      return isSpeculatableAddress(select.getTrueValue(), visiting) &&
+             isSpeculatableAddress(select.getFalseValue(), visiting);
+    if (isa<RegionBranchOpInterface>(op))
+      return isSpeculatableIncoming(address, visiting);
+    return false;
+  }
+  return isSpeculatableIncoming(address, visiting);
+}
+
+[[nodiscard]] auto isSpeculatableAddress(Value address) -> bool {
+  DenseSet<Value> visiting;
+  return isSpeculatableAddress(address, visiting);
+}
+
+class AddressThroughSelect : public RewritePattern {
+ public:
+  explicit AddressThroughSelect(MLIRContext* context)
+      : RewritePattern(MatchAnyOpTypeTag(), 1, context) {}
+
+  auto matchAndRewrite(Operation* op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    if (!isa<cxx::MemberOp, cxx::SubscriptOp, cxx::ArrayToPointerOp,
+             cxx::PtrAddOp>(op))
+      return failure();
+    auto select = op->getOperand(0).getDefiningOp<arith::SelectOp>();
+    if (!select) return failure();
+    auto derive = [&](Value base) -> Value {
+      IRMapping mapping;
+      mapping.map(op->getOperand(0), base);
+      return rewriter.clone(*op, mapping)->getResult(0);
+    };
+    auto lhs = derive(select.getTrueValue());
+    auto rhs = derive(select.getFalseValue());
+    rewriter.replaceOpWithNewOp<arith::SelectOp>(op, select.getCondition(), lhs,
+                                                 rhs);
+    return success();
+  }
+};
+
+class LoadThroughSelect : public OpRewritePattern<cxx::LoadOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(cxx::LoadOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto select = op.getAddr().getDefiningOp<arith::SelectOp>();
+    if (!select) return failure();
+    auto load = [&](OpBuilder& builder, Value address) -> Value {
+      return cxx::LoadOp::create(builder, op.getLoc(), op.getType(), address,
+                                 op.getAlignment());
+    };
+    if (isSpeculatableAddress(select.getTrueValue()) &&
+        isSpeculatableAddress(select.getFalseValue())) {
+      auto lhs = load(rewriter, select.getTrueValue());
+      auto rhs = load(rewriter, select.getFalseValue());
+      rewriter.replaceOpWithNewOp<arith::SelectOp>(op, select.getCondition(),
+                                                   lhs, rhs);
+      return success();
+    }
+    auto branch = scf::IfOp::create(
+        rewriter, op.getLoc(), select.getCondition(),
+        [&](OpBuilder& builder, Location loc) {
+          scf::YieldOp::create(builder, loc,
+                               load(builder, select.getTrueValue()));
+        },
+        [&](OpBuilder& builder, Location loc) {
+          scf::YieldOp::create(builder, loc,
+                               load(builder, select.getFalseValue()));
+        });
+    rewriter.replaceOp(op, branch.getResults());
+    return success();
+  }
+};
+
+class StoreThroughSelect : public OpRewritePattern<cxx::StoreOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(cxx::StoreOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto select = op.getAddr().getDefiningOp<arith::SelectOp>();
+    if (!select) return failure();
+    auto value = op.getValue();
+    auto loc = op.getLoc();
+    auto condition = select.getCondition();
+    auto lhs = select.getTrueValue();
+    auto rhs = select.getFalseValue();
+    if (isSpeculatableAddress(lhs) && isSpeculatableAddress(rhs)) {
+      auto keep = [&](Value address, bool selected) {
+        Value old = cxx::LoadOp::create(rewriter, loc, value.getType(), address,
+                                        op.getAlignment());
+        Value updated =
+            selected
+                ? arith::SelectOp::create(rewriter, loc, condition, value, old)
+                : arith::SelectOp::create(rewriter, loc, condition, old, value);
+        cxx::StoreOp::create(rewriter, loc, updated, address,
+                             op.getAlignment());
+      };
+      keep(lhs, true);
+      keep(rhs, false);
+      rewriter.eraseOp(op);
+      return success();
+    }
+    scf::IfOp::create(
+        rewriter, loc, condition,
+        [&](OpBuilder& builder, Location location) {
+          cxx::StoreOp::create(builder, location, value, lhs,
+                               op.getAlignment());
+          scf::YieldOp::create(builder, location);
+        },
+        [&](OpBuilder& builder, Location location) {
+          cxx::StoreOp::create(builder, location, value, rhs,
+                               op.getAlignment());
+          scf::YieldOp::create(builder, location);
+        });
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+struct ElementOffset {
+  Value base;
+  SmallVector<Value> terms;
+};
+
+[[nodiscard]] auto isArrayElementPointer(Value base, Value element) -> bool {
+  auto array = dyn_cast<cxx::ArrayType>(pointeeOf(base));
+  return array && array.getElementType() == pointeeOf(element);
+}
+
+[[nodiscard]] auto elementOffsetOf(Value address) -> ElementOffset {
+  ElementOffset result{address, {}};
+  while (auto* op = result.base.getDefiningOp()) {
+    if (auto add = dyn_cast<cxx::PtrAddOp>(op)) {
+      if (pointeeOf(add.getBase()) == pointeeOf(address)) {
+        result.terms.push_back(add.getOffset());
+        result.base = add.getBase();
+        continue;
+      }
+      if (!isArrayElementPointer(add.getBase(), address)) break;
+      result.terms.push_back(add.getOffset());
+      result.base = add.getBase();
+    } else if (auto subscript = dyn_cast<cxx::SubscriptOp>(op)) {
+      if (!isArrayElementPointer(subscript.getBase(), address)) break;
+      result.terms.push_back(subscript.getIndex());
+      result.base = subscript.getBase();
+    } else if (auto decay = dyn_cast<cxx::ArrayToPointerOp>(op)) {
+      if (!isArrayElementPointer(decay.getValue(), address)) break;
+      result.base = decay.getValue();
+    }
+    break;
+  }
+  return result;
+}
+
+[[nodiscard]] auto sumTerms(OpBuilder& builder, Location loc,
+                            ArrayRef<Value> terms, Type type) -> Value {
+  Value sum = arith::ConstantOp::create(builder, loc, type,
+                                        builder.getIntegerAttr(type, 0));
+  for (auto term : terms) {
+    if (isa<IndexType>(type) || isa<IndexType>(term.getType())) {
+      term = arith::IndexCastOp::create(builder, loc, type, term);
+    } else {
+      auto width = cast<IntegerType>(term.getType()).getWidth();
+      auto target = cast<IntegerType>(type).getWidth();
+      if (width < target)
+        term = arith::ExtSIOp::create(builder, loc, type, term);
+      else if (width > target)
+        term = arith::TruncIOp::create(builder, loc, type, term);
+    }
+    sum = arith::AddIOp::create(builder, loc, sum, term);
+  }
+  return sum;
+}
+
+class PointerComparisonToIndex : public OpRewritePattern<arith::CmpIOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(arith::CmpIOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto lhs = op.getLhs().getDefiningOp<cxx::PtrToIntOp>();
+    auto rhs = op.getRhs().getDefiningOp<cxx::PtrToIntOp>();
+    if (!lhs || !rhs) return failure();
+    auto left = elementOffsetOf(lhs.getValue());
+    auto right = elementOffsetOf(rhs.getValue());
+    if (left.base != right.base) return failure();
+    auto type = rewriter.getIndexType();
+    auto a = sumTerms(rewriter, op.getLoc(), left.terms, type);
+    auto b = sumTerms(rewriter, op.getLoc(), right.terms, type);
+    rewriter.replaceOpWithNewOp<arith::CmpIOp>(
+        op, signedPredicate(op.getPredicate()), a, b);
+    return success();
+  }
+
+ private:
+  [[nodiscard]] static auto signedPredicate(arith::CmpIPredicate predicate)
+      -> arith::CmpIPredicate {
+    switch (predicate) {
+      case arith::CmpIPredicate::ult:
+        return arith::CmpIPredicate::slt;
+      case arith::CmpIPredicate::ule:
+        return arith::CmpIPredicate::sle;
+      case arith::CmpIPredicate::ugt:
+        return arith::CmpIPredicate::sgt;
+      case arith::CmpIPredicate::uge:
+        return arith::CmpIPredicate::sge;
+      default:
+        return predicate;
+    }
+  }
+};
+
+class PointerDifferenceToIndex : public OpRewritePattern<cxx::PtrDiffOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(cxx::PtrDiffOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto left = elementOffsetOf(op.getLhs());
+    auto right = elementOffsetOf(op.getRhs());
+    if (left.base != right.base) return failure();
+    auto type = op.getType();
+    auto a = sumTerms(rewriter, op.getLoc(), left.terms, type);
+    auto b = sumTerms(rewriter, op.getLoc(), right.terms, type);
+    rewriter.replaceOpWithNewOp<arith::SubIOp>(op, a, b);
+    return success();
+  }
+};
+
+[[nodiscard]] auto insertionAnchor(Value value) -> Operation* {
+  if (auto result = dyn_cast<OpResult>(value)) return result.getOwner();
+  auto* block = cast<BlockArgument>(value).getOwner();
+  if (block->isEntryBlock()) return block->getParentOp();
+  return &block->front();
+}
+
+void collectOffsetRoots(Value value, SmallVectorImpl<Value>& roots) {
+  auto offset = elementOffsetOf(value);
+  if (offset.base != value) {
+    if (isArrayElementPointer(offset.base, value))
+      roots.push_back(offset.base);
+    else
+      collectOffsetRoots(offset.base, roots);
+    return;
+  }
+  if (auto select = value.getDefiningOp<arith::SelectOp>();
+      select && isa<cxx::PointerType>(select.getType())) {
+    collectOffsetRoots(select.getTrueValue(), roots);
+    collectOffsetRoots(select.getFalseValue(), roots);
+    return;
+  }
+  if (value.getDefiningOp<cxx::UndefOp>()) return;
+  roots.push_back(value);
+}
+
+[[nodiscard]] auto materializeOffset(OpBuilder& builder, Location loc,
+                                     Value value, Value base,
+                                     const DenseSet<Value>& members,
+                                     Type offsetType) -> Value {
+  if (members.contains(value)) return value;
+  if (value == base) return sumTerms(builder, loc, {}, offsetType);
+  auto address = elementOffsetOf(value);
+  if (address.base != value) {
+    auto offset = materializeOffset(builder, loc, address.base, base, members,
+                                    offsetType);
+    address.terms.push_back(offset);
+    return sumTerms(builder, loc, address.terms, offsetType);
+  }
+  if (auto select = value.getDefiningOp<arith::SelectOp>();
+      select && isa<cxx::PointerType>(select.getType())) {
+    auto lhs = materializeOffset(builder, loc, select.getTrueValue(), base,
+                                 members, offsetType);
+    auto rhs = materializeOffset(builder, loc, select.getFalseValue(), base,
+                                 members, offsetType);
+    return arith::SelectOp::create(builder, loc, select.getCondition(), lhs,
+                                   rhs);
+  }
+  return sumTerms(builder, loc, {}, offsetType);
+}
+
+struct CarriedPointers {
+  SmallVector<Value> members;
+  llvm::SetVector<OpOperand*> edges;
+  Value base;
+};
+
+[[nodiscard]] auto carriedPointerCandidates(FunctionOpInterface function)
+    -> SmallVector<Value> {
+  SmallVector<Value> candidates;
+  function.walk([&](Operation* op) {
+    if (isa<RegionBranchOpInterface>(op))
+      for (auto result : op->getResults())
+        if (isa<cxx::PointerType>(result.getType()))
+          candidates.push_back(result);
+    for (auto& region : op->getRegions())
+      for (auto& block : region)
+        for (auto argument : block.getArguments())
+          if (isa<cxx::PointerType>(argument.getType()) &&
+              !(block.isEntryBlock() && op == function.getOperation()))
+            candidates.push_back(argument);
+  });
+  return candidates;
+}
+
+[[nodiscard]] auto groupCarriedPointers(ArrayRef<Value> candidates)
+    -> SmallVector<CarriedPointers> {
+  DenseMap<Value, SmallVector<OpOperand*>> incoming;
+  DenseSet<Value> unsupported;
+  llvm::EquivalenceClasses<Value> classes;
+  for (auto candidate : candidates) {
+    classes.insert(candidate);
+    if (!incomingOperands(candidate, incoming[candidate]))
+      unsupported.insert(candidate);
+  }
+  for (auto& [candidate, edges] : incoming) {
+    for (auto* edge : edges) {
+      SmallVector<Value> roots;
+      collectOffsetRoots(edge->get(), roots);
+      for (auto root : roots)
+        if (classes.contains(root)) classes.unionSets(candidate, root);
+    }
+  }
+
+  SmallVector<CarriedPointers> groups;
+  for (auto it = classes.begin(); it != classes.end(); ++it) {
+    if (!(*it)->isLeader()) continue;
+    CarriedPointers group;
+    for (auto member = classes.member_begin(**it);
+         member != classes.member_end(); ++member)
+      group.members.push_back(*member);
+    DenseSet<Value> members(group.members.begin(), group.members.end());
+    bool valid = true;
+    for (auto member : group.members) {
+      if (unsupported.contains(member)) valid = false;
+      for (auto* edge : incoming.lookup(member)) {
+        if (!group.edges.insert(edge)) continue;
+        SmallVector<Value> roots;
+        collectOffsetRoots(edge->get(), roots);
+        for (auto root : roots) {
+          if (members.contains(root)) continue;
+          if (pointeeOf(root) != pointeeOf(member) &&
+              !isArrayElementPointer(root, member))
+            valid = false;
+          if (group.base && group.base != root) valid = false;
+          group.base = root;
+        }
+      }
+    }
+    if (valid && group.base) groups.push_back(std::move(group));
+  }
+  return groups;
+}
+
+[[nodiscard]] auto dominatesCarriedPointers(const CarriedPointers& carried,
+                                            DominanceInfo& dominance) -> bool {
+  for (auto member : carried.members) {
+    auto* anchor = insertionAnchor(member);
+    if (auto* defining = carried.base.getDefiningOp()) {
+      if (!dominance.properlyDominates(defining, anchor)) return false;
+      continue;
+    }
+    auto* owner = cast<BlockArgument>(carried.base).getOwner();
+    if (!dominance.dominates(owner, anchor->getBlock())) return false;
+  }
+  return true;
+}
+
+void rewriteCarriedPointers(const CarriedPointers& carried) {
+  auto context = carried.base.getContext();
+  auto offsetType = IntegerType::get(context, 32);
+  DenseSet<Value> members(carried.members.begin(), carried.members.end());
+  SmallVector<Type> pointerTypes;
+  for (auto member : carried.members) {
+    pointerTypes.push_back(member.getType());
+    member.setType(offsetType);
+  }
+  OpBuilder builder(context);
+  for (auto [index, member] : llvm::enumerate(carried.members)) {
+    if (auto argument = dyn_cast<BlockArgument>(member))
+      builder.setInsertionPointToStart(argument.getOwner());
+    else
+      builder.setInsertionPointAfter(cast<OpResult>(member).getOwner());
+    Value value = member;
+    auto rebuilt = cxx::PtrAddOp::create(
+        builder, value.getLoc(), pointerTypes[index], carried.base, value);
+    value.replaceAllUsesExcept(rebuilt.getResult(), rebuilt);
+  }
+  for (auto* edge : carried.edges) {
+    builder.setInsertionPoint(edge->getOwner());
+    edge->set(materializeOffset(builder, edge->getOwner()->getLoc(),
+                                edge->get(), carried.base, members,
+                                offsetType));
+  }
+}
+
+void rewritePointerInductions(FunctionOpInterface function) {
+  if (function.isExternal()) return;
+  auto groups = groupCarriedPointers(carriedPointerCandidates(function));
+  DominanceInfo dominance(function);
+  for (const auto& group : groups)
+    if (dominatesCarriedPointers(group, dominance))
+      rewriteCarriedPointers(group);
+}
+
+[[nodiscard]] auto loadsBeforeWrites(Value carried,
+                                     SmallVectorImpl<cxx::LoadOp>& loads)
+    -> bool {
+  auto argument = dyn_cast<BlockArgument>(carried);
+  auto* block = argument ? argument.getOwner()
+                         : cast<OpResult>(carried).getOwner()->getBlock();
+  auto* start = argument ? &block->front()
+                         : cast<OpResult>(carried).getOwner()->getNextNode();
+  for (auto* user : carried.getUsers()) {
+    auto load = dyn_cast<cxx::LoadOp>(user);
+    if (!load || load->getBlock() != block) return false;
+    if (load.getType() != pointeeOf(carried)) return false;
+    loads.push_back(load);
+  }
+  if (loads.empty()) return false;
+  for (auto load : loads)
+    for (auto* op = start; op && op != load; op = op->getNextNode())
+      if (writesMemory(op)) return false;
+  return true;
+}
+
+[[nodiscard]] auto speculatePointerPhi(Value carried) -> bool {
+  SmallVector<cxx::LoadOp> loads;
+  if (!loadsBeforeWrites(carried, loads)) return false;
+  if (!isSpeculatableAddress(carried)) return false;
+  SmallVector<OpOperand*> operands;
+  if (!incomingOperands(carried, operands)) return false;
+  auto alignment = loads.front().getAlignment();
+  for (auto load : loads) alignment = std::min(alignment, load.getAlignment());
+  auto valueType = pointeeOf(carried);
+  OpBuilder builder(carried.getContext());
+  for (auto* operand : operands) {
+    builder.setInsertionPoint(operand->getOwner());
+    operand->set(cxx::LoadOp::create(builder, loads.front().getLoc(), valueType,
+                                     operand->get(), alignment));
+  }
+  carried.setType(valueType);
+  for (auto load : loads) {
+    load.getResult().replaceAllUsesWith(carried);
+    load->erase();
+  }
+  return true;
+}
+
+void speculatePointerPhis(FunctionOpInterface function) {
+  if (function.isExternal()) return;
+  for (auto changed = true; changed;) {
+    changed = false;
+    for (auto carried : carriedPointerCandidates(function))
+      if (isa<cxx::PointerType>(carried.getType()))
+        changed |= speculatePointerPhi(carried);
+  }
+}
+
+[[nodiscard]] auto aggregateElementCount(Type aggregate) -> uint64_t {
+  if (auto record = dyn_cast<cxx::ClassType>(aggregate))
+    return record.getBody().size();
+  return cast<cxx::ArrayType>(aggregate).getSize();
+}
+
+[[nodiscard]] auto aggregateElementType(Type aggregate, uint64_t index)
+    -> Type {
+  if (auto record = dyn_cast<cxx::ClassType>(aggregate))
+    return record.getBody()[index];
+  return cast<cxx::ArrayType>(aggregate).getElementType();
+}
+
+[[nodiscard]] auto canStoreConstant(Type object, Attribute value) -> bool {
+  if (isa<LLVM::ZeroAttr>(value)) return canExpandObject(object);
+  if (isTypedAggregate(object)) {
+    auto elements = dyn_cast<ArrayAttr>(value);
+    if (!elements || elements.size() != aggregateElementCount(object))
+      return false;
+    for (auto [index, element] : llvm::enumerate(elements))
+      if (!canStoreConstant(aggregateElementType(object, index), element))
+        return false;
+    return true;
+  }
+  auto typed = dyn_cast<TypedAttr>(value);
+  return typed && typed.getType() == object && isTypedStorageElement(object) &&
+         !isa<cxx::PointerType>(object);
+}
+
+void storeConstant(OpBuilder& builder, Location loc, Value address,
+                   Attribute value) {
+  if (isa<LLVM::ZeroAttr>(value)) {
+    expandObject(builder, loc, address, Value());
+    return;
+  }
+  if (auto elements = dyn_cast<ArrayAttr>(value)) {
+    for (auto [index, element] : llvm::enumerate(elements))
+      storeConstant(builder, loc, subobject(builder, loc, address, index),
+                    element);
+    return;
+  }
+  auto object = pointeeOf(address);
+  auto constant =
+      arith::ConstantOp::create(builder, loc, object, cast<TypedAttr>(value));
+  cxx::StoreOp::create(builder, loc, constant, address, int64_t(0));
+}
+
+void materializeConstantGlobals(FunctionOpInterface function,
+                                SymbolTableCollection& symbols) {
+  if (function.isExternal()) return;
+  DenseMap<Attribute, Value> copies;
+  SmallVector<cxx::AddressOfOp> uses;
+  function.walk([&](cxx::AddressOfOp op) { uses.push_back(op); });
+  auto& entry = function.getFunctionBody().front();
+  for (auto op : uses) {
+    auto global =
+        symbols.lookupNearestSymbolFrom<cxx::GlobalOp>(op, op.getSymNameAttr());
+    if (!global || !global.getConstant() || !global.getValue() ||
+        !global.getInitializer().empty())
+      continue;
+    auto type = dyn_cast<cxx::PointerType>(op.getType());
+    if (!type || type.getElementType() != global.getGlobalType()) continue;
+    if (!canStoreConstant(global.getGlobalType(), *global.getValue())) continue;
+    auto found = copies.find(op.getSymNameAttr());
+    if (found == copies.end()) {
+      OpBuilder builder(&entry, entry.begin());
+      auto local = cxx::AllocaOp::create(
+          builder, op.getLoc(),
+          cxx::PointerType::get(op.getContext(), global.getGlobalType()),
+          int64_t(0));
+      storeConstant(builder, op.getLoc(), local, *global.getValue());
+      found = copies.try_emplace(op.getSymNameAttr(), local).first;
+    }
+    op.getResult().replaceAllUsesWith(found->second);
+    op->erase();
+  }
+}
+
+struct StorageLeaf {
+  SmallVector<int64_t> shape;
+  Type element;
+};
+
+[[nodiscard]] auto collectStorageLeaves(Type type,
+                                        SmallVectorImpl<int64_t>& shape,
+                                        SmallVectorImpl<StorageLeaf>& leaves)
+    -> bool {
+  if (isTypedStorageElement(type)) {
+    if (isa<cxx::PointerType>(type) && !shape.empty()) return false;
+    leaves.push_back({SmallVector<int64_t>(shape.begin(), shape.end()), type});
+    return leaves.size() <= kTypedStorageLeafLimit;
+  }
+  if (auto array = dyn_cast<cxx::ArrayType>(type)) {
+    auto size = array.getSize();
+    if (!size || size > uint64_t(std::numeric_limits<int32_t>::max()))
+      return false;
+    shape.push_back(int64_t(size));
+    auto collected =
+        collectStorageLeaves(array.getElementType(), shape, leaves);
+    shape.pop_back();
+    return collected;
+  }
+  if (auto record = dyn_cast<cxx::ClassType>(type)) {
+    if (record.getBody().empty()) return false;
+    for (auto field : record.getBody())
+      if (!collectStorageLeaves(field, shape, leaves)) return false;
+    return true;
+  }
+  return false;
+}
+
+[[nodiscard]] auto countStorageLeaves(Type type) -> unsigned {
+  if (auto array = dyn_cast<cxx::ArrayType>(type))
+    return countStorageLeaves(array.getElementType());
+  if (auto record = dyn_cast<cxx::ClassType>(type)) {
+    unsigned count = 0;
+    for (auto field : record.getBody()) count += countStorageLeaves(field);
+    return count;
+  }
+  return 1;
+}
+
+[[nodiscard]] auto canReinterpret(Type from, Type to) -> bool {
+  if (from == to) return true;
+  if (isa<cxx::PointerType>(from) || isa<cxx::PointerType>(to))
+    return areStorageValueTypesCompatible(from, to);
+  auto fromVector = dyn_cast<VectorType>(from);
+  auto toVector = dyn_cast<VectorType>(to);
+  if (bool(fromVector) != bool(toVector)) return false;
+  if (fromVector && fromVector.getShape() != toVector.getShape()) return false;
+  auto lane = [](Type type) {
+    if (auto vector = dyn_cast<VectorType>(type))
+      return vector.getElementType();
+    return type;
+  };
+  auto fromLane = lane(from);
+  auto toLane = lane(to);
+  return fromLane.isIntOrFloat() && toLane.isIntOrFloat() &&
+         fromLane.getIntOrFloatBitWidth() == toLane.getIntOrFloatBitWidth();
+}
+
+struct TypedAddress {
+  unsigned leaf = 0;
+  Type object;
+  SmallVector<SmallVector<Value>> indices;
+  bool element = false;
+};
+
+struct TypedAccess {
+  Operation* op;
+  unsigned leaf;
+  unsigned zeros;
+};
+
+class TypedStorageAnalysis {
+ public:
+  explicit TypedStorageAnalysis(ArrayRef<StorageLeaf> leaves)
+      : leaves_(leaves) {}
+
+  [[nodiscard]] auto analyze(Value root) -> LogicalResult {
+    addresses_[root] = TypedAddress{0, pointeeOf(root), {}, false};
+    SmallVector<Value> worklist{root};
+    while (!worklist.empty()) {
+      auto address = worklist.pop_back_val();
+      auto current = addresses_.find(address)->second;
+      for (auto& use : address.getUses()) {
+        auto* user = use.getOwner();
+        if (failed(visit(user, use, current, worklist))) return failure();
+      }
+    }
+    return success();
+  }
+
+  [[nodiscard]] auto address(Value value) const -> const TypedAddress& {
+    return addresses_.find(value)->second;
+  }
+
+  [[nodiscard]] auto derivations() const -> ArrayRef<Operation*> {
+    return derivations_;
+  }
+
+  [[nodiscard]] auto accesses() const -> ArrayRef<TypedAccess> {
+    return accesses_;
+  }
+
+ private:
+  [[nodiscard]] auto visit(Operation* user, OpOperand& use,
+                           const TypedAddress& current,
+                           SmallVectorImpl<Value>& worklist) -> LogicalResult {
+    if (auto load = dyn_cast<cxx::LoadOp>(user))
+      return access(user, current, load.getType());
+    if (auto store = dyn_cast<cxx::StoreOp>(user)) {
+      if (use.getOperandNumber() != 1) return failure();
+      return access(user, current, store.getValue().getType());
+    }
+    auto derived = derive(user, current);
+    if (failed(derived)) return failure();
+    derivations_.push_back(user);
+    addresses_[user->getResult(0)] = std::move(*derived);
+    worklist.push_back(user->getResult(0));
+    return success();
+  }
+
+  [[nodiscard]] auto derive(Operation* user, const TypedAddress& base)
+      -> FailureOr<TypedAddress> {
+    auto result = base;
+    if (auto member = dyn_cast<cxx::MemberOp>(user)) {
+      auto record = dyn_cast<cxx::ClassType>(base.object);
+      if (!record || pointeeOf(member.getBase()) != base.object)
+        return failure();
+      auto index = unsigned(member.getMemberIndex());
+      if (index >= record.getBody().size()) return failure();
+      for (auto field : record.getBody().take_front(index))
+        result.leaf += countStorageLeaves(field);
+      result.object = record.getBody()[index];
+      result.element = false;
+      return result;
+    }
+    if (auto subscript = dyn_cast<cxx::SubscriptOp>(user)) {
+      auto array = dyn_cast<cxx::ArrayType>(base.object);
+      if (!array || pointeeOf(subscript.getBase()) != base.object ||
+          !isSupportedArrayIndex(subscript.getIndex()))
+        return failure();
+      result.object = array.getElementType();
+      result.indices.push_back({subscript.getIndex()});
+      result.element = true;
+      return result;
+    }
+    if (auto decay = dyn_cast<cxx::ArrayToPointerOp>(user)) {
+      auto array = dyn_cast<cxx::ArrayType>(base.object);
+      if (!array || pointeeOf(decay.getValue()) != base.object)
+        return failure();
+      result.object = array.getElementType();
+      result.indices.push_back({});
+      result.element = true;
+      return result;
+    }
+    if (auto add = dyn_cast<cxx::PtrAddOp>(user)) {
+      if (!isSupportedArrayIndex(add.getOffset())) return failure();
+      auto target = pointeeOf(add.getResult());
+      if (base.element && canReinterpret(base.object, target)) {
+        result.indices.back().push_back(add.getOffset());
+        return result;
+      }
+      auto array = dyn_cast<cxx::ArrayType>(base.object);
+      if (array && pointeeOf(add.getBase()) == base.object &&
+          canReinterpret(array.getElementType(), target)) {
+        result.object = array.getElementType();
+        result.indices.push_back({add.getOffset()});
+        result.element = true;
+        return result;
+      }
+      if (!matchPattern(add.getOffset(), m_Zero())) return failure();
+      return result;
+    }
+    if (isa<cxx::BitcastOp, cxx::AddressSpaceCastOp>(user)) {
+      if (!isa<cxx::PointerType>(user->getResult(0).getType()))
+        return failure();
+      return result;
+    }
+    return failure();
+  }
+
+  [[nodiscard]] auto access(Operation* user, const TypedAddress& address,
+                            Type type) -> LogicalResult {
+    auto object = address.object;
+    unsigned zeros = 0;
+    while (isTypedAggregate(object) && !canReinterpret(object, type)) {
+      if (auto array = dyn_cast<cxx::ArrayType>(object)) {
+        object = array.getElementType();
+        ++zeros;
+        continue;
+      }
+      auto record = cast<cxx::ClassType>(object);
+      if (record.getBody().empty()) return failure();
+      object = record.getBody().front();
+    }
+    if (!isTypedStorageElement(object) || !canReinterpret(object, type))
+      return failure();
+    if (address.indices.size() + zeros != leaves_[address.leaf].shape.size())
+      return failure();
+    accesses_.push_back({user, address.leaf, zeros});
+    return success();
+  }
+
+  ArrayRef<StorageLeaf> leaves_;
+  DenseMap<Value, TypedAddress> addresses_;
+  SmallVector<Operation*> derivations_;
+  SmallVector<TypedAccess> accesses_;
+};
+
+[[nodiscard]] auto toIndex(OpBuilder& builder, Location loc,
+                           ArrayRef<Value> terms) -> Value {
+  Value sum;
+  for (auto term : terms) {
+    if (!isa<IndexType>(term.getType()))
+      term = arith::IndexCastOp::create(builder, loc, builder.getIndexType(),
+                                        term);
+    sum = sum ? Value(arith::AddIOp::create(builder, loc, sum, term)) : term;
+  }
+  return sum ? sum : arith::ConstantIndexOp::create(builder, loc, 0);
+}
+
+[[nodiscard]] auto reinterpret(OpBuilder& builder, Location loc, Value value,
+                               Type type) -> Value {
+  if (value.getType() == type) return value;
+  if (isa<cxx::PointerType>(type))
+    return cxx::BitcastOp::create(builder, loc, type, value);
+  return arith::BitcastOp::create(builder, loc, type, value);
+}
+
+class TypedStorageToMemRef : public OpRewritePattern<cxx::AllocaOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+
+  auto matchAndRewrite(cxx::AllocaOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    if (!isSupportedLocalAllocation(op)) return failure();
+    auto object = pointeeOf(op.getResult());
+    if (isa<cxx::PointerType>(object)) return failure();
+    SmallVector<int64_t> shape;
+    SmallVector<StorageLeaf> leaves;
+    if (!collectStorageLeaves(object, shape, leaves)) return failure();
+    TypedStorageAnalysis analysis(leaves);
+    if (failed(analysis.analyze(op.getResult()))) return failure();
+    auto function = op->getParentOfType<FunctionOpInterface>();
+    SmallVector<Value> storage;
+    {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToStart(&function.getFunctionBody().front());
+      for (const auto& leaf : leaves) {
+        if (isa<cxx::PointerType>(leaf.element)) {
+          storage.push_back(cxx::AllocaOp::create(
+              rewriter, op.getLoc(),
+              cxx::PointerType::get(op.getContext(), leaf.element),
+              int64_t(0)));
+          continue;
+        }
+        storage.push_back(memref::AllocaOp::create(
+            rewriter, op.getLoc(), MemRefType::get(leaf.shape, leaf.element)));
+      }
+    }
+    for (const auto& access : analysis.accesses()) {
+      auto* user = access.op;
+      rewriter.setInsertionPoint(user);
+      auto loc = user->getLoc();
+      auto addressValue = isa<cxx::LoadOp>(user)
+                              ? cast<cxx::LoadOp>(user).getAddr()
+                              : cast<cxx::StoreOp>(user).getAddr();
+      const auto& address = analysis.address(addressValue);
+      SmallVector<Value> indices;
+      for (const auto& terms : address.indices)
+        indices.push_back(toIndex(rewriter, loc, terms));
+      for (unsigned zero = 0; zero < access.zeros; ++zero)
+        indices.push_back(arith::ConstantIndexOp::create(rewriter, loc, 0));
+      auto leafStorage = storage[access.leaf];
+      auto element = leaves[access.leaf].element;
+      if (auto load = dyn_cast<cxx::LoadOp>(user)) {
+        Value value = isa<cxx::PointerType>(element)
+                          ? Value(cxx::LoadOp::create(rewriter, loc, element,
+                                                      leafStorage, int64_t(0)))
+                          : Value(memref::LoadOp::create(rewriter, loc,
+                                                         leafStorage, indices));
+        rewriter.replaceOp(load,
+                           reinterpret(rewriter, loc, value, load.getType()));
+        continue;
+      }
+      auto store = cast<cxx::StoreOp>(user);
+      auto value = reinterpret(rewriter, loc, store.getValue(), element);
+      if (isa<cxx::PointerType>(element))
+        cxx::StoreOp::create(rewriter, loc, value, leafStorage, int64_t(0));
+      else
+        memref::StoreOp::create(rewriter, loc, value, leafStorage, indices);
+      rewriter.eraseOp(store);
+    }
+    for (auto* derivation : llvm::reverse(analysis.derivations()))
+      rewriter.eraseOp(derivation);
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
+[[nodiscard]] auto hasObjectLayout(Type type) -> bool {
+  if (auto array = dyn_cast<cxx::ArrayType>(type))
+    return hasObjectLayout(array.getElementType());
+  if (auto record = dyn_cast<cxx::ClassType>(type))
+    return llvm::all_of(record.getBody(), hasObjectLayout);
+  return isa<IntegerType, FloatType, VectorType, cxx::PointerType>(type);
+}
+
+[[nodiscard]] auto objectByteSize(Value address, const DataLayout& layout)
+    -> std::optional<int64_t> {
+  auto object = cast<cxx::PointerType>(address.getType()).getElementType();
+  if (!hasObjectLayout(object)) return std::nullopt;
+  return int64_t(layout.getTypeSize(object).getFixedValue());
+}
+
+class ObjectZeroToBytes : public OpRewritePattern<cxx::ZeroInitOp> {
+ public:
+  ObjectZeroToBytes(MLIRContext* context, const DataLayoutAnalysis& layouts)
+      : OpRewritePattern(context), layouts_(layouts) {}
+
+  auto matchAndRewrite(cxx::ZeroInitOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto bytes = objectByteSize(op.getAddr(), layouts_.getAtOrAbove(op));
+    if (!bytes) return failure();
+    rewriter.replaceOpWithNewOp<cxx::MemSetZeroOp>(op, op.getAddr(), *bytes);
+    return success();
+  }
+
+ private:
+  const DataLayoutAnalysis& layouts_;
+};
+
+class ObjectCopyToBytes : public OpRewritePattern<cxx::CopyOp> {
+ public:
+  ObjectCopyToBytes(MLIRContext* context, const DataLayoutAnalysis& layouts)
+      : OpRewritePattern(context), layouts_(layouts) {}
+
+  auto matchAndRewrite(cxx::CopyOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto bytes = objectByteSize(op.getDest(), layouts_.getAtOrAbove(op));
+    if (!bytes) return failure();
+    rewriter.replaceOpWithNewOp<cxx::MemCpyOp>(op, op.getDest(), op.getSrc(),
+                                               *bytes);
+    return success();
+  }
+
+ private:
+  const DataLayoutAnalysis& layouts_;
+};
+
+[[nodiscard]] auto stripPointerCasts(Value address) -> Value {
+  while (auto cast = address.getDefiningOp<cxx::BitcastOp>()) {
+    if (!isa<cxx::PointerType>(cast.getValue().getType())) break;
+    address = cast.getValue();
+  }
+  return address;
+}
+
+class ConstantSizeMemcpy : public OpRewritePattern<cxx::BuiltinCallOp> {
+ public:
+  ConstantSizeMemcpy(MLIRContext* context, const DataLayoutAnalysis& layouts)
+      : OpRewritePattern(context), layouts_(layouts) {}
+
+  auto matchAndRewrite(cxx::BuiltinCallOp op, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    if (op.getBuiltinName() != "__builtin_memcpy" || op.getInputs().size() != 3)
+      return failure();
+    auto size = getConstantIntValue(op.getInputs()[2]);
+    if (!size) return failure();
+    auto destination = stripPointerCasts(op.getInputs()[0]);
+    auto source = stripPointerCasts(op.getInputs()[1]);
+    const auto& layout = layouts_.getAtOrAbove(op);
+    auto destinationBytes = objectByteSize(destination, layout);
+    auto sourceBytes = objectByteSize(source, layout);
+    if (!destinationBytes || destinationBytes != size || sourceBytes != size)
+      return failure();
+    auto target = pointeeOf(destination);
+    auto origin = pointeeOf(source);
+    if (target == origin && canExpandObject(target)) {
+      expandObject(rewriter, op.getLoc(), destination, source);
+    } else if (isTypedStorageElement(target) && isTypedStorageElement(origin) &&
+               canReinterpret(origin, target)) {
+      Value value = cxx::LoadOp::create(rewriter, op.getLoc(), origin, source,
+                                        int64_t(0));
+      value = reinterpret(rewriter, op.getLoc(), value, target);
+      cxx::StoreOp::create(rewriter, op.getLoc(), value, destination,
+                           int64_t(0));
+    } else {
+      return failure();
+    }
+    if (op.getResult())
+      rewriter.replaceOp(op, op.getInputs()[0]);
+    else
+      rewriter.eraseOp(op);
+    return success();
+  }
+
+ private:
+  const DataLayoutAnalysis& layouts_;
+};
+
 class ConvertCxxToMemRefPass
     : public PassWrapper<ConvertCxxToMemRefPass, OperationPass<ModuleOp>> {
  public:
@@ -1021,6 +2346,13 @@ class ConvertCxxToMemRefPass
   ConvertCxxToMemRefPass() = default;
   ConvertCxxToMemRefPass(const ConvertCxxToMemRefPass& other)
       : PassWrapper(other) {}
+
+  Option<bool> typedStorage{
+      *this, "typed-storage",
+      llvm::cl::desc("Store each scalar, vector and pointer of a local object "
+                     "in its own typed leaf instead of a byte buffer, and "
+                     "convert only objects whose every access is typed"),
+      llvm::cl::init(false)};
 
   Option<bool> expandZeroInit{
       *this, "expand-zero-init",
@@ -1043,6 +2375,10 @@ class ConvertCxxToMemRefPass
   }
 
   void runOnOperation() override {
+    if (typedStorage) {
+      runTypedStorage();
+      return;
+    }
     RewritePatternSet patterns(&getContext());
     const auto& layouts = getAnalysis<DataLayoutAnalysis>();
     patterns.add<ScalarStorageToMemRef>(&getContext(), layouts);
@@ -1057,10 +2393,36 @@ class ConvertCxxToMemRefPass
                                           bool(expandZeroInit));
     else
       llvm::consumeError(llvmLayout.takeError());
-    patterns.add<ByteCastToMemRef>(&getContext(), layouts);
+    patterns.add<ByteCastToMemRef, ObjectZeroToBytes, ObjectCopyToBytes>(
+        &getContext(), layouts);
     patterns.add<ByteCopyToMemRef, BridgedLoadToMemRef, BridgedStoreToMemRef>(
         &getContext());
     if (failed(applyPatternsGreedily(getOperation(), std::move(patterns))))
+      signalPassFailure();
+  }
+
+ private:
+  void runTypedStorage() {
+    auto module = getOperation();
+    SymbolTableCollection symbols;
+    module.walk([&](FunctionOpInterface function) {
+      materializeConstantGlobals(function, symbols);
+      rewritePointerInductions(function);
+      speculatePointerPhis(function);
+    });
+    RewritePatternSet normalization(&getContext());
+    normalization.add<TypedZeroInit, TypedCopy, AggregateValueCopy,
+                      AggregateValueExtract, AddressThroughSelect,
+                      LoadThroughSelect, StoreThroughSelect,
+                      PointerComparisonToIndex, PointerDifferenceToIndex>(
+        &getContext());
+    normalization.add<ConstantSizeMemcpy>(&getContext(),
+                                          getAnalysis<DataLayoutAnalysis>());
+    if (failed(applyPatternsGreedily(module, std::move(normalization))))
+      return signalPassFailure();
+    RewritePatternSet storage(&getContext());
+    storage.add<TypedStorageToMemRef>(&getContext());
+    if (failed(applyPatternsGreedily(module, std::move(storage))))
       signalPassFailure();
   }
 };

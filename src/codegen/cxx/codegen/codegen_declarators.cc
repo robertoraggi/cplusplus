@@ -484,7 +484,9 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
   const auto aggregateInit =
       bracedInitList && !wholeObject && !ast->constructor && targetType &&
       (gen.traits.is_class_or_union(gen.traits.remove_cv(targetType)) ||
-       gen.traits.is_array(targetType));
+       gen.traits.is_array(targetType) ||
+       gen.traits.is_vector(gen.traits.remove_cv(targetType)) ||
+       gen.traits.is_complex(gen.traits.remove_cv(targetType)));
 
   auto evaluateArguments = [&] {
     std::vector<ExpressionResult> values;
@@ -576,8 +578,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
       return {};
     }
 
-    if (auto size = gen.control()->memoryLayout()->sizeOf(targetType))
-      gen.emitter_.memsetZero(loc, fieldPtr, *size);
+    if (gen.control()->memoryLayout()->sizeOf(targetType))
+      gen.emitter_.zeroInitialize(loc, fieldPtr, gen.convertType(targetType));
 
     return {};
   }

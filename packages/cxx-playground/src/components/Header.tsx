@@ -2,9 +2,10 @@ import { usePlayground } from "../playground-context"
 import { Button } from "./ui/button"
 import { SampleSelector } from "./sample-selector"
 import { OutputFormatSelector } from "./output-format-selector"
+import { DeviceSelector } from "./device-selector"
+import { samplesByDevice } from "../samples"
 import { IRPassMenu } from "./ir-pass-menu"
 import { DebugInfoToggle } from "./debug-info-toggle"
-import { OptimizeToggle } from "./optimize-toggle"
 import { RunButton } from "./run-button"
 
 function statusLabel({
@@ -35,33 +36,36 @@ export function Header() {
   const state = usePlayground()
 
   return (
-    <header className="flex h-12 items-center gap-2 border-b border-border/60 bg-background/85 px-4 backdrop-blur-md lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-3">
-      <div className="flex min-w-0 flex-none items-center gap-3">
+    <header className="grid flex-none grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border/60 bg-background/85 p-2 backdrop-blur-md md:flex md:h-12 md:px-3 md:py-0 lg:gap-3 lg:px-4">
+      <div className="flex min-w-0 items-center gap-2 md:flex-none lg:gap-3">
         <div className="max-lg:hidden">
           <RunButton />
         </div>
         <SampleSelector
+          samples={samplesByDevice[state.device]}
           sampleId={state.currentSampleId}
           onSelect={state.loadSample}
         />
-        <span className="hidden w-32 flex-none font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums lg:block">
+        <span className="hidden font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums 2xl:block">
           {statusLabel(state)}
         </span>
       </div>
 
-      <div className="flex min-w-0 flex-1 justify-center overflow-x-auto lg:flex-none lg:overflow-visible">
+      <div className="col-span-2 row-start-2 flex min-w-0 items-center justify-between gap-2 md:flex-1 md:justify-center">
+        <DeviceSelector device={state.device} setDevice={state.setDevice} />
         <OutputFormatSelector
+          device={state.device}
           outputFormat={state.outputFormat}
-          consoleActive={state.activeTab === "console"}
+          activeTab={state.activeTab}
           setOutputFormat={(format) => {
-            state.setOutputFormat(format)
             state.setActiveTab("output")
+            state.setOutputFormat(format)
           }}
-          showConsole={() => state.setActiveTab("console")}
+          setActiveTab={state.setActiveTab}
         />
       </div>
 
-      <div className="flex flex-none items-center gap-1 lg:justify-self-end">
+      <div className="col-start-2 row-start-1 flex flex-none items-center gap-1">
         <IRPassMenu />
 
         <DebugInfoToggle
@@ -69,14 +73,10 @@ export function Header() {
           setDebugInfo={state.setDebugInfo}
         />
 
-        <OptimizeToggle
-          optimize={state.optimize}
-          setOptimize={state.setOptimize}
-        />
-
         <Button
           variant="ghost"
           size="icon-xs"
+          className="size-11 md:size-6"
           nativeButton={false}
           render={
             <a

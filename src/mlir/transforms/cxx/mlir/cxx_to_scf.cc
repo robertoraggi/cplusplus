@@ -23,6 +23,24 @@ class CxxControlFlowToSCFTransformation
       -> FailureOr<Operation*> override {
     return cxx::UnreachableOp::create(builder, loc).getOperation();
   }
+
+  void createCFGSwitchOp(Location loc, OpBuilder& builder, Value flag,
+                         ArrayRef<unsigned> caseValues,
+                         BlockRange caseDestinations,
+                         ArrayRef<ValueRange> caseArguments, Block* defaultDest,
+                         ValueRange defaultArgs) override {
+    if (!llvm::hasSingleElement(caseValues)) {
+      ControlFlowToSCFTransformation::createCFGSwitchOp(
+          loc, builder, flag, caseValues, caseDestinations, caseArguments,
+          defaultDest, defaultArgs);
+      return;
+    }
+    auto value = getCFGSwitchValue(loc, builder, caseValues.front());
+    auto chosen = arith::CmpIOp::create(builder, loc, arith::CmpIPredicate::eq,
+                                        flag, value);
+    cf::CondBranchOp::create(builder, loc, chosen, caseDestinations.front(),
+                             caseArguments.front(), defaultDest, defaultArgs);
+  }
 };
 
 template <typename Transformation>
@@ -69,8 +87,7 @@ template <typename Transformation>
 }
 
 class LiftCxxControlFlowToSCFPass
-    : public PassWrapper<LiftCxxControlFlowToSCFPass,
-                         OperationPass<cxx::FuncOp>> {
+    : public PassWrapper<LiftCxxControlFlowToSCFPass, OperationPass<>> {
  public:
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(LiftCxxControlFlowToSCFPass)
 
@@ -98,29 +115,34 @@ class LiftCxxControlFlowToSCFPass
   }
 
   void runOnOperation() override {
-    auto& body = getOperation().getBody();
-    if (body.empty()) {
-      markAllAnalysesPreserved();
-      return;
-    }
-
-    auto blockCount = body.getBlocks().size();
-    if (maxBlocks && blockCount > maxBlocks) {
-      emitRemark(getOperation().getLoc())
-          << "leaving @" << getOperation().getSymName()
-          << " in CF: " << blockCount
-          << " blocks exceeds max-blocks=" << maxBlocks.getValue();
-      markAllAnalysesPreserved();
-      return;
-    }
-
-    auto changed =
-        ::cxx::liftCxxControlFlowRegion(body, getAnalysis<DominanceInfo>());
-    if (failed(changed)) {
+    auto& dominance = getAnalysis<DominanceInfo>();
+    bool changed = false;
+    auto result = getOperation()->walk([&](FunctionOpInterface function) {
+      auto lifted = lift(function, dominance);
+      if (failed(lifted)) return WalkResult::interrupt();
+      changed |= *lifted;
+      return WalkResult::advance();
+    });
+    if (result.wasInterrupted()) {
       signalPassFailure();
       return;
     }
-    if (!*changed) markAllAnalysesPreserved();
+    if (!changed) markAllAnalysesPreserved();
+  }
+
+ private:
+  [[nodiscard]] auto lift(FunctionOpInterface function,
+                          DominanceInfo& dominance) -> FailureOr<bool> {
+    auto& body = function.getFunctionBody();
+    if (body.empty()) return false;
+    auto blockCount = body.getBlocks().size();
+    if (maxBlocks && blockCount > maxBlocks) {
+      emitRemark(function.getLoc())
+          << "leaving @" << function.getName() << " in CF: " << blockCount
+          << " blocks exceeds max-blocks=" << maxBlocks.getValue();
+      return false;
+    }
+    return ::cxx::liftCxxControlFlowRegion(body, dominance);
   }
 };
 

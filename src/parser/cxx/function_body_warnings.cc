@@ -323,9 +323,11 @@ class DiscardedValueChecker final : ASTVisitor {
   }
 
   [[nodiscard]] static auto explain(Symbol* symbol) -> std::string {
-    auto reason = attributeArgument(symbol->attributes(), "nodiscard");
+    auto reason =
+        attributeArgument(symbol->attributes(), AttributeKind::kNodiscard);
     if (!reason)
-      reason = attributeArgument(symbol->attributes(), "warn_unused_result");
+      reason = attributeArgument(symbol->attributes(),
+                                 AttributeKind::kWarnUnusedResult);
     if (!reason) return {};
     return std::format(": {}", reason->name());
   }

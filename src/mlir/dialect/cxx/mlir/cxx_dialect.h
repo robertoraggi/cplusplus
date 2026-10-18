@@ -42,6 +42,7 @@
 #endif
 
 #include <mlir/Interfaces/InferTypeOpInterface.h>
+#include <mlir/Interfaces/MemorySlotInterfaces.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop

@@ -28,17 +28,24 @@
 
 namespace cxx {
 class TranslationUnit;
-class Wasm32WasiToolchain;
+class Toolchain;
 }  // namespace cxx
 
 namespace cxx::js {
+
+struct ConfiguredToolchain {
+  std::unique_ptr<Toolchain> toolchain;
+  std::string error;
+};
 
 [[nodiscard]] auto stringArrayOption(const emscripten::val& options,
                                      const char* name)
     -> std::vector<std::string>;
 
 [[nodiscard]] auto configureToolchain(TranslationUnit* unit,
-                                      const emscripten::val& options)
-    -> std::unique_ptr<Wasm32WasiToolchain>;
+                                      const std::string& fileName,
+                                      const emscripten::val& options,
+                                      std::vector<std::string> overrides = {})
+    -> ConfiguredToolchain;
 
 }  // namespace cxx::js

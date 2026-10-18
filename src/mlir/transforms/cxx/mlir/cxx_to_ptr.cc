@@ -39,8 +39,11 @@ namespace {
 [[nodiscard]] auto fromPtr(Value value, cxx::PointerType resultType,
                            PatternRewriter& rewriter) -> Value {
   auto space = cast<ptr::PtrType>(value.getType()).getMemorySpace();
-  auto clone = resultType.clonePtrWith(space, std::nullopt);
-  auto type = cast<cxx::PointerType>(*clone);
+  auto type = resultType;
+  if (type.getMemorySpace() != space) {
+    auto clone = resultType.clonePtrWith(space, std::nullopt);
+    type = cast<cxx::PointerType>(*clone);
+  }
   Value result =
       ptr::FromPtrOp::create(rewriter, value.getLoc(), type, value, Value());
   if (type != resultType)

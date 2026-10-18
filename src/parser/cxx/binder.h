@@ -652,6 +652,9 @@ class Binder {
 
   void applyAttributeMap(Symbol* symbol, AttributeMap collected);
 
+  void applyDeviceAttributes(Symbol* symbol,
+                             std::span<const AttributeRef> attributes);
+
   void applyConstructorAttribute(FunctionSymbol* function,
                                  List<AttributeSpecifierAST*>* attributes);
 

@@ -203,6 +203,11 @@ class Parser final {
   void checkSignatureHelp(std::vector<FunctionSymbol*> candidates,
                           int activeParameter);
   void checkTemplateSignatureHelp(Symbol* templateSymbol);
+  void checkAttributeSignatureHelp(AttributeSyntax syntax,
+                                   AttributeTokenAST* attributeToken,
+                                   const Identifier* usingNamespace);
+  [[nodiscard]] auto checkAttributeCompletion(
+      AttributeCompletionContext context) -> bool;
   void checkInitializerCompletion(const Type* targetType);
   void checkParenInitializerCompletion(const Type* targetType);
   void checkBracedInitializerCompletion(const Type* targetType);
@@ -704,6 +709,8 @@ class Parser final {
   [[nodiscard]] auto parse_designated_initializer_clause(
       DesignatedInitializerClauseAST*& yyast) -> bool;
   [[nodiscard]] auto lookat_designator() -> bool;
+  [[nodiscard]] auto lookat_array_designator() const -> bool;
+  [[nodiscard]] auto lookat_first_capture() const -> bool;
   void parse_designator(DesignatorAST*& yyast);
   void parse_dot_designator(DesignatorAST*& yyast);
   void parse_subscript_designator(DesignatorAST*& yyast);
@@ -781,10 +788,19 @@ class Parser final {
       -> bool;
   [[nodiscard]] auto parse_attribute_using_prefix(
       AttributeUsingPrefixAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_attribute_list(List<AttributeAST*>*& yyast) -> bool;
-  [[nodiscard]] auto parse_attribute(AttributeAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_attribute_token(AttributeTokenAST*& yyast) -> bool;
-  [[nodiscard]] auto parse_attribute_scoped_token(AttributeTokenAST*& yyast)
+  [[nodiscard]] auto parse_attribute_list(List<AttributeAST*>*& yyast,
+                                          AttributeSyntax syntax,
+                                          const Identifier* usingNamespace)
+      -> bool;
+  [[nodiscard]] auto parse_attribute(AttributeAST*& yyast,
+                                     AttributeSyntax syntax,
+                                     const Identifier* usingNamespace) -> bool;
+  [[nodiscard]] auto parse_attribute_token(AttributeTokenAST*& yyast,
+                                           AttributeSyntax syntax,
+                                           const Identifier* usingNamespace)
+      -> bool;
+  [[nodiscard]] auto parse_attribute_scoped_token(AttributeTokenAST*& yyast,
+                                                  AttributeSyntax syntax)
       -> bool;
   [[nodiscard]] auto parse_attribute_namespace(
       SourceLocation& attributeNamespaceLoc) -> bool;

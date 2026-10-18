@@ -711,15 +711,18 @@ void Symbol::setLocation(SourceLocation location) { location_ = location; }
 auto Symbol::parent() const -> ScopeSymbol* { return parent_; }
 
 auto Symbol::isWeak() const -> bool {
-  return findAttribute(canonical()->attributes(), "weak") != nullptr;
+  return findAttribute(canonical()->attributes(), AttributeKind::kWeak) !=
+         nullptr;
 }
 
 auto Symbol::isNoInline() const -> bool {
-  return findAttribute(canonical()->attributes(), "noinline") != nullptr;
+  return findAttribute(canonical()->attributes(), AttributeKind::kNoinline) !=
+         nullptr;
 }
 
 auto Symbol::isAlwaysInline() const -> bool {
-  return findAttribute(canonical()->attributes(), "always_inline") != nullptr;
+  return findAttribute(canonical()->attributes(),
+                       AttributeKind::kAlwaysInline) != nullptr;
 }
 
 auto Symbol::abiTags() const -> std::span<const Identifier* const> {
@@ -3253,9 +3256,9 @@ void FieldSymbol::setExplicitAlignment(int alignment) {
 }
 
 auto FieldSymbol::isPacked() const -> bool {
-  if (findAttribute(attributes(), "packed")) return true;
+  if (findAttribute(attributes(), AttributeKind::kPacked)) return true;
   auto owner = symbol_cast<ClassSymbol>(parent());
-  return owner && findAttribute(owner->attributes(), "packed");
+  return owner && findAttribute(owner->attributes(), AttributeKind::kPacked);
 }
 
 auto FieldSymbol::effectiveAlignment() const -> int {
@@ -3582,9 +3585,23 @@ auto isDefinedEnumeration(Symbol* symbol) -> bool {
   return visit(IsDefinedEnumeration{}, symbol);
 }
 
-auto isUsableInConstantExpressions(Symbol* symbol) -> bool {
-  auto var = symbol_cast<VariableSymbol>(symbol);
-  if (!var || !var->constValue().has_value()) return false;
-  return isDeclaredConstant(var);
+namespace {
+struct IsConstantInitialized {
+  auto operator()(VariableSymbol* symbol) const -> bool {
+    return symbol->constValue().has_value();
+  }
+
+  auto operator()(FieldSymbol* symbol) const -> bool {
+    return symbol->isStatic() && symbol->constValue().has_value();
+  }
+
+  auto operator()(Symbol*) const -> bool { return false; }
+};
+}  // namespace
+
+auto isUsableInConstantExpressions(const TypeTraits& traits, Symbol* symbol)
+    -> bool {
+  if (!symbol || !visit(IsConstantInitialized{}, symbol)) return false;
+  return isPotentiallyConstant(traits, symbol);
 }
 }  // namespace cxx

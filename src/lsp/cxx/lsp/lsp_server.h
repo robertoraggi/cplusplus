@@ -65,6 +65,7 @@ class Server {
   void operator()(DidCloseTextDocumentNotification notification);
   void operator()(DidChangeTextDocumentNotification notification);
   void operator()(DidChangeWatchedFilesNotification notification);
+  void operator()(DidChangeConfigurationNotification notification);
 
   void operator()(DocumentSymbolRequest request);
   void operator()(CompletionRequest request);
@@ -107,6 +108,7 @@ class Server {
   void reuseParserRequest(const std::shared_ptr<PendingParserRequest>& request);
 
   void parse(const std::string& uri);
+  void reparseOpenDocuments();
   void scheduleParse(const std::string& uri);
 
   [[nodiscard]] auto latestDocument(const std::string& uri)
@@ -169,6 +171,7 @@ class Server {
 #endif
   TraceValue trace_{};
   bool done_ = false;
+  bool completionSnippets_ = false;
 };
 
 }  // namespace cxx::lsp

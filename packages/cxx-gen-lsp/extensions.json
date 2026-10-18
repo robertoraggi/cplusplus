@@ -71,7 +71,7 @@
             "name": "string"
           },
           "optional": true,
-          "documentation": "The MLIR pass pipeline to run before emission. Cxx IR displays its result; other formats continue through LLVM lowering. Defaults to an empty pipeline."
+          "documentation": "The MLIR pass pipeline to run before emission. Cxx IR displays its result; the host formats continue through LLVM lowering; the device kernel formats ignore it and run the device pipeline. Defaults to an empty pipeline."
         }
       ]
     },
@@ -103,6 +103,40 @@
           },
           "optional": true,
           "documentation": "Why no code was generated for a document without errors, for instance a link error."
+        },
+        {
+          "name": "kernels",
+          "type": {
+            "kind": "array",
+            "element": {
+              "kind": "reference",
+              "name": "EmitCodeKernel"
+            }
+          },
+          "optional": true,
+          "documentation": "The device kernels of the document, for the kernel formats. Kernels that fail to compile are reported in `error`."
+        }
+      ]
+    },
+    {
+      "name": "EmitCodeKernel",
+      "documentation": "A device kernel generated for a text document.",
+      "properties": [
+        {
+          "name": "manifest",
+          "type": {
+            "kind": "reference",
+            "name": "LSPObject"
+          },
+          "documentation": "The kernel manifest: the entry point, the workgroup size and the resources bound by name."
+        },
+        {
+          "name": "code",
+          "type": {
+            "kind": "base",
+            "name": "string"
+          },
+          "documentation": "The kernel code: WGSL source text, or a SPIR-V module base64 encoded."
         }
       ]
     }
@@ -124,7 +158,7 @@
         {
           "name": "MLIR",
           "value": "mlir",
-          "documentation": "MLIR, after the cxx dialect was lowered."
+          "documentation": "MLIR, after the cxx dialect was lowered; under a device profile, the GPU dialect modules of the kernels, the input of both the WGSL and the SPIR-V backends."
         },
         {
           "name": "LLVMIR",
@@ -134,12 +168,22 @@
         {
           "name": "Assembly",
           "value": "asm",
-          "documentation": "Target assembly."
+          "documentation": "Target assembly; under a device profile, the SPIR-V dialect modules of the kernels."
         },
         {
           "name": "Executable",
           "value": "wasm",
           "documentation": "A WebAssembly executable, the object code linked with the libraries of the server, base64 encoded."
+        },
+        {
+          "name": "WGSL",
+          "value": "wgsl",
+          "documentation": "The WGSL compute shaders of the kernels of the document."
+        },
+        {
+          "name": "SPIRV",
+          "value": "spirv",
+          "documentation": "The SPIR-V compute modules of the kernels of the document, base64 encoded."
         }
       ]
     }

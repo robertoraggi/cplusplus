@@ -191,6 +191,11 @@ struct ASTInterpreter::ToBool {
     return !value.isZero();
   }
 
+  auto operator()(const std::shared_ptr<InitializerList>&) const
+      -> std::optional<bool> {
+    return std::nullopt;
+  }
+
   auto operator()(const auto& value) const -> std::optional<bool> {
     return bool(value);
   }
@@ -202,40 +207,6 @@ ASTInterpreter::ASTInterpreter(TranslationUnit* unit, ScopeSymbol* scope)
 }
 
 ASTInterpreter::~ASTInterpreter() {}
-
-auto ASTInterpreter::cloneValue(const ConstValue& value) -> ConstValue {
-  if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
-    if (!*object) return value;
-    auto copy = std::make_shared<ConstObject>((*object)->type());
-    for (const auto& member : (*object)->members())
-      copy->addMember(member.symbol,
-                      cloneValueOfType(member.value, member.symbol->type()));
-    return ConstValue{std::move(copy)};
-  }
-
-  if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
-    if (!*list) return value;
-    auto copy = std::make_shared<InitializerList>();
-    for (const auto& [element, type] : (*list)->elements)
-      copy->elements.emplace_back(cloneValueOfType(element, type), type);
-    return ConstValue{std::move(copy)};
-  }
-
-  if (auto complexValue = std::get_if<std::shared_ptr<ConstComplex>>(&value)) {
-    if (!*complexValue) return value;
-    return ConstValue{
-        std::make_shared<ConstComplex>(cloneValue((*complexValue)->real()),
-                                       cloneValue((*complexValue)->imag()))};
-  }
-
-  return value;
-}
-
-auto ASTInterpreter::cloneValueOfType(const ConstValue& value, const Type* type)
-    -> ConstValue {
-  if (traits.is_pointer(type)) return value;
-  return cloneValue(value);
-}
 
 auto isFullyInitialized(const ConstValue& value) -> bool {
   if (std::holds_alternative<IndeterminateValue>(value)) return false;
@@ -262,9 +233,12 @@ auto isFullyInitialized(const ConstValue& value) -> bool {
 
   if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
     if (!*list) return false;
-    for (const auto& [element, type] : (*list)->elements) {
+    for (const auto& [element, type] : (*list)->initializedElements()) {
       if (!isFullyInitialized(element)) return false;
     }
+    if ((*list)->hasFiller() &&
+        !isFullyInitialized(std::get<0>((*list)->filler())))
+      return false;
   }
 
   if (auto complexValue = std::get_if<std::shared_ptr<ConstComplex>>(&value)) {
@@ -448,14 +422,22 @@ auto ASTInterpreter::lookupLocalSlot(const Symbol* sym) -> ConstValue* {
 
 auto ASTInterpreter::materializedTemporary(ExpressionAST* ast)
     -> ExpressionAST* {
-  while (auto nested = ast_cast<NestedExpressionAST>(ast))
-    ast = nested->expression;
-  if (!is_glvalue(ast)) return ast;
-  auto cast = ast_cast<ImplicitCastExpressionAST>(ast);
-  if (!cast) return nullptr;
-  if (cast->castKind != ImplicitCastKind::kTemporaryMaterializationConversion)
-    return nullptr;
-  return cast->expression;
+  while (ast) {
+    if (auto nested = ast_cast<NestedExpressionAST>(ast)) {
+      ast = nested->expression;
+      continue;
+    }
+    if (!is_glvalue(ast)) return ast;
+    auto cast = ast_cast<ImplicitCastExpressionAST>(ast);
+    if (!cast) return nullptr;
+    if (cast->castKind == ImplicitCastKind::kTemporaryMaterializationConversion)
+      return cast->expression;
+    if (cast->castKind != ImplicitCastKind::kQualificationConversion &&
+        cast->castKind != ImplicitCastKind::kIdentity)
+      return nullptr;
+    ast = cast->expression;
+  }
+  return nullptr;
 }
 
 auto ASTInterpreter::bindReferenceTo(Frame& frame, Symbol* reference,
@@ -574,13 +556,15 @@ auto ASTInterpreter::bindOneParameter(Frame& frame, Symbol* paramSymbol,
 
 auto ASTInterpreter::bindParametersFromExprs(
     Frame& frame, FunctionSymbol* function,
-    std::span<ExpressionAST* const> arguments) -> bool {
+    std::span<ExpressionAST* const> arguments, bool rightToLeft) -> bool {
   auto parameters = definingDeclarationOf(function)->parameters();
   for (std::size_t i = 0; i < parameters.size(); ++i) {
-    auto argument = i < arguments.size() ? arguments[i] : nullptr;
+    auto index = i;
+    if (rightToLeft) index = parameters.size() - i - 1;
+    auto argument = index < arguments.size() ? arguments[index] : nullptr;
     if (!argument)
-      argument = ASTRewriter::requireDefaultArgument(unit_, parameters[i]);
-    if (!argument || !bindOneParameter(frame, parameters[i], argument))
+      argument = ASTRewriter::requireDefaultArgument(unit_, parameters[index]);
+    if (!argument || !bindOneParameter(frame, parameters[index], argument))
       return false;
   }
   for (std::size_t i = parameters.size(); i < arguments.size(); ++i)
@@ -714,19 +698,18 @@ auto ASTInterpreter::copyArrayElements(const Type* type,
                                        FunctionSymbol* constructor,
                                        const ConstValue& source)
     -> std::optional<ConstValue> {
+  if (!constructor) return cloneValue(source);
   auto array = type_cast<BoundedArrayType>(traits.remove_cv(type));
-  if (!array) {
-    if (constructor) return evaluateConstructor(constructor, type, {source});
-    return cloneValue(source);
-  }
+  if (!array) return evaluateConstructor(constructor, type, {source});
 
   auto sourceElements = std::get_if<std::shared_ptr<InitializerList>>(&source);
   if (!sourceElements || !*sourceElements) return std::nullopt;
   auto elements = std::make_shared<InitializerList>();
-  for (const auto& [value, elementType] : (*sourceElements)->elements) {
+  for (std::size_t index = 0; index < (*sourceElements)->size(); ++index) {
+    const auto& [value, elementType] = (*sourceElements)->element(index);
     auto element = copyArrayElements(array->elementType(), constructor, value);
     if (!element) return std::nullopt;
-    elements->elements.emplace_back(std::move(*element), array->elementType());
+    elements->append(std::move(*element), array->elementType());
   }
   return ConstValue{std::move(elements)};
 }
@@ -745,8 +728,7 @@ auto ASTInterpreter::constructSubobject(
     for (std::size_t i = 0; i < array->size(); ++i) {
       auto element = constructSubobject(ast, array->elementType(), arguments);
       if (!element) return std::nullopt;
-      elements->elements.emplace_back(std::move(*element),
-                                      array->elementType());
+      elements->append(std::move(*element), array->elementType());
     }
     return elements;
   }
@@ -819,13 +801,19 @@ auto ASTInterpreter::defaultConstruct(const Type* type)
   EvaluationScope evaluationScope{*this};
   auto unqualified = traits.remove_cv(type);
   if (auto arrayType = type_cast<BoundedArrayType>(unqualified)) {
+    auto elementType = arrayType->elementType();
+    if (!traits.is_class(traits.remove_all_extents(elementType))) {
+      auto element = defaultConstruct(elementType);
+      if (!element) return std::nullopt;
+      return ConstValue{std::make_shared<InitializerList>(
+          std::vector<InitializerList::Element>{}, arrayType->size(),
+          InitializerList::Element{std::move(*element), elementType})};
+    }
     auto elements = std::make_shared<InitializerList>();
-    elements->elements.reserve(arrayType->size());
     for (std::size_t index = 0; index < arrayType->size(); ++index) {
-      auto value = defaultConstruct(arrayType->elementType());
+      auto value = defaultConstruct(elementType);
       if (!value) return std::nullopt;
-      elements->elements.emplace_back(std::move(*value),
-                                      arrayType->elementType());
+      elements->append(std::move(*value), elementType);
     }
     return ConstValue{std::move(elements)};
   }
@@ -888,8 +876,13 @@ auto ASTInterpreter::destroyValue(const Type* type, ConstValue& value) -> bool {
   if (auto arrayType = type_cast<BoundedArrayType>(unqual)) {
     auto elements = std::get_if<std::shared_ptr<InitializerList>>(&value);
     if (!elements || !*elements) return false;
-    for (auto it = (*elements)->elements.rbegin();
-         it != (*elements)->elements.rend(); ++it) {
+    if (traits.has_trivial_destructor(
+            traits.remove_all_extents(arrayType->elementType())))
+      return true;
+    if ((*elements)->size() == 0) return true;
+    std::ignore = (*elements)->mutableElement((*elements)->size() - 1);
+    auto initialized = (*elements)->mutableInitializedElements();
+    for (auto it = initialized.rbegin(); it != initialized.rend(); ++it) {
       auto& [element, elementType] = *it;
       auto typeToDestroy = elementType;
       if (!typeToDestroy) typeToDestroy = arrayType->elementType();

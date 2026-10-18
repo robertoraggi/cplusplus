@@ -50,13 +50,23 @@ export interface BuiltinDef {
   typeCheck?: string;
   validate?: string;
   codegen?: string;
+  mlir?: string;
 }
 
 const builtinsPath = path.join(__dirname, "builtins.json");
 
-export const BUILTINS: BuiltinDef[] = JSON.parse(
-  fs.readFileSync(builtinsPath, "utf-8"),
-);
+function checkLowering(builtin: BuiltinDef): BuiltinDef {
+  if (!builtin.mlir) return builtin;
+  if (builtin.libcall !== true || builtin.codegen)
+    throw new Error(
+      `${builtin.name}: an 'mlir' rewrite replaces the library call, so it requires 'libcall' and excludes 'codegen'`,
+    );
+  return builtin;
+}
+
+export const BUILTINS: BuiltinDef[] = (
+  JSON.parse(fs.readFileSync(builtinsPath, "utf-8")) as BuiltinDef[]
+).map(checkLowering);
 
 const OPERATOR_FUNCTION_TOKENS = new Map<string, string>([
   ["operator new", "T_NEW"],

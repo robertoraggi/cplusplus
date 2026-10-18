@@ -165,19 +165,7 @@ auto main(int argc, char* argv[]) -> int {
     return server.start();
   }
 
-  const bool stopBeforeLink = cli.opt_E || cli.opt_Eonly ||
-                              cli.opt_fsyntax_only || cli.opt_S || cli.opt_c ||
-                              cli.opt_emit_pch || cli.opt_emit_cxx_ir ||
-                              cli.opt_emit_mlir || cli.opt_emit_llvm;
-
-  auto output = cli.getSingle("-o");
-  const bool wantsExecutable = output.has_value() && output != "-";
-  const bool doLink = cli.opt_link || cli.getSingle("-fuse-ld").has_value() ||
-                      (wantsExecutable && !stopBeforeLink);
-
-  if (doLink && !stopBeforeLink) {
-    return compileAndLink(cli, inputFiles);
-  }
+  if (cli.links()) return compileAndLink(cli, inputFiles);
 
   auto exitStatus = EXIT_SUCCESS;
   for (const auto& fileName : inputFiles) {

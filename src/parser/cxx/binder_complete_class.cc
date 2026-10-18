@@ -3790,7 +3790,8 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
 }
 
 auto Binder::BuildRecordLayout::isPackedClass() const -> bool {
-  return findAttribute(classSymbol->attributes(), "packed") != nullptr;
+  return findAttribute(classSymbol->attributes(), AttributeKind::kPacked) !=
+         nullptr;
 }
 
 auto Binder::BuildRecordLayout::packAlignment(int alignment) const -> int {

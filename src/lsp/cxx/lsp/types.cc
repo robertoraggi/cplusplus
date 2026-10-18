@@ -23858,6 +23858,15 @@ auto EmitCodeResult::error() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
+auto EmitCodeResult::kernels() const -> std::optional<Vector<EmitCodeKernel>> {
+  if (!repr_->contains("kernels")) return std::nullopt;
+
+  auto& value = (*repr_)["kernels"];
+
+  if (value.is_null()) value = json::array();
+  return Vector<EmitCodeKernel>(value);
+}
+
 auto EmitCodeResult::format(EmitCodeFormat format) -> EmitCodeResult& {
   (*repr_)["format"] = to_string(format);
   return *this;
@@ -23875,6 +23884,48 @@ auto EmitCodeResult::error(std::optional<std::string> error)
     return *this;
   }
   (*repr_)["error"] = std::move(error.value());
+  return *this;
+}
+
+auto EmitCodeResult::kernels(std::optional<Vector<EmitCodeKernel>> kernels)
+    -> EmitCodeResult& {
+  if (!kernels.has_value()) {
+    repr_->erase("kernels");
+    return *this;
+  }
+  (*repr_)["kernels"] = std::move(kernels.value());
+  return *this;
+}
+
+EmitCodeKernel::operator bool() const {
+  if (!repr_->is_object() || repr_->is_null()) return false;
+  if (!repr_->contains("manifest")) return false;
+  if (!repr_->contains("code")) return false;
+  return true;
+}
+
+auto EmitCodeKernel::manifest() const -> LSPObject {
+  auto& value = (*repr_)["manifest"];
+
+  assert(value.is_object());
+  return LSPObject(value);
+}
+
+auto EmitCodeKernel::code() const -> std::string {
+  auto& value = (*repr_)["code"];
+
+  if (value.is_null()) value = "";
+  assert(value.is_string());
+  return value.get<std::string>();
+}
+
+auto EmitCodeKernel::manifest(LSPObject manifest) -> EmitCodeKernel& {
+  lsp_runtime_error("EmitCodeKernel::manifest: not implemented yet");
+  return *this;
+}
+
+auto EmitCodeKernel::code(std::string code) -> EmitCodeKernel& {
+  (*repr_)["code"] = std::move(code);
   return *this;
 }
 }  // namespace cxx::lsp

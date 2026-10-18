@@ -20,10 +20,15 @@
 
 #include "toolchain_options.h"
 
-#include <cxx/preprocessor.h>
+#include <cxx/cli.h>
 #include <cxx/toolchain.h>
+#include <cxx/toolchain_config.h>
 #include <cxx/translation_unit.h>
-#include <cxx/wasm32_wasi_toolchain.h>
+
+#include <algorithm>
+#include <filesystem>
+#include <iterator>
+#include <optional>
 
 namespace cxx::js {
 
@@ -31,35 +36,51 @@ using emscripten::val;
 
 namespace {
 
-template <typename F>
-void addIncludePaths(const val& options, const char* name, F&& add) {
-  for (auto& path : stringArrayOption(options, name)) add(std::move(path));
+[[nodiscard]] auto stringOption(const val& options, const char* name)
+    -> std::optional<std::string> {
+  val value = options[name];
+  if (!value.isString()) return std::nullopt;
+  return value.as<std::string>();
 }
 
-void applyLanguageStandard(Wasm32WasiToolchain* toolchain, const val& options) {
-  val standard = options["std"];
-  if (!standard.isString()) return;
-
-  auto languageStandard = findLanguageStandard(standard.as<std::string>());
-  if (!languageStandard) return;
-  if (languageStandard->language != toolchain->language()) return;
-
-  toolchain->setLanguageStandard(languageStandard);
+void addFlag(std::vector<std::string>& args, const val& options,
+             const char* name, const char* enabled, const char* disabled) {
+  val value = options[name];
+  if (value.isTrue()) args.push_back(enabled);
+  if (value.isFalse()) args.push_back(disabled);
 }
 
-void applyMacros(Preprocessor* preprocessor, const val& options) {
-  for (const auto& macro : stringArrayOption(options, "undefines")) {
-    preprocessor->undefMacro(macro);
-  }
+void addJoined(std::vector<std::string>& args, const val& options,
+               const char* name, const std::string& flag) {
+  if (auto value = stringOption(options, name)) args.push_back(flag + *value);
+}
 
-  for (const auto& macro : stringArrayOption(options, "defines")) {
-    auto sep = macro.find_first_of('=');
-    if (sep == std::string::npos) {
-      preprocessor->defineMacro(macro, "1");
-    } else {
-      preprocessor->defineMacro(macro.substr(0, sep), macro.substr(sep + 1));
-    }
+void addEach(std::vector<std::string>& args, const val& options,
+             const char* name, const char* flag) {
+  for (auto& value : stringArrayOption(options, name)) {
+    args.push_back(flag);
+    args.push_back(std::move(value));
   }
+}
+
+[[nodiscard]] auto commandLineOf(const val& options)
+    -> std::vector<std::string> {
+  std::vector<std::string> args{"cxx"};
+  if (options.isUndefined()) return args;
+  if (auto appdir = stringOption(options, "appdir"))
+    args.front() = (std::filesystem::path(*appdir) / "cxx").string();
+  addJoined(args, options, "target", "--target=");
+  addJoined(args, options, "deviceProfile", "--device-profile=");
+  addJoined(args, options, "sysroot", "--sysroot=");
+  addJoined(args, options, "std", "-std=");
+  addFlag(args, options, "exceptions", "-fexceptions", "-fno-exceptions");
+  addFlag(args, options, "rtti", "-frtti", "-fno-rtti");
+  addEach(args, options, "systemIncludePaths", "-isystem");
+  addEach(args, options, "quoteIncludePaths", "-iquote");
+  addEach(args, options, "includePaths", "-I");
+  addEach(args, options, "undefines", "-U");
+  addEach(args, options, "defines", "-D");
+  return args;
 }
 
 }  // namespace
@@ -72,47 +93,29 @@ auto stringArrayOption(const val& options, const char* name)
   return emscripten::vecFromJSArray<std::string>(value);
 }
 
-auto configureToolchain(TranslationUnit* unit, const val& options)
-    -> std::unique_ptr<Wasm32WasiToolchain> {
+auto configureToolchain(TranslationUnit* unit, const std::string& fileName,
+                        const val& options, std::vector<std::string> overrides)
+    -> ConfiguredToolchain {
   auto preprocessor = unit->preprocessor();
   if (!preprocessor) return {};
 
-  auto toolchain = std::make_unique<Wasm32WasiToolchain>(
-      preprocessor, Triple{"wasm32-wasip1"});
+  auto args = commandLineOf(options);
+  std::ranges::move(overrides, std::back_inserter(args));
+  std::vector<char*> argv;
+  for (auto& arg : args) argv.push_back(arg.data());
+  argv.push_back(nullptr);
+  int argc = static_cast<int>(args.size());
+  char** arguments = argv.data();
 
-  if (!options.isUndefined()) {
-    if (val appdir = options["appdir"]; appdir.isString()) {
-      toolchain->setAppdir(appdir.as<std::string>());
-    }
+  CLI cli;
+  if (!cli.parse(argc, arguments)) return {nullptr, "invalid unit options"};
 
-    if (val sysroot = options["sysroot"]; sysroot.isString()) {
-      toolchain->setSysroot(sysroot.as<std::string>());
-    }
-
-    applyLanguageStandard(toolchain.get(), options);
-  }
-
-  toolchain->initMemoryLayout();
-
-  addIncludePaths(options, "systemIncludePaths", [&](std::string path) {
-    preprocessor->addSystemIncludePath(std::move(path));
-  });
-
-  toolchain->addSystemCppIncludePaths();
-  toolchain->addSystemIncludePaths();
-  toolchain->addPredefinedMacros();
-
-  addIncludePaths(options, "quoteIncludePaths", [&](std::string path) {
-    preprocessor->addQuoteIncludePath(std::move(path));
-  });
-
-  addIncludePaths(options, "includePaths", [&](std::string path) {
-    preprocessor->addUserIncludePath(std::move(path));
-  });
-
-  applyMacros(preprocessor, options);
-
-  return toolchain;
+  ConfiguredToolchain configured;
+  configured.toolchain = createToolchain(
+      cli, preprocessor, languageOf(cli, fileName), configured.error);
+  if (!configured.toolchain && configured.error.empty())
+    configured.error = describeUnsupportedTarget(cli);
+  return configured;
 }
 
 }  // namespace cxx::js

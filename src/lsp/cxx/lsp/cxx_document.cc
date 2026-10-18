@@ -23,11 +23,13 @@
 #include <cxx/access_control.h>
 #include <cxx/ast.h>
 #include <cxx/ast_visitor.h>
+#include <cxx/attributes.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
 #include <cxx/lexer.h>
 #include <cxx/lsp/enums.h>
 #include <cxx/lsp/types.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/utf8.h>
@@ -846,6 +848,33 @@ struct CompletionItemKindOf {
   return false;
 }
 
+void setTextEdit(CompletionItem& item, const CompletionEditRange& editRange,
+                 std::string newText) {
+  json startStorage;
+  Position start{startStorage};
+  start.line(editRange.line).character(editRange.startColumn);
+
+  json endStorage;
+  Position end{endStorage};
+  end.line(editRange.line).character(editRange.endColumn);
+
+  json rangeStorage;
+  Range range{rangeStorage};
+  range.start(start).end(end);
+
+  json textEditStorage;
+  TextEdit textEdit{textEditStorage};
+  textEdit.range(range).newText(std::move(newText));
+  item.textEdit(std::variant<TextEdit, InsertReplaceEdit>{textEdit});
+}
+
+void setTriggerSuggest(CompletionItem& item) {
+  json commandStorage;
+  Command command{commandStorage};
+  command.title("Suggest").command("editor.action.triggerSuggest");
+  item.command(command);
+}
+
 class CompletionItemCollector {
  public:
   CompletionItemCollector(Vector<CompletionItem>& completionItems,
@@ -922,23 +951,7 @@ class CompletionItemCollector {
     auto item = completionItems_.emplace_back();
     item.label(label);
     item.kind(cxx::visit(CompletionItemKindOf{memberOfClass}, symbol));
-
-    json startStorage;
-    Position start{startStorage};
-    start.line(editRange_.line).character(editRange_.startColumn);
-
-    json endStorage;
-    Position end{endStorage};
-    end.line(editRange_.line).character(editRange_.endColumn);
-
-    json rangeStorage;
-    Range range{rangeStorage};
-    range.start(start).end(end);
-
-    json textEditStorage;
-    TextEdit textEdit{textEditStorage};
-    textEdit.range(range).newText(label);
-    item.textEdit(std::variant<TextEdit, InsertReplaceEdit>{textEdit});
+    setTextEdit(item, editRange_, label);
 
     labels_.push_back(std::move(label));
   }
@@ -1002,37 +1015,150 @@ struct IncludeCompletionSink {
     item.label(label);
     item.kind(isDirectory ? CompletionItemKind::kFolder
                           : CompletionItemKind::kFile);
+    setTextEdit(item, range, newText);
 
-    json startStorage;
-    Position start{startStorage};
-    start.line(range.line).character(range.startColumn);
-
-    json endStorage;
-    Position end{endStorage};
-    end.line(range.line).character(range.endColumn);
-
-    json rangeStorage;
-    Range editRange{rangeStorage};
-    editRange.start(start).end(end);
-
-    json textEditStorage;
-    TextEdit textEdit{textEditStorage};
-    textEdit.range(editRange).newText(newText);
-    item.textEdit(std::variant<TextEdit, InsertReplaceEdit>{textEdit});
-
-    if (!isDirectory) return;
-
-    json commandStorage;
-    Command command{commandStorage};
-    command.title("Suggest").command("editor.action.triggerSuggest");
-    item.command(command);
+    if (isDirectory) setTriggerSuggest(item);
   }
+};
+
+[[nodiscard]] auto attributeNamespaceOf(const Identifier* id)
+    -> std::string_view {
+  if (!id) return {};
+  return canonicalAttributeSpelling(id->name());
+}
+
+[[nodiscard]] auto attributeSignatureOf(const AttributeInfo& info)
+    -> std::string {
+  std::string signature{info.name};
+  if (info.arguments.empty()) return signature;
+  signature += '(';
+  std::string_view separator;
+  for (auto argument : info.arguments) {
+    signature += separator;
+    signature += argument;
+    separator = ", ";
+  }
+  signature += ')';
+  return signature;
+}
+
+[[nodiscard]] auto attributeSnippetOf(const AttributeInfo& info)
+    -> std::string {
+  std::string snippet{info.name};
+  snippet += '(';
+  for (std::size_t index = 0; index < info.arguments.size(); ++index) {
+    if (index) snippet += ", ";
+    snippet += std::format("${{{}:{}}}", index + 1, info.arguments[index]);
+  }
+  snippet += ')';
+  return snippet;
+}
+
+[[nodiscard]] auto attributeDocumentationOf(const AttributeInfo& info)
+    -> std::string {
+  return std::format("{}\n\nAppertains to {}.", info.documentation,
+                     info.subjects);
+}
+
+class AttributeCompletionCollector {
+ public:
+  AttributeCompletionCollector(TranslationUnit* unit,
+                               Vector<CompletionItem>& completionItems,
+                               std::vector<std::string>& labels,
+                               CompletionEditRange editRange,
+                               bool snippetSupport)
+      : unit_(unit),
+        completionItems_(completionItems),
+        labels_(labels),
+        editRange_(editRange),
+        snippetSupport_(snippetSupport) {}
+
+  void operator()(const AttributeCompletionContext& context) {
+    const auto attributeNamespace =
+        attributeNamespaceOf(context.attributeNamespace);
+
+    for (const auto& info : attributeInfos()) {
+      if (!isOffered(info)) continue;
+
+      for (const auto& spelling : info.spellings) {
+        if (spelling.syntax != context.syntax) continue;
+
+        if (spelling.attributeNamespace.empty()) {
+          if (!context.namespacesOnly && !context.attributeNamespace)
+            addAttribute(info);
+          continue;
+        }
+
+        if (!context.attributeNamespace) {
+          addNamespace(spelling.attributeNamespace, context.namespacesOnly);
+          continue;
+        }
+
+        if (spelling.attributeNamespace == attributeNamespace)
+          addAttribute(info);
+      }
+    }
+  }
+
+ private:
+  [[nodiscard]] auto isOffered(const AttributeInfo& info) const -> bool {
+    if (info.cplusplusOnly && unit_->language() != cxx::LanguageKind::kCXX)
+      return false;
+    return isAttributeAvailable(info, *unit_->control()->memoryLayout());
+  }
+
+  [[nodiscard]] auto claimLabel(std::string_view label) -> bool {
+    if (std::ranges::contains(labels_, label)) return false;
+    labels_.emplace_back(label);
+    return true;
+  }
+
+  void addNamespace(std::string_view attributeNamespace, bool namespacesOnly) {
+    if (!claimLabel(attributeNamespace)) return;
+
+    auto item = completionItems_.emplace_back();
+    item.label(std::string(attributeNamespace));
+    item.kind(CompletionItemKind::kModule);
+
+    if (namespacesOnly) {
+      setTextEdit(item, editRange_, std::string(attributeNamespace));
+      return;
+    }
+
+    setTextEdit(item, editRange_, std::format("{}::", attributeNamespace));
+    setTriggerSuggest(item);
+  }
+
+  void addAttribute(const AttributeInfo& info) {
+    if (!claimLabel(info.name)) return;
+
+    auto item = completionItems_.emplace_back();
+    item.label(std::string(info.name));
+    item.kind(CompletionItemKind::kProperty);
+    if (!info.arguments.empty()) item.detail(attributeSignatureOf(info));
+    item.documentation(attributeDocumentationOf(info));
+
+    if (snippetSupport_ && !info.arguments.empty() && !info.optionalArguments) {
+      item.insertTextFormat(InsertTextFormat::kSnippet);
+      setTextEdit(item, editRange_, attributeSnippetOf(info));
+      return;
+    }
+
+    setTextEdit(item, editRange_, std::string(info.name));
+  }
+
+  TranslationUnit* unit_;
+  Vector<CompletionItem>& completionItems_;
+  std::vector<std::string>& labels_;
+  CompletionEditRange editRange_;
+  bool snippetSupport_;
 };
 
 struct CompletionSink {
   TranslationUnit* unit;
   Vector<CompletionItem> completionItems;
   CompletionEditRange editRange;
+  bool snippetSupport = false;
   std::vector<std::string> labels;
 
   void operator()(const MemberCompletionContext& context) {
@@ -1062,8 +1188,14 @@ struct CompletionSink {
         classSymbolOf(unit->typeTraits(), context.objectType));
   }
 
+  void operator()(const AttributeCompletionContext& context) {
+    AttributeCompletionCollector{unit, completionItems, labels, editRange,
+                                 snippetSupport}(context);
+  }
+
   void operator()(const ArgumentHintsContext&) const {}
   void operator()(const TemplateArgumentHintsContext&) const {}
+  void operator()(const AttributeArgumentHintsContext&) const {}
 
  private:
   auto collectorFor(const AccessContext& accessContext)
@@ -1234,10 +1366,31 @@ struct SignatureHelpSink {
                          context.activeParameter);
   }
 
+  void operator()(const AttributeArgumentHintsContext& context) {
+    clearResult();
+
+    const auto& info = attributeInfo(context.kind);
+
+    auto signatures = result.signatures();
+    auto signature = signatures.emplace_back();
+    signature.label(attributeSignatureOf(info));
+    signature.documentation(attributeDocumentationOf(info));
+
+    auto parameterList = signature.parameters<Vector<ParameterInformation>>();
+    for (auto argument : info.arguments) {
+      auto parameterInfo = parameterList.emplace_back();
+      parameterInfo.label(std::string(argument));
+    }
+
+    result.activeSignature(0);
+    result.activeParameter(long(context.activeParameter));
+  }
+
   void operator()(const MemberCompletionContext&) const {}
   void operator()(const ScopeCompletionContext&) const {}
   void operator()(const UnqualifiedCompletionContext&) const {}
   void operator()(const DesignatorCompletionContext&) const {}
+  void operator()(const AttributeCompletionContext&) const {}
 
  private:
   void clearResult() { result.get() = json::object(); }
@@ -1356,7 +1509,7 @@ void CxxDocument::requestCodeCompletionAt(std::uint32_t line,
                                           std::uint32_t column,
                                           CompletionEditRange editRange,
                                           Vector<CompletionItem> result,
-                                          bool includeDirectivesOnly) {
+                                          CompletionRequestOptions options) {
   auto& unit = d->unit;
 
   (void)unit.blockErrors(true);
@@ -1365,12 +1518,13 @@ void CxxDocument::requestCodeCompletionAt(std::uint32_t line,
 
   d->includeCompletionSink = IncludeCompletionSink{result, editRange};
 
-  if (includeDirectivesOnly) return;
+  if (options.includeDirectivesOnly) return;
 
-  d->complete = [sink = CompletionSink{&unit, result, editRange}](
-                    const CodeCompletionContext& context) mutable {
-    std::visit(sink, context);
-  };
+  d->complete =
+      [sink = CompletionSink{&unit, result, editRange, options.snippetSupport}](
+          const CodeCompletionContext& context) mutable {
+        std::visit(sink, context);
+      };
 }
 
 void CxxDocument::setCompletionOffset(std::size_t offset) {

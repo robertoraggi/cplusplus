@@ -54,6 +54,7 @@ export type InitializerKind =
   | "Floating"
   | "Bytes"
   | "Aggregate"
+  | "Vector"
   | "Null"
   | "Zero"
   | "ScalarZero"
@@ -154,6 +155,7 @@ export type TypeKind =
   | "Floating"
   | "Pointer"
   | "Array"
+  | "Vector"
   | "Class"
   | "Function"
   | "Unresolved"
@@ -174,6 +176,12 @@ export type Visibility = "Default" | "Hidden" | "Protected";
 
 /** @category Backend Enumerations */
 export type InlineKind = "Default" | "NoInline" | "InlineHint" | "AlwaysInline";
+
+/** @category Backend Enumerations */
+export type KernelBufferKind = "Storage" | "Uniform";
+
+/** @category Backend Enumerations */
+export type KernelInvocationIdKind = "Global" | "Local" | "Workgroup";
 
 /** @category Debug Information */
 export type DebugEncoding =
@@ -246,8 +254,10 @@ export interface ModuleInfo {
   name: string;
   sourceFile: string;
   targetTriple: string;
+  dataLayout: string;
   debugCompilationDirectory: string;
   framePointer: string;
+  deviceProfile: string;
   picLevel: number;
   pieLevel: number;
 }
@@ -321,6 +331,32 @@ export interface FunctionInfo {
   resultAbi: ParameterAbi;
   section: string;
   callingConvention: CallingConvention;
+  kernel?: KernelInfo | undefined;
+}
+
+/** @category Backend Descriptors */
+export interface KernelInfo {
+  x: number;
+  y: number;
+  z: number;
+  buffers: readonly KernelBufferInfo[];
+  invocationIds: readonly KernelInvocationIdInfo[];
+}
+
+/** @category Backend Descriptors */
+export interface KernelBufferInfo {
+  parameter: number;
+  name: string;
+  binding: number;
+  kind: KernelBufferKind;
+  readOnly: boolean;
+  unsignedElements: boolean;
+}
+
+/** @category Backend Descriptors */
+export interface KernelInvocationIdInfo {
+  parameter: number;
+  kind: KernelInvocationIdKind;
 }
 
 /** @category Backend Descriptors */
@@ -559,6 +595,31 @@ export interface EmitterDelegate {
   arrayType(elementType: TypeRef, size: number): TypeRef;
   vectorType(elementType: TypeRef, elementCount: number): TypeRef;
   vectorSplat(loc: TokenIndex, vectorType: TypeRef, scalar: ValueRef): ValueRef;
+  vectorFromElements(
+    loc: TokenIndex,
+    vectorType: TypeRef,
+    elements: readonly ValueRef[],
+  ): ValueRef;
+  vectorExtract(
+    loc: TokenIndex,
+    elementType: TypeRef,
+    vector: ValueRef,
+    index: ValueRef,
+    indexIsSigned: boolean,
+  ): ValueRef;
+  vectorInsert(
+    loc: TokenIndex,
+    vector: ValueRef,
+    element: ValueRef,
+    index: ValueRef,
+    indexIsSigned: boolean,
+  ): ValueRef;
+  vectorShuffle(
+    loc: TokenIndex,
+    first: ValueRef,
+    second: ValueRef,
+    mask: readonly number[],
+  ): ValueRef;
   functionType(
     parameters: readonly TypeRef[],
     results: readonly TypeRef[],
@@ -646,6 +707,13 @@ export interface EmitterDelegate {
     destination: ValueRef,
     source: ValueRef,
     size: number,
+  ): void;
+  zeroInitialize(loc: TokenIndex, address: ValueRef, objectType: TypeRef): void;
+  copyObject(
+    loc: TokenIndex,
+    destination: ValueRef,
+    source: ValueRef,
+    objectType: TypeRef,
   ): void;
   unreachable(loc: TokenIndex): void;
   call(loc: TokenIndex, info: CallInfo): ValueRef[];

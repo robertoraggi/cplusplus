@@ -20,6 +20,12 @@
 
 #include "emit_code.h"
 
+#include <cxx/control.h>
+#include <cxx/memory_layout.h>
+#include <cxx/translation_unit.h>
+
+#include <format>
+
 #ifdef CXX_WITH_MLIR
 #include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
@@ -27,6 +33,9 @@
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/mlir/mlir_emitter.h>
+#ifdef CXX_WITH_SPIRV
+#include <cxx/mlir/device_kernel.h>
+#endif
 #include <cxx/private/path.h>
 #include <cxx/translation_unit.h>
 #include <llvm/IR/LLVMContext.h>
@@ -36,6 +45,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Target/TargetMachine.h>
+#include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/MLIRContext.h>
 
 #include <format>
@@ -43,6 +53,18 @@
 #endif
 
 namespace cxx::js {
+
+auto targetsDevice(TranslationUnit* unit) -> bool {
+  return unit->control()->memoryLayout()->deviceProfile() !=
+         DeviceProfile::kNone;
+}
+
+auto hostTargetRequired(std::string_view output) -> std::string {
+  return std::format(
+      "{} needs a host target; the device profile emits cxxir, mlir, asm, "
+      "obj, wgsl and spirv",
+      output);
+}
 
 #ifndef CXX_WITH_MLIR
 
@@ -56,6 +78,96 @@ auto generateCode(TranslationUnit*, std::string_view, bool, int,
 #else
 
 auto hasCodeGenerator() -> bool { return true; }
+
+namespace {
+
+[[nodiscard]] auto isKernelFormat(std::string_view format) -> bool {
+  return format == "wgsl" || format == "spirv";
+}
+
+#ifdef CXX_WITH_SPIRV
+void describeDiagnostic(mlir::Diagnostic& diagnostic, llvm::raw_ostream& os) {
+  if (auto location =
+          diagnostic.getLocation()->findInstanceOf<mlir::FileLineColLoc>()) {
+    os << location.getFilename().getValue() << ':' << location.getLine() << ':'
+       << location.getColumn() << ": ";
+  }
+  os << "error: " << diagnostic.str() << '\n';
+}
+
+class KernelErrors {
+ public:
+  KernelErrors(mlir::ModuleOp module, std::string& error)
+      : errors_(error),
+        handler_(module.getContext(), [this](mlir::Diagnostic& diagnostic) {
+          if (diagnostic.getSeverity() == mlir::DiagnosticSeverity::Error)
+            describeDiagnostic(diagnostic, errors_);
+          return mlir::success();
+        }) {}
+
+ private:
+  llvm::raw_string_ostream errors_;
+  mlir::ScopedDiagnosticHandler handler_;
+};
+
+[[nodiscard]] auto generateDeviceCode(mlir::ModuleOp module,
+                                      std::string_view format)
+    -> GeneratedCode {
+  GeneratedCode generated;
+  KernelErrors errors(module, generated.error);
+  const auto entries = kernelEntryPoints(module);
+  if (format == "mlir" || format == "asm") {
+    llvm::raw_string_ostream text(generated.text);
+    const auto stage =
+        format == "mlir" ? KernelStage::kGPU : KernelStage::kSPIRV;
+    (void)printKernels(module, entries, stage, text);
+    return generated;
+  }
+  if (format != "obj") {
+    generated.error = hostTargetRequired(format);
+    return generated;
+  }
+  if (entries.size() != 1) {
+    generated.error = std::format(
+        "obj emits one kernel, but the unit defines {}; the spirv format "
+        "emits every kernel",
+        entries.size());
+    return generated;
+  }
+  auto artifact = compileSPIRVKernel(module, entries.front());
+  if (succeeded(artifact))
+    generated.objectCode.assign(artifact->bytes.begin(), artifact->bytes.end());
+  return generated;
+}
+
+[[nodiscard]] auto generateKernels(mlir::ModuleOp module,
+                                   std::string_view format) -> GeneratedCode {
+  GeneratedCode generated;
+  KernelErrors errors(module, generated.error);
+  for (const auto& entry : kernelEntryPoints(module)) {
+    auto artifact = format == "wgsl" ? compileWGSLKernel(module, entry)
+                                     : compileSPIRVKernel(module, entry);
+    if (failed(artifact)) continue;
+    generated.kernels.push_back(
+        {std::move(artifact->manifest),
+         std::vector<std::uint8_t>(artifact->bytes.begin(),
+                                   artifact->bytes.end())});
+  }
+  return generated;
+}
+#else
+[[nodiscard]] auto generateDeviceCode(mlir::ModuleOp, std::string_view)
+    -> GeneratedCode {
+  return GeneratedCode{.error = "this build has no device kernel support"};
+}
+
+[[nodiscard]] auto generateKernels(mlir::ModuleOp, std::string_view)
+    -> GeneratedCode {
+  return GeneratedCode{.error = "this build has no device kernel support"};
+}
+#endif
+
+}  // namespace
 
 auto generateCode(TranslationUnit* unit, std::string_view format,
                   bool debugInfo, int optimizationLevel,
@@ -89,6 +201,11 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
     if (debugInfo) flags.enableDebugInfo(true);
     return flags;
   };
+
+  if (isKernelFormat(format)) return generateKernels(module, format);
+
+  if (targetsDevice(unit) && format != "cxxir")
+    return generateDeviceCode(module, format);
 
   if (failed(runMLIRPassPipeline(module, mlirPipeline))) {
     if (objectFile) return GeneratedCode{};

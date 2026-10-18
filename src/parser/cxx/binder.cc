@@ -1265,6 +1265,8 @@ void Binder::bind(ParameterDeclarationAST* ast, const Decl& decl,
     parameterSymbol->setParameterPack(ast->isPack);
     scope_->addSymbol(parameterSymbol);
     ast->symbol = parameterSymbol;
+    applyDeclarationAttributes(parameterSymbol, ast->attributeList,
+                               ast->declarator);
   }
 }
 
@@ -2111,7 +2113,7 @@ struct OdrUsedLocalFinder : ASTVisitor {
     if (binary && binary->op == TokenKind::T_COMMA)
       return markNonOdrUses(binary->rightExpression);
     auto id = ast_cast<IdExpressionAST>(expression);
-    if (id && isUsableInConstantExpressions(id->symbol))
+    if (id && isUsableInConstantExpressions(unit_->typeTraits(), id->symbol))
       nonOdrUses_.push_back(id);
   }
 
@@ -2124,7 +2126,7 @@ struct OdrUsedLocalFinder : ASTVisitor {
 
   [[nodiscard]] auto isOdrUseDeferred(Symbol* symbol) -> bool {
     if (dependentExpressions_.empty()) return false;
-    return isUsableInConstantExpressions(symbol);
+    return isUsableInConstantExpressions(unit_->typeTraits(), symbol);
   }
 
   TranslationUnit* unit_;
@@ -2198,6 +2200,14 @@ void Binder::applyDeclarationAttributes(
     Symbol* symbol, List<AttributeSpecifierAST*>* attributes,
     DeclaratorAST* declarator) {
   if (!symbol) return;
+  if (symbol->isVariable() || symbol->isField() || symbol->isParameter()) {
+    if (control()->memoryLayout()->deviceProfile() ==
+            DeviceProfile::kVulkan11F32 &&
+        traits.is_volatile(symbol->type()))
+      error(
+          symbol->location(),
+          "volatile-qualified objects are not supported by the device profile");
+  }
   auto entityAttributes =
       collectAttributes(unit_, declaratorIdAttributes(declarator));
   auto gnuAttributes =
@@ -2216,6 +2226,18 @@ void Binder::applyDeclarationAttributes(
   applyAlignedAttribute(symbol, attributes);
   applyAlignedAttribute(symbol, declaratorIdAttributes(declarator));
   applyAlignedAttribute(symbol, terminatingAttributes(declarator));
+
+  std::vector<AttributeRef> deviceAttributes;
+  for (auto list : {attributes, declaratorIdAttributes(declarator),
+                    terminatingAttributes(declarator)}) {
+    for (auto attribute : knownAttributes(unit_, list)) {
+      if (attributeInfo(attribute.kind()).availability !=
+          AttributeAvailability::kDeviceProfile)
+        continue;
+      deviceAttributes.push_back(attribute);
+    }
+  }
+  applyDeviceAttributes(symbol, deviceAttributes);
 }
 
 void Binder::inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern) {
@@ -2231,13 +2253,9 @@ void Binder::inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern) {
 
 void Binder::applyEnableIfAttributes(FunctionSymbol* function,
                                      List<AttributeSpecifierAST*>* attributes) {
-  static constexpr AttributeSpelling spellings[] = {
-      {AttributeSyntax::kGnu, "", "enable_if"},
-      {AttributeSyntax::kCxx, "clang", "enable_if"},
-  };
   auto conditions = function->enableIfConditions();
   for (auto attribute :
-       findAttributesBySpelling(unit_, attributes, spellings)) {
+       findAttributes(unit_, attributes, AttributeKind::kEnableIf)) {
     auto clause = attribute.argumentClause;
     if (!clause || !clause->expressionList || !clause->expressionList->next ||
         clause->expressionList->next->next) {
@@ -2257,11 +2275,8 @@ void Binder::applyEnableIfAttributes(FunctionSymbol* function,
 
 void Binder::applyConstructorAttribute(
     FunctionSymbol* function, List<AttributeSpecifierAST*>* attributes) {
-  static constexpr AttributeSpelling spellings[] = {
-      {AttributeSyntax::kGnu, "", "constructor"},
-      {AttributeSyntax::kCxx, "gnu", "constructor"},
-  };
-  auto attribute = findAttributeBySpelling(unit_, attributes, spellings);
+  auto attribute =
+      findAttribute(unit_, attributes, AttributeKind::kConstructor);
   if (!attribute) return;
   std::uint32_t priority = 65535;
   auto clause = attribute.argumentClause;
@@ -2300,28 +2315,29 @@ void Binder::applyAttributeMap(Symbol* symbol, AttributeMap collected) {
   symbol->setAttributes(merged);
   canonical->setAttributes(merged);
 
-  if (auto tags = findAttribute(merged, "abi_tag");
+  if (auto tags = findAttribute(merged, AttributeKind::kAbiTag);
       tags && canonical->abiTags().empty()) {
     symbol->setAbiTags(control()->getAbiTags(abiTagsOf(symbol, *tags)));
     canonical->setAbiTags(symbol->abiTagList());
   }
 
-  const auto isNodiscard = findAttribute(merged, "nodiscard") ||
-                           findAttribute(merged, "warn_unused_result");
+  const auto isNodiscard =
+      findAttribute(merged, AttributeKind::kNodiscard) ||
+      findAttribute(merged, AttributeKind::kWarnUnusedResult);
   symbol->setNodiscard(isNodiscard);
   canonical->setNodiscard(isNodiscard);
 
-  if (findAttribute(merged, "used")) {
+  if (findAttribute(merged, AttributeKind::kUsed)) {
     symbol->setUsed(true);
     canonical->setUsed(true);
   }
 
-  if (findAttribute(merged, "exclude_from_explicit_instantiation")) {
+  if (findAttribute(merged, AttributeKind::kExcludeFromExplicitInstantiation)) {
     symbol->setExcludedFromExplicitInstantiation(true);
     canonical->setExcludedFromExplicitInstantiation(true);
   }
 
-  if (findAttribute(merged, "trivial_abi")) {
+  if (findAttribute(merged, AttributeKind::kTrivialAbi)) {
     symbol->setTrivialAbi(true);
     canonical->setTrivialAbi(true);
   }
@@ -2329,12 +2345,12 @@ void Binder::applyAttributeMap(Symbol* symbol, AttributeMap collected) {
   auto function = symbol_cast<FunctionSymbol>(symbol);
   if (!function) return;
 
-  if (findAttribute(merged, "noreturn")) {
+  if (findAttribute(merged, AttributeKind::kNoreturn)) {
     function->setNoReturn(true);
     function->canonical()->setNoReturn(true);
   }
 
-  if (findAttribute(merged, "nothrow")) {
+  if (findAttribute(merged, AttributeKind::kNothrow)) {
     function->setExceptionSpecifier(true);
     setFunctionNoexcept(control(), function, true);
 
@@ -2354,17 +2370,17 @@ void Binder::applyWasmFunctionAttributes(FunctionSymbol* function,
 
   auto canonical = function->canonical();
 
-  auto apply = [&](std::string_view name,
+  auto apply = [&](AttributeKind kind,
                    void (FunctionSymbol::*setter)(const Identifier*)) {
-    auto argument = attributeArgument(attributes, name);
+    auto argument = attributeArgument(attributes, kind);
     if (!argument) return;
     (function->*setter)(argument);
     (canonical->*setter)(argument);
   };
 
-  apply("import_module", &FunctionSymbol::setImportModule);
-  apply("import_name", &FunctionSymbol::setImportName);
-  apply("export_name", &FunctionSymbol::setExportName);
+  apply(AttributeKind::kImportModule, &FunctionSymbol::setImportModule);
+  apply(AttributeKind::kImportName, &FunctionSymbol::setImportName);
+  apply(AttributeKind::kExportName, &FunctionSymbol::setExportName);
 
   if (!function->exportName()) return;
 
@@ -3738,13 +3754,7 @@ auto Binder::validatedAlignment(std::optional<std::intmax_t> value,
 
 auto Binder::alignedAttribute(List<AttributeSpecifierAST*>* attributeList)
     -> std::optional<int> {
-  static constexpr AttributeSpelling kAlignedSpellings[] = {
-      {AttributeSyntax::kGnu, "", "aligned"},
-      {AttributeSyntax::kCxx, "gnu", "aligned"},
-  };
-
-  auto attribute =
-      findAttributeBySpelling(unit_, attributeList, kAlignedSpellings);
+  auto attribute = findAttribute(unit_, attributeList, AttributeKind::kAligned);
   if (!attribute) return std::nullopt;
 
   auto clause = attribute.argumentClause;
@@ -4096,7 +4106,7 @@ namespace {
 
 [[nodiscard]] auto isGnuInlineDefinition(FunctionSymbol* function) -> bool {
   return function->isInline() &&
-         findAttribute(function->attributes(), "gnu_inline");
+         findAttribute(function->attributes(), AttributeKind::kGnuInline);
 }
 }  // namespace
 

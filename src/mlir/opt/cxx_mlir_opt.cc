@@ -6,8 +6,10 @@
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
+#include <mlir/Dialect/Func/Extensions/InlinerExtension.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/Math/IR/Math.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
 #include <mlir/Dialect/MemRef/Transforms/Passes.h>
 #include <mlir/Dialect/Ptr/IR/PtrDialect.h>
@@ -16,17 +18,36 @@
 #include <mlir/Tools/mlir-opt/MlirOptMain.h>
 #include <mlir/Transforms/Passes.h>
 
+#ifdef CXX_WITH_SPIRV
+#include <mlir/Dialect/GPU/IR/GPUDialect.h>
+#include <mlir/Dialect/SPIRV/IR/SPIRVDialect.h>
+#endif
+
 int main(int argc, char** argv) {
   cxx::registerCxxToLLVMPass();
   cxx::registerConvertCxxToPtrPass();
   cxx::registerConvertCxxToMemRefPass();
+  cxx::registerConvertCxxToFuncPass();
+  cxx::registerConvertCxxToMathPass();
   cxx::registerLiftCxxControlFlowToSCFPass();
+#ifdef CXX_WITH_SPIRV
+  cxx::registerConvertCxxKernelToGpuPass();
+#endif
   mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
   mlir::registerCanonicalizerPass();
   mlir::registerMem2RegPass();
+  mlir::registerSROAPass();
+  mlir::registerCSEPass();
+  mlir::registerInlinerPass();
+  mlir::registerSymbolDCEPass();
   mlir::memref::registerExpandStridedMetadataPass();
   mlir::registerPass([] { return mlir::createLowerAffinePass(); });
   mlir::DialectRegistry registry;
+  mlir::func::registerInlinerExtension(registry);
+  registry.insert<mlir::math::MathDialect>();
+#ifdef CXX_WITH_SPIRV
+  registry.insert<mlir::gpu::GPUDialect, mlir::spirv::SPIRVDialect>();
+#endif
   registry.insert<mlir::cxx::CxxDialect, mlir::affine::AffineDialect,
                   mlir::arith::ArithDialect, mlir::cf::ControlFlowDialect,
                   mlir::DLTIDialect, mlir::func::FuncDialect,

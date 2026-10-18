@@ -20,6 +20,13 @@
 
 #include "frontend.h"
 
+#ifdef CXX_WITH_SPIRV
+#include <cxx/mlir/device_kernel.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/ToolOutputFile.h>
+
+#endif
+
 #include <cxx/ast.h>
 #include <cxx/ast_pretty_printer.h>
 #include <cxx/ast_printer.h>
@@ -101,7 +108,8 @@ struct Frontend::Private {
 
   [[nodiscard]] auto needsIR() const -> bool {
     return cli.opt_emit_cxx_ir || cli.opt_emit_mlir || cli.opt_emit_llvm ||
-           cli.opt_S || cli.opt_c || objectOutput_.has_value();
+           cli.opt_emit_spirv || cli.opt_emit_wgsl || cli.opt_S || cli.opt_c ||
+           objectOutput_.has_value();
   }
 
   [[nodiscard]] auto needsLLVMIR() const -> bool {
@@ -129,6 +137,9 @@ struct Frontend::Private {
   void printAstIfNeeded();
   void generateIR();
   void runIRPassPipeline();
+  [[nodiscard]] auto targetsDevice() const -> bool;
+  void emitKernelArtifact();
+  void emitKernelIR();
   void emitCxxIR();
   void lowerIR();
   void emitMLIR();
@@ -241,6 +252,8 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
   actions_.emplace_back([this]() { generateIR(); });
   actions_.emplace_back([this]() { exitIfErrors(); });
   actions_.emplace_back([this]() { runIRPassPipeline(); });
+  actions_.emplace_back([this]() { emitKernelArtifact(); });
+  actions_.emplace_back([this]() { emitKernelIR(); });
   actions_.emplace_back([this]() { emitCxxIR(); });
   actions_.emplace_back([this]() { lowerIR(); });
   actions_.emplace_back([this]() { emitMLIR(); });
@@ -415,6 +428,13 @@ void Frontend::Private::dumpMacros(std::ostream& out) {
 }
 
 void Frontend::Private::prepare() {
+#ifndef CXX_WITH_SPIRV
+  if (cli.opt_emit_spirv || cli.opt_emit_wgsl) {
+    std::cerr << "cxx: this build has no device kernel support\n";
+    fail();
+    return;
+  }
+#endif
   auto preprocessor = unit_->preprocessor();
 
   if (cli.opt_verify) {
@@ -729,8 +749,9 @@ auto Frontend::Private::targetKey() const -> std::string {
 
   auto memoryLayout = toolchain_->memoryLayout();
 
-  return std::format("{}/{}/{}", memoryLayout->triple(), memoryLayout->arch(),
-                     memoryLayout->sizeOfLongDouble());
+  return std::format("{}/{}/{}/{}", memoryLayout->triple(),
+                     memoryLayout->arch(), memoryLayout->sizeOfLongDouble(),
+                     to_string(memoryLayout->deviceProfile()));
 }
 
 auto Frontend::Private::languageKey() const -> std::string {
@@ -879,6 +900,134 @@ void Frontend::Private::runIRPassPipeline() {
   std::cerr << "cxx: failed to run MLIR pass pipeline" << std::endl;
   fail();
   module_ = nullptr;
+#endif
+}
+
+auto Frontend::Private::targetsDevice() const -> bool {
+  return toolchain_ &&
+         toolchain_->memoryLayout()->deviceProfile() != DeviceProfile::kNone;
+}
+
+void Frontend::Private::emitKernelArtifact() {
+  const bool deviceObject = cli.opt_c && targetsDevice();
+  if (!cli.opt_emit_spirv && !cli.opt_emit_wgsl && !deviceObject) return;
+  shouldExit_ = true;
+#ifdef CXX_WITH_SPIRV
+  if (!module_) return;
+  const bool wgsl = cli.opt_emit_wgsl;
+  const auto option = wgsl                 ? "-emit-wgsl"
+                      : cli.opt_emit_spirv ? "-emit-spirv"
+                                           : "-c";
+  std::vector<std::string_view> selected;
+  if (cli.opt_emit_spirv) selected.push_back("-emit-spirv");
+  if (cli.opt_emit_wgsl) selected.push_back("-emit-wgsl");
+  if (deviceObject) selected.push_back("-c");
+  if (selected.size() > 1) {
+    std::cerr << "cxx: " << selected[0] << " and " << selected[1]
+              << " are mutually exclusive\n";
+    fail();
+    return;
+  }
+  auto kernel = cli.getSingle("--kernel");
+  if (!kernel && deviceObject) {
+    auto entries = kernelEntryPoints(module_);
+    if (entries.size() != 1) {
+      std::cerr << "cxx: -c emits one kernel; select it with --kernel\n";
+      fail();
+      return;
+    }
+    kernel = entries.front();
+  }
+  auto manifestPath = cli.getSingle("--resource-manifest");
+  if (!kernel || kernel->empty()) {
+    std::cerr << "cxx: " << option << " requires --kernel=<name>\n";
+    fail();
+    return;
+  }
+  if (manifestPath && (manifestPath->empty() || *manifestPath == "-")) {
+    std::cerr << "cxx: --resource-manifest requires a file path\n";
+    fail();
+    return;
+  }
+  const auto extension = wgsl ? "wgsl" : deviceObject ? "o" : "spv";
+  auto outputPath = cli.getSingle("-o").value_or(
+      fs::path(fileName_).filename().replace_extension(extension).string());
+  if (manifestPath &&
+      fs::file_identity(outputPath) == fs::file_identity(*manifestPath)) {
+    std::cerr << "cxx: kernel artifact and resource manifest need distinct "
+                 "paths\n";
+    fail();
+    return;
+  }
+  auto artifact = wgsl ? compileWGSLKernel(module_, *kernel)
+                       : compileSPIRVKernel(module_, *kernel);
+  if (failed(artifact)) {
+    fail();
+    return;
+  }
+  std::error_code error;
+  llvm::ToolOutputFile output(
+      outputPath, error,
+      wgsl ? llvm::sys::fs::OF_Text : llvm::sys::fs::OF_None);
+  if (error) {
+    std::cerr << "cxx: " << error.message() << ": " << outputPath << '\n';
+    fail();
+    return;
+  }
+  std::optional<llvm::ToolOutputFile> manifest;
+  if (manifestPath) {
+    manifest.emplace(*manifestPath, error, llvm::sys::fs::OF_Text);
+    if (error) {
+      std::cerr << "cxx: " << error.message() << ": " << *manifestPath << '\n';
+      fail();
+      return;
+    }
+    manifest->os() << artifact->manifest;
+    manifest->os().flush();
+  }
+  output.os().write(reinterpret_cast<const char*>(artifact->bytes.data()),
+                    artifact->bytes.size());
+  output.os().flush();
+  if (output.os().has_error() || (manifest && manifest->os().has_error())) {
+    std::cerr << "cxx: cannot write kernel outputs\n";
+    fail();
+    return;
+  }
+  output.keep();
+  if (manifest) manifest->keep();
+#else
+  std::cerr << "cxx: this build has no device kernel support\n";
+  fail();
+#endif
+}
+
+void Frontend::Private::emitKernelIR() {
+  const bool deviceMLIR = cli.opt_emit_mlir && targetsDevice();
+  const bool deviceAssembly = cli.opt_S && targetsDevice();
+  if (!deviceMLIR && !deviceAssembly) return;
+  shouldExit_ = true;
+#ifdef CXX_WITH_SPIRV
+  if (!module_) return;
+  if (deviceMLIR && deviceAssembly) {
+    std::cerr << "cxx: -emit-mlir and -S are mutually exclusive\n";
+    fail();
+    return;
+  }
+  const auto stage = deviceMLIR ? KernelStage::kGPU : KernelStage::kSPIRV;
+  auto selected = cli.getSingle("--kernel");
+  auto kernels = selected ? llvm::SmallVector<std::string>{*selected}
+                          : kernelEntryPoints(module_);
+  std::string text;
+  llvm::raw_string_ostream out(text);
+  if (failed(printKernels(module_, kernels, stage, out))) {
+    fail();
+    return;
+  }
+  withRawOutputStream(deviceAssembly ? "s" : "mlir",
+                      [&](llvm::raw_pwrite_stream& output) { output << text; });
+#else
+  std::cerr << "cxx: this build has no device kernel support\n";
+  fail();
 #endif
 }
 

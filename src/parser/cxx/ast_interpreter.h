@@ -63,17 +63,17 @@ class ASTInterpreter {
                                          ExpressionAST* initializer)
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto staticInitializationValue(const Type* type,
+                                               FunctionSymbol* constructor,
+                                               ExpressionAST* initializer)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto evaluateInitializer(const Type* type,
                                          ExpressionAST* initializer)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto initialValue(const Type* type, ExpressionAST* initializer)
       -> std::optional<ConstValue>;
-
-  [[nodiscard]] auto cloneValue(const ConstValue& value) -> ConstValue;
-
-  [[nodiscard]] auto cloneValueOfType(const ConstValue& value, const Type* type)
-      -> ConstValue;
 
   [[nodiscard]] auto evaluateAddress(ExpressionAST* ast)
       -> std::optional<ConstValue>;
@@ -363,7 +363,8 @@ class ASTInterpreter {
 
   [[nodiscard]] auto bindParametersFromExprs(
       Frame& frame, FunctionSymbol* func,
-      std::span<ExpressionAST* const> argExprs) -> bool;
+      std::span<ExpressionAST* const> argExprs, bool rightToLeft = false)
+      -> bool;
 
   [[nodiscard]] auto evaluateCallLValue(FunctionSymbol* func,
                                         std::vector<ConstValue> args)
@@ -414,6 +415,17 @@ class ASTInterpreter {
 
   [[nodiscard]] auto referenceBinding(ExpressionAST* initializer)
       -> std::optional<ConstValue>;
+  [[nodiscard]] auto staticReferenceBinding(const Type* referenceType,
+                                            ExpressionAST* initializer)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto referenceInitializer(ExpressionAST* initializer)
+      -> ExpressionAST*;
+  [[nodiscard]] auto isPotentiallyUsableInConstantExpressions(
+      VariableSymbol* var) -> bool;
+  [[nodiscard]] auto staticTemporary(const Type* type, ConstValue value,
+                                     SourceLocation location,
+                                     std::string_view name)
+      -> std::shared_ptr<ConstAddress>;
 
   [[nodiscard]] auto pointeeObject(ConstValue value, const Type* pointeeType)
       -> std::shared_ptr<ConstObject>;
@@ -497,19 +509,21 @@ class ASTInterpreter {
       std::size_t limit = std::numeric_limits<std::size_t>::max())
       -> std::optional<std::string>;
 
-  [[nodiscard]] auto pointeeCharacters(const ConstValue& pointer,
-                                       std::size_t count)
-      -> std::optional<std::string>;
-
-  [[nodiscard]] auto arraySubobjectSlot(ConstValue* storage,
-                                        const Type* storageType,
+  template <typename Value>
+  [[nodiscard]] auto arraySubobjectSlot(Value* storage, const Type* storageType,
                                         std::intmax_t displacement,
-                                        const Type* objectType) -> ConstValue*;
+                                        const Type* objectType) -> Value*;
 
   [[nodiscard]] auto addressSlot(const ConstAddress& address,
                                  std::intmax_t extraIndex,
                                  const Type* objectType = nullptr)
       -> ConstValue*;
+
+  [[nodiscard]] auto componentLane(MemberExpressionAST* ast)
+      -> std::optional<std::size_t>;
+
+  [[nodiscard]] auto componentVector(MemberExpressionAST* ast)
+      -> std::shared_ptr<InitializerList>;
 
   [[nodiscard]] auto memberObject(MemberExpressionAST* ast)
       -> std::shared_ptr<ConstObject>;
@@ -626,6 +640,25 @@ class ASTInterpreter {
   [[nodiscard]] auto evaluateBuiltinAddressof(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto evaluateBuiltinMemmove(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinCharacterComparison(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  struct MemoryRange {
+    const Type* elementType = nullptr;
+    std::uintmax_t count = 0;
+    bool readOnly = false;
+  };
+
+  [[nodiscard]] auto memoryRange(const ConstAddress& address,
+                                 const Type* elementType)
+      -> std::optional<MemoryRange>;
+
+  [[nodiscard]] auto assignMemoryValue(ConstValue& destination,
+                                       const ConstValue& source) -> bool;
+
   [[nodiscard]] auto evaluateBuiltinLine(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
   [[nodiscard]] auto evaluateBuiltinColumn(CallExpressionAST* ast)
@@ -719,6 +752,7 @@ class ASTInterpreter {
   int activeEvaluations_ = 0;
 
   std::optional<ConstValue> returnValue_;
+  std::optional<ConstValue> assignmentValue_;
 
   bool captureReturnLValue_ = false;
   ConstValue* returnLValue_ = nullptr;

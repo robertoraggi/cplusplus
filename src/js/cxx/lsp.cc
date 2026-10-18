@@ -28,7 +28,6 @@
 #include <cxx/preprocessor.h>
 #include <cxx/toolchain.h>
 #include <cxx/translation_unit.h>
-#include <cxx/wasm32_wasi_toolchain.h>
 #include <emscripten/bind.h>
 #include <emscripten/eventloop.h>
 #include <emscripten/val.h>
@@ -37,6 +36,7 @@
 #include <format>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -88,13 +88,22 @@ class JsServerHost final : public cxx::lsp::ServerHost {
                               int optimizationLevel,
                               const std::string& mlirPipeline)
       -> std::optional<cxx::lsp::EmittedCode> override {
-    if (document.hasErrors()) return cxx::lsp::EmittedCode{};
+    const auto kernelFormat = format == cxx::lsp::EmitCodeFormat::kWGSL ||
+                              format == cxx::lsp::EmitCodeFormat::kSPIRV;
+
+    if (document.hasErrors()) {
+      if (kernelFormat) return cxx::lsp::EmittedCode{.kernels = {{}}};
+      return cxx::lsp::EmittedCode{};
+    }
 
     if (auto toolchain = document.toolchain()) {
       toolchain->applyEntryPointAbi(document.translationUnit());
     }
 
     if (format == cxx::lsp::EmitCodeFormat::kExecutable) {
+      if (cxx::js::targetsDevice(document.translationUnit()))
+        return cxx::lsp::EmittedCode{
+            .error = cxx::js::hostTargetRequired("linking")};
       return emitExecutable(document, debugInfo, optimizationLevel,
                             mlirPipeline);
     }
@@ -105,7 +114,10 @@ class JsServerHost final : public cxx::lsp::ServerHost {
 
     if (!generated) return std::nullopt;
 
-    return cxx::lsp::EmittedCode{.text = std::move(generated->text)};
+    if (kernelFormat) return emittedKernels(format, std::move(*generated));
+
+    return cxx::lsp::EmittedCode{.text = std::move(generated->text),
+                                 .error = std::move(generated->error)};
   }
 
   void runLater(std::chrono::milliseconds delay,
@@ -159,7 +171,10 @@ class JsServerHost final : public cxx::lsp::ServerHost {
                               optimizationLevel, mlirPipeline);
 
     if (!generated || generated->objectCode.empty()) {
-      return cxx::lsp::EmittedCode{.error = "code generation failed"};
+      auto error = generated && !generated->error.empty()
+                       ? std::move(generated->error)
+                       : std::string("code generation failed");
+      return cxx::lsp::EmittedCode{.error = std::move(error)};
     }
 
     auto& objectCode = generated->objectCode;
@@ -176,14 +191,33 @@ class JsServerHost final : public cxx::lsp::ServerHost {
     return cxx::lsp::EmittedCode{.text = base64Encode(linked["output"])};
   }
 
-  [[nodiscard]] static auto base64Encode(const val& bytes) -> std::string {
-    constexpr std::string_view alphabet =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  [[nodiscard]] static auto emittedKernels(cxx::lsp::EmitCodeFormat format,
+                                           cxx::js::GeneratedCode generated)
+      -> cxx::lsp::EmittedCode {
+    std::vector<cxx::lsp::EmittedKernel> kernels;
+    for (auto& kernel : generated.kernels) {
+      auto code = format == cxx::lsp::EmitCodeFormat::kWGSL
+                      ? std::string(kernel.code.begin(), kernel.code.end())
+                      : base64Encode(kernel.code);
+      kernels.push_back({std::move(kernel.manifest), std::move(code)});
+    }
+    return cxx::lsp::EmittedCode{.error = std::move(generated.error),
+                                 .kernels = std::move(kernels)};
+  }
 
+  [[nodiscard]] static auto base64Encode(const val& bytes) -> std::string {
     const auto size = bytes["length"].as<std::size_t>();
     std::vector<std::uint8_t> data(size);
     val(typed_memory_view(size, data.data())).call<void>("set", bytes);
+    return base64Encode(data);
+  }
 
+  [[nodiscard]] static auto base64Encode(std::span<const std::uint8_t> data)
+      -> std::string {
+    constexpr std::string_view alphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    const auto size = data.size();
     std::string text;
     text.reserve((size + 2) / 3 * 4);
 
@@ -231,7 +265,14 @@ class JsServerHost final : public cxx::lsp::ServerHost {
     const auto fileName = document.fileName();
     const auto version = document.version();
 
-    document.setToolchain(cxx::js::configureToolchain(unit, options_));
+    const auto overrides = settingsOverrides();
+    auto configured =
+        cxx::js::configureToolchain(unit, fileName, options_, overrides);
+    if (!configured.error.empty())
+      trace(
+          std::format("toolchain file={} error={}", fileName, configured.error),
+          {});
+    document.setToolchain(std::move(configured.toolchain));
 
     cxx::js::AsyncParseRequest request{
         .unit = unit,
@@ -268,7 +309,9 @@ class JsServerHost final : public cxx::lsp::ServerHost {
         const auto started = std::chrono::steady_clock::now();
         cxx::lsp::CxxDocument producer(fileName, version);
         producer.setToolchain(
-            cxx::js::configureToolchain(producer.translationUnit(), options_));
+            cxx::js::configureToolchain(producer.translationUnit(), fileName,
+                                        options_, overrides)
+                .toolchain);
         producer.translationUnit()->preprocessor()->setPreambleOnly(true);
         auto prefixRequest = request;
         prefixRequest.unit = producer.translationUnit();
@@ -332,6 +375,15 @@ class JsServerHost final : public cxx::lsp::ServerHost {
     done();
 
     co_return val::undefined();
+  }
+
+  [[nodiscard]] auto settingsOverrides() const -> std::vector<std::string> {
+    std::vector<std::string> overrides;
+    auto settings = compileSettings();
+    if (settings.target) overrides.push_back("--target=" + *settings.target);
+    if (settings.deviceProfile)
+      overrides.push_back("--device-profile=" + *settings.deviceProfile);
+    return overrides;
   }
 
   struct ScheduledTask {
@@ -433,7 +485,7 @@ auto createLanguageServer(LanguageServerOptions options)
 EMSCRIPTEN_BINDINGS(cxx_lsp) {
   register_type<LanguageServerOptions>(
       "LanguageServerOptions",
-      R"({ preamble?: boolean | undefined; appdir?: string | undefined; sysroot?: string | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; readDirectory?: ((path: string) => string[] | undefined) | undefined; link?: ((object: Uint8Array, debugInfo: boolean) => { output: Uint8Array; error: string }) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined; onTrace?: ((message: string, verbose: string | undefined) => void) | undefined; onMessage: (message: string) => void })");
+      R"({ preamble?: boolean | undefined; appdir?: string | undefined; sysroot?: string | undefined; target?: string | undefined; deviceProfile?: "vulkan1.1-f32" | undefined; std?: "c++14" | "c++17" | "c++20" | "c++23" | "c++26" | undefined; defines?: string[] | undefined; undefines?: string[] | undefined; quoteIncludePaths?: string[] | undefined; includePaths?: string[] | undefined; systemIncludePaths?: string[] | undefined; exists?: ((path: string) => boolean) | undefined; readFile?: ((path: string) => Promise<string | undefined>) | undefined; readDirectory?: ((path: string) => string[] | undefined) | undefined; link?: ((object: Uint8Array, debugInfo: boolean) => { output: Uint8Array; error: string }) | undefined; shouldContinue?: (() => Promise<boolean>) | undefined; onTrace?: ((message: string, verbose: string | undefined) => void) | undefined; onMessage: (message: string) => void })");
 
   class_<WrappedLanguageServer>("LanguageServer")
       .function("receive", &WrappedLanguageServer::receive);

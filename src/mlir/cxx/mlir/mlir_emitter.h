@@ -172,6 +172,26 @@ class MlirEmitter final : public Emitter {
   [[nodiscard]] auto vectorSplat(SourceLocation loc, TypeRef vectorType,
                                  ValueRef scalar) -> ValueRef override;
 
+  [[nodiscard]] auto vectorFromElements(SourceLocation loc, TypeRef vectorType,
+                                        std::span<const ValueRef> elements)
+      -> ValueRef override;
+
+  [[nodiscard]] auto vectorExtract(SourceLocation loc, TypeRef elementType,
+                                   ValueRef vector, ValueRef index,
+                                   bool indexIsSigned) -> ValueRef override;
+
+  [[nodiscard]] auto vectorInsert(SourceLocation loc, ValueRef vector,
+                                  ValueRef element, ValueRef index,
+                                  bool indexIsSigned) -> ValueRef override;
+
+  [[nodiscard]] auto vectorShuffle(SourceLocation loc, ValueRef first,
+                                   ValueRef second,
+                                   std::span<const std::int64_t> mask)
+      -> ValueRef override;
+
+  [[nodiscard]] auto vectorPosition(mlir::Location loc, ValueRef index,
+                                    bool indexIsSigned) -> mlir::Value;
+
   [[nodiscard]] auto functionType(std::span<const TypeRef> parameters,
                                   std::span<const TypeRef> results,
                                   bool isVariadic) -> TypeRef override;
@@ -284,6 +304,17 @@ class MlirEmitter final : public Emitter {
   void memcpy(mlir::Location loc, ValueRef destination, ValueRef source,
               std::uint64_t size);
 
+  void zeroInitialize(SourceLocation loc, ValueRef address,
+                      TypeRef objectType) override;
+
+  void zeroInitialize(mlir::Location loc, ValueRef address, TypeRef objectType);
+
+  void copyObject(SourceLocation loc, ValueRef destination, ValueRef source,
+                  TypeRef objectType) override;
+
+  void copyObject(mlir::Location loc, ValueRef destination, ValueRef source,
+                  TypeRef objectType);
+
   void unreachable(SourceLocation loc) override;
 
   void unreachable(mlir::Location loc);
@@ -361,6 +392,9 @@ class MlirEmitter final : public Emitter {
   [[nodiscard]] auto wrap(mlir::Type type) -> TypeRef;
 
   [[nodiscard]] auto type(TypeRef ref) -> mlir::Type;
+
+  [[nodiscard]] auto objectAddress(mlir::Location loc, ValueRef address,
+                                   TypeRef objectType) -> mlir::Value;
 
   [[nodiscard]] auto types(llvm::ArrayRef<TypeRef> refs)
       -> llvm::SmallVector<mlir::Type>;

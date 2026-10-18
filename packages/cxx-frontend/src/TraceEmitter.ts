@@ -380,6 +380,7 @@ export class TraceEmitter implements EmitterDelegate {
       `module "${info.name}"` +
         (info.sourceFile ? ` source "${info.sourceFile}"` : "") +
         (info.targetTriple ? ` triple "${info.targetTriple}"` : "") +
+        (info.dataLayout ? ` layout "${info.dataLayout}"` : "") +
         (info.picLevel ? ` pic ${info.picLevel}` : "") +
         (info.pieLevel ? ` pie ${info.pieLevel}` : ""),
     );
@@ -432,7 +433,7 @@ export class TraceEmitter implements EmitterDelegate {
 
   vectorType(elementType: TypeRef, elementCount: number): TypeRef {
     return this.#intern(`<${elementCount} x ${this.#typeText(elementType)}>`, {
-      kind: "Other",
+      kind: "Vector",
       element: elementType,
     });
   }
@@ -498,6 +499,10 @@ export class TraceEmitter implements EmitterDelegate {
         return `{ ${value.elements
           .map((element) => this.#initializerText(element))
           .join(", ")} }`;
+      case "Vector":
+        return `< ${value.elements
+          .map((element) => this.#initializerText(element))
+          .join(", ")} >`;
       case "Null":
         return "null";
       case "Zero":
@@ -609,6 +614,54 @@ export class TraceEmitter implements EmitterDelegate {
     return this.#define(vectorType, `splat %${scalar}`);
   }
 
+  vectorFromElements(
+    loc: TokenIndex,
+    vectorType: TypeRef,
+    elements: ValueRef[],
+  ): ValueRef {
+    const operands = elements.map((element) => `%${element}`).join(", ");
+    return this.#define(vectorType, `vector [${operands}]`);
+  }
+
+  vectorExtract(
+    loc: TokenIndex,
+    elementType: TypeRef,
+    vector: ValueRef,
+    index: ValueRef,
+    indexIsSigned: boolean,
+  ): ValueRef {
+    const extend = indexIsSigned ? "signed" : "unsigned";
+    return this.#define(elementType, `extract %${vector}[%${index} ${extend}]`);
+  }
+
+  vectorShuffle(
+    loc: TokenIndex,
+    first: ValueRef,
+    second: ValueRef,
+    mask: number[],
+  ): ValueRef {
+    const lanes = mask.length;
+    const element = this.elementType(this.typeOf(first));
+    return this.#define(
+      this.vectorType(element, lanes),
+      `shuffle %${first}, %${second} [${mask.join(", ")}]`,
+    );
+  }
+
+  vectorInsert(
+    loc: TokenIndex,
+    vector: ValueRef,
+    element: ValueRef,
+    index: ValueRef,
+    indexIsSigned: boolean,
+  ): ValueRef {
+    const extend = indexIsSigned ? "signed" : "unsigned";
+    return this.#define(
+      this.typeOf(vector),
+      `insert %${element}, %${vector}[%${index} ${extend}]`,
+    );
+  }
+
   todo(loc: TokenIndex, kind: TodoKind, message: string): ValueRef {
     return this.#define(
       this.unresolvedType(),
@@ -668,6 +721,25 @@ export class TraceEmitter implements EmitterDelegate {
     size: number,
   ): void {
     this.#emit(`memcpy %${destination} <- %${source} size ${size}`);
+  }
+
+  zeroInitialize(
+    loc: TokenIndex,
+    address: ValueRef,
+    objectType: TypeRef,
+  ): void {
+    this.#emit(`zero_init %${address} : ${this.#typeText(objectType)}`);
+  }
+
+  copyObject(
+    loc: TokenIndex,
+    destination: ValueRef,
+    source: ValueRef,
+    objectType: TypeRef,
+  ): void {
+    this.#emit(
+      `copy %${destination} <- %${source} : ${this.#typeText(objectType)}`,
+    );
   }
 
   pointerAdd(

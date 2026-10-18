@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include <cxx/attributes.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/token_fwd.h>
 #include <cxx/types_fwd.h>
@@ -53,6 +54,12 @@ struct DesignatorCompletionContext {
   ScopeSymbol* accessingScope = nullptr;
 };
 
+struct AttributeCompletionContext {
+  AttributeSyntax syntax = AttributeSyntax::kCxx;
+  const Identifier* attributeNamespace = nullptr;
+  bool namespacesOnly = false;
+};
+
 struct ArgumentHintsContext {
   std::vector<FunctionSymbol*> candidates;
   int activeParameter = 0;
@@ -63,10 +70,16 @@ struct TemplateArgumentHintsContext {
   int activeParameter = 0;
 };
 
+struct AttributeArgumentHintsContext {
+  AttributeKind kind{};
+  int activeParameter = 0;
+};
+
 using CodeCompletionContext =
     std::variant<ScopeCompletionContext, UnqualifiedCompletionContext,
                  MemberCompletionContext, DesignatorCompletionContext,
-                 ArgumentHintsContext, TemplateArgumentHintsContext>;
+                 AttributeCompletionContext, ArgumentHintsContext,
+                 TemplateArgumentHintsContext, AttributeArgumentHintsContext>;
 
 struct CanContinueParsing {};
 

@@ -12805,10 +12805,36 @@ class EmitCodeResult final : public LSPObject {
     return T(value);
   }
 
+  [[nodiscard]] auto kernels() const -> std::optional<Vector<EmitCodeKernel>>;
+
+  template <typename T>
+  [[nodiscard]] auto kernels() -> T {
+    auto& value = (*repr_)["kernels"];
+    return T(value);
+  }
+
   auto format(EmitCodeFormat format) -> EmitCodeResult&;
 
   auto text(std::string text) -> EmitCodeResult&;
 
   auto error(std::optional<std::string> error) -> EmitCodeResult&;
+
+  auto kernels(std::optional<Vector<EmitCodeKernel>> kernels)
+      -> EmitCodeResult&;
+};
+
+class EmitCodeKernel final : public LSPObject {
+ public:
+  using LSPObject::LSPObject;
+
+  explicit operator bool() const;
+
+  [[nodiscard]] auto manifest() const -> LSPObject;
+
+  [[nodiscard]] auto code() const -> std::string;
+
+  auto manifest(LSPObject manifest) -> EmitCodeKernel&;
+
+  auto code(std::string code) -> EmitCodeKernel&;
 };
 }  // namespace cxx::lsp

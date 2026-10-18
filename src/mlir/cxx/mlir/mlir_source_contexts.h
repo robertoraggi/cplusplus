@@ -49,4 +49,4 @@ class MlirSourceContexts final : public SourceContextObserver,
   struct Data;
   std::unique_ptr<Data> data_;
 };
-}
+}  // namespace cxx::ir

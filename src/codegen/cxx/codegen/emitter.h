@@ -50,6 +50,7 @@ enum class TypeKind {
   Floating,
   Pointer,
   Array,
+  Vector,
   Class,
   Function,
   Unresolved,
@@ -176,8 +177,10 @@ struct ModuleInfo {
   std::string_view name;
   std::string_view sourceFile;
   std::string_view targetTriple;
+  std::string_view dataLayout;
   std::string_view debugCompilationDirectory;
   std::string_view framePointer;
+  std::string_view deviceProfile;
   std::int32_t picLevel = 0;
   std::int32_t pieLevel = 0;
 };
@@ -205,6 +208,32 @@ struct ParameterAbi {
 
 enum class CallingConvention { C, CxxFastTls };
 
+enum class KernelBufferKind { Storage, Uniform };
+
+struct KernelBufferInfo {
+  std::uint32_t parameter = 0;
+  std::string_view name;
+  std::uint32_t binding = 0;
+  KernelBufferKind kind = KernelBufferKind::Storage;
+  bool readOnly = false;
+  bool unsignedElements = false;
+};
+
+enum class KernelInvocationIdKind { Global, Local, Workgroup };
+
+struct KernelInvocationIdInfo {
+  std::uint32_t parameter = 0;
+  KernelInvocationIdKind kind = KernelInvocationIdKind::Global;
+};
+
+struct KernelInfo {
+  std::uint32_t x = 1;
+  std::uint32_t y = 1;
+  std::uint32_t z = 1;
+  std::vector<KernelBufferInfo> buffers;
+  std::vector<KernelInvocationIdInfo> invocationIds;
+};
+
 struct FunctionInfo {
   std::string_view name;
   TypeRef type;
@@ -220,6 +249,7 @@ struct FunctionInfo {
   ParameterAbi resultAbi;
   std::string_view section;
   CallingConvention callingConvention = CallingConvention::C;
+  std::optional<KernelInfo> kernel;
 };
 
 struct Initializer {
@@ -229,6 +259,7 @@ struct Initializer {
     Floating,
     Bytes,
     Aggregate,
+    Vector,
     Null,
     Zero,
     ScalarZero,
@@ -271,6 +302,15 @@ struct Initializer {
   static auto aggregate(std::vector<Initializer> value) -> Initializer {
     Initializer i;
     i.kind = Kind::Aggregate;
+    i.elements = std::move(value);
+    return i;
+  }
+
+  static auto vector(TypeRef type, std::vector<Initializer> value)
+      -> Initializer {
+    Initializer i;
+    i.kind = Kind::Vector;
+    i.type = type;
     i.elements = std::move(value);
     return i;
   }
@@ -619,6 +659,24 @@ class Emitter {
   [[nodiscard]] virtual auto vectorSplat(SourceLocation loc, TypeRef vectorType,
                                          ValueRef scalar) -> ValueRef = 0;
 
+  [[nodiscard]] virtual auto vectorFromElements(
+      SourceLocation loc, TypeRef vectorType,
+      std::span<const ValueRef> elements) -> ValueRef = 0;
+
+  [[nodiscard]] virtual auto vectorExtract(SourceLocation loc,
+                                           TypeRef elementType, ValueRef vector,
+                                           ValueRef index, bool indexIsSigned)
+      -> ValueRef = 0;
+
+  [[nodiscard]] virtual auto vectorInsert(SourceLocation loc, ValueRef vector,
+                                          ValueRef element, ValueRef index,
+                                          bool indexIsSigned) -> ValueRef = 0;
+
+  [[nodiscard]] virtual auto vectorShuffle(SourceLocation loc, ValueRef first,
+                                           ValueRef second,
+                                           std::span<const std::int64_t> mask)
+      -> ValueRef = 0;
+
   [[nodiscard]] virtual auto functionType(std::span<const TypeRef> parameters,
                                           std::span<const TypeRef> results,
                                           bool isVariadic) -> TypeRef = 0;
@@ -801,6 +859,12 @@ class Emitter {
 
   virtual void memcpy(SourceLocation loc, ValueRef destination, ValueRef source,
                       std::uint64_t size) = 0;
+
+  virtual void zeroInitialize(SourceLocation loc, ValueRef address,
+                              TypeRef objectType) = 0;
+
+  virtual void copyObject(SourceLocation loc, ValueRef destination,
+                          ValueRef source, TypeRef objectType) = 0;
 
   virtual void unreachable(SourceLocation loc) = 0;
 

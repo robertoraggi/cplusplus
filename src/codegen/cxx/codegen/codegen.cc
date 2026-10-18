@@ -27,6 +27,7 @@
 #include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
+#include <cxx/device_profile_limits.h>
 #include <cxx/external_name_encoder.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
@@ -40,6 +41,7 @@
 #include <cxx/views/symbols.h>
 
 #include <algorithm>
+#include <bit>
 #include <filesystem>
 #include <format>
 #include <limits>
@@ -48,9 +50,47 @@
 
 namespace cxx {
 namespace {
+[[nodiscard]] auto invocationIdKind(KernelInvocationIdKind kind)
+    -> ir::KernelInvocationIdKind {
+  switch (kind) {
+    case KernelInvocationIdKind::kGlobal:
+      return ir::KernelInvocationIdKind::Global;
+    case KernelInvocationIdKind::kLocal:
+      return ir::KernelInvocationIdKind::Local;
+    case KernelInvocationIdKind::kWorkgroup:
+      return ir::KernelInvocationIdKind::Workgroup;
+  }
+  return ir::KernelInvocationIdKind::Global;
+}
+
+[[nodiscard]] auto kernelBufferInfo(const TypeTraits& traits,
+                                    ParameterSymbol* parameter,
+                                    std::uint32_t index,
+                                    const KernelBufferBinding& binding)
+    -> ir::KernelBufferInfo {
+  auto type = parameter->type();
+  auto isUniform = traits.is_reference(type);
+  auto object =
+      isUniform ? traits.remove_reference(type) : traits.get_element_type(type);
+  auto scalar = object;
+  if (auto vector = type_cast<VectorType>(unqualified_type(object)))
+    scalar = vector->elementType();
+  auto name = name_cast<Identifier>(parameter->name());
+  return {
+      .parameter = index,
+      .name = name ? name->name() : std::string_view{},
+      .binding = binding.binding,
+      .kind = isUniform ? ir::KernelBufferKind::Uniform
+                        : ir::KernelBufferKind::Storage,
+      .readOnly = traits.is_const(object) ||
+                  address_space(object) == kConstantAddressSpace,
+      .unsignedElements = traits.is_unsigned(scalar),
+  };
+}
+
 [[nodiscard]] auto sectionNameOf(Symbol* symbol) -> std::string_view {
-  auto section =
-      attributeArgument(symbol->canonical()->attributes(), "section");
+  auto section = attributeArgument(symbol->canonical()->attributes(),
+                                   AttributeKind::kSection);
   return section ? std::string_view{section->name()} : std::string_view{};
 }
 
@@ -139,6 +179,9 @@ auto Codegen::hasVagueEmission(Symbol* symbol) const -> bool {
     if (variable->isSpecialization())
       return variable->instantiationPattern() != nullptr;
   }
+  if (auto field = symbol_cast<FieldSymbol>(symbol);
+      field && field->isStatic() && (field->isInline() || field->isConstexpr()))
+    return true;
   if (is_templated_class(symbol->enclosingClass()))
     return symbol->instantiationPattern() != nullptr;
   return false;
@@ -167,6 +210,17 @@ auto Codegen::symbolLinkage(Symbol* symbol) const -> ir::Linkage {
   }
   if (hasVagueEmission(symbol)) return ir::Linkage::LinkOnceODR;
   return ir::Linkage::External;
+}
+
+auto Codegen::emitsOnlyWhenReferenced(
+    Symbol* variable, const std::optional<ConstValue>& constantValue) -> bool {
+  if (!constantValue || variable->isUsed()) return false;
+  auto linkage = symbolLinkage(variable);
+  if (linkage != ir::Linkage::Internal && linkage != ir::Linkage::LinkOnceODR)
+    return false;
+  auto type = traits.remove_cv(variable->type());
+  auto destructor = objectDestructor(type);
+  return !destructor || traits.has_trivial_destructor(type);
 }
 
 static auto isMemberOfExplicitInstantiationDeclaredClass(TranslationUnit* unit,
@@ -219,9 +273,17 @@ auto Codegen::getAlignment(const Type* type) -> uint64_t {
 }
 
 auto Codegen::getAlignment(VariableSymbol* var) -> uint64_t {
-  auto alignment = getAlignment(var->type());
-  auto requested = static_cast<uint64_t>(var->explicitAlignment());
-  return std::max(alignment, requested);
+  return variableAlignment(var->type(), var->explicitAlignment());
+}
+
+auto Codegen::getAlignment(FieldSymbol* field) -> uint64_t {
+  return variableAlignment(field->type(), field->explicitAlignment());
+}
+
+auto Codegen::variableAlignment(const Type* type, int explicitAlignment)
+    -> uint64_t {
+  if (explicitAlignment > 0) return static_cast<uint64_t>(explicitAlignment);
+  return control()->memoryLayout()->variableAlignmentOf(type).value_or(1);
 }
 
 namespace {
@@ -273,6 +335,9 @@ auto Codegen::lvalueAlignment(ExpressionAST* expression) -> uint64_t {
   if (auto id = ast_cast<IdExpressionAST>(expression)) {
     if (auto variable = objectVariable(id->symbol))
       return getAlignment(variable);
+    if (auto field = symbol_cast<FieldSymbol>(id->symbol);
+        field && field->isStatic() && !traits.is_reference(field->type()))
+      return getAlignment(field);
   }
 
   return getAlignment(expression->type);
@@ -289,8 +354,9 @@ auto Codegen::memberAlignment(MemberExpressionAST* member) -> uint64_t {
     return getAlignment(variable);
 
   auto field = symbol_cast<FieldSymbol>(member->symbol);
-  if (!field || field->isStatic()) return getAlignment(member->type);
-  if (traits.is_reference(field->type())) return getAlignment(member->type);
+  if (!field || traits.is_reference(field->type()))
+    return getAlignment(member->type);
+  if (field->isStatic()) return getAlignment(field);
 
   auto baseAlignment = getAlignment(member->type);
   if (member->accessOp == TokenKind::T_MINUS_GREATER) {
@@ -512,9 +578,11 @@ auto Codegen::classConstantSlots(const ConstValue& value,
   if (auto listPtr = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
     if (!*listPtr) return std::nullopt;
     std::vector<ConstantSlot> slots;
-    slots.reserve((*listPtr)->elements.size());
-    for (const auto& [elementValue, elementType] : (*listPtr)->elements)
+    slots.reserve((*listPtr)->size());
+    for (std::size_t index = 0; index < (*listPtr)->size(); ++index) {
+      const auto& [elementValue, elementType] = (*listPtr)->element(index);
       slots.push_back(ClassConstantSlot{elementValue, elementType});
+    }
     return slots;
   }
 
@@ -697,19 +765,29 @@ struct Codegen::ConstantStorageTypeVisitor {
 
   [[nodiscard]] auto operator()(const BoundedArrayType* type) -> ir::TypeRef {
     auto list = std::get_if<std::shared_ptr<InitializerList>>(&value);
-    if (!list || !*list || (*list)->elements.empty()) return storage;
+    if (!list || !*list || (*list)->size() == 0) return storage;
     auto original = gen.emitter_.elementType(storage);
     std::vector<ir::TypeRef> members;
-    for (const auto& [element, elementType] : (*list)->elements)
+    for (const auto& [element, elementType] : (*list)->initializedElements())
       members.push_back(
           gen.constantStorageType(element, type->elementType(), original));
-    if (std::ranges::all_of(members,
+    auto fillerType = (*list)->hasFiller() ? gen.constantStorageType(
+                                                 std::get<0>((*list)->filler()),
+                                                 type->elementType(), original)
+                                           : ir::TypeRef{};
+    auto elementTypes = members;
+    if (fillerType) elementTypes.push_back(fillerType);
+    if (std::ranges::all_of(elementTypes,
                             [original](auto type) { return type == original; }))
       return storage;
-    if (std::ranges::all_of(members, [first = members.front()](auto type) {
-          return type == first;
-        }))
-      return gen.arrayType(members.front(), type->size());
+    if (std::ranges::all_of(elementTypes,
+                            [first = elementTypes.front()](auto type) {
+                              return type == first;
+                            }))
+      return gen.arrayType(elementTypes.front(), type->size());
+    if (fillerType)
+      members.push_back(gen.arrayType(
+          fillerType, (*list)->size() - (*list)->initializedElements().size()));
     auto result =
         gen.declareClassType(gen.uniqueClassTypeName("$constant.array"), false);
     gen.defineClassType(result, members, false);
@@ -793,27 +871,106 @@ auto Codegen::constValueToInitializer(const ConstValue& value, const Type* type,
     return ir::Initializer::aggregate(elements);
   }
 
+  if (auto vector = unqualified_cast<VectorType>(type))
+    return vectorInitializer(value, vector);
+
   if (traits.is_array(type)) {
     if (auto literal = std::get_if<const StringLiteral*>(&value))
       return stringLiteralInitializer(*literal, type);
-    auto constArrayPtr = std::get_if<std::shared_ptr<InitializerList>>(&value);
-    if (!constArrayPtr || !*constArrayPtr) return std::nullopt;
-    std::vector<ir::Initializer> elements;
-    auto storage = layoutType ? layoutType : convertType(type);
-    auto array = emitter_.asType(ir::TypeKind::Array, storage);
-    auto members =
-        array ? std::span<const ir::TypeRef>{} : classMembers(storage);
-    for (const auto& [elemValue, elemType] : (*constArrayPtr)->elements) {
-      auto elementStorage =
-          array ? emitter_.elementType(array) : members[elements.size()];
-      auto attr = constValueToInitializer(elemValue, elemType, elementStorage);
-      if (!attr) return std::nullopt;
-      elements.push_back(*attr);
-    }
-    return ir::Initializer::aggregate(elements);
+    auto list = std::get_if<std::shared_ptr<InitializerList>>(&value);
+    if (!list || !*list) return std::nullopt;
+    return arrayInitializer(**list,
+                            layoutType ? layoutType : convertType(type));
   }
 
   return std::nullopt;
+}
+
+namespace {
+
+[[nodiscard]] auto isZeroInitializer(const ir::Initializer& initializer)
+    -> bool {
+  switch (initializer.kind) {
+    case ir::Initializer::Kind::Zero:
+    case ir::Initializer::Kind::ScalarZero:
+    case ir::Initializer::Kind::Null:
+      return true;
+    case ir::Initializer::Kind::Integer:
+      return initializer.integer.isZero();
+    case ir::Initializer::Kind::Floating:
+      return std::bit_cast<std::uint64_t>(initializer.floating) == 0;
+    case ir::Initializer::Kind::Aggregate:
+    case ir::Initializer::Kind::Vector:
+      return std::ranges::all_of(initializer.elements, isZeroInitializer);
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
+auto Codegen::arrayInitializer(const InitializerList& list, ir::TypeRef storage)
+    -> std::optional<ir::Initializer> {
+  auto array = emitter_.asType(ir::TypeKind::Array, storage);
+  auto members = array ? std::span<const ir::TypeRef>{} : classMembers(storage);
+  auto memberType = [&](std::size_t index) {
+    return array ? emitter_.elementType(array) : members[index];
+  };
+  std::vector<ir::Initializer> elements;
+  for (const auto& [elemValue, elemType] : list.initializedElements()) {
+    auto attr = constValueToInitializer(elemValue, elemType,
+                                        memberType(elements.size()));
+    if (!attr) return std::nullopt;
+    elements.push_back(std::move(*attr));
+  }
+  if (!list.hasFiller()) return ir::Initializer::aggregate(std::move(elements));
+
+  const auto trailing = list.size() - list.initializedElements().size();
+  const auto& [fillerValue, fillerType] = list.filler();
+  auto fillerStorage = array ? emitter_.elementType(array)
+                             : emitter_.elementType(members.back());
+  auto filler = constValueToInitializer(fillerValue, fillerType, fillerStorage);
+  if (!filler) return std::nullopt;
+  if (!array) {
+    elements.push_back(
+        isZeroInitializer(*filler)
+            ? ir::Initializer::zero()
+            : ir::Initializer::aggregate(
+                  std::vector<ir::Initializer>(trailing, *filler)));
+    return ir::Initializer::aggregate(std::move(elements));
+  }
+  if (!isZeroInitializer(*filler))
+    elements.resize(elements.size() + trailing, *filler);
+  return ir::Initializer::aggregate(std::move(elements));
+}
+
+auto Codegen::vectorInitializer(const ConstValue& value,
+                                const VectorType* vector)
+    -> std::optional<ir::Initializer> {
+  auto list = std::get_if<std::shared_ptr<InitializerList>>(&value);
+  if (!list || !*list || (*list)->size() > vector->elementCount())
+    return std::nullopt;
+  auto interp = ASTInterpreter{unit_};
+  auto elementType = vector->elementType();
+  auto laneType = convertType(elementType);
+  auto lane = [&](const ConstValue& element) -> std::optional<ir::Initializer> {
+    if (traits.is_floating_point(elementType))
+      return getFloatAttr(element, elementType);
+    auto integer = interp.toIntegralType(element, elementType);
+    if (!integer) return std::nullopt;
+    return ir::Initializer::integerValue(laneType,
+                                         std::get<ConstInt>(*integer));
+  };
+  std::vector<ir::Initializer> lanes;
+  for (std::size_t index = 0; index < (*list)->size(); ++index) {
+    auto initializer = lane(std::get<0>((*list)->element(index)));
+    if (!initializer) return std::nullopt;
+    lanes.push_back(*initializer);
+  }
+  auto zero = lane(ConstValue{ConstInt::make(0, 32, true).value()});
+  if (!zero) return std::nullopt;
+  lanes.resize(vector->elementCount(), *zero);
+  return ir::Initializer::vector(convertType(vector), std::move(lanes));
 }
 
 auto Codegen::pointerCast(SourceLocation loc, ir::TypeRef pointerType,
@@ -1219,6 +1376,12 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
     return emitter_.zero(loc, irType);
   }
 
+  if (auto vector = unqualified_cast<VectorType>(type)) {
+    auto irType = layoutType ? layoutType : convertType(type);
+    if (auto initializer = vectorInitializer(value, vector))
+      return emitter_.constantLiteral(loc, irType, *initializer);
+  }
+
   if (traits.is_array(type)) {
     auto irType = layoutType ? layoutType : convertType(type);
     auto cxxArrType = emitter_.asType(ir::TypeKind::Array, irType);
@@ -1230,8 +1393,8 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
             std::get_if<std::shared_ptr<InitializerList>>(&value)) {
       auto& initList = *initListPtr;
       ir::ValueRef result = emitter_.zero(loc, irType);
-      for (size_t i = 0; i < initList->elements.size(); ++i) {
-        auto& [elemValue, elemType] = initList->elements[i];
+      for (size_t i = 0; i < initList->size(); ++i) {
+        const auto& [elemValue, elemType] = initList->element(i);
         auto elementStorage = cxxArrType ? emitter_.elementType(cxxArrType)
                                          : classMembers(irType)[i];
         auto elemVal =
@@ -1257,8 +1420,11 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
     return emitter_.zero(loc, irType);
   }
 
-  auto irType = convertType(type);
-  return emitter_.zero(loc, irType);
+  if (traits.is_null_pointer(type))
+    return emitter_.zero(loc, convertType(type));
+
+  return emitTodoExpr(
+      loc, std::format("constant initializer of type '{}'", to_string(type)));
 }
 
 void Codegen::branch(SourceLocation loc, ir::BlockRef block,
@@ -1323,7 +1489,7 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<ir::ValueRef> {
 
     auto elementType = convertType(elemType);
     auto ptrType = emitter_.pointerType(elementType);
-    auto alignment = getAlignment(elemType);
+    auto alignment = getAlignment(var);
 
     auto leafSizeBytes = static_cast<int64_t>(
         control()->memoryLayout()->sizeOf(elemType).value_or(1));
@@ -2025,9 +2191,12 @@ void Codegen::emitSubobjectDefaultConstruction(SourceLocation loc,
 }
 
 Codegen::LifetimeExtension::LifetimeExtension(
-    Codegen& gen, std::span<ExpressionAST* const> temporaries)
+    Codegen& gen, std::span<ExpressionAST* const> temporaries,
+    Symbol* reference, ir::GlobalRef staticStorage)
     : gen_(gen),
       temporaries_(temporaries),
+      reference_(reference),
+      staticStorage_(staticStorage),
       previous_(std::exchange(gen.lifetimeExtension_, this)) {
   for (auto i = gen_.cleanupStack_.size(); i > 0; --i) {
     if (gen_.cleanupStack_[i - 1].isFullExpression) continue;
@@ -2040,10 +2209,56 @@ Codegen::LifetimeExtension::~LifetimeExtension() {
   gen_.lifetimeExtension_ = previous_;
 }
 
+auto Codegen::LifetimeExtension::extends(ExpressionAST* expression) const
+    -> bool {
+  return std::ranges::find(temporaries_, expression) != temporaries_.end();
+}
+
+auto Codegen::LifetimeExtension::extendsStatically(
+    ExpressionAST* expression) const -> bool {
+  return staticStorage_ && extends(expression);
+}
+
+auto Codegen::LifetimeExtension::temporaryStorage(ExpressionAST* temporary,
+                                                  const Type* type,
+                                                  SourceLocation loc)
+    -> ir::ValueRef {
+  if (!extendsStatically(temporary)) return gen_.newTemp(type, loc);
+  auto global = gen_.findOrCreateReferenceTemporary(
+      reference_, type, staticStorage_, staticCount_++, loc);
+  auto address = gen_.emitter_.addressOfSymbol(
+      loc, gen_.emitter_.pointerType(gen_.convertType(type)),
+      gen_.globalName(global));
+  staticTemporaries_.emplace_back(address, global);
+  return address;
+}
+
+void Codegen::LifetimeExtension::extendObject(ir::ValueRef address,
+                                              const Type* type,
+                                              SourceLocation loc) {
+  auto destructor = gen_.objectDestructor(type);
+  if (!destructor || gen_.traits.has_trivial_destructor(type)) return;
+  auto found =
+      std::ranges::find(staticTemporaries_, address,
+                        &std::pair<ir::ValueRef, ir::GlobalRef>::first);
+  if (found == staticTemporaries_.end()) {
+    gen_.addCleanup(address, gen_.completeObjectDtor(destructor));
+    relocateCleanup(address);
+    return;
+  }
+  gen_.emitGlobalVarDtorRegistration(reference_, type,
+                                     gen_.completeObjectDtor(destructor),
+                                     found->second, loc);
+}
+
 void Codegen::LifetimeExtension::extend(ExpressionAST* expression,
                                         ir::ValueRef address) {
+  if (!extends(expression)) return;
+  relocateCleanup(address);
+}
+
+void Codegen::LifetimeExtension::relocateCleanup(ir::ValueRef address) {
   if (!targetScope_ || !address) return;
-  if (std::ranges::find(temporaries_, expression) == temporaries_.end()) return;
   for (auto i = gen_.cleanupStack_.size(); i > *targetScope_ + 1; --i) {
     auto& entries = gen_.cleanupStack_[i - 1].entries;
     auto found =
@@ -2816,7 +3031,8 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
 
   ExternalNameEncoder encoder{unit_};
   auto name = encoder.encode(emittedSymbol);
-  auto aliasee = attributeArgument(emittedSymbol->attributes(), "alias");
+  auto aliasee =
+      attributeArgument(emittedSymbol->attributes(), AttributeKind::kAlias);
 
   auto visibility = emittedSymbol->hasHiddenVisibility()
                         ? ir::Visibility::Hidden
@@ -2862,6 +3078,26 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     return id ? id->name() : std::string_view{};
   };
 
+  std::optional<ir::KernelInfo> kernel;
+  if (auto workgroup = emittedSymbol->kernelWorkgroupSize()) {
+    kernel = ir::KernelInfo{workgroup->x, workgroup->y, workgroup->z, {}, {}};
+    auto parameters = emittedSymbol->parameters();
+    for (std::uint32_t index = 0; index < parameters.size(); ++index) {
+      auto parameter = parameters[index];
+      auto binding = parameter->kernelParameterBinding();
+      if (!binding) continue;
+      if (auto id = std::get_if<KernelInvocationId>(&*binding)) {
+        kernel->invocationIds.push_back({
+            .parameter = index,
+            .kind = invocationIdKind(id->kind),
+        });
+        continue;
+      }
+      kernel->buffers.push_back(kernelBufferInfo(
+          traits, parameter, index, std::get<KernelBufferBinding>(*binding)));
+    }
+  }
+
   auto func = this->declareFunction(
       loc, ir::FunctionInfo{
                .name = name,
@@ -2876,7 +3112,8 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
                .isUsed = emittedSymbol->isUsed(),
                .parameters = functionAbi.parameters,
                .resultAbi = functionAbi.resultAbi,
-               .section = sectionNameOf(emittedSymbol)});
+               .section = sectionNameOf(emittedSymbol),
+               .kernel = std::move(kernel)});
 
   funcOps_.insert_or_assign(emittedSymbol, func);
 
@@ -3039,8 +3276,10 @@ void Codegen::assignReferenceTemporaries(const ReferenceTemporary& owner,
                                          const ConstValue& value,
                                          std::size_t& count) {
   if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
-    for (const auto& [element, type] : (*list)->elements)
+    for (const auto& [element, type] : (*list)->initializedElements())
       assignReferenceTemporaries(owner, element, count);
+    if ((*list)->hasFiller())
+      assignReferenceTemporaries(owner, std::get<0>((*list)->filler()), count);
     return;
   }
 
@@ -3072,8 +3311,14 @@ void Codegen::assignReferenceTemporaries(
   assignReferenceTemporaries(
       ReferenceTemporary{.owner = owner,
                          .ownerSuffix = std::string(ownerSuffix),
-                         .linkage = linkage},
+                         .linkage = referenceTemporaryLinkage(linkage)},
       *value, count);
+}
+
+auto Codegen::referenceTemporaryLinkage(ir::Linkage ownerLinkage)
+    -> ir::Linkage {
+  if (ownerLinkage == ir::Linkage::External) return ir::Linkage::Internal;
+  return ownerLinkage;
 }
 
 auto Codegen::globalSymbolName(VariableSymbol* variable,
@@ -3194,22 +3439,18 @@ auto Codegen::findOrCreateGlobal(Symbol* symbol)
   const auto isConstant = isReadOnlyStorage(
       traits, defVar->type(), value.has_value() || isExternalOnly);
 
-  auto alignmentAttr = ir::Initializer::integerValue(
-      emitter_.integerType(64), static_cast<int64_t>(getAlignment(defVar)));
-
-  auto var = this->declareGlobal(
-      loc, {.name = std::string_view(name),
-            .type = varType,
-            .linkage = linkageAttr,
-            .isConstant = isConstant,
-            .alignment =
-                static_cast<std::uint64_t>(alignmentAttr.integer.toUIntMax()),
-            .initializer = initializer,
-            .unknownLocation = false,
-            .isUsed = defVar->isUsed(),
-            .isThreadLocal = defVar->isThreadLocal(),
-            .section = sectionNameOf(defVar),
-            .addressSpace = address_space(defVar->type())});
+  auto var =
+      this->declareGlobal(loc, {.name = std::string_view(name),
+                                .type = varType,
+                                .linkage = linkageAttr,
+                                .isConstant = isConstant,
+                                .alignment = getAlignment(defVar),
+                                .initializer = initializer,
+                                .unknownLocation = false,
+                                .isUsed = defVar->isUsed(),
+                                .isThreadLocal = defVar->isThreadLocal(),
+                                .section = sectionNameOf(defVar),
+                                .addressSpace = address_space(defVar->type())});
 
   globalOps_.insert_or_assign(canonicalVar, var);
 
@@ -3427,11 +3668,7 @@ auto Codegen::findOrCreateStaticField(FieldSymbol* field) -> ir::GlobalRef {
 
   const bool isDefinition = field->isInline() || field->isConstexpr();
 
-  auto linkage = ir::Linkage::External;
-  if (isDefinition) {
-    linkage = hasInternalLinkage(field) ? ir::Linkage::Internal
-                                        : ir::Linkage::LinkOnceODR;
-  }
+  auto linkage = isDefinition ? symbolLinkage(field) : ir::Linkage::External;
   auto linkageAttr = linkage;
 
   ExternalNameEncoder encoder{unit_};
@@ -3466,21 +3703,18 @@ auto Codegen::findOrCreateStaticField(FieldSymbol* field) -> ir::GlobalRef {
   const auto isConstant =
       isReadOnlyStorage(traits, field->type(), !needsDynamicInit);
 
-  ir::Initializer alignmentAttr;
-
-  auto var = this->declareGlobal(
-      loc, {.name = std::string_view(name),
-            .type = varType,
-            .linkage = linkageAttr,
-            .isConstant = isConstant,
-            .alignment =
-                static_cast<std::uint64_t>(alignmentAttr.integer.toUIntMax()),
-            .initializer = initializer,
-            .unknownLocation = false,
-            .isUsed = field->isUsed(),
-            .isThreadLocal = field->isThreadLocal(),
-            .section = sectionNameOf(field),
-            .addressSpace = address_space(field->type())});
+  auto var =
+      this->declareGlobal(loc, {.name = std::string_view(name),
+                                .type = varType,
+                                .linkage = linkageAttr,
+                                .isConstant = isConstant,
+                                .alignment = getAlignment(field),
+                                .initializer = initializer,
+                                .unknownLocation = false,
+                                .isUsed = field->isUsed(),
+                                .isThreadLocal = field->isThreadLocal(),
+                                .section = sectionNameOf(field),
+                                .addressSpace = address_space(field->type())});
 
   staticFieldGlobalOps_.insert_or_assign(field, var);
   if (!isDefinition) return var;
@@ -3724,16 +3958,8 @@ void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
   auto ptrType = emitter_.pointerType(convertType(defVar->type()));
   auto addr = emitter_.addressOfSymbol(loc, ptrType, this->globalName(global));
 
-  {
-    auto fullExpression = FullExpression{*this, initLoc};
-
-    if (constructor) {
-      emitConstructorInitialization(initLoc, addr, defVar->type(), constructor,
-                                    initializer);
-    } else if (auto expression = initializerExpression(initializer)) {
-      (void)emitPrvalueInto(addr, defVar->type(), expression, initLoc);
-    }
-  }
+  emitStaticStorageInitializer(canonicalVar, defVar->type(), initializer,
+                               constructor, global, addr, initLoc);
 
   if (needsDestruction) {
     emitGlobalVarDtorRegistration(canonicalVar, defVar->type(),
@@ -3757,6 +3983,28 @@ void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
   emitter_.setInsertionBlock(continueBlock);
 }
 
+void Codegen::emitStaticStorageInitializer(Symbol* symbol, const Type* type,
+                                           ExpressionAST* initializer,
+                                           FunctionSymbol* constructor,
+                                           ir::GlobalRef global,
+                                           ir::ValueRef address,
+                                           SourceLocation initLoc) {
+  auto fullExpression = FullExpression{*this, initLoc};
+
+  if (constructor) {
+    emitConstructorInitialization(initLoc, address, type, constructor,
+                                  initializer);
+    return;
+  }
+  auto expression = initializerExpression(initializer);
+  if (!expression) return;
+  if (traits.is_reference(type)) {
+    emitReferenceInit(symbol, address, expression, initLoc, global);
+    return;
+  }
+  (void)emitPrvalueInto(address, type, expression, initLoc);
+}
+
 void Codegen::emitGlobalObjectInitialization(Symbol* symbol, const Type* type,
                                              ExpressionAST* initializer,
                                              FunctionSymbol* constructor,
@@ -3767,16 +4015,8 @@ void Codegen::emitGlobalObjectInitialization(Symbol* symbol, const Type* type,
   auto ptrType = emitter_.pointerType(convertType(type));
   auto addr = emitter_.addressOfSymbol(loc, ptrType, this->globalName(global));
 
-  {
-    auto fullExpression = FullExpression{*this, initLoc};
-
-    if (constructor) {
-      emitConstructorInitialization(initLoc, addr, type, constructor,
-                                    initializer);
-    } else if (auto expression = initializerExpression(initializer)) {
-      (void)emitPrvalueInto(addr, type, expression, initLoc);
-    }
-  }
+  emitStaticStorageInitializer(symbol, type, initializer, constructor, global,
+                               addr, initLoc);
 
   if (destructor && !traits.has_trivial_destructor(type))
     emitGlobalVarDtorRegistration(symbol, type, destructor, global, loc);

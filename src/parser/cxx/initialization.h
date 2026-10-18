@@ -226,6 +226,10 @@ struct AggregateInitializerPlan {
   bool valid = true;
 };
 
+[[nodiscard]] auto listInitializedElement(const TypeTraits& traits,
+                                          ExpressionAST* initializer)
+    -> ExpressionAST*;
+
 [[nodiscard]] auto materializedTemporaries(const TypeTraits& traits,
                                            ExpressionAST* initializer)
     -> std::vector<ExpressionAST*>;

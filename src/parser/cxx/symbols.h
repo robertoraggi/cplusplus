@@ -891,8 +891,8 @@ class ClassLayout {
 
   /**
    * The layout tables in member order. The maps themselves are unordered, and
-   * anything that has to produce the same bytes twice — an archive (7.5), a
-   * layout dump — needs a total order that does not depend on hashing.
+   * anything that has to produce the same bytes twice - an archive (7.5), a
+   * layout dump - needs a total order that does not depend on hashing.
    */
   [[nodiscard]] auto sortedFieldInfos() const
       -> std::vector<std::pair<FieldSymbol*, MemberInfo>> {
@@ -1467,6 +1467,14 @@ class FunctionSymbol final
 
   [[nodiscard]] auto parameters() const -> std::vector<ParameterSymbol*>;
 
+  [[nodiscard]] auto kernelWorkgroupSize() const
+      -> const std::optional<KernelWorkgroupSize>& {
+    return kernelWorkgroupSize_;
+  }
+  void setKernelWorkgroupSize(std::optional<KernelWorkgroupSize> value) {
+    kernelWorkgroupSize_ = value;
+  }
+
   [[nodiscard]] auto isConstexpr() const -> bool;
   void setConstexpr(bool isConstexpr);
 
@@ -1699,6 +1707,7 @@ class FunctionSymbol final
   std::vector<TemplateFriendship> templateFriendships_;
   int vtableSlotIndex_ = -1;
   std::optional<std::uint32_t> constructorPriority_;
+  std::optional<KernelWorkgroupSize> kernelWorkgroupSize_;
   const Identifier* externalName_ = nullptr;
   const Identifier* aliasName_ = nullptr;
   const Identifier* importModule_ = nullptr;
@@ -2085,6 +2094,14 @@ class ParameterSymbol final : public Symbol {
   explicit ParameterSymbol(ScopeSymbol* enclosingScope);
   ~ParameterSymbol() override;
 
+  [[nodiscard]] auto kernelParameterBinding() const
+      -> const std::optional<KernelParameterBinding>& {
+    return kernelParameterBinding_;
+  }
+  void setKernelParameterBinding(std::optional<KernelParameterBinding> value) {
+    kernelParameterBinding_ = value;
+  }
+
   [[nodiscard]] auto defaultArgument() const -> ExpressionAST*;
   void setDefaultArgument(ExpressionAST* expr);
 
@@ -2107,6 +2124,7 @@ class ParameterSymbol final : public Symbol {
   ExpressionAST* defaultArgument_ = nullptr;
   std::unique_ptr<PendingInstantiation> pendingDefaultArgument_;
   ParameterSymbol* defaultArgumentSource_ = nullptr;
+  std::optional<KernelParameterBinding> kernelParameterBinding_;
   bool isExplicitObject_ = false;
   bool isParameterPack_ = false;
 };
@@ -2322,7 +2340,8 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
 
 [[nodiscard]] auto isDeclaredConstant(Symbol* symbol) -> bool;
 
-[[nodiscard]] auto isUsableInConstantExpressions(Symbol* symbol) -> bool;
+[[nodiscard]] auto isUsableInConstantExpressions(const TypeTraits& traits,
+                                                 Symbol* symbol) -> bool;
 
 [[nodiscard]] auto isPotentiallyConstant(const TypeTraits& traits,
                                          Symbol* symbol) -> bool;

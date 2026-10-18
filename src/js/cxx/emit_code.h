@@ -32,12 +32,23 @@ class TranslationUnit;
 
 namespace cxx::js {
 
+struct GeneratedKernel {
+  std::string manifest;
+  std::vector<std::uint8_t> code;
+};
+
 struct GeneratedCode {
   std::string text;
   std::vector<std::uint8_t> objectCode;
+  std::vector<GeneratedKernel> kernels;
+  std::string error;
 };
 
 [[nodiscard]] auto hasCodeGenerator() -> bool;
+
+[[nodiscard]] auto targetsDevice(TranslationUnit* unit) -> bool;
+
+[[nodiscard]] auto hostTargetRequired(std::string_view output) -> std::string;
 
 [[nodiscard]] auto generateCode(TranslationUnit* unit, std::string_view format,
                                 bool debugInfo, int optimizationLevel,

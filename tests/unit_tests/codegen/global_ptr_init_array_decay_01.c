@@ -6,3 +6,5 @@ static void** pool = ptr;
 
 // CHECK: @pool = internal global ptr @ptr
 // CHECK: @ptr = internal global
+
+void** usePool() { return pool; }

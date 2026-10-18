@@ -575,6 +575,7 @@ auto Control::getSizeType() -> const Type* {
   if (!layout) return getUnsignedLongIntType();
   if (layout->sizeOfLong() == layout->sizeOfSizeType())
     return getUnsignedLongIntType();
+  if (layout->sizeOfSizeType() == 4) return getUnsignedIntType();
   return getUnsignedLongLongIntType();
 }
 
