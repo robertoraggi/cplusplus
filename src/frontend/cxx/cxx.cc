@@ -24,9 +24,10 @@
 #include <cxx/toolchain_config.h>
 
 #include <chrono>
+#include <cstdio>
 #include <filesystem>
 #include <format>
-#include <iostream>
+#include <print>
 #include <system_error>
 
 #include "frontend.h"
@@ -64,7 +65,7 @@ auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
 
   auto toolchain = cxx::createToolchainForLinking(cli, language);
   if (!toolchain) {
-    std::cerr << cxx::describeUnsupportedTarget(cli) << std::endl;
+    std::print(stderr, "{}\n", cxx::describeUnsupportedTarget(cli));
     return EXIT_FAILURE;
   }
 
@@ -99,7 +100,7 @@ auto compileAndLink(cxx::CLI& cli, const std::vector<std::string>& inputFiles)
 
   if (exitStatus == EXIT_SUCCESS) {
     if (objectsToLink.empty()) {
-      std::cerr << "cxx: nothing to link" << std::endl;
+      std::print(stderr, "{}\n", "cxx: nothing to link");
       exitStatus = EXIT_FAILURE;
     } else {
       auto outputPath = cli.getSingle("-o").value_or("a.out");
@@ -127,7 +128,7 @@ auto main(int argc, char* argv[]) -> int {
   }
 
   if (cli.opt_print_target_triple) {
-    std::cout << cxx::targetTripleOf(cli) << std::endl;
+    std::print("{}\n", cxx::targetTripleOf(cli));
     return EXIT_SUCCESS;
   }
 
@@ -135,10 +136,10 @@ auto main(int argc, char* argv[]) -> int {
     auto toolchain =
         cxx::createToolchainForLinking(cli, cxx::LanguageKind::kCXX);
     if (!toolchain) {
-      std::cerr << "cxx: unknown toolchain" << std::endl;
+      std::print(stderr, "{}\n", "cxx: unknown toolchain");
       return EXIT_FAILURE;
     }
-    std::cout << toolchain->resourceDir() << std::endl;
+    std::print("{}\n", toolchain->resourceDir());
     return EXIT_SUCCESS;
   }
 
@@ -153,8 +154,8 @@ auto main(int argc, char* argv[]) -> int {
   }
 
   if (!cli.opt_lsp && inputFiles.empty()) {
-    std::cerr << "cxx: no input files" << std::endl
-              << "Usage: cxx [options] file..." << std::endl;
+    std::print(stderr, "{}\n{}\n", "cxx: no input files",
+               "Usage: cxx [options] file...");
     return EXIT_FAILURE;
   }
 

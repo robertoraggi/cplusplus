@@ -47,7 +47,11 @@ namespace {
 [[nodiscard]] auto writtenTemplateId(ClassSymbol* specialization)
     -> SimpleTemplateIdAST* {
   auto body = ast_cast<ClassSpecifierAST>(specialization->declaration());
-  return body ? ast_cast<SimpleTemplateIdAST>(body->unqualifiedId) : nullptr;
+  if (body) return ast_cast<SimpleTemplateIdAST>(body->unqualifiedId);
+  auto declaration =
+      ast_cast<ElaboratedTypeSpecifierAST>(specialization->declaration());
+  return declaration ? ast_cast<SimpleTemplateIdAST>(declaration->unqualifiedId)
+                     : nullptr;
 }
 
 [[nodiscard]] auto writtenTemplateId(TemplateDeclarationAST* templateDecl)
@@ -343,8 +347,8 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
   if (!selection.candidate) return {.resolutionFailed = selection.ambiguous};
   auto& selected = *selection.candidate;
   auto specClass = symbol_cast<ClassSymbol>(selected.symbol);
+  (void)ensureCompleteClass(unit, specClass);
   auto specBody = ast_cast<ClassSpecifierAST>(specClass->declaration());
-  if (!specBody) return {.resolutionFailed = true};
 
   TimeTrace::Scope trace{unit->timeTrace(), "Instantiate", specClass};
   if (auto trace = unit->timeTrace()) trace->count(TimeTrace::kInstantiations);
@@ -364,6 +368,7 @@ auto ASTRewriter::RewritePartialSpecialization::apply(
     classSymbol->addSpecialization(unit, templateArguments, pendingInstance);
   }
   pendingInstance->setInstantiationPattern(specClass);
+  if (!specBody) return {.symbol = pendingInstance};
   specRewriter.setClassInstanceToComplete(pendingInstance);
 
   auto instance = ast_cast<ClassSpecifierAST>(specRewriter.specifier(specBody));

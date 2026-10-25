@@ -72,6 +72,7 @@ auto isFundamentalTypeInfoInRuntime(const Type* type) -> bool {
     case TypeKind::kFloat:
     case TypeKind::kDouble:
     case TypeKind::kLongDouble:
+    case TypeKind::kHalf:
     case TypeKind::kFloat16:
     case TypeKind::kFloat128:
       return true;
@@ -342,7 +343,7 @@ auto Codegen::emitTypeInfoObject(
 
   emitTrailingFields(fieldTypes, fields);
 
-  (void)this->defineClassType(recordType, fieldTypes, false);
+  this->defineClassType(recordType, fieldTypes, false, 1);
 
   auto record = emitter_.undef(loc, recordType);
   for (std::int64_t index = 0; index < std::int64_t(fields.size()); ++index) {

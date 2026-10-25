@@ -37,9 +37,14 @@ export function gen_ast_printer_h({
 
   emit(`class ASTPrinter : ASTVisitor {`);
   emit(`public:`);
-  emit(`  explicit ASTPrinter(TranslationUnit* unit, std::ostream& out);`);
+  emit(
+    `  explicit ASTPrinter(TranslationUnit* unit, std::format_context::iterator out);`,
+  );
   emit();
   emit(`  void operator()(AST* ast);`);
+  emit(
+    `  [[nodiscard]] auto output() const -> std::format_context::iterator { return out_; }`,
+  );
 
   emit(`private:`);
   emit(`  void accept(AST* ast, std::string_view field = {});`);
@@ -52,7 +57,7 @@ export function gen_ast_printer_h({
   });
   emit(`private:`);
   emit(`  TranslationUnit* unit_;`);
-  emit(`  std::ostream& out_;`);
+  emit(`  std::format_context::iterator out_;`);
   emit(`  int indent_ = -1;`);
   emit(`};`);
 
@@ -64,7 +69,7 @@ ${cpy_header}
 #include <cxx/names_fwd.h>
 #include <cxx/literals_fwd.h>
 #include <cxx/types_fwd.h>
-#include <iosfwd>
+#include <format>
 #include <string_view>
 
 namespace cxx {
@@ -73,7 +78,29 @@ class TranslationUnit;
 
 ${code.join("\n")}
 
+struct ASTDump {
+  TranslationUnit* unit;
+  AST* ast;
+};
+
+[[nodiscard]] inline auto dumpAST(TranslationUnit* unit, AST* ast) -> ASTDump {
+  return {unit, ast};
+}
+
 } // namespace cxx
+
+template <>
+struct std::formatter<cxx::ASTDump> {
+  [[nodiscard]] constexpr auto parse(std::format_parse_context& context) {
+    return context.begin();
+  }
+
+  auto format(const cxx::ASTDump& value, std::format_context& context) const {
+    cxx::ASTPrinter printer(value.unit, context.out());
+    printer(value.ast);
+    return printer.output();
+  }
+};
 `;
 
   fs.writeFileSync(output, out);

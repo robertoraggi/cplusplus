@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/attributes.h>
 #include <cxx/control.h>
+#include <cxx/device_profile_limits.h>
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -1277,6 +1278,16 @@ auto is_inline_or_templated(FunctionSymbol* function) -> bool {
   return false;
 }
 
+auto is_threadgroup_variable(Symbol* symbol) -> bool {
+  auto variable = symbol_cast<VariableSymbol>(symbol);
+  if (!variable) return false;
+  if (variable->isStatic() || variable->isExtern()) return false;
+  if (variable->isThreadLocal()) return false;
+  auto function = variable->enclosingFunction();
+  if (!function || !function->kernelWorkgroupSize()) return false;
+  return address_space(variable->type()) == kThreadgroupAddressSpace;
+}
+
 auto has_static_storage_duration(Symbol* symbol) -> bool {
   if (auto field = symbol_cast<FieldSymbol>(symbol))
     return field->isStatic() && !field->isThreadLocal();
@@ -2253,11 +2264,11 @@ auto ClassSymbol::defaultConstructor() const -> FunctionSymbol* {
   return nullptr;
 }
 
-namespace {
-
-[[nodiscard]] auto isTemplated(FunctionSymbol* function) -> bool {
+auto is_templated_function(FunctionSymbol* function) -> bool {
   return function->templateDeclaration() || function->isSpecialization();
 }
+
+namespace {
 
 [[nodiscard]] auto namesClass(const Type* type, const ClassSymbol* classSymbol)
     -> bool {
@@ -2276,7 +2287,7 @@ template <typename Reference>
 [[nodiscard]] auto isCopyOrMoveConstructorFor(FunctionSymbol* constructor,
                                               const ClassSymbol* classSymbol)
     -> bool {
-  if (isTemplated(constructor)) return false;
+  if (is_templated_function(constructor)) return false;
   auto functionType = type_cast<FunctionType>(constructor->type());
   if (!functionType) return false;
   const auto& parameters = functionType->parameterTypes();
@@ -2288,7 +2299,7 @@ template <typename Reference>
 }
 
 [[nodiscard]] auto soleParameterType(FunctionSymbol* function) -> const Type* {
-  if (isTemplated(function)) return nullptr;
+  if (is_templated_function(function)) return nullptr;
   auto functionType = type_cast<FunctionType>(function->type());
   if (!functionType || functionType->parameterTypes().size() != 1)
     return nullptr;
@@ -2687,6 +2698,14 @@ auto FunctionSymbol::isDefaulted() const -> bool { return isDefaulted_; }
 
 void FunctionSymbol::setDefaulted(bool isDefaulted) {
   isDefaulted_ = isDefaulted;
+}
+
+auto FunctionSymbol::isImplicitlyDeclared() const -> bool {
+  return isImplicitlyDeclared_;
+}
+
+void FunctionSymbol::setImplicitlyDeclared(bool isImplicitlyDeclared) {
+  isImplicitlyDeclared_ = isImplicitlyDeclared;
 }
 
 auto FunctionSymbol::isPure() const -> bool { return isPure_; }
@@ -3104,6 +3123,14 @@ auto VariableSymbol::isStructuredBindingAlias() const -> bool {
 
 void VariableSymbol::setStructuredBindingAlias(bool isStructuredBindingAlias) {
   isStructuredBindingAlias_ = isStructuredBindingAlias;
+}
+
+auto VariableSymbol::lifetimeExtendingDeclaration() const -> Symbol* {
+  return lifetimeExtendingDeclaration_;
+}
+
+void VariableSymbol::setLifetimeExtendingDeclaration(Symbol* declaration) {
+  lifetimeExtendingDeclaration_ = declaration;
 }
 
 auto VariableSymbol::initializer() const -> ExpressionAST* {
@@ -3599,9 +3626,16 @@ struct IsConstantInitialized {
 };
 }  // namespace
 
-auto isUsableInConstantExpressions(const TypeTraits& traits, Symbol* symbol)
-    -> bool {
+auto isUsableInConstantExpressions(const TypeTraits& traits, Symbol* symbol,
+                                   ScopeSymbol* point) -> bool {
   if (!symbol || !visit(IsConstantInitialized{}, symbol)) return false;
-  return isPotentiallyConstant(traits, symbol);
+  if (!isPotentiallyConstant(traits, symbol)) return false;
+  if (!point) return true;
+  if (auto variable = symbol_cast<VariableSymbol>(symbol))
+    return isConstexprRepresentable(traits, *variable->constValue(),
+                                    variable->type(), point);
+  auto field = symbol_cast<FieldSymbol>(symbol);
+  return isConstexprRepresentable(traits, *field->constValue(), field->type(),
+                                  point);
 }
 }  // namespace cxx

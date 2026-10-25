@@ -22,39 +22,85 @@
 export type KernelElementType = "f32" | "i32" | "u32";
 
 /**
- * A runtime-sized storage buffer parameter of a checked kernel.
+ * A scalar or a vector of `components` lanes.
+ *
+ * @category Kernels
+ */
+export interface KernelValueLayout {
+  kind: "value";
+  elementType: KernelElementType;
+  components: 1 | 2 | 3 | 4;
+}
+
+/**
+ * A fixed-size array whose elements are `stride` bytes apart.
+ *
+ * @category Kernels
+ */
+export interface KernelArrayLayout {
+  kind: "array";
+  element: KernelDataLayout;
+  length: number;
+  stride: number;
+}
+
+/** @category Kernels */
+export interface KernelStructMember {
+  name: string;
+  offset: number;
+  layout: KernelDataLayout;
+}
+
+/**
+ * A class object laid out as in C++: members at their byte offsets, `size`
+ * bytes including padding.
+ *
+ * @category Kernels
+ */
+export interface KernelStructLayout {
+  kind: "struct";
+  name: string;
+  size: number;
+  members: KernelStructMember[];
+}
+
+/**
+ * The bytes of one buffer element, or of a uniform block.
+ *
+ * @category Kernels
+ */
+export type KernelDataLayout =
+  KernelValueLayout | KernelArrayLayout | KernelStructLayout;
+
+/**
+ * A runtime-sized storage buffer parameter of a checked kernel: an array of
+ * `layout` elements `arrayStride` bytes apart.
  *
  * @category Kernels
  */
 export interface KernelStorageResource {
-  parameter: number;
   name: string;
   set: number;
   binding: number;
   kind: "storage";
-  elementType: KernelElementType;
-  components: 1;
-  storageClass: "StorageBuffer";
+  layout: KernelDataLayout;
   arrayStride: number;
   memberOffset: number;
   access: "read" | "read_write";
 }
 
 /**
- * A uniform buffer parameter of a checked kernel: one scalar or vector of
- * `components` lanes.
+ * A uniform buffer parameter of a checked kernel: one `layout` object in a
+ * block of `size` bytes.
  *
  * @category Kernels
  */
 export interface KernelUniformResource {
-  parameter: number;
   name: string;
   set: number;
   binding: number;
   kind: "uniform";
-  elementType: KernelElementType;
-  components: 1 | 2 | 3 | 4;
-  storageClass: "Uniform";
+  layout: KernelDataLayout;
   size: number;
   memberOffset: number;
   access: "read";
@@ -73,24 +119,73 @@ export interface KernelInvocationId {
   components: 1 | 2 | 3;
 }
 
-/**
- * The resource manifest Cxx emits next to a kernel artifact.
- *
- * @category Kernels
- */
-export interface KernelManifest {
-  schemaVersion: 3;
-  producer: "cxx";
+export interface KernelReflectionMember {
+  name: string;
+  type: string;
+  offset?: number;
+  array?: number[];
+  array_size_is_literal?: boolean[];
+  array_stride?: number;
+}
+
+export interface KernelReflectionType {
+  name: string;
+  members: KernelReflectionMember[];
+}
+
+export interface KernelReflectionBuffer {
+  type: string;
+  name: string;
+  block_size: number;
+  set: number;
+  binding: number;
+  readonly?: boolean;
+}
+
+export interface KernelReflectionEntry {
+  name: string;
+  mode: string;
+  workgroup_size?: [number, number, number];
+  workgroup_size_is_spec_constant_id?: [boolean, boolean, boolean];
+}
+
+export interface CxxKernelMetadata {
   format: "spirv" | "wgsl";
-  entryPoint: string;
   profile: string;
   abiVersion: number;
   indexBits: number;
-  localSize: [number, number, number];
-  resources: KernelResource[];
-  invocationIds: KernelInvocationId[];
+  entries: Record<
+    string,
+    {
+      parameters: {
+        parameter: number;
+        name?: string;
+        resource: string;
+        elementType: KernelElementType | "struct" | "array";
+      }[];
+      invocationIds: KernelInvocationId[];
+    }
+  >;
   sha256: string;
   targetEnvironment: string;
+  addressingModel?: string;
+  memoryModel?: string;
+  spirv?: { version: string; capabilities: string[]; extensions: string[] };
+  requiredFeatures?: string[];
+}
+
+export interface KernelManifest {
+  entryPoints: KernelReflectionEntry[];
+  types?: Record<string, KernelReflectionType>;
+  ssbos?: KernelReflectionBuffer[];
+  ubos?: KernelReflectionBuffer[];
+  cxx?: CxxKernelMetadata;
+}
+
+export interface KernelLayout {
+  entryPoint: string;
+  localSize: [number, number, number];
+  resources: KernelResource[];
 }
 
 /** @category Kernels */
@@ -100,8 +195,7 @@ export interface KernelArtifact<Code> {
 }
 
 /**
- * Every checked kernel of a translation unit, with the device diagnostics of
- * the kernels that could not be compiled.
+ * The selected device module of a translation unit, with its diagnostics.
  *
  * @category Kernels
  */

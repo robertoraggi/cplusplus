@@ -142,6 +142,7 @@ class Toolchain {
   void addCommonMacOSMacros();
   void addCommonWindowsMacros();
   void addCommonWASIMacros();
+  void addAArch64Macros();
   void addLinuxAArch64Macros();
   void addLinuxX86_64Macros();
   void addMacOSAArch64Macros();

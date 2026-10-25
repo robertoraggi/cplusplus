@@ -36,6 +36,21 @@
 
 namespace cxx {
 
+void checkFunctionType(TranslationUnit* unit, const FunctionType* type,
+                       SourceLocation location) {
+  if (!type || unit->control()->memoryLayout()->isAArch64()) return;
+
+  if (unqualified_cast<HalfType>(type->returnType()))
+    unit->error(location,
+                "function return value cannot have __fp16 type on this target");
+
+  for (auto parameter : type->parameterTypes()) {
+    if (unqualified_cast<HalfType>(parameter))
+      unit->error(location,
+                  "function parameter cannot have __fp16 type on this target");
+  }
+}
+
 auto exceptionSpecifierIsNoexcept(TranslationUnit* unit,
                                   ExceptionSpecifierAST* ast) -> bool {
   if (ast_cast<ThrowExceptionSpecifierAST>(ast)) return true;
@@ -304,7 +319,7 @@ struct GetDeclaratorType {
           p->parse_warn(ast->trailingReturnType->firstSourceLocation(),
                         std::format("function with trailing return type must "
                                     "be declared with 'auto', not '{}'",
-                                    to_string(returnType)));
+                                    to_diag_string(returnType)));
         }
 #endif
 
@@ -313,9 +328,11 @@ struct GetDeclaratorType {
       }
     }
 
-    type_ = control()->getFunctionType(returnType, std::move(parameterTypes),
-                                       isVariadic, cvQualifiers, refQualifier,
-                                       exceptionSpecification);
+    auto functionType = control()->getFunctionType(
+        returnType, std::move(parameterTypes), isVariadic, cvQualifiers,
+        refQualifier, exceptionSpecification);
+    checkFunctionType(unit, functionType, ast->firstSourceLocation());
+    type_ = functionType;
 
     type_ = applyTypeAttributes(unit, ast->attributeList, type_,
                                 ast->firstSourceLocation());
@@ -479,8 +496,8 @@ namespace {
   }
 
   if (!unit->typeTraits().is_vector_element_type(type, vectorKind)) {
-    unit->error(
-        at, std::format("invalid vector element type '{}'", to_string(type)));
+    unit->error(at, std::format("invalid vector element type '{}'",
+                                to_diag_string(type)));
     return type;
   }
 
@@ -504,8 +521,8 @@ namespace {
   if (sizeKind == VectorSizeKind::kBytes) {
     auto elementSize = control->memoryLayout()->sizeOf(type);
     if (!elementSize || *elementSize == 0) {
-      unit->error(
-          at, std::format("invalid vector element type '{}'", to_string(type)));
+      unit->error(at, std::format("invalid vector element type '{}'",
+                                  to_diag_string(type)));
       return type;
     }
     if (elementCount % *elementSize != 0) {

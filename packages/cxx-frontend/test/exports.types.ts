@@ -37,7 +37,8 @@ export async function main(): Promise<void> {
 
   const output = parser.emitCode({ format: "wgsl" });
   for (const kernel of output.kernels) {
-    const ids: KernelInvocationId[] = kernel.manifest.invocationIds;
+    const ids: KernelInvocationId[] =
+      kernel.manifest.cxx!.entries["saxpy"]!.invocationIds;
     void ids;
   }
 
@@ -56,4 +57,17 @@ export async function main(): Promise<void> {
   void visitor;
 
   void LanguageServer;
+}
+
+import { createKernelPipeline } from "cxx-frontend/webgpu";
+import { parseKernelReflection } from "cxx-frontend/reflection";
+declare const device: GPUDevice;
+export async function kernelApi() {
+  const kernel = await createKernelPipeline(device, {
+    code: "",
+    reflection: { entryPoints: [] },
+  });
+  const layout = parseKernelReflection({ entryPoints: [] });
+  const groups: GPUBindGroup[] = kernel.createBindGroups({});
+  return { layout, groups };
 }

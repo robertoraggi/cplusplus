@@ -63,6 +63,7 @@ const rootlessClasses = [
   "InitializerList",
   "ConstComplex",
   "ConstObject",
+  "ConstStorage",
   "ConstAddress",
   "ConstLabelAddress",
   "DefaultInitializerContext",

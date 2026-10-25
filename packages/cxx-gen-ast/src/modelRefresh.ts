@@ -52,11 +52,12 @@ export async function dumpSemanticModel(root: string): Promise<string> {
       `${missing} is missing; build it with npm run build:cxx-frontend`,
     );
 
-  const { loadCxx, Parser } = await import("cxx-frontend");
+  const { Parser } = await import("cxx-frontend");
+  const { loadCxx } = await import("cxx-frontend/node");
   const { dumpModel } = await import("./modelDumper.ts");
 
   const input = modelInputPath(root);
-  await loadCxx({ wasm: fs.readFileSync(frontendWasmPath(root)) });
+  await loadCxx();
 
   const parser = await Parser.parse({
     appdir: appdirPath(root),

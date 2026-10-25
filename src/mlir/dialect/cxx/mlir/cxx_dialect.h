@@ -63,7 +63,20 @@ namespace mlir::cxx {
                                               PtrLikeTypeInterface right)
     -> bool;
 
-}
+[[nodiscard]] auto getAggregateElementType(Type container,
+                                           std::int64_t position) -> Type;
+
+[[nodiscard]] auto canBitcastStorageValue(Type from, Type to) -> bool;
+
+[[nodiscard]] auto getRecordElementTypes(Type record) -> ArrayRef<Type>;
+
+[[nodiscard]] auto isAggregateType(Type type) -> bool;
+
+[[nodiscard]] auto isVolatileAccess(Operation* op) -> bool;
+
+[[nodiscard]] auto getLoadStoreAddress(Operation* op) -> Value;
+
+}  // namespace mlir::cxx
 
 namespace mlir::cxx::detail {
 
@@ -87,3 +100,11 @@ struct EnumAttrStorage;
 
 #define GET_OP_CLASSES
 #include <cxx/mlir/CxxOps.h.inc>
+
+namespace mlir::cxx {
+
+[[nodiscard]] auto getClassElementOffsets(ClassType type,
+                                          const DataLayout& layout)
+    -> SmallVector<std::uint64_t>;
+
+}  // namespace mlir::cxx

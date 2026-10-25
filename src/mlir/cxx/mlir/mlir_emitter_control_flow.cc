@@ -348,7 +348,9 @@ void MlirEmitter::resolveFunctionControlFlow(FunctionRef funcOp) {
     }
   }
 
-  if (auto module = this->module()) {
+  // A global block address can only refer to a function that defines labels.
+  // Most functions need no module-wide search for these initializer operands.
+  if (auto module = this->module(); module && !labels.empty()) {
     for (auto& moduleOp : *module.getBody()) {
       if (auto globalOp = mlir::dyn_cast<mlir::cxx::GlobalOp>(&moduleOp)) {
         globalOp.walk([&](mlir::cxx::LabelAddressOp laOp) {

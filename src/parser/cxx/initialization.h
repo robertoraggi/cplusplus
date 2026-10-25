@@ -37,6 +37,12 @@ namespace cxx {
                                           SourceLocation location,
                                           ScopeSymbol* scope) -> ExpressionAST*;
 
+[[nodiscard]] auto makeClassConstruction(TranslationUnit* unit,
+                                         const Type* type,
+                                         FunctionSymbol* constructor,
+                                         ExpressionAST* initializer)
+    -> BracedTypeConstructionAST*;
+
 class Arena;
 class Control;
 class TranslationUnit;

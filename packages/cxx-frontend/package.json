@@ -32,7 +32,15 @@
       "default": "./dist/node.js"
     },
     "./wasm": "./dist/wasm/cxx-js.wasm",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./reflection": {
+      "types": "./dist/reflection.d.ts",
+      "default": "./dist/reflection.js"
+    },
+    "./webgpu": {
+      "types": "./dist/webgpu.d.ts",
+      "default": "./dist/webgpu.js"
+    }
   },
   "type": "module",
   "files": [
@@ -81,5 +89,8 @@
   "publishConfig": {
     "access": "public",
     "provenance": true
+  },
+  "dependencies": {
+    "@webgpu/types": "^0.1.69"
   }
 }

@@ -28,9 +28,10 @@
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <format>
-#include <iostream>
+#include <print>
 
 namespace cxx {
 namespace {
@@ -99,12 +100,13 @@ void validateCompletedInstantiation(TranslationUnit* unit,
   auto typeName = std::string{"<missing>"};
   if (expression->type) typeName = to_string(expression->type);
 
-  std::cerr << std::format(
+  std::print(
+      stderr,
       "cxx: AST validation failed after completing instantiation of '{}': "
       "{} has unresolved type '{}'.\n",
       functionName, to_string(expression->kind()), typeName);
-  ASTPrinter{unit, std::cerr}(ast);
-  std::cerr.flush();
+  std::print(stderr, "{}", dumpAST(unit, ast));
+  std::fflush(stderr);
   std::abort();
 }
 

@@ -31,6 +31,7 @@
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
+#include <cxx/standard_conversion.h>
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
 #include <cxx/translation_unit.h>
@@ -269,59 +270,15 @@ void TypeDeducer::deduceAutoType(S* var) {
   }
 }
 
-struct ConstexprEvaluator {
-  InitContext& ctx;
-
-  template <typename S>
-  auto tryEvaluateConstructor(S* var, ASTInterpreter& interp)
-      -> std::optional<ConstValue>;
-};
-
-template <typename S>
-auto ConstexprEvaluator::tryEvaluateConstructor(S* var, ASTInterpreter& interp)
-    -> std::optional<ConstValue> {
-  auto classType = unqualified_cast<ClassType>(var->type());
-  if (!classType) return std::nullopt;
-
-  auto classSym = classType->symbol();
-  if (!classSym) return std::nullopt;
-
-  auto initArgs = Initializer{var->initializer()}.arguments();
-
-  if (initArgs.size() == 1) {
-    if (auto typeConstruction = ast_cast<TypeConstructionAST>(initArgs[0])) {
-      if (typeConstruction->type == classType ||
-          typeConstruction->type == var->type()) {
-        initArgs.clear();
-        for (auto it = typeConstruction->expressionList; it; it = it->next)
-          initArgs.push_back(it->value);
-      }
-    }
-  }
-
-  auto constructor = var->constructor();
-  if (!constructor) constructor = classSym->defaultConstructor();
-  if (!constructor) return std::nullopt;
-  if (!constructor->isConstexpr()) return std::nullopt;
-  auto value =
-      interp.evaluateConstructorFromExprs(constructor, classType, initArgs);
-  if (!value || !isFullyInitialized(*value)) return std::nullopt;
-  return value;
-}
-
 struct InitDeclaratorChecker {
   InitContext ctx;
   TypeDeducer typeDeducer;
-  ConstexprEvaluator constexprEval;
   ArrayCopyPolicy arrayCopyPolicy;
 
   explicit InitDeclaratorChecker(
       TypeChecker& checker,
       ArrayCopyPolicy arrayCopyPolicy = ArrayCopyPolicy::kBracedInitializerOnly)
-      : ctx(checker),
-        typeDeducer{ctx},
-        constexprEval{ctx},
-        arrayCopyPolicy(arrayCopyPolicy) {}
+      : ctx(checker), typeDeducer{ctx}, arrayCopyPolicy(arrayCopyPolicy) {}
 
   void checkInitDeclarator(InitDeclaratorAST* ast, SpecifierAST* typeSpecifier);
   template <typename S>
@@ -336,7 +293,44 @@ struct InitDeclaratorChecker {
 
  private:
   void evaluateConstValue(VariableSymbol* var, ExpressionAST*& initializer);
+  void recordConstantInitializer(VariableSymbol* var,
+                                 ExpressionAST*& initializer);
+  template <typename S>
+  [[nodiscard]] auto checkThreadgroupVariable(S* var,
+                                              ExpressionAST* initializer,
+                                              SourceLocation location) -> bool;
 };
+
+template <typename S>
+auto InitDeclaratorChecker::checkThreadgroupVariable(S* var,
+                                                     ExpressionAST* initializer,
+                                                     SourceLocation location)
+    -> bool {
+  if (initializer) {
+    ctx.error(location, "threadgroup variable cannot have an initializer");
+    return false;
+  }
+  if (isDependent(ctx.unit, var->type())) return true;
+  auto size = ctx.unit->control()->memoryLayout()->sizeOf(var->type());
+  if (!size) {
+    ctx.error(location, "threadgroup storage requires a fixed-size object");
+    return false;
+  }
+  if (!*size) {
+    ctx.error(location, "threadgroup storage requires a nonzero size");
+    return false;
+  }
+  auto element = ctx.traits.remove_atomic(
+      unqualified_type(ctx.traits.remove_all_extents(var->type())));
+  if (!ctx.traits.has_trivial_default_constructor(element) ||
+      !ctx.traits.is_trivially_destructible(element)) {
+    ctx.error(location,
+              "threadgroup storage requires a type with a trivial default "
+              "constructor and a trivial destructor");
+    return false;
+  }
+  return true;
+}
 
 void InitDeclaratorChecker::checkInitDeclarator(InitDeclaratorAST* ast,
                                                 SpecifierAST* typeSpecifier) {
@@ -360,6 +354,15 @@ void InitDeclaratorChecker::checkInitDeclarator(InitDeclaratorAST* ast,
 
 [[nodiscard]] auto isInitializedInClass(FieldSymbol* field) -> bool {
   return field->hasInitializer();
+}
+
+template <typename S>
+[[nodiscard]] auto hasDependentInitializer(TranslationUnit* unit, S* var)
+    -> bool {
+  if constexpr (std::is_same_v<S, VariableSymbol>)
+    if (var->templateParameters()) return true;
+  return isDependent(unit, var->type()) ||
+         isDependent(unit, var->initializer());
 }
 
 template <typename S>
@@ -387,11 +390,11 @@ void InitDeclaratorChecker::checkVariable(S* var, ExpressionAST*& initializer,
   else
     evaluateFieldConstValue(var);
 
-  if (!var->isConstinit() || var->constValue()) return;
-  if (!initializer && !var->constructor()) return;
-  if (isDependent(ctx.unit, var->type()) || isDependent(ctx.unit, initializer))
-    return;
-  ctx.error(location, "constinit variable must have static initialization");
+  if (var->constValue() || hasDependentInitializer(ctx.unit, var)) return;
+  if (var->isConstexpr())
+    ctx.error(location, "constexpr variable must be initialized");
+  if (var->isConstinit() && (initializer || var->constructor()))
+    ctx.error(location, "constinit variable must have static initialization");
 }
 
 template <typename S>
@@ -399,6 +402,9 @@ auto InitDeclaratorChecker::checkInitialization(S* var,
                                                 ExpressionAST*& initializer,
                                                 SourceLocation location)
     -> bool {
+  if (is_threadgroup_variable(var))
+    return checkThreadgroupVariable(var, initializer, location);
+
   auto entity = InitializedEntity::variable(var->type(), var, location);
   entity.setArrayCopyPolicy(arrayCopyPolicy);
   auto result = initialize(
@@ -411,7 +417,7 @@ auto InitDeclaratorChecker::checkInitialization(S* var,
 
   if (var->constructor() &&
       ctx.checker.evaluateImmediateConstruction(
-          &initializer, var->constructor(), var->type(), location)) {
+          &initializer, var->constructor(), var->type(), location, var)) {
     var->setConstructor(nullptr);
     var->setInitializer(initializer);
   }
@@ -443,92 +449,57 @@ void InitDeclaratorChecker::evaluateFieldConstValue(FieldSymbol* field) {
 
   auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
 
-  std::optional<ConstValue> value;
-  if (field->initializer())
-    value = interp.staticInitializationValue(
-        field->type(), field->constructor(), field->initializer());
-  if (!value) value = constexprEval.tryEvaluateConstructor(field, interp);
-
-  if (value.has_value() && !isFullyInitialized(*value)) value.reset();
-
-  field->setConstValue(std::move(value));
+  field->setConstValue(interp.initializationValue(field, field->constructor(),
+                                                  field->initializer()));
 }
 
 void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var,
                                                ExpressionAST*& initializer) {
-  auto dependent = var->templateParameters() != nullptr;
-  if (!dependent) dependent = isDependent(ctx.unit, var->type());
-  if (!dependent && var->initializer())
-    dependent = isDependent(ctx.unit, var->initializer());
-
   const auto hasStaticStorage =
       has_static_storage_duration(var) || has_thread_storage_duration(var);
-  auto mayConstantInitialize = hasStaticStorage;
-  if (var->isConstexpr() || var->isConstinit()) mayConstantInitialize = true;
+  auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
+  var->setConstValue(
+      interp.initializationValue(var, var->constructor(), var->initializer()));
 
-  if (var->initializer()) {
-    auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
-    auto value = hasStaticStorage
-                     ? interp.staticInitializationValue(
-                           var->type(), var->constructor(), var->initializer())
-                     : interp.initializationValue(
-                           var->type(), var->constructor(), var->initializer());
-
-    if (!value.has_value() && mayConstantInitialize) {
-      value = constexprEval.tryEvaluateConstructor(var, interp);
-    }
-
-    if (value.has_value() && !isFullyInitialized(*value)) value.reset();
-
-    var->setConstValue(value);
-    if (!ctx.isCxx() && !value && hasStaticStorage) {
-      ctx.error(var->location(),
-                "initializer for an object with static or thread storage "
-                "duration must be constant");
-    }
-  } else if (mayConstantInitialize && var->constructor()) {
-    auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
-    var->setConstValue(constexprEval.tryEvaluateConstructor(var, interp));
+  if (!ctx.isCxx() && !var->constValue() && hasStaticStorage && initializer) {
+    ctx.error(var->location(),
+              "initializer for an object with static or thread storage "
+              "duration must be constant");
   }
 
-  if (var->isConstexpr() && var->constValue().has_value() && !dependent) {
-    auto target = constantExpressionTarget(initializer);
-    auto needsConstantNode = target != nullptr;
-    if (ctx.traits.is_array(var->type())) needsConstantNode = false;
-    if (needsConstantNode) needsConstantNode = *target != nullptr;
-    if (needsConstantNode)
-      needsConstantNode = !ast_cast<ConstExpressionAST>(*target);
+  if (var->constValue() && !hasDependentInitializer(ctx.unit, var))
+    recordConstantInitializer(var, initializer);
+}
 
-    std::optional<ConstValue> constantValue;
-    if (needsConstantNode) {
-      constantValue = *var->constValue();
-      if (is_glvalue(*target) && !ctx.traits.is_reference(var->type())) {
-        auto interp = ASTInterpreter{ctx.unit, ctx.checker.scope()};
-        auto address = interp.evaluateAddress(*target);
-        if (address.has_value())
-          constantValue = std::move(address);
-        else
-          needsConstantNode = false;
-      }
-    }
+void InitDeclaratorChecker::recordConstantInitializer(
+    VariableSymbol* var, ExpressionAST*& initializer) {
+  if (ctx.traits.is_array(var->type())) return;
+  auto target = constantExpressionTarget(initializer);
+  if (!target || !*target) return;
+  auto folded = ast_cast<ConstExpressionAST>(*target);
+  if (!var->isConstexpr() && !folded) return;
 
-    if (needsConstantNode) {
-      auto constant = ConstExpressionAST::create(ctx.unit->arena());
-      constant->expression = *target;
-      constant->constValue =
-          ctx.unit->arena()->make<ConstValue>(std::move(*constantValue));
-      constant->type = (*target)->type;
-      constant->valueCategory = (*target)->valueCategory;
-      initializer = constant;
-      var->setInitializer(initializer);
-    }
+  auto expression = *target;
+  if (ctx.traits.is_reference(var->type()))
+    (void)StandardConversion{ctx.unit}.temporaryMaterialization(expression);
+  auto value = *var->constValue();
+  if (is_glvalue(expression) && !ctx.traits.is_reference(var->type())) {
+    auto interpreter = ASTInterpreter{ctx.unit, ctx.checker.scope()};
+    auto address = interpreter.evaluateAddress(expression);
+    if (!address) return;
+    value = std::move(*address);
   }
 
-  if (var->isConstexpr() && !var->constValue().has_value()) {
-    if (!dependent) {
-      ctx.error(var->location(), "constexpr variable must be initialized");
-    }
-  }
+  auto origin = expression;
+  if (auto constant = ast_cast<ConstExpressionAST>(origin))
+    origin = constant->expression;
+  auto constant = ConstExpressionAST::create(ctx.unit->arena());
+  constant->expression = origin;
+  constant->constValue = ctx.unit->arena()->make<ConstValue>(std::move(value));
+  constant->type = expression->type;
+  constant->valueCategory = expression->valueCategory;
+  initializer = constant;
+  var->setInitializer(initializer);
 }
 
 [[nodiscard]] auto bindsLvalueToForwardingPlaceholder(
@@ -698,7 +669,7 @@ auto TypeChecker::deducePlaceholderType(const Type* declaredType,
   if (unit_->typeTraits().overload_set_operand(initializer->type).type) {
     error(initializer->firstSourceLocation(),
           std::format("cannot deduce '{}' from an overload set",
-                      to_string(declaredType)));
+                      to_diag_string(declaredType)));
     return nullptr;
   }
   if (type_cast<DecltypeAutoType>(declaredType))
@@ -785,7 +756,7 @@ void TypeChecker::checkSpecialMemberAccess(FunctionSymbol* function,
     accessKind = "protected";
 
   error(location, std::format("calling a {} {} of class '{}'", accessKind, kind,
-                              to_string(declaringClass->type())));
+                              to_diag_string(declaringClass->type())));
 }
 
 auto TypeChecker::deduceClassTemplateSpecialization(
@@ -816,12 +787,12 @@ auto TypeChecker::deduceClassTemplateSpecialization(
           location,
           std::format("class template argument deduction for '{}' selected an "
                       "explicit deduction guide for copy-list-initialization",
-                      to_string(primaryTemplate->name())));
+                      to_diag_string(primaryTemplate->name())));
     } else {
       error(location,
             std::format("no viable constructor or deduction guide for "
                         "deduction of template arguments of '{}'",
-                        to_string(primaryTemplate->name())));
+                        to_diag_string(primaryTemplate->name())));
     }
     return nullptr;
   }

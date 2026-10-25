@@ -504,7 +504,7 @@ struct Binder::DecomposeStructuredBinding {
       binder.error(ast->lbracketLoc,
                    std::format("'std::tuple_size<{}>::value' is not a "
                                "non-negative integral constant expression",
-                               to_string(entityType)));
+                               to_diag_string(entityType)));
       return;
     }
 
@@ -530,7 +530,7 @@ struct Binder::DecomposeStructuredBinding {
         binder.error(ast->lbracketLoc,
                      std::format("no type named 'type' in "
                                  "'std::tuple_element<{}, {}>'",
-                                 index, to_string(entityType)));
+                                 index, to_diag_string(entityType)));
         return;
       }
       declareBinding(it->value, tupleGet(index, hasMemberGetTemplate, check),
@@ -546,7 +546,7 @@ struct Binder::DecomposeStructuredBinding {
                    std::format("cannot decompose '{}': its non-static data "
                                "members are not all direct members of the "
                                "same class",
-                               to_string(unqualifiedType)));
+                               to_diag_string(unqualifiedType)));
       return;
     }
 
@@ -561,7 +561,7 @@ struct Binder::DecomposeStructuredBinding {
       binder.error(ast->lbracketLoc,
                    std::format("cannot decompose '{}': it has an anonymous "
                                "union member",
-                               to_string(unqualifiedType)));
+                               to_diag_string(unqualifiedType)));
       return;
     }
 

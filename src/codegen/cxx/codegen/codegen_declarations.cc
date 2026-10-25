@@ -259,8 +259,13 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
   }
 
   if (traits.is_array(var->type())) {
-    emitArrayInitialization(loc, local.value(), var->type(), var->constructor(),
-                            initializer);
+    if (var->isConstexpr() && var->constValue()) {
+      auto value = emitConstInitValue(loc, var->type(), *var->constValue());
+      emitter_.store(loc, value, *local, getAlignment(var->type()));
+    } else {
+      emitArrayInitialization(loc, local.value(), var->type(),
+                              var->constructor(), initializer);
+    }
     addArrayCleanup(local.value(), var->type());
     return;
   }
@@ -277,6 +282,13 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
 
     auto singleInitExpr = initializerExpression(initializer);
     if (ast_cast<BracedInitListAST>(singleInitExpr)) singleInitExpr = nullptr;
+
+    if (var->isConstexpr() && var->constValue()) {
+      auto value = emitConstInitValue(loc, var->type(), *var->constValue());
+      emitter_.store(loc, value, *local, getAlignment(var->type()));
+      registerCleanup();
+      return;
+    }
 
     if (singleInitExpr &&
         singleInitExpr->valueCategory == ValueCategory::kPrValue &&
@@ -327,7 +339,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
     auto expressionResult = expression(initExpr);
 
     emitter_.store(loc, expressionResult.value, local.value(),
-                   getAlignment(var->type()));
+                   objectAccess(var->type(), getAlignment(var->type())));
   }
 }
 
@@ -639,7 +651,9 @@ auto Codegen::DeclarationVisitor::emitFunctionDefinition(
       } else {
         auto value = gen.emitter_.blockParameter(gen.entryBlock_, argc);
         ++argc;
-        gen.emitter_.store({}, value, allocaOp, gen.getAlignment(arg->type()));
+        gen.emitter_.store(
+            {}, value, allocaOp,
+            gen.objectAccess(arg->type(), gen.getAlignment(arg->type())));
       }
 
       gen.locals_.emplace(arg, allocaOp);
@@ -1020,7 +1034,7 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
 
     auto initResult = expression(initializer);
     emitter_.store(loc, initResult.value, fieldPtr,
-                   getAlignment(field->type()));
+                   objectAccess(field->type(), getAlignment(field->type())));
     return;
   }
 

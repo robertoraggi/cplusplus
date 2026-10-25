@@ -23,6 +23,7 @@ import {
   type ModelIndex,
   type ModelType,
   substituteType,
+  typeKey,
 } from "./parseModel.ts";
 import {
   type ExtraField,
@@ -91,6 +92,17 @@ function fieldBaseName(name: string): string {
   return name.endsWith("_") ? name.slice(0, -1) : name;
 }
 
+function valueType(type: ModelType): ModelType {
+  while (
+    type.kind === "qual" ||
+    type.kind === "lvalue-reference" ||
+    type.kind === "rvalue-reference"
+  ) {
+    type = type.element;
+  }
+  return type;
+}
+
 export class PlanBuilder {
   readonly mapper: WireMapper;
   readonly diagnostics: string[] = [];
@@ -110,6 +122,7 @@ export class PlanBuilder {
       "::cxx::InitializerList",
       "::cxx::ConstComplex",
       "::cxx::ConstObject",
+      "::cxx::ConstStorage",
       "::cxx::ConstAddress",
       "::cxx::ConstLabelAddress",
     ]) {
@@ -423,6 +436,15 @@ export class PlanBuilder {
         ? `$->${field.name}`
         : this.deriveRead(entity, field.name, context));
     if (!read) return undefined;
+
+    if (!typeExpression && !binding?.read) {
+      const accessor = this.accessorNamed(entity, fieldBaseName(field.name));
+      if (accessor) {
+        const returnType = substituteType(accessor.returnType, substitution);
+        if (typeKey(valueType(returnType)) === typeKey(valueType(type)))
+          typeExpression = read;
+      }
+    }
 
     const write = binding?.write;
     const writeElement = binding?.writeElement;

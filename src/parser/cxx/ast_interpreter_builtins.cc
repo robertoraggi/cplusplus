@@ -207,6 +207,13 @@ auto ObjectRepresentation::valueRange(const Type* type, std::uint64_t offset)
 auto ObjectRepresentation::valueBits(const Type* type, const ConstValue& value)
     -> std::optional<ConstInt::UWide> {
   if (auto format = memoryLayout()->floatingPointFormat(type)) {
+    if (auto stored = std::get_if<ConstFloat16>(&value)) return stored->bits;
+    if (auto stored = std::get_if<float>(&value);
+        stored && unqualified_cast<FloatType>(type))
+      return std::bit_cast<std::uint32_t>(*stored);
+    if (auto stored = std::get_if<double>(&value);
+        stored && unqualified_cast<DoubleType>(type))
+      return std::bit_cast<std::uint64_t>(*stored);
     auto real = interp_.toDouble(value);
     if (!real) return std::nullopt;
     return format->representation(*real);
@@ -220,6 +227,12 @@ auto ObjectRepresentation::valueBits(const Type* type, const ConstValue& value)
 
 auto ObjectRepresentation::scalarValue(const Type* type, ConstInt::UWide bits)
     -> std::optional<ConstValue> {
+  if (unqualified_cast<HalfType>(type) || unqualified_cast<Float16Type>(type))
+    return ConstValue{ConstFloat16{static_cast<std::uint16_t>(bits)}};
+  if (unqualified_cast<FloatType>(type))
+    return ConstValue{std::bit_cast<float>(static_cast<std::uint32_t>(bits))};
+  if (unqualified_cast<DoubleType>(type))
+    return ConstValue{std::bit_cast<double>(static_cast<std::uint64_t>(bits))};
   if (auto format = memoryLayout()->floatingPointFormat(type))
     return interp_.toArithmeticType(ConstValue{format->value(bits)}, type);
   auto integer =
@@ -380,63 +393,22 @@ auto ObjectRepresentation::receivesIndeterminateValue(const Type* type)
 auto ASTInterpreter::memoryRange(const ConstAddress& address,
                                  const Type* elementType)
     -> std::optional<MemoryRange> {
-  if (auto literal = address.stringLiteral()) {
-    const Type* type = control()->getCharType();
-    switch (literal->encoding()) {
-      case StringLiteralEncoding::kNone:
-        break;
-      case StringLiteralEncoding::kWide:
-        type = control()->getWideCharType();
-        break;
-      case StringLiteralEncoding::kUtf8:
-        type = control()->getChar8Type();
-        break;
-      case StringLiteralEncoding::kUtf16:
-        type = control()->getChar16Type();
-        break;
-      case StringLiteralEncoding::kUtf32:
-        type = control()->getChar32Type();
-        break;
-    }
-    auto count = literal->charCount() + 1;
-    if (address.offset() < 0) return std::nullopt;
-    auto offset = static_cast<std::uintmax_t>(address.offset());
-    if (offset > count) return std::nullopt;
-    return MemoryRange{type, count - offset, true};
-  }
-
-  auto symbol = address.symbol();
-  if (!symbol || address.offset() < 0 || address.displacement() < 0)
-    return std::nullopt;
-  auto type = symbol->type();
-  bool readOnly = traits.is_const(type);
+  auto located = typedAddress(address);
+  if (!validPosition(*located)) return std::nullopt;
+  auto type = located->elementType();
+  if (traits.is_void(elementType)) elementType = nullptr;
+  if (elementType && !traits.is_similar(type, elementType)) return std::nullopt;
   if (traits.is_volatile(type)) return std::nullopt;
-  if (address.root()) {
-    if (traits.is_volatile(address.root()->type())) return std::nullopt;
-    auto field = symbol_cast<FieldSymbol>(symbol);
-    if (!field || !field->isMutable())
-      readOnly |= traits.is_const(address.root()->type());
+  bool readOnly = traits.is_const(type) || located->stringLiteral();
+  if (located->root()) {
+    auto rootType = located->root()->type();
+    if (traits.is_volatile(rootType)) return std::nullopt;
+    auto field = symbol_cast<FieldSymbol>(located->symbol());
+    if (!field || !field->isMutable()) readOnly |= traits.is_const(rootType);
   }
-
-  std::uintmax_t displacement = address.displacement();
-  std::uintmax_t offset = address.offset();
-  while (auto array = unqualified_cast<BoundedArrayType>(type)) {
-    type = array->elementType();
-    readOnly |= traits.is_const(type);
-    if (traits.is_volatile(type)) return std::nullopt;
-    auto size = control()->memoryLayout()->sizeOf(type);
-    if (!size || !*size) return std::nullopt;
-    if (symbol == address.root()) offset = displacement / *size;
-    if (offset > array->size()) return std::nullopt;
-    if (!traits.is_array(type) ||
-        traits.is_same(traits.remove_cv(type), elementType))
-      return MemoryRange{traits.remove_cv(type), array->size() - offset,
-                         readOnly};
-    if (offset == array->size()) return std::nullopt;
-    displacement %= *size;
-  }
-  if (offset > 1) return std::nullopt;
-  return MemoryRange{traits.remove_cv(type), 1 - offset, readOnly};
+  auto extent = *arrayExtent(*located);
+  auto offset = static_cast<std::uintmax_t>(located->offset());
+  return MemoryRange{traits.remove_cv(type), extent - offset, readOnly};
 }
 
 auto ASTInterpreter::assignMemoryValue(ConstValue& destination,
@@ -530,6 +502,29 @@ auto ASTInterpreter::evaluateBuiltinMemmove(CallExpressionAST* ast)
   for (std::size_t index = 0; index < values.size(); ++index)
     if (!assignMemoryValue(*slots[index], values[index])) return std::nullopt;
   return destinationValue;
+}
+
+auto ASTInterpreter::evaluateBuiltinCharacterLength(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  auto argument = argumentAt(ast, 0);
+  if (!argument) return std::nullopt;
+  auto value = expression(argument);
+  if (!value) return std::nullopt;
+  auto address = std::get_if<std::shared_ptr<ConstAddress>>(&*value);
+  auto pointer = strippedPointerType(argument);
+  if (!address || !*address || !pointer) return std::nullopt;
+  auto range = memoryRange(**address, pointer->elementType());
+  if (!range) return std::nullopt;
+
+  for (std::uintmax_t index = 0; index < range->count; ++index) {
+    if (!std::in_range<std::intmax_t>(index)) return std::nullopt;
+    auto element = loadAddress(**address, static_cast<std::intmax_t>(index),
+                               range->elementType);
+    auto unit = element ? toInt(*element) : std::nullopt;
+    if (!unit) return std::nullopt;
+    if (*unit == 0) return ConstValue{ConstInt{index}};
+  }
+  return std::nullopt;
 }
 
 auto ASTInterpreter::evaluateBuiltinCharacterComparison(CallExpressionAST* ast)
@@ -943,7 +938,7 @@ auto ASTInterpreter::evaluateBuiltinLockFree(CallExpressionAST* ast,
 auto ASTInterpreter::fieldOffsetIn(const Type* type, FieldSymbol* field)
     -> std::optional<std::uintmax_t> {
   if (!field) return std::nullopt;
-  auto classType = type_cast<ClassType>(traits.remove_cvref(type));
+  auto classType = unqualified_cast<ClassType>(traits.remove_reference(type));
   if (!classType) return std::nullopt;
   auto classSymbol = classType->symbol();
   traits.requireCompleteClass(classSymbol);

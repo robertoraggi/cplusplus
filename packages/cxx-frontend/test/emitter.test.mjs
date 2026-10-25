@@ -1,13 +1,52 @@
+import loadCxx from "cxx-frontend/node";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx, Parser, TraceEmitter } from "cxx-frontend";
+import { Parser, TraceEmitter } from "cxx-frontend";
 
-const wasm = await readFile(
-  new URL("../dist/wasm/cxx-js.wasm", import.meta.url),
-);
+await loadCxx();
 
-await loadCxx({ wasm });
+test("address spaces survive the emitter protocol", async () => {
+  const text = await trace(`
+    using Zero = int __attribute__((address_space(0)));
+    using One = int __attribute__((address_space(1)));
+    using Two = int __attribute__((address_space(2)));
+    One global = 7;
+    Two* across(One* p) { return (Two*)p; }
+    Zero* zero(int* p) { return (Zero*)p; }
+    One& reference(int& value) { return (One&)value; }
+    struct Record { int value; };
+    using RecordOne = Record __attribute__((address_space(1)));
+    One* member(RecordOne* p) { return &p->value; }
+  `);
+  assert.match(text, /ptr<i32, 1>/);
+  assert.match(text, /ptr<i32, 2>/);
+  assert.match(text, /ptr<i32, 0>/);
+  assert.match(text, /AddressSpace/);
+  assert.doesNotMatch(text, /PointerToInt/);
+  assert.match(text, /global @global : i32 .*address_space\(1\)/);
+  checkWellFormed(text);
+});
+
+test("class pointer address spaces survive the JavaScript emitter", async () => {
+  const text = await trace(`
+    namespace std { class type_info; }
+    struct Base { int value; virtual int read() const { return value; } };
+    struct Derived : virtual Base {};
+    using BaseOne = Base __attribute__((address_space(1)));
+    using DerivedOne = Derived __attribute__((address_space(1)));
+    BaseOne* base(DerivedOne* value) { return value; }
+    DerivedOne* derived(BaseOne* value) {
+      return dynamic_cast<DerivedOne*>(value);
+    }
+    const std::type_info& info(BaseOne* value) { return typeid(*value); }
+    int& data(DerivedOne* value, int Base::* member) { return value->*member; }
+    BaseOne* null_pointer() { return nullptr; }
+  `);
+  assert.match(text, /ptr<ptr<i8>, 1>/);
+  assert.match(text, /AddressSpace/);
+  assert.match(text, /__dynamic_cast/);
+  checkWellFormed(text);
+});
 
 async function trace(
   source,
@@ -274,6 +313,46 @@ test("only signed arithmetic in a promoted type carries undefined overflow", asy
     assert.match(text, expected, source);
     if (forbidden) assert.doesNotMatch(text, forbidden, source);
   }
+});
+
+test("volatile accesses cross the emitter protocol", async () => {
+  const text = await trace(`
+    struct Bits { volatile int field : 3; int plain : 3; };
+    int read(volatile int* p) { return *p; }
+    void write(volatile int& r, int v) { r = v; }
+    void set(Bits& b) { b.field = 1; b.plain = 2; }
+    int plain(int* p) { return *p; }
+  `);
+  checkWellFormed(text);
+  assert.match(text, /= load %\d+ align 4 volatile : i32/);
+  assert.match(text, /store %\d+ -> %\d+ align 4 volatile\n/);
+  assert.match(text, /bits \[\d+, 3\] volatile/);
+  assert.match(text, /store %\d+ -> %\d+ align \d+ bits \[\d+, 3\]\n/);
+  const plain = text.slice(text.indexOf("func @_Z5plainPi"));
+  assert.doesNotMatch(plain, / volatile/);
+});
+
+test("atomic operations cross the emitter protocol", async () => {
+  const text = await trace(`
+    int load(volatile int* p) { return __atomic_load_n(p, __ATOMIC_ACQUIRE); }
+    int add(int* p) { return __atomic_add_fetch(p, 2, __ATOMIC_RELAXED); }
+    bool swap(int* p, int* e) {
+      return __atomic_compare_exchange_n(p, e, 3, true, __ATOMIC_RELEASE,
+                                         __ATOMIC_RELAXED);
+    }
+    void fence() { __atomic_signal_fence(__ATOMIC_SEQ_CST); }
+  `);
+  checkWellFormed(text);
+  assert.match(text, /= atomic\.load %\d+ Acquire System volatile : i32/);
+  assert.match(text, /= atomic\.Add %\d+ -> %\d+ Relaxed System : i32/);
+  assert.match(
+    text,
+    /= atomic\.cmpxchg %\d+, %\d+, %\d+ Release Relaxed System weak : i32/,
+  );
+  assert.match(
+    text,
+    /fence SequentiallyConsistent Invocation storage, workgroup/,
+  );
 });
 
 test("inline attributes reach the emitter", async () => {
@@ -680,4 +759,13 @@ int classify(unsigned long long value) {
   );
   assert.deepEqual(emitter.caseValues, [9007199254740993n, -1n]);
   assert.match(text, /9007199254740993: \^bb\d+/);
+});
+
+test("half constant initializers preserve NaN payload bits", async () => {
+  const text = await trace(`
+    __fp16 payload = __builtin_bit_cast(__fp16, (unsigned short)0x7e55);
+    __fp16 negative_zero = __builtin_bit_cast(__fp16, (unsigned short)0x8000);
+  `);
+  assert.match(text, /float_bits\(0x7e55\)/);
+  assert.match(text, /float_bits\(0x8000\)/);
 });

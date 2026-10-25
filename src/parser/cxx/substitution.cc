@@ -23,6 +23,7 @@
 #include <cxx/ast_rewriter.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
+#include <cxx/initialization.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
 #include <cxx/standard_conversion.h>
@@ -1244,9 +1245,13 @@ auto Substitution::normalizeNonTypeArgument(
 
   convertNonTypeArgument(normalized, targetType);
 
-  if (normalized.value && !isConstexprRepresentable(*normalized.value)) {
-    maybeReportInvalidConstantExpression(
-        normalized.initializer->firstSourceLocation());
+  if (normalized.value) {
+    auto valid = isConstantTemplateArgument(unit_->typeTraits(),
+                                            *normalized.value, normalized.type);
+    if (valid) valid = initializeTemplateParameterObject(normalized);
+    if (!valid)
+      maybeReportInvalidConstantExpression(
+          normalized.initializer->firstSourceLocation());
   }
 
   if (lacksConvertedValue(normalized)) {
@@ -1257,50 +1262,49 @@ auto Substitution::normalizeNonTypeArgument(
   return symbolOf(normalized);
 }
 
+auto Substitution::initializeTemplateParameterObject(
+    NonTypeArgumentValue& argument) -> bool {
+  if (!unqualified_cast<ClassType>(argument.type)) return true;
+  auto traits = unit_->typeTraits();
+  auto type = traits.add_const(argument.type);
+  auto location = argument.initializer->firstSourceLocation();
+  auto candidate = unit_->control()->newVariableSymbol(nullptr, location);
+  candidate->setType(type);
+  candidate->setStatic(true);
+  candidate->setConstexpr(true);
+  candidate->setConstValue(argument.value);
+
+  auto source = IdExpressionAST::create(unit_->arena());
+  source->symbol = candidate;
+  source->type = type;
+  source->valueCategory = ValueCategory::kLValue;
+  ExpressionAST* initializer = source;
+
+  auto parameterObject = unit_->control()->newVariableSymbol(nullptr, location);
+  parameterObject->setType(type);
+  parameterObject->setStatic(true);
+  parameterObject->setConstexpr(true);
+  auto checker = TypeChecker{unit_};
+  InitContext context{checker};
+  auto entity = InitializedEntity::variable(type, parameterObject, location);
+  auto sequence = initialize(
+      context, entity, InitializationKind::kCopyInitialization, initializer);
+  if (sequence.status != InitializationStatus::kComplete) return false;
+
+  auto interpreter = ASTInterpreter{unit_};
+  auto value = interpreter.initializationValue(
+      parameterObject, sequence.constructor, initializer);
+  if (!value || !equivalent_values(*value, *argument.value)) return false;
+  if (!isConstantTemplateArgument(traits, *value, type)) return false;
+  argument.value = std::move(value);
+  return true;
+}
+
 auto Substitution::valueDependsOnParameterType(ExpressionAST* expression) const
     -> bool {
   if (!expression->type) return false;
   if (is_glvalue(expression)) return true;
   return unit_->typeTraits().is_class(expression->type);
-}
-
-namespace {
-
-[[nodiscard]] auto designatesObject(Symbol* referent) -> bool {
-  if (symbol_cast<VariableSymbol>(referent)) return true;
-  auto field = symbol_cast<FieldSymbol>(referent);
-  return field && field->isStatic();
-}
-
-}  // namespace
-
-auto Substitution::isConstexprRepresentable(const ConstValue& value) const
-    -> bool {
-  if (auto address = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
-    if (!*address) return false;
-    if ((*address)->stringLiteral() || (*address)->typeInfoFor()) return false;
-    auto referent = (*address)->symbol();
-    if (!referent || (*address)->owner()) return true;
-    if (!designatesObject(referent)) return true;
-    return has_static_storage_duration(referent);
-  }
-  if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
-    if (!*object) return false;
-    return std::ranges::all_of((*object)->members(), [&](const auto& member) {
-      return isConstexprRepresentable(member.value);
-    });
-  }
-  if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
-    if (!*list) return false;
-    if ((*list)->hasFiller() &&
-        !isConstexprRepresentable(std::get<0>((*list)->filler())))
-      return false;
-    return std::ranges::all_of(
-        (*list)->initializedElements(), [&](const auto& element) {
-          return isConstexprRepresentable(std::get<0>(element));
-        });
-  }
-  return true;
 }
 
 auto Substitution::lacksConvertedValue(
@@ -1360,7 +1364,8 @@ void Substitution::convertNonTypeArgument(NonTypeArgumentValue& argument,
     error(expression->firstSourceLocation(),
           std::format("template argument of type '{}' cannot be converted to "
                       "'{}'",
-                      to_string(expression->type), to_string(targetType)));
+                      to_diag_string(expression->type),
+                      to_diag_string(targetType)));
     return;
   }
 
@@ -1368,7 +1373,8 @@ void Substitution::convertNonTypeArgument(NonTypeArgumentValue& argument,
     error(expression->firstSourceLocation(),
           std::format("narrowing conversion from '{}' to '{}' in converted "
                       "constant expression",
-                      to_string(expression->type), to_string(targetType)));
+                      to_diag_string(expression->type),
+                      to_diag_string(targetType)));
     return;
   }
 

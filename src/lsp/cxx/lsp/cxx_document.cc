@@ -101,7 +101,6 @@ auto templateParametersOf(Symbol* symbol) -> TemplateParametersSymbol*;
 [[nodiscard]] auto writtenSpellingIn(Symbol* declarationScope)
     -> TypePrintOptions {
   return TypePrintOptions{
-      .sourceSpelling = true,
       .declarationScope = declarationScope,
   };
 }
@@ -604,7 +603,7 @@ auto hoverTextOf(Symbol* symbol) -> std::string {
   return cxx::visit(
       []<typename S>(S* symbol) -> std::string {
         using SymbolType = std::remove_cvref_t<decltype(*symbol)>;
-        auto name = to_string(symbol->name());
+        auto name = to_pretty_string(symbol->name());
 
         if constexpr (std::is_same_v<SymbolType, NamespaceSymbol>) {
           return std::format("namespace {}", name);
@@ -622,7 +621,7 @@ auto hoverTextOf(Symbol* symbol) -> std::string {
         } else if constexpr (std::is_same_v<SymbolType, TypeAliasSymbol>) {
           return std::format(
               "using {} = {}", name,
-              to_string(symbol->type(), "", writtenSpellingIn(symbol)));
+              to_pretty_string(symbol->type(), "", writtenSpellingIn(symbol)));
         } else if constexpr (std::is_same_v<SymbolType, ConceptSymbol>) {
           return std::format("concept {}", name);
         } else if constexpr (std::is_same_v<SymbolType, OverloadSetSymbol>) {
@@ -636,8 +635,8 @@ auto hoverTextOf(Symbol* symbol) -> std::string {
           return label;
         } else {
           if (!symbol->type()) return name;
-          return to_string(symbol->type(), symbol->name(),
-                           writtenSpellingIn(symbol));
+          return to_pretty_string(symbol->type(), symbol->name(),
+                                  writtenSpellingIn(symbol));
         }
       },
       symbol);
@@ -945,7 +944,7 @@ class CompletionItemCollector {
 
  private:
   void addItem(Symbol* symbol, bool memberOfClass) {
-    auto label = to_string(symbol->name());
+    auto label = to_pretty_string(symbol->name());
     if (std::ranges::contains(labels_, label)) return;
 
     auto item = completionItems_.emplace_back();
@@ -1206,9 +1205,7 @@ struct CompletionSink {
 };
 
 auto signatureLabelOf(FunctionSymbol* function) -> std::string {
-  auto options = writtenSpellingIn(function);
-  options.omitFunctionReturnType = function->isConstructor();
-  return to_string(function->type(), function->name(), options);
+  return to_pretty_string(function, writtenSpellingIn(function));
 }
 
 struct TemplateParameterLabel {
@@ -1225,13 +1222,15 @@ struct TemplateParameterLabel {
   }
 
   auto operator()(NonTypeParameterSymbol* symbol) const -> std::string {
-    return named(to_string(symbol->objectType(), "", writtenSpellingIn(symbol)),
-                 symbol);
+    return named(
+        to_pretty_string(symbol->objectType(), "", writtenSpellingIn(symbol)),
+        symbol);
   }
 
   auto operator()(Symbol* symbol) const -> std::string {
-    return named(to_string(symbol->type(), "", writtenSpellingIn(symbol)),
-                 symbol);
+    return named(
+        to_pretty_string(symbol->type(), "", writtenSpellingIn(symbol)),
+        symbol);
   }
 
  private:
@@ -1239,7 +1238,7 @@ struct TemplateParameterLabel {
     if (isPack(symbol)) kind += "...";
     if (!symbol->name()) return kind;
     kind += " ";
-    kind += to_string(symbol->name());
+    kind += to_pretty_string(symbol->name());
     return kind;
   }
 
@@ -1261,7 +1260,7 @@ struct TemplateParameterLabel {
     if (type_cast<TypeParameterType>(type)) return "class";
 
     auto templateType = type_cast<TemplateTypeParameterType>(type);
-    if (!templateType) return to_string(type);
+    if (!templateType) return to_pretty_string(type);
 
     std::string clause = "template <";
     std::string_view separator;
@@ -1335,9 +1334,9 @@ struct SignatureHelpSink {
           if (!parameterSymbol) continue;
 
           auto parameterInfo = parameterList.emplace_back();
-          parameterInfo.label(to_string(parameterSymbol->type(),
-                                        parameterSymbol->name(),
-                                        writtenSpellingIn(function)));
+          parameterInfo.label(to_pretty_string(parameterSymbol->type(),
+                                               parameterSymbol->name(),
+                                               writtenSpellingIn(function)));
 
           ++parameterCount;
         }

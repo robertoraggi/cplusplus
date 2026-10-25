@@ -20,19 +20,24 @@
 
 #pragma once
 
-#include <cxx/cli.h>
+#include <cxx/printing.h>
 #include <cxx/translation_unit.h>
 
 namespace cxx {
 
 class DumpTokens {
  public:
-  DumpTokens(const CLI& cli);
+  explicit DumpTokens(const TranslationUnit& unit);
 
-  void operator()(TranslationUnit& unit, std::ostream& output);
+  auto formatTo(std::format_context::iterator output) const
+      -> std::format_context::iterator;
 
  private:
-  const CLI& cli;
+  const TranslationUnit& unit_;
 };
 
 }  // namespace cxx
+
+template <>
+struct std::formatter<cxx::DumpTokens>
+    : cxx::detail::PrinterFormatter<cxx::DumpTokens> {};

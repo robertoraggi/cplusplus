@@ -80,6 +80,7 @@ namespace {
 [[nodiscard]] auto isSupportedElementAccess(Operation* user, Value address,
                                             Type element) -> bool {
   if (!user->getDiscardableAttrDictionary().empty()) return false;
+  if (cxx::isVolatileAccess(user)) return false;
   if (auto load = dyn_cast<cxx::LoadOp>(user)) {
     return load.getAddr() == address &&
            areStorageValueTypesCompatible(load.getType(), element) &&
@@ -529,11 +530,10 @@ void convertArrayAccesses(Value allocation,
                        rewriter);
       continue;
     }
-    Value address;
-    if (auto load = dyn_cast<cxx::LoadOp>(access)) address = load.getAddr();
-    if (auto store = dyn_cast<cxx::StoreOp>(access)) address = store.getAddr();
-    convertElementAccess(access, allocation,
-                         getArrayCoordinates(address, indices), rewriter);
+    convertElementAccess(
+        access, allocation,
+        getArrayCoordinates(cxx::getLoadStoreAddress(access), indices),
+        rewriter);
   }
   for (auto* derived : llvm::reverse(analysis.derived))
     rewriter.eraseOp(derived);
@@ -885,11 +885,8 @@ class RecordStorageToMemRef : public OpRewritePattern<cxx::AllocaOp> {
         convertArrayZero(zero, views.lookup(zero.getAddr()), {}, rewriter);
         continue;
       }
-      Value address;
-      if (auto load = dyn_cast<cxx::LoadOp>(access)) address = load.getAddr();
-      if (auto store = dyn_cast<cxx::StoreOp>(access))
-        address = store.getAddr();
-      convertElementAccess(access, views.lookup(address), {}, rewriter);
+      convertElementAccess(
+          access, views.lookup(cxx::getLoadStoreAddress(access)), {}, rewriter);
     }
     for (auto* member : llvm::reverse(analysis->members))
       rewriter.eraseOp(member);
@@ -1028,8 +1025,22 @@ class BridgedStoreToMemRef : public OpRewritePattern<cxx::StoreOp> {
   }
 };
 
-constexpr unsigned kTypedStorageLeafLimit = 64;
-constexpr uint64_t kUnrolledElementLimit = 16;
+constexpr uint64_t kScalarLeafLimit = 64;
+
+[[nodiscard]] auto scalarElementCount(Type type) -> uint64_t {
+  if (auto array = dyn_cast<cxx::ArrayType>(type))
+    return array.getSize() * scalarElementCount(array.getElementType());
+  if (auto record = dyn_cast<cxx::ClassType>(type)) {
+    uint64_t count = 0;
+    for (auto field : record.getBody()) count += scalarElementCount(field);
+    return count;
+  }
+  return 1;
+}
+
+[[nodiscard]] auto isScalarizable(Type type) -> bool {
+  return scalarElementCount(type) <= kScalarLeafLimit;
+}
 
 [[nodiscard]] auto pointeeOf(Value address) -> Type {
   return cast<cxx::PointerType>(address.getType()).getElementType();
@@ -1047,10 +1058,6 @@ constexpr uint64_t kUnrolledElementLimit = 16;
   auto vector = dyn_cast<VectorType>(type);
   if (!vector || vector.getRank() != 1 || vector.isScalable()) return false;
   return isa<FloatType, IntegerType>(vector.getElementType());
-}
-
-[[nodiscard]] auto isTypedAggregate(Type type) -> bool {
-  return isa<cxx::ClassType, cxx::ArrayType>(type);
 }
 
 [[nodiscard]] auto zeroValue(OpBuilder& builder, Location loc, Type type)
@@ -1074,9 +1081,10 @@ constexpr uint64_t kUnrolledElementLimit = 16;
                                   address, position);
 }
 
-void forEachElement(OpBuilder& builder, Location loc, uint64_t count,
+void forEachElement(OpBuilder& builder, Location loc, cxx::ArrayType array,
                     function_ref<void(OpBuilder&, Value)> body) {
-  if (count <= kUnrolledElementLimit) {
+  const auto count = array.getSize();
+  if (isScalarizable(array)) {
     for (uint64_t index = 0; index < count; ++index)
       body(builder, arith::ConstantIndexOp::create(builder, loc, index));
     return;
@@ -1084,11 +1092,14 @@ void forEachElement(OpBuilder& builder, Location loc, uint64_t count,
   auto lower = arith::ConstantIndexOp::create(builder, loc, 0);
   auto upper = arith::ConstantIndexOp::create(builder, loc, count);
   auto step = arith::ConstantIndexOp::create(builder, loc, 1);
-  scf::ForOp::create(builder, loc, lower, upper, step, ValueRange{},
-                     [&](OpBuilder& nested, Location, Value index, ValueRange) {
-                       body(nested, index);
-                       scf::YieldOp::create(nested, loc);
-                     });
+  constexpr bool countsElements = true;
+  scf::ForOp::create(
+      builder, loc, lower, upper, step, ValueRange{},
+      [&](OpBuilder& nested, Location, Value index, ValueRange) {
+        body(nested, index);
+        scf::YieldOp::create(nested, loc);
+      },
+      countsElements);
 }
 
 void expandObject(OpBuilder& builder, Location loc, Value destination,
@@ -1107,15 +1118,13 @@ void expandObject(OpBuilder& builder, Location loc, Value destination,
   }
   if (auto array = dyn_cast<cxx::ArrayType>(object)) {
     auto element = array.getElementType();
-    forEachElement(builder, loc, array.getSize(),
-                   [&](OpBuilder& nested, Value index) {
-                     auto at = [&](Value base) -> Value {
-                       return cxx::SubscriptOp::create(
-                           nested, loc, pointerTo(element, base), base, index);
-                     };
-                     expandObject(nested, loc, at(destination),
-                                  source ? at(source) : Value());
-                   });
+    forEachElement(builder, loc, array, [&](OpBuilder& nested, Value index) {
+      auto at = [&](Value base) -> Value {
+        return cxx::SubscriptOp::create(nested, loc, pointerTo(element, base),
+                                        base, index);
+      };
+      expandObject(nested, loc, at(destination), source ? at(source) : Value());
+    });
     return;
   }
   auto value =
@@ -1174,19 +1183,6 @@ class TypedCopy : public OpRewritePattern<cxx::CopyOp> {
   return true;
 }
 
-constexpr uint64_t kScalarizedElementLimit = 64;
-
-[[nodiscard]] auto scalarElementCount(Type type) -> uint64_t {
-  if (auto array = dyn_cast<cxx::ArrayType>(type))
-    return array.getSize() * scalarElementCount(array.getElementType());
-  if (auto record = dyn_cast<cxx::ClassType>(type)) {
-    uint64_t count = 0;
-    for (auto field : record.getBody()) count += scalarElementCount(field);
-    return count;
-  }
-  return 1;
-}
-
 void loadElements(OpBuilder& builder, Location loc, Value address,
                   SmallVectorImpl<Value>& values) {
   auto object = pointeeOf(address);
@@ -1232,17 +1228,18 @@ class AggregateValueCopy : public OpRewritePattern<cxx::StoreOp> {
   auto matchAndRewrite(cxx::StoreOp op, PatternRewriter& rewriter) const
       -> LogicalResult override {
     auto object = op.getValue().getType();
-    if (!isTypedAggregate(object) || pointeeOf(op.getAddr()) != object)
+    if (!cxx::isAggregateType(object) || pointeeOf(op.getAddr()) != object)
       return failure();
     if (!canExpandObject(object)) return failure();
+    if (op.getVolatile_()) return failure();
     auto value = op.getValue().getDefiningOp();
     if (auto load = dyn_cast_or_null<cxx::LoadOp>(value)) {
       if (pointeeOf(load.getAddr()) != object) return failure();
+      if (load.getVolatile_()) return failure();
       if (hasNoWritesBetween(load, op)) {
         expandObject(rewriter, op.getLoc(), op.getAddr(), load.getAddr());
       } else {
-        if (scalarElementCount(object) > kScalarizedElementLimit)
-          return failure();
+        if (!isScalarizable(object)) return failure();
         SmallVector<Value> elements;
         {
           OpBuilder::InsertionGuard guard(rewriter);
@@ -1271,7 +1268,8 @@ class AggregateValueExtract : public OpRewritePattern<cxx::ExtractValueOp> {
       -> LogicalResult override {
     auto load = op.getContainer().getDefiningOp<cxx::LoadOp>();
     if (!load || pointeeOf(load.getAddr()) != load.getType()) return failure();
-    if (!isTypedAggregate(load.getType())) return failure();
+    if (!cxx::isAggregateType(load.getType())) return failure();
+    if (load.getVolatile_()) return failure();
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointAfter(load);
     auto element = subobject(rewriter, op.getLoc(), load.getAddr(),
@@ -1441,6 +1439,7 @@ class LoadThroughSelect : public OpRewritePattern<cxx::LoadOp> {
 
   auto matchAndRewrite(cxx::LoadOp op, PatternRewriter& rewriter) const
       -> LogicalResult override {
+    if (op.getVolatile_()) return failure();
     auto select = op.getAddr().getDefiningOp<arith::SelectOp>();
     if (!select) return failure();
     auto load = [&](OpBuilder& builder, Value address) -> Value {
@@ -1476,6 +1475,7 @@ class StoreThroughSelect : public OpRewritePattern<cxx::StoreOp> {
 
   auto matchAndRewrite(cxx::StoreOp op, PatternRewriter& rewriter) const
       -> LogicalResult override {
+    if (op.getVolatile_()) return failure();
     auto select = op.getAddr().getDefiningOp<arith::SelectOp>();
     if (!select) return failure();
     auto value = op.getValue();
@@ -1812,6 +1812,7 @@ void rewritePointerInductions(FunctionOpInterface function) {
   for (auto* user : carried.getUsers()) {
     auto load = dyn_cast<cxx::LoadOp>(user);
     if (!load || load->getBlock() != block) return false;
+    if (load.getVolatile_()) return false;
     if (load.getType() != pointeeOf(carried)) return false;
     loads.push_back(load);
   }
@@ -1870,7 +1871,7 @@ void speculatePointerPhis(FunctionOpInterface function) {
 
 [[nodiscard]] auto canStoreConstant(Type object, Attribute value) -> bool {
   if (isa<LLVM::ZeroAttr>(value)) return canExpandObject(object);
-  if (isTypedAggregate(object)) {
+  if (cxx::isAggregateType(object)) {
     auto elements = dyn_cast<ArrayAttr>(value);
     if (!elements || elements.size() != aggregateElementCount(object))
       return false;
@@ -1945,7 +1946,7 @@ struct StorageLeaf {
   if (isTypedStorageElement(type)) {
     if (isa<cxx::PointerType>(type) && !shape.empty()) return false;
     leaves.push_back({SmallVector<int64_t>(shape.begin(), shape.end()), type});
-    return leaves.size() <= kTypedStorageLeafLimit;
+    return leaves.size() <= kScalarLeafLimit;
   }
   if (auto array = dyn_cast<cxx::ArrayType>(type)) {
     auto size = array.getSize();
@@ -2044,6 +2045,7 @@ class TypedStorageAnalysis {
   [[nodiscard]] auto visit(Operation* user, OpOperand& use,
                            const TypedAddress& current,
                            SmallVectorImpl<Value>& worklist) -> LogicalResult {
+    if (cxx::isVolatileAccess(user)) return failure();
     if (auto load = dyn_cast<cxx::LoadOp>(user))
       return access(user, current, load.getType());
     if (auto store = dyn_cast<cxx::StoreOp>(user)) {
@@ -2122,7 +2124,7 @@ class TypedStorageAnalysis {
                             Type type) -> LogicalResult {
     auto object = address.object;
     unsigned zeros = 0;
-    while (isTypedAggregate(object) && !canReinterpret(object, type)) {
+    while (cxx::isAggregateType(object) && !canReinterpret(object, type)) {
       if (auto array = dyn_cast<cxx::ArrayType>(object)) {
         object = array.getElementType();
         ++zeros;
@@ -2201,10 +2203,7 @@ class TypedStorageToMemRef : public OpRewritePattern<cxx::AllocaOp> {
       auto* user = access.op;
       rewriter.setInsertionPoint(user);
       auto loc = user->getLoc();
-      auto addressValue = isa<cxx::LoadOp>(user)
-                              ? cast<cxx::LoadOp>(user).getAddr()
-                              : cast<cxx::StoreOp>(user).getAddr();
-      const auto& address = analysis.address(addressValue);
+      const auto& address = analysis.address(cxx::getLoadStoreAddress(user));
       SmallVector<Value> indices;
       for (const auto& terms : address.indices)
         indices.push_back(toIndex(rewriter, loc, terms));

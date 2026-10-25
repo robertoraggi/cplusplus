@@ -40,6 +40,9 @@ struct ConstValueHash {
     return std::hash<bool>{}(value);
   }
   auto operator()(ConstInt value) const -> std::size_t { return value.hash(); }
+  auto operator()(ConstFloat16 value) const -> std::size_t {
+    return std::hash<std::uint16_t>{}(value.bits);
+  }
   auto operator()(float value) const -> std::size_t {
     return std::hash<float>{}(value);
   }

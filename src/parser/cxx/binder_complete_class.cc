@@ -1005,7 +1005,7 @@ void Binder::CompleteClass::checkOverriderExceptionSpecifications() {
                      std::format("exception specification of overriding "
                                  "function '{}' is more lax than the function "
                                  "it overrides",
-                                 to_string(func->name())));
+                                 to_diag_string(func->name())));
         binder.note(overridden->location(),
                     "overridden virtual function is here");
       }
@@ -1022,6 +1022,7 @@ auto Binder::CompleteClass::newDefaultedFunction(const Name* name,
   symbol->setType(type);
   symbol->setDefined(true);
   symbol->setDefaulted(true);
+  symbol->setImplicitlyDeclared(true);
   symbol->setConstexpr(true);
   symbol->setInline(true);
   symbol->setLanguageLinkage(LanguageKind::kCXX);
@@ -2998,12 +2999,9 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
       -> bool;
   [[nodiscard]] auto alignedAttributeOfClass() -> std::optional<int>;
   void propagateBaseFields();
-  void propagateAnonymousFields(ClassSymbol* owner,
-                                const ClassLayout* ownerLayout,
-                                std::uint64_t ownerOffset,
-                                std::optional<std::uint32_t> containingIndex);
-  void copyFieldInfos(ClassSymbol* owner, const ClassLayout* ownerLayout,
-                      std::uint64_t ownerOffset, std::uint32_t containingIndex);
+  void propagateAnonymousFields();
+  void copyFieldInfos(const ClassLayout* ownerLayout, std::uint64_t ownerOffset,
+                      std::uint32_t containingIndex);
   void finalize();
   [[nodiscard]] auto excessWidthContainer(int bitWidth) const -> const Type*;
   void buildVTableLayout();
@@ -3046,16 +3044,17 @@ auto Binder::BuildRecordLayout::validate() -> std::expected<bool, std::string> {
   for (auto base : classSymbol->baseClasses()) {
     auto baseClassSymbol = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseClassSymbol) {
-      return std::unexpected(
-          std::format("base class '{}' not found", to_string(base->name())));
+      return std::unexpected(std::format("base class '{}' not found",
+                                         to_diag_string(base->name())));
     }
     if (!baseClassSymbol->isComplete()) {
       binder.traits.requireCompleteClass(baseClassSymbol);
     }
     baseClassSymbol = baseClassSymbol->resolvedDefinition();
     if (!baseClassSymbol->isComplete()) {
-      return std::unexpected(std::format("base class '{}' is incomplete",
-                                         to_string(baseClassSymbol->name())));
+      return std::unexpected(
+          std::format("base class '{}' is incomplete",
+                      to_diag_string(baseClassSymbol->name())));
     }
   }
   return true;
@@ -3722,7 +3721,7 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
   if (!size.has_value()) {
     return std::unexpected(
         std::format("size of incomplete type '{}'",
-                    to_string(field->type(), field->name())));
+                    to_diag_string(field->type(), field->name())));
   }
 
   if (isUnion) {
@@ -3824,14 +3823,14 @@ auto Binder::BuildRecordLayout::layoutFields()
     if (lastField && binder.traits.is_unbounded_array(lastField->type())) {
       return std::unexpected(
           std::format("size of incomplete type '{}'",
-                      to_string(lastField->type(), lastField->name())));
+                      to_diag_string(lastField->type(), lastField->name())));
     }
 
     if (!field->alignment()) {
       if (isDependent(binder.unit_, field->type())) return false;
       return std::unexpected(
           std::format("alignment of incomplete type '{}'",
-                      to_string(field->type(), field->name())));
+                      to_diag_string(field->type(), field->name())));
     }
 
     if (field->isBitField()) {
@@ -3858,44 +3857,37 @@ void Binder::BuildRecordLayout::propagateBaseFields() {
     auto baseInfo = layout->getBaseInfo(baseClassSymbol, base->isVirtual());
     if (!baseInfo) continue;
 
-    copyFieldInfos(baseClassSymbol, baseLayout, baseInfo->offset,
-                   baseInfo->index);
+    copyFieldInfos(baseLayout, baseInfo->offset, baseInfo->index);
   }
 
-  propagateAnonymousFields(classSymbol, layout.get(), 0, std::nullopt);
+  auto virtualBases = virtual_base_initialization_order(classSymbol);
+  for (auto base : virtualBases | std::views::reverse) {
+    auto info = layout->getVirtualBaseInfo(base);
+    if (!info || !base->layout()) continue;
+    copyFieldInfos(base->layout(), info->offset, info->index);
+  }
+
+  propagateAnonymousFields();
 }
 
-void Binder::BuildRecordLayout::propagateAnonymousFields(
-    ClassSymbol* owner, const ClassLayout* ownerLayout,
-    std::uint64_t ownerOffset, std::optional<std::uint32_t> containingIndex) {
-  for (auto field : views::members(owner) | views::non_static_fields) {
+void Binder::BuildRecordLayout::propagateAnonymousFields() {
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
     auto anonymous = anonymous_member_class(field);
     if (!anonymous) continue;
-
     auto anonymousLayout = anonymous->layout();
-    if (!anonymousLayout) continue;
-
-    auto fieldInfo = ownerLayout->getFieldInfo(field);
-    if (!fieldInfo) continue;
-
-    const auto anonymousOffset = ownerOffset + fieldInfo->offset;
-    const auto index = containingIndex.value_or(fieldInfo->index);
-    copyFieldInfos(anonymous, anonymousLayout, anonymousOffset, index);
-    propagateAnonymousFields(anonymous, anonymousLayout, anonymousOffset,
-                             index);
+    auto fieldInfo = layout->getFieldInfo(field);
+    if (!anonymousLayout || !fieldInfo) continue;
+    copyFieldInfos(anonymousLayout, fieldInfo->offset, fieldInfo->index);
   }
 }
 
-void Binder::BuildRecordLayout::copyFieldInfos(ClassSymbol* owner,
-                                               const ClassLayout* ownerLayout,
+void Binder::BuildRecordLayout::copyFieldInfos(const ClassLayout* ownerLayout,
                                                std::uint64_t ownerOffset,
                                                std::uint32_t containingIndex) {
-  for (auto field : views::members(owner) | views::non_static_fields) {
-    auto info = ownerLayout->getFieldInfo(field);
-    if (!info) continue;
-    info->offset += ownerOffset;
-    info->index = containingIndex;
-    layout->setFieldInfo(field, *info);
+  for (auto [field, info] : ownerLayout->sortedFieldInfos()) {
+    info.offset += ownerOffset;
+    info.index = containingIndex;
+    layout->setFieldInfo(field, info);
   }
 }
 
@@ -3908,11 +3900,11 @@ void Binder::BuildRecordLayout::padTo(std::uint64_t offset) {
 void Binder::BuildRecordLayout::finalize() {
   if (auto requested = classSymbol->explicitAlignment()) {
     if (requested < calculatedAlignment) {
-      binder.error(
-          classSymbol->location(),
-          std::format("requested alignment is less than minimum "
-                      "alignment of {} for type '{}'",
-                      calculatedAlignment, to_string(classSymbol->type())));
+      binder.error(classSymbol->location(),
+                   std::format("requested alignment is less than minimum "
+                               "alignment of {} for type '{}'",
+                               calculatedAlignment,
+                               to_diag_string(classSymbol->type())));
     } else {
       calculatedAlignment = requested;
     }

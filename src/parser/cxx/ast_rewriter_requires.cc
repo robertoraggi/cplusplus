@@ -342,7 +342,7 @@ auto ASTRewriter::checkTemplateIdConstraints(
   if (!symbol_cast<FunctionSymbol>(symbol)) {
     unit->error(location,
                 std::format("associated constraints of '{}' are not satisfied",
-                            to_string(symbol->name())));
+                            to_diag_string(symbol->name())));
   }
   return false;
 }

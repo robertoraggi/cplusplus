@@ -36,6 +36,22 @@
 #include <cxx/types.h>
 
 namespace cxx {
+
+namespace {
+
+[[nodiscard]] auto isInt128Specifier(TokenKind kind) -> bool {
+  switch (kind) {
+    case TokenKind::T___INT128:
+    case TokenKind::T___INT128_T:
+    case TokenKind::T___UINT128_T:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 struct DeclSpecs::Visitor {
   DeclSpecs& specs;
 
@@ -356,6 +372,12 @@ void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
     default:
       break;
   }
+
+  if (isInt128Specifier(ast->specifier) &&
+      !control()->memoryLayout()->hasInt128Type())
+    specs.translationUnit()->error(ast->specifierLoc,
+                                   "the target provides no 128-bit extended "
+                                   "integer type");
 }
 
 void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
@@ -371,6 +393,10 @@ void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
 
     case TokenKind::T_LONG:
       specs.type_ = control()->getLongDoubleType();
+      break;
+
+    case TokenKind::T___FP16:
+      specs.type_ = control()->getHalfType();
       break;
 
     case TokenKind::T__FLOAT16:
@@ -721,7 +747,7 @@ auto DeclSpecs::makeAtomicType(const Type* type, SourceLocation location) const
 
   translationUnit()->error(
       location, std::format("_Atomic cannot be applied to {} type '{}'",
-                            rejected, to_string(type)));
+                            rejected, to_diag_string(type)));
 
   if (rejected == "qualified") return traits.add_atomic(traits.remove_cv(type));
   return type;
@@ -738,7 +764,7 @@ auto DeclSpecs::makeComplexType(const Type* type) const -> const Type* {
   if (!isValidElementType) {
     translationUnit()->error(
         complexTypeSpecifier->complexLoc,
-        std::format("'_Complex {}' is invalid", to_string(type)));
+        std::format("'_Complex {}' is invalid", to_diag_string(type)));
     return type;
   }
 

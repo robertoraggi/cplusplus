@@ -70,6 +70,7 @@ class TypeChecker {
 
   void setScope(ScopeSymbol* scope) { scope_ = scope; }
   [[nodiscard]] auto scope() const -> ScopeSymbol* { return scope_; }
+  [[nodiscard]] auto diagnosticPrintOptions() const -> TypePrintOptions;
 
   void operator()(ExpressionAST** ast);
 
@@ -88,6 +89,7 @@ class TypeChecker {
                                         ScopeSymbol* functionScope);
 
   auto check_bool_condition(ExpressionAST*& ast) -> bool;
+  void check_discarded_value(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
   void set_named_symbol_result(ExpressionAST* ast, Symbol* symbol);
   void check_init_declarator(InitDeclaratorAST* initDecl,
@@ -208,10 +210,9 @@ class TypeChecker {
 
   [[nodiscard]] auto hasConstantValue(FieldSymbol* field) -> bool;
 
-  [[nodiscard]] auto evaluateImmediateConstruction(ExpressionAST** initializer,
-                                                   FunctionSymbol* constructor,
-                                                   const Type* type,
-                                                   SourceLocation location)
+  [[nodiscard]] auto evaluateImmediateConstruction(
+      ExpressionAST** initializer, FunctionSymbol* constructor,
+      const Type* type, SourceLocation location, Symbol* destination = nullptr)
       -> bool;
 
   void evaluateImmediateInvocation(ExpressionAST** ast);
@@ -242,6 +243,8 @@ class TypeChecker {
   };
 
  private:
+  [[nodiscard]] auto introducesVolatileExpression(ExpressionAST* ast) const
+      -> bool;
   [[nodiscard]] auto deducePlaceholderReplacement(const Type* declaredType,
                                                   const Type* initializerType,
                                                   bool forwardsLvalue)

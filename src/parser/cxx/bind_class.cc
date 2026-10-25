@@ -72,6 +72,148 @@ void Binder::bind(ClassSpecifierAST* ast, DeclSpecs& declSpecs) {
   BindClass{*this, ast, declSpecs}.bind();
 }
 
+auto Binder::resolveClassSpecialization(ClassSymbol* primary,
+                                        SimpleTemplateIdAST* templateId,
+                                        TemplateDeclarationAST* templateHead)
+    -> std::optional<ClassSpecialization> {
+  const auto location = templateId->identifierLoc;
+
+  if (!primary || !primary->templateParameters()) {
+    error(location, std::format("specialization of undeclared template '{}'",
+                                templateId->identifier->name()));
+    return std::nullopt;
+  }
+
+  auto arguments = Substitution(unit_, primary->templateDeclaration(),
+                                templateId->templateArgumentList)
+                       .templateArguments();
+
+  if (auto parameter = ASTRewriter::findUndeducedPartialSpecializationParameter(
+          unit_, templateHead, arguments)) {
+    error(parameter->firstSourceLocation(),
+          "class template partial specialization contains a template "
+          "parameter that cannot be deduced");
+  }
+
+  auto specialization =
+      symbol_cast<ClassSymbol>(primary->findSpecialization(unit_, arguments));
+  specialization =
+      specializeMemberClassTemplate(specialization, templateHead, location);
+
+  return ClassSpecialization{specialization, std::move(arguments)};
+}
+
+void Binder::bindClassSpecializationDeclaration(ElaboratedTypeSpecifierAST* ast,
+                                                DeclSpecs& declSpecs,
+                                                ClassSymbol* primary) {
+  auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId);
+  auto resolved =
+      resolveClassSpecialization(primary, templateId, declSpecs.templateHead);
+  if (!resolved) return;
+
+  const auto location = templateId->identifierLoc;
+  auto specialization = resolved->symbol;
+
+  if (!specialization) {
+    specialization = control()->newClassSymbol(declaringScope(), location);
+    specialization->setName(templateId->identifier);
+    specialization->setIsUnion(ast->classKey == TokenKind::T_UNION);
+    applyAccessSpecifier(specialization);
+
+    primary->addSpecialization(unit_, std::move(resolved->arguments),
+                               specialization);
+  } else if (specialization->isComplete() &&
+             specialization->instantiationPattern() &&
+             !specialization->templateDeclaration()) {
+    error(location,
+          std::format("explicit specialization of '{}' after instantiation",
+                      to_diag_string(specialization->type())));
+  }
+
+  if (!specialization->isComplete()) {
+    specialization->setDeclaration(ast);
+    specialization->setTemplateDeclaration(declSpecs.templateHead);
+    specialization->setTemplateParameters(declSpecs.templateHead->symbol);
+    primary->clearPendingInstantiation(specialization);
+  }
+
+  ast->symbol = specialization;
+  ast->declaredSymbol = specialization;
+  declSpecs.setTypeSpecifier(ast);
+  declSpecs.setType(specialization->type());
+}
+
+auto Binder::specializeMemberClassTemplate(ClassSymbol* declared,
+                                           TemplateDeclarationAST* templateHead,
+                                           SourceLocation location)
+    -> ClassSymbol* {
+  if (!declared || !declared->instantiationPattern() || !templateHead ||
+      !templateHead->templateParameterList)
+    return declared;
+
+  auto explicitHead =
+      symbol_cast<TemplateParametersSymbol>(templateHead->symbol->parent());
+  if (!explicitHead || !explicitHead->isExplicitTemplateSpecialization())
+    return declared;
+
+  auto specializesEnclosingClass = false;
+  for (auto enclosing = declared->enclosingClass(); enclosing;
+       enclosing = enclosing->enclosingClass()) {
+    if (enclosing->templateDeclaration() || !enclosing->isSpecialization())
+      continue;
+
+    auto primary = enclosing->primaryTemplateSymbol();
+    auto head = primary ? primary->templateDeclaration() : nullptr;
+    if (head && head->depth + 1 == templateHead->depth) {
+      specializesEnclosingClass = true;
+      break;
+    }
+  }
+
+  if (!specializesEnclosingClass) return declared;
+
+  auto primary = declared->primaryTemplateSymbol();
+  auto specializations =
+      primary ? primary->specializations() : declared->specializations();
+
+  for (const auto& entry : specializations) {
+    auto instance = symbol_cast<ClassSymbol>(entry.symbol);
+    if (!instance || instance->templateDeclaration() || !instance->isComplete())
+      continue;
+    if (primary && instance->instantiationPattern() != declared) continue;
+
+    error(location, std::format("explicit specialization of member class "
+                                "template '{}' after instantiation",
+                                to_diag_string(declared->name())));
+    break;
+  }
+
+  auto parent = declared->parent();
+  auto specialized = control()->newClassSymbol(parent, location);
+  specialized->setName(declared->name());
+  specialized->setIsUnion(declared->isUnion());
+  specialized->setAccessSpecifier(declared->accessSpecifier());
+  inheritDeclarationAttributes(specialized, declared);
+
+  auto canonical = declared->canonical();
+  addRedeclaration(canonical, specialized);
+  setDefinition(canonical, static_cast<ClassSymbol*>(nullptr));
+
+  if (primary) {
+    recordSpeculativeMutation([primary, declared, specialized] {
+      primary->replaceSpecialization(specialized, declared);
+    });
+    primary->replaceSpecialization(declared, specialized);
+  } else {
+    recordSpeculativeMutation([parent, declared, specialized] {
+      parent->replaceSymbol(specialized, declared);
+    });
+    parent->replaceSymbol(declared, specialized);
+  }
+
+  return specialized;
+}
+
 auto Binder::BindClass::className() const -> const Identifier* {
   auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId);
   if (!nameId) return nullptr;
@@ -145,14 +287,7 @@ void Binder::BindClass::initializeClassSymbol(ClassSymbol* classSymbol) {
           "template declaration");
     }
 
-    binder.mergeTemplateParameterDefaults(ast->symbol->templateParameters(),
-                                          declSpecs.templateHead->symbol);
-
-    ast->symbol->setTemplateDeclaration(declSpecs.templateHead);
-    ast->symbol->setTemplateParameters(declSpecs.templateHead->symbol);
-
-    binder.checkDefaultTemplateArgumentOnPack(
-        ast->symbol->templateParameters());
+    binder.setTemplateHead(classSymbol, declSpecs.templateHead);
 
     binder.checkTemplateParameterDefaultOrder(
         ast->symbol->templateParameters());
@@ -228,10 +363,12 @@ void Binder::BindClass::bind() {
   const auto name = className();
   const auto location = classLocation();
   auto classSymbol = findExistingClass(name);
+  classSymbol = binder.specializeMemberClassTemplate(
+      classSymbol, declSpecs.templateHead, location);
 
   if (classSymbol && classSymbol->isComplete()) {
-    binder.error(location,
-                 std::format("redefinition of class '{}'", to_string(name)));
+    binder.error(location, std::format("redefinition of class '{}'",
+                                       to_diag_string(name)));
     classSymbol = nullptr;
   }
 
@@ -293,41 +430,21 @@ auto Binder::BindClass::check_template_specialization() -> bool {
   const auto location = templateId->identifierLoc;
   auto primaryTemplateSymbol = findPrimaryTemplateSymbol(templateId);
 
-  if (!primaryTemplateSymbol || !primaryTemplateSymbol->templateParameters()) {
-    binder.error(location,
-                 std::format("specialization of undeclared template '{}'",
-                             templateId->identifier->name()));
-  }
-
-  std::vector<TemplateArgument> templateArguments;
-  ClassSymbol* specialization = nullptr;
+  auto resolved = binder.resolveClassSpecialization(
+      primaryTemplateSymbol, templateId, declSpecs.templateHead);
+  auto specialization = resolved ? resolved->symbol : nullptr;
   bool specializesInstantiation = false;
-  if (primaryTemplateSymbol) {
-    templateArguments =
-        Substitution(binder.unit_, primaryTemplateSymbol->templateDeclaration(),
-                     templateId->templateArgumentList)
-            .templateArguments();
 
-    if (auto parameter =
-            ASTRewriter::findUndeducedPartialSpecializationParameter(
-                binder.unit_, declSpecs.templateHead, templateArguments)) {
-      binder.error(parameter->firstSourceLocation(),
-                   "class template partial specialization contains a template "
-                   "parameter that cannot be deduced");
-    }
-
-    specialization =
-        symbol_cast<ClassSymbol>(primaryTemplateSymbol->findSpecialization(
-            binder.unit_, templateArguments));
-    if (specialization && isTrueRedefinition(specialization, templateId)) {
+  if (specialization) {
+    if (isTrueRedefinition(specialization, templateId)) {
       binder.error(location, std::format("redefinition of specialization '{}'",
                                          templateId->identifier->name()));
-    } else if (specialization && isImplicitInstantiation(specialization)) {
+    } else if (isImplicitInstantiation(specialization)) {
       specializesInstantiation = true;
       binder.error(location,
                    std::format("explicit specialization of '{}' after "
                                "instantiation",
-                               to_string(specialization->type())));
+                               to_diag_string(specialization->type())));
     }
   }
 
@@ -339,9 +456,9 @@ auto Binder::BindClass::check_template_specialization() -> bool {
     primaryTemplateSymbol->clearPendingInstantiation(specialization);
   } else {
     classSymbol = createClassSymbol(templateId->identifier, location);
-    if (primaryTemplateSymbol && !specializesInstantiation) {
+    if (resolved && !specializesInstantiation) {
       primaryTemplateSymbol->addSpecialization(
-          binder.unit_, std::move(templateArguments), classSymbol);
+          binder.unit_, std::move(resolved->arguments), classSymbol);
     }
   }
 

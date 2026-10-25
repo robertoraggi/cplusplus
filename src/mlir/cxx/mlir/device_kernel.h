@@ -20,9 +20,12 @@
 
 #pragma once
 
+#include <cxx/mlir/kernel_contract.h>
+#include <cxx/spirv_environment.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/OwningOpRef.h>
 
 #include <cstdint>
@@ -30,37 +33,62 @@
 
 namespace cxx {
 
+class TranslationUnit;
+
+class DeviceDiagnostics {
+ public:
+  DeviceDiagnostics(mlir::MLIRContext* context, llvm::raw_ostream& out,
+                    const TranslationUnit* unit = nullptr);
+  ~DeviceDiagnostics();
+
+  DeviceDiagnostics(const DeviceDiagnostics&) = delete;
+  auto operator=(const DeviceDiagnostics&) -> DeviceDiagnostics& = delete;
+
+ private:
+  void print(mlir::Diagnostic& diagnostic);
+  [[nodiscard]] auto reportToUnit(mlir::Diagnostic& diagnostic) -> bool;
+
+  mlir::MLIRContext* context_;
+  llvm::raw_ostream& out_;
+  const TranslationUnit* unit_;
+  bool printedOperations_;
+  mlir::ScopedDiagnosticHandler handler_;
+};
+
 struct KernelArtifact {
   llvm::SmallVector<std::uint8_t> bytes;
   std::string manifest;
 };
-
-[[nodiscard]] auto kernelEntryPoints(mlir::ModuleOp module)
-    -> llvm::SmallVector<std::string>;
 
 enum class KernelStage {
   kGPU,
   kSPIRV,
 };
 
-[[nodiscard]] auto lowerKernelToGPU(mlir::ModuleOp module,
-                                    llvm::StringRef kernel)
+[[nodiscard]] auto lowerDeviceModuleToGPU(mlir::ModuleOp module,
+                                          llvm::StringRef kernel)
     -> mlir::FailureOr<mlir::OwningOpRef<mlir::ModuleOp>>;
 
-[[nodiscard]] auto lowerKernelToSPIRV(mlir::ModuleOp module,
-                                      llvm::StringRef kernel)
-    -> mlir::FailureOr<mlir::OwningOpRef<mlir::Operation*>>;
+struct LoweredSPIRVModule {
+  mlir::OwningOpRef<mlir::Operation*> module;
+  mlir::cxx::KernelModuleContract contract;
+  SPIRVEnvironment environment;
+};
 
-[[nodiscard]] auto printKernels(mlir::ModuleOp module,
-                                llvm::ArrayRef<std::string> kernels,
-                                KernelStage stage, llvm::raw_ostream& out)
+[[nodiscard]] auto lowerDeviceModuleToSPIRV(mlir::ModuleOp module,
+                                            llvm::StringRef kernel)
+    -> mlir::FailureOr<LoweredSPIRVModule>;
+
+[[nodiscard]] auto printDeviceModule(mlir::ModuleOp module,
+                                     llvm::StringRef kernel, KernelStage stage,
+                                     llvm::raw_ostream& out)
     -> mlir::LogicalResult;
 
-[[nodiscard]] auto compileSPIRVKernel(mlir::ModuleOp module,
+[[nodiscard]] auto compileSPIRVModule(mlir::ModuleOp module,
                                       llvm::StringRef kernel)
     -> mlir::FailureOr<KernelArtifact>;
 
-[[nodiscard]] auto compileWGSLKernel(mlir::ModuleOp module,
+[[nodiscard]] auto compileWGSLModule(mlir::ModuleOp module,
                                      llvm::StringRef kernel)
     -> mlir::FailureOr<KernelArtifact>;
 

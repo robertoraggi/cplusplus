@@ -18,18 +18,113 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/diagnostics_client.h>
 #include <cxx/mlir/device_kernel.h>
 #include <cxx/mlir/kernel_manifest.h>
 #include <cxx/mlir/passes.h>
+#include <cxx/translation_unit.h>
 #include <mlir/Dialect/GPU/IR/GPUDialect.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
+#include <utility>
+
 namespace cxx {
 
-auto lowerKernelToGPU(mlir::ModuleOp source, llvm::StringRef kernel)
+namespace {
+
+[[nodiscard]] auto severityName(mlir::DiagnosticSeverity severity)
+    -> llvm::StringRef {
+  switch (severity) {
+    case mlir::DiagnosticSeverity::Error:
+      return "error";
+    case mlir::DiagnosticSeverity::Warning:
+      return "warning";
+    case mlir::DiagnosticSeverity::Note:
+      return "note";
+    case mlir::DiagnosticSeverity::Remark:
+      return "remark";
+  }
+  std::unreachable();
+}
+
+[[nodiscard]] auto severityOf(mlir::DiagnosticSeverity severity) -> Severity {
+  switch (severity) {
+    case mlir::DiagnosticSeverity::Error:
+      return Severity::Error;
+    case mlir::DiagnosticSeverity::Warning:
+      return Severity::Warning;
+    case mlir::DiagnosticSeverity::Note:
+      return Severity::Note;
+    case mlir::DiagnosticSeverity::Remark:
+      return Severity::Message;
+  }
+  std::unreachable();
+}
+
+[[nodiscard]] auto isAt(const SourcePosition& position,
+                        mlir::FileLineColLoc location) -> bool {
+  if (position.line != location.getLine()) return false;
+  if (position.column != location.getColumn()) return false;
+  return position.fileName == std::string_view{location.getFilename()};
+}
+
+[[nodiscard]] auto sourceLocationOf(const TranslationUnit* unit,
+                                    mlir::FileLineColLoc location)
+    -> SourceLocation {
+  for (unsigned index = 0; index < unit->tokenCount(); ++index) {
+    auto source = unit->locationOfIndex(index);
+    if (isAt(unit->tokenStartPosition(source), location)) return source;
+  }
+  return {};
+}
+
+}  // namespace
+
+DeviceDiagnostics::DeviceDiagnostics(mlir::MLIRContext* context,
+                                     llvm::raw_ostream& out,
+                                     const TranslationUnit* unit)
+    : context_(context),
+      out_(out),
+      unit_(unit),
+      printedOperations_(context->shouldPrintOpOnDiagnostic()),
+      handler_(context, [this](mlir::Diagnostic& diagnostic) {
+        print(diagnostic);
+        for (auto& note : diagnostic.getNotes()) print(note);
+        return mlir::success();
+      }) {
+  context_->printOpOnDiagnostic(false);
+}
+
+DeviceDiagnostics::~DeviceDiagnostics() {
+  context_->printOpOnDiagnostic(printedOperations_);
+}
+
+auto DeviceDiagnostics::reportToUnit(mlir::Diagnostic& diagnostic) -> bool {
+  if (!unit_) return false;
+  auto location =
+      diagnostic.getLocation()->findInstanceOf<mlir::FileLineColLoc>();
+  if (!location) return false;
+  auto source = sourceLocationOf(unit_, location);
+  if (!source) return false;
+  unit_->report(unit_->diagnosticsClient(), source,
+                severityOf(diagnostic.getSeverity()), diagnostic.str());
+  return true;
+}
+
+void DeviceDiagnostics::print(mlir::Diagnostic& diagnostic) {
+  if (reportToUnit(diagnostic)) return;
+  if (auto location =
+          diagnostic.getLocation()->findInstanceOf<mlir::FileLineColLoc>()) {
+    out_ << location.getFilename().getValue() << ':' << location.getLine()
+         << ':' << location.getColumn() << ": ";
+  }
+  out_ << severityName(diagnostic.getSeverity()) << ": " << diagnostic.str()
+       << '\n';
+}
+
+auto lowerDeviceModuleToGPU(mlir::ModuleOp source, llvm::StringRef kernel)
     -> mlir::FailureOr<mlir::OwningOpRef<mlir::ModuleOp>> {
-  if (mlir::failed(kernelEntryOf(source, kernel))) return mlir::failure();
   mlir::OwningOpRef<mlir::ModuleOp> working =
       mlir::cast<mlir::ModuleOp>(source->clone());
   mlir::PassManager lowering(source.getContext());
@@ -40,13 +135,11 @@ auto lowerKernelToGPU(mlir::ModuleOp source, llvm::StringRef kernel)
   return working;
 }
 
-namespace {
-
-[[nodiscard]] auto printKernel(mlir::ModuleOp module, llvm::StringRef kernel,
-                               KernelStage stage, llvm::raw_ostream& out)
+auto printDeviceModule(mlir::ModuleOp module, llvm::StringRef kernel,
+                       KernelStage stage, llvm::raw_ostream& out)
     -> mlir::LogicalResult {
   if (stage == KernelStage::kGPU) {
-    auto lowered = lowerKernelToGPU(module, kernel);
+    auto lowered = lowerDeviceModuleToGPU(module, kernel);
     if (mlir::failed(lowered)) return mlir::failure();
     for (auto gpuModule : lowered->get().getOps<mlir::gpu::GPUModuleOp>()) {
       gpuModule.print(out);
@@ -54,25 +147,11 @@ namespace {
     }
     return mlir::success();
   }
-  auto lowered = lowerKernelToSPIRV(module, kernel);
+  auto lowered = lowerDeviceModuleToSPIRV(module, kernel);
   if (mlir::failed(lowered)) return mlir::failure();
-  lowered->get()->print(out);
+  lowered->module->print(out);
   out << '\n';
   return mlir::success();
-}
-
-}  // namespace
-
-auto printKernels(mlir::ModuleOp module, llvm::ArrayRef<std::string> kernels,
-                  KernelStage stage, llvm::raw_ostream& out)
-    -> mlir::LogicalResult {
-  auto result = mlir::success();
-  for (const auto& kernel : kernels) {
-    if (kernels.size() > 1) out << "// kernel " << kernel << '\n';
-    if (mlir::failed(printKernel(module, kernel, stage, out)))
-      result = mlir::failure();
-  }
-  return result;
 }
 
 }  // namespace cxx

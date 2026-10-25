@@ -22,28 +22,36 @@
 
 #include <cxx/cli.h>
 
+#include <cassert>
+#include <cstdio>
 #include <format>
-#include <iostream>
 
 namespace cxx::lsp {
 
 Transport::~Transport() = default;
 
-StreamTransport::StreamTransport(std::istream& input, std::ostream& output)
-    : input_(input), output_(output) {}
+StreamTransport::StreamTransport(std::FILE* input, std::FILE* output)
+    : input_(input), output_(output) {
+  assert(input_ && output_);
+}
 
-auto StreamTransport::isOpen() const -> bool { return input_.good(); }
+auto StreamTransport::isOpen() const -> bool {
+  return !std::feof(input_) && !std::ferror(input_) && !std::ferror(output_);
+}
 
 auto StreamTransport::readLine() -> std::optional<std::string> {
   std::string line;
-  if (!std::getline(input_, line)) return std::nullopt;
+  for (auto ch = std::fgetc(input_); ch != EOF; ch = std::fgetc(input_)) {
+    if (ch == '\n') return line;
+    line += static_cast<char>(ch);
+  }
+  if (std::ferror(input_) || line.empty()) return std::nullopt;
   return line;
 }
 
 auto StreamTransport::readBytes(std::size_t count) -> std::string {
   std::string bytes(count, '\0');
-  input_.read(bytes.data(), std::streamsize(count));
-  bytes.resize(std::size_t(input_.gcount()));
+  bytes.resize(std::fread(bytes.data(), 1, count, input_));
   return bytes;
 }
 
@@ -52,13 +60,11 @@ void StreamTransport::write(std::string_view text) {
   auto locker = std::unique_lock(outputMutex_);
 #endif
 
-  output_.write(text.data(), std::streamsize(text.size()));
-  output_.flush();
+  if (std::fwrite(text.data(), 1, text.size(), output_) != text.size()) return;
+  std::fflush(output_);
 }
 
-StdioTransport::StdioTransport() : StdioTransport(std::cin, std::cout) {}
-
-StdioTransport::StdioTransport(std::istream& input, std::ostream& output)
+StdioTransport::StdioTransport(std::FILE* input, std::FILE* output)
     : StreamTransport(input, output) {}
 
 auto StdioTransport::readHeaders()
@@ -102,11 +108,7 @@ void StdioTransport::sendMessage(const json& message) {
   write(std::format("Content-Length: {}\r\n\r\n{}", text.size(), text));
 }
 
-JsonLinesTransport::JsonLinesTransport()
-    : JsonLinesTransport(std::cin, std::cout) {}
-
-JsonLinesTransport::JsonLinesTransport(std::istream& input,
-                                       std::ostream& output)
+JsonLinesTransport::JsonLinesTransport(std::FILE* input, std::FILE* output)
     : StreamTransport(input, output) {}
 
 auto JsonLinesTransport::nextMessage() -> std::optional<json> {

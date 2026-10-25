@@ -64,7 +64,7 @@ class LoadToPtr : public OpRewritePattern<cxx::LoadOp> {
     bool isBool = type.isInteger(1);
     if (isBool) type = rewriter.getI8Type();
     Value result = ptr::LoadOp::create(rewriter, op.getLoc(), type, pointer,
-                                       op.getAlignment());
+                                       op.getAlignment(), op.getVolatile_());
     if (isBool)
       result =
           arith::TruncIOp::create(rewriter, op.getLoc(), op.getType(), result);
@@ -86,7 +86,7 @@ class StoreToPtr : public OpRewritePattern<cxx::StoreOp> {
                                      rewriter.getI8Type(), value);
     auto pointer = toPtr(op.getAddr(), rewriter);
     ptr::StoreOp::create(rewriter, op.getLoc(), value, pointer,
-                         op.getAlignment());
+                         op.getAlignment(), op.getVolatile_());
     rewriter.eraseOp(op);
     return success();
   }
@@ -102,8 +102,10 @@ class PtrAddToPtr : public OpRewritePattern<cxx::PtrAddOp> {
     auto element = resultType.getElementType();
     if (isa<cxx::VoidType>(element) || element.isInteger(1))
       element = rewriter.getI8Type();
-    auto offset = arith::IndexCastOp::create(
-        rewriter, op.getLoc(), rewriter.getIndexType(), op.getOffset());
+    Value offset = op.getOffset();
+    if (!offset.getType().isIndex())
+      offset = arith::IndexCastOp::create(rewriter, op.getLoc(),
+                                          rewriter.getIndexType(), offset);
     auto stride = ptr::TypeOffsetOp::create(rewriter, op.getLoc(),
                                             offset.getType(), element);
     auto bytes = arith::MulIOp::create(rewriter, op.getLoc(), offset, stride);

@@ -143,6 +143,7 @@ auto ASTInterpreter::StatementVisitor::operator()(DefaultStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(ExpressionStatementAST* ast)
     -> StatementResult {
+  FullExpressionScope fullExpression{interp};
   if (ast->expression && !interp.discardedValue(ast->expression)) {
     interp.aborted_ = true;
   }
@@ -305,6 +306,7 @@ auto ASTInterpreter::StatementVisitor::operator()(DoStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::evaluateCondition(
     ExpressionAST* condition) -> std::optional<bool> {
+  FullExpressionScope fullExpression{interp};
   auto value = interp.expression(condition);
   if (value.has_value()) {
     if (auto truth = interp.toBool(*value)) return truth;
@@ -394,18 +396,22 @@ auto ASTInterpreter::StatementVisitor::operator()(ContinueStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(ReturnStatementAST* ast)
     -> StatementResult {
+  FullExpressionScope fullExpression{interp};
   if (interp.captureReturnAddress_) {
     interp.returnAddress_ = interp.addressOfLvalue(ast->expression);
     if (interp.returnAddress_ || !interp.returnAddressFallsBackToValue_)
       return {ControlFlow::kReturn};
   }
 
-  if (interp.captureReturnLValue_) {
-    interp.returnLValue_ = interp.lvalue(ast->expression);
-    return {ControlFlow::kReturn};
-  }
-
-  auto expressionResult = interp.expression(ast->expression);
+  auto returnType =
+      interp.currentFunction_
+          ? type_cast<FunctionType>(interp.currentFunction_->type())
+          : nullptr;
+  auto expressionResult =
+      returnType && interp.traits.is_class(returnType->returnType())
+          ? interp.initialValue(returnType->returnType(), ast->expression,
+                                interp.resultAddress_)
+          : interp.expression(ast->expression);
   if (expressionResult.has_value()) {
     interp.setReturnValue(*expressionResult);
   } else if (ast->expression) {
@@ -430,6 +436,7 @@ auto ASTInterpreter::StatementVisitor::operator()(GotoStatementAST* ast)
 auto ASTInterpreter::initializeAutomaticVariable(Symbol* symbol,
                                                  ExpressionAST* initializer)
     -> bool {
+  FullExpressionScope fullExpression{*this};
   if (!symbol) return false;
 
   auto var = symbol_cast<VariableSymbol>(symbol);
@@ -437,27 +444,31 @@ auto ASTInterpreter::initializeAutomaticVariable(Symbol* symbol,
 
   if (var && traits.is_reference(var->type())) {
     if (frames_.empty()) frames_.push_back({});
-    return bindReferenceTo(frames_.back(), var,
-                           Initializer{initializer}.clause());
+    if (!bindReferenceTo(frames_.back(), var,
+                         Initializer{initializer}.clause()))
+      return false;
+    registerAutomaticObject(var);
+    return true;
   }
 
   ExpressionResult initVal;
   if (var) {
-    initVal = initializationValue(var->type(), var->constructor(), initializer);
-  } else {
-    initVal = expression(initializer);
+    setLocal(symbol, IndeterminateValue{});
+    auto address = std::make_shared<ConstAddress>(symbol);
+    auto storage = lookupLocalStorage(symbol);
+    address->setStorage(storage);
+    initVal = initializationValue(var->type(), var->constructor(), initializer,
+                                  std::move(address));
+    if (!initVal) return false;
+    storage->setValue(std::move(*initVal));
+    registerAutomaticObject(var);
+    return true;
   }
 
-  if (!initVal.has_value() && !initializer) {
-    if (var) initVal = defaultConstruct(var->type());
-  }
-
+  initVal = expression(initializer);
   if (!initVal.has_value()) return false;
 
-  if (var && traits.is_class(traits.remove_cv(var->type())))
-    initVal = cloneValue(*initVal);
   setLocal(symbol, *initVal);
-  if (var) registerAutomaticObject(var);
   return true;
 }
 
@@ -490,7 +501,11 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
     for (auto initDecl : ListView{simpleDecl->initDeclaratorList}) {
       auto variable = symbol_cast<VariableSymbol>(initDecl->symbol);
       if (!variable) continue;
-      interp.initializeAutomaticVariable(variable, variable->initializer());
+      if (!interp.initializeAutomaticVariable(variable,
+                                              variable->initializer())) {
+        interp.aborted_ = true;
+        break;
+      }
     }
   } else if (auto structuredBinding =
                  ast_cast<StructuredBindingDeclarationAST>(ast->declaration)) {

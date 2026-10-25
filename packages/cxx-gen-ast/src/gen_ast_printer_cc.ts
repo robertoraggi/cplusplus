@@ -54,8 +54,8 @@ export function gen_ast_printer_cc({
           `    const auto builtinsFileId = unit_->preprocessor()->builtinsFileId();`,
         );
       }
-      emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
-      emit(`    out_ << std::format("{}\\n", "${fieldName}");`);
+      emit(`    out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);`);
+      emit(`    out_ = std::format_to(out_, "{}\\n", "${fieldName}");`);
       emit(`    for (auto node: ListView{ast->${member.name}}) {`);
       if (isTranslationOrModuleUnit) {
         emit(`        auto loc = firstSourceLocation(node);`);
@@ -74,25 +74,25 @@ export function gen_ast_printer_cc({
     } else if (member.kind == "attribute" && member.type === "bool") {
       emit(`  if (ast->${member.name}) {`);
       emit(`    ++indent_;`);
-      emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
+      emit(`    out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << std::format("${fieldName}: {}\\n", ast->${member.name});`,
+        `    out_ = std::format_to(out_, "${fieldName}: {}\\n", ast->${member.name});`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
     } else if (member.kind == "attribute" && member.type === "int") {
       emit(`  ++indent_;`);
-      emit(`  out_ << std::format("{:{}}", "", indent_ * 2);`);
+      emit(`  out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);`);
       emit(
-        `  out_ << std::format("${fieldName}: {}\\n", ast->${member.name});`,
+        `  out_ = std::format_to(out_, "${fieldName}: {}\\n", ast->${member.name});`,
       );
       emit(`  --indent_;`);
     } else if (member.kind == "attribute" && member.type.endsWith("Literal")) {
       emit(`  if (ast->${member.name}) {`);
       emit(`    ++indent_;`);
-      emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
+      emit(`    out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << std::format("${fieldName}: {}\\n", ast->${member.name}->value());`,
+        `    out_ = std::format_to(out_, "${fieldName}: {}\\n", ast->${member.name}->value());`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -102,9 +102,9 @@ export function gen_ast_printer_cc({
     ) {
       emit(`  if (ast->${member.name} != TokenKind::T_EOF_SYMBOL) {`);
       emit(`    ++indent_;`);
-      emit(`    out_ << std::format("{:{}}", "", indent_ * 2);`);
+      emit(`    out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);`);
       emit(
-        `    out_ << std::format("${fieldName}: {}\\n", Token::spell(ast->${member.name}));`,
+        `    out_ = std::format_to(out_, "${fieldName}: {}\\n", Token::spell(ast->${member.name}));`,
       );
       emit(`    --indent_;`);
       emit(`  }`);
@@ -113,9 +113,9 @@ export function gen_ast_printer_cc({
       member.type == "ImplicitCastKind"
     ) {
       emit(`  ++indent_;`);
-      emit(`  out_ << std::format("{:{}}", "", indent_ * 2);`);
+      emit(`  out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);`);
       emit(
-        `  out_ << std::format("${fieldName}: {}\\n", to_string(ast->${member.name}));`,
+        `  out_ = std::format_to(out_, "${fieldName}: {}\\n", to_string(ast->${member.name}));`,
       );
       emit(`  --indent_;`);
     }
@@ -126,15 +126,15 @@ export function gen_ast_printer_cc({
       emit();
       emit(`void ASTPrinter::visit(${name}* ast) {`);
       if (base == "ExpressionAST") {
-        emit(`  out_ << "${astName(name)}";`);
+        emit(`  out_ = std::format_to(out_, "{}", "${astName(name)}");`);
         emit(`  if (ast->type) {`);
         emit(
-          `    out_ << std::format(" [{} {}]", to_string(ast->valueCategory), to_string(ast->type));`,
+          `    out_ = std::format_to(out_, " [{} {}]", to_string(ast->valueCategory), formatType(ast->type));`,
         );
         emit(`  }`);
-        emit(`  out_ << "\\n";`);
+        emit(`  out_ = std::format_to(out_, "{}", "\\n");`);
       } else {
-        emit(`  out_ << std::format("{}\\n", "${astName(name)}");`);
+        emit(`  out_ = std::format_to(out_, "{}\\n", "${astName(name)}");`);
       }
 
       const baseMembers = ast.baseMembers.get(base);
@@ -168,14 +168,14 @@ ${cpy_header}
 #include <cxx/names.h>
 #include <cxx/literals.h>
 #include <cxx/preprocessor.h>
+#include <cxx/printing.h>
 #include <format>
 
 #include <algorithm>
-#include <iostream>
 
 namespace cxx {
 
-ASTPrinter::ASTPrinter(TranslationUnit* unit, std::ostream& out)
+ASTPrinter::ASTPrinter(TranslationUnit* unit, std::format_context::iterator out)
   : unit_(unit)
   , out_(out) {}
 
@@ -186,9 +186,9 @@ void ASTPrinter::operator()(AST* ast) {
 void ASTPrinter::accept(AST* ast, std::string_view field) {
   if (!ast) return;
   ++indent_;
-  out_ << std::format("{:{}}", "", indent_ * 2);
+  out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);
   if (!field.empty()) {
-    out_ << std::format("{}: ", field);
+    out_ = std::format_to(out_, "{}: ", field);
   }
   ast->accept(this);
   --indent_;
@@ -197,9 +197,9 @@ void ASTPrinter::accept(AST* ast, std::string_view field) {
 void ASTPrinter::accept(const Identifier* id, std::string_view field) {
   if (!id) return;
   ++indent_;
-  out_ << std::format("{:{}}", "", indent_ * 2);
-  if (!field.empty()) out_ << std::format("{}: ", field);
-  out_ << std::format("{}\\n", id->value());
+  out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);
+  if (!field.empty()) out_ = std::format_to(out_, "{}: ", field);
+  out_ = std::format_to(out_, "{}\\n", id->value());
   --indent_;
 }
 

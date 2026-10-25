@@ -259,7 +259,8 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
                       VisitedScopes& visited, bool tagsAreTypes = true,
                       bool discardHiddenClassNames = false,
                       bool followUsingDirectives = true,
-                      bool* ambiguous = nullptr) -> Symbol* {
+                      bool* ambiguous = nullptr,
+                      NameUse use = NameUse::kOrdinary) -> Symbol* {
   if (auto cls = symbol_cast<ClassSymbol>(scope)) {
     scope = cls->resolvedDefinition();
   }
@@ -302,6 +303,9 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
   };
   if (auto classSymbol = symbol_cast<ClassSymbol>(scope)) {
     auto result = lookupClassMember(classSymbol, id, accept);
+    if (result.ambiguous && use == NameUse::kTemplateName &&
+        result.injectedClassTemplate)
+      return result.injectedClassTemplate;
     if (ambiguous) *ambiguous = result.ambiguous;
     return result.ambiguous ? nullptr : result.symbol;
   }
@@ -360,12 +364,15 @@ auto resolveTypeScope(Symbol* symbol) -> ScopeSymbol* {
 }
 }  // namespace
 
-auto qualifiedLookupType(Symbol* scopeOrAlias, const Identifier* id)
-    -> Symbol* {
-  return qualifiedLookupType(resolveTypeScope(scopeOrAlias), id);
+auto qualifiedLookupType(Symbol* scopeOrAlias, const Identifier* id,
+                         bool* ambiguous, NameUse use) -> Symbol* {
+  return qualifiedLookupType(resolveTypeScope(scopeOrAlias), id, ambiguous,
+                             use);
 }
 
-auto qualifiedLookupType(ScopeSymbol* scope, const Identifier* id) -> Symbol* {
+auto qualifiedLookupType(ScopeSymbol* scope, const Identifier* id,
+                         bool* ambiguous, NameUse use) -> Symbol* {
+  if (ambiguous) *ambiguous = false;
   if (!scope) return nullptr;
   VisitedScopes visited;
   if (auto ns = symbol_cast<NamespaceSymbol>(scope)) {
@@ -376,9 +383,12 @@ auto qualifiedLookupType(ScopeSymbol* scope, const Identifier* id) -> Symbol* {
           return is_type(symbol) || symbol->isNamespaceName();
         },
         found, visited);
-    return uniqueLookupDeclaration(found);
+    auto result = uniqueLookupDeclaration(found);
+    if (ambiguous) *ambiguous = !found.empty() && !result;
+    return result;
   }
-  return lookupTypeHelper(scope, id, visited);
+  return lookupTypeHelper(scope, id, visited, true, false, true, ambiguous,
+                          use);
 }
 
 auto qualifiedLookupNamespace(Symbol* scopeOrAlias, const Identifier* id)

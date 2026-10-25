@@ -43,9 +43,11 @@ function rewriteOf(builtin: BuiltinDef): MathRewrite {
     ? builtin.prototype[0]
     : builtin.prototype;
   const match = /^(?:constexpr )?(.+?) (\w+)\((.*)\)$/.exec(prototype ?? "");
-  if (!match || match[2] !== builtin.name)
+  if (!match)
     throw new Error(`${builtin.name}: unexpected prototype '${prototype}'`);
-  const [, result, , parameterList] = match;
+  const [, result = "", name = "", parameterList = ""] = match;
+  if (name !== builtin.name)
+    throw new Error(`${builtin.name}: unexpected prototype '${prototype}'`);
   const parameters = parameterList.split(",").map((p) => p.trim());
   const floating = floatingKinds.get(result);
   if (!floating || parameters.some((p) => p !== result))
@@ -89,12 +91,8 @@ export function gen_cxx_to_math_h({ output }: { output: string }) {
   lines.push(``);
   lines.push(`inline constexpr LibraryMathOp kLibraryMathOps[] = {`);
   for (const r of rewrites) {
-    lines.push(
-      `    {"${r.callee}", ${r.arity}, FloatingKind::${r.floating},`,
-    );
-    lines.push(
-      `     [](mlir::OpBuilder& builder, mlir::Location loc,`,
-    );
+    lines.push(`    {"${r.callee}", ${r.arity}, FloatingKind::${r.floating},`);
+    lines.push(`     [](mlir::OpBuilder& builder, mlir::Location loc,`);
     lines.push(`        mlir::ValueRange operands) -> mlir::Value {`);
     lines.push(
       `       return mlir::${r.op}::create(builder, loc, operands).getResult();`,

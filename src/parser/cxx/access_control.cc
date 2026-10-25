@@ -686,10 +686,10 @@ auto checkMemberAccess(TranslationUnit* unit, ScopeSymbol* accessingScope,
   auto denied = deniedMemberOf(member, designatingClass);
   if (!denied.declaringClass) return true;
 
-  unit->error(
-      loc, std::format("'{}' is a {} member of '{}'", to_string(member->name()),
-                       accessKindOf(denied.accessSpecifier),
-                       to_string(denied.declaringClass->type())));
+  unit->error(loc, std::format("'{}' is a {} member of '{}'",
+                               to_diag_string(member->name()),
+                               accessKindOf(denied.accessSpecifier),
+                               to_diag_string(denied.declaringClass->type())));
 
   return false;
 }

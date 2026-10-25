@@ -19,23 +19,28 @@
 // SOFTWARE.
 
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/storage_address.h>
 #include <llvm/ADT/DenseSet.h>
 #include <llvm/ADT/TypeSwitch.h>
+#include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/ControlFlow/IR/ControlFlowOps.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/Ptr/IR/PtrAttrs.h>
 #include <mlir/Dialect/Ptr/IR/PtrDialect.h>
+#include <mlir/Dialect/Ptr/IR/PtrOps.h>
 #include <mlir/Dialect/Ptr/IR/PtrTypes.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
 #include <mlir/Dialect/Vector/IR/VectorOps.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/IR/PatternMatch.h>
 #include <mlir/Interfaces/FunctionImplementation.h>
 #include <mlir/Transforms/InliningUtils.h>
 
+#include <functional>
 #include <numeric>
 
 namespace mlir::cxx {
@@ -70,6 +75,10 @@ struct detail::ClassTypeStorage : public TypeStorage {
   auto getName() -> StringRef const { return name_; }
   auto getBody() const -> ArrayRef<Type> { return body_; }
   auto isPacked() const -> bool { return packed_; }
+  [[nodiscard]] auto getAlignment() const -> uint64_t { return alignment_; }
+  [[nodiscard]] auto getPadding() const -> ArrayRef<unsigned> {
+    return padding_;
+  }
 
   auto operator==(const KeyTy& key) const -> bool { return name_ == key; };
 
@@ -83,21 +92,33 @@ struct detail::ClassTypeStorage : public TypeStorage {
         ClassTypeStorage(allocator.copyInto(key));
   }
 
-  auto mutate(TypeStorageAllocator& allocator, ArrayRef<Type> body, bool packed)
-      -> LogicalResult {
-    if (isInitialized_) return success(body == getBody() && packed == packed_);
+  auto mutate(TypeStorageAllocator& allocator, ArrayRef<Type> body, bool packed,
+              uint64_t alignment, ArrayRef<unsigned> padding) -> LogicalResult {
+    if (isInitialized_)
+      return success(isDefinedAs(body, packed, alignment, padding));
 
     isInitialized_ = true;
     body_ = allocator.copyInto(body);
     packed_ = packed;
+    alignment_ = alignment;
+    padding_ = allocator.copyInto(padding);
 
     return success();
   }
 
  private:
+  [[nodiscard]] auto isDefinedAs(ArrayRef<Type> body, bool packed,
+                                 uint64_t alignment,
+                                 ArrayRef<unsigned> padding) const -> bool {
+    if (body != getBody() || padding != getPadding()) return false;
+    return packed == packed_ && alignment == alignment_;
+  }
+
   StringRef name_;
   ArrayRef<Type> body_;
+  ArrayRef<unsigned> padding_;
   bool packed_ = false;
+  uint64_t alignment_ = 0;
   bool isInitialized_ = false;
 };
 
@@ -154,7 +175,9 @@ class TypeGraphPrinter {
     }
     printer_ << ", ";
     if (type.isPacked()) printer_ << "packed ";
-    printTypeList(type.getBody());
+    if (auto alignment = type.getAlignment())
+      printer_ << "align " << alignment << ' ';
+    printTypeList(type.getBody(), type.getPadding());
     printer_ << '>';
   }
 
@@ -187,10 +210,14 @@ class TypeGraphPrinter {
   }
 
  private:
-  void printTypeList(ArrayRef<Type> types) {
+  void printTypeList(ArrayRef<Type> types, ArrayRef<unsigned> padding = {}) {
     printer_ << '(';
-    llvm::interleaveComma(types, printer_.getStream(),
-                          [this](Type type) { printType(type); });
+    llvm::interleaveComma(llvm::enumerate(types), printer_.getStream(),
+                          [&](auto element) {
+                            if (llvm::is_contained(padding, element.index()))
+                              printer_ << "padding ";
+                            printType(element.value());
+                          });
     printer_ << ')';
   }
 
@@ -220,9 +247,12 @@ class TypeGraphPrinter {
   llvm::DenseSet<ClassType> classes_;
 };
 
-auto parseTypeList(AsmParser& parser, SmallVectorImpl<Type>& types)
+auto parseTypeList(AsmParser& parser, SmallVectorImpl<Type>& types,
+                   SmallVectorImpl<unsigned>* padding = nullptr)
     -> ParseResult {
   return parser.parseCommaSeparatedList(AsmParser::Delimiter::Paren, [&]() {
+    if (padding && succeeded(parser.parseOptionalKeyword("padding")))
+      padding->push_back(types.size());
     Type type;
     if (parser.parseType(type)) return failure();
     types.push_back(type);
@@ -281,6 +311,61 @@ auto haveSamePointerMemorySpace(PtrLikeTypeInterface left,
          canonicalPointerMemorySpace(right.getMemorySpace());
 }
 
+auto isVolatileAccess(Operation* op) -> bool {
+  return llvm::TypeSwitch<Operation*, bool>(op)
+      .Case<LoadOp, StoreOp, BitfieldLoadOp, BitfieldStoreOp, AtomicLoadOp,
+            AtomicStoreOp, AtomicRMWOp, AtomicCompareExchangeOp>(
+          [](auto access) { return bool(access.getVolatile_()); })
+      .Default(false);
+}
+
+auto getLoadStoreAddress(Operation* op) -> Value {
+  return llvm::TypeSwitch<Operation*, Value>(op)
+      .Case<LoadOp, StoreOp>([](auto access) { return access.getAddr(); })
+      .Default(Value());
+}
+
+auto canBitcastStorageValue(Type from, Type to) -> bool {
+  if (from == to) return true;
+  auto fromPointer = dyn_cast<PointerType>(from);
+  auto toPointer = dyn_cast<PointerType>(to);
+  if (fromPointer || toPointer)
+    return fromPointer && toPointer &&
+           haveSamePointerMemorySpace(fromPointer, toPointer);
+  auto fromVector = dyn_cast<VectorType>(from);
+  auto toVector = dyn_cast<VectorType>(to);
+  if (bool(fromVector) != bool(toVector)) return false;
+  if (fromVector) {
+    if (fromVector.getShape() != toVector.getShape()) return false;
+    from = fromVector.getElementType();
+    to = toVector.getElementType();
+  }
+  return from.isIntOrFloat() && to.isIntOrFloat() &&
+         from.getIntOrFloatBitWidth() == to.getIntOrFloatBitWidth();
+}
+
+auto getAggregateElementType(Type container, std::int64_t position) -> Type {
+  if (position < 0) return {};
+  if (isa<ClassType, TupleType>(container)) {
+    auto fields = getRecordElementTypes(container);
+    return std::uint64_t(position) < fields.size() ? fields[position] : Type();
+  }
+  if (auto array = dyn_cast<ArrayType>(container))
+    return std::uint64_t(position) < array.getSize() ? array.getElementType()
+                                                     : Type();
+  return {};
+}
+
+auto getRecordElementTypes(Type record) -> ArrayRef<Type> {
+  if (auto type = dyn_cast<ClassType>(record)) return type.getBody();
+  if (auto type = dyn_cast<TupleType>(record)) return type.getTypes();
+  return {};
+}
+
+auto isAggregateType(Type type) -> bool {
+  return isa<ClassType, TupleType, ArrayType>(type);
+}
+
 namespace {
 
 struct CxxInlinerInterface final : DialectInlinerInterface {
@@ -293,8 +378,8 @@ struct CxxInlinerInterface final : DialectInlinerInterface {
 
   [[nodiscard]] auto isLegalToInline(Operation* op, Region*, bool,
                                      IRMapping&) const -> bool final {
-    return !isa<DynAllocaOp, LabelOp, GotoOp, LabelAddressOp, IndirectGotoOp,
-                AsmGotoOp, LandingPadOp, ResumeOp>(op);
+    return !isa<AllocaOp, DynAllocaOp, LabelOp, GotoOp, LabelAddressOp,
+                IndirectGotoOp, AsmGotoOp, LandingPadOp, ResumeOp>(op);
   }
 };
 
@@ -519,6 +604,24 @@ auto AllocaOp::handlePromotionComplete(const MemorySlot&, Value defaultValue,
   return std::nullopt;
 }
 
+void LoadOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>&
+        effects) {
+  effects.emplace_back(MemoryEffects::Read::get(), &getAddrMutable());
+  if (!getVolatile_()) return;
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
+void StoreOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>&
+        effects) {
+  effects.emplace_back(MemoryEffects::Write::get(), &getAddrMutable());
+  if (!getVolatile_()) return;
+  effects.emplace_back(MemoryEffects::Read::get());
+  effects.emplace_back(MemoryEffects::Write::get());
+}
+
 auto LoadOp::loadsFrom(const MemorySlot& slot) -> bool {
   return getAddr() == slot.ptr;
 }
@@ -534,6 +637,7 @@ auto LoadOp::canUsesBeRemoved(const MemorySlot& slot,
                               const SmallPtrSetImpl<OpOperand*>& blockingUses,
                               SmallVectorImpl<OpOperand*>&, const DataLayout&)
     -> bool {
+  if (getVolatile_()) return false;
   return accessesSlotAddress(blockingUses, getAddrMutable()) &&
          getType() == slot.elemType;
 }
@@ -561,6 +665,7 @@ auto StoreOp::canUsesBeRemoved(const MemorySlot& slot,
                                const SmallPtrSetImpl<OpOperand*>& blockingUses,
                                SmallVectorImpl<OpOperand*>&, const DataLayout&)
     -> bool {
+  if (getVolatile_()) return false;
   return accessesSlotAddress(blockingUses, getAddrMutable()) &&
          getValue() != slot.ptr && getValue().getType() == slot.elemType;
 }
@@ -662,6 +767,9 @@ auto SubscriptOp::verify() -> LogicalResult {
 }
 
 auto MemberOp::verify() -> LogicalResult {
+  auto source = cast<PointerType>(getBase().getType()).getElementType();
+  auto field = getAggregateElementType(source, getMemberIndex());
+  if (!field) return emitOpError("member index is outside its record");
   return verifyPointerMemorySpaces(*this, getBase().getType(), getType());
 }
 
@@ -680,6 +788,16 @@ auto ArrayToPointerOp::verify() -> LogicalResult {
 
 auto BitcastOp::verify() -> LogicalResult {
   return verifyPointerMemorySpaces(*this, getValue().getType(), getType());
+}
+
+auto BitcastOp::fold(FoldAdaptor) -> OpFoldResult {
+  if (!isa<PointerType>(getType()) || !isa<PointerType>(getValue().getType()))
+    return {};
+  if (getValue().getType() == getType()) return getValue();
+  auto previous = getValue().getDefiningOp<BitcastOp>();
+  if (previous && previous.getValue().getType() == getType())
+    return previous.getValue();
+  return {};
 }
 
 void ArrayType::print(AsmPrinter& p) const {
@@ -901,13 +1019,27 @@ auto GlobalOp::parse(OpAsmParser& parser, OperationState& result)
   return parser.parseOptionalAttrDictWithKeyword(result.attributes);
 }
 
+namespace {
+
+[[nodiscard]] auto isElementPositionSet(ArrayRef<unsigned> positions,
+                                        std::size_t elementCount) -> bool {
+  if (positions.empty()) return true;
+  if (positions.back() >= elementCount) return false;
+  return llvm::adjacent_find(positions, std::greater_equal<>()) ==
+         positions.end();
+}
+
+}  // namespace
+
 auto ClassType::getNamed(MLIRContext* context, StringRef name) -> ClassType {
   return Base::get(context, name);
 }
 
-auto ClassType::setBody(llvm::ArrayRef<Type> body, bool packed)
+auto ClassType::setBody(llvm::ArrayRef<Type> body, bool packed,
+                        uint64_t alignment, ArrayRef<unsigned> padding)
     -> LogicalResult {
-  return Base::mutate(body, packed);
+  if (!isElementPositionSet(padding, body.size())) return failure();
+  return Base::mutate(body, packed, alignment, padding);
 }
 
 void ClassType::print(AsmPrinter& p) const {
@@ -927,9 +1059,20 @@ auto ClassType::parse(AsmParser& parser) -> Type {
     return {};
   }
   bool packed = succeeded(parser.parseOptionalKeyword("packed"));
+  uint64_t alignment = 0;
+  if (succeeded(parser.parseOptionalKeyword("align"))) {
+    auto alignmentLocation = parser.getCurrentLocation();
+    if (parser.parseInteger(alignment)) return {};
+    if (!llvm::isPowerOf2_64(alignment)) {
+      parser.emitError(alignmentLocation,
+                       "class alignment must be a power of two");
+      return {};
+    }
+  }
   SmallVector<Type> body;
-  if (parseTypeList(parser, body) || parser.parseGreater()) return {};
-  if (failed(type.setBody(body, packed))) {
+  SmallVector<unsigned> padding;
+  if (parseTypeList(parser, body, &padding) || parser.parseGreater()) return {};
+  if (failed(type.setBody(body, packed, alignment, padding))) {
     parser.emitError(location, "conflicting class body definition");
     return {};
   }
@@ -943,6 +1086,18 @@ auto ClassType::getBody() const -> ArrayRef<Type> {
 }
 
 auto ClassType::isPacked() const -> bool { return getImpl()->isPacked(); }
+
+auto ClassType::getPadding() const -> ArrayRef<unsigned> {
+  return getImpl()->getPadding();
+}
+
+auto ClassType::isPaddingElement(unsigned position) const -> bool {
+  return llvm::binary_search(getPadding(), position);
+}
+
+auto ClassType::getAlignment() const -> uint64_t {
+  return getImpl()->getAlignment();
+}
 
 namespace {
 
@@ -977,21 +1132,32 @@ auto ArrayType::getPreferredAlignment(const DataLayout& layout,
   return layout.getTypePreferredAlignment(getElementType());
 }
 
+auto getClassElementOffsets(ClassType type, const DataLayout& layout)
+    -> SmallVector<std::uint64_t> {
+  SmallVector<std::uint64_t> offsets;
+  uint64_t offset = 0;
+  for (auto field : type.getBody()) {
+    auto alignment = type.isPacked() ? 1 : layout.getTypeABIAlignment(field);
+    offset = llvm::alignTo(offset, alignment);
+    offsets.push_back(offset);
+    offset += objectBytes(field, layout);
+  }
+  return offsets;
+}
+
 auto ClassType::getTypeSizeInBits(const DataLayout& layout,
                                   DataLayoutEntryListRef) const
     -> llvm::TypeSize {
   if (getBody().empty()) return llvm::TypeSize::getFixed(8);
-  uint64_t offset = 0;
-  for (auto field : getBody()) {
-    auto alignment = isPacked() ? 1 : layout.getTypeABIAlignment(field);
-    offset = llvm::alignTo(offset, alignment) + objectBytes(field, layout);
-  }
+  auto offsets = getClassElementOffsets(*this, layout);
+  auto end = offsets.back() + objectBytes(getBody().back(), layout);
   auto alignment = getABIAlignment(layout, {});
-  return llvm::TypeSize::getFixed(llvm::alignTo(offset, alignment) * 8);
+  return llvm::TypeSize::getFixed(llvm::alignTo(end, alignment) * 8);
 }
 
 auto ClassType::getABIAlignment(const DataLayout& layout,
                                 DataLayoutEntryListRef) const -> uint64_t {
+  if (auto alignment = getAlignment()) return alignment;
   if (isPacked()) return 1;
   uint64_t alignment = 1;
   for (auto field : getBody())
@@ -1004,6 +1170,95 @@ auto ClassType::getPreferredAlignment(const DataLayout& layout,
     -> uint64_t {
   return getABIAlignment(layout, {});
 }
+namespace {
+class NumericBitcast final : public OpRewritePattern<BitcastOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+  auto matchAndRewrite(BitcastOp operation, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto source = operation.getValue().getType();
+    auto target = operation.getType();
+    if (!arith::BitcastOp::areCastCompatible(TypeRange{source},
+                                             TypeRange{target}))
+      return failure();
+    rewriter.replaceOpWithNewOp<arith::BitcastOp>(operation, target,
+                                                  operation.getValue());
+    return success();
+  }
+};
+
+class StorageReferenceToPtr final : public OpRewritePattern<StorageRefOp> {
+ public:
+  using OpRewritePattern::OpRewritePattern;
+  auto matchAndRewrite(StorageRefOp operation, PatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto source = cast<PtrLikeTypeInterface>(operation.getStorage().getType());
+    auto space = dyn_cast_or_null<ptr::MemorySpaceAttrInterface>(
+        source.getMemorySpace());
+    if (!space) return failure();
+    auto result = cast<PointerType>(operation.getType());
+    if (result.getMemorySpace() != space) return failure();
+    auto pointer =
+        ptr::ToPtrOp::create(rewriter, operation.getLoc(),
+                             ptr::PtrType::get(space), operation.getStorage());
+    rewriter.replaceOpWithNewOp<ptr::FromPtrOp>(operation, result, pointer,
+                                                Value());
+    return success();
+  }
+};
+}  // namespace
+
+void BitcastOp::getCanonicalizationPatterns(RewritePatternSet& patterns,
+                                            MLIRContext* context) {
+  patterns.add<NumericBitcast>(context);
+}
+
+void StorageRefOp::getCanonicalizationPatterns(RewritePatternSet& patterns,
+                                               MLIRContext* context) {
+  patterns.add<StorageReferenceToPtr>(context);
+}
+
+auto StorageRefOp::verify() -> LogicalResult {
+  auto memory = dyn_cast<MemRefType>(getStorage().getType());
+  if (!memory || memory.getRank() > 1 || !memory.getLayout().isIdentity())
+    return emitOpError("requires a whole scalar or linear storage root");
+  if (!isStorageRoot(getStorage()))
+    return emitOpError(
+        "requires an allocation or a function storage parameter");
+  auto pointer = cast<PointerType>(getType());
+  if (pointer.getElementType() != memory.getElementType())
+    return emitOpError("reference element type differs from its storage");
+  return success();
+}
+
+auto BindReferencesOp::verify() -> LogicalResult {
+  auto pointer = cast<PointerType>(getType());
+  auto record = dyn_cast<ClassType>(pointer.getElementType());
+  if (!record || record.getBody().empty())
+    return emitOpError("requires a reference environment record");
+  ReferenceRecordLayout layout(record);
+  if (layout.referenceFields().empty())
+    return emitOpError("requires a record with reference fields");
+  if (layout.referenceFields().size() != getFields().size())
+    return emitOpError("requires one binding per reference field");
+  for (auto [index, value] : llvm::zip(layout.referenceFields(), getFields())) {
+    if (record.getBody()[index] != value.getType())
+      return emitOpError("reference binding type differs from its field");
+  }
+  auto state = getState();
+  auto stateType = state ? cast<MemRefType>(state.getType()) : MemRefType();
+  if (auto expected = layout.stateType()) {
+    if (!stateType || stateType.getRank() ||
+        stateType.getElementType() != expected)
+      return emitOpError("state storage differs from its record fields");
+    if (!isStorageRoot(state))
+      return emitOpError("requires whole state storage");
+  } else if (state) {
+    return emitOpError("reference-only record has no state storage");
+  }
+  return success();
+}
+
 }  // namespace mlir::cxx
 
 #define GET_ATTRDEF_CLASSES

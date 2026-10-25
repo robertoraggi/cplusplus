@@ -24,13 +24,14 @@
 #include <cxx/preprocessor.h>
 
 #include <format>
-#include <iostream>
 
 namespace cxx {
 
-DumpTokens::DumpTokens(const CLI& cli) : cli(cli) {}
+DumpTokens::DumpTokens(const TranslationUnit& unit) : unit_(unit) {}
 
-void DumpTokens::operator()(TranslationUnit& unit, std::ostream& output) {
+auto DumpTokens::formatTo(std::format_context::iterator output) const
+    -> std::format_context::iterator {
+  const auto& unit = unit_;
   auto preprocessor = unit.preprocessor();
 
   std::string flags;
@@ -61,14 +62,17 @@ void DumpTokens::operator()(TranslationUnit& unit, std::ostream& output) {
                                     preprocessor->targetArch());
     }
 
-    output << std::format("{} '{}'{}", Token::name(kind), tk.spell(), flags);
+    output = std::format_to(output, "{} '{}'{}", Token::name(kind), tk.spell(),
+                            flags);
 
     auto pos = unit.tokenStartPosition(loc);
 
-    output << std::format(" at {}:{}:{}\n", pos.fileName, pos.line, pos.column);
+    output = std::format_to(output, " at {}:{}:{}\n", pos.fileName, pos.line,
+                            pos.column);
 
     if (tk.is(TokenKind::T_EOF_SYMBOL)) break;
   }
+  return output;
 }
 
 }  // namespace cxx

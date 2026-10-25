@@ -24,6 +24,7 @@
 #include <cxx/memory_layout.h>
 #include <cxx/preprocessor.h>
 #include <cxx/private/path.h>
+#include <cxx/spirv_environment.h>
 #include <cxx/spirv_toolchain.h>
 #include <cxx/toolchain.h>
 #include <cxx/toolchain_config.h>
@@ -85,8 +86,16 @@ auto defaultTripleOf(std::string_view toolchainId) -> Triple {
   return Triple{};
 }
 
+[[nodiscard]] auto namesUnknownArch(const Triple& triple) -> bool {
+  if (triple.archName().empty()) return false;
+  return triple.arch() == TripleArch::kUnknown;
+}
+
 auto toolchainForTriple(const Triple& triple) -> std::string {
-  if (triple.isSPIRV()) return "spirv";
+  if (triple.isSPIRV()) {
+    if (!spirvEnvironmentOf(triple)) return {};
+    return "spirv";
+  }
   if (triple.isDarwin()) return "darwin";
 
   switch (triple.os()) {
@@ -251,6 +260,7 @@ auto selectTarget(const CLI& cli) -> TargetSelection {
     target.requested = true;
     target.toolchain = toolchainForTriple(target.triple);
     target.valid = !target.toolchain.empty();
+    if (namesUnknownArch(target.triple)) target.valid = false;
   } else {
     target.toolchain = cli.getSingle("-toolchain").value_or("wasm32");
     if (target.toolchain == "macos") target.toolchain = "darwin";

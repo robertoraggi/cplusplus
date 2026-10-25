@@ -25,10 +25,11 @@
 #include <cxx/toolchain.h>
 
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
 #include <format>
-#include <iostream>
 #include <optional>
+#include <print>
 
 #if !defined(__wasi__) && !defined(__EMSCRIPTEN__) && \
     (defined(__APPLE__) || defined(__linux__))
@@ -43,9 +44,9 @@ namespace {
 
 void printLinkCommand(const CLI& cli, const std::vector<std::string>& args) {
   if (!cli.opt_v) return;
-  std::cerr << "cxx: linking with";
-  for (const auto& arg : args) std::cerr << ' ' << arg;
-  std::cerr << std::endl;
+  std::print(stderr, "{}", "cxx: linking with");
+  for (const auto& arg : args) std::print(stderr, "{}{}", ' ', arg);
+  std::print(stderr, "\n");
 }
 
 void addLinkInputs(const CLI& cli, const std::vector<std::string>& inputs,
@@ -108,34 +109,34 @@ auto runLinkDriver(std::vector<std::string>& args) -> bool {
   const auto error = posix_spawnp(&process, argv.front(), nullptr, nullptr,
                                   argv.data(), environ);
   if (error) {
-    std::cerr << std::format("cxx: cannot execute '{}': {}\n", args.front(),
-                             std::strerror(error));
+    std::print(stderr, "cxx: cannot execute '{}': {}\n", args.front(),
+               std::strerror(error));
     return false;
   }
 
   int status = 0;
   while (waitpid(process, &status, 0) < 0) {
     if (errno == EINTR) continue;
-    std::cerr << std::format("cxx: cannot wait for '{}': {}\n", args.front(),
-                             std::strerror(errno));
+    std::print(stderr, "cxx: cannot wait for '{}': {}\n", args.front(),
+               std::strerror(errno));
     return false;
   }
   if (WIFSIGNALED(status)) {
-    std::cerr << std::format(
-        "cxx: linker driver '{}' terminated by signal {}\n", args.front(),
-        WTERMSIG(status));
+    std::print(stderr, "cxx: linker driver '{}' terminated by signal {}\n",
+               args.front(), WTERMSIG(status));
     return false;
   }
   if (!WIFEXITED(status)) return false;
   const auto exitStatus = WEXITSTATUS(status);
   if (exitStatus) {
-    std::cerr << std::format("cxx: linker driver '{}' exited with status {}\n",
-                             args.front(), exitStatus);
+    std::print(stderr, "cxx: linker driver '{}' exited with status {}\n",
+               args.front(), exitStatus);
   }
   return exitStatus == 0;
 #else
-  std::cerr
-      << "cxx: external linker processes are unavailable on this platform\n";
+  std::print(
+      stderr, "{}",
+      "cxx: external linker processes are unavailable on this platform\n");
   return false;
 #endif
 }
@@ -146,7 +147,8 @@ auto linkExternal(const CLI& cli, Toolchain* toolchain,
   auto driver = cli.getSingle("-fuse-ld");
   if (!driver) driver = defaultLinkDriver(toolchain);
   if (!driver || driver->empty()) {
-    std::cerr << "cxx: no external linker driver for the selected toolchain\n";
+    std::print(stderr, "{}",
+               "cxx: no external linker driver for the selected toolchain\n");
     return false;
   }
   std::vector<std::string> args{*driver};
@@ -169,8 +171,9 @@ auto linkEmbedded(const CLI& cli, Toolchain* toolchain,
                   const std::vector<std::string>& inputs,
                   const std::string& outputPath) -> bool {
   if (toolchain->linkerFlavor() != LinkerFlavor::kWasm) {
-    std::cerr
-        << "cxx: embedded linker does not support the selected toolchain\n";
+    std::print(
+        stderr, "{}",
+        "cxx: embedded linker does not support the selected toolchain\n");
     return false;
   }
   std::vector<std::string> args;
@@ -183,7 +186,7 @@ auto linkEmbedded(const CLI& cli, Toolchain* toolchain,
 
   std::string error;
   if (linker::link(args, error)) return true;
-  std::cerr << std::format("cxx-link: error: {}\n", error);
+  std::print(stderr, "cxx-link: error: {}\n", error);
   return false;
 }
 

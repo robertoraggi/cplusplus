@@ -222,22 +222,6 @@ export function gen_builtins_interp_h({ output }: { output: string }) {
   lines.push(`    }`);
   lines.push(``);
 
-  lines.push(`    case ${enumName("__builtin_strlen")}: {`);
-  lines.push(`      if (auto string = nullTerminatedString(args[0])) {`);
-  lines.push(
-    `        return ConstValue{static_cast<std::intmax_t>(string->size())};`,
-  );
-  lines.push(`      }`);
-  lines.push(`      return std::nullopt;`);
-  lines.push(`    }`);
-  lines.push(``);
-
-  lines.push(``);
-  lines.push(``);
-  lines.push(``);
-  lines.push(``);
-  lines.push(``);
-  lines.push(``);
   lines.push(...strspan("__builtin_strspn", false));
   lines.push(``);
   lines.push(...strspan("__builtin_strcspn", true));

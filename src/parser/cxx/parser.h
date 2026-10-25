@@ -269,17 +269,20 @@ class Parser final {
   [[nodiscard]] auto lookat_nested_name_specifier_start() -> bool;
   [[nodiscard]] auto lookat_placeholder_type_specifier_start() -> bool;
   void parse_optional_nested_name_specifier(NestedNameSpecifierAST*& yyast,
-                                            NestedNameSpecifierContext ctx);
+                                            NestedNameSpecifierContext ctx,
+                                            MemberAccess memberAccess = {});
   [[nodiscard]] auto parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
-                                                 NestedNameSpecifierContext ctx)
+                                                 NestedNameSpecifierContext ctx,
+                                                 MemberAccess memberAccess = {})
       -> bool;
   [[nodiscard]] auto parse_decltype_nested_name_specifier(
       NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) -> bool;
   [[nodiscard]] auto parse_type_nested_name_specifier(
-      NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx) -> bool;
+      NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx,
+      MemberAccess memberAccess) -> bool;
   [[nodiscard]] auto parse_template_nested_name_specifier(
-      NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx, int depth)
-      -> bool;
+      NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx, int depth,
+      MemberAccess memberAccess) -> bool;
   [[nodiscard]] auto parse_lambda_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_lambda_specifier_seq(
       List<LambdaSpecifierAST*>*& yyast, LambdaSymbol* symbol) -> bool;
@@ -1066,6 +1069,7 @@ class Parser final {
   void check(DeclarationAST* ast);
 
   void check_bool_condition(ExpressionAST*& ast);
+  void check_discarded_value(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl,
                              SpecifierAST* typeSpecifier);

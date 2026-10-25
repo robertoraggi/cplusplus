@@ -20,6 +20,7 @@
 
 #include <cxx/ast_rewriter.h>
 #include <cxx/names.h>
+#include <cxx/printing.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/types.h>
@@ -27,33 +28,32 @@
 
 #include <algorithm>
 #include <format>
-#include <iostream>
 #include <ranges>
 #include <unordered_set>
 
 namespace cxx {
 namespace {
 struct GetEnumeratorValue {
-  auto operator()(bool value) const -> std::string {
+  [[nodiscard]] auto operator()(bool value) const -> std::string {
     return value ? "true" : "false";
   }
-  auto operator()(ConstInt value) const -> std::string {
+  [[nodiscard]] auto operator()(ConstInt value) const -> std::string {
     return value.toString();
   }
 
-  auto operator()(auto x) const -> std::string { return {}; }
+  [[nodiscard]] auto operator()(auto x) const -> std::string { return {}; }
 };
 
 [[nodiscard]] auto templateParameterText(Symbol* parameter) -> std::string {
   auto nonTypeParameter = symbol_cast<NonTypeParameterSymbol>(parameter);
-  auto text = nonTypeParameter ? to_string(nonTypeParameter->objectType())
-                               : to_string(parameter->type());
+  auto text = nonTypeParameter ? to_string(nonTypeParameter->objectType(), "")
+                               : to_string(parameter->type(), "");
   if (is_template_parameter_pack(parameter)) text += "...";
   return text;
 }
 
 struct DumpSymbols {
-  std::ostream& out;
+  std::format_context::iterator out;
   int depth = 0;
   TranslationUnit* unit = nullptr;
   std::unordered_set<Symbol*> visited;
@@ -74,17 +74,17 @@ struct DumpSymbols {
 
     std::vector<Symbol*> sortedSymbols(begin(symbols), end(symbols));
 
-    std::ranges::for_each(sortedSymbols, [&](auto symbol) {
-      if (symbol->canonical() != symbol) return;
+    for (auto symbol : sortedSymbols) {
+      if (symbol->canonical() != symbol) continue;
       auto id = name_cast<Identifier>(symbol->name());
       if (id && id->info() &&
           id->info()->kind() == IdentifierInfoKind::kBuiltinFunction) {
-        return;
+        continue;
       }
-      if (id && id->builtinTemplate() != BuiltinTemplateKind::T_NONE) return;
-      if (isPreambleSymbol(symbol)) return;
+      if (id && id->builtinTemplate() != BuiltinTemplateKind::T_NONE) continue;
+      if (isPreambleSymbol(symbol)) continue;
       visit(*this, symbol);
-    });
+    }
 
     --depth;
   }
@@ -94,7 +94,7 @@ struct DumpSymbols {
     if (specializations.empty()) return;
     ++depth;
     indent();
-    out << std::format("[specializations]\n");
+    out = std::format_to(out, "[specializations]\n");
     ++depth;
     for (auto specialization : specializations) {
       if (visited.insert(specialization.symbol).second) {
@@ -110,7 +110,7 @@ struct DumpSymbols {
     if (redecls.empty()) return;
     ++depth;
     indent();
-    out << "[redeclarations]\n";
+    out = std::format_to(out, "{}", "[redeclarations]\n");
     ++depth;
     for (auto redecl : redecls) {
       visit(*this, redecl);
@@ -118,13 +118,14 @@ struct DumpSymbols {
     depth -= 2;
   }
 
-  void indent() { out << std::format("{:{}}", "", depth * 2); }
+  void indent() { out = std::format_to(out, "{:{}}", "", depth * 2); }
 
   void operator()(NamespaceSymbol* symbol) {
     indent();
-    out << "namespace";
-    if (symbol->name()) out << std::format(" {}", to_string(symbol->name()));
-    out << "\n";
+    out = std::format_to(out, "{}", "namespace");
+    if (symbol->name())
+      out = std::format_to(out, " {}", to_string(symbol->name()));
+    out = std::format_to(out, "{}", "\n");
     dumpScope(symbol);
   }
 
@@ -133,28 +134,30 @@ struct DumpSymbols {
     std::string aliasedName{"<unresolved>"};
     if (auto aliased = symbol->namespaceSymbol())
       aliasedName = to_string(aliased->name());
-    out << std::format("namespace {} = {}\n", to_string(symbol->name()),
-                       aliasedName);
+    out = std::format_to(out, "namespace {} = {}\n", to_string(symbol->name()),
+                         aliasedName);
   }
 
   void operator()(BaseClassSymbol* symbol) {
     indent();
     auto baseClass = symbol->symbol();
     if (baseClass && baseClass->type()) {
-      out << std::format("base class {}\n", to_string(baseClass->type()));
+      out = std::format_to(out, "base class {}\n",
+                           to_string(baseClass->type(), ""));
       return;
     }
-    out << std::format("base class {}\n", to_string(symbol->name()));
+    out = std::format_to(out, "base class {}\n", to_string(symbol->name()));
   }
 
   void operator()(InjectedClassNameSymbol* symbol) {
     indent();
-    out << std::format("injected class name {}\n", to_string(symbol->name()));
+    out = std::format_to(out, "injected class name {}\n",
+                         to_string(symbol->name()));
   }
 
   void operator()(UnresolvedSymbol* symbol) {
     indent();
-    out << std::format("unresolved {}\n", to_string(symbol->name()));
+    out = std::format_to(out, "unresolved {}\n", to_string(symbol->name()));
   }
 
   void operator()(ClassSymbol* symbol) {
@@ -162,50 +165,53 @@ struct DumpSymbols {
     std::string_view classKey = symbol->isUnion() ? "union" : "class";
 
     if (symbol->templateParameters()) {
-      out << std::format("template {} {}", classKey, to_string(symbol->name()));
+      out = std::format_to(out, "template {} {}", classKey,
+                           to_string(symbol->name()));
 
       if (symbol->isSpecialization()) {
-        out << '<';
+        out = std::format_to(out, "{}", '<');
         std::string_view sep = "";
         for (const auto& arg :
              expand_template_arguments(symbol->templateArguments())) {
-          out << std::format("{}{}", sep, to_string(arg));
+          out = std::format_to(out, "{}{}", sep, to_string(arg));
           sep = ", ";
         }
-        out << '>';
+        out = std::format_to(out, "{}", '>');
       } else {
-        out << '<';
+        out = std::format_to(out, "{}", '<');
         std::string_view sep = "";
         for (const auto& param : views::members(symbol->templateParameters())) {
-          out << std::format("{}{}", sep, templateParameterText(param));
+          out = std::format_to(out, "{}{}", sep, templateParameterText(param));
           sep = ", ";
         }
-        out << '>';
+        out = std::format_to(out, "{}", '>');
       }
 
-      out << "\n";
+      out = std::format_to(out, "{}", "\n");
 
       dumpScope(symbol->templateParameters());
     } else if (symbol->isSpecialization()) {
-      out << std::format("{} {}", classKey, to_string(symbol->name()));
-      out << "<";
+      out = std::format_to(out, "{} {}", classKey, to_string(symbol->name()));
+      out = std::format_to(out, "{}", "<");
       std::string_view sep = "";
       for (const auto& arg :
            expand_template_arguments(symbol->templateArguments())) {
-        out << std::format("{}{}", sep, to_string(arg));
+        out = std::format_to(out, "{}{}", sep, to_string(arg));
         sep = ", ";
       }
-      out << std::format(">\n");
+      out = std::format_to(out, ">\n");
     } else if (symbol->isClosureType()) {
-      out << std::format("{} {}\n", classKey, to_string(symbol->type()));
+      out = std::format_to(out, "{} {}\n", classKey,
+                           to_string(symbol->type(), ""));
     } else {
-      out << std::format("{} {}", classKey, to_string(symbol->name()));
-      if (symbol->isFriend()) out << " friend";
-      if (symbol->isHidden()) out << " hidden";
-      if (symbol->isFinal()) out << " final";
-      if (symbol->isPolymorphic()) out << " polymorphic";
-      if (symbol->isAbstract()) out << " abstract";
-      out << "\n";
+      out = std::format_to(out, "{} {}", classKey, to_string(symbol->name()));
+      if (symbol->isFriend()) out = std::format_to(out, "{}", " friend");
+      if (symbol->isHidden()) out = std::format_to(out, "{}", " hidden");
+      if (symbol->isFinal()) out = std::format_to(out, "{}", " final");
+      if (symbol->isPolymorphic())
+        out = std::format_to(out, "{}", " polymorphic");
+      if (symbol->isAbstract()) out = std::format_to(out, "{}", " abstract");
+      out = std::format_to(out, "{}", "\n");
     }
     for (auto baseClass : symbol->baseClasses()) {
       ++depth;
@@ -234,7 +240,7 @@ struct DumpSymbols {
 
   void operator()(ConceptSymbol* symbol) {
     indent();
-    out << std::format("concept {}\n", to_string(symbol->name()));
+    out = std::format_to(out, "concept {}\n", to_string(symbol->name()));
     if (symbol->templateParameters()) dumpScope(symbol->templateParameters());
   }
 
@@ -245,40 +251,41 @@ struct DumpSymbols {
       bool first = true;
       for (auto pt : funcType->parameterTypes()) {
         if (!first) params += ", ";
-        params += to_string(pt);
+        params += to_string(pt, "");
         first = false;
       }
-      out << std::format("deduction-guide {}({}) -> {}\n",
-                         to_string(symbol->name()), params,
-                         to_string(funcType->returnType()));
+      out = std::format_to(out, "deduction-guide {}({}) -> {}\n",
+                           to_string(symbol->name()), params,
+                           to_string(funcType->returnType(), ""));
     } else {
-      out << std::format("deduction-guide {}\n", to_string(symbol->name()));
+      out = std::format_to(out, "deduction-guide {}\n",
+                           to_string(symbol->name()));
     }
     if (symbol->templateParameters()) dumpScope(symbol->templateParameters());
   }
 
   void operator()(EnumSymbol* symbol) {
     indent();
-    out << std::format("enum {}", to_string(symbol->name()));
+    out = std::format_to(out, "enum {}", to_string(symbol->name()));
 
     if (auto underlyingType = symbol->underlyingType()) {
-      out << std::format(" : {}", to_string(underlyingType));
+      out = std::format_to(out, " : {}", to_string(underlyingType, ""));
     }
 
-    out << std::format("\n");
+    out = std::format_to(out, "\n");
 
     dumpScope(symbol);
   }
 
   void operator()(ScopedEnumSymbol* symbol) {
     indent();
-    out << std::format("enum class {}", to_string(symbol->name()));
+    out = std::format_to(out, "enum class {}", to_string(symbol->name()));
 
     if (auto underlyingType = symbol->underlyingType()) {
-      out << std::format(" : {}", to_string(underlyingType));
+      out = std::format_to(out, " : {}", to_string(underlyingType, ""));
     }
 
-    out << std::format("\n");
+    out = std::format_to(out, "\n");
 
     dumpScope(symbol);
   }
@@ -298,33 +305,34 @@ struct DumpSymbols {
     indent();
 
     if (symbol->templateParameters()) {
-      out << std::format("template ");
+      out = std::format_to(out, "template ");
     }
 
     if (symbol->isConstructor()) {
-      out << std::format("constructor");
+      out = std::format_to(out, "constructor");
     } else {
-      out << std::format("function");
+      out = std::format_to(out, "function");
     }
 
-    if (symbol->isStatic()) out << " static";
-    if (symbol->isExtern()) out << " extern";
-    if (symbol->isFriend()) out << " friend";
-    if (symbol->isHidden()) out << " hidden";
-    if (symbol->isConstexpr()) out << " constexpr";
-    if (symbol->isConsteval()) out << " consteval";
-    if (symbol->isInline()) out << " inline";
-    if (symbol->isVirtual()) out << " virtual";
-    if (symbol->isPure()) out << " pure";
-    if (symbol->isOverride()) out << " override";
-    if (symbol->isFinal()) out << " final";
-    if (symbol->isExplicit()) out << " explicit";
-    if (symbol->isDeleted()) out << " deleted";
-    if (symbol->isDefaulted()) out << " defaulted";
-    if (symbol->hasCLinkage()) out << " extern \"C\"";
+    if (symbol->isStatic()) out = std::format_to(out, "{}", " static");
+    if (symbol->isExtern()) out = std::format_to(out, "{}", " extern");
+    if (symbol->isFriend()) out = std::format_to(out, "{}", " friend");
+    if (symbol->isHidden()) out = std::format_to(out, "{}", " hidden");
+    if (symbol->isConstexpr()) out = std::format_to(out, "{}", " constexpr");
+    if (symbol->isConsteval()) out = std::format_to(out, "{}", " consteval");
+    if (symbol->isInline()) out = std::format_to(out, "{}", " inline");
+    if (symbol->isVirtual()) out = std::format_to(out, "{}", " virtual");
+    if (symbol->isPure()) out = std::format_to(out, "{}", " pure");
+    if (symbol->isOverride()) out = std::format_to(out, "{}", " override");
+    if (symbol->isFinal()) out = std::format_to(out, "{}", " final");
+    if (symbol->isExplicit()) out = std::format_to(out, "{}", " explicit");
+    if (symbol->isDeleted()) out = std::format_to(out, "{}", " deleted");
+    if (symbol->isDefaulted()) out = std::format_to(out, "{}", " defaulted");
+    if (symbol->hasCLinkage()) out = std::format_to(out, "{}", " extern \"C\"");
     dumpAbiTags(symbol);
 
-    out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
+    out =
+        std::format_to(out, " {}\n", to_string(symbol->type(), symbol->name()));
 
     if (symbol->templateParameters()) {
       dumpScope(symbol->templateParameters());
@@ -338,14 +346,15 @@ struct DumpSymbols {
   void operator()(LambdaSymbol* symbol) {
     indent();
 
-    out << std::format("lambda");
+    out = std::format_to(out, "lambda");
 
-    if (symbol->isConstexpr()) out << " constexpr";
-    if (symbol->isConsteval()) out << " consteval";
-    if (symbol->isMutable()) out << " mutable";
-    if (symbol->isStatic()) out << " static";
+    if (symbol->isConstexpr()) out = std::format_to(out, "{}", " constexpr");
+    if (symbol->isConsteval()) out = std::format_to(out, "{}", " consteval");
+    if (symbol->isMutable()) out = std::format_to(out, "{}", " mutable");
+    if (symbol->isStatic()) out = std::format_to(out, "{}", " static");
 
-    out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
+    out =
+        std::format_to(out, " {}\n", to_string(symbol->type(), symbol->name()));
 
     dumpScope(symbol);
     if (auto closure = symbol->closureType()) {
@@ -357,70 +366,71 @@ struct DumpSymbols {
 
   void operator()(TemplateParametersSymbol* symbol) {
     indent();
-    out << std::format("template parameters\n");
+    out = std::format_to(out, "template parameters\n");
     dumpScope(symbol);
   }
 
   void operator()(FunctionParametersSymbol* symbol) {
     indent();
-    out << std::format("parameters\n");
+    out = std::format_to(out, "parameters\n");
     dumpScope(symbol);
   }
 
   void operator()(BlockSymbol* symbol) {
     indent();
-    out << std::format("block\n");
+    out = std::format_to(out, "block\n");
     dumpScope(symbol);
   }
 
   void operator()(TypeAliasSymbol* symbol) {
     indent();
     if (symbol->templateParameters()) {
-      out << std::format("template typealias {}\n",
-                         to_string(symbol->type(), symbol->name()));
+      out = std::format_to(out, "template typealias {}\n",
+                           to_string(symbol->type(), symbol->name()));
       dumpScope(symbol->templateParameters());
     } else {
-      out << std::format("typealias {}\n",
-                         to_string(symbol->type(), symbol->name()));
+      out = std::format_to(out, "typealias {}\n",
+                           to_string(symbol->type(), symbol->name()));
     }
     dumpRedeclarations(symbol);
   }
 
   void dumpAbiTags(Symbol* symbol) {
     for (auto tag : symbol->abiTags()) {
-      out << std::format(" [abi:{}]", tag->name());
+      out = std::format_to(out, " [abi:{}]", tag->name());
     }
   }
 
   void operator()(VariableSymbol* symbol) {
     indent();
 
-    if (symbol->templateParameters()) out << std::format("template ");
+    if (symbol->templateParameters()) out = std::format_to(out, "template ");
 
-    out << std::format("variable");
+    out = std::format_to(out, "variable");
 
-    if (symbol->isStatic()) out << " static";
-    if (symbol->isThreadLocal()) out << " thread_local";
-    if (symbol->isExtern()) out << " extern";
-    if (symbol->isConstexpr()) out << " constexpr";
-    if (symbol->isConstinit()) out << " constinit";
-    if (symbol->isInline()) out << " inline";
+    if (symbol->isStatic()) out = std::format_to(out, "{}", " static");
+    if (symbol->isThreadLocal())
+      out = std::format_to(out, "{}", " thread_local");
+    if (symbol->isExtern()) out = std::format_to(out, "{}", " extern");
+    if (symbol->isConstexpr()) out = std::format_to(out, "{}", " constexpr");
+    if (symbol->isConstinit()) out = std::format_to(out, "{}", " constinit");
+    if (symbol->isInline()) out = std::format_to(out, "{}", " inline");
     dumpAbiTags(symbol);
 
-    out << std::format(" {}", to_string(symbol->type(), symbol->name()));
+    out = std::format_to(out, " {}", to_string(symbol->type(), symbol->name()));
 
     if (!symbol->templateArguments().empty()) {
-      out << "<";
+      out = std::format_to(out, "{}", "<");
       std::string_view sep = "";
       for (const auto& arg :
            expand_template_arguments(symbol->templateArguments())) {
-        out << std::format("{}{}", sep, to_string(arg));
+        out = std::format_to(out, "{}{}", sep, to_string(arg));
         sep = ", ";
       }
-      out << std::format(">");
+      out = std::format_to(out, ">");
     }
 
-    out << "\n";
+    out = std::format_to(out, "{}", "\n");
 
     if (symbol->templateParameters()) {
       dumpScope(symbol->templateParameters());
@@ -434,65 +444,72 @@ struct DumpSymbols {
     indent();
 
     if (symbol->isBitField())
-      out << std::format("bitfield");
+      out = std::format_to(out, "bitfield");
     else
-      out << std::format("field");
+      out = std::format_to(out, "field");
 
-    if (symbol->isStatic()) out << " static";
-    if (symbol->isThreadLocal()) out << " thread_local";
-    if (symbol->isConstexpr()) out << " constexpr";
-    if (symbol->isConstinit()) out << " constinit";
-    if (symbol->isInline()) out << " inline";
+    if (symbol->isStatic()) out = std::format_to(out, "{}", " static");
+    if (symbol->isThreadLocal())
+      out = std::format_to(out, "{}", " thread_local");
+    if (symbol->isConstexpr()) out = std::format_to(out, "{}", " constexpr");
+    if (symbol->isConstinit()) out = std::format_to(out, "{}", " constinit");
+    if (symbol->isInline()) out = std::format_to(out, "{}", " inline");
 
-    out << std::format(" {}\n", to_string(symbol->type(), symbol->name()));
+    out =
+        std::format_to(out, " {}\n", to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(ParameterSymbol* symbol) {
     indent();
     if (symbol->isParameterPack()) {
-      out << std::format("parameter {}... {}\n", to_string(symbol->type()),
-                         to_string(symbol->name()));
+      out = std::format_to(out, "parameter {}... {}\n",
+                           to_string(symbol->type(), ""),
+                           to_string(symbol->name()));
       return;
     }
-    out << std::format("parameter {}\n",
-                       to_string(symbol->type(), symbol->name()));
+    out = std::format_to(out, "parameter {}\n",
+                         to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(ParameterPackSymbol* symbol) {
     indent();
-    out << std::format("parameter pack {}\n",
-                       to_string(symbol->type(), symbol->name()));
+    out = std::format_to(out, "parameter pack {}\n",
+                         to_string(symbol->type(), symbol->name()));
   }
 
   void operator()(TypeParameterSymbol* symbol) {
     auto type = type_cast<TypeParameterType>(symbol->type());
     std::string_view pack = type->isParameterPack() ? "..." : "";
     indent();
-    out << std::format("parameter typename<{}, {}>{} {}\n", type->index(),
+    out =
+        std::format_to(out, "parameter typename<{}, {}>{} {}\n", type->index(),
                        type->depth(), pack, to_string(symbol->name()));
   }
 
   void operator()(NonTypeParameterSymbol* symbol) {
     std::string_view pack = symbol->isParameterPack() ? "..." : "";
     indent();
-    out << std::format("parameter constant<{}, {}, {}>{} {}\n", symbol->index(),
-                       symbol->depth(), to_string(symbol->objectType()), pack,
-                       to_string(symbol->name()));
+    out = std::format_to(out, "parameter constant<{}, {}, {}>{} {}\n",
+                         symbol->index(), symbol->depth(),
+                         to_string(symbol->objectType(), ""), pack,
+                         to_string(symbol->name()));
   }
 
   void operator()(TemplateTypeParameterSymbol* symbol) {
     auto type = type_cast<TemplateTypeParameterType>(symbol->type());
     std::string_view pack = type->isParameterPack() ? "..." : "";
     indent();
-    out << std::format("parameter template<{}, {}>{} {}\n", type->index(),
+    out =
+        std::format_to(out, "parameter template<{}, {}>{} {}\n", type->index(),
                        type->depth(), pack, to_string(symbol->name()));
   }
 
   void operator()(ConstraintTypeParameterSymbol* symbol) {
     std::string_view pack = symbol->isParameterPack() ? "..." : "";
     indent();
-    out << std::format("parameter constraint<{}, {}>{} {}\n", symbol->index(),
-                       symbol->depth(), pack, to_string(symbol->name()));
+    out = std::format_to(out, "parameter constraint<{}, {}>{} {}\n",
+                         symbol->index(), symbol->depth(), pack,
+                         to_string(symbol->name()));
   }
 
   void operator()(EnumeratorSymbol* symbol) {
@@ -504,14 +521,14 @@ struct DumpSymbols {
 
     const auto value = symbol->value().transform(get_value);
 
-    out << std::format("enumerator {}",
-                       to_string(symbol->type(), symbol->name()));
+    out = std::format_to(out, "enumerator {}",
+                         to_string(symbol->type(), symbol->name()));
 
     if (value.has_value() && !value->empty()) {
-      out << std::format(" = {}", *value);
+      out = std::format_to(out, " = {}", *value);
     }
 
-    out << "\n";
+    out = std::format_to(out, "{}", "\n");
   }
 
   void operator()(UsingDeclarationSymbol* symbol) {
@@ -519,34 +536,31 @@ struct DumpSymbols {
 
     if (!target) {
       indent();
-      out << std::format("using unresolved {}\n", to_string(symbol->name()));
+      out = std::format_to(out, "using unresolved {}\n",
+                           to_string(symbol->name()));
       return;
     }
 
     for (auto introduced : symbol->introducedFunctions()) {
       indent();
-      out << std::format("using {}\n",
-                         to_string(introduced->type(), introduced->name()));
+      out = std::format_to(out, "using {}\n",
+                           to_string(introduced->type(), introduced->name()));
     }
 
     if (!symbol->introducedFunctions().empty()) return;
 
     indent();
-    out << std::format("using {}\n", to_string(target->type(), target->name()));
+    out = std::format_to(out, "using {}\n",
+                         to_string(target->type(), target->name()));
   }
 };
 }  // namespace
 
-void dump(std::ostream& out, Symbol* symbol, int depth) {
-  visit(DumpSymbols{out, depth}, symbol);
-}
-
-void dump(std::ostream& out, Symbol* symbol, TranslationUnit* unit, int depth) {
-  visit(DumpSymbols{out, depth, unit}, symbol);
-}
-
-auto operator<<(std::ostream& out, Symbol* symbol) -> std::ostream& {
-  dump(out, symbol);
-  return out;
+auto SymbolDump::formatTo(std::format_context::iterator out) const
+    -> std::format_context::iterator {
+  if (!symbol) return out;
+  DumpSymbols printer{out, depth, unit};
+  visit(printer, symbol);
+  return printer.out;
 }
 }  // namespace cxx

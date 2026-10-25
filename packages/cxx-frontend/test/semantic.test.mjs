@@ -1,12 +1,37 @@
+import loadCxx from "cxx-frontend/node";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx, Parser } from "cxx-frontend";
+import { Parser } from "cxx-frontend";
 import * as S from "cxx-frontend/model";
 import { traverse } from "cxx-frontend/traverse";
 
-await loadCxx({
-  wasm: await readFile(new URL("../dist/wasm/cxx-js.wasm", import.meta.url)),
+await loadCxx();
+
+test("qualified types preserve explicit address space zero", async () => {
+  await using parser = await Parser.parse({
+    path: "/address-spaces.cc",
+    source: `
+      using Plain = int;
+      using Zero = int __attribute__((address_space(0)));
+      using One = const int __attribute__((address_space(1)));
+    `,
+  });
+  assert.deepEqual(parser.diagnostics, []);
+  const members = new Map(
+    [...parser.ast.symbol.members].map((s) => [s.text, s]),
+  );
+  const plain = members.get("Plain").type;
+  const zero = members.get("Zero").type;
+  const one = members.get("One").type;
+  assert.ok(plain instanceof S.IntType);
+  assert.ok(zero instanceof S.QualType);
+  assert.equal(zero.addressSpace, 0);
+  assert.equal(zero.isConst, false);
+  assert.equal(one.addressSpace, 1);
+  assert.equal(one.isConst, true);
+  assert.equal(zero.elementType.handle, plain.handle);
+  assert.equal(one.elementType.handle, plain.handle);
+  assert.notEqual(zero.handle, one.handle);
 });
 
 test("read-only model exposes symbol identity, types and integer constants", async () => {
@@ -73,6 +98,76 @@ test("the AST is traversed by kind, by children and by visitor", async () => {
     [],
   );
   assert.deepEqual(names, ["x"]);
+});
+
+test("elaborated specifiers distinguish declarations from type references", async () => {
+  await using parser = await Parser.parse({
+    path: "/class-ownership.cc",
+    source: `
+      struct Existing;
+      struct Existing* pointer;
+      template<class T> struct Owner {
+        struct Member;
+        friend struct Existing;
+        template<class> friend struct Owner;
+        template<class> friend struct Introduced;
+      };
+      template<class> struct Traits;
+      namespace library {
+        template<class> struct Traits;
+        namespace detail {
+          template<class T> struct Base { friend struct Traits<T>; };
+          struct Traits<int>* reference;
+        }
+      }
+      struct library::Traits<int>* qualified;
+    `,
+  });
+  assert.deepEqual(parser.diagnostics, []);
+
+  const specifiers = traverse(
+    parser.ast,
+    {
+      ElaboratedTypeSpecifier(path, found) {
+        found.push(path.node);
+      },
+    },
+    [],
+  );
+  const existing = specifiers.filter(
+    (node) => node.unqualifiedId.identifier.name === "Existing",
+  );
+  assert.deepEqual(
+    existing.map((node) => Boolean(node.declaredSymbol)),
+    [true, false, false],
+  );
+  assert.ok(existing[0].declaredSymbol instanceof S.ClassSymbol);
+  assert.equal(existing[0].declaredSymbol.handle, existing[0].symbol.handle);
+  const member = specifiers.find(
+    (node) => node.unqualifiedId.identifier.name === "Member",
+  );
+  assert.equal(member.declaredSymbol.parent.text, "Owner");
+  const friend = specifiers.find(
+    (node) => node.unqualifiedId.identifier.name === "Owner",
+  );
+  assert.equal(friend.declaredSymbol, undefined);
+  assert.ok(friend.symbol.parent instanceof S.NamespaceSymbol);
+  const introduced = specifiers.find(
+    (node) => node.unqualifiedId.identifier.name === "Introduced",
+  );
+  assert.ok(introduced.declaredSymbol instanceof S.ClassSymbol);
+  assert.ok(introduced.declaredSymbol.parent instanceof S.NamespaceSymbol);
+  assert.equal(introduced.declaredSymbol.handle, introduced.symbol.handle);
+  const templateReferences = specifiers.filter(
+    (node) =>
+      node.unqualifiedId instanceof S.SimpleTemplateIdAST &&
+      node.unqualifiedId.identifier.name === "Traits",
+  );
+  assert.equal(templateReferences.length, 3);
+  for (const reference of templateReferences) {
+    assert.equal(reference.declaredSymbol, undefined);
+    assert.equal(reference.symbol.parent.text, "library");
+  }
 });
 
 test("declarations link back to the symbols the binder created", async () => {
@@ -645,4 +740,118 @@ test("constexpr folding and reference conversions preserve written initializers"
   assert.equal(converted.castKind, "DerivedToBaseConversion");
   assert.equal(converted.type.symbol.text, "A");
   assert.equal(converted.expression.handle, written.handle);
+});
+
+test("half types and exact binary16 constants retain their identity", async () => {
+  const parser = await Parser.parse({
+    path: "/half.cc",
+    source: `
+      __fp16 half_value;
+      _Float16 float16_value;
+      constexpr __fp16 payload = __builtin_bit_cast(__fp16, (unsigned short)0x7e55);
+    `,
+  });
+  try {
+    assert.deepEqual(parser.diagnostics, []);
+    const members = [...parser.ast.symbol.members];
+    const half = members.find((symbol) => symbol.text === "half_value");
+    const float16 = members.find((symbol) => symbol.text === "float16_value");
+    const payload = members.find((symbol) => symbol.text === "payload");
+    assert.ok(half.type instanceof S.HalfType);
+    assert.ok(float16.type instanceof S.Float16Type);
+    assert.equal(half.type.kind, "Half");
+    assert.notEqual(half.type.handle, float16.type.handle);
+    assert.deepEqual(payload.constValue, { bits: 0x7e55 });
+  } finally {
+    parser.dispose();
+  }
+});
+
+test("construction addresses retain subobjects and lifetime extension", async () => {
+  await using parser = await Parser.parse({
+    path: "/construction-addresses.cc",
+    source: `
+      struct Self {
+        const Self* pointer;
+        constexpr Self() : pointer(this) {}
+      };
+      struct Wrapper { int prefix; Self values[2][2]; };
+      constexpr Wrapper object{};
+      constexpr const Self& alias = Self{};
+    `,
+  });
+  assert.deepEqual(parser.diagnostics, []);
+  const symbols = new Map(
+    [...parser.ast.symbol.members].map((s) => [s.text, s]),
+  );
+  const object = symbols.get("object");
+  assert.ok(object.constValue instanceof S.ConstObject);
+  const values = [...object.constValue.members].find(
+    (m) => m.symbol.text === "values",
+  );
+  assert.ok(values.value instanceof S.InitializerList);
+  const row = [...values.value.initializedElements][1][0];
+  const element = [...row.initializedElements][1][0];
+  const address = [...element.members].find(
+    (m) => m.symbol.text === "pointer",
+  ).value;
+  assert.ok(address instanceof S.ConstAddress);
+  assert.equal(address.root.handle, object.handle);
+  const path = [...address.subobjectPath];
+  assert.equal(path.length, 2);
+  assert.equal(path[0].handle, values.symbol.handle);
+  assert.equal(path[1], 1);
+  assert.equal(address.offset, 1n);
+
+  const alias = symbols.get("alias");
+  assert.ok(alias.constValue instanceof S.ConstAddress);
+  const temporary = alias.constValue.root;
+  assert.ok(temporary instanceof S.VariableSymbol);
+  assert.equal(temporary.lifetimeExtendingDeclaration.handle, alias.handle);
+});
+
+test("qualified members retain the selected object view and original expression", async () => {
+  await using parser = await Parser.parse({
+    path: "/qualified-member.cc",
+    source: `
+      struct Base { int value; };
+      struct Left : Base {};
+      struct Right : Base {};
+      struct Derived : Left, Right {};
+      int read(const Derived& object) { return object.Right::value; }
+      int readAddressSpace(
+          const Derived __attribute__((address_space(1)))& object) {
+        return object.Right::value;
+      }
+    `,
+  });
+  assert.deepEqual(parser.diagnostics, []);
+  const accesses = traverse(
+    parser.ast,
+    {
+      MemberExpression(path, found) {
+        found.push(path.node);
+      },
+    },
+    [],
+  );
+  assert.equal(accesses.length, 2);
+  const member = accesses[0];
+  assert.equal(member.symbol.text, "value");
+  assert.equal(member.nestedNameSpecifier.symbol.text, "Right");
+  const converted = member.baseExpression;
+  assert.ok(converted instanceof S.ImplicitCastExpressionAST);
+  assert.equal(converted.castKind, "DerivedToBaseConversion");
+  assert.equal(converted.valueCategory, "LValue");
+  assert.ok(converted.type instanceof S.QualType);
+  assert.equal(converted.type.isConst, true);
+  assert.equal(converted.type.elementType.symbol.text, "Right");
+  assert.ok(converted.expression instanceof S.IdExpressionAST);
+  assert.equal(converted.expression.symbol.text, "object");
+  assert.equal(converted.expression.type.elementType.symbol.text, "Derived");
+  const qualified = accesses[1].baseExpression;
+  assert.equal(qualified.type.isConst, true);
+  assert.equal(qualified.type.addressSpace, 1);
+  assert.equal(qualified.type.elementType.symbol.text, "Right");
+  assert.equal(qualified.expression.type.addressSpace, 1);
 });

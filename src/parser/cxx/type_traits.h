@@ -75,6 +75,7 @@ class TypeTraits {
   [[nodiscard]] auto overload_set_operand(const Type* type) const
       -> OverloadSetOperand;
   [[nodiscard]] auto is_vector(const Type* type) const -> bool;
+  [[nodiscard]] auto is_device_value_type(const Type* type) const -> bool;
 
   /**
    * A type whose special member functions are all trivial and which has no
@@ -263,6 +264,9 @@ class TypeTraits {
   [[nodiscard]] auto promoted_integer_type(const Type* type) const
       -> const Type*;
 
+  [[nodiscard]] auto promoted_arithmetic_type(const Type* type) const
+      -> const Type*;
+
   [[nodiscard]] auto promoted_enumeration_types(const EnumType* enumType) const
       -> std::pair<const Type*, const Type*>;
 
@@ -365,6 +369,8 @@ class TypeTraits {
   auto is_destructible(const Type* type) -> bool;
   auto is_nothrow_destructible(const Type* type) -> bool;
   [[nodiscard]] auto has_trivial_default_constructor(const Type* type) -> bool;
+  [[nodiscard]] auto is_address_space_generic_member(FunctionSymbol* function)
+      -> bool;
   auto has_trivial_destructor(const Type* type) -> bool;
   auto is_trivially_destructible(const Type* type) -> bool;
   auto has_virtual_destructor(const Type* type) -> bool;

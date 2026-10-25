@@ -365,9 +365,7 @@ void Toolchain::addCommonMacros() {
   defineMacro("__SIG_ATOMIC_WIDTH__", "32");
   defineMacro("__SIZEOF_DOUBLE__", "8");
   defineMacro("__SIZEOF_FLOAT__", "4");
-  if constexpr (ConstInt::supportsInt128) {
-    defineMacro("__SIZEOF_INT128__", "16");
-  }
+  if (memoryLayout()->hasInt128Type()) defineMacro("__SIZEOF_INT128__", "16");
   defineMacro("__SIZEOF_INT__", "4");
   defineMacro("__SIZEOF_LONG_LONG__", "8");
   defineMacro("__SIZEOF_SHORT__", "2");
@@ -1198,41 +1196,38 @@ void Toolchain::addCommonWASIMacros() {
   defineMacro("__wasm_sign_ext__", "1");
 }
 
-void Toolchain::addLinuxAArch64Macros() {
+void Toolchain::addAArch64Macros() {
+  // Hardware and ABI facts do not imply support for ACLE types or intrinsics.
   defineMacro("__AARCH64EL__", "1");
   defineMacro("__AARCH64_CMODEL_SMALL__", "1");
   defineMacro("__ARM_64BIT_STATE", "1");
-  defineMacro("__ARM_ACLE", "202420");
-  defineMacro("__ARM_ACLE_VERSION(year,quarter,patch)",
-              "(100 * (year) + 10 * (quarter) + (patch))");
   defineMacro("__ARM_ALIGN_MAX_STACK_PWR", "4");
   defineMacro("__ARM_ARCH", "8");
   defineMacro("__ARM_ARCH_ISA_A64", "1");
   defineMacro("__ARM_ARCH_PROFILE", "'A'");
   defineMacro("__ARM_FEATURE_CLZ", "1");
-  defineMacro("__ARM_FEATURE_DIRECTED_ROUNDING", "1");
   defineMacro("__ARM_FEATURE_DIV", "1");
   defineMacro("__ARM_FEATURE_FMA", "1");
   defineMacro("__ARM_FEATURE_IDIV", "1");
   defineMacro("__ARM_FEATURE_LDREX", "0xF");
-  defineMacro("__ARM_FEATURE_NUMERIC_MAXMIN", "1");
   defineMacro("__ARM_FEATURE_UNALIGNED", "1");
   defineMacro("__ARM_FP", "0xE");
   defineMacro("__ARM_FP16_ARGS", "1");
   defineMacro("__ARM_FP16_FORMAT_IEEE", "1");
-  defineMacro("__ARM_NEON", "1");
-  defineMacro("__ARM_NEON_FP", "0xE");
-  defineMacro("__ARM_NEON_SVE_BRIDGE", "1");
   defineMacro("__ARM_PCS_AAPCS64", "1");
   defineMacro("__ARM_SIZEOF_MINIMAL_ENUM", "4");
-  defineMacro("__ARM_SIZEOF_WCHAR_T", "4");
-  defineMacro("__ARM_STATE_ZA", "1");
-  defineMacro("__ARM_STATE_ZT0", "1");
+  defineMacro("__ARM_SIZEOF_WCHAR_T",
+              std::format("{}", memoryLayout()->sizeOfWideChar()));
   defineMacro("__BITINT_MAXWIDTH__", "128");
-  defineMacro("__CHAR_UNSIGNED__", "1");
   defineMacro("__FP_FAST_FMA", "1");
   defineMacro("__FP_FAST_FMAF", "1");
-  defineMacro("__FUNCTION_MULTI_VERSIONING_SUPPORT_LEVEL", "202430");
+  defineMacro("__aarch64__", "1");
+}
+
+void Toolchain::addLinuxAArch64Macros() {
+  addAArch64Macros();
+
+  defineMacro("__CHAR_UNSIGNED__", "1");
   defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16", "1");
   defineMacro("__LDBL_DECIMAL_DIG__", "36");
   defineMacro("__LDBL_DENORM_MIN__",
@@ -1247,7 +1242,6 @@ void Toolchain::addLinuxAArch64Macros() {
   defineMacro("__WCHAR_MAX__", "4294967295U");
   defineMacro("__WCHAR_TYPE__", "unsigned int");
   defineMacro("__WCHAR_UNSIGNED__", "1");
-  defineMacro("__aarch64__", "1");
 }
 
 void Toolchain::addLinuxX86_64Macros() {
@@ -1287,60 +1281,13 @@ void Toolchain::addLinuxX86_64Macros() {
 }
 
 void Toolchain::addMacOSAArch64Macros() {
-  defineMacro("__AARCH64EL__", "1");
-  defineMacro("__AARCH64_CMODEL_SMALL__", "1");
-  defineMacro("__AARCH64_SIMD__", "1");
+  addAArch64Macros();
+
   defineMacro("__ARM64_ARCH_8__", "1");
-  defineMacro("__ARM_64BIT_STATE", "1");
-  defineMacro("__ARM_ACLE", "202420");
-  defineMacro("__ARM_ACLE_VERSION(year,quarter,patch)",
-              "(100 * (year) + 10 * (quarter) + (patch))");
-  defineMacro("__ARM_ALIGN_MAX_STACK_PWR", "4");
-  defineMacro("__ARM_ARCH", "8");
-  defineMacro("__ARM_ARCH_ISA_A64", "1");
-  defineMacro("__ARM_ARCH_PROFILE", "'A'");
-  defineMacro("__ARM_FEATURE_AES", "1");
   defineMacro("__ARM_FEATURE_ATOMICS", "1");
-  defineMacro("__ARM_FEATURE_CLZ", "1");
-  defineMacro("__ARM_FEATURE_COMPLEX", "1");
-  defineMacro("__ARM_FEATURE_CRC32", "1");
-  defineMacro("__ARM_FEATURE_CRYPTO", "1");
-  defineMacro("__ARM_FEATURE_DIRECTED_ROUNDING", "1");
-  defineMacro("__ARM_FEATURE_DIV", "1");
-  defineMacro("__ARM_FEATURE_DOTPROD", "1");
-  defineMacro("__ARM_FEATURE_FMA", "1");
-  defineMacro("__ARM_FEATURE_FP16_FML", "1");
-  defineMacro("__ARM_FEATURE_FP16_SCALAR_ARITHMETIC", "1");
-  defineMacro("__ARM_FEATURE_FP16_VECTOR_ARITHMETIC", "1");
-  defineMacro("__ARM_FEATURE_IDIV", "1");
-  defineMacro("__ARM_FEATURE_JCVT", "1");
-  defineMacro("__ARM_FEATURE_LDREX", "0xF");
-  defineMacro("__ARM_FEATURE_NUMERIC_MAXMIN", "1");
   defineMacro("__ARM_FEATURE_PAUTH", "1");
-  defineMacro("__ARM_FEATURE_QRDMX", "1");
   defineMacro("__ARM_FEATURE_RCPC", "1");
-  defineMacro("__ARM_FEATURE_SHA2", "1");
-  defineMacro("__ARM_FEATURE_SHA3", "1");
-  defineMacro("__ARM_FEATURE_SHA512", "1");
-  defineMacro("__ARM_FEATURE_UNALIGNED", "1");
-  defineMacro("__ARM_FP", "0xE");
-  defineMacro("__ARM_FP16_ARGS", "1");
-  defineMacro("__ARM_FP16_FORMAT_IEEE", "1");
-  defineMacro("__ARM_NEON", "1");
-  defineMacro("__ARM_NEON_FP", "0xE");
-  defineMacro("__ARM_NEON_SVE_BRIDGE", "1");
-  defineMacro("__ARM_NEON__", "1");
-  defineMacro("__ARM_PCS_AAPCS64", "1");
-  defineMacro("__ARM_SIZEOF_MINIMAL_ENUM", "4");
-  defineMacro("__ARM_SIZEOF_WCHAR_T", "4");
-  defineMacro("__ARM_STATE_ZA", "1");
-  defineMacro("__ARM_STATE_ZT0", "1");
   defineMacro("__BIGGEST_ALIGNMENT__", "8");
-  defineMacro("__BITINT_MAXWIDTH__", "128");
-  defineMacro("__FP_FAST_FMA", "1");
-  defineMacro("__FP_FAST_FMAF", "1");
-  defineMacro("__FUNCTION_MULTI_VERSIONING_SUPPORT_LEVEL", "202430");
-  defineMacro("__HAVE_FUNCTION_MULTI_VERSIONING", "1");
   defineMacro("__LDBL_DECIMAL_DIG__", "17");
   defineMacro("__LDBL_DENORM_MIN__", "4.9406564584124654e-324L");
   defineMacro("__LDBL_DIG__", "15");
@@ -1355,7 +1302,6 @@ void Toolchain::addMacOSAArch64Macros() {
   defineMacro("__LDBL_NORM_MAX__", "1.7976931348623157e+308L");
   defineMacro("__OBJC_BOOL_IS_BOOL", "1");
   defineMacro("__SIZEOF_LONG_DOUBLE__", "8");
-  defineMacro("__aarch64__", "1");
   defineMacro("__arm64", "1");
   defineMacro("__arm64__", "1");
 }
@@ -1403,43 +1349,11 @@ void Toolchain::addMacOSX86_64Macros() {
 }
 
 void Toolchain::addWindowsAArch64Macros() {
+  addAArch64Macros();
+
   defineMacro("_ISO_VOLATILE", "1");
   defineMacro("_M_ARM64", "1");
-  defineMacro("__AARCH64EL__", "1");
-  defineMacro("__AARCH64_CMODEL_SMALL__", "1");
-  defineMacro("__ARM_64BIT_STATE", "1");
-  defineMacro("__ARM_ACLE", "202420");
-  defineMacro("__ARM_ACLE_VERSION(year,quarter,patch)",
-              "(100 * (year) + 10 * (quarter) + (patch))");
-  defineMacro("__ARM_ALIGN_MAX_STACK_PWR", "4");
-  defineMacro("__ARM_ARCH", "8");
-  defineMacro("__ARM_ARCH_ISA_A64", "1");
-  defineMacro("__ARM_ARCH_PROFILE", "'A'");
-  defineMacro("__ARM_FEATURE_CLZ", "1");
-  defineMacro("__ARM_FEATURE_DIRECTED_ROUNDING", "1");
-  defineMacro("__ARM_FEATURE_DIV", "1");
-  defineMacro("__ARM_FEATURE_FMA", "1");
-  defineMacro("__ARM_FEATURE_IDIV", "1");
-  defineMacro("__ARM_FEATURE_LDREX", "0xF");
-  defineMacro("__ARM_FEATURE_NUMERIC_MAXMIN", "1");
-  defineMacro("__ARM_FEATURE_UNALIGNED", "1");
-  defineMacro("__ARM_FP", "0xE");
-  defineMacro("__ARM_FP16_ARGS", "1");
-  defineMacro("__ARM_FP16_FORMAT_IEEE", "1");
-  defineMacro("__ARM_NEON", "1");
-  defineMacro("__ARM_NEON_FP", "0xE");
-  defineMacro("__ARM_NEON_SVE_BRIDGE", "1");
-  defineMacro("__ARM_PCS_AAPCS64", "1");
-  defineMacro("__ARM_SIZEOF_MINIMAL_ENUM", "4");
-  defineMacro("__ARM_SIZEOF_WCHAR_T", "4");
-  defineMacro("__ARM_STATE_ZA", "1");
-  defineMacro("__ARM_STATE_ZT0", "1");
-  defineMacro("__BITINT_MAXWIDTH__", "128");
-  defineMacro("__FP_FAST_FMA", "1");
-  defineMacro("__FP_FAST_FMAF", "1");
-  defineMacro("__FUNCTION_MULTI_VERSIONING_SUPPORT_LEVEL", "202430");
   defineMacro("__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16", "1");
-  defineMacro("__aarch64__", "1");
 }
 
 void Toolchain::addWindowsX86_64Macros() {
@@ -1536,11 +1450,9 @@ void Toolchain::addWASIC23Macros() {
 void Toolchain::addLinuxCxx26Macros() {
   defineMacro("_GNU_SOURCE", "1");
   if (exceptionsEnabled()) defineMacro("__EXCEPTIONS", "1");
-  if constexpr (ConstInt::supportsInt128) {
-    if (!definesStrictAnsi()) {
-      defineMacro("__GLIBCXX_BITSIZE_INT_N_0", "128");
-      defineMacro("__GLIBCXX_TYPE_INT_N_0", "__int128");
-    }
+  if (memoryLayout()->hasInt128Type() && !definesStrictAnsi()) {
+    defineMacro("__GLIBCXX_BITSIZE_INT_N_0", "128");
+    defineMacro("__GLIBCXX_TYPE_INT_N_0", "__int128");
   }
   defineMacro("__GNUC_GNU_INLINE__", "1");
   defineMacro("__GNUG__", "4");

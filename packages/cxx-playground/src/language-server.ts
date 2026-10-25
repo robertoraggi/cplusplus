@@ -23,7 +23,7 @@ export const outputFormatsByDevice: Record<Device, TextOutputCodeFormat[]> = {
 
 const deviceSettings: Record<Device, Record<string, string>> = {
   cpu: {},
-  gpu: { target: "spirv32-unknown-unknown" },
+  gpu: { target: "spirv32-unknown-webgpu" },
 }
 
 export interface EmittedKernel {

@@ -172,6 +172,7 @@ struct IsIntegral {
 };
 
 struct IsFloatingPoint {
+  auto operator()(const HalfType*) const -> bool { return true; }
   auto operator()(const Float16Type*) const -> bool { return true; }
   auto operator()(const Float128Type*) const -> bool { return true; }
   auto operator()(const FloatType*) const -> bool { return true; }
@@ -206,6 +207,7 @@ struct IsSigned {
   auto operator()(const FloatType*) const -> bool { return true; }
   auto operator()(const DoubleType*) const -> bool { return true; }
   auto operator()(const LongDoubleType*) const -> bool { return true; }
+  auto operator()(const HalfType*) const -> bool { return true; }
   auto operator()(const Float16Type*) const -> bool { return true; }
   auto operator()(const Float128Type*) const -> bool { return true; }
   auto operator()(const BitIntType*) const -> bool { return true; }
@@ -814,6 +816,10 @@ struct IsSameVisitor {
     return true;
   }
 
+  auto operator()(const HalfType*, const HalfType*) const -> bool {
+    return true;
+  }
+
   auto operator()(const Float16Type*, const Float16Type*) const -> bool {
     return true;
   }
@@ -1190,6 +1196,23 @@ auto is_trivially_destructible_class(TypeTraits& traits, ClassSymbol* cls)
   return true;
 }
 
+template <typename Predicate>
+[[nodiscard]] auto allSubobjectClasses(TypeTraits& traits, ClassSymbol* cls,
+                                       Predicate predicate) -> bool {
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    if (!predicate(baseClass->resolvedDefinition())) return false;
+  }
+  for (auto field : cls->members() | views::non_static_fields) {
+    auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
+    auto classType = type_cast<ClassType>(fieldType);
+    if (!classType) continue;
+    if (!predicate(classType->definition())) return false;
+  }
+  return true;
+}
+
 enum class TrivialConstructorKind { kDefault, kCopy, kMove };
 
 auto constructorKind(ClassSymbol* cls, FunctionSymbol* constructor)
@@ -1203,21 +1226,24 @@ auto constructorKind(ClassSymbol* cls, FunctionSymbol* constructor)
   return std::nullopt;
 }
 
-auto constructorFor(TranslationUnit* unit, ClassSymbol* cls,
-                    TrivialConstructorKind kind) -> FunctionSymbol* {
+auto declaredMember(ClassSymbol* cls, TrivialConstructorKind kind)
+    -> FunctionSymbol* {
   if (kind == TrivialConstructorKind::kDefault)
     return cls->defaultConstructor();
   if (kind == TrivialConstructorKind::kCopy) return cls->copyConstructor();
-  auto move = cls->moveConstructor();
-  if (move && !isExcludedDefaultedMoveMember(unit, move)) return move;
+  if (auto move = cls->moveConstructor()) return move;
   return cls->copyConstructor();
 }
+
+template <typename Kind>
+[[nodiscard]] auto memberFor(TranslationUnit* unit, ClassSymbol* cls, Kind kind)
+    -> FunctionSymbol*;
 
 auto has_trivial_constructor(TypeTraits& traits, ClassSymbol* cls,
                              TrivialConstructorKind kind,
                              bool allowDeleted = false) -> bool {
   if (!cls || !cls->isComplete()) return false;
-  auto constructor = constructorFor(traits.unit(), cls, kind);
+  auto constructor = memberFor(traits.unit(), cls, kind);
   if (!constructor ||
       (!allowDeleted && isDeletedFunction(traits.unit(), constructor)))
     return false;
@@ -1229,64 +1255,61 @@ auto has_trivial_constructor(TypeTraits& traits, ClassSymbol* cls,
                           &FieldSymbol::hasInitializer))
     return false;
   if (cls->isUnion()) return true;
-
-  for (auto base : cls->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) continue;
-    baseClass = baseClass->resolvedDefinition();
-    if (!has_trivial_constructor(traits, baseClass, kind, allowDeleted))
-      return false;
-  }
-
-  for (auto field : cls->members() | views::non_static_fields) {
-    auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
-    auto classType = type_cast<ClassType>(fieldType);
-    if (!classType) continue;
-    auto fieldClass = classType->definition();
-    if (!has_trivial_constructor(traits, fieldClass, kind, allowDeleted))
-      return false;
-  }
-
-  return true;
+  return allSubobjectClasses(traits, cls, [&](ClassSymbol* subobject) {
+    return has_trivial_constructor(traits, subobject, kind, allowDeleted);
+  });
 }
 
 enum class TrivialAssignmentKind { kCopy, kMove };
 
-auto assignmentFor(TranslationUnit* unit, ClassSymbol* cls,
-                   TrivialAssignmentKind kind) -> FunctionSymbol* {
+auto assignmentKind(ClassSymbol* cls, FunctionSymbol* assignment)
+    -> std::optional<TrivialAssignmentKind> {
+  if (assignment == cls->copyAssignmentOperator())
+    return TrivialAssignmentKind::kCopy;
+  if (assignment == cls->moveAssignmentOperator())
+    return TrivialAssignmentKind::kMove;
+  return std::nullopt;
+}
+
+auto declaredMember(ClassSymbol* cls, TrivialAssignmentKind kind)
+    -> FunctionSymbol* {
   if (kind == TrivialAssignmentKind::kCopy)
     return cls->copyAssignmentOperator();
-  auto move = cls->moveAssignmentOperator();
-  if (move && !isExcludedDefaultedMoveMember(unit, move)) return move;
+  if (auto move = cls->moveAssignmentOperator()) return move;
   return cls->copyAssignmentOperator();
+}
+
+template <typename Kind>
+auto memberFor(TranslationUnit* unit, ClassSymbol* cls, Kind kind)
+    -> FunctionSymbol* {
+  auto member = declaredMember(cls, kind);
+  if (!isExcludedDefaultedMoveMember(unit, member)) return member;
+  return declaredMember(cls, Kind::kCopy);
 }
 
 auto has_trivial_assignment(TypeTraits& traits, ClassSymbol* cls,
                             TrivialAssignmentKind kind) -> bool {
   if (!cls || !cls->isComplete()) return false;
-  auto assignment = assignmentFor(traits.unit(), cls, kind);
+  auto assignment = memberFor(traits.unit(), cls, kind);
   if (!assignment || isDeletedFunction(traits.unit(), assignment)) return false;
   if (isUserProvided(assignment)) return false;
   if (cls->hasVirtualFunctions()) return false;
   if (cls->hasVirtualBaseClasses()) return false;
   if (cls->isUnion()) return true;
+  return allSubobjectClasses(traits, cls, [&](ClassSymbol* subobject) {
+    return has_trivial_assignment(traits, subobject, kind);
+  });
+}
 
-  for (auto base : cls->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) continue;
-    baseClass = baseClass->resolvedDefinition();
-    if (!has_trivial_assignment(traits, baseClass, kind)) return false;
-  }
-
-  for (auto field : cls->members() | views::non_static_fields) {
-    auto fieldType = traits.remove_all_extents(traits.remove_cv(field->type()));
-    auto classType = type_cast<ClassType>(fieldType);
-    if (!classType) continue;
-    auto fieldClass = classType->definition();
-    if (!has_trivial_assignment(traits, fieldClass, kind)) return false;
-  }
-
-  return true;
+template <typename Kind>
+[[nodiscard]] auto copiesAddressSpaceGenerically(TypeTraits& traits,
+                                                 ClassSymbol* cls, Kind kind)
+    -> bool {
+  auto member = cls ? declaredMember(cls, kind) : nullptr;
+  if (!member || !member->isImplicitlyDeclared()) return false;
+  return allSubobjectClasses(traits, cls, [&](ClassSymbol* subobject) {
+    return copiesAddressSpaceGenerically(traits, subobject, kind);
+  });
 }
 
 auto has_non_static_data_members(ClassSymbol* cls) -> bool {
@@ -1459,6 +1482,17 @@ auto TypeTraits::is_vector(const Type* type) const -> bool {
   return type && visit(IsVector{}, type);
 }
 
+auto TypeTraits::is_device_value_type(const Type* type) const -> bool {
+  auto value = unqualified_type(type);
+  if (auto vector = type_cast<VectorType>(value)) {
+    if (vector->elementCount() < 2 || vector->elementCount() > 4) return false;
+    value = unqualified_type(vector->elementType());
+  }
+  return value == control()->getFloatType() ||
+         value == control()->getIntType() ||
+         value == control()->getUnsignedIntType();
+}
+
 auto TypeTraits::is_vector_element_type(const Type* type, VectorKind kind) const
     -> bool {
   if (is_floating_point(type)) return true;
@@ -1564,7 +1598,7 @@ auto TypeTraits::is_volatile(const Type* type) const -> bool {
 }
 
 auto TypeTraits::is_atomic(const Type* type) const -> bool {
-  return type_cast<AtomicType>(remove_cv(type)) != nullptr;
+  return type_cast<AtomicType>(unqualified_type(type)) != nullptr;
 }
 
 auto TypeTraits::is_complex(const Type* type) const -> bool {
@@ -1810,7 +1844,7 @@ auto TypeTraits::add_atomic(const Type* type) const -> const Type* {
 }
 
 auto TypeTraits::remove_atomic(const Type* type) const -> const Type* {
-  if (auto atomicType = type_cast<AtomicType>(remove_cv(type)))
+  if (auto atomicType = type_cast<AtomicType>(unqualified_type(type)))
     return atomicType->elementType();
   return type;
 }
@@ -2748,6 +2782,14 @@ auto TypeTraits::integralPromotionCandidates() const
       control()->getLongLongIntType(), control()->getUnsignedLongLongIntType()};
 }
 
+auto TypeTraits::promoted_arithmetic_type(const Type* type) const
+    -> const Type* {
+  if (!type) return nullptr;
+  type = remove_cv(type);
+  if (type_cast<HalfType>(type)) return control()->getFloatType();
+  return promoted_integer_type(type);
+}
+
 auto TypeTraits::promoted_integer_type(const Type* type) const -> const Type* {
   if (!type) return control()->getIntType();
 
@@ -2859,6 +2901,8 @@ auto TypeTraits::is_integral_promotion(const Type* from, const Type* to) const
 auto TypeTraits::is_floating_point_promotion(const Type* from,
                                              const Type* to) const -> bool {
   if (!from || !to) return false;
+  if (remove_cv(from)->kind() == TypeKind::kHalf)
+    return remove_cv(to)->kind() == TypeKind::kFloat;
   return remove_cv(from)->kind() == TypeKind::kFloat &&
          remove_cv(to)->kind() == TypeKind::kDouble;
 }
@@ -3735,6 +3779,20 @@ auto TypeTraits::is_nothrow_assignable(const Type* to, const Type* from)
                                    from, false);
 }
 
+auto TypeTraits::is_address_space_generic_member(FunctionSymbol* function)
+    -> bool {
+  if (!function || !function->isImplicitlyDeclared()) return false;
+  auto cls = symbol_cast<ClassSymbol>(function->parent());
+  if (!cls) return false;
+  cls = cls->resolvedDefinition();
+  if (auto kind = constructorKind(cls, function);
+      kind && *kind != TrivialConstructorKind::kDefault)
+    return copiesAddressSpaceGenerically(*this, cls, *kind);
+  if (auto kind = assignmentKind(cls, function))
+    return copiesAddressSpaceGenerically(*this, cls, *kind);
+  return false;
+}
+
 auto TypeTraits::is_trivially_assignable(const Type* to, const Type* from)
     -> bool {
   if (!is_assignable(to, from)) return false;
@@ -3747,11 +3805,9 @@ auto TypeTraits::is_trivially_assignable(const Type* to, const Type* from)
     if (!cls || !cls->isComplete()) return false;
     auto selected = selectAssignmentOperator(to, from);
     if (!selected) return false;
-    if (selected == cls->copyAssignmentOperator())
-      return has_trivial_assignment(*this, cls, TrivialAssignmentKind::kCopy);
-    if (selected == cls->moveAssignmentOperator())
-      return has_trivial_assignment(*this, cls, TrivialAssignmentKind::kMove);
-    return false;
+    auto kind = assignmentKind(cls, selected);
+    if (!kind) return false;
+    return has_trivial_assignment(*this, cls, *kind);
   }
   return false;
 }

@@ -443,8 +443,8 @@ struct Binder::BuildVTableLayout {
     binder.error(classSymbol->location(),
                  std::format("virtual function '{}' has more than one final "
                              "overrider in '{}'",
-                             to_string(function->name()),
-                             to_string(classSymbol->name())));
+                             to_diag_string(function->name()),
+                             to_diag_string(classSymbol->name())));
     for (const auto& overrider : finals)
       binder.note(overrider.function->location(), "final overrider is here");
     return std::nullopt;

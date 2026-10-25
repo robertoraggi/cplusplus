@@ -62,6 +62,7 @@ auto parseOS(std::string_view name) -> TripleOS {
   if (name == "wasip1") return TripleOS::kWasiPreview1;
   if (name == "wasip2") return TripleOS::kWasiPreview2;
   if (name == "emscripten") return TripleOS::kEmscripten;
+  if (name == "webgpu") return TripleOS::kWebGPU;
 
   auto base = stripVersion(name);
   if (base == "darwin") return TripleOS::kDarwin;
@@ -69,6 +70,7 @@ auto parseOS(std::string_view name) -> TripleOS {
   if (base == "ios") return TripleOS::kIOS;
   if (base == "linux") return TripleOS::kLinux;
   if (base == "windows" || base == "win32") return TripleOS::kWindows;
+  if (base == "vulkan") return TripleOS::kVulkan;
   return TripleOS::kUnknown;
 }
 

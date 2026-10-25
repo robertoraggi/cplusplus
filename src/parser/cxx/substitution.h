@@ -204,14 +204,14 @@ class Substitution {
   void bindReferenceArgument(NonTypeArgumentValue& argument,
                              const Type* targetType);
 
+  [[nodiscard]] auto initializeTemplateParameterObject(
+      NonTypeArgumentValue& argument) -> bool;
+
   [[nodiscard]] auto valueDependsOnParameterType(
       ExpressionAST* expression) const -> bool;
 
   [[nodiscard]] auto lacksConvertedValue(
       const NonTypeArgumentValue& argument) const -> bool;
-
-  [[nodiscard]] auto isConstexprRepresentable(const ConstValue& value) const
-      -> bool;
 
   [[nodiscard]] auto substitutedNonTypeParameterType(
       NonTypeTemplateParameterAST* parameter) -> std::optional<const Type*>;

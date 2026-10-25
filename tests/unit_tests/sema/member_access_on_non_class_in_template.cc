@@ -9,12 +9,12 @@ void g(T t) {
 
 template <typename T>
 void f(T t) {
-  // expected-note@1 {{in instantiation of function template specialization 'g <int>' requested here}}
+  // expected-note@1 {{in instantiation of function template specialization 'g<int>' requested here}}
   g(t);
 }
 
 int main() {
-  // expected-note@1 {{in instantiation of function template specialization 'f <int>' requested here}}
+  // expected-note@1 {{in instantiation of function template specialization 'f<int>' requested here}}
   f(0);
   return 0;
 }

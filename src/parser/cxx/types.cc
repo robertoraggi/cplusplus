@@ -22,6 +22,8 @@
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
+#include <utility>
+
 namespace cxx {
 
 auto UnresolvedNameType::sourceLocationRange() const -> SourceLocationRange {
@@ -207,6 +209,7 @@ auto classSubobjectOffset(const Type* derivedClassType,
 
   auto offset = derivedClass->resolvedDefinition()->baseClassOffset(baseClass);
   if (!offset.has_value()) return std::nullopt;
+  if (!std::in_range<std::int64_t>(*offset)) return std::nullopt;
 
   return static_cast<std::int64_t>(*offset);
 }

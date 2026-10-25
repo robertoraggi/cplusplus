@@ -27,20 +27,35 @@
 
 namespace llvm {
 class TargetMachine;
+class raw_ostream;
 }
 
 namespace cxx {
+class TimeTrace;
+
+// Preserve explicit layouts and otherwise obtain the target's LLVM layout.
+// Both emitter paths need the same DLTI information before lowering.
+void initializeCxxModuleDataLayout(mlir::ModuleOp module);
+
+struct MLIRLoweringOptions {
+  bool verifyIR = true;
+  TimeTrace* timeTrace = nullptr;
+};
 
 [[nodiscard]] auto runMLIRPassPipeline(mlir::ModuleOp module,
-                                       llvm::StringRef passPipeline)
+                                       llvm::StringRef passPipeline,
+                                       bool verifyIR = true,
+                                       llvm::raw_ostream* errors = nullptr)
     -> mlir::LogicalResult;
 
 [[nodiscard]] auto lowerToMLIR(mlir::ModuleOp module,
-                               llvm::StringRef passPipeline = {})
+                               llvm::StringRef passPipeline = {},
+                               MLIRLoweringOptions options = {})
     -> mlir::LogicalResult;
 
 [[nodiscard]] auto exportToLLVMIR(mlir::ModuleOp module,
-                                  llvm::LLVMContext& context)
+                                  llvm::LLVMContext& context,
+                                  bool verifyIR = true)
     -> std::unique_ptr<llvm::Module>;
 
 void optimizeLLVMIR(llvm::Module& module, llvm::TargetMachine* targetMachine,

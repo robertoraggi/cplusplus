@@ -117,15 +117,42 @@ namespace {
   return false;
 }
 
-[[nodiscard]] auto placeholder_type_constraint(TemplateParameterAST* parameter)
+[[nodiscard]] auto placeholder_type_constraint(List<SpecifierAST*>* specifiers)
     -> TypeConstraintAST* {
-  auto nonType = ast_cast<NonTypeTemplateParameterAST>(parameter);
-  if (!nonType || !nonType->declaration) return nullptr;
-  for (auto specifier : ListView{nonType->declaration->typeSpecifierList}) {
+  for (auto specifier : ListView{specifiers}) {
     if (auto placeholder = ast_cast<PlaceholderTypeSpecifierAST>(specifier))
       return placeholder->typeConstraint;
   }
   return nullptr;
+}
+
+[[nodiscard]] auto placeholder_type_constraint(TemplateParameterAST* parameter)
+    -> TypeConstraintAST* {
+  auto nonType = ast_cast<NonTypeTemplateParameterAST>(parameter);
+  if (!nonType || !nonType->declaration) return nullptr;
+  return placeholder_type_constraint(nonType->declaration->typeSpecifierList);
+}
+
+[[nodiscard]] auto return_type_constraint(FunctionSymbol* function)
+    -> TypeConstraintAST* {
+  List<SpecifierAST*>* specifiers = nullptr;
+  DeclaratorAST* declarator = nullptr;
+  if (auto definition = function->declaration()) {
+    specifiers = definition->declSpecifierList;
+    declarator = definition->declarator;
+  } else if (auto head = function->templateDeclaration()) {
+    auto declaration = ast_cast<SimpleDeclarationAST>(head->declaration);
+    if (!declaration || !declaration->initDeclaratorList) return nullptr;
+    specifiers = declaration->declSpecifierList;
+    declarator = declaration->initDeclaratorList->value->declarator;
+  }
+  auto prototype = getFunctionPrototype(declarator);
+  if (prototype && prototype->trailingReturnType) {
+    auto typeId = prototype->trailingReturnType->typeId;
+    return typeId ? placeholder_type_constraint(typeId->typeSpecifierList)
+                  : nullptr;
+  }
+  return placeholder_type_constraint(specifiers);
 }
 
 [[nodiscard]] auto designates_subobject(const TypeTraits& traits,
@@ -487,6 +514,12 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const DecltypeAutoType* type) -> bool {
+    if (auto constraint =
+            std::exchange(encoder.placeholderConstraint_, nullptr)) {
+      encoder.out("DK");
+      encoder.encodeTypeConstraint(constraint);
+      return false;
+    }
     encoder.out("Dc");
     return false;
   }
@@ -604,6 +637,11 @@ struct ExternalNameEncoder::EncodeType {
 
   auto operator()(const LongDoubleType* type) -> bool {
     encoder.out("e");
+    return false;
+  }
+
+  auto operator()(const HalfType* type) -> bool {
+    encoder.out("Dh");
     return false;
   }
 
@@ -743,7 +781,7 @@ struct ExternalNameEncoder::EncodeType {
       return true;
     }
     cxx_runtime_error(std::format("cannot mangle unresolved name type '{}'",
-                                  to_string(type)));
+                                  to_diag_string(type)));
   }
 
   auto operator()(const UnresolvedBoundedArrayType* type) -> bool {
@@ -751,8 +789,9 @@ struct ExternalNameEncoder::EncodeType {
 
     if (isDependent(type->translationUnit(), type->size())) {
       if (!encoder.encodeExpression(type->size())) {
-        cxx_runtime_error(std::format(
-            "cannot mangle dependent array bound of '{}'", to_string(type)));
+        cxx_runtime_error(
+            std::format("cannot mangle dependent array bound of '{}'",
+                        to_diag_string(type)));
       }
     }
 
@@ -786,7 +825,8 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const OverloadSetType* type) -> bool {
-    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    cxx_runtime_error(
+        std::format("todo encode type '{}'", to_diag_string(type)));
     return false;
   }
 
@@ -796,7 +836,8 @@ struct ExternalNameEncoder::EncodeType {
   }
 
   auto operator()(const BuiltinMetaInfoType* type) -> bool {
-    cxx_runtime_error(std::format("todo encode type '{}'", to_string(type)));
+    cxx_runtime_error(
+        std::format("todo encode type '{}'", to_diag_string(type)));
     return true;
   }
 
@@ -818,7 +859,7 @@ struct ExternalNameEncoder::EncodeType {
 
   auto operator()(const UnresolvedBitIntType* type) -> bool {
     cxx_runtime_error(std::format("cannot mangle unresolved bit-int type '{}'",
-                                  to_string(type)));
+                                  to_diag_string(type)));
   }
 
   auto operator()(const VectorType* type) -> bool {
@@ -829,7 +870,7 @@ struct ExternalNameEncoder::EncodeType {
 
   auto operator()(const UnresolvedVectorType* type) -> bool {
     cxx_runtime_error(std::format("cannot mangle unresolved vector type '{}'",
-                                  to_string(type)));
+                                  to_diag_string(type)));
   }
 
   auto operator()(const ComplexType* type) -> bool {
@@ -1143,14 +1184,14 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
       if (!function) {
         cxx_runtime_error(
             std::format("cannot encode operator '{}' for non-function symbol",
-                        to_string(name)));
+                        to_diag_string(name)));
       }
 
       auto functionType = type_cast<FunctionType>(function->type());
       if (!functionType) {
         cxx_runtime_error(
             std::format("cannot encode operator '{}' for non-function type",
-                        to_string(name)));
+                        to_diag_string(name)));
       }
 
       bool unary = false;
@@ -1212,7 +1253,7 @@ struct ExternalNameEncoder::EncodeUnqualifiedName {
     auto baseId = name_cast<Identifier>(name->name());
     if (!baseId) {
       cxx_runtime_error(
-          std::format("cannot encode template-id '{}'", to_string(name)));
+          std::format("cannot encode template-id '{}'", to_diag_string(name)));
     }
 
     out(std::format("{}{}", baseId->name().length(), baseId->name()));
@@ -1445,8 +1486,9 @@ void ExternalNameEncoder::encodeName(Symbol* symbol) {
   if (encodeNestedName(symbol)) return;
   if (encodeUnscopedName(symbol)) return;
 
-  cxx_runtime_error(std::format("cannot encode name for symbol \'{}\'",
-                                to_string(symbol->type(), symbol->name())));
+  cxx_runtime_error(
+      std::format("cannot encode name for symbol \'{}\'",
+                  to_diag_string(symbol->type(), symbol->name())));
 }
 
 auto ExternalNameEncoder::encodeTemplateTemplateArgument(Symbol* symbol)
@@ -1564,10 +1606,13 @@ auto ExternalNameEncoder::encodeLocalName(Symbol* symbol) -> bool {
 void ExternalNameEncoder::encodeFunctionSignature(FunctionSymbol* function) {
   auto signature = signature_function(function);
   auto parameters = signature->functionParameters();
-  if (parameters) parameterScopes_.push_back(parameters);
+  auto constraint =
+      std::exchange(placeholderConstraint_, return_type_constraint(signature));
+  if (parameters) parameterScopes_.push_back({parameters});
   encodeBareFunctionType(type_cast<FunctionType>(signature->type()),
                          encodes_return_type(function));
   if (parameters) parameterScopes_.pop_back();
+  placeholderConstraint_ = constraint;
 
   if (auto written = written_trailing_requires_function(function)) {
     encodeRequiresClause(written->trailingRequiresClause(), written);
@@ -1636,7 +1681,7 @@ void ExternalNameEncoder::encodeRequiresClause(
 
   auto depth = std::exchange(encodesTemplateParameterDepth_, true);
   auto parameters = function ? function->functionParameters() : nullptr;
-  if (parameters) parameterScopes_.push_back(parameters);
+  if (parameters) parameterScopes_.push_back({parameters});
   out("Q");
   encodeRequiredExpression(requiresClause->expression, "constraint expression");
   if (parameters) parameterScopes_.pop_back();
@@ -1647,10 +1692,17 @@ auto ExternalNameEncoder::encodeFunctionParameter(ParameterSymbol* parameter)
     -> bool {
   auto scope = symbol_cast<FunctionParametersSymbol>(parameter->parent());
   auto innermostFirst = parameterScopes_ | std::views::reverse;
-  auto it = std::ranges::find(innermostFirst, scope);
+  auto it =
+      std::ranges::find(innermostFirst, scope, &ParameterScope::parameters);
   if (it == innermostFirst.end()) return false;
 
-  const auto level = std::ranges::distance(innermostFirst.begin(), it);
+  auto level = std::ranges::distance(innermostFirst.begin(), it);
+  if (it->isRequirement) {
+    auto firstRequirement = std::ranges::find(parameterScopes_, true,
+                                              &ParameterScope::isRequirement);
+    level = std::ranges::distance(firstRequirement, parameterScopes_.end());
+    if (firstRequirement != parameterScopes_.begin()) --level;
+  }
   if (level == 0) {
     out("fp");
   } else {
@@ -1861,8 +1913,8 @@ void ExternalNameEncoder::encodeUnqualifiedName(Symbol* symbol) {
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
     if (function->enableIfConditions().empty()) return;
     out("Ua9enable_ifI");
-    parameterScopes_.push_back(function->functionParameters());
-    parameterScopes_.push_back(nullptr);
+    parameterScopes_.push_back({function->functionParameters()});
+    parameterScopes_.push_back({});
     for (auto condition : function->enableIfConditions()) {
       out("X");
       encodeRequiredExpression(condition, "enable_if condition");
@@ -2187,6 +2239,13 @@ struct ExternalNameEncoder::EncodeBaseUnresolvedName {
                                                   ast->templateArgumentList);
   }
 
+  [[nodiscard]] auto operator()(ConversionFunctionIdAST* ast) const -> bool {
+    if (!ast->typeId || !ast->typeId->type) return false;
+    encoder.out("oncv");
+    encoder.encodeType(ast->typeId->type);
+    return true;
+  }
+
   [[nodiscard]] auto operator()(UnqualifiedIdAST*) const -> bool {
     return false;
   }
@@ -2475,7 +2534,7 @@ struct ExternalNameEncoder::EncodeExpression {
         ast->parameterDeclarationClause
             ? ast->parameterDeclarationClause->functionParametersSymbol
             : nullptr;
-    encoder.parameterScopes_.push_back(parameters);
+    encoder.parameterScopes_.push_back({parameters, true});
     const auto encoded = encodeRequirements(ast->requirementList);
     encoder.parameterScopes_.pop_back();
     return encoded;
@@ -2767,8 +2826,9 @@ void ExternalNameEncoder::reportUnencodable(SourceLocation location,
     unit_->error(location,
                  std::format("cannot mangle {} while encoding '{}'", what,
                              encodingSymbol_
-                                 ? to_string(encodingSymbol_->type(),
-                                             to_string(encodingSymbol_->name()))
+                                 ? to_diag_string(
+                                       encodingSymbol_->type(),
+                                       to_diag_string(encodingSymbol_->name()))
                                  : std::string{}));
   }
   cxx_runtime_error(std::format("cannot mangle {}", what));
@@ -3044,6 +3104,8 @@ void ExternalNameEncoder::encodeConstValue(const Type* type,
           out(v ? "1" : "0");
         } else if constexpr (std::is_same_v<T, double>) {
           encodeFloatingValue(type, v);
+        } else if constexpr (std::is_same_v<T, ConstFloat16>) {
+          out(std::format("{:04x}", v.bits));
         }
       },
       value);

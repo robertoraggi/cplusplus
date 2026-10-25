@@ -20,24 +20,45 @@
 
 #pragma once
 
+#include <cxx/device_profile_limits.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringRef.h>
+#include <mlir/IR/BuiltinOps.h>
 
 #include <array>
 #include <cstdint>
+#include <optional>
+#include <string>
 
 namespace mlir::cxx {
 
+inline constexpr llvm::StringLiteral kResourceBindingAttrName = "cxx.resource";
+inline constexpr llvm::StringLiteral kResourceReadOnlyAttrName =
+    "cxx.resource_read_only";
+inline constexpr llvm::StringLiteral kResourceUnsignedAttrName =
+    "cxx.resource_unsigned";
+inline constexpr llvm::StringLiteral kResourceIndexAttrName =
+    "cxx.resource_index";
+
+[[nodiscard]] auto deviceResourceBinding(Value root) -> Attribute;
+[[nodiscard]] auto deviceResourceIndex(Value root) -> IntegerAttr;
+[[nodiscard]] auto isReadOnlyDeviceResource(Value root) -> bool;
+[[nodiscard]] auto hasUnsignedDeviceElements(Value root) -> bool;
+
 enum class KernelBufferKind { Storage, Uniform };
 
-struct KernelBuffer {
-  std::uint32_t parameter = 0;
+struct KernelResource {
   StringAttr name;
   std::uint32_t binding = 0;
   KernelBufferKind kind = KernelBufferKind::Storage;
   bool readOnly = false;
   bool unsignedElements = false;
   Type elementType;
+};
+
+struct KernelBuffer : KernelResource {
+  std::uint32_t parameter = 0;
 };
 
 enum class KernelInvocationIdKind { Global, Local, Workgroup };
@@ -54,7 +75,26 @@ struct KernelContract {
   llvm::SmallVector<KernelInvocationId> invocationIds;
 };
 
+struct KernelEntryContract {
+  std::string name;
+  KernelContract contract;
+  llvm::SmallVector<unsigned> resources;
+};
+
+struct KernelModuleContract {
+  llvm::SmallVector<KernelEntryContract> entries;
+  llvm::SmallVector<KernelResource> resources;
+};
+
+[[nodiscard]] auto deviceProfileLimitsOf(ModuleOp module)
+    -> std::optional<::cxx::DeviceProfileLimits>;
+
+[[nodiscard]] auto isKernelEntry(FuncOp function) -> bool;
+
 [[nodiscard]] auto kernelContractOf(FuncOp entry) -> FailureOr<KernelContract>;
+
+[[nodiscard]] auto kernelModuleContractOf(ModuleOp module, StringRef selected)
+    -> FailureOr<KernelModuleContract>;
 
 [[nodiscard]] auto stringifyKernelInvocationIdKind(KernelInvocationIdKind kind)
     -> llvm::StringRef;
@@ -62,10 +102,19 @@ struct KernelContract {
 [[nodiscard]] auto stringifyKernelBufferKind(KernelBufferKind kind)
     -> llvm::StringRef;
 
-[[nodiscard]] auto kernelBufferScalarTypeName(const KernelBuffer& buffer)
+[[nodiscard]] auto kernelBufferScalarTypeName(const KernelResource& buffer)
     -> llvm::StringRef;
 
-[[nodiscard]] auto kernelBufferComponents(const KernelBuffer& buffer)
+[[nodiscard]] auto kernelBufferComponents(const KernelResource& buffer)
     -> std::uint32_t;
+
+[[nodiscard]] auto kernelBufferElementStride(const KernelResource& buffer)
+    -> std::uint32_t;
+
+inline constexpr llvm::StringLiteral kWebGPUStandardUniformLayout =
+    "uniform_buffer_standard_layout";
+
+[[nodiscard]] auto declaresAggregateUniforms(const KernelModuleContract& module)
+    -> bool;
 
 }  // namespace mlir::cxx

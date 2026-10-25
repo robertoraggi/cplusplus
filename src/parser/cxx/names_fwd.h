@@ -66,8 +66,19 @@ class TypeTraitIdentifierInfo;
 class BuiltinFunctionIdentifierInfo;
 class WellKnownNameIdentifierInfo;
 
-auto to_string(const Name* name, TypePrintOptions options = {}) -> std::string;
-auto to_string(const TemplateArgument& argument, TypePrintOptions options = {})
+[[nodiscard]] auto to_string(const Name* name, TypePrintOptions options = {})
     -> std::string;
+[[nodiscard]] auto to_string(const TemplateArgument& argument,
+                             TypePrintOptions options = {}) -> std::string;
+[[nodiscard]] auto to_pretty_string(const Name* name,
+                                    TypePrintOptions options = {})
+    -> std::string;
+[[nodiscard]] auto to_pretty_string(const TemplateArgument& argument,
+                                    TypePrintOptions options = {})
+    -> std::string;
+[[nodiscard]] auto to_diag_string(const Name* name,
+                                  TypePrintOptions options = {}) -> std::string;
+[[nodiscard]] auto to_diag_string(const TemplateArgument& argument,
+                                  TypePrintOptions options = {}) -> std::string;
 
 }  // namespace cxx

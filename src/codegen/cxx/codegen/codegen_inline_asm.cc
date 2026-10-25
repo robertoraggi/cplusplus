@@ -222,7 +222,7 @@ struct Codegen::InlineAsmBuilder {
             Codegen::bitfieldInfo(
                 symbol_cast<ClassSymbol>(bitField->field->parent()),
                 bitField->info),
-            gen.traits.is_signed(expression->type));
+            gen.traits.is_signed(expression->type), bitField->isVolatile);
         gen.emitter_.store(operand->firstSourceLocation(), initial, address,
                            gen.getAlignment(expression->type));
       }
@@ -271,7 +271,7 @@ struct Codegen::InlineAsmBuilder {
     if (is_glvalue(expression) && !isBitFieldOperand(expression))
       value.value = gen.emitter_.load(
           expression->firstSourceLocation(), gen.convertType(expression->type),
-          value.value, gen.lvalueAlignment(expression));
+          value.value, gen.lvalueAccess(expression));
     addConstraint(constraint);
     addArgument(value.value);
     return true;
@@ -289,7 +289,7 @@ struct Codegen::InlineAsmBuilder {
       auto expression = output.ast->expression;
       auto value =
           gen.emitter_.load(expression->firstSourceLocation(), output.type,
-                            output.address, gen.lvalueAlignment(expression));
+                            output.address, gen.lvalueAccess(expression));
       addConstraint(std::to_string(index));
       addArgument(value);
     }
@@ -420,11 +420,12 @@ struct Codegen::InlineAsmBuilder {
             loc, value, output.bitField->address,
             Codegen::bitfieldInfo(
                 symbol_cast<ClassSymbol>(output.bitField->field->parent()),
-                output.bitField->info));
+                output.bitField->info),
+            output.bitField->isVolatile);
         continue;
       }
       gen.emitter_.store(loc, value, output.address,
-                         gen.lvalueAlignment(expression));
+                         gen.lvalueAccess(expression));
     }
   }
 

@@ -170,6 +170,8 @@ void rebuild_specialization_index(Symbol* symbol);
 
 [[nodiscard]] auto is_templated_class(ClassSymbol* classSymbol) -> bool;
 
+[[nodiscard]] auto is_templated_function(FunctionSymbol* function) -> bool;
+
 [[nodiscard]] auto anonymous_member_class(Symbol* object) -> ClassSymbol*;
 
 [[nodiscard]] auto resolved_base_class(BaseClassSymbol* baseClass)
@@ -185,6 +187,8 @@ void rebuild_specialization_index(Symbol* symbol);
 [[nodiscard]] auto is_inline_or_templated(FunctionSymbol* function) -> bool;
 
 [[nodiscard]] auto has_static_storage_duration(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_threadgroup_variable(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto has_thread_storage_duration(Symbol* symbol) -> bool;
 
@@ -504,6 +508,16 @@ class MaybeTemplate {
   void restoreSpecialization(TemplateSpecialization specialization) {
     ensureTemplate().specializations.restore(std::move(specialization));
     template_->declaredSpecializations.reset();
+  }
+
+  void replaceSpecialization(S* declared, S* specialization) {
+    auto entry = specializationEntry(declared);
+    if (!entry) return;
+    entry->symbol = specialization;
+    specialization->restoreSpecializationInfo(
+        static_cast<S*>(this), declared->templateSpecializationIndex());
+    template_->declaredSpecializations.reset();
+    template_->specializations.rebuildIndex();
   }
 
   void rebuildSpecializationIndex() {
@@ -1496,6 +1510,9 @@ class FunctionSymbol final
   [[nodiscard]] auto isDefaulted() const -> bool;
   void setDefaulted(bool isDefaulted);
 
+  [[nodiscard]] auto isImplicitlyDeclared() const -> bool;
+  void setImplicitlyDeclared(bool isImplicitlyDeclared);
+
   [[nodiscard]] auto isPure() const -> bool;
   void setPure(bool isPure);
 
@@ -1744,6 +1761,7 @@ class FunctionSymbol final
       std::uint32_t hasFriendDefaultTemplateArgument_ : 1;
       std::uint32_t hasDeferredImplicitExceptionSpecification_ : 1;
       std::uint32_t hasDeferredDeletion_ : 1;
+      std::uint32_t isImplicitlyDeclared_ : 1;
     };
   };
 };
@@ -1941,6 +1959,9 @@ class VariableSymbol final
   [[nodiscard]] auto isStructuredBindingAlias() const -> bool;
   void setStructuredBindingAlias(bool isStructuredBindingAlias);
 
+  [[nodiscard]] auto lifetimeExtendingDeclaration() const -> Symbol*;
+  void setLifetimeExtendingDeclaration(Symbol* declaration);
+
   [[nodiscard]] auto initializer() const -> ExpressionAST*;
   void setInitializer(ExpressionAST*);
 
@@ -1957,6 +1978,7 @@ class VariableSymbol final
   ThreadLocalKind threadLocalKind_ = ThreadLocalKind::None;
   ExpressionAST* initializer_ = nullptr;
   FunctionSymbol* constructor_ = nullptr;
+  Symbol* lifetimeExtendingDeclaration_ = nullptr;
   std::optional<ConstValue> constValue_;
 
   int explicitAlignment_ = 0;
@@ -2341,7 +2363,9 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
 [[nodiscard]] auto isDeclaredConstant(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto isUsableInConstantExpressions(const TypeTraits& traits,
-                                                 Symbol* symbol) -> bool;
+                                                 Symbol* symbol,
+                                                 ScopeSymbol* point = nullptr)
+    -> bool;
 
 [[nodiscard]] auto isPotentiallyConstant(const TypeTraits& traits,
                                          Symbol* symbol) -> bool;

@@ -49,6 +49,7 @@ auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
     case BuiltinFunctionKind::T___BUILTIN_MEMMOVE:
     case BuiltinFunctionKind::T___BUILTIN_STRCASECMP:
     case BuiltinFunctionKind::T___BUILTIN_STRCMP:
+    case BuiltinFunctionKind::T___BUILTIN_STRLEN:
     case BuiltinFunctionKind::T___BUILTIN_STRNCMP:
     case BuiltinFunctionKind::T___BUILTIN_STRNCASECMP:
     case BuiltinFunctionKind::T___BUILTIN_INF:
@@ -91,6 +92,7 @@ auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
     case BuiltinFunctionKind::T___BUILTIN_POPCOUNTG:
     case BuiltinFunctionKind::T___BUILTIN_CLZS:
     case BuiltinFunctionKind::T___BUILTIN_CTZS:
+    case BuiltinFunctionKind::T___BUILTIN_WCSLEN:
     case BuiltinFunctionKind::T___BUILTIN_ISGREATER:
     case BuiltinFunctionKind::T___BUILTIN_ISGREATEREQUAL:
     case BuiltinFunctionKind::T___BUILTIN_ISLESS:
@@ -164,6 +166,9 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
     case BuiltinFunctionKind::T___BUILTIN_STRCMP:
       return evaluateBuiltinCharacterComparison(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_STRLEN:
+      return evaluateBuiltinCharacterLength(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_STRNCMP:
       return evaluateBuiltinCharacterComparison(ast);
@@ -290,6 +295,9 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
     case BuiltinFunctionKind::T___BUILTIN_CTZS:
       return evaluateBuiltinBitCount(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_WCSLEN:
+      return evaluateBuiltinCharacterLength(ast);
 
     case BuiltinFunctionKind::T___BUILTIN_ISGREATER:
       return evaluateBuiltinFloatComparison(ast);
@@ -440,13 +448,6 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
             ((v & 0x000000000000FF00ull) << 40) |
             ((v & 0x00000000000000FFull) << 56);
         return ConstValue{static_cast<std::intmax_t>(v)};
-      }
-      return std::nullopt;
-    }
-
-    case BuiltinFunctionKind::T___BUILTIN_STRLEN: {
-      if (auto string = nullTerminatedString(args[0])) {
-        return ConstValue{static_cast<std::intmax_t>(string->size())};
       }
       return std::nullopt;
     }

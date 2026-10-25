@@ -207,7 +207,11 @@ class ExternalNameEncoder {
   Symbol* templateNameOnly_ = nullptr;
   TypeConstraintAST* placeholderConstraint_ = nullptr;
   bool encodesTemplateParameterDepth_ = false;
-  std::vector<FunctionParametersSymbol*> parameterScopes_;
+  struct ParameterScope {
+    FunctionParametersSymbol* parameters = nullptr;
+    bool isRequirement = false;
+  };
+  std::vector<ParameterScope> parameterScopes_;
   TranslationUnit* unit_ = nullptr;
   Symbol* encodingSymbol_ = nullptr;
   bool hasExplicitStructorVariant_ = false;

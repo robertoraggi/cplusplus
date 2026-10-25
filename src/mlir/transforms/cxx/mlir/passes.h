@@ -49,6 +49,26 @@ void registerConvertCxxToMathPass();
 void registerConvertCxxToMemRefPass();
 
 #ifdef CXX_WITH_SPIRV
+[[nodiscard]] auto createConvertCxxWorkgroupStoragePass()
+    -> std::unique_ptr<mlir::Pass>;
+
+void registerConvertCxxWorkgroupStoragePass();
+
+[[nodiscard]] auto createLegalizeCxxDeviceAtomicsPass()
+    -> std::unique_ptr<mlir::Pass>;
+
+void registerLegalizeCxxDeviceAtomicsPass();
+
+[[nodiscard]] auto createLegalizeCxxDeviceCallsPass()
+    -> std::unique_ptr<mlir::Pass>;
+
+void registerLegalizeCxxDeviceCallsPass();
+
+[[nodiscard]] auto createConvertCxxDeviceToSPIRVPass()
+    -> std::unique_ptr<mlir::Pass>;
+
+void registerConvertCxxDeviceToSPIRVPass();
+
 [[nodiscard]] auto createConvertCxxKernelToGpuPass(llvm::StringRef kernel)
     -> std::unique_ptr<mlir::Pass>;
 

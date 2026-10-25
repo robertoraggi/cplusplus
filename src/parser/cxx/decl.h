@@ -29,6 +29,9 @@
 
 namespace cxx {
 
+void checkFunctionType(TranslationUnit* unit, const FunctionType* type,
+                       SourceLocation location);
+
 class Decl {
  public:
   DeclSpecs specs;

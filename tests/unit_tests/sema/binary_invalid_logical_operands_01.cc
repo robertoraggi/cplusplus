@@ -2,4 +2,4 @@
 
 struct S {};
 
-bool b = S{} && true; // expected-error {{invalid operands to binary expression ('::S' and 'bool')}}
+bool b = S{} && true; // expected-error {{invalid operands to binary expression ('S' and 'bool')}}

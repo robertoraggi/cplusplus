@@ -159,6 +159,12 @@ namespace {
 }
 }  // namespace
 
+auto ir::Emitter::enclosingLocation() const -> SourceLocation {
+  for (auto expression : std::views::reverse(expressions_))
+    if (auto location = expression->firstSourceLocation()) return location;
+  return {};
+}
+
 auto Codegen::hasVagueFunctionEmission(FunctionSymbol* function) const -> bool {
   if (!function) return false;
   function = structorPrincipalOrSelf(function);
@@ -343,6 +349,17 @@ auto Codegen::lvalueAlignment(ExpressionAST* expression) -> uint64_t {
   return getAlignment(expression->type);
 }
 
+auto Codegen::lvalueAccess(ExpressionAST* expression) -> ir::Access {
+  return objectAccess(expression->type, lvalueAlignment(expression));
+}
+
+auto Codegen::objectAccess(const Type* type, std::uint64_t alignment)
+    -> ir::Access {
+  auto isVolatile = traits.is_volatile(type) &&
+                    !traits.is_class_or_union(traits.remove_cv(type));
+  return ir::Access{.alignment = alignment, .isVolatile = isVolatile};
+}
+
 auto Codegen::objectVariable(Symbol* symbol) -> VariableSymbol* {
   auto variable = symbol_cast<VariableSymbol>(symbol);
   if (!variable || traits.is_reference(variable->type())) return nullptr;
@@ -368,10 +385,14 @@ auto Codegen::memberAlignment(MemberExpressionAST* member) -> uint64_t {
     baseAlignment = lvalueAlignment(member->baseExpression);
   }
 
-  if (auto owner = symbol_cast<ClassSymbol>(field->parent()))
-    baseAlignment = std::min(baseAlignment, getAlignment(owner->type()));
+  return fieldAlignment(field, baseAlignment);
+}
 
-  return alignmentAtOffset(baseAlignment,
+auto Codegen::fieldAlignment(FieldSymbol* field, uint64_t objectAlignment)
+    -> uint64_t {
+  if (auto owner = symbol_cast<ClassSymbol>(field->parent()))
+    objectAlignment = std::min(objectAlignment, getAlignment(owner->type()));
+  return alignmentAtOffset(objectAlignment,
                            static_cast<uint64_t>(field->localOffset()));
 }
 
@@ -563,6 +584,10 @@ auto Codegen::getFloatAttr(const std::optional<ConstValue>& value,
   auto ty = traits.remove_cvref(type);
   if (!traits.is_floating_point(ty)) return {};
 
+  if (auto half = std::get_if<ConstFloat16>(&*value))
+    return ir::Initializer::floatingBits(
+        convertType(ty), *ConstInt::make(half->bits, 16, false));
+
   auto interp = ASTInterpreter{unit_};
   return interp.toDouble(*value).transform(
       [&](double converted) { return makeFloatInitializer(ty, converted); });
@@ -720,13 +745,16 @@ struct Codegen::ConstantStorageTypeVisitor {
   ir::TypeRef storage;
 
   [[nodiscard]] auto defineStorage(const ClassType* type,
-                                   std::span<const ir::TypeRef> members)
+                                   std::span<const ir::TypeRef> members,
+                                   std::span<const std::uint32_t> padding)
       -> ir::TypeRef {
     auto result =
         gen.declareClassType(gen.uniqueClassTypeName(std::format(
                                  "{}.constant", gen.className(storage))),
                              type->isUnion());
-    gen.defineClassType(result, members, gen.classTypes_.at(storage).isPacked);
+    const auto& original = gen.classTypes_.at(storage);
+    gen.defineClassType(result, members, original.isPacked, original.alignment,
+                        padding);
     return result;
   }
 
@@ -741,9 +769,9 @@ struct Codegen::ConstantStorageTypeVisitor {
     if (!original.empty() && original.front() == payloadType) return storage;
     auto size = gen.control()->memoryLayout()->sizeOf(payload->type);
     if (!size) return storage;
-    std::vector<ir::TypeRef> members{payloadType};
+    ClassMemberTypes members{.members = {payloadType}};
     gen.completeUnionStorage(members, type->definition(), *size);
-    return defineStorage(type, members);
+    return defineStorage(type, members.members, members.padding);
   }
 
   [[nodiscard]] auto operator()(const ClassType* type) -> ir::TypeRef {
@@ -760,7 +788,7 @@ struct Codegen::ConstantStorageTypeVisitor {
           gen.constantStorageType(payload->value, payload->type, members[i]);
     }
     if (std::ranges::equal(original, members)) return storage;
-    return defineStorage(type, members);
+    return defineStorage(type, members, gen.classTypes_.at(storage).padding);
   }
 
   [[nodiscard]] auto operator()(const BoundedArrayType* type) -> ir::TypeRef {
@@ -790,7 +818,7 @@ struct Codegen::ConstantStorageTypeVisitor {
           fillerType, (*list)->size() - (*list)->initializedElements().size()));
     auto result =
         gen.declareClassType(gen.uniqueClassTypeName("$constant.array"), false);
-    gen.defineClassType(result, members, false);
+    gen.defineClassType(result, members, false, 1);
     return result;
   }
 
@@ -896,6 +924,7 @@ namespace {
     case ir::Initializer::Kind::Null:
       return true;
     case ir::Initializer::Kind::Integer:
+    case ir::Initializer::Kind::FloatingBits:
       return initializer.integer.isZero();
     case ir::Initializer::Kind::Floating:
       return std::bit_cast<std::uint64_t>(initializer.floating) == 0;
@@ -1134,7 +1163,7 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
     std::int64_t adjustment = 0;
     if (auto addrPtr = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
       function = symbol_cast<FunctionSymbol>((*addrPtr)->symbol());
-      adjustment = static_cast<std::int64_t>((*addrPtr)->offset());
+      adjustment = static_cast<std::int64_t>((*addrPtr)->memberAdjustment());
     }
     return emitMemberFunctionPointerValue(loc, memberFunctionPointerType,
                                           function, adjustment);
@@ -1167,6 +1196,9 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
       }
       if (auto result = staticStorageAddress(loc, (*addrPtr)->root()))
         return displacedAddress(loc, irPtrType, result,
+                                (*addrPtr)->displacement());
+      if (auto result = findOrCreateLocal((*addrPtr)->root()))
+        return displacedAddress(loc, irPtrType, *result,
                                 (*addrPtr)->displacement());
       if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
         auto funcOp = findOrCreateFunction(funcSym);
@@ -1509,14 +1541,24 @@ auto Codegen::findOrCreateLocal(Symbol* symbol) -> std::optional<ir::ValueRef> {
   }
 
   auto type = convertType(var->type());
-  auto ptrType = emitter_.pointerType(type);
+  auto ptrType = emitter_.pointerType(type, address_space(var->type()));
 
-  auto allocaOp = emitter_.allocate(loc, ptrType, getAlignment(var));
+  auto allocaOp =
+      is_threadgroup_variable(var)
+          ? emitter_.allocateWorkgroup(loc, ptrType, getAlignment(var))
+          : emitter_.allocate(loc, ptrType, getAlignment(var));
 
   attachDebugInfo(allocaOp, var);
 
   auto address = allocaOp;
   locals_.emplace(var, address);
+
+  if (var->lifetimeExtendingDeclaration() && var->constValue()) {
+    auto value = emitConstInitValue(loc, var->type(), *var->constValue());
+    emitter_.store(loc, value, address, getAlignment(var->type()));
+    if (lifetimeExtension_)
+      lifetimeExtension_->extendObject(address, var->type(), loc);
+  }
 
   return address;
 }
@@ -2072,7 +2114,9 @@ auto Codegen::subobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
     auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
     auto layout = classSymbol->layout();
     if (!baseClass || !layout) return {};
-    auto info = layout->getBaseInfo(baseClass, base->isVirtual());
+    if (!base->isVirtual())
+      return baseSubobjectAddress(loc, objectPtr, classSymbol, baseClass);
+    auto info = layout->getVirtualBaseInfo(baseClass);
     if (!info) return {};
     return subobjectAddress(loc, objectPtr, baseClass, info->offset);
   }
@@ -2344,7 +2388,8 @@ auto Codegen::emitPrvalueInto(ir::ValueRef object, const Type* objectType,
     value = emitter_.load(loc, objectIrType, value, getAlignment(objectType));
   }
 
-  emitter_.store(loc, value, object, getAlignment(objectType));
+  emitter_.store(loc, value, object,
+                 objectAccess(objectType, getAlignment(objectType)));
 
   return true;
 }
@@ -2643,13 +2688,7 @@ auto Codegen::emitBaseClassAddress(SourceLocation loc, ir::ValueRef objectPtr,
     if (step->isVirtual()) {
       current = emitVirtualBaseAddress(loc, current, currentClass, baseClass);
     } else {
-      std::uint64_t offset = 0;
-      if (auto layout = currentClass->layout()) {
-        if (auto baseInfo = layout->getBaseInfo(baseClass)) {
-          offset = baseInfo->offset;
-        }
-      }
-      current = subobjectAddress(loc, current, baseClass, offset);
+      current = baseSubobjectAddress(loc, current, currentClass, baseClass);
     }
 
     currentClass = baseClass;
@@ -3269,7 +3308,9 @@ void Codegen::processPendingFunctions() {
 }
 
 auto Codegen::isMaterializedTemporary(Symbol* symbol) -> bool {
-  return symbol_cast<VariableSymbol>(symbol) && !symbol->parent();
+  auto variable = symbol_cast<VariableSymbol>(symbol);
+  if (!variable) return false;
+  return variable->lifetimeExtendingDeclaration() || !variable->parent();
 }
 
 void Codegen::assignReferenceTemporaries(const ReferenceTemporary& owner,
@@ -3908,13 +3949,10 @@ void Codegen::emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
   auto guardAddress = emitter_.addressOfSymbol(loc, guardBytePtrType,
                                                this->globalName(initGuard));
   const bool threadSafe = !isWasmTarget_ && !defVar->isThreadLocal();
-  auto guardValue = [&] {
-    if (!threadSafe) return emitter_.load(loc, guardByteType, guardAddress, 1);
-    const ir::TypeRef results[] = {guardByteType};
-    const ir::ValueRef arguments[] = {
-        guardAddress, emitter_.constantInt(loc, emitter_.integerType(32), 2)};
-    return emitter_.builtinCall(loc, results, "__c11_atomic_load", arguments);
-  }();
+  auto guardValue =
+      threadSafe ? emitter_.atomicLoad(loc, guardByteType, guardAddress,
+                                       {.order = ir::MemoryOrder::Acquire})
+                 : emitter_.load(loc, guardByteType, guardAddress, 1);
   if (threadSafe && control()->memoryLayout()->isAArch64()) {
     auto one = emitter_.constantInt(loc, guardByteType, 1);
     guardValue = emitter_.binaryOp(loc, ir::BinaryOp::AndInt, guardValue, one);
@@ -4545,7 +4583,8 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
       subobjectPtr =
           tableSubobjectAddress(loc, thisPtr, classSymbol, table, usesVTT);
 
-    emitter_.store(loc, tableAddress, vptrAddress(loc, subobjectPtr), 8);
+    emitter_.store(loc, tableAddress, vptrAddress(loc, subobjectPtr),
+                   tableVPtrAlignment(classSymbol, table, usesVTT));
   }
 }
 
@@ -4559,9 +4598,27 @@ auto Codegen::tableSubobjectAddress(SourceLocation loc, ir::ValueRef thisPtr,
 
   auto virtualBaseAddress =
       emitBaseClassAddress(loc, thisPtr, classSymbol, virtualBase);
-  auto info = classSymbol->layout()->getVirtualBaseInfo(virtualBase);
-  const auto delta = info ? table.offset - info->offset : 0;
-  return subobjectAddress(loc, virtualBaseAddress, table.base, delta);
+  return subobjectAddress(loc, virtualBaseAddress, table.base,
+                          offsetInVirtualBase(classSymbol, table));
+}
+
+auto Codegen::offsetInVirtualBase(ClassSymbol* classSymbol,
+                                  const VTableLayout::Table& table)
+    -> std::uint64_t {
+  auto info =
+      classSymbol->layout()->getVirtualBaseInfo(table.enclosingVirtualBase);
+  return info ? table.offset - info->offset : 0;
+}
+
+auto Codegen::tableVPtrAlignment(ClassSymbol* classSymbol,
+                                 const VTableLayout::Table& table, bool usesVTT)
+    -> std::uint64_t {
+  auto alignment = getAlignment(classSymbol->type());
+  auto virtualBase = table.enclosingVirtualBase;
+  if (!usesVTT || !virtualBase)
+    return alignmentAtOffset(alignment, table.offset);
+  alignment = std::min(alignment, getAlignment(virtualBase->type()));
+  return alignmentAtOffset(alignment, offsetInVirtualBase(classSymbol, table));
 }
 
 auto Codegen::subobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
@@ -4571,6 +4628,29 @@ auto Codegen::subobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
       emitter_.typeOf(objectPtr), convertType(subobjectClass->type()));
   return displacedAddress(loc, subobjectPtrType, objectPtr,
                           static_cast<std::intmax_t>(byteOffset));
+}
+
+auto Codegen::classBodyElement(ClassSymbol* classSymbol, std::uint32_t index)
+    -> ir::TypeRef {
+  auto found = classTypes_.find(convertType(classSymbol->type()));
+  if (found == classTypes_.end()) return {};
+  const auto& members = found->second.members;
+  return index < members.size() ? members[index] : ir::TypeRef{};
+}
+
+auto Codegen::baseSubobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
+                                   ClassSymbol* derivedClass,
+                                   ClassSymbol* baseClass) -> ir::ValueRef {
+  auto layout = derivedClass->layout();
+  auto info = layout ? layout->getBaseInfo(baseClass) : std::nullopt;
+  if (!info)
+    return subobjectAddress(loc, objectPtr, baseClass, std::uint64_t{0});
+  auto baseType = convertType(baseClass->type());
+  auto objectType = emitter_.elementType(emitter_.typeOf(objectPtr));
+  if (objectType == convertType(derivedClass->type()) &&
+      classBodyElement(derivedClass, info->index) == baseType)
+    return memberAddress(loc, objectPtr, baseType, info->index);
+  return subobjectAddress(loc, objectPtr, baseClass, info->offset);
 }
 
 auto Codegen::memberAddress(SourceLocation loc, ir::ValueRef objectPtr,

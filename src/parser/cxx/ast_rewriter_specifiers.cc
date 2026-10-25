@@ -30,6 +30,7 @@
 #include <cxx/names.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
+#include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
@@ -55,9 +56,13 @@ namespace {
 
 struct ASTRewriter::SpecifierVisitor : VisitorBase {
   TemplateDeclarationAST* templateHead = nullptr;
+  DeclSpecs* declSpecs = nullptr;
 
-  SpecifierVisitor(ASTRewriter& rewrite, TemplateDeclarationAST* templateHead)
-      : VisitorBase{rewrite}, templateHead(templateHead) {}
+  SpecifierVisitor(ASTRewriter& rewrite, TemplateDeclarationAST* templateHead,
+                   DeclSpecs* declSpecs = nullptr)
+      : VisitorBase{rewrite},
+        templateHead(templateHead),
+        declSpecs(declSpecs) {}
 
   [[nodiscard]] auto operator()(TypedefSpecifierAST* ast) -> SpecifierAST*;
 
@@ -147,6 +152,28 @@ struct ASTRewriter::SpecifierVisitor : VisitorBase {
   [[nodiscard]] auto operator()(SplicerTypeSpecifierAST* ast) -> SpecifierAST*;
 
  private:
+  [[nodiscard]] auto instantiateClassDeclaration(
+      ElaboratedTypeSpecifierAST* pattern, ElaboratedTypeSpecifierAST* copy)
+      -> bool;
+
+  struct ClassDefinition {
+    enum class Publication { None, Scope, Specialization };
+
+    ClassSymbol* symbol;
+    bool completeNow;
+    Publication publication = Publication::None;
+  };
+
+  [[nodiscard]] auto declareClassDefinition(ClassSpecifierAST* ast,
+                                            ClassSpecifierAST* copy)
+      -> ClassDefinition;
+
+  void initializeClassDefinition(ClassSpecifierAST* ast,
+                                 ClassSpecifierAST* copy);
+
+  void publishClassDefinition(ClassSpecifierAST* ast, ClassSpecifierAST* copy,
+                              ClassDefinition::Publication publication);
+
   void rewriteBaseSpecifiers(ClassSpecifierAST* ast, ClassSpecifierAST* copy,
                              ClassSymbol* classSymbol);
 
@@ -222,7 +249,7 @@ auto ASTRewriter::rewriteSpecifierList(List<SpecifierAST*>* source,
   List<SpecifierAST*>* result = nullptr;
   ListAppender<SpecifierAST> append{arena(), result};
   for (auto node : ListView{source}) {
-    auto value = visit(SpecifierVisitor{*this, templateHead}, node);
+    auto value = visit(SpecifierVisitor{*this, templateHead, &specs}, node);
     append(value);
     specs.accept(value);
   }
@@ -755,9 +782,10 @@ auto ASTRewriter::SpecifierVisitor::operator()(NamedTypeSpecifierAST* ast)
     if (namesMissingMemberType(copy)) {
       rewrite.error(
           copy->unqualifiedId->firstSourceLocation(),
-          std::format("no type named '{}' in '{}'",
-                      to_string(get_name(control(), copy->unqualifiedId)),
-                      to_string(copy->nestedNameSpecifier->symbol->type())));
+          std::format(
+              "no type named '{}' in '{}'",
+              to_diag_string(get_name(control(), copy->unqualifiedId)),
+              to_diag_string(copy->nestedNameSpecifier->symbol->type())));
     }
   }
 
@@ -816,6 +844,41 @@ auto ASTRewriter::SpecifierVisitor::operator()(UnderlyingTypeSpecifierAST* ast)
   return copy;
 }
 
+auto ASTRewriter::SpecifierVisitor::instantiateClassDeclaration(
+    ElaboratedTypeSpecifierAST* pattern, ElaboratedTypeSpecifierAST* copy)
+    -> bool {
+  auto declared = pattern->declaredSymbol;
+  if (!declared) return false;
+
+  auto owner = declared->parent();
+  auto scope = symbol_cast<ScopeSymbol>(rewrite.remapSymbol(owner));
+
+  if (scope == owner) {
+    copy->symbol = declared;
+    return true;
+  }
+
+  if (!scope) return false;
+
+  auto guard = Binder::ScopeGuard{binder()};
+  binder()->setScope(scope);
+
+  auto specs = DeclSpecs{translationUnit()};
+  specs.templateHead = templateHead;
+  auto name = get_lookup_name(control(), copy->unqualifiedId);
+  auto candidate = qualifiedLookup(
+      scope, name, [](Symbol* symbol) { return symbol->isClass(); });
+  binder()->bind(copy, specs, /*isDeclaration=*/true, candidate);
+
+  if (auto instance = copy->declaredSymbol) {
+    rewrite.addSymbolRemap(declared, instance);
+    instance->setInstantiationSubstitution(rewrite.depth_,
+                                           rewrite.templateArguments());
+  }
+
+  return true;
+}
+
 auto ASTRewriter::SpecifierVisitor::operator()(ElaboratedTypeSpecifierAST* ast)
     -> SpecifierAST* {
   auto copy = ElaboratedTypeSpecifierAST::create(arena());
@@ -831,6 +894,14 @@ auto ASTRewriter::SpecifierVisitor::operator()(ElaboratedTypeSpecifierAST* ast)
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
   copy->classKey = ast->classKey;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
+  copy->declaredSymbol = ast->declaredSymbol;
+
+  if (declSpecs && declSpecs->isFriend && templateHead) {
+    binder()->bind(copy, *declSpecs, /*isDeclaration=*/true);
+    return copy;
+  }
+
+  if (instantiateClassDeclaration(ast, copy)) return copy;
 
   const bool hasResolvedNestedNameSpecifier =
       copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol;
@@ -989,106 +1060,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   copy->colonLoc = ast->colonLoc;
 
   auto _ = Binder::ScopeGuard{binder()};
-  auto location = ast->symbol->location();
-  auto className = ast->symbol->name();
-
-  ClassSymbol* classSymbol = nullptr;
-  bool reusingExisting = false;
-  bool reusingClassMember = false;
-
-  if (auto target = std::exchange(rewrite.classInstanceToComplete_, nullptr);
-      !classSymbol && target && !target->isComplete()) {
-    classSymbol = target;
-    reusingExisting = true;
-  }
-
-  if (!classSymbol && ast->symbol == rewrite.binder().instantiatingSymbol()) {
-    if (auto existing = ast->symbol->findSpecialization(
-            translationUnit(), rewrite.templateArguments())) {
-      classSymbol = symbol_cast<ClassSymbol>(existing);
-      if (classSymbol && !classSymbol->isComplete()) {
-        reusingExisting = true;
-        ast->symbol->clearPendingInstantiation(classSymbol);
-      } else {
-        classSymbol = nullptr;
-      }
-    }
-  }
-
-  if (!classSymbol && copy->nestedNameSpecifier) {
-    if (auto enclosingInstance =
-            symbol_cast<ClassSymbol>(copy->nestedNameSpecifier->symbol)) {
-      for (auto candidate : enclosingInstance->find(className)) {
-        if (auto cls = symbol_cast<ClassSymbol>(candidate);
-            cls && !cls->isComplete()) {
-          classSymbol = cls;
-          reusingClassMember = true;
-          break;
-        }
-      }
-      if (!classSymbol) {
-        classSymbol = control()->newClassSymbol(enclosingInstance, location);
-        enclosingInstance->addSymbol(classSymbol);
-        reusingClassMember = true;
-      }
-    }
-  }
-
-  if (!classSymbol && !copy->nestedNameSpecifier && className &&
-      !ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId)) {
-    for (auto candidate :
-         binder()->declaringScope()->find(className) | views::classes) {
-      if (candidate->isComplete()) break;
-      const bool candidateIsTemplate = candidate->templateParameters();
-      const bool definesTemplate = templateHead;
-      if (candidateIsTemplate != definesTemplate) break;
-      classSymbol = candidate;
-      reusingClassMember = true;
-      break;
-    }
-  }
-
-  if (!classSymbol) {
-    classSymbol =
-        control()->newClassSymbol(binder()->declaringScope(), location);
-  }
-
+  auto definition = declareClassDefinition(ast, copy);
+  auto classSymbol = definition.symbol;
   copy->symbol = classSymbol;
 
-  classSymbol->setInstantiationSubstitution(rewrite.depth_,
-                                            rewrite.templateArguments());
-
-  classSymbol->setName(className);
-  binder()->applyAccessSpecifier(classSymbol);
-  classSymbol->setIsUnion(ast->symbol->isUnion());
-  classSymbol->setFinal(ast->isFinal);
-  if (!binder()->hasDependentAlignment(ast->attributeList)) {
-    classSymbol->setExplicitAlignment(ast->symbol->explicitAlignment());
-  } else if (auto alignment =
-                 binder()->explicitAlignment(copy->attributeList, location)) {
-    classSymbol->setExplicitAlignment(*alignment);
-  }
-  classSymbol->setPackAlignment(ast->symbol->packAlignment());
-  classSymbol->setAccessControlDisabled(ast->symbol->isAccessControlDisabled());
-  binder()->inheritDeclarationAttributes(classSymbol, ast->symbol);
-  classSymbol->setDeclaration(copy);
-  classSymbol->setTemplateDeclaration(templateHead);
-  if (templateHead) classSymbol->setTemplateParameters(templateHead->symbol);
-
-  if (reusingClassMember) {
-  } else if (ast->symbol == rewrite.binder().instantiatingSymbol()) {
-    if (!reusingExisting) {
-      ast->symbol->addSpecialization(translationUnit(),
-                                     rewrite.templateArguments(), classSymbol);
-    }
-  } else if (!registerRewrittenSpecialization(ast, copy, classSymbol)) {
-    binder()->declaringScope()->addSymbol(classSymbol);
-  }
-
+  initializeClassDefinition(ast, copy);
+  publishClassDefinition(ast, copy, definition.publication);
   rewrite.addSymbolRemap(ast->symbol, classSymbol);
 
-  if (rewrite.classBodyDepth_ && !reusingExisting && !templateHead &&
-      className && !ast->symbol->isSpecialization()) {
+  if (!definition.completeNow) {
     classSymbol->setInstantiationPattern(ast->symbol);
     copy->classKey = ast->classKey;
     copy->isFinal = ast->isFinal;
@@ -1134,6 +1114,117 @@ auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
   }
 
   return copy;
+}
+
+auto ASTRewriter::SpecifierVisitor::declareClassDefinition(
+    ClassSpecifierAST* ast, ClassSpecifierAST* copy) -> ClassDefinition {
+  if (auto target = std::exchange(rewrite.classInstanceToComplete_, nullptr);
+      target && !target->isComplete()) {
+    return {target, true};
+  }
+
+  if (ast->symbol == binder()->instantiatingSymbol()) {
+    auto existing = symbol_cast<ClassSymbol>(ast->symbol->findSpecialization(
+        translationUnit(), rewrite.templateArguments()));
+    if (existing && !existing->isComplete()) {
+      ast->symbol->clearPendingInstantiation(existing);
+      return {existing, true};
+    }
+  }
+
+  const auto className = ast->symbol->name();
+  const auto completeNow = !rewrite.classBodyDepth_ || templateHead ||
+                           !className || ast->symbol->isSpecialization();
+  const auto instantiatesClassTemplate =
+      !templateHead && ast->symbol == binder()->instantiatingSymbol() &&
+      TemplateEquivalence{translationUnit()}.ownFunctionTemplateHead(
+          ast->symbol->enclosingClass(), ast->symbol->templateDeclaration());
+
+  if (!instantiatesClassTemplate && copy->nestedNameSpecifier &&
+      !ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId)) {
+    if (auto enclosingInstance =
+            symbol_cast<ClassSymbol>(copy->nestedNameSpecifier->symbol)) {
+      for (auto candidate :
+           enclosingInstance->find(className) | views::classes) {
+        if (!candidate->isComplete()) return {candidate, completeNow};
+      }
+
+      auto member =
+          control()->newClassSymbol(enclosingInstance, ast->symbol->location());
+      member->setName(className);
+      return {member, completeNow, ClassDefinition::Publication::Scope};
+    }
+  }
+
+  if (!copy->nestedNameSpecifier && className &&
+      !ast_cast<SimpleTemplateIdAST>(copy->unqualifiedId)) {
+    for (auto candidate :
+         binder()->declaringScope()->find(className) | views::classes) {
+      if (candidate->isComplete()) break;
+      if (bool(candidate->templateParameters()) != bool(templateHead)) break;
+      return {candidate, completeNow};
+    }
+  }
+
+  auto declaringScope = binder()->declaringScope();
+  if (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol) {
+    if (auto qualifiedScope =
+            copy->nestedNameSpecifier->symbol->asScopeSymbol())
+      declaringScope = qualifiedScope;
+  }
+
+  auto classSymbol =
+      control()->newClassSymbol(declaringScope, ast->symbol->location());
+  classSymbol->setName(className);
+
+  auto publication = ClassDefinition::Publication::Scope;
+  if (ast->symbol == binder()->instantiatingSymbol() ||
+      ast->symbol->isSpecialization())
+    publication = ClassDefinition::Publication::Specialization;
+  return {classSymbol, completeNow, publication};
+}
+
+void ASTRewriter::SpecifierVisitor::initializeClassDefinition(
+    ClassSpecifierAST* ast, ClassSpecifierAST* copy) {
+  auto classSymbol = copy->symbol;
+  const auto location = ast->symbol->location();
+
+  classSymbol->setInstantiationSubstitution(rewrite.depth_,
+                                            rewrite.templateArguments());
+
+  binder()->applyAccessSpecifier(classSymbol);
+  classSymbol->setIsUnion(ast->symbol->isUnion());
+  classSymbol->setFinal(ast->isFinal);
+  if (!binder()->hasDependentAlignment(ast->attributeList)) {
+    classSymbol->setExplicitAlignment(ast->symbol->explicitAlignment());
+  } else if (auto alignment =
+                 binder()->explicitAlignment(copy->attributeList, location)) {
+    classSymbol->setExplicitAlignment(*alignment);
+  }
+  classSymbol->setPackAlignment(ast->symbol->packAlignment());
+  classSymbol->setAccessControlDisabled(ast->symbol->isAccessControlDisabled());
+  binder()->inheritDeclarationAttributes(classSymbol, ast->symbol);
+  classSymbol->setDeclaration(copy);
+  classSymbol->setTemplateDeclaration(templateHead);
+  if (templateHead) classSymbol->setTemplateParameters(templateHead->symbol);
+}
+
+void ASTRewriter::SpecifierVisitor::publishClassDefinition(
+    ClassSpecifierAST* ast, ClassSpecifierAST* copy,
+    ClassDefinition::Publication publication) {
+  if (publication == ClassDefinition::Publication::None) return;
+
+  auto classSymbol = copy->symbol;
+  if (publication == ClassDefinition::Publication::Specialization) {
+    if (ast->symbol == binder()->instantiatingSymbol()) {
+      ast->symbol->addSpecialization(translationUnit(),
+                                     rewrite.templateArguments(), classSymbol);
+      return;
+    }
+    if (registerRewrittenSpecialization(ast, copy, classSymbol)) return;
+  }
+
+  classSymbol->parent()->addSymbol(classSymbol);
 }
 
 auto ASTRewriter::SpecifierVisitor::registerRewrittenSpecialization(

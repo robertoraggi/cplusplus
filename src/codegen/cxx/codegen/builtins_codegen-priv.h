@@ -47,6 +47,120 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_ISNAN:
       return codegenBuiltinIsNan(ast);
 
+    case BuiltinFunctionKind::T___C11_ATOMIC_INIT:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_STORE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_LOAD:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_EXCHANGE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_COMPARE_EXCHANGE_STRONG:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_COMPARE_EXCHANGE_WEAK:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_ADD:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_SUB:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_OR:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_AND:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_XOR:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_NAND:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_SIGNAL_FENCE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_LOAD_N:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_LOAD:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_STORE_N:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_STORE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_EXCHANGE_N:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_EXCHANGE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE_N:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_ADD_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_SUB_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_AND_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_XOR_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_OR_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_NAND_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_ADD:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_SUB:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_AND:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_XOR:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_OR:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_NAND:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_TEST_AND_SET:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_CLEAR:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_THREAD_FENCE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_SIGNAL_FENCE:
+      return codegenBuiltinAtomic(ast);
+
     case BuiltinFunctionKind::T___BUILTIN___CFSTRINGMAKECONSTANTSTRING:
       return codegenBuiltinCFStringMakeConstantString(ast);
 
@@ -176,6 +290,12 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_ISUNORDERED:
       return codegenBuiltinFloatComparison(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_CXX_CONTROL_BARRIER:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_CXX_MEMORY_BARRIER:
+      return codegenBuiltinAtomic(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
       return codegenBuiltinArithmeticOverflow(ast);
 
@@ -280,6 +400,57 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
 
     case BuiltinFunctionKind::T___BUILTIN_REDUCE_XOR:
       return codegenBuiltinVectorReduce(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_ADD:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_ADD_AND_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_SUB:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_SUB_AND_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_AND:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_AND_AND_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_OR:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_OR_AND_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_XOR:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_FETCH_AND_NAND:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_NAND_AND_FETCH:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_BOOL_COMPARE_AND_SWAP:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_VAL_COMPARE_AND_SWAP:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_LOCK_TEST_AND_SET:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_LOCK_RELEASE:
+      return codegenBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___SYNC_SYNCHRONIZE:
+      return codegenBuiltinAtomic(ast);
 
     default:
       return std::nullopt;

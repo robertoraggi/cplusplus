@@ -449,9 +449,14 @@ auto ClassTemplateArgumentDeduction::guideParameterTypes(
         Substitution::make(unit_, guide.templateDeclaration, deducedArgs);
     if (!substitution) return std::nullopt;
 
-    return ASTRewriter::substituteParameterTypes(
+    auto parameterTypes = ASTRewriter::substituteParameterTypes(
         unit_, guide.parameters, std::move(*substitution).templateArguments(),
         guide.templateDeclaration->depth, scope);
+    if (!parameterTypes) return std::nullopt;
+    if (!specializationFor(primaryTemplate, guide, deducedArgs, location,
+                           scope))
+      return std::nullopt;
+    return parameterTypes;
   }
 
   auto specialization =
