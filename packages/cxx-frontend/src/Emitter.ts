@@ -52,6 +52,7 @@ export type InitializerKind =
   | "None"
   | "Integer"
   | "Floating"
+  | "FloatingBits"
   | "Bytes"
   | "Aggregate"
   | "Vector"
@@ -160,6 +161,22 @@ export type TypeKind =
   | "Function"
   | "Unresolved"
   | "Other";
+
+/** @category Backend Enumerations */
+export type MemoryOrder =
+  | "Relaxed"
+  | "Acquire"
+  | "Release"
+  | "AcquireRelease"
+  | "SequentiallyConsistent";
+
+/** @category Backend Enumerations */
+export type MemoryScope =
+  "System" | "Device" | "Workgroup" | "Subgroup" | "Invocation";
+
+/** @category Backend Enumerations */
+export type AtomicOperation =
+  "Exchange" | "Add" | "Sub" | "And" | "Or" | "Xor" | "Nand";
 
 /** @category Backend Enumerations */
 export type CallKind = "Direct" | "Builtin";
@@ -283,6 +300,7 @@ export interface Access {
   alignment: number;
   bitfield?: BitfieldInfo | undefined;
   isSigned: boolean;
+  isVolatile: boolean;
 }
 
 /** @category Backend Descriptors */
@@ -291,6 +309,35 @@ export interface BitfieldInfo {
   bitWidth: number;
   storageSize: number;
   alignment: number;
+}
+
+/** @category Backend Descriptors */
+export interface AtomicAccess {
+  order: MemoryOrder;
+  scope: MemoryScope;
+  isVolatile: boolean;
+}
+
+/** @category Backend Descriptors */
+export interface CompareExchangeAccess {
+  success: MemoryOrder;
+  failure: MemoryOrder;
+  scope: MemoryScope;
+  isWeak: boolean;
+  isVolatile: boolean;
+}
+
+/** @category Backend Descriptors */
+export interface MemoryBarrierInfo {
+  order: MemoryOrder;
+  scope: MemoryScope;
+  regions: MemoryRegions;
+}
+
+/** @category Backend Descriptors */
+export interface MemoryRegions {
+  storage: boolean;
+  workgroup: boolean;
 }
 
 /** @category Backend Descriptors */
@@ -630,6 +677,8 @@ export interface EmitterDelegate {
     classType: TypeRef,
     members: readonly TypeRef[],
     isPacked: boolean,
+    alignment: number,
+    padding: readonly number[],
   ): void;
   convert(
     loc: TokenIndex,
@@ -653,6 +702,43 @@ export interface EmitterDelegate {
     address: ValueRef,
     access: Access,
   ): ValueRef;
+  allocateWorkgroup(
+    loc: TokenIndex,
+    pointerType: TypeRef,
+    alignment: number,
+  ): ValueRef;
+  atomicLoad(
+    loc: TokenIndex,
+    valueType: TypeRef,
+    address: ValueRef,
+    access: AtomicAccess,
+  ): ValueRef;
+  atomicStore(
+    loc: TokenIndex,
+    value: ValueRef,
+    address: ValueRef,
+    access: AtomicAccess,
+  ): void;
+  atomicReadModifyWrite(
+    loc: TokenIndex,
+    operation: AtomicOperation,
+    value: ValueRef,
+    address: ValueRef,
+    access: AtomicAccess,
+  ): ValueRef;
+  atomicCompareExchange(
+    loc: TokenIndex,
+    address: ValueRef,
+    expected: ValueRef,
+    desired: ValueRef,
+    access: CompareExchangeAccess,
+  ): ValueRef[];
+  memoryBarrier(loc: TokenIndex, barrier: MemoryBarrierInfo): void;
+  controlBarrier(
+    loc: TokenIndex,
+    executionScope: MemoryScope,
+    barrier: MemoryBarrierInfo,
+  ): void;
   pointerAdd(
     loc: TokenIndex,
     pointerType: TypeRef,

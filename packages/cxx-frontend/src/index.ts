@@ -30,6 +30,15 @@ export type { LoadCxxOptions, WasmSource } from "./loadCxx.js";
 export * from "./Diagnostic.js";
 export * from "./Emitter.js";
 export * from "./Kernel.js";
+export {
+  parseKernelReflection,
+  kernelBufferSize,
+  kernelInputData,
+  kernelLaneCount,
+  kernelLayoutAlignment,
+  kernelLayoutSize,
+  kernelWorkgroupCount,
+} from "./reflection.js";
 export * from "./Linker.js";
 export * from "./parse.js";
 export * from "./SourceLocation.js";

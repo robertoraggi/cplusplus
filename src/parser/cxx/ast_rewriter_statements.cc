@@ -252,6 +252,17 @@ auto ASTRewriter::asmGotoLabel(AsmGotoLabelAST* ast) -> AsmGotoLabelAST* {
   return copy;
 }
 
+auto ASTRewriter::enterBlock(BlockSymbol* pattern) -> BlockSymbol* {
+  if (!pattern) return nullptr;
+
+  auto instance = binder_.enterBlock(pattern->location());
+  instance->setOutermostBlockScope(pattern->isOutermostBlockScope());
+  instance->setFunctionTryHandler(pattern->isFunctionTryHandler());
+  addSymbolRemap(pattern, instance);
+
+  return instance;
+}
+
 auto ASTRewriter::handler(HandlerAST* ast) -> HandlerAST* {
   if (!ast) return {};
 
@@ -259,11 +270,7 @@ auto ASTRewriter::handler(HandlerAST* ast) -> HandlerAST* {
 
   auto _ = Binder::ScopeGuard(&binder_);
 
-  if (ast->symbol) {
-    copy->symbol = binder_.enterBlock(ast->symbol->location());
-    copy->symbol->setOutermostBlockScope(ast->symbol->isOutermostBlockScope());
-    copy->symbol->setFunctionTryHandler(ast->symbol->isFunctionTryHandler());
-  }
+  copy->symbol = enterBlock(ast->symbol);
 
   copy->catchLoc = ast->catchLoc;
   copy->lparenLoc = ast->lparenLoc;
@@ -331,6 +338,7 @@ auto ASTRewriter::StatementVisitor::operator()(ExpressionStatementAST* ast)
       rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->expression = rewrite.expression(ast->expression);
+  typeChecker().check_discarded_value(copy->expression);
   copy->semicolonLoc = ast->semicolonLoc;
 
   return copy;
@@ -345,9 +353,7 @@ auto ASTRewriter::StatementVisitor::operator()(CompoundStatementAST* ast)
   copy->attributeList =
       rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
-  if (ast->symbol) {
-    copy->symbol = binder()->enterBlock(ast->symbol->location());
-  }
+  copy->symbol = rewrite.enterBlock(ast->symbol);
 
   copy->lbraceLoc = ast->lbraceLoc;
 
@@ -368,9 +374,7 @@ auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
   copy->attributeList =
       rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
-  if (ast->symbol) {
-    copy->symbol = binder()->enterBlock(ast->symbol->location());
-  }
+  copy->symbol = rewrite.enterBlock(ast->symbol);
 
   copy->ifLoc = ast->ifLoc;
   copy->constexprLoc = ast->constexprLoc;
@@ -443,9 +447,7 @@ auto ASTRewriter::StatementVisitor::operator()(SwitchStatementAST* ast)
 
   auto _ = Binder::ScopeGuard(binder());
 
-  if (ast->symbol) {
-    copy->symbol = binder()->enterBlock(ast->symbol->location());
-  }
+  copy->symbol = rewrite.enterBlock(ast->symbol);
 
   copy->switchLoc = ast->switchLoc;
   copy->lparenLoc = ast->lparenLoc;
@@ -467,9 +469,7 @@ auto ASTRewriter::StatementVisitor::operator()(WhileStatementAST* ast)
 
   auto _ = Binder::ScopeGuard(binder());
 
-  if (ast->symbol) {
-    copy->symbol = binder()->enterBlock(ast->symbol->location());
-  }
+  copy->symbol = rewrite.enterBlock(ast->symbol);
 
   copy->whileLoc = ast->whileLoc;
   copy->lparenLoc = ast->lparenLoc;
@@ -490,9 +490,7 @@ auto ASTRewriter::StatementVisitor::operator()(DoStatementAST* ast)
 
   auto _ = Binder::ScopeGuard(binder());
 
-  if (ast->symbol) {
-    copy->symbol = binder()->enterBlock(ast->symbol->location());
-  }
+  copy->symbol = rewrite.enterBlock(ast->symbol);
 
   copy->doLoc = ast->doLoc;
   copy->statement = rewrite.statement(ast->statement);
@@ -515,9 +513,7 @@ auto ASTRewriter::StatementVisitor::operator()(ForRangeStatementAST* ast)
 
   auto _ = Binder::ScopeGuard(binder());
 
-  if (ast->symbol) {
-    copy->symbol = binder()->enterBlock(ast->symbol->location());
-  }
+  copy->symbol = rewrite.enterBlock(ast->symbol);
 
   copy->forLoc = ast->forLoc;
   copy->lparenLoc = ast->lparenLoc;
@@ -567,9 +563,7 @@ auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
 
   auto _ = Binder::ScopeGuard(binder());
 
-  if (ast->symbol) {
-    copy->symbol = binder()->enterBlock(ast->symbol->location());
-  }
+  copy->symbol = rewrite.enterBlock(ast->symbol);
 
   copy->forLoc = ast->forLoc;
   copy->lparenLoc = ast->lparenLoc;
@@ -578,6 +572,7 @@ auto ASTRewriter::StatementVisitor::operator()(ForStatementAST* ast)
   typeChecker().check_bool_condition(copy->condition);
   copy->semicolonLoc = ast->semicolonLoc;
   copy->expression = rewrite.expression(ast->expression);
+  typeChecker().check_discarded_value(copy->expression);
   copy->rparenLoc = ast->rparenLoc;
   copy->statement = rewrite.statement(ast->statement);
 

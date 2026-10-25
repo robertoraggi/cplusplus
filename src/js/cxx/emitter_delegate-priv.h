@@ -62,6 +62,8 @@ inline auto toVal(cxx::ir::Initializer::Kind value) -> val {
       return val("Integer");
     case cxx::ir::Initializer::Kind::Floating:
       return val("Floating");
+    case cxx::ir::Initializer::Kind::FloatingBits:
+      return val("FloatingBits");
     case cxx::ir::Initializer::Kind::Bytes:
       return val("Bytes");
     case cxx::ir::Initializer::Kind::Aggregate:
@@ -89,6 +91,7 @@ inline auto toEnum<cxx::ir::Initializer::Kind>(const val& value)
   if (name == "None") return cxx::ir::Initializer::Kind::None;
   if (name == "Integer") return cxx::ir::Initializer::Kind::Integer;
   if (name == "Floating") return cxx::ir::Initializer::Kind::Floating;
+  if (name == "FloatingBits") return cxx::ir::Initializer::Kind::FloatingBits;
   if (name == "Bytes") return cxx::ir::Initializer::Kind::Bytes;
   if (name == "Aggregate") return cxx::ir::Initializer::Kind::Aggregate;
   if (name == "Vector") return cxx::ir::Initializer::Kind::Vector;
@@ -461,6 +464,97 @@ inline auto toEnum<cxx::ir::TypeKind>(const val& value) -> cxx::ir::TypeKind {
   return cxx::ir::TypeKind{};
 }
 
+inline auto toVal(cxx::ir::MemoryOrder value) -> val {
+  switch (value) {
+    case cxx::ir::MemoryOrder::Relaxed:
+      return val("Relaxed");
+    case cxx::ir::MemoryOrder::Acquire:
+      return val("Acquire");
+    case cxx::ir::MemoryOrder::Release:
+      return val("Release");
+    case cxx::ir::MemoryOrder::AcquireRelease:
+      return val("AcquireRelease");
+    case cxx::ir::MemoryOrder::SequentiallyConsistent:
+      return val("SequentiallyConsistent");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::MemoryOrder>(const val& value)
+    -> cxx::ir::MemoryOrder {
+  const auto name = toString(value);
+  if (name == "Relaxed") return cxx::ir::MemoryOrder::Relaxed;
+  if (name == "Acquire") return cxx::ir::MemoryOrder::Acquire;
+  if (name == "Release") return cxx::ir::MemoryOrder::Release;
+  if (name == "AcquireRelease") return cxx::ir::MemoryOrder::AcquireRelease;
+  if (name == "SequentiallyConsistent")
+    return cxx::ir::MemoryOrder::SequentiallyConsistent;
+  return cxx::ir::MemoryOrder{};
+}
+
+inline auto toVal(cxx::ir::MemoryScope value) -> val {
+  switch (value) {
+    case cxx::ir::MemoryScope::System:
+      return val("System");
+    case cxx::ir::MemoryScope::Device:
+      return val("Device");
+    case cxx::ir::MemoryScope::Workgroup:
+      return val("Workgroup");
+    case cxx::ir::MemoryScope::Subgroup:
+      return val("Subgroup");
+    case cxx::ir::MemoryScope::Invocation:
+      return val("Invocation");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::MemoryScope>(const val& value)
+    -> cxx::ir::MemoryScope {
+  const auto name = toString(value);
+  if (name == "System") return cxx::ir::MemoryScope::System;
+  if (name == "Device") return cxx::ir::MemoryScope::Device;
+  if (name == "Workgroup") return cxx::ir::MemoryScope::Workgroup;
+  if (name == "Subgroup") return cxx::ir::MemoryScope::Subgroup;
+  if (name == "Invocation") return cxx::ir::MemoryScope::Invocation;
+  return cxx::ir::MemoryScope{};
+}
+
+inline auto toVal(cxx::ir::AtomicOperation value) -> val {
+  switch (value) {
+    case cxx::ir::AtomicOperation::Exchange:
+      return val("Exchange");
+    case cxx::ir::AtomicOperation::Add:
+      return val("Add");
+    case cxx::ir::AtomicOperation::Sub:
+      return val("Sub");
+    case cxx::ir::AtomicOperation::And:
+      return val("And");
+    case cxx::ir::AtomicOperation::Or:
+      return val("Or");
+    case cxx::ir::AtomicOperation::Xor:
+      return val("Xor");
+    case cxx::ir::AtomicOperation::Nand:
+      return val("Nand");
+  }
+  return val::undefined();
+}
+
+template <>
+inline auto toEnum<cxx::ir::AtomicOperation>(const val& value)
+    -> cxx::ir::AtomicOperation {
+  const auto name = toString(value);
+  if (name == "Exchange") return cxx::ir::AtomicOperation::Exchange;
+  if (name == "Add") return cxx::ir::AtomicOperation::Add;
+  if (name == "Sub") return cxx::ir::AtomicOperation::Sub;
+  if (name == "And") return cxx::ir::AtomicOperation::And;
+  if (name == "Or") return cxx::ir::AtomicOperation::Or;
+  if (name == "Xor") return cxx::ir::AtomicOperation::Xor;
+  if (name == "Nand") return cxx::ir::AtomicOperation::Nand;
+  return cxx::ir::AtomicOperation{};
+}
+
 inline auto toVal(cxx::ir::CallKind value) -> val {
   switch (value) {
     case cxx::ir::CallKind::Direct:
@@ -718,6 +812,10 @@ auto toVal(const cxx::ir::CleanupTarget& value) -> val;
 auto toVal(const cxx::ir::CleanupAction& value) -> val;
 auto toVal(const cxx::ir::Access& value) -> val;
 auto toVal(const cxx::ir::BitfieldInfo& value) -> val;
+auto toVal(const cxx::ir::AtomicAccess& value) -> val;
+auto toVal(const cxx::ir::CompareExchangeAccess& value) -> val;
+auto toVal(const cxx::ir::MemoryBarrierInfo& value) -> val;
+auto toVal(const cxx::ir::MemoryRegions& value) -> val;
 auto toVal(const cxx::ir::CallInfo& value) -> val;
 auto toVal(const cxx::ir::ParameterAbi& value) -> val;
 auto toVal(const cxx::ir::FunctionInfo& value) -> val;
@@ -841,6 +939,7 @@ inline auto toVal(const cxx::ir::Access& value) -> val {
                return toVal(item);
              }));
   result.set("isSigned", toVal(value.isSigned));
+  result.set("isVolatile", toVal(value.isVolatile));
   return result;
 }
 
@@ -850,6 +949,39 @@ inline auto toVal(const cxx::ir::BitfieldInfo& value) -> val {
   result.set("bitWidth", toVal(value.bitWidth));
   result.set("storageSize", toVal(value.storageSize));
   result.set("alignment", toVal(value.alignment));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::AtomicAccess& value) -> val {
+  auto result = val::object();
+  result.set("order", toVal(value.order));
+  result.set("scope", toVal(value.scope));
+  result.set("isVolatile", toVal(value.isVolatile));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::CompareExchangeAccess& value) -> val {
+  auto result = val::object();
+  result.set("success", toVal(value.success));
+  result.set("failure", toVal(value.failure));
+  result.set("scope", toVal(value.scope));
+  result.set("isWeak", toVal(value.isWeak));
+  result.set("isVolatile", toVal(value.isVolatile));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::MemoryBarrierInfo& value) -> val {
+  auto result = val::object();
+  result.set("order", toVal(value.order));
+  result.set("scope", toVal(value.scope));
+  result.set("regions", toVal(value.regions));
+  return result;
+}
+
+inline auto toVal(const cxx::ir::MemoryRegions& value) -> val {
+  auto result = val::object();
+  result.set("storage", toVal(value.storage));
+  result.set("workgroup", toVal(value.workgroup));
   return result;
 }
 
@@ -1518,13 +1650,16 @@ class JsEmitter final : public ir::Emitter {
   }
 
   void defineClassType(cxx::ir::TypeRef classType,
-                       std::span<const cxx::ir::TypeRef> members,
-                       bool isPacked) override {
+                       std::span<const cxx::ir::TypeRef> members, bool isPacked,
+                       unsigned long long alignment,
+                       std::span<const unsigned int> padding) override {
     delegate_.call<val>(
         "defineClassType", toVal(classType),
         arrayVal(members,
                  [](const cxx::ir::TypeRef& item) { return toVal(item); }),
-        toVal(isPacked));
+        toVal(isPacked), toVal(alignment),
+        arrayVal(padding,
+                 [](const unsigned int& item) { return toVal(item); }));
   }
 
   auto convert(cxx::SourceLocation loc, cxx::ir::CastKind kind,
@@ -1567,6 +1702,61 @@ class JsEmitter final : public ir::Emitter {
       -> cxx::ir::ValueRef override {
     return toHandle<cxx::ir::ValueTag>(delegate_.call<val>(
         "load", toVal(loc), toVal(valueType), toVal(address), toVal(access)));
+  }
+
+  auto allocateWorkgroup(cxx::SourceLocation loc, cxx::ir::TypeRef pointerType,
+                         unsigned long long alignment)
+      -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(delegate_.call<val>(
+        "allocateWorkgroup", toVal(loc), toVal(pointerType), toVal(alignment)));
+  }
+
+  auto atomicLoad(cxx::SourceLocation loc, cxx::ir::TypeRef valueType,
+                  cxx::ir::ValueRef address,
+                  const cxx::ir::AtomicAccess& access)
+      -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(
+        delegate_.call<val>("atomicLoad", toVal(loc), toVal(valueType),
+                            toVal(address), toVal(access)));
+  }
+
+  void atomicStore(cxx::SourceLocation loc, cxx::ir::ValueRef value,
+                   cxx::ir::ValueRef address,
+                   const cxx::ir::AtomicAccess& access) override {
+    delegate_.call<val>("atomicStore", toVal(loc), toVal(value), toVal(address),
+                        toVal(access));
+  }
+
+  auto atomicReadModifyWrite(cxx::SourceLocation loc,
+                             cxx::ir::AtomicOperation operation,
+                             cxx::ir::ValueRef value, cxx::ir::ValueRef address,
+                             const cxx::ir::AtomicAccess& access)
+      -> cxx::ir::ValueRef override {
+    return toHandle<cxx::ir::ValueTag>(delegate_.call<val>(
+        "atomicReadModifyWrite", toVal(loc), toVal(operation), toVal(value),
+        toVal(address), toVal(access)));
+  }
+
+  auto atomicCompareExchange(cxx::SourceLocation loc, cxx::ir::ValueRef address,
+                             cxx::ir::ValueRef expected,
+                             cxx::ir::ValueRef desired,
+                             const cxx::ir::CompareExchangeAccess& access)
+      -> std::vector<cxx::ir::ValueRef> override {
+    return toHandleVector<cxx::ir::ValueTag>(
+        delegate_.call<val>("atomicCompareExchange", toVal(loc), toVal(address),
+                            toVal(expected), toVal(desired), toVal(access)));
+  }
+
+  void memoryBarrier(cxx::SourceLocation loc,
+                     const cxx::ir::MemoryBarrierInfo& barrier) override {
+    delegate_.call<val>("memoryBarrier", toVal(loc), toVal(barrier));
+  }
+
+  void controlBarrier(cxx::SourceLocation loc,
+                      cxx::ir::MemoryScope executionScope,
+                      const cxx::ir::MemoryBarrierInfo& barrier) override {
+    delegate_.call<val>("controlBarrier", toVal(loc), toVal(executionScope),
+                        toVal(barrier));
   }
 
   auto pointerAdd(cxx::SourceLocation loc, cxx::ir::TypeRef pointerType,

@@ -6331,6 +6331,7 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
   TokenKind classKey = TokenKind::T_EOF_SYMBOL;
   bool isTemplateIntroduced = false;
   Symbol* symbol = nullptr;
+  ClassSymbol* declaredSymbol = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -6348,7 +6349,8 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
                                    SourceLocation templateLoc,
                                    UnqualifiedIdAST* unqualifiedId,
                                    TokenKind classKey,
-                                   bool isTemplateIntroduced, Symbol* symbol)
+                                   bool isTemplateIntroduced, Symbol* symbol,
+                                   ClassSymbol* declaredSymbol)
       -> ElaboratedTypeSpecifierAST*;
 
   [[nodiscard]] static auto create(Arena* arena,
@@ -6356,7 +6358,8 @@ class ElaboratedTypeSpecifierAST final : public SpecifierAST {
                                    NestedNameSpecifierAST* nestedNameSpecifier,
                                    UnqualifiedIdAST* unqualifiedId,
                                    TokenKind classKey,
-                                   bool isTemplateIntroduced, Symbol* symbol)
+                                   bool isTemplateIntroduced, Symbol* symbol,
+                                   ClassSymbol* declaredSymbol)
       -> ElaboratedTypeSpecifierAST*;
 
  protected:

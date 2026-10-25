@@ -35,6 +35,7 @@
 #include <cxx/initialization.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
+#include <cxx/memory_order.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/overload_resolution.h>
@@ -89,6 +90,73 @@ namespace {
 namespace {
 constexpr std::uintmax_t kMaximumAlignment = 1ULL << 32;
 
+[[nodiscard]] auto atomicOrderOperands(BuiltinFunctionKind kind)
+    -> std::vector<unsigned> {
+  switch (kind) {
+    case BuiltinFunctionKind::T___ATOMIC_THREAD_FENCE:
+    case BuiltinFunctionKind::T___ATOMIC_SIGNAL_FENCE:
+    case BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE:
+    case BuiltinFunctionKind::T___C11_ATOMIC_SIGNAL_FENCE:
+      return {0};
+    case BuiltinFunctionKind::T___ATOMIC_LOAD_N:
+    case BuiltinFunctionKind::T___C11_ATOMIC_LOAD:
+    case BuiltinFunctionKind::T___ATOMIC_TEST_AND_SET:
+    case BuiltinFunctionKind::T___ATOMIC_CLEAR:
+      return {1};
+    case BuiltinFunctionKind::T___ATOMIC_LOAD:
+    case BuiltinFunctionKind::T___ATOMIC_STORE_N:
+    case BuiltinFunctionKind::T___ATOMIC_STORE:
+    case BuiltinFunctionKind::T___C11_ATOMIC_STORE:
+    case BuiltinFunctionKind::T___ATOMIC_EXCHANGE_N:
+    case BuiltinFunctionKind::T___C11_ATOMIC_EXCHANGE:
+    case BuiltinFunctionKind::T___ATOMIC_ADD_FETCH:
+    case BuiltinFunctionKind::T___ATOMIC_SUB_FETCH:
+    case BuiltinFunctionKind::T___ATOMIC_AND_FETCH:
+    case BuiltinFunctionKind::T___ATOMIC_OR_FETCH:
+    case BuiltinFunctionKind::T___ATOMIC_XOR_FETCH:
+    case BuiltinFunctionKind::T___ATOMIC_NAND_FETCH:
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_ADD:
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_SUB:
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_AND:
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_OR:
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_XOR:
+    case BuiltinFunctionKind::T___ATOMIC_FETCH_NAND:
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_ADD:
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_SUB:
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_AND:
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_OR:
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_XOR:
+    case BuiltinFunctionKind::T___C11_ATOMIC_FETCH_NAND:
+      return {2};
+    case BuiltinFunctionKind::T___ATOMIC_EXCHANGE:
+    case BuiltinFunctionKind::T___C11_ATOMIC_COMPARE_EXCHANGE_STRONG:
+    case BuiltinFunctionKind::T___C11_ATOMIC_COMPARE_EXCHANGE_WEAK:
+      return {3, 4};
+    case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE_N:
+    case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE:
+      return {4, 5};
+    default:
+      return {};
+  }
+}
+
+[[nodiscard]] auto hasWeakOperand(BuiltinFunctionKind kind) -> bool {
+  switch (kind) {
+    case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE_N:
+    case BuiltinFunctionKind::T___ATOMIC_COMPARE_EXCHANGE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+[[nodiscard]] auto isBarrierAddressSpaceSet(std::intmax_t spaces) -> bool {
+  constexpr std::intmax_t supported =
+      (std::intmax_t{1} << kDeviceAddressSpace) |
+      (std::intmax_t{1} << kThreadgroupAddressSpace);
+  return (spaces & ~supported) == 0;
+}
+
 [[nodiscard]] auto operatorSpelling(TokenKind op) -> std::string_view {
   switch (op) {
     case TokenKind::T_LPAREN:
@@ -105,7 +173,7 @@ constexpr std::uintmax_t kMaximumAlignment = 1ULL << 32;
   for (auto current = symbol; current; current = current->parent()) {
     auto enclosing = symbol_cast<NamespaceSymbol>(current);
     if (!enclosing) break;
-    auto spelling = to_string(enclosing->name());
+    auto spelling = to_diag_string(enclosing->name());
     if (spelling.empty()) break;
     if (name.empty())
       name = std::move(spelling);
@@ -117,7 +185,8 @@ constexpr std::uintmax_t kMaximumAlignment = 1ULL << 32;
 
 [[nodiscard]] auto describe_scope(Symbol* symbol) -> std::string {
   auto namespaceSymbol = symbol_cast<NamespaceSymbol>(symbol);
-  if (!namespaceSymbol) return std::format("'{}'", to_string(symbol->name()));
+  if (!namespaceSymbol)
+    return std::format("'{}'", to_diag_string(symbol->name()));
 
   const auto name = qualified_namespace_name(namespaceSymbol);
   if (!name.empty()) return std::format("namespace '{}'", name);
@@ -436,7 +505,8 @@ struct TypeChecker::Visitor {
       if (!classType->definition()->isComplete()) {
         error(loc, std::format("invalid application of 'sizeof' to an "
                                "incomplete type '{}'",
-                               to_string(type)));
+                               to_diag_string(type, "",
+                                              check.diagnosticPrintOptions())));
         return false;
       }
     }
@@ -553,6 +623,11 @@ struct TypeChecker::Visitor {
                                         ValueCategory targetVC) -> bool;
 
   [[nodiscard]] auto objectClassOf(MemberExpressionAST* ast) -> ClassSymbol*;
+  [[nodiscard]] auto designatingClassOf(MemberExpressionAST* ast)
+      -> ClassSymbol*;
+  [[nodiscard]] auto checkMemberSelection(MemberExpressionAST* ast,
+                                          Symbol* member) -> bool;
+  void convertMemberObject(MemberExpressionAST* ast, ClassSymbol* target);
 
   [[nodiscard]] auto checkCalleeConstraints(CallExpressionAST* ast) -> bool;
 
@@ -676,7 +751,8 @@ struct TypeChecker::Visitor {
       -> FunctionSymbol*;
   void check_function_arguments(List<ExpressionAST*>* arguments,
                                 SourceLocation callLoc,
-                                const FunctionType* functionType);
+                                const FunctionType* functionType,
+                                FunctionSymbol* function = nullptr);
   [[nodiscard]] auto typeCheckBuiltinDispatch(CallExpressionAST* ast,
                                               BuiltinFunctionKind kind) -> bool;
   void validateBuiltinArguments(CallExpressionAST* ast,
@@ -696,6 +772,12 @@ struct TypeChecker::Visitor {
   void validateBuiltinCFStringMakeConstantString(CallExpressionAST* ast);
   void validateBuiltinAllocaWithAlign(CallExpressionAST* ast);
   void validateBuiltinStackFrameLevel(CallExpressionAST* ast);
+  void validateBuiltinDeviceBarrier(CallExpressionAST* ast);
+  void validateBuiltinAtomicOrders(CallExpressionAST* ast);
+  void foldAtomicOrderOperands(CallExpressionAST* ast,
+                               BuiltinFunctionKind kind);
+  [[nodiscard]] auto foldIntegerConstant(ExpressionAST*& expression)
+      -> std::optional<std::intmax_t>;
   [[nodiscard]] auto checkBuiltinVectorReduce(CallExpressionAST* ast) -> bool;
   void check_member_pointer_access(BinaryExpressionAST* ast);
   [[nodiscard]] auto checkBuiltinAtomic(CallExpressionAST* ast) -> bool;
@@ -743,6 +825,19 @@ struct TypeChecker::Visitor {
 
   [[nodiscard]] auto resolve_assignment_overload(AssignmentExpressionAST* ast)
       -> bool;
+
+  [[nodiscard]] auto assignsAcrossAddressSpaces(const Type* left) -> bool {
+    if (!traits.is_class(left) || !address_space(left)) return true;
+    return traits.selectAssignmentOperator(
+               control()->getLvalueReferenceType(left),
+               assignedValueType(left)) != nullptr;
+  }
+
+  [[nodiscard]] auto assignedValueType(const Type* left) const -> const Type* {
+    auto type = traits.adjusted_cv_type(left);
+    if (!traits.is_class(type)) return type;
+    return traits.remove_address_space(type);
+  }
 
   [[nodiscard]] auto resolve_compound_assignment_overload(
       CompoundAssignmentExpressionAST* ast) -> bool;
@@ -1004,10 +1099,12 @@ void TypeChecker::Visitor::operator()(GenericSelectionExpressionAST* ast) {
       }
 
       if (ast->matchedAssocIndex != -1) {
-        self.error(ast->firstSourceLocation(),
-                   std::format("multiple matching types for _Generic selector "
-                               "of type '{}'",
-                               to_string(selectorType)));
+        self.error(
+            ast->firstSourceLocation(),
+            std::format("multiple matching types for _Generic selector "
+                        "of type '{}'",
+                        to_diag_string(selectorType, "",
+                                       self.check.diagnosticPrintOptions())));
         return;
       }
 
@@ -1048,7 +1145,8 @@ void TypeChecker::Visitor::operator()(GenericSelectionExpressionAST* ast) {
         self.error(
             ast->firstSourceLocation(),
             std::format("no matching type for _Generic selector of type '{}'",
-                        to_string(selectorType)));
+                        to_diag_string(selectorType, "",
+                                       self.check.diagnosticPrintOptions())));
       }
     }
   } v{*this, ast};
@@ -1397,8 +1495,10 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
 
   error(ast->firstSourceLocation(),
         std::format("invalid subscript of type '{}' with index type '{}'",
-                    to_string(ast->baseExpression->type),
-                    to_string(ast->indexExpression->type)));
+                    to_diag_string(ast->baseExpression->type, "",
+                                   check.diagnosticPrintOptions()),
+                    to_diag_string(ast->indexExpression->type, "",
+                                   check.diagnosticPrintOptions())));
 }
 
 void TypeChecker::Visitor::set_base_symbol(ExpressionAST* base, Symbol* sym) {
@@ -1494,11 +1594,7 @@ struct TypeChecker::Visitor::CallCandidateSelection {
   std::vector<RejectedCandidate> rejected;
 
   int argCount = 0;
-  bool isMemberCall = false;
   bool hasDependentTemplateCandidate = false;
-  CvQualifiers objectCv{};
-  const Type* objectType = nullptr;
-  ValueCategory objectValueCategory = ValueCategory::kPrValue;
   ExpressionAST* impliedObjectArgument = nullptr;
   List<TemplateArgumentAST*>* explicitTemplateArguments = nullptr;
 
@@ -1556,6 +1652,9 @@ auto TypeChecker::Visitor::ResolveCallOverload::operator()() -> CallResolution {
   setArguments(ast->expressionList);
   location = ast->baseExpression->firstSourceLocation();
   lookupScope = overloadSet->parent();
+  if (auto member =
+          ast_cast<MemberExpressionAST>(stripParentheses(ast->baseExpression)))
+    lookupScope = visitor.designatingClassOf(member);
 
   bindImpliedObjectArgument();
 
@@ -1592,24 +1691,19 @@ auto TypeChecker::Visitor::ResolveCallOverload::operator()() -> CallResolution {
 }
 
 void TypeChecker::Visitor::ResolveCallOverload::bindImpliedObjectArgument() {
-  auto access = ast_cast<MemberExpressionAST>(ast->baseExpression);
+  auto access =
+      ast_cast<MemberExpressionAST>(stripParentheses(ast->baseExpression));
   if (!access) return;
 
-  isMemberCall = true;
-  objectType = access->baseExpression->type;
-  objectValueCategory = access->baseExpression->valueCategory;
   impliedObjectArgument = access->baseExpression;
 
   if (access->accessOp == TokenKind::T_MINUS_GREATER) {
-    if (auto pointerType = unqualified_cast<PointerType>(objectType)) {
-      objectType = pointerType->elementType();
-      objectValueCategory = ValueCategory::kLValue;
-      impliedObjectArgument =
-          visitor.make_dereference(access->baseExpression, objectType);
+    if (auto pointerType =
+            unqualified_cast<PointerType>(impliedObjectArgument->type)) {
+      impliedObjectArgument = visitor.make_dereference(
+          access->baseExpression, pointerType->elementType());
     }
   }
-
-  objectCv = cv_qualifiers(objectType);
 }
 
 void TypeChecker::Visitor::ResolveCallOverload::collectCandidates() {
@@ -1633,17 +1727,12 @@ void TypeChecker::Visitor::ResolveCallOverload::collectCandidates() {
 }
 
 void TypeChecker::Visitor::ResolveCallOverload::adoptEnclosingObjectArgument() {
-  if (isMemberCall) return;
+  if (impliedObjectArgument) return;
   if (!std::ranges::any_of(allFunctions,
                            &FunctionSymbol::isNonStaticMemberFunction))
     return;
   impliedObjectArgument =
       visitor.make_implied_this_object(ast->firstSourceLocation());
-  if (!impliedObjectArgument) return;
-  isMemberCall = true;
-  objectType = impliedObjectArgument->type;
-  objectCv = cv_qualifiers(objectType);
-  objectValueCategory = ValueCategory::kLValue;
 }
 
 auto TypeChecker::Visitor::CallCandidateSelection::instantiateCandidate(
@@ -1766,13 +1855,9 @@ auto TypeChecker::Visitor::CallCandidateSelection::buildCandidate(
   candidate.fromTemplate = templateCandidate;
   candidate.deducedTemplateArgs = deducedArgsForCandidate;
 
-  if (isMemberCall && !takesImpliedObjectArgument) {
+  if (impliedObjectArgument && !takesImpliedObjectArgument) {
     auto objectConversion = resolution.implicitObjectArgumentConversion(
-        function,
-        {.type = objectType,
-         .cv = objectCv,
-         .valueCategory = objectValueCategory},
-        lookupScope);
+        function, impliedObjectArgument, lookupScope);
     if (!objectConversion) {
       reject(function, objectConversion.error());
       return std::nullopt;
@@ -1836,7 +1921,9 @@ void TypeChecker::Visitor::CallCandidateSelection::noteRejectedCandidates() {
     if (!function->location()) continue;
     check.note(
         function->location(),
-        std::format("candidate function not viable: {}", to_string(reason)));
+        std::format(
+            "candidate function not viable: {}",
+            to_diag_string(reason, check.diagnosticPrintOptions(), function)));
   }
 }
 
@@ -1857,7 +1944,7 @@ auto TypeChecker::Visitor::ResolveCallOverload::reportNoMatch()
 
   visitor.error(ast->firstSourceLocation(),
                 std::format("no matching function for call to '{}'",
-                            to_string(overloadSet->name())));
+                            to_diag_string(overloadSet->name())));
 
   noteRejectedCandidates();
 
@@ -1933,10 +2020,11 @@ void TypeChecker::diagnoseAmbiguousConversion(
   if (sequence.form != ConversionSequenceForm::kAmbiguous) return;
   if (!expr) return;
 
-  error(
-      expr->firstSourceLocation(),
-      std::format("conversion from '{}' to '{}' is ambiguous",
-                  to_string(expr->type), to_string(sequence.destinationType)));
+  error(expr->firstSourceLocation(),
+        std::format("conversion from '{}' to '{}' is ambiguous",
+                    to_diag_string(expr->type, "", diagnosticPrintOptions()),
+                    to_diag_string(sequence.destinationType, "",
+                                   diagnosticPrintOptions())));
 }
 
 void TypeChecker::Visitor::diagnoseNarrowingListElement(
@@ -2009,9 +2097,6 @@ struct TypeChecker::Visitor::ResolveCallOperator {
   std::vector<RejectedCandidate> rejected;
   std::vector<Candidate> viableCandidates;
 
-  const Type* baseType = nullptr;
-  CvQualifiers objectCv{};
-  ValueCategory objectValueCategory = ValueCategory::kPrValue;
   int argCount = 0;
   bool anyDeductionSucceeded = false;
 
@@ -2091,9 +2176,8 @@ auto TypeChecker::Visitor::ResolveCallOperator::operator()()
 }
 
 auto TypeChecker::Visitor::ResolveCallOperator::bindObjectOperand() -> bool {
-  baseType = traits.remove_cvref(ast->baseExpression->type);
-
-  auto classType = type_cast<ClassType>(baseType);
+  auto classType =
+      type_cast<ClassType>(traits.remove_cvref(ast->baseExpression->type));
   if (!classType) return false;
 
   classSymbol = classType->symbol();
@@ -2112,10 +2196,6 @@ auto TypeChecker::Visitor::ResolveCallOperator::bindObjectOperand() -> bool {
   collectSurrogateConversions();
 
   if (allFunctions.empty() && surrogateConversions.empty()) return false;
-
-  objectCv = cv_qualifiers(baseType);
-  baseType = unqualified_type(baseType);
-  objectValueCategory = ast->baseExpression->valueCategory;
 
   return true;
 }
@@ -2166,11 +2246,7 @@ auto TypeChecker::Visitor::ResolveCallOperator::buildCandidate(
   std::optional<ImplicitConversionSequence> objectConversion;
   if (!takesImpliedObjectArgument) {
     auto conversion = resolution.implicitObjectArgumentConversion(
-        function,
-        {.type = baseType,
-         .cv = objectCv,
-         .valueCategory = objectValueCategory},
-        lookupScope);
+        function, ast->baseExpression, lookupScope);
     if (!conversion) {
       reject(pattern, conversion.error());
       return std::nullopt;
@@ -2284,12 +2360,15 @@ void TypeChecker::Visitor::ResolveCallOperator::reportNoViableCallOperator() {
   visitor.error(
       ast->baseExpression->firstSourceLocation(),
       std::format("no matching function for call to object of type '{}'",
-                  to_string(ast->baseExpression->type)));
+                  to_diag_string(ast->baseExpression->type, "",
+                                 check.diagnosticPrintOptions())));
 
   for (auto& [function, reason] : rejected) {
     check.note(
         function->location(),
-        std::format("candidate function not viable: {}", to_string(reason)));
+        std::format(
+            "candidate function not viable: {}",
+            to_diag_string(reason, check.diagnosticPrintOptions(), function)));
   }
 
   diagnosed = true;
@@ -2348,11 +2427,6 @@ auto TypeChecker::Visitor::resolve_arrow_operator(MemberExpressionAST* ast)
       resolution.findCandidates(classSymbol, operatorName);
   if (allFunctions.empty()) return nullptr;
 
-  auto objectType = ast->baseExpression->type;
-  auto objectCv = cv_qualifiers(objectType);
-  objectType = unqualified_type(objectType);
-  auto objectVC = ast->baseExpression->valueCategory;
-
   std::vector<Candidate> viableCandidates;
   for (auto func : allFunctions) {
     auto type = type_cast<FunctionType>(func->type());
@@ -2363,8 +2437,7 @@ auto TypeChecker::Visitor::resolve_arrow_operator(MemberExpressionAST* ast)
     if (!cand) continue;
 
     auto objectConversion = resolution.implicitObjectArgumentConversion(
-        func, {.type = objectType, .cv = objectCv, .valueCategory = objectVC},
-        lookupScope);
+        func, ast->baseExpression, lookupScope);
     if (!objectConversion) continue;
     cand->objectConversion = *objectConversion;
 
@@ -2406,7 +2479,7 @@ auto TypeChecker::Visitor::resolve_arrow_operator(MemberExpressionAST* ast)
 
 void TypeChecker::Visitor::check_function_arguments(
     List<ExpressionAST*>* arguments, SourceLocation callLoc,
-    const FunctionType* functionType) {
+    const FunctionType* functionType, FunctionSymbol* function) {
   const auto& parameterTypes = functionType->parameterTypes();
 
   OverloadResolution resolution(check.unit_);
@@ -2426,7 +2499,8 @@ void TypeChecker::Visitor::check_function_arguments(
       }
       error(it->value->firstSourceLocation(),
             std::format("too many arguments for function of type '{}'",
-                        to_string(functionType)));
+                        to_diag_string(functionType, "",
+                                       check.diagnosticPrintOptions())));
       break;
     }
 
@@ -2441,7 +2515,8 @@ void TypeChecker::Visitor::check_function_arguments(
       if (!seq) {
         error(it->value->firstSourceLocation(),
               std::format("invalid initializer list for parameter of type '{}'",
-                          to_string(targetType)));
+                          to_diag_string(targetType, "",
+                                         check.diagnosticPrintOptions())));
         continue;
       }
 
@@ -2451,13 +2526,16 @@ void TypeChecker::Visitor::check_function_arguments(
     }
 
     if (isCxx() && traits.is_reference(targetType)) {
-      auto seq =
-          resolution.computeImplicitConversionSequence(it->value, targetType);
+      auto seq = resolution.computeImplicitConversionSequence(
+          it->value, targetType, function);
       if (!seq) {
         error(it->value->firstSourceLocation(),
               std::format("invalid argument of type '{}' for parameter of "
                           "type '{}'",
-                          to_string(it->value->type), to_string(targetType)));
+                          to_diag_string(it->value->type, "",
+                                         check.diagnosticPrintOptions()),
+                          to_diag_string(targetType, "",
+                                         check.diagnosticPrintOptions())));
       } else {
         resolution.applyImplicitConversion(seq, it->value);
       }
@@ -2468,7 +2546,10 @@ void TypeChecker::Visitor::check_function_arguments(
       error(it->value->firstSourceLocation(),
             std::format("invalid argument of type '{}' for parameter of type "
                         "'{}'",
-                        to_string(it->value->type), to_string(targetType)));
+                        to_diag_string(it->value->type, "",
+                                       check.diagnosticPrintOptions()),
+                        to_diag_string(targetType, "",
+                                       check.diagnosticPrintOptions())));
       continue;
     }
 
@@ -2692,8 +2773,9 @@ auto TypeChecker::Visitor::checkBuiltinAddressof(CallExpressionAST* ast)
 
   if (arg->valueCategory == ValueCategory::kPrValue) {
     error(arg->firstSourceLocation(),
-          std::format("cannot take the address of an rvalue of type '{}'",
-                      to_string(arg->type)));
+          std::format(
+              "cannot take the address of an rvalue of type '{}'",
+              to_diag_string(arg->type, "", check.diagnosticPrintOptions())));
   } else {
     (void)check_addressable_storage(arg, arg->firstSourceLocation());
   }
@@ -2720,7 +2802,8 @@ void TypeChecker::Visitor::check_member_pointer_access(
       error(ast->firstSourceLocation(),
             std::format("left operand of '->*' must be a pointer to class "
                         "(was '{}')",
-                        to_string(object->type)));
+                        to_diag_string(object->type, "",
+                                       check.diagnosticPrintOptions())));
       return;
     }
     objectType = pointerType->elementType();
@@ -2777,7 +2860,9 @@ void TypeChecker::Visitor::check_member_pointer_access(
   error(ast->firstSourceLocation(),
         std::format("right operand of '{}' must be a pointer to member "
                     "(was '{}')",
-                    Token::spell(ast->op), to_string(memberPointer->type)));
+                    Token::spell(ast->op),
+                    to_diag_string(memberPointer->type, "",
+                                   check.diagnosticPrintOptions())));
 }
 
 void TypeChecker::Visitor::validateBuiltinAllocaWithAlign(
@@ -2874,6 +2959,103 @@ void TypeChecker::Visitor::validateBuiltinAssumeAligned(
       ValueCategory::kPrValue, alignmentArg->value->type);
 }
 
+auto TypeChecker::Visitor::foldIntegerConstant(ExpressionAST*& expression)
+    -> std::optional<std::intmax_t> {
+  ASTInterpreter interpreter{check.unit_, check.scope_};
+  auto value = interpreter.evaluate(expression);
+  auto integer = value ? interpreter.toInt(*value) : std::nullopt;
+  if (!integer) return std::nullopt;
+  expression = ConstExpressionAST::create(
+      check.unit_->arena(), expression,
+      check.unit_->arena()->make<ConstValue>(*integer), ValueCategory::kPrValue,
+      expression->type);
+  return integer;
+}
+
+void TypeChecker::Visitor::foldAtomicOrderOperands(CallExpressionAST* ast,
+                                                   BuiltinFunctionKind kind) {
+  auto orders = atomicOrderOperands(kind);
+  unsigned index = 0;
+  for (auto argument = ast->expressionList; argument;
+       argument = argument->next, ++index) {
+    auto& expression = argument->value;
+    if (!expression || isDependent(check.unit_, expression)) continue;
+    if (index == 3 && hasWeakOperand(kind)) {
+      (void)foldIntegerConstant(expression);
+      continue;
+    }
+    if (!std::ranges::contains(orders, index)) continue;
+    if (foldIntegerConstant(expression)) continue;
+    if (control()->memoryLayout()->deviceProfile() !=
+        DeviceProfile::kVulkan11F32)
+      continue;
+    error(expression->firstSourceLocation(),
+          "device atomic memory order must be a constant expression");
+  }
+}
+
+void TypeChecker::Visitor::validateBuiltinAtomicOrders(CallExpressionAST* ast) {
+  foldAtomicOrderOperands(ast,
+                          resolveBuiltinFunctionKind(
+                              ast_cast<IdExpressionAST>(ast->baseExpression)));
+}
+
+void TypeChecker::Visitor::validateBuiltinDeviceBarrier(
+    CallExpressionAST* ast) {
+  if (control()->memoryLayout()->deviceProfile() !=
+      DeviceProfile::kVulkan11F32) {
+    error(ast->firstSourceLocation(), "device barrier requires a GPU target");
+    return;
+  }
+  auto kind = resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression));
+  auto isControlBarrier =
+      kind == BuiltinFunctionKind::T___BUILTIN_CXX_CONTROL_BARRIER;
+  std::vector<std::intmax_t> operands;
+  for (auto argument = ast->expressionList; argument;
+       argument = argument->next) {
+    if (!argument->value || isDependent(check.unit_, argument->value)) return;
+    auto value = foldIntegerConstant(argument->value);
+    if (!value) {
+      error(argument->value->firstSourceLocation(),
+            "device barrier operands must be constant expressions");
+      return;
+    }
+    operands.push_back(*value);
+  }
+  auto scopes = isControlBarrier ? 2u : 1u;
+  if (operands.size() != scopes + 2) return;
+  for (unsigned index = 0; index < scopes; ++index) {
+    if (memoryScopeOf(operands[index])) continue;
+    error(ast->firstSourceLocation(),
+          "device barrier scope must be a __MEMORY_SCOPE_ value");
+    return;
+  }
+  auto order = memoryOrderOf(operands[scopes]);
+  if (!order) {
+    error(ast->firstSourceLocation(),
+          "device barrier memory order must be an __ATOMIC_ value");
+    return;
+  }
+  auto spaces = operands[scopes + 1];
+  if (!isBarrierAddressSpaceSet(spaces)) {
+    error(ast->firstSourceLocation(),
+          "device barrier address spaces must name device (1) and/or "
+          "threadgroup (3) storage");
+    return;
+  }
+  auto relaxed = *order == MemoryOrder::kRelaxed;
+  if (relaxed != (spaces == 0)) {
+    error(ast->firstSourceLocation(),
+          "an ordered device barrier requires address spaces and a relaxed "
+          "one requires none");
+    return;
+  }
+  if (!isControlBarrier && relaxed)
+    error(ast->firstSourceLocation(),
+          "a relaxed memory barrier has no effects");
+}
+
 void TypeChecker::Visitor::validateBuiltinStackFrameLevel(
     CallExpressionAST* ast) {
   auto levelArg = ast->expressionList;
@@ -2891,7 +3073,7 @@ void TypeChecker::Visitor::validateBuiltinStackFrameLevel(
     auto idExpr = ast_cast<IdExpressionAST>(ast->baseExpression);
     error(levelArg->value->firstSourceLocation(),
           std::format("argument to '{}' must be a constant integer",
-                      to_string(idExpr->symbol->name())));
+                      to_diag_string(idExpr->symbol->name())));
     return;
   }
 
@@ -2949,6 +3131,7 @@ struct TypeChecker::Visitor::CheckBuiltinAtomic {
         returnType, std::move(parameterTypes), ignoreTrailingArguments);
     visitor.check_function_arguments(ast->expressionList,
                                      ast->firstSourceLocation(), functionType);
+    visitor.foldAtomicOrderOperands(ast, kind);
     visitor.setResultTypeAndValueCategory(ast, functionType);
     if (ignoreTrailingArguments) {
       auto argument = &ast->expressionList;
@@ -2981,7 +3164,8 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::bindPointerOperand() -> bool {
     visitor.error(pointerArg->firstSourceLocation(),
                   std::format("first argument to atomic builtin must be a "
                               "pointer (was '{}')",
-                              to_string(pointerArg->type)));
+                              to_diag_string(pointerArg->type, "",
+                                             check.diagnosticPrintOptions())));
     return false;
   }
 
@@ -3019,7 +3203,8 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::requireSupportedAtomicSize()
     return true;
   visitor.error(pointerArg->firstSourceLocation(),
                 std::format("atomic operation on type '{}' of unsupported size",
-                            to_string(elementType)));
+                            to_diag_string(elementType, "",
+                                           check.diagnosticPrintOptions())));
   return false;
 }
 
@@ -3028,8 +3213,9 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::requireIntegralOrEnum() -> bool {
     return true;
   visitor.error(
       pointerArg->firstSourceLocation(),
-      std::format("atomic operation on non-integral, non-enum type '{}'",
-                  to_string(elementType)));
+      std::format(
+          "atomic operation on non-integral, non-enum type '{}'",
+          to_diag_string(elementType, "", check.diagnosticPrintOptions())));
   return false;
 }
 
@@ -3041,7 +3227,8 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::requireIntegerEnumOrPointer()
   visitor.error(pointerArg->firstSourceLocation(),
                 std::format("atomic operation on non-integral, non-enum, "
                             "non-pointer type '{}'",
-                            to_string(elementType)));
+                            to_diag_string(elementType, "",
+                                           check.diagnosticPrintOptions())));
   return false;
 }
 
@@ -3053,9 +3240,10 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::requireAddSubOperandType()
     return true;
   visitor.error(
       pointerArg->firstSourceLocation(),
-      std::format("atomic operation on non-integral, non-enum, non-pointer, "
-                  "non-floating-point type '{}'",
-                  to_string(elementType)));
+      std::format(
+          "atomic operation on non-integral, non-enum, non-pointer, "
+          "non-floating-point type '{}'",
+          to_diag_string(elementType, "", check.diagnosticPrintOptions())));
   return false;
 }
 
@@ -3068,8 +3256,9 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::
     return true;
   visitor.error(
       pointerArg->firstSourceLocation(),
-      std::format("incomplete type '{}' where a complete type is required",
-                  to_string(pointeeType)));
+      std::format(
+          "incomplete type '{}' where a complete type is required",
+          to_diag_string(pointeeType, "", check.diagnosticPrintOptions())));
   return false;
 }
 
@@ -3108,6 +3297,12 @@ auto TypeChecker::Visitor::CheckBuiltinAtomic::operator()() -> bool {
                         ? boolType
                         : elementType,
                     {pointerArg->type, elementType, elementType}, true);
+
+    case BuiltinFunctionKind::T___ATOMIC_TEST_AND_SET:
+      return finish(boolType, {pointerArg->type, intType});
+
+    case BuiltinFunctionKind::T___ATOMIC_CLEAR:
+      return finish(control()->getVoidType(), {pointerArg->type, intType});
 
     case BuiltinFunctionKind::T___C11_ATOMIC_INIT:
       if (!requireAtomicPointee()) return true;
@@ -3262,7 +3457,7 @@ auto TypeChecker::Visitor::checkBuiltinSourceLocation(CallExpressionAST* ast)
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field || field->isStatic()) continue;
     ++fields;
-    auto name = to_string(field->name());
+    auto name = to_diag_string(field->name());
     if (name == "_M_line" || name == "_M_column")
       valid &= traits.is_integral(field->type());
     else if (name == "_M_file_name" || name == "_M_function_name")
@@ -3371,6 +3566,19 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
       !checkCalleeConstraints(ast))
     return;
 
+  auto member =
+      ast_cast<MemberExpressionAST>(stripParentheses(ast->baseExpression));
+  auto function =
+      member ? symbol_cast<FunctionSymbol>(member->symbol) : nullptr;
+  if (function) {
+    if (!checkMemberSelection(member, function)) {
+      markUntypedAfterError(ast);
+      return;
+    }
+    if (function->isImplicitObjectMemberFunction())
+      convertMemberObject(member, designatingClassOf(member));
+  }
+
   bool diagnosed = false;
   auto functionType = resolve_function_type(ast, diagnosed);
 
@@ -3390,13 +3598,14 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
       error(ast->baseExpression->firstSourceLocation(),
             std::format("called object of type '{}' is not a function or "
                         "function pointer",
-                        to_string(ast->baseExpression->type)));
+                        to_diag_string(ast->baseExpression->type, "",
+                                       check.diagnosticPrintOptions())));
       if (is_dependent_type(ast->baseExpression->type)) {
         if (auto symbol = base_symbol(ast->baseExpression);
             symbol && symbol->name() && symbol->location())
           check.note(symbol->location(),
                      std::format("called object '{}' declared here",
-                                 to_string(symbol->name())));
+                                 to_diag_string(symbol->name())));
       }
     }
 
@@ -3416,13 +3625,15 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     if (argCount < required_parameter_count(funcSym, totalParams)) {
       error(ast->firstSourceLocation(),
             std::format("too few arguments for function of type '{}'",
-                        to_string(functionType)));
+                        to_diag_string(functionType, "",
+                                       check.diagnosticPrintOptions())));
     }
     appendDefaultArguments(ast, funcSym, argCount, totalParams);
   }
 
-  check_function_arguments(ast->expressionList, ast->firstSourceLocation(),
-                           functionType);
+  check_function_arguments(
+      ast->expressionList, ast->firstSourceLocation(), functionType,
+      symbol_cast<FunctionSymbol>(base_symbol(ast->baseExpression)));
 
   auto builtinKind = resolveBuiltinFunctionKind(
       ast_cast<IdExpressionAST>(ast->baseExpression));
@@ -3453,9 +3664,11 @@ void TypeChecker::Visitor::resolveBuiltinLibcall(CallExpressionAST* ast) {
         resolveBuiltinLibcallOperator(check.unit_, op, funcType);
     if (ast->constructorSymbol) return;
     error(ast->firstSourceLocation(),
-          std::format("'{}' requires a declaration of the replaceable global "
-                      "function '{}'",
-                      Token::spell(kind), to_string(funcType)));
+          std::format(
+              "'{}' requires a declaration of the replaceable global "
+              "function '{}'",
+              Token::spell(kind),
+              to_diag_string(funcType, "", check.diagnosticPrintOptions())));
     return;
   }
 
@@ -3519,9 +3732,11 @@ auto TypeChecker::Visitor::deduceConstructedPlaceholderType(
   auto deduced = check.deducePlaceholderType(declaredType, initializer);
   if (deduced) return deduced;
 
-  error(location,
-        std::format("cannot deduce '{}' from an operand of type '{}'",
-                    to_string(declaredType), to_string(initializer->type)));
+  error(location, std::format("cannot deduce '{}' from an operand of type '{}'",
+                              to_diag_string(declaredType, "",
+                                             check.diagnosticPrintOptions()),
+                              to_diag_string(initializer->type, "",
+                                             check.diagnosticPrintOptions())));
 
   return nullptr;
 }
@@ -3569,18 +3784,20 @@ void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {
 
   if (traits.is_array(ast->type)) {
     error(ast->lparenLoc,
-          std::format("array type '{}' cannot be initialized with a "
-                      "parenthesized expression list in a functional "
-                      "type conversion",
-                      to_string(ast->type)));
+          std::format(
+              "array type '{}' cannot be initialized with a "
+              "parenthesized expression list in a functional "
+              "type conversion",
+              to_diag_string(ast->type, "", check.diagnosticPrintOptions())));
     return;
   }
 
   if (traits.is_reference(specs.type())) {
     if (!ast->expressionList) {
       error(ast->lparenLoc,
-            std::format("reference to type '{}' requires an initializer",
-                        to_string(ast->type)));
+            std::format(
+                "reference to type '{}' requires an initializer",
+                to_diag_string(ast->type, "", check.diagnosticPrintOptions())));
       return;
     }
 
@@ -3601,7 +3818,10 @@ void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {
       error(ast->lparenLoc,
             std::format("invalid initialization of reference of type '{}' "
                         "from expression of type '{}'",
-                        to_string(specs.type()), to_string(initializer->type)));
+                        to_diag_string(specs.type(), "",
+                                       check.diagnosticPrintOptions()),
+                        to_diag_string(initializer->type, "",
+                                       check.diagnosticPrintOptions())));
     }
 
     return;
@@ -3643,8 +3863,11 @@ void TypeChecker::Visitor::operator()(TypeConstructionAST* ast) {
     if (check_c_style_cast(initializer, ast->type, ValueCategory::kPrValue))
       return;
     error(ast->lparenLoc,
-          std::format("invalid functional cast of '{}' to '{}'",
-                      to_string(initializer->type), to_string(ast->type)));
+          std::format(
+              "invalid functional cast of '{}' to '{}'",
+              to_diag_string(initializer->type, "",
+                             check.diagnosticPrintOptions()),
+              to_diag_string(ast->type, "", check.diagnosticPrintOptions())));
   }
 }
 
@@ -3801,7 +4024,8 @@ void TypeChecker::Visitor::operator()(MemberExpressionAST* ast) {
 
   error(ast->firstSourceLocation(),
         std::format("invalid member access into expression of type '{}'",
-                    to_string(ast->baseExpression->type)));
+                    to_diag_string(ast->baseExpression->type, "",
+                                   check.diagnosticPrintOptions())));
 }
 
 auto TypeChecker::Visitor::check_vector_component_access(
@@ -3817,7 +4041,9 @@ auto TypeChecker::Visitor::check_vector_component_access(
 
   if (traits.is_bool(vector->elementType())) {
     error(name->identifierLoc,
-          std::format("'{}' has no components", to_string(objectType)));
+          std::format(
+              "'{}' has no components",
+              to_diag_string(objectType, "", check.diagnosticPrintOptions())));
     return true;
   }
 
@@ -3826,7 +4052,9 @@ auto TypeChecker::Visitor::check_vector_component_access(
     if (components.error().kind == VectorComponentErrorKind::kOutOfRange)
       error(name->identifierLoc,
             std::format("vector component '{}' is out of range for '{}'",
-                        components.error().component, to_string(objectType)));
+                        components.error().component,
+                        to_diag_string(objectType, "",
+                                       check.diagnosticPrintOptions())));
     else
       error(name->identifierLoc,
             std::format("invalid vector component '{}' in '{}'",
@@ -3908,8 +4136,10 @@ void TypeChecker::Visitor::operator()(PostIncrExpressionAST* ast) {
   if (incr_arithmetic()) return;
   if (incr_pointer()) return;
 
-  error(ast->opLoc, std::format("cannot {} a value of type '{}'", op,
-                                to_string(ast->baseExpression->type)));
+  error(ast->opLoc,
+        std::format("cannot {} a value of type '{}'", op,
+                    to_diag_string(ast->baseExpression->type, "",
+                                   check.diagnosticPrintOptions())));
 }
 
 void TypeChecker::Visitor::classify_reference_type(ExpressionAST* ast,
@@ -3962,8 +4192,10 @@ void TypeChecker::Visitor::operator()(CppCastExpressionAST* ast) {
     if ((this->*fn)(ast->expression, ast->type, ast->valueCategory)) break;
     error(ast->firstSourceLocation(),
           std::format("invalid {} of '{}' to '{}'", name,
-                      to_string(ast->expression->type),
-                      to_string(fullTargetType)));
+                      to_diag_string(ast->expression->type, "",
+                                     check.diagnosticPrintOptions()),
+                      to_diag_string(fullTargetType, "",
+                                     check.diagnosticPrintOptions())));
     break;
   }
 
@@ -4016,7 +4248,10 @@ auto TypeChecker::Visitor::CheckStaticCast::operator()() -> bool {
   if (changesAddressSpace(traits, expression->type, targetType, targetVC))
     return false;
 
-  if (traits.is_void(targetType)) return true;
+  if (traits.is_void(targetType)) {
+    visitor.stdconv_.discardedValue(expression);
+    return true;
+  }
 
   if (castsToReference()) return true;
 
@@ -4336,9 +4571,10 @@ auto TypeChecker::Visitor::check_dynamic_cast(ExpressionAST*& expression,
   for (auto objectType : {targetObjectType, sourceObjectType}) {
     auto classType = unqualified_cast<ClassType>(objectType);
     if (!classType || traits.is_complete(classType)) continue;
-    error(
-        expression->firstSourceLocation(),
-        std::format("'{}' is an incomplete class type", to_string(classType)));
+    error(expression->firstSourceLocation(),
+          std::format(
+              "'{}' is an incomplete class type",
+              to_diag_string(classType, "", check.diagnosticPrintOptions())));
     return true;
   }
 
@@ -4362,8 +4598,9 @@ auto TypeChecker::Visitor::check_dynamic_cast(ExpressionAST*& expression,
 
   if (!traits.is_polymorphic(sourceClass)) {
     error(expression->firstSourceLocation(),
-          std::format("'{}' is not a polymorphic class type",
-                      to_string(sourceClass)));
+          std::format(
+              "'{}' is not a polymorphic class type",
+              to_diag_string(sourceClass, "", check.diagnosticPrintOptions())));
     return true;
   }
 
@@ -4398,8 +4635,11 @@ auto TypeChecker::Visitor::requireValidBaseConversion(ClassSymbol* derived,
 
   if (derived->baseSubobjectInfo(base).nonVirtualSubobjectCount == 0) {
     error(location,
-          std::format("'{}' is a virtual base class of '{}'",
-                      to_string(base->type()), to_string(derived->type())));
+          std::format(
+              "'{}' is a virtual base class of '{}'",
+              to_diag_string(base->type(), "", check.diagnosticPrintOptions()),
+              to_diag_string(derived->type(), "",
+                             check.diagnosticPrintOptions())));
     return false;
   }
 
@@ -4414,8 +4654,9 @@ auto TypeChecker::Visitor::requireCompleteTypeidOperand(const Type* type,
   auto classType = unqualified_cast<ClassType>(objectType);
   if (!classType || traits.is_complete(classType)) return true;
 
-  error(loc,
-        std::format("'{}' is an incomplete class type", to_string(classType)));
+  error(loc, std::format("'{}' is an incomplete class type",
+                         to_diag_string(classType, "",
+                                        check.diagnosticPrintOptions())));
   return false;
 }
 
@@ -4642,7 +4883,8 @@ auto TypeChecker::Visitor::resolveOffsetofDesignator(
     if (!classType) {
       error(designator->firstSourceLocation(),
             std::format("expected a class or union type, but got '{}'",
-                        to_string(designatedType)));
+                        to_diag_string(designatedType, "",
+                                       check.diagnosticPrintOptions())));
       return false;
     }
 
@@ -4653,10 +4895,10 @@ auto TypeChecker::Visitor::resolveOffsetofDesignator(
     auto field =
         symbol_cast<FieldSymbol>(qualifiedLookup(classSymbol, dot->identifier));
     if (!field) {
-      error(
-          dot->firstSourceLocation(),
-          std::format("no member named '{}' in class '{}'",
-                      dot->identifier->name(), to_string(classSymbol->name())));
+      error(dot->firstSourceLocation(),
+            std::format("no member named '{}' in class '{}'",
+                        dot->identifier->name(),
+                        to_diag_string(classSymbol->name())));
       return false;
     }
 
@@ -4669,7 +4911,8 @@ auto TypeChecker::Visitor::resolveOffsetofDesignator(
     if (!traits.is_array(designatedType)) {
       error(subscript->firstSourceLocation(),
             std::format("cannot subscript a member of type '{}'",
-                        to_string(designatedType)));
+                        to_diag_string(designatedType, "",
+                                       check.diagnosticPrintOptions())));
       return false;
     }
 
@@ -4774,26 +5017,30 @@ void TypeChecker::Visitor::operator()(BuiltinConvertVectorExpressionAST* ast) {
   auto source = unqualified_cast<VectorType>(sourceType);
   if (!source) {
     error(ast->expression->firstSourceLocation(),
-          std::format("the operand of '__builtin_convertvector' must be a "
-                      "vector (was '{}')",
-                      to_string(sourceType)));
+          std::format(
+              "the operand of '__builtin_convertvector' must be a "
+              "vector (was '{}')",
+              to_diag_string(sourceType, "", check.diagnosticPrintOptions())));
     return;
   }
 
   auto target = unqualified_cast<VectorType>(targetType);
   if (!target) {
     error(ast->typeId->firstSourceLocation(),
-          std::format("the target of '__builtin_convertvector' must be a "
-                      "vector type (was '{}')",
-                      to_string(targetType)));
+          std::format(
+              "the target of '__builtin_convertvector' must be a "
+              "vector type (was '{}')",
+              to_diag_string(targetType, "", check.diagnosticPrintOptions())));
     return;
   }
 
   if (source->elementCount() != target->elementCount()) {
     error(ast->firstSourceLocation(),
-          std::format("'__builtin_convertvector' requires vectors with the "
-                      "same number of elements ('{}' and '{}')",
-                      to_string(sourceType), to_string(targetType)));
+          std::format(
+              "'__builtin_convertvector' requires vectors with the "
+              "same number of elements ('{}' and '{}')",
+              to_diag_string(sourceType, "", check.diagnosticPrintOptions()),
+              to_diag_string(targetType, "", check.diagnosticPrintOptions())));
     return;
   }
 
@@ -4831,7 +5078,9 @@ auto TypeChecker::Visitor::checkBuiltinVectorReduce(CallExpressionAST* ast)
     error(argument->value->firstSourceLocation(),
           std::format("the operand of '{}' must be a vector of integers (was "
                       "'{}')",
-                      name, to_string(argument->value->type)));
+                      name,
+                      to_diag_string(argument->value->type, "",
+                                     check.diagnosticPrintOptions())));
     return true;
   }
 
@@ -4917,8 +5166,10 @@ void TypeChecker::Visitor::check_three_way_comparison(
   if (!commonType) {
     error(ast->firstSourceLocation(),
           std::format("invalid operands to binary expression ('{}' and '{}')",
-                      to_string(ast->leftExpression->type),
-                      to_string(ast->rightExpression->type)));
+                      to_diag_string(ast->leftExpression->type, "",
+                                     check.diagnosticPrintOptions()),
+                      to_diag_string(ast->rightExpression->type, "",
+                                     check.diagnosticPrintOptions())));
     return;
   }
 
@@ -5152,7 +5403,8 @@ void TypeChecker::Visitor::check_address_of(UnaryExpressionAST* ast) {
   if (!is_lvalue(ast->expression)) {
     error(ast->opLoc,
           std::format("cannot take the address of an rvalue of type '{}'",
-                      to_string(ast->expression->type)));
+                      to_diag_string(ast->expression->type, "",
+                                     check.diagnosticPrintOptions())));
     return;
   }
 
@@ -5208,7 +5460,8 @@ void TypeChecker::Visitor::check_unary_promote(UnaryExpressionAST* ast) {
     if (!valid) {
       error(ast->firstSourceLocation(),
             std::format("invalid argument type '{}' to unary expression",
-                        to_string(expr->type)));
+                        to_diag_string(expr->type, "",
+                                       check.diagnosticPrintOptions())));
       return;
     }
     ast->expression = expr;
@@ -5236,8 +5489,7 @@ void TypeChecker::Visitor::check_unary_promote(UnaryExpressionAST* ast) {
 
   if (!valid) return;
 
-  if (traits.is_integral_or_unscoped_enum(expr->type))
-    stdconv_.promoteOperand(expr);
+  (void)stdconv_.arithmeticPromotion(expr);
 
   ast->expression = expr;
   ast->type = expr->type;
@@ -5262,9 +5514,11 @@ void TypeChecker::Visitor::check_real_imag(UnaryExpressionAST* ast) {
   }
 
   if (!traits.is_arithmetic(expr->type)) {
-    error(ast->opLoc, std::format("invalid operand of type '{}' to '{}'",
-                                  to_string(expr->type),
-                                  check.unit_->tokenText(ast->opLoc)));
+    error(ast->opLoc,
+          std::format(
+              "invalid operand of type '{}' to '{}'",
+              to_diag_string(expr->type, "", check.diagnosticPrintOptions()),
+              check.unit_->tokenText(ast->opLoc)));
     return;
   }
 
@@ -5303,7 +5557,8 @@ void TypeChecker::Visitor::operator()(UnaryExpressionAST* ast) {
         error(ast->firstSourceLocation(),
               std::format("indirection requires a pointer operand, but the "
                           "operand has type '{}'",
-                          to_string(ast->expression->type)));
+                          to_diag_string(ast->expression->type, "",
+                                         check.diagnosticPrintOptions())));
       }
       break;
 
@@ -6070,15 +6325,20 @@ void TypeChecker::Visitor::report_invalid_operands(TokenKind op,
                                                    ExpressionAST* left,
                                                    ExpressionAST* right) {
   if (get_underlying_binary_op(op) != TokenKind::T_EOF_SYMBOL) {
-    error(loc, std::format("invalid compound assignment operator '{}' for "
-                           "types '{}' and '{}'",
-                           Token::spell(op), to_string(left->type),
-                           to_string(right->type)));
+    error(loc,
+          std::format(
+              "invalid compound assignment operator '{}' for "
+              "types '{}' and '{}'",
+              Token::spell(op),
+              to_diag_string(left->type, "", check.diagnosticPrintOptions()),
+              to_diag_string(right->type, "", check.diagnosticPrintOptions())));
     return;
   }
   error(loc,
-        std::format("invalid operands to binary expression ('{}' and '{}')",
-                    to_string(left->type), to_string(right->type)));
+        std::format(
+            "invalid operands to binary expression ('{}' and '{}')",
+            to_diag_string(left->type, "", check.diagnosticPrintOptions()),
+            to_diag_string(right->type, "", check.diagnosticPrintOptions())));
 }
 
 [[nodiscard]] static auto builtin_operator(TokenKind op) -> TokenKind {
@@ -6157,8 +6417,11 @@ auto TypeChecker::Visitor::builtin_additive_type(TokenKind op,
     auto rightElement = traits.remove_cv(traits.get_element_type(right->type));
     if (traits.is_same(leftElement, rightElement))
       return traits.make_signed(control()->getSizeType());
-    error(loc, std::format("'{}' and '{}' are not pointers to compatible types",
-                           to_string(left->type), to_string(right->type)));
+    error(loc,
+          std::format(
+              "'{}' and '{}' are not pointers to compatible types",
+              to_diag_string(left->type, "", check.diagnosticPrintOptions()),
+              to_diag_string(right->type, "", check.diagnosticPrintOptions())));
     return nullptr;
   }
 
@@ -6305,8 +6568,10 @@ void TypeChecker::Visitor::check_relational(BinaryExpressionAST* ast) {
 
   error(ast->firstSourceLocation(),
         std::format("invalid operands to binary expression ('{}' and '{}')",
-                    to_string(ast->leftExpression->type),
-                    to_string(ast->rightExpression->type)));
+                    to_diag_string(ast->leftExpression->type, "",
+                                   check.diagnosticPrintOptions()),
+                    to_diag_string(ast->rightExpression->type, "",
+                                   check.diagnosticPrintOptions())));
 }
 
 auto TypeChecker::Visitor::rewrite_not_equal_as_negated_equal(
@@ -6393,8 +6658,10 @@ void TypeChecker::Visitor::check_equality(BinaryExpressionAST* ast) {
 
   error(ast->firstSourceLocation(),
         std::format("invalid operands to binary expression ('{}' and '{}')",
-                    to_string(ast->leftExpression->type),
-                    to_string(ast->rightExpression->type)));
+                    to_diag_string(ast->leftExpression->type, "",
+                                   check.diagnosticPrintOptions()),
+                    to_diag_string(ast->rightExpression->type, "",
+                                   check.diagnosticPrintOptions())));
 }
 
 void TypeChecker::Visitor::operator()(ThreeWayComparisonExpressionAST* ast) {
@@ -6459,6 +6726,7 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
       return;
     }
     if (resolve_binary_overload(ast)) return;
+    stdconv_.discardedValue(ast->leftExpression);
     ast->type = rightType;
     ast->valueCategory = ast->rightExpression->valueCategory;
     return;
@@ -6517,8 +6785,10 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
           error(ast->firstSourceLocation(),
                 std::format(
                     "invalid operands to binary expression ('{}' and '{}')",
-                    to_string(ast->leftExpression->type),
-                    to_string(ast->rightExpression->type)));
+                    to_diag_string(ast->leftExpression->type, "",
+                                   check.diagnosticPrintOptions()),
+                    to_diag_string(ast->rightExpression->type, "",
+                                   check.diagnosticPrintOptions())));
           break;
         }
         ast->type = resultType;
@@ -6530,8 +6800,10 @@ void TypeChecker::Visitor::operator()(BinaryExpressionAST* ast) {
         error(
             ast->firstSourceLocation(),
             std::format("invalid operands to binary expression ('{}' and '{}')",
-                        to_string(ast->leftExpression->type),
-                        to_string(ast->rightExpression->type)));
+                        to_diag_string(ast->leftExpression->type, "",
+                                       check.diagnosticPrintOptions()),
+                        to_diag_string(ast->rightExpression->type, "",
+                                       check.diagnosticPrintOptions())));
         break;
       }
 
@@ -6767,20 +7039,24 @@ auto TypeChecker::Visitor::CheckConditionalExpression::
     checkVectorConditionalShape(const VectorType* condition,
                                 const VectorType* result) -> bool {
   if (condition->vectorKind() != result->vectorKind()) {
-    visitor.error(
-        ast->questionLoc,
-        std::format("vector condition '{}' and result '{}' are "
-                    "different kinds of vector",
-                    to_string(ast->condition->type), to_string(result)));
+    visitor.error(ast->questionLoc,
+                  std::format("vector condition '{}' and result '{}' are "
+                              "different kinds of vector",
+                              to_diag_string(ast->condition->type, "",
+                                             check.diagnosticPrintOptions()),
+                              to_diag_string(result, "",
+                                             check.diagnosticPrintOptions())));
     return false;
   }
 
   if (condition->elementCount() != result->elementCount()) {
-    visitor.error(
-        ast->questionLoc,
-        std::format("vector condition '{}' and result '{}' have "
-                    "different numbers of elements",
-                    to_string(ast->condition->type), to_string(result)));
+    visitor.error(ast->questionLoc,
+                  std::format("vector condition '{}' and result '{}' have "
+                              "different numbers of elements",
+                              to_diag_string(ast->condition->type, "",
+                                             check.diagnosticPrintOptions()),
+                              to_diag_string(result, "",
+                                             check.diagnosticPrintOptions())));
     return false;
   }
 
@@ -6789,11 +7065,13 @@ auto TypeChecker::Visitor::CheckConditionalExpression::
   auto layout = visitor.control()->memoryLayout();
   if (layout->sizeOf(condition->elementType()) !=
       layout->sizeOf(result->elementType())) {
-    visitor.error(
-        ast->questionLoc,
-        std::format("vector condition '{}' and result '{}' have "
-                    "elements of different sizes",
-                    to_string(ast->condition->type), to_string(result)));
+    visitor.error(ast->questionLoc,
+                  std::format("vector condition '{}' and result '{}' have "
+                              "elements of different sizes",
+                              to_diag_string(ast->condition->type, "",
+                                             check.diagnosticPrintOptions()),
+                              to_diag_string(result, "",
+                                             check.diagnosticPrintOptions())));
     return false;
   }
 
@@ -6804,8 +7082,10 @@ void TypeChecker::Visitor::CheckConditionalExpression::reportInvalidOperands() {
   visitor.error(ast->questionLoc,
                 std::format("invalid operands to the conditional operator "
                             "('{}' and '{}')",
-                            to_string(ast->iftrueExpression->type),
-                            to_string(ast->iffalseExpression->type)));
+                            to_diag_string(ast->iftrueExpression->type, "",
+                                           check.diagnosticPrintOptions()),
+                            to_diag_string(ast->iffalseExpression->type, "",
+                                           check.diagnosticPrintOptions())));
 }
 
 auto TypeChecker::Visitor::CheckConditionalExpression::checkVoidOperand()
@@ -6832,8 +7112,10 @@ auto TypeChecker::Visitor::CheckConditionalExpression::checkVoidOperand()
         ast->questionLoc,
         std::format(
             "left operand to ? is '{}', but right operand is of type '{}'",
-            to_string(ast->iftrueExpression->type),
-            to_string(ast->iffalseExpression->type)));
+            to_diag_string(ast->iftrueExpression->type, "",
+                           check.diagnosticPrintOptions()),
+            to_diag_string(ast->iffalseExpression->type, "",
+                           check.diagnosticPrintOptions())));
   }
 
   ast->type = visitor.control()->getVoidType();
@@ -7022,7 +7304,8 @@ void TypeChecker::Visitor::CheckConditionalExpression::
       ast->questionLoc,
       std::format(
           "left operand to ? is '{}', but right operand is of type '{}'",
-          to_string(iftrueType), to_string(iffalseType)));
+          to_diag_string(iftrueType, "", check.diagnosticPrintOptions()),
+          to_diag_string(iffalseType, "", check.diagnosticPrintOptions())));
 }
 
 void TypeChecker::Visitor::operator()(YieldExpressionAST* ast) {
@@ -7053,8 +7336,10 @@ void TypeChecker::Visitor::operator()(ThrowExpressionAST* ast) {
     error(ast->expression->firstSourceLocation(),
           std::format("cannot copy-initialize an exception object of type "
                       "'{}' from an expression of type '{}'",
-                      to_string(exceptionObjectType),
-                      to_string(ast->expression->type)));
+                      to_diag_string(exceptionObjectType, "",
+                                     check.diagnosticPrintOptions()),
+                      to_diag_string(ast->expression->type, "",
+                                     check.diagnosticPrintOptions())));
     return;
   }
 
@@ -7078,6 +7363,7 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
     return;
 
   if (is_dependent_type(ast->leftExpression->type) ||
+      is_dependent_type(ast->rightExpression->type) ||
       isDependent(check.unit_, ast->rightExpression)) {
     ast->type = dependent_type();
     ast->valueCategory = ValueCategory::kPrValue;
@@ -7086,9 +7372,30 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
 
   if (resolve_assignment_overload(ast)) return;
 
+  if (isCxx() && traits.is_class(ast->leftExpression->type) && !braced) {
+    error(ast->opLoc,
+          std::format("cannot assign expression of type '{}' to '{}'",
+                      to_diag_string(ast->rightExpression->type, "",
+                                     check.diagnosticPrintOptions()),
+                      to_diag_string(ast->leftExpression->type, "",
+                                     check.diagnosticPrintOptions())));
+    return;
+  }
+
+  if (!assignsAcrossAddressSpaces(ast->leftExpression->type)) {
+    error(ast->opLoc,
+          std::format("no viable assignment operator for an object of type "
+                      "'{}'",
+                      to_diag_string(ast->leftExpression->type, "",
+                                     check.diagnosticPrintOptions())));
+    return;
+  }
+
+  auto valueType = assignedValueType(ast->leftExpression->type);
+
   if (braced) {
     check.check_list_initialization(
-        traits.remove_cv(ast->leftExpression->type), ast->rightExpression,
+        valueType, ast->rightExpression,
         InitializationKind::kCopyListInitialization);
     if (!braced->type) return;
   }
@@ -7106,13 +7413,15 @@ void TypeChecker::Visitor::operator()(AssignmentExpressionAST* ast) {
 
   if (braced) return;
 
-  if (!implicit_conversion(ast->rightExpression, ast->type)) {
+  if (!implicit_conversion(ast->rightExpression, valueType)) {
     if (!ast->rightExpression->type) return;
 
     error(ast->opLoc,
-          std::format("cannot assign expression of type '{}' to '{}'",
-                      to_string(ast->rightExpression->type),
-                      to_string(ast->type)));
+          std::format(
+              "cannot assign expression of type '{}' to '{}'",
+              to_diag_string(ast->rightExpression->type, "",
+                             check.diagnosticPrintOptions()),
+              to_diag_string(ast->type, "", check.diagnosticPrintOptions())));
   }
 }
 
@@ -7192,10 +7501,13 @@ void TypeChecker::Visitor::operator()(CompoundAssignmentExpressionAST* ast) {
 
   if (!ast->adjustExpression) return;
   ast->adjustExpression->type = resultType;
-  if (!implicit_conversion(ast->adjustExpression, ast->type)) {
+  if (!implicit_conversion(ast->adjustExpression,
+                           traits.adjusted_cv_type(ast->type))) {
     error(ast->opLoc,
-          std::format("assigning to '{}' from incompatible type '{}'",
-                      to_string(ast->type), to_string(resultType)));
+          std::format(
+              "assigning to '{}' from incompatible type '{}'",
+              to_diag_string(ast->type, "", check.diagnosticPrintOptions()),
+              to_diag_string(resultType, "", check.diagnosticPrintOptions())));
   }
 }
 
@@ -7293,7 +7605,7 @@ auto TypeChecker::Visitor::contextual_conversion_to_bool(ExpressionAST*& expr)
 
 void TypeChecker::Visitor::report_unresolved_qualified_id(
     IdExpressionAST* ast) {
-  const auto name = to_string(get_name(control(), ast->unqualifiedId));
+  const auto name = to_diag_string(get_name(control(), ast->unqualifiedId));
 
   auto scope = ast->nestedNameSpecifier->symbol;
   if (!scope) {
@@ -7319,7 +7631,7 @@ namespace {
 
 void TypeChecker::Visitor::report_unresolved_id(IdExpressionAST* ast) {
   const auto name = get_lookup_name(control(), ast->unqualifiedId);
-  const auto spelling = to_string(name);
+  const auto spelling = to_diag_string(name);
 
   if (namesCplusplusBuiltin(name)) {
     error(get_name_location(ast),
@@ -7461,14 +7773,77 @@ TypeChecker::TypeChecker(TranslationUnit* unit) : unit_(unit) {}
 
 auto TypeChecker::translationUnit() const -> TranslationUnit* { return unit_; }
 
+auto TypeChecker::diagnosticPrintOptions() const -> TypePrintOptions {
+  return {.declarationScope = scope_, .unit = unit_};
+}
+
 void TypeChecker::operator()(ExpressionAST** ast) { check(ast); }
+
+namespace {
+
+struct DesignatesVolatileOperand {
+  const TypeTraits& traits;
+
+  [[nodiscard]] auto isVolatile(ExpressionAST* operand) const -> bool {
+    return operand && traits.is_volatile(operand->type);
+  }
+
+  [[nodiscard]] auto operator()(ExpressionAST*) const -> bool { return false; }
+
+  [[nodiscard]] auto operator()(NestedExpressionAST* ast) const -> bool {
+    return isVolatile(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(AssignmentExpressionAST* ast) const -> bool {
+    return isVolatile(ast->leftExpression);
+  }
+
+  [[nodiscard]] auto operator()(CompoundAssignmentExpressionAST* ast) const
+      -> bool {
+    return isVolatile(ast->targetExpression);
+  }
+
+  [[nodiscard]] auto operator()(UnaryExpressionAST* ast) const -> bool {
+    return isVolatile(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(MemberExpressionAST* ast) const -> bool {
+    return isVolatile(ast->baseExpression);
+  }
+
+  [[nodiscard]] auto operator()(ImplicitCastExpressionAST* ast) const -> bool {
+    return isVolatile(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(ConditionalExpressionAST* ast) const -> bool {
+    if (isVolatile(ast->iftrueExpression)) return true;
+    return isVolatile(ast->iffalseExpression);
+  }
+
+  [[nodiscard]] auto operator()(BinaryExpressionAST* ast) const -> bool {
+    if (ast->op == TokenKind::T_COMMA) return isVolatile(ast->rightExpression);
+    if (ast->op == TokenKind::T_DOT_STAR)
+      return isVolatile(ast->leftExpression);
+    return false;
+  }
+};
+
+}  // namespace
+
+auto TypeChecker::introducesVolatileExpression(ExpressionAST* ast) const
+    -> bool {
+  auto layout = unit_->control()->memoryLayout();
+  if (!layout || layout->deviceProfile() != DeviceProfile::kVulkan11F32)
+    return false;
+  auto traits = unit_->typeTraits();
+  if (!traits.is_volatile(ast->type)) return false;
+  return !visit(DesignatesVolatileOperand{traits}, ast);
+}
 
 void TypeChecker::check(ExpressionAST** ast) {
   if (!ast || !*ast) return;
   visit(Visitor{*this}, *ast);
-  if (auto layout = unit_->control()->memoryLayout();
-      layout && layout->deviceProfile() == DeviceProfile::kVulkan11F32 &&
-      unit_->typeTraits().is_volatile((*ast)->type))
+  if (introducesVolatileExpression(*ast))
     unit_->error((*ast)->firstSourceLocation(),
                  "volatile-qualified expressions are not supported by the "
                  "device profile");
@@ -7680,9 +8055,10 @@ struct TypeChecker::CheckMemInitializers {
         functionSymbol->location(),
         std::format("constructor for '{}' must explicitly initialize the {} "
                     "member '{}'",
-                    to_string(classSymbol->type()),
+                    to_diag_string(classSymbol->type(), "",
+                                   check.diagnosticPrintOptions()),
                     traits.is_reference(type) ? "reference" : "const",
-                    to_string(field->name())));
+                    to_diag_string(field->name())));
   }
 
   void reportMissingInitializer(std::string_view entityKind,
@@ -7691,7 +8067,9 @@ struct TypeChecker::CheckMemInitializers {
         functionSymbol->location(),
         std::format("constructor for '{}' must explicitly initialize the {} "
                     "'{}' which does not have a default constructor",
-                    to_string(classSymbol->type()), entityKind, entityName));
+                    to_diag_string(classSymbol->type(), "",
+                                   check.diagnosticPrintOptions()),
+                    entityKind, entityName));
   }
 
   [[nodiscard]] auto designatedVirtualBase(MemInitializerAST* node)
@@ -7909,16 +8287,17 @@ void TypeChecker::CheckMemInitializers::resolveWrittenInitializer(
       findMember(memInit, name, qualifier, namesBaseClassType, qualifiedType);
 
   if (!member) {
-    check.error(memInit->firstSourceLocation(),
-                std::format("'{}' is not a member or base class of '{}'",
-                            to_string(name), to_string(classSymbol->name())));
+    check.error(
+        memInit->firstSourceLocation(),
+        std::format("'{}' is not a member or base class of '{}'",
+                    to_diag_string(name), to_diag_string(classSymbol->name())));
     return;
   }
 
   if (!explicitlyInitialized.insert(member).second) {
     check.error(
         memInit->firstSourceLocation(),
-        std::format("multiple initializations of '{}'", to_string(name)));
+        std::format("multiple initializations of '{}'", to_diag_string(name)));
     return;
   }
 
@@ -8097,8 +8476,10 @@ void TypeChecker::CheckMemInitializers::checkScalarMemberInitializer(
   check.error(initializer->firstSourceLocation(),
               std::format("cannot initialize type '{}' with expression of "
                           "type '{}'",
-                          to_string(traits.remove_cv(targetType)),
-                          to_string(sourceType)));
+                          to_diag_string(traits.remove_cv(targetType), "",
+                                         check.diagnosticPrintOptions()),
+                          to_diag_string(sourceType, "",
+                                         check.diagnosticPrintOptions())));
 }
 
 auto TypeChecker::CheckMemInitializers::makeClassNsdmiInit(
@@ -8222,7 +8603,8 @@ void TypeChecker::CheckMemInitializers::appendBaseClassInitializers() {
 
     if (requiresExplicitInitializer(baseClassSymbol->type())) {
       reportMissingInitializer("base class",
-                               to_string(baseClassSymbol->type()));
+                               to_diag_string(baseClassSymbol->type(), "",
+                                              check.diagnosticPrintOptions()));
       continue;
     }
 
@@ -8248,7 +8630,9 @@ void TypeChecker::CheckMemInitializers::checkUninitializedVirtualBases() {
         });
     if (designated) continue;
     if (!requiresExplicitInitializer(vbase->type())) continue;
-    reportMissingInitializer("base class", to_string(vbase->type()));
+    reportMissingInitializer(
+        "base class",
+        to_diag_string(vbase->type(), "", check.diagnosticPrintOptions()));
   }
 }
 
@@ -8324,7 +8708,7 @@ void TypeChecker::CheckMemInitializers::appendFieldInitializers(
       if (!fieldClassSymbol) continue;
 
       if (requiresExplicitInitializer(fieldType)) {
-        reportMissingInitializer("member", to_string(field->name()));
+        reportMissingInitializer("member", to_diag_string(field->name()));
         continue;
       }
 
@@ -8395,7 +8779,8 @@ void TypeChecker::Visitor::check_static_assert(
     error(ast->expression->firstSourceLocation(),
           std::format("value of type '{}' is not contextually convertible to "
                       "'bool'",
-                      to_string(ast->expression->type)));
+                      to_diag_string(ast->expression->type, "",
+                                     check.diagnosticPrintOptions())));
     return;
   }
 
@@ -8448,8 +8833,10 @@ auto TypeChecker::Visitor::convert_class_operands_for_builtin(
 
   error(ast->opLoc,
         std::format("invalid operands to binary expression ('{}' and '{}')",
-                    to_string(ast->leftExpression->type),
-                    to_string(ast->rightExpression->type)));
+                    to_diag_string(ast->leftExpression->type, "",
+                                   check.diagnosticPrintOptions()),
+                    to_diag_string(ast->rightExpression->type, "",
+                                   check.diagnosticPrintOptions())));
   return false;
 }
 
@@ -8474,12 +8861,15 @@ auto TypeChecker::Visitor::check_modifiable_lvalue(ExpressionAST* expr,
     -> bool {
   if (!is_lvalue(expr)) {
     error(loc, std::format("cannot {} an rvalue of type '{}'", action,
-                           to_string(expr->type)));
+                           to_diag_string(expr->type, "",
+                                          check.diagnosticPrintOptions())));
     return false;
   }
   if (!is_modifiable_lvalue(expr)) {
-    error(loc, std::format("cannot {} a non-modifiable lvalue of type '{}'",
-                           action, to_string(expr->type)));
+    error(loc,
+          std::format(
+              "cannot {} a non-modifiable lvalue of type '{}'", action,
+              to_diag_string(expr->type, "", check.diagnosticPrintOptions())));
     return false;
   }
   return true;
@@ -8512,8 +8902,10 @@ void TypeChecker::Visitor::check_prefix_increment_decrement(
     }
   }
 
-  error(ast->opLoc, std::format("cannot {} a value of type '{}'", opWord,
-                                to_string(ast->expression->type)));
+  error(ast->opLoc,
+        std::format("cannot {} a value of type '{}'", opWord,
+                    to_diag_string(ast->expression->type, "",
+                                   check.diagnosticPrintOptions())));
 }
 
 auto TypeChecker::Visitor::resolve_operator_overload(
@@ -8598,7 +8990,7 @@ void TypeChecker::Visitor::apply_operator_argument_conversions(
     auto arguments =
         make_list_node<ExpressionAST>(check.unit_->arena(), rightExpression);
     check_function_arguments(arguments, rightExpression->firstSourceLocation(),
-                             functionType);
+                             functionType, operatorFunc);
     rightExpression = arguments->value;
     return;
   }
@@ -8625,6 +9017,7 @@ void TypeChecker::Visitor::adjust_member_operator_object_argument(
   auto classSymbol = symbol_cast<ClassSymbol>(operatorFunc->parent());
   if (!classSymbol) return;
 
+  stdconv_.convertObjectAddressSpace(objectExpression, operatorFunc);
   (void)stdconv_.convertToBaseClass(objectExpression, classSymbol->type());
 }
 
@@ -8765,7 +9158,12 @@ auto TypeChecker::Visitor::objectClassOf(MemberExpressionAST* ast)
     -> ClassSymbol* {
   if (!ast->baseExpression) return nullptr;
 
-  auto objectType = ast->baseExpression->type;
+  auto object = ast->baseExpression;
+  while (auto cast = ast_cast<ImplicitCastExpressionAST>(object)) {
+    if (cast->castKind != ImplicitCastKind::kDerivedToBaseConversion) break;
+    object = cast->expression;
+  }
+  auto objectType = object->type;
   if (!objectType) return nullptr;
 
   if (auto pointerType =
@@ -8776,6 +9174,54 @@ auto TypeChecker::Visitor::objectClassOf(MemberExpressionAST* ast)
   if (!classType) return nullptr;
 
   return classType->symbol();
+}
+
+auto TypeChecker::Visitor::designatingClassOf(MemberExpressionAST* ast)
+    -> ClassSymbol* {
+  if (auto qualifier = ast->nestedNameSpecifier) {
+    auto symbol = qualifier->symbol;
+    if (!symbol) return nullptr;
+    if (auto type = unqualified_cast<ClassType>(symbol->type()))
+      return type->symbol();
+    if (auto enumeration = symbol_cast<EnumSymbol>(symbol))
+      return declaringClassOf(enumeration);
+    return nullptr;
+  }
+  return objectClassOf(ast);
+}
+
+auto TypeChecker::Visitor::checkMemberSelection(MemberExpressionAST* ast,
+                                                Symbol* member) -> bool {
+  auto objectClass = objectClassOf(ast);
+  auto designatingClass = designatingClassOf(ast);
+  auto name = get_lookup_name(control(), ast->unqualifiedId);
+  auto location = get_name_location(ast);
+  if (!checkUnambiguousMemberLookup(designatingClass, name, member, location))
+    return false;
+  if (!checkMemberAccessible(member, designatingClass, objectClass, location))
+    return false;
+  if (symbol_cast<OverloadSetSymbol>(member)) return true;
+  if (!is_non_static_member(member)) return true;
+  if (!objectClass || !designatingClass) return true;
+  return checkBaseClassConversion(check.unit_, scope(), objectClass,
+                                  designatingClass, location);
+}
+
+void TypeChecker::Visitor::convertMemberObject(MemberExpressionAST* ast,
+                                               ClassSymbol* target) {
+  if (!target) return;
+  auto& object = ast->baseExpression;
+  auto objectType = traits.remove_reference(object->type);
+  const auto throughPointer = ast->accessOp == TokenKind::T_MINUS_GREATER;
+  if (throughPointer)
+    objectType = traits.remove_pointer(traits.remove_cv(objectType));
+  auto targetType = traits.add_qualifiers(
+      target->type(), cv_qualifiers(objectType), address_space(objectType));
+  if (traits.is_same(objectType, targetType)) return;
+  if (throughPointer)
+    stdconv_.convertPointer(object, control()->getPointerType(targetType));
+  else
+    (void)stdconv_.convertToBaseClass(object, targetType);
 }
 
 auto TypeChecker::Visitor::checkCalleeConstraints(CallExpressionAST* ast)
@@ -8789,7 +9235,7 @@ auto TypeChecker::Visitor::checkCalleeConstraints(CallExpressionAST* ast)
 
   error(ast->firstSourceLocation(),
         std::format("no matching function for call to '{}'",
-                    to_string(function->name())));
+                    to_diag_string(function->name())));
   check.note(function->location(),
              "candidate function not viable: constraints not satisfied");
   markUntypedAfterError(ast);
@@ -8798,10 +9244,9 @@ auto TypeChecker::Visitor::checkCalleeConstraints(CallExpressionAST* ast)
 
 auto TypeChecker::Visitor::checkExpressionAccessible(ExpressionAST* callee,
                                                      Symbol* function) -> bool {
+  callee = stripParentheses(callee);
   if (auto memberExpression = ast_cast<MemberExpressionAST>(callee)) {
-    auto objectClass = objectClassOf(memberExpression);
-    return checkMemberAccessible(function, objectClass, objectClass,
-                                 get_name_location(memberExpression));
+    return checkMemberSelection(memberExpression, function);
   }
 
   auto idExpression = ast_cast<IdExpressionAST>(callee);
@@ -8850,13 +9295,15 @@ auto TypeChecker::Visitor::checkUnambiguousMemberLookup(
       lookupClassMember(classSymbol, memberName, [](Symbol*) { return true; });
 
   auto reportAmbiguous = [&] {
-    error(loc,
-          std::format("member '{}' found in multiple base classes of '{}'",
-                      to_string(memberName), to_string(classSymbol->type())));
+    error(loc, std::format("member '{}' found in multiple base classes of '{}'",
+                           to_diag_string(memberName),
+                           to_diag_string(classSymbol->type(), "",
+                                          check.diagnosticPrintOptions())));
     return false;
   };
 
   if (lookup.ambiguous) return reportAmbiguous();
+  if (symbol_cast<OverloadSetSymbol>(member)) return true;
   if (!is_non_static_member(member)) return true;
   auto declaringClass = member->enclosingClass();
   if (!declaringClass || declaringClass == classSymbol) return true;
@@ -8914,8 +9361,6 @@ struct TypeChecker::Visitor::CheckMemberAccess {
   [[nodiscard]] auto bindObjectClass() -> bool;
   [[nodiscard]] auto dereferenceObject() -> bool;
   [[nodiscard]] auto checkDestructorId(DestructorIdAST* dtor) -> bool;
-  [[nodiscard]] auto lookupMember(const Name* memberName, Symbol*& lookupScope)
-      -> Symbol*;
   void reportMissingMember(Symbol* lookupScope);
   void setMemberResult(Symbol* symbol);
 
@@ -8941,30 +9386,57 @@ auto TypeChecker::Visitor::CheckMemberAccess::operator()() -> bool {
 
   traits.requireCompleteClass(classSymbol);
 
-  if (ast->symbol && !visitor.is_dependent_type(ast->type) &&
-      namesResolvedMember(ast->symbol)) {
-    if (visitor.checkExpressionAccessible(ast, ast->symbol))
-      setMemberResult(ast->symbol);
-    return true;
-  }
-
   if (auto dtor = ast_cast<DestructorIdAST>(ast->unqualifiedId))
     return checkDestructorId(dtor);
 
-  auto memberName = get_lookup_name(visitor.control(), ast->unqualifiedId);
-
-  Symbol* lookupScope = classSymbol;
-  auto symbol = lookupMember(memberName, lookupScope);
-
-  if (!lookupScope) return true;
-
-  ast->symbol = symbol;
-
-  if (!symbol) {
-    reportMissingMember(lookupScope);
+  if (visitor.in_template() &&
+      isDependent(check.unit_, ast->nestedNameSpecifier)) {
+    ast->type = visitor.dependent_type();
+    ast->valueCategory = ValueCategory::kLValue;
     return true;
   }
 
+  auto designatingClass = visitor.designatingClassOf(ast);
+  if (!designatingClass) {
+    visitor.error(
+        get_name_location(ast),
+        "member qualifier does not name a class or member enumeration");
+    return true;
+  }
+  auto memberName = get_lookup_name(visitor.control(), ast->unqualifiedId);
+  if (!traits.is_base_of(designatingClass->type(), classSymbol->type())) {
+    visitor.error(
+        get_name_location(ast),
+        std::format("'{}::{}' is not a member of a base class of '{}'",
+                    to_diag_string(designatingClass->name()),
+                    to_diag_string(memberName),
+                    to_diag_string(classSymbol->name())));
+    return true;
+  }
+
+  auto symbol = ast->symbol;
+  if (!symbol || visitor.is_dependent_type(ast->type) ||
+      !namesResolvedMember(symbol))
+    symbol = qualifiedLookup(ast->nestedNameSpecifier
+                                 ? ast->nestedNameSpecifier->symbol
+                                 : designatingClass,
+                             memberName);
+  ast->symbol = symbol;
+
+  if (!symbol) {
+    reportMissingMember(designatingClass);
+    return true;
+  }
+
+  if (!visitor.checkMemberSelection(ast, symbol)) return true;
+  if (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol);
+      usingDeclaration && usingDeclaration->target())
+    symbol = resolve_using_declaration(usingDeclaration);
+  ast->symbol = symbol;
+
+  if (auto field = symbol_cast<FieldSymbol>(symbol);
+      field && !field->isStatic())
+    visitor.convertMemberObject(ast, designatingClass);
   setMemberResult(symbol);
 
   return true;
@@ -9001,29 +9473,23 @@ auto TypeChecker::Visitor::CheckMemberAccess::bindObjectClass() -> bool {
   if (ast->accessOp == TokenKind::T_MINUS_GREATER && !dereferenceObject())
     return false;
 
-  auto classType = unqualified_cast<ClassType>(objectType);
-  if (!classType) return false;
-
-  classSymbol = classType->symbol();
-
-  return true;
+  classSymbol = visitor.objectClassOf(ast);
+  return classSymbol != nullptr;
 }
 
 auto TypeChecker::Visitor::CheckMemberAccess::checkDestructorId(
     DestructorIdAST* dtor) -> bool {
-  auto typeSymbol = visitor.resolveDestructorIdType(ast, dtor);
+  auto destructor = symbol_cast<FunctionSymbol>(ast->symbol);
+  auto destroyedClass = destructor ? declaringClassOf(destructor) : nullptr;
+  if (!destroyedClass) {
+    auto typeSymbol = visitor.resolveDestructorIdType(ast, dtor);
+    auto classType =
+        typeSymbol ? unqualified_cast<ClassType>(typeSymbol->type()) : nullptr;
+    destroyedClass = classType ? classType->symbol() : nullptr;
+  }
 
-  auto destroyedClass = [&]() -> ClassSymbol* {
-    if (auto injected = symbol_cast<InjectedClassNameSymbol>(typeSymbol))
-      return injected->classSymbol();
-    if (!typeSymbol) return nullptr;
-    if (!traits.is_same(typeSymbol->type(), unqualified_type(objectType)))
-      return nullptr;
-    return classSymbol;
-  }();
-
-  if (!destroyedClass || destroyedClass->resolvedDefinition() !=
-                             classSymbol->resolvedDefinition()) {
+  if (!destroyedClass ||
+      !traits.is_same(destroyedClass->type(), unqualified_type(objectType))) {
     visitor.error(dtor->firstSourceLocation(),
                   "the type of object expression does not match the type "
                   "being destroyed");
@@ -9034,52 +9500,12 @@ auto TypeChecker::Visitor::CheckMemberAccess::checkDestructorId(
 
   ast->symbol = symbol;
 
-  ast->type = symbol ? symbol->type()
+  ast->type = symbol ? visitor.named_symbol_type(symbol)
                      : visitor.control()->getFunctionType(
                            visitor.control()->getVoidType(), {});
   ast->valueCategory = memberValueCategory();
 
   return true;
-}
-
-auto TypeChecker::Visitor::CheckMemberAccess::lookupMember(
-    const Name* memberName, Symbol*& lookupScope) -> Symbol* {
-  if (ast->nestedNameSpecifier && ast->nestedNameSpecifier->symbol) {
-    lookupScope = ast->nestedNameSpecifier->symbol;
-
-    if (lookupScope != classSymbol && !visitor.in_template() &&
-        !traits.is_base_of(lookupScope->type(), objectType)) {
-      visitor.error(
-          get_name_location(ast),
-          std::format("'{}::{}' is not a member of a base class of '{}'",
-                      to_string(lookupScope->name()), to_string(memberName),
-                      to_string(classSymbol->name())));
-      lookupScope = nullptr;
-      return nullptr;
-    }
-  }
-
-  auto symbol = qualifiedLookup(lookupScope, memberName);
-
-  if (lookupScope == classSymbol &&
-      !visitor.checkUnambiguousMemberLookup(classSymbol, memberName, symbol,
-                                            get_name_location(ast))) {
-    lookupScope = nullptr;
-    return nullptr;
-  }
-
-  if (!visitor.checkMemberAccessible(symbol, classSymbol, classSymbol,
-                                     get_name_location(ast))) {
-    lookupScope = nullptr;
-    return nullptr;
-  }
-
-  if (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol);
-      usingDeclaration && usingDeclaration->target()) {
-    symbol = resolve_using_declaration(symbol);
-  }
-
-  return symbol;
 }
 
 void TypeChecker::Visitor::CheckMemberAccess::reportMissingMember(
@@ -9093,9 +9519,9 @@ void TypeChecker::Visitor::CheckMemberAccess::reportMissingMember(
 
   visitor.error(get_name_location(ast),
                 std::format("no member named '{}' in type '{}'",
-                            to_string(get_lookup_name(visitor.control(),
-                                                      ast->unqualifiedId)),
-                            to_string(lookupScope->name())));
+                            to_diag_string(get_lookup_name(visitor.control(),
+                                                           ast->unqualifiedId)),
+                            to_diag_string(lookupScope->name())));
 }
 
 void TypeChecker::Visitor::CheckMemberAccess::setMemberResult(Symbol* symbol) {
@@ -9241,7 +9667,8 @@ auto TypeChecker::deduceReturnType(ScopeSymbol* function,
   } else {
     error(location, std::format("cannot deduce '{}' from a return statement "
                                 "with no operand",
-                                to_string(placeholder)));
+                                to_diag_string(placeholder, "",
+                                               diagnosticPrintOptions())));
   }
 
   auto funcType = type_cast<FunctionType>(function->type());
@@ -9249,11 +9676,12 @@ auto TypeChecker::deduceReturnType(ScopeSymbol* function,
 
   if (!containsPlaceholderType(funcType->returnType())) {
     if (traits.is_same(funcType->returnType(), deducedType)) return true;
-    error(
-        location,
-        std::format("inconsistent deduction for return type: deduced '{}' "
-                    "here but '{}' earlier",
-                    to_string(deducedType), to_string(funcType->returnType())));
+    error(location,
+          std::format("inconsistent deduction for return type: deduced '{}' "
+                      "here but '{}' earlier",
+                      to_diag_string(deducedType, "", diagnosticPrintOptions()),
+                      to_diag_string(funcType->returnType(), "",
+                                     diagnosticPrintOptions())));
     return false;
   }
 
@@ -9316,8 +9744,9 @@ void TypeChecker::check_return_statement(ReturnStatementAST* ast,
     if (!containsPlaceholderType(targetType) &&
         !isDependent(unit_, targetType) && !traits.is_void(targetType)) {
       error(ast->returnLoc,
-            std::format("non-void function must return a value of type '{}'",
-                        to_string(targetType)));
+            std::format(
+                "non-void function must return a value of type '{}'",
+                to_diag_string(targetType, "", diagnosticPrintOptions())));
     }
     return;
   }
@@ -9442,10 +9871,16 @@ auto TypeChecker::check_bool_condition(ExpressionAST*& expr) -> bool {
   Visitor visitor{*this};
   if (visitor.contextual_conversion_to_bool(expr)) return true;
 
-  error(expr->firstSourceLocation(),
-        std::format("invalid condition expression of type '{}'",
-                    to_string(conditionType)));
+  error(
+      expr->firstSourceLocation(),
+      std::format("invalid condition expression of type '{}'",
+                  to_diag_string(conditionType, "", diagnosticPrintOptions())));
   return false;
+}
+
+void TypeChecker::check_discarded_value(ExpressionAST*& expr) {
+  Visitor visitor{*this};
+  visitor.stdconv_.discardedValue(expr);
 }
 
 void TypeChecker::set_named_symbol_result(ExpressionAST* ast, Symbol* symbol) {
@@ -9467,9 +9902,10 @@ void TypeChecker::check_integral_condition(ExpressionAST*& expr) {
 
   if (!traits.is_integral(expr->type) && !traits.is_enum(expr->type)) {
     error(expr->firstSourceLocation(),
-          std::format("condition of type '{}' is not of integral or "
-                      "enumeration type",
-                      to_string(conditionType)));
+          std::format(
+              "condition of type '{}' is not of integral or "
+              "enumeration type",
+              to_diag_string(conditionType, "", diagnosticPrintOptions())));
     return;
   }
 
@@ -9503,13 +9939,13 @@ auto TypeChecker::useFunction(FunctionSymbol* function, SourceLocation loc)
       error(loc,
             std::format("call to implicitly-deleted default constructor of "
                         "'{}'",
-                        to_string(classSymbol->name())));
+                        to_diag_string(classSymbol->name())));
       return true;
     }
   }
 
   error(loc, std::format("use of deleted function '{}'",
-                         to_string(function->name())));
+                         to_diag_string(function->name())));
 
   return true;
 }
@@ -9692,7 +10128,7 @@ auto TypeChecker::finishImmediateInvocation(ExpressionAST** ast,
     error(location,
           std::format(
               "call to immediate function '{}' is not a constant expression",
-              to_string(function->name())));
+              to_diag_string(function->name())));
   }
 
   auto constant = ConstExpressionAST::create(unit_->arena());
@@ -9735,8 +10171,8 @@ void TypeChecker::evaluateImmediateInvocation(ExpressionAST** ast) {
 auto TypeChecker::evaluateImmediateConstruction(ExpressionAST** initializer,
                                                 FunctionSymbol* constructor,
                                                 const Type* type,
-                                                SourceLocation location)
-    -> bool {
+                                                SourceLocation location,
+                                                Symbol* destination) -> bool {
   if (!constructor || !initializer || !*initializer) return false;
   if (!unit_->isPotentiallyEvaluated()) return false;
   if (unit_->isDeferredInitializer()) return false;
@@ -9746,9 +10182,13 @@ auto TypeChecker::evaluateImmediateConstruction(ExpressionAST** initializer,
   if (isDependent(unit_, *initializer)) return false;
 
   ASTInterpreter interpreter{unit_, scope_};
-  auto value = interpreter.evaluateConstructorFromExprs(
-      constructor, type, Initializer{*initializer}.arguments());
+  auto value = destination ? interpreter.initializationValue(
+                                 destination, constructor, *initializer)
+                           : interpreter.evaluateConstructorFromExprs(
+                                 constructor, type,
+                                 Initializer{*initializer}.arguments());
 
+  *initializer = makeClassConstruction(unit_, type, constructor, *initializer);
   return finishImmediateInvocation(initializer, constructor, std::move(value),
                                    type, ValueCategory::kPrValue, location);
 }

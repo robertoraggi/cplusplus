@@ -15,7 +15,8 @@ target_sources(MLIRCxxOpsIncGen PRIVATE
     CxxOpsAttributes.cpp.inc
 )
 
-add_library(cxx-mlir-dialect cxx_dialect.cc kernel_contract.cc)
+add_library(cxx-mlir-dialect cxx_dialect.cc cxx_memory_slots.cc kernel_contract.cc buffer_layout.cc
+    storage_address.cc atomic_ops.cc webgpu_policy.cc)
 
 target_compile_features(cxx-mlir-dialect PUBLIC cxx_std_23)
 
@@ -38,6 +39,7 @@ mlir_target_link_libraries(cxx-mlir-dialect PUBLIC
     MLIRIR
     MLIRLLVMDialect
     MLIRMemorySlotInterfaces
+    MLIRMemRefDialect
     MLIRPtrDialect
     MLIRSCFDialect
     MLIRTransformUtils

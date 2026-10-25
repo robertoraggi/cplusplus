@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/device_profile_limits.h>
 #include <cxx/memory_layout.h>
 #include <cxx/symbols.h>
 #include <cxx/types.h>
@@ -39,6 +40,11 @@ namespace {
 
 struct FloatingPointFormatOf {
   const MemoryLayout& memoryLayout;
+
+  [[nodiscard]] auto operator()(const HalfType*) const
+      -> std::optional<FloatingPointFormat> {
+    return FloatingPointFormat{.exponentBits = 5, .significandDigits = 11};
+  }
 
   [[nodiscard]] auto operator()(const Float16Type*) const
       -> std::optional<FloatingPointFormat> {
@@ -244,6 +250,10 @@ struct SizeOf {
   auto operator()(const LongDoubleType* type) const
       -> std::optional<std::size_t> {
     return memoryLayout.sizeOfLongDouble();
+  }
+
+  auto operator()(const HalfType* type) const -> std::optional<std::size_t> {
+    return 2;
   }
 
   auto operator()(const Float16Type* type) const -> std::optional<std::size_t> {
@@ -554,7 +564,7 @@ auto to_string(DeviceProfile profile) -> std::string_view {
     case DeviceProfile::kNone:
       return "none";
     case DeviceProfile::kVulkan11F32:
-      return "vulkan1.1-f32/as1-device-as2-constant/index32/v2";
+      return kVulkan11F32ProfileName;
   }
   std::unreachable();
 }
@@ -702,8 +712,14 @@ auto FloatingPointFormat::representation(double value) const
                         stored_significand(integerBit, *this);
 
   if (std::isnan(value)) {
-    return sign | infinity |
-           stored_significand(integerBit | (integerBit >> 1), *this);
+    auto payload = ConstInt::UWide(std::bit_cast<std::uint64_t>(value) &
+                                   ((std::uint64_t(1) << 52) - 1));
+    if (fractionBits() < 52)
+      payload >>= 52 - fractionBits();
+    else
+      payload <<= fractionBits() - 52;
+    payload |= integerBit >> 1;
+    return sign | infinity | stored_significand(integerBit | payload, *this);
   }
   if (std::isinf(value)) return sign | infinity;
   if (value == 0) return sign;
@@ -792,6 +808,10 @@ auto MemoryLayout::targetDataLayout() const -> std::optional<std::string_view> {
 auto MemoryLayout::isSPIRV() const -> bool {
   auto target = targetArch();
   return target == TripleArch::kSPIRV32 || target == TripleArch::kSPIRV64;
+}
+
+auto MemoryLayout::hasInt128Type() const -> bool {
+  return ConstInt::supportsInt128 && !isSPIRV();
 }
 
 auto MemoryLayout::isDarwin() const -> bool {

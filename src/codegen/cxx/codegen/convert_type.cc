@@ -73,6 +73,7 @@ struct Codegen::ConvertType {
   auto operator()(const FloatType* type) -> ir::TypeRef;
   auto operator()(const DoubleType* type) -> ir::TypeRef;
   auto operator()(const LongDoubleType* type) -> ir::TypeRef;
+  auto operator()(const HalfType* type) -> ir::TypeRef;
   auto operator()(const Float16Type* type) -> ir::TypeRef;
   auto operator()(const Float128Type* type) -> ir::TypeRef;
   auto operator()(const QualType* type) -> ir::TypeRef;
@@ -247,6 +248,10 @@ auto Codegen::ConvertType::operator()(const LongDoubleType* type)
   }
 }
 
+auto Codegen::ConvertType::operator()(const HalfType* type) -> ir::TypeRef {
+  return gen.emitter_.floatingType(ir::FloatKind::Half);
+}
+
 auto Codegen::ConvertType::operator()(const Float16Type* type) -> ir::TypeRef {
   return gen.emitter_.floatingType(ir::FloatKind::Half);
 }
@@ -341,9 +346,8 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> ir::TypeRef {
     return classType;
   }
 
-  std::vector<ir::TypeRef> memberTypes;
-
   if (classSymbol->isUnion()) {
+    ClassMemberTypes storage;
     ir::TypeRef largestMemberType;
     std::size_t largestMemberSize = 0;
 
@@ -358,31 +362,36 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> ir::TypeRef {
     }
 
     if (largestMemberType) {
-      memberTypes.push_back(largestMemberType);
-      gen.completeUnionStorage(memberTypes, classSymbol, largestMemberSize);
+      storage.members.push_back(largestMemberType);
+      gen.completeUnionStorage(storage, classSymbol, largestMemberSize);
     } else {
-      memberTypes.push_back(gen.emitter_.integerType(8));
+      storage.members.push_back(gen.emitter_.integerType(8));
     }
 
-    gen.defineClassType(classType, memberTypes, /*isPacked=*/false);
+    gen.defineClassType(classType, storage.members, /*isPacked=*/false,
+                        classSymbol->alignment(), storage.padding);
 
     return classType;
   }
 
-  auto [members, packed] =
+  auto storage =
       gen.buildClassMemberTypes(classSymbol, /*includeVirtualBases=*/true);
 
-  gen.defineClassType(classType, members, packed);
+  gen.defineClassType(classType, storage.members, storage.packed,
+                      classSymbol->alignment(), storage.padding);
 
   return classType;
 }
 
-void Codegen::completeUnionStorage(std::vector<ir::TypeRef>& members,
+void Codegen::completeUnionStorage(ClassMemberTypes& storage,
                                    ClassSymbol* symbol,
                                    std::uint64_t payloadSize) {
-  if (payloadSize < symbol->sizeInBytes())
+  auto& members = storage.members;
+  if (payloadSize < symbol->sizeInBytes()) {
+    storage.padding.push_back(static_cast<std::uint32_t>(members.size()));
     members.push_back(arrayType(emitter_.integerType(8),
                                 symbol->sizeInBytes() - payloadSize));
+  }
   const Type* alignmentType = nullptr;
   for (auto field : views::members(symbol) | views::non_static_fields)
     if (!alignmentType ||
@@ -402,6 +411,13 @@ auto Codegen::arrayType(ir::TypeRef elementType, std::uint64_t size)
   return type;
 }
 
+auto Codegen::vectorType(ir::TypeRef elementType, std::uint64_t elementCount)
+    -> ir::TypeRef {
+  auto type = emitter_.vectorType(elementType, elementCount);
+  vectorSizes_[type] = elementCount;
+  return type;
+}
+
 auto Codegen::arraySize(ir::TypeRef type) const -> std::uint64_t {
   auto it = arraySizes_.find(type);
   return it == arraySizes_.end() ? 0 : it->second;
@@ -418,12 +434,28 @@ auto Codegen::declareClassType(std::string_view name, bool isUnion)
 
 void Codegen::defineClassType(ir::TypeRef classType,
                               std::span<const ir::TypeRef> members,
-                              bool isPacked) {
-  emitter_.defineClassType(classType, members, isPacked);
+                              bool isPacked, std::uint64_t alignment,
+                              std::span<const std::uint32_t> padding) {
   auto& info = classTypes_[classType];
   info.members.assign(members.begin(), members.end());
+  info.padding.assign(padding.begin(), padding.end());
   info.isPacked = isPacked;
   info.isDefined = true;
+  info.alignment = 0;
+  if (alignment > naturalStorageAlignment(info, pointerSize()))
+    info.alignment = alignment;
+  emitter_.defineClassType(classType, members, isPacked, info.alignment,
+                           padding);
+}
+
+auto Codegen::naturalStorageAlignment(const ClassTypeInfo& info,
+                                      std::uint64_t pointerSize)
+    -> std::uint64_t {
+  if (info.isPacked) return 1;
+  std::uint64_t alignment = 1;
+  for (auto member : info.members)
+    alignment = std::max(alignment, storageAlignment(member, pointerSize));
+  return alignment;
 }
 
 auto Codegen::classMembers(ir::TypeRef classType) const
@@ -467,15 +499,19 @@ auto Codegen::storageAlignment(ir::TypeRef type, std::uint64_t pointerSize)
     case ir::TypeKind::Array:
       return storageAlignment(emitter_.elementType(type), pointerSize);
 
+    case ir::TypeKind::Vector: {
+      auto lanes = vectorSizes_.find(type);
+      if (lanes == vectorSizes_.end()) return 1;
+      auto elementBits = emitter_.scalarWidth(emitter_.elementType(type));
+      auto bits = std::bit_ceil(lanes->second) * elementBits;
+      return roundUpToPowerOfTwo((bits + 7) / 8);
+    }
+
     case ir::TypeKind::Class: {
       auto it = classTypes_.find(type);
       if (it == classTypes_.end()) return 1;
-      if (it->second.isPacked) return 1;
-
-      std::uint64_t alignment = 1;
-      for (auto member : it->second.members)
-        alignment = std::max(alignment, storageAlignment(member, pointerSize));
-      return alignment;
+      if (it->second.alignment) return it->second.alignment;
+      return naturalStorageAlignment(it->second, pointerSize);
     }
 
     default:
@@ -602,7 +638,9 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
         sizeInBytes == 1
             ? i8Type
             : this->arrayType(i8Type, static_cast<std::uint64_t>(sizeInBytes));
+    result.padding.push_back(padding.index);
   }
+  std::ranges::sort(result.padding);
 
   if (!memberMap.empty()) {
     result.members.resize(memberMap.rbegin()->first + 1);
@@ -664,10 +702,11 @@ auto Codegen::convertBaseSubobjectType(ClassSymbol* classSymbol)
 
   baseSubobjectTypeNames_[classSymbol] = classType;
 
-  auto [members, packed] =
+  auto storage =
       buildClassMemberTypes(classSymbol, /*includeVirtualBases=*/false);
 
-  this->defineClassType(classType, members, packed);
+  this->defineClassType(classType, storage.members, storage.packed, 1,
+                        storage.padding);
 
   return classType;
 }
@@ -699,7 +738,7 @@ auto Codegen::ConvertType::operator()(const MemberFunctionPointerType* type)
   if (!gen.isClassTypeDefined(classType)) {
     auto intType = getMemberPointerIntType();
     const ir::TypeRef members[] = {intType, intType};
-    gen.defineClassType(classType, members, /*isPacked=*/false);
+    gen.defineClassType(classType, members, /*isPacked=*/false, 1);
   }
 
   return classType;
@@ -784,8 +823,8 @@ auto Codegen::ConvertType::operator()(const UnresolvedBitIntType* type)
 }
 
 auto Codegen::ConvertType::operator()(const VectorType* type) -> ir::TypeRef {
-  return gen.emitter_.vectorType(gen.convertType(type->elementType()),
-                                 type->elementCount());
+  return gen.vectorType(gen.convertType(type->elementType()),
+                        type->elementCount());
 }
 
 auto Codegen::ConvertType::operator()(const UnresolvedVectorType* type)
@@ -805,7 +844,7 @@ auto Codegen::ConvertType::operator()(const ComplexType* type) -> ir::TypeRef {
   if (!gen.isClassTypeDefined(classType)) {
     auto elementType = gen.convertType(type->elementType());
     const ir::TypeRef members[] = {elementType, elementType};
-    gen.defineClassType(classType, members, /*isPacked=*/false);
+    gen.defineClassType(classType, members, /*isPacked=*/false, 1);
   }
 
   return classType;

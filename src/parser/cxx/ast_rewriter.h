@@ -445,6 +445,8 @@ class [[nodiscard]] ASTRewriter {
   auto genericAssociation(GenericAssociationAST* ast) -> GenericAssociationAST*;
   auto designator(DesignatorAST* ast) -> DesignatorAST*;
   auto templateParameter(TemplateParameterAST* ast) -> TemplateParameterAST*;
+  void recordDefaultTemplateArgument(TemplateParameterAST* parameter,
+                                     TemplateParameterAST* pattern);
   auto rewriteTemplateHead(TemplateDeclarationAST* ast)
       -> TemplateDeclarationAST*;
   auto rewriteMemberTemplateHead(Symbol* patternSymbol)
@@ -453,9 +455,11 @@ class [[nodiscard]] ASTRewriter {
   auto coreDeclarator(CoreDeclaratorAST* ast) -> CoreDeclaratorAST*;
   auto declaratorChunk(DeclaratorChunkAST* ast) -> DeclaratorChunkAST*;
   auto unqualifiedId(UnqualifiedIdAST* ast) -> UnqualifiedIdAST*;
-  auto nestedNameSpecifier(NestedNameSpecifierAST* ast)
+  auto nestedNameSpecifier(NestedNameSpecifierAST* ast,
+                           ClassSymbol* memberScope = nullptr)
       -> NestedNameSpecifierAST*;
   auto functionBody(FunctionBodyAST* ast) -> FunctionBodyAST*;
+  [[nodiscard]] auto enterBlock(BlockSymbol* pattern) -> BlockSymbol*;
   auto lambdaBody(StatementAST* ast) -> CompoundStatementAST*;
   auto templateArgument(TemplateArgumentAST* ast) -> TemplateArgumentAST*;
   [[nodiscard]] auto rewriteTemplateArgumentList(

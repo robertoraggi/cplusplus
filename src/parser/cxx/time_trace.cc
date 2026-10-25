@@ -2,24 +2,25 @@
 #include <cxx/symbols.h>
 #include <cxx/time_trace.h>
 
-#include <ostream>
+#include <format>
 #include <utility>
 
 namespace cxx {
 namespace {
-void writeString(std::ostream& out, const std::string& text) {
+void writeString(std::format_context::iterator& out, const std::string& text) {
   constexpr auto digits = "0123456789abcdef";
-  out << '\"';
+  out = std::format_to(out, "{}", '\"');
   for (unsigned char ch : text) {
     if (ch == '\"' || ch == '\\') {
-      out << '\\' << ch;
+      out = std::format_to(out, "{}{}", '\\', static_cast<char>(ch));
     } else if (ch < 32) {
-      out << "\\u00" << digits[ch >> 4] << digits[ch & 15];
+      out = std::format_to(out, "{}{}{}", "\\u00", digits[ch >> 4],
+                           digits[ch & 15]);
     } else {
-      out << ch;
+      out = std::format_to(out, "{}", static_cast<char>(ch));
     }
   }
-  out << '\"';
+  out = std::format_to(out, "{}", '\"');
 }
 }  // namespace
 
@@ -51,7 +52,8 @@ TimeTrace::Scope::~Scope() {
        counts_});
 }
 
-void TimeTrace::write(std::ostream& out) const {
+auto TimeTrace::formatTo(std::format_context::iterator out) const
+    -> std::format_context::iterator {
   constexpr std::array names{"instantiation_requests",
                              "instantiations",
                              "function_bodies",
@@ -63,26 +65,29 @@ void TimeTrace::write(std::ostream& out) const {
                              "specialization_comparisons",
                              "partial_specialization_visits",
                              "specialization_index_visits"};
-  out << "{\"traceEvents\":[";
+  out = std::format_to(out, "{}", "{\"traceEvents\":[");
   bool first = true;
   for (const auto& event : events_) {
-    if (!first) out << ',';
+    if (!first) out = std::format_to(out, "{}", ',');
     first = false;
-    out << "{\"name\":";
+    out = std::format_to(out, "{}", "{\"name\":");
     writeString(out, event.name);
-    out << ",\"cat\":\"cxx\",\"ph\":\"X\",\"pid\":1,\"tid\":1,\"ts\":"
-        << event.start << ",\"dur\":" << event.duration << ",\"args\":{";
+    out = std::format_to(
+        out, "{}{}{}{}{}",
+        ",\"cat\":\"cxx\",\"ph\":\"X\",\"pid\":1,\"tid\":1,\"ts\":",
+        event.start, ",\"dur\":", event.duration, ",\"args\":{");
     for (std::size_t i = 0; i < names.size(); ++i) {
-      if (i) out << ',';
+      if (i) out = std::format_to(out, "{}", ',');
       writeString(out, names[i]);
-      out << ':' << event.counts[i];
+      out = std::format_to(out, "{}{}", ':', event.counts[i]);
     }
     if (!event.detail.empty()) {
-      out << ",\"detail\":";
+      out = std::format_to(out, "{}", ",\"detail\":");
       writeString(out, event.detail);
     }
-    out << "}}";
+    out = std::format_to(out, "{}", "}}");
   }
-  out << "],\"displayTimeUnit\":\"ms\"}\n";
+  out = std::format_to(out, "{}", "],\"displayTimeUnit\":\"ms\"}\n");
+  return out;
 }
 }  // namespace cxx

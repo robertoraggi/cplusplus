@@ -18,9 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cstdio>
 #include <cstdlib>
 #include <format>
-#include <iostream>
+#include <print>
 
 #include "fwd.h"
 
@@ -34,7 +35,7 @@ namespace cxx::lsp {
 #if __cpp_exceptions
   throw std::runtime_error(msg);
 #else
-  std::cerr << std::format("lsp_runtime_error: {}\n", msg);
+  std::print(stderr, "lsp_runtime_error: {}\n", msg);
   std::abort();
 #endif
 }

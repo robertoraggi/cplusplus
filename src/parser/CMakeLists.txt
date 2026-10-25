@@ -84,6 +84,7 @@ add_library(cxx-parser
     cxx/literals.cc
     cxx/macos_toolchain.cc
     cxx/memory_layout.cc
+    cxx/spirv_environment.cc
     cxx/spirv_toolchain.cc
     cxx/name_lookup.cc
     cxx/name_printer.cc

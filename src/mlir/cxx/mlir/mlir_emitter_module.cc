@@ -19,50 +19,10 @@
 // SOFTWARE.
 
 #include <cxx/cxx_fwd.h>
+#include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/mlir/mlir_emitter.h>
-#include <llvm/IR/DataLayout.h>
-#include <llvm/MC/TargetRegistry.h>
-#include <llvm/Support/ErrorHandling.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
-#include <mlir/Dialect/DLTI/DLTI.h>
-#include <mlir/Target/LLVMIR/Import.h>
-
-#include <format>
-#include <memory>
 
 namespace cxx::ir {
-
-namespace {
-
-[[nodiscard]] auto backendDataLayout(const llvm::Triple& triple)
-    -> llvm::DataLayout {
-  llvm::InitializeAllTargetInfos();
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmParsers();
-
-  std::string error;
-  auto target = llvm::TargetRegistry::lookupTarget(triple, error);
-  if (!target) {
-    llvm::report_fatal_error(
-        llvm::Twine(std::format("failed to find target for triple '{}': {}",
-                                triple.getTriple(), error)));
-  }
-  llvm::TargetOptions options;
-  auto targetMachine =
-      std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
-          triple, "generic", "", options, std::optional<llvm::Reloc::Model>()));
-  return targetMachine->createDataLayout();
-}
-
-[[nodiscard]] auto dataLayoutOf(const ModuleInfo& info) -> llvm::DataLayout {
-  if (!info.dataLayout.empty())
-    return llvm::DataLayout(llvm::StringRef{info.dataLayout});
-  return backendDataLayout(llvm::Triple{llvm::StringRef{info.targetTriple}});
-}
-
-}  // namespace
 
 auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
   mlir::Location loc = builder_.getUnknownLoc();
@@ -72,12 +32,11 @@ auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
   builder_.setInsertionPointToStart(module.getBody());
 
   if (!info.targetTriple.empty()) {
-    auto layout = dataLayoutOf(info);
-    module->setAttr(mlir::DLTIDialect::kDataLayoutAttrName,
-                    mlir::translateDataLayout(layout, context()));
     module->setAttr("cxx.triple", builder_.getStringAttr(info.targetTriple));
-    module->setAttr("cxx.data-layout",
-                    builder_.getStringAttr(layout.getStringRepresentation()));
+    if (!info.dataLayout.empty())
+      module->setAttr("cxx.data-layout",
+                      builder_.getStringAttr(info.dataLayout));
+    initializeCxxModuleDataLayout(module);
   }
 
   if (!info.framePointer.empty() && info.framePointer != "none") {

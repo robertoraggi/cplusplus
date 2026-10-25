@@ -136,6 +136,16 @@ class TemplateEquivalence {
 
   [[nodiscard]] auto sameQualifyingEntity(Symbol* a, Symbol* b) const -> bool;
 
+  [[nodiscard]] auto namesScope(NestedNameSpecifierAST* qualifier,
+                                Symbol* scope) const -> bool;
+  [[nodiscard]] auto sameQualification(NestedNameSpecifierAST* a,
+                                       NestedNameSpecifierAST* b,
+                                       Symbol* entity) const -> bool;
+  [[nodiscard]] auto sameTemplateId(NestedNameSpecifierAST* aQualifier,
+                                    SimpleTemplateIdAST* a,
+                                    NestedNameSpecifierAST* bQualifier,
+                                    SimpleTemplateIdAST* b) const -> bool;
+
   TranslationUnit* unit_ = nullptr;
   ParameterCorrespondence correspondence_;
 };

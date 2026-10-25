@@ -26,7 +26,7 @@
 #include <cxx/names_fwd.h>
 #include <cxx/types_fwd.h>
 
-#include <iosfwd>
+#include <format>
 #include <string_view>
 
 namespace cxx {
@@ -35,9 +35,12 @@ class TranslationUnit;
 
 class ASTPrinter : ASTVisitor {
  public:
-  explicit ASTPrinter(TranslationUnit* unit, std::ostream& out);
+  explicit ASTPrinter(TranslationUnit* unit, std::format_context::iterator out);
 
   void operator()(AST* ast);
+  [[nodiscard]] auto output() const -> std::format_context::iterator {
+    return out_;
+  }
 
  private:
   void accept(AST* ast, std::string_view field = {});
@@ -315,8 +318,30 @@ class ASTPrinter : ASTVisitor {
 
  private:
   TranslationUnit* unit_;
-  std::ostream& out_;
+  std::format_context::iterator out_;
   int indent_ = -1;
 };
 
+struct ASTDump {
+  TranslationUnit* unit;
+  AST* ast;
+};
+
+[[nodiscard]] inline auto dumpAST(TranslationUnit* unit, AST* ast) -> ASTDump {
+  return {unit, ast};
+}
+
 }  // namespace cxx
+
+template <>
+struct std::formatter<cxx::ASTDump> {
+  [[nodiscard]] constexpr auto parse(std::format_parse_context& context) {
+    return context.begin();
+  }
+
+  auto format(const cxx::ASTDump& value, std::format_context& context) const {
+    cxx::ASTPrinter printer(value.unit, context.out());
+    printer(value.ast);
+    return printer.output();
+  }
+};

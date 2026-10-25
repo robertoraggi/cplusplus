@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/access_control.h>
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
 #include <cxx/binder.h>
@@ -63,6 +64,8 @@ struct ASTRewriter::UnqualifiedIdVisitor : VisitorBase {
 };
 
 struct ASTRewriter::NestedNameSpecifierVisitor : VisitorBase {
+  ClassSymbol* memberScope = nullptr;
+
   [[nodiscard]] auto operator()(GlobalNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierAST*;
 
@@ -83,14 +86,22 @@ struct ASTRewriter::NestedNameSpecifierVisitor : VisitorBase {
   void reportNonScopeQualifier(const Type* type, SourceLocation loc);
 
   [[nodiscard]] auto lookupType(NestedNameSpecifierAST* prefix,
-                                const Identifier* id) const -> Symbol*;
+                                const Identifier* id, Symbol* lexicalBinding,
+                                bool& ambiguous,
+                                NameUse use = NameUse::kOrdinary) const
+      -> Symbol*;
 };
 
 auto ASTRewriter::NestedNameSpecifierVisitor::lookupType(
-    NestedNameSpecifierAST* prefix, const Identifier* id) const -> Symbol* {
+    NestedNameSpecifierAST* prefix, const Identifier* id,
+    Symbol* lexicalBinding, bool& ambiguous, NameUse use) const -> Symbol* {
+  ambiguous = false;
   auto isType = [](Symbol* s) { return is_type(s); };
-  if (prefix && prefix->symbol) {
-    return qualifiedLookup(prefix->symbol, id, isType);
+  if (prefix) return qualifiedLookupType(prefix->symbol, id, &ambiguous, use);
+  if (memberScope) {
+    auto resolved = qualifiedLookupType(memberScope, id, &ambiguous, use);
+    if (resolved || ambiguous) return resolved;
+    if (lexicalBinding) return lexicalBinding;
   }
   for (auto scope = binder()->scope(); scope; scope = scope->parent()) {
     if (auto resolved = qualifiedLookup(scope, id, isType)) return resolved;
@@ -111,10 +122,11 @@ auto ASTRewriter::unqualifiedId(UnqualifiedIdAST* ast) -> UnqualifiedIdAST* {
   return visit(UnqualifiedIdVisitor{*this}, ast);
 }
 
-auto ASTRewriter::nestedNameSpecifier(NestedNameSpecifierAST* ast)
+auto ASTRewriter::nestedNameSpecifier(NestedNameSpecifierAST* ast,
+                                      ClassSymbol* memberScope)
     -> NestedNameSpecifierAST* {
   if (!ast) return {};
-  return visit(NestedNameSpecifierVisitor{*this}, ast);
+  return visit(NestedNameSpecifierVisitor{*this, memberScope}, ast);
 }
 
 auto ASTRewriter::templateArgument(TemplateArgumentAST* ast)
@@ -329,10 +341,15 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   copy->symbol = ast->symbol;
   copy->nestedNameSpecifier =
-      rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
+      rewrite.nestedNameSpecifier(ast->nestedNameSpecifier, memberScope);
   copy->identifierLoc = ast->identifierLoc;
   copy->identifier = ast->identifier;
   copy->scopeLoc = ast->scopeLoc;
+
+  if (!copy->nestedNameSpecifier && memberScope) {
+    resolveDependentQualifier(copy);
+    if (!copy->symbol) return copy;
+  }
 
   const bool isTypeParameter =
       symbol_cast<TypeParameterSymbol>(copy->symbol) ||
@@ -377,21 +394,34 @@ void ASTRewriter::NestedNameSpecifierVisitor::reportNonScopeQualifier(
     const Type* type, SourceLocation loc) {
   rewrite.error(loc, std::format("type '{}' cannot be used prior to '::' "
                                  "because it has no members",
-                                 to_string(type)));
+                                 to_diag_string(type)));
 }
 
 void ASTRewriter::NestedNameSpecifierVisitor::resolveDependentQualifier(
     SimpleNestedNameSpecifierAST* copy) {
   if (!copy->identifier) return;
 
-  Symbol* resolved = lookupType(copy->nestedNameSpecifier, copy->identifier);
+  bool ambiguous = false;
+  auto resolved = lookupType(copy->nestedNameSpecifier, copy->identifier,
+                             copy->symbol, ambiguous);
+  if (ambiguous) {
+    copy->symbol = nullptr;
+    rewrite.error(copy->identifierLoc,
+                  std::format("reference to '{}' is ambiguous",
+                              copy->identifier->value()));
+    return;
+  }
   if (!resolved || resolved == copy->symbol) return;
 
-  if (resolved->type() && isDependent(rewrite.unit_, resolved->type())) return;
-
-  if (auto scope = binder()->resolveNestedNameSpecifier(resolved)) {
-    copy->symbol = scope;
+  if (resolved->type() && isDependent(rewrite.unit_, resolved->type())) {
+    copy->symbol = resolved;
+    return;
   }
+
+  if (!copy->nestedNameSpecifier && memberScope)
+    (void)checkMemberAccess(translationUnit(), binder()->scope(), resolved,
+                            memberScope, memberScope, copy->identifierLoc);
+  copy->symbol = designatedScope(resolved, copy->identifierLoc);
 }
 
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
@@ -420,16 +450,43 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   copy->symbol = ast->symbol;
   copy->nestedNameSpecifier =
-      rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
+      rewrite.nestedNameSpecifier(ast->nestedNameSpecifier, memberScope);
   copy->templateLoc = ast->templateLoc;
   copy->templateId =
       ast_cast<SimpleTemplateIdAST>(rewrite.unqualifiedId(ast->templateId));
   copy->scopeLoc = ast->scopeLoc;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
+  const bool memberQualifier = !copy->nestedNameSpecifier && memberScope;
+  if (memberQualifier) copy->symbol = nullptr;
+
+  if (copy->templateId->identifier &&
+      (memberQualifier || !copy->templateId->symbol ||
+       (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol))) {
+    bool ambiguous = false;
+    auto resolved =
+        lookupType(copy->nestedNameSpecifier, copy->templateId->identifier,
+                   copy->templateId->symbol, ambiguous, NameUse::kTemplateName);
+    if (ambiguous) {
+      copy->templateId->symbol = nullptr;
+      rewrite.error(copy->templateId->identifierLoc,
+                    std::format("reference to '{}' is ambiguous",
+                                copy->templateId->identifier->value()));
+      return copy;
+    }
+    if (resolved) {
+      if (!copy->nestedNameSpecifier && memberScope)
+        (void)checkMemberAccess(translationUnit(), binder()->scope(), resolved,
+                                memberScope, memberScope,
+                                copy->templateId->identifierLoc);
+      copy->templateId->symbol = templated_symbol(resolved);
+    }
+  }
+
   if (symbol_cast<TypeAliasSymbol>(copy->templateId->symbol)) {
     auto instance =
-        binder()->resolve(copy->nestedNameSpecifier, copy->templateId, true);
+        binder()->resolve(copy->nestedNameSpecifier, copy->templateId, true,
+                          copy->templateId->symbol);
     copy->symbol =
         designatedScope(instance, copy->templateId->firstSourceLocation());
     return copy;
@@ -440,14 +497,6 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   if (isDependent(rewrite.unit_, copy->nestedNameSpecifier)) return copy;
 
-  if (copy->templateId->identifier &&
-      (!copy->templateId->symbol ||
-       (copy->nestedNameSpecifier && copy->nestedNameSpecifier->symbol))) {
-    if (auto resolved =
-            lookupType(copy->nestedNameSpecifier, copy->templateId->identifier))
-      copy->templateId->symbol = resolved;
-  }
-
   if (!copy->templateId->symbol && copy->templateId->identifier &&
       !isDependentTypeParameterSymbol(copy->nestedNameSpecifier
                                           ? copy->nestedNameSpecifier->symbol
@@ -457,7 +506,7 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     rewrite.error(copy->templateId->identifierLoc,
                   std::format("no member named '{}' in '{}'",
                               copy->templateId->identifier->value(),
-                              scopeSymbol ? to_string(scopeSymbol->type())
+                              scopeSymbol ? to_diag_string(scopeSymbol->type())
                                           : std::string{"<error-type>"}));
   }
 

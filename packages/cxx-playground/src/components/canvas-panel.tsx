@@ -97,6 +97,25 @@ export function CanvasPanel({ active }: { active: boolean }) {
           <RotateCcw />
           <span className="sr-only">Restart the time</span>
         </Button>
+        {shaderCanvas.entryPoints.length > 1 && (
+          <select
+            aria-label="Kernel entry point"
+            className="max-w-40 rounded border border-border bg-background px-1 py-0.5"
+            value={shaderCanvas.entryPoint ?? ""}
+            onChange={(event) =>
+              shaderCanvas.selectEntryPoint(event.target.value)
+            }
+          >
+            <option value="" disabled>
+              Select a kernel
+            </option>
+            {shaderCanvas.entryPoints.map((entry) => (
+              <option key={entry} value={entry}>
+                {entry}
+              </option>
+            ))}
+          </select>
+        )}
         <ButtonGroup aria-label="Canvas resolution">
           {resolutionScales.map((scale) => (
             <Button

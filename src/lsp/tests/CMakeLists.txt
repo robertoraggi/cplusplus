@@ -6,8 +6,7 @@ if (EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".cjs")
 endif()
 
-aux_source_directory(. SOURCES)
-add_executable(test_lsp ${SOURCES})
+add_executable(test_lsp test_types.cc test_transport.cc)
 
 target_link_libraries(test_lsp
     GTest::gtest_main

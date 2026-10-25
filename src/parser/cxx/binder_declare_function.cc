@@ -266,6 +266,12 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   checkDestructorParameters();
 
   if (functionSymbol->isConstructor()) {
+    if (binder.inExplicitInstantiation()) {
+      if (auto specialization = namedTemplateSpecialization()) {
+        instantiateExplicitly(*specialization);
+        return functionSymbol;
+      }
+    }
     checkConstructor();
     if (binder.inExplicitInstantiation()) instantiateMemberExplicitly();
     recordFriendship(std::nullopt);
@@ -419,6 +425,14 @@ auto Binder::DeclareFunction::specializedPrimaryTemplates() const
       return;
     primaries.push_back(function);
   };
+
+  if (functionSymbol->isConstructor()) {
+    auto classSymbol = symbol_cast<ClassSymbol>(declaringScope);
+    if (!classSymbol) return primaries;
+    for (auto function : classSymbol->declaredConstructors())
+      consider(function);
+    return primaries;
+  }
 
   if (namesConversionFunction()) {
     auto classSymbol = symbol_cast<ClassSymbol>(declaringScope);
@@ -623,7 +637,7 @@ void Binder::DeclareFunction::reportDifferentKindOfSymbol(
 
     binder.error(functionSymbol->location(),
                  std::format("redefinition of '{}' as different kind of symbol",
-                             to_string(functionSymbol->name())));
+                             to_diag_string(functionSymbol->name())));
     binder.note(candidate->location(), "previous definition is here");
     return;
   }
@@ -705,10 +719,10 @@ void Binder::DeclareFunction::checkCRedeclaration(ScopeSymbol* declaringScope) {
     } else {
       binder.error(functionSymbol->location(),
                    std::format("conflicting types for '{}'",
-                               to_string(functionSymbol->name())));
+                               to_diag_string(functionSymbol->name())));
       binder.note(canonical->location(),
                   std::format("previous declaration of '{}' is here",
-                              to_string(canonical->name())));
+                              to_diag_string(canonical->name())));
     }
     return;
   }
@@ -877,7 +891,7 @@ void Binder::DeclareFunction::checkExplicitInstantiation(
   binder.error(decl.location(),
                std::format("explicit instantiation of '{}' does not refer to a "
                            "function template specialization",
-                           to_string(templateName())));
+                           to_diag_string(templateName())));
 }
 
 void Binder::DeclareFunction::checkExternalLinkageSpec() {
@@ -970,7 +984,7 @@ void Binder::DeclareFunction::checkCovariantReturnType(
                std::format("return type of virtual function '{}' is not "
                            "covariant with the return type of the function it "
                            "overrides",
-                           to_string(functionSymbol->name())));
+                           to_diag_string(functionSymbol->name())));
   binder.note(overridden->location(), "overridden virtual function is here");
 }
 
@@ -999,7 +1013,7 @@ void Binder::DeclareFunction::checkCovariantReturnBase(
                std::format("return type of virtual function '{}' is not "
                            "covariant with the return type of the function it "
                            "overrides",
-                           to_string(functionSymbol->name())));
+                           to_diag_string(functionSymbol->name())));
 }
 
 void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
@@ -1008,14 +1022,14 @@ void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
     binder.error(functionSymbol->location(),
                  std::format("'{}' marked 'override' but does not override "
                              "any member function",
-                             to_string(functionSymbol->name())));
+                             to_diag_string(functionSymbol->name())));
   }
 
   if (!functionSymbol->isFinal() || functionSymbol->isVirtual()) return;
 
   binder.error(functionSymbol->location(),
                std::format("'{}' marked 'final' but is not virtual",
-                           to_string(functionSymbol->name())));
+                           to_diag_string(functionSymbol->name())));
 }
 
 auto Binder::findOverriddenFunctions(ClassSymbol* cls, FunctionSymbol* fn)
@@ -1071,7 +1085,7 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
         binder.error(
             functionSymbol->location(),
             std::format("declaration of '{}' overrides a 'final' function",
-                        to_string(functionSymbol->name())));
+                        to_diag_string(functionSymbol->name())));
         binder.note(function->location(), "overridden final function is here");
       }
       checkCovariantReturnType(function);
@@ -1276,7 +1290,7 @@ void Binder::DeclareFunction::checkDefaultArgumentOrder() {
     binder.error(parameter->location(),
                  parameter->name()
                      ? std::format("missing default argument on parameter '{}'",
-                                   to_string(parameter->name()))
+                                   to_diag_string(parameter->name()))
                      : std::string("missing default argument on parameter"));
     return;
   }

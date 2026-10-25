@@ -43,13 +43,11 @@
 #include <llvm/IR/Module.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
-#include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Target/TargetMachine.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/MLIRContext.h>
 
 #include <format>
-#include <sstream>
 #endif
 
 namespace cxx::js {
@@ -86,55 +84,24 @@ namespace {
 }
 
 #ifdef CXX_WITH_SPIRV
-void describeDiagnostic(mlir::Diagnostic& diagnostic, llvm::raw_ostream& os) {
-  if (auto location =
-          diagnostic.getLocation()->findInstanceOf<mlir::FileLineColLoc>()) {
-    os << location.getFilename().getValue() << ':' << location.getLine() << ':'
-       << location.getColumn() << ": ";
-  }
-  os << "error: " << diagnostic.str() << '\n';
-}
-
-class KernelErrors {
- public:
-  KernelErrors(mlir::ModuleOp module, std::string& error)
-      : errors_(error),
-        handler_(module.getContext(), [this](mlir::Diagnostic& diagnostic) {
-          if (diagnostic.getSeverity() == mlir::DiagnosticSeverity::Error)
-            describeDiagnostic(diagnostic, errors_);
-          return mlir::success();
-        }) {}
-
- private:
-  llvm::raw_string_ostream errors_;
-  mlir::ScopedDiagnosticHandler handler_;
-};
-
 [[nodiscard]] auto generateDeviceCode(mlir::ModuleOp module,
                                       std::string_view format)
     -> GeneratedCode {
   GeneratedCode generated;
-  KernelErrors errors(module, generated.error);
-  const auto entries = kernelEntryPoints(module);
+  llvm::raw_string_ostream errors(generated.error);
+  DeviceDiagnostics diagnostics(module.getContext(), errors);
   if (format == "mlir" || format == "asm") {
     llvm::raw_string_ostream text(generated.text);
     const auto stage =
         format == "mlir" ? KernelStage::kGPU : KernelStage::kSPIRV;
-    (void)printKernels(module, entries, stage, text);
+    (void)printDeviceModule(module, "", stage, text);
     return generated;
   }
   if (format != "obj") {
     generated.error = hostTargetRequired(format);
     return generated;
   }
-  if (entries.size() != 1) {
-    generated.error = std::format(
-        "obj emits one kernel, but the unit defines {}; the spirv format "
-        "emits every kernel",
-        entries.size());
-    return generated;
-  }
-  auto artifact = compileSPIRVKernel(module, entries.front());
+  auto artifact = compileSPIRVModule(module, "");
   if (succeeded(artifact))
     generated.objectCode.assign(artifact->bytes.begin(), artifact->bytes.end());
   return generated;
@@ -143,16 +110,15 @@ class KernelErrors {
 [[nodiscard]] auto generateKernels(mlir::ModuleOp module,
                                    std::string_view format) -> GeneratedCode {
   GeneratedCode generated;
-  KernelErrors errors(module, generated.error);
-  for (const auto& entry : kernelEntryPoints(module)) {
-    auto artifact = format == "wgsl" ? compileWGSLKernel(module, entry)
-                                     : compileSPIRVKernel(module, entry);
-    if (failed(artifact)) continue;
+  llvm::raw_string_ostream errors(generated.error);
+  DeviceDiagnostics diagnostics(module.getContext(), errors);
+  auto artifact = format == "wgsl" ? compileWGSLModule(module, "")
+                                   : compileSPIRVModule(module, "");
+  if (succeeded(artifact))
     generated.kernels.push_back(
         {std::move(artifact->manifest),
          std::vector<std::uint8_t>(artifact->bytes.begin(),
                                    artifact->bytes.end())});
-  }
   return generated;
 }
 #else
@@ -188,12 +154,12 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   auto result = codegen(unit->ast());
   auto module = emitter.module(result.module);
 
-  std::ostringstream out;
-  llvm::raw_os_ostream os(out);
+  std::string out;
+  llvm::raw_string_ostream os(out);
 
   auto textOutput = [&] {
     os.flush();
-    return GeneratedCode{.text = out.str()};
+    return GeneratedCode{.text = std::move(out)};
   };
 
   auto printingFlags = [&] {
@@ -207,9 +173,12 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   if (targetsDevice(unit) && format != "cxxir")
     return generateDeviceCode(module, format);
 
-  if (failed(runMLIRPassPipeline(module, mlirPipeline))) {
-    if (objectFile) return GeneratedCode{};
-    return GeneratedCode{.text = "<error running MLIR pipeline>"};
+  std::string pipelineErrors;
+  llvm::raw_string_ostream errors(pipelineErrors);
+  if (failed(runMLIRPassPipeline(module, mlirPipeline, true, &errors))) {
+    return GeneratedCode{
+        .text = objectFile ? "" : "<error running MLIR pipeline>",
+        .error = std::move(pipelineErrors)};
   }
 
   if (format == "cxxir") {

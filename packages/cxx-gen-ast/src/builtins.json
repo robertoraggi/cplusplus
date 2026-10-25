@@ -3362,7 +3362,8 @@
     "prototype": "constexpr __SIZE_TYPE__ __builtin_strlen(const char*)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "eval": "evaluateBuiltinCharacterLength"
   },
   {
     "name": "__builtin_strncat",
@@ -3558,85 +3559,101 @@
     "name": "__c11_atomic_init",
     "prototype": "void __c11_atomic_init(volatile void*, long long)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_store",
     "prototype": "void __c11_atomic_store(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_load",
     "prototype": "long long __c11_atomic_load(volatile void*, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_exchange",
     "prototype": "long long __c11_atomic_exchange(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_compare_exchange_strong",
     "prototype": "int __c11_atomic_compare_exchange_strong(volatile void*, void*, long long, int, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_compare_exchange_weak",
     "prototype": "int __c11_atomic_compare_exchange_weak(volatile void*, void*, long long, int, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_add",
     "prototype": "long long __c11_atomic_fetch_add(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_sub",
     "prototype": "long long __c11_atomic_fetch_sub(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_or",
     "prototype": "long long __c11_atomic_fetch_or(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_and",
     "prototype": "long long __c11_atomic_fetch_and(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_xor",
     "prototype": "long long __c11_atomic_fetch_xor(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_fetch_nand",
     "prototype": "long long __c11_atomic_fetch_nand(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_thread_fence",
     "prototype": "void __c11_atomic_thread_fence(int)",
     "constexpr": false,
-    "noexcept": true
+    "noexcept": true,
+    "validate": "validateBuiltinAtomicOrders",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_signal_fence",
     "prototype": "void __c11_atomic_signal_fence(int)",
     "constexpr": false,
-    "noexcept": true
+    "noexcept": true,
+    "validate": "validateBuiltinAtomicOrders",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__c11_atomic_is_lock_free",
@@ -3649,145 +3666,173 @@
     "name": "__atomic_load_n",
     "prototype": "long long __atomic_load_n(const volatile void*, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_load",
     "prototype": "void __atomic_load(const volatile void*, void*, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_store_n",
     "prototype": "void __atomic_store_n(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_store",
     "prototype": "void __atomic_store(volatile void*, void*, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_exchange_n",
     "prototype": "long long __atomic_exchange_n(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_exchange",
     "prototype": "void __atomic_exchange(volatile void*, void*, void*, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_compare_exchange_n",
     "prototype": "bool __atomic_compare_exchange_n(volatile void*, void*, long long, bool, int, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_compare_exchange",
     "prototype": "bool __atomic_compare_exchange(volatile void*, void*, void*, bool, int, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_add_fetch",
     "prototype": "long long __atomic_add_fetch(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_sub_fetch",
     "prototype": "long long __atomic_sub_fetch(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_and_fetch",
     "prototype": "long long __atomic_and_fetch(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_xor_fetch",
     "prototype": "long long __atomic_xor_fetch(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_or_fetch",
     "prototype": "long long __atomic_or_fetch(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_nand_fetch",
     "prototype": "long long __atomic_nand_fetch(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_add",
     "prototype": "long long __atomic_fetch_add(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_sub",
     "prototype": "long long __atomic_fetch_sub(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_and",
     "prototype": "long long __atomic_fetch_and(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_xor",
     "prototype": "long long __atomic_fetch_xor(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_or",
     "prototype": "long long __atomic_fetch_or(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_fetch_nand",
     "prototype": "long long __atomic_fetch_nand(volatile void*, long long, int)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_test_and_set",
     "prototype": "bool __atomic_test_and_set(volatile void*, int)",
     "constexpr": false,
-    "noexcept": true
+    "noexcept": true,
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_clear",
     "prototype": "void __atomic_clear(volatile void*, int)",
     "constexpr": false,
-    "noexcept": true
+    "noexcept": true,
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_thread_fence",
     "prototype": "void __atomic_thread_fence(int)",
     "constexpr": false,
-    "noexcept": true
+    "noexcept": true,
+    "validate": "validateBuiltinAtomicOrders",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_signal_fence",
     "prototype": "void __atomic_signal_fence(int)",
     "constexpr": false,
-    "noexcept": true
+    "noexcept": true,
+    "validate": "validateBuiltinAtomicOrders",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__atomic_always_lock_free",
@@ -4359,7 +4404,8 @@
     "prototype": "constexpr __SIZE_TYPE__ __builtin_wcslen(const wchar_t*)",
     "constexpr": true,
     "noexcept": true,
-    "libcall": true
+    "libcall": true,
+    "eval": "evaluateBuiltinCharacterLength"
   },
   {
     "name": "__builtin_wcsncmp",
@@ -4553,6 +4599,20 @@
     "prototype": "void __builtin_ia32_pause()",
     "constexpr": false,
     "noexcept": true
+  },
+  {
+    "name": "__builtin_cxx_control_barrier",
+    "prototype": "void __builtin_cxx_control_barrier(int, int, int, unsigned int)",
+    "validate": "validateBuiltinDeviceBarrier",
+    "noexcept": true,
+    "codegen": "codegenBuiltinAtomic"
+  },
+  {
+    "name": "__builtin_cxx_memory_barrier",
+    "prototype": "void __builtin_cxx_memory_barrier(int, int, unsigned int)",
+    "validate": "validateBuiltinDeviceBarrier",
+    "noexcept": true,
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__builtin_trap",
@@ -4902,102 +4962,119 @@
     "name": "__sync_fetch_and_add",
     "prototype": "long long __sync_fetch_and_add(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_add_and_fetch",
     "prototype": "long long __sync_add_and_fetch(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_fetch_and_sub",
     "prototype": "long long __sync_fetch_and_sub(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_sub_and_fetch",
     "prototype": "long long __sync_sub_and_fetch(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_fetch_and_and",
     "prototype": "long long __sync_fetch_and_and(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_and_and_fetch",
     "prototype": "long long __sync_and_and_fetch(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_fetch_and_or",
     "prototype": "long long __sync_fetch_and_or(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_or_and_fetch",
     "prototype": "long long __sync_or_and_fetch(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_fetch_and_xor",
     "prototype": "long long __sync_fetch_and_xor(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_xor_and_fetch",
     "prototype": "long long __sync_xor_and_fetch(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_fetch_and_nand",
     "prototype": "long long __sync_fetch_and_nand(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_nand_and_fetch",
     "prototype": "long long __sync_nand_and_fetch(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_bool_compare_and_swap",
     "prototype": "bool __sync_bool_compare_and_swap(volatile void*, long long, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_val_compare_and_swap",
     "prototype": "long long __sync_val_compare_and_swap(volatile void*, long long, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_lock_test_and_set",
     "prototype": "long long __sync_lock_test_and_set(volatile void*, long long, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_lock_release",
     "prototype": "void __sync_lock_release(volatile void*, ...)",
     "constexpr": false,
-    "typeCheck": "checkBuiltinAtomic"
+    "typeCheck": "checkBuiltinAtomic",
+    "codegen": "codegenBuiltinAtomic"
   },
   {
     "name": "__sync_synchronize",
     "prototype": "void __sync_synchronize()",
     "constexpr": false,
-    "noexcept": true
+    "noexcept": true,
+    "codegen": "codegenBuiltinAtomic"
   }
 ]

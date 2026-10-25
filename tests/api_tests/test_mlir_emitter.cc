@@ -21,21 +21,29 @@
 // cxx
 #include <cxx/codegen/debug_emitter.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/mlir/mlir_emitter.h>
+#include <cxx/mlir/mlir_source_contexts.h>
 
 // mlir
 #include <llvm/IR/DataLayout.h>
+#include <llvm/IR/Module.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
 #include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/Diagnostics.h>
+#include <mlir/IR/Verifier.h>
+#include <mlir/Parser/Parser.h>
 
 // gtest
 #undef GTEST_HAS_CXXABI_H_
 #define GTEST_HAS_CXXABI_H_ 0
 
 #include <gtest/gtest.h>
+
+#include <array>
 
 namespace {
 
@@ -74,12 +82,38 @@ class EmitterFixture : public ::testing::Test {
 TEST_F(EmitterFixture, ClassDefinitionsPreserveLayout) {
   auto classType = emitter_.declareClassType("Layout");
   const ir::TypeRef members[] = {emitter_.integerType(32)};
-  emitter_.defineClassType(classType, members, true);
-  emitter_.defineClassType(classType, members, true);
+  emitter_.defineClassType(classType, members, true, 0, {});
+  emitter_.defineClassType(classType, members, true, 0, {});
   auto type = mlir::cast<mlir::cxx::ClassType>(emitter_.type(classType));
   ASSERT_EQ(type.getBody().size(), 1u);
   EXPECT_EQ(type.getBody().front(), emitter_.type(members[0]));
   EXPECT_TRUE(type.isPacked());
+}
+
+TEST_F(EmitterFixture, ClassDefinitionsPreserveAlignment) {
+  auto classType = emitter_.declareClassType("Aligned");
+  const ir::TypeRef members[] = {emitter_.integerType(32)};
+  emitter_.defineClassType(classType, members, false, 16, {});
+  auto type = mlir::cast<mlir::cxx::ClassType>(emitter_.type(classType));
+  EXPECT_EQ(type.getAlignment(), 16u);
+  EXPECT_FALSE(type.isPacked());
+}
+
+TEST_F(EmitterFixture, ClassDefinitionsPreservePadding) {
+  auto classType = emitter_.declareClassType("Padded");
+  const ir::TypeRef members[] = {emitter_.integerType(8),
+                                 emitter_.integerType(8),
+                                 emitter_.integerType(32)};
+  const std::uint32_t padding[] = {1};
+  emitter_.defineClassType(classType, members, false, 0, padding);
+  auto type = mlir::cast<mlir::cxx::ClassType>(emitter_.type(classType));
+  EXPECT_FALSE(type.isPaddingElement(0));
+  EXPECT_TRUE(type.isPaddingElement(1));
+  EXPECT_FALSE(type.isPaddingElement(2));
+  std::string text;
+  llvm::raw_string_ostream stream(text);
+  mlir::Type(type).print(stream);
+  EXPECT_EQ(text, "!cxx.class<\"Padded\", (i8, padding i8, i32)>");
 }
 
 #if GTEST_HAS_DEATH_TEST
@@ -87,10 +121,14 @@ TEST_F(EmitterFixture, ConflictingClassDefinitionsFail) {
   auto classType = emitter_.declareClassType("Conflict");
   const ir::TypeRef members[] = {emitter_.integerType(32)};
   const ir::TypeRef differentMembers[] = {emitter_.integerType(64)};
-  emitter_.defineClassType(classType, members, false);
-  EXPECT_DEATH(emitter_.defineClassType(classType, differentMembers, false),
+  emitter_.defineClassType(classType, members, false, 0, {});
+  EXPECT_DEATH(
+      emitter_.defineClassType(classType, differentMembers, false, 0, {}),
+      "conflicting definition of class 'Conflict'");
+  EXPECT_DEATH(emitter_.defineClassType(classType, members, true, 0, {}),
                "conflicting definition of class 'Conflict'");
-  EXPECT_DEATH(emitter_.defineClassType(classType, members, true),
+  const std::uint32_t padding[] = {0};
+  EXPECT_DEATH(emitter_.defineClassType(classType, members, false, 0, padding),
                "conflicting definition of class 'Conflict'");
   auto type = mlir::cast<mlir::cxx::ClassType>(emitter_.type(classType));
   EXPECT_EQ(type.getBody().front(), emitter_.type(members[0]));
@@ -126,6 +164,20 @@ TEST_F(EmitterFixture, DistinctBlocksGetDistinctRefs) {
 
   ASSERT_NE(first, second);
   ASSERT_NE(emitter_.block(first), emitter_.block(second));
+}
+
+TEST_F(EmitterFixture, RebindingPointersPreservesAnnotations) {
+  auto integer = emitter_.integerType(32);
+  auto byte = emitter_.integerType(8);
+  auto plain = emitter_.pointerType(integer);
+  auto zero = emitter_.pointerType(integer, 0);
+  auto one = emitter_.pointerType(integer, 1);
+  EXPECT_EQ(emitter_.rebindPointerType(plain, byte),
+            emitter_.pointerType(byte));
+  EXPECT_EQ(emitter_.rebindPointerType(zero, byte),
+            emitter_.pointerType(byte, 0));
+  EXPECT_EQ(emitter_.rebindPointerType(one, byte),
+            emitter_.pointerType(byte, 1));
 }
 
 TEST_F(EmitterFixture, TracksTheInsertionBlock) {
@@ -247,6 +299,99 @@ TEST_F(EmitterFixture, ModuleLifecycleRestoresSymbolLookupAndKeepsArtifacts) {
   ASSERT_FALSE(backend.findFunction("same"));
   ASSERT_EQ(emitter_.module(outer), outerModule);
   ASSERT_TRUE(emitter_.module(inner));
+}
+
+TEST_F(EmitterFixture, SymbolLookupTracksNewFunctionsGlobalsAndVTables) {
+  ir::Emitter& backend = emitter_;
+  emitter_.builder().setInsertionPointToEnd(module_.getBody());
+  auto module = backend.beginModule({.name = "symbols"});
+  auto integer = backend.integerType(32);
+  auto type = backend.functionType({}, {}, false);
+  // Populate the index before adding symbols, including failed lookups.
+  EXPECT_FALSE(backend.findFunction("function"));
+  EXPECT_FALSE(backend.findGlobal("global"));
+  EXPECT_FALSE(backend.symbolExists("vtable"));
+
+  auto function =
+      backend.declareFunction({}, {.name = "function", .type = type});
+  backend.setModuleInsertionPoint(true);
+  auto global = backend.declareGlobal({}, {.name = "global", .type = integer});
+  std::array slots{function};
+  std::array tables{ir::VTableTableInfo{.slots = slots}};
+  backend.defineVTable({}, {.name = "vtable", .tables = tables});
+
+  EXPECT_EQ(backend.findFunction("function"), function);
+  EXPECT_EQ(backend.findGlobal("global"), global);
+  EXPECT_TRUE(backend.symbolExists("function"));
+  EXPECT_TRUE(backend.symbolExists("global"));
+  EXPECT_TRUE(backend.symbolExists("vtable"));
+  EXPECT_FALSE(backend.findFunction("global"));
+  EXPECT_FALSE(backend.findGlobal("function"));
+  EXPECT_FALSE(backend.findFunction("vtable"));
+  EXPECT_FALSE(backend.findGlobal("vtable"));
+  backend.endModule();
+  EXPECT_FALSE(backend.symbolExists("function"));
+  EXPECT_TRUE(succeeded(mlir::verify(emitter_.module(module))));
+}
+
+TEST_F(EmitterFixture, DuplicateSymbolsStillFailVerification) {
+  ir::Emitter& backend = emitter_;
+  emitter_.builder().setInsertionPointToEnd(module_.getBody());
+  auto module = backend.beginModule({.name = "duplicates"});
+  auto type = backend.functionType({}, {}, false);
+  auto first = backend.declareFunction({}, {.name = "same", .type = type});
+  auto second = backend.declareFunction({}, {.name = "same", .type = type});
+  EXPECT_NE(first, second);
+  EXPECT_EQ(emitter_.function(first).getSymName(), "same");
+  EXPECT_EQ(emitter_.function(second).getSymName(), "same");
+  backend.endModule();
+  bool diagnosed = false;
+  mlir::ScopedDiagnosticHandler diagnostics(&context_, [&](mlir::Diagnostic&) {
+    diagnosed = true;
+    return mlir::success();
+  });
+  EXPECT_TRUE(failed(mlir::verify(emitter_.module(module))));
+  EXPECT_TRUE(diagnosed);
+}
+
+TEST_F(EmitterFixture, NestedFunctionsPreserveSourceOwnership) {
+  ir::Emitter& backend = emitter_;
+  emitter_.builder().setInsertionPointToEnd(module_.getBody());
+  auto module = backend.beginModule({.name = "source-contexts"});
+  auto type = emitter_.functionType({}, {}, false);
+  auto outer = backend.declareFunction({}, {.name = "outer", .type = type});
+  auto inner = backend.declareFunction({}, {.name = "inner", .type = type});
+  auto* observer =
+      static_cast<ir::MlirSourceContexts*>(emitter_.enableSourceContexts({}));
+  auto& builder = emitter_.builder();
+  auto loc = builder.getUnknownLoc();
+  emitter_.beginFunctionBody(outer);
+  auto block = emitter_.createBlock(outer);
+  emitter_.setInsertionBlock(block);
+  auto context = observer->beginContext(ASTKind::CompoundStatement);
+  auto first = emitter_.constantInt(loc, emitter_.integerType(32), 7);
+  auto* firstOp = emitter_.value(first).getDefiningOp();
+  EXPECT_EQ(observer->contextOf(firstOp), context);
+  emitter_.beginFunctionBody(inner);
+  emitter_.setInsertionBlock(emitter_.createBlock(inner));
+  auto innerContext = observer->currentContext();
+  auto nested = emitter_.constantInt(loc, emitter_.integerType(32), 9);
+  EXPECT_EQ(observer->contextOf(emitter_.value(nested).getDefiningOp()),
+            innerContext);
+  mlir::cxx::ReturnOp::create(builder, loc, mlir::ValueRange{});
+  emitter_.endFunctionBody(inner);
+  emitter_.setInsertionBlock(block);
+  EXPECT_EQ(observer->currentContext(), context);
+  EXPECT_EQ(observer->contextOf(firstOp), context);
+  auto second = emitter_.constantInt(loc, emitter_.integerType(32), 11);
+  EXPECT_EQ(observer->contextOf(emitter_.value(second).getDefiningOp()),
+            context);
+  mlir::cxx::ReturnOp::create(builder, loc, mlir::ValueRange{});
+  observer->endContext(context);
+  emitter_.endFunctionBody(outer);
+  EXPECT_EQ(observer->currentContext(), 0u);
+  EXPECT_TRUE(mlir::succeeded(mlir::verify(emitter_.module(module))));
+  backend.endModule();
 }
 
 TEST_F(EmitterFixture, ModuleMetadataUsesTheRequestedSourceAndTarget) {
@@ -400,6 +545,56 @@ TEST_F(EmitterFixture, DebugMetadataDoesNotRequireAParserTranslationUnit) {
   EXPECT_TRUE(static_cast<bool>(module));
   backend.endFunctionBody(function);
   backend.endModule();
+}
+
+class IRVerification : public ::testing::Test {
+ protected:
+  IRVerification() { context_.loadDialect<mlir::LLVM::LLVMDialect>(); }
+
+  auto invalidModule() -> mlir::OwningOpRef<mlir::ModuleOp> {
+    // Parse a structurally valid operation with an invalid return type, so only
+    // the optional IR verifiers reject it.
+    return mlir::parseSourceString<mlir::ModuleOp>(
+        "module { llvm.func @bad() -> i32 { llvm.return } }",
+        mlir::ParserConfig(&context_, /*verifyAfterParse=*/false));
+  }
+
+  mlir::MLIRContext context_{mlir::MLIRContext::Threading::DISABLED};
+};
+
+TEST_F(IRVerification, ExplicitPipelinesHonorVerificationSetting) {
+  mlir::ScopedDiagnosticHandler diagnostics(&context_,
+                                            [](mlir::Diagnostic&) {});
+  for (bool verify : {true, false}) {
+    auto module = invalidModule();
+    ASSERT_TRUE(module);
+    EXPECT_EQ(succeeded(runMLIRPassPipeline(*module, "canonicalize", verify)),
+              !verify);
+  }
+}
+
+TEST_F(IRVerification, LoweringHonorsVerificationSetting) {
+  mlir::ScopedDiagnosticHandler diagnostics(&context_,
+                                            [](mlir::Diagnostic&) {});
+  for (bool verify : {true, false}) {
+    auto module = invalidModule();
+    ASSERT_TRUE(module);
+    EXPECT_EQ(succeeded(lowerToMLIR(*module, {}, {.verifyIR = verify})),
+              !verify);
+  }
+}
+
+TEST_F(IRVerification, LLVMExportHonorsVerificationSetting) {
+  for (bool verify : {true, false}) {
+    auto module = invalidModule();
+    ASSERT_TRUE(module);
+    llvm::LLVMContext context;
+    testing::internal::CaptureStderr();
+    auto result = exportToLLVMIR(*module, context, verify);
+    auto diagnostics = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(bool(result), !verify);
+    EXPECT_EQ(diagnostics.empty(), !verify);
+  }
 }
 
 }  // namespace

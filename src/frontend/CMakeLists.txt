@@ -31,7 +31,7 @@ add_executable(cxx
     cxx/check_expression_types.cc
 )
 
-target_link_libraries(cxx PRIVATE cxx-lsp cxx-link)
+target_link_libraries(cxx PRIVATE cxx-lsp cxx-link cxx-cxxir)
 
 if (CXX_ENABLE_MIMALLOC)
     target_sources(cxx PRIVATE $<TARGET_OBJECTS:mimalloc-obj>)

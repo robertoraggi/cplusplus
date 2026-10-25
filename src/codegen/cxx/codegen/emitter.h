@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/ast_fwd.h>
 #include <cxx/codegen/debug_emitter.h>
 #include <cxx/codegen/emitter_handles.h>
 #include <cxx/const_int.h>
@@ -257,6 +258,7 @@ struct Initializer {
     None,
     Integer,
     Floating,
+    FloatingBits,
     Bytes,
     Aggregate,
     Vector,
@@ -289,6 +291,14 @@ struct Initializer {
     i.kind = Kind::Floating;
     i.type = type;
     i.floating = value;
+    return i;
+  }
+
+  static auto floatingBits(TypeRef type, ConstInt bits) -> Initializer {
+    Initializer i;
+    i.kind = Kind::FloatingBits;
+    i.type = type;
+    i.integer = bits;
     return i;
   }
 
@@ -385,6 +395,58 @@ struct Access {
   std::uint64_t alignment = 0;
   std::optional<BitfieldInfo> bitfield;
   bool isSigned = false;
+  bool isVolatile = false;
+};
+
+enum class MemoryOrder {
+  Relaxed,
+  Acquire,
+  Release,
+  AcquireRelease,
+  SequentiallyConsistent,
+};
+
+enum class MemoryScope {
+  System,
+  Device,
+  Workgroup,
+  Subgroup,
+  Invocation,
+};
+
+enum class AtomicOperation {
+  Exchange,
+  Add,
+  Sub,
+  And,
+  Or,
+  Xor,
+  Nand,
+};
+
+struct MemoryRegions {
+  bool storage = false;
+  bool workgroup = false;
+};
+
+struct AtomicAccess {
+  MemoryOrder order = MemoryOrder::SequentiallyConsistent;
+  MemoryScope scope = MemoryScope::System;
+  bool isVolatile = false;
+};
+
+struct CompareExchangeAccess {
+  MemoryOrder success = MemoryOrder::SequentiallyConsistent;
+  MemoryOrder failure = MemoryOrder::SequentiallyConsistent;
+  MemoryScope scope = MemoryScope::System;
+  bool isWeak = false;
+  bool isVolatile = false;
+};
+
+struct MemoryBarrierInfo {
+  MemoryOrder order = MemoryOrder::SequentiallyConsistent;
+  MemoryScope scope = MemoryScope::System;
+  MemoryRegions regions;
 };
 
 enum class CallKind {
@@ -685,8 +747,9 @@ class Emitter {
       -> TypeRef = 0;
 
   virtual void defineClassType(TypeRef classType,
-                               std::span<const TypeRef> members,
-                               bool isPacked) = 0;
+                               std::span<const TypeRef> members, bool isPacked,
+                               std::uint64_t alignment,
+                               std::span<const std::uint32_t> padding) = 0;
 
   [[nodiscard]] auto truncate(SourceLocation loc, ValueRef value, TypeRef type)
       -> ValueRef {
@@ -775,19 +838,49 @@ class Emitter {
     return load(loc, valueType, address, Access{.alignment = alignment});
   }
 
+  [[nodiscard]] virtual auto allocateWorkgroup(SourceLocation loc,
+                                               TypeRef pointerType,
+                                               std::uint64_t alignment)
+      -> ValueRef = 0;
+
+  [[nodiscard]] virtual auto atomicLoad(SourceLocation loc, TypeRef valueType,
+                                        ValueRef address,
+                                        const AtomicAccess& access)
+      -> ValueRef = 0;
+
+  virtual void atomicStore(SourceLocation loc, ValueRef value, ValueRef address,
+                           const AtomicAccess& access) = 0;
+
+  [[nodiscard]] virtual auto atomicReadModifyWrite(
+      SourceLocation loc, AtomicOperation operation, ValueRef value,
+      ValueRef address, const AtomicAccess& access) -> ValueRef = 0;
+
+  [[nodiscard]] virtual auto atomicCompareExchange(
+      SourceLocation loc, ValueRef address, ValueRef expected, ValueRef desired,
+      const CompareExchangeAccess& access) -> std::vector<ValueRef> = 0;
+
+  virtual void memoryBarrier(SourceLocation loc,
+                             const MemoryBarrierInfo& barrier) = 0;
+
+  virtual void controlBarrier(SourceLocation loc, MemoryScope executionScope,
+                              const MemoryBarrierInfo& barrier) = 0;
+
   [[nodiscard]] auto loadBitfield(SourceLocation loc, TypeRef valueType,
                                   ValueRef address, BitfieldInfo field,
-                                  bool isSigned) -> ValueRef {
+                                  bool isSigned, bool isVolatile) -> ValueRef {
     return load(loc, valueType, address,
                 Access{.alignment = field.alignment,
                        .bitfield = field,
-                       .isSigned = isSigned});
+                       .isSigned = isSigned,
+                       .isVolatile = isVolatile});
   }
 
   void storeBitfield(SourceLocation loc, ValueRef value, ValueRef address,
-                     BitfieldInfo field) {
+                     BitfieldInfo field, bool isVolatile) {
     store(loc, value, address,
-          Access{.alignment = field.alignment, .bitfield = field});
+          Access{.alignment = field.alignment,
+                 .bitfield = field,
+                 .isVolatile = isVolatile});
   }
 
   [[nodiscard]] virtual auto pointerAdd(SourceLocation loc, TypeRef pointerType,
@@ -890,23 +983,62 @@ class Emitter {
   [[nodiscard]] virtual auto declareGlobal(SourceLocation loc,
                                            const GlobalInfo& info)
       -> GlobalRef = 0;
+
+  void enterExpression(ExpressionAST* expression) {
+    expressions_.push_back(expression);
+  }
+
+  void exitExpression() { expressions_.pop_back(); }
+
+  [[nodiscard]] auto exchangeExpressions(
+      std::vector<ExpressionAST*> expressions) -> std::vector<ExpressionAST*> {
+    return std::exchange(expressions_, std::move(expressions));
+  }
+
+  [[nodiscard]] auto enclosingLocation() const -> SourceLocation;
+
+ private:
+  std::vector<ExpressionAST*> expressions_;
+};
+
+class ExpressionLocationGuard {
+ public:
+  ExpressionLocationGuard(Emitter& emitter, ExpressionAST* expression)
+      : emitter_(emitter) {
+    emitter_.enterExpression(expression);
+  }
+
+  ExpressionLocationGuard(const ExpressionLocationGuard&) = delete;
+  auto operator=(const ExpressionLocationGuard&)
+      -> ExpressionLocationGuard& = delete;
+
+  ~ExpressionLocationGuard() { emitter_.exitExpression(); }
+
+ private:
+  Emitter& emitter_;
 };
 
 class FunctionBodyGuard {
  public:
   FunctionBodyGuard(Emitter& emitter, FunctionRef function)
-      : emitter_(emitter), function_(function) {
+      : emitter_(emitter),
+        function_(function),
+        expressions_(emitter.exchangeExpressions({})) {
     emitter_.beginFunctionBody(function_);
   }
 
   FunctionBodyGuard(const FunctionBodyGuard&) = delete;
   auto operator=(const FunctionBodyGuard&) -> FunctionBodyGuard& = delete;
 
-  ~FunctionBodyGuard() { emitter_.endFunctionBody(function_); }
+  ~FunctionBodyGuard() {
+    emitter_.endFunctionBody(function_);
+    (void)emitter_.exchangeExpressions(std::move(expressions_));
+  }
 
  private:
   Emitter& emitter_;
   FunctionRef function_;
+  std::vector<ExpressionAST*> expressions_;
 };
 
 class InsertionGuard {

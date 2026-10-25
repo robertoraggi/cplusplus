@@ -19,20 +19,29 @@
 // SOFTWARE.
 
 #include <cxx/device_profile_limits.h>
+#include <cxx/mlir/atomic_ops.h>
+#include <cxx/mlir/buffer_layout.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/device_kernel.h>
 #include <cxx/mlir/kernel_manifest.h>
+#include <cxx/mlir/storage_address.h>
+#include <cxx/mlir/webgpu_policy.h>
+#include <cxx/mlir/wgsl_name_encoder.h>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/TypeSwitch.h>
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
+#include <mlir/Dialect/Func/IR/FuncOps.h>
 #include <mlir/Dialect/GPU/IR/GPUDialect.h>
 #include <mlir/Dialect/Math/IR/Math.h>
 #include <mlir/Dialect/MemRef/IR/MemRef.h>
+#include <mlir/Dialect/Ptr/IR/PtrOps.h>
 #include <mlir/Dialect/SCF/IR/SCF.h>
+#include <mlir/Dialect/SPIRV/IR/TargetAndABI.h>
 #include <mlir/Dialect/UB/IR/UBOps.h>
 #include <mlir/Dialect/Vector/IR/VectorOps.h>
+#include <mlir/IR/SymbolTable.h>
 
 #include <array>
 #include <cmath>
@@ -43,203 +52,42 @@ namespace {
 
 using namespace mlir;
 
-constexpr auto kWGSLReservedWords = std::to_array<llvm::StringLiteral>({
-    "alias",
-    "break",
-    "case",
-    "const",
-    "const_assert",
-    "continue",
-    "continuing",
-    "default",
-    "diagnostic",
-    "discard",
-    "else",
-    "enable",
-    "false",
-    "fn",
-    "for",
-    "if",
-    "let",
-    "loop",
-    "override",
-    "requires",
-    "return",
-    "struct",
-    "switch",
-    "true",
-    "var",
-    "while",
-    "NULL",
-    "Self",
-    "abstract",
-    "active",
-    "alignas",
-    "alignof",
-    "as",
-    "asm",
-    "asm_fragment",
-    "async",
-    "attribute",
-    "auto",
-    "await",
-    "become",
-    "cast",
-    "catch",
-    "class",
-    "co_await",
-    "co_return",
-    "co_yield",
-    "coherent",
-    "column_major",
-    "common",
-    "compile",
-    "compile_fragment",
-    "concept",
-    "const_cast",
-    "consteval",
-    "constexpr",
-    "constinit",
-    "crate",
-    "debugger",
-    "decltype",
-    "delete",
-    "demote",
-    "demote_to_helper",
-    "do",
-    "dynamic_cast",
-    "enum",
-    "explicit",
-    "export",
-    "extends",
-    "extern",
-    "external",
-    "fallthrough",
-    "filter",
-    "final",
-    "finally",
-    "friend",
-    "from",
-    "fxgroup",
-    "get",
-    "goto",
-    "groupshared",
-    "highp",
-    "impl",
-    "implements",
-    "import",
-    "inline",
-    "instanceof",
-    "interface",
-    "layout",
-    "lowp",
-    "macro",
-    "macro_rules",
-    "match",
-    "mediump",
-    "meta",
-    "mod",
-    "module",
-    "move",
-    "mut",
-    "mutable",
-    "namespace",
-    "new",
-    "nil",
-    "noexcept",
-    "noinline",
-    "nointerpolation",
-    "non_coherent",
-    "noncoherent",
-    "noperspective",
-    "null",
-    "nullptr",
-    "of",
-    "operator",
-    "package",
-    "packoffset",
-    "partition",
-    "pass",
-    "patch",
-    "pixelfragment",
-    "precise",
-    "precision",
-    "premerge",
-    "priv",
-    "protected",
-    "pub",
-    "public",
-    "readonly",
-    "ref",
-    "regardless",
-    "register",
-    "reinterpret_cast",
-    "require",
-    "resource",
-    "restrict",
-    "self",
-    "set",
-    "shared",
-    "sizeof",
-    "smooth",
-    "snorm",
-    "static",
-    "static_assert",
-    "static_cast",
-    "std",
-    "subroutine",
-    "super",
-    "target",
-    "template",
-    "this",
-    "thread_local",
-    "throw",
-    "trait",
-    "try",
-    "type",
-    "typedef",
-    "typeid",
-    "typename",
-    "typeof",
-    "union",
-    "unless",
-    "unorm",
-    "unsafe",
-    "unsized",
-    "use",
-    "using",
-    "varying",
-    "virtual",
-    "volatile",
-    "wgsl",
-    "where",
-    "with",
-    "writeonly",
-    "yield",
-});
-
-constexpr auto kWGSLGeneratedNames = std::to_array<llvm::StringLiteral>({
-    "abs",   "acos",  "array",  "asin", "atan", "atan2", "bitcast",
-    "bool",  "ceil",  "cos",    "cosh", "exp",  "exp2",  "f32",
-    "floor", "fma",   "i32",    "log",  "log2", "max",   "min",
-    "pow",   "round", "select", "sign", "sin",  "sinh",  "sqrt",
-    "tan",   "tanh",  "trunc",  "u32",  "vec2", "vec3",  "vec4",
-});
-
-[[nodiscard]] auto isUsableEntryName(llvm::StringRef name) -> bool {
-  if (name.empty() || name == "_" || name.starts_with("__")) return false;
-  if (name.starts_with("cxx_") || name.starts_with("Cxx")) return false;
-  if (llvm::is_contained(kWGSLReservedWords, name)) return false;
-  return !llvm::is_contained(kWGSLGeneratedNames, name);
+[[nodiscard]] auto legalizeWGSLFunctionNames(gpu::GPUModuleOp module)
+    -> LogicalResult {
+  SymbolTable symbols(module);
+  for (auto function : module.getOps<func::FuncOp>()) {
+    auto original = function.getSymName();
+    auto name = WGSLNameEncoder::encodeFunction(original);
+    if (name == original) continue;
+    llvm::SmallString<64> unique(name);
+    if (symbols.lookup(name)) {
+      unsigned counter = 0;
+      unique = SymbolTable::generateSymbolName<64>(
+          name, [&](StringRef candidate) { return symbols.lookup(candidate); },
+          counter);
+    }
+    if (failed(symbols.rename(function, unique)))
+      return function.emitError("cannot encode the WGSL function name");
+  }
+  return success();
 }
 
 struct BufferView {
   std::string name;
   bool isUniform = false;
   bool isUnsigned = false;
+  bool readOnly = false;
 };
 
-[[nodiscard]] auto bufferValueTypeName(const mlir::cxx::KernelBuffer& buffer)
+struct StorageView {
+  std::string expression;
+  Type type;
+  bool isUnsigned = false;
+  bool readOnly = false;
+  bool atomic = false;
+};
+
+[[nodiscard]] auto bufferValueTypeName(const mlir::cxx::KernelResource& buffer)
     -> std::string {
   auto scalar = mlir::cxx::kernelBufferScalarTypeName(buffer).str();
   auto components = mlir::cxx::kernelBufferComponents(buffer);
@@ -249,30 +97,157 @@ struct BufferView {
 
 class WGSLWriter {
  public:
-  WGSLWriter(gpu::GPUFuncOp function, const KernelEntry& entry)
-      : function_(function), entry_(entry), out_(text_) {}
+  WGSLWriter(gpu::GPUModuleOp module,
+             const mlir::cxx::KernelModuleContract& contract)
+      : module_(module), contract_(contract), out_(text_) {}
 
   [[nodiscard]] auto write() -> FailureOr<std::string> {
-    writeBindings();
-    const auto& workgroup = entry_.contract.workgroup;
-    out_ << "@compute @workgroup_size(" << workgroup[0] << ", " << workgroup[1]
-         << ", " << workgroup[2] << ")\nfn " << entry_.name << "("
-         << entryParameters() << ") {\n";
-    auto terminator = writeBody(function_.getBody().front(), 1);
-    if (failed(terminator)) return failure();
-    if (!isa<gpu::ReturnOp>(*terminator))
-      return (*terminator)->emitError("unexpected WGSL function terminator");
-    out_ << "}\n";
-    return text_;
+    if (failed(collectAtomicStorage())) return failure();
+    if (failed(writeBindings())) return failure();
+    if (failed(writeWorkgroupStorage())) return failure();
+    for (auto helper : module_.getOps<func::FuncOp>())
+      if (failed(writeFunction(helper))) return failure();
+    for (const auto& entry : contract_.entries) {
+      function_ = module_.lookupSymbol<gpu::GPUFuncOp>(entry.name);
+      names_.clear();
+      objects_.clear();
+      const auto& workgroup = entry.contract.workgroup;
+      out_ << "@compute @workgroup_size(" << workgroup[0] << ", "
+           << workgroup[1] << ", " << workgroup[2] << ")\nfn " << entry.name
+           << "(" << entryParameters() << ") {\n";
+      auto terminator = writeBody(function_.getBody().front(), 1);
+      if (failed(terminator)) return failure();
+      if (!isa<gpu::ReturnOp>(*terminator))
+        return (*terminator)->emitError("unexpected WGSL function terminator");
+      out_ << "}\n\n";
+    }
+    if (workgroupPointers_)
+      languageFeatures_.push_back("unrestricted_pointer_parameters");
+    if (mlir::cxx::declaresAggregateUniforms(contract_))
+      languageFeatures_.push_back(mlir::cxx::kWebGPUStandardUniformLayout);
+    std::string requirements;
+    if (!languageFeatures_.empty())
+      requirements =
+          "requires " + llvm::join(languageFeatures_, ", ") + ";\n\n";
+    return requirements + typeDeclarations_ + text_;
+  }
+
+  [[nodiscard]] auto languageFeatures() const -> ArrayRef<llvm::StringRef> {
+    return languageFeatures_;
   }
 
  private:
-  void writeBindings() {
-    for (auto [buffer, argument] :
-         llvm::zip(entry_.contract.buffers, function_.getArguments())) {
-      auto value = bufferValueTypeName(buffer);
-      auto name = "cxx_buffer" + std::to_string(buffer.binding);
+  [[nodiscard]] static auto isWorkgroupStorage(MemRefType type) -> bool {
+    auto space = dyn_cast_or_null<gpu::AddressSpaceAttr>(type.getMemorySpace());
+    return space && space.getValue() == gpu::AddressSpace::Workgroup;
+  }
+
+  [[nodiscard]] auto isAtomicStorage(Value root) const -> bool {
+    if (auto index = mlir::cxx::deviceResourceIndex(root))
+      return atomicResources_.contains(index.getInt());
+    return atomicRoots_.contains(root);
+  }
+
+  auto markAtomicStorage(Value root) -> bool {
+    if (auto index = mlir::cxx::deviceResourceIndex(root))
+      return atomicResources_.insert(index.getInt()).second;
+    return atomicRoots_.insert(root).second;
+  }
+
+  [[nodiscard]] auto collectAtomicStorage() -> LogicalResult {
+    auto result = module_.walk([&](Operation* op) {
+      auto pointer = mlir::cxx::atomicAddress(op);
+      if (!pointer) return WalkResult::advance();
+      auto address = mlir::cxx::resolveStorageAddress(pointer);
+      if (failed(address)) {
+        op->emitError("WGSL atomic object has no storage root");
+        return WalkResult::interrupt();
+      }
+      markAtomicStorage(address->root);
+      return WalkResult::advance();
+    });
+    if (result.wasInterrupted()) return failure();
+    bool changed;
+    do {
+      changed = false;
+      module_.walk([&](func::CallOp call) {
+        auto target = SymbolTable::lookupNearestSymbolFrom<func::FuncOp>(
+            call, call.getCalleeAttr());
+        if (!target || target.getNumArguments() != call.getNumOperands())
+          return;
+        for (auto [argument, operand] :
+             llvm::zip(target.getArguments(), call.getOperands())) {
+          if (!isa<MemRefType>(argument.getType())) continue;
+          if (!isAtomicStorage(argument) && !isAtomicStorage(operand)) continue;
+          changed |= markAtomicStorage(argument);
+          changed |= markAtomicStorage(operand);
+        }
+      });
+    } while (changed);
+    return success();
+  }
+
+  [[nodiscard]] auto storageTypeName(Operation* op, Type type, bool atomic)
+      -> FailureOr<std::string> {
+    if (!atomic) return typeName(op, type);
+    if (type.isInteger(32)) return std::string("atomic<i32>");
+    if (auto array = dyn_cast<mlir::cxx::ArrayType>(type)) {
+      auto element = storageTypeName(op, array.getElementType(), true);
+      if (failed(element)) return failure();
+      return "array<" + *element + ", " + std::to_string(array.getSize()) + ">";
+    }
+    return op->emitError(
+        "WGSL atomic storage requires 32-bit integer elements");
+  }
+
+  [[nodiscard]] auto writeWorkgroupStorage() -> LogicalResult {
+    unsigned index = 0;
+    auto result = module_.walk([&](memref::AllocOp allocation) {
+      auto type = allocation.getType();
+      if (!isWorkgroupStorage(type) || !type.hasStaticShape()) {
+        allocation.emitError(
+            "WGSL allocation requires statically sized workgroup storage");
+        return WalkResult::interrupt();
+      }
+      auto spelling = storageTypeName(allocation, type.getElementType(),
+                                      isAtomicStorage(allocation));
+      if (failed(spelling)) return WalkResult::interrupt();
+      for (auto extent : llvm::reverse(type.getShape()))
+        *spelling = "array<" + *spelling + ", " + std::to_string(extent) + ">";
+      auto name = WGSLNameEncoder::encodeWorkgroupVariable(index++);
+      while (SymbolTable::lookupSymbolIn(module_, name)) name += "_";
+      sharedNames_[allocation] = name;
+      out_ << "var<workgroup> " << name << ": " << *spelling << ";\n\n";
+      return WalkResult::advance();
+    });
+    return failure(result.wasInterrupted());
+  }
+
+  [[nodiscard]] auto writeBindings() -> LogicalResult {
+    for (auto [index, buffer] : llvm::enumerate(contract_.resources)) {
+      auto spelled = bindingValueTypeName(buffer);
+      if (failed(spelled)) return failure();
+      auto value = *spelled;
+      if (atomicResources_.contains(index)) {
+        if (buffer.readOnly ||
+            buffer.kind == mlir::cxx::KernelBufferKind::Uniform)
+          return module_.emitError(
+              "WGSL atomics require a read-write storage resource");
+        if (mlir::cxx::kernelBufferComponents(buffer) != 1 ||
+            !buffer.elementType.isInteger(32))
+          return module_.emitError(
+              "WGSL atomics require scalar 32-bit integer storage");
+        value = "atomic<" + value + ">";
+      }
+      auto name = WGSLNameEncoder::encodeBinding(index);
       auto isUniform = buffer.kind == mlir::cxx::KernelBufferKind::Uniform;
+      if (hasUniformBlockMember(buffer)) {
+        auto block = encoder_.encodeRecord();
+        typeDeclarations_ += "struct " + block + " {\n  ";
+        typeDeclarations_ +=
+            WGSLNameEncoder::encodeField(0) + ": " + value + ",\n}\n\n";
+        value = block;
+      }
       out_ << "@group(" << ::cxx::kBufferDescriptorSet << ") @binding("
            << buffer.binding << ") ";
       if (isUniform) {
@@ -281,15 +256,46 @@ class WGSLWriter {
         out_ << "var<storage, " << (buffer.readOnly ? "read" : "read_write")
              << "> " << name << ": array<" << value << ">;\n\n";
       }
-      buffers_[argument] = {name, isUniform, buffer.unsignedElements};
     }
+    for (const auto& entry : contract_.entries) {
+      auto function = module_.lookupSymbol<gpu::GPUFuncOp>(entry.name);
+      if (!function || function.getNumArguments() != entry.resources.size())
+        return module_.emitError(
+                   "WGSL entry resources differ from the source contract: ")
+               << entry.name;
+      for (auto [argument, index] :
+           llvm::zip(function.getArguments(), entry.resources)) {
+        const auto& buffer = contract_.resources[index];
+        buffers_[argument] = {
+            bindingExpression(index),
+            buffer.kind == mlir::cxx::KernelBufferKind::Uniform,
+            buffer.unsignedElements, buffer.readOnly};
+      }
+    }
+    return success();
+  }
+
+  [[nodiscard]] static auto hasUniformBlockMember(
+      const mlir::cxx::KernelResource& buffer) -> bool {
+    return buffer.kind == mlir::cxx::KernelBufferKind::Uniform &&
+           !mlir::cxx::isBufferRecordType(buffer.elementType);
+  }
+
+  [[nodiscard]] auto bindingExpression(unsigned index) const -> std::string {
+    auto name = WGSLNameEncoder::encodeBinding(index);
+    if (hasUniformBlockMember(contract_.resources[index]))
+      name += "." + WGSLNameEncoder::encodeField(0);
+    return name;
   }
 
   [[nodiscard]] auto entryParameters() -> std::string {
-    constexpr std::array<std::pair<llvm::StringRef, llvm::StringRef>, 3>
-        builtins = {{{"global_invocation_id", "cxx_global_id"},
-                     {"local_invocation_id", "cxx_local_id"},
-                     {"workgroup_id", "cxx_workgroup_id"}}};
+    const std::array<std::pair<llvm::StringRef, llvm::StringRef>, 3> builtins =
+        {{{"global_invocation_id",
+           WGSLNameEncoder::encodeBuiltin(WGSLNameEncoder::Builtin::kGlobalId)},
+          {"local_invocation_id",
+           WGSLNameEncoder::encodeBuiltin(WGSLNameEncoder::Builtin::kLocalId)},
+          {"workgroup_id", WGSLNameEncoder::encodeBuiltin(
+                               WGSLNameEncoder::Builtin::kWorkgroupId)}}};
     std::array<bool, 3> used{};
     function_.walk([&](Operation* op) {
       if (isa<gpu::GlobalIdOp>(op)) used[0] = true;
@@ -306,10 +312,146 @@ class WGSLWriter {
     return parameters;
   }
 
+  [[nodiscard]] auto writeFunction(func::FuncOp function) -> LogicalResult {
+    if (!llvm::hasSingleElement(function.getBody()))
+      return function.emitError("WGSL helpers require structured control flow");
+    names_.clear();
+    objects_.clear();
+    std::string parameters;
+    for (auto [index, argument] : llvm::enumerate(function.getArguments())) {
+      auto binding = dyn_cast_or_null<spirv::InterfaceVarABIAttr>(
+          mlir::cxx::deviceResourceBinding(argument));
+      if (binding) {
+        auto resource = mlir::cxx::deviceResourceIndex(argument);
+        if (!resource || resource.getInt() < 0 ||
+            std::uint64_t(resource.getInt()) >= contract_.resources.size())
+          return function.emitError("WGSL helper has no resource identity");
+        const auto& buffer = contract_.resources[resource.getInt()];
+        if (binding.getDescriptorSet() != ::cxx::kBufferDescriptorSet ||
+            binding.getBinding() != buffer.binding)
+          return function.emitError(
+              "WGSL helper resource differs from its source contract");
+        buffers_[argument] = {
+            bindingExpression(resource.getInt()),
+            buffer.kind == mlir::cxx::KernelBufferKind::Uniform,
+            buffer.unsignedElements, buffer.readOnly};
+        continue;
+      }
+      auto memory = dyn_cast<MemRefType>(argument.getType());
+      auto type = memory ? memory.getElementType() : argument.getType();
+      auto spelling =
+          storageTypeName(function, type, memory && isAtomicStorage(argument));
+      if (failed(spelling)) return failure();
+      if (memory) {
+        workgroupPointers_ |= isWorkgroupStorage(memory);
+        if (!memory.hasStaticShape())
+          return function.emitError(
+              "WGSL resource arguments require binding specialization");
+        for (auto extent : llvm::reverse(memory.getShape()))
+          *spelling =
+              "array<" + *spelling + ", " + std::to_string(extent) + ">";
+        auto space = isWorkgroupStorage(memory) ? "workgroup" : "function";
+        *spelling = "ptr<" + std::string(space) + ", " + *spelling + ">";
+        objects_.insert(argument);
+      }
+      auto name = WGSLNameEncoder::encodeArgument(index);
+      names_[argument] = memory ? "(*" + name + ")" : name;
+      if (!parameters.empty()) parameters += ", ";
+      parameters += name + ": " + *spelling;
+    }
+    std::string result;
+    if (function.getNumResults()) {
+      if (function.getNumResults() != 1)
+        return function.emitError("WGSL helpers return one value");
+      auto type = typeName(function, function.getResultTypes().front());
+      if (failed(type)) return failure();
+      result = " -> " + *type;
+    }
+    out_ << "fn " << function.getSymName() << "(" << parameters << ")" << result
+         << " {\n";
+    auto terminator = writeBody(function.getBody().front(), 1);
+    if (failed(terminator)) return failure();
+    auto returned = dyn_cast<func::ReturnOp>(*terminator);
+    if (!returned)
+      return (*terminator)->emitError("expected a function return");
+    if (returned.getNumOperands())
+      out_ << "  return " << use(returned.getOperand(0)) << ";\n";
+    out_ << "}\n\n";
+    return success();
+  }
+
+  [[nodiscard]] auto writeCall(func::CallOp call, unsigned depth)
+      -> LogicalResult {
+    auto target = SymbolTable::lookupNearestSymbolFrom<func::FuncOp>(
+        call, call.getCalleeAttr());
+    if (!target || target.getNumArguments() != call.getNumOperands())
+      return call.emitError("WGSL call has no matching helper definition");
+    std::string arguments;
+    for (auto [parameter, value] :
+         llvm::zip(target.getArguments(), call.getOperands())) {
+      if (mlir::cxx::deviceResourceBinding(parameter)) continue;
+      if (!arguments.empty()) arguments += ", ";
+      arguments +=
+          isa<MemRefType>(value.getType()) ? "&" + use(value) : use(value);
+    }
+    auto expression = call.getCallee().str() + "(" + arguments + ")";
+    if (call.getNumResults()) {
+      if (call.getNumResults() != 1)
+        return call.emitError("WGSL helpers return one value");
+      return define(call, call.getResult(0), expression, depth);
+    }
+    indent(depth);
+    out_ << expression << ";\n";
+    return success();
+  }
+
+  [[nodiscard]] auto aggregateElement(Value aggregate, std::int64_t index)
+      -> std::string {
+    auto base = use(aggregate);
+    if (isa<mlir::cxx::ArrayType>(aggregate.getType()))
+      return base + "[" + std::to_string(index) + "i]";
+    return base + "." + WGSLNameEncoder::encodeField(index);
+  }
+
+  [[nodiscard]] auto storageElement(Value pointer, Operation* op)
+      -> FailureOr<StorageView> {
+    auto address = mlir::cxx::resolveStorageAddress(pointer);
+    if (failed(address))
+      return op->emitError("WGSL reference has no storage root");
+    StorageView result{"", mlir::cxx::getStorageElementType(*address)};
+    result.atomic = isAtomicStorage(address->root);
+    auto buffer = buffers_.find(address->root);
+    if (buffer != buffers_.end()) {
+      result.expression = buffer->second.name;
+      result.isUnsigned = buffer->second.isUnsigned;
+      result.readOnly = buffer->second.readOnly;
+    } else {
+      result.expression = names_.lookup(address->root);
+    }
+    auto& name = result.expression;
+    if (name.empty())
+      return op->emitError("WGSL storage root has no declaration");
+    for (const auto& index : address->path) {
+      if (auto member = std::get_if<mlir::cxx::StorageMember>(&index)) {
+        name += "." + WGSLNameEncoder::encodeField(member->position);
+      } else {
+        std::string total;
+        for (auto term : std::get<mlir::cxx::StorageElement>(index).terms) {
+          if (!total.empty()) total += " + ";
+          total += use(term);
+        }
+        name += "[" + (total.empty() ? "0i" : total) + "]";
+      }
+    }
+    return result;
+  }
+
   [[nodiscard]] auto scalarTypeName(Type type) -> std::optional<std::string> {
     if (type.isF32()) return "f32";
-    if (type.isIndex() || type.isSignlessInteger(32)) return "i32";
     if (type.isSignlessInteger(1)) return "bool";
+    if (type.isIndex()) return "i32";
+    if (auto integer = dyn_cast<IntegerType>(type))
+      if (integer.isSignless() && integer.getWidth() <= 32) return "i32";
     return std::nullopt;
   }
 
@@ -324,7 +466,65 @@ class WGSLWriter {
     } else if (auto scalar = scalarTypeName(type)) {
       return *scalar;
     }
+    if (auto array = dyn_cast<mlir::cxx::ArrayType>(type)) {
+      auto element = typeName(op, array.getElementType());
+      if (failed(element) || !array.getSize()) return failure();
+      return "array<" + *element + ", " + std::to_string(array.getSize()) + ">";
+    }
+    if (mlir::cxx::isBufferRecordType(type)) return bufferRecordName(op, type);
+    if (isa<mlir::cxx::ClassType, TupleType>(type)) {
+      auto found = records_.find(type);
+      if (found != records_.end()) return found->second;
+      if (!activeRecords_.insert(type).second)
+        return op->emitError("WGSL record contains itself by value");
+      auto name = encoder_.encodeRecord();
+      std::string declaration = "struct " + name + " {\n";
+      auto body = mlir::cxx::getRecordElementTypes(type);
+      for (auto position : mlir::cxx::valueElementPositions(type)) {
+        auto field = typeName(op, body[position]);
+        if (failed(field)) return failure();
+        declaration += "  " + WGSLNameEncoder::encodeField(position) + ": " +
+                       *field + ",\n";
+      }
+      typeDeclarations_ += declaration + "}\n\n";
+      activeRecords_.erase(type);
+      records_[type] = name;
+      return name;
+    }
     return op->emitError("WGSL emission does not support type ") << type;
+  }
+
+  [[nodiscard]] static auto naturalSize(Type type) -> std::uint32_t {
+    auto vector = dyn_cast<VectorType>(type);
+    if (vector && vector.getNumElements() == 3) return 12;
+    return mlir::cxx::bufferLayoutSize(type);
+  }
+
+  [[nodiscard]] auto bufferRecordName(Operation* op, Type type)
+      -> FailureOr<std::string> {
+    auto found = records_.find(type);
+    if (found != records_.end()) return found->second;
+    std::string declaration;
+    for (const auto& member : mlir::cxx::bufferLayoutMembers(type)) {
+      auto field = typeName(op, member.type);
+      if (failed(field)) return failure();
+      declaration += "  ";
+      if (member.span != naturalSize(member.type))
+        declaration += "@size(" + std::to_string(member.span) + ") ";
+      declaration +=
+          WGSLNameEncoder::encodeField(member.position) + ": " + *field + ",\n";
+    }
+    auto name = encoder_.encodeRecord();
+    typeDeclarations_ += "struct " + name + " {\n" + declaration + "}\n\n";
+    records_[type] = name;
+    return name;
+  }
+
+  [[nodiscard]] auto bindingValueTypeName(
+      const mlir::cxx::KernelResource& buffer) -> FailureOr<std::string> {
+    if (mlir::cxx::isBufferValueType(buffer.elementType))
+      return bufferValueTypeName(buffer);
+    return typeName(module_, buffer.elementType);
   }
 
   [[nodiscard]] static auto withLanesOf(Type type, llvm::StringRef element)
@@ -349,8 +549,29 @@ class WGSLWriter {
   }
 
   [[nodiscard]] auto unsignedUse(Value value) -> std::string {
-    return "bitcast<" + withLanesOf(value.getType(), "u32") + ">(" +
-           use(value) + ")";
+    auto type = value.getType();
+    if (isBoolean(value)) {
+      auto lanes = withLanesOf(type, "u32");
+      return "select(" + lanes + "(0u), " + lanes + "(1u), " + use(value) + ")";
+    }
+    auto result =
+        "bitcast<" + withLanesOf(type, "u32") + ">(" + use(value) + ")";
+    if (auto width = narrowIntegerWidth(type)) {
+      auto mask = std::to_string((std::uint32_t(1) << width) - 1) + "u";
+      if (isa<VectorType>(type))
+        mask = withLanesOf(type, "u32") + "(" + mask + ")";
+      result = "(" + result + " & " + mask + ")";
+    }
+    return result;
+  }
+
+  [[nodiscard]] static auto narrowIntegerWidth(Type type) -> unsigned {
+    if (auto vector = dyn_cast<VectorType>(type))
+      type = vector.getElementType();
+    auto integer = dyn_cast<IntegerType>(type);
+    if (!integer || integer.getWidth() <= 1 || integer.getWidth() >= 32)
+      return 0;
+    return integer.getWidth();
   }
 
   [[nodiscard]] auto signedResult(Value value, const std::string& expression)
@@ -364,9 +585,16 @@ class WGSLWriter {
       -> LogicalResult {
     auto type = typeName(op, result.getType());
     if (failed(type)) return failure();
-    auto name = "cxx_v" + std::to_string(next_++);
+    auto name = encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kValue);
+    auto value = expression;
+    if (auto width = narrowIntegerWidth(result.getType())) {
+      auto shift = std::to_string(32 - width) + "u";
+      if (isa<VectorType>(result.getType()))
+        shift = withLanesOf(result.getType(), "u32") + "(" + shift + ")";
+      value = "((" + value + " << " + shift + ") >> " + shift + ")";
+    }
     indent(depth);
-    out_ << "let " << name << ": " << *type << " = " << expression << ";\n";
+    out_ << "let " << name << ": " << *type << " = " << value << ";\n";
     names_[result] = name;
     return success();
   }
@@ -376,7 +604,7 @@ class WGSLWriter {
     for (auto result : op->getResults()) {
       auto type = typeName(op, result.getType());
       if (failed(type)) return failure();
-      auto name = "cxx_r" + std::to_string(next_++);
+      auto name = encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kResult);
       indent(depth);
       out_ << "var " << name << ": " << *type << ";\n";
       names_[result] = name;
@@ -387,7 +615,8 @@ class WGSLWriter {
   void assign(ValueRange targets, ValueRange values, unsigned depth) {
     llvm::SmallVector<std::string> snapshots;
     for (auto value : values) {
-      auto name = "cxx_n" + std::to_string(next_++);
+      auto name =
+          encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kSnapshot);
       indent(depth);
       out_ << "let " << name << " = " << use(value) << ";\n";
       snapshots.push_back(name);
@@ -442,9 +671,6 @@ class WGSLWriter {
     }
     if (auto real = dyn_cast<FloatAttr>(value)) {
       auto number = real.getValue();
-      if (!number.isFinite())
-        return op->emitError(
-            "WGSL cannot represent a non-finite floating-point constant");
       char buffer[64];
       number.convertToHexString(buffer, 0, false,
                                 llvm::APFloat::rmNearestTiesToEven);
@@ -457,7 +683,9 @@ class WGSLWriter {
       -> FailureOr<std::string> {
     auto name = typeName(op, type);
     if (failed(name)) return failure();
-    if (isa<VectorType>(type)) return *name + "()";
+    if (isa<VectorType, mlir::cxx::ArrayType, mlir::cxx::ClassType, TupleType>(
+            type))
+      return *name + "()";
     if (*name == "bool") return std::string("false");
     if (*name == "f32") return std::string("0.0f");
     return std::string("0i");
@@ -550,7 +778,8 @@ class WGSLWriter {
     auto type = typeName(round, round.getType());
     if (failed(type)) return failure();
     auto value = use(round.getOperand());
-    auto truncated = "cxx_v" + std::to_string(next_++);
+    auto truncated =
+        encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kValue);
     indent(depth);
     out_ << "let " << truncated << ": " << *type << " = trunc(" << value
          << ");\n";
@@ -623,16 +852,22 @@ class WGSLWriter {
           return success();
         })
         .Case([&](gpu::GlobalIdOp id) {
-          return writeInvocationId(op, "cxx_global_id", id.getDimension(),
-                                   depth);
+          return writeInvocationId(op,
+                                   WGSLNameEncoder::encodeBuiltin(
+                                       WGSLNameEncoder::Builtin::kGlobalId),
+                                   id.getDimension(), depth);
         })
         .Case([&](gpu::ThreadIdOp id) {
-          return writeInvocationId(op, "cxx_local_id", id.getDimension(),
-                                   depth);
+          return writeInvocationId(op,
+                                   WGSLNameEncoder::encodeBuiltin(
+                                       WGSLNameEncoder::Builtin::kLocalId),
+                                   id.getDimension(), depth);
         })
         .Case([&](gpu::BlockIdOp id) {
-          return writeInvocationId(op, "cxx_workgroup_id", id.getDimension(),
-                                   depth);
+          return writeInvocationId(op,
+                                   WGSLNameEncoder::encodeBuiltin(
+                                       WGSLNameEncoder::Builtin::kWorkgroupId),
+                                   id.getDimension(), depth);
         })
         .Case([&](vector::BroadcastOp broadcast) -> LogicalResult {
           auto type = typeName(op, broadcast.getType());
@@ -664,6 +899,108 @@ class WGSLWriter {
             [&](vector::InsertOp insert) { return writeInsert(insert, depth); })
         .Case([&](vector::ShuffleOp shuffle) {
           return writeShuffle(shuffle, depth);
+        })
+        .Case([&](func::CallOp call) { return writeCall(call, depth); })
+        .Case([&](mlir::cxx::UndefOp undef) -> LogicalResult {
+          auto value = zeroValue(op, undef.getType());
+          if (failed(value)) return failure();
+          names_[undef.getResult()] = *value;
+          return success();
+        })
+        .Case([&](mlir::cxx::ExtractValueOp extract) {
+          return define(
+              op, extract.getResult(),
+              aggregateElement(extract.getContainer(), extract.getPosition()),
+              depth);
+        })
+        .Case([&](mlir::cxx::InsertValueOp insert) -> LogicalResult {
+          auto name = encoder_.encodeTemporary(
+              WGSLNameEncoder::Temporary::kInsertedValue);
+          indent(depth);
+          out_ << "var " << name << " = " << use(insert.getContainer())
+               << ";\n";
+          names_[insert.getResult()] = name;
+          indent(depth);
+          out_ << aggregateElement(insert.getResult(), insert.getPosition())
+               << " = " << use(insert.getValue()) << ";\n";
+          return success();
+        })
+        .Case([&](mlir::cxx::LoadOp load) -> LogicalResult {
+          auto element = storageElement(load.getAddr(), op);
+          if (failed(element)) return failure();
+          auto value = element->expression;
+          if (element->atomic) value = "atomicLoad(&" + value + ")";
+          if (element->isUnsigned || element->type != load.getType()) {
+            auto type = typeName(op, load.getType());
+            if (failed(type)) return failure();
+            value = "bitcast<" + *type + ">(" + value + ")";
+          }
+          return define(op, load.getResult(), value, depth);
+        })
+        .Case([&](mlir::cxx::StoreOp store) -> LogicalResult {
+          auto element = storageElement(store.getAddr(), op);
+          if (failed(element)) return failure();
+          if (element->readOnly)
+            return store.emitError("WGSL cannot write a read-only resource");
+          auto value = use(store.getValue());
+          if (element->isUnsigned ||
+              element->type != store.getValue().getType()) {
+            auto type = typeName(op, element->type);
+            if (failed(type)) return failure();
+            if (element->isUnsigned) *type = withLanesOf(element->type, "u32");
+            value = "bitcast<" + *type + ">(" + value + ")";
+          }
+          indent(depth);
+          if (element->atomic)
+            out_ << "atomicStore(&" << element->expression << ", " << value
+                 << ");\n";
+          else
+            out_ << element->expression << " = " << value << ";\n";
+          return success();
+        })
+        .Case([&](mlir::cxx::BitcastOp cast) -> LogicalResult {
+          if (isa<mlir::cxx::PointerType>(cast.getType()))
+            return success(
+                succeeded(mlir::cxx::resolveStorageAddress(cast.getResult())));
+          auto type = typeName(op, cast.getType());
+          if (failed(type)) return failure();
+          return define(op, cast.getResult(),
+                        "bitcast<" + *type + ">(" + use(cast.getValue()) + ")",
+                        depth);
+        })
+        .Case<ptr::ToPtrOp>([](auto) { return success(); })
+        .Case<mlir::cxx::StorageRefOp>([](auto) { return success(); })
+        .Case<ptr::FromPtrOp, mlir::cxx::MemberOp, mlir::cxx::SubscriptOp,
+              mlir::cxx::ArrayToPointerOp, mlir::cxx::PtrAddOp>([](auto op) {
+          if (succeeded(mlir::cxx::resolveStorageAddress(op->getResult(0))))
+            return success();
+          return LogicalResult(
+              op->emitError("WGSL reference has no storage root"));
+        })
+        .Case([&](memref::AllocOp allocation) -> LogicalResult {
+          auto found = sharedNames_.find(allocation.getResult());
+          if (found == sharedNames_.end())
+            return allocation.emitError(
+                "WGSL shared allocation has no declaration");
+          names_[allocation] = found->second;
+          objects_.insert(allocation);
+          return success();
+        })
+        .Case([&](mlir::cxx::AtomicLoadOp atomic) {
+          return writeAtomicLoad(atomic, depth);
+        })
+        .Case([&](mlir::cxx::AtomicStoreOp atomic) {
+          return writeAtomicStore(atomic, depth);
+        })
+        .Case([&](mlir::cxx::AtomicRMWOp atomic) {
+          return writeAtomicReadModifyWrite(atomic, depth);
+        })
+        .Case([&](mlir::cxx::AtomicCompareExchangeOp atomic) {
+          return writeAtomicCompareExchange(atomic, depth);
+        })
+        .Case([](mlir::cxx::AtomicFenceOp) { return success(); })
+        .Case([&](mlir::cxx::ControlBarrierOp barrier) {
+          return writeControlBarrier(barrier, depth);
         })
         .Case([&](memref::AllocaOp allocation) {
           return writePrivateVariable(allocation, depth);
@@ -755,15 +1092,22 @@ class WGSLWriter {
                         depth);
         })
         .Case([&](arith::ExtUIOp extend) {
+          if (!isBoolean(extend.getIn()))
+            return define(
+                op, extend.getResult(),
+                signedResult(extend.getResult(), unsignedUse(extend.getIn())),
+                depth);
           return writeBooleanExtension(extend, extend.getIn(), "1i", depth);
         })
         .Case([&](arith::ExtSIOp extend) {
+          if (!isBoolean(extend.getIn()))
+            return define(op, extend.getResult(), use(extend.getIn()), depth);
           return writeBooleanExtension(extend, extend.getIn(), "(-1i)", depth);
         })
         .Case([&](arith::TruncIOp truncate) -> LogicalResult {
           if (!isBoolean(truncate.getResult()))
-            return op->emitError(
-                "WGSL emission supports truncation to i1 only");
+            return define(op, truncate.getResult(), use(truncate.getIn()),
+                          depth);
           auto type = truncate.getIn().getType();
           return define(op, truncate.getResult(),
                         "((" + use(truncate.getIn()) + " & " +
@@ -849,7 +1193,7 @@ class WGSLWriter {
     if (failed(position)) return failure();
     auto type = typeName(insert, insert.getType());
     if (failed(type)) return failure();
-    auto name = "cxx_v" + std::to_string(next_++);
+    auto name = encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kValue);
     indent(depth);
     out_ << "var " << name << ": " << *type << " = " << use(insert.getDest())
          << ";\n";
@@ -904,9 +1248,6 @@ class WGSLWriter {
     if (predicate == arith::CmpFPredicate::AlwaysFalse)
       return define(compare, compare.getResult(), "false", depth);
     auto symbol = floatComparison(predicate);
-    if (symbol.empty())
-      return compare.emitError(
-          "WGSL assumes finite floating point and cannot test for NaN");
     return infix(compare, symbol, depth);
   }
 
@@ -937,32 +1278,42 @@ class WGSLWriter {
     auto spelled = *element;
     for (auto extent : llvm::reverse(type.getShape()))
       spelled = "array<" + spelled + ", " + std::to_string(extent) + ">";
-    auto name = "cxx_p" + std::to_string(next_++);
+    auto name =
+        encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kPrivateVariable);
     indent(depth);
     out_ << "var " << name << ": " << spelled << ";\n";
     names_[allocation.getResult()] = name;
-    private_.insert(allocation.getResult());
+    objects_.insert(allocation.getResult());
     return success();
   }
 
   [[nodiscard]] auto writeFor(scf::ForOp loop, unsigned depth)
       -> LogicalResult {
     auto& body = *loop.getBody();
-    auto induction = "cxx_i" + std::to_string(next_++);
-    names_[loop.getInductionVar()] = induction;
+    auto induction =
+        encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kInduction);
+    const bool isUnsigned = loop.getUnsignedCmp();
+    names_[loop.getInductionVar()] =
+        isUnsigned ? signedResult(loop.getInductionVar(), induction)
+                   : induction;
     for (auto [argument, initial] :
          llvm::zip(loop.getRegionIterArgs(), loop.getInitArgs())) {
       auto type = typeName(loop, argument.getType());
       if (failed(type)) return failure();
-      auto name = "cxx_l" + std::to_string(next_++);
+      auto name =
+          encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kLoopValue);
       indent(depth);
       out_ << "var " << name << ": " << *type << " = " << use(initial) << ";\n";
       names_[argument] = name;
     }
     indent(depth);
-    out_ << "for (var " << induction << ": i32 = " << use(loop.getLowerBound())
-         << "; " << induction << " < " << use(loop.getUpperBound()) << "; "
-         << induction << " += " << use(loop.getStep()) << ") {\n";
+    auto bound = [&](Value value) {
+      return isUnsigned ? unsignedUse(value) : use(value);
+    };
+    out_ << "for (var " << induction << ": " << (isUnsigned ? "u32" : "i32")
+         << " = " << bound(loop.getLowerBound()) << "; " << induction << " < "
+         << bound(loop.getUpperBound()) << "; " << induction
+         << " += " << bound(loop.getStep()) << ") {\n";
     auto yield = writeBody(body, depth + 1);
     if (failed(yield)) return failure();
     auto yieldOp = dyn_cast<scf::YieldOp>(*yield);
@@ -976,15 +1327,156 @@ class WGSLWriter {
     return success();
   }
 
+  [[nodiscard]] auto atomicResult(Operation* op, Value result,
+                                  const StorageView& element,
+                                  std::string expression, unsigned depth)
+      -> LogicalResult {
+    if (element.isUnsigned) expression = "bitcast<i32>(" + expression + ")";
+    return define(op, result, expression, depth);
+  }
+
+  [[nodiscard]] auto atomicElement(Operation* op, Value address)
+      -> FailureOr<StorageView> {
+    auto element = storageElement(address, op);
+    if (failed(element)) return failure();
+    if (element->readOnly || !element->atomic)
+      return op->emitError("WGSL atomic requires read-write atomic storage");
+    return element;
+  }
+
+  [[nodiscard]] auto atomicOperand(const StorageView& element, Value value)
+      -> std::string {
+    if (element.isUnsigned) return unsignedUse(value);
+    return use(value);
+  }
+
+  [[nodiscard]] static auto atomicFunction(mlir::cxx::AtomicRMWKind kind)
+      -> std::optional<StringRef> {
+    switch (kind) {
+      case mlir::cxx::AtomicRMWKind::Exchange:
+        return StringRef("atomicExchange");
+      case mlir::cxx::AtomicRMWKind::Add:
+        return StringRef("atomicAdd");
+      case mlir::cxx::AtomicRMWKind::Sub:
+        return StringRef("atomicSub");
+      case mlir::cxx::AtomicRMWKind::And:
+        return StringRef("atomicAnd");
+      case mlir::cxx::AtomicRMWKind::Or:
+        return StringRef("atomicOr");
+      case mlir::cxx::AtomicRMWKind::Xor:
+        return StringRef("atomicXor");
+      case mlir::cxx::AtomicRMWKind::Nand:
+        return std::nullopt;
+    }
+    return std::nullopt;
+  }
+
+  [[nodiscard]] auto writeAtomicLoad(mlir::cxx::AtomicLoadOp op, unsigned depth)
+      -> LogicalResult {
+    auto element = atomicElement(op, op.getAddr());
+    if (failed(element)) return failure();
+    return atomicResult(op, op.getResult(), *element,
+                        "atomicLoad(&" + element->expression + ")", depth);
+  }
+
+  [[nodiscard]] auto writeAtomicStore(mlir::cxx::AtomicStoreOp op,
+                                      unsigned depth) -> LogicalResult {
+    auto element = atomicElement(op, op.getAddr());
+    if (failed(element)) return failure();
+    indent(depth);
+    out_ << "atomicStore(&" << element->expression << ", "
+         << atomicOperand(*element, op.getValue()) << ");\n";
+    return success();
+  }
+
+  [[nodiscard]] auto writeAtomicReadModifyWrite(mlir::cxx::AtomicRMWOp op,
+                                                unsigned depth)
+      -> LogicalResult {
+    auto function = atomicFunction(op.getKind());
+    if (!function)
+      return op.emitError("WGSL has no atomic for this modification");
+    auto element = atomicElement(op, op.getAddr());
+    if (failed(element)) return failure();
+    return atomicResult(op, op.getResult(), *element,
+                        function->str() + "(&" + element->expression + ", " +
+                            atomicOperand(*element, op.getValue()) + ")",
+                        depth);
+  }
+
+  [[nodiscard]] auto writeControlBarrier(mlir::cxx::ControlBarrierOp barrier,
+                                         unsigned depth) -> LogicalResult {
+    auto regions = barrier.getMemoryRegions();
+    if (mlir::cxx::bitEnumContainsAll(regions,
+                                      mlir::cxx::MemoryRegions::Workgroup)) {
+      indent(depth);
+      out_ << "workgroupBarrier();\n";
+    }
+    if (mlir::cxx::bitEnumContainsAll(regions,
+                                      mlir::cxx::MemoryRegions::Storage)) {
+      indent(depth);
+      out_ << "storageBarrier();\n";
+    }
+    return success();
+  }
+
+  [[nodiscard]] auto writeAtomicCompareExchange(
+      mlir::cxx::AtomicCompareExchangeOp op, unsigned depth) -> LogicalResult {
+    auto element = atomicElement(op, op.getAddr());
+    if (failed(element)) return failure();
+    auto expected = atomicOperand(*element, op.getExpected());
+    auto desired = atomicOperand(*element, op.getDesired());
+    auto call = "atomicCompareExchangeWeak(&" + element->expression + ", " +
+                expected + ", " + desired + ")";
+    auto old = encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kOldValue);
+    auto exchanged =
+        encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kExchanged);
+    auto attempt =
+        encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kAttempt);
+    auto scalar = element->isUnsigned ? "u32" : "i32";
+    indent(depth);
+    out_ << "var " << old << ": " << scalar << ";\n";
+    indent(depth);
+    out_ << "var " << exchanged << ": bool;\n";
+    unsigned body = depth;
+    if (!op.getWeak()) {
+      indent(depth);
+      out_ << "loop {\n";
+      ++body;
+    }
+    indent(body);
+    out_ << "let " << attempt << " = " << call << ";\n";
+    indent(body);
+    out_ << old << " = " << attempt << ".old_value;\n";
+    indent(body);
+    out_ << exchanged << " = " << attempt << ".exchanged;\n";
+    if (!op.getWeak()) {
+      indent(body);
+      out_ << "if (" << exchanged << " || " << old << " != " << expected
+           << ") { break; }\n";
+      indent(depth);
+      out_ << "}\n";
+    }
+    names_[op.getOld()] =
+        element->isUnsigned ? "bitcast<i32>(" + old + ")" : old;
+    names_[op.getExchanged()] = exchanged;
+    return success();
+  }
+
   [[nodiscard]] auto writeLoad(memref::LoadOp load, unsigned depth)
       -> LogicalResult {
-    if (private_.contains(load.getMemRef()))
-      return define(load, load.getResult(), privateElement(load), depth);
+    if (objects_.contains(load.getMemRef())) {
+      auto element = privateElement(load);
+      if (isAtomicStorage(load.getMemRef()))
+        element = "atomicLoad(&" + element + ")";
+      return define(load, load.getResult(), element, depth);
+    }
     auto buffer = bufferOf(load, load.getMemRef());
     if (failed(buffer)) return failure();
     auto element = buffer->name;
     if (!buffer->isUniform)
       element += "[" + use(load.getIndices().front()) + "]";
+    if (isAtomicStorage(load.getMemRef()))
+      element = "atomicLoad(&" + element + ")";
     if (buffer->isUnsigned) {
       auto type = typeName(load, load.getType());
       if (failed(type)) return failure();
@@ -995,21 +1487,23 @@ class WGSLWriter {
 
   [[nodiscard]] auto writeStore(memref::StoreOp store, unsigned depth)
       -> LogicalResult {
-    if (private_.contains(store.getMemRef())) {
-      indent(depth);
-      out_ << privateElement(store.getMemRef(), store.getIndices()) << " = "
-           << use(store.getValueToStore()) << ";\n";
-      return success();
-    }
-    auto buffer = bufferOf(store, store.getMemRef());
-    if (failed(buffer)) return failure();
-    if (buffer->isUniform)
-      return store.emitError("WGSL cannot write a uniform resource");
     auto value = use(store.getValueToStore());
-    if (buffer->isUnsigned) value = "bitcast<u32>(" + value + ")";
+    std::string element;
+    if (objects_.contains(store.getMemRef())) {
+      element = privateElement(store.getMemRef(), store.getIndices());
+    } else {
+      auto buffer = bufferOf(store, store.getMemRef());
+      if (failed(buffer)) return failure();
+      if (buffer->readOnly)
+        return store.emitError("WGSL cannot write a read-only resource");
+      if (buffer->isUnsigned) value = unsignedUse(store.getValueToStore());
+      element = buffer->name + "[" + use(store.getIndices().front()) + "]";
+    }
     indent(depth);
-    out_ << buffer->name << "[" << use(store.getIndices().front())
-         << "] = " << value << ";\n";
+    if (isAtomicStorage(store.getMemRef()))
+      out_ << "atomicStore(&" << element << ", " << value << ");\n";
+    else
+      out_ << element << " = " << value << ";\n";
     return success();
   }
 
@@ -1066,7 +1560,8 @@ class WGSLWriter {
          llvm::zip(before.getArguments(), loop.getInits())) {
       auto type = typeName(loop, argument.getType());
       if (failed(type)) return failure();
-      auto name = "cxx_l" + std::to_string(next_++);
+      auto name =
+          encoder_.encodeTemporary(WGSLNameEncoder::Temporary::kLoopValue);
       indent(depth);
       out_ << "var " << name << ": " << *type << " = " << use(initial) << ";\n";
       names_[argument] = name;
@@ -1098,45 +1593,58 @@ class WGSLWriter {
     return success();
   }
 
+  gpu::GPUModuleOp module_;
+  const mlir::cxx::KernelModuleContract& contract_;
   gpu::GPUFuncOp function_;
-  const KernelEntry& entry_;
   std::string text_;
+  std::string typeDeclarations_;
+  DenseMap<Type, std::string> records_;
+  DenseSet<Type> activeRecords_;
   llvm::raw_string_ostream out_;
   DenseMap<Value, std::string> names_;
   DenseMap<Value, BufferView> buffers_;
-  DenseSet<Value> private_;
-  unsigned next_ = 0;
+  DenseSet<Value> objects_;
+  bool workgroupPointers_ = false;
+  SmallVector<llvm::StringRef> languageFeatures_;
+  DenseSet<Value> atomicRoots_;
+  DenseSet<unsigned> atomicResources_;
+  DenseMap<Value, std::string> sharedNames_;
+  WGSLNameEncoder encoder_;
 };
 
 }  // namespace
 
-auto compileWGSLKernel(mlir::ModuleOp source, llvm::StringRef kernel)
+auto compileWGSLModule(mlir::ModuleOp source, llvm::StringRef kernel)
     -> mlir::FailureOr<KernelArtifact> {
   using namespace mlir;
-  auto entry = kernelEntryOf(source, kernel);
-  if (failed(entry)) return failure();
-  if (!isUsableEntryName(kernel)) {
-    source.emitError("kernel name '")
-        << kernel << "' is reserved in WGSL output";
-    return failure();
-  }
-  auto working = lowerKernelToGPU(source, kernel);
+  auto contract = mlir::cxx::kernelModuleContractOf(source, kernel);
+  if (failed(contract)) return failure();
+  for (const auto& entry : contract->entries)
+    if (!WGSLNameEncoder::isUsableEntryName(entry.name)) {
+      source.lookupSymbol<mlir::cxx::FuncOp>(entry.name)
+              .emitError("kernel name '")
+          << entry.name << "' is reserved in WGSL output";
+      return failure();
+    }
+  auto working = lowerDeviceModuleToGPU(source, kernel);
   if (failed(working)) return failure();
-  gpu::GPUFuncOp function;
-  working->get()->walk([&](gpu::GPUFuncOp candidate) {
-    if (candidate.getName() == kernel) function = candidate;
-  });
-  if (!function) {
-    source.emitError("selected kernel was not lowered to a GPU function");
+  auto modules = working->get().getOps<gpu::GPUModuleOp>();
+  if (!llvm::hasSingleElement(modules))
+    return source.emitError("expected one lowered GPU module");
+  auto module = *modules.begin();
+  if (failed(mlir::cxx::verifyWebGPUOperations(module)) ||
+      failed(legalizeWGSLFunctionNames(module)))
     return failure();
-  }
-  auto wgsl = WGSLWriter(function, *entry).write();
+  WGSLWriter writer(module, *contract);
+  auto wgsl = writer.write();
   if (failed(wgsl)) return failure();
   KernelArtifact artifact;
   artifact.bytes.assign(wgsl->begin(), wgsl->end());
+  llvm::json::Object target{{"targetEnvironment", "webgpu"}};
+  if (!writer.languageFeatures().empty())
+    target["requiredFeatures"] = llvm::json::Array(writer.languageFeatures());
   artifact.manifest =
-      kernelManifest(*entry, "wgsl", artifact.bytes,
-                     llvm::json::Object{{"targetEnvironment", "webgpu"}});
+      kernelManifest(*contract, "wgsl", artifact.bytes, std::move(target));
   return artifact;
 }
 

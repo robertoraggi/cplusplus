@@ -25,8 +25,6 @@
 #include <cxx/source_location.h>
 
 #include <format>
-#include <iterator>
-#include <ostream>
 
 namespace cxx {
 
@@ -35,8 +33,13 @@ class Control;
 
 class ASTPrettyPrinter {
  public:
-  explicit ASTPrettyPrinter(TranslationUnit* unit, std::ostream& out);
+  explicit ASTPrettyPrinter(TranslationUnit* unit,
+                            std::format_context::iterator out);
   ~ASTPrettyPrinter();
+
+  [[nodiscard]] auto output() const -> std::format_context::iterator {
+    return output_;
+  }
 
   [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
     return unit_;
@@ -129,15 +132,16 @@ class ASTPrettyPrinter {
   template <typename... Args>
   void write(std::format_string<Args...> fmt, Args&&... args) {
     if (newline_) {
-      std::format_to(output_, "\n");
-      if (depth_ > 0) std::format_to(output_, "{:{}}", "", depth_ * 2);
+      output_ = std::format_to(output_, "\n");
+      if (depth_ > 0)
+        output_ = std::format_to(output_, "{:{}}", "", depth_ * 2);
     } else if (space_) {
-      std::format_to(output_, " ");
+      output_ = std::format_to(output_, " ");
     }
     newline_ = false;
     space_ = false;
     keepSpace_ = false;
-    std::format_to(output_, fmt, std::forward<Args>(args)...);
+    output_ = std::format_to(output_, fmt, std::forward<Args>(args)...);
     space();
   }
 
@@ -153,11 +157,37 @@ class ASTPrettyPrinter {
 
  private:
   TranslationUnit* unit_ = nullptr;
-  std::ostream_iterator<char> output_;
+  std::format_context::iterator output_;
   int depth_ = 0;
   bool space_ = false;
   bool keepSpace_ = false;
   bool newline_ = false;
 };
 
+template <typename Node>
+struct PrettyAST {
+  TranslationUnit* unit;
+  Node* ast;
+};
+
+template <typename Node>
+[[nodiscard]] auto formatAST(TranslationUnit* unit, Node* ast)
+    -> PrettyAST<Node> {
+  return {unit, ast};
+}
+
 }  // namespace cxx
+
+template <typename Node>
+struct std::formatter<cxx::PrettyAST<Node>> {
+  [[nodiscard]] constexpr auto parse(std::format_parse_context& context) {
+    return context.begin();
+  }
+
+  auto format(const cxx::PrettyAST<Node>& value,
+              std::format_context& context) const {
+    cxx::ASTPrettyPrinter printer(value.unit, context.out());
+    printer(value.ast);
+    return printer.output();
+  }
+};

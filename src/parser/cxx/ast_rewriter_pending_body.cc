@@ -101,6 +101,14 @@ void ASTRewriter::remapInstantiatedMember(Symbol* member) {
     return;
   }
 
+  if (auto parameters = template_parameters_of(member)) {
+    for (auto parameter : parameters->members()) {
+      remapInstantiationPatterns(parameter);
+      if (auto argument = default_template_argument(parameter))
+        remapInstantiationPatterns(argument->symbol);
+    }
+  }
+
   if (!member->isClass() && !member->isEnumOrScopedEnum()) return;
 
   remapScopeMembers(pattern->asScopeSymbol(), member->asScopeSymbol());
@@ -596,7 +604,11 @@ void ASTRewriter::requireFieldInitializer(TranslationUnit* unit,
   auto depth = pending->depth;
   field->clearPendingInitializer();
 
-  if (!pattern || !instance || !pattern->initializer) return;
+  if (!pattern || !instance) return;
+
+  if (!pattern->initializer)
+    requireFieldInitializer(unit, symbol_cast<FieldSymbol>(pattern->symbol));
+  if (!pattern->initializer) return;
 
   OutsideImmediateContextScope outsideImmediateContext{unit};
 
@@ -748,7 +760,7 @@ auto ASTRewriter::instantiateSeparately(ExpressionAST* pattern, Symbol* owner,
 
   unit_->error(owner->location(),
                std::format("cannot instantiate the {} of '{}'", construct,
-                           to_string(owner->name())));
+                           to_diag_string(owner->name())));
   return nullptr;
 }
 

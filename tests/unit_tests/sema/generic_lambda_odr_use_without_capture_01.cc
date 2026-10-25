@@ -15,7 +15,7 @@ int by_reference_parameter() {
     // expected-error@1 {{variable 'y' cannot be implicitly captured in a lambda with no capture-default specified}}
     return read(y) + n;
   };
-  // expected-note@1 {{in instantiation of function template specialization 'operator () <::two>' requested here}}
+  // expected-note@1 {{in instantiation of function template specialization 'operator ()<two>' requested here}}
   return f(two{});
 }
 

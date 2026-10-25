@@ -72,6 +72,7 @@ struct Codegen::ConvertDebugType {
   [[nodiscard]] auto operator()(const FloatType* type) -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const DoubleType* type) -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const LongDoubleType* type) -> ir::DebugTypeRef;
+  [[nodiscard]] auto operator()(const HalfType* type) -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const Float16Type* type) -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const Float128Type* type) -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const QualType* type) -> ir::DebugTypeRef;
@@ -360,6 +361,11 @@ struct Codegen::ConvertDebugType {
 [[nodiscard]] auto Codegen::ConvertDebugType::operator()(
     const LongDoubleType* type) -> ir::DebugTypeRef {
   return basicType("long double", type, ir::DebugEncoding::Float);
+}
+
+[[nodiscard]] auto Codegen::ConvertDebugType::operator()(const HalfType* type)
+    -> ir::DebugTypeRef {
+  return basicType("__fp16", type, ir::DebugEncoding::Float);
 }
 
 [[nodiscard]] auto Codegen::ConvertDebugType::operator()(

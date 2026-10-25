@@ -22,10 +22,10 @@
 
 #include <cxx/cxx_fwd.h>
 #include <cxx/token_fwd.h>
+#include <cxx/types_fwd.h>
 
 #include <array>
 #include <cstddef>
-#include <iosfwd>
 
 namespace cxx {
 
@@ -95,10 +95,12 @@ enum class AccessSpecifier {
 [[nodiscard]] auto defaultAccessSpecifierOfClassKey(TokenKind classKey)
     -> AccessSpecifier;
 
-void dump(std::ostream& out, Symbol* symbol, int depth = 0);
-void dump(std::ostream& out, Symbol* symbol, TranslationUnit* unit,
-          int depth = 0);
-
-auto operator<<(std::ostream& out, Symbol* symbol) -> std::ostream&;
+[[nodiscard]] auto to_string(Symbol* symbol, TypePrintOptions options = {})
+    -> std::string;
+[[nodiscard]] auto to_pretty_string(Symbol* symbol,
+                                    TypePrintOptions options = {})
+    -> std::string;
+[[nodiscard]] auto to_diag_string(Symbol* symbol, TypePrintOptions options = {})
+    -> std::string;
 
 }  // namespace cxx

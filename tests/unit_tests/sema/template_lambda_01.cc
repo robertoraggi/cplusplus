@@ -3,7 +3,7 @@
 
 // Template lambda IIFE with non-type parameter: static_assert fires on
 // instantiation with the default argument _False=false.
-// expected-note@1 {{in instantiation of function template specialization 'operator () <0>' requested here}}
+// expected-note@1 {{in instantiation of function template specialization 'operator ()<0>' requested here}}
 inline constexpr int v1 = []<bool _False = false>() -> int {
   static_assert(_False, "should fire");  // expected-error {{"should fire"}}
   return 0;

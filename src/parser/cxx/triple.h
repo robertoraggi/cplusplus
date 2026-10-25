@@ -53,6 +53,8 @@ enum class TripleOS {
   kWasiPreview1,
   kWasiPreview2,
   kEmscripten,
+  kVulkan,
+  kWebGPU,
 };
 
 enum class TripleEnvironment {

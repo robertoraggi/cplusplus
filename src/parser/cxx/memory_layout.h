@@ -119,6 +119,7 @@ class MemoryLayout {
   [[nodiscard]] auto isX86_64() const -> bool;
   [[nodiscard]] auto isWebAssembly() const -> bool;
   [[nodiscard]] auto isSPIRV() const -> bool;
+  [[nodiscard]] auto hasInt128Type() const -> bool;
   [[nodiscard]] auto isDarwin() const -> bool;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
   [[nodiscard]] auto zeroWidthBitFieldAlignsAggregate() const -> bool;

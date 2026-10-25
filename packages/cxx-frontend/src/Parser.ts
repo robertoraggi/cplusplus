@@ -46,9 +46,9 @@ export type OutputCodeFormat = (typeof OutputCodeFormat)[number];
  * The result of {@link Parser.emitCode} for a given output format.
  *
  * Textual formats produce a `string`, object code produces a `Uint8Array`, and
- * the kernel formats produce every checked kernel of the unit with its
- * manifest. Under a device profile, `mlir` is the GPU dialect of the kernels,
- * `asm` their SPIR-V dialect and `obj` the SPIR-V binary of the only kernel.
+ * the kernel formats produce one device module containing all checked entries
+ * with its manifest. Under a device profile, `mlir` is the GPU dialect module,
+ * `asm` its SPIR-V dialect and `obj` its SPIR-V binary.
  *
  * @category Parsing
  */

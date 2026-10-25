@@ -37,7 +37,7 @@ struct Explicit {
   explicit Explicit(int x) {}
 };
 
-// expected-note@+1 {{candidate function not viable: no known conversion from 'int' to '::Explicit' for argument 1}}
+// expected-note@+1 {{candidate function not viable: no known conversion from 'int' to 'Explicit' for argument 1}}
 void take_explicit(Explicit e) {}
 
 void test_explicit() {

@@ -32,17 +32,20 @@
 #include <deque>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <variant>
 #include <vector>
 
 namespace cxx {
+class TypeTraits;
 class Meta;
 class InitializerList;
 class ConstComplex;
 class ConstObject;
 class ConstAddress;
+class ConstStorage;
 class ConstLabelAddress;
 
 struct DefaultInitializerContext {
@@ -54,12 +57,20 @@ struct IndeterminateValue {
   auto operator==(const IndeterminateValue&) const -> bool = default;
 };
 
+struct ConstFloat16 {
+  std::uint16_t bits = 0;
+
+  [[nodiscard]] auto value() const -> float;
+  auto operator==(const ConstFloat16&) const -> bool = default;
+};
+
 using ConstValue =
     std::variant<ConstInt, const StringLiteral*, float, double, long double,
                  std::shared_ptr<Meta>, std::shared_ptr<InitializerList>,
                  std::shared_ptr<ConstObject>, std::shared_ptr<ConstAddress>,
                  std::shared_ptr<ConstLabelAddress>,
-                 std::shared_ptr<ConstComplex>, IndeterminateValue>;
+                 std::shared_ptr<ConstComplex>, ConstFloat16,
+                 IndeterminateValue>;
 
 class InitializerList {
  public:
@@ -160,6 +171,9 @@ class ConstObject {
     constexprUnknown_ = constexprUnknown;
   }
 
+  [[nodiscard]] auto lifetimeEnded() const -> bool { return lifetimeEnded_; }
+  void setLifetimeEnded(bool ended) { lifetimeEnded_ = ended; }
+
   void setType(const Type* type) { type_ = type; }
 
   [[nodiscard]] auto members() const -> const std::deque<Member>& {
@@ -178,6 +192,9 @@ class ConstObject {
 
   [[nodiscard]] auto subobject(const Symbol* symbol) const -> const ConstValue*;
 
+  [[nodiscard]] auto subobjectPath(const Symbol* symbol) const
+      -> std::optional<std::vector<Symbol*>>;
+
   [[nodiscard]] auto mutableSubobject(const Symbol* symbol) -> ConstValue*;
 
   [[nodiscard]] auto operator==(const ConstObject& other) const -> bool;
@@ -186,6 +203,28 @@ class ConstObject {
   const Type* type_ = nullptr;
   std::deque<Member> members_;
   bool constexprUnknown_ = false;
+  bool lifetimeEnded_ = false;
+};
+
+class ConstStorage {
+ public:
+  ConstStorage() = default;
+  ConstStorage(const Type* type, ConstValue value)
+      : type_(type), value_(std::move(value)) {}
+
+  [[nodiscard]] auto type() const -> const Type* { return type_; }
+  [[nodiscard]] auto value() const -> const ConstValue& { return value_; }
+  [[nodiscard]] auto value() -> ConstValue& { return value_; }
+  [[nodiscard]] auto lifetimeEnded() const -> bool { return lifetimeEnded_; }
+
+  void setType(const Type* type) { type_ = type; }
+  void setValue(ConstValue value) { value_ = std::move(value); }
+  void setLifetimeEnded(bool ended) { lifetimeEnded_ = ended; }
+
+ private:
+  const Type* type_ = nullptr;
+  ConstValue value_;
+  bool lifetimeEnded_ = false;
 };
 
 class Meta {
@@ -200,10 +239,15 @@ class Meta {
 
 class ConstAddress {
  public:
+  using Subobject = std::variant<Symbol*, std::size_t>;
+
   ConstAddress() = default;
 
-  explicit ConstAddress(Symbol* symbol, std::intmax_t offset = 0)
-      : symbol_(symbol), offset_(offset), root_(symbol) {}
+  [[nodiscard]] static auto memberPointer(Symbol* symbol,
+                                          std::intmax_t adjustment)
+      -> std::shared_ptr<ConstAddress>;
+
+  explicit ConstAddress(Symbol* symbol, std::intmax_t offset = 0);
 
   explicit ConstAddress(const StringLiteral* string, std::intmax_t offset = 0)
       : string_(string), offset_(offset) {}
@@ -223,12 +267,32 @@ class ConstAddress {
     return string_;
   }
   [[nodiscard]] auto offset() const -> std::intmax_t { return offset_; }
+  [[nodiscard]] auto storage() const -> const std::shared_ptr<ConstStorage>& {
+    return storage_;
+  }
+  [[nodiscard]] auto arrayType() const -> const Type* { return arrayType_; }
+  [[nodiscard]] auto elementType() const -> const Type* { return elementType_; }
+  [[nodiscard]] auto subobjectPath() const -> const std::vector<Subobject>& {
+    return subobjectPath_;
+  }
+  [[nodiscard]] auto memberAdjustment() const -> std::intmax_t {
+    return memberAdjustment_;
+  }
+  [[nodiscard]] auto classDisplacement() const -> std::intmax_t {
+    return classDisplacement_;
+  }
   [[nodiscard]] auto root() const -> Symbol* { return root_; }
   [[nodiscard]] auto displacement() const -> std::intmax_t {
     return displacement_;
   }
 
   [[nodiscard]] auto sameTarget(const ConstAddress& other) const -> bool;
+  [[nodiscard]] auto sameContainingObject(const ConstAddress& other) const
+      -> bool;
+  [[nodiscard]] auto sameArray(const ConstAddress& other) const -> bool;
+  [[nodiscard]] auto sameLocation(const ConstAddress& other) const -> bool;
+  [[nodiscard]] auto lifetimeEnded() const -> bool;
+  [[nodiscard]] auto isNull() const -> bool;
 
   [[nodiscard]] auto denotesWholeOwner() const -> bool {
     return owner_ && !symbol_;
@@ -241,11 +305,24 @@ class ConstAddress {
   void setStringLiteral(const StringLiteral* string) { string_ = string; }
   void setTypeInfoFor(const Type* type) { typeInfoFor_ = type; }
   void setOffset(std::intmax_t offset) { offset_ = offset; }
+  void setStorage(std::shared_ptr<ConstStorage> storage) {
+    storage_ = std::move(storage);
+  }
+  void setArrayType(const Type* type) { arrayType_ = type; }
+  void setElementType(const Type* type) { elementType_ = type; }
+  void setSubobjectPath(std::vector<Subobject> path) {
+    subobjectPath_ = std::move(path);
+  }
+  void setMemberAdjustment(std::intmax_t adjustment) {
+    memberAdjustment_ = adjustment;
+  }
+  void setClassDisplacement(std::intmax_t displacement) {
+    classDisplacement_ = displacement;
+  }
   void setRoot(Symbol* root) { root_ = root; }
   void setDisplacement(std::intmax_t displacement) {
     displacement_ = displacement;
   }
-  void displace(std::intmax_t bytes) { displacement_ += bytes; }
 
  private:
   Symbol* symbol_ = nullptr;
@@ -255,6 +332,12 @@ class ConstAddress {
   std::intmax_t offset_ = 0;
   Symbol* root_ = nullptr;
   std::intmax_t displacement_ = 0;
+  std::shared_ptr<ConstStorage> storage_;
+  const Type* arrayType_ = nullptr;
+  const Type* elementType_ = nullptr;
+  std::vector<Subobject> subobjectPath_;
+  std::intmax_t memberAdjustment_ = 0;
+  std::intmax_t classDisplacement_ = 0;
 };
 
 class ConstLabelAddress {
@@ -272,6 +355,19 @@ class ConstLabelAddress {
 };
 
 [[nodiscard]] auto isFullyInitialized(const ConstValue& value) -> bool;
+
+[[nodiscard]] auto isConstexprRepresentable(const TypeTraits& traits,
+                                            const ConstValue& value,
+                                            const Type* type,
+                                            ScopeSymbol* point) -> bool;
+
+[[nodiscard]] auto isConstantInitialization(const TypeTraits& traits,
+                                            Symbol* variable,
+                                            const ConstValue& value) -> bool;
+
+[[nodiscard]] auto isConstantTemplateArgument(const TypeTraits& traits,
+                                              const ConstValue& value,
+                                              const Type* type) -> bool;
 
 [[nodiscard]] auto equivalent_values(const ConstValue& lhs,
                                      const ConstValue& rhs) -> bool;

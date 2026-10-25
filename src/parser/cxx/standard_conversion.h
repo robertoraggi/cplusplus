@@ -91,7 +91,10 @@ class StandardConversion {
   void prepareOperand(ExpressionAST*& expr);
   void bindDesignatedFunction(ExpressionAST* expr);
   void promoteOperand(ExpressionAST*& expr);
+  [[nodiscard]] auto arithmeticPromotion(ExpressionAST*& expr) -> bool;
   void decayOperand(ExpressionAST*& expr);
+  void discardedValue(ExpressionAST*& expr);
+  void copyDiscardedClass(ExpressionAST*& expr);
 
   [[nodiscard]] auto temporaryMaterialization(ExpressionAST*& expr) -> bool;
 
@@ -178,6 +181,17 @@ class StandardConversion {
   void recordConversionFunction(ImplicitCastExpressionAST* cast,
                                 const ImplicitConversionSequence& sequence);
 
+  [[nodiscard]] auto parameterConversionSequence(
+      FunctionSymbol* function, ExpressionAST* argument,
+      const Type* parameterType,
+      InitializationKind initializationKind =
+          InitializationKind::kCopyInitialization,
+      ConversionContext context = ConversionContext::kImplicit)
+      -> ImplicitConversionSequence;
+
+  void convertObjectAddressSpace(ExpressionAST*& object,
+                                 FunctionSymbol* function);
+
   [[nodiscard]] auto referenceBinding(const Type* targetType,
                                       const Type* sourceType,
                                       ValueCategory valueCategory,
@@ -191,6 +205,13 @@ class StandardConversion {
       -> bool;
 
  private:
+  [[nodiscard]] auto objectClassType(const Type* type) const -> const Type*;
+
+  [[nodiscard]] auto addressSpaceGenericBinding(FunctionSymbol* function,
+                                                ExpressionAST* argument,
+                                                const Type* parameterType)
+      -> ImplicitConversionSequence;
+
   [[nodiscard]] auto conversionFunctionResultType(FunctionSymbol* function,
                                                   const Type* targetType) const
       -> const Type*;
@@ -342,8 +363,6 @@ class StandardConversion {
 
   [[nodiscard]] auto valueTransformation(ExpressionAST* expr)
       -> std::optional<ImplicitConversionSequence::Step>;
-
-  [[nodiscard]] auto integralPromotion(ExpressionAST*& expr) -> bool;
 
   [[nodiscard]] auto floatingPointPromotion(ExpressionAST*& expr) -> bool;
 

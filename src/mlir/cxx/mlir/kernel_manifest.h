@@ -31,15 +31,7 @@
 
 namespace cxx {
 
-struct KernelEntry {
-  std::string name;
-  mlir::cxx::KernelContract contract;
-};
-
-[[nodiscard]] auto kernelEntryOf(mlir::ModuleOp module, llvm::StringRef kernel)
-    -> mlir::FailureOr<KernelEntry>;
-
-[[nodiscard]] auto kernelManifest(const KernelEntry& entry,
+[[nodiscard]] auto kernelManifest(const mlir::cxx::KernelModuleContract& module,
                                   llvm::StringRef format,
                                   llvm::ArrayRef<std::uint8_t> artifact,
                                   llvm::json::Object target) -> std::string;

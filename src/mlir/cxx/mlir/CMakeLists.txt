@@ -27,7 +27,7 @@ target_link_libraries(cxx-mlir PUBLIC
 get_target_property(cxx_have_spirv cxx-mlir-transforms CXX_WITH_SPIRV)
 if (cxx_have_spirv)
     target_sources(cxx-mlir PRIVATE device_kernel.cc kernel_manifest.cc spirv_kernel.cc
-                                   wgsl_kernel.cc)
+                                   wgsl_kernel.cc wgsl_name_encoder.cc)
     mlir_target_link_libraries(cxx-mlir PUBLIC
         MLIRGPUToSPIRV MLIRMathToSPIRV MLIRMemRefToSPIRV MLIRSPIRVTransforms
         MLIRUBToSPIRV
@@ -44,6 +44,7 @@ mlir_target_link_libraries(cxx-mlir PUBLIC
     MLIRLLVMDialect
     MLIRLLVMToLLVMIRTranslation
     MLIRPass
+    MLIRParser
     MLIRTargetLLVMIRExport
     MLIRTargetLLVMIRImport
     MLIRTransforms

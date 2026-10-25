@@ -50,6 +50,8 @@ auto failedArgumentConversion(ExpressionAST* argument, const Type* destination,
 
 namespace {
 struct CandidateRejectionPrinter {
+  TypePrintOptions sourceOptions;
+  TypePrintOptions targetOptions;
   [[nodiscard]] auto operator()(const std::string& reason) const
       -> std::string {
     return reason;
@@ -68,9 +70,11 @@ struct CandidateRejectionPrinter {
     if (reason.fromInitializerList)
       return std::format(
           "no known conversion from initializer list to '{}' for argument {}",
-          to_string(reason.destination), reason.argumentIndex + 1);
+          to_diag_string(reason.destination, "", targetOptions),
+          reason.argumentIndex + 1);
     return std::format("no known conversion from '{}' to '{}' for argument {}",
-                       to_string(reason.source), to_string(reason.destination),
+                       to_diag_string(reason.source, "", sourceOptions),
+                       to_diag_string(reason.destination, "", targetOptions),
                        reason.argumentIndex + 1);
   }
 };
@@ -141,8 +145,13 @@ struct CandidateRejectionPrinter {
 }
 }  // namespace
 
-auto to_string(const CandidateRejection& rejection) -> std::string {
-  return std::visit(CandidateRejectionPrinter{}, rejection);
+auto to_diag_string(const CandidateRejection& rejection,
+                    TypePrintOptions sourceOptions, Symbol* candidateScope)
+    -> std::string {
+  auto targetOptions = sourceOptions;
+  targetOptions.declarationScope = candidateScope;
+  return std::visit(CandidateRejectionPrinter{sourceOptions, targetOptions},
+                    rejection);
 }
 
 auto compareNonTemplateConstraints(TranslationUnit* unit,
@@ -241,27 +250,33 @@ OverloadResolution::OverloadResolution(TranslationUnit* unit)
 
 using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 
-auto OverloadResolution::implicitObjectParameterClass(
-    FunctionSymbol* function, const ImplicitObjectArgument& object,
-    ScopeSymbol* lookupScope) -> const Type* {
+auto OverloadResolution::implicitObjectParameterClass(FunctionSymbol* function,
+                                                      const Type* objectType,
+                                                      ScopeSymbol* lookupScope)
+    -> const Type* {
   if (name_cast<ConversionFunctionId>(function->name()))
-    return traits.remove_cvref(object.type);
+    return traits.remove_cvref(objectType);
   if (auto nominatingClass = symbol_cast<ClassSymbol>(lookupScope))
     return nominatingClass->type();
   if (auto classSymbol = symbol_cast<ClassSymbol>(function->parent()))
     return classSymbol->type();
-  return traits.remove_cvref(object.type);
+  return traits.remove_cvref(objectType);
 }
 
 auto OverloadResolution::implicitObjectArgumentConversion(
-    FunctionSymbol* function, const ImplicitObjectArgument& object,
-    ScopeSymbol* lookupScope)
+    FunctionSymbol* function, ExpressionAST* object, ScopeSymbol* lookupScope)
     -> std::expected<ImplicitConversionSequence, std::string> {
+  if (!object || !object->type)
+    return std::unexpected("no typed object argument");
+
+  auto objectType = traits.remove_reference(object->type);
+  const auto objectCv = cv_qualifiers(objectType);
+
   ImplicitConversionSequence conversion;
   conversion.form = ConversionSequenceForm::kStandard;
-  conversion.sourceType = object.type;
-  conversion.destinationType = object.type;
-  conversion.steps.push_back({ImplicitCastKind::kIdentity, object.type});
+  conversion.sourceType = object->type;
+  conversion.destinationType = object->type;
+  conversion.steps.push_back({ImplicitCastKind::kIdentity, object->type});
 
   if (!function->isImplicitObjectMemberFunction()) {
     conversion.isStaticMemberObjectParameter = function->isStatic() &&
@@ -273,20 +288,26 @@ auto OverloadResolution::implicitObjectArgumentConversion(
   auto functionType = type_cast<FunctionType>(function->type());
   if (!functionType) return conversion;
 
-  if (address_space(traits.remove_reference(object.type)))
-    return std::unexpected(
-        "implicit object argument has an address space qualifier");
+  if (address_space(objectType)) {
+    if (!traits.is_address_space_generic_member(function))
+      return std::unexpected(
+          "implicit object argument has an address space qualifier");
+    objectType = traits.remove_address_space(objectType);
+    conversion.steps.push_back(
+        {ImplicitCastKind::kAddressSpaceConversion, objectType});
+  }
 
   const auto functionCv = functionType->cvQualifiers();
   const auto functionRef = functionType->refQualifier();
-  if (!is_at_least_as_cv_qualified(functionCv, object.cv)) {
-    return std::unexpected(std::format(
-        "'this' argument has type '{}', but function is not "
-        "marked {}",
-        to_string(object.type), has_const(object.cv) ? "const" : "volatile"));
+  if (!is_at_least_as_cv_qualified(functionCv, objectCv)) {
+    return std::unexpected(
+        std::format("'this' argument has type '{}', but function is not "
+                    "marked {}",
+                    to_diag_string(objectType),
+                    has_const(objectCv) ? "const" : "volatile"));
   }
 
-  const bool objectIsLvalue = object.valueCategory == ValueCategory::kLValue;
+  const bool objectIsLvalue = object->valueCategory == ValueCategory::kLValue;
 
   if (functionRef == RefQualifier::kRvalue && objectIsLvalue) {
     return std::unexpected(
@@ -300,7 +321,7 @@ auto OverloadResolution::implicitObjectArgumentConversion(
   }
 
   auto implicitObjectClass =
-      implicitObjectParameterClass(function, object, lookupScope);
+      implicitObjectParameterClass(function, objectType, lookupScope);
 
   conversion.binding.kind = objectIsLvalue
                                 ? ReferenceBinding::Kind::kDirectToLvalue
@@ -315,7 +336,7 @@ auto OverloadResolution::implicitObjectArgumentConversion(
   conversion.binding.isUnqualifiedImplicitObjectParameter =
       functionRef == RefQualifier::kNone;
 
-  if (stdconv_.classAdjustment(object.type, implicitObjectClass) ==
+  if (stdconv_.classAdjustment(objectType, implicitObjectClass) ==
       ClassAdjustment::kDerivedToBase) {
     conversion.steps.push_back({ImplicitCastKind::kDerivedToBaseConversion,
                                 conversion.binding.referencedType});
@@ -681,8 +702,8 @@ auto OverloadResolution::resolveConstructor(
           isDirectInitialization(initializationKind) &&
           bindsReferenceToInitializedClass(*paramIt);
 
-      auto conv = stdconv_.computeConversionSequence(
-          args[i], *paramIt,
+      auto conv = stdconv_.parameterConversionSequence(
+          ctor, args[i], *paramIt,
           admitsExplicitConversionFunctions
               ? InitializationKind::kDirectInitialization
               : InitializationKind::kCopyInitialization,
@@ -730,8 +751,9 @@ auto OverloadResolution::resolveConstructor(
 }
 
 auto OverloadResolution::computeImplicitConversionSequence(
-    ExpressionAST* expr, const Type* targetType) -> ImplicitConversionSequence {
-  return stdconv_.computeConversionSequence(expr, targetType);
+    ExpressionAST* expr, const Type* targetType, FunctionSymbol* function)
+    -> ImplicitConversionSequence {
+  return stdconv_.parameterConversionSequence(function, expr, targetType);
 }
 
 void OverloadResolution::applyImplicitConversion(
@@ -791,7 +813,7 @@ auto OverloadResolution::buildCallCandidate(
   auto paramIt = type->parameterTypes().begin();
   auto paramEnd = type->parameterTypes().end();
   for (int i = 0; i < argCount && paramIt != paramEnd; ++i, ++paramIt) {
-    auto conv = computeImplicitConversionSequence(args[i], *paramIt);
+    auto conv = computeImplicitConversionSequence(args[i], *paramIt, function);
     if (!conv) {
       reject(failedArgumentConversion(args[i], *paramIt,
                                       static_cast<std::size_t>(i)));
@@ -1134,15 +1156,11 @@ auto OverloadResolution::resolveBinaryOperator(
           continue;
         }
         auto objectConversion = implicitObjectArgumentConversion(
-            candidate,
-            {.type = candidateLeftType,
-             .cv = cv_qualifiers(traits.remove_reference(candidateLeftType)),
-             .valueCategory = candidateLeftExpr->valueCategory},
-            operatorCandidate.lookupScope);
+            candidate, candidateLeftExpr, operatorCandidate.lookupScope);
         if (!objectConversion) continue;
         left = *objectConversion;
-        right =
-            stdconv_.computeConversionSequence(candidateRightExpr, params[0]);
+        right = stdconv_.parameterConversionSequence(
+            candidate, candidateRightExpr, params[0]);
       } else {
         if (params.size() != 2) continue;
         left = stdconv_.computeConversionSequence(candidateLeftExpr, params[0]);
@@ -1160,11 +1178,7 @@ auto OverloadResolution::resolveBinaryOperator(
           continue;
         }
         auto objectConversion = implicitObjectArgumentConversion(
-            candidate,
-            {.type = candidateLeftType,
-             .cv = cv_qualifiers(traits.remove_reference(candidateLeftType)),
-             .valueCategory = candidateLeftExpr->valueCategory},
-            operatorCandidate.lookupScope);
+            candidate, candidateLeftExpr, operatorCandidate.lookupScope);
         if (!objectConversion) continue;
         left = *objectConversion;
       } else {
@@ -1360,7 +1374,8 @@ auto OverloadResolution::lookupOperator(
   auto addMemberCandidates = [&](const Type* operandType,
                                  const Name* operatorName, bool rewritten,
                                  bool reversed) {
-    auto classType = type_cast<ClassType>(traits.remove_cvref(operandType));
+    auto classType =
+        unqualified_cast<ClassType>(traits.remove_reference(operandType));
     if (!classType) return;
     if (auto classSymbol = classType->symbol()) {
       traits.requireCompleteClass(classSymbol);

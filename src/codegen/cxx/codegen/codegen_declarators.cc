@@ -573,7 +573,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
         gen.emitter_.storeBitfield(
             loc, zero, fieldPtr,
             Codegen::bitfieldInfo(symbol_cast<ClassSymbol>(bitField->parent()),
-                                  *fi));
+                                  *fi),
+            gen.traits.is_volatile(bitField->type()));
       }
       return {};
     }
@@ -598,7 +599,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
       gen.emitter_.storeBitfield(
           loc, value, fieldPtr,
           Codegen::bitfieldInfo(symbol_cast<ClassSymbol>(bitField->parent()),
-                                *fi));
+                                *fi),
+          gen.traits.is_volatile(bitField->type()));
       return {};
     }
   }
@@ -610,7 +612,12 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
                               gen.getAlignment(targetType));
   }
 
-  gen.emitter_.store(loc, value, fieldPtr, 1);
+  std::uint64_t alignment = 1;
+  if (auto field = symbol_cast<FieldSymbol>(symbol))
+    alignment =
+        gen.fieldAlignment(field, gen.getAlignment(classSymbol->type()));
+  gen.emitter_.store(loc, value, fieldPtr,
+                     gen.objectAccess(targetType, alignment));
 
   return {};
 }

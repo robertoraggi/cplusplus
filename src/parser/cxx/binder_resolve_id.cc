@@ -48,8 +48,9 @@ struct [[nodiscard]] Binder::ResolveUnqualifiedId {
   auto control() const -> Control* { return binder.control(); }
   auto inTemplate() const -> bool { return binder.inTemplate(); }
 
-  auto shouldKeepTemplateIdAsDependent(SimpleTemplateIdAST* templateId) const
-      -> bool;
+  [[nodiscard]] auto resolveDependentTemplateId(SimpleTemplateIdAST* templateId,
+                                                Symbol* resolvedSymbol) const
+      -> Symbol*;
   auto resolveClassTemplateId(SimpleTemplateIdAST* templateId,
                               ClassSymbol* classSymbol) -> Symbol*;
   auto resolveTypeAliasTemplateId(SimpleTemplateIdAST* templateId,
@@ -75,20 +76,16 @@ auto Binder::resolve(NestedNameSpecifierAST* nestedNameSpecifier,
                unqualifiedId);
 }
 
-auto Binder::ResolveUnqualifiedId::shouldKeepTemplateIdAsDependent(
-    SimpleTemplateIdAST* templateId) const -> bool {
-  if (!inTemplate()) return false;
-  if (symbol_cast<TemplateTypeParameterSymbol>(templateId->symbol)) {
-    return true;
+auto Binder::ResolveUnqualifiedId::resolveDependentTemplateId(
+    SimpleTemplateIdAST* templateId, Symbol* resolvedSymbol) const -> Symbol* {
+  if (!inTemplate()) return nullptr;
+  if (symbol_cast<TemplateTypeParameterSymbol>(resolvedSymbol)) {
+    return resolvedSymbol;
   }
-  if (!hasDependentTemplateArguments(binder.unit_, templateId)) return false;
+  if (!hasDependentTemplateArguments(binder.unit_, templateId)) return nullptr;
 
-  auto resolved = templateId->symbol;
-  if (auto injected = symbol_cast<InjectedClassNameSymbol>(resolved))
-    resolved = injected->classSymbol();
-
-  auto classSymbol = symbol_cast<ClassSymbol>(resolved);
-  if (!classSymbol) return true;
+  auto classSymbol = symbol_cast<ClassSymbol>(resolvedSymbol);
+  if (!classSymbol) return resolvedSymbol;
 
   for (auto scope = binder.scope(); scope; scope = scope->parent()) {
     auto enclosing = symbol_cast<ClassSymbol>(scope);
@@ -96,15 +93,17 @@ auto Binder::ResolveUnqualifiedId::shouldKeepTemplateIdAsDependent(
     if (class_template_of(enclosing) != class_template_of(classSymbol))
       continue;
     if (names_current_instantiation(binder.unit_, templateId, enclosing))
-      return true;
+      return enclosing;
   }
-  return false;
+  return nullptr;
 }
 
 auto Binder::ResolveUnqualifiedId::resolveClassTemplateId(
     SimpleTemplateIdAST* templateId, ClassSymbol* classSymbol) -> Symbol* {
   if (!TemplateArity::matches(classSymbol->templateDeclaration(),
                               templateId->templateArgumentList)) {
+    binder.error(templateId->identifierLoc,
+                 "invalid number of template arguments for class template");
     return nullptr;
   }
 
@@ -184,7 +183,7 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
     }
   }
 
-  auto resolvedSymbol = templateId->symbol;
+  auto resolvedSymbol = resolvedType ? resolvedType : templateId->symbol;
   if (!resolvedSymbol && nestedNameSpecifier) {
     auto lookupScope = nestedNameSpecifier->symbol;
     if (lookupScope) {
@@ -201,7 +200,8 @@ auto Binder::ResolveUnqualifiedId::operator()(SimpleTemplateIdAST* templateId)
     return resolveTypeAliasTemplateId(templateId, typeAliasSymbol);
   }
 
-  if (shouldKeepTemplateIdAsDependent(templateId)) return templateId->symbol;
+  if (auto dependent = resolveDependentTemplateId(templateId, resolvedSymbol))
+    return dependent;
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(resolvedSymbol)) {
     if (auto spec = resolveClassTemplateId(templateId, classSymbol))

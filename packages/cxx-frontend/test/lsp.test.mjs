@@ -1,15 +1,12 @@
+import loadCxx from "cxx-frontend/node";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { Linker, loadCxx } from "cxx-frontend";
+import { Linker } from "cxx-frontend";
 import { LanguageServer } from "cxx-frontend/lsp";
 
-const wasm = await readFile(
-  new URL("../dist/wasm/cxx-js.wasm", import.meta.url),
-);
-
-await loadCxx({ wasm });
+await loadCxx();
 
 const uri = "file:///main.cc";
 
@@ -1425,6 +1422,10 @@ test("cxx/emitCode selects MLIR pipelines independently on a reused document", a
         assert.equal(result.format, format);
         if (mlirPipeline === "unknown-pass") {
           assert.equal(result.text, "<error running MLIR pipeline>");
+          assert.match(
+            result.error,
+            /unknown-pass.*does not refer to a registered pass/,
+          );
         } else if (format === "cxxir") {
           assert.equal(
             /\bscf\./.test(result.text),

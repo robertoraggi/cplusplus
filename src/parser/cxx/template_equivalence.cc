@@ -24,6 +24,7 @@
 #include <cxx/decl.h>
 #include <cxx/dependent_types.h>
 #include <cxx/literals.h>
+#include <cxx/name_lookup.h>
 #include <cxx/names.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
@@ -189,11 +190,8 @@ auto TemplateEquivalence::same(NamedTypeSpecifierAST* a,
   auto bTemplateId = ast_cast<SimpleTemplateIdAST>(b->unqualifiedId);
 
   if (aTemplateId || bTemplateId) {
-    if (!aTemplateId || !bTemplateId) return false;
-    if (!aTemplateId->symbol || aTemplateId->symbol != bTemplateId->symbol)
-      return false;
-    return same(aTemplateId->templateArgumentList,
-                bTemplateId->templateArgumentList);
+    return sameTemplateId(a->nestedNameSpecifier, aTemplateId,
+                          b->nestedNameSpecifier, bTemplateId);
   }
 
   if (!same(a->nestedNameSpecifier, b->nestedNameSpecifier)) return false;
@@ -1148,6 +1146,82 @@ namespace {
 }
 }  // namespace
 
+auto TemplateEquivalence::namesScope(NestedNameSpecifierAST* qualifier,
+                                     Symbol* scope) const -> bool {
+  if (!qualifier || !scope) return false;
+  if (auto type = unqualified_cast<ClassType>(scope->type()))
+    scope = type->symbol();
+
+  if (ast_cast<GlobalNestedNameSpecifierAST>(qualifier))
+    return scope == unit_->globalScope();
+
+  if (auto ns = symbol_cast<NamespaceSymbol>(scope)) {
+    auto context = symbol_cast<NamespaceSymbol>(qualifier->symbol);
+    return context && std::ranges::contains(inlineNamespaceSet(context), ns);
+  }
+
+  NestedNameSpecifierAST* outer = nullptr;
+  if (auto templateQualifier =
+          ast_cast<TemplateNestedNameSpecifierAST>(qualifier)) {
+    auto cls = symbol_cast<ClassSymbol>(scope);
+    auto entity = symbol_cast<ClassSymbol>(qualifyingEntityOf(qualifier));
+    if (!cls || !entity || class_template_of(cls) != class_template_of(entity))
+      return false;
+    if (cls->isTemplatePattern()) {
+      if (!names_current_instantiation(unit_, templateQualifier->templateId,
+                                       cls))
+        return false;
+    } else {
+      auto arguments = Substitution::writtenTemplateArguments(
+          unit_, templateQualifier->templateId->templateArgumentList);
+      if (!arguments || !corresponds(expand_template_arguments(*arguments),
+                                     expand_template_arguments(
+                                         class_template_arguments(unit_, cls)),
+                                     correspondence_))
+        return false;
+    }
+    outer = templateQualifier->nestedNameSpecifier;
+  } else if (auto simple = ast_cast<SimpleNestedNameSpecifierAST>(qualifier)) {
+    if (!sameQualifyingEntity(simple->symbol, scope)) return false;
+    outer = simple->nestedNameSpecifier;
+  } else {
+    return false;
+  }
+
+  auto parent = scope->parent();
+  while (parent && parent->isTransparent()) parent = parent->parent();
+  return !outer || namesScope(outer, parent);
+}
+
+auto TemplateEquivalence::sameQualification(NestedNameSpecifierAST* a,
+                                            NestedNameSpecifierAST* b,
+                                            Symbol* entity) const -> bool {
+  if (same(a, b)) return true;
+  if (a && b) return false;
+  if (!entity) return false;
+
+  auto owner = entity->parent();
+  while (owner && owner->isTransparent()) owner = owner->parent();
+  return namesScope(a ? a : b, owner);
+}
+
+auto TemplateEquivalence::sameTemplateId(NestedNameSpecifierAST* aQualifier,
+                                         SimpleTemplateIdAST* a,
+                                         NestedNameSpecifierAST* bQualifier,
+                                         SimpleTemplateIdAST* b) const -> bool {
+  if (!a || !b) return false;
+  if (a->symbol || b->symbol) {
+    if (!a->symbol || !b->symbol) return false;
+    if (a->symbol->canonical() != b->symbol->canonical()) return false;
+  } else if (a->identifier != b->identifier) {
+    return false;
+  }
+
+  if (!sameQualification(aQualifier, bQualifier, a->symbol)) return false;
+
+  return same(a->templateArgumentList, b->templateArgumentList);
+}
+
 auto TemplateEquivalence::same(NestedNameSpecifierAST* a,
                                NestedNameSpecifierAST* b) const -> bool {
   if (a == b) return true;
@@ -1156,28 +1230,29 @@ auto TemplateEquivalence::same(NestedNameSpecifierAST* a,
   if (a->kind() != b->kind()) {
     auto aEntity = qualifyingEntityOf(a);
     auto bEntity = qualifyingEntityOf(b);
+    if (ast_cast<TemplateNestedNameSpecifierAST>(a))
+      return namesScope(a, bEntity);
+    if (ast_cast<TemplateNestedNameSpecifierAST>(b))
+      return namesScope(b, aEntity);
     return aEntity && bEntity && sameQualifyingEntity(aEntity, bEntity);
   }
 
   if (auto aTemplate = ast_cast<TemplateNestedNameSpecifierAST>(a)) {
     auto bTemplate = ast_cast<TemplateNestedNameSpecifierAST>(b);
-    if (!bTemplate) return false;
-    if (!same(aTemplate->nestedNameSpecifier, bTemplate->nestedNameSpecifier))
-      return false;
-    auto aTemplateId = aTemplate->templateId;
-    auto bTemplateId = bTemplate->templateId;
-    if (!aTemplateId || !bTemplateId) return false;
-    if (!aTemplateId->symbol || aTemplateId->symbol != bTemplateId->symbol)
-      return false;
-    return same(aTemplateId->templateArgumentList,
-                bTemplateId->templateArgumentList);
+    return sameTemplateId(aTemplate->nestedNameSpecifier, aTemplate->templateId,
+                          bTemplate->nestedNameSpecifier,
+                          bTemplate->templateId);
   }
 
   if (auto aSimple = ast_cast<SimpleNestedNameSpecifierAST>(a)) {
     auto bSimple = ast_cast<SimpleNestedNameSpecifierAST>(b);
     if (!bSimple) return false;
-    if (aSimple->symbol || bSimple->symbol)
-      return sameQualifyingEntity(aSimple->symbol, bSimple->symbol);
+    if (aSimple->symbol || bSimple->symbol) {
+      if (!sameQualifyingEntity(aSimple->symbol, bSimple->symbol)) return false;
+      if (symbol_cast<NamespaceSymbol>(aSimple->symbol)) return true;
+      return sameQualification(aSimple->nestedNameSpecifier,
+                               bSimple->nestedNameSpecifier, aSimple->symbol);
+    }
     if (aSimple->identifier != bSimple->identifier) return false;
     return same(aSimple->nestedNameSpecifier, bSimple->nestedNameSpecifier);
   }

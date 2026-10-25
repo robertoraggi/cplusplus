@@ -1,3 +1,4 @@
+import loadCxx from "cxx-frontend/node";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -6,14 +7,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { WASI } from "node:wasi";
-import { loadCxx, Linker, LinkError, parse } from "cxx-frontend";
+import { Linker, LinkError, parse } from "cxx-frontend";
 import link from "cxx-frontend/link";
 
-const wasm = await readFile(
-  new URL("../dist/wasm/cxx-js.wasm", import.meta.url),
-);
-
-await loadCxx({ wasm });
+await loadCxx();
 
 const sysroot = new URL(
   "../../../build.em/src/lib/wasi-sysroot",
@@ -35,10 +32,11 @@ function countingReader() {
   return reader;
 }
 
-async function compile(source) {
+async function compile(source, mlirPipeline = "") {
   await using parser = await parse({
     path: "/linker.cc",
     source,
+    mlirPipeline,
     debugInfo: false,
   });
   assert.deepEqual(parser.diagnostics, []);
@@ -85,6 +83,53 @@ test("links an object file into a runnable wasi module", { skip }, async () => {
   ]);
 
   assert.deepEqual(await run(module), { exitCode: 0, stdout: "hello\n" });
+});
+
+test("runs fixed-array MemRef pipelines in wasm32", { skip }, async () => {
+  const source = `
+int shifted(int i) {
+  int values[4] = {11, 22, 33, 44};
+  return *(values + 3 - i);
+}
+int partial(int i) {
+  int values[4] = {7};
+  return values[i];
+}
+bool boolean(int i) {
+  bool values[4] = {};
+  values[i] = true;
+  return values[2];
+}
+double floating(int i) {
+  double values[4] = {};
+  values[i] = 1.25;
+  return values[2];
+}
+int main() {
+  for (int i = 0; i < 4; ++i) {
+    if (shifted(i) != 11 * (4 - i)) return 1;
+    if (partial(i) != (i == 0 ? 7 : 0)) return 2;
+    if (boolean(i) != (i == 2)) return 3;
+    if (floating(i) != (i == 2 ? 1.25 : 0.0)) return 4;
+  }
+  return 0;
+}`;
+  await using linker = await Linker.create({
+    sysroot,
+    readFile: countingReader(),
+  });
+  for (const pipeline of [
+    "",
+    "convert-cxx-to-memref,convert-scf-to-cf",
+    "convert-cxx-to-memref,convert-cxx-to-ptr,convert-scf-to-cf",
+    "convert-cxx-to-memref,cxx.func(cxx-lift-cf-to-scf)",
+    "convert-cxx-to-memref,cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-ptr",
+  ]) {
+    const module = await linker.link([
+      { data: await compile(source, pipeline) },
+    ]);
+    assert.deepEqual(await run(module), { exitCode: 0, stdout: "" }, pipeline);
+  }
 });
 
 test("reads the libraries once and reuses them", { skip }, async () => {

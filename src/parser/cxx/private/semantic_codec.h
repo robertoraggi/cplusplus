@@ -102,6 +102,11 @@ class SemanticEncoder final : public SemanticEncoderBase {
     return ConstRef{constNodeRef(value, 5)};
   }
 
+  [[nodiscard]] auto constRef(const std::shared_ptr<cxx::ConstStorage>& value)
+      -> ConstRef {
+    return ConstRef{constNodeRef(value, 6)};
+  }
+
   template <typename T>
   void writeAstList(ByteWriter& out, cxx::List<T*>* list) {
     std::uint32_t count = 0;
@@ -175,6 +180,7 @@ class SemanticEncoder final : public SemanticEncoderBase {
   void writeTypeDoubleType(ByteWriter& out, const cxx::DoubleType* self);
   void writeTypeLongDoubleType(ByteWriter& out,
                                const cxx::LongDoubleType* self);
+  void writeTypeHalfType(ByteWriter& out, const cxx::HalfType* self);
   void writeTypeFloat16Type(ByteWriter& out, const cxx::Float16Type* self);
   void writeTypeFloat128Type(ByteWriter& out, const cxx::Float128Type* self);
   void writeTypeQualType(ByteWriter& out, const cxx::QualType* self);
@@ -764,9 +770,11 @@ class SemanticEncoder final : public SemanticEncoderBase {
   void writecxxConstObjectMember(ByteWriter& out,
                                  const cxx::ConstObject::Member* self);
   void writecxxConstAddress(ByteWriter& out, const cxx::ConstAddress* self);
+  void writecxxConstStorage(ByteWriter& out, const cxx::ConstStorage* self);
   void writecxxConstLabelAddress(ByteWriter& out,
                                  const cxx::ConstLabelAddress* self);
   void writecxxConstComplex(ByteWriter& out, const cxx::ConstComplex* self);
+  void writecxxConstFloat16(ByteWriter& out, const cxx::ConstFloat16* self);
   void writecxxTemplateSpecialization(ByteWriter& out,
                                       const cxx::TemplateSpecialization* self);
   void writecxxInstantiationError(ByteWriter& out,
@@ -904,6 +912,7 @@ class SemanticDecoder final : public SemanticDecoderBase {
   [[nodiscard]] auto readTypeFloatType(ByteReader& in) -> const cxx::Type*;
   [[nodiscard]] auto readTypeDoubleType(ByteReader& in) -> const cxx::Type*;
   [[nodiscard]] auto readTypeLongDoubleType(ByteReader& in) -> const cxx::Type*;
+  [[nodiscard]] auto readTypeHalfType(ByteReader& in) -> const cxx::Type*;
   [[nodiscard]] auto readTypeFloat16Type(ByteReader& in) -> const cxx::Type*;
   [[nodiscard]] auto readTypeFloat128Type(ByteReader& in) -> const cxx::Type*;
   [[nodiscard]] auto readTypeQualType(ByteReader& in) -> const cxx::Type*;
@@ -1463,8 +1472,10 @@ class SemanticDecoder final : public SemanticDecoderBase {
   void readcxxConstObject(ByteReader& in, cxx::ConstObject* self);
   void readcxxConstObjectMember(ByteReader& in, cxx::ConstObject::Member* self);
   void readcxxConstAddress(ByteReader& in, cxx::ConstAddress* self);
+  void readcxxConstStorage(ByteReader& in, cxx::ConstStorage* self);
   void readcxxConstLabelAddress(ByteReader& in, cxx::ConstLabelAddress* self);
   void readcxxConstComplex(ByteReader& in, cxx::ConstComplex* self);
+  void readcxxConstFloat16(ByteReader& in, cxx::ConstFloat16* self);
   void readcxxTemplateSpecialization(ByteReader& in,
                                      cxx::TemplateSpecialization* self);
   void readcxxInstantiationError(ByteReader& in, cxx::InstantiationError* self);

@@ -72,6 +72,8 @@ class Codegen {
 
   struct DeclarationResult {};
 
+  enum class AtomicResult { kOld, kUpdated };
+
   struct ExpressionResult {
     ir::ValueRef value;
     ValueCategory category = ValueCategory::kNone;
@@ -328,6 +330,7 @@ class Codegen {
     ir::ValueRef address;
     ClassLayout::MemberInfo info;
     FieldSymbol* field = nullptr;
+    bool isVolatile = false;
   };
   struct DynamicLane {
     ir::ValueRef index;
@@ -337,7 +340,7 @@ class Codegen {
   struct VectorElementAccess {
     ir::ValueRef vectorAddress;
     const Type* vectorType = nullptr;
-    std::uint64_t alignment = 0;
+    ir::Access access;
     VectorLanes lanes;
   };
   using NonAddressableAccess =
@@ -350,6 +353,23 @@ class Codegen {
                                          const ClassLayout::MemberInfo& info)
       -> ir::BitfieldInfo;
   struct VaArgBuilder;
+  struct AtomicBuiltin;
+  [[nodiscard]] auto emitAtomicBuiltin(CallExpressionAST* ast)
+      -> ExpressionResult;
+  [[nodiscard]] auto emitAtomicUpdate(
+      SourceLocation loc, ir::AtomicOperation operation, const Type* objectType,
+      ir::ValueRef address, ir::ValueRef operand,
+      const ir::AtomicAccess& access, AtomicResult result) -> ir::ValueRef;
+  [[nodiscard]] auto atomicUpdatedValue(SourceLocation loc,
+                                        ir::AtomicOperation operation,
+                                        const Type* objectType,
+                                        ir::ValueRef old, ir::ValueRef operand)
+      -> ir::ValueRef;
+  [[nodiscard]] auto scaledAtomicOperand(SourceLocation loc,
+                                         const Type* objectType,
+                                         ir::ValueRef operand) -> ir::ValueRef;
+  [[nodiscard]] auto builtinOperand(ExpressionAST* expression,
+                                    ir::ValueRef value) -> ir::ValueRef;
   [[nodiscard]] auto emitPointerVaArg(SourceLocation loc, ir::ValueRef list,
                                       const Type* type) -> ExpressionResult;
   [[nodiscard]] auto emitAArch64VaArg(SourceLocation loc, ir::ValueRef list,
@@ -369,6 +389,7 @@ class Codegen {
 
   struct ClassMemberTypes {
     std::vector<ir::TypeRef> members;
+    std::vector<std::uint32_t> padding;
     bool packed = false;
   };
 
@@ -380,12 +401,16 @@ class Codegen {
       -> ir::TypeRef;
 
   [[nodiscard]] auto arraySize(ir::TypeRef type) const -> std::uint64_t;
+  [[nodiscard]] auto vectorType(ir::TypeRef elementType,
+                                std::uint64_t elementCount) -> ir::TypeRef;
 
   [[nodiscard]] auto declareClassType(std::string_view name, bool isUnion)
       -> ir::TypeRef;
 
   void defineClassType(ir::TypeRef classType,
-                       std::span<const ir::TypeRef> members, bool isPacked);
+                       std::span<const ir::TypeRef> members, bool isPacked,
+                       std::uint64_t alignment,
+                       std::span<const std::uint32_t> padding = {});
 
   [[nodiscard]] auto classMembers(ir::TypeRef classType) const
       -> std::span<const ir::TypeRef>;
@@ -434,8 +459,13 @@ class Codegen {
   [[nodiscard]] auto variableAlignment(const Type* type, int explicitAlignment)
       -> uint64_t;
   [[nodiscard]] auto lvalueAlignment(ExpressionAST* expression) -> uint64_t;
+  [[nodiscard]] auto lvalueAccess(ExpressionAST* expression) -> ir::Access;
+  [[nodiscard]] auto objectAccess(const Type* type, std::uint64_t alignment)
+      -> ir::Access;
   [[nodiscard]] auto objectVariable(Symbol* symbol) -> VariableSymbol*;
   [[nodiscard]] auto memberAlignment(MemberExpressionAST* member) -> uint64_t;
+  [[nodiscard]] auto fieldAlignment(FieldSymbol* field,
+                                    uint64_t objectAlignment) -> uint64_t;
   [[nodiscard]] auto elementAlignment(SubscriptExpressionAST* subscript)
       -> uint64_t;
 
@@ -628,6 +658,15 @@ class Codegen {
                                       ir::ValueRef objectPtr,
                                       ClassSymbol* subobjectClass,
                                       std::uint64_t byteOffset) -> ir::ValueRef;
+
+  [[nodiscard]] auto baseSubobjectAddress(SourceLocation loc,
+                                          ir::ValueRef objectPtr,
+                                          ClassSymbol* derivedClass,
+                                          ClassSymbol* baseClass)
+      -> ir::ValueRef;
+
+  [[nodiscard]] auto classBodyElement(ClassSymbol* classSymbol,
+                                      std::uint32_t index) -> ir::TypeRef;
 
   [[nodiscard]] auto memberAddress(SourceLocation loc, ir::ValueRef objectPtr,
                                    const Type* memberType, std::uint32_t index)
@@ -923,6 +962,14 @@ class Codegen {
                                            const VTableLayout::Table& table,
                                            bool usesVTT) -> ir::ValueRef;
 
+  [[nodiscard]] auto offsetInVirtualBase(ClassSymbol* classSymbol,
+                                         const VTableLayout::Table& table)
+      -> std::uint64_t;
+
+  [[nodiscard]] auto tableVPtrAlignment(ClassSymbol* classSymbol,
+                                        const VTableLayout::Table& table,
+                                        bool usesVTT) -> std::uint64_t;
+
   [[nodiscard]] auto vptrAddress(SourceLocation loc, ir::ValueRef objectPtr)
       -> ir::ValueRef;
 
@@ -1051,8 +1098,8 @@ class Codegen {
                                              ir::TypeRef layoutType = {})
       -> std::optional<ir::Initializer>;
 
-  void completeUnionStorage(std::vector<ir::TypeRef>& members,
-                            ClassSymbol* symbol, std::uint64_t payloadSize);
+  void completeUnionStorage(ClassMemberTypes& storage, ClassSymbol* symbol,
+                            std::uint64_t payloadSize);
 
   struct ConstantStorageTypeVisitor;
 
@@ -1418,16 +1465,23 @@ class Codegen {
   struct ClassTypeInfo {
     std::string name;
     std::vector<ir::TypeRef> members;
+    std::vector<std::uint32_t> padding;
     bool isUnion = false;
     bool isPacked = false;
     bool isDefined = false;
+    std::uint64_t alignment = 0;
   };
+
+  [[nodiscard]] auto naturalStorageAlignment(const ClassTypeInfo& info,
+                                             std::uint64_t pointerSize)
+      -> std::uint64_t;
 
   std::unordered_map<ir::TypeRef, ClassTypeInfo> classTypes_;
   std::unordered_map<ir::FunctionRef, std::string> functionNames_;
   std::unordered_map<ir::FunctionRef, ir::TypeRef> functionTypes_;
   std::unordered_map<ir::GlobalRef, std::string> globalNames_;
   std::unordered_map<ir::TypeRef, std::uint64_t> arraySizes_;
+  std::unordered_map<ir::TypeRef, std::uint64_t> vectorSizes_;
   std::unordered_map<ClassSymbol*, ir::TypeRef> classNames_;
   std::unordered_map<ClassSymbol*, ir::TypeRef> baseSubobjectTypeNames_;
   std::unordered_set<std::string> classTypeNames_;

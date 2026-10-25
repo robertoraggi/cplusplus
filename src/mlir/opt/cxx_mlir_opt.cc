@@ -21,6 +21,7 @@
 #ifdef CXX_WITH_SPIRV
 #include <mlir/Dialect/GPU/IR/GPUDialect.h>
 #include <mlir/Dialect/SPIRV/IR/SPIRVDialect.h>
+#include <mlir/Dialect/SPIRV/Transforms/Passes.h>
 #endif
 
 int main(int argc, char** argv) {
@@ -31,7 +32,13 @@ int main(int argc, char** argv) {
   cxx::registerConvertCxxToMathPass();
   cxx::registerLiftCxxControlFlowToSCFPass();
 #ifdef CXX_WITH_SPIRV
+  cxx::registerLegalizeCxxDeviceAtomicsPass();
+  cxx::registerConvertCxxWorkgroupStoragePass();
   cxx::registerConvertCxxKernelToGpuPass();
+  cxx::registerLegalizeCxxDeviceCallsPass();
+  cxx::registerConvertCxxDeviceToSPIRVPass();
+  mlir::spirv::registerSPIRVLowerABIAttributesPass();
+  mlir::spirv::registerSPIRVUpdateVCEPass();
 #endif
   mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
   mlir::registerCanonicalizerPass();

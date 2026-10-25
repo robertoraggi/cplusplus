@@ -151,6 +151,20 @@ auto ASTRewriter::templateParameter(TemplateParameterAST* ast)
   return visit(TemplateParameterVisitor{*this}, ast);
 }
 
+void ASTRewriter::recordDefaultTemplateArgument(TemplateParameterAST* parameter,
+                                                TemplateParameterAST* pattern) {
+  cxx::recordDefaultTemplateArgument(parameter, pattern);
+
+  auto argument = default_template_argument(parameter->symbol);
+  if (!argument) return;
+
+  auto owner = remapSymbol(argument->symbol);
+  if (owner == argument->symbol) return;
+
+  set_default_template_argument(parameter->symbol,
+                                default_template_argument(owner));
+}
+
 auto ASTRewriter::rewriteTemplateHead(TemplateDeclarationAST* ast)
     -> TemplateDeclarationAST* {
   if (!ast) return nullptr;
@@ -295,8 +309,9 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   auto declSpecifierListCtx = DeclSpecs{rewrite.unit_};
   declSpecifierListCtx.templateHead = templateHead;
   declSpecifierListCtx.attributeList = copy->attributeList;
+  auto classTemplateHead = ast->initDeclaratorList ? nullptr : templateHead;
   copy->declSpecifierList = rewrite.rewriteSpecifierList(
-      ast->declSpecifierList, declSpecifierListCtx, templateHead);
+      ast->declSpecifierList, declSpecifierListCtx, classTemplateHead);
 
   if (rewrite.shouldStopSubstitution()) return nullptr;
 
@@ -311,26 +326,6 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
   }
 
   if (!ast->initDeclaratorList) {
-    auto patternSpecifier = ast->declSpecifierList;
-    for (auto specifier = copy->declSpecifierList;
-         specifier && patternSpecifier; specifier = specifier->next,
-              patternSpecifier = patternSpecifier->next) {
-      auto elab = ast_cast<ElaboratedTypeSpecifierAST>(specifier->value);
-      if (!elab || elab->nestedNameSpecifier) continue;
-      if (elab->classKey != TokenKind::T_CLASS &&
-          elab->classKey != TokenKind::T_STRUCT &&
-          elab->classKey != TokenKind::T_UNION) {
-        continue;
-      }
-      auto patternElab =
-          ast_cast<ElaboratedTypeSpecifierAST>(patternSpecifier->value);
-      rewrite.binder().bind(elab, declSpecifierListCtx,
-                            /*isDeclaration=*/true, elab->symbol);
-      if (patternElab && patternElab->symbol && elab->symbol) {
-        rewrite.addSymbolRemap(patternElab->symbol, elab->symbol);
-      }
-    }
-
     if (auto classSpec =
             ast_cast<ClassSpecifierAST>(declSpecifierListCtx.typeSpecifier())) {
       if (classSpec->symbol && !classSpec->symbol->name()) {
@@ -1152,7 +1147,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   binder()->bind(copy, copy->index, copy->depth);
   rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
-  recordDefaultTemplateArgument(copy, ast);
+  rewrite.recordDefaultTemplateArgument(copy, ast);
 
   return copy;
 }
@@ -1171,7 +1166,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   }
 
   binder()->bind(copy, copy->index, copy->depth);
-  recordDefaultTemplateArgument(copy, ast);
+  rewrite.recordDefaultTemplateArgument(copy, ast);
   rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
@@ -1193,7 +1188,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->isSynthesized = ast->isSynthesized;
 
   binder()->bind(copy, copy->index, copy->depth);
-  recordDefaultTemplateArgument(copy, ast);
+  rewrite.recordDefaultTemplateArgument(copy, ast);
   rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;
@@ -1214,7 +1209,7 @@ auto ASTRewriter::TemplateParameterVisitor::operator()(
   copy->isSynthesized = ast->isSynthesized;
 
   binder()->bind(copy, copy->index, copy->depth);
-  recordDefaultTemplateArgument(copy, ast);
+  rewrite.recordDefaultTemplateArgument(copy, ast);
   rewrite.addSymbolRemap(ast->symbol, copy->symbol);
 
   return copy;

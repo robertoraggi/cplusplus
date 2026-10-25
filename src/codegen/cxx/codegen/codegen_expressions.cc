@@ -285,9 +285,6 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto emitBuiltinCall(CallExpressionAST* ast, BuiltinFunctionKind builtinKind)
       -> ExpressionResult;
 
-  [[nodiscard]] auto builtinOperand(ExpressionAST* expression,
-                                    ir::ValueRef value) -> ir::ValueRef;
-
   auto codegenBuiltinDispatch(CallExpressionAST* ast,
                               BuiltinFunctionKind builtinKind)
       -> std::optional<ExpressionResult>;
@@ -320,21 +317,20 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
 
   auto emitComplexToBoolean(ImplicitCastExpressionAST* ast) -> ExpressionResult;
 
-  auto sequentiallyConsistentOrder(SourceLocation loc) -> ir::ValueRef;
-
   auto emitAtomicLoad(SourceLocation loc, const Type* valueType,
-                      ir::ValueRef address) -> ir::ValueRef;
+                      ir::ValueRef address, bool isVolatile) -> ir::ValueRef;
 
   void emitAtomicStore(SourceLocation loc, ir::ValueRef address,
-                       ir::ValueRef value);
+                       ir::ValueRef value, bool isVolatile);
 
   auto emitAtomicReadModifyWrite(SourceLocation loc, TokenKind binaryOp,
                                  const Type* valueType, ir::ValueRef address,
-                                 ir::ValueRef operand) -> ir::ValueRef;
+                                 ir::ValueRef operand, bool isVolatile)
+      -> ir::ValueRef;
 
   auto emitAtomicIncrDecr(SourceLocation loc, TokenKind op,
                           const Type* atomicType, ir::ValueRef address,
-                          bool postfix) -> ExpressionResult;
+                          bool postfix, bool isVolatile) -> ExpressionResult;
 
   auto emitRealImag(UnaryExpressionAST* ast) -> ExpressionResult;
 
@@ -359,6 +355,7 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto codegenBuiltinNansl(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinAlloca(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinBzero(CallExpressionAST* ast) -> ExpressionResult;
+  auto codegenBuiltinAtomic(CallExpressionAST* ast) -> ExpressionResult;
   struct OverflowingResult {
     ir::ValueRef result;
     ir::ValueRef overflow;
@@ -432,6 +429,7 @@ auto Codegen::expression(ExpressionAST* ast, ExpressionFormat format)
     }
   }
 
+  ir::ExpressionLocationGuard location{emitter_, ast};
   auto result = visit(ExpressionVisitor{*this, format}, ast);
   if (lifetimeExtension_) lifetimeExtension_->extend(ast, result.value);
   result.category = ast->valueCategory;
@@ -840,7 +838,7 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
         auto loadOp = gen.emitter_.loadBitfield(
             loc, gen.convertType(ast->type), op,
             bitfieldInfo(symbol_cast<ClassSymbol>(field->parent()), info),
-            isSigned);
+            isSigned, gen.traits.is_volatile(ast->type));
         return {loadOp, ValueCategory::kPrValue,
                 /*isRValueMaterialized=*/true};
       }
@@ -1081,15 +1079,12 @@ auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
   return {op};
 }
 
-auto Codegen::ExpressionVisitor::builtinOperand(ExpressionAST* expression,
-                                                ir::ValueRef value)
+auto Codegen::builtinOperand(ExpressionAST* expression, ir::ValueRef value)
     -> ir::ValueRef {
-  auto type = gen.traits.remove_cvref(expression->type);
-  if (!gen.traits.is_class_or_union(type) || !is_prvalue(expression))
-    return value;
-  return gen.emitter_.load(expression->firstSourceLocation(),
-                           gen.convertType(type), value,
-                           gen.getAlignment(type));
+  auto type = traits.remove_cvref(expression->type);
+  if (!traits.is_class_or_union(type) || !is_prvalue(expression)) return value;
+  return emitter_.load(expression->firstSourceLocation(), convertType(type),
+                       value, getAlignment(type));
 }
 
 auto Codegen::ExpressionVisitor::emitBuiltinCall(
@@ -1147,7 +1142,7 @@ auto Codegen::ExpressionVisitor::emitBuiltinCall(
   std::vector<ir::ValueRef> arguments;
   for (auto node : ListView{ast->expressionList}) {
     auto value = gen.expression(node);
-    arguments.push_back(builtinOperand(node, value.value));
+    arguments.push_back(gen.builtinOperand(node, value.value));
   }
 
   std::vector<ir::TypeRef> resultTypes;
@@ -1616,7 +1611,8 @@ auto Codegen::ExpressionVisitor::emitBitFieldAccess(ExpressionAST* ast)
                        : emitMemberAccess(member);
   if (!access) return std::nullopt;
 
-  return BitFieldAccess{access->first, access->second, field};
+  return BitFieldAccess{access->first, access->second, field,
+                        gen.traits.is_volatile(ast->type)};
 }
 
 auto Codegen::bitFieldAccess(ExpressionAST* expression)
@@ -1688,7 +1684,7 @@ auto Codegen::ExpressionVisitor::vectorValue(ExpressionAST* expression,
     return result.value;
   return gen.emitter_.load(expression->firstSourceLocation(),
                            gen.convertType(expression->type), result.value,
-                           gen.lvalueAlignment(expression));
+                           gen.lvalueAccess(expression));
 }
 
 auto Codegen::ExpressionVisitor::emitVectorElementAccess(ExpressionAST* ast)
@@ -1708,7 +1704,7 @@ auto Codegen::ExpressionVisitor::emitVectorElementAccess(ExpressionAST* ast)
     return VectorElementAccess{
         .vectorAddress = address,
         .vectorType = access->vectorType,
-        .alignment = alignment,
+        .access = gen.objectAccess(member->type, alignment),
         .lanes = std::move(access->components.lanes),
     };
   }
@@ -1721,7 +1717,7 @@ auto Codegen::ExpressionVisitor::emitVectorElementAccess(ExpressionAST* ast)
   return VectorElementAccess{
       .vectorAddress = vectorAddress,
       .vectorType = vector->type,
-      .alignment = gen.lvalueAlignment(vector),
+      .access = gen.objectAccess(ast->type, gen.lvalueAlignment(vector)),
       .lanes = DynamicLane{.index = indexValue,
                            .isSigned = gen.traits.is_signed(index->type)},
   };
@@ -1786,7 +1782,7 @@ auto Codegen::ExpressionVisitor::emitNonAddressableLoad(
     return emitBitFieldLoad(loc, *bitField, resultType);
   const auto& element = std::get<VectorElementAccess>(access);
   auto vector = gen.emitter_.load(loc, gen.convertType(element.vectorType),
-                                  element.vectorAddress, element.alignment);
+                                  element.vectorAddress, element.access);
   return extractLanes(loc, resultType, element.vectorType, vector,
                       element.lanes);
 }
@@ -1798,10 +1794,10 @@ auto Codegen::ExpressionVisitor::emitNonAddressableStore(
     return emitBitFieldStore(loc, *bitField, value);
   const auto& element = std::get<VectorElementAccess>(access);
   auto vector = gen.emitter_.load(loc, gen.convertType(element.vectorType),
-                                  element.vectorAddress, element.alignment);
+                                  element.vectorAddress, element.access);
   auto updated =
       insertLanes(loc, element.vectorType, vector, value, element.lanes);
-  gen.emitter_.store(loc, updated, element.vectorAddress, element.alignment);
+  gen.emitter_.store(loc, updated, element.vectorAddress, element.access);
   if (format == ExpressionFormat::kSideEffect) return {};
   return value;
 }
@@ -1817,7 +1813,7 @@ auto Codegen::ExpressionVisitor::emitBitFieldLoad(SourceLocation loc,
       loc, resultType, access.address,
       bitfieldInfo(symbol_cast<ClassSymbol>(access.field->parent()),
                    access.info),
-      isSigned);
+      isSigned, access.isVolatile);
 }
 
 auto Codegen::ExpressionVisitor::emitBitFieldStore(SourceLocation loc,
@@ -1827,7 +1823,8 @@ auto Codegen::ExpressionVisitor::emitBitFieldStore(SourceLocation loc,
   gen.emitter_.storeBitfield(
       loc, value, access.address,
       bitfieldInfo(symbol_cast<ClassSymbol>(access.field->parent()),
-                   access.info));
+                   access.info),
+      access.isVolatile);
 
   if (format == ExpressionFormat::kSideEffect) return {};
 
@@ -1896,7 +1893,7 @@ auto Codegen::ExpressionVisitor::operator()(MemberExpressionAST* ast)
       auto loadOp = gen.emitter_.loadBitfield(
           loc, gen.convertType(ast->type), op,
           bitfieldInfo(symbol_cast<ClassSymbol>(fieldSym->parent()), info),
-          isSigned);
+          isSigned, gen.traits.is_volatile(ast->type));
       return {loadOp, ValueCategory::kPrValue,
               /*isRValueMaterialized=*/true};
     }
@@ -1943,7 +1940,8 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
 
   if (gen.traits.is_atomic(ast->baseExpression->type)) {
     return emitAtomicIncrDecr(ast->opLoc, ast->op, ast->baseExpression->type,
-                              expressionResult.value, /*postfix=*/true);
+                              expressionResult.value, /*postfix=*/true,
+                              gen.lvalueAccess(ast->baseExpression).isVolatile);
   }
 
   if (gen.traits.is_integral_or_unscoped_enum(ast->baseExpression->type) ||
@@ -1951,24 +1949,24 @@ auto Codegen::ExpressionVisitor::operator()(PostIncrExpressionAST* ast)
     auto loc = ast->firstSourceLocation();
     auto valueType = gen.convertType(ast->baseExpression->type);
     auto loadOp = gen.emitter_.load(loc, valueType, expressionResult.value,
-                                    gen.lvalueAlignment(ast->baseExpression));
+                                    gen.lvalueAccess(ast->baseExpression));
     auto addOp =
         incrementedValue(loc, ast->baseExpression->type, ast->op, loadOp);
     gen.emitter_.store(loc, addOp, expressionResult.value,
-                       gen.lvalueAlignment(ast->baseExpression));
+                       gen.lvalueAccess(ast->baseExpression));
     return {loadOp};
   }
   if (gen.traits.is_pointer(ast->baseExpression->type)) {
     auto loc = ast->firstSourceLocation();
     auto resultTy = gen.convertType(ast->baseExpression->type);
     auto loadOp = gen.emitter_.load(loc, resultTy, expressionResult.value,
-                                    gen.lvalueAlignment(ast->baseExpression));
+                                    gen.lvalueAccess(ast->baseExpression));
     auto intTy = gen.emitter_.integerType(32);
     auto oneOp = gen.emitter_.constantInt(
         loc, intTy, ast->op == TokenKind::T_PLUS_PLUS ? 1 : -1);
     auto addOp = gen.emitter_.pointerAdd(loc, resultTy, loadOp, oneOp);
     gen.emitter_.store(loc, addOp, expressionResult.value,
-                       gen.lvalueAlignment(ast->baseExpression));
+                       gen.lvalueAccess(ast->baseExpression));
     return {loadOp};
   }
 
@@ -2308,18 +2306,18 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrFloat(
   auto resultType = gen.convertType(ast->type);
 
   auto loadOp = gen.emitter_.load(loc, resultType, expressionResult.value,
-                                  gen.lvalueAlignment(ast->expression));
+                                  gen.lvalueAccess(ast->expression));
   auto addOp = incrementedValue(loc, ast->expression->type, ast->op, loadOp);
 
   gen.emitter_.store(loc, addOp, expressionResult.value,
-                     gen.lvalueAlignment(ast->expression));
+                     gen.lvalueAccess(ast->expression));
 
   if (is_glvalue(ast)) {
     return expressionResult;
   }
 
   auto op = gen.emitter_.load(loc, resultType, expressionResult.value,
-                              gen.lvalueAlignment(ast->expression));
+                              gen.lvalueAccess(ast->expression));
 
   return {op};
 }
@@ -2332,18 +2330,18 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrIntegral(
   auto resultType = gen.convertType(ast->type);
 
   auto loadOp = gen.emitter_.load(loc, resultType, expressionResult.value,
-                                  gen.lvalueAlignment(ast->expression));
+                                  gen.lvalueAccess(ast->expression));
   auto addOp = incrementedValue(loc, ast->expression->type, ast->op, loadOp);
 
   gen.emitter_.store(loc, addOp, expressionResult.value,
-                     gen.lvalueAlignment(ast->expression));
+                     gen.lvalueAccess(ast->expression));
 
   if (is_glvalue(ast)) {
     return expressionResult;
   }
 
   auto op = gen.emitter_.load(loc, resultType, expressionResult.value,
-                              gen.lvalueAlignment(ast->expression));
+                              gen.lvalueAccess(ast->expression));
 
   return {op};
 }
@@ -2357,17 +2355,17 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecrPointer(
       loc, intTy, ast->op == TokenKind::T_MINUS_MINUS ? -1 : 1);
   auto resultType = gen.convertType(ast->expression->type);
   auto loadOp = gen.emitter_.load(loc, resultType, expressionResult.value,
-                                  gen.lvalueAlignment(ast->expression));
+                                  gen.lvalueAccess(ast->expression));
   auto addOp = gen.emitter_.pointerAdd(loc, resultType, loadOp, one);
   gen.emitter_.store(loc, addOp, expressionResult.value,
-                     gen.lvalueAlignment(ast->expression));
+                     gen.lvalueAccess(ast->expression));
 
   if (is_glvalue(ast)) {
     return expressionResult;
   }
 
   auto op = gen.emitter_.load(loc, resultType, expressionResult.value,
-                              gen.lvalueAlignment(ast->expression));
+                              gen.lvalueAccess(ast->expression));
   return {op};
 }
 
@@ -2394,7 +2392,8 @@ auto Codegen::ExpressionVisitor::emitUnaryOpIncrDecr(UnaryExpressionAST* ast)
 
   if (gen.traits.is_atomic(ast->expression->type)) {
     return emitAtomicIncrDecr(ast->opLoc, ast->op, ast->expression->type,
-                              expressionResult.value, /*postfix=*/false);
+                              expressionResult.value, /*postfix=*/false,
+                              gen.lvalueAccess(ast->expression).isVolatile);
   }
 
   if (gen.traits.is_floating_point(ast->expression->type)) {
@@ -3047,7 +3046,7 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
   if (ast->expression->valueCategory == ValueCategory::kLValue) {
     auto loadedType = gen.convertType(ast->expression->type);
     ptrValue = gen.emitter_.load(loc, loadedType, ptrValue,
-                                 gen.lvalueAlignment(ast->expression));
+                                 gen.lvalueAccess(ast->expression));
   }
 
   const Type* pointeeType = nullptr;
@@ -3123,7 +3122,8 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
     auto i8PtrPtrType = gen.emitter_.pointerType(i8PtrType);
 
     auto vtablePtr =
-        gen.emitter_.load(loc, i8PtrPtrType, gen.vptrAddress(loc, ptrValue), 8);
+        gen.emitter_.load(loc, i8PtrPtrType, gen.vptrAddress(loc, ptrValue),
+                          gen.getAlignment(destructor->parent()->type()));
 
     int slotIndex = gen.vtableSlotIndex(destructor) + 1;
 
@@ -3131,7 +3131,8 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
     auto offsetOp = gen.emitter_.constantInt(loc, intTy, slotIndex);
     auto funcPtrAddr =
         gen.emitter_.pointerAdd(loc, i8PtrPtrType, vtablePtr, offsetOp);
-    auto funcPtr = gen.emitter_.load(loc, i8PtrType, funcPtrAddr, 8);
+    auto funcPtr =
+        gen.emitter_.load(loc, i8PtrType, funcPtrAddr, gen.pointerSize());
 
     const ir::ValueRef dtorArguments[] = {ptrValue};
     ir::CallInfo dtorCall;
@@ -3281,13 +3282,14 @@ auto Codegen::ExpressionVisitor::emitLValueToRValueConversion(
   }
 
   if (gen.traits.is_atomic(ast->type)) {
-    return {emitAtomicLoad(loc, ast->type, expressionResult.value)};
+    return {emitAtomicLoad(loc, ast->type, expressionResult.value,
+                           gen.lvalueAccess(ast->expression).isVolatile)};
   }
 
   auto resultType = gen.convertType(ast->type);
 
   auto op = gen.emitter_.load(loc, resultType, expressionResult.value,
-                              gen.lvalueAlignment(ast->expression));
+                              gen.lvalueAccess(ast->expression));
 
   return {op};
 }
@@ -4648,11 +4650,12 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
 
     if (gen.traits.is_atomic(assignedType)) {
       emitAtomicStore(loc, leftExpressionResult.value,
-                      rightExpressionResult.value);
+                      rightExpressionResult.value,
+                      gen.lvalueAccess(ast->leftExpression).isVolatile);
     } else {
       gen.emitter_.store(loc, rightExpressionResult.value,
                          leftExpressionResult.value,
-                         gen.lvalueAlignment(ast->leftExpression));
+                         gen.lvalueAccess(ast->leftExpression));
     }
 
     if (format == ExpressionFormat::kSideEffect) {
@@ -4665,7 +4668,7 @@ auto Codegen::ExpressionVisitor::operator()(AssignmentExpressionAST* ast)
 
       auto op =
           gen.emitter_.load(resultLoc, resultType, leftExpressionResult.value,
-                            gen.lvalueAlignment(ast->leftExpression));
+                            gen.lvalueAccess(ast->leftExpression));
 
       return {op};
     }
@@ -4706,8 +4709,9 @@ auto Codegen::ExpressionVisitor::emitAtomicCompoundAssignment(
 
   auto valueType = gen.traits.remove_atomic(ast->targetExpression->type);
 
-  auto old = emitAtomicReadModifyWrite(loc, binaryOp, valueType, address.value,
-                                       operand.value);
+  auto old = emitAtomicReadModifyWrite(
+      loc, binaryOp, valueType, address.value, operand.value,
+      gen.lvalueAccess(ast->targetExpression).isVolatile);
 
   if (!old) {
     return {gen.emitTodoExpr(ast->firstSourceLocation(),
@@ -4784,7 +4788,7 @@ auto Codegen::ExpressionVisitor::operator()(
 
   gen.emitter_.store(loc, sourceExpressionResult.value,
                      targetExpressionResult.value,
-                     gen.lvalueAlignment(ast->targetExpression));
+                     gen.lvalueAccess(ast->targetExpression));
 
   if (format == ExpressionFormat::kSideEffect) {
     return {};
@@ -4793,7 +4797,7 @@ auto Codegen::ExpressionVisitor::operator()(
   if (gen.unit_->language() == LanguageKind::kC) {
     auto loadType = gen.emitter_.typeOf(sourceExpressionResult.value);
     auto op = gen.emitter_.load(loc, loadType, targetExpressionResult.value,
-                                gen.lvalueAlignment(ast->targetExpression));
+                                gen.lvalueAccess(ast->targetExpression));
     return {op};
   }
 
@@ -5506,7 +5510,8 @@ void Codegen::emitDesignatedInit(ir::ValueRef address, const Type* type,
                           initExpr->firstSourceLocation());
   } else {
     auto val = expression(initExpr);
-    emitter_.store(elemLoc, val.value, currentAddr, getAlignment(currentType));
+    emitter_.store(elemLoc, val.value, currentAddr,
+                   objectAccess(currentType, getAlignment(currentType)));
   }
   for (std::size_t index = 1; index < addresses.size(); ++index) {
     if (currentBitField) {
@@ -5514,10 +5519,12 @@ void Codegen::emitDesignatedInit(ir::ValueRef address, const Type* type,
       auto info = owner->layout()->getFieldInfo(currentBitField);
       if (!info) return;
       auto field = bitfieldInfo(owner, *info);
-      auto value =
-          emitter_.loadBitfield(elemLoc, convertType(currentType), currentAddr,
-                                field, traits.is_signed(currentType));
-      emitter_.storeBitfield(elemLoc, value, addresses[index], field);
+      auto isVolatile = traits.is_volatile(currentType);
+      auto value = emitter_.loadBitfield(
+          elemLoc, convertType(currentType), currentAddr, field,
+          traits.is_signed(currentType), isVolatile);
+      emitter_.storeBitfield(elemLoc, value, addresses[index], field,
+                             isVolatile);
     } else {
       emitter_.copyObject(elemLoc, addresses[index], currentAddr,
                           convertType(currentType));
@@ -5555,7 +5562,8 @@ void Codegen::emitBitFieldInit(SourceLocation loc, ir::ValueRef address,
   auto value = init ? expression(init).value
                     : emitter_.constantInt(loc, convertType(field->type()), 0);
 
-  emitter_.storeBitfield(loc, value, address, bitfieldInfo(owner, *info));
+  emitter_.storeBitfield(loc, value, address, bitfieldInfo(owner, *info),
+                         traits.is_volatile(field->type()));
 }
 
 auto Codegen::ExpressionVisitor::emitClassConstruction(
@@ -5816,7 +5824,8 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
     auto i8PtrPtrType = emitter_.pointerType(i8PtrType);
 
     auto vtablePtr =
-        emitter_.load(loc, i8PtrPtrType, vptrAddress(loc, objectPtr), 8);
+        emitter_.load(loc, i8PtrPtrType, vptrAddress(loc, objectPtr),
+                      getAlignment(symbol->parent()->type()));
 
     auto offsetType = convertType(control()->getIntType());
     auto offsetOp = emitter_.constantInt(loc, offsetType, slotIndex);
@@ -5824,7 +5833,7 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
     auto funcPtrAddr =
         emitter_.pointerAdd(loc, i8PtrPtrType, vtablePtr, offsetOp);
 
-    auto funcPtr = emitter_.load(loc, i8PtrType, funcPtrAddr, 8);
+    auto funcPtr = emitter_.load(loc, i8PtrType, funcPtrAddr, pointerSize());
 
     callInfo.indirectCallee = funcPtr;
   } else if (!symbol) {
@@ -6018,67 +6027,57 @@ auto Codegen::ExpressionVisitor::emitComplexConversion(
                                    ast->type)};
 }
 
-auto Codegen::ExpressionVisitor::sequentiallyConsistentOrder(SourceLocation loc)
-    -> ir::ValueRef {
-  return gen.emitter_.constantInt(loc, gen.convertType(control()->getIntType()),
-                                  5);
-}
-
 auto Codegen::ExpressionVisitor::emitAtomicLoad(SourceLocation loc,
                                                 const Type* valueType,
-                                                ir::ValueRef address)
+                                                ir::ValueRef address,
+                                                bool isVolatile)
     -> ir::ValueRef {
-  const ir::TypeRef results[] = {gen.convertType(valueType)};
-  const ir::ValueRef arguments[] = {address, sequentiallyConsistentOrder(loc)};
-  return gen.emitter_.builtinCall(
-      loc, results, Token::spell(BuiltinFunctionKind::T___C11_ATOMIC_LOAD),
-      arguments);
+  return gen.emitter_.atomicLoad(loc, gen.convertType(valueType), address,
+                                 {.isVolatile = isVolatile});
 }
 
 void Codegen::ExpressionVisitor::emitAtomicStore(SourceLocation loc,
                                                  ir::ValueRef address,
-                                                 ir::ValueRef value) {
-  const ir::ValueRef arguments[] = {address, value,
-                                    sequentiallyConsistentOrder(loc)};
-  (void)gen.emitter_.builtinCall(
-      loc, std::vector<ir::TypeRef>{},
-      Token::spell(BuiltinFunctionKind::T___C11_ATOMIC_STORE), arguments);
+                                                 ir::ValueRef value,
+                                                 bool isVolatile) {
+  gen.emitter_.atomicStore(loc, value, address, {.isVolatile = isVolatile});
 }
 
 auto Codegen::ExpressionVisitor::emitAtomicReadModifyWrite(
     SourceLocation loc, TokenKind binaryOp, const Type* valueType,
-    ir::ValueRef address, ir::ValueRef operand) -> ir::ValueRef {
-  BuiltinFunctionKind kind;
+    ir::ValueRef address, ir::ValueRef operand, bool isVolatile)
+    -> ir::ValueRef {
+  ir::AtomicOperation operation;
 
   switch (binaryOp) {
     case TokenKind::T_PLUS:
-      kind = BuiltinFunctionKind::T___C11_ATOMIC_FETCH_ADD;
+      operation = ir::AtomicOperation::Add;
       break;
     case TokenKind::T_MINUS:
-      kind = BuiltinFunctionKind::T___C11_ATOMIC_FETCH_SUB;
+      operation = ir::AtomicOperation::Sub;
       break;
     case TokenKind::T_AMP:
-      kind = BuiltinFunctionKind::T___C11_ATOMIC_FETCH_AND;
+      operation = ir::AtomicOperation::And;
       break;
     case TokenKind::T_BAR:
-      kind = BuiltinFunctionKind::T___C11_ATOMIC_FETCH_OR;
+      operation = ir::AtomicOperation::Or;
       break;
     case TokenKind::T_CARET:
-      kind = BuiltinFunctionKind::T___C11_ATOMIC_FETCH_XOR;
+      operation = ir::AtomicOperation::Xor;
       break;
     default:
       return {};
   }
 
-  const ir::TypeRef results[] = {gen.convertType(valueType)};
-  const ir::ValueRef arguments[] = {address, operand,
-                                    sequentiallyConsistentOrder(loc)};
-  return gen.emitter_.builtinCall(loc, results, Token::spell(kind), arguments);
+  auto objectType = gen.traits.remove_cv(valueType);
+  return gen.emitAtomicUpdate(loc, operation, objectType, address,
+                              gen.scaledAtomicOperand(loc, objectType, operand),
+                              {.isVolatile = isVolatile}, AtomicResult::kOld);
 }
 
 auto Codegen::ExpressionVisitor::emitAtomicIncrDecr(
     SourceLocation loc, TokenKind op, const Type* atomicType,
-    ir::ValueRef address, bool postfix) -> ExpressionResult {
+    ir::ValueRef address, bool postfix, bool isVolatile) -> ExpressionResult {
   auto valueType = gen.traits.remove_atomic(atomicType);
   auto irValueType = gen.convertType(valueType);
 
@@ -6087,7 +6086,8 @@ auto Codegen::ExpressionVisitor::emitAtomicIncrDecr(
   const auto binaryOp =
       op == TokenKind::T_PLUS_PLUS ? TokenKind::T_PLUS : TokenKind::T_MINUS;
 
-  auto old = emitAtomicReadModifyWrite(loc, binaryOp, valueType, address, one);
+  auto old = emitAtomicReadModifyWrite(loc, binaryOp, valueType, address, one,
+                                       isVolatile);
 
   if (!old) {
     return {gen.emitTodoExpr(loc, "atomic increment")};
@@ -6334,6 +6334,11 @@ auto Codegen::ExpressionVisitor::codegenBuiltinSignbit(CallExpressionAST* ast)
 
   return {
       gen.emitter_.compareInt(loc, ir::IntPredicate::SignedLess, bits, zero)};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinAtomic(CallExpressionAST* ast)
+    -> ExpressionResult {
+  return gen.emitAtomicBuiltin(ast);
 }
 
 auto Codegen::ExpressionVisitor::codegenBuiltinBzero(CallExpressionAST* ast)

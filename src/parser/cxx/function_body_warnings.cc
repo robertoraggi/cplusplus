@@ -372,7 +372,7 @@ class DiscardedValueChecker final : ASTVisitor {
         expr->firstSourceLocation(),
         std::format("ignoring return value of type '{}' declared with "
                     "'nodiscard' attribute{}",
-                    to_string(expr->type), explain(symbol)));
+                    to_diag_string(expr->type), explain(symbol)));
   }
 
   [[nodiscard]] static auto temporaryConstructor(ExpressionAST* expr)
@@ -415,7 +415,7 @@ void checkFallingOffTheEnd(TranslationUnit* unit, const Type* returnType,
   unit->warning(location,
                 std::format("non-void function does not return a value of "
                             "type '{}' on every path",
-                            to_string(returnType)));
+                            to_diag_string(returnType)));
 }
 
 [[nodiscard]] auto reportsBodyWarnings(TranslationUnit* unit) -> bool {

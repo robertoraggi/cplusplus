@@ -21,6 +21,7 @@ add_subdirectory(lib)
 add_subdirectory(linker)
 add_subdirectory(parser)
 add_subdirectory(codegen)
+add_subdirectory(cxxir)
 add_subdirectory(lsp)
 add_subdirectory(js)
 

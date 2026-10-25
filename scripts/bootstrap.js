@@ -80,6 +80,7 @@ if (argv.help) {
 const sourcePatterns = [
   "src/parser/cxx/*.cc",
   "src/codegen/cxx/codegen/*.cc",
+  "src/cxxir/cxx/cxxir/*.cc",
   "src/lsp/cxx/lsp/*.cc",
   "src/linker/cxx/linker/*.cc",
   "src/frontend/cxx/*.cc",
@@ -89,6 +90,7 @@ const sourcePatterns = [
 const includePaths = [
   "src/parser",
   "src/codegen",
+  "src/cxxir",
   "src/lsp",
   "src/linker",
   "src/frontend",

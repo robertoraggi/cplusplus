@@ -206,6 +206,12 @@ class LongDoubleType final : public Type {
   LongDoubleType() : Type(Kind) {}
 };
 
+class HalfType final : public Type {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kHalf;
+  HalfType() : Type(Kind) {}
+};
+
 class Float16Type final : public Type {
  public:
   static constexpr TypeKind Kind = TypeKind::kFloat16;

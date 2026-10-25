@@ -37,9 +37,19 @@
 namespace cxx {
 namespace {
 
+constexpr std::string_view kKernelTemplateMessage =
+    "a kernel cannot be a function template or a specialization of one";
+
 [[nodiscard]] auto isParameterAttribute(AttributeKind kind) -> bool {
-  return kind != AttributeKind::kKernel &&
-         kind != AttributeKind::kWorkgroupSize;
+  switch (kind) {
+    case AttributeKind::kBuffer:
+    case AttributeKind::kGlobalId:
+    case AttributeKind::kLocalId:
+    case AttributeKind::kWorkgroupId:
+      return true;
+    default:
+      return false;
+  }
 }
 
 [[nodiscard]] auto invocationIdKind(AttributeKind kind)
@@ -146,7 +156,7 @@ class DeviceAttributeBinder {
       unit_->error(function->location(),
                    std::format("kernel entry name '{}' conflicts with another "
                                "function",
-                               to_string(function->name())));
+                               to_diag_string(function->name())));
       unit_->note(previous->location(), "previous declaration is here");
     }
     bindKernelParameters(function);
@@ -237,26 +247,12 @@ class DeviceAttributeBinder {
     if (!isStorageBufferType(parameter->type()) &&
         !isUniformBufferType(parameter->type())) {
       unit_->error(attribute.location,
-                   "'buffer' requires a pointer to address-space-1 or "
-                   "address-space-2 float, int or unsigned int elements, or a "
-                   "reference to an address-space-2 scalar or vector");
+                   "'buffer' requires an address-space-1 or address-space-2 "
+                   "pointer, or an address-space-2 reference, to a scalar, a "
+                   "vector, or an array or class of them");
       return std::nullopt;
     }
     return KernelBufferBinding{binding};
-  }
-
-  [[nodiscard]] auto isBufferScalarType(const Type* type) -> bool {
-    auto scalar = unqualified_type(type);
-    return scalar == control_->getFloatType() ||
-           scalar == control_->getIntType() ||
-           scalar == control_->getUnsignedIntType();
-  }
-
-  [[nodiscard]] auto isUniformValueType(const Type* type) -> bool {
-    if (isBufferScalarType(type)) return true;
-    auto vector = type_cast<VectorType>(unqualified_type(type));
-    if (!vector || !isBufferScalarType(vector->elementType())) return false;
-    return vector->elementCount() >= 2 && vector->elementCount() <= 4;
   }
 
   [[nodiscard]] auto isStorageBufferType(const Type* type) -> bool {
@@ -266,14 +262,46 @@ class DeviceAttributeBinder {
     auto space = address_space(element);
     if (space != kDeviceAddressSpace && space != kConstantAddressSpace)
       return false;
-    return !traits_.is_volatile(element) && isBufferScalarType(element);
+    return !traits_.is_volatile(element) && isBufferObjectType(element);
   }
 
   [[nodiscard]] auto isUniformBufferType(const Type* type) -> bool {
     if (!traits_.is_lvalue_reference(type)) return false;
     auto object = traits_.remove_reference(type);
-    return address_space(object) == kConstantAddressSpace &&
-           !traits_.is_volatile(object) && isUniformValueType(object);
+    if (address_space(object) != kConstantAddressSpace) return false;
+    if (traits_.is_volatile(object)) return false;
+    return isBufferObjectType(object);
+  }
+
+  [[nodiscard]] auto isBufferObjectType(const Type* type) -> bool {
+    if (traits_.is_device_value_type(type)) return true;
+    if (traits_.is_array(type))
+      return traits_.is_bounded_array(type) &&
+             isBufferObjectType(traits_.remove_extent(type));
+    auto classType = type_cast<ClassType>(unqualified_type(type));
+    if (!classType || !classType->symbol()) return false;
+    return isBufferClass(classType->symbol()->resolvedDefinition());
+  }
+
+  [[nodiscard]] auto isBufferClass(ClassSymbol* symbol) -> bool {
+    if (!symbol->isComplete() || symbol->isUnion()) return false;
+    if (symbol->isPolymorphic() || symbol->hasVirtualBaseClasses())
+      return false;
+    auto hasData = false;
+    for (auto base : symbol->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass) return false;
+      baseClass = baseClass->resolvedDefinition();
+      if (baseClass->layout() && baseClass->layout()->isAbiEmpty()) continue;
+      if (!isBufferClass(baseClass)) return false;
+      hasData = true;
+    }
+    for (auto field : symbol->members() | views::non_static_fields) {
+      if (field->bitFieldWidth() || !isBufferObjectType(field->type()))
+        return false;
+      hasData = true;
+    }
+    return hasData;
   }
 
   [[nodiscard]] auto invocationId(ParameterSymbol* parameter,
@@ -305,14 +333,12 @@ class DeviceAttributeBinder {
     auto args = arguments(attribute, 3);
     if (!args) return std::nullopt;
     auto [x, y, z] = std::tie((*args)[0], (*args)[1], (*args)[2]);
-    std::uint64_t product = std::uint64_t{x} * y * z;
-    const auto& limits = kVulkan11F32Limits;
-    if (!x || !y || !z || x > limits.maxWorkgroupSizeX ||
-        y > limits.maxWorkgroupSizeY || z > limits.maxWorkgroupSizeZ ||
-        product > limits.maxWorkgroupInvocations) {
+    auto limits = deviceProfileLimits(
+        to_string(control_->memoryLayout()->deviceProfile()));
+    if (!limits || !limits->admitsWorkgroup(x, y, z)) {
       unit_->error(attribute.location,
-                   "'workgroup_size' exceeds the Vulkan 1.1 minimum compute "
-                   "limits");
+                   "'workgroup_size' exceeds the compute limits of the device "
+                   "profile");
       return std::nullopt;
     }
     return KernelWorkgroupSize{x, y, z};
@@ -335,6 +361,10 @@ class DeviceAttributeBinder {
       return false;
     }
     if (isKernel || workgroup) {
+      if (is_templated_function(function)) {
+        unit_->error(function->location(), std::string{kKernelTemplateMessage});
+        return false;
+      }
       if (!isKernelSignature(function)) {
         unit_->error(
             function->location(),
@@ -399,6 +429,12 @@ class DeviceAttributeBinder {
 };
 
 }  // namespace
+
+void Binder::rejectKernelTemplate(FunctionSymbol* function) {
+  if (!function->kernelWorkgroupSize()) return;
+  if (!is_templated_function(function)) return;
+  error(function->location(), std::string{kKernelTemplateMessage});
+}
 
 void Binder::applyDeviceAttributes(Symbol* symbol,
                                    std::span<const AttributeRef> attributes) {

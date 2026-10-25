@@ -75,15 +75,12 @@ async function main(): Promise<number> {
     return 2;
   }
 
-  const { loadCxx, Parser } = await import("cxx-frontend");
+  const { Parser } = await import("cxx-frontend");
+  const { loadCxx } = await import("cxx-frontend/node");
   const S = await import("cxx-frontend/model");
   const { traverse } = await import("cxx-frontend/traverse");
 
-  await loadCxx({
-    wasm: fs.readFileSync(
-      path.join(root, "packages/cxx-frontend/dist/wasm/cxx-js.wasm"),
-    ),
-  });
+  await loadCxx();
 
   const classes = astClasses();
   const assigned = new Map<string, Set<string>>();

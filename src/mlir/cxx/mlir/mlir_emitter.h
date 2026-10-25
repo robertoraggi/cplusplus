@@ -27,6 +27,7 @@
 #include <llvm/Support/Casting.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
+#include <mlir/IR/SymbolTable.h>
 
 #include <memory>
 #include <vector>
@@ -200,7 +201,8 @@ class MlirEmitter final : public Emitter {
       -> TypeRef override;
 
   void defineClassType(TypeRef classType, std::span<const TypeRef> members,
-                       bool isPacked) override;
+                       bool isPacked, std::uint64_t alignment,
+                       std::span<const std::uint32_t> padding) override;
 
   [[nodiscard]] auto typeKind(TypeRef type) -> TypeKind override;
 
@@ -234,6 +236,34 @@ class MlirEmitter final : public Emitter {
   [[nodiscard]] auto load(mlir::Location loc, TypeRef valueType,
                           ValueRef address, std::uint64_t alignment)
       -> ValueRef;
+
+  [[nodiscard]] auto allocateWorkgroup(SourceLocation loc, TypeRef pointerType,
+                                       std::uint64_t alignment)
+      -> ValueRef override;
+
+  [[nodiscard]] auto atomicLoad(SourceLocation loc, TypeRef valueType,
+                                ValueRef address, const AtomicAccess& access)
+      -> ValueRef override;
+
+  void atomicStore(SourceLocation loc, ValueRef value, ValueRef address,
+                   const AtomicAccess& access) override;
+
+  [[nodiscard]] auto atomicReadModifyWrite(SourceLocation loc,
+                                           AtomicOperation operation,
+                                           ValueRef value, ValueRef address,
+                                           const AtomicAccess& access)
+      -> ValueRef override;
+
+  [[nodiscard]] auto atomicCompareExchange(SourceLocation loc, ValueRef address,
+                                           ValueRef expected, ValueRef desired,
+                                           const CompareExchangeAccess& access)
+      -> std::vector<ValueRef> override;
+
+  void memoryBarrier(SourceLocation loc,
+                     const MemoryBarrierInfo& barrier) override;
+
+  void controlBarrier(SourceLocation loc, MemoryScope executionScope,
+                      const MemoryBarrierInfo& barrier) override;
 
   [[nodiscard]] auto pointerAdd(SourceLocation loc, TypeRef pointerType,
                                 ValueRef base, ValueRef offset)
@@ -401,6 +431,8 @@ class MlirEmitter final : public Emitter {
 
   [[nodiscard]] auto getLocation(SourceLocation loc) -> mlir::Location;
 
+  [[nodiscard]] auto unitAttribute(bool present) -> mlir::UnitAttr;
+
   void beginFunctionBody(FunctionRef function) override;
 
   void endFunctionBody(FunctionRef function) override;
@@ -425,6 +457,10 @@ class MlirEmitter final : public Emitter {
                     llvm::ArrayRef<BlockRef> caseDestinations);
 
  private:
+  [[nodiscard]] auto lookupSymbol(std::string_view name) -> mlir::Operation*;
+  void registerSymbol(mlir::Operation* operation);
+
+  mlir::SymbolTableCollection symbolTables_;
   std::unique_ptr<MlirSourceContexts> sourceContexts_;
 
   struct CleanupRegion {

@@ -1,5 +1,6 @@
 # Generic lowering depends only on the parser, never on a backend.
 add_library(cxx-codegen
+    cxx/codegen/codegen_atomics.cc
     cxx/codegen/codegen_declarations.cc
     cxx/codegen/codegen_inline_asm.cc
     cxx/codegen/codegen_varargs.cc

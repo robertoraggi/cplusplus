@@ -19,40 +19,61 @@
 // SOFTWARE.
 
 #include <cxx/mlir/cxx_dialect_conversions.h>
+#include <cxx/time_trace.h>
 #include <llvm/IR/Module.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
 #include <mlir/Conversion/AffineToStandard/AffineToStandard.h>
 #include <mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h>
+#include <mlir/Dialect/DLTI/DLTI.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/MemRef/Transforms/Passes.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
-#include <mlir/Transforms/GreedyPatternRewriteDriver.h>
+#include <mlir/Target/LLVMIR/Import.h>
 #include <mlir/Transforms/Passes.h>
 
 namespace cxx {
 void registerCxxLLVMTranslation(mlir::MLIRContext& context);
 }
 
-namespace {
-void canonicalizeLLVM(mlir::ModuleOp module) {
+void cxx::initializeCxxModuleDataLayout(mlir::ModuleOp module) {
+  auto triple = module->getAttrOfType<mlir::StringAttr>("cxx.triple");
+  if (!triple || triple.getValue().empty()) return;
+  auto layout = [&]() -> llvm::DataLayout {
+    if (auto attr = module->getAttrOfType<mlir::StringAttr>("cxx.data-layout"))
+      return llvm::DataLayout(attr.getValue());
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::Triple targetTriple{triple.getValue()};
+    std::string error;
+    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+    if (!target)
+      llvm::report_fatal_error(
+          llvm::Twine("failed to find target for triple '") +
+          triple.getValue() + "': " + error);
+    llvm::TargetOptions options;
+    auto machine = std::unique_ptr<llvm::TargetMachine>(
+        target->createTargetMachine(targetTriple, "generic", "", options,
+                                    std::optional<llvm::Reloc::Model>()));
+    return machine->createDataLayout();
+  }();
   auto* context = module.getContext();
-  auto* dialect = context->getOrLoadDialect<mlir::LLVM::LLVMDialect>();
-  mlir::RewritePatternSet patterns(context);
-  dialect->getCanonicalizationPatterns(patterns);
-  for (auto operation : context->getRegisteredOperations()) {
-    if (&operation.getDialect() == dialect)
-      operation.getCanonicalizationPatterns(patterns, context);
-  }
-  mlir::GreedyRewriteConfig config;
-  config.setRegionSimplificationLevel(mlir::GreedySimplifyRegionLevel::Normal);
-  (void)mlir::applyPatternsGreedily(module, std::move(patterns), config);
+  module->setAttr(mlir::DLTIDialect::kDataLayoutAttrName,
+                  mlir::translateDataLayout(layout, context));
+  module->setAttr(
+      "cxx.data-layout",
+      mlir::StringAttr::get(context, layout.getStringRepresentation()));
 }
-}  // namespace
 
 auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
-                              llvm::StringRef passPipeline)
+                              llvm::StringRef passPipeline, bool verifyIR,
+                              llvm::raw_ostream* errors)
     -> mlir::LogicalResult {
   if (passPipeline.empty()) return mlir::success();
 
@@ -64,31 +85,39 @@ auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
   registerLiftCxxControlFlowToSCFPass();
 #ifdef CXX_WITH_SPIRV
   registerConvertCxxKernelToGpuPass();
+  registerLegalizeCxxDeviceCallsPass();
+  registerConvertCxxDeviceToSPIRVPass();
 #endif
   mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
   mlir::registerCanonicalizerPass();
   mlir::registerMem2RegPass();
+  mlir::registerSROAPass();
   mlir::memref::registerExpandStridedMetadataPass();
   mlir::registerPass([] { return mlir::createLowerAffinePass(); });
 
   mlir::PassManager pm(module->getName());
-  if (failed(mlir::parsePassPipeline(passPipeline, pm))) return mlir::failure();
+  pm.enableVerifier(verifyIR);
+  if (failed(mlir::parsePassPipeline(passPipeline, pm,
+                                     errors ? *errors : llvm::errs())))
+    return mlir::failure();
   return pm.run(module);
 }
 
-auto cxx::lowerToMLIR(mlir::ModuleOp module, llvm::StringRef passPipeline)
-    -> mlir::LogicalResult {
-  if (failed(runMLIRPassPipeline(module, passPipeline))) return mlir::failure();
+auto cxx::lowerToMLIR(mlir::ModuleOp module, llvm::StringRef passPipeline,
+                      MLIRLoweringOptions options) -> mlir::LogicalResult {
+  if (failed(runMLIRPassPipeline(module, passPipeline, options.verifyIR)))
+    return mlir::failure();
 
   mlir::PassManager pm(module->getName());
   pm.addPass(mlir::createSCFToControlFlowPass());
   pm.addPass(cxx::createLowerToLLVMPass());
+  pm.enableVerifier(options.verifyIR);
 
-  if (failed(pm.run(module))) {
-    return mlir::failure();
+  {
+    TimeTrace::Scope trace(options.timeTrace, "MLIR conversion");
+    if (failed(pm.run(module))) return mlir::failure();
   }
 
-  canonicalizeLLVM(module);
   return mlir::success();
 }
 
@@ -125,13 +154,14 @@ void cxx::optimizeLLVMIR(llvm::Module& module,
 
 #endif
 
-auto cxx::exportToLLVMIR(mlir::ModuleOp module, llvm::LLVMContext& context)
-    -> std::unique_ptr<llvm::Module> {
+auto cxx::exportToLLVMIR(mlir::ModuleOp module, llvm::LLVMContext& context,
+                         bool verifyIR) -> std::unique_ptr<llvm::Module> {
   mlir::registerBuiltinDialectTranslation(*module->getContext());
   registerCxxLLVMTranslation(*module->getContext());
   mlir::registerLLVMDialectTranslation(*module->getContext());
 
-  auto llvmModule = mlir::translateModuleToLLVMIR(module, context);
+  auto llvmModule = mlir::translateModuleToLLVMIR(
+      module, context, "LLVMDialectModule", /*disableVerification=*/!verifyIR);
   module->getContext()->loadDialect<mlir::LLVM::LLVMDialect>();
 
   if (llvmModule) {

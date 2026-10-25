@@ -22,9 +22,10 @@
 #include <cxx/private/path.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <format>
-#include <iostream>
-#include <sstream>
+#include <print>
+#include <ranges>
 #include <utility>
 #include <vector>
 
@@ -182,11 +183,15 @@ std::vector<CLIOptionDescr> options{
     {"-dM", "Print macro definitions in -E mode instead of normal output",
      &CLI::opt_dM},
 
-    {"-S", "Only run preprocess and compilation steps", &CLI::opt_S,
-     CLIOptionVisibility::kExperimental},
+    {"-S",
+     "Only run preprocess and compilation steps; device targets print the "
+     "SPIR-V module in MLIR's SPIR-V dialect",
+     &CLI::opt_S, CLIOptionVisibility::kExperimental},
 
-    {"-c", "Compile and assemble, but do not link", &CLI::opt_c,
-     CLIOptionVisibility::kExperimental},
+    {"-c",
+     "Compile and assemble, but do not link; device targets write the SPIR-V "
+     "module, to <input>.o unless -o names the output",
+     &CLI::opt_c, CLIOptionVisibility::kExperimental},
 
     {"-flink", "Compile the inputs and link them into an executable",
      &CLI::opt_link, CLIOptionVisibility::kExperimental},
@@ -241,6 +246,17 @@ std::vector<CLIOptionDescr> options{
 
     {"-fno-experimental-scf", "Disable experimental structured MLIR emission"},
 
+    {"-fexperimental-cxxir",
+     "Generate IR with the experimental text emitter and read it into MLIR",
+     CLIOptionDescrKind::kFlag, CLIOptionVisibility::kExperimental},
+
+    {"-fno-experimental-cxxir", "Disable experimental CXXIR lowering",
+     CLIOptionDescrKind::kFlag, CLIOptionVisibility::kExperimental},
+
+    {"-fverify-ir", "Verify MLIR and LLVM IR (the default in debug builds)"},
+
+    {"-fno-verify-ir", "Disable MLIR and LLVM IR verification"},
+
     {"-mlir-pass-pipeline", "<pipeline>",
      "Run an MLIR pass pipeline before lowering to LLVM",
      CLIOptionDescrKind::kJoined},
@@ -285,18 +301,19 @@ std::vector<CLIOptionDescr> options{
     {"-emit-ir", "Emit the CXX dialect IR for the source inputs",
      &CLI::opt_emit_cxx_ir},
 
-    {"-emit-mlir", "Emit the MLIR for the source inputs", &CLI::opt_emit_mlir},
+    {"-emit-mlir",
+     "Emit the MLIR handed to the target backend: the LLVM dialect for host "
+     "targets, the GPU dialect for device targets",
+     &CLI::opt_emit_mlir},
 
-    {"-emit-spirv", "Emit the selected Vulkan kernel as SPIR-V",
-     &CLI::opt_emit_spirv},
-    {"-emit-wgsl", "Emit the selected WebGPU kernel as WGSL",
-     &CLI::opt_emit_wgsl},
+    {"-emit-spirv", "Emit the device module as SPIR-V", &CLI::opt_emit_spirv},
+    {"-emit-wgsl", "Emit the device module as WGSL", &CLI::opt_emit_wgsl},
 
-    {"--kernel", "<name>", "Select the checked device entry point",
+    {"--kernel", "<name>", "Select one checked device entry point",
      CLIOptionDescrKind::kJoined},
 
     {"--resource-manifest", "<path>",
-     "Also write the selected kernel resource manifest",
+     "Also write the device module resource manifest",
      CLIOptionDescrKind::kJoined},
 
     {"-emit-llvm", "Emit the LLVM IR for the source inputs",
@@ -405,11 +422,10 @@ auto getSystemPaths() -> std::vector<fs::path> {
 #endif
 
   if (auto path = getenv("PATH")) {
-    std::istringstream iss(path);
-    std::string token;
-
-    while (std::getline(iss, token, sep)) {
-      paths.push_back(fs::path(token));
+    auto value = std::string_view(path);
+    for (auto token : value | std::views::split(sep)) {
+      if (token.empty() && token.end() == value.end()) continue;
+      paths.emplace_back(std::string_view(token));
     }
   }
 
@@ -533,11 +549,25 @@ auto CLI::experimentalSCFEnabled(bool defaults) const -> bool {
   return flag == "-fexperimental-scf";
 }
 
+auto CLI::experimentalCxxIREnabled() const -> bool {
+  auto flag = lastFlag([](std::string_view name) {
+    return name == "-fexperimental-cxxir" || name == "-fno-experimental-cxxir";
+  });
+  return flag == "-fexperimental-cxxir";
+}
+
 auto CLI::rttiEnabled() const -> bool {
   auto flag = lastFlag([](std::string_view name) {
     return name == "-frtti" || name == "-fno-rtti";
   });
   return flag != "-fno-rtti";
+}
+
+auto CLI::irVerificationEnabled() const -> bool {
+  auto flag = lastFlag([](std::string_view name) {
+    return name == "-fverify-ir" || name == "-fno-verify-ir";
+  });
+  return flag == "-fverify-ir";
 }
 
 auto CLI::positionIndependence(PositionIndependence defaults) const
@@ -561,17 +591,16 @@ auto CLI::parse(int& argc, char**& argv) -> bool {
   bool valid = true;
   app_name = argv[0];
 
-  if (fs::path(app_name).remove_filename().empty()) {
-    for (auto path : getSystemPaths()) {
-      if (fs::exists(path / app_name)) {
-        app_name = (path / app_name).string();
-        break;
+  if constexpr (fs::kHasProcessWorkingDirectory) {
+    if (fs::path(app_name).remove_filename().empty()) {
+      for (auto path : getSystemPaths()) {
+        if (fs::exists(path / app_name)) {
+          app_name = (path / app_name).string();
+          break;
+        }
       }
     }
-  }
-
-  while (fs::is_symlink(app_name)) {
-    app_name = fs::read_symlink(app_name).string();
+    app_name = fs::file_identity(app_name).string();
   }
 
   for (int i = 1; i < argc;) {
@@ -583,11 +612,11 @@ auto CLI::parse(int& argc, char**& argv) -> bool {
     }
 
     if (arg.starts_with("-Wl,")) {
-      std::string payload = arg.substr(4);
-      std::istringstream iss(payload);
-      std::string token;
-      while (std::getline(iss, token, ',')) {
-        result_.emplace_back(CLIOption("-Xlinker", token));
+      auto payload = std::string_view(arg).substr(4);
+      for (auto token : payload | std::views::split(',')) {
+        if (token.empty() && token.end() == payload.end()) continue;
+        result_.emplace_back(
+            CLIOption("-Xlinker", std::string(std::string_view(token))));
       }
       continue;
     }
@@ -596,7 +625,7 @@ auto CLI::parse(int& argc, char**& argv) -> bool {
       if (i < argc) {
         result_.emplace_back(CLIOption("-Xlinker", argv[i++]));
       } else {
-        std::cerr << std::format("missing argument after '{}'\n", arg);
+        std::print(stderr, "missing argument after '{}'\n", arg);
         valid = false;
       }
       continue;
@@ -649,7 +678,7 @@ auto CLI::parse(int& argc, char**& argv) -> bool {
           continue;
         }
 
-        std::cerr << std::format("missing argument after '{}'\n", arg);
+        std::print(stderr, "missing argument after '{}'\n", arg);
         valid = false;
         continue;
       }
@@ -672,8 +701,8 @@ auto CLI::parse(int& argc, char**& argv) -> bool {
 }
 
 void CLI::showHelp() {
-  std::cerr << std::format("Usage: cxx [options] file...\n");
-  std::cerr << std::format("Options:\n");
+  std::print("Usage: cxx [options] file...\n");
+  std::print("Options:\n");
   for (const auto& opt : options) {
     if (opt.visibility == CLIOptionVisibility::kExperimental) {
       continue;
@@ -707,7 +736,7 @@ void CLI::showHelp() {
       help = std::format("[deprecated, use --target=<triple>] {}", help);
     }
 
-    std::cerr << std::format("  {:<28} {}\n", info, help);
+    std::print("  {:<28} {}\n", info, help);
   }
 }
 }  // namespace cxx

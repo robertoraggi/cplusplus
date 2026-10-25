@@ -12529,6 +12529,7 @@ auto ElaboratedTypeSpecifierAST::clone(Arena* arena)
   node->classKey = classKey;
   node->isTemplateIntroduced = isTemplateIntroduced;
   node->symbol = symbol;
+  node->declaredSymbol = declaredSymbol;
 
   return node;
 }
@@ -12544,7 +12545,8 @@ auto ElaboratedTypeSpecifierAST::create(
     List<AttributeSpecifierAST*>* attributeList,
     NestedNameSpecifierAST* nestedNameSpecifier, SourceLocation templateLoc,
     UnqualifiedIdAST* unqualifiedId, TokenKind classKey,
-    bool isTemplateIntroduced, Symbol* symbol) -> ElaboratedTypeSpecifierAST* {
+    bool isTemplateIntroduced, Symbol* symbol, ClassSymbol* declaredSymbol)
+    -> ElaboratedTypeSpecifierAST* {
   auto node = new (arena) ElaboratedTypeSpecifierAST();
   node->classLoc = classLoc;
   node->attributeList = attributeList;
@@ -12554,6 +12556,7 @@ auto ElaboratedTypeSpecifierAST::create(
   node->classKey = classKey;
   node->isTemplateIntroduced = isTemplateIntroduced;
   node->symbol = symbol;
+  node->declaredSymbol = declaredSymbol;
   return node;
 }
 
@@ -12561,7 +12564,8 @@ auto ElaboratedTypeSpecifierAST::create(
     Arena* arena, List<AttributeSpecifierAST*>* attributeList,
     NestedNameSpecifierAST* nestedNameSpecifier,
     UnqualifiedIdAST* unqualifiedId, TokenKind classKey,
-    bool isTemplateIntroduced, Symbol* symbol) -> ElaboratedTypeSpecifierAST* {
+    bool isTemplateIntroduced, Symbol* symbol, ClassSymbol* declaredSymbol)
+    -> ElaboratedTypeSpecifierAST* {
   auto node = new (arena) ElaboratedTypeSpecifierAST();
   node->attributeList = attributeList;
   node->nestedNameSpecifier = nestedNameSpecifier;
@@ -12569,6 +12573,7 @@ auto ElaboratedTypeSpecifierAST::create(
   node->classKey = classKey;
   node->isTemplateIntroduced = isTemplateIntroduced;
   node->symbol = symbol;
+  node->declaredSymbol = declaredSymbol;
   return node;
 }
 

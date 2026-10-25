@@ -305,6 +305,8 @@ class Binder {
   [[nodiscard]] auto variableMemberOf(ClassSymbol* classSymbol,
                                       const Name* name) -> VariableSymbol*;
 
+  void checkLocalVariableDeclaration(const Decl& decl);
+
   [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
                                      const Decl& decl,
                                      bool addSymbolToParentScope,
@@ -537,9 +539,9 @@ class Binder {
   [[nodiscard]] auto lookupFriendClass(const Identifier* name,
                                        bool namesTemplate) -> ClassSymbol*;
 
-  [[nodiscard]] auto adoptFriendDeclaredClass(ScopeSymbol* targetScope,
-                                              const Identifier* name)
-      -> ClassSymbol*;
+  [[nodiscard]] auto adoptFriendDeclaredClass(
+      ScopeSymbol* targetScope, const Identifier* name,
+      TemplateDeclarationAST* templateHead) -> ClassSymbol*;
 
   void disableAccessControlForUnsupportedFriend(
       NestedNameSpecifierAST* nestedNameSpecifier,
@@ -622,6 +624,12 @@ class Binder {
   void setTemplateHead(TypeAliasSymbol* symbol,
                        TemplateDeclarationAST* templateHead);
 
+  void setTemplateHead(ClassSymbol* symbol,
+                       TemplateDeclarationAST* templateHead);
+
+  void mergeClassTemplateHead(ClassSymbol* symbol,
+                              TemplateDeclarationAST* templateHead);
+
   [[nodiscard]] auto scopeForBlockDecl(ScopeSymbol* scope) const
       -> ScopeSymbol*;
 
@@ -651,6 +659,8 @@ class Binder {
   void inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern);
 
   void applyAttributeMap(Symbol* symbol, AttributeMap collected);
+
+  void rejectKernelTemplate(FunctionSymbol* function);
 
   void applyDeviceAttributes(Symbol* symbol,
                              std::span<const AttributeRef> attributes);
@@ -768,6 +778,24 @@ class Binder {
   }
 
  private:
+  struct ClassSpecialization {
+    ClassSymbol* symbol = nullptr;
+    std::vector<TemplateArgument> arguments;
+  };
+
+  [[nodiscard]] auto resolveClassSpecialization(
+      ClassSymbol* primary, SimpleTemplateIdAST* templateId,
+      TemplateDeclarationAST* templateHead)
+      -> std::optional<ClassSpecialization>;
+
+  void bindClassSpecializationDeclaration(ElaboratedTypeSpecifierAST* ast,
+                                          DeclSpecs& declSpecs,
+                                          ClassSymbol* primary);
+
+  [[nodiscard]] auto specializeMemberClassTemplate(
+      ClassSymbol* declared, TemplateDeclarationAST* templateHead,
+      SourceLocation location) -> ClassSymbol*;
+
   [[nodiscard]] auto enumeratorType(EnumeratorAST* ast,
                                     const Type* previousType) const
       -> const Type*;

@@ -936,7 +936,19 @@ auto TypeDeduction::deduceArrayBound(ExpressionAST* P, std::size_t size)
     -> bool {
   auto parameter = nonTypeParameterOf(P);
   if (slotOf(parameter) < 0) return skipNonDeducedContext();
-  return deduceNonTypeParameter(parameter, sizeArgument(size));
+  auto argument = sizeArgument(size);
+  if (!argument) return false;
+  auto type = parameter->objectType();
+  if (isDependent(unit_, type) || containsPlaceholderType(type))
+    return deduceNonTypeParameter(parameter, argument);
+  auto traits = unit_->typeTraits();
+  if (!traits.is_integral(type)) return false;
+  auto value = template_argument_value(argument);
+  if (!value) return false;
+  auto converted = traits.converted_constant_value(type, *value);
+  if (!converted) return false;
+  return deduceNonTypeParameter(
+      parameter, control()->getConstantArgumentSymbol(type, *converted));
 }
 
 auto TypeDeduction::vectorSizeIn(VectorSizeKind sizeKind,

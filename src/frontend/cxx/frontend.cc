@@ -32,13 +32,19 @@
 #include <cxx/ast_printer.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/cli.h>
+#include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
+#include <cxx/cxxir/cxxir_emitter.h>
 #include <cxx/freeze_audit.h>
 #include <cxx/lexer.h>
 #include <cxx/memory_layout.h>
 #include <cxx/pch.h>
 #include <cxx/preprocessor.h>
+#include <cxx/printing.h>
+#include <cxx/private/file.h>
 #include <cxx/private/path.h>
+#include <cxx/private/printing-priv.h>
+#include <cxx/private/read_all.h>
 #include <cxx/symbols.h>
 #include <cxx/time_trace.h>
 #include <cxx/toolchain_config.h>
@@ -46,8 +52,9 @@
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
 
+#include <system_error>
+
 #ifdef CXX_WITH_MLIR
-#include <cxx/codegen/codegen.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/mlir/mlir_emitter.h>
@@ -60,12 +67,14 @@
 #include <llvm/Pass.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
+#include <mlir/Parser/Parser.h>
 #endif
 
+#include <cstdio>
 #include <cstdlib>
 #include <format>
-#include <fstream>
-#include <iostream>
+#include <iterator>
+#include <print>
 #include <string>
 
 #include "check_expression_types.h"
@@ -85,6 +94,7 @@ struct Frontend::Private {
 #ifdef CXX_WITH_MLIR
   std::unique_ptr<mlir::MLIRContext> context_;
   mlir::ModuleOp module_;
+  mlir::OwningOpRef<mlir::ModuleOp> parsedModule_;
   std::unique_ptr<llvm::LLVMContext> llvmContext_;
   std::unique_ptr<llvm::Module> llvmModule_;
   std::unique_ptr<llvm::TargetMachine> targetMachine_;
@@ -121,10 +131,10 @@ struct Frontend::Private {
   void preparePreprocessor();
   void preprocess();
   void parse();
-  void showSearchPaths(std::ostream& out);
-  void dumpTokens(std::ostream& out);
-  void dumpSymbols(std::ostream& out);
-  void dumpRecordLayouts(std::ostream& out);
+  void showSearchPaths(std::format_context::iterator& out);
+  void dumpTokens(std::format_context::iterator& out);
+  void dumpSymbols(std::format_context::iterator& out);
+  void dumpRecordLayouts(std::format_context::iterator& out);
   void reportFreezeErrors(const FreezeAudit& audit);
   void capturePreprocessorSnapshot();
   void loadPrecompiledHeader();
@@ -136,6 +146,8 @@ struct Frontend::Private {
   void dumpAst();
   void printAstIfNeeded();
   void generateIR();
+  void generateCxxIR(const std::function<void(const ir::CxxIREmitter&,
+                                              ir::ModuleRef)>& action);
   void runIRPassPipeline();
   [[nodiscard]] auto targetsDevice() const -> bool;
   void emitKernelArtifact();
@@ -157,16 +169,19 @@ struct Frontend::Private {
   void emitObjectFile();
   void printPreprocessedText();
   void writeDepFile();
-  void dumpMacros(std::ostream& out);
-
-  [[nodiscard]] auto readAll(const std::string& fileName, std::istream& in)
-      -> std::optional<std::string>;
+  void dumpMacros(std::format_context::iterator& out);
 
   [[nodiscard]] auto readAll(const std::string& fileName)
       -> std::optional<std::string>;
 
-  void withOutputStream(const std::optional<std::string>& extension,
-                        const std::function<void(std::ostream&)>& action);
+  void withOutput(
+      std::FILE* file,
+      const std::function<void(std::format_context::iterator&)>& action,
+      std::string_view name = "<stdout>");
+
+  void withOutputFile(
+      const std::optional<std::string>& extension,
+      const std::function<void(std::format_context::iterator&)>& action);
 
 #ifdef CXX_WITH_MLIR
   void withRawOutputStream(
@@ -212,14 +227,25 @@ auto Frontend::operator()() -> bool {
   }
 
   if (auto path = priv->cli.getSingle("-ftime-trace")) {
-    std::ofstream out{*path};
-    priv->unit_->timeTrace()->write(out);
-    out.flush();
-    if (!out) {
-      std::cerr << std::format("cannot write time trace '{}'\n", *path);
+    detail::File file(std::fopen(path->c_str(), "w"));
+    bool written = false;
+    if (file) {
+#if __cpp_exceptions
+      try {
+#endif
+        std::print(file.get(), "{}", *priv->unit_->timeTrace());
+        written = std::fflush(file.get()) == 0;
+#if __cpp_exceptions
+      } catch (const std::system_error&) {
+      }
+#endif
+    }
+    if (!written) {
+      std::print(stderr, "cannot write time trace '{}'\n", *path);
       priv->failed_ = true;
     }
   }
+
   priv->diagnosticsClient_->verifyExpectedDiagnostics();
 
   return !priv->diagnosticsClient_->hasErrors() && !priv->failed_;
@@ -231,18 +257,25 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
   diagnosticsClient_ = std::make_unique<VerifyDiagnosticsClient>();
   unit_ = std::make_unique<TranslationUnit>(diagnosticsClient_.get());
 
-  actions_.emplace_back([this]() { showSearchPaths(std::cerr); });
+  actions_.emplace_back([this]() {
+    withOutput(stderr, [&](auto& out) { showSearchPaths(out); });
+  });
   actions_.emplace_back([this]() { loadPrecompiledHeader(); });
   actions_.emplace_back([this]() { preprocess(); });
   actions_.emplace_back([this]() { writeDepFile(); });
   actions_.emplace_back([this]() { printPreprocessedText(); });
-  actions_.emplace_back([this]() { dumpMacros(std::cout); });
-  actions_.emplace_back([this]() { dumpTokens(std::cout); });
+  actions_.emplace_back(
+      [this]() { withOutput(stdout, [&](auto& out) { dumpMacros(out); }); });
+  actions_.emplace_back(
+      [this]() { withOutput(stdout, [&](auto& out) { dumpTokens(out); }); });
   actions_.emplace_back([this]() { capturePreprocessorSnapshot(); });
   actions_.emplace_back([this]() { unit_->preprocessor()->squeeze(); });
   actions_.emplace_back([this]() { parse(); });
-  actions_.emplace_back([this]() { dumpSymbols(std::cout); });
-  actions_.emplace_back([this]() { dumpRecordLayouts(std::cout); });
+  actions_.emplace_back(
+      [this]() { withOutput(stdout, [&](auto& out) { dumpSymbols(out); }); });
+  actions_.emplace_back([this]() {
+    withOutput(stdout, [&](auto& out) { dumpRecordLayouts(out); });
+  });
   actions_.emplace_back([this]() { dumpAst(); });
   actions_.emplace_back([this]() { printAstIfNeeded(); });
   actions_.emplace_back([this]() { serializePrecompiledHeader(); });
@@ -263,24 +296,44 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
 
 Frontend::Private::~Private() {}
 
-void Frontend::Private::withOutputStream(
-    const std::optional<std::string>& extension,
-    const std::function<void(std::ostream&)>& action) {
-  auto explicitOutput = cli.getSingle("-o");
+void Frontend::Private::withOutput(
+    std::FILE* file,
+    const std::function<void(std::format_context::iterator&)>& action,
+    std::string_view name) {
+#if __cpp_exceptions
+  try {
+#endif
+    std::print(file, "{}", detail::FormattingAction{action});
+    if (std::fflush(file) == 0) return;
+#if __cpp_exceptions
+  } catch (const std::system_error&) {
+  }
+#endif
+  std::print(stderr, "cxx: failed to write output file '{}'\n", name);
+  fail();
+}
 
-  if (explicitOutput == "-" || (!explicitOutput.has_value() &&
-                                (!extension.has_value() || fileName_ == "-"))) {
-    action(std::cout);
+void Frontend::Private::withOutputFile(
+    const std::optional<std::string>& extension,
+    const std::function<void(std::format_context::iterator&)>& action) {
+  auto explicitOutput = cli.getSingle("-o");
+  if (explicitOutput == "-" ||
+      (!explicitOutput && (!extension || fileName_ == "-"))) {
+    withOutput(stdout, action);
     return;
   }
-
-  auto inputFile = fs::path{fileName_}.filename();
-  auto defaultOutputFile = inputFile.replace_extension(*extension);
-
-  auto outputFile = cli.getSingle("-o").value_or(defaultOutputFile.string());
-
-  std::ofstream output(outputFile);
-  action(output);
+  auto outputFile = explicitOutput.value_or("");
+  if (!explicitOutput) {
+    auto inputFile = fs::path{fileName_}.filename();
+    outputFile = inputFile.replace_extension(*extension).string();
+  }
+  detail::File output(std::fopen(outputFile.c_str(), "w"));
+  if (!output) {
+    std::print(stderr, "cxx: cannot open output file '{}'\n", outputFile);
+    fail();
+    return;
+  }
+  withOutput(output.get(), action, outputFile);
 }
 
 #ifdef CXX_WITH_MLIR
@@ -302,7 +355,20 @@ void Frontend::Private::withRawOutputStream(
 
   std::error_code error_code;
   llvm::raw_fd_ostream output(outputFile, error_code);
+  if (error_code) {
+    std::print(stderr, "{}{}{}{}{}", "cxx: cannot open output file '",
+               outputFile, "': ", error_code.message(), '\n');
+    fail();
+    return;
+  }
   action(output);
+  output.flush();
+  if (output.has_error()) {
+    std::print(stderr, "{}{}{}", "cxx: failed to write output file '",
+               outputFile, "'\n");
+    output.clear_error();
+    fail();
+  }
 }
 #endif
 
@@ -321,13 +387,14 @@ void Frontend::Private::printPreprocessedText() {
     return;
   }
 
-  withOutputStream(std::nullopt, [&](std::ostream& out) {
-    unit_->preprocessor()->getPreprocessedText(
-        unit_->tokens(), unit_->packAlignmentChanges(), out);
+  withOutputFile(std::nullopt, [&](std::format_context::iterator& out) {
+    out = std::format_to(out, "{}",
+                         unit_->preprocessor()->preprocessedText(
+                             unit_->tokens(), unit_->packAlignmentChanges()));
   });
 }
 
-static void collectExistingDirectories(std::ostream& out,
+static void collectExistingDirectories(std::format_context::iterator& out,
                                        const std::vector<std::string>& paths,
                                        std::vector<std::string>& existing) {
   for (const auto& path : paths) {
@@ -335,7 +402,7 @@ static void collectExistingDirectories(std::ostream& out,
       existing.push_back(path);
       continue;
     }
-    out << std::format("ignoring nonexistent directory \"{}\"\n", path);
+    out = std::format_to(out, "ignoring nonexistent directory \"{}\"\n", path);
   }
 }
 
@@ -349,13 +416,16 @@ static auto quoteDepfileTarget(const std::string& target) -> std::string {
   return result;
 }
 
-static void formatDepFile(std::ostream& out, const std::string& target,
+static void formatDepFile(std::format_context::iterator& out,
+                          const std::string& target,
                           const std::vector<std::string>& deps, bool phony) {
-  out << target << ':';
-  for (const auto& dep : deps) out << " \\\n  " << dep;
-  out << '\n';
+  out = std::format_to(out, "{}{}", target, ':');
+  for (const auto& dep : deps)
+    out = std::format_to(out, "{}{}", " \\\n  ", dep);
+  out = std::format_to(out, "{}", '\n');
   if (!phony) return;
-  for (const auto& dep : deps) out << '\n' << dep << ":\n";
+  for (const auto& dep : deps)
+    out = std::format_to(out, "{}{}{}", '\n', dep, ":\n");
 }
 
 void Frontend::Private::writeDepFile() {
@@ -386,7 +456,9 @@ void Frontend::Private::writeDepFile() {
   }
 
   if (toStdout) {
-    formatDepFile(std::cout, target, deps, cli.opt_MP);
+    withOutput(stdout, [&](auto& out) {
+      formatDepFile(out, target, deps, cli.opt_MP);
+    });
     shouldExit_ = true;
     return;
   }
@@ -400,8 +472,16 @@ void Frontend::Private::writeDepFile() {
     depFileName = inputFile.replace_extension(".d").string();
   }
 
-  std::ofstream depOut(depFileName);
-  formatDepFile(depOut, target, deps, cli.opt_MP);
+  detail::File depOut(std::fopen(depFileName.c_str(), "w"));
+  if (!depOut) {
+    std::print(stderr, "cxx: cannot open output file '{}'\n", depFileName);
+    fail();
+    return;
+  }
+  withOutput(
+      depOut.get(),
+      [&](auto& out) { formatDepFile(out, target, deps, cli.opt_MP); },
+      depFileName);
 }
 
 void Frontend::Private::preprocess() {
@@ -410,8 +490,7 @@ void Frontend::Private::preprocess() {
   auto source = readAll(fileName_);
 
   if (!source.has_value()) {
-    std::cerr << std::format("cxx: No such file or directory: '{}'\n",
-                             fileName_);
+    std::print(stderr, "cxx: No such file or directory: '{}'\n", fileName_);
     fail();
     return;
   }
@@ -419,18 +498,24 @@ void Frontend::Private::preprocess() {
   unit_->setSource(std::move(*source), fileName_);
 }
 
-void Frontend::Private::dumpMacros(std::ostream& out) {
+void Frontend::Private::dumpMacros(std::format_context::iterator& out) {
   if (!cli.opt_E && !cli.opt_dM) return;
 
-  unit_->preprocessor()->printMacros(out);
+  out = std::format_to(out, "{}", unit_->preprocessor()->macros());
 
   shouldExit_ = true;
 }
 
 void Frontend::Private::prepare() {
+  if (auto kernel = cli.getSingle("--kernel"); kernel && kernel->empty()) {
+    std::print(stderr, "{}",
+               "cxx: --kernel requires a nonempty entry point name\n");
+    fail();
+    return;
+  }
 #ifndef CXX_WITH_SPIRV
   if (cli.opt_emit_spirv || cli.opt_emit_wgsl) {
-    std::cerr << "cxx: this build has no device kernel support\n";
+    std::print(stderr, "{}", "cxx: this build has no device kernel support\n");
     fail();
     return;
   }
@@ -446,12 +531,12 @@ void Frontend::Private::prepare() {
   toolchain_ =
       createToolchain(cli, preprocessor, languageOf(cli, fileName_), error);
   if (!error.empty()) {
-    std::cerr << error << '\n';
+    std::print(stderr, "{}{}", error, '\n');
     fail();
     return;
   }
   if (!toolchain_) {
-    std::cerr << describeUnsupportedTarget(cli) << '\n';
+    std::print(stderr, "{}{}", describeUnsupportedTarget(cli), '\n');
     fail();
     return;
   }
@@ -469,7 +554,7 @@ void Frontend::Private::preparePreprocessor() {
     preprocessor->setOnWillIncludeHeader(
         [&](const std::string& header, int level) {
           std::string fill(level, '.');
-          std::cout << std::format("{} {}\n", fill, header);
+          std::print("{} {}\n", fill, header);
         });
   }
 }
@@ -511,23 +596,23 @@ void Frontend::Private::parse() {
   }
 }
 
-void Frontend::Private::dumpTokens(std::ostream& out) {
+void Frontend::Private::dumpTokens(std::format_context::iterator& out) {
   if (!cli.opt_dump_tokens) return;
 
-  auto dumpTokens = DumpTokens{cli};
-  dumpTokens(*unit_, out);
+  out = std::format_to(out, "{}", DumpTokens{*unit_});
 
   shouldExit_ = true;
 }
 
-void Frontend::Private::dumpSymbols(std::ostream& out) {
+void Frontend::Private::dumpSymbols(std::format_context::iterator& out) {
   if (!cli.opt_dump_symbols) return;
   auto globalScope = unit_->globalScope();
   auto globalNamespace = globalScope;
-  cxx::dump(out, globalNamespace, unit_.get());
+  out =
+      std::format_to(out, "{}", cxx::dumpSymbols(globalNamespace, unit_.get()));
 }
 
-void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
+void Frontend::Private::dumpRecordLayouts(std::format_context::iterator& out) {
   if (!cli.opt_dump_record_layouts) return;
 
   auto globalScope = unit_->globalScope();
@@ -553,9 +638,9 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
       if (!baseInfo) continue;
 
       auto absOffset = baseOffset + baseInfo->offset;
-      out << std::format("{:>9} |{}{} {} (base)\n", absOffset, pad,
-                         classKeyword(baseClassSymbol),
-                         to_string(baseClassSymbol->type()));
+      out = std::format_to(out, "{:>9} |{}{} {} (base)\n", absOffset, pad,
+                           classKeyword(baseClassSymbol),
+                           to_string(baseClassSymbol->type()));
 
       auto baseLayout = baseClassSymbol->layout();
       if (baseLayout) {
@@ -574,8 +659,8 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
         if (auto classType = type_cast<ClassType>(field->type())) {
           auto nestedClass = classType->symbol();
           if (nestedClass && !nestedClass->name()) {
-            out << std::format("{:>9} |{}{} (anonymous) \n", absOffset, pad,
-                               classKeyword(nestedClass));
+            out = std::format_to(out, "{:>9} |{}{} (anonymous) \n", absOffset,
+                                 pad, classKeyword(nestedClass));
 
             auto nestedLayout = nestedClass->layout();
             if (nestedLayout) {
@@ -595,16 +680,16 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
         auto startBit = static_cast<int>(fieldInfo->bitOffset % 8);
         auto endBit = startBit + static_cast<int>(fieldInfo->bitWidth) - 1;
         auto offsetStr = std::format("{}:{}-{}", absByte, startBit, endBit);
-        out << std::format("{:>9} |{}{} {}\n", offsetStr, pad, typeStr,
-                           nameStr);
+        out = std::format_to(out, "{:>9} |{}{} {}\n", offsetStr, pad, typeStr,
+                             nameStr);
       } else if (field->isBitField() && fieldInfo->bitWidth == 0) {
         auto absByte = absOffset + fieldInfo->bitOffset / 8;
         auto startBit = static_cast<int>(fieldInfo->bitOffset % 8);
         auto offsetStr = std::format("{}:{}-", absByte, startBit);
-        out << std::format("{:>9} |{}{}\n", offsetStr, pad, typeStr);
+        out = std::format_to(out, "{:>9} |{}{}\n", offsetStr, pad, typeStr);
       } else {
-        out << std::format("{:>9} |{}{} {}\n", absOffset, pad, typeStr,
-                           nameStr);
+        out = std::format_to(out, "{:>9} |{}{} {}\n", absOffset, pad, typeStr,
+                             nameStr);
       }
     }
   };
@@ -616,8 +701,9 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
         auto layout = classSymbol->layout();
         if (!layout) continue;
 
-        out << std::format("\n*** Dumping AST Record Layout\n");
-        out << std::format("{:>9} | {} {}\n", 0, classKeyword(classSymbol),
+        out = std::format_to(out, "\n*** Dumping AST Record Layout\n");
+        out =
+            std::format_to(out, "{:>9} | {} {}\n", 0, classKeyword(classSymbol),
                            to_string(classSymbol->type()));
 
         dumpClassMembers(classSymbol, layout, 1, 0);
@@ -625,9 +711,9 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
         for (auto vbase : layout->virtualBases()) {
           auto baseInfo = layout->getVirtualBaseInfo(vbase);
           if (!baseInfo) continue;
-          out << std::format("{:>9} | {}{} {} (virtual base)\n",
-                             baseInfo->offset, std::string(2, ' '),
-                             classKeyword(vbase), to_string(vbase->type()));
+          out = std::format_to(out, "{:>9} | {}{} {} (virtual base)\n",
+                               baseInfo->offset, std::string(2, ' '),
+                               classKeyword(vbase), to_string(vbase->type()));
           if (auto vbaseLayout = vbase->layout()) {
             dumpClassMembers(vbase, vbaseLayout, 2, baseInfo->offset);
           }
@@ -635,17 +721,18 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
 
         auto traits = unit_->typeTraits();
 
-        out << std::format(
-            "{:>9} | [sizeof={}, dsize={}, align={},\n", "", layout->size(),
-            traits.data_size(classSymbol->type()), layout->alignment());
-        if (layout->virtualBases().empty()) {
-          out << std::format("{:>9} |  nvsize={}, nvalign={}]\n", "",
-                             traits.non_virtual_size(classSymbol->type()),
+        out = std::format_to(out, "{:>9} | [sizeof={}, dsize={}, align={},\n",
+                             "", layout->size(),
+                             traits.data_size(classSymbol->type()),
                              layout->alignment());
+        if (layout->virtualBases().empty()) {
+          out = std::format_to(out, "{:>9} |  nvsize={}, nvalign={}]\n", "",
+                               traits.non_virtual_size(classSymbol->type()),
+                               layout->alignment());
         } else {
-          out << std::format("{:>9} |  nvsize={}, nvalign={}]\n", "",
-                             traits.non_virtual_size(classSymbol->type()),
-                             layout->nonVirtualAlignment());
+          out = std::format_to(out, "{:>9} |  nvsize={}, nvalign={}]\n", "",
+                               traits.non_virtual_size(classSymbol->type()),
+                               layout->nonVirtualAlignment());
         }
       }
 
@@ -660,20 +747,19 @@ void Frontend::Private::dumpRecordLayouts(std::ostream& out) {
 
 void Frontend::Private::dumpAst() {
   if (!cli.opt_ast_dump) return;
-  auto printAST = ASTPrinter{unit_.get(), std::cout};
-  printAST(unit_->ast());
+  withOutput(stdout, [&](auto& out) {
+    out = std::format_to(out, "{}", cxx::dumpAST(unit_.get(), unit_->ast()));
+  });
 }
 
 void Frontend::Private::printAstIfNeeded() {
   if (!cli.opt_ast_print) return;
-  auto prettyPrinter = ASTPrettyPrinter{unit_.get(), std::cout};
-  prettyPrinter(unit_->ast());
+  std::print("{}", formatAST(unit_.get(), unit_->ast()));
 }
 
 void Frontend::Private::reportFreezeErrors(const FreezeAudit& audit) {
   for (const auto& error : audit.errors()) {
-    std::cerr << std::format("cxx: cannot write a precompiled header: {}\n",
-                             error);
+    std::print(stderr, "cxx: cannot write a precompiled header: {}\n", error);
   }
   fail();
 }
@@ -698,32 +784,26 @@ void Frontend::Private::loadPrecompiledHeader() {
   TimeTrace::Scope trace{unit_->timeTrace(), "Load precompiled header",
                          *pchFile};
 
-  std::ifstream in(*pchFile, std::ios::binary | std::ios::ate);
+  detail::File in(std::fopen(pchFile->c_str(), "rb"));
 
   if (!in) {
-    std::cerr << std::format("cxx: cannot open precompiled header '{}'\n",
-                             *pchFile);
+    std::print(stderr, "cxx: cannot open precompiled header '{}'\n", *pchFile);
     fail();
     return;
   }
 
-  const auto size = in.tellg();
-  in.seekg(0);
-
-  std::vector<std::uint8_t> data(static_cast<std::size_t>(size));
-  in.read(reinterpret_cast<char*>(data.data()), size);
-
-  if (!in) {
-    std::cerr << std::format("cxx: cannot read precompiled header '{}'\n",
-                             *pchFile);
+  auto data = detail::readAll(in.get());
+  if (!data) {
+    std::print(stderr, "cxx: cannot read precompiled header '{}'\n", *pchFile);
     fail();
     return;
   }
 
   PrecompiledHeaderReader reader{unit_.get(), compatibilityKeys()};
 
-  if (!reader(data)) {
-    std::cerr << std::format("cxx: {}: {}\n", *pchFile, reader.error());
+  if (!reader(std::span<const std::uint8_t>(
+          reinterpret_cast<const std::uint8_t*>(data->data()), data->size()))) {
+    std::print(stderr, "cxx: {}: {}\n", *pchFile, reader.error());
     fail();
     return;
   }
@@ -785,8 +865,7 @@ void Frontend::Private::serializePrecompiledHeader() {
 
   if (!writer.errors().empty()) {
     for (const auto& error : writer.errors()) {
-      std::cerr << std::format("cxx: cannot write a precompiled header: {}\n",
-                               error);
+      std::print(stderr, "cxx: cannot write a precompiled header: {}\n", error);
     }
     fail();
     return;
@@ -795,20 +874,19 @@ void Frontend::Private::serializePrecompiledHeader() {
   auto outputFile = cli.getSingle("-o").value_or(
       fs::path{fileName_}.filename().replace_extension(".pch").string());
 
-  std::ofstream out(outputFile, std::ios::binary);
-
-  out.write(reinterpret_cast<const char*>(data.data()),
-            static_cast<std::streamsize>(data.size()));
-
-  out.close();
-
-  if (!out) {
-    std::cerr << std::format("cxx: cannot write '{}'\n", outputFile);
+  detail::File out(std::fopen(outputFile.c_str(), "wb"));
+  bool written = false;
+  if (out)
+    written =
+        std::fwrite(data.data(), 1, data.size(), out.get()) == data.size() &&
+        std::fflush(out.get()) == 0;
+  if (!written) {
+    std::print(stderr, "cxx: cannot write '{}'\n", outputFile);
     fail();
   }
 }
 
-void Frontend::Private::showSearchPaths(std::ostream& out) {
+void Frontend::Private::showSearchPaths(std::format_context::iterator& out) {
   if (!cli.opt_v) return;
 
   auto preprocessor = unit_->preprocessor();
@@ -826,30 +904,76 @@ void Frontend::Private::showSearchPaths(std::ostream& out) {
   collectExistingDirectories(out, preprocessor->systemFrameworkPaths(),
                              frameworkPaths);
 
-  out << std::format("#include \"...\" search starts here:\n");
-  for (const auto& path : quotePaths) out << std::format(" {}\n", path);
+  out = std::format_to(out, "#include \"...\" search starts here:\n");
+  for (const auto& path : quotePaths) out = std::format_to(out, " {}\n", path);
 
-  out << std::format("#include <...> search starts here:\n");
-  for (const auto& path : anglePaths) out << std::format(" {}\n", path);
+  out = std::format_to(out, "#include <...> search starts here:\n");
+  for (const auto& path : anglePaths) out = std::format_to(out, " {}\n", path);
   for (const auto& path : frameworkPaths)
-    out << std::format(" {} (framework directory)\n", path);
+    out = std::format_to(out, " {} (framework directory)\n", path);
 
-  out << std::format("End of search list.\n");
+  out = std::format_to(out, "End of search list.\n");
+}
+
+void Frontend::Private::generateCxxIR(
+    const std::function<void(const ir::CxxIREmitter&, ir::ModuleRef)>& action) {
+  TimeTrace::Scope trace(unit_->timeTrace(), "Generate CXXIR");
+  ir::CxxIREmitter emitter{unit_.get()};
+  Codegen codegen{emitter, unit_.get(), {.debugInfo = false}};
+  auto result = codegen(unit_->ast());
+  if (diagnosticsClient_->hasErrors()) {
+    fail();
+    return;
+  }
+  if (!result.module) return;
+  action(emitter, result.module);
 }
 
 void Frontend::Private::generateIR() {
   if (cli.opt_fsyntax_only) return;
   if (!needsIR()) return;
 
+  auto useExperimentalCxxir = cli.experimentalCxxIREnabled();
+
+#ifndef CXX_WITH_MLIR
+  useExperimentalCxxir = true;
+#endif
+
+  if (useExperimentalCxxir && cli.opt_emit_cxx_ir &&
+      cli.getSingle("-mlir-pass-pipeline").value_or("").empty()) {
+    withOutputFile("mlir", [&](std::format_context::iterator& out) {
+      generateCxxIR([&](const ir::CxxIREmitter& emitter, ir::ModuleRef module) {
+        out = std::format_to(out, "{}", emitter.module(module, cli.opt_g));
+      });
+    });
+    shouldExit_ = true;
+    return;
+  }
+
 #ifdef CXX_WITH_MLIR
   TimeTrace::Scope trace(unit_->timeTrace(), "Generate IR");
-#ifdef __wasm__
   context_ = std::make_unique<mlir::MLIRContext>(
       mlir::MLIRContext::Threading::DISABLED);
-#else
-  context_ = std::make_unique<mlir::MLIRContext>();
-#endif
   context_->loadDialect<mlir::cxx::CxxDialect>();
+
+  if (cli.experimentalCxxIREnabled()) {
+    std::optional<std::string> text;
+    generateCxxIR([&](const ir::CxxIREmitter& emitter, ir::ModuleRef module) {
+      text = std::format("{}", emitter.module(module, true));
+    });
+    if (!text) return;
+    TimeTrace::Scope trace(unit_->timeTrace(), "Read CXXIR");
+    mlir::ParserConfig config(context_.get(), cli.irVerificationEnabled());
+    parsedModule_ = mlir::parseSourceString<mlir::ModuleOp>(*text, config);
+    if (!parsedModule_) {
+      std::print(stderr, "{}", "cxx: failed to read experimental CXX IR\n");
+      fail();
+      return;
+    }
+    module_ = parsedModule_.get();
+    initializeCxxModuleDataLayout(module_);
+    return;
+  }
 
   auto emitter = cxx::ir::MlirEmitter{*context_, unit_.get()};
   auto mode = std::getenv("CXX_SOURCE_CONTEXT_MODE");
@@ -895,9 +1019,11 @@ void Frontend::Private::runIRPassPipeline() {
   TimeTrace::Scope trace(unit_->timeTrace(), "IR pipeline");
 
   auto pipeline = cli.getSingle("-mlir-pass-pipeline").value_or("");
-  if (succeeded(runMLIRPassPipeline(module_, pipeline))) return;
+  if (succeeded(
+          runMLIRPassPipeline(module_, pipeline, cli.irVerificationEnabled())))
+    return;
 
-  std::cerr << "cxx: failed to run MLIR pass pipeline" << std::endl;
+  std::print(stderr, "{}\n", "cxx: failed to run MLIR pass pipeline");
   fail();
   module_ = nullptr;
 #endif
@@ -915,37 +1041,20 @@ void Frontend::Private::emitKernelArtifact() {
 #ifdef CXX_WITH_SPIRV
   if (!module_) return;
   const bool wgsl = cli.opt_emit_wgsl;
-  const auto option = wgsl                 ? "-emit-wgsl"
-                      : cli.opt_emit_spirv ? "-emit-spirv"
-                                           : "-c";
   std::vector<std::string_view> selected;
   if (cli.opt_emit_spirv) selected.push_back("-emit-spirv");
   if (cli.opt_emit_wgsl) selected.push_back("-emit-wgsl");
   if (deviceObject) selected.push_back("-c");
   if (selected.size() > 1) {
-    std::cerr << "cxx: " << selected[0] << " and " << selected[1]
-              << " are mutually exclusive\n";
+    std::print(stderr, "{}{}{}{}{}", "cxx: ", selected[0], " and ", selected[1],
+               " are mutually exclusive\n");
     fail();
     return;
   }
-  auto kernel = cli.getSingle("--kernel");
-  if (!kernel && deviceObject) {
-    auto entries = kernelEntryPoints(module_);
-    if (entries.size() != 1) {
-      std::cerr << "cxx: -c emits one kernel; select it with --kernel\n";
-      fail();
-      return;
-    }
-    kernel = entries.front();
-  }
+  auto kernel = cli.getSingle("--kernel").value_or("");
   auto manifestPath = cli.getSingle("--resource-manifest");
-  if (!kernel || kernel->empty()) {
-    std::cerr << "cxx: " << option << " requires --kernel=<name>\n";
-    fail();
-    return;
-  }
   if (manifestPath && (manifestPath->empty() || *manifestPath == "-")) {
-    std::cerr << "cxx: --resource-manifest requires a file path\n";
+    std::print(stderr, "{}", "cxx: --resource-manifest requires a file path\n");
     fail();
     return;
   }
@@ -954,13 +1063,16 @@ void Frontend::Private::emitKernelArtifact() {
       fs::path(fileName_).filename().replace_extension(extension).string());
   if (manifestPath &&
       fs::file_identity(outputPath) == fs::file_identity(*manifestPath)) {
-    std::cerr << "cxx: kernel artifact and resource manifest need distinct "
-                 "paths\n";
+    std::print(stderr, "{}",
+               "cxx: kernel artifact and resource manifest need distinct "
+               "paths\n");
     fail();
     return;
   }
-  auto artifact = wgsl ? compileWGSLKernel(module_, *kernel)
-                       : compileSPIRVKernel(module_, *kernel);
+  DeviceDiagnostics diagnostics(module_.getContext(), llvm::errs(),
+                                unit_.get());
+  auto artifact = wgsl ? compileWGSLModule(module_, kernel)
+                       : compileSPIRVModule(module_, kernel);
   if (failed(artifact)) {
     fail();
     return;
@@ -970,7 +1082,8 @@ void Frontend::Private::emitKernelArtifact() {
       outputPath, error,
       wgsl ? llvm::sys::fs::OF_Text : llvm::sys::fs::OF_None);
   if (error) {
-    std::cerr << "cxx: " << error.message() << ": " << outputPath << '\n';
+    std::print(stderr, "{}{}{}{}{}", "cxx: ", error.message(), ": ", outputPath,
+               '\n');
     fail();
     return;
   }
@@ -978,7 +1091,8 @@ void Frontend::Private::emitKernelArtifact() {
   if (manifestPath) {
     manifest.emplace(*manifestPath, error, llvm::sys::fs::OF_Text);
     if (error) {
-      std::cerr << "cxx: " << error.message() << ": " << *manifestPath << '\n';
+      std::print(stderr, "{}{}{}{}{}", "cxx: ", error.message(), ": ",
+                 *manifestPath, '\n');
       fail();
       return;
     }
@@ -989,14 +1103,14 @@ void Frontend::Private::emitKernelArtifact() {
                     artifact->bytes.size());
   output.os().flush();
   if (output.os().has_error() || (manifest && manifest->os().has_error())) {
-    std::cerr << "cxx: cannot write kernel outputs\n";
+    std::print(stderr, "{}", "cxx: cannot write kernel outputs\n");
     fail();
     return;
   }
   output.keep();
   if (manifest) manifest->keep();
 #else
-  std::cerr << "cxx: this build has no device kernel support\n";
+  std::print(stderr, "{}", "cxx: this build has no device kernel support\n");
   fail();
 #endif
 }
@@ -1009,24 +1123,24 @@ void Frontend::Private::emitKernelIR() {
 #ifdef CXX_WITH_SPIRV
   if (!module_) return;
   if (deviceMLIR && deviceAssembly) {
-    std::cerr << "cxx: -emit-mlir and -S are mutually exclusive\n";
+    std::print(stderr, "{}", "cxx: -emit-mlir and -S are mutually exclusive\n");
     fail();
     return;
   }
   const auto stage = deviceMLIR ? KernelStage::kGPU : KernelStage::kSPIRV;
-  auto selected = cli.getSingle("--kernel");
-  auto kernels = selected ? llvm::SmallVector<std::string>{*selected}
-                          : kernelEntryPoints(module_);
+  auto selected = cli.getSingle("--kernel").value_or("");
   std::string text;
   llvm::raw_string_ostream out(text);
-  if (failed(printKernels(module_, kernels, stage, out))) {
+  DeviceDiagnostics diagnostics(module_.getContext(), llvm::errs(),
+                                unit_.get());
+  if (failed(printDeviceModule(module_, selected, stage, out))) {
     fail();
     return;
   }
   withRawOutputStream(deviceAssembly ? "s" : "mlir",
                       [&](llvm::raw_pwrite_stream& output) { output << text; });
 #else
-  std::cerr << "cxx: this build has no device kernel support\n";
+  std::print(stderr, "{}", "cxx: this build has no device kernel support\n");
   fail();
 #endif
 }
@@ -1037,6 +1151,7 @@ void Frontend::Private::emitCxxIR() {
 #ifdef CXX_WITH_MLIR
   if (!module_) return;
 
+  TimeTrace::Scope trace(unit_->timeTrace(), "Print CXX IR");
   shouldExit_ = true;
 
   mlir::OpPrintingFlags flags;
@@ -1059,11 +1174,14 @@ void Frontend::Private::lowerIR() {
 
   if (!needsLowering) return;
 
-  if (succeeded(lowerToMLIR(module_))) {
+  TimeTrace::Scope trace(unit_->timeTrace(), "Lower IR");
+  if (succeeded(lowerToMLIR(module_, {},
+                            {.verifyIR = cli.irVerificationEnabled(),
+                             .timeTrace = unit_->timeTrace()}))) {
     return;
   }
 
-  std::cerr << "cxx: failed to lower C++ AST to MLIR" << std::endl;
+  std::print(stderr, "{}\n", "cxx: failed to lower C++ AST to MLIR");
   fail();
   module_ = nullptr;
 #endif
@@ -1075,6 +1193,7 @@ void Frontend::Private::emitMLIR() {
 #ifdef CXX_WITH_MLIR
   if (!module_) return;
 
+  TimeTrace::Scope trace(unit_->timeTrace(), "Print MLIR");
   shouldExit_ = true;
 
   mlir::OpPrintingFlags flags;
@@ -1095,10 +1214,11 @@ void Frontend::Private::emitLLVMIR() {
   if (!module_) return;
 
   llvmContext_ = std::make_unique<llvm::LLVMContext>();
-  llvmModule_ = exportToLLVMIR(module_, *llvmContext_);
+  llvmModule_ =
+      exportToLLVMIR(module_, *llvmContext_, cli.irVerificationEnabled());
 
   if (!llvmModule_) {
-    std::cerr << "cxx: failed to lower MLIR module to LLVM IR" << std::endl;
+    std::print(stderr, "{}\n", "cxx: failed to lower MLIR module to LLVM IR");
     fail();
     return;
   }
@@ -1159,8 +1279,8 @@ auto Frontend::Private::targetMachine() -> llvm::TargetMachine* {
   auto target = llvm::TargetRegistry::lookupTarget(triple, error);
 
   if (!target) {
-    std::cerr << std::format("cxx: cannot find target for triple '{}': {}\n",
-                             triple.getTriple(), error);
+    std::print(stderr, "cxx: cannot find target for triple '{}': {}\n",
+               triple.getTriple(), error);
     return nullptr;
   }
 
@@ -1186,8 +1306,8 @@ auto Frontend::Private::targetMachine() -> llvm::TargetMachine* {
           std::nullopt, codeGenOptLevel));
 
   if (!targetMachine_) {
-    std::cerr << std::format("cxx: cannot create target machine for '{}': {}\n",
-                             triple.getTriple(), error);
+    std::print(stderr, "cxx: cannot create target machine for '{}': {}\n",
+               triple.getTriple(), error);
   }
 
   return targetMachine_.get();
@@ -1216,7 +1336,7 @@ void Frontend::Private::emitCode() {
                                          : llvm::CodeGenFileType::ObjectFile;
 
     if (targetMachine->addPassesToEmitFile(pm, out, nullptr, fileType)) {
-      std::cerr << "cxx: target machine cannot emit assembly\n";
+      std::print(stderr, "{}", "cxx: target machine cannot emit assembly\n");
       fail();
       return;
     }
@@ -1230,8 +1350,8 @@ void Frontend::Private::emitCode() {
     std::error_code ec;
     llvm::raw_fd_ostream out(*objectOutput_, ec);
     if (ec) {
-      std::cerr << std::format("cxx: cannot open '{}': {}\n", *objectOutput_,
-                               ec.message());
+      std::print(stderr, "cxx: cannot open '{}': {}\n", *objectOutput_,
+                 ec.message());
       fail();
       return;
     }
@@ -1241,26 +1361,17 @@ void Frontend::Private::emitCode() {
 
   withRawOutputStream(emitAssembly ? ".s" : ".o", emit);
 #else
-  std::cerr << "cxx: object and assembly output require a build with MLIR\n";
+  std::print(stderr, "{}",
+             "cxx: object and assembly output require a build with MLIR\n");
   fail();
 #endif
 }
 
-auto Frontend::Private::readAll(const std::string& fileName, std::istream& in)
-    -> std::optional<std::string> {
-  std::string code;
-  char buffer[4 * 1024];
-  do {
-    in.read(buffer, sizeof(buffer));
-    code.append(buffer, in.gcount());
-  } while (in);
-  return code;
-}
-
 auto Frontend::Private::readAll(const std::string& fileName)
     -> std::optional<std::string> {
-  if (fileName == "-" || fileName.empty()) return readAll("<stdin>", std::cin);
-  if (std::ifstream stream(fileName); stream) return readAll(fileName, stream);
-  return std::nullopt;
+  if (fileName == "-" || fileName.empty()) return detail::readAll(stdin);
+  detail::File file(std::fopen(fileName.c_str(), "r"));
+  if (!file) return std::nullopt;
+  return detail::readAll(file.get());
 }
 }  // namespace cxx

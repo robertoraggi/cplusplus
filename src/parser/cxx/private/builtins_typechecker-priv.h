@@ -456,6 +456,12 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     case BuiltinFunctionKind::T___ATOMIC_FETCH_NAND:
       return checkBuiltinAtomic(ast);
 
+    case BuiltinFunctionKind::T___ATOMIC_TEST_AND_SET:
+      return checkBuiltinAtomic(ast);
+
+    case BuiltinFunctionKind::T___ATOMIC_CLEAR:
+      return checkBuiltinAtomic(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_SOURCE_LOCATION:
       return checkBuiltinSourceLocation(ast);
 
@@ -563,6 +569,22 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
 void cxx::TypeChecker::Visitor::validateBuiltinArguments(
     cxx::CallExpressionAST* ast, cxx::BuiltinFunctionKind kind) {
   switch (kind) {
+    case BuiltinFunctionKind::T___C11_ATOMIC_THREAD_FENCE:
+      validateBuiltinAtomicOrders(ast);
+      return;
+
+    case BuiltinFunctionKind::T___C11_ATOMIC_SIGNAL_FENCE:
+      validateBuiltinAtomicOrders(ast);
+      return;
+
+    case BuiltinFunctionKind::T___ATOMIC_THREAD_FENCE:
+      validateBuiltinAtomicOrders(ast);
+      return;
+
+    case BuiltinFunctionKind::T___ATOMIC_SIGNAL_FENCE:
+      validateBuiltinAtomicOrders(ast);
+      return;
+
     case BuiltinFunctionKind::T___BUILTIN___CFSTRINGMAKECONSTANTSTRING:
       validateBuiltinCFStringMakeConstantString(ast);
       return;
@@ -573,6 +595,14 @@ void cxx::TypeChecker::Visitor::validateBuiltinArguments(
 
     case BuiltinFunctionKind::T___BUILTIN_ASSUME_ALIGNED:
       validateBuiltinAssumeAligned(ast);
+      return;
+
+    case BuiltinFunctionKind::T___BUILTIN_CXX_CONTROL_BARRIER:
+      validateBuiltinDeviceBarrier(ast);
+      return;
+
+    case BuiltinFunctionKind::T___BUILTIN_CXX_MEMORY_BARRIER:
+      validateBuiltinDeviceBarrier(ast);
       return;
 
     case BuiltinFunctionKind::T___BUILTIN_FRAME_ADDRESS:

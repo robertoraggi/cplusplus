@@ -29,24 +29,27 @@
 #include <cstdio>
 #include <cstdlib>
 #include <format>
-#include <iostream>
+#include <print>
 
 namespace cxx {
 
 DiagnosticsClient::~DiagnosticsClient() = default;
 
 void DiagnosticsClient::emit(const Diagnostic& diagnostic) {
-  if (blockErrors_) return;
-
   const auto severity = diagnostic.severity();
-  if (severity == Severity::Error || severity == Severity::Fatal) {
-    ++errorCount_;
-    if (errorLimit_ > 0 && errorCount_ > errorLimit_) return;
-    if (diagnostic.location())
-      errorLocations_.insert(diagnostic.location().index());
-  }
+  for (auto client = this; client; client = client->forwardingClient_) {
+    if (client->blockErrors_) return;
 
-  report(diagnostic);
+    if (severity == Severity::Error || severity == Severity::Fatal) {
+      ++client->errorCount_;
+      if (client->errorLimit_ > 0 && client->errorCount_ > client->errorLimit_)
+        return;
+      if (diagnostic.location())
+        client->errorLocations_.insert(diagnostic.location().index());
+    }
+
+    client->report(diagnostic);
+  }
 }
 
 auto reportOutsideImmediateContext(TranslationUnit* unit,
@@ -121,16 +124,16 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
     auto stack = sourceResolver_->includeStack(diag.token());
     std::string_view prefix = "In file included from ";
     for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
-      std::cerr << std::format("{}{}:{}:\n", prefix, it->fileName, it->line);
+      std::print(stderr, "{}{}:{}:\n", prefix, it->fileName, it->line);
       prefix = "                 from ";
     }
   }
 
   if (pos.fileName.empty()) {
-    std::cerr << std::format("{}\n", diag.message());
+    std::print(stderr, "{}\n", diag.message());
   } else {
-    std::cerr << std::format("{}:{}:{}: {}: {}\n", pos.fileName, pos.line,
-                             pos.column, severity, diag.message());
+    std::print(stderr, "{}:{}:{}: {}: {}\n", pos.fileName, pos.line, pos.column,
+               severity, diag.message());
 
     const auto textLine = sourceResolver_->getTextLine(diag.token());
 
@@ -143,7 +146,7 @@ void DiagnosticsClient::report(const Diagnostic& diag) {
         if (!std::isspace(ch)) ch = ' ';
       }
 
-      std::cerr << std::format("{0}\n{1}^\n", textLine, indent);
+      std::print(stderr, "{0}\n{1}^\n", textLine, indent);
     }
   }
 

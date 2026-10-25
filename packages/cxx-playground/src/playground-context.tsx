@@ -55,7 +55,9 @@ export type OutputTab = "output" | "console" | "canvas"
 
 function kernelText({ kernels, error }: KernelResult): string {
   const sections = kernels.map(({ manifest, code }) =>
-    kernels.length === 1 ? code : `// kernel ${manifest.entryPoint}\n${code}`
+    kernels.length === 1
+      ? code
+      : `// kernel ${manifest.entryPoints.map((entry) => entry.name).join(", ")}\n${code}`
   )
   if (error)
     sections.push(
@@ -72,11 +74,12 @@ function presentKernels({ kernels, error }: KernelResult) {
     shaderCanvas.fail(error)
     return
   }
-  const kernel =
-    kernels.find(({ manifest }) =>
-      manifest.resources.some((resource) => resource.name === "image")
-    ) ?? kernels[0]
-  if (kernel) shaderCanvas.load(kernel.manifest, kernel.code)
+  if (kernels.length !== 1) {
+    shaderCanvas.fail("Expected one device module")
+    return
+  }
+  const [module] = kernels
+  shaderCanvas.load(module.manifest, module.code)
 }
 
 interface PlaygroundContextValue {

@@ -1,13 +1,11 @@
+import loadCxx from "cxx-frontend/node";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx, Parser } from "cxx-frontend";
+import { Parser } from "cxx-frontend";
 import * as S from "cxx-frontend/model";
 import { NodePath, traverse, walk } from "cxx-frontend/traverse";
 
-await loadCxx({
-  wasm: await readFile(new URL("../dist/wasm/cxx-js.wasm", import.meta.url)),
-});
+await loadCxx();
 
 const source = `
 namespace outer {

@@ -20,23 +20,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import "zx/globals";
+import { $ } from "zx";
 
-const workspacePath = path.join(__dirname, "../");
+$.verbose = true;
 
-const venvPath = path.join(workspacePath, ".venv");
+const workspacePath = new URL("../", import.meta.url);
 
-const pip = path.join(venvPath, "bin/pip");
-
-const requirements = path.join(
-  workspacePath,
-  "tests/unit_tests/requirements.txt"
-);
-
-await spinner("Setting up virtual environment", async () => {
-  await $`python3 -m venv ${venvPath}`;
-});
-
-await spinner("Installing requirements", async () => {
-  await $`${pip} install -r ${requirements}`;
-});
+await $({ cwd: workspacePath })`uv sync --frozen`;

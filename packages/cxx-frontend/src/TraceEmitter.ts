@@ -32,11 +32,14 @@ import {
   type UnaryOp,
   type TodoKind,
   type Access,
+  type AtomicAccess,
+  type AtomicOperation,
   type BlockRef,
   type CallInfo,
   type CleanupAction,
   type CleanupRegionRef,
   type CleanupTarget,
+  type CompareExchangeAccess,
   type EmitterDelegate,
   type DebugEmitterDelegate,
   type DebugTypeRef,
@@ -57,6 +60,9 @@ import {
   type Initializer,
   type InsertionPoint,
   type InsertionPointRef,
+  type MemoryBarrierInfo,
+  type MemoryRegions,
+  type MemoryScope,
   type ModuleInfo,
   type ModuleRef,
   type ParameterAbi,
@@ -461,12 +467,20 @@ export class TraceEmitter implements EmitterDelegate {
     classType: TypeRef,
     members: readonly TypeRef[],
     isPacked: boolean,
+    alignment: number,
+    padding: readonly number[],
   ): void {
     const info = this.#types.get(classType);
     if (info) info.members = [...members];
     this.#emit(
-      `${this.#typeText(classType)} = ${isPacked ? "packed " : ""}{ ` +
-        members.map((type) => this.#typeText(type)).join(", ") +
+      `${this.#typeText(classType)} = ${isPacked ? "packed " : ""}` +
+        `${alignment ? `align ${alignment} ` : ""}{ ` +
+        members
+          .map(
+            (type, index) =>
+              `${padding.includes(index) ? "padding " : ""}${this.#typeText(type)}`,
+          )
+          .join(", ") +
         " }",
     );
   }
@@ -493,6 +507,8 @@ export class TraceEmitter implements EmitterDelegate {
         return String(value.integer);
       case "Floating":
         return String(value.floating);
+      case "FloatingBits":
+        return `float_bits(0x${value.integer.toString(16)})`;
       case "Bytes":
         return JSON.stringify(String.fromCharCode(...value.bytes));
       case "Aggregate":
@@ -521,6 +537,7 @@ export class TraceEmitter implements EmitterDelegate {
   #isZeroInitializer(value: Initializer): boolean {
     switch (value.kind) {
       case "Integer":
+      case "FloatingBits":
         return value.integer === 0n;
       case "Floating":
         return value.floating === 0;
@@ -685,7 +702,8 @@ export class TraceEmitter implements EmitterDelegate {
     const bitfield = access.bitfield
       ? ` bits [${access.bitfield.bitOffset}, ${access.bitfield.bitWidth}]`
       : "";
-    return `align ${access.alignment}${bitfield}`;
+    const qualifier = access.isVolatile ? " volatile" : "";
+    return `align ${access.alignment}${bitfield}${qualifier}`;
   }
 
   load(
@@ -708,6 +726,101 @@ export class TraceEmitter implements EmitterDelegate {
     access: Access,
   ): void {
     this.#emit(`store %${value} -> %${address} ${this.#accessText(access)}`);
+  }
+
+  allocateWorkgroup(
+    loc: TokenIndex,
+    pointerType: TypeRef,
+    alignment: number,
+  ): ValueRef {
+    return this.#define(pointerType, `workgroup.alloc align ${alignment}`);
+  }
+
+  #atomicText(access: AtomicAccess): string {
+    const qualifier = access.isVolatile ? " volatile" : "";
+    return `${access.order} ${access.scope}${qualifier}`;
+  }
+
+  atomicLoad(
+    loc: TokenIndex,
+    valueType: TypeRef,
+    address: ValueRef,
+    access: AtomicAccess,
+  ): ValueRef {
+    return this.#define(
+      valueType,
+      `atomic.load %${address} ${this.#atomicText(access)}`,
+    );
+  }
+
+  atomicStore(
+    loc: TokenIndex,
+    value: ValueRef,
+    address: ValueRef,
+    access: AtomicAccess,
+  ): void {
+    this.#emit(
+      `atomic.store %${value} -> %${address} ${this.#atomicText(access)}`,
+    );
+  }
+
+  atomicReadModifyWrite(
+    loc: TokenIndex,
+    operation: AtomicOperation,
+    value: ValueRef,
+    address: ValueRef,
+    access: AtomicAccess,
+  ): ValueRef {
+    return this.#define(
+      this.typeOf(value),
+      `atomic.${operation} %${value} -> %${address} ${this.#atomicText(access)}`,
+    );
+  }
+
+  atomicCompareExchange(
+    loc: TokenIndex,
+    address: ValueRef,
+    expected: ValueRef,
+    desired: ValueRef,
+    access: CompareExchangeAccess,
+  ): ValueRef[] {
+    const weak = access.isWeak ? " weak" : "";
+    const qualifier = access.isVolatile ? " volatile" : "";
+    const old = this.#define(
+      this.typeOf(expected),
+      `atomic.cmpxchg %${address}, %${expected}, %${desired} ` +
+        `${access.success} ${access.failure} ${access.scope}${weak}${qualifier}`,
+    );
+    const exchanged = this.#define(
+      this.integerType(1),
+      `atomic.exchanged %${old}`,
+    );
+    return [old, exchanged];
+  }
+
+  #regionsText(regions: MemoryRegions): string {
+    const names = [
+      regions.storage ? "storage" : "",
+      regions.workgroup ? "workgroup" : "",
+    ].filter((name) => name);
+    return names.length ? names.join(", ") : "none";
+  }
+
+  memoryBarrier(loc: TokenIndex, barrier: MemoryBarrierInfo): void {
+    this.#emit(
+      `fence ${barrier.order} ${barrier.scope} ${this.#regionsText(barrier.regions)}`,
+    );
+  }
+
+  controlBarrier(
+    loc: TokenIndex,
+    executionScope: MemoryScope,
+    barrier: MemoryBarrierInfo,
+  ): void {
+    this.#emit(
+      `barrier ${executionScope} ${barrier.order} ${barrier.scope} ` +
+        this.#regionsText(barrier.regions),
+    );
   }
 
   memsetZero(loc: TokenIndex, address: ValueRef, size: number): void {

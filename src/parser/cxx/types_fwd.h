@@ -55,6 +55,7 @@ using ExceptionSpecification = std::variant<bool, ExpressionAST*>;
   V(Float)                                   \
   V(Double)                                  \
   V(LongDouble)                              \
+  V(Half)                                    \
   V(Float16)                                 \
   V(Float128)
 
@@ -183,12 +184,23 @@ struct TypeParamInfo {
 
 struct TypePrintOptions {
   bool omitFunctionReturnType = false;
-  bool sourceSpelling = false;
   Symbol* declarationScope = nullptr;
+  TranslationUnit* unit = nullptr;
 };
 
-auto to_string(const Type* type, const std::string& id = "",
-               TypePrintOptions options = {}) -> std::string;
-auto to_string(const Type* type, const Name* name,
-               TypePrintOptions options = {}) -> std::string;
+[[nodiscard]] auto to_string(const Type* type, const std::string& id = "",
+                             TypePrintOptions options = {}) -> std::string;
+[[nodiscard]] auto to_string(const Type* type, const Name* name,
+                             TypePrintOptions options = {}) -> std::string;
+[[nodiscard]] auto to_pretty_string(const Type* type,
+                                    const std::string& id = "",
+                                    TypePrintOptions options = {})
+    -> std::string;
+[[nodiscard]] auto to_pretty_string(const Type* type, const Name* name,
+                                    TypePrintOptions options = {})
+    -> std::string;
+[[nodiscard]] auto to_diag_string(const Type* type, const std::string& id = "",
+                                  TypePrintOptions options = {}) -> std::string;
+[[nodiscard]] auto to_diag_string(const Type* type, const Name* name,
+                                  TypePrintOptions options = {}) -> std::string;
 }  // namespace cxx

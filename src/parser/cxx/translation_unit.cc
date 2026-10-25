@@ -35,7 +35,6 @@
 
 #include <algorithm>
 #include <limits>
-#include <ostream>
 
 namespace cxx {
 TranslationUnit::TranslationUnit(DiagnosticsClient* diagnosticsClient)

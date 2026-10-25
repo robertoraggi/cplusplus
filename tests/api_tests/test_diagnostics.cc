@@ -26,8 +26,7 @@
 #include <cxx/types.h>
 #include <gtest/gtest.h>
 
-#include <iostream>
-#include <sstream>
+#include <memory>
 
 #include "test_utils.h"
 
@@ -70,13 +69,10 @@ auto reportedText(SourceResolver& resolver,
   DiagnosticsClient client;
   client.setSourceResolver(&resolver);
 
-  std::ostringstream captured;
-  auto* saved = std::cerr.rdbuf(captured.rdbuf());
+  testing::internal::CaptureStderr();
   for (int i = 0; i < repetitions; ++i)
     client.report(token, Severity::Error, "message");
-  std::cerr.rdbuf(saved);
-
-  return captured.str();
+  return testing::internal::GetCapturedStderr();
 }
 
 }  // namespace
@@ -175,4 +171,61 @@ TEST(Snippets, UncapturedRangeHasNoText) {
 
   ASSERT_TRUE(
       source.unit.snippetText({SourceLocation(1), SourceLocation(2)}).empty());
+}
+
+TEST(Diagnostics, DeepCaptureChainForwardsWithoutRecursion) {
+  constexpr int depth = 20000;
+  std::vector<std::unique_ptr<CapturingDiagnosticsClient>> clients;
+  clients.reserve(depth);
+  DiagnosticsClient* parent = nullptr;
+  for (int i = 0; i < depth; ++i) {
+    clients.push_back(std::make_unique<CapturingDiagnosticsClient>(parent));
+    parent = clients.back().get();
+  }
+
+  const auto location = SourceLocation(1);
+  parent->emit(Diagnostic{Severity::Error, Token{}, "message", location});
+
+  for (const auto& client : clients) {
+    EXPECT_EQ(client->errorCount(), 1);
+    EXPECT_TRUE(client->hasErrorAt(location));
+    ASSERT_EQ(client->diagnostics.size(), 1);
+    EXPECT_EQ(client->diagnostics.front().message(), "message");
+  }
+}
+
+TEST(Diagnostics, ForwardingRespectsEachClientsBlockAndLimit) {
+  CapturingDiagnosticsClient outer;
+  CapturingDiagnosticsClient middle{&outer};
+  CapturingDiagnosticsClient inner{&middle};
+  const auto location = SourceLocation(1);
+  const auto error = Diagnostic{Severity::Error, Token{}, "error", location};
+
+  (void)middle.blockErrors(true);
+  inner.emit(error);
+  EXPECT_EQ(inner.errorCount(), 1);
+  EXPECT_EQ(middle.errorCount(), 0);
+  EXPECT_EQ(outer.errorCount(), 0);
+
+  (void)middle.blockErrors(false);
+  middle.setErrorLimit(1);
+  inner.emit(error);
+  inner.emit(error);
+  EXPECT_EQ(inner.errorCount(), 3);
+  EXPECT_EQ(middle.errorCount(), 2);
+  EXPECT_EQ(outer.errorCount(), 1);
+  EXPECT_EQ(inner.diagnostics.size(), 3);
+  EXPECT_EQ(middle.diagnostics.size(), 1);
+  EXPECT_EQ(outer.diagnostics.size(), 1);
+  EXPECT_TRUE(middle.hasErrorAt(location));
+  EXPECT_TRUE(outer.hasErrorAt(location));
+
+  inner.emit(Diagnostic{Severity::Note, Token{}, "note"});
+  inner.emit(Diagnostic{Severity::Warning, Token{}, "warning"});
+  EXPECT_EQ(inner.errorCount(), 3);
+  EXPECT_EQ(middle.errorCount(), 2);
+  EXPECT_EQ(outer.errorCount(), 1);
+  EXPECT_EQ(inner.diagnostics.size(), 5);
+  EXPECT_EQ(middle.diagnostics.size(), 3);
+  EXPECT_EQ(outer.diagnostics.size(), 3);
 }

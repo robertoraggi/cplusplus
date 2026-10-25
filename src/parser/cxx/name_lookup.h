@@ -211,9 +211,14 @@ template <typename Predicate>
 }
 
 [[nodiscard]] auto qualifiedLookupType(Symbol* scopeOrAlias,
-                                       const Identifier* id) -> Symbol*;
+                                       const Identifier* id,
+                                       bool* ambiguous = nullptr,
+                                       NameUse use = NameUse::kOrdinary)
+    -> Symbol*;
 
-[[nodiscard]] auto qualifiedLookupType(ScopeSymbol* scope, const Identifier* id)
+[[nodiscard]] auto qualifiedLookupType(ScopeSymbol* scope, const Identifier* id,
+                                       bool* ambiguous = nullptr,
+                                       NameUse use = NameUse::kOrdinary)
     -> Symbol*;
 
 [[nodiscard]] auto qualifiedLookupNamespace(Symbol* scopeOrAlias,

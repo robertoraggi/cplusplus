@@ -240,8 +240,21 @@ auto MlirEmitter::isZeroConstant(ValueRef ref) -> bool {
   return mlir::isa_and_nonnull<mlir::cxx::ZeroOp>(op);
 }
 auto MlirEmitter::symbolExists(std::string_view name) -> bool {
-  auto module = module_;
-  return module && module.lookupSymbol(llvm::StringRef{name});
+  return lookupSymbol(name) != nullptr;
+}
+
+auto MlirEmitter::lookupSymbol(std::string_view name) -> mlir::Operation* {
+  if (!module_) return nullptr;
+  return symbolTables_.getSymbolTable(module_).lookup(llvm::StringRef{name});
+}
+
+void MlirEmitter::registerSymbol(mlir::Operation* operation) {
+  auto parent = operation->getParentOp();
+  if (!parent || !parent->hasTrait<mlir::OpTrait::SymbolTable>()) return;
+  auto& symbols = symbolTables_.getSymbolTable(parent);
+  auto name = mlir::SymbolTable::getSymbolName(operation);
+  // Leave duplicate declarations for the verifier instead of uniquing names.
+  if (!symbols.lookup(name)) symbols.insert(operation);
 }
 auto MlirEmitter::initializerAttribute(const Initializer& init)
     -> mlir::Attribute {
@@ -268,6 +281,14 @@ auto MlirEmitter::initializerAttribute(const Initializer& init)
       f.convert(t.getFloatSemantics(), llvm::APFloat::rmNearestTiesToEven,
                 &losesInfo);
       return builder_.getFloatAttr(t, f);
+    }
+    case Initializer::Kind::FloatingBits: {
+      auto t = mlir::cast<mlir::FloatType>(type(init.type));
+      auto bits = llvm::APInt{t.getWidth(), init.integer.lowBits()};
+      if (t.getWidth() > 64)
+        bits |= llvm::APInt{t.getWidth(), init.integer.highBits()}.shl(64);
+      return builder_.getFloatAttr(t,
+                                   llvm::APFloat{t.getFloatSemantics(), bits});
     }
     case Initializer::Kind::Bytes:
       return builder_.getStringAttr(init.bytes);
@@ -342,6 +363,7 @@ auto MlirEmitter::constant(SourceLocation loc, TypeRef resultType,
 
     case Initializer::Kind::Integer:
     case Initializer::Kind::Floating:
+    case Initializer::Kind::FloatingBits:
     case Initializer::Kind::Vector:
     case Initializer::Kind::Bytes:
       return wrap(mlir::arith::ConstantOp::create(
@@ -395,7 +417,7 @@ void MlirEmitter::defineVTable(SourceLocation loc, const VTableInfo& info) {
     slots.push_back(builder_.getArrayAttr(tableSlots));
   }
 
-  mlir::cxx::VTableOp::create(
+  auto table = mlir::cxx::VTableOp::create(
       builder_, getLocation(loc), info.name, builder_.getArrayAttr(offsets),
       builder_.getI64ArrayAttr(offsetsToTop),
       info.typeInfo.empty()
@@ -403,6 +425,7 @@ void MlirEmitter::defineVTable(SourceLocation loc, const VTableInfo& info) {
           : mlir::FlatSymbolRefAttr::get(context(), info.typeInfo),
       builder_.getArrayAttr(slots),
       mlir::cxx::LinkageKindAttr::get(context(), toMlir(info.linkage)));
+  registerSymbol(table);
 }
 
 auto MlirEmitter::debug() -> DebugEmitter* {
@@ -709,10 +732,12 @@ auto MlirEmitter::declareClassType(std::string_view name) -> TypeRef {
 
 void MlirEmitter::defineClassType(TypeRef classType,
                                   std::span<const TypeRef> members,
-                                  bool isPacked) {
+                                  bool isPacked, std::uint64_t alignment,
+                                  std::span<const std::uint32_t> padding) {
   auto target = mlir::cast<mlir::cxx::ClassType>(type(classType));
-  if (mlir::failed(
-          target.setBody(types({members.data(), members.size()}), isPacked))) {
+  llvm::SmallVector<unsigned> positions(padding.begin(), padding.end());
+  if (mlir::failed(target.setBody(types({members.data(), members.size()}),
+                                  isPacked, alignment, positions))) {
     llvm::report_fatal_error(llvm::Twine(std::format(
         "conflicting definition of class '{}'", target.getName().str())));
   }
@@ -863,6 +888,7 @@ auto MlirEmitter::enclosingFunctionLocation() -> mlir::Location {
 }
 
 auto MlirEmitter::getLocation(SourceLocation loc) -> mlir::Location {
+  if (!loc) loc = enclosingLocation();
   if (!loc) return mlir::UnknownLoc::get(builder_.getContext());
   auto [filename, line, column] = unit_->tokenStartPosition(loc);
   return mlir::FileLineColLoc::get(builder_.getContext(), filename, line,
@@ -1090,7 +1116,9 @@ auto MlirEmitter::dynamicAllocate(mlir::Location loc, TypeRef pointerType,
 auto MlirEmitter::load(SourceLocation loc, TypeRef valueType, ValueRef address,
                        const Access& access) -> ValueRef {
   if (!access.bitfield)
-    return load(getLocation(loc), valueType, address, access.alignment);
+    return wrap(mlir::cxx::LoadOp::create(builder_, getLocation(loc),
+                                          type(valueType), value(address),
+                                          access.alignment, access.isVolatile));
 
   const auto& field = *access.bitfield;
   return wrap(mlir::cxx::BitfieldLoadOp::create(
@@ -1099,7 +1127,136 @@ auto MlirEmitter::load(SourceLocation loc, TypeRef valueType, ValueRef address,
       builder_.getI32IntegerAttr(field.bitWidth),
       builder_.getI64IntegerAttr(field.storageSize),
       builder_.getI64IntegerAttr(access.alignment),
-      builder_.getBoolAttr(access.isSigned)));
+      builder_.getBoolAttr(access.isSigned), unitAttribute(access.isVolatile)));
+}
+
+auto MlirEmitter::unitAttribute(bool present) -> mlir::UnitAttr {
+  if (!present) return {};
+  return builder_.getUnitAttr();
+}
+
+namespace {
+
+[[nodiscard]] auto toMlir(MemoryOrder order) -> mlir::cxx::MemoryOrder {
+  switch (order) {
+    case MemoryOrder::Relaxed:
+      return mlir::cxx::MemoryOrder::Relaxed;
+    case MemoryOrder::Acquire:
+      return mlir::cxx::MemoryOrder::Acquire;
+    case MemoryOrder::Release:
+      return mlir::cxx::MemoryOrder::Release;
+    case MemoryOrder::AcquireRelease:
+      return mlir::cxx::MemoryOrder::AcquireRelease;
+    case MemoryOrder::SequentiallyConsistent:
+      return mlir::cxx::MemoryOrder::SequentiallyConsistent;
+  }
+  return mlir::cxx::MemoryOrder::SequentiallyConsistent;
+}
+
+[[nodiscard]] auto toMlir(MemoryScope scope) -> mlir::cxx::MemoryScope {
+  switch (scope) {
+    case MemoryScope::System:
+      return mlir::cxx::MemoryScope::System;
+    case MemoryScope::Device:
+      return mlir::cxx::MemoryScope::Device;
+    case MemoryScope::Workgroup:
+      return mlir::cxx::MemoryScope::Workgroup;
+    case MemoryScope::Subgroup:
+      return mlir::cxx::MemoryScope::Subgroup;
+    case MemoryScope::Invocation:
+      return mlir::cxx::MemoryScope::Invocation;
+  }
+  return mlir::cxx::MemoryScope::System;
+}
+
+[[nodiscard]] auto toMlir(AtomicOperation operation)
+    -> mlir::cxx::AtomicRMWKind {
+  switch (operation) {
+    case AtomicOperation::Exchange:
+      return mlir::cxx::AtomicRMWKind::Exchange;
+    case AtomicOperation::Add:
+      return mlir::cxx::AtomicRMWKind::Add;
+    case AtomicOperation::Sub:
+      return mlir::cxx::AtomicRMWKind::Sub;
+    case AtomicOperation::And:
+      return mlir::cxx::AtomicRMWKind::And;
+    case AtomicOperation::Or:
+      return mlir::cxx::AtomicRMWKind::Or;
+    case AtomicOperation::Xor:
+      return mlir::cxx::AtomicRMWKind::Xor;
+    case AtomicOperation::Nand:
+      return mlir::cxx::AtomicRMWKind::Nand;
+  }
+  return mlir::cxx::AtomicRMWKind::Exchange;
+}
+
+[[nodiscard]] auto toMlir(MemoryRegions regions) -> mlir::cxx::MemoryRegions {
+  auto result = mlir::cxx::MemoryRegions::None;
+  if (regions.storage) result = result | mlir::cxx::MemoryRegions::Storage;
+  if (regions.workgroup) result = result | mlir::cxx::MemoryRegions::Workgroup;
+  return result;
+}
+
+}  // namespace
+
+auto MlirEmitter::allocateWorkgroup(SourceLocation loc, TypeRef pointerType,
+                                    std::uint64_t alignment) -> ValueRef {
+  auto guard = mlir::OpBuilder::InsertionGuard(builder_);
+  if (auto entry = enclosingFunctionEntryBlock())
+    builder_.setInsertionPointToStart(entry);
+  return wrap(mlir::cxx::WorkgroupAllocOp::create(
+      builder_, getLocation(loc), type(pointerType), alignment));
+}
+
+auto MlirEmitter::atomicLoad(SourceLocation loc, TypeRef valueType,
+                             ValueRef address, const AtomicAccess& access)
+    -> ValueRef {
+  return wrap(mlir::cxx::AtomicLoadOp::create(
+      builder_, getLocation(loc), type(valueType), value(address),
+      toMlir(access.order), toMlir(access.scope), access.isVolatile));
+}
+
+void MlirEmitter::atomicStore(SourceLocation loc, ValueRef value,
+                              ValueRef address, const AtomicAccess& access) {
+  mlir::cxx::AtomicStoreOp::create(
+      builder_, getLocation(loc), this->value(value), this->value(address),
+      toMlir(access.order), toMlir(access.scope), access.isVolatile);
+}
+
+auto MlirEmitter::atomicReadModifyWrite(SourceLocation loc,
+                                        AtomicOperation operation,
+                                        ValueRef value, ValueRef address,
+                                        const AtomicAccess& access)
+    -> ValueRef {
+  return wrap(mlir::cxx::AtomicRMWOp::create(
+      builder_, getLocation(loc), toMlir(operation), this->value(value),
+      this->value(address), toMlir(access.order), toMlir(access.scope),
+      access.isVolatile));
+}
+
+auto MlirEmitter::atomicCompareExchange(SourceLocation loc, ValueRef address,
+                                        ValueRef expected, ValueRef desired,
+                                        const CompareExchangeAccess& access)
+    -> std::vector<ValueRef> {
+  auto exchange = mlir::cxx::AtomicCompareExchangeOp::create(
+      builder_, getLocation(loc), value(address), value(expected),
+      value(desired), toMlir(access.success), toMlir(access.failure),
+      toMlir(access.scope), access.isWeak, access.isVolatile);
+  return {wrap(exchange.getOld()), wrap(exchange.getExchanged())};
+}
+
+void MlirEmitter::memoryBarrier(SourceLocation loc,
+                                const MemoryBarrierInfo& barrier) {
+  mlir::cxx::AtomicFenceOp::create(builder_, getLocation(loc),
+                                   toMlir(barrier.order), toMlir(barrier.scope),
+                                   toMlir(barrier.regions));
+}
+
+void MlirEmitter::controlBarrier(SourceLocation loc, MemoryScope executionScope,
+                                 const MemoryBarrierInfo& barrier) {
+  mlir::cxx::ControlBarrierOp::create(
+      builder_, getLocation(loc), toMlir(executionScope), toMlir(barrier.scope),
+      toMlir(barrier.order), toMlir(barrier.regions));
 }
 
 auto MlirEmitter::load(mlir::Location loc, TypeRef valueType, ValueRef address,
@@ -1196,7 +1353,9 @@ auto MlirEmitter::addressOfSymbol(mlir::Location loc, TypeRef resultType,
 void MlirEmitter::store(SourceLocation loc, ValueRef value, ValueRef address,
                         const Access& access) {
   if (!access.bitfield) {
-    store(getLocation(loc), value, address, access.alignment);
+    mlir::cxx::StoreOp::create(builder_, getLocation(loc), this->value(value),
+                               this->value(address), access.alignment,
+                               access.isVolatile);
     return;
   }
 
@@ -1206,7 +1365,8 @@ void MlirEmitter::store(SourceLocation loc, ValueRef value, ValueRef address,
       builder_.getI32IntegerAttr(field.bitOffset),
       builder_.getI32IntegerAttr(field.bitWidth),
       builder_.getI64IntegerAttr(field.storageSize),
-      builder_.getI64IntegerAttr(access.alignment));
+      builder_.getI64IntegerAttr(access.alignment),
+      unitAttribute(access.isVolatile));
 }
 
 void MlirEmitter::store(mlir::Location loc, ValueRef value, ValueRef address,
@@ -1363,11 +1523,7 @@ auto MlirEmitter::global(GlobalRef ref) -> mlir::cxx::GlobalOp {
 }
 
 auto MlirEmitter::findFunction(std::string_view name) -> FunctionRef {
-  if (!module_) return {};
-  auto symbol = mlir::SymbolTable::lookupSymbolIn(
-      module_, mlir::StringAttr::get(
-                   context(), mlir::StringRef{name.data(), name.size()}));
-  return wrap(mlir::dyn_cast_or_null<mlir::cxx::FuncOp>(symbol));
+  return wrap(mlir::dyn_cast_or_null<mlir::cxx::FuncOp>(lookupSymbol(name)));
 }
 
 auto MlirEmitter::declareFunction(SourceLocation loc, const FunctionInfo& info)
@@ -1485,6 +1641,7 @@ auto MlirEmitter::declareFunction(mlir::Location loc, const FunctionInfo& info)
     func->setAttr("cxx.kernel_invocation_ids",
                   builder_.getArrayAttr(invocationIds));
   }
+  registerSymbol(func);
   return wrap(func);
 }
 
@@ -1505,11 +1662,7 @@ void MlirEmitter::setFunctionAliasee(FunctionRef ref,
 }
 
 auto MlirEmitter::findGlobal(std::string_view name) -> GlobalRef {
-  if (!module_) return {};
-  auto symbol = mlir::SymbolTable::lookupSymbolIn(
-      module_, mlir::StringAttr::get(
-                   context(), mlir::StringRef{name.data(), name.size()}));
-  return wrap(mlir::dyn_cast_or_null<mlir::cxx::GlobalOp>(symbol));
+  return wrap(mlir::dyn_cast_or_null<mlir::cxx::GlobalOp>(lookupSymbol(name)));
 }
 
 auto MlirEmitter::declareGlobal(SourceLocation loc, const GlobalInfo& info)
@@ -1519,7 +1672,7 @@ auto MlirEmitter::declareGlobal(SourceLocation loc, const GlobalInfo& info)
                                  static_cast<std::int64_t>(info.alignment))
                            : mlir::IntegerAttr{};
 
-  return wrap(mlir::cxx::GlobalOp::create(
+  auto global = mlir::cxx::GlobalOp::create(
       builder_,
       info.unknownLocation ? builder_.getUnknownLoc() : getLocation(loc),
       mlir::TypeRange(), type(info.type), info.isConstant,
@@ -1531,7 +1684,9 @@ auto MlirEmitter::declareGlobal(SourceLocation loc, const GlobalInfo& info)
                            : builder_.getStringAttr(mlir::StringRef{
                                  info.section.data(), info.section.size()}),
       info.addressSpace ? builder_.getI32IntegerAttr(*info.addressSpace)
-                        : mlir::IntegerAttr{}));
+                        : mlir::IntegerAttr{});
+  registerSymbol(global);
+  return wrap(global);
 }
 
 auto MlirEmitter::constantInt(mlir::Location loc, TypeRef typeRef,

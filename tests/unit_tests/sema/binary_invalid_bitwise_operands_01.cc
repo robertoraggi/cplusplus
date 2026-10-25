@@ -2,4 +2,4 @@
 
 struct S {};
 
-auto x = S{} & 1; // expected-error {{invalid operands to binary expression ('::S' and 'int')}}
+auto x = S{} & 1; // expected-error {{invalid operands to binary expression ('S' and 'int')}}

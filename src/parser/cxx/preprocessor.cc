@@ -25,8 +25,10 @@
 #include <cxx/literals.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
+#include <cxx/private/file.h>
 #include <cxx/private/path.h>
 #include <cxx/private/pp_directives-priv.h>
+#include <cxx/private/read_all.h>
 #include <cxx/private/utf8.h>
 #include <cxx/util.h>
 
@@ -35,19 +37,18 @@
 #include <cassert>
 #include <cctype>
 #include <compare>
+#include <cstdio>
 #include <cstring>
 #include <deque>
 #include <filesystem>
 #include <format>
-#include <fstream>
 #include <functional>
-#include <iostream>
+#include <iterator>
 #include <limits>
 #include <map>
 #include <optional>
 #include <ranges>
 #include <set>
-#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <variant>
@@ -1217,9 +1218,10 @@ struct Preprocessor::Private {
 
   void finalizeToken(std::vector<Token>& tokens, const Tok& tk);
 
-  void print(const Tok* begin, const Tok* end, std::ostream& out) const;
-  void printLine(const Tok* begin, const Tok* end, std::ostream& out,
-                 bool nl = true) const;
+  void print(const Tok* begin, const Tok* end,
+             std::format_context::iterator& out) const;
+  [[nodiscard]] auto lineText(const Tok* begin, const Tok* end) const
+      -> std::string;
 };
 
 Preprocessor::Private::Private() {
@@ -2999,17 +3001,13 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
 
     case PreprocessorDirectiveKind::T_ERROR: {
       if (skipping) break;
-      std::ostringstream out;
-      printLine(directiveLine, directiveEnd, out, false);
-      error(directiveLine + 1, std::format("{}", out.str()));
+      error(directiveLine + 1, lineText(directiveLine, directiveEnd));
       break;
     }
 
     case PreprocessorDirectiveKind::T_WARNING: {
       if (skipping) break;
-      std::ostringstream out;
-      printLine(directiveLine, directiveEnd, out, false);
-      warning(directiveLine + 1, std::format("{}", out.str()));
+      warning(directiveLine + 1, lineText(directiveLine, directiveEnd));
       break;
     }
 
@@ -3915,37 +3913,36 @@ static auto needSpace(const Tok* prev, const Tok& current) -> bool {
 }
 
 void Preprocessor::Private::print(const Tok* begin, const Tok* end,
-                                  std::ostream& out) const {
+                                  std::format_context::iterator& out) const {
   bool first = true;
   const Tok* prevTk = nullptr;
   for (auto it = begin; it < end; ++it) {
     auto text = getText(*it);
     if (text.empty()) continue;
     if (it->bol) {
-      out << "\n";
+      out = std::format_to(out, "{}", "\n");
     } else if (!first && needSpace(prevTk, *it)) {
-      out << " ";
+      out = std::format_to(out, "{}", " ");
     }
-    out << text;
+    out = std::format_to(out, "{}", text);
     prevTk = it;
     first = false;
   }
 }
 
-void Preprocessor::Private::printLine(const Tok* begin, const Tok* end,
-                                      std::ostream& out, bool nl) const {
-  bool first = true;
-  const Tok* prevTk = nullptr;
+auto Preprocessor::Private::lineText(const Tok* begin, const Tok* end) const
+    -> std::string {
+  std::string text;
+  const Tok* previous = nullptr;
   for (auto it = begin; it < end; ++it) {
-    auto text = getText(*it);
-    if (text.empty()) continue;
-    if (!first && needSpace(prevTk, *it)) out << " ";
-    out << text;
-    prevTk = it;
-    first = false;
+    auto spelling = getText(*it);
+    if (spelling.empty()) continue;
+    if (previous && needSpace(previous, *it)) text += ' ';
+    text += spelling;
+    previous = it;
     if (it + 1 < end && (it + 1)->bol) break;
   }
-  if (nl) out << "\n";
+  return text;
 }
 
 Preprocessor::Preprocessor(Control* control,
@@ -4160,33 +4157,27 @@ auto Preprocessor::continuePreprocessing(std::vector<Token>& tokens)
   return state;
 }
 
-void Preprocessor::getPreprocessedText(
-    const std::vector<Token>& tokens,
-    const std::vector<std::pair<unsigned, int>>& packChanges,
-    std::ostream& out) const {
-  struct FileEntry {
-    std::uint32_t fileId;
-    bool isSystemHeader;
-  };
-
-  std::vector<FileEntry> fileStack;
-  if (d->mainSourceFileId_) {
-    fileStack.push_back(
-        {static_cast<std::uint32_t>(d->mainSourceFileId_), false});
-  }
+namespace {
+struct PreprocessedTextPrinter {
+  const Preprocessor& self;
+  std::format_context::iterator out;
+  std::vector<std::uint32_t> fileStack;
   std::uint32_t lastFileId = std::numeric_limits<std::uint32_t>::max();
   bool atStartOfLine = true;
+  std::string_view previousSpelling;
+  bool precedingDot = false;
 
-  auto emitLineMarker = [&](const Token& token, std::uint32_t fileId) {
-    if (lastFileId != std::numeric_limits<std::uint32_t>::max()) out << '\n';
-    const auto pos = tokenStartPosition(token);
-    const bool isSys = isSystemHeader(fileId);
+  void emitLineMarker(const Token& token, std::uint32_t fileId) {
+    if (lastFileId != std::numeric_limits<std::uint32_t>::max())
+      out = std::format_to(out, "{}", '\n');
+    const auto pos = self.tokenStartPosition(token);
+    const bool isSys = self.isSystemHeader(fileId);
     std::string flags;
 
-    if (fileStack.empty() || fileStack.back().fileId != fileId) {
+    if (fileStack.empty() || fileStack.back() != fileId) {
       bool returning = false;
       for (int i = static_cast<int>(fileStack.size()) - 1; i >= 0; --i) {
-        if (fileStack[i].fileId == fileId) {
+        if (fileStack[i] == fileId) {
           fileStack.resize(i + 1);
           returning = true;
           break;
@@ -4196,81 +4187,97 @@ void Preprocessor::getPreprocessedText(
         flags += " 2";
       } else {
         flags += " 1";
-        fileStack.push_back({fileId, isSys});
+        fileStack.push_back(fileId);
       }
     }
 
     if (isSys) flags += " 3";
-    out << std::format("# {} \"{}\"{}\n", pos.line, pos.fileName, flags);
+    out = std::format_to(out, "# {} \"{}\"{}\n", pos.line, pos.fileName, flags);
     lastFileId = fileId;
     atStartOfLine = true;
-  };
-
-  std::string_view previousSpelling;
-  bool precedingDot = false;
-
-  auto emitTokenSpacing = [&](const Token& token, std::string_view spelling) {
+  }
+  void emitTokenSpacing(const Token& token, std::string_view spelling) {
     if (token.startOfLine()) {
-      if (!atStartOfLine) out << '\n';
+      if (!atStartOfLine) out = std::format_to(out, "{}", '\n');
       atStartOfLine = true;
       return;
     }
     if (atStartOfLine) return;
     if (token.leadingSpace() ||
-        needsTokenSeparator(previousSpelling, spelling, d->language_,
+        needsTokenSeparator(previousSpelling, spelling, self.language(),
                             precedingDot)) {
-      out << ' ';
+      out = std::format_to(out, "{}", ' ');
     }
-  };
-
-  auto emitColumnPadding = [&](const Token& token) {
+  }
+  void emitColumnPadding(const Token& token) {
     if (!atStartOfLine) return;
-    const auto pos = tokenStartPosition(token);
+    const auto pos = self.tokenStartPosition(token);
     if (pos.column > 0) {
-      for (std::uint32_t i = 0; i < pos.column - 1; ++i) out << ' ';
+      out = std::format_to(out, "{:{}}", "", pos.column - 1);
     }
     atStartOfLine = false;
-  };
-
-  auto nextPackChange = packChanges.begin();
-
-  std::size_t index = 1;
-  while (index + 1 < tokens.size()) {
-    const auto& token = tokens[index++];
-
-    while (nextPackChange != packChanges.end() &&
-           nextPackChange->first < index) {
-      if (nextPackChange->second)
-        out << std::format("\n#pragma pack({})\n", nextPackChange->second);
-      else
-        out << "\n#pragma pack()\n";
-      atStartOfLine = true;
-      ++nextPackChange;
-    }
-    if (d->builtinsFileId_ && token.fileId() == d->builtinsFileId_) continue;
-
-    std::string_view spelling = token.spell();
-    if (token.is(TokenKind::T_GREATER) &&
-        token.value().tokenKindValue == TokenKind::T_GREATER_GREATER) {
-      spelling = Token::spell(TokenKind::T_GREATER_GREATER);
-      ++index;
-    }
-
-    const auto fileId = token.fileId();
-    if (!d->omitLineMarkers_ && fileId && fileId != lastFileId) {
-      emitLineMarker(token, fileId);
-    } else {
-      emitTokenSpacing(token, spelling);
-    }
-
-    emitColumnPadding(token);
-
-    out << spelling;
-    precedingDot = previousSpelling == ".";
-    previousSpelling = spelling;
   }
+  auto print(const std::vector<Token>& tokens,
+             const std::vector<std::pair<unsigned, int>>& packChanges)
+      -> std::format_context::iterator {
+    if (self.mainSourceFileId())
+      fileStack.push_back(static_cast<std::uint32_t>(self.mainSourceFileId()));
 
-  out << '\n';
+    auto nextPackChange = packChanges.begin();
+
+    std::size_t index = 1;
+    while (index + 1 < tokens.size()) {
+      const auto& token = tokens[index++];
+
+      while (nextPackChange != packChanges.end() &&
+             nextPackChange->first < index) {
+        if (nextPackChange->second)
+          out = std::format_to(out, "\n#pragma pack({})\n",
+                               nextPackChange->second);
+        else
+          out = std::format_to(out, "{}", "\n#pragma pack()\n");
+        atStartOfLine = true;
+        ++nextPackChange;
+      }
+      if (self.builtinsFileId() && token.fileId() == self.builtinsFileId())
+        continue;
+
+      std::string_view spelling = token.spell();
+      if (token.is(TokenKind::T_GREATER) &&
+          token.value().tokenKindValue == TokenKind::T_GREATER_GREATER) {
+        spelling = Token::spell(TokenKind::T_GREATER_GREATER);
+        ++index;
+      }
+
+      const auto fileId = token.fileId();
+      if (!self.omitLineMarkers() && fileId && fileId != lastFileId) {
+        emitLineMarker(token, fileId);
+      } else {
+        emitTokenSpacing(token, spelling);
+      }
+
+      emitColumnPadding(token);
+
+      out = std::format_to(out, "{}", spelling);
+      precedingDot = previousSpelling == ".";
+      previousSpelling = spelling;
+    }
+
+    out = std::format_to(out, "{}", '\n');
+    return out;
+  }
+};
+}  // namespace
+
+auto Preprocessor::preprocessedText(
+    const std::vector<Token>& tokens,
+    const std::vector<std::pair<unsigned, int>>& packChanges) const -> Text {
+  return {*this, tokens, packChanges};
+}
+
+auto Preprocessor::Text::formatTo(std::format_context::iterator out) const
+    -> std::format_context::iterator {
+  return PreprocessedTextPrinter{preprocessor, out}.print(tokens, packChanges);
 }
 
 auto Preprocessor::systemIncludePaths() const
@@ -4522,51 +4529,54 @@ void Preprocessor::undefMacro(const std::string& name) {
   if (it != d->macros_.end()) d->macros_.erase(it);
 }
 
-void Preprocessor::printMacros(std::ostream& out) const {
+auto Preprocessor::macros() const -> Macros { return {*this}; }
+
+auto Preprocessor::Macros::formatTo(std::format_context::iterator out) const
+    -> std::format_context::iterator {
   struct {
     const Preprocessor& self;
-    std::ostream& out;
+    std::format_context::iterator& out;
 
     void operator()(const FunctionMacro& macro) {
-      out << std::format("#define {}", macro.name);
-      out << "(";
+      out = std::format_to(out, "#define {}", macro.name);
+      out = std::format_to(out, "{}", "(");
       for (std::size_t i = 0; i < macro.formals.size(); ++i) {
-        if (i > 0) out << ",";
-        out << macro.formals[i];
+        if (i > 0) out = std::format_to(out, "{}", ",");
+        out = std::format_to(out, "{}", macro.formals[i]);
       }
       if (macro.variadic) {
-        if (!macro.formals.empty()) out << ",";
-        out << "...";
+        if (!macro.formals.empty()) out = std::format_to(out, "{}", ",");
+        out = std::format_to(out, "{}", "...");
       }
-      out << ")";
+      out = std::format_to(out, "{}", ")");
       if (!macro.body.empty()) {
-        out << " ";
+        out = std::format_to(out, "{}", " ");
         auto d = self.d.get();
         d->print(macro.body.data(), macro.body.data() + macro.body.size(), out);
       }
-      out << "\n";
+      out = std::format_to(out, "{}", "\n");
     }
 
     void operator()(const ObjectMacro& macro) {
-      out << std::format("#define {}", macro.name);
+      out = std::format_to(out, "#define {}", macro.name);
       if (!macro.body.empty()) {
-        out << " ";
+        out = std::format_to(out, "{}", " ");
         auto d = self.d.get();
         d->print(macro.body.data(), macro.body.data() + macro.body.size(), out);
       }
-      out << "\n";
+      out = std::format_to(out, "{}", "\n");
     }
 
     void operator()(const BuiltinObjectMacro&) {}
     void operator()(const BuiltinFunctionMacro&) {}
 
-  } printMacro{*this, out};
+  } printMacro{preprocessor, out};
 
-  for (const auto& [name, macro] : d->macros_) {
+  for (const auto& [name, macro] : preprocessor.d->macros_) {
     std::visit(printMacro, macro);
   }
+  return printMacro.out;
 }
-
 auto Preprocessor::sources() const -> std::vector<Source> {
   std::vector<Source> sources;
   for (const auto& sourceFile : d->sourceFiles_) {
@@ -4760,22 +4770,12 @@ void DefaultPreprocessorState::operator()(const PendingHasIncludes& status) {
 }
 
 void DefaultPreprocessorState::operator()(const PendingFileContent& request) {
-  std::ifstream in(request.fileName, std::ios::binary | std::ios::ate);
-  if (!in) {
+  detail::File file(std::fopen(request.fileName.c_str(), "rb"));
+  if (!file) {
     request.setContent(std::nullopt);
     return;
   }
-
-  auto size = in.tellg();
-  if (size <= 0) {
-    request.setContent(std::string{});
-    return;
-  }
-
-  std::string content(static_cast<std::size_t>(size), '\0');
-  in.seekg(0);
-  in.read(content.data(), size);
-  request.setContent(std::move(content));
+  request.setContent(detail::readAll(file.get()));
 }
 
 void DefaultPreprocessorState::operator()(

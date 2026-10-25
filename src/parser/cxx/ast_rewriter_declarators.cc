@@ -447,10 +447,14 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
 
   if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol);
       fieldSymbol && classBodyDepth_ > 0) {
+    auto patternField = symbol_cast<FieldSymbol>(ast->symbol);
+    const auto hasInitializer =
+        ast->initializer || (patternField && patternField->hasInitializer());
+
     if (!fieldSymbol->isStatic()) {
       addSymbolRemap(ast->symbol, copy->symbol);
 
-      if (ast->initializer) {
+      if (hasInitializer) {
         if (initializerCompletesDeclaredType(
                 fieldSymbol, declSpecs.typeSpecifier(), binder_.scope())) {
           pendingFieldInitializers_.push_back({ast, copy, binder_.scope()});
@@ -464,7 +468,7 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
     }
 
     const auto canDeferInitializer =
-        ast->initializer &&
+        hasInitializer &&
         !initializerCompletesDeclaredType(
             fieldSymbol, declSpecs.typeSpecifier(), binder_.scope()) &&
         !isEnclosedInDependentTemplate(unit_, binder_.scope(),

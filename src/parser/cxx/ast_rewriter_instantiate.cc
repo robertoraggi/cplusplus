@@ -58,11 +58,14 @@ class InstantiationDepthGuard {
 
 [[nodiscard]] auto outOfClassDefinitionOf(FunctionSymbol* member)
     -> FunctionSymbol* {
-  auto definition = symbol_cast<FunctionSymbol>(member->definition());
-  if (!definition || definition == member) return nullptr;
-  if (!ast_cast<FunctionDefinitionAST>(definition->declaration()))
-    return nullptr;
-  return definition;
+  for (auto pattern = member; pattern;
+       pattern = symbol_cast<FunctionSymbol>(pattern->instantiationPattern())) {
+    auto definition = symbol_cast<FunctionSymbol>(pattern->definition());
+    if (!definition || definition == pattern) continue;
+    if (ast_cast<FunctionDefinitionAST>(definition->declaration()))
+      return definition;
+  }
+  return nullptr;
 }
 
 [[nodiscard]] auto isPrimaryTemplate(
@@ -120,8 +123,8 @@ class InstantiationDepthGuard {
     TranslationUnit* unit, Symbol* primaryTemplate,
     const std::vector<TemplateArgument>& templateArguments) -> std::string {
   if (!primaryTemplate) return "template";
-  return to_string(unit->control()->getTemplateId(primaryTemplate->name(),
-                                                  templateArguments));
+  return to_diag_string(unit->control()->getTemplateId(primaryTemplate->name(),
+                                                       templateArguments));
 }
 
 [[nodiscard]] auto instantiationLabel(Symbol* symbol) -> std::string_view {
@@ -742,7 +745,7 @@ auto ASTRewriter::instantiate(
         "recursive template instantiation exceeded maximum depth "
         "of {} while instantiating '{}'",
         TranslationUnit::kMaxTemplateInstantiationDepth,
-        to_string(symbol->name()));
+        to_diag_string(symbol->name()));
 
     if (auto client = unit->reportingDiagnosticsClient();
         client && unit->diagnosticsClient() &&
@@ -991,7 +994,8 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
   if (classSymbol->resolvedDefinition()->isComplete()) return true;
   if (auto memberPattern =
           symbol_cast<ClassSymbol>(classSymbol->instantiationPattern());
-      memberPattern && !classSymbol->isSpecialization()) {
+      memberPattern &&
+      (!classSymbol->isSpecialization() || classSymbol->isTemplatePattern())) {
     auto pattern = memberPattern->resolvedDefinition();
     auto declaration = ast_cast<ClassSpecifierAST>(pattern->declaration());
     if (!declaration) return false;
@@ -1004,14 +1008,18 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
     rewriter.depth_ = classSymbol->instantiationSubstitutionDepth();
     rewriter.inheritEnclosingTemplateArguments(classSymbol->parent());
     rewriter.classInstanceToComplete_ = classSymbol;
-    rewriter.binder_.setInstantiatingSymbol(pattern);
+    rewriter.binder_.setInstantiatingSymbol(
+        classSymbol->isTemplatePattern() ? pattern->enclosingClass() : pattern);
     for (auto oldScope = pattern->parent(), newScope = classSymbol->parent();
          oldScope && newScope && oldScope->isClass() && newScope->isClass();
          oldScope = oldScope->parent(), newScope = newScope->parent()) {
       rewriter.remapScopeMembers(oldScope, newScope);
     }
     rewriter.addSymbolRemap(pattern, classSymbol);
-    rewriter.specifier(declaration);
+    if (classSymbol->isTemplatePattern())
+      rewriter.declaration(pattern->templateDeclaration());
+    else
+      rewriter.specifier(declaration);
     rewriter.instantiateOutOfClassMemberDefinitions(pattern, classSymbol);
     return classSymbol->isComplete();
   }
@@ -1020,6 +1028,10 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
   auto primaryTemplate = classSymbol->primaryTemplateSymbol();
   if (!primaryTemplate) return false;
 
+  if (primaryTemplate->isTemplatePattern() &&
+      primaryTemplate->instantiationPattern()) {
+    (void)ensureCompleteClass(unit, primaryTemplate);
+  }
   auto templateDefinition = primaryTemplate->resolvedDefinition();
   const bool hasPrimaryDefinition =
       ast_cast<ClassSpecifierAST>(templateDefinition->declaration()) != nullptr;
@@ -1045,7 +1057,12 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
   if (!result) return false;
 
   auto resultClass = symbol_cast<ClassSymbol>(result);
-  if (!resultClass || !resultClass->isComplete()) return false;
+  if (!resultClass) return false;
+  if (!resultClass->isComplete()) {
+    primaryTemplate->setPendingInstantiation(classSymbol, pendingArgList,
+                                             pendingLoc, true);
+    return false;
+  }
 
   if (resultClass != classSymbol) {
     classSymbol->addRedeclaration(resultClass);
@@ -1087,8 +1104,10 @@ struct ASTRewriter::OutOfClassMemberDefinitions {
   void instantiate() {
     attachMemberDefinitions();
 
-    for (auto memberClass : pattern->members() | views::classes)
+    for (auto memberClass : pattern->members() | views::classes) {
       instantiateMemberClassDefinition(memberClass);
+      instantiateMemberClassSpecializations(memberClass);
+    }
 
     for (auto member : pattern->members()) {
       if (auto field = symbol_cast<FieldSymbol>(member))
@@ -1157,6 +1176,28 @@ struct ASTRewriter::OutOfClassMemberDefinitions {
     if (!declaration) return;
     instantiateDefinition(definition, definition, declaration,
                           templateDecl->depth);
+  }
+
+  void instantiateMemberClassSpecializations(ClassSymbol* memberClass) {
+    if (!classTemplateDecl) return;
+    auto instance = symbol_cast<ClassSymbol>(rewrite.remapSymbol(memberClass));
+    if (!instance || instance == memberClass) return;
+    for (const auto& specialization :
+         memberClass->declaredSpecializations(rewrite.unit_->timeTrace())) {
+      auto partial = symbol_cast<ClassSymbol>(specialization.symbol);
+      if (!partial) continue;
+      partial = partial->resolvedDefinition();
+      auto declaration = partial->templateDeclaration();
+      if (!declaration || !declaration->templateParameterList) continue;
+      const auto instantiated = std::ranges::any_of(
+          instance->declaredSpecializations(rewrite.unit_->timeTrace()),
+          [partial](const TemplateSpecialization& entry) {
+            return entry.symbol->canonical()->instantiationPattern() == partial;
+          });
+      if (instantiated) continue;
+      instantiateDefinition(pattern, partial, declaration,
+                            classTemplateDecl->depth);
+    }
   }
 
   [[nodiscard]] auto outOfClassMemberClassTemplateDefinition(
@@ -1356,7 +1397,8 @@ void ASTRewriter::notePendingBodyInstantiation(TranslationUnit* unit,
           client, location, Severity::Note,
           std::format(
               "in instantiation of member function '{}::{}' requested here",
-              to_string(classSymbol->type()), to_string(function->name())));
+              to_diag_string(classSymbol->type()),
+              to_diag_string(function->name())));
     }
     function = caller;
   }

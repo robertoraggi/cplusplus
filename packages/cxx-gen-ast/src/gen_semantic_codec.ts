@@ -38,9 +38,54 @@ function constAlternativesOf(plan: CodecPlan): Wire[] {
 }
 
 function sharedConstKindsOf(plan: CodecPlan): string[] {
-  return constAlternativesOf(plan)
-    .filter((alternative) => alternative.k === "shared")
-    .map((alternative) => alternative.cpp);
+  const kinds = new Set(
+    constAlternativesOf(plan)
+      .filter((alternative) => alternative.k === "shared")
+      .map((alternative) => alternative.cpp),
+  );
+  for (const entity of [
+    ...plan.names,
+    ...plan.types,
+    ...plan.symbols,
+    ...plan.symbolBases,
+    ...plan.nodes,
+    ...plan.nodeBases,
+    ...plan.structs,
+  ]) {
+    for (const field of entity.fields)
+      if (field.wire) collectSharedKinds(field.wire, kinds);
+  }
+  return [...kinds];
+}
+
+function collectSharedKinds(wire: Wire, kinds: Set<string>): void {
+  switch (wire.k) {
+    case "shared":
+      kinds.add(wire.cpp);
+      break;
+    case "unique":
+    case "optional":
+    case "vector":
+    case "deque":
+      collectSharedKinds(wire.element, kinds);
+      break;
+    case "pair":
+      collectSharedKinds(wire.first, kinds);
+      collectSharedKinds(wire.second, kinds);
+      break;
+    case "map":
+      collectSharedKinds(wire.key, kinds);
+      collectSharedKinds(wire.value, kinds);
+      break;
+    case "tuple":
+      for (const element of wire.elements) collectSharedKinds(element, kinds);
+      break;
+    case "variant":
+    case "const-value":
+      for (const alternative of wire.alternatives)
+        collectSharedKinds(alternative, kinds);
+      break;
+  }
 }
 
 export function gen_semantic_codec({

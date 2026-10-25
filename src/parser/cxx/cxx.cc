@@ -20,9 +20,10 @@
 
 #include <cxx/cxx_fwd.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <format>
-#include <iostream>
+#include <print>
 
 #if __cpp_exceptions
 #include <stdexcept>
@@ -34,7 +35,7 @@ namespace cxx {
 #if __cpp_exceptions
   throw std::runtime_error(msg);
 #else
-  std::cerr << std::format("cxx_runtime_error: {}\n", msg);
+  std::print(stderr, "cxx_runtime_error: {}\n", msg);
   std::abort();
 #endif
 }

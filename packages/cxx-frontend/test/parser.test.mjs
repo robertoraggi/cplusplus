@@ -1,14 +1,11 @@
+import loadCxx from "cxx-frontend/node";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { loadCxx, Parser, Token } from "cxx-frontend";
+import { Parser, Token } from "cxx-frontend";
 import { walk } from "cxx-frontend/traverse";
 
-const wasm = await readFile(
-  new URL("../dist/wasm/cxx-js.wasm", import.meta.url),
-);
-
-await loadCxx({ wasm });
+await loadCxx();
 
 const files = new Map([
   ["/quote/quote-only.h", "#define QUOTE_HEADER 1\n"],
@@ -87,6 +84,26 @@ test("Parser.parse configures preprocessing and debug information", async () => 
     assert.match(parserWithDebugInfo.emitCode({ format: "mlir" }), /\bloc\(/);
   } finally {
     parserWithDebugInfo.dispose();
+  }
+});
+
+test("virtual appdirs keep header resolution in the supplied filesystem", async () => {
+  for (let i = 0; i < 4; ++i) {
+    const root = `/virtual-${i}`;
+    const header = `${root}/lib/cxx/include/probe.h`;
+    const requested = [];
+    await using parser = await Parser.parse({
+      source: "#include <probe.h>\nstatic_assert(PROBE == 42);",
+      path: `${root}/source.cc`,
+      appdir: `${root}/bin`,
+      exists: (path) => path === header,
+      readFile: async (path) => {
+        requested.push(path);
+        return path === header ? "#define PROBE 42\n" : undefined;
+      },
+    });
+    assert.deepEqual(parser.diagnostics, []);
+    assert.deepEqual(requested, [header]);
   }
 });
 
@@ -423,12 +440,95 @@ test("Parser emits the selected MLIR pipeline in every output format", async () 
   }
 });
 
+test("Parser verifies nullptr equality through the MLIR pipeline", async () => {
+  const source =
+    "bool equal(decltype(nullptr) a, decltype(nullptr) b) { return a == b; }";
+  for (const mlirPipeline of [
+    "",
+    "convert-cxx-to-memref,mem2reg,canonicalize,cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-ptr",
+  ]) {
+    await using parser = await Parser.parse({
+      path: "/nullptr.cc",
+      source,
+      debugInfo: false,
+      mlirPipeline,
+    });
+    assert.deepEqual(parser.diagnostics, []);
+    assert.match(parser.emitCode({ format: "mlir" }), /llvm.func/);
+    assert.match(parser.emitCode({ format: "cxxir" }), /arith.constant true/);
+    assert.match(parser.emitCode({ format: "llvm" }), /define i1.*equal/);
+    assert.ok(WebAssembly.validate(parser.emitCode({ format: "obj" })));
+  }
+});
+
+test("Parser emits module assembly after function definitions", async () => {
+  await using parser = await Parser.parse({
+    path: "/module-asm.cc",
+    source:
+      'int before() { return 1; } asm("nop"); int after() { return before(); }',
+    debugInfo: true,
+    mlirPipeline:
+      "convert-cxx-to-memref,mem2reg,canonicalize,cxx.func(cxx-lift-cf-to-scf),convert-cxx-to-ptr",
+  });
+  assert.deepEqual(parser.diagnostics, []);
+  assert.match(parser.emitCode({ format: "cxxir" }), /cxx.module_asm "nop"/);
+  assert.match(parser.emitCode({ format: "mlir" }), /llvm.func/);
+  assert.match(parser.emitCode({ format: "llvm" }), /module asm\s+"nop"/);
+});
+
+test("Parser emits fixed-array MemRef pipelines for every dialect selection", async () => {
+  const source =
+    "int choose(int* p, int n) { int a[4] = {11, 22, 33, 44}; if (n > 0) return a[n] + p[1]; return a[0] + p[0]; }";
+  for (const useMemRef of [false, true]) {
+    for (const useSCF of [false, true]) {
+      for (const usePtr of [false, true]) {
+        const passes = [];
+        if (useMemRef) passes.push("convert-cxx-to-memref");
+        if (useSCF) passes.push("cxx.func(cxx-lift-cf-to-scf)");
+        if (usePtr) passes.push("convert-cxx-to-ptr");
+        if (useMemRef && !useSCF) passes.push("convert-scf-to-cf");
+        await using parser = await Parser.parse({
+          path: "/array-pipeline.cc",
+          source,
+          debugInfo: false,
+          mlirPipeline: passes.join(","),
+        });
+        assert.deepEqual(parser.diagnostics, []);
+        const ir = parser.emitCode({ format: "cxxir" });
+        assert.equal(
+          /memref<4xi32(?:, #ptr.generic_space)?>/.test(ir),
+          useMemRef,
+          ir,
+        );
+        assert.equal(/\bscf\./.test(ir), useSCF, ir);
+        assert.equal(/\bptr\.load\b/.test(ir), usePtr, ir);
+        const lowered = parser.emitCode({ format: "mlir" });
+        assert.match(lowered, /llvm.func/);
+        assert.doesNotMatch(lowered, /\b(?:memref\.|scf\.|ptr\.load)/);
+        const llvm = parser.emitCode({ format: "llvm" });
+        assert.match(llvm, /define.*choose/);
+        if (useMemRef) assert.match(llvm, /getelementptr.*i32/);
+        assert.match(parser.emitCode({ format: "asm" }), /choose/);
+        assert.ok(WebAssembly.validate(parser.emitCode({ format: "obj" })));
+      }
+    }
+  }
+});
+
 test("Parser reports an invalid MLIR pipeline", async () => {
   const parser = await Parser.parse({
     path: "/pipeline.cc",
     source: "int answer() { return 42; }",
     mlirPipeline: "unknown-pass",
   });
+  const stderr = [];
+  const write = process.stderr.write;
+  process.stderr.write = (chunk, encoding, callback) => {
+    stderr.push(String(chunk));
+    if (typeof encoding === "function") encoding();
+    else callback?.();
+    return true;
+  };
   try {
     assert.equal(
       parser.emitCode({ format: "cxxir" }),
@@ -436,6 +536,8 @@ test("Parser reports an invalid MLIR pipeline", async () => {
     );
     assert.equal(parser.emitCode({ format: "obj" }).length, 0);
   } finally {
+    process.stderr.write = write;
     parser.dispose();
   }
+  assert.deepEqual(stderr, []);
 });

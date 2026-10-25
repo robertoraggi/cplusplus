@@ -40,12 +40,6 @@ class Arena;
 class Control;
 class TranslationUnit;
 
-struct ImplicitObjectArgument {
-  const Type* type = nullptr;
-  CvQualifiers cv = CvQualifiers::kNone;
-  ValueCategory valueCategory = ValueCategory::kPrValue;
-};
-
 struct DeductionCandidateInfo {
   bool fromDeductionGuide = false;
   bool isCopyDeductionCandidate = false;
@@ -106,7 +100,9 @@ struct FailedArgumentConversion {
 using CandidateRejection =
     std::variant<std::string, ArgumentCountMismatch, FailedArgumentConversion>;
 
-[[nodiscard]] auto to_string(const CandidateRejection& rejection)
+[[nodiscard]] auto to_diag_string(const CandidateRejection& rejection,
+                                  TypePrintOptions sourceOptions = {},
+                                  Symbol* candidateScope = nullptr)
     -> std::string;
 
 struct RejectedCandidate {
@@ -197,16 +193,16 @@ class OverloadResolution {
 
   explicit OverloadResolution(TranslationUnit* unit);
 
-  [[nodiscard]] auto computeImplicitConversionSequence(ExpressionAST* expr,
-                                                       const Type* targetType)
-      -> ImplicitConversionSequence;
+  [[nodiscard]] auto computeImplicitConversionSequence(
+      ExpressionAST* expr, const Type* targetType,
+      FunctionSymbol* function = nullptr) -> ImplicitConversionSequence;
 
   void applyImplicitConversion(const ImplicitConversionSequence& sequence,
                                ExpressionAST*& expr);
 
-  [[nodiscard]] auto implicitObjectArgumentConversion(
-      FunctionSymbol* function, const ImplicitObjectArgument& object,
-      ScopeSymbol* lookupScope)
+  [[nodiscard]] auto implicitObjectArgumentConversion(FunctionSymbol* function,
+                                                      ExpressionAST* object,
+                                                      ScopeSymbol* lookupScope)
       -> std::expected<ImplicitConversionSequence, std::string>;
 
   [[nodiscard]] auto selectBestViableFunction(
@@ -301,9 +297,10 @@ class OverloadResolution {
   [[nodiscard]] auto compareInheritedConstructors(const Candidate& lhs,
                                                   const Candidate& rhs) -> int;
 
-  [[nodiscard]] auto implicitObjectParameterClass(
-      FunctionSymbol* function, const ImplicitObjectArgument& object,
-      ScopeSymbol* lookupScope) -> const Type*;
+  [[nodiscard]] auto implicitObjectParameterClass(FunctionSymbol* function,
+                                                  const Type* objectType,
+                                                  ScopeSymbol* lookupScope)
+      -> const Type*;
 
   [[nodiscard]] auto resolveConstructor(ClassSymbol* classSymbol,
                                         const std::vector<ExpressionAST*>& args,

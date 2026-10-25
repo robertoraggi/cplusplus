@@ -74,21 +74,6 @@ class ExpressionListBuilder {
                                         ExpressionAST* initializer)
     -> BracedInitListAST*;
 
-auto makeClassConstruction(TranslationUnit* unit, const Type* type,
-                           FunctionSymbol* constructor,
-                           BracedInitListAST* arguments)
-    -> BracedTypeConstructionAST* {
-  auto specifier = NamedTypeSpecifierAST::create(unit->arena());
-  specifier->symbol = unit->control()->getTypeArgumentSymbol(type);
-  auto construction = BracedTypeConstructionAST::create(unit->arena());
-  construction->typeSpecifier = specifier;
-  construction->bracedInitList = arguments;
-  construction->constructorSymbol = constructor;
-  construction->type = type;
-  construction->valueCategory = ValueCategory::kPrValue;
-  return construction;
-}
-
 [[nodiscard]] auto stripInitializerWrappers(ExpressionAST* node)
     -> ExpressionAST* {
   auto expr = stripImplicitCasts(node);
@@ -145,6 +130,28 @@ void prepareInitializerList(Arena* arena, ExpressionAST* initializer) {
       make_list_node<ExpressionAST>(arena, Initializer{initializer}.clause());
   return arguments;
 }
+
+}  // namespace
+
+[[nodiscard]] auto makeClassConstruction(TranslationUnit* unit,
+                                         const Type* type,
+                                         FunctionSymbol* constructor,
+                                         ExpressionAST* initializer)
+    -> BracedTypeConstructionAST* {
+  auto arguments = Initializer{initializer}.bracedInitList();
+  if (!arguments) arguments = constructorArguments(unit->arena(), initializer);
+  auto specifier = NamedTypeSpecifierAST::create(unit->arena());
+  specifier->symbol = unit->control()->getTypeArgumentSymbol(type);
+  auto construction = BracedTypeConstructionAST::create(unit->arena());
+  construction->typeSpecifier = specifier;
+  construction->bracedInitList = arguments;
+  construction->constructorSymbol = constructor;
+  construction->type = type;
+  construction->valueCategory = ValueCategory::kPrValue;
+  return construction;
+}
+
+namespace {
 
 class InitializerOperand {
  public:
@@ -246,6 +253,7 @@ struct InitializationSequence {
   InitializationFailure failure = InitializationFailure::kNone;
   InitializationKind kind = InitializationKind::kCopyInitialization;
   FunctionSymbol* constructor = nullptr;
+  InitializationStatus status = InitializationStatus::kComplete;
 
   [[nodiscard]] explicit operator bool() const {
     return failure == InitializationFailure::kNone &&
@@ -318,11 +326,14 @@ struct AggregateInitGuard {
   if (!init) return false;
 
   if (!init->compatible) {
-    ctx.error(source->firstSourceLocation(),
-              std::format("cannot initialize an array of '{}' with a string "
-                          "literal of element type '{}'",
-                          to_string(init->destinationElementType),
-                          to_string(init->sourceElementType)));
+    ctx.error(
+        source->firstSourceLocation(),
+        std::format("cannot initialize an array of '{}' with a string "
+                    "literal of element type '{}'",
+                    to_diag_string(init->destinationElementType, "",
+                                   ctx.checker.diagnosticPrintOptions()),
+                    to_diag_string(init->sourceElementType, "",
+                                   ctx.checker.diagnosticPrintOptions())));
     return true;
   }
 
@@ -448,11 +459,15 @@ void ElementInitChecker::initializeElement(
     return;
   }
 
-  check(expr, type,
-        std::format("cannot initialize {} of type '{}' with "
-                    "expression of type '{}'",
-                    description, to_string(type), to_string(expr->type)),
-        initializationKind);
+  check(
+      expr, type,
+      std::format(
+          "cannot initialize {} of type '{}' with "
+          "expression of type '{}'",
+          description,
+          to_diag_string(type, "", ctx.checker.diagnosticPrintOptions()),
+          to_diag_string(expr->type, "", ctx.checker.diagnosticPrintOptions())),
+      initializationKind);
 }
 
 void ElementInitChecker::checkInitializerList(const Type* type,
@@ -476,16 +491,20 @@ void ElementInitChecker::checkInitializerList(const Type* type,
 }
 
 [[nodiscard]] auto describeAggregateElement(const TypeTraits& traits,
-                                            Symbol* element) -> std::string {
+                                            Symbol* element,
+                                            TypePrintOptions options = {})
+    -> std::string {
   if (!element) return "array element";
   if (auto field = symbol_cast<FieldSymbol>(element)) {
     if (field->name())
-      return std::format("member '{}'", to_string(field->name()));
-    return std::format("anonymous member of type '{}'",
-                       to_string(traits.aggregate_element_type(element)));
+      return std::format("member '{}'", to_diag_string(field->name()));
+    return std::format(
+        "anonymous member of type '{}'",
+        to_diag_string(traits.aggregate_element_type(element), "", options));
   }
-  return std::format("base class '{}'",
-                     to_string(traits.aggregate_element_type(element)));
+  return std::format(
+      "base class '{}'",
+      to_diag_string(traits.aggregate_element_type(element), "", options));
 }
 
 struct AggregateShape {
@@ -548,6 +567,11 @@ class AggregateInitializerBuilder {
       -> std::optional<AggregateInitializerPlan>;
 
  private:
+  [[nodiscard]] auto diagnosticPrintOptions() const -> TypePrintOptions {
+    if (ctx_) return ctx_->checker.diagnosticPrintOptions();
+    return {.unit = unit_};
+  }
+
   [[nodiscard]] auto isCxx() const -> bool {
     return unit_->language() == LanguageKind::kCXX;
   }
@@ -653,8 +677,10 @@ class AggregateInitializerBuilder {
       -> ExpressionAST*;
 
   void warnOverriddenInitializer(Symbol* element, SourceLocation location) {
-    warning(location, std::format("initialization of {} is overridden",
-                                  describeAggregateElement(traits_, element)));
+    warning(location,
+            std::format("initialization of {} is overridden",
+                        describeAggregateElement(traits_, element,
+                                                 diagnosticPrintOptions())));
   }
 
   [[nodiscard]] auto selectElementInitializer(
@@ -878,8 +904,9 @@ auto AggregateInitializerBuilder::resolveDesignator(
     auto subscript = ast_cast<SubscriptDesignatorAST>(first);
     if (!subscript) {
       error(first->firstSourceLocation(),
-            std::format("member designator on array type '{}'",
-                        to_string(aggregateType)));
+            std::format(
+                "member designator on array type '{}'",
+                to_diag_string(aggregateType, "", diagnosticPrintOptions())));
       return std::nullopt;
     }
     if (ctx_) ctx_->checker.check(&subscript->expression);
@@ -902,8 +929,9 @@ auto AggregateInitializerBuilder::resolveDesignator(
   auto dot = ast_cast<DotDesignatorAST>(first);
   if (!dot) {
     error(first->firstSourceLocation(),
-          std::format("array designator on non-array type '{}'",
-                      to_string(aggregateType)));
+          std::format(
+              "array designator on non-array type '{}'",
+              to_diag_string(aggregateType, "", diagnosticPrintOptions())));
     return std::nullopt;
   }
 
@@ -938,9 +966,11 @@ auto AggregateInitializerBuilder::resolveDesignator(
   auto index = associatedElementIndex(plan.elements, field);
   if (!index) {
     error(get_name_location(dot),
-          std::format("field designator '{}' does not designate an "
-                      "element of '{}'",
-                      to_string(field->name()), to_string(aggregateType)));
+          std::format(
+              "field designator '{}' does not designate an "
+              "element of '{}'",
+              to_diag_string(field->name()),
+              to_diag_string(aggregateType, "", diagnosticPrintOptions())));
     return std::nullopt;
   }
   return DesignatedTarget{*index, field};
@@ -991,7 +1021,8 @@ auto AggregateInitializerBuilder::spliceSubobjectOverrides(
     error(overrides.front().clause->firstSourceLocation(),
           std::format("cannot initialize a subobject of {} that is already "
                       "initialized by an expression",
-                      describeAggregateElement(traits_, element)));
+                      describeAggregateElement(traits_, element,
+                                               diagnosticPrintOptions())));
     return nullptr;
   }
 
@@ -1082,7 +1113,8 @@ void AggregateInitializerBuilder::placeDesignatedClause(
       index < *cursor.previousDesignatedIndex) {
     error(clause->firstSourceLocation(),
           std::format("designator for {} is out of declaration order",
-                      describeAggregateElement(traits_, plan.elements[index])));
+                      describeAggregateElement(traits_, plan.elements[index],
+                                               diagnosticPrintOptions())));
   }
 
   cursor.previousDesignatedIndex = index;
@@ -1274,7 +1306,8 @@ auto DesignatedInitChecker::resolveDotDesignator(const Type* type,
   if (!classType || !classType->symbol()) {
     ctx.error(dot->firstSourceLocation(),
               std::format("member designator on non-aggregate type '{}'",
-                          to_string(type)));
+                          to_diag_string(
+                              type, "", ctx.checker.diagnosticPrintOptions())));
     return nullptr;
   }
 
@@ -1302,7 +1335,8 @@ auto DesignatedInitChecker::resolveSubscriptDesignator(
   if (!ctx.traits.is_array(type)) {
     ctx.error(subscript->firstSourceLocation(),
               std::format("array designator on non-array type '{}'",
-                          to_string(type)));
+                          to_diag_string(
+                              type, "", ctx.checker.diagnosticPrintOptions())));
     return nullptr;
   }
   auto range = designatedArrayRange(ctx.unit, subscript);
@@ -1461,9 +1495,10 @@ auto AggregateInitChecker::implicitElementInitializer(Symbol* element,
   auto type = ctx.traits.aggregate_element_type(element);
 
   if (type && ctx.traits.is_reference(type)) {
-    ctx.error(location,
-              std::format("reference {} is not initialized",
-                          describeAggregateElement(ctx.traits, element)));
+    ctx.error(location, std::format("reference {} is not initialized",
+                                    describeAggregateElement(
+                                        ctx.traits, element,
+                                        ctx.checker.diagnosticPrintOptions())));
     return makeEmptyInitializerList(location);
   }
 
@@ -1493,7 +1528,10 @@ void AggregateInitChecker::checkElementInit(ExpressionAST*& expr,
     return;
   }
 
-  checkElementInit(expr, type, describeAggregateElement(ctx.traits, element));
+  checkElementInit(
+      expr, type,
+      describeAggregateElement(ctx.traits, element,
+                               ctx.checker.diagnosticPrintOptions()));
 }
 
 void AggregateInitChecker::checkElementInit(
@@ -1531,9 +1569,11 @@ auto AggregateInitChecker::checkParenthesizedAggregate(
     }
 
     auto element = elements[elementIndex];
-    checkElementInit(it->value, ctx.traits.aggregate_element_type(element),
-                     describeAggregateElement(ctx.traits, element),
-                     InitializationKind::kCopyInitialization);
+    checkElementInit(
+        it->value, ctx.traits.aggregate_element_type(element),
+        describeAggregateElement(ctx.traits, element,
+                                 ctx.checker.diagnosticPrintOptions()),
+        InitializationKind::kCopyInitialization);
     checkElementDestructor(element, it->value->firstSourceLocation());
     list.append(it->value);
     ++elementIndex;
@@ -1569,10 +1609,13 @@ void AggregateInitChecker::checkAnonUnionFieldInit(ExpressionAST*& expr,
   auto firstType = ctx.traits.remove_cv(first->type());
   elemChecker.check(
       expr, firstType,
-      std::format("cannot initialize anonymous union member '{}' of "
-                  "type '{}' with expression of type '{}'",
-                  to_string(first->name()), to_string(firstType),
-                  to_string(expr->type)));
+      std::format(
+          "cannot initialize anonymous union member '{}' of "
+          "type '{}' with expression of type '{}'",
+          to_diag_string(first->name()),
+          to_diag_string(firstType, "", ctx.checker.diagnosticPrintOptions()),
+          to_diag_string(expr->type, "",
+                         ctx.checker.diagnosticPrintOptions())));
 }
 
 void AggregateInitChecker::initializeUnionByDefault(ClassSymbol* classSymbol,
@@ -1900,11 +1943,14 @@ void ListInitChecker::singleElementInit(const Type* type,
                                         InitializationKind initializationKind) {
   auto& expr = (*initializerExpressionListSlot(ast))->value;
 
-  elemChecker.check(expr, ctx.traits.remove_cv(type),
-                    std::format("cannot initialize type '{}' with "
-                                "expression of type '{}'",
-                                to_string(type), to_string(expr->type)),
-                    initializationKind);
+  elemChecker.check(
+      expr, ctx.traits.remove_cv(type),
+      std::format(
+          "cannot initialize type '{}' with "
+          "expression of type '{}'",
+          to_diag_string(type, "", ctx.checker.diagnosticPrintOptions()),
+          to_diag_string(expr->type, "", ctx.checker.diagnosticPrintOptions())),
+      initializationKind);
 }
 
 void ListInitChecker::enumerationFromScalar(const Type* type,
@@ -1917,10 +1963,14 @@ void ListInitChecker::enumerationFromScalar(const Type* type,
 
   if (!ctx.checker.implicit_conversion(
           expr, underlyingType, InitializationKind::kDirectInitialization)) {
-    ctx.error(expr->firstSourceLocation(),
-              std::format("cannot initialize type '{}' with expression of "
-                          "type '{}'",
-                          to_string(type), to_string(source->type)));
+    ctx.error(
+        expr->firstSourceLocation(),
+        std::format(
+            "cannot initialize type '{}' with expression of "
+            "type '{}'",
+            to_diag_string(type, "", ctx.checker.diagnosticPrintOptions()),
+            to_diag_string(source->type, "",
+                           ctx.checker.diagnosticPrintOptions())));
     return;
   }
 
@@ -1958,7 +2008,8 @@ void ListInitChecker::referenceFromPrvalue(const Type* type,
     ctx.error(ast->firstSourceLocation(),
               std::format("non-const lvalue reference of type '{}' cannot "
                           "bind to an initializer list temporary",
-                          to_string(type)));
+                          to_diag_string(
+                              type, "", ctx.checker.diagnosticPrintOptions())));
     return;
   }
 
@@ -1985,8 +2036,6 @@ void ListInitChecker::diagnoseIllFormed(const Type* type,
             "excess elements in scalar initializer");
 }
 
-enum class ConstructorSelection { kAttempted, kDeferred };
-
 struct ClassInitChecker {
   InitContext& ctx;
   ElementInitChecker& elemChecker;
@@ -2004,6 +2053,7 @@ struct ClassInitChecker {
         InitializationKind::kDirectInitialization;
     InitializationBullet bullet = InitializationBullet::kNone;
     ListInitializationBullet listBullet = ListInitializationBullet::kNone;
+    InitializationStatus status = InitializationStatus::kComplete;
 
     [[nodiscard]] auto arguments() const -> std::vector<ExpressionAST*> {
       if (initializer) return Initializer{initializer}.arguments();
@@ -2030,7 +2080,7 @@ struct ClassInitChecker {
   [[nodiscard]] auto checkConstructorInit(Target& target,
                                           ClassSymbol* classSymbol,
                                           bool diagnoseUnresolved)
-      -> ConstructorSelection;
+      -> InitializationStatus;
 
   void checkNarrowingArguments(const std::vector<ExpressionAST*>& args,
                                FunctionSymbol* constructor);
@@ -2070,20 +2120,22 @@ void ClassInitChecker::checkClassInit(Target& target) {
       if (target.listBullet ==
           ListInitializationBullet::kAggregateFromSameOrDerivedElement)
         diagnose = false;
-      (void)checkConstructorInit(target, classSymbol, diagnose);
+      target.status = checkConstructorInit(target, classSymbol, diagnose);
       return;
     }
 
     case InitializationBullet::kDefaultInitialization:
     case InitializationBullet::kValueInitializationFromParens:
-      (void)checkConstructorInit(target, classSymbol, diagnoseUnresolved);
+      target.status =
+          checkConstructorInit(target, classSymbol, diagnoseUnresolved);
       return;
 
     case InitializationBullet::kConstructor:
-      if (checkConstructorInit(target, classSymbol, diagnoseUnresolved) ==
-          ConstructorSelection::kDeferred)
-        return;
+      target.status =
+          checkConstructorInit(target, classSymbol, diagnoseUnresolved);
+      if (target.status == InitializationStatus::kDeferred) return;
       if (target.constructor || !isAggregate) return;
+      target.status = InitializationStatus::kComplete;
       if (target.form() == InitializerForm::kParen)
         checkParenthesizedAggregateInit(target, classSymbol);
       else
@@ -2133,7 +2185,10 @@ void ClassInitChecker::checkAggregateInit(Target& target) {
     elemChecker.check(
         equal->expression, targetType,
         std::format("cannot initialize type '{}' with expression of type '{}'",
-                    to_string(targetType), to_string(equal->expression->type)),
+                    to_diag_string(targetType, "",
+                                   ctx.checker.diagnosticPrintOptions()),
+                    to_diag_string(equal->expression->type, "",
+                                   ctx.checker.diagnosticPrintOptions())),
         InitializationKind::kCopyInitialization);
   }
 }
@@ -2174,7 +2229,7 @@ void ClassInitChecker::checkUserDefinedConversionInit(Target& target) {
 auto ClassInitChecker::checkConstructorInit(Target& target,
                                             ClassSymbol* classSymbol,
                                             bool diagnoseUnresolved)
-    -> ConstructorSelection {
+    -> InitializationStatus {
   auto args = target.arguments();
 
   const auto inTemplate = isEnclosedInDependentTemplate(
@@ -2183,20 +2238,20 @@ auto ClassInitChecker::checkConstructorInit(Target& target,
   if (inTemplate) {
     if (isEnclosedInDependentTemplate(ctx.unit, classSymbol,
                                       /*stopAtConcreteSpecialization=*/true))
-      return ConstructorSelection::kDeferred;
+      return InitializationStatus::kDeferred;
     if (target.type && isDependent(ctx.unit, target.type))
-      return ConstructorSelection::kDeferred;
+      return InitializationStatus::kDeferred;
   }
 
   for (auto arg : args) {
     if (!arg) continue;
     if (!arg->type) {
       if (inTemplate && !hasConcreteType(ctx.unit, arg))
-        return ConstructorSelection::kDeferred;
+        return InitializationStatus::kDeferred;
       continue;
     }
     if (isDependent(ctx.unit, arg->type))
-      return ConstructorSelection::kDeferred;
+      return InitializationStatus::kDeferred;
   }
 
   OverloadResolution overloadRes(ctx.unit);
@@ -2218,20 +2273,20 @@ auto ClassInitChecker::checkConstructorInit(Target& target,
   if (resolution.initializingElement) {
     target.constructor = nullptr;
     target.initializingElement = resolution.initializingElement;
-    return ConstructorSelection::kAttempted;
+    return InitializationStatus::kComplete;
   }
 
   if (!resolution) {
     diagnoseConstructorSelection(resolution, classSymbol, location,
                                  diagnoseUnresolved);
-    return ConstructorSelection::kAttempted;
+    return InitializationStatus::kFailed;
   }
 
   if (address_space(target.type)) {
     ctx.error(location,
               "constructor cannot initialize an object with an address space "
               "qualifier");
-    return ConstructorSelection::kAttempted;
+    return InitializationStatus::kFailed;
   }
 
   target.constructor = resolution.selected();
@@ -2241,7 +2296,7 @@ auto ClassInitChecker::checkConstructorInit(Target& target,
   if (resolution.fromInitializerListConstructor) {
     checkInitializerListElements(target, bracedInitList, target.constructor);
     appendDefaultArguments(target, target.constructor);
-    return ConstructorSelection::kAttempted;
+    return InitializationStatus::kComplete;
   }
 
   if (bracedInitList) checkNarrowingArguments(args, target.constructor);
@@ -2249,7 +2304,7 @@ auto ClassInitChecker::checkConstructorInit(Target& target,
                               target.argumentList,
                               resolution.best->conversions);
   appendDefaultArguments(target, target.constructor);
-  return ConstructorSelection::kAttempted;
+  return InitializationStatus::kComplete;
 }
 
 void ClassInitChecker::diagnoseConstructorSelection(
@@ -2261,19 +2316,24 @@ void ClassInitChecker::diagnoseConstructorSelection(
       ctx.error(
           location,
           std::format("no matching constructor for initialization of '{}'",
-                      to_string(classSymbol->type())));
+                      to_diag_string(classSymbol->type(), "",
+                                     ctx.checker.diagnosticPrintOptions())));
       reportRejectedConstructors(ctx, resolution);
       return;
 
     case ConstructorSelectionFailure::kAmbiguous:
-      ctx.error(location,
-                std::format("call to constructor of '{}' is ambiguous",
-                            to_string(classSymbol->type())));
+      ctx.error(
+          location,
+          std::format("call to constructor of '{}' is ambiguous",
+                      to_diag_string(classSymbol->type(), "",
+                                     ctx.checker.diagnosticPrintOptions())));
       for (const auto& candidate : resolution.candidates) {
         if (!candidate.viable || !candidate.symbol) continue;
-        ctx.checker.note(candidate.symbol->location(),
-                         std::format("candidate constructor '{}'",
-                                     to_string(candidate.symbol->type())));
+        ctx.checker.note(
+            candidate.symbol->location(),
+            std::format("candidate constructor '{}'",
+                        to_diag_string(candidate.symbol->type(), "",
+                                       ctx.checker.diagnosticPrintOptions())));
       }
       return;
 
@@ -2390,8 +2450,10 @@ auto ScalarInitChecker::check(ExpressionAST* initializer,
   elemChecker.check(
       operand.operand(), conversionTargetType,
       std::format("cannot initialize type '{}' with expression of type '{}'",
-                  to_string(conversionTargetType),
-                  to_string(operand.operand()->type)),
+                  to_diag_string(conversionTargetType, "",
+                                 ctx.checker.diagnosticPrintOptions()),
+                  to_diag_string(operand.operand()->type, "",
+                                 ctx.checker.diagnosticPrintOptions())),
       Initializer{initializer}.initializationKind());
 
   propagateInitializerType(initializer);
@@ -2412,9 +2474,11 @@ auto ReferenceInitChecker::check(const Type* targetType,
   if (isDependent(ctx.unit, targetType)) return initializer;
 
   if (!initializer) {
-    ctx.error(location,
-              std::format("reference variable of type '{}' must be initialized",
-                          to_string(targetType)));
+    ctx.error(
+        location,
+        std::format("reference variable of type '{}' must be initialized",
+                    to_diag_string(targetType, "",
+                                   ctx.checker.diagnosticPrintOptions())));
     return initializer;
   }
 
@@ -2436,7 +2500,10 @@ auto ReferenceInitChecker::check(const Type* targetType,
         initExpr->firstSourceLocation(),
         std::format("invalid initialization of reference of type '{}' from "
                     "expression of type '{}'",
-                    to_string(targetType), to_string(initExpr->type)));
+                    to_diag_string(targetType, "",
+                                   ctx.checker.diagnosticPrintOptions()),
+                    to_diag_string(initExpr->type, "",
+                                   ctx.checker.diagnosticPrintOptions())));
     return initializer;
   }
 
@@ -2661,8 +2728,10 @@ void InitializationEngine::listInitialize(ClassInitChecker::Target& target,
 
     case ListInitializationBullet::kAggregateFromSameOrDerivedElement:
       classChecker.checkClassInit(target);
-      if (!target.constructor && !target.initializingElement)
+      if (!target.constructor && !target.initializingElement) {
+        target.status = InitializationStatus::kComplete;
         listChecker.aggregateInit(objectType, list);
+      }
       return;
 
     case ListInitializationBullet::kInitializerList:
@@ -2709,6 +2778,7 @@ auto InitializationEngine::applyClassInitialization(
                                   .bullet = sequence.bullet};
   classChecker.checkClassInit(target);
   sequence.constructor = target.constructor;
+  sequence.status = target.status;
   return target.initializer;
 }
 
@@ -2842,6 +2912,7 @@ auto InitializationEngine::apply(InitializationSequence& sequence,
           .bullet = sequence.bullet};
       listInitialize(target, initializer.bracedInitList());
       sequence.constructor = target.constructor;
+      sequence.status = target.status;
       return target.initializer;
     }
 
@@ -2877,17 +2948,21 @@ auto InitializationEngine::diagnose(const InitializationSequence& sequence,
                                     const InitializedEntity& entity) -> bool {
   switch (sequence.failure) {
     case InitializationFailure::kReferenceWithoutInitializer:
-      ctx.error(entity.location(),
-                std::format("reference variable of type '{}' must be "
-                            "initialized",
-                            to_string(entity.type())));
+      ctx.error(
+          entity.location(),
+          std::format("reference variable of type '{}' must be "
+                      "initialized",
+                      to_diag_string(entity.type(), "",
+                                     ctx.checker.diagnosticPrintOptions())));
       return true;
     case InitializationFailure::kNotConstDefaultConstructible:
-      ctx.error(entity.location(),
-                std::format("default-initialization of an object of "
-                            "const-qualified type '{}' that is not "
-                            "const-default-constructible",
-                            to_string(entity.type())));
+      ctx.error(
+          entity.location(),
+          std::format("default-initialization of an object of "
+                      "const-qualified type '{}' that is not "
+                      "const-default-constructible",
+                      to_diag_string(entity.type(), "",
+                                     ctx.checker.diagnosticPrintOptions())));
       return true;
     default:
       return false;
@@ -2908,7 +2983,7 @@ auto InitializationEngine::initialize(const InitializedEntity& entity,
   auto written = expression;
   expression = apply(sequence, entity, expression, arguments);
   propagateInitializerType(written);
-  return {InitializationStatus::kComplete, sequence.constructor};
+  return {sequence.status, sequence.constructor};
 }
 
 [[nodiscard]] auto resolveAggregateInitialization(
@@ -2926,7 +3001,8 @@ void reportRejectedConstructors(InitContext& ctx,
   for (const auto& [symbol, rejection] : resolution.rejected) {
     if (!symbol) continue;
 
-    auto reason = to_string(rejection);
+    auto reason =
+        to_diag_string(rejection, ctx.checker.diagnosticPrintOptions(), symbol);
     std::pair entry{symbol->location(), reason};
     if (std::ranges::contains(reported, entry)) continue;
     reported.push_back(entry);
@@ -2984,11 +3060,11 @@ auto InitializedEntity::description() const -> std::string {
   switch (kind_) {
     case Kind::kVariable:
       if (symbol_ && symbol_->name())
-        return std::format("variable '{}'", to_string(symbol_->name()));
+        return std::format("variable '{}'", to_diag_string(symbol_->name()));
       return "variable";
     case Kind::kMember:
       if (symbol_ && symbol_->name())
-        return std::format("member '{}'", to_string(symbol_->name()));
+        return std::format("member '{}'", to_diag_string(symbol_->name()));
       return "anonymous member";
     case Kind::kArrayElement:
       return "array element";
@@ -3001,7 +3077,7 @@ auto InitializedEntity::description() const -> std::string {
     case Kind::kTemporary:
       break;
   }
-  return std::format("temporary of type '{}'", to_string(type_));
+  return std::format("temporary of type '{}'", to_diag_string(type_));
 }
 
 auto Initializer::unwrapEqual() const -> ExpressionAST* {
@@ -3412,10 +3488,11 @@ void diagnoseNarrowingListElement(InitContext& ctx, ExpressionAST* element,
   if (!ctx.traits.is_narrowing_list_element(element, targetType)) return;
 
   auto source = stripImplicitCasts(element);
-  ctx.error(element->firstSourceLocation(),
-            std::format("narrowing conversion from '{}' to '{}' in "
-                        "braced-init-list",
-                        to_string(source->type), to_string(targetType)));
+  ctx.error(
+      element->firstSourceLocation(),
+      std::format("narrowing conversion from '{}' to '{}' in "
+                  "braced-init-list",
+                  to_diag_string(source->type), to_diag_string(targetType)));
 }
 
 auto initialize(InitContext& ctx, const InitializedEntity& entity,
@@ -3440,9 +3517,13 @@ void diagnoseConversionFailure(InitContext& ctx,
 
   if (auto classType = unqualified_cast<ClassType>(targetType);
       classType && classType->symbol()) {
-    ctx.error(location,
-              std::format("no viable conversion from '{}' to '{}'",
-                          to_string(source->type), to_string(targetType)));
+    ctx.error(
+        location,
+        std::format("no viable conversion from '{}' to '{}'",
+                    to_diag_string(source->type, "",
+                                   ctx.checker.diagnosticPrintOptions()),
+                    to_diag_string(targetType, "",
+                                   ctx.checker.diagnosticPrintOptions())));
 
     OverloadResolution overloadRes(ctx.unit);
     reportRejectedConstructors(
@@ -3455,8 +3536,11 @@ void diagnoseConversionFailure(InitContext& ctx,
   ctx.error(location,
             std::format("cannot initialize {} of type '{}' with an "
                         "expression of type '{}'",
-                        entity.description(), to_string(entity.type()),
-                        to_string(source->type)));
+                        entity.description(),
+                        to_diag_string(entity.type(), "",
+                                       ctx.checker.diagnosticPrintOptions()),
+                        to_diag_string(source->type, "",
+                                       ctx.checker.diagnosticPrintOptions())));
 }
 
 void TypeChecker::check_braced_init_list(

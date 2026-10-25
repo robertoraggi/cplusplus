@@ -99,6 +99,52 @@ def Cxx_CallingConventionEnum : Cxx_I32EnumAttr<"CallingConvention", "callingCon
 
 def Cxx_CallingConvention : Cxx_EnumAttr<Cxx_CallingConventionEnum, "calling_convention">;
 
+def Cxx_MemoryOrderEnum : Cxx_I32EnumAttr<"MemoryOrder", "atomic memory order", [
+  I32EnumAttrCase<"Relaxed", 0, "relaxed">,
+  I32EnumAttrCase<"Acquire", 1, "acquire">,
+  I32EnumAttrCase<"Release", 2, "release">,
+  I32EnumAttrCase<"AcquireRelease", 3, "acq_rel">,
+  I32EnumAttrCase<"SequentiallyConsistent", 4, "seq_cst">
+]>;
+
+def Cxx_MemoryOrder : Cxx_EnumAttr<Cxx_MemoryOrderEnum, "memory_order">;
+
+def Cxx_MemoryScopeEnum : Cxx_I32EnumAttr<"MemoryScope", "atomic memory scope", [
+  I32EnumAttrCase<"System", 0, "system">,
+  I32EnumAttrCase<"Device", 1, "device">,
+  I32EnumAttrCase<"Workgroup", 2, "workgroup">,
+  I32EnumAttrCase<"Subgroup", 3, "subgroup">,
+  I32EnumAttrCase<"Invocation", 4, "invocation">
+]>;
+
+def Cxx_MemoryScope : Cxx_EnumAttr<Cxx_MemoryScopeEnum, "memory_scope">;
+
+def Cxx_AtomicRMWKindEnum : Cxx_I32EnumAttr<"AtomicRMWKind", "atomic modification", [
+  I32EnumAttrCase<"Exchange", 0, "exchange">,
+  I32EnumAttrCase<"Add", 1, "add">,
+  I32EnumAttrCase<"Sub", 2, "sub">,
+  I32EnumAttrCase<"And", 3, "and">,
+  I32EnumAttrCase<"Or", 4, "or">,
+  I32EnumAttrCase<"Xor", 5, "xor">,
+  I32EnumAttrCase<"Nand", 6, "nand">
+]>;
+
+def Cxx_AtomicRMWKind : Cxx_EnumAttr<Cxx_AtomicRMWKindEnum, "atomic_rmw_kind">;
+
+def Cxx_MemoryRegionsEnum : I32BitEnumAttr<"MemoryRegions", "device memory regions", [
+  I32BitEnumAttrCaseNone<"None", "none">,
+  I32BitEnumAttrCaseBit<"Storage", 0, "storage">,
+  I32BitEnumAttrCaseBit<"Workgroup", 1, "workgroup">
+]> {
+  let cppNamespace = "mlir::cxx";
+  let genSpecializedAttr = 0;
+  let separator = ", ";
+}
+
+def Cxx_MemoryRegions : EnumAttr<Cxx_Dialect, Cxx_MemoryRegionsEnum, "memory_regions"> {
+  let assemblyFormat = "`<` $value `>`";
+}
+
 // types
 
 def Cxx_ExprType : Cxx_Type<"Expr", "expr">;
@@ -131,6 +177,7 @@ def Cxx_PointerType : Cxx_Type<"Pointer", "ptr", [
 }
 
 def Cxx_ArrayType : Cxx_Type<"Array", "array", [
+    MemRefElementTypeInterface,
     DeclareTypeInterfaceMethods<DataLayoutTypeInterface, [
       "getPreferredAlignment"]>]> {
   let parameters = (ins "Type":$elementType, "uint64_t":$size);
@@ -139,6 +186,8 @@ def Cxx_ArrayType : Cxx_Type<"Array", "array", [
 }
 
 def Cxx_ClassType : Cxx_Type<"Class", "class", [MutableType,
+    MemRefElementTypeInterface,
+    DeclareTypeInterfaceMethods<DestructurableTypeInterface>,
     DeclareTypeInterfaceMethods<DataLayoutTypeInterface, [
       "getPreferredAlignment"]>]> {
 
@@ -155,8 +204,12 @@ def Cxx_ClassType : Cxx_Type<"Class", "class", [MutableType,
 
   let extraClassDeclaration = [{
     static auto getNamed(MLIRContext *context, StringRef name) -> ClassType;
-    auto setBody(ArrayRef<Type> types, bool packed = false) -> LogicalResult;
+    auto setBody(ArrayRef<Type> types, bool packed, uint64_t alignment,
+                 ArrayRef<unsigned> padding = {}) -> LogicalResult;
     auto isPacked() const -> bool;
+    [[nodiscard]] auto getAlignment() const -> uint64_t;
+    [[nodiscard]] auto getPadding() const -> ArrayRef<unsigned>;
+    [[nodiscard]] auto isPaddingElement(unsigned position) const -> bool;
   }];
 
 }
@@ -396,8 +449,24 @@ def Cxx_AsmGotoOp : Cxx_Op<"asm_goto", [Terminator]> {
   let hasVerifier = 1;
 }
 
+def Cxx_StorageRefOp : Cxx_Op<"storage_ref", [Pure]> {
+  let arguments = (ins AnyMemRef:$storage);
+  let results = (outs Cxx_PointerType:$result);
+  let hasVerifier = 1;
+  let hasCanonicalizer = 1;
+  let assemblyFormat = "$storage attr-dict `:` type($storage) `to` type($result)";
+}
+
+def Cxx_BindReferencesOp : Cxx_Op<"bind_references", [Pure, AttrSizedOperandSegments]> {
+  let arguments = (ins Optional<AnyMemRef>:$state, Variadic<Cxx_PointerType>:$fields);
+  let results = (outs Cxx_PointerType:$result);
+  let hasVerifier = 1;
+  let assemblyFormat = "$fields (`state` $state^ `:` type($state))? attr-dict `:` functional-type($fields, $result)";
+}
+
 def Cxx_AllocaOp : Cxx_Op<"alloca", [
-    DeclareOpInterfaceMethods<PromotableAllocationOpInterface>]> {
+    DeclareOpInterfaceMethods<PromotableAllocationOpInterface>,
+    DeclareOpInterfaceMethods<DestructurableAllocationOpInterface>]> {
   let arguments = (ins I64Prop:$alignment);
 
   let results = (outs Res<Cxx_PointerType, "",
@@ -414,24 +483,95 @@ def Cxx_DynAllocaOp : Cxx_Op<"dyn_alloca"> {
   let assemblyFormat = "$size attr-dict `:` type($size) `->` type($result) `align` $alignment";
 }
 
+def Cxx_WorkgroupAllocOp : Cxx_Op<"workgroup_alloc"> {
+  let arguments = (ins I64Prop:$alignment);
+  let results = (outs Cxx_PointerType:$result);
+  let hasVerifier = 1;
+  let assemblyFormat = "attr-dict `:` type($result) `align` $alignment";
+}
+
 def Cxx_LoadOp : Cxx_Op<"load", [
-    DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
-  let arguments = (ins Arg<Cxx_PointerType, "", [MemRead]>:$addr,
-                       I64Prop:$alignment);
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<PromotableMemOpInterface>,
+    DeclareOpInterfaceMethods<DestructurableAccessorOpInterface>,
+    DeclareOpInterfaceMethods<SafeMemorySlotAccessOpInterface>]> {
+  let arguments = (ins Cxx_PointerType:$addr,
+                       I64Prop:$alignment, UnitAttr:$volatile_);
 
   let results = (outs AnyType:$result);
 
-  let assemblyFormat = "$addr attr-dict `:` type($addr) `->` type($result) `align` $alignment";
+  let assemblyFormat = "(`volatile` $volatile_^)? $addr attr-dict `:` type($addr) `->` type($result) `align` $alignment";
 }
 
 def Cxx_StoreOp : Cxx_Op<"store", [
-    DeclareOpInterfaceMethods<PromotableMemOpInterface>]> {
-  let arguments = (ins AnyType:$value, Arg<Cxx_PointerType, "", [MemWrite]>:$addr,
-                       I64Prop:$alignment);
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    DeclareOpInterfaceMethods<PromotableMemOpInterface>,
+    DeclareOpInterfaceMethods<DestructurableAccessorOpInterface>,
+    DeclareOpInterfaceMethods<SafeMemorySlotAccessOpInterface>]> {
+  let arguments = (ins AnyType:$value, Cxx_PointerType:$addr,
+                       I64Prop:$alignment, UnitAttr:$volatile_);
 
-  let assemblyFormat = "$value `,` $addr attr-dict `:` type($value) `,` type($addr) `align` $alignment";
+  let assemblyFormat = "(`volatile` $volatile_^)? $value `,` $addr attr-dict `:` type($value) `,` type($addr) `align` $alignment";
 
   let hasVerifier = 1;
+}
+
+def Cxx_AtomicLoadOp : Cxx_Op<"atomic.load", [
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]> {
+  let arguments = (ins Cxx_PointerType:$addr, Cxx_MemoryOrder:$ordering,
+                       Cxx_MemoryScope:$scope, UnitAttr:$volatile_);
+  let results = (outs AnyType:$result);
+  let hasVerifier = 1;
+  let assemblyFormat = "(`volatile` $volatile_^)? $addr $ordering $scope attr-dict `:` type($addr) `->` type($result)";
+}
+
+def Cxx_AtomicStoreOp : Cxx_Op<"atomic.store", [
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>]> {
+  let arguments = (ins AnyType:$value, Cxx_PointerType:$addr,
+                       Cxx_MemoryOrder:$ordering, Cxx_MemoryScope:$scope,
+                       UnitAttr:$volatile_);
+  let hasVerifier = 1;
+  let assemblyFormat = "(`volatile` $volatile_^)? $value `,` $addr $ordering $scope attr-dict `:` type($value) `,` type($addr)";
+}
+
+def Cxx_AtomicRMWOp : Cxx_Op<"atomic.rmw", [
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AllTypesMatch<["value", "result"]>]> {
+  let arguments = (ins Cxx_AtomicRMWKind:$kind, AnyType:$value,
+                       Cxx_PointerType:$addr, Cxx_MemoryOrder:$ordering,
+                       Cxx_MemoryScope:$scope, UnitAttr:$volatile_);
+  let results = (outs AnyType:$result);
+  let hasVerifier = 1;
+  let assemblyFormat = "(`volatile` $volatile_^)? $kind $value `,` $addr $ordering $scope attr-dict `:` type($value) `,` type($addr)";
+}
+
+def Cxx_AtomicCompareExchangeOp : Cxx_Op<"atomic.cmpxchg", [
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    AllTypesMatch<["expected", "desired", "old"]>]> {
+  let arguments = (ins Cxx_PointerType:$addr, AnyType:$expected,
+                       AnyType:$desired, Cxx_MemoryOrder:$success_order,
+                       Cxx_MemoryOrder:$failure_order, Cxx_MemoryScope:$scope,
+                       UnitAttr:$weak, UnitAttr:$volatile_);
+  let results = (outs AnyType:$old, I1:$exchanged);
+  let hasVerifier = 1;
+  let assemblyFormat = "(`volatile` $volatile_^)? $addr `,` $expected `,` $desired $success_order $failure_order $scope (`weak` $weak^)? attr-dict `:` type($addr) `,` type($expected)";
+}
+
+def Cxx_AtomicFenceOp : Cxx_Op<"atomic.fence", [
+    MemoryEffects<[MemRead, MemWrite]>]> {
+  let arguments = (ins Cxx_MemoryOrder:$ordering, Cxx_MemoryScope:$scope,
+                       Cxx_MemoryRegions:$memory_regions);
+  let hasVerifier = 1;
+  let assemblyFormat = "$ordering $scope $memory_regions attr-dict";
+}
+
+def Cxx_ControlBarrierOp : Cxx_Op<"control_barrier", [
+    MemoryEffects<[MemRead, MemWrite]>]> {
+  let arguments = (ins Cxx_MemoryScope:$execution_scope,
+                       Cxx_MemoryScope:$memory_scope, Cxx_MemoryOrder:$ordering,
+                       Cxx_MemoryRegions:$memory_regions);
+  let hasVerifier = 1;
+  let assemblyFormat = "$execution_scope $memory_scope $ordering $memory_regions attr-dict";
 }
 
 def Cxx_MemSetZeroOp : Cxx_Op<"memzero"> {
@@ -471,7 +611,9 @@ def Cxx_SubscriptOp : Cxx_Op<"subscript", [Pure]> {
   let assemblyFormat = "$base `[` $index `]` attr-dict `:` functional-type(operands, results)";
 }
 
-def Cxx_MemberOp : Cxx_Op<"member", [Pure]> {
+def Cxx_MemberOp : Cxx_Op<"member", [Pure,
+    DeclareOpInterfaceMethods<DestructurableAccessorOpInterface>,
+    DeclareOpInterfaceMethods<SafeMemorySlotAccessOpInterface>]> {
   let hasVerifier = 1;
   let arguments = (ins Cxx_PointerType:$base, I32Prop:$member_index);
 
@@ -482,7 +624,7 @@ def Cxx_MemberOp : Cxx_Op<"member", [Pure]> {
 
 def Cxx_PtrAddOp : Cxx_Op<"ptradd", [Pure]> {
   let hasVerifier = 1;
-  let arguments = (ins Cxx_PointerType:$base, AnySignlessInteger:$offset);
+  let arguments = (ins Cxx_PointerType:$base, AnySignlessIntegerOrIndex:$offset);
 
   let results = (outs Cxx_PointerType:$result);
 
@@ -535,6 +677,8 @@ def Cxx_ArrayToPointerOp : Cxx_Op<"array_to_ptr", [Pure]> {
 
 def Cxx_BitcastOp : Cxx_Op<"bitcast", [Pure]> {
   let hasVerifier = 1;
+  let hasFolder = 1;
+  let hasCanonicalizer = 1;
   let arguments = (ins AnyType:$value);
 
   let results = (outs AnyType:$result);
@@ -583,7 +727,7 @@ def Cxx_ExtractValueOp : Cxx_Op<"extractvalue", [Pure]> {
   ];
 }
 
-def Cxx_InsertValueOp : Cxx_Op<"insertvalue", [AllTypesMatch<["container", "result"]>]> {
+def Cxx_InsertValueOp : Cxx_Op<"insertvalue", [Pure, AllTypesMatch<["container", "result"]>]> {
   let arguments = (ins AnyType:$container, AnyType:$value, I64Attr:$position);
 
   let results = (outs AnyType:$result);
@@ -713,14 +857,15 @@ def BitfieldLoadOp : Cxx_Op<"bitfield.load"> {
   let arguments = (ins Cxx_PointerType:$addr,
                        I32Attr:$bit_offset, I32Attr:$bit_width,
                        I64Attr:$storage_size, I64Attr:$alignment,
-                       BoolAttr:$is_signed);
+                       BoolAttr:$is_signed, UnitAttr:$volatile_);
   let results = (outs AnySignlessInteger:$result);
-  let assemblyFormat = "$addr attr-dict `:` type($addr) `->` type($result)";
+  let assemblyFormat = "(`volatile` $volatile_^)? $addr attr-dict `:` type($addr) `->` type($result)";
 }
 
 def BitfieldStoreOp : Cxx_Op<"bitfield.store"> {
   let arguments = (ins AnySignlessInteger:$value, Cxx_PointerType:$addr,
                        I32Attr:$bit_offset, I32Attr:$bit_width,
-                       I64Attr:$storage_size, I64Attr:$alignment);
-  let assemblyFormat = "$value `,` $addr attr-dict `:` type($value) `,` type($addr)";
+                       I64Attr:$storage_size, I64Attr:$alignment,
+                       UnitAttr:$volatile_);
+  let assemblyFormat = "(`volatile` $volatile_^)? $value `,` $addr attr-dict `:` type($value) `,` type($addr)";
 }

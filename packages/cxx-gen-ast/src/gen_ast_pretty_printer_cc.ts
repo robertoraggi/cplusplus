@@ -380,7 +380,7 @@ namespace cxx {
 
 ${code.join("\n")}
 
-ASTPrettyPrinter::ASTPrettyPrinter(TranslationUnit* unit, std::ostream& out)
+ASTPrettyPrinter::ASTPrettyPrinter(TranslationUnit* unit, std::format_context::iterator out)
 : unit_(unit), output_(out) {}
 
 ASTPrettyPrinter::~ASTPrettyPrinter() {}

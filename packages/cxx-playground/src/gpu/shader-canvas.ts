@@ -1,4 +1,9 @@
-import type { KernelManifest, KernelResource } from "cxx-frontend"
+import type { KernelManifest, KernelLayout, KernelResource } from "cxx-frontend"
+import {
+  createKernelPipeline,
+  kernelInputData,
+  kernelLaneCount,
+} from "cxx-frontend/webgpu"
 
 export const baseResolution = 256
 export const resolutionScales = [1, 2, 4] as const
@@ -16,25 +21,6 @@ export const shaderInputs = [
 type ShaderInput = (typeof shaderInputs)[number]
 
 const imageName = "image"
-
-const arrayTypes = {
-  f32: Float32Array,
-  i32: Int32Array,
-  u32: Uint32Array,
-} as const
-
-function bindingType(resource: KernelResource): GPUBufferBindingType {
-  if (resource.kind === "uniform") return "uniform"
-  return resource.access === "read" ? "read-only-storage" : "storage"
-}
-
-function inputData(resource: KernelResource, values: number[]) {
-  const ArrayType = arrayTypes[resource.elementType]
-  if (resource.kind === "storage") return ArrayType.from(values)
-  const data = new ArrayType(resource.size / 4)
-  data.set(values.slice(0, resource.components))
-  return data
-}
 
 const presentShader = /* wgsl */ `
 struct Size {
@@ -67,13 +53,23 @@ export interface ShaderStatus {
 }
 
 interface LoadedShader {
-  manifest: KernelManifest
+  layout: KernelLayout
   pipeline: GPUComputePipeline
-  bindGroup: GPUBindGroup
+  bindGroups: GPUBindGroup[]
   presentGroup: GPUBindGroup
   inputs: Map<ShaderInput, { resource: KernelResource; buffer: GPUBuffer }>
   buffers: GPUBuffer[]
   workgroups: [number, number, number]
+}
+
+interface ShaderSource {
+  manifest: KernelManifest
+  code: string
+  entryPoint?: string
+}
+
+function destroyShader(shader: LoadedShader | undefined): void {
+  for (const buffer of shader?.buffers ?? []) buffer.destroy()
 }
 
 export class ShaderCanvas {
@@ -82,7 +78,7 @@ export class ShaderCanvas {
   #presentPipeline: GPURenderPipeline | undefined
   #sizeBuffer: GPUBuffer | undefined
   #shader: LoadedShader | undefined
-  #source: { manifest: KernelManifest; code: string } | undefined
+  #source: ShaderSource | undefined
   #generation = 0
   #loading = Promise.resolve()
   #frame = 0
@@ -110,6 +106,23 @@ export class ShaderCanvas {
   }
 
   getStatus = () => this.#status
+
+  get entryPoints(): string[] {
+    return (
+      this.#source?.manifest.entryPoints
+        .filter((entry) => entry.mode === "comp")
+        .map((entry) => entry.name) ?? []
+    )
+  }
+
+  get entryPoint(): string | undefined {
+    return this.#source?.entryPoint
+  }
+
+  selectEntryPoint(entryPoint: string): void {
+    if (!this.#source) return
+    this.load(this.#source.manifest, this.#source.code, entryPoint)
+  }
 
   async attach(canvas: HTMLCanvasElement): Promise<void> {
     const generation = ++this.#generation
@@ -160,7 +173,12 @@ export class ShaderCanvas {
       if (this.#device !== device) return
       this.fail(`the WebGPU device was lost: ${info.message}`)
     })
-    if (this.#source) this.load(this.#source.manifest, this.#source.code)
+    if (this.#source)
+      this.load(
+        this.#source.manifest,
+        this.#source.code,
+        this.#source.entryPoint
+      )
   }
 
   detach(): void {
@@ -177,14 +195,47 @@ export class ShaderCanvas {
     this.#canvas = undefined
   }
 
-  load(manifest: KernelManifest, code: string): void {
-    this.#source = { manifest, code }
+  load(manifest: KernelManifest, code: string, entryPoint?: string): void {
+    const entries = manifest.entryPoints.filter(
+      (entry) => entry.mode === "comp"
+    )
+    if (!entries.length) {
+      this.fail("Device module has no compute entry point")
+      return
+    }
+    if (
+      entryPoint === undefined &&
+      entries.some((entry) => entry.name === this.entryPoint)
+    )
+      entryPoint = this.entryPoint
+    if (entryPoint === undefined && entries.length === 1)
+      entryPoint = entries[0].name
+    if (
+      entryPoint !== undefined &&
+      !entries.some((entry) => entry.name === entryPoint)
+    ) {
+      this.fail(`Unknown kernel entry point '${entryPoint}'`)
+      return
+    }
+    const source: ShaderSource = { manifest, code, entryPoint }
+    this.#source = source
+    this.#cancelAnimation()
+    this.#releaseShader()
+    if (entryPoint === undefined) {
+      this.#setStatus("idle", "Select a kernel entry point")
+      return
+    }
+    this.#setStatus("idle", `Loading ${entryPoint}`)
     if (!this.#device) return
-    this.#loading = this.#loading.then(() => this.#load(manifest, code))
+    this.#loading = this.#loading.then(() => this.#load(source))
   }
 
   fail(message: string): void {
     this.#source = undefined
+    this.#shaderError(message)
+  }
+
+  #shaderError(message: string): void {
     this.#cancelAnimation()
     this.#releaseShader()
     this.#setStatus("error", message)
@@ -225,7 +276,11 @@ export class ShaderCanvas {
     this.#resizeCanvas()
     this.#writeSize()
     if (this.#source) {
-      this.load(this.#source.manifest, this.#source.code)
+      this.load(
+        this.#source.manifest,
+        this.#source.code,
+        this.#source.entryPoint
+      )
       return
     }
     this.#setStatus(this.#status.kind, this.#status.message)
@@ -251,13 +306,13 @@ export class ShaderCanvas {
   #updatePlayback(): void {
     if (!this.#shader) return
     if (this.#playing) {
-      this.#setStatus("running", this.#describe(this.#shader.manifest))
+      this.#setStatus("running", this.#describe(this.#shader.layout))
       this.#scheduleFrame()
       return
     }
     this.#cancelAnimation()
     this.#lastTimestamp = undefined
-    this.#setStatus("paused", this.#describe(this.#shader.manifest))
+    this.#setStatus("paused", this.#describe(this.#shader.layout))
   }
 
   #resizeCanvas(): void {
@@ -275,39 +330,61 @@ export class ShaderCanvas {
     )
   }
 
-  async #load(manifest: KernelManifest, code: string): Promise<void> {
+  async #load(source: ShaderSource): Promise<void> {
     const device = this.#device
-    if (!device) return
+    if (!device || source !== this.#source || source.entryPoint === undefined)
+      return
     try {
-      const shader = await this.#createShader(device, manifest, code)
+      const shader = await this.#createShader(
+        device,
+        source.manifest,
+        source.code,
+        source.entryPoint
+      )
+      if (device !== this.#device || source !== this.#source) {
+        destroyShader(shader)
+        return
+      }
       this.#releaseShader()
       this.#shader = shader
       this.#updatePlayback()
       if (!this.#playing) this.#render(0)
     } catch (error) {
-      this.fail(error instanceof Error ? error.message : String(error))
+      if (device === this.#device && source === this.#source)
+        this.#shaderError(
+          error instanceof Error ? error.message : String(error)
+        )
     }
   }
 
   async #createShader(
     device: GPUDevice,
     manifest: KernelManifest,
-    code: string
+    code: string,
+    entryPoint?: string
   ): Promise<LoadedShader> {
-    const image = manifest.resources.find((r) => r.name === imageName)
+    const kernel = await createKernelPipeline(device, {
+      reflection: manifest,
+      code,
+      entryPoint,
+    })
+    const layout = kernel.layout
+    const image = layout.resources.find((r) => r.name === imageName)
     if (!image)
       throw new Error(
-        `${manifest.entryPoint}: a canvas kernel writes the 'image' buffer`
+        `${layout.entryPoint}: a canvas kernel writes the 'image' buffer`
       )
     if (
       image.kind !== "storage" ||
-      image.elementType !== "u32" ||
+      image.layout.kind !== "value" ||
+      image.layout.elementType !== "u32" ||
+      image.layout.components !== 1 ||
       image.access !== "read_write"
     )
       throw new Error(
         "'image' must be a writable device buffer of unsigned int RGBA pixels"
       )
-    for (const resource of manifest.resources) {
+    for (const resource of layout.resources) {
       if (resource.name === imageName) continue
       if (!(shaderInputs as readonly string[]).includes(resource.name))
         throw new Error(
@@ -315,69 +392,52 @@ export class ShaderCanvas {
         )
     }
 
-    device.pushErrorScope("validation")
-    const module = device.createShaderModule({ code })
-    const info = await module.getCompilationInfo()
-    const errors = info.messages.filter((m) => m.type === "error")
-    if (errors.length)
-      throw new Error(
-        errors.map((e) => `${e.lineNum}:${e.linePos} ${e.message}`).join("\n")
-      )
-    const layout = device.createBindGroupLayout({
-      entries: manifest.resources.map((resource) => ({
-        binding: resource.binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type: bindingType(resource) },
-      })),
-    })
-    const pipeline = await device.createComputePipelineAsync({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module, entryPoint: manifest.entryPoint },
-    })
-
     const buffers: GPUBuffer[] = []
     const inputs: LoadedShader["inputs"] = new Map()
-    let imageBuffer: GPUBuffer | undefined
-    const entries = manifest.resources.map((resource) => {
-      const buffer = device.createBuffer({
-        size: this.#bufferSize(resource),
-        usage:
-          (resource.kind === "uniform"
-            ? GPUBufferUsage.UNIFORM
-            : GPUBufferUsage.STORAGE) | GPUBufferUsage.COPY_DST,
-      })
-      buffers.push(buffer)
-      if (resource.name === imageName) imageBuffer = buffer
-      else inputs.set(resource.name as ShaderInput, { resource, buffer })
-      return { binding: resource.binding, resource: { buffer } }
-    })
-    const bindGroup = device.createBindGroup({ layout, entries })
-    const presentGroup = device.createBindGroup({
-      layout: this.#presentPipeline!.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: imageBuffer! } },
-        { binding: 1, resource: { buffer: this.#sizeBuffer! } },
-      ],
-    })
-    const failure = await device.popErrorScope()
-    if (failure) {
+    const bindings: Record<string, GPUBuffer> = Object.create(null)
+    device.pushErrorScope("validation")
+    try {
+      let shader: LoadedShader
+      let failure: GPUError | null
+      try {
+        for (const resource of layout.resources) {
+          const buffer = device.createBuffer({
+            size: this.#bufferSize(resource),
+            usage:
+              (resource.kind === "uniform"
+                ? GPUBufferUsage.UNIFORM
+                : GPUBufferUsage.STORAGE) | GPUBufferUsage.COPY_DST,
+          })
+          buffers.push(buffer)
+          bindings[resource.name] = buffer
+          if (resource.name !== imageName)
+            inputs.set(resource.name as ShaderInput, { resource, buffer })
+        }
+        const bindGroups = kernel.createBindGroups(bindings)
+        const presentGroup = device.createBindGroup({
+          layout: this.#presentPipeline!.getBindGroupLayout(0),
+          entries: [
+            { binding: 0, resource: { buffer: bindings[imageName] } },
+            { binding: 1, resource: { buffer: this.#sizeBuffer! } },
+          ],
+        })
+        shader = {
+          layout,
+          pipeline: kernel.pipeline,
+          bindGroups,
+          presentGroup,
+          inputs,
+          buffers,
+          workgroups: kernel.workgroupCount([this.width, this.height]),
+        }
+      } finally {
+        failure = await device.popErrorScope()
+      }
+      if (failure) throw new Error(failure.message)
+      return shader
+    } catch (error) {
       for (const buffer of buffers) buffer.destroy()
-      throw new Error(failure.message)
-    }
-
-    const [lx, ly, lz] = manifest.localSize
-    return {
-      manifest,
-      pipeline,
-      bindGroup,
-      presentGroup,
-      inputs,
-      buffers,
-      workgroups: [
-        Math.ceil(this.width / lx),
-        Math.ceil(this.height / ly),
-        Math.ceil(1 / lz),
-      ],
+      throw error
     }
   }
 
@@ -386,7 +446,8 @@ export class ShaderCanvas {
     if (resource.name === imageName)
       return this.width * this.height * resource.arrayStride
     const input = resource.name as ShaderInput
-    return this.#inputValues(input, 0).length * resource.arrayStride
+    const values = this.#inputValues(input, 0)
+    return kernelInputData(resource, values).byteLength
   }
 
   #inputValues(input: ShaderInput, delta: number): number[] {
@@ -412,13 +473,17 @@ export class ShaderCanvas {
 
     for (const [input, { resource, buffer }] of shader.inputs) {
       const values = this.#inputValues(input, delta)
-      device.queue.writeBuffer(buffer, 0, inputData(resource, values))
+      const components =
+        resource.kind === "uniform"
+          ? values.slice(0, kernelLaneCount(resource.layout))
+          : values
+      device.queue.writeBuffer(buffer, 0, kernelInputData(resource, components))
     }
 
     const encoder = device.createCommandEncoder()
     const compute = encoder.beginComputePass()
     compute.setPipeline(shader.pipeline)
-    compute.setBindGroup(0, shader.bindGroup)
+    shader.bindGroups.forEach((group, set) => compute.setBindGroup(set, group))
     compute.dispatchWorkgroups(...shader.workgroups)
     compute.end()
 
@@ -463,11 +528,11 @@ export class ShaderCanvas {
   }
 
   #releaseShader(): void {
-    for (const buffer of this.#shader?.buffers ?? []) buffer.destroy()
+    destroyShader(this.#shader)
     this.#shader = undefined
   }
 
-  #describe(manifest: KernelManifest): string {
+  #describe(manifest: KernelLayout): string {
     const [x, y, z] = manifest.localSize
     return `${manifest.entryPoint} ${this.width}x${this.height} workgroup ${x}x${y}x${z}`
   }

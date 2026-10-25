@@ -3,7 +3,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <iosfwd>
+#include <format>
 #include <string>
 #include <vector>
 
@@ -50,9 +50,11 @@ class TimeTrace {
   void count(Counter counter, std::uint64_t amount = 1) {
     counts_[counter] += amount;
   }
-  void write(std::ostream& out) const;
 
  private:
+  friend struct std::formatter<TimeTrace>;
+  auto formatTo(std::format_context::iterator out) const
+      -> std::format_context::iterator;
   struct Event {
     std::string name;
     std::string detail;
@@ -65,3 +67,14 @@ class TimeTrace {
   std::vector<Event> events_;
 };
 }  // namespace cxx
+
+template <>
+struct std::formatter<cxx::TimeTrace> {
+  [[nodiscard]] constexpr auto parse(std::format_parse_context& context) {
+    return context.begin();
+  }
+
+  auto format(const cxx::TimeTrace& trace, std::format_context& context) const {
+    return trace.formatTo(context.out());
+  }
+};

@@ -6210,7 +6210,61 @@ static inline auto classifyBuiltinFunction28(const char* s)
     -> cxx::BuiltinFunctionKind {
   if (s[0] == '_') {
     if (s[1] == '_') {
-      if (s[2] == 's') {
+      if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'c') {
+                        if (s[11] == 'x') {
+                          if (s[12] == 'x') {
+                            if (s[13] == '_') {
+                              if (s[14] == 'm') {
+                                if (s[15] == 'e') {
+                                  if (s[16] == 'm') {
+                                    if (s[17] == 'o') {
+                                      if (s[18] == 'r') {
+                                        if (s[19] == 'y') {
+                                          if (s[20] == '_') {
+                                            if (s[21] == 'b') {
+                                              if (s[22] == 'a') {
+                                                if (s[23] == 'r') {
+                                                  if (s[24] == 'r') {
+                                                    if (s[25] == 'i') {
+                                                      if (s[26] == 'e') {
+                                                        if (s[27] == 'r') {
+                                                          return cxx::
+                                                              BuiltinFunctionKind::
+                                                                  T___BUILTIN_CXX_MEMORY_BARRIER;
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (s[2] == 's') {
         if (s[3] == 'y') {
           if (s[4] == 'n') {
             if (s[5] == 'c') {
@@ -6239,6 +6293,72 @@ static inline auto classifyBuiltinFunction28(const char* s)
                                                           return cxx::
                                                               BuiltinFunctionKind::
                                                                   T___SYNC_BOOL_COMPARE_AND_SWAP;
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return cxx::BuiltinFunctionKind::T_NONE;
+}
+
+static inline auto classifyBuiltinFunction29(const char* s)
+    -> cxx::BuiltinFunctionKind {
+  if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'c') {
+                        if (s[11] == 'x') {
+                          if (s[12] == 'x') {
+                            if (s[13] == '_') {
+                              if (s[14] == 'c') {
+                                if (s[15] == 'o') {
+                                  if (s[16] == 'n') {
+                                    if (s[17] == 't') {
+                                      if (s[18] == 'r') {
+                                        if (s[19] == 'o') {
+                                          if (s[20] == 'l') {
+                                            if (s[21] == '_') {
+                                              if (s[22] == 'b') {
+                                                if (s[23] == 'a') {
+                                                  if (s[24] == 'r') {
+                                                    if (s[25] == 'r') {
+                                                      if (s[26] == 'i') {
+                                                        if (s[27] == 'e') {
+                                                          if (s[28] == 'r') {
+                                                            return cxx::
+                                                                BuiltinFunctionKind::
+                                                                    T___BUILTIN_CXX_CONTROL_BARRIER;
+                                                          }
                                                         }
                                                       }
                                                     }
@@ -6632,6 +6752,8 @@ static auto classifyBuiltinFunction(const char* s, int n)
       return classifyBuiltinFunction27(s);
     case 28:
       return classifyBuiltinFunction28(s);
+    case 29:
+      return classifyBuiltinFunction29(s);
     case 31:
       return classifyBuiltinFunction31(s);
     case 34:

@@ -25,8 +25,8 @@
 #include <cxx/source_resolver.h>
 #include <cxx/triple.h>
 
+#include <format>
 #include <functional>
-#include <iosfwd>
 #include <memory>
 #include <optional>
 #include <span>
@@ -108,10 +108,26 @@ class Preprocessor final : public SourceResolver {
   void preprocess(std::string source, std::string fileName,
                   std::vector<Token>& tokens);
 
-  void getPreprocessedText(
+  struct Text {
+    const Preprocessor& preprocessor;
+    const std::vector<Token>& tokens;
+    const std::vector<std::pair<unsigned, int>>& packChanges;
+
+    auto formatTo(std::format_context::iterator out) const
+        -> std::format_context::iterator;
+  };
+
+  struct Macros {
+    const Preprocessor& preprocessor;
+
+    auto formatTo(std::format_context::iterator out) const
+        -> std::format_context::iterator;
+  };
+
+  [[nodiscard]] auto preprocessedText(
       const std::vector<Token>& tokens,
-      const std::vector<std::pair<unsigned, int>>& packChanges,
-      std::ostream& out) const;
+      const std::vector<std::pair<unsigned, int>>& packChanges) const -> Text;
+  [[nodiscard]] auto macros() const -> Macros;
 
   [[nodiscard]] auto systemIncludePaths() const
       -> const std::vector<std::string>&;
@@ -143,8 +159,6 @@ class Preprocessor final : public SourceResolver {
   void defineMacro(const std::string& name, const std::string& body);
 
   void undefMacro(const std::string& name);
-
-  void printMacros(std::ostream& out) const;
 
   void setPreambleOnly(bool enabled);
   [[nodiscard]] auto preambleOnly() const -> bool;
@@ -229,3 +243,25 @@ class DefaultPreprocessorState {
 };
 
 }  // namespace cxx
+
+template <>
+struct std::formatter<cxx::Preprocessor::Text> {
+  [[nodiscard]] constexpr auto parse(std::format_parse_context& context) {
+    return context.begin();
+  }
+  auto format(const cxx::Preprocessor::Text& text,
+              std::format_context& context) const {
+    return text.formatTo(context.out());
+  }
+};
+
+template <>
+struct std::formatter<cxx::Preprocessor::Macros> {
+  [[nodiscard]] constexpr auto parse(std::format_parse_context& context) {
+    return context.begin();
+  }
+  auto format(const cxx::Preprocessor::Macros& macros,
+              std::format_context& context) const {
+    return macros.formatTo(context.out());
+  }
+};

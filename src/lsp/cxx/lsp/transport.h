@@ -23,7 +23,7 @@
 #include <cxx/lsp/json.h>
 
 #include <cstddef>
-#include <iosfwd>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <string>
@@ -57,7 +57,7 @@ class Transport {
 
 class StreamTransport : public Transport {
  public:
-  StreamTransport(std::istream& input, std::ostream& output);
+  StreamTransport(std::FILE* input, std::FILE* output);
 
   [[nodiscard]] auto isOpen() const -> bool override;
 
@@ -69,8 +69,8 @@ class StreamTransport : public Transport {
   void write(std::string_view text);
 
  private:
-  std::istream& input_;
-  std::ostream& output_;
+  std::FILE* input_;
+  std::FILE* output_;
 #ifndef CXX_NO_THREADS
   std::mutex outputMutex_;
 #endif
@@ -78,8 +78,7 @@ class StreamTransport : public Transport {
 
 class StdioTransport final : public StreamTransport {
  public:
-  StdioTransport();
-  StdioTransport(std::istream& input, std::ostream& output);
+  explicit StdioTransport(std::FILE* input = stdin, std::FILE* output = stdout);
 
   [[nodiscard]] auto nextMessage() -> std::optional<json> override;
 
@@ -92,8 +91,8 @@ class StdioTransport final : public StreamTransport {
 
 class JsonLinesTransport final : public StreamTransport {
  public:
-  JsonLinesTransport();
-  JsonLinesTransport(std::istream& input, std::ostream& output);
+  explicit JsonLinesTransport(std::FILE* input = stdin,
+                              std::FILE* output = stdout);
 
   [[nodiscard]] auto nextMessage() -> std::optional<json> override;
 

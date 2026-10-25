@@ -122,6 +122,7 @@ class Control {
   [[nodiscard]] auto getFloatType() -> const FloatType*;
   [[nodiscard]] auto getDoubleType() -> const DoubleType*;
   [[nodiscard]] auto getLongDoubleType() -> const LongDoubleType*;
+  [[nodiscard]] auto getHalfType() -> const HalfType*;
   [[nodiscard]] auto getFloat16Type() -> const Float16Type*;
   [[nodiscard]] auto getFloat128Type() -> const Float128Type*;
   [[nodiscard]] auto getQualType(

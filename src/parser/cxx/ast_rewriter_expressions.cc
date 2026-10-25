@@ -1145,14 +1145,16 @@ auto ASTRewriter::ExpressionVisitor::operator()(MemberExpressionAST* ast)
 
   copy->baseExpression = rewrite.expression(ast->baseExpression);
   copy->accessLoc = ast->accessLoc;
-  copy->nestedNameSpecifier =
-      rewrite.nestedNameSpecifier(ast->nestedNameSpecifier);
   copy->templateLoc = ast->templateLoc;
   copy->unqualifiedId = rewrite.unqualifiedId(ast->unqualifiedId);
   copy->accessOp = ast->accessOp;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
   auto objectType = memberAccessObjectType(translationUnit(), copy);
+  auto classType = unqualified_cast<ClassType>(objectType);
+  auto memberScope = classType ? classType->symbol() : nullptr;
+  copy->nestedNameSpecifier =
+      rewrite.nestedNameSpecifier(ast->nestedNameSpecifier, memberScope);
 
   if (ast_cast<DestructorIdAST>(copy->unqualifiedId)) {
     bindDestroyedType(copy, objectType);

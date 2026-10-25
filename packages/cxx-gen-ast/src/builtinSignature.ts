@@ -109,6 +109,7 @@ export const BUILTIN_LEAF_TYPES: BuiltinLeafType[] = [
     spellings: ["_Float16"],
     expr: "control->getFloat16Type()",
   },
+  { op: "kHalf", spellings: ["__fp16"], expr: "control->getHalfType()" },
   {
     op: "kFloat128",
     spellings: ["__float128"],

@@ -80,11 +80,14 @@ class DiagnosticsClient {
 
   void emit(const Diagnostic& diagnostic);
 
+  void forwardTo(DiagnosticsClient* client) { forwardingClient_ = client; }
+
   [[nodiscard]] auto hasErrorAt(SourceLocation location) const -> bool {
     return errorLocations_.contains(location.index());
   }
 
  private:
+  DiagnosticsClient* forwardingClient_ = nullptr;
   std::unordered_set<unsigned> errorLocations_;
   SourceResolver* sourceResolver_ = nullptr;
   int errorCount_ = 0;
@@ -119,15 +122,14 @@ class SilentDiagnosticsClient final : public DiagnosticsClient {
 };
 
 struct CapturingDiagnosticsClient final : DiagnosticsClient {
-  DiagnosticsClient* parent = nullptr;
   std::vector<Diagnostic> diagnostics;
 
-  explicit CapturingDiagnosticsClient(DiagnosticsClient* parent = nullptr)
-      : parent(parent) {}
+  explicit CapturingDiagnosticsClient(DiagnosticsClient* parent = nullptr) {
+    forwardTo(parent);
+  }
 
   void report(const Diagnostic& diagnostic) override {
     diagnostics.push_back(diagnostic);
-    if (parent) parent->emit(diagnostic);
   }
 };
 
@@ -192,7 +194,7 @@ class CapturingDiagnosticsScope {
   auto operator=(const CapturingDiagnosticsScope&)
       -> CapturingDiagnosticsScope& = delete;
 
-  void forwardToPreviousClient() { client_.parent = scope_.previousClient(); }
+  void forwardToPreviousClient() { client_.forwardTo(scope_.previousClient()); }
 
   void finish() { scope_.restore(); }
 
