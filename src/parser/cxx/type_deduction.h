@@ -45,7 +45,8 @@ class TypeDeduction {
                 TemplateDeclarationAST* templateDeclaration);
 
   [[nodiscard]] auto deduce(std::span<const TemplateArgument> P,
-                            std::span<const TemplateArgument> A) -> bool;
+                            std::span<const TemplateArgument> A,
+                            bool functionParameters = false) -> bool;
 
   [[nodiscard]] auto deduce(const Type* P, const Type* A) -> bool;
 
@@ -88,9 +89,7 @@ class TypeDeduction {
     return deduced_[slot];
   }
 
-  [[nodiscard]] auto isSpecified(int slot) const -> bool {
-    return specified_[slot];
-  }
+  [[nodiscard]] auto isSpecified(int slot) const -> bool;
 
   [[nodiscard]] auto slotOf(const Type* type) const -> int;
 
@@ -137,12 +136,13 @@ class TypeDeduction {
 
   [[nodiscard]] auto deducePackExpansion(
       const TemplateArgument& pattern,
-      std::span<const TemplateArgument> arguments) -> bool;
+      std::span<const TemplateArgument> arguments, bool functionParameters)
+      -> bool;
 
   [[nodiscard]] auto deducePackElements(
       const TemplateArgument& pattern,
-      std::span<const TemplateArgument> arguments, Expansion& expansion)
-      -> bool;
+      std::span<const TemplateArgument> arguments, Expansion& expansion,
+      bool functionParameters) -> bool;
 
   [[nodiscard]] auto deduceTemplateName(int slot, Symbol* templateSymbol)
       -> bool;
@@ -162,8 +162,6 @@ class TypeDeduction {
 
   [[nodiscard]] auto deduceTemplateArgumentValue(
       NonTypeParameterSymbol* parameter, const TemplateArgument& A) -> bool;
-
-  [[nodiscard]] auto holdsSpecifiedArgument(int slot) const -> bool;
 
   [[nodiscard]] auto matchesSpecifiedArgument(int slot,
                                               const TemplateArgument& A) const
@@ -191,6 +189,9 @@ class TypeDeduction {
       const FunctionType* P, const FunctionType* A,
       bool allowsFunctionPointerConversion) -> bool;
 
+  [[nodiscard]] auto deduceFunctionParameter(const TemplateArgument& P,
+                                             const TemplateArgument& A) -> bool;
+
   [[nodiscard]] auto deduceArrayBound(ExpressionAST* P, const Type* A) -> bool;
 
   [[nodiscard]] auto matchesNonDependentType(
@@ -204,7 +205,11 @@ class TypeDeduction {
   std::vector<Symbol*> deduced_;
   std::vector<bool> specified_;
   std::vector<ParameterPackSymbol*> packPrefixes_;
-  std::vector<int> expandingSlots_;
+  struct ExpandingSlot {
+    int slot;
+    bool specified = false;
+  };
+  std::vector<ExpandingSlot> expandingSlots_;
   bool skippedNonDeducedContext_ = false;
 };
 

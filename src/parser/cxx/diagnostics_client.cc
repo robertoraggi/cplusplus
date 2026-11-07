@@ -48,8 +48,29 @@ void DiagnosticsClient::emit(const Diagnostic& diagnostic) {
         client->errorLocations_.insert(diagnostic.location().index());
     }
 
+    if (client->hidesInSystemHeader(diagnostic)) continue;
+
     client->report(diagnostic);
   }
+}
+
+auto DiagnosticsClient::hidesInSystemHeader(const Diagnostic& diagnostic)
+    -> bool {
+  if (diagnostic.severity() == Severity::Note) return lastWarningHidden_;
+  lastWarningHidden_ = false;
+  if (diagnostic.severity() != Severity::Warning) return false;
+  if (diagnostic.showsInSystemHeader() || systemHeaderWarnings_) return false;
+  if (!sourceResolver_) return false;
+  lastWarningHidden_ =
+      sourceResolver_->isSystemHeader(diagnostic.token().fileId());
+  return lastWarningHidden_;
+}
+
+auto DiagnosticsClient::hasErrorWithin(SourceLocation first,
+                                       SourceLocation last) const -> bool {
+  for (auto index = first.index(); index <= last.index(); ++index)
+    if (errorLocations_.contains(index)) return true;
+  return false;
 }
 
 auto reportOutsideImmediateContext(TranslationUnit* unit,

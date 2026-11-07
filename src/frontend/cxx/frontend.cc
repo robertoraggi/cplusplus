@@ -129,6 +129,7 @@ struct Frontend::Private {
 
   void prepare();
   void preparePreprocessor();
+  void configureDiagnostics();
   void preprocess();
   void parse();
   void showSearchPaths(std::format_context::iterator& out);
@@ -255,6 +256,7 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
                            std::string fileName)
     : frontend(frontend), cli(cli), fileName_(std::move(fileName)) {
   diagnosticsClient_ = std::make_unique<VerifyDiagnosticsClient>();
+  configureDiagnostics();
   unit_ = std::make_unique<TranslationUnit>(diagnosticsClient_.get());
 
   actions_.emplace_back([this]() {
@@ -506,6 +508,19 @@ void Frontend::Private::dumpMacros(std::format_context::iterator& out) {
   shouldExit_ = true;
 }
 
+void Frontend::Private::configureDiagnostics() {
+  if (auto errorLimitStr = cli.getSingle("-ferror-limit")) {
+    int limit = std::atoi(errorLimitStr->c_str());
+    if (limit > 0) diagnosticsClient_->setErrorLimit(limit);
+  }
+  for (const auto& warning : cli.get("-W")) {
+    if (warning == "system-headers")
+      diagnosticsClient_->setSystemHeaderWarnings(true);
+    else if (warning == "no-system-headers")
+      diagnosticsClient_->setSystemHeaderWarnings(false);
+  }
+}
+
 void Frontend::Private::prepare() {
   if (auto kernel = cli.getSingle("--kernel"); kernel && kernel->empty()) {
     std::print(stderr, "{}",
@@ -561,20 +576,13 @@ void Frontend::Private::preparePreprocessor() {
 
 void Frontend::Private::parse() {
   TimeTrace::Scope trace{unit_->timeTrace(), "Parse"};
-  if (auto errorLimitStr = cli.getSingle("-ferror-limit")) {
-    int limit = std::atoi(errorLimitStr->c_str());
-    if (limit > 0) diagnosticsClient_->setErrorLimit(limit);
-  }
-
   bool checkTypes = !cli.opt_fno_check;
-  if (cli.opt_fvalidate_ast) checkTypes = true;
   if (cli.opt_emit_pch) checkTypes = true;
   if (needsIR()) checkTypes = true;
   if (unit_->language() == LanguageKind::kC) checkTypes = true;
 
   ParserConfiguration config{
       .checkTypes = checkTypes,
-      .validateAst = cli.opt_fvalidate_ast,
       .allowUnprototypedFunctions = cli.opt_fno_strict_prototypes,
       .exceptionsEnabled = toolchain_->exceptionsEnabled(),
       .rttiEnabled = toolchain_->rttiEnabled(),
@@ -999,7 +1007,8 @@ void Frontend::Private::generateIR() {
                    unit_.get(),
                    {.debugInfo = cli.opt_g,
                     .debugCompilationDirectory = debugCompilationDirectory(),
-                    .sourceObserver = observer}};
+                    .sourceObserver = observer,
+                    .runsAlwaysInliner = llvmPipelineRunsAlwaysInliner()}};
 
   auto ir = codegen(unit_->ast());
   module_ = emitter.module(ir.module);
@@ -1223,10 +1232,7 @@ void Frontend::Private::emitLLVMIR() {
     return;
   }
 
-  if (const auto level = llvmOptimizationLevel();
-      level != llvm::OptimizationLevel::O0) {
-    optimizeLLVMIR(*llvmModule_, targetMachine(), level);
-  }
+  optimizeLLVMIR(*llvmModule_, targetMachine(), llvmOptimizationLevel());
 
   if (!cli.opt_emit_llvm) return;
 

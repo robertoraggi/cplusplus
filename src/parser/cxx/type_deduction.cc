@@ -280,7 +280,8 @@ struct TypeDeduction::CollectSlots {
 
   void add(int slot) {
     if (slot < 0) return;
-    if (packsOnly() && std::ranges::contains(deduction.expandingSlots_, slot))
+    if (packsOnly() && std::ranges::contains(deduction.expandingSlots_, slot,
+                                             &ExpandingSlot::slot))
       return;
     if (std::ranges::contains(slots, slot)) return;
     slots.push_back(slot);
@@ -426,6 +427,10 @@ struct TypeDeduction::CollectSlots {
   void operator()(const UnresolvedNameType* type) {
     collectReferencedParameters(type->nestedNameSpecifier());
     collectReferencedParameters(type->unqualifiedId());
+  }
+
+  void operator()(const UnresolvedPackIndexType* type) {
+    collectReferencedParameters(type->index());
   }
 
   void operator()(const UnresolvedUnderlyingType* type) {
@@ -708,7 +713,8 @@ auto TypeDeduction::isPackExpansion(const TemplateArgument& argument) const
 }
 
 auto TypeDeduction::deduce(std::span<const TemplateArgument> P,
-                           std::span<const TemplateArgument> A) -> bool {
+                           std::span<const TemplateArgument> A,
+                           bool functionParameters) -> bool {
   auto patterns = expand_template_arguments(P);
   auto arguments = expand_template_arguments(A);
 
@@ -717,11 +723,16 @@ auto TypeDeduction::deduce(std::span<const TemplateArgument> P,
       if (index + 1 != patterns.size()) return skipNonDeducedContext();
       auto rest =
           std::span{arguments}.subspan(std::min(index, arguments.size()));
-      return deducePackExpansion(*pattern, rest);
+      return deducePackExpansion(*pattern, rest, functionParameters);
     }
     if (index >= arguments.size()) return false;
     if (isPackExpansion(arguments[index])) return false;
-    if (!deduce(patterns[index], arguments[index])) return false;
+    if (functionParameters) {
+      if (!deduceFunctionParameter(patterns[index], arguments[index]))
+        return false;
+    } else if (!deduce(patterns[index], arguments[index])) {
+      return false;
+    }
   }
 
   return patterns.size() == arguments.size();
@@ -735,17 +746,19 @@ auto TypeDeduction::beginExpansion(const TemplateArgument& pattern)
     expansion.previous.push_back(deduced_[slot]);
     expansion.packs.push_back(control()->newParameterPackSymbol(nullptr, {}));
   }
-  expandingSlots_.insert(expandingSlots_.end(), expansion.slots.begin(),
-                         expansion.slots.end());
+  for (auto slot : expansion.slots) expandingSlots_.push_back({slot});
   return expansion;
 }
 
 auto TypeDeduction::beginElement(const Expansion& expansion, std::size_t index)
     -> bool {
   auto specifiedElements = 0uz;
-  for (auto slot : expansion.slots) {
+  for (std::size_t i = 0; i < expansion.slots.size(); ++i) {
+    auto slot = expansion.slots[i];
     auto prefix = packPrefixes_[slot];
-    if (prefix && index < prefix->elements().size()) {
+    auto specified = prefix && index < prefix->elements().size();
+    expandingSlots_[expansion.expandingSlots + i].specified = specified;
+    if (specified) {
       deduced_[slot] = prefix->elements()[index];
       ++specifiedElements;
     } else {
@@ -783,13 +796,14 @@ auto TypeDeduction::endExpansion(Expansion& expansion) -> bool {
 
 auto TypeDeduction::deducePackExpansion(
     const TemplateArgument& pattern,
-    std::span<const TemplateArgument> arguments) -> bool {
+    std::span<const TemplateArgument> arguments, bool functionParameters)
+    -> bool {
   auto expansion = beginExpansion(pattern);
   if (expansion.slots.empty()) {
     expandingSlots_.resize(expansion.expandingSlots);
     return skipNonDeducedContext();
   }
-  if (!deducePackElements(pattern, arguments, expansion)) {
+  if (!deducePackElements(pattern, arguments, expansion, functionParameters)) {
     expandingSlots_.resize(expansion.expandingSlots);
     return false;
   }
@@ -798,12 +812,17 @@ auto TypeDeduction::deducePackExpansion(
 
 auto TypeDeduction::deducePackElements(
     const TemplateArgument& pattern,
-    std::span<const TemplateArgument> arguments, Expansion& expansion) -> bool {
+    std::span<const TemplateArgument> arguments, Expansion& expansion,
+    bool functionParameters) -> bool {
   for (std::size_t index = 0; index < arguments.size(); ++index) {
     auto argument =
         packExpansionPattern(arguments[index]).value_or(arguments[index]);
-    if (beginElement(expansion, index) && !deduce(pattern, argument))
+    auto deducesElement = beginElement(expansion, index);
+    if (functionParameters) {
+      if (!deduceFunctionParameter(pattern, argument)) return false;
+    } else if (deducesElement && !deduce(pattern, argument)) {
       return false;
+    }
     if (!endElement(expansion)) return false;
   }
   return true;
@@ -909,7 +928,23 @@ auto TypeDeduction::deduceFunctionType(const FunctionType* P, const Type* A,
   for (auto type : P->parameterTypes()) patterns.push_back(type);
   std::vector<TemplateArgument> arguments;
   for (auto type : function->parameterTypes()) arguments.push_back(type);
-  return deduce(patterns, arguments);
+  return deduce(patterns, arguments, true);
+}
+
+auto TypeDeduction::deduceFunctionParameter(const TemplateArgument& P,
+                                            const TemplateArgument& A) -> bool {
+  auto pattern = std::get_if<const Type*>(&P);
+  auto argument = std::get_if<const Type*>(&A);
+  if (!pattern || !argument) return false;
+  auto slot = slotOf(*pattern);
+  if (slot >= 0 && isSpecified(slot)) {
+    auto specified =
+        template_argument_as_type(TemplateArgument{deduced_[slot]});
+    if (!specified) return false;
+    auto adjusted = TypeTraits::adjusted_parameter_type(control(), specified);
+    return deduce(unqualified_type(adjusted), *argument);
+  }
+  return deduce(*pattern, *argument);
 }
 
 auto TypeDeduction::deduceExceptionSpecification(
@@ -1063,6 +1098,11 @@ auto TypeDeduction::deduceNonTypeParameter(NonTypeParameterSymbol* parameter,
 
   auto value = template_argument_value(A);
   if (!value) return skipNonDeducedContext();
+  if (unit_->typeTraits().is_class_or_union(parameter->objectType())) {
+    auto object = Substitution::initializeTemplateParameterObject(
+        unit_, parameter->objectType(), *value, parameter->location());
+    return object && record(slot, object);
+  }
   return record(slot, control()->getConstantArgumentSymbol(
                           parameter->objectType(), *value));
 }
@@ -1070,18 +1110,17 @@ auto TypeDeduction::deduceNonTypeParameter(NonTypeParameterSymbol* parameter,
 auto TypeDeduction::deduceTemplateArgumentValue(
     NonTypeParameterSymbol* parameter, const TemplateArgument& A) -> bool {
   auto slot = slotOf(parameter);
-  if (slot >= 0 && holdsSpecifiedArgument(slot))
-    return matchesSpecifiedArgument(slot, A);
+  if (slot >= 0 && isSpecified(slot)) return matchesSpecifiedArgument(slot, A);
   if (!deduceNonTypeParameter(parameter, A)) return false;
   if (slot < 0) return true;
   return hasCorrespondingParameterType(parameter, A);
 }
 
-auto TypeDeduction::holdsSpecifiedArgument(int slot) const -> bool {
+auto TypeDeduction::isSpecified(int slot) const -> bool {
   if (specified_[slot]) return true;
-  auto prefix = packPrefixes_[slot];
-  if (!prefix || !deduced_[slot]) return false;
-  return std::ranges::contains(prefix->elements(), deduced_[slot]);
+  auto expanded =
+      std::ranges::find(expandingSlots_, slot, &ExpandingSlot::slot);
+  return expanded != expandingSlots_.end() && expanded->specified;
 }
 
 auto TypeDeduction::matchesSpecifiedArgument(int slot,

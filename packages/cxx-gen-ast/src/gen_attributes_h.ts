@@ -27,6 +27,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 interface AttributeDef {
   name: string;
+  standardValue?: number;
   spellings: string[];
   arguments?: string[];
   optionalArguments?: boolean;
@@ -196,6 +197,7 @@ export function gen_attributes_h({ output }: { output: string }) {
     lines.push(`    {`);
     lines.push(`        .kind = AttributeKind::${kind},`);
     lines.push(`        .name = ${quote(attribute.name)},`);
+    lines.push(`        .standardValue = ${attribute.standardValue ?? 0},`);
     lines.push(`        .spellings = k${base}Spellings,`);
     lines.push(
       `        .availability = AttributeAvailability::${availabilities.get(attribute.availability)},`,

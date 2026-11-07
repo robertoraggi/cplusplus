@@ -272,6 +272,7 @@ struct Control::Private {
   TypeSet<UnresolvedNameType> unresolvedNameTypes;
   TypeSet<UnresolvedBoundedArrayType> unresolvedBoundedArrayTypes;
   TypeSet<UnresolvedUnderlyingType> unresolvedUnderlyingTypes;
+  TypeSet<UnresolvedPackIndexType> unresolvedPackIndexTypes;
   TypeSet<UnresolvedBuiltinType> unresolvedBuiltinTypes;
   TypeSet<ClassType> classTypes;
   TypeSet<NamespaceType> namespaceTypes;
@@ -309,6 +310,8 @@ struct Control::Private {
   std::map<std::tuple<const Type*, std::uint64_t, std::uint64_t, int, bool>,
            VariableSymbol*>
       constantArgumentSymbols;
+  std::unordered_map<std::size_t, std::vector<VariableSymbol*>>
+      classConstantArgumentSymbols;
   std::map<std::vector<Symbol*>, ParameterPackSymbol*> packArgumentSymbols;
   std::forward_list<FieldSymbol> fieldSymbols;
   std::forward_list<ParameterSymbol> parameterSymbols;
@@ -884,6 +887,7 @@ auto Control::restoreTemplateTypeParameterSpecializationType(
 
 auto Control::getDecltypeType(TranslationUnit* unit, ExpressionAST* expression)
     -> const DecltypeType* {
+  if (expression) unit->captureSnippet(expression->sourceLocationRange());
   return internType(d->decltypeTypes, unit, expression);
 }
 
@@ -896,6 +900,8 @@ auto Control::getUnresolvedNameType(TranslationUnit* unit,
                                     NestedNameSpecifierAST* nestedNameSpecifier,
                                     UnqualifiedIdAST* unqualifiedId)
     -> const UnresolvedNameType* {
+  if (unqualifiedId) unit->captureSnippet(unqualifiedId->sourceLocationRange());
+  const UnresolvedNameType* expandedType = nullptr;
   while (nestedNameSpecifier) {
     auto alias = symbol_cast<TypeAliasSymbol>(nestedNameSpecifier->symbol);
     auto expansion =
@@ -905,6 +911,7 @@ auto Control::getUnresolvedNameType(TranslationUnit* unit,
         unit, expansion->nestedNameSpecifier(), expansion->unqualifiedId());
     if (!expandedQualifier) break;
     nestedNameSpecifier = expandedQualifier;
+    expandedType = expansion;
   }
 
   nestedNameSpecifier =
@@ -913,7 +920,18 @@ auto Control::getUnresolvedNameType(TranslationUnit* unit,
   auto type = internType(d->unresolvedNameTypes, unit, nestedNameSpecifier,
                          unqualifiedId);
 
-  unit->captureSnippet(type->sourceLocationRange());
+  if (expandedType) {
+    auto qualifier = expandedType->translationUnit()->snippetText(
+        expandedType->sourceLocationRange());
+    auto name = unqualifiedId
+                    ? unit->snippetText(unqualifiedId->sourceLocationRange())
+                    : std::string_view{};
+    if (!qualifier.empty() && !name.empty())
+      unit->captureSnippet(type->sourceLocationRange(),
+                           std::format("{}::{}", qualifier, name));
+  } else {
+    unit->captureSnippet(type->sourceLocationRange());
+  }
 
   return type;
 }
@@ -926,6 +944,13 @@ auto Control::getUnresolvedBoundedArrayType(TranslationUnit* unit,
     unit->captureSnippet(sizeExpression->sourceLocationRange());
   return internType(d->unresolvedBoundedArrayTypes, unit, elementType,
                     sizeExpression);
+}
+
+auto Control::getUnresolvedPackIndexType(TranslationUnit* unit,
+                                         const Type* pack, ExpressionAST* index)
+    -> const UnresolvedPackIndexType* {
+  if (index) unit->captureSnippet(index->sourceLocationRange());
+  return internType(d->unresolvedPackIndexTypes, unit, pack, index);
 }
 
 auto Control::getUnresolvedUnderlyingType(TranslationUnit* unit,
@@ -1158,6 +1183,38 @@ auto Control::getConstantArgumentSymbol(const Type* type,
       integer->isSigned())];
   if (!symbol) symbol = newConstantArgumentSymbol(this, type, value);
   return symbol;
+}
+
+auto Control::getTemplateParameterObject(const Type* type,
+                                         const ConstValue& value)
+    -> VariableSymbol* {
+  auto qualified = type_cast<QualType>(type);
+  auto addressSpace = qualified ? qualified->addressSpace() : std::nullopt;
+  if (!type_cast<BoundedArrayType>(type)) {
+    type =
+        getQualType(unqualified_type(type), CvQualifiers::kConst, addressSpace);
+  }
+  auto key = hash_value(value);
+  if (!key) return nullptr;
+  auto& bucket = d->classConstantArgumentSymbols[*key];
+  for (auto symbol : bucket) {
+    if (symbol->type() == type &&
+        equivalent_values(*symbol->constValue(), value))
+      return symbol;
+  }
+  auto symbol = newConstantArgumentSymbol(this, type, cloneValue(value));
+  symbol->setStatic(true);
+  symbol->setTemplateParameterObject(true);
+  bucket.push_back(symbol);
+  return symbol;
+}
+
+void Control::indexTemplateParameterObject(VariableSymbol* symbol) {
+  if (!symbol->isTemplateParameterObject() || !symbol->constValue()) return;
+  auto key = hash_value(*symbol->constValue());
+  if (!key) return;
+  auto& bucket = d->classConstantArgumentSymbols[*key];
+  if (!std::ranges::contains(bucket, symbol)) bucket.push_back(symbol);
 }
 
 auto Control::newVariableSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)

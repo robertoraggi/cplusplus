@@ -26,13 +26,22 @@
 
 namespace cxx {
 
+class Arena;
+
 struct InitializerInfo {
   std::optional<List<ExpressionAST*>*> arguments;
+  bool isParenthesizedAggregate = false;
 };
 
 struct ObjectInitializationInfo {
   ExpressionAST* expression = nullptr;
 };
+
+struct SpliceExpressionInfo {
+  ExpressionAST* expression = nullptr;
+};
+
+[[nodiscard]] auto loweredSplice(ExpressionAST* expression) -> ExpressionAST*;
 
 struct ForRangeStatementInfo {
   CompoundStatementAST* statement = nullptr;
@@ -42,5 +51,22 @@ struct StructuredBindingInfo {
   InitDeclaratorAST* hiddenVariable = nullptr;
   List<InitDeclaratorAST*>* bindingDeclaratorList = nullptr;
 };
+
+[[nodiscard]] auto cloneAttribute(Arena* arena, const InitializerInfo& info)
+    -> InitializerInfo;
+
+[[nodiscard]] auto cloneAttribute(Arena* arena,
+                                  const ObjectInitializationInfo& info)
+    -> ObjectInitializationInfo;
+
+[[nodiscard]] auto cloneAttribute(Arena* arena,
+                                  const SpliceExpressionInfo& info)
+    -> SpliceExpressionInfo;
+
+template <typename Attribute>
+[[nodiscard]] auto cloneAttribute(Arena*, const Attribute& attribute)
+    -> Attribute {
+  return attribute;
+}
 
 }  // namespace cxx

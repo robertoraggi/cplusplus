@@ -21,9 +21,10 @@ const skip = existsSync(sysroot) ? false : "the wasi sysroot is not built";
 
 function countingReader() {
   const reader = async (file) => {
-    reader.reads.push(file);
     try {
-      return await readFile(file);
+      const data = await readFile(file);
+      reader.reads.push(file);
+      return data;
     } catch {
       return undefined;
     }

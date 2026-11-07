@@ -54,10 +54,12 @@ struct TypeDeducer {
   void deduceArraySize(S* var);
 
   template <typename S>
-  void deduceAutoType(S* symbol);
+  [[nodiscard]] auto deduceAutoType(S* var) -> const Type*;
 
   template <typename S>
-  void deduceClassTemplateArguments(S* var, SpecifierAST* typeSpecifier);
+  [[nodiscard]] auto deduceClassTemplateArguments(S* var,
+                                                  SpecifierAST* typeSpecifier)
+      -> const Type*;
 
  private:
   template <typename S>
@@ -227,11 +229,12 @@ static auto deduceAutoReplacement(InitContext& ctx, const Type* P,
 }
 
 template <typename S>
-void TypeDeducer::deduceClassTemplateArguments(S* var,
-                                               SpecifierAST* typeSpecifier) {
+auto TypeDeducer::deduceClassTemplateArguments(S* var,
+                                               SpecifierAST* typeSpecifier)
+    -> const Type* {
   if (!ClassTemplateArgumentDeduction::placeholderClassTemplate(
           typeSpecifier, ctx.checker.scope()))
-    return;
+    return nullptr;
 
   auto initializer = var->initializer();
 
@@ -244,41 +247,48 @@ void TypeDeducer::deduceClassTemplateArguments(S* var,
           initializationKind == InitializationKind::kCopyListInitialization,
       var->location());
 
-  if (!deduced) return;
+  if (!deduced) return nullptr;
 
   var->setType(ctx.traits.add_cv(deduced, cv_qualifiers(var->type())));
+  return deduced;
 }
 
 template <typename S>
-void TypeDeducer::deduceAutoType(S* var) {
+auto TypeDeducer::deduceAutoType(S* var) -> const Type* {
   auto declType = var->type();
-  if (!containsPlaceholderType(declType)) return;
+  if (!containsPlaceholderType(declType)) return nullptr;
 
   if (!var->initializer()) {
     ctx.error(var->location(), "variable with 'auto' type must be initialized");
-    return;
+    return nullptr;
   }
 
-  auto deduced = ctx.checker.deduceDeclaredPlaceholderType(
+  auto replacement = ctx.checker.deduceDeclaredPlaceholderReplacement(
       declType, var->initializer(), var->location());
-  if (!deduced) return;
-  var->setType(deduced);
+  if (!replacement) return nullptr;
+  var->setType(ctx.traits.replace_placeholder_types(declType, replacement));
 
   if (auto classType =
           type_cast<ClassType>(ctx.traits.remove_cvref(var->type()))) {
-    ctx.traits.requireCompleteClass(classType->symbol());
+    ctx.traits.require_complete_class(classType->symbol());
   }
+  return replacement;
 }
 
 struct InitDeclaratorChecker {
   InitContext ctx;
   TypeDeducer typeDeducer;
   ArrayCopyPolicy arrayCopyPolicy;
+  PlaceholderReplacement* listReplacement = nullptr;
 
   explicit InitDeclaratorChecker(
       TypeChecker& checker,
-      ArrayCopyPolicy arrayCopyPolicy = ArrayCopyPolicy::kBracedInitializerOnly)
-      : ctx(checker), typeDeducer{ctx}, arrayCopyPolicy(arrayCopyPolicy) {}
+      ArrayCopyPolicy arrayCopyPolicy = ArrayCopyPolicy::kBracedInitializerOnly,
+      PlaceholderReplacement* listReplacement = nullptr)
+      : ctx(checker),
+        typeDeducer{ctx},
+        arrayCopyPolicy(arrayCopyPolicy),
+        listReplacement(listReplacement) {}
 
   void checkInitDeclarator(InitDeclaratorAST* ast, SpecifierAST* typeSpecifier);
   template <typename S>
@@ -292,9 +302,15 @@ struct InitDeclaratorChecker {
                                          SourceLocation location) -> bool;
 
  private:
+  template <typename S>
+  void deducePlaceholderType(S* var, SpecifierAST* typeSpecifier,
+                             SourceLocation location);
+  void checkListPlaceholderReplacement(Symbol* declaration,
+                                       const Type* replacement,
+                                       SourceLocation location);
   void evaluateConstValue(VariableSymbol* var, ExpressionAST*& initializer);
-  void recordConstantInitializer(VariableSymbol* var,
-                                 ExpressionAST*& initializer);
+  template <typename S>
+  void recordConstantInitializer(S* var, ExpressionAST*& initializer);
   template <typename S>
   [[nodiscard]] auto checkThreadgroupVariable(S* var,
                                               ExpressionAST* initializer,
@@ -337,15 +353,53 @@ void InitDeclaratorChecker::checkInitDeclarator(InitDeclaratorAST* ast,
   auto initializer = ast->initializer;
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol);
       field && field->isStatic()) {
+    if (field->initializer()) initializer = field->initializer();
     checkVariable(field, initializer, field->location(), typeSpecifier);
     return;
   }
 
   auto var = symbol_cast<VariableSymbol>(ast->symbol);
   if (!var) return;
+  if (var->initializer()) initializer = var->initializer();
 
   checkVariable(var, initializer,
                 ctx.checker.getInitDeclaratorLocation(ast, var), typeSpecifier);
+}
+
+template <typename S>
+void InitDeclaratorChecker::deducePlaceholderType(S* var,
+                                                  SpecifierAST* typeSpecifier,
+                                                  SourceLocation location) {
+  if (auto replacement =
+          typeDeducer.deduceClassTemplateArguments(var, typeSpecifier)) {
+    checkListPlaceholderReplacement(var, replacement, location);
+    return;
+  }
+
+  auto replacement = typeDeducer.deduceAutoType(var);
+  checkListPlaceholderReplacement(var, replacement, location);
+}
+
+void InitDeclaratorChecker::checkListPlaceholderReplacement(
+    Symbol* declaration, const Type* replacement, SourceLocation location) {
+  if (!listReplacement || !replacement) return;
+  if (isDependent(ctx.unit, replacement)) return;
+
+  if (!listReplacement->type) {
+    *listReplacement = {.declaration = declaration, .type = replacement};
+    return;
+  }
+
+  if (ctx.traits.is_same(listReplacement->type, replacement)) return;
+
+  ctx.error(location,
+            std::format("the type that replaces the placeholder type is '{}' "
+                        "in the declaration of '{}' but '{}' in the "
+                        "declaration of '{}'",
+                        to_diag_string(listReplacement->type),
+                        to_diag_string(listReplacement->declaration->name()),
+                        to_diag_string(replacement),
+                        to_diag_string(declaration->name())));
 }
 
 [[nodiscard]] auto isInitializedInClass(VariableSymbol* variable) -> bool {
@@ -372,14 +426,23 @@ void InitDeclaratorChecker::checkVariable(S* var, ExpressionAST*& initializer,
   if (initializer) var->setInitializer(initializer);
 
   typeDeducer.deduceArraySize(var);
-  typeDeducer.deduceClassTemplateArguments(var, typeSpecifier);
-  typeDeducer.deduceAutoType(var);
+  deducePlaceholderType(var, typeSpecifier, location);
 
   if (var->isConstexpr()) var->setType(ctx.traits.add_const(var->type()));
+
+  if constexpr (std::is_same_v<S, VariableSymbol>) {
+    if (!initializer && var->isConstexpr() && var->isExtern())
+      ctx.error(location,
+                "constexpr shall be applied only to the definition of a "
+                "variable");
+  }
 
   if (!initializer && !Binder::declaresVariableDefinition(var)) return;
 
   ctx.checker.checkPotentiallyInvokedDestructor(var->type(), location);
+
+  const auto initializationEnd =
+      initializer ? initializer->lastSourceLocation() : location;
 
   const auto initializesHere = initializer || !isInitializedInClass(var);
   if (initializesHere && !checkInitialization(var, initializer, location))
@@ -389,6 +452,26 @@ void InitDeclaratorChecker::checkVariable(S* var, ExpressionAST*& initializer,
     evaluateConstValue(var, initializer);
   else
     evaluateFieldConstValue(var);
+
+  if (var->constValue()) recordConstantInitializer(var, initializer);
+
+  if (ctx.traits.has_manifestly_constant_evaluated_initializer(var))
+    ctx.unit->dischargeImmediateEscalations(location, initializationEnd);
+  else
+    ctx.checker.evaluateImmediateInitializer(initializer);
+
+  if (!var->isConstexpr() && var->constValue() &&
+      isImmediateObject(*var->constValue())) {
+    auto function = var->enclosingFunction();
+    auto constantContext = ctx.unit->isImmediateFunctionContext() ||
+                           (function && function->isConstexpr());
+    if (has_static_storage_duration(var) || has_thread_storage_duration(var))
+      constantContext = false;
+    if (!constantContext)
+      ctx.error(
+          location,
+          "immediate object must be associated with a constexpr variable");
+  }
 
   if (var->constValue() || hasDependentInitializer(ctx.unit, var)) return;
   if (var->isConstexpr())
@@ -404,6 +487,14 @@ auto InitDeclaratorChecker::checkInitialization(S* var,
     -> bool {
   if (is_threadgroup_variable(var))
     return checkThreadgroupVariable(var, initializer, location);
+
+  if (auto constant = ast_cast<ConstExpressionAST>(initializer);
+      constant && constant->constValue && is_prvalue(constant) &&
+      constant->evaluationKind != ConstantEvaluationKind::kNone) {
+    if (ctx.traits.is_same(ctx.traits.remove_cv(var->type()),
+                           ctx.traits.remove_cv(constant->type)))
+      return true;
+  }
 
   auto entity = InitializedEntity::variable(var->type(), var, location);
   entity.setArrayCopyPolicy(arrayCopyPolicy);
@@ -426,6 +517,11 @@ auto InitDeclaratorChecker::checkInitialization(S* var,
 }
 
 void InitDeclaratorChecker::checkFieldInitializer(FieldSymbol* field) {
+  if (field->isStatic()) {
+    auto initializer = field->initializer();
+    checkVariable(field, initializer, field->location());
+    return;
+  }
   auto targetType = ctx.traits.remove_cv(field->type());
   if (ctx.isTargetTypeUnresolved(targetType)) return;
 
@@ -440,7 +536,6 @@ void InitDeclaratorChecker::checkFieldInitializer(FieldSymbol* field) {
           field, initializer, Initializer{initializer}.initializationKind()))
     field->setConstructor(constructor);
   field->setInitializer(initializer);
-  evaluateFieldConstValue(field);
 }
 
 void InitDeclaratorChecker::evaluateFieldConstValue(FieldSymbol* field) {
@@ -466,24 +561,35 @@ void InitDeclaratorChecker::evaluateConstValue(VariableSymbol* var,
               "initializer for an object with static or thread storage "
               "duration must be constant");
   }
-
-  if (var->constValue() && !hasDependentInitializer(ctx.unit, var))
-    recordConstantInitializer(var, initializer);
 }
 
+template <typename S>
 void InitDeclaratorChecker::recordConstantInitializer(
-    VariableSymbol* var, ExpressionAST*& initializer) {
-  if (ctx.traits.is_array(var->type())) return;
-  auto target = constantExpressionTarget(initializer);
+    S* var, ExpressionAST*& initializer) {
+  if (isDependent(ctx.unit, var->type()) ||
+      isDependent(ctx.unit, var->initializer()))
+    return;
+  const auto array = ctx.traits.is_array(var->type());
+  VariableSymbol* temporary = nullptr;
+  if constexpr (std::is_same_v<S, VariableSymbol>)
+    temporary = lifetime_extended_temporary(var);
+  auto target = temporary
+                    ? materializedTemporaryInitializer(ctx.traits, initializer)
+                    : constantExpressionTarget(initializer);
+  if (!target && !ctx.traits.is_reference(var->type())) target = &initializer;
   if (!target || !*target) return;
   auto folded = ast_cast<ConstExpressionAST>(*target);
-  if (!var->isConstexpr() && !folded) return;
+  const auto constantObject = ctx.isCxx() &&
+                              !ctx.traits.is_reference(var->type()) &&
+                              ctx.traits.is_potentially_constant(var);
+  if (!var->isConstexpr() && !constantObject && !folded && !temporary) return;
 
   auto expression = *target;
-  if (ctx.traits.is_reference(var->type()))
+  if (!temporary && ctx.traits.is_reference(var->type()))
     (void)StandardConversion{ctx.unit}.temporaryMaterialization(expression);
-  auto value = *var->constValue();
-  if (is_glvalue(expression) && !ctx.traits.is_reference(var->type())) {
+  auto value = temporary ? *temporary->constValue() : *var->constValue();
+  if (!array && is_glvalue(expression) &&
+      !ctx.traits.is_reference(var->type())) {
     auto interpreter = ASTInterpreter{ctx.unit, ctx.checker.scope()};
     auto address = interpreter.evaluateAddress(expression);
     if (!address) return;
@@ -496,9 +602,18 @@ void InitDeclaratorChecker::recordConstantInitializer(
   auto constant = ConstExpressionAST::create(ctx.unit->arena());
   constant->expression = origin;
   constant->constValue = ctx.unit->arena()->make<ConstValue>(std::move(value));
-  constant->type = expression->type;
-  constant->valueCategory = expression->valueCategory;
-  initializer = constant;
+  constant->type = array ? var->type() : expression->type;
+  constant->valueCategory =
+      array ? ValueCategory::kPrValue : expression->valueCategory;
+  if (ctx.traits.has_manifestly_constant_evaluated_initializer(var)) {
+    constant->evaluationScope = ctx.checker.scope();
+    constant->evaluationKind =
+        ConstantEvaluationKind::kManifestlyConstantEvaluated;
+  }
+  if (temporary)
+    *target = constant;
+  else
+    initializer = constant;
   var->setInitializer(initializer);
 }
 
@@ -513,9 +628,10 @@ void InitDeclaratorChecker::recordConstantInitializer(
 
 void TypeChecker::check_init_declarator(InitDeclaratorAST* ast,
                                         SpecifierAST* typeSpecifier,
+                                        PlaceholderReplacement* listReplacement,
                                         ArrayCopyPolicy arrayCopyPolicy) {
-  InitDeclaratorChecker{*this, arrayCopyPolicy}.checkInitDeclarator(
-      ast, typeSpecifier);
+  InitDeclaratorChecker{*this, arrayCopyPolicy, listReplacement}
+      .checkInitDeclarator(ast, typeSpecifier);
 }
 
 void TypeChecker::check_variable_initializer(VariableSymbol* var,
@@ -582,15 +698,17 @@ void TypeChecker::check_condition_declaration(ConditionExpressionAST* ast) {
 
 void TypeChecker::check_field_initializer(FieldSymbol* field) {
   if (!field || !field->initializer()) return;
-  TranslationUnit::DeferredInitializerScope deferredInitializer{unit_, true};
+  if (field->isStatic()) {
+    InitDeclaratorChecker{*this}.checkFieldInitializer(field);
+    return;
+  }
+  TranslationUnit::DeferredInitializerScope deferredInitializer{unit_, field};
   InitDeclaratorChecker{*this}.checkFieldInitializer(field);
 }
 
-auto TypeChecker::deduceDeclaredPlaceholderType(const Type* declaredType,
-                                                ExpressionAST* initializer,
-                                                SourceLocation location)
-    -> const Type* {
-  auto traits = unit_->typeTraits();
+auto TypeChecker::deduceDeclaredPlaceholderReplacement(
+    const Type* declaredType, ExpressionAST* initializer,
+    SourceLocation location) -> const Type* {
   auto deducedExpr = Initializer{initializer}.singleExpression();
   if (auto braced = Initializer{initializer}.bracedInitList()) {
     if (Initializer{initializer}.initializationKind() ==
@@ -611,17 +729,23 @@ auto TypeChecker::deduceDeclaredPlaceholderType(const Type* declaredType,
   if (inTemplate &&
       (!deducedExpr || !deducedExpr->type || isDependent(unit_, deducedExpr) ||
        isDependent(unit_, deducedExpr->type))) {
-    return traits.replace_placeholder_types(
-        declaredType, unit_->control()->getDependentType());
+    return unit_->control()->getDependentType();
   }
 
   if (!deducedExpr) return nullptr;
 
-  return deducePlaceholderType(declaredType, deducedExpr);
+  return deducePlaceholderReplacement(declaredType, deducedExpr);
 }
 
 auto TypeChecker::deducePlaceholderType(const Type* declaredType,
                                         ExpressionAST* initializer)
+    -> const Type* {
+  return unit_->typeTraits().replace_placeholder_types(
+      declaredType, deducePlaceholderReplacement(declaredType, initializer));
+}
+
+auto TypeChecker::deducePlaceholderReplacement(const Type* declaredType,
+                                               ExpressionAST* initializer)
     -> const Type* {
   if (!initializer) return nullptr;
   if (auto braced = ast_cast<BracedInitListAST>(initializer)) {
@@ -674,20 +798,21 @@ auto TypeChecker::deducePlaceholderType(const Type* declaredType,
   }
   if (type_cast<DecltypeAutoType>(declaredType))
     return unit_->typeTraits().decltype_of(initializer);
-  return deducePlaceholderReplacement(
+  return deduceReplacementFromType(
       declaredType, initializer->type,
       bindsLvalueToForwardingPlaceholder(declaredType, initializer));
 }
 
 auto TypeChecker::deduceAutoType(const Type* declaredType,
                                  const Type* initializerType) -> const Type* {
-  return deducePlaceholderReplacement(declaredType, initializerType,
-                                      /*forwardsLvalue=*/false);
+  return unit_->typeTraits().replace_placeholder_types(
+      declaredType, deduceReplacementFromType(declaredType, initializerType,
+                                              /*forwardsLvalue=*/false));
 }
 
-auto TypeChecker::deducePlaceholderReplacement(const Type* declaredType,
-                                               const Type* initializerType,
-                                               bool forwardsLvalue)
+auto TypeChecker::deduceReplacementFromType(const Type* declaredType,
+                                            const Type* initializerType,
+                                            bool forwardsLvalue)
     -> const Type* {
   if (!initializerType) return nullptr;
 
@@ -697,9 +822,7 @@ auto TypeChecker::deducePlaceholderReplacement(const Type* declaredType,
   auto A = call_deduction_argument_type(ctx.traits, declaredType,
                                         initializerType, forwardsLvalue);
 
-  auto replacement = deduceAutoReplacement(ctx, P, A);
-  if (!replacement) return nullptr;
-  return ctx.traits.replace_placeholder_types(declaredType, replacement);
+  return deduceAutoReplacement(ctx, P, A);
 }
 
 auto TypeChecker::enterAggregateInitialization(ClassSymbol* classSymbol)
@@ -732,12 +855,42 @@ void TypeChecker::checkPotentiallyInvokedDestructor(const Type* type,
 
   auto destructor = classType->symbol()->resolvedDefinition()->destructor();
 
-  if (destructor && isDeletedFunction(unit_, destructor)) {
+  if (destructor && unit_->typeTraits().is_deleted_function(destructor)) {
     error(location, "attempt to use a deleted destructor");
     return;
   }
 
   checkDestructorAccess(destructor, location);
+}
+
+void TypeChecker::checkTemporaryBoundToMember(FieldSymbol* field,
+                                              ExpressionAST* initializer,
+                                              std::string_view initializerKind,
+                                              SourceLocation location) {
+  if (!field || !initializer) return;
+  auto clause = Initializer{initializer}.clause();
+  if (auto paren = ast_cast<ParenInitializerAST>(clause)) {
+    auto arguments = Initializer{paren}.arguments();
+    if (arguments.size() != 1) return;
+    clause = arguments.front();
+  }
+  if (isDependent(unit_, field->type()) || isDependent(unit_, clause)) return;
+
+  auto traits = unit_->typeTraits();
+  const auto bindsReference = traits.is_reference(field->type());
+  if (!bindsReference &&
+      !traits.is_aggregate(traits.remove_cv(field->type())) &&
+      !traits.initializer_list_element_type(field->type()))
+    return;
+  const auto bindsTemporary =
+      bindsReference ? !materializedTemporaries(traits, clause).empty()
+                     : !extendedBackingArrays(traits, clause).empty();
+  if (!bindsTemporary) return;
+
+  unit_->error(location,
+               std::format("a temporary expression bound to member '{}' {} "
+                           "is ill-formed",
+                           to_string(field->name()), initializerKind));
 }
 
 void TypeChecker::checkSpecialMemberAccess(FunctionSymbol* function,

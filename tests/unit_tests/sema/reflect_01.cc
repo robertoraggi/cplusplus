@@ -12,7 +12,8 @@ static_assert(__is_same(decltype(int_ty), const std::meta::info));
 constexpr std::meta::info ptr_ty = ^^const void*;
 static_assert(__is_same(decltype(ptr_ty), const std::meta::info));
 
-constexpr std::meta::info z = ^^123;
+constexpr int source = 123;
+constexpr std::meta::info z = ^^source;
 static_assert(__is_same(decltype(z), const std::meta::info));
 
 constexpr int x = [:z:];

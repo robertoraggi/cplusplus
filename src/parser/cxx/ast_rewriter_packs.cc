@@ -81,6 +81,18 @@ struct CollectReferencedParameterPacks final : ASTVisitor {
 
   void visit(PackExpansionExpressionAST*) override {}
 
+  void visit(PackIndexExpressionAST* ast) override {
+    if (ast == pattern) {
+      ASTVisitor::visit(ast);
+      return;
+    }
+    if (ast->indexExpression) accept(ast->indexExpression);
+  }
+
+  void visit(PackIndexTypeSpecifierAST* ast) override {
+    if (ast->indexExpression) accept(ast->indexExpression);
+  }
+
   void visit(TypeIdAST* ast) override {
     if (ast != pattern && isPackExpansion(ast)) return;
     ASTVisitor::visit(ast);
@@ -354,7 +366,7 @@ auto ASTRewriter::expandedParameterPack(TypeIdAST* typeId) const
 auto ASTRewriter::expandedFunctionParameterPack(
     ParameterDeclarationAST* parameter) const -> ParameterPackSymbol* {
   if (!parameter->isPack) return nullptr;
-  return packReferencedBy(parameter->typeSpecifierList);
+  return findReferencedParameterPack(parameter);
 }
 
 auto ASTRewriter::emptyFoldIdentity(TokenKind op) -> ExpressionAST* {
@@ -368,7 +380,13 @@ auto ASTRewriter::emptyFoldIdentity(TokenKind op) -> ExpressionAST* {
         arena(), false, ValueCategory::kPrValue, control()->getBoolType());
   }
 
-  if (op == TokenKind::T_COMMA) return nullptr;
+  if (op == TokenKind::T_COMMA) {
+    auto specifier =
+        BuiltinTypeSpecifierAST::create(arena(), TokenKind::T_VOID);
+    return TypeConstructionAST::create(arena(), specifier, nullptr, nullptr,
+                                       ValueCategory::kPrValue,
+                                       control()->getVoidType());
+  }
 
   return nullptr;
 }

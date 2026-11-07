@@ -6256,6 +6256,44 @@ static inline auto classifyBuiltinFunction28(const char* s)
                             }
                           }
                         }
+                      } else if (s[10] == 'i') {
+                        if (s[11] == 's') {
+                          if (s[12] == '_') {
+                            if (s[13] == 'w') {
+                              if (s[14] == 'i') {
+                                if (s[15] == 't') {
+                                  if (s[16] == 'h') {
+                                    if (s[17] == 'i') {
+                                      if (s[18] == 'n') {
+                                        if (s[19] == '_') {
+                                          if (s[20] == 'l') {
+                                            if (s[21] == 'i') {
+                                              if (s[22] == 'f') {
+                                                if (s[23] == 'e') {
+                                                  if (s[24] == 't') {
+                                                    if (s[25] == 'i') {
+                                                      if (s[26] == 'm') {
+                                                        if (s[27] == 'e') {
+                                                          return cxx::
+                                                              BuiltinFunctionKind::
+                                                                  T___BUILTIN_IS_WITHIN_LIFETIME;
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -6376,6 +6414,62 @@ static inline auto classifyBuiltinFunction29(const char* s)
                             }
                           }
                         }
+                      } else if (s[10] == 'e') {
+                        if (s[11] == 'l') {
+                          if (s[12] == 'e') {
+                            if (s[13] == 'm') {
+                              if (s[14] == 'e') {
+                                if (s[15] == 'n') {
+                                  if (s[16] == 't') {
+                                    if (s[17] == 'w') {
+                                      if (s[18] == 'i') {
+                                        if (s[19] == 's') {
+                                          if (s[20] == 'e') {
+                                            if (s[21] == '_') {
+                                              if (s[22] == 'a') {
+                                                if (s[23] == 'd') {
+                                                  if (s[24] == 'd') {
+                                                    if (s[25] == '_') {
+                                                      if (s[26] == 's') {
+                                                        if (s[27] == 'a') {
+                                                          if (s[28] == 't') {
+                                                            return cxx::
+                                                                BuiltinFunctionKind::
+                                                                    T___BUILTIN_ELEMENTWISE_ADD_SAT;
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              } else if (s[22] == 's') {
+                                                if (s[23] == 'u') {
+                                                  if (s[24] == 'b') {
+                                                    if (s[25] == '_') {
+                                                      if (s[26] == 's') {
+                                                        if (s[27] == 'a') {
+                                                          if (s[28] == 't') {
+                                                            return cxx::
+                                                                BuiltinFunctionKind::
+                                                                    T___BUILTIN_ELEMENTWISE_SUB_SAT;
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -6427,6 +6521,80 @@ static inline auto classifyBuiltinFunction31(const char* s)
                                                                 return cxx::
                                                                     BuiltinFunctionKind::
                                                                         T___BUILTIN_IS_CONSTANT_EVALUATED;
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return cxx::BuiltinFunctionKind::T_NONE;
+}
+
+static inline auto classifyBuiltinFunction32(const char* s)
+    -> cxx::BuiltinFunctionKind {
+  if (s[0] == '_') {
+    if (s[1] == '_') {
+      if (s[2] == 'b') {
+        if (s[3] == 'u') {
+          if (s[4] == 'i') {
+            if (s[5] == 'l') {
+              if (s[6] == 't') {
+                if (s[7] == 'i') {
+                  if (s[8] == 'n') {
+                    if (s[9] == '_') {
+                      if (s[10] == 'a') {
+                        if (s[11] == 's') {
+                          if (s[12] == 's') {
+                            if (s[13] == 'u') {
+                              if (s[14] == 'm') {
+                                if (s[15] == 'e') {
+                                  if (s[16] == '_') {
+                                    if (s[17] == 'd') {
+                                      if (s[18] == 'e') {
+                                        if (s[19] == 'r') {
+                                          if (s[20] == 'e') {
+                                            if (s[21] == 'f') {
+                                              if (s[22] == 'e') {
+                                                if (s[23] == 'r') {
+                                                  if (s[24] == 'e') {
+                                                    if (s[25] == 'n') {
+                                                      if (s[26] == 'c') {
+                                                        if (s[27] == 'e') {
+                                                          if (s[28] == 'a') {
+                                                            if (s[29] == 'b') {
+                                                              if (s[30] ==
+                                                                  'l') {
+                                                                if (s[31] ==
+                                                                    'e') {
+                                                                  return cxx::
+                                                                      BuiltinFunctionKind::
+                                                                          T___BUILTIN_ASSUME_DEREFERENCEABLE;
+                                                                }
                                                               }
                                                             }
                                                           }
@@ -6756,6 +6924,8 @@ static auto classifyBuiltinFunction(const char* s, int n)
       return classifyBuiltinFunction29(s);
     case 31:
       return classifyBuiltinFunction31(s);
+    case 32:
+      return classifyBuiltinFunction32(s);
     case 34:
       return classifyBuiltinFunction34(s);
     case 36:

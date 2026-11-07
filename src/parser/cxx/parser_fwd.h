@@ -89,7 +89,6 @@ using ParsingState = std::variant<CanContinueParsing, ParsingComplete>;
 
 struct ParserConfiguration {
   bool checkTypes = false;
-  bool validateAst = false;
   bool allowUnprototypedFunctions = false;
   bool exceptionsEnabled = true;
   bool rttiEnabled = true;

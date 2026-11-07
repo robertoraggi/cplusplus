@@ -160,7 +160,7 @@ export function emitWrite(
       push(`out.varU32(static_cast<std::uint32_t>(constRef(${value})));`);
       return;
 
-    case "indeterminate":
+    case "empty":
     case "unit":
     case "identifier-info":
       return;
@@ -419,7 +419,7 @@ export function emitRead(
       );
       return;
 
-    case "indeterminate":
+    case "empty":
       push(`${cppType} ${target}{};`);
       return;
 

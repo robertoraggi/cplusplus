@@ -375,6 +375,8 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
       -> ExpressionResult;
 
   auto codegenBuiltinAddressof(CallExpressionAST* ast) -> ExpressionResult;
+  [[nodiscard]] auto memberPointerDesignator(UnaryExpressionAST* ast)
+      -> IdExpressionAST*;
   auto emitMemberPointerFormation(UnaryExpressionAST* ast)
       -> std::optional<ExpressionResult>;
   auto emitMemberFunctionPointerFormation(
@@ -383,6 +385,10 @@ struct [[nodiscard]] Codegen::ExpressionVisitor {
   auto emitMemberPointerAccess(BinaryExpressionAST* ast) -> ExpressionResult;
   auto emitMemberFunctionPointerCall(CallExpressionAST* ast,
                                      BinaryExpressionAST* access)
+      -> ExpressionResult;
+  auto codegenBuiltinAssumeDereferenceable(CallExpressionAST* ast)
+      -> ExpressionResult;
+  auto codegenBuiltinSaturatingArithmetic(CallExpressionAST* ast)
       -> ExpressionResult;
   auto codegenBuiltinAssume(CallExpressionAST* ast) -> ExpressionResult;
   auto codegenBuiltinAssumeAligned(CallExpressionAST* ast) -> ExpressionResult;
@@ -577,8 +583,9 @@ auto Codegen::ExpressionVisitor::operator()(FloatLiteralExpressionAST* ast)
     return {op};
   }
 
-  ir::Initializer value =
-      gen.makeFloatInitializer(ast->type, ast->literal->floatValue());
+  auto value =
+      gen.getFloatAttr(ASTInterpreter{gen.unit_}.evaluate(ast), ast->type)
+          .value();
 
   auto op = gen.emitter_.constantLiteral(loc, type, value);
 
@@ -667,7 +674,7 @@ auto Codegen::ExpressionVisitor::operator()(ObjectLiteralExpressionAST* ast)
 
   if (gen.traits.is_array(type) || gen.traits.is_vector(type)) {
     gen.arrayInit(allocaOp, type, ast->bracedInitList);
-  } else if (gen.traits.is_class(type) && ast->bracedInitList) {
+  } else if (gen.traits.is_class_or_union(type) && ast->bracedInitList) {
     ast->bracedInitList->type = type;
     gen.emitAggregateInit(allocaOp, type, ast->bracedInitList);
   } else if (ast->bracedInitList) {
@@ -795,6 +802,10 @@ auto Codegen::ExpressionVisitor::operator()(IdExpressionAST* ast)
     return gen.expression(alias->initializer(), format);
 
   if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
+    if (var->isConstexpr() && gen.traits.is_reference(var->type()) &&
+        var->constValue())
+      return {gen.emitConstInitValue(ast->firstSourceLocation(), var->type(),
+                                     *var->constValue())};
     ir::ValueRef val;
     bool found = false;
 
@@ -994,20 +1005,19 @@ auto Codegen::ExpressionVisitor::operator()(VaArgExpressionAST* ast)
 auto Codegen::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
     -> ExpressionResult {
   if (ast->symbol) {
-    auto baseExpressionResult = gen.expression(ast->baseExpression);
-    auto indexExpressionResult = gen.expression(ast->indexExpression);
-    if (ast->symbol->isImplicitObjectMemberFunction()) {
-      return gen.emitCall(ast->lbracketLoc, ast->symbol, baseExpressionResult,
-                          {indexExpressionResult}, ast->isVirtualDispatch, ast);
-    } else {
-      return gen.emitCall(ast->lbracketLoc, ast->symbol, {},
-                          {baseExpressionResult, indexExpressionResult}, false,
-                          ast);
-    }
+    auto base = gen.expression(ast->baseExpression);
+    std::vector<ExpressionResult> arguments;
+    if (ast->symbol->hasExplicitObjectParameter()) arguments.push_back(base);
+    for (auto argument : ListView{ast->expressionList})
+      arguments.push_back(gen.expression(argument));
+    if (ast->symbol->isImplicitObjectMemberFunction())
+      return gen.emitCall(ast->lbracketLoc, ast->symbol, base, arguments,
+                          ast->isVirtualDispatch, ast);
+    return gen.emitCall(ast->lbracketLoc, ast->symbol, {}, arguments, false,
+                        ast);
   }
-
   auto baseExpression = ast->baseExpression;
-  auto indexExpression = ast->indexExpression;
+  auto indexExpression = ast->expressionList->value;
 
   const auto isSubscriptable = [&](const Type* type) {
     return gen.traits.is_pointer(type) || gen.traits.is_array(type) ||
@@ -1161,6 +1171,7 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
   while (auto nested = ast_cast<NestedExpressionAST>(func)) {
     func = nested->expression;
   }
+  func = loweredSplice(func);
 
   if (auto id = ast_cast<IdExpressionAST>(func)) {
     auto builtinKind = resolveBuiltinFunctionKind(id);
@@ -1170,8 +1181,9 @@ auto Codegen::ExpressionVisitor::operator()(CallExpressionAST* ast)
   }
 
   if (auto access = ast_cast<BinaryExpressionAST>(func);
-      access && (access->op == TokenKind::T_DOT_STAR ||
-                 access->op == TokenKind::T_MINUS_GREATER_STAR)) {
+      access && !access->symbol &&
+      (access->op == TokenKind::T_DOT_STAR ||
+       access->op == TokenKind::T_MINUS_GREATER_STAR)) {
     if (type_cast<MemberFunctionPointerType>(
             gen.traits.remove_cvref(access->rightExpression->type)))
       return emitMemberFunctionPointerCall(ast, access);
@@ -1289,10 +1301,18 @@ auto Codegen::ExpressionVisitor::operator()(TypeConstructionAST* ast)
     return gen.expression(ast->expressionList->value);
   }
 
-  if (gen.traits.is_class(targetType)) {
+  if (gen.traits.is_class_or_union(targetType)) {
     if (ast->constructorSymbol) {
       return emitClassConstruction(ast, ast->firstSourceLocation(), targetType,
                                    ast->expressionList, ast->constructorSymbol);
+    }
+
+    if (auto prvalue =
+            initializingPrvalue(gen.traits, targetType, ast->expressionList)) {
+      auto object = gen.takeResultObject(ast);
+      if (!object) object = gen.newTemp(targetType, loc);
+      (void)gen.emitPrvalueInto(object, targetType, prvalue, loc);
+      return {object};
     }
 
     auto temp = gen.newTemp(targetType, ast->firstSourceLocation());
@@ -1383,7 +1403,7 @@ auto Codegen::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
     return {};
   }
 
-  if (gen.traits.is_class(targetType)) {
+  if (gen.traits.is_class_or_union(targetType)) {
     if (ast->constructorSymbol) {
       return emitClassConstruction(
           ast, ast->firstSourceLocation(), targetType,
@@ -1403,10 +1423,7 @@ auto Codegen::ExpressionVisitor::operator()(BracedTypeConstructionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-  return {op};
+  return gen.expression(ast->splice.expression, format);
 }
 
 static auto isDerivedFrom(ClassSymbol* derived, ClassSymbol* base) -> bool {
@@ -1667,7 +1684,8 @@ auto Codegen::ExpressionVisitor::incrementedValue(SourceLocation loc,
   const auto step = op == TokenKind::T_MINUS_MINUS ? -1 : 1;
   if (gen.traits.is_floating_point(type)) {
     auto amount = gen.emitter_.constantLiteral(
-        loc, valueType, gen.makeFloatInitializer(type, step));
+        loc, valueType,
+        gen.getFloatAttr(ConstValue{static_cast<double>(step)}, type).value());
     return gen.emitter_.binaryOp(loc, ir::BinaryOp::AddFloat, value, amount);
   }
   auto amount = gen.emitter_.constantInt(loc, valueType, step);
@@ -1711,7 +1729,7 @@ auto Codegen::ExpressionVisitor::emitVectorElementAccess(ExpressionAST* ast)
   auto subscript = ast_cast<SubscriptExpressionAST>(ast);
   if (!subscript) return std::nullopt;
   auto vector = subscript->baseExpression;
-  auto index = subscript->indexExpression;
+  auto index = subscript->expressionList->value;
   auto vectorAddress = gen.expression(vector).value;
   auto indexValue = gen.expression(index).value;
   return VectorElementAccess{
@@ -2084,10 +2102,7 @@ auto Codegen::ExpressionVisitor::operator()(TypeidOfTypeExpressionAST* ast)
 
 auto Codegen::ExpressionVisitor::operator()(SpliceExpressionAST* ast)
     -> ExpressionResult {
-  auto op =
-      gen.emitTodoExpr(ast->firstSourceLocation(), to_string(ast->kind()));
-
-  return {op};
+  return gen.expression(ast->splice.expression, format);
 }
 
 auto Codegen::ExpressionVisitor::operator()(
@@ -2875,13 +2890,13 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
             ? gen.variadicCalleeType(lowered.values, lowered.ellipsisCount, {})
             : ir::TypeRef{};
     lowered.values.erase(lowered.values.begin());
-    gen.cleanupStack_.back().entries.push_back(
-        {.address = allocation,
-         .destructor = gen.findOrCreateFunction(function),
-         .additionalArguments = std::move(lowered.values),
-         .parameters = std::move(lowered.parameters),
-         .variadicCalleeType = variadicType,
-         .exceptionalOnly = true});
+    gen.pushCleanupEntry(gen.cleanupStack_.back(),
+                         {.address = allocation,
+                          .destructor = {.function = function},
+                          .additionalArguments = std::move(lowered.values),
+                          .parameters = std::move(lowered.parameters),
+                          .variadicCalleeType = variadicType,
+                          .exceptionalOnly = true});
   }
 
   auto rawPtr = allocation;
@@ -2996,7 +3011,12 @@ auto Codegen::ExpressionVisitor::operator()(NewExpressionAST* ast)
                            std::move(ctorArgs), /*completeObject=*/true);
   } else if (gen.traits.is_class_or_union(gen.traits.remove_cv(objectType))) {
     if (auto paren = ast_cast<NewParenInitializerAST>(ast->newInitalizer)) {
-      gen.emitAggregateInit(rawPtr, objectType, paren->expressionList, loc);
+      if (auto prvalue = initializingPrvalue(gen.traits, objectType,
+                                             paren->expressionList)) {
+        (void)gen.emitPrvalueInto(rawPtr, objectType, prvalue, loc);
+      } else {
+        gen.emitAggregateInit(rawPtr, objectType, paren->expressionList, loc);
+      }
     } else if (auto braced =
                    ast_cast<NewBracedInitializerAST>(ast->newInitalizer)) {
       if (auto bracedList =
@@ -3138,7 +3158,8 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
     ir::CallInfo dtorCall;
     dtorCall.indirectCallee = funcPtr;
     dtorCall.arguments = dtorArguments;
-    (void)gen.emitCallWithUnwind(gen.implicitLocation(loc), dtorCall);
+    (void)gen.emitCallWithUnwind(gen.implicitLocation(loc), dtorCall,
+                                 gen.isNonThrowingCall(destructor, nullptr));
 
     gen.branch(loc, endBlock);
     gen.emitter_.setInsertionBlock(endBlock);
@@ -3174,14 +3195,13 @@ auto Codegen::ExpressionVisitor::operator()(DeleteExpressionAST* ast)
       if (signature->hasAlignment)
         appendArgument(memoryLayout->alignmentOf(pointeeType).value_or(1));
 
-      auto function = gen.findOrCreateFunction(ast->symbol);
       CleanupScope::Entry cleanup{.address = deallocationPtr,
-                                  .destructor = function,
+                                  .destructor = {.function = ast->symbol},
                                   .exceptionalOnly = true};
       for (std::size_t index = 1; index < deallocationArguments.size(); ++index)
         cleanup.additionalArguments.push_back(
             deallocationArguments[index].value);
-      gen.cleanupStack_.back().entries.push_back(std::move(cleanup));
+      gen.pushCleanupEntry(gen.cleanupStack_.back(), std::move(cleanup));
     }
 
     if (isArrayDelete) {
@@ -3786,6 +3806,10 @@ auto Codegen::ExpressionVisitor::operator()(ConstExpressionAST* ast)
   if (format == ExpressionFormat::kSideEffect) return {};
   if (!ast->constValue) return gen.expression(ast->expression, format);
 
+  if (auto condition =
+          ast_cast<ConditionExpressionAST>(stripImplicitCasts(ast->expression)))
+    gen.emitLocalVariableInit(condition->symbol, condition->initializer);
+
   auto loc = ast->firstSourceLocation();
   if (is_glvalue(ast)) {
     auto pointerType = gen.traits.add_pointer(ast->type);
@@ -4370,7 +4394,8 @@ auto Codegen::ExpressionVisitor::emitBinaryComparisonOp(
   }
 
   if (gen.traits.is_integral(comparisonType) ||
-      gen.traits.is_member_object_pointer(comparisonType)) {
+      gen.traits.is_member_object_pointer(comparisonType) ||
+      unqualified_cast<BuiltinMetaInfoType>(comparisonType)) {
     return emitBinaryComparisonOpIntegral(loc, op, resultType, comparisonType,
                                           left, right);
   }
@@ -4539,7 +4564,7 @@ auto Codegen::ExpressionVisitor::operator()(ConditionalExpressionAST* ast)
 
   const bool sharesResultObject =
       !isVoid && ast->valueCategory == ValueCategory::kPrValue &&
-      gen.traits.is_class(ast->type);
+      gen.traits.is_class_or_union(ast->type);
 
   auto object = sharesResultObject ? gen.takeResultObject(ast) : ir::ValueRef{};
 
@@ -4869,7 +4894,7 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
 
   auto loc = ast->firstSourceLocation();
   if (auto element = listInitializedElement(gen.traits, ast)) {
-    if (is_glvalue(ast) || !gen.traits.is_class(ast->type))
+    if (is_glvalue(ast) || !gen.traits.is_class_or_union(ast->type))
       return gen.expression(element);
     auto object = gen.takeResultObject(ast);
     if (!object) object = gen.newTemp(ast->type, loc);
@@ -4877,7 +4902,7 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
     return {object};
   }
 
-  if (gen.traits.is_class(ast->type))
+  if (gen.traits.is_class_or_union(ast->type))
     return {gen.emitAggregateObject(ast, ast->type, ast, loc)};
 
   if (auto object = gen.takeResultObject(ast)) {
@@ -5051,7 +5076,7 @@ void Codegen::emitAggregateInit(ir::ValueRef address, const Type* type,
                                 ir::ValueRef elementCount) {
   auto loc = ast->firstSourceLocation();
   if (auto element = listInitializedElement(traits, ast)) {
-    if (traits.is_class(type))
+    if (traits.is_class_or_union(type))
       (void)emitPrvalueInto(address, type, element, loc);
     else
       emitter_.store(loc, expression(element).value, address,
@@ -5248,30 +5273,22 @@ void Codegen::emitAggregateElements(ir::ValueRef address, const Type* type,
 
       ir::ValueRef beginPtr;
       if (count > 0) {
-        auto arrayIrType = this->arrayType(elemIrType, count);
-        auto arrayPtrType = emitter_.pointerType(arrayIrType);
-        auto arrayAlloca =
-            emitter_.allocate(loc, arrayPtrType, getAlignment(elemType));
-
-        std::size_t index = 0;
-        for (auto node : ListView{initializerList}) {
-          auto elemLoc = node->firstSourceLocation();
-          auto elementAddress =
-              arrayElementAddress(elemLoc, arrayAlloca, elemType, index);
-          if (traits.is_class_or_union(traits.remove_cv(elemType))) {
-            (void)emitPrvalueInto(elementAddress, elemType, node,
-                                  node->firstSourceLocation());
-            addSubobjectCleanup(elemLoc, elementAddress, elemType, true);
-          } else {
-            auto val = expression(node);
-            emitter_.store(elemLoc, val.value, elementAddress,
-                           getAlignment(elemType));
-          }
-          ++index;
+        auto extension =
+            lifetimeExtension_ &&
+                    lifetimeExtension_->extendsBackingArray(initializerList)
+                ? lifetimeExtension_
+                : nullptr;
+        auto arrayType = control()->getBoundedArrayType(elemType, count);
+        auto array = extension ? extension->backingArrayStorage(arrayType, loc)
+                               : newTemp(arrayType, loc);
+        emitAggregateInit(array, arrayType, initializerList, loc);
+        if (extension) {
+          extension->extendObject(array, arrayType, loc);
+        } else {
+          addTemporaryCleanup(array, arrayType);
         }
-
         auto zeroIdx = emitter_.constantInt(loc, intType, 0);
-        beginPtr = emitter_.pointerAdd(loc, elemPtrType, arrayAlloca, zeroIdx);
+        beginPtr = emitter_.pointerAdd(loc, elemPtrType, array, zeroIdx);
       } else {
         beginPtr = emitter_.nullPointer(loc, elemPtrType);
       }
@@ -5652,28 +5669,31 @@ auto Codegen::emitCall(SourceLocation loc, FunctionSymbol* symbol,
                        ExpressionResult thisValue,
                        std::vector<ExpressionResult> arguments,
                        bool isVirtualDispatch, ExpressionAST* resultOwner,
-                       bool baseObjectStructor, ir::ValueRef structorVTT)
-    -> ExpressionResult {
+                       bool baseObjectStructor, ir::ValueRef structorVTT,
+                       bool potentiallyOverlapping) -> ExpressionResult {
   auto functionType = type_cast<FunctionType>(symbol->type());
 
   return emitCall(loc, functionType, symbol, isVirtualDispatch, thisValue,
                   std::move(arguments),
                   takeIndirectResultObject(resultOwner, functionType), {},
-                  baseObjectStructor, structorVTT);
+                  baseObjectStructor, structorVTT, potentiallyOverlapping);
+}
+
+auto Codegen::referenceArgument(SourceLocation loc, const Type* paramType,
+                                ir::ValueRef value) -> ir::ValueRef {
+  if (emitter_.typeKind(emitter_.typeOf(value)) == ir::TypeKind::Pointer)
+    return value;
+  auto elementType = traits.remove_reference(paramType);
+  auto temporary = newTemp(elementType, loc);
+  emitter_.store(loc, value, temporary, getAlignment(elementType));
+  return temporary;
 }
 
 void Codegen::appendCallArgument(SourceLocation loc, const Type* paramType,
                                  const ClassValueAbi& abi, ir::ValueRef value,
                                  std::vector<ir::ValueRef>& args) {
   if (traits.is_reference(paramType)) {
-    if (emitter_.typeKind(emitter_.typeOf(value)) == ir::TypeKind::Pointer) {
-      args.push_back(value);
-      return;
-    }
-    auto elementType = traits.remove_reference(paramType);
-    auto temporary = newTemp(elementType, loc);
-    emitter_.store(loc, value, temporary, getAlignment(elementType));
-    args.push_back(temporary);
+    args.push_back(referenceArgument(loc, paramType, value));
     return;
   }
 
@@ -5750,11 +5770,16 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
                        ExpressionResult thisValue,
                        std::vector<ExpressionResult> arguments,
                        ir::ValueRef resultObject, ir::ValueRef calleeValue,
-                       bool baseObjectStructor, ir::ValueRef structorVTT)
-    -> ExpressionResult {
+                       bool baseObjectStructor, ir::ValueRef structorVTT,
+                       bool potentiallyOverlapping) -> ExpressionResult {
   if (!functionType) return {};
 
   loc = implicitLocation(loc);
+
+  if (symbol && thisValue.value &&
+      expandsTrivialSpecialMember(symbol, potentiallyOverlapping))
+    return emitTrivialSpecialMemberCall(loc, symbol, functionType, thisValue,
+                                        arguments);
 
   const auto calleeOf = [&](FunctionSymbol* callee) {
     return baseObjectStructor ? findOrCreateBaseObjectStructor(callee)
@@ -5767,7 +5792,7 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
     structorVTT = baseStructorVTTArgument(loc, targetClass);
   }
 
-  const auto functionAbi = computeFunctionAbi(functionType, symbol);
+  const auto functionAbi = calleeAbi(functionType, symbol, thisValue);
 
   std::vector<ir::ValueRef> args;
   if (thisValue.value) {
@@ -5858,7 +5883,8 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
   callInfo.parameters = parameterAbis;
   callInfo.resultAbi = functionAbi.resultAbi;
 
-  auto callResults = emitCallWithUnwind(loc, callInfo);
+  auto callResults = emitCallWithUnwind(
+      loc, callInfo, isNonThrowingCall(symbol, functionType));
 
   if (returnsThis) return {};
 
@@ -5868,6 +5894,37 @@ auto Codegen::emitCall(SourceLocation loc, const FunctionType* functionType,
   if (sretTemp && !resultObject)
     addTemporaryCleanup(sretTemp, functionType->returnType());
 
+  return result;
+}
+
+auto Codegen::expandsTrivialSpecialMember(FunctionSymbol* function,
+                                          bool potentiallyOverlapping) -> bool {
+  if (!traits.is_trivial_special_member(function)) return false;
+  auto functionType = type_cast<FunctionType>(function->type());
+  if (!functionType || functionType->parameterTypes().empty()) return true;
+  auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
+  if (!classSymbol) return false;
+  auto objectType = classSymbol->resolvedDefinition()->type();
+  if (traits.is_empty(objectType)) return true;
+  if (function->isConstructor() && !potentiallyOverlapping) return true;
+  return traits.data_size(objectType) == getSize(objectType);
+}
+
+auto Codegen::emitTrivialSpecialMemberCall(
+    SourceLocation loc, FunctionSymbol* function,
+    const FunctionType* functionType, ExpressionResult thisValue,
+    std::span<const ExpressionResult> arguments) -> ExpressionResult {
+  const auto& parameterTypes = functionType->parameterTypes();
+  if (parameterTypes.empty() || arguments.empty()) return {};
+
+  auto parameterType = parameterTypes.front();
+  auto objectType = traits.remove_cvref(parameterType);
+  auto result = function->isConstructor() ? ExpressionResult{}
+                                          : ExpressionResult{thisValue.value};
+  if (traits.is_empty(objectType)) return result;
+
+  auto source = referenceArgument(loc, parameterType, arguments.front().value);
+  emitter_.copyObject(loc, thisValue.value, source, convertType(objectType));
   return result;
 }
 
@@ -5892,8 +5949,8 @@ void Codegen::emitCaptureInit(ClassSymbol* classSymbol, ir::ValueRef closure,
 auto Codegen::emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,
                            ir::ValueRef thisPtr,
                            std::vector<ExpressionResult> args,
-                           bool completeObject, ir::ValueRef vtt)
-    -> ExpressionResult {
+                           bool completeObject, ir::ValueRef vtt,
+                           bool potentiallyOverlapping) -> ExpressionResult {
   auto target = ctor;
   if (completeObject) {
     if (auto variant = ctor->completeObjectVariant()) target = variant;
@@ -5907,7 +5964,8 @@ auto Codegen::emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,
     vtt = baseStructorVTTArgument(loc, targetClass);
   return emitCall(loc, target, {thisPtr}, std::move(args),
                   /*isVirtualDispatch=*/false, /*resultOwner=*/nullptr,
-                  /*baseObjectStructor=*/!completeObject, vtt);
+                  /*baseObjectStructor=*/!completeObject, vtt,
+                  potentiallyOverlapping || !completeObject);
 }
 
 auto Codegen::ExpressionVisitor::emitArithmeticConversion(
@@ -6464,8 +6522,12 @@ auto Codegen::ExpressionVisitor::emitMemberFunctionPointerCall(
     callArguments.push_back(gen.expression(node));
   }
 
-  return gen.emitCall(ast->lparenLoc, functionType, nullptr, false, {thisValue},
-                      std::move(callArguments),
+  auto objectArgument = ExpressionResult{.value = thisValue,
+                                         .category = ValueCategory::kLValue,
+                                         .type = pointerType->classType()};
+
+  return gen.emitCall(ast->lparenLoc, functionType, nullptr, false,
+                      objectArgument, std::move(callArguments),
                       gen.takeIndirectResultObject(ast, functionType),
                       calleeArgument);
 }
@@ -6473,7 +6535,7 @@ auto Codegen::ExpressionVisitor::emitMemberFunctionPointerCall(
 auto Codegen::ExpressionVisitor::emitMemberFunctionPointerFormation(
     UnaryExpressionAST* ast, const MemberFunctionPointerType* pointerType)
     -> std::optional<ExpressionResult> {
-  auto id = ast_cast<IdExpressionAST>(ast->expression);
+  auto id = memberPointerDesignator(ast);
   if (!id) return std::nullopt;
 
   auto function = symbol_cast<FunctionSymbol>(id->symbol);
@@ -6490,6 +6552,11 @@ auto Codegen::ExpressionVisitor::emitMemberFunctionPointerFormation(
       ast->firstSourceLocation(), pointerType, function, *adjustment)};
 }
 
+auto Codegen::ExpressionVisitor::memberPointerDesignator(
+    UnaryExpressionAST* ast) -> IdExpressionAST* {
+  return ast_cast<IdExpressionAST>(loweredSplice(ast->expression));
+}
+
 auto Codegen::ExpressionVisitor::emitMemberPointerFormation(
     UnaryExpressionAST* ast) -> std::optional<ExpressionResult> {
   if (auto functionPointerType =
@@ -6499,7 +6566,7 @@ auto Codegen::ExpressionVisitor::emitMemberPointerFormation(
   auto dataPointerType = type_cast<MemberObjectPointerType>(ast->type);
   if (!dataPointerType) return std::nullopt;
 
-  auto id = ast_cast<IdExpressionAST>(ast->expression);
+  auto id = memberPointerDesignator(ast);
   if (!id) return std::nullopt;
 
   auto field = symbol_cast<FieldSymbol>(id->symbol);
@@ -6673,6 +6740,48 @@ auto Codegen::ExpressionVisitor::codegenBuiltinAddressof(CallExpressionAST* ast)
   if (it == args.end()) return {};
 
   return gen.expression(*it);
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinAssumeDereferenceable(
+    CallExpressionAST* ast) -> ExpressionResult {
+  for (auto argument : ListView{ast->expressionList})
+    (void)gen.expression(argument, ExpressionFormat::kSideEffect);
+  return {};
+}
+
+auto Codegen::ExpressionVisitor::codegenBuiltinSaturatingArithmetic(
+    CallExpressionAST* ast) -> ExpressionResult {
+  auto operation = saturatingArithmeticOperation(resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression)));
+  auto arguments = ast->expressionList;
+  if (!operation || !arguments || !arguments->next) return {};
+  auto loc = ast->firstSourceLocation();
+  auto left = gen.expression(arguments->value);
+  auto right = gen.expression(arguments->next->value);
+  if (!left.value || !right.value) return {};
+  auto computed =
+      emitOverflowingOperation(loc, *operation, left.value, ast->type,
+                               right.value, ast->type, ast->type);
+  if (!computed) return {};
+
+  auto type = gen.convertType(ast->type);
+  auto allOnes = gen.emitter_.constantInt(loc, type, -1);
+  auto zero = gen.emitter_.constantInt(loc, type, 0);
+  ir::ValueRef bound;
+  if (gen.traits.is_signed(ast->type)) {
+    auto maximum =
+        gen.emitter_.binaryOp(loc, ir::BinaryOp::LogicalShiftRight, allOnes,
+                              gen.emitter_.constantInt(loc, type, 1));
+    auto minimum =
+        gen.emitter_.binaryOp(loc, ir::BinaryOp::XorInt, maximum, allOnes);
+    auto negative = gen.emitter_.compareInt(loc, ir::IntPredicate::SignedLess,
+                                            left.value, zero);
+    bound = gen.emitter_.select(loc, negative, minimum, maximum);
+  } else {
+    bound = *operation == ArithmeticOverflowOperation::kAdd ? allOnes : zero;
+  }
+  return {
+      gen.emitter_.select(loc, computed->overflow, bound, computed->result)};
 }
 
 auto Codegen::ExpressionVisitor::codegenBuiltinAssume(CallExpressionAST* ast)

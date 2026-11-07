@@ -119,6 +119,21 @@ int add(int a, int b) { return a + b; }
   assert.match(text, /^endmodule$/m);
 });
 
+test("weak base-object structors carry their comdat", async () => {
+  const text = await trace(`
+template <class T>
+struct S {
+  S() {}
+  ~S() {}
+};
+template struct S<int>;
+`);
+
+  assert.match(text, /func @_ZN1SIiEC2Ev : .* WeakODR .*comdat "_ZN1SIiEC5Ev"/);
+  assert.match(text, /func @_ZN1SIiED2Ev : .* WeakODR .*comdat "_ZN1SIiED5Ev"/);
+  assert.match(text, /func @_ZN1SIiEC1Ev : .* WeakODR aliasee @_ZN1SIiEC2Ev/);
+});
+
 test("the module header carries a frontend-defined data layout", () => {
   const trace = new TraceEmitter();
   trace.beginModule({

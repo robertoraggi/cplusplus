@@ -383,12 +383,25 @@ ${out.join("\n")}
 
 const rootTypes = ["alignValType", "nothrowType"];
 
+const sessionQueues = [
+  { name: "pendingBodyCompletions", cpp: "cxx::FunctionSymbol" },
+  { name: "pendingMemberInstantiations", cpp: "cxx::ClassSymbol" },
+  { name: "instantiatedMemberClasses", cpp: "cxx::ClassSymbol" },
+  { name: "explicitInstantiationDefinitions", cpp: "cxx::FunctionSymbol" },
+  { name: "explicitInstantiationClassDefinitions", cpp: "cxx::ClassSymbol" },
+  { name: "explicitInstantiationVariableDefinitions", cpp: "cxx::Symbol" },
+  { name: "explicitInstantiationMemberDeclarations", cpp: "cxx::Symbol" },
+  { name: "cLanguageLinkageEntities", cpp: "cxx::Symbol" },
+];
+
+function sessionQueueEntry(cpp: string): string {
+  const symbol = "symbolAt(SymbolRef{session.varU32()})";
+  if (cpp === "cxx::Symbol") return `      auto entry = ${symbol};`;
+  return `      auto entry = symbol_cast<${cpp.replace(/^cxx::/, "")}>(\n          ${symbol});`;
+}
+
 function encoderEntryPoint(plan: CodecPlan): string {
-  const queues = [
-    "pendingBodyCompletions",
-    "pendingMemberInstantiations",
-    "instantiatedMemberClasses",
-  ];
+  const queues = sessionQueues.map((queue) => queue.name);
 
   const lines: string[] = [];
 
@@ -403,6 +416,7 @@ function encoderEntryPoint(plan: CodecPlan): string {
     `  session.varU32(static_cast<std::uint32_t>(astRef(roots.ast)));`,
   );
   lines.push(`  session.varI32(roots.anonymousIdCount);`);
+  lines.push(`  session.varI32(roots.uniqueClosureCount);`);
   lines.push(`  session.varU32(roots.prefixTokenCount);`);
   lines.push(``);
   for (const queue of queues) {
@@ -496,11 +510,7 @@ function encoderEntryPoint(plan: CodecPlan): string {
 }
 
 function decoderEntryPoint(plan: CodecPlan): string {
-  const queues = [
-    { name: "pendingBodyCompletions", cpp: "cxx::FunctionSymbol" },
-    { name: "pendingMemberInstantiations", cpp: "cxx::ClassSymbol" },
-    { name: "instantiatedMemberClasses", cpp: "cxx::ClassSymbol" },
-  ];
+  const queues = sessionQueues;
 
   const lines: string[] = [];
 
@@ -645,6 +655,8 @@ function decoderEntryPoint(plan: CodecPlan): string {
   lines.push(`      if (auto scope = symbol_cast<ScopeSymbol>(symbol))`);
   lines.push(`        scope->rebuildLookupTable();`);
   lines.push(`      rebuild_specialization_index(symbol);`);
+  lines.push(`      if (auto variable = symbol_cast<VariableSymbol>(symbol))`);
+  lines.push(`        control()->indexTemplateParameterObject(variable);`);
   lines.push(`    }`);
   lines.push(`  }`);
   lines.push(``);
@@ -659,16 +671,14 @@ function decoderEntryPoint(plan: CodecPlan): string {
     `  roots.ast = ast_cast<UnitAST>(astAt(AstRef{session.varU32()}));`,
   );
   lines.push(`  roots.anonymousIdCount = session.varI32();`);
+  lines.push(`  roots.uniqueClosureCount = session.varI32();`);
   lines.push(`  roots.prefixTokenCount = session.varU32();`);
   lines.push(``);
   for (const queue of queues) {
     lines.push(`  {`);
     lines.push(`    const auto count = session.varCount(1);`);
     lines.push(`    for (std::uint32_t i = 0; ok() && i < count; ++i) {`);
-    lines.push(
-      `      auto entry = symbol_cast<${queue.cpp.replace(/^cxx::/, "")}>(`,
-    );
-    lines.push(`          symbolAt(SymbolRef{session.varU32()}));`);
+    lines.push(sessionQueueEntry(queue.cpp));
     lines.push(`      if (entry) roots.${queue.name}.push_back(entry);`);
     lines.push(`    }`);
     lines.push(`  }`);

@@ -118,6 +118,8 @@ class RecordingDiagnosticsClient : public DiagnosticsClient {
 
   auto messages() const -> const std::vector<Diagnostic>& { return messages_; }
 
+  [[nodiscard]] auto hasMessages() const -> bool { return !messages_.empty(); }
+
   auto takeMessages() -> std::vector<Diagnostic> {
     return std::move(messages_);
   }
@@ -136,19 +138,38 @@ void appendAttributes(List<AttributeSpecifierAST*>*& attributeList,
   while (*tail) tail = &(*tail)->next;
   *tail = attributes;
 }
+
+[[nodiscard]] auto namesUnqualifiedIdentifier(
+    NestedNameSpecifierAST* nestedNameSpecifier,
+    UnqualifiedIdAST* unqualifiedId) -> bool {
+  if (nestedNameSpecifier) return false;
+  return ast_cast<NameIdAST>(unqualifiedId) != nullptr;
+}
+
+[[nodiscard]] auto declaratorBindsName(const Decl& decl) -> bool {
+  if (decl.specs.isFriend) return false;
+  if (decl.getNestedNameSpecifier()) return false;
+  if (!decl.declaratorId) return decl.isBitField();
+  return !ast_cast<SimpleTemplateIdAST>(decl.declaratorId->unqualifiedId);
+}
 }  // namespace
 
 struct Parser::LookaheadParser {
   Parser* p;
-  SourceLocation loc;
+  std::uint32_t cursor;
   RecordingDiagnosticsClient client;
   DiagnosticsClient* previousClient = nullptr;
+  std::size_t pendingImmediateEscalations = 0;
   bool committed = false;
 
   LookaheadParser(const LookaheadParser&) = delete;
   auto operator=(const LookaheadParser&) -> LookaheadParser& = delete;
 
-  explicit LookaheadParser(Parser* p) : p(p), loc(p->currentLocation()) {
+  explicit LookaheadParser(Parser* p)
+      : p(p),
+        cursor(p->cursor_),
+        pendingImmediateEscalations(
+            p->unit_->pendingImmediateEscalationCount()) {
     previousClient = p->unit_->changeDiagnosticsClient(&client);
   }
 
@@ -156,8 +177,12 @@ struct Parser::LookaheadParser {
     (void)p->unit_->changeDiagnosticsClient(previousClient);
 
     if (!committed) {
-      p->record_failed_parse(loc, client.takeMessages());
-      p->rewind(loc);
+      p->unit_->discardImmediateEscalations(pendingImmediateEscalations);
+      if (client.hasMessages()) {
+        p->record_failed_parse(p->unit_->locationOfIndex(cursor),
+                               client.takeMessages());
+      }
+      p->cursor_ = cursor;
     } else {
       client.reportTo(p->unit_->diagnosticsClient());
     }
@@ -236,7 +261,6 @@ struct Parser::TopLevelDeclarationSequence {
 struct Parser::ExprContext {
   bool templParam = false;
   bool templArg = false;
-  bool isConstantEvaluated = false;
   bool inRequiresClause = false;
   bool inConstraintExpression = false;
   mutable ObjectLiteralExpressionAST* pendingObjectLiteral = nullptr;
@@ -567,6 +591,61 @@ void Parser::record_failed_parse(SourceLocation start,
   deepestFailedParse_.messages = std::move(messages);
   deepestFailedParse_.start = start.index();
   deepestFailedParse_.reach = cursor_;
+  deepestFailedParse_.unresolvedTypeName = nullptr;
+}
+
+auto Parser::rejects_plain_type_name(TypeNameContext context) -> bool {
+  if (!config().checkTypes) return false;
+  if (!lookat(TokenKind::T_IDENTIFIER)) return false;
+  if (LA(1).is(TokenKind::T_COLON_COLON) || LA(1).is(TokenKind::T_LESS))
+    return false;
+
+  const auto sameAttempt = rejectedTypeNameScope_ == lexicalScope_ &&
+                           rejectedTypeNameCursor_ == cursor_ &&
+                           rejectedTypeNameContext_ == context;
+  const auto location = currentLocation();
+  const auto name = unit_->identifier(location);
+
+  if (!sameAttempt) {
+    const auto symbol =
+        context == TypeNameContext::kGeneral && isCxx()
+            ? unqualifiedLookupIncludingInlineNamespaces(control_,
+                                                         lexicalScope_, name)
+            : unqualifiedLookupType(lexicalScope_, name, isCxx(),
+                                    context == TypeNameContext::kGeneral);
+    if (is_type(symbol)) return false;
+    rejectedTypeNameScope_ = lexicalScope_;
+    rejectedTypeNameCursor_ = cursor_;
+    rejectedTypeNameContext_ = context;
+  }
+
+  if (uncheckedInitializerDepth_) return true;
+
+  const auto reach = cursor_ + 1;
+  const auto obsolete = deepestFailedParse_.reach <= cursor_;
+  if (obsolete || reach > deepestFailedParse_.reach) {
+    deepestFailedParse_ = FailedParse{.start = cursor_,
+                                      .reach = reach,
+                                      .unresolvedTypeName = name,
+                                      .unresolvedTypeNameLoc = location,
+                                      .unresolvedTypeNameScope = lexicalScope_};
+  }
+  return true;
+}
+
+void Parser::report_unresolved_type_name(const FailedParse& failedParse) {
+  const auto location = failedParse.unresolvedTypeNameLoc;
+  if (unit_->diagnosticsClient()->hasErrorAt(location)) return;
+  const auto name = failedParse.unresolvedTypeName;
+  auto ambiguous = false;
+  const auto found = unqualifiedLookupIncludingInlineNamespaces(
+      control_, failedParse.unresolvedTypeNameScope, name, false, &ambiguous);
+  const auto text = to_diag_string(name);
+  if (found || ambiguous)
+    unit_->error(location, std::format("'{}' is not a type", text));
+  else
+    unit_->error(location,
+                 std::format("lookup for '{}' finds no declaration", text));
 }
 
 void Parser::report_failed_parse(std::string message) {
@@ -579,13 +658,22 @@ void Parser::report_failed_parse(std::string message) {
     return;
   }
 
-  auto client = unit_->diagnosticsClient();
-  for (const auto& diagnostic : failedParse.messages) {
-    if (client->hasErrorAt(diagnostic.location())) continue;
-    client->emit(diagnostic);
-  }
+  if (failedParse.unresolvedTypeName)
+    report_unresolved_type_name(failedParse);
+  else
+    replayDiagnostics(failedParse.messages);
 
   rewind(unit_->locationOfIndex(failedParse.reach));
+}
+
+void Parser::replayDiagnostics(const std::vector<Diagnostic>& diagnostics) {
+  auto client = unit_->diagnosticsClient();
+  bool replaying = true;
+  for (const auto& diagnostic : diagnostics) {
+    if (diagnostic.severity() != Severity::Note)
+      replaying = !client->hasErrorAt(diagnostic.location());
+    if (replaying) client->emit(diagnostic);
+  }
 }
 
 void Parser::type_error(SourceLocation loc, std::string message) {
@@ -695,7 +783,9 @@ auto Parser::parse_type_name(UnqualifiedIdAST*& yyast,
     return true;
   };
 
-  if (lookat_simple_template_id()) return true;
+  if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS) &&
+      lookat_simple_template_id())
+    return true;
 
   NameIdAST* nameId = nullptr;
   if (!parse_name_id(nameId)) return false;
@@ -976,6 +1066,8 @@ auto Parser::continueParsing() -> ParsingState {
   if (shouldStopParsing()) return ParsingComplete{};
 
   sequence.loop.start();
+
+  TranslationUnit::ImmediateEscalationScope immediateEscalation{unit_};
 
   DeclarationAST* declaration = nullptr;
 
@@ -1281,7 +1373,7 @@ void Parser::checkAttributeSignatureHelp(AttributeSyntax syntax,
   auto spelling = findAttributeSpelling(
       syntax,
       attributeNamespace
-          ? canonicalAttributeSpelling(attributeNamespace->name())
+          ? canonicalAttributeNamespaceSpelling(attributeNamespace->name())
           : std::string_view{},
       canonicalAttributeSpelling(name->name()));
 
@@ -1313,7 +1405,7 @@ auto Parser::constructorCandidatesOf(const Type* type)
   auto classSymbol = classType->symbol();
   if (!classSymbol) return {};
 
-  unit_->typeTraits().requireCompleteClass(classSymbol);
+  unit_->typeTraits().require_complete_class(classSymbol);
 
   return classSymbol->resolvedDefinition()->constructors();
 }
@@ -1422,6 +1514,12 @@ auto Parser::parse_primary_expression(ExpressionAST*& yyast,
   return false;
 }
 
+void Parser::check_splicer_operand(ExpressionAST*& expression) {
+  TypeChecker checker{unit_};
+  checker.setScope(scope());
+  checker.convertSplicerOperand(expression);
+}
+
 auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_LBRACKET, TokenKind::T_COLON)) return false;
 
@@ -1434,6 +1532,7 @@ auto Parser::parse_splicer(SplicerAST*& yyast) -> bool {
   if (!parse_constant_expression(ast->expression, value)) {
     parse_error("expected a constant expression");
   }
+  check_splicer_operand(ast->expression);
   expect(TokenKind::T_COLON, ast->secondColonLoc);
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
   return true;
@@ -1456,69 +1555,57 @@ auto Parser::parse_reflect_expression(ExpressionAST*& yyast,
 
   if (!match(TokenKind::T_CARET_CARET, caretCaretLoc)) return false;
 
-  auto lookat_namespace_name = [&] {
-    LookaheadParser lookahead{this};
-    SourceLocation identifierLoc;
-    if (!match(TokenKind::T_IDENTIFIER, identifierLoc)) return false;
-    auto identifier = unit_->identifier(identifierLoc);
-    auto symbol =
-        symbol_cast<NamespaceSymbol>(lookupUnqualifiedName(identifier));
-    if (!symbol) return false;
-    lookahead.commit();
-
-    auto ast = NamespaceReflectExpressionAST::create(pool_);
-    yyast = ast;
-    ast->caretCaretLoc = caretCaretLoc;
-    ast->identifierLoc = identifierLoc;
-    ast->identifier = identifier;
-    ast->symbol = symbol;
-    check(&yyast);
+  if (!parse_reflect_operand(yyast, caretCaretLoc)) {
+    parse_error("expected a reflection operand");
     return true;
-  };
+  }
+
+  check(&yyast);
+
+  return true;
+}
+
+auto Parser::parse_reflect_operand(ExpressionAST*& yyast,
+                                   SourceLocation caretCaretLoc) -> bool {
+  auto unevaluated = UnevaluatedOperandGuard{this};
 
   auto lookat_type_id = [&] {
     LookaheadParser lookahead{this};
     TypeIdAST* typeId = nullptr;
-    if (!parse_type_id(typeId)) return false;
+    if (!parse_type_id(typeId) || !typeId->type) return false;
     lookahead.commit();
 
     auto ast = TypeIdReflectExpressionAST::create(pool_);
     yyast = ast;
     ast->caretCaretLoc = caretCaretLoc;
     ast->typeId = typeId;
-    check(&yyast);
     return true;
   };
 
   auto lookat_expression = [&] {
     LookaheadParser lookahead{this};
-    ExpressionAST* expression = nullptr;
-    if (!parse_cast_expression(expression, ctx)) return false;
+    IdExpressionAST* expression = nullptr;
+    if (!parse_id_expression(expression, IdExpressionContext::kExpression))
+      return false;
     lookahead.commit();
 
     auto ast = ReflectExpressionAST::create(pool_);
     yyast = ast;
     ast->caretCaretLoc = caretCaretLoc;
     ast->expression = expression;
-    check(&yyast);
     return true;
   };
 
-  if (SourceLocation scopeLoc; match(TokenKind::T_COLON_COLON, scopeLoc)) {
-    auto ast = GlobalScopeReflectExpressionAST::create(pool_);
-    yyast = ast;
-    ast->caretCaretLoc = caretCaretLoc;
-    ast->scopeLoc = scopeLoc;
-    check(&yyast);
-    return true;
-  }
-
-  if (lookat_namespace_name()) return true;
   if (lookat_type_id()) return true;
   if (lookat_expression()) return true;
 
-  parse_error("expected a reflacted expression");
+  SourceLocation scopeLoc;
+  if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
 
+  auto ast = GlobalScopeReflectExpressionAST::create(pool_);
+  yyast = ast;
+  ast->caretCaretLoc = caretCaretLoc;
+  ast->scopeLoc = scopeLoc;
   return true;
 }
 
@@ -1595,8 +1682,11 @@ auto Parser::parse_id_expression(IdExpressionAST*& yyast,
                mayUseArgumentDependentLookup);
 
   if (ctx == IdExpressionContext::kExpression) {
+    const auto isAddressOfOperand =
+        ast->firstSourceLocation() == addressOfOperandLoc_ &&
+        !lookat_postfix_operator();
     ExpressionAST* expression = ast;
-    check(&expression);
+    check(&expression, isAddressOfOperand);
   }
 
   return true;
@@ -1668,7 +1758,10 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
     return true;
   };
 
-  if (lookat_template_id()) return true;
+  if ((lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS) ||
+       lookat(TokenKind::T_OPERATOR)) &&
+      lookat_template_id())
+    return true;
 
   if (LiteralOperatorIdAST* literalOperatorName = nullptr;
       parse_literal_operator_id(literalOperatorName)) {
@@ -1711,6 +1804,7 @@ auto Parser::lookat_nested_name_specifier_start() -> bool {
   if (lookat(TokenKind::T_DECLTYPE)) return true;
   if (lookat(TokenKind::T_TEMPLATE)) return true;
   if (lookat(TokenKind::T_IDENTIFIER, TokenKind::T_COLON_COLON)) return true;
+  if (lookat_pack_index_type()) return true;
   return lookat(TokenKind::T_IDENTIFIER, TokenKind::T_LESS);
 }
 
@@ -1787,14 +1881,6 @@ auto Parser::parse_type_nested_name_specifier(NestedNameSpecifierAST*& yyast,
   ast->identifier = identifier;
   ast->scopeLoc = scopeLoc;
   ast->symbol = binder_.resolveNestedNameSpecifier(symbol);
-
-  if (!ast->symbol) {
-    if (symbol_cast<TypeParameterSymbol>(symbol) ||
-        symbol_cast<ConstraintTypeParameterSymbol>(symbol) ||
-        symbol_cast<TemplateTypeParameterSymbol>(symbol)) {
-      ast->symbol = symbol;
-    }
-  }
 
   return true;
 }
@@ -1905,7 +1991,7 @@ auto Parser::parse_template_nested_name_specifier(
       }
 
       if (auto cls = symbol_cast<ClassSymbol>(ast->symbol)) {
-        traits.requireCompleteClass(cls);
+        traits.require_complete_class(cls);
       }
     }
 
@@ -1951,6 +2037,7 @@ auto Parser::parse_nested_name_specifier(NestedNameSpecifierAST*& yyast,
     yyast = ast;
     ast->scopeLoc = scopeLoc;
     ast->symbol = globalScope_;
+  } else if (parse_pack_index_nested_name_specifier(yyast)) {
   } else if (parse_decltype_nested_name_specifier(yyast, ctx)) {
   }
 
@@ -2066,7 +2153,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
                                            AllowedAttributes::kGnuAttribute);
   }
 
-  (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList, ast->symbol);
+  (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList);
 
   (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 
@@ -2080,41 +2167,38 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_LBRACE)) return false;
 
   binder_.complete(ast);
+  checkInitCaptureBindings(ast);
 
-  if (auto classType = type_cast<ClassType>(ast->type)) {
-    pushScope(classType->symbol());
-  } else if (ast->symbol) {
-    pushScope(ast->symbol);
-  }
-
-  if (!parse_compound_statement(ast->statement, /*attributes=*/nullptr,
-                                /*skip=*/false)) {
-    parse_error("expected a compound statement");
-  }
+  parse_lambda_body(ast, ast->statement);
 
   binder_.completeLambdaBody(ast);
 
   return true;
 }
 
-auto Parser::parse_lambda_specifier_seq(List<LambdaSpecifierAST*>*& yyast,
-                                        LambdaSymbol* symbol) -> bool {
+void Parser::parse_lambda_body(LambdaExpressionAST* ast,
+                               CompoundStatementAST*& yyast) {
+  if (auto classType = type_cast<ClassType>(ast->type)) {
+    pushScope(classType->symbol());
+  } else if (ast->symbol) {
+    pushScope(ast->symbol);
+  }
+
+  TranslationUnit::ImmediateEscalationScope immediateEscalation{unit_};
+  if (!parse_compound_statement(yyast, /*attributes=*/nullptr,
+                                /*skip=*/false)) {
+    parse_error("expected a compound statement");
+  }
+}
+
+auto Parser::parse_lambda_specifier_seq(List<LambdaSpecifierAST*>*& yyast)
+    -> bool {
   yyast = nullptr;
 
   auto it = &yyast;
 
-  while (true) {
-    if (lookat(TokenKind::T_CONSTEVAL))
-      symbol->setConsteval(true);
-    else if (lookat(TokenKind::T_CONSTEXPR))
-      symbol->setConstexpr(true);
-    else if (lookat(TokenKind::T_MUTABLE))
-      symbol->setMutable(true);
-    else if (lookat(TokenKind::T_STATIC))
-      symbol->setStatic(true);
-    else
-      break;
-
+  while (LA().isOneOf(TokenKind::T_CONSTEVAL, TokenKind::T_CONSTEXPR,
+                      TokenKind::T_MUTABLE, TokenKind::T_STATIC)) {
     auto specifier = LambdaSpecifierAST::create(pool_);
     specifier->specifierLoc = consumeToken();
     specifier->specifier = unit_->tokenKind(specifier->specifierLoc);
@@ -2802,9 +2886,15 @@ auto Parser::parse_postfix_expression(ExpressionAST*& yyast,
   return true;
 }
 
+auto Parser::lookat_postfix_operator() -> bool {
+  return LA().isOneOf(TokenKind::T_DOT, TokenKind::T_MINUS_GREATER,
+                      TokenKind::T_LBRACKET, TokenKind::T_LPAREN,
+                      TokenKind::T_MINUS_MINUS, TokenKind::T_PLUS_PLUS);
+}
+
 void Parser::parse_rest_of_postfix_expression(ExpressionAST*& yyast,
                                               const ExprContext& ctx) {
-  while (true) {
+  while (lookat_postfix_operator()) {
     LookaheadParser lookahead{this};
 
     if (parse_member_expression(yyast)) {
@@ -2914,7 +3004,15 @@ auto Parser::parse_subscript_expression(ExpressionAST*& yyast,
 
   yyast = ast;
 
-  parse_expr_or_braced_init_list(ast->indexExpression, ctx);
+  if (isCxx() && unit_->preprocessor()->cplusplusVersion() >= 202302L) {
+    if (!lookat(TokenKind::T_RBRACKET) &&
+        !parse_expression_list(ast->expressionList, ctx))
+      parse_error("expected a subscript argument");
+  } else {
+    ExpressionAST* index = nullptr;
+    parse_expr_or_braced_init_list(index, ctx);
+    if (index) ast->expressionList = make_list_node(pool_, index);
+  }
 
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
 
@@ -2928,13 +3026,14 @@ auto Parser::rebindParenthesizedCallee(ExpressionAST*& callee) -> bool {
   if (!nested) return false;
 
   if (auto id = ast_cast<IdExpressionAST>(nested->expression);
-      id && ast_cast<SimpleTemplateIdAST>(id->unqualifiedId)) {
+      id && name_cast<TemplateId>(get_name(control_, id->unqualifiedId))) {
     if (!id->nestedNameSpecifier)
       lookupUnqualifiedIdExpression(id, IdExpressionContext::kExpression);
     binder_.bind(id, /*mayUseArgumentDependentLookup=*/false,
                  /*isCallee=*/true);
   } else if (auto member = ast_cast<MemberExpressionAST>(nested->expression);
-             member && ast_cast<SimpleTemplateIdAST>(member->unqualifiedId)) {
+             member &&
+             name_cast<TemplateId>(get_name(control_, member->unqualifiedId))) {
     member->symbol = nullptr;
   } else if (!rebindParenthesizedCallee(nested->expression)) {
     return false;
@@ -3170,7 +3269,20 @@ auto Parser::parse_cpp_type_cast_expression(ExpressionAST*& yyast,
     return true;
   };
 
-  if (lookat_function_call()) return false;
+  if (lookat(TokenKind::T_IDENTIFIER)) {
+    const auto startsPlaceholder =
+        LA(1).is(TokenKind::T_AUTO) || LA(1).is(TokenKind::T_DECLTYPE);
+    if (!startsPlaceholder &&
+        rejects_plain_type_name(TypeNameContext::kGeneral))
+      return false;
+  } else {
+    LookaheadParser probe{this};
+    SpecifierAST* typeSpecifier = nullptr;
+    DeclSpecs specs{unit_};
+    if (!parse_simple_type_specifier(typeSpecifier, specs)) return false;
+  }
+
+  if (!config().checkTypes && lookat_function_call()) return false;
   if (lookat_braced_type_construction()) return true;
 
   LookaheadParser lookahead{this};
@@ -3375,11 +3487,88 @@ auto Parser::parse_va_arg_expression(ExpressionAST*& yyast,
   return true;
 }
 
+auto Parser::lookat_pack_index_type() -> bool {
+  if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DOT_DOT_DOT,
+              TokenKind::T_LBRACKET))
+    return false;
+  return lookup_type_parameter_pack() != nullptr;
+}
+
+auto Parser::lookup_type_parameter_pack() -> Symbol* {
+  auto symbol = unqualifiedLookupType(
+      lexicalScope_, unit_->identifier(currentLocation()), isCxx(), true);
+  auto parameter = template_parameter_info(symbol);
+  return parameter && parameter->isPack ? symbol : nullptr;
+}
+
+auto Parser::parse_pack_index_type_specifier(SpecifierAST*& yyast,
+                                             DeclSpecs& specs) -> bool {
+  if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DOT_DOT_DOT,
+              TokenKind::T_LBRACKET))
+    return false;
+  if (!lookat_pack_index_type()) {
+    auto id = unit_->identifier(currentLocation());
+    if (!unqualifiedLookupType(lexicalScope_, id, isCxx(), true)) return false;
+    parse_error(currentLocation(),
+                std::format("'{}' does not denote a pack", to_diag_string(id)));
+    return false;
+  }
+
+  auto pack = NamedTypeSpecifierAST::create(pool_);
+  pack->symbol = lookup_type_parameter_pack();
+  NameIdAST* packName = nullptr;
+  if (!parse_name_id(packName)) return false;
+  pack->unqualifiedId = packName;
+
+  auto ast = PackIndexTypeSpecifierAST::create(pool_);
+  yyast = ast;
+  ast->packSpecifier = pack;
+
+  expect(TokenKind::T_DOT_DOT_DOT, ast->ellipsisLoc);
+  expect(TokenKind::T_LBRACKET, ast->lbracketLoc);
+  if (!parse_constant_expression(ast->indexExpression)) {
+    parse_error("expected a constant expression");
+  }
+  check_pack_index(ast->indexExpression);
+  expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
+
+  specs.accept(ast);
+  return true;
+}
+
+void Parser::check_pack_index(ExpressionAST* index) {
+  if (!index || isDependent(unit_, index)) return;
+  if (unit_->typeTraits().converted_pack_index(index)) return;
+  parse_error(index->firstSourceLocation(),
+              "the pack index is not a converted constant expression of type "
+              "'std::size_t'");
+}
+
+auto Parser::parse_pack_index_nested_name_specifier(
+    NestedNameSpecifierAST*& yyast) -> bool {
+  if (!lookat_pack_index_type()) return false;
+
+  LookaheadParser lookahead{this};
+  DeclSpecs specs{unit_};
+  SpecifierAST* specifier = nullptr;
+  if (!parse_pack_index_type_specifier(specifier, specs)) return false;
+  SourceLocation scopeLoc;
+  if (!match(TokenKind::T_COLON_COLON, scopeLoc)) return false;
+  lookahead.commit();
+
+  auto ast = PackIndexNestedNameSpecifierAST::create(pool_);
+  yyast = ast;
+  ast->typeSpecifier = specifier;
+  ast->scopeLoc = scopeLoc;
+  return true;
+}
+
 auto Parser::parse_pack_index_expression(ExpressionAST*& yyast,
                                          const ExprContext& ctx) -> bool {
   if (!lookat(TokenKind::T_IDENTIFIER, TokenKind::T_DOT_DOT_DOT,
               TokenKind::T_LBRACKET))
     return false;
+  if (lookat_pack_index_type()) return false;
 
   auto ast = PackIndexExpressionAST::create(pool_);
   yyast = ast;
@@ -3394,6 +3583,7 @@ auto Parser::parse_pack_index_expression(ExpressionAST*& yyast,
   if (!parse_constant_expression(ast->indexExpression)) {
     parse_error("expected a constant expression");
   }
+  check_pack_index(ast->indexExpression);
 
   expect(TokenKind::T_RBRACKET, ast->rbracketLoc);
 
@@ -3497,13 +3687,24 @@ auto Parser::parse_label_address(ExpressionAST*& yyast, const ExprContext& ctx)
 
 auto Parser::parse_unop_expression(ExpressionAST*& yyast,
                                    const ExprContext& ctx) -> bool {
-  LookaheadParser lookahead{this};
-
+  const auto saved = cursor_;
   SourceLocation opLoc;
   if (!parse_unary_operator(opLoc)) return false;
+  cursor_ = saved;
+
+  LookaheadParser lookahead{this};
+
+  (void)parse_unary_operator(opLoc);
+
+  const auto savedAddressOfOperand = std::exchange(
+      addressOfOperandLoc_, unit_->tokenKind(opLoc) == TokenKind::T_AMP
+                                ? currentLocation()
+                                : SourceLocation{});
 
   ExpressionAST* expression = nullptr;
-  if (!parse_cast_expression(expression, ctx)) return false;
+  const auto parsedOperand = parse_cast_expression(expression, ctx);
+  addressOfOperandLoc_ = savedAddressOfOperand;
+  if (!parsedOperand) return false;
 
   lookahead.commit();
 
@@ -3683,11 +3884,26 @@ auto Parser::parse_unary_operator(SourceLocation& opLoc) -> bool {
   }
 }
 
+void Parser::check_coroutine_suitability(SourceLocation location) {
+  if (binder_.inTemplate()) return;
+  for (auto current = scope(); current; current = current->parent()) {
+    if (symbol_cast<LambdaSymbol>(current)) return;
+    auto function = symbol_cast<FunctionSymbol>(current);
+    if (!function) continue;
+    if (function->isConstexpr() && !function->isDefaulted())
+      parse_error(location,
+                  "a constexpr or consteval function shall not be a coroutine");
+    return;
+  }
+}
+
 auto Parser::parse_await_expression(ExpressionAST*& yyast,
                                     const ExprContext& ctx) -> bool {
   SourceLocation awaitLoc;
 
   if (!match(TokenKind::T_CO_AWAIT, awaitLoc)) return false;
+
+  check_coroutine_suitability(awaitLoc);
 
   auto ast = AwaitExpressionAST::create(pool_);
   yyast = ast;
@@ -3898,7 +4114,7 @@ auto Parser::parse_cast_expression(ExpressionAST*& yyast,
     return true;
   };
 
-  if (lookat_cast_expression()) return true;
+  if (lookat(TokenKind::T_LPAREN) && lookat_cast_expression()) return true;
 
   return parse_unary_expression(yyast, ctx);
 }
@@ -4012,6 +4228,10 @@ auto Parser::parse_binary_expression(ExpressionAST*& yyast,
                                      const ExprContext& exprContext) -> bool {
   if (!parse_cast_expression(yyast, exprContext)) return false;
 
+  SourceLocation opLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+  if (!parse_lookahead_binary_operator(opLoc, op, exprContext)) return true;
+
   LookaheadParser lookahead{this};
 
   if (parse_binary_expression_helper(yyast, Prec::kLogicalOr, exprContext)) {
@@ -4024,9 +4244,10 @@ auto Parser::parse_binary_expression(ExpressionAST*& yyast,
 auto Parser::parse_lookahead_binary_operator(SourceLocation& loc, TokenKind& tk,
                                              const ExprContext& exprContext)
     -> bool {
-  LookaheadParser lookahead{this};
-
-  return parse_binary_operator(loc, tk, exprContext);
+  const auto saved = cursor_;
+  const auto isBinaryOperator = parse_binary_operator(loc, tk, exprContext);
+  cursor_ = saved;
+  return isBinaryOperator;
 }
 
 auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
@@ -4127,6 +4348,8 @@ auto Parser::parse_yield_expression(ExpressionAST*& yyast,
   SourceLocation yieldLoc;
 
   if (!match(TokenKind::T_CO_YIELD, yieldLoc)) return false;
+
+  check_coroutine_suitability(yieldLoc);
 
   auto ast = YieldExpressionAST::create(pool_);
   yyast = ast;
@@ -4274,22 +4497,30 @@ auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
 auto Parser::parse_constant_expression(ExpressionAST*& yyast,
                                        std::optional<ConstValue>& value)
     -> bool {
-  ExprContext exprContext;
-  exprContext.isConstantEvaluated = true;
-  if (!parse_conditional_expression(yyast, exprContext)) return false;
+  TranslationUnit::ImmediateFunctionContextScope immediate{unit_, true};
+  if (!parse_conditional_expression(yyast, ExprContext{})) return false;
   value = evaluate_constant_expression(yyast);
   return true;
 }
 
 auto Parser::parse_constant_expression(ExpressionAST*& yyast) -> bool {
-  ExprContext exprContext;
-  exprContext.isConstantEvaluated = true;
-  if (!parse_conditional_expression(yyast, exprContext)) return false;
+  TranslationUnit::ImmediateFunctionContextScope immediate{unit_, true};
+  return parse_conditional_expression(yyast, ExprContext{});
+}
+
+auto Parser::parse_constant_bool_condition(ExpressionAST*& yyast,
+                                           std::optional<ConstValue>& value)
+    -> bool {
+  TranslationUnit::ImmediateFunctionContextScope immediate{unit_, true};
+  if (!parse_conditional_expression(yyast, ExprContext{})) return false;
+  check_bool_condition(yyast);
+  value = evaluate_constant_expression(yyast);
   return true;
 }
 
 auto Parser::parse_template_argument_constant_expression(ExpressionAST*& yyast)
     -> bool {
+  TranslationUnit::ImmediateFunctionContextScope immediate{unit_, true};
   ExprContext exprContext;
   exprContext.templArg = true;
   return parse_conditional_expression(yyast, exprContext);
@@ -4421,6 +4652,7 @@ void Parser::parse_condition(ExpressionAST*& yyast, const ExprContext& ctx) {
     binder_.checkLocalVariableDeclaration(decl);
     auto symbol = binder_.declareVariable(declarator, decl,
                                           /*addSymbolToParentScope=*/true);
+    checkTemplateParameterRebinding(decl, symbol);
 
     ExpressionAST* initializer = nullptr;
 
@@ -4476,6 +4708,8 @@ auto Parser::parse_case_statement(StatementAST*& yyast, bool isSubstatement)
 
   if (!parse_constant_expression(expression, value)) {
     report_failed_parse("expected an expression");
+  } else {
+    check_constant_expression(expression, value, "case label");
   }
 
   SourceLocation ellipsisLoc;
@@ -4729,8 +4963,12 @@ auto Parser::parse_if_statement(StatementAST*& yyast,
 
   parse_init_statement(ast->initializer);
 
-  parse_condition(ast->condition, ExprContext{});
-  check_bool_condition(ast->condition);
+  {
+    TranslationUnit::ImmediateFunctionContextScope immediate{
+        unit_, static_cast<bool>(ast->constexprLoc)};
+    parse_condition(ast->condition, ExprContext{});
+    check_bool_condition(ast->condition);
+  }
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
@@ -4754,12 +4992,9 @@ auto Parser::parse_if_statement(StatementAST*& yyast,
 auto Parser::discardedIfBranches(IfStatementAST* ast) -> DiscardedIfBranches {
   if (!ast->constexprLoc || !ast->condition) return {};
 
-  if (!isDependent(unit_, ast->condition)) {
-    auto interp = ASTInterpreter{unit_, binder_.scope()};
-    if (auto value = interp.evaluate(ast->condition)) {
-      if (auto taken = interp.toBool(*value)) return {!*taken, *taken};
-    }
-  }
+  CheckContext context{this, scope()};
+  if (auto taken = context.check.fold_constexpr_condition(ast->condition))
+    return {!*taken, *taken};
 
   return {binder_.inTemplate(), binder_.inTemplate()};
 }
@@ -5009,6 +5244,7 @@ void Parser::declare_for_range_variable(DeclarationAST* rangeDeclaration,
   binder_.checkLocalVariableDeclaration(decl);
   initDeclarator->symbol = binder_.declareVariable(
       declarator, decl, /*addSymbolToParentScope=*/true);
+  checkTemplateParameterRebinding(decl, initDeclarator->symbol);
 }
 
 auto Parser::parse_break_statement(StatementAST*& yyast,
@@ -5103,6 +5339,8 @@ auto Parser::parse_coroutine_return_statement(
   SourceLocation coreturnLoc;
 
   if (!match(TokenKind::T_CO_RETURN, coreturnLoc)) return false;
+
+  check_coroutine_suitability(coreturnLoc);
 
   auto ast = CoroutineReturnStatementAST::create(pool_);
   yyast = ast;
@@ -5219,6 +5457,7 @@ Parser::AccessCheckScopeGuard::AccessCheckScopeGuard(Parser* parser,
 auto Parser::declareFunction(DeclaratorAST* declarator, Decl& decl)
     -> FunctionSymbol* {
   auto functionSymbol = binder_.declareFunction(declarator, decl);
+  checkTemplateParameterRebinding(decl, functionSymbol);
   flushDeferredAccessChecks(functionSymbol);
   return functionSymbol;
 }
@@ -5269,6 +5508,7 @@ auto Parser::parse_block_declaration(DeclarationAST*& yyast, BindingContext ctx)
   if (parse_asm_declaration(yyast)) return true;
   if (parse_namespace_alias_definition(yyast)) return true;
   if (parse_static_assert_declaration(yyast)) return true;
+  if (parse_consteval_block_declaration(yyast)) return true;
   if (parse_opaque_enum_declaration(yyast)) return true;
   if (parse_using_enum_declaration(yyast)) return true;
   if (parse_using_directive(yyast)) return true;
@@ -5322,6 +5562,7 @@ auto Parser::parse_alias_declaration(DeclarationAST*& yyast,
   auto symbol = binder_.declareTypeAlias(
       identifierLoc, unit_->identifier(identifierLoc), typeId, attributes,
       gnuAttributeList, true, templateHead);
+  checkTemplateParameterRebinding(symbol);
 
   auto ast = AliasDeclarationAST::create(pool_);
   yyast = ast;
@@ -5485,6 +5726,8 @@ auto Parser::parse_type_or_forward_declaration(
   recordFriendDeclaration(specs, declSpecifierList, nullptr,
                           FriendDeclarationKind::kType);
 
+  binder_.checkDeclarationSpecifiers(specs, semicolonLoc);
+
   if (auto classSpec = ast_cast<ClassSpecifierAST>(specs.typeSpecifier()))
     binder_.declareAnonymousObject(classSpec, specs);
 
@@ -5539,6 +5782,9 @@ auto Parser::parse_structured_binding(DeclarationAST*& yyast,
   ast->semicolonLoc = semicolonLoc;
 
   binder_.bindStructuredBindings(ast, specs);
+
+  for (auto binding : ListView{ast->binding.bindingDeclaratorList})
+    checkTemplateParameterRebinding(binding->symbol);
 
   return true;
 }
@@ -5694,7 +5940,7 @@ auto Parser::parse_simple_declaration(
                                           templateHead, requiresClause);
       if (!existing && !binder_.getSpecializedFunctionTemplate(
                            scope(), functionName, templateHead)) {
-        type_error(q->firstSourceLocation(),
+        type_error(decl.declaratorId->unqualifiedId->firstSourceLocation(),
                    std::format("class or namespace has no member named '{}'",
                                to_diag_string(functionName)));
       }
@@ -5757,9 +6003,11 @@ auto Parser::parse_simple_declaration(
   List<InitDeclaratorAST*>* initDeclaratorList = nullptr;
   auto declIt = &initDeclaratorList;
 
+  PlaceholderReplacement listReplacement;
+
   InitDeclaratorAST* initDeclarator = nullptr;
   if (!parse_init_declarator(initDeclarator, declarator, decl, ctx,
-                             templateHead))
+                             listReplacement, templateHead))
     return false;
 
   *declIt = make_list_node(pool_, initDeclarator);
@@ -5770,7 +6018,8 @@ auto Parser::parse_simple_declaration(
 
     while (match(TokenKind::T_COMMA, commaLoc)) {
       InitDeclaratorAST* initDeclarator = nullptr;
-      if (!parse_init_declarator(initDeclarator, specs, ctx, templateHead))
+      if (!parse_init_declarator(initDeclarator, specs, ctx, listReplacement,
+                                 templateHead))
         return false;
 
       *declIt = make_list_node(pool_, initDeclarator);
@@ -5780,6 +6029,8 @@ auto Parser::parse_simple_declaration(
 
   SourceLocation semicolonLoc;
   if (!match(TokenKind::T_SEMICOLON, semicolonLoc)) return false;
+
+  binder_.checkPlaceholderInitDeclaratorList(specs, initDeclaratorList);
 
   auto ast = SimpleDeclarationAST::create(pool_);
   yyast = ast;
@@ -5884,6 +6135,7 @@ auto Parser::parse_notypespec_function_definition(
   if (isDeclaration) {
     auto initDeclarator = InitDeclaratorAST::create(pool_);
     initDeclarator->declarator = declarator;
+    initDeclarator->requiresClause = requiresClause;
     initDeclarator->symbol = functionSymbol;
 
     auto ast = SimpleDeclarationAST::create(pool_);
@@ -5891,7 +6143,6 @@ auto Parser::parse_notypespec_function_definition(
     ast->attributeList = attributes;
     ast->declSpecifierList = declSpecifierList;
     ast->initDeclaratorList = make_list_node(pool_, initDeclarator);
-    ast->requiresClause = requiresClause;
     ast->semicolonLoc = semicolonLoc;
 
     attachFunctionTemplateDeclarations(ast);
@@ -5967,6 +6218,27 @@ auto Parser::parse_static_assert_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
+auto Parser::parse_consteval_block_declaration(DeclarationAST*& yyast) -> bool {
+  if (!lookat(TokenKind::T_CONSTEVAL, TokenKind::T_LBRACE)) return false;
+
+  auto _ = CombinedScopeGuard{this};
+
+  auto ast = ConstevalBlockDeclarationAST::create(pool_);
+  yyast = ast;
+
+  ast->constevalLoc = consumeToken();
+
+  auto expression = binder_.bind(ast);
+
+  parse_lambda_body(expression, ast->statement);
+
+  binder_.complete(ast, expression);
+
+  check(ast);
+
+  return true;
+}
+
 auto Parser::match_string_literal(SourceLocation& loc) -> bool {
   switch (TokenKind(LA())) {
     case TokenKind::T_WIDE_STRING_LITERAL:
@@ -6019,6 +6291,14 @@ auto Parser::parse_attribute_declaration(DeclarationAST*& yyast) -> bool {
   return true;
 }
 
+void Parser::checkConstantSpecifierConflict(const DeclSpecs& specs,
+                                            SourceLocation location) {
+  if (!specs.isConstexpr && !specs.isConsteval && !specs.isConstinit) return;
+  parse_error(location,
+              "at most one of constexpr, consteval and constinit may appear "
+              "in a declaration");
+}
+
 auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
                                   TypeNameContext context) -> bool {
   switch (TokenKind(LA())) {
@@ -6042,6 +6322,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
       auto ast = ConstexprSpecifierAST::create(pool_);
       yyast = ast;
       ast->constexprLoc = consumeToken();
+      checkConstantSpecifierConflict(specs, ast->constexprLoc);
       specs.isConstexpr = true;
       return true;
     }
@@ -6050,6 +6331,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
       auto ast = ConstevalSpecifierAST::create(pool_);
       yyast = ast;
       ast->constevalLoc = consumeToken();
+      checkConstantSpecifierConflict(specs, ast->constevalLoc);
       specs.isConsteval = true;
       return true;
     }
@@ -6058,6 +6340,7 @@ auto Parser::parse_decl_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
       auto ast = ConstinitSpecifierAST::create(pool_);
       yyast = ast;
       ast->constinitLoc = consumeToken();
+      checkConstantSpecifierConflict(specs, ast->constinitLoc);
       specs.isConstinit = true;
       return true;
     }
@@ -6240,11 +6523,11 @@ auto Parser::parse_explicit_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
   if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
     std::optional<ConstValue> value;
 
-    if (!parse_constant_expression(ast->expression, value)) {
+    if (!parse_constant_bool_condition(ast->expression, value)) {
       parse_error("expected a expression");
+    } else {
+      check_constant_expression(ast->expression, value, "explicit-specifier");
     }
-
-    check_bool_condition(ast->expression);
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
@@ -6432,6 +6715,7 @@ auto Parser::parse_simple_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
   if (parse_unary_builtin_type_specifier(yyast, specs)) return true;
   if (parse_atomic_type_specifier(yyast, specs)) return true;
   if (parse_bitint_type_specifier(yyast, specs)) return true;
+  if (parse_pack_index_type_specifier(yyast, specs)) return true;
   if (parse_named_type_specifier(yyast, specs, context)) return true;
   if (parse_decltype_specifier_type_specifier(yyast, specs)) return true;
 
@@ -6517,6 +6801,8 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
   if (!lookat(TokenKind::T_IDENTIFIER) && !lookat_nested_name_specifier_start())
     return false;
 
+  if (rejects_plain_type_name(context)) return false;
+
   LookaheadParser lookahead{this};
 
   NestedNameSpecifierAST* nestedNameSpecifier = nullptr;
@@ -6584,9 +6870,13 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
 
   if (!is_type(symbol) && !namesTypeTemplate && !dependentTypeOnlyName &&
       config().checkTypes) {
-    auto name = get_name(control_, unqualifiedId);
-    parse_error(unqualifiedId->firstSourceLocation(),
-                std::format("'{}' is not a type", to_diag_string(name)));
+    auto name = to_diag_string(get_name(control_, unqualifiedId));
+    if (findsDeclaration(nestedNameSpecifier, unqualifiedId))
+      parse_error(unqualifiedId->firstSourceLocation(),
+                  std::format("'{}' is not a type", name));
+    else
+      parse_error(unqualifiedId->firstSourceLocation(),
+                  std::format("lookup for '{}' finds no declaration", name));
     return false;
   }
 
@@ -6791,19 +7081,54 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
   }
 }
 
-auto abbreviatedPlaceholderSpecifier(ParameterDeclarationAST* param)
-    -> SpecifierAST* {
-  for (auto s = param->typeSpecifierList; s; s = s->next) {
-    if (ast_cast<AutoTypeSpecifierAST>(s->value)) return s->value;
-    if (ast_cast<PlaceholderTypeSpecifierAST>(s->value)) return s->value;
+namespace {
+
+[[nodiscard]] auto parameterTrailingReturnType(DeclaratorAST* declarator)
+    -> TypeIdAST* {
+  if (!declarator) return nullptr;
+  if (auto nested = ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator)) {
+    if (auto typeId = parameterTrailingReturnType(nested->declarator))
+      return typeId;
+  }
+  for (auto chunk : ListView{declarator->declaratorChunkList}) {
+    auto function = ast_cast<FunctionDeclaratorChunkAST>(chunk);
+    if (function && function->trailingReturnType)
+      return function->trailingReturnType->typeId;
   }
   return nullptr;
 }
 
-auto parameterPackEllipsis(ParameterDeclarationAST* parameter)
+[[nodiscard]] auto abbreviatedPlaceholderSpecifier(
+    ParameterDeclarationAST* param) -> SpecifierAST* {
+  auto specifiers = param->typeSpecifierList;
+  auto declarator = param->declarator;
+  for (;;) {
+    SpecifierAST* placeholder = nullptr;
+    for (auto specifier : ListView{specifiers}) {
+      if (ast_cast<AutoTypeSpecifierAST>(specifier) ||
+          ast_cast<PlaceholderTypeSpecifierAST>(specifier)) {
+        placeholder = specifier;
+        break;
+      }
+    }
+    if (!placeholder) return nullptr;
+    auto typeId = parameterTrailingReturnType(declarator);
+    if (!typeId) return placeholder;
+    specifiers = typeId->typeSpecifierList;
+    declarator = typeId->declarator;
+  }
+}
+
+}  // namespace
+
+[[nodiscard]] auto parameterPackEllipsis(ParameterDeclarationAST* parameter)
     -> SourceLocation {
-  if (!parameter->declarator) return {};
-  auto pack = ast_cast<ParameterPackAST>(parameter->declarator->coreDeclarator);
+  auto declarator = parameter->declarator;
+  if (!declarator) return {};
+  while (auto nested =
+             ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator))
+    declarator = nested->declarator;
+  auto pack = ast_cast<ParameterPackAST>(declarator->coreDeclarator);
   return pack ? pack->ellipsisLoc : SourceLocation{};
 }
 
@@ -6931,12 +7256,27 @@ void Parser::synthesizeAbbreviatedTemplateParams(
 void Parser::replaceAbbreviatedPlaceholder(
     ParameterDeclarationAST* parameter, ParameterSymbol* parameterSymbol,
     SpecifierAST* placeholder, TemplateParameterAST* templateParameter) {
-  for (auto it = parameter->typeSpecifierList; it; it = it->next) {
+  auto specifiers = parameter->typeSpecifierList;
+  auto declarator = parameter->declarator;
+  std::vector<TypeIdAST*> returnTypes;
+  while (auto typeId = parameterTrailingReturnType(declarator)) {
+    returnTypes.push_back(typeId);
+    specifiers = typeId->typeSpecifierList;
+    declarator = typeId->declarator;
+  }
+  for (auto it = specifiers; it; it = it->next) {
     if (it->value != placeholder) continue;
     auto namedSpec = NamedTypeSpecifierAST::create(pool_);
     namedSpec->symbol = templateParameter->symbol;
     it->value = namedSpec;
     break;
+  }
+  for (auto typeId : returnTypes | std::views::reverse) {
+    DeclSpecs specs{unit_};
+    for (auto specifier : ListView{typeId->typeSpecifierList})
+      specs.accept(specifier);
+    specs.finish();
+    binder_.bind(typeId, Decl{specs});
   }
 
   binder_.rebindParameterType(parameter, parameterSymbol);
@@ -7111,16 +7451,10 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
     return false;
   }
 
-  Symbol* symbol = nullptr;
-
-  if (name->identifier) {
-    if (nestedNameSpecifier && nestedNameSpecifier->symbol)
-      symbol = qualifiedLookup(nestedNameSpecifier->symbol, name->identifier,
-                               &Symbol::isEnumOrScopedEnum);
-    else
-      symbol = unqualifiedLookup(lexicalScope(), name->identifier,
-                                 &Symbol::isEnumOrScopedEnum);
-  }
+  Symbol* unqualifiedCandidate = nullptr;
+  if (!nestedNameSpecifier && name->identifier)
+    unqualifiedCandidate =
+        elaboratedTypeCandidate(name->identifier, TokenKind::T_ENUM, specs);
 
   auto ast = ElaboratedTypeSpecifierAST::create(pool_);
   yyast = ast;
@@ -7129,9 +7463,10 @@ auto Parser::parse_elaborated_enum_specifier(SpecifierAST*& yyast,
   ast->nestedNameSpecifier = nestedNameSpecifier;
   ast->unqualifiedId = name;
   ast->classKey = TokenKind::T_ENUM;
-  ast->symbol = symbol;
 
   specs.accept(ast);
+
+  binder_.bind(ast, specs, false, unqualifiedCandidate);
 
   return true;
 }
@@ -7197,21 +7532,21 @@ auto Parser::parse_elaborated_type_specifier(SpecifierAST*& yyast,
 
   Symbol* unqualifiedCandidate = nullptr;
   if (!nestedNameSpecifier) {
-    const Identifier* name = nullptr;
-    if (auto templateId = ast_cast<SimpleTemplateIdAST>(ast->unqualifiedId))
-      name = templateId->identifier;
-    else if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId))
-      name = nameId->identifier;
+    auto name =
+        name_cast<Identifier>(get_lookup_name(control_, ast->unqualifiedId));
 
     if (name &&
         (classKey == TokenKind::T_CLASS || classKey == TokenKind::T_STRUCT ||
          classKey == TokenKind::T_UNION)) {
-      unqualifiedCandidate = unqualifiedLookup(
-          lexicalScope_, name, [](Symbol* s) { return s->isClass(); });
+      unqualifiedCandidate = elaboratedTypeCandidate(name, classKey, specs);
     }
   }
 
   binder_.bind(ast, specs, isDeclaration, unqualifiedCandidate);
+
+  if (!specs.isFriend)
+    checkTagNameBinding(nestedNameSpecifier, ast->unqualifiedId,
+                        ast->declaredSymbol);
 
   return true;
 }
@@ -7318,18 +7653,21 @@ auto Parser::parse_placeholder_type_specifier(SpecifierAST*& yyast,
 
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
                                    const DeclSpecs& specs, BindingContext ctx,
+                                   PlaceholderReplacement& listReplacement,
                                    TemplateDeclarationAST* templateHead)
     -> bool {
   DeclaratorAST* declarator = nullptr;
   Decl decl{specs};
   if (!parse_declarator(declarator, decl)) return false;
 
-  return parse_init_declarator(yyast, declarator, decl, ctx, templateHead);
+  return parse_init_declarator(yyast, declarator, decl, ctx, listReplacement,
+                               templateHead);
 }
 
 auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
                                    DeclaratorAST* declarator, Decl& decl,
                                    BindingContext ctx,
+                                   PlaceholderReplacement& listReplacement,
                                    TemplateDeclarationAST* templateHead)
     -> bool {
   auto scopeGuard = CombinedScopeGuard{this};
@@ -7353,6 +7691,7 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   if (auto declId = decl.declaratorId; declId) {
     if (decl.specs.isTypedef) {
       auto typedefSymbol = binder_.declareTypedef(declarator, decl);
+      checkTemplateParameterRebinding(decl, typedefSymbol);
       symbol = typedefSymbol;
     } else if (cxx::declaresFunction(declarator, decl.specs.type())) {
       auto functionSymbol = declareFunction(declarator, decl);
@@ -7364,10 +7703,14 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
       auto variableSymbol = binder_.declareVariable(
           declarator, decl, /*addSymbolToParentScope=*/true);
       binder_.declareVariableTemplate(variableSymbol, declId, templateHead);
+      checkTemplateParameterRebinding(decl, variableSymbol);
 
       symbol = variableSymbol;
     }
   }
+
+  TranslationUnit::ImmediateFunctionContextScope constantInitializer{
+      unit_, decl.specs.isConstexpr || decl.specs.isConstinit};
 
   ExpressionAST* initializer = nullptr;
 
@@ -7380,6 +7723,9 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
     const Type* declaredType = nullptr;
     if (symbol) declaredType = symbol->type();
 
+    Binder::InitializerGuard initializerGuard{&binder_, symbol};
+    TranslationUnit::DeferredInitializerScope deferredInitializer{unit_,
+                                                                  symbol};
     if (parse_declarator_initializer(requiresClause, initializer,
                                      declaredType)) {
       lookahead.commit();
@@ -7394,12 +7740,12 @@ auto Parser::parse_init_declarator(InitDeclaratorAST*& yyast,
   ast->initializer = initializer;
   ast->symbol = symbol;
 
-  {
+  if (!binder_.inExplicitInstantiation()) {
     auto scopeGuard = CombinedScopeGuard{this};
     if (auto memberScope = decl.getScope())
       enterDeclaratorScopeChain(memberScope);
 
-    check_init_declarator(ast, decl.specs.typeSpecifier());
+    check_init_declarator(ast, decl.specs.typeSpecifier(), &listReplacement);
   }
 
   if (auto variable = symbol_cast<VariableSymbol>(symbol))
@@ -7553,7 +7899,9 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
   ExpressionAST* expression = nullptr;
 
   if (!match(TokenKind::T_RBRACKET, rbracketLoc)) {
-    if (!parse_constant_expression(expression)) return false;
+    TranslationUnit::DeferredInitializerScope bound{
+        unit_, TranslationUnit::DeferredInitializer::kArrayBound};
+    if (!parse_conditional_expression(expression, ExprContext{})) return false;
     if (!match(TokenKind::T_RBRACKET, rbracketLoc)) return false;
   }
 
@@ -7568,6 +7916,7 @@ auto Parser::parse_array_declarator(ArrayDeclaratorChunkAST*& yyast) -> bool {
   modifier->lbracketLoc = lbracketLoc;
   modifier->typeQualifierList = typeQualifierList;
   modifier->expression = expression;
+  modifier->evaluationScope = binder_.scope();
   modifier->rbracketLoc = rbracketLoc;
   modifier->attributeList = attributes;
 
@@ -7601,6 +7950,8 @@ auto Parser::parse_function_declarator(FunctionDeclaratorChunkAST*& yyast,
     parameterTypeNameContext = TypeNameContext::kTypeOnly;
 
   if (!match(TokenKind::T_RPAREN, rparenLoc)) {
+    TranslationUnit::ImmediateFunctionContextScope immediateFunctionParameters{
+        unit_, declaresFunction && decl.specs.isConsteval};
     if (!parse_parameter_declaration_clause(parameterDeclarationClause,
                                             parameterTypeNameContext)) {
       restoreAbbreviated();
@@ -7951,11 +8302,14 @@ auto Parser::parse_parameter_declaration_clause(
   const auto start = currentLocation();
 
   if (auto entry = parameter_declaration_clauses_.get(start)) {
-    auto [cursor, ast, parsed, hit] = *entry;
-    rewind(cursor);
-    yyast = ast;
-    return parsed;
+    rewind(entry->endLoc);
+    replayDiagnostics(entry->diagnostics);
+    yyast = entry->ast;
+    return entry->parsed;
   }
+
+  CapturingDiagnosticsScope diagnostics{unit_};
+  diagnostics.forwardToPreviousClient();
 
   auto _ = CombinedScopeGuard{this};
 
@@ -7978,7 +8332,8 @@ auto Parser::parse_parameter_declaration_clause(
 
   const auto parsed = yyast != nullptr;
 
-  parameter_declaration_clauses_.set(start, currentLocation(), yyast, parsed);
+  parameter_declaration_clauses_.set(start, currentLocation(), yyast, parsed,
+                                     diagnostics.takeDiagnostics());
 
   return parsed;
 }
@@ -8072,6 +8427,7 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
   ast->isPack = decl.isPack;
 
   binder_.bind(ast, decl, templParam);
+  checkTemplateParameterRebinding(ast->symbol);
 
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
     ExprContext ctx;
@@ -8081,8 +8437,12 @@ auto Parser::parse_parameter_declaration(ParameterDeclarationAST*& yyast,
 
     {
       UncheckedInitializerContext uncheckedContext{this, deferred};
-      TranslationUnit::DeferredInitializerScope deferredInitializer{unit_,
-                                                                    true};
+      TranslationUnit::ImmediateFunctionContextScope templateArgument{
+          unit_, templParam};
+      std::optional<TranslationUnit::DeferredInitializerScope> defaultArgument;
+      if (!templParam) defaultArgument.emplace(unit_, ast->symbol);
+      Binder::InitializerGuard initializerGuard{
+          &binder_, templParam ? nullptr : ast->symbol};
       if (!parse_initializer_clause(ast->expression, ctx)) {
         if (templParam) return false;
 
@@ -8425,6 +8785,7 @@ auto Parser::lookat_function_body() -> bool {
 auto Parser::parse_function_body(FunctionBodyAST*& yyast) -> bool {
   AccessCheckScopeGuard accessCheckScope{this, scope()};
   Binder::FunctionBodyGuard functionBody{&binder_, scope()};
+  TranslationUnit::ImmediateEscalationScope immediateEscalation{unit_};
   if (lookat(TokenKind::T_SEMICOLON)) return false;
 
   if (parse_function_try_block(yyast)) return true;
@@ -8538,6 +8899,8 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
 
   binder_.bind(ast, underlyingTypeSpecs);
   binder_.recordMemberEnumerationDefinition(ast, specs.templateHead);
+  checkTagNameBinding(ast->nestedNameSpecifier, ast->unqualifiedId,
+                      ast->symbol);
 
   if (auto enumScope = ast->symbol ? ast->symbol->asScopeSymbol() : nullptr)
     pushScope(enumScope);
@@ -8548,34 +8911,9 @@ auto Parser::parse_enum_specifier(SpecifierAST*& yyast, DeclSpecs& specs)
     match(TokenKind::T_COMMA, ast->commaLoc);
 
     expect(TokenKind::T_RBRACE, ast->rbraceLoc);
-
-    for (auto enumerator : ListView{ast->enumeratorList}) {
-      if (enumerator->symbol) enumerator->symbol->setType(ast->symbol->type());
-    }
   }
 
-  if (isCxx()) {
-    if (auto enumSym = symbol_cast<EnumSymbol>(ast->symbol)) {
-      if (!enumSym->hasFixedUnderlyingType() && ast->enumeratorList) {
-        bool hasNegative = false;
-        for (auto it = ast->enumeratorList; it; it = it->next) {
-          auto sym = it->value ? it->value->symbol : nullptr;
-          if (!sym) continue;
-          if (const auto& val = sym->value()) {
-            if (auto iv = std::get_if<ConstInt>(&*val)) {
-              if (iv->isNegative()) {
-                hasNegative = true;
-                break;
-              }
-            }
-          }
-        }
-        if (!hasNegative) {
-          enumSym->setUnderlyingType(control_->getUnsignedIntType());
-        }
-      }
-    }
-  }
+  binder_.complete(ast);
 
   return true;
 }
@@ -8637,6 +8975,8 @@ auto Parser::parse_opaque_enum_declaration(DeclarationAST*& yyast,
   ast->semicolonLoc = semicolonLoc;
 
   binder_.bind(ast, underlyingTypeSpecs);
+  checkTagNameBinding(ast->nestedNameSpecifier, ast->unqualifiedId,
+                      ast->symbol);
 
   return true;
 }
@@ -8669,19 +9009,12 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) {
   auto it = &yyast;
 
   EnumeratorAST* enumerator = nullptr;
-  parse_enumerator(enumerator, nullptr);
+  parse_enumerator(enumerator, nullptr, std::nullopt);
 
   *it = make_list_node(pool_, enumerator);
   it = &(*it)->next;
 
-  std::optional<ConstValue> lastValue;
-
-  if (enumerator->expression) {
-    lastValue = enumerator->symbol->value();
-  } else {
-    lastValue = std::intmax_t{0};
-    enumerator->symbol->setValue(*lastValue);
-  }
+  auto lastValue = enumerator->symbol->value();
 
   SourceLocation commaLoc;
   auto previousType = enumerator->symbol->type();
@@ -8693,16 +9026,8 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) {
     }
 
     EnumeratorAST* enumerator = nullptr;
-    parse_enumerator(enumerator, previousType);
-
-    if (!enumerator->expression) {
-      if (lastValue.has_value()) {
-        lastValue = Binder::nextEnumeratorValue(unit_, previousType, lastValue);
-        enumerator->symbol->setValue(lastValue);
-      }
-    } else {
-      lastValue = enumerator->symbol->value();
-    }
+    parse_enumerator(enumerator, previousType, lastValue);
+    lastValue = enumerator->symbol->value();
     previousType = enumerator->symbol->type();
 
     *it = make_list_node(pool_, enumerator);
@@ -8710,7 +9035,8 @@ void Parser::parse_enumerator_list(List<EnumeratorAST*>*& yyast) {
   }
 }
 
-void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* previousType) {
+void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* previousType,
+                              const std::optional<ConstValue>& previousValue) {
   auto ast = EnumeratorAST::create(pool_);
   yyast = ast;
 
@@ -8725,10 +9051,15 @@ void Parser::parse_enumerator(EnumeratorAST*& yyast, const Type* previousType) {
   if (match(TokenKind::T_EQUAL, ast->equalLoc)) {
     if (!parse_constant_expression(ast->expression, value)) {
       report_failed_parse("expected an expression");
+    } else {
+      check_constant_expression(ast->expression, value, "enumerator value");
     }
   }
 
+  if (!ast->expression) value = Binder::nextEnumeratorValue(previousValue);
+
   binder_.bind(ast, previousType, std::move(value));
+  checkTemplateParameterRebinding(ast->symbol);
 }
 
 auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
@@ -8773,6 +9104,14 @@ auto Parser::parse_using_enum_declaration(DeclarationAST*& yyast) -> bool {
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
 
   binder_.bind(ast);
+
+  if (auto enumScope = symbol_cast<ScopeSymbol>(enumSpecifier->symbol)) {
+    for (auto member : enumScope->members()) {
+      if (!symbol_cast<EnumeratorSymbol>(member)) continue;
+      checkTemplateParameterRebinding(member->name(),
+                                      enumSpecifier->firstSourceLocation());
+    }
+  }
 
   return true;
 }
@@ -8942,6 +9281,7 @@ auto Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool {
           lexicalScope_, ast->unqualifiedId->identifier);
     }
     binder_.bind(ast, resolvedNamespace);
+    checkTemplateParameterRebinding(ast->symbol);
   }
 
   expect(TokenKind::T_SEMICOLON, ast->semicolonLoc);
@@ -9095,6 +9435,7 @@ auto Parser::parse_using_declarator(UsingDeclaratorAST*& yyast) -> bool {
   yyast->isPack = isPack;
 
   binder_.bind(yyast, target);
+  checkTemplateParameterRebinding(yyast->symbol);
 
   return true;
 }
@@ -9294,7 +9635,8 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
 
   if (!lookat_linkage_specification()) return false;
 
-  auto savedLanguageLinkage = binder_.changeLanguageLinkage(languageLinkage);
+  auto savedLinkageSpecification =
+      binder_.changeLinkageSpecification(languageLinkage);
 
   if (SourceLocation lbraceLoc; match(TokenKind::T_LBRACE, lbraceLoc)) {
     SourceLocation rbraceLoc;
@@ -9328,7 +9670,7 @@ auto Parser::parse_linkage_specification(DeclarationAST*& yyast) -> bool {
     ast->declarationList = make_list_node(pool_, declaration);
   }
 
-  (void)binder_.changeLanguageLinkage(savedLanguageLinkage);
+  (void)binder_.changeLinkageSpecification(savedLinkageSpecification);
 
   return true;
 }
@@ -10069,6 +10411,9 @@ auto Parser::parse_class_specifier(ClassSpecifierAST*& yyast, DeclSpecs& specs)
 
   binder_.bind(ast, specs);
 
+  checkTagNameBinding(ast->nestedNameSpecifier, ast->unqualifiedId,
+                      ast->symbol);
+
   enterScopeChain(ast->symbol);
 
   ClassSpecifierContext classContext(
@@ -10195,6 +10540,7 @@ auto Parser::parse_member_declaration(DeclarationAST*& yyast) -> bool {
   if (parse_alias_declaration(yyast)) return true;
   if (parse_using_declaration(yyast)) return true;
   if (parse_static_assert_declaration(yyast)) return true;
+  if (parse_consteval_block_declaration(yyast)) return true;
   if (parse_deduction_guide(yyast)) return true;
   if (parse_opaque_enum_declaration(yyast)) return true;
   if (TemplateDeclarationAST* templateDeclaration = nullptr;
@@ -10384,8 +10730,11 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   ast->attributeList = attributes;
   ast->declSpecifierList = declSpecifierList;
 
+  PlaceholderReplacement listReplacement;
+
   if (!initDeclarator) {
-    if (!parse_member_declarator(initDeclarator, declarator, decl)) {
+    if (!parse_member_declarator(initDeclarator, declarator, decl,
+                                 listReplacement)) {
       report_failed_parse("expected a member declarator");
     }
   }
@@ -10402,7 +10751,7 @@ auto Parser::parse_member_declaration_helper(DeclarationAST*& yyast) -> bool {
   while (match(TokenKind::T_COMMA, commaLoc)) {
     InitDeclaratorAST* initDeclarator = nullptr;
 
-    if (!parse_member_declarator(initDeclarator, specs)) {
+    if (!parse_member_declarator(initDeclarator, specs, listReplacement)) {
       parse_error("expected a declarator");
     }
 
@@ -10519,6 +10868,7 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast,
   Decl decl{declSpecs, declarator};
 
   auto symbol = binder_.declareField(declarator, decl);
+  checkTemplateParameterRebinding(decl, symbol);
   symbol->setBitFieldWidth(std::move(bitfieldWidth));
 
   auto ast = InitDeclaratorAST::create(pool_);
@@ -10530,16 +10880,21 @@ auto Parser::parse_bitfield_declarator(InitDeclaratorAST*& yyast,
   {
     UncheckedInitializerContext uncheckedContext{
         this, isDeferredFieldInitializer(symbol)};
+    TranslationUnit::DeferredInitializerScope deferredInitializer{unit_,
+                                                                  symbol};
+    Binder::InitializerGuard initializerGuard{&binder_, symbol};
     (void)parse_brace_or_equal_initializer(ast->initializer);
   }
 
-  recordFieldInitializer(ast, declSpecs.typeSpecifier());
+  recordFieldInitializer(ast, declSpecs.typeSpecifier(), nullptr);
 
   return true;
 }
 
 auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
-                                     const DeclSpecs& specs) -> bool {
+                                     const DeclSpecs& specs,
+                                     PlaceholderReplacement& listReplacement)
+    -> bool {
   if (parse_bitfield_declarator(yyast, specs)) {
     return true;
   }
@@ -10552,11 +10907,12 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
 
   lookahead.commit();
 
-  return parse_member_declarator(yyast, declarator, decl);
+  return parse_member_declarator(yyast, declarator, decl, listReplacement);
 }
 
 auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
-                                     DeclaratorAST* declarator, Decl decl)
+                                     DeclaratorAST* declarator, Decl decl,
+                                     PlaceholderReplacement& listReplacement)
     -> bool {
   if (!declarator) {
     return false;
@@ -10567,6 +10923,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
   if (abbreviatedHead) setScope(abbreviatedHead->symbol);
 
   auto symbol = binder_.declareMemberSymbol(declarator, decl);
+  checkTemplateParameterRebinding(decl, symbol);
 
   if (auto funcSym = symbol_cast<FunctionSymbol>(symbol)) {
     flushDeferredAccessChecks(funcSym);
@@ -10591,6 +10948,7 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
           funcSym->setTrailingRequiresClause(requiresClause);
           binder_.checkTrailingRequiresClauseIsTemplated(
               funcSym, decl.specs.templateHead);
+          binder_.checkVirtualFunctionRequiresClause(funcSym);
         }
       } else {
         parse_virt_specifier_seq(functionDeclarator);
@@ -10620,11 +10978,14 @@ auto Parser::parse_member_declarator(InitDeclaratorAST*& yyast,
     {
       UncheckedInitializerContext uncheckedContext{
           this, isDeferredFieldInitializer(ast->symbol)};
+      TranslationUnit::DeferredInitializerScope deferredInitializer{
+          unit_, ast->symbol};
+      Binder::InitializerGuard initializerGuard{&binder_, ast->symbol};
       if (symbol) checkBracedInitializerCompletion(symbol->type());
       (void)parse_brace_or_equal_initializer(ast->initializer);
     }
 
-    recordFieldInitializer(ast, decl.specs.typeSpecifier());
+    recordFieldInitializer(ast, decl.specs.typeSpecifier(), &listReplacement);
   }
 
   return true;
@@ -10823,6 +11184,16 @@ auto Parser::parse_class_or_decltype(
       decltypeName->decltypeSpecifier = decltypeSpecifier;
       yynestedNameSpecifier = nullptr;
       yyast = decltypeName;
+      return true;
+    }
+
+    DeclSpecs packSpecs{unit_};
+    SpecifierAST* packIndexSpecifier = nullptr;
+    if (parse_pack_index_type_specifier(packIndexSpecifier, packSpecs)) {
+      auto packIndexName = PackIndexIdAST::create(pool_);
+      packIndexName->typeSpecifier = packIndexSpecifier;
+      yynestedNameSpecifier = nullptr;
+      yyast = packIndexName;
       return true;
     }
   }
@@ -11350,6 +11721,7 @@ void Parser::parse_template_parameter_declaration(
   ast->declaration = parameter;
 
   binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
+  checkTemplateParameterRebinding(ast->symbol);
 }
 
 auto Parser::parse_type_parameter(TemplateParameterAST*& yyast) -> bool {
@@ -11390,6 +11762,7 @@ auto Parser::parse_typename_type_parameter(TemplateParameterAST*& yyast)
   if (!LA().isOneOf(TokenKind::T_GREATER, TokenKind::T_COMMA)) return false;
 
   binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
+  checkTemplateParameterRebinding(ast->symbol);
 
   return true;
 }
@@ -11438,6 +11811,7 @@ void Parser::parse_template_type_parameter(TemplateParameterAST*& yyast) {
   }
 
   binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
+  checkTemplateParameterRebinding(ast->symbol);
 }
 
 auto Parser::parse_constraint_type_parameter(TemplateParameterAST*& yyast)
@@ -11475,6 +11849,7 @@ auto Parser::parse_constraint_type_parameter(TemplateParameterAST*& yyast)
   ast->typeId = typeId;
 
   binder_.bind(ast, templateParameterCount_, templateParameterDepth_);
+  checkTemplateParameterRebinding(ast->symbol);
 
   return true;
 }
@@ -11786,11 +12161,14 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
   const auto start = currentLocation();
 
   if (auto entry = template_arguments_.get(start)) {
-    auto [loc, ast, parsed, hit] = *entry;
-    rewind(loc);
-    yyast = ast;
-    return parsed;
+    rewind(entry->endLoc);
+    replayDiagnostics(entry->diagnostics);
+    yyast = entry->ast;
+    return entry->parsed;
   }
+
+  CapturingDiagnosticsScope diagnostics{unit_};
+  diagnostics.forwardToPreviousClient();
 
   auto check = [&]() -> bool {
     return LA().isOneOf(TokenKind::T_COMMA, TokenKind::T_GREATER,
@@ -11859,6 +12237,7 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
     yyast = ast;
 
     ast->expression = expression;
+    ast->evaluationScope = binder_.scope();
 
     return true;
   };
@@ -11918,7 +12297,8 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
 
   if (parsed) {
     recordInjectedClassNameArgument(yyast, name);
-    template_arguments_.set(start, currentLocation(), yyast, true);
+    template_arguments_.set(start, currentLocation(), yyast, true,
+                            diagnostics.takeDiagnostics());
 
     return true;
   }
@@ -12023,6 +12403,7 @@ auto Parser::parse_concept_definition(DeclarationAST*& yyast) -> bool {
   ast->identifier = unit_->identifier(ast->identifierLoc);
 
   binder_.bind(ast);
+  checkTemplateParameterRebinding(ast->symbol);
 
   expect(TokenKind::T_EQUAL, ast->equalLoc);
 
@@ -12161,8 +12542,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
     if (elabSpec->nestedNameSpecifier) {
       auto templateId = ast_cast<SimpleTemplateIdAST>(elabSpec->unqualifiedId);
       if (!templateId) {
-        type_error(elabSpec->unqualifiedId->firstSourceLocation(),
-                   "expected a template id");
+        instantiateMemberClassExplicitly(ast, elabSpec);
         return true;
       }
 
@@ -12184,19 +12564,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
         return true;
       }
 
-      if (config().checkTypes) {
-        if (!ast->externLoc) {
-          auto instance = ASTRewriter::instantiate(
-              unit_, templateId->templateArgumentList, classSymbol);
-
-          ASTRewriter::requireExplicitInstantiationMembers(
-              unit_, symbol_cast<ClassSymbol>(instance));
-        } else {
-          ASTRewriter::markExplicitInstantiationDeclared(
-              unit_, templateId->templateArgumentList, classSymbol);
-        }
-      }
-
+      instantiateClassTemplateExplicitly(ast, templateId, classSymbol);
       return true;
     }
 
@@ -12215,19 +12583,7 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
       return true;
     }
 
-    if (config().checkTypes) {
-      if (!ast->externLoc) {
-        auto instance = ASTRewriter::instantiate(
-            unit_, templateId->templateArgumentList, classSymbol);
-
-        ASTRewriter::requireExplicitInstantiationMembers(
-            unit_, symbol_cast<ClassSymbol>(instance));
-      } else {
-        ASTRewriter::markExplicitInstantiationDeclared(
-            unit_, templateId->templateArgumentList, classSymbol);
-      }
-    }
-
+    instantiateClassTemplateExplicitly(ast, templateId, classSymbol);
     return true;
   };
 
@@ -12249,6 +12605,10 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
     auto initDecl = simpleDecl->initDeclaratorList->value;
     if (!initDecl || !initDecl->declarator) return false;
     if (getFunctionPrototype(initDecl->declarator)) return false;
+    if (initDecl->initializer)
+      type_error(initDecl->initializer->firstSourceLocation(),
+                 "an explicit instantiation of a variable cannot have an "
+                 "initializer");
     return true;
   };
 
@@ -12261,6 +12621,61 @@ auto Parser::parse_explicit_instantiation(DeclarationAST*& yyast) -> bool {
   type_error(ast->firstSourceLocation(), "failed to instantiate template");
 
   return true;
+}
+
+void Parser::instantiateClassTemplateExplicitly(ExplicitInstantiationAST* ast,
+                                                SimpleTemplateIdAST* templateId,
+                                                ClassSymbol* classSymbol) {
+  if (!config().checkTypes) return;
+
+  const auto isDefinition = !ast->externLoc;
+
+  if (!isDefinition) {
+    auto existing = ASTRewriter::markExplicitInstantiationDeclared(
+        unit_, templateId->templateArgumentList, classSymbol);
+    (void)binder_.checkExplicitInstantiationOrder(existing, isDefinition,
+                                                  templateId->identifierLoc);
+    return;
+  }
+
+  auto instance = symbol_cast<ClassSymbol>(
+      ASTRewriter::instantiate(unit_, templateId->templateArgumentList,
+                               classSymbol, templateId->identifierLoc));
+
+  if (!binder_.checkExplicitInstantiationOrder(instance, isDefinition,
+                                               templateId->identifierLoc))
+    return;
+
+  ASTRewriter::requireExplicitInstantiationMembers(unit_, instance,
+                                                   templateId->identifierLoc);
+}
+
+void Parser::instantiateMemberClassExplicitly(
+    ExplicitInstantiationAST* ast, ElaboratedTypeSpecifierAST* elabSpec) {
+  auto memberClass = symbol_cast<ClassSymbol>(elabSpec->symbol);
+  if (!memberClass || !memberClass->instantiationPattern()) {
+    type_error(elabSpec->unqualifiedId->firstSourceLocation(),
+               "explicit instantiation does not name a member class of a "
+               "class template specialization");
+    return;
+  }
+
+  if (!config().checkTypes) return;
+
+  const auto isDefinition = !ast->externLoc;
+  if (!binder_.checkExplicitInstantiationOrder(
+          memberClass, isDefinition,
+          elabSpec->unqualifiedId->firstSourceLocation()))
+    return;
+
+  if (!isDefinition) {
+    unit_->addExplicitInstantiationDeclaration(memberClass);
+    return;
+  }
+
+  if (!ASTRewriter::ensureCompleteClass(unit_, memberClass)) return;
+  ASTRewriter::requireExplicitInstantiationMembers(
+      unit_, memberClass, elabSpec->unqualifiedId->firstSourceLocation());
 }
 
 auto Parser::parse_try_block(StatementAST*& yyast,
@@ -12421,6 +12836,7 @@ auto Parser::parse_exception_declaration(ExceptionDeclarationAST*& yyast)
   }
 
   binder_.bind(ast, decl);
+  checkTemplateParameterRebinding(ast->symbol);
 
   return true;
 }
@@ -12451,11 +12867,19 @@ auto Parser::parse_noexcept_specifier(ExceptionSpecifierAST*& yyast) -> bool {
   if (match(TokenKind::T_LPAREN, ast->lparenLoc)) {
     std::optional<ConstValue> constValue;
 
-    if (!parse_constant_expression(ast->expression, constValue)) {
+    if (!parse_constant_bool_condition(ast->expression, constValue)) {
       report_failed_parse("expected an expression");
+    } else {
+      check_constant_expression(ast->expression, constValue,
+                                "noexcept-specifier");
+      if (constValue && !isDependent(unit_, ast->expression) &&
+          !ast_cast<ConstExpressionAST>(ast->expression)) {
+        ast->expression = ConstExpressionAST::create(
+            pool_, ast->expression, pool_->make<ConstValue>(*constValue), false,
+            ConstantEvaluationKind::kManifestlyConstantEvaluated, scope(),
+            ValueCategory::kPrValue, control()->getBoolType());
+      }
     }
-
-    check_bool_condition(ast->expression);
 
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
   }
@@ -12493,12 +12917,13 @@ auto Parser::isDeferredFieldInitializer(Symbol* symbol) const -> bool {
 }
 
 void Parser::recordFieldInitializer(InitDeclaratorAST* ast,
-                                    SpecifierAST* typeSpecifier) {
+                                    SpecifierAST* typeSpecifier,
+                                    PlaceholderReplacement* listReplacement) {
   auto field = symbol_cast<FieldSymbol>(ast->symbol);
   if (!field) return;
   if (!ast->initializer) {
     if (field->isStatic() && field->isInline())
-      check_init_declarator(ast, typeSpecifier);
+      check_init_declarator(ast, typeSpecifier, listReplacement);
     return;
   }
   field->setInitializer(ast->initializer);
@@ -12506,7 +12931,7 @@ void Parser::recordFieldInitializer(InitDeclaratorAST* ast,
     pendingFieldInitializers_.push_back({ast, scope()});
     return;
   }
-  check_init_declarator(ast, typeSpecifier);
+  check_init_declarator(ast, typeSpecifier, listReplacement);
 }
 
 auto Parser::isDeferredDefaultArgument(bool templParam) const -> bool {
@@ -12611,7 +13036,9 @@ void Parser::completeDefaultArguments(
 
   for (const auto& entry : pending) {
     auto scopeGuard = RestoredScopeChain{this, entry.scope};
-    TranslationUnit::DeferredInitializerScope deferredInitializer{unit_, true};
+    TranslationUnit::DeferredInitializerScope deferredInitializer{unit_,
+                                                                  entry.symbol};
+    Binder::InitializerGuard initializerGuard{&binder_, entry.symbol};
 
     rewind(entry.ast->equalLoc.next());
     entry.ast->expression = nullptr;
@@ -12643,8 +13070,10 @@ void Parser::completeFieldInitializers(
 
   for (const auto& entry : pending) {
     auto scopeGuard = RestoredScopeChain{this, entry.scope};
-    TranslationUnit::DeferredInitializerScope deferredInitializer{unit_, true};
     auto ast = entry.ast;
+    TranslationUnit::DeferredInitializerScope deferredInitializer{
+        unit_, symbol_cast<FieldSymbol>(ast->symbol)};
+    Binder::InitializerGuard initializerGuard{&binder_, ast->symbol};
     if (auto field = symbol_cast<FieldSymbol>(ast->symbol)) {
       if (auto classSymbol = symbol_cast<ClassSymbol>(field->parent()))
         affectedClasses.insert(classSymbol);
@@ -12726,6 +13155,132 @@ auto Parser::isOnLexicalScopeChain(ScopeSymbol* symbol) const -> bool {
   return false;
 }
 
+auto Parser::templateParameterScopeDepth(
+    TemplateParametersSymbol* templateParameters) -> std::optional<int> {
+  for (auto member : templateParameters->members()) {
+    if (auto info = template_parameter_info(member)) return info->depth;
+  }
+  return std::nullopt;
+}
+
+auto Parser::lexicalTemplateParametersAt(int depth) const
+    -> TemplateParametersSymbol* {
+  for (auto scope = lexicalScope_; scope; scope = scope->parent) {
+    auto templateParameters =
+        symbol_cast<TemplateParametersSymbol>(scope->symbol);
+    if (!templateParameters) continue;
+    if (templateParameterScopeDepth(templateParameters) == depth)
+      return templateParameters;
+  }
+  return nullptr;
+}
+
+auto Parser::templateParametersToEnter(ScopeSymbol* scope) const
+    -> TemplateParametersSymbol* {
+  auto templateParameters = template_parameters_of(scope);
+  if (!templateParameters || isOnLexicalScopeChain(templateParameters))
+    return nullptr;
+
+  if (auto depth = templateParameterScopeDepth(templateParameters)) {
+    if (auto lexical = lexicalTemplateParametersAt(*depth)) return lexical;
+  }
+
+  return templateParameters;
+}
+
+auto Parser::findsDeclaration(NestedNameSpecifierAST* nestedNameSpecifier,
+                              UnqualifiedIdAST* unqualifiedId) const -> bool {
+  auto nameId = ast_cast<NameIdAST>(unqualifiedId);
+  if (!nameId) return true;
+
+  bool ambiguous = false;
+
+  if (!nestedNameSpecifier) {
+    auto found = unqualifiedLookupIncludingInlineNamespaces(
+        control_, lexicalScope_, nameId->identifier, false, &ambiguous);
+    return found || ambiguous;
+  }
+
+  if (!nestedNameSpecifier->symbol) return true;
+  if (isDependent(unit_, nestedNameSpecifier)) return true;
+
+  auto found = qualifiedLookupIncludingInlineNamespaces(
+      control_, nestedNameSpecifier->symbol, nameId->identifier, &ambiguous);
+  return found || ambiguous;
+}
+
+auto Parser::elaboratedTypeCandidate(const Identifier* name, TokenKind classKey,
+                                     const DeclSpecs& specs) const -> Symbol* {
+  if (!isCxx() && classKey == TokenKind::T_ENUM)
+    return unqualifiedLookup(lexicalScope_, name, &Symbol::isEnumOrScopedEnum);
+  if (!isCxx()) {
+    return unqualifiedLookup(lexicalScope_, name,
+                             [](Symbol* s) { return s->isClass(); });
+  }
+  if (specs.isFriend) return friendTypeOnlyLookup(lexicalScope_, name);
+  return unqualifiedTypeOnlyLookup(lexicalScope_, name);
+}
+
+auto Parser::boundTemplateParameter(const Name* name, Symbol* declared) const
+    -> Symbol* {
+  auto identifier = name_cast<Identifier>(name);
+  if (!identifier) return nullptr;
+
+  for (auto scope = lexicalScope_; scope; scope = scope->parent) {
+    auto templateParameters =
+        symbol_cast<TemplateParametersSymbol>(scope->symbol);
+    if (!templateParameters) continue;
+    for (auto candidate : templateParameters->find(identifier)) {
+      if (candidate == declared) continue;
+      if (template_parameter_info(candidate)) return candidate;
+    }
+  }
+
+  return nullptr;
+}
+
+void Parser::checkTemplateParameterRebinding(const Name* name,
+                                             SourceLocation location,
+                                             Symbol* declared) {
+  auto templateParameter = boundTemplateParameter(name, declared);
+  if (!templateParameter) return;
+  binder_.error(location,
+                std::format("the name of the template parameter '{}' shall "
+                            "not be bound to a declaration in its scope",
+                            to_diag_string(name)));
+  binder_.note(templateParameter->location(),
+               "template parameter declared here");
+}
+
+void Parser::checkTemplateParameterRebinding(Symbol* declared) {
+  if (!declared) return;
+  checkTemplateParameterRebinding(declared->name(), declared->location(),
+                                  declared);
+}
+
+void Parser::checkTemplateParameterRebinding(const Decl& decl,
+                                             Symbol* declared) {
+  if (!declaratorBindsName(decl)) return;
+  checkTemplateParameterRebinding(declared);
+}
+
+void Parser::checkTagNameBinding(NestedNameSpecifierAST* nestedNameSpecifier,
+                                 UnqualifiedIdAST* unqualifiedId,
+                                 Symbol* declared) {
+  if (!declared) return;
+  if (!namesUnqualifiedIdentifier(nestedNameSpecifier, unqualifiedId)) return;
+  checkTemplateParameterRebinding(
+      declared->name(), unqualifiedId->firstSourceLocation(), declared);
+}
+
+void Parser::checkInitCaptureBindings(LambdaExpressionAST* ast) {
+  for (auto captureNode : ListView{ast->captureList}) {
+    auto capture = binder_.initCapture(captureNode);
+    if (!capture) continue;
+    checkTemplateParameterRebinding(capture->name, capture->location);
+  }
+}
+
 auto Parser::declaresMemberTemplateOf(ScopeSymbol* scope) const -> bool {
   return templateParameterDepth_ > templateParameterDepthOf(scope);
 }
@@ -12749,10 +13304,8 @@ void Parser::enterScopeChain(ScopeSymbol* scope) {
       continue;
     }
     scopesToPush.push_back(sc);
-    if (auto templateParameters = template_parameters_of(sc);
-        templateParameters && !isOnLexicalScopeChain(templateParameters)) {
+    if (auto templateParameters = templateParametersToEnter(sc))
       scopesToPush.push_back(templateParameters);
-    }
   }
 
   for (auto it = scopesToPush.rbegin(); it != scopesToPush.rend(); ++it) {
@@ -12771,6 +13324,7 @@ void Parser::completeFunctionDefinition(FunctionDefinitionAST* ast) {
   if (!statement || !statement->lbraceLoc) return;
 
   auto _ = RestoredScopeChain{this, ast->symbol};
+  TranslationUnit::ImmediateEscalationScope immediateEscalation{unit_};
 
   for (auto member : ast->symbol->members()) {
     if (auto params = symbol_cast<FunctionParametersSymbol>(member)) {
@@ -12924,7 +13478,7 @@ void Parser::resolve_user_defined_literal(ExpressionAST* ast,
     if (!function->templateDeclaration()) return nullptr;
     auto parameters = function->templateParameters();
     if (!parameters) return nullptr;
-    auto& members = parameters->members();
+    const auto& members = parameters->members();
     if (members.size() != 1) return nullptr;
     return members.front();
   };
@@ -12943,7 +13497,7 @@ void Parser::resolve_user_defined_literal(ExpressionAST* ast,
       auto parameter =
           symbol_cast<NonTypeParameterSymbol>(templateParameter(candidate));
       if (parameter && !parameter->isParameterPack() &&
-          traits.is_class(parameter->objectType()))
+          traits.is_class_or_union(parameter->objectType()))
         return candidate;
     }
     return nullptr;
@@ -13018,7 +13572,8 @@ void Parser::resolve_user_defined_literal(ExpressionAST* ast,
       character->valueCategory = ValueCategory::kPrValue;
 
       *tail = make_list_node<TemplateArgumentAST>(
-          pool_, ExpressionTemplateArgumentAST::create(pool_, character));
+          pool_,
+          ExpressionTemplateArgumentAST::create(pool_, character, nullptr));
       tail = &(*tail)->next;
     }
 
@@ -13155,7 +13710,7 @@ void Parser::resolve_user_defined_literal(ExpressionAST* ast,
     argument->valueCategory = ValueCategory::kLValue;
 
     templateId->templateArgumentList = make_list_node<TemplateArgumentAST>(
-        pool_, ExpressionTemplateArgumentAST::create(pool_, argument));
+        pool_, ExpressionTemplateArgumentAST::create(pool_, argument, nullptr));
 
     auto instance = ASTRewriter::instantiate(
         unit_, templateId->templateArgumentList, stringTemplate,
@@ -13203,11 +13758,12 @@ void Parser::resolve_user_defined_literal(ExpressionAST* ast,
   install(stringLiteral, cookedCall(arguments));
 }
 
-void Parser::check(ExpressionAST** ast) {
+void Parser::check(ExpressionAST** ast, bool addressOfOperand) {
   if (uncheckedInitializerDepth_) return;
   TranslationUnit::PotentiallyEvaluatedScope evaluated{
       unit_, unevaluatedOperandDepth_ == 0};
   CheckContext context{this, scope()};
+  context.check.setAddressOfOperand(addressOfOperand);
   context.check(ast);
 }
 
@@ -13233,6 +13789,7 @@ void Parser::check_function_body(FunctionSymbol* functionSymbol,
 
   if (binder_.inTemplate()) return;
 
+  ASTRewriter::completePendingExceptionSpecification(unit_, functionSymbol);
   ASTRewriter::requirePotentiallyInvokedDestructors(unit_, functionSymbol);
   ASTRewriter::requireVTableForKeyFunction(unit_, functionSymbol);
 
@@ -13256,14 +13813,23 @@ void Parser::check(DeclarationAST* ast) {
 }
 
 void Parser::check_init_declarator(InitDeclaratorAST* ast,
-                                   SpecifierAST* typeSpecifier) {
+                                   SpecifierAST* typeSpecifier,
+                                   PlaceholderReplacement* listReplacement) {
   CheckContext context{this, scope()};
-  context.check.check_init_declarator(ast, typeSpecifier);
+  context.check.check_init_declarator(ast, typeSpecifier, listReplacement);
 }
 
 void Parser::check_bool_condition(ExpressionAST*& ast) {
   CheckContext context{this, scope()};
   context.check.check_bool_condition(ast);
+}
+
+void Parser::check_constant_expression(ExpressionAST* ast,
+                                       const std::optional<ConstValue>& value,
+                                       std::string_view construct) {
+  if (uncheckedInitializerDepth_) return;
+  CheckContext context{this, scope()};
+  context.check.check_constant_expression(ast, value, construct);
 }
 
 void Parser::check_discarded_value(ExpressionAST*& ast) {

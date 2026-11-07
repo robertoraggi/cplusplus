@@ -115,6 +115,18 @@ class TranslationUnit {
   [[nodiscard]] auto isExplicitInstantiationDefinition(
       ClassSymbol* classSymbol) const -> bool;
 
+  void addExplicitInstantiationDefinition(Symbol* variable);
+  [[nodiscard]] auto isExplicitInstantiationDefinition(Symbol* variable) const
+      -> bool;
+
+  void addExplicitInstantiationDeclaration(Symbol* member);
+  [[nodiscard]] auto isExplicitInstantiationDeclaration(Symbol* member) const
+      -> bool;
+
+  [[nodiscard]] auto cLanguageLinkageEntity(const Name* name) const -> Symbol*;
+  void addCLanguageLinkageEntity(Symbol* entity);
+  void removeCLanguageLinkageEntity(Symbol* entity);
+
   void markFunctionBodyUnparsed(FunctionDefinitionAST* definition);
   void markFunctionBodyParsed(FunctionDefinitionAST* definition);
   [[nodiscard]] auto isFunctionBodyUnparsed(
@@ -211,8 +223,55 @@ class TranslationUnit {
     bool saved_;
   };
 
+  [[nodiscard]] auto refersToImmediateObject(const Symbol* variable,
+                                             const ConstValue& value) -> bool;
+
+  void deferImmediateEscalation(SourceLocation location,
+                                FunctionSymbol* escalatingFunction);
+  void dischargeImmediateEscalations(SourceLocation first, SourceLocation last);
+
+  [[nodiscard]] auto pendingImmediateEscalationCount() const -> std::size_t {
+    return pendingImmediateEscalations_.size();
+  }
+
+  void discardImmediateEscalations(std::size_t count);
+
+  enum class DeferredInitializer : std::uint8_t {
+    kNone,
+    kVariable,
+    kArrayBound,
+    kDefaultArgument,
+    kDefaultMemberInitializer,
+    kInstantiatedUse,
+  };
+
+  class ImmediateEscalationScope {
+   public:
+    ImmediateEscalationScope(const ImmediateEscalationScope&) = delete;
+    auto operator=(const ImmediateEscalationScope&)
+        -> ImmediateEscalationScope& = delete;
+
+    explicit ImmediateEscalationScope(TranslationUnit* unit);
+    ~ImmediateEscalationScope();
+
+   private:
+    TranslationUnit* unit_;
+    std::size_t savedFrame_;
+    bool savedImmediateFunctionContext_;
+    DeferredInitializer savedDeferredInitializer_;
+  };
+
   [[nodiscard]] auto isDeferredInitializer() const -> bool {
-    return deferredInitializer_;
+    return deferredInitializer_ != DeferredInitializer::kNone;
+  }
+
+  [[nodiscard]] auto isInstantiatedUse() const -> bool {
+    return deferredInitializer_ == DeferredInitializer::kInstantiatedUse;
+  }
+
+  [[nodiscard]] auto defersImmediateEscalationToOwner() const -> bool {
+    return deferredInitializer_ == DeferredInitializer::kVariable ||
+           deferredInitializer_ == DeferredInitializer::kArrayBound;
   }
 
   class DeferredInitializerScope {
@@ -221,16 +280,18 @@ class TranslationUnit {
     auto operator=(const DeferredInitializerScope&)
         -> DeferredInitializerScope& = delete;
 
-    DeferredInitializerScope(TranslationUnit* unit, bool active)
-        : unit_(unit), saved_(unit->deferredInitializer_) {
-      unit_->deferredInitializer_ = saved_ || active;
-    }
-
-    ~DeferredInitializerScope() { unit_->deferredInitializer_ = saved_; }
+    DeferredInitializerScope(TranslationUnit* unit, DeferredInitializer kind);
+    DeferredInitializerScope(TranslationUnit* unit, Symbol* entity);
+    DeferredInitializerScope(TranslationUnit* unit, ParameterSymbol* parameter);
+    ~DeferredInitializerScope();
 
    private:
     TranslationUnit* unit_;
-    bool saved_;
+    ParameterSymbol* parameter_ = nullptr;
+    FieldSymbol* field_ = nullptr;
+    DeferredInitializer kind_;
+    std::size_t savedFrame_;
+    DeferredInitializer saved_;
   };
 
   [[nodiscard]] auto reportingDiagnosticsClient() const -> DiagnosticsClient* {
@@ -239,6 +300,10 @@ class TranslationUnit {
 
   void setReportingDiagnosticsClient(DiagnosticsClient* client) {
     reportingDiagnosticsClient_ = client;
+  }
+
+  [[nodiscard]] auto nextUniqueClosureNumber() -> int {
+    return uniqueClosureCount_++;
   }
 
   [[nodiscard]] auto templateInstantiationDepth() const -> int {
@@ -275,26 +340,18 @@ class TranslationUnit {
           templatedContext_(unit, false),
           potentiallyEvaluated_(unit, true),
           definitionsDeferred_(unit, false),
-          savedImmediateFunctionContext_(unit->immediateFunctionContext_),
-          savedDeferredInitializer_(unit->deferredInitializer_) {
+          immediateEscalation_(unit) {
       ++unit_->templateInstantiationDepth_;
-      unit_->immediateFunctionContext_ = false;
-      unit_->deferredInitializer_ = false;
     }
 
-    ~TemplateInstantiationScope() {
-      --unit_->templateInstantiationDepth_;
-      unit_->immediateFunctionContext_ = savedImmediateFunctionContext_;
-      unit_->deferredInitializer_ = savedDeferredInitializer_;
-    }
+    ~TemplateInstantiationScope() { --unit_->templateInstantiationDepth_; }
 
    private:
     TranslationUnit* unit_;
     TemplatedContextScope templatedContext_;
     PotentiallyEvaluatedScope potentiallyEvaluated_;
     DeferredDefinitionsScope definitionsDeferred_;
-    bool savedImmediateFunctionContext_;
-    bool savedDeferredInitializer_;
+    ImmediateEscalationScope immediateEscalation_;
   };
 
   static constexpr int kMaxTemplateInstantiationDepth = 1024;
@@ -470,6 +527,7 @@ class TranslationUnit {
   }
 
   void captureSnippet(SourceLocationRange range);
+  void captureSnippet(SourceLocationRange range, std::string_view text);
 
   [[nodiscard]] auto snippetText(SourceLocationRange range) const
       -> std::string_view;
@@ -513,21 +571,33 @@ class TranslationUnit {
       pendingBodyCompletionRequests_;
   std::vector<FunctionSymbol*> explicitInstantiationDefinitions_;
   std::vector<ClassSymbol*> explicitInstantiationClassDefinitions_;
+  std::vector<Symbol*> explicitInstantiationVariableDefinitions_;
+  std::vector<Symbol*> explicitInstantiationMemberDeclarations_;
+  std::vector<Symbol*> cLanguageLinkageEntities_;
+  std::unordered_map<const Name*, Symbol*> cLanguageLinkageEntityIndex_;
   std::unordered_set<FunctionDefinitionAST*> unparsedFunctionBodies_;
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
   std::unordered_set<const Type*> nonDependentTypes_;
+  std::unordered_map<const Symbol*, bool> immediateObjectVariables_;
   std::unordered_map<const ScopeSymbol*, const Type*> placeholderReturnTypes_;
   std::unordered_map<std::uint64_t, const Identifier*> snippets_;
   std::vector<std::pair<unsigned, int>> packAlignments_;
   std::unique_ptr<PrefixSourceMap> prefixSourceMap_;
   std::unique_ptr<TimeTrace> timeTrace_;
   int templateInstantiationDepth_ = 0;
+  int uniqueClosureCount_ = 0;
   std::vector<const ClassSymbol*> instantiatingClasses_;
+  struct PendingImmediateEscalation {
+    SourceLocation location;
+    FunctionSymbol* escalatingFunction = nullptr;
+  };
+  std::vector<PendingImmediateEscalation> pendingImmediateEscalations_;
+  std::size_t immediateEscalationFrame_ = 0;
   bool potentiallyEvaluated_ = true;
   bool templatedContext_ = false;
   bool definitionsDeferred_ = false;
   bool immediateFunctionContext_ = false;
-  bool deferredInitializer_ = false;
+  DeferredInitializer deferredInitializer_ = DeferredInitializer::kNone;
 };
 }  // namespace cxx

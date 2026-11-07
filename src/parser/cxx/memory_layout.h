@@ -43,6 +43,12 @@ enum class ClassValueAbiKind {
   kX86_64,
 };
 
+enum class AbiPodDefinition {
+  kCxx03UserProvided,
+  kCxx03UserDeclared,
+  kCxx11,
+};
+
 enum class FramePointerKind {
   kNone,
   kNonLeaf,
@@ -60,7 +66,9 @@ struct FloatingPointFormat {
   [[nodiscard]] auto maxExponent() const -> int;
   [[nodiscard]] auto representsInteger(std::intmax_t value) const -> bool;
   [[nodiscard]] auto rangeContains(double value) const -> bool;
+  [[nodiscard]] auto representation(float value) const -> ConstInt::UWide;
   [[nodiscard]] auto representation(double value) const -> ConstInt::UWide;
+  [[nodiscard]] auto representation(long double value) const -> ConstInt::UWide;
   [[nodiscard]] auto value(ConstInt::UWide representation) const -> double;
 };
 
@@ -122,8 +130,9 @@ class MemoryLayout {
   [[nodiscard]] auto hasInt128Type() const -> bool;
   [[nodiscard]] auto isDarwin() const -> bool;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
-  [[nodiscard]] auto zeroWidthBitFieldAlignsAggregate() const -> bool;
+  [[nodiscard]] auto unnamedBitFieldAlignsAggregate() const -> bool;
   [[nodiscard]] auto structorsReturnThis() const -> bool;
+  [[nodiscard]] auto aliasesStructorVariants() const -> bool;
   [[nodiscard]] auto arrayCookieHasElementSize() const -> bool;
   [[nodiscard]] auto defaultNewAlignment() const -> std::size_t;
   [[nodiscard]] auto alignedAttributeAlignment() const -> std::size_t;
@@ -138,6 +147,8 @@ class MemoryLayout {
 
   [[nodiscard]] auto nullMemberObjectPointer() const -> std::int64_t;
   [[nodiscard]] auto classValueAbiKind() const -> ClassValueAbiKind;
+  [[nodiscard]] auto abiPodDefinition() const -> AbiPodDefinition;
+  [[nodiscard]] auto extendsPromotableIntegersAtCalls() const -> bool;
   [[nodiscard]] auto framePointerKind() const -> FramePointerKind;
   void setTriple(std::string triple);
 

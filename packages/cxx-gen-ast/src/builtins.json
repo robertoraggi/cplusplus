@@ -2,6 +2,15 @@
   {
     "name": "__builtin_constant_p",
     "prototype": "constexpr int __builtin_constant_p(...)",
+    "eval": "evaluateBuiltinConstantP",
+    "constexpr": true,
+    "noexcept": true
+  },
+  {
+    "name": "__builtin_is_within_lifetime",
+    "prototype": "constexpr bool __builtin_is_within_lifetime(const volatile void*)",
+    "eval": "evaluateBuiltinIsWithinLifetime",
+    "consteval": true,
     "constexpr": true,
     "noexcept": true
   },
@@ -4627,6 +4636,30 @@
     "constexpr": false,
     "noexcept": true,
     "libcall": true
+  },
+  {
+    "name": "__builtin_elementwise_add_sat",
+    "prototype": "constexpr int __builtin_elementwise_add_sat(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinSaturatingArithmetic",
+    "typeCheck": "checkBuiltinSaturatingArithmetic",
+    "codegen": "codegenBuiltinSaturatingArithmetic"
+  },
+  {
+    "name": "__builtin_elementwise_sub_sat",
+    "prototype": "constexpr int __builtin_elementwise_sub_sat(...)",
+    "constexpr": true,
+    "noexcept": true,
+    "eval": "evaluateBuiltinSaturatingArithmetic",
+    "typeCheck": "checkBuiltinSaturatingArithmetic",
+    "codegen": "codegenBuiltinSaturatingArithmetic"
+  },
+  {
+    "name": "__builtin_assume_dereferenceable",
+    "prototype": "void __builtin_assume_dereferenceable(const void*, __SIZE_TYPE__)",
+    "noexcept": true,
+    "codegen": "codegenBuiltinAssumeDereferenceable"
   },
   {
     "name": "__builtin_add_overflow",

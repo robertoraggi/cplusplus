@@ -315,6 +315,7 @@ struct [[nodiscard]] Binder::CompleteClass {
   void addMoveConstructor();
   void addCopyAssignmentOperator();
   void addMoveAssignmentOperator();
+  void selectDestructor();
   void addDestructor();
   void addInheritedConstructors();
   auto declareInheritedConstructor(FunctionSymbol* inherited)
@@ -327,6 +328,7 @@ struct [[nodiscard]] Binder::CompleteClass {
   auto newStructorVariant(FunctionSymbol* principal) -> FunctionSymbol*;
   auto makeThisExpr() -> ExpressionAST*;
   [[nodiscard]] auto makeSelfExpr() -> ExpressionAST*;
+  [[nodiscard]] auto assignedObject(FunctionSymbol* fn) -> ExpressionAST*;
   [[nodiscard]] auto copiedMemberSource(FieldSymbol* field,
                                         ParameterSymbol* source, bool isMove)
       -> ExpressionAST*;
@@ -338,6 +340,7 @@ struct [[nodiscard]] Binder::CompleteClass {
                                            ParameterSymbol* source, bool isMove)
       -> StatementAST*;
   [[nodiscard]] auto baseAssignmentStatement(TypeChecker& check,
+                                             FunctionSymbol* fn,
                                              ClassSymbol* base,
                                              ParameterSymbol* source,
                                              bool isMove) -> StatementAST*;
@@ -364,6 +367,7 @@ struct [[nodiscard]] Binder::CompleteClass {
   void synthesizeMemberwiseBodies();
   void typeFieldInitializers();
   void checkOverriderExceptionSpecifications();
+  void checkOverriderImmediacy();
   [[nodiscard]] auto hasNonAssignableSubobject(bool moveForm) const -> bool;
   [[nodiscard]] auto subobjectAssignmentIsUnusable(const Type* type,
                                                    bool moveForm) const -> bool;
@@ -417,7 +421,7 @@ auto Binder::inheritedConstructorFor(ClassSymbol* classSymbol,
 
 void Binder::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
   if (!ctor || !ctor->isConstructor()) return;
-  if (isDeletedFunction(unit_, ctor)) return;
+  if (unit_->typeTraits().is_deleted_function(ctor)) return;
   if (!type_cast<FunctionType>(ctor->type())) return;
   if (ctor->completeObjectVariant() && !ctor->delegatingConstructor()) return;
 
@@ -432,7 +436,7 @@ void Binder::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
 }
 
 void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
-  if (!fn || isDeletedFunction(unit_, fn)) return;
+  if (!fn || unit_->typeTraits().is_deleted_function(fn)) return;
 
   auto def = fn->declaration();
   if (!def || !ast_cast<DefaultFunctionBodyAST>(def->functionBody)) return;
@@ -451,9 +455,10 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
   }
   if (!classSymbol) return;
   classSymbol = classSymbol->resolvedDefinition();
-  if (classSymbol->isUnion()) return;
 
   auto canon = fn->canonical();
+  if (classSymbol->isUnion() && !classSymbol->isDefaultConstructor(canon))
+    return;
 
   CompleteClass cc{*this, classSymbol};
   if (auto operatorId = name_cast<OperatorId>(fn->name())) {
@@ -575,15 +580,14 @@ void Binder::completeDeferredDeletion(FunctionSymbol* fn) {
   CompleteClass{*this, classSymbol->resolvedDefinition()}.determineDeletion(fn);
 }
 
-auto isDeletedFunction(TranslationUnit* unit, FunctionSymbol* function)
-    -> bool {
+auto TypeTraits::is_deleted_function(FunctionSymbol* function) const -> bool {
   if (!function) return false;
-  Binder{unit}.completeDeferredDeletion(function);
+  Binder{unit_}.completeDeferredDeletion(function);
   return function->isDeleted();
 }
 
-auto isExcludedDefaultedMoveMember(TranslationUnit* unit,
-                                   FunctionSymbol* function) -> bool {
+auto TypeTraits::is_excluded_defaulted_move_member(
+    FunctionSymbol* function) const -> bool {
   if (!function || !function->isDefaulted()) return false;
   auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
   if (!classSymbol) return false;
@@ -591,7 +595,7 @@ auto isExcludedDefaultedMoveMember(TranslationUnit* unit,
   if (!classSymbol->isMoveConstructor(function) &&
       !classSymbol->isMoveAssignmentOperator(function))
     return false;
-  return isDeletedFunction(unit, function);
+  return is_deleted_function(function);
 }
 
 void Binder::CompleteClass::addInheritedConstructors() {
@@ -733,14 +737,14 @@ void Binder::CompleteClass::completeSubobjectTypes() {
 
   for (auto base : classSymbol->baseClasses()) {
     if (auto baseClass = resolved_base_class(base))
-      traits.requireCompleteClass(baseClass);
+      traits.require_complete_class(baseClass);
   }
 
   for (auto field : views::members(classSymbol) | views::non_static_fields) {
     auto element = traits.remove_cv(
         traits.remove_all_extents(traits.remove_cv(field->type())));
     if (auto classType = type_cast<ClassType>(element))
-      traits.requireCompleteClass(classType->symbol());
+      traits.require_complete_class(classType->symbol());
   }
 }
 
@@ -775,11 +779,15 @@ void Binder::CompleteClass::complete(DeferredMemberContexts deferred) {
 
   if (!deferred.exceptionSpecifications)
     checkOverriderExceptionSpecifications();
+  checkOverriderImmediacy();
 
   if (shouldSynthesizeSpecialMembers()) {
     synthesizeStructorVariants();
     synthesizeMemberwiseBodies();
   }
+
+  if (classSymbol->instantiationPattern())
+    ASTRewriter::requireVirtualMemberDefinitions(binder.unit_, classSymbol);
 
   synthesizeDefaultedEqualityBodies();
   deduceDefaultedThreeWayReturnTypes();
@@ -876,7 +884,7 @@ struct Binder::ImplicitExceptionSpecification {
     SilentDiagnosticsScope silent{binder.unit_};
     auto initializer = field->initializer();
     if (silent.hadError()) return true;
-    return TypeChecker::isPotentiallyThrowing(initializer);
+    return TypeChecker::isPotentiallyThrowing(initializer, binder.unit_);
   }
 
   [[nodiscard]] auto isInheritedBase(const ClassType* classType) const -> bool {
@@ -986,7 +994,9 @@ void Binder::finalizeExceptionSpecifications(ClassSymbol* classSymbol) {
 void Binder::CompleteClass::checkOverriderExceptionSpecifications() {
   for (auto member : classSymbol->members()) {
     for (auto func : views::declared_functions(member)) {
-      if (!func->isVirtual() || isDeletedFunction(binder.unit_, func)) continue;
+      if (!func->isVirtual() ||
+          binder.unit_->typeTraits().is_deleted_function(func))
+        continue;
 
       ASTRewriter::completePendingExceptionSpecification(binder.unit_, func);
 
@@ -1006,6 +1016,29 @@ void Binder::CompleteClass::checkOverriderExceptionSpecifications() {
                                  "function '{}' is more lax than the function "
                                  "it overrides",
                                  to_diag_string(func->name())));
+        binder.note(overridden->location(),
+                    "overridden virtual function is here");
+      }
+    }
+  }
+}
+
+void Binder::CompleteClass::checkOverriderImmediacy() {
+  for (auto member : classSymbol->members()) {
+    for (auto func : views::declared_functions(member)) {
+      if (!func->isVirtual()) continue;
+      for (auto overridden :
+           binder.findOverriddenFunctions(classSymbol, func)) {
+        if (func->isConsteval() == overridden->isConsteval()) continue;
+        if (func->isConsteval() &&
+            binder.traits.is_std_meta_type(classSymbol->type(), "exception"))
+          continue;
+        binder.error(func->location(),
+                     func->isConsteval()
+                         ? "a non-immediate virtual function shall not be "
+                           "overridden by an immediate virtual function"
+                         : "an immediate virtual function shall not be "
+                           "overridden by a non-immediate virtual function");
         binder.note(overridden->location(),
                     "overridden virtual function is here");
       }
@@ -1265,7 +1298,7 @@ struct Binder::CompleteClass::DefaultedThreeWayComparison {
 
   [[nodiscard]] auto usable(ExpressionAST*& expression) -> bool {
     if (!owner.checkUsable(check, expression)) return false;
-    if (TypeChecker::isPotentiallyThrowing(expression))
+    if (TypeChecker::isPotentiallyThrowing(expression, owner.binder.unit_))
       potentiallyThrowing = true;
     return true;
   }
@@ -1390,7 +1423,8 @@ struct Binder::CompleteClass::DefaultedThreeWayComparison {
     auto result = ReturnStatementAST::create(pool());
     result->expression = expression;
     check.check_return_statement(result);
-    if (TypeChecker::isPotentiallyThrowing(result->expression))
+    if (TypeChecker::isPotentiallyThrowing(result->expression,
+                                           owner.binder.unit_))
       potentiallyThrowing = true;
     return result;
   }
@@ -1521,7 +1555,8 @@ void Binder::CompleteClass::synthesizeDefaultedSecondaryComparisonBody(
   definition->functionBody = body;
   if (!fn->hasExceptionSpecifier()) {
     setFunctionNoexcept(
-        control(), fn, !TypeChecker::isPotentiallyThrowing(result->expression));
+        control(), fn,
+        !TypeChecker::isPotentiallyThrowing(result->expression, binder.unit_));
   }
 }
 
@@ -1778,7 +1813,7 @@ auto Binder::CompleteClass::arrayElement(ExpressionAST* array,
 
   auto subscript = SubscriptExpressionAST::create(pool);
   subscript->baseExpression = array;
-  subscript->indexExpression = index;
+  subscript->expressionList = make_list_node(pool, index);
   subscript->type = binder.traits.add_cv(arrayType->elementType(),
                                          cv_qualifiers(array->type));
   subscript->valueCategory = ValueCategory::kLValue;
@@ -1849,7 +1884,7 @@ void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
       fn->setDeleted(true);
       return;
     }
-    if (TypeChecker::isPotentiallyThrowing(statement->condition))
+    if (TypeChecker::isPotentiallyThrowing(statement->condition, binder.unit_))
       potentiallyThrowing = true;
     statements.push_back(loops.enclose(statement));
   }
@@ -1873,7 +1908,7 @@ void Binder::CompleteClass::synthesizeDefaultedEqualityBody(
 auto Binder::CompleteClass::isSubobjectMemberUsable(
     FunctionSymbol* function, ClassSymbol* subobject) const -> bool {
   if (!function) return false;
-  if (isDeletedFunction(binder.unit_, function)) return false;
+  if (binder.unit_->typeTraits().is_deleted_function(function)) return false;
 
   AccessContext accessContext{binder.unit_, classSymbol};
   return accessContext.isAccessible(function, subobject, nullptr);
@@ -1963,27 +1998,10 @@ void Binder::CompleteClass::addMoveConstructor() {
 
 auto Binder::CompleteClass::hasUserDeclaredAssignmentOperator(
     bool moveForm) const -> bool {
-  auto traits = binder.traits;
   return views::any_function(
       classSymbol->find(TokenKind::T_EQUAL), [&](FunctionSymbol* fn) {
-        auto funcType = type_cast<FunctionType>(fn->type());
-        if (!funcType) return false;
-        auto& params = funcType->parameterTypes();
-        if (params.size() != 1) return false;
-
-        auto paramType = params[0];
-        if (auto lref = type_cast<LvalueReferenceType>(paramType)) {
-          if (moveForm) return false;
-          paramType = lref->elementType();
-        } else if (auto rref = type_cast<RvalueReferenceType>(paramType)) {
-          if (!moveForm) return false;
-          paramType = rref->elementType();
-        } else if (moveForm) {
-          return false;
-        }
-
-        auto classType = unqualified_cast<ClassType>(paramType);
-        return classType && classType->symbol() == classSymbol;
+        if (moveForm) return classSymbol->isMoveAssignmentOperator(fn);
+        return classSymbol->isCopyAssignmentOperator(fn);
       });
 }
 
@@ -2045,7 +2063,15 @@ auto Binder::CompleteClass::hasNonCopyConstructibleSubobject(
     auto type = field->type();
     if (!moveForm && type_cast<RvalueReferenceType>(type)) return true;
 
-    if (subobjectIsNotCopyConstructible(traits.remove_all_extents(type)))
+    auto element = traits.remove_all_extents(type);
+    if (subobjectIsNotCopyConstructible(element)) return true;
+
+    auto variant =
+        classSymbol->isUnion() ? unqualified_cast<ClassType>(element) : nullptr;
+    if (!variant || !variant->symbol()) continue;
+    auto constructor = selectSubobjectConstructor(
+        variant->symbol()->resolvedDefinition(), element, !moveForm, moveForm);
+    if (constructor && !traits.is_trivial_special_member(constructor))
       return true;
   }
 
@@ -2067,10 +2093,16 @@ auto Binder::CompleteClass::hasNonAssignableSubobject(bool moveForm) const
     if (traits.is_reference(type)) return true;
 
     auto element = traits.remove_all_extents(type);
-    if (traits.is_const(element) && !traits.is_class(traits.remove_cv(element)))
+    if (traits.is_const(element) &&
+        !traits.is_class_or_union(traits.remove_cv(element)))
       return true;
 
     if (subobjectAssignmentIsUnusable(element, moveForm)) return true;
+
+    if (classSymbol->isUnion() && traits.is_class_or_union(element) &&
+        !(moveForm ? traits.is_trivially_move_assignable(element)
+                   : traits.is_trivially_copy_assignable(element)))
+      return true;
   }
 
   return false;
@@ -2098,8 +2130,21 @@ auto Binder::CompleteClass::subobjectAssignmentIsUnusable(const Type* type,
   return !isSubobjectMemberUsable(assignment, subobject);
 }
 
+void Binder::CompleteClass::selectDestructor() {
+  auto selected = binder.traits.select_destructor(classSymbol);
+  if (!selected) {
+    binder.error(classSymbol->location(),
+                 "overload resolution fails to select a destructor");
+    return;
+  }
+  classSymbol->setSelectedDestructor(selected);
+}
+
 void Binder::CompleteClass::addDestructor() {
-  if (classSymbol->destructor()) return;
+  if (classSymbol->destructor()) {
+    selectDestructor();
+    return;
+  }
 
   auto symbol = newDefaultedFunction(
       control()->getDestructorId(classSymbol->name()),
@@ -2180,6 +2225,12 @@ auto Binder::CompleteClass::makeSelfExpr() -> ExpressionAST* {
   return self;
 }
 
+auto Binder::CompleteClass::assignedObject(FunctionSymbol* fn)
+    -> ExpressionAST* {
+  if (auto object = fn->explicitObjectParameter()) return makeParamRef(object);
+  return makeSelfExpr();
+}
+
 auto Binder::CompleteClass::assignsArrayElementwise(FieldSymbol* field,
                                                     bool isMove) const -> bool {
   if (!field->name()) return false;
@@ -2199,7 +2250,7 @@ auto Binder::CompleteClass::arrayMemberAssignment(
   auto loops = elementLoops(check, fn, field, field->location());
   check.setScope(loops.scope);
 
-  auto target = memberSubobject(makeSelfExpr(), field);
+  auto target = memberSubobject(assignedObject(fn), field);
   for (auto index : indexValues(loops.indices))
     target = arrayElement(target, index);
 
@@ -2220,13 +2271,11 @@ auto Binder::CompleteClass::arrayMemberAssignment(
   return loops.enclose(statement);
 }
 
-auto Binder::CompleteClass::baseAssignmentStatement(TypeChecker& check,
-                                                    ClassSymbol* base,
-                                                    ParameterSymbol* source,
-                                                    bool isMove)
-    -> StatementAST* {
+auto Binder::CompleteClass::baseAssignmentStatement(
+    TypeChecker& check, FunctionSymbol* fn, ClassSymbol* base,
+    ParameterSymbol* source, bool isMove) -> StatementAST* {
   auto callee = MemberExpressionAST::create(pool);
-  callee->baseExpression = makeSelfExpr();
+  callee->baseExpression = assignedObject(fn);
   callee->accessOp = TokenKind::T_DOT;
   callee->nestedNameSpecifier = makeQualifier(base);
   callee->unqualifiedId =
@@ -2372,13 +2421,13 @@ auto Binder::CompleteClass::selectSubobjectConstructor(ClassSymbol* subobject,
   auto traits = binder.traits;
   if (isCopy) {
     const Type* source = traits.add_const_ref(type);
-    return traits.selectConstructor(subobject, std::span{&source, 1});
+    return traits.select_constructor(subobject, std::span{&source, 1});
   }
   if (isMove) {
     const Type* source = control()->getRvalueReferenceType(type);
-    return traits.selectConstructor(subobject, std::span{&source, 1});
+    return traits.select_constructor(subobject, std::span{&source, 1});
   }
-  return traits.selectConstructor(subobject, {});
+  return traits.select_constructor(subobject, {});
 }
 
 void Binder::CompleteClass::synthesizeDelegatingCompleteObjectCtor(
@@ -2425,7 +2474,7 @@ void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
   auto range =
       views::members(variant->functionParameters()) | views::parameters;
 
-  std::vector params(begin(range), end(range));
+  std::vector params(std::ranges::begin(range), std::ranges::end(range));
 
   if (params.size() == 1) {
     auto paramType = params[0]->type();
@@ -2623,6 +2672,9 @@ void Binder::CompleteClass::synthesizeDeletingDtor(FunctionSymbol* dtor) {
 
   binder.attachSynthesizedBody(variant, dtorId, body);
   dtor->setDeletingDtorVariant(variant);
+  if (dtor->isDefinitionRequired())
+    ASTRewriter::requireDefinitionsNamedBy(binder.unit_,
+                                           variant->declaration());
 }
 
 void Binder::CompleteClass::synthesizeMemberwiseBodies() {
@@ -2635,14 +2687,15 @@ void Binder::CompleteClass::synthesizeMemberwiseBodies() {
   };
 
   auto needsBody = [&](FunctionSymbol* fn) {
-    return hasDefaultedBody(fn) && !isDeletedFunction(binder.unit_, fn);
+    return hasDefaultedBody(fn) &&
+           !binder.unit_->typeTraits().is_deleted_function(fn);
   };
 
   auto needsBodyNow = [&](FunctionSymbol* fn) {
     if (!hasDefaultedBody(fn) || fn->isDeleted()) return false;
     (void)ensureSourceParameter(fn);
     if (!fn->isDefinitionRequired()) return false;
-    return !isDeletedFunction(binder.unit_, fn);
+    return !binder.unit_->typeTraits().is_deleted_function(fn);
   };
 
   for (auto fn : classSymbol->declaredConstructors()) {
@@ -2669,7 +2722,7 @@ void Binder::CompleteClass::synthesizeMemberwiseBodies() {
 }
 
 void Binder::CompleteClass::typeFieldInitializers() {
-  for (auto field : views::members(classSymbol) | views::fields) {
+  for (auto field : views::members(classSymbol) | views::non_static_fields) {
     if (field->hasPendingInitializer()) continue;
 
     auto init = field->initializer();
@@ -2685,8 +2738,8 @@ void Binder::CompleteClass::typeFieldInitializers() {
 auto Binder::CompleteClass::ensureSourceParameter(FunctionSymbol* fn)
     -> ParameterSymbol* {
   if (auto params = fn->functionParameters()) {
-    for (auto member : views::members(params)) {
-      if (auto param = symbol_cast<ParameterSymbol>(member)) return param;
+    for (auto param : views::members(params) | views::parameters) {
+      if (!param->isExplicitObject()) return param;
     }
   }
 
@@ -2848,7 +2901,7 @@ void Binder::CompleteClass::synthesizeCopyMoveAssignBody(FunctionSymbol* fn,
   for (auto base : classSymbol->baseClasses()) {
     auto baseSym = resolved_base_class(base);
     if (!baseSym) continue;
-    append(baseAssignmentStatement(check, baseSym, param, isMove));
+    append(baseAssignmentStatement(check, fn, baseSym, param, isMove));
   }
 
   for (auto field : views::members(classSymbol) | views::non_static_fields) {
@@ -2862,13 +2915,7 @@ void Binder::CompleteClass::synthesizeCopyMoveAssignBody(FunctionSymbol* fn,
     auto id = name_cast<Identifier>(field->name());
     auto fieldType = traits.remove_reference(field->type());
 
-    auto lhs = MemberExpressionAST::create(pool);
-    lhs->baseExpression = makeThisExpr();
-    lhs->accessOp = TokenKind::T_MINUS_GREATER;
-    if (id) lhs->unqualifiedId = NameIdAST::create(pool, id);
-    lhs->symbol = field;
-    lhs->type = fieldType;
-    lhs->valueCategory = ValueCategory::kLValue;
+    auto lhs = memberSubobject(assignedObject(fn), field);
 
     auto access = MemberExpressionAST::create(pool);
     access->baseExpression = makeParamRef(param);
@@ -2896,7 +2943,7 @@ void Binder::CompleteClass::synthesizeCopyMoveAssignBody(FunctionSymbol* fn,
   }
 
   auto returnStmt = ReturnStatementAST::create(pool);
-  returnStmt->expression = makeSelfExpr();
+  returnStmt->expression = assignedObject(fn);
   append(returnStmt);
 
   auto compound = CompoundStatementAST::create(pool);
@@ -2920,7 +2967,7 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   std::uint64_t emittedEnd = 0;
   std::uint32_t currentIndex = 0;
 
-  int nextBitPos = 0;
+  std::uint64_t nextBitPos = 0;
   int runStartByte = 0;
   std::uint32_t runIndex = 0;
   bool inBitfieldRun = false;
@@ -2981,14 +3028,17 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
                                  std::size_t level, std::uint64_t address) const
       -> bool;
 
-  [[nodiscard]] auto classSubobjectOffset(ClassSymbol* classSymbol,
+  [[nodiscard]] auto classSubobjectOffset(const ClassSubobjectList& subobjects,
                                           bool tryZero, std::uint64_t alignment)
       -> std::uint64_t;
-  void recordNonVirtualClassSubobjects(ClassSymbol* classSymbol,
-                                       std::uint64_t offset,
-                                       ClassSubobjectExtent extent = {});
+  void recordClassSubobjects(const ClassSubobjectList& subobjects,
+                             std::uint64_t offset,
+                             ClassSubobjectExtent extent = {});
   auto layoutFields() -> std::expected<bool, std::string>;
   auto layoutBitfield(FieldSymbol* field) -> std::expected<bool, std::string>;
+  [[nodiscard]] auto regularFieldOffset(FieldSymbol* field,
+                                        bool isEmptyDataMember)
+      -> std::uint64_t;
   void layoutZeroWidthBitfield(FieldSymbol* field);
   auto layoutRegularField(FieldSymbol* field)
       -> std::expected<bool, std::string>;
@@ -3048,7 +3098,7 @@ auto Binder::BuildRecordLayout::validate() -> std::expected<bool, std::string> {
                                          to_diag_string(base->name())));
     }
     if (!baseClassSymbol->isComplete()) {
-      binder.traits.requireCompleteClass(baseClassSymbol);
+      binder.traits.require_complete_class(baseClassSymbol);
     }
     baseClassSymbol = baseClassSymbol->resolvedDefinition();
     if (!baseClassSymbol->isComplete()) {
@@ -3069,7 +3119,7 @@ void Binder::BuildRecordLayout::completeFieldTypes() {
     auto classType = type_cast<ClassType>(fieldElementType);
     if (!classType) continue;
 
-    binder.traits.requireCompleteClass(classType->symbol());
+    binder.traits.require_complete_class(classType->symbol());
 
     if (auto alignment =
             binder.control()->memoryLayout()->alignmentOf(field->type())) {
@@ -3131,7 +3181,7 @@ void Binder::BuildRecordLayout::layoutVtable() {
     layout->setVirtualBaseInfo(primaryBase, primaryInfo);
     layout->setHasDirectVtable(true);
     layout->setVtableIndex(primaryInfo.index);
-    recordNonVirtualClassSubobjects(primaryBase, 0);
+    recordClassSubobjects(binder.emptyClassSubobjects(primaryBase), 0);
   } else {
     layout->setHasDirectVtable(true);
     layout->setVtableIndex(currentIndex++);
@@ -3141,7 +3191,7 @@ void Binder::BuildRecordLayout::layoutVtable() {
   calculatedSize = ptrSize;
   calculatedAlignment = packAlignment(isPackedClass() ? 1 : ptrSize);
   emittedEnd = static_cast<std::uint64_t>(ptrSize);
-  nextBitPos = calculatedSize * 8;
+  nextBitPos = static_cast<std::uint64_t>(calculatedSize) * 8;
 }
 
 auto Binder::BuildRecordLayout::isNearlyEmptyClass(ClassSymbol* candidate) const
@@ -3244,12 +3294,12 @@ auto Binder::fieldArrayExtent(FieldSymbol* field) -> ClassSubobjectExtent {
 }
 
 void Binder::appendClassSubobjects(ClassSubobjectList& subobjects,
-                                   ClassSymbol* classSymbol,
+                                   const ClassSubobjectList& source,
                                    std::uint64_t offset,
                                    ClassSubobjectExtent extent) {
   if (!extent.count) return;
 
-  for (const auto& subobject : emptyClassSubobjects(classSymbol)) {
+  for (const auto& subobject : source) {
     auto& merged = subobjects.emplace_back(subobject);
     merged.offset += offset;
     if (extent.count > 1) merged.extents.insert(merged.extents.begin(), extent);
@@ -3258,20 +3308,31 @@ void Binder::appendClassSubobjects(ClassSubobjectList& subobjects,
 
 auto Binder::emptyClassSubobjects(ClassSymbol* classSymbol)
     -> const ClassSubobjectList& {
+  return cachedClassSubobjects(classSymbol).subobjects;
+}
+
+auto Binder::completeObjectEmptySubobjects(ClassSymbol* classSymbol)
+    -> const ClassSubobjectList& {
+  return cachedClassSubobjects(classSymbol).completeObjectSubobjects;
+}
+
+auto Binder::cachedClassSubobjects(ClassSymbol* classSymbol)
+    -> const CachedClassSubobjects& {
   classSymbol = classSymbol->resolvedDefinition();
 
   const auto layout = classSymbol->layout();
 
   if (auto it = emptyClassSubobjects_.find(classSymbol);
       it != emptyClassSubobjects_.end() && it->second.layout == layout) {
-    return it->second.subobjects;
+    return it->second;
   }
 
-  ClassSubobjectList subobjects;
+  CachedClassSubobjects entry;
+  entry.layout = layout;
 
   if (layout && layout->isAbiEmpty()) {
-    subobjects.emplace_back(classSymbol, 0,
-                            std::vector<ClassSubobjectExtent>{});
+    entry.subobjects.emplace_back(classSymbol, 0,
+                                  std::vector<ClassSubobjectExtent>{});
   }
 
   if (layout) {
@@ -3280,8 +3341,8 @@ auto Binder::emptyClassSubobjects(ClassSymbol* classSymbol)
       auto baseClass = resolved_base_class(base);
       if (!baseClass) continue;
       if (auto baseInfo = layout->getBaseInfo(baseClass)) {
-        appendClassSubobjects(subobjects, baseClass, baseInfo->offset,
-                              ClassSubobjectExtent{});
+        appendClassSubobjects(entry.subobjects, emptyClassSubobjects(baseClass),
+                              baseInfo->offset, ClassSubobjectExtent{});
       }
     }
 
@@ -3291,15 +3352,27 @@ auto Binder::emptyClassSubobjects(ClassSymbol* classSymbol)
       auto fieldInfo = layout->getFieldInfo(field);
       if (!fieldInfo) continue;
 
-      appendClassSubobjects(subobjects, fieldClass, fieldInfo->offset,
-                            fieldArrayExtent(field));
+      appendClassSubobjects(entry.subobjects,
+                            completeObjectEmptySubobjects(fieldClass),
+                            fieldInfo->offset, fieldArrayExtent(field));
     }
   }
 
-  auto& entry = emptyClassSubobjects_[classSymbol];
-  entry.layout = layout;
-  entry.subobjects = std::move(subobjects);
-  return entry.subobjects;
+  entry.completeObjectSubobjects = entry.subobjects;
+
+  if (layout) {
+    for (auto virtualBase : layout->virtualBases()) {
+      auto info = layout->getVirtualBaseInfo(virtualBase);
+      if (!info) continue;
+      appendClassSubobjects(entry.completeObjectSubobjects,
+                            emptyClassSubobjects(virtualBase), info->offset,
+                            ClassSubobjectExtent{});
+    }
+  }
+
+  auto& cached = emptyClassSubobjects_[classSymbol];
+  cached = std::move(entry);
+  return cached;
 }
 
 auto Binder::BuildRecordLayout::subobjectCovers(const ClassSubobject& subobject,
@@ -3347,12 +3420,9 @@ auto Binder::BuildRecordLayout::conflictsAt(const ClassSubobject& candidate,
   return false;
 }
 
-auto Binder::BuildRecordLayout::classSubobjectOffset(ClassSymbol* target,
-                                                     bool tryZero,
-                                                     std::uint64_t alignment)
+auto Binder::BuildRecordLayout::classSubobjectOffset(
+    const ClassSubobjectList& subobjects, bool tryZero, std::uint64_t alignment)
     -> std::uint64_t {
-  const auto& subobjects = binder.emptyClassSubobjects(target);
-
   auto conflicts = [&](std::uint64_t offset) {
     return std::ranges::any_of(
         subobjects, [&](const ClassSubobject& candidate) {
@@ -3367,11 +3437,12 @@ auto Binder::BuildRecordLayout::classSubobjectOffset(ClassSymbol* target,
   return offset;
 }
 
-void Binder::BuildRecordLayout::recordNonVirtualClassSubobjects(
-    ClassSymbol* target, std::uint64_t offset, ClassSubobjectExtent extent) {
+void Binder::BuildRecordLayout::recordClassSubobjects(
+    const ClassSubobjectList& subobjects, std::uint64_t offset,
+    ClassSubobjectExtent extent) {
   const auto first = placedClassSubobjects.size();
 
-  binder.appendClassSubobjects(placedClassSubobjects, target, offset, extent);
+  appendClassSubobjects(placedClassSubobjects, subobjects, offset, extent);
 
   for (auto index = first; index != placedClassSubobjects.size(); ++index) {
     maxPlacedSubobjectOffset = std::max(
@@ -3404,8 +3475,8 @@ auto Binder::BuildRecordLayout::allocateBaseSubobject(ClassSymbol* base,
   const auto baseSizeInBytes = static_cast<int>(baseNonVirtualSize(base));
   const bool isEmpty = baseLayout && baseLayout->isAbiEmpty();
 
-  const auto baseOffset =
-      classSubobjectOffset(base, isEmpty, std::max(baseAlignment, 1));
+  const auto baseOffset = classSubobjectOffset(
+      binder.emptyClassSubobjects(base), isEmpty, std::max(baseAlignment, 1));
 
   if (!isEmpty) padTo(baseOffset);
 
@@ -3430,7 +3501,7 @@ auto Binder::BuildRecordLayout::allocateBaseSubobject(ClassSymbol* base,
     emittedEnd = std::max(emittedEnd, baseOffset + baseSizeInBytes);
   }
 
-  recordNonVirtualClassSubobjects(base, baseOffset);
+  recordClassSubobjects(binder.emptyClassSubobjects(base), baseOffset);
   calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
 
   return baseInfo;
@@ -3460,7 +3531,7 @@ void Binder::BuildRecordLayout::layoutBases() {
     if (baseClassSymbol == primaryBase) layout->setVtableIndex(baseInfo.index);
   }
 
-  nextBitPos = calculatedSize * 8;
+  nextBitPos = static_cast<std::uint64_t>(calculatedSize) * 8;
 }
 
 void Binder::BuildRecordLayout::layoutVirtualBases() {
@@ -3486,7 +3557,8 @@ void Binder::BuildRecordLayout::layoutVirtualBases() {
     if (auto placement = indirectPrimaryPlacement(virtualBase)) {
       layout->setVirtualBaseInfo(virtualBase, *placement);
       layout->addVirtualBase(virtualBase);
-      recordNonVirtualClassSubobjects(virtualBase, placement->offset);
+      recordClassSubobjects(binder.emptyClassSubobjects(virtualBase),
+                            placement->offset);
       recordPrimaryChain(virtualBase, placement->offset, placement->index);
       continue;
     }
@@ -3497,7 +3569,7 @@ void Binder::BuildRecordLayout::layoutVirtualBases() {
     recordPrimaryChain(virtualBase, baseInfo.offset, baseInfo.index);
   }
 
-  nextBitPos = calculatedSize * 8;
+  nextBitPos = static_cast<std::uint64_t>(calculatedSize) * 8;
 }
 
 void Binder::BuildRecordLayout::recordIndirectPrimaryPlacement(
@@ -3607,6 +3679,11 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
     valueBits = fieldSizeBits;
   }
 
+  auto aggregateAlign = fieldAlign;
+  if (!field->name() && !hasExcessWidth &&
+      !memoryLayout->unnamedBitFieldAlignsAggregate())
+    aggregateAlign = 1;
+
   if (isUnion) {
     field->setLocalOffset(0);
     field->setBitFieldOffset(0);
@@ -3619,13 +3696,13 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
     fieldInfo.allocUnitSizeBytes = (bitWidth + 7) / 8;
     layout->setFieldInfo(field, fieldInfo);
 
-    auto fieldSizeForUnion = std::max(fieldSizeBytes, (bitWidth + 7) / 8);
+    auto fieldSizeForUnion = (bitWidth + 7) / 8;
     calculatedSize = std::max(calculatedSize, fieldSizeForUnion);
-    calculatedAlignment = std::max(calculatedAlignment, fieldAlign);
+    calculatedAlignment = std::max(calculatedAlignment, aggregateAlign);
     return true;
   }
 
-  if (hasExcessWidth) {
+  if (hasExcessWidth || field->explicitAlignment()) {
     closeBitfieldRun();
     nextBitPos = align_to(nextBitPos, fieldAlign * 8);
     calculatedSize = nextBitPos / 8;
@@ -3643,14 +3720,15 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
 
   if (!inBitfieldRun) {
     runStartByte = calculatedSize;
-    nextBitPos = runStartByte * 8;
+    nextBitPos = static_cast<std::uint64_t>(runStartByte) * 8;
     padTo(static_cast<std::uint64_t>(runStartByte));
     runIndex = currentIndex;
     inBitfieldRun = true;
     runFields.clear();
   }
 
-  auto bitOffsetInRun = nextBitPos - runStartByte * 8;
+  auto bitOffsetInRun =
+      nextBitPos - static_cast<std::uint64_t>(runStartByte) * 8;
 
   field->setLocalOffset(runStartByte);
   field->setBitFieldOffset(bitOffsetInRun);
@@ -3664,7 +3742,7 @@ auto Binder::BuildRecordLayout::layoutBitfield(FieldSymbol* field)
 
   runFields.push_back(field);
   nextBitPos += bitWidth;
-  calculatedAlignment = std::max(calculatedAlignment, fieldAlign);
+  calculatedAlignment = std::max(calculatedAlignment, aggregateAlign);
 
   return true;
 }
@@ -3691,7 +3769,7 @@ auto Binder::BuildRecordLayout::excessWidthContainer(int bitWidth) const
 void Binder::BuildRecordLayout::layoutZeroWidthBitfield(FieldSymbol* field) {
   if (inBitfieldRun) closeBitfieldRun();
 
-  if (memoryLayout->zeroWidthBitFieldAlignsAggregate())
+  if (memoryLayout->unnamedBitFieldAlignsAggregate())
     calculatedAlignment = std::max(calculatedAlignment, field->alignment());
 
   if (classSymbol->isUnion()) return;
@@ -3724,68 +3802,65 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
                     to_diag_string(field->type(), field->name())));
   }
 
-  if (isUnion) {
-    field->setLocalOffset(0);
-    calculatedSize = std::max(calculatedSize, int(size.value()));
+  const auto fieldOffset = regularFieldOffset(field, isEmptyDataMember);
+  field->setLocalOffset(static_cast<int>(fieldOffset));
 
-    ClassLayout::MemberInfo fieldInfo;
-    fieldInfo.offset = 0;
-    fieldInfo.index = 0;
-    layout->setFieldInfo(field, fieldInfo);
-  } else {
-    auto fieldAlign = field->effectiveAlignment();
-    auto fieldOffset =
-        static_cast<std::uint64_t>(align_to(calculatedSize, fieldAlign));
-    auto elementClass = binder.fieldElementClass(field);
-    if (elementClass) {
-      fieldOffset = classSubobjectOffset(elementClass, isEmptyDataMember,
-                                         std::max(fieldAlign, 1));
+  if (!isEmptyDataMember) padTo(fieldOffset);
+
+  ClassLayout::MemberInfo fieldInfo;
+  fieldInfo.offset = fieldOffset;
+  fieldInfo.index = isUnion ? 0 : currentIndex++;
+  layout->setFieldInfo(field, fieldInfo);
+
+  if (!isEmptyDataMember) {
+    auto allocatedExtent = static_cast<std::uint64_t>(size.value());
+    auto emittedExtent = allocatedExtent;
+
+    if (field->isNoUniqueAddress() &&
+        unqualified_cast<ClassType>(field->type())) {
+      emittedExtent = binder.traits.non_virtual_size(field->type());
+      allocatedExtent =
+          std::max(emittedExtent, binder.traits.data_size(field->type()));
     }
-    field->setLocalOffset(static_cast<int>(fieldOffset));
 
-    if (!isEmptyDataMember) padTo(fieldOffset);
-
-    ClassLayout::MemberInfo fieldInfo;
-    fieldInfo.offset = fieldOffset;
-    fieldInfo.index = currentIndex++;
-    layout->setFieldInfo(field, fieldInfo);
-
-    if (!isEmptyDataMember) {
-      auto allocatedExtent = static_cast<std::uint64_t>(size.value());
-      auto emittedExtent = allocatedExtent;
-
-      if (field->isNoUniqueAddress() &&
-          unqualified_cast<ClassType>(field->type())) {
-        emittedExtent = binder.traits.non_virtual_size(field->type());
-        allocatedExtent =
-            std::max(emittedExtent, binder.traits.data_size(field->type()));
-      }
-
-      calculatedSize = std::max(
-          calculatedSize, static_cast<int>(fieldOffset + allocatedExtent));
+    calculatedSize = std::max(calculatedSize,
+                              static_cast<int>(fieldOffset + allocatedExtent));
+    if (!isUnion)
       emittedEnd = std::max(emittedEnd, fieldOffset + emittedExtent);
-    }
+  }
 
-    if (field->isNoUniqueAddress()) {
-      const auto memberSize = memoryLayout->sizeOf(field->type()).value_or(0);
-      if (isEmptyDataMember) {
-        recordEmptyComponent(fieldOffset, memberSize);
-      } else {
-        growSizeof(fieldOffset, memberSize);
-      }
-    }
-
-    if (elementClass) {
-      recordNonVirtualClassSubobjects(elementClass, fieldOffset,
-                                      binder.fieldArrayExtent(field));
+  if (field->isNoUniqueAddress()) {
+    const auto memberSize = memoryLayout->sizeOf(field->type()).value_or(0);
+    if (isEmptyDataMember) {
+      recordEmptyComponent(fieldOffset, memberSize);
+    } else {
+      growSizeof(fieldOffset, memberSize);
     }
   }
 
-  nextBitPos = calculatedSize * 8;
+  if (auto elementClass = binder.fieldElementClass(field)) {
+    recordClassSubobjects(binder.completeObjectEmptySubobjects(elementClass),
+                          fieldOffset, binder.fieldArrayExtent(field));
+  }
+
+  nextBitPos = static_cast<std::uint64_t>(calculatedSize) * 8;
 
   calculatedAlignment =
       std::max(calculatedAlignment, field->effectiveAlignment());
   return true;
+}
+
+auto Binder::BuildRecordLayout::regularFieldOffset(FieldSymbol* field,
+                                                   bool isEmptyDataMember)
+    -> std::uint64_t {
+  if (classSymbol->isUnion()) return 0;
+  auto fieldAlign = field->effectiveAlignment();
+  if (auto elementClass = binder.fieldElementClass(field)) {
+    return classSubobjectOffset(
+        binder.completeObjectEmptySubobjects(elementClass), isEmptyDataMember,
+        std::max(fieldAlign, 1));
+  }
+  return static_cast<std::uint64_t>(align_to(calculatedSize, fieldAlign));
 }
 
 auto Binder::BuildRecordLayout::isPackedClass() const -> bool {
@@ -3828,6 +3903,7 @@ auto Binder::BuildRecordLayout::layoutFields()
 
     if (!field->alignment()) {
       if (isDependent(binder.unit_, field->type())) return false;
+      if (binder.traits.is_variable_length_array(field->type())) return false;
       return std::unexpected(
           std::format("alignment of incomplete type '{}'",
                       to_diag_string(field->type(), field->name())));

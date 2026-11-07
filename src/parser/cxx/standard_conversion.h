@@ -28,6 +28,7 @@
 #include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
 
+#include <expected>
 #include <optional>
 #include <vector>
 
@@ -35,6 +36,7 @@ namespace cxx {
 class Arena;
 class Control;
 class TranslationUnit;
+class TypeChecker;
 struct Candidate;
 struct ConstructorResult;
 
@@ -57,8 +59,22 @@ struct AggregateListConversion {
 
 enum class NonAddressableDesignation { kNone, kBitField, kVectorElement };
 
+enum class ConvertedConstantFailure {
+  kNoConversion,
+  kNarrowing,
+  kDisallowedConversion,
+};
+
+[[nodiscard]] auto isConvertedConstantSequence(ExpressionAST* converted,
+                                               const TypeTraits& traits)
+    -> bool;
+
 class StandardConversion {
  public:
+  [[nodiscard]] static auto namedExpression(ExpressionAST* expr)
+      -> ExpressionAST*;
+  [[nodiscard]] static auto namedEntity(ExpressionAST* expr) -> Symbol*;
+
   explicit StandardConversion(TranslationUnit* unit, bool isC = false);
 
   [[nodiscard]] auto computeConversionSequence(
@@ -82,10 +98,16 @@ class StandardConversion {
     accessingScope_ = accessingScope;
   }
 
+  void setTypeChecker(TypeChecker* checker) { checker_ = checker; }
+
   [[nodiscard]] auto convertImplicitly(
       ExpressionAST*& expr, const Type* destinationType,
       InitializationKind initializationKind =
           InitializationKind::kCopyInitialization) -> bool;
+
+  [[nodiscard]] auto convertedConstantExpression(ExpressionAST* expression,
+                                                 const Type* targetType)
+      -> std::expected<ExpressionAST*, ConvertedConstantFailure>;
 
   void atomicToNonAtomic(ExpressionAST*& expr);
   void prepareOperand(ExpressionAST*& expr);
@@ -375,8 +397,6 @@ class StandardConversion {
 
   void requireDefinitionOfDesignatedField(ExpressionAST* expr);
 
-  [[nodiscard]] static auto namedEntity(ExpressionAST* expr) -> Symbol*;
-
   void requireNamedFunction(ExpressionAST* expr);
 
   void materializeConstructorArguments(ImplicitCastExpressionAST* cast,
@@ -425,6 +445,7 @@ class StandardConversion {
   Arena* arena_;
   std::vector<const Type*> rankedAggregates_;
   ScopeSymbol* accessingScope_ = nullptr;
+  TypeChecker* checker_ = nullptr;
   bool isC_ = false;
 };
 }  // namespace cxx

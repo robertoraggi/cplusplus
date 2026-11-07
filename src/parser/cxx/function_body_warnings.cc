@@ -440,9 +440,7 @@ void checkReturnPathWarnings(TranslationUnit* unit, FunctionSymbol* function,
   if (statements.empty()) return;
 
   if (function->isConstructor() || function->isDestructor()) return;
-  if (function->name() == unit->control()->getIdentifier("main") &&
-      function->enclosingNamespace() && !function->enclosingNamespace()->name())
-    return;
+  if (is_main_function(function)) return;
 
   auto functionType = type_cast<FunctionType>(function->type());
   if (!functionType) return;

@@ -29,6 +29,7 @@
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
 #include <cxx/names.h>
+#include <cxx/reflection.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
@@ -89,6 +90,7 @@ struct DeclSpecs::Visitor {
   void operator()(AtomicTypeSpecifierAST* ast);
   void operator()(BitIntTypeSpecifierAST* ast);
   void operator()(UnderlyingTypeSpecifierAST* ast);
+  void operator()(PackIndexTypeSpecifierAST* ast);
   void operator()(ElaboratedTypeSpecifierAST* ast);
   void operator()(DecltypeAutoSpecifierAST* ast);
   void operator()(DecltypeSpecifierAST* ast);
@@ -489,6 +491,23 @@ void DeclSpecs::Visitor::operator()(UnderlyingTypeSpecifierAST* ast) {
   }
 }
 
+auto computed_specifier_type(TranslationUnit* unit, SpecifierAST* specifier)
+    -> const Type* {
+  if (!specifier) return nullptr;
+  DeclSpecs specs{unit};
+  specs.accept(specifier);
+  specs.finish();
+  return specs.type();
+}
+
+void DeclSpecs::Visitor::operator()(PackIndexTypeSpecifierAST* ast) {
+  specs.typeSpecifier_ = ast;
+  auto pack = ast->packSpecifier ? ast->packSpecifier->symbol : nullptr;
+  if (!pack) return;
+  specs.type_ = control()->getUnresolvedPackIndexType(
+      specs.translationUnit(), pack->type(), ast->indexExpression);
+}
+
 void DeclSpecs::Visitor::operator()(ElaboratedTypeSpecifierAST* ast) {
   specs.typeSpecifier_ = ast;
   if (ast->symbol) specs.type_ = ast->symbol->type();
@@ -560,10 +579,7 @@ void DeclSpecs::Visitor::operator()(SplicerTypeSpecifierAST* ast) {
 
   auto meta = *metaPtr;
 
-  auto typePtr = std::get_if<const Type*>(&meta->value);
-  if (!typePtr) return;
-
-  specs.type_ = *typePtr;
+  specs.type_ = Reflection::type(*meta);
 }
 
 DeclSpecs::DeclSpecs(TranslationUnit* unit) : unit_(unit) {}

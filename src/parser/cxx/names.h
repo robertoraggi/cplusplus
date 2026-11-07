@@ -279,6 +279,7 @@ auto name_cast(const Name* name) -> const T* {
     -> List<TemplateArgumentAST*>*;
 
 [[nodiscard]] auto get_name_location(IdExpressionAST* ast) -> SourceLocation;
+[[nodiscard]] auto get_name_location(ExpressionAST* ast) -> SourceLocation;
 [[nodiscard]] auto get_name_location(MemberExpressionAST* ast)
     -> SourceLocation;
 [[nodiscard]] auto get_name_location(DotDesignatorAST* ast) -> SourceLocation;

@@ -112,6 +112,10 @@ void ASTVisitor::visit(StaticAssertDeclarationAST* ast) {
   accept(ast->expression);
 }
 
+void ASTVisitor::visit(ConstevalBlockDeclarationAST* ast) {
+  accept(ast->statement);
+}
+
 void ASTVisitor::visit(AliasDeclarationAST* ast) {
   for (auto node : ListView{ast->attributeList}) {
     accept(node);
@@ -616,7 +620,9 @@ void ASTVisitor::visit(VaArgExpressionAST* ast) {
 
 void ASTVisitor::visit(SubscriptExpressionAST* ast) {
   accept(ast->baseExpression);
-  accept(ast->indexExpression);
+  for (auto node : ListView{ast->expressionList}) {
+    accept(node);
+  }
 }
 
 void ASTVisitor::visit(CallExpressionAST* ast) {
@@ -909,6 +915,11 @@ void ASTVisitor::visit(BitIntTypeSpecifierAST* ast) {
 
 void ASTVisitor::visit(UnderlyingTypeSpecifierAST* ast) { accept(ast->typeId); }
 
+void ASTVisitor::visit(PackIndexTypeSpecifierAST* ast) {
+  accept(ast->packSpecifier);
+  accept(ast->indexExpression);
+}
+
 void ASTVisitor::visit(ElaboratedTypeSpecifierAST* ast) {
   for (auto node : ListView{ast->attributeList}) {
     accept(node);
@@ -1048,6 +1059,8 @@ void ASTVisitor::visit(DestructorIdAST* ast) { accept(ast->id); }
 
 void ASTVisitor::visit(DecltypeIdAST* ast) { accept(ast->decltypeSpecifier); }
 
+void ASTVisitor::visit(PackIndexIdAST* ast) { accept(ast->typeSpecifier); }
+
 void ASTVisitor::visit(OperatorFunctionIdAST* ast) {}
 
 void ASTVisitor::visit(LiteralOperatorIdAST* ast) {}
@@ -1082,6 +1095,10 @@ void ASTVisitor::visit(SimpleNestedNameSpecifierAST* ast) {
 
 void ASTVisitor::visit(DecltypeNestedNameSpecifierAST* ast) {
   accept(ast->decltypeSpecifier);
+}
+
+void ASTVisitor::visit(PackIndexNestedNameSpecifierAST* ast) {
+  accept(ast->typeSpecifier);
 }
 
 void ASTVisitor::visit(TemplateNestedNameSpecifierAST* ast) {

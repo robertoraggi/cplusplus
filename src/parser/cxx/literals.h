@@ -101,6 +101,7 @@ class FloatLiteral final : public Literal {
     };
 
     double value = 0;
+    long double longDoubleValue = 0;
     std::string_view literalPart;
     std::string_view userSuffix;
     FloatingPointSuffix suffix = FloatingPointSuffix::kNone;
@@ -116,6 +117,10 @@ class FloatLiteral final : public Literal {
   explicit FloatLiteral(std::string text);
 
   [[nodiscard]] auto floatValue() const -> double { return components_.value; }
+
+  [[nodiscard]] auto longDoubleValue() const -> long double {
+    return components_.longDoubleValue;
+  }
 
   [[nodiscard]] auto components() const { return components_; }
 

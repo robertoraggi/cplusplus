@@ -34,6 +34,7 @@ class Diagnostic {
   Token token_;
   SourceLocation location_;
   Severity severity_ = Severity::Message;
+  bool showsInSystemHeader_ = false;
 
  public:
   Diagnostic() = default;
@@ -48,6 +49,11 @@ class Diagnostic {
              SourceLocation location = {});
 
   [[nodiscard]] auto severity() const -> Severity { return severity_; }
+
+  [[nodiscard]] auto showsInSystemHeader() const -> bool {
+    return showsInSystemHeader_;
+  }
+  void setShowsInSystemHeader(bool shows) { showsInSystemHeader_ = shows; }
 
   [[nodiscard]] auto token() const -> const Token& { return token_; }
 

@@ -26,6 +26,7 @@
 auto cxx::ASTInterpreter::builtinIsConstantOnly(cxx::BuiltinFunctionKind kind)
     -> bool {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_IS_WITHIN_LIFETIME:
     case BuiltinFunctionKind::T___BUILTIN_COLUMN:
     case BuiltinFunctionKind::T___BUILTIN_SOURCE_LOCATION:
     case BuiltinFunctionKind::T___BUILTIN_LINE:
@@ -40,6 +41,8 @@ auto cxx::ASTInterpreter::builtinIsConstantOnly(cxx::BuiltinFunctionKind kind)
 auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
     cxx::BuiltinFunctionKind kind) -> bool {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_CONSTANT_P:
+    case BuiltinFunctionKind::T___BUILTIN_IS_WITHIN_LIFETIME:
     case BuiltinFunctionKind::T___BUILTIN_COMPLEX:
     case BuiltinFunctionKind::T___BUILTIN_NANF:
     case BuiltinFunctionKind::T___BUILTIN_NAN:
@@ -99,6 +102,8 @@ auto cxx::ASTInterpreter::builtinEvaluatesItsOwnArguments(
     case BuiltinFunctionKind::T___BUILTIN_ISLESSEQUAL:
     case BuiltinFunctionKind::T___BUILTIN_ISLESSGREATER:
     case BuiltinFunctionKind::T___BUILTIN_ISUNORDERED:
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_ADD_SAT:
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_SUB_SAT:
     case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
     case BuiltinFunctionKind::T___BUILTIN_SUB_OVERFLOW:
     case BuiltinFunctionKind::T___BUILTIN_SADD_OVERFLOW:
@@ -140,6 +145,12 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
                                               cxx::CallExpressionAST* ast)
     -> std::optional<ConstValue> {
   switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_CONSTANT_P:
+      return evaluateBuiltinConstantP(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_IS_WITHIN_LIFETIME:
+      return evaluateBuiltinIsWithinLifetime(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_COMPLEX:
       return evaluateBuiltinComplex(ast);
 
@@ -317,6 +328,12 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
     case BuiltinFunctionKind::T___BUILTIN_ISUNORDERED:
       return evaluateBuiltinFloatComparison(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_ADD_SAT:
+      return evaluateBuiltinSaturatingArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_SUB_SAT:
+      return evaluateBuiltinSaturatingArithmetic(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
       return evaluateBuiltinArithmeticOverflow(ast);
 
@@ -406,10 +423,6 @@ auto cxx::ASTInterpreter::evaluateBuiltinCall(cxx::BuiltinFunctionKind kind,
 
     case BuiltinFunctionKind::T___BUILTIN_SUBCLL:
       return evaluateBuiltinCarryArithmetic(ast);
-
-    case BuiltinFunctionKind::T___BUILTIN_CONSTANT_P:
-      // Reaching here means the argument was successfully constant-evaluated.
-      return ConstValue{std::intmax_t(1)};
 
     case BuiltinFunctionKind::T___BUILTIN_IS_CONSTANT_EVALUATED:
       return ConstValue{std::intmax_t(1)};

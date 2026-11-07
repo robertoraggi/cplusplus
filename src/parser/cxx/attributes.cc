@@ -39,6 +39,12 @@ auto canonicalAttributeSpelling(std::string_view name) -> std::string_view {
   return name;
 }
 
+auto canonicalAttributeNamespaceSpelling(std::string_view attributeNamespace)
+    -> std::string_view {
+  if (attributeNamespace == "_Clang") return "clang";
+  return canonicalAttributeSpelling(attributeNamespace);
+}
+
 auto attributeInfos() -> std::span<const AttributeInfo> {
   return attribute_table::kAttributeInfos;
 }
@@ -102,6 +108,20 @@ auto supportsGnuAttribute(std::string_view name, const MemoryLayout& layout)
          isAttributeAvailable(attributeInfo(spelling->kind), layout);
 }
 
+auto hasCppAttributeValue(std::string_view attributeNamespace,
+                          std::string_view name, const MemoryLayout& layout)
+    -> long {
+  auto spelling = findAttributeSpelling(
+      AttributeSyntax::kCxx,
+      canonicalAttributeNamespaceSpelling(attributeNamespace),
+      canonicalAttributeSpelling(name));
+  if (!spelling) return 0;
+  const auto& info = attributeInfo(spelling->kind);
+  if (!isAttributeAvailable(info, layout)) return 0;
+  if (!spelling->attributeNamespace.empty()) return 1;
+  return info.standardValue ? info.standardValue : 1;
+}
+
 namespace {
 
 [[nodiscard]] auto spellingOf(const Identifier* id) -> std::string_view {
@@ -140,6 +160,14 @@ namespace {
   if (!id) return nullptr;
   return control->getIdentifier(
       std::string(canonicalAttributeSpelling(id->name())));
+}
+
+[[nodiscard]] auto canonicalAttributeNamespace(Control* control,
+                                               const Identifier* id)
+    -> const Identifier* {
+  if (!id) return nullptr;
+  return control->getIdentifier(
+      std::string(canonicalAttributeNamespaceSpelling(id->name())));
 }
 
 void collectStringArguments(TranslationUnit* unit,
@@ -185,7 +213,7 @@ void addAttribute(AttributeMap& map, Attribute attribute) {
   if (auto cxxAttribute = ast_cast<CxxAttributeAST>(specifier)) {
     entries = cxxAttribute->attributeList;
     if (auto prefix = cxxAttribute->attributeUsingPrefix) {
-      usingNamespace = canonicalAttributeName(
+      usingNamespace = canonicalAttributeNamespace(
           control, unit->identifier(prefix->attributeNamespaceLoc));
     }
   } else if (auto gccAttribute = ast_cast<GccAttributeAST>(specifier)) {
@@ -216,7 +244,7 @@ void addAttribute(AttributeMap& map, Attribute attribute) {
                    ast_cast<ScopedAttributeTokenAST>(entry->attributeToken)) {
       attribute.name = canonicalAttributeName(control, scoped->identifier);
       attribute.attributeNamespace =
-          canonicalAttributeName(control, scoped->attributeNamespace);
+          canonicalAttributeNamespace(control, scoped->attributeNamespace);
     }
 
     if (auto clause = entry->attributeArgumentClause) {
@@ -318,7 +346,7 @@ auto knownAttributes(TranslationUnit* unit,
     if (auto cxxAttribute = ast_cast<CxxAttributeAST>(specifier)) {
       entries = cxxAttribute->attributeList;
       if (auto prefix = cxxAttribute->attributeUsingPrefix) {
-        usingNamespace = canonicalAttributeName(
+        usingNamespace = canonicalAttributeNamespace(
             control, unit->identifier(prefix->attributeNamespaceLoc));
       }
     } else if (auto gccAttribute = ast_cast<GccAttributeAST>(specifier)) {
@@ -339,7 +367,7 @@ auto knownAttributes(TranslationUnit* unit,
                      ast_cast<ScopedAttributeTokenAST>(entry->attributeToken)) {
         name = canonicalAttributeName(control, scoped->identifier);
         attributeNamespace =
-            canonicalAttributeName(control, scoped->attributeNamespace);
+            canonicalAttributeNamespace(control, scoped->attributeNamespace);
       }
 
       auto spelling = findAttributeSpelling(

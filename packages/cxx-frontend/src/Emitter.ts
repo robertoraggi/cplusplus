@@ -183,7 +183,7 @@ export type CallKind = "Direct" | "Builtin";
 
 /** @category Backend Enumerations */
 export type ParameterAbiKind =
-  "Default" | "StructReturn" | "ByValue" | "ZeroExtend";
+  "Default" | "StructReturn" | "ByValue" | "ZeroExtend" | "SignExtend";
 
 /** @category Backend Enumerations */
 export type CallingConvention = "C" | "CxxFastTls";
@@ -377,6 +377,7 @@ export interface FunctionInfo {
   parameters: readonly ParameterAbi[];
   resultAbi: ParameterAbi;
   section: string;
+  comdat: string;
   callingConvention: CallingConvention;
   kernel?: KernelInfo | undefined;
 }

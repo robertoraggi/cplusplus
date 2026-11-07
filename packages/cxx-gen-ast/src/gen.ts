@@ -63,6 +63,10 @@ import * as child_process from "child_process";
 
 const outdir = process.cwd();
 
+const tokenDeclarations = path.join(outdir, "src/parser/cxx/token_fwd.h");
+gen_token_fwd_h({ output: tokenDeclarations });
+child_process.execFileSync("clang-format", ["-i", tokenDeclarations]);
+
 const snapshot = modelSnapshotPath(outdir);
 const missing = process.argv.includes("--no-refresh")
   ? "--no-refresh"
@@ -85,8 +89,6 @@ if (!missing) {
 
 const model = loadModel(fs.readFileSync(snapshot, "utf8"));
 const ast = parseAST(model);
-gen_reflection(model, outdir);
-gen_traverse_ts({ ast, index: model, root: outdir });
 
 gen_ast_fwd_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_fwd.h") });
 gen_ast_h({ ast, output: path.join(outdir, "src/parser/cxx/ast.h") });
@@ -116,10 +118,6 @@ gen_ast_pretty_printer_cc({
   output: path.join(outdir, "src/parser/cxx/ast_pretty_printer.cc"),
 });
 gen_ast_kind_h({ ast, output: path.join(outdir, "src/parser/cxx/ast_kind.h") });
-
-gen_token_fwd_h({
-  output: path.join(outdir, "src/parser/cxx/token_fwd.h"),
-});
 
 gen_builtins_h({
   output: path.join(outdir, "src/parser/cxx/private/builtins-priv.h"),
@@ -167,14 +165,6 @@ gen_cxx_to_math_h({
 
 // js integration
 
-gen_emitter_delegate_h({
-  model,
-  output: path.join(outdir, "src/js/cxx/emitter_delegate-priv.h"),
-});
-gen_emitter_ts({
-  model,
-  output: path.join(outdir, "packages/cxx-frontend/src/Emitter.ts"),
-});
 gen_tokenkind_ts({
   output: path.join(outdir, "packages/cxx-frontend/src/TokenKind.ts"),
 });
@@ -209,9 +199,30 @@ child_process.execSync("clang-format -i *.h *.cc", {
   cwd: path.join(outdir, "src/frontend/cxx"),
 });
 
-child_process.execSync("clang-format -i emitter_delegate-priv.h reflection.cc", {
-  cwd: path.join(outdir, "src/js/cxx"),
+if (!missing && (await refreshSemanticModel(outdir)))
+  console.error(
+    "cxx-gen-ast: semantic-model.json refreshed after AST declarations",
+  );
+
+const finalModel = loadModel(fs.readFileSync(snapshot, "utf8"));
+const finalAST = parseAST(finalModel);
+gen_reflection(finalModel, outdir);
+gen_traverse_ts({ ast: finalAST, index: finalModel, root: outdir });
+gen_emitter_delegate_h({
+  model: finalModel,
+  output: path.join(outdir, "src/js/cxx/emitter_delegate-priv.h"),
 });
+gen_emitter_ts({
+  model: finalModel,
+  output: path.join(outdir, "packages/cxx-frontend/src/Emitter.ts"),
+});
+
+child_process.execSync(
+  "clang-format -i emitter_delegate-priv.h reflection.cc",
+  {
+    cwd: path.join(outdir, "src/js/cxx"),
+  },
+);
 
 child_process.execSync("clang-format -i builtins_codegen-priv.h", {
   cwd: path.join(outdir, "src/codegen/cxx/codegen"),

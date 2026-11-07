@@ -39,6 +39,10 @@ class ArchivedSourceResolver final : public SourceResolver {
   explicit ArchivedSourceResolver(std::string_view textLine)
       : textLine_(textLine) {}
 
+  [[nodiscard]] auto isSystemHeader(std::uint32_t) const -> bool override {
+    return false;
+  }
+
   [[nodiscard]] auto tokenStartPosition(const Token& token) const
       -> SourcePosition override {
     return SourcePosition{"archived.cc", 12, 3};

@@ -53,6 +53,16 @@ class ASTInterpreter {
 
   [[nodiscard]] auto control() const -> Control*;
 
+  [[nodiscard]] auto evaluationPoint() const -> SourceLocation {
+    return evaluationPoint_;
+  }
+
+  void setDefaultInitializerContext(DefaultInitializerContext context) {
+    defaultInitializerContext_ = context;
+    if (context.scope) evaluationScope_ = context.scope;
+    if (context.location) evaluationPoint_ = context.location;
+  }
+
   [[nodiscard]] auto evaluate(ExpressionAST* ast) -> std::optional<ConstValue>;
   [[nodiscard]] auto evaluateWithParameters(
       FunctionSymbol* function, std::span<ExpressionAST* const> arguments,
@@ -77,6 +87,14 @@ class ASTInterpreter {
       const Type* type, ExpressionAST* initializer,
       std::shared_ptr<ConstAddress> destination = {})
       -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto variableAddress(Symbol* variable)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto sourceLocationAddress(const Type* pointerType,
+                                           SourceLocation location,
+                                           FunctionSymbol* function)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto hasActiveReference(const Symbol* symbol) const -> bool;
 
   [[nodiscard]] auto evaluateAddress(ExpressionAST* ast)
       -> std::optional<ConstValue>;
@@ -108,9 +126,10 @@ class ASTInterpreter {
   [[nodiscard]] auto toLongDouble(const ConstValue& value)
       -> std::optional<long double>;
 
-  [[nodiscard]] auto evaluateCall(FunctionSymbol* func,
-                                  std::vector<ConstValue> args,
-                                  std::shared_ptr<ConstObject> thisObject = {})
+  [[nodiscard]] auto evaluateCall(
+      FunctionSymbol* func, std::vector<ConstValue> args,
+      std::shared_ptr<ConstObject> thisObject = {},
+      std::shared_ptr<ConstAddress> thisAddress = {})
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto evaluateConstructor(
@@ -157,6 +176,8 @@ class ASTInterpreter {
   }
 
   [[nodiscard]] auto aborted() const -> bool { return aborted_; }
+  void abortEvaluation() { aborted_ = true; }
+  void throwException(std::shared_ptr<ConstStorage> object, const Type* type);
 
  private:
   using ExpressionResult = std::optional<ConstValue>;
@@ -165,9 +186,6 @@ class ASTInterpreter {
       -> ExpressionAST*;
   [[nodiscard]] auto toOffset(const ConstValue& value) const
       -> std::optional<std::intmax_t>;
-
-  [[nodiscard]] static auto materializedTemporary(ExpressionAST* ast)
-      -> ExpressionAST*;
 
   [[nodiscard]] static auto initializingStringLiteral(
       ExpressionAST* initializer) -> const StringLiteral*;
@@ -256,6 +274,8 @@ class ASTInterpreter {
       -> ExpressionResult;
 
   [[nodiscard]] auto evaluateStaticField(FieldSymbol* field)
+      -> ExpressionResult;
+  [[nodiscard]] auto staticFieldInitialValue(FieldSymbol* field)
       -> ExpressionResult;
   [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
       -> TemplateParameterResult;
@@ -350,12 +370,57 @@ class ASTInterpreter {
   void setLocal(const Symbol* sym, ConstValue value);
 
   struct Frame;
+  struct SelectedMember {
+    Symbol* member = nullptr;
+    std::shared_ptr<ConstObject> object;
+    std::shared_ptr<ConstAddress> address;
+  };
+  [[nodiscard]] static auto memberPointerAccess(ExpressionAST* expression)
+      -> BinaryExpressionAST*;
+  [[nodiscard]] auto selectMemberPointer(BinaryExpressionAST* access)
+      -> SelectedMember;
+  [[nodiscard]] auto invokesVirtualOnUnknownDynamicType(
+      ExpressionAST* callee, FunctionSymbol* function,
+      const std::shared_ptr<ConstObject>& object) const -> bool;
   enum class CallResultKind { kValue, kLValue, kAddress, kObject };
   struct CallResult {
     std::optional<ConstValue> value;
     ConstValue* lvalue = nullptr;
     bool isAddress = false;
   };
+
+  struct ThrownException {
+    std::shared_ptr<ConstStorage> object;
+    const Type* type = nullptr;
+  };
+
+  void beginNominatedLifetime(ConstValue& storage, const Type* type);
+  [[nodiscard]] auto nominatesSubobject(ExpressionAST* ast) const -> bool;
+  [[nodiscard]] static auto isUnionMember(const Symbol* symbol) -> bool;
+  static void gatherAnonymousMember(const std::shared_ptr<ConstObject>& object,
+                                    const Symbol* symbol);
+  [[nodiscard]] auto isVariableUnderInitialization(
+      const ConstAddress& address) const -> bool;
+  [[nodiscard]] auto isUnderConstruction(const ConstAddress& address) const
+      -> bool;
+  [[nodiscard]] auto isDefaultedUnionAssignment(FunctionSymbol* function) const
+      -> bool;
+  [[nodiscard]] auto isTrivialNominatingAssignment(AssignmentExpressionAST* ast)
+      -> bool;
+  [[nodiscard]] auto catchException(List<HandlerAST*>* handlers,
+                                    bool rethrowAtEnd = false)
+      -> StatementResult;
+  [[nodiscard]] auto bindHandlerVariable(HandlerAST* handler,
+                                         const ThrownException& exception)
+      -> bool;
+
+  [[nodiscard]] auto builtinReferenceResult(CallResultKind kind,
+                                            const ConstValue& value,
+                                            const Type* type) -> CallResult;
+
+  [[nodiscard]] auto evaluateSubscriptOperatorCall(
+      SubscriptExpressionAST* ast, CallResultKind kind,
+      std::shared_ptr<ConstAddress> destination = nullptr) -> CallResult;
 
   [[nodiscard]] auto evaluateCallExpression(
       CallExpressionAST* ast, CallResultKind kind,
@@ -401,10 +466,15 @@ class ASTInterpreter {
   [[nodiscard]] auto beginAutomaticScope() const -> std::size_t;
   void registerAutomaticObject(VariableSymbol* variable);
   [[nodiscard]] auto endAutomaticScope(std::size_t mark) -> bool;
-  [[nodiscard]] auto destroyValue(const Type* type, ConstValue& value) -> bool;
+  [[nodiscard]] auto destroyValue(const Type* type, ConstValue& value,
+                                  std::shared_ptr<ConstAddress> address = {})
+      -> bool;
   void endLifetime(const Type* type, ConstValue& value);
   [[nodiscard]] auto destroyStorage(
       const std::shared_ptr<ConstStorage>& storage) -> bool;
+  [[nodiscard]] auto destroyObject(const std::shared_ptr<ConstStorage>& storage)
+      -> bool;
+  void destroyConstructedSubobjects(const std::shared_ptr<ConstObject>& object);
 
   [[nodiscard]] auto initializeDefaultedObject(
       const std::shared_ptr<ConstObject>& obj, ClassSymbol* classSymbol,
@@ -432,6 +502,9 @@ class ASTInterpreter {
                            const Type* type,
                            const std::vector<ExpressionAST*>& arguments);
 
+  [[nodiscard]] auto hasEmptyInitializerSyntax(MemInitializerAST* ast) const
+      -> bool;
+
   [[nodiscard]] auto constructSubobject(
       MemInitializerAST* ast, const Type* type,
       const std::vector<ExpressionAST*>& arguments,
@@ -450,6 +523,10 @@ class ASTInterpreter {
                                      SourceLocation location,
                                      std::string_view name)
       -> std::shared_ptr<ConstAddress>;
+
+  [[nodiscard]] auto absentFieldPath(const std::shared_ptr<ConstObject>& object,
+                                     Symbol* field)
+      -> std::optional<std::vector<Symbol*>>;
 
   [[nodiscard]] auto subobjectDestination(
       const std::shared_ptr<ConstAddress>& destination, Symbol* subobject)
@@ -485,6 +562,10 @@ class ASTInterpreter {
     std::shared_ptr<ConstAddress> address;
   };
 
+  [[nodiscard]] auto fieldAddress(const DesignatedObject& base,
+                                  const Type* baseType, FieldSymbol* field)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto designatedObjectAndAddress(ExpressionAST* ast,
                                                 bool throughPointer)
       -> DesignatedObject;
@@ -499,6 +580,10 @@ class ASTInterpreter {
                                      const ConstAddress& base,
                                      std::intmax_t displacement) -> bool;
 
+  [[nodiscard]] auto restoreConstantAddress(
+      ConstValue& value, const ConstValue& initializer,
+      const std::shared_ptr<ConstAddress>& destination) -> bool;
+
   [[nodiscard]] static auto convertsBetweenClasses(
       ImplicitCastExpressionAST* cast) -> bool;
 
@@ -509,6 +594,14 @@ class ASTInterpreter {
                                           const Type* targetType,
                                           std::intmax_t displacement)
       -> std::shared_ptr<ConstAddress>;
+  [[nodiscard]] auto completeClassOf(const ConstAddress& address)
+      -> ClassSymbol*;
+  [[nodiscard]] auto baseConversionOffset(const ConstAddress& address,
+                                          const Type* targetType)
+      -> std::optional<std::intmax_t>;
+  [[nodiscard]] auto addressedFieldDisplacement(const ConstAddress& address,
+                                                FieldSymbol* field)
+      -> std::optional<std::intmax_t>;
   [[nodiscard]] auto completeClassAddress(const ConstAddress& address)
       -> std::shared_ptr<ConstAddress>;
   [[nodiscard]] auto callObjectAddress(
@@ -532,6 +625,7 @@ class ASTInterpreter {
   [[nodiscard]] auto arrayExtent(const ConstAddress& address) const
       -> std::optional<std::uintmax_t>;
   [[nodiscard]] auto validPosition(const ConstAddress& address) const -> bool;
+  [[nodiscard]] auto isOnePastEnd(const ConstAddress& address) const -> bool;
   [[nodiscard]] auto compareAddresses(TokenKind op, const Type* type,
                                       const ConstAddress& lhs,
                                       const ConstAddress& rhs)
@@ -628,12 +722,30 @@ class ASTInterpreter {
   [[nodiscard]] auto addressOfLvalue(ExpressionAST* ast)
       -> std::optional<ConstValue>;
 
-  [[nodiscard]] auto evaluateUnaryOperatorCall(UnaryExpressionAST* ast,
-                                               CallResultKind kind)
-      -> CallResult;
+  [[nodiscard]] auto evaluateOperatorCall(
+      FunctionSymbol* function, ExpressionAST* operand,
+      ExpressionAST* extraArgument, bool rightToLeft, CallResultKind kind,
+      std::shared_ptr<ConstAddress> destination = nullptr) -> CallResult;
 
-  [[nodiscard]] auto variableAddress(Symbol* variable)
+  [[nodiscard]] auto overloadedOperatorCall(
+      ExpressionAST* ast, CallResultKind kind,
+      std::shared_ptr<ConstAddress> destination = nullptr)
+      -> std::optional<CallResult>;
+
+  [[nodiscard]] auto modificationTarget(ExpressionAST* ast) -> ExpressionAST*;
+
+  [[nodiscard]] auto modificationOperand(ExpressionAST* ast)
+      -> std::optional<std::optional<ConstValue>>;
+
+  [[nodiscard]] auto modifiedSlot(ExpressionAST* ast, ExpressionAST* target)
+      -> ConstValue*;
+
+  [[nodiscard]] auto modifiedAddress(ExpressionAST* ast, ExpressionAST* target)
       -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateUnaryOperatorCall(
+      UnaryExpressionAST* ast, CallResultKind kind,
+      std::shared_ptr<ConstAddress> destination = nullptr) -> CallResult;
 
   void pushFrame();
   void popFrame();
@@ -683,6 +795,14 @@ class ASTInterpreter {
   [[nodiscard]] auto evaluateBuiltinArithmeticOverflow(CallExpressionAST* ast)
       -> std::optional<ConstValue>;
 
+  [[nodiscard]] auto evaluateBuiltinIsWithinLifetime(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinSaturatingArithmetic(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
+
+  [[nodiscard]] auto evaluateBuiltinConstantP(CallExpressionAST* ast)
+      -> std::optional<ConstValue>;
   [[nodiscard]] auto evaluateBuiltinNanPayload(CallExpressionAST* ast)
       -> std::optional<std::string>;
 
@@ -780,7 +900,8 @@ class ASTInterpreter {
 
  private:
   [[nodiscard]] auto evaluateConversionFunctionCall(
-      ImplicitCastExpressionAST* ast, CallResultKind kind) -> CallResult;
+      ImplicitCastExpressionAST* ast, CallResultKind kind,
+      std::shared_ptr<ConstAddress> destination = nullptr) -> CallResult;
 
   [[nodiscard]] auto copyArrayElements(
       const Type* type, FunctionSymbol* constructor, const ConstValue& source,
@@ -789,10 +910,15 @@ class ASTInterpreter {
   TranslationUnit* unit_ = nullptr;
   TypeTraits traits;
 
+  struct ReferenceBinding {
+    std::optional<ConstValue> address;
+    ConstValue* slot = nullptr;
+  };
+  [[nodiscard]] auto activeReference(const Symbol* symbol) const
+      -> const ReferenceBinding*;
   struct Frame {
     std::unordered_map<const Symbol*, std::shared_ptr<ConstStorage>> locals;
-    std::unordered_map<const Symbol*, ConstValue*> refs;
-    std::unordered_map<const Symbol*, ConstValue> referenceAddresses;
+    std::unordered_map<const Symbol*, ReferenceBinding> references;
     std::vector<const Symbol*> automaticObjects;
   };
   std::deque<Frame> frames_;
@@ -817,9 +943,8 @@ class ASTInterpreter {
 
   class EvaluationScope {
    public:
-    explicit EvaluationScope(ASTInterpreter& interp) : interp_(interp) {
-      ++interp_.activeEvaluations_;
-    }
+    explicit EvaluationScope(ASTInterpreter& interp,
+                             ExpressionAST* ast = nullptr);
 
     ~EvaluationScope() {
       if (--interp_.activeEvaluations_ == 0) {
@@ -832,6 +957,47 @@ class ASTInterpreter {
   };
 
   int activeEvaluations_ = 0;
+
+  std::vector<const Frame*> framesBeingBound_;
+  std::vector<std::shared_ptr<ConstStorage>> backingArrays_;
+
+  class ParameterBindingScope {
+   public:
+    ParameterBindingScope(ASTInterpreter& interp, const Frame& frame)
+        : interp_(interp) {
+      interp_.framesBeingBound_.push_back(&frame);
+    }
+
+    ~ParameterBindingScope() { interp_.framesBeingBound_.pop_back(); }
+
+   private:
+    ASTInterpreter& interp_;
+  };
+
+  enum class AllocationForm { kAllocator, kNew, kNewArray };
+  struct Allocation {
+    std::shared_ptr<ConstStorage> storage;
+    AllocationForm form;
+  };
+  std::vector<Allocation> allocations_;
+
+  [[nodiscard]] auto newAllocation(const Type* type, AllocationForm form)
+      -> std::shared_ptr<ConstStorage>;
+  [[nodiscard]] auto deletesCompleteAllocation(const ConstAddress& address,
+                                               AllocationForm form,
+                                               ExpressionAST* operand) -> bool;
+
+  [[nodiscard]] auto storageDurationBeganWithinEvaluation(
+      const ConstAddress& address) const -> bool;
+  [[nodiscard]] auto isTransparentlyReplaceable(const ConstAddress& address,
+                                                const Type* type) const -> bool;
+  [[nodiscard]] auto completeEvaluation(std::optional<ConstValue> result)
+      -> std::optional<ConstValue>;
+  [[nodiscard]] auto allocatorElementType(FunctionSymbol* function) const
+      -> const Type*;
+  [[nodiscard]] auto evaluateAllocatorCall(FunctionSymbol* function,
+                                           const Frame& frame)
+      -> std::optional<ConstValue>;
 
   std::optional<ConstValue> returnValue_;
   std::optional<ConstValue> assignmentValue_;
@@ -860,11 +1026,43 @@ class ASTInterpreter {
     std::shared_ptr<ConstObject> dynamicObject;
   };
   std::vector<ConstructionPhase> constructionPhases_;
+  std::vector<std::shared_ptr<ConstObject>> objectsUnderDestruction_;
 
   ClassSymbol* currentConstructorClass_ = nullptr;
 
   FunctionSymbol* currentFunction_ = nullptr;
+  ScopeSymbol* evaluationScope_ = nullptr;
+  SourceLocation evaluationPoint_;
   DefaultInitializerContext defaultInitializerContext_;
+
+  [[nodiscard]] auto hasConstantEvaluationContext(
+      ScopeSymbol* scope, ConstantEvaluationKind kind) const -> bool;
+  [[nodiscard]] auto scopeOfUse(ScopeSymbol* scope) const -> ScopeSymbol* {
+    return defaultInitializerContext_.scope ? defaultInitializerContext_.scope
+                                            : scope;
+  }
+  [[nodiscard]] auto pointOfUse(SourceLocation point) const -> SourceLocation {
+    return defaultInitializerContext_.location
+               ? defaultInitializerContext_.location
+               : point;
+  }
+
+  class EvaluationContextScope {
+   public:
+    EvaluationContextScope(
+        ASTInterpreter& interpreter, ScopeSymbol* scope, SourceLocation point,
+        ConstantEvaluationKind kind =
+            ConstantEvaluationKind::kManifestlyConstantEvaluated);
+    ~EvaluationContextScope() {
+      interpreter_.evaluationScope_ = saved_;
+      interpreter_.evaluationPoint_ = savedPoint_;
+    }
+
+   private:
+    ASTInterpreter& interpreter_;
+    ScopeSymbol* saved_;
+    SourceLocation savedPoint_;
+  };
 
   class InitializerContextGuard {
    public:
@@ -887,5 +1085,10 @@ class ASTInterpreter {
 
   std::uint64_t steps_ = 0;
   bool aborted_ = false;
+  bool nominatesUnionMembers_ = false;
+  bool constructsAtAddress_ = false;
+  std::optional<ThrownException> thrown_;
+  std::vector<std::shared_ptr<ConstStorage>> exceptionObjects_;
+  std::vector<ThrownException> handled_;
 };
 }  // namespace cxx

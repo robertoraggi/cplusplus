@@ -646,6 +646,27 @@ class UnresolvedUnderlyingType final
   [[nodiscard]] auto typeId() const -> TypeIdAST* { return std::get<1>(*this); }
 };
 
+class UnresolvedPackIndexType final
+    : public Type,
+      public std::tuple<TranslationUnit*, const Type*, ExpressionAST*> {
+ public:
+  static constexpr TypeKind Kind = TypeKind::kUnresolvedPackIndex;
+
+  UnresolvedPackIndexType(TranslationUnit* unit, const Type* pack,
+                          ExpressionAST* index)
+      : Type(Kind), tuple(unit, pack, index) {}
+
+  [[nodiscard]] auto translationUnit() const -> TranslationUnit* {
+    return std::get<0>(*this);
+  }
+
+  [[nodiscard]] auto pack() const -> const Type* { return std::get<1>(*this); }
+
+  [[nodiscard]] auto index() const -> ExpressionAST* {
+    return std::get<2>(*this);
+  }
+};
+
 class UnresolvedBuiltinType final
     : public Type,
       public std::tuple<TranslationUnit*, UnaryBuiltinTypeKind, TypeIdAST*> {
@@ -877,6 +898,7 @@ struct IsNonDeducedContextType {
   auto operator()(const UnresolvedUnderlyingType*) const -> bool {
     return true;
   }
+  auto operator()(const UnresolvedPackIndexType*) const -> bool { return true; }
   auto operator()(const UnresolvedBuiltinType*) const -> bool { return true; }
   auto operator()(const UnresolvedBitIntType*) const -> bool { return true; }
   auto operator()(const Type*) const -> bool { return false; }

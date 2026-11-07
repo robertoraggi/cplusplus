@@ -62,3 +62,21 @@ test("semantic decoding keeps owning types when accessors return pointers or vie
   assert.equal(members.typeExpression, undefined);
   assert.equal(members.cppType, "std::vector<cxx::Symbol*>");
 });
+
+test("semantic encoding preserves parameter reflections as a distinct variant", () => {
+  const plan = new PlanBuilder(index).build();
+  assert.deepEqual(plan.diagnostics, []);
+  const meta = plan.structs.find((entity) => entity.name === "::cxx::Meta");
+  const value = meta.fields.find((field) => field.name === "value");
+  assert.equal(value.wire.k, "variant");
+  assert.equal(value.wire.alternatives.length, 5);
+  assert.equal(value.wire.alternatives[3].k, "struct");
+  assert.equal(value.wire.alternatives[3].cpp, "cxx::Meta::Parameter");
+  const parameter = plan.structs.find(
+    (entity) => entity.name === "::cxx::Meta::Parameter",
+  );
+  assert.deepEqual(
+    parameter.fields.map((field) => field.name),
+    ["function", "index"],
+  );
+});

@@ -20,7 +20,6 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
-#include <cxx/ast_validator.h>
 #include <cxx/ast_visitor.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -357,6 +356,7 @@ void ASTRewriter::requirePotentiallyInvokedDestructors(
   }
 
   for (auto field : classSymbol->members() | views::non_static_fields) {
+    if (is_anonymous_union_member(field)) continue;
     requireDestructorOfType(unit, field->type());
   }
 }
@@ -387,7 +387,8 @@ void ASTRewriter::requireConstructorInitializers(TranslationUnit* unit,
 }
 
 void ASTRewriter::requireExplicitInstantiationMembers(TranslationUnit* unit,
-                                                      ClassSymbol* instance) {
+                                                      ClassSymbol* instance,
+                                                      SourceLocation location) {
   if (!unit || !instance) return;
 
   unit->addExplicitInstantiationDefinition(instance);
@@ -396,29 +397,52 @@ void ASTRewriter::requireExplicitInstantiationMembers(TranslationUnit* unit,
 
   for (auto function :
        views::members(classDefinition) | views::member_functions)
-    requireExplicitInstantiationMember(unit, function);
+    requireExplicitInstantiationMember(unit, function, location);
 
   for (auto constructor : classDefinition->constructors())
-    requireExplicitInstantiationMember(unit, constructor);
+    requireExplicitInstantiationMember(unit, constructor, location);
+
+  for (auto member : views::members(classDefinition) | views::static_fields) {
+    if (!hasInstantiableDefinition(member)) continue;
+    requireExplicitInstantiationMember(unit, member);
+  }
 
   for (auto member : views::members(classDefinition)) {
     auto memberClass = symbol_cast<ClassSymbol>(member);
     if (!memberClass || memberClass->isTemplatePattern()) continue;
     if (!ensureCompleteClass(unit, memberClass)) continue;
-    requireExplicitInstantiationMembers(unit, memberClass);
+    requireExplicitInstantiationMembers(unit, memberClass, location);
   }
 }
 
 void ASTRewriter::requireExplicitInstantiationMember(TranslationUnit* unit,
-                                                     FunctionSymbol* function) {
+                                                     FunctionSymbol* function,
+                                                     SourceLocation location) {
   if (function->isExcludedFromExplicitInstantiation()) return;
   if (function->isTemplatePattern()) return;
-  if (!isUserProvided(function)) return;
+  if (!unit->typeTraits().is_user_provided(function)) return;
   auto definition = function->resolvedDefinition();
   attachPatternDefinition(unit, definition);
   if (!definition->isDefined() && !definition->hasPendingBody()) return;
-  requireFunctionDefinition(unit, function);
+  requireFunctionDefinition(unit, function, location);
   unit->addExplicitInstantiationDefinition(function);
+}
+
+auto ASTRewriter::hasInstantiableDefinition(FieldSymbol* member) -> bool {
+  if (Binder::declaresVariableDefinition(member)) return true;
+  if (member->definition()) return true;
+  auto pattern = symbol_cast<FieldSymbol>(member->instantiationPattern());
+  return pattern && pattern->definition();
+}
+
+void ASTRewriter::requireExplicitInstantiationMember(TranslationUnit* unit,
+                                                     FieldSymbol* member) {
+  if (member->isExcludedFromExplicitInstantiation()) return;
+  if (auto definition = member->definition();
+      definition && definition->isExplicitSpecialization())
+    return;
+  unit->addExplicitInstantiationDefinition(member);
+  requireFieldDefinition(unit, member);
 }
 
 void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
@@ -431,6 +455,8 @@ void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
   function->setDefinitionRequired(true);
   unit->addPendingBodyCompletion(function, location, caller);
   if (alreadyRequired) return;
+  completePendingExceptionSpecification(unit, function);
+  if (function->isConstexpr()) (void)completePendingBodyFor(unit, function);
   if (!function->hasPendingBody()) {
     auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
     rewriter.binder_.synthesizeDefaultedMemberBody(function);
@@ -445,6 +471,9 @@ void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
       requireDefinitionsNamedBy(unit, declaration->functionBody);
 
   if (definesBody) requirePotentiallyInvokedDestructors(unit, definition);
+
+  if (auto deleting = definition->deletingDtorVariant())
+    requireDefinitionsNamedBy(unit, deleting->declaration());
 
   if (function->isConstructor())
     requireConstructorInitializers(unit, definition);
@@ -583,6 +612,7 @@ void ASTRewriter::requireFieldDefinition(TranslationUnit* unit,
                                          FieldSymbol* field) {
   if (!unit || !field || !field->isStatic()) return;
   if (!unit->requiresDefinitions()) return;
+  if (is_declared_specialization(unit, field)) return;
   requireFieldInitializer(unit, field);
   if (field->isDefinitionRequired()) return;
   field->setDefinitionRequired(true);
@@ -625,17 +655,64 @@ void ASTRewriter::requireFieldInitializer(TranslationUnit* unit,
     rewriter.addSymbolRemap(pattern->symbol, field);
   }
 
-  instance->initializer = rewriter.instantiateSeparately(pattern->initializer,
-                                                         field, "initializer");
+  {
+    TranslationUnit::DeferredInitializerScope deferredInitializer{unit, field};
+    Binder::InitializerGuard initializerGuard{&rewriter.binder_, field};
+    instance->initializer = rewriter.instantiateSeparately(
+        pattern->initializer, field, "initializer");
+  }
   if (!instance->initializer) return;
 
-  field->setInitializer(instance->initializer);
+  field->setInitializer(rewriter.inheritConstantInitializer(
+      pattern->symbol, instance->initializer));
 
   if (field->isStatic()) {
     rewriter.typeChecker().check_init_declarator(instance, nullptr);
   } else {
     rewriter.typeChecker().check_field_initializer(field);
   }
+}
+
+void ASTRewriter::requireVariableInitializer(TranslationUnit* unit,
+                                             VariableSymbol* variable) {
+  if (!unit || !variable || !variable->hasPendingInitializer()) return;
+
+  auto pending = variable->pendingInitializer();
+  auto pattern = ast_cast<InitDeclaratorAST>(pending->pattern);
+  auto instance = ast_cast<InitDeclaratorAST>(pending->instance);
+  auto templateArguments = std::move(pending->templateArguments);
+  auto parentScope = pending->parentScope;
+  auto depth = pending->depth;
+  variable->clearPendingInitializer();
+
+  if (!pattern || !instance || !pattern->initializer) return;
+
+  OutsideImmediateContextScope outsideImmediateContext{unit};
+
+  auto rewriter = ASTRewriter{unit, parentScope, std::move(templateArguments)};
+  rewriter.depth_ = depth;
+  rewriter.inheritEnclosingTemplateArguments(parentScope);
+  rewriter.addSymbolRemap(pattern->symbol, variable);
+
+  {
+    TranslationUnit::DeferredInitializerScope deferredInitializer{unit,
+                                                                  variable};
+    Binder::InitializerGuard initializerGuard{&rewriter.binder_, variable};
+    instance->initializer = rewriter.instantiateSeparately(
+        pattern->initializer, variable, "initializer");
+  }
+  if (!instance->initializer) return;
+
+  variable->setInitializer(rewriter.inheritConstantInitializer(
+      pattern->symbol, instance->initializer));
+  rewriter.typeChecker().check_init_declarator(instance, nullptr);
+}
+
+void ASTRewriter::requireVariableValue(TranslationUnit* unit,
+                                       VariableSymbol* variable) {
+  if (!variable || !variable->hasPendingInitializer()) return;
+  if (is_declared_specialization(unit, variable)) return;
+  requireVariableInitializer(unit, variable);
 }
 
 auto ASTRewriter::patternDefaultArgument(TranslationUnit* unit,
@@ -662,6 +739,8 @@ auto ASTRewriter::requireDefaultArgument(TranslationUnit* unit,
 
   if (auto source = parameter->defaultArgumentSource()) {
     parameter->setDefaultArgument(requireDefaultArgument(unit, source));
+    parameter->setImmediateEscalatingDefaultArgument(
+        source->hasImmediateEscalatingDefaultArgument());
     return parameter->defaultArgument();
   }
 
@@ -689,6 +768,9 @@ auto ASTRewriter::requireDefaultArgument(TranslationUnit* unit,
                                parameter->enclosingClass());
   }
 
+  TranslationUnit::DeferredInitializerScope deferredInitializer{unit,
+                                                                parameter};
+  Binder::InitializerGuard initializerGuard{&rewriter.binder_, parameter};
   instance->expression = rewriter.instantiateSeparately(
       defaultArgument, parameter, "default argument");
   if (!instance->expression) return nullptr;
@@ -749,12 +831,7 @@ auto ASTRewriter::instantiateSeparately(ExpressionAST* pattern, Symbol* owner,
   auto diagnosticsClient = unit_->diagnosticsClient();
   const auto errorsBefore = diagnosticsClient->errorCount();
 
-  ExpressionAST* instance = nullptr;
-  {
-    TranslationUnit::DeferredInitializerScope deferredInitializer{unit_, true};
-    instance = expression(pattern);
-  }
-
+  auto instance = expression(pattern);
   if (instance) return instance;
   if (diagnosticsClient->errorCount() != errorsBefore) return nullptr;
 
@@ -926,6 +1003,7 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
   }
 
   newAst->functionBody = rewriter.functionBody(originalDef->functionBody);
+  func->setDefined(true);
 
   auto bodyErrors = rewriter.takeBodyErrors();
 
@@ -942,8 +1020,6 @@ auto ASTRewriter::completePendingBody(FunctionSymbol* func,
   if (bodyErrors.empty() && !deferDiagnostics) {
     if (!rewriter.binder_.inTemplate())
       checkReturnPathWarnings(unit_, func, newAst->functionBody);
-
-    validateCompletedInstantiation(unit_, func, newAst);
   }
 
   return finish(std::move(bodyErrors));

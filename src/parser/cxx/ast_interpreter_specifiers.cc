@@ -100,6 +100,11 @@ struct ASTInterpreter::SpecifierVisitor {
 
   [[nodiscard]] auto operator()(BitIntTypeSpecifierAST* ast) -> SpecifierResult;
 
+  [[nodiscard]] auto operator()(PackIndexTypeSpecifierAST* ast)
+      -> SpecifierResult {
+    return {};
+  }
+
   [[nodiscard]] auto operator()(UnderlyingTypeSpecifierAST* ast)
       -> SpecifierResult;
 

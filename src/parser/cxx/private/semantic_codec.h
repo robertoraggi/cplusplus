@@ -219,6 +219,8 @@ class SemanticEncoder final : public SemanticEncoderBase {
       ByteWriter& out, const cxx::UnresolvedBoundedArrayType* self);
   void writeTypeUnresolvedUnderlyingType(
       ByteWriter& out, const cxx::UnresolvedUnderlyingType* self);
+  void writeTypeUnresolvedPackIndexType(
+      ByteWriter& out, const cxx::UnresolvedPackIndexType* self);
   void writeTypeUnresolvedBuiltinType(ByteWriter& out,
                                       const cxx::UnresolvedBuiltinType* self);
   void writeTypeOverloadSetType(ByteWriter& out,
@@ -330,6 +332,8 @@ class SemanticEncoder final : public SemanticEncoderBase {
   void writeAstUsingDirectiveAST(ByteWriter& out, cxx::UsingDirectiveAST* self);
   void writeAstStaticAssertDeclarationAST(
       ByteWriter& out, cxx::StaticAssertDeclarationAST* self);
+  void writeAstConstevalBlockDeclarationAST(
+      ByteWriter& out, cxx::ConstevalBlockDeclarationAST* self);
   void writeAstAliasDeclarationAST(ByteWriter& out,
                                    cxx::AliasDeclarationAST* self);
   void writeAstOpaqueEnumDeclarationAST(ByteWriter& out,
@@ -641,6 +645,8 @@ class SemanticEncoder final : public SemanticEncoderBase {
                                       cxx::BitIntTypeSpecifierAST* self);
   void writeAstUnderlyingTypeSpecifierAST(
       ByteWriter& out, cxx::UnderlyingTypeSpecifierAST* self);
+  void writeAstPackIndexTypeSpecifierAST(ByteWriter& out,
+                                         cxx::PackIndexTypeSpecifierAST* self);
   void writeAstElaboratedTypeSpecifierAST(
       ByteWriter& out, cxx::ElaboratedTypeSpecifierAST* self);
   void writeAstDecltypeAutoSpecifierAST(ByteWriter& out,
@@ -681,6 +687,7 @@ class SemanticEncoder final : public SemanticEncoderBase {
   void writeAstNameIdAST(ByteWriter& out, cxx::NameIdAST* self);
   void writeAstDestructorIdAST(ByteWriter& out, cxx::DestructorIdAST* self);
   void writeAstDecltypeIdAST(ByteWriter& out, cxx::DecltypeIdAST* self);
+  void writeAstPackIndexIdAST(ByteWriter& out, cxx::PackIndexIdAST* self);
   void writeAstOperatorFunctionIdAST(ByteWriter& out,
                                      cxx::OperatorFunctionIdAST* self);
   void writeAstLiteralOperatorIdAST(ByteWriter& out,
@@ -699,6 +706,8 @@ class SemanticEncoder final : public SemanticEncoderBase {
       ByteWriter& out, cxx::SimpleNestedNameSpecifierAST* self);
   void writeAstDecltypeNestedNameSpecifierAST(
       ByteWriter& out, cxx::DecltypeNestedNameSpecifierAST* self);
+  void writeAstPackIndexNestedNameSpecifierAST(
+      ByteWriter& out, cxx::PackIndexNestedNameSpecifierAST* self);
   void writeAstTemplateNestedNameSpecifierAST(
       ByteWriter& out, cxx::TemplateNestedNameSpecifierAST* self);
   void writeAstDefaultFunctionBodyAST(ByteWriter& out,
@@ -775,6 +784,7 @@ class SemanticEncoder final : public SemanticEncoderBase {
                                  const cxx::ConstLabelAddress* self);
   void writecxxConstComplex(ByteWriter& out, const cxx::ConstComplex* self);
   void writecxxConstFloat16(ByteWriter& out, const cxx::ConstFloat16* self);
+  void writecxxMetaParameter(ByteWriter& out, const cxx::Meta::Parameter* self);
   void writecxxTemplateSpecialization(ByteWriter& out,
                                       const cxx::TemplateSpecialization* self);
   void writecxxInstantiationError(ByteWriter& out,
@@ -819,6 +829,8 @@ class SemanticEncoder final : public SemanticEncoderBase {
       ByteWriter& out, const cxx::DefaultInitializerContext* self);
   void writecxxObjectInitializationInfo(
       ByteWriter& out, const cxx::ObjectInitializationInfo* self);
+  void writecxxSpliceExpressionInfo(ByteWriter& out,
+                                    const cxx::SpliceExpressionInfo* self);
   void writecxxInitializerInfo(ByteWriter& out,
                                const cxx::InitializerInfo* self);
 };
@@ -949,6 +961,8 @@ class SemanticDecoder final : public SemanticDecoderBase {
       -> const cxx::Type*;
   [[nodiscard]] auto readTypeUnresolvedUnderlyingType(ByteReader& in)
       -> const cxx::Type*;
+  [[nodiscard]] auto readTypeUnresolvedPackIndexType(ByteReader& in)
+      -> const cxx::Type*;
   [[nodiscard]] auto readTypeUnresolvedBuiltinType(ByteReader& in)
       -> const cxx::Type*;
   [[nodiscard]] auto readTypeOverloadSetType(ByteReader& in)
@@ -1055,6 +1069,8 @@ class SemanticDecoder final : public SemanticDecoderBase {
   void readAstUsingDirectiveAST(ByteReader& in, cxx::UsingDirectiveAST* self);
   void readAstStaticAssertDeclarationAST(ByteReader& in,
                                          cxx::StaticAssertDeclarationAST* self);
+  void readAstConstevalBlockDeclarationAST(
+      ByteReader& in, cxx::ConstevalBlockDeclarationAST* self);
   void readAstAliasDeclarationAST(ByteReader& in,
                                   cxx::AliasDeclarationAST* self);
   void readAstOpaqueEnumDeclarationAST(ByteReader& in,
@@ -1348,6 +1364,8 @@ class SemanticDecoder final : public SemanticDecoderBase {
                                      cxx::BitIntTypeSpecifierAST* self);
   void readAstUnderlyingTypeSpecifierAST(ByteReader& in,
                                          cxx::UnderlyingTypeSpecifierAST* self);
+  void readAstPackIndexTypeSpecifierAST(ByteReader& in,
+                                        cxx::PackIndexTypeSpecifierAST* self);
   void readAstElaboratedTypeSpecifierAST(ByteReader& in,
                                          cxx::ElaboratedTypeSpecifierAST* self);
   void readAstDecltypeAutoSpecifierAST(ByteReader& in,
@@ -1386,6 +1404,7 @@ class SemanticDecoder final : public SemanticDecoderBase {
   void readAstNameIdAST(ByteReader& in, cxx::NameIdAST* self);
   void readAstDestructorIdAST(ByteReader& in, cxx::DestructorIdAST* self);
   void readAstDecltypeIdAST(ByteReader& in, cxx::DecltypeIdAST* self);
+  void readAstPackIndexIdAST(ByteReader& in, cxx::PackIndexIdAST* self);
   void readAstOperatorFunctionIdAST(ByteReader& in,
                                     cxx::OperatorFunctionIdAST* self);
   void readAstLiteralOperatorIdAST(ByteReader& in,
@@ -1404,6 +1423,8 @@ class SemanticDecoder final : public SemanticDecoderBase {
       ByteReader& in, cxx::SimpleNestedNameSpecifierAST* self);
   void readAstDecltypeNestedNameSpecifierAST(
       ByteReader& in, cxx::DecltypeNestedNameSpecifierAST* self);
+  void readAstPackIndexNestedNameSpecifierAST(
+      ByteReader& in, cxx::PackIndexNestedNameSpecifierAST* self);
   void readAstTemplateNestedNameSpecifierAST(
       ByteReader& in, cxx::TemplateNestedNameSpecifierAST* self);
   void readAstDefaultFunctionBodyAST(ByteReader& in,
@@ -1476,6 +1497,7 @@ class SemanticDecoder final : public SemanticDecoderBase {
   void readcxxConstLabelAddress(ByteReader& in, cxx::ConstLabelAddress* self);
   void readcxxConstComplex(ByteReader& in, cxx::ConstComplex* self);
   void readcxxConstFloat16(ByteReader& in, cxx::ConstFloat16* self);
+  void readcxxMetaParameter(ByteReader& in, cxx::Meta::Parameter* self);
   void readcxxTemplateSpecialization(ByteReader& in,
                                      cxx::TemplateSpecialization* self);
   void readcxxInstantiationError(ByteReader& in, cxx::InstantiationError* self);
@@ -1514,6 +1536,8 @@ class SemanticDecoder final : public SemanticDecoderBase {
                                         cxx::DefaultInitializerContext* self);
   void readcxxObjectInitializationInfo(ByteReader& in,
                                        cxx::ObjectInitializationInfo* self);
+  void readcxxSpliceExpressionInfo(ByteReader& in,
+                                   cxx::SpliceExpressionInfo* self);
   void readcxxInitializerInfo(ByteReader& in, cxx::InitializerInfo* self);
 };
 

@@ -21,6 +21,7 @@
 #include <cxx/ast.h>
 #include <cxx/ast_interpreter.h>
 #include <cxx/ast_rewriter.h>
+#include <cxx/class_template_deduction.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
 #include <cxx/initialization.h>
@@ -135,13 +136,13 @@ namespace {
   id->valueCategory = ValueCategory::kPrValue;
 
   if (!parameter->isParameterPack())
-    return ExpressionTemplateArgumentAST::create(arena, id);
+    return ExpressionTemplateArgumentAST::create(arena, id, nullptr);
 
   auto expansion = PackExpansionExpressionAST::create(arena);
   expansion->expression = id;
   expansion->type = id->type;
   expansion->valueCategory = id->valueCategory;
-  return ExpressionTemplateArgumentAST::create(arena, expansion);
+  return ExpressionTemplateArgumentAST::create(arena, expansion, nullptr);
 }
 
 [[nodiscard]] auto injectedArgument(Arena* arena, Symbol* parameter)
@@ -420,7 +421,14 @@ auto TemplateArguments::integerLiteralExpression(const ConstInt& value,
   if (!value.magnitudeFitsInUIntMax()) return nullptr;
 
   auto arena = unit_->arena();
-  auto literal = unit_->control()->integerLiteral(value.toDecimalString());
+  const auto representation = unit_->typeTraits().integral_representation(type);
+  const auto isMinimum =
+      value.isNegative() && representation &&
+      value.magnitude() == (ConstInt::UWide{1} << (representation->bits - 1));
+  auto literalValue = value;
+  if (isMinimum) literalValue = value + ConstInt{1};
+  auto literal =
+      unit_->control()->integerLiteral(literalValue.toDecimalString());
 
   ExpressionAST* expression = IntLiteralExpressionAST::create(
       arena, literal, /*literalOperatorCall=*/nullptr, ValueCategory::kPrValue,
@@ -428,10 +436,16 @@ auto TemplateArguments::integerLiteralExpression(const ConstInt& value,
 
   if (!value.isNegative()) return expression;
 
-  return UnaryExpressionAST::create(arena, SourceLocation{}, expression,
-                                    TokenKind::T_MINUS, /*symbol=*/nullptr,
-                                    /*isVirtualDispatch=*/false,
-                                    ValueCategory::kPrValue, type);
+  expression = UnaryExpressionAST::create(arena, SourceLocation{}, expression,
+                                          TokenKind::T_MINUS, nullptr, false,
+                                          ValueCategory::kPrValue, type);
+  if (!isMinimum) return expression;
+  auto one = IntLiteralExpressionAST::create(
+      arena, unit_->control()->integerLiteral("1"), nullptr,
+      ValueCategory::kPrValue, type);
+  return BinaryExpressionAST::create(arena, expression, SourceLocation{}, one,
+                                     TokenKind::T_MINUS, nullptr, false,
+                                     ValueCategory::kPrValue, type);
 }
 
 auto TemplateArguments::templateName(Symbol* templateSymbol) const
@@ -671,7 +685,7 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     }
   }
 
-  auto interp = ASTInterpreter{subst.unit_};
+  auto interp = ASTInterpreter{subst.unit_, parameter->symbol->parent()};
   auto value = interp.evaluate(expression);
 
   if (!value.has_value() && !isDependent(subst.unit_, expression)) {
@@ -693,10 +707,11 @@ auto Substitution::MakeDefaultTemplateArgument::operator()(
     return std::nullopt;
   }
 
-  return subst.symbolOf({.type = argumentType,
-                         .initializer = expression,
-                         .isConstexpr = true,
-                         .value = value});
+  return subst.normalizeNonTypeArgument(
+      parameter, NonTypeArgumentValue{.type = argumentType,
+                                      .initializer = expression,
+                                      .isConstexpr = true,
+                                      .value = value});
 }
 
 auto Substitution::MakeDefaultTemplateArgument::operator()(
@@ -771,7 +786,7 @@ auto Substitution::CollectRawTemplateArgument::operator()(
   auto unit = subst.unit_;
   auto control = unit->control();
 
-  auto interp = ASTInterpreter{unit};
+  auto interp = ASTInterpreter{unit, ast->evaluationScope};
 
   const auto isDependent = isDependentTemplateArgument(subst.unit_, ast);
 
@@ -962,15 +977,7 @@ void Substitution::doMake() {
       break;
     }
 
-    int trailingRequired = 0;
-    for (int j = i + 1; j < paramCount; ++j) {
-      if (isPackParameter(parameters[j])) continue;
-      if (hasDefaultTemplateArgument(parameters[j])) continue;
-      ++trailingRequired;
-    }
-
-    int availableForPack = argCount - packIndex - trailingRequired;
-    packSize = std::max(0, availableForPack);
+    packSize = std::max(0, argCount - packIndex);
     break;
   }
 
@@ -1226,7 +1233,20 @@ auto Substitution::normalizeNonTypeArgument(
       !type_cast<TemplateTypeParameterType>(targetType)) {
     if (parameter->declaration && parameter->declaration->type) {
       const Type* declaredType = parameter->declaration->type;
-      if (containsPlaceholderType(declaredType)) {
+      auto typeSpecifier =
+          parameter->declaration->typeSpecifierList
+              ? parameter->declaration->typeSpecifierList->value
+              : nullptr;
+      auto deducedClass =
+          normalized.initializer
+              ? ClassTemplateArgumentDeduction::placeholderClassTemplate(
+                    typeSpecifier, substitutionScope(templateDecl_))
+              : nullptr;
+      if (deducedClass) {
+        targetType = TypeChecker{unit}.deduceClassTemplateSpecialization(
+            typeSpecifier, {normalized.initializer}, false, true,
+            normalized.initializer->firstSourceLocation());
+      } else if (containsPlaceholderType(declaredType)) {
         auto checker = TypeChecker{unit};
         if (auto initializer = normalized.initializer) {
           targetType = checker.deducePlaceholderType(declaredType, initializer);
@@ -1246,12 +1266,22 @@ auto Substitution::normalizeNonTypeArgument(
   convertNonTypeArgument(normalized, targetType);
 
   if (normalized.value) {
-    auto valid = isConstantTemplateArgument(unit_->typeTraits(),
-                                            *normalized.value, normalized.type);
-    if (valid) valid = initializeTemplateParameterObject(normalized);
-    if (!valid)
-      maybeReportInvalidConstantExpression(
-          normalized.initializer->firstSourceLocation());
+    auto valid = unit_->typeTraits().is_constant_template_argument(
+        *normalized.value, normalized.type);
+    auto location = normalized.initializer
+                        ? normalized.initializer->firstSourceLocation()
+                        : parameter->firstSourceLocation();
+    if (valid && unqualified_cast<ClassType>(normalized.type)) {
+      auto object = initializeTemplateParameterObject(
+          unit_, normalized.type, *normalized.value, location,
+          substitutionScope(templateDecl_));
+      if (object) return object;
+      valid = false;
+    }
+    if (!valid) {
+      maybeReportInvalidConstantExpression(location);
+      return nullptr;
+    }
   }
 
   if (lacksConvertedValue(normalized)) {
@@ -1263,48 +1293,52 @@ auto Substitution::normalizeNonTypeArgument(
 }
 
 auto Substitution::initializeTemplateParameterObject(
-    NonTypeArgumentValue& argument) -> bool {
-  if (!unqualified_cast<ClassType>(argument.type)) return true;
-  auto traits = unit_->typeTraits();
-  auto type = traits.add_const(argument.type);
-  auto location = argument.initializer->firstSourceLocation();
-  auto candidate = unit_->control()->newVariableSymbol(nullptr, location);
-  candidate->setType(type);
-  candidate->setStatic(true);
-  candidate->setConstexpr(true);
-  candidate->setConstValue(argument.value);
+    TranslationUnit* unit, const Type* type, const ConstValue& argument,
+    SourceLocation location, ScopeSymbol* scope) -> VariableSymbol* {
+  auto traits = unit->typeTraits();
+  if (!unqualified_cast<ClassType>(type) || !traits.is_structural(type))
+    return nullptr;
+  type = traits.add_const(traits.remove_cv(type));
+  if (!traits.is_constant_template_argument(argument, type)) return nullptr;
 
-  auto source = IdExpressionAST::create(unit_->arena());
-  source->symbol = candidate;
+  VariableSymbol candidate{nullptr};
+  candidate.setType(type);
+  candidate.setStatic(true);
+  candidate.setConstexpr(true);
+  candidate.setConstValue(cloneValue(argument));
+
+  Arena arena;
+  auto source = IdExpressionAST::create(&arena);
+  source->symbol = &candidate;
   source->type = type;
   source->valueCategory = ValueCategory::kLValue;
   ExpressionAST* initializer = source;
 
-  auto parameterObject = unit_->control()->newVariableSymbol(nullptr, location);
-  parameterObject->setType(type);
-  parameterObject->setStatic(true);
-  parameterObject->setConstexpr(true);
-  auto checker = TypeChecker{unit_};
+  VariableSymbol parameterObject{nullptr};
+  parameterObject.setType(type);
+  parameterObject.setStatic(true);
+  parameterObject.setConstexpr(true);
+  auto checker = TypeChecker{unit};
+  checker.setScope(scope ? scope : unit->globalScope());
   InitContext context{checker};
-  auto entity = InitializedEntity::variable(type, parameterObject, location);
+  auto entity = InitializedEntity::variable(type, &parameterObject, location);
   auto sequence = initialize(
       context, entity, InitializationKind::kCopyInitialization, initializer);
-  if (sequence.status != InitializationStatus::kComplete) return false;
+  if (sequence.status != InitializationStatus::kComplete) return nullptr;
 
-  auto interpreter = ASTInterpreter{unit_};
+  auto interpreter = ASTInterpreter{unit, scope};
   auto value = interpreter.initializationValue(
-      parameterObject, sequence.constructor, initializer);
-  if (!value || !equivalent_values(*value, *argument.value)) return false;
-  if (!isConstantTemplateArgument(traits, *value, type)) return false;
-  argument.value = std::move(value);
-  return true;
+      &parameterObject, sequence.constructor, initializer);
+  if (!value || !equivalent_values(*value, argument)) return nullptr;
+  if (!traits.is_constant_template_argument(*value, type)) return nullptr;
+  return unit->control()->getTemplateParameterObject(type, *value);
 }
 
 auto Substitution::valueDependsOnParameterType(ExpressionAST* expression) const
     -> bool {
   if (!expression->type) return false;
   if (is_glvalue(expression)) return true;
-  return unit_->typeTraits().is_class(expression->type);
+  return unit_->typeTraits().is_class_or_union(expression->type);
 }
 
 auto Substitution::lacksConvertedValue(
@@ -1315,20 +1349,42 @@ auto Substitution::lacksConvertedValue(
   return !isDependent(unit_, initializer);
 }
 
+namespace {}  // namespace
+
+namespace {
+
+[[nodiscard]] auto convertedConstantFailureMessage(
+    ConvertedConstantFailure failure, const Type* from, const Type* to)
+    -> std::string {
+  switch (failure) {
+    case ConvertedConstantFailure::kNoConversion:
+      return std::format(
+          "template argument of type '{}' cannot be converted to '{}'",
+          to_diag_string(from), to_diag_string(to));
+    case ConvertedConstantFailure::kNarrowing:
+      return std::format(
+          "narrowing conversion from '{}' to '{}' in converted constant "
+          "expression",
+          to_diag_string(from), to_diag_string(to));
+    case ConvertedConstantFailure::kDisallowedConversion:
+      return std::format(
+          "template argument of type '{}' cannot be converted to '{}' in a "
+          "converted constant expression",
+          to_diag_string(from), to_diag_string(to));
+  }
+  return {};
+}
+
+}  // namespace
+
 void Substitution::bindReferenceArgument(NonTypeArgumentValue& argument,
                                          const Type* targetType) {
   argument.value = std::nullopt;
 
   auto expression = argument.initializer;
-  if (!is_glvalue(expression)) return;
-
-  auto traits = unit_->typeTraits();
-  if (!traits.is_reference_compatible(traits.remove_reference(targetType),
-                                      expression->type))
-    return;
-
   auto converted = expression;
   if (!TypeChecker{unit_}.implicit_conversion(converted, targetType)) return;
+  if (!isConvertedConstantSequence(converted, unit_->typeTraits())) return;
 
   auto address = ASTInterpreter{unit_}.evaluateAddress(converted);
   if (!address.has_value()) return;
@@ -1358,31 +1414,29 @@ void Substitution::convertNonTypeArgument(NonTypeArgumentValue& argument,
                      traits.remove_cv(targetType)))
     return;
 
-  StandardConversion conversions{unit_};
-  auto converted = expression;
-  if (!conversions.convertImplicitly(converted, targetType)) {
-    error(expression->firstSourceLocation(),
-          std::format("template argument of type '{}' cannot be converted to "
-                      "'{}'",
-                      to_diag_string(expression->type),
-                      to_diag_string(targetType)));
-    return;
-  }
+  auto overload = traits.overload_set_operand(expression->type);
+  if (argument.value && is_prvalue(expression) && !overload.type)
+    expression = ConstExpressionAST::create(
+        unit_->arena(), expression,
+        unit_->arena()->make<ConstValue>(*argument.value), false,
+        ConstantEvaluationKind::kNone, nullptr, expression->valueCategory,
+        expression->type);
 
-  if (traits.is_narrowing_list_element(expression, targetType)) {
+  StandardConversion conversions{unit_};
+  auto converted =
+      conversions.convertedConstantExpression(expression, targetType);
+  if (!converted) {
     error(expression->firstSourceLocation(),
-          std::format("narrowing conversion from '{}' to '{}' in converted "
-                      "constant expression",
-                      to_diag_string(expression->type),
-                      to_diag_string(targetType)));
+          convertedConstantFailureMessage(converted.error(), expression->type,
+                                          targetType));
     return;
   }
 
   auto interp = ASTInterpreter{unit_};
-  auto value = interp.evaluate(converted);
+  auto value = interp.evaluate(*converted);
   if (!value.has_value()) return;
 
-  argument.initializer = converted;
+  argument.initializer = *converted;
   argument.isConstexpr = true;
   argument.value = value;
 }

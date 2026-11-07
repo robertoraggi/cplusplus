@@ -116,7 +116,7 @@ auto Binder::declareStructuredBindingEntity(
     TypeChecker check{unit_};
     check.setScope(scope());
     check.setReportErrors(unit_->config().checkTypes);
-    check.check_init_declarator(initDeclarator, nullptr,
+    check.check_init_declarator(initDeclarator, nullptr, nullptr,
                                 ArrayCopyPolicy::kElementwiseCopyAllowed);
   }
 
@@ -159,6 +159,9 @@ void Binder::bindStructuredBindings(StructuredBindingDeclarationAST* ast,
   auto eSymbol = symbol_cast<VariableSymbol>(eInitDeclarator->symbol);
   if (!eSymbol) return;
 
+  eSymbol->setDeclaration(ast);
+  eSymbol->setHidden(true);
+  scope()->addSymbol(eSymbol);
   decomposeStructuredBinding(ast, eSymbol);
 }
 
@@ -227,7 +230,7 @@ struct Binder::DecomposeStructuredBinding {
     }
 
     auto classSymbol = classType->symbol();
-    (void)binder.traits.requireCompleteClass(classSymbol);
+    (void)binder.traits.require_complete_class(classSymbol);
 
     if (auto sizeClass = tupleSizeClass()) {
       decomposeTupleLike(classSymbol, sizeClass);
@@ -331,6 +334,12 @@ struct Binder::DecomposeStructuredBinding {
         true);
     if (!bindingInitDeclarator) return;
 
+    if (auto binding =
+            symbol_cast<VariableSymbol>(bindingInitDeclarator->symbol)) {
+      binding->setStructuredBindingKind(StructuredBindingKind::kReference);
+      binding->setStatic(entity->isStatic());
+      binding->setThreadLocalKind(entity->threadLocalKind());
+    }
     appendBinding(bindingInitDeclarator);
   }
 
@@ -362,7 +371,7 @@ struct Binder::DecomposeStructuredBinding {
     bindingDeclarator->initializer = equalInit;
 
     if (auto binding = symbol_cast<VariableSymbol>(bindingDeclarator->symbol)) {
-      binding->setStructuredBindingAlias(true);
+      binding->setStructuredBindingKind(StructuredBindingKind::kAlias);
       binding->setInitializer(access);
     }
 
@@ -385,7 +394,8 @@ struct Binder::DecomposeStructuredBinding {
     for (auto it = ast->bindingList; it; it = it->next, ++index) {
       auto subscript = SubscriptExpressionAST::create(arena);
       subscript->baseExpression = entityReference(ValueCategory::kLValue);
-      subscript->indexExpression = indexLiteral(index);
+      subscript->expressionList =
+          make_list_node<ExpressionAST>(arena, indexLiteral(index));
       subscript->valueCategory = ValueCategory::kLValue;
       subscript->type = elementType;
 
@@ -393,24 +403,11 @@ struct Binder::DecomposeStructuredBinding {
     }
   }
 
-  [[nodiscard]] auto instantiateStandardLibraryClass(
-      WellKnownName name, List<TemplateArgumentAST*>* arguments) const
-      -> ClassSymbol* {
-    auto primary = lookupStandardLibraryType(binder.unit_, name);
-    if (!primary) return nullptr;
-    auto instance = ASTRewriter::instantiate(binder.unit_, arguments, primary,
-                                             ast->lbracketLoc);
-    auto instanceClass = symbol_cast<ClassSymbol>(instance);
-    if (!instanceClass) return nullptr;
-    (void)binder.traits.requireCompleteClass(instanceClass);
-    return symbol_cast<ClassSymbol>(instanceClass->resolvedDefinition());
-  }
-
   [[nodiscard]] auto tupleSizeClass() const -> ClassSymbol* {
     auto arguments =
         make_list_node<TemplateArgumentAST>(arena, typeArgument(entityType));
-    auto sizeClass =
-        instantiateStandardLibraryClass(WellKnownName::T_TUPLE_SIZE, arguments);
+    auto sizeClass = binder.traits.standard_class_specialization(
+        WellKnownName::T_TUPLE_SIZE, arguments, ast->lbracketLoc);
     if (!sizeClass || !sizeClass->isComplete()) return nullptr;
     if (!qualifiedLookup(sizeClass, control()->getIdentifier("value")))
       return nullptr;
@@ -419,20 +416,7 @@ struct Binder::DecomposeStructuredBinding {
 
   [[nodiscard]] auto tupleSize(ClassSymbol* sizeClass) const
       -> std::optional<std::intmax_t> {
-    auto valueName = control()->getIdentifier("value");
-    auto valueSymbol = qualifiedLookup(sizeClass, valueName);
-    if (!valueSymbol || !valueSymbol->type()) return std::nullopt;
-
-    if (auto valueField = symbol_cast<FieldSymbol>(valueSymbol))
-      ASTRewriter::requireFieldInitializer(binder.unit_, valueField);
-
-    auto valueExpr = IdExpressionAST::create(arena);
-    valueExpr->unqualifiedId = NameIdAST::create(arena, valueName);
-    valueExpr->symbol = valueSymbol;
-    valueExpr->type = valueSymbol->type();
-    valueExpr->valueCategory = ValueCategory::kLValue;
-
-    auto value = ASTInterpreter{binder.unit_}.evaluate(valueExpr);
+    auto value = binder.traits.member_value(sizeClass);
     if (!value) return std::nullopt;
     auto integer = std::get_if<ConstInt>(&*value);
     if (!integer || integer->isNegative()) return std::nullopt;
@@ -444,14 +428,9 @@ struct Binder::DecomposeStructuredBinding {
         make_list_node<TemplateArgumentAST>(arena, valueArgument(index));
     arguments->next =
         make_list_node<TemplateArgumentAST>(arena, typeArgument(entityType));
-    auto elementClass = instantiateStandardLibraryClass(
-        WellKnownName::T_TUPLE_ELEMENT, arguments);
-    if (!elementClass) return nullptr;
-    auto typeSymbol =
-        qualifiedLookup(elementClass, control()->getIdentifier("type"),
-                        [](Symbol* s) { return is_type(s); });
-    if (!typeSymbol) return nullptr;
-    return typeSymbol->type();
+    auto elementClass = binder.traits.standard_class_specialization(
+        WellKnownName::T_TUPLE_ELEMENT, arguments, ast->lbracketLoc);
+    return elementClass ? binder.traits.member_type(elementClass) : nullptr;
   }
 
   [[nodiscard]] auto tupleEntityValueCategory() const -> ValueCategory {

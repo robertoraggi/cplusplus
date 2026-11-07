@@ -372,7 +372,13 @@ void Binder::BindClass::bind() {
     classSymbol = nullptr;
   }
 
-  if (classSymbol && classSymbol->isHidden()) classSymbol->setHidden(false);
+  if (classSymbol && classSymbol->isHidden()) {
+    if (classSymbol->isFriend()) {
+      classSymbol->setFirstNonFriendDeclarationLocation(location);
+      classSymbol->setFriend(false);
+    }
+    classSymbol->setHidden(false);
+  }
 
   if (classSymbol && bindOutOfClassNestedDefinition(classSymbol)) return;
 

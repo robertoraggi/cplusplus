@@ -1,5 +1,11 @@
 
-include_directories(${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS}) # for tablegen
+set(cxx_mlir_header_dirs ${MLIR_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS})
+list(REMOVE_DUPLICATES cxx_mlir_header_dirs)
+
+foreach(dir IN LISTS cxx_mlir_header_dirs)
+    list(APPEND LLVM_TABLEGEN_FLAGS -I ${dir})
+endforeach()
+
 add_mlir_dialect(CxxOps cxx)
 set(LLVM_TARGET_DEFINITIONS CxxOps.td)
 
@@ -26,9 +32,11 @@ target_include_directories(cxx-mlir-dialect PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/../..
     ${PROJECT_SOURCE_DIR}/src/parser
     ${CMAKE_CURRENT_BINARY_DIR}/../..
-    ${MLIR_INCLUDE_DIRS}
-    ${LLVM_INCLUDE_DIRS}
 )
+
+foreach(dir IN LISTS cxx_mlir_header_dirs)
+    target_compile_options(cxx-mlir-dialect PUBLIC "SHELL:-idirafter ${dir}")
+endforeach()
 
 mlir_target_link_libraries(cxx-mlir-dialect PUBLIC
     MLIRArithDialect

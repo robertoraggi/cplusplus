@@ -549,7 +549,8 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
     gen.emitSubobjectConstruction(
         loc, fieldPtr, *shape, completeObject, [&](ir::ValueRef element) {
           (void)gen.emitCtorCall(loc, ast->constructor, element, args,
-                                 completeObject);
+                                 completeObject, {},
+                                 is_potentially_overlapping_subobject(symbol));
         });
     return {};
   }
@@ -605,7 +606,7 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
     }
   }
 
-  if (gen.traits.is_class(gen.traits.remove_cv(targetType)) &&
+  if (gen.traits.is_class_or_union(gen.traits.remove_cv(targetType)) &&
       (gen.emitter_.typeKind(gen.emitter_.typeOf(value)) ==
        ir::TypeKind::Pointer)) {
     value = gen.emitter_.load(loc, gen.convertType(targetType), value,

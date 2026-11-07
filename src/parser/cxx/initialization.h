@@ -34,8 +34,8 @@ namespace cxx {
 
 [[nodiscard]] auto makeDefaultInitializer(TranslationUnit* unit,
                                           ExpressionAST* expression,
-                                          SourceLocation location,
-                                          ScopeSymbol* scope) -> ExpressionAST*;
+                                          DefaultInitializerContext context)
+    -> ExpressionAST*;
 
 [[nodiscard]] auto makeClassConstruction(TranslationUnit* unit,
                                          const Type* type,
@@ -119,6 +119,9 @@ class InitializedEntity {
   [[nodiscard]] auto description() const -> std::string;
 
   [[nodiscard]] auto isPotentiallyOverlapping() const -> bool;
+  [[nodiscard]] auto isDelegating() const -> bool {
+    return kind_ == Kind::kDelegating;
+  }
 
  private:
   enum class Kind {
@@ -194,6 +197,10 @@ class Initializer {
 [[nodiscard]] auto constantExpressionTarget(ExpressionAST*& initializer)
     -> ExpressionAST**;
 
+[[nodiscard]] auto materializedTemporaryInitializer(const TypeTraits& traits,
+                                                    ExpressionAST*& initializer)
+    -> ExpressionAST**;
+
 [[nodiscard]] auto isWholeArrayCopy(const TypeTraits& traits,
                                     ExpressionAST* expression,
                                     const Type* arrayType) -> bool;
@@ -232,6 +239,11 @@ struct AggregateInitializerPlan {
   bool valid = true;
 };
 
+[[nodiscard]] auto initializingPrvalue(const TypeTraits& traits,
+                                       const Type* type,
+                                       List<ExpressionAST*>* arguments)
+    -> ExpressionAST*;
+
 [[nodiscard]] auto listInitializedElement(const TypeTraits& traits,
                                           ExpressionAST* initializer)
     -> ExpressionAST*;
@@ -239,6 +251,10 @@ struct AggregateInitializerPlan {
 [[nodiscard]] auto materializedTemporaries(const TypeTraits& traits,
                                            ExpressionAST* initializer)
     -> std::vector<ExpressionAST*>;
+
+[[nodiscard]] auto extendedBackingArrays(const TypeTraits& traits,
+                                         ExpressionAST* initializer)
+    -> std::vector<List<ExpressionAST*>*>;
 
 struct StringLiteralInitialization {
   const Type* destinationElementType = nullptr;
@@ -292,6 +308,25 @@ struct InitializationResult {
                               InitializationKind kind,
                               ExpressionAST*& initializer)
     -> InitializationResult;
+
+class ASTInterpreter;
+
+class PreparedInitialization {
+ public:
+  PreparedInitialization(
+      TranslationUnit* unit, ScopeSymbol* scope, const Type* type,
+      ExpressionAST* initializer,
+      InitializationKind kind = InitializationKind::kCopyInitialization);
+
+  [[nodiscard]] auto value(ASTInterpreter* interpreter)
+      -> std::optional<ConstValue>;
+
+ private:
+  const Type* type_;
+  ExpressionAST* initializer_;
+  FunctionSymbol* constructor_ = nullptr;
+  bool valid_ = false;
+};
 
 void diagnoseNarrowingListElement(InitContext& ctx, ExpressionAST* element,
                                   const Type* targetType);

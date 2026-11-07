@@ -492,6 +492,12 @@ auto cxx::TypeChecker::Visitor::typeCheckBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_ISUNORDERED:
       return checkBuiltinFloatComparison(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_ADD_SAT:
+      return checkBuiltinSaturatingArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_SUB_SAT:
+      return checkBuiltinSaturatingArithmetic(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
       return checkBuiltinArithmeticOverflow(ast);
 

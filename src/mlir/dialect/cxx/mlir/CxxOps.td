@@ -47,6 +47,32 @@ class Cxx_Type<string name, string typeMnemonic, list<Trait> traits = []>
 class Cxx_Op<string mnemonic, list<Trait> traits = []>
     : Op<Cxx_Dialect, mnemonic, traits> {}
 
+class Cxx_SymbolOp<string mnemonic, list<Trait> traits = []>
+    : Cxx_Op<mnemonic, !listconcat(traits, [Symbol])> {
+  code symbolAccessors = [{
+    [[nodiscard]] auto getNameAttr() -> StringAttr { return getSymNameAttr(); }
+    [[nodiscard]] auto getVisibility() -> SymbolTable::Visibility {
+      auto visibility = (*this)->template getAttrOfType<StringAttr>("sym_visibility");
+      if (!visibility || visibility.getValue() == "public")
+        return SymbolTable::Visibility::Public;
+      if (visibility.getValue() == "private")
+        return SymbolTable::Visibility::Private;
+      assert(visibility.getValue() == "nested");
+      return SymbolTable::Visibility::Nested;
+    }
+    void setVisibility(SymbolTable::Visibility visibility) {
+      if (visibility == SymbolTable::Visibility::Public) {
+        (*this)->removeAttr("sym_visibility");
+        return;
+      }
+      auto spelling = visibility == SymbolTable::Visibility::Private
+                          ? "private" : "nested";
+      (*this)->setAttr("sym_visibility", StringAttr::get(getContext(), spelling));
+    }
+  }];
+  let extraClassDeclaration = symbolAccessors;
+}
+
 // enums
 class Cxx_I32EnumAttr<string name, string summary, list<I32EnumAttrCase> cases>
     : I32EnumAttr<name, summary, cases> {
@@ -230,7 +256,7 @@ def Cxx_FunctionType : Cxx_Type<"Function", "function"> {
 
 // ops
 
-def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove,
+def Cxx_FuncOp : Cxx_SymbolOp<"func", [FunctionOpInterface, IsolatedFromAbove,
                                AutomaticAllocationScope]> {
   let arguments = (ins SymbolNameAttr:$sym_name,
       TypeAttrOf<Cxx_FunctionType>:$function_type,
@@ -245,11 +271,12 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove,
       OptionalAttr<DictArrayAttr>:$arg_attrs,
       OptionalAttr<DictArrayAttr>:$res_attrs,
       OptionalAttr<StrAttr>:$section,
+      OptionalAttr<StrAttr>:$comdat,
       OptionalAttr<Cxx_CallingConvention>:$calling_convention);
 
   let regions = (region AnyRegion:$body);
 
-  let extraClassDeclaration = [{
+  let extraClassDeclaration = symbolAccessors # [{
     auto getArgumentTypes() -> ArrayRef<Type> { return getFunctionType().getInputs(); }
     auto getResultTypes() -> ArrayRef<Type> { return getFunctionType().getResults(); }
     auto getCallableRegion() -> Region* { return &getBody(); }
@@ -258,7 +285,7 @@ def Cxx_FuncOp : Cxx_Op<"func", [FunctionOpInterface, IsolatedFromAbove,
   let hasCustomAssemblyFormat = 1;
 }
 
-def Cxx_GlobalOp : Cxx_Op<"global", [IsolatedFromAbove]> {
+def Cxx_GlobalOp : Cxx_SymbolOp<"global", [IsolatedFromAbove]> {
   let arguments = (ins
       TypeAttrOf<AnyType>:$global_type
     , UnitAttr:$constant
@@ -283,10 +310,10 @@ def Cxx_GlobalCtorOp : Cxx_Op<"global_ctor"> {
   let arguments = (ins FlatSymbolRefAttr:$ctor,
       DefaultValuedAttr<I32Attr, "65535">:$priority);
 
-  let assemblyFormat = "$ctor attr-dict";
+  let assemblyFormat = "$ctor prop-dict attr-dict";
 }
 
-def Cxx_VTableOp : Cxx_Op<"vtable"> {
+def Cxx_VTableOp : Cxx_SymbolOp<"vtable"> {
   let summary = "one Itanium virtual table group";
   let description = [{
     A virtual table group is one object: the primary virtual table followed by
@@ -350,7 +377,7 @@ def Cxx_CallOp : Cxx_Op<"call", [AttrSizedOperandSegments,
   let assemblyFormat = [{
     ($callee^)?
     (`indirect` $callee_operand^ `:` type($callee_operand))?
-    `(` $inputs `)` attr-dict `:` functional-type($inputs, results)
+    `(` $inputs `)` prop-dict attr-dict `:` functional-type($inputs, results)
   }];
 
   let builders = [
@@ -389,7 +416,7 @@ def Cxx_InvokeOp : Cxx_Op<"invoke", [AttrSizedOperandSegments, Terminator]> {
   let successors = (successor AnySuccessor:$normal, AnySuccessor:$unwind);
   let assemblyFormat = [{
     ($callee^)? (`indirect` $callee_operand^ `:` type($callee_operand))?
-    `(` $inputs `)` `to` $normal `unwind` $unwind attr-dict
+    `(` $inputs `)` `to` $normal `unwind` $unwind prop-dict attr-dict
     `:` functional-type($inputs, results)
   }];
 }
@@ -430,7 +457,7 @@ def Cxx_InlineAsmOp : Cxx_Op<"inline_asm"> {
   let results = (outs Variadic<AnyType>:$results);
   let assemblyFormat = [{
     (`has_side_effects` $has_side_effects^)?
-    $asm_string `,` $constraints `(` $inputs `)` attr-dict
+    $asm_string `,` $constraints `(` $inputs `)` prop-dict attr-dict
     `:` functional-type($inputs, results)
   }];
   let hasVerifier = 1;
@@ -444,7 +471,7 @@ def Cxx_AsmGotoOp : Cxx_Op<"asm_goto", [Terminator]> {
                               VariadicSuccessor<AnySuccessor>:$destinations);
   let assemblyFormat = [{
     $asm_string `,` $constraints `(` $inputs `)` `to` $fallthrough
-    `[` $destinations `]` attr-dict `:` functional-type($inputs, results)
+    `[` $destinations `]` prop-dict attr-dict `:` functional-type($inputs, results)
   }];
   let hasVerifier = 1;
 }
@@ -782,7 +809,7 @@ def Cxx_GotoOp : Cxx_Op<"goto", [AttrSizedOperandSegments]> {
     , StringProp:$label
   );
 
-  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts (`initialized` `(` $initializedCounts^ `:` type($initializedCounts) `)`)? attr-dict";
+  let assemblyFormat = "$label `(` $addresses `:` type($addresses) `)` `destructors` $destructors `depths` $depths `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts (`initialized` `(` $initializedCounts^ `:` type($initializedCounts) `)`)? prop-dict attr-dict";
 }
 
 def Cxx_LabelAddressOp : Cxx_Op<"label_address"> {
@@ -791,7 +818,7 @@ def Cxx_LabelAddressOp : Cxx_Op<"label_address"> {
                        OptionalAttr<StrAttr>:$func_name);
   let results   = (outs Cxx_PointerType:$result);
 
-  let assemblyFormat = "$label_name attr-dict `:` type($result)";
+  let assemblyFormat = "$label_name prop-dict attr-dict `:` type($result)";
 }
 
 def Cxx_IndirectGotoOp : Cxx_Op<"indirect_goto", [Terminator]> {
@@ -815,7 +842,7 @@ def Cxx_CleanupBranchOp : Cxx_Op<"cleanup_branch",
 
   let successors = (successor AnySuccessor:$dest);
 
-  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts (`initialized` `(` $initializedCounts^ `:` type($initializedCounts) `)`)? $dest attr-dict";
+  let assemblyFormat = "`(` $addresses `:` type($addresses) `)` `destructors` $destructors `flags` `(` $activeFlags `:` type($activeFlags) `)` `active` $activeFlagIndices `counts` $elementCounts (`initialized` `(` $initializedCounts^ `:` type($initializedCounts) `)`)? $dest prop-dict attr-dict";
 }
 
 //
@@ -859,7 +886,7 @@ def BitfieldLoadOp : Cxx_Op<"bitfield.load"> {
                        I64Attr:$storage_size, I64Attr:$alignment,
                        BoolAttr:$is_signed, UnitAttr:$volatile_);
   let results = (outs AnySignlessInteger:$result);
-  let assemblyFormat = "(`volatile` $volatile_^)? $addr attr-dict `:` type($addr) `->` type($result)";
+  let assemblyFormat = "(`volatile` $volatile_^)? $addr prop-dict attr-dict `:` type($addr) `->` type($result)";
 }
 
 def BitfieldStoreOp : Cxx_Op<"bitfield.store"> {
@@ -867,5 +894,5 @@ def BitfieldStoreOp : Cxx_Op<"bitfield.store"> {
                        I32Attr:$bit_offset, I32Attr:$bit_width,
                        I64Attr:$storage_size, I64Attr:$alignment,
                        UnitAttr:$volatile_);
-  let assemblyFormat = "(`volatile` $volatile_^)? $value `,` $addr attr-dict `:` type($value) `,` type($addr)";
+  let assemblyFormat = "(`volatile` $volatile_^)? $value `,` $addr prop-dict attr-dict `:` type($value) `,` type($addr)";
 }

@@ -298,9 +298,10 @@ auto ASTRewriter::StatementVisitor::operator()(CaseStatementAST* ast)
   auto copy = CaseStatementAST::create(arena());
 
   copy->caseLoc = ast->caseLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.constantExpression(ast->expression);
+  rewrite.requireConstantExpression(copy->expression, "case label");
   copy->ellipsisLoc = ast->ellipsisLoc;
-  copy->upperExpression = rewrite.expression(ast->upperExpression);
+  copy->upperExpression = rewrite.constantExpression(ast->upperExpression);
   copy->colonLoc = ast->colonLoc;
 
   copy->caseValue = ast->caseValue;
@@ -380,18 +381,17 @@ auto ASTRewriter::StatementVisitor::operator()(IfStatementAST* ast)
   copy->constexprLoc = ast->constexprLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->initializer = rewrite.statement(ast->initializer);
-  copy->condition = rewrite.expression(ast->condition);
-  typeChecker().check_bool_condition(copy->condition);
+  {
+    TranslationUnit::ImmediateFunctionContextScope immediate{
+        translationUnit(), static_cast<bool>(ast->constexprLoc)};
+    copy->condition = rewrite.expression(ast->condition);
+    typeChecker().check_bool_condition(copy->condition);
+  }
   copy->rparenLoc = ast->rparenLoc;
 
   std::optional<bool> constexprValue;
-  if (ast->constexprLoc && copy->condition &&
-      !isDependent(rewrite.unit_, copy->condition)) {
-    auto interp = ASTInterpreter{rewrite.unit_};
-    if (auto val = interp.evaluate(copy->condition)) {
-      constexprValue = interp.toBool(*val);
-    }
-  }
+  if (ast->constexprLoc)
+    constexprValue = typeChecker().fold_constexpr_condition(copy->condition);
 
   copy->elseLoc = ast->elseLoc;
   if (constexprValue.has_value()) {

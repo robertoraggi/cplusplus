@@ -125,8 +125,8 @@ std::vector<CLIOptionDescr> options{
      CLIOptionDescrKind::kPrefixed},
 
     {"-std", "<standard>",
-     "Assume that the input sources are for <standard>, one of 'c++14', "
-     "'c++17', 'c++20', 'c++23', 'c++26', or 'c23'",
+     "Assume that the input sources are for <standard>, such as 'c++11', "
+     "'c++17', 'gnu++26', or 'c23'",
      CLIOptionDescrKind::kJoined},
 
     {"--sysroot", "<directory>",
@@ -157,6 +157,10 @@ std::vector<CLIOptionDescr> options{
     {"-iwithsysroot", "<directory>",
      "Add directory to SYSTEM include search path, absolute paths are "
      "relative to -isysroot",
+     CLIOptionDescrKind::kSeparated},
+
+    {"-idirafter", "<directory>",
+     "Add directory to the end of the SYSTEM include search path",
      CLIOptionDescrKind::kSeparated},
 
     {"-stdlib", "<library>",
@@ -233,9 +237,6 @@ std::vector<CLIOptionDescr> options{
      CLIOptionDescrKind::kSeparated},
 
     {"-fno-check", "Disable type checker", &CLI::opt_fno_check},
-
-    {"-fvalidate-ast", "Validate completed template instantiations",
-     &CLI::opt_fvalidate_ast},
 
     {"-ftime-trace", "<file>",
      "Write declaration timings in Chrome JSON format",

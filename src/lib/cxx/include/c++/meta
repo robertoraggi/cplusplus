@@ -1,0 +1,628 @@
+// Copyright (c) 2026 Roberto Raggi <roberto.raggi@gmail.com>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+#ifndef CXX_META_INCLUDED
+#define CXX_META_INCLUDED
+
+#include <array>
+#include <climits>
+#include <compare>
+#include <complex>
+#include <concepts>
+#include <cstddef>
+#include <exception>
+#include <initializer_list>
+#include <memory>
+#include <ranges>
+#include <source_location>
+#include <span>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+namespace std::meta {
+using info = decltype(^^::);
+}
+
+namespace std {
+
+consteval bool is_string_literal(const char* p);
+consteval bool is_string_literal(const wchar_t* p);
+consteval bool is_string_literal(const char8_t* p);
+consteval bool is_string_literal(const char16_t* p);
+consteval bool is_string_literal(const char32_t* p);
+
+namespace meta {
+template <ranges::input_range R>
+consteval info reflect_constant_string(R&& r);
+template <ranges::input_range R>
+consteval info reflect_constant_array(R&& r);
+}
+template <ranges::input_range R>
+consteval const ranges::range_value_t<R>* define_static_string(R&& r);
+template <ranges::input_range R>
+consteval auto define_static_array(R&& r);
+template <class T>
+consteval const remove_cvref_t<T>* define_static_object(T&& r);
+}
+
+namespace std::meta {
+
+class exception : public std::exception {
+ private:
+  string __what_;
+  u8string __u8what_;
+  info __from_;
+  source_location __where_;
+
+  static consteval string __to_ordinary(u8string_view text) {
+    return string(text.begin(), text.end());
+  }
+
+  static consteval u8string __to_utf8(string_view text) {
+    return u8string(text.begin(), text.end());
+  }
+
+ public:
+  consteval exception(u8string_view what, info from,
+                      source_location where = source_location::current()) noexcept
+      : __what_(__to_ordinary(what)),
+        __u8what_(what),
+        __from_(from),
+        __where_(where) {}
+
+  consteval exception(string_view what, info from,
+                      source_location where = source_location::current()) noexcept
+      : __what_(what),
+        __u8what_(__to_utf8(what)),
+        __from_(from),
+        __where_(where) {}
+
+  exception(const exception&) = default;
+  exception(exception&&) = default;
+
+  exception& operator=(const exception&) = default;
+  exception& operator=(exception&&) = default;
+
+  constexpr const char* what() const noexcept override {
+    return __what_.c_str();
+  }
+  consteval u8string_view u8what() const noexcept { return __u8what_; }
+  consteval info from() const noexcept { return __from_; }
+  consteval source_location where() const noexcept { return __where_; }
+};
+
+enum class operators {
+  op_new,
+  op_delete,
+  op_array_new,
+  op_array_delete,
+  op_co_await,
+  op_parentheses,
+  op_square_brackets,
+  op_arrow,
+  op_arrow_star,
+  op_tilde,
+  op_exclamation,
+  op_plus,
+  op_minus,
+  op_star,
+  op_slash,
+  op_percent,
+  op_caret,
+  op_ampersand,
+  op_equals,
+  op_pipe,
+  op_plus_equals,
+  op_minus_equals,
+  op_star_equals,
+  op_slash_equals,
+  op_percent_equals,
+  op_caret_equals,
+  op_ampersand_equals,
+  op_pipe_equals,
+  op_equals_equals,
+  op_exclamation_equals,
+  op_less,
+  op_greater,
+  op_less_equals,
+  op_greater_equals,
+  op_spaceship,
+  op_ampersand_ampersand,
+  op_pipe_pipe,
+  op_less_less,
+  op_greater_greater,
+  op_less_less_equals,
+  op_greater_greater_equals,
+  op_plus_plus,
+  op_minus_minus,
+  op_comma
+};
+using enum operators;
+consteval operators operator_of(info r);
+consteval string_view symbol_of(operators op);
+consteval u8string_view u8symbol_of(operators op);
+
+consteval bool has_identifier(info r);
+
+consteval string_view identifier_of(info r);
+consteval u8string_view u8identifier_of(info r);
+
+consteval string_view display_string_of(info r);
+consteval u8string_view u8display_string_of(info r);
+
+consteval source_location source_location_of(info r);
+
+consteval info type_of(info r);
+consteval info object_of(info r);
+consteval info constant_of(info r);
+
+consteval bool is_public(info r);
+consteval bool is_protected(info r);
+consteval bool is_private(info r);
+
+consteval bool is_virtual(info r);
+consteval bool is_pure_virtual(info r);
+consteval bool is_override(info r);
+consteval bool is_final(info r);
+
+consteval bool is_deleted(info r);
+consteval bool is_defaulted(info r);
+consteval bool is_user_provided(info r);
+consteval bool is_user_declared(info r);
+consteval bool is_explicit(info r);
+consteval bool is_noexcept(info r);
+
+consteval bool is_bit_field(info r);
+consteval bool is_enumerator(info r);
+consteval bool is_annotation(info r);
+
+consteval bool is_const(info r);
+consteval bool is_volatile(info r);
+consteval bool is_mutable_member(info r);
+consteval bool is_lvalue_reference_qualified(info r);
+consteval bool is_rvalue_reference_qualified(info r);
+
+consteval bool has_static_storage_duration(info r);
+consteval bool has_thread_storage_duration(info r);
+consteval bool has_automatic_storage_duration(info r);
+
+consteval bool has_internal_linkage(info r);
+consteval bool has_module_linkage(info r);
+consteval bool has_external_linkage(info r);
+consteval bool has_c_language_linkage(info r);
+consteval bool has_linkage(info r);
+
+consteval bool is_complete_type(info r);
+consteval bool is_enumerable_type(info r);
+
+consteval bool is_variable(info r);
+consteval bool is_type(info r);
+consteval bool is_namespace(info r);
+consteval bool is_type_alias(info r);
+consteval bool is_namespace_alias(info r);
+
+consteval bool is_function(info r);
+consteval bool is_conversion_function(info r);
+consteval bool is_operator_function(info r);
+consteval bool is_literal_operator(info r);
+consteval bool is_special_member_function(info r);
+consteval bool is_constructor(info r);
+consteval bool is_default_constructor(info r);
+consteval bool is_copy_constructor(info r);
+consteval bool is_move_constructor(info r);
+consteval bool is_assignment(info r);
+consteval bool is_copy_assignment(info r);
+consteval bool is_move_assignment(info r);
+consteval bool is_destructor(info r);
+
+consteval bool is_function_parameter(info r);
+consteval bool is_explicit_object_parameter(info r);
+consteval bool has_default_argument(info r);
+consteval bool is_vararg_function(info r);
+
+consteval bool is_template(info r);
+consteval bool is_function_template(info r);
+consteval bool is_variable_template(info r);
+consteval bool is_class_template(info r);
+consteval bool is_alias_template(info r);
+consteval bool is_conversion_function_template(info r);
+consteval bool is_operator_function_template(info r);
+consteval bool is_literal_operator_template(info r);
+consteval bool is_constructor_template(info r);
+consteval bool is_concept(info r);
+
+consteval bool is_value(info r);
+consteval bool is_object(info r);
+
+consteval bool is_structured_binding(info r);
+
+consteval bool is_class_member(info r);
+consteval bool is_namespace_member(info r);
+consteval bool is_nonstatic_data_member(info r);
+consteval bool is_static_member(info r);
+consteval bool is_base(info r);
+
+consteval bool has_default_member_initializer(info r);
+
+consteval bool has_parent(info r);
+consteval info parent_of(info r);
+
+consteval info dealias(info r);
+
+consteval bool has_template_arguments(info r);
+consteval info template_of(info r);
+consteval vector<info> template_arguments_of(info r);
+consteval vector<info> parameters_of(info r);
+consteval info variable_of(info r);
+consteval info return_type_of(info r);
+
+struct access_context {
+  info _M_scope;
+  info _M_designating_class;
+
+  access_context() = delete;
+  consteval info scope() const { return _M_scope; }
+  consteval info designating_class() const { return _M_designating_class; }
+  static consteval access_context current() noexcept;
+  static consteval access_context unprivileged() noexcept {
+    return access_context((^^::), info{});
+  }
+  static consteval access_context unchecked() noexcept {
+    return access_context(info{}, info{});
+  }
+  consteval access_context via(info cls) const;
+
+ private:
+  consteval access_context(info scope, info designating)
+      : _M_scope(scope), _M_designating_class(designating) {}
+};
+
+consteval bool is_accessible(info r, access_context ctx);
+consteval bool has_inaccessible_nonstatic_data_members(info r,
+                                                       access_context ctx);
+consteval bool has_inaccessible_bases(info r, access_context ctx);
+consteval bool has_inaccessible_subobjects(info r, access_context ctx);
+
+consteval info current_function();
+consteval info current_class();
+consteval info current_namespace();
+
+consteval vector<info> members_of(info r, access_context ctx);
+consteval vector<info> bases_of(info type, access_context ctx);
+consteval vector<info> static_data_members_of(info type, access_context ctx);
+consteval vector<info> nonstatic_data_members_of(info type, access_context ctx);
+consteval vector<info> subobjects_of(info type, access_context ctx);
+consteval vector<info> enumerators_of(info type_enum);
+
+struct member_offset {
+  ptrdiff_t bytes;
+  ptrdiff_t bits;
+  constexpr ptrdiff_t total_bits() const { return bytes * CHAR_BIT + bits; }
+  auto operator<=>(const member_offset&) const = default;
+};
+consteval member_offset offset_of(info r);
+consteval size_t size_of(info r);
+consteval size_t alignment_of(info r);
+consteval size_t bit_size_of(info r);
+
+consteval vector<info> annotations_of(info item);
+consteval vector<info> annotations_of_with_type(info item, info type);
+
+template <class T>
+consteval T extract(info r);
+
+template <class R>
+concept reflection_range =
+    ranges::input_range<R> && same_as<ranges::range_value_t<R>, info> &&
+    same_as<remove_cvref_t<ranges::range_reference_t<R>>, info>;
+
+template <reflection_range R = initializer_list<info>>
+consteval bool can_substitute(info templ, R&& arguments);
+template <reflection_range R = initializer_list<info>>
+consteval info substitute(info templ, R&& arguments);
+
+template <class T>
+consteval info reflect_constant(T expr);
+template <class T>
+consteval info reflect_object(T& expr);
+template <class T>
+consteval info reflect_function(T& fn);
+
+struct data_member_options;
+consteval info data_member_spec(info type, data_member_options options);
+consteval bool is_data_member_spec(info r);
+template <reflection_range R = initializer_list<info>>
+consteval info define_aggregate(info type_class, R&& mdescrs);
+
+consteval bool is_void_type(info type);
+consteval bool is_null_pointer_type(info type);
+consteval bool is_integral_type(info type);
+consteval bool is_floating_point_type(info type);
+consteval bool is_array_type(info type);
+consteval bool is_pointer_type(info type);
+consteval bool is_lvalue_reference_type(info type);
+consteval bool is_rvalue_reference_type(info type);
+consteval bool is_member_object_pointer_type(info type);
+consteval bool is_member_function_pointer_type(info type);
+consteval bool is_enum_type(info type);
+consteval bool is_union_type(info type);
+consteval bool is_class_type(info type);
+consteval bool is_function_type(info type);
+consteval bool is_reflection_type(info type);
+
+consteval bool is_reference_type(info type);
+consteval bool is_arithmetic_type(info type);
+consteval bool is_fundamental_type(info type);
+consteval bool is_object_type(info type);
+consteval bool is_scalar_type(info type);
+consteval bool is_compound_type(info type);
+consteval bool is_member_pointer_type(info type);
+
+consteval bool is_const_type(info type);
+consteval bool is_volatile_type(info type);
+consteval bool is_trivially_copyable_type(info type);
+consteval bool is_standard_layout_type(info type);
+consteval bool is_empty_type(info type);
+consteval bool is_polymorphic_type(info type);
+consteval bool is_abstract_type(info type);
+consteval bool is_final_type(info type);
+consteval bool is_aggregate_type(info type);
+consteval bool is_structural_type(info type);
+consteval bool is_signed_type(info type);
+consteval bool is_unsigned_type(info type);
+consteval bool is_bounded_array_type(info type);
+consteval bool is_unbounded_array_type(info type);
+consteval bool is_scoped_enum_type(info type);
+
+template <reflection_range R = initializer_list<info>>
+consteval bool is_constructible_type(info type, R&& type_args);
+consteval bool is_default_constructible_type(info type);
+consteval bool is_copy_constructible_type(info type);
+consteval bool is_move_constructible_type(info type);
+
+consteval bool is_assignable_type(info type_dst, info type_src);
+consteval bool is_copy_assignable_type(info type);
+consteval bool is_move_assignable_type(info type);
+
+consteval bool is_swappable_with_type(info type1, info type2);
+consteval bool is_swappable_type(info type);
+
+consteval bool is_destructible_type(info type);
+
+template <reflection_range R = initializer_list<info>>
+consteval bool is_trivially_constructible_type(info type, R&& type_args);
+consteval bool is_trivially_default_constructible_type(info type);
+consteval bool is_trivially_copy_constructible_type(info type);
+consteval bool is_trivially_move_constructible_type(info type);
+
+consteval bool is_trivially_assignable_type(info type_dst, info type_src);
+consteval bool is_trivially_copy_assignable_type(info type);
+consteval bool is_trivially_move_assignable_type(info type);
+consteval bool is_trivially_destructible_type(info type);
+
+template <reflection_range R = initializer_list<info>>
+consteval bool is_nothrow_constructible_type(info type, R&& type_args);
+consteval bool is_nothrow_default_constructible_type(info type);
+consteval bool is_nothrow_copy_constructible_type(info type);
+consteval bool is_nothrow_move_constructible_type(info type);
+
+consteval bool is_nothrow_assignable_type(info type_dst, info type_src);
+consteval bool is_nothrow_copy_assignable_type(info type);
+consteval bool is_nothrow_move_assignable_type(info type);
+
+consteval bool is_nothrow_swappable_with_type(info type1, info type2);
+consteval bool is_nothrow_swappable_type(info type);
+
+consteval bool is_nothrow_destructible_type(info type);
+
+consteval bool is_implicit_lifetime_type(info type);
+
+consteval bool has_virtual_destructor(info type);
+
+consteval bool has_unique_object_representations(info type);
+
+consteval bool reference_constructs_from_temporary(info type_dst,
+                                                   info type_src);
+consteval bool reference_converts_from_temporary(info type_dst, info type_src);
+
+consteval size_t rank(info type);
+consteval size_t extent(info type, unsigned i = 0);
+
+consteval bool is_same_type(info type1, info type2);
+consteval bool is_base_of_type(info type_base, info type_derived);
+consteval bool is_virtual_base_of_type(info type_base, info type_derived);
+consteval bool is_convertible_type(info type_src, info type_dst);
+consteval bool is_nothrow_convertible_type(info type_src, info type_dst);
+consteval bool is_layout_compatible_type(info type1, info type2);
+consteval bool is_pointer_interconvertible_base_of_type(info type_base,
+                                                        info type_derived);
+
+template <reflection_range R = initializer_list<info>>
+consteval bool is_invocable_type(info type, R&& type_args);
+template <reflection_range R = initializer_list<info>>
+consteval bool is_invocable_r_type(info type_result, info type, R&& type_args);
+
+template <reflection_range R = initializer_list<info>>
+consteval bool is_nothrow_invocable_type(info type, R&& type_args);
+template <reflection_range R = initializer_list<info>>
+consteval bool is_nothrow_invocable_r_type(info type_result, info type,
+                                           R&& type_args);
+
+consteval info remove_const(info type);
+consteval info remove_volatile(info type);
+consteval info remove_cv(info type);
+consteval info add_const(info type);
+consteval info add_volatile(info type);
+consteval info add_cv(info type);
+
+consteval info remove_reference(info type);
+consteval info add_lvalue_reference(info type);
+consteval info add_rvalue_reference(info type);
+
+consteval info make_signed(info type);
+consteval info make_unsigned(info type);
+
+consteval info remove_extent(info type);
+consteval info remove_all_extents(info type);
+
+consteval info remove_pointer(info type);
+consteval info add_pointer(info type);
+
+consteval info remove_cvref(info type);
+consteval info decay(info type);
+template <reflection_range R = initializer_list<info>>
+consteval info common_type(R&& type_args);
+template <reflection_range R = initializer_list<info>>
+consteval info common_reference(R&& type_args);
+consteval info underlying_type(info type);
+template <reflection_range R = initializer_list<info>>
+consteval info invoke_result(info type, R&& type_args);
+consteval info unwrap_reference(info type);
+consteval info unwrap_ref_decay(info type);
+
+consteval size_t tuple_size(info type);
+consteval info tuple_element(size_t index, info type);
+consteval bool is_applicable_type(info fn, info tuple);
+consteval bool is_nothrow_applicable_type(info fn, info tuple);
+consteval info apply_result(info fn, info tuple);
+
+consteval size_t variant_size(info type);
+consteval info variant_alternative(size_t index, info type);
+
+consteval strong_ordering type_order(info type_a, info type_b);
+
+namespace __detail {
+template <class T>
+inline constexpr bool __tuple_like_v = false;
+template <class T, size_t N>
+inline constexpr bool __tuple_like_v<array<T, N>> = true;
+template <class T>
+inline constexpr bool __tuple_like_v<complex<T>> = true;
+template <class T, class U>
+inline constexpr bool __tuple_like_v<pair<T, U>> = true;
+template <class... T>
+inline constexpr bool __tuple_like_v<tuple<T...>> = true;
+template <class I, class S, ranges::subrange_kind K>
+inline constexpr bool __tuple_like_v<ranges::subrange<I, S, K>> = true;
+
+template <class Fn, class Tuple, class Indices>
+struct __apply_traits;
+
+template <class Fn, class Tuple, size_t... N>
+  requires __tuple_like_v<remove_cvref_t<Tuple>>
+struct __apply_traits<Fn, Tuple, index_sequence<N...>> {
+  static constexpr bool applicable =
+      is_invocable_v<Fn, decltype(get<N>(declval<Tuple>()))...>;
+  static constexpr bool nothrow_applicable =
+      is_nothrow_invocable_v<Fn, decltype(get<N>(declval<Tuple>()))...>;
+  using result = std::invoke_result<Fn, decltype(get<N>(declval<Tuple>()))...>;
+};
+
+template <class Fn, class Tuple>
+using __apply_traits_t = __apply_traits<
+    Fn, Tuple, make_index_sequence<tuple_size_v<remove_reference_t<Tuple>>>>;
+
+template <class Fn, class Tuple>
+inline constexpr bool __is_applicable_v = false;
+template <class Fn, class Tuple>
+  requires requires { __apply_traits_t<Fn, Tuple>::applicable; }
+inline constexpr bool __is_applicable_v<Fn, Tuple> =
+    __apply_traits_t<Fn, Tuple>::applicable;
+
+template <class Fn, class Tuple>
+inline constexpr bool __is_nothrow_applicable_v = false;
+template <class Fn, class Tuple>
+  requires requires { __apply_traits_t<Fn, Tuple>::nothrow_applicable; }
+inline constexpr bool __is_nothrow_applicable_v<Fn, Tuple> =
+    __apply_traits_t<Fn, Tuple>::nothrow_applicable;
+
+template <class Fn, class Tuple>
+using __apply_result_t = __apply_traits_t<Fn, Tuple>::result::type;
+}
+
+consteval bool is_applicable_type(info fn, info tuple) {
+  return extract<bool>(substitute(^^__detail::__is_applicable_v, {fn, tuple}));
+}
+
+consteval bool is_nothrow_applicable_type(info fn, info tuple) {
+  return extract<bool>(
+      substitute(^^__detail::__is_nothrow_applicable_v, {fn, tuple}));
+}
+
+consteval info apply_result(info fn, info tuple) {
+  return dealias(substitute(^^__detail::__apply_result_t, {fn, tuple}));
+}
+}
+
+namespace std {
+
+template <ranges::input_range R>
+consteval const ranges::range_value_t<R>* define_static_string(R&& r) {
+  return meta::extract<const ranges::range_value_t<R>*>(
+      meta::reflect_constant_string(r));
+}
+
+namespace __detail {
+template <class R>
+concept __statically_sized = requires(R& range) {
+  typename integral_constant<size_t, ranges::size(range)>;
+};
+
+template <class S, class R>
+consteval S __static_span(R& range) {
+  using T = ranges::range_value_t<R>;
+  meta::info array = meta::reflect_constant_array(range);
+  if (meta::is_array_type(meta::type_of(array)))
+    return S(meta::extract<const T*>(array),
+             meta::extent(meta::type_of(array)));
+  return S(static_cast<const T*>(nullptr), 0);
+}
+}
+
+template <ranges::input_range R>
+consteval auto define_static_array(R&& r) {
+  using T = ranges::range_value_t<R>;
+  if constexpr (__detail::__statically_sized<R>) {
+    return __detail::__static_span<span<const T, ranges::size(r)>>(r);
+  } else {
+    return __detail::__static_span<span<const T>>(r);
+  }
+}
+
+template <class T>
+consteval const remove_cvref_t<T>* define_static_object(T&& t) {
+  using U = remove_cvref_t<T>;
+  if constexpr (meta::is_class_type(^^U) || meta::is_union_type(^^U)) {
+    return addressof(
+        meta::extract<const U&>(meta::reflect_constant(std::forward<T>(t))));
+  } else if constexpr (meta::is_array_type(^^U)) {
+    return addressof(meta::extract<const U&>(
+        meta::reflect_constant_array(std::forward<T>(t))));
+  } else {
+    return define_static_array(span(addressof(t), 1)).data();
+  }
+}
+}
+
+#endif

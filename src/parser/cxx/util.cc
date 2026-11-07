@@ -22,7 +22,7 @@
 
 namespace cxx {
 
-auto align_to(int n, int align) -> int {
+auto align_to(std::uint64_t n, std::uint64_t align) -> std::uint64_t {
   return (n + align - 1) / align * align;
 }
 

@@ -243,6 +243,10 @@ void addStandardIncludePaths(const CLI& cli, Toolchain* toolchain) {
     } else {
       toolchain->addSystemCppIncludePaths();
     }
+    auto compilerHeaders = fs::path{toolchain->appdir()}.parent_path() / "lib" /
+                           "cxx" / "include" / "c++";
+    toolchain->addSystemIncludePath(
+        compilerHeaders.lexically_normal().string());
   }
 
   toolchain->addSystemIncludePaths();
@@ -377,6 +381,9 @@ auto createToolchain(const CLI& cli, Preprocessor* preprocessor,
 
   addCommandLineSystemIncludePaths(cli, toolchain.get());
   addStandardIncludePaths(cli, toolchain.get());
+  for (const auto& path : cli.get("-idirafter")) {
+    preprocessor->addSystemIncludePath(path);
+  }
   toolchain->addPredefinedMacros();
 
   for (const auto& path : cli.get("-iquote")) {

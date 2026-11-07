@@ -37,10 +37,6 @@
 #include <mlir/IR/Verifier.h>
 #include <mlir/Parser/Parser.h>
 
-// gtest
-#undef GTEST_HAS_CXXABI_H_
-#define GTEST_HAS_CXXABI_H_ 0
-
 #include <gtest/gtest.h>
 
 #include <array>
@@ -67,7 +63,7 @@ class EmitterFixture : public ::testing::Test {
         mlir::cxx::InlineKindAttr{}, mlir::cxx::VisibilityAttr{},
         mlir::StringAttr{}, mlir::StringAttr{}, mlir::StringAttr{},
         mlir::StringAttr{}, /*used=*/false, mlir::ArrayAttr{},
-        mlir::ArrayAttr{}, mlir::StringAttr{},
+        mlir::ArrayAttr{}, mlir::StringAttr{}, mlir::StringAttr{},
         mlir::cxx::CallingConventionAttr{});
 
     builder.setInsertionPointToEnd(builder.createBlock(&func_.getBody()));
@@ -555,7 +551,8 @@ class IRVerification : public ::testing::Test {
     // Parse a structurally valid operation with an invalid return type, so only
     // the optional IR verifiers reject it.
     return mlir::parseSourceString<mlir::ModuleOp>(
-        "module { llvm.func @bad() -> i32 { llvm.return } }",
+        "module { llvm.func @bad() -> i32 { "
+        "%dead = llvm.mlir.constant(0 : i32) : i32 llvm.return } }",
         mlir::ParserConfig(&context_, /*verifyAfterParse=*/false));
   }
 

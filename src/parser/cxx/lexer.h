@@ -111,6 +111,8 @@ class Lexer {
  private:
   void consume();
   void consume(int n);
+  void skipLineComment();
+  void skipBlockComment();
 
   [[nodiscard]] auto readToken() -> TokenKind;
   [[nodiscard]] auto skipSpaces() -> bool;

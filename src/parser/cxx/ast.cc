@@ -191,6 +191,18 @@ auto StaticAssertDeclarationAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto ConstevalBlockDeclarationAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(constevalLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(statement)) return loc;
+  return {};
+}
+
+auto ConstevalBlockDeclarationAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(statement)) return loc;
+  if (auto loc = cxx::lastSourceLocation(constevalLoc)) return loc;
+  return {};
+}
+
 auto AliasDeclarationAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(usingLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(identifierLoc)) return loc;
@@ -1638,14 +1650,14 @@ auto VaArgExpressionAST::lastSourceLocation() -> SourceLocation {
 auto SubscriptExpressionAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(baseExpression)) return loc;
   if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
-  if (auto loc = cxx::firstSourceLocation(indexExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
   return {};
 }
 
 auto SubscriptExpressionAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
-  if (auto loc = cxx::lastSourceLocation(indexExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(expressionList)) return loc;
   if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(baseExpression)) return loc;
   return {};
@@ -2790,6 +2802,24 @@ auto UnderlyingTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto PackIndexTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(packSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::firstSourceLocation(indexExpression)) return loc;
+  if (auto loc = cxx::firstSourceLocation(rbracketLoc)) return loc;
+  return {};
+}
+
+auto PackIndexTypeSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(rbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(indexExpression)) return loc;
+  if (auto loc = cxx::lastSourceLocation(lbracketLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(ellipsisLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(packSpecifier)) return loc;
+  return {};
+}
+
 auto ElaboratedTypeSpecifierAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(classLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(attributeList)) return loc;
@@ -3160,6 +3190,16 @@ auto DecltypeIdAST::lastSourceLocation() -> SourceLocation {
   return {};
 }
 
+auto PackIndexIdAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(typeSpecifier)) return loc;
+  return {};
+}
+
+auto PackIndexIdAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(typeSpecifier)) return loc;
+  return {};
+}
+
 auto OperatorFunctionIdAST::firstSourceLocation() -> SourceLocation {
   if (auto loc = cxx::firstSourceLocation(operatorLoc)) return loc;
   if (auto loc = cxx::firstSourceLocation(opLoc)) return loc;
@@ -3283,6 +3323,18 @@ auto DecltypeNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
 auto DecltypeNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
   if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
   if (auto loc = cxx::lastSourceLocation(decltypeSpecifier)) return loc;
+  return {};
+}
+
+auto PackIndexNestedNameSpecifierAST::firstSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::firstSourceLocation(typeSpecifier)) return loc;
+  if (auto loc = cxx::firstSourceLocation(scopeLoc)) return loc;
+  return {};
+}
+
+auto PackIndexNestedNameSpecifierAST::lastSourceLocation() -> SourceLocation {
+  if (auto loc = cxx::lastSourceLocation(scopeLoc)) return loc;
+  if (auto loc = cxx::lastSourceLocation(typeSpecifier)) return loc;
   return {};
 }
 
@@ -3773,6 +3825,7 @@ std::string_view kASTKindNames[] = {
     "using-enum-declaration",
     "using-directive",
     "static-assert-declaration",
+    "consteval-block-declaration",
     "alias-declaration",
     "opaque-enum-declaration",
     "function-definition",
@@ -3959,6 +4012,7 @@ std::string_view kASTKindNames[] = {
     "atomic-type-specifier",
     "bit-int-type-specifier",
     "underlying-type-specifier",
+    "pack-index-type-specifier",
     "elaborated-type-specifier",
     "decltype-auto-specifier",
     "decltype-specifier",
@@ -3991,6 +4045,7 @@ std::string_view kASTKindNames[] = {
     "name-id",
     "destructor-id",
     "decltype-id",
+    "pack-index-id",
     "operator-function-id",
     "literal-operator-id",
     "conversion-function-id",
@@ -4002,6 +4057,7 @@ std::string_view kASTKindNames[] = {
     "global-nested-name-specifier",
     "simple-nested-name-specifier",
     "decltype-nested-name-specifier",
+    "pack-index-nested-name-specifier",
     "template-nested-name-specifier",
 
     // FunctionBodyAST
@@ -4071,7 +4127,7 @@ auto TranslationUnitAST::clone(Arena* arena) -> TranslationUnitAST* {
     }
   }
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -4111,7 +4167,7 @@ auto ModuleUnitAST::clone(Arena* arena) -> ModuleUnitAST* {
   if (privateModuleFragment)
     node->privateModuleFragment = privateModuleFragment->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -4263,7 +4319,7 @@ auto AsmDeclarationAST::clone(Arena* arena) -> AsmDeclarationAST* {
 
   node->rparenLoc = rparenLoc;
   node->semicolonLoc = semicolonLoc;
-  node->literal = literal;
+  node->literal = cloneAttribute(arena, literal);
 
   return node;
 }
@@ -4331,8 +4387,8 @@ auto NamespaceAliasDefinitionAST::clone(Arena* arena)
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
   node->semicolonLoc = semicolonLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -4518,10 +4574,10 @@ auto StaticAssertDeclarationAST::clone(Arena* arena)
 
   node->commaLoc = commaLoc;
   node->literalLoc = literalLoc;
-  node->literal = literal;
+  node->literal = cloneAttribute(arena, literal);
   node->rparenLoc = rparenLoc;
   node->semicolonLoc = semicolonLoc;
-  node->value = value;
+  node->value = cloneAttribute(arena, value);
 
   return node;
 }
@@ -4562,6 +4618,47 @@ auto StaticAssertDeclarationAST::create(Arena* arena, ExpressionAST* expression,
   return node;
 }
 
+auto ConstevalBlockDeclarationAST::clone(Arena* arena)
+    -> ConstevalBlockDeclarationAST* {
+  auto node = create(arena);
+
+  node->constevalLoc = constevalLoc;
+
+  if (statement) node->statement = statement->clone(arena);
+
+  node->symbol = cloneAttribute(arena, symbol);
+
+  return node;
+}
+
+auto ConstevalBlockDeclarationAST::create(Arena* arena)
+    -> ConstevalBlockDeclarationAST* {
+  auto node = new (arena) ConstevalBlockDeclarationAST();
+  return node;
+}
+
+auto ConstevalBlockDeclarationAST::create(Arena* arena,
+                                          SourceLocation constevalLoc,
+                                          CompoundStatementAST* statement,
+                                          LambdaSymbol* symbol)
+    -> ConstevalBlockDeclarationAST* {
+  auto node = new (arena) ConstevalBlockDeclarationAST();
+  node->constevalLoc = constevalLoc;
+  node->statement = statement;
+  node->symbol = symbol;
+  return node;
+}
+
+auto ConstevalBlockDeclarationAST::create(Arena* arena,
+                                          CompoundStatementAST* statement,
+                                          LambdaSymbol* symbol)
+    -> ConstevalBlockDeclarationAST* {
+  auto node = new (arena) ConstevalBlockDeclarationAST();
+  node->statement = statement;
+  node->symbol = symbol;
+  return node;
+}
+
 auto AliasDeclarationAST::clone(Arena* arena) -> AliasDeclarationAST* {
   auto node = create(arena);
 
@@ -4589,8 +4686,8 @@ auto AliasDeclarationAST::clone(Arena* arena) -> AliasDeclarationAST* {
   if (typeId) node->typeId = typeId->clone(arena);
 
   node->semicolonLoc = semicolonLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -4666,7 +4763,7 @@ auto OpaqueEnumDeclarationAST::clone(Arena* arena)
   }
 
   node->semicolonLoc = semicolonLoc;
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -4735,7 +4832,7 @@ auto FunctionDefinitionAST::clone(Arena* arena) -> FunctionDefinitionAST* {
 
   if (functionBody) node->functionBody = functionBody->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -4780,8 +4877,8 @@ auto TemplateDeclarationAST::clone(Arena* arena) -> TemplateDeclarationAST* {
 
   if (declaration) node->declaration = declaration->clone(arena);
 
-  node->symbol = symbol;
-  node->depth = depth;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->depth = cloneAttribute(arena, depth);
 
   return node;
 }
@@ -4832,8 +4929,8 @@ auto ConceptDefinitionAST::clone(Arena* arena) -> ConceptDefinitionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->semicolonLoc = semicolonLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -4896,8 +4993,8 @@ auto DeductionGuideAST::clone(Arena* arena) -> DeductionGuideAST* {
   if (templateId) node->templateId = templateId->clone(arena);
 
   node->semicolonLoc = semicolonLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -5076,7 +5173,7 @@ auto LinkageSpecificationAST::clone(Arena* arena) -> LinkageSpecificationAST* {
   }
 
   node->rbraceLoc = rbraceLoc;
-  node->stringLiteral = stringLiteral;
+  node->stringLiteral = cloneAttribute(arena, stringLiteral);
 
   return node;
 }
@@ -5157,9 +5254,9 @@ auto NamespaceDefinitionAST::clone(Arena* arena) -> NamespaceDefinitionAST* {
   }
 
   node->rbraceLoc = rbraceLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
-  node->isInline = isInline;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isInline = cloneAttribute(arena, isInline);
 
   return node;
 }
@@ -5345,11 +5442,11 @@ auto ParameterDeclarationAST::clone(Arena* arena) -> ParameterDeclarationAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->type = type;
-  node->identifier = identifier;
-  node->symbol = symbol;
-  node->isThisIntroduced = isThisIntroduced;
-  node->isPack = isPack;
+  node->type = cloneAttribute(arena, type);
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isThisIntroduced = cloneAttribute(arena, isThisIntroduced);
+  node->isPack = cloneAttribute(arena, isPack);
 
   return node;
 }
@@ -5405,7 +5502,7 @@ auto AccessDeclarationAST::clone(Arena* arena) -> AccessDeclarationAST* {
 
   node->accessLoc = accessLoc;
   node->colonLoc = colonLoc;
-  node->accessSpecifier = accessSpecifier;
+  node->accessSpecifier = cloneAttribute(arena, accessSpecifier);
 
   return node;
 }
@@ -5480,7 +5577,7 @@ auto StructuredBindingDeclarationAST::clone(Arena* arena)
   if (initializer) node->initializer = initializer->clone(arena);
 
   node->semicolonLoc = semicolonLoc;
-  node->binding = binding;
+  node->binding = cloneAttribute(arena, binding);
 
   return node;
 }
@@ -5537,8 +5634,8 @@ auto AsmOperandAST::clone(Arena* arena) -> AsmOperandAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->symbolicName = symbolicName;
-  node->constraintLiteral = constraintLiteral;
+  node->symbolicName = cloneAttribute(arena, symbolicName);
+  node->constraintLiteral = cloneAttribute(arena, constraintLiteral);
 
   return node;
 }
@@ -5583,7 +5680,7 @@ auto AsmQualifierAST::clone(Arena* arena) -> AsmQualifierAST* {
   auto node = create(arena);
 
   node->qualifierLoc = qualifierLoc;
-  node->qualifier = qualifier;
+  node->qualifier = cloneAttribute(arena, qualifier);
 
   return node;
 }
@@ -5612,7 +5709,7 @@ auto AsmClobberAST::clone(Arena* arena) -> AsmClobberAST* {
   auto node = create(arena);
 
   node->literalLoc = literalLoc;
-  node->literal = literal;
+  node->literal = cloneAttribute(arena, literal);
 
   return node;
 }
@@ -5641,7 +5738,7 @@ auto AsmGotoLabelAST::clone(Arena* arena) -> AsmGotoLabelAST* {
   auto node = create(arena);
 
   node->identifierLoc = identifierLoc;
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
 
   return node;
 }
@@ -5860,7 +5957,7 @@ auto ModuleNameAST::clone(Arena* arena) -> ModuleNameAST* {
   if (moduleQualifier) node->moduleQualifier = moduleQualifier->clone(arena);
 
   node->identifierLoc = identifierLoc;
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
 
   return node;
 }
@@ -5895,7 +5992,7 @@ auto ModuleQualifierAST::clone(Arena* arena) -> ModuleQualifierAST* {
 
   node->identifierLoc = identifierLoc;
   node->dotLoc = dotLoc;
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
 
   return node;
 }
@@ -6004,7 +6101,7 @@ auto InitDeclaratorAST::clone(Arena* arena) -> InitDeclaratorAST* {
 
   if (initializer) node->initializer = initializer->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -6077,8 +6174,8 @@ auto UsingDeclaratorAST::clone(Arena* arena) -> UsingDeclaratorAST* {
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
   node->ellipsisLoc = ellipsisLoc;
-  node->symbol = symbol;
-  node->isPack = isPack;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isPack = cloneAttribute(arena, isPack);
 
   return node;
 }
@@ -6134,8 +6231,8 @@ auto EnumeratorAST::clone(Arena* arena) -> EnumeratorAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -6194,7 +6291,7 @@ auto TypeIdAST::clone(Arena* arena) -> TypeIdAST* {
 
   if (declarator) node->declarator = declarator->clone(arena);
 
-  node->type = type;
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -6229,7 +6326,7 @@ auto HandlerAST::clone(Arena* arena) -> HandlerAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -6288,11 +6385,11 @@ auto BaseSpecifierAST::clone(Arena* arena) -> BaseSpecifierAST* {
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
   node->ellipsisLoc = ellipsisLoc;
-  node->isTemplateIntroduced = isTemplateIntroduced;
-  node->isVirtual = isVirtual;
-  node->isVariadic = isVariadic;
-  node->accessSpecifier = accessSpecifier;
-  node->symbol = symbol;
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
+  node->isVirtual = cloneAttribute(arena, isVirtual);
+  node->isVariadic = cloneAttribute(arena, isVariadic);
+  node->accessSpecifier = cloneAttribute(arena, accessSpecifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -6389,8 +6486,9 @@ auto ParameterDeclarationClauseAST::clone(Arena* arena)
 
   node->commaLoc = commaLoc;
   node->ellipsisLoc = ellipsisLoc;
-  node->functionParametersSymbol = functionParametersSymbol;
-  node->isVariadic = isVariadic;
+  node->functionParametersSymbol =
+      cloneAttribute(arena, functionParametersSymbol);
+  node->isVariadic = cloneAttribute(arena, isVariadic);
 
   return node;
 }
@@ -6461,7 +6559,7 @@ auto LambdaSpecifierAST::clone(Arena* arena) -> LambdaSpecifierAST* {
   auto node = create(arena);
 
   node->specifierLoc = specifierLoc;
-  node->specifier = specifier;
+  node->specifier = cloneAttribute(arena, specifier);
 
   return node;
 }
@@ -6504,8 +6602,8 @@ auto TypeConstraintAST::clone(Arena* arena) -> TypeConstraintAST* {
   }
 
   node->greaterLoc = greaterLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -6698,9 +6796,9 @@ auto NestedNamespaceSpecifierAST::clone(Arena* arena)
   node->inlineLoc = inlineLoc;
   node->identifierLoc = identifierLoc;
   node->scopeLoc = scopeLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
-  node->isInline = isInline;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isInline = cloneAttribute(arena, isInline);
 
   return node;
 }
@@ -6746,7 +6844,7 @@ auto LabeledStatementAST::clone(Arena* arena) -> LabeledStatementAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
 
   return node;
 }
@@ -6790,7 +6888,7 @@ auto CaseStatementAST::clone(Arena* arena) -> CaseStatementAST* {
   if (upperExpression) node->upperExpression = upperExpression->clone(arena);
 
   node->colonLoc = colonLoc;
-  node->caseValue = caseValue;
+  node->caseValue = cloneAttribute(arena, caseValue);
 
   if (statement) node->statement = statement->clone(arena);
 
@@ -6932,7 +7030,7 @@ auto CompoundStatementAST::clone(Arena* arena) -> CompoundStatementAST* {
   }
 
   node->rbraceLoc = rbraceLoc;
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -6996,7 +7094,7 @@ auto IfStatementAST::clone(Arena* arena) -> IfStatementAST* {
 
   if (elseStatement) node->elseStatement = elseStatement->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -7066,7 +7164,7 @@ auto ConstevalIfStatementAST::clone(Arena* arena) -> ConstevalIfStatementAST* {
 
   if (elseStatement) node->elseStatement = elseStatement->clone(arena);
 
-  node->isNot = isNot;
+  node->isNot = cloneAttribute(arena, isNot);
 
   return node;
 }
@@ -7127,7 +7225,7 @@ auto SwitchStatementAST::clone(Arena* arena) -> SwitchStatementAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -7190,7 +7288,7 @@ auto WhileStatementAST::clone(Arena* arena) -> WhileStatementAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -7251,7 +7349,7 @@ auto DoStatementAST::clone(Arena* arena) -> DoStatementAST* {
 
   node->rparenLoc = rparenLoc;
   node->semicolonLoc = semicolonLoc;
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -7319,8 +7417,8 @@ auto ForRangeStatementAST::clone(Arena* arena) -> ForRangeStatementAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
-  node->symbol = symbol;
-  node->range = range;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->range = cloneAttribute(arena, range);
 
   return node;
 }
@@ -7394,7 +7492,7 @@ auto ForStatementAST::clone(Arena* arena) -> ForStatementAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -7638,8 +7736,8 @@ auto GotoStatementAST::clone(Arena* arena) -> GotoStatementAST* {
   node->starLoc = starLoc;
   node->identifierLoc = identifierLoc;
   node->semicolonLoc = semicolonLoc;
-  node->identifier = identifier;
-  node->isIndirect = isIndirect;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->isIndirect = cloneAttribute(arena, isIndirect);
 
   return node;
 }
@@ -7761,13 +7859,13 @@ auto CharLiteralExpressionAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->literalLoc = literalLoc;
-  node->literal = literal;
+  node->literal = cloneAttribute(arena, literal);
 
   if (literalOperatorCall)
     node->literalOperatorCall = literalOperatorCall->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -7811,9 +7909,9 @@ auto BoolLiteralExpressionAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->literalLoc = literalLoc;
-  node->isTrue = isTrue;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->isTrue = cloneAttribute(arena, isTrue);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -7851,13 +7949,13 @@ auto IntLiteralExpressionAST::clone(Arena* arena) -> IntLiteralExpressionAST* {
   auto node = create(arena);
 
   node->literalLoc = literalLoc;
-  node->literal = literal;
+  node->literal = cloneAttribute(arena, literal);
 
   if (literalOperatorCall)
     node->literalOperatorCall = literalOperatorCall->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -7901,13 +7999,13 @@ auto FloatLiteralExpressionAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->literalLoc = literalLoc;
-  node->literal = literal;
+  node->literal = cloneAttribute(arena, literal);
 
   if (literalOperatorCall)
     node->literalOperatorCall = literalOperatorCall->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -7952,9 +8050,9 @@ auto NullptrLiteralExpressionAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->literalLoc = literalLoc;
-  node->literal = literal;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->literal = cloneAttribute(arena, literal);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -7995,10 +8093,10 @@ auto StringLiteralExpressionAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->literalLoc = literalLoc;
-  node->literal = literal;
-  node->encoding = encoding;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->literal = cloneAttribute(arena, literal);
+  node->encoding = cloneAttribute(arena, encoding);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8043,14 +8141,14 @@ auto UserDefinedStringLiteralExpressionAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->literalLoc = literalLoc;
-  node->literal = literal;
+  node->literal = cloneAttribute(arena, literal);
 
   if (literalOperatorCall)
     node->literalOperatorCall = literalOperatorCall->clone(arena);
 
-  node->encoding = encoding;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->encoding = cloneAttribute(arena, encoding);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8102,9 +8200,9 @@ auto ObjectLiteralExpressionAST::clone(Arena* arena)
 
   if (bracedInitList) node->bracedInitList = bracedInitList->clone(arena);
 
-  node->symbol = symbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8150,8 +8248,8 @@ auto ThisExpressionAST::clone(Arena* arena) -> ThisExpressionAST* {
   auto node = create(arena);
 
   node->thisLoc = thisLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8190,8 +8288,8 @@ auto PackIndexExpressionAST::clone(Arena* arena) -> PackIndexExpressionAST* {
   if (indexExpression) node->indexExpression = indexExpression->clone(arena);
 
   node->rbracketLoc = rbracketLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8251,9 +8349,9 @@ auto GenericSelectionExpressionAST::clone(Arena* arena)
   }
 
   node->rparenLoc = rparenLoc;
-  node->matchedAssocIndex = matchedAssocIndex;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->matchedAssocIndex = cloneAttribute(arena, matchedAssocIndex);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8307,8 +8405,8 @@ auto NestedStatementExpressionAST::clone(Arena* arena)
   if (statement) node->statement = statement->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8350,9 +8448,9 @@ auto DefaultInitializerExpressionAST::clone(Arena* arena)
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->context = context;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->context = cloneAttribute(arena, context);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8385,8 +8483,8 @@ auto NestedExpressionAST::clone(Arena* arena) -> NestedExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8430,10 +8528,10 @@ auto IdExpressionAST::clone(Arena* arena) -> IdExpressionAST* {
 
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
-  node->symbol = symbol;
-  node->isTemplateIntroduced = isTemplateIntroduced;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8556,11 +8654,11 @@ auto LambdaExpressionAST::clone(Arena* arena) -> LambdaExpressionAST* {
 
   if (statement) node->statement = statement->clone(arena);
 
-  node->captureDefault = captureDefault;
-  node->symbol = symbol;
-  node->constructorSymbol = constructorSymbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->captureDefault = cloneAttribute(arena, captureDefault);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->constructorSymbol = cloneAttribute(arena, constructorSymbol);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8665,10 +8763,10 @@ auto FoldExpressionAST::clone(Arena* arena) -> FoldExpressionAST* {
   if (rightExpression) node->rightExpression = rightExpression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->op = op;
-  node->foldOp = foldOp;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->op = cloneAttribute(arena, op);
+  node->foldOp = cloneAttribute(arena, foldOp);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8725,9 +8823,9 @@ auto RightFoldExpressionAST::clone(Arena* arena) -> RightFoldExpressionAST* {
   node->opLoc = opLoc;
   node->ellipsisLoc = ellipsisLoc;
   node->rparenLoc = rparenLoc;
-  node->op = op;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->op = cloneAttribute(arena, op);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8776,9 +8874,9 @@ auto LeftFoldExpressionAST::clone(Arena* arena) -> LeftFoldExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->op = op;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->op = cloneAttribute(arena, op);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8839,8 +8937,8 @@ auto RequiresExpressionAST::clone(Arena* arena) -> RequiresExpressionAST* {
   }
 
   node->rbraceLoc = rbraceLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8894,8 +8992,8 @@ auto VaArgExpressionAST::clone(Arena* arena) -> VaArgExpressionAST* {
   if (typeId) node->typeId = typeId->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8942,13 +9040,19 @@ auto SubscriptExpressionAST::clone(Arena* arena) -> SubscriptExpressionAST* {
 
   node->lbracketLoc = lbracketLoc;
 
-  if (indexExpression) node->indexExpression = indexExpression->clone(arena);
+  if (expressionList) {
+    auto it = &node->expressionList;
+    for (auto node : ListView{expressionList}) {
+      *it = make_list_node<ExpressionAST>(arena, node->clone(arena));
+      it = &(*it)->next;
+    }
+  }
 
   node->rbracketLoc = rbracketLoc;
-  node->symbol = symbol;
-  node->isVirtualDispatch = isVirtualDispatch;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isVirtualDispatch = cloneAttribute(arena, isVirtualDispatch);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -8960,13 +9064,13 @@ auto SubscriptExpressionAST::create(Arena* arena) -> SubscriptExpressionAST* {
 
 auto SubscriptExpressionAST::create(
     Arena* arena, ExpressionAST* baseExpression, SourceLocation lbracketLoc,
-    ExpressionAST* indexExpression, SourceLocation rbracketLoc,
+    List<ExpressionAST*>* expressionList, SourceLocation rbracketLoc,
     FunctionSymbol* symbol, bool isVirtualDispatch, ValueCategory valueCategory,
     const Type* type) -> SubscriptExpressionAST* {
   auto node = new (arena) SubscriptExpressionAST();
   node->baseExpression = baseExpression;
   node->lbracketLoc = lbracketLoc;
-  node->indexExpression = indexExpression;
+  node->expressionList = expressionList;
   node->rbracketLoc = rbracketLoc;
   node->symbol = symbol;
   node->isVirtualDispatch = isVirtualDispatch;
@@ -8975,13 +9079,16 @@ auto SubscriptExpressionAST::create(
   return node;
 }
 
-auto SubscriptExpressionAST::create(
-    Arena* arena, ExpressionAST* baseExpression, ExpressionAST* indexExpression,
-    FunctionSymbol* symbol, bool isVirtualDispatch, ValueCategory valueCategory,
-    const Type* type) -> SubscriptExpressionAST* {
+auto SubscriptExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
+                                    List<ExpressionAST*>* expressionList,
+                                    FunctionSymbol* symbol,
+                                    bool isVirtualDispatch,
+                                    ValueCategory valueCategory,
+                                    const Type* type)
+    -> SubscriptExpressionAST* {
   auto node = new (arena) SubscriptExpressionAST();
   node->baseExpression = baseExpression;
-  node->indexExpression = indexExpression;
+  node->expressionList = expressionList;
   node->symbol = symbol;
   node->isVirtualDispatch = isVirtualDispatch;
   node->valueCategory = valueCategory;
@@ -9005,10 +9112,11 @@ auto CallExpressionAST::clone(Arena* arena) -> CallExpressionAST* {
   }
 
   node->rparenLoc = rparenLoc;
-  node->isVirtualDispatch = isVirtualDispatch;
-  node->constructorSymbol = constructorSymbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->isVirtualDispatch = cloneAttribute(arena, isVirtualDispatch);
+  node->constructorSymbol = cloneAttribute(arena, constructorSymbol);
+  node->reflectionScope = cloneAttribute(arena, reflectionScope);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9023,6 +9131,7 @@ auto CallExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
                                List<ExpressionAST*>* expressionList,
                                SourceLocation rparenLoc, bool isVirtualDispatch,
                                FunctionSymbol* constructorSymbol,
+                               ScopeSymbol* reflectionScope,
                                ValueCategory valueCategory, const Type* type)
     -> CallExpressionAST* {
   auto node = new (arena) CallExpressionAST();
@@ -9032,6 +9141,7 @@ auto CallExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
   node->rparenLoc = rparenLoc;
   node->isVirtualDispatch = isVirtualDispatch;
   node->constructorSymbol = constructorSymbol;
+  node->reflectionScope = reflectionScope;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9041,6 +9151,7 @@ auto CallExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
                                List<ExpressionAST*>* expressionList,
                                bool isVirtualDispatch,
                                FunctionSymbol* constructorSymbol,
+                               ScopeSymbol* reflectionScope,
                                ValueCategory valueCategory, const Type* type)
     -> CallExpressionAST* {
   auto node = new (arena) CallExpressionAST();
@@ -9048,6 +9159,7 @@ auto CallExpressionAST::create(Arena* arena, ExpressionAST* baseExpression,
   node->expressionList = expressionList;
   node->isVirtualDispatch = isVirtualDispatch;
   node->constructorSymbol = constructorSymbol;
+  node->reflectionScope = reflectionScope;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9069,9 +9181,9 @@ auto TypeConstructionAST::clone(Arena* arena) -> TypeConstructionAST* {
   }
 
   node->rparenLoc = rparenLoc;
-  node->constructorSymbol = constructorSymbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->constructorSymbol = cloneAttribute(arena, constructorSymbol);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9121,10 +9233,10 @@ auto BracedTypeConstructionAST::clone(Arena* arena)
 
   if (bracedInitList) node->bracedInitList = bracedInitList->clone(arena);
 
-  node->constructorSymbol = constructorSymbol;
-  node->initialization = initialization;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->constructorSymbol = cloneAttribute(arena, constructorSymbol);
+  node->initialization = cloneAttribute(arena, initialization);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9161,11 +9273,12 @@ auto SpliceMemberExpressionAST::clone(Arena* arena)
 
   if (splicer) node->splicer = splicer->clone(arena);
 
-  node->symbol = symbol;
-  node->accessOp = accessOp;
-  node->isTemplateIntroduced = isTemplateIntroduced;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->splice = cloneAttribute(arena, splice);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->accessOp = cloneAttribute(arena, accessOp);
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9178,14 +9291,16 @@ auto SpliceMemberExpressionAST::create(Arena* arena)
 
 auto SpliceMemberExpressionAST::create(
     Arena* arena, ExpressionAST* baseExpression, SourceLocation accessLoc,
-    SourceLocation templateLoc, SplicerAST* splicer, Symbol* symbol,
-    TokenKind accessOp, bool isTemplateIntroduced, ValueCategory valueCategory,
-    const Type* type) -> SpliceMemberExpressionAST* {
+    SourceLocation templateLoc, SplicerAST* splicer,
+    SpliceExpressionInfo splice, Symbol* symbol, TokenKind accessOp,
+    bool isTemplateIntroduced, ValueCategory valueCategory, const Type* type)
+    -> SpliceMemberExpressionAST* {
   auto node = new (arena) SpliceMemberExpressionAST();
   node->baseExpression = baseExpression;
   node->accessLoc = accessLoc;
   node->templateLoc = templateLoc;
   node->splicer = splicer;
+  node->splice = splice;
   node->symbol = symbol;
   node->accessOp = accessOp;
   node->isTemplateIntroduced = isTemplateIntroduced;
@@ -9196,12 +9311,13 @@ auto SpliceMemberExpressionAST::create(
 
 auto SpliceMemberExpressionAST::create(
     Arena* arena, ExpressionAST* baseExpression, SplicerAST* splicer,
-    Symbol* symbol, TokenKind accessOp, bool isTemplateIntroduced,
-    ValueCategory valueCategory, const Type* type)
+    SpliceExpressionInfo splice, Symbol* symbol, TokenKind accessOp,
+    bool isTemplateIntroduced, ValueCategory valueCategory, const Type* type)
     -> SpliceMemberExpressionAST* {
   auto node = new (arena) SpliceMemberExpressionAST();
   node->baseExpression = baseExpression;
   node->splicer = splicer;
+  node->splice = splice;
   node->symbol = symbol;
   node->accessOp = accessOp;
   node->isTemplateIntroduced = isTemplateIntroduced;
@@ -9224,11 +9340,11 @@ auto MemberExpressionAST::clone(Arena* arena) -> MemberExpressionAST* {
 
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
-  node->symbol = symbol;
-  node->accessOp = accessOp;
-  node->isTemplateIntroduced = isTemplateIntroduced;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->accessOp = cloneAttribute(arena, accessOp);
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9283,11 +9399,11 @@ auto PostIncrExpressionAST::clone(Arena* arena) -> PostIncrExpressionAST* {
   if (baseExpression) node->baseExpression = baseExpression->clone(arena);
 
   node->opLoc = opLoc;
-  node->op = op;
-  node->symbol = symbol;
-  node->isVirtualDispatch = isVirtualDispatch;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->op = cloneAttribute(arena, op);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isVirtualDispatch = cloneAttribute(arena, isVirtualDispatch);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9343,9 +9459,9 @@ auto CppCastExpressionAST::clone(Arena* arena) -> CppCastExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->castOp = castOp;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->castOp = cloneAttribute(arena, castOp);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9401,8 +9517,8 @@ auto BuiltinBitCastExpressionAST::clone(Arena* arena)
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9457,8 +9573,8 @@ auto BuiltinConvertVectorExpressionAST::clone(Arena* arena)
   if (typeId) node->typeId = typeId->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9521,10 +9637,10 @@ auto BuiltinOffsetofExpressionAST::clone(Arena* arena)
   }
 
   node->rparenLoc = rparenLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9583,8 +9699,8 @@ auto TypeidExpressionAST::clone(Arena* arena) -> TypeidExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9630,8 +9746,8 @@ auto TypeidOfTypeExpressionAST::clone(Arena* arena)
   if (typeId) node->typeId = typeId->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9672,8 +9788,9 @@ auto SpliceExpressionAST::clone(Arena* arena) -> SpliceExpressionAST* {
 
   if (splicer) node->splicer = splicer->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->splice = cloneAttribute(arena, splice);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9684,10 +9801,12 @@ auto SpliceExpressionAST::create(Arena* arena) -> SpliceExpressionAST* {
 }
 
 auto SpliceExpressionAST::create(Arena* arena, SplicerAST* splicer,
+                                 SpliceExpressionInfo splice,
                                  ValueCategory valueCategory, const Type* type)
     -> SpliceExpressionAST* {
   auto node = new (arena) SpliceExpressionAST();
   node->splicer = splicer;
+  node->splice = splice;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -9699,8 +9818,8 @@ auto GlobalScopeReflectExpressionAST::clone(Arena* arena)
 
   node->caretCaretLoc = caretCaretLoc;
   node->scopeLoc = scopeLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9741,10 +9860,10 @@ auto NamespaceReflectExpressionAST::clone(Arena* arena)
 
   node->caretCaretLoc = caretCaretLoc;
   node->identifierLoc = identifierLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9792,8 +9911,8 @@ auto TypeIdReflectExpressionAST::clone(Arena* arena)
 
   if (typeId) node->typeId = typeId->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9836,8 +9955,8 @@ auto ReflectExpressionAST::clone(Arena* arena) -> ReflectExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9875,9 +9994,9 @@ auto LabelAddressExpressionAST::clone(Arena* arena)
 
   node->ampAmpLoc = ampAmpLoc;
   node->identifierLoc = identifierLoc;
-  node->identifier = identifier;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9922,11 +10041,11 @@ auto UnaryExpressionAST::clone(Arena* arena) -> UnaryExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->op = op;
-  node->symbol = symbol;
-  node->isVirtualDispatch = isVirtualDispatch;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->op = cloneAttribute(arena, op);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isVirtualDispatch = cloneAttribute(arena, isVirtualDispatch);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -9974,8 +10093,8 @@ auto AwaitExpressionAST::clone(Arena* arena) -> AwaitExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10014,9 +10133,9 @@ auto SizeofExpressionAST::clone(Arena* arena) -> SizeofExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->value = value;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->value = cloneAttribute(arena, value);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10061,9 +10180,9 @@ auto SizeofTypeExpressionAST::clone(Arena* arena) -> SizeofTypeExpressionAST* {
   if (typeId) node->typeId = typeId->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->value = value;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->value = cloneAttribute(arena, value);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10110,10 +10229,10 @@ auto SizeofPackExpressionAST::clone(Arena* arena) -> SizeofPackExpressionAST* {
   node->lparenLoc = lparenLoc;
   node->identifierLoc = identifierLoc;
   node->rparenLoc = rparenLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10164,8 +10283,8 @@ auto AlignofTypeExpressionAST::clone(Arena* arena)
   if (typeId) node->typeId = typeId->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10208,8 +10327,8 @@ auto AlignofExpressionAST::clone(Arena* arena) -> AlignofExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10250,9 +10369,9 @@ auto NoexceptExpressionAST::clone(Arena* arena) -> NoexceptExpressionAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->value = value;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->value = cloneAttribute(arena, value);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10316,14 +10435,14 @@ auto NewExpressionAST::clone(Arena* arena) -> NewExpressionAST* {
 
   if (newInitalizer) node->newInitalizer = newInitalizer->clone(arena);
 
-  node->objectType = objectType;
-  node->constructorSymbol = constructorSymbol;
-  node->symbol = symbol;
-  node->deallocationFunction = deallocationFunction;
-  node->arrayCookieRequired = arrayCookieRequired;
-  node->hasAlignmentArgument = hasAlignmentArgument;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->objectType = cloneAttribute(arena, objectType);
+  node->constructorSymbol = cloneAttribute(arena, constructorSymbol);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->deallocationFunction = cloneAttribute(arena, deallocationFunction);
+  node->arrayCookieRequired = cloneAttribute(arena, arrayCookieRequired);
+  node->hasAlignmentArgument = cloneAttribute(arena, hasAlignmentArgument);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10396,10 +10515,10 @@ auto DeleteExpressionAST::clone(Arena* arena) -> DeleteExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->symbol = symbol;
-  node->arrayCookieRequired = arrayCookieRequired;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->arrayCookieRequired = cloneAttribute(arena, arrayCookieRequired);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10452,8 +10571,8 @@ auto CastExpressionAST::clone(Arena* arena) -> CastExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10496,11 +10615,11 @@ auto ImplicitCastExpressionAST::clone(Arena* arena)
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->castKind = castKind;
-  node->conversionFunction = conversionFunction;
-  node->isVirtualDispatch = isVirtualDispatch;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->castKind = cloneAttribute(arena, castKind);
+  node->conversionFunction = cloneAttribute(arena, conversionFunction);
+  node->isVirtualDispatch = cloneAttribute(arena, isVirtualDispatch);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10533,9 +10652,13 @@ auto ConstExpressionAST::clone(Arena* arena) -> ConstExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->constValue = constValue;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->constValue = cloneAttribute(arena, constValue);
+  node->isDeferredImmediateInvocation =
+      cloneAttribute(arena, isDeferredImmediateInvocation);
+  node->evaluationKind = cloneAttribute(arena, evaluationKind);
+  node->evaluationScope = cloneAttribute(arena, evaluationScope);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10547,11 +10670,17 @@ auto ConstExpressionAST::create(Arena* arena) -> ConstExpressionAST* {
 
 auto ConstExpressionAST::create(Arena* arena, ExpressionAST* expression,
                                 const ConstValue* constValue,
+                                bool isDeferredImmediateInvocation,
+                                ConstantEvaluationKind evaluationKind,
+                                ScopeSymbol* evaluationScope,
                                 ValueCategory valueCategory, const Type* type)
     -> ConstExpressionAST* {
   auto node = new (arena) ConstExpressionAST();
   node->expression = expression;
   node->constValue = constValue;
+  node->isDeferredImmediateInvocation = isDeferredImmediateInvocation;
+  node->evaluationKind = evaluationKind;
+  node->evaluationScope = evaluationScope;
   node->valueCategory = valueCategory;
   node->type = type;
   return node;
@@ -10566,11 +10695,11 @@ auto BinaryExpressionAST::clone(Arena* arena) -> BinaryExpressionAST* {
 
   if (rightExpression) node->rightExpression = rightExpression->clone(arena);
 
-  node->op = op;
-  node->symbol = symbol;
-  node->isVirtualDispatch = isVirtualDispatch;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->op = cloneAttribute(arena, op);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isVirtualDispatch = cloneAttribute(arena, isVirtualDispatch);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10629,8 +10758,8 @@ auto ConditionalExpressionAST::clone(Arena* arena)
   if (iffalseExpression)
     node->iffalseExpression = iffalseExpression->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10679,8 +10808,8 @@ auto YieldExpressionAST::clone(Arena* arena) -> YieldExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10719,8 +10848,8 @@ auto ThrowExpressionAST::clone(Arena* arena) -> ThrowExpressionAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10761,11 +10890,11 @@ auto AssignmentExpressionAST::clone(Arena* arena) -> AssignmentExpressionAST* {
 
   if (rightExpression) node->rightExpression = rightExpression->clone(arena);
 
-  node->op = op;
-  node->symbol = symbol;
-  node->isVirtualDispatch = isVirtualDispatch;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->op = cloneAttribute(arena, op);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isVirtualDispatch = cloneAttribute(arena, isVirtualDispatch);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10810,8 +10939,8 @@ auto AssignmentExpressionAST::create(
 auto TargetExpressionAST::clone(Arena* arena) -> TargetExpressionAST* {
   auto node = create(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10832,8 +10961,8 @@ auto TargetExpressionAST::create(Arena* arena, ValueCategory valueCategory,
 auto RightExpressionAST::clone(Arena* arena) -> RightExpressionAST* {
   auto node = create(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10865,11 +10994,11 @@ auto CompoundAssignmentExpressionAST::clone(Arena* arena)
 
   if (adjustExpression) node->adjustExpression = adjustExpression->clone(arena);
 
-  node->op = op;
-  node->symbol = symbol;
-  node->isVirtualDispatch = isVirtualDispatch;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->op = cloneAttribute(arena, op);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isVirtualDispatch = cloneAttribute(arena, isVirtualDispatch);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10926,8 +11055,8 @@ auto PackExpansionExpressionAST::clone(Arena* arena)
   if (expression) node->expression = expression->clone(arena);
 
   node->ellipsisLoc = ellipsisLoc;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -10976,9 +11105,9 @@ auto DesignatedInitializerClauseAST::clone(Arena* arena)
 
   if (initializer) node->initializer = initializer->clone(arena);
 
-  node->constructorSymbol = constructorSymbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->constructorSymbol = cloneAttribute(arena, constructorSymbol);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -11018,10 +11147,10 @@ auto TypeTraitExpressionAST::clone(Arena* arena) -> TypeTraitExpressionAST* {
   }
 
   node->rparenLoc = rparenLoc;
-  node->typeTrait = typeTrait;
-  node->value = value;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->typeTrait = cloneAttribute(arena, typeTrait);
+  node->value = cloneAttribute(arena, value);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -11086,9 +11215,9 @@ auto ConditionExpressionAST::clone(Arena* arena) -> ConditionExpressionAST* {
 
   if (initializer) node->initializer = initializer->clone(arena);
 
-  node->symbol = symbol;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -11121,8 +11250,8 @@ auto EqualInitializerAST::clone(Arena* arena) -> EqualInitializerAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -11169,10 +11298,10 @@ auto BracedInitListAST::clone(Arena* arena) -> BracedInitListAST* {
 
   node->commaLoc = commaLoc;
   node->rbraceLoc = rbraceLoc;
-  node->implicitElement = implicitElement;
-  node->initialization = initialization;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->implicitElement = cloneAttribute(arena, implicitElement);
+  node->initialization = cloneAttribute(arena, initialization);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -11231,9 +11360,9 @@ auto ParenInitializerAST::clone(Arena* arena) -> ParenInitializerAST* {
   }
 
   node->rparenLoc = rparenLoc;
-  node->initialization = initialization;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->initialization = cloneAttribute(arena, initialization);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -11278,12 +11407,12 @@ auto ThreeWayComparisonExpressionAST::clone(Arena* arena)
 
   if (comparison) node->comparison = comparison->clone(arena);
 
-  node->lessResult = lessResult;
-  node->equalResult = equalResult;
-  node->greaterResult = greaterResult;
-  node->unorderedResult = unorderedResult;
-  node->valueCategory = valueCategory;
-  node->type = type;
+  node->lessResult = cloneAttribute(arena, lessResult);
+  node->equalResult = cloneAttribute(arena, equalResult);
+  node->greaterResult = cloneAttribute(arena, greaterResult);
+  node->unorderedResult = cloneAttribute(arena, unorderedResult);
+  node->valueCategory = cloneAttribute(arena, valueCategory);
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -11392,8 +11521,8 @@ auto DotDesignatorAST::clone(Arena* arena) -> DotDesignatorAST* {
 
   node->dotLoc = dotLoc;
   node->identifierLoc = identifierLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -11494,11 +11623,11 @@ auto TemplateTypeParameterAST::clone(Arena* arena)
 
   if (idExpression) node->idExpression = idExpression->clone(arena);
 
-  node->identifier = identifier;
-  node->isPack = isPack;
-  node->symbol = symbol;
-  node->depth = depth;
-  node->index = index;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->isPack = cloneAttribute(arena, isPack);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->depth = cloneAttribute(arena, depth);
+  node->index = cloneAttribute(arena, index);
 
   return node;
 }
@@ -11559,9 +11688,9 @@ auto NonTypeTemplateParameterAST::clone(Arena* arena)
 
   if (declaration) node->declaration = declaration->clone(arena);
 
-  node->symbol = symbol;
-  node->depth = depth;
-  node->index = index;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->depth = cloneAttribute(arena, depth);
+  node->index = cloneAttribute(arena, index);
 
   return node;
 }
@@ -11595,12 +11724,12 @@ auto TypenameTypeParameterAST::clone(Arena* arena)
 
   if (typeId) node->typeId = typeId->clone(arena);
 
-  node->identifier = identifier;
-  node->isPack = isPack;
-  node->isSynthesized = isSynthesized;
-  node->symbol = symbol;
-  node->depth = depth;
-  node->index = index;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->isPack = cloneAttribute(arena, isPack);
+  node->isSynthesized = cloneAttribute(arena, isSynthesized);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->depth = cloneAttribute(arena, depth);
+  node->index = cloneAttribute(arena, index);
 
   return node;
 }
@@ -11659,11 +11788,11 @@ auto ConstraintTypeParameterAST::clone(Arena* arena)
 
   if (typeId) node->typeId = typeId->clone(arena);
 
-  node->identifier = identifier;
-  node->isSynthesized = isSynthesized;
-  node->symbol = symbol;
-  node->depth = depth;
-  node->index = index;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->isSynthesized = cloneAttribute(arena, isSynthesized);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->depth = cloneAttribute(arena, depth);
+  node->index = cloneAttribute(arena, index);
 
   return node;
 }
@@ -12071,7 +12200,7 @@ auto SizeTypeSpecifierAST::clone(Arena* arena) -> SizeTypeSpecifierAST* {
   auto node = create(arena);
 
   node->specifierLoc = specifierLoc;
-  node->specifier = specifier;
+  node->specifier = cloneAttribute(arena, specifier);
 
   return node;
 }
@@ -12101,7 +12230,7 @@ auto SignTypeSpecifierAST::clone(Arena* arena) -> SignTypeSpecifierAST* {
   auto node = create(arena);
 
   node->specifierLoc = specifierLoc;
-  node->specifier = specifier;
+  node->specifier = cloneAttribute(arena, specifier);
 
   return node;
 }
@@ -12131,7 +12260,7 @@ auto BuiltinTypeSpecifierAST::clone(Arena* arena) -> BuiltinTypeSpecifierAST* {
   auto node = create(arena);
 
   node->specifierLoc = specifierLoc;
-  node->specifier = specifier;
+  node->specifier = cloneAttribute(arena, specifier);
 
   return node;
 }
@@ -12167,7 +12296,7 @@ auto UnaryBuiltinTypeSpecifierAST::clone(Arena* arena)
   if (typeId) node->typeId = typeId->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->builtinKind = builtinKind;
+  node->builtinKind = cloneAttribute(arena, builtinKind);
 
   return node;
 }
@@ -12214,7 +12343,7 @@ auto BinaryBuiltinTypeSpecifierAST::clone(Arena* arena)
   if (rightTypeId) node->rightTypeId = rightTypeId->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->builtinKind = builtinKind;
+  node->builtinKind = cloneAttribute(arena, builtinKind);
 
   return node;
 }
@@ -12257,7 +12386,7 @@ auto IntegralTypeSpecifierAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->specifierLoc = specifierLoc;
-  node->specifier = specifier;
+  node->specifier = cloneAttribute(arena, specifier);
 
   return node;
 }
@@ -12289,7 +12418,7 @@ auto FloatingPointTypeSpecifierAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->specifierLoc = specifierLoc;
-  node->specifier = specifier;
+  node->specifier = cloneAttribute(arena, specifier);
 
   return node;
 }
@@ -12347,8 +12476,8 @@ auto NamedTypeSpecifierAST::clone(Arena* arena) -> NamedTypeSpecifierAST* {
 
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
-  node->isTemplateIntroduced = isTemplateIntroduced;
-  node->symbol = symbol;
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -12432,7 +12561,7 @@ auto BitIntTypeSpecifierAST::clone(Arena* arena) -> BitIntTypeSpecifierAST* {
   if (sizeExpression) node->sizeExpression = sizeExpression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->bitCount = bitCount;
+  node->bitCount = cloneAttribute(arena, bitCount);
 
   return node;
 }
@@ -12505,6 +12634,54 @@ auto UnderlyingTypeSpecifierAST::create(Arena* arena, TypeIdAST* typeId)
   return node;
 }
 
+auto PackIndexTypeSpecifierAST::clone(Arena* arena)
+    -> PackIndexTypeSpecifierAST* {
+  auto node = create(arena);
+
+  if (packSpecifier) node->packSpecifier = packSpecifier->clone(arena);
+
+  node->ellipsisLoc = ellipsisLoc;
+  node->lbracketLoc = lbracketLoc;
+
+  if (indexExpression) node->indexExpression = indexExpression->clone(arena);
+
+  node->rbracketLoc = rbracketLoc;
+
+  return node;
+}
+
+auto PackIndexTypeSpecifierAST::create(Arena* arena)
+    -> PackIndexTypeSpecifierAST* {
+  auto node = new (arena) PackIndexTypeSpecifierAST();
+  return node;
+}
+
+auto PackIndexTypeSpecifierAST::create(Arena* arena,
+                                       NamedTypeSpecifierAST* packSpecifier,
+                                       SourceLocation ellipsisLoc,
+                                       SourceLocation lbracketLoc,
+                                       ExpressionAST* indexExpression,
+                                       SourceLocation rbracketLoc)
+    -> PackIndexTypeSpecifierAST* {
+  auto node = new (arena) PackIndexTypeSpecifierAST();
+  node->packSpecifier = packSpecifier;
+  node->ellipsisLoc = ellipsisLoc;
+  node->lbracketLoc = lbracketLoc;
+  node->indexExpression = indexExpression;
+  node->rbracketLoc = rbracketLoc;
+  return node;
+}
+
+auto PackIndexTypeSpecifierAST::create(Arena* arena,
+                                       NamedTypeSpecifierAST* packSpecifier,
+                                       ExpressionAST* indexExpression)
+    -> PackIndexTypeSpecifierAST* {
+  auto node = new (arena) PackIndexTypeSpecifierAST();
+  node->packSpecifier = packSpecifier;
+  node->indexExpression = indexExpression;
+  return node;
+}
+
 auto ElaboratedTypeSpecifierAST::clone(Arena* arena)
     -> ElaboratedTypeSpecifierAST* {
   auto node = create(arena);
@@ -12526,10 +12703,10 @@ auto ElaboratedTypeSpecifierAST::clone(Arena* arena)
 
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
-  node->classKey = classKey;
-  node->isTemplateIntroduced = isTemplateIntroduced;
-  node->symbol = symbol;
-  node->declaredSymbol = declaredSymbol;
+  node->classKey = cloneAttribute(arena, classKey);
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->declaredSymbol = cloneAttribute(arena, declaredSymbol);
 
   return node;
 }
@@ -12617,7 +12794,7 @@ auto DecltypeSpecifierAST::clone(Arena* arena) -> DecltypeSpecifierAST* {
   if (expression) node->expression = expression->clone(arena);
 
   node->rparenLoc = rparenLoc;
-  node->type = type;
+  node->type = cloneAttribute(arena, type);
 
   return node;
 }
@@ -12797,7 +12974,7 @@ auto EnumSpecifierAST::clone(Arena* arena) -> EnumSpecifierAST* {
 
   node->commaLoc = commaLoc;
   node->rbraceLoc = rbraceLoc;
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -12899,9 +13076,9 @@ auto ClassSpecifierAST::clone(Arena* arena) -> ClassSpecifierAST* {
     }
   }
 
-  node->classKey = classKey;
-  node->symbol = symbol;
-  node->isFinal = isFinal;
+  node->classKey = cloneAttribute(arena, classKey);
+  node->symbol = cloneAttribute(arena, symbol);
+  node->isFinal = cloneAttribute(arena, isFinal);
 
   return node;
 }
@@ -12971,8 +13148,8 @@ auto TypenameSpecifierAST::clone(Arena* arena) -> TypenameSpecifierAST* {
 
   if (unqualifiedId) node->unqualifiedId = unqualifiedId->clone(arena);
 
-  node->isTemplateIntroduced = isTemplateIntroduced;
-  node->symbol = symbol;
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -13106,8 +13283,8 @@ auto ReferenceOperatorAST::clone(Arena* arena) -> ReferenceOperatorAST* {
   }
 
   node->restrictLoc = restrictLoc;
-  node->refOp = refOp;
-  node->isRestrict = isRestrict;
+  node->refOp = cloneAttribute(arena, refOp);
+  node->isRestrict = cloneAttribute(arena, isRestrict);
 
   return node;
 }
@@ -13309,7 +13486,7 @@ auto IdDeclaratorAST::clone(Arena* arena) -> IdDeclaratorAST* {
     }
   }
 
-  node->isTemplateIntroduced = isTemplateIntroduced;
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
 
   return node;
 }
@@ -13417,10 +13594,10 @@ auto FunctionDeclaratorChunkAST::clone(Arena* arena)
   if (trailingReturnType)
     node->trailingReturnType = trailingReturnType->clone(arena);
 
-  node->refOp = refOp;
-  node->isFinal = isFinal;
-  node->isOverride = isOverride;
-  node->isPure = isPure;
+  node->refOp = cloneAttribute(arena, refOp);
+  node->isFinal = cloneAttribute(arena, isFinal);
+  node->isOverride = cloneAttribute(arena, isOverride);
+  node->isPure = cloneAttribute(arena, isPure);
 
   return node;
 }
@@ -13490,6 +13667,7 @@ auto ArrayDeclaratorChunkAST::clone(Arena* arena) -> ArrayDeclaratorChunkAST* {
 
   if (expression) node->expression = expression->clone(arena);
 
+  node->evaluationScope = cloneAttribute(arena, evaluationScope);
   node->rbracketLoc = rbracketLoc;
 
   if (attributeList) {
@@ -13511,12 +13689,13 @@ auto ArrayDeclaratorChunkAST::create(Arena* arena) -> ArrayDeclaratorChunkAST* {
 auto ArrayDeclaratorChunkAST::create(
     Arena* arena, SourceLocation lbracketLoc,
     List<SpecifierAST*>* typeQualifierList, ExpressionAST* expression,
-    SourceLocation rbracketLoc, List<AttributeSpecifierAST*>* attributeList)
-    -> ArrayDeclaratorChunkAST* {
+    ScopeSymbol* evaluationScope, SourceLocation rbracketLoc,
+    List<AttributeSpecifierAST*>* attributeList) -> ArrayDeclaratorChunkAST* {
   auto node = new (arena) ArrayDeclaratorChunkAST();
   node->lbracketLoc = lbracketLoc;
   node->typeQualifierList = typeQualifierList;
   node->expression = expression;
+  node->evaluationScope = evaluationScope;
   node->rbracketLoc = rbracketLoc;
   node->attributeList = attributeList;
   return node;
@@ -13524,11 +13703,12 @@ auto ArrayDeclaratorChunkAST::create(
 
 auto ArrayDeclaratorChunkAST::create(
     Arena* arena, List<SpecifierAST*>* typeQualifierList,
-    ExpressionAST* expression, List<AttributeSpecifierAST*>* attributeList)
-    -> ArrayDeclaratorChunkAST* {
+    ExpressionAST* expression, ScopeSymbol* evaluationScope,
+    List<AttributeSpecifierAST*>* attributeList) -> ArrayDeclaratorChunkAST* {
   auto node = new (arena) ArrayDeclaratorChunkAST();
   node->typeQualifierList = typeQualifierList;
   node->expression = expression;
+  node->evaluationScope = evaluationScope;
   node->attributeList = attributeList;
   return node;
 }
@@ -13537,7 +13717,7 @@ auto NameIdAST::clone(Arena* arena) -> NameIdAST* {
   auto node = create(arena);
 
   node->identifierLoc = identifierLoc;
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
 
   return node;
 }
@@ -13614,6 +13794,26 @@ auto DecltypeIdAST::create(Arena* arena,
   return node;
 }
 
+auto PackIndexIdAST::clone(Arena* arena) -> PackIndexIdAST* {
+  auto node = create(arena);
+
+  if (typeSpecifier) node->typeSpecifier = typeSpecifier->clone(arena);
+
+  return node;
+}
+
+auto PackIndexIdAST::create(Arena* arena) -> PackIndexIdAST* {
+  auto node = new (arena) PackIndexIdAST();
+  return node;
+}
+
+auto PackIndexIdAST::create(Arena* arena, SpecifierAST* typeSpecifier)
+    -> PackIndexIdAST* {
+  auto node = new (arena) PackIndexIdAST();
+  node->typeSpecifier = typeSpecifier;
+  return node;
+}
+
 auto OperatorFunctionIdAST::clone(Arena* arena) -> OperatorFunctionIdAST* {
   auto node = create(arena);
 
@@ -13621,7 +13821,7 @@ auto OperatorFunctionIdAST::clone(Arena* arena) -> OperatorFunctionIdAST* {
   node->opLoc = opLoc;
   node->openLoc = openLoc;
   node->closeLoc = closeLoc;
-  node->op = op;
+  node->op = cloneAttribute(arena, op);
 
   return node;
 }
@@ -13657,8 +13857,8 @@ auto LiteralOperatorIdAST::clone(Arena* arena) -> LiteralOperatorIdAST* {
   node->operatorLoc = operatorLoc;
   node->literalLoc = literalLoc;
   node->identifierLoc = identifierLoc;
-  node->literal = literal;
-  node->identifier = identifier;
+  node->literal = cloneAttribute(arena, literal);
+  node->identifier = cloneAttribute(arena, identifier);
 
   return node;
 }
@@ -13738,8 +13938,8 @@ auto SimpleTemplateIdAST::clone(Arena* arena) -> SimpleTemplateIdAST* {
   }
 
   node->greaterLoc = greaterLoc;
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -13878,7 +14078,7 @@ auto GlobalNestedNameSpecifierAST::clone(Arena* arena)
   auto node = create(arena);
 
   node->scopeLoc = scopeLoc;
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -13913,9 +14113,9 @@ auto SimpleNestedNameSpecifierAST::clone(Arena* arena)
     node->nestedNameSpecifier = nestedNameSpecifier->clone(arena);
 
   node->identifierLoc = identifierLoc;
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
   node->scopeLoc = scopeLoc;
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -13958,7 +14158,7 @@ auto DecltypeNestedNameSpecifierAST::clone(Arena* arena)
     node->decltypeSpecifier = decltypeSpecifier->clone(arena);
 
   node->scopeLoc = scopeLoc;
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -13989,6 +14189,46 @@ auto DecltypeNestedNameSpecifierAST::create(
   return node;
 }
 
+auto PackIndexNestedNameSpecifierAST::clone(Arena* arena)
+    -> PackIndexNestedNameSpecifierAST* {
+  auto node = create(arena);
+
+  if (typeSpecifier) node->typeSpecifier = typeSpecifier->clone(arena);
+
+  node->scopeLoc = scopeLoc;
+  node->symbol = cloneAttribute(arena, symbol);
+
+  return node;
+}
+
+auto PackIndexNestedNameSpecifierAST::create(Arena* arena)
+    -> PackIndexNestedNameSpecifierAST* {
+  auto node = new (arena) PackIndexNestedNameSpecifierAST();
+  return node;
+}
+
+auto PackIndexNestedNameSpecifierAST::create(Arena* arena,
+                                             SpecifierAST* typeSpecifier,
+                                             SourceLocation scopeLoc,
+                                             Symbol* symbol)
+    -> PackIndexNestedNameSpecifierAST* {
+  auto node = new (arena) PackIndexNestedNameSpecifierAST();
+  node->typeSpecifier = typeSpecifier;
+  node->scopeLoc = scopeLoc;
+  node->symbol = symbol;
+  return node;
+}
+
+auto PackIndexNestedNameSpecifierAST::create(Arena* arena,
+                                             SpecifierAST* typeSpecifier,
+                                             Symbol* symbol)
+    -> PackIndexNestedNameSpecifierAST* {
+  auto node = new (arena) PackIndexNestedNameSpecifierAST();
+  node->typeSpecifier = typeSpecifier;
+  node->symbol = symbol;
+  return node;
+}
+
 auto TemplateNestedNameSpecifierAST::clone(Arena* arena)
     -> TemplateNestedNameSpecifierAST* {
   auto node = create(arena);
@@ -14001,8 +14241,8 @@ auto TemplateNestedNameSpecifierAST::clone(Arena* arena)
   if (templateId) node->templateId = templateId->clone(arena);
 
   node->scopeLoc = scopeLoc;
-  node->isTemplateIntroduced = isTemplateIntroduced;
-  node->symbol = symbol;
+  node->isTemplateIntroduced = cloneAttribute(arena, isTemplateIntroduced);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -14222,6 +14462,8 @@ auto ExpressionTemplateArgumentAST::clone(Arena* arena)
 
   if (expression) node->expression = expression->clone(arena);
 
+  node->evaluationScope = cloneAttribute(arena, evaluationScope);
+
   return node;
 }
 
@@ -14232,10 +14474,12 @@ auto ExpressionTemplateArgumentAST::create(Arena* arena)
 }
 
 auto ExpressionTemplateArgumentAST::create(Arena* arena,
-                                           ExpressionAST* expression)
+                                           ExpressionAST* expression,
+                                           ScopeSymbol* evaluationScope)
     -> ExpressionTemplateArgumentAST* {
   auto node = new (arena) ExpressionTemplateArgumentAST();
   node->expression = expression;
+  node->evaluationScope = evaluationScope;
   return node;
 }
 
@@ -14536,9 +14780,9 @@ auto ParenMemInitializerAST::clone(Arena* arena) -> ParenMemInitializerAST* {
 
   node->rparenLoc = rparenLoc;
   node->ellipsisLoc = ellipsisLoc;
-  node->symbol = symbol;
-  node->constructor = constructor;
-  node->initialization = initialization;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->constructor = cloneAttribute(arena, constructor);
+  node->initialization = cloneAttribute(arena, initialization);
 
   return node;
 }
@@ -14595,9 +14839,9 @@ auto BracedMemInitializerAST::clone(Arena* arena) -> BracedMemInitializerAST* {
   if (bracedInitList) node->bracedInitList = bracedInitList->clone(arena);
 
   node->ellipsisLoc = ellipsisLoc;
-  node->symbol = symbol;
-  node->constructor = constructor;
-  node->initialization = initialization;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->constructor = cloneAttribute(arena, constructor);
+  node->initialization = cloneAttribute(arena, initialization);
 
   return node;
 }
@@ -14645,7 +14889,7 @@ auto ThisLambdaCaptureAST::clone(Arena* arena) -> ThisLambdaCaptureAST* {
 
   if (initializer) node->initializer = initializer->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -14681,7 +14925,7 @@ auto DerefThisLambdaCaptureAST::clone(Arena* arena)
 
   node->starLoc = starLoc;
   node->thisLoc = thisLoc;
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -14715,11 +14959,11 @@ auto SimpleLambdaCaptureAST::clone(Arena* arena) -> SimpleLambdaCaptureAST* {
 
   node->identifierLoc = identifierLoc;
   node->ellipsisLoc = ellipsisLoc;
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
 
   if (initializer) node->initializer = initializer->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -14761,11 +15005,11 @@ auto RefLambdaCaptureAST::clone(Arena* arena) -> RefLambdaCaptureAST* {
   node->ampLoc = ampLoc;
   node->identifierLoc = identifierLoc;
   node->ellipsisLoc = ellipsisLoc;
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
 
   if (initializer) node->initializer = initializer->clone(arena);
 
-  node->symbol = symbol;
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -14810,8 +15054,8 @@ auto RefInitLambdaCaptureAST::clone(Arena* arena) -> RefInitLambdaCaptureAST* {
 
   if (initializer) node->initializer = initializer->clone(arena);
 
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -14857,8 +15101,8 @@ auto InitLambdaCaptureAST::clone(Arena* arena) -> InitLambdaCaptureAST* {
 
   if (initializer) node->initializer = initializer->clone(arena);
 
-  node->identifier = identifier;
-  node->symbol = symbol;
+  node->identifier = cloneAttribute(arena, identifier);
+  node->symbol = cloneAttribute(arena, symbol);
 
   return node;
 }
@@ -14939,8 +15183,8 @@ auto TypeExceptionDeclarationAST::clone(Arena* arena)
 
   if (declarator) node->declarator = declarator->clone(arena);
 
-  node->symbol = symbol;
-  node->exceptionObject = exceptionObject;
+  node->symbol = cloneAttribute(arena, symbol);
+  node->exceptionObject = cloneAttribute(arena, exceptionObject);
 
   return node;
 }
@@ -14984,7 +15228,7 @@ auto CxxAttributeAST::clone(Arena* arena) -> CxxAttributeAST* {
 
   node->rbracketLoc = rbracketLoc;
   node->rbracket2Loc = rbracket2Loc;
-  node->attributes = attributes;
+  node->attributes = cloneAttribute(arena, attributes);
 
   return node;
 }
@@ -15042,7 +15286,7 @@ auto GccAttributeAST::clone(Arena* arena) -> GccAttributeAST* {
 
   node->rparenLoc = rparenLoc;
   node->rparen2Loc = rparen2Loc;
-  node->attributes = attributes;
+  node->attributes = cloneAttribute(arena, attributes);
 
   return node;
 }
@@ -15087,8 +15331,8 @@ auto AlignasAttributeAST::clone(Arena* arena) -> AlignasAttributeAST* {
 
   node->ellipsisLoc = ellipsisLoc;
   node->rparenLoc = rparenLoc;
-  node->isPack = isPack;
-  node->attributes = attributes;
+  node->isPack = cloneAttribute(arena, isPack);
+  node->attributes = cloneAttribute(arena, attributes);
 
   return node;
 }
@@ -15136,8 +15380,8 @@ auto AlignasTypeAttributeAST::clone(Arena* arena) -> AlignasTypeAttributeAST* {
 
   node->ellipsisLoc = ellipsisLoc;
   node->rparenLoc = rparenLoc;
-  node->isPack = isPack;
-  node->attributes = attributes;
+  node->isPack = cloneAttribute(arena, isPack);
+  node->attributes = cloneAttribute(arena, attributes);
 
   return node;
 }
@@ -15180,8 +15424,8 @@ auto AsmAttributeAST::clone(Arena* arena) -> AsmAttributeAST* {
   node->lparenLoc = lparenLoc;
   node->literalLoc = literalLoc;
   node->rparenLoc = rparenLoc;
-  node->literal = literal;
-  node->attributes = attributes;
+  node->literal = cloneAttribute(arena, literal);
+  node->attributes = cloneAttribute(arena, attributes);
 
   return node;
 }
@@ -15222,8 +15466,8 @@ auto ScopedAttributeTokenAST::clone(Arena* arena) -> ScopedAttributeTokenAST* {
   node->attributeNamespaceLoc = attributeNamespaceLoc;
   node->scopeLoc = scopeLoc;
   node->identifierLoc = identifierLoc;
-  node->attributeNamespace = attributeNamespace;
-  node->identifier = identifier;
+  node->attributeNamespace = cloneAttribute(arena, attributeNamespace);
+  node->identifier = cloneAttribute(arena, identifier);
 
   return node;
 }
@@ -15260,7 +15504,7 @@ auto SimpleAttributeTokenAST::clone(Arena* arena) -> SimpleAttributeTokenAST* {
   auto node = create(arena);
 
   node->identifierLoc = identifierLoc;
-  node->identifier = identifier;
+  node->identifier = cloneAttribute(arena, identifier);
 
   return node;
 }

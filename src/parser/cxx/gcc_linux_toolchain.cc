@@ -82,7 +82,8 @@ auto GCCLinuxToolchain::multiarchName() const -> std::string {
 auto GCCLinuxToolchain::gccInstallDir() const -> std::optional<std::string> {
   const auto sysroot = headerSysroot();
 
-  for (const auto& gccLibDir : {std::format("{}/usr/lib/gcc", sysroot),
+  for (const auto& gccLibDir : {std::format("{}/usr/local/lib/gcc", sysroot),
+                                std::format("{}/usr/lib/gcc", sysroot),
                                 std::format("{}/usr/lib64/gcc", sysroot),
                                 std::format("{}/usr/lib/gcc-cross", sysroot)}) {
     auto targetDir = findTargetSubdirectory(gccLibDir, triple());
@@ -126,24 +127,26 @@ void GCCLinuxToolchain::addSystemCppIncludePaths() {
 }
 
 void GCCLinuxToolchain::addLibStdCxxIncludePaths() {
-  const auto includeDir =
-      fs::path{std::format("{}/usr/include", headerSysroot())};
-  const auto multiarchIncludeDir = includeDir / multiarchName();
+  for (const auto& includeDir :
+       {fs::path{std::format("{}/usr/local/include", headerSysroot())},
+        fs::path{std::format("{}/usr/include", headerSysroot())}}) {
+    const auto multiarchIncludeDir = includeDir / multiarchName();
+    for (const auto& libstdcxxDir :
+         versionedSubdirectories(includeDir / "c++")) {
+      const auto version = libstdcxxDir.filename();
 
-  for (const auto& libstdcxxDir : versionedSubdirectories(includeDir / "c++")) {
-    const auto version = libstdcxxDir.filename();
+      auto targetDir = multiarchIncludeDir / "c++" / version;
+      if (!fs::is_directory(targetDir)) {
+        auto gccTargetDir = findTargetSubdirectory(libstdcxxDir, triple());
+        if (!gccTargetDir) continue;
+        targetDir = *gccTargetDir;
+      }
 
-    auto targetDir = multiarchIncludeDir / "c++" / version;
-    if (!fs::is_directory(targetDir)) {
-      auto gccTargetDir = findTargetSubdirectory(libstdcxxDir, triple());
-      if (!gccTargetDir) continue;
-      targetDir = *gccTargetDir;
+      addSystemIncludePath(libstdcxxDir.string());
+      addSystemIncludePath(targetDir.string());
+      addSystemIncludePath((libstdcxxDir / "backward").string());
+      return;
     }
-
-    addSystemIncludePath(libstdcxxDir.string());
-    addSystemIncludePath(targetDir.string());
-    addSystemIncludePath((libstdcxxDir / "backward").string());
-    return;
   }
 }
 

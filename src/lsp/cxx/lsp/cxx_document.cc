@@ -102,6 +102,7 @@ auto templateParametersOf(Symbol* symbol) -> TemplateParametersSymbol*;
     -> TypePrintOptions {
   return TypePrintOptions{
       .declarationScope = declarationScope,
+      .declaration = declarationScope,
   };
 }
 
@@ -624,6 +625,10 @@ auto hoverTextOf(Symbol* symbol) -> std::string {
               to_pretty_string(symbol->type(), "", writtenSpellingIn(symbol)));
         } else if constexpr (std::is_same_v<SymbolType, ConceptSymbol>) {
           return std::format("concept {}", name);
+        } else if constexpr (std::is_same_v<SymbolType, FunctionSymbol>) {
+          return signatureLabelOf(symbol);
+        } else if constexpr (std::is_same_v<SymbolType, ParameterSymbol>) {
+          return to_pretty_string(symbol, writtenSpellingIn(symbol));
         } else if constexpr (std::is_same_v<SymbolType, OverloadSetSymbol>) {
           std::string label;
           for (auto function : views::each_function(symbol)) {
@@ -950,6 +955,7 @@ class CompletionItemCollector {
     auto item = completionItems_.emplace_back();
     item.label(label);
     item.kind(cxx::visit(CompletionItemKindOf{memberOfClass}, symbol));
+    item.detail(hoverTextOf(symbol));
     setTextEdit(item, editRange_, label);
 
     labels_.push_back(std::move(label));
@@ -1334,9 +1340,8 @@ struct SignatureHelpSink {
           if (!parameterSymbol) continue;
 
           auto parameterInfo = parameterList.emplace_back();
-          parameterInfo.label(to_pretty_string(parameterSymbol->type(),
-                                               parameterSymbol->name(),
-                                               writtenSpellingIn(function)));
+          parameterInfo.label(
+              to_pretty_string(parameterSymbol, writtenSpellingIn(function)));
 
           ++parameterCount;
         }
@@ -1491,11 +1496,16 @@ auto CxxDocument::translationUnit() const -> TranslationUnit* {
 }
 
 auto CxxDocument::parserConfiguration() const -> ParserConfiguration {
-  return ParserConfiguration{
+  ParserConfiguration config{
       .checkTypes = true,
       .stopParsingPredicate = [this] { return isCancelled(); },
       .complete = d->complete,
   };
+  if (auto toolchain = d->toolchain.get()) {
+    config.exceptionsEnabled = toolchain->exceptionsEnabled();
+    config.rttiEnabled = toolchain->rttiEnabled();
+  }
+  return config;
 }
 
 void CxxDocument::setToolchain(std::shared_ptr<Toolchain> toolchain) {

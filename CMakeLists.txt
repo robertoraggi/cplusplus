@@ -150,8 +150,8 @@ endif()
 
 FetchContent_Declare(
     wasi_sysroot
-    URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-32/wasi-sysroot-32.0.tar.gz
-    URL_HASH    SHA256=f2537f6e5804f7f24e32dd140e9371e9670a9fd2646b6a813ddb896b29954b12
+    URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sysroot-34.0.tar.gz
+    URL_HASH    SHA256=9d813544eeebe38b7b8f2244ed591de46b6db812c6dd1a257ff9f0d2a905a2be
 )
 
 FetchContent_MakeAvailable(wasi_sysroot)
@@ -159,8 +159,8 @@ FetchContent_GetProperties(wasi_sysroot)
 
 FetchContent_Declare(
     wasi_builtins
-    URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-32/libclang_rt-32.0.tar.gz
-    URL_HASH    SHA256=e42ba168766a4a1161d44b740d22c336b39424190ca7a672acbd8b71b8d4372a
+    URL         https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/libclang_rt-34.0.tar.gz
+    URL_HASH    SHA256=eee3e634dcf71aa22b1333391623cf5c9965a637dc428a27b1a858c026c587f1
 )
 
 FetchContent_MakeAvailable(wasi_builtins)

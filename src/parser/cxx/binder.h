@@ -60,13 +60,6 @@ class TranslationUnit;
     TranslationUnit* unit, const Type* lhs, const Type* rhs,
     TemplateDeclarationAST* lhsHead, TemplateDeclarationAST* rhsHead) -> bool;
 
-[[nodiscard]] auto isDeletedFunction(TranslationUnit* unit,
-                                     FunctionSymbol* function) -> bool;
-
-[[nodiscard]] auto isExcludedDefaultedMoveMember(TranslationUnit* unit,
-                                                 FunctionSymbol* function)
-    -> bool;
-
 [[nodiscard]] auto isExplicitSpecializationHead(
     TemplateDeclarationAST* templateHead) -> bool;
 
@@ -85,7 +78,7 @@ class Binder {
   void setReportErrors(bool reportErrors);
 
   struct ClosureNumberingKey {
-    FunctionSymbol* context = nullptr;
+    Symbol* context = nullptr;
     std::string signature;
 
     [[nodiscard]] auto operator==(const ClosureNumberingKey&) const
@@ -103,6 +96,20 @@ class Binder {
 
   [[nodiscard]] auto nextClosureNumber(ClassSymbol* closure) -> int;
 
+  class InitializerGuard {
+   public:
+    InitializerGuard(Binder* binder, Symbol* owner);
+    ~InitializerGuard();
+
+    InitializerGuard(const InitializerGuard&) = delete;
+    auto operator=(const InitializerGuard&) -> InitializerGuard& = delete;
+
+   private:
+    Binder* binder_;
+    Symbol* savedOwner_;
+    ScopeSymbol* savedScope_;
+  };
+
   void error(SourceLocation loc, std::string message);
   void warning(SourceLocation loc, std::string message);
   void note(SourceLocation loc, std::string message);
@@ -110,13 +117,18 @@ class Binder {
   [[nodiscard]] auto scope() const -> ScopeSymbol*;
   void setScope(ScopeSymbol* scope);
 
-  [[nodiscard]] auto languageLinkage() const -> LanguageKind;
-  void setLanguageLinkage(LanguageKind linkage);
   void applyEnableIfAttributes(FunctionSymbol* function,
                                List<AttributeSpecifierAST*>* attributes);
 
-  [[nodiscard]] auto changeLanguageLinkage(LanguageKind linkage)
-      -> LanguageKind;
+  [[nodiscard]] auto changeLinkageSpecification(
+      std::optional<LanguageKind> linkage) -> std::optional<LanguageKind>;
+
+  [[nodiscard]] auto declaredLanguageLinkage(Symbol* declared) const
+      -> std::optional<LanguageKind>;
+
+  void checkLanguageLinkageRedeclaration(
+      Symbol* redeclaration, Symbol* canonical, LanguageKind entityLinkage,
+      std::optional<LanguageKind> declaredLinkage);
 
   [[nodiscard]] auto isInstantiating() const -> bool;
   [[nodiscard]] auto instantiatingSymbol() const -> Symbol*;
@@ -233,6 +245,9 @@ class Binder {
       bool addSymbolToParentScope = true,
       TemplateDeclarationAST* templateHead = nullptr) -> TypeAliasSymbol*;
 
+  void checkDeclarationSpecifiers(const DeclSpecs& specs,
+                                  SourceLocation location);
+
   [[nodiscard]] auto declareTypedef(DeclaratorAST* declarator, const Decl& decl)
       -> TypeAliasSymbol*;
 
@@ -298,14 +313,25 @@ class Binder {
   [[nodiscard]] static auto redeclaresOnlyMembersOf(
       UsingDeclarationSymbol* usingDeclaration, ScopeSymbol* scope) -> bool;
 
-  [[nodiscard]] static auto staticDataMemberOf(ClassSymbol* classSymbol,
-                                               const Name* name)
-      -> FieldSymbol*;
-
   [[nodiscard]] auto variableMemberOf(ClassSymbol* classSymbol,
                                       const Name* name) -> VariableSymbol*;
 
   void checkLocalVariableDeclaration(const Decl& decl);
+  void checkPlaceholderInitDeclaratorList(
+      const DeclSpecs& specs, List<InitDeclaratorAST*>* initDeclaratorList);
+
+  [[nodiscard]] auto mergeVariableRedeclaration(VariableSymbol* existing,
+                                                VariableSymbol* symbol) -> bool;
+
+  void applyLanguageLinkage(VariableSymbol* symbol);
+
+  void mergeWithLanguageLinkageEntity(VariableSymbol* symbol);
+
+  [[nodiscard]] auto sameKindLanguageLinkageEntity(Symbol* declared) -> Symbol*;
+
+  [[nodiscard]] auto languageLinkageEntityOf(Symbol* declared) -> Symbol*;
+
+  void recordCLanguageLinkageEntity(Symbol* entity);
 
   [[nodiscard]] auto declareVariable(DeclaratorAST* declarator,
                                      const Decl& decl,
@@ -321,6 +347,22 @@ class Binder {
   void declareVariableTemplate(VariableSymbol* symbol,
                                IdDeclaratorAST* declaratorId,
                                TemplateDeclarationAST* templateHead);
+
+  void instantiateVariableExplicitly(VariableSymbol* declared, const Decl& decl,
+                                     FieldSymbol* member);
+
+  void instantiateStaticDataMemberExplicitly(VariableSymbol* declared,
+                                             FieldSymbol* member,
+                                             SourceLocation location);
+
+  [[nodiscard]] auto checkExplicitInstantiationType(
+      VariableSymbol* declared, Symbol* entity, const Type* instantiatedType,
+      SourceLocation location) -> bool;
+
+  [[nodiscard]] auto checkExplicitInstantiationOrder(Symbol* subject,
+                                                     bool isDefinition,
+                                                     SourceLocation location)
+      -> bool;
 
   void bindStructuredBindings(StructuredBindingDeclarationAST* ast,
                               const DeclSpecs& specs);
@@ -348,11 +390,16 @@ class Binder {
 
   void finishForRangeStatement(ForRangeStatementAST* ast);
 
+  void checkNonFunctionSpecifiers(const DeclSpecs& specs,
+                                  SourceLocation location);
+  void checkConstinitStorage(const DeclSpecs& specs, Symbol* symbol,
+                             SourceLocation location);
   void applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs);
   void applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs);
 
   void bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpec);
+  void complete(EnumSpecifierAST* ast);
 
   void bind(OpaqueEnumDeclarationAST* ast, const DeclSpecs& underlyingTypeSpec);
 
@@ -391,13 +438,14 @@ class Binder {
             std::optional<ConstValue> value);
 
   [[nodiscard]] static auto nextEnumeratorValue(
-      TranslationUnit* unit, const Type* underlyingType,
       const std::optional<ConstValue>& previous) -> std::optional<ConstValue>;
 
   void bind(TypeExceptionDeclarationAST* ast, const Decl& decl);
 
   void checkExceptionDeclarationType(TypeExceptionDeclarationAST* ast,
                                      const Type* type);
+
+  void checkVirtualFunctionRequiresClause(FunctionSymbol* functionSymbol);
 
   void checkTrailingRequiresClauseIsTemplated(
       FunctionSymbol* functionSymbol, TemplateDeclarationAST* templateHead);
@@ -474,6 +522,12 @@ class Binder {
   void recordMemberEnumerationDefinition(EnumSpecifierAST* ast,
                                          TemplateDeclarationAST* templateHead);
   void completeLambdaBody(LambdaExpressionAST* ast);
+
+  [[nodiscard]] auto bind(ConstevalBlockDeclarationAST* ast)
+      -> LambdaExpressionAST*;
+
+  void complete(ConstevalBlockDeclarationAST* ast,
+                LambdaExpressionAST* expression);
   void resolveDeferredCaptures(FunctionSymbol* callOperator,
                                CompoundStatementAST* body);
   [[nodiscard]] auto declareClosureMemberFunction(ClassSymbol* classSymbol,
@@ -529,19 +583,43 @@ class Binder {
                              bool checkTemplates,
                              Symbol* resolvedType = nullptr) -> Symbol*;
 
-  [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol) -> ScopeSymbol*;
+  [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol) -> Symbol*;
 
   [[nodiscard]] auto scopeOfType(const Type* type) -> ScopeSymbol*;
 
   [[nodiscard]] auto reportUnresolvedNestedNameSpecifier(
       NestedNameSpecifierAST* ast) -> bool;
 
+  [[nodiscard]] auto referencedElaboratedType(
+      ElaboratedTypeSpecifierAST* ast, const DeclSpecs& declSpecs,
+      bool isDeclaration, Symbol* candidate, Symbol* unqualifiedCandidate) const
+      -> Symbol*;
+  [[nodiscard]] auto rejectsElaboratedTypeReference(
+      ElaboratedTypeSpecifierAST* ast, Symbol* referenced) -> bool;
+  [[nodiscard]] auto reportsElaboratedTypeKindMismatch(
+      ElaboratedTypeSpecifierAST* ast, Symbol* referenced) -> bool;
+  void reportUndeclaredElaboratedType(ElaboratedTypeSpecifierAST* ast,
+                                      const Identifier* name);
+  [[nodiscard]] auto elaboratedClassCandidate(ElaboratedTypeSpecifierAST* ast,
+                                              const DeclSpecs& declSpecs,
+                                              const Identifier* name,
+                                              Symbol* unqualifiedCandidate)
+      -> Symbol*;
+  [[nodiscard]] auto findsNoQualifiedType(ElaboratedTypeSpecifierAST* ast) const
+      -> bool;
+  [[nodiscard]] auto declaresQualifiedElaboratedType(
+      ElaboratedTypeSpecifierAST* ast, const DeclSpecs& declSpecs,
+      bool isDeclaration) const -> bool;
+  void bindElaboratedEnum(ElaboratedTypeSpecifierAST* ast,
+                          const Identifier* name, Symbol* unqualifiedCandidate);
+
   [[nodiscard]] auto lookupFriendClass(const Identifier* name,
                                        bool namesTemplate) -> ClassSymbol*;
 
   [[nodiscard]] auto adoptFriendDeclaredClass(
       ScopeSymbol* targetScope, const Identifier* name,
-      TemplateDeclarationAST* templateHead) -> ClassSymbol*;
+      TemplateDeclarationAST* templateHead, SourceLocation location)
+      -> ClassSymbol*;
 
   void disableAccessControlForUnsupportedFriend(
       NestedNameSpecifierAST* nestedNameSpecifier,
@@ -591,6 +669,9 @@ class Binder {
   };
 
   [[nodiscard]] auto isC() const -> bool;
+  [[nodiscard]] auto declaresVariableLengthArray(DeclaratorAST* declarator,
+                                                 const Type* type) const
+      -> bool;
   [[nodiscard]] auto isCxx() const -> bool;
 
   void computeClassFlags(ClassSymbol* classSymbol);
@@ -796,9 +877,9 @@ class Binder {
       ClassSymbol* declared, TemplateDeclarationAST* templateHead,
       SourceLocation location) -> ClassSymbol*;
 
-  [[nodiscard]] auto enumeratorType(EnumeratorAST* ast,
-                                    const Type* previousType) const
-      -> const Type*;
+  [[nodiscard]] auto enumeratorType(
+      EnumeratorAST* ast, const Type* previousType,
+      const std::optional<ConstValue>& value) const -> const Type*;
   void inheritDefaultArgument(ParameterSymbol* target, ParameterSymbol* source);
 
   [[nodiscard]] static auto functionBodyBlock(ScopeSymbol* scope)
@@ -828,9 +909,16 @@ class Binder {
   struct CachedClassSubobjects {
     const ClassLayout* layout = nullptr;
     ClassSubobjectList subobjects;
+    ClassSubobjectList completeObjectSubobjects;
   };
 
+  [[nodiscard]] auto cachedClassSubobjects(ClassSymbol* classSymbol)
+      -> const CachedClassSubobjects&;
+
   [[nodiscard]] auto emptyClassSubobjects(ClassSymbol* classSymbol)
+      -> const ClassSubobjectList&;
+
+  [[nodiscard]] auto completeObjectEmptySubobjects(ClassSymbol* classSymbol)
       -> const ClassSubobjectList&;
 
   [[nodiscard]] auto fieldElementClass(FieldSymbol* field) -> ClassSymbol*;
@@ -838,9 +926,10 @@ class Binder {
   [[nodiscard]] auto fieldArrayExtent(FieldSymbol* field)
       -> ClassSubobjectExtent;
 
-  void appendClassSubobjects(ClassSubobjectList& subobjects,
-                             ClassSymbol* classSymbol, std::uint64_t offset,
-                             ClassSubobjectExtent extent);
+  static void appendClassSubobjects(ClassSubobjectList& subobjects,
+                                    const ClassSubobjectList& source,
+                                    std::uint64_t offset,
+                                    ClassSubobjectExtent extent);
 
   std::unordered_map<ClassSymbol*, CachedClassSubobjects> emptyClassSubobjects_;
 
@@ -881,7 +970,7 @@ class Binder {
   struct RangeForRewrite;
   struct DecomposeStructuredBinding;
   struct ImplicitExceptionSpecification;
-  struct NestedNameSpecifierScope;
+  struct NestedNameSpecifierEntity;
   struct MemberOfCurrentInstantiationType;
 
   [[nodiscard]] auto newEnumeration(const Name* name, SourceLocation location,
@@ -915,7 +1004,7 @@ class Binder {
   std::vector<ClassBodyState> classBodyStack_;
   Symbol* instantiatingSymbol_ = nullptr;
   SourceLocation instantiationLoc_{};
-  LanguageKind languageLinkage_ = LanguageKind::kCXX;
+  std::optional<LanguageKind> linkageSpecification_;
   int explicitTemplateHeadDepth_ = 0;
   int explicitInstantiationDepth_ = 0;
   bool explicitInstantiationIsDefinition_ = false;
@@ -923,6 +1012,8 @@ class Binder {
   bool inTemplate_ = false;
   bool retainsEnclosingTemplateLevels_ = false;
   bool reportErrors_ = true;
+  Symbol* initializerOwner_ = nullptr;
+  ScopeSymbol* initializerScope_ = nullptr;
   std::unordered_map<ClosureNumberingKey, int, ClosureNumberingKeyHash>
       closureCounts_;
   std::vector<std::pair<const ClosureNumberingKey, int>*> closureNumberingLog_;

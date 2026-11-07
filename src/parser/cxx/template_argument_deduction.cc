@@ -101,7 +101,7 @@ auto TemplateArgumentDeduction::deduceFromTargetType(
   begin(templateDecl);
   if (!specifyExplicitArguments(explicitTemplateArgs)) return std::nullopt;
 
-  if (!matchReturnType) {
+  if (!matchReturnType || containsPlaceholderType(functionType->returnType())) {
     functionType = control_->getFunctionType(
         targetType->returnType(), functionType->parameterTypes(),
         functionType->isVariadic(), functionType->cvQualifiers(),
@@ -436,7 +436,7 @@ auto TemplateArgumentDeduction::deduceFromBaseClass(const Type* P,
   auto classType = type_cast<ClassType>(unqualified_type(argumentClass));
   if (!classType || !classType->symbol()) return false;
 
-  traits.requireCompleteClass(classType->symbol());
+  traits.require_complete_class(classType->symbol());
 
   struct Candidate {
     ClassSymbol* base = nullptr;
@@ -514,6 +514,9 @@ auto TemplateArgumentDeduction::valueSymbol(Symbol* value,
       traits.converted_constant_value(valueType, *variable->constValue());
   if (!converted) return nullptr;
 
+  if (traits.is_class_or_union(valueType))
+    return Substitution::initializeTemplateParameterObject(unit_, valueType,
+                                                           *converted);
   return control_->getConstantArgumentSymbol(valueType, *converted);
 }
 

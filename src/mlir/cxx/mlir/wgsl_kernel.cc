@@ -971,7 +971,8 @@ class WGSLWriter {
         .Case<ptr::ToPtrOp>([](auto) { return success(); })
         .Case<mlir::cxx::StorageRefOp>([](auto) { return success(); })
         .Case<ptr::FromPtrOp, mlir::cxx::MemberOp, mlir::cxx::SubscriptOp,
-              mlir::cxx::ArrayToPointerOp, mlir::cxx::PtrAddOp>([](auto op) {
+              mlir::cxx::ArrayToPointerOp, mlir::cxx::PtrAddOp,
+              mlir::cxx::AddressSpaceCastOp>([](auto op) {
           if (succeeded(mlir::cxx::resolveStorageAddress(op->getResult(0))))
             return success();
           return LogicalResult(

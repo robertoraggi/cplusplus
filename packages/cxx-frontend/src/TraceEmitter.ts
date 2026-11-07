@@ -322,6 +322,8 @@ export class TraceEmitter implements EmitterDelegate {
         return "";
       case "ZeroExtend":
         return "zeroext";
+      case "SignExtend":
+        return "signext";
       case "StructReturn":
       case "ByValue":
         return (
@@ -1211,6 +1213,7 @@ export class TraceEmitter implements EmitterDelegate {
         (info.importName ? ` import_name "${info.importName}"` : "") +
         (info.exportName ? ` export_name "${info.exportName}"` : "") +
         (info.section ? ` section ${JSON.stringify(info.section)}` : "") +
+        (info.comdat ? ` comdat ${JSON.stringify(info.comdat)}` : "") +
         (info.isUsed ? " used" : "") +
         INLINE_KIND_TEXT[info.inlineKind] +
         this.#signatureAbiText(info),

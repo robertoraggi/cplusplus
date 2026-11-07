@@ -59,4 +59,10 @@ template <typename Predicate>
                                               const Identifier* id)
     -> NamespaceSymbol*;
 
+[[nodiscard]] auto unqualifiedTypeOnlyLookup(Scope* lexicalScope,
+                                             const Identifier* id) -> Symbol*;
+
+[[nodiscard]] auto friendTypeOnlyLookup(Scope* lexicalScope,
+                                        const Identifier* id) -> Symbol*;
+
 }  // namespace cxx

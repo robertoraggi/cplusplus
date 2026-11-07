@@ -93,9 +93,10 @@ void Codegen::emitThrow(ThrowExpressionAST* ast) {
   pushCleanup();
   auto freeException = findOrCreateRuntimeFunction(loc, "__cxa_free_exception",
                                                    {bytePointer}, {});
-  cleanupStack_.back().entries.push_back({.address = exceptionObject,
-                                          .destructor = freeException,
-                                          .exceptionalOnly = true});
+  pushCleanupEntry(cleanupStack_.back(),
+                   {.address = exceptionObject,
+                    .destructor = {.runtimeFunction = freeException},
+                    .exceptionalOnly = true});
   (void)emitPrvalueInto(objectAddress, exceptionType, ast->expression, loc);
   cancelCleanup(exceptionObject);
   popCleanup(loc);
@@ -122,9 +123,17 @@ void Codegen::ensureExceptionPersonality(SourceLocation loc) {
   emitter_.functionPersonality(function_, name);
 }
 
-auto Codegen::emitCallWithUnwind(SourceLocation loc, ir::CallInfo info)
-    -> std::vector<ir::ValueRef> {
-  if (!unit_->config().exceptionsEnabled || info.kind == ir::CallKind::Builtin)
+auto Codegen::isNonThrowingCall(FunctionSymbol* function,
+                                const FunctionType* functionType) const
+    -> bool {
+  if (function) return traits.is_nothrow_function(function);
+  return functionType && functionType->isNoexcept();
+}
+
+auto Codegen::emitCallWithUnwind(SourceLocation loc, ir::CallInfo info,
+                                 bool nounwind) -> std::vector<ir::ValueRef> {
+  if (!unit_->config().exceptionsEnabled ||
+      info.kind == ir::CallKind::Builtin || nounwind)
     return emitter_.call(loc, info);
   auto depth =
       exceptionScopes_.empty() ? 0 : exceptionScopes_.back().cleanupDepth;
@@ -262,7 +271,9 @@ void Codegen::emitTry(const std::function<void()>& body,
                       .front();
     pushCleanup();
     auto endCatch = findOrCreateRuntimeFunction(loc, "__cxa_end_catch", {}, {});
-    cleanupStack_.back().entries.push_back({object, endCatch});
+    pushCleanupEntry(
+        cleanupStack_.back(),
+        {.address = object, .destructor = {.runtimeFunction = endCatch}});
     if (declaration && declaration->symbol) {
       auto symbol = declaration->symbol;
       auto type = traits.remove_reference(symbol->type());

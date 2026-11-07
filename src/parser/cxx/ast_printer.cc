@@ -241,6 +241,11 @@ void ASTPrinter::visit(StaticAssertDeclarationAST* ast) {
   accept(ast->expression, "expression");
 }
 
+void ASTPrinter::visit(ConstevalBlockDeclarationAST* ast) {
+  out_ = std::format_to(out_, "{}\n", "consteval-block-declaration");
+  accept(ast->statement, "statement");
+}
+
 void ASTPrinter::visit(AliasDeclarationAST* ast) {
   out_ = std::format_to(out_, "{}\n", "alias-declaration");
   accept(ast->identifier, "identifier");
@@ -1574,7 +1579,15 @@ void ASTPrinter::visit(SubscriptExpressionAST* ast) {
     --indent_;
   }
   accept(ast->baseExpression, "base-expression");
-  accept(ast->indexExpression, "index-expression");
+  if (ast->expressionList) {
+    ++indent_;
+    out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);
+    out_ = std::format_to(out_, "{}\n", "expression-list");
+    for (auto node : ListView{ast->expressionList}) {
+      accept(node);
+    }
+    --indent_;
+  }
 }
 
 void ASTPrinter::visit(CallExpressionAST* ast) {
@@ -2027,6 +2040,13 @@ void ASTPrinter::visit(ConstExpressionAST* ast) {
                           formatType(ast->type));
   }
   out_ = std::format_to(out_, "{}", "\n");
+  if (ast->isDeferredImmediateInvocation) {
+    ++indent_;
+    out_ = std::format_to(out_, "{:{}}", "", indent_ * 2);
+    out_ = std::format_to(out_, "is-deferred-immediate-invocation: {}\n",
+                          ast->isDeferredImmediateInvocation);
+    --indent_;
+  }
   accept(ast->expression, "expression");
 }
 
@@ -2569,6 +2589,12 @@ void ASTPrinter::visit(UnderlyingTypeSpecifierAST* ast) {
   accept(ast->typeId, "type-id");
 }
 
+void ASTPrinter::visit(PackIndexTypeSpecifierAST* ast) {
+  out_ = std::format_to(out_, "{}\n", "pack-index-type-specifier");
+  accept(ast->packSpecifier, "pack-specifier");
+  accept(ast->indexExpression, "index-expression");
+}
+
 void ASTPrinter::visit(ElaboratedTypeSpecifierAST* ast) {
   out_ = std::format_to(out_, "{}\n", "elaborated-type-specifier");
   if (ast->classKey != TokenKind::T_EOF_SYMBOL) {
@@ -2946,6 +2972,11 @@ void ASTPrinter::visit(DecltypeIdAST* ast) {
   accept(ast->decltypeSpecifier, "decltype-specifier");
 }
 
+void ASTPrinter::visit(PackIndexIdAST* ast) {
+  out_ = std::format_to(out_, "{}\n", "pack-index-id");
+  accept(ast->typeSpecifier, "type-specifier");
+}
+
 void ASTPrinter::visit(OperatorFunctionIdAST* ast) {
   out_ = std::format_to(out_, "{}\n", "operator-function-id");
   if (ast->op != TokenKind::T_EOF_SYMBOL) {
@@ -3027,6 +3058,11 @@ void ASTPrinter::visit(SimpleNestedNameSpecifierAST* ast) {
 void ASTPrinter::visit(DecltypeNestedNameSpecifierAST* ast) {
   out_ = std::format_to(out_, "{}\n", "decltype-nested-name-specifier");
   accept(ast->decltypeSpecifier, "decltype-specifier");
+}
+
+void ASTPrinter::visit(PackIndexNestedNameSpecifierAST* ast) {
+  out_ = std::format_to(out_, "{}\n", "pack-index-nested-name-specifier");
+  accept(ast->typeSpecifier, "type-specifier");
 }
 
 void ASTPrinter::visit(TemplateNestedNameSpecifierAST* ast) {

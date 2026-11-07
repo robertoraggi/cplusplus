@@ -8,6 +8,9 @@ find_package(MLIR REQUIRED CONFIG)
 if (MLIR_VERSION VERSION_LESS "21.0")
     message(FATAL_ERROR "MLIR >= 21.0 is required")
 endif()
+if (TARGET MLIR)
+    set(MLIR_LINK_MLIR_DYLIB ON CACHE BOOL "Link against the MLIR shared library")
+endif()
 
 LIST(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}" "${LLVM_CMAKE_DIR}")
 

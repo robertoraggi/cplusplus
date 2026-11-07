@@ -58,7 +58,7 @@ auto AllocaOp::destructure(
     const SmallPtrSetImpl<Attribute>& usedIndices, OpBuilder& builder,
     SmallVectorImpl<DestructurableAllocationOpInterface>& newAllocators)
     -> DenseMap<Attribute, MemorySlot> {
-  auto record = cast<ClassType>(slot.elemType);
+  auto record = cast<ClassType>(getMemorySlotValueType(slot));
   auto space = cast<PointerType>(getType()).getAddressSpace();
   DenseMap<Attribute, MemorySlot> result;
   for (auto [position, field] : llvm::enumerate(record.getBody())) {
@@ -110,7 +110,8 @@ auto MemberOp::rewire(const DestructurableMemorySlot&,
     const MemorySlot& slot, SmallVectorImpl<MemorySlot>& mustBeSafelyUsed,
     const DataLayout&) -> LogicalResult {
   if (getBase() != slot.ptr) return failure();
-  if (cast<PointerType>(getBase().getType()).getElementType() != slot.elemType)
+  if (cast<PointerType>(getBase().getType()).getElementType() !=
+      getMemorySlotValueType(slot))
     return failure();
 
   auto element = cast<PointerType>(getType()).getElementType();
@@ -126,8 +127,9 @@ namespace {
                                         SmallPtrSetImpl<Attribute>& usedIndices)
     -> bool {
   if (!operation->getDiscardableAttrDictionary().empty()) return false;
-  if (!isa<ClassType>(slot.elemType)) return false;
-  if (address != slot.ptr || value != slot.elemType) return false;
+  if (!isa<ClassType>(getMemorySlotValueType(slot))) return false;
+  if (address != slot.ptr || value != getMemorySlotValueType(slot))
+    return false;
   for (const auto& field : slot.subelementTypes)
     usedIndices.insert(field.first);
   return true;
@@ -146,14 +148,16 @@ namespace {
 auto LoadOp::rewire(const DestructurableMemorySlot& slot,
                     DenseMap<Attribute, MemorySlot>& subslots,
                     OpBuilder& builder, const DataLayout&) -> DeletionKind {
-  Value value = UndefOp::create(builder, getLoc(), slot.elemType);
-  auto record = cast<ClassType>(slot.elemType);
+  Value value =
+      UndefOp::create(builder, getLoc(), getMemorySlotValueType(slot));
+  auto record = cast<ClassType>(getMemorySlotValueType(slot));
   for (auto [position, field] : llvm::enumerate(record.getBody())) {
     auto& subslot = subslots.find(builder.getI32IntegerAttr(position))->second;
     auto element =
         LoadOp::create(builder, getLoc(), field, subslot.ptr, int64_t(0));
-    value = InsertValueOp::create(builder, getLoc(), slot.elemType, value,
-                                  element, int64_t(position));
+    value =
+        InsertValueOp::create(builder, getLoc(), getMemorySlotValueType(slot),
+                              value, element, int64_t(position));
   }
   getResult().replaceAllUsesWith(value);
   return DeletionKind::Delete;
@@ -172,7 +176,7 @@ auto LoadOp::rewire(const DestructurableMemorySlot& slot,
 auto StoreOp::rewire(const DestructurableMemorySlot& slot,
                      DenseMap<Attribute, MemorySlot>& subslots,
                      OpBuilder& builder, const DataLayout&) -> DeletionKind {
-  auto record = cast<ClassType>(slot.elemType);
+  auto record = cast<ClassType>(getMemorySlotValueType(slot));
   for (auto [position, field] : llvm::enumerate(record.getBody())) {
     auto& subslot = subslots.find(builder.getI32IntegerAttr(position))->second;
     auto element = ExtractValueOp::create(builder, getLoc(), field, getValue(),
@@ -188,7 +192,8 @@ auto StoreOp::rewire(const DestructurableMemorySlot& slot,
     -> LogicalResult {
   if (!getOperation()->getDiscardableAttrDictionary().empty()) return failure();
   if (getVolatile_()) return failure();
-  return success(getAddr() == slot.ptr && getType() == slot.elemType);
+  return success(getAddr() == slot.ptr &&
+                 getType() == getMemorySlotValueType(slot));
 }
 
 [[nodiscard]] auto StoreOp::ensureOnlySafeAccesses(const MemorySlot& slot,
@@ -198,7 +203,7 @@ auto StoreOp::rewire(const DestructurableMemorySlot& slot,
   if (!getOperation()->getDiscardableAttrDictionary().empty()) return failure();
   if (getVolatile_()) return failure();
   return success(getAddr() == slot.ptr && getValue() != slot.ptr &&
-                 getValue().getType() == slot.elemType);
+                 getValue().getType() == getMemorySlotValueType(slot));
 }
 
 }  // namespace mlir::cxx

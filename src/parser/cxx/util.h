@@ -20,11 +20,13 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 
 namespace cxx {
 
-auto align_to(int n, int align) -> int;
+[[nodiscard]] auto align_to(std::uint64_t n, std::uint64_t align)
+    -> std::uint64_t;
 
 template <typename T>
 void hash_combine(std::size_t& seed, const T& val) {

@@ -139,6 +139,11 @@ export const bindings: Record<string, ClassBindings> = {
   },
 
   "::cxx::ClassSymbol": {
+    firstNonFriendDeclarationLocation_: {
+      cls: "P",
+      read: "$->firstNonFriendDeclarationLocation()",
+      write: "$->setFirstNonFriendDeclarationLocation($value)",
+    },
     flags_: { cls: "D", why: "the individual bit-fields are persisted" },
     baseClasses_: {
       cls: "P",
@@ -245,6 +250,17 @@ export const bindings: Record<string, ClassBindings> = {
 
   "::cxx::VariableSymbol": {
     flags_: { cls: "D", why: "the individual bit-fields are persisted" },
+    hasCLinkage_: {
+      cls: "P",
+      read: "$->hasCLinkage()",
+      write:
+        "$->setLanguageLinkage($value ? LanguageKind::kC : LanguageKind::kCXX)",
+    },
+    pendingInitializer_: {
+      cls: "P",
+      read: "$->pendingInitializer()",
+      write: "$->setPendingInitializer(std::move($value))",
+    },
   },
 
   "::cxx::FieldSymbol": {
