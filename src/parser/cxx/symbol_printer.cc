@@ -72,7 +72,8 @@ struct DumpSymbols {
 
     auto symbols = scope->members();
 
-    std::vector<Symbol*> sortedSymbols(begin(symbols), end(symbols));
+    std::vector<Symbol*> sortedSymbols(std::ranges::begin(symbols),
+                                       std::ranges::end(symbols));
 
     for (auto symbol : sortedSymbols) {
       if (symbol->canonical() != symbol) continue;
@@ -415,6 +416,7 @@ struct DumpSymbols {
     if (symbol->isConstexpr()) out = std::format_to(out, "{}", " constexpr");
     if (symbol->isConstinit()) out = std::format_to(out, "{}", " constinit");
     if (symbol->isInline()) out = std::format_to(out, "{}", " inline");
+    if (symbol->hasCLinkage()) out = std::format_to(out, "{}", " extern \"C\"");
     dumpAbiTags(symbol);
 
     out = std::format_to(out, " {}", to_string(symbol->type(), symbol->name()));

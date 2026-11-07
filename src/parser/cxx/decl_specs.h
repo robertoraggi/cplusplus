@@ -30,6 +30,10 @@ class Control;
 class TranslationUnit;
 class ASTRewriter;
 
+[[nodiscard]] auto computed_specifier_type(TranslationUnit* unit,
+                                           SpecifierAST* specifier)
+    -> const Type*;
+
 class [[nodiscard]] DeclSpecs {
   struct Visitor;
 

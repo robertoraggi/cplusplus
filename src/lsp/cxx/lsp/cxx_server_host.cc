@@ -108,7 +108,6 @@ void CxxServerHost::process(CxxDocument& document, std::string source,
 
   if (!document.isCancelled()) {
     auto config = document.parserConfiguration();
-    config.validateAst = cli_.opt_fvalidate_ast;
     if (unit->hasAdoptedPrefix()) {
       unit->resume(config);
     } else {

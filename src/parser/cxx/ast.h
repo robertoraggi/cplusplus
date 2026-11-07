@@ -671,6 +671,39 @@ class StaticAssertDeclarationAST final : public DeclarationAST {
   StaticAssertDeclarationAST() : DeclarationAST(Kind) {}
 };
 
+class ConstevalBlockDeclarationAST final : public DeclarationAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::ConstevalBlockDeclaration;
+
+  SourceLocation constevalLoc;
+  CompoundStatementAST* statement = nullptr;
+  LambdaSymbol* symbol = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena)
+      -> ConstevalBlockDeclarationAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> ConstevalBlockDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SourceLocation constevalLoc,
+                                   CompoundStatementAST* statement,
+                                   LambdaSymbol* symbol)
+      -> ConstevalBlockDeclarationAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   CompoundStatementAST* statement,
+                                   LambdaSymbol* symbol)
+      -> ConstevalBlockDeclarationAST*;
+
+ protected:
+  ConstevalBlockDeclarationAST() : DeclarationAST(Kind) {}
+};
+
 class AliasDeclarationAST final : public DeclarationAST {
  public:
   static constexpr ASTKind Kind = ASTKind::AliasDeclaration;
@@ -3675,7 +3708,7 @@ class SubscriptExpressionAST final : public ExpressionAST {
 
   ExpressionAST* baseExpression = nullptr;
   SourceLocation lbracketLoc;
-  ExpressionAST* indexExpression = nullptr;
+  List<ExpressionAST*>* expressionList = nullptr;
   SourceLocation rbracketLoc;
   FunctionSymbol* symbol = nullptr;
   bool isVirtualDispatch = false;
@@ -3691,12 +3724,12 @@ class SubscriptExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(
       Arena* arena, ExpressionAST* baseExpression, SourceLocation lbracketLoc,
-      ExpressionAST* indexExpression, SourceLocation rbracketLoc,
+      List<ExpressionAST*>* expressionList, SourceLocation rbracketLoc,
       FunctionSymbol* symbol, bool isVirtualDispatch,
       ValueCategory valueCategory, const Type* type) -> SubscriptExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
-                                   ExpressionAST* indexExpression,
+                                   List<ExpressionAST*>* expressionList,
                                    FunctionSymbol* symbol,
                                    bool isVirtualDispatch,
                                    ValueCategory valueCategory,
@@ -3716,6 +3749,7 @@ class CallExpressionAST final : public ExpressionAST {
   SourceLocation rparenLoc;
   bool isVirtualDispatch = false;
   FunctionSymbol* constructorSymbol = nullptr;
+  ScopeSymbol* reflectionScope = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -3730,12 +3764,14 @@ class CallExpressionAST final : public ExpressionAST {
       Arena* arena, ExpressionAST* baseExpression, SourceLocation lparenLoc,
       List<ExpressionAST*>* expressionList, SourceLocation rparenLoc,
       bool isVirtualDispatch, FunctionSymbol* constructorSymbol,
-      ValueCategory valueCategory, const Type* type) -> CallExpressionAST*;
+      ScopeSymbol* reflectionScope, ValueCategory valueCategory,
+      const Type* type) -> CallExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
                                    List<ExpressionAST*>* expressionList,
                                    bool isVirtualDispatch,
                                    FunctionSymbol* constructorSymbol,
+                                   ScopeSymbol* reflectionScope,
                                    ValueCategory valueCategory,
                                    const Type* type) -> CallExpressionAST*;
 
@@ -3818,6 +3854,7 @@ class SpliceMemberExpressionAST final : public ExpressionAST {
   SourceLocation accessLoc;
   SourceLocation templateLoc;
   SplicerAST* splicer = nullptr;
+  SpliceExpressionInfo splice;
   Symbol* symbol = nullptr;
   TokenKind accessOp = TokenKind::T_EOF_SYMBOL;
   bool isTemplateIntroduced = false;
@@ -3833,17 +3870,15 @@ class SpliceMemberExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(
       Arena* arena, ExpressionAST* baseExpression, SourceLocation accessLoc,
-      SourceLocation templateLoc, SplicerAST* splicer, Symbol* symbol,
-      TokenKind accessOp, bool isTemplateIntroduced,
-      ValueCategory valueCategory, const Type* type)
+      SourceLocation templateLoc, SplicerAST* splicer,
+      SpliceExpressionInfo splice, Symbol* symbol, TokenKind accessOp,
+      bool isTemplateIntroduced, ValueCategory valueCategory, const Type* type)
       -> SpliceMemberExpressionAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* baseExpression,
-                                   SplicerAST* splicer, Symbol* symbol,
-                                   TokenKind accessOp,
-                                   bool isTemplateIntroduced,
-                                   ValueCategory valueCategory,
-                                   const Type* type)
+  [[nodiscard]] static auto create(
+      Arena* arena, ExpressionAST* baseExpression, SplicerAST* splicer,
+      SpliceExpressionInfo splice, Symbol* symbol, TokenKind accessOp,
+      bool isTemplateIntroduced, ValueCategory valueCategory, const Type* type)
       -> SpliceMemberExpressionAST*;
 
  protected:
@@ -4157,6 +4192,7 @@ class SpliceExpressionAST final : public ExpressionAST {
   static constexpr ASTKind Kind = ASTKind::SpliceExpression;
 
   SplicerAST* splicer = nullptr;
+  SpliceExpressionInfo splice;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4168,6 +4204,7 @@ class SpliceExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(Arena* arena) -> SpliceExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, SplicerAST* splicer,
+                                   SpliceExpressionInfo splice,
                                    ValueCategory valueCategory,
                                    const Type* type) -> SpliceExpressionAST*;
 
@@ -4767,6 +4804,9 @@ class ConstExpressionAST final : public ExpressionAST {
 
   ExpressionAST* expression = nullptr;
   const ConstValue* constValue = nullptr;
+  bool isDeferredImmediateInvocation = false;
+  ConstantEvaluationKind evaluationKind = ConstantEvaluationKind::kNone;
+  ScopeSymbol* evaluationScope = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -4779,6 +4819,9 @@ class ConstExpressionAST final : public ExpressionAST {
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
                                    const ConstValue* constValue,
+                                   bool isDeferredImmediateInvocation,
+                                   ConstantEvaluationKind evaluationKind,
+                                   ScopeSymbol* evaluationScope,
                                    ValueCategory valueCategory,
                                    const Type* type) -> ConstExpressionAST*;
 
@@ -6319,6 +6362,42 @@ class UnderlyingTypeSpecifierAST final : public SpecifierAST {
   UnderlyingTypeSpecifierAST() : SpecifierAST(Kind) {}
 };
 
+class PackIndexTypeSpecifierAST final : public SpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::PackIndexTypeSpecifier;
+
+  NamedTypeSpecifierAST* packSpecifier = nullptr;
+  SourceLocation ellipsisLoc;
+  SourceLocation lbracketLoc;
+  ExpressionAST* indexExpression = nullptr;
+  SourceLocation rbracketLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena) -> PackIndexTypeSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> PackIndexTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NamedTypeSpecifierAST* packSpecifier,
+                                   SourceLocation ellipsisLoc,
+                                   SourceLocation lbracketLoc,
+                                   ExpressionAST* indexExpression,
+                                   SourceLocation rbracketLoc)
+      -> PackIndexTypeSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena,
+                                   NamedTypeSpecifierAST* packSpecifier,
+                                   ExpressionAST* indexExpression)
+      -> PackIndexTypeSpecifierAST*;
+
+ protected:
+  PackIndexTypeSpecifierAST() : SpecifierAST(Kind) {}
+};
+
 class ElaboratedTypeSpecifierAST final : public SpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::ElaboratedTypeSpecifier;
@@ -6990,6 +7069,7 @@ class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
   SourceLocation lbracketLoc;
   List<SpecifierAST*>* typeQualifierList = nullptr;
   ExpressionAST* expression = nullptr;
+  ScopeSymbol* evaluationScope = nullptr;
   SourceLocation rbracketLoc;
   List<AttributeSpecifierAST*>* attributeList = nullptr;
 
@@ -7005,6 +7085,7 @@ class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
   [[nodiscard]] static auto create(Arena* arena, SourceLocation lbracketLoc,
                                    List<SpecifierAST*>* typeQualifierList,
                                    ExpressionAST* expression,
+                                   ScopeSymbol* evaluationScope,
                                    SourceLocation rbracketLoc,
                                    List<AttributeSpecifierAST*>* attributeList)
       -> ArrayDeclaratorChunkAST*;
@@ -7012,6 +7093,7 @@ class ArrayDeclaratorChunkAST final : public DeclaratorChunkAST {
   [[nodiscard]] static auto create(Arena* arena,
                                    List<SpecifierAST*>* typeQualifierList,
                                    ExpressionAST* expression,
+                                   ScopeSymbol* evaluationScope,
                                    List<AttributeSpecifierAST*>* attributeList)
       -> ArrayDeclaratorChunkAST*;
 
@@ -7092,6 +7174,28 @@ class DecltypeIdAST final : public UnqualifiedIdAST {
 
  protected:
   DecltypeIdAST() : UnqualifiedIdAST(Kind) {}
+};
+
+class PackIndexIdAST final : public UnqualifiedIdAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::PackIndexId;
+
+  SpecifierAST* typeSpecifier = nullptr;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena) -> PackIndexIdAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena) -> PackIndexIdAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier)
+      -> PackIndexIdAST*;
+
+ protected:
+  PackIndexIdAST() : UnqualifiedIdAST(Kind) {}
 };
 
 class OperatorFunctionIdAST final : public UnqualifiedIdAST {
@@ -7384,6 +7488,36 @@ class DecltypeNestedNameSpecifierAST final : public NestedNameSpecifierAST {
   DecltypeNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
 };
 
+class PackIndexNestedNameSpecifierAST final : public NestedNameSpecifierAST {
+ public:
+  static constexpr ASTKind Kind = ASTKind::PackIndexNestedNameSpecifier;
+
+  SpecifierAST* typeSpecifier = nullptr;
+  SourceLocation scopeLoc;
+
+  void accept(ASTVisitor* visitor) override { visitor->visit(this); }
+
+  [[nodiscard]] auto clone(Arena* arena)
+      -> PackIndexNestedNameSpecifierAST* override;
+
+  [[nodiscard]] auto firstSourceLocation() -> SourceLocation override;
+  [[nodiscard]] auto lastSourceLocation() -> SourceLocation override;
+
+  [[nodiscard]] static auto create(Arena* arena)
+      -> PackIndexNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier,
+                                   SourceLocation scopeLoc, Symbol* symbol)
+      -> PackIndexNestedNameSpecifierAST*;
+
+  [[nodiscard]] static auto create(Arena* arena, SpecifierAST* typeSpecifier,
+                                   Symbol* symbol)
+      -> PackIndexNestedNameSpecifierAST*;
+
+ protected:
+  PackIndexNestedNameSpecifierAST() : NestedNameSpecifierAST(Kind) {}
+};
+
 class TemplateNestedNameSpecifierAST final : public NestedNameSpecifierAST {
  public:
   static constexpr ASTKind Kind = ASTKind::TemplateNestedNameSpecifier;
@@ -7573,6 +7707,7 @@ class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
   static constexpr ASTKind Kind = ASTKind::ExpressionTemplateArgument;
 
   ExpressionAST* expression = nullptr;
+  ScopeSymbol* evaluationScope = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -7585,7 +7720,8 @@ class ExpressionTemplateArgumentAST final : public TemplateArgumentAST {
   [[nodiscard]] static auto create(Arena* arena)
       -> ExpressionTemplateArgumentAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression)
+  [[nodiscard]] static auto create(Arena* arena, ExpressionAST* expression,
+                                   ScopeSymbol* evaluationScope)
       -> ExpressionTemplateArgumentAST*;
 
  protected:
@@ -8450,6 +8586,9 @@ auto visit(Visitor&& visitor, DeclarationAST* ast) {
     case StaticAssertDeclarationAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<StaticAssertDeclarationAST*>(ast));
+    case ConstevalBlockDeclarationAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<ConstevalBlockDeclarationAST*>(ast));
     case AliasDeclarationAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<AliasDeclarationAST*>(ast));
@@ -8521,6 +8660,7 @@ template <>
     case UsingEnumDeclarationAST::Kind:
     case UsingDirectiveAST::Kind:
     case StaticAssertDeclarationAST::Kind:
+    case ConstevalBlockDeclarationAST::Kind:
     case AliasDeclarationAST::Kind:
     case OpaqueEnumDeclarationAST::Kind:
     case FunctionDefinitionAST::Kind:
@@ -9112,6 +9252,9 @@ auto visit(Visitor&& visitor, SpecifierAST* ast) {
     case UnderlyingTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<UnderlyingTypeSpecifierAST*>(ast));
+    case PackIndexTypeSpecifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<PackIndexTypeSpecifierAST*>(ast));
     case ElaboratedTypeSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<ElaboratedTypeSpecifierAST*>(ast));
@@ -9186,6 +9329,7 @@ template <>
     case AtomicTypeSpecifierAST::Kind:
     case BitIntTypeSpecifierAST::Kind:
     case UnderlyingTypeSpecifierAST::Kind:
+    case PackIndexTypeSpecifierAST::Kind:
     case ElaboratedTypeSpecifierAST::Kind:
     case DecltypeAutoSpecifierAST::Kind:
     case DecltypeSpecifierAST::Kind:
@@ -9309,6 +9453,9 @@ auto visit(Visitor&& visitor, UnqualifiedIdAST* ast) {
     case DecltypeIdAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<DecltypeIdAST*>(ast));
+    case PackIndexIdAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<PackIndexIdAST*>(ast));
     case OperatorFunctionIdAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<OperatorFunctionIdAST*>(ast));
@@ -9340,6 +9487,7 @@ template <>
     case NameIdAST::Kind:
     case DestructorIdAST::Kind:
     case DecltypeIdAST::Kind:
+    case PackIndexIdAST::Kind:
     case OperatorFunctionIdAST::Kind:
     case LiteralOperatorIdAST::Kind:
     case ConversionFunctionIdAST::Kind:
@@ -9364,6 +9512,9 @@ auto visit(Visitor&& visitor, NestedNameSpecifierAST* ast) {
     case DecltypeNestedNameSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<DecltypeNestedNameSpecifierAST*>(ast));
+    case PackIndexNestedNameSpecifierAST::Kind:
+      return std::invoke(std::forward<Visitor>(visitor),
+                         static_cast<PackIndexNestedNameSpecifierAST*>(ast));
     case TemplateNestedNameSpecifierAST::Kind:
       return std::invoke(std::forward<Visitor>(visitor),
                          static_cast<TemplateNestedNameSpecifierAST*>(ast));
@@ -9380,6 +9531,7 @@ template <>
     case GlobalNestedNameSpecifierAST::Kind:
     case SimpleNestedNameSpecifierAST::Kind:
     case DecltypeNestedNameSpecifierAST::Kind:
+    case PackIndexNestedNameSpecifierAST::Kind:
     case TemplateNestedNameSpecifierAST::Kind:
       return static_cast<NestedNameSpecifierAST*>(ast);
     default:

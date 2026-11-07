@@ -28,7 +28,7 @@
 namespace llvm {
 class TargetMachine;
 class raw_ostream;
-}
+}  // namespace llvm
 
 namespace cxx {
 class TimeTrace;
@@ -60,5 +60,7 @@ struct MLIRLoweringOptions {
 
 void optimizeLLVMIR(llvm::Module& module, llvm::TargetMachine* targetMachine,
                     llvm::OptimizationLevel level);
+
+[[nodiscard]] auto llvmPipelineRunsAlwaysInliner() -> bool;
 
 }  // namespace cxx

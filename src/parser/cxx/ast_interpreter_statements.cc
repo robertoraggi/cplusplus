@@ -408,7 +408,7 @@ auto ASTInterpreter::StatementVisitor::operator()(ReturnStatementAST* ast)
           ? type_cast<FunctionType>(interp.currentFunction_->type())
           : nullptr;
   auto expressionResult =
-      returnType && interp.traits.is_class(returnType->returnType())
+      returnType && interp.traits.is_class_or_union(returnType->returnType())
           ? interp.initialValue(returnType->returnType(), ast->expression,
                                 interp.resultAddress_)
           : interp.expression(ast->expression);
@@ -442,6 +442,17 @@ auto ASTInterpreter::initializeAutomaticVariable(Symbol* symbol,
   auto var = symbol_cast<VariableSymbol>(symbol);
   if (var && var->isStructuredBindingAlias()) return true;
 
+  if (has_static_storage_duration(symbol) ||
+      has_thread_storage_duration(symbol))
+    return traits.is_usable_in_constant_expressions(symbol, currentFunction_);
+
+  EvaluationContextScope context{
+      *this,
+      traits.has_manifestly_constant_evaluated_initializer(symbol)
+          ? symbol->parent()
+          : nullptr,
+      initializer ? initializer->firstSourceLocation() : SourceLocation{}};
+
   if (var && traits.is_reference(var->type())) {
     if (frames_.empty()) frames_.push_back({});
     if (!bindReferenceTo(frames_.back(), var,
@@ -474,6 +485,7 @@ auto ASTInterpreter::initializeAutomaticVariable(Symbol* symbol,
 
 auto ASTInterpreter::initializeDecisionVariable(
     ConditionExpressionAST* condition) -> VariableSymbol* {
+  if (frames_.empty()) return condition->symbol;
   if (!initializeAutomaticVariable(condition->symbol, condition->initializer))
     return nullptr;
   return condition->symbol;
@@ -517,13 +529,9 @@ auto ASTInterpreter::StatementVisitor::operator()(DeclarationStatementAST* ast)
 
 auto ASTInterpreter::StatementVisitor::operator()(TryBlockStatementAST* ast)
     -> StatementResult {
-  auto statementResult = interp.statement(ast->statement);
-
-  for (auto node : ListView{ast->handlerList}) {
-    auto value = interp.handler(node);
-  }
-
-  return {};
+  auto result = interp.statement(ast->statement);
+  if (!interp.thrown_) return result;
+  return interp.catchException(ast->handlerList);
 }
 
 auto ASTInterpreter::ExceptionDeclarationVisitor::operator()(

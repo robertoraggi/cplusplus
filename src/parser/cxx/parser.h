@@ -39,6 +39,7 @@
 namespace cxx {
 class Decl;
 class DeclSpecs;
+struct PlaceholderReplacement;
 
 class Parser final {
  public:
@@ -159,6 +160,7 @@ class Parser final {
 
   [[nodiscard]] auto context_allows_structured_bindings(
       BindingContext ctx) const -> bool {
+    if (ctx == BindingContext::kNamespace) return true;
     if (ctx == BindingContext::kBlock) return true;
     if (ctx == BindingContext::kInitStatement) return true;
     if (ctx == BindingContext::kCondition) return true;
@@ -169,16 +171,24 @@ class Parser final {
     std::vector<Diagnostic> messages;
     std::uint32_t start = 0;
     std::uint32_t reach = 0;
+    const Identifier* unresolvedTypeName = nullptr;
+    SourceLocation unresolvedTypeNameLoc;
+    Scope* unresolvedTypeNameScope = nullptr;
   };
 
   void parse_warn(std::string message);
   void parse_warn(SourceLocation loc, std::string message);
+  void check_coroutine_suitability(SourceLocation location);
+  void checkConstantSpecifierConflict(const DeclSpecs& specs,
+                                      SourceLocation location);
   void parse_error(std::string message);
   void parse_error(SourceLocation loc, std::string message);
   [[nodiscard]] auto is_ambiguous_with_expression_statement() const -> bool;
   void record_failed_parse(SourceLocation start,
                            std::vector<Diagnostic> messages);
   void report_failed_parse(std::string message);
+  void report_unresolved_type_name(const FailedParse& failedParse);
+  void replayDiagnostics(const std::vector<Diagnostic>& diagnostics);
   void type_error(SourceLocation loc, std::string message);
 
   void warning(std::string message);
@@ -251,6 +261,9 @@ class Parser final {
 
   [[nodiscard]] auto parse_reflect_expression(ExpressionAST*& yyast,
                                               const ExprContext& ctx) -> bool;
+  [[nodiscard]] auto parse_reflect_operand(ExpressionAST*& yyast,
+                                           SourceLocation caretCaretLoc)
+      -> bool;
 
   enum class IdExpressionContext {
     kExpression,
@@ -284,8 +297,10 @@ class Parser final {
       NestedNameSpecifierAST*& yyast, NestedNameSpecifierContext ctx, int depth,
       MemberAccess memberAccess) -> bool;
   [[nodiscard]] auto parse_lambda_expression(ExpressionAST*& yyast) -> bool;
+  void parse_lambda_body(LambdaExpressionAST* ast,
+                         CompoundStatementAST*& yyast);
   [[nodiscard]] auto parse_lambda_specifier_seq(
-      List<LambdaSpecifierAST*>*& yyast, LambdaSymbol* symbol) -> bool;
+      List<LambdaSpecifierAST*>*& yyast) -> bool;
   [[nodiscard]] auto parse_lambda_capture(SourceLocation& captureDefaultLoc,
                                           List<LambdaCaptureAST*>*& yyast)
       -> bool;
@@ -296,6 +311,13 @@ class Parser final {
   [[nodiscard]] auto parse_simple_capture(LambdaCaptureAST*& yyast) -> bool;
   [[nodiscard]] auto parse_init_capture(LambdaCaptureAST*& yyast) -> bool;
   [[nodiscard]] auto parse_this_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto lookat_pack_index_type() -> bool;
+  [[nodiscard]] auto lookat_postfix_operator() -> bool;
+  [[nodiscard]] auto lookup_type_parameter_pack() -> Symbol*;
+  [[nodiscard]] auto parse_pack_index_type_specifier(SpecifierAST*& yyast,
+                                                     DeclSpecs& specs) -> bool;
+  [[nodiscard]] auto parse_pack_index_nested_name_specifier(
+      NestedNameSpecifierAST*& yyast) -> bool;
   [[nodiscard]] auto parse_pack_index_expression(ExpressionAST*& yyast,
                                                  const ExprContext& ctx)
       -> bool;
@@ -431,6 +453,7 @@ class Parser final {
                                    const ExprContext& exprContext);
   [[nodiscard]] auto parse_maybe_assignment_expression(
       ExpressionAST*& yyast, const ExprContext& exprContext) -> bool;
+  void check_pack_index(ExpressionAST* index);
   [[nodiscard]] auto parse_assignment_operator(SourceLocation& loc,
                                                TokenKind& op) -> bool;
   void parse_expression(ExpressionAST*& yyast, const ExprContext& ctx);
@@ -440,6 +463,8 @@ class Parser final {
                                                std::optional<ConstValue>& value)
       -> bool;
   [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast) -> bool;
+  [[nodiscard]] auto parse_constant_bool_condition(
+      ExpressionAST*& yyast, std::optional<ConstValue>& value) -> bool;
   [[nodiscard]] auto parse_template_argument_constant_expression(
       ExpressionAST*& yyast) -> bool;
 
@@ -554,6 +579,8 @@ class Parser final {
       BindingContext ctx, TemplateDeclarationAST* templateHead = nullptr)
       -> bool;
 
+  [[nodiscard]] auto parse_consteval_block_declaration(DeclarationAST*& yyast)
+      -> bool;
   [[nodiscard]] auto parse_static_assert_declaration(DeclarationAST*& yyast)
       -> bool;
   auto match_string_literal(SourceLocation& loc) -> bool;
@@ -592,6 +619,7 @@ class Parser final {
   [[nodiscard]] auto parse_simple_type_specifier(
       SpecifierAST*& yyast, DeclSpecs& specs,
       TypeNameContext context = TypeNameContext::kGeneral) -> bool;
+  [[nodiscard]] auto rejects_plain_type_name(TypeNameContext context) -> bool;
   [[nodiscard]] auto parse_named_type_specifier(
       SpecifierAST*& yyast, DeclSpecs& specs,
       TypeNameContext context = TypeNameContext::kGeneral) -> bool;
@@ -630,11 +658,12 @@ class Parser final {
                                                       DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_init_declarator(
       InitDeclaratorAST*& yyast, const DeclSpecs& specs, BindingContext ctx,
+      PlaceholderReplacement& listReplacement,
       TemplateDeclarationAST* templateHead = nullptr) -> bool;
   [[nodiscard]] auto parse_init_declarator(
       InitDeclaratorAST*& yyast, DeclaratorAST* declarator, Decl& decl,
-      BindingContext ctx, TemplateDeclarationAST* templateHead = nullptr)
-      -> bool;
+      BindingContext ctx, PlaceholderReplacement& listReplacement,
+      TemplateDeclarationAST* templateHead = nullptr) -> bool;
   [[nodiscard]] auto parse_declarator_initializer(
       RequiresClauseAST*& requiresClause, ExpressionAST*& yyast,
       const Type* declaredType = nullptr) -> bool;
@@ -735,7 +764,8 @@ class Parser final {
                                      List<SpecifierAST*>*& typeSpecifierList,
                                      DeclSpecs& specs) -> bool;
   void parse_enumerator_list(List<EnumeratorAST*>*& yyast);
-  void parse_enumerator(EnumeratorAST*& yyast, const Type* previousType);
+  void parse_enumerator(EnumeratorAST*& yyast, const Type* previousType,
+                        const std::optional<ConstValue>& previousValue);
   [[nodiscard]] auto parse_using_enum_declaration(DeclarationAST*& yyast)
       -> bool;
   [[nodiscard]] auto parse_namespace_definition(DeclarationAST*& yyast) -> bool;
@@ -837,11 +867,12 @@ class Parser final {
       List<AttributeSpecifierAST*>* attributes) const -> bool;
   [[nodiscard]] auto parse_member_declaration_helper(DeclarationAST*& yyast)
       -> bool;
-  [[nodiscard]] auto parse_member_declarator(InitDeclaratorAST*& yyast,
-                                             const DeclSpecs& specs) -> bool;
-  [[nodiscard]] auto parse_member_declarator(InitDeclaratorAST*& yyast,
-                                             DeclaratorAST* declarator,
-                                             Decl decl) -> bool;
+  [[nodiscard]] auto parse_member_declarator(
+      InitDeclaratorAST*& yyast, const DeclSpecs& specs,
+      PlaceholderReplacement& listReplacement) -> bool;
+  [[nodiscard]] auto parse_member_declarator(
+      InitDeclaratorAST*& yyast, DeclaratorAST* declarator, Decl decl,
+      PlaceholderReplacement& listReplacement) -> bool;
   [[nodiscard]] auto parse_virt_specifier(
       FunctionDeclaratorChunkAST* functionDeclarator) -> bool;
   [[nodiscard]] auto parse_pure_specifier(SourceLocation& equalLoc,
@@ -929,6 +960,11 @@ class Parser final {
                                               DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_explicit_instantiation(DeclarationAST*& yyast)
       -> bool;
+  void instantiateClassTemplateExplicitly(ExplicitInstantiationAST* ast,
+                                          SimpleTemplateIdAST* templateId,
+                                          ClassSymbol* classSymbol);
+  void instantiateMemberClassExplicitly(ExplicitInstantiationAST* ast,
+                                        ElaboratedTypeSpecifierAST* elabSpec);
 
   [[nodiscard]] auto parse_try_block(StatementAST*& yyast,
                                      List<AttributeSpecifierAST*>* attributes)
@@ -994,7 +1030,8 @@ class Parser final {
     ScopeSymbol* scope;
   };
   void recordFieldInitializer(InitDeclaratorAST* ast,
-                              SpecifierAST* typeSpecifier);
+                              SpecifierAST* typeSpecifier,
+                              PlaceholderReplacement* listReplacement);
   [[nodiscard]] auto isDeferredDefaultArgument(bool templParam) const -> bool;
   [[nodiscard]] auto isDeferredNoexceptSpecifier() const -> bool;
   [[nodiscard]] auto hasPendingFieldInitializer(ClassSymbol* classSymbol,
@@ -1039,11 +1076,38 @@ class Parser final {
 
   [[nodiscard]] auto isOnLexicalScopeChain(ScopeSymbol* symbol) const -> bool;
 
+  [[nodiscard]] static auto templateParameterScopeDepth(
+      TemplateParametersSymbol* templateParameters) -> std::optional<int>;
+  [[nodiscard]] auto lexicalTemplateParametersAt(int depth) const
+      -> TemplateParametersSymbol*;
+  [[nodiscard]] auto templateParametersToEnter(ScopeSymbol* scope) const
+      -> TemplateParametersSymbol*;
+
+  [[nodiscard]] auto findsDeclaration(
+      NestedNameSpecifierAST* nestedNameSpecifier,
+      UnqualifiedIdAST* unqualifiedId) const -> bool;
+  [[nodiscard]] auto elaboratedTypeCandidate(const Identifier* name,
+                                             TokenKind classKey,
+                                             const DeclSpecs& specs) const
+      -> Symbol*;
+
+  [[nodiscard]] auto boundTemplateParameter(const Name* name,
+                                            Symbol* declared) const -> Symbol*;
+  void checkTemplateParameterRebinding(const Name* name,
+                                       SourceLocation location,
+                                       Symbol* declared = nullptr);
+  void checkTemplateParameterRebinding(Symbol* declared);
+  void checkTemplateParameterRebinding(const Decl& decl, Symbol* declared);
+  void checkTagNameBinding(NestedNameSpecifierAST* nestedNameSpecifier,
+                           UnqualifiedIdAST* unqualifiedId, Symbol* declared);
+  void checkInitCaptureBindings(LambdaExpressionAST* ast);
+
   void pushScope(ScopeSymbol* symbol);
 
   [[nodiscard]] auto lexicalScope() const -> Scope* { return lexicalScope_; }
 
-  void check(ExpressionAST** ast);
+  void check(ExpressionAST** ast, bool addressOfOperand = false);
+  void check_splicer_operand(ExpressionAST*& expression);
 
   void resolve_user_defined_literal(ExpressionAST* ast,
                                     std::string_view suffix);
@@ -1069,10 +1133,14 @@ class Parser final {
   void check(DeclarationAST* ast);
 
   void check_bool_condition(ExpressionAST*& ast);
+  void check_constant_expression(ExpressionAST* ast,
+                                 const std::optional<ConstValue>& value,
+                                 std::string_view construct);
   void check_discarded_value(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
   void check_init_declarator(InitDeclaratorAST* initDecl,
-                             SpecifierAST* typeSpecifier);
+                             SpecifierAST* typeSpecifier,
+                             PlaceholderReplacement* listReplacement);
   void check_mem_initializers(FunctionDefinitionAST* ast);
 
   [[nodiscard]] auto enterOrCreateNamespace(const Identifier* identifier,
@@ -1181,8 +1249,12 @@ class Parser final {
   int classDepth_ = 0;
   int uncheckedInitializerDepth_ = 0;
   int unevaluatedOperandDepth_ = 0;
+  SourceLocation addressOfOperandLoc_;
   std::uint32_t cursor_ = 0;
   FailedParse deepestFailedParse_;
+  std::uint32_t rejectedTypeNameCursor_ = 0;
+  Scope* rejectedTypeNameScope_ = nullptr;
+  TypeNameContext rejectedTypeNameContext_{};
   int anonNamespaceCount_ = 0;
   int templateParameterDepth_ = -1;
   int parameterClauseDepth_ = 0;
@@ -1206,6 +1278,7 @@ class Parser final {
       T* ast = nullptr;
       bool parsed = false;
       int hit = 0;
+      std::vector<Diagnostic> diagnostics;
     };
 
     using Map = std::unordered_map<SourceLocation, Entry>;
@@ -1239,7 +1312,7 @@ class Parser final {
     }
 
     void set(SourceLocation startLoc, SourceLocation endLoc, T* ast,
-             bool parsed) {
+             bool parsed, std::vector<Diagnostic> diagnostics) {
       const std::size_t kMaxSize = 100;
 
       if (this->map_.size() == kMaxSize) {
@@ -1261,6 +1334,7 @@ class Parser final {
       it->second.endLoc = endLoc;
       it->second.ast = ast;
       it->second.parsed = parsed;
+      it->second.diagnostics = std::move(diagnostics);
       ++it->second.hit;
     }
 

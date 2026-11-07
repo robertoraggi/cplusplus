@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <optional>
@@ -48,13 +49,25 @@ class ConstAddress;
 class ConstStorage;
 class ConstLabelAddress;
 
+enum class ConstantEvaluationKind : std::uint8_t {
+  kNone,
+  kManifestlyConstantEvaluated,
+  kImmediateInvocation,
+};
+
 struct DefaultInitializerContext {
   SourceLocation location;
   ScopeSymbol* scope = nullptr;
+  Symbol* entity = nullptr;
 };
 
 struct IndeterminateValue {
   auto operator==(const IndeterminateValue&) const -> bool = default;
+};
+
+struct OutOfLifetimeValue {
+  [[nodiscard]] auto operator==(const OutOfLifetimeValue&) const
+      -> bool = default;
 };
 
 struct ConstFloat16 {
@@ -70,7 +83,7 @@ using ConstValue =
                  std::shared_ptr<ConstObject>, std::shared_ptr<ConstAddress>,
                  std::shared_ptr<ConstLabelAddress>,
                  std::shared_ptr<ConstComplex>, ConstFloat16,
-                 IndeterminateValue>;
+                 IndeterminateValue, OutOfLifetimeValue>;
 
 class InitializerList {
  public:
@@ -121,6 +134,10 @@ class InitializerList {
 };
 
 [[nodiscard]] auto cloneValue(const ConstValue& value) -> ConstValue;
+
+[[nodiscard]] auto cloneValue(const ConstValue& value,
+                              const std::function<void(ConstValue&)>& transform)
+    -> ConstValue;
 
 [[nodiscard]] auto hasObjectIdentity(const ConstValue& value) -> bool;
 
@@ -221,20 +238,38 @@ class ConstStorage {
   void setValue(ConstValue value) { value_ = std::move(value); }
   void setLifetimeEnded(bool ended) { lifetimeEnded_ = ended; }
 
+  [[nodiscard]] auto backingArray() const
+      -> const std::shared_ptr<ConstStorage>& {
+    return backingArray_;
+  }
+  void setBackingArray(std::shared_ptr<ConstStorage> array) {
+    backingArray_ = std::move(array);
+  }
+
  private:
   const Type* type_ = nullptr;
   ConstValue value_;
+  std::shared_ptr<ConstStorage> backingArray_;
   bool lifetimeEnded_ = false;
 };
 
 class Meta {
  public:
   struct ConstExpr {
-    ExpressionAST* expression = nullptr;
+    const Type* type = nullptr;
     ConstValue value;
   };
 
-  std::variant<const Type*, const Symbol*, ConstExpr> value;
+  struct Parameter {
+    const FunctionSymbol* function = nullptr;
+    std::uint32_t index = 0;
+
+    [[nodiscard]] auto operator==(const Parameter&) const -> bool = default;
+  };
+
+  std::variant<const Type*, const Symbol*, ConstExpr, Parameter,
+               std::shared_ptr<ConstAddress>>
+      value;
 };
 
 class ConstAddress {
@@ -291,6 +326,10 @@ class ConstAddress {
       -> bool;
   [[nodiscard]] auto sameArray(const ConstAddress& other) const -> bool;
   [[nodiscard]] auto sameLocation(const ConstAddress& other) const -> bool;
+  [[nodiscard]] auto sameObject(const ConstAddress& other) const -> bool;
+  [[nodiscard]] auto objectType(const TypeTraits& traits) const -> const Type*;
+  [[nodiscard]] auto objectHash() const -> std::size_t;
+  [[nodiscard]] auto designatedType() const -> const Type*;
   [[nodiscard]] auto lifetimeEnded() const -> bool;
   [[nodiscard]] auto isNull() const -> bool;
 
@@ -356,21 +395,15 @@ class ConstLabelAddress {
 
 [[nodiscard]] auto isFullyInitialized(const ConstValue& value) -> bool;
 
-[[nodiscard]] auto isConstexprRepresentable(const TypeTraits& traits,
-                                            const ConstValue& value,
-                                            const Type* type,
-                                            ScopeSymbol* point) -> bool;
+[[nodiscard]] auto isImmediateObject(const ConstValue& value) -> bool;
 
-[[nodiscard]] auto isConstantInitialization(const TypeTraits& traits,
-                                            Symbol* variable,
-                                            const ConstValue& value) -> bool;
-
-[[nodiscard]] auto isConstantTemplateArgument(const TypeTraits& traits,
-                                              const ConstValue& value,
-                                              const Type* type) -> bool;
+[[nodiscard]] auto declaresImmediateObject(VariableSymbol* variable) -> bool;
 
 [[nodiscard]] auto equivalent_values(const ConstValue& lhs,
                                      const ConstValue& rhs) -> bool;
+
+[[nodiscard]] auto hash_value(const ConstValue& value)
+    -> std::optional<std::size_t>;
 
 [[nodiscard]] auto asConstexprUnknownObject(const ConstValue& value)
     -> std::shared_ptr<ConstObject>;

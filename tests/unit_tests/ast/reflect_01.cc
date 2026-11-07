@@ -8,7 +8,7 @@ constexpr auto ptr_ty = ^^const void*;
 constexpr[:int_ty:] i = 0;
 constexpr[:ptr_ty:] ptr = nullptr;
 
-constexpr auto z = ^^123;
+constexpr auto z = ^^i;
 constexpr auto x = [:z:];
 
 // clang-format off
@@ -54,9 +54,12 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:        constexpr-specifier
 // CHECK-NEXT:        splicer-type-specifier
 // CHECK-NEXT:          splicer: splicer
-// CHECK-NEXT:            expression: id-expression [lvalue const __builtin_meta_info]
-// CHECK-NEXT:              unqualified-id: name-id
-// CHECK-NEXT:                identifier: int_ty
+// CHECK-NEXT:            expression: const-expression [prvalue __builtin_meta_info]
+// CHECK-NEXT:              expression: implicit-cast-expression [prvalue __builtin_meta_info]
+// CHECK-NEXT:                cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                expression: id-expression [lvalue const __builtin_meta_info]
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: int_ty
 // CHECK-NEXT:      init-declarator-list
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
@@ -71,9 +74,12 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:        constexpr-specifier
 // CHECK-NEXT:        splicer-type-specifier
 // CHECK-NEXT:          splicer: splicer
-// CHECK-NEXT:            expression: id-expression [lvalue const __builtin_meta_info]
-// CHECK-NEXT:              unqualified-id: name-id
-// CHECK-NEXT:                identifier: ptr_ty
+// CHECK-NEXT:            expression: const-expression [prvalue __builtin_meta_info]
+// CHECK-NEXT:              expression: implicit-cast-expression [prvalue __builtin_meta_info]
+// CHECK-NEXT:                cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                expression: id-expression [lvalue const __builtin_meta_info]
+// CHECK-NEXT:                  unqualified-id: name-id
+// CHECK-NEXT:                    identifier: ptr_ty
 // CHECK-NEXT:      init-declarator-list
 // CHECK-NEXT:        init-declarator
 // CHECK-NEXT:          declarator: declarator
@@ -97,8 +103,9 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:                identifier: z
 // CHECK-NEXT:          initializer: equal-initializer [prvalue __builtin_meta_info]
 // CHECK-NEXT:            expression: reflect-expression [prvalue __builtin_meta_info]
-// CHECK-NEXT:              expression: int-literal-expression [prvalue int]
-// CHECK-NEXT:                literal: 123
+// CHECK-NEXT:              expression: id-expression [lvalue const int]
+// CHECK-NEXT:                unqualified-id: name-id
+// CHECK-NEXT:                  identifier: i
 // CHECK-NEXT:    simple-declaration
 // CHECK-NEXT:      decl-specifier-list
 // CHECK-NEXT:        constexpr-specifier
@@ -110,8 +117,13 @@ constexpr auto x = [:z:];
 // CHECK-NEXT:              unqualified-id: name-id
 // CHECK-NEXT:                identifier: x
 // CHECK-NEXT:          initializer: equal-initializer [prvalue int]
-// CHECK-NEXT:            expression: splice-expression [prvalue int]
-// CHECK-NEXT:              splicer: splicer
-// CHECK-NEXT:                expression: id-expression [lvalue const __builtin_meta_info]
-// CHECK-NEXT:                  unqualified-id: name-id
-// CHECK-NEXT:                    identifier: z
+// CHECK-NEXT:            expression: implicit-cast-expression [prvalue int]
+// CHECK-NEXT:              cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:              expression: splice-expression [lvalue const int]
+// CHECK-NEXT:                splicer: splicer
+// CHECK-NEXT:                  expression: const-expression [prvalue __builtin_meta_info]
+// CHECK-NEXT:                    expression: implicit-cast-expression [prvalue __builtin_meta_info]
+// CHECK-NEXT:                      cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                      expression: id-expression [lvalue const __builtin_meta_info]
+// CHECK-NEXT:                        unqualified-id: name-id
+// CHECK-NEXT:                          identifier: z

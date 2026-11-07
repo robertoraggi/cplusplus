@@ -43,6 +43,7 @@
   },
   {
     "name": "assume",
+    "standardValue": 202207,
     "spellings": ["CXX"],
     "arguments": ["expression"],
     "cplusplus": true,
@@ -67,6 +68,7 @@
   },
   {
     "name": "deprecated",
+    "standardValue": 201309,
     "spellings": ["CXX"],
     "arguments": ["reason"],
     "optionalArguments": true,
@@ -103,6 +105,7 @@
   },
   {
     "name": "fallthrough",
+    "standardValue": 201603,
     "spellings": ["CXX"],
     "subjects": "null statements",
     "documentation": "Marks an intentional fall through to the next switch label."
@@ -138,6 +141,7 @@
   },
   {
     "name": "indeterminate",
+    "standardValue": 202403,
     "spellings": ["CXX"],
     "cplusplus": true,
     "subjects": "automatic variable definitions and function parameters",
@@ -152,6 +156,7 @@
   },
   {
     "name": "likely",
+    "standardValue": 201803,
     "spellings": ["CXX"],
     "cplusplus": true,
     "subjects": "labels and statements",
@@ -166,12 +171,14 @@
   },
   {
     "name": "maybe_unused",
+    "standardValue": 201603,
     "spellings": ["CXX"],
     "subjects": "names and entities",
     "documentation": "Suppresses warnings about the entity being unused."
   },
   {
     "name": "no_unique_address",
+    "standardValue": 201803,
     "spellings": ["CXX"],
     "cplusplus": true,
     "subjects": "non-static data members",
@@ -179,6 +186,7 @@
   },
   {
     "name": "nodiscard",
+    "standardValue": 201907,
     "spellings": ["CXX"],
     "arguments": ["reason"],
     "optionalArguments": true,
@@ -193,6 +201,7 @@
   },
   {
     "name": "noreturn",
+    "standardValue": 200809,
     "spellings": ["CXX", "GNU", "CXX:gnu"],
     "subjects": "functions",
     "documentation": "Specifies that the function does not return."
@@ -224,6 +233,7 @@
   },
   {
     "name": "unlikely",
+    "standardValue": 201803,
     "spellings": ["CXX"],
     "cplusplus": true,
     "subjects": "labels and statements",

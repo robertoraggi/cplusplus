@@ -32,6 +32,7 @@
 #include <cxx/symbols.h>
 #include <cxx/template_equivalence.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
 #include <cxx/views/symbols.h>
@@ -121,6 +122,9 @@ struct ASTRewriter::SpecifierVisitor : VisitorBase {
 
   [[nodiscard]] auto operator()(AtomicTypeSpecifierAST* ast) -> SpecifierAST*;
   [[nodiscard]] auto operator()(BitIntTypeSpecifierAST* ast) -> SpecifierAST*;
+
+  [[nodiscard]] auto operator()(PackIndexTypeSpecifierAST* ast)
+      -> SpecifierAST*;
 
   [[nodiscard]] auto operator()(UnderlyingTypeSpecifierAST* ast)
       -> SpecifierAST*;
@@ -332,6 +336,10 @@ auto ASTRewriter::baseSpecifier(BaseSpecifierAST* ast) -> BaseSpecifierAST* {
       if (auto classType = unqualified_cast<ClassType>(decltypeSpecifier->type))
         resolved = classType->symbol();
     }
+  } else if (auto packIndexId = ast_cast<PackIndexIdAST>(copy->unqualifiedId)) {
+    auto type = computed_specifier_type(unit_, packIndexId->typeSpecifier);
+    if (auto classType = unqualified_cast<ClassType>(type))
+      resolved = classType->symbol();
   }
 
   if (!resolved && ast->symbol) resolved = remapSymbol(ast->symbol->symbol());
@@ -371,15 +379,17 @@ auto ASTRewriter::enumerator(EnumeratorAST* ast, const Type*& previousType,
       rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
 
   copy->equalLoc = ast->equalLoc;
-  copy->expression = expression(ast->expression);
+  copy->expression = constantExpression(ast->expression);
   copy->identifier = ast->identifier;
 
   std::optional<ConstValue> value;
   if (copy->expression) {
-    auto interp = ASTInterpreter{unit_};
+    auto interp = ASTInterpreter{unit_, binder_.scope()};
     value = interp.evaluate(copy->expression);
+    typeChecker().check_constant_expression(copy->expression, value,
+                                            "enumerator value");
   } else {
-    value = Binder::nextEnumeratorValue(unit_, previousType, lastValue);
+    value = Binder::nextEnumeratorValue(lastValue);
   }
 
   lastValue = value;
@@ -478,7 +488,8 @@ auto ASTRewriter::splicer(SplicerAST* ast) -> SplicerAST* {
   copy->lbracketLoc = ast->lbracketLoc;
   copy->colonLoc = ast->colonLoc;
   copy->ellipsisLoc = ast->ellipsisLoc;
-  copy->expression = expression(ast->expression);
+  copy->expression = constantExpression(ast->expression);
+  typeChecker().convertSplicerOperand(copy->expression);
   copy->secondColonLoc = ast->secondColonLoc;
   copy->rbracketLoc = ast->rbracketLoc;
 
@@ -617,7 +628,8 @@ auto ASTRewriter::SpecifierVisitor::operator()(ExplicitSpecifierAST* ast)
 
   copy->explicitLoc = ast->explicitLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite.contextuallyConvertedBool(ast->expression);
+  copy->expression = rewrite.contextuallyConvertedConstantBool(ast->expression);
+  rewrite.requireConstantExpression(copy->expression, "explicit-specifier");
   copy->rparenLoc = ast->rparenLoc;
 
   return copy;
@@ -826,9 +838,32 @@ auto ASTRewriter::SpecifierVisitor::operator()(BitIntTypeSpecifierAST* ast)
 
   copy->bitintLoc = ast->bitintLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->sizeExpression = rewrite.expression(ast->sizeExpression);
+  copy->sizeExpression = rewrite.constantExpression(ast->sizeExpression);
   copy->rparenLoc = ast->rparenLoc;
 
+  return copy;
+}
+
+auto ASTRewriter::SpecifierVisitor::operator()(PackIndexTypeSpecifierAST* ast)
+    -> SpecifierAST* {
+  auto index = rewrite.constantExpression(ast->indexExpression);
+  auto pack = rewrite.findReferencedParameterPack(ast->packSpecifier);
+  if (auto position =
+          rewrite.selectPackElement(pack, index, ast->firstSourceLocation())) {
+    SpecifierAST* element = nullptr;
+    rewrite.expandPackElement({pack}, *position, [&] {
+      element = rewrite.specifier(ast->packSpecifier);
+    });
+    return element;
+  }
+
+  auto copy = PackIndexTypeSpecifierAST::create(arena());
+  copy->packSpecifier =
+      ast_cast<NamedTypeSpecifierAST>(rewrite.specifier(ast->packSpecifier));
+  copy->ellipsisLoc = ast->ellipsisLoc;
+  copy->lbracketLoc = ast->lbracketLoc;
+  copy->indexExpression = index;
+  copy->rbracketLoc = ast->rbracketLoc;
   return copy;
 }
 
@@ -999,6 +1034,15 @@ auto ASTRewriter::SpecifierVisitor::operator()(RestrictQualifierAST* ast)
 
 auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
     -> SpecifierAST* {
+  if (rewrite.pastingCheckedBody_ && ast->symbol) {
+    rewrite.adoptPastedSymbol(ast->symbol);
+    for (auto enumerator : ListView{ast->enumeratorList}) {
+      if (enumerator->symbol && enumerator->symbol->parent() != ast->symbol)
+        rewrite.adoptPastedSymbol(enumerator->symbol);
+    }
+    return ast;
+  }
+
   auto copy = EnumSpecifierAST::create(arena());
 
   copy->enumLoc = ast->enumLoc;
@@ -1033,8 +1077,7 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
   for (auto node : ListView{ast->enumeratorList})
     append(rewrite.enumerator(node, previousType, lastValue));
 
-  for (auto node : ListView{copy->enumeratorList})
-    if (node->symbol) node->symbol->setType(copy->symbol->type());
+  binder()->complete(copy);
 
   copy->commaLoc = ast->commaLoc;
   copy->rbraceLoc = ast->rbraceLoc;
@@ -1044,6 +1087,11 @@ auto ASTRewriter::SpecifierVisitor::operator()(EnumSpecifierAST* ast)
 
 auto ASTRewriter::SpecifierVisitor::operator()(ClassSpecifierAST* ast)
     -> SpecifierAST* {
+  if (rewrite.pastingCheckedBody_ && ast->symbol) {
+    rewrite.adoptPastedSymbol(ast->symbol);
+    return ast;
+  }
+
   auto copy = ClassSpecifierAST::create(arena());
 
   copy->classLoc = ast->classLoc;
@@ -1292,7 +1340,7 @@ void ASTRewriter::SpecifierVisitor::appendBaseSpecifier(
   classSymbol->addBaseClass(value->symbol);
 
   if (auto baseClass = symbol_cast<ClassSymbol>(value->symbol->symbol())) {
-    translationUnit()->typeTraits().requireCompleteClass(baseClass);
+    translationUnit()->typeTraits().require_complete_class(baseClass);
   }
 }
 
@@ -1446,7 +1494,7 @@ auto ASTRewriter::AttributeSpecifierVisitor::operator()(
 
   copy->alignasLoc = ast->alignasLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.constantExpression(ast->expression);
   copy->ellipsisLoc = ast->ellipsisLoc;
   copy->rparenLoc = ast->rparenLoc;
   copy->isPack = ast->isPack;

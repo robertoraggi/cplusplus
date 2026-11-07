@@ -47,6 +47,7 @@ export type ReadFile = (path: string) => Promise<Uint8Array | undefined>;
 export interface LinkerOptions extends LinkOptions {
   readFile: ReadFile;
   sysroot?: string;
+  exceptions?: boolean;
   libraryPaths?: string[];
   startFiles?: string[];
   libraries?: string[];
@@ -209,7 +210,9 @@ function libraryPaths(options: Omit<LinkerOptions, "readFile">): string[] {
     );
   }
 
-  return [`${options.sysroot}/${defaultLibraryDirectory}`];
+  const libraryDirectory = `${options.sysroot}/${defaultLibraryDirectory}`;
+  const exceptionsDirectory = options.exceptions ? "eh" : "noeh";
+  return [`${libraryDirectory}/${exceptionsDirectory}`, libraryDirectory];
 }
 
 function candidates(searchPaths: string[], name: string): string[] {
@@ -242,6 +245,7 @@ async function pullInput(
 function linkOptionsOf(options: Omit<LinkerOptions, "readFile">): LinkOptions {
   const {
     sysroot: _sysroot,
+    exceptions: _exceptions,
     libraryPaths: _libraryPaths,
     startFiles: _startFiles,
     libraries: _libraries,

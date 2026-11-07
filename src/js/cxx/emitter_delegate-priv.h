@@ -583,6 +583,8 @@ inline auto toVal(cxx::ir::ParameterAbiKind value) -> val {
       return val("ByValue");
     case cxx::ir::ParameterAbiKind::ZeroExtend:
       return val("ZeroExtend");
+    case cxx::ir::ParameterAbiKind::SignExtend:
+      return val("SignExtend");
   }
   return val::undefined();
 }
@@ -595,6 +597,7 @@ inline auto toEnum<cxx::ir::ParameterAbiKind>(const val& value)
   if (name == "StructReturn") return cxx::ir::ParameterAbiKind::StructReturn;
   if (name == "ByValue") return cxx::ir::ParameterAbiKind::ByValue;
   if (name == "ZeroExtend") return cxx::ir::ParameterAbiKind::ZeroExtend;
+  if (name == "SignExtend") return cxx::ir::ParameterAbiKind::SignExtend;
   return cxx::ir::ParameterAbiKind{};
 }
 
@@ -1036,6 +1039,7 @@ inline auto toVal(const cxx::ir::FunctionInfo& value) -> val {
              }));
   result.set("resultAbi", toVal(value.resultAbi));
   result.set("section", toVal(value.section));
+  result.set("comdat", toVal(value.comdat));
   result.set("callingConvention", toVal(value.callingConvention));
   result.set("kernel",
              optionalVal(value.kernel, [](const cxx::ir::KernelInfo& item) {

@@ -85,6 +85,42 @@ void mapStorageClasses(ModuleOp module) {
   });
 }
 
+class FuncToSPIRV final : public OpConversionPattern<func::FuncOp> {
+ public:
+  using OpConversionPattern::OpConversionPattern;
+
+  auto matchAndRewrite(func::FuncOp op, OpAdaptor,
+                       ConversionPatternRewriter& rewriter) const
+      -> LogicalResult override {
+    auto type = op.getFunctionType();
+    if (type.getNumResults() > 1) return failure();
+    auto* converter = getTypeConverter();
+    TypeConverter::SignatureConversion signature(type.getNumInputs());
+    SmallVector<Type> results;
+    if (failed(converter->convertSignatureArgs(type.getInputs(), signature)) ||
+        failed(converter->convertTypes(type.getResults(), results)))
+      return failure();
+
+    auto function = spirv::FuncOp::create(
+        rewriter, op.getLoc(), op.getSymName(),
+        rewriter.getFunctionType(signature.getConvertedTypes(), results));
+    function->setDiscardableAttrs(op->getDiscardableAttrDictionary());
+    function.setArgAttrsAttr(op.getArgAttrsAttr());
+    function.setResAttrsAttr(op.getResAttrsAttr());
+    SymbolTable::setSymbolVisibility(function,
+                                     SymbolTable::getSymbolVisibility(op));
+    if (op.getNoInline())
+      function.setFunctionControl(spirv::FunctionControl::DontInline);
+    rewriter.inlineRegionBefore(op.getBody(), function.getBody(),
+                                function.getBody().end());
+    if (failed(rewriter.convertRegionTypes(&function.getBody(), *converter,
+                                           &signature)))
+      return failure();
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 class DeviceSPIRVTypeConverter final : public SPIRVTypeConverter {
  public:
   explicit DeviceSPIRVTypeConverter(spirv::TargetEnvAttr environment)
@@ -613,7 +649,7 @@ class ConvertCxxDeviceToSPIRVPass final
       ::cxx::populateDeviceAtomicsToSPIRVPatterns(patterns);
       ScfToSPIRVContext controlFlow;
       populateGPUToSPIRVPatterns(types, patterns);
-      populateBuiltinFuncToSPIRVPatterns(types, patterns);
+      patterns.add<FuncToSPIRV>(types, &getContext());
       populateFuncToSPIRVPatterns(types, patterns);
       populateMemRefToSPIRVPatterns(types, patterns);
       populateSCFToSPIRVPatterns(types, controlFlow, patterns);
@@ -632,19 +668,14 @@ class ConvertCxxDeviceToSPIRVPass final
                    StorageAddressToSPIRV<cxx::SubscriptOp>,
                    StorageAddressToSPIRV<cxx::ArrayToPointerOp>,
                    StorageAddressToSPIRV<cxx::PtrAddOp>,
-                   StorageAddressToSPIRV<cxx::BitcastOp>>(&getContext(),
-                                                          addresses);
+                   StorageAddressToSPIRV<cxx::BitcastOp>,
+                   StorageAddressToSPIRV<cxx::AddressSpaceCastOp>>(
+          &getContext(), addresses);
       auto target = SPIRVConversionTarget::get(environment);
       if (failed(applyFullConversion(device, *target, std::move(patterns))))
         return signalPassFailure();
     }
     eraseDeadOperations(module);
-
-    module.walk([](spirv::FuncOp function) {
-      if (!function->hasAttr("no_inline")) return;
-      function.setFunctionControl(spirv::FunctionControl::DontInline);
-      function->removeAttr("no_inline");
-    });
   }
 };
 

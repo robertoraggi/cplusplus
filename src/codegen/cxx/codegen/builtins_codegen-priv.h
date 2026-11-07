@@ -296,6 +296,15 @@ auto cxx::Codegen::ExpressionVisitor::codegenBuiltinDispatch(
     case BuiltinFunctionKind::T___BUILTIN_CXX_MEMORY_BARRIER:
       return codegenBuiltinAtomic(ast);
 
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_ADD_SAT:
+      return codegenBuiltinSaturatingArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_SUB_SAT:
+      return codegenBuiltinSaturatingArithmetic(ast);
+
+    case BuiltinFunctionKind::T___BUILTIN_ASSUME_DEREFERENCEABLE:
+      return codegenBuiltinAssumeDereferenceable(ast);
+
     case BuiltinFunctionKind::T___BUILTIN_ADD_OVERFLOW:
       return codegenBuiltinArithmeticOverflow(ast);
 

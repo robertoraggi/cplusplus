@@ -55,6 +55,9 @@ struct ASTInterpreter::DeclarationVisitor {
   [[nodiscard]] auto operator()(StaticAssertDeclarationAST* ast)
       -> DeclarationResult;
 
+  [[nodiscard]] auto operator()(ConstevalBlockDeclarationAST* ast)
+      -> DeclarationResult;
+
   [[nodiscard]] auto operator()(AliasDeclarationAST* ast) -> DeclarationResult;
 
   [[nodiscard]] auto operator()(OpaqueEnumDeclarationAST* ast)
@@ -297,8 +300,11 @@ auto ASTInterpreter::DeclarationVisitor::operator()(UsingDirectiveAST* ast)
 
 auto ASTInterpreter::DeclarationVisitor::operator()(
     StaticAssertDeclarationAST* ast) -> DeclarationResult {
-  auto expressionResult = interp.expression(ast->expression);
+  return {};
+}
 
+auto ASTInterpreter::DeclarationVisitor::operator()(
+    ConstevalBlockDeclarationAST* ast) -> DeclarationResult {
   return {};
 }
 
@@ -346,7 +352,6 @@ auto ASTInterpreter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   auto declaratorResult = interp.declarator(ast->declarator);
   auto requiresClauseResult = interp.requiresClause(ast->requiresClause);
-  auto functionBodyResult = interp.functionBody(ast->functionBody);
 
   return {};
 }

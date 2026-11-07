@@ -40,8 +40,15 @@ class MemoryLayout;
 [[nodiscard]] auto canonicalAttributeSpelling(std::string_view name)
     -> std::string_view;
 
+[[nodiscard]] auto canonicalAttributeNamespaceSpelling(
+    std::string_view attributeNamespace) -> std::string_view;
+
 [[nodiscard]] auto supportsGnuAttribute(std::string_view name,
                                         const MemoryLayout& layout) -> bool;
+
+[[nodiscard]] auto hasCppAttributeValue(std::string_view attributeNamespace,
+                                        std::string_view name,
+                                        const MemoryLayout& layout) -> long;
 
 struct Attribute {
   const Identifier* attributeNamespace = nullptr;
@@ -114,6 +121,7 @@ struct AttributeSpelling {
 struct AttributeInfo {
   AttributeKind kind;
   std::string_view name;
+  long standardValue;
   std::span<const AttributeSpelling> spellings;
   AttributeAvailability availability;
   bool cplusplusOnly;

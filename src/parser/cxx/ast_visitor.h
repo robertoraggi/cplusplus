@@ -46,6 +46,7 @@ class ASTVisitor {
   virtual void visit(UsingEnumDeclarationAST* ast);
   virtual void visit(UsingDirectiveAST* ast);
   virtual void visit(StaticAssertDeclarationAST* ast);
+  virtual void visit(ConstevalBlockDeclarationAST* ast);
   virtual void visit(AliasDeclarationAST* ast);
   virtual void visit(OpaqueEnumDeclarationAST* ast);
   virtual void visit(FunctionDefinitionAST* ast);
@@ -232,6 +233,7 @@ class ASTVisitor {
   virtual void visit(AtomicTypeSpecifierAST* ast);
   virtual void visit(BitIntTypeSpecifierAST* ast);
   virtual void visit(UnderlyingTypeSpecifierAST* ast);
+  virtual void visit(PackIndexTypeSpecifierAST* ast);
   virtual void visit(ElaboratedTypeSpecifierAST* ast);
   virtual void visit(DecltypeAutoSpecifierAST* ast);
   virtual void visit(DecltypeSpecifierAST* ast);
@@ -264,6 +266,7 @@ class ASTVisitor {
   virtual void visit(NameIdAST* ast);
   virtual void visit(DestructorIdAST* ast);
   virtual void visit(DecltypeIdAST* ast);
+  virtual void visit(PackIndexIdAST* ast);
   virtual void visit(OperatorFunctionIdAST* ast);
   virtual void visit(LiteralOperatorIdAST* ast);
   virtual void visit(ConversionFunctionIdAST* ast);
@@ -275,6 +278,7 @@ class ASTVisitor {
   virtual void visit(GlobalNestedNameSpecifierAST* ast);
   virtual void visit(SimpleNestedNameSpecifierAST* ast);
   virtual void visit(DecltypeNestedNameSpecifierAST* ast);
+  virtual void visit(PackIndexNestedNameSpecifierAST* ast);
   virtual void visit(TemplateNestedNameSpecifierAST* ast);
 
   // FunctionBodyAST

@@ -433,7 +433,9 @@ auto mergeDeclarations(Control* control, ScopeSymbol* scope, const Name* name,
     -> Symbol* {
   std::vector<Symbol*> distinct;
   for (auto symbol : found) {
-    if (!std::ranges::contains(distinct, symbol)) distinct.push_back(symbol);
+    if (!std::ranges::contains(distinct, symbol->canonical(),
+                               &Symbol::canonical))
+      distinct.push_back(symbol);
   }
 
   if (distinct.size() == 1) return distinct.front();
@@ -484,6 +486,57 @@ auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id,
     if (ambiguous || !found.empty()) return uniqueLookupDeclaration(found);
   }
   return nullptr;
+}
+
+auto discardTypeAliasOfFoundType(Symbol* found) -> Symbol* {
+  auto alias = symbol_cast<TypeAliasSymbol>(found);
+  if (!alias || !alias->parent()) return found;
+  for (auto candidate : alias->parent()->find(alias->name())) {
+    if (candidate->isHidden()) continue;
+    if (!is_class_or_enum_declaration(candidate)) continue;
+    if (candidate->type() == alias->type()) return candidate;
+  }
+  return found;
+}
+
+auto qualifiedTypeOnlyLookup(Symbol* scopeOrAlias, const Identifier* id)
+    -> Symbol* {
+  return discardTypeAliasOfFoundType(
+      qualifiedLookup(scopeOrAlias, id, is_type));
+}
+
+namespace {
+[[nodiscard]] auto typeOnlySearch(ScopeSymbol* scope, const Identifier* id,
+                                  VisitedScopes& visited) -> Symbol* {
+  return discardTypeAliasOfFoundType(
+      detail::searchScope(scope, id, visited, is_type));
+}
+
+[[nodiscard]] auto isNearestNamespaceOrBlockScope(ScopeSymbol* scope) -> bool {
+  return scope->isNamespace() || scope->isBlock();
+}
+
+template <typename IsLastScope>
+[[nodiscard]] auto typeOnlyLookup(Scope* lexicalScope, const Identifier* id,
+                                  IsLastScope isLastScope) -> Symbol* {
+  VisitedScopes visited;
+  for (auto sc = lexicalScope; sc; sc = sc->parent) {
+    if (!sc->symbol) continue;
+    if (auto found = typeOnlySearch(sc->symbol, id, visited)) return found;
+    if (isLastScope(sc->symbol)) break;
+  }
+  return nullptr;
+}
+}  // namespace
+
+auto unqualifiedTypeOnlyLookup(Scope* lexicalScope, const Identifier* id)
+    -> Symbol* {
+  return typeOnlyLookup(lexicalScope, id, [](ScopeSymbol*) { return false; });
+}
+
+auto friendTypeOnlyLookup(Scope* lexicalScope, const Identifier* id)
+    -> Symbol* {
+  return typeOnlyLookup(lexicalScope, id, isNearestNamespaceOrBlockScope);
 }
 
 auto unqualifiedLookupNamespace(Scope* lexicalScope, const Identifier* id)
@@ -711,7 +764,7 @@ auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
     auto argClassType =
         type_cast<ClassType>(unit->typeTraits().remove_cvref(argType));
     if (argClassType)
-      unit->typeTraits().requireCompleteClass(argClassType->symbol());
+      unit->typeTraits().require_complete_class(argClassType->symbol());
     collector.collect(argType);
   }
 

@@ -23,6 +23,7 @@
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
+#include <array>
 #include <bit>
 #include <cmath>
 #include <cstdlib>
@@ -137,7 +138,7 @@ struct SizeOf {
 
   auto operator()(const BuiltinMetaInfoType* type) const
       -> std::optional<std::size_t> {
-    return std::nullopt;
+    return memoryLayout.sizeOfPointer();
   }
 
   auto operator()(const VoidType* type) const -> std::optional<std::size_t> {
@@ -371,6 +372,11 @@ struct SizeOf {
     return std::nullopt;
   }
 
+  auto operator()(const UnresolvedPackIndexType* type) const
+      -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
   auto operator()(const UnresolvedUnderlyingType* type) const
       -> std::optional<std::size_t> {
     return std::nullopt;
@@ -503,12 +509,13 @@ struct AlignmentOf {
   }
 };
 
-[[nodiscard]] auto round_shift_right(std::uint64_t value, int count)
+[[nodiscard]] auto round_shift_right(ConstInt::UWide value, int count)
     -> ConstInt::UWide {
-  if (count >= 64) return 0;
+  if (count > 128) return 0;
+  if (count == 128) return value > (ConstInt::UWide(1) << 127);
   const auto quotient = value >> count;
-  const auto remainder = value & ((std::uint64_t(1) << count) - 1);
-  const auto half = std::uint64_t(1) << (count - 1);
+  const auto remainder = value & ((ConstInt::UWide(1) << count) - 1);
+  const auto half = ConstInt::UWide(1) << (count - 1);
   if (remainder > half) return ConstInt::UWide(quotient) + 1;
   if (remainder == half && (quotient & 1)) return ConstInt::UWide(quotient) + 1;
   return quotient;
@@ -519,19 +526,20 @@ struct RoundedSignificand {
   ConstInt::UWide significand = 0;
 };
 
-[[nodiscard]] auto round_to_format(double magnitude,
+template <typename Float>
+[[nodiscard]] auto round_to_format(Float magnitude,
                                    const FloatingPointFormat& format)
     -> RoundedSignificand {
-  constexpr int kDoubleDigits = std::numeric_limits<double>::digits;
+  constexpr int kDigits = std::numeric_limits<Float>::digits;
   const int digits = format.significandDigits;
   int binaryExponent = 0;
   const auto fraction = std::frexp(magnitude, &binaryExponent);
   const auto integer =
-      static_cast<std::uint64_t>(std::ldexp(fraction, kDoubleDigits));
+      static_cast<ConstInt::UWide>(std::ldexp(fraction, kDigits));
   RoundedSignificand rounded;
   rounded.exponent = std::max(binaryExponent - 1, 1 - format.maxExponent());
   const int shift =
-      (binaryExponent - kDoubleDigits) - (rounded.exponent - (digits - 1));
+      (binaryExponent - kDigits) - (rounded.exponent - (digits - 1));
   rounded.significand = shift >= 0 ? ConstInt::UWide(integer) << shift
                                    : round_shift_right(integer, -shift);
   if (rounded.significand >> digits) {
@@ -702,36 +710,70 @@ auto FloatingPointFormat::representsInteger(std::intmax_t value) const -> bool {
   return width - 1 <= maxExponent();
 }
 
-auto FloatingPointFormat::representation(double value) const
+namespace {
+template <typename Float>
+[[nodiscard]] auto floatingRepresentation(Float value,
+                                          const FloatingPointFormat& format)
     -> ConstInt::UWide {
-  const auto integerBit = ConstInt::UWide(1) << (significandDigits - 1);
+  const auto integerBit = ConstInt::UWide(1) << (format.significandDigits - 1);
   const auto sign = ConstInt::UWide(std::signbit(value) ? 1 : 0)
-                    << (exponentBits + fractionBits());
-  const auto maxBiasedExponent = (ConstInt::UWide(1) << exponentBits) - 1;
-  const auto infinity = (maxBiasedExponent << fractionBits()) |
-                        stored_significand(integerBit, *this);
+                    << (format.exponentBits + format.fractionBits());
+  const auto maxBiasedExponent =
+      (ConstInt::UWide(1) << format.exponentBits) - 1;
+  const auto infinity = (maxBiasedExponent << format.fractionBits()) |
+                        stored_significand(integerBit, format);
 
   if (std::isnan(value)) {
-    auto payload = ConstInt::UWide(std::bit_cast<std::uint64_t>(value) &
-                                   ((std::uint64_t(1) << 52) - 1));
-    if (fractionBits() < 52)
-      payload >>= 52 - fractionBits();
+    constexpr auto sourceDigits = std::numeric_limits<Float>::digits - 1;
+    auto bytes = std::bit_cast<std::array<unsigned char, sizeof(Float)>>(value);
+    ConstInt::UWide bits = 0;
+    constexpr auto size = std::numeric_limits<Float>::digits == 64
+                              ? std::size_t{10}
+                              : sizeof(Float);
+    for (std::size_t index = 0; index < size; ++index) {
+      auto shift = std::endian::native == std::endian::little
+                       ? index * 8
+                       : (size - index - 1) * 8;
+      auto offset = std::endian::native == std::endian::little
+                        ? index
+                        : bytes.size() - size + index;
+      bits |= ConstInt::UWide(bytes[offset]) << shift;
+    }
+    auto payload = bits & ((ConstInt::UWide(1) << sourceDigits) - 1);
+    auto targetDigits = format.significandDigits - 1;
+    if (targetDigits < sourceDigits)
+      payload >>= sourceDigits - targetDigits;
     else
-      payload <<= fractionBits() - 52;
-    payload |= integerBit >> 1;
-    return sign | infinity | stored_significand(integerBit | payload, *this);
+      payload <<= targetDigits - sourceDigits;
+    if (targetDigits != sourceDigits || !payload) payload |= integerBit >> 1;
+    return sign | infinity | stored_significand(integerBit | payload, format);
   }
   if (std::isinf(value)) return sign | infinity;
   if (value == 0) return sign;
 
-  const auto rounded = round_to_format(std::fabs(value), *this);
-  if (rounded.exponent > maxExponent()) return sign | infinity;
+  const auto rounded = round_to_format(std::fabs(value), format);
+  if (rounded.exponent > format.maxExponent()) return sign | infinity;
 
   const bool isNormal = (rounded.significand & integerBit) != 0;
   const auto biasedExponent =
-      isNormal ? ConstInt::UWide(rounded.exponent + maxExponent()) : 0;
-  return sign | (biasedExponent << fractionBits()) |
-         stored_significand(rounded.significand, *this);
+      isNormal ? ConstInt::UWide(rounded.exponent + format.maxExponent()) : 0;
+  return sign | (biasedExponent << format.fractionBits()) |
+         stored_significand(rounded.significand, format);
+}
+}  // namespace
+
+auto FloatingPointFormat::representation(float value) const -> ConstInt::UWide {
+  return floatingRepresentation(value, *this);
+}
+
+auto FloatingPointFormat::representation(double value) const
+    -> ConstInt::UWide {
+  return floatingRepresentation(value, *this);
+}
+
+auto FloatingPointFormat::representation(long double value) const
+    -> ConstInt::UWide {
+  return floatingRepresentation(value, *this);
 }
 
 auto FloatingPointFormat::value(ConstInt::UWide representation) const
@@ -825,7 +867,7 @@ auto MemoryLayout::usesArmMemberPointerAbi() const -> bool {
   return isAArch64() || isWebAssembly();
 }
 
-auto MemoryLayout::zeroWidthBitFieldAlignsAggregate() const -> bool {
+auto MemoryLayout::unnamedBitFieldAlignsAggregate() const -> bool {
   if (isDarwin()) return false;
   return isAArch64();
 }
@@ -834,6 +876,11 @@ auto MemoryLayout::structorsReturnThis() const -> bool {
   if (isWebAssembly()) return true;
   if (isAArch64()) return isDarwin();
   return false;
+}
+
+auto MemoryLayout::aliasesStructorVariants() const -> bool {
+  if (isWebAssembly()) return true;
+  return Triple{triple_}.os() == TripleOS::kLinux;
 }
 
 auto MemoryLayout::arrayCookieHasElementSize() const -> bool {
@@ -877,6 +924,18 @@ auto MemoryLayout::classValueAbiKind() const -> ClassValueAbiKind {
   if (isAArch64()) return ClassValueAbiKind::kAArch64;
   if (isX86_64()) return ClassValueAbiKind::kX86_64;
   return ClassValueAbiKind::kDefault;
+}
+
+auto MemoryLayout::abiPodDefinition() const -> AbiPodDefinition {
+  if (isWebAssembly()) return AbiPodDefinition::kCxx11;
+  if (!isDarwin()) return AbiPodDefinition::kCxx03UserProvided;
+  if (isAArch64()) return AbiPodDefinition::kCxx11;
+  return AbiPodDefinition::kCxx03UserDeclared;
+}
+
+auto MemoryLayout::extendsPromotableIntegersAtCalls() const -> bool {
+  if (isAArch64()) return isDarwin();
+  return true;
 }
 
 auto to_string(FramePointerKind kind) -> std::string_view {

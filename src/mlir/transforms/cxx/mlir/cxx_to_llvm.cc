@@ -214,8 +214,12 @@ static auto getOrCreateComdat(OpBuilder& rewriter, ModuleOp module,
   {
     OpBuilder::InsertionGuard guard(rewriter);
     rewriter.setInsertionPointToEnd(&comdatBlock);
-    LLVM::ComdatSelectorOp::create(rewriter, module.getLoc(), symbolName,
-                                   LLVM::comdat::Comdat::Any);
+    LLVM::ComdatSelectorOp::Properties properties;
+    properties.sym_name = rewriter.getStringAttr(symbolName);
+    properties.comdat = LLVM::comdat::ComdatAttr::get(
+        rewriter.getContext(), LLVM::comdat::Comdat::Any);
+    LLVM::ComdatSelectorOp::create(rewriter, module.getLoc(), TypeRange{},
+                                   ValueRange{}, properties);
   }
 
   return SymbolRefAttr::get(
@@ -310,7 +314,8 @@ class FuncOpLowering : public OpConversionPattern<cxx::FuncOp> {
       func.setLinkage(declarationLinkage);
     } else if (needsComdat_ && linkageNeedsComdat(linkage)) {
       auto module = op->getParentOfType<ModuleOp>();
-      auto comdatRef = getOrCreateComdat(rewriter, module, op.getSymName());
+      auto comdatRef = getOrCreateComdat(
+          rewriter, module, op.getComdat().value_or(op.getSymName()));
       func.setComdatAttr(comdatRef);
     }
 
@@ -957,7 +962,13 @@ class GlobalOpLowering : public OpConversionPattern<cxx::GlobalOp> {
     if (auto alignment = op.getAlignment()) {
       globalOp.setAlignment(*alignment);
     }
+#if LLVM_VERSION_MAJOR >= 24
+    globalOp.setTlsMode(op.getThreadLocal_()
+                            ? LLVM::ThreadLocalMode::GeneralDynamic
+                            : LLVM::ThreadLocalMode::NotThreadLocal);
+#else
     globalOp.setThreadLocal_(op.getThreadLocal_());
+#endif
     if (auto section = op.getSection()) globalOp.setSection(*section);
 
     if (hasRegionInit) {
@@ -1885,8 +1896,9 @@ class AtomicLoadOpLowering final : public AtomicOpLowering<cxx::AtomicLoadOp> {
       return rewriter.notifyMatchFailure(op, "unsupported atomic load");
     auto loaded = LLVM::LoadOp::create(
         rewriter, op.getLoc(), memory, adaptor.getAddr(),
-        alignment(op.getAddr(), memory), op.getVolatile_(), false, false, false,
-        toLLVM(op.getOrdering()), *scope);
+        alignment(op.getAddr(), memory), op.getVolatile_());
+    loaded.setOrdering(toLLVM(op.getOrdering()));
+    if (!scope->empty()) loaded.setSyncscope(*scope);
     rewriter.replaceOp(op, fromMemory(loaded, type, op.getLoc(), rewriter));
     return success();
   }
@@ -2081,11 +2093,13 @@ class PtrLoadOpLowering : public OpConversionPattern<ptr::LoadOp> {
       -> LogicalResult override {
     auto type = getTypeConverter()->convertType(op.getType());
     if (!type) return failure();
-    rewriter.replaceOpWithNewOp<LLVM::LoadOp>(
-        op, type, adaptor.getPtr(), op.getAlignment().value_or(0),
-        op.getVolatile_(), op.getNontemporal(), op.getInvariant(),
-        op.getInvariantGroup(), convertPtrAtomicOrdering(op.getOrdering()),
-        op.getSyncscope().value_or(StringRef()));
+    auto loaded = LLVM::LoadOp::create(
+        rewriter, op.getLoc(), type, adaptor.getPtr(),
+        op.getAlignment().value_or(0), op.getVolatile_(), op.getNontemporal(),
+        op.getInvariant(), op.getInvariantGroup());
+    loaded.setOrdering(convertPtrAtomicOrdering(op.getOrdering()));
+    if (auto scope = op.getSyncscope()) loaded.setSyncscope(*scope);
+    rewriter.replaceOp(op, loaded);
     return success();
   }
 };
@@ -2138,10 +2152,9 @@ class AllocaOpLowering : public OpConversionPattern<cxx::AllocaOp> {
           op, "failed to convert element type of alloca");
     }
 
-    auto size = LLVM::ConstantOp::create(
-        rewriter, op.getLoc(),
-        typeConverter->convertType(rewriter.getIndexType()),
-        rewriter.getIntegerAttr(rewriter.getIndexType(), 1));
+    auto sizeType = typeConverter->convertType(rewriter.getIndexType());
+    auto size = LLVM::ConstantOp::create(rewriter, op.getLoc(), sizeType,
+                                         rewriter.getIntegerAttr(sizeType, 1));
 
     auto x = LLVM::AllocaOp::create(rewriter, op.getLoc(), resultType,
                                     elementType, size, op.getAlignment());

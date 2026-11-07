@@ -408,6 +408,55 @@ test("token text preserves keyword aliases with canonical token kinds", async ()
   assert.equal(unary.node.opToken.text, "not");
 });
 
+test("subscript argument lists and reflection builtin identifiers survive the bridge", async () => {
+  await using parser = await Parser.parse({
+    path: "/subscript-meta.cc",
+    std: "c++26",
+    source: `
+namespace std::meta {
+using info = decltype(^^::);
+consteval info dealias(info);
+consteval bool is_integral_type(info);
+consteval bool is_same_type(info, info);
+consteval info remove_pointer(info);
+consteval bool is_copy_constructible_type(info);
+}
+using Integer = int;
+static_assert(std::meta::is_integral_type(std::meta::dealias(^^Integer)));
+static_assert(std::meta::is_same_type(std::meta::remove_pointer(^^Integer*), ^^int));
+static_assert(std::meta::is_copy_constructible_type(^^Integer));
+struct S {
+  static int operator[]() { return 7; }
+  static int operator[](int x, int y) { return x + y; }
+};
+int answer() { return S{}[] + S{}[1, 2]; }
+`,
+  });
+  assert.deepEqual(parser.diagnostics, []);
+  const paths = [...walk(parser.ast)];
+  const subscripts = paths.filter((path) => path.isSubscriptExpression());
+  assert.deepEqual(
+    subscripts.map((path) => [...path.node.expressionList].length),
+    [0, 2],
+  );
+  const identifiers = paths
+    .filter((path) => path.isNameId())
+    .map((path) => path.node.identifier);
+  assert.ok(identifiers.some((id) => id.wellKnownName === "dealias"));
+  assert.ok(identifiers.some((id) => id.wellKnownName === "is_integral_type"));
+  assert.ok(identifiers.some((id) => id.wellKnownName === "is_same_type"));
+  assert.ok(identifiers.some((id) => id.wellKnownName === "remove_pointer"));
+  assert.ok(
+    identifiers.some((id) => id.wellKnownName === "is_copy_constructible_type"),
+  );
+  const ir = parser.emitCode({ format: "llvm" });
+  assert.match(ir, /define.*answer/);
+  assert.doesNotMatch(
+    ir,
+    /@.*(?:dealias|is_integral_type|is_same_type|remove_pointer|is_copy_constructible_type)/,
+  );
+});
+
 test("Parser emits the selected MLIR pipeline in every output format", async () => {
   const source =
     "int choose(int* p, int n) { if (n > 0) return p[1]; return p[0]; }";
@@ -456,7 +505,10 @@ test("Parser verifies nullptr equality through the MLIR pipeline", async () => {
     assert.deepEqual(parser.diagnostics, []);
     assert.match(parser.emitCode({ format: "mlir" }), /llvm.func/);
     assert.match(parser.emitCode({ format: "cxxir" }), /arith.constant true/);
-    assert.match(parser.emitCode({ format: "llvm" }), /define i1.*equal/);
+    assert.match(
+      parser.emitCode({ format: "llvm" }),
+      /define zeroext i1.*equal/,
+    );
     assert.ok(WebAssembly.validate(parser.emitCode({ format: "obj" })));
   }
 });

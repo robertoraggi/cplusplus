@@ -142,7 +142,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
   auto pointerType = type_cast<PointerType>(type);
   if (!pointerType) return nullptr;
   auto element = traits.remove_cv(pointerType->elementType());
-  if (!traits.is_class(element)) return nullptr;
+  if (!traits.is_class_or_union(element)) return nullptr;
   return element;
 }
 
@@ -164,7 +164,7 @@ using ReferenceBinding = ImplicitConversionSequence::ReferenceBinding;
 
 [[nodiscard]] auto classOperand(TypeTraits& traits, const Type* type)
     -> const Type* {
-  if (!traits.is_class(type)) return nullptr;
+  if (!traits.is_class_or_union(type)) return nullptr;
   return type;
 }
 

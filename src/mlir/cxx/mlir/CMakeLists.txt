@@ -15,8 +15,6 @@ llvm_update_compile_flags(cxx-mlir)
 
 target_include_directories(cxx-mlir
     PUBLIC ${CXX_MLIR_SOURCE_DIR}
-    ${MLIR_INCLUDE_DIRS}
-    ${LLVM_INCLUDE_DIRS}
 )
 
 target_link_libraries(cxx-mlir PUBLIC
@@ -61,8 +59,15 @@ else()
     message(STATUS "cxx: the LLVM optimization pipeline is disabled")
 endif()
 
-if (EMSCRIPTEN)
-    target_link_libraries(cxx-mlir PUBLIC LLVMWebAssemblyCodeGen LLVMWebAssemblyAsmParser)
+if (NOT LLVM_LINK_LLVM_DYLIB)
+    # InitializeAll* references each backend enabled in the LLVM build.
+    llvm_map_components_to_libnames(cxx_mlir_target_libs
+        AllTargetsCodeGens
+        AllTargetsAsmParsers
+        AllTargetsDescs
+        AllTargetsInfos
+    )
+    target_link_libraries(cxx-mlir PUBLIC ${cxx_mlir_target_libs})
 endif()
 
 target_compile_definitions(cxx-mlir PUBLIC CXX_WITH_MLIR)

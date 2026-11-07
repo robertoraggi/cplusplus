@@ -99,6 +99,7 @@ struct Codegen::ConvertType {
   auto operator()(const UnresolvedNameType* type) -> ir::TypeRef;
   auto operator()(const UnresolvedBoundedArrayType* type) -> ir::TypeRef;
   auto operator()(const UnresolvedUnderlyingType* type) -> ir::TypeRef;
+  auto operator()(const UnresolvedPackIndexType* type) -> ir::TypeRef;
   auto operator()(const UnresolvedBuiltinType* type) -> ir::TypeRef;
   auto operator()(const OverloadSetType* type) -> ir::TypeRef;
   auto operator()(const BuiltinVaListType* type) -> ir::TypeRef;
@@ -607,7 +608,7 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
 
       if (fieldLayout && fieldLayout->isAbiEmpty()) {
         memberMap[info->index] = emptyStorageType;
-      } else if (fieldLayout && !fieldLayout->virtualBases().empty()) {
+      } else if (fieldLayout) {
         pendingBases[info->index] = fieldSymbol;
       } else {
         memberMap[info->index] = convertType(field->type());
@@ -698,17 +699,33 @@ auto Codegen::convertBaseSubobjectType(ClassSymbol* classSymbol)
   auto name = std::format("{}.base", to_string(classSymbol->name()));
 
   auto classType =
-      declareClassType(uniqueClassTypeName(name), /*isUnion=*/false);
+      declareClassType(uniqueClassTypeName(name), classSymbol->isUnion());
 
   baseSubobjectTypeNames_[classSymbol] = classType;
 
-  auto storage =
-      buildClassMemberTypes(classSymbol, /*includeVirtualBases=*/false);
+  auto storage = classSymbol->isUnion()
+                     ? unionBaseSubobjectMemberTypes(classSymbol)
+                     : buildClassMemberTypes(classSymbol,
+                                             /*includeVirtualBases=*/false);
 
   this->defineClassType(classType, storage.members, storage.packed, 1,
                         storage.padding);
 
   return classType;
+}
+
+auto Codegen::unionBaseSubobjectMemberTypes(ClassSymbol* unionSymbol)
+    -> ClassMemberTypes {
+  auto storageSize = traits.non_virtual_size(unionSymbol->type());
+  return ClassMemberTypes{
+      .members = {arrayType(emitter_.integerType(8), storageSize)},
+      .packed = true};
+}
+
+auto Codegen::isBaseSubobjectType(ClassSymbol* classSymbol,
+                                  ir::TypeRef type) const -> bool {
+  auto it = baseSubobjectTypeNames_.find(classSymbol->resolvedDefinition());
+  return it != baseSubobjectTypeNames_.end() && it->second == type;
 }
 
 auto Codegen::ConvertType::operator()(const EnumType* type) -> ir::TypeRef {
@@ -783,6 +800,11 @@ auto Codegen::ConvertType::operator()(const UnresolvedBoundedArrayType* type)
   return gen.convertType(type->elementType());
 }
 
+auto Codegen::ConvertType::operator()(const UnresolvedPackIndexType* type)
+    -> ir::TypeRef {
+  return getExprType();
+}
+
 auto Codegen::ConvertType::operator()(const UnresolvedUnderlyingType* type)
     -> ir::TypeRef {
   return getExprType();
@@ -805,7 +827,7 @@ auto Codegen::ConvertType::operator()(const BuiltinVaListType* type)
 
 auto Codegen::ConvertType::operator()(const BuiltinMetaInfoType* type)
     -> ir::TypeRef {
-  return getExprType();
+  return gen.pointerSizedIntType();
 }
 
 auto Codegen::ConvertType::operator()(const BitIntType* type) -> ir::TypeRef {

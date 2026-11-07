@@ -86,6 +86,7 @@ using ExceptionSpecification = std::variant<bool, ExpressionAST*>;
   V(UnresolvedName)                      \
   V(UnresolvedBoundedArray)              \
   V(UnresolvedUnderlying)                \
+  V(UnresolvedPackIndex)                 \
   V(UnresolvedBuiltin)                   \
   V(OverloadSet)                         \
   V(BuiltinVaList)                       \
@@ -186,6 +187,7 @@ struct TypePrintOptions {
   bool omitFunctionReturnType = false;
   Symbol* declarationScope = nullptr;
   TranslationUnit* unit = nullptr;
+  Symbol* declaration = nullptr;
 };
 
 [[nodiscard]] auto to_string(const Type* type, const std::string& id = "",

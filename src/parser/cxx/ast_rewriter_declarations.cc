@@ -20,7 +20,6 @@
 
 #include <cxx/ast.h>
 #include <cxx/ast_rewriter.h>
-#include <cxx/ast_validator.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -56,6 +55,9 @@ struct ASTRewriter::DeclarationVisitor : VisitorBase {
   [[nodiscard]] auto operator()(UsingDirectiveAST* ast) -> DeclarationAST*;
 
   [[nodiscard]] auto operator()(StaticAssertDeclarationAST* ast)
+      -> DeclarationAST*;
+
+  [[nodiscard]] auto operator()(ConstevalBlockDeclarationAST* ast)
       -> DeclarationAST*;
 
   [[nodiscard]] auto operator()(AliasDeclarationAST* ast) -> DeclarationAST*;
@@ -210,12 +212,14 @@ auto ASTRewriter::functionBody(FunctionBodyAST* ast) -> FunctionBodyAST* {
   if (!ast) return {};
   BodyErrorScope bodyErrors{*this};
   Binder::FunctionBodyGuard functionBodyScope{&binder_, binder_.scope()};
+  TranslationUnit::ImmediateEscalationScope immediateEscalation{unit_};
   return visit(FunctionBodyVisitor{*this}, ast);
 }
 
 auto ASTRewriter::lambdaBody(StatementAST* ast) -> CompoundStatementAST* {
   if (!ast) return {};
   BodyErrorScope bodyErrors{*this};
+  TranslationUnit::ImmediateEscalationScope immediateEscalation{unit_};
   return ast_cast<CompoundStatementAST>(statement(ast));
 }
 
@@ -337,8 +341,10 @@ auto ASTRewriter::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 
   ListAppender<InitDeclaratorAST> appendInitDeclarator{
       arena(), copy->initDeclaratorList};
+  PlaceholderReplacement listReplacement;
   for (auto node : ListView{ast->initDeclaratorList}) {
-    auto value = rewrite.initDeclarator(node, declSpecifierListCtx);
+    auto value =
+        rewrite.initDeclarator(node, declSpecifierListCtx, listReplacement);
     if (!value) return nullptr;
     appendInitDeclarator(value);
   }
@@ -495,12 +501,44 @@ auto ASTRewriter::DeclarationVisitor::operator()(
 
   copy->staticAssertLoc = ast->staticAssertLoc;
   copy->lparenLoc = ast->lparenLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.constantExpression(ast->expression);
   copy->commaLoc = ast->commaLoc;
   copy->literalLoc = ast->literalLoc;
   copy->literal = ast->literal;
   copy->rparenLoc = ast->rparenLoc;
   copy->semicolonLoc = ast->semicolonLoc;
+
+  if (binder()->instantiatingSymbol()) {
+    auto checker = rewrite.typeChecker();
+    checker.check(copy);
+  }
+
+  return copy;
+}
+
+auto ASTRewriter::DeclarationVisitor::operator()(
+    ConstevalBlockDeclarationAST* ast) -> DeclarationAST* {
+  auto copy = ConstevalBlockDeclarationAST::create(arena());
+
+  copy->constevalLoc = ast->constevalLoc;
+
+  if (ast->symbol && ast->symbol->closureType()) {
+    copy->statement = ast->statement;
+    copy->symbol = ast->symbol;
+    return copy;
+  }
+
+  auto _ = Binder::ScopeGuard(binder());
+
+  auto expression = binder()->bind(copy);
+
+  {
+    auto bodyScope = Binder::ScopeGuard(binder());
+    binder()->setScope(copy->symbol);
+    copy->statement = rewrite.lambdaBody(ast->statement);
+  }
+
+  binder()->complete(copy, expression);
 
   if (binder()->instantiatingSymbol()) {
     auto checker = rewrite.typeChecker();
@@ -675,7 +713,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
   const bool definesExistingInstance = functionSymbol != nullptr;
   if (!functionSymbol && (!isTemplateInstantiation || isOutOfClassMemberDef) &&
       !isFunctionTemplateSpecialization &&
-      !(ast->symbol && ast->symbol->isFriend())) {
+      !(ast->symbol && ast->symbol->canonical()->isFriend())) {
     functionSymbol = binder()->getFunction(
         binder()->scope(), declaratorDecl.getName(), declaratorType,
         functionTemplateHead, copy->requiresClause);
@@ -690,7 +728,8 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   binder()->inheritDeclarationAttributes(functionSymbol, ast->symbol);
 
-  if (ast->symbol && ast->symbol->isFriend()) functionSymbol->setFriend(true);
+  if (ast->symbol && ast->symbol->canonical()->isFriend())
+    functionSymbol->setFriend(true);
 
   if (ast->symbol && ast->symbol->isInline()) functionSymbol->setInline(true);
 
@@ -804,7 +843,6 @@ auto ASTRewriter::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     }
 
     binder()->synthesizeDefaultedMemberBody(functionSymbol);
-    validateCompletedInstantiation(rewrite.unit_, functionSymbol, copy);
   }
 
   return copy;
@@ -1036,7 +1074,7 @@ auto ASTRewriter::DeclarationVisitor::operator()(ParameterDeclarationAST* ast)
   if (defaultArgument && !defersDefaultArgument) {
     auto _ = Binder::ScopeGuard{binder()};
     binder()->setScope(defaultArgumentScope);
-    TranslationUnit::DeferredInitializerScope deferredInitializer{
+    TranslationUnit::ImmediateFunctionContextScope templateArgument{
         translationUnit(), true};
     copy->expression = rewrite.expression(defaultArgument);
   }

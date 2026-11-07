@@ -220,6 +220,11 @@ export function dumpModel(parser: Parser): Model {
       type: typeModel(parameter?.type),
     }));
   }
+  function methodName(name: S.Name | undefined): string | undefined {
+    if (name instanceof S.Identifier) return name.name;
+    if (name instanceof S.OperatorId && name.op === "(") return "operator()";
+    return undefined;
+  }
   function methods(
     declarations: Iterable<S.DeclarationAST | undefined>,
   ): ModelMethod[] {
@@ -239,11 +244,12 @@ export function dumpModel(parser: Parser): Model {
         )?.symbol;
       if (!(fn instanceof S.FunctionSymbol)) continue;
       if (fn.isConstructor || fn.isDestructor || fn.isDeleted) continue;
-      if (!(fn.name instanceof S.Identifier)) continue;
+      const name = methodName(fn.name);
+      if (!name) continue;
       const type = fn.type;
       if (!(type instanceof S.FunctionType)) continue;
       result.push({
-        name: fn.name.name,
+        name,
         access,
         isStatic: fn.isStatic,
         isConst: ["Const", "ConstVolatile"].includes(type.cvQualifiers),

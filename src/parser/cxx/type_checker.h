@@ -31,9 +31,11 @@
 #include <cxx/types_fwd.h>
 
 #include <optional>
+#include <span>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 namespace cxx {
 class TranslationUnit;
@@ -54,6 +56,11 @@ struct CalledFunction {
 [[nodiscard]] auto invokedFunction(ExpressionAST* expression)
     -> FunctionSymbol*;
 
+struct PlaceholderReplacement {
+  Symbol* declaration = nullptr;
+  const Type* type = nullptr;
+};
+
 void markUntypedAfterError(ExpressionAST* expr);
 
 [[nodiscard]] auto fold_concept_id(TranslationUnit* unit, ExpressionAST* ast)
@@ -68,6 +75,10 @@ class TypeChecker {
   [[nodiscard]] auto reportErrors() const -> bool { return reportErrors_; }
   void setReportErrors(bool reportErrors) { reportErrors_ = reportErrors; }
 
+  void setAddressOfOperand(bool addressOfOperand) {
+    addressOfOperand_ = addressOfOperand;
+  }
+
   void setScope(ScopeSymbol* scope) { scope_ = scope; }
   [[nodiscard]] auto scope() const -> ScopeSymbol* { return scope_; }
   [[nodiscard]] auto diagnosticPrintOptions() const -> TypePrintOptions;
@@ -77,6 +88,8 @@ class TypeChecker {
   void check(ExpressionAST** ast);
 
   void check(DeclarationAST* ast);
+
+  void check_consteval_block(ConstevalBlockDeclarationAST* ast);
 
   void check_return_statement(ReturnStatementAST* ast,
                               bool isDiscarded = false);
@@ -89,11 +102,17 @@ class TypeChecker {
                                         ScopeSymbol* functionScope);
 
   auto check_bool_condition(ExpressionAST*& ast) -> bool;
+  [[nodiscard]] auto fold_constexpr_condition(ExpressionAST*& ast)
+      -> std::optional<bool>;
+  void check_constant_expression(ExpressionAST* ast,
+                                 const std::optional<ConstValue>& value,
+                                 std::string_view construct);
   void check_discarded_value(ExpressionAST*& ast);
   void check_integral_condition(ExpressionAST*& ast);
   void set_named_symbol_result(ExpressionAST* ast, Symbol* symbol);
   void check_init_declarator(InitDeclaratorAST* initDecl,
                              SpecifierAST* typeSpecifier,
+                             PlaceholderReplacement* listReplacement = nullptr,
                              ArrayCopyPolicy arrayCopyPolicy =
                                  ArrayCopyPolicy::kBracedInitializerOnly);
   void check_variable_initializer(VariableSymbol* var,
@@ -126,8 +145,17 @@ class TypeChecker {
                              SourceLocation location);
   void checkPotentiallyInvokedDestructor(const Type* type,
                                          SourceLocation location);
+  void checkTemporaryBoundToMember(FieldSymbol* field,
+                                   ExpressionAST* initializer,
+                                   std::string_view initializerKind,
+                                   SourceLocation location);
   void initializeBracedArgument(ExpressionAST*& argument,
                                 const Type* parameterType);
+
+  [[nodiscard]] auto check_delegating_initializer(
+      const Type* targetType, ExpressionAST*& initializer,
+      SourceLocation location, List<ExpressionAST*>** argumentList)
+      -> FunctionSymbol*;
 
   [[nodiscard]] auto check_class_initializer(
       const Type* targetType, ExpressionAST*& initializer,
@@ -137,16 +165,17 @@ class TypeChecker {
   [[nodiscard]] auto deduceAutoType(const Type* declaredType,
                                     const Type* initializerType) -> const Type*;
 
-  [[nodiscard]] static auto isPotentiallyThrowing(ExpressionAST* expr) -> bool;
+  [[nodiscard]] static auto isPotentiallyThrowing(ExpressionAST* expr,
+                                                  TranslationUnit* unit)
+      -> bool;
 
   [[nodiscard]] auto deducePlaceholderType(const Type* declaredType,
                                            ExpressionAST* initializer)
       -> const Type*;
 
-  [[nodiscard]] auto deduceDeclaredPlaceholderType(const Type* declaredType,
-                                                   ExpressionAST* initializer,
-                                                   SourceLocation location)
-      -> const Type*;
+  [[nodiscard]] auto deduceDeclaredPlaceholderReplacement(
+      const Type* declaredType, ExpressionAST* initializer,
+      SourceLocation location) -> const Type*;
 
   [[nodiscard]] auto deduceClassTemplateSpecialization(
       SpecifierAST* typeSpecifier, const std::vector<ExpressionAST*>& arguments,
@@ -216,6 +245,27 @@ class TypeChecker {
       -> bool;
 
   void evaluateImmediateInvocation(ExpressionAST** ast);
+  void convertSplicerOperand(ExpressionAST*& expression);
+  void evaluateImmediateInitializer(ExpressionAST* initializer);
+
+  void evaluateDefaultInitializer(
+      ExpressionAST* initializer,
+      bool hasImmediateEscalatingSubexpression = false);
+
+  [[nodiscard]] auto evaluateAggregateDefaultInitializer(
+      ExpressionAST* initializer) -> bool;
+
+  struct DeferredAggregateInitialization {
+    ExpressionAST* ast = nullptr;
+    std::vector<std::pair<FieldSymbol*, ExpressionAST*>> defaultInitializers;
+  };
+
+  void evaluateImmediateAggregateInitialization(
+      ExpressionAST* ast, const Type* type,
+      std::span<const std::pair<FieldSymbol*, ExpressionAST*>>
+          defaultInitializers);
+
+  void useImmediateEscalatingInitializer(SourceLocation location);
 
   [[nodiscard]] auto enterAggregateInitialization(ClassSymbol* classSymbol)
       -> bool;
@@ -246,8 +296,11 @@ class TypeChecker {
   [[nodiscard]] auto introducesVolatileExpression(ExpressionAST* ast) const
       -> bool;
   [[nodiscard]] auto deducePlaceholderReplacement(const Type* declaredType,
-                                                  const Type* initializerType,
-                                                  bool forwardsLvalue)
+                                                  ExpressionAST* initializer)
+      -> const Type*;
+  [[nodiscard]] auto deduceReplacementFromType(const Type* declaredType,
+                                               const Type* initializerType,
+                                               bool forwardsLvalue)
       -> const Type*;
 
   [[nodiscard]] auto returnPlaceholder(ScopeSymbol* function,
@@ -275,17 +328,51 @@ class TypeChecker {
                                                ValueCategory valueCategory,
                                                SourceLocation location) -> bool;
 
+  [[nodiscard]] auto resolveImmediateInvocation(ConstExpressionAST* constant,
+                                                FunctionSymbol* function,
+                                                std::optional<ConstValue> value,
+                                                SourceLocation location)
+      -> bool;
+
+  void deferImmediateInvocation(ExpressionAST** ast);
+
+  [[nodiscard]] auto evaluateDeferredUses(
+      DefaultInitializerExpressionAST* initializer,
+      const DefaultInitializerContext& context, bool aggregate) -> bool;
+
+  [[nodiscard]] static auto carriesImmediateEscalation(
+      const DefaultInitializerContext& context,
+      bool hasImmediateEscalatingSubexpression) -> bool;
+
+  void evaluateDeferredAggregateInitialization(
+      const DeferredAggregateInitialization& initialization,
+      const DefaultInitializerContext& context);
+
+  [[nodiscard]] auto evaluateDeferredInvocation(
+      ConstExpressionAST* invocation, const DefaultInitializerContext& context)
+      -> std::optional<ConstValue>;
+
   [[nodiscard]] auto isImmediateInvocation(ExpressionAST* ast,
                                            FunctionSymbol* function) const
       -> bool;
 
+  [[nodiscard]] static auto isClosureConversionFunction(
+      FunctionSymbol* function) -> bool;
+
   [[nodiscard]] auto isImmediateFunctionContext() const -> bool;
 
   [[nodiscard]] auto canEscalate(FunctionSymbol* function) const -> bool;
+  [[nodiscard]] auto enclosingEscalatingFunction() const -> FunctionSymbol*;
+
+  void deferImmediateConstantExpression(ExpressionAST* ast);
+  void deferImmediateReference(ExpressionAST* ast);
+  void deferImmediateEscalation(SourceLocation location);
+  [[nodiscard]] auto isEscalationContext() const -> bool;
 
   TranslationUnit* unit_ = nullptr;
   ScopeSymbol* scope_ = nullptr;
   bool reportErrors_ = false;
+  bool addressOfOperand_ = false;
   bool lastOperatorLookupAmbiguous_ = false;
   bool lastOperatorRewritten_ = false;
   bool lastOperatorReversed_ = false;

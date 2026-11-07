@@ -214,6 +214,8 @@ auto ObjectRepresentation::valueBits(const Type* type, const ConstValue& value)
     if (auto stored = std::get_if<double>(&value);
         stored && unqualified_cast<DoubleType>(type))
       return std::bit_cast<std::uint64_t>(*stored);
+    if (auto real = std::get_if<long double>(&value))
+      return format->representation(*real);
     auto real = interp_.toDouble(value);
     if (!real) return std::nullopt;
     return format->representation(*real);
@@ -404,7 +406,8 @@ auto ASTInterpreter::memoryRange(const ConstAddress& address,
     auto rootType = located->root()->type();
     if (traits.is_volatile(rootType)) return std::nullopt;
     auto field = symbol_cast<FieldSymbol>(located->symbol());
-    if (!field || !field->isMutable()) readOnly |= traits.is_const(rootType);
+    if ((!field || !field->isMutable()) && !isUnderConstruction(*located))
+      readOnly |= traits.is_const(rootType);
   }
   auto extent = *arrayExtent(*located);
   auto offset = static_cast<std::uintmax_t>(located->offset());
@@ -738,9 +741,7 @@ auto ASTInterpreter::evaluateBuiltinAddressof(CallExpressionAST* ast)
 
 auto ASTInterpreter::sourceLocation(CallExpressionAST* ast) const
     -> SourceLocation {
-  return defaultInitializerContext_.location
-             ? defaultInitializerContext_.location
-             : ast->firstSourceLocation();
+  return pointOfUse(ast->firstSourceLocation());
 }
 
 auto ASTInterpreter::sourceFunction(CallExpressionAST* ast) const
@@ -761,24 +762,35 @@ auto ASTInterpreter::evaluateBuiltinColumn(CallExpressionAST* ast)
 auto ASTInterpreter::evaluateBuiltinSourceLocation(CallExpressionAST* ast)
     -> std::optional<ConstValue> {
   if (!ast) return std::nullopt;
-  auto pointer = type_cast<PointerType>(ast->type);
+  return sourceLocationAddress(ast->type, sourceLocation(ast),
+                               sourceFunction(ast));
+}
+
+auto ASTInterpreter::sourceLocationAddress(const Type* pointerType,
+                                           SourceLocation location,
+                                           FunctionSymbol* function)
+    -> std::optional<ConstValue> {
+  auto pointer = type_cast<PointerType>(pointerType);
   auto type =
       pointer ? unqualified_cast<ClassType>(pointer->elementType()) : nullptr;
   if (!type) return std::nullopt;
   auto object = std::make_shared<ConstObject>(type);
-  auto function = sourceFunction(ast);
   auto functionName =
       function ? to_string(function->type(), to_string(function->name()))
                : std::string{};
-  auto pos = unit_->presumedTokenStartPosition(sourceLocation(ast));
+  auto pos = unit_->presumedTokenStartPosition(location);
   for (auto member : type->symbol()->members()) {
     auto field = symbol_cast<FieldSymbol>(member);
     if (!field || field->isStatic()) continue;
     auto name = to_string(field->name());
     if (name == "_M_file_name")
-      object->addMember(field, control()->stringLiteralFromValue(pos.fileName));
+      object->addMember(field,
+                        std::make_shared<ConstAddress>(
+                            control()->stringLiteralFromValue(pos.fileName)));
     else if (name == "_M_function_name")
-      object->addMember(field, control()->stringLiteralFromValue(functionName));
+      object->addMember(field,
+                        std::make_shared<ConstAddress>(
+                            control()->stringLiteralFromValue(functionName)));
     else if (name == "_M_line")
       object->addMember(field, static_cast<std::intmax_t>(pos.line));
     else if (name == "_M_column")
@@ -786,8 +798,7 @@ auto ASTInterpreter::evaluateBuiltinSourceLocation(CallExpressionAST* ast)
     else
       return std::nullopt;
   }
-  auto variable =
-      control()->newVariableSymbol(unit_->globalScope(), sourceLocation(ast));
+  auto variable = control()->newVariableSymbol(unit_->globalScope(), location);
   variable->setName(control()->newAnonymousId("source_location"));
   variable->setType(traits.add_const(type));
   variable->setConstexpr(true);
@@ -851,6 +862,82 @@ auto ASTInterpreter::evaluateBuiltinHugeValf(CallExpressionAST* /*ast*/)
 auto ASTInterpreter::evaluateBuiltinHugeVall(CallExpressionAST* /*ast*/)
     -> std::optional<ConstValue> {
   return ConstValue{std::numeric_limits<long double>::infinity()};
+}
+
+auto ASTInterpreter::evaluateBuiltinIsWithinLifetime(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  auto argument = argumentAt(ast, 0);
+  if (!argument) return std::nullopt;
+  auto value = expression(argument);
+  if (!value) return std::nullopt;
+  auto pointer = std::get_if<std::shared_ptr<ConstAddress>>(&*value);
+  if (!pointer || !*pointer || (*pointer)->isNull()) return std::nullopt;
+  auto address = typedAddress(**pointer);
+  if (!address || !validPosition(*address) || isOnePastEnd(*address))
+    return std::nullopt;
+  const auto usable = storageDurationBeganWithinEvaluation(*address) ||
+                      traits.is_usable_in_constant_expressions(address->root());
+  if (!usable) {
+    if (!address->lifetimeEnded()) return std::nullopt;
+    return ConstValue{std::intmax_t{0}};
+  }
+  const ConstValue* current = addressSlot(*address, 0);
+  auto loaded =
+      current ? std::optional<ConstValue>{} : loadAddress(*address, 0);
+  if (loaded) current = &*loaded;
+  aborted_ = false;
+  const auto withinLifetime =
+      current && !std::holds_alternative<OutOfLifetimeValue>(*current);
+  return ConstValue{std::intmax_t{withinLifetime ? 1 : 0}};
+}
+
+auto ASTInterpreter::evaluateBuiltinSaturatingArithmetic(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  auto leftExpression = argumentAt(ast, 0);
+  auto rightExpression = argumentAt(ast, 1);
+  auto operation = saturatingArithmeticOperation(resolveBuiltinFunctionKind(
+      ast_cast<IdExpressionAST>(ast->baseExpression)));
+  if (!leftExpression || !rightExpression || !operation) return std::nullopt;
+  auto leftValue = expression(leftExpression);
+  auto rightValue = expression(rightExpression);
+  if (!leftValue || !rightValue) return std::nullopt;
+  auto leftInt = toIntegralType(*leftValue, ast->type);
+  auto rightInt = toIntegralType(*rightValue, ast->type);
+  auto left = leftInt ? std::get_if<ConstInt>(&*leftInt) : nullptr;
+  auto right = rightInt ? std::get_if<ConstInt>(&*rightInt) : nullptr;
+  if (!left || !right) return std::nullopt;
+
+  const auto add = *operation == ArithmeticOverflowOperation::kAdd;
+  auto exact = add ? checkedAdd(*left, *right) : checkedSub(*left, *right);
+  const auto wrapped =
+      !left->isSigned() && exact && (add ? *exact < *left : *left < *right);
+  if (exact && !wrapped) return ConstValue{*exact};
+
+  const auto width = left->width();
+  const auto one = static_cast<ConstInt::UWide>(1);
+  std::optional<ConstInt> bound;
+  if (left->isSigned()) {
+    const auto minimum = one << (width - 1);
+    const auto limit = left->isNegative() ? minimum : minimum - 1;
+    bound = ConstInt::make(static_cast<ConstInt::Wide>(limit), width, true);
+  } else {
+    bound = ConstInt::make(add ? ConstInt::Wide{-1} : ConstInt::Wide{0}, width,
+                           false);
+  }
+  if (!bound) return std::nullopt;
+  return ConstValue{*bound};
+}
+
+auto ASTInterpreter::evaluateBuiltinConstantP(CallExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  auto arguments = ast->expressionList;
+  if (!arguments || aborted_) return ConstValue{std::intmax_t{0}};
+  const auto value = expression(arguments->value);
+  const auto isConstant =
+      value && !aborted_ && !std::holds_alternative<IndeterminateValue>(*value);
+  aborted_ = false;
+  thrown_.reset();
+  return ConstValue{std::intmax_t{isConstant ? 1 : 0}};
 }
 
 auto ASTInterpreter::evaluateBuiltinNanPayload(CallExpressionAST* ast)
@@ -941,7 +1028,7 @@ auto ASTInterpreter::fieldOffsetIn(const Type* type, FieldSymbol* field)
   auto classType = unqualified_cast<ClassType>(traits.remove_reference(type));
   if (!classType) return std::nullopt;
   auto classSymbol = classType->symbol();
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
   auto layout = classSymbol->resolvedDefinition()->layout();
   if (!layout) return std::nullopt;
   auto info = layout->getFieldInfo(field);

@@ -243,7 +243,7 @@ async function link(sources) {
   const output = path.join(buildDir, isWasm ? "cxx.wasm" : "cxx");
 
   if (isWasm) {
-    await $`${cxx} -Wl,-z,stack-size=${stackSize} -o ${output} ${objects}`;
+    await $`${cxx} -Wl,-z,stack-size=${stackSize} -o ${output} ${objects} -lc-printscan-long-double`;
   } else {
     await $`${linker} -o ${output} ${objects}`;
   }

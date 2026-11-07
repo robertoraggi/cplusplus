@@ -187,6 +187,11 @@ class Control {
   [[nodiscard]] auto getUnresolvedBoundedArrayType(
       TranslationUnit* unit, const Type* elementType,
       ExpressionAST* sizeExpression) -> const UnresolvedBoundedArrayType*;
+  [[nodiscard]] auto getUnresolvedPackIndexType(TranslationUnit* unit,
+                                                const Type* pack,
+                                                ExpressionAST* index)
+      -> const UnresolvedPackIndexType*;
+
   [[nodiscard]] auto getUnresolvedUnderlyingType(TranslationUnit* unit,
                                                  TypeIdAST* typeId)
       -> const UnresolvedUnderlyingType*;
@@ -277,6 +282,10 @@ class Control {
   [[nodiscard]] auto getConstantArgumentSymbol(const Type* type,
                                                const ConstValue& value)
       -> VariableSymbol*;
+  [[nodiscard]] auto getTemplateParameterObject(const Type* type,
+                                                const ConstValue& value)
+      -> VariableSymbol*;
+  void indexTemplateParameterObject(VariableSymbol* symbol);
   [[nodiscard]] auto getPackArgumentSymbol(std::span<Symbol* const> elements)
       -> ParameterPackSymbol*;
   [[nodiscard]] auto newVariableSymbol(ScopeSymbol* enclosingScope,

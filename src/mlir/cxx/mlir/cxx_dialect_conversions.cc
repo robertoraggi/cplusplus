@@ -20,6 +20,7 @@
 
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/time_trace.h>
+#include <llvm/Config/llvm-config.h>
 #include <llvm/IR/Module.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
@@ -126,6 +127,8 @@ auto cxx::lowerToMLIR(mlir::ModuleOp module, llvm::StringRef passPipeline,
 void cxx::optimizeLLVMIR(llvm::Module&, llvm::TargetMachine*,
                          llvm::OptimizationLevel) {}
 
+auto cxx::llvmPipelineRunsAlwaysInliner() -> bool { return false; }
+
 #else
 
 #include <llvm/Passes/PassBuilder.h>
@@ -133,14 +136,16 @@ void cxx::optimizeLLVMIR(llvm::Module&, llvm::TargetMachine*,
 void cxx::optimizeLLVMIR(llvm::Module& module,
                          llvm::TargetMachine* targetMachine,
                          llvm::OptimizationLevel level) {
-  if (level == llvm::OptimizationLevel::O0) return;
-
   llvm::LoopAnalysisManager loopAnalysisManager;
   llvm::FunctionAnalysisManager functionAnalysisManager;
   llvm::CGSCCAnalysisManager cgsccAnalysisManager;
   llvm::ModuleAnalysisManager moduleAnalysisManager;
 
+#if LLVM_VERSION_MAJOR >= 24
+  llvm::PassBuilder passBuilder{module.getContext(), targetMachine};
+#else
   llvm::PassBuilder passBuilder{targetMachine};
+#endif
   passBuilder.registerModuleAnalyses(moduleAnalysisManager);
   passBuilder.registerCGSCCAnalyses(cgsccAnalysisManager);
   passBuilder.registerFunctionAnalyses(functionAnalysisManager);
@@ -148,9 +153,14 @@ void cxx::optimizeLLVMIR(llvm::Module& module,
   passBuilder.crossRegisterProxies(loopAnalysisManager, functionAnalysisManager,
                                    cgsccAnalysisManager, moduleAnalysisManager);
 
-  auto modulePassManager = passBuilder.buildPerModuleDefaultPipeline(level);
+  auto modulePassManager =
+      level == llvm::OptimizationLevel::O0
+          ? passBuilder.buildO0DefaultPipeline(level)
+          : passBuilder.buildPerModuleDefaultPipeline(level);
   modulePassManager.run(module, moduleAnalysisManager);
 }
+
+auto cxx::llvmPipelineRunsAlwaysInliner() -> bool { return true; }
 
 #endif
 

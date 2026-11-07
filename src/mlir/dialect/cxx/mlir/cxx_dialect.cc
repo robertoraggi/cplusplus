@@ -589,7 +589,7 @@ auto AllocaOp::getPromotableSlots() -> SmallVector<MemorySlot> {
 
 auto AllocaOp::getDefaultValue(const MemorySlot& slot, OpBuilder& builder)
     -> Value {
-  return UndefOp::create(builder, getLoc(), slot.elemType);
+  return UndefOp::create(builder, getLoc(), getMemorySlotValueType(slot));
 }
 
 void AllocaOp::handleBlockArgument(const MemorySlot&, BlockArgument,
@@ -639,7 +639,7 @@ auto LoadOp::canUsesBeRemoved(const MemorySlot& slot,
     -> bool {
   if (getVolatile_()) return false;
   return accessesSlotAddress(blockingUses, getAddrMutable()) &&
-         getType() == slot.elemType;
+         getType() == getMemorySlotValueType(slot);
 }
 
 auto LoadOp::removeBlockingUses(const MemorySlot&,
@@ -667,7 +667,8 @@ auto StoreOp::canUsesBeRemoved(const MemorySlot& slot,
     -> bool {
   if (getVolatile_()) return false;
   return accessesSlotAddress(blockingUses, getAddrMutable()) &&
-         getValue() != slot.ptr && getValue().getType() == slot.elemType;
+         getValue() != slot.ptr &&
+         getValue().getType() == getMemorySlotValueType(slot);
 }
 
 auto StoreOp::removeBlockingUses(const MemorySlot&,

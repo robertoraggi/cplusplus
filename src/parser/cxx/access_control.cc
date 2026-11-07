@@ -285,8 +285,11 @@ template <typename Key, typename Value>
 
 class EffectiveAccess {
  public:
-  EffectiveAccess(Symbol* member, DeclaredMember declared)
-      : member_(member), declared_(declared) {}
+  EffectiveAccess(Symbol* member, DeclaredMember declared,
+                  bool ignoreUsingDeclarations = false)
+      : member_(member),
+        declared_(declared),
+        ignoreUsingDeclarations_(ignoreUsingDeclarations) {}
 
   [[nodiscard]] auto asMemberOf(ClassSymbol* classSymbol)
       -> std::optional<AccessSpecifier> {
@@ -303,9 +306,11 @@ class EffectiveAccess {
     if (classSymbol == declared_.declaringClass)
       return declared_.accessSpecifier;
 
-    if (auto usingDeclaration =
-            usingDeclarationIntroducing(member_, classSymbol))
-      return usingDeclaration->accessSpecifier();
+    if (!ignoreUsingDeclarations_) {
+      if (auto usingDeclaration =
+              usingDeclarationIntroducing(member_, classSymbol))
+        return usingDeclaration->accessSpecifier();
+    }
 
     std::optional<AccessSpecifier> best;
 
@@ -325,6 +330,7 @@ class EffectiveAccess {
 
   Symbol* member_;
   DeclaredMember declared_;
+  bool ignoreUsingDeclarations_ = false;
   std::vector<std::pair<ClassSymbol*, std::optional<AccessSpecifier>>> cache_;
 };
 
@@ -406,9 +412,10 @@ class FriendshipCollector {
 class AccessContext::Query {
  public:
   Query(const AccessContext& context, Symbol* member, DeclaredMember declared,
-        ClassSymbol* objectClass)
+        ClassSymbol* objectClass, bool ignoreUsingDeclarations = false)
       : context_(context),
-        effectiveAccess_(member, declared),
+        ignoreUsingDeclarations_(ignoreUsingDeclarations),
+        effectiveAccess_(member, declared, ignoreUsingDeclarations),
         member_(member),
         declaringClass_(declared.declaringClass),
         objectClass_(normalize(objectClass)) {
@@ -451,7 +458,9 @@ class AccessContext::Query {
       result = grants(namingClass, *access);
 
     if (result == AccessResult::kAccessible) return result;
-    if (usingDeclarationIntroducing(member_, namingClass)) return result;
+    if (!ignoreUsingDeclarations_ &&
+        usingDeclarationIntroducing(member_, namingClass))
+      return result;
 
     for (auto baseClass : namingClass->baseClasses()) {
       auto base = baseClassOf(baseClass);
@@ -539,6 +548,7 @@ class AccessContext::Query {
   }
 
   const AccessContext& context_;
+  bool ignoreUsingDeclarations_ = false;
   EffectiveAccess effectiveAccess_;
   Symbol* member_;
   ClassSymbol* declaringClass_;
@@ -638,6 +648,17 @@ auto AccessContext::isAccessible(Symbol* member, ClassSymbol* designatingClass,
                                  ClassSymbol* objectClass) const -> bool {
   auto result = checkAccess(member, designatingClass, objectClass);
   return result != AccessResult::kInaccessible;
+}
+
+auto AccessContext::isAccessibleDeclaration(Symbol* member,
+                                            ClassSymbol* designatingClass) const
+    -> bool {
+  auto declared = declaredMemberOf(member);
+  if (!declared.declaringClass) return true;
+  if (designatingClass == member->enclosingClass())
+    designatingClass = declared.declaringClass;
+  Query query{*this, member, declared, nullptr, true};
+  return query.designatedIn(designatingClass) != AccessResult::kInaccessible;
 }
 
 auto AccessContext::isAccessibleBaseClass(ClassSymbol* derived,

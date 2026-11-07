@@ -306,6 +306,19 @@ export function gen_reflection(index: ModelIndex, root: string) {
     return items.join(" | ");
   }
 
+  function containerElement(type: ModelType): ModelType | undefined {
+    if (type.kind !== "class") return;
+    const args = typeArguments(type);
+    if (containerClasses.includes(type.name)) return args[0];
+    if (type.name !== "::std::ranges::transform_view") return;
+    const transform = unqualified(args[1]!);
+    if (transform.kind !== "class") return;
+    const call = index
+      .classOf(transform.name)
+      ?.methods.find((method) => method.name === "operator()" && method.isConst);
+    return call?.returnType;
+  }
+
   function wire(type: ModelType, expr: string): Wire | undefined {
     switch (type.kind) {
       case "qual":
@@ -435,8 +448,9 @@ export function gen_reflection(index: ModelIndex, root: string) {
       };
     }
 
-    if (containerClasses.includes(type.name)) {
-      const value = wire(args[0]!, "item");
+    const element = containerElement(type);
+    if (element) {
+      const value = wire(element, "item");
       if (!value) return;
       return {
         channel: "val",
@@ -613,7 +627,7 @@ export function gen_reflection(index: ModelIndex, root: string) {
       const family = familyOf(entry);
 
       for (const { owner, substitution } of index.layoutOf(entry)) {
-        if (family === "AST")
+        if (family === "AST" || family === "Misc")
           for (const field of owner.fields) {
             if (field.access !== "public") continue;
             items.set(field.name, {
@@ -864,11 +878,9 @@ export function gen_reflection(index: ModelIndex, root: string) {
         continue;
       }
 
-      if (
-        declared.kind === "class" &&
-        containerClasses.includes(declared.name)
-      ) {
-        const item = wire(typeArguments(declared)[0]!, "item");
+      const containedElement = containerElement(declared);
+      if (containedElement) {
+        const item = wire(containedElement, "item");
         if (!item) {
           report.push(
             `${entry.name}.${reader.name}: ${JSON.stringify(reader.type)}`,

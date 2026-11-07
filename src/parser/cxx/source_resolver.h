@@ -33,6 +33,9 @@ class SourceResolver {
  public:
   virtual ~SourceResolver();
 
+  [[nodiscard]] virtual auto isSystemHeader(std::uint32_t sourceFileId) const
+      -> bool = 0;
+
   [[nodiscard]] virtual auto tokenStartPosition(const Token& token) const
       -> SourcePosition = 0;
 

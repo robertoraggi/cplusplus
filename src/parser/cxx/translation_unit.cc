@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/arena.h>
+#include <cxx/const_value.h>
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
 #include <cxx/lexer.h>
@@ -158,6 +159,118 @@ void TranslationUnit::error(SourceLocation loc, std::string message) const {
   report(diagnosticsClient_, loc, Severity::Error, std::move(message));
 }
 
+auto TranslationUnit::refersToImmediateObject(const Symbol* variable,
+                                              const ConstValue& value) -> bool {
+  auto [entry, inserted] = immediateObjectVariables_.try_emplace(variable);
+  if (inserted) entry->second = isImmediateObject(value);
+  return entry->second;
+}
+
+void TranslationUnit::deferImmediateEscalation(
+    SourceLocation location, FunctionSymbol* escalatingFunction) {
+  auto frame = std::span{pendingImmediateEscalations_}.subspan(
+      immediateEscalationFrame_);
+  if (std::ranges::contains(frame, location,
+                            &PendingImmediateEscalation::location))
+    return;
+  pendingImmediateEscalations_.push_back({location, escalatingFunction});
+}
+
+void TranslationUnit::dischargeImmediateEscalations(SourceLocation first,
+                                                    SourceLocation last) {
+  if (!first || !last) return;
+  auto frame = pendingImmediateEscalations_.begin() +
+               static_cast<std::ptrdiff_t>(immediateEscalationFrame_);
+  auto discharged = std::ranges::remove_if(
+      frame, pendingImmediateEscalations_.end(),
+      [&](const PendingImmediateEscalation& pending) {
+        return first <= pending.location && pending.location <= last;
+      });
+  pendingImmediateEscalations_.erase(discharged.begin(), discharged.end());
+}
+
+void TranslationUnit::discardImmediateEscalations(std::size_t count) {
+  if (count < immediateEscalationFrame_) return;
+  if (count >= pendingImmediateEscalations_.size()) return;
+  pendingImmediateEscalations_.resize(count);
+}
+
+TranslationUnit::ImmediateEscalationScope::ImmediateEscalationScope(
+    TranslationUnit* unit)
+    : unit_(unit),
+      savedFrame_(std::exchange(unit->immediateEscalationFrame_,
+                                unit->pendingImmediateEscalations_.size())),
+      savedImmediateFunctionContext_(
+          std::exchange(unit->immediateFunctionContext_, false)),
+      savedDeferredInitializer_(std::exchange(unit->deferredInitializer_,
+                                              DeferredInitializer::kNone)) {}
+
+TranslationUnit::ImmediateEscalationScope::~ImmediateEscalationScope() {
+  auto& pending = unit_->pendingImmediateEscalations_;
+  for (auto index = unit_->immediateEscalationFrame_; index < pending.size();
+       ++index) {
+    auto [location, escalatingFunction] = pending[index];
+    if (escalatingFunction) {
+      escalatingFunction->setConsteval(true);
+      continue;
+    }
+    unit_->error(location,
+                 "immediate-escalating expression must appear in an "
+                 "immediate-escalating function");
+  }
+  pending.resize(unit_->immediateEscalationFrame_);
+  unit_->immediateEscalationFrame_ = savedFrame_;
+  unit_->immediateFunctionContext_ = savedImmediateFunctionContext_;
+  unit_->deferredInitializer_ = savedDeferredInitializer_;
+}
+
+TranslationUnit::DeferredInitializerScope::DeferredInitializerScope(
+    TranslationUnit* unit, DeferredInitializer kind)
+    : unit_(unit),
+      kind_(kind),
+      savedFrame_(std::exchange(unit->immediateEscalationFrame_,
+                                unit->pendingImmediateEscalations_.size())),
+      saved_(unit->deferredInitializer_) {
+  if (kind_ != DeferredInitializer::kNone) unit_->deferredInitializer_ = kind_;
+}
+
+TranslationUnit::DeferredInitializerScope::DeferredInitializerScope(
+    TranslationUnit* unit, Symbol* entity)
+    : DeferredInitializerScope(unit, DeferredInitializer::kNone) {
+  if (auto field = symbol_cast<FieldSymbol>(entity)) {
+    if (!field->isStatic()) {
+      kind_ = DeferredInitializer::kDefaultMemberInitializer;
+      field_ = field;
+    } else {
+      kind_ = DeferredInitializer::kVariable;
+    }
+  } else if (symbol_cast<VariableSymbol>(entity)) {
+    kind_ = DeferredInitializer::kVariable;
+  }
+  if (kind_ != DeferredInitializer::kNone) unit_->deferredInitializer_ = kind_;
+}
+
+TranslationUnit::DeferredInitializerScope::DeferredInitializerScope(
+    TranslationUnit* unit, ParameterSymbol* parameter)
+    : DeferredInitializerScope(unit, DeferredInitializer::kDefaultArgument) {
+  parameter_ = parameter;
+}
+
+TranslationUnit::DeferredInitializerScope::~DeferredInitializerScope() {
+  auto& pending = unit_->pendingImmediateEscalations_;
+  const auto frame = unit_->immediateEscalationFrame_;
+  if (kind_ != DeferredInitializer::kNone &&
+      !unit_->defersImmediateEscalationToOwner()) {
+    if (pending.size() > frame) {
+      if (parameter_) parameter_->setImmediateEscalatingDefaultArgument(true);
+      if (field_) field_->setImmediateEscalatingInitializer(true);
+    }
+    pending.resize(frame);
+  }
+  unit_->immediateEscalationFrame_ = savedFrame_;
+  unit_->deferredInitializer_ = saved_;
+}
+
 void TranslationUnit::warning(SourceLocation loc, std::string message) const {
   report(diagnosticsClient_, loc, Severity::Warning, std::move(message));
 }
@@ -278,6 +391,7 @@ void TranslationUnit::adoptPrefix(SemanticArchiveRoots roots,
   prefixSourceMap_ = std::move(sourceMap);
 
   control_->setAnonymousIdCount(roots.anonymousIdCount);
+  uniqueClosureCount_ = roots.uniqueClosureCount;
 
   setTokenSegmentBase(roots.prefixTokenCount);
 
@@ -292,6 +406,18 @@ void TranslationUnit::adoptPrefix(SemanticArchiveRoots roots,
 
   for (auto instance : roots.instantiatedMemberClasses)
     instantiatedMemberClasses_.insert(instance);
+
+  explicitInstantiationDefinitions_ =
+      std::move(roots.explicitInstantiationDefinitions);
+  explicitInstantiationClassDefinitions_ =
+      std::move(roots.explicitInstantiationClassDefinitions);
+  explicitInstantiationVariableDefinitions_ =
+      std::move(roots.explicitInstantiationVariableDefinitions);
+  explicitInstantiationMemberDeclarations_ =
+      std::move(roots.explicitInstantiationMemberDeclarations);
+
+  for (auto entity : roots.cLanguageLinkageEntities)
+    addCLanguageLinkageEntity(entity);
 
   for (const auto& [key, text] : roots.snippets)
     snippets_.emplace(key, control_->getIdentifier(text));
@@ -331,11 +457,20 @@ auto TranslationUnit::semanticArchiveRoots() -> SemanticArchiveRoots {
   roots.globalScope = globalScope();
   roots.ast = ast_;
   roots.anonymousIdCount = control_->anonymousIdCount();
+  roots.uniqueClosureCount = uniqueClosureCount_;
   roots.prefixTokenCount = locationOfIndex(tokenCount()).index();
   roots.pendingBodyCompletions = pendingBodyCompletions_;
   roots.pendingMemberInstantiations = pendingMemberInstantiations_;
   roots.instantiatedMemberClasses.assign(instantiatedMemberClasses_.begin(),
                                          instantiatedMemberClasses_.end());
+  roots.explicitInstantiationDefinitions = explicitInstantiationDefinitions_;
+  roots.explicitInstantiationClassDefinitions =
+      explicitInstantiationClassDefinitions_;
+  roots.explicitInstantiationVariableDefinitions =
+      explicitInstantiationVariableDefinitions_;
+  roots.explicitInstantiationMemberDeclarations =
+      explicitInstantiationMemberDeclarations_;
+  roots.cLanguageLinkageEntities = cLanguageLinkageEntities_;
 
   for (const auto& [key, text] : snippets_)
     roots.snippets.emplace_back(key, text->name());
@@ -499,6 +634,60 @@ auto TranslationUnit::isExplicitInstantiationDefinition(
                                classSymbol->resolvedDefinition());
 }
 
+void TranslationUnit::addExplicitInstantiationDefinition(Symbol* variable) {
+  auto subject = explicit_instantiation_subject(variable);
+  if (!subject) return;
+  if (std::ranges::contains(explicitInstantiationVariableDefinitions_, subject))
+    return;
+  explicitInstantiationVariableDefinitions_.push_back(subject);
+}
+
+auto TranslationUnit::isExplicitInstantiationDefinition(Symbol* variable) const
+    -> bool {
+  auto subject = explicit_instantiation_subject(variable);
+  if (!subject) return false;
+  return std::ranges::contains(explicitInstantiationVariableDefinitions_,
+                               subject);
+}
+
+void TranslationUnit::addExplicitInstantiationDeclaration(Symbol* member) {
+  auto declared = explicit_instantiation_member(member);
+  if (!declared) return;
+  if (std::ranges::contains(explicitInstantiationMemberDeclarations_, declared))
+    return;
+  explicitInstantiationMemberDeclarations_.push_back(declared);
+}
+
+auto TranslationUnit::isExplicitInstantiationDeclaration(Symbol* member) const
+    -> bool {
+  auto declared = explicit_instantiation_member(member);
+  if (!declared) return false;
+  return std::ranges::contains(explicitInstantiationMemberDeclarations_,
+                               declared);
+}
+
+auto TranslationUnit::cLanguageLinkageEntity(const Name* name) const
+    -> Symbol* {
+  auto it = cLanguageLinkageEntityIndex_.find(name);
+  if (it == cLanguageLinkageEntityIndex_.end()) return nullptr;
+  return it->second;
+}
+
+void TranslationUnit::addCLanguageLinkageEntity(Symbol* entity) {
+  if (!entity || !entity->name()) return;
+  if (!cLanguageLinkageEntityIndex_.try_emplace(entity->name(), entity).second)
+    return;
+  cLanguageLinkageEntities_.push_back(entity);
+}
+
+void TranslationUnit::removeCLanguageLinkageEntity(Symbol* entity) {
+  if (!entity) return;
+  auto it = cLanguageLinkageEntityIndex_.find(entity->name());
+  if (it == cLanguageLinkageEntityIndex_.end() || it->second != entity) return;
+  cLanguageLinkageEntityIndex_.erase(it);
+  std::erase(cLanguageLinkageEntities_, entity);
+}
+
 void TranslationUnit::addPendingBodyCompletion(FunctionSymbol* function,
                                                SourceLocation location,
                                                FunctionSymbol* caller) {
@@ -556,10 +745,12 @@ void TranslationUnit::captureSnippet(SourceLocationRange range) {
   if (snippets_.contains(key)) return;
 
   auto [first, last] = range;
+  if (!first || !last || last < first) return;
 
   // A range outside this unit's token segment belongs to an adopted prefix,
   // whose snippets are restored from the archive rather than re-read (6.8).
   if (first && !ownsLocation(first)) return;
+  if (last > locationOfIndex(tokenCount())) return;
 
   std::string text;
 
@@ -571,6 +762,13 @@ void TranslationUnit::captureSnippet(SourceLocationRange range) {
     text += token.spell();
   }
 
+  captureSnippet(range, text);
+}
+
+void TranslationUnit::captureSnippet(SourceLocationRange range,
+                                     std::string_view text) {
+  const auto key = snippetKey(range);
+  if (snippets_.contains(key)) return;
   snippets_.emplace(key, control_->getIdentifier(text));
 }
 

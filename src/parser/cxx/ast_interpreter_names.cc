@@ -41,6 +41,10 @@ struct ASTInterpreter::UnqualifiedIdVisitor {
 
   [[nodiscard]] auto operator()(DestructorIdAST* ast) -> UnqualifiedIdResult;
 
+  [[nodiscard]] auto operator()(PackIndexIdAST* ast) -> UnqualifiedIdResult {
+    return {};
+  }
+
   [[nodiscard]] auto operator()(DecltypeIdAST* ast) -> UnqualifiedIdResult;
 
   [[nodiscard]] auto operator()(OperatorFunctionIdAST* ast)
@@ -70,6 +74,11 @@ struct ASTInterpreter::NestedNameSpecifierVisitor {
 
   [[nodiscard]] auto operator()(SimpleNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierResult;
+
+  [[nodiscard]] auto operator()(PackIndexNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierResult {
+    return {};
+  }
 
   [[nodiscard]] auto operator()(DecltypeNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierResult;

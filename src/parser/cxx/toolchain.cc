@@ -31,24 +31,50 @@ namespace cxx {
 namespace {
 
 constexpr LanguageStandard kLanguageStandards[] = {
+    {"c++98", LanguageKind::kCXX, "199711L", false},
+    {"c++03", LanguageKind::kCXX, "199711L", false},
+    {"c++11", LanguageKind::kCXX, "201103L", false},
+    {"c++0x", LanguageKind::kCXX, "201103L", false},
     {"c++14", LanguageKind::kCXX, "201402L", false},
+    {"c++1y", LanguageKind::kCXX, "201402L", false},
     {"c++17", LanguageKind::kCXX, "201703L", false},
+    {"c++1z", LanguageKind::kCXX, "201703L", false},
     {"c++20", LanguageKind::kCXX, "202002L", false},
+    {"c++2a", LanguageKind::kCXX, "202002L", false},
     {"c++23", LanguageKind::kCXX, "202302L", false},
+    {"c++2b", LanguageKind::kCXX, "202302L", false},
     {"c++26", LanguageKind::kCXX, "202400L", false},
+    {"c++2c", LanguageKind::kCXX, "202400L", false},
+    {"gnu++98", LanguageKind::kCXX, "199711L", true},
+    {"gnu++03", LanguageKind::kCXX, "199711L", true},
+    {"gnu++11", LanguageKind::kCXX, "201103L", true},
+    {"gnu++0x", LanguageKind::kCXX, "201103L", true},
     {"gnu++14", LanguageKind::kCXX, "201402L", true},
+    {"gnu++1y", LanguageKind::kCXX, "201402L", true},
     {"gnu++17", LanguageKind::kCXX, "201703L", true},
+    {"gnu++1z", LanguageKind::kCXX, "201703L", true},
     {"gnu++20", LanguageKind::kCXX, "202002L", true},
+    {"gnu++2a", LanguageKind::kCXX, "202002L", true},
     {"gnu++23", LanguageKind::kCXX, "202302L", true},
+    {"gnu++2b", LanguageKind::kCXX, "202302L", true},
     {"gnu++26", LanguageKind::kCXX, "202400L", true},
+    {"gnu++2c", LanguageKind::kCXX, "202400L", true},
     {"c99", LanguageKind::kC, "199901L", false},
+    {"c9x", LanguageKind::kC, "199901L", false},
     {"c11", LanguageKind::kC, "201112L", false},
+    {"c1x", LanguageKind::kC, "201112L", false},
     {"c17", LanguageKind::kC, "201710L", false},
+    {"c18", LanguageKind::kC, "201710L", false},
     {"c23", LanguageKind::kC, "202311L", false},
+    {"c2x", LanguageKind::kC, "202311L", false},
     {"gnu99", LanguageKind::kC, "199901L", true},
+    {"gnu9x", LanguageKind::kC, "199901L", true},
     {"gnu11", LanguageKind::kC, "201112L", true},
+    {"gnu1x", LanguageKind::kC, "201112L", true},
     {"gnu17", LanguageKind::kC, "201710L", true},
+    {"gnu18", LanguageKind::kC, "201710L", true},
     {"gnu23", LanguageKind::kC, "202311L", true},
+    {"gnu2x", LanguageKind::kC, "202311L", true},
 };
 
 constexpr std::string_view kDefaultCplusplusMacroValue = "202400L";
@@ -443,10 +469,10 @@ void Toolchain::addCommonMacros() {
   defineMacro("__VERSION__", "\"cxx-frontend\"");
   defineMacro("__clang__", "1");
   defineMacro("__clang_literal_encoding__", "\"UTF-8\"");
-  defineMacro("__clang_major__", "20");
+  defineMacro("__clang_major__", "23");
   defineMacro("__clang_minor__", "1");
-  defineMacro("__clang_patchlevel__", "8");
-  defineMacro("__clang_version__", "\"20.1.8 \"");
+  defineMacro("__clang_patchlevel__", "5");
+  defineMacro("__clang_version__", "\"23.1.5 \"");
   defineMacro("__llvm__", "1");
 }
 
@@ -500,6 +526,7 @@ const FeatureTestMacro kFeatureTestMacros[] = {
     {"__cpp_constexpr", "202302L", "202211L"},
     {"__cpp_constexpr", "202400L", "202406L"},
     {"__cpp_constexpr_dynamic_alloc", "202002L", "201907L"},
+    {"__cpp_constexpr_exceptions", "202400L", "202411L"},
     {"__cpp_constexpr_in_decltype", "201402L", "201711L"},
     {"__cpp_constinit", "202002L", "201907L"},
     {"__cpp_decltype", "201402L", "200707L"},
@@ -519,6 +546,7 @@ const FeatureTestMacro kFeatureTestMacros[] = {
     {"__cpp_hex_float", "201703L", "201603L"},
     {"__cpp_if_consteval", "202302L", "202106L"},
     {"__cpp_if_constexpr", "201703L", "201606L"},
+    {"__cpp_impl_reflection", "202400L", "202603L"},
     {"__cpp_impl_coroutine", "202002L", "201902L"},
     {"__cpp_impl_destroying_delete", "201402L", "201806L"},
     {"__cpp_impl_three_way_comparison", "202002L", "201907L"},

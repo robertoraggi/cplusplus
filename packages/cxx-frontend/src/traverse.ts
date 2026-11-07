@@ -37,6 +37,7 @@ import type {
   UsingEnumDeclarationAST,
   UsingDirectiveAST,
   StaticAssertDeclarationAST,
+  ConstevalBlockDeclarationAST,
   AliasDeclarationAST,
   OpaqueEnumDeclarationAST,
   FunctionDefinitionAST,
@@ -209,6 +210,7 @@ import type {
   AtomicTypeSpecifierAST,
   BitIntTypeSpecifierAST,
   UnderlyingTypeSpecifierAST,
+  PackIndexTypeSpecifierAST,
   ElaboratedTypeSpecifierAST,
   DecltypeAutoSpecifierAST,
   DecltypeSpecifierAST,
@@ -233,6 +235,7 @@ import type {
   NameIdAST,
   DestructorIdAST,
   DecltypeIdAST,
+  PackIndexIdAST,
   OperatorFunctionIdAST,
   LiteralOperatorIdAST,
   ConversionFunctionIdAST,
@@ -242,6 +245,7 @@ import type {
   GlobalNestedNameSpecifierAST,
   SimpleNestedNameSpecifierAST,
   DecltypeNestedNameSpecifierAST,
+  PackIndexNestedNameSpecifierAST,
   TemplateNestedNameSpecifierAST,
   DefaultFunctionBodyAST,
   CompoundStatementFunctionBodyAST,
@@ -309,6 +313,7 @@ interface ASTNodes {
   UsingEnumDeclaration: UsingEnumDeclarationAST;
   UsingDirective: UsingDirectiveAST;
   StaticAssertDeclaration: StaticAssertDeclarationAST;
+  ConstevalBlockDeclaration: ConstevalBlockDeclarationAST;
   AliasDeclaration: AliasDeclarationAST;
   OpaqueEnumDeclaration: OpaqueEnumDeclarationAST;
   FunctionDefinition: FunctionDefinitionAST;
@@ -481,6 +486,7 @@ interface ASTNodes {
   AtomicTypeSpecifier: AtomicTypeSpecifierAST;
   BitIntTypeSpecifier: BitIntTypeSpecifierAST;
   UnderlyingTypeSpecifier: UnderlyingTypeSpecifierAST;
+  PackIndexTypeSpecifier: PackIndexTypeSpecifierAST;
   ElaboratedTypeSpecifier: ElaboratedTypeSpecifierAST;
   DecltypeAutoSpecifier: DecltypeAutoSpecifierAST;
   DecltypeSpecifier: DecltypeSpecifierAST;
@@ -505,6 +511,7 @@ interface ASTNodes {
   NameId: NameIdAST;
   DestructorId: DestructorIdAST;
   DecltypeId: DecltypeIdAST;
+  PackIndexId: PackIndexIdAST;
   OperatorFunctionId: OperatorFunctionIdAST;
   LiteralOperatorId: LiteralOperatorIdAST;
   ConversionFunctionId: ConversionFunctionIdAST;
@@ -514,6 +521,7 @@ interface ASTNodes {
   GlobalNestedNameSpecifier: GlobalNestedNameSpecifierAST;
   SimpleNestedNameSpecifier: SimpleNestedNameSpecifierAST;
   DecltypeNestedNameSpecifier: DecltypeNestedNameSpecifierAST;
+  PackIndexNestedNameSpecifier: PackIndexNestedNameSpecifierAST;
   TemplateNestedNameSpecifier: TemplateNestedNameSpecifierAST;
   DefaultFunctionBody: DefaultFunctionBodyAST;
   CompoundStatementFunctionBody: CompoundStatementFunctionBodyAST;
@@ -590,6 +598,7 @@ for (const [category, kinds] of Object.entries({
     "UsingEnumDeclaration",
     "UsingDirective",
     "StaticAssertDeclaration",
+    "ConstevalBlockDeclaration",
     "AliasDeclaration",
     "OpaqueEnumDeclaration",
     "FunctionDefinition",
@@ -739,6 +748,7 @@ for (const [category, kinds] of Object.entries({
     "AtomicTypeSpecifier",
     "BitIntTypeSpecifier",
     "UnderlyingTypeSpecifier",
+    "PackIndexTypeSpecifier",
     "ElaboratedTypeSpecifier",
     "DecltypeAutoSpecifier",
     "DecltypeSpecifier",
@@ -764,6 +774,7 @@ for (const [category, kinds] of Object.entries({
     "NameId",
     "DestructorId",
     "DecltypeId",
+    "PackIndexId",
     "OperatorFunctionId",
     "LiteralOperatorId",
     "ConversionFunctionId",
@@ -775,6 +786,7 @@ for (const [category, kinds] of Object.entries({
     "GlobalNestedNameSpecifier",
     "SimpleNestedNameSpecifier",
     "DecltypeNestedNameSpecifier",
+    "PackIndexNestedNameSpecifier",
     "TemplateNestedNameSpecifier",
   ],
   FunctionBody: [
@@ -935,6 +947,12 @@ export class NodePath<T extends AST = AST> {
     this: NodePath,
   ): this is NodePath<StaticAssertDeclarationAST> {
     return this.node.kind === "StaticAssertDeclaration";
+  }
+
+  isConstevalBlockDeclaration(
+    this: NodePath,
+  ): this is NodePath<ConstevalBlockDeclarationAST> {
+    return this.node.kind === "ConstevalBlockDeclaration";
   }
 
   isAliasDeclaration(this: NodePath): this is NodePath<AliasDeclarationAST> {
@@ -1793,6 +1811,12 @@ export class NodePath<T extends AST = AST> {
     return this.node.kind === "UnderlyingTypeSpecifier";
   }
 
+  isPackIndexTypeSpecifier(
+    this: NodePath,
+  ): this is NodePath<PackIndexTypeSpecifierAST> {
+    return this.node.kind === "PackIndexTypeSpecifier";
+  }
+
   isElaboratedTypeSpecifier(
     this: NodePath,
   ): this is NodePath<ElaboratedTypeSpecifierAST> {
@@ -1905,6 +1929,10 @@ export class NodePath<T extends AST = AST> {
     return this.node.kind === "DecltypeId";
   }
 
+  isPackIndexId(this: NodePath): this is NodePath<PackIndexIdAST> {
+    return this.node.kind === "PackIndexId";
+  }
+
   isOperatorFunctionId(
     this: NodePath,
   ): this is NodePath<OperatorFunctionIdAST> {
@@ -1953,6 +1981,12 @@ export class NodePath<T extends AST = AST> {
     this: NodePath,
   ): this is NodePath<DecltypeNestedNameSpecifierAST> {
     return this.node.kind === "DecltypeNestedNameSpecifier";
+  }
+
+  isPackIndexNestedNameSpecifier(
+    this: NodePath,
+  ): this is NodePath<PackIndexNestedNameSpecifierAST> {
+    return this.node.kind === "PackIndexNestedNameSpecifier";
   }
 
   isTemplateNestedNameSpecifier(

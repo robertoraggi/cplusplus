@@ -199,7 +199,13 @@ struct VTableInfo {
   Linkage linkage = Linkage::LinkOnceODR;
 };
 
-enum class ParameterAbiKind { Default, StructReturn, ByValue, ZeroExtend };
+enum class ParameterAbiKind {
+  Default,
+  StructReturn,
+  ByValue,
+  ZeroExtend,
+  SignExtend,
+};
 
 struct ParameterAbi {
   ParameterAbiKind kind = ParameterAbiKind::Default;
@@ -249,6 +255,7 @@ struct FunctionInfo {
   std::span<const ParameterAbi> parameters;
   ParameterAbi resultAbi;
   std::string_view section;
+  std::string_view comdat;
   CallingConvention callingConvention = CallingConvention::C;
   std::optional<KernelInfo> kernel;
 };

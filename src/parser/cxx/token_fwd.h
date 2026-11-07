@@ -302,8 +302,21 @@ class Token;
   V(__IS_VOLATILE, "__is_volatile")                                   \
   V(__REFERENCE_CONSTRUCTS_FROM_TEMPORARY,                            \
     "__reference_constructs_from_temporary")                          \
-  V(__REFERENCE_CONVERTS_FROM_TEMPORARY, "__reference_converts_from_" \
-                                         "temporary")
+  V(__REFERENCE_CONVERTS_FROM_TEMPORARY,                              \
+    "__reference_converts_from_temporary")                            \
+  V(__BUILTIN_IS_STRUCTURAL, "__builtin_is_structural")               \
+  V(__BUILTIN_IS_IMPLICIT_LIFETIME, "__builtin_is_implicit_lifetime") \
+  V(__BUILTIN_IS_VIRTUAL_BASE_OF, "__builtin_is_virtual_base_of")     \
+  V(__BUILTIN_LT_SYNTHESIZES_FROM_SPACESHIP,                          \
+    "__builtin_lt_synthesizes_from_spaceship")                        \
+  V(__BUILTIN_LE_SYNTHESIZES_FROM_SPACESHIP,                          \
+    "__builtin_le_synthesizes_from_spaceship")                        \
+  V(__BUILTIN_GT_SYNTHESIZES_FROM_SPACESHIP,                          \
+    "__builtin_gt_synthesizes_from_spaceship")                        \
+  V(__BUILTIN_GE_SYNTHESIZES_FROM_SPACESHIP,                          \
+    "__builtin_ge_synthesizes_from_spaceship")                        \
+  V(__IS_POINTER_INTERCONVERTIBLE_BASE_OF,                            \
+    "__is_pointer_interconvertible_base_of")
 
 #define FOR_EACH_UNARY_BUILTIN_TYPE_TRAIT(V)          \
   V(__ADD_LVALUE_REFERENCE, "__add_lvalue_reference") \
@@ -395,6 +408,7 @@ class Token;
   V(__BUILTIN_ASINL, "__builtin_asinl")                                       \
   V(__BUILTIN_ASSUME, "__builtin_assume")                                     \
   V(__BUILTIN_ASSUME_ALIGNED, "__builtin_assume_aligned")                     \
+  V(__BUILTIN_ASSUME_DEREFERENCEABLE, "__builtin_assume_dereferenceable")     \
   V(__BUILTIN_ATAN, "__builtin_atan")                                         \
   V(__BUILTIN_ATAN2, "__builtin_atan2")                                       \
   V(__BUILTIN_ATAN2F, "__builtin_atan2f")                                     \
@@ -514,6 +528,8 @@ class Token;
   V(__BUILTIN_CTZS, "__builtin_ctzs")                                         \
   V(__BUILTIN_CXX_CONTROL_BARRIER, "__builtin_cxx_control_barrier")           \
   V(__BUILTIN_CXX_MEMORY_BARRIER, "__builtin_cxx_memory_barrier")             \
+  V(__BUILTIN_ELEMENTWISE_ADD_SAT, "__builtin_elementwise_add_sat")           \
+  V(__BUILTIN_ELEMENTWISE_SUB_SAT, "__builtin_elementwise_sub_sat")           \
   V(__BUILTIN_ERF, "__builtin_erf")                                           \
   V(__BUILTIN_ERFC, "__builtin_erfc")                                         \
   V(__BUILTIN_ERFCF, "__builtin_erfcf")                                       \
@@ -586,6 +602,7 @@ class Token;
   V(__BUILTIN_INFL, "__builtin_infl")                                         \
   V(__BUILTIN_INVOKE, "__builtin_invoke")                                     \
   V(__BUILTIN_IS_CONSTANT_EVALUATED, "__builtin_is_constant_evaluated")       \
+  V(__BUILTIN_IS_WITHIN_LIFETIME, "__builtin_is_within_lifetime")             \
   V(__BUILTIN_ISALNUM, "__builtin_isalnum")                                   \
   V(__BUILTIN_ISALPHA, "__builtin_isalpha")                                   \
   V(__BUILTIN_ISBLANK, "__builtin_isblank")                                   \
@@ -870,29 +887,274 @@ class Token;
   V(__TYPE_PACK_ELEMENT, "__type_pack_element") \
   V(__BUILTIN_COMMON_TYPE, "__builtin_common_type")
 
-#define FOR_EACH_WELL_KNOWN_NAME(V)             \
-  V(STD, "std")                                 \
-  V(ALIGN_VAL_T, "align_val_t")                 \
-  V(BYTE, "byte")                               \
-  V(DESTROYING_DELETE_T, "destroying_delete_t") \
-  V(INITIALIZER_LIST, "initializer_list")       \
-  V(NOTHROW_T, "nothrow_t")                     \
-  V(PARTIAL_ORDERING, "partial_ordering")       \
-  V(REFERENCE_WRAPPER, "reference_wrapper")     \
-  V(SOURCE_LOCATION, "source_location")         \
-  V(STRONG_ORDERING, "strong_ordering")         \
-  V(TUPLE_ELEMENT, "tuple_element")             \
-  V(TUPLE_SIZE, "tuple_size")                   \
-  V(TYPE_INFO, "type_info")                     \
-  V(WEAK_ORDERING, "weak_ordering")             \
-  V(EQUAL, "equal")                             \
-  V(EQUIVALENT, "equivalent")                   \
-  V(GREATER, "greater")                         \
-  V(LESS, "less")                               \
-  V(UNORDERED, "unordered")                     \
-  V(__FUNC__, "__func__")                       \
-  V(__FUNCTION__, "__FUNCTION__")               \
-  V(__PRETTY_FUNCTION__, "__PRETTY_FUNCTION__")
+#define FOR_EACH_WELL_KNOWN_NAME(V)                                           \
+  V(STD, "std")                                                               \
+  V(ALIGN_VAL_T, "align_val_t")                                               \
+  V(BYTE, "byte")                                                             \
+  V(DESTROYING_DELETE_T, "destroying_delete_t")                               \
+  V(INITIALIZER_LIST, "initializer_list")                                     \
+  V(NOTHROW_T, "nothrow_t")                                                   \
+  V(PARTIAL_ORDERING, "partial_ordering")                                     \
+  V(REFERENCE_WRAPPER, "reference_wrapper")                                   \
+  V(SOURCE_LOCATION, "source_location")                                       \
+  V(STRONG_ORDERING, "strong_ordering")                                       \
+  V(TUPLE_ELEMENT, "tuple_element")                                           \
+  V(TUPLE_SIZE, "tuple_size")                                                 \
+  V(TYPE_INFO, "type_info")                                                   \
+  V(WEAK_ORDERING, "weak_ordering")                                           \
+  V(EQUAL, "equal")                                                           \
+  V(EQUIVALENT, "equivalent")                                                 \
+  V(GREATER, "greater")                                                       \
+  V(LESS, "less")                                                             \
+  V(UNORDERED, "unordered")                                                   \
+  V(__FUNC__, "__func__")                                                     \
+  V(__FUNCTION__, "__FUNCTION__")                                             \
+  V(__PRETTY_FUNCTION__, "__PRETTY_FUNCTION__")                               \
+  V(META, "meta")                                                             \
+  V(DEALIAS, "dealias")                                                       \
+  V(IS_TYPE, "is_type")                                                       \
+  V(IS_TYPE_ALIAS, "is_type_alias")                                           \
+  V(IS_INTEGRAL_TYPE, "is_integral_type")                                     \
+  V(IS_VOID_TYPE, "is_void_type")                                             \
+  V(IS_NULL_POINTER_TYPE, "is_null_pointer_type")                             \
+  V(IS_FLOATING_POINT_TYPE, "is_floating_point_type")                         \
+  V(IS_ARRAY_TYPE, "is_array_type")                                           \
+  V(IS_POINTER_TYPE, "is_pointer_type")                                       \
+  V(IS_LVALUE_REFERENCE_TYPE, "is_lvalue_reference_type")                     \
+  V(IS_RVALUE_REFERENCE_TYPE, "is_rvalue_reference_type")                     \
+  V(IS_MEMBER_OBJECT_POINTER_TYPE, "is_member_object_pointer_type")           \
+  V(IS_MEMBER_FUNCTION_POINTER_TYPE, "is_member_function_pointer_type")       \
+  V(IS_ENUM_TYPE, "is_enum_type")                                             \
+  V(IS_UNION_TYPE, "is_union_type")                                           \
+  V(IS_CLASS_TYPE, "is_class_type")                                           \
+  V(IS_FUNCTION_TYPE, "is_function_type")                                     \
+  V(IS_REFLECTION_TYPE, "is_reflection_type")                                 \
+  V(IS_REFERENCE_TYPE, "is_reference_type")                                   \
+  V(IS_ARITHMETIC_TYPE, "is_arithmetic_type")                                 \
+  V(IS_FUNDAMENTAL_TYPE, "is_fundamental_type")                               \
+  V(IS_OBJECT_TYPE, "is_object_type")                                         \
+  V(IS_SCALAR_TYPE, "is_scalar_type")                                         \
+  V(IS_COMPOUND_TYPE, "is_compound_type")                                     \
+  V(IS_MEMBER_POINTER_TYPE, "is_member_pointer_type")                         \
+  V(IS_CONST_TYPE, "is_const_type")                                           \
+  V(IS_VOLATILE_TYPE, "is_volatile_type")                                     \
+  V(REMOVE_CONST, "remove_const")                                             \
+  V(REMOVE_VOLATILE, "remove_volatile")                                       \
+  V(REMOVE_CV, "remove_cv")                                                   \
+  V(ADD_CONST, "add_const")                                                   \
+  V(ADD_VOLATILE, "add_volatile")                                             \
+  V(ADD_CV, "add_cv")                                                         \
+  V(REMOVE_REFERENCE, "remove_reference")                                     \
+  V(ADD_LVALUE_REFERENCE, "add_lvalue_reference")                             \
+  V(ADD_RVALUE_REFERENCE, "add_rvalue_reference")                             \
+  V(IS_TRIVIALLY_COPYABLE_TYPE, "is_trivially_copyable_type")                 \
+  V(IS_STANDARD_LAYOUT_TYPE, "is_standard_layout_type")                       \
+  V(IS_EMPTY_TYPE, "is_empty_type")                                           \
+  V(IS_POLYMORPHIC_TYPE, "is_polymorphic_type")                               \
+  V(IS_ABSTRACT_TYPE, "is_abstract_type")                                     \
+  V(IS_FINAL_TYPE, "is_final_type")                                           \
+  V(IS_AGGREGATE_TYPE, "is_aggregate_type")                                   \
+  V(IS_SIGNED_TYPE, "is_signed_type")                                         \
+  V(IS_UNSIGNED_TYPE, "is_unsigned_type")                                     \
+  V(IS_BOUNDED_ARRAY_TYPE, "is_bounded_array_type")                           \
+  V(IS_UNBOUNDED_ARRAY_TYPE, "is_unbounded_array_type")                       \
+  V(IS_SCOPED_ENUM_TYPE, "is_scoped_enum_type")                               \
+  V(IS_DESTRUCTIBLE_TYPE, "is_destructible_type")                             \
+  V(IS_TRIVIALLY_DESTRUCTIBLE_TYPE, "is_trivially_destructible_type")         \
+  V(IS_NOTHROW_DESTRUCTIBLE_TYPE, "is_nothrow_destructible_type")             \
+  V(HAS_VIRTUAL_DESTRUCTOR, "has_virtual_destructor")                         \
+  V(MAKE_SIGNED, "make_signed")                                               \
+  V(MAKE_UNSIGNED, "make_unsigned")                                           \
+  V(REMOVE_EXTENT, "remove_extent")                                           \
+  V(REMOVE_ALL_EXTENTS, "remove_all_extents")                                 \
+  V(REMOVE_POINTER, "remove_pointer")                                         \
+  V(ADD_POINTER, "add_pointer")                                               \
+  V(REMOVE_CVREF, "remove_cvref")                                             \
+  V(DECAY, "decay")                                                           \
+  V(UNDERLYING_TYPE, "underlying_type")                                       \
+  V(IS_SAME_TYPE, "is_same_type")                                             \
+  V(IS_BASE_OF_TYPE, "is_base_of_type")                                       \
+  V(IS_VIRTUAL_BASE_OF_TYPE, "is_virtual_base_of_type")                       \
+  V(IS_CONVERTIBLE_TYPE, "is_convertible_type")                               \
+  V(IS_ASSIGNABLE_TYPE, "is_assignable_type")                                 \
+  V(IS_TRIVIALLY_ASSIGNABLE_TYPE, "is_trivially_assignable_type")             \
+  V(IS_NOTHROW_ASSIGNABLE_TYPE, "is_nothrow_assignable_type")                 \
+  V(REFERENCE_CONSTRUCTS_FROM_TEMPORARY,                                      \
+    "reference_constructs_from_temporary")                                    \
+  V(REFERENCE_CONVERTS_FROM_TEMPORARY, "reference_converts_from_temporary")   \
+  V(RANK, "rank")                                                             \
+  V(EXTENT, "extent")                                                         \
+  V(IS_DEFAULT_CONSTRUCTIBLE_TYPE, "is_default_constructible_type")           \
+  V(IS_COPY_CONSTRUCTIBLE_TYPE, "is_copy_constructible_type")                 \
+  V(IS_MOVE_CONSTRUCTIBLE_TYPE, "is_move_constructible_type")                 \
+  V(IS_TRIVIALLY_DEFAULT_CONSTRUCTIBLE_TYPE,                                  \
+    "is_trivially_default_constructible_type")                                \
+  V(IS_TRIVIALLY_COPY_CONSTRUCTIBLE_TYPE,                                     \
+    "is_trivially_copy_constructible_type")                                   \
+  V(IS_TRIVIALLY_MOVE_CONSTRUCTIBLE_TYPE,                                     \
+    "is_trivially_move_constructible_type")                                   \
+  V(IS_NOTHROW_DEFAULT_CONSTRUCTIBLE_TYPE,                                    \
+    "is_nothrow_default_constructible_type")                                  \
+  V(IS_NOTHROW_COPY_CONSTRUCTIBLE_TYPE, "is_nothrow_copy_constructible_type") \
+  V(IS_NOTHROW_MOVE_CONSTRUCTIBLE_TYPE, "is_nothrow_move_constructible_type") \
+  V(IS_COPY_ASSIGNABLE_TYPE, "is_copy_assignable_type")                       \
+  V(IS_MOVE_ASSIGNABLE_TYPE, "is_move_assignable_type")                       \
+  V(IS_TRIVIALLY_COPY_ASSIGNABLE_TYPE, "is_trivially_copy_assignable_type")   \
+  V(IS_TRIVIALLY_MOVE_ASSIGNABLE_TYPE, "is_trivially_move_assignable_type")   \
+  V(IS_NOTHROW_COPY_ASSIGNABLE_TYPE, "is_nothrow_copy_assignable_type")       \
+  V(IS_NOTHROW_MOVE_ASSIGNABLE_TYPE, "is_nothrow_move_assignable_type")       \
+  V(TYPE_OF, "type_of")                                                       \
+  V(IS_NAMESPACE, "is_namespace")                                             \
+  V(IS_NAMESPACE_ALIAS, "is_namespace_alias")                                 \
+  V(IS_VARIABLE, "is_variable")                                               \
+  V(IS_FUNCTION, "is_function")                                               \
+  V(IS_ENUMERATOR, "is_enumerator")                                           \
+  V(IS_TEMPLATE, "is_template")                                               \
+  V(IS_FUNCTION_TEMPLATE, "is_function_template")                             \
+  V(IS_VARIABLE_TEMPLATE, "is_variable_template")                             \
+  V(IS_CLASS_TEMPLATE, "is_class_template")                                   \
+  V(IS_ALIAS_TEMPLATE, "is_alias_template")                                   \
+  V(IS_CONCEPT, "is_concept")                                                 \
+  V(IS_NONSTATIC_DATA_MEMBER, "is_nonstatic_data_member")                     \
+  V(IS_BIT_FIELD, "is_bit_field")                                             \
+  V(IS_MUTABLE_MEMBER, "is_mutable_member")                                   \
+  V(HAS_DEFAULT_MEMBER_INITIALIZER, "has_default_member_initializer")         \
+  V(RETURN_TYPE_OF, "return_type_of")                                         \
+  V(IS_STRUCTURED_BINDING, "is_structured_binding")                           \
+  V(HAS_UNIQUE_OBJECT_REPRESENTATIONS, "has_unique_object_representations")   \
+  V(IS_NOTHROW_CONVERTIBLE_TYPE, "is_nothrow_convertible_type")               \
+  V(UNWRAP_REFERENCE, "unwrap_reference")                                     \
+  V(UNWRAP_REF_DECAY, "unwrap_ref_decay")                                     \
+  V(IS_STRUCTURAL_TYPE, "is_structural_type")                                 \
+  V(IS_IMPLICIT_LIFETIME_TYPE, "is_implicit_lifetime_type")                   \
+  V(IS_LAYOUT_COMPATIBLE_TYPE, "is_layout_compatible_type")                   \
+  V(IS_POINTER_INTERCONVERTIBLE_BASE_OF_TYPE,                                 \
+    "is_pointer_interconvertible_base_of_type")                               \
+  V(IS_SWAPPABLE_WITH_TYPE, "is_swappable_with_type")                         \
+  V(IS_SWAPPABLE_TYPE, "is_swappable_type")                                   \
+  V(IS_NOTHROW_SWAPPABLE_WITH_TYPE, "is_nothrow_swappable_with_type")         \
+  V(IS_NOTHROW_SWAPPABLE_TYPE, "is_nothrow_swappable_type")                   \
+  V(PARAMETERS_OF, "parameters_of")                                           \
+  V(IS_FUNCTION_PARAMETER, "is_function_parameter")                           \
+  V(IS_EXPLICIT_OBJECT_PARAMETER, "is_explicit_object_parameter")             \
+  V(VARIABLE_OF, "variable_of")                                               \
+  V(HAS_DEFAULT_ARGUMENT, "has_default_argument")                             \
+  V(IS_PUBLIC, "is_public")                                                   \
+  V(IS_PROTECTED, "is_protected")                                             \
+  V(IS_PRIVATE, "is_private")                                                 \
+  V(IS_VIRTUAL, "is_virtual")                                                 \
+  V(IS_PURE_VIRTUAL, "is_pure_virtual")                                       \
+  V(IS_OVERRIDE, "is_override")                                               \
+  V(IS_FINAL, "is_final")                                                     \
+  V(IS_DELETED, "is_deleted")                                                 \
+  V(IS_DEFAULTED, "is_defaulted")                                             \
+  V(IS_USER_PROVIDED, "is_user_provided")                                     \
+  V(IS_USER_DECLARED, "is_user_declared")                                     \
+  V(IS_EXPLICIT, "is_explicit")                                               \
+  V(IS_NOEXCEPT, "is_noexcept")                                               \
+  V(IS_CONST, "is_const")                                                     \
+  V(IS_VOLATILE, "is_volatile")                                               \
+  V(IS_LVALUE_REFERENCE_QUALIFIED, "is_lvalue_reference_qualified")           \
+  V(IS_RVALUE_REFERENCE_QUALIFIED, "is_rvalue_reference_qualified")           \
+  V(HAS_STATIC_STORAGE_DURATION, "has_static_storage_duration")               \
+  V(HAS_THREAD_STORAGE_DURATION, "has_thread_storage_duration")               \
+  V(HAS_AUTOMATIC_STORAGE_DURATION, "has_automatic_storage_duration")         \
+  V(IS_CONVERSION_FUNCTION, "is_conversion_function")                         \
+  V(IS_OPERATOR_FUNCTION, "is_operator_function")                             \
+  V(IS_LITERAL_OPERATOR, "is_literal_operator")                               \
+  V(IS_SPECIAL_MEMBER_FUNCTION, "is_special_member_function")                 \
+  V(IS_CONSTRUCTOR, "is_constructor")                                         \
+  V(IS_DEFAULT_CONSTRUCTOR, "is_default_constructor")                         \
+  V(IS_COPY_CONSTRUCTOR, "is_copy_constructor")                               \
+  V(IS_MOVE_CONSTRUCTOR, "is_move_constructor")                               \
+  V(IS_ASSIGNMENT, "is_assignment")                                           \
+  V(IS_COPY_ASSIGNMENT, "is_copy_assignment")                                 \
+  V(IS_MOVE_ASSIGNMENT, "is_move_assignment")                                 \
+  V(IS_DESTRUCTOR, "is_destructor")                                           \
+  V(IS_VARARG_FUNCTION, "is_vararg_function")                                 \
+  V(IS_CONVERSION_FUNCTION_TEMPLATE, "is_conversion_function_template")       \
+  V(IS_OPERATOR_FUNCTION_TEMPLATE, "is_operator_function_template")           \
+  V(IS_LITERAL_OPERATOR_TEMPLATE, "is_literal_operator_template")             \
+  V(IS_CONSTRUCTOR_TEMPLATE, "is_constructor_template")                       \
+  V(IS_CLASS_MEMBER, "is_class_member")                                       \
+  V(IS_NAMESPACE_MEMBER, "is_namespace_member")                               \
+  V(IS_STATIC_MEMBER, "is_static_member")                                     \
+  V(IS_BASE, "is_base")                                                       \
+  V(HAS_PARENT, "has_parent")                                                 \
+  V(HAS_TEMPLATE_ARGUMENTS, "has_template_arguments")                         \
+  V(IS_STRING_LITERAL, "is_string_literal")                                   \
+  V(TEMPLATE_OF, "template_of")                                               \
+  V(IS_COMPLETE_TYPE, "is_complete_type")                                     \
+  V(IS_ENUMERABLE_TYPE, "is_enumerable_type")                                 \
+  V(ENUMERATORS_OF, "enumerators_of")                                         \
+  V(PARENT_OF, "parent_of")                                                   \
+  V(SIZE_OF, "size_of")                                                       \
+  V(ALIGNMENT_OF, "alignment_of")                                             \
+  V(BIT_SIZE_OF, "bit_size_of")                                               \
+  V(OFFSET_OF, "offset_of")                                                   \
+  V(OPERATOR_OF, "operator_of")                                               \
+  V(SYMBOL_OF, "symbol_of")                                                   \
+  V(U8SYMBOL_OF, "u8symbol_of")                                               \
+  V(DISPLAY_STRING_OF, "display_string_of")                                   \
+  V(U8DISPLAY_STRING_OF, "u8display_string_of")                               \
+  V(CURRENT_FUNCTION, "current_function")                                     \
+  V(CURRENT_CLASS, "current_class")                                           \
+  V(CURRENT_NAMESPACE, "current_namespace")                                   \
+  V(CURRENT, "current")                                                       \
+  V(VIA, "via")                                                               \
+  V(IS_ACCESSIBLE, "is_accessible")                                           \
+  V(HAS_INACCESSIBLE_NONSTATIC_DATA_MEMBERS,                                  \
+    "has_inaccessible_nonstatic_data_members")                                \
+  V(HAS_INACCESSIBLE_BASES, "has_inaccessible_bases")                         \
+  V(HAS_INACCESSIBLE_SUBOBJECTS, "has_inaccessible_subobjects")               \
+  V(BASES_OF, "bases_of")                                                     \
+  V(STATIC_DATA_MEMBERS_OF, "static_data_members_of")                         \
+  V(NONSTATIC_DATA_MEMBERS_OF, "nonstatic_data_members_of")                   \
+  V(SUBOBJECTS_OF, "subobjects_of")                                           \
+  V(MEMBERS_OF, "members_of")                                                 \
+  V(TEMPLATE_ARGUMENTS_OF, "template_arguments_of")                           \
+  V(REFLECT_CONSTANT, "reflect_constant")                                     \
+  V(REFLECT_OBJECT, "reflect_object")                                         \
+  V(REFLECT_FUNCTION, "reflect_function")                                     \
+  V(OBJECT_OF, "object_of")                                                   \
+  V(IS_VALUE, "is_value")                                                     \
+  V(IS_OBJECT, "is_object")                                                   \
+  V(HAS_IDENTIFIER, "has_identifier")                                         \
+  V(IDENTIFIER_OF, "identifier_of")                                           \
+  V(U8IDENTIFIER_OF, "u8identifier_of")                                       \
+  V(SOURCE_LOCATION_OF, "source_location_of")                                 \
+  V(HAS_INTERNAL_LINKAGE, "has_internal_linkage")                             \
+  V(HAS_MODULE_LINKAGE, "has_module_linkage")                                 \
+  V(HAS_EXTERNAL_LINKAGE, "has_external_linkage")                             \
+  V(HAS_C_LANGUAGE_LINKAGE, "has_c_language_linkage")                         \
+  V(HAS_LINKAGE, "has_linkage")                                               \
+  V(CAN_SUBSTITUTE, "can_substitute")                                         \
+  V(SUBSTITUTE, "substitute")                                                 \
+  V(EXTRACT, "extract")                                                       \
+  V(CONSTANT_OF, "constant_of")                                               \
+  V(REFLECT_CONSTANT_ARRAY, "reflect_constant_array")                         \
+  V(REFLECT_CONSTANT_STRING, "reflect_constant_string")                       \
+  V(IS_CONSTRUCTIBLE_TYPE, "is_constructible_type")                           \
+  V(IS_TRIVIALLY_CONSTRUCTIBLE_TYPE, "is_trivially_constructible_type")       \
+  V(IS_NOTHROW_CONSTRUCTIBLE_TYPE, "is_nothrow_constructible_type")           \
+  V(IS_INVOCABLE_TYPE, "is_invocable_type")                                   \
+  V(IS_INVOCABLE_R_TYPE, "is_invocable_r_type")                               \
+  V(IS_NOTHROW_INVOCABLE_TYPE, "is_nothrow_invocable_type")                   \
+  V(IS_NOTHROW_INVOCABLE_R_TYPE, "is_nothrow_invocable_r_type")               \
+  V(IS_INVOCABLE, "is_invocable")                                             \
+  V(IS_INVOCABLE_R, "is_invocable_r")                                         \
+  V(IS_NOTHROW_INVOCABLE, "is_nothrow_invocable")                             \
+  V(IS_NOTHROW_INVOCABLE_R, "is_nothrow_invocable_r")                         \
+  V(INVOKE_RESULT, "invoke_result")                                           \
+  V(COMMON_TYPE, "common_type")                                               \
+  V(COMMON_REFERENCE, "common_reference")                                     \
+  V(VARIANT_SIZE, "variant_size")                                             \
+  V(VARIANT_ALTERNATIVE, "variant_alternative")                               \
+  V(ARRAY, "array")                                                           \
+  V(TYPE_ORDER, "type_order")                                                 \
+  V(EXCEPTION, "exception")                                                   \
+  V(_S_EXCEPTION_CVT_TO_UTF8, "_S_exception_cvt_to_utf8")                     \
+  V(_S_EXCEPTION_CVT_FROM_UTF8, "_S_exception_cvt_from_utf8")
 
 #define FOR_EACH_TOKEN_ALIAS(V)    \
   V(RESTRICT, __RESTRICT__)        \

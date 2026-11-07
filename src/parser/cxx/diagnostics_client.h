@@ -80,11 +80,18 @@ class DiagnosticsClient {
 
   void emit(const Diagnostic& diagnostic);
 
+  void setSystemHeaderWarnings(bool enabled) {
+    systemHeaderWarnings_ = enabled;
+  }
+
   void forwardTo(DiagnosticsClient* client) { forwardingClient_ = client; }
 
   [[nodiscard]] auto hasErrorAt(SourceLocation location) const -> bool {
     return errorLocations_.contains(location.index());
   }
+
+  [[nodiscard]] auto hasErrorWithin(SourceLocation first,
+                                    SourceLocation last) const -> bool;
 
  private:
   DiagnosticsClient* forwardingClient_ = nullptr;
@@ -95,6 +102,10 @@ class DiagnosticsClient {
   unsigned lastIncludeFileId_ = 0;
   bool blockErrors_ = false;
   bool fatalErrors_ = false;
+  bool systemHeaderWarnings_ = false;
+  bool lastWarningHidden_ = false;
+
+  [[nodiscard]] auto hidesInSystemHeader(const Diagnostic& diagnostic) -> bool;
 };
 
 class SilentDiagnosticsClient final : public DiagnosticsClient {

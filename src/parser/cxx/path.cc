@@ -34,7 +34,8 @@ auto working_directory() -> path {
 }
 
 auto file_identity(const path& file) -> path {
-  auto normal = (working_directory() / file).lexically_normal();
+  auto normal = (file.is_absolute() ? file : working_directory() / file)
+                    .lexically_normal();
   if constexpr (!kHasProcessWorkingDirectory) return normal;
 
   std::error_code ec;

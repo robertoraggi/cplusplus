@@ -48,6 +48,7 @@ class Codegen {
     bool debugInfo = true;
     std::string debugCompilationDirectory;
     SourceContextObserver* sourceObserver = nullptr;
+    bool runsAlwaysInliner = false;
   };
 
   explicit Codegen(ir::Emitter& emitter, TranslationUnit* unit,
@@ -387,6 +388,9 @@ class Codegen {
   [[nodiscard]] auto convertBaseSubobjectType(ClassSymbol* classSymbol)
       -> ir::TypeRef;
 
+  [[nodiscard]] auto isBaseSubobjectType(ClassSymbol* classSymbol,
+                                         ir::TypeRef type) const -> bool;
+
   struct ClassMemberTypes {
     std::vector<ir::TypeRef> members;
     std::vector<std::uint32_t> padding;
@@ -395,6 +399,9 @@ class Codegen {
 
   [[nodiscard]] auto buildClassMemberTypes(ClassSymbol* classSymbol,
                                            bool includeVirtualBases)
+      -> ClassMemberTypes;
+
+  [[nodiscard]] auto unionBaseSubobjectMemberTypes(ClassSymbol* unionSymbol)
       -> ClassMemberTypes;
 
   [[nodiscard]] auto arrayType(ir::TypeRef elementType, std::uint64_t size)
@@ -477,7 +484,17 @@ class Codegen {
   [[nodiscard]] auto hasVagueFunctionEmission(FunctionSymbol* function) const
       -> bool;
   [[nodiscard]] auto hasVagueEmission(Symbol* symbol) const -> bool;
+  [[nodiscard]] auto hasDiscardableLinkage(Symbol* symbol) const -> bool;
+  [[nodiscard]] auto isNonThrowingCall(FunctionSymbol* function,
+                                       const FunctionType* functionType) const
+      -> bool;
   [[nodiscard]] auto symbolLinkage(Symbol* symbol) const -> ir::Linkage;
+  [[nodiscard]] auto hasInlineOnlyDefinition(Symbol* symbol) const -> bool;
+  [[nodiscard]] auto isExplicitInstantiationDefinition(Symbol* symbol) const
+      -> bool;
+  [[nodiscard]] auto declaresExternalVariable(VariableSymbol* variable,
+                                              ir::Linkage linkage) const
+      -> bool;
   [[nodiscard]] static auto isMaterializedTemporary(Symbol* symbol) -> bool;
   struct ReferenceTemporary;
   void assignReferenceTemporaries(const ReferenceTemporary& owner,
@@ -490,11 +507,22 @@ class Codegen {
   [[nodiscard]] auto globalLinkage(VariableSymbol* variable) const
       -> ir::Linkage;
 
+  enum class CompleteObjectStructor {
+    kSeparateBody,
+    kDuplicatedBody,
+    kAliasOfBase,
+    kBase,
+  };
+
+  [[nodiscard]] auto completeObjectStructor(FunctionSymbol* functionSymbol)
+      -> CompleteObjectStructor;
+
   [[nodiscard]] auto findOrCreateBaseObjectStructor(
       FunctionSymbol* functionSymbol) -> ir::FunctionRef;
 
-  [[nodiscard]] auto duplicatesBaseObjectStructorBody(
-      FunctionSymbol* functionSymbol) -> bool;
+  [[nodiscard]] auto findOrCreateFunctionBody(FunctionSymbol* functionSymbol)
+      -> ir::FunctionRef;
+
   void emitBaseObjectStructor(FunctionSymbol* functionSymbol,
                               ir::FunctionRef completeObjectFunc);
 
@@ -506,8 +534,12 @@ class Codegen {
 
   auto findOrCreateSecondaryFunctionName(FunctionSymbol* functionSymbol,
                                          std::string_view name,
-                                         std::string_view aliaseeName)
+                                         std::string_view aliaseeName,
+                                         std::string_view comdat = {})
       -> ir::FunctionRef;
+
+  [[nodiscard]] auto structorComdatName(FunctionSymbol* functionSymbol)
+      -> std::string;
 
   [[nodiscard]] auto emittedFunctionSymbol(FunctionSymbol* functionSymbol)
       -> FunctionSymbol*;
@@ -562,8 +594,21 @@ class Codegen {
   [[nodiscard]] auto scalarExtensionAbi(const Type* type) const
       -> ir::ParameterAbi;
 
+  [[nodiscard]] auto isPassedWidenedToInt(const Type* integerType) const
+      -> bool;
+
   [[nodiscard]] auto computeFunctionAbi(const FunctionType* functionType,
                                         FunctionSymbol* functionSymbol)
+      -> FunctionAbi;
+
+  [[nodiscard]] auto computeFunctionAbi(const FunctionType* functionType,
+                                        FunctionSymbol* functionSymbol,
+                                        const Type* implicitObjectType)
+      -> FunctionAbi;
+
+  [[nodiscard]] auto calleeAbi(const FunctionType* functionType,
+                               FunctionSymbol* symbol,
+                               const ExpressionResult& thisValue)
       -> FunctionAbi;
 
   [[nodiscard]] auto variadicCalleeType(std::span<const ir::ValueRef> args,
@@ -578,9 +623,21 @@ class Codegen {
                              const ClassValueAbi& abi, ir::ValueRef value,
                              std::vector<ir::ValueRef>& args);
 
+  [[nodiscard]] auto referenceArgument(SourceLocation loc,
+                                       const Type* paramType,
+                                       ir::ValueRef value) -> ir::ValueRef;
+
   void appendCallArgument(SourceLocation loc, const Type* paramType,
                           const ClassValueAbi& abi, ir::ValueRef value,
                           std::vector<ir::ValueRef>& args);
+
+  [[nodiscard]] auto expandsTrivialSpecialMember(FunctionSymbol* function,
+                                                 bool potentiallyOverlapping)
+      -> bool;
+  [[nodiscard]] auto emitTrivialSpecialMemberCall(
+      SourceLocation loc, FunctionSymbol* function,
+      const FunctionType* functionType, ExpressionResult thisValue,
+      std::span<const ExpressionResult> arguments) -> ExpressionResult;
 
   struct CallArguments {
     std::vector<ir::ValueRef> values;
@@ -722,6 +779,7 @@ class Codegen {
                                         ClassSymbol* classSymbol,
                                         Symbol* subobject);
 
+  [[nodiscard]] auto emitsFunctionBody(FunctionSymbol* symbol) -> bool;
   void enqueueFunctionBody(FunctionSymbol* symbol);
   void processPendingFunctions();
 
@@ -736,6 +794,8 @@ class Codegen {
   void emitGlobalVarInit(VariableSymbol* var, ir::GlobalRef global);
   [[nodiscard]] auto globalObjectAddress(SourceLocation loc, Symbol* symbol,
                                          ir::GlobalRef global) -> ir::ValueRef;
+  [[nodiscard]] auto initializesWhenEmitted(VariableSymbol* variable) const
+      -> bool;
   [[nodiscard]] auto isNonLocalThreadLocal(Symbol* symbol) const -> bool;
   [[nodiscard]] auto threadLocalCallingConvention() const
       -> ir::CallingConvention;
@@ -847,7 +907,8 @@ class Codegen {
   void emitThrow(ThrowExpressionAST* ast);
   void emitTry(const std::function<void()>& body, List<HandlerAST*>* handlers,
                SourceLocation loc, bool rethrowOnFallthrough = false);
-  [[nodiscard]] auto emitCallWithUnwind(SourceLocation loc, ir::CallInfo info)
+  [[nodiscard]] auto emitCallWithUnwind(SourceLocation loc, ir::CallInfo info,
+                                        bool nounwind = false)
       -> std::vector<ir::ValueRef>;
   void ensureExceptionPersonality(SourceLocation loc);
   void emitTerminateOnException(const std::function<void()>& body,
@@ -986,7 +1047,8 @@ class Codegen {
       SourceLocation loc, FunctionSymbol* symbol, ExpressionResult thisValue,
       std::vector<ExpressionResult> arguments, bool isVirtualDispatch = false,
       ExpressionAST* resultOwner = nullptr, bool baseObjectStructor = false,
-      ir::ValueRef structorVTT = {}) -> ExpressionResult;
+      ir::ValueRef structorVTT = {}, bool potentiallyOverlapping = false)
+      -> ExpressionResult;
 
   [[nodiscard]] auto baseStructorVTTArgument(SourceLocation loc,
                                              ClassSymbol* targetClass,
@@ -998,8 +1060,8 @@ class Codegen {
       FunctionSymbol* symbol, bool isVirtualDispatch,
       ExpressionResult thisValue, std::vector<ExpressionResult> arguments,
       ir::ValueRef resultObject = {}, ir::ValueRef calleeValue = {},
-      bool baseObjectStructor = false, ir::ValueRef structorVTT = {})
-      -> ExpressionResult;
+      bool baseObjectStructor = false, ir::ValueRef structorVTT = {},
+      bool potentiallyOverlapping = false) -> ExpressionResult;
 
   [[nodiscard]] auto uniqueClassTypeName(std::string name) -> std::string;
 
@@ -1042,7 +1104,8 @@ class Codegen {
   [[nodiscard]] auto emitCtorCall(SourceLocation loc, FunctionSymbol* ctor,
                                   ir::ValueRef thisPtr,
                                   std::vector<ExpressionResult> args,
-                                  bool completeObject, ir::ValueRef vtt = {})
+                                  bool completeObject, ir::ValueRef vtt = {},
+                                  bool potentiallyOverlapping = false)
       -> ExpressionResult;
 
   [[nodiscard]] static auto completeObjectDtor(FunctionSymbol* dtor)
@@ -1061,9 +1124,6 @@ class Codegen {
                                         const StringLiteral* literal,
                                         bool isUtf16) -> std::string;
 
-  [[nodiscard]] auto makeFloatInitializer(const Type* type, double value)
-      -> ir::Initializer;
-
   [[nodiscard]] auto getFloatAttr(const std::optional<ConstValue>& value,
                                   const Type* type)
       -> std::optional<ir::Initializer>;
@@ -1071,7 +1131,7 @@ class Codegen {
   struct ClassConstantSlot {
     ConstValue value;
     const Type* type = nullptr;
-    bool isBaseSubobject = false;
+    bool isPotentiallyOverlapping = false;
   };
 
   struct BitFieldStorageSlot {
@@ -1142,6 +1202,14 @@ class Codegen {
                                               const Type* arrayType)
       -> std::optional<ir::Initializer>;
 
+  [[nodiscard]] auto loadConstantObject(SourceLocation loc, ir::TypeRef irType,
+                                        const Type* type,
+                                        const ConstValue& value)
+      -> ir::ValueRef;
+
+  [[nodiscard]] auto holdsUnionPayload(std::span<const ir::TypeRef> members,
+                                       const Type* payloadType) -> bool;
+
   [[nodiscard]] auto emitConstantAggregate(SourceLocation loc,
                                            ir::TypeRef irType, const Type* type,
                                            const ConstValue& value)
@@ -1166,11 +1234,19 @@ class Codegen {
     std::size_t breakCleanupDepth = 0;
   };
 
+  struct CleanupCallee {
+    FunctionSymbol* function = nullptr;
+    bool baseObjectStructor = false;
+    ir::FunctionRef runtimeFunction;
+
+    [[nodiscard]] auto operator==(const CleanupCallee&) const -> bool = default;
+  };
+
   struct CleanupScope {
     std::uint64_t sourceScope = 0;
     struct Entry {
       ir::ValueRef address;
-      ir::FunctionRef destructor;
+      CleanupCallee destructor;
       ir::ValueRef activeFlag;
       std::int64_t elementCount = 1;
       ir::ValueRef initializedCount;
@@ -1178,6 +1254,7 @@ class Codegen {
       std::vector<ir::ParameterAbi> parameters;
       ir::TypeRef variadicCalleeType;
       bool exceptionalOnly = false;
+      std::uint64_t sequence = 0;
     };
     std::vector<Entry> entries;
     bool isFullExpression = false;
@@ -1205,6 +1282,7 @@ class Codegen {
   void emitGotoLabel(SourceLocation loc, std::string_view name);
   void resolveCleanupGotos();
 
+  void pushCleanupEntry(CleanupScope& scope, CleanupScope::Entry entry);
   void pushCleanup();
   void pushFullExpressionCleanup();
   void popCleanup(SourceLocation loc);
@@ -1217,7 +1295,9 @@ class Codegen {
   void emitCleanupDestructorCall(SourceLocation loc,
                                  const CleanupScope::Entry& cleanup,
                                  ir::ValueRef address);
-  void removeCleanup(ir::ValueRef address, ir::FunctionRef destructor);
+  void removeCleanup(ir::ValueRef address, const CleanupCallee& destructor);
+  [[nodiscard]] auto cleanupFunction(const CleanupCallee& callee)
+      -> ir::FunctionRef;
   void addCleanup(ir::ValueRef address, FunctionSymbol* dtor,
                   std::int64_t elementCount = 1, bool exceptionalOnly = false);
   void addArrayCleanup(ir::ValueRef address, const Type* arrayType);
@@ -1259,6 +1339,7 @@ class Codegen {
   class LifetimeExtension {
    public:
     LifetimeExtension(Codegen& gen, std::span<ExpressionAST* const> temporaries,
+                      std::vector<List<ExpressionAST*>*> backingArrays,
                       Symbol* reference = nullptr,
                       ir::GlobalRef staticStorage = {});
     ~LifetimeExtension();
@@ -1272,12 +1353,20 @@ class Codegen {
         -> ir::ValueRef;
     void extendObject(ir::ValueRef address, const Type* type,
                       SourceLocation loc);
+    [[nodiscard]] auto extendsBackingArray(List<ExpressionAST*>* elements) const
+        -> bool;
+    [[nodiscard]] auto backingArrayStorage(const Type* arrayType,
+                                           SourceLocation loc) -> ir::ValueRef;
 
    private:
     void relocateCleanup(ir::ValueRef address);
+    [[nodiscard]] auto staticTemporaryStorage(const Type* type,
+                                              SourceLocation loc)
+        -> ir::ValueRef;
 
     Codegen& gen_;
     std::span<ExpressionAST* const> temporaries_;
+    std::vector<List<ExpressionAST*>*> backingArrays_;
     Symbol* reference_ = nullptr;
     ir::GlobalRef staticStorage_;
     std::size_t staticCount_ = 0;
@@ -1488,6 +1577,7 @@ class Codegen {
   std::unordered_map<Symbol*, ir::ValueRef> locals_;
   std::unordered_map<FunctionSymbol*, ir::FunctionRef> funcOps_;
   std::vector<FunctionSymbol*> pendingFunctions_;
+  std::vector<FunctionSymbol*> referencedBaseObjectStructors_;
   std::unordered_set<FunctionSymbol*> enqueuedFunctions_;
   std::unordered_set<ClassSymbol*> emittedVTables_;
   std::unordered_set<std::string> emittedTypeInfos_;
@@ -1504,6 +1594,7 @@ class Codegen {
   Loop loop_;
   Switch switch_;
   std::vector<CleanupScope> cleanupStack_;
+  std::uint64_t nextCleanupSequence_ = 0;
   LifetimeExtension* lifetimeExtension_ = nullptr;
   std::vector<CleanupLabel> cleanupLabels_;
   std::vector<CleanupGoto> cleanupGotos_;

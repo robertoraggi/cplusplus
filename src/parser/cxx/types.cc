@@ -22,6 +22,7 @@
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
+#include <algorithm>
 #include <utility>
 
 namespace cxx {
@@ -33,8 +34,7 @@ auto UnresolvedNameType::sourceLocationRange() const -> SourceLocationRange {
   if (nestedNameSpecifier()) {
     auto [qualifierFirst, qualifierLast] =
         nestedNameSpecifier()->sourceLocationRange();
-    if (qualifierFirst && (!first || qualifierFirst < first))
-      first = qualifierFirst;
+    if (qualifierFirst) first = qualifierFirst;
     if (!last) last = qualifierLast;
   }
 
@@ -43,51 +43,59 @@ auto UnresolvedNameType::sourceLocationRange() const -> SourceLocationRange {
 namespace {
 
 struct ContainsPlaceholderType {
+  mutable std::vector<const FunctionType*> visited;
+
+  [[nodiscard]] auto operator()(const Type* type) const -> bool {
+    return type && visit(*this, type);
+  }
+
   auto operator()(const AutoType*) const -> bool { return true; }
   auto operator()(const DecltypeAutoType*) const -> bool { return true; }
 
   auto operator()(const QualType* type) const -> bool {
-    return containsPlaceholderType(type->elementType());
+    return (*this)(type->elementType());
   }
 
   auto operator()(const BoundedArrayType* type) const -> bool {
-    return containsPlaceholderType(type->elementType());
+    return (*this)(type->elementType());
   }
 
   auto operator()(const UnboundedArrayType* type) const -> bool {
-    return containsPlaceholderType(type->elementType());
+    return (*this)(type->elementType());
   }
 
   auto operator()(const UnresolvedBoundedArrayType* type) const -> bool {
-    return containsPlaceholderType(type->elementType());
+    return (*this)(type->elementType());
   }
 
   auto operator()(const PointerType* type) const -> bool {
-    return containsPlaceholderType(type->elementType());
+    return (*this)(type->elementType());
   }
 
   auto operator()(const LvalueReferenceType* type) const -> bool {
-    return containsPlaceholderType(type->elementType());
+    return (*this)(type->elementType());
   }
 
   auto operator()(const RvalueReferenceType* type) const -> bool {
-    return containsPlaceholderType(type->elementType());
+    return (*this)(type->elementType());
   }
 
   auto operator()(const FunctionType* type) const -> bool {
-    if (containsPlaceholderType(type->returnType())) return true;
+    if (std::ranges::find(visited, type) != visited.end()) return false;
+    visited.push_back(type);
+    if ((*this)(type->returnType())) return true;
     for (auto parameterType : type->parameterTypes()) {
-      if (containsPlaceholderType(parameterType)) return true;
+      if ((*this)(parameterType)) return true;
     }
     return false;
   }
 
   auto operator()(const MemberObjectPointerType* type) const -> bool {
-    return containsPlaceholderType(type->elementType());
+    return (*this)(type->elementType());
   }
 
   auto operator()(const MemberFunctionPointerType* type) const -> bool {
-    return containsPlaceholderType(type->functionType());
+    return (*this)(type->functionType());
   }
 
   template <typename T>

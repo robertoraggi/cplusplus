@@ -261,6 +261,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kAbiTag,
         .name = "abi_tag",
+        .standardValue = 0,
         .spellings = kAbiTagSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -272,6 +273,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kAddressSpace,
         .name = "address_space",
+        .standardValue = 0,
         .spellings = kAddressSpaceSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -284,6 +286,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kAlias,
         .name = "alias",
+        .standardValue = 0,
         .spellings = kAliasSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -295,6 +298,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kAligned,
         .name = "aligned",
+        .standardValue = 0,
         .spellings = kAlignedSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -308,6 +312,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kAlwaysInline,
         .name = "always_inline",
+        .standardValue = 0,
         .spellings = kAlwaysInlineSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -319,6 +324,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kAsm,
         .name = "asm",
+        .standardValue = 0,
         .spellings = kAsmSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -331,6 +337,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kAssume,
         .name = "assume",
+        .standardValue = 202207,
         .spellings = kAssumeSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = true,
@@ -343,6 +350,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kBuffer,
         .name = "buffer",
+        .standardValue = 0,
         .spellings = kBufferSpellings,
         .availability = AttributeAvailability::kDeviceProfile,
         .cplusplusOnly = false,
@@ -359,6 +367,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kConstructor,
         .name = "constructor",
+        .standardValue = 0,
         .spellings = kConstructorSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -371,6 +380,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kDeprecated,
         .name = "deprecated",
+        .standardValue = 201309,
         .spellings = kDeprecatedSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -382,6 +392,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kEnableIf,
         .name = "enable_if",
+        .standardValue = 0,
         .spellings = kEnableIfSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -394,6 +405,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kExcludeFromExplicitInstantiation,
         .name = "exclude_from_explicit_instantiation",
+        .standardValue = 0,
         .spellings = kExcludeFromExplicitInstantiationSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -406,6 +418,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kExportName,
         .name = "export_name",
+        .standardValue = 0,
         .spellings = kExportNameSpellings,
         .availability = AttributeAvailability::kWebAssembly,
         .cplusplusOnly = false,
@@ -418,6 +431,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kExtVectorType,
         .name = "ext_vector_type",
+        .standardValue = 0,
         .spellings = kExtVectorTypeSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -430,6 +444,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kFallthrough,
         .name = "fallthrough",
+        .standardValue = 201603,
         .spellings = kFallthroughSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -442,6 +457,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kGlobalId,
         .name = "global_id",
+        .standardValue = 0,
         .spellings = kGlobalIdSpellings,
         .availability = AttributeAvailability::kDeviceProfile,
         .cplusplusOnly = false,
@@ -454,6 +470,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kGnuInline,
         .name = "gnu_inline",
+        .standardValue = 0,
         .spellings = kGnuInlineSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -465,6 +482,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kImportModule,
         .name = "import_module",
+        .standardValue = 0,
         .spellings = kImportModuleSpellings,
         .availability = AttributeAvailability::kWebAssembly,
         .cplusplusOnly = false,
@@ -477,6 +495,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kImportName,
         .name = "import_name",
+        .standardValue = 0,
         .spellings = kImportNameSpellings,
         .availability = AttributeAvailability::kWebAssembly,
         .cplusplusOnly = false,
@@ -489,6 +508,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kIndeterminate,
         .name = "indeterminate",
+        .standardValue = 202403,
         .spellings = kIndeterminateSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = true,
@@ -501,6 +521,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kKernel,
         .name = "kernel",
+        .standardValue = 0,
         .spellings = kKernelSpellings,
         .availability = AttributeAvailability::kDeviceProfile,
         .cplusplusOnly = false,
@@ -513,6 +534,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kLikely,
         .name = "likely",
+        .standardValue = 201803,
         .spellings = kLikelySpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = true,
@@ -525,6 +547,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kLocalId,
         .name = "local_id",
+        .standardValue = 0,
         .spellings = kLocalIdSpellings,
         .availability = AttributeAvailability::kDeviceProfile,
         .cplusplusOnly = false,
@@ -537,6 +560,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kMaybeUnused,
         .name = "maybe_unused",
+        .standardValue = 201603,
         .spellings = kMaybeUnusedSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -548,6 +572,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kNoUniqueAddress,
         .name = "no_unique_address",
+        .standardValue = 201803,
         .spellings = kNoUniqueAddressSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = true,
@@ -560,6 +585,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kNodiscard,
         .name = "nodiscard",
+        .standardValue = 201907,
         .spellings = kNodiscardSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -571,6 +597,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kNoinline,
         .name = "noinline",
+        .standardValue = 0,
         .spellings = kNoinlineSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -582,6 +609,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kNoreturn,
         .name = "noreturn",
+        .standardValue = 200809,
         .spellings = kNoreturnSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -593,6 +621,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kNothrow,
         .name = "nothrow",
+        .standardValue = 0,
         .spellings = kNothrowSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -605,6 +634,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kPacked,
         .name = "packed",
+        .standardValue = 0,
         .spellings = kPackedSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -616,6 +646,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kSection,
         .name = "section",
+        .standardValue = 0,
         .spellings = kSectionSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -627,6 +658,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kTrivialAbi,
         .name = "trivial_abi",
+        .standardValue = 0,
         .spellings = kTrivialAbiSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -639,6 +671,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kUnlikely,
         .name = "unlikely",
+        .standardValue = 201803,
         .spellings = kUnlikelySpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = true,
@@ -651,6 +684,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kUsed,
         .name = "used",
+        .standardValue = 0,
         .spellings = kUsedSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -662,6 +696,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kVectorSize,
         .name = "vector_size",
+        .standardValue = 0,
         .spellings = kVectorSizeSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -674,6 +709,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kWarnUnusedResult,
         .name = "warn_unused_result",
+        .standardValue = 0,
         .spellings = kWarnUnusedResultSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -685,6 +721,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kWeak,
         .name = "weak",
+        .standardValue = 0,
         .spellings = kWeakSpellings,
         .availability = AttributeAvailability::kAlways,
         .cplusplusOnly = false,
@@ -696,6 +733,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kWorkgroupId,
         .name = "workgroup_id",
+        .standardValue = 0,
         .spellings = kWorkgroupIdSpellings,
         .availability = AttributeAvailability::kDeviceProfile,
         .cplusplusOnly = false,
@@ -708,6 +746,7 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
     {
         .kind = AttributeKind::kWorkgroupSize,
         .name = "workgroup_size",
+        .standardValue = 0,
         .spellings = kWorkgroupSizeSpellings,
         .availability = AttributeAvailability::kDeviceProfile,
         .cplusplusOnly = false,

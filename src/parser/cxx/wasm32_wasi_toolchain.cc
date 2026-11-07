@@ -162,6 +162,8 @@ void Wasm32WasiToolchain::addLinkerStartArgs(
   const auto libdir = libraryDir();
 
   args.push_back(std::format("{}/crt1.o", libdir));
+  args.push_back(
+      std::format("-L{}/{}", libdir, exceptionsEnabled() ? "eh" : "noeh"));
   args.push_back(std::format("-L{}", libdir));
 }
 

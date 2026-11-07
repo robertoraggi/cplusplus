@@ -122,6 +122,11 @@ struct ASTRewriter::ExpressionVisitor : VisitorBase {
 
   [[nodiscard]] auto operator()(LeftFoldExpressionAST* ast) -> ExpressionAST*;
 
+  [[nodiscard]] auto parenthesizeFold(ExpressionAST* expression,
+                                      SourceLocation lparenLoc,
+                                      SourceLocation rparenLoc)
+      -> ExpressionAST*;
+
   [[nodiscard]] auto operator()(RequiresExpressionAST* ast) -> ExpressionAST*;
 
   [[nodiscard]] auto operator()(VaArgExpressionAST* ast) -> ExpressionAST*;
@@ -289,6 +294,9 @@ auto ASTRewriter::substitutedNonTypeValue(IdExpressionAST* ast)
   if (!var) return nullptr;
 
   const auto type = var->type() ? var->type() : ast->type;
+  auto traits = unit_->typeTraits();
+  if (traits.is_reference(type) || traits.is_class_or_union(type))
+    return nullptr;
 
   if (auto value = var->constValue()) {
     if (auto integer = std::get_if<ConstInt>(&*value))
@@ -309,9 +317,11 @@ auto ASTRewriter::expression(ExpressionAST* ast) -> ExpressionAST* {
       return value;
     }
   }
+  const auto addressOfOperand =
+      std::exchange(addressOfOperand_, nullptr) == ast;
   auto expr = visit(ExpressionVisitor{*this}, ast);
   if (expr) {
-    expr = check(expr);
+    expr = check(expr, addressOfOperand);
     StandardConversion{unit_}.foldConstantRead(expr);
   }
   return expr;
@@ -322,6 +332,24 @@ auto ASTRewriter::contextuallyConvertedBool(ExpressionAST* ast)
   auto copy = expression(ast);
   if (copy) typeChecker().check_bool_condition(copy);
   return copy;
+}
+
+auto ASTRewriter::contextuallyConvertedConstantBool(ExpressionAST* ast)
+    -> ExpressionAST* {
+  TranslationUnit::ImmediateFunctionContextScope immediate{unit_, true};
+  return contextuallyConvertedBool(ast);
+}
+
+auto ASTRewriter::constantExpression(ExpressionAST* ast) -> ExpressionAST* {
+  TranslationUnit::ImmediateFunctionContextScope immediate{unit_, true};
+  return expression(ast);
+}
+
+void ASTRewriter::requireConstantExpression(ExpressionAST* ast,
+                                            std::string_view construct) {
+  if (!ast || isDependent(unit_, ast)) return;
+  auto value = ASTInterpreter{unit_, binder_.scope()}.evaluate(ast);
+  typeChecker().check_constant_expression(ast, value, construct);
 }
 
 auto ASTRewriter::unevaluatedExpression(ExpressionAST* ast) -> ExpressionAST* {
@@ -495,27 +523,15 @@ auto ASTRewriter::ExpressionVisitor::operator()(ThisExpressionAST* ast)
 
 auto ASTRewriter::ExpressionVisitor::operator()(PackIndexExpressionAST* ast)
     -> ExpressionAST* {
-  if (auto parameterPack =
-          rewrite.findReferencedParameterPack(ast->packExpression)) {
-    auto rewrittenIndex = rewrite.expression(ast->indexExpression);
-
-    ASTInterpreter interp(rewrite.unit_);
-    auto val = interp.evaluate(rewrittenIndex);
-    auto idxOpt = val ? interp.toInt(*val) : std::nullopt;
-
-    if (idxOpt.has_value()) {
-      auto idx = static_cast<int>(*idxOpt);
-      auto packSize = static_cast<int>(parameterPack->elements().size());
-
-      if (idx >= 0 && idx < packSize) {
-        ExpressionAST* result = nullptr;
-        rewrite.expandPackElement({parameterPack}, idx, [&] {
-          result = rewrite.expression(ast->packExpression);
-        });
-
-        return result;
-      }
-    }
+  auto index = rewrite.constantExpression(ast->indexExpression);
+  auto pack = rewrite.findReferencedParameterPack(ast->packExpression);
+  if (auto position =
+          rewrite.selectPackElement(pack, index, ast->firstSourceLocation())) {
+    ExpressionAST* result = nullptr;
+    rewrite.expandPackElement({pack}, *position, [&] {
+      result = rewrite.expression(ast->packExpression);
+    });
+    return result;
   }
 
   auto copy = PackIndexExpressionAST::create(arena());
@@ -525,7 +541,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(PackIndexExpressionAST* ast)
       ast_cast<IdExpressionAST>(rewrite.expression(ast->packExpression));
   copy->ellipsisLoc = ast->ellipsisLoc;
   copy->lbracketLoc = ast->lbracketLoc;
-  copy->indexExpression = rewrite.expression(ast->indexExpression);
+  copy->indexExpression = index;
   copy->rbracketLoc = ast->rbracketLoc;
   return copy;
 }
@@ -566,11 +582,22 @@ auto ASTRewriter::ExpressionVisitor::operator()(
 auto ASTRewriter::ExpressionVisitor::operator()(
     DefaultInitializerExpressionAST* ast) -> ExpressionAST* {
   auto copy = DefaultInitializerExpressionAST::create(arena());
-  copy->expression = rewrite.expression(ast->expression);
+  auto hasImmediateEscalatingSubexpression = false;
+  {
+    TranslationUnit::DeferredInitializerScope instantiatedUse{
+        rewrite.unit_, TranslationUnit::DeferredInitializer::kInstantiatedUse};
+    const auto pending = rewrite.unit_->pendingImmediateEscalationCount();
+    copy->expression = rewrite.expression(ast->expression);
+    hasImmediateEscalatingSubexpression =
+        rewrite.unit_->pendingImmediateEscalationCount() > pending;
+  }
   copy->context = ast->context;
   copy->context.scope = rewrite.binder_.scope();
   copy->type = copy->expression ? copy->expression->type : ast->type;
   copy->valueCategory = ast->valueCategory;
+  if (!symbol_cast<FieldSymbol>(copy->context.entity))
+    rewrite.typeChecker().evaluateDefaultInitializer(
+        copy, hasImmediateEscalatingSubexpression);
   return copy;
 }
 
@@ -631,7 +658,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
       copy->symbol = substituted;
 
       if (auto var = symbol_cast<VariableSymbol>(substituted)) {
-        if (var->type()) copy->type = var->type();
+        if (var->type())
+          rewrite.typeChecker().set_named_symbol_result(copy, var);
       }
     }
   } else if (!isCallee && symbol_cast<FunctionSymbol>(ast->symbol) &&
@@ -842,9 +870,67 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   return copy;
 }
 
+auto ASTRewriter::selectPackElement(ParameterPackSymbol* pack,
+                                    ExpressionAST* index,
+                                    SourceLocation location)
+    -> std::optional<int> {
+  if (!index || isDependent(unit_, index)) return std::nullopt;
+
+  auto position = unit_->typeTraits().converted_pack_index(index);
+  if (!position) {
+    if (shouldReportCheckErrors())
+      unit_->error(location,
+                   "the pack index is not a converted constant expression of "
+                   "type 'std::size_t'");
+    markSubstitutionFailure();
+    return std::nullopt;
+  }
+
+  if (!pack) return std::nullopt;
+  const auto isExpansion = [](Symbol* element) {
+    auto type = element->type();
+    if (type_cast<PackExpansionType>(type)) return true;
+    auto parameter = type_cast<TypeParameterType>(type);
+    return parameter && parameter->isParameterPack();
+  };
+  if (std::ranges::any_of(pack->elements(), isExpansion)) return std::nullopt;
+
+  const auto size = pack->elements().size();
+  if (*position >= size) {
+    if (shouldReportCheckErrors())
+      unit_->error(location,
+                   std::format("the pack index {} is not less than the size of "
+                               "the pack, {}",
+                               *position, size));
+    markSubstitutionFailure();
+    return std::nullopt;
+  }
+  return static_cast<int>(*position);
+}
+
 auto ASTRewriter::foldStep(ExpressionAST* left, TokenKind op,
                            SourceLocation opLoc, ExpressionAST* right)
     -> ExpressionAST* {
+  if (op == TokenKind::T_EQUAL) {
+    auto assignment = AssignmentExpressionAST::create(arena());
+    assignment->leftExpression = left;
+    assignment->opLoc = opLoc;
+    assignment->rightExpression = right;
+    assignment->op = op;
+    return check(assignment);
+  }
+
+  if (get_underlying_binary_op(op) != TokenKind::T_EOF_SYMBOL) {
+    auto assignment = CompoundAssignmentExpressionAST::create(arena());
+    assignment->leftExpression = TargetExpressionAST::create(arena());
+    assignment->adjustExpression = RightExpressionAST::create(arena());
+    assignment->targetExpression = left;
+    assignment->opLoc = opLoc;
+    assignment->rightExpression = right;
+    assignment->op = op;
+    return check(assignment);
+  }
+
   auto binop = BinaryExpressionAST::create(arena());
   binop->valueCategory = left->valueCategory;
   binop->type = left->type;
@@ -880,15 +966,17 @@ auto ASTRewriter::rightFold(ExpressionAST* pattern, SourceLocation ellipsisLoc,
 auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
     -> ExpressionAST* {
   if (rewrite.findReferencedParameterPack(ast->leftExpression)) {
-    return rewrite.rightFold(ast->leftExpression, ast->ellipsisLoc, ast->op,
-                             ast->opLoc,
-                             rewrite.expression(ast->rightExpression));
+    auto folded =
+        rewrite.rightFold(ast->leftExpression, ast->ellipsisLoc, ast->op,
+                          ast->opLoc, rewrite.expression(ast->rightExpression));
+    return parenthesizeFold(folded, ast->lparenLoc, ast->rparenLoc);
   }
 
   if (rewrite.findReferencedParameterPack(ast->rightExpression)) {
-    return rewrite.leftFold(ast->rightExpression, ast->ellipsisLoc, ast->op,
-                            ast->opLoc,
-                            rewrite.expression(ast->leftExpression));
+    auto folded =
+        rewrite.leftFold(ast->rightExpression, ast->ellipsisLoc, ast->op,
+                         ast->opLoc, rewrite.expression(ast->leftExpression));
+    return parenthesizeFold(folded, ast->lparenLoc, ast->rparenLoc);
   }
 
   auto copy = FoldExpressionAST::create(arena());
@@ -911,10 +999,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(FoldExpressionAST* ast)
 auto ASTRewriter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
     -> ExpressionAST* {
   if (rewrite.findReferencedParameterPack(ast->expression)) {
-    if (auto folded = rewrite.rightFold(ast->expression, ast->ellipsisLoc,
-                                        ast->op, ast->opLoc, nullptr))
-      return folded;
-    return rewrite.emptyFoldIdentity(ast->op);
+    auto folded = rewrite.rightFold(ast->expression, ast->ellipsisLoc, ast->op,
+                                    ast->opLoc, nullptr);
+    if (!folded) folded = rewrite.emptyFoldIdentity(ast->op);
+    return parenthesizeFold(folded, ast->lparenLoc, ast->rparenLoc);
   }
 
   auto copy = RightFoldExpressionAST::create(arena());
@@ -934,10 +1022,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(RightFoldExpressionAST* ast)
 auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
     -> ExpressionAST* {
   if (rewrite.findReferencedParameterPack(ast->expression)) {
-    if (auto folded = rewrite.leftFold(ast->expression, ast->ellipsisLoc,
-                                       ast->op, ast->opLoc, nullptr))
-      return folded;
-    return rewrite.emptyFoldIdentity(ast->op);
+    auto folded = rewrite.leftFold(ast->expression, ast->ellipsisLoc, ast->op,
+                                   ast->opLoc, nullptr);
+    if (!folded) folded = rewrite.emptyFoldIdentity(ast->op);
+    return parenthesizeFold(folded, ast->lparenLoc, ast->rparenLoc);
   }
 
   auto copy = LeftFoldExpressionAST::create(arena());
@@ -952,6 +1040,16 @@ auto ASTRewriter::ExpressionVisitor::operator()(LeftFoldExpressionAST* ast)
   copy->op = ast->op;
 
   return copy;
+}
+
+auto ASTRewriter::ExpressionVisitor::parenthesizeFold(ExpressionAST* expression,
+                                                      SourceLocation lparenLoc,
+                                                      SourceLocation rparenLoc)
+    -> ExpressionAST* {
+  if (!expression) return nullptr;
+  return NestedExpressionAST::create(arena(), lparenLoc, expression, rparenLoc,
+                                     expression->valueCategory,
+                                     expression->type);
 }
 
 auto ASTRewriter::ExpressionVisitor::operator()(RequiresExpressionAST* ast)
@@ -1019,7 +1117,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
   copy->isVirtualDispatch = ast->isVirtualDispatch;
   copy->baseExpression = rewrite.expression(ast->baseExpression);
   copy->lbracketLoc = ast->lbracketLoc;
-  copy->indexExpression = rewrite.expression(ast->indexExpression);
+  copy->expressionList = rewrite.rewriteExpressionList(ast->expressionList);
   copy->rbracketLoc = ast->rbracketLoc;
 
   return copy;
@@ -1082,7 +1180,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(CallExpressionAST* ast)
   copy->expressionList = rewrite.rewriteExpressionList(ast->expressionList);
   copy->rparenLoc = ast->rparenLoc;
 
-  if (ast_cast<IdExpressionAST>(ast->baseExpression))
+  if (ast_cast<IdExpressionAST>(ast->baseExpression) ||
+      ast_cast<MemberExpressionAST>(ast->baseExpression))
     rewrite.rewritingCall_ = copy;
   copy->baseExpression = rewrite.expression(ast->baseExpression);
   rewrite.rewritingCall_ = nullptr;
@@ -1129,7 +1228,6 @@ auto ASTRewriter::ExpressionVisitor::operator()(SpliceMemberExpressionAST* ast)
   copy->accessLoc = ast->accessLoc;
   copy->templateLoc = ast->templateLoc;
   copy->splicer = rewrite.splicer(ast->splicer);
-  copy->symbol = ast->symbol;
   copy->accessOp = ast->accessOp;
   copy->isTemplateIntroduced = ast->isTemplateIntroduced;
 
@@ -1190,7 +1288,7 @@ void ASTRewriter::ExpressionVisitor::bindDestroyedType(
   }
 
   auto classSymbol = classType->symbol();
-  translationUnit()->typeTraits().requireCompleteClass(classSymbol);
+  translationUnit()->typeTraits().require_complete_class(classSymbol);
   copy->symbol = classSymbol->destructor();
 }
 
@@ -1396,6 +1494,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(UnaryExpressionAST* ast)
   copy->type = ast->type;
   copy->isVirtualDispatch = ast->isVirtualDispatch;
   copy->opLoc = ast->opLoc;
+  if (ast->op == TokenKind::T_AMP) rewrite.addressOfOperand_ = ast->expression;
   copy->expression = rewrite.expression(ast->expression);
   copy->op = ast->op;
 
@@ -1618,7 +1717,10 @@ auto ASTRewriter::ExpressionVisitor::operator()(ConstExpressionAST* ast)
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
   copy->expression = rewrite.expression(ast->expression);
-  copy->constValue = ast->constValue;
+  copy->constValue = rewrite.remappedConstant(ast->constValue);
+  copy->isDeferredImmediateInvocation = ast->isDeferredImmediateInvocation;
+  copy->evaluationKind = ast->evaluationKind;
+  if (ast->evaluationScope) copy->evaluationScope = binder()->scope();
 
   return copy;
 }

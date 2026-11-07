@@ -83,6 +83,20 @@ namespace {
   }
   return mlir::cxx::KernelBufferKind::Storage;
 }
+
+[[nodiscard]] auto extensionAttrName(ParameterAbiKind kind) -> mlir::StringRef {
+  switch (kind) {
+    case ParameterAbiKind::ZeroExtend:
+      return mlir::LLVM::LLVMDialect::getZExtAttrName();
+    case ParameterAbiKind::SignExtend:
+      return mlir::LLVM::LLVMDialect::getSExtAttrName();
+    case ParameterAbiKind::Default:
+    case ParameterAbiKind::StructReturn:
+    case ParameterAbiKind::ByValue:
+      return {};
+  }
+  return {};
+}
 }  // namespace
 
 MlirEmitter::MlirEmitter(mlir::MLIRContext& context, TranslationUnit* unit)
@@ -1542,11 +1556,9 @@ auto MlirEmitter::parameterAbiAttrs(std::span<const ParameterAbi> parameters,
   for (std::size_t i = 0; i < count; ++i) {
     auto parameter = i < parameters.size() ? parameters[i] : ParameterAbi{};
     mlir::SmallVector<mlir::NamedAttribute> attrs;
-    if (parameter.kind == ParameterAbiKind::ZeroExtend) {
-      attrs.emplace_back(
-          mlir::StringAttr::get(context,
-                                mlir::LLVM::LLVMDialect::getZExtAttrName()),
-          builder_.getUnitAttr());
+    if (auto name = extensionAttrName(parameter.kind); !name.empty()) {
+      attrs.emplace_back(mlir::StringAttr::get(context, name),
+                         builder_.getUnitAttr());
       hasAttr = true;
     } else if (parameter.kind != ParameterAbiKind::Default) {
       auto name = parameter.kind == ParameterAbiKind::StructReturn
@@ -1599,7 +1611,7 @@ auto MlirEmitter::declareFunction(mlir::Location loc, const FunctionInfo& info)
       parameterAbiAttrs(info.parameters, functionType.getInputs().size()),
       parameterAbiAttrs(std::array{info.resultAbi},
                         functionType.getResults().size()),
-      optionalString(info.section),
+      optionalString(info.section), optionalString(info.comdat),
       callingConventionAttr(context, info.callingConvention));
   if (info.kernel) {
     const auto& kernel = *info.kernel;

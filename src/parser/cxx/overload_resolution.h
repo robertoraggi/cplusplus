@@ -90,6 +90,7 @@ struct FailedArgumentConversion {
   const Type* destination;
   std::size_t argumentIndex;
   bool fromInitializerList = false;
+  Symbol* sourceDeclaration = nullptr;
 };
 
 [[nodiscard]] auto failedArgumentConversion(ExpressionAST* argument,
@@ -239,6 +240,15 @@ class OverloadResolution {
   [[nodiscard]] auto collectCandidates(Symbol* symbol) const
       -> std::vector<FunctionSymbol*>;
 
+  [[nodiscard]] auto buildCallCandidate(FunctionSymbol* pattern,
+                                        std::span<ExpressionAST* const> args,
+                                        SourceLocation location = {})
+      -> std::optional<Candidate>;
+
+  [[nodiscard]] auto subscriptCandidates(
+      ExpressionAST* object, std::span<ExpressionAST* const> arguments)
+      -> std::vector<Candidate>;
+
   [[nodiscard]] auto lookupOperator(
       ScopeSymbol* scope, const Type* type, TokenKind op,
       const Type* rightType = nullptr, ExpressionAST* leftExpr = nullptr,
@@ -313,6 +323,9 @@ class OverloadResolution {
       const Type* leftType, const Type* rightType, bool* ambiguous,
       ExpressionAST* leftExpr, ExpressionAST* rightExpr,
       ImplicitConversionSequence* builtinConversion) -> FunctionSymbol*;
+
+  [[nodiscard]] auto builtinSubscriptPointerTypes(const Type* type)
+      -> std::vector<const Type*>;
 
   [[nodiscard]] auto builtinUnaryOperatorParameterTypes(TokenKind op,
                                                         const Type* operandType)

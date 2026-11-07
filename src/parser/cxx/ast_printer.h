@@ -56,6 +56,7 @@ class ASTPrinter : ASTVisitor {
   void visit(UsingEnumDeclarationAST* ast) override;
   void visit(UsingDirectiveAST* ast) override;
   void visit(StaticAssertDeclarationAST* ast) override;
+  void visit(ConstevalBlockDeclarationAST* ast) override;
   void visit(AliasDeclarationAST* ast) override;
   void visit(OpaqueEnumDeclarationAST* ast) override;
   void visit(FunctionDefinitionAST* ast) override;
@@ -235,6 +236,7 @@ class ASTPrinter : ASTVisitor {
   void visit(AtomicTypeSpecifierAST* ast) override;
   void visit(BitIntTypeSpecifierAST* ast) override;
   void visit(UnderlyingTypeSpecifierAST* ast) override;
+  void visit(PackIndexTypeSpecifierAST* ast) override;
   void visit(ElaboratedTypeSpecifierAST* ast) override;
   void visit(DecltypeAutoSpecifierAST* ast) override;
   void visit(DecltypeSpecifierAST* ast) override;
@@ -263,6 +265,7 @@ class ASTPrinter : ASTVisitor {
   void visit(NameIdAST* ast) override;
   void visit(DestructorIdAST* ast) override;
   void visit(DecltypeIdAST* ast) override;
+  void visit(PackIndexIdAST* ast) override;
   void visit(OperatorFunctionIdAST* ast) override;
   void visit(LiteralOperatorIdAST* ast) override;
   void visit(ConversionFunctionIdAST* ast) override;
@@ -273,6 +276,7 @@ class ASTPrinter : ASTVisitor {
   void visit(GlobalNestedNameSpecifierAST* ast) override;
   void visit(SimpleNestedNameSpecifierAST* ast) override;
   void visit(DecltypeNestedNameSpecifierAST* ast) override;
+  void visit(PackIndexNestedNameSpecifierAST* ast) override;
   void visit(TemplateNestedNameSpecifierAST* ast) override;
 
   void visit(DefaultFunctionBodyAST* ast) override;

@@ -22,6 +22,7 @@
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
+#include <cxx/decl_specs.h>
 #include <cxx/dependent_types.h>
 #include <cxx/literals.h>
 #include <cxx/name_lookup.h>
@@ -289,6 +290,14 @@ struct TemplateEquivalence::SameUnqualifiedId {
     return equivalence.same(ast->id, counterpart(ast)->id);
   }
 
+  [[nodiscard]] auto operator()(PackIndexIdAST* ast) const -> bool {
+    auto b = counterpart(ast);
+    auto unit = equivalence.unit_;
+    return unit->typeTraits().is_same(
+        computed_specifier_type(unit, ast->typeSpecifier),
+        computed_specifier_type(unit, b->typeSpecifier));
+  }
+
   [[nodiscard]] auto operator()(DecltypeIdAST* ast) const -> bool {
     auto b = counterpart(ast);
     if (!ast->decltypeSpecifier || !b->decltypeSpecifier) return false;
@@ -393,7 +402,7 @@ struct TemplateEquivalence::SameExpression {
     auto b = counterpart(ast);
     if (!ast->literal || !b->literal) return false;
     if (!equivalence.same(ast->type, b->type)) return false;
-    return ast->literal->floatValue() == b->literal->floatValue();
+    return ast->literal->longDoubleValue() == b->literal->longDoubleValue();
   }
 
   [[nodiscard]] auto operator()(NullptrLiteralExpressionAST* ast) const
@@ -489,7 +498,7 @@ struct TemplateEquivalence::SameExpression {
   [[nodiscard]] auto operator()(SubscriptExpressionAST* ast) const -> bool {
     auto b = counterpart(ast);
     if (!equivalence.same(ast->baseExpression, b->baseExpression)) return false;
-    return equivalence.same(ast->indexExpression, b->indexExpression);
+    return equivalence.same(ast->expressionList, b->expressionList);
   }
 
   [[nodiscard]] auto operator()(CallExpressionAST* ast) const -> bool {
@@ -1259,6 +1268,14 @@ auto TemplateEquivalence::same(NestedNameSpecifierAST* a,
 
   if (ast_cast<GlobalNestedNameSpecifierAST>(a))
     return ast_cast<GlobalNestedNameSpecifierAST>(b) != nullptr;
+
+  if (auto aPackIndex = ast_cast<PackIndexNestedNameSpecifierAST>(a)) {
+    auto bPackIndex = ast_cast<PackIndexNestedNameSpecifierAST>(b);
+    if (!bPackIndex) return false;
+    return unit_->typeTraits().is_same(
+        computed_specifier_type(unit_, aPackIndex->typeSpecifier),
+        computed_specifier_type(unit_, bPackIndex->typeSpecifier));
+  }
 
   if (auto aDecltype = ast_cast<DecltypeNestedNameSpecifierAST>(a)) {
     auto bDecltype = ast_cast<DecltypeNestedNameSpecifierAST>(b);

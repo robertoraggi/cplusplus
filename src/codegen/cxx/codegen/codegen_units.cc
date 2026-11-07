@@ -58,25 +58,55 @@ struct ForEachExternalDefinition final : ASTVisitor {
 
 struct Codegen::UnitVisitor {
   Codegen& gen;
+  std::vector<Symbol*> globalDefinitions;
 
   auto operator()(TranslationUnitAST* ast) -> UnitResult;
   auto operator()(ModuleUnitAST* ast) -> UnitResult;
 
+  [[nodiscard]] auto isEmittedWhenReferenced(Symbol* symbol) const -> bool {
+    if (!symbol->instantiationPattern()) return false;
+    return !gen.isExplicitInstantiationDefinition(symbol);
+  }
+
   void visitStaticField(FieldSymbol* field) {
     if (auto definition = field->definition()) {
-      if (definition->instantiationPattern()) return;
-      if (auto global = gen.findOrCreateGlobal(definition)) {
-        gen.emitGlobalVarInit(definition, *global);
-        if (gen.isNonLocalThreadLocal(definition))
-          (void)gen.findOrCreateThreadLocalWrapper(definition, *global);
-      }
+      if (isEmittedWhenReferenced(definition)) return;
+      if (gen.emitsOnlyWhenReferenced(definition, definition->constValue()))
+        return;
+      globalDefinitions.push_back(definition);
       return;
     }
-    if (!field->isInline() || field->instantiationPattern()) return;
+    if (!Binder::declaresVariableDefinition(field)) return;
+    if (isEmittedWhenReferenced(field)) return;
     if (gen.emitsOnlyWhenReferenced(field, field->constValue())) return;
+    globalDefinitions.push_back(field);
+  }
+
+  void emitStaticField(FieldSymbol* field) {
     auto global = gen.findOrCreateStaticField(field);
     if (gen.isNonLocalThreadLocal(field))
       (void)gen.findOrCreateThreadLocalWrapper(field, global);
+  }
+
+  void emitVariable(VariableSymbol* variable) {
+    auto global = gen.findOrCreateGlobal(variable);
+    if (!global) return;
+    gen.emitGlobalVarInit(variable, *global);
+    if (gen.isNonLocalThreadLocal(variable))
+      (void)gen.findOrCreateThreadLocalWrapper(variable, *global);
+  }
+
+  void emitGlobalDefinitionsInOrder() {
+    std::ranges::stable_sort(
+        globalDefinitions, std::ranges::less{},
+        [](Symbol* definition) { return definition->location().index(); });
+    for (auto definition : globalDefinitions) {
+      if (auto field = symbol_cast<FieldSymbol>(definition)) {
+        emitStaticField(field);
+      } else {
+        emitVariable(symbol_cast<VariableSymbol>(definition));
+      }
+    }
   }
 
   void visitClassStatics(ClassSymbol* classSymbol) {
@@ -93,6 +123,10 @@ struct Codegen::UnitVisitor {
         visitStaticField(field);
         continue;
       }
+      if (auto variable = symbol_cast<VariableSymbol>(member)) {
+        visitVariable(variable);
+        continue;
+      }
       if (auto nestedClass = symbol_cast<ClassSymbol>(member))
         visitClassStatics(nestedClass);
     }
@@ -104,16 +138,13 @@ struct Codegen::UnitVisitor {
         visitVariable(symbol_cast<VariableSymbol>(specialization.symbol));
       return;
     }
-    if (var->instantiationPattern()) return;
+    if (isEmittedWhenReferenced(var)) return;
+    if (declaresImmediateObject(var)) return;
+    if (!Binder::declaresVariableDefinition(var->resolvedDefinition())) return;
     if (gen.emitsOnlyWhenReferenced(var,
                                     var->resolvedDefinition()->constValue()))
       return;
-    if (auto glo = gen.findOrCreateGlobal(var)) {
-      gen.emitGlobalVarInit(var, *glo);
-      if (gen.isNonLocalThreadLocal(var) &&
-          Binder::declaresVariableDefinition(var->resolvedDefinition()))
-        (void)gen.findOrCreateThreadLocalWrapper(var, *glo);
-    }
+    globalDefinitions.push_back(var->resolvedDefinition());
   }
 
   void visitGlobals(ScopeSymbol* scope) {
@@ -175,6 +206,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
   });
 
   visitGlobals(gen.unit_->globalScope());
+  emitGlobalDefinitionsInOrder();
 
   ForEachExternalDefinition forEachExternalDefinition;
 

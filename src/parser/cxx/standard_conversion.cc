@@ -147,11 +147,11 @@ struct SelectedFunction {
 [[nodiscard]] auto selectedFunctionFor(TranslationUnit* unit,
                                        FunctionSymbol* function,
                                        const OverloadSetTarget& target,
-                                       SimpleTemplateIdAST* writtenTemplateId,
+                                       UnqualifiedIdAST* writtenTemplateId,
                                        SourceLocation loc)
     -> std::optional<SelectedFunction> {
-  if (function->canonical() != function) return std::nullopt;
-  if (function->isSpecialization()) return std::nullopt;
+  if (function->isSpecialization() && !function->isTemplatePattern())
+    return std::nullopt;
   if (function->isImplicitObjectMemberFunction() != target.isMemberPointer)
     return std::nullopt;
   if (writtenTemplateId && !function->templateDeclaration())
@@ -163,11 +163,12 @@ struct SelectedFunction {
     TemplateArgumentDeduction deduction(unit);
     auto deducedArguments = deduction.deduceFromTargetType(
         function, target.functionType,
-        writtenTemplateId ? writtenTemplateId->templateArgumentList : nullptr);
+        get_template_arguments(writtenTemplateId));
     if (!deducedArguments.has_value()) return std::nullopt;
     selected.function = ASTRewriter::instantiateOverloadCandidate(
         unit, *deducedArguments, function, loc, /*argsComplete=*/true);
     if (!selected.function) return std::nullopt;
+    ASTRewriter::completeDeducedReturnType(unit, selected.function);
     selected.deducedArguments = *deducedArguments;
     selected.isTemplateSpecialization = true;
   }
@@ -204,11 +205,11 @@ struct SelectedFunction {
 }
 
 [[nodiscard]] auto resolveOverloadSetAgainstTarget(
-    TranslationUnit* unit, OverloadSetSymbol* ovl,
-    const OverloadSetTarget& target, SimpleTemplateIdAST* writtenTemplateId,
-    SourceLocation loc) -> FunctionSymbol* {
+    TranslationUnit* unit, Symbol* functions, const OverloadSetTarget& target,
+    UnqualifiedIdAST* writtenTemplateId, SourceLocation loc)
+    -> FunctionSymbol* {
   std::vector<SelectedFunction> selected;
-  for (auto function : ovl->functions()) {
+  for (auto function : views::each_function(functions)) {
     auto candidate =
         selectedFunctionFor(unit, function, target, writtenTemplateId, loc);
     if (!candidate) continue;
@@ -255,13 +256,15 @@ struct OverloadSetDesignator {
           .takesAddress = true};
 }
 
-[[nodiscard]] auto writtenTemplateIdOf(ExpressionAST* designator)
-    -> SimpleTemplateIdAST* {
+[[nodiscard]] auto writtenTemplateIdOf(Control* control,
+                                       ExpressionAST* designator)
+    -> UnqualifiedIdAST* {
+  UnqualifiedIdAST* name = nullptr;
   if (auto id = ast_cast<IdExpressionAST>(designator))
-    return ast_cast<SimpleTemplateIdAST>(id->unqualifiedId);
-  if (auto member = ast_cast<MemberExpressionAST>(designator))
-    return ast_cast<SimpleTemplateIdAST>(member->unqualifiedId);
-  return nullptr;
+    name = id->unqualifiedId;
+  else if (auto member = ast_cast<MemberExpressionAST>(designator))
+    name = member->unqualifiedId;
+  return name_cast<TemplateId>(get_name(control, name)) ? name : nullptr;
 }
 
 [[nodiscard]] auto isDiscardedValueRead(ExpressionAST* expr) -> bool;
@@ -337,7 +340,7 @@ auto StandardConversion::hasUniqueNonVirtualBase(const ClassType* derived,
   if (!derivedClass || !baseClass) return false;
 
   auto derivedDefinition = derivedClass->resolvedDefinition();
-  traits.requireCompleteClass(derivedDefinition);
+  traits.require_complete_class(derivedDefinition);
 
   auto baseDefinition = baseClass->resolvedDefinition();
   if (!derivedDefinition->baseSubobjectInfo(baseDefinition).isUniqueSubobject())
@@ -405,7 +408,8 @@ auto StandardConversion::isNullPointerConstant(ExpressionAST* expr) const
 
 auto StandardConversion::readsValueDirectly(const Type* type) const -> bool {
   if (isC_) return true;
-  return !traits.is_class(traits.remove_cv(traits.remove_reference(type)));
+  return !traits.is_class_or_union(
+      traits.remove_cv(traits.remove_reference(type)));
 }
 
 auto StandardConversion::valueTransformation(ExpressionAST* expr)
@@ -447,8 +451,8 @@ void StandardConversion::atomicToNonAtomic(ExpressionAST*& expr) {
 auto StandardConversion::readsConstantVariable(ImplicitCastExpressionAST* read,
                                                Symbol* variable) -> bool {
   if (!variable || !variable->type()) return false;
-  if (!isUsableInConstantExpressions(traits, variable)) return false;
-  if (traits.is_class(read->type) || traits.is_volatile(read->type))
+  if (!traits.is_usable_in_constant_expressions(variable)) return false;
+  if (traits.is_class_or_union(read->type) || traits.is_volatile(read->type))
     return false;
   auto object = traits.remove_reference(variable->type());
   if (traits.is_volatile(object)) return false;
@@ -656,7 +660,7 @@ void StandardConversion::discardedValue(ExpressionAST*& expr) {
   if (isDependent(unit_, expr)) return;
   if (!traits.is_volatile(expr->type)) return;
   if (!isDiscardedValueRead(expr)) return;
-  if (traits.is_class(traits.remove_reference(expr->type))) {
+  if (traits.is_class_or_union(traits.remove_reference(expr->type))) {
     copyDiscardedClass(expr);
     return;
   }
@@ -711,6 +715,7 @@ auto StandardConversion::convertImplicitly(
 
   applyConversionSequence(seq, expr);
   adjustCv(expr);
+  if (checker_) checker_->evaluateImmediateInvocation(&expr);
   return true;
 }
 
@@ -722,7 +727,7 @@ auto StandardConversion::constructClassByDirectInitialization(
   if (!target || !target->symbol()) return false;
 
   auto classSymbol = target->symbol()->resolvedDefinition();
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
 
   OverloadResolution resolution{unit_};
   auto resolved = resolution.resolveConstructor(
@@ -824,7 +829,7 @@ auto StandardConversion::convertClassOperandForBuiltinOperator(
   auto classSymbol = classType->symbol();
   if (!classSymbol) return false;
 
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
 
   auto target = bestConversionTarget(
       expr,
@@ -850,7 +855,7 @@ auto StandardConversion::convertClassTargetForBuiltinCompoundAssignment(
   if (!classType || !classType->symbol()) return false;
 
   auto classSymbol = classType->symbol();
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
 
   auto target = bestConversionTarget(
       expr, conversionTargets(
@@ -874,7 +879,7 @@ auto StandardConversion::convertClassOperandToIntegralOrEnumeration(
   auto classSymbol = classType->symbol();
   if (!classSymbol) return false;
 
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
 
   auto target = bestConversionTarget(
       expr,
@@ -1105,7 +1110,8 @@ auto StandardConversion::commonArithmeticType(const Type* a, const Type* b)
   if (traits.integer_conversion_rank(unsignedType) >=
       traits.integer_conversion_rank(signedType))
     return unsignedType;
-  if (traits.representsAllValuesOf(signedType, unsignedType)) return signedType;
+  if (traits.represents_all_values_of(signedType, unsignedType))
+    return signedType;
   return traits.make_unsigned(signedType);
 }
 
@@ -1306,7 +1312,8 @@ void StandardConversion::appendTemporaryMaterialization(
 
   auto referencedType = sequence.binding.referencedType;
   if (!referencedType) return;
-  if (traits.is_class(referencedType) || traits.is_array(referencedType))
+  if (traits.is_class_or_union(referencedType) ||
+      traits.is_array(referencedType))
     return;
 
   sequence.steps.push_back(
@@ -1397,7 +1404,7 @@ auto StandardConversion::referenceBinding(const Type* targetType,
     return directReferenceBinding(seq, ValueCategory::kLValue);
 
   const bool convertsThroughConversionFunction =
-      traits.is_class(traits.remove_cv(sourceType)) &&
+      traits.is_class_or_union(traits.remove_cv(sourceType)) &&
       !traits.is_reference_related(referencedType, sourceType);
 
   if (convertsThroughConversionFunction) return std::nullopt;
@@ -1520,7 +1527,7 @@ auto StandardConversion::listInitializationSequence(
     return aggregateListInitializationSequence(seq, bracedInitList, targetType);
   }
 
-  if (traits.is_class(listTarget) && traits.is_aggregate(listTarget)) {
+  if (traits.is_class_or_union(listTarget) && traits.is_aggregate(listTarget)) {
     if (auto element = singleInitializerClause(bracedInitList);
         element && element->type) {
       auto elementType =
@@ -1573,7 +1580,7 @@ auto StandardConversion::listInitializationSequence(
     return completedSequence(seq, ImplicitCastKind::kIdentity, listTarget);
   }
 
-  if (traits.is_class(listTarget)) {
+  if (traits.is_class_or_union(listTarget)) {
     if (context == ConversionContext::kStandardOnly) return seq;
     if (traits.is_aggregate(listTarget))
       return aggregateListInitializationSequence(seq, bracedInitList,
@@ -1630,7 +1637,23 @@ auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
     else if (auto member = ast_cast<MemberExpressionAST>(designator.expression))
       overloadSet = symbol_cast<OverloadSetSymbol>(member->symbol);
   }
-  if (!overloadSet) return std::nullopt;
+  Symbol* functions = overloadSet;
+  auto templateId =
+      writtenTemplateIdOf(unit_->control(), designator.expression);
+  if (templateId && !functions) {
+    FunctionSymbol* function = nullptr;
+    if (auto id = ast_cast<IdExpressionAST>(designator.expression))
+      function = symbol_cast<FunctionSymbol>(id->symbol);
+    else if (auto member = ast_cast<MemberExpressionAST>(designator.expression))
+      function = symbol_cast<FunctionSymbol>(member->symbol);
+    if (function) {
+      if (auto primary = function->primaryTemplateSymbol())
+        functions = primary;
+      else if (function->isTemplatePattern())
+        functions = function;
+    }
+  }
+  if (!functions) return std::nullopt;
 
   auto target = overloadSetTargetOf(unit_, targetType);
   FunctionSymbol* resolved = nullptr;
@@ -1639,8 +1662,7 @@ auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
     if (traits.is_reference(targetType) && sourceIsAddressOfOverloadSet)
       return seq;
     resolved = resolveOverloadSetAgainstTarget(
-        unit_, overloadSet, *target, writtenTemplateIdOf(designator.expression),
-        expr->firstSourceLocation());
+        unit_, functions, *target, templateId, expr->firstSourceLocation());
     if (!resolved) return seq;
   } else if (traits.is_bool(targetType)) {
     resolved = designatedFunction(overloadSet);
@@ -1695,7 +1717,7 @@ auto StandardConversion::pointerConversionSequence(
     return completedSequence(
         sequence, ImplicitCastKind::kFunctionPointerConversion, targetType);
   if (!isC_) return sequence;
-  if (traits.is_void(sourceUnqualified))
+  if (traits.is_void(sourceUnqualified) || traits.is_void(targetUnqualified))
     return completedSequence(sequence, ImplicitCastKind::kPointerConversion,
                              targetType);
   if (traits.is_vla_compatible(sourceUnqualified, targetUnqualified))
@@ -1746,8 +1768,8 @@ auto StandardConversion::computeConversionSequenceSteps(
 
   if (!traits.is_reference(targetType) ||
       !traits.is_same(sourceObjectType, targetObjectType)) {
-    traits.requireCompleteClass(sourceObjectType);
-    traits.requireCompleteClass(targetObjectType);
+    traits.require_complete_class(sourceObjectType);
+    traits.require_complete_class(targetObjectType);
   }
 
   const Type* currentType = expr->type;
@@ -2007,7 +2029,7 @@ void StandardConversion::addConstructorCandidates(
   auto classType = type_cast<ClassType>(traits.remove_cvref(targetType));
   if (!classType || !classType->symbol()) return;
   auto classSymbol = classType->symbol()->resolvedDefinition();
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
   const auto initializesObjectDirectly =
       isDirectInitialization(initializationKind) &&
       !traits.is_reference(targetType);
@@ -2064,7 +2086,8 @@ void StandardConversion::addConstructorCandidate(
       result, targetType, InitializationKind::kCopyInitialization,
       ConversionContext::kStandardOnly);
   if (!resultSequence) return;
-  if (isExcludedDefaultedMoveMember(unit_, constructor)) return;
+  if (unit_->typeTraits().is_excluded_defaulted_move_member(constructor))
+    return;
   addUserDefinedCandidate(candidates, constructor, std::move(argument),
                           std::move(resultSequence), std::nullopt);
 }
@@ -2075,7 +2098,7 @@ void StandardConversion::addConversionFunctionCandidates(
   auto classType = type_cast<ClassType>(traits.remove_cvref(expr->type));
   if (!classType || !classType->symbol()) return;
   auto classSymbol = classType->symbol()->resolvedDefinition();
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
   materializeClosureConversion(classSymbol, traits.remove_cvref(targetType));
   for (auto function : classSymbol->visibleConversionFunctions())
     addConversionFunctionCandidate(candidates, function, expr, targetType,
@@ -2237,7 +2260,7 @@ auto StandardConversion::isAccessible(
   AccessContext access{unit_, accessingScope()};
   for (auto function : {sequence.udc.function, sequence.copyConstructor}) {
     if (!function) continue;
-    if (isDeletedFunction(unit_, function)) return false;
+    if (unit_->typeTraits().is_deleted_function(function)) return false;
     auto declaringClass = declaringClassOf(function);
     if (!declaringClass) continue;
     auto sourceClass = convertedClassSymbol(sequence.sourceType);
@@ -2521,7 +2544,7 @@ auto StandardConversion::selectListInitializationConstructor(
   if (!classType || !classType->symbol()) return {};
 
   auto classSymbol = classType->symbol()->resolvedDefinition();
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
   if (!classSymbol->isComplete()) return {};
 
   std::vector<ExpressionAST*> elements;
@@ -2562,8 +2585,10 @@ void StandardConversion::appendDefaultArguments(FunctionSymbol* function,
     TypeChecker{unit_}.initializeBracedArgument((*tail)->value,
                                                 params[i]->type());
     applyConversionSequence(sequence, (*tail)->value);
-    (*tail)->value = makeDefaultInitializer(unit_, (*tail)->value, location,
-                                            accessingScope_);
+    (*tail)->value = makeDefaultInitializer(
+        unit_, (*tail)->value,
+        {.location = location, .scope = accessingScope_, .entity = params[i]});
+    if (checker_) checker_->evaluateDefaultInitializer((*tail)->value);
     tail = &(*tail)->next;
   }
 }
@@ -2640,7 +2665,8 @@ auto StandardConversion::designatesAddressableStorage(ExpressionAST* expr)
   return nonAddressableDesignation(expr) == NonAddressableDesignation::kNone;
 }
 
-auto StandardConversion::namedEntity(ExpressionAST* expr) -> Symbol* {
+auto StandardConversion::namedExpression(ExpressionAST* expr)
+    -> ExpressionAST* {
   while (expr) {
     if (auto nested = ast_cast<NestedExpressionAST>(expr)) {
       expr = nested->expression;
@@ -2652,7 +2678,11 @@ auto StandardConversion::namedEntity(ExpressionAST* expr) -> Symbol* {
     }
     break;
   }
+  return expr;
+}
 
+auto StandardConversion::namedEntity(ExpressionAST* expr) -> Symbol* {
+  expr = loweredSplice(namedExpression(expr));
   if (auto id = ast_cast<IdExpressionAST>(expr)) return id->symbol;
   if (auto member = ast_cast<MemberExpressionAST>(expr)) return member->symbol;
   return nullptr;
@@ -2694,7 +2724,7 @@ void StandardConversion::recordUserDefinedConversion(
 
 auto StandardConversion::objectClassType(const Type* type) const
     -> const Type* {
-  if (!traits.is_class(type)) return type;
+  if (!traits.is_class_or_union(type)) return type;
   return traits.remove_address_space(type);
 }
 
@@ -2704,7 +2734,7 @@ auto StandardConversion::classAdjustment(const Type* sourceType,
   auto source = traits.remove_cv(traits.remove_reference(sourceType));
   auto target = traits.remove_cv(traits.remove_reference(targetType));
 
-  if (!traits.is_class(source) || !traits.is_class(target))
+  if (!traits.is_class_or_union(source) || !traits.is_class_or_union(target))
     return ClassAdjustment::kNone;
   if (traits.is_same(source, target)) return ClassAdjustment::kNone;
   if (traits.is_base_of(target, source)) return ClassAdjustment::kDerivedToBase;
@@ -2836,6 +2866,59 @@ void StandardConversion::wrapWithImplicitCast(ImplicitCastKind castKind,
 
   expr = cast;
   foldConstantRead(expr);
+}
+
+namespace {
+
+[[nodiscard]] auto isConvertedConstantStep(ImplicitCastExpressionAST* cast,
+                                           const TypeTraits& traits) -> bool {
+  switch (cast->castKind) {
+    case ImplicitCastKind::kIdentity:
+    case ImplicitCastKind::kLValueToRValueConversion:
+    case ImplicitCastKind::kArrayToPointerConversion:
+    case ImplicitCastKind::kFunctionToPointerConversion:
+    case ImplicitCastKind::kQualificationConversion:
+    case ImplicitCastKind::kIntegralPromotion:
+    case ImplicitCastKind::kIntegralConversion:
+    case ImplicitCastKind::kFloatingPointPromotion:
+    case ImplicitCastKind::kFloatingPointConversion:
+    case ImplicitCastKind::kFunctionPointerConversion:
+    case ImplicitCastKind::kUserDefinedConversion:
+    case ImplicitCastKind::kTemporaryMaterializationConversion:
+    case ImplicitCastKind::kAddressSpaceConversion:
+      return true;
+    case ImplicitCastKind::kPointerConversion:
+    case ImplicitCastKind::kPointerToMemberConversion:
+      return traits.is_null_pointer(cast->expression->type);
+    case ImplicitCastKind::kBooleanConversion:
+      return traits.is_integral_or_enum(cast->expression->type);
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
+auto isConvertedConstantSequence(ExpressionAST* converted,
+                                 const TypeTraits& traits) -> bool {
+  while (auto cast = ast_cast<ImplicitCastExpressionAST>(converted)) {
+    if (!isConvertedConstantStep(cast, traits)) return false;
+    converted = cast->expression;
+  }
+  return true;
+}
+
+auto StandardConversion::convertedConstantExpression(ExpressionAST* expression,
+                                                     const Type* targetType)
+    -> std::expected<ExpressionAST*, ConvertedConstantFailure> {
+  auto converted = expression;
+  if (!convertImplicitly(converted, targetType))
+    return std::unexpected(ConvertedConstantFailure::kNoConversion);
+  if (traits.is_narrowing_list_element(expression, targetType))
+    return std::unexpected(ConvertedConstantFailure::kNarrowing);
+  if (!isConvertedConstantSequence(converted, traits))
+    return std::unexpected(ConvertedConstantFailure::kDisallowedConversion);
+  return converted;
 }
 
 }  // namespace cxx

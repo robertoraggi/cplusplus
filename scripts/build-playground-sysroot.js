@@ -46,8 +46,8 @@ const wasm32WasiLibraryDir = path.join(
 const libraryFiles = [
   "crt1.o",
   "libc.a",
-  "libc++.a",
-  "libc++abi.a",
+  "noeh/libc++.a",
+  "noeh/libc++abi.a",
   "libclang_rt.builtins-wasm32.a",
 ];
 
@@ -87,6 +87,7 @@ async function main() {
     await fs.ensureDir(stageLibraryDir);
     for (const file of libraryFiles) {
       const staged = path.join(stageLibraryDir, file);
+      await fs.ensureDir(path.dirname(staged));
       await fs.copy(path.join(wasm32WasiLibraryDir, file), staged);
       if (strip) await $`${strip} --strip-debug ${staged}`;
     }

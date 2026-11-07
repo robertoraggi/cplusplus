@@ -51,7 +51,7 @@ export type Wire =
   | { k: "const-value"; alternatives: Wire[] }
   | { k: "const-value-ptr" }
   | { k: "template-argument" }
-  | { k: "indeterminate" }
+  | { k: "empty" }
   | { k: "shared"; cpp: string }
   | { k: "unique"; cpp: string; element: Wire }
   | { k: "optional"; cpp: string; element: Wire }
@@ -199,27 +199,12 @@ export class WireMapper {
   }
 
   variantAliasOf(type: ModelType): string | undefined {
-    const alternatives = typeArguments(type).map((argument) => {
-      const pointee = className(unqualified(pointerElement(argument)));
-      if (pointee) return pointee;
-      const inner = unqualified(argument);
-      if (inner.kind === "builtin") return inner.name;
-      return className(argument) ?? inner.kind;
-    });
-
+    const alias = this.index.aliasOf(type);
     if (
-      alternatives.length === 4 &&
-      alternatives[0] === "::cxx::Type" &&
-      alternatives[1] === "::cxx::Symbol"
+      alias?.name === "::cxx::TemplateArgument" ||
+      alias?.name === "::cxx::ConstValue"
     )
-      return "cxx::TemplateArgument";
-
-    if (
-      alternatives[0] === "::cxx::ConstInt" &&
-      alternatives[1] === "::cxx::StringLiteral" &&
-      alternatives.at(-1) === "::cxx::IndeterminateValue"
-    )
-      return "cxx::ConstValue";
+      return normalizeClassName(alias.name);
 
     return undefined;
   }
@@ -337,8 +322,9 @@ export class WireMapper {
       case "::cxx::SourceLocation":
         return { k: "location" };
 
+      case "::cxx::OutOfLifetimeValue":
       case "::cxx::IndeterminateValue":
-        return { k: "indeterminate" };
+        return { k: "empty" };
 
       case "::std::basic_string":
       case "::std::basic_string_view":

@@ -48,10 +48,10 @@ add_library(cxx-parser
     cxx/ast_rewriter_subsumption.cc
     cxx/ast_rewriter_units.cc
     cxx/ast_rewriter.cc
-    cxx/ast_validator.cc
     cxx/ast_visitor.cc
     cxx/attributes.cc
     cxx/ast.cc
+    cxx/ast_attributes.cc
     cxx/base_classes.cc
     cxx/binder.cc
     cxx/binder_complete_class.cc
@@ -86,6 +86,7 @@ add_library(cxx-parser
     cxx/memory_layout.cc
     cxx/spirv_environment.cc
     cxx/spirv_toolchain.cc
+    cxx/reflection.cc
     cxx/name_lookup.cc
     cxx/name_printer.cc
     cxx/function_template_ordering.cc
@@ -121,6 +122,7 @@ add_library(cxx-parser
     cxx/type_checker_initializer.cc
     cxx/type_printer.cc
     cxx/type_traits.cc
+    cxx/type_traits_entities.cc
     cxx/types.cc
     cxx/triple.cc
     cxx/util.cc
@@ -143,6 +145,10 @@ target_include_directories(cxx-parser
 )
 
 target_compile_features(cxx-parser PUBLIC cxx_std_23)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    target_link_libraries(cxx-parser PUBLIC c-printscan-long-double)
+endif()
 
 # disable exception when targeting emscripten
 if (EMSCRIPTEN)

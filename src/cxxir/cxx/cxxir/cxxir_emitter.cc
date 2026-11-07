@@ -26,6 +26,7 @@
 #include <cassert>
 #include <cmath>
 #include <format>
+#include <initializer_list>
 #include <iterator>
 #include <list>
 #include <string>
@@ -229,6 +230,18 @@ class Attributes {
       return entry.value;
     }
     return {};
+  }
+
+  auto takeProperties(std::initializer_list<std::string_view> names)
+      -> std::string {
+    std::string properties;
+    for (auto name : names) {
+      auto value = take(name);
+      if (value.empty()) continue;
+      if (!properties.empty()) properties += ", ";
+      std::format_to(std::back_inserter(properties), "{} = {}", name, value);
+    }
+    return properties.empty() ? std::string{} : " <{" + properties + "}>";
   }
 
   [[nodiscard]] auto dictionary(bool keyword = false) const -> std::string {
@@ -755,13 +768,14 @@ struct CxxIREmitter::Private {
     }
 
     [[nodiscard]] auto finish(std::string_view arguments = {},
-                              std::string_view types = {}) const
+                              std::string_view types = {},
+                              std::string_view properties = {}) const
         -> std::string {
       auto text = std::format("{}{}", prefix, op.name);
       if (!arguments.empty())
         std::format_to(std::back_inserter(text), " {}", arguments);
-      std::format_to(std::back_inserter(text), "{}{}", attributes.dictionary(),
-                     types);
+      std::format_to(std::back_inserter(text), "{}{}{}", properties,
+                     attributes.dictionary(), types);
       return text;
     }
 
@@ -845,6 +859,8 @@ struct CxxIREmitter::Private {
       std::string attrs;
       if (abi.kind == ParameterAbiKind::ZeroExtend)
         attrs = "llvm.zeroext = unit";
+      if (abi.kind == ParameterAbiKind::SignExtend)
+        attrs = "llvm.signext = unit";
       if (abi.kind == ParameterAbiKind::StructReturn ||
           abi.kind == ParameterAbiKind::ByValue) {
         addAttr(attrs,
@@ -994,7 +1010,11 @@ auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
         " : " +
             (load ? operandType(0) + " -> " + resultType()
                   : ir.operandTypes(operands)) +
-            (bitfield ? "" : " align " + std::string(scalarText(alignment))));
+            (bitfield ? "" : " align " + std::string(scalarText(alignment))),
+        bitfield
+            ? attributes.takeProperties({"alignment", "bit_offset", "bit_width",
+                                         "is_signed", "storage_size"})
+            : std::string{});
   }
   if (name == "cxx.atomic.fence" || name == "cxx.control_barrier") {
     std::string arguments;
@@ -1069,12 +1089,14 @@ auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
                   results.empty() ? "" : " : " + resultType());
   if (name == "cxx.label_address")
     return finish(std::string(attributes.take("label_name")),
-                  " : " + resultType());
+                  " : " + resultType(),
+                  attributes.takeProperties({"func_name", "tag_id"}));
   if (name == "cxx.indirect_goto")
     return finish(value(0) + " [" + blockNames(successors) + "]",
                   " : " + operandType(0));
   if (name == "cxx.global_ctor")
-    return finish(symbolText(attributes.take("ctor")));
+    return finish(symbolText(attributes.take("ctor")), {},
+                  attributes.takeProperties({"priority"}));
   if (name == "cxx.module_asm")
     return finish(std::string(attributes.take("assembly")));
   if (name == "cxx.exception_typeid")
@@ -1101,7 +1123,9 @@ auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
     if (name == "cxx.invoke")
       arguments += " to " + names.block(successors[0]) + " unwind " +
                    names.block(successors[1]);
-    return finish(arguments, signature(inputs));
+    return finish(arguments, signature(inputs),
+                  attributes.takeProperties({"arg_attrs", "calling_convention",
+                                             "res_attrs", "var_callee_type"}));
   }
   if (name == "cxx.inline_asm" || name == "cxx.asm_goto") {
     auto sideEffects =
@@ -1113,7 +1137,8 @@ auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
     if (name == "cxx.asm_goto")
       arguments += " to " + names.block(successors.front()) + " [" +
                    blockNames(successors.subspan(1)) + "]";
-    return finish(arguments, signature(operands));
+    return finish(arguments, signature(operands),
+                  attributes.takeProperties({"argument_element_types"}));
   }
   if (name == "cxx.cleanup_branch") {
     auto segments = arrayElements(attributes.take("operandSegmentSizes"));
@@ -1128,7 +1153,8 @@ auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
                      arrayText(attributes.take("activeFlagIndices")) +
                      " counts " + arrayText(attributes.take("elementCounts"));
     if (!initialized.empty()) arguments += " initialized " + group(initialized);
-    return finish(arguments + " " + names.block(successors.front()));
+    return finish(arguments + " " + names.block(successors.front()), {},
+                  attributes.takeProperties({"initializedCountIndices"}));
   }
   if (name == "cxx.vtable") {
     auto arguments = symbolText(attributes.take("sym_name")) + " ";
@@ -2042,6 +2068,7 @@ auto CxxIREmitter::declareFunction(SourceLocation loc, const FunctionInfo& info)
   addStringAttr(attrs, "wasm_import_name", info.importName);
   addStringAttr(attrs, "wasm_export_name", info.exportName);
   addStringAttr(attrs, "section", info.section);
+  addStringAttr(attrs, "comdat", info.comdat);
   if (info.isUsed) addAttr(attrs, "used", "unit");
   const auto& type = p.type(info.type);
   p.signatureAttrs(attrs, info.parameters, type.parameters.size(),

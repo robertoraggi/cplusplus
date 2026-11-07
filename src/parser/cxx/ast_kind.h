@@ -37,6 +37,7 @@ enum class ASTKind {
   UsingEnumDeclaration,
   UsingDirective,
   StaticAssertDeclaration,
+  ConstevalBlockDeclaration,
   AliasDeclaration,
   OpaqueEnumDeclaration,
   FunctionDefinition,
@@ -223,6 +224,7 @@ enum class ASTKind {
   AtomicTypeSpecifier,
   BitIntTypeSpecifier,
   UnderlyingTypeSpecifier,
+  PackIndexTypeSpecifier,
   ElaboratedTypeSpecifier,
   DecltypeAutoSpecifier,
   DecltypeSpecifier,
@@ -255,6 +257,7 @@ enum class ASTKind {
   NameId,
   DestructorId,
   DecltypeId,
+  PackIndexId,
   OperatorFunctionId,
   LiteralOperatorId,
   ConversionFunctionId,
@@ -266,6 +269,7 @@ enum class ASTKind {
   GlobalNestedNameSpecifier,
   SimpleNestedNameSpecifier,
   DecltypeNestedNameSpecifier,
+  PackIndexNestedNameSpecifier,
   TemplateNestedNameSpecifier,
 
   // FunctionBodyAST

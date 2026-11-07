@@ -974,6 +974,8 @@ auto FloatLiteral::Components::from(std::string_view text,
   components.isFloat = components.suffix == FloatingPointSuffix::kF;
   components.isLongDouble = components.suffix == FloatingPointSuffix::kL;
   components.isDouble = !components.isFloat && !components.isLongDouble;
+  components.longDoubleValue =
+      components.isLongDouble ? strtold(firstChar, nullptr) : components.value;
 
   return components;
 }

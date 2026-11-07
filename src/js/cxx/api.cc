@@ -153,17 +153,18 @@ struct WrappedUnit {
         .unit = unit.get(),
         .source = std::move(source),
         .fileName = fileName,
-        .config = {.checkTypes = true},
+        .config =
+            {
+                .checkTypes = true,
+                .exceptionsEnabled = toolchain->exceptionsEnabled(),
+                .rttiEnabled = toolchain->rttiEnabled(),
+            },
     };
 
     if (!api.isUndefined()) {
       request.exists = api["exists"];
       request.readFile = api["readFile"];
       request.shouldContinue = api["shouldContinue"];
-      if (val value = api["exceptions"]; value.isTrue() || value.isFalse())
-        request.config.exceptionsEnabled = value.as<bool>();
-      if (val value = api["rtti"]; value.isTrue() || value.isFalse())
-        request.config.rttiEnabled = value.as<bool>();
     }
 
     return cxx::js::asyncParse(std::move(request));

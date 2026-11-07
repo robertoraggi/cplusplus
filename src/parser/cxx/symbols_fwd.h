@@ -30,6 +30,7 @@
 namespace cxx {
 
 enum class ThreadLocalKind { None, Cxx, Gnu };
+enum class StructuredBindingKind : unsigned { kNone, kReference, kAlias };
 
 #define CXX_FOR_EACH_SYMBOL(V) \
   V(Namespace)                 \

@@ -225,6 +225,11 @@ template <typename Predicate>
                                             const Identifier* id)
     -> NamespaceSymbol*;
 
+[[nodiscard]] auto discardTypeAliasOfFoundType(Symbol* found) -> Symbol*;
+
+[[nodiscard]] auto qualifiedTypeOnlyLookup(Symbol* scopeOrAlias,
+                                           const Identifier* id) -> Symbol*;
+
 [[nodiscard]] auto lookupStandardLibraryType(TranslationUnit* unit,
                                              WellKnownName name) -> Symbol*;
 

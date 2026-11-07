@@ -29,6 +29,7 @@
 #include <cxx/views/symbols.h>
 
 #include <format>
+#include <utility>
 
 namespace cxx {
 namespace {
@@ -106,7 +107,20 @@ auto sourceScopePrefix(Symbol* scope, const detail::PrintOptions& options)
     if (!identifier || identifier->value().empty() || identifier->isAnonymous())
       return "(anonymous namespace)";
   }
-  return detail::renderName(symbol->name(), options);
+  auto name = detail::renderName(symbol->name(), options);
+  if (auto alias = symbol_cast<TypeAliasSymbol>(symbol);
+      alias && alias->isSpecialization()) {
+    name += '<';
+    std::string_view separator;
+    for (const auto& argument :
+         expand_template_arguments(alias->templateArguments())) {
+      name += separator;
+      name += detail::renderTemplateArgument(argument, options);
+      separator = ", ";
+    }
+    name += '>';
+  }
+  return name;
 }
 
 auto sourceQualifiedName(Symbol* symbol, const detail::PrintOptions& options)
@@ -178,11 +192,31 @@ auto sourceQualifiedName(Symbol* symbol, const detail::PrintOptions& options)
   return function->isStatic() && function->enclosingClass();
 }
 
+[[nodiscard]] auto parameterDeclarator(Symbol* symbol) -> DeclaratorAST* {
+  auto parameter = symbol_cast<ParameterSymbol>(symbol);
+  auto declaration = parameter ? parameter->declaration() : nullptr;
+  return declaration ? declaration->declarator : nullptr;
+}
+
 class TypePrinter {
  public:
-  explicit TypePrinter(detail::PrintOptions options)
-      : options_(options), nestedOptions_(options) {
+  explicit TypePrinter(detail::PrintOptions options,
+                       SpecifierAST* specifier = nullptr,
+                       FunctionSymbol* function = nullptr,
+                       DeclaratorAST* declarator = nullptr)
+      : options_(options), nestedOptions_(options), function_(function) {
+    setTypeSpecifier(specifier);
+    if (options.mode != detail::PrintMode::Internal) {
+      if (!declarator) declarator = parameterDeclarator(options.declaration);
+      if (function) {
+        if (auto typeId = ast_cast<TypeIdAST>(function->returnTypeSyntax()))
+          declarator = typeId->declarator;
+      }
+      collectFunctionDeclarators(declarator);
+    }
+    options_.declaration = nullptr;
     nestedOptions_.omitFunctionReturnType = false;
+    nestedOptions_.declaration = nullptr;
     specifiers_.clear();
     ptrOps_.clear();
     declarator_.clear();
@@ -209,6 +243,13 @@ class TypePrinter {
   }
 
   void accept(const Type* type) {
+    if (alias_ && type == alias_->type()) {
+      specifiers_.append(sourceScopePrefix(alias_->parent(), options_));
+      specifiers_.append(detail::renderName(alias_->name(), options_));
+      if (alias_->isSpecialization())
+        specifiers_.append(templateArgumentsSpelling(alias_, templateId_));
+      return;
+    }
     if (type) visit(*this, type);
   }
 
@@ -305,7 +346,14 @@ class TypePrinter {
   }
 
   void operator()(const QualType* type) {
-    if (auto ptrTy = type_cast<PointerType>(type->elementType())) {
+    if (auto added = qualifiersAddedToAlias(type)) {
+      if (has_const(*added)) specifiers_.append("const ");
+      if (has_volatile(*added)) specifiers_.append("volatile ");
+      accept(alias_->type());
+      return;
+    }
+    auto ptrTy = type_cast<PointerType>(type->elementType());
+    if (ptrTy && (!alias_ || ptrTy != alias_->type())) {
       accept(ptrTy->elementType());
 
       std::string op = "*";
@@ -412,10 +460,28 @@ class TypePrinter {
     signature.append("(");
 
     const auto& params = type->parameterTypes();
+    auto function = std::exchange(function_, nullptr);
+    auto parameters =
+        function ? function->parameters() : std::vector<ParameterSymbol*>{};
+    FunctionDeclaratorChunkAST* syntax = nullptr;
+    if (!function && nextFunctionDeclarator_ < functionDeclarators_.size()) {
+      syntax = functionDeclarators_[nextFunctionDeclarator_++];
+      auto clause = syntax->parameterDeclarationClause;
+      if (clause) {
+        for (auto parameter : ListView{clause->parameterDeclarationList})
+          parameters.push_back(parameter->symbol);
+      }
+    }
 
     for (std::size_t i = 0; i < params.size(); ++i) {
       const auto& param = params[i];
-      signature.append(detail::renderType(param, "", nestedOptions_));
+      auto specifier = i < parameters.size()
+                           ? declared_type_specifier(parameters[i])
+                           : nullptr;
+      auto declaration = i < parameters.size() ? parameters[i] : nullptr;
+      signature.append(
+          TypePrinter{nestedOptions_, specifier, nullptr,
+                      parameterDeclarator(declaration)}(param, ""));
 
       if (i != params.size() - 1) {
         signature.append(", ");
@@ -471,6 +537,9 @@ class TypePrinter {
 
     declarator_.append(signature);
 
+    if (syntax && syntax->trailingReturnType)
+      setTypeSpecifier(
+          declared_type_specifier(syntax->trailingReturnType->typeId));
     if (!options_.omitFunctionReturnType) accept(type->returnType());
   }
 
@@ -535,15 +604,9 @@ class TypePrinter {
       templateDeclaration = symbol;
 
     if (type->symbol()->isSpecialization()) {
-      out += '<';
-      std::string_view sep = "";
-      for (const auto& arg :
-           expand_template_arguments(type->symbol()->templateArguments())) {
-        out += std::format("{}{}", sep,
-                           detail::renderTemplateArgument(arg, nestedOptions_));
-        sep = ", ";
-      }
-      out += '>';
+      auto written =
+          typeName_ && typeName_->type() == type ? templateId_ : nullptr;
+      out += templateArgumentsSpelling(symbol, written);
     } else if (templateDeclaration) {
       out += '<';
       std::string_view sep = "";
@@ -556,6 +619,31 @@ class TypePrinter {
     }
 
     specifiers_.append(out);
+  }
+
+  [[nodiscard]] auto templateArgumentsSpelling(Symbol* symbol,
+                                               SimpleTemplateIdAST* syntax)
+      -> std::string {
+    auto written = syntax ? syntax->templateArgumentList : nullptr;
+    std::string out = "<";
+    std::string_view separator;
+    for (const auto& argument :
+         expand_template_arguments(template_arguments_of(symbol))) {
+      out += separator;
+      auto typeArgument =
+          written ? ast_cast<TypeTemplateArgumentAST>(written->value) : nullptr;
+      auto typeId = typeArgument ? typeArgument->typeId : nullptr;
+      if (typeId && typeId->type &&
+          typeId->type == template_argument_as_type(argument)) {
+        out += TypePrinter{nestedOptions_, declared_type_specifier(typeId),
+                           nullptr, typeId->declarator}(typeId->type, "");
+      } else {
+        out += detail::renderTemplateArgument(argument, nestedOptions_);
+      }
+      if (written) written = written->next;
+      separator = ", ";
+    }
+    return out + ">";
   }
 
   [[nodiscard]] auto namesInjectedClassName(ClassSymbol* classSymbol) const
@@ -679,8 +767,17 @@ class TypePrinter {
   }
 
   void operator()(const DecltypeType* type) {
-    specifiers_ += std::format(
-        "decltype({})", formatAST(type->translationUnit(), type->expression()));
+    auto unit = type->translationUnit();
+    auto expression = type->expression();
+    if (expression) {
+      auto snippet = unit->snippetText(expression->sourceLocationRange());
+      if (!snippet.empty() ||
+          !unit->ownsLocation(expression->firstSourceLocation())) {
+        specifiers_ += std::format("decltype({})", snippet);
+        return;
+      }
+    }
+    specifiers_ += std::format("decltype({})", formatAST(unit, expression));
   }
 
   void operator()(const UnresolvedNameType* type) {
@@ -725,6 +822,14 @@ class TypePrinter {
     }
 
     accept(type->elementType());
+  }
+
+  void operator()(const UnresolvedPackIndexType* type) {
+    specifiers_ += to_string(type->pack());
+    specifiers_ += "...[";
+    specifiers_ +=
+        textOf(type->translationUnit(), type->index()->sourceLocationRange());
+    specifiers_ += "]";
   }
 
   void operator()(const UnresolvedUnderlyingType* type) {
@@ -804,8 +909,55 @@ class TypePrinter {
   }
 
  private:
+  void setTypeSpecifier(SpecifierAST* specifier) {
+    typeName_ = nullptr;
+    templateId_ = nullptr;
+    if (auto named = ast_cast<NamedTypeSpecifierAST>(specifier)) {
+      typeName_ = named->symbol;
+      templateId_ = ast_cast<SimpleTemplateIdAST>(named->unqualifiedId);
+    } else if (auto named = ast_cast<TypenameSpecifierAST>(specifier)) {
+      typeName_ = named->symbol;
+      templateId_ = ast_cast<SimpleTemplateIdAST>(named->unqualifiedId);
+    }
+    alias_ = symbol_cast<TypeAliasSymbol>(typeName_);
+    if (alias_ && !alias_->name()) alias_ = nullptr;
+  }
+
+  void collectFunctionDeclarators(DeclaratorAST* declarator) {
+    if (!declarator) return;
+    if (auto nested = ast_cast<NestedDeclaratorAST>(declarator->coreDeclarator))
+      collectFunctionDeclarators(nested->declarator);
+    for (auto chunk : ListView{declarator->declaratorChunkList}) {
+      auto function = ast_cast<FunctionDeclaratorChunkAST>(chunk);
+      if (!function) continue;
+      functionDeclarators_.push_back(function);
+      auto trailing = function->trailingReturnType;
+      if (trailing && trailing->typeId)
+        collectFunctionDeclarators(trailing->typeId->declarator);
+    }
+  }
+
+  [[nodiscard]] auto qualifiersAddedToAlias(const QualType* type) const
+      -> std::optional<CvQualifiers> {
+    if (!alias_) return std::nullopt;
+    auto qualified = type_cast<QualType>(alias_->type());
+    if (!qualified) return std::nullopt;
+    if (qualified->elementType() != type->elementType()) return std::nullopt;
+    if (qualified->addressSpace() != type->addressSpace()) return std::nullopt;
+    if ((type->cvQualifiers() | qualified->cvQualifiers()) !=
+        type->cvQualifiers())
+      return std::nullopt;
+    return type->cvQualifiers() & ~qualified->cvQualifiers();
+  }
+
   detail::PrintOptions options_;
   detail::PrintOptions nestedOptions_;
+  Symbol* typeName_ = nullptr;
+  SimpleTemplateIdAST* templateId_ = nullptr;
+  TypeAliasSymbol* alias_ = nullptr;
+  FunctionSymbol* function_ = nullptr;
+  std::vector<FunctionDeclaratorChunkAST*> functionDeclarators_;
+  std::size_t nextFunctionDeclarator_ = 0;
   std::string specifiers_;
   std::string ptrOps_;
   std::string declarator_;
@@ -815,12 +967,18 @@ class TypePrinter {
 auto detail::renderType(const Type* type, const std::string& identifier,
                         PrintOptions options) -> std::string {
   if (!type) return {};
-  return TypePrinter{options}(type, identifier);
+  auto specifier = options.mode == PrintMode::Internal
+                       ? nullptr
+                       : declared_type_specifier(options.declaration);
+  return TypePrinter{options, specifier}(type, identifier);
 }
 
 auto detail::renderType(const Type* type, const Name* identifier,
                         PrintOptions options) -> std::string {
-  return TypePrinter{options}(type, renderName(identifier, options));
+  auto specifier = options.mode == PrintMode::Internal
+                       ? nullptr
+                       : declared_type_specifier(options.declaration);
+  return TypePrinter{options, specifier}(type, renderName(identifier, options));
 }
 
 auto TypeFormat::formatTo(std::format_context::iterator out) const
@@ -839,14 +997,30 @@ auto SymbolFormat::formatTo(std::format_context::iterator out) const
     -> std::format_context::iterator {
   if (!symbol) return out;
   detail::PrintOptions printOptions{options, mode};
+  if (mode != detail::PrintMode::Internal) {
+    if (auto parameter = symbol_cast<ParameterSymbol>(symbol)) {
+      return std::format_to(
+          out, "{}",
+          TypePrinter{printOptions, declared_type_specifier(parameter), nullptr,
+                      parameterDeclarator(parameter)}(
+              parameter->type(),
+              detail::renderName(parameter->name(), printOptions)));
+    }
+  }
   auto name = sourceQualifiedName(symbol, printOptions);
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
     if (!printOptions.declarationScope)
       printOptions.declarationScope = function;
     printOptions.omitFunctionReturnType |=
         function->isConstructor() || function->isDestructor();
+    auto specifier = mode == detail::PrintMode::Internal
+                         ? nullptr
+                         : declared_type_specifier(function);
     return std::format_to(
-        out, "{}", detail::renderType(function->type(), name, printOptions));
+        out, "{}",
+        TypePrinter{printOptions, specifier,
+                    mode == detail::PrintMode::Internal ? nullptr : function}(
+            function->type(), name));
   }
   if (symbol->isClass() || symbol->isEnum() || symbol->isScopedEnum())
     return std::format_to(out, "{}",

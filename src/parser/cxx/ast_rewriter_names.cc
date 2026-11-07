@@ -42,6 +42,7 @@ struct ASTRewriter::UnqualifiedIdVisitor : VisitorBase {
   [[nodiscard]] auto operator()(DestructorIdAST* ast) -> UnqualifiedIdAST*;
 
   [[nodiscard]] auto operator()(DecltypeIdAST* ast) -> UnqualifiedIdAST*;
+  [[nodiscard]] auto operator()(PackIndexIdAST* ast) -> UnqualifiedIdAST*;
 
   [[nodiscard]] auto operator()(OperatorFunctionIdAST* ast)
       -> UnqualifiedIdAST*;
@@ -73,6 +74,9 @@ struct ASTRewriter::NestedNameSpecifierVisitor : VisitorBase {
       -> NestedNameSpecifierAST*;
 
   [[nodiscard]] auto operator()(DecltypeNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierAST*;
+
+  [[nodiscard]] auto operator()(PackIndexNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierAST*;
 
   [[nodiscard]] auto operator()(TemplateNestedNameSpecifierAST* ast)
@@ -152,6 +156,13 @@ auto ASTRewriter::UnqualifiedIdVisitor::operator()(DestructorIdAST* ast)
   copy->tildeLoc = ast->tildeLoc;
   copy->id = rewrite.unqualifiedId(ast->id);
 
+  return copy;
+}
+
+auto ASTRewriter::UnqualifiedIdVisitor::operator()(PackIndexIdAST* ast)
+    -> UnqualifiedIdAST* {
+  auto copy = PackIndexIdAST::create(arena());
+  copy->typeSpecifier = rewrite.specifier(ast->typeSpecifier);
   return copy;
 }
 
@@ -244,8 +255,8 @@ auto ASTRewriter::expandPackArgument(TemplateArgumentAST* argument,
   forEachPackElement(
       pattern, expansion->ellipsisLoc,
       [&] {
-        append(ExpressionTemplateArgumentAST::create(arena(),
-                                                     expression(pattern)));
+        append(ExpressionTemplateArgumentAST::create(
+            arena(), expression(pattern), binder_.scope()));
       },
       pack);
   return true;
@@ -445,6 +456,22 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 }
 
 auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
+    PackIndexNestedNameSpecifierAST* ast) -> NestedNameSpecifierAST* {
+  auto copy = PackIndexNestedNameSpecifierAST::create(arena());
+  copy->symbol = ast->symbol;
+  copy->typeSpecifier = rewrite.specifier(ast->typeSpecifier);
+  copy->scopeLoc = ast->scopeLoc;
+
+  auto type = computed_specifier_type(rewrite.unit_, copy->typeSpecifier);
+  if (!type || isDependent(rewrite.unit_, type)) return copy;
+
+  copy->symbol = binder()->scopeOfType(type);
+  if (!copy->symbol) reportNonScopeQualifier(type, copy->firstSourceLocation());
+
+  return copy;
+}
+
+auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
     TemplateNestedNameSpecifierAST* ast) -> NestedNameSpecifierAST* {
   auto copy = TemplateNestedNameSpecifierAST::create(arena());
 
@@ -517,7 +544,7 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
   }
 
   if (auto cls = symbol_cast<ClassSymbol>(copy->symbol)) {
-    translationUnit()->typeTraits().requireCompleteClass(cls);
+    translationUnit()->typeTraits().require_complete_class(cls);
   }
 
   return copy;
@@ -536,7 +563,8 @@ auto ASTRewriter::TemplateArgumentVisitor::operator()(
     ExpressionTemplateArgumentAST* ast) -> TemplateArgumentAST* {
   auto copy = ExpressionTemplateArgumentAST::create(arena());
 
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.constantExpression(ast->expression);
+  copy->evaluationScope = binder()->scope();
 
   return copy;
 }

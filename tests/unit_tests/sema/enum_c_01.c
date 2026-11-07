@@ -20,4 +20,4 @@ enum X x;
 // CHECK-NEXT:  enumerator ::X B = 1
 // CHECK-NEXT:  enumerator ::X C = 1
 // CHECK-NEXT:  enumerator ::X D = 2
-// CHECK-NEXT:  variable ::X x
+// CHECK-NEXT:  variable extern "C" ::X x

@@ -533,6 +533,7 @@ auto isClassValueDestroyedInCallee(const Type* type) -> bool {
 auto usesClassValueAbi(const Type* type) -> bool {
   if (!type) return false;
   if (unqualified_cast<ClassType>(type)) return true;
+  if (unqualified_cast<MemberFunctionPointerType>(type)) return true;
   return unqualified_cast<ComplexType>(type) != nullptr;
 }
 
@@ -547,11 +548,8 @@ auto classifyClassValueAbi(TranslationUnit* unit, const Type* type,
   }
   if (!usesClassValueAbi(type)) return {};
 
-  auto complexType = unqualified_cast<ComplexType>(type);
   auto classType = unqualified_cast<ClassType>(type);
-
-  const Type* valueType = classType ? static_cast<const Type*>(classType)
-                                    : static_cast<const Type*>(complexType);
+  auto valueType = rules.traits.remove_cv(type);
 
   if (abiKind == ClassValueAbiKind::kDefault) return {};
 

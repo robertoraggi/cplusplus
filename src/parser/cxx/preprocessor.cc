@@ -150,8 +150,8 @@ struct SourceFile;
 struct Tok {
   std::uint32_t offset = 0;
   std::uint32_t length = 0;
-  std::uint32_t sourceFile = 0;
   std::uint32_t textIndex = 0;
+  std::uint16_t sourceFile = 0;
   TokenKind kind = TokenKind::T_EOF_SYMBOL;
   std::uint8_t bol : 1 = false;
   std::uint8_t space : 1 = false;
@@ -163,6 +163,8 @@ struct Tok {
   [[nodiscard]] auto is(TokenKind k) const -> bool { return kind == k; }
   [[nodiscard]] auto isNot(TokenKind k) const -> bool { return kind != k; }
 };
+
+static_assert(sizeof(Tok) == 16);
 
 using TokVector = std::vector<Tok>;
 using TokSpan = std::span<const Tok>;
@@ -755,7 +757,7 @@ struct Preprocessor::Private {
 
   [[nodiscard]] auto makeTok(const Lexer& lex, int sourceFile) -> Tok {
     Tok tk;
-    tk.sourceFile = sourceFile;
+    tk.sourceFile = static_cast<std::uint16_t>(sourceFile);
     tk.kind = lex.tokenKind();
     tk.offset = lex.tokenPos();
     tk.length = lex.tokenLength();
@@ -1000,7 +1002,10 @@ struct Preprocessor::Private {
   void defineMacro(const Tok* ts, const Tok* lineEnd);
 
   [[nodiscard]] auto fileExists(const fs::path& file) const -> bool {
-    return fs::exists(file) && !fs::is_directory(file);
+    std::error_code error;
+    const auto status = std::filesystem::status(file, error);
+    return !error && std::filesystem::exists(status) &&
+           !std::filesystem::is_directory(status);
   }
 
   [[nodiscard]] auto checkHeaderProtection(const TokVector& tokens) const
@@ -1213,6 +1218,9 @@ struct Preprocessor::Private {
     macros_.insert_or_assign(std::string(name), std::move(macro));
   }
 
+  [[nodiscard]] auto hasCppAttributeExpression(
+      const MacroExpansionContext& context) -> long;
+
   [[nodiscard]] auto shouldInsertCodeCompletionBefore(
       const Tok& tk, std::string_view text) const -> bool;
 
@@ -1309,12 +1317,18 @@ void Preprocessor::Private::initialize() {
                      return result;
                    });
 
-  auto replaceWithBoolLiteral = [this](const Tok& token, bool value) -> Tok {
-    auto tk = genTok(TokenKind::T_INTEGER_LITERAL, value ? "1" : "0");
+  auto replaceWithIntegerLiteral = [this](const Tok& token,
+                                          std::string_view spelling) -> Tok {
+    auto tk = genTok(TokenKind::T_INTEGER_LITERAL, spelling);
     tk.sourceFile = token.sourceFile;
     tk.space = token.space;
     tk.bol = token.bol;
     return tk;
+  };
+
+  auto replaceWithBoolLiteral = [replaceWithIntegerLiteral](const Tok& token,
+                                                            bool value) -> Tok {
+    return replaceWithIntegerLiteral(token, value ? "1" : "0");
   };
 
   auto replaceWithLocal = [this](const Tok& token,
@@ -1405,6 +1419,15 @@ void Preprocessor::Private::initialize() {
         result.push_back(replaceWithBoolLiteral(
             macroId, supportsGnuAttribute(name, *control_->memoryLayout())));
         return result;
+      });
+
+  adddBuiltinFunctionMacro(
+      "__has_cpp_attribute",
+      [this, replaceWithIntegerLiteral](
+          const MacroExpansionContext& context) -> TokVector {
+        return {replaceWithIntegerLiteral(
+            *context.tok,
+            std::format("{}L", hasCppAttributeExpression(context)))};
       });
 
   auto hasInclude =
@@ -1761,6 +1784,37 @@ auto Preprocessor::Private::primaryExpression(const Tok*& ts, const Tok* end)
 
   ++ts;
   return {};
+}
+
+auto Preprocessor::Private::hasCppAttributeExpression(
+    const MacroExpansionContext& context) -> long {
+  auto argumentBegin = context.pos + 1;
+  auto argumentEnd = context.end;
+  if (argumentEnd > argumentBegin &&
+      (argumentEnd - 1)->is(TokenKind::T_RPAREN)) {
+    --argumentEnd;
+  }
+
+  const auto operand = expandTokens(argumentBegin, argumentEnd, false);
+
+  const auto isIdentifierAt = [&](std::size_t index) {
+    return operand[index].is(TokenKind::T_IDENTIFIER);
+  };
+  const auto isSimple = operand.size() == 1 && isIdentifierAt(0);
+  const auto isScoped = operand.size() == 3 && isIdentifierAt(0) &&
+                        operand[1].is(TokenKind::T_COLON_COLON) &&
+                        isIdentifierAt(2);
+
+  if (!isSimple && !isScoped) {
+    error(context.tok,
+          "the operand of '__has_cpp_attribute' shall have the form of an "
+          "attribute-token");
+    return 0;
+  }
+
+  return hasCppAttributeValue(isScoped ? getText(operand[0]) : "",
+                              getText(operand.back()),
+                              *control_->memoryLayout());
 }
 
 auto Preprocessor::Private::parseArguments(const Tok* pos, const Tok* end,
@@ -3007,7 +3061,11 @@ auto Preprocessor::Private::parseDirective(SourceFile* source,
 
     case PreprocessorDirectiveKind::T_WARNING: {
       if (skipping) break;
-      warning(directiveLine + 1, lineText(directiveLine, directiveEnd));
+      Diagnostic diagnostic{Severity::Warning,
+                            tokenForDiagnostic(directiveLine[1]),
+                            lineText(directiveLine, directiveEnd)};
+      diagnostic.setShowsInSystemHeader(true);
+      diagnosticsClient_->emit(diagnostic);
       break;
     }
 

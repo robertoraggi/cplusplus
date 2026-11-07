@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/names.h>
+#include <cxx/reflection.h>
 
 // cxx
 #include <cxx/ast.h>
@@ -56,13 +57,7 @@ struct ConstValueHash {
     return value->hashCode();
   }
   auto operator()(const std::shared_ptr<Meta>& value) const -> std::size_t {
-    if (std::holds_alternative<const Type*>(value->value)) {
-      return std::hash<const void*>{}(std::get<const Type*>(value->value));
-    } else if (std::holds_alternative<const Symbol*>(value->value)) {
-      auto symbol = std::get<const Symbol*>(value->value);
-      return symbol->name() ? symbol->name()->hashValue() : 0;
-    }
-    return 0;
+    return value ? Reflection::hash(*value) : 0;
   }
   auto operator()(const std::shared_ptr<InitializerList>& value) const
       -> std::size_t {
@@ -99,6 +94,7 @@ struct ConstValueHash {
     return std::hash<std::string>{}(value->name());
   }
   auto operator()(IndeterminateValue) const -> std::size_t { return 0; }
+  auto operator()(OutOfLifetimeValue) const -> std::size_t { return 0; }
 };
 
 struct TemplateArgumentHash {
@@ -131,6 +127,8 @@ struct ConvertToName {
   auto operator()(DestructorIdAST* ast) const -> const Name* {
     return control_->getDestructorId(visit(*this, ast->id));
   }
+
+  auto operator()(PackIndexIdAST* ast) const -> const Name* { return nullptr; }
 
   auto operator()(DecltypeIdAST* ast) const -> const Name* {
     // decltype-id has no corresponding Name subclass.
@@ -205,6 +203,13 @@ auto get_name_location(IdExpressionAST* ast) -> SourceLocation {
 
 auto get_name_location(MemberExpressionAST* ast) -> SourceLocation {
   if (ast->unqualifiedId) return ast->unqualifiedId->firstSourceLocation();
+  return ast->firstSourceLocation();
+}
+
+auto get_name_location(ExpressionAST* ast) -> SourceLocation {
+  if (auto id = ast_cast<IdExpressionAST>(ast)) return get_name_location(id);
+  if (auto member = ast_cast<MemberExpressionAST>(ast))
+    return get_name_location(member);
   return ast->firstSourceLocation();
 }
 

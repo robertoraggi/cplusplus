@@ -56,6 +56,18 @@ auto arithmeticOverflowOperation(BuiltinFunctionKind kind)
   }
 }
 
+auto saturatingArithmeticOperation(BuiltinFunctionKind kind)
+    -> std::optional<ArithmeticOverflowOperation> {
+  switch (kind) {
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_ADD_SAT:
+      return ArithmeticOverflowOperation::kAdd;
+    case BuiltinFunctionKind::T___BUILTIN_ELEMENTWISE_SUB_SAT:
+      return ArithmeticOverflowOperation::kSub;
+    default:
+      return std::nullopt;
+  }
+}
+
 auto carryArithmeticOperation(BuiltinFunctionKind kind)
     -> std::optional<ArithmeticOverflowOperation> {
   switch (kind) {
@@ -81,13 +93,15 @@ auto carryArithmeticOperation(BuiltinFunctionKind kind)
 auto applyArithmeticOverflowOperation(ArithmeticOverflowOperation operation,
                                       ConstInt::Wide lhs, ConstInt::Wide rhs)
     -> ConstInt::Wide {
+  const auto left = static_cast<ConstInt::UWide>(lhs);
+  const auto right = static_cast<ConstInt::UWide>(rhs);
   switch (operation) {
     case ArithmeticOverflowOperation::kAdd:
-      return lhs + rhs;
+      return static_cast<ConstInt::Wide>(left + right);
     case ArithmeticOverflowOperation::kSub:
-      return lhs - rhs;
+      return static_cast<ConstInt::Wide>(left - right);
     case ArithmeticOverflowOperation::kMul:
-      return lhs * rhs;
+      return static_cast<ConstInt::Wide>(left * right);
   }
   return 0;
 }

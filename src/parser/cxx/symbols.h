@@ -166,7 +166,19 @@ void rebuild_specialization_index(Symbol* symbol);
 
 [[nodiscard]] auto template_declaration_ast(Symbol* symbol) -> AST*;
 
+[[nodiscard]] auto declared_type_specifier(Symbol* symbol) -> SpecifierAST*;
+[[nodiscard]] auto declared_type_specifier(TypeIdAST* typeId) -> SpecifierAST*;
+
 [[nodiscard]] auto is_member_template(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_class_member(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_main_function(FunctionSymbol* function) -> bool;
+
+[[nodiscard]] auto namespace_scope_of(Symbol* symbol) -> ScopeSymbol*;
+
+[[nodiscard]] auto has_intervening_lambda_scope(Symbol* entity,
+                                                ScopeSymbol* scope) -> bool;
 
 [[nodiscard]] auto is_templated_class(ClassSymbol* classSymbol) -> bool;
 
@@ -192,14 +204,46 @@ void rebuild_specialization_index(Symbol* symbol);
 
 [[nodiscard]] auto has_thread_storage_duration(Symbol* symbol) -> bool;
 
-[[nodiscard]] auto closure_mangling_context(ClassSymbol* closure)
-    -> FunctionSymbol*;
+[[nodiscard]] auto is_block_variable(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto is_inline_or_templated_variable(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto closure_mangling_context(ClassSymbol* closure) -> Symbol*;
+
+[[nodiscard]] auto is_consteval_block_call_operator(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto static_data_member_of(ClassSymbol* classSymbol,
+                                         const Name* name) -> FieldSymbol*;
+
+[[nodiscard]] auto explicit_instantiation_subject(Symbol* variable) -> Symbol*;
+
+[[nodiscard]] auto explicit_instantiation_member(Symbol* member) -> Symbol*;
+
+[[nodiscard]] auto is_member_of_explicit_instantiation_declared_class(
+    TranslationUnit* unit, Symbol* member) -> bool;
+
+[[nodiscard]] auto is_explicit_instantiation_declared_class(
+    TranslationUnit* unit, ClassSymbol* classSymbol) -> bool;
+
+[[nodiscard]] auto is_explicit_instantiation_declared_variable(
+    TranslationUnit* unit, Symbol* variable) -> bool;
+
+[[nodiscard]] auto is_explicit_instantiation_declaration_only(
+    TranslationUnit* unit, Symbol* variable) -> bool;
+
+[[nodiscard]] auto prior_explicit_instantiation_definition(
+    TranslationUnit* unit, Symbol* subject) -> Symbol*;
+
+[[nodiscard]] auto is_declared_specialization(TranslationUnit* unit,
+                                              Symbol* variable) -> bool;
 
 [[nodiscard]] auto type_has_internal_linkage(const Type* type) -> bool;
 
 [[nodiscard]] auto is_specialized_on_internal_type(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto is_declared_with_internal_type(Symbol* symbol) -> bool;
+
+[[nodiscard]] auto has_c_language_linkage(Symbol* symbol) -> bool;
 
 [[nodiscard]] auto is_unnamed_namespace(Symbol* symbol) -> bool;
 
@@ -208,6 +252,9 @@ void rebuild_specialization_index(Symbol* symbol);
 [[nodiscard]] auto is_declared_extern(VariableSymbol* variable) -> bool;
 
 [[nodiscard]] auto has_internal_linkage(
+    Symbol* symbol, LanguageKind language = LanguageKind::kCXX) -> bool;
+
+[[nodiscard]] auto has_language_linkage(
     Symbol* symbol, LanguageKind language = LanguageKind::kCXX) -> bool;
 
 [[nodiscard]] auto is_non_static_member(Symbol* symbol) -> bool;
@@ -243,6 +290,17 @@ void set_default_template_argument(Symbol* symbol,
     -> std::optional<TypeParamInfo>;
 
 [[nodiscard]] auto is_template_parameter_pack(Symbol* symbol) -> bool;
+
+class MaybeTypeSpecifier {
+ public:
+  [[nodiscard]] auto typeSpecifier() const -> SpecifierAST* {
+    return typeSpecifier_;
+  }
+  void setTypeSpecifier(SpecifierAST* specifier) { typeSpecifier_ = specifier; }
+
+ private:
+  SpecifierAST* typeSpecifier_ = nullptr;
+};
 
 class MaybeDefaultTemplateArgument {
  public:
@@ -758,6 +816,24 @@ class Symbol {
   AccessSpecifier accessSpecifier_ = AccessSpecifier::kPublic;
 };
 
+class ScopeMemberAt {
+ public:
+  ScopeMemberAt() = default;
+
+  explicit ScopeMemberAt(const std::vector<Symbol*>* members)
+      : members_(members) {}
+
+  [[nodiscard]] auto operator()(std::uint32_t index) const -> Symbol* {
+    return (*members_)[index];
+  }
+
+ private:
+  const std::vector<Symbol*>* members_ = nullptr;
+};
+
+using ScopeMembers = std::ranges::transform_view<
+    std::ranges::iota_view<std::uint32_t, std::uint32_t>, ScopeMemberAt>;
+
 class ScopeSymbol : public Symbol {
  public:
   ScopeSymbol(SymbolKind kind, ScopeSymbol* enclosingScope);
@@ -767,7 +843,7 @@ class ScopeSymbol : public Symbol {
 
   [[nodiscard]] auto empty() const -> bool { return members_.empty(); }
 
-  [[nodiscard]] auto members() const -> const std::vector<Symbol*>&;
+  [[nodiscard]] auto members() const -> ScopeMembers;
 
   [[nodiscard]] auto usingDirectives() const {
     return std::views::all(usingDirectives_);
@@ -1186,6 +1262,15 @@ class ClassSymbol final : public ScopeSymbol,
     return instantiationSubstitutionArguments_;
   }
 
+  [[nodiscard]] auto firstNonFriendDeclarationLocation() const
+      -> SourceLocation {
+    return firstNonFriendDeclarationLocation_;
+  }
+
+  void setFirstNonFriendDeclarationLocation(SourceLocation location) {
+    firstNonFriendDeclarationLocation_ = location;
+  }
+
   explicit ClassSymbol(ScopeSymbol* enclosingScope);
   ~ClassSymbol() override;
 
@@ -1229,6 +1314,10 @@ class ClassSymbol final : public ScopeSymbol,
       -> std::vector<FunctionSymbol*>;
 
   [[nodiscard]] auto destructor() const -> FunctionSymbol*;
+  [[nodiscard]] auto prospectiveDestructors() const
+      -> std::vector<FunctionSymbol*>;
+  [[nodiscard]] auto selectedDestructor() const -> FunctionSymbol*;
+  void setSelectedDestructor(FunctionSymbol* destructor);
   [[nodiscard]] auto defaultConstructor() const -> FunctionSymbol*;
   [[nodiscard]] auto copyConstructor() const -> FunctionSymbol*;
   [[nodiscard]] auto moveConstructor() const -> FunctionSymbol*;
@@ -1323,6 +1412,12 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto baseSubobjectInfo(ClassSymbol* base) const
       -> BaseSubobjectInfo;
 
+  [[nodiscard]] auto subobjectPath(Symbol* subobject) const
+      -> std::optional<std::vector<Symbol*>>;
+
+  [[nodiscard]] auto immediateFinalOverrider(FunctionSymbol* function) const
+      -> FunctionSymbol*;
+
   [[nodiscard]] auto baseClassOffset(ClassSymbol* base) const
       -> std::optional<std::uint64_t>;
 
@@ -1351,6 +1446,9 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto isClosureType() const -> bool;
   void setIsClosureType(bool isClosureType);
 
+  [[nodiscard]] auto isConstevalBlockClosure() const -> bool;
+  void setConstevalBlockClosure(bool isConstevalBlockClosure);
+
   [[nodiscard]] auto hasLambdaCapture() const -> bool;
   void setHasLambdaCapture(bool hasLambdaCapture);
 
@@ -1362,9 +1460,13 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto closureDiscriminator() const -> int;
   void setClosureDiscriminator(int closureDiscriminator);
 
+  [[nodiscard]] auto closureInitializerOwner() const -> Symbol*;
+  void setClosureInitializerOwner(Symbol* owner);
+
   [[nodiscard]] auto instantiationTemplate() const -> ClassSymbol*;
 
  private:
+  SourceLocation firstNonFriendDeclarationLocation_;
   std::vector<BaseClassSymbol*> baseClasses_;
   std::vector<ClassSymbol*> befriendingClasses_;
   std::vector<TemplateFriendship> templateFriendships_;
@@ -1374,7 +1476,9 @@ class ClassSymbol final : public ScopeSymbol,
   std::vector<DeductionGuideSymbol*> deductionGuides_;
   std::unique_ptr<ClassLayout> layout_;
   std::unique_ptr<VTableLayout> vtableLayout_;
+  FunctionSymbol* selectedDestructor_ = nullptr;
   FieldSymbol* capturedThisField_ = nullptr;
+  Symbol* closureInitializerOwner_ = nullptr;
   int closureDiscriminator_ = 0;
   int sizeInBytes_ = 0;
   int alignment_ = 0;
@@ -1394,6 +1498,7 @@ class ClassSymbol final : public ScopeSymbol,
       std::uint32_t isClosureType_ : 1;
       std::uint32_t hasLambdaCapture_ : 1;
       std::uint32_t hasUserDeclaredConstructors_ : 1;
+      std::uint32_t isConstevalBlockClosure_ : 1;
     };
   };
 };
@@ -1415,8 +1520,12 @@ class EnumSymbol final : public ScopeSymbol,
   [[nodiscard]] auto underlyingType() const -> const Type*;
   void setUnderlyingType(const Type* underlyingType);
 
+  [[nodiscard]] auto promotionType() const -> const Type*;
+  void setPromotionType(const Type* promotionType);
+
  private:
   const Type* underlyingType_ = nullptr;
+  const Type* promotionType_ = nullptr;
   bool hasFixedUnderlyingType_ = false;
   bool isDefined_ = false;
 };
@@ -1455,6 +1564,11 @@ class FunctionSymbol final
   ~FunctionSymbol() override;
 
   [[nodiscard]] auto functionParameters() const -> FunctionParametersSymbol*;
+
+  [[nodiscard]] auto returnTypeSyntax() const -> AST* {
+    return returnTypeSyntax_;
+  }
+  void setReturnTypeSyntax(AST* syntax) { returnTypeSyntax_ = syntax; }
 
   [[nodiscard]] auto isDefined() const -> bool;
   void setDefined(bool isDefined);
@@ -1711,6 +1825,7 @@ class FunctionSymbol final
 
  private:
   std::unique_ptr<PendingInstantiation> pendingBody_;
+  AST* returnTypeSyntax_ = nullptr;
   std::unique_ptr<PendingInstantiation> pendingExceptionSpecification_;
   ScopeSymbol* hostScope_ = nullptr;
   FunctionSymbol* completeObjectVariant_ = nullptr;
@@ -1923,7 +2038,8 @@ class TypeAliasSymbol final
 
 class VariableSymbol final
     : public Symbol,
-      public MaybeTemplate<VariableSymbol, SimpleDeclarationAST>,
+      public MaybeTypeSpecifier,
+      public MaybeTemplate<VariableSymbol, DeclarationAST>,
       public MaybeRedecl<VariableSymbol> {
  public:
   constexpr static auto Kind = SymbolKind::kVariable;
@@ -1947,6 +2063,13 @@ class VariableSymbol final
   [[nodiscard]] auto isConstexpr() const -> bool;
   void setConstexpr(bool isConstexpr);
 
+  [[nodiscard]] auto isTemplateParameterObject() const -> bool {
+    return isTemplateParameterObject_;
+  }
+  void setTemplateParameterObject(bool value) {
+    isTemplateParameterObject_ = value;
+  }
+
   [[nodiscard]] auto isConstinit() const -> bool;
   void setConstinit(bool isConstinit);
 
@@ -1956,8 +2079,16 @@ class VariableSymbol final
   [[nodiscard]] auto isFunctionLocalPredefined() const -> bool;
   void setFunctionLocalPredefined(bool isFunctionLocalPredefined);
 
+  [[nodiscard]] auto languageLinkage() const -> LanguageKind;
+  void setLanguageLinkage(LanguageKind linkage);
+
+  [[nodiscard]] auto hasCLinkage() const -> bool;
+
   [[nodiscard]] auto isStructuredBindingAlias() const -> bool;
-  void setStructuredBindingAlias(bool isStructuredBindingAlias);
+
+  [[nodiscard]] auto structuredBindingKind() const -> StructuredBindingKind;
+  void setStructuredBindingKind(StructuredBindingKind kind);
+  [[nodiscard]] auto isStructuredBinding() const -> bool;
 
   [[nodiscard]] auto lifetimeExtendingDeclaration() const -> Symbol*;
   void setLifetimeExtendingDeclaration(Symbol* declaration);
@@ -1974,11 +2105,19 @@ class VariableSymbol final
   [[nodiscard]] auto explicitAlignment() const -> int;
   void setExplicitAlignment(int alignment);
 
+  [[nodiscard]] auto hasPendingInitializer() const -> bool {
+    return pendingInitializer_ != nullptr;
+  }
+  [[nodiscard]] auto pendingInitializer() const -> PendingInstantiation*;
+  void setPendingInitializer(std::unique_ptr<PendingInstantiation> pending);
+  void clearPendingInitializer();
+
  private:
   ThreadLocalKind threadLocalKind_ = ThreadLocalKind::None;
   ExpressionAST* initializer_ = nullptr;
   FunctionSymbol* constructor_ = nullptr;
   Symbol* lifetimeExtendingDeclaration_ = nullptr;
+  std::unique_ptr<PendingInstantiation> pendingInitializer_;
   std::optional<ConstValue> constValue_;
 
   int explicitAlignment_ = 0;
@@ -1991,12 +2130,14 @@ class VariableSymbol final
       std::uint32_t isConstinit_ : 1;
       std::uint32_t isInline_ : 1;
       std::uint32_t isFunctionLocalPredefined_ : 1;
-      std::uint32_t isStructuredBindingAlias_ : 1;
+      std::uint32_t isTemplateParameterObject_ : 1;
+      std::uint32_t hasCLinkage_ : 1;
+      StructuredBindingKind structuredBindingKind_ : 2;
     };
   };
 };
 
-class FieldSymbol final : public Symbol {
+class FieldSymbol final : public Symbol, public MaybeTypeSpecifier {
  public:
   constexpr static auto Kind = SymbolKind::kField;
 
@@ -2078,6 +2219,13 @@ class FieldSymbol final : public Symbol {
   [[nodiscard]] auto hasInitializer() const -> bool {
     return initializer_ != nullptr || hasPendingInitializer();
   }
+
+  [[nodiscard]] auto hasImmediateEscalatingInitializer() const -> bool {
+    return hasImmediateEscalatingInitializer_;
+  }
+  void setImmediateEscalatingInitializer(bool value) {
+    hasImmediateEscalatingInitializer_ = value;
+  }
   [[nodiscard]] auto pendingInitializer() const -> PendingInstantiation*;
   void setPendingInitializer(std::unique_ptr<PendingInstantiation> pending);
   void clearPendingInitializer();
@@ -2098,6 +2246,7 @@ class FieldSymbol final : public Symbol {
       std::uint32_t isInline_ : 1;
       std::uint32_t isMutable_ : 1;
       std::uint32_t isNoUniqueAddress_ : 1;
+      std::uint32_t hasImmediateEscalatingInitializer_ : 1;
     };
   };
   int localOffset_{};
@@ -2115,6 +2264,14 @@ class ParameterSymbol final : public Symbol {
 
   explicit ParameterSymbol(ScopeSymbol* enclosingScope);
   ~ParameterSymbol() override;
+
+  [[nodiscard]] auto declaration() const -> ParameterDeclarationAST* {
+    return declaration_;
+  }
+
+  void setDeclaration(ParameterDeclarationAST* declaration) {
+    declaration_ = declaration;
+  }
 
   [[nodiscard]] auto kernelParameterBinding() const
       -> const std::optional<KernelParameterBinding>& {
@@ -2142,13 +2299,22 @@ class ParameterSymbol final : public Symbol {
   [[nodiscard]] auto isParameterPack() const -> bool;
   void setParameterPack(bool isParameterPack);
 
+  [[nodiscard]] auto hasImmediateEscalatingDefaultArgument() const -> bool {
+    return hasImmediateEscalatingDefaultArgument_;
+  }
+  void setImmediateEscalatingDefaultArgument(bool value) {
+    hasImmediateEscalatingDefaultArgument_ = value;
+  }
+
  private:
+  ParameterDeclarationAST* declaration_ = nullptr;
   ExpressionAST* defaultArgument_ = nullptr;
   std::unique_ptr<PendingInstantiation> pendingDefaultArgument_;
   ParameterSymbol* defaultArgumentSource_ = nullptr;
   std::optional<KernelParameterBinding> kernelParameterBinding_;
   bool isExplicitObject_ = false;
   bool isParameterPack_ = false;
+  bool hasImmediateEscalatingDefaultArgument_ = false;
 };
 
 class ParameterPackSymbol final : public Symbol {
@@ -2313,6 +2479,8 @@ class UsingDeclarationSymbol final : public Symbol {
 
 bool is_type(Symbol* symbol);
 
+[[nodiscard]] auto is_typedef_name(Symbol* symbol) -> bool;
+
 [[nodiscard]] auto is_class_or_enum_declaration(Symbol* symbol) -> bool;
 
 template <typename Visitor>
@@ -2362,11 +2530,6 @@ inline auto symbol_cast(Symbol* symbol) -> ScopeSymbol* {
 
 [[nodiscard]] auto isDeclaredConstant(Symbol* symbol) -> bool;
 
-[[nodiscard]] auto isUsableInConstantExpressions(const TypeTraits& traits,
-                                                 Symbol* symbol,
-                                                 ScopeSymbol* point = nullptr)
-    -> bool;
-
-[[nodiscard]] auto isPotentiallyConstant(const TypeTraits& traits,
-                                         Symbol* symbol) -> bool;
+[[nodiscard]] auto lifetime_extended_temporary(VariableSymbol* reference)
+    -> VariableSymbol*;
 }  // namespace cxx

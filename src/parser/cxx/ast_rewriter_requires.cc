@@ -481,13 +481,15 @@ auto ASTRewriter::evaluateConcept(
   return result;
 }
 
-auto ASTRewriter::check(ExpressionAST* ast) -> ExpressionAST* {
+auto ASTRewriter::check(ExpressionAST* ast, bool addressOfOperand)
+    -> ExpressionAST* {
   if (!ast) return ast;
   if (isDependent(unit_, ast)) return ast;
 
   TranslationUnit::PotentiallyEvaluatedScope evaluated{
       unit_, unevaluatedOperandDepth_ == 0};
   auto checker = typeChecker();
+  checker.setAddressOfOperand(addressOfOperand);
   checker.check(&ast);
   return ast;
 }

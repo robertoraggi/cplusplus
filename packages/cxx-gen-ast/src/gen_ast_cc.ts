@@ -134,7 +134,7 @@ export function gen_ast_cc({ ast, output }: { ast: AST; output: string }) {
           case "token-list":
             throw new Error("not implemented");
           case "attribute": {
-            emit(`  node->${m.name} = ${m.name};`);
+            emit(`  node->${m.name} = cloneAttribute(arena, ${m.name});`);
             break;
           }
         }

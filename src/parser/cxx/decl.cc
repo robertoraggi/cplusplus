@@ -32,6 +32,7 @@
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/type_checker.h>
 #include <cxx/types.h>
 
 namespace cxx {
@@ -347,10 +348,13 @@ struct GetDeclaratorType {
   [[nodiscard]] auto arrayTypeOf(ArrayDeclaratorChunkAST* ast) -> const Type* {
     if (!ast->expression) return control()->getUnboundedArrayType(type_);
 
-    ASTInterpreter interp{unit};
+    ASTInterpreter interp{unit, ast->evaluationScope};
     const auto constValue = interp.evaluate(ast->expression);
 
     if (constValue) {
+      unit->dischargeImmediateEscalations(
+          ast->expression->firstSourceLocation(),
+          ast->expression->lastSourceLocation());
       auto sizeType = control()->getSizeType();
       auto converted = interp.toIntegralType(constValue.value(), sizeType);
 
@@ -374,6 +378,17 @@ struct GetDeclaratorType {
       }
     }
 
+    if (!isDependent(unit, ast->expression)) {
+      if (unit->diagnosticsClient()->isSfinae()) {
+        unit->error(ast->expression->firstSourceLocation(),
+                    "array bound is not a constant expression");
+        return control()->getBoundedArrayType(type_, 1);
+      }
+      TypeChecker check{unit};
+      check.setScope(ast->evaluationScope);
+      check.setReportErrors(true);
+      check.evaluateImmediateInitializer(ast->expression);
+    }
     return control()->getUnresolvedBoundedArrayType(unit, type_,
                                                     ast->expression);
   }

@@ -24,7 +24,6 @@
 #include <cxx/private/sve_types-priv.h>
 #include <cxx/private/utf8.h>
 
-#include <cctype>
 #include <vector>
 
 namespace cxx {
@@ -112,8 +111,31 @@ inline auto classifyCharPrefix(std::string_view text, EncodingPrefix& enc)
   return false;
 }
 
-inline auto is_idcont(int ch) -> bool {
-  return ch == '_' || std::isalnum(static_cast<unsigned char>(ch));
+constexpr auto is_digit(std::uint32_t ch) -> bool {
+  return ch >= '0' && ch <= '9';
+}
+
+constexpr auto is_alpha(std::uint32_t ch) -> bool {
+  return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+}
+
+constexpr auto is_space(std::uint32_t ch) -> bool {
+  return ch == ' ' || (ch >= '\t' && ch <= '\r');
+}
+
+constexpr auto is_idcont(std::uint32_t ch) -> bool {
+  return ch == '_' || is_alpha(ch) || is_digit(ch);
+}
+
+constexpr auto is_plain_number_char(char ch) -> bool {
+  const auto byte = static_cast<unsigned char>(ch);
+  return is_idcont(byte) && byte != 'e' && byte != 'E' && byte != 'p' &&
+         byte != 'P';
+}
+
+constexpr auto is_plain_string_char(char ch) -> bool {
+  const auto byte = static_cast<unsigned char>(ch);
+  return byte < 0x80 && byte != '"' && byte != '\\';
 }
 
 template <typename It>
@@ -133,12 +155,18 @@ inline auto skipSlash(It it, It end) -> It {
 template <typename It>
 inline auto peekNext(It it, It end) -> std::uint32_t {
   it = skipSlash(it, end);
+  if (it < end && static_cast<unsigned char>(*it) < 0x80)
+    return static_cast<unsigned char>(*it);
   return utf8::peekNext(it, end);
 }
 
 template <typename It>
 inline void readNext(It& it, It end) {
   it = skipSlash(it, end);
+  if (it < end && static_cast<unsigned char>(*it) < 0x80) {
+    ++it;
+    return;
+  }
   (void)utf8::next(it, end);
 }
 
@@ -213,7 +241,7 @@ auto Lexer::readToken() -> TokenKind {
 
   const auto ch = LA();
 
-  if (std::isdigit(ch)) {
+  if (is_digit(ch)) {
     bool integer_literal = true;
     bool is_hex = false;
 
@@ -222,6 +250,13 @@ auto Lexer::readToken() -> TokenKind {
     }
 
     while (pos_ != end_) {
+      auto scan = pos_;
+      while (scan < end_ && is_plain_number_char(*scan)) ++scan;
+      if (scan != pos_) {
+        pos_ = scan;
+        currentChar_ = peekNext(pos_, end_);
+        if (pos_ == end_) break;
+      }
       const auto ch = LA();
       if (pos_ + 1 < end_ &&
           (!is_hex && (ch == 'e' || ch == 'E') ||
@@ -232,7 +267,7 @@ auto Lexer::readToken() -> TokenKind {
       } else if (pos_ + 1 < end_ &&
                  (!is_hex && (ch == 'e' || ch == 'E') ||
                   (is_hex && (ch == 'p' || ch == 'P'))) &&
-                 std::isdigit(LA(1))) {
+                 is_digit(LA(1))) {
         consume(1);
         integer_literal = false;
       } else if (pos_ + 1 < end_ && ch == '\'' && is_idcont(LA(1))) {
@@ -254,46 +289,44 @@ auto Lexer::readToken() -> TokenKind {
 
   bool isRawStringLiteral = false;
 
-  if (std::isalpha(ch) || ch == '_') {
+  if (is_alpha(ch) || ch == '_') {
+    std::string_view spelling;
     if (pos_ < end_ && *pos_ == static_cast<char>(ch)) {
       auto scan = pos_ + 1;
       while (scan < end_ && is_idcont(static_cast<unsigned char>(*scan)))
         ++scan;
       if (scan >= end_ || *scan != '\\') {
-        text_.assign(pos_, scan);
+        spelling = source_.substr(pos_ - cbegin(source_), scan - pos_);
         pos_ = scan;
         currentChar_ = peekNext(pos_, end_);
-      } else {
-        do {
-          text_ += static_cast<char>(LA());
-          consume();
-        } while (pos_ != end_ && is_idcont(LA()));
       }
-    } else {
+    }
+    if (spelling.empty()) {
       do {
         text_ += static_cast<char>(LA());
         consume();
       } while (pos_ != end_ && is_idcont(LA()));
+      spelling = text_;
     }
 
     bool isStringOrCharacterLiteral = false;
 
     if (pos_ != end_ && LA() == '"') {
-      if (classifyStringPrefix(text_, encodingPrefix, isRawStringLiteral)) {
+      if (classifyStringPrefix(spelling, encodingPrefix, isRawStringLiteral)) {
         isStringOrCharacterLiteral = true;
       }
     } else if (pos_ != end_ && LA() == '\'') {
-      if (classifyCharPrefix(text_, encodingPrefix)) {
+      if (classifyCharPrefix(spelling, encodingPrefix)) {
         isStringOrCharacterLiteral = true;
       }
     }
 
     if (!isStringOrCharacterLiteral) {
-      tokenIsClean_ = text_.length() == tokenLength();
+      tokenIsClean_ = spelling.length() == tokenLength();
 
       if (preprocessing_) return TokenKind::T_IDENTIFIER;
 
-      return classifyKeyword(text_, lang_, TripleArch::kUnknown,
+      return classifyKeyword(spelling, lang_, TripleArch::kUnknown,
                              &tokenValue_.intValue);
     }
   }
@@ -329,6 +362,13 @@ auto Lexer::readToken() -> TokenKind {
       }
     } else {
       while (pos_ != end_) {
+        auto scan = pos_;
+        while (scan < end_ && is_plain_string_char(*scan)) ++scan;
+        if (scan != pos_) {
+          pos_ = scan;
+          currentChar_ = peekNext(pos_, end_);
+          if (pos_ == end_) break;
+        }
         if (LA() == '"') {
           consume();
           break;
@@ -342,7 +382,7 @@ auto Lexer::readToken() -> TokenKind {
 
     if (lang_ == LanguageKind::kCXX) {
       bool ud = false;
-      if (std::isalpha(LA()) || LA() == '_') {
+      if (is_alpha(LA()) || LA() == '_') {
         ud = true;
         do {
           consume();
@@ -380,7 +420,7 @@ auto Lexer::readToken() -> TokenKind {
       consume();
     }
 
-    if (lang_ == LanguageKind::kCXX && (std::isalpha(LA()) || LA() == '_')) {
+    if (lang_ == LanguageKind::kCXX && (is_alpha(LA()) || LA() == '_')) {
       do {
         consume();
       } while (pos_ != end_ && is_idcont(LA()));
@@ -389,7 +429,7 @@ auto Lexer::readToken() -> TokenKind {
     return TokenKind::T_CHARACTER_LITERAL;
   }
 
-  if (pos_ + 1 < end_ && LA() == '.' && std::isdigit(LA(1))) {
+  if (pos_ + 1 < end_ && LA() == '.' && is_digit(LA(1))) {
     consume();
     while (pos_ != end_) {
       const auto ch = LA();
@@ -588,22 +628,12 @@ auto Lexer::readToken() -> TokenKind {
     case '/': {
       if (keepComments_ && LA() == '/') {
         consume();
-        for (; pos_ != end_; consume()) {
-          if (pos_ != end_ && LA() == '\n') {
-            break;
-          }
-        }
+        skipLineComment();
         return TokenKind::T_COMMENT;
       }
       if (keepComments_ && LA() == '*') {
         consume();
-        while (pos_ != end_) {
-          if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
-            consume(2);
-            break;
-          }
-          consume();
-        }
+        skipBlockComment();
         leadingSpace_ = tokenLeadingSpace_;
         startOfLine_ = tokenStartOfLine_;
         return TokenKind::T_COMMENT;
@@ -618,6 +648,38 @@ auto Lexer::readToken() -> TokenKind {
 
   return TokenKind::T_ERROR;
 }  // namespace cxx
+
+void Lexer::skipLineComment() {
+  const auto first = cbegin(source_);
+  while (pos_ < end_) {
+    const auto offset = source_.find('\n', pos_ - first);
+    if (offset == std::string_view::npos) {
+      pos_ = end_;
+      break;
+    }
+    auto beforeNewline = first + offset;
+    pos_ = beforeNewline;
+    if (beforeNewline != first && beforeNewline[-1] == '\r') --beforeNewline;
+    if (beforeNewline == first || beforeNewline[-1] != '\\') break;
+    ++pos_;
+  }
+  currentChar_ = peekNext(pos_, end_);
+}
+
+void Lexer::skipBlockComment() {
+  const auto first = cbegin(source_);
+  while (pos_ != end_) {
+    const auto offset = source_.find('*', pos_ - first);
+    pos_ = offset == std::string_view::npos ? end_ : first + offset;
+    currentChar_ = peekNext(pos_, end_);
+    if (pos_ == end_) break;
+    if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
+      consume(2);
+      break;
+    }
+    consume();
+  }
+}
 
 auto Lexer::skipSpaces() -> bool {
   tokenLeadingSpace_ = leadingSpace_;
@@ -635,7 +697,7 @@ auto Lexer::skipSpaces() -> bool {
 
     const auto ch = LA();
 
-    if (std::isspace(ch)) {
+    if (is_space(ch)) {
       if (ch == '\n') {
         tokenStartOfLine_ = true;
         tokenLeadingSpace_ = false;
@@ -645,21 +707,10 @@ auto Lexer::skipSpaces() -> bool {
       consume();
     } else if (!keepComments_ && pos_ + 1 < end_ && ch == '/' && LA(1) == '/') {
       consume(2);
-      while (pos_ < end_ && *pos_ != '\n' && *pos_ != '\\') ++pos_;
-      currentChar_ = peekNext(pos_, end_);
-      while (pos_ != end_ && LA() != '\n') consume();
+      skipLineComment();
     } else if (!keepComments_ && pos_ + 1 < end_ && ch == '/' && LA(1) == '*') {
       consume(2);
-      while (pos_ != end_) {
-        while (pos_ < end_ && *pos_ != '*' && *pos_ != '\\') ++pos_;
-        currentChar_ = peekNext(pos_, end_);
-        if (pos_ == end_) break;
-        if (pos_ + 1 < end_ && LA() == '*' && LA(1) == '/') {
-          consume(2);
-          break;
-        }
-        consume();
-      }
+      skipBlockComment();
     } else {
       break;
     }

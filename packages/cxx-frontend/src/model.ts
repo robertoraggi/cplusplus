@@ -238,6 +238,16 @@ export interface ConstObject_Member {
   readonly value: ConstValue;
 }
 /** @category Data Structures */
+export interface Meta_ConstExpr {
+  readonly type: Type | undefined;
+  readonly value: ConstValue;
+}
+/** @category Data Structures */
+export interface Meta_Parameter {
+  readonly function: FunctionSymbol | undefined;
+  readonly index: number;
+}
+/** @category Data Structures */
 export interface Attribute {
   readonly attributeNamespace: Identifier | undefined;
   readonly name: Identifier | undefined;
@@ -257,8 +267,13 @@ export interface ForRangeStatementInfo {
   readonly statement: CompoundStatementAST | undefined;
 }
 /** @category Data Structures */
+export interface SpliceExpressionInfo {
+  readonly expression: ExpressionAST | undefined;
+}
+/** @category Data Structures */
 export interface InitializerInfo {
   readonly arguments: Iterable<ExpressionAST | undefined> | undefined;
+  readonly isParenthesizedAggregate: boolean;
 }
 /** @category Data Structures */
 export interface IntegerLiteral_Components {
@@ -276,6 +291,7 @@ export interface IntegerLiteral_Components {
 /** @category Data Structures */
 export interface FloatLiteral_Components {
   readonly value: number;
+  readonly longDoubleValue: number;
   readonly literalPart: string;
   readonly userSuffix: string;
   readonly suffix: FloatLiteral_Components_FloatingPointSuffix;
@@ -437,6 +453,8 @@ function decodeConstValue(value: any, owner: ModelOwner): ConstValue {
       return objOf(value.value, owner, ConstComplex);
     case 12:
       return undefined;
+    case 13:
+      return undefined;
     default:
       return value.value;
   }
@@ -456,7 +474,38 @@ function decodeConstObject_Member(
     value: decodeConstValue(value.value, owner),
   };
 }
+function decodeMeta_ConstExpr(value: any, owner: ModelOwner): Meta_ConstExpr {
+  return {
+    type: typeOf(value.type, owner),
+    value: decodeConstValue(value.value, owner),
+  };
+}
+function decodeMeta_Parameter(value: any, owner: ModelOwner): Meta_Parameter {
+  return {
+    function: symbolOf(value.function, owner),
+    index: value.index,
+  };
+}
 function decodeVariant(
+  value: any,
+  owner: ModelOwner,
+): Type | Symbol | Meta_ConstExpr | Meta_Parameter | ConstAddress | undefined {
+  switch (value.index) {
+    case 0:
+      return typeOf(value.value, owner);
+    case 1:
+      return symbolOf(value.value, owner);
+    case 2:
+      return decodeMeta_ConstExpr(value.value, owner);
+    case 3:
+      return decodeMeta_Parameter(value.value, owner);
+    case 4:
+      return objOf(value.value, owner, ConstAddress);
+    default:
+      return value.value;
+  }
+}
+function decodeVariant2(
   value: any,
   owner: ModelOwner,
 ): Symbol | number | undefined {
@@ -505,11 +554,20 @@ function decodeForRangeStatementInfo(
     statement: astOf(value.statement, owner),
   };
 }
+function decodeSpliceExpressionInfo(
+  value: any,
+  owner: ModelOwner,
+): SpliceExpressionInfo {
+  return {
+    expression: astOf(value.expression, owner),
+  };
+}
 function decodeInitializerInfo(value: any, owner: ModelOwner): InitializerInfo {
   return {
     arguments: optionalOf(value.arguments, (item: any) =>
       listOf(owner, item, (item: any) => astOf(item, owner)),
     ),
+    isParenthesizedAggregate: value.isParenthesizedAggregate !== 0,
   };
 }
 function decodeIntegerLiteral_Components(
@@ -535,6 +593,7 @@ function decodeFloatLiteral_Components(
 ): FloatLiteral_Components {
   return {
     value: value.value,
+    longDoubleValue: value.longDoubleValue,
     literalPart: value.literalPart,
     userSuffix: value.userSuffix,
     suffix: floatLiteral_Components_FloatingPointSuffixNames[value.suffix]!,
@@ -763,12 +822,14 @@ function decodeSourceLocationRange(
 ): SourceLocationRange {
   return [Token.from(value[0], owner), Token.from(value[1], owner)] as const;
 }
-const InitializerListSlotBase = 0;
+const DefaultInitializerContextSlotBase = 0;
+const InitializerListSlotBase = DefaultInitializerContextSlotBase + 3;
 const ConstComplexSlotBase = InitializerListSlotBase + 4;
 const ConstObjectSlotBase = ConstComplexSlotBase + 2;
 const ConstStorageSlotBase = ConstObjectSlotBase + 5;
-const ConstAddressSlotBase = ConstStorageSlotBase + 3;
-const ConstLabelAddressSlotBase = ConstAddressSlotBase + 16;
+const MetaSlotBase = ConstStorageSlotBase + 4;
+const ConstAddressSlotBase = MetaSlotBase + 1;
+const ConstLabelAddressSlotBase = ConstAddressSlotBase + 18;
 const ASTSlotBase = 0;
 const AttributeSpecifierASTSlotBase = ASTSlotBase + 3;
 const ExpressionASTSlotBase = AttributeSpecifierASTSlotBase + 1;
@@ -785,7 +846,9 @@ const UsingDeclarationASTSlotBase = NamespaceAliasDefinitionASTSlotBase + 8;
 const UsingEnumDeclarationASTSlotBase = UsingDeclarationASTSlotBase + 3;
 const UsingDirectiveASTSlotBase = UsingEnumDeclarationASTSlotBase + 3;
 const StaticAssertDeclarationASTSlotBase = UsingDirectiveASTSlotBase + 6;
-const AliasDeclarationASTSlotBase = StaticAssertDeclarationASTSlotBase + 9;
+const ConstevalBlockDeclarationASTSlotBase =
+  StaticAssertDeclarationASTSlotBase + 9;
+const AliasDeclarationASTSlotBase = ConstevalBlockDeclarationASTSlotBase + 3;
 const OpaqueEnumDeclarationASTSlotBase = AliasDeclarationASTSlotBase + 9;
 const FunctionDefinitionASTSlotBase = OpaqueEnumDeclarationASTSlotBase + 9;
 const TemplateDeclarationASTSlotBase = FunctionDefinitionASTSlotBase + 6;
@@ -882,10 +945,10 @@ const RequiresExpressionASTSlotBase = LeftFoldExpressionASTSlotBase + 6;
 const VaArgExpressionASTSlotBase = RequiresExpressionASTSlotBase + 7;
 const SubscriptExpressionASTSlotBase = VaArgExpressionASTSlotBase + 6;
 const CallExpressionASTSlotBase = SubscriptExpressionASTSlotBase + 6;
-const TypeConstructionASTSlotBase = CallExpressionASTSlotBase + 6;
+const TypeConstructionASTSlotBase = CallExpressionASTSlotBase + 7;
 const BracedTypeConstructionASTSlotBase = TypeConstructionASTSlotBase + 5;
 const SpliceMemberExpressionASTSlotBase = BracedTypeConstructionASTSlotBase + 4;
-const MemberExpressionASTSlotBase = SpliceMemberExpressionASTSlotBase + 7;
+const MemberExpressionASTSlotBase = SpliceMemberExpressionASTSlotBase + 8;
 const PostIncrExpressionASTSlotBase = MemberExpressionASTSlotBase + 8;
 const CppCastExpressionASTSlotBase = PostIncrExpressionASTSlotBase + 5;
 const BuiltinBitCastExpressionASTSlotBase = CppCastExpressionASTSlotBase + 8;
@@ -896,7 +959,7 @@ const BuiltinOffsetofExpressionASTSlotBase =
 const TypeidExpressionASTSlotBase = BuiltinOffsetofExpressionASTSlotBase + 9;
 const TypeidOfTypeExpressionASTSlotBase = TypeidExpressionASTSlotBase + 4;
 const SpliceExpressionASTSlotBase = TypeidOfTypeExpressionASTSlotBase + 4;
-const GlobalScopeReflectExpressionASTSlotBase = SpliceExpressionASTSlotBase + 1;
+const GlobalScopeReflectExpressionASTSlotBase = SpliceExpressionASTSlotBase + 2;
 const NamespaceReflectExpressionASTSlotBase =
   GlobalScopeReflectExpressionASTSlotBase + 2;
 const TypeIdReflectExpressionASTSlotBase =
@@ -916,7 +979,7 @@ const DeleteExpressionASTSlotBase = NewExpressionASTSlotBase + 14;
 const CastExpressionASTSlotBase = DeleteExpressionASTSlotBase + 7;
 const ImplicitCastExpressionASTSlotBase = CastExpressionASTSlotBase + 4;
 const ConstExpressionASTSlotBase = ImplicitCastExpressionASTSlotBase + 4;
-const BinaryExpressionASTSlotBase = ConstExpressionASTSlotBase + 2;
+const BinaryExpressionASTSlotBase = ConstExpressionASTSlotBase + 5;
 const ConditionalExpressionASTSlotBase = BinaryExpressionASTSlotBase + 6;
 const YieldExpressionASTSlotBase = ConditionalExpressionASTSlotBase + 5;
 const ThrowExpressionASTSlotBase = YieldExpressionASTSlotBase + 2;
@@ -980,8 +1043,10 @@ const NamedTypeSpecifierASTSlotBase = ComplexTypeSpecifierASTSlotBase + 1;
 const AtomicTypeSpecifierASTSlotBase = NamedTypeSpecifierASTSlotBase + 5;
 const BitIntTypeSpecifierASTSlotBase = AtomicTypeSpecifierASTSlotBase + 4;
 const UnderlyingTypeSpecifierASTSlotBase = BitIntTypeSpecifierASTSlotBase + 5;
-const ElaboratedTypeSpecifierASTSlotBase =
+const PackIndexTypeSpecifierASTSlotBase =
   UnderlyingTypeSpecifierASTSlotBase + 4;
+const ElaboratedTypeSpecifierASTSlotBase =
+  PackIndexTypeSpecifierASTSlotBase + 5;
 const DecltypeAutoSpecifierASTSlotBase = ElaboratedTypeSpecifierASTSlotBase + 9;
 const DecltypeSpecifierASTSlotBase = DecltypeAutoSpecifierASTSlotBase + 4;
 const PlaceholderTypeSpecifierASTSlotBase = DecltypeSpecifierASTSlotBase + 5;
@@ -1002,10 +1067,11 @@ const IdDeclaratorASTSlotBase = ParameterPackASTSlotBase + 2;
 const NestedDeclaratorASTSlotBase = IdDeclaratorASTSlotBase + 5;
 const FunctionDeclaratorChunkASTSlotBase = NestedDeclaratorASTSlotBase + 3;
 const ArrayDeclaratorChunkASTSlotBase = FunctionDeclaratorChunkASTSlotBase + 12;
-const NameIdASTSlotBase = ArrayDeclaratorChunkASTSlotBase + 5;
+const NameIdASTSlotBase = ArrayDeclaratorChunkASTSlotBase + 6;
 const DestructorIdASTSlotBase = NameIdASTSlotBase + 2;
 const DecltypeIdASTSlotBase = DestructorIdASTSlotBase + 2;
-const OperatorFunctionIdASTSlotBase = DecltypeIdASTSlotBase + 1;
+const PackIndexIdASTSlotBase = DecltypeIdASTSlotBase + 1;
+const OperatorFunctionIdASTSlotBase = PackIndexIdASTSlotBase + 1;
 const LiteralOperatorIdASTSlotBase = OperatorFunctionIdASTSlotBase + 5;
 const ConversionFunctionIdASTSlotBase = LiteralOperatorIdASTSlotBase + 5;
 const SimpleTemplateIdASTSlotBase = ConversionFunctionIdASTSlotBase + 2;
@@ -1018,8 +1084,10 @@ const SimpleNestedNameSpecifierASTSlotBase =
   GlobalNestedNameSpecifierASTSlotBase + 1;
 const DecltypeNestedNameSpecifierASTSlotBase =
   SimpleNestedNameSpecifierASTSlotBase + 4;
-const TemplateNestedNameSpecifierASTSlotBase =
+const PackIndexNestedNameSpecifierASTSlotBase =
   DecltypeNestedNameSpecifierASTSlotBase + 2;
+const TemplateNestedNameSpecifierASTSlotBase =
+  PackIndexNestedNameSpecifierASTSlotBase + 2;
 const DefaultFunctionBodyASTSlotBase =
   TemplateNestedNameSpecifierASTSlotBase + 5;
 const CompoundStatementFunctionBodyASTSlotBase =
@@ -1031,7 +1099,7 @@ const TypeTemplateArgumentASTSlotBase = DeleteFunctionBodyASTSlotBase + 3;
 const ExpressionTemplateArgumentASTSlotBase =
   TypeTemplateArgumentASTSlotBase + 1;
 const ThrowExceptionSpecifierASTSlotBase =
-  ExpressionTemplateArgumentASTSlotBase + 1;
+  ExpressionTemplateArgumentASTSlotBase + 2;
 const NoexceptSpecifierASTSlotBase = ThrowExceptionSpecifierASTSlotBase + 3;
 const SimpleRequirementASTSlotBase = NoexceptSpecifierASTSlotBase + 4;
 const CompoundRequirementASTSlotBase = SimpleRequirementASTSlotBase + 2;
@@ -1061,7 +1129,7 @@ const SimpleAttributeTokenASTSlotBase = ScopedAttributeTokenASTSlotBase + 5;
 const LiteralSlotBase = 0;
 const IntegerLiteralSlotBase = LiteralSlotBase + 2;
 const FloatLiteralSlotBase = IntegerLiteralSlotBase + 2;
-const StringLiteralSlotBase = FloatLiteralSlotBase + 2;
+const StringLiteralSlotBase = FloatLiteralSlotBase + 3;
 const CharLiteralSlotBase = StringLiteralSlotBase + 7;
 const NameSlotBase = 0;
 const IdentifierSlotBase = NameSlotBase + 2;
@@ -1078,19 +1146,19 @@ const DeductionGuideSymbolSlotBase = ConceptSymbolSlotBase + 11;
 const BaseClassSymbolSlotBase = DeductionGuideSymbolSlotBase + 12;
 const InjectedClassNameSymbolSlotBase = BaseClassSymbolSlotBase + 2;
 const ClassSymbolSlotBase = InjectedClassNameSymbolSlotBase + 1;
-const EnumSymbolSlotBase = ClassSymbolSlotBase + 66;
-const ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 14;
+const EnumSymbolSlotBase = ClassSymbolSlotBase + 71;
+const ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 15;
 const FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 13;
-const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 83;
+const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 84;
 const LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 4;
 const FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 7;
 const TemplateParametersSymbolSlotBase = FunctionParametersSymbolSlotBase + 1;
 const BlockSymbolSlotBase = TemplateParametersSymbolSlotBase + 1;
 const TypeAliasSymbolSlotBase = BlockSymbolSlotBase + 2;
 const VariableSymbolSlotBase = TypeAliasSymbolSlotBase + 18;
-const FieldSymbolSlotBase = VariableSymbolSlotBase + 31;
-const ParameterSymbolSlotBase = FieldSymbolSlotBase + 26;
-const ParameterPackSymbolSlotBase = ParameterSymbolSlotBase + 7;
+const FieldSymbolSlotBase = VariableSymbolSlotBase + 39;
+const ParameterSymbolSlotBase = FieldSymbolSlotBase + 28;
+const ParameterPackSymbolSlotBase = ParameterSymbolSlotBase + 9;
 const TypeParameterSymbolSlotBase = ParameterPackSymbolSlotBase + 1;
 const NonTypeParameterSymbolSlotBase = TypeParameterSymbolSlotBase + 1;
 const TemplateTypeParameterSymbolSlotBase = NonTypeParameterSymbolSlotBase + 5;
@@ -1124,7 +1192,8 @@ const DecltypeTypeSlotBase = PackExpansionTypeSlotBase + 1;
 const UnresolvedNameTypeSlotBase = DecltypeTypeSlotBase + 1;
 const UnresolvedBoundedArrayTypeSlotBase = UnresolvedNameTypeSlotBase + 3;
 const UnresolvedUnderlyingTypeSlotBase = UnresolvedBoundedArrayTypeSlotBase + 2;
-const UnresolvedBuiltinTypeSlotBase = UnresolvedUnderlyingTypeSlotBase + 1;
+const UnresolvedPackIndexTypeSlotBase = UnresolvedUnderlyingTypeSlotBase + 1;
+const UnresolvedBuiltinTypeSlotBase = UnresolvedPackIndexTypeSlotBase + 2;
 const BitIntTypeSlotBase = UnresolvedBuiltinTypeSlotBase + 2;
 const UnsignedBitIntTypeSlotBase = BitIntTypeSlotBase + 1;
 const UnresolvedBitIntTypeSlotBase = UnsignedBitIntTypeSlotBase + 1;
@@ -1134,7 +1203,26 @@ const ComplexTypeSlotBase = UnresolvedVectorTypeSlotBase + 4;
 const AtomicTypeSlotBase = ComplexTypeSlotBase + 1;
 const SveTypeSlotBase = AtomicTypeSlotBase + 1;
 /** @category Constant Values */
-export class DefaultInitializerContext extends ModelObject {}
+export class DefaultInitializerContext extends ModelObject {
+  get location(): SourceLocation | undefined {
+    return Token.from(
+      cxx.readMisc(this.handle, DefaultInitializerContextSlotBase + 0),
+      this.modelOwner,
+    )?.location;
+  }
+  get scope(): ScopeSymbol | undefined {
+    return symbolOf(
+      cxx.readMisc(this.handle, DefaultInitializerContextSlotBase + 1),
+      this.modelOwner,
+    );
+  }
+  get entity(): Symbol | undefined {
+    return symbolOf(
+      cxx.readMisc(this.handle, DefaultInitializerContextSlotBase + 2),
+      this.modelOwner,
+    );
+  }
+}
 /** @category Constant Values */
 export class InitializerList extends ModelObject {
   get size(): number {
@@ -1216,9 +1304,24 @@ export class ConstStorage extends ModelObject {
   get lifetimeEnded(): boolean {
     return cxx.readMisc(this.handle, ConstStorageSlotBase + 2) !== 0;
   }
+  get backingArray(): ConstStorage | undefined {
+    return objOf(
+      cxx.readMisc(this.handle, ConstStorageSlotBase + 3),
+      this.modelOwner,
+      ConstStorage,
+    );
+  }
 }
 /** @category Constant Values */
-export class Meta extends ModelObject {}
+export class Meta extends ModelObject {
+  get value():
+    Type | Symbol | Meta_ConstExpr | Meta_Parameter | ConstAddress | undefined {
+    return decodeVariant(
+      cxx.readMiscVal(this.handle, MetaSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+}
 /** @category Constant Values */
 export class ConstAddress extends ModelObject {
   get symbol(): Symbol | undefined {
@@ -1274,7 +1377,7 @@ export class ConstAddress extends ModelObject {
       this.modelOwner,
       this.handle,
       ConstAddressSlotBase + 8,
-      (item: any) => decodeVariant(item, this.modelOwner),
+      (item: any) => decodeVariant2(item, this.modelOwner),
     );
   }
   get memberAdjustment(): bigint {
@@ -1292,14 +1395,23 @@ export class ConstAddress extends ModelObject {
   get displacement(): bigint {
     return cxx.readMiscBigInt(this.handle, ConstAddressSlotBase + 12) as bigint;
   }
+  get objectHash(): number {
+    return cxx.readMisc(this.handle, ConstAddressSlotBase + 13);
+  }
+  get designatedType(): Type | undefined {
+    return typeOf(
+      cxx.readMisc(this.handle, ConstAddressSlotBase + 14),
+      this.modelOwner,
+    );
+  }
   get lifetimeEnded(): boolean {
-    return cxx.readMisc(this.handle, ConstAddressSlotBase + 13) !== 0;
+    return cxx.readMisc(this.handle, ConstAddressSlotBase + 15) !== 0;
   }
   get isNull(): boolean {
-    return cxx.readMisc(this.handle, ConstAddressSlotBase + 14) !== 0;
+    return cxx.readMisc(this.handle, ConstAddressSlotBase + 16) !== 0;
   }
   get denotesWholeOwner(): boolean {
-    return cxx.readMisc(this.handle, ConstAddressSlotBase + 15) !== 0;
+    return cxx.readMisc(this.handle, ConstAddressSlotBase + 17) !== 0;
   }
 }
 /** @category Constant Values */
@@ -1805,6 +1917,27 @@ export class StaticAssertDeclarationAST extends DeclarationAST {
     return optionalOf(
       cxx.readASTVal(this.handle, StaticAssertDeclarationASTSlotBase + 8),
       (item: any) => item !== 0,
+    );
+  }
+}
+/** @category AST Nodes */
+export class ConstevalBlockDeclarationAST extends DeclarationAST {
+  get constevalToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, ConstevalBlockDeclarationASTSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+  get statement(): CompoundStatementAST | undefined {
+    return astOf(
+      cxx.readAST(this.handle, ConstevalBlockDeclarationASTSlotBase + 1),
+      this.modelOwner,
+    );
+  }
+  get symbol(): LambdaSymbol | undefined {
+    return symbolOf(
+      cxx.readAST(this.handle, ConstevalBlockDeclarationASTSlotBase + 2),
+      this.modelOwner,
     );
   }
 }
@@ -4819,10 +4952,11 @@ export class SubscriptExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
-  get indexExpression(): ExpressionAST | undefined {
-    return astOf(
-      cxx.readAST(this.handle, SubscriptExpressionASTSlotBase + 2),
+  get expressionList(): Iterable<ExpressionAST | undefined> {
+    return listOf(
       this.modelOwner,
+      cxx.readAST(this.handle, SubscriptExpressionASTSlotBase + 2),
+      (item: any) => astOf(item, this.modelOwner),
     );
   }
   get rbracketToken(): Token | undefined {
@@ -4874,6 +5008,12 @@ export class CallExpressionAST extends ExpressionAST {
   get constructorSymbol(): FunctionSymbol | undefined {
     return symbolOf(
       cxx.readAST(this.handle, CallExpressionASTSlotBase + 5),
+      this.modelOwner,
+    );
+  }
+  get reflectionScope(): ScopeSymbol | undefined {
+    return symbolOf(
+      cxx.readAST(this.handle, CallExpressionASTSlotBase + 6),
       this.modelOwner,
     );
   }
@@ -4965,20 +5105,26 @@ export class SpliceMemberExpressionAST extends ExpressionAST {
       this.modelOwner,
     );
   }
+  get splice(): SpliceExpressionInfo {
+    return decodeSpliceExpressionInfo(
+      cxx.readASTVal(this.handle, SpliceMemberExpressionASTSlotBase + 4),
+      this.modelOwner,
+    );
+  }
   get symbol(): Symbol | undefined {
     return symbolOf(
-      cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 4),
+      cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 5),
       this.modelOwner,
     );
   }
   get accessOp(): TokenKind {
     return tokenKindNames[
-      cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 5)
+      cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 6)
     ]!;
   }
   get isTemplateIntroduced(): boolean {
     return (
-      cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 6) !== 0
+      cxx.readAST(this.handle, SpliceMemberExpressionASTSlotBase + 7) !== 0
     );
   }
 }
@@ -5303,6 +5449,12 @@ export class SpliceExpressionAST extends ExpressionAST {
   get splicer(): SplicerAST | undefined {
     return astOf(
       cxx.readAST(this.handle, SpliceExpressionASTSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+  get splice(): SpliceExpressionInfo {
+    return decodeSpliceExpressionInfo(
+      cxx.readASTVal(this.handle, SpliceExpressionASTSlotBase + 1),
       this.modelOwner,
     );
   }
@@ -5802,6 +5954,20 @@ export class ConstExpressionAST extends ExpressionAST {
     return optionalOf(
       cxx.readASTVal(this.handle, ConstExpressionASTSlotBase + 1),
       (item: any) => decodeConstValue(item, this.modelOwner),
+    );
+  }
+  get isDeferredImmediateInvocation(): boolean {
+    return cxx.readAST(this.handle, ConstExpressionASTSlotBase + 2) !== 0;
+  }
+  get evaluationKind(): ConstantEvaluationKind {
+    return constantEvaluationKindNames[
+      cxx.readAST(this.handle, ConstExpressionASTSlotBase + 3)
+    ]!;
+  }
+  get evaluationScope(): ScopeSymbol | undefined {
+    return symbolOf(
+      cxx.readAST(this.handle, ConstExpressionASTSlotBase + 4),
+      this.modelOwner,
     );
   }
 }
@@ -6935,6 +7101,39 @@ export class UnderlyingTypeSpecifierAST extends SpecifierAST {
   }
 }
 /** @category AST Nodes */
+export class PackIndexTypeSpecifierAST extends SpecifierAST {
+  get packSpecifier(): NamedTypeSpecifierAST | undefined {
+    return astOf(
+      cxx.readAST(this.handle, PackIndexTypeSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+  get ellipsisToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PackIndexTypeSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
+  }
+  get lbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PackIndexTypeSpecifierASTSlotBase + 2),
+      this.modelOwner,
+    );
+  }
+  get indexExpression(): ExpressionAST | undefined {
+    return astOf(
+      cxx.readAST(this.handle, PackIndexTypeSpecifierASTSlotBase + 3),
+      this.modelOwner,
+    );
+  }
+  get rbracketToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PackIndexTypeSpecifierASTSlotBase + 4),
+      this.modelOwner,
+    );
+  }
+}
+/** @category AST Nodes */
 export class ElaboratedTypeSpecifierAST extends SpecifierAST {
   get classToken(): Token | undefined {
     return Token.from(
@@ -7595,16 +7794,22 @@ export class ArrayDeclaratorChunkAST extends DeclaratorChunkAST {
       this.modelOwner,
     );
   }
+  get evaluationScope(): ScopeSymbol | undefined {
+    return symbolOf(
+      cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 3),
+      this.modelOwner,
+    );
+  }
   get rbracketToken(): Token | undefined {
     return Token.from(
-      cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 3),
+      cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 4),
       this.modelOwner,
     );
   }
   get attributeList(): Iterable<AttributeSpecifierAST | undefined> {
     return listOf(
       this.modelOwner,
-      cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 4),
+      cxx.readAST(this.handle, ArrayDeclaratorChunkASTSlotBase + 5),
       (item: any) => astOf(item, this.modelOwner),
     );
   }
@@ -7644,6 +7849,15 @@ export class DecltypeIdAST extends UnqualifiedIdAST {
   get decltypeSpecifier(): DecltypeSpecifierAST | undefined {
     return astOf(
       cxx.readAST(this.handle, DecltypeIdASTSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+}
+/** @category AST Nodes */
+export class PackIndexIdAST extends UnqualifiedIdAST {
+  get typeSpecifier(): SpecifierAST | undefined {
+    return astOf(
+      cxx.readAST(this.handle, PackIndexIdASTSlotBase + 0),
       this.modelOwner,
     );
   }
@@ -7877,6 +8091,21 @@ export class DecltypeNestedNameSpecifierAST extends NestedNameSpecifierAST {
   }
 }
 /** @category AST Nodes */
+export class PackIndexNestedNameSpecifierAST extends NestedNameSpecifierAST {
+  get typeSpecifier(): SpecifierAST | undefined {
+    return astOf(
+      cxx.readAST(this.handle, PackIndexNestedNameSpecifierASTSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+  get scopeToken(): Token | undefined {
+    return Token.from(
+      cxx.readAST(this.handle, PackIndexNestedNameSpecifierASTSlotBase + 1),
+      this.modelOwner,
+    );
+  }
+}
+/** @category AST Nodes */
 export class TemplateNestedNameSpecifierAST extends NestedNameSpecifierAST {
   get nestedNameSpecifier(): NestedNameSpecifierAST | undefined {
     return astOf(
@@ -8021,6 +8250,12 @@ export class ExpressionTemplateArgumentAST extends TemplateArgumentAST {
   get expression(): ExpressionAST | undefined {
     return astOf(
       cxx.readAST(this.handle, ExpressionTemplateArgumentASTSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+  get evaluationScope(): ScopeSymbol | undefined {
+    return symbolOf(
+      cxx.readAST(this.handle, ExpressionTemplateArgumentASTSlotBase + 1),
       this.modelOwner,
     );
   }
@@ -8766,9 +9001,12 @@ export class FloatLiteral extends Literal {
   get floatValue(): number {
     return cxx.readLiteral(this.handle, FloatLiteralSlotBase + 0);
   }
+  get longDoubleValue(): number {
+    return cxx.readLiteral(this.handle, FloatLiteralSlotBase + 1);
+  }
   get components(): FloatLiteral_Components {
     return decodeFloatLiteral_Components(
-      cxx.readLiteralVal(this.handle, FloatLiteralSlotBase + 1),
+      cxx.readLiteralVal(this.handle, FloatLiteralSlotBase + 2),
       this.modelOwner,
     );
   }
@@ -9479,12 +9717,18 @@ export class ClassSymbol extends ScopeSymbol {
       (item: any) => decodeTemplateArgument(item, this.modelOwner),
     );
   }
+  get firstNonFriendDeclarationLocation(): Token | undefined {
+    return Token.from(
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 19),
+      this.modelOwner,
+    );
+  }
   get isUnion(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 19) !== 0;
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 20) !== 0;
   }
   get anonymousVariable(): VariableSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 20),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 21),
       this.modelOwner,
     );
   }
@@ -9492,7 +9736,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 21,
+      ClassSymbolSlotBase + 22,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
@@ -9500,7 +9744,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 22,
+      ClassSymbolSlotBase + 23,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
@@ -9508,13 +9752,13 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 23,
+      ClassSymbolSlotBase + 24,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
   get constructorOverloadSet(): OverloadSetSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 24),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 25),
       this.modelOwner,
     );
   }
@@ -9522,7 +9766,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 25,
+      ClassSymbolSlotBase + 26,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
@@ -9530,7 +9774,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 26,
+      ClassSymbolSlotBase + 27,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
@@ -9538,7 +9782,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 27,
+      ClassSymbolSlotBase + 28,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
@@ -9546,104 +9790,118 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 28,
+      ClassSymbolSlotBase + 29,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
   get destructor(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 29),
-      this.modelOwner,
-    );
-  }
-  get defaultConstructor(): FunctionSymbol | undefined {
-    return symbolOf(
       cxx.readSymbol(this.handle, ClassSymbolSlotBase + 30),
       this.modelOwner,
     );
   }
-  get copyConstructor(): FunctionSymbol | undefined {
-    return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 31),
+  get prospectiveDestructors(): Iterable<FunctionSymbol | undefined> {
+    return symbolItems(
       this.modelOwner,
+      this.handle,
+      ClassSymbolSlotBase + 31,
+      (item: any) => symbolOf(item, this.modelOwner),
     );
   }
-  get moveConstructor(): FunctionSymbol | undefined {
+  get selectedDestructor(): FunctionSymbol | undefined {
     return symbolOf(
       cxx.readSymbol(this.handle, ClassSymbolSlotBase + 32),
       this.modelOwner,
     );
   }
-  get copyAssignmentOperator(): FunctionSymbol | undefined {
+  get defaultConstructor(): FunctionSymbol | undefined {
     return symbolOf(
       cxx.readSymbol(this.handle, ClassSymbolSlotBase + 33),
       this.modelOwner,
     );
   }
-  get moveAssignmentOperator(): FunctionSymbol | undefined {
+  get copyConstructor(): FunctionSymbol | undefined {
     return symbolOf(
       cxx.readSymbol(this.handle, ClassSymbolSlotBase + 34),
       this.modelOwner,
     );
   }
+  get moveConstructor(): FunctionSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 35),
+      this.modelOwner,
+    );
+  }
+  get copyAssignmentOperator(): FunctionSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 36),
+      this.modelOwner,
+    );
+  }
+  get moveAssignmentOperator(): FunctionSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 37),
+      this.modelOwner,
+    );
+  }
   get hasUserDeclaredConstructors(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 35) !== 0;
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 38) !== 0;
   }
   get hasInheritedConstructors(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 36) !== 0;
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 39) !== 0;
   }
   get hasVirtualFunctions(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 37) !== 0;
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 40) !== 0;
   }
   get hasVirtualBaseClasses(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 38) !== 0;
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 41) !== 0;
   }
   get convertingConstructors(): Iterable<FunctionSymbol | undefined> {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 39,
+      ClassSymbolSlotBase + 42,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
   get isFinal(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 40) !== 0;
-  }
-  get isComplete(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 41) !== 0;
-  }
-  get isFriend(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 42) !== 0;
-  }
-  get isPolymorphic(): boolean {
     return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 43) !== 0;
   }
-  get isAbstract(): boolean {
+  get isComplete(): boolean {
     return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 44) !== 0;
   }
-  get hasVirtualDestructor(): boolean {
+  get isFriend(): boolean {
     return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 45) !== 0;
   }
-  get isAccessControlDisabled(): boolean {
+  get isPolymorphic(): boolean {
     return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 46) !== 0;
   }
+  get isAbstract(): boolean {
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 47) !== 0;
+  }
+  get hasVirtualDestructor(): boolean {
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 48) !== 0;
+  }
+  get isAccessControlDisabled(): boolean {
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 49) !== 0;
+  }
   get sizeInBytes(): number {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 47);
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 50);
   }
   get alignment(): number {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 48);
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 51);
   }
   get explicitAlignment(): number {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 49);
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 52);
   }
   get packAlignment(): number {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 50);
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 53);
   }
   get befriendingClasses(): Iterable<ClassSymbol | undefined> {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 51,
+      ClassSymbolSlotBase + 54,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
@@ -9651,58 +9909,67 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 52,
+      ClassSymbolSlotBase + 55,
       (item: any) => decodeTemplateFriendship(item, this.modelOwner),
     );
   }
   get baseClassRepetition(): ClassSymbol_BaseClassRepetition {
     return decodeClassSymbol_BaseClassRepetition(
-      cxx.readSymbolVal(this.handle, ClassSymbolSlotBase + 53),
+      cxx.readSymbolVal(this.handle, ClassSymbolSlotBase + 56),
       this.modelOwner,
     );
   }
   get flags(): number {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 54);
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 57);
   }
   get hasVirtualBaseSubobjects(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 55) !== 0;
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 58) !== 0;
   }
   get vtableLayout(): VTableLayout | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, ClassSymbolSlotBase + 56),
+      cxx.readSymbolVal(this.handle, ClassSymbolSlotBase + 59),
       (item: any) => decodeVTableLayout(item, this.modelOwner),
     );
   }
   get isClosureType(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 57) !== 0;
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 60) !== 0;
+  }
+  get isConstevalBlockClosure(): boolean {
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 61) !== 0;
   }
   get hasLambdaCapture(): boolean {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 58) !== 0;
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 62) !== 0;
   }
   get capturedThisField(): FieldSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 59),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 63),
       this.modelOwner,
     );
   }
   get functionCallOperator(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 60),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 64),
       this.modelOwner,
     );
   }
   get closureDiscriminator(): number {
-    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 61);
+    return cxx.readSymbol(this.handle, ClassSymbolSlotBase + 65);
+  }
+  get closureInitializerOwner(): Symbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 66),
+      this.modelOwner,
+    );
   }
   get instantiationTemplate(): ClassSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 62),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 67),
       this.modelOwner,
     );
   }
   get templatePattern(): ClassSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 63),
+      cxx.readSymbol(this.handle, ClassSymbolSlotBase + 68),
       this.modelOwner,
     );
   }
@@ -9710,7 +9977,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 64,
+      ClassSymbolSlotBase + 69,
       (item: any) => decodeTemplateArgument(item, this.modelOwner),
     );
   }
@@ -9718,7 +9985,7 @@ export class ClassSymbol extends ScopeSymbol {
     return symbolStringItems(
       this.modelOwner,
       this.handle,
-      ClassSymbolSlotBase + 65,
+      ClassSymbolSlotBase + 70,
       (item: any) => item,
     );
   }
@@ -9799,6 +10066,12 @@ export class EnumSymbol extends ScopeSymbol {
   get underlyingType(): Type | undefined {
     return typeOf(
       cxx.readSymbol(this.handle, EnumSymbolSlotBase + 13),
+      this.modelOwner,
+    );
+  }
+  get promotionType(): Type | undefined {
+    return typeOf(
+      cxx.readSymbol(this.handle, EnumSymbolSlotBase + 14),
       this.modelOwner,
     );
   }
@@ -9993,33 +10266,39 @@ export class FunctionSymbol extends ScopeSymbol {
       this.modelOwner,
     );
   }
-  get isDefined(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 18) !== 0;
+  get returnTypeSyntax(): AST | undefined {
+    return astOf(
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 18),
+      this.modelOwner,
+    );
   }
-  get isStatic(): boolean {
+  get isDefined(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 19) !== 0;
   }
-  get isExtern(): boolean {
+  get isStatic(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 20) !== 0;
   }
-  get isFriend(): boolean {
+  get isExtern(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 21) !== 0;
   }
-  get isImplicitObjectMemberFunction(): boolean {
+  get isFriend(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 22) !== 0;
   }
-  get isNonStaticMemberFunction(): boolean {
+  get isImplicitObjectMemberFunction(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 23) !== 0;
   }
-  get hasImplicitObjectParameter(): boolean {
+  get isNonStaticMemberFunction(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 24) !== 0;
   }
-  get hasExplicitObjectParameter(): boolean {
+  get hasImplicitObjectParameter(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 25) !== 0;
+  }
+  get hasExplicitObjectParameter(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 26) !== 0;
   }
   get explicitObjectParameter(): ParameterSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 26),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 27),
       this.modelOwner,
     );
   }
@@ -10027,67 +10306,67 @@ export class FunctionSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      FunctionSymbolSlotBase + 27,
+      FunctionSymbolSlotBase + 28,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
   get kernelWorkgroupSize(): KernelWorkgroupSize | undefined {
-    return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 28) as
+    return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 29) as
       KernelWorkgroupSize | undefined;
   }
   get isConstexpr(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 29) !== 0;
-  }
-  get isConsteval(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 30) !== 0;
   }
-  get isInline(): boolean {
+  get isConsteval(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 31) !== 0;
   }
-  get isVirtual(): boolean {
+  get isInline(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 32) !== 0;
   }
-  get isExplicit(): boolean {
+  get isVirtual(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 33) !== 0;
   }
-  get isDeleted(): boolean {
+  get isExplicit(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 34) !== 0;
   }
-  get isDefaulted(): boolean {
+  get isDeleted(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 35) !== 0;
   }
-  get isImplicitlyDeclared(): boolean {
+  get isDefaulted(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 36) !== 0;
   }
-  get isPure(): boolean {
+  get isImplicitlyDeclared(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 37) !== 0;
   }
-  get isOverride(): boolean {
+  get isPure(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 38) !== 0;
   }
-  get isFinal(): boolean {
+  get isOverride(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 39) !== 0;
   }
-  get hasNoPrototype(): boolean {
+  get isFinal(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 40) !== 0;
   }
-  get hasExceptionSpecifier(): boolean {
+  get hasNoPrototype(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 41) !== 0;
   }
-  get isDefinitionRequired(): boolean {
+  get hasExceptionSpecifier(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 42) !== 0;
   }
-  get isNoReturn(): boolean {
+  get isDefinitionRequired(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 43) !== 0;
+  }
+  get isNoReturn(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 44) !== 0;
   }
   get builtinKind(): BuiltinFunctionKind {
     return builtinFunctionKindNames[
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 44)
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 45)
     ]!;
   }
   get trailingRequiresClause(): RequiresClauseAST | undefined {
     return astOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 45),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 46),
       this.modelOwner,
     );
   }
@@ -10095,100 +10374,92 @@ export class FunctionSymbol extends ScopeSymbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      FunctionSymbolSlotBase + 46,
+      FunctionSymbolSlotBase + 47,
       (item: any) => astOf(item, this.modelOwner),
     );
   }
   get isConstructor(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 47) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 48) !== 0;
   }
   get isDestructor(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 48) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 49) !== 0;
   }
   get languageLinkage(): LanguageKind {
     return languageKindNames[
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 49)
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 50)
     ]!;
   }
   get hasCLinkage(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 50) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 51) !== 0;
   }
   get externalName(): Identifier | undefined {
-    return nameOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 51),
-      this.modelOwner,
-    );
-  }
-  get aliasName(): Identifier | undefined {
     return nameOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 52),
       this.modelOwner,
     );
   }
-  get hasHiddenVisibility(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 53) !== 0;
-  }
-  get importModule(): Identifier | undefined {
+  get aliasName(): Identifier | undefined {
     return nameOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 54),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 53),
       this.modelOwner,
     );
   }
-  get importName(): Identifier | undefined {
+  get hasHiddenVisibility(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 54) !== 0;
+  }
+  get importModule(): Identifier | undefined {
     return nameOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 55),
       this.modelOwner,
     );
   }
-  get exportName(): Identifier | undefined {
+  get importName(): Identifier | undefined {
     return nameOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 56),
       this.modelOwner,
     );
   }
-  get hasPendingBody(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 57) !== 0;
+  get exportName(): Identifier | undefined {
+    return nameOf(
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 57),
+      this.modelOwner,
+    );
   }
-  get hasUninstantiatedBody(): boolean {
+  get hasPendingBody(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 58) !== 0;
   }
-  get isExplicitlySpecialized(): boolean {
+  get hasUninstantiatedBody(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 59) !== 0;
+  }
+  get isExplicitlySpecialized(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 60) !== 0;
   }
   get pendingBody(): PendingInstantiation | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 60),
+      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 61),
       (item: any) => decodePendingInstantiation(item, this.modelOwner),
     );
   }
   get hasDeferredImplicitExceptionSpecification(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 61) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 62) !== 0;
   }
   get hasDeferredDeletion(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 62) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 63) !== 0;
   }
   get pendingExceptionSpecification(): PendingInstantiation | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 63),
+      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 64),
       (item: any) => decodePendingInstantiation(item, this.modelOwner),
     );
   }
   get vtableSlotIndex(): number {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 64);
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 65);
   }
   get constructorPriority(): number | undefined {
-    return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 65) as
+    return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 66) as
       number | undefined;
   }
   get overriddenFunctions(): Iterable<FunctionSymbol | undefined> {
-    return symbolItems(
-      this.modelOwner,
-      this.handle,
-      FunctionSymbolSlotBase + 66,
-      (item: any) => symbolOf(item, this.modelOwner),
-    );
-  }
-  get befriendingClasses(): Iterable<ClassSymbol | undefined> {
     return symbolItems(
       this.modelOwner,
       this.handle,
@@ -10196,18 +10467,26 @@ export class FunctionSymbol extends ScopeSymbol {
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
+  get befriendingClasses(): Iterable<ClassSymbol | undefined> {
+    return symbolItems(
+      this.modelOwner,
+      this.handle,
+      FunctionSymbolSlotBase + 68,
+      (item: any) => symbolOf(item, this.modelOwner),
+    );
+  }
   get templateFriendships(): Iterable<TemplateFriendship> {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      FunctionSymbolSlotBase + 68,
+      FunctionSymbolSlotBase + 69,
       (item: any) => decodeTemplateFriendship(item, this.modelOwner),
     );
   }
   get constructorInitializers():
     Iterable<MemInitializerAST | undefined> | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 69),
+      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 70),
       (item: any) =>
         listOf(this.modelOwner, item, (item: any) =>
           astOf(item, this.modelOwner),
@@ -10216,63 +10495,63 @@ export class FunctionSymbol extends ScopeSymbol {
   }
   get delegatingConstructor(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 70),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 71),
       this.modelOwner,
     );
   }
   get completeObjectVariant(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 71),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 72),
       this.modelOwner,
     );
   }
   get deletingDtorVariant(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 72),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 73),
       this.modelOwner,
     );
   }
   get structorPrincipal(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 73),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 74),
       this.modelOwner,
     );
   }
   get isStructorVariant(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 74) !== 0;
-  }
-  get isStructor(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 75) !== 0;
   }
-  get hasBaseObjectVariant(): boolean {
+  get isStructor(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 76) !== 0;
   }
-  get inheritedConstructor(): FunctionSymbol | undefined {
-    return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 77),
-      this.modelOwner,
-    );
+  get hasBaseObjectVariant(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 77) !== 0;
   }
-  get inheritedConstructorOrigin(): FunctionSymbol | undefined {
+  get inheritedConstructor(): FunctionSymbol | undefined {
     return symbolOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 78),
       this.modelOwner,
     );
   }
+  get inheritedConstructorOrigin(): FunctionSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 79),
+      this.modelOwner,
+    );
+  }
   get isDeletingDtorVariant(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 79) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 80) !== 0;
   }
   get hostScope(): ScopeSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 80),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 81),
       this.modelOwner,
     );
   }
   get hasFriendDefaultArgument(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 81) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 82) !== 0;
   }
   get hasFriendDefaultTemplateArgument(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 82) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 83) !== 0;
   }
 }
 /** @category Symbols */
@@ -10485,47 +10764,53 @@ export class VariableSymbol extends Symbol {
       this.modelOwner,
     );
   }
-  get declaration(): SimpleDeclarationAST | undefined {
+  get typeSpecifier(): SpecifierAST | undefined {
     return astOf(
       cxx.readSymbol(this.handle, VariableSymbolSlotBase + 2),
       this.modelOwner,
     );
   }
-  get templateDeclaration(): TemplateDeclarationAST | undefined {
+  get declaration(): DeclarationAST | undefined {
     return astOf(
       cxx.readSymbol(this.handle, VariableSymbolSlotBase + 3),
       this.modelOwner,
     );
   }
-  get templateParameters(): TemplateParametersSymbol | undefined {
-    return symbolOf(
+  get templateDeclaration(): TemplateDeclarationAST | undefined {
+    return astOf(
       cxx.readSymbol(this.handle, VariableSymbolSlotBase + 4),
       this.modelOwner,
     );
   }
-  get primaryTemplateSymbol(): VariableSymbol | undefined {
+  get templateParameters(): TemplateParametersSymbol | undefined {
     return symbolOf(
       cxx.readSymbol(this.handle, VariableSymbolSlotBase + 5),
       this.modelOwner,
     );
   }
+  get primaryTemplateSymbol(): VariableSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 6),
+      this.modelOwner,
+    );
+  }
   get templateSpecializationIndex(): number {
-    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 6);
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 7);
   }
   get isSpecialization(): boolean {
-    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 7) !== 0;
-  }
-  get isTemplatePattern(): boolean {
     return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 8) !== 0;
   }
-  get isExplicitSpecialization(): boolean {
+  get isTemplatePattern(): boolean {
     return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 9) !== 0;
+  }
+  get isExplicitSpecialization(): boolean {
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 10) !== 0;
   }
   get templateArguments(): Iterable<TemplateArgument> {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      VariableSymbolSlotBase + 10,
+      VariableSymbolSlotBase + 11,
       (item: any) => decodeTemplateArgument(item, this.modelOwner),
     );
   }
@@ -10533,7 +10818,7 @@ export class VariableSymbol extends Symbol {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      VariableSymbolSlotBase + 11,
+      VariableSymbolSlotBase + 12,
       (item: any) => decodeTemplateSpecialization(item, this.modelOwner),
     );
   }
@@ -10543,7 +10828,7 @@ export class VariableSymbol extends Symbol {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      VariableSymbolSlotBase + 12,
+      VariableSymbolSlotBase + 13,
       (item: any) =>
         (item as any[]).map((element: any) =>
           decodeTemplateArgument(element, this.modelOwner),
@@ -10552,13 +10837,13 @@ export class VariableSymbol extends Symbol {
   }
   get canonicalOrNull(): VariableSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 13),
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 14),
       this.modelOwner,
     );
   }
   get resolvedDefinition(): VariableSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 14),
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 15),
       this.modelOwner,
     );
   }
@@ -10566,7 +10851,7 @@ export class VariableSymbol extends Symbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      VariableSymbolSlotBase + 15,
+      VariableSymbolSlotBase + 16,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
@@ -10574,65 +10859,93 @@ export class VariableSymbol extends Symbol {
     return symbolItems(
       this.modelOwner,
       this.handle,
-      VariableSymbolSlotBase + 16,
+      VariableSymbolSlotBase + 17,
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
   get isStatic(): boolean {
-    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 17) !== 0;
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 18) !== 0;
   }
   get isThreadLocal(): boolean {
-    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 18) !== 0;
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 19) !== 0;
   }
   get threadLocalKind(): ThreadLocalKind {
     return threadLocalKindNames[
-      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 19)
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 20)
     ]!;
   }
   get isExtern(): boolean {
-    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 20) !== 0;
-  }
-  get isConstexpr(): boolean {
     return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 21) !== 0;
   }
-  get isConstinit(): boolean {
+  get isConstexpr(): boolean {
     return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 22) !== 0;
   }
-  get isInline(): boolean {
+  get isTemplateParameterObject(): boolean {
     return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 23) !== 0;
   }
-  get isFunctionLocalPredefined(): boolean {
+  get isConstinit(): boolean {
     return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 24) !== 0;
   }
-  get isStructuredBindingAlias(): boolean {
+  get isInline(): boolean {
     return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 25) !== 0;
+  }
+  get isFunctionLocalPredefined(): boolean {
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 26) !== 0;
+  }
+  get languageLinkage(): LanguageKind {
+    return languageKindNames[
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 27)
+    ]!;
+  }
+  get hasCLinkage(): boolean {
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 28) !== 0;
+  }
+  get isStructuredBindingAlias(): boolean {
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 29) !== 0;
+  }
+  get structuredBindingKind(): StructuredBindingKind {
+    return structuredBindingKindNames[
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 30)
+    ]!;
+  }
+  get isStructuredBinding(): boolean {
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 31) !== 0;
   }
   get lifetimeExtendingDeclaration(): Symbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 26),
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 32),
       this.modelOwner,
     );
   }
   get initializer(): ExpressionAST | undefined {
     return astOf(
-      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 27),
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 33),
       this.modelOwner,
     );
   }
   get constructorSymbol(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 28),
+      cxx.readSymbol(this.handle, VariableSymbolSlotBase + 34),
       this.modelOwner,
     );
   }
   get constValue(): ConstValue | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, VariableSymbolSlotBase + 29),
+      cxx.readSymbolVal(this.handle, VariableSymbolSlotBase + 35),
       (item: any) => decodeConstValue(item, this.modelOwner),
     );
   }
   get explicitAlignment(): number {
-    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 30);
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 36);
+  }
+  get hasPendingInitializer(): boolean {
+    return cxx.readSymbol(this.handle, VariableSymbolSlotBase + 37) !== 0;
+  }
+  get pendingInitializer(): PendingInstantiation | undefined {
+    return optionalOf(
+      cxx.readSymbolVal(this.handle, VariableSymbolSlotBase + 38),
+      (item: any) => decodePendingInstantiation(item, this.modelOwner),
+    );
   }
 }
 /** @category Symbols */
@@ -10643,96 +10956,105 @@ export class FieldSymbol extends Symbol {
       this.modelOwner,
     );
   }
+  get typeSpecifier(): SpecifierAST | undefined {
+    return astOf(
+      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 1),
+      this.modelOwner,
+    );
+  }
   get isBitField(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 1) !== 0;
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 2) !== 0;
   }
   get bitFieldOffset(): number {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 2);
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 3);
   }
   get bitFieldWidth(): ConstValue | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 3),
+      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 4),
       (item: any) => decodeConstValue(item, this.modelOwner),
     );
   }
   get isExtern(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 4) !== 0;
-  }
-  get isStatic(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 5) !== 0;
   }
-  get isThreadLocal(): boolean {
+  get isStatic(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 6) !== 0;
+  }
+  get isThreadLocal(): boolean {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 7) !== 0;
   }
   get threadLocalKind(): ThreadLocalKind {
     return threadLocalKindNames[
-      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 7)
+      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 8)
     ]!;
   }
   get isConstexpr(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 8) !== 0;
-  }
-  get isConstinit(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 9) !== 0;
   }
-  get isInline(): boolean {
+  get isConstinit(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 10) !== 0;
   }
-  get isMutable(): boolean {
+  get isInline(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 11) !== 0;
   }
-  get isNoUniqueAddress(): boolean {
+  get isMutable(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 12) !== 0;
   }
+  get isNoUniqueAddress(): boolean {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 13) !== 0;
+  }
   get offsetInClass(): bigint | undefined {
-    return cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 13) as
+    return cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 14) as
       bigint | undefined;
   }
   get localOffset(): number {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 14);
-  }
-  get alignment(): number {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 15);
   }
-  get explicitAlignment(): number {
+  get alignment(): number {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 16);
   }
+  get explicitAlignment(): number {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 17);
+  }
   get isPacked(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 17) !== 0;
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 18) !== 0;
   }
   get effectiveAlignment(): number {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 18);
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 19);
   }
   get initializer(): ExpressionAST | undefined {
     return astOf(
-      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 19),
+      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 20),
       this.modelOwner,
     );
   }
   get constructorSymbol(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 20),
+      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 21),
       this.modelOwner,
     );
   }
   get constValue(): ConstValue | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 21),
+      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 22),
       (item: any) => decodeConstValue(item, this.modelOwner),
     );
   }
   get isDefinitionRequired(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 22) !== 0;
-  }
-  get hasPendingInitializer(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 23) !== 0;
   }
-  get hasInitializer(): boolean {
+  get hasPendingInitializer(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 24) !== 0;
+  }
+  get hasInitializer(): boolean {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 25) !== 0;
+  }
+  get hasImmediateEscalatingInitializer(): boolean {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 26) !== 0;
   }
   get pendingInitializer(): PendingInstantiation | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 25),
+      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 27),
       (item: any) => decodePendingInstantiation(item, this.modelOwner),
     );
   }
@@ -10742,35 +11064,44 @@ export class ParameterSymbol extends Symbol {
   get isParameterPack(): boolean {
     return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 0) !== 0;
   }
+  get declaration(): ParameterDeclarationAST | undefined {
+    return astOf(
+      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 1),
+      this.modelOwner,
+    );
+  }
   get kernelParameterBinding(): KernelParameterBinding | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, ParameterSymbolSlotBase + 1),
+      cxx.readSymbolVal(this.handle, ParameterSymbolSlotBase + 2),
       (item: any) => decodeKernelParameterBinding(item, this.modelOwner),
     );
   }
   get defaultArgument(): ExpressionAST | undefined {
     return astOf(
-      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 2),
+      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 3),
       this.modelOwner,
     );
   }
   get hasDefaultArgument(): boolean {
-    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 3) !== 0;
+    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 4) !== 0;
   }
   get pendingDefaultArgument(): PendingInstantiation | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, ParameterSymbolSlotBase + 4),
+      cxx.readSymbolVal(this.handle, ParameterSymbolSlotBase + 5),
       (item: any) => decodePendingInstantiation(item, this.modelOwner),
     );
   }
   get defaultArgumentSource(): ParameterSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 5),
+      cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 6),
       this.modelOwner,
     );
   }
   get isExplicitObject(): boolean {
-    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 6) !== 0;
+    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 7) !== 0;
+  }
+  get hasImmediateEscalatingDefaultArgument(): boolean {
+    return cxx.readSymbol(this.handle, ParameterSymbolSlotBase + 8) !== 0;
   }
 }
 /** @category Symbols */
@@ -11325,6 +11656,21 @@ export class UnresolvedUnderlyingType extends Type {
   }
 }
 /** @category Types */
+export class UnresolvedPackIndexType extends Type {
+  get pack(): Type | undefined {
+    return typeOf(
+      cxx.readType(this.handle, UnresolvedPackIndexTypeSlotBase + 0),
+      this.modelOwner,
+    );
+  }
+  get index(): ExpressionAST | undefined {
+    return astOf(
+      cxx.readType(this.handle, UnresolvedPackIndexTypeSlotBase + 1),
+      this.modelOwner,
+    );
+  }
+}
+/** @category Types */
 export class UnresolvedBuiltinType extends Type {
   get builtinKind(): UnaryBuiltinTypeKind {
     return unaryBuiltinTypeKindNames[
@@ -11437,6 +11783,7 @@ export type ASTKind =
   | "UsingEnumDeclaration"
   | "UsingDirective"
   | "StaticAssertDeclaration"
+  | "ConstevalBlockDeclaration"
   | "AliasDeclaration"
   | "OpaqueEnumDeclaration"
   | "FunctionDefinition"
@@ -11609,6 +11956,7 @@ export type ASTKind =
   | "AtomicTypeSpecifier"
   | "BitIntTypeSpecifier"
   | "UnderlyingTypeSpecifier"
+  | "PackIndexTypeSpecifier"
   | "ElaboratedTypeSpecifier"
   | "DecltypeAutoSpecifier"
   | "DecltypeSpecifier"
@@ -11633,6 +11981,7 @@ export type ASTKind =
   | "NameId"
   | "DestructorId"
   | "DecltypeId"
+  | "PackIndexId"
   | "OperatorFunctionId"
   | "LiteralOperatorId"
   | "ConversionFunctionId"
@@ -11642,6 +11991,7 @@ export type ASTKind =
   | "GlobalNestedNameSpecifier"
   | "SimpleNestedNameSpecifier"
   | "DecltypeNestedNameSpecifier"
+  | "PackIndexNestedNameSpecifier"
   | "TemplateNestedNameSpecifier"
   | "DefaultFunctionBody"
   | "CompoundStatementFunctionBody"
@@ -11684,243 +12034,247 @@ const astKindNames: Record<number, ASTKind> = {
   6: "UsingEnumDeclaration",
   7: "UsingDirective",
   8: "StaticAssertDeclaration",
-  9: "AliasDeclaration",
-  10: "OpaqueEnumDeclaration",
-  11: "FunctionDefinition",
-  12: "TemplateDeclaration",
-  13: "ConceptDefinition",
-  14: "DeductionGuide",
-  15: "ExplicitInstantiation",
-  16: "ExportDeclaration",
-  17: "ExportCompoundDeclaration",
-  18: "LinkageSpecification",
-  19: "NamespaceDefinition",
-  20: "EmptyDeclaration",
-  21: "AttributeDeclaration",
-  22: "ModuleImportDeclaration",
-  23: "ParameterDeclaration",
-  24: "AccessDeclaration",
-  25: "ForRangeDeclaration",
-  26: "StructuredBindingDeclaration",
-  27: "AsmOperand",
-  28: "AsmQualifier",
-  29: "AsmClobber",
-  30: "AsmGotoLabel",
-  31: "Splicer",
-  32: "GlobalModuleFragment",
-  33: "PrivateModuleFragment",
-  34: "ModuleDeclaration",
-  35: "ModuleName",
-  36: "ModuleQualifier",
-  37: "ModulePartition",
-  38: "ImportName",
-  39: "InitDeclarator",
-  40: "Declarator",
-  41: "UsingDeclarator",
-  42: "Enumerator",
-  43: "TypeId",
-  44: "Handler",
-  45: "BaseSpecifier",
-  46: "RequiresClause",
-  47: "ParameterDeclarationClause",
-  48: "TrailingReturnType",
-  49: "LambdaSpecifier",
-  50: "TypeConstraint",
-  51: "AttributeArgumentClause",
-  52: "Attribute",
-  53: "AttributeUsingPrefix",
-  54: "NewPlacement",
-  55: "NestedNamespaceSpecifier",
-  56: "LabeledStatement",
-  57: "CaseStatement",
-  58: "DefaultStatement",
-  59: "ExpressionStatement",
-  60: "CompoundStatement",
-  61: "IfStatement",
-  62: "ConstevalIfStatement",
-  63: "SwitchStatement",
-  64: "WhileStatement",
-  65: "DoStatement",
-  66: "ForRangeStatement",
-  67: "ForStatement",
-  68: "BreakStatement",
-  69: "ContinueStatement",
-  70: "ReturnStatement",
-  71: "CoroutineReturnStatement",
-  72: "GotoStatement",
-  73: "DeclarationStatement",
-  74: "TryBlockStatement",
-  75: "CharLiteralExpression",
-  76: "BoolLiteralExpression",
-  77: "IntLiteralExpression",
-  78: "FloatLiteralExpression",
-  79: "NullptrLiteralExpression",
-  80: "StringLiteralExpression",
-  81: "UserDefinedStringLiteralExpression",
-  82: "ObjectLiteralExpression",
-  83: "ThisExpression",
-  84: "PackIndexExpression",
-  85: "GenericSelectionExpression",
-  86: "NestedStatementExpression",
-  87: "DefaultInitializerExpression",
-  88: "NestedExpression",
-  89: "IdExpression",
-  90: "LambdaExpression",
-  91: "FoldExpression",
-  92: "RightFoldExpression",
-  93: "LeftFoldExpression",
-  94: "RequiresExpression",
-  95: "VaArgExpression",
-  96: "SubscriptExpression",
-  97: "CallExpression",
-  98: "TypeConstruction",
-  99: "BracedTypeConstruction",
-  100: "SpliceMemberExpression",
-  101: "MemberExpression",
-  102: "PostIncrExpression",
-  103: "CppCastExpression",
-  104: "BuiltinBitCastExpression",
-  105: "BuiltinConvertVectorExpression",
-  106: "BuiltinOffsetofExpression",
-  107: "TypeidExpression",
-  108: "TypeidOfTypeExpression",
-  109: "SpliceExpression",
-  110: "GlobalScopeReflectExpression",
-  111: "NamespaceReflectExpression",
-  112: "TypeIdReflectExpression",
-  113: "ReflectExpression",
-  114: "LabelAddressExpression",
-  115: "UnaryExpression",
-  116: "AwaitExpression",
-  117: "SizeofExpression",
-  118: "SizeofTypeExpression",
-  119: "SizeofPackExpression",
-  120: "AlignofTypeExpression",
-  121: "AlignofExpression",
-  122: "NoexceptExpression",
-  123: "NewExpression",
-  124: "DeleteExpression",
-  125: "CastExpression",
-  126: "ImplicitCastExpression",
-  127: "ConstExpression",
-  128: "BinaryExpression",
-  129: "ConditionalExpression",
-  130: "YieldExpression",
-  131: "ThrowExpression",
-  132: "AssignmentExpression",
-  133: "TargetExpression",
-  134: "RightExpression",
-  135: "CompoundAssignmentExpression",
-  136: "PackExpansionExpression",
-  137: "DesignatedInitializerClause",
-  138: "TypeTraitExpression",
-  139: "ConditionExpression",
-  140: "EqualInitializer",
-  141: "BracedInitList",
-  142: "ParenInitializer",
-  143: "ThreeWayComparisonExpression",
-  144: "DefaultGenericAssociation",
-  145: "TypeGenericAssociation",
-  146: "DotDesignator",
-  147: "SubscriptDesignator",
-  148: "TemplateTypeParameter",
-  149: "NonTypeTemplateParameter",
-  150: "TypenameTypeParameter",
-  151: "ConstraintTypeParameter",
-  152: "TypedefSpecifier",
-  153: "FriendSpecifier",
-  154: "ConstevalSpecifier",
-  155: "ConstinitSpecifier",
-  156: "ConstexprSpecifier",
-  157: "InlineSpecifier",
-  158: "NoreturnSpecifier",
-  159: "StaticSpecifier",
-  160: "ExternSpecifier",
-  161: "RegisterSpecifier",
-  162: "ThreadLocalSpecifier",
-  163: "ThreadSpecifier",
-  164: "MutableSpecifier",
-  165: "VirtualSpecifier",
-  166: "ExplicitSpecifier",
-  167: "AutoTypeSpecifier",
-  168: "VoidTypeSpecifier",
-  169: "SizeTypeSpecifier",
-  170: "SignTypeSpecifier",
-  171: "BuiltinTypeSpecifier",
-  172: "UnaryBuiltinTypeSpecifier",
-  173: "BinaryBuiltinTypeSpecifier",
-  174: "IntegralTypeSpecifier",
-  175: "FloatingPointTypeSpecifier",
-  176: "ComplexTypeSpecifier",
-  177: "NamedTypeSpecifier",
-  178: "AtomicTypeSpecifier",
-  179: "BitIntTypeSpecifier",
-  180: "UnderlyingTypeSpecifier",
-  181: "ElaboratedTypeSpecifier",
-  182: "DecltypeAutoSpecifier",
-  183: "DecltypeSpecifier",
-  184: "PlaceholderTypeSpecifier",
-  185: "ConstQualifier",
-  186: "VolatileQualifier",
-  187: "AtomicQualifier",
-  188: "RestrictQualifier",
-  189: "EnumSpecifier",
-  190: "ClassSpecifier",
-  191: "TypenameSpecifier",
-  192: "SplicerTypeSpecifier",
-  193: "PointerOperator",
-  194: "ReferenceOperator",
-  195: "PtrToMemberOperator",
-  196: "BitfieldDeclarator",
-  197: "ParameterPack",
-  198: "IdDeclarator",
-  199: "NestedDeclarator",
-  200: "FunctionDeclaratorChunk",
-  201: "ArrayDeclaratorChunk",
-  202: "NameId",
-  203: "DestructorId",
-  204: "DecltypeId",
-  205: "OperatorFunctionId",
-  206: "LiteralOperatorId",
-  207: "ConversionFunctionId",
-  208: "SimpleTemplateId",
-  209: "LiteralOperatorTemplateId",
-  210: "OperatorFunctionTemplateId",
-  211: "GlobalNestedNameSpecifier",
-  212: "SimpleNestedNameSpecifier",
-  213: "DecltypeNestedNameSpecifier",
-  214: "TemplateNestedNameSpecifier",
-  215: "DefaultFunctionBody",
-  216: "CompoundStatementFunctionBody",
-  217: "TryStatementFunctionBody",
-  218: "DeleteFunctionBody",
-  219: "TypeTemplateArgument",
-  220: "ExpressionTemplateArgument",
-  221: "ThrowExceptionSpecifier",
-  222: "NoexceptSpecifier",
-  223: "SimpleRequirement",
-  224: "CompoundRequirement",
-  225: "TypeRequirement",
-  226: "NestedRequirement",
-  227: "NewParenInitializer",
-  228: "NewBracedInitializer",
-  229: "ParenMemInitializer",
-  230: "BracedMemInitializer",
-  231: "ThisLambdaCapture",
-  232: "DerefThisLambdaCapture",
-  233: "SimpleLambdaCapture",
-  234: "RefLambdaCapture",
-  235: "RefInitLambdaCapture",
-  236: "InitLambdaCapture",
-  237: "EllipsisExceptionDeclaration",
-  238: "TypeExceptionDeclaration",
-  239: "CxxAttribute",
-  240: "GccAttribute",
-  241: "AlignasAttribute",
-  242: "AlignasTypeAttribute",
-  243: "AsmAttribute",
-  244: "ScopedAttributeToken",
-  245: "SimpleAttributeToken",
+  9: "ConstevalBlockDeclaration",
+  10: "AliasDeclaration",
+  11: "OpaqueEnumDeclaration",
+  12: "FunctionDefinition",
+  13: "TemplateDeclaration",
+  14: "ConceptDefinition",
+  15: "DeductionGuide",
+  16: "ExplicitInstantiation",
+  17: "ExportDeclaration",
+  18: "ExportCompoundDeclaration",
+  19: "LinkageSpecification",
+  20: "NamespaceDefinition",
+  21: "EmptyDeclaration",
+  22: "AttributeDeclaration",
+  23: "ModuleImportDeclaration",
+  24: "ParameterDeclaration",
+  25: "AccessDeclaration",
+  26: "ForRangeDeclaration",
+  27: "StructuredBindingDeclaration",
+  28: "AsmOperand",
+  29: "AsmQualifier",
+  30: "AsmClobber",
+  31: "AsmGotoLabel",
+  32: "Splicer",
+  33: "GlobalModuleFragment",
+  34: "PrivateModuleFragment",
+  35: "ModuleDeclaration",
+  36: "ModuleName",
+  37: "ModuleQualifier",
+  38: "ModulePartition",
+  39: "ImportName",
+  40: "InitDeclarator",
+  41: "Declarator",
+  42: "UsingDeclarator",
+  43: "Enumerator",
+  44: "TypeId",
+  45: "Handler",
+  46: "BaseSpecifier",
+  47: "RequiresClause",
+  48: "ParameterDeclarationClause",
+  49: "TrailingReturnType",
+  50: "LambdaSpecifier",
+  51: "TypeConstraint",
+  52: "AttributeArgumentClause",
+  53: "Attribute",
+  54: "AttributeUsingPrefix",
+  55: "NewPlacement",
+  56: "NestedNamespaceSpecifier",
+  57: "LabeledStatement",
+  58: "CaseStatement",
+  59: "DefaultStatement",
+  60: "ExpressionStatement",
+  61: "CompoundStatement",
+  62: "IfStatement",
+  63: "ConstevalIfStatement",
+  64: "SwitchStatement",
+  65: "WhileStatement",
+  66: "DoStatement",
+  67: "ForRangeStatement",
+  68: "ForStatement",
+  69: "BreakStatement",
+  70: "ContinueStatement",
+  71: "ReturnStatement",
+  72: "CoroutineReturnStatement",
+  73: "GotoStatement",
+  74: "DeclarationStatement",
+  75: "TryBlockStatement",
+  76: "CharLiteralExpression",
+  77: "BoolLiteralExpression",
+  78: "IntLiteralExpression",
+  79: "FloatLiteralExpression",
+  80: "NullptrLiteralExpression",
+  81: "StringLiteralExpression",
+  82: "UserDefinedStringLiteralExpression",
+  83: "ObjectLiteralExpression",
+  84: "ThisExpression",
+  85: "PackIndexExpression",
+  86: "GenericSelectionExpression",
+  87: "NestedStatementExpression",
+  88: "DefaultInitializerExpression",
+  89: "NestedExpression",
+  90: "IdExpression",
+  91: "LambdaExpression",
+  92: "FoldExpression",
+  93: "RightFoldExpression",
+  94: "LeftFoldExpression",
+  95: "RequiresExpression",
+  96: "VaArgExpression",
+  97: "SubscriptExpression",
+  98: "CallExpression",
+  99: "TypeConstruction",
+  100: "BracedTypeConstruction",
+  101: "SpliceMemberExpression",
+  102: "MemberExpression",
+  103: "PostIncrExpression",
+  104: "CppCastExpression",
+  105: "BuiltinBitCastExpression",
+  106: "BuiltinConvertVectorExpression",
+  107: "BuiltinOffsetofExpression",
+  108: "TypeidExpression",
+  109: "TypeidOfTypeExpression",
+  110: "SpliceExpression",
+  111: "GlobalScopeReflectExpression",
+  112: "NamespaceReflectExpression",
+  113: "TypeIdReflectExpression",
+  114: "ReflectExpression",
+  115: "LabelAddressExpression",
+  116: "UnaryExpression",
+  117: "AwaitExpression",
+  118: "SizeofExpression",
+  119: "SizeofTypeExpression",
+  120: "SizeofPackExpression",
+  121: "AlignofTypeExpression",
+  122: "AlignofExpression",
+  123: "NoexceptExpression",
+  124: "NewExpression",
+  125: "DeleteExpression",
+  126: "CastExpression",
+  127: "ImplicitCastExpression",
+  128: "ConstExpression",
+  129: "BinaryExpression",
+  130: "ConditionalExpression",
+  131: "YieldExpression",
+  132: "ThrowExpression",
+  133: "AssignmentExpression",
+  134: "TargetExpression",
+  135: "RightExpression",
+  136: "CompoundAssignmentExpression",
+  137: "PackExpansionExpression",
+  138: "DesignatedInitializerClause",
+  139: "TypeTraitExpression",
+  140: "ConditionExpression",
+  141: "EqualInitializer",
+  142: "BracedInitList",
+  143: "ParenInitializer",
+  144: "ThreeWayComparisonExpression",
+  145: "DefaultGenericAssociation",
+  146: "TypeGenericAssociation",
+  147: "DotDesignator",
+  148: "SubscriptDesignator",
+  149: "TemplateTypeParameter",
+  150: "NonTypeTemplateParameter",
+  151: "TypenameTypeParameter",
+  152: "ConstraintTypeParameter",
+  153: "TypedefSpecifier",
+  154: "FriendSpecifier",
+  155: "ConstevalSpecifier",
+  156: "ConstinitSpecifier",
+  157: "ConstexprSpecifier",
+  158: "InlineSpecifier",
+  159: "NoreturnSpecifier",
+  160: "StaticSpecifier",
+  161: "ExternSpecifier",
+  162: "RegisterSpecifier",
+  163: "ThreadLocalSpecifier",
+  164: "ThreadSpecifier",
+  165: "MutableSpecifier",
+  166: "VirtualSpecifier",
+  167: "ExplicitSpecifier",
+  168: "AutoTypeSpecifier",
+  169: "VoidTypeSpecifier",
+  170: "SizeTypeSpecifier",
+  171: "SignTypeSpecifier",
+  172: "BuiltinTypeSpecifier",
+  173: "UnaryBuiltinTypeSpecifier",
+  174: "BinaryBuiltinTypeSpecifier",
+  175: "IntegralTypeSpecifier",
+  176: "FloatingPointTypeSpecifier",
+  177: "ComplexTypeSpecifier",
+  178: "NamedTypeSpecifier",
+  179: "AtomicTypeSpecifier",
+  180: "BitIntTypeSpecifier",
+  181: "UnderlyingTypeSpecifier",
+  182: "PackIndexTypeSpecifier",
+  183: "ElaboratedTypeSpecifier",
+  184: "DecltypeAutoSpecifier",
+  185: "DecltypeSpecifier",
+  186: "PlaceholderTypeSpecifier",
+  187: "ConstQualifier",
+  188: "VolatileQualifier",
+  189: "AtomicQualifier",
+  190: "RestrictQualifier",
+  191: "EnumSpecifier",
+  192: "ClassSpecifier",
+  193: "TypenameSpecifier",
+  194: "SplicerTypeSpecifier",
+  195: "PointerOperator",
+  196: "ReferenceOperator",
+  197: "PtrToMemberOperator",
+  198: "BitfieldDeclarator",
+  199: "ParameterPack",
+  200: "IdDeclarator",
+  201: "NestedDeclarator",
+  202: "FunctionDeclaratorChunk",
+  203: "ArrayDeclaratorChunk",
+  204: "NameId",
+  205: "DestructorId",
+  206: "DecltypeId",
+  207: "PackIndexId",
+  208: "OperatorFunctionId",
+  209: "LiteralOperatorId",
+  210: "ConversionFunctionId",
+  211: "SimpleTemplateId",
+  212: "LiteralOperatorTemplateId",
+  213: "OperatorFunctionTemplateId",
+  214: "GlobalNestedNameSpecifier",
+  215: "SimpleNestedNameSpecifier",
+  216: "DecltypeNestedNameSpecifier",
+  217: "PackIndexNestedNameSpecifier",
+  218: "TemplateNestedNameSpecifier",
+  219: "DefaultFunctionBody",
+  220: "CompoundStatementFunctionBody",
+  221: "TryStatementFunctionBody",
+  222: "DeleteFunctionBody",
+  223: "TypeTemplateArgument",
+  224: "ExpressionTemplateArgument",
+  225: "ThrowExceptionSpecifier",
+  226: "NoexceptSpecifier",
+  227: "SimpleRequirement",
+  228: "CompoundRequirement",
+  229: "TypeRequirement",
+  230: "NestedRequirement",
+  231: "NewParenInitializer",
+  232: "NewBracedInitializer",
+  233: "ParenMemInitializer",
+  234: "BracedMemInitializer",
+  235: "ThisLambdaCapture",
+  236: "DerefThisLambdaCapture",
+  237: "SimpleLambdaCapture",
+  238: "RefLambdaCapture",
+  239: "RefInitLambdaCapture",
+  240: "InitLambdaCapture",
+  241: "EllipsisExceptionDeclaration",
+  242: "TypeExceptionDeclaration",
+  243: "CxxAttribute",
+  244: "GccAttribute",
+  245: "AlignasAttribute",
+  246: "AlignasTypeAttribute",
+  247: "AsmAttribute",
+  248: "ScopedAttributeToken",
+  249: "SimpleAttributeToken",
 };
 /** @category Enumerations */
 export type SymbolKind =
@@ -12031,6 +12385,7 @@ export type TypeKind =
   | "UnresolvedName"
   | "UnresolvedBoundedArray"
   | "UnresolvedUnderlying"
+  | "UnresolvedPackIndex"
   | "UnresolvedBuiltin"
   | "OverloadSet"
   | "BuiltinVaList"
@@ -12093,18 +12448,19 @@ const typeKindNames: Record<number, TypeKind> = {
   46: "UnresolvedName",
   47: "UnresolvedBoundedArray",
   48: "UnresolvedUnderlying",
-  49: "UnresolvedBuiltin",
-  50: "OverloadSet",
-  51: "BuiltinVaList",
-  52: "BuiltinMetaInfo",
-  53: "BitInt",
-  54: "UnsignedBitInt",
-  55: "UnresolvedBitInt",
-  56: "Vector",
-  57: "UnresolvedVector",
-  58: "Complex",
-  59: "Atomic",
-  60: "Sve",
+  49: "UnresolvedPackIndex",
+  50: "UnresolvedBuiltin",
+  51: "OverloadSet",
+  52: "BuiltinVaList",
+  53: "BuiltinMetaInfo",
+  54: "BitInt",
+  55: "UnsignedBitInt",
+  56: "UnresolvedBitInt",
+  57: "Vector",
+  58: "UnresolvedVector",
+  59: "Complex",
+  60: "Atomic",
+  61: "Sve",
 };
 /** @category Enumerations */
 export type NameKind =
@@ -12187,6 +12543,14 @@ const implicitCastKindNames: Record<number, ImplicitCastKind> = {
   25: "AddressSpaceConversion",
 };
 /** @category Enumerations */
+export type ConstantEvaluationKind =
+  "None" | "ManifestlyConstantEvaluated" | "ImmediateInvocation";
+const constantEvaluationKindNames: Record<number, ConstantEvaluationKind> = {
+  0: "None",
+  1: "ManifestlyConstantEvaluated",
+  2: "ImmediateInvocation",
+};
+/** @category Enumerations */
 export type BuiltinTypeTraitKind =
   | "none"
   | "__builtin_types_compatible_p"
@@ -12249,7 +12613,15 @@ export type BuiltinTypeTraitKind =
   | "__is_void"
   | "__is_volatile"
   | "__reference_constructs_from_temporary"
-  | "__reference_converts_from_temporary";
+  | "__reference_converts_from_temporary"
+  | "__builtin_is_structural"
+  | "__builtin_is_implicit_lifetime"
+  | "__builtin_is_virtual_base_of"
+  | "__builtin_lt_synthesizes_from_spaceship"
+  | "__builtin_le_synthesizes_from_spaceship"
+  | "__builtin_gt_synthesizes_from_spaceship"
+  | "__builtin_ge_synthesizes_from_spaceship"
+  | "__is_pointer_interconvertible_base_of";
 const builtinTypeTraitKindNames: Record<number, BuiltinTypeTraitKind> = {
   0: "none",
   1: "__builtin_types_compatible_p",
@@ -12313,6 +12685,14 @@ const builtinTypeTraitKindNames: Record<number, BuiltinTypeTraitKind> = {
   59: "__is_volatile",
   60: "__reference_constructs_from_temporary",
   61: "__reference_converts_from_temporary",
+  62: "__builtin_is_structural",
+  63: "__builtin_is_implicit_lifetime",
+  64: "__builtin_is_virtual_base_of",
+  65: "__builtin_lt_synthesizes_from_spaceship",
+  66: "__builtin_le_synthesizes_from_spaceship",
+  67: "__builtin_gt_synthesizes_from_spaceship",
+  68: "__builtin_ge_synthesizes_from_spaceship",
+  69: "__is_pointer_interconvertible_base_of",
 };
 /** @category Enumerations */
 export type UnaryBuiltinTypeKind =
@@ -12463,6 +12843,7 @@ export type BuiltinFunctionKind =
   | "__builtin_asinl"
   | "__builtin_assume"
   | "__builtin_assume_aligned"
+  | "__builtin_assume_dereferenceable"
   | "__builtin_atan"
   | "__builtin_atan2"
   | "__builtin_atan2f"
@@ -12582,6 +12963,8 @@ export type BuiltinFunctionKind =
   | "__builtin_ctzs"
   | "__builtin_cxx_control_barrier"
   | "__builtin_cxx_memory_barrier"
+  | "__builtin_elementwise_add_sat"
+  | "__builtin_elementwise_sub_sat"
   | "__builtin_erf"
   | "__builtin_erfc"
   | "__builtin_erfcf"
@@ -12654,6 +13037,7 @@ export type BuiltinFunctionKind =
   | "__builtin_infl"
   | "__builtin_invoke"
   | "__builtin_is_constant_evaluated"
+  | "__builtin_is_within_lifetime"
   | "__builtin_isalnum"
   | "__builtin_isalpha"
   | "__builtin_isblank"
@@ -12978,450 +13362,454 @@ const builtinFunctionKindNames: Record<number, BuiltinFunctionKind> = {
   67: "__builtin_asinl",
   68: "__builtin_assume",
   69: "__builtin_assume_aligned",
-  70: "__builtin_atan",
-  71: "__builtin_atan2",
-  72: "__builtin_atan2f",
-  73: "__builtin_atan2l",
-  74: "__builtin_atanf",
-  75: "__builtin_atanh",
-  76: "__builtin_atanhf",
-  77: "__builtin_atanhl",
-  78: "__builtin_atanl",
-  79: "__builtin_bcmp",
-  80: "__builtin_bcopy",
-  81: "__builtin_bswap16",
-  82: "__builtin_bswap32",
-  83: "__builtin_bswap64",
-  84: "__builtin_bzero",
-  85: "__builtin_c23_va_start",
-  86: "__builtin_cabs",
-  87: "__builtin_cabsf",
-  88: "__builtin_cabsl",
-  89: "__builtin_cacos",
-  90: "__builtin_cacosf",
-  91: "__builtin_cacosh",
-  92: "__builtin_cacoshf",
-  93: "__builtin_cacoshl",
-  94: "__builtin_cacosl",
-  95: "__builtin_carg",
-  96: "__builtin_cargf",
-  97: "__builtin_cargl",
-  98: "__builtin_casin",
-  99: "__builtin_casinf",
-  100: "__builtin_casinh",
-  101: "__builtin_casinhf",
-  102: "__builtin_casinhl",
-  103: "__builtin_casinl",
-  104: "__builtin_catan",
-  105: "__builtin_catanf",
-  106: "__builtin_catanh",
-  107: "__builtin_catanhf",
-  108: "__builtin_catanhl",
-  109: "__builtin_catanl",
-  110: "__builtin_cbrt",
-  111: "__builtin_cbrtf",
-  112: "__builtin_cbrtl",
-  113: "__builtin_ccos",
-  114: "__builtin_ccosf",
-  115: "__builtin_ccosh",
-  116: "__builtin_ccoshf",
-  117: "__builtin_ccoshl",
-  118: "__builtin_ccosl",
-  119: "__builtin_ceil",
-  120: "__builtin_ceilf",
-  121: "__builtin_ceill",
-  122: "__builtin_cexp",
-  123: "__builtin_cexpf",
-  124: "__builtin_cexpl",
-  125: "__builtin_cimag",
-  126: "__builtin_cimagf",
-  127: "__builtin_cimagl",
-  128: "__builtin_clog",
-  129: "__builtin_clogf",
-  130: "__builtin_clogl",
-  131: "__builtin_clrsb",
-  132: "__builtin_clrsbl",
-  133: "__builtin_clrsbll",
-  134: "__builtin_clz",
-  135: "__builtin_clzg",
-  136: "__builtin_clzl",
-  137: "__builtin_clzll",
-  138: "__builtin_clzs",
-  139: "__builtin_complex",
-  140: "__builtin_conj",
-  141: "__builtin_conjf",
-  142: "__builtin_conjl",
-  143: "__builtin_constant_p",
-  144: "__builtin_copysign",
-  145: "__builtin_copysignf",
-  146: "__builtin_copysignl",
-  147: "__builtin_coro_destroy",
-  148: "__builtin_coro_done",
-  149: "__builtin_coro_noop",
-  150: "__builtin_coro_promise",
-  151: "__builtin_coro_resume",
-  152: "__builtin_cos",
-  153: "__builtin_cosf",
-  154: "__builtin_cosh",
-  155: "__builtin_coshf",
-  156: "__builtin_coshl",
-  157: "__builtin_cosl",
-  158: "__builtin_cpow",
-  159: "__builtin_cpowf",
-  160: "__builtin_cpowl",
-  161: "__builtin_cproj",
-  162: "__builtin_cprojf",
-  163: "__builtin_cprojl",
-  164: "__builtin_creal",
-  165: "__builtin_crealf",
-  166: "__builtin_creall",
-  167: "__builtin_csin",
-  168: "__builtin_csinf",
-  169: "__builtin_csinh",
-  170: "__builtin_csinhf",
-  171: "__builtin_csinhl",
-  172: "__builtin_csinl",
-  173: "__builtin_csqrt",
-  174: "__builtin_csqrtf",
-  175: "__builtin_csqrtl",
-  176: "__builtin_ctan",
-  177: "__builtin_ctanf",
-  178: "__builtin_ctanh",
-  179: "__builtin_ctanhf",
-  180: "__builtin_ctanhl",
-  181: "__builtin_ctanl",
-  182: "__builtin_ctz",
-  183: "__builtin_ctzg",
-  184: "__builtin_ctzl",
-  185: "__builtin_ctzll",
-  186: "__builtin_ctzs",
-  187: "__builtin_cxx_control_barrier",
-  188: "__builtin_cxx_memory_barrier",
-  189: "__builtin_erf",
-  190: "__builtin_erfc",
-  191: "__builtin_erfcf",
-  192: "__builtin_erfcl",
-  193: "__builtin_erff",
-  194: "__builtin_erfl",
-  195: "__builtin_exit",
-  196: "__builtin_exp",
-  197: "__builtin_exp2",
-  198: "__builtin_exp2f",
-  199: "__builtin_exp2l",
-  200: "__builtin_expect",
-  201: "__builtin_expf",
-  202: "__builtin_expl",
-  203: "__builtin_expm1",
-  204: "__builtin_expm1f",
-  205: "__builtin_expm1l",
-  206: "__builtin_fabs",
-  207: "__builtin_fabsf",
-  208: "__builtin_fabsf128",
-  209: "__builtin_fabsl",
-  210: "__builtin_fdim",
-  211: "__builtin_fdimf",
-  212: "__builtin_fdiml",
-  213: "__builtin_ffs",
-  214: "__builtin_ffsl",
-  215: "__builtin_ffsll",
-  216: "__builtin_finite",
-  217: "__builtin_finitef",
-  218: "__builtin_finitel",
-  219: "__builtin_floor",
-  220: "__builtin_floorf",
-  221: "__builtin_floorl",
-  222: "__builtin_fma",
-  223: "__builtin_fmaf",
-  224: "__builtin_fmal",
-  225: "__builtin_fmax",
-  226: "__builtin_fmaxf",
-  227: "__builtin_fmaximum_num",
-  228: "__builtin_fmaximum_numf",
-  229: "__builtin_fmaximum_numl",
-  230: "__builtin_fmaxl",
-  231: "__builtin_fmin",
-  232: "__builtin_fminf",
-  233: "__builtin_fminimum_num",
-  234: "__builtin_fminimum_numf",
-  235: "__builtin_fminimum_numl",
-  236: "__builtin_fminl",
-  237: "__builtin_fmod",
-  238: "__builtin_fmodf",
-  239: "__builtin_fmodl",
-  240: "__builtin_fpclassify",
-  241: "__builtin_frame_address",
-  242: "__builtin_frexp",
-  243: "__builtin_frexpf",
-  244: "__builtin_frexpl",
-  245: "__builtin_huge_val",
-  246: "__builtin_huge_valf",
-  247: "__builtin_huge_vall",
-  248: "__builtin_hypot",
-  249: "__builtin_hypotf",
-  250: "__builtin_hypotl",
-  251: "__builtin_ia32_pause",
-  252: "__builtin_ilogb",
-  253: "__builtin_ilogbf",
-  254: "__builtin_ilogbl",
-  255: "__builtin_index",
-  256: "__builtin_inf",
-  257: "__builtin_inff",
-  258: "__builtin_infl",
-  259: "__builtin_invoke",
-  260: "__builtin_is_constant_evaluated",
-  261: "__builtin_isalnum",
-  262: "__builtin_isalpha",
-  263: "__builtin_isblank",
-  264: "__builtin_iscntrl",
-  265: "__builtin_isdigit",
-  266: "__builtin_isfinite",
-  267: "__builtin_isgraph",
-  268: "__builtin_isgreater",
-  269: "__builtin_isgreaterequal",
-  270: "__builtin_isinf",
-  271: "__builtin_isless",
-  272: "__builtin_islessequal",
-  273: "__builtin_islessgreater",
-  274: "__builtin_islower",
-  275: "__builtin_isnan",
-  276: "__builtin_isnormal",
-  277: "__builtin_isprint",
-  278: "__builtin_ispunct",
-  279: "__builtin_isspace",
-  280: "__builtin_isunordered",
-  281: "__builtin_isupper",
-  282: "__builtin_isxdigit",
-  283: "__builtin_labs",
-  284: "__builtin_ldexp",
-  285: "__builtin_ldexpf",
-  286: "__builtin_ldexpl",
-  287: "__builtin_lgamma",
-  288: "__builtin_lgammaf",
-  289: "__builtin_lgammal",
-  290: "__builtin_llabs",
-  291: "__builtin_llrint",
-  292: "__builtin_llrintf",
-  293: "__builtin_llrintl",
-  294: "__builtin_llround",
-  295: "__builtin_llroundf",
-  296: "__builtin_llroundl",
-  297: "__builtin_log",
-  298: "__builtin_log10",
-  299: "__builtin_log10f",
-  300: "__builtin_log10l",
-  301: "__builtin_log1p",
-  302: "__builtin_log1pf",
-  303: "__builtin_log1pl",
-  304: "__builtin_log2",
-  305: "__builtin_log2f",
-  306: "__builtin_log2l",
-  307: "__builtin_logb",
-  308: "__builtin_logbf",
-  309: "__builtin_logbl",
-  310: "__builtin_logf",
-  311: "__builtin_logl",
-  312: "__builtin_lrint",
-  313: "__builtin_lrintf",
-  314: "__builtin_lrintl",
-  315: "__builtin_lround",
-  316: "__builtin_lroundf",
-  317: "__builtin_lroundl",
-  318: "__builtin_memccpy",
-  319: "__builtin_memchr",
-  320: "__builtin_memcmp",
-  321: "__builtin_memcpy",
-  322: "__builtin_memmove",
-  323: "__builtin_mempcpy",
-  324: "__builtin_memset",
-  325: "__builtin_modf",
-  326: "__builtin_modff",
-  327: "__builtin_modfl",
-  328: "__builtin_mul_overflow",
-  329: "__builtin_nan",
-  330: "__builtin_nanf",
-  331: "__builtin_nanl",
-  332: "__builtin_nans",
-  333: "__builtin_nansf",
-  334: "__builtin_nansl",
-  335: "__builtin_nearbyint",
-  336: "__builtin_nearbyintf",
-  337: "__builtin_nearbyintl",
-  338: "__builtin_nextafter",
-  339: "__builtin_nextafterf",
-  340: "__builtin_nextafterl",
-  341: "__builtin_nexttoward",
-  342: "__builtin_nexttowardf",
-  343: "__builtin_nexttowardl",
-  344: "__builtin_operator_delete",
-  345: "__builtin_operator_new",
-  346: "__builtin_parity",
-  347: "__builtin_parityl",
-  348: "__builtin_parityll",
-  349: "__builtin_popcount",
-  350: "__builtin_popcountg",
-  351: "__builtin_popcountl",
-  352: "__builtin_popcountll",
-  353: "__builtin_pow",
-  354: "__builtin_powf",
-  355: "__builtin_powl",
-  356: "__builtin_reduce_add",
-  357: "__builtin_reduce_and",
-  358: "__builtin_reduce_mul",
-  359: "__builtin_reduce_or",
-  360: "__builtin_reduce_xor",
-  361: "__builtin_remainder",
-  362: "__builtin_remainderf",
-  363: "__builtin_remainderl",
-  364: "__builtin_remquo",
-  365: "__builtin_remquof",
-  366: "__builtin_remquol",
-  367: "__builtin_return_address",
-  368: "__builtin_rindex",
-  369: "__builtin_rint",
-  370: "__builtin_rintf",
-  371: "__builtin_rintl",
-  372: "__builtin_round",
-  373: "__builtin_roundeven",
-  374: "__builtin_roundevenf",
-  375: "__builtin_roundevenl",
-  376: "__builtin_roundf",
-  377: "__builtin_roundl",
-  378: "__builtin_sadd_overflow",
-  379: "__builtin_saddl_overflow",
-  380: "__builtin_saddll_overflow",
-  381: "__builtin_scalbln",
-  382: "__builtin_scalblnf",
-  383: "__builtin_scalblnl",
-  384: "__builtin_scalbn",
-  385: "__builtin_scalbnf",
-  386: "__builtin_scalbnl",
-  387: "__builtin_signbit",
-  388: "__builtin_sin",
-  389: "__builtin_sincos",
-  390: "__builtin_sincosf",
-  391: "__builtin_sincosl",
-  392: "__builtin_sinf",
-  393: "__builtin_sinh",
-  394: "__builtin_sinhf",
-  395: "__builtin_sinhl",
-  396: "__builtin_sinl",
-  397: "__builtin_smul_overflow",
-  398: "__builtin_smull_overflow",
-  399: "__builtin_smulll_overflow",
-  400: "__builtin_source_location",
-  401: "__builtin_sqrt",
-  402: "__builtin_sqrtf",
-  403: "__builtin_sqrtl",
-  404: "__builtin_ssub_overflow",
-  405: "__builtin_ssubl_overflow",
-  406: "__builtin_ssubll_overflow",
-  407: "__builtin_stpcpy",
-  408: "__builtin_stpncpy",
-  409: "__builtin_strcasecmp",
-  410: "__builtin_strcat",
-  411: "__builtin_strchr",
-  412: "__builtin_strcmp",
-  413: "__builtin_strcpy",
-  414: "__builtin_strcspn",
-  415: "__builtin_strdup",
-  416: "__builtin_strerror",
-  417: "__builtin_strlcat",
-  418: "__builtin_strlcpy",
-  419: "__builtin_strlen",
-  420: "__builtin_strncasecmp",
-  421: "__builtin_strncat",
-  422: "__builtin_strncmp",
-  423: "__builtin_strncpy",
-  424: "__builtin_strndup",
-  425: "__builtin_strpbrk",
-  426: "__builtin_strrchr",
-  427: "__builtin_strspn",
-  428: "__builtin_strstr",
-  429: "__builtin_strtod",
-  430: "__builtin_strtof",
-  431: "__builtin_strtok",
-  432: "__builtin_strtol",
-  433: "__builtin_strtold",
-  434: "__builtin_strtoll",
-  435: "__builtin_strtoul",
-  436: "__builtin_strtoull",
-  437: "__builtin_strxfrm",
-  438: "__builtin_sub_overflow",
-  439: "__builtin_subc",
-  440: "__builtin_subcb",
-  441: "__builtin_subcl",
-  442: "__builtin_subcll",
-  443: "__builtin_subcs",
-  444: "__builtin_tan",
-  445: "__builtin_tanf",
-  446: "__builtin_tanh",
-  447: "__builtin_tanhf",
-  448: "__builtin_tanhl",
-  449: "__builtin_tanl",
-  450: "__builtin_tgamma",
-  451: "__builtin_tgammaf",
-  452: "__builtin_tgammal",
-  453: "__builtin_thread_pointer",
-  454: "__builtin_tolower",
-  455: "__builtin_toupper",
-  456: "__builtin_trap",
-  457: "__builtin_trunc",
-  458: "__builtin_truncf",
-  459: "__builtin_truncl",
-  460: "__builtin_uadd_overflow",
-  461: "__builtin_uaddl_overflow",
-  462: "__builtin_uaddll_overflow",
-  463: "__builtin_umul_overflow",
-  464: "__builtin_umull_overflow",
-  465: "__builtin_umulll_overflow",
-  466: "__builtin_unreachable",
-  467: "__builtin_usub_overflow",
-  468: "__builtin_usubl_overflow",
-  469: "__builtin_usubll_overflow",
-  470: "__builtin_va_copy",
-  471: "__builtin_va_end",
-  472: "__builtin_va_start",
-  473: "__builtin_vsnprintf",
-  474: "__builtin_wcschr",
-  475: "__builtin_wcscmp",
-  476: "__builtin_wcslen",
-  477: "__builtin_wcsncmp",
-  478: "__builtin_wmemchr",
-  479: "__builtin_wmemcmp",
-  480: "__builtin_wmemcpy",
-  481: "__builtin_wmemmove",
-  482: "__c11_atomic_compare_exchange_strong",
-  483: "__c11_atomic_compare_exchange_weak",
-  484: "__c11_atomic_exchange",
-  485: "__c11_atomic_fetch_add",
-  486: "__c11_atomic_fetch_and",
-  487: "__c11_atomic_fetch_nand",
-  488: "__c11_atomic_fetch_or",
-  489: "__c11_atomic_fetch_sub",
-  490: "__c11_atomic_fetch_xor",
-  491: "__c11_atomic_init",
-  492: "__c11_atomic_is_lock_free",
-  493: "__c11_atomic_load",
-  494: "__c11_atomic_signal_fence",
-  495: "__c11_atomic_store",
-  496: "__c11_atomic_thread_fence",
-  497: "__sync_add_and_fetch",
-  498: "__sync_and_and_fetch",
-  499: "__sync_bool_compare_and_swap",
-  500: "__sync_fetch_and_add",
-  501: "__sync_fetch_and_and",
-  502: "__sync_fetch_and_nand",
-  503: "__sync_fetch_and_or",
-  504: "__sync_fetch_and_sub",
-  505: "__sync_fetch_and_xor",
-  506: "__sync_lock_release",
-  507: "__sync_lock_test_and_set",
-  508: "__sync_nand_and_fetch",
-  509: "__sync_or_and_fetch",
-  510: "__sync_sub_and_fetch",
-  511: "__sync_synchronize",
-  512: "__sync_val_compare_and_swap",
-  513: "__sync_xor_and_fetch",
+  70: "__builtin_assume_dereferenceable",
+  71: "__builtin_atan",
+  72: "__builtin_atan2",
+  73: "__builtin_atan2f",
+  74: "__builtin_atan2l",
+  75: "__builtin_atanf",
+  76: "__builtin_atanh",
+  77: "__builtin_atanhf",
+  78: "__builtin_atanhl",
+  79: "__builtin_atanl",
+  80: "__builtin_bcmp",
+  81: "__builtin_bcopy",
+  82: "__builtin_bswap16",
+  83: "__builtin_bswap32",
+  84: "__builtin_bswap64",
+  85: "__builtin_bzero",
+  86: "__builtin_c23_va_start",
+  87: "__builtin_cabs",
+  88: "__builtin_cabsf",
+  89: "__builtin_cabsl",
+  90: "__builtin_cacos",
+  91: "__builtin_cacosf",
+  92: "__builtin_cacosh",
+  93: "__builtin_cacoshf",
+  94: "__builtin_cacoshl",
+  95: "__builtin_cacosl",
+  96: "__builtin_carg",
+  97: "__builtin_cargf",
+  98: "__builtin_cargl",
+  99: "__builtin_casin",
+  100: "__builtin_casinf",
+  101: "__builtin_casinh",
+  102: "__builtin_casinhf",
+  103: "__builtin_casinhl",
+  104: "__builtin_casinl",
+  105: "__builtin_catan",
+  106: "__builtin_catanf",
+  107: "__builtin_catanh",
+  108: "__builtin_catanhf",
+  109: "__builtin_catanhl",
+  110: "__builtin_catanl",
+  111: "__builtin_cbrt",
+  112: "__builtin_cbrtf",
+  113: "__builtin_cbrtl",
+  114: "__builtin_ccos",
+  115: "__builtin_ccosf",
+  116: "__builtin_ccosh",
+  117: "__builtin_ccoshf",
+  118: "__builtin_ccoshl",
+  119: "__builtin_ccosl",
+  120: "__builtin_ceil",
+  121: "__builtin_ceilf",
+  122: "__builtin_ceill",
+  123: "__builtin_cexp",
+  124: "__builtin_cexpf",
+  125: "__builtin_cexpl",
+  126: "__builtin_cimag",
+  127: "__builtin_cimagf",
+  128: "__builtin_cimagl",
+  129: "__builtin_clog",
+  130: "__builtin_clogf",
+  131: "__builtin_clogl",
+  132: "__builtin_clrsb",
+  133: "__builtin_clrsbl",
+  134: "__builtin_clrsbll",
+  135: "__builtin_clz",
+  136: "__builtin_clzg",
+  137: "__builtin_clzl",
+  138: "__builtin_clzll",
+  139: "__builtin_clzs",
+  140: "__builtin_complex",
+  141: "__builtin_conj",
+  142: "__builtin_conjf",
+  143: "__builtin_conjl",
+  144: "__builtin_constant_p",
+  145: "__builtin_copysign",
+  146: "__builtin_copysignf",
+  147: "__builtin_copysignl",
+  148: "__builtin_coro_destroy",
+  149: "__builtin_coro_done",
+  150: "__builtin_coro_noop",
+  151: "__builtin_coro_promise",
+  152: "__builtin_coro_resume",
+  153: "__builtin_cos",
+  154: "__builtin_cosf",
+  155: "__builtin_cosh",
+  156: "__builtin_coshf",
+  157: "__builtin_coshl",
+  158: "__builtin_cosl",
+  159: "__builtin_cpow",
+  160: "__builtin_cpowf",
+  161: "__builtin_cpowl",
+  162: "__builtin_cproj",
+  163: "__builtin_cprojf",
+  164: "__builtin_cprojl",
+  165: "__builtin_creal",
+  166: "__builtin_crealf",
+  167: "__builtin_creall",
+  168: "__builtin_csin",
+  169: "__builtin_csinf",
+  170: "__builtin_csinh",
+  171: "__builtin_csinhf",
+  172: "__builtin_csinhl",
+  173: "__builtin_csinl",
+  174: "__builtin_csqrt",
+  175: "__builtin_csqrtf",
+  176: "__builtin_csqrtl",
+  177: "__builtin_ctan",
+  178: "__builtin_ctanf",
+  179: "__builtin_ctanh",
+  180: "__builtin_ctanhf",
+  181: "__builtin_ctanhl",
+  182: "__builtin_ctanl",
+  183: "__builtin_ctz",
+  184: "__builtin_ctzg",
+  185: "__builtin_ctzl",
+  186: "__builtin_ctzll",
+  187: "__builtin_ctzs",
+  188: "__builtin_cxx_control_barrier",
+  189: "__builtin_cxx_memory_barrier",
+  190: "__builtin_elementwise_add_sat",
+  191: "__builtin_elementwise_sub_sat",
+  192: "__builtin_erf",
+  193: "__builtin_erfc",
+  194: "__builtin_erfcf",
+  195: "__builtin_erfcl",
+  196: "__builtin_erff",
+  197: "__builtin_erfl",
+  198: "__builtin_exit",
+  199: "__builtin_exp",
+  200: "__builtin_exp2",
+  201: "__builtin_exp2f",
+  202: "__builtin_exp2l",
+  203: "__builtin_expect",
+  204: "__builtin_expf",
+  205: "__builtin_expl",
+  206: "__builtin_expm1",
+  207: "__builtin_expm1f",
+  208: "__builtin_expm1l",
+  209: "__builtin_fabs",
+  210: "__builtin_fabsf",
+  211: "__builtin_fabsf128",
+  212: "__builtin_fabsl",
+  213: "__builtin_fdim",
+  214: "__builtin_fdimf",
+  215: "__builtin_fdiml",
+  216: "__builtin_ffs",
+  217: "__builtin_ffsl",
+  218: "__builtin_ffsll",
+  219: "__builtin_finite",
+  220: "__builtin_finitef",
+  221: "__builtin_finitel",
+  222: "__builtin_floor",
+  223: "__builtin_floorf",
+  224: "__builtin_floorl",
+  225: "__builtin_fma",
+  226: "__builtin_fmaf",
+  227: "__builtin_fmal",
+  228: "__builtin_fmax",
+  229: "__builtin_fmaxf",
+  230: "__builtin_fmaximum_num",
+  231: "__builtin_fmaximum_numf",
+  232: "__builtin_fmaximum_numl",
+  233: "__builtin_fmaxl",
+  234: "__builtin_fmin",
+  235: "__builtin_fminf",
+  236: "__builtin_fminimum_num",
+  237: "__builtin_fminimum_numf",
+  238: "__builtin_fminimum_numl",
+  239: "__builtin_fminl",
+  240: "__builtin_fmod",
+  241: "__builtin_fmodf",
+  242: "__builtin_fmodl",
+  243: "__builtin_fpclassify",
+  244: "__builtin_frame_address",
+  245: "__builtin_frexp",
+  246: "__builtin_frexpf",
+  247: "__builtin_frexpl",
+  248: "__builtin_huge_val",
+  249: "__builtin_huge_valf",
+  250: "__builtin_huge_vall",
+  251: "__builtin_hypot",
+  252: "__builtin_hypotf",
+  253: "__builtin_hypotl",
+  254: "__builtin_ia32_pause",
+  255: "__builtin_ilogb",
+  256: "__builtin_ilogbf",
+  257: "__builtin_ilogbl",
+  258: "__builtin_index",
+  259: "__builtin_inf",
+  260: "__builtin_inff",
+  261: "__builtin_infl",
+  262: "__builtin_invoke",
+  263: "__builtin_is_constant_evaluated",
+  264: "__builtin_is_within_lifetime",
+  265: "__builtin_isalnum",
+  266: "__builtin_isalpha",
+  267: "__builtin_isblank",
+  268: "__builtin_iscntrl",
+  269: "__builtin_isdigit",
+  270: "__builtin_isfinite",
+  271: "__builtin_isgraph",
+  272: "__builtin_isgreater",
+  273: "__builtin_isgreaterequal",
+  274: "__builtin_isinf",
+  275: "__builtin_isless",
+  276: "__builtin_islessequal",
+  277: "__builtin_islessgreater",
+  278: "__builtin_islower",
+  279: "__builtin_isnan",
+  280: "__builtin_isnormal",
+  281: "__builtin_isprint",
+  282: "__builtin_ispunct",
+  283: "__builtin_isspace",
+  284: "__builtin_isunordered",
+  285: "__builtin_isupper",
+  286: "__builtin_isxdigit",
+  287: "__builtin_labs",
+  288: "__builtin_ldexp",
+  289: "__builtin_ldexpf",
+  290: "__builtin_ldexpl",
+  291: "__builtin_lgamma",
+  292: "__builtin_lgammaf",
+  293: "__builtin_lgammal",
+  294: "__builtin_llabs",
+  295: "__builtin_llrint",
+  296: "__builtin_llrintf",
+  297: "__builtin_llrintl",
+  298: "__builtin_llround",
+  299: "__builtin_llroundf",
+  300: "__builtin_llroundl",
+  301: "__builtin_log",
+  302: "__builtin_log10",
+  303: "__builtin_log10f",
+  304: "__builtin_log10l",
+  305: "__builtin_log1p",
+  306: "__builtin_log1pf",
+  307: "__builtin_log1pl",
+  308: "__builtin_log2",
+  309: "__builtin_log2f",
+  310: "__builtin_log2l",
+  311: "__builtin_logb",
+  312: "__builtin_logbf",
+  313: "__builtin_logbl",
+  314: "__builtin_logf",
+  315: "__builtin_logl",
+  316: "__builtin_lrint",
+  317: "__builtin_lrintf",
+  318: "__builtin_lrintl",
+  319: "__builtin_lround",
+  320: "__builtin_lroundf",
+  321: "__builtin_lroundl",
+  322: "__builtin_memccpy",
+  323: "__builtin_memchr",
+  324: "__builtin_memcmp",
+  325: "__builtin_memcpy",
+  326: "__builtin_memmove",
+  327: "__builtin_mempcpy",
+  328: "__builtin_memset",
+  329: "__builtin_modf",
+  330: "__builtin_modff",
+  331: "__builtin_modfl",
+  332: "__builtin_mul_overflow",
+  333: "__builtin_nan",
+  334: "__builtin_nanf",
+  335: "__builtin_nanl",
+  336: "__builtin_nans",
+  337: "__builtin_nansf",
+  338: "__builtin_nansl",
+  339: "__builtin_nearbyint",
+  340: "__builtin_nearbyintf",
+  341: "__builtin_nearbyintl",
+  342: "__builtin_nextafter",
+  343: "__builtin_nextafterf",
+  344: "__builtin_nextafterl",
+  345: "__builtin_nexttoward",
+  346: "__builtin_nexttowardf",
+  347: "__builtin_nexttowardl",
+  348: "__builtin_operator_delete",
+  349: "__builtin_operator_new",
+  350: "__builtin_parity",
+  351: "__builtin_parityl",
+  352: "__builtin_parityll",
+  353: "__builtin_popcount",
+  354: "__builtin_popcountg",
+  355: "__builtin_popcountl",
+  356: "__builtin_popcountll",
+  357: "__builtin_pow",
+  358: "__builtin_powf",
+  359: "__builtin_powl",
+  360: "__builtin_reduce_add",
+  361: "__builtin_reduce_and",
+  362: "__builtin_reduce_mul",
+  363: "__builtin_reduce_or",
+  364: "__builtin_reduce_xor",
+  365: "__builtin_remainder",
+  366: "__builtin_remainderf",
+  367: "__builtin_remainderl",
+  368: "__builtin_remquo",
+  369: "__builtin_remquof",
+  370: "__builtin_remquol",
+  371: "__builtin_return_address",
+  372: "__builtin_rindex",
+  373: "__builtin_rint",
+  374: "__builtin_rintf",
+  375: "__builtin_rintl",
+  376: "__builtin_round",
+  377: "__builtin_roundeven",
+  378: "__builtin_roundevenf",
+  379: "__builtin_roundevenl",
+  380: "__builtin_roundf",
+  381: "__builtin_roundl",
+  382: "__builtin_sadd_overflow",
+  383: "__builtin_saddl_overflow",
+  384: "__builtin_saddll_overflow",
+  385: "__builtin_scalbln",
+  386: "__builtin_scalblnf",
+  387: "__builtin_scalblnl",
+  388: "__builtin_scalbn",
+  389: "__builtin_scalbnf",
+  390: "__builtin_scalbnl",
+  391: "__builtin_signbit",
+  392: "__builtin_sin",
+  393: "__builtin_sincos",
+  394: "__builtin_sincosf",
+  395: "__builtin_sincosl",
+  396: "__builtin_sinf",
+  397: "__builtin_sinh",
+  398: "__builtin_sinhf",
+  399: "__builtin_sinhl",
+  400: "__builtin_sinl",
+  401: "__builtin_smul_overflow",
+  402: "__builtin_smull_overflow",
+  403: "__builtin_smulll_overflow",
+  404: "__builtin_source_location",
+  405: "__builtin_sqrt",
+  406: "__builtin_sqrtf",
+  407: "__builtin_sqrtl",
+  408: "__builtin_ssub_overflow",
+  409: "__builtin_ssubl_overflow",
+  410: "__builtin_ssubll_overflow",
+  411: "__builtin_stpcpy",
+  412: "__builtin_stpncpy",
+  413: "__builtin_strcasecmp",
+  414: "__builtin_strcat",
+  415: "__builtin_strchr",
+  416: "__builtin_strcmp",
+  417: "__builtin_strcpy",
+  418: "__builtin_strcspn",
+  419: "__builtin_strdup",
+  420: "__builtin_strerror",
+  421: "__builtin_strlcat",
+  422: "__builtin_strlcpy",
+  423: "__builtin_strlen",
+  424: "__builtin_strncasecmp",
+  425: "__builtin_strncat",
+  426: "__builtin_strncmp",
+  427: "__builtin_strncpy",
+  428: "__builtin_strndup",
+  429: "__builtin_strpbrk",
+  430: "__builtin_strrchr",
+  431: "__builtin_strspn",
+  432: "__builtin_strstr",
+  433: "__builtin_strtod",
+  434: "__builtin_strtof",
+  435: "__builtin_strtok",
+  436: "__builtin_strtol",
+  437: "__builtin_strtold",
+  438: "__builtin_strtoll",
+  439: "__builtin_strtoul",
+  440: "__builtin_strtoull",
+  441: "__builtin_strxfrm",
+  442: "__builtin_sub_overflow",
+  443: "__builtin_subc",
+  444: "__builtin_subcb",
+  445: "__builtin_subcl",
+  446: "__builtin_subcll",
+  447: "__builtin_subcs",
+  448: "__builtin_tan",
+  449: "__builtin_tanf",
+  450: "__builtin_tanh",
+  451: "__builtin_tanhf",
+  452: "__builtin_tanhl",
+  453: "__builtin_tanl",
+  454: "__builtin_tgamma",
+  455: "__builtin_tgammaf",
+  456: "__builtin_tgammal",
+  457: "__builtin_thread_pointer",
+  458: "__builtin_tolower",
+  459: "__builtin_toupper",
+  460: "__builtin_trap",
+  461: "__builtin_trunc",
+  462: "__builtin_truncf",
+  463: "__builtin_truncl",
+  464: "__builtin_uadd_overflow",
+  465: "__builtin_uaddl_overflow",
+  466: "__builtin_uaddll_overflow",
+  467: "__builtin_umul_overflow",
+  468: "__builtin_umull_overflow",
+  469: "__builtin_umulll_overflow",
+  470: "__builtin_unreachable",
+  471: "__builtin_usub_overflow",
+  472: "__builtin_usubl_overflow",
+  473: "__builtin_usubll_overflow",
+  474: "__builtin_va_copy",
+  475: "__builtin_va_end",
+  476: "__builtin_va_start",
+  477: "__builtin_vsnprintf",
+  478: "__builtin_wcschr",
+  479: "__builtin_wcscmp",
+  480: "__builtin_wcslen",
+  481: "__builtin_wcsncmp",
+  482: "__builtin_wmemchr",
+  483: "__builtin_wmemcmp",
+  484: "__builtin_wmemcpy",
+  485: "__builtin_wmemmove",
+  486: "__c11_atomic_compare_exchange_strong",
+  487: "__c11_atomic_compare_exchange_weak",
+  488: "__c11_atomic_exchange",
+  489: "__c11_atomic_fetch_add",
+  490: "__c11_atomic_fetch_and",
+  491: "__c11_atomic_fetch_nand",
+  492: "__c11_atomic_fetch_or",
+  493: "__c11_atomic_fetch_sub",
+  494: "__c11_atomic_fetch_xor",
+  495: "__c11_atomic_init",
+  496: "__c11_atomic_is_lock_free",
+  497: "__c11_atomic_load",
+  498: "__c11_atomic_signal_fence",
+  499: "__c11_atomic_store",
+  500: "__c11_atomic_thread_fence",
+  501: "__sync_add_and_fetch",
+  502: "__sync_and_and_fetch",
+  503: "__sync_bool_compare_and_swap",
+  504: "__sync_fetch_and_add",
+  505: "__sync_fetch_and_and",
+  506: "__sync_fetch_and_nand",
+  507: "__sync_fetch_and_or",
+  508: "__sync_fetch_and_sub",
+  509: "__sync_fetch_and_xor",
+  510: "__sync_lock_release",
+  511: "__sync_lock_test_and_set",
+  512: "__sync_nand_and_fetch",
+  513: "__sync_or_and_fetch",
+  514: "__sync_sub_and_fetch",
+  515: "__sync_synchronize",
+  516: "__sync_val_compare_and_swap",
+  517: "__sync_xor_and_fetch",
 };
 /** @category Enumerations */
 export type BuiltinTemplateKind =
@@ -13459,7 +13847,245 @@ export type WellKnownName =
   | "unordered"
   | "__func__"
   | "__FUNCTION__"
-  | "__PRETTY_FUNCTION__";
+  | "__PRETTY_FUNCTION__"
+  | "meta"
+  | "dealias"
+  | "is_type"
+  | "is_type_alias"
+  | "is_integral_type"
+  | "is_void_type"
+  | "is_null_pointer_type"
+  | "is_floating_point_type"
+  | "is_array_type"
+  | "is_pointer_type"
+  | "is_lvalue_reference_type"
+  | "is_rvalue_reference_type"
+  | "is_member_object_pointer_type"
+  | "is_member_function_pointer_type"
+  | "is_enum_type"
+  | "is_union_type"
+  | "is_class_type"
+  | "is_function_type"
+  | "is_reflection_type"
+  | "is_reference_type"
+  | "is_arithmetic_type"
+  | "is_fundamental_type"
+  | "is_object_type"
+  | "is_scalar_type"
+  | "is_compound_type"
+  | "is_member_pointer_type"
+  | "is_const_type"
+  | "is_volatile_type"
+  | "remove_const"
+  | "remove_volatile"
+  | "remove_cv"
+  | "add_const"
+  | "add_volatile"
+  | "add_cv"
+  | "remove_reference"
+  | "add_lvalue_reference"
+  | "add_rvalue_reference"
+  | "is_trivially_copyable_type"
+  | "is_standard_layout_type"
+  | "is_empty_type"
+  | "is_polymorphic_type"
+  | "is_abstract_type"
+  | "is_final_type"
+  | "is_aggregate_type"
+  | "is_signed_type"
+  | "is_unsigned_type"
+  | "is_bounded_array_type"
+  | "is_unbounded_array_type"
+  | "is_scoped_enum_type"
+  | "is_destructible_type"
+  | "is_trivially_destructible_type"
+  | "is_nothrow_destructible_type"
+  | "has_virtual_destructor"
+  | "make_signed"
+  | "make_unsigned"
+  | "remove_extent"
+  | "remove_all_extents"
+  | "remove_pointer"
+  | "add_pointer"
+  | "remove_cvref"
+  | "decay"
+  | "underlying_type"
+  | "is_same_type"
+  | "is_base_of_type"
+  | "is_virtual_base_of_type"
+  | "is_convertible_type"
+  | "is_assignable_type"
+  | "is_trivially_assignable_type"
+  | "is_nothrow_assignable_type"
+  | "reference_constructs_from_temporary"
+  | "reference_converts_from_temporary"
+  | "rank"
+  | "extent"
+  | "is_default_constructible_type"
+  | "is_copy_constructible_type"
+  | "is_move_constructible_type"
+  | "is_trivially_default_constructible_type"
+  | "is_trivially_copy_constructible_type"
+  | "is_trivially_move_constructible_type"
+  | "is_nothrow_default_constructible_type"
+  | "is_nothrow_copy_constructible_type"
+  | "is_nothrow_move_constructible_type"
+  | "is_copy_assignable_type"
+  | "is_move_assignable_type"
+  | "is_trivially_copy_assignable_type"
+  | "is_trivially_move_assignable_type"
+  | "is_nothrow_copy_assignable_type"
+  | "is_nothrow_move_assignable_type"
+  | "type_of"
+  | "is_namespace"
+  | "is_namespace_alias"
+  | "is_variable"
+  | "is_function"
+  | "is_enumerator"
+  | "is_template"
+  | "is_function_template"
+  | "is_variable_template"
+  | "is_class_template"
+  | "is_alias_template"
+  | "is_concept"
+  | "is_nonstatic_data_member"
+  | "is_bit_field"
+  | "is_mutable_member"
+  | "has_default_member_initializer"
+  | "return_type_of"
+  | "is_structured_binding"
+  | "has_unique_object_representations"
+  | "is_nothrow_convertible_type"
+  | "unwrap_reference"
+  | "unwrap_ref_decay"
+  | "is_structural_type"
+  | "is_implicit_lifetime_type"
+  | "is_layout_compatible_type"
+  | "is_pointer_interconvertible_base_of_type"
+  | "is_swappable_with_type"
+  | "is_swappable_type"
+  | "is_nothrow_swappable_with_type"
+  | "is_nothrow_swappable_type"
+  | "parameters_of"
+  | "is_function_parameter"
+  | "is_explicit_object_parameter"
+  | "variable_of"
+  | "has_default_argument"
+  | "is_public"
+  | "is_protected"
+  | "is_private"
+  | "is_virtual"
+  | "is_pure_virtual"
+  | "is_override"
+  | "is_final"
+  | "is_deleted"
+  | "is_defaulted"
+  | "is_user_provided"
+  | "is_user_declared"
+  | "is_explicit"
+  | "is_noexcept"
+  | "is_const"
+  | "is_volatile"
+  | "is_lvalue_reference_qualified"
+  | "is_rvalue_reference_qualified"
+  | "has_static_storage_duration"
+  | "has_thread_storage_duration"
+  | "has_automatic_storage_duration"
+  | "is_conversion_function"
+  | "is_operator_function"
+  | "is_literal_operator"
+  | "is_special_member_function"
+  | "is_constructor"
+  | "is_default_constructor"
+  | "is_copy_constructor"
+  | "is_move_constructor"
+  | "is_assignment"
+  | "is_copy_assignment"
+  | "is_move_assignment"
+  | "is_destructor"
+  | "is_vararg_function"
+  | "is_conversion_function_template"
+  | "is_operator_function_template"
+  | "is_literal_operator_template"
+  | "is_constructor_template"
+  | "is_class_member"
+  | "is_namespace_member"
+  | "is_static_member"
+  | "is_base"
+  | "has_parent"
+  | "has_template_arguments"
+  | "is_string_literal"
+  | "template_of"
+  | "is_complete_type"
+  | "is_enumerable_type"
+  | "enumerators_of"
+  | "parent_of"
+  | "size_of"
+  | "alignment_of"
+  | "bit_size_of"
+  | "offset_of"
+  | "operator_of"
+  | "symbol_of"
+  | "u8symbol_of"
+  | "display_string_of"
+  | "u8display_string_of"
+  | "current_function"
+  | "current_class"
+  | "current_namespace"
+  | "current"
+  | "via"
+  | "is_accessible"
+  | "has_inaccessible_nonstatic_data_members"
+  | "has_inaccessible_bases"
+  | "has_inaccessible_subobjects"
+  | "bases_of"
+  | "static_data_members_of"
+  | "nonstatic_data_members_of"
+  | "subobjects_of"
+  | "members_of"
+  | "template_arguments_of"
+  | "reflect_constant"
+  | "reflect_object"
+  | "reflect_function"
+  | "object_of"
+  | "is_value"
+  | "is_object"
+  | "has_identifier"
+  | "identifier_of"
+  | "u8identifier_of"
+  | "source_location_of"
+  | "has_internal_linkage"
+  | "has_module_linkage"
+  | "has_external_linkage"
+  | "has_c_language_linkage"
+  | "has_linkage"
+  | "can_substitute"
+  | "substitute"
+  | "extract"
+  | "constant_of"
+  | "reflect_constant_array"
+  | "reflect_constant_string"
+  | "is_constructible_type"
+  | "is_trivially_constructible_type"
+  | "is_nothrow_constructible_type"
+  | "is_invocable_type"
+  | "is_invocable_r_type"
+  | "is_nothrow_invocable_type"
+  | "is_nothrow_invocable_r_type"
+  | "is_invocable"
+  | "is_invocable_r"
+  | "is_nothrow_invocable"
+  | "is_nothrow_invocable_r"
+  | "invoke_result"
+  | "common_type"
+  | "common_reference"
+  | "variant_size"
+  | "variant_alternative"
+  | "array"
+  | "type_order"
+  | "exception"
+  | "_S_exception_cvt_to_utf8"
+  | "_S_exception_cvt_from_utf8";
 const wellKnownNameNames: Record<number, WellKnownName> = {
   0: "none",
   1: "std",
@@ -13484,6 +14110,244 @@ const wellKnownNameNames: Record<number, WellKnownName> = {
   20: "__func__",
   21: "__FUNCTION__",
   22: "__PRETTY_FUNCTION__",
+  23: "meta",
+  24: "dealias",
+  25: "is_type",
+  26: "is_type_alias",
+  27: "is_integral_type",
+  28: "is_void_type",
+  29: "is_null_pointer_type",
+  30: "is_floating_point_type",
+  31: "is_array_type",
+  32: "is_pointer_type",
+  33: "is_lvalue_reference_type",
+  34: "is_rvalue_reference_type",
+  35: "is_member_object_pointer_type",
+  36: "is_member_function_pointer_type",
+  37: "is_enum_type",
+  38: "is_union_type",
+  39: "is_class_type",
+  40: "is_function_type",
+  41: "is_reflection_type",
+  42: "is_reference_type",
+  43: "is_arithmetic_type",
+  44: "is_fundamental_type",
+  45: "is_object_type",
+  46: "is_scalar_type",
+  47: "is_compound_type",
+  48: "is_member_pointer_type",
+  49: "is_const_type",
+  50: "is_volatile_type",
+  51: "remove_const",
+  52: "remove_volatile",
+  53: "remove_cv",
+  54: "add_const",
+  55: "add_volatile",
+  56: "add_cv",
+  57: "remove_reference",
+  58: "add_lvalue_reference",
+  59: "add_rvalue_reference",
+  60: "is_trivially_copyable_type",
+  61: "is_standard_layout_type",
+  62: "is_empty_type",
+  63: "is_polymorphic_type",
+  64: "is_abstract_type",
+  65: "is_final_type",
+  66: "is_aggregate_type",
+  67: "is_signed_type",
+  68: "is_unsigned_type",
+  69: "is_bounded_array_type",
+  70: "is_unbounded_array_type",
+  71: "is_scoped_enum_type",
+  72: "is_destructible_type",
+  73: "is_trivially_destructible_type",
+  74: "is_nothrow_destructible_type",
+  75: "has_virtual_destructor",
+  76: "make_signed",
+  77: "make_unsigned",
+  78: "remove_extent",
+  79: "remove_all_extents",
+  80: "remove_pointer",
+  81: "add_pointer",
+  82: "remove_cvref",
+  83: "decay",
+  84: "underlying_type",
+  85: "is_same_type",
+  86: "is_base_of_type",
+  87: "is_virtual_base_of_type",
+  88: "is_convertible_type",
+  89: "is_assignable_type",
+  90: "is_trivially_assignable_type",
+  91: "is_nothrow_assignable_type",
+  92: "reference_constructs_from_temporary",
+  93: "reference_converts_from_temporary",
+  94: "rank",
+  95: "extent",
+  96: "is_default_constructible_type",
+  97: "is_copy_constructible_type",
+  98: "is_move_constructible_type",
+  99: "is_trivially_default_constructible_type",
+  100: "is_trivially_copy_constructible_type",
+  101: "is_trivially_move_constructible_type",
+  102: "is_nothrow_default_constructible_type",
+  103: "is_nothrow_copy_constructible_type",
+  104: "is_nothrow_move_constructible_type",
+  105: "is_copy_assignable_type",
+  106: "is_move_assignable_type",
+  107: "is_trivially_copy_assignable_type",
+  108: "is_trivially_move_assignable_type",
+  109: "is_nothrow_copy_assignable_type",
+  110: "is_nothrow_move_assignable_type",
+  111: "type_of",
+  112: "is_namespace",
+  113: "is_namespace_alias",
+  114: "is_variable",
+  115: "is_function",
+  116: "is_enumerator",
+  117: "is_template",
+  118: "is_function_template",
+  119: "is_variable_template",
+  120: "is_class_template",
+  121: "is_alias_template",
+  122: "is_concept",
+  123: "is_nonstatic_data_member",
+  124: "is_bit_field",
+  125: "is_mutable_member",
+  126: "has_default_member_initializer",
+  127: "return_type_of",
+  128: "is_structured_binding",
+  129: "has_unique_object_representations",
+  130: "is_nothrow_convertible_type",
+  131: "unwrap_reference",
+  132: "unwrap_ref_decay",
+  133: "is_structural_type",
+  134: "is_implicit_lifetime_type",
+  135: "is_layout_compatible_type",
+  136: "is_pointer_interconvertible_base_of_type",
+  137: "is_swappable_with_type",
+  138: "is_swappable_type",
+  139: "is_nothrow_swappable_with_type",
+  140: "is_nothrow_swappable_type",
+  141: "parameters_of",
+  142: "is_function_parameter",
+  143: "is_explicit_object_parameter",
+  144: "variable_of",
+  145: "has_default_argument",
+  146: "is_public",
+  147: "is_protected",
+  148: "is_private",
+  149: "is_virtual",
+  150: "is_pure_virtual",
+  151: "is_override",
+  152: "is_final",
+  153: "is_deleted",
+  154: "is_defaulted",
+  155: "is_user_provided",
+  156: "is_user_declared",
+  157: "is_explicit",
+  158: "is_noexcept",
+  159: "is_const",
+  160: "is_volatile",
+  161: "is_lvalue_reference_qualified",
+  162: "is_rvalue_reference_qualified",
+  163: "has_static_storage_duration",
+  164: "has_thread_storage_duration",
+  165: "has_automatic_storage_duration",
+  166: "is_conversion_function",
+  167: "is_operator_function",
+  168: "is_literal_operator",
+  169: "is_special_member_function",
+  170: "is_constructor",
+  171: "is_default_constructor",
+  172: "is_copy_constructor",
+  173: "is_move_constructor",
+  174: "is_assignment",
+  175: "is_copy_assignment",
+  176: "is_move_assignment",
+  177: "is_destructor",
+  178: "is_vararg_function",
+  179: "is_conversion_function_template",
+  180: "is_operator_function_template",
+  181: "is_literal_operator_template",
+  182: "is_constructor_template",
+  183: "is_class_member",
+  184: "is_namespace_member",
+  185: "is_static_member",
+  186: "is_base",
+  187: "has_parent",
+  188: "has_template_arguments",
+  189: "is_string_literal",
+  190: "template_of",
+  191: "is_complete_type",
+  192: "is_enumerable_type",
+  193: "enumerators_of",
+  194: "parent_of",
+  195: "size_of",
+  196: "alignment_of",
+  197: "bit_size_of",
+  198: "offset_of",
+  199: "operator_of",
+  200: "symbol_of",
+  201: "u8symbol_of",
+  202: "display_string_of",
+  203: "u8display_string_of",
+  204: "current_function",
+  205: "current_class",
+  206: "current_namespace",
+  207: "current",
+  208: "via",
+  209: "is_accessible",
+  210: "has_inaccessible_nonstatic_data_members",
+  211: "has_inaccessible_bases",
+  212: "has_inaccessible_subobjects",
+  213: "bases_of",
+  214: "static_data_members_of",
+  215: "nonstatic_data_members_of",
+  216: "subobjects_of",
+  217: "members_of",
+  218: "template_arguments_of",
+  219: "reflect_constant",
+  220: "reflect_object",
+  221: "reflect_function",
+  222: "object_of",
+  223: "is_value",
+  224: "is_object",
+  225: "has_identifier",
+  226: "identifier_of",
+  227: "u8identifier_of",
+  228: "source_location_of",
+  229: "has_internal_linkage",
+  230: "has_module_linkage",
+  231: "has_external_linkage",
+  232: "has_c_language_linkage",
+  233: "has_linkage",
+  234: "can_substitute",
+  235: "substitute",
+  236: "extract",
+  237: "constant_of",
+  238: "reflect_constant_array",
+  239: "reflect_constant_string",
+  240: "is_constructible_type",
+  241: "is_trivially_constructible_type",
+  242: "is_nothrow_constructible_type",
+  243: "is_invocable_type",
+  244: "is_invocable_r_type",
+  245: "is_nothrow_invocable_type",
+  246: "is_nothrow_invocable_r_type",
+  247: "is_invocable",
+  248: "is_invocable_r",
+  249: "is_nothrow_invocable",
+  250: "is_nothrow_invocable_r",
+  251: "invoke_result",
+  252: "common_type",
+  253: "common_reference",
+  254: "variant_size",
+  255: "variant_alternative",
+  256: "array",
+  257: "type_order",
+  258: "exception",
+  259: "_S_exception_cvt_to_utf8",
+  260: "_S_exception_cvt_from_utf8",
 };
 /** @category Enumerations */
 export type AccessSpecifier = "Public" | "Protected" | "Private";
@@ -13541,6 +14405,13 @@ const threadLocalKindNames: Record<number, ThreadLocalKind> = {
   0: "None",
   1: "Cxx",
   2: "Gnu",
+};
+/** @category Enumerations */
+export type StructuredBindingKind = "None" | "Reference" | "Alias";
+const structuredBindingKindNames: Record<number, StructuredBindingKind> = {
+  0: "None",
+  1: "Reference",
+  2: "Alias",
 };
 /** @category Enumerations */
 export type KernelInvocationIdKind = "Global" | "Local" | "Workgroup";
@@ -13615,6 +14486,7 @@ const astConstructors: Record<
   UsingEnumDeclaration: UsingEnumDeclarationAST,
   UsingDirective: UsingDirectiveAST,
   StaticAssertDeclaration: StaticAssertDeclarationAST,
+  ConstevalBlockDeclaration: ConstevalBlockDeclarationAST,
   AliasDeclaration: AliasDeclarationAST,
   OpaqueEnumDeclaration: OpaqueEnumDeclarationAST,
   FunctionDefinition: FunctionDefinitionAST,
@@ -13787,6 +14659,7 @@ const astConstructors: Record<
   AtomicTypeSpecifier: AtomicTypeSpecifierAST,
   BitIntTypeSpecifier: BitIntTypeSpecifierAST,
   UnderlyingTypeSpecifier: UnderlyingTypeSpecifierAST,
+  PackIndexTypeSpecifier: PackIndexTypeSpecifierAST,
   ElaboratedTypeSpecifier: ElaboratedTypeSpecifierAST,
   DecltypeAutoSpecifier: DecltypeAutoSpecifierAST,
   DecltypeSpecifier: DecltypeSpecifierAST,
@@ -13811,6 +14684,7 @@ const astConstructors: Record<
   NameId: NameIdAST,
   DestructorId: DestructorIdAST,
   DecltypeId: DecltypeIdAST,
+  PackIndexId: PackIndexIdAST,
   OperatorFunctionId: OperatorFunctionIdAST,
   LiteralOperatorId: LiteralOperatorIdAST,
   ConversionFunctionId: ConversionFunctionIdAST,
@@ -13820,6 +14694,7 @@ const astConstructors: Record<
   GlobalNestedNameSpecifier: GlobalNestedNameSpecifierAST,
   SimpleNestedNameSpecifier: SimpleNestedNameSpecifierAST,
   DecltypeNestedNameSpecifier: DecltypeNestedNameSpecifierAST,
+  PackIndexNestedNameSpecifier: PackIndexNestedNameSpecifierAST,
   TemplateNestedNameSpecifier: TemplateNestedNameSpecifierAST,
   DefaultFunctionBody: DefaultFunctionBodyAST,
   CompoundStatementFunctionBody: CompoundStatementFunctionBodyAST,
@@ -13941,6 +14816,7 @@ const typeConstructors: Record<
   UnresolvedName: UnresolvedNameType,
   UnresolvedBoundedArray: UnresolvedBoundedArrayType,
   UnresolvedUnderlying: UnresolvedUnderlyingType,
+  UnresolvedPackIndex: UnresolvedPackIndexType,
   UnresolvedBuiltin: UnresolvedBuiltinType,
   BitInt: BitIntType,
   UnsignedBitInt: UnsignedBitIntType,
@@ -14003,6 +14879,9 @@ const childSlots: Partial<
   ],
   StaticAssertDeclaration: [
     [StaticAssertDeclarationASTSlotBase + 2, false, "expression"],
+  ],
+  ConstevalBlockDeclaration: [
+    [ConstevalBlockDeclarationASTSlotBase + 1, false, "statement"],
   ],
   AliasDeclaration: [
     [AliasDeclarationASTSlotBase + 2, true, "attributeList"],
@@ -14309,7 +15188,7 @@ const childSlots: Partial<
   ],
   SubscriptExpression: [
     [SubscriptExpressionASTSlotBase + 0, false, "baseExpression"],
-    [SubscriptExpressionASTSlotBase + 2, false, "indexExpression"],
+    [SubscriptExpressionASTSlotBase + 2, true, "expressionList"],
   ],
   CallExpression: [
     [CallExpressionASTSlotBase + 0, false, "baseExpression"],
@@ -14505,6 +15384,10 @@ const childSlots: Partial<
   UnderlyingTypeSpecifier: [
     [UnderlyingTypeSpecifierASTSlotBase + 2, false, "typeId"],
   ],
+  PackIndexTypeSpecifier: [
+    [PackIndexTypeSpecifierASTSlotBase + 0, false, "packSpecifier"],
+    [PackIndexTypeSpecifierASTSlotBase + 3, false, "indexExpression"],
+  ],
   ElaboratedTypeSpecifier: [
     [ElaboratedTypeSpecifierASTSlotBase + 1, true, "attributeList"],
     [ElaboratedTypeSpecifierASTSlotBase + 2, false, "nestedNameSpecifier"],
@@ -14581,11 +15464,12 @@ const childSlots: Partial<
   ArrayDeclaratorChunk: [
     [ArrayDeclaratorChunkASTSlotBase + 1, true, "typeQualifierList"],
     [ArrayDeclaratorChunkASTSlotBase + 2, false, "expression"],
-    [ArrayDeclaratorChunkASTSlotBase + 4, true, "attributeList"],
+    [ArrayDeclaratorChunkASTSlotBase + 5, true, "attributeList"],
   ],
   NameId: [],
   DestructorId: [[DestructorIdASTSlotBase + 1, false, "id"]],
   DecltypeId: [[DecltypeIdASTSlotBase + 0, false, "decltypeSpecifier"]],
+  PackIndexId: [[PackIndexIdASTSlotBase + 0, false, "typeSpecifier"]],
   OperatorFunctionId: [],
   LiteralOperatorId: [],
   ConversionFunctionId: [
@@ -14608,6 +15492,9 @@ const childSlots: Partial<
   ],
   DecltypeNestedNameSpecifier: [
     [DecltypeNestedNameSpecifierASTSlotBase + 0, false, "decltypeSpecifier"],
+  ],
+  PackIndexNestedNameSpecifier: [
+    [PackIndexNestedNameSpecifierASTSlotBase + 0, false, "typeSpecifier"],
   ],
   TemplateNestedNameSpecifier: [
     [TemplateNestedNameSpecifierASTSlotBase + 0, false, "nestedNameSpecifier"],

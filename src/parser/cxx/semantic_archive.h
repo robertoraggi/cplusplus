@@ -122,10 +122,16 @@ struct SemanticArchiveRoots {
   ScopeSymbol* globalScope = nullptr;
   UnitAST* ast = nullptr;
   int anonymousIdCount = 0;
+  int uniqueClosureCount = 0;
   unsigned prefixTokenCount = 0;
   std::vector<FunctionSymbol*> pendingBodyCompletions;
   std::vector<ClassSymbol*> pendingMemberInstantiations;
   std::vector<ClassSymbol*> instantiatedMemberClasses;
+  std::vector<FunctionSymbol*> explicitInstantiationDefinitions;
+  std::vector<ClassSymbol*> explicitInstantiationClassDefinitions;
+  std::vector<Symbol*> explicitInstantiationVariableDefinitions;
+  std::vector<Symbol*> explicitInstantiationMemberDeclarations;
+  std::vector<Symbol*> cLanguageLinkageEntities;
   std::vector<std::pair<std::uint64_t, std::string>> snippets;
   const Type* alignValType = nullptr;
   const Type* nothrowType = nullptr;

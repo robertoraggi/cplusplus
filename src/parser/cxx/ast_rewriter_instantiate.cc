@@ -127,10 +127,22 @@ class InstantiationDepthGuard {
                                                        templateArguments));
 }
 
-[[nodiscard]] auto instantiationLabel(Symbol* symbol) -> std::string_view {
-  if (symbol_cast<FunctionSymbol>(symbol))
+struct InstantiationLabel {
+  [[nodiscard]] auto operator()(FunctionSymbol*) const -> std::string_view {
     return "function template specialization";
-  return "template class";
+  }
+
+  [[nodiscard]] auto operator()(VariableSymbol*) const -> std::string_view {
+    return "variable template specialization";
+  }
+
+  [[nodiscard]] auto operator()(Symbol*) const -> std::string_view {
+    return "template class";
+  }
+};
+
+[[nodiscard]] auto instantiationLabel(Symbol* symbol) -> std::string_view {
+  return visit(InstantiationLabel{}, symbol);
 }
 
 void noteInstantiationRequestedHere(
@@ -229,7 +241,7 @@ void recordFunctionInstantiationRequest(Symbol* primary, Symbol* specialization,
     auto intExpr = IntLiteralExpressionAST::create(
         ar, literal, /*literalOperatorCall=*/nullptr, ValueCategory::kPrValue,
         elementType);
-    auto exprArg = ExpressionTemplateArgumentAST::create(ar, intExpr);
+    auto exprArg = ExpressionTemplateArgumentAST::create(ar, intExpr, nullptr);
     *it = make_list_node(ar, static_cast<TemplateArgumentAST*>(exprArg));
     it = &(*it)->next;
   }
@@ -584,6 +596,12 @@ auto ASTRewriter::paste(TranslationUnit* unit, ScopeSymbol* scope,
   rewriter.pastingCheckedBody_ = true;
   auto result = rewriter.statement(ast);
   return result;
+}
+
+void ASTRewriter::adoptPastedSymbol(Symbol* symbol) {
+  auto scope = binder_.scope();
+  symbol->setParent(scope);
+  scope->addSymbol(symbol);
 }
 
 auto ASTRewriter::substituteDefaultTypeId(
@@ -951,16 +969,23 @@ auto ASTRewriter::instantiate(
                                        instantiationLoc);
 
   auto bodyErrors = rewriter.takeBodyErrors();
+  const auto reportedBodyErrors =
+      reportOutsideImmediateContext(unit, bodyErrors);
 
   auto instantiationErrors = capturing.takeDiagnostics();
-  instantiationErrors.insert(instantiationErrors.end(),
-                             std::make_move_iterator(bodyErrors.begin()),
-                             std::make_move_iterator(bodyErrors.end()));
+  if (!reportedBodyErrors) {
+    instantiationErrors.insert(instantiationErrors.end(),
+                               std::make_move_iterator(bodyErrors.begin()),
+                               std::make_move_iterator(bodyErrors.end()));
+  }
 
   if (!instantiationErrors.empty()) {
     if (auto spec = specialization_entry_of(symbol, instantiatedSymbol)) {
       spec->instantiationErrors = instantiationErrorsOf(instantiationErrors);
     }
+  }
+
+  if (reportedBodyErrors || !instantiationErrors.empty()) {
     noteInstantiationRequestedHere(unit, symbol, templateArguments,
                                    instantiationLoc);
   }
@@ -968,24 +993,26 @@ auto ASTRewriter::instantiate(
   return instantiatedSymbol;
 }
 
-void ASTRewriter::markExplicitInstantiationDeclared(
+auto ASTRewriter::markExplicitInstantiationDeclared(
     TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-    Symbol* symbol) {
-  if (!symbol) return;
-  if (!unit->config().checkTypes) return;
+    Symbol* symbol) -> Symbol* {
+  if (!symbol) return nullptr;
+  if (!unit->config().checkTypes) return nullptr;
 
   auto templateDecl = template_declaration_of(symbol);
-  if (!templateDecl) return;
+  if (!templateDecl) return nullptr;
 
   auto subst = Substitution::make(unit, templateDecl, templateArgumentList,
                                   /*argsComplete=*/true);
-  if (!subst) return;
+  if (!subst) return nullptr;
 
   auto templateArguments = std::move(*subst).templateArguments();
 
-  if (isPrimaryTemplate(templateArguments, templateDecl->depth)) return;
+  if (isPrimaryTemplate(templateArguments, templateDecl->depth)) return nullptr;
 
+  auto existing = find_specialization(unit, symbol, templateArguments);
   add_extern_instantiation_declaration(symbol, std::move(templateArguments));
+  return existing;
 }
 
 auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
@@ -1160,6 +1187,10 @@ struct ASTRewriter::OutOfClassMemberDefinitions {
   void instantiateMemberClassDefinition(ClassSymbol* memberClass) {
     if (hasCompleteInstance(memberClass)) return;
 
+    TranslationUnit::ClassInstantiationScope instantiation{
+        rewrite.unit_,
+        symbol_cast<ClassSymbol>(rewrite.remapSymbol(memberClass))};
+
     if (auto memberTemplateDecl =
             outOfClassMemberClassTemplateDefinition(memberClass)) {
       instantiateDefinition(memberClass, memberClass, memberTemplateDecl,
@@ -1296,7 +1327,6 @@ auto ASTRewriter::instantiationTarget(ClassSymbol* pattern,
 void ASTRewriter::instantiateOutOfClassMemberDefinitions(
     ClassSymbol* pattern, ClassSymbol* instanceClass) {
   if (!pattern) return;
-  requireVirtualMemberDefinitions(unit_, instanceClass);
   if (templateArguments_.empty()) return;
 
   instanceClass = instantiationTarget(pattern, instanceClass);

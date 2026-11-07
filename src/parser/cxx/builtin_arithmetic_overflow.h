@@ -35,6 +35,9 @@ enum class ArithmeticOverflowOperation {
 [[nodiscard]] auto arithmeticOverflowOperation(BuiltinFunctionKind kind)
     -> std::optional<ArithmeticOverflowOperation>;
 
+[[nodiscard]] auto saturatingArithmeticOperation(BuiltinFunctionKind kind)
+    -> std::optional<ArithmeticOverflowOperation>;
+
 [[nodiscard]] auto carryArithmeticOperation(BuiltinFunctionKind kind)
     -> std::optional<ArithmeticOverflowOperation>;
 

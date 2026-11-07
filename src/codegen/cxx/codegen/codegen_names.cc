@@ -30,6 +30,7 @@ struct Codegen::UnqualifiedIdVisitor {
 
   auto operator()(NameIdAST* ast) -> UnqualifiedIdResult;
   auto operator()(DestructorIdAST* ast) -> UnqualifiedIdResult;
+  auto operator()(PackIndexIdAST* ast) -> UnqualifiedIdResult { return {}; }
   auto operator()(DecltypeIdAST* ast) -> UnqualifiedIdResult;
   auto operator()(OperatorFunctionIdAST* ast) -> UnqualifiedIdResult;
   auto operator()(LiteralOperatorIdAST* ast) -> UnqualifiedIdResult;
@@ -46,6 +47,11 @@ struct Codegen::NestedNameSpecifierVisitor {
       -> NestedNameSpecifierResult;
   auto operator()(SimpleNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierResult;
+  auto operator()(PackIndexNestedNameSpecifierAST* ast)
+      -> NestedNameSpecifierResult {
+    return {};
+  }
+
   auto operator()(DecltypeNestedNameSpecifierAST* ast)
       -> NestedNameSpecifierResult;
   auto operator()(TemplateNestedNameSpecifierAST* ast)

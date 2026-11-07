@@ -39,11 +39,11 @@
 
 namespace cxx {
 namespace {
-[[nodiscard]] auto initializerCompletesDeclaredType(FieldSymbol* field,
+[[nodiscard]] auto initializerCompletesDeclaredType(Symbol* variable,
                                                     SpecifierAST* typeSpecifier,
                                                     ScopeSymbol* scope)
     -> bool {
-  auto type = field->type();
+  auto type = variable->type();
   if (containsPlaceholderType(type)) return true;
   if (type_cast<UnboundedArrayType>(type)) return true;
   return ClassTemplateArgumentDeduction::placeholderClassTemplate(
@@ -60,6 +60,17 @@ namespace {
   auto declaredScope = decl.getScope();
   if (!declaredScope || !declaredScope->isClass()) return true;
   return redeclaresStaticDataMemberTemplate(pattern);
+}
+
+[[nodiscard]] auto defersSpecializationInitializer(
+    TranslationUnit* unit, VariableSymbol* specialization,
+    InitDeclaratorAST* pattern, SpecifierAST* typeSpecifier, ScopeSymbol* scope)
+    -> bool {
+  if (!specialization || !pattern->initializer) return false;
+  if (!is_explicit_instantiation_declaration_only(unit, specialization))
+    return false;
+  return !initializerCompletesDeclaredType(specialization, typeSpecifier,
+                                           scope);
 }
 
 void applyConstexprConstness(const TypeTraits& traits, FieldSymbol* field) {
@@ -190,7 +201,8 @@ void ASTRewriter::resolvePendingExceptionSpecifier(std::size_t index) {
 
   auto _ = Binder::ScopeGuard{&binder_};
   binder_.setScope(record->parentScope);
-  instance->expression = contextuallyConvertedBool(pattern->expression);
+  instance->expression = contextuallyConvertedConstantBool(pattern->expression);
+  requireConstantExpression(instance->expression, "noexcept-specifier");
 
   for (auto& refreshType : pending.typeRefreshers) refreshType();
 
@@ -356,8 +368,107 @@ auto ASTRewriter::trailingReturnType(TrailingReturnTypeAST* ast)
   return copy;
 }
 
+struct ASTRewriter::ConstantValueVisitor {
+  ASTRewriter& rewrite;
+
+  [[nodiscard]] auto copy(const ConstValue& value) const -> ConstValue {
+    return cloneValue(value,
+                      [this](ConstValue& value) { std::visit(*this, value); });
+  }
+
+  [[nodiscard]] auto templateParameterObject(VariableSymbol* object) const
+      -> Symbol* {
+    auto value = copy(*object->constValue());
+    if (equivalent_values(value, *object->constValue())) return object;
+    return rewrite.unit_->control()->getTemplateParameterObject(object->type(),
+                                                                value);
+  }
+
+  [[nodiscard]] auto addressSymbol(Symbol* symbol) const -> Symbol* {
+    auto mapped = rewrite.remapSymbol(symbol);
+    if (mapped != symbol) return mapped;
+    auto temporary = symbol_cast<VariableSymbol>(symbol);
+    if (temporary && temporary->isTemplateParameterObject())
+      return templateParameterObject(temporary);
+    if (!temporary || !temporary->lifetimeExtendingDeclaration()) return symbol;
+    auto owner = temporary->lifetimeExtendingDeclaration();
+    auto mappedOwner = rewrite.remapSymbol(owner);
+    if (owner == mappedOwner) return symbol;
+    auto parent =
+        symbol_cast<ScopeSymbol>(rewrite.remapSymbol(temporary->parent()));
+    auto result = rewrite.unit_->control()->newVariableSymbol(
+        parent, temporary->location());
+    result->setName(temporary->name());
+    result->setType(temporary->type());
+    result->setConstexpr(temporary->isConstexpr());
+    result->setStatic(temporary->isStatic());
+    result->setThreadLocalKind(temporary->threadLocalKind());
+    result->setLifetimeExtendingDeclaration(mappedOwner);
+    rewrite.addSymbolRemap(symbol, result);
+    if (temporary->constValue())
+      result->setConstValue(copy(*temporary->constValue()));
+    return result;
+  }
+
+  void operator()(std::shared_ptr<ConstAddress>& address) const {
+    if (!address) return;
+    address->setSymbol(addressSymbol(address->symbol()));
+    address->setRoot(addressSymbol(address->root()));
+    auto path = address->subobjectPath();
+    for (auto& element : path)
+      if (auto symbol = std::get_if<Symbol*>(&element))
+        *symbol = rewrite.remapSymbol(*symbol);
+    address->setSubobjectPath(std::move(path));
+  }
+
+  void operator()(std::shared_ptr<Meta>& meta) const {
+    if (!meta) return;
+    if (auto symbol = std::get_if<const Symbol*>(&meta->value))
+      *symbol = rewrite.remapSymbol(const_cast<Symbol*>(*symbol));
+    else if (auto parameter = std::get_if<Meta::Parameter>(&meta->value))
+      parameter->function = symbol_cast<FunctionSymbol>(rewrite.remapSymbol(
+          const_cast<FunctionSymbol*>(parameter->function)));
+  }
+
+  void operator()(auto&) const {}
+};
+
+auto ASTRewriter::remappedConstant(const ConstValue* value)
+    -> const ConstValue* {
+  if (!value) return nullptr;
+  if (!hasObjectIdentity(*value) &&
+      !std::holds_alternative<std::shared_ptr<ConstAddress>>(*value) &&
+      !std::holds_alternative<std::shared_ptr<Meta>>(*value))
+    return value;
+  return arena()->make<ConstValue>(ConstantValueVisitor{*this}.copy(*value));
+}
+
+auto ASTRewriter::inheritConstantInitializer(Symbol* pattern,
+                                             ExpressionAST* initializer)
+    -> ExpressionAST* {
+  ExpressionAST* patternInitializer = nullptr;
+  if (auto variable = symbol_cast<VariableSymbol>(pattern))
+    patternInitializer = variable->initializer();
+  else if (auto field = symbol_cast<FieldSymbol>(pattern);
+           field && field->isStatic())
+    patternInitializer = field->initializer();
+  auto constant = ast_cast<ConstExpressionAST>(patternInitializer);
+  if (!constant || !constant->constValue) return initializer;
+  if (!is_prvalue(constant) || constant->isDeferredImmediateInvocation)
+    return initializer;
+  if (constant->evaluationKind !=
+      ConstantEvaluationKind::kManifestlyConstantEvaluated)
+    return initializer;
+  auto value = ConstantValueVisitor{*this}.copy(*constant->constValue);
+  return ConstExpressionAST::create(
+      arena(), initializer, arena()->make<ConstValue>(std::move(value)), false,
+      constant->evaluationKind, binder_.scope(), constant->valueCategory,
+      constant->type);
+}
+
 auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
-                                 const DeclSpecs& declSpecs)
+                                 const DeclSpecs& declSpecs,
+                                 PlaceholderReplacement& listReplacement)
     -> InitDeclaratorAST* {
   if (!ast) return {};
 
@@ -390,6 +501,8 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
 
   const auto declaresClassMember =
       binder_.scope()->isClass() && !symbol_cast<VariableSymbol>(ast->symbol);
+
+  VariableSymbol* specialization = nullptr;
 
   if (declaresClassMember) {
     auto symbol = binder_.declareMemberSymbol(copy->declarator, decl,
@@ -425,6 +538,7 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
             instantiatesVariableTemplate(templateVariable, decl)) {
           templateVariable->canonical()->addSpecialization(
               unit_, templateArguments(), variableSymbol);
+          specialization = variableSymbol;
         }
       }
     }
@@ -486,17 +600,39 @@ auto ASTRewriter::initDeclarator(InitDeclaratorAST* ast,
 
   addSymbolRemap(ast->symbol, copy->symbol);
 
-  copy->initializer = expression(ast->initializer);
+  if (defersSpecializationInitializer(unit_, specialization, ast,
+                                      declSpecs.typeSpecifier(),
+                                      binder_.scope())) {
+    specialization->setPendingInitializer(
+        pendingInstantiationOf(ast, copy, binder_.scope()));
+    binder_.recordVariableDefinition(specialization);
+    return copy;
+  }
+
+  TranslationUnit::ImmediateFunctionContextScope constantInitializer{
+      unit_, declSpecs.isConstexpr || declSpecs.isConstinit};
+
+  {
+    TranslationUnit::DeferredInitializerScope deferredInitializer{unit_,
+                                                                  copy->symbol};
+    Binder::InitializerGuard initializerGuard{&binder_, copy->symbol};
+    copy->initializer = expression(ast->initializer);
+  }
+
+  auto initializer = inheritConstantInitializer(ast->symbol, copy->initializer);
 
   if (auto fieldSymbol = symbol_cast<FieldSymbol>(copy->symbol)) {
-    if (copy->initializer) fieldSymbol->setInitializer(copy->initializer);
+    if (initializer) fieldSymbol->setInitializer(initializer);
     if (fieldSymbol->isStatic())
-      typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier());
+      typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier(),
+                                          &listReplacement);
     else if (copy->initializer)
       typeChecker().check_field_initializer(fieldSymbol);
   } else if (auto variableSymbol = symbol_cast<VariableSymbol>(copy->symbol)) {
+    if (initializer) variableSymbol->setInitializer(initializer);
     if (!rewritingForRangeDeclaration_)
-      typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier());
+      typeChecker().check_init_declarator(copy, declSpecs.typeSpecifier(),
+                                          &listReplacement);
     binder_.recordVariableDefinition(variableSymbol);
   }
 
@@ -516,9 +652,14 @@ void ASTRewriter::completePendingFieldInitializers(std::size_t mark) {
 
   for (const auto& entry : pending) {
     binder_.setScope(entry.scope);
-    entry.instance->initializer = expression(entry.pattern->initializer);
-
     auto fieldSymbol = symbol_cast<FieldSymbol>(entry.instance->symbol);
+    {
+      TranslationUnit::DeferredInitializerScope deferredInitializer{
+          unit_, fieldSymbol};
+      Binder::InitializerGuard initializerGuard{&binder_, fieldSymbol};
+      entry.instance->initializer = expression(entry.pattern->initializer);
+    }
+
     if (!fieldSymbol || !entry.instance->initializer) continue;
 
     fieldSymbol->setInitializer(entry.instance->initializer);
@@ -607,7 +748,7 @@ auto ASTRewriter::CoreDeclaratorVisitor::operator()(BitfieldDeclaratorAST* ast)
   copy->attributeList =
       rewrite.rewriteList(ast->attributeList, &ASTRewriter::attributeSpecifier);
   copy->colonLoc = ast->colonLoc;
-  copy->sizeExpression = rewrite.expression(ast->sizeExpression);
+  copy->sizeExpression = rewrite.constantExpression(ast->sizeExpression);
   copy->trailingAttributeList = rewrite.rewriteList(
       ast->trailingAttributeList, &ASTRewriter::attributeSpecifier);
 
@@ -699,7 +840,12 @@ auto ASTRewriter::DeclaratorChunkVisitor::operator()(
   copy->typeQualifierList =
       rewrite.rewriteList(ast->typeQualifierList, &ASTRewriter::specifier);
 
-  copy->expression = rewrite.expression(ast->expression);
+  {
+    TranslationUnit::DeferredInitializerScope bound{
+        translationUnit(), TranslationUnit::DeferredInitializer::kArrayBound};
+    copy->expression = rewrite.expression(ast->expression);
+  }
+  copy->evaluationScope = binder()->scope();
   copy->rbracketLoc = ast->rbracketLoc;
 
   copy->attributeList =
@@ -724,9 +870,9 @@ auto ASTRewriter::DesignatorVisitor::operator()(SubscriptDesignatorAST* ast)
   auto copy = SubscriptDesignatorAST::create(arena());
 
   copy->lbracketLoc = ast->lbracketLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.constantExpression(ast->expression);
   copy->ellipsisLoc = ast->ellipsisLoc;
-  copy->upperExpression = rewrite.expression(ast->upperExpression);
+  copy->upperExpression = rewrite.constantExpression(ast->upperExpression);
   copy->rbracketLoc = ast->rbracketLoc;
 
   return copy;
@@ -760,7 +906,9 @@ auto ASTRewriter::ExceptionSpecifierVisitor::operator()(
     rewrite.pendingExceptionSpecifiers_.push_back(
         {rewrite.pendingInstantiationOf(ast, copy, binder()->scope())});
   } else {
-    copy->expression = rewrite.contextuallyConvertedBool(ast->expression);
+    copy->expression =
+        rewrite.contextuallyConvertedConstantBool(ast->expression);
+    rewrite.requireConstantExpression(copy->expression, "noexcept-specifier");
   }
 
   return copy;

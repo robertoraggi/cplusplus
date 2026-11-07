@@ -535,8 +535,8 @@ void dropNonValueAccesses(gpu::GPUModuleOp module) {
           memref::AllocaOp, memref::AllocOp, memref::LoadOp, memref::StoreOp,
           ptr::ToPtrOp, ptr::FromPtrOp, cxx::StorageRefOp, cxx::MemberOp,
           cxx::SubscriptOp, cxx::ArrayToPointerOp, cxx::PtrAddOp, cxx::LoadOp,
-          cxx::StoreOp, cxx::BitcastOp, cxx::UndefOp, cxx::InsertValueOp,
-          cxx::ExtractValueOp>(operation);
+          cxx::StoreOp, cxx::BitcastOp, cxx::AddressSpaceCastOp, cxx::UndefOp,
+          cxx::InsertValueOp, cxx::ExtractValueOp>(operation);
   supported |= cxx::isSynchronization(operation);
   if (!supported)
     return operation->emitError("unsupported operation '")

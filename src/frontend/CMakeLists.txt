@@ -95,6 +95,10 @@ add_custom_target(link_cxx_include ALL
 
 add_custom_command(
     OUTPUT wasi-sysroot.timestamp
+    DEPENDS
+        ${wasi_sysroot_SOURCE_DIR}/VERSION
+        ${wasi_builtins_SOURCE_DIR}/wasm32-unknown-wasip1/libclang_rt.builtins.a
+    COMMAND ${CMAKE_COMMAND} -E rm -rf $<TARGET_FILE_DIR:cxx>/../lib/wasi-sysroot
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${wasi_sysroot_SOURCE_DIR} $<TARGET_FILE_DIR:cxx>/../lib/wasi-sysroot
     COMMAND ${CMAKE_COMMAND} -E copy
         ${wasi_builtins_SOURCE_DIR}/wasm32-unknown-wasip1/libclang_rt.builtins.a

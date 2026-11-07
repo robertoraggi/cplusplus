@@ -149,7 +149,8 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   Codegen codegen(
       emitter, unit,
       {.debugInfo = debugInfo,
-       .debugCompilationDirectory = fs::working_directory().string()});
+       .debugCompilationDirectory = fs::working_directory().string(),
+       .runsAlwaysInliner = llvmPipelineRunsAlwaysInliner()});
 
   auto result = codegen(unit->ast());
   auto module = emitter.module(result.module);
@@ -244,9 +245,7 @@ auto generateCode(TranslationUnit* unit, std::string_view format,
   auto llvmModule = exportToLLVMIR(module, llvmContext);
   llvmModule->setSourceFileName(unit->fileName());
 
-  if (pipelineOptLevel != llvm::OptimizationLevel::O0) {
-    optimizeLLVMIR(*llvmModule, targetMachine.get(), pipelineOptLevel);
-  }
+  optimizeLLVMIR(*llvmModule, targetMachine.get(), pipelineOptLevel);
 
   if (format == "llvm") {
     llvmModule->print(os, nullptr);

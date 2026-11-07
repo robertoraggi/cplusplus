@@ -59,6 +59,9 @@ class AccessContext {
   [[nodiscard]] auto isAccessible(Symbol* member, ClassSymbol* designatingClass,
                                   ClassSymbol* objectClass) const -> bool;
 
+  [[nodiscard]] auto isAccessibleDeclaration(
+      Symbol* member, ClassSymbol* designatingClass) const -> bool;
+
   [[nodiscard]] auto isAccessibleBaseClass(ClassSymbol* derived,
                                            ClassSymbol* base) const -> bool;
 

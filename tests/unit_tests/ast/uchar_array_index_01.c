@@ -97,11 +97,12 @@ int main() {
 // CHECK-NEXT:                    base-expression: id-expression [lvalue int [256]]
 // CHECK-NEXT:                      unqualified-id: name-id
 // CHECK-NEXT:                        identifier: arr
-// CHECK-NEXT:                    index-expression: implicit-cast-expression [prvalue int]
-// CHECK-NEXT:                      cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                      expression: id-expression [lvalue int]
-// CHECK-NEXT:                        unqualified-id: name-id
-// CHECK-NEXT:                          identifier: i
+// CHECK-NEXT:                    expression-list
+// CHECK-NEXT:                      implicit-cast-expression [prvalue int]
+// CHECK-NEXT:                        cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                        expression: id-expression [lvalue int]
+// CHECK-NEXT:                          unqualified-id: name-id
+// CHECK-NEXT:                            identifier: i
 // CHECK-NEXT:                  right-expression: implicit-cast-expression [prvalue int]
 // CHECK-NEXT:                    cast-kind: lvalue-to-rvalue-conversion
 // CHECK-NEXT:                    expression: id-expression [lvalue int]
@@ -117,13 +118,14 @@ int main() {
 // CHECK-NEXT:                      base-expression: id-expression [lvalue int [256]]
 // CHECK-NEXT:                        unqualified-id: name-id
 // CHECK-NEXT:                          identifier: arr
-// CHECK-NEXT:                      index-expression: implicit-cast-expression [prvalue int]
-// CHECK-NEXT:                        cast-kind: integral-promotion
-// CHECK-NEXT:                        expression: implicit-cast-expression [prvalue unsigned char]
-// CHECK-NEXT:                          cast-kind: lvalue-to-rvalue-conversion
-// CHECK-NEXT:                          expression: id-expression [lvalue unsigned char]
-// CHECK-NEXT:                            unqualified-id: name-id
-// CHECK-NEXT:                              identifier: c
+// CHECK-NEXT:                      expression-list
+// CHECK-NEXT:                        implicit-cast-expression [prvalue int]
+// CHECK-NEXT:                          cast-kind: integral-promotion
+// CHECK-NEXT:                          expression: implicit-cast-expression [prvalue unsigned char]
+// CHECK-NEXT:                            cast-kind: lvalue-to-rvalue-conversion
+// CHECK-NEXT:                            expression: id-expression [lvalue unsigned char]
+// CHECK-NEXT:                              unqualified-id: name-id
+// CHECK-NEXT:                                identifier: c
 // CHECK-NEXT:                  right-expression: int-literal-expression [prvalue int]
 // CHECK-NEXT:                    literal: 200
 // CHECK-NEXT:                iftrue-expression: int-literal-expression [prvalue int]

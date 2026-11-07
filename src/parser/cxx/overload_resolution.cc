@@ -44,8 +44,13 @@ namespace cxx {
 auto failedArgumentConversion(ExpressionAST* argument, const Type* destination,
                               std::size_t argumentIndex)
     -> FailedArgumentConversion {
+  Symbol* declaration = nullptr;
+  if (auto id = ast_cast<IdExpressionAST>(argument))
+    declaration = id->symbol;
+  else if (auto member = ast_cast<MemberExpressionAST>(argument))
+    declaration = member->symbol;
   return {argument->type, destination, argumentIndex,
-          ast_cast<BracedInitListAST>(argument) != nullptr};
+          ast_cast<BracedInitListAST>(argument) != nullptr, declaration};
 }
 
 namespace {
@@ -67,14 +72,23 @@ struct CandidateRejectionPrinter {
 
   [[nodiscard]] auto operator()(const FailedArgumentConversion& reason) const
       -> std::string {
+    auto source = sourceOptions;
+    source.declaration = reason.sourceDeclaration;
+    auto target = targetOptions;
+    target.declaration = nullptr;
+    if (auto function = symbol_cast<FunctionSymbol>(target.declarationScope)) {
+      auto parameters = function->parameters();
+      if (reason.argumentIndex < parameters.size())
+        target.declaration = parameters[reason.argumentIndex];
+    }
     if (reason.fromInitializerList)
       return std::format(
           "no known conversion from initializer list to '{}' for argument {}",
-          to_diag_string(reason.destination, "", targetOptions),
+          to_diag_string(reason.destination, "", target),
           reason.argumentIndex + 1);
     return std::format("no known conversion from '{}' to '{}' for argument {}",
-                       to_diag_string(reason.source, "", sourceOptions),
-                       to_diag_string(reason.destination, "", targetOptions),
+                       to_diag_string(reason.source, "", source),
+                       to_diag_string(reason.destination, "", target),
                        reason.argumentIndex + 1);
   }
 };
@@ -82,7 +96,9 @@ struct CandidateRejectionPrinter {
 [[nodiscard]] auto callArgumentCount(const Candidate& candidate)
     -> std::size_t {
   auto count = candidate.conversions.size();
-  if (candidate.symbol->hasImplicitObjectParameter()) ++count;
+  if (candidate.objectConversion ||
+      (candidate.symbol && candidate.symbol->hasImplicitObjectParameter()))
+    ++count;
   return count;
 }
 
@@ -100,7 +116,7 @@ struct CandidateRejectionPrinter {
     -> bool {
   return std::ranges::any_of(operandTypes, [&](const Type* type) {
     auto operandType = traits.remove_cvref(type);
-    return traits.is_class(operandType) || traits.is_enum(operandType);
+    return traits.is_class_or_union(operandType) || traits.is_enum(operandType);
   });
 }
 
@@ -140,8 +156,8 @@ struct CandidateRejectionPrinter {
 [[nodiscard]] auto hasClassOperand(const TypeTraits& traits,
                                    const Type* leftType, const Type* rightType)
     -> bool {
-  if (traits.is_class(traits.remove_cvref(leftType))) return true;
-  return rightType && traits.is_class(traits.remove_cvref(rightType));
+  if (traits.is_class_or_union(traits.remove_cvref(leftType))) return true;
+  return rightType && traits.is_class_or_union(traits.remove_cvref(rightType));
 }
 }  // namespace
 
@@ -198,6 +214,11 @@ auto compareCandidateOrdering(TranslationUnit* unit, FunctionSymbol* candidate,
                               bool candidateFromTemplate, FunctionSymbol* other,
                               bool otherFromTemplate, bool preferNonTemplate,
                               const PartialOrderingContext& context) -> int {
+  if (!candidate || !other) {
+    if (preferNonTemplate && candidateFromTemplate != otherFromTemplate)
+      return candidateFromTemplate ? -1 : 1;
+    return 0;
+  }
   candidate = orderedFunction(candidate);
   other = orderedFunction(other);
 
@@ -369,7 +390,8 @@ namespace {
 [[nodiscard]] auto isInheritedConstructorCandidate(const Candidate& candidate)
     -> bool {
   if (candidate.deduction.fromInheritedConstructor) return true;
-  return candidate.symbol->inheritedConstructorOrigin() != nullptr;
+  return candidate.symbol &&
+         candidate.symbol->inheritedConstructorOrigin() != nullptr;
 }
 
 }  // namespace
@@ -377,6 +399,7 @@ namespace {
 auto OverloadResolution::haveSameParametersForArguments(const Candidate& lhs,
                                                         const Candidate& rhs)
     -> bool {
+  if (!lhs.symbol || !rhs.symbol) return false;
   auto lhsType = type_cast<FunctionType>(lhs.symbol->type());
   auto rhsType = type_cast<FunctionType>(rhs.symbol->type());
   if (!lhsType || !rhsType) return false;
@@ -727,7 +750,7 @@ auto OverloadResolution::resolveConstructor(
     }
 
     if (!cand.viable) continue;
-    if (isExcludedDefaultedMoveMember(unit_, ctor)) continue;
+    if (unit_->typeTraits().is_excluded_defaulted_move_member(ctor)) continue;
 
     result.candidates.push_back(std::move(cand));
   }
@@ -835,7 +858,8 @@ auto OverloadResolution::buildCallCandidate(
     return std::nullopt;
   }
 
-  if (isExcludedDefaultedMoveMember(unit_, function)) return std::nullopt;
+  if (unit_->typeTraits().is_excluded_defaulted_move_member(function))
+    return std::nullopt;
 
   return cand;
 }
@@ -855,6 +879,28 @@ auto OverloadResolution::enableIfConditionsSatisfied(
     if (!value || interpreter.toBool(*value) != true) return false;
   }
   return true;
+}
+
+auto OverloadResolution::buildCallCandidate(
+    FunctionSymbol* pattern, std::span<ExpressionAST* const> args,
+    SourceLocation location) -> std::optional<Candidate> {
+  auto function = pattern;
+  List<TemplateArgumentAST*>* deducedArgs = nullptr;
+  if (pattern->isTemplatePattern()) {
+    if (templateCandidateArityRejects(pattern, args.size()))
+      return std::nullopt;
+    auto deduced = deduceTemplateCandidate(pattern, args, location);
+    if (!deduced) return std::nullopt;
+    function = deduced->specialization;
+    deducedArgs = deduced->templateArguments;
+  }
+  auto type = type_cast<FunctionType>(function->type());
+  if (!type) return std::nullopt;
+  auto candidate = buildCallCandidate(function, type, args);
+  if (!candidate) return std::nullopt;
+  candidate->fromTemplate = pattern->isTemplatePattern();
+  candidate->deducedTemplateArgs = deducedArgs;
+  return candidate;
 }
 
 auto OverloadResolution::deduceTemplateCandidate(
@@ -896,7 +942,7 @@ auto OverloadResolution::enumerationTypesOf(const Type* type)
   if (!classType) return types;
 
   auto classSymbol = classType->definition();
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
   for (auto function : classSymbol->visibleConversionFunctions()) {
     if (function->isExplicit()) continue;
     auto functionType = type_cast<FunctionType>(function->type());
@@ -996,7 +1042,7 @@ auto OverloadResolution::builtinUnaryOperatorParameterTypes(
   auto classType = type_cast<ClassType>(traits.remove_cvref(operandType));
   if (!classType) return types;
   auto classSymbol = classType->definition();
-  traits.requireCompleteClass(classSymbol);
+  traits.require_complete_class(classSymbol);
   const auto modifies =
       op == TokenKind::T_PLUS_PLUS || op == TokenKind::T_MINUS_MINUS;
 
@@ -1189,7 +1235,8 @@ auto OverloadResolution::resolveBinaryOperator(
 
     if (!left) continue;
     if (candidateRightExpr && (!right || !*right)) continue;
-    if (isExcludedDefaultedMoveMember(unit_, candidate)) continue;
+    if (unit_->typeTraits().is_excluded_defaulted_move_member(candidate))
+      continue;
 
     if (operatorCandidate.reversed && right) std::swap(left, *right);
     viable.push_back({candidate, left, right, deducedArgsForCandidate,
@@ -1340,6 +1387,95 @@ auto OverloadResolution::isExcludedCandidate(FunctionSymbol* function) const
   return function->canonical() == excludedCandidate_->canonical();
 }
 
+auto OverloadResolution::builtinSubscriptPointerTypes(const Type* type)
+    -> std::vector<const Type*> {
+  std::vector<const Type*> targets{traits.remove_cvref(type)};
+  if (auto cls = type_cast<ClassType>(targets.front())) {
+    traits.require_complete_class(cls);
+    for (auto function : cls->definition()->visibleConversionFunctions()) {
+      if (function->isExplicit()) continue;
+      auto functionType = type_cast<FunctionType>(function->type());
+      if (functionType)
+        targets.push_back(traits.remove_cvref(functionType->returnType()));
+    }
+  }
+  std::vector<const Type*> pointers;
+  for (auto target : targets) {
+    if (traits.is_array(target))
+      target = traits.add_pointer(traits.get_element_type(target));
+    if (!traits.is_pointer(target)) continue;
+    auto element = traits.get_element_type(target);
+    if (!traits.is_object(element)) continue;
+    for (auto cv : {CvQualifiers::kNone, CvQualifiers::kConst,
+                    CvQualifiers::kVolatile, CvQualifiers::kConstVolatile}) {
+      auto pointer = traits.add_pointer(traits.add_cv(element, cv));
+      if (!std::ranges::contains(pointers, pointer))
+        pointers.push_back(pointer);
+    }
+  }
+  return pointers;
+}
+
+auto OverloadResolution::subscriptCandidates(
+    ExpressionAST* object, std::span<ExpressionAST* const> arguments)
+    -> std::vector<Candidate> {
+  lastLookupAmbiguous_ = false;
+  std::vector<Candidate> candidates;
+  if (auto cls = type_cast<ClassType>(traits.remove_cvref(object->type))) {
+    traits.require_complete_class(cls);
+    bool ambiguous = false;
+    auto found = qualifiedLookupIncludingInlineNamespaces(
+        control_, cls->symbol(), control_->getOperatorId(TokenKind::T_LBRACKET),
+        &ambiguous);
+    if (ambiguous) {
+      lastLookupAmbiguous_ = true;
+      return {};
+    }
+    for (auto pattern : views::each_function(found)) {
+      std::vector<ExpressionAST*> args;
+      if (pattern->hasExplicitObjectParameter()) args.push_back(object);
+      args.insert(args.end(), arguments.begin(), arguments.end());
+      auto candidate =
+          buildCallCandidate(pattern, args, object->firstSourceLocation());
+      if (!candidate) continue;
+      auto function = candidate->symbol;
+      if (function->isImplicitObjectMemberFunction()) {
+        auto conversion =
+            implicitObjectArgumentConversion(function, object, found->parent());
+        if (!conversion) continue;
+        candidate->objectConversion = *conversion;
+      } else if (function->hasExplicitObjectParameter()) {
+        candidate->objectConversion = candidate->conversions.front();
+        candidate->conversions.erase(candidate->conversions.begin());
+      }
+      candidates.push_back(std::move(*candidate));
+    }
+  }
+  if (arguments.size() != 1 || ast_cast<BracedInitListAST>(arguments.front()))
+    return candidates;
+  auto index = arguments.front();
+  const Type* operandTypes[] = {object->type, index->type};
+  if (!hasClassOrEnumerationOperand(traits, operandTypes)) return candidates;
+  auto differenceType = traits.make_signed(control_->getSizeType());
+  for (auto reversed : {false, true}) {
+    auto pointerOperand = reversed ? index : object;
+    for (auto pointerType :
+         builtinSubscriptPointerTypes(pointerOperand->type)) {
+      auto objectType = reversed ? differenceType : pointerType;
+      auto indexType = reversed ? pointerType : differenceType;
+      auto left = stdconv_.computeConversionSequence(object, objectType);
+      auto right = stdconv_.computeConversionSequence(index, indexType);
+      if (!left || !right) continue;
+      Candidate candidate;
+      candidate.viable = true;
+      candidate.objectConversion = left;
+      candidate.conversions.push_back(right);
+      candidates.push_back(std::move(candidate));
+    }
+  }
+  return candidates;
+}
+
 auto OverloadResolution::lookupOperator(
     ScopeSymbol* scope, const Type* type, TokenKind op, const Type* rightType,
     ExpressionAST* leftExpr, ExpressionAST* rightExpr,
@@ -1378,7 +1514,7 @@ auto OverloadResolution::lookupOperator(
         unqualified_cast<ClassType>(traits.remove_reference(operandType));
     if (!classType) return;
     if (auto classSymbol = classType->symbol()) {
-      traits.requireCompleteClass(classSymbol);
+      traits.require_complete_class(classSymbol);
       auto found = findCandidates(classSymbol, operatorName);
       for (auto function : found.functions)
         addCandidate(function, found.lookupScope, rewritten, reversed);
@@ -1410,7 +1546,7 @@ auto OverloadResolution::lookupOperator(
     if (auto classType =
             type_cast<ClassType>(traits.remove_cvref(firstOperandType))) {
       if (auto classSymbol = classType->symbol()) {
-        traits.requireCompleteClass(classSymbol);
+        traits.require_complete_class(classSymbol);
         auto found = findCandidates(classSymbol, rewrittenName);
         for (auto function : found.functions)
           accept(function, found.lookupScope);

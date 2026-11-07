@@ -54,6 +54,16 @@ struct TemplateArgumentPrinter {
     return "<const>";
   }
 
+  [[nodiscard]] auto bool_to_string(const Type* type,
+                                    const ConstValue& value) const
+      -> std::optional<std::string> {
+    if (options.mode == detail::PrintMode::Internal) return std::nullopt;
+    if (!unqualified_cast<BoolType>(type)) return std::nullopt;
+    auto number = std::get_if<ConstInt>(&value);
+    if (!number) return std::nullopt;
+    return number->isZero() ? "false" : "true";
+  }
+
   [[nodiscard]] auto pack_to_string(const ParameterPackSymbol* pack) const
       -> std::string {
     std::string s = "<";
@@ -85,7 +95,10 @@ struct TemplateArgumentPrinter {
       return detail::renderType(symbol->type(), "", options);
     if (symbol->isVariable()) {
       auto var = static_cast<const VariableSymbol*>(symbol);
-      if (auto cst = var->constValue()) return const_value_to_string(*cst);
+      if (auto cst = var->constValue()) {
+        if (auto boolean = bool_to_string(var->type(), *cst)) return *boolean;
+        return const_value_to_string(*cst);
+      }
     }
     if (auto type = symbol->type())
       return detail::renderType(type, "", options);
@@ -197,6 +210,8 @@ auto to_pretty_string(const TemplateArgument& argument,
 }
 
 auto to_diag_string(const Name* name, TypePrintOptions options) -> std::string {
+  if (auto id = name_cast<Identifier>(name); id && !id->isAnonymous())
+    return id->value();
   return std::format("{}", formatDiagName(name, options));
 }
 

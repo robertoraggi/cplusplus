@@ -50,6 +50,7 @@ struct Codegen::DeclarationVisitor {
   auto operator()(UsingEnumDeclarationAST* ast) -> DeclarationResult;
   auto operator()(UsingDirectiveAST* ast) -> DeclarationResult;
   auto operator()(StaticAssertDeclarationAST* ast) -> DeclarationResult;
+  auto operator()(ConstevalBlockDeclarationAST* ast) -> DeclarationResult;
   auto operator()(AliasDeclarationAST* ast) -> DeclarationResult;
   auto operator()(OpaqueEnumDeclarationAST* ast) -> DeclarationResult;
   auto operator()(FunctionDefinitionAST* ast) -> DeclarationResult;
@@ -171,6 +172,7 @@ void Codegen::DeclarationVisitor::allocateLocals(ScopeSymbol* block) {
     if (auto var = symbol_cast<VariableSymbol>(symbol)) {
       if (var->isStatic() || var->isThreadLocal()) continue;
       if (var->isStructuredBindingAlias()) continue;
+      if (declaresImmediateObject(var)) continue;
       if (type_cast<UnresolvedBoundedArrayType>(var->type())) continue;
 
       auto local = gen.findOrCreateLocal(var);
@@ -202,6 +204,7 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
     for (auto node : ListView{ast->initDeclaratorList}) {
       auto var = symbol_cast<VariableSymbol>(node->symbol);
       if (!var) continue;
+      if (declaresImmediateObject(var)) continue;
 
       auto glo = gen.findOrCreateGlobal(var);
       if (!glo) {
@@ -229,9 +232,11 @@ auto Codegen::DeclarationVisitor::operator()(SimpleDeclarationAST* ast)
 void Codegen::emitLocalVariableInit(VariableSymbol* var,
                                     ExpressionAST* initializer) {
   if (var->isStructuredBindingAlias()) return;
+  if (declaresImmediateObject(var)) return;
   const bool isVLA =
       type_cast<UnresolvedBoundedArrayType>(var->type()) != nullptr;
-  const bool isConstructed = var->constructor() || traits.is_class(var->type());
+  const bool isConstructed =
+      var->constructor() || traits.is_class_or_union(var->type());
   if (!isVLA && !initializer && !isConstructed) return;
 
   const auto loc = var->location();
@@ -258,6 +263,9 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
     return;
   }
 
+  auto extension = LifetimeExtension{
+      *this, {}, extendedBackingArrays(traits, initializer), var};
+
   if (traits.is_array(var->type())) {
     if (var->isConstexpr() && var->constValue()) {
       auto value = emitConstInitValue(loc, var->type(), *var->constValue());
@@ -270,7 +278,7 @@ void Codegen::emitLocalVariableInit(VariableSymbol* var,
     return;
   }
 
-  if (traits.is_class(var->type())) {
+  if (traits.is_class_or_union(var->type())) {
     auto registerCleanup = [&] {
       if (traits.has_trivial_destructor(var->type())) return;
       auto classType = unqualified_cast<ClassType>(var->type());
@@ -350,8 +358,9 @@ void Codegen::emitReferenceInit(Symbol* reference, ir::ValueRef address,
     initExpr = element;
   auto referenceType = reference->type();
   auto temporaries = materializedTemporaries(traits, initExpr);
-  auto extension =
-      LifetimeExtension{*this, temporaries, reference, staticStorage};
+  auto extension = LifetimeExtension{*this, temporaries,
+                                     extendedBackingArrays(traits, initExpr),
+                                     reference, staticStorage};
   if (temporaries.size() != 1 || temporaries.front() != initExpr) {
     auto expressionResult = expression(initExpr);
     emitter_.store(loc, expressionResult.value, address,
@@ -428,6 +437,11 @@ auto Codegen::DeclarationVisitor::operator()(StaticAssertDeclarationAST* ast)
   return {};
 }
 
+auto Codegen::DeclarationVisitor::operator()(ConstevalBlockDeclarationAST* ast)
+    -> DeclarationResult {
+  return {};
+}
+
 auto Codegen::DeclarationVisitor::operator()(AliasDeclarationAST* ast)
     -> DeclarationResult {
   return {};
@@ -441,10 +455,17 @@ auto Codegen::DeclarationVisitor::operator()(OpaqueEnumDeclarationAST* ast)
 auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
     -> DeclarationResult {
   auto functionSymbol = ast->symbol;
-  if (functionSymbol && (functionSymbol->isConsteval() ||
-                         isDeletedFunction(gen.unit_, functionSymbol)))
+  if (functionSymbol &&
+      (functionSymbol->isConsteval() ||
+       gen.unit_->typeTraits().is_deleted_function(functionSymbol)))
     return {};
   if (functionSymbol && functionSymbol->isTemplatePattern()) return {};
+  if (functionSymbol && functionSymbol->hasPendingBody()) {
+    cxx_runtime_error(
+        std::format("the definition of '{}' was emitted before it was "
+                    "instantiated",
+                    to_string(functionSymbol->name())));
+  }
 
   const auto functionType =
       functionSymbol ? type_cast<FunctionType>(functionSymbol->type())
@@ -458,15 +479,17 @@ auto Codegen::DeclarationVisitor::operator()(FunctionDefinitionAST* ast)
 
   const auto returnType = functionType->returnType();
 
-  auto func = gen.findOrCreateFunction(functionSymbol);
+  auto func = gen.findOrCreateFunctionBody(functionSymbol);
 
   if (gen.emitter_.functionHasBody(func)) return {};
 
-  gen.emitBaseObjectStructor(functionSymbol, func);
+  if (!gen.hasDiscardableLinkage(gen.emittedFunctionSymbol(functionSymbol)))
+    gen.emitBaseObjectStructor(functionSymbol, func);
 
   auto result = emitFunctionDefinition(ast, func);
 
-  if (gen.duplicatesBaseObjectStructorBody(functionSymbol)) {
+  if (gen.completeObjectStructor(functionSymbol) ==
+      Codegen::CompleteObjectStructor::kDuplicatedBody) {
     auto baseObjectFunc = gen.findOrCreateBaseObjectStructor(functionSymbol);
     if (baseObjectFunc && !gen.emitter_.functionHasBody(baseObjectFunc))
       (void)emitFunctionDefinition(ast, baseObjectFunc);
@@ -713,11 +736,13 @@ auto Codegen::DeclarationVisitor::emitFunctionDefinition(
   if (auto principal = functionSymbol->structorPrincipal();
       principal && principal->isDestructor() &&
       principal->completeObjectVariant() == functionSymbol) {
-    allocateLocals(principal);
-    body = principal->declaration()->functionBody;
+    auto definition =
+        gen.emittedFunctionSymbol(principal)->resolvedDefinition();
+    allocateLocals(definition);
+    body = definition->declaration()->functionBody;
   }
 
-  if (type_cast<FunctionType>(functionSymbol->type())->isNoexcept()) {
+  if (gen.traits.is_nothrow_function(functionSymbol)) {
     gen.emitTerminateOnException([&] { emitFunctionBody(body); }, loc);
   } else {
     emitFunctionBody(body);
@@ -798,8 +823,6 @@ auto Codegen::DeclarationVisitor::operator()(DeductionGuideAST* ast)
 
 auto Codegen::DeclarationVisitor::operator()(ExplicitInstantiationAST* ast)
     -> DeclarationResult {
-  auto declarationResult = gen.declaration(ast->declaration);
-
   return {};
 }
 
@@ -1047,7 +1070,7 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
     for (auto it = Initializer{paren}.expressionList(); it; it = it->next)
       args.push_back(expression(it->value));
     (void)emitCtorCall(sourceLoc, ctor, fieldPtr, args,
-                       /*completeObject=*/true);
+                       /*completeObject=*/true, {}, field->isNoUniqueAddress());
     return;
   }
 
@@ -1064,7 +1087,8 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
           args.push_back(expression(it->value));
       }
       (void)emitCtorCall(sourceLoc, ctor, fieldPtr, args,
-                         /*completeObject=*/true);
+                         /*completeObject=*/true, {},
+                         field->isNoUniqueAddress());
     } else {
       if (!braced->type) braced->type = field->type();
       emitAggregateInit(fieldPtr, field->type(), braced);
@@ -1087,7 +1111,8 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
       std::vector<ExpressionResult> args;
       args.push_back(expression(expr));
       (void)emitCtorCall(sourceLoc, ctor, fieldPtr, args,
-                         /*completeObject=*/true);
+                         /*completeObject=*/true, {},
+                         field->isNoUniqueAddress());
       return;
     }
   }

@@ -96,7 +96,7 @@ struct Binder::RangeForRewrite {
     auto rangeType = binder.traits.remove_cvref(initializer->type);
     if (auto classType = type_cast<ClassType>(rangeType)) {
       auto symbol = classType->symbol()->resolvedDefinition();
-      (void)binder.traits.requireCompleteClass(symbol);
+      (void)binder.traits.require_complete_class(symbol);
       memberBeginEnd = usesMemberBeginEnd(b.control(), symbol);
     }
   }
@@ -321,7 +321,7 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
 
     if (auto classType =
             type_cast<ClassType>(traits.remove_cvref(var->type()))) {
-      (void)traits.requireCompleteClass(classType->symbol());
+      (void)traits.require_complete_class(classType->symbol());
     }
   }
 
@@ -338,7 +338,7 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
 
     if (auto classType =
             type_cast<ClassType>(traits.remove_cvref(entity->type()))) {
-      (void)traits.requireCompleteClass(classType->symbol());
+      (void)traits.require_complete_class(classType->symbol());
     }
 
     decomposeStructuredBinding(structuredBinding, entity);

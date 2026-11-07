@@ -37,7 +37,7 @@
 namespace cxx {
 class ExternalNameEncoder {
  public:
-  enum class StructorVariant { Complete, Base, Deleting };
+  enum class StructorVariant { Complete, Base, Deleting, Comdat };
 
   explicit ExternalNameEncoder(TranslationUnit* unit);
 
@@ -84,6 +84,7 @@ class ExternalNameEncoder {
   [[nodiscard]] auto encodeData(Symbol* symbol) -> std::string;
 
   void encodePrefix(Symbol* symbol);
+  void encodeClosurePrefix(Symbol* owner);
   void encodeTemplatePrefix(Symbol* symbol);
   [[nodiscard]] auto encodeAnonymousUnionName(ClassSymbol* classSymbol) -> bool;
   void encodeUnqualifiedName(Symbol* symbol);
@@ -92,6 +93,8 @@ class ExternalNameEncoder {
   void encodeTemplateName(Symbol* symbol);
   [[nodiscard]] auto encodeTemplateTemplateArgument(Symbol* symbol) -> bool;
   [[nodiscard]] auto encodeLocalName(Symbol* symbol) -> bool;
+  void encodeDefaultArgumentScope(ParameterSymbol* parameter);
+  void encodeLocalEntity(Symbol* symbol);
   void encodeClosureTypeName(ClassSymbol* classSymbol);
   void encodeUnnamedTypeName(Symbol* symbol);
   [[nodiscard]] auto unnamedTypeIndex(Symbol* symbol) const -> int;
@@ -135,10 +138,17 @@ class ExternalNameEncoder {
   void encodeFunctionSignature(FunctionSymbol* function);
   void encodeLambdaSig(FunctionSymbol* callOperator);
   void encodeConstValue(const Type* type, const ConstValue& value);
-  void encodeFloatingValue(const Type* type, double value);
+  template <typename Float>
+  void encodeFloatingValue(const Type* type, Float value);
   void encodeTemplateArgumentValue(const Type* type, const ConstValue& value);
-  void encodeValueExpression(const Type* type, const ConstValue& value);
-  void encodeAddressValue(const Type* type, const ConstAddress& address);
+  enum class ValueContext { kTemplateArgument, kSubobject };
+  void encodeValueExpression(const Type* type, const ConstValue& value,
+                             ValueContext context);
+  void encodeAddressValue(const Type* type, const ConstAddress& address,
+                          ValueContext context);
+  void encodeMemberPointerValue(const Type* type, const ConstAddress& address);
+  void encodeSubobjectDesignation(const Type* type,
+                                  const ConstAddress& address);
   void encodeObjectValue(const Type* type, const ConstObject& object);
   void encodeArrayValue(const Type* type, const InitializerList& elements);
   void encodeExternalName(Symbol* symbol);

@@ -41,6 +41,7 @@ class TypeChecker;
 class Arena;
 class FieldSymbol;
 struct PendingInstantiation;
+struct PlaceholderReplacement;
 
 class [[nodiscard]] ASTRewriter {
   explicit ASTRewriter(TranslationUnit* unit, ScopeSymbol* scope,
@@ -74,18 +75,26 @@ class [[nodiscard]] ASTRewriter {
                                   ClassSymbol* classSymbol) -> bool;
 
   static void requireExplicitInstantiationMember(TranslationUnit* unit,
-                                                 FunctionSymbol* function);
+                                                 FunctionSymbol* function,
+                                                 SourceLocation location);
+
+  static void requireExplicitInstantiationMember(TranslationUnit* unit,
+                                                 FieldSymbol* member);
+
+  [[nodiscard]] static auto hasInstantiableDefinition(FieldSymbol* member)
+      -> bool;
 
   static void requireExplicitInstantiationMembers(TranslationUnit* unit,
-                                                  ClassSymbol* instance);
+                                                  ClassSymbol* instance,
+                                                  SourceLocation location);
 
   [[nodiscard]] static auto evaluateConcept(
       TranslationUnit* unit, ConceptSymbol* conceptSymbol,
       List<TemplateArgumentAST*>* templateArgumentList) -> std::optional<bool>;
 
-  static void markExplicitInstantiationDeclared(
+  [[nodiscard]] static auto markExplicitInstantiationDeclared(
       TranslationUnit* unit, List<TemplateArgumentAST*>* templateArgumentList,
-      Symbol* symbol);
+      Symbol* symbol) -> Symbol*;
 
   static void reportPendingInstantiationErrors(TranslationUnit* unit,
                                                Symbol* primaryTemplate,
@@ -200,6 +209,12 @@ class [[nodiscard]] ASTRewriter {
   static void requireFieldInitializer(TranslationUnit* unit,
                                       FieldSymbol* field);
 
+  static void requireVariableInitializer(TranslationUnit* unit,
+                                         VariableSymbol* variable);
+
+  static void requireVariableValue(TranslationUnit* unit,
+                                   VariableSymbol* variable);
+
   [[nodiscard]] static auto requireDefaultArgument(TranslationUnit* unit,
                                                    ParameterSymbol* parameter)
       -> ExpressionAST*;
@@ -278,7 +293,8 @@ class [[nodiscard]] ASTRewriter {
   void warning(SourceLocation loc, std::string message);
   void note(SourceLocation loc, std::string message);
 
-  [[nodiscard]] auto check(ExpressionAST* ast) -> ExpressionAST*;
+  [[nodiscard]] auto check(ExpressionAST* ast, bool addressOfOperand = false)
+      -> ExpressionAST*;
 
   class TemplateParameterDeclarationGuard {
    public:
@@ -436,6 +452,10 @@ class [[nodiscard]] ASTRewriter {
   auto unit(UnitAST* ast) -> UnitAST*;
   auto expression(ExpressionAST* ast) -> ExpressionAST*;
   auto contextuallyConvertedBool(ExpressionAST* ast) -> ExpressionAST*;
+  auto contextuallyConvertedConstantBool(ExpressionAST* ast) -> ExpressionAST*;
+  auto constantExpression(ExpressionAST* ast) -> ExpressionAST*;
+  void requireConstantExpression(ExpressionAST* ast,
+                                 std::string_view construct);
   auto unevaluatedExpression(ExpressionAST* ast) -> ExpressionAST*;
 
   auto rewriteExpressionList(List<ExpressionAST*>* source)
@@ -496,7 +516,16 @@ class [[nodiscard]] ASTRewriter {
   auto moduleQualifier(ModuleQualifierAST* ast) -> ModuleQualifierAST*;
   auto modulePartition(ModulePartitionAST* ast) -> ModulePartitionAST*;
   auto importName(ImportNameAST* ast) -> ImportNameAST*;
-  auto initDeclarator(InitDeclaratorAST* ast, const DeclSpecs& declSpecs)
+  struct ConstantValueVisitor;
+  [[nodiscard]] auto remappedConstant(const ConstValue* value)
+      -> const ConstValue*;
+
+  [[nodiscard]] auto inheritConstantInitializer(Symbol* pattern,
+                                                ExpressionAST* initializer)
+      -> ExpressionAST*;
+
+  auto initDeclarator(InitDeclaratorAST* ast, const DeclSpecs& declSpecs,
+                      PlaceholderReplacement& listReplacement)
       -> InitDeclaratorAST*;
   auto declarator(DeclaratorAST* ast) -> DeclaratorAST*;
   auto usingDeclarator(UsingDeclaratorAST* ast) -> UsingDeclaratorAST*;
@@ -665,6 +694,11 @@ class [[nodiscard]] ASTRewriter {
 
   auto emptyFoldIdentity(TokenKind op) -> ExpressionAST*;
 
+  [[nodiscard]] auto selectPackElement(ParameterPackSymbol* pack,
+                                       ExpressionAST* index,
+                                       SourceLocation location)
+      -> std::optional<int>;
+
   [[nodiscard]] auto foldStep(ExpressionAST* left, TokenKind op,
                               SourceLocation opLoc, ExpressionAST* right)
       -> ExpressionAST*;
@@ -755,7 +789,10 @@ class [[nodiscard]] ASTRewriter {
   bool rewritingFunctionBody_ = false;
   bool rewritingForRangeDeclaration_ = false;
   bool pastingCheckedBody_ = false;
+
+  void adoptPastedSymbol(Symbol* symbol);
   int unevaluatedOperandDepth_ = 0;
+  ExpressionAST* addressOfOperand_ = nullptr;
   int immediateContextDepth_ = 0;
   struct ActiveExpansion {
     std::vector<ParameterPackSymbol*> packs;

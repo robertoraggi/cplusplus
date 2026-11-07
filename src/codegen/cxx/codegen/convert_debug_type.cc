@@ -109,6 +109,8 @@ struct Codegen::ConvertDebugType {
       -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const UnresolvedUnderlyingType* type)
       -> ir::DebugTypeRef;
+  [[nodiscard]] auto operator()(const UnresolvedPackIndexType* type)
+      -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const UnresolvedBuiltinType* type)
       -> ir::DebugTypeRef;
   [[nodiscard]] auto operator()(const OverloadSetType* type)
@@ -550,6 +552,11 @@ struct Codegen::ConvertDebugType {
 
 [[nodiscard]] auto Codegen::ConvertDebugType::operator()(
     const UnresolvedBoundedArrayType* type) -> ir::DebugTypeRef {
+  return {};
+}
+
+[[nodiscard]] auto Codegen::ConvertDebugType::operator()(
+    const UnresolvedPackIndexType* type) -> ir::DebugTypeRef {
   return {};
 }
 

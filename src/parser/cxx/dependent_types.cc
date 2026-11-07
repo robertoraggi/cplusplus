@@ -50,6 +50,14 @@ namespace {
   return is_template_parameter_pack(symbol);
 }
 
+[[nodiscard]] auto namesTemplate(Symbol* symbol, UnqualifiedIdAST* name)
+    -> bool {
+  if (!symbol || symbol->isInjectedClassName()) return false;
+  if (!ast_cast<NameIdAST>(name)) return false;
+  auto parameters = template_parameters_of(symbol);
+  return parameters && !parameters->isExplicitTemplateSpecialization();
+}
+
 struct FindUnexpandedParameterPack final : ASTVisitor {
   AST* root = nullptr;
   bool found = false;
@@ -388,11 +396,12 @@ struct IsDependent {
                                        /*stopAtConcreteSpecialization=*/true);
   }
 
-  [[nodiscard]] auto hasValueDependentInitializer(Symbol* symbol,
-                                                  ExpressionAST* initializer)
-      -> bool {
+  template <typename S>
+  [[nodiscard]] auto hasValueDependentInitializer(S* symbol) -> bool {
+    auto initializer = symbol->initializer();
     if (!initializer || !unit) return false;
-    if (!isPotentiallyConstant(unit->typeTraits(), symbol)) return false;
+    if (symbol->constValue() && !isInTemplateScope(symbol)) return false;
+    if (!unit->typeTraits().is_potentially_constant(symbol)) return false;
     return isDependentInitializer(initializer);
   }
 
@@ -673,6 +682,11 @@ struct IsDependent {
     return isDependentOperand(type->typeId());
   }
 
+  auto operator()(const UnresolvedPackIndexType* type) -> bool {
+    return isDependentOperand(type->pack()) ||
+           isDependentOperand(type->index());
+  }
+
   auto operator()(const UnresolvedBuiltinType* type) -> bool {
     return isDependentOperand(type->typeId());
   }
@@ -715,6 +729,7 @@ struct IsDependent {
   auto operator()(GlobalNestedNameSpecifierAST* ast) -> bool;
   auto operator()(SimpleNestedNameSpecifierAST* ast) -> bool;
   auto operator()(DecltypeNestedNameSpecifierAST* ast) -> bool;
+  auto operator()(PackIndexNestedNameSpecifierAST* ast) -> bool;
   auto operator()(TemplateNestedNameSpecifierAST* ast) -> bool;
 
   [[nodiscard]] auto isDependent(StatementAST* ast) -> bool { return false; }
@@ -734,7 +749,9 @@ struct IsDependent {
   [[nodiscard]] auto isDependent(TrailingReturnTypeAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(RequirementAST* ast) -> bool;
   [[nodiscard]] auto isDependent(TypeConstraintAST* ast) -> bool;
-  [[nodiscard]] auto isDependent(SplicerAST* ast) -> bool { return false; }
+  [[nodiscard]] auto isDependent(SplicerAST* ast) -> bool {
+    return ast && isDependent(ast->expression);
+  }
   [[nodiscard]] auto isDependent(DesignatorAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(NewPlacementAST* ast) -> bool { return false; }
   [[nodiscard]] auto isDependent(DeclaratorAST* ast) -> bool { return false; }
@@ -865,6 +882,7 @@ struct IsDependent {
     return isDependent(ast->sizeExpression);
   }
   auto operator()(UnderlyingTypeSpecifierAST* ast) -> bool { return false; }
+  auto operator()(PackIndexTypeSpecifierAST* ast) -> bool { return true; }
   auto operator()(ElaboratedTypeSpecifierAST* ast) -> bool { return false; }
   auto operator()(DecltypeAutoSpecifierAST* ast) -> bool { return false; }
 
@@ -906,6 +924,10 @@ auto IsDependent::operator()(GlobalNestedNameSpecifierAST* ast) -> bool {
 auto IsDependent::operator()(SimpleNestedNameSpecifierAST* ast) -> bool {
   if (isDependent(ast->nestedNameSpecifier)) return true;
   return !ast->symbol && !ast->nestedNameSpecifier;
+}
+
+auto IsDependent::operator()(PackIndexNestedNameSpecifierAST* ast) -> bool {
+  return !ast->symbol;
 }
 
 auto IsDependent::operator()(DecltypeNestedNameSpecifierAST* ast) -> bool {
@@ -1010,12 +1032,12 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
   if (auto field = symbol_cast<FieldSymbol>(ast->symbol)) {
     if (field->isStatic() && !field->initializer() && isInTemplateScope(field))
       return true;
-    if (hasValueDependentInitializer(field, field->initializer())) return true;
+    if (hasValueDependentInitializer(field)) return true;
     if (isDependent(field->type())) return true;
   }
   if (auto var = symbol_cast<VariableSymbol>(ast->symbol)) {
     if (namesTypeDependentPredefinedVariable(unit, var)) return true;
-    if (hasValueDependentInitializer(var, var->initializer())) return true;
+    if (hasValueDependentInitializer(var)) return true;
     if (isDependent(var->type())) return true;
   }
   auto hasDependentPlaceholderReturn = [&](FunctionSymbol* function) {
@@ -1170,12 +1192,16 @@ auto IsDependent::operator()(VaArgExpressionAST* ast) -> bool {
 
 auto IsDependent::operator()(SubscriptExpressionAST* ast) -> bool {
   if (isDependent(ast->baseExpression)) return true;
-  if (isDependent(ast->indexExpression)) return true;
+  for (auto expression : ListView{ast->expressionList})
+    if (isDependent(expression)) return true;
 
   return false;
 }
 
 auto IsDependent::operator()(CallExpressionAST* ast) -> bool {
+  if (ast->reflectionScope &&
+      isEnclosedInDependentTemplate(unit, ast->reflectionScope, true))
+    return true;
   if (isDependent(ast->baseExpression)) return true;
 
   for (auto node : ListView{ast->expressionList}) {
@@ -1280,12 +1306,26 @@ auto IsDependent::operator()(NamespaceReflectExpressionAST* ast) -> bool {
 }
 
 auto IsDependent::operator()(TypeIdReflectExpressionAST* ast) -> bool {
+  auto typeId = ast->typeId;
+  if (typeId && !typeId->declarator && !typeId->attributeList) {
+    auto specifiers = typeId->typeSpecifierList;
+    auto named = specifiers && !specifiers->next
+                     ? ast_cast<NamedTypeSpecifierAST>(specifiers->value)
+                     : nullptr;
+    if (named && namesTemplate(named->symbol, named->unqualifiedId))
+      return isDependent(named->nestedNameSpecifier) ||
+             enclosedInDependentTemplate(named->symbol->parent(), true);
+  }
   if (isDependent(ast->typeId)) return true;
 
   return false;
 }
 
 auto IsDependent::operator()(ReflectExpressionAST* ast) -> bool {
+  auto id = ast_cast<IdExpressionAST>(ast->expression);
+  if (id && namesTemplate(id->symbol, id->unqualifiedId))
+    return isDependent(id->nestedNameSpecifier) ||
+           enclosedInDependentTemplate(id->symbol->parent(), true);
   if (isDependent(ast->expression)) return true;
 
   return false;

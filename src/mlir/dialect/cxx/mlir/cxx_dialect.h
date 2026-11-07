@@ -25,6 +25,7 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
+#include <llvm/Config/llvm-config.h>
 #include <mlir/Bytecode/BytecodeOpInterface.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/BuiltinTypeInterfaces.h>
@@ -58,6 +59,15 @@
 #endif
 
 namespace mlir::cxx {
+
+[[nodiscard]] inline auto getMemorySlotValueType(const MemorySlot& slot)
+    -> Type {
+#if LLVM_VERSION_MAJOR >= 24
+  return slot.valueType;
+#else
+  return slot.elemType;
+#endif
+}
 
 [[nodiscard]] auto haveSamePointerMemorySpace(PtrLikeTypeInterface left,
                                               PtrLikeTypeInterface right)

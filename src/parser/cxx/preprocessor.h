@@ -152,7 +152,8 @@ class Preprocessor final : public SourceResolver {
   [[nodiscard]] auto includedFiles() const
       -> const std::vector<std::pair<std::string, bool>>&;
 
-  [[nodiscard]] auto isSystemHeader(std::uint32_t sourceFileId) const -> bool;
+  [[nodiscard]] auto isSystemHeader(std::uint32_t sourceFileId) const
+      -> bool override;
 
   void setDisableCurrentDirSearch(bool disable);
 

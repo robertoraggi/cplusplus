@@ -73,6 +73,8 @@ struct ASTPrettyPrinter::DeclarationVisitor {
 
   void operator()(StaticAssertDeclarationAST* ast);
 
+  void operator()(ConstevalBlockDeclarationAST* ast);
+
   void operator()(AliasDeclarationAST* ast);
 
   void operator()(OpaqueEnumDeclarationAST* ast);
@@ -443,6 +445,8 @@ struct ASTPrettyPrinter::SpecifierVisitor {
 
   void operator()(UnderlyingTypeSpecifierAST* ast);
 
+  void operator()(PackIndexTypeSpecifierAST* ast);
+
   void operator()(ElaboratedTypeSpecifierAST* ast);
 
   void operator()(DecltypeAutoSpecifierAST* ast);
@@ -547,6 +551,8 @@ struct ASTPrettyPrinter::UnqualifiedIdVisitor {
 
   void operator()(DecltypeIdAST* ast);
 
+  void operator()(PackIndexIdAST* ast);
+
   void operator()(OperatorFunctionIdAST* ast);
 
   void operator()(LiteralOperatorIdAST* ast);
@@ -578,6 +584,8 @@ struct ASTPrettyPrinter::NestedNameSpecifierVisitor {
   void operator()(SimpleNestedNameSpecifierAST* ast);
 
   void operator()(DecltypeNestedNameSpecifierAST* ast);
+
+  void operator()(PackIndexNestedNameSpecifierAST* ast);
 
   void operator()(TemplateNestedNameSpecifierAST* ast);
 };
@@ -1586,6 +1594,14 @@ void ASTPrettyPrinter::DeclarationVisitor::operator()(
     accept.writeToken(ast->semicolonLoc);
     newline();
   }
+}
+
+void ASTPrettyPrinter::DeclarationVisitor::operator()(
+    ConstevalBlockDeclarationAST* ast) {
+  if (ast->constevalLoc) {
+    accept.writeToken(ast->constevalLoc);
+  }
+  accept(ast->statement);
 }
 
 void ASTPrettyPrinter::DeclarationVisitor::operator()(
@@ -2726,7 +2742,15 @@ void ASTPrettyPrinter::ExpressionVisitor::operator()(
     accept.writeToken(ast->lbracketLoc);
     nospace();
   }
-  accept(ast->indexExpression);
+
+  for (auto it = ast->expressionList; it; it = it->next) {
+    accept(it->value);
+    if (it->next) {
+      nospace();
+      accept.write(",");
+    }
+  }
+
   if (ast->rbracketLoc) {
     nospace();
     accept.writeToken(ast->rbracketLoc);
@@ -3764,6 +3788,24 @@ void ASTPrettyPrinter::SpecifierVisitor::operator()(
 }
 
 void ASTPrettyPrinter::SpecifierVisitor::operator()(
+    PackIndexTypeSpecifierAST* ast) {
+  accept(ast->packSpecifier);
+  if (ast->ellipsisLoc) {
+    accept.writeToken(ast->ellipsisLoc);
+  }
+  if (ast->lbracketLoc) {
+    nospace();
+    accept.writeToken(ast->lbracketLoc);
+    nospace();
+  }
+  accept(ast->indexExpression);
+  if (ast->rbracketLoc) {
+    nospace();
+    accept.writeToken(ast->rbracketLoc);
+  }
+}
+
+void ASTPrettyPrinter::SpecifierVisitor::operator()(
     ElaboratedTypeSpecifierAST* ast) {
   if (ast->classLoc) {
     accept.writeToken(ast->classLoc);
@@ -4132,6 +4174,10 @@ void ASTPrettyPrinter::UnqualifiedIdVisitor::operator()(DecltypeIdAST* ast) {
   accept(ast->decltypeSpecifier);
 }
 
+void ASTPrettyPrinter::UnqualifiedIdVisitor::operator()(PackIndexIdAST* ast) {
+  accept(ast->typeSpecifier);
+}
+
 void ASTPrettyPrinter::UnqualifiedIdVisitor::operator()(
     OperatorFunctionIdAST* ast) {
   if (ast->operatorLoc) {
@@ -4282,6 +4328,16 @@ void ASTPrettyPrinter::NestedNameSpecifierVisitor::operator()(
 void ASTPrettyPrinter::NestedNameSpecifierVisitor::operator()(
     DecltypeNestedNameSpecifierAST* ast) {
   accept(ast->decltypeSpecifier);
+  if (ast->scopeLoc) {
+    nospace();
+    accept.writeToken(ast->scopeLoc);
+    nospace();
+  }
+}
+
+void ASTPrettyPrinter::NestedNameSpecifierVisitor::operator()(
+    PackIndexNestedNameSpecifierAST* ast) {
+  accept(ast->typeSpecifier);
   if (ast->scopeLoc) {
     nospace();
     accept.writeToken(ast->scopeLoc);

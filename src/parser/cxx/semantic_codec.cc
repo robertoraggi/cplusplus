@@ -55,6 +55,7 @@ void SemanticEncoder::writeSession(const SemanticArchiveRoots& roots,
   session.varU32(static_cast<std::uint32_t>(symbolRef(roots.globalScope)));
   session.varU32(static_cast<std::uint32_t>(astRef(roots.ast)));
   session.varI32(roots.anonymousIdCount);
+  session.varI32(roots.uniqueClosureCount);
   session.varU32(roots.prefixTokenCount);
 
   session.varU32(
@@ -70,6 +71,31 @@ void SemanticEncoder::writeSession(const SemanticArchiveRoots& roots,
   session.varU32(
       static_cast<std::uint32_t>(roots.instantiatedMemberClasses.size()));
   for (auto entry : roots.instantiatedMemberClasses)
+    session.varU32(static_cast<std::uint32_t>(symbolRef(entry)));
+
+  session.varU32(static_cast<std::uint32_t>(
+      roots.explicitInstantiationDefinitions.size()));
+  for (auto entry : roots.explicitInstantiationDefinitions)
+    session.varU32(static_cast<std::uint32_t>(symbolRef(entry)));
+
+  session.varU32(static_cast<std::uint32_t>(
+      roots.explicitInstantiationClassDefinitions.size()));
+  for (auto entry : roots.explicitInstantiationClassDefinitions)
+    session.varU32(static_cast<std::uint32_t>(symbolRef(entry)));
+
+  session.varU32(static_cast<std::uint32_t>(
+      roots.explicitInstantiationVariableDefinitions.size()));
+  for (auto entry : roots.explicitInstantiationVariableDefinitions)
+    session.varU32(static_cast<std::uint32_t>(symbolRef(entry)));
+
+  session.varU32(static_cast<std::uint32_t>(
+      roots.explicitInstantiationMemberDeclarations.size()));
+  for (auto entry : roots.explicitInstantiationMemberDeclarations)
+    session.varU32(static_cast<std::uint32_t>(symbolRef(entry)));
+
+  session.varU32(
+      static_cast<std::uint32_t>(roots.cLanguageLinkageEntities.size()));
+  for (auto entry : roots.cLanguageLinkageEntities)
     session.varU32(static_cast<std::uint32_t>(symbolRef(entry)));
 
   session.varU32(static_cast<std::uint32_t>(roots.snippets.size()));
@@ -330,6 +356,10 @@ void SemanticEncoder::writeType(ByteWriter& out, const cxx::Type* type) {
       writeTypeUnresolvedUnderlyingType(
           out, static_cast<const cxx::UnresolvedUnderlyingType*>(type));
       break;
+    case cxx::TypeKind::kUnresolvedPackIndex:
+      writeTypeUnresolvedPackIndexType(
+          out, static_cast<const cxx::UnresolvedPackIndexType*>(type));
+      break;
     case cxx::TypeKind::kUnresolvedBuiltin:
       writeTypeUnresolvedBuiltinType(
           out, static_cast<const cxx::UnresolvedBuiltinType*>(type));
@@ -517,6 +547,10 @@ void SemanticEncoder::writeAst(ByteWriter& out, cxx::AST* ast) {
     case cxx::ASTKind::StaticAssertDeclaration:
       writeAstStaticAssertDeclarationAST(
           out, static_cast<cxx::StaticAssertDeclarationAST*>(ast));
+      break;
+    case cxx::ASTKind::ConstevalBlockDeclaration:
+      writeAstConstevalBlockDeclarationAST(
+          out, static_cast<cxx::ConstevalBlockDeclarationAST*>(ast));
       break;
     case cxx::ASTKind::AliasDeclaration:
       writeAstAliasDeclarationAST(out,
@@ -1173,6 +1207,10 @@ void SemanticEncoder::writeAst(ByteWriter& out, cxx::AST* ast) {
       writeAstUnderlyingTypeSpecifierAST(
           out, static_cast<cxx::UnderlyingTypeSpecifierAST*>(ast));
       break;
+    case cxx::ASTKind::PackIndexTypeSpecifier:
+      writeAstPackIndexTypeSpecifierAST(
+          out, static_cast<cxx::PackIndexTypeSpecifierAST*>(ast));
+      break;
     case cxx::ASTKind::ElaboratedTypeSpecifier:
       writeAstElaboratedTypeSpecifierAST(
           out, static_cast<cxx::ElaboratedTypeSpecifierAST*>(ast));
@@ -1261,6 +1299,9 @@ void SemanticEncoder::writeAst(ByteWriter& out, cxx::AST* ast) {
     case cxx::ASTKind::DecltypeId:
       writeAstDecltypeIdAST(out, static_cast<cxx::DecltypeIdAST*>(ast));
       break;
+    case cxx::ASTKind::PackIndexId:
+      writeAstPackIndexIdAST(out, static_cast<cxx::PackIndexIdAST*>(ast));
+      break;
     case cxx::ASTKind::OperatorFunctionId:
       writeAstOperatorFunctionIdAST(
           out, static_cast<cxx::OperatorFunctionIdAST*>(ast));
@@ -1296,6 +1337,10 @@ void SemanticEncoder::writeAst(ByteWriter& out, cxx::AST* ast) {
     case cxx::ASTKind::DecltypeNestedNameSpecifier:
       writeAstDecltypeNestedNameSpecifierAST(
           out, static_cast<cxx::DecltypeNestedNameSpecifierAST*>(ast));
+      break;
+    case cxx::ASTKind::PackIndexNestedNameSpecifier:
+      writeAstPackIndexNestedNameSpecifierAST(
+          out, static_cast<cxx::PackIndexNestedNameSpecifierAST*>(ast));
       break;
     case cxx::ASTKind::TemplateNestedNameSpecifier:
       writeAstTemplateNestedNameSpecifierAST(
@@ -1585,6 +1630,9 @@ void SemanticEncoder::writeConstValue(ByteWriter& out,
       break;
     }
     case 12: {
+      break;
+    }
+    case 13: {
       break;
     }
   }
@@ -1934,6 +1982,16 @@ void SemanticEncoder::writeTypeUnresolvedUnderlyingType(
   out.varU32(static_cast<std::uint32_t>(astRef(self->typeId())));
 }
 
+void SemanticEncoder::writeTypeUnresolvedPackIndexType(
+    ByteWriter& out,
+    [[maybe_unused]] const cxx::UnresolvedPackIndexType* self) {
+  // unit
+  // pack
+  out.varU32(static_cast<std::uint32_t>(typeRef(self->pack())));
+  // index
+  out.varU32(static_cast<std::uint32_t>(astRef(self->index())));
+}
+
 void SemanticEncoder::writeTypeUnresolvedBuiltinType(
     ByteWriter& out, [[maybe_unused]] const cxx::UnresolvedBuiltinType* self) {
   // unit
@@ -2190,6 +2248,9 @@ void SemanticEncoder::writeSymbolClassSymbol(
   for (const auto& element4 : self->redeclarations()) {
     out.varU32(static_cast<std::uint32_t>(symbolRef(element4)));
   }
+  // ::cxx::ClassSymbol::firstNonFriendDeclarationLocation_
+  out.varU32(static_cast<std::uint32_t>(
+      locationRef(self->firstNonFriendDeclarationLocation())));
   // ::cxx::ClassSymbol::baseClasses_
   out.varU32(
       static_cast<std::uint32_t>(std::ranges::size(self->baseClasses())));
@@ -2235,8 +2296,13 @@ void SemanticEncoder::writeSymbolClassSymbol(
   if (self->vtableLayout()) {
     writecxxVTableLayout(out, &(*self->vtableLayout()));
   }
+  // ::cxx::ClassSymbol::selectedDestructor_
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->selectedDestructor())));
   // ::cxx::ClassSymbol::capturedThisField_
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->capturedThisField())));
+  // ::cxx::ClassSymbol::closureInitializerOwner_
+  out.varU32(
+      static_cast<std::uint32_t>(symbolRef(self->closureInitializerOwner())));
   // ::cxx::ClassSymbol::closureDiscriminator_
   out.varI32(static_cast<std::int32_t>(self->closureDiscriminator()));
   // ::cxx::ClassSymbol::sizeInBytes_
@@ -2269,6 +2335,8 @@ void SemanticEncoder::writeSymbolClassSymbol(
   out.varU32(static_cast<std::uint32_t>(self->hasLambdaCapture()));
   // ::cxx::ClassSymbol::hasUserDeclaredConstructors_
   out.varU32(static_cast<std::uint32_t>(self->hasUserDeclaredConstructors()));
+  // ::cxx::ClassSymbol::isConstevalBlockClosure_
+  out.varU32(static_cast<std::uint32_t>(self->isConstevalBlockClosure()));
 }
 
 void SemanticEncoder::writeSymbolEnumSymbol(
@@ -2302,6 +2370,8 @@ void SemanticEncoder::writeSymbolEnumSymbol(
   }
   // ::cxx::EnumSymbol::underlyingType_
   out.varU32(static_cast<std::uint32_t>(typeRef(self->underlyingType())));
+  // ::cxx::EnumSymbol::promotionType_
+  out.varU32(static_cast<std::uint32_t>(typeRef(self->promotionType())));
   // ::cxx::EnumSymbol::hasFixedUnderlyingType_
   out.boolean(self->hasFixedUnderlyingType());
   // ::cxx::EnumSymbol::isDefined_
@@ -2387,6 +2457,8 @@ void SemanticEncoder::writeSymbolFunctionSymbol(
   if (self->pendingBody()) {
     writecxxPendingInstantiation(out, &(*self->pendingBody()));
   }
+  // ::cxx::FunctionSymbol::returnTypeSyntax_
+  out.varU32(static_cast<std::uint32_t>(astRef(self->returnTypeSyntax())));
   // ::cxx::FunctionSymbol::pendingExceptionSpecification_
   out.boolean(self->pendingExceptionSpecification() != nullptr);
   if (self->pendingExceptionSpecification()) {
@@ -2567,6 +2639,8 @@ void SemanticEncoder::writeSymbolTypeAliasSymbol(
 void SemanticEncoder::writeSymbolVariableSymbol(
     ByteWriter& out, [[maybe_unused]] cxx::VariableSymbol* self) {
   writeSymbolSymbol(out, self);
+  // ::cxx::MaybeTypeSpecifier::typeSpecifier_
+  out.varU32(static_cast<std::uint32_t>(astRef(self->typeSpecifier())));
   // ::cxx::MaybeTemplate::declaration_
   out.varU32(static_cast<std::uint32_t>(astRef(self->declaration())));
   // ::cxx::MaybeTemplate::templateDeclaration
@@ -2612,6 +2686,11 @@ void SemanticEncoder::writeSymbolVariableSymbol(
   // ::cxx::VariableSymbol::lifetimeExtendingDeclaration_
   out.varU32(static_cast<std::uint32_t>(
       symbolRef(self->lifetimeExtendingDeclaration())));
+  // ::cxx::VariableSymbol::pendingInitializer_
+  out.boolean(self->pendingInitializer() != nullptr);
+  if (self->pendingInitializer()) {
+    writecxxPendingInstantiation(out, &(*self->pendingInitializer()));
+  }
   // ::cxx::VariableSymbol::constValue_
   out.boolean(self->constValue().has_value());
   if (self->constValue().has_value()) {
@@ -2631,13 +2710,19 @@ void SemanticEncoder::writeSymbolVariableSymbol(
   out.varU32(static_cast<std::uint32_t>(self->isInline()));
   // ::cxx::VariableSymbol::isFunctionLocalPredefined_
   out.varU32(static_cast<std::uint32_t>(self->isFunctionLocalPredefined()));
-  // ::cxx::VariableSymbol::isStructuredBindingAlias_
-  out.varU32(static_cast<std::uint32_t>(self->isStructuredBindingAlias()));
+  // ::cxx::VariableSymbol::isTemplateParameterObject_
+  out.varU32(static_cast<std::uint32_t>(self->isTemplateParameterObject()));
+  // ::cxx::VariableSymbol::hasCLinkage_
+  out.varU32(static_cast<std::uint32_t>(self->hasCLinkage()));
+  // ::cxx::VariableSymbol::structuredBindingKind_
+  out.varU32(static_cast<std::uint32_t>(self->structuredBindingKind()));
 }
 
 void SemanticEncoder::writeSymbolFieldSymbol(
     ByteWriter& out, [[maybe_unused]] cxx::FieldSymbol* self) {
   writeSymbolSymbol(out, self);
+  // ::cxx::MaybeTypeSpecifier::typeSpecifier_
+  out.varU32(static_cast<std::uint32_t>(astRef(self->typeSpecifier())));
   // ::cxx::FieldSymbol::threadLocalKind_
   out.varU32(static_cast<std::uint32_t>(self->threadLocalKind()));
   // ::cxx::FieldSymbol::definition_
@@ -2668,6 +2753,9 @@ void SemanticEncoder::writeSymbolFieldSymbol(
   out.varU32(static_cast<std::uint32_t>(self->isMutable()));
   // ::cxx::FieldSymbol::isNoUniqueAddress_
   out.varU32(static_cast<std::uint32_t>(self->isNoUniqueAddress()));
+  // ::cxx::FieldSymbol::hasImmediateEscalatingInitializer_
+  out.varU32(
+      static_cast<std::uint32_t>(self->hasImmediateEscalatingInitializer()));
   // ::cxx::FieldSymbol::localOffset_
   out.varI32(static_cast<std::int32_t>(self->localOffset()));
   // ::cxx::FieldSymbol::alignment_
@@ -2690,6 +2778,8 @@ void SemanticEncoder::writeSymbolFieldSymbol(
 void SemanticEncoder::writeSymbolParameterSymbol(
     ByteWriter& out, [[maybe_unused]] cxx::ParameterSymbol* self) {
   writeSymbolSymbol(out, self);
+  // ::cxx::ParameterSymbol::declaration_
+  out.varU32(static_cast<std::uint32_t>(astRef(self->declaration())));
   // ::cxx::ParameterSymbol::defaultArgument_
   out.varU32(static_cast<std::uint32_t>(astRef(self->defaultArgument())));
   // ::cxx::ParameterSymbol::pendingDefaultArgument_
@@ -2722,6 +2812,8 @@ void SemanticEncoder::writeSymbolParameterSymbol(
   out.boolean(self->isExplicitObject());
   // ::cxx::ParameterSymbol::isParameterPack_
   out.boolean(self->isParameterPack());
+  // ::cxx::ParameterSymbol::hasImmediateEscalatingDefaultArgument_
+  out.boolean(self->hasImmediateEscalatingDefaultArgument());
 }
 
 void SemanticEncoder::writeSymbolParameterPackSymbol(
@@ -3179,6 +3271,17 @@ void SemanticEncoder::writeAstStaticAssertDeclarationAST(
   if (self->value.has_value()) {
     out.boolean((*self->value));
   }
+}
+
+void SemanticEncoder::writeAstConstevalBlockDeclarationAST(
+    ByteWriter& out, [[maybe_unused]] cxx::ConstevalBlockDeclarationAST* self) {
+  writeAstDeclarationAST(out, self);
+  // ::cxx::ConstevalBlockDeclarationAST::constevalLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->constevalLoc)));
+  // ::cxx::ConstevalBlockDeclarationAST::statement
+  out.varU32(static_cast<std::uint32_t>(astRef(self->statement)));
+  // ::cxx::ConstevalBlockDeclarationAST::symbol
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->symbol)));
 }
 
 void SemanticEncoder::writeAstAliasDeclarationAST(
@@ -4537,8 +4640,8 @@ void SemanticEncoder::writeAstSubscriptExpressionAST(
   out.varU32(static_cast<std::uint32_t>(astRef(self->baseExpression)));
   // ::cxx::SubscriptExpressionAST::lbracketLoc
   out.varU32(static_cast<std::uint32_t>(locationRef(self->lbracketLoc)));
-  // ::cxx::SubscriptExpressionAST::indexExpression
-  out.varU32(static_cast<std::uint32_t>(astRef(self->indexExpression)));
+  // ::cxx::SubscriptExpressionAST::expressionList
+  writeAstList(out, self->expressionList);
   // ::cxx::SubscriptExpressionAST::rbracketLoc
   out.varU32(static_cast<std::uint32_t>(locationRef(self->rbracketLoc)));
   // ::cxx::SubscriptExpressionAST::symbol
@@ -4562,6 +4665,8 @@ void SemanticEncoder::writeAstCallExpressionAST(
   out.boolean(self->isVirtualDispatch);
   // ::cxx::CallExpressionAST::constructorSymbol
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->constructorSymbol)));
+  // ::cxx::CallExpressionAST::reflectionScope
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->reflectionScope)));
 }
 
 void SemanticEncoder::writeAstTypeConstructionAST(
@@ -4603,6 +4708,8 @@ void SemanticEncoder::writeAstSpliceMemberExpressionAST(
   out.varU32(static_cast<std::uint32_t>(locationRef(self->templateLoc)));
   // ::cxx::SpliceMemberExpressionAST::splicer
   out.varU32(static_cast<std::uint32_t>(astRef(self->splicer)));
+  // ::cxx::SpliceMemberExpressionAST::splice
+  writecxxSpliceExpressionInfo(out, &self->splice);
   // ::cxx::SpliceMemberExpressionAST::symbol
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->symbol)));
   // ::cxx::SpliceMemberExpressionAST::accessOp
@@ -4757,6 +4864,8 @@ void SemanticEncoder::writeAstSpliceExpressionAST(
   writeAstExpressionAST(out, self);
   // ::cxx::SpliceExpressionAST::splicer
   out.varU32(static_cast<std::uint32_t>(astRef(self->splicer)));
+  // ::cxx::SpliceExpressionAST::splice
+  writecxxSpliceExpressionInfo(out, &self->splice);
 }
 
 void SemanticEncoder::writeAstGlobalScopeReflectExpressionAST(
@@ -5013,6 +5122,12 @@ void SemanticEncoder::writeAstConstExpressionAST(
   // ::cxx::ConstExpressionAST::constValue
   out.boolean(self->constValue != nullptr);
   if (self->constValue) writeConstValue(out, *self->constValue);
+  // ::cxx::ConstExpressionAST::isDeferredImmediateInvocation
+  out.boolean(self->isDeferredImmediateInvocation);
+  // ::cxx::ConstExpressionAST::evaluationKind
+  out.varU32(static_cast<std::uint32_t>(self->evaluationKind));
+  // ::cxx::ConstExpressionAST::evaluationScope
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->evaluationScope)));
 }
 
 void SemanticEncoder::writeAstBinaryExpressionAST(
@@ -5620,6 +5735,21 @@ void SemanticEncoder::writeAstUnderlyingTypeSpecifierAST(
   out.varU32(static_cast<std::uint32_t>(locationRef(self->rparenLoc)));
 }
 
+void SemanticEncoder::writeAstPackIndexTypeSpecifierAST(
+    ByteWriter& out, [[maybe_unused]] cxx::PackIndexTypeSpecifierAST* self) {
+  writeAstSpecifierAST(out, self);
+  // ::cxx::PackIndexTypeSpecifierAST::packSpecifier
+  out.varU32(static_cast<std::uint32_t>(astRef(self->packSpecifier)));
+  // ::cxx::PackIndexTypeSpecifierAST::ellipsisLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->ellipsisLoc)));
+  // ::cxx::PackIndexTypeSpecifierAST::lbracketLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->lbracketLoc)));
+  // ::cxx::PackIndexTypeSpecifierAST::indexExpression
+  out.varU32(static_cast<std::uint32_t>(astRef(self->indexExpression)));
+  // ::cxx::PackIndexTypeSpecifierAST::rbracketLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->rbracketLoc)));
+}
+
 void SemanticEncoder::writeAstElaboratedTypeSpecifierAST(
     ByteWriter& out, [[maybe_unused]] cxx::ElaboratedTypeSpecifierAST* self) {
   writeAstSpecifierAST(out, self);
@@ -5924,6 +6054,8 @@ void SemanticEncoder::writeAstArrayDeclaratorChunkAST(
   writeAstList(out, self->typeQualifierList);
   // ::cxx::ArrayDeclaratorChunkAST::expression
   out.varU32(static_cast<std::uint32_t>(astRef(self->expression)));
+  // ::cxx::ArrayDeclaratorChunkAST::evaluationScope
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->evaluationScope)));
   // ::cxx::ArrayDeclaratorChunkAST::rbracketLoc
   out.varU32(static_cast<std::uint32_t>(locationRef(self->rbracketLoc)));
   // ::cxx::ArrayDeclaratorChunkAST::attributeList
@@ -5953,6 +6085,13 @@ void SemanticEncoder::writeAstDecltypeIdAST(
   writeAstUnqualifiedIdAST(out, self);
   // ::cxx::DecltypeIdAST::decltypeSpecifier
   out.varU32(static_cast<std::uint32_t>(astRef(self->decltypeSpecifier)));
+}
+
+void SemanticEncoder::writeAstPackIndexIdAST(
+    ByteWriter& out, [[maybe_unused]] cxx::PackIndexIdAST* self) {
+  writeAstUnqualifiedIdAST(out, self);
+  // ::cxx::PackIndexIdAST::typeSpecifier
+  out.varU32(static_cast<std::uint32_t>(astRef(self->typeSpecifier)));
 }
 
 void SemanticEncoder::writeAstOperatorFunctionIdAST(
@@ -6068,6 +6207,16 @@ void SemanticEncoder::writeAstDecltypeNestedNameSpecifierAST(
   out.varU32(static_cast<std::uint32_t>(locationRef(self->scopeLoc)));
 }
 
+void SemanticEncoder::writeAstPackIndexNestedNameSpecifierAST(
+    ByteWriter& out,
+    [[maybe_unused]] cxx::PackIndexNestedNameSpecifierAST* self) {
+  writeAstNestedNameSpecifierAST(out, self);
+  // ::cxx::PackIndexNestedNameSpecifierAST::typeSpecifier
+  out.varU32(static_cast<std::uint32_t>(astRef(self->typeSpecifier)));
+  // ::cxx::PackIndexNestedNameSpecifierAST::scopeLoc
+  out.varU32(static_cast<std::uint32_t>(locationRef(self->scopeLoc)));
+}
+
 void SemanticEncoder::writeAstTemplateNestedNameSpecifierAST(
     ByteWriter& out,
     [[maybe_unused]] cxx::TemplateNestedNameSpecifierAST* self) {
@@ -6146,6 +6295,8 @@ void SemanticEncoder::writeAstExpressionTemplateArgumentAST(
   writeAstTemplateArgumentAST(out, self);
   // ::cxx::ExpressionTemplateArgumentAST::expression
   out.varU32(static_cast<std::uint32_t>(astRef(self->expression)));
+  // ::cxx::ExpressionTemplateArgumentAST::evaluationScope
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->evaluationScope)));
 }
 
 void SemanticEncoder::writeAstThrowExceptionSpecifierAST(
@@ -6520,13 +6671,22 @@ void SemanticEncoder::writecxxMeta(ByteWriter& out,
       writecxxMetaConstExpr(out, &std::get<2>(self->value));
       break;
     }
+    case 3: {
+      writecxxMetaParameter(out, &std::get<3>(self->value));
+      break;
+    }
+    case 4: {
+      out.varU32(
+          static_cast<std::uint32_t>(constRef(std::get<4>(self->value))));
+      break;
+    }
   }
 }
 
 void SemanticEncoder::writecxxMetaConstExpr(
     ByteWriter& out, [[maybe_unused]] const cxx::Meta::ConstExpr* self) {
-  // ::cxx::Meta::ConstExpr::expression
-  out.varU32(static_cast<std::uint32_t>(astRef(self->expression)));
+  // ::cxx::Meta::ConstExpr::type
+  out.varU32(static_cast<std::uint32_t>(typeRef(self->type)));
   // ::cxx::Meta::ConstExpr::value
   writeConstValue(out, self->value);
 }
@@ -6633,6 +6793,8 @@ void SemanticEncoder::writecxxConstStorage(
   out.varU32(static_cast<std::uint32_t>(typeRef(self->type())));
   // ::cxx::ConstStorage::value_
   writeConstValue(out, self->value());
+  // ::cxx::ConstStorage::backingArray_
+  out.varU32(static_cast<std::uint32_t>(constRef(self->backingArray())));
   // ::cxx::ConstStorage::lifetimeEnded_
   out.boolean(self->lifetimeEnded());
 }
@@ -6655,6 +6817,14 @@ void SemanticEncoder::writecxxConstFloat16(
     ByteWriter& out, [[maybe_unused]] const cxx::ConstFloat16* self) {
   // ::cxx::ConstFloat16::bits
   out.varU32(static_cast<std::uint32_t>(self->bits));
+}
+
+void SemanticEncoder::writecxxMetaParameter(
+    ByteWriter& out, [[maybe_unused]] const cxx::Meta::Parameter* self) {
+  // ::cxx::Meta::Parameter::function
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->function)));
+  // ::cxx::Meta::Parameter::index
+  out.varU32(static_cast<std::uint32_t>(self->index));
 }
 
 void SemanticEncoder::writecxxTemplateSpecialization(
@@ -6986,12 +7156,20 @@ void SemanticEncoder::writecxxDefaultInitializerContext(
   out.varU32(static_cast<std::uint32_t>(locationRef(self->location)));
   // ::cxx::DefaultInitializerContext::scope
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->scope)));
+  // ::cxx::DefaultInitializerContext::entity
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->entity)));
 }
 
 void SemanticEncoder::writecxxObjectInitializationInfo(
     ByteWriter& out,
     [[maybe_unused]] const cxx::ObjectInitializationInfo* self) {
   // ::cxx::ObjectInitializationInfo::expression
+  out.varU32(static_cast<std::uint32_t>(astRef(self->expression)));
+}
+
+void SemanticEncoder::writecxxSpliceExpressionInfo(
+    ByteWriter& out, [[maybe_unused]] const cxx::SpliceExpressionInfo* self) {
+  // ::cxx::SpliceExpressionInfo::expression
   out.varU32(static_cast<std::uint32_t>(astRef(self->expression)));
 }
 
@@ -7002,6 +7180,8 @@ void SemanticEncoder::writecxxInitializerInfo(
   if (self->arguments.has_value()) {
     writeAstList(out, (*self->arguments));
   }
+  // ::cxx::InitializerInfo::isParenthesizedAggregate
+  out.boolean(self->isParenthesizedAggregate);
 }
 
 auto SemanticDecoder::operator()(const ArchiveReader& archive,
@@ -7096,7 +7276,7 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
     nodes_.reserve(nodeRecords_.size());
     for (const auto& record : nodeRecords_) {
       ByteReader in{record.bytes};
-      const auto kind = static_cast<cxx::ASTKind>(readEnum(in, 246));
+      const auto kind = static_cast<cxx::ASTKind>(readEnum(in, 250));
       if (!ok()) return false;
       auto node = allocateAst(kind);
       if (!node) {
@@ -7126,7 +7306,7 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
                            countDetail(nodeRecords_.size())};
     for (std::size_t i = 0; ok() && i < nodeRecords_.size(); ++i) {
       ByteReader in{nodeRecords_[i].bytes};
-      const auto kind = readEnum(in, 246);
+      const auto kind = readEnum(in, 250);
       decodeAstFields(in, nodes_[i]);
       if (ok() && !in.atEnd()) {
         fail(std::format("AST record {} of kind {} has {} trailing bytes", i,
@@ -7141,6 +7321,8 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
       if (auto scope = symbol_cast<ScopeSymbol>(symbol))
         scope->rebuildLookupTable();
       rebuild_specialization_index(symbol);
+      if (auto variable = symbol_cast<VariableSymbol>(symbol))
+        control()->indexTemplateParameterObject(variable);
     }
   }
 
@@ -7151,6 +7333,7 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
       symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{session.varU32()}));
   roots.ast = ast_cast<UnitAST>(astAt(AstRef{session.varU32()}));
   roots.anonymousIdCount = session.varI32();
+  roots.uniqueClosureCount = session.varI32();
   roots.prefixTokenCount = session.varU32();
 
   {
@@ -7175,6 +7358,44 @@ auto SemanticDecoder::operator()(const ArchiveReader& archive,
       auto entry =
           symbol_cast<ClassSymbol>(symbolAt(SymbolRef{session.varU32()}));
       if (entry) roots.instantiatedMemberClasses.push_back(entry);
+    }
+  }
+  {
+    const auto count = session.varCount(1);
+    for (std::uint32_t i = 0; ok() && i < count; ++i) {
+      auto entry =
+          symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{session.varU32()}));
+      if (entry) roots.explicitInstantiationDefinitions.push_back(entry);
+    }
+  }
+  {
+    const auto count = session.varCount(1);
+    for (std::uint32_t i = 0; ok() && i < count; ++i) {
+      auto entry =
+          symbol_cast<ClassSymbol>(symbolAt(SymbolRef{session.varU32()}));
+      if (entry) roots.explicitInstantiationClassDefinitions.push_back(entry);
+    }
+  }
+  {
+    const auto count = session.varCount(1);
+    for (std::uint32_t i = 0; ok() && i < count; ++i) {
+      auto entry = symbolAt(SymbolRef{session.varU32()});
+      if (entry)
+        roots.explicitInstantiationVariableDefinitions.push_back(entry);
+    }
+  }
+  {
+    const auto count = session.varCount(1);
+    for (std::uint32_t i = 0; ok() && i < count; ++i) {
+      auto entry = symbolAt(SymbolRef{session.varU32()});
+      if (entry) roots.explicitInstantiationMemberDeclarations.push_back(entry);
+    }
+  }
+  {
+    const auto count = session.varCount(1);
+    for (std::uint32_t i = 0; ok() && i < count; ++i) {
+      auto entry = symbolAt(SymbolRef{session.varU32()});
+      if (entry) roots.cLanguageLinkageEntities.push_back(entry);
     }
   }
   {
@@ -7275,6 +7496,8 @@ auto SemanticDecoder::allocateAst(cxx::ASTKind kind) -> cxx::AST* {
       return cxx::UsingDirectiveAST::create(arena());
     case cxx::ASTKind::StaticAssertDeclaration:
       return cxx::StaticAssertDeclarationAST::create(arena());
+    case cxx::ASTKind::ConstevalBlockDeclaration:
+      return cxx::ConstevalBlockDeclarationAST::create(arena());
     case cxx::ASTKind::AliasDeclaration:
       return cxx::AliasDeclarationAST::create(arena());
     case cxx::ASTKind::OpaqueEnumDeclaration:
@@ -7619,6 +7842,8 @@ auto SemanticDecoder::allocateAst(cxx::ASTKind kind) -> cxx::AST* {
       return cxx::BitIntTypeSpecifierAST::create(arena());
     case cxx::ASTKind::UnderlyingTypeSpecifier:
       return cxx::UnderlyingTypeSpecifierAST::create(arena());
+    case cxx::ASTKind::PackIndexTypeSpecifier:
+      return cxx::PackIndexTypeSpecifierAST::create(arena());
     case cxx::ASTKind::ElaboratedTypeSpecifier:
       return cxx::ElaboratedTypeSpecifierAST::create(arena());
     case cxx::ASTKind::DecltypeAutoSpecifier:
@@ -7667,6 +7892,8 @@ auto SemanticDecoder::allocateAst(cxx::ASTKind kind) -> cxx::AST* {
       return cxx::DestructorIdAST::create(arena());
     case cxx::ASTKind::DecltypeId:
       return cxx::DecltypeIdAST::create(arena());
+    case cxx::ASTKind::PackIndexId:
+      return cxx::PackIndexIdAST::create(arena());
     case cxx::ASTKind::OperatorFunctionId:
       return cxx::OperatorFunctionIdAST::create(arena());
     case cxx::ASTKind::LiteralOperatorId:
@@ -7685,6 +7912,8 @@ auto SemanticDecoder::allocateAst(cxx::ASTKind kind) -> cxx::AST* {
       return cxx::SimpleNestedNameSpecifierAST::create(arena());
     case cxx::ASTKind::DecltypeNestedNameSpecifier:
       return cxx::DecltypeNestedNameSpecifierAST::create(arena());
+    case cxx::ASTKind::PackIndexNestedNameSpecifier:
+      return cxx::PackIndexNestedNameSpecifierAST::create(arena());
     case cxx::ASTKind::TemplateNestedNameSpecifier:
       return cxx::TemplateNestedNameSpecifierAST::create(arena());
     case cxx::ASTKind::DefaultFunctionBody:
@@ -7799,7 +8028,7 @@ auto SemanticDecoder::typeAt(TypeRef ref) -> const cxx::Type* {
   if (typeDecoded_[index - 1]) return types_[index - 1];
   typeDecoded_[index - 1] = true;
   ByteReader in{typeRecords_[index - 1].bytes};
-  const auto kind = static_cast<cxx::TypeKind>(readEnum(in, 61));
+  const auto kind = static_cast<cxx::TypeKind>(readEnum(in, 62));
   const cxx::Type* type = nullptr;
   switch (kind) {
     case cxx::TypeKind::kVoid:
@@ -7948,6 +8177,9 @@ auto SemanticDecoder::typeAt(TypeRef ref) -> const cxx::Type* {
       break;
     case cxx::TypeKind::kUnresolvedUnderlying:
       type = readTypeUnresolvedUnderlyingType(in);
+      break;
+    case cxx::TypeKind::kUnresolvedPackIndex:
+      type = readTypeUnresolvedPackIndexType(in);
       break;
     case cxx::TypeKind::kUnresolvedBuiltin:
       type = readTypeUnresolvedBuiltinType(in);
@@ -8144,6 +8376,10 @@ void SemanticDecoder::decodeAstFields(ByteReader& in, cxx::AST* ast) {
     case cxx::ASTKind::StaticAssertDeclaration:
       readAstStaticAssertDeclarationAST(
           in, static_cast<cxx::StaticAssertDeclarationAST*>(ast));
+      break;
+    case cxx::ASTKind::ConstevalBlockDeclaration:
+      readAstConstevalBlockDeclarationAST(
+          in, static_cast<cxx::ConstevalBlockDeclarationAST*>(ast));
       break;
     case cxx::ASTKind::AliasDeclaration:
       readAstAliasDeclarationAST(in,
@@ -8782,6 +9018,10 @@ void SemanticDecoder::decodeAstFields(ByteReader& in, cxx::AST* ast) {
       readAstUnderlyingTypeSpecifierAST(
           in, static_cast<cxx::UnderlyingTypeSpecifierAST*>(ast));
       break;
+    case cxx::ASTKind::PackIndexTypeSpecifier:
+      readAstPackIndexTypeSpecifierAST(
+          in, static_cast<cxx::PackIndexTypeSpecifierAST*>(ast));
+      break;
     case cxx::ASTKind::ElaboratedTypeSpecifier:
       readAstElaboratedTypeSpecifierAST(
           in, static_cast<cxx::ElaboratedTypeSpecifierAST*>(ast));
@@ -8868,6 +9108,9 @@ void SemanticDecoder::decodeAstFields(ByteReader& in, cxx::AST* ast) {
     case cxx::ASTKind::DecltypeId:
       readAstDecltypeIdAST(in, static_cast<cxx::DecltypeIdAST*>(ast));
       break;
+    case cxx::ASTKind::PackIndexId:
+      readAstPackIndexIdAST(in, static_cast<cxx::PackIndexIdAST*>(ast));
+      break;
     case cxx::ASTKind::OperatorFunctionId:
       readAstOperatorFunctionIdAST(
           in, static_cast<cxx::OperatorFunctionIdAST*>(ast));
@@ -8903,6 +9146,10 @@ void SemanticDecoder::decodeAstFields(ByteReader& in, cxx::AST* ast) {
     case cxx::ASTKind::DecltypeNestedNameSpecifier:
       readAstDecltypeNestedNameSpecifierAST(
           in, static_cast<cxx::DecltypeNestedNameSpecifierAST*>(ast));
+      break;
+    case cxx::ASTKind::PackIndexNestedNameSpecifier:
+      readAstPackIndexNestedNameSpecifierAST(
+          in, static_cast<cxx::PackIndexNestedNameSpecifierAST*>(ast));
       break;
     case cxx::ASTKind::TemplateNestedNameSpecifier:
       readAstTemplateNestedNameSpecifierAST(
@@ -9148,6 +9395,11 @@ auto SemanticDecoder::readConstValue(ByteReader& in) -> cxx::ConstValue {
       case 12: {
         std::variant_alternative_t<12, decltype(value)> alternative14{};
         value = std::move(alternative14);
+        break;
+      }
+      case 13: {
+        std::variant_alternative_t<13, decltype(value)> alternative15{};
+        value = std::move(alternative15);
         break;
       }
       default:
@@ -9618,6 +9870,16 @@ auto SemanticDecoder::readTypeUnresolvedUnderlyingType(ByteReader& in)
                                                 std::move(argument2));
 }
 
+auto SemanticDecoder::readTypeUnresolvedPackIndexType(ByteReader& in)
+    -> const cxx::Type* {
+  cxx::TranslationUnit* argument1 = unit();
+  const cxx::Type* argument2 = typeAt(TypeRef{in.varU32()});
+  cxx::ExpressionAST* argument3 =
+      ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
+  return control()->getUnresolvedPackIndexType(
+      std::move(argument1), std::move(argument2), std::move(argument3));
+}
+
 auto SemanticDecoder::readTypeUnresolvedBuiltinType(ByteReader& in)
     -> const cxx::Type* {
   cxx::TranslationUnit* argument1 = unit();
@@ -10021,143 +10283,156 @@ void SemanticDecoder::readSymbolClassSymbol(
   for (auto&& element25 : value21) {
     self->addRedeclaration(element25);
   }
+  // ::cxx::ClassSymbol::firstNonFriendDeclarationLocation_
+  cxx::SourceLocation value26 = locationAt(LocationRef{in.varU32()});
+  self->setFirstNonFriendDeclarationLocation(std::move(value26));
   // ::cxx::ClassSymbol::baseClasses_
-  std::vector<cxx::BaseClassSymbol*> value26;
+  std::vector<cxx::BaseClassSymbol*> value27;
   {
-    const auto count27 = in.varCount(1);
-    for (std::uint32_t i28 = 0; ok() && i28 < count27; ++i28) {
-      cxx::BaseClassSymbol* element29 =
+    const auto count28 = in.varCount(1);
+    for (std::uint32_t i29 = 0; ok() && i29 < count28; ++i29) {
+      cxx::BaseClassSymbol* element30 =
           symbol_cast<BaseClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value26.push_back(std::move(element29));
+      value27.push_back(std::move(element30));
     }
   }
-  for (auto&& element30 : value26) {
-    self->addBaseClass(element30);
+  for (auto&& element31 : value27) {
+    self->addBaseClass(element31);
   }
   // ::cxx::ClassSymbol::befriendingClasses_
-  std::vector<cxx::ClassSymbol*> value31;
+  std::vector<cxx::ClassSymbol*> value32;
   {
-    const auto count32 = in.varCount(1);
-    for (std::uint32_t i33 = 0; ok() && i33 < count32; ++i33) {
-      cxx::ClassSymbol* element34 =
+    const auto count33 = in.varCount(1);
+    for (std::uint32_t i34 = 0; ok() && i34 < count33; ++i34) {
+      cxx::ClassSymbol* element35 =
           symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value31.push_back(std::move(element34));
+      value32.push_back(std::move(element35));
     }
   }
-  for (auto&& element35 : value31) {
-    self->addBefriendingClass(element35);
+  for (auto&& element36 : value32) {
+    self->addBefriendingClass(element36);
   }
   // ::cxx::ClassSymbol::templateFriendships_
-  std::vector<cxx::TemplateFriendship> value36;
+  std::vector<cxx::TemplateFriendship> value37;
   {
-    const auto count37 = in.varCount(1);
-    for (std::uint32_t i38 = 0; ok() && i38 < count37; ++i38) {
-      cxx::TemplateFriendship element39{};
-      readcxxTemplateFriendship(in, &element39);
-      value36.push_back(std::move(element39));
+    const auto count38 = in.varCount(1);
+    for (std::uint32_t i39 = 0; ok() && i39 < count38; ++i39) {
+      cxx::TemplateFriendship element40{};
+      readcxxTemplateFriendship(in, &element40);
+      value37.push_back(std::move(element40));
     }
   }
-  for (auto&& element40 : value36) {
-    self->addBefriendingClass(element40.befriendingClass, element40.arguments);
+  for (auto&& element41 : value37) {
+    self->addBefriendingClass(element41.befriendingClass, element41.arguments);
   }
   // ::cxx::ClassSymbol::instantiationSubstitutionArguments_
-  std::vector<cxx::TemplateArgument> value41;
+  std::vector<cxx::TemplateArgument> value42;
   {
-    const auto count42 = in.varCount(1);
-    for (std::uint32_t i43 = 0; ok() && i43 < count42; ++i43) {
-      cxx::TemplateArgument element44 = readTemplateArgument(in);
-      value41.push_back(std::move(element44));
+    const auto count43 = in.varCount(1);
+    for (std::uint32_t i44 = 0; ok() && i44 < count43; ++i44) {
+      cxx::TemplateArgument element45 = readTemplateArgument(in);
+      value42.push_back(std::move(element45));
     }
   }
   self->setInstantiationSubstitution(self->instantiationSubstitutionDepth(),
-                                     std::move(std::move(value41)));
+                                     std::move(std::move(value42)));
   // ::cxx::ClassSymbol::instantiationSubstitutionDepth_
-  int value45 = static_cast<int>(in.varI32());
+  int value46 = static_cast<int>(in.varI32());
   self->setInstantiationSubstitution(
-      std::move(value45), self->instantiationSubstitutionArguments());
+      std::move(value46), self->instantiationSubstitutionArguments());
   // ::cxx::ClassSymbol::constructorOverloadSet_
-  cxx::OverloadSetSymbol* value46 =
+  cxx::OverloadSetSymbol* value47 =
       symbol_cast<OverloadSetSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setConstructorOverloadSet(std::move(value46));
+  self->setConstructorOverloadSet(std::move(value47));
   // ::cxx::ClassSymbol::deductionGuides_
-  std::vector<cxx::DeductionGuideSymbol*> value47;
+  std::vector<cxx::DeductionGuideSymbol*> value48;
   {
-    const auto count48 = in.varCount(1);
-    for (std::uint32_t i49 = 0; ok() && i49 < count48; ++i49) {
-      cxx::DeductionGuideSymbol* element50 =
+    const auto count49 = in.varCount(1);
+    for (std::uint32_t i50 = 0; ok() && i50 < count49; ++i50) {
+      cxx::DeductionGuideSymbol* element51 =
           symbol_cast<DeductionGuideSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value47.push_back(std::move(element50));
+      value48.push_back(std::move(element51));
     }
   }
-  for (auto&& element51 : value47) {
-    self->addDeductionGuide(element51);
+  for (auto&& element52 : value48) {
+    self->addDeductionGuide(element52);
   }
   // ::cxx::ClassSymbol::layout_
-  std::unique_ptr<cxx::ClassLayout> value52;
+  std::unique_ptr<cxx::ClassLayout> value53;
   if (in.boolean()) {
-    value52 = std::make_unique<cxx::ClassLayout>();
-    readcxxClassLayout(in, value52.get());
+    value53 = std::make_unique<cxx::ClassLayout>();
+    readcxxClassLayout(in, value53.get());
   }
-  self->setLayout(std::move(std::move(value52)));
+  self->setLayout(std::move(std::move(value53)));
   // ::cxx::ClassSymbol::vtableLayout_
-  std::unique_ptr<cxx::VTableLayout> value53;
+  std::unique_ptr<cxx::VTableLayout> value54;
   if (in.boolean()) {
-    value53 = std::make_unique<cxx::VTableLayout>();
-    readcxxVTableLayout(in, value53.get());
+    value54 = std::make_unique<cxx::VTableLayout>();
+    readcxxVTableLayout(in, value54.get());
   }
-  self->setVTableLayout(std::move(std::move(value53)));
+  self->setVTableLayout(std::move(std::move(value54)));
+  // ::cxx::ClassSymbol::selectedDestructor_
+  cxx::FunctionSymbol* value55 =
+      symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->setSelectedDestructor(std::move(value55));
   // ::cxx::ClassSymbol::capturedThisField_
-  cxx::FieldSymbol* value54 =
+  cxx::FieldSymbol* value56 =
       symbol_cast<FieldSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setCapturedThisField(std::move(value54));
+  self->setCapturedThisField(std::move(value56));
+  // ::cxx::ClassSymbol::closureInitializerOwner_
+  cxx::Symbol* value57 = symbolAt(SymbolRef{in.varU32()});
+  self->setClosureInitializerOwner(std::move(value57));
   // ::cxx::ClassSymbol::closureDiscriminator_
-  int value55 = static_cast<int>(in.varI32());
-  self->setClosureDiscriminator(std::move(value55));
-  // ::cxx::ClassSymbol::sizeInBytes_
-  int value56 = static_cast<int>(in.varI32());
-  self->setSizeInBytes(std::move(value56));
-  // ::cxx::ClassSymbol::alignment_
-  int value57 = static_cast<int>(in.varI32());
-  self->setAlignment(std::move(value57));
-  // ::cxx::ClassSymbol::explicitAlignment_
   int value58 = static_cast<int>(in.varI32());
-  self->setExplicitAlignment(std::move(value58));
-  // ::cxx::ClassSymbol::packAlignment_
+  self->setClosureDiscriminator(std::move(value58));
+  // ::cxx::ClassSymbol::sizeInBytes_
   int value59 = static_cast<int>(in.varI32());
-  self->setPackAlignment(std::move(value59));
+  self->setSizeInBytes(std::move(value59));
+  // ::cxx::ClassSymbol::alignment_
+  int value60 = static_cast<int>(in.varI32());
+  self->setAlignment(std::move(value60));
+  // ::cxx::ClassSymbol::explicitAlignment_
+  int value61 = static_cast<int>(in.varI32());
+  self->setExplicitAlignment(std::move(value61));
+  // ::cxx::ClassSymbol::packAlignment_
+  int value62 = static_cast<int>(in.varI32());
+  self->setPackAlignment(std::move(value62));
   // ::cxx::ClassSymbol::isUnion_
-  unsigned int value60 = static_cast<unsigned int>(in.varU32());
-  self->setIsUnion(std::move(value60));
-  // ::cxx::ClassSymbol::isFinal_
-  unsigned int value61 = static_cast<unsigned int>(in.varU32());
-  self->setFinal(std::move(value61));
-  // ::cxx::ClassSymbol::isComplete_
-  unsigned int value62 = static_cast<unsigned int>(in.varU32());
-  self->setComplete(std::move(value62));
-  // ::cxx::ClassSymbol::isFriend_
   unsigned int value63 = static_cast<unsigned int>(in.varU32());
-  self->setFriend(std::move(value63));
-  // ::cxx::ClassSymbol::isAccessControlDisabled_
+  self->setIsUnion(std::move(value63));
+  // ::cxx::ClassSymbol::isFinal_
   unsigned int value64 = static_cast<unsigned int>(in.varU32());
-  self->setAccessControlDisabled(std::move(value64));
-  // ::cxx::ClassSymbol::isPolymorphic_
+  self->setFinal(std::move(value64));
+  // ::cxx::ClassSymbol::isComplete_
   unsigned int value65 = static_cast<unsigned int>(in.varU32());
-  self->setPolymorphic(std::move(value65));
-  // ::cxx::ClassSymbol::isAbstract_
+  self->setComplete(std::move(value65));
+  // ::cxx::ClassSymbol::isFriend_
   unsigned int value66 = static_cast<unsigned int>(in.varU32());
-  self->setAbstract(std::move(value66));
-  // ::cxx::ClassSymbol::hasVirtualDestructor_
+  self->setFriend(std::move(value66));
+  // ::cxx::ClassSymbol::isAccessControlDisabled_
   unsigned int value67 = static_cast<unsigned int>(in.varU32());
-  self->setHasVirtualDestructor(std::move(value67));
-  // ::cxx::ClassSymbol::isClosureType_
+  self->setAccessControlDisabled(std::move(value67));
+  // ::cxx::ClassSymbol::isPolymorphic_
   unsigned int value68 = static_cast<unsigned int>(in.varU32());
-  self->setIsClosureType(std::move(value68));
-  // ::cxx::ClassSymbol::hasLambdaCapture_
+  self->setPolymorphic(std::move(value68));
+  // ::cxx::ClassSymbol::isAbstract_
   unsigned int value69 = static_cast<unsigned int>(in.varU32());
-  self->setHasLambdaCapture(std::move(value69));
-  // ::cxx::ClassSymbol::hasUserDeclaredConstructors_
+  self->setAbstract(std::move(value69));
+  // ::cxx::ClassSymbol::hasVirtualDestructor_
   unsigned int value70 = static_cast<unsigned int>(in.varU32());
-  self->setHasUserDeclaredConstructors(std::move(value70));
+  self->setHasVirtualDestructor(std::move(value70));
+  // ::cxx::ClassSymbol::isClosureType_
+  unsigned int value71 = static_cast<unsigned int>(in.varU32());
+  self->setIsClosureType(std::move(value71));
+  // ::cxx::ClassSymbol::hasLambdaCapture_
+  unsigned int value72 = static_cast<unsigned int>(in.varU32());
+  self->setHasLambdaCapture(std::move(value72));
+  // ::cxx::ClassSymbol::hasUserDeclaredConstructors_
+  unsigned int value73 = static_cast<unsigned int>(in.varU32());
+  self->setHasUserDeclaredConstructors(std::move(value73));
+  // ::cxx::ClassSymbol::isConstevalBlockClosure_
+  unsigned int value74 = static_cast<unsigned int>(in.varU32());
+  self->setConstevalBlockClosure(std::move(value74));
 }
 
 void SemanticDecoder::readSymbolEnumSymbol(
@@ -10219,12 +10494,15 @@ void SemanticDecoder::readSymbolEnumSymbol(
   // ::cxx::EnumSymbol::underlyingType_
   const cxx::Type* value19 = typeAt(TypeRef{in.varU32()});
   self->setUnderlyingType(std::move(value19));
+  // ::cxx::EnumSymbol::promotionType_
+  const cxx::Type* value20 = typeAt(TypeRef{in.varU32()});
+  self->setPromotionType(std::move(value20));
   // ::cxx::EnumSymbol::hasFixedUnderlyingType_
-  bool value20 = in.boolean();
-  self->setHasFixedUnderlyingType(std::move(value20));
-  // ::cxx::EnumSymbol::isDefined_
   bool value21 = in.boolean();
-  self->setDefined(std::move(value21));
+  self->setHasFixedUnderlyingType(std::move(value21));
+  // ::cxx::EnumSymbol::isDefined_
+  bool value22 = in.boolean();
+  self->setDefined(std::move(value22));
 }
 
 void SemanticDecoder::readSymbolScopedEnumSymbol(
@@ -10377,219 +10655,222 @@ void SemanticDecoder::readSymbolFunctionSymbol(
     readcxxPendingInstantiation(in, value26.get());
   }
   self->setPendingBody(std::move(std::move(value26)));
+  // ::cxx::FunctionSymbol::returnTypeSyntax_
+  cxx::AST* value27 = astAt(AstRef{in.varU32()});
+  self->setReturnTypeSyntax(std::move(value27));
   // ::cxx::FunctionSymbol::pendingExceptionSpecification_
-  std::unique_ptr<cxx::PendingInstantiation> value27;
+  std::unique_ptr<cxx::PendingInstantiation> value28;
   if (in.boolean()) {
-    value27 = std::make_unique<cxx::PendingInstantiation>();
-    readcxxPendingInstantiation(in, value27.get());
+    value28 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value28.get());
   }
-  self->setPendingExceptionSpecification(std::move(std::move(value27)));
+  self->setPendingExceptionSpecification(std::move(std::move(value28)));
   // ::cxx::FunctionSymbol::hostScope_
-  cxx::ScopeSymbol* value28 =
+  cxx::ScopeSymbol* value29 =
       symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setHostScope(std::move(value28));
+  self->setHostScope(std::move(value29));
   // ::cxx::FunctionSymbol::completeObjectVariant_
-  cxx::FunctionSymbol* value29 =
-      symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setCompleteObjectVariant(std::move(value29));
-  // ::cxx::FunctionSymbol::delegatingConstructor_
   cxx::FunctionSymbol* value30 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setDelegatingConstructor(std::move(value30));
-  // ::cxx::FunctionSymbol::constructorInitializers_
-  std::optional<cxx::List<cxx::MemInitializerAST*>*> value31;
-  if (in.boolean()) {
-    cxx::List<cxx::MemInitializerAST*>* value32 =
-        readAstList<cxx::MemInitializerAST>(in);
-    value31 = std::move(value32);
-  }
-  if (std::move(value31)) self->setConstructorInitializers(*std::move(value31));
-  // ::cxx::FunctionSymbol::deletingDtorVariant_
-  cxx::FunctionSymbol* value33 =
+  self->setCompleteObjectVariant(std::move(value30));
+  // ::cxx::FunctionSymbol::delegatingConstructor_
+  cxx::FunctionSymbol* value31 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setDeletingDtorVariant(std::move(value33));
-  // ::cxx::FunctionSymbol::structorPrincipal_
+  self->setDelegatingConstructor(std::move(value31));
+  // ::cxx::FunctionSymbol::constructorInitializers_
+  std::optional<cxx::List<cxx::MemInitializerAST*>*> value32;
+  if (in.boolean()) {
+    cxx::List<cxx::MemInitializerAST*>* value33 =
+        readAstList<cxx::MemInitializerAST>(in);
+    value32 = std::move(value33);
+  }
+  if (std::move(value32)) self->setConstructorInitializers(*std::move(value32));
+  // ::cxx::FunctionSymbol::deletingDtorVariant_
   cxx::FunctionSymbol* value34 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setStructorPrincipal(std::move(value34));
-  // ::cxx::FunctionSymbol::inheritedConstructor_
+  self->setDeletingDtorVariant(std::move(value34));
+  // ::cxx::FunctionSymbol::structorPrincipal_
   cxx::FunctionSymbol* value35 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setInheritedConstructor(std::move(value35));
+  self->setStructorPrincipal(std::move(value35));
+  // ::cxx::FunctionSymbol::inheritedConstructor_
+  cxx::FunctionSymbol* value36 =
+      symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->setInheritedConstructor(std::move(value36));
   // ::cxx::FunctionSymbol::overriddenFunctions_
-  std::vector<cxx::FunctionSymbol*> value36;
+  std::vector<cxx::FunctionSymbol*> value37;
   {
-    const auto count37 = in.varCount(1);
-    for (std::uint32_t i38 = 0; ok() && i38 < count37; ++i38) {
-      cxx::FunctionSymbol* element39 =
+    const auto count38 = in.varCount(1);
+    for (std::uint32_t i39 = 0; ok() && i39 < count38; ++i39) {
+      cxx::FunctionSymbol* element40 =
           symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value36.push_back(std::move(element39));
+      value37.push_back(std::move(element40));
     }
   }
-  for (auto&& element40 : value36) {
-    self->addOverriddenFunction(element40);
+  for (auto&& element41 : value37) {
+    self->addOverriddenFunction(element41);
   }
   // ::cxx::FunctionSymbol::befriendingClasses_
-  std::vector<cxx::ClassSymbol*> value41;
+  std::vector<cxx::ClassSymbol*> value42;
   {
-    const auto count42 = in.varCount(1);
-    for (std::uint32_t i43 = 0; ok() && i43 < count42; ++i43) {
-      cxx::ClassSymbol* element44 =
+    const auto count43 = in.varCount(1);
+    for (std::uint32_t i44 = 0; ok() && i44 < count43; ++i44) {
+      cxx::ClassSymbol* element45 =
           symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value41.push_back(std::move(element44));
+      value42.push_back(std::move(element45));
     }
   }
-  for (auto&& element45 : value41) {
-    self->addBefriendingClass(element45);
+  for (auto&& element46 : value42) {
+    self->addBefriendingClass(element46);
   }
   // ::cxx::FunctionSymbol::templateFriendships_
-  std::vector<cxx::TemplateFriendship> value46;
+  std::vector<cxx::TemplateFriendship> value47;
   {
-    const auto count47 = in.varCount(1);
-    for (std::uint32_t i48 = 0; ok() && i48 < count47; ++i48) {
-      cxx::TemplateFriendship element49{};
-      readcxxTemplateFriendship(in, &element49);
-      value46.push_back(std::move(element49));
+    const auto count48 = in.varCount(1);
+    for (std::uint32_t i49 = 0; ok() && i49 < count48; ++i49) {
+      cxx::TemplateFriendship element50{};
+      readcxxTemplateFriendship(in, &element50);
+      value47.push_back(std::move(element50));
     }
   }
-  for (auto&& element50 : value46) {
-    self->addBefriendingClass(element50.befriendingClass, element50.arguments);
+  for (auto&& element51 : value47) {
+    self->addBefriendingClass(element51.befriendingClass, element51.arguments);
   }
   // ::cxx::FunctionSymbol::vtableSlotIndex_
-  int value51 = static_cast<int>(in.varI32());
-  self->setVtableSlotIndex(std::move(value51));
+  int value52 = static_cast<int>(in.varI32());
+  self->setVtableSlotIndex(std::move(value52));
   // ::cxx::FunctionSymbol::constructorPriority_
-  std::optional<unsigned int> value52;
+  std::optional<unsigned int> value53;
   if (in.boolean()) {
-    unsigned int value53 = static_cast<unsigned int>(in.varU32());
-    value52 = std::move(value53);
+    unsigned int value54 = static_cast<unsigned int>(in.varU32());
+    value53 = std::move(value54);
   }
-  self->setConstructorPriority(std::move(value52));
+  self->setConstructorPriority(std::move(value53));
   // ::cxx::FunctionSymbol::kernelWorkgroupSize_
-  std::optional<cxx::KernelWorkgroupSize> value54;
+  std::optional<cxx::KernelWorkgroupSize> value55;
   if (in.boolean()) {
-    cxx::KernelWorkgroupSize value55{};
-    readcxxKernelWorkgroupSize(in, &value55);
-    value54 = std::move(value55);
+    cxx::KernelWorkgroupSize value56{};
+    readcxxKernelWorkgroupSize(in, &value56);
+    value55 = std::move(value56);
   }
-  self->setKernelWorkgroupSize(std::move(value54));
+  self->setKernelWorkgroupSize(std::move(value55));
   // ::cxx::FunctionSymbol::externalName_
-  const cxx::Identifier* value56 = identifierAt(StringRef{in.varU32()});
-  self->setExternalName(std::move(value56));
-  // ::cxx::FunctionSymbol::aliasName_
   const cxx::Identifier* value57 = identifierAt(StringRef{in.varU32()});
-  self->setAliasName(std::move(value57));
-  // ::cxx::FunctionSymbol::importModule_
+  self->setExternalName(std::move(value57));
+  // ::cxx::FunctionSymbol::aliasName_
   const cxx::Identifier* value58 = identifierAt(StringRef{in.varU32()});
-  self->setImportModule(std::move(value58));
-  // ::cxx::FunctionSymbol::importName_
+  self->setAliasName(std::move(value58));
+  // ::cxx::FunctionSymbol::importModule_
   const cxx::Identifier* value59 = identifierAt(StringRef{in.varU32()});
-  self->setImportName(std::move(value59));
-  // ::cxx::FunctionSymbol::exportName_
+  self->setImportModule(std::move(value59));
+  // ::cxx::FunctionSymbol::importName_
   const cxx::Identifier* value60 = identifierAt(StringRef{in.varU32()});
-  self->setExportName(std::move(value60));
+  self->setImportName(std::move(value60));
+  // ::cxx::FunctionSymbol::exportName_
+  const cxx::Identifier* value61 = identifierAt(StringRef{in.varU32()});
+  self->setExportName(std::move(value61));
   // ::cxx::FunctionSymbol::trailingRequiresClause_
-  cxx::RequiresClauseAST* value61 =
+  cxx::RequiresClauseAST* value62 =
       ast_cast<RequiresClauseAST>(astAt(AstRef{in.varU32()}));
-  self->setTrailingRequiresClause(std::move(value61));
+  self->setTrailingRequiresClause(std::move(value62));
   // ::cxx::FunctionSymbol::enableIfConditions_
-  std::remove_cvref_t<decltype(self->enableIfConditions())> value62;
+  std::remove_cvref_t<decltype(self->enableIfConditions())> value63;
   {
-    const auto count63 = in.varCount(1);
-    for (std::uint32_t i64 = 0; ok() && i64 < count63; ++i64) {
-      decltype(value62)::value_type element65 =
+    const auto count64 = in.varCount(1);
+    for (std::uint32_t i65 = 0; ok() && i65 < count64; ++i65) {
+      decltype(value63)::value_type element66 =
           ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-      value62.push_back(std::move(element65));
+      value63.push_back(std::move(element66));
     }
   }
-  self->setEnableIfConditions(std::move(value62));
+  self->setEnableIfConditions(std::move(value63));
   // ::cxx::FunctionSymbol::builtinKind_
   static_assert(static_cast<std::uint32_t>(
                     ::cxx::BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH) +
                     1 ==
-                514);
-  ::cxx::BuiltinFunctionKind value66 =
-      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 514));
-  self->setBuiltinKind(std::move(value66));
+                518);
+  ::cxx::BuiltinFunctionKind value67 =
+      static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 518));
+  self->setBuiltinKind(std::move(value67));
   // ::cxx::FunctionSymbol::isDefined_
-  unsigned int value67 = static_cast<unsigned int>(in.varU32());
-  self->setDefined(std::move(value67));
-  // ::cxx::FunctionSymbol::isStatic_
   unsigned int value68 = static_cast<unsigned int>(in.varU32());
-  self->setStatic(std::move(value68));
-  // ::cxx::FunctionSymbol::isExtern_
+  self->setDefined(std::move(value68));
+  // ::cxx::FunctionSymbol::isStatic_
   unsigned int value69 = static_cast<unsigned int>(in.varU32());
-  self->setExtern(std::move(value69));
-  // ::cxx::FunctionSymbol::isFriend_
+  self->setStatic(std::move(value69));
+  // ::cxx::FunctionSymbol::isExtern_
   unsigned int value70 = static_cast<unsigned int>(in.varU32());
-  self->setFriend(std::move(value70));
-  // ::cxx::FunctionSymbol::isConstexpr_
+  self->setExtern(std::move(value70));
+  // ::cxx::FunctionSymbol::isFriend_
   unsigned int value71 = static_cast<unsigned int>(in.varU32());
-  self->setConstexpr(std::move(value71));
-  // ::cxx::FunctionSymbol::isConsteval_
+  self->setFriend(std::move(value71));
+  // ::cxx::FunctionSymbol::isConstexpr_
   unsigned int value72 = static_cast<unsigned int>(in.varU32());
-  self->setConsteval(std::move(value72));
-  // ::cxx::FunctionSymbol::isInline_
+  self->setConstexpr(std::move(value72));
+  // ::cxx::FunctionSymbol::isConsteval_
   unsigned int value73 = static_cast<unsigned int>(in.varU32());
-  self->setInline(std::move(value73));
-  // ::cxx::FunctionSymbol::isVirtual_
+  self->setConsteval(std::move(value73));
+  // ::cxx::FunctionSymbol::isInline_
   unsigned int value74 = static_cast<unsigned int>(in.varU32());
-  self->setVirtual(std::move(value74));
-  // ::cxx::FunctionSymbol::isExplicit_
+  self->setInline(std::move(value74));
+  // ::cxx::FunctionSymbol::isVirtual_
   unsigned int value75 = static_cast<unsigned int>(in.varU32());
-  self->setExplicit(std::move(value75));
-  // ::cxx::FunctionSymbol::isDeleted_
+  self->setVirtual(std::move(value75));
+  // ::cxx::FunctionSymbol::isExplicit_
   unsigned int value76 = static_cast<unsigned int>(in.varU32());
-  self->setDeleted(std::move(value76));
-  // ::cxx::FunctionSymbol::isDefaulted_
+  self->setExplicit(std::move(value76));
+  // ::cxx::FunctionSymbol::isDeleted_
   unsigned int value77 = static_cast<unsigned int>(in.varU32());
-  self->setDefaulted(std::move(value77));
-  // ::cxx::FunctionSymbol::isPure_
+  self->setDeleted(std::move(value77));
+  // ::cxx::FunctionSymbol::isDefaulted_
   unsigned int value78 = static_cast<unsigned int>(in.varU32());
-  self->setPure(std::move(value78));
-  // ::cxx::FunctionSymbol::hasCLinkage_
+  self->setDefaulted(std::move(value78));
+  // ::cxx::FunctionSymbol::isPure_
   unsigned int value79 = static_cast<unsigned int>(in.varU32());
-  self->setLanguageLinkage(std::move(value79) ? LanguageKind::kC
+  self->setPure(std::move(value79));
+  // ::cxx::FunctionSymbol::hasCLinkage_
+  unsigned int value80 = static_cast<unsigned int>(in.varU32());
+  self->setLanguageLinkage(std::move(value80) ? LanguageKind::kC
                                               : LanguageKind::kCXX);
   // ::cxx::FunctionSymbol::isOverride_
-  unsigned int value80 = static_cast<unsigned int>(in.varU32());
-  self->setOverride(std::move(value80));
-  // ::cxx::FunctionSymbol::isFinal_
   unsigned int value81 = static_cast<unsigned int>(in.varU32());
-  self->setFinal(std::move(value81));
-  // ::cxx::FunctionSymbol::hasNoPrototype_
+  self->setOverride(std::move(value81));
+  // ::cxx::FunctionSymbol::isFinal_
   unsigned int value82 = static_cast<unsigned int>(in.varU32());
-  self->setNoPrototype(std::move(value82));
-  // ::cxx::FunctionSymbol::hasHiddenVisibility_
+  self->setFinal(std::move(value82));
+  // ::cxx::FunctionSymbol::hasNoPrototype_
   unsigned int value83 = static_cast<unsigned int>(in.varU32());
-  self->setHiddenVisibility(std::move(value83));
-  // ::cxx::FunctionSymbol::hasExceptionSpecifier_
+  self->setNoPrototype(std::move(value83));
+  // ::cxx::FunctionSymbol::hasHiddenVisibility_
   unsigned int value84 = static_cast<unsigned int>(in.varU32());
-  self->setExceptionSpecifier(std::move(value84));
-  // ::cxx::FunctionSymbol::isDefinitionRequired_
+  self->setHiddenVisibility(std::move(value84));
+  // ::cxx::FunctionSymbol::hasExceptionSpecifier_
   unsigned int value85 = static_cast<unsigned int>(in.varU32());
-  self->setDefinitionRequired(std::move(value85));
-  // ::cxx::FunctionSymbol::hasExplicitObjectParameter_
+  self->setExceptionSpecifier(std::move(value85));
+  // ::cxx::FunctionSymbol::isDefinitionRequired_
   unsigned int value86 = static_cast<unsigned int>(in.varU32());
-  self->setExplicitObjectParameter(std::move(value86));
-  // ::cxx::FunctionSymbol::isNoReturn_
+  self->setDefinitionRequired(std::move(value86));
+  // ::cxx::FunctionSymbol::hasExplicitObjectParameter_
   unsigned int value87 = static_cast<unsigned int>(in.varU32());
-  self->setNoReturn(std::move(value87));
-  // ::cxx::FunctionSymbol::hasFriendDefaultArgument_
+  self->setExplicitObjectParameter(std::move(value87));
+  // ::cxx::FunctionSymbol::isNoReturn_
   unsigned int value88 = static_cast<unsigned int>(in.varU32());
-  self->setFriendDefaultArgument(std::move(value88));
-  // ::cxx::FunctionSymbol::hasFriendDefaultTemplateArgument_
+  self->setNoReturn(std::move(value88));
+  // ::cxx::FunctionSymbol::hasFriendDefaultArgument_
   unsigned int value89 = static_cast<unsigned int>(in.varU32());
-  self->setFriendDefaultTemplateArgument(std::move(value89));
-  // ::cxx::FunctionSymbol::hasDeferredImplicitExceptionSpecification_
+  self->setFriendDefaultArgument(std::move(value89));
+  // ::cxx::FunctionSymbol::hasFriendDefaultTemplateArgument_
   unsigned int value90 = static_cast<unsigned int>(in.varU32());
-  self->setDeferredImplicitExceptionSpecification(std::move(value90));
-  // ::cxx::FunctionSymbol::hasDeferredDeletion_
+  self->setFriendDefaultTemplateArgument(std::move(value90));
+  // ::cxx::FunctionSymbol::hasDeferredImplicitExceptionSpecification_
   unsigned int value91 = static_cast<unsigned int>(in.varU32());
-  self->setDeferredDeletion(std::move(value91));
-  // ::cxx::FunctionSymbol::isImplicitlyDeclared_
+  self->setDeferredImplicitExceptionSpecification(std::move(value91));
+  // ::cxx::FunctionSymbol::hasDeferredDeletion_
   unsigned int value92 = static_cast<unsigned int>(in.varU32());
-  self->setImplicitlyDeclared(std::move(value92));
+  self->setDeferredDeletion(std::move(value92));
+  // ::cxx::FunctionSymbol::isImplicitlyDeclared_
+  unsigned int value93 = static_cast<unsigned int>(in.varU32());
+  self->setImplicitlyDeclared(std::move(value93));
 }
 
 void SemanticDecoder::readSymbolTypeAliasSymbol(
@@ -10679,247 +10960,280 @@ void SemanticDecoder::readSymbolVariableSymbol(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::VariableSymbol* self) {
   readSymbolSymbol(in, self);
+  // ::cxx::MaybeTypeSpecifier::typeSpecifier_
+  cxx::SpecifierAST* value1 =
+      ast_cast<SpecifierAST>(astAt(AstRef{in.varU32()}));
+  self->setTypeSpecifier(std::move(value1));
   // ::cxx::MaybeTemplate::declaration_
-  cxx::SimpleDeclarationAST* value1 =
-      ast_cast<SimpleDeclarationAST>(astAt(AstRef{in.varU32()}));
-  self->setDeclaration(std::move(value1));
+  cxx::DeclarationAST* value2 =
+      ast_cast<DeclarationAST>(astAt(AstRef{in.varU32()}));
+  self->setDeclaration(std::move(value2));
   // ::cxx::MaybeTemplate::templateDeclaration
-  cxx::TemplateDeclarationAST* value2 =
+  cxx::TemplateDeclarationAST* value3 =
       ast_cast<TemplateDeclarationAST>(astAt(AstRef{in.varU32()}));
-  self->setTemplateDeclaration(std::move(value2));
+  self->setTemplateDeclaration(std::move(value3));
   // ::cxx::MaybeTemplate::templateParameters
-  cxx::TemplateParametersSymbol* value3 =
+  cxx::TemplateParametersSymbol* value4 =
       symbol_cast<TemplateParametersSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setTemplateParameters(std::move(value3));
+  self->setTemplateParameters(std::move(value4));
   // ::cxx::MaybeTemplate::specializations
-  std::vector<cxx::TemplateSpecialization> value4;
+  std::vector<cxx::TemplateSpecialization> value5;
   {
-    const auto count5 = in.varCount(1);
-    for (std::uint32_t i6 = 0; ok() && i6 < count5; ++i6) {
-      cxx::TemplateSpecialization element7{};
-      readcxxTemplateSpecialization(in, &element7);
-      value4.push_back(std::move(element7));
+    const auto count6 = in.varCount(1);
+    for (std::uint32_t i7 = 0; ok() && i7 < count6; ++i7) {
+      cxx::TemplateSpecialization element8{};
+      readcxxTemplateSpecialization(in, &element8);
+      value5.push_back(std::move(element8));
     }
   }
-  for (auto&& element8 : value4) {
-    self->restoreSpecialization(std::move(element8));
+  for (auto&& element9 : value5) {
+    self->restoreSpecialization(std::move(element9));
   }
   // ::cxx::MaybeTemplate::primaryTemplateSymbol
-  cxx::VariableSymbol* value9 =
+  cxx::VariableSymbol* value10 =
       symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->restoreSpecializationInfo(std::move(value9),
+  self->restoreSpecializationInfo(std::move(value10),
                                   self->templateSpecializationIndex());
   // ::cxx::MaybeTemplate::templateSpecializationIndex
-  int value10 = static_cast<int>(in.varI32());
+  int value11 = static_cast<int>(in.varI32());
   self->restoreSpecializationInfo(self->primaryTemplateSymbol(),
-                                  std::move(value10));
+                                  std::move(value11));
   // ::cxx::MaybeTemplate::externInstantiationDeclarations
-  std::vector<std::vector<cxx::TemplateArgument>> value11;
+  std::vector<std::vector<cxx::TemplateArgument>> value12;
   {
-    const auto count12 = in.varCount(1);
-    for (std::uint32_t i13 = 0; ok() && i13 < count12; ++i13) {
-      std::vector<cxx::TemplateArgument> element14;
+    const auto count13 = in.varCount(1);
+    for (std::uint32_t i14 = 0; ok() && i14 < count13; ++i14) {
+      std::vector<cxx::TemplateArgument> element15;
       {
-        const auto count15 = in.varCount(1);
-        for (std::uint32_t i16 = 0; ok() && i16 < count15; ++i16) {
-          cxx::TemplateArgument element17 = readTemplateArgument(in);
-          element14.push_back(std::move(element17));
+        const auto count16 = in.varCount(1);
+        for (std::uint32_t i17 = 0; ok() && i17 < count16; ++i17) {
+          cxx::TemplateArgument element18 = readTemplateArgument(in);
+          element15.push_back(std::move(element18));
         }
       }
-      value11.push_back(std::move(element14));
+      value12.push_back(std::move(element15));
     }
   }
-  for (auto&& element18 : value11) {
-    self->addExternInstantiationDeclaration(element18);
+  for (auto&& element19 : value12) {
+    self->addExternInstantiationDeclaration(element19);
   }
   // ::cxx::MaybeRedecl::canonical_
-  cxx::VariableSymbol* value19 =
-      symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setCanonical(std::move(value19));
-  // ::cxx::MaybeRedecl::definition_
   cxx::VariableSymbol* value20 =
       symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setDefinition(std::move(value20));
+  self->setCanonical(std::move(value20));
+  // ::cxx::MaybeRedecl::definition_
+  cxx::VariableSymbol* value21 =
+      symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->setDefinition(std::move(value21));
   // ::cxx::MaybeRedecl::redeclarations_
-  std::vector<cxx::VariableSymbol*> value21;
+  std::vector<cxx::VariableSymbol*> value22;
   {
-    const auto count22 = in.varCount(1);
-    for (std::uint32_t i23 = 0; ok() && i23 < count22; ++i23) {
-      cxx::VariableSymbol* element24 =
+    const auto count23 = in.varCount(1);
+    for (std::uint32_t i24 = 0; ok() && i24 < count23; ++i24) {
+      cxx::VariableSymbol* element25 =
           symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value21.push_back(std::move(element24));
+      value22.push_back(std::move(element25));
     }
   }
-  for (auto&& element25 : value21) {
-    self->addRedeclaration(element25);
+  for (auto&& element26 : value22) {
+    self->addRedeclaration(element26);
   }
   // ::cxx::VariableSymbol::threadLocalKind_
   static_assert(static_cast<std::uint32_t>(::cxx::ThreadLocalKind::Gnu) + 1 ==
                 3);
-  ::cxx::ThreadLocalKind value26 =
+  ::cxx::ThreadLocalKind value27 =
       static_cast<::cxx::ThreadLocalKind>(readEnum(in, 3));
-  self->setThreadLocalKind(std::move(value26));
+  self->setThreadLocalKind(std::move(value27));
   // ::cxx::VariableSymbol::initializer_
-  cxx::ExpressionAST* value27 =
+  cxx::ExpressionAST* value28 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-  self->setInitializer(std::move(value27));
+  self->setInitializer(std::move(value28));
   // ::cxx::VariableSymbol::constructor_
-  cxx::FunctionSymbol* value28 =
+  cxx::FunctionSymbol* value29 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setConstructor(std::move(value28));
+  self->setConstructor(std::move(value29));
   // ::cxx::VariableSymbol::lifetimeExtendingDeclaration_
-  cxx::Symbol* value29 = symbolAt(SymbolRef{in.varU32()});
-  self->setLifetimeExtendingDeclaration(std::move(value29));
-  // ::cxx::VariableSymbol::constValue_
-  std::optional<cxx::ConstValue> value30;
+  cxx::Symbol* value30 = symbolAt(SymbolRef{in.varU32()});
+  self->setLifetimeExtendingDeclaration(std::move(value30));
+  // ::cxx::VariableSymbol::pendingInitializer_
+  std::unique_ptr<cxx::PendingInstantiation> value31;
   if (in.boolean()) {
-    cxx::ConstValue value31 = readConstValue(in);
-    value30 = std::move(value31);
+    value31 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value31.get());
   }
-  self->setConstValue(std::move(value30));
+  self->setPendingInitializer(std::move(std::move(value31)));
+  // ::cxx::VariableSymbol::constValue_
+  std::optional<cxx::ConstValue> value32;
+  if (in.boolean()) {
+    cxx::ConstValue value33 = readConstValue(in);
+    value32 = std::move(value33);
+  }
+  self->setConstValue(std::move(value32));
   // ::cxx::VariableSymbol::explicitAlignment_
-  int value32 = static_cast<int>(in.varI32());
-  self->setExplicitAlignment(std::move(value32));
+  int value34 = static_cast<int>(in.varI32());
+  self->setExplicitAlignment(std::move(value34));
   // ::cxx::VariableSymbol::isStatic_
-  unsigned int value33 = static_cast<unsigned int>(in.varU32());
-  self->setStatic(std::move(value33));
-  // ::cxx::VariableSymbol::isExtern_
-  unsigned int value34 = static_cast<unsigned int>(in.varU32());
-  self->setExtern(std::move(value34));
-  // ::cxx::VariableSymbol::isConstexpr_
   unsigned int value35 = static_cast<unsigned int>(in.varU32());
-  self->setConstexpr(std::move(value35));
-  // ::cxx::VariableSymbol::isConstinit_
+  self->setStatic(std::move(value35));
+  // ::cxx::VariableSymbol::isExtern_
   unsigned int value36 = static_cast<unsigned int>(in.varU32());
-  self->setConstinit(std::move(value36));
-  // ::cxx::VariableSymbol::isInline_
+  self->setExtern(std::move(value36));
+  // ::cxx::VariableSymbol::isConstexpr_
   unsigned int value37 = static_cast<unsigned int>(in.varU32());
-  self->setInline(std::move(value37));
-  // ::cxx::VariableSymbol::isFunctionLocalPredefined_
+  self->setConstexpr(std::move(value37));
+  // ::cxx::VariableSymbol::isConstinit_
   unsigned int value38 = static_cast<unsigned int>(in.varU32());
-  self->setFunctionLocalPredefined(std::move(value38));
-  // ::cxx::VariableSymbol::isStructuredBindingAlias_
+  self->setConstinit(std::move(value38));
+  // ::cxx::VariableSymbol::isInline_
   unsigned int value39 = static_cast<unsigned int>(in.varU32());
-  self->setStructuredBindingAlias(std::move(value39));
+  self->setInline(std::move(value39));
+  // ::cxx::VariableSymbol::isFunctionLocalPredefined_
+  unsigned int value40 = static_cast<unsigned int>(in.varU32());
+  self->setFunctionLocalPredefined(std::move(value40));
+  // ::cxx::VariableSymbol::isTemplateParameterObject_
+  unsigned int value41 = static_cast<unsigned int>(in.varU32());
+  self->setTemplateParameterObject(std::move(value41));
+  // ::cxx::VariableSymbol::hasCLinkage_
+  unsigned int value42 = static_cast<unsigned int>(in.varU32());
+  self->setLanguageLinkage(std::move(value42) ? LanguageKind::kC
+                                              : LanguageKind::kCXX);
+  // ::cxx::VariableSymbol::structuredBindingKind_
+  static_assert(
+      static_cast<std::uint32_t>(::cxx::StructuredBindingKind::kAlias) + 1 ==
+      3);
+  ::cxx::StructuredBindingKind value43 =
+      static_cast<::cxx::StructuredBindingKind>(readEnum(in, 3));
+  self->setStructuredBindingKind(std::move(value43));
 }
 
 void SemanticDecoder::readSymbolFieldSymbol(
     [[maybe_unused]] ByteReader& in, [[maybe_unused]] cxx::FieldSymbol* self) {
   readSymbolSymbol(in, self);
+  // ::cxx::MaybeTypeSpecifier::typeSpecifier_
+  cxx::SpecifierAST* value1 =
+      ast_cast<SpecifierAST>(astAt(AstRef{in.varU32()}));
+  self->setTypeSpecifier(std::move(value1));
   // ::cxx::FieldSymbol::threadLocalKind_
   static_assert(static_cast<std::uint32_t>(::cxx::ThreadLocalKind::Gnu) + 1 ==
                 3);
-  ::cxx::ThreadLocalKind value1 =
+  ::cxx::ThreadLocalKind value2 =
       static_cast<::cxx::ThreadLocalKind>(readEnum(in, 3));
-  self->setThreadLocalKind(std::move(value1));
+  self->setThreadLocalKind(std::move(value2));
   // ::cxx::FieldSymbol::definition_
-  cxx::VariableSymbol* value2 =
+  cxx::VariableSymbol* value3 =
       symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setDefinition(std::move(value2));
+  self->setDefinition(std::move(value3));
   // ::cxx::FieldSymbol::pendingInitializer_
-  std::unique_ptr<cxx::PendingInstantiation> value3;
+  std::unique_ptr<cxx::PendingInstantiation> value4;
   if (in.boolean()) {
-    value3 = std::make_unique<cxx::PendingInstantiation>();
-    readcxxPendingInstantiation(in, value3.get());
+    value4 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value4.get());
   }
-  self->setPendingInitializer(std::move(std::move(value3)));
+  self->setPendingInitializer(std::move(std::move(value4)));
   // ::cxx::FieldSymbol::constValue_
-  std::optional<cxx::ConstValue> value4;
+  std::optional<cxx::ConstValue> value5;
   if (in.boolean()) {
-    cxx::ConstValue value5 = readConstValue(in);
-    value4 = std::move(value5);
+    cxx::ConstValue value6 = readConstValue(in);
+    value5 = std::move(value6);
   }
-  self->setConstValue(std::move(value4));
+  self->setConstValue(std::move(value5));
   // ::cxx::FieldSymbol::isDefinitionRequired_
-  unsigned int value6 = static_cast<unsigned int>(in.varU32());
-  self->setDefinitionRequired(std::move(value6));
-  // ::cxx::FieldSymbol::isBitField_
   unsigned int value7 = static_cast<unsigned int>(in.varU32());
-  self->setBitField(std::move(value7));
-  // ::cxx::FieldSymbol::isStatic_
+  self->setDefinitionRequired(std::move(value7));
+  // ::cxx::FieldSymbol::isBitField_
   unsigned int value8 = static_cast<unsigned int>(in.varU32());
-  self->setStatic(std::move(value8));
-  // ::cxx::FieldSymbol::isConstexpr_
+  self->setBitField(std::move(value8));
+  // ::cxx::FieldSymbol::isStatic_
   unsigned int value9 = static_cast<unsigned int>(in.varU32());
-  self->setConstexpr(std::move(value9));
-  // ::cxx::FieldSymbol::isConstinit_
+  self->setStatic(std::move(value9));
+  // ::cxx::FieldSymbol::isConstexpr_
   unsigned int value10 = static_cast<unsigned int>(in.varU32());
-  self->setConstinit(std::move(value10));
-  // ::cxx::FieldSymbol::isInline_
+  self->setConstexpr(std::move(value10));
+  // ::cxx::FieldSymbol::isConstinit_
   unsigned int value11 = static_cast<unsigned int>(in.varU32());
-  self->setInline(std::move(value11));
-  // ::cxx::FieldSymbol::isMutable_
+  self->setConstinit(std::move(value11));
+  // ::cxx::FieldSymbol::isInline_
   unsigned int value12 = static_cast<unsigned int>(in.varU32());
-  self->setMutable(std::move(value12));
-  // ::cxx::FieldSymbol::isNoUniqueAddress_
+  self->setInline(std::move(value12));
+  // ::cxx::FieldSymbol::isMutable_
   unsigned int value13 = static_cast<unsigned int>(in.varU32());
-  self->setNoUniqueAddress(std::move(value13));
+  self->setMutable(std::move(value13));
+  // ::cxx::FieldSymbol::isNoUniqueAddress_
+  unsigned int value14 = static_cast<unsigned int>(in.varU32());
+  self->setNoUniqueAddress(std::move(value14));
+  // ::cxx::FieldSymbol::hasImmediateEscalatingInitializer_
+  unsigned int value15 = static_cast<unsigned int>(in.varU32());
+  self->setImmediateEscalatingInitializer(std::move(value15));
   // ::cxx::FieldSymbol::localOffset_
-  int value14 = static_cast<int>(in.varI32());
-  self->setLocalOffset(std::move(value14));
-  // ::cxx::FieldSymbol::alignment_
-  int value15 = static_cast<int>(in.varI32());
-  self->setAlignment(std::move(value15));
-  // ::cxx::FieldSymbol::explicitAlignment_
   int value16 = static_cast<int>(in.varI32());
-  self->setExplicitAlignment(std::move(value16));
-  // ::cxx::FieldSymbol::bitFieldOffset_
+  self->setLocalOffset(std::move(value16));
+  // ::cxx::FieldSymbol::alignment_
   int value17 = static_cast<int>(in.varI32());
-  self->setBitFieldOffset(std::move(value17));
+  self->setAlignment(std::move(value17));
+  // ::cxx::FieldSymbol::explicitAlignment_
+  int value18 = static_cast<int>(in.varI32());
+  self->setExplicitAlignment(std::move(value18));
+  // ::cxx::FieldSymbol::bitFieldOffset_
+  int value19 = static_cast<int>(in.varI32());
+  self->setBitFieldOffset(std::move(value19));
   // ::cxx::FieldSymbol::bitFieldWidth_
-  std::optional<cxx::ConstValue> value18;
+  std::optional<cxx::ConstValue> value20;
   if (in.boolean()) {
-    cxx::ConstValue value19 = readConstValue(in);
-    value18 = std::move(value19);
+    cxx::ConstValue value21 = readConstValue(in);
+    value20 = std::move(value21);
   }
-  self->setBitFieldWidth(std::move(value18));
+  self->setBitFieldWidth(std::move(value20));
   // ::cxx::FieldSymbol::initializer_
-  cxx::ExpressionAST* value20 =
+  cxx::ExpressionAST* value22 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-  self->setInitializer(std::move(value20));
+  self->setInitializer(std::move(value22));
   // ::cxx::FieldSymbol::constructor_
-  cxx::FunctionSymbol* value21 =
+  cxx::FunctionSymbol* value23 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setConstructor(std::move(value21));
+  self->setConstructor(std::move(value23));
 }
 
 void SemanticDecoder::readSymbolParameterSymbol(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::ParameterSymbol* self) {
   readSymbolSymbol(in, self);
+  // ::cxx::ParameterSymbol::declaration_
+  cxx::ParameterDeclarationAST* value1 =
+      ast_cast<ParameterDeclarationAST>(astAt(AstRef{in.varU32()}));
+  self->setDeclaration(std::move(value1));
   // ::cxx::ParameterSymbol::defaultArgument_
-  cxx::ExpressionAST* value1 =
+  cxx::ExpressionAST* value2 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-  self->setDefaultArgument(std::move(value1));
+  self->setDefaultArgument(std::move(value2));
   // ::cxx::ParameterSymbol::pendingDefaultArgument_
-  std::unique_ptr<cxx::PendingInstantiation> value2;
+  std::unique_ptr<cxx::PendingInstantiation> value3;
   if (in.boolean()) {
-    value2 = std::make_unique<cxx::PendingInstantiation>();
-    readcxxPendingInstantiation(in, value2.get());
+    value3 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value3.get());
   }
-  self->setPendingDefaultArgument(std::move(value2));
+  self->setPendingDefaultArgument(std::move(value3));
   // ::cxx::ParameterSymbol::defaultArgumentSource_
-  cxx::ParameterSymbol* value3 =
+  cxx::ParameterSymbol* value4 =
       symbol_cast<ParameterSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setDefaultArgumentSource(std::move(value3));
+  self->setDefaultArgumentSource(std::move(value4));
   // ::cxx::ParameterSymbol::kernelParameterBinding_
   std::optional<std::variant<cxx::KernelBufferBinding, cxx::KernelInvocationId>>
-      value4;
+      value5;
   if (in.boolean()) {
-    std::variant<cxx::KernelBufferBinding, cxx::KernelInvocationId> value5;
+    std::variant<cxx::KernelBufferBinding, cxx::KernelInvocationId> value6;
     {
-      const auto tag6 = in.u8();
-      switch (tag6) {
+      const auto tag7 = in.u8();
+      switch (tag7) {
         case 0: {
-          std::variant_alternative_t<0, decltype(value5)> alternative7{};
-          readcxxKernelBufferBinding(in, &alternative7);
-          value5 = std::move(alternative7);
+          std::variant_alternative_t<0, decltype(value6)> alternative8{};
+          readcxxKernelBufferBinding(in, &alternative8);
+          value6 = std::move(alternative8);
           break;
         }
         case 1: {
-          std::variant_alternative_t<1, decltype(value5)> alternative8{};
-          readcxxKernelInvocationId(in, &alternative8);
-          value5 = std::move(alternative8);
+          std::variant_alternative_t<1, decltype(value6)> alternative9{};
+          readcxxKernelInvocationId(in, &alternative9);
+          value6 = std::move(alternative9);
           break;
         }
         default:
@@ -10927,15 +11241,18 @@ void SemanticDecoder::readSymbolParameterSymbol(
           break;
       }
     }
-    value4 = std::move(value5);
+    value5 = std::move(value6);
   }
-  self->setKernelParameterBinding(std::move(value4));
+  self->setKernelParameterBinding(std::move(value5));
   // ::cxx::ParameterSymbol::isExplicitObject_
-  bool value9 = in.boolean();
-  self->setExplicitObject(std::move(value9));
-  // ::cxx::ParameterSymbol::isParameterPack_
   bool value10 = in.boolean();
-  self->setParameterPack(std::move(value10));
+  self->setExplicitObject(std::move(value10));
+  // ::cxx::ParameterSymbol::isParameterPack_
+  bool value11 = in.boolean();
+  self->setParameterPack(std::move(value11));
+  // ::cxx::ParameterSymbol::hasImmediateEscalatingDefaultArgument_
+  bool value12 = in.boolean();
+  self->setImmediateEscalatingDefaultArgument(std::move(value12));
 }
 
 void SemanticDecoder::readSymbolParameterPackSymbol(
@@ -11588,6 +11905,23 @@ void SemanticDecoder::readAstStaticAssertDeclarationAST(
     value9 = std::move(value10);
   }
   self->value = std::move(value9);
+}
+
+void SemanticDecoder::readAstConstevalBlockDeclarationAST(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::ConstevalBlockDeclarationAST* self) {
+  readAstDeclarationAST(in, self);
+  // ::cxx::ConstevalBlockDeclarationAST::constevalLoc
+  cxx::SourceLocation value1 = locationAt(LocationRef{in.varU32()});
+  self->constevalLoc = std::move(value1);
+  // ::cxx::ConstevalBlockDeclarationAST::statement
+  cxx::CompoundStatementAST* value2 =
+      ast_cast<CompoundStatementAST>(astAt(AstRef{in.varU32()}));
+  self->statement = std::move(value2);
+  // ::cxx::ConstevalBlockDeclarationAST::symbol
+  cxx::LambdaSymbol* value3 =
+      symbol_cast<LambdaSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->symbol = std::move(value3);
 }
 
 void SemanticDecoder::readAstAliasDeclarationAST(
@@ -13646,10 +13980,9 @@ void SemanticDecoder::readAstSubscriptExpressionAST(
   // ::cxx::SubscriptExpressionAST::lbracketLoc
   cxx::SourceLocation value2 = locationAt(LocationRef{in.varU32()});
   self->lbracketLoc = std::move(value2);
-  // ::cxx::SubscriptExpressionAST::indexExpression
-  cxx::ExpressionAST* value3 =
-      ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-  self->indexExpression = std::move(value3);
+  // ::cxx::SubscriptExpressionAST::expressionList
+  cxx::List<cxx::ExpressionAST*>* value3 = readAstList<cxx::ExpressionAST>(in);
+  self->expressionList = std::move(value3);
   // ::cxx::SubscriptExpressionAST::rbracketLoc
   cxx::SourceLocation value4 = locationAt(LocationRef{in.varU32()});
   self->rbracketLoc = std::move(value4);
@@ -13686,6 +14019,10 @@ void SemanticDecoder::readAstCallExpressionAST(
   cxx::FunctionSymbol* value6 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->constructorSymbol = std::move(value6);
+  // ::cxx::CallExpressionAST::reflectionScope
+  cxx::ScopeSymbol* value7 =
+      symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->reflectionScope = std::move(value7);
 }
 
 void SemanticDecoder::readAstTypeConstructionAST(
@@ -13750,15 +14087,19 @@ void SemanticDecoder::readAstSpliceMemberExpressionAST(
   // ::cxx::SpliceMemberExpressionAST::splicer
   cxx::SplicerAST* value4 = ast_cast<SplicerAST>(astAt(AstRef{in.varU32()}));
   self->splicer = std::move(value4);
+  // ::cxx::SpliceMemberExpressionAST::splice
+  cxx::SpliceExpressionInfo value5{};
+  readcxxSpliceExpressionInfo(in, &value5);
+  self->splice = std::move(value5);
   // ::cxx::SpliceMemberExpressionAST::symbol
-  cxx::Symbol* value5 = symbolAt(SymbolRef{in.varU32()});
-  self->symbol = std::move(value5);
+  cxx::Symbol* value6 = symbolAt(SymbolRef{in.varU32()});
+  self->symbol = std::move(value6);
   // ::cxx::SpliceMemberExpressionAST::accessOp
-  ::cxx::TokenKind value6 = static_cast<::cxx::TokenKind>(readEnum(in, 237));
-  self->accessOp = std::move(value6);
+  ::cxx::TokenKind value7 = static_cast<::cxx::TokenKind>(readEnum(in, 237));
+  self->accessOp = std::move(value7);
   // ::cxx::SpliceMemberExpressionAST::isTemplateIntroduced
-  bool value7 = in.boolean();
-  self->isTemplateIntroduced = std::move(value7);
+  bool value8 = in.boolean();
+  self->isTemplateIntroduced = std::move(value8);
 }
 
 void SemanticDecoder::readAstMemberExpressionAST(
@@ -13976,6 +14317,10 @@ void SemanticDecoder::readAstSpliceExpressionAST(
   // ::cxx::SpliceExpressionAST::splicer
   cxx::SplicerAST* value1 = ast_cast<SplicerAST>(astAt(AstRef{in.varU32()}));
   self->splicer = std::move(value1);
+  // ::cxx::SpliceExpressionAST::splice
+  cxx::SpliceExpressionInfo value2{};
+  readcxxSpliceExpressionInfo(in, &value2);
+  self->splice = std::move(value2);
 }
 
 void SemanticDecoder::readAstGlobalScopeReflectExpressionAST(
@@ -14353,6 +14698,21 @@ void SemanticDecoder::readAstConstExpressionAST(
   const cxx::ConstValue* value2 = nullptr;
   if (in.boolean()) value2 = arena()->make<cxx::ConstValue>(readConstValue(in));
   self->constValue = std::move(value2);
+  // ::cxx::ConstExpressionAST::isDeferredImmediateInvocation
+  bool value3 = in.boolean();
+  self->isDeferredImmediateInvocation = std::move(value3);
+  // ::cxx::ConstExpressionAST::evaluationKind
+  static_assert(static_cast<std::uint32_t>(
+                    ::cxx::ConstantEvaluationKind::kImmediateInvocation) +
+                    1 ==
+                3);
+  ::cxx::ConstantEvaluationKind value4 =
+      static_cast<::cxx::ConstantEvaluationKind>(readEnum(in, 3));
+  self->evaluationKind = std::move(value4);
+  // ::cxx::ConstExpressionAST::evaluationScope
+  cxx::ScopeSymbol* value5 =
+      symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->evaluationScope = std::move(value5);
 }
 
 void SemanticDecoder::readAstBinaryExpressionAST(
@@ -14554,12 +14914,12 @@ void SemanticDecoder::readAstTypeTraitExpressionAST(
   self->rparenLoc = std::move(value4);
   // ::cxx::TypeTraitExpressionAST::typeTrait
   static_assert(
-      static_cast<std::uint32_t>(
-          ::cxx::BuiltinTypeTraitKind::T___REFERENCE_CONVERTS_FROM_TEMPORARY) +
+      static_cast<std::uint32_t>(::cxx::BuiltinTypeTraitKind::
+                                     T___IS_POINTER_INTERCONVERTIBLE_BASE_OF) +
           1 ==
-      62);
+      70);
   ::cxx::BuiltinTypeTraitKind value5 =
-      static_cast<::cxx::BuiltinTypeTraitKind>(readEnum(in, 62));
+      static_cast<::cxx::BuiltinTypeTraitKind>(readEnum(in, 70));
   self->typeTrait = std::move(value5);
   // ::cxx::TypeTraitExpressionAST::value
   std::optional<bool> value6;
@@ -15232,6 +15592,29 @@ void SemanticDecoder::readAstUnderlyingTypeSpecifierAST(
   self->rparenLoc = std::move(value4);
 }
 
+void SemanticDecoder::readAstPackIndexTypeSpecifierAST(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::PackIndexTypeSpecifierAST* self) {
+  readAstSpecifierAST(in, self);
+  // ::cxx::PackIndexTypeSpecifierAST::packSpecifier
+  cxx::NamedTypeSpecifierAST* value1 =
+      ast_cast<NamedTypeSpecifierAST>(astAt(AstRef{in.varU32()}));
+  self->packSpecifier = std::move(value1);
+  // ::cxx::PackIndexTypeSpecifierAST::ellipsisLoc
+  cxx::SourceLocation value2 = locationAt(LocationRef{in.varU32()});
+  self->ellipsisLoc = std::move(value2);
+  // ::cxx::PackIndexTypeSpecifierAST::lbracketLoc
+  cxx::SourceLocation value3 = locationAt(LocationRef{in.varU32()});
+  self->lbracketLoc = std::move(value3);
+  // ::cxx::PackIndexTypeSpecifierAST::indexExpression
+  cxx::ExpressionAST* value4 =
+      ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
+  self->indexExpression = std::move(value4);
+  // ::cxx::PackIndexTypeSpecifierAST::rbracketLoc
+  cxx::SourceLocation value5 = locationAt(LocationRef{in.varU32()});
+  self->rbracketLoc = std::move(value5);
+}
+
 void SemanticDecoder::readAstElaboratedTypeSpecifierAST(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::ElaboratedTypeSpecifierAST* self) {
@@ -15691,13 +16074,17 @@ void SemanticDecoder::readAstArrayDeclaratorChunkAST(
   cxx::ExpressionAST* value3 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->expression = std::move(value3);
+  // ::cxx::ArrayDeclaratorChunkAST::evaluationScope
+  cxx::ScopeSymbol* value4 =
+      symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->evaluationScope = std::move(value4);
   // ::cxx::ArrayDeclaratorChunkAST::rbracketLoc
-  cxx::SourceLocation value4 = locationAt(LocationRef{in.varU32()});
-  self->rbracketLoc = std::move(value4);
+  cxx::SourceLocation value5 = locationAt(LocationRef{in.varU32()});
+  self->rbracketLoc = std::move(value5);
   // ::cxx::ArrayDeclaratorChunkAST::attributeList
-  cxx::List<cxx::AttributeSpecifierAST*>* value5 =
+  cxx::List<cxx::AttributeSpecifierAST*>* value6 =
       readAstList<cxx::AttributeSpecifierAST>(in);
-  self->attributeList = std::move(value5);
+  self->attributeList = std::move(value6);
 }
 
 void SemanticDecoder::readAstNameIdAST([[maybe_unused]] ByteReader& in,
@@ -15732,6 +16119,16 @@ void SemanticDecoder::readAstDecltypeIdAST(
   cxx::DecltypeSpecifierAST* value1 =
       ast_cast<DecltypeSpecifierAST>(astAt(AstRef{in.varU32()}));
   self->decltypeSpecifier = std::move(value1);
+}
+
+void SemanticDecoder::readAstPackIndexIdAST(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::PackIndexIdAST* self) {
+  readAstUnqualifiedIdAST(in, self);
+  // ::cxx::PackIndexIdAST::typeSpecifier
+  cxx::SpecifierAST* value1 =
+      ast_cast<SpecifierAST>(astAt(AstRef{in.varU32()}));
+  self->typeSpecifier = std::move(value1);
 }
 
 void SemanticDecoder::readAstOperatorFunctionIdAST(
@@ -15894,6 +16291,19 @@ void SemanticDecoder::readAstDecltypeNestedNameSpecifierAST(
   self->scopeLoc = std::move(value2);
 }
 
+void SemanticDecoder::readAstPackIndexNestedNameSpecifierAST(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::PackIndexNestedNameSpecifierAST* self) {
+  readAstNestedNameSpecifierAST(in, self);
+  // ::cxx::PackIndexNestedNameSpecifierAST::typeSpecifier
+  cxx::SpecifierAST* value1 =
+      ast_cast<SpecifierAST>(astAt(AstRef{in.varU32()}));
+  self->typeSpecifier = std::move(value1);
+  // ::cxx::PackIndexNestedNameSpecifierAST::scopeLoc
+  cxx::SourceLocation value2 = locationAt(LocationRef{in.varU32()});
+  self->scopeLoc = std::move(value2);
+}
+
 void SemanticDecoder::readAstTemplateNestedNameSpecifierAST(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::TemplateNestedNameSpecifierAST* self) {
@@ -16004,6 +16414,10 @@ void SemanticDecoder::readAstExpressionTemplateArgumentAST(
   cxx::ExpressionAST* value1 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->expression = std::move(value1);
+  // ::cxx::ExpressionTemplateArgumentAST::evaluationScope
+  cxx::ScopeSymbol* value2 =
+      symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->evaluationScope = std::move(value2);
 }
 
 void SemanticDecoder::readAstThrowExceptionSpecifierAST(
@@ -16548,6 +16962,19 @@ void SemanticDecoder::readcxxMeta([[maybe_unused]] ByteReader& in,
         value1 = std::move(alternative5);
         break;
       }
+      case 3: {
+        std::variant_alternative_t<3, decltype(value1)> alternative6{};
+        readcxxMetaParameter(in, &alternative6);
+        value1 = std::move(alternative6);
+        break;
+      }
+      case 4: {
+        std::variant_alternative_t<4, decltype(value1)> alternative7 =
+            std::static_pointer_cast<cxx::ConstAddress>(
+                constantAt(ConstRef{in.varU32()}));
+        value1 = std::move(alternative7);
+        break;
+      }
       default:
         fail("unknown variant alternative");
         break;
@@ -16559,10 +16986,9 @@ void SemanticDecoder::readcxxMeta([[maybe_unused]] ByteReader& in,
 void SemanticDecoder::readcxxMetaConstExpr(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::Meta::ConstExpr* self) {
-  // ::cxx::Meta::ConstExpr::expression
-  cxx::ExpressionAST* value1 =
-      ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-  self->expression = std::move(value1);
+  // ::cxx::Meta::ConstExpr::type
+  const cxx::Type* value1 = typeAt(TypeRef{in.varU32()});
+  self->type = std::move(value1);
   // ::cxx::Meta::ConstExpr::value
   cxx::ConstValue value2 = readConstValue(in);
   self->value = std::move(value2);
@@ -16739,9 +17165,14 @@ void SemanticDecoder::readcxxConstStorage(
   // ::cxx::ConstStorage::value_
   cxx::ConstValue value2 = readConstValue(in);
   self->setValue(std::move(value2));
+  // ::cxx::ConstStorage::backingArray_
+  std::shared_ptr<cxx::ConstStorage> value3 =
+      std::static_pointer_cast<cxx::ConstStorage>(
+          constantAt(ConstRef{in.varU32()}));
+  self->setBackingArray(std::move(value3));
   // ::cxx::ConstStorage::lifetimeEnded_
-  bool value3 = in.boolean();
-  self->setLifetimeEnded(std::move(value3));
+  bool value4 = in.boolean();
+  self->setLifetimeEnded(std::move(value4));
 }
 
 void SemanticDecoder::readcxxConstLabelAddress(
@@ -16767,6 +17198,18 @@ void SemanticDecoder::readcxxConstFloat16(
   // ::cxx::ConstFloat16::bits
   unsigned short value1 = static_cast<unsigned short>(in.varU32());
   self->bits = std::move(value1);
+}
+
+void SemanticDecoder::readcxxMetaParameter(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::Meta::Parameter* self) {
+  // ::cxx::Meta::Parameter::function
+  const cxx::FunctionSymbol* value1 =
+      symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->function = std::move(value1);
+  // ::cxx::Meta::Parameter::index
+  unsigned int value2 = static_cast<unsigned int>(in.varU32());
+  self->index = std::move(value2);
 }
 
 void SemanticDecoder::readcxxTemplateSpecialization(
@@ -17341,12 +17784,24 @@ void SemanticDecoder::readcxxDefaultInitializerContext(
   cxx::ScopeSymbol* value2 =
       symbol_cast<ScopeSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->scope = std::move(value2);
+  // ::cxx::DefaultInitializerContext::entity
+  cxx::Symbol* value3 = symbolAt(SymbolRef{in.varU32()});
+  self->entity = std::move(value3);
 }
 
 void SemanticDecoder::readcxxObjectInitializationInfo(
     [[maybe_unused]] ByteReader& in,
     [[maybe_unused]] cxx::ObjectInitializationInfo* self) {
   // ::cxx::ObjectInitializationInfo::expression
+  cxx::ExpressionAST* value1 =
+      ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
+  self->expression = std::move(value1);
+}
+
+void SemanticDecoder::readcxxSpliceExpressionInfo(
+    [[maybe_unused]] ByteReader& in,
+    [[maybe_unused]] cxx::SpliceExpressionInfo* self) {
+  // ::cxx::SpliceExpressionInfo::expression
   cxx::ExpressionAST* value1 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
   self->expression = std::move(value1);
@@ -17363,6 +17818,9 @@ void SemanticDecoder::readcxxInitializerInfo(
     value1 = std::move(value2);
   }
   self->arguments = std::move(value1);
+  // ::cxx::InitializerInfo::isParenthesizedAggregate
+  bool value3 = in.boolean();
+  self->isParenthesizedAggregate = std::move(value3);
 }
 
 }  // namespace cxx

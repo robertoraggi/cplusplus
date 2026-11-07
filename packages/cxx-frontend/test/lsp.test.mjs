@@ -264,6 +264,43 @@ test("LanguageServer answers initialize, diagnostics and completion", async () =
   }
 });
 
+test("LanguageServer preserves nested aliases per declaration", async () => {
+  const { server, messages } = await startServer();
+  const text = [
+    "using Count = int;",
+    "template<class A, class B> struct Pair {};",
+    "Pair<Count, int> first;",
+    "Pair<int, Count> second;",
+    "void apply(void (*fn)(Count));",
+  ].join("\n");
+  try {
+    await server.receive({ jsonrpc: "2.0", id: 1, method: "initialize" });
+    await server.receive({
+      jsonrpc: "2.0",
+      method: "textDocument/didOpen",
+      params: { textDocument: { uri, languageId: "cpp", version: 0, text } },
+    });
+    for (const [id, line, character, expected] of [
+      [2, 2, 17, "Pair<Count, int> first"],
+      [3, 3, 17, "Pair<int, Count> second"],
+      [4, 4, 5, "void apply(void (*)(Count))"],
+    ]) {
+      await server.receive({
+        jsonrpc: "2.0",
+        id,
+        method: "textDocument/hover",
+        params: { textDocument: { uri }, position: { line, character } },
+      });
+      assert.equal(
+        responseOf(messages, id).result.contents.value,
+        "```cpp\n" + expected + "\n```",
+      );
+    }
+  } finally {
+    server.dispose();
+  }
+});
+
 test("LanguageServer provides semantic tokens, hover and document highlights", async () => {
   const { server, messages } = await startServer();
   const text = [

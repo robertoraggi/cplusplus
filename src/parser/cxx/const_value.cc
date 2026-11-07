@@ -22,16 +22,23 @@
 #include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/preprocessor.h>
+#include <cxx/reflection.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
+#include <cxx/util.h>
 
 #include <algorithm>
+#include <array>
 #include <bit>
+#include <cfloat>
 #include <cstdint>
+#include <cstring>
 #include <ranges>
 #include <span>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace cxx {
 
@@ -84,7 +91,9 @@ class ConstantResult {
     while (!pending.empty()) {
       auto [current, currentType] = pending.back();
       pending.pop_back();
-      if (std::holds_alternative<IndeterminateValue>(*current)) return false;
+      if (std::holds_alternative<IndeterminateValue>(*current) ||
+          std::holds_alternative<OutOfLifetimeValue>(*current))
+        return false;
       if (auto address = std::get_if<std::shared_ptr<ConstAddress>>(current)) {
         if (!*address || !checkAddress(**address, currentType, pending))
           return false;
@@ -150,7 +159,14 @@ class ConstantResult {
     auto owner = address.owner();
     if (owner && owner->isConstexprUnknown()) return false;
     if (kind_ == ConstantResultKind::kInitialized) return true;
-    if (address.isNull() || traits_->is_member_pointer(type)) return true;
+    if (traits_->is_member_pointer(type)) return true;
+    if (address.isNull()) return !traits_->is_reference(type);
+    if (traits_->is_reference(type)) {
+      auto extent = unqualified_cast<BoundedArrayType>(address.arrayType());
+      auto size = extent ? extent->size() : std::size_t{1};
+      if (address.offset() < 0 || std::uintmax_t(address.offset()) >= size)
+        return false;
+    }
     if (address.stringLiteral() || address.typeInfoFor())
       return kind_ != ConstantResultKind::kTemplateArgument;
 
@@ -161,6 +177,10 @@ class ConstantResult {
 
     auto temporary = symbol_cast<VariableSymbol>(referent);
     if (!temporary) return true;
+    if (kind_ == ConstantResultKind::kTemplateArgument &&
+        temporary->isFunctionLocalPredefined())
+      return false;
+    if (temporary->isTemplateParameterObject()) return true;
     if (!temporary->lifetimeExtendingDeclaration() && temporary->parent())
       return true;
     if (kind_ == ConstantResultKind::kTemplateArgument) return false;
@@ -185,28 +205,132 @@ auto isFullyInitialized(const ConstValue& value) -> bool {
       .check(value, nullptr);
 }
 
-auto isConstexprRepresentable(const TypeTraits& traits, const ConstValue& value,
-                              const Type* type, ScopeSymbol* point) -> bool {
-  return ConstantResult{&traits, point, ConstantResultKind::kRepresentable}
-      .check(value, type);
+namespace {
+
+class ImmediateObject {
+ public:
+  [[nodiscard]] auto check(const ConstValue& value) -> bool {
+    pending_.push_back(&value);
+    while (!pending_.empty()) {
+      auto current = pending_.back();
+      pending_.pop_back();
+      if (std::visit(*this, *current)) return true;
+    }
+    return false;
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<Meta>& reflection)
+      -> bool {
+    return reflection && !Reflection::equal(*reflection, Meta{});
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<ConstObject>& object)
+      -> bool {
+    if (object)
+      for (const auto& member : object->members())
+        pending_.push_back(&member.value);
+    return false;
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<InitializerList>& list)
+      -> bool {
+    if (!list) return false;
+    for (const auto& [element, type] : list->initializedElements())
+      pending_.push_back(&element);
+    if (list->hasFiller()) pending_.push_back(&std::get<0>(list->filler()));
+    return false;
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<ConstAddress>& address)
+      -> bool {
+    if (!address || address->isNull()) return false;
+    auto symbol = address->root() ? address->root() : address->symbol();
+    if (auto function = symbol_cast<FunctionSymbol>(symbol))
+      return function->isConsteval();
+    if (auto variable = symbol_cast<VariableSymbol>(symbol)) {
+      if (variable->constValue()) follow(&*variable->constValue());
+    } else if (auto field = symbol_cast<FieldSymbol>(symbol)) {
+      if (field->constValue()) follow(&*field->constValue());
+    }
+    if (address->storage()) follow(&address->storage()->value());
+    auto owner = address->owner();
+    if (!owner || !visited_.insert(owner.get()).second) return false;
+    return (*this)(owner);
+  }
+
+  [[nodiscard]] auto operator()(const auto&) -> bool { return false; }
+
+ private:
+  void follow(const ConstValue* value) {
+    if (visited_.insert(value).second) pending_.push_back(value);
+  }
+
+  std::vector<const ConstValue*> pending_;
+  std::unordered_set<const void*> visited_;
+};
+
+struct ManifestlyConstantEvaluatedInitializer {
+  const TypeTraits& traits;
+
+  template <typename S>
+  [[nodiscard]] auto check(S* var) const -> bool {
+    if (var->isConstexpr()) return true;
+    if (traits.is_usable_in_constant_expressions(var)) return true;
+    if (!has_static_storage_duration(var) && !has_thread_storage_duration(var))
+      return false;
+    return var->constValue() &&
+           traits.is_constant_initialization(var, *var->constValue());
+  }
+
+  [[nodiscard]] auto operator()(VariableSymbol* var) const -> bool {
+    return check(var);
+  }
+  [[nodiscard]] auto operator()(FieldSymbol* var) const -> bool {
+    return check(var);
+  }
+  [[nodiscard]] auto operator()(Symbol*) const -> bool { return false; }
+};
+
+}  // namespace
+
+auto isImmediateObject(const ConstValue& value) -> bool {
+  return ImmediateObject{}.check(value);
 }
 
-auto isConstantInitialization(const TypeTraits& traits, Symbol* variable,
-                              const ConstValue& value) -> bool {
+auto declaresImmediateObject(VariableSymbol* variable) -> bool {
+  auto definition = symbol_cast<VariableSymbol>(variable->resolvedDefinition());
+  if (!definition || !definition->isConstexpr()) return false;
+  auto value = definition->constValue();
+  return value && isImmediateObject(*value);
+}
+
+auto TypeTraits::is_constexpr_representable(const ConstValue& value,
+                                            const Type* type,
+                                            ScopeSymbol* point) const -> bool {
+  return ConstantResult{this, point, ConstantResultKind::kRepresentable}.check(
+      value, type);
+}
+
+auto TypeTraits::is_constant_initialization(Symbol* variable,
+                                            const ConstValue& value) const
+    -> bool {
   auto staticResult = has_static_storage_duration(variable) ||
                       has_thread_storage_duration(variable);
-  if (traits.unit()->preprocessor()->cplusplusVersion() <= 202302L)
-    staticResult = true;
+  if (unit_->preprocessor()->cplusplusVersion() <= 202302L) staticResult = true;
   auto kind = staticResult ? ConstantResultKind::kStaticInitialization
                            : ConstantResultKind::kRepresentable;
-  return ConstantResult{&traits, variable->parent(), kind}.check(
-      value, variable->type());
+  return ConstantResult{this, variable->parent(), kind}.check(value,
+                                                              variable->type());
 }
 
-auto isConstantTemplateArgument(const TypeTraits& traits,
-                                const ConstValue& value, const Type* type)
-    -> bool {
-  return ConstantResult{&traits, nullptr, ConstantResultKind::kTemplateArgument}
+auto TypeTraits::has_manifestly_constant_evaluated_initializer(
+    Symbol* variable) const -> bool {
+  return visit(ManifestlyConstantEvaluatedInitializer{*this}, variable);
+}
+
+auto TypeTraits::is_constant_template_argument(const ConstValue& value,
+                                               const Type* type) const -> bool {
+  return ConstantResult{this, nullptr, ConstantResultKind::kTemplateArgument}
       .check(value, type);
 }
 
@@ -237,41 +361,111 @@ namespace {
   return cloneValue(value);
 }
 
+template <typename Transform>
+class ValueCloner {
+ public:
+  explicit ValueCloner(Transform transform) : transform_(transform) {}
+
+  [[nodiscard]] auto copy(const ConstValue& value) -> ConstValue {
+    auto result = copyValue(value);
+    if constexpr (!std::is_same_v<Transform, std::nullptr_t>) {
+      transform_(result);
+      if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value);
+          object && *object)
+        objects_.emplace_back(object->get(),
+                              std::get<std::shared_ptr<ConstObject>>(result));
+    }
+    return result;
+  }
+
+  void finish() {
+    for (auto address : addresses_) {
+      if (!address->owner()) continue;
+      for (const auto& [source, object] : objects_) {
+        if (address->owner().get() != source) continue;
+        address->setOwner(object);
+        break;
+      }
+    }
+  }
+
+ private:
+  [[nodiscard]] auto copyElement(const ConstValue& value, const Type* type)
+      -> ConstValue {
+    if constexpr (std::is_same_v<Transform, std::nullptr_t>)
+      if (unqualified_cast<PointerType>(type)) return value;
+    return copy(value);
+  }
+
+  [[nodiscard]] auto copyValue(const ConstValue& value) -> ConstValue {
+    if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
+      if (!*object) return value;
+      auto result = std::make_shared<ConstObject>((*object)->type());
+      for (const auto& member : (*object)->members())
+        result->addMember(member.symbol,
+                          copyElement(member.value, member.symbol->type()));
+      return result;
+    }
+    if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
+      if (!*list) return value;
+      std::vector<InitializerList::Element> elements;
+      elements.reserve((*list)->initializedElements().size());
+      for (const auto& [element, type] : (*list)->initializedElements())
+        elements.emplace_back(copyElement(element, type), type);
+      if (!(*list)->hasFiller())
+        return std::make_shared<InitializerList>(std::move(elements));
+      const auto& [filler, type] = (*list)->filler();
+      return std::make_shared<InitializerList>(
+          std::move(elements), (*list)->size(),
+          InitializerList::Element{copyElement(filler, type), type});
+    }
+    if (auto complex = std::get_if<std::shared_ptr<ConstComplex>>(&value)) {
+      if (!*complex) return value;
+      return std::make_shared<ConstComplex>(copy((*complex)->real()),
+                                            copy((*complex)->imag()));
+    }
+    if constexpr (!std::is_same_v<Transform, std::nullptr_t>) {
+      if (auto address = std::get_if<std::shared_ptr<ConstAddress>>(&value)) {
+        if (!*address) return value;
+        auto result = std::make_shared<ConstAddress>(**address);
+        addresses_.push_back(result);
+        return result;
+      }
+      if (auto meta = std::get_if<std::shared_ptr<Meta>>(&value)) {
+        if (!*meta) return value;
+        auto result = std::make_shared<Meta>(**meta);
+        if (auto expression = std::get_if<Meta::ConstExpr>(&result->value))
+          expression->value = copy(expression->value);
+        if (auto object =
+                std::get_if<std::shared_ptr<ConstAddress>>(&result->value)) {
+          auto copied = copy(ConstValue{*object});
+          *object = std::get<std::shared_ptr<ConstAddress>>(std::move(copied));
+        }
+        return result;
+      }
+    }
+    return value;
+  }
+
+  Transform transform_;
+  std::vector<std::pair<const ConstObject*, std::shared_ptr<ConstObject>>>
+      objects_;
+  std::vector<std::shared_ptr<ConstAddress>> addresses_;
+};
+
 }  // namespace
 
 auto cloneValue(const ConstValue& value) -> ConstValue {
-  if (auto object = std::get_if<std::shared_ptr<ConstObject>>(&value)) {
-    if (!*object) return value;
-    auto copy = std::make_shared<ConstObject>((*object)->type());
-    for (const auto& member : (*object)->members())
-      copy->addMember(member.symbol,
-                      cloneValueOfType(member.value, member.symbol->type()));
-    return ConstValue{std::move(copy)};
-  }
+  return ValueCloner{nullptr}.copy(value);
+}
 
-  if (auto list = std::get_if<std::shared_ptr<InitializerList>>(&value)) {
-    if (!*list) return value;
-    std::vector<InitializerList::Element> elements;
-    elements.reserve((*list)->initializedElements().size());
-    for (const auto& [element, type] : (*list)->initializedElements())
-      elements.emplace_back(cloneValueOfType(element, type), type);
-    if (!(*list)->hasFiller())
-      return ConstValue{std::make_shared<InitializerList>(std::move(elements))};
-    const auto& [filler, fillerType] = (*list)->filler();
-    return ConstValue{std::make_shared<InitializerList>(
-        std::move(elements), (*list)->size(),
-        InitializerList::Element{cloneValueOfType(filler, fillerType),
-                                 fillerType})};
-  }
-
-  if (auto complexValue = std::get_if<std::shared_ptr<ConstComplex>>(&value)) {
-    if (!*complexValue) return value;
-    return ConstValue{
-        std::make_shared<ConstComplex>(cloneValue((*complexValue)->real()),
-                                       cloneValue((*complexValue)->imag()))};
-  }
-
-  return value;
+auto cloneValue(const ConstValue& value,
+                const std::function<void(ConstValue&)>& transform)
+    -> ConstValue {
+  auto cloner = ValueCloner{transform};
+  auto result = cloner.copy(value);
+  cloner.finish();
+  return result;
 }
 
 InitializerList::InitializerList(std::vector<Element> elements,
@@ -315,7 +509,14 @@ void InitializerList::setFiller(Element filler) { filler_ = std::move(filler); }
 
 auto ConstObject::addMember(const Symbol* symbol, ConstValue value)
     -> ConstValue* {
-  if (isUnion()) members_.clear();
+  if (isUnion()) {
+    members_.clear();
+  } else if (auto owner = symbol_cast<ClassSymbol>(symbol->parent());
+             owner && owner->isUnion()) {
+    std::erase_if(members_, [owner](const Member& member) {
+      return member.symbol && member.symbol->parent() == owner;
+    });
+  }
   members_.push_back({symbol, std::move(value)});
   return &members_.back().value;
 }
@@ -395,6 +596,7 @@ ConstAddress::ConstAddress(Symbol* symbol, std::intmax_t offset)
       root_(symbol_) {}
 
 auto ConstAddress::sameTarget(const ConstAddress& other) const -> bool {
+  if (storage_ && other.storage_) return storage_ == other.storage_;
   if (root_ || other.root_)
     return root_ == other.root_ && storage_ == other.storage_;
   if (symbol_ != other.symbol_ || owner_ != other.owner_) return false;
@@ -404,8 +606,9 @@ auto ConstAddress::sameTarget(const ConstAddress& other) const -> bool {
 }
 
 auto ConstAddress::sameArray(const ConstAddress& other) const -> bool {
-  return sameTarget(other) && arrayType_ == other.arrayType_ &&
-         unqualified_type(elementType_) ==
+  if (!sameTarget(other)) return false;
+  if (bool(arrayType_) != bool(other.arrayType_)) return false;
+  return unqualified_type(elementType_) ==
              unqualified_type(other.elementType_) &&
          subobjectPath_ == other.subobjectPath_ &&
          classDisplacement_ == other.classDisplacement_;
@@ -432,6 +635,90 @@ auto ConstAddress::sameLocation(const ConstAddress& other) const -> bool {
   return owner_ && owner_ == other.owner_;
 }
 
+namespace {
+
+[[nodiscard]] auto designationPath(const ConstAddress& address)
+    -> std::vector<ConstAddress::Subobject> {
+  std::vector<ConstAddress::Subobject> path;
+  for (const auto& step : address.subobjectPath()) {
+    auto symbol = std::get_if<Symbol*>(&step);
+    if (symbol && symbol_cast<BaseClassSymbol>(*symbol)) continue;
+    path.push_back(step);
+  }
+  if (address.arrayType()) path.emplace_back(std::size_t(address.offset()));
+  return path;
+}
+
+[[nodiscard]] auto memberObjectType(const Type* enclosing, Symbol* member,
+                                    const TypeTraits& traits) -> const Type* {
+  auto field = symbol_cast<FieldSymbol>(member);
+  auto type = field ? field->type() : traits.aggregate_element_type(member);
+  if (!type) return nullptr;
+  if (traits.is_reference(type)) return traits.remove_reference(type);
+  auto cv = cv_qualifiers(enclosing);
+  if (field && field->isMutable()) cv = cv & ~CvQualifiers::kConst;
+  return traits.add_cv(type, cv);
+}
+
+[[nodiscard]] auto declaredObjectType(const ConstAddress& address)
+    -> const Type* {
+  if (address.storage()) return address.storage()->type();
+  if (address.root()) return address.root()->type();
+  if (address.owner()) return address.owner()->type();
+  return address.symbol() ? address.symbol()->type() : nullptr;
+}
+
+}  // namespace
+
+auto ConstAddress::sameObject(const ConstAddress& other) const -> bool {
+  if (!sameTarget(other)) return false;
+  if (displacement_ != other.displacement_) return false;
+  if (unqualified_type(designatedType()) !=
+      unqualified_type(other.designatedType()))
+    return false;
+  return designationPath(*this) == designationPath(other);
+}
+
+auto ConstAddress::designatedType() const -> const Type* {
+  if (elementType_) return elementType_;
+  return symbol_ ? symbol_->type() : nullptr;
+}
+
+auto ConstAddress::objectHash() const -> std::size_t {
+  std::size_t seed = 0;
+  if (root_) {
+    hash_combine(seed, root_);
+    hash_combine(seed, storage_.get());
+  } else {
+    hash_combine(seed, symbol_);
+    hash_combine(seed, owner_.get());
+    hash_combine(seed, string_);
+    hash_combine(seed, typeInfoFor_);
+    if (!owner_) hash_combine(seed, storage_.get());
+  }
+  for (const auto& step : designationPath(*this))
+    std::visit([&](auto value) { hash_combine(seed, value); }, step);
+  hash_combine(seed, displacement_);
+  return seed;
+}
+
+auto ConstAddress::objectType(const TypeTraits& traits) const -> const Type* {
+  auto type = declaredObjectType(*this);
+  if (!type) return nullptr;
+  type = traits.remove_reference(type);
+  if (subobjectPath_.empty() && owner_ && symbol_)
+    type = memberObjectType(type, symbol_, traits);
+  for (const auto& step : subobjectPath_) {
+    auto member = std::get_if<Symbol*>(&step);
+    type = member ? memberObjectType(type, *member, traits)
+                  : traits.get_element_type(type);
+    if (!type) return nullptr;
+  }
+  if (arrayType_) type = traits.get_element_type(type);
+  if (!type || !elementType_) return type;
+  return traits.add_cv(traits.remove_cv(elementType_), cv_qualifiers(type));
+}
+
 auto ConstAddress::lifetimeEnded() const -> bool {
   if (storage_ && storage_->lifetimeEnded()) return true;
   return owner_ && owner_->lifetimeEnded();
@@ -454,6 +741,32 @@ auto ConstObject::operator==(const ConstObject& other) const -> bool {
 
 namespace {
 
+[[nodiscard]] auto floatingIdentity(long double value) {
+  auto bytes =
+      std::bit_cast<std::array<unsigned char, sizeof(long double)>>(value);
+#if LDBL_MANT_DIG == 64
+  if constexpr (std::endian::native == std::endian::little)
+    std::fill(bytes.begin() + 10, bytes.end(), 0);
+  else
+    std::fill(bytes.begin(), bytes.end() - 10, 0);
+#endif
+  return bytes;
+}
+
+[[nodiscard]] auto memberPointerIdentity(const ConstAddress& address)
+    -> Symbol* {
+  if (!address.root() || address.root() != address.symbol() ||
+      address.owner() || address.storage())
+    return nullptr;
+  if (auto field = symbol_cast<FieldSymbol>(address.symbol());
+      field && !field->isStatic())
+    return field;
+  if (auto function = symbol_cast<FunctionSymbol>(address.symbol());
+      function && function->isImplicitObjectMemberFunction())
+    return function;
+  return nullptr;
+}
+
 struct EquivalentValues {
   const ConstValue& rhs;
 
@@ -462,9 +775,17 @@ struct EquivalentValues {
     return std::get_if<T>(&rhs);
   }
 
+  [[nodiscard]] auto operator()(const std::shared_ptr<Meta>& lhs) const
+      -> bool {
+    auto value = other<std::shared_ptr<Meta>>();
+    return value && *value && lhs && Reflection::equal(*lhs, **value);
+  }
+
   [[nodiscard]] auto operator()(const ConstInt& lhs) const -> bool {
     auto value = other<ConstInt>();
-    return value && lhs == *value;
+    if (value) return lhs == *value;
+    auto address = other<std::shared_ptr<ConstAddress>>();
+    return lhs.isZero() && address && *address && (*address)->isNull();
   }
 
   [[nodiscard]] auto operator()(float lhs) const -> bool {
@@ -481,7 +802,7 @@ struct EquivalentValues {
 
   [[nodiscard]] auto operator()(long double lhs) const -> bool {
     auto value = other<long double>();
-    return value && lhs == *value;
+    return value && floatingIdentity(lhs) == floatingIdentity(*value);
   }
 
   [[nodiscard]] auto operator()(
@@ -510,11 +831,16 @@ struct EquivalentValues {
 
   [[nodiscard]] auto operator()(const std::shared_ptr<ConstAddress>& lhs) const
       -> bool {
+    if (!lhs) return false;
+    if (auto integer = other<ConstInt>())
+      return lhs->isNull() && integer->isZero();
     auto value = other<std::shared_ptr<ConstAddress>>();
-    if (!value || !*value || !lhs) return false;
-    return lhs->sameArray(**value) && lhs->offset() == (*value)->offset() &&
-           lhs->displacement() == (*value)->displacement() &&
-           lhs->memberAdjustment() == (*value)->memberAdjustment();
+    if (!value || !*value) return false;
+    if (lhs->isNull() || (*value)->isNull())
+      return lhs->isNull() && (*value)->isNull();
+    if (auto member = memberPointerIdentity(*lhs))
+      return member == memberPointerIdentity(**value);
+    return lhs->sameObject(**value);
   }
 
   [[nodiscard]] auto operator()(const std::shared_ptr<ConstComplex>& lhs) const
@@ -532,10 +858,122 @@ struct EquivalentValues {
   }
 };
 
+class ValueHasher {
+ public:
+  [[nodiscard]] auto hash(const ConstValue& value)
+      -> std::optional<std::size_t> {
+    return std::visit(*this, value);
+  }
+
+  [[nodiscard]] auto operator()(const ConstInt& value)
+      -> std::optional<std::size_t> {
+    return value.hash();
+  }
+
+  [[nodiscard]] auto operator()(float value) -> std::optional<std::size_t> {
+    return std::hash<std::uint32_t>{}(std::bit_cast<std::uint32_t>(value));
+  }
+
+  [[nodiscard]] auto operator()(double value) -> std::optional<std::size_t> {
+    return std::hash<std::uint64_t>{}(std::bit_cast<std::uint64_t>(value));
+  }
+
+  [[nodiscard]] auto operator()(long double value)
+      -> std::optional<std::size_t> {
+    std::size_t seed = 0;
+    for (auto byte : floatingIdentity(value)) hash_combine(seed, byte);
+    return seed;
+  }
+
+  [[nodiscard]] auto operator()(const ConstFloat16& value)
+      -> std::optional<std::size_t> {
+    return value.bits;
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<Meta>& value)
+      -> std::optional<std::size_t> {
+    if (!value) return std::nullopt;
+    return Reflection::hash(*value);
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<ConstAddress>& value)
+      -> std::optional<std::size_t> {
+    if (!value) return std::nullopt;
+    if (value->isNull()) return ConstInt{0}.hash();
+    if (auto member = memberPointerIdentity(*value))
+      return std::hash<Symbol*>{}(member);
+    return value->objectHash();
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<ConstObject>& value)
+      -> std::optional<std::size_t> {
+    if (!value) return std::nullopt;
+    if (auto it = objects_.find(value.get()); it != objects_.end())
+      return it->second;
+    std::size_t seed = 0;
+    hash_combine(seed, unqualified_type(value->type()));
+    for (const auto& member : value->members()) {
+      hash_combine(seed, member.symbol);
+      if (!append(seed, member.value)) return std::nullopt;
+    }
+    objects_.emplace(value.get(), seed);
+    return seed;
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<InitializerList>& value)
+      -> std::optional<std::size_t> {
+    if (!value) return std::nullopt;
+    std::size_t seed = value->size();
+    for (std::size_t index = 0; index < value->size(); ++index)
+      if (!append(seed, std::get<0>(value->element(index))))
+        return std::nullopt;
+    return seed;
+  }
+
+  [[nodiscard]] auto operator()(const std::shared_ptr<ConstComplex>& value)
+      -> std::optional<std::size_t> {
+    if (!value) return std::nullopt;
+    std::size_t seed = 0;
+    if (!append(seed, value->real()) || !append(seed, value->imag()))
+      return std::nullopt;
+    return seed;
+  }
+
+  [[nodiscard]] auto operator()(const StringLiteral* value)
+      -> std::optional<std::size_t> {
+    return std::hash<const void*>{}(value);
+  }
+
+  [[nodiscard]] auto operator()(OutOfLifetimeValue)
+      -> std::optional<std::size_t> {
+    return 0;
+  }
+
+  template <typename T>
+  [[nodiscard]] auto operator()(const T&) -> std::optional<std::size_t> {
+    return std::nullopt;
+  }
+
+ private:
+  [[nodiscard]] auto append(std::size_t& seed, const ConstValue& value)
+      -> bool {
+    auto key = hash(value);
+    if (!key) return false;
+    hash_combine(seed, *key);
+    return true;
+  }
+
+  std::unordered_map<const ConstObject*, std::size_t> objects_;
+};
+
 }  // namespace
 
 auto equivalent_values(const ConstValue& lhs, const ConstValue& rhs) -> bool {
   return std::visit(EquivalentValues{rhs}, lhs);
+}
+
+auto hash_value(const ConstValue& value) -> std::optional<std::size_t> {
+  return ValueHasher{}.hash(value);
 }
 
 }  // namespace cxx

@@ -114,6 +114,10 @@ void recordDefaultTemplateArgument(TemplateParameterAST* parameter,
 
 class Substitution {
  public:
+  [[nodiscard]] static auto initializeTemplateParameterObject(
+      TranslationUnit* unit, const Type* type, const ConstValue& value,
+      SourceLocation location = {}, ScopeSymbol* scope = nullptr)
+      -> VariableSymbol*;
   Substitution() = delete;
   Substitution(const Substitution&) = delete;
   Substitution(Substitution&&) = default;
@@ -203,9 +207,6 @@ class Substitution {
 
   void bindReferenceArgument(NonTypeArgumentValue& argument,
                              const Type* targetType);
-
-  [[nodiscard]] auto initializeTemplateParameterObject(
-      NonTypeArgumentValue& argument) -> bool;
 
   [[nodiscard]] auto valueDependsOnParameterType(
       ExpressionAST* expression) const -> bool;
