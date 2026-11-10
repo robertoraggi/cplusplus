@@ -5266,7 +5266,7 @@ void SemanticEncoder::writeAstTypeTraitExpressionAST(
   // ::cxx::TypeTraitExpressionAST::value
   out.boolean(self->value.has_value());
   if (self->value.has_value()) {
-    out.boolean((*self->value));
+    out.varI64(static_cast<std::int64_t>((*self->value)));
   }
 }
 
@@ -14917,14 +14917,14 @@ void SemanticDecoder::readAstTypeTraitExpressionAST(
       static_cast<std::uint32_t>(::cxx::BuiltinTypeTraitKind::
                                      T___IS_POINTER_INTERCONVERTIBLE_BASE_OF) +
           1 ==
-      70);
+      71);
   ::cxx::BuiltinTypeTraitKind value5 =
-      static_cast<::cxx::BuiltinTypeTraitKind>(readEnum(in, 70));
+      static_cast<::cxx::BuiltinTypeTraitKind>(readEnum(in, 71));
   self->typeTrait = std::move(value5);
   // ::cxx::TypeTraitExpressionAST::value
-  std::optional<bool> value6;
+  std::optional<long long> value6;
   if (in.boolean()) {
-    bool value7 = in.boolean();
+    long long value7 = static_cast<long long>(in.varI64());
     value6 = std::move(value7);
   }
   self->value = std::move(value6);

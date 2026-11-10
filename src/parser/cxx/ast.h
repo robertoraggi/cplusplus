@@ -5154,7 +5154,7 @@ class TypeTraitExpressionAST final : public ExpressionAST {
   List<TypeIdAST*>* typeIdList = nullptr;
   SourceLocation rparenLoc;
   BuiltinTypeTraitKind typeTrait = BuiltinTypeTraitKind::T_NONE;
-  std::optional<bool> value;
+  std::optional<std::int64_t> value;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -5168,12 +5168,12 @@ class TypeTraitExpressionAST final : public ExpressionAST {
   [[nodiscard]] static auto create(
       Arena* arena, SourceLocation typeTraitLoc, SourceLocation lparenLoc,
       List<TypeIdAST*>* typeIdList, SourceLocation rparenLoc,
-      BuiltinTypeTraitKind typeTrait, std::optional<bool> value,
+      BuiltinTypeTraitKind typeTrait, std::optional<std::int64_t> value,
       ValueCategory valueCategory, const Type* type) -> TypeTraitExpressionAST*;
 
   [[nodiscard]] static auto create(Arena* arena, List<TypeIdAST*>* typeIdList,
                                    BuiltinTypeTraitKind typeTrait,
-                                   std::optional<bool> value,
+                                   std::optional<std::int64_t> value,
                                    ValueCategory valueCategory,
                                    const Type* type) -> TypeTraitExpressionAST*;
 

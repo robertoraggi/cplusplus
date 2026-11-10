@@ -4967,6 +4967,7 @@ namespace {
 [[nodiscard]] auto typeTraitRequiresCompleteType(BuiltinTypeTraitKind trait)
     -> bool {
   switch (trait) {
+    case BuiltinTypeTraitKind::T___ARRAY_RANK:
     case BuiltinTypeTraitKind::T___IS_VOID:
     case BuiltinTypeTraitKind::T___IS_NULL_POINTER:
     case BuiltinTypeTraitKind::T___IS_INTEGRAL:
@@ -5038,6 +5039,11 @@ auto ASTInterpreter::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
     }
 
     switch (ast->typeTrait) {
+      case BuiltinTypeTraitKind::T___ARRAY_RANK:
+        if (isDependent(unit(), ast)) return std::nullopt;
+        return interp.toIntegralType(
+            ConstValue{unit()->typeTraits().rank(firstType)}, ast->type);
+
       case BuiltinTypeTraitKind::T___IS_VOID:
         return unit()->typeTraits().is_void(firstType);
 

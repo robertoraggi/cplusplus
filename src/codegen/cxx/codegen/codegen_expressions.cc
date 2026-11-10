@@ -4849,8 +4849,7 @@ auto Codegen::ExpressionVisitor::operator()(TypeTraitExpressionAST* ast)
   if (ast->value.has_value()) {
     auto resultType = gen.convertType(ast->type);
     auto loc = ast->firstSourceLocation();
-    auto op =
-        gen.emitter_.constantInt(loc, resultType, ast->value.value() ? 1 : 0);
+    auto op = gen.emitter_.constantInt(loc, resultType, ast->value.value());
     return {op};
   }
 

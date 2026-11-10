@@ -7858,10 +7858,17 @@ void TypeChecker::Visitor::operator()(DesignatedInitializerClauseAST* ast) {
 
 void TypeChecker::Visitor::operator()(TypeTraitExpressionAST* ast) {
   ast->type = control()->getBoolType();
+  if (ast->typeTrait == BuiltinTypeTraitKind::T___ARRAY_RANK) {
+    ast->type = control()->getSizeType();
+    if (!ast->typeIdList || ast->typeIdList->next) {
+      error(ast->typeTraitLoc, "expected one type argument to '__array_rank'");
+      return;
+    }
+  }
   auto interp = ASTInterpreter{check.unit_, check.scope_};
   auto value = interp.evaluate(ast);
   if (value.has_value()) {
-    ast->value = interp.toBool(*value);
+    ast->value = interp.toInt(*value);
   }
 }
 

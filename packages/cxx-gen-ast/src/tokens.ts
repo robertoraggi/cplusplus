@@ -213,6 +213,7 @@ export const CXX_KEYWORDS: string[] = [
 ];
 
 export const BUILTIN_TYPE_TRAITS: string[] = [
+  "__array_rank",
   "__builtin_types_compatible_p",
   "__has_trivial_constructor",
   "__has_trivial_destructor",
