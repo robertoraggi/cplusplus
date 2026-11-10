@@ -11163,7 +11163,7 @@ auto TypeTraitExpressionAST::create(Arena* arena) -> TypeTraitExpressionAST* {
 auto TypeTraitExpressionAST::create(
     Arena* arena, SourceLocation typeTraitLoc, SourceLocation lparenLoc,
     List<TypeIdAST*>* typeIdList, SourceLocation rparenLoc,
-    BuiltinTypeTraitKind typeTrait, std::optional<bool> value,
+    BuiltinTypeTraitKind typeTrait, std::optional<std::int64_t> value,
     ValueCategory valueCategory, const Type* type) -> TypeTraitExpressionAST* {
   auto node = new (arena) TypeTraitExpressionAST();
   node->typeTraitLoc = typeTraitLoc;
@@ -11179,7 +11179,7 @@ auto TypeTraitExpressionAST::create(
 
 auto TypeTraitExpressionAST::create(Arena* arena, List<TypeIdAST*>* typeIdList,
                                     BuiltinTypeTraitKind typeTrait,
-                                    std::optional<bool> value,
+                                    std::optional<std::int64_t> value,
                                     ValueCategory valueCategory,
                                     const Type* type)
     -> TypeTraitExpressionAST* {

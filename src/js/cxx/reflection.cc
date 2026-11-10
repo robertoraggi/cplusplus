@@ -7128,7 +7128,7 @@ auto readASTVal(std::intptr_t handle, int slot) -> val {
       auto self = static_cast<const ::cxx::TypeTraitExpressionAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
       return optionalValue(self->value, [&](const auto& item) {
-        return val(static_cast<double>(item));
+        return val(static_cast<std::int64_t>(item));
       });
     }
     case BracedInitListASTSlotBase + 5: {

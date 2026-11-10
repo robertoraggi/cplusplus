@@ -240,6 +240,7 @@ class Token;
   V(WHILE, "while")
 
 #define FOR_EACH_BUILTIN_TYPE_TRAIT(V)                                \
+  V(__ARRAY_RANK, "__array_rank")                                     \
   V(__BUILTIN_TYPES_COMPATIBLE_P, "__builtin_types_compatible_p")     \
   V(__HAS_TRIVIAL_CONSTRUCTOR, "__has_trivial_constructor")           \
   V(__HAS_TRIVIAL_DESTRUCTOR, "__has_trivial_destructor")             \
