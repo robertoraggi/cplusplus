@@ -94,6 +94,10 @@ async function main() {
     await fs.copy(
       wasm32WasiIncludeDir,
       path.join(stageDir, "include/wasm32-wasip1"),
+      {
+        // The playground uses the noeh headers and libraries from WASI SDK 34.
+        filter: (source) => source !== path.join(wasm32WasiIncludeDir, "eh"),
+      },
     );
     await fs.copy(cxxIncludeDir, path.join(stageDir, "lib/cxx/include"));
 

@@ -49,7 +49,7 @@ async function downloadLLVM({ packages, version, outdir }) {
 }
 
 async function main() {
-  const version = "23.1.2";
+  const version = "23.1.5";
   const packages = ["llvm-project"];
 
   const llvm_source_dir = zx.path.resolve(
@@ -68,10 +68,12 @@ async function main() {
     "-G",
     "Ninja",
     "-DCMAKE_BUILD_TYPE=Release",
-    "-DCMAKE_CXX_FLAGS=-DLLVM_BUILD_STATIC",
+    // Override Release's -O3.
+    "-DCMAKE_C_FLAGS_RELEASE=-Oz -DNDEBUG",
+    "-DCMAKE_CXX_FLAGS_RELEASE=-Oz -DNDEBUG",
+    "-DCMAKE_CXX_FLAGS=-DLLVM_BUILD_STATIC -fno-exceptions -Wno-c2y-extensions",
     "-DCMAKE_EXE_LINKER_FLAGS=-sNODERAWFS -sEXIT_RUNTIME -sALLOW_MEMORY_GROWTH",
     "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-    "-DCMAKE_CXX_FLAGS=-fno-exceptions -Wno-c2y-extensions",
     "-DLLVM_BUILD_EXTERNAL_COMPILER_RT=OFF",
     "-DLLVM_BUILD_TOOLS=OFF",
     "-DLLVM_ENABLE_EH=OFF",
@@ -89,6 +91,7 @@ async function main() {
     "-DLLVM_LINK_LLVM_DYLIB=OFF",
     "-DLLVM_OPTIMIZED_TABLEGEN=ON",
     "-DLLVM_TARGETS_TO_BUILD=WebAssembly",
+    "-DMLIR_ENABLE_PDL_IN_PATTERNMATCH=OFF",
   ];
 
   await zx.fs.mkdir(llvm_source_dir, { recursive: true });
