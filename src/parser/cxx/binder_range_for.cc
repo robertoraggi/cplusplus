@@ -278,7 +278,8 @@ void Binder::finishForRangeDeclaration(ForRangeStatementAST* ast,
   check.setScope(scope());
   check.setReportErrors(reportErrors());
 
-  if (auto braced = ast_cast<BracedInitListAST>(rangeInitializer)) {
+  auto braced = ast_cast<BracedInitListAST>(rangeInitializer);
+  if (braced && !isDependent(unit_, braced)) {
     if (!braced->type) {
       auto rangeType =
           control()->getRvalueReferenceType(control()->getAutoType());
