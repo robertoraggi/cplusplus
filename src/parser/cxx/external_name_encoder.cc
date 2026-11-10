@@ -272,6 +272,7 @@ namespace {
   if (!simple) return nullptr;
   if (simple->nestedNameSpecifier) return nullptr;
   if (symbol_cast<TypeParameterSymbol>(simple->symbol) ||
+      symbol_cast<ConstraintTypeParameterSymbol>(simple->symbol) ||
       symbol_cast<TemplateTypeParameterSymbol>(simple->symbol)) {
     return simple->symbol;
   }
