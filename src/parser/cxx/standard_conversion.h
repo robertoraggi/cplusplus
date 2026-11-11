@@ -65,6 +65,11 @@ enum class ConvertedConstantFailure {
   kDisallowedConversion,
 };
 
+struct OverloadSetResolution {
+  FunctionSymbol* function = nullptr;
+  bool isOverloaded = false;
+};
+
 [[nodiscard]] auto isConvertedConstantSequence(ExpressionAST* converted,
                                                const TypeTraits& traits)
     -> bool;
@@ -76,6 +81,10 @@ class StandardConversion {
   [[nodiscard]] static auto namedEntity(ExpressionAST* expr) -> Symbol*;
 
   explicit StandardConversion(TranslationUnit* unit, bool isC = false);
+
+  [[nodiscard]] auto resolveOverloadSet(ExpressionAST* expr,
+                                        const Type* targetType = nullptr)
+      -> OverloadSetResolution;
 
   [[nodiscard]] auto computeConversionSequence(
       ExpressionAST* expr, const Type* targetType,

@@ -31,6 +31,7 @@
 #include <cxx/names.h>
 #include <cxx/overload_resolution.h>
 #include <cxx/standard_conversion.h>
+#include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
 #include <cxx/translation_unit.h>
@@ -144,15 +145,15 @@ struct SelectedFunction {
   return unit->typeTraits().is_reference_compatible(target, type);
 }
 
-[[nodiscard]] auto selectedFunctionFor(TranslationUnit* unit,
-                                       FunctionSymbol* function,
-                                       const OverloadSetTarget& target,
-                                       UnqualifiedIdAST* writtenTemplateId,
-                                       SourceLocation loc)
+[[nodiscard]] auto selectedFunctionFor(
+    TranslationUnit* unit, FunctionSymbol* function,
+    const std::optional<OverloadSetTarget>& target,
+    UnqualifiedIdAST* writtenTemplateId, SourceLocation loc)
     -> std::optional<SelectedFunction> {
   if (function->isSpecialization() && !function->isTemplatePattern())
     return std::nullopt;
-  if (function->isImplicitObjectMemberFunction() != target.isMemberPointer)
+  if (target &&
+      function->isImplicitObjectMemberFunction() != target->isMemberPointer)
     return std::nullopt;
   if (writtenTemplateId && !function->templateDeclaration())
     return std::nullopt;
@@ -160,25 +161,35 @@ struct SelectedFunction {
   SelectedFunction selected{.function = function};
 
   if (function->templateDeclaration()) {
-    TemplateArgumentDeduction deduction(unit);
-    auto deducedArguments = deduction.deduceFromTargetType(
-        function, target.functionType,
-        get_template_arguments(writtenTemplateId));
-    if (!deducedArguments.has_value()) return std::nullopt;
-    selected.function = ASTRewriter::instantiateOverloadCandidate(
-        unit, *deducedArguments, function, loc, /*argsComplete=*/true);
+    auto arguments = get_template_arguments(writtenTemplateId);
+    if (target) {
+      TemplateArgumentDeduction deduction(unit);
+      auto deducedArguments = deduction.deduceFromTargetType(
+          function, target->functionType, arguments);
+      if (!deducedArguments.has_value()) return std::nullopt;
+      selected.function = ASTRewriter::instantiateOverloadCandidate(
+          unit, *deducedArguments, function, loc, /*argsComplete=*/true);
+      selected.deducedArguments = *deducedArguments;
+    } else {
+      auto declaration = function->templateDeclaration();
+      if (!TemplateArity::matches(declaration, arguments)) return std::nullopt;
+      if (!isTemplateArgumentKindMatch(declaration, arguments))
+        return std::nullopt;
+      selected.function = ASTRewriter::instantiateOverloadCandidate(
+          unit, arguments, function, loc, false);
+    }
     if (!selected.function) return std::nullopt;
-    ASTRewriter::completeDeducedReturnType(unit, selected.function);
-    selected.deducedArguments = *deducedArguments;
     selected.isTemplateSpecialization = true;
   }
 
-  auto type = type_cast<FunctionType>(selected.function->type());
-  if (!type || !matchesTargetFunctionType(unit, type, target.functionType))
-    return std::nullopt;
-
   if (ASTRewriter::evaluateAssociatedConstraints(unit, selected.function) ==
       false)
+    return std::nullopt;
+
+  ASTRewriter::completeDeducedReturnType(unit, selected.function);
+  auto type = type_cast<FunctionType>(selected.function->type());
+  if (!type) return std::nullopt;
+  if (target && !matchesTargetFunctionType(unit, type, target->functionType))
     return std::nullopt;
 
   return selected;
@@ -204,12 +215,16 @@ struct SelectedFunction {
   return false;
 }
 
-[[nodiscard]] auto resolveOverloadSetAgainstTarget(
-    TranslationUnit* unit, Symbol* functions, const OverloadSetTarget& target,
+[[nodiscard]] auto resolveFunctionReference(
+    TranslationUnit* unit, Symbol* functions,
+    const std::optional<OverloadSetTarget>& target,
     UnqualifiedIdAST* writtenTemplateId, SourceLocation loc)
-    -> FunctionSymbol* {
+    -> OverloadSetResolution {
   std::vector<SelectedFunction> selected;
   for (auto function : views::each_function(functions)) {
+    if (!target && function->templateDeclaration()) {
+      if (!writtenTemplateId) return {};
+    }
     auto candidate =
         selectedFunctionFor(unit, function, target, writtenTemplateId, loc);
     if (!candidate) continue;
@@ -217,6 +232,10 @@ struct SelectedFunction {
     if (std::ranges::contains(selected, candidate->function,
                               &SelectedFunction::function))
       continue;
+    if (!target && !selected.empty() &&
+        !unit->typeTraits().is_same(selected.front().function->type(),
+                                    candidate->function->type()))
+      return {};
     selected.push_back(*candidate);
   }
 
@@ -225,13 +244,16 @@ struct SelectedFunction {
     return isEliminated(unit, function, selected);
   });
 
-  if (survivors.size() != 1) return nullptr;
+  if (survivors.size() != 1) return {};
 
   auto match = survivors.front();
-  ASTRewriter::instantiateSelectedSpecializationDefinition(
-      unit, match.function, match.deducedArguments);
+  if (target)
+    ASTRewriter::instantiateSelectedSpecializationDefinition(
+        unit, match.function, match.deducedArguments);
+  else if (unit->requiresDefinitions())
+    ASTRewriter::requireFunctionDefinition(unit, match.function);
 
-  return match.function;
+  return {.function = match.function, .isOverloaded = selected.size() > 1};
 }
 
 [[nodiscard]] auto stripNestedExpressions(ExpressionAST* expr)
@@ -265,6 +287,23 @@ struct OverloadSetDesignator {
   else if (auto member = ast_cast<MemberExpressionAST>(designator))
     name = member->unqualifiedId;
   return name_cast<TemplateId>(get_name(control, name)) ? name : nullptr;
+}
+
+[[nodiscard]] auto referencedFunctions(TranslationUnit* unit,
+                                       ExpressionAST* expr) -> Symbol* {
+  auto operand = unit->typeTraits().overload_set_operand(expr->type);
+  if (operand.type) return operand.type->symbol();
+  auto designator = overloadSetDesignatorOf(expr);
+  auto symbol = StandardConversion::namedEntity(designator.expression);
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol))
+    return overloadSet;
+  if (!writtenTemplateIdOf(unit->control(), designator.expression))
+    return nullptr;
+  auto function = symbol_cast<FunctionSymbol>(symbol);
+  if (!function) return nullptr;
+  if (auto primary = function->primaryTemplateSymbol()) return primary;
+  if (function->isTemplatePattern()) return function;
+  return nullptr;
 }
 
 [[nodiscard]] auto isDiscardedValueRead(ExpressionAST* expr) -> bool;
@@ -1617,9 +1656,24 @@ auto StandardConversion::listInitializationSequence(
   return seq;
 }
 
+auto StandardConversion::resolveOverloadSet(ExpressionAST* expr,
+                                            const Type* targetType)
+    -> OverloadSetResolution {
+  auto functions = referencedFunctions(unit_, expr);
+  if (!functions) return {};
+  auto designator = overloadSetDesignatorOf(expr);
+  auto templateId =
+      writtenTemplateIdOf(unit_->control(), designator.expression);
+  auto target = overloadSetTargetOf(unit_, targetType);
+  if (targetType && !target) return {};
+  return resolveFunctionReference(unit_, functions, target, templateId,
+                                  expr->firstSourceLocation());
+}
+
 auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
                                                        const Type* targetType)
     -> std::optional<ImplicitConversionSequence> {
+  if (!referencedFunctions(unit_, expr)) return std::nullopt;
   ImplicitConversionSequence seq;
   seq.sourceType = expr->type;
   seq.destinationType = targetType;
@@ -1637,32 +1691,13 @@ auto StandardConversion::overloadSetConversionSequence(ExpressionAST* expr,
     else if (auto member = ast_cast<MemberExpressionAST>(designator.expression))
       overloadSet = symbol_cast<OverloadSetSymbol>(member->symbol);
   }
-  Symbol* functions = overloadSet;
-  auto templateId =
-      writtenTemplateIdOf(unit_->control(), designator.expression);
-  if (templateId && !functions) {
-    FunctionSymbol* function = nullptr;
-    if (auto id = ast_cast<IdExpressionAST>(designator.expression))
-      function = symbol_cast<FunctionSymbol>(id->symbol);
-    else if (auto member = ast_cast<MemberExpressionAST>(designator.expression))
-      function = symbol_cast<FunctionSymbol>(member->symbol);
-    if (function) {
-      if (auto primary = function->primaryTemplateSymbol())
-        functions = primary;
-      else if (function->isTemplatePattern())
-        functions = function;
-    }
-  }
-  if (!functions) return std::nullopt;
-
   auto target = overloadSetTargetOf(unit_, targetType);
   FunctionSymbol* resolved = nullptr;
   if (target) {
     if (target->isMemberPointer && !sourceIsAddressOfOverloadSet) return seq;
     if (traits.is_reference(targetType) && sourceIsAddressOfOverloadSet)
       return seq;
-    resolved = resolveOverloadSetAgainstTarget(
-        unit_, functions, *target, templateId, expr->firstSourceLocation());
+    resolved = resolveOverloadSet(expr, targetType).function;
     if (!resolved) return seq;
   } else if (traits.is_bool(targetType)) {
     resolved = designatedFunction(overloadSet);
