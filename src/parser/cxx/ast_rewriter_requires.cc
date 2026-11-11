@@ -157,9 +157,15 @@ auto ASTRewriter::typeConstraintExpression(
   idExpression->type = unit->control()->getBoolType();
   idExpression->valueCategory = ValueCategory::kPrValue;
 
-  parameter->setConstraintExpression(idExpression);
+  ExpressionAST* constraint = idExpression;
+  if (parameter->isParameterPack())
+    constraint = RightFoldExpressionAST::create(
+        arena, idExpression, TokenKind::T_AMP_AMP, ValueCategory::kPrValue,
+        unit->control()->getBoolType());
 
-  return idExpression;
+  parameter->setConstraintExpression(constraint);
+
+  return constraint;
 }
 
 auto ASTRewriter::associatedConstraints(TranslationUnit* unit, Symbol* symbol)
