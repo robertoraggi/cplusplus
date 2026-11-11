@@ -102,6 +102,10 @@ void recordDefaultTemplateArgument(TemplateParameterAST* parameter,
                                                 TemplateArgumentAST* argument)
     -> bool;
 
+[[nodiscard]] auto isTemplateArgumentKindMatch(
+    TemplateDeclarationAST* templateDecl,
+    List<TemplateArgumentAST*>* templateArgumentList) -> bool;
+
 [[nodiscard]] auto isPackExpansion(TypeIdAST* typeId) -> bool;
 
 [[nodiscard]] auto injected_template_argument_list(

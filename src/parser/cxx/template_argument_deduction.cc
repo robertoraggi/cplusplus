@@ -23,6 +23,7 @@
 #include <cxx/control.h>
 #include <cxx/dependent_types.h>
 #include <cxx/diagnostics_client.h>
+#include <cxx/standard_conversion.h>
 #include <cxx/substitution.h>
 #include <cxx/symbols.h>
 #include <cxx/template_argument_deduction.h>
@@ -310,8 +311,18 @@ auto TemplateArgumentDeduction::deduceFromCallArgument(const Type* P,
 
   if (!deduction_->mentionsDeducibleParameter(P)) return true;
 
-  if (auto operand = traits.overload_set_operand(A); operand.type)
+  if (auto operand = traits.overload_set_operand(A); operand.type) {
+    if (auto resolution =
+            StandardConversion{unit_}.resolveOverloadSet(argument);
+        resolution.function) {
+      auto function = resolution.function;
+      auto type = operand.takesAddress ? traits.address_of_function(function)
+                                       : function->type();
+      return deduceFromArgumentType(call_deduction_parameter_type(traits, P),
+                                    callArgumentType(P, type, argument));
+    }
     return deduceFromOverloadSet(P, operand.type, operand.takesAddress);
+  }
 
   return deduceFromArgumentType(call_deduction_parameter_type(traits, P),
                                 callArgumentType(P, A, argument));

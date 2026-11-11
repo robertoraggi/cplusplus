@@ -4991,48 +4991,6 @@ auto Binder::scopeOfType(const Type* type) -> ScopeSymbol* {
   return scope;
 }
 
-namespace {
-auto isTemplateArgumentKindMatch(
-    TemplateDeclarationAST* templateDecl,
-    List<TemplateArgumentAST*>* templateArgumentList) -> bool {
-  if (!templateDecl) return true;
-
-  std::vector<TemplateParameterAST*> parameters;
-  for (auto parameter : ListView{templateDecl->templateParameterList}) {
-    parameters.push_back(parameter);
-  }
-
-  std::vector<TemplateArgumentAST*> arguments;
-  for (auto argument : ListView{templateArgumentList}) {
-    arguments.push_back(argument);
-  }
-
-  int argumentIndex = 0;
-  for (int parameterIndex = 0;
-       parameterIndex < static_cast<int>(parameters.size()); ++parameterIndex) {
-    if (argumentIndex >= static_cast<int>(arguments.size())) break;
-
-    auto parameter = parameters[parameterIndex];
-
-    if (isPackParameter(parameter)) {
-      while (argumentIndex < static_cast<int>(arguments.size())) {
-        if (!matchesTemplateParameterKind(parameter, arguments[argumentIndex]))
-          return false;
-        ++argumentIndex;
-      }
-      break;
-    }
-
-    if (!matchesTemplateParameterKind(parameter, arguments[argumentIndex]))
-      return false;
-
-    ++argumentIndex;
-  }
-
-  return argumentIndex == static_cast<int>(arguments.size());
-}
-}  // namespace
-
 auto Binder::overloadSetFor(ScopeSymbol* scope, const Name* name,
                             SourceLocation location) -> OverloadSetSymbol* {
   for (auto candidate : scope->find(name)) {

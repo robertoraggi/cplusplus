@@ -790,6 +790,23 @@ auto TypeChecker::deducePlaceholderReplacement(const Type* declaredType,
     braced->type = instance->type();
   }
   if (unit_->typeTraits().overload_set_operand(initializer->type).type) {
+    auto resolution = StandardConversion{unit_}.resolveOverloadSet(initializer);
+    if (type_cast<DecltypeAutoType>(declaredType) && resolution.isOverloaded)
+      resolution = {};
+    if (auto function = resolution.function) {
+      auto traits = unit_->typeTraits();
+      auto operand = traits.overload_set_operand(initializer->type);
+      auto type = operand.takesAddress ? traits.address_of_function(function)
+                                       : function->type();
+      if (type_cast<DecltypeAutoType>(declaredType)) {
+        auto resolved = initializer->clone(unit_->arena());
+        resolved->type = type;
+        return traits.decltype_of(resolved);
+      }
+      return deduceReplacementFromType(
+          declaredType, type,
+          bindsLvalueToForwardingPlaceholder(declaredType, initializer));
+    }
     error(initializer->firstSourceLocation(),
           std::format("cannot deduce '{}' from an overload set",
                       to_diag_string(declaredType)));
