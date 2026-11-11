@@ -726,9 +726,8 @@ auto TypeChecker::deduceDeclaredPlaceholderReplacement(
 
   const bool inTemplate = isEnclosedInDependentTemplate(
       unit_, scope(), /*stopAtConcreteSpecialization=*/true);
-  if (inTemplate &&
-      (!deducedExpr || !deducedExpr->type || isDependent(unit_, deducedExpr) ||
-       isDependent(unit_, deducedExpr->type))) {
+  if (inTemplate && (!deducedExpr || !deducedExpr->type ||
+                     isDependent(unit_, deducedExpr->type))) {
     return unit_->control()->getDependentType();
   }
 

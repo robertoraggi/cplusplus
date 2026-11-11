@@ -1594,11 +1594,9 @@ void TypeChecker::Visitor::operator()(SubscriptExpressionAST* ast) {
     return;
   }
   if (!ast->baseExpression->type) return;
-  bool dependent = is_dependent_type(ast->baseExpression->type) ||
-                   isDependent(check.unit_, ast->baseExpression);
+  bool dependent = is_dependent_type(ast->baseExpression->type);
   for (auto argument : ListView{ast->expressionList})
-    dependent = dependent || is_dependent_type(argument->type) ||
-                isDependent(check.unit_, argument);
+    dependent = dependent || !hasConcreteType(check.unit_, argument);
   if (in_template() && dependent) {
     ast->type = dependent_type();
     ast->valueCategory = ValueCategory::kLValue;
@@ -3745,7 +3743,10 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
     argumentTypes.push_back(it->value ? it->value->type : nullptr);
 
   const auto hasUntypedArgument = std::ranges::any_of(
-      argumentTypes, [](const Type* argType) { return !argType; });
+      ListView{ast->expressionList}, [&](ExpressionAST* argument) {
+        if (argument && argument->type) return false;
+        return !hasConcreteType(check.unit_, argument);
+      });
 
   auto isUndeducedType = [&](const Type* argType) {
     return is_dependent_type(argType) ||
