@@ -1538,6 +1538,7 @@ auto isDependent(TranslationUnit* unit, ExpressionAST* ast) -> bool {
 
 auto hasConcreteType(TranslationUnit* unit, ExpressionAST* ast) -> bool {
   if (!ast) return false;
+  if (ast_cast<PackExpansionExpressionAST>(ast)) return false;
   auto braced = ast_cast<BracedInitListAST>(ast);
   if (!braced) return ast->type && !isDependent(unit, ast->type);
   for (auto element : ListView{braced->expressionList}) {
