@@ -202,6 +202,11 @@ struct IsDependent {
   [[nodiscard]] auto isDeclaredWithDependentType(FunctionSymbol* function)
       -> bool {
     if (hasDependentImplicitObjectParameter(function)) return true;
+    if (auto type = type_cast<FunctionType>(function->type());
+        type && containsPlaceholderType(type->returnType()) &&
+        enclosedInDependentTemplate(enclosingScopeForDependence(function),
+                                    true))
+      return true;
     auto ownDepth = ownTemplateParameterDepth(function);
     if (!ownDepth) return isDependent(function->type());
     if (!enclosedInDependentTemplate(enclosingScopeForDependence(function),
@@ -1040,24 +1045,11 @@ auto IsDependent::operator()(IdExpressionAST* ast) -> bool {
     if (hasValueDependentInitializer(var)) return true;
     if (isDependent(var->type())) return true;
   }
-  auto hasDependentPlaceholderReturn = [&](FunctionSymbol* function) {
-    if (!function) return false;
-    auto functionType = type_cast<FunctionType>(function->type());
-    if (!functionType) return false;
-    if (!containsPlaceholderType(functionType->returnType())) return false;
-    return enclosedInDependentTemplate(enclosingScopeForDependence(function),
-                                       /*stopAtConcreteSpecialization=*/true);
-  };
-
   if (auto overloadSet = symbol_cast<OverloadSetSymbol>(ast->symbol)) {
-    for (auto function : overloadSet->functions()) {
-      if (hasDependentPlaceholderReturn(function)) return true;
-    }
     if (hasMemberDeclaredWithDependentType(overloadSet)) return true;
   }
 
   if (auto func = symbol_cast<FunctionSymbol>(ast->symbol)) {
-    if (hasDependentPlaceholderReturn(func)) return true;
     if (isDeclaredWithDependentType(func)) return true;
     if (func->isStatic() && isInTemplateScope(func)) return true;
   }
@@ -1534,6 +1526,13 @@ auto IsDependent::operator()(ParenInitializerAST* ast) -> bool {
 
 auto isDependent(TranslationUnit* unit, ExpressionAST* ast) -> bool {
   return IsDependent{unit}.isDependent(ast);
+}
+
+auto hasTypeDependentDeclaration(TranslationUnit* unit, Symbol* symbol)
+    -> bool {
+  if (!symbol) return false;
+  auto query = IsDependent{unit};
+  return visit(IsDependent::ReferencedMemberIsDependent{query}, symbol);
 }
 
 auto hasConcreteType(TranslationUnit* unit, ExpressionAST* ast) -> bool {
