@@ -39,6 +39,9 @@ class BaseClassSymbol;
 [[nodiscard]] auto namesTypeDependentPredefinedVariable(TranslationUnit* unit,
                                                         Symbol* symbol) -> bool;
 
+[[nodiscard]] auto hasTypeDependentDeclaration(TranslationUnit* unit,
+                                               Symbol* symbol) -> bool;
+
 [[nodiscard]] auto isDependentTemplateArgument(TranslationUnit* unit,
                                                TemplateArgumentAST* arg)
     -> bool;
