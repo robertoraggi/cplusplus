@@ -1532,10 +1532,9 @@ auto Codegen::ExpressionVisitor::emitFieldAddress(FieldSymbol* field,
     return std::pair{member, *fieldInfo};
   }
 
-  if (!gen.thisValue_) return std::nullopt;
-
   ClassSymbol* currentClass = nullptr;
   auto thisPtr = gen.loadEnclosingObject(loc, classSymbol, currentClass);
+  if (!thisPtr) return std::nullopt;
 
   auto adjustedThis =
       gen.navigateToClass(loc, thisPtr, currentClass, classSymbol);
