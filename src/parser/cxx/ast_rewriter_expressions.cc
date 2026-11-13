@@ -747,8 +747,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   copy->rbracketLoc = ast->rbracketLoc;
   copy->lessLoc = ast->lessLoc;
 
-  copy->templateParameterList = rewrite.rewriteList(
-      ast->templateParameterList, &ASTRewriter::templateParameter);
+  {
+    auto templateParameterScope = Binder::ScopeGuard{binder()};
+    if (needsFreshClosure && ast->templateParameterList)
+      binder()->setScope(
+          control()->newTemplateParametersSymbol(copy->symbol, copy->lessLoc));
+    copy->templateParameterList = rewrite.rewriteList(
+        ast->templateParameterList, &ASTRewriter::templateParameter);
+  }
 
   if (copy->templateParameterList && copy->symbol)
     copy->symbol->setTemplate(true);

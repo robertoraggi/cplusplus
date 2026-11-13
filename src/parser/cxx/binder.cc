@@ -2993,6 +2993,15 @@ void Binder::bind(LambdaExpressionAST* ast) {
   setScope(symbol);
 }
 
+auto Binder::lambdaTemplateParameters(LambdaExpressionAST* ast)
+    -> TemplateParametersSymbol* {
+  for (auto parameter : ListView{ast->templateParameterList}) {
+    if (!parameter->symbol) continue;
+    return symbol_cast<TemplateParametersSymbol>(parameter->symbol->parent());
+  }
+  return nullptr;
+}
+
 auto Binder::deducedInitCaptureType(const InitCapture& capture) -> const Type* {
   if (!capture.initializer) return nullptr;
   TypeChecker check{unit_};
@@ -3086,8 +3095,6 @@ void Binder::complete(LambdaExpressionAST* ast) {
   applyLambdaSpecifiers(ast->symbol, ast->lambdaSpecifierList);
 
   if (auto params = ast->parameterDeclarationClause) {
-    auto lambdaScope = ast->symbol;
-    lambdaScope->addSymbol(params->functionParametersSymbol);
     setScope(params->functionParametersSymbol);
   } else {
     setScope(ast->symbol);
@@ -3129,6 +3136,10 @@ void Binder::complete(LambdaExpressionAST* ast) {
 
   if (isCxx()) declareInitCapturesInLambdaScope(ast);
 
+  if (inDependentContext && ast->parameterDeclarationClause)
+    ast->symbol->addSymbol(
+        ast->parameterDeclarationClause->functionParametersSymbol);
+
   if (isCxx() && inDependentContext) {
     for (auto captureNode : ListView{ast->captureList}) {
       if (!ast_cast<SimpleLambdaCaptureAST>(captureNode) &&
@@ -3169,19 +3180,13 @@ void Binder::complete(LambdaExpressionAST* ast) {
       }
     }
 
-    if (ast->symbol->isTemplate()) {
+    if (auto templateParamsSymbol = lambdaTemplateParameters(ast)) {
       auto ar = unit_->arena();
-      auto templateParamsSymbol = control()->newTemplateParametersSymbol(
-          operatorFunc, ast->lbracketLoc);
-      for (auto p : ListView{ast->templateParameterList}) {
-        if (p && p->symbol) templateParamsSymbol->addSymbol(p->symbol);
-      }
-      int depth = ast->templateParameterList
-                      ? ast->templateParameterList->value->depth
-                      : 0;
+      templateParamsSymbol->setParent(operatorFunc);
       auto templateDecl = TemplateDeclarationAST::create(
           ar, ast->templateParameterList, ast->templateRequiresClause,
-          /*declaration=*/nullptr, templateParamsSymbol, depth);
+          /*declaration=*/nullptr, templateParamsSymbol,
+          ast->templateParameterList->value->depth);
       operatorFunc->setTemplateParameters(templateParamsSymbol);
       operatorFunc->setTemplateDeclaration(templateDecl);
     }

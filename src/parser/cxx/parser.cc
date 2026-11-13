@@ -2122,12 +2122,15 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (match(TokenKind::T_LESS, ast->lessLoc)) {
     ExplicitTemplateHeadGuard explicitTemplateHeadGuard{this};
     pushScope(ast->symbol);
+    setScope(control_->newTemplateParametersSymbol(ast->symbol, ast->lessLoc));
 
     parse_template_parameter_list(ast->templateParameterList);
+    if (!ast->templateParameterList)
+      parse_error("expected a template parameter");
 
     expect(TokenKind::T_GREATER, ast->greaterLoc);
 
-    ast->symbol->setTemplate(true);
+    ast->symbol->setTemplate(ast->templateParameterList != nullptr);
 
     (void)parse_requires_clause(ast->templateRequiresClause);
   }
@@ -7351,6 +7354,12 @@ void Parser::synthesizeLambdaAbbreviatedTemplateParams(
   }
 
   if (!any) return;
+
+  auto templateParameters = binder_.lambdaTemplateParameters(ast);
+  if (!templateParameters)
+    templateParameters =
+        control_->newTemplateParametersSymbol(ast->symbol, ast->lbracketLoc);
+  Binder::ScopeGuard templateParameterScope{&binder_, templateParameters};
 
   const auto clauseStart = params->firstSourceLocation();
 

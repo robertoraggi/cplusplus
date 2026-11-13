@@ -491,6 +491,9 @@ class Binder {
 
   void complete(LambdaExpressionAST* ast);
 
+  [[nodiscard]] static auto lambdaTemplateParameters(LambdaExpressionAST* ast)
+      -> TemplateParametersSymbol*;
+
   struct InitCapture {
     const Identifier* name = nullptr;
     const Type* declaredType = nullptr;
