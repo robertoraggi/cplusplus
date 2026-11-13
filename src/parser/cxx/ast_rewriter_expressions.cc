@@ -727,12 +727,11 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   copy->type = ast->type;
   copy->lbracketLoc = ast->lbracketLoc;
   copy->captureDefaultLoc = ast->captureDefaultLoc;
+  copy->captureDefault = ast->captureDefault;
 
   const bool needsFreshClosure = !type_cast<ClassType>(ast->type);
 
   auto scopeGuard = Binder::ScopeGuard(binder());
-
-  if (needsFreshClosure) binder()->bind(copy);
 
   ListAppender<LambdaCaptureAST> appendCapture{arena(), copy->captureList};
   for (auto capture : ListView{ast->captureList}) {
@@ -745,6 +744,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   }
 
   copy->rbracketLoc = ast->rbracketLoc;
+
+  if (needsFreshClosure) {
+    binder()->bind(copy);
+    binder()->bindLambdaIntroducer(copy);
+    rewrite.remapInitCaptures(ast->symbol, copy->symbol);
+  }
+
   copy->lessLoc = ast->lessLoc;
 
   {
@@ -796,12 +802,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
     copy->requiresClause = rewrite.requiresClause(ast->requiresClause);
   }
 
-  copy->captureDefault = ast->captureDefault;
-
   if (needsFreshClosure) {
     binder()->complete(copy);
-
-    rewrite.remapInitCaptures(ast->symbol, copy->symbol);
 
     if (auto classType = type_cast<ClassType>(copy->type)) {
       auto classSymbol = classType->symbol();

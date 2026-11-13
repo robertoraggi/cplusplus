@@ -516,7 +516,10 @@ class Binder {
                                                 const Identifier* name)
       -> VariableSymbol*;
 
-  void declareInitCapturesInLambdaScope(LambdaExpressionAST* ast);
+  void bindLambdaIntroducer(LambdaExpressionAST* ast);
+
+  [[nodiscard]] static auto explicitlyCapturedEntity(
+      LambdaCaptureAST* captureNode) -> Symbol*;
 
   [[nodiscard]] auto closureCallOperatorDefinition(LambdaExpressionAST* ast,
                                                    FunctionSymbol* operatorFunc,
@@ -862,6 +865,10 @@ class Binder {
   }
 
  private:
+  void declareInitCapturesInLambdaScope(LambdaExpressionAST* ast);
+
+  void bindSimpleCaptures(LambdaExpressionAST* ast);
+
   struct ClassSpecialization {
     ClassSymbol* symbol = nullptr;
     std::vector<TemplateArgument> arguments;
