@@ -1151,13 +1151,13 @@ const ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 15;
 const FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 13;
 const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 84;
 const LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 4;
-const FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 7;
+const FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 8;
 const TemplateParametersSymbolSlotBase = FunctionParametersSymbolSlotBase + 1;
 const BlockSymbolSlotBase = TemplateParametersSymbolSlotBase + 1;
 const TypeAliasSymbolSlotBase = BlockSymbolSlotBase + 2;
 const VariableSymbolSlotBase = TypeAliasSymbolSlotBase + 18;
 const FieldSymbolSlotBase = VariableSymbolSlotBase + 39;
-const ParameterSymbolSlotBase = FieldSymbolSlotBase + 28;
+const ParameterSymbolSlotBase = FieldSymbolSlotBase + 29;
 const ParameterPackSymbolSlotBase = ParameterSymbolSlotBase + 9;
 const TypeParameterSymbolSlotBase = ParameterPackSymbolSlotBase + 1;
 const NonTypeParameterSymbolSlotBase = TypeParameterSymbolSlotBase + 1;
@@ -9611,7 +9611,7 @@ export class ClassSymbol extends ScopeSymbol {
       this.modelOwner,
     );
   }
-  get declaration(): SpecifierAST | undefined {
+  get declaration(): AST | undefined {
     return astOf(
       cxx.readSymbol(this.handle, ClassSymbolSlotBase + 2),
       this.modelOwner,
@@ -10584,27 +10584,33 @@ export class OverloadSetSymbol extends Symbol {
 }
 /** @category Symbols */
 export class LambdaSymbol extends ScopeSymbol {
-  get isConstexpr(): boolean {
-    return cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 0) !== 0;
+  get declaration(): LambdaExpressionAST | undefined {
+    return astOf(
+      cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 0),
+      this.modelOwner,
+    );
   }
-  get isConsteval(): boolean {
+  get isConstexpr(): boolean {
     return cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 1) !== 0;
   }
-  get isMutable(): boolean {
+  get isConsteval(): boolean {
     return cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 2) !== 0;
   }
-  get isStatic(): boolean {
+  get isMutable(): boolean {
     return cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 3) !== 0;
   }
-  get isTemplate(): boolean {
+  get isStatic(): boolean {
     return cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 4) !== 0;
   }
-  get isInTemplate(): boolean {
+  get isTemplate(): boolean {
     return cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 5) !== 0;
+  }
+  get isInTemplate(): boolean {
+    return cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 6) !== 0;
   }
   get closureType(): ClassSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 6),
+      cxx.readSymbol(this.handle, LambdaSymbolSlotBase + 7),
       this.modelOwner,
     );
   }
@@ -10960,99 +10966,105 @@ export class FieldSymbol extends Symbol {
       this.modelOwner,
     );
   }
+  get capturedEntity(): Symbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 2),
+      this.modelOwner,
+    );
+  }
   get isBitField(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 2) !== 0;
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 3) !== 0;
   }
   get bitFieldOffset(): number {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 3);
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 4);
   }
   get bitFieldWidth(): ConstValue | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 4),
+      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 5),
       (item: any) => decodeConstValue(item, this.modelOwner),
     );
   }
   get isExtern(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 5) !== 0;
-  }
-  get isStatic(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 6) !== 0;
   }
-  get isThreadLocal(): boolean {
+  get isStatic(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 7) !== 0;
+  }
+  get isThreadLocal(): boolean {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 8) !== 0;
   }
   get threadLocalKind(): ThreadLocalKind {
     return threadLocalKindNames[
-      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 8)
+      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 9)
     ]!;
   }
   get isConstexpr(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 9) !== 0;
-  }
-  get isConstinit(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 10) !== 0;
   }
-  get isInline(): boolean {
+  get isConstinit(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 11) !== 0;
   }
-  get isMutable(): boolean {
+  get isInline(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 12) !== 0;
   }
-  get isNoUniqueAddress(): boolean {
+  get isMutable(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 13) !== 0;
   }
+  get isNoUniqueAddress(): boolean {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 14) !== 0;
+  }
   get offsetInClass(): bigint | undefined {
-    return cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 14) as
+    return cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 15) as
       bigint | undefined;
   }
   get localOffset(): number {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 15);
-  }
-  get alignment(): number {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 16);
   }
-  get explicitAlignment(): number {
+  get alignment(): number {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 17);
   }
+  get explicitAlignment(): number {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 18);
+  }
   get isPacked(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 18) !== 0;
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 19) !== 0;
   }
   get effectiveAlignment(): number {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 19);
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 20);
   }
   get initializer(): ExpressionAST | undefined {
     return astOf(
-      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 20),
+      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 21),
       this.modelOwner,
     );
   }
   get constructorSymbol(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 21),
+      cxx.readSymbol(this.handle, FieldSymbolSlotBase + 22),
       this.modelOwner,
     );
   }
   get constValue(): ConstValue | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 22),
+      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 23),
       (item: any) => decodeConstValue(item, this.modelOwner),
     );
   }
   get isDefinitionRequired(): boolean {
-    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 23) !== 0;
-  }
-  get hasPendingInitializer(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 24) !== 0;
   }
-  get hasInitializer(): boolean {
+  get hasPendingInitializer(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 25) !== 0;
   }
-  get hasImmediateEscalatingInitializer(): boolean {
+  get hasInitializer(): boolean {
     return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 26) !== 0;
+  }
+  get hasImmediateEscalatingInitializer(): boolean {
+    return cxx.readSymbol(this.handle, FieldSymbolSlotBase + 27) !== 0;
   }
   get pendingInitializer(): PendingInstantiation | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 27),
+      cxx.readSymbolVal(this.handle, FieldSymbolSlotBase + 28),
       (item: any) => decodePendingInstantiation(item, this.modelOwner),
     );
   }

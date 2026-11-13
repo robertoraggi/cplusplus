@@ -1919,6 +1919,12 @@ struct DeclaredAsFriend {
 };
 }  // namespace
 
+auto captured_entity(Symbol* symbol) -> Symbol* {
+  auto field = symbol_cast<FieldSymbol>(symbol);
+  if (field && field->capturedEntity()) return field->capturedEntity();
+  return symbol;
+}
+
 auto is_class_member(Symbol* symbol) -> bool {
   if (!symbol) return false;
   auto parent = symbol->parent();

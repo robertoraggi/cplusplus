@@ -2160,6 +2160,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   }
 
   (void)parse_lambda_specifier_seq(ast->lambdaSpecifierList);
+  binder_.bindLambdaSpecifiers(ast);
 
   (void)parse_noexcept_specifier(ast->exceptionSpecifier);
 

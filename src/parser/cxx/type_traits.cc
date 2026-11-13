@@ -1954,6 +1954,8 @@ auto TypeTraits::decltype_of(ExpressionAST* expr) const -> const Type* {
     return nullptr;
   }();
 
+  namedSymbol = captured_entity(namedSymbol);
+
   if (symbol_cast<OverloadSetSymbol>(namedSymbol)) return expr->type;
   if (auto parameter = symbol_cast<NonTypeParameterSymbol>(namedSymbol))
     return constant_template_parameter_type(parameter);

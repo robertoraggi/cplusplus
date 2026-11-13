@@ -2778,20 +2778,26 @@ auto Binder::captureEntity(ClassSymbol* closure, Symbol* entity,
                            ScopeSymbol* scope, SourceLocation loc)
     -> EntityCapture {
   auto ar = unit_->arena();
-  auto entityType = traits.remove_reference(entity->type());
-
+  auto nameId = NameIdAST::create(ar, name);
+  nameId->identifierLoc = loc;
   auto reference = IdExpressionAST::create(ar);
-  reference->unqualifiedId = NameIdAST::create(ar, name);
+  reference->unqualifiedId = nameId;
   reference->symbol = entity;
-  reference->type = entityType;
-  reference->valueCategory = ValueCategory::kLValue;
 
+  ExpressionAST* source = reference;
+  TypeChecker check{unit_};
+  check.setScope(scope);
+  check.setReportErrors(reportErrors());
+  check.check(&source);
+
+  auto entityType = traits.remove_reference(entity->type());
   auto fieldType = byReference || traits.is_function(entityType)
-                       ? control()->getLvalueReferenceType(entityType)
+                       ? control()->getLvalueReferenceType(source->type)
                        : entityType;
 
   EntityCapture capture{declareCaptureField(closure, name, fieldType, loc),
-                        reference};
+                        source};
+  capture.field->setCapturedEntity(captured_entity(entity));
   initializeCapturedField(capture.field, scope, capture.initializer,
                           InitializationKind::kDirectInitialization);
   return capture;
@@ -2842,7 +2848,7 @@ auto Binder::appendImplicitCapture(
   const auto byReference = ast->captureDefault != TokenKind::T_EQUAL;
 
   auto capture = captureEntity(classSymbol, outerSymbol, identifier,
-                               byReference, scope(), loc);
+                               byReference, ast->symbol->parent(), loc);
   captured.emplace_back(outerSymbol, capture.field);
 
   auto tail = &ast->captureList;
@@ -2987,6 +2993,7 @@ void Binder::bind(LambdaExpressionAST* ast) {
   auto parentScope = declaringScope();
   auto symbol = control()->newLambdaSymbol(parentScope, ast->lbracketLoc);
   ast->symbol = symbol;
+  symbol->setDeclaration(ast);
 
   symbol->setInTemplate(inTemplate());
 
@@ -3122,9 +3129,158 @@ void applyLambdaSpecifiers(LambdaSymbol* lambda,
 
 }  // namespace
 
-void Binder::complete(LambdaExpressionAST* ast) {
-  applyLambdaSpecifiers(ast->symbol, ast->lambdaSpecifierList);
+namespace {
 
+enum class CaptureMode { kNone, kCopy, kReference };
+
+[[nodiscard]] auto lambdaExpressionOf(ScopeSymbol* scope)
+    -> LambdaExpressionAST* {
+  if (auto lambda = symbol_cast<LambdaSymbol>(scope))
+    return lambda->declaration();
+  auto closure = symbol_cast<ClassSymbol>(scope);
+  if (!closure || !closure->isClosureType()) return nullptr;
+  return ast_cast<LambdaExpressionAST>(closure->declaration());
+}
+
+[[nodiscard]] auto isClosureMemberFunction(ScopeSymbol* scope) -> bool {
+  auto function = symbol_cast<FunctionSymbol>(scope);
+  if (!function) return false;
+  auto closure = symbol_cast<ClassSymbol>(function->parent());
+  return closure && closure->isClosureType();
+}
+
+[[nodiscard]] auto interruptsOdrUsability(ScopeSymbol* scope) -> bool {
+  if (isClosureMemberFunction(scope)) return false;
+  return scope->isFunction() || scope->isClass();
+}
+
+[[nodiscard]] auto capturedEntityOf(LambdaExpressionAST* lambda,
+                                    LambdaCaptureAST* capture) -> Symbol* {
+  if (auto field = capture_field(capture); field && field->capturedEntity())
+    return field->capturedEntity();
+  if (is_init_capture(capture))
+    return Binder::declaredInitCapture(lambda->symbol,
+                                       capture_identifier(capture));
+  return captured_entity(Binder::explicitlyCapturedEntity(capture));
+}
+
+[[nodiscard]] auto captureMode(LambdaExpressionAST* lambda, Symbol* entity)
+    -> CaptureMode {
+  for (auto capture : ListView{lambda->captureList}) {
+    if (capturedEntityOf(lambda, capture) != entity) continue;
+    return is_reference_capture(capture) ? CaptureMode::kReference
+                                         : CaptureMode::kCopy;
+  }
+  switch (lambda->captureDefault) {
+    case TokenKind::T_EQUAL:
+      return CaptureMode::kCopy;
+    case TokenKind::T_AMP:
+      return CaptureMode::kReference;
+    default:
+      return CaptureMode::kNone;
+  }
+}
+
+[[nodiscard]] auto explicitObjectParameterOf(
+    FunctionParametersSymbol* parameters) -> ParameterSymbol* {
+  if (!parameters) return nullptr;
+  for (auto parameter : views::members(parameters) | views::parameters) {
+    if (parameter->isExplicitObject()) return parameter;
+  }
+  return nullptr;
+}
+
+[[nodiscard]] auto clauseParameters(LambdaExpressionAST* lambda)
+    -> FunctionParametersSymbol* {
+  auto clause = lambda->parameterDeclarationClause;
+  return clause ? clause->functionParametersSymbol : nullptr;
+}
+
+[[nodiscard]] auto passesParameterScope(FunctionParametersSymbol* parameters,
+                                        LambdaExpressionAST* lambda) -> bool {
+  return parameters && parameters == clauseParameters(lambda);
+}
+
+}  // namespace
+
+auto Binder::innermostCopyCapture(Symbol* entity, ScopeSymbol* scope)
+    -> CopyCapture {
+  CopyCapture innermost;
+  FunctionParametersSymbol* parameters = nullptr;
+  FunctionSymbol* callOperator = nullptr;
+  bool passedTemplateParameters = false;
+  for (auto symbol = scope; symbol; symbol = symbol->parent()) {
+    if (auto lambda = lambdaExpressionOf(symbol)) {
+      auto mode = captureMode(lambda, entity);
+      if (mode == CaptureMode::kNone) return {};
+      if (mode == CaptureMode::kCopy && !innermost.lambda) {
+        innermost.lambda = lambda;
+        innermost.callOperator = callOperator;
+        innermost.inTemplateHead = passedTemplateParameters &&
+                                   !passesParameterScope(parameters, lambda);
+      }
+      if (lambda->symbol == entity->parent()) return innermost;
+      parameters = nullptr;
+      callOperator = nullptr;
+      passedTemplateParameters = false;
+      continue;
+    }
+    if (symbol == entity->parent()) return innermost;
+    if (symbol_cast<TemplateParametersSymbol>(symbol)) {
+      passedTemplateParameters = true;
+    } else if (auto functionParameters =
+                   symbol_cast<FunctionParametersSymbol>(symbol)) {
+      parameters = functionParameters;
+    } else if (isClosureMemberFunction(symbol)) {
+      callOperator = symbol_cast<FunctionSymbol>(symbol);
+    } else if (interruptsOdrUsability(symbol)) {
+      return {};
+    }
+  }
+  return {};
+}
+
+auto Binder::copyCaptureAccessType(Symbol* symbol, ScopeSymbol* scope,
+                                   SourceLocation point) -> const Type* {
+  auto entity = captured_entity(symbol);
+  if (symbol_cast<FieldSymbol>(entity) || !isCapturableLocalEntity(entity))
+    return nullptr;
+  if (!entity->type()) return nullptr;
+
+  auto capture = innermostCopyCapture(entity, scope);
+  if (!capture.lambda || !capture.followsParameterDeclarationClause(point))
+    return nullptr;
+
+  auto memberType = traits.remove_reference(entity->type());
+  if (traits.is_function(memberType)) return memberType;
+
+  auto objectParameter = capture.objectParameter();
+  if (!objectParameter)
+    return traits.add_cv(memberType,
+                         callOperatorQualifiers(capture.lambda->symbol, false));
+
+  auto objectType = traits.remove_reference(objectParameter->type());
+  if (isDependent(unit_, objectType)) return control()->getDependentType();
+  return traits.add_cv(memberType, cv_qualifiers(objectType));
+}
+
+auto Binder::CopyCapture::followsParameterDeclarationClause(
+    SourceLocation point) const -> bool {
+  if (inTemplateHead) return false;
+  if (!lambda->lparenLoc) return true;
+  return lambda->rparenLoc && point > lambda->rparenLoc;
+}
+
+auto Binder::CopyCapture::objectParameter() const -> ParameterSymbol* {
+  if (callOperator) return callOperator->explicitObjectParameter();
+  return explicitObjectParameterOf(clauseParameters(lambda));
+}
+
+void Binder::bindLambdaSpecifiers(LambdaExpressionAST* ast) {
+  applyLambdaSpecifiers(ast->symbol, ast->lambdaSpecifierList);
+}
+
+void Binder::complete(LambdaExpressionAST* ast) {
   if (auto params = ast->parameterDeclarationClause) {
     setScope(params->functionParametersSymbol);
   } else {
@@ -3202,6 +3358,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
     }
 
     classSymbol->setIsClosureType(true);
+    classSymbol->setDeclaration(ast);
     ast->symbol->setClosureType(classSymbol);
     classSymbol->setClosureDiscriminator(nextClosureNumber(classSymbol));
     classSymbol->setHasLambdaCapture(ast->captureDefault !=
@@ -3245,6 +3402,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
         if (!variable || containsPlaceholderType(variable->type())) continue;
         auto field = declareCaptureField(classSymbol, capture->name,
                                          variable->type(), captureLoc);
+        field->setCapturedEntity(variable);
         *capture_field_slot(captureNode) = field;
         if (auto initializer = capture_initializer_slot(captureNode)) {
           initializeCapturedField(
@@ -3662,6 +3820,7 @@ auto Binder::bind(ConstevalBlockDeclarationAST* ast) -> LambdaExpressionAST* {
   expression->trailingReturnType->typeId = returnType;
 
   bind(expression);
+  bindLambdaSpecifiers(expression);
   complete(expression);
 
   ast->symbol = expression->symbol;

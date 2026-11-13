@@ -173,6 +173,8 @@ void rebuild_specialization_index(Symbol* symbol);
 
 [[nodiscard]] auto is_class_member(Symbol* symbol) -> bool;
 
+[[nodiscard]] auto captured_entity(Symbol* symbol) -> Symbol*;
+
 [[nodiscard]] auto is_main_function(FunctionSymbol* function) -> bool;
 
 [[nodiscard]] auto namespace_scope_of(Symbol* symbol) -> ScopeSymbol*;
@@ -1239,7 +1241,7 @@ class UnresolvedSymbol final : public Symbol {
 };
 
 class ClassSymbol final : public ScopeSymbol,
-                          public MaybeTemplate<ClassSymbol, SpecifierAST>,
+                          public MaybeTemplate<ClassSymbol, AST>,
                           public MaybeRedecl<ClassSymbol> {
  public:
   constexpr static auto Kind = SymbolKind::kClass;
@@ -1920,6 +1922,13 @@ class LambdaSymbol final : public ScopeSymbol {
   explicit LambdaSymbol(ScopeSymbol* enclosingScope);
   ~LambdaSymbol() override;
 
+  [[nodiscard]] auto declaration() const -> LambdaExpressionAST* {
+    return declaration_;
+  }
+  void setDeclaration(LambdaExpressionAST* declaration) {
+    declaration_ = declaration;
+  }
+
   [[nodiscard]] auto isConstexpr() const -> bool;
   void setConstexpr(bool isConstexpr);
 
@@ -1945,6 +1954,7 @@ class LambdaSymbol final : public ScopeSymbol {
 
  private:
   ClassSymbol* closureType_ = nullptr;
+  LambdaExpressionAST* declaration_ = nullptr;
 
   union {
     std::uint32_t flags_{};
@@ -2144,6 +2154,11 @@ class FieldSymbol final : public Symbol, public MaybeTypeSpecifier {
   explicit FieldSymbol(ScopeSymbol* enclosingScope);
   ~FieldSymbol() override;
 
+  [[nodiscard]] auto capturedEntity() const -> Symbol* {
+    return capturedEntity_;
+  }
+  void setCapturedEntity(Symbol* entity) { capturedEntity_ = entity; }
+
   [[nodiscard]] bool isBitField() const;
   void setBitField(bool isBitField);
 
@@ -2233,6 +2248,7 @@ class FieldSymbol final : public Symbol, public MaybeTypeSpecifier {
  private:
   ThreadLocalKind threadLocalKind_ = ThreadLocalKind::None;
   VariableSymbol* definition_ = nullptr;
+  Symbol* capturedEntity_ = nullptr;
   std::unique_ptr<PendingInstantiation> pendingInitializer_;
   std::optional<ConstValue> constValue_;
   union {
