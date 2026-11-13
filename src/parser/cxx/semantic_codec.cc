@@ -2727,6 +2727,8 @@ void SemanticEncoder::writeSymbolFieldSymbol(
   out.varU32(static_cast<std::uint32_t>(self->threadLocalKind()));
   // ::cxx::FieldSymbol::definition_
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->definition())));
+  // ::cxx::FieldSymbol::capturedEntity_
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->capturedEntity())));
   // ::cxx::FieldSymbol::pendingInitializer_
   out.boolean(self->pendingInitializer() != nullptr);
   if (self->pendingInitializer()) {
@@ -2864,6 +2866,8 @@ void SemanticEncoder::writeSymbolLambdaSymbol(
   writeSymbolScopeSymbol(out, self);
   // ::cxx::LambdaSymbol::closureType_
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->closureType())));
+  // ::cxx::LambdaSymbol::declaration_
+  out.varU32(static_cast<std::uint32_t>(astRef(self->declaration())));
   // ::cxx::LambdaSymbol::isConstexpr_
   out.varU32(static_cast<std::uint32_t>(self->isConstexpr()));
   // ::cxx::LambdaSymbol::isConsteval_
@@ -10210,8 +10214,7 @@ void SemanticDecoder::readSymbolClassSymbol(
     [[maybe_unused]] ByteReader& in, [[maybe_unused]] cxx::ClassSymbol* self) {
   readSymbolScopeSymbol(in, self);
   // ::cxx::MaybeTemplate::declaration_
-  cxx::SpecifierAST* value1 =
-      ast_cast<SpecifierAST>(astAt(AstRef{in.varU32()}));
+  cxx::AST* value1 = astAt(AstRef{in.varU32()});
   self->setDeclaration(std::move(value1));
   // ::cxx::MaybeTemplate::templateDeclaration
   cxx::TemplateDeclarationAST* value2 =
@@ -11123,74 +11126,77 @@ void SemanticDecoder::readSymbolFieldSymbol(
   cxx::VariableSymbol* value3 =
       symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->setDefinition(std::move(value3));
+  // ::cxx::FieldSymbol::capturedEntity_
+  cxx::Symbol* value4 = symbolAt(SymbolRef{in.varU32()});
+  self->setCapturedEntity(std::move(value4));
   // ::cxx::FieldSymbol::pendingInitializer_
-  std::unique_ptr<cxx::PendingInstantiation> value4;
+  std::unique_ptr<cxx::PendingInstantiation> value5;
   if (in.boolean()) {
-    value4 = std::make_unique<cxx::PendingInstantiation>();
-    readcxxPendingInstantiation(in, value4.get());
+    value5 = std::make_unique<cxx::PendingInstantiation>();
+    readcxxPendingInstantiation(in, value5.get());
   }
-  self->setPendingInitializer(std::move(std::move(value4)));
+  self->setPendingInitializer(std::move(std::move(value5)));
   // ::cxx::FieldSymbol::constValue_
-  std::optional<cxx::ConstValue> value5;
+  std::optional<cxx::ConstValue> value6;
   if (in.boolean()) {
-    cxx::ConstValue value6 = readConstValue(in);
-    value5 = std::move(value6);
+    cxx::ConstValue value7 = readConstValue(in);
+    value6 = std::move(value7);
   }
-  self->setConstValue(std::move(value5));
+  self->setConstValue(std::move(value6));
   // ::cxx::FieldSymbol::isDefinitionRequired_
-  unsigned int value7 = static_cast<unsigned int>(in.varU32());
-  self->setDefinitionRequired(std::move(value7));
-  // ::cxx::FieldSymbol::isBitField_
   unsigned int value8 = static_cast<unsigned int>(in.varU32());
-  self->setBitField(std::move(value8));
-  // ::cxx::FieldSymbol::isStatic_
+  self->setDefinitionRequired(std::move(value8));
+  // ::cxx::FieldSymbol::isBitField_
   unsigned int value9 = static_cast<unsigned int>(in.varU32());
-  self->setStatic(std::move(value9));
-  // ::cxx::FieldSymbol::isConstexpr_
+  self->setBitField(std::move(value9));
+  // ::cxx::FieldSymbol::isStatic_
   unsigned int value10 = static_cast<unsigned int>(in.varU32());
-  self->setConstexpr(std::move(value10));
-  // ::cxx::FieldSymbol::isConstinit_
+  self->setStatic(std::move(value10));
+  // ::cxx::FieldSymbol::isConstexpr_
   unsigned int value11 = static_cast<unsigned int>(in.varU32());
-  self->setConstinit(std::move(value11));
-  // ::cxx::FieldSymbol::isInline_
+  self->setConstexpr(std::move(value11));
+  // ::cxx::FieldSymbol::isConstinit_
   unsigned int value12 = static_cast<unsigned int>(in.varU32());
-  self->setInline(std::move(value12));
-  // ::cxx::FieldSymbol::isMutable_
+  self->setConstinit(std::move(value12));
+  // ::cxx::FieldSymbol::isInline_
   unsigned int value13 = static_cast<unsigned int>(in.varU32());
-  self->setMutable(std::move(value13));
-  // ::cxx::FieldSymbol::isNoUniqueAddress_
+  self->setInline(std::move(value13));
+  // ::cxx::FieldSymbol::isMutable_
   unsigned int value14 = static_cast<unsigned int>(in.varU32());
-  self->setNoUniqueAddress(std::move(value14));
-  // ::cxx::FieldSymbol::hasImmediateEscalatingInitializer_
+  self->setMutable(std::move(value14));
+  // ::cxx::FieldSymbol::isNoUniqueAddress_
   unsigned int value15 = static_cast<unsigned int>(in.varU32());
-  self->setImmediateEscalatingInitializer(std::move(value15));
+  self->setNoUniqueAddress(std::move(value15));
+  // ::cxx::FieldSymbol::hasImmediateEscalatingInitializer_
+  unsigned int value16 = static_cast<unsigned int>(in.varU32());
+  self->setImmediateEscalatingInitializer(std::move(value16));
   // ::cxx::FieldSymbol::localOffset_
-  int value16 = static_cast<int>(in.varI32());
-  self->setLocalOffset(std::move(value16));
-  // ::cxx::FieldSymbol::alignment_
   int value17 = static_cast<int>(in.varI32());
-  self->setAlignment(std::move(value17));
-  // ::cxx::FieldSymbol::explicitAlignment_
+  self->setLocalOffset(std::move(value17));
+  // ::cxx::FieldSymbol::alignment_
   int value18 = static_cast<int>(in.varI32());
-  self->setExplicitAlignment(std::move(value18));
-  // ::cxx::FieldSymbol::bitFieldOffset_
+  self->setAlignment(std::move(value18));
+  // ::cxx::FieldSymbol::explicitAlignment_
   int value19 = static_cast<int>(in.varI32());
-  self->setBitFieldOffset(std::move(value19));
+  self->setExplicitAlignment(std::move(value19));
+  // ::cxx::FieldSymbol::bitFieldOffset_
+  int value20 = static_cast<int>(in.varI32());
+  self->setBitFieldOffset(std::move(value20));
   // ::cxx::FieldSymbol::bitFieldWidth_
-  std::optional<cxx::ConstValue> value20;
+  std::optional<cxx::ConstValue> value21;
   if (in.boolean()) {
-    cxx::ConstValue value21 = readConstValue(in);
-    value20 = std::move(value21);
+    cxx::ConstValue value22 = readConstValue(in);
+    value21 = std::move(value22);
   }
-  self->setBitFieldWidth(std::move(value20));
+  self->setBitFieldWidth(std::move(value21));
   // ::cxx::FieldSymbol::initializer_
-  cxx::ExpressionAST* value22 =
+  cxx::ExpressionAST* value23 =
       ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-  self->setInitializer(std::move(value22));
+  self->setInitializer(std::move(value23));
   // ::cxx::FieldSymbol::constructor_
-  cxx::FunctionSymbol* value23 =
+  cxx::FunctionSymbol* value24 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-  self->setConstructor(std::move(value23));
+  self->setConstructor(std::move(value24));
 }
 
 void SemanticDecoder::readSymbolParameterSymbol(
@@ -11325,24 +11331,28 @@ void SemanticDecoder::readSymbolLambdaSymbol(
   cxx::ClassSymbol* value1 =
       symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->setClosureType(std::move(value1));
+  // ::cxx::LambdaSymbol::declaration_
+  cxx::LambdaExpressionAST* value2 =
+      ast_cast<LambdaExpressionAST>(astAt(AstRef{in.varU32()}));
+  self->setDeclaration(std::move(value2));
   // ::cxx::LambdaSymbol::isConstexpr_
-  unsigned int value2 = static_cast<unsigned int>(in.varU32());
-  self->setConstexpr(std::move(value2));
-  // ::cxx::LambdaSymbol::isConsteval_
   unsigned int value3 = static_cast<unsigned int>(in.varU32());
-  self->setConsteval(std::move(value3));
-  // ::cxx::LambdaSymbol::isMutable_
+  self->setConstexpr(std::move(value3));
+  // ::cxx::LambdaSymbol::isConsteval_
   unsigned int value4 = static_cast<unsigned int>(in.varU32());
-  self->setMutable(std::move(value4));
-  // ::cxx::LambdaSymbol::isStatic_
+  self->setConsteval(std::move(value4));
+  // ::cxx::LambdaSymbol::isMutable_
   unsigned int value5 = static_cast<unsigned int>(in.varU32());
-  self->setStatic(std::move(value5));
-  // ::cxx::LambdaSymbol::isTemplate_
+  self->setMutable(std::move(value5));
+  // ::cxx::LambdaSymbol::isStatic_
   unsigned int value6 = static_cast<unsigned int>(in.varU32());
-  self->setTemplate(std::move(value6));
-  // ::cxx::LambdaSymbol::isInTemplate_
+  self->setStatic(std::move(value6));
+  // ::cxx::LambdaSymbol::isTemplate_
   unsigned int value7 = static_cast<unsigned int>(in.varU32());
-  self->setInTemplate(std::move(value7));
+  self->setTemplate(std::move(value7));
+  // ::cxx::LambdaSymbol::isInTemplate_
+  unsigned int value8 = static_cast<unsigned int>(in.varU32());
+  self->setInTemplate(std::move(value8));
 }
 
 void SemanticDecoder::readSymbolTypeParameterSymbol(

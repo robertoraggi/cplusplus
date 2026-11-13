@@ -79,6 +79,17 @@ namespace cxx {
   return nullptr;
 }
 
+[[nodiscard]] inline auto is_reference_capture(LambdaCaptureAST* capture)
+    -> bool {
+  return ast_cast<RefLambdaCaptureAST>(capture) ||
+         ast_cast<RefInitLambdaCaptureAST>(capture);
+}
+
+[[nodiscard]] inline auto is_init_capture(LambdaCaptureAST* capture) -> bool {
+  return ast_cast<InitLambdaCaptureAST>(capture) ||
+         ast_cast<RefInitLambdaCaptureAST>(capture);
+}
+
 [[nodiscard]] inline auto is_pack_capture(LambdaCaptureAST* capture) -> bool {
   if (auto simple = ast_cast<SimpleLambdaCaptureAST>(capture))
     return bool(simple->ellipsisLoc);

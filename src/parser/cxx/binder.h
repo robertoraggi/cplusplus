@@ -489,6 +489,11 @@ class Binder {
 
   void bind(LambdaExpressionAST* ast);
 
+  void bindLambdaSpecifiers(LambdaExpressionAST* ast);
+
+  [[nodiscard]] auto copyCaptureAccessType(Symbol* symbol, ScopeSymbol* scope,
+                                           SourceLocation point) -> const Type*;
+
   void complete(LambdaExpressionAST* ast);
 
   [[nodiscard]] static auto lambdaTemplateParameters(LambdaExpressionAST* ast)
@@ -868,6 +873,19 @@ class Binder {
   void declareInitCapturesInLambdaScope(LambdaExpressionAST* ast);
 
   void bindSimpleCaptures(LambdaExpressionAST* ast);
+
+  struct CopyCapture {
+    LambdaExpressionAST* lambda = nullptr;
+    FunctionSymbol* callOperator = nullptr;
+    bool inTemplateHead = false;
+
+    [[nodiscard]] auto followsParameterDeclarationClause(
+        SourceLocation point) const -> bool;
+    [[nodiscard]] auto objectParameter() const -> ParameterSymbol*;
+  };
+
+  [[nodiscard]] auto innermostCopyCapture(Symbol* entity, ScopeSymbol* scope)
+      -> CopyCapture;
 
   struct ClassSpecialization {
     ClassSymbol* symbol = nullptr;

@@ -728,7 +728,7 @@ constexpr int OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 84;
 
 constexpr int LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 4;
 
-constexpr int FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 7;
+constexpr int FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 8;
 
 constexpr int TemplateParametersSymbolSlotBase =
     FunctionParametersSymbolSlotBase + 1;
@@ -741,7 +741,7 @@ constexpr int VariableSymbolSlotBase = TypeAliasSymbolSlotBase + 18;
 
 constexpr int FieldSymbolSlotBase = VariableSymbolSlotBase + 39;
 
-constexpr int ParameterSymbolSlotBase = FieldSymbolSlotBase + 28;
+constexpr int ParameterSymbolSlotBase = FieldSymbolSlotBase + 29;
 
 constexpr int ParameterPackSymbolSlotBase = ParameterSymbolSlotBase + 9;
 
@@ -8309,34 +8309,40 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
     case LambdaSymbolSlotBase + 0: {
       auto self = static_cast<const ::cxx::LambdaSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isConstexpr());
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::AST*>(self->declaration())));
     }
     case LambdaSymbolSlotBase + 1: {
       auto self = static_cast<const ::cxx::LambdaSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isConsteval());
+      return static_cast<double>(self->isConstexpr());
     }
     case LambdaSymbolSlotBase + 2: {
       auto self = static_cast<const ::cxx::LambdaSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isMutable());
+      return static_cast<double>(self->isConsteval());
     }
     case LambdaSymbolSlotBase + 3: {
       auto self = static_cast<const ::cxx::LambdaSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isStatic());
+      return static_cast<double>(self->isMutable());
     }
     case LambdaSymbolSlotBase + 4: {
       auto self = static_cast<const ::cxx::LambdaSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isTemplate());
+      return static_cast<double>(self->isStatic());
     }
     case LambdaSymbolSlotBase + 5: {
       auto self = static_cast<const ::cxx::LambdaSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isInTemplate());
+      return static_cast<double>(self->isTemplate());
     }
     case LambdaSymbolSlotBase + 6: {
+      auto self = static_cast<const ::cxx::LambdaSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->isInTemplate());
+    }
+    case LambdaSymbolSlotBase + 7: {
       auto self = static_cast<const ::cxx::LambdaSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
@@ -8624,111 +8630,117 @@ auto readSymbol(std::intptr_t handle, int slot) -> double {
     case FieldSymbolSlotBase + 2: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isBitField());
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->capturedEntity())));
     }
     case FieldSymbolSlotBase + 3: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->bitFieldOffset());
+      return static_cast<double>(self->isBitField());
     }
-    case FieldSymbolSlotBase + 5: {
+    case FieldSymbolSlotBase + 4: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isExtern());
+      return static_cast<double>(self->bitFieldOffset());
     }
     case FieldSymbolSlotBase + 6: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isStatic());
+      return static_cast<double>(self->isExtern());
     }
     case FieldSymbolSlotBase + 7: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isThreadLocal());
+      return static_cast<double>(self->isStatic());
     }
     case FieldSymbolSlotBase + 8: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->threadLocalKind());
+      return static_cast<double>(self->isThreadLocal());
     }
     case FieldSymbolSlotBase + 9: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isConstexpr());
+      return static_cast<double>(self->threadLocalKind());
     }
     case FieldSymbolSlotBase + 10: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isConstinit());
+      return static_cast<double>(self->isConstexpr());
     }
     case FieldSymbolSlotBase + 11: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isInline());
+      return static_cast<double>(self->isConstinit());
     }
     case FieldSymbolSlotBase + 12: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isMutable());
+      return static_cast<double>(self->isInline());
     }
     case FieldSymbolSlotBase + 13: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isNoUniqueAddress());
+      return static_cast<double>(self->isMutable());
     }
-    case FieldSymbolSlotBase + 15: {
+    case FieldSymbolSlotBase + 14: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->localOffset());
+      return static_cast<double>(self->isNoUniqueAddress());
     }
     case FieldSymbolSlotBase + 16: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->alignment());
+      return static_cast<double>(self->localOffset());
     }
     case FieldSymbolSlotBase + 17: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->explicitAlignment());
+      return static_cast<double>(self->alignment());
     }
     case FieldSymbolSlotBase + 18: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isPacked());
+      return static_cast<double>(self->explicitAlignment());
     }
     case FieldSymbolSlotBase + 19: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->effectiveAlignment());
+      return static_cast<double>(self->isPacked());
     }
     case FieldSymbolSlotBase + 20: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::AST*>(self->initializer())));
+      return static_cast<double>(self->effectiveAlignment());
     }
     case FieldSymbolSlotBase + 21: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
-          static_cast<const ::cxx::Symbol*>(self->constructor())));
+          static_cast<const ::cxx::AST*>(self->initializer())));
     }
-    case FieldSymbolSlotBase + 23: {
+    case FieldSymbolSlotBase + 22: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->isDefinitionRequired());
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->constructor())));
     }
     case FieldSymbolSlotBase + 24: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->hasPendingInitializer());
+      return static_cast<double>(self->isDefinitionRequired());
     }
     case FieldSymbolSlotBase + 25: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
-      return static_cast<double>(self->hasInitializer());
+      return static_cast<double>(self->hasPendingInitializer());
     }
     case FieldSymbolSlotBase + 26: {
+      auto self = static_cast<const ::cxx::FieldSymbol*>(
+          reinterpret_cast<const ::cxx::Symbol*>(handle));
+      return static_cast<double>(self->hasInitializer());
+    }
+    case FieldSymbolSlotBase + 27: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return static_cast<double>(self->hasImmediateEscalatingInitializer());
@@ -9808,7 +9820,7 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         }();
       });
     }
-    case FieldSymbolSlotBase + 4: {
+    case FieldSymbolSlotBase + 5: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->bitFieldWidth(), [&](const auto& item) {
@@ -9889,14 +9901,14 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         }();
       });
     }
-    case FieldSymbolSlotBase + 14: {
+    case FieldSymbolSlotBase + 15: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->offsetInClass(), [&](const auto& item) {
         return val(static_cast<std::uint64_t>(item));
       });
     }
-    case FieldSymbolSlotBase + 22: {
+    case FieldSymbolSlotBase + 23: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->constValue(), [&](const auto& item) {
@@ -9977,7 +9989,7 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
         }();
       });
     }
-    case FieldSymbolSlotBase + 27: {
+    case FieldSymbolSlotBase + 28: {
       auto self = static_cast<const ::cxx::FieldSymbol*>(
           reinterpret_cast<const ::cxx::Symbol*>(handle));
       return optionalValue(self->pendingInitializer(), [&](const auto& item) {

@@ -760,14 +760,13 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
           control()->newTemplateParametersSymbol(copy->symbol, copy->lessLoc));
     copy->templateParameterList = rewrite.rewriteList(
         ast->templateParameterList, &ASTRewriter::templateParameter);
+    copy->greaterLoc = ast->greaterLoc;
+    copy->templateRequiresClause =
+        rewrite.requiresClause(ast->templateRequiresClause);
   }
 
   if (copy->templateParameterList && copy->symbol)
     copy->symbol->setTemplate(true);
-
-  copy->greaterLoc = ast->greaterLoc;
-  copy->templateRequiresClause =
-      rewrite.requiresClause(ast->templateRequiresClause);
 
   copy->expressionAttributeList = rewrite.rewriteList(
       ast->expressionAttributeList, &ASTRewriter::attributeSpecifier);
@@ -782,6 +781,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
 
   copy->lambdaSpecifierList = rewrite.rewriteList(
       ast->lambdaSpecifierList, &ASTRewriter::lambdaSpecifier);
+  if (needsFreshClosure) binder()->bindLambdaSpecifiers(copy);
 
   {
     auto _ = Binder::ScopeGuard(binder());
@@ -834,8 +834,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
         auto field = capture_field(captureNode);
         if (!field) continue;
 
-        if (ast_cast<InitLambdaCaptureAST>(captureNode) ||
-            ast_cast<RefInitLambdaCaptureAST>(captureNode)) {
+        if (is_init_capture(captureNode)) {
           if (auto declared = Binder::declaredInitCapture(
                   copy->symbol, capture_identifier(captureNode)))
             captureFields[declared] = field;

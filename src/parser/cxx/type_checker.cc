@@ -1385,6 +1385,14 @@ void TypeChecker::Visitor::operator()(IdExpressionAST* ast) {
                                     symbol_cast<VariableSymbol>(ast->symbol));
   if (ast->valueCategory == ValueCategory::kPrValue) return;
 
+  if (!ast->nestedNameSpecifier) {
+    if (auto type = Binder{check.unit_}.copyCaptureAccessType(
+            ast->symbol, scope(), get_name_location(ast))) {
+      ast->type = type;
+      return;
+    }
+  }
+
   auto field = symbol_cast<FieldSymbol>(ast->symbol);
   if (!field) return;
 
