@@ -1101,6 +1101,7 @@ class Parser final {
   void checkTagNameBinding(NestedNameSpecifierAST* nestedNameSpecifier,
                            UnqualifiedIdAST* unqualifiedId, Symbol* declared);
   void checkInitCaptureBindings(LambdaExpressionAST* ast);
+  void checkCaptureNames(LambdaExpressionAST* ast);
 
   void pushScope(ScopeSymbol* symbol);
 

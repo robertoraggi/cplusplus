@@ -29,6 +29,7 @@
 #include <cxx/dependent_types.h>
 #include <cxx/function_body.h>
 #include <cxx/function_body_warnings.h>
+#include <cxx/lambda_captures.h>
 #include <cxx/literals.h>
 #include <cxx/memory_layout.h>
 #include <cxx/name_lookup.h>
@@ -2104,8 +2105,6 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
 
   expect(TokenKind::T_LBRACKET, ast->lbracketLoc);
 
-  binder_.bind(ast);
-
   if (!match(TokenKind::T_RBRACKET, ast->rbracketLoc)) {
     if (!parse_lambda_capture(ast->captureDefaultLoc, ast->captureList)) {
       parse_error("expected a lambda capture");
@@ -2117,11 +2116,15 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (ast->captureDefaultLoc)
     ast->captureDefault = unit_->tokenKind(ast->captureDefaultLoc);
 
+  binder_.bind(ast);
+  binder_.bindLambdaIntroducer(ast);
+  checkInitCaptureBindings(ast);
+  pushScope(ast->symbol);
+
   CombinedScopeGuard templateScopeGuard{this};
 
   if (match(TokenKind::T_LESS, ast->lessLoc)) {
     ExplicitTemplateHeadGuard explicitTemplateHeadGuard{this};
-    pushScope(ast->symbol);
     setScope(control_->newTemplateParametersSymbol(ast->symbol, ast->lessLoc));
 
     parse_template_parameter_list(ast->templateParameterList);
@@ -2170,7 +2173,7 @@ auto Parser::parse_lambda_expression(ExpressionAST*& yyast) -> bool {
   if (!lookat(TokenKind::T_LBRACE)) return false;
 
   binder_.complete(ast);
-  checkInitCaptureBindings(ast);
+  checkCaptureNames(ast);
 
   parse_lambda_body(ast, ast->statement);
 
@@ -13287,6 +13290,31 @@ void Parser::checkInitCaptureBindings(LambdaExpressionAST* ast) {
     auto capture = binder_.initCapture(captureNode);
     if (!capture) continue;
     checkTemplateParameterRebinding(capture->name, capture->location);
+  }
+}
+
+void Parser::checkCaptureNames(LambdaExpressionAST* ast) {
+  for (auto captureNode : ListView{ast->captureList}) {
+    auto name = capture_identifier(captureNode);
+    if (!name) continue;
+
+    for (auto parameter : ListView{ast->templateParameterList}) {
+      if (!parameter->symbol || parameter->symbol->name() != name) continue;
+      error(parameter->symbol->location(),
+            std::format("template parameter '{}' has the same name as a "
+                        "capture of the lambda-expression",
+                        name->name()));
+    }
+
+    if (!ast->parameterDeclarationClause) continue;
+    for (auto parameter :
+         ListView{ast->parameterDeclarationClause->parameterDeclarationList}) {
+      if (parameter->identifier != name || !parameter->symbol) continue;
+      error(parameter->symbol->location(),
+            std::format("parameter '{}' has the same name as a capture of the "
+                        "lambda-expression",
+                        name->name()));
+    }
   }
 }
 
