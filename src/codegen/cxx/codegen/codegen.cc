@@ -2184,6 +2184,17 @@ auto Codegen::loadThisPointer(SourceLocation loc, ClassSymbol* classSymbol)
                        thisValue_, getAlignment(pointerType));
 }
 
+auto Codegen::loadExplicitObject(SourceLocation loc, ParameterSymbol* parameter,
+                                 ClassSymbol*& objectClass) -> ir::ValueRef {
+  auto objectType =
+      unqualified_cast<ClassType>(traits.remove_reference(parameter->type()));
+  if (!objectType) return {};
+  auto local = findOrCreateLocal(parameter);
+  if (!local) return {};
+  objectClass = objectType->symbol()->resolvedDefinition();
+  return loadReferenceBinding(loc, parameter->type(), *local);
+}
+
 auto Codegen::loadEnclosingObject(SourceLocation loc, ClassSymbol* targetClass,
                                   ClassSymbol*& objectClass) -> ir::ValueRef {
   objectClass = targetClass;
@@ -2194,7 +2205,12 @@ auto Codegen::loadEnclosingObject(SourceLocation loc, ClassSymbol* targetClass,
     }
   }
 
-  auto object = loadThisPointer(loc, objectClass);
+  auto explicitObject = currentFunctionSymbol_
+                            ? currentFunctionSymbol_->explicitObjectParameter()
+                            : nullptr;
+  auto object = explicitObject
+                    ? loadExplicitObject(loc, explicitObject, objectClass)
+                    : loadThisPointer(loc, objectClass);
   if (!object) return object;
 
   while (objectClass != targetClass && objectClass->isClosureType()) {

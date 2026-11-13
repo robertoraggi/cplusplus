@@ -735,6 +735,11 @@ class Codegen {
   [[nodiscard]] auto loadThisPointer(SourceLocation loc,
                                      ClassSymbol* classSymbol) -> ir::ValueRef;
 
+  [[nodiscard]] auto loadExplicitObject(SourceLocation loc,
+                                        ParameterSymbol* parameter,
+                                        ClassSymbol*& objectClass)
+      -> ir::ValueRef;
+
   [[nodiscard]] auto loadEnclosingObject(SourceLocation loc,
                                          ClassSymbol* targetClass,
                                          ClassSymbol*& objectClass)
