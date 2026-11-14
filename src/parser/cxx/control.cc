@@ -366,7 +366,30 @@ struct Control::Private {
   TypeSet<AtomicType> atomicTypes;
 
   std::set<std::vector<const Identifier*>> abiTags;
-  std::set<AttributeMap> attributes;
+  Arena attributeArena;
+  InternSet<AttributeMap> attributes;
+
+  struct AttributeSpellingKey {
+    AttributeSyntax syntax;
+    const Identifier* attributeNamespace;
+    const Identifier* name;
+
+    auto operator==(const AttributeSpellingKey&) const -> bool = default;
+  };
+
+  struct AttributeSpellingKeyHash {
+    [[nodiscard]] auto operator()(const AttributeSpellingKey& key) const
+        -> std::size_t {
+      auto seed = static_cast<std::size_t>(key.syntax);
+      combineHash(seed, std::hash<const Identifier*>{}(key.attributeNamespace));
+      combineHash(seed, std::hash<const Identifier*>{}(key.name));
+      return seed;
+    }
+  };
+
+  std::unordered_map<AttributeSpellingKey, const AttributeSpelling*,
+                     AttributeSpellingKeyHash>
+      attributeSpellings;
   std::unordered_map<const Type*, TypeAliasSymbol*> typeArgumentSymbols;
   std::map<std::tuple<const Type*, std::uint64_t, std::uint64_t, int, bool>,
            VariableSymbol*>
@@ -1269,9 +1292,53 @@ auto Control::newVariableSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
   return symbol;
 }
 
+auto Control::getAttributeSpelling(AttributeSyntax syntax,
+                                   const Identifier* attributeNamespace,
+                                   const Identifier* name)
+    -> const AttributeSpelling* {
+  const Private::AttributeSpellingKey key{syntax, attributeNamespace, name};
+  if (auto it = d->attributeSpellings.find(key);
+      it != d->attributeSpellings.end())
+    return it->second;
+  auto spelling = findAttributeSpelling(
+      syntax,
+      canonicalAttributeNamespaceSpelling(
+          attributeNamespace ? std::string_view{attributeNamespace->name()}
+                             : std::string_view{}),
+      canonicalAttributeSpelling(name ? std::string_view{name->name()}
+                                      : std::string_view{}));
+  d->attributeSpellings.emplace(key, spelling);
+  return spelling;
+}
+
+auto Control::attributeKindOf(const Attribute& attribute)
+    -> std::optional<AttributeKind> {
+  for (auto syntax : {AttributeSyntax::kGnu, AttributeSyntax::kCxx,
+                      AttributeSyntax::kAsmLabel}) {
+    if (auto spelling = getAttributeSpelling(
+            syntax, attribute.attributeNamespace, attribute.name))
+      return spelling->kind;
+  }
+  return std::nullopt;
+}
+
 auto Control::getAttributes(AttributeMap attributes) -> const AttributeMap* {
   if (attributes.empty()) return nullptr;
-  return &*d->attributes.insert(std::move(attributes)).first;
+  std::size_t hash = attributes.size();
+  for (auto& attribute : attributes) {
+    attribute.kind = attributeKindOf(attribute);
+    combineHash(hash,
+                std::hash<const Identifier*>{}(attribute.attributeNamespace));
+    combineHash(hash, std::hash<const Identifier*>{}(attribute.name));
+    combineHash(hash, hashField(attribute.arguments));
+  }
+  auto matches = [&](const AttributeMap& interned) {
+    return interned == attributes;
+  };
+  if (auto interned = d->attributes.find(hash, matches)) return interned;
+  auto interned = d->attributeArena.make<AttributeMap>(std::move(attributes));
+  d->attributes.insert(interned, hash);
+  return interned;
 }
 
 auto Control::getAbiTags(std::vector<const Identifier*> tags)

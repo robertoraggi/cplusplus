@@ -479,11 +479,10 @@ namespace {
 namespace {
 
 [[nodiscard]] auto applyVectorTypeAttributes(
-    TranslationUnit* unit, List<AttributeSpecifierAST*>* attributeList,
+    TranslationUnit* unit, std::span<const AttributeRef> attributes,
     const Type* type, SourceLocation location) -> const Type* {
-  if (!type || !attributeList) return type;
+  if (!type) return type;
 
-  auto attributes = knownAttributes(unit, attributeList);
   auto found = std::ranges::find_if(attributes, isVectorTypeAttribute,
                                     &AttributeRef::kind);
 
@@ -605,11 +604,12 @@ auto applyTypeAttributes(TranslationUnit* unit,
                          const Type* type, SourceLocation location)
     -> const Type* {
   if (!type || !attributeList) return type;
-  for (const auto& attribute :
-       findAttributes(unit, attributeList, AttributeKind::kAddressSpace)) {
+  const auto attributes = knownAttributes(unit, attributeList);
+  for (const auto& attribute : attributes) {
+    if (attribute.kind() != AttributeKind::kAddressSpace) continue;
     type = applyAddressSpaceAttribute(unit, attribute, type, location);
   }
-  return applyVectorTypeAttributes(unit, attributeList, type, location);
+  return applyVectorTypeAttributes(unit, attributes, type, location);
 }
 
 [[nodiscard]] auto getGenericSelectionExpression(

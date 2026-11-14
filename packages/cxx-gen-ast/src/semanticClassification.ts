@@ -362,6 +362,13 @@ export const bindings: Record<string, ClassBindings> = {
     },
   },
 
+  '::cxx::Attribute': {
+    kind: {
+      cls: 'D',
+      why: 'resolved from the namespace and the name when the map is interned',
+    },
+  },
+
   '::cxx::Type': {
     kind_: {cls: 'D', why: 'the type record\'s own kind tag'},
   },

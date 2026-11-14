@@ -265,6 +265,7 @@ export interface Attribute {
   readonly attributeNamespace: Identifier | undefined;
   readonly name: Identifier | undefined;
   readonly arguments: ReadonlyArray<Identifier | undefined>;
+  readonly kind: AttributeKind | undefined;
 }
 /** @category Data Structures */
 export interface ObjectInitializationInfo {
@@ -536,6 +537,7 @@ function decodeAttribute(value: any, owner: ModelOwner): Attribute {
     arguments: (value.arguments as any[]).map((element: any) =>
       nameOf(element, owner),
     ),
+    kind: optionalOf(value.kind, (item: any) => attributeKindNames[item]!),
   };
 }
 function decodeObjectInitializationInfo(
@@ -12520,6 +12522,88 @@ const nameKindNames: Record<number, NameKind> = {
   3: "LiteralOperatorId",
   4: "ConversionFunctionId",
   5: "TemplateId",
+};
+/** @category Enumerations */
+export type AttributeKind =
+  | "AbiTag"
+  | "AddressSpace"
+  | "Alias"
+  | "Aligned"
+  | "AlwaysInline"
+  | "Asm"
+  | "Assume"
+  | "Buffer"
+  | "Constructor"
+  | "Deprecated"
+  | "EnableIf"
+  | "ExcludeFromExplicitInstantiation"
+  | "ExportName"
+  | "ExtVectorType"
+  | "Fallthrough"
+  | "GlobalId"
+  | "GnuInline"
+  | "ImportModule"
+  | "ImportName"
+  | "Indeterminate"
+  | "Kernel"
+  | "Likely"
+  | "LocalId"
+  | "MaybeUnused"
+  | "NoUniqueAddress"
+  | "Nodiscard"
+  | "Noinline"
+  | "Noreturn"
+  | "Nothrow"
+  | "Packed"
+  | "Section"
+  | "TrivialAbi"
+  | "Unlikely"
+  | "Used"
+  | "VectorSize"
+  | "WarnUnusedResult"
+  | "Weak"
+  | "WorkgroupId"
+  | "WorkgroupSize";
+const attributeKindNames: Record<number, AttributeKind> = {
+  0: "AbiTag",
+  1: "AddressSpace",
+  2: "Alias",
+  3: "Aligned",
+  4: "AlwaysInline",
+  5: "Asm",
+  6: "Assume",
+  7: "Buffer",
+  8: "Constructor",
+  9: "Deprecated",
+  10: "EnableIf",
+  11: "ExcludeFromExplicitInstantiation",
+  12: "ExportName",
+  13: "ExtVectorType",
+  14: "Fallthrough",
+  15: "GlobalId",
+  16: "GnuInline",
+  17: "ImportModule",
+  18: "ImportName",
+  19: "Indeterminate",
+  20: "Kernel",
+  21: "Likely",
+  22: "LocalId",
+  23: "MaybeUnused",
+  24: "NoUniqueAddress",
+  25: "Nodiscard",
+  26: "Noinline",
+  27: "Noreturn",
+  28: "Nothrow",
+  29: "Packed",
+  30: "Section",
+  31: "TrivialAbi",
+  32: "Unlikely",
+  33: "Used",
+  34: "VectorSize",
+  35: "WarnUnusedResult",
+  36: "Weak",
+  37: "WorkgroupId",
+  38: "WorkgroupSize",
 };
 /** @category Enumerations */
 export type ValueCategory = "None" | "LValue" | "XValue" | "PrValue";
