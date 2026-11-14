@@ -42,7 +42,7 @@ constexpr int ConstComplexSlotBase = InitializerListSlotBase + 4;
 
 constexpr int ConstObjectSlotBase = ConstComplexSlotBase + 2;
 
-constexpr int ConstStorageSlotBase = ConstObjectSlotBase + 5;
+constexpr int ConstStorageSlotBase = ConstObjectSlotBase + 6;
 
 constexpr int MetaSlotBase = ConstStorageSlotBase + 4;
 
@@ -15692,7 +15692,7 @@ auto readMisc(std::intptr_t handle, int slot) -> double {
       auto self = reinterpret_cast<const ::cxx::ConstObject*>(handle);
       return static_cast<double>(self->lifetimeEnded());
     }
-    case ConstObjectSlotBase + 4: {
+    case ConstObjectSlotBase + 5: {
       auto self = reinterpret_cast<const ::cxx::ConstObject*>(handle);
       return static_cast<double>(self->isUnion());
     }
@@ -16290,9 +16290,26 @@ auto readMiscSize(std::intptr_t handle, std::intptr_t unit, int slot) -> int {
       auto self = reinterpret_cast<const ::cxx::ConstObject*>(handle);
       return static_cast<int>(std::size(self->members()));
     }
+    case ConstObjectSlotBase + 4: {
+      auto self = reinterpret_cast<const ::cxx::ConstObject*>(handle);
+      return static_cast<int>(std::size(self->transparentMemberPositions()));
+    }
     case ConstAddressSlotBase + 8: {
       auto self = reinterpret_cast<const ::cxx::ConstAddress*>(handle);
       return static_cast<int>(std::size(self->subobjectPath()));
+    }
+  }
+  cxx_runtime_error("unknown model slot");
+}
+
+auto readMiscItem(std::intptr_t handle, std::intptr_t unit, int slot, int index)
+    -> double {
+  switch (slot) {
+    case ConstObjectSlotBase + 4: {
+      auto self = reinterpret_cast<const ::cxx::ConstObject*>(handle);
+      const auto& container = self->transparentMemberPositions();
+      const auto& item = *std::next(std::begin(container), index);
+      return static_cast<double>(item);
     }
   }
   cxx_runtime_error("unknown model slot");
@@ -16585,6 +16602,7 @@ EMSCRIPTEN_BINDINGS(cxx_reflection) {
   emscripten::function("readMiscString", &cxx::js::readMiscString);
   emscripten::function("readMiscVal", &cxx::js::readMiscVal);
   emscripten::function("readMiscSize", &cxx::js::readMiscSize);
+  emscripten::function("readMiscItem", &cxx::js::readMiscItem);
   emscripten::function("readMiscItemVal", &cxx::js::readMiscItemVal);
   emscripten::function("getASTKind", &cxx::js::getASTKind);
   emscripten::function("getSymbolKind", &cxx::js::getSymbolKind);

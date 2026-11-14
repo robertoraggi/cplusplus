@@ -2728,9 +2728,18 @@ auto ClassSymbol::subobjectPath(Symbol* subobject) const
     -> std::optional<std::vector<Symbol*>> {
   if (auto type = symbol_cast<ClassSymbol>(subobject))
     subobject = type->resolvedDefinition();
+  if (auto field = symbol_cast<FieldSymbol>(subobject);
+      field && !field->isStatic() && field->parent() == resolvedDefinition())
+    return std::vector<Symbol*>{field};
+
   struct Candidate {
     const ClassSymbol* type;
     std::vector<Symbol*> path;
+  };
+  auto extended = [](const std::vector<Symbol*>& path, Symbol* step) {
+    auto result = path;
+    result.push_back(step);
+    return result;
   };
   std::vector<Candidate> pending{{resolvedDefinition(), {}}};
   for (std::size_t index = 0; index < pending.size(); ++index) {
@@ -2740,19 +2749,16 @@ auto ClassSymbol::subobjectPath(Symbol* subobject) const
     for (auto member : current.type->members()) {
       auto field = symbol_cast<FieldSymbol>(member);
       if (!field || field->isStatic()) continue;
-      auto path = current.path;
-      path.push_back(field);
-      if (field == subobject) return path;
+      if (field == subobject) return extended(current.path, field);
       if (auto nested = anonymous_member_class(field))
-        pending.push_back({nested->resolvedDefinition(), std::move(path)});
+        pending.push_back(
+            {nested->resolvedDefinition(), extended(current.path, field)});
     }
     for (auto base : current.type->baseClasses()) {
-      auto path = current.path;
-      path.push_back(base);
-      if (base == subobject) return path;
-      auto type = resolved_base_class(base);
-      if (type)
-        pending.push_back({type->resolvedDefinition(), std::move(path)});
+      if (base == subobject) return extended(current.path, base);
+      if (auto type = resolved_base_class(base))
+        pending.push_back(
+            {type->resolvedDefinition(), extended(current.path, base)});
     }
   }
   return std::nullopt;

@@ -544,14 +544,44 @@ auto ConstObject::enclosingSubobject(const Symbol* symbol) -> ConstObject* {
   return created.get();
 }
 
+void ConstObject::forgetMemberPositions() {
+  memberPositions_.clear();
+  transparentMemberPositions_.clear();
+  positionedMemberCount_ = 0;
+}
+
+void ConstObject::positionMembers() const {
+  for (; positionedMemberCount_ < members_.size(); ++positionedMemberCount_) {
+    auto symbol = members_[positionedMemberCount_].symbol;
+    memberPositions_.try_emplace(symbol, positionedMemberCount_);
+    if (isTransparentSubobject(symbol))
+      transparentMemberPositions_.push_back(positionedMemberCount_);
+  }
+}
+
+auto ConstObject::directMember(const Symbol* symbol) const -> const Member* {
+  positionMembers();
+  auto position = memberPositions_.find(symbol);
+  if (position == memberPositions_.end()) return nullptr;
+  return &members_[position->second];
+}
+
+auto ConstObject::transparentMemberPositions() const
+    -> const std::vector<std::size_t>& {
+  positionMembers();
+  return transparentMemberPositions_;
+}
+
 auto ConstObject::addMember(const Symbol* symbol, ConstValue value)
     -> ConstValue* {
   if (auto enclosing = enclosingSubobject(symbol))
     return enclosing->addMember(symbol, std::move(value));
   if (isUnion()) {
+    forgetMemberPositions();
     members_.clear();
   } else if (auto owner = symbol_cast<ClassSymbol>(symbol->parent());
              owner && owner->isUnion()) {
+    forgetMemberPositions();
     std::erase_if(members_, [owner](const Member& member) {
       return member.symbol && member.symbol->parent() == owner;
     });
@@ -586,14 +616,14 @@ struct LocatedSubobject {
   while (!pending.empty()) {
     auto current = std::move(pending.back());
     pending.pop_back();
-    for (const auto& member : current.object->members()) {
-      if (member.symbol != symbol) continue;
+    if (auto member = current.object->directMember(symbol)) {
       current.path.push_back(const_cast<Symbol*>(symbol));
-      return {&member.value, std::move(current.path)};
+      return {&member->value, std::move(current.path)};
     }
 
-    for (const auto& member : std::views::reverse(current.object->members())) {
-      if (!isTransparentSubobject(member.symbol)) continue;
+    for (auto position :
+         std::views::reverse(current.object->transparentMemberPositions())) {
+      const auto& member = current.object->members()[position];
       auto nested = std::get_if<std::shared_ptr<ConstObject>>(&member.value);
       if (!nested || !*nested) continue;
       auto path = current.path;

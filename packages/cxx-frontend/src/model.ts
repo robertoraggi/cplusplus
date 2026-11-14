@@ -123,6 +123,19 @@ function* miscValItems(
     yield of(cxx.readMiscItemVal(handle, unit, slot, i));
   }
 }
+function* miscItems(
+  owner: ModelOwner,
+  handle: number,
+  slot: number,
+  of: (item: any) => any,
+): Iterable<any> {
+  const unit = owner.getUnitHandle();
+  const size = cxx.readMiscSize(handle, unit, slot);
+  for (let i = 0; i < size; ++i) {
+    if (owner.disposed) throw disposedError();
+    yield of(cxx.readMiscItem(handle, unit, slot, i));
+  }
+}
 function* literalItems(
   owner: ModelOwner,
   handle: number,
@@ -826,7 +839,7 @@ const DefaultInitializerContextSlotBase = 0;
 const InitializerListSlotBase = DefaultInitializerContextSlotBase + 3;
 const ConstComplexSlotBase = InitializerListSlotBase + 4;
 const ConstObjectSlotBase = ConstComplexSlotBase + 2;
-const ConstStorageSlotBase = ConstObjectSlotBase + 5;
+const ConstStorageSlotBase = ConstObjectSlotBase + 6;
 const MetaSlotBase = ConstStorageSlotBase + 4;
 const ConstAddressSlotBase = MetaSlotBase + 1;
 const ConstLabelAddressSlotBase = ConstAddressSlotBase + 18;
@@ -1283,8 +1296,16 @@ export class ConstObject extends ModelObject {
       (item: any) => decodeConstObject_Member(item, this.modelOwner),
     );
   }
+  get transparentMemberPositions(): Iterable<number> {
+    return miscItems(
+      this.modelOwner,
+      this.handle,
+      ConstObjectSlotBase + 4,
+      (item: any) => item,
+    );
+  }
   get isUnion(): boolean {
-    return cxx.readMisc(this.handle, ConstObjectSlotBase + 4) !== 0;
+    return cxx.readMisc(this.handle, ConstObjectSlotBase + 5) !== 0;
   }
 }
 /** @category Constant Values */

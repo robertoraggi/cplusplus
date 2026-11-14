@@ -97,6 +97,18 @@ export const bindings: Record<string, ClassBindings> = {
       read: '$->isConstexprUnknown()',
       write: '$->setConstexprUnknown($value)',
     },
+    memberPositions_: {
+      cls: 'R',
+      why: 'the position of each member by symbol, indexed on first use',
+    },
+    transparentMemberPositions_: {
+      cls: 'R',
+      why: 'the positions of the base class and anonymous members, indexed on first use',
+    },
+    positionedMemberCount_: {
+      cls: 'R',
+      why: 'how many members the position index covers',
+    },
   },
 
   '::cxx::InitializerList': {
