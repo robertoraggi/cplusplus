@@ -376,6 +376,11 @@ struct [[nodiscard]] Binder::CompleteClass {
   void checkOverriderExceptionSpecifications();
   void checkOverriderImmediacy();
   [[nodiscard]] auto hasNonAssignableSubobject(bool moveForm) const -> bool;
+  [[nodiscard]] auto correspondingMember(ClassSymbol* subobject,
+                                         FunctionSymbol* fn) const
+      -> FunctionSymbol*;
+  [[nodiscard]] auto correspondingSubobjectMembers(FunctionSymbol* fn) const
+      -> std::vector<FunctionSymbol*>;
   [[nodiscard]] auto subobjectAssignmentIsUnusable(const Type* type,
                                                    bool moveForm) const -> bool;
   [[nodiscard]] auto hasNonCopyConstructibleSubobject(bool moveForm) const
@@ -583,12 +588,93 @@ void Binder::CompleteClass::determineDeletion(FunctionSymbol* fn) {
   }
 }
 
+auto Binder::CompleteClass::correspondingMember(ClassSymbol* subobject,
+                                                FunctionSymbol* fn) const
+    -> FunctionSymbol* {
+  if (fn->isDestructor()) return subobject->destructor();
+  if (classSymbol->isDefaultConstructor(fn))
+    return subobject->defaultConstructor();
+  if (classSymbol->isCopyConstructor(fn)) return subobject->copyConstructor();
+  if (classSymbol->isMoveConstructor(fn)) return subobject->moveConstructor();
+  if (classSymbol->isCopyAssignmentOperator(fn))
+    return subobject->copyAssignmentOperator();
+  if (classSymbol->isMoveAssignmentOperator(fn))
+    return subobject->moveAssignmentOperator();
+  return nullptr;
+}
+
+auto Binder::CompleteClass::correspondingSubobjectMembers(
+    FunctionSymbol* fn) const -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> members;
+  if (auto inherited = fn->inheritedConstructor()) members.push_back(inherited);
+
+  auto addMemberOf = [&](const Type* type) {
+    auto classType = unqualified_cast<ClassType>(type);
+    if (!classType || !classType->symbol()) return;
+    auto subobject = classType->symbol()->resolvedDefinition();
+    if (!subobject->isComplete()) return;
+    if (auto member = correspondingMember(subobject, fn))
+      members.push_back(member);
+  };
+
+  for (auto base : classSymbol->baseClasses()) {
+    if (auto baseClass = resolved_base_class(base))
+      addMemberOf(baseClass->type());
+  }
+
+  for (auto field : views::members(classSymbol) | views::non_static_fields)
+    addMemberOf(binder.traits.remove_all_extents(field->type()));
+
+  return members;
+}
+
+auto Binder::subobjectMembersFirst(FunctionSymbol* fn,
+                                   UndecidedProperty isUndecided)
+    -> std::vector<FunctionSymbol*> {
+  struct Pending {
+    FunctionSymbol* function = nullptr;
+    bool awaitsSubobjects = false;
+  };
+
+  std::vector<FunctionSymbol*> ordered;
+  std::unordered_set<FunctionSymbol*> examined;
+  std::vector<Pending> pending{{fn}};
+
+  while (!pending.empty()) {
+    auto [function, awaitsSubobjects] = pending.back();
+    if (awaitsSubobjects) {
+      pending.pop_back();
+      ordered.push_back(function);
+      continue;
+    }
+
+    auto classSymbol = symbol_cast<ClassSymbol>(function->parent());
+    if (!classSymbol || !(function->*isUndecided)() ||
+        !examined.insert(function).second) {
+      pending.pop_back();
+      continue;
+    }
+
+    pending.back().awaitsSubobjects = true;
+    CompleteClass completeClass{*this, classSymbol->resolvedDefinition()};
+    for (auto member : completeClass.correspondingSubobjectMembers(function))
+      pending.push_back({member});
+  }
+
+  return ordered;
+}
+
 void Binder::completeDeferredDeletion(FunctionSymbol* fn) {
   if (!fn || !fn->hasDeferredDeletion()) return;
-  fn->setDeferredDeletion(false);
-  auto classSymbol = symbol_cast<ClassSymbol>(fn->parent());
-  if (!classSymbol) return;
-  CompleteClass{*this, classSymbol->resolvedDefinition()}.determineDeletion(fn);
+
+  for (auto member :
+       subobjectMembersFirst(fn, &FunctionSymbol::hasDeferredDeletion)) {
+    if (!member->hasDeferredDeletion()) continue;
+    member->setDeferredDeletion(false);
+    auto classSymbol = symbol_cast<ClassSymbol>(member->parent());
+    CompleteClass{*this, classSymbol->resolvedDefinition()}.determineDeletion(
+        member);
+  }
 }
 
 auto TypeTraits::is_deleted_function(FunctionSymbol* function) const -> bool {
@@ -992,6 +1078,14 @@ void Binder::applyImplicitExceptionSpecification(FunctionSymbol* fn) {
 
 void Binder::completeDeferredImplicitExceptionSpecification(
     FunctionSymbol* fn) {
+  if (!fn->hasDeferredImplicitExceptionSpecification()) return;
+
+  for (auto member : subobjectMembersFirst(
+           fn, &FunctionSymbol::hasDeferredImplicitExceptionSpecification))
+    determineImplicitExceptionSpecification(member);
+}
+
+void Binder::determineImplicitExceptionSpecification(FunctionSymbol* fn) {
   if (!fn->hasDeferredImplicitExceptionSpecification()) return;
   fn->setDeferredImplicitExceptionSpecification(false);
 
