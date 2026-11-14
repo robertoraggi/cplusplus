@@ -520,22 +520,10 @@ auto isExcludedInheritedConstructor(TypeTraits& traits,
     -> bool {
   if (argCount != 1) return false;
 
-  auto inherited = constructor->inheritedConstructorOrigin();
-  if (!inherited) return false;
+  auto origin = constructor->inheritedConstructorOrigin();
+  if (!origin) return false;
 
-  auto base = symbol_cast<ClassSymbol>(inherited->parent());
-  if (!base) return false;
-
-  auto type = type_cast<FunctionType>(constructor->type());
-  if (!type || type->parameterTypes().empty()) return false;
-
-  auto firstParameter = type->parameterTypes().front();
-  if (!traits.is_reference(firstParameter)) return false;
-
-  auto referenced = traits.remove_reference(firstParameter);
-
-  return traits.is_reference_related(base->type(), referenced) &&
-         traits.is_reference_related(referenced, classSymbol->type());
+  return classSymbol->excludesInheritedConstructorForOneArgument(origin);
 }
 
 auto OverloadResolution::resolveConstructor(

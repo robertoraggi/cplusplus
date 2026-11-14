@@ -1345,6 +1345,10 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto isDefaultConstructor(FunctionSymbol* function) const
       -> bool;
   [[nodiscard]] auto isCopyConstructor(FunctionSymbol* function) const -> bool;
+  [[nodiscard]] auto excludesInheritedConstructorForOneArgument(
+      FunctionSymbol* origin) const -> bool;
+  [[nodiscard]] auto excludesInheritedConstructor(FunctionSymbol* origin) const
+      -> bool;
   [[nodiscard]] auto isMoveConstructor(FunctionSymbol* function) const -> bool;
   [[nodiscard]] auto isCopyAssignmentOperator(FunctionSymbol* function) const
       -> bool;
