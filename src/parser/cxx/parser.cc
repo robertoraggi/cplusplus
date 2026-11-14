@@ -155,8 +155,28 @@ void appendAttributes(List<AttributeSpecifierAST*>*& attributeList,
 }
 }  // namespace
 
+struct [[nodiscard]] Parser::BacktrackPoint {
+  Parser* p;
+
+  BacktrackPoint(const BacktrackPoint&) = delete;
+  auto operator=(const BacktrackPoint&) -> BacktrackPoint& = delete;
+
+  explicit BacktrackPoint(Parser* p) : p(p) { ++p->backtrackPoints_; }
+
+  ~BacktrackPoint() {
+    if (--p->backtrackPoints_ == 0) p->forgetParsesBeforeCursor();
+  }
+};
+
+void Parser::forgetParsesBeforeCursor() {
+  const auto location = currentLocation();
+  parameter_declaration_clauses_.eraseBefore(location);
+  template_arguments_.eraseBefore(location);
+}
+
 struct Parser::LookaheadParser {
   Parser* p;
+  BacktrackPoint backtrackPoint;
   std::uint32_t cursor;
   RecordingDiagnosticsClient client;
   DiagnosticsClient* previousClient = nullptr;
@@ -168,6 +188,7 @@ struct Parser::LookaheadParser {
 
   explicit LookaheadParser(Parser* p)
       : p(p),
+        backtrackPoint(p),
         cursor(p->cursor_),
         pendingImmediateEscalations(
             p->unit_->pendingImmediateEscalationCount()) {
@@ -4285,6 +4306,7 @@ auto Parser::parse_binary_expression_helper(ExpressionAST*& yyast, Prec minPrec,
 
   while (parse_lookahead_binary_operator(opLoc, op, exprContext) &&
          prec(op) >= minPrec) {
+    BacktrackPoint backtrackPoint{this};
     const auto saved = currentLocation();
 
     ExpressionAST* rhs = nullptr;
@@ -6597,6 +6619,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
 
   specs.no_class_or_enum_specs = true;
 
+  BacktrackPoint backtrackPoint{this};
   const auto start = currentLocation();
 
   List<AttributeSpecifierAST*>* leadingAttributes = nullptr;
@@ -6627,6 +6650,7 @@ auto Parser::parse_type_specifier_seq(List<SpecifierAST*>*& yyast,
   while (LA()) {
     loop.start();
 
+    BacktrackPoint backtrackPoint{this};
     const auto before_type_specifier = currentLocation();
 
     typeSpecifier = nullptr;
@@ -6723,6 +6747,7 @@ auto Parser::parse_defining_type_specifier_seq(List<SpecifierAST*>*& yyast,
   while (LA()) {
     loop.start();
 
+    BacktrackPoint backtrackPoint{this};
     const auto before_type_specifier = currentLocation();
 
     typeSpecifier = nullptr;
@@ -8373,10 +8398,11 @@ auto Parser::parse_parameter_declaration_clause(
   const auto start = currentLocation();
 
   if (auto entry = parameter_declaration_clauses_.get(start)) {
-    rewind(entry->endLoc);
-    replayDiagnostics(entry->diagnostics);
     yyast = entry->ast;
-    return entry->parsed;
+    const auto parsed = entry->parsed;
+    replayDiagnostics(entry->diagnostics);
+    rewind(entry->endLoc);
+    return parsed;
   }
 
   CapturingDiagnosticsScope diagnostics{unit_};
@@ -8434,7 +8460,10 @@ auto Parser::parse_parameter_declaration_list(
 
   SourceLocation commaLoc;
 
-  while (match(TokenKind::T_COMMA, commaLoc)) {
+  while (true) {
+    BacktrackPoint backtrackPoint{this};
+    if (!match(TokenKind::T_COMMA, commaLoc)) break;
+
     ParameterDeclarationAST* declaration = nullptr;
 
     if (!parse_parameter_declaration(declaration, /*templParam*/ false,
@@ -12250,10 +12279,11 @@ auto Parser::parse_template_argument(TemplateArgumentAST*& yyast) -> bool {
   const auto start = currentLocation();
 
   if (auto entry = template_arguments_.get(start)) {
-    rewind(entry->endLoc);
-    replayDiagnostics(entry->diagnostics);
     yyast = entry->ast;
-    return entry->parsed;
+    const auto parsed = entry->parsed;
+    replayDiagnostics(entry->diagnostics);
+    rewind(entry->endLoc);
+    return parsed;
   }
 
   CapturingDiagnosticsScope diagnostics{unit_};
