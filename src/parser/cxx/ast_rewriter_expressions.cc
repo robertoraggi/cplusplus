@@ -742,10 +742,14 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
       instances.push_back(rewrite.lambdaCapture(capture));
       appendCapture(instances.back());
     };
+    auto rewriteElement = [&] {
+      rewriteCapture();
+      *capture_ellipsis_slot(instances.back()) = {};
+    };
     if (!is_pack_capture(capture) ||
         !rewrite.forEachPackElement(capture_initializer(capture),
                                     capture->firstSourceLocation(),
-                                    rewriteCapture))
+                                    rewriteElement))
       rewriteCapture();
     if (is_init_capture(capture))
       initCaptures.emplace_back(capture, std::move(instances));
