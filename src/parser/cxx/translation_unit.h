@@ -101,6 +101,22 @@ class TranslationUnit {
   void addNonDependentTemplateArguments(UnqualifiedIdAST* templateId,
                                         TemplateParametersSymbol* parameters);
 
+  struct RequiredDefinition {
+    FunctionSymbol* function = nullptr;
+    SourceLocation location;
+    FunctionSymbol* caller = nullptr;
+  };
+
+  [[nodiscard]] auto requiredDefinitions() -> std::vector<RequiredDefinition>& {
+    return requiredDefinitions_;
+  }
+  [[nodiscard]] auto isExaminingRequiredDefinitions() const -> bool {
+    return isExaminingRequiredDefinitions_;
+  }
+  void setExaminingRequiredDefinitions(bool isExamining) {
+    isExaminingRequiredDefinitions_ = isExamining;
+  }
+
   void addPendingBodyCompletion(FunctionSymbol* function,
                                 SourceLocation location = {},
                                 FunctionSymbol* caller = nullptr);
@@ -592,6 +608,8 @@ class TranslationUnit {
   std::unordered_set<ClassSymbol*> pendingMemberInstantiationIndex_;
   std::unordered_set<ClassSymbol*> instantiatedMemberClasses_;
   std::vector<FunctionSymbol*> pendingBodyCompletions_;
+  std::vector<RequiredDefinition> requiredDefinitions_;
+  bool isExaminingRequiredDefinitions_ = false;
   std::unordered_map<FunctionSymbol*,
                      std::pair<SourceLocation, FunctionSymbol*>>
       pendingBodyCompletionRequests_;
