@@ -3437,7 +3437,10 @@ auto Binder::emptyClassSubobjects(ClassSymbol* classSymbol)
 
 auto Binder::completeObjectEmptySubobjects(ClassSymbol* classSymbol)
     -> const ClassSubobjectList& {
-  return cachedClassSubobjects(classSymbol).completeObjectSubobjects;
+  const auto& cached = cachedClassSubobjects(classSymbol);
+  if (cached.completeObjectSubobjectsWithVirtualBases.empty())
+    return cached.subobjects;
+  return cached.completeObjectSubobjectsWithVirtualBases;
 }
 
 auto Binder::cachedClassSubobjects(ClassSymbol* classSymbol)
@@ -3482,17 +3485,22 @@ auto Binder::cachedClassSubobjects(ClassSymbol* classSymbol)
     }
   }
 
-  entry.completeObjectSubobjects = entry.subobjects;
-
   if (layout) {
+    ClassSubobjectList inVirtualBases;
     for (auto virtualBase : layout->virtualBases()) {
       auto info = layout->getVirtualBaseInfo(virtualBase);
       if (!info) continue;
-      appendClassSubobjects(entry.completeObjectSubobjects,
-                            emptyClassSubobjects(virtualBase), info->offset,
-                            ClassSubobjectExtent{});
+      appendClassSubobjects(inVirtualBases, emptyClassSubobjects(virtualBase),
+                            info->offset, ClassSubobjectExtent{});
+    }
+    if (!inVirtualBases.empty()) {
+      entry.completeObjectSubobjectsWithVirtualBases = entry.subobjects;
+      entry.completeObjectSubobjectsWithVirtualBases.insert(
+          entry.completeObjectSubobjectsWithVirtualBases.end(),
+          inVirtualBases.begin(), inVirtualBases.end());
     }
   }
+  entry.subobjects.shrink_to_fit();
 
   auto& cached = emptyClassSubobjects_[classSymbol];
   cached = std::move(entry);
