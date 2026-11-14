@@ -41,21 +41,6 @@
 
 namespace cxx {
 namespace {
-class InstantiationDepthGuard {
- public:
-  explicit InstantiationDepthGuard(TranslationUnit* unit)
-      : unit_(unit), scope_(unit) {}
-
-  [[nodiscard]] auto exceeded() const -> bool {
-    return unit_->templateInstantiationDepth() >
-           TranslationUnit::kMaxTemplateInstantiationDepth;
-  }
-
- private:
-  TranslationUnit* unit_;
-  TranslationUnit::TemplateInstantiationScope scope_;
-};
-
 [[nodiscard]] auto outOfClassDefinitionOf(FunctionSymbol* member)
     -> FunctionSymbol* {
   for (auto pattern = member; pattern;
@@ -756,9 +741,9 @@ auto ASTRewriter::instantiate(
 
   if (auto trace = unit->timeTrace())
     trace->count(TimeTrace::kInstantiationRequests);
-  InstantiationDepthGuard depthGuard{unit};
+  TranslationUnit::TemplateInstantiationScope depthGuard{unit};
 
-  if (depthGuard.exceeded()) {
+  if (depthGuard.exceedsMaximumDepth()) {
     auto message = std::format(
         "recursive template instantiation exceeded maximum depth "
         "of {} while instantiating '{}'",
@@ -1028,8 +1013,8 @@ auto ASTRewriter::ensureCompleteClass(TranslationUnit* unit,
     if (!declaration) return false;
     if (unit->isInstantiatingClass(classSymbol)) return false;
     TranslationUnit::ClassInstantiationScope instantiating{unit, classSymbol};
-    InstantiationDepthGuard depthGuard{unit};
-    if (depthGuard.exceeded()) return false;
+    TranslationUnit::TemplateInstantiationScope depthGuard{unit};
+    if (depthGuard.exceedsMaximumDepth()) return false;
     ASTRewriter rewriter{unit, classSymbol->parent(),
                          classSymbol->instantiationSubstitutionArguments()};
     rewriter.depth_ = classSymbol->instantiationSubstitutionDepth();

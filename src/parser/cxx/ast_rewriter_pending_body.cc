@@ -863,6 +863,17 @@ auto ASTRewriter::instantiateSeparately(ExpressionAST* pattern, Symbol* owner,
   auto diagnosticsClient = unit_->diagnosticsClient();
   const auto errorsBefore = diagnosticsClient->errorCount();
 
+  TranslationUnit::NestedTemplateInstantiation nesting{unit_};
+  if (nesting.exceedsMaximumDepth()) {
+    unit_->report(
+        diagnosticsClient, owner->location(), Severity::Fatal,
+        std::format("recursive template instantiation exceeded maximum depth "
+                    "of {} while instantiating the {} of '{}'",
+                    TranslationUnit::kMaxTemplateInstantiationDepth, construct,
+                    to_diag_string(owner->name())));
+    return nullptr;
+  }
+
   auto instance = expression(pattern);
   if (instance) return instance;
   if (diagnosticsClient->errorCount() != errorsBefore) return nullptr;
