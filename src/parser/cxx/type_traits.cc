@@ -4313,17 +4313,85 @@ auto TypeTraits::is_empty(const Type* type) -> bool {
   auto cls = classType->definition();
   require_complete_class(cls);
   if (!cls || !cls->isComplete()) return false;
+  return is_empty_class(cls);
+}
+
+auto TypeTraits::is_empty_apart_from_base_classes(ClassSymbol* cls) -> bool {
+  if (cls->isUnion() || !cls->isComplete()) return false;
   for (auto f : cls->members() | views::non_static_fields) {
     if (!is_zero_size_subobject(f)) return false;
   }
   if (cls->hasVirtualFunctions()) return false;
-  if (cls->hasVirtualBaseClasses()) return false;
-  for (auto base : cls->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) continue;
-    if (!is_empty(baseClass->type())) return false;
+  return !cls->hasVirtualBaseClasses();
+}
+
+auto TypeTraits::is_empty_class(ClassSymbol* cls) -> bool {
+  struct Pending {
+    ClassSymbol* classSymbol = nullptr;
+    bool awaitsBaseClasses = false;
+  };
+
+  std::unordered_map<ClassSymbol*, bool> decided;
+  std::unordered_set<ClassSymbol*> entered;
+
+  auto emptiness = [&](ClassSymbol* classSymbol) -> std::optional<bool> {
+    if (auto known = classSymbol->knownProperty(ClassProperty::kEmpty))
+      return known;
+    if (auto it = decided.find(classSymbol); it != decided.end())
+      return it->second;
+    return std::nullopt;
+  };
+
+  auto decide = [&](ClassSymbol* classSymbol, bool isEmpty) {
+    decided.insert_or_assign(classSymbol, isEmpty);
+    classSymbol->recordProperty(ClassProperty::kEmpty, isEmpty);
+  };
+
+  auto baseClassDefinitions = [](ClassSymbol* classSymbol) {
+    std::vector<ClassSymbol*> definitions;
+    for (auto base : classSymbol->baseClasses()) {
+      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+      if (!baseClass) continue;
+      definitions.push_back(baseClass->resolvedDefinition());
+    }
+    return definitions;
+  };
+
+  std::vector<Pending> pending{{cls}};
+  while (!pending.empty()) {
+    auto [classSymbol, awaitsBaseClasses] = pending.back();
+
+    if (emptiness(classSymbol)) {
+      pending.pop_back();
+      continue;
+    }
+
+    if (awaitsBaseClasses) {
+      pending.pop_back();
+      auto bases = baseClassDefinitions(classSymbol);
+      decide(classSymbol, std::ranges::all_of(bases, [&](ClassSymbol* base) {
+               return emptiness(base).value_or(false);
+             }));
+      continue;
+    }
+
+    if (!entered.insert(classSymbol).second) {
+      pending.pop_back();
+      continue;
+    }
+
+    if (!is_empty_apart_from_base_classes(classSymbol)) {
+      pending.pop_back();
+      decide(classSymbol, false);
+      continue;
+    }
+
+    pending.back().awaitsBaseClasses = true;
+    for (auto base : baseClassDefinitions(classSymbol))
+      pending.push_back({base});
   }
-  return true;
+
+  return emptiness(cls).value_or(false);
 }
 
 auto TypeTraits::is_polymorphic(const Type* type) -> bool {

@@ -2532,7 +2532,19 @@ struct BaseWalkState {
 
 }  // namespace
 
+auto ClassSymbol::hasDirectBaseClass(const Symbol* symbol) const -> bool {
+  for (auto baseClass : baseClasses_) {
+    if (baseClass->symbol() == symbol) return true;
+    auto base = baseClassDefinitionOf(baseClass);
+    if (!base) continue;
+    if (base == symbol || base->resolvedDefinition() == symbol) return true;
+  }
+  return false;
+}
+
 auto ClassSymbol::hasBaseClass(const Symbol* symbol) const -> bool {
+  if (hasDirectBaseClass(symbol)) return true;
+
   if (baseClassSymbols_)
     return std::ranges::binary_search(*baseClassSymbols_, symbol,
                                       std::less<const Symbol*>{});

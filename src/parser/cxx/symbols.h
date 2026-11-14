@@ -1255,6 +1255,7 @@ enum class ClassProperty : std::uint8_t {
   kTriviallyCopyable,
   kTrivialForCalls,
   kTrivialCopyMembersForObjectSizes,
+  kEmpty,
 };
 
 class ClassSymbol final : public ScopeSymbol,
@@ -1406,6 +1407,7 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto packAlignment() const -> int;
   void setPackAlignment(int alignment);
 
+  [[nodiscard]] auto hasDirectBaseClass(const Symbol* symbol) const -> bool;
   [[nodiscard]] auto hasBaseClass(const Symbol* symbol) const -> bool;
 
   void addBefriendingClass(ClassSymbol* classSymbol);
