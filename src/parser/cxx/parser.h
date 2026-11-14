@@ -894,6 +894,8 @@ class Parser final {
   [[nodiscard]] auto parse_base_clause(ClassSpecifierAST* ast) -> bool;
   [[nodiscard]] auto parse_base_specifier_list(ClassSpecifierAST* ast) -> bool;
   void parse_base_specifier(BaseSpecifierAST*& yyast);
+  [[nodiscard]] auto parse_base_class_name(BaseSpecifierAST* ast,
+                                           Symbol*& resolvedType) -> bool;
   [[nodiscard]] auto parse_class_or_decltype(
       NestedNameSpecifierAST*& nestedNameSpecifier, SourceLocation& templateLoc,
       UnqualifiedIdAST*& unqualifiedId) -> bool;

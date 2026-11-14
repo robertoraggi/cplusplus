@@ -11168,6 +11168,30 @@ auto Parser::parse_base_specifier_list(ClassSpecifierAST* ast) -> bool {
   return true;
 }
 
+auto Parser::parse_base_class_name(BaseSpecifierAST* ast, Symbol*& resolvedType)
+    -> bool {
+  auto _ = CombinedScopeGuard{this};
+
+  auto classScope = lexicalScope_;
+  if (classScope && classScope->parent && classScope->symbol->isClass()) {
+    lexicalScope_ = classScope->parent;
+    binder_.setScope(lexicalScope_->symbol);
+  }
+
+  if (!parse_class_or_decltype(ast->nestedNameSpecifier, ast->templateLoc,
+                               ast->unqualifiedId))
+    return false;
+
+  if (ast->nestedNameSpecifier) return true;
+
+  if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
+    resolvedType =
+        unqualifiedLookupType(lexicalScope_, nameId->identifier, isCxx());
+  }
+
+  return true;
+}
+
 void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
   auto ast = BaseSpecifierAST::create(pool_);
   yyast = ast;
@@ -11191,22 +11215,14 @@ void Parser::parse_base_specifier(BaseSpecifierAST*& yyast) {
   ast->virtualOrAccessLoc = std::min(virtualLoc, accessLoc);
   ast->otherVirtualOrAccessLoc = std::max(virtualLoc, accessLoc);
 
-  if (!parse_class_or_decltype(ast->nestedNameSpecifier, ast->templateLoc,
-                               ast->unqualifiedId)) {
+  Symbol* resolvedType = nullptr;
+  if (!parse_base_class_name(ast, resolvedType)) {
     parse_error("expected a class name");
     return;
   }
 
   if (ast->templateLoc) {
     ast->isTemplateIntroduced = true;
-  }
-
-  Symbol* resolvedType = nullptr;
-  if (!ast->nestedNameSpecifier) {
-    if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-      resolvedType =
-          unqualifiedLookupType(lexicalScope_, nameId->identifier, isCxx());
-    }
   }
 
   binder_.bind(ast, resolvedType);
