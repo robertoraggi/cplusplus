@@ -105,16 +105,22 @@ namespace cxx {
          ast_cast<RefInitLambdaCaptureAST>(capture);
 }
 
-[[nodiscard]] inline auto is_pack_capture(LambdaCaptureAST* capture) -> bool {
+[[nodiscard]] inline auto capture_ellipsis_slot(LambdaCaptureAST* capture)
+    -> SourceLocation* {
   if (auto simple = ast_cast<SimpleLambdaCaptureAST>(capture))
-    return bool(simple->ellipsisLoc);
+    return &simple->ellipsisLoc;
   if (auto ref = ast_cast<RefLambdaCaptureAST>(capture))
-    return bool(ref->ellipsisLoc);
+    return &ref->ellipsisLoc;
   if (auto initCapture = ast_cast<InitLambdaCaptureAST>(capture))
-    return bool(initCapture->ellipsisLoc);
+    return &initCapture->ellipsisLoc;
   if (auto refInitCapture = ast_cast<RefInitLambdaCaptureAST>(capture))
-    return bool(refInitCapture->ellipsisLoc);
-  return false;
+    return &refInitCapture->ellipsisLoc;
+  return nullptr;
+}
+
+[[nodiscard]] inline auto is_pack_capture(LambdaCaptureAST* capture) -> bool {
+  auto slot = capture_ellipsis_slot(capture);
+  return slot && *slot;
 }
 
 }  // namespace cxx
