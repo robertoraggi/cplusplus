@@ -606,12 +606,38 @@ struct LocatedSubobject {
   std::vector<Symbol*> path;
 };
 
+[[nodiscard]] auto namedClassDeclaring(const Symbol* symbol)
+    -> const ClassSymbol* {
+  auto declaringClass = symbol_cast<ClassSymbol>(symbol->parent());
+  if (!declaringClass || !declaringClass->name()) return nullptr;
+  return declaringClass->resolvedDefinition();
+}
+
+[[nodiscard]] auto classOf(const ConstObject& object) -> const ClassSymbol* {
+  auto classType = unqualified_cast<ClassType>(object.type());
+  if (!classType || !classType->symbol()) return nullptr;
+  return classType->symbol()->resolvedDefinition();
+}
+
+[[nodiscard]] auto mayContainMemberOf(const Symbol* subobject,
+                                      const ClassSymbol* declaringClass)
+    -> bool {
+  if (!declaringClass) return true;
+  auto base = symbol_cast<BaseClassSymbol>(const_cast<Symbol*>(subobject));
+  if (!base) return true;
+  auto baseClass = resolved_base_class(base);
+  if (!baseClass) return true;
+  if (baseClass == declaringClass) return true;
+  return baseClass->hasBaseClass(declaringClass);
+}
+
 [[nodiscard]] auto locateSubobject(const ConstObject& object,
                                    const Symbol* symbol) -> LocatedSubobject {
   struct Candidate {
     const ConstObject* object;
     std::vector<Symbol*> path;
   };
+  auto declaringClass = namedClassDeclaring(symbol);
   std::vector<Candidate> pending{{&object, {}}};
   while (!pending.empty()) {
     auto current = std::move(pending.back());
@@ -620,10 +646,12 @@ struct LocatedSubobject {
       current.path.push_back(const_cast<Symbol*>(symbol));
       return {&member->value, std::move(current.path)};
     }
+    if (declaringClass && classOf(*current.object) == declaringClass) continue;
 
     for (auto position :
          std::views::reverse(current.object->transparentMemberPositions())) {
       const auto& member = current.object->members()[position];
+      if (!mayContainMemberOf(member.symbol, declaringClass)) continue;
       auto nested = std::get_if<std::shared_ptr<ConstObject>>(&member.value);
       if (!nested || !*nested) continue;
       auto path = current.path;

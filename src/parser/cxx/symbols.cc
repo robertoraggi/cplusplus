@@ -2385,6 +2385,7 @@ auto ClassSymbol::baseClasses() const -> const std::vector<BaseClassSymbol*>& {
 void ClassSymbol::addBaseClass(BaseClassSymbol* baseClass) {
   baseClasses_.push_back(baseClass);
   baseClassSymbols_.reset();
+  directBaseClasses_.reset();
 }
 
 void ClassSymbol::addBefriendingClass(ClassSymbol* classSymbol) {
@@ -2532,6 +2533,39 @@ struct BaseWalkState {
 
 }  // namespace
 
+auto ClassSymbol::findDirectBaseClasses() const -> DirectBaseClasses {
+  DirectBaseClasses found;
+  for (auto baseClass : baseClasses_) {
+    auto base = symbol_cast<ClassSymbol>(baseClass->symbol());
+    if (!base) {
+      found.areComplete = false;
+      continue;
+    }
+    base = base->resolvedDefinition();
+    if (!base->isComplete()) found.areComplete = false;
+    if (base->baseClasses().empty())
+      found.withoutBaseClasses[base].push_back(baseClass);
+    else
+      found.withBaseClasses.push_back(baseClass);
+  }
+  return found;
+}
+
+auto ClassSymbol::directBaseClassesLeadingTo(const ClassSymbol* base) const
+    -> std::vector<BaseClassSymbol*> {
+  if (!directBaseClasses_) {
+    auto found = findDirectBaseClasses();
+    if (!found.areComplete) return baseClasses_;
+    directBaseClasses_ = std::move(found);
+  }
+
+  auto leading = directBaseClasses_->withBaseClasses;
+  auto direct = directBaseClasses_->withoutBaseClasses.find(base);
+  if (direct != directBaseClasses_->withoutBaseClasses.end())
+    leading.insert(leading.end(), direct->second.begin(), direct->second.end());
+  return leading;
+}
+
 auto ClassSymbol::hasDirectBaseClass(const Symbol* symbol) const -> bool {
   for (auto baseClass : baseClasses_) {
     if (baseClass->symbol() == symbol) return true;
@@ -2656,7 +2690,7 @@ class BaseSubobjectSearch {
 
     NonVirtualPaths result;
 
-    for (auto baseClass : anchor->baseClasses()) {
+    for (auto baseClass : anchor->directBaseClassesLeadingTo(base_)) {
       if (baseClass->isVirtual()) continue;
 
       auto directBase = searchedBaseOf(baseClass);
