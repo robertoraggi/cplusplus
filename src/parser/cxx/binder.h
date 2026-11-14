@@ -939,7 +939,7 @@ class Binder {
   struct CachedClassSubobjects {
     const ClassLayout* layout = nullptr;
     ClassSubobjectList subobjects;
-    ClassSubobjectList completeObjectSubobjects;
+    ClassSubobjectList completeObjectSubobjectsWithVirtualBases;
   };
 
   [[nodiscard]] auto cachedClassSubobjects(ClassSymbol* classSymbol)
