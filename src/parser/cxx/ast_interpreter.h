@@ -556,6 +556,8 @@ class ASTInterpreter {
 
   [[nodiscard]] auto subscriptAddress(SubscriptExpressionAST* ast)
       -> std::optional<ConstValue>;
+  [[nodiscard]] auto subscriptOperand(ExpressionAST* ast)
+      -> std::optional<ConstValue>;
 
   struct DesignatedObject {
     std::shared_ptr<ConstObject> object;

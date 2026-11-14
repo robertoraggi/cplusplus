@@ -1115,6 +1115,13 @@ auto ASTInterpreter::lvalue(ExpressionAST* ast) -> ConstValue* {
         return nullptr;
       return &std::get<0>((*elements)->mutableElement(*offset));
     }
+    if (!traits.is_vector(sub->baseExpression->type)) {
+      auto value = subscriptAddress(sub);
+      if (!value) return nullptr;
+      auto address = pointerAddress(*value);
+      if (!address) return nullptr;
+      return addressSlot(*address, 0, ast->type);
+    }
     auto baseVal = expression(sub->baseExpression);
     if (!baseVal.has_value()) return nullptr;
 
@@ -1125,15 +1132,6 @@ auto ASTInterpreter::lvalue(ExpressionAST* ast) -> ConstValue* {
       auto idx = toUInt(*idxVal);
       if (!idx.has_value() || *idx >= (*list)->size()) return nullptr;
       return &std::get<0>((*list)->mutableElement(*idx));
-    }
-
-    if (auto addr = std::get_if<std::shared_ptr<ConstAddress>>(&*baseVal)) {
-      if (!*addr) return nullptr;
-      auto idxVal = expression(sub->expressionList->value);
-      if (!idxVal.has_value()) return nullptr;
-      auto idx = toOffset(*idxVal);
-      if (!idx.has_value()) return nullptr;
-      return addressSlot(**addr, *idx, ast->type);
     }
 
     return nullptr;
@@ -2222,31 +2220,45 @@ auto ASTInterpreter::evaluateSubscriptOperatorCall(
                          false, std::move(address), std::move(destination));
 }
 
+auto ASTInterpreter::subscriptOperand(ExpressionAST* ast)
+    -> std::optional<ConstValue> {
+  auto type = traits.remove_cvref(ast->type);
+  if (!traits.is_array(type)) return evaluate(ast);
+  auto value = addressOfLvalue(ast);
+  if (!value) return std::nullopt;
+  auto address = pointerAddress(*value);
+  if (!address) return std::nullopt;
+  auto decayed = arrayAddress(*address, type);
+  if (!decayed) return std::nullopt;
+  return ConstValue{decayed};
+}
+
 auto ASTInterpreter::subscriptAddress(SubscriptExpressionAST* ast)
     -> std::optional<ConstValue> {
   if (ast->symbol)
     return evaluateSubscriptOperatorCall(ast, CallResultKind::kAddress).value;
 
   if (!ast->expressionList || ast->expressionList->next) return std::nullopt;
-  auto indexValue = evaluate(ast->expressionList->value);
-  if (!indexValue) return std::nullopt;
+  auto left = subscriptOperand(ast->baseExpression);
+  if (!left) return std::nullopt;
+  auto right = subscriptOperand(ast->expressionList->value);
+  if (!right) return std::nullopt;
+
+  auto pointerOperand = ast->baseExpression;
+  auto address = pointerAddress(*left);
+  auto indexValue = &*right;
+  if (!address) {
+    pointerOperand = ast->expressionList->value;
+    address = pointerAddress(*right);
+    indexValue = &*left;
+  }
+  if (!address) return std::nullopt;
   auto index = toOffset(*indexValue);
   if (!index) return std::nullopt;
 
-  auto baseType = traits.remove_cvref(ast->baseExpression->type);
-  const auto subscriptsArray = traits.is_array(baseType);
-  if (!subscriptsArray && !traits.is_pointer(baseType)) return std::nullopt;
-
-  auto base = subscriptsArray ? addressOfLvalue(ast->baseExpression)
-                              : evaluate(ast->baseExpression);
-  if (!base) return std::nullopt;
-  auto address = pointerAddress(*base);
-  if (!address) return std::nullopt;
-
-  if (subscriptsArray) address = arrayAddress(*address, baseType);
-  if (!address) return std::nullopt;
+  auto pointerType = traits.remove_cvref(pointerOperand->type);
   auto result =
-      elementAddress(*address, *index, traits.get_element_type(baseType));
+      elementAddress(*address, *index, traits.get_element_type(pointerType));
   if (!result) return std::nullopt;
   return result;
 }
@@ -3257,6 +3269,14 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
         .evaluateSubscriptOperatorCall(ast, CallResultKind::kValue, destination)
         .value;
 
+  if (!interp.traits.is_vector(ast->baseExpression->type)) {
+    auto value = interp.subscriptAddress(ast);
+    if (!value) return std::nullopt;
+    auto address = pointerAddress(*value);
+    if (!address) return std::nullopt;
+    return interp.loadAddress(*address, 0, ast->type);
+  }
+
   if (!ast->expressionList || ast->expressionList->next) return std::nullopt;
   auto baseExpressionResult = interp.expression(ast->baseExpression);
   auto indexExpressionResult = interp.expression(ast->expressionList->value);
@@ -3273,14 +3293,6 @@ auto ASTInterpreter::ExpressionVisitor::operator()(SubscriptExpressionAST* ast)
     if (static_cast<std::uintmax_t>(*idx) >= (*list)->size())
       return std::nullopt;
     return std::get<0>((*list)->distinctElement(*idx));
-  }
-
-  if (auto str = std::get_if<const StringLiteral*>(&*baseExpressionResult))
-    return stringLiteralElement(*str, *idx);
-
-  if (auto addr =
-          std::get_if<std::shared_ptr<ConstAddress>>(&*baseExpressionResult)) {
-    return interp.loadAddress(**addr, *idx, ast->type);
   }
 
   return std::nullopt;
