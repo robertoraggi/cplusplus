@@ -333,21 +333,42 @@ class TranslationUnit {
     TranslationUnit* unit_;
   };
 
-  class TemplateInstantiationScope {
+  class NestedTemplateInstantiation {
    public:
-    explicit TemplateInstantiationScope(TranslationUnit* unit)
-        : unit_(unit),
-          templatedContext_(unit, false),
-          potentiallyEvaluated_(unit, true),
-          definitionsDeferred_(unit, false),
-          immediateEscalation_(unit) {
+    explicit NestedTemplateInstantiation(TranslationUnit* unit) : unit_(unit) {
       ++unit_->templateInstantiationDepth_;
     }
 
-    ~TemplateInstantiationScope() { --unit_->templateInstantiationDepth_; }
+    ~NestedTemplateInstantiation() { --unit_->templateInstantiationDepth_; }
+
+    NestedTemplateInstantiation(const NestedTemplateInstantiation&) = delete;
+    auto operator=(const NestedTemplateInstantiation&)
+        -> NestedTemplateInstantiation& = delete;
+
+    [[nodiscard]] auto exceedsMaximumDepth() const -> bool {
+      return unit_->templateInstantiationDepth_ >
+             kMaxTemplateInstantiationDepth;
+    }
 
    private:
     TranslationUnit* unit_;
+  };
+
+  class TemplateInstantiationScope {
+   public:
+    explicit TemplateInstantiationScope(TranslationUnit* unit)
+        : nesting_(unit),
+          templatedContext_(unit, false),
+          potentiallyEvaluated_(unit, true),
+          definitionsDeferred_(unit, false),
+          immediateEscalation_(unit) {}
+
+    [[nodiscard]] auto exceedsMaximumDepth() const -> bool {
+      return nesting_.exceedsMaximumDepth();
+    }
+
+   private:
+    NestedTemplateInstantiation nesting_;
     TemplatedContextScope templatedContext_;
     PotentiallyEvaluatedScope potentiallyEvaluated_;
     DeferredDefinitionsScope definitionsDeferred_;
