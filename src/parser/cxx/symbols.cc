@@ -3000,6 +3000,54 @@ auto ClassSymbol::isMoveConstructor(FunctionSymbol* function) const -> bool {
   return isCopyOrMoveConstructorFor<RvalueReferenceType>(function, this);
 }
 
+namespace {
+
+[[nodiscard]] auto referencedClass(const Type* type) -> ClassSymbol* {
+  const Type* referenced = nullptr;
+  if (auto reference = type_cast<LvalueReferenceType>(type))
+    referenced = reference->elementType();
+  else if (auto reference = type_cast<RvalueReferenceType>(type))
+    referenced = reference->elementType();
+  auto classType = unqualified_cast<ClassType>(referenced);
+  if (!classType) return nullptr;
+  return classType->symbol();
+}
+
+[[nodiscard]] auto isSameClassOrBaseOf(const ClassSymbol* base,
+                                       const ClassSymbol* derived) -> bool {
+  if (base->resolvedDefinition() == derived->resolvedDefinition()) return true;
+  return derived->resolvedDefinition()->hasBaseClass(base);
+}
+
+}  // namespace
+
+auto ClassSymbol::excludesInheritedConstructorForOneArgument(
+    FunctionSymbol* origin) const -> bool {
+  auto inheritedFrom = symbol_cast<ClassSymbol>(origin->parent());
+  if (!inheritedFrom) return false;
+
+  auto functionType = type_cast<FunctionType>(origin->type());
+  if (!functionType || functionType->parameterTypes().empty()) return false;
+
+  auto referenced = referencedClass(functionType->parameterTypes().front());
+  if (!referenced) return false;
+
+  if (referenced->resolvedDefinition() == inheritedFrom->resolvedDefinition())
+    return true;
+
+  return isSameClassOrBaseOf(inheritedFrom, referenced) &&
+         isSameClassOrBaseOf(referenced, this);
+}
+
+auto ClassSymbol::excludesInheritedConstructor(FunctionSymbol* origin) const
+    -> bool {
+  auto functionType = type_cast<FunctionType>(origin->type());
+  if (!functionType || functionType->isVariadic()) return false;
+  if (functionType->parameterTypes().size() != 1) return false;
+  if (required_parameter_count(origin, 1) != 1) return false;
+  return excludesInheritedConstructorForOneArgument(origin);
+}
+
 auto ClassSymbol::isCopyAssignmentOperator(FunctionSymbol* function) const
     -> bool {
   return function && isCopyAssignmentFor(function, this);
@@ -3635,6 +3683,18 @@ auto OverloadSetSymbol::functions() const -> std::vector<FunctionSymbol*> {
   return functionsWithin(declaredFunctions_.size(), usingDeclarations_.size());
 }
 
+namespace {
+
+[[nodiscard]] auto excludesWhenInherited(const ClassSymbol* inheritingClass,
+                                         FunctionSymbol* introduced) -> bool {
+  if (!introduced->isConstructor()) return false;
+  auto origin = introduced->inheritedConstructorOrigin();
+  if (!origin) origin = introduced;
+  return inheritingClass->excludesInheritedConstructor(origin);
+}
+
+}  // namespace
+
 auto OverloadSetSymbol::functionsWithin(std::size_t functionCount,
                                         std::size_t usingDeclarationCount) const
     -> std::vector<FunctionSymbol*> {
@@ -3650,11 +3710,14 @@ auto OverloadSetSymbol::functionsWithin(std::size_t functionCount,
 
   ParameterTypeListIndex hiding{localMembers};
   const auto hidesIntroducedMembers = parent()->isClass();
+  auto inheritingClass = symbol_cast<ClassSymbol>(parent());
 
   for (std::size_t i = 0; i < usingDeclarationCount; ++i) {
     for (auto introduced : usingDeclarations_[i]->introducedFunctions()) {
       if (found.contains(introduced->canonical())) continue;
       if (hidesIntroducedMembers && hiding.containsEquivalent(introduced))
+        continue;
+      if (inheritingClass && excludesWhenInherited(inheritingClass, introduced))
         continue;
       found.insert(introduced->canonical());
       result.push_back(introduced);
