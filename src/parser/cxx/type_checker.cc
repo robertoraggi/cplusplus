@@ -10914,6 +10914,7 @@ void TypeChecker::evaluateDefaultInitializer(
     ExpressionAST* ast, bool hasImmediateEscalatingSubexpression) {
   auto initializer = ast_cast<DefaultInitializerExpressionAST>(ast);
   if (!initializer) return;
+  ASTRewriter::requireDefinitionsNamedBy(unit_, initializer->expression);
   if (carriesImmediateEscalation(initializer->context,
                                  hasImmediateEscalatingSubexpression) &&
       isEscalationContext()) {
@@ -10940,6 +10941,7 @@ auto TypeChecker::evaluateAggregateDefaultInitializer(ExpressionAST* ast)
     -> bool {
   auto initializer = ast_cast<DefaultInitializerExpressionAST>(ast);
   if (!initializer) return false;
+  ASTRewriter::requireDefinitionsNamedBy(unit_, initializer->expression);
   return evaluateDeferredUses(initializer, initializer->context, true);
 }
 
