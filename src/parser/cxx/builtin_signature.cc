@@ -141,15 +141,10 @@ class BuiltinSignatureDecoder {
     const Type* type = nullptr;
     if (op == BuiltinTypeOp::kUnsignedBitIntAny)
       type = bitIntType_;
-    else if (isRepresentable(op))
+    else
       type = decodeBuiltinLeafType(control_, op);
     if (!type) unavailable_ = true;
     return type;
-  }
-
-  [[nodiscard]] static auto isRepresentable(BuiltinTypeOp op) -> bool {
-    if (ConstInt::supportsInt128) return true;
-    return op != BuiltinTypeOp::kInt128 && op != BuiltinTypeOp::kUnsignedInt128;
   }
 
   Control* control_;

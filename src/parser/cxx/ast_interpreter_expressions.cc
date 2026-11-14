@@ -50,6 +50,10 @@
 namespace cxx {
 namespace {
 
+using LongDoubleOperation = auto (FloatingPointFormat::*)(long double,
+                                                          long double) const
+    -> long double;
+
 [[nodiscard]] auto namedTypeSymbol(const Type* type) -> Symbol* {
   if (auto classType = unqualified_cast<ClassType>(type))
     return classType->symbol();
@@ -326,12 +330,15 @@ struct ASTInterpreter::ExpressionVisitor {
   [[nodiscard]] auto floatingArithmetic(const Type* type,
                                         const ExpressionResult& left,
                                         const ExpressionResult& right,
-                                        auto&& op) -> ExpressionResult {
+                                        auto&& op,
+                                        LongDoubleOperation longDoubleOp)
+      -> ExpressionResult {
     switch (type->kind()) {
       case TypeKind::kFloat:
         return ConstValue{op(toFloat(*left), toFloat(*right))};
       case TypeKind::kLongDouble:
-        return ConstValue{op(toLongDouble(*left), toLongDouble(*right))};
+        return ConstValue{(interp.longDoubleFormat().*longDoubleOp)(
+            toLongDouble(*left), toLongDouble(*right))};
       case TypeKind::kDouble:
         return ConstValue{op(toDouble(*left), toDouble(*right))};
       case TypeKind::kHalf:
@@ -357,7 +364,8 @@ struct ASTInterpreter::ExpressionVisitor {
       case TypeKind::kDouble:
         return ConstValue{toDouble(*operand)};
       case TypeKind::kLongDouble:
-        return ConstValue{toLongDouble(*operand)};
+        return ConstValue{
+            interp.longDoubleFormat().rounded(toLongDouble(*operand))};
       default:
         return std::nullopt;
     }
@@ -399,8 +407,9 @@ struct ASTInterpreter::ExpressionVisitor {
   auto star_op(const Type* type, const ExpressionResult& left,
                const ExpressionResult& right) -> ExpressionResult {
     if (unit()->typeTraits().is_floating_point(type)) {
-      return floatingArithmetic(type, left, right,
-                                [](auto a, auto b) { return a * b; });
+      return floatingArithmetic(
+          type, left, right, [](auto a, auto b) { return a * b; },
+          &FloatingPointFormat::product);
     }
 
     if (!unit()->typeTraits().is_integral_or_unscoped_enum(type)) {
@@ -419,8 +428,9 @@ struct ASTInterpreter::ExpressionVisitor {
                 const ExpressionResult& right) -> ExpressionResult {
     if (unit()->typeTraits().is_floating_point(type)) {
       if (toDouble(*right) == 0.0) return std::nullopt;
-      return floatingArithmetic(type, left, right,
-                                [](auto a, auto b) { return a / b; });
+      return floatingArithmetic(
+          type, left, right, [](auto a, auto b) { return a / b; },
+          &FloatingPointFormat::quotient);
     }
 
     auto operands = integerOperands(type, left, right);
@@ -538,8 +548,9 @@ struct ASTInterpreter::ExpressionVisitor {
   auto plus_op(const Type* type, const ExpressionResult& left,
                const ExpressionResult& right) -> ExpressionResult {
     if (unit()->typeTraits().is_floating_point(type)) {
-      return floatingArithmetic(type, left, right,
-                                [](auto a, auto b) { return a + b; });
+      return floatingArithmetic(
+          type, left, right, [](auto a, auto b) { return a + b; },
+          &FloatingPointFormat::sum);
     }
 
     if (!unit()->typeTraits().is_integral_or_unscoped_enum(type)) {
@@ -557,8 +568,9 @@ struct ASTInterpreter::ExpressionVisitor {
   auto minus_op(const Type* type, const ExpressionResult& left,
                 const ExpressionResult& right) -> ExpressionResult {
     if (unit()->typeTraits().is_floating_point(type)) {
-      return floatingArithmetic(type, left, right,
-                                [](auto a, auto b) { return a - b; });
+      return floatingArithmetic(
+          type, left, right, [](auto a, auto b) { return a - b; },
+          &FloatingPointFormat::difference);
     }
 
     if (!unit()->typeTraits().is_integral_or_unscoped_enum(type)) {
@@ -3064,7 +3076,8 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
     FloatLiteralExpressionAST* ast) -> ExpressionResult {
   if (ast->literalOperatorCall) return evaluate(ast->literalOperatorCall);
   if (ast->literal->components().isLongDouble)
-    return ast->literal->longDoubleValue();
+    return ConstValue{interp.longDoubleFormat().literalValue(
+        ast->literal->components().literalPart)};
   return interp.toArithmeticType(ConstValue{ast->literal->floatValue()},
                                  ast->type);
 }
@@ -4506,6 +4519,10 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
   if (unqualified_cast<VectorType>(ast->type))
     return evaluateVectorCast(ast, *value);
 
+  if (std::holds_alternative<ConstInt>(*value) &&
+      unit()->typeTraits().is_floating_point(ast->type))
+    return interp.toArithmeticType(*value, ast->type);
+
   switch (ast->type->kind()) {
     case TypeKind::kBool: {
       auto result = interp.toBool(*value);
@@ -4542,11 +4559,12 @@ auto ASTInterpreter::ExpressionVisitor::operator()(
           unit()->typeTraits().is_unsigned(ast->expression->type)) {
         auto result = interp.toUInt(*value);
         if (!result.has_value()) return std::nullopt;
-        return static_cast<long double>(result.value());
+        return ConstValue{interp.longDoubleFormat().rounded(
+            static_cast<long double>(result.value()))};
       }
       auto result = interp.toLongDouble(*value);
       if (!result.has_value()) return std::nullopt;
-      return result.value();
+      return ConstValue{interp.longDoubleFormat().rounded(result.value())};
     }
 
     case TypeKind::kComplex:

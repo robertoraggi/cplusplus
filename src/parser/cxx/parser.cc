@@ -7096,7 +7096,6 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T___INT128:
     case TokenKind::T___INT128_T:
     case TokenKind::T___UINT128_T:
-      if constexpr (!ConstInt::supportsInt128) return false;
       check_target_type_availability(currentLocation(), tk.kind());
       makeIntegralTypeSpecifier();
       specs.accept(yyast);

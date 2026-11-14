@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
@@ -402,7 +403,11 @@ struct TemplateEquivalence::SameExpression {
     auto b = counterpart(ast);
     if (!ast->literal || !b->literal) return false;
     if (!equivalence.same(ast->type, b->type)) return false;
-    return ast->literal->longDoubleValue() == b->literal->longDoubleValue();
+    ASTInterpreter interp{equivalence.unit_};
+    auto value = interp.evaluate(ast);
+    auto other = interp.evaluate(b);
+    if (!value || !other) return false;
+    return interp.toLongDouble(*value) == interp.toLongDouble(*other);
   }
 
   [[nodiscard]] auto operator()(NullptrLiteralExpressionAST* ast) const
