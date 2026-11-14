@@ -2561,33 +2561,28 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast,
 
   SourceLocation lparenLoc;
   ExpressionAST* expression = nullptr;
-  SourceLocation opLoc;
-  TokenKind op = TokenKind::T_EOF_SYMBOL;
-  SourceLocation ellipsisLoc;
-  bool isNestedExpression = false;
 
-  auto lookat_fold_or_nested_expression = [&] {
+  auto lookat_parenthesized_cast_expression = [&] {
     LookaheadParser lookahead{this};
     if (!match(TokenKind::T_LPAREN, lparenLoc)) return false;
     if (!parse_cast_expression(expression, ctx)) return false;
-    if (lookat(TokenKind::T_RPAREN)) {
-      isNestedExpression = true;
-      lookahead.commit();
-      return true;
-    }
-    if (!parse_fold_operator(opLoc, op)) return false;
-    if (!match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc)) return false;
     lookahead.commit();
     return true;
   };
 
-  if (!lookat_fold_or_nested_expression()) return false;
+  if (!lookat_parenthesized_cast_expression()) return false;
 
-  if (isNestedExpression) {
+  SourceLocation opLoc;
+  TokenKind op = TokenKind::T_EOF_SYMBOL;
+  SourceLocation ellipsisLoc;
+
+  if (!parse_fold_operator_and_ellipsis(opLoc, op, ellipsisLoc)) {
     auto ast = NestedExpressionAST::create(pool_);
     yyast = ast;
     ast->lparenLoc = lparenLoc;
     ast->expression = expression;
+    if (!lookat(TokenKind::T_RPAREN))
+      parse_rest_of_expression(ast->expression, ctx);
     expect(TokenKind::T_RPAREN, ast->rparenLoc);
     check(&yyast);
     return true;
@@ -2627,6 +2622,18 @@ auto Parser::parse_fold_expression(ExpressionAST*& yyast,
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
   return true;
+}
+
+auto Parser::parse_fold_operator_and_ellipsis(SourceLocation& opLoc,
+                                              TokenKind& op,
+                                              SourceLocation& ellipsisLoc)
+    -> bool {
+  const auto start = currentLocation();
+  if (parse_fold_operator(opLoc, op) &&
+      match(TokenKind::T_DOT_DOT_DOT, ellipsisLoc))
+    return true;
+  rewind(start);
+  return false;
 }
 
 auto Parser::parse_fold_operator(SourceLocation& loc, TokenKind& op) -> bool {
@@ -4235,18 +4242,21 @@ auto Parser::parse_binary_operator(SourceLocation& loc, TokenKind& tk,
 auto Parser::parse_binary_expression(ExpressionAST*& yyast,
                                      const ExprContext& exprContext) -> bool {
   if (!parse_cast_expression(yyast, exprContext)) return false;
+  parse_rest_of_binary_expression(yyast, exprContext);
+  return true;
+}
 
+void Parser::parse_rest_of_binary_expression(ExpressionAST*& yyast,
+                                             const ExprContext& exprContext) {
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
-  if (!parse_lookahead_binary_operator(opLoc, op, exprContext)) return true;
+  if (!parse_lookahead_binary_operator(opLoc, op, exprContext)) return;
 
   LookaheadParser lookahead{this};
 
   if (parse_binary_expression_helper(yyast, Prec::kLogicalOr, exprContext)) {
     lookahead.commit();
   }
-
-  return true;
 }
 
 auto Parser::parse_lookahead_binary_operator(SourceLocation& loc, TokenKind& tk,
@@ -4324,9 +4334,14 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
                                           const ExprContext& exprContext)
     -> bool {
   if (!parse_logical_or_expression(yyast, exprContext)) return false;
+  parse_rest_of_conditional_expression(yyast, exprContext);
+  return true;
+}
 
+void Parser::parse_rest_of_conditional_expression(
+    ExpressionAST*& yyast, const ExprContext& exprContext) {
   SourceLocation questionLoc;
-  if (!match(TokenKind::T_QUESTION, questionLoc)) return true;
+  if (!match(TokenKind::T_QUESTION, questionLoc)) return;
 
   auto ast = ConditionalExpressionAST::create(pool_);
   ast->condition = yyast;
@@ -4347,8 +4362,6 @@ auto Parser::parse_conditional_expression(ExpressionAST*& yyast,
   }
 
   check(&yyast);
-
-  return true;
 }
 
 auto Parser::parse_yield_expression(ExpressionAST*& yyast,
@@ -4407,41 +4420,44 @@ auto Parser::parse_maybe_assignment_expression(ExpressionAST*& yyast,
   if (parse_throw_expression(yyast, exprContext)) return true;
 
   if (!parse_conditional_expression(yyast, exprContext)) return false;
+  parse_rest_of_assignment_expression(yyast, exprContext);
+  return true;
+}
 
+void Parser::parse_rest_of_assignment_expression(
+    ExpressionAST*& yyast, const ExprContext& exprContext) {
   SourceLocation opLoc;
   TokenKind op = TokenKind::T_EOF_SYMBOL;
 
-  if (parse_assignment_operator(opLoc, op)) {
-    ExpressionAST* expression = nullptr;
+  if (!parse_assignment_operator(opLoc, op)) return;
 
-    if (!parse_initializer_clause(expression, exprContext)) {
-      report_failed_parse("expected an expression");
-    }
+  ExpressionAST* expression = nullptr;
 
-    if (op == TokenKind::T_EQUAL) {
-      auto ast = AssignmentExpressionAST::create(pool_);
-
-      ast->leftExpression = yyast;
-      ast->opLoc = opLoc;
-      ast->rightExpression = expression;
-      ast->op = op;
-      yyast = ast;
-    } else {
-      auto ast = CompoundAssignmentExpressionAST::create(pool_);
-      ast->leftExpression = TargetExpressionAST::create(pool_);
-      ast->adjustExpression = RightExpressionAST::create(pool_);
-
-      ast->targetExpression = yyast;
-      ast->opLoc = opLoc;
-      ast->rightExpression = expression;
-      ast->op = op;
-      yyast = ast;
-    }
-
-    check(&yyast);
+  if (!parse_initializer_clause(expression, exprContext)) {
+    report_failed_parse("expected an expression");
   }
 
-  return true;
+  if (op == TokenKind::T_EQUAL) {
+    auto ast = AssignmentExpressionAST::create(pool_);
+
+    ast->leftExpression = yyast;
+    ast->opLoc = opLoc;
+    ast->rightExpression = expression;
+    ast->op = op;
+    yyast = ast;
+  } else {
+    auto ast = CompoundAssignmentExpressionAST::create(pool_);
+    ast->leftExpression = TargetExpressionAST::create(pool_);
+    ast->adjustExpression = RightExpressionAST::create(pool_);
+
+    ast->targetExpression = yyast;
+    ast->opLoc = opLoc;
+    ast->rightExpression = expression;
+    ast->op = op;
+    yyast = ast;
+  }
+
+  check(&yyast);
 }
 
 auto Parser::parse_assignment_operator(SourceLocation& loc, TokenKind& op)
@@ -4477,7 +4493,21 @@ void Parser::parse_expression(ExpressionAST*& yyast, const ExprContext& ctx) {
 auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
                                     const ExprContext& ctx) -> bool {
   if (!parse_maybe_assignment_expression(yyast, ExprContext{})) return false;
+  parse_rest_of_comma_expression(yyast, ctx);
+  return true;
+}
 
+void Parser::parse_rest_of_expression(ExpressionAST*& yyast,
+                                      const ExprContext& ctx) {
+  const ExprContext operandContext;
+  parse_rest_of_binary_expression(yyast, operandContext);
+  parse_rest_of_conditional_expression(yyast, operandContext);
+  parse_rest_of_assignment_expression(yyast, operandContext);
+  parse_rest_of_comma_expression(yyast, ctx);
+}
+
+void Parser::parse_rest_of_comma_expression(ExpressionAST*& yyast,
+                                            const ExprContext& ctx) {
   SourceLocation commaLoc;
 
   while (match(TokenKind::T_COMMA, commaLoc)) {
@@ -4498,8 +4528,6 @@ auto Parser::parse_maybe_expression(ExpressionAST*& yyast,
 
     check(&yyast);
   }
-
-  return true;
 }
 
 auto Parser::parse_constant_expression(ExpressionAST*& yyast,
@@ -12027,23 +12055,18 @@ auto Parser::parse_simple_template_id(
                                             identifier);
   }();
 
-  LookaheadParser lookahead{this};
-
-  SimpleTemplateIdAST* templateId = nullptr;
-  if (!parse_unresolved_simple_template_id(templateId, signatureHelpSymbol))
-    return false;
-  if (!templateId->greaterLoc) return false;
+  const auto identifier = unit_->identifier(currentLocation());
 
   const auto dependentQualifier =
       memberAccess.isDependent ||
       (binder_.inTemplate() && isDependent(unit_, nestedNameSpecifier));
 
-  Symbol* candidate = lookupCandidate(templateId->identifier);
+  Symbol* candidate = lookupCandidate(identifier);
 
   if (symbol_cast<NonTypeParameterSymbol>(candidate)) return false;
 
   auto primaryTemplateSymbol =
-      findTemplatedSymbolInLookupScope(candidate, templateId->identifier);
+      findTemplatedSymbolInLookupScope(candidate, identifier);
 
   if (!isTemplateIntroduced && context != TypeNameContext::kTypeOnly &&
       dependentQualifier && !primaryTemplateSymbol)
@@ -12051,6 +12074,13 @@ auto Parser::parse_simple_template_id(
 
   if (candidate && !primaryTemplateSymbol && !isTemplateIntroduced)
     return false;
+
+  LookaheadParser lookahead{this};
+
+  SimpleTemplateIdAST* templateId = nullptr;
+  if (!parse_unresolved_simple_template_id(templateId, signatureHelpSymbol))
+    return false;
+  if (!templateId->greaterLoc) return false;
 
   templateId->symbol = primaryTemplateSymbol;
 

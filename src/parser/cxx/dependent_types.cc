@@ -310,36 +310,20 @@ struct IsDependent {
     return false;
   }
 
+  [[nodiscard]] auto hasDependentQualifier(TypeIdAST* ast) -> bool {
+    for (auto spec : ListView{ast->typeSpecifierList}) {
+      auto named = ast_cast<NamedTypeSpecifierAST>(spec);
+      if (named && isDependent(named->nestedNameSpecifier)) return true;
+    }
+    return false;
+  }
+
   [[nodiscard]] auto isDependentTypeArgument(TypeTemplateArgumentAST* typeArg)
       -> bool {
     if (!typeArg || !typeArg->typeId) return false;
     if (isDependent(typeArg->typeId)) return true;
-
-    for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
-      auto named = ast_cast<NamedTypeSpecifierAST>(spec);
-      if (!named) continue;
-
-      if (namesDependentTemplateParameter(named->symbol)) return true;
-      if (auto alias = symbol_cast<TypeAliasSymbol>(named->symbol)) {
-        const auto bindsAliasTemplate =
-            alias->templateParameters() &&
-            ast_cast<NameIdAST>(named->unqualifiedId) != nullptr;
-        if (!bindsAliasTemplate) {
-          if (!alias->type()) return true;
-          if (isDependent(alias->type())) return true;
-        }
-      }
-      if (isDependent(named->nestedNameSpecifier)) {
-        return true;
-      }
-
-      if (auto innerTemplateId =
-              ast_cast<SimpleTemplateIdAST>(named->unqualifiedId)) {
-        if (hasDependentTemplateArguments(innerTemplateId)) return true;
-      }
-    }
-
-    return false;
+    if (!bindsAliasTemplate(typeArg->typeId)) return false;
+    return hasDependentQualifier(typeArg->typeId);
   }
 
   [[nodiscard]] auto isDependentTemplateNameArgument(

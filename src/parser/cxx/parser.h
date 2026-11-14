@@ -333,6 +333,9 @@ class Parser final {
                                                 const ExprContext& ctx) -> bool;
   [[nodiscard]] auto parse_fold_operator(SourceLocation& loc, TokenKind& op)
       -> bool;
+  [[nodiscard]] auto parse_fold_operator_and_ellipsis(
+      SourceLocation& opLoc, TokenKind& op, SourceLocation& ellipsisLoc)
+      -> bool;
   [[nodiscard]] auto parse_requires_expression(ExpressionAST*& yyast) -> bool;
   [[nodiscard]] auto parse_requirement_parameter_list(
       SourceLocation& lparenLoc,
@@ -459,6 +462,15 @@ class Parser final {
   void parse_expression(ExpressionAST*& yyast, const ExprContext& ctx);
   [[nodiscard]] auto parse_maybe_expression(ExpressionAST*& yyast,
                                             const ExprContext& ctx) -> bool;
+  void parse_rest_of_expression(ExpressionAST*& yyast, const ExprContext& ctx);
+  void parse_rest_of_binary_expression(ExpressionAST*& yyast,
+                                       const ExprContext& exprContext);
+  void parse_rest_of_conditional_expression(ExpressionAST*& yyast,
+                                            const ExprContext& exprContext);
+  void parse_rest_of_assignment_expression(ExpressionAST*& yyast,
+                                           const ExprContext& exprContext);
+  void parse_rest_of_comma_expression(ExpressionAST*& yyast,
+                                      const ExprContext& ctx);
   [[nodiscard]] auto parse_constant_expression(ExpressionAST*& yyast,
                                                std::optional<ConstValue>& value)
       -> bool;
