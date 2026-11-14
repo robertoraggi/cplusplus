@@ -191,6 +191,8 @@ void rebuild_specialization_index(Symbol* symbol);
 [[nodiscard]] auto resolved_base_class(BaseClassSymbol* baseClass)
     -> ClassSymbol*;
 
+[[nodiscard]] auto is_laid_out_without_virtual_base_subobjects(
+    ClassSymbol* classSymbol) -> bool;
 [[nodiscard]] auto virtual_base_initialization_order(ClassSymbol* classSymbol)
     -> std::vector<ClassSymbol*>;
 
@@ -1240,6 +1242,24 @@ class UnresolvedSymbol final : public Symbol {
   ~UnresolvedSymbol() override;
 };
 
+enum class ClassProperty : std::uint8_t {
+  kHasDirectOrInheritedNonStaticDataMembers,
+  kStandardLayout,
+  kStandardLayoutForObjectSizes,
+  kTrivialDefaultConstructor,
+  kTrivialCopyConstructor,
+  kTrivialMoveConstructor,
+  kTrivialOrDeletedDefaultConstructor,
+  kTrivialOrDeletedCopyConstructor,
+  kTrivialOrDeletedMoveConstructor,
+  kTrivialCopyAssignment,
+  kTrivialMoveAssignment,
+  kTrivialDestructor,
+  kTriviallyCopyable,
+  kTrivialForCalls,
+  kTrivialCopyMembersForObjectSizes,
+};
+
 class ClassSymbol final : public ScopeSymbol,
                           public MaybeTemplate<ClassSymbol, AST>,
                           public MaybeRedecl<ClassSymbol> {
@@ -1348,6 +1368,11 @@ class ClassSymbol final : public ScopeSymbol,
 
   [[nodiscard]] auto isComplete() const -> bool;
   void setComplete(bool isComplete);
+
+  [[nodiscard]] auto knownProperty(ClassProperty property) const
+      -> std::optional<bool>;
+  void recordProperty(ClassProperty property, bool value);
+  [[nodiscard]] auto hasDirectOrInheritedNonStaticDataMembers() -> bool;
 
   [[nodiscard]] auto isFriend() const -> bool;
   void setFriend(bool isFriend);
@@ -1478,6 +1503,8 @@ class ClassSymbol final : public ScopeSymbol,
   std::vector<DeductionGuideSymbol*> deductionGuides_;
   std::unique_ptr<ClassLayout> layout_;
   std::unique_ptr<VTableLayout> vtableLayout_;
+  std::uint16_t knownProperties_ = 0;
+  std::uint16_t knownPropertyValues_ = 0;
   FunctionSymbol* selectedDestructor_ = nullptr;
   FieldSymbol* capturedThisField_ = nullptr;
   Symbol* closureInitializerOwner_ = nullptr;

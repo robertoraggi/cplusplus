@@ -145,6 +145,14 @@ export const bindings: Record<string, ClassBindings> = {
       write: "$->setFirstNonFriendDeclarationLocation($value)",
     },
     flags_: { cls: "D", why: "the individual bit-fields are persisted" },
+    knownProperties_: {
+      cls: "R",
+      why: "which properties of the completed class were derived on first use",
+    },
+    knownPropertyValues_: {
+      cls: "R",
+      why: "the derived properties of the completed class",
+    },
     baseClasses_: {
       cls: "P",
       read: "$->baseClasses()",

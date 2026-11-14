@@ -1165,6 +1165,7 @@ void Binder::findOverriddenFunctionsImpl(
     if (!baseClass || std::ranges::contains(visited, baseClass)) continue;
     visited.push_back(baseClass);
     baseClass = baseClass->resolvedDefinition();
+    if (!baseClass->isPolymorphic()) continue;
 
     for (auto member : views::members(baseClass) | views::virtual_functions) {
       if (!traits.is_corresponding_overrider(fn, member)) continue;

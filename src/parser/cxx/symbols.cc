@@ -1338,6 +1338,12 @@ auto resolved_base_class(BaseClassSymbol* baseClass) -> ClassSymbol* {
   return classSymbol->resolvedDefinition();
 }
 
+auto is_laid_out_without_virtual_base_subobjects(ClassSymbol* classSymbol)
+    -> bool {
+  auto layout = classSymbol->layout();
+  return layout && layout->virtualBases().empty();
+}
+
 auto virtual_base_initialization_order(ClassSymbol* classSymbol)
     -> std::vector<ClassSymbol*> {
   struct Frame {
@@ -1353,8 +1359,12 @@ auto virtual_base_initialization_order(ClassSymbol* classSymbol)
     const auto& bases = frame.classSymbol->baseClasses();
     if (frame.nextBase < bases.size()) {
       auto base = bases[frame.nextBase++];
-      if (auto baseClass = resolved_base_class(base))
-        frames.push_back({baseClass, base->isVirtual()});
+      auto baseClass = resolved_base_class(base);
+      if (!baseClass) continue;
+      if (!base->isVirtual() &&
+          is_laid_out_without_virtual_base_subobjects(baseClass))
+        continue;
+      frames.push_back({baseClass, base->isVirtual()});
       continue;
     }
     if (frame.isVirtual && !std::ranges::contains(order, frame.classSymbol))
@@ -2377,6 +2387,41 @@ void ClassSymbol::addDeductionGuide(DeductionGuideSymbol* guide) {
 auto ClassSymbol::isComplete() const -> bool { return isComplete_; }
 
 void ClassSymbol::setComplete(bool isComplete) { isComplete_ = isComplete; }
+
+auto ClassSymbol::knownProperty(ClassProperty property) const
+    -> std::optional<bool> {
+  const auto bit = std::uint16_t(1u << std::to_underlying(property));
+  if (!(knownProperties_ & bit)) return std::nullopt;
+  return (knownPropertyValues_ & bit) != 0;
+}
+
+void ClassSymbol::recordProperty(ClassProperty property, bool value) {
+  if (!isComplete() || !layout_) return;
+  const auto bit = std::uint16_t(1u << std::to_underlying(property));
+  knownProperties_ |= bit;
+  if (value) knownPropertyValues_ |= bit;
+}
+
+auto ClassSymbol::hasDirectOrInheritedNonStaticDataMembers() -> bool {
+  const auto property =
+      ClassProperty::kHasDirectOrInheritedNonStaticDataMembers;
+  if (auto known = knownProperty(property)) return *known;
+
+  auto hasNonStaticDataMembers = [](BaseClassSymbol* base) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) return false;
+    return baseClass->resolvedDefinition()
+        ->hasDirectOrInheritedNonStaticDataMembers();
+  };
+
+  const auto value =
+      !std::ranges::empty(members() | views::non_static_fields) ||
+      std::ranges::any_of(baseClasses_, hasNonStaticDataMembers);
+
+  recordProperty(property, value);
+
+  return value;
+}
 
 auto ClassSymbol::isFriend() const -> bool { return isFriend_; }
 
