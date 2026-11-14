@@ -387,6 +387,8 @@ class TypeTraits {
   [[nodiscard]] auto aggregate_element_type(Symbol* element) const
       -> const Type*;
   auto is_empty(const Type* type) -> bool;
+  [[nodiscard]] auto is_empty_class(ClassSymbol* cls) -> bool;
+  [[nodiscard]] auto is_empty_apart_from_base_classes(ClassSymbol* cls) -> bool;
   [[nodiscard]] auto requires_zero_initialization(const Type* type,
                                                   FunctionSymbol* constructor)
       -> bool;
