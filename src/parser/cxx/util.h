@@ -20,8 +20,11 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <unordered_set>
+#include <vector>
 
 namespace cxx {
 
@@ -32,5 +35,42 @@ template <typename T>
 void hash_combine(std::size_t& seed, const T& val) {
   seed ^= std::hash<T>()(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
+
+template <typename T>
+class InsertionOrderedSet {
+ public:
+  InsertionOrderedSet() = default;
+
+  explicit InsertionOrderedSet(std::vector<T> distinctElements)
+      : elements_(std::move(distinctElements)) {}
+
+  [[nodiscard]] auto begin() const { return elements_.begin(); }
+  [[nodiscard]] auto end() const { return elements_.end(); }
+  [[nodiscard]] auto empty() const -> bool { return elements_.empty(); }
+
+  [[nodiscard]] auto contains(const T& element) -> bool {
+    if (elements_.size() < kLinearScanLimit)
+      return std::ranges::contains(elements_, element);
+    if (index_.empty()) index_.insert(elements_.begin(), elements_.end());
+    return index_.contains(element);
+  }
+
+  auto insert(T element) -> bool {
+    if (contains(element)) return false;
+    if (!index_.empty()) index_.insert(element);
+    elements_.push_back(std::move(element));
+    return true;
+  }
+
+  [[nodiscard]] auto take() && -> std::vector<T> {
+    return std::move(elements_);
+  }
+
+ private:
+  static constexpr std::size_t kLinearScanLimit = 32;
+
+  std::vector<T> elements_;
+  std::unordered_set<T> index_;
+};
 
 }  // namespace cxx

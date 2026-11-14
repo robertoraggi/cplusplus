@@ -1908,11 +1908,11 @@ void TypeChecker::Visitor::ResolveCallOverload::collectCandidates() {
 
   if (std::ranges::any_of(allFunctions, isClassMember)) return;
 
-  for (auto function : argumentDependentLookup(check.unit_, overloadSet->name(),
-                                               argumentTypes)) {
-    if (std::ranges::contains(allFunctions, function)) continue;
-    allFunctions.push_back(function);
-  }
+  OverloadCandidateSet candidates{std::move(allFunctions)};
+  for (auto function :
+       argumentDependentLookup(check.unit_, overloadSet->name(), argumentTypes))
+    candidates.insert(function);
+  allFunctions = std::move(candidates).take();
 }
 
 void TypeChecker::Visitor::ResolveCallOverload::adoptEnclosingObjectArgument() {
