@@ -25,6 +25,7 @@
 #include <cxx/triple.h>
 #include <cxx/types_fwd.h>
 
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -73,6 +74,21 @@ struct FloatingPointFormat {
   [[nodiscard]] auto representation(double value) const -> ConstInt::UWide;
   [[nodiscard]] auto representation(long double value) const -> ConstInt::UWide;
   [[nodiscard]] auto value(ConstInt::UWide representation) const -> double;
+  [[nodiscard]] auto rounded(
+      long double value,
+      std::strong_ordering excess = std::strong_ordering::equal) const
+      -> long double;
+  [[nodiscard]] auto sum(long double left, long double right) const
+      -> long double;
+  [[nodiscard]] auto difference(long double left, long double right) const
+      -> long double;
+  [[nodiscard]] auto product(long double left, long double right) const
+      -> long double;
+  [[nodiscard]] auto quotient(long double left, long double right) const
+      -> long double;
+  [[nodiscard]] auto literalValue(std::string_view spelling) const
+      -> long double;
+  [[nodiscard]] auto integerValue(const ConstInt& value) const -> long double;
 };
 
 class MemoryLayout {

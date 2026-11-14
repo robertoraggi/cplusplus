@@ -143,8 +143,13 @@ struct ArithmeticCast {
   }
 
   [[nodiscard]] auto operator()(ConstInt value) const -> std::optional<T> {
-    if (value.isSigned()) return static_cast<T>(value.toIntMax());
-    return static_cast<T>(value.toUIntMax());
+    if constexpr (std::is_floating_point_v<T>) {
+      if (value.isSigned()) return static_cast<T>(value.toWide());
+      return static_cast<T>(value.toUWide());
+    } else {
+      if (value.isSigned()) return static_cast<T>(value.toIntMax());
+      return static_cast<T>(value.toUIntMax());
+    }
   }
 
   [[nodiscard]] auto operator()(auto value) const -> std::optional<T> {
@@ -591,9 +596,11 @@ auto ASTInterpreter::toArithmeticType(const ConstValue& value, const Type* type)
     }
 
     case TypeKind::kLongDouble: {
+      if (auto integer = std::get_if<ConstInt>(&value))
+        return ConstValue{longDoubleFormat().integerValue(*integer)};
       auto result = toLongDouble(value);
       if (!result) return std::nullopt;
-      return ConstValue{*result};
+      return ConstValue{longDoubleFormat().rounded(*result)};
     }
 
     case TypeKind::kHalf:
@@ -627,6 +634,13 @@ auto ASTInterpreter::toDouble(const ConstValue& value)
 auto ASTInterpreter::toLongDouble(const ConstValue& value)
     -> std::optional<long double> {
   return std::visit(ArithmeticCast<long double>{}, value);
+}
+
+auto ASTInterpreter::longDoubleFormat() -> FloatingPointFormat {
+  return control()
+      ->memoryLayout()
+      ->floatingPointFormat(control()->getLongDoubleType())
+      .value();
 }
 
 auto ASTInterpreter::lookupLocal(const Symbol* sym)

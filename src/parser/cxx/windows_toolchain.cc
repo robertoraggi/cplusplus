@@ -39,10 +39,10 @@ WindowsToolchain::WindowsToolchain(Preprocessor* preprocessor, Triple triple)
 
   switch (this->triple().arch()) {
     case TripleArch::kAArch64:
-      memoryLayout()->setTriple("aarch64-windows");
+      memoryLayout()->setTriple("aarch64-pc-windows-msvc");
       break;
     case TripleArch::kX86_64:
-      memoryLayout()->setTriple("x86_64-windows");
+      memoryLayout()->setTriple("x86_64-pc-windows-msvc");
       break;
     default:
       cxx_runtime_error(std::format("Unsupported architecture: {}",

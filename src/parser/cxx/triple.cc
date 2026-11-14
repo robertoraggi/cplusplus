@@ -76,10 +76,10 @@ auto parseOS(std::string_view name) -> TripleOS {
 
 auto parseEnvironment(std::string_view name) -> TripleEnvironment {
   if (name == "threads") return TripleEnvironment::kThreads;
-  if (name == "msvc") return TripleEnvironment::kMSVC;
   if (name == "mingw32") return TripleEnvironment::kMinGW;
 
   auto base = stripVersion(name);
+  if (base == "msvc") return TripleEnvironment::kMSVC;
   if (base == "gnu" || base == "gnueabi" || base == "gnueabihf") {
     return TripleEnvironment::kGNU;
   }

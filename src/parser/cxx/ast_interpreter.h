@@ -39,6 +39,7 @@
 namespace cxx {
 class TranslationUnit;
 class Control;
+struct FloatingPointFormat;
 
 class ASTInterpreter {
  public:
@@ -128,6 +129,8 @@ class ASTInterpreter {
 
   [[nodiscard]] auto toLongDouble(const ConstValue& value)
       -> std::optional<long double>;
+
+  [[nodiscard]] auto longDoubleFormat() -> FloatingPointFormat;
 
   [[nodiscard]] auto evaluateCall(
       FunctionSymbol* func, std::vector<ConstValue> args,

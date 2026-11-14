@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/ast.h>
+#include <cxx/ast_interpreter.h>
 #include <cxx/attributes.h>
 #include <cxx/binder.h>
 #include <cxx/class_template_deduction.h>
@@ -2466,12 +2467,9 @@ struct ExternalNameEncoder::EncodeExpression {
   [[nodiscard]] auto operator()(FloatLiteralExpressionAST* ast) const -> bool {
     if (ast->literalOperatorCall) return encode(ast->literalOperatorCall);
     if (!ast->literal || !ast->type) return false;
-    if (ast->literal->components().isLongDouble)
-      encoder.encodeConstValue(ast->type,
-                               ConstValue{ast->literal->longDoubleValue()});
-    else
-      encoder.encodeConstValue(ast->type,
-                               ConstValue{ast->literal->floatValue()});
+    auto value = ASTInterpreter{encoder.unit_}.evaluate(ast);
+    if (!value) return false;
+    encoder.encodeConstValue(ast->type, *value);
     return true;
   }
 

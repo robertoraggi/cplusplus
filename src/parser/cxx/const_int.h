@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <cxx/int128.h>
+
 #include <algorithm>
 #include <bit>
 #include <concepts>
@@ -38,8 +40,8 @@ class ConstInt {
   using Wide = __int128;
   using UWide = unsigned __int128;
 #else
-  using Wide = std::int64_t;
-  using UWide = std::uint64_t;
+  using Wide = Int128;
+  using UWide = UInt128;
 #endif
 
   using Narrow = std::int64_t;
@@ -47,8 +49,6 @@ class ConstInt {
 
   static constexpr int narrowWidth = static_cast<int>(sizeof(Narrow) * 8);
   static constexpr int maxWidth = static_cast<int>(sizeof(Wide) * 8);
-
-  static constexpr bool supportsInt128 = maxWidth >= 128;
 
   static constexpr auto isRepresentableWidth(int width) -> bool {
     return width > 0 && width <= maxWidth;
@@ -92,14 +92,9 @@ class ConstInt {
   }
 
   [[nodiscard]] auto toWide() const -> Wide {
-    if constexpr (maxWidth > narrowWidth) {
-      auto bits = static_cast<UWide>(highBits_)
-                  << (narrowWidth / 2) << (narrowWidth / 2);
-      bits |= static_cast<UWide>(lowBits_);
-      return static_cast<Wide>(bits);
-    } else {
-      return static_cast<Wide>(lowBits_);
-    }
+    auto bits = static_cast<UWide>(highBits_) << narrowWidth;
+    bits |= static_cast<UWide>(lowBits_);
+    return static_cast<Wide>(bits);
   }
 
   [[nodiscard]] auto toUWide() const -> UWide {
@@ -168,36 +163,21 @@ class ConstInt {
 
   [[nodiscard]] auto popcount() const -> int {
     auto bits = toUWide();
-    if constexpr (maxWidth > narrowWidth) {
-      return std::popcount(low(bits)) + std::popcount(high(bits));
-    } else {
-      return std::popcount(low(bits));
-    }
+    return std::popcount(low(bits)) + std::popcount(high(bits));
   }
 
   [[nodiscard]] auto countTrailingZeros() const -> int {
     if (isZero()) return width_;
     auto bits = toUWide();
-    if constexpr (maxWidth > narrowWidth) {
-      if (auto lo = low(bits)) return std::countr_zero(lo);
-      return narrowWidth + std::countr_zero(high(bits));
-    } else {
-      return std::countr_zero(low(bits));
-    }
+    if (auto lo = low(bits)) return std::countr_zero(lo);
+    return narrowWidth + std::countr_zero(high(bits));
   }
 
   [[nodiscard]] auto countLeadingZeros() const -> int {
     if (isZero()) return width_;
     auto bits = toUWide();
-    const auto leadingInStorage = [&]() -> int {
-      if constexpr (maxWidth > narrowWidth) {
-        if (auto hi = high(bits)) return std::countl_zero(hi);
-        return narrowWidth + std::countl_zero(low(bits));
-      } else {
-        return std::countl_zero(low(bits));
-      }
-    }();
-    return leadingInStorage - (maxWidth - width_);
+    if (auto hi = high(bits)) return std::countl_zero(hi) - (maxWidth - width_);
+    return narrowWidth + std::countl_zero(low(bits)) - (maxWidth - width_);
   }
 
   friend auto operator+(ConstInt l, ConstInt r) -> ConstInt {
@@ -325,12 +305,7 @@ class ConstInt {
   static auto low(UWide bits) -> UNarrow { return static_cast<UNarrow>(bits); }
 
   static auto high(UWide bits) -> UNarrow {
-    if constexpr (maxWidth > narrowWidth) {
-      return static_cast<UNarrow>(bits >> (narrowWidth / 2) >>
-                                  (narrowWidth / 2));
-    } else {
-      return 0;
-    }
+    return static_cast<UNarrow>(bits >> narrowWidth);
   }
 
   [[nodiscard]] auto minSignedValue() const -> Wide {

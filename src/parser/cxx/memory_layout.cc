@@ -23,13 +23,17 @@
 #include <cxx/symbols.h>
 #include <cxx/types.h>
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <cmath>
+#include <compare>
 #include <cstdlib>
 #include <limits>
 #include <optional>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace cxx {
 namespace {
@@ -522,16 +526,27 @@ struct AlignmentOf {
   }
 };
 
-[[nodiscard]] auto round_shift_right(ConstInt::UWide value, int count)
+[[nodiscard]] auto significant_bits(ConstInt::UWide value) -> int {
+  int bits = 0;
+  for (; value > std::numeric_limits<std::uint32_t>::max(); value >>= 32)
+    bits += 32;
+  return bits + std::bit_width(static_cast<std::uint32_t>(value));
+}
+
+[[nodiscard]] auto round_shift_right(ConstInt::UWide value, int count,
+                                     std::strong_ordering excess)
     -> ConstInt::UWide {
-  if (count > 128) return 0;
-  if (count == 128) return value > (ConstInt::UWide(1) << 127);
-  const auto quotient = value >> count;
-  const auto remainder = value & ((ConstInt::UWide(1) << count) - 1);
+  constexpr int kWidth = ConstInt::maxWidth;
+  if (count > kWidth) return 0;
+  const auto quotient = count == kWidth ? ConstInt::UWide(0) : value >> count;
+  const auto remainder =
+      count == kWidth ? value : value & ((ConstInt::UWide(1) << count) - 1);
   const auto half = ConstInt::UWide(1) << (count - 1);
-  if (remainder > half) return ConstInt::UWide(quotient) + 1;
-  if (remainder == half && (quotient & 1)) return ConstInt::UWide(quotient) + 1;
-  return quotient;
+  if (remainder > half) return quotient + 1;
+  if (remainder < half) return quotient;
+  if (excess > 0) return quotient + 1;
+  if (excess < 0) return quotient;
+  return quotient + (quotient & 1);
 }
 
 struct RoundedSignificand {
@@ -539,27 +554,291 @@ struct RoundedSignificand {
   ConstInt::UWide significand = 0;
 };
 
-template <typename Float>
-[[nodiscard]] auto round_to_format(Float magnitude,
-                                   const FloatingPointFormat& format)
+[[nodiscard]] auto round_significand(ConstInt::UWide integer, int exponent,
+                                     std::strong_ordering excess,
+                                     const FloatingPointFormat& format)
     -> RoundedSignificand {
-  constexpr int kDigits = std::numeric_limits<Float>::digits;
   const int digits = format.significandDigits;
-  int binaryExponent = 0;
-  const auto fraction = std::frexp(magnitude, &binaryExponent);
-  const auto integer =
-      static_cast<ConstInt::UWide>(std::ldexp(fraction, kDigits));
+  const int leadingExponent = exponent + significant_bits(integer) - 1;
   RoundedSignificand rounded;
-  rounded.exponent = std::max(binaryExponent - 1, 1 - format.maxExponent());
-  const int shift =
-      (binaryExponent - kDigits) - (rounded.exponent - (digits - 1));
-  rounded.significand = shift >= 0 ? ConstInt::UWide(integer) << shift
-                                   : round_shift_right(integer, -shift);
+  rounded.exponent = std::max(leadingExponent, 1 - format.maxExponent());
+  const int shift = rounded.exponent - (digits - 1) - exponent;
+  rounded.significand = shift <= 0 ? integer << -shift
+                                   : round_shift_right(integer, shift, excess);
   if (rounded.significand >> digits) {
     rounded.significand >>= 1;
     ++rounded.exponent;
   }
   return rounded;
+}
+
+template <typename Float>
+[[nodiscard]] auto round_to_format(
+    Float magnitude, const FloatingPointFormat& format,
+    std::strong_ordering excess = std::strong_ordering::equal)
+    -> RoundedSignificand {
+  constexpr int kDigits = std::numeric_limits<Float>::digits;
+  int binaryExponent = 0;
+  const auto fraction = std::frexp(magnitude, &binaryExponent);
+  const auto integer =
+      static_cast<ConstInt::UWide>(std::ldexp(fraction, kDigits));
+  return round_significand(integer, binaryExponent - kDigits, excess, format);
+}
+
+class Magnitude {
+ public:
+  explicit Magnitude(std::uint32_t value) {
+    if (value) limbs_.push_back(value);
+  }
+
+  [[nodiscard]] auto isZero() const -> bool { return limbs_.empty(); }
+
+  [[nodiscard]] auto bitWidth() const -> int {
+    if (limbs_.empty()) return 0;
+    return static_cast<int>(32 * (limbs_.size() - 1)) +
+           std::bit_width(limbs_.back());
+  }
+
+  void multiplyAdd(std::uint32_t factor, std::uint32_t addend) {
+    std::uint64_t carry = addend;
+    for (auto& limb : limbs_) {
+      const auto product = std::uint64_t(limb) * factor + carry;
+      limb = static_cast<std::uint32_t>(product);
+      carry = product >> 32;
+    }
+    if (carry) limbs_.push_back(static_cast<std::uint32_t>(carry));
+  }
+
+  void multiplyByPowerOfFive(int count) {
+    constexpr std::uint32_t kFiveToThe13 = 1220703125;
+    for (; count >= 13; count -= 13) multiplyAdd(kFiveToThe13, 0);
+    for (; count > 0; --count) multiplyAdd(5, 0);
+  }
+
+  void shiftLeft(int count) {
+    const auto words = static_cast<std::size_t>(count / 32);
+    const int bits = count % 32;
+    if (bits) {
+      std::uint32_t carry = 0;
+      for (auto& limb : limbs_) {
+        const auto shifted = limb << bits | carry;
+        carry = limb >> (32 - bits);
+        limb = shifted;
+      }
+      if (carry) limbs_.push_back(carry);
+    }
+    limbs_.insert(limbs_.begin(), words, 0);
+  }
+
+  [[nodiscard]] auto shiftRight(int count) -> bool {
+    const auto words =
+        std::min(static_cast<std::size_t>(count / 32), limbs_.size());
+    const int bits = count % 32;
+    bool inexact = false;
+    for (std::size_t index = 0; index < words; ++index)
+      inexact = inexact || limbs_[index];
+    limbs_.erase(limbs_.begin(), limbs_.begin() + words);
+    if (bits && !limbs_.empty()) {
+      inexact = inexact || (limbs_.front() & ((1u << bits) - 1));
+      for (std::size_t index = 0; index < limbs_.size(); ++index) {
+        const auto next = index + 1 < limbs_.size() ? limbs_[index + 1] : 0;
+        limbs_[index] = limbs_[index] >> bits | next << (32 - bits);
+      }
+    }
+    normalize();
+    return inexact;
+  }
+
+  [[nodiscard]] auto operator<=>(const Magnitude& other) const
+      -> std::strong_ordering {
+    if (limbs_.size() != other.limbs_.size())
+      return limbs_.size() <=> other.limbs_.size();
+    for (auto index = limbs_.size(); index-- > 0;) {
+      if (limbs_[index] != other.limbs_[index])
+        return limbs_[index] <=> other.limbs_[index];
+    }
+    return std::strong_ordering::equal;
+  }
+
+  void subtract(const Magnitude& other) {
+    std::int64_t borrow = 0;
+    for (std::size_t index = 0; index < limbs_.size(); ++index) {
+      const std::int64_t subtrahend =
+          index < other.limbs_.size() ? other.limbs_[index] : 0;
+      auto difference = std::int64_t(limbs_[index]) - subtrahend - borrow;
+      borrow = difference < 0;
+      if (borrow) difference += std::int64_t(1) << 32;
+      limbs_[index] = static_cast<std::uint32_t>(difference);
+    }
+    normalize();
+  }
+
+  [[nodiscard]] auto toUWide() const -> ConstInt::UWide {
+    ConstInt::UWide value = 0;
+    for (auto index = limbs_.size(); index-- > 0;)
+      value = value << 32 | limbs_[index];
+    return value;
+  }
+
+ private:
+  void normalize() {
+    while (!limbs_.empty() && !limbs_.back()) limbs_.pop_back();
+  }
+
+  std::vector<std::uint32_t> limbs_;
+};
+
+struct DividedMagnitude {
+  ConstInt::UWide quotient = 0;
+  bool inexact = false;
+};
+
+[[nodiscard]] auto divide(Magnitude dividend, const Magnitude& divisor)
+    -> DividedMagnitude {
+  DividedMagnitude result;
+  for (int bit = dividend.bitWidth() - divisor.bitWidth(); bit >= 0; --bit) {
+    auto shifted = divisor;
+    shifted.shiftLeft(bit);
+    if (dividend < shifted) continue;
+    dividend.subtract(shifted);
+    result.quotient |= ConstInt::UWide(1) << bit;
+  }
+  result.inexact = !dividend.isZero();
+  return result;
+}
+
+[[nodiscard]] auto digit_value(char ch) -> int {
+  if (ch >= '0' && ch <= '9') return ch - '0';
+  if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+  if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+  return 16;
+}
+
+struct ScaledNumeral {
+  Magnitude digits{0};
+  int radix = 10;
+  long exponent = 0;
+};
+
+[[nodiscard]] auto scaled_numeral(std::string_view spelling) -> ScaledNumeral {
+  constexpr long kExponentLimit = 1'000'000;
+  ScaledNumeral numeral;
+  std::size_t pos = 0;
+  if (spelling.size() > 1 && spelling[0] == '0' &&
+      (spelling[1] == 'x' || spelling[1] == 'X')) {
+    numeral.radix = 16;
+    pos = 2;
+  }
+  const int digitScale = numeral.radix == 16 ? 4 : 1;
+  bool inFraction = false;
+  for (; pos < spelling.size(); ++pos) {
+    const char ch = spelling[pos];
+    if (ch == '\'') continue;
+    if (ch == '.') {
+      inFraction = true;
+      continue;
+    }
+    const int digit = digit_value(ch);
+    if (digit >= numeral.radix) break;
+    numeral.digits.multiplyAdd(numeral.radix, digit);
+    if (inFraction) numeral.exponent -= digitScale;
+  }
+  if (pos == spelling.size()) return numeral;
+  const char marker = spelling[pos];
+  const bool exponentMarker = numeral.radix == 16
+                                  ? marker == 'p' || marker == 'P'
+                                  : marker == 'e' || marker == 'E';
+  if (!exponentMarker) return numeral;
+  ++pos;
+  bool negative = false;
+  if (pos < spelling.size() && (spelling[pos] == '+' || spelling[pos] == '-'))
+    negative = spelling[pos++] == '-';
+  long written = 0;
+  for (; pos < spelling.size(); ++pos) {
+    const char ch = spelling[pos];
+    if (ch == '\'') continue;
+    if (ch < '0' || ch > '9') break;
+    written = std::min(written * 10 + (ch - '0'), kExponentLimit);
+  }
+  numeral.exponent += negative ? -written : written;
+  return numeral;
+}
+
+[[nodiscard]] auto round_numeral(ScaledNumeral numeral,
+                                 const FloatingPointFormat& format)
+    -> RoundedSignificand {
+  const int targetBits = format.significandDigits + 3;
+  const RoundedSignificand zero{.exponent = 1 - format.maxExponent()};
+  const RoundedSignificand infinity{.exponent = format.maxExponent() + 1};
+  if (numeral.digits.isZero()) return zero;
+
+  auto binaryExponent = numeral.radix == 16 ? numeral.exponent : 0L;
+  const auto decimalExponent = numeral.radix == 16 ? 0L : numeral.exponent;
+  const auto estimate = static_cast<double>(numeral.digits.bitWidth()) +
+                        static_cast<double>(binaryExponent) +
+                        static_cast<double>(decimalExponent) * std::log2(10.0);
+  if (estimate > format.maxExponent() + 3) return infinity;
+  if (estimate < -format.maxExponent() - format.significandDigits - 3)
+    return zero;
+
+  bool inexact = false;
+  ConstInt::UWide integer = 0;
+  if (decimalExponent < 0) {
+    Magnitude divisor{1};
+    divisor.multiplyByPowerOfFive(static_cast<int>(-decimalExponent));
+    const int scale =
+        targetBits + divisor.bitWidth() - numeral.digits.bitWidth();
+    if (scale >= 0)
+      numeral.digits.shiftLeft(scale);
+    else
+      inexact = numeral.digits.shiftRight(-scale);
+    const auto quotient = divide(numeral.digits, divisor);
+    integer = quotient.quotient;
+    inexact = inexact || quotient.inexact;
+    binaryExponent = decimalExponent - scale;
+  } else {
+    numeral.digits.multiplyByPowerOfFive(static_cast<int>(decimalExponent));
+    binaryExponent += decimalExponent;
+    const int excessBits = numeral.digits.bitWidth() - targetBits;
+    if (excessBits > 0) {
+      inexact = numeral.digits.shiftRight(excessBits);
+      binaryExponent += excessBits;
+    }
+    integer = numeral.digits.toUWide();
+  }
+  const auto excess =
+      inexact ? std::strong_ordering::greater : std::strong_ordering::equal;
+  return round_significand(integer, static_cast<int>(binaryExponent), excess,
+                           format);
+}
+
+[[nodiscard]] auto host_long_double_format() -> FloatingPointFormat {
+  using Limits = std::numeric_limits<long double>;
+  return FloatingPointFormat{.exponentBits = std::bit_width(
+                                 static_cast<unsigned>(Limits::max_exponent)),
+                             .significandDigits = Limits::digits};
+}
+
+[[nodiscard]] auto holds_host_long_double(const FloatingPointFormat& format)
+    -> bool {
+  const auto host = host_long_double_format();
+  return format.significandDigits >= host.significandDigits &&
+         format.maxExponent() >= host.maxExponent();
+}
+
+[[nodiscard]] auto host_long_double(const RoundedSignificand& rounded,
+                                    const FloatingPointFormat& format)
+    -> long double {
+  if (rounded.exponent > format.maxExponent())
+    return std::numeric_limits<long double>::infinity();
+  return std::ldexp(static_cast<long double>(rounded.significand),
+                    rounded.exponent - (format.significandDigits - 1));
+}
+
+[[nodiscard]] auto sign_of(long double value) -> std::strong_ordering {
+  if (value > 0) return std::strong_ordering::greater;
+  if (value < 0) return std::strong_ordering::less;
+  return std::strong_ordering::equal;
 }
 
 [[nodiscard]] auto stored_significand(ConstInt::UWide significand,
@@ -784,12 +1063,69 @@ auto FloatingPointFormat::representation(long double value) const
   return floatingRepresentation(value, *this);
 }
 
+auto FloatingPointFormat::rounded(long double value,
+                                  std::strong_ordering excess) const
+    -> long double {
+  if (holds_host_long_double(*this)) return value;
+  if (!std::isfinite(value) || value == 0) return value;
+  const auto magnitudeExcess = std::signbit(value) ? 0 <=> excess : excess;
+  const auto result = round_to_format(std::fabs(value), *this, magnitudeExcess);
+  return std::copysign(host_long_double(result, *this), value);
+}
+
+auto FloatingPointFormat::sum(long double left, long double right) const
+    -> long double {
+  const auto value = left + right;
+  const auto rightPart = value - left;
+  const auto error = (left - (value - rightPart)) + (right - rightPart);
+  return rounded(value, sign_of(error));
+}
+
+auto FloatingPointFormat::difference(long double left, long double right) const
+    -> long double {
+  return sum(left, -right);
+}
+
+auto FloatingPointFormat::product(long double left, long double right) const
+    -> long double {
+  const auto value = left * right;
+  return rounded(value, sign_of(std::fma(left, right, -value)));
+}
+
+auto FloatingPointFormat::quotient(long double left, long double right) const
+    -> long double {
+  const auto value = left / right;
+  const auto remainder = sign_of(std::fma(-value, right, left));
+  return rounded(value, std::signbit(right) ? 0 <=> remainder : remainder);
+}
+
+auto FloatingPointFormat::literalValue(std::string_view spelling) const
+    -> long double {
+  const auto format =
+      holds_host_long_double(*this) ? host_long_double_format() : *this;
+  return host_long_double(round_numeral(scaled_numeral(spelling), format),
+                          format);
+}
+
+auto FloatingPointFormat::integerValue(const ConstInt& value) const
+    -> long double {
+  const auto magnitude = value.magnitude();
+  if (!magnitude) return 0;
+  const auto format =
+      holds_host_long_double(*this) ? host_long_double_format() : *this;
+  const auto result = host_long_double(
+      round_significand(magnitude, 0, std::strong_ordering::equal, format),
+      format);
+  return value.isNegative() ? -result : result;
+}
+
 auto FloatingPointFormat::value(ConstInt::UWide representation) const
     -> double {
   const auto integerBit = ConstInt::UWide(1) << (significandDigits - 1);
   const auto fractionMask = (ConstInt::UWide(1) << fractionBits()) - 1;
   const auto maxBiasedExponent = (ConstInt::UWide(1) << exponentBits) - 1;
-  const bool negative = (representation >> (exponentBits + fractionBits())) & 1;
+  const bool negative =
+      ((representation >> (exponentBits + fractionBits())) & 1) != 0;
   const auto biasedExponent =
       (representation >> fractionBits()) & maxBiasedExponent;
   auto significand = representation & fractionMask;
@@ -862,9 +1198,7 @@ auto MemoryLayout::isSPIRV() const -> bool {
 
 auto MemoryLayout::hasFloat16Type() const -> bool { return !isWebAssembly(); }
 
-auto MemoryLayout::hasInt128Type() const -> bool {
-  return ConstInt::supportsInt128 && !isSPIRV();
-}
+auto MemoryLayout::hasInt128Type() const -> bool { return !isSPIRV(); }
 
 auto MemoryLayout::binary128Alignment() const -> std::size_t {
   if (Triple{triple_}.os() == TripleOS::kEmscripten) return 8;
