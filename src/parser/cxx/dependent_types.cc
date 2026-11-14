@@ -138,6 +138,7 @@ struct NamesTemplateParameter {
 
 struct IsDependent {
   TranslationUnit* unit = nullptr;
+  const NonDependentExpressions* nonDependentExpressions = nullptr;
 
   struct NonDependentType {
     const Type* type;
@@ -256,6 +257,8 @@ struct IsDependent {
 
   [[nodiscard]] auto isDependent(ExpressionAST* ast) -> bool {
     if (!ast) return false;
+    if (nonDependentExpressions && nonDependentExpressions->contains(ast))
+      return false;
     return visit(*this, ast);
   }
 
@@ -1563,6 +1566,13 @@ auto IsDependent::operator()(ParenInitializerAST* ast) -> bool {
 
 auto isDependent(TranslationUnit* unit, ExpressionAST* ast) -> bool {
   return IsDependent{unit}.isDependent(ast);
+}
+
+auto isDependent(TranslationUnit* unit, ExpressionAST* ast,
+                 NonDependentExpressions& nonDependent) -> bool {
+  if (IsDependent{unit, &nonDependent}.isDependent(ast)) return true;
+  if (ast) nonDependent.insert(ast);
+  return false;
 }
 
 auto isTypeDependent(TranslationUnit* unit, ExpressionAST* ast) -> bool {
