@@ -35,6 +35,7 @@
 #include <expected>
 #include <functional>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -928,40 +929,49 @@ class Binder {
     std::uint64_t count = 1;
   };
 
-  struct ClassSubobject {
+  struct EmptySubobjects;
+
+  struct EmptySubobjectComponent {
     ClassSymbol* symbol = nullptr;
+    const EmptySubobjects* subobjects = nullptr;
+    bool isCompleteObject = false;
     std::uint64_t offset = 0;
-    std::vector<ClassSubobjectExtent> extents;
+    ClassSubobjectExtent extent;
+    std::uint64_t lastEmptySubobjectOffset = 0;
   };
 
-  using ClassSubobjectList = std::vector<ClassSubobject>;
-
-  struct CachedClassSubobjects {
+  struct EmptySubobjects {
     const ClassLayout* layout = nullptr;
-    ClassSubobjectList subobjects;
-    ClassSubobjectList completeObjectSubobjectsWithVirtualBases;
+    bool isEmptyClass = false;
+    std::vector<EmptySubobjectComponent> components;
+    std::size_t baseSubobjectComponentCount = 0;
+    std::optional<std::uint64_t> lastInBaseSubobject;
+    std::optional<std::uint64_t> lastInCompleteObject;
+
+    [[nodiscard]] auto componentsOf(bool isCompleteObject) const
+        -> std::span<const EmptySubobjectComponent>;
+
+    [[nodiscard]] auto lastOffset(bool isCompleteObject) const
+        -> std::optional<std::uint64_t>;
   };
 
-  [[nodiscard]] auto cachedClassSubobjects(ClassSymbol* classSymbol)
-      -> const CachedClassSubobjects&;
+  [[nodiscard]] auto emptySubobjects(ClassSymbol* classSymbol)
+      -> const EmptySubobjects&;
 
-  [[nodiscard]] auto emptyClassSubobjects(ClassSymbol* classSymbol)
-      -> const ClassSubobjectList&;
+  void forgetEmptySubobjects(ClassSymbol* classSymbol);
 
-  [[nodiscard]] auto completeObjectEmptySubobjects(ClassSymbol* classSymbol)
-      -> const ClassSubobjectList&;
+  [[nodiscard]] auto emptySubobjectComponent(ClassSymbol* classSymbol,
+                                             bool isCompleteObject,
+                                             std::uint64_t offset,
+                                             ClassSubobjectExtent extent)
+      -> std::optional<EmptySubobjectComponent>;
 
   [[nodiscard]] auto fieldElementClass(FieldSymbol* field) -> ClassSymbol*;
 
   [[nodiscard]] auto fieldArrayExtent(FieldSymbol* field)
       -> ClassSubobjectExtent;
 
-  static void appendClassSubobjects(ClassSubobjectList& subobjects,
-                                    const ClassSubobjectList& source,
-                                    std::uint64_t offset,
-                                    ClassSubobjectExtent extent);
-
-  std::unordered_map<ClassSymbol*, CachedClassSubobjects> emptyClassSubobjects_;
+  std::unordered_map<ClassSymbol*, EmptySubobjects> emptySubobjects_;
 
   struct BindClass;
   struct BuildRecordLayout;

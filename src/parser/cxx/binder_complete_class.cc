@@ -43,6 +43,7 @@
 #include <algorithm>
 #include <format>
 #include <functional>
+#include <map>
 #include <ranges>
 #include <unordered_map>
 #include <unordered_set>
@@ -3095,8 +3096,13 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   std::uint32_t runIndex = 0;
   bool inBitfieldRun = false;
   std::vector<FieldSymbol*> runFields;
-  ClassSubobjectList placedClassSubobjects;
+  std::multimap<std::uint64_t, EmptySubobjectComponent> placedComponents;
+  std::uint64_t maxPlacedComponentSpan = 0;
   std::uint64_t maxPlacedSubobjectOffset = 0;
+  using EmptySubobjectWalk =
+      std::vector<std::pair<const EmptySubobjectComponent*, std::uint64_t>>;
+  EmptySubobjectWalk placedWalk;
+  EmptySubobjectWalk candidateWalk;
   std::vector<std::pair<ClassSymbol*, ClassLayout::MemberInfo>>
       indirectPrimaryPlacements;
 
@@ -3138,25 +3144,28 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
       -> ClassLayout::MemberInfo;
   void growSizeof(std::uint64_t offset, std::uint64_t sizeInBytes);
   void recordEmptyComponent(std::uint64_t offset, std::uint64_t sizeInBytes);
-  [[nodiscard]] static auto subobjectCovers(const ClassSubobject& subobject,
-                                            std::uint64_t address) -> bool;
+  [[nodiscard]] static auto elementDisplacement(
+      const EmptySubobjectComponent& component, std::uint64_t displacement)
+      -> std::optional<std::uint64_t>;
 
-  [[nodiscard]] static auto subobjectLast(const ClassSubobject& subobject)
-      -> std::uint64_t;
+  [[nodiscard]] auto hasEmptySubobjectAt(const EmptySubobjectComponent& placed,
+                                         ClassSymbol* symbol,
+                                         std::uint64_t address) -> bool;
 
-  [[nodiscard]] auto placedAt(ClassSymbol* symbol, std::uint64_t address) const
+  [[nodiscard]] auto placedAt(ClassSymbol* symbol, std::uint64_t address)
       -> bool;
 
-  [[nodiscard]] auto conflictsAt(const ClassSubobject& candidate,
-                                 std::size_t level, std::uint64_t address) const
-      -> bool;
+  [[nodiscard]] auto conflictsAt(const EmptySubobjectComponent& candidate,
+                                 std::uint64_t offset) -> bool;
 
-  [[nodiscard]] auto classSubobjectOffset(const ClassSubobjectList& subobjects,
+  [[nodiscard]] auto classSubobjectOffset(ClassSymbol* symbol,
+                                          bool isCompleteObject,
+                                          ClassSubobjectExtent extent,
                                           bool tryZero, std::uint64_t alignment)
       -> std::uint64_t;
-  void recordClassSubobjects(const ClassSubobjectList& subobjects,
-                             std::uint64_t offset,
-                             ClassSubobjectExtent extent = {});
+  void recordClassSubobject(ClassSymbol* symbol, bool isCompleteObject,
+                            std::uint64_t offset,
+                            ClassSubobjectExtent extent = {});
   auto layoutFields() -> std::expected<bool, std::string>;
   auto layoutBitfield(FieldSymbol* field) -> std::expected<bool, std::string>;
   [[nodiscard]] auto regularFieldOffset(FieldSymbol* field,
@@ -3304,7 +3313,7 @@ void Binder::BuildRecordLayout::layoutVtable() {
     layout->setVirtualBaseInfo(primaryBase, primaryInfo);
     layout->setHasDirectVtable(true);
     layout->setVtableIndex(primaryInfo.index);
-    recordClassSubobjects(binder.emptyClassSubobjects(primaryBase), 0);
+    recordClassSubobject(primaryBase, false, 0);
   } else {
     layout->setHasDirectVtable(true);
     layout->setVtableIndex(currentIndex++);
@@ -3417,60 +3426,72 @@ auto Binder::fieldArrayExtent(FieldSymbol* field) -> ClassSubobjectExtent {
   return extent;
 }
 
-void Binder::appendClassSubobjects(ClassSubobjectList& subobjects,
-                                   const ClassSubobjectList& source,
-                                   std::uint64_t offset,
-                                   ClassSubobjectExtent extent) {
-  if (!extent.count) return;
-
-  for (const auto& subobject : source) {
-    auto& merged = subobjects.emplace_back(subobject);
-    merged.offset += offset;
-    if (extent.count > 1) merged.extents.insert(merged.extents.begin(), extent);
-  }
+auto Binder::EmptySubobjects::componentsOf(bool isCompleteObject) const
+    -> std::span<const EmptySubobjectComponent> {
+  if (isCompleteObject) return components;
+  return std::span(components).first(baseSubobjectComponentCount);
 }
 
-auto Binder::emptyClassSubobjects(ClassSymbol* classSymbol)
-    -> const ClassSubobjectList& {
-  return cachedClassSubobjects(classSymbol).subobjects;
+auto Binder::EmptySubobjects::lastOffset(bool isCompleteObject) const
+    -> std::optional<std::uint64_t> {
+  if (isCompleteObject) return lastInCompleteObject;
+  return lastInBaseSubobject;
 }
 
-auto Binder::completeObjectEmptySubobjects(ClassSymbol* classSymbol)
-    -> const ClassSubobjectList& {
-  const auto& cached = cachedClassSubobjects(classSymbol);
-  if (cached.completeObjectSubobjectsWithVirtualBases.empty())
-    return cached.subobjects;
-  return cached.completeObjectSubobjectsWithVirtualBases;
+auto Binder::emptySubobjectComponent(ClassSymbol* classSymbol,
+                                     bool isCompleteObject,
+                                     std::uint64_t offset,
+                                     ClassSubobjectExtent extent)
+    -> std::optional<EmptySubobjectComponent> {
+  if (!extent.count) return std::nullopt;
+
+  const auto& subobjects = emptySubobjects(classSymbol);
+  const auto last = subobjects.lastOffset(isCompleteObject);
+  if (!last) return std::nullopt;
+
+  EmptySubobjectComponent component;
+  component.symbol = classSymbol->resolvedDefinition();
+  component.subobjects = &subobjects;
+  component.isCompleteObject = isCompleteObject;
+  component.offset = offset;
+  component.extent = extent;
+  component.lastEmptySubobjectOffset =
+      offset + (extent.count - 1) * extent.stride + *last;
+  return component;
 }
 
-auto Binder::cachedClassSubobjects(ClassSymbol* classSymbol)
-    -> const CachedClassSubobjects& {
+void Binder::forgetEmptySubobjects(ClassSymbol* classSymbol) {
+  auto it = emptySubobjects_.find(classSymbol);
+  if (it == emptySubobjects_.end()) return;
+  it->second = EmptySubobjects{};
+}
+
+auto Binder::emptySubobjects(ClassSymbol* classSymbol)
+    -> const EmptySubobjects& {
   classSymbol = classSymbol->resolvedDefinition();
 
   const auto layout = classSymbol->layout();
 
-  if (auto it = emptyClassSubobjects_.find(classSymbol);
-      it != emptyClassSubobjects_.end() && it->second.layout == layout) {
+  if (auto it = emptySubobjects_.find(classSymbol);
+      it != emptySubobjects_.end() && it->second.layout == layout) {
     return it->second;
   }
 
-  CachedClassSubobjects entry;
+  EmptySubobjects entry;
   entry.layout = layout;
 
-  if (layout && layout->isAbiEmpty()) {
-    entry.subobjects.emplace_back(classSymbol, 0,
-                                  std::vector<ClassSubobjectExtent>{});
-  }
-
   if (layout) {
+    entry.isEmptyClass = layout->isAbiEmpty();
+
     for (auto base : classSymbol->baseClasses()) {
       if (base->isVirtual()) continue;
       auto baseClass = resolved_base_class(base);
       if (!baseClass) continue;
-      if (auto baseInfo = layout->getBaseInfo(baseClass)) {
-        appendClassSubobjects(entry.subobjects, emptyClassSubobjects(baseClass),
-                              baseInfo->offset, ClassSubobjectExtent{});
-      }
+      auto baseInfo = layout->getBaseInfo(baseClass);
+      if (!baseInfo) continue;
+      if (auto component = emptySubobjectComponent(
+              baseClass, false, baseInfo->offset, ClassSubobjectExtent{}))
+        entry.components.push_back(*component);
     }
 
     for (auto field : views::members(classSymbol) | views::non_static_fields) {
@@ -3478,108 +3499,148 @@ auto Binder::cachedClassSubobjects(ClassSymbol* classSymbol)
       if (!fieldClass || !fieldClass->layout()) continue;
       auto fieldInfo = layout->getFieldInfo(field);
       if (!fieldInfo) continue;
-
-      appendClassSubobjects(entry.subobjects,
-                            completeObjectEmptySubobjects(fieldClass),
-                            fieldInfo->offset, fieldArrayExtent(field));
+      if (auto component = emptySubobjectComponent(
+              fieldClass, true, fieldInfo->offset, fieldArrayExtent(field)))
+        entry.components.push_back(*component);
     }
-  }
 
-  if (layout) {
-    ClassSubobjectList inVirtualBases;
+    entry.baseSubobjectComponentCount = entry.components.size();
+
     for (auto virtualBase : layout->virtualBases()) {
       auto info = layout->getVirtualBaseInfo(virtualBase);
       if (!info) continue;
-      appendClassSubobjects(inVirtualBases, emptyClassSubobjects(virtualBase),
-                            info->offset, ClassSubobjectExtent{});
-    }
-    if (!inVirtualBases.empty()) {
-      entry.completeObjectSubobjectsWithVirtualBases = entry.subobjects;
-      entry.completeObjectSubobjectsWithVirtualBases.insert(
-          entry.completeObjectSubobjectsWithVirtualBases.end(),
-          inVirtualBases.begin(), inVirtualBases.end());
+      if (auto component = emptySubobjectComponent(
+              virtualBase, false, info->offset, ClassSubobjectExtent{}))
+        entry.components.push_back(*component);
     }
   }
-  entry.subobjects.shrink_to_fit();
 
-  auto& cached = emptyClassSubobjects_[classSymbol];
+  if (entry.isEmptyClass) entry.lastInBaseSubobject = 0;
+  for (const auto& component : entry.componentsOf(false)) {
+    entry.lastInBaseSubobject = std::max(entry.lastInBaseSubobject.value_or(0),
+                                         component.lastEmptySubobjectOffset);
+  }
+
+  entry.lastInCompleteObject = entry.lastInBaseSubobject;
+  for (const auto& component : entry.componentsOf(true)) {
+    entry.lastInCompleteObject =
+        std::max(entry.lastInCompleteObject.value_or(0),
+                 component.lastEmptySubobjectOffset);
+  }
+
+  entry.components.shrink_to_fit();
+
+  auto& cached = emptySubobjects_[classSymbol];
   cached = std::move(entry);
   return cached;
 }
 
-auto Binder::BuildRecordLayout::subobjectCovers(const ClassSubobject& subobject,
-                                                std::uint64_t address) -> bool {
-  if (address < subobject.offset) return false;
-  auto displacement = address - subobject.offset;
-  for (const auto& extent : subobject.extents) {
-    if (!extent.stride) continue;
-    const auto index = displacement / extent.stride;
-    if (index >= extent.count) return false;
-    displacement -= index * extent.stride;
-  }
-  return displacement == 0;
+auto Binder::BuildRecordLayout::elementDisplacement(
+    const EmptySubobjectComponent& component, std::uint64_t displacement)
+    -> std::optional<std::uint64_t> {
+  if (displacement < component.offset) return std::nullopt;
+  if (displacement > component.lastEmptySubobjectOffset) return std::nullopt;
+
+  displacement -= component.offset;
+  if (!component.extent.stride) return displacement;
+
+  const auto index = displacement / component.extent.stride;
+  if (index >= component.extent.count) return std::nullopt;
+  return displacement - index * component.extent.stride;
 }
 
-auto Binder::BuildRecordLayout::subobjectLast(const ClassSubobject& subobject)
-    -> std::uint64_t {
-  auto last = subobject.offset;
-  for (const auto& extent : subobject.extents)
-    last += (extent.count - 1) * extent.stride;
-  return last;
+auto Binder::BuildRecordLayout::hasEmptySubobjectAt(
+    const EmptySubobjectComponent& placed, ClassSymbol* symbol,
+    std::uint64_t address) -> bool {
+  const auto displacement = elementDisplacement(placed, address);
+  if (!displacement) return false;
+
+  placedWalk.clear();
+  placedWalk.emplace_back(&placed, *displacement);
+
+  while (!placedWalk.empty()) {
+    const auto [component, inner] = placedWalk.back();
+    placedWalk.pop_back();
+
+    const auto subobjects = component->subobjects;
+    if (subobjects->isEmptyClass && component->symbol == symbol && !inner)
+      return true;
+
+    for (const auto& part :
+         subobjects->componentsOf(component->isCompleteObject)) {
+      if (auto partDisplacement = elementDisplacement(part, inner))
+        placedWalk.emplace_back(&part, *partDisplacement);
+    }
+  }
+
+  return false;
 }
 
 auto Binder::BuildRecordLayout::placedAt(ClassSymbol* symbol,
-                                         std::uint64_t address) const -> bool {
-  return std::ranges::any_of(
-      placedClassSubobjects, [&](const ClassSubobject& placed) {
-        return placed.symbol == symbol && subobjectCovers(placed, address);
-      });
+                                         std::uint64_t address) -> bool {
+  const auto first = placedComponents.lower_bound(
+      address - std::min(address, maxPlacedComponentSpan));
+  const auto last = placedComponents.upper_bound(address);
+
+  return std::any_of(first, last, [&](const auto& placed) {
+    return hasEmptySubobjectAt(placed.second, symbol, address);
+  });
 }
 
-auto Binder::BuildRecordLayout::conflictsAt(const ClassSubobject& candidate,
-                                            std::size_t level,
-                                            std::uint64_t address) const
-    -> bool {
-  if (level == candidate.extents.size())
-    return placedAt(candidate.symbol, address);
+auto Binder::BuildRecordLayout::conflictsAt(
+    const EmptySubobjectComponent& candidate, std::uint64_t offset) -> bool {
+  if (placedComponents.empty()) return false;
 
-  const auto& extent = candidate.extents[level];
-  for (std::uint64_t index = 0; index != extent.count; ++index) {
-    const auto elementAddress = address + index * extent.stride;
-    if (elementAddress > maxPlacedSubobjectOffset) break;
-    if (conflictsAt(candidate, level + 1, elementAddress)) return true;
+  candidateWalk.clear();
+  candidateWalk.emplace_back(&candidate, offset);
+
+  while (!candidateWalk.empty()) {
+    const auto [component, enclosingAddress] = candidateWalk.back();
+    candidateWalk.pop_back();
+
+    const auto subobjects = component->subobjects;
+    const auto parts = subobjects->componentsOf(component->isCompleteObject);
+
+    for (std::uint64_t index = 0; index != component->extent.count; ++index) {
+      const auto address = enclosingAddress + component->offset +
+                           index * component->extent.stride;
+      if (address > maxPlacedSubobjectOffset) break;
+      if (subobjects->isEmptyClass && placedAt(component->symbol, address))
+        return true;
+      for (const auto& part : parts) candidateWalk.emplace_back(&part, address);
+    }
   }
+
   return false;
 }
 
 auto Binder::BuildRecordLayout::classSubobjectOffset(
-    const ClassSubobjectList& subobjects, bool tryZero, std::uint64_t alignment)
-    -> std::uint64_t {
-  auto conflicts = [&](std::uint64_t offset) {
-    return std::ranges::any_of(
-        subobjects, [&](const ClassSubobject& candidate) {
-          return conflictsAt(candidate, 0, offset + candidate.offset);
-        });
-  };
-
-  if (tryZero && !conflicts(0)) return 0;
+    ClassSymbol* symbol, bool isCompleteObject, ClassSubobjectExtent extent,
+    bool tryZero, std::uint64_t alignment) -> std::uint64_t {
+  const auto candidate =
+      binder.emptySubobjectComponent(symbol, isCompleteObject, 0, extent);
 
   auto offset = align_to(calculatedSize, alignment);
-  while (conflicts(offset)) offset += alignment;
+  if (!candidate) return tryZero ? 0 : offset;
+
+  if (tryZero && !conflictsAt(*candidate, 0)) return 0;
+
+  while (conflictsAt(*candidate, offset)) offset += alignment;
   return offset;
 }
 
-void Binder::BuildRecordLayout::recordClassSubobjects(
-    const ClassSubobjectList& subobjects, std::uint64_t offset,
+void Binder::BuildRecordLayout::recordClassSubobject(
+    ClassSymbol* symbol, bool isCompleteObject, std::uint64_t offset,
     ClassSubobjectExtent extent) {
-  const auto first = placedClassSubobjects.size();
+  const auto component =
+      binder.emptySubobjectComponent(symbol, isCompleteObject, offset, extent);
+  if (!component) return;
 
-  appendClassSubobjects(placedClassSubobjects, subobjects, offset, extent);
-
-  for (auto index = first; index != placedClassSubobjects.size(); ++index) {
-    maxPlacedSubobjectOffset = std::max(
-        maxPlacedSubobjectOffset, subobjectLast(placedClassSubobjects[index]));
-  }
+  maxPlacedSubobjectOffset =
+      std::max(maxPlacedSubobjectOffset, component->lastEmptySubobjectOffset);
+  maxPlacedComponentSpan = std::max(
+      maxPlacedComponentSpan, component->lastEmptySubobjectOffset - offset);
+  placedComponents.emplace(offset, *component);
 }
 
 void Binder::BuildRecordLayout::growSizeof(std::uint64_t offset,
@@ -3608,7 +3669,7 @@ auto Binder::BuildRecordLayout::allocateBaseSubobject(ClassSymbol* base,
   const bool isEmpty = baseLayout && baseLayout->isAbiEmpty();
 
   const auto baseOffset = classSubobjectOffset(
-      binder.emptyClassSubobjects(base), isEmpty, std::max(baseAlignment, 1));
+      base, false, ClassSubobjectExtent{}, isEmpty, std::max(baseAlignment, 1));
 
   if (!isEmpty) padTo(baseOffset);
 
@@ -3633,7 +3694,7 @@ auto Binder::BuildRecordLayout::allocateBaseSubobject(ClassSymbol* base,
     emittedEnd = std::max(emittedEnd, baseOffset + baseSizeInBytes);
   }
 
-  recordClassSubobjects(binder.emptyClassSubobjects(base), baseOffset);
+  recordClassSubobject(base, false, baseOffset);
   calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
 
   return baseInfo;
@@ -3689,8 +3750,7 @@ void Binder::BuildRecordLayout::layoutVirtualBases() {
     if (auto placement = indirectPrimaryPlacement(virtualBase)) {
       layout->setVirtualBaseInfo(virtualBase, *placement);
       layout->addVirtualBase(virtualBase);
-      recordClassSubobjects(binder.emptyClassSubobjects(virtualBase),
-                            placement->offset);
+      recordClassSubobject(virtualBase, false, placement->offset);
       recordPrimaryChain(virtualBase, placement->offset, placement->index);
       continue;
     }
@@ -3972,8 +4032,8 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
   }
 
   if (auto elementClass = binder.fieldElementClass(field)) {
-    recordClassSubobjects(binder.completeObjectEmptySubobjects(elementClass),
-                          fieldOffset, binder.fieldArrayExtent(field));
+    recordClassSubobject(elementClass, true, fieldOffset,
+                         binder.fieldArrayExtent(field));
   }
 
   nextBitPos = static_cast<std::uint64_t>(calculatedSize) * 8;
@@ -3989,9 +4049,9 @@ auto Binder::BuildRecordLayout::regularFieldOffset(FieldSymbol* field,
   if (classSymbol->isUnion()) return 0;
   auto fieldAlign = field->effectiveAlignment();
   if (auto elementClass = binder.fieldElementClass(field)) {
-    return classSubobjectOffset(
-        binder.completeObjectEmptySubobjects(elementClass), isEmptyDataMember,
-        std::max(fieldAlign, 1));
+    return classSubobjectOffset(elementClass, true,
+                                binder.fieldArrayExtent(field),
+                                isEmptyDataMember, std::max(fieldAlign, 1));
   }
   return static_cast<std::uint64_t>(align_to(calculatedSize, fieldAlign));
 }
@@ -4139,7 +4199,7 @@ void Binder::BuildRecordLayout::finalize() {
   layout->setAlignment(calculatedAlignment);
   layout->setDataSize(dataSize);
 
-  binder.emptyClassSubobjects_.erase(classSymbol->resolvedDefinition());
+  binder.forgetEmptySubobjects(classSymbol->resolvedDefinition());
   classSymbol->setLayout(std::move(layout));
 
   buildVTableLayout();
