@@ -38,6 +38,7 @@
 
 #include <optional>
 #include <span>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace cxx {
@@ -1136,6 +1137,216 @@ namespace {
   return injected->classSymbol()->resolvedDefinition()->primaryTemplateSymbol();
 }
 
+class ClassMemberLookupSearch {
+ public:
+  ClassMemberLookupSearch(const Name* name,
+                          const std::function<bool(Symbol*)>& accept)
+      : name_(name), accept_(accept) {}
+
+  [[nodiscard]] auto lookup(ClassSymbol* scope) -> ClassMemberLookup {
+    auto lookupSet = lookupSetOf(addSubobject(scope));
+    return {lookupSet.declaration, lookupSet.ambiguous,
+            lookupSet.injectedClassTemplate};
+  }
+
+ private:
+  struct LookupSet {
+    Symbol* declaration = nullptr;
+    std::vector<int> subobjects;
+    bool ambiguous = false;
+    Symbol* injectedClassTemplate = nullptr;
+  };
+
+  struct Subobject {
+    ClassSymbol* type = nullptr;
+    std::vector<int> bases;
+    bool hasBaseSubobjects = false;
+    std::optional<LookupSet> lookupSet;
+  };
+
+  struct Frame {
+    int subobject = 0;
+    bool entersDerivationPath = false;
+    std::size_t nextBase = 0;
+    LookupSet lookupSet;
+  };
+
+  using DerivationPath = std::unordered_set<ClassSymbol*>;
+
+  [[nodiscard]] auto addSubobject(ClassSymbol* type) -> int {
+    subobjects_.push_back({.type = type->resolvedDefinition()});
+    return static_cast<int>(subobjects_.size() - 1);
+  }
+
+  [[nodiscard]] auto baseSubobject(BaseClassSymbol* base)
+      -> std::optional<int> {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass || isDependent(nullptr, baseClass->type()))
+      return std::nullopt;
+    baseClass = baseClass->resolvedDefinition();
+    if (!base->isVirtual()) return addSubobject(baseClass);
+
+    auto [shared, isNew] = virtualBases_.try_emplace(baseClass);
+    if (isNew) shared->second = addSubobject(baseClass);
+    return shared->second;
+  }
+
+  void addBaseSubobjects(int index, const DerivationPath& path) {
+    if (subobjects_[index].hasBaseSubobjects) return;
+    subobjects_[index].hasBaseSubobjects = true;
+
+    auto type = subobjects_[index].type;
+    if (path.contains(type)) return;
+
+    for (auto base : type->baseClasses()) {
+      if (auto baseIndex = baseSubobject(base))
+        subobjects_[index].bases.push_back(*baseIndex);
+    }
+  }
+
+  void pushFrame(std::vector<Frame>& frames, DerivationPath& path, int index) {
+    addBaseSubobjects(index, path);
+    frames.push_back(
+        {.subobject = index,
+         .entersDerivationPath = path.insert(subobjects_[index].type).second});
+  }
+
+  [[nodiscard]] auto popFrame(std::vector<Frame>& frames, DerivationPath& path)
+      -> LookupSet {
+    auto frame = std::move(frames.back());
+    frames.pop_back();
+    if (frame.entersDerivationPath)
+      path.erase(subobjects_[frame.subobject].type);
+    return std::move(frame.lookupSet);
+  }
+
+  [[nodiscard]] auto nextBaseOf(Frame& frame) const -> std::optional<int> {
+    const auto& bases = subobjects_[frame.subobject].bases;
+    if (frame.nextBase == bases.size()) return std::nullopt;
+    return bases[frame.nextBase++];
+  }
+
+  [[nodiscard]] auto declaredLookupSet(int index) const
+      -> std::optional<LookupSet> {
+    VisitedScopes visited;
+    auto declaration = detail::searchScope(subobjects_[index].type, name_,
+                                           visited, accept_, false, false);
+    if (!declaration) return std::nullopt;
+    return LookupSet{
+        .declaration = declaration,
+        .subobjects = {index},
+        .injectedClassTemplate = templateOfInjectedClassName(declaration)};
+  }
+
+  [[nodiscard]] auto entersBaseSubobjects(int index, std::vector<Frame>& frames,
+                                          DerivationPath& path) -> bool {
+    if (subobjects_[index].lookupSet) return false;
+    subobjects_[index].lookupSet = declaredLookupSet(index);
+    if (subobjects_[index].lookupSet) return false;
+    pushFrame(frames, path, index);
+    return true;
+  }
+
+  [[nodiscard]] auto lookupSetOf(int root) -> LookupSet {
+    std::vector<Frame> frames;
+    DerivationPath path;
+    if (!entersBaseSubobjects(root, frames, path))
+      return *subobjects_[root].lookupSet;
+
+    for (;;) {
+      auto base = nextBaseOf(frames.back());
+      if (!base) {
+        const auto subobject = frames.back().subobject;
+        auto lookupSet = popFrame(frames, path);
+        subobjects_[subobject].lookupSet = lookupSet;
+        if (frames.empty()) return lookupSet;
+        merge(frames.back().lookupSet, lookupSet);
+        continue;
+      }
+
+      if (entersBaseSubobjects(*base, frames, path)) continue;
+      const auto incoming = *subobjects_[*base].lookupSet;
+      merge(frames.back().lookupSet, incoming);
+    }
+  }
+
+  [[nodiscard]] auto isBaseSubobject(int base, int derived) -> bool {
+    if (base == derived) return true;
+
+    std::vector<Frame> frames;
+    DerivationPath path;
+    std::unordered_set<int> visited{derived};
+    pushFrame(frames, path, derived);
+
+    while (!frames.empty()) {
+      auto next = nextBaseOf(frames.back());
+      if (!next) {
+        (void)popFrame(frames, path);
+        continue;
+      }
+      if (*next == base) return true;
+      if (visited.insert(*next).second) pushFrame(frames, path, *next);
+    }
+
+    return false;
+  }
+
+  [[nodiscard]] auto areBaseSubobjects(const std::vector<int>& bases,
+                                       const std::vector<int>& derived)
+      -> bool {
+    return std::ranges::all_of(bases, [&](int base) {
+      return std::ranges::any_of(derived, [&](int candidate) {
+        return isBaseSubobject(base, candidate);
+      });
+    });
+  }
+
+  [[nodiscard]] static auto declareSameEntities(Symbol* first, Symbol* second)
+      -> bool {
+    if (first == second) return true;
+    if (is_type(first) && is_type(second))
+      return first->type() == second->type();
+
+    std::vector<FunctionSymbol*> left;
+    std::vector<FunctionSymbol*> right;
+    for (auto function : views::each_function(first))
+      left.push_back(function->canonical());
+    for (auto function : views::each_function(second))
+      right.push_back(function->canonical());
+    if (left.empty() || right.empty()) return false;
+    return std::ranges::is_permutation(left, right);
+  }
+
+  void merge(LookupSet& lookupSet, const LookupSet& incoming) {
+    if (!incoming.declaration) return;
+    if (!lookupSet.declaration) {
+      lookupSet = incoming;
+      return;
+    }
+
+    if (areBaseSubobjects(incoming.subobjects, lookupSet.subobjects)) return;
+    if (areBaseSubobjects(lookupSet.subobjects, incoming.subobjects)) {
+      lookupSet = incoming;
+      return;
+    }
+
+    lookupSet.ambiguous =
+        lookupSet.ambiguous || incoming.ambiguous ||
+        !declareSameEntities(lookupSet.declaration, incoming.declaration);
+    if (lookupSet.injectedClassTemplate != incoming.injectedClassTemplate)
+      lookupSet.injectedClassTemplate = nullptr;
+    for (auto subobject : incoming.subobjects) {
+      if (!std::ranges::contains(lookupSet.subobjects, subobject))
+        lookupSet.subobjects.push_back(subobject);
+    }
+  }
+
+  const Name* name_;
+  const std::function<bool(Symbol*)>& accept_;
+  std::vector<Subobject> subobjects_;
+  std::unordered_map<ClassSymbol*, int> virtualBases_;
+};
+
 }  // namespace
 
 auto lookupClassMember(ClassSymbol* scope, const Name* name,
@@ -1150,108 +1361,7 @@ auto lookupClassMember(ClassSymbol* scope, const Name* name,
     return {symbol, false};
   if (scope->baseClasses().empty()) return {};
 
-  struct Subobject {
-    ClassSymbol* type;
-    std::vector<int> bases;
-  };
-  struct LookupSet {
-    Symbol* declaration = nullptr;
-    std::vector<int> subobjects;
-    bool ambiguous = false;
-    Symbol* injectedClassTemplate = nullptr;
-  };
-  std::vector<Subobject> graph;
-  std::vector<std::pair<ClassSymbol*, int>> virtualBases;
-  std::vector<ClassSymbol*> path;
-  auto build = [&](auto&& self, ClassSymbol* cls) -> int {
-    cls = cls->resolvedDefinition();
-    auto index = int(graph.size());
-    graph.push_back({cls, {}});
-    if (std::ranges::contains(path, cls)) return index;
-    path.push_back(cls);
-    for (auto base : cls->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass || isDependent(nullptr, baseClass->type())) continue;
-      baseClass = baseClass->resolvedDefinition();
-      int baseIndex = -1;
-      if (base->isVirtual()) {
-        for (auto [type, candidate] : virtualBases)
-          if (type == baseClass) baseIndex = candidate;
-      }
-      if (baseIndex < 0) {
-        baseIndex = self(self, baseClass);
-        if (base->isVirtual()) virtualBases.emplace_back(baseClass, baseIndex);
-      }
-      graph[index].bases.push_back(baseIndex);
-    }
-    path.pop_back();
-    return index;
-  };
-  build(build, scope);
-
-  auto isBase = [&](auto&& self, int base, int derived) -> bool {
-    if (base == derived) return true;
-    for (auto next : graph[derived].bases)
-      if (self(self, base, next)) return true;
-    return false;
-  };
-  auto sameDeclaration = [&](Symbol* first, Symbol* second) {
-    if (first == second) return true;
-    if (is_type(first) && is_type(second))
-      return first->type() == second->type();
-    std::vector<FunctionSymbol*> left;
-    std::vector<FunctionSymbol*> right;
-    for (auto fn : views::each_function(first)) left.push_back(fn->canonical());
-    for (auto fn : views::each_function(second))
-      right.push_back(fn->canonical());
-    if (left.empty() || right.empty()) return false;
-    return std::ranges::is_permutation(left, right);
-  };
-  std::vector<std::optional<LookupSet>> cache(graph.size());
-  auto lookup = [&](auto&& self, int index) -> LookupSet {
-    if (cache[index]) return *cache[index];
-    LookupSet result;
-    VisitedScopes directVisited;
-    result.declaration = detail::searchScope(
-        graph[index].type, name, directVisited, accept, false, false);
-    if (result.declaration) {
-      result.subobjects.push_back(index);
-      result.injectedClassTemplate =
-          templateOfInjectedClassName(result.declaration);
-    } else {
-      for (auto base : graph[index].bases) {
-        auto incoming = self(self, base);
-        if (!incoming.declaration) continue;
-        if (!result.declaration) {
-          result = std::move(incoming);
-          continue;
-        }
-        auto dominated = [&](const auto& first, const auto& second) {
-          return std::ranges::all_of(first, [&](int a) {
-            return std::ranges::any_of(
-                second, [&](int b) { return isBase(isBase, a, b); });
-          });
-        };
-        if (dominated(incoming.subobjects, result.subobjects)) continue;
-        if (dominated(result.subobjects, incoming.subobjects)) {
-          result = std::move(incoming);
-          continue;
-        }
-        result.ambiguous =
-            result.ambiguous || incoming.ambiguous ||
-            !sameDeclaration(result.declaration, incoming.declaration);
-        if (result.injectedClassTemplate != incoming.injectedClassTemplate)
-          result.injectedClassTemplate = nullptr;
-        for (auto subobject : incoming.subobjects)
-          if (!std::ranges::contains(result.subobjects, subobject))
-            result.subobjects.push_back(subobject);
-      }
-    }
-    cache[index] = result;
-    return result;
-  };
-  auto result = lookup(lookup, 0);
-  return {result.declaration, result.ambiguous, result.injectedClassTemplate};
+  return ClassMemberLookupSearch{name, accept}.lookup(scope);
 }
 
 }  // namespace cxx
