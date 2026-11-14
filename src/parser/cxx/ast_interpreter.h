@@ -275,6 +275,11 @@ class ASTInterpreter {
 
   [[nodiscard]] auto evaluateStaticField(FieldSymbol* field)
       -> ExpressionResult;
+  [[nodiscard]] auto staticFieldValue(FieldSymbol* field) -> ExpressionResult;
+  [[nodiscard]] auto publishedStaticFieldValue(FieldSymbol* field)
+      -> const ConstValue*;
+  [[nodiscard]] auto isPotentiallyConstantStaticField(FieldSymbol* field)
+      -> bool;
   [[nodiscard]] auto staticFieldInitialValue(FieldSymbol* field)
       -> ExpressionResult;
   [[nodiscard]] auto templateParameter(TemplateParameterAST* ast)
@@ -640,8 +645,6 @@ class ASTInterpreter {
   [[nodiscard]] auto subobjectAddress(const ConstAddress& base,
                                       std::intmax_t displacement)
       -> std::shared_ptr<ConstAddress>;
-
-  [[nodiscard]] auto staticFieldSlot(FieldSymbol* field) -> ConstValue*;
 
   [[nodiscard]] auto staticFieldAddress(FieldSymbol* field)
       -> std::optional<ConstValue>;

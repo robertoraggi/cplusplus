@@ -938,12 +938,34 @@ auto ASTInterpreter::expression(ExpressionAST* ast,
   return visit(ExpressionVisitor{*this, std::move(destination)}, ast);
 }
 
-auto ASTInterpreter::evaluateStaticField(FieldSymbol* field)
-    -> ExpressionResult {
+auto ASTInterpreter::isPotentiallyConstantStaticField(FieldSymbol* field)
+    -> bool {
   Symbol* declaration = field;
   if (auto definition = field->definition()) declaration = definition;
-  if (!traits.is_potentially_constant(declaration))
+  return traits.is_potentially_constant(declaration);
+}
+
+auto ASTInterpreter::evaluateStaticField(FieldSymbol* field)
+    -> ExpressionResult {
+  if (!isPotentiallyConstantStaticField(field))
     return ExpressionResult{std::nullopt};
+  return staticFieldInitialValue(field);
+}
+
+auto ASTInterpreter::publishedStaticFieldValue(FieldSymbol* field)
+    -> const ConstValue* {
+  if (auto definition = symbol_cast<VariableSymbol>(field->definition());
+      definition && isDeclaredConstant(definition) && definition->constValue())
+    return &*definition->constValue();
+  if (field->constValue()) return &*field->constValue();
+  return nullptr;
+}
+
+auto ASTInterpreter::staticFieldValue(FieldSymbol* field) -> ExpressionResult {
+  if (auto slot = lookupLocalSlot(field)) return *slot;
+  if (!isPotentiallyConstantStaticField(field))
+    return ExpressionResult{std::nullopt};
+  if (auto published = publishedStaticFieldValue(field)) return *published;
   return staticFieldInitialValue(field);
 }
 
@@ -960,25 +982,14 @@ auto ASTInterpreter::staticFieldInitialValue(FieldSymbol* field)
     return loadAddress(**referent, 0);
   }
 
-  if (auto definition = symbol_cast<VariableSymbol>(field->definition())) {
-    if (isDeclaredConstant(definition) && definition->constValue())
-      return cloneValue(*definition->constValue());
-  }
-  if (field->constValue()) return cloneValue(*field->constValue());
+  if (auto published = publishedStaticFieldValue(field))
+    return cloneValue(*published);
 
   fieldsUnderEvaluation_.push_back(field);
   auto result = expression(field->initializer());
   fieldsUnderEvaluation_.pop_back();
 
   return result;
-}
-
-auto ASTInterpreter::staticFieldSlot(FieldSymbol* field) -> ConstValue* {
-  if (auto slot = lookupLocalSlot(field)) return slot;
-  auto value = evaluateStaticField(field);
-  if (!value) return nullptr;
-  setLocal(field, std::move(*value));
-  return lookupLocalSlot(field);
 }
 
 auto ASTInterpreter::staticFieldAddress(FieldSymbol* field)
@@ -1064,8 +1075,7 @@ auto ASTInterpreter::lvalue(ExpressionAST* ast) -> ConstValue* {
         if (auto object = fieldOwner(ast)) return memberSlot(object, field);
         return nullptr;
       }
-      if (field->isStatic()) return staticFieldSlot(field);
-      return nullptr;
+      return lookupLocalSlot(field);
     }
 
     if (symbol_cast<VariableSymbol>(sym) || symbol_cast<ParameterSymbol>(sym))
@@ -1277,7 +1287,7 @@ auto ASTInterpreter::loadAddress(const ConstAddress& address,
       storage = expression(var->initializer());
   } else if (auto field = symbol_cast<FieldSymbol>(sym);
              field && field->isStatic()) {
-    storage = evaluateStaticField(field);
+    storage = staticFieldValue(field);
   }
   if (!storage) return std::nullopt;
   auto slot = addressedElement(&std::as_const(*storage), *located);
@@ -1324,8 +1334,6 @@ auto ASTInterpreter::addressStorage(const ConstAddress& address)
   if (address.storage()) return &address.storage()->value();
   for (auto it = initializations_.rbegin(); it != initializations_.rend(); ++it)
     if (it->first == address.root()) return it->second;
-  auto field = symbol_cast<FieldSymbol>(address.symbol());
-  if (field && field->isStatic()) return staticFieldSlot(field);
   return nullptr;
 }
 
