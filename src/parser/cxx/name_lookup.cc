@@ -206,19 +206,19 @@ void collectQualifiedNamespaceDeclarations(NamespaceSymbol* scope,
                                            const Name* name, Predicate accept,
                                            std::vector<Symbol*>& found,
                                            VisitedScopes& visited) {
-  if (!scope || std::ranges::contains(visited, scope)) return;
+  if (!scope || visited.contains(scope)) return;
   auto inlineSet = inlineNamespaceSet(scope);
 
   const auto start = found.size();
   for (auto ns : inlineSet) {
-    if (std::ranges::contains(visited, ns)) continue;
+    if (visited.contains(ns)) continue;
     VisitedScopes directVisited;
     if (auto symbol =
             detail::searchScope(ns, name, directVisited, accept, false))
       found.push_back(symbol);
   }
   for (auto ns : inlineSet) {
-    if (!std::ranges::contains(visited, ns)) visited.push_back(ns);
+    visited.insert(ns);
   }
   if (found.size() != start) return;
 
@@ -268,8 +268,7 @@ auto lookupTypeHelper(ScopeSymbol* scope, const Identifier* id,
     scope = cls->resolvedDefinition();
   }
 
-  if (std::ranges::contains(visited, scope)) return nullptr;
-  visited.push_back(scope);
+  if (!visited.insert(scope)) return nullptr;
 
   Symbol* fallback = nullptr;
   bool foundOtherDeclaration = false;

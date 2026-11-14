@@ -34,6 +34,7 @@
 #include <functional>
 #include <optional>
 #include <span>
+#include <unordered_set>
 #include <vector>
 
 namespace cxx {
@@ -57,39 +58,43 @@ struct ClassMemberLookup {
 
 class VisitedScopes {
  public:
-  [[nodiscard]] auto begin() const -> ScopeSymbol* const* { return data(); }
-  [[nodiscard]] auto end() const -> ScopeSymbol* const* {
-    return data() + size_;
+  [[nodiscard]] auto contains(ScopeSymbol* scope) const -> bool {
+    if (!overflow_.empty()) return overflow_.contains(scope);
+    return std::ranges::contains(inline_.begin(), inline_.begin() + size_,
+                                 scope);
   }
 
-  void push_back(ScopeSymbol* scope) {
+  auto insert(ScopeSymbol* scope) -> bool {
+    if (contains(scope)) return false;
     if (overflow_.empty() && size_ < inline_.size()) {
       inline_[size_++] = scope;
-      return;
+      return true;
     }
-    if (overflow_.empty()) overflow_.assign(inline_.begin(), inline_.end());
-    overflow_.push_back(scope);
-    ++size_;
+    if (overflow_.empty()) overflow_.insert(inline_.begin(), inline_.end());
+    overflow_.insert(scope);
+    return true;
   }
 
  private:
-  [[nodiscard]] auto data() const -> ScopeSymbol* const* {
-    return overflow_.empty() ? inline_.data() : overflow_.data();
-  }
-
   std::array<ScopeSymbol*, 32> inline_;
-  std::vector<ScopeSymbol*> overflow_;
+  std::unordered_set<ScopeSymbol*> overflow_;
   std::size_t size_ = 0;
 };
 
 namespace detail {
+[[nodiscard]] inline auto isReachableAlongSeveralPaths(ScopeSymbol* scope)
+    -> bool {
+  return scope->isClass() || scope->isNamespace() ||
+         !std::ranges::empty(scope->usingDirectives());
+}
+
 template <typename Predicate>
 [[nodiscard]] auto searchScope(ScopeSymbol* scope, const Name* name,
                                VisitedScopes& visited, Predicate accept,
                                bool followUsingDirectives = true,
                                bool searchBaseClasses = true) -> Symbol* {
-  if (std::ranges::contains(visited, scope)) return nullptr;
-  visited.push_back(scope);
+  if (isReachableAlongSeveralPaths(scope) && !visited.insert(scope))
+    return nullptr;
 
   if (auto cls = symbol_cast<ClassSymbol>(scope)) {
     if (auto def = cls->definition(); def && def != cls)
