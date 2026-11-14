@@ -26,7 +26,7 @@
  * D - derived from another persisted field of the same entity
  * F - flushed before freezing
  */
-export type FieldClass = "P" | "R" | "C" | "E" | "D" | "F";
+export type FieldClass = 'P'|'R'|'C'|'E'|'D'|'F';
 
 export interface FieldBinding {
   cls: FieldClass;
@@ -37,9 +37,13 @@ export interface FieldBinding {
   from?: string;
   /** Expression producing the field's value; `$` is the entity. */
   read?: string;
-  /** Statement storing a decoded value; `$` is the entity, `$value` the value. */
+  /**
+   * Statement storing a decoded value; `$` is the entity, `$value` the value.
+   */
   write?: string;
-  /** Statement storing one element of a container; `$element` is the element. */
+  /**
+   * Statement storing one element of a container; `$element` is the element.
+   */
   writeElement?: string;
   /** Fields written together with this one by a single coupled writer. */
   writesWith?: string[];
@@ -55,355 +59,367 @@ export type ClassBindings = Record<string, FieldBinding>;
  * field with neither a convention match nor an entry below fails the build.
  */
 export const bindings: Record<string, ClassBindings> = {
-  "::cxx::Symbol": {
-    kind_: { cls: "D", why: "the symbol record's own kind tag" },
+  '::cxx::Symbol': {
+    kind_: {cls: 'D', why: 'the symbol record\'s own kind tag'},
     internalId_: {
-      cls: "E",
-      why: "scratch space for a numbering walk; zero outside one",
+      cls: 'E',
+      why: 'scratch space for a numbering walk; zero outside one',
     },
     abiTags_: {
-      cls: "P",
-      read: "$->abiTagList()",
-      write: "$->setAbiTags($value)",
-      why: "abiTags() answers a span over the interned list",
+      cls: 'P',
+      read: '$->abiTagList()',
+      write: '$->setAbiTags($value)',
+      why: 'abiTags() answers a span over the interned list',
     },
     link_: {
-      cls: "R",
-      why: "the same-name chain is rebuilt by ScopeSymbol::rebuildLookupTable",
+      cls: 'R',
+      why: 'the same-name chain is rebuilt by ScopeSymbol::rebuildLookupTable',
     },
   },
 
-  "::cxx::NamespaceSymbol": {
+  '::cxx::NamespaceSymbol': {
     anonNamespaceIndex_: {
-      cls: "P",
-      read: "$->anonNamespaceIndex().value_or(-1)",
-      write: "if ($value >= 0) $->setAnonNamespaceIndex($value)",
-      why: "the accessor answers nullopt for a named namespace",
+      cls: 'P',
+      read: '$->anonNamespaceIndex().value_or(-1)',
+      write: 'if ($value >= 0) $->setAnonNamespaceIndex($value)',
+      why: 'the accessor answers nullopt for a named namespace',
     },
   },
 
-  "::cxx::ConstObject": {
+  '::cxx::ConstObject': {
     members_: {
-      cls: "P",
-      read: "$->members()",
-      writeElement: "$->addMember($element.symbol, $element.value)",
+      cls: 'P',
+      read: '$->members()',
+      writeElement: '$->addMember($element.symbol, $element.value)',
     },
     constexprUnknown_: {
-      cls: "P",
-      read: "$->isConstexprUnknown()",
-      write: "$->setConstexprUnknown($value)",
+      cls: 'P',
+      read: '$->isConstexprUnknown()',
+      write: '$->setConstexprUnknown($value)',
     },
   },
 
-  "::cxx::InitializerList": {
+  '::cxx::InitializerList': {
     elements_: {
-      cls: "P",
-      read: "$->initializedElements()",
-      writeElement: "$->append(std::get<0>($element), std::get<1>($element))",
+      cls: 'P',
+      read: '$->initializedElements()',
+      writeElement: '$->append(std::get<0>($element), std::get<1>($element))',
     },
     size_: {
-      cls: "P",
-      read: "$->size()",
-      write: "$->setSize($value)",
+      cls: 'P',
+      read: '$->size()',
+      write: '$->setSize($value)',
     },
     filler_: {
-      cls: "P",
-      read: "$->filler()",
-      write: "$->setFiller($value)",
+      cls: 'P',
+      read: '$->filler()',
+      write: '$->setFiller($value)',
     },
   },
 
-  "::cxx::ConstAddress": {
+  '::cxx::ConstAddress': {
     string_: {
-      cls: "P",
-      read: "$->stringLiteral()",
-      write: "$->setStringLiteral($value)",
+      cls: 'P',
+      read: '$->stringLiteral()',
+      write: '$->setStringLiteral($value)',
     },
   },
 
-  "::cxx::ScopeSymbol": {
+  '::cxx::ScopeSymbol': {
     members_: {
-      cls: "P",
-      read: "$->members()",
-      writeElement: "$->addMember($element)",
+      cls: 'P',
+      read: '$->members()',
+      writeElement: '$->addMember($element)',
     },
     buckets_: {
-      cls: "R",
-      why: "a derived lookup index, rebuilt from members_",
+      cls: 'R',
+      why: 'a derived lookup index, rebuilt from members_',
     },
     usingDirectives_: {
-      cls: "P",
-      read: "$->usingDirectives()",
-      writeElement: "$->addUsingDirective($element)",
+      cls: 'P',
+      read: '$->usingDirectives()',
+      writeElement: '$->addUsingDirective($element)',
     },
   },
 
-  "::cxx::ClassSymbol": {
+  '::cxx::ClassSymbol': {
     firstNonFriendDeclarationLocation_: {
-      cls: "P",
-      read: "$->firstNonFriendDeclarationLocation()",
-      write: "$->setFirstNonFriendDeclarationLocation($value)",
+      cls: 'P',
+      read: '$->firstNonFriendDeclarationLocation()',
+      write: '$->setFirstNonFriendDeclarationLocation($value)',
     },
-    flags_: { cls: "D", why: "the individual bit-fields are persisted" },
+    flags_: {cls: 'D', why: 'the individual bit-fields are persisted'},
+    baseClassSymbols_: {
+      cls: 'R',
+      why: 'the direct and indirect base classes, collected on first use',
+    },
     knownProperties_: {
-      cls: "R",
-      why: "which properties of the completed class were derived on first use",
+      cls: 'R',
+      why: 'which properties of the completed class were derived on first use',
     },
     knownPropertyValues_: {
-      cls: "R",
-      why: "the derived properties of the completed class",
+      cls: 'R',
+      why: 'the derived properties of the completed class',
     },
     baseClasses_: {
-      cls: "P",
-      read: "$->baseClasses()",
-      writeElement: "$->addBaseClass($element)",
+      cls: 'P',
+      read: '$->baseClasses()',
+      writeElement: '$->addBaseClass($element)',
     },
     befriendingClasses_: {
-      cls: "P",
-      read: "$->befriendingClasses()",
-      writeElement: "$->addBefriendingClass($element)",
+      cls: 'P',
+      read: '$->befriendingClasses()',
+      writeElement: '$->addBefriendingClass($element)',
     },
     templateFriendships_: {
-      cls: "P",
-      read: "$->templateFriendships()",
+      cls: 'P',
+      read: '$->templateFriendships()',
       writeElement:
-        "$->addBefriendingClass($element.befriendingClass, $element.arguments)",
+          '$->addBefriendingClass($element.befriendingClass, $element.arguments)',
     },
     deductionGuides_: {
-      cls: "P",
-      read: "$->deductionGuides()",
-      writeElement: "$->addDeductionGuide($element)",
+      cls: 'P',
+      read: '$->deductionGuides()',
+      writeElement: '$->addDeductionGuide($element)',
     },
     instantiationSubstitutionDepth_: {
-      cls: "P",
-      read: "$->instantiationSubstitutionDepth()",
+      cls: 'P',
+      read: '$->instantiationSubstitutionDepth()',
       write:
-        "$->setInstantiationSubstitution($value, $->instantiationSubstitutionArguments())",
+          '$->setInstantiationSubstitution($value, $->instantiationSubstitutionArguments())',
     },
     instantiationSubstitutionArguments_: {
-      cls: "P",
-      read: "$->instantiationSubstitutionArguments()",
+      cls: 'P',
+      read: '$->instantiationSubstitutionArguments()',
       write:
-        "$->setInstantiationSubstitution($->instantiationSubstitutionDepth(), std::move($value))",
+          '$->setInstantiationSubstitution($->instantiationSubstitutionDepth(), std::move($value))',
     },
     layout_: {
-      cls: "P",
-      read: "$->layout()",
-      write: "$->setLayout(std::move($value))",
+      cls: 'P',
+      read: '$->layout()',
+      write: '$->setLayout(std::move($value))',
     },
     vtableLayout_: {
-      cls: "P",
-      read: "$->vtableLayout()",
-      write: "$->setVTableLayout(std::move($value))",
+      cls: 'P',
+      read: '$->vtableLayout()',
+      write: '$->setVTableLayout(std::move($value))',
     },
   },
 
-  "::cxx::FunctionSymbol": {
-    flags_: { cls: "D", why: "the individual bit-fields are persisted" },
+  '::cxx::FunctionSymbol': {
+    flags_: {cls: 'D', why: 'the individual bit-fields are persisted'},
     hasCLinkage_: {
-      cls: "P",
-      read: "$->hasCLinkage()",
+      cls: 'P',
+      read: '$->hasCLinkage()',
       write:
-        "$->setLanguageLinkage($value ? LanguageKind::kC : LanguageKind::kCXX)",
+          '$->setLanguageLinkage($value ? LanguageKind::kC : LanguageKind::kCXX)',
     },
     overriddenFunctions_: {
-      cls: "P",
-      read: "$->overriddenFunctions()",
-      writeElement: "$->addOverriddenFunction($element)",
+      cls: 'P',
+      read: '$->overriddenFunctions()',
+      writeElement: '$->addOverriddenFunction($element)',
     },
     befriendingClasses_: {
-      cls: "P",
-      read: "$->befriendingClasses()",
-      writeElement: "$->addBefriendingClass($element)",
+      cls: 'P',
+      read: '$->befriendingClasses()',
+      writeElement: '$->addBefriendingClass($element)',
     },
     templateFriendships_: {
-      cls: "P",
-      read: "$->templateFriendships()",
+      cls: 'P',
+      read: '$->templateFriendships()',
       writeElement:
-        "$->addBefriendingClass($element.befriendingClass, $element.arguments)",
+          '$->addBefriendingClass($element.befriendingClass, $element.arguments)',
     },
     constructorInitializers_: {
-      cls: "P",
-      read: "$->constructorInitializers()",
-      write: "if ($value) $->setConstructorInitializers(*$value)",
+      cls: 'P',
+      read: '$->constructorInitializers()',
+      write: 'if ($value) $->setConstructorInitializers(*$value)',
     },
     pendingBody_: {
-      cls: "P",
-      read: "$->pendingBody()",
-      write: "$->setPendingBody(std::move($value))",
+      cls: 'P',
+      read: '$->pendingBody()',
+      write: '$->setPendingBody(std::move($value))',
     },
     pendingExceptionSpecification_: {
-      cls: "P",
-      read: "$->pendingExceptionSpecification()",
-      write: "$->setPendingExceptionSpecification(std::move($value))",
+      cls: 'P',
+      read: '$->pendingExceptionSpecification()',
+      write: '$->setPendingExceptionSpecification(std::move($value))',
     },
   },
 
-  "::cxx::OverloadSetSymbol": {
+  '::cxx::OverloadSetSymbol': {
     declaredFunctions_: {
-      cls: "P",
-      read: "$->declaredFunctions()",
-      writeElement: "$->addFunction($element)",
+      cls: 'P',
+      read: '$->declaredFunctions()',
+      writeElement: '$->addFunction($element)',
     },
     usingDeclarations_: {
-      cls: "P",
-      read: "$->usingDeclarations()",
-      writeElement: "$->addUsingDeclaration($element)",
+      cls: 'P',
+      read: '$->usingDeclarations()',
+      writeElement: '$->addUsingDeclaration($element)',
     },
   },
 
-  "::cxx::LambdaSymbol": {
-    flags_: { cls: "D", why: "the individual bit-fields are persisted" },
+  '::cxx::UsingDeclarationSymbol': {
+    introducedFunctions_: {
+      cls: 'R',
+      why:
+          'the functions named at the point of declaration, found on first use',
+    },
   },
 
-  "::cxx::VariableSymbol": {
-    flags_: { cls: "D", why: "the individual bit-fields are persisted" },
+  '::cxx::LambdaSymbol': {
+    flags_: {cls: 'D', why: 'the individual bit-fields are persisted'},
+  },
+
+  '::cxx::VariableSymbol': {
+    flags_: {cls: 'D', why: 'the individual bit-fields are persisted'},
     hasCLinkage_: {
-      cls: "P",
-      read: "$->hasCLinkage()",
+      cls: 'P',
+      read: '$->hasCLinkage()',
       write:
-        "$->setLanguageLinkage($value ? LanguageKind::kC : LanguageKind::kCXX)",
+          '$->setLanguageLinkage($value ? LanguageKind::kC : LanguageKind::kCXX)',
     },
     pendingInitializer_: {
-      cls: "P",
-      read: "$->pendingInitializer()",
-      write: "$->setPendingInitializer(std::move($value))",
+      cls: 'P',
+      read: '$->pendingInitializer()',
+      write: '$->setPendingInitializer(std::move($value))',
     },
   },
 
-  "::cxx::FieldSymbol": {
-    flags_: { cls: "D", why: "the individual bit-fields are persisted" },
+  '::cxx::FieldSymbol': {
+    flags_: {cls: 'D', why: 'the individual bit-fields are persisted'},
     pendingInitializer_: {
-      cls: "P",
-      read: "$->pendingInitializer()",
-      write: "$->setPendingInitializer(std::move($value))",
+      cls: 'P',
+      read: '$->pendingInitializer()',
+      write: '$->setPendingInitializer(std::move($value))',
     },
   },
 
-  "::cxx::ParameterPackSymbol": {
+  '::cxx::ParameterPackSymbol': {
     elements_: {
-      cls: "P",
-      read: "$->elements()",
-      writeElement: "$->addElement($element)",
+      cls: 'P',
+      read: '$->elements()',
+      writeElement: '$->addElement($element)',
     },
   },
 
-  "::cxx::EnumeratorSymbol": {
-    value_: { cls: "P", read: "$->value()", write: "$->setValue($value)" },
+  '::cxx::EnumeratorSymbol': {
+    value_: {cls: 'P', read: '$->value()', write: '$->setValue($value)'},
   },
 
-  "::cxx::MaybeRedecl": {
+  '::cxx::MaybeRedecl': {
     canonical_: {
-      cls: "P",
-      read: "$->canonicalOrNull()",
-      write: "$->setCanonical($value)",
-      why: "canonical() answers `this` when the field is null",
+      cls: 'P',
+      read: '$->canonicalOrNull()',
+      write: '$->setCanonical($value)',
+      why: 'canonical() answers `this` when the field is null',
     },
     redeclarations_: {
-      cls: "P",
-      read: "$->redeclarations()",
-      writeElement: "$->addRedeclaration($element)",
+      cls: 'P',
+      read: '$->redeclarations()',
+      writeElement: '$->addRedeclaration($element)',
     },
   },
 
-  "::cxx::MaybeTemplate": {
+  '::cxx::MaybeTemplate': {
     template_: {
-      cls: "D",
-      why: "persisted through the template payload's public accessors",
+      cls: 'D',
+      why: 'persisted through the template payload\'s public accessors',
     },
     declaration_: {
-      cls: "P",
-      read: "$->declaration()",
-      write: "$->setDeclaration($value)",
+      cls: 'P',
+      read: '$->declaration()',
+      write: '$->setDeclaration($value)',
     },
   },
 
-  "::cxx::Name": {
-    kind_: { cls: "D", why: "the name record's own kind tag" },
-    hashValue_: { cls: "D", why: "recomputed when the name is interned" },
+  '::cxx::Name': {
+    kind_: {cls: 'D', why: 'the name record\'s own kind tag'},
+    hashValue_: {cls: 'D', why: 'recomputed when the name is interned'},
   },
 
-  "::cxx::Identifier": {
+  '::cxx::Identifier': {
     info_: {
-      cls: "R",
-      why: "a builtin-identifier cache, re-resolved from the spelling",
+      cls: 'R',
+      why: 'a builtin-identifier cache, re-resolved from the spelling',
     },
   },
 
-  "::cxx::Type": {
-    kind_: { cls: "D", why: "the type record's own kind tag" },
+  '::cxx::Type': {
+    kind_: {cls: 'D', why: 'the type record\'s own kind tag'},
   },
 
-  "::cxx::AST": {
-    kind_: { cls: "D", why: "the AST record's own kind tag" },
+  '::cxx::AST': {
+    kind_: {cls: 'D', why: 'the AST record\'s own kind tag'},
     internalId_: {
-      cls: "E",
-      why: "scratch space for a numbering walk; zero outside one",
+      cls: 'E',
+      why: 'scratch space for a numbering walk; zero outside one',
     },
   },
 
-  "::cxx::ClassLayout": {
+  '::cxx::ClassLayout': {
     fields_: {
-      cls: "P",
-      from: "sortedFieldInfos",
-      read: "$->sortedFieldInfos()",
-      writeElement: "$->setFieldInfo($element.first, $element.second)",
+      cls: 'P',
+      from: 'sortedFieldInfos',
+      read: '$->sortedFieldInfos()',
+      writeElement: '$->setFieldInfo($element.first, $element.second)',
     },
     bases_: {
-      cls: "P",
-      from: "sortedBaseInfos",
-      read: "$->sortedBaseInfos()",
-      writeElement: "$->setBaseInfo($element.first, $element.second)",
+      cls: 'P',
+      from: 'sortedBaseInfos',
+      read: '$->sortedBaseInfos()',
+      writeElement: '$->setBaseInfo($element.first, $element.second)',
     },
     virtualBaseInfos_: {
-      cls: "P",
-      from: "sortedVirtualBaseInfos",
-      read: "$->sortedVirtualBaseInfos()",
-      writeElement: "$->setVirtualBaseInfo($element.first, $element.second)",
+      cls: 'P',
+      from: 'sortedVirtualBaseInfos',
+      read: '$->sortedVirtualBaseInfos()',
+      writeElement: '$->setVirtualBaseInfo($element.first, $element.second)',
     },
     virtualBases_: {
-      cls: "P",
-      read: "$->virtualBases()",
-      writeElement: "$->addVirtualBase($element)",
+      cls: 'P',
+      read: '$->virtualBases()',
+      writeElement: '$->addVirtualBase($element)',
     },
     padding_: {
-      cls: "P",
-      read: "$->padding()",
+      cls: 'P',
+      read: '$->padding()',
       writeElement:
-        "$->addPadding($element.index, $element.offset, $element.sizeInBytes)",
+          '$->addPadding($element.index, $element.offset, $element.sizeInBytes)',
     },
     primaryBase_: {
-      cls: "P",
-      read: "$->primaryBase()",
-      write: "$->setPrimaryBase($value, $->primaryBaseIsVirtual())",
+      cls: 'P',
+      read: '$->primaryBase()',
+      write: '$->setPrimaryBase($value, $->primaryBaseIsVirtual())',
     },
     primaryBaseIsVirtual_: {
-      cls: "P",
-      read: "$->primaryBaseIsVirtual()",
-      write: "$->setPrimaryBase($->primaryBase(), $value)",
+      cls: 'P',
+      read: '$->primaryBaseIsVirtual()',
+      write: '$->setPrimaryBase($->primaryBase(), $value)',
     },
     abiEmpty_: {
-      cls: "P",
-      read: "$->isAbiEmpty()",
-      write: "$->setAbiEmpty($value)",
+      cls: 'P',
+      read: '$->isAbiEmpty()',
+      write: '$->setAbiEmpty($value)',
     },
     hasVtable_: {
-      cls: "P",
-      read: "$->hasVtable()",
-      write: "$->setHasVtable($value)",
+      cls: 'P',
+      read: '$->hasVtable()',
+      write: '$->setHasVtable($value)',
     },
     hasDirectVtable_: {
-      cls: "P",
-      read: "$->hasDirectVtable()",
-      write: "$->setHasDirectVtable($value)",
+      cls: 'P',
+      read: '$->hasDirectVtable()',
+      write: '$->setHasDirectVtable($value)',
     },
   },
 };
 
 export function bindingOf(
-  className: string,
-  fieldName: string,
-): FieldBinding | undefined {
+    className: string,
+    fieldName: string,
+    ): FieldBinding|undefined {
   return bindings[className]?.[fieldName];
 }
 
@@ -424,43 +440,43 @@ export interface ExtraField {
  * than field by field.
  */
 export const extraFields: Record<string, ExtraField[]> = {
-  "::cxx::MaybeTemplate": [
+  '::cxx::MaybeTemplate': [
     {
-      name: "templateDeclaration",
-      from: "templateDeclaration",
-      cls: "P",
-      write: "$->setTemplateDeclaration($value)",
+      name: 'templateDeclaration',
+      from: 'templateDeclaration',
+      cls: 'P',
+      write: '$->setTemplateDeclaration($value)',
     },
     {
-      name: "templateParameters",
-      from: "templateParameters",
-      cls: "P",
-      write: "$->setTemplateParameters($value)",
+      name: 'templateParameters',
+      from: 'templateParameters',
+      cls: 'P',
+      write: '$->setTemplateParameters($value)',
     },
     {
-      name: "specializations",
-      from: "specializations",
-      cls: "P",
-      writeElement: "$->restoreSpecialization(std::move($element))",
+      name: 'specializations',
+      from: 'specializations',
+      cls: 'P',
+      writeElement: '$->restoreSpecialization(std::move($element))',
     },
     {
-      name: "primaryTemplateSymbol",
-      from: "primaryTemplateSymbol",
-      cls: "P",
+      name: 'primaryTemplateSymbol',
+      from: 'primaryTemplateSymbol',
+      cls: 'P',
       write:
-        "$->restoreSpecializationInfo($value, $->templateSpecializationIndex())",
+          '$->restoreSpecializationInfo($value, $->templateSpecializationIndex())',
     },
     {
-      name: "templateSpecializationIndex",
-      from: "templateSpecializationIndex",
-      cls: "P",
-      write: "$->restoreSpecializationInfo($->primaryTemplateSymbol(), $value)",
+      name: 'templateSpecializationIndex',
+      from: 'templateSpecializationIndex',
+      cls: 'P',
+      write: '$->restoreSpecializationInfo($->primaryTemplateSymbol(), $value)',
     },
     {
-      name: "externInstantiationDeclarations",
-      from: "externInstantiationDeclarations",
-      cls: "P",
-      writeElement: "$->addExternInstantiationDeclaration($element)",
+      name: 'externInstantiationDeclarations',
+      from: 'externInstantiationDeclarations',
+      cls: 'P',
+      writeElement: '$->addExternInstantiationDeclaration($element)',
     },
   ],
 };

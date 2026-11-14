@@ -201,6 +201,8 @@ struct [[nodiscard]] Binder::CompleteClass {
   ClassSpecifierAST* ast;
   ClassSymbol* classSymbol;
   Arena* pool;
+  std::optional<std::unordered_map<FunctionSymbol*, FunctionSymbol*>>
+      inheritedConstructorsByOrigin_;
 
   CompleteClass(Binder& b, ClassSpecifierAST* a)
       : binder(b), ast(a), classSymbol(a->symbol), pool(b.unit_->arena()) {}
@@ -321,6 +323,10 @@ struct [[nodiscard]] Binder::CompleteClass {
   void addInheritedConstructors();
   auto declareInheritedConstructor(FunctionSymbol* inherited)
       -> FunctionSymbol*;
+  [[nodiscard]] auto inheritedConstructorsByOrigin()
+      -> std::unordered_map<FunctionSymbol*, FunctionSymbol*>&;
+  [[nodiscard]] auto directBaseDeclaring(FunctionSymbol* constructor)
+      -> BaseClassSymbol*;
   auto directInheritedConstructor(FunctionSymbol* inherited)
       -> std::pair<BaseClassSymbol*, FunctionSymbol*>;
   void synthesizeInheritedConstructorBody(FunctionSymbol* fn);
@@ -462,6 +468,10 @@ void Binder::synthesizeDefaultedMemberBody(FunctionSymbol* fn) {
     return;
 
   CompleteClass cc{*this, classSymbol};
+  if (fn->inheritedConstructor()) {
+    cc.synthesizeInheritedConstructorBody(fn);
+    return;
+  }
   if (auto operatorId = name_cast<OperatorId>(fn->name())) {
     switch (operatorId->op()) {
       case TokenKind::T_EQUAL_EQUAL:
@@ -609,6 +619,18 @@ void Binder::CompleteClass::addInheritedConstructors() {
   }
 }
 
+auto Binder::CompleteClass::inheritedConstructorsByOrigin()
+    -> std::unordered_map<FunctionSymbol*, FunctionSymbol*>& {
+  if (inheritedConstructorsByOrigin_) return *inheritedConstructorsByOrigin_;
+
+  auto& byOrigin = inheritedConstructorsByOrigin_.emplace();
+  for (auto existing : classSymbol->declaredConstructors()) {
+    if (auto origin = existing->inheritedConstructorOrigin())
+      byOrigin.try_emplace(origin->canonical(), existing);
+  }
+  return byOrigin;
+}
+
 auto Binder::CompleteClass::declareInheritedConstructor(
     FunctionSymbol* inherited) -> FunctionSymbol* {
   auto base = symbol_cast<ClassSymbol>(inherited->parent());
@@ -617,13 +639,14 @@ auto Binder::CompleteClass::declareInheritedConstructor(
   auto inheritedType = type_cast<FunctionType>(inherited->type());
   if (!inheritedType) return nullptr;
 
-  for (auto existing : classSymbol->declaredConstructors()) {
-    if (!existing->inheritedConstructor()) continue;
-    if (sameInheritedConstructorSource(existing, inherited)) return existing;
-  }
+  auto origin = inheritedConstructorSource(inherited)->canonical();
+  auto [declared, isNew] = inheritedConstructorsByOrigin().try_emplace(origin);
+  if (!isNew) return declared->second;
 
   auto symbol = newDefaultedFunction(classSymbol->name(), inherited->type());
+  declared->second = symbol;
   symbol->setInheritedConstructor(inherited);
+  symbol->setInheritedConstructorOrigin(inheritedConstructorSource(inherited));
   symbol->setExplicit(inherited->isExplicit());
   symbol->setConstexpr(inherited->isConstexpr());
 
@@ -653,12 +676,27 @@ auto Binder::CompleteClass::declareInheritedConstructor(
   return symbol;
 }
 
+auto Binder::CompleteClass::directBaseDeclaring(FunctionSymbol* constructor)
+    -> BaseClassSymbol* {
+  auto declaringClass = constructor->enclosingClass();
+  if (!declaringClass) return nullptr;
+  declaringClass = declaringClass->resolvedDefinition();
+
+  for (auto baseClass : classSymbol->baseClasses()) {
+    if (resolved_base_class(baseClass) == declaringClass) return baseClass;
+  }
+  return nullptr;
+}
+
 auto Binder::CompleteClass::directInheritedConstructor(
     FunctionSymbol* inherited) -> std::pair<BaseClassSymbol*, FunctionSymbol*> {
   auto source = inheritedConstructorSource(inherited);
 
   auto declaringClass = source->enclosingClass();
   if (declaringClass) declaringClass = declaringClass->resolvedDefinition();
+
+  if (auto baseClass = directBaseDeclaring(inherited))
+    return {baseClass, inherited};
 
   for (auto baseClass : classSymbol->baseClasses()) {
     auto base = resolved_base_class(baseClass);
@@ -2687,22 +2725,12 @@ void Binder::CompleteClass::synthesizeMemberwiseBodies() {
     return def && ast_cast<DefaultFunctionBodyAST>(def->functionBody);
   };
 
-  auto needsBody = [&](FunctionSymbol* fn) {
-    return hasDefaultedBody(fn) &&
-           !binder.unit_->typeTraits().is_deleted_function(fn);
-  };
-
   auto needsBodyNow = [&](FunctionSymbol* fn) {
     if (!hasDefaultedBody(fn) || fn->isDeleted()) return false;
     (void)ensureSourceParameter(fn);
     if (!fn->isDefinitionRequired()) return false;
     return !binder.unit_->typeTraits().is_deleted_function(fn);
   };
-
-  for (auto fn : classSymbol->declaredConstructors()) {
-    if (fn->inheritedConstructor() && needsBody(fn))
-      synthesizeInheritedConstructorBody(fn);
-  }
 
   for (auto fn : classSymbol->declaredConstructors()) {
     if (!needsBodyNow(fn)) continue;
