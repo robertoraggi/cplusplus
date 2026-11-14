@@ -173,6 +173,9 @@ struct [[nodiscard]] Binder::DeclareFunction {
   auto enclosingClass() const -> ClassSymbol*;
   void checkVirtualSpecifierOutsideClass();
   void checkOverrideAndFinalSpecifiers(FunctionSymbol* overridden);
+  void checkOverriddenFunctions(
+      const std::vector<FunctionSymbol*>& directlyOverridden);
+  void checkOverriddenFunction(FunctionSymbol* overridden);
   void checkCovariantReturnType(FunctionSymbol* overridden);
   void checkCovariantReturnBase(
       const TypeTraits::CovariantReturnClasses& classes);
@@ -1151,29 +1154,77 @@ void Binder::DeclareFunction::checkOverrideAndFinalSpecifiers(
 
 auto Binder::findOverriddenFunctions(ClassSymbol* cls, FunctionSymbol* fn)
     -> std::vector<FunctionSymbol*> {
-  std::vector<ClassSymbol*> visited;
-  std::vector<FunctionSymbol*> overriddenFunctions;
-  findOverriddenFunctionsImpl(cls, fn, visited, overriddenFunctions);
-  return overriddenFunctions;
-}
+  InsertionOrderedSet<Symbol*> visited;
+  InsertionOrderedSet<FunctionSymbol*> overriddenFunctions;
 
-void Binder::findOverriddenFunctionsImpl(
-    ClassSymbol* cls, FunctionSymbol* fn, std::vector<ClassSymbol*>& visited,
-    std::vector<FunctionSymbol*>& overriddenFunctions) {
-  for (auto base : cls->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass || std::ranges::contains(visited, baseClass)) continue;
-    visited.push_back(baseClass);
+  std::vector<Symbol*> pending;
+  auto appendBaseClasses = [&pending](ClassSymbol* derived) {
+    for (auto base : derived->baseClasses() | std::views::reverse)
+      pending.push_back(base->symbol());
+  };
+
+  appendBaseClasses(cls);
+  while (!pending.empty()) {
+    auto baseClass = symbol_cast<ClassSymbol>(pending.back());
+    pending.pop_back();
+    if (!baseClass || !visited.insert(baseClass)) continue;
     baseClass = baseClass->resolvedDefinition();
     if (!baseClass->isPolymorphic()) continue;
 
-    for (auto member : views::members(baseClass) | views::virtual_functions) {
-      if (!traits.is_corresponding_overrider(fn, member)) continue;
-      if (std::ranges::contains(overriddenFunctions, member)) continue;
-      overriddenFunctions.push_back(member);
-    }
+    auto corresponding = correspondingVirtualFunctions(baseClass, fn);
+    for (auto member : corresponding) overriddenFunctions.insert(member);
+    if (corresponding.empty()) appendBaseClasses(baseClass);
+  }
 
-    findOverriddenFunctionsImpl(baseClass, fn, visited, overriddenFunctions);
+  return std::move(overriddenFunctions).take();
+}
+
+auto Binder::correspondingVirtualFunctions(ClassSymbol* cls, FunctionSymbol* fn)
+    -> std::vector<FunctionSymbol*> {
+  std::vector<FunctionSymbol*> functions;
+
+  if (fn->isDestructor()) {
+    for (auto destructor : cls->prospectiveDestructors()) {
+      if (destructor->isVirtual()) functions.push_back(destructor);
+    }
+    return functions;
+  }
+
+  for (auto member : cls->find(fn->name()) | views::virtual_functions) {
+    if (traits.is_corresponding_overrider(fn, member))
+      functions.push_back(member);
+  }
+  return functions;
+}
+
+void Binder::DeclareFunction::checkOverriddenFunction(
+    FunctionSymbol* overridden) {
+  if (overridden->isFinal()) {
+    binder.error(functionSymbol->location(),
+                 std::format("declaration of '{}' overrides a 'final' function",
+                             to_diag_string(functionSymbol->name())));
+    binder.note(overridden->location(), "overridden final function is here");
+  }
+  checkCovariantReturnType(overridden);
+}
+
+void Binder::DeclareFunction::checkOverriddenFunctions(
+    const std::vector<FunctionSymbol*>& directlyOverridden) {
+  std::vector<FunctionSymbol*> pending(directlyOverridden.rbegin(),
+                                       directlyOverridden.rend());
+  std::unordered_set<FunctionSymbol*> checked;
+  auto mayRevisit = pending.size() > 1;
+
+  while (!pending.empty()) {
+    auto overridden = pending.back();
+    pending.pop_back();
+    if (mayRevisit && !checked.insert(overridden).second) continue;
+
+    checkOverriddenFunction(overridden);
+
+    const auto& next = overridden->overriddenFunctions();
+    mayRevisit = mayRevisit || next.size() > 1;
+    pending.insert(pending.end(), next.rbegin(), next.rend());
   }
 }
 
@@ -1198,16 +1249,7 @@ void Binder::DeclareFunction::checkVirtualSpecifier() {
       functionSymbol->addOverriddenFunction(function);
     functionSymbol->setVirtual(true);
 
-    for (auto function : overriddenFunctions) {
-      if (function->isFinal()) {
-        binder.error(
-            functionSymbol->location(),
-            std::format("declaration of '{}' overrides a 'final' function",
-                        to_diag_string(functionSymbol->name())));
-        binder.note(function->location(), "overridden final function is here");
-      }
-      checkCovariantReturnType(function);
-    }
+    checkOverriddenFunctions(overriddenFunctions);
   }
 
   if (!overridden) {

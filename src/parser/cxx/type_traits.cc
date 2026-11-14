@@ -3373,6 +3373,59 @@ auto TypeTraits::is_virtual_base_of(const Type* base, const Type* derived) const
       baseClassType->symbol());
 }
 
+auto TypeTraits::overrides(const FunctionSymbol* overrider,
+                           const FunctionSymbol* overridden) const -> bool {
+  if (!overrider || !overridden || overrider == overridden) return false;
+  if (!overridden->isVirtual()) return false;
+
+  auto derived = symbol_cast<ClassSymbol>(overrider->parent());
+  auto base = symbol_cast<ClassSymbol>(overridden->parent());
+  if (!derived || !base) return false;
+
+  if (!derived->resolvedDefinition()->hasBaseClass(base->resolvedDefinition()))
+    return false;
+
+  return is_corresponding_overrider(overrider, overridden);
+}
+
+auto TypeTraits::final_overrider(const ClassSymbol* mostDerivedClass,
+                                 FunctionSymbol* function) const
+    -> FunctionSymbol* {
+  auto vtableLayout = mostDerivedClass->resolvedDefinition()->vtableLayout();
+  if (!vtableLayout) return nullptr;
+
+  for (const auto& table : vtableLayout->main.tables) {
+    for (const auto& slot : table.slots) {
+      if (!slot.function) continue;
+      if (slot.introducingFunction == function ||
+          overrides(function, slot.introducingFunction))
+        return slot.function;
+    }
+  }
+  return nullptr;
+}
+
+auto TypeTraits::immediate_final_overrider(const ClassSymbol* mostDerivedClass,
+                                           FunctionSymbol* function) const
+    -> FunctionSymbol* {
+  std::vector<const ClassSymbol*> pending{
+      mostDerivedClass->resolvedDefinition()};
+  for (std::size_t index = 0; index < pending.size(); ++index) {
+    auto current = pending[index];
+    for (auto member : current->find(function->name())) {
+      for (auto candidate : views::declared_functions(member)) {
+        if (candidate->canonical() == function->canonical() ||
+            overrides(candidate, function))
+          return candidate;
+      }
+    }
+    for (auto base : current->baseClasses())
+      if (auto baseClass = resolved_base_class(base))
+        pending.push_back(baseClass->resolvedDefinition());
+  }
+  return nullptr;
+}
+
 auto TypeTraits::is_corresponding_overrider(
     const FunctionSymbol* overrider, const FunctionSymbol* overridden) const
     -> bool {

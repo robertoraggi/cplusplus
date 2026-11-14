@@ -1362,15 +1362,11 @@ auto ASTInterpreter::dispatchVirtualCall(
   auto classSymbol = classType ? classType->symbol() : nullptr;
   if (!classSymbol) return nullptr;
 
-  auto immediate =
-      classSymbol->resolvedDefinition()->immediateFinalOverrider(function);
+  auto immediate = traits.immediate_final_overrider(classSymbol, function);
   if (function->isConsteval() || (immediate && immediate->isConsteval()))
     return immediate;
 
-  auto vtableLayout = classSymbol->resolvedDefinition()->vtableLayout();
-  if (!vtableLayout) return nullptr;
-
-  return vtableLayout->finalOverrider(function);
+  return traits.final_overrider(classSymbol, function);
 }
 
 auto ASTInterpreter::constexprUnknownObject(const Type* objectType)

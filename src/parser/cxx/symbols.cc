@@ -86,6 +86,50 @@ namespace {
          lhsType->refQualifier() == rhsType->refQualifier();
 }
 
+class ParameterTypeListIndex {
+ public:
+  explicit ParameterTypeListIndex(std::span<FunctionSymbol* const> functions)
+      : functions_(functions) {}
+
+  [[nodiscard]] auto containsEquivalent(FunctionSymbol* function) -> bool {
+    auto isEquivalent = [function](FunctionSymbol* candidate) {
+      return hasEquivalentParameterTypeList(candidate, function);
+    };
+
+    if (functions_.size() < kLinearScanLimit)
+      return std::ranges::any_of(functions_, isEquivalent);
+
+    if (index_.empty()) {
+      for (auto candidate : functions_)
+        index_.emplace(parameterTypeListHash(candidate), candidate);
+    }
+
+    auto [first, last] = index_.equal_range(parameterTypeListHash(function));
+    return std::ranges::any_of(
+        std::ranges::subrange(first, last) | std::views::values, isEquivalent);
+  }
+
+ private:
+  [[nodiscard]] static auto parameterTypeListHash(FunctionSymbol* function)
+      -> std::size_t {
+    auto type = type_cast<FunctionType>(function->type());
+    if (!type) return 0;
+
+    std::size_t seed = 0;
+    for (auto parameterType : type->parameterTypes())
+      hash_combine(seed, parameterType);
+    hash_combine(seed, type->isVariadic());
+    hash_combine(seed, static_cast<int>(type->cvQualifiers()));
+    hash_combine(seed, static_cast<int>(type->refQualifier()));
+    return seed;
+  }
+
+  static constexpr std::size_t kLinearScanLimit = 32;
+
+  std::span<FunctionSymbol* const> functions_;
+  std::unordered_multimap<std::size_t, FunctionSymbol*> index_;
+};
+
 struct NonTypeParameterIdentity {
   int depth;
   int index;
@@ -2340,6 +2384,7 @@ auto ClassSymbol::baseClasses() const -> const std::vector<BaseClassSymbol*>& {
 
 void ClassSymbol::addBaseClass(BaseClassSymbol* baseClass) {
   baseClasses_.push_back(baseClass);
+  baseClassSymbols_.reset();
 }
 
 void ClassSymbol::addBefriendingClass(ClassSymbol* classSymbol) {
@@ -2488,20 +2533,44 @@ struct BaseWalkState {
 }  // namespace
 
 auto ClassSymbol::hasBaseClass(const Symbol* symbol) const -> bool {
-  std::vector<const ClassSymbol*> visited{this};
+  if (baseClassSymbols_)
+    return std::ranges::binary_search(*baseClassSymbols_, symbol,
+                                      std::less<const Symbol*>{});
 
-  for (std::size_t index = 0; index < visited.size(); ++index) {
-    for (auto baseClass : visited[index]->baseClasses()) {
-      if (baseClass->symbol() == symbol) return true;
+  auto found = findBaseClassSymbols();
+  const auto hasBase = std::ranges::binary_search(found.symbols, symbol,
+                                                  std::less<const Symbol*>{});
+  if (found.areComplete) baseClassSymbols_ = std::move(found.symbols);
+  return hasBase;
+}
+
+auto ClassSymbol::findBaseClassSymbols() const -> BaseClassSymbols {
+  BaseClassSymbols found;
+  InsertionOrderedSet<const ClassSymbol*> visited;
+  visited.insert(this);
+  std::vector<const ClassSymbol*> pending{this};
+
+  while (!pending.empty()) {
+    auto classSymbol = pending.back();
+    pending.pop_back();
+
+    for (auto baseClass : classSymbol->baseClasses()) {
+      found.symbols.push_back(baseClass->symbol());
 
       auto base = baseClassDefinitionOf(baseClass);
       if (!base) continue;
-      if (std::ranges::contains(visited, base)) continue;
-      visited.push_back(base);
+      found.symbols.push_back(base);
+      found.symbols.push_back(base->resolvedDefinition());
+      if (!base->isComplete()) found.areComplete = false;
+      if (visited.insert(base)) pending.push_back(base);
     }
   }
 
-  return false;
+  std::ranges::sort(found.symbols, std::less<const Symbol*>{});
+  const auto duplicates = std::ranges::unique(found.symbols);
+  found.symbols.erase(duplicates.begin(), duplicates.end());
+  found.symbols.shrink_to_fit();
+  return found;
 }
 
 namespace {
@@ -2512,12 +2581,6 @@ namespace {
   if (rhs > limit - lhs) return limit;
   return lhs + rhs;
 }
-
-struct SubobjectEdge {
-  const ClassSymbol* base = nullptr;
-  bool isVirtual = false;
-  std::uint64_t offset = 0;
-};
 
 struct NonVirtualPaths {
   std::uint32_t count = 0;
@@ -2547,96 +2610,87 @@ class BaseSubobjectSearch {
   }
 
  private:
-  [[nodiscard]] auto edgesOf(const ClassSymbol* derived) const
-      -> std::vector<SubobjectEdge> {
-    std::vector<SubobjectEdge> edges;
+  [[nodiscard]] auto searchedBaseOf(BaseClassSymbol* baseClass) const
+      -> const ClassSymbol* {
+    if (publicOnly_ && baseClass->accessSpecifier() != AccessSpecifier::kPublic)
+      return nullptr;
 
+    auto baseSymbol = symbol_cast<ClassSymbol>(baseClass->symbol());
+    if (!baseSymbol) return nullptr;
+    return baseSymbol->resolvedDefinition();
+  }
+
+  [[nodiscard]] auto mayLeadToBase(const ClassSymbol* anchor) const -> bool {
+    return anchor == base_ || !anchor->baseClasses().empty();
+  }
+
+  [[nodiscard]] auto nonVirtualOffsetOf(const ClassSymbol* derived,
+                                        const ClassSymbol* directBase) const
+      -> std::optional<std::uint64_t> {
     auto layout = derived->layout();
+    if (!layout) return 0;
 
-    for (auto baseClass : derived->baseClasses()) {
-      if (publicOnly_ &&
-          baseClass->accessSpecifier() != AccessSpecifier::kPublic)
-        continue;
-
-      auto baseSymbol = symbol_cast<ClassSymbol>(baseClass->symbol());
-      if (!baseSymbol) continue;
-
-      auto baseDefinition = baseSymbol->resolvedDefinition();
-
-      if (baseClass->isVirtual()) {
-        edges.push_back({.base = baseDefinition, .isVirtual = true});
-        continue;
-      }
-
-      if (!layout) {
-        edges.push_back({.base = baseDefinition});
-        continue;
-      }
-
-      auto baseInfo = layout->getBaseInfo(baseDefinition);
-      if (!baseInfo) continue;
-
-      edges.push_back({.base = baseDefinition, .offset = baseInfo->offset});
-    }
-
-    return edges;
+    auto baseInfo = layout->getBaseInfo(const_cast<ClassSymbol*>(directBase));
+    if (!baseInfo) return std::nullopt;
+    return baseInfo->offset;
   }
 
   [[nodiscard]] auto nonVirtualPathsFrom(const ClassSymbol* anchor)
       -> NonVirtualPaths {
     if (anchor == base_) return {.count = 1};
 
-    if (auto cached = cachedPathsFrom(anchor)) return *cached;
-
-    nonVirtualPaths_.emplace_back(anchor, NonVirtualPaths{});
+    auto [cached, isNew] = nonVirtualPaths_.try_emplace(anchor);
+    if (!isNew) return cached->second;
 
     NonVirtualPaths result;
 
-    for (const auto& edge : edgesOf(anchor)) {
-      if (edge.isVirtual) continue;
+    for (auto baseClass : anchor->baseClasses()) {
+      if (baseClass->isVirtual()) continue;
 
-      auto paths = nonVirtualPathsFrom(edge.base);
+      auto directBase = searchedBaseOf(baseClass);
+      if (!directBase || !mayLeadToBase(directBase)) continue;
+
+      auto offset = nonVirtualOffsetOf(anchor, directBase);
+      if (!offset) continue;
+
+      auto paths = nonVirtualPathsFrom(directBase);
       if (!paths.count) continue;
 
       result.count = saturatingAdd(result.count, paths.count);
-      result.offset = edge.offset + paths.offset;
+      result.offset = *offset + paths.offset;
     }
 
-    *cachedPathsFrom(anchor) = result;
+    nonVirtualPaths_[anchor] = result;
     return result;
-  }
-
-  [[nodiscard]] auto cachedPathsFrom(const ClassSymbol* anchor)
-      -> NonVirtualPaths* {
-    auto cached =
-        std::ranges::find(nonVirtualPaths_, anchor, &CachedPaths::first);
-    if (cached == nonVirtualPaths_.end()) return nullptr;
-    return &cached->second;
   }
 
   [[nodiscard]] auto virtualBasesOf(const ClassSymbol* derived) const
       -> std::vector<const ClassSymbol*> {
-    std::vector<const ClassSymbol*> virtualBases;
-    std::vector<const ClassSymbol*> visited{derived};
+    InsertionOrderedSet<const ClassSymbol*> virtualBases;
+    InsertionOrderedSet<const ClassSymbol*> visited;
+    visited.insert(derived);
+    std::vector<const ClassSymbol*> pending{derived};
 
-    for (std::size_t index = 0; index < visited.size(); ++index) {
-      for (const auto& edge : edgesOf(visited[index])) {
-        if (edge.isVirtual && !std::ranges::contains(virtualBases, edge.base))
-          virtualBases.push_back(edge.base);
+    for (std::size_t index = 0; index < pending.size(); ++index) {
+      auto classSymbol = pending[index];
+      if (is_laid_out_without_virtual_base_subobjects(
+              const_cast<ClassSymbol*>(classSymbol)))
+        continue;
 
-        if (std::ranges::contains(visited, edge.base)) continue;
-        visited.push_back(edge.base);
+      for (auto baseClass : classSymbol->baseClasses()) {
+        auto directBase = searchedBaseOf(baseClass);
+        if (!directBase) continue;
+        if (baseClass->isVirtual()) virtualBases.insert(directBase);
+        if (visited.insert(directBase)) pending.push_back(directBase);
       }
     }
 
-    return virtualBases;
+    return std::move(virtualBases).take();
   }
-
-  using CachedPaths = std::pair<const ClassSymbol*, NonVirtualPaths>;
 
   const ClassSymbol* base_;
   bool publicOnly_;
-  std::vector<CachedPaths> nonVirtualPaths_;
+  std::unordered_map<const ClassSymbol*, NonVirtualPaths> nonVirtualPaths_;
 };
 
 struct BaseClassRepetitionSearch {
@@ -3059,38 +3113,6 @@ auto VTableLayout::Group::tableAt(std::uint64_t offset) const -> int {
   return -1;
 }
 
-auto VTableLayout::finalOverrider(FunctionSymbol* function) const
-    -> FunctionSymbol* {
-  for (const auto& table : main.tables) {
-    for (const auto& slot : table.slots) {
-      if (!slot.function) continue;
-      if (slot.introducingFunction == function ||
-          function->overrides(slot.introducingFunction))
-        return slot.function;
-    }
-  }
-  return nullptr;
-}
-
-auto ClassSymbol::immediateFinalOverrider(FunctionSymbol* function) const
-    -> FunctionSymbol* {
-  std::vector<const ClassSymbol*> pending{resolvedDefinition()};
-  for (std::size_t index = 0; index < pending.size(); ++index) {
-    auto current = pending[index];
-    for (auto member : current->find(function->name())) {
-      for (auto candidate : views::declared_functions(member)) {
-        if (candidate->canonical() == function->canonical() ||
-            candidate->overrides(function))
-          return candidate;
-      }
-    }
-    for (auto base : current->baseClasses())
-      if (auto baseClass = resolved_base_class(base))
-        pending.push_back(baseClass->resolvedDefinition());
-  }
-  return nullptr;
-}
-
 auto ClassSymbol::vtableLayout() const -> const VTableLayout* {
   return vtableLayout_.get();
 }
@@ -3293,26 +3315,6 @@ void FunctionSymbol::addOverriddenFunction(FunctionSymbol* function) {
   if (!function) return;
   if (std::ranges::contains(overriddenFunctions_, function)) return;
   overriddenFunctions_.push_back(function);
-}
-
-auto FunctionSymbol::overrides(FunctionSymbol* function) const -> bool {
-  if (!function) return false;
-
-  std::vector<const FunctionSymbol*> pending{this};
-  std::unordered_set<const FunctionSymbol*> visited;
-
-  while (!pending.empty()) {
-    auto current = pending.back();
-    pending.pop_back();
-    if (!visited.insert(current).second) continue;
-
-    for (auto overridden : current->overriddenFunctions_) {
-      if (overridden == function) return true;
-      pending.push_back(overridden);
-    }
-  }
-
-  return false;
 }
 
 void FunctionSymbol::addBefriendingClass(ClassSymbol* classSymbol) {
@@ -3630,26 +3632,26 @@ auto OverloadSetSymbol::functions() const -> std::vector<FunctionSymbol*> {
 auto OverloadSetSymbol::functionsWithin(std::size_t functionCount,
                                         std::size_t usingDeclarationCount) const
     -> std::vector<FunctionSymbol*> {
-  std::vector<FunctionSymbol*> result(
-      declaredFunctions_.begin(),
-      declaredFunctions_.begin() + static_cast<std::ptrdiff_t>(functionCount));
+  const auto localMembers = std::span{declaredFunctions_}.first(functionCount);
+
+  std::vector<FunctionSymbol*> result(localMembers.begin(), localMembers.end());
+  if (!usingDeclarationCount) return result;
+
+  std::vector<FunctionSymbol*> canonicals(result.size());
+  std::ranges::transform(result, canonicals.begin(),
+                         &FunctionSymbol::canonical);
+  InsertionOrderedSet<FunctionSymbol*> found{std::move(canonicals)};
+
+  ParameterTypeListIndex hiding{localMembers};
+  const auto hidesIntroducedMembers = parent()->isClass();
 
   for (std::size_t i = 0; i < usingDeclarationCount; ++i) {
     for (auto introduced : usingDeclarations_[i]->introducedFunctions()) {
-      auto canonical = introduced->canonical();
-
-      const auto isDuplicate =
-          std::ranges::any_of(result, [&](FunctionSymbol* declared) {
-            return declared->canonical() == canonical;
-          });
-      if (isDuplicate) continue;
-      auto localMembers = std::span{declaredFunctions_}.first(functionCount);
-      const auto isHidden =
-          parent()->isClass() &&
-          std::ranges::any_of(localMembers, [&](FunctionSymbol* declared) {
-            return hasEquivalentParameterTypeList(declared, introduced);
-          });
-      if (!isHidden) result.push_back(introduced);
+      if (found.contains(introduced->canonical())) continue;
+      if (hidesIntroducedMembers && hiding.containsEquivalent(introduced))
+        continue;
+      found.insert(introduced->canonical());
+      result.push_back(introduced);
     }
   }
 
@@ -4163,6 +4165,7 @@ auto UsingDeclarationSymbol::target() const -> Symbol* { return target_; }
 
 void UsingDeclarationSymbol::setTarget(Symbol* symbol) {
   target_ = symbol;
+  introducedFunctions_.reset();
   targetFunctionCount_ = 0;
   targetUsingDeclarationCount_ = 0;
   auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
@@ -4179,6 +4182,7 @@ auto UsingDeclarationSymbol::targetFunctionCount() const -> int {
 
 void UsingDeclarationSymbol::setTargetFunctionCount(int count) {
   targetFunctionCount_ = count;
+  introducedFunctions_.reset();
 }
 
 auto UsingDeclarationSymbol::targetUsingDeclarationCount() const -> int {
@@ -4187,9 +4191,16 @@ auto UsingDeclarationSymbol::targetUsingDeclarationCount() const -> int {
 
 void UsingDeclarationSymbol::setTargetUsingDeclarationCount(int count) {
   targetUsingDeclarationCount_ = count;
+  introducedFunctions_.reset();
 }
 
 auto UsingDeclarationSymbol::introducedFunctions() const
+    -> const std::vector<FunctionSymbol*>& {
+  if (!introducedFunctions_) introducedFunctions_ = findIntroducedFunctions();
+  return *introducedFunctions_;
+}
+
+auto UsingDeclarationSymbol::findIntroducedFunctions() const
     -> std::vector<FunctionSymbol*> {
   if (auto overloadSet = symbol_cast<OverloadSetSymbol>(target_))
     return overloadSet->functionsWithin(targetFunctionCount_,

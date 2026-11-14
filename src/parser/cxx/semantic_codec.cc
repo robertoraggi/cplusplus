@@ -2486,6 +2486,9 @@ void SemanticEncoder::writeSymbolFunctionSymbol(
   // ::cxx::FunctionSymbol::inheritedConstructor_
   out.varU32(
       static_cast<std::uint32_t>(symbolRef(self->inheritedConstructor())));
+  // ::cxx::FunctionSymbol::inheritedConstructorOrigin_
+  out.varU32(static_cast<std::uint32_t>(
+      symbolRef(self->inheritedConstructorOrigin())));
   // ::cxx::FunctionSymbol::overriddenFunctions_
   out.varU32(static_cast<std::uint32_t>(
       std::ranges::size(self->overriddenFunctions())));
@@ -10704,180 +10707,184 @@ void SemanticDecoder::readSymbolFunctionSymbol(
   cxx::FunctionSymbol* value36 =
       symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->setInheritedConstructor(std::move(value36));
+  // ::cxx::FunctionSymbol::inheritedConstructorOrigin_
+  cxx::FunctionSymbol* value37 =
+      symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->setInheritedConstructorOrigin(std::move(value37));
   // ::cxx::FunctionSymbol::overriddenFunctions_
-  std::vector<cxx::FunctionSymbol*> value37;
+  std::vector<cxx::FunctionSymbol*> value38;
   {
-    const auto count38 = in.varCount(1);
-    for (std::uint32_t i39 = 0; ok() && i39 < count38; ++i39) {
-      cxx::FunctionSymbol* element40 =
+    const auto count39 = in.varCount(1);
+    for (std::uint32_t i40 = 0; ok() && i40 < count39; ++i40) {
+      cxx::FunctionSymbol* element41 =
           symbol_cast<FunctionSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value37.push_back(std::move(element40));
+      value38.push_back(std::move(element41));
     }
   }
-  for (auto&& element41 : value37) {
-    self->addOverriddenFunction(element41);
+  for (auto&& element42 : value38) {
+    self->addOverriddenFunction(element42);
   }
   // ::cxx::FunctionSymbol::befriendingClasses_
-  std::vector<cxx::ClassSymbol*> value42;
+  std::vector<cxx::ClassSymbol*> value43;
   {
-    const auto count43 = in.varCount(1);
-    for (std::uint32_t i44 = 0; ok() && i44 < count43; ++i44) {
-      cxx::ClassSymbol* element45 =
+    const auto count44 = in.varCount(1);
+    for (std::uint32_t i45 = 0; ok() && i45 < count44; ++i45) {
+      cxx::ClassSymbol* element46 =
           symbol_cast<ClassSymbol>(symbolAt(SymbolRef{in.varU32()}));
-      value42.push_back(std::move(element45));
+      value43.push_back(std::move(element46));
     }
   }
-  for (auto&& element46 : value42) {
-    self->addBefriendingClass(element46);
+  for (auto&& element47 : value43) {
+    self->addBefriendingClass(element47);
   }
   // ::cxx::FunctionSymbol::templateFriendships_
-  std::vector<cxx::TemplateFriendship> value47;
+  std::vector<cxx::TemplateFriendship> value48;
   {
-    const auto count48 = in.varCount(1);
-    for (std::uint32_t i49 = 0; ok() && i49 < count48; ++i49) {
-      cxx::TemplateFriendship element50{};
-      readcxxTemplateFriendship(in, &element50);
-      value47.push_back(std::move(element50));
+    const auto count49 = in.varCount(1);
+    for (std::uint32_t i50 = 0; ok() && i50 < count49; ++i50) {
+      cxx::TemplateFriendship element51{};
+      readcxxTemplateFriendship(in, &element51);
+      value48.push_back(std::move(element51));
     }
   }
-  for (auto&& element51 : value47) {
-    self->addBefriendingClass(element51.befriendingClass, element51.arguments);
+  for (auto&& element52 : value48) {
+    self->addBefriendingClass(element52.befriendingClass, element52.arguments);
   }
   // ::cxx::FunctionSymbol::vtableSlotIndex_
-  int value52 = static_cast<int>(in.varI32());
-  self->setVtableSlotIndex(std::move(value52));
+  int value53 = static_cast<int>(in.varI32());
+  self->setVtableSlotIndex(std::move(value53));
   // ::cxx::FunctionSymbol::constructorPriority_
-  std::optional<unsigned int> value53;
+  std::optional<unsigned int> value54;
   if (in.boolean()) {
-    unsigned int value54 = static_cast<unsigned int>(in.varU32());
-    value53 = std::move(value54);
+    unsigned int value55 = static_cast<unsigned int>(in.varU32());
+    value54 = std::move(value55);
   }
-  self->setConstructorPriority(std::move(value53));
+  self->setConstructorPriority(std::move(value54));
   // ::cxx::FunctionSymbol::kernelWorkgroupSize_
-  std::optional<cxx::KernelWorkgroupSize> value55;
+  std::optional<cxx::KernelWorkgroupSize> value56;
   if (in.boolean()) {
-    cxx::KernelWorkgroupSize value56{};
-    readcxxKernelWorkgroupSize(in, &value56);
-    value55 = std::move(value56);
+    cxx::KernelWorkgroupSize value57{};
+    readcxxKernelWorkgroupSize(in, &value57);
+    value56 = std::move(value57);
   }
-  self->setKernelWorkgroupSize(std::move(value55));
+  self->setKernelWorkgroupSize(std::move(value56));
   // ::cxx::FunctionSymbol::externalName_
-  const cxx::Identifier* value57 = identifierAt(StringRef{in.varU32()});
-  self->setExternalName(std::move(value57));
-  // ::cxx::FunctionSymbol::aliasName_
   const cxx::Identifier* value58 = identifierAt(StringRef{in.varU32()});
-  self->setAliasName(std::move(value58));
-  // ::cxx::FunctionSymbol::importModule_
+  self->setExternalName(std::move(value58));
+  // ::cxx::FunctionSymbol::aliasName_
   const cxx::Identifier* value59 = identifierAt(StringRef{in.varU32()});
-  self->setImportModule(std::move(value59));
-  // ::cxx::FunctionSymbol::importName_
+  self->setAliasName(std::move(value59));
+  // ::cxx::FunctionSymbol::importModule_
   const cxx::Identifier* value60 = identifierAt(StringRef{in.varU32()});
-  self->setImportName(std::move(value60));
-  // ::cxx::FunctionSymbol::exportName_
+  self->setImportModule(std::move(value60));
+  // ::cxx::FunctionSymbol::importName_
   const cxx::Identifier* value61 = identifierAt(StringRef{in.varU32()});
-  self->setExportName(std::move(value61));
+  self->setImportName(std::move(value61));
+  // ::cxx::FunctionSymbol::exportName_
+  const cxx::Identifier* value62 = identifierAt(StringRef{in.varU32()});
+  self->setExportName(std::move(value62));
   // ::cxx::FunctionSymbol::trailingRequiresClause_
-  cxx::RequiresClauseAST* value62 =
+  cxx::RequiresClauseAST* value63 =
       ast_cast<RequiresClauseAST>(astAt(AstRef{in.varU32()}));
-  self->setTrailingRequiresClause(std::move(value62));
+  self->setTrailingRequiresClause(std::move(value63));
   // ::cxx::FunctionSymbol::enableIfConditions_
-  std::remove_cvref_t<decltype(self->enableIfConditions())> value63;
+  std::remove_cvref_t<decltype(self->enableIfConditions())> value64;
   {
-    const auto count64 = in.varCount(1);
-    for (std::uint32_t i65 = 0; ok() && i65 < count64; ++i65) {
-      decltype(value63)::value_type element66 =
+    const auto count65 = in.varCount(1);
+    for (std::uint32_t i66 = 0; ok() && i66 < count65; ++i66) {
+      decltype(value64)::value_type element67 =
           ast_cast<ExpressionAST>(astAt(AstRef{in.varU32()}));
-      value63.push_back(std::move(element66));
+      value64.push_back(std::move(element67));
     }
   }
-  self->setEnableIfConditions(std::move(value63));
+  self->setEnableIfConditions(std::move(value64));
   // ::cxx::FunctionSymbol::builtinKind_
   static_assert(static_cast<std::uint32_t>(
                     ::cxx::BuiltinFunctionKind::T___SYNC_XOR_AND_FETCH) +
                     1 ==
                 518);
-  ::cxx::BuiltinFunctionKind value67 =
+  ::cxx::BuiltinFunctionKind value68 =
       static_cast<::cxx::BuiltinFunctionKind>(readEnum(in, 518));
-  self->setBuiltinKind(std::move(value67));
+  self->setBuiltinKind(std::move(value68));
   // ::cxx::FunctionSymbol::isDefined_
-  unsigned int value68 = static_cast<unsigned int>(in.varU32());
-  self->setDefined(std::move(value68));
-  // ::cxx::FunctionSymbol::isStatic_
   unsigned int value69 = static_cast<unsigned int>(in.varU32());
-  self->setStatic(std::move(value69));
-  // ::cxx::FunctionSymbol::isExtern_
+  self->setDefined(std::move(value69));
+  // ::cxx::FunctionSymbol::isStatic_
   unsigned int value70 = static_cast<unsigned int>(in.varU32());
-  self->setExtern(std::move(value70));
-  // ::cxx::FunctionSymbol::isFriend_
+  self->setStatic(std::move(value70));
+  // ::cxx::FunctionSymbol::isExtern_
   unsigned int value71 = static_cast<unsigned int>(in.varU32());
-  self->setFriend(std::move(value71));
-  // ::cxx::FunctionSymbol::isConstexpr_
+  self->setExtern(std::move(value71));
+  // ::cxx::FunctionSymbol::isFriend_
   unsigned int value72 = static_cast<unsigned int>(in.varU32());
-  self->setConstexpr(std::move(value72));
-  // ::cxx::FunctionSymbol::isConsteval_
+  self->setFriend(std::move(value72));
+  // ::cxx::FunctionSymbol::isConstexpr_
   unsigned int value73 = static_cast<unsigned int>(in.varU32());
-  self->setConsteval(std::move(value73));
-  // ::cxx::FunctionSymbol::isInline_
+  self->setConstexpr(std::move(value73));
+  // ::cxx::FunctionSymbol::isConsteval_
   unsigned int value74 = static_cast<unsigned int>(in.varU32());
-  self->setInline(std::move(value74));
-  // ::cxx::FunctionSymbol::isVirtual_
+  self->setConsteval(std::move(value74));
+  // ::cxx::FunctionSymbol::isInline_
   unsigned int value75 = static_cast<unsigned int>(in.varU32());
-  self->setVirtual(std::move(value75));
-  // ::cxx::FunctionSymbol::isExplicit_
+  self->setInline(std::move(value75));
+  // ::cxx::FunctionSymbol::isVirtual_
   unsigned int value76 = static_cast<unsigned int>(in.varU32());
-  self->setExplicit(std::move(value76));
-  // ::cxx::FunctionSymbol::isDeleted_
+  self->setVirtual(std::move(value76));
+  // ::cxx::FunctionSymbol::isExplicit_
   unsigned int value77 = static_cast<unsigned int>(in.varU32());
-  self->setDeleted(std::move(value77));
-  // ::cxx::FunctionSymbol::isDefaulted_
+  self->setExplicit(std::move(value77));
+  // ::cxx::FunctionSymbol::isDeleted_
   unsigned int value78 = static_cast<unsigned int>(in.varU32());
-  self->setDefaulted(std::move(value78));
-  // ::cxx::FunctionSymbol::isPure_
+  self->setDeleted(std::move(value78));
+  // ::cxx::FunctionSymbol::isDefaulted_
   unsigned int value79 = static_cast<unsigned int>(in.varU32());
-  self->setPure(std::move(value79));
-  // ::cxx::FunctionSymbol::hasCLinkage_
+  self->setDefaulted(std::move(value79));
+  // ::cxx::FunctionSymbol::isPure_
   unsigned int value80 = static_cast<unsigned int>(in.varU32());
-  self->setLanguageLinkage(std::move(value80) ? LanguageKind::kC
+  self->setPure(std::move(value80));
+  // ::cxx::FunctionSymbol::hasCLinkage_
+  unsigned int value81 = static_cast<unsigned int>(in.varU32());
+  self->setLanguageLinkage(std::move(value81) ? LanguageKind::kC
                                               : LanguageKind::kCXX);
   // ::cxx::FunctionSymbol::isOverride_
-  unsigned int value81 = static_cast<unsigned int>(in.varU32());
-  self->setOverride(std::move(value81));
-  // ::cxx::FunctionSymbol::isFinal_
   unsigned int value82 = static_cast<unsigned int>(in.varU32());
-  self->setFinal(std::move(value82));
-  // ::cxx::FunctionSymbol::hasNoPrototype_
+  self->setOverride(std::move(value82));
+  // ::cxx::FunctionSymbol::isFinal_
   unsigned int value83 = static_cast<unsigned int>(in.varU32());
-  self->setNoPrototype(std::move(value83));
-  // ::cxx::FunctionSymbol::hasHiddenVisibility_
+  self->setFinal(std::move(value83));
+  // ::cxx::FunctionSymbol::hasNoPrototype_
   unsigned int value84 = static_cast<unsigned int>(in.varU32());
-  self->setHiddenVisibility(std::move(value84));
-  // ::cxx::FunctionSymbol::hasExceptionSpecifier_
+  self->setNoPrototype(std::move(value84));
+  // ::cxx::FunctionSymbol::hasHiddenVisibility_
   unsigned int value85 = static_cast<unsigned int>(in.varU32());
-  self->setExceptionSpecifier(std::move(value85));
-  // ::cxx::FunctionSymbol::isDefinitionRequired_
+  self->setHiddenVisibility(std::move(value85));
+  // ::cxx::FunctionSymbol::hasExceptionSpecifier_
   unsigned int value86 = static_cast<unsigned int>(in.varU32());
-  self->setDefinitionRequired(std::move(value86));
-  // ::cxx::FunctionSymbol::hasExplicitObjectParameter_
+  self->setExceptionSpecifier(std::move(value86));
+  // ::cxx::FunctionSymbol::isDefinitionRequired_
   unsigned int value87 = static_cast<unsigned int>(in.varU32());
-  self->setExplicitObjectParameter(std::move(value87));
-  // ::cxx::FunctionSymbol::isNoReturn_
+  self->setDefinitionRequired(std::move(value87));
+  // ::cxx::FunctionSymbol::hasExplicitObjectParameter_
   unsigned int value88 = static_cast<unsigned int>(in.varU32());
-  self->setNoReturn(std::move(value88));
-  // ::cxx::FunctionSymbol::hasFriendDefaultArgument_
+  self->setExplicitObjectParameter(std::move(value88));
+  // ::cxx::FunctionSymbol::isNoReturn_
   unsigned int value89 = static_cast<unsigned int>(in.varU32());
-  self->setFriendDefaultArgument(std::move(value89));
-  // ::cxx::FunctionSymbol::hasFriendDefaultTemplateArgument_
+  self->setNoReturn(std::move(value89));
+  // ::cxx::FunctionSymbol::hasFriendDefaultArgument_
   unsigned int value90 = static_cast<unsigned int>(in.varU32());
-  self->setFriendDefaultTemplateArgument(std::move(value90));
-  // ::cxx::FunctionSymbol::hasDeferredImplicitExceptionSpecification_
+  self->setFriendDefaultArgument(std::move(value90));
+  // ::cxx::FunctionSymbol::hasFriendDefaultTemplateArgument_
   unsigned int value91 = static_cast<unsigned int>(in.varU32());
-  self->setDeferredImplicitExceptionSpecification(std::move(value91));
-  // ::cxx::FunctionSymbol::hasDeferredDeletion_
+  self->setFriendDefaultTemplateArgument(std::move(value91));
+  // ::cxx::FunctionSymbol::hasDeferredImplicitExceptionSpecification_
   unsigned int value92 = static_cast<unsigned int>(in.varU32());
-  self->setDeferredDeletion(std::move(value92));
-  // ::cxx::FunctionSymbol::isImplicitlyDeclared_
+  self->setDeferredImplicitExceptionSpecification(std::move(value92));
+  // ::cxx::FunctionSymbol::hasDeferredDeletion_
   unsigned int value93 = static_cast<unsigned int>(in.varU32());
-  self->setImplicitlyDeclared(std::move(value93));
+  self->setDeferredDeletion(std::move(value93));
+  // ::cxx::FunctionSymbol::isImplicitlyDeclared_
+  unsigned int value94 = static_cast<unsigned int>(in.varU32());
+  self->setImplicitlyDeclared(std::move(value94));
 }
 
 void SemanticDecoder::readSymbolTypeAliasSymbol(

@@ -318,6 +318,17 @@ class TypeTraits {
   [[nodiscard]] auto is_virtual_base_of(const Type* base,
                                         const Type* derived) const -> bool;
 
+  [[nodiscard]] auto overrides(const FunctionSymbol* overrider,
+                               const FunctionSymbol* overridden) const -> bool;
+
+  [[nodiscard]] auto final_overrider(const ClassSymbol* mostDerivedClass,
+                                     FunctionSymbol* function) const
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto immediate_final_overrider(
+      const ClassSymbol* mostDerivedClass, FunctionSymbol* function) const
+      -> FunctionSymbol*;
+
   [[nodiscard]] auto is_corresponding_overrider(
       const FunctionSymbol* overrider, const FunctionSymbol* overridden) const
       -> bool;

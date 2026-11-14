@@ -34,6 +34,7 @@
 #include <optional>
 #include <ranges>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 namespace cxx {
@@ -84,6 +85,8 @@ class SubobjectGraph {
       preorder_.push_back(child);
       frames.push_back({child});
     }
+
+    indexDerivationPaths();
   }
 
   [[nodiscard]] auto node(std::size_t index) const -> const Subobject& {
@@ -135,49 +138,105 @@ class SubobjectGraph {
 
   [[nodiscard]] auto isReachableAlongVirtualPath(std::size_t index) const
       -> bool {
-    for (auto current = index; current != 0;) {
-      if (nodes_[current].isVirtual) return true;
-      current = nodes_[current].derived.front();
-    }
-    return false;
+    const auto outermost = outermost_[index];
+    return outermost != 0 && nodes_[outermost].isVirtual;
   }
 
   [[nodiscard]] auto enclosingVirtualBase(std::size_t index) const
       -> ClassSymbol* {
-    for (auto current = index; current != 0;) {
-      if (nodes_[current].isVirtual) return nodes_[current].classSymbol;
-      current = nodes_[current].derived.front();
-    }
-    return nullptr;
+    if (!isReachableAlongVirtualPath(index)) return nullptr;
+    return nodes_[outermost_[index]].classSymbol;
   }
 
-  [[nodiscard]] auto contains(std::size_t outer, std::size_t inner) const
-      -> bool {
-    std::vector<std::size_t> pending{outer};
-    std::vector<std::size_t> visited;
-    while (!pending.empty()) {
-      auto current = pending.back();
-      pending.pop_back();
-      if (current == inner) return true;
-      if (std::ranges::contains(visited, current)) continue;
-      visited.push_back(current);
-      for (auto base : nodes_[current].bases) pending.push_back(base);
+  [[nodiscard]] auto outermostNonVirtualContainer(std::size_t index,
+                                                  std::size_t limit) const
+      -> std::size_t {
+    const auto outermost = outermost_[index];
+    if (isOnDerivationPath(limit, index) &&
+        isOnDerivationPath(outermost, limit))
+      return limit;
+    return outermost;
+  }
+
+  template <std::ranges::input_range Nodes>
+  [[nodiscard]] auto strictlyContained(Nodes&& containers) const
+      -> std::vector<bool> {
+    std::vector<bool> contained(nodes_.size());
+    std::vector<std::size_t> pending;
+    for (std::size_t container : containers) {
+      pending.assign(nodes_[container].bases.begin(),
+                     nodes_[container].bases.end());
+      while (!pending.empty()) {
+        auto current = pending.back();
+        pending.pop_back();
+        if (contained[current]) continue;
+        contained[current] = true;
+        for (auto base : nodes_[current].bases) pending.push_back(base);
+      }
     }
-    return false;
+    return contained;
   }
 
   [[nodiscard]] auto containers(std::size_t index) const
       -> std::vector<std::size_t> {
+    std::vector<bool> found(nodes_.size());
+    found[index] = true;
     std::vector<std::size_t> result{index};
     for (std::size_t next = 0; next < result.size(); ++next) {
       for (auto derived : nodes_[result[next]].derived) {
-        if (!std::ranges::contains(result, derived)) result.push_back(derived);
+        if (found[derived]) continue;
+        found[derived] = true;
+        result.push_back(derived);
       }
     }
     return result;
   }
 
  private:
+  [[nodiscard]] auto isOnDerivationPath(std::size_t container,
+                                        std::size_t index) const -> bool {
+    return entered_[container] <= entered_[index] &&
+           left_[index] <= left_[container];
+  }
+
+  void indexDerivationPaths() {
+    std::vector<std::vector<std::size_t>> contained(nodes_.size());
+    outermost_.resize(nodes_.size());
+    for (auto index : preorder_) {
+      const auto& subobject = nodes_[index];
+      if (subobject.isVirtual || subobject.derived.empty()) {
+        outermost_[index] = index;
+        continue;
+      }
+      outermost_[index] = outermost_[subobject.derived.front()];
+    }
+    for (auto index : preorder_) {
+      if (index == 0) continue;
+      contained[nodes_[index].derived.front()].push_back(index);
+    }
+
+    entered_.resize(nodes_.size());
+    left_.resize(nodes_.size());
+    struct Frame {
+      std::size_t node = 0;
+      std::size_t next = 0;
+    };
+    std::size_t clock = 0;
+    std::vector<Frame> frames{{0}};
+    entered_[0] = clock++;
+    while (!frames.empty()) {
+      auto& frame = frames.back();
+      if (frame.next == contained[frame.node].size()) {
+        left_[frame.node] = clock++;
+        frames.pop_back();
+        continue;
+      }
+      auto child = contained[frame.node][frame.next++];
+      entered_[child] = clock++;
+      frames.push_back({child});
+    }
+  }
+
   [[nodiscard]] auto nonVirtualNode(std::size_t parent, ClassSymbol* base)
       -> std::pair<std::size_t, bool> {
     std::uint64_t offset = nodes_[parent].offset;
@@ -204,6 +263,9 @@ class SubobjectGraph {
   const ClassLayout* completeLayout_ = nullptr;
   std::vector<Subobject> nodes_;
   std::vector<std::size_t> preorder_;
+  std::vector<std::size_t> outermost_;
+  std::vector<std::size_t> entered_;
+  std::vector<std::size_t> left_;
 };
 
 [[nodiscard]] auto virtualFunctionDeclarationOrder(FunctionSymbol* function) {
@@ -212,7 +274,7 @@ class SubobjectGraph {
   return std::tuple{synthesized, function->canonical()->location()};
 }
 
-[[nodiscard]] auto declaredVirtualFunctions(ClassSymbol* classSymbol)
+[[nodiscard]] auto findDeclaredVirtualFunctions(ClassSymbol* classSymbol)
     -> std::vector<FunctionSymbol*> {
   std::vector<FunctionSymbol*> functions;
   for (auto member : classSymbol->members()) {
@@ -311,6 +373,9 @@ struct Binder::BuildVTableLayout {
   bool reportAmbiguities = false;
   std::vector<FunctionSymbol*> reportedAmbiguities;
 
+  mutable std::unordered_map<ClassSymbol*, std::vector<FunctionSymbol*>>
+      declaredVirtualFunctions_;
+
   BuildVTableLayout(Binder& b, ClassSymbol* cls)
       : binder(b),
         classSymbol(cls),
@@ -331,6 +396,19 @@ struct Binder::BuildVTableLayout {
     buildVTT();
 
     classSymbol->setVTableLayout(std::move(layout));
+  }
+
+  [[nodiscard]] auto overrides(FunctionSymbol* overrider,
+                               FunctionSymbol* overridden) const -> bool {
+    return binder.traits.overrides(overrider, overridden);
+  }
+
+  [[nodiscard]] auto declaredVirtualFunctions(ClassSymbol* declaringClass) const
+      -> const std::vector<FunctionSymbol*>& {
+    auto [declared, isNew] =
+        declaredVirtualFunctions_.try_emplace(declaringClass);
+    if (isNew) declared->second = findDeclaredVirtualFunctions(declaringClass);
+    return declared->second;
   }
 
   [[nodiscard]] auto requiresReturnAdjustment(FunctionSymbol* overrider,
@@ -367,7 +445,7 @@ struct Binder::BuildVTableLayout {
     for (std::size_t index = 0; index < primarySlots.size(); ++index) {
       const auto& slot = primarySlots[index];
       if (slot.kind != VTableLayout::SlotKind::kFunction) continue;
-      if (!function->overrides(slot.introducingFunction)) continue;
+      if (!overrides(function, slot.introducingFunction)) continue;
       if (requiresReturnAdjustment(function, slot.introducingFunction))
         continue;
       function->setVtableSlotIndex(static_cast<int>(index));
@@ -415,19 +493,17 @@ struct Binder::BuildVTableLayout {
     for (auto container : graph.containers(subobject)) {
       for (auto candidate :
            declaredVirtualFunctions(graph.node(container).classSymbol)) {
-        if (candidate != function && !candidate->overrides(function)) continue;
+        if (candidate != function && !overrides(candidate, function)) continue;
         candidates.push_back({candidate, container});
       }
     }
 
+    const auto dominated = graph.strictlyContained(
+        candidates | std::views::transform(&Overrider::node));
+
     std::vector<Overrider> finals;
     for (const auto& candidate : candidates) {
-      const auto dominated =
-          std::ranges::any_of(candidates, [&](const Overrider& other) {
-            return other.node != candidate.node &&
-                   graph.contains(other.node, candidate.node);
-          });
-      if (dominated) continue;
+      if (dominated[candidate.node]) continue;
       if (std::ranges::contains(finals, candidate.function,
                                 &Overrider::function))
         continue;
@@ -600,12 +676,11 @@ struct Binder::BuildVTableLayout {
     return offsets;
   }
 
-  [[nodiscard]] static auto declaresOverrider(ClassSymbol* classSymbol,
-                                              FunctionSymbol* function)
-      -> bool {
+  [[nodiscard]] auto declaresOverrider(ClassSymbol* classSymbol,
+                                       FunctionSymbol* function) const -> bool {
     return std::ranges::any_of(
         declaredVirtualFunctions(classSymbol), [&](FunctionSymbol* declared) {
-          return declared == function || declared->overrides(function);
+          return declared == function || overrides(declared, function);
         });
   }
 
@@ -629,11 +704,8 @@ struct Binder::BuildVTableLayout {
                                     FunctionSymbol* function,
                                     std::int64_t tableOffset) const
       -> VTableLayout::CallOffset {
-    auto current = introducing;
-    while (current != overrider && !graph.node(current).isVirtual &&
-           !graph.node(current).derived.empty()) {
-      current = graph.node(current).derived.front();
-    }
+    const auto current =
+        graph.outermostNonVirtualContainer(introducing, overrider);
 
     const auto& target = graph.node(current);
     const auto targetOffset = static_cast<std::int64_t>(target.offset);
@@ -804,7 +876,7 @@ struct Binder::BuildVTableLayout {
         if (base == 0) continue;
         for (auto overridden :
              declaredVirtualFunctions(graph.node(base).classSymbol)) {
-          if (!function->overrides(overridden)) continue;
+          if (!overrides(function, overridden)) continue;
           addAdjustingEntryPoints(graph, function, base, overridden);
         }
       }

@@ -1195,9 +1195,6 @@ class VTableLayout {
   [[nodiscard]] auto primary() const -> const Table& {
     return main.tables.front();
   }
-
-  [[nodiscard]] auto finalOverrider(FunctionSymbol* function) const
-      -> FunctionSymbol*;
 };
 
 class BaseClassSymbol final : public Symbol {
@@ -1442,9 +1439,6 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto subobjectPath(Symbol* subobject) const
       -> std::optional<std::vector<Symbol*>>;
 
-  [[nodiscard]] auto immediateFinalOverrider(FunctionSymbol* function) const
-      -> FunctionSymbol*;
-
   [[nodiscard]] auto baseClassOffset(ClassSymbol* base) const
       -> std::optional<std::uint64_t>;
 
@@ -1493,8 +1487,16 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto instantiationTemplate() const -> ClassSymbol*;
 
  private:
+  struct BaseClassSymbols {
+    std::vector<const Symbol*> symbols;
+    bool areComplete = true;
+  };
+
+  [[nodiscard]] auto findBaseClassSymbols() const -> BaseClassSymbols;
+
   SourceLocation firstNonFriendDeclarationLocation_;
   std::vector<BaseClassSymbol*> baseClasses_;
+  mutable std::optional<std::vector<const Symbol*>> baseClassSymbols_;
   std::vector<ClassSymbol*> befriendingClasses_;
   std::vector<TemplateFriendship> templateFriendships_;
   std::vector<TemplateArgument> instantiationSubstitutionArguments_;
@@ -1756,7 +1758,6 @@ class FunctionSymbol final
       -> const std::vector<FunctionSymbol*>& {
     return overriddenFunctions_;
   }
-  [[nodiscard]] auto overrides(FunctionSymbol* function) const -> bool;
 
   void addBefriendingClass(ClassSymbol* classSymbol);
   void addBefriendingClass(ClassSymbol* classSymbol,
@@ -1818,10 +1819,10 @@ class FunctionSymbol final
     return inheritedConstructor_;
   }
   [[nodiscard]] auto inheritedConstructorOrigin() const -> FunctionSymbol* {
-    auto origin = inheritedConstructor_;
-    while (origin && origin->inheritedConstructor_)
-      origin = origin->inheritedConstructor_;
-    return origin;
+    return inheritedConstructorOrigin_;
+  }
+  void setInheritedConstructorOrigin(FunctionSymbol* constructor) {
+    inheritedConstructorOrigin_ = constructor;
   }
   void setInheritedConstructor(FunctionSymbol* constructor) {
     inheritedConstructor_ = constructor;
@@ -1863,6 +1864,7 @@ class FunctionSymbol final
   FunctionSymbol* deletingDtorVariant_ = nullptr;
   FunctionSymbol* structorPrincipal_ = nullptr;
   FunctionSymbol* inheritedConstructor_ = nullptr;
+  FunctionSymbol* inheritedConstructorOrigin_ = nullptr;
   std::vector<FunctionSymbol*> overriddenFunctions_;
   std::vector<ClassSymbol*> befriendingClasses_;
   std::vector<TemplateFriendship> templateFriendships_;
@@ -2509,11 +2511,15 @@ class UsingDeclarationSymbol final : public Symbol {
   void setTargetUsingDeclarationCount(int count);
 
   [[nodiscard]] auto introducedFunctions() const
-      -> std::vector<FunctionSymbol*>;
+      -> const std::vector<FunctionSymbol*>&;
 
   [[nodiscard]] auto isUnresolved() const -> bool;
 
  private:
+  [[nodiscard]] auto findIntroducedFunctions() const
+      -> std::vector<FunctionSymbol*>;
+
+  mutable std::optional<std::vector<FunctionSymbol*>> introducedFunctions_;
   Symbol* target_ = nullptr;
   int targetFunctionCount_ = 0;
   int targetUsingDeclarationCount_ = 0;

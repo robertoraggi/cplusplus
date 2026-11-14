@@ -30,6 +30,7 @@
 #include <cxx/token_fwd.h>
 #include <cxx/type_traits.h>
 #include <cxx/types_fwd.h>
+#include <cxx/util.h>
 
 #include <expected>
 #include <functional>
@@ -1014,9 +1015,9 @@ class Binder {
 
   void applyImplicitExceptionSpecification(FunctionSymbol* fn);
 
-  void findOverriddenFunctionsImpl(
-      ClassSymbol* cls, FunctionSymbol* fn, std::vector<ClassSymbol*>& visited,
-      std::vector<FunctionSymbol*>& overriddenFunctions);
+  [[nodiscard]] auto correspondingVirtualFunctions(ClassSymbol* cls,
+                                                   FunctionSymbol* fn)
+      -> std::vector<FunctionSymbol*>;
 
  private:
   friend struct ClassBodyGuard;

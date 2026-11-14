@@ -439,7 +439,9 @@ void Binder::copyDefaultArguments(FunctionParametersSymbol* from,
 
 void Binder::inheritDefaultArgument(ParameterSymbol* target,
                                     ParameterSymbol* source) {
-  setSpeculativeValue(target->defaultArgumentSource(), source,
+  auto origin = source->defaultArgumentSource();
+  if (!origin) origin = source;
+  setSpeculativeValue(target->defaultArgumentSource(), origin,
                       [target](ParameterSymbol* value) {
                         target->setDefaultArgumentSource(value);
                       });
@@ -1957,7 +1959,7 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
 
 auto Binder::redeclaresOnlyMembersOf(UsingDeclarationSymbol* usingDeclaration,
                                      ScopeSymbol* scope) -> bool {
-  auto functions = usingDeclaration->introducedFunctions();
+  const auto& functions = usingDeclaration->introducedFunctions();
   if (functions.empty()) return false;
   return std::ranges::all_of(functions, [scope](FunctionSymbol* function) {
     return function->parent() == scope;
@@ -1981,7 +1983,7 @@ void Binder::checkUsingDeclaratorAccess(UsingDeclaratorAST* ast,
                             location);
   };
 
-  auto introduced = symbol->introducedFunctions();
+  const auto& introduced = symbol->introducedFunctions();
   if (introduced.empty()) {
     reportInaccessible(symbol->target());
     return;
