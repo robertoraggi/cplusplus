@@ -8172,6 +8172,7 @@ class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
   ExpressionAST* initializer = nullptr;
   const Identifier* identifier = nullptr;
   FieldSymbol* symbol = nullptr;
+  VariableSymbol* variable = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -8182,17 +8183,16 @@ class RefInitLambdaCaptureAST final : public LambdaCaptureAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> RefInitLambdaCaptureAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation ampLoc,
-                                   SourceLocation ellipsisLoc,
-                                   SourceLocation identifierLoc,
-                                   ExpressionAST* initializer,
-                                   const Identifier* identifier,
-                                   FieldSymbol* symbol)
-      -> RefInitLambdaCaptureAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation ampLoc, SourceLocation ellipsisLoc,
+      SourceLocation identifierLoc, ExpressionAST* initializer,
+      const Identifier* identifier, FieldSymbol* symbol,
+      VariableSymbol* variable) -> RefInitLambdaCaptureAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* initializer,
                                    const Identifier* identifier,
-                                   FieldSymbol* symbol)
+                                   FieldSymbol* symbol,
+                                   VariableSymbol* variable)
       -> RefInitLambdaCaptureAST*;
 
  protected:
@@ -8208,6 +8208,7 @@ class InitLambdaCaptureAST final : public LambdaCaptureAST {
   ExpressionAST* initializer = nullptr;
   const Identifier* identifier = nullptr;
   FieldSymbol* symbol = nullptr;
+  VariableSymbol* variable = nullptr;
 
   void accept(ASTVisitor* visitor) override { visitor->visit(this); }
 
@@ -8218,16 +8219,15 @@ class InitLambdaCaptureAST final : public LambdaCaptureAST {
 
   [[nodiscard]] static auto create(Arena* arena) -> InitLambdaCaptureAST*;
 
-  [[nodiscard]] static auto create(Arena* arena, SourceLocation ellipsisLoc,
-                                   SourceLocation identifierLoc,
-                                   ExpressionAST* initializer,
-                                   const Identifier* identifier,
-                                   FieldSymbol* symbol)
-      -> InitLambdaCaptureAST*;
+  [[nodiscard]] static auto create(
+      Arena* arena, SourceLocation ellipsisLoc, SourceLocation identifierLoc,
+      ExpressionAST* initializer, const Identifier* identifier,
+      FieldSymbol* symbol, VariableSymbol* variable) -> InitLambdaCaptureAST*;
 
   [[nodiscard]] static auto create(Arena* arena, ExpressionAST* initializer,
                                    const Identifier* identifier,
-                                   FieldSymbol* symbol)
+                                   FieldSymbol* symbol,
+                                   VariableSymbol* variable)
       -> InitLambdaCaptureAST*;
 
  protected:

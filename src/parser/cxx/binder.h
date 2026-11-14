@@ -517,10 +517,6 @@ class Binder {
   [[nodiscard]] auto deducedInitCaptureType(const InitCapture& capture)
       -> const Type*;
 
-  [[nodiscard]] static auto declaredInitCapture(ScopeSymbol* lambdaScope,
-                                                const Identifier* name)
-      -> VariableSymbol*;
-
   void bindLambdaIntroducer(LambdaExpressionAST* ast);
 
   [[nodiscard]] static auto explicitlyCapturedEntity(

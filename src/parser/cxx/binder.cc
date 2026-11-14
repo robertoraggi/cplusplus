@@ -3027,14 +3027,6 @@ auto Binder::deducedInitCaptureType(const InitCapture& capture) -> const Type* {
                                                        replacement);
 }
 
-auto Binder::declaredInitCapture(ScopeSymbol* lambdaScope,
-                                 const Identifier* name) -> VariableSymbol* {
-  for (auto candidate : lambdaScope->find(name)) {
-    if (auto variable = symbol_cast<VariableSymbol>(candidate)) return variable;
-  }
-  return nullptr;
-}
-
 auto Binder::initCapture(LambdaCaptureAST* captureNode)
     -> std::optional<InitCapture> {
   if (auto initCap = ast_cast<InitLambdaCaptureAST>(captureNode)) {
@@ -3099,6 +3091,7 @@ void Binder::declareInitCapturesInLambdaScope(LambdaExpressionAST* ast) {
     auto deduced = deducedInitCaptureType(*capture);
     variable->setType(deduced ? deduced : capture->declaredType);
     ast->symbol->addSymbol(variable);
+    *init_capture_variable_slot(captureNode) = variable;
   }
 }
 
@@ -3165,9 +3158,7 @@ enum class CaptureMode { kNone, kCopy, kReference };
                                     LambdaCaptureAST* capture) -> Symbol* {
   if (auto field = capture_field(capture); field && field->capturedEntity())
     return field->capturedEntity();
-  if (is_init_capture(capture))
-    return Binder::declaredInitCapture(lambda->symbol,
-                                       capture_identifier(capture));
+  if (is_init_capture(capture)) return init_capture_variable(capture);
   return captured_entity(Binder::explicitlyCapturedEntity(capture));
 }
 
@@ -3405,7 +3396,7 @@ void Binder::complete(LambdaExpressionAST* ast) {
                      ast_cast<DerefThisLambdaCaptureAST>(captureNode)) {
         error(captureLoc, "capture of '*this' is not yet supported");
       } else if (auto capture = initCapture(captureNode)) {
-        auto variable = declaredInitCapture(ast->symbol, capture->name);
+        auto variable = init_capture_variable(captureNode);
         if (!variable || containsPlaceholderType(variable->type())) continue;
         auto field = declareCaptureField(classSymbol, capture->name,
                                          variable->type(), captureLoc);
