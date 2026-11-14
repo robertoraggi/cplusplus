@@ -26,6 +26,7 @@
 #include <cxx/symbols.h>
 #include <cxx/symbols_fwd.h>
 #include <cxx/types.h>
+#include <cxx/util.h>
 #include <cxx/views/symbol_chain.h>
 
 #include <algorithm>
@@ -249,8 +250,12 @@ template <typename Predicate>
 
 [[nodiscard]] auto isPureFriend(FunctionSymbol* func) -> bool;
 
-void addOverloadCandidate(std::vector<FunctionSymbol*>& candidates,
+using OverloadCandidateSet = InsertionOrderedSet<FunctionSymbol*>;
+
+void addOverloadCandidate(OverloadCandidateSet& candidates,
                           FunctionSymbol* function);
+
+void addLookupCandidates(OverloadCandidateSet& candidates, Symbol* found);
 
 void addLookupCandidates(std::vector<FunctionSymbol*>& candidates,
                          Symbol* found);

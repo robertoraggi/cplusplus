@@ -4519,16 +4519,16 @@ class SwappableTypes {
   }
 
   [[nodiscard]] auto standardFunctions() const -> std::vector<FunctionSymbol*> {
-    std::vector<FunctionSymbol*> functions;
     auto stdNamespace = qualifiedLookupNamespace(
         unit_->globalScope(), control_->getIdentifier("std"));
-    if (!stdNamespace) return functions;
+    if (!stdNamespace) return {};
     auto found = qualifiedLookupIncludingInlineNamespaces(
         control_, stdNamespace, control_->getIdentifier("swap"));
+    OverloadCandidateSet functions;
     for (auto function : views::each_function(found)) {
       if (standardPattern(function)) addOverloadCandidate(functions, function);
     }
-    return functions;
+    return std::move(functions).take();
   }
 
   [[nodiscard]] auto standardResult(const Type* first, const Type* second)
@@ -4693,13 +4693,14 @@ class SwappableTypes {
     if (traits_.is_void(traits_.remove_reference(first)) ||
         traits_.is_void(traits_.remove_reference(second)))
       return {};
-    auto functions = standardFunctions();
-    auto hasStandard = !functions.empty();
+    OverloadCandidateSet swapFunctions{standardFunctions()};
+    auto hasStandard = !swapFunctions.empty();
     for (auto function :
          argumentDependentLookup(unit_, control_->getIdentifier("swap"),
                                  std::array{first, second})) {
-      addOverloadCandidate(functions, function);
+      addOverloadCandidate(swapFunctions, function);
     }
+    auto functions = std::move(swapFunctions).take();
     auto arguments =
         std::array{traits_.declval(first), traits_.declval(second)};
     OverloadResolution resolution{unit_};

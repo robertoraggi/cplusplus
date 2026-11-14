@@ -33,10 +33,12 @@
 #include <cxx/translation_unit.h>
 #include <cxx/type_traits.h>
 #include <cxx/types.h>
+#include <cxx/util.h>
 #include <cxx/views/symbols.h>
 
 #include <optional>
 #include <span>
+#include <unordered_set>
 
 namespace cxx {
 namespace {
@@ -417,13 +419,14 @@ auto isContainedBy(NamespaceSymbol* ns, ScopeSymbol* scope) -> bool {
   return false;
 }
 
+using NominatedNamespaces = InsertionOrderedSet<NamespaceSymbol*>;
+
 void collectActiveNominatedNamespaces(ScopeSymbol* scope,
-                                      std::vector<NamespaceSymbol*>& out) {
+                                      NominatedNamespaces& out) {
   for (auto directive : scope->usingDirectives()) {
     auto ns = symbol_cast<NamespaceSymbol>(directive);
     if (!ns) continue;
-    if (std::ranges::contains(out, ns)) continue;
-    out.push_back(ns);
+    if (!out.insert(ns)) continue;
     collectActiveNominatedNamespaces(ns, out);
   }
 }
@@ -467,7 +470,7 @@ auto mergeDeclarations(Control* control, ScopeSymbol* scope, const Name* name,
 auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id,
                            bool tagsAreTypes, bool discardHiddenClassNames)
     -> Symbol* {
-  std::vector<NamespaceSymbol*> nominated;
+  NominatedNamespaces nominated;
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     if (!sc->symbol) continue;
     collectActiveNominatedNamespaces(sc->symbol, nominated);
@@ -541,7 +544,7 @@ auto friendTypeOnlyLookup(Scope* lexicalScope, const Identifier* id)
 
 auto unqualifiedLookupNamespace(Scope* lexicalScope, const Identifier* id)
     -> NamespaceSymbol* {
-  std::vector<NamespaceSymbol*> nominated;
+  NominatedNamespaces nominated;
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     if (!sc->symbol) continue;
     collectActiveNominatedNamespaces(sc->symbol, nominated);
@@ -564,7 +567,7 @@ namespace {
 template <typename Predicate>
 [[nodiscard]] auto searchNonClassScope(Control* control, ScopeSymbol* scope,
                                        const Name* name, Predicate accept,
-                                       std::vector<NamespaceSymbol*>& nominated,
+                                       NominatedNamespaces& nominated,
                                        VisitedScopes& visited, bool* ambiguous)
     -> Symbol* {
   collectActiveNominatedNamespaces(scope, nominated);
@@ -600,7 +603,7 @@ auto unqualifiedLookupIncludingInlineNamespaces(
     return !skipClassNames || !symbol_cast<ClassSymbol>(symbol);
   };
 
-  std::vector<NamespaceSymbol*> nominated;
+  NominatedNamespaces nominated;
   VisitedScopes visited;
 
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
@@ -636,7 +639,7 @@ auto unqualifiedNonMemberLookup(Control* control, ScopeSymbol* scope,
 
   auto accept = [](Symbol*) { return true; };
 
-  std::vector<NamespaceSymbol*> nominated;
+  NominatedNamespaces nominated;
   VisitedScopes visited;
 
   for (; scope; scope = scope->parent()) {
@@ -732,29 +735,33 @@ auto bindsName(Symbol* symbol) -> bool {
   return true;
 }
 
-void addOverloadCandidate(std::vector<FunctionSymbol*>& candidates,
+void addOverloadCandidate(OverloadCandidateSet& candidates,
                           FunctionSymbol* function) {
   if (!function) return;
   if (function->isSpecialization()) return;
-  auto canonical = function->canonical();
-  if (std::ranges::contains(candidates, canonical)) return;
-  candidates.push_back(canonical);
+  candidates.insert(function->canonical());
 }
 
-void addLookupCandidates(std::vector<FunctionSymbol*>& candidates,
-                         Symbol* found) {
+void addLookupCandidates(OverloadCandidateSet& candidates, Symbol* found) {
   for (auto function : views::each_function(found)) {
     if (isPureFriend(function)) continue;
     addOverloadCandidate(candidates, function);
   }
 }
 
+void addLookupCandidates(std::vector<FunctionSymbol*>& candidates,
+                         Symbol* found) {
+  OverloadCandidateSet distinct{std::move(candidates)};
+  addLookupCandidates(distinct, found);
+  candidates = std::move(distinct).take();
+}
+
 auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
                              std::span<const Type* const> argumentTypes)
     -> std::vector<FunctionSymbol*> {
-  std::vector<FunctionSymbol*> result;
-  if (!name) return result;
+  if (!name) return {};
 
+  OverloadCandidateSet result;
   std::vector<NamespaceSymbol*> namespaces;
   std::vector<ClassSymbol*> classes;
   std::vector<const Type*> visited;
@@ -783,7 +790,7 @@ auto argumentDependentLookup(TranslationUnit* unit, const Name* name,
     }
   }
 
-  return result;
+  return std::move(result).take();
 }
 
 auto isDeferredDependentLookupContext(TranslationUnit* unit,

@@ -3968,10 +3968,8 @@ auto Binder::declareTypedef(DeclaratorAST* declarator, const Decl& decl)
 }
 
 namespace {
-auto arrayBoundToString(const Type* type) -> std::optional<std::string> {
-  if (auto bounded = type_cast<BoundedArrayType>(type)) {
-    return std::to_string(bounded->size());
-  }
+[[nodiscard]] auto arrayBound(const Type* type) -> std::optional<std::size_t> {
+  if (auto bounded = type_cast<BoundedArrayType>(type)) return bounded->size();
   return std::nullopt;
 }
 
@@ -3982,7 +3980,7 @@ auto isEffectivelyUnboundedArray(TranslationUnit* unit, const Type* type)
 
   auto unresolved = type_cast<UnresolvedBoundedArrayType>(type);
   if (!unresolved) return false;
-  return !arrayBoundToString(type).has_value();
+  return !arrayBound(type).has_value();
 }
 
 [[nodiscard]] auto indirectElementType(const Type* type) -> const Type* {
@@ -4065,8 +4063,8 @@ auto redeclarationTypesEquivalent(TranslationUnit* unit,
     return false;
   }
 
-  auto existingBound = arrayBoundToString(existingType);
-  auto incomingBound = arrayBoundToString(incomingType);
+  auto existingBound = arrayBound(existingType);
+  auto incomingBound = arrayBound(incomingType);
   if (!existingBound || !incomingBound) return true;
   return *existingBound == *incomingBound;
 }

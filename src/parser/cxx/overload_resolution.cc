@@ -1370,7 +1370,7 @@ auto OverloadResolution::nonMemberOperatorCandidates(
     ScopeSymbol* scope, const Name* name,
     std::span<const Type* const> operandTypes) const
     -> std::vector<FunctionSymbol*> {
-  std::vector<FunctionSymbol*> candidates;
+  OverloadCandidateSet candidates;
 
   addLookupCandidates(candidates,
                       unqualifiedNonMemberLookup(control_, scope, name));
@@ -1378,7 +1378,7 @@ auto OverloadResolution::nonMemberOperatorCandidates(
   for (auto function : argumentDependentLookup(unit_, name, operandTypes))
     addOverloadCandidate(candidates, function);
 
-  return candidates;
+  return std::move(candidates).take();
 }
 
 auto OverloadResolution::isExcludedCandidate(FunctionSymbol* function) const
