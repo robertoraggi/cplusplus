@@ -1551,7 +1551,14 @@ void Binder::bind(DecltypeSpecifierAST* ast) {
     ast->type = control()->getDecltypeType(unit_, ast->expression);
     return;
   }
-  if (auto type = traits.decltype_of(ast->expression)) ast->type = type;
+  if (auto type = traits.decltype_of(ast->expression)) {
+    ast->type = type;
+    return;
+  }
+  if (ast->expression &&
+      traits.overload_set_operand(ast->expression->type).type)
+    error(get_name_location(ast->expression),
+          "'decltype' operand names an overload set");
 }
 
 void Binder::complete(EnumSpecifierAST* ast) {

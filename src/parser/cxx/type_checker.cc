@@ -3733,16 +3733,7 @@ void TypeChecker::Visitor::operator()(CallExpressionAST* ast) {
 
   bool calleeIsDependent = false;
   if (in_template()) {
-    calleeIsDependent = is_dependent_type(ast->baseExpression->type);
-    if (!calleeIsDependent)
-      calleeIsDependent = hasTypeDependentDeclaration(
-          check.unit_, base_symbol(ast->baseExpression));
-    if (!calleeIsDependent)
-      calleeIsDependent = std::ranges::any_of(
-          ListView{explicit_template_arguments(ast->baseExpression)},
-          [&](TemplateArgumentAST* argument) {
-            return isDependentTemplateArgument(check.unit_, argument);
-          });
+    calleeIsDependent = isTypeDependent(check.unit_, ast->baseExpression);
     if (!calleeIsDependent)
       calleeIsDependent = type_cast<AutoType>(ast->baseExpression->type);
   }

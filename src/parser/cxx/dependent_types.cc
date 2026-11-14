@@ -199,14 +199,18 @@ struct IsDependent {
     return isDependent(function->parent()->type());
   }
 
+  [[nodiscard]] auto hasDependentPlaceholderReturn(FunctionSymbol* function)
+      -> bool {
+    auto type = type_cast<FunctionType>(function->type());
+    if (!type || !containsPlaceholderType(type->returnType())) return false;
+    return enclosedInDependentTemplate(enclosingScopeForDependence(function),
+                                       true);
+  }
+
   [[nodiscard]] auto isDeclaredWithDependentType(FunctionSymbol* function)
       -> bool {
     if (hasDependentImplicitObjectParameter(function)) return true;
-    if (auto type = type_cast<FunctionType>(function->type());
-        type && containsPlaceholderType(type->returnType()) &&
-        enclosedInDependentTemplate(enclosingScopeForDependence(function),
-                                    true))
-      return true;
+    if (hasDependentPlaceholderReturn(function)) return true;
     auto ownDepth = ownTemplateParameterDepth(function);
     if (!ownDepth) return isDependent(function->type());
     if (!enclosedInDependentTemplate(enclosingScopeForDependence(function),
@@ -909,6 +913,55 @@ struct IsDependent {
   auto operator()(SplicerTypeSpecifierAST* ast) -> bool { return false; }
   // clang-format on
 };
+struct TypeDependence {
+  IsDependent query;
+
+  [[nodiscard]] auto isTypeDependent(ExpressionAST* ast) -> bool {
+    if (!ast) return false;
+    if (query.isDependent(ast->type)) return true;
+    return visit(*this, ast);
+  }
+
+  [[nodiscard]] auto namesDependentDeclaration(Symbol* symbol,
+                                               UnqualifiedIdAST* id) -> bool {
+    if (query.isDependent(id)) return true;
+    if (!symbol) return false;
+    return visit(IsDependent::ReferencedMemberIsDependent{query}, symbol);
+  }
+
+  [[nodiscard]] auto operator()(ExpressionAST*) -> bool { return false; }
+
+  [[nodiscard]] auto operator()(IdExpressionAST* ast) -> bool {
+    return namesDependentDeclaration(ast->symbol, ast->unqualifiedId);
+  }
+
+  [[nodiscard]] auto operator()(MemberExpressionAST* ast) -> bool {
+    return namesDependentDeclaration(ast->symbol, ast->unqualifiedId);
+  }
+
+  [[nodiscard]] auto operator()(NestedExpressionAST* ast) -> bool {
+    return isTypeDependent(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(UnaryExpressionAST* ast) -> bool {
+    return isTypeDependent(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(ImplicitCastExpressionAST* ast) -> bool {
+    return isTypeDependent(ast->expression);
+  }
+
+  [[nodiscard]] auto operator()(PackExpansionExpressionAST*) -> bool {
+    return true;
+  }
+
+  [[nodiscard]] auto operator()(BracedInitListAST* ast) -> bool {
+    for (auto element : ListView{ast->expressionList})
+      if (isTypeDependent(element)) return true;
+    return false;
+  }
+};
+
 }  // namespace
 
 auto IsDependent::isDependent(NestedNameSpecifierAST* ast) -> bool {
@@ -1528,18 +1581,14 @@ auto isDependent(TranslationUnit* unit, ExpressionAST* ast) -> bool {
   return IsDependent{unit}.isDependent(ast);
 }
 
-auto hasTypeDependentDeclaration(TranslationUnit* unit, Symbol* symbol)
-    -> bool {
-  if (!symbol) return false;
-  auto query = IsDependent{unit};
-  return visit(IsDependent::ReferencedMemberIsDependent{query}, symbol);
+auto isTypeDependent(TranslationUnit* unit, ExpressionAST* ast) -> bool {
+  return TypeDependence{IsDependent{unit}}.isTypeDependent(ast);
 }
 
 auto hasConcreteType(TranslationUnit* unit, ExpressionAST* ast) -> bool {
   if (!ast) return false;
-  if (ast_cast<PackExpansionExpressionAST>(ast)) return false;
   auto braced = ast_cast<BracedInitListAST>(ast);
-  if (!braced) return ast->type && !isDependent(unit, ast->type);
+  if (!braced) return ast->type && !isTypeDependent(unit, ast);
   for (auto element : ListView{braced->expressionList}) {
     if (!hasConcreteType(unit, element)) return false;
   }
