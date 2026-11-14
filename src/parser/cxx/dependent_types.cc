@@ -375,13 +375,20 @@ struct IsDependent {
       -> bool {
     auto parameters =
         template_parameters_of(templated_symbol(templateName(id)));
+    if (unit && unit->hasNonDependentTemplateArguments(id, parameters))
+      return false;
 
+    const auto cyclesBefore = cycles;
+    const auto unsettledClassesBefore = unsettledClasses;
     std::size_t index = 0;
     for (auto arg : ListView{get_template_arguments(id)}) {
       auto parameter = parameterForArgument(parameters, index);
       ++index;
       if (isDependentTemplateArgument(arg, parameter)) return true;
     }
+    if (unit && !localTemplateDepth && cycles == cyclesBefore &&
+        unsettledClasses == unsettledClassesBefore)
+      unit->addNonDependentTemplateArguments(id, parameters);
     return false;
   }
 
