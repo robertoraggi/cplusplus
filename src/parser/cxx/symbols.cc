@@ -2940,11 +2940,22 @@ template <typename Reference>
   return reference && namesClass(reference->elementType(), classSymbol);
 }
 
+[[nodiscard]] auto isDeclaredConstructorOf(FunctionSymbol* constructor,
+                                           const ClassSymbol* classSymbol)
+    -> bool {
+  if (constructor->inheritedConstructor()) return false;
+  auto declaringClass = symbol_cast<ClassSymbol>(constructor->parent());
+  if (!declaringClass) return false;
+  return declaringClass->resolvedDefinition() ==
+         classSymbol->resolvedDefinition();
+}
+
 template <typename Reference>
 [[nodiscard]] auto isCopyOrMoveConstructorFor(FunctionSymbol* constructor,
                                               const ClassSymbol* classSymbol)
     -> bool {
   if (is_templated_function(constructor)) return false;
+  if (!isDeclaredConstructorOf(constructor, classSymbol)) return false;
   auto functionType = type_cast<FunctionType>(constructor->type());
   if (!functionType) return false;
   const auto& parameters = functionType->parameterTypes();
