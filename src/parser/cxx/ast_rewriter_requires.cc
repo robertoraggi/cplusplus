@@ -490,7 +490,7 @@ auto ASTRewriter::evaluateConcept(
 auto ASTRewriter::check(ExpressionAST* ast, bool addressOfOperand)
     -> ExpressionAST* {
   if (!ast) return ast;
-  if (isDependent(unit_, ast)) return ast;
+  if (isDependent(unit_, ast, nonDependentExpressions_)) return ast;
 
   TranslationUnit::PotentiallyEvaluatedScope evaluated{
       unit_, unevaluatedOperandDepth_ == 0};

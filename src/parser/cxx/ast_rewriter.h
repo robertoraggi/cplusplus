@@ -22,6 +22,7 @@
 
 #include <cxx/ast.h>
 #include <cxx/binder.h>
+#include <cxx/dependent_types.h>
 #include <cxx/diagnostic.h>
 #include <cxx/diagnostics_client.h>
 #include <cxx/names_fwd.h>
@@ -783,6 +784,7 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] auto lambdaCaptureField(Symbol* sym) const -> FieldSymbol*;
 
   TranslationUnit* unit_ = nullptr;
+  NonDependentExpressions nonDependentExpressions_;
   std::vector<TemplateArgument> templateArguments_;
   List<TemplateArgumentAST*>* writtenTemplateArgumentList_ = nullptr;
   std::unordered_map<int, std::vector<TemplateArgument>>

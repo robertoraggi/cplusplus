@@ -23,6 +23,8 @@
 #include <cxx/ast.h>
 #include <cxx/types_fwd.h>
 
+#include <unordered_set>
+
 namespace cxx {
 class TranslationUnit;
 class Symbol;
@@ -55,6 +57,11 @@ class BaseClassSymbol;
 
 [[nodiscard]] auto isDependent(TranslationUnit* unit, ExpressionAST* ast)
     -> bool;
+
+using NonDependentExpressions = std::unordered_set<ExpressionAST*>;
+
+[[nodiscard]] auto isDependent(TranslationUnit* unit, ExpressionAST* ast,
+                               NonDependentExpressions& nonDependent) -> bool;
 
 [[nodiscard]] auto hasConcreteType(TranslationUnit* unit, ExpressionAST* ast)
     -> bool;
