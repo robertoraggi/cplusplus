@@ -1567,15 +1567,15 @@ auto has_unique_base_subobject_types(ClassSymbol* cls,
 
 auto has_base_of_first_member_type(TypeTraits& traits, ClassSymbol* cls)
     -> bool {
-  FieldSymbol* firstField = nullptr;
-  for (auto field : cls->members() | views::non_static_fields) {
-    firstField = field;
-    break;
-  }
+  auto fields = cls->members() | views::non_static_fields;
+  auto first = std::ranges::find_if_not(fields, [](FieldSymbol* field) {
+    return field->isBitField() && !field->name();
+  });
+  if (first == fields.end()) return false;
+  auto firstField = *first;
 
-  if (!firstField) return false;
-
-  auto fieldClass = type_cast<ClassType>(traits.remove_cv(firstField->type()));
+  auto fieldClass = type_cast<ClassType>(
+      traits.remove_cv(traits.remove_all_extents(firstField->type())));
   if (!fieldClass || !fieldClass->symbol()) return false;
 
   auto fieldSymbol = fieldClass->symbol()->resolvedDefinition();
