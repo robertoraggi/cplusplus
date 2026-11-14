@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <deque>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -69,6 +70,7 @@ class Parser final {
   struct TemplateHeadContext;
   struct ClassSpecifierContext;
   struct ExprContext;
+  struct BacktrackPoint;
   struct LookaheadParser;
   struct DeclarationRollback;
   struct LoopParser;
@@ -1293,72 +1295,39 @@ class Parser final {
       SourceLocation endLoc;
       T* ast = nullptr;
       bool parsed = false;
-      int hit = 0;
       std::vector<Diagnostic> diagnostics;
     };
-
-    using Map = std::unordered_map<SourceLocation, Entry>;
-    using const_iterator = typename Map::const_iterator;
 
     CachedAST(const CachedAST&) = delete;
     auto operator=(const CachedAST&) -> CachedAST& = delete;
 
     CachedAST() = default;
 
-    auto empty() const -> bool { return this->map_.empty(); }
-    auto size() const -> std::size_t { return this->map_.size(); }
-    auto begin() const -> const_iterator { return this->map_.begin(); }
-    auto end() const -> const_iterator { return this->map_.end(); }
-
-    auto get(SourceLocation loc) -> std::optional<Entry> {
-      if (auto it = this->map_.find(loc); it != this->map_.end()) {
-        queue_.erase(std::find(queue_.begin(), queue_.end(), it));
-        queue_.push_front(it);
-        ++it->second.hit;
-        return it->second;
-      }
-      return std::nullopt;
+    [[nodiscard]] auto get(SourceLocation loc) const -> const Entry* {
+      auto it = entries_.find(loc);
+      if (it == entries_.end()) return nullptr;
+      return &it->second;
     }
 
-    void erase(SourceLocation loc) {
-      auto it = this->map_.find(loc);
-      if (it == this->map_.end()) return;
-      queue_.erase(std::find(queue_.begin(), queue_.end(), it));
-      this->map_.erase(it);
+    void erase(SourceLocation loc) { entries_.erase(loc); }
+
+    void eraseBefore(SourceLocation loc) {
+      entries_.erase(entries_.begin(), entries_.lower_bound(loc));
     }
 
     void set(SourceLocation startLoc, SourceLocation endLoc, T* ast,
              bool parsed, std::vector<Diagnostic> diagnostics) {
-      const std::size_t kMaxSize = 100;
-
-      if (this->map_.size() == kMaxSize) {
-        auto it = queue_.back();
-        queue_.pop_back();
-        this->map_.erase(it);
-      }
-
-      auto it = this->map_.find(startLoc);
-
-      if (it != this->map_.end()) {
-        queue_.erase(std::find(queue_.begin(), queue_.end(), it));
-      } else {
-        it = this->map_.insert({startLoc, {}}).first;
-      }
-
-      queue_.push_front(it);
-
-      it->second.endLoc = endLoc;
-      it->second.ast = ast;
-      it->second.parsed = parsed;
-      it->second.diagnostics = std::move(diagnostics);
-      ++it->second.hit;
+      entries_.insert_or_assign(
+          startLoc, Entry{endLoc, ast, parsed, std::move(diagnostics)});
     }
 
    private:
-    Map map_;
-    std::deque<const_iterator> queue_;
+    std::map<SourceLocation, Entry> entries_;
   };
 
+  void forgetParsesBeforeCursor();
+
+  std::uint32_t backtrackPoints_ = 0;
   CachedAST<ParameterDeclarationClauseAST> parameter_declaration_clauses_;
   CachedAST<TemplateArgumentAST> template_arguments_;
 };
