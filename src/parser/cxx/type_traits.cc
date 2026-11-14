@@ -1947,6 +1947,16 @@ auto TypeTraits::decltype_of(ExpressionAST* expr) const -> const Type* {
     expr = lowered;
   }
 
+  if (auto operand = overload_set_operand(expr->type); operand.type) {
+    auto resolution = StandardConversion{unit_}.resolveOverloadSet(expr);
+    if (!resolution.function || resolution.isOverloaded) return nullptr;
+    auto type = operand.takesAddress ? address_of_function(resolution.function)
+                                     : resolution.function->type();
+    auto resolved = expr->clone(unit_->arena());
+    resolved->type = type;
+    return decltype_of(resolved);
+  }
+
   auto namedSymbol = [&]() -> Symbol* {
     if (auto id = ast_cast<IdExpressionAST>(expr)) return id->symbol;
     if (auto member = ast_cast<MemberExpressionAST>(expr))

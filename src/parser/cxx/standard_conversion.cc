@@ -250,8 +250,6 @@ struct SelectedFunction {
   if (target)
     ASTRewriter::instantiateSelectedSpecializationDefinition(
         unit, match.function, match.deducedArguments);
-  else if (unit->requiresDefinitions())
-    ASTRewriter::requireFunctionDefinition(unit, match.function);
 
   return {.function = match.function, .isOverloaded = selected.size() > 1};
 }
@@ -665,11 +663,17 @@ void StandardConversion::bindDesignatedFunction(ExpressionAST* expr) {
   auto overloadSet = symbol_cast<OverloadSetSymbol>(namedEntity(expr));
   if (!overloadSet) return;
   auto function = designatedFunction(overloadSet);
+  if (!function) {
+    auto resolution = resolveOverloadSet(expr);
+    if (resolution.isOverloaded) return;
+    function = resolution.function;
+  }
   if (!function) return;
   setResolvedFunction(expr, function);
 }
 
 void StandardConversion::prepareOperand(ExpressionAST*& expr) {
+  bindDesignatedFunction(expr);
   if (auto step = valueTransformation(expr)) {
     if (step->kind == ImplicitCastKind::kFunctionToPointerConversion) {
       auto function = designatedFunction(namedEntity(expr));
