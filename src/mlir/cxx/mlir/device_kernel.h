@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/mlir/backend.h>
 #include <cxx/mlir/kernel_contract.h>
 #include <cxx/spirv_environment.h>
 #include <llvm/ADT/SmallVector.h>
@@ -33,12 +34,10 @@
 
 namespace cxx {
 
-class TranslationUnit;
-
 class DeviceDiagnostics {
  public:
   DeviceDiagnostics(mlir::MLIRContext* context, llvm::raw_ostream& out,
-                    const TranslationUnit* unit = nullptr);
+                    MLIRDiagnosticSink sink = {});
   ~DeviceDiagnostics();
 
   DeviceDiagnostics(const DeviceDiagnostics&) = delete;
@@ -46,11 +45,10 @@ class DeviceDiagnostics {
 
  private:
   void print(mlir::Diagnostic& diagnostic);
-  [[nodiscard]] auto reportToUnit(mlir::Diagnostic& diagnostic) -> bool;
 
   mlir::MLIRContext* context_;
   llvm::raw_ostream& out_;
-  const TranslationUnit* unit_;
+  MLIRDiagnosticSink sink_;
   bool printedOperations_;
   mlir::ScopedDiagnosticHandler handler_;
 };

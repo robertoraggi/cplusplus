@@ -20,34 +20,24 @@
 
 #include "emit_code.h"
 
+#include <cxx/codegen/codegen.h>
 #include <cxx/control.h>
+#include <cxx/cxxir/cxxir_emitter.h>
 #include <cxx/memory_layout.h>
+#include <cxx/private/path.h>
 #include <cxx/translation_unit.h>
 
 #include <format>
 
 #ifdef CXX_WITH_MLIR
-#include <cxx/codegen/codegen.h>
-#include <cxx/control.h>
-#include <cxx/memory_layout.h>
+#include <cxx/mlir/backend.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/mlir/mlir_emitter.h>
-#ifdef CXX_WITH_SPIRV
-#include <cxx/mlir/device_kernel.h>
-#endif
-#include <cxx/private/path.h>
-#include <cxx/translation_unit.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/Module.h>
-#include <llvm/MC/TargetRegistry.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
+#include <cxx/mlir/passes.h>
+#include <llvm/Support/raw_ostream.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/MLIRContext.h>
-
-#include <format>
 #endif
 
 namespace cxx::js {
@@ -68,213 +58,152 @@ auto hostTargetRequired(std::string_view output) -> std::string {
 
 auto hasCodeGenerator() -> bool { return false; }
 
-auto generateCode(TranslationUnit*, std::string_view, bool, int,
-                  std::string_view) -> std::optional<GeneratedCode> {
-  return std::nullopt;
+auto generateCode(TranslationUnit* unit, std::string_view format,
+                  bool debugInfo, int, std::string_view mlirPipeline,
+                  bool locations) -> std::optional<GeneratedCode> {
+  if (format != "cxxir" || !mlirPipeline.empty()) return std::nullopt;
+  ir::CxxIREmitter emitter{unit};
+  Codegen codegen{
+      emitter,
+      unit,
+      {.debugInfo = debugInfo,
+       .debugCompilationDirectory = fs::working_directory().string()}};
+  auto generated = codegen(unit->ast());
+  if (!generated.module) return GeneratedCode{};
+  return GeneratedCode{
+      .text = std::format(
+          "{}", emitter.module(generated.module, locations || debugInfo))};
 }
 
 #else
 
-auto hasCodeGenerator() -> bool { return true; }
-
 namespace {
+
+[[nodiscard]] auto backendOutputOf(std::string_view format)
+    -> std::optional<BackendOutput> {
+  if (format == "cxxir") return BackendOutput::kCxxIR;
+  if (format == "mlir") return BackendOutput::kMLIR;
+  if (format == "llvm") return BackendOutput::kLLVMIR;
+  if (format == "asm") return BackendOutput::kAssembly;
+  if (format == "obj") return BackendOutput::kObject;
+  if (format == "spirv") return BackendOutput::kSPIRV;
+  if (format == "wgsl") return BackendOutput::kWGSL;
+  return std::nullopt;
+}
 
 [[nodiscard]] auto isKernelFormat(std::string_view format) -> bool {
   return format == "wgsl" || format == "spirv";
 }
 
-#ifdef CXX_WITH_SPIRV
-[[nodiscard]] auto generateDeviceCode(mlir::ModuleOp module,
-                                      std::string_view format)
-    -> GeneratedCode {
-  GeneratedCode generated;
-  llvm::raw_string_ostream errors(generated.error);
-  DeviceDiagnostics diagnostics(module.getContext(), errors);
-  if (format == "mlir" || format == "asm") {
-    llvm::raw_string_ostream text(generated.text);
-    const auto stage =
-        format == "mlir" ? KernelStage::kGPU : KernelStage::kSPIRV;
-    (void)printDeviceModule(module, "", stage, text);
-    return generated;
-  }
-  if (format != "obj") {
-    generated.error = hostTargetRequired(format);
-    return generated;
-  }
-  auto artifact = compileSPIRVModule(module, "");
-  if (succeeded(artifact))
-    generated.objectCode.assign(artifact->bytes.begin(), artifact->bytes.end());
-  return generated;
-}
+class DiagnosticMessages {
+ public:
+  explicit DiagnosticMessages(llvm::raw_ostream& out) : out_(out) {}
 
-[[nodiscard]] auto generateKernels(mlir::ModuleOp module,
-                                   std::string_view format) -> GeneratedCode {
-  GeneratedCode generated;
-  llvm::raw_string_ostream errors(generated.error);
-  DeviceDiagnostics diagnostics(module.getContext(), errors);
-  auto artifact = format == "wgsl" ? compileWGSLModule(module, "")
-                                   : compileSPIRVModule(module, "");
-  if (succeeded(artifact))
-    generated.kernels.push_back(
-        {std::move(artifact->manifest),
-         std::vector<std::uint8_t>(artifact->bytes.begin(),
-                                   artifact->bytes.end())});
-  return generated;
-}
-#else
-[[nodiscard]] auto generateDeviceCode(mlir::ModuleOp, std::string_view)
-    -> GeneratedCode {
-  return GeneratedCode{.error = "this build has no device kernel support"};
-}
+  auto record(mlir::Diagnostic& diagnostic) -> bool {
+    print(diagnostic);
+    for (auto& note : diagnostic.getNotes()) print(note);
+    return true;
+  }
 
-[[nodiscard]] auto generateKernels(mlir::ModuleOp, std::string_view)
-    -> GeneratedCode {
-  return GeneratedCode{.error = "this build has no device kernel support"};
-}
-#endif
+ private:
+  void print(mlir::Diagnostic& diagnostic) {
+    if (auto location =
+            diagnostic.getLocation()->findInstanceOf<mlir::FileLineColLoc>())
+      out_ << location.getFilename().getValue() << ":" << location.getLine()
+           << ":" << location.getColumn() << ": ";
+    switch (diagnostic.getSeverity()) {
+      case mlir::DiagnosticSeverity::Error:
+        out_ << "error: ";
+        break;
+      case mlir::DiagnosticSeverity::Warning:
+        out_ << "warning: ";
+        break;
+      case mlir::DiagnosticSeverity::Note:
+        out_ << "note: ";
+        break;
+      case mlir::DiagnosticSeverity::Remark:
+        out_ << "remark: ";
+        break;
+    }
+    diagnostic.print(out_);
+    out_ << "\n";
+  }
+
+  llvm::raw_ostream& out_;
+};
 
 }  // namespace
 
+auto hasCodeGenerator() -> bool { return true; }
+
 auto generateCode(TranslationUnit* unit, std::string_view format,
                   bool debugInfo, int optimizationLevel,
-                  std::string_view mlirPipeline)
+                  std::string_view mlirPipeline, bool locations)
     -> std::optional<GeneratedCode> {
-  const auto objectFile = format == "obj";
+  const auto output = backendOutputOf(format);
+  if (!output) return std::nullopt;
+  if (targetsDevice(unit) && format == "llvm")
+    return GeneratedCode{.error = hostTargetRequired(format)};
 
+  GeneratedCode generated;
+  llvm::raw_string_ostream errors(generated.error);
+  DiagnosticMessages diagnostics{errors};
+  registerPipelinePasses();
   mlir::MLIRContext context{mlir::MLIRContext::Threading::DISABLED};
-
+  mlir::ScopedDiagnosticHandler handler(&context,
+                                        [&](mlir::Diagnostic& diagnostic) {
+                                          (void)diagnostics.record(diagnostic);
+                                          return mlir::success();
+                                        });
   context.loadDialect<mlir::cxx::CxxDialect>();
-
-  ir::MlirEmitter emitter(context, unit);
-  Codegen codegen(
-      emitter, unit,
+  ir::MlirEmitter emitter{context, unit};
+  Codegen codegen{
+      emitter,
+      unit,
       {.debugInfo = debugInfo,
        .debugCompilationDirectory = fs::working_directory().string(),
-       .runsAlwaysInliner = llvmPipelineRunsAlwaysInliner()});
-
+       .runsAlwaysInliner = llvmPipelineRunsAlwaysInliner()}};
   auto result = codegen(unit->ast());
-  auto module = emitter.module(result.module);
+  if (!result.module) return generated;
+  mlir::OwningOpRef<mlir::ModuleOp> module{emitter.module(result.module)};
 
-  std::string out;
-  llvm::raw_string_ostream os(out);
+  if (isKernelFormat(format)) mlirPipeline = {};
+  if (targetsDevice(unit) && format != "cxxir") mlirPipeline = {};
 
-  auto textOutput = [&] {
-    os.flush();
-    return GeneratedCode{.text = std::move(out)};
-  };
-
-  auto printingFlags = [&] {
-    mlir::OpPrintingFlags flags;
-    if (debugInfo) flags.enableDebugInfo(true);
-    return flags;
-  };
-
-  if (isKernelFormat(format)) return generateKernels(module, format);
-
-  if (targetsDevice(unit) && format != "cxxir")
-    return generateDeviceCode(module, format);
-
-  std::string pipelineErrors;
-  llvm::raw_string_ostream errors(pipelineErrors);
-  if (failed(runMLIRPassPipeline(module, mlirPipeline, true, &errors))) {
-    return GeneratedCode{
-        .text = objectFile ? "" : "<error running MLIR pipeline>",
-        .error = std::move(pipelineErrors)};
-  }
-
-  if (format == "cxxir") {
-    module->print(os, printingFlags());
-    return textOutput();
-  }
-
-  if (failed(lowerToMLIR(module))) {
-    if (objectFile) return GeneratedCode{};
-    return GeneratedCode{.text = std::format("<error lowering to {}>", format)};
-  }
-
-  if (format == "mlir") {
-    module->print(os, printingFlags());
-    return textOutput();
-  }
-
-  LLVMInitializeWebAssemblyTargetInfo();
-  LLVMInitializeWebAssemblyTarget();
-  LLVMInitializeWebAssemblyTargetMC();
-  LLVMInitializeWebAssemblyAsmPrinter();
-  LLVMInitializeWebAssemblyAsmParser();
-
-  const auto codeGenOptLevel = [&] {
-    switch (optimizationLevel) {
-      case 1:
-        return llvm::CodeGenOptLevel::Less;
-      case 2:
-        return llvm::CodeGenOptLevel::Default;
-      case 3:
-        return llvm::CodeGenOptLevel::Aggressive;
-      default:
-        return llvm::CodeGenOptLevel::None;
+  auto artifact = compileModule(*module,
+                                {.output = *output,
+                                 .optimizationLevel = optimizationLevel,
+                                 .debugInfo = debugInfo || locations,
+                                 .passPipeline = mlirPipeline,
+                                 .diagnosticSink =
+                                     [&](mlir::Diagnostic& diagnostic) {
+                                       return diagnostics.record(diagnostic);
+                                     }},
+                                errors);
+  if (!artifact) {
+    generated.error += artifact.error();
+    if (format == "obj" || isKernelFormat(format)) return generated;
+    if (artifact.error() == "failed to run MLIR pass pipeline") {
+      generated.text = "<error running MLIR pipeline>";
+      return generated;
     }
-  }();
-
-  const auto pipelineOptLevel = [&] {
-    switch (optimizationLevel) {
-      case 1:
-        return llvm::OptimizationLevel::O1;
-      case 2:
-        return llvm::OptimizationLevel::O2;
-      case 3:
-        return llvm::OptimizationLevel::O3;
-      default:
-        return llvm::OptimizationLevel::O0;
-    }
-  }();
-
-  auto triple = llvm::Triple{codegen.control()->memoryLayout()->triple()};
-
-  std::string error;
-  auto target = llvm::TargetRegistry::lookupTarget(triple, error);
-
-  llvm::TargetOptions targetOptions;
-  targetOptions.UseInitArray = true;
-  auto targetMachine =
-      std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
-          llvm::Triple{triple}, "generic", "", targetOptions,
-          std::optional<llvm::Reloc::Model>(), std::nullopt, codeGenOptLevel));
-
-  llvm::LLVMContext llvmContext;
-  auto llvmModule = exportToLLVMIR(module, llvmContext);
-  llvmModule->setSourceFileName(unit->fileName());
-
-  optimizeLLVMIR(*llvmModule, targetMachine.get(), pipelineOptLevel);
-
-  if (format == "llvm") {
-    llvmModule->print(os, nullptr);
-    return textOutput();
+    generated.text = std::format("<error lowering to {}>", format);
+    return generated;
   }
 
-  llvm::legacy::PassManager pm;
-
-  llvm::SmallString<0> outputBuffer;
-  llvm::raw_svector_ostream outBytes(outputBuffer);
-
-  llvm::CodeGenFileType fileType = objectFile
-                                       ? llvm::CodeGenFileType::ObjectFile
-                                       : llvm::CodeGenFileType::AssemblyFile;
-
-  if (targetMachine->addPassesToEmitFile(pm, outBytes, nullptr, fileType)) {
-    return GeneratedCode{};
+  if (isKernelFormat(format)) {
+    generated.kernels.push_back(
+        {std::move(artifact->manifest),
+         std::vector<std::uint8_t>(artifact->code.begin(),
+                                   artifact->code.end())});
+    return generated;
   }
-
-  pm.run(*llvmModule);
-  if (llvmContext.getDiagHandlerPtr()->HasErrors) return GeneratedCode{};
-
-  if (!objectFile) {
-    return GeneratedCode{
-        .text = std::string(outputBuffer.begin(), outputBuffer.size())};
+  if (format == "obj") {
+    generated.objectCode.assign(artifact->code.begin(), artifact->code.end());
+    return generated;
   }
-
-  return GeneratedCode{.objectCode = std::vector<std::uint8_t>(
-                           outputBuffer.begin(), outputBuffer.end())};
+  generated.text = std::move(artifact->code);
+  return generated;
 }
 
 #endif

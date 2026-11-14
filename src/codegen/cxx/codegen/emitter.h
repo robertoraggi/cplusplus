@@ -182,6 +182,7 @@ struct ModuleInfo {
   std::string_view debugCompilationDirectory;
   std::string_view framePointer;
   std::string_view deviceProfile;
+  std::string_view relocationModel;
   std::int32_t picLevel = 0;
   std::int32_t pieLevel = 0;
 };

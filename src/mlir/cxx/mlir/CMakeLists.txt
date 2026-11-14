@@ -1,4 +1,5 @@
 set(SOURCES
+    backend.cc
     mlir_debug_emitter.cc
     mlir_source_contexts.cc
     mlir_source_region.cc

@@ -135,6 +135,36 @@ auto Triple::isDarwin() const -> bool {
          os_ == TripleOS::kIOS;
 }
 
+auto Triple::objectFormat() const -> TripleObjectFormat {
+  std::string_view environment = names_[3];
+  if (environment.ends_with("coff")) return TripleObjectFormat::kCOFF;
+  if (environment.ends_with("elf")) return TripleObjectFormat::kELF;
+  if (environment.ends_with("macho")) return TripleObjectFormat::kMachO;
+  if (environment.ends_with("wasm")) return TripleObjectFormat::kWasm;
+  if (environment.ends_with("spirv")) return TripleObjectFormat::kSPIRV;
+
+  switch (arch_) {
+    case TripleArch::kAArch64:
+    case TripleArch::kX86_64:
+      if (isDarwin()) return TripleObjectFormat::kMachO;
+      if (os_ == TripleOS::kWindows) return TripleObjectFormat::kCOFF;
+      return TripleObjectFormat::kELF;
+    case TripleArch::kWasm32:
+      return TripleObjectFormat::kWasm;
+    case TripleArch::kSPIRV32:
+    case TripleArch::kSPIRV64:
+      return TripleObjectFormat::kSPIRV;
+    case TripleArch::kUnknown:
+      return TripleObjectFormat::kUnknown;
+  }
+  std::unreachable();
+}
+
+auto Triple::isAppleMachO() const -> bool {
+  return vendor_ == TripleVendor::kApple &&
+         objectFormat() == TripleObjectFormat::kMachO;
+}
+
 auto Triple::isWebAssembly() const -> bool {
   if (arch_ == TripleArch::kWasm32) return true;
 

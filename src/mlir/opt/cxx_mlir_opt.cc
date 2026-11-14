@@ -45,30 +45,17 @@
 #endif
 
 int main(int argc, char** argv) {
-  cxx::registerCxxToLLVMPass();
-  cxx::registerConvertCxxToPtrPass();
-  cxx::registerConvertCxxToMemRefPass();
-  cxx::registerConvertCxxToFuncPass();
-  cxx::registerConvertCxxToMathPass();
-  cxx::registerLiftCxxControlFlowToSCFPass();
+  cxx::registerHostPipelinePasses();
 #ifdef CXX_WITH_SPIRV
+  cxx::registerDevicePipelinePasses();
   cxx::registerLegalizeCxxDeviceAtomicsPass();
   cxx::registerConvertCxxWorkgroupStoragePass();
-  cxx::registerConvertCxxKernelToGpuPass();
-  cxx::registerLegalizeCxxDeviceCallsPass();
-  cxx::registerConvertCxxDeviceToSPIRVPass();
   mlir::spirv::registerSPIRVLowerABIAttributesPass();
   mlir::spirv::registerSPIRVUpdateVCEPass();
 #endif
-  mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
-  mlir::registerCanonicalizerPass();
-  mlir::registerMem2RegPass();
-  mlir::registerSROAPass();
   mlir::registerCSEPass();
   mlir::registerInlinerPass();
   mlir::registerSymbolDCEPass();
-  mlir::memref::registerExpandStridedMetadataPass();
-  mlir::registerPass([] { return mlir::createLowerAffinePass(); });
   mlir::DialectRegistry registry;
   mlir::func::registerInlinerExtension(registry);
   registry.insert<mlir::math::MathDialect>();

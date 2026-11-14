@@ -21,6 +21,7 @@
 #include <cxx/device_profile_limits.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/kernel_contract.h>
+#include <cxx/mlir/module_data_layout.h>
 #include <cxx/mlir/passes.h>
 #include <cxx/mlir/storage_address.h>
 #include <llvm/Support/MathExtras.h>
@@ -120,6 +121,7 @@ class ConvertCxxWorkgroupStoragePass final
 
   void runOnOperation() override {
     auto module = getOperation();
+    ::cxx::materializeDataLayout(module);
     SmallVector<cxx::WorkgroupAllocOp> allocations;
     module.walk([&](cxx::WorkgroupAllocOp op) { allocations.push_back(op); });
     if (allocations.empty()) return;

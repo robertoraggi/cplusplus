@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/mlir/cxx_dialect_conversions.h>
+#include <cxx/mlir/module_data_layout.h>
 #include <cxx/time_trace.h>
 #include <llvm/Config/llvm-config.h>
 #include <llvm/IR/Module.h>
@@ -41,29 +42,9 @@ namespace cxx {
 void registerCxxLLVMTranslation(mlir::MLIRContext& context);
 }
 
-void cxx::initializeCxxModuleDataLayout(mlir::ModuleOp module) {
-  auto triple = module->getAttrOfType<mlir::StringAttr>("cxx.triple");
-  if (!triple || triple.getValue().empty()) return;
-  auto layout = [&]() -> llvm::DataLayout {
-    if (auto attr = module->getAttrOfType<mlir::StringAttr>("cxx.data-layout"))
-      return llvm::DataLayout(attr.getValue());
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::Triple targetTriple{triple.getValue()};
-    std::string error;
-    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
-    if (!target)
-      llvm::report_fatal_error(
-          llvm::Twine("failed to find target for triple '") +
-          triple.getValue() + "': " + error);
-    llvm::TargetOptions options;
-    auto machine = std::unique_ptr<llvm::TargetMachine>(
-        target->createTargetMachine(targetTriple, "generic", "", options,
-                                    std::optional<llvm::Reloc::Model>()));
-    return machine->createDataLayout();
-  }();
+namespace {
+
+void applyDataLayout(mlir::ModuleOp module, const llvm::DataLayout& layout) {
   auto* context = module.getContext();
   module->setAttr(mlir::DLTIDialect::kDataLayoutAttrName,
                   mlir::translateDataLayout(layout, context));
@@ -72,29 +53,42 @@ void cxx::initializeCxxModuleDataLayout(mlir::ModuleOp module) {
       mlir::StringAttr::get(context, layout.getStringRepresentation()));
 }
 
+[[nodiscard]] auto targetDataLayout(llvm::StringRef triple)
+    -> llvm::DataLayout {
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+  llvm::Triple targetTriple{triple};
+  std::string error;
+  auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+  if (!target)
+    llvm::report_fatal_error(llvm::Twine("failed to find target for triple '") +
+                             triple + "': " + error);
+  llvm::TargetOptions options;
+  auto machine = std::unique_ptr<llvm::TargetMachine>(
+      target->createTargetMachine(targetTriple, "generic", "", options,
+                                  std::optional<llvm::Reloc::Model>()));
+  return machine->createDataLayout();
+}
+
+}  // namespace
+
+void cxx::initializeCxxModuleDataLayout(mlir::ModuleOp module) {
+  if (module->hasAttr("cxx.data-layout")) {
+    materializeDataLayout(module);
+    return;
+  }
+  auto triple = module->getAttrOfType<mlir::StringAttr>("cxx.triple");
+  if (!triple || triple.getValue().empty()) return;
+  applyDataLayout(module, targetDataLayout(triple.getValue()));
+}
+
 auto cxx::runMLIRPassPipeline(mlir::ModuleOp module,
                               llvm::StringRef passPipeline, bool verifyIR,
                               llvm::raw_ostream* errors)
     -> mlir::LogicalResult {
   if (passPipeline.empty()) return mlir::success();
-
-  registerCxxToLLVMPass();
-  registerConvertCxxToPtrPass();
-  registerConvertCxxToMemRefPass();
-  registerConvertCxxToFuncPass();
-  registerConvertCxxToMathPass();
-  registerLiftCxxControlFlowToSCFPass();
-#ifdef CXX_WITH_SPIRV
-  registerConvertCxxKernelToGpuPass();
-  registerLegalizeCxxDeviceCallsPass();
-  registerConvertCxxDeviceToSPIRVPass();
-#endif
-  mlir::registerPass([] { return mlir::createSCFToControlFlowPass(); });
-  mlir::registerCanonicalizerPass();
-  mlir::registerMem2RegPass();
-  mlir::registerSROAPass();
-  mlir::memref::registerExpandStridedMetadataPass();
-  mlir::registerPass([] { return mlir::createLowerAffinePass(); });
 
   mlir::PassManager pm(module->getName());
   pm.enableVerifier(verifyIR);

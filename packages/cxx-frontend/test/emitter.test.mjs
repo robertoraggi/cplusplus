@@ -646,7 +646,12 @@ int inspect(Node* node, Choice choice, int Node::* member) {
   const scopes = [...emitter.debug.scopes.values()];
   const variables = [...emitter.debug.variables.values()];
   const unit = scopes.find((record) => record.kind === "CompileUnit");
-  assert.deepEqual(unit.info, { file: "debug.cc", directory: "", isCxx: true });
+  assert.deepEqual(unit.info, {
+    file: "debug.cc",
+    directory: "",
+    isCxx: true,
+    appleNameTable: false,
+  });
   const node = types.find(
     (record) =>
       record.kind === "Composite" &&

@@ -29,8 +29,10 @@
 #include <cmath>
 #include <compare>
 #include <cstdlib>
+#include <format>
 #include <limits>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -1178,17 +1180,161 @@ auto MemoryLayout::isWebAssembly() const -> bool {
   return arch().starts_with("wasm");
 }
 
-auto MemoryLayout::targetDataLayout() const -> std::optional<std::string_view> {
-  switch (targetArch()) {
-    case TripleArch::kSPIRV32:
-      return "e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-"
-             "v256:256-v512:512-v1024:1024-n8:16:32:64-G1";
-    case TripleArch::kSPIRV64:
-      return "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-"
-             "v512:512-v1024:1024-n8:16:32:64-G1";
-    default:
-      return std::nullopt;
+namespace {
+
+class TargetDataLayoutWriter {
+ public:
+  TargetDataLayoutWriter(const MemoryLayout& memoryLayout, const Triple& triple)
+      : memoryLayout_(memoryLayout), triple_(triple) {}
+
+  [[nodiscard]] auto write() -> std::string {
+    switch (triple_.arch()) {
+      case TripleArch::kAArch64:
+        writeAArch64();
+        break;
+      case TripleArch::kX86_64:
+        writeX86_64();
+        break;
+      case TripleArch::kWasm32:
+        writeWasm32();
+        break;
+      case TripleArch::kSPIRV32:
+      case TripleArch::kSPIRV64:
+        writeSPIRV();
+        break;
+      case TripleArch::kUnknown:
+        break;
+    }
+    return std::move(text_);
   }
+
+ private:
+  void writeAArch64() {
+    writeHeader();
+    writeMicrosoftPointerAddressSpaces();
+    if (triple_.objectFormat() == TripleObjectFormat::kCOFF) {
+      writePointer();
+      writeInteger(32);
+    }
+    if (triple_.objectFormat() == TripleObjectFormat::kELF) {
+      writeInteger(8, 32);
+      writeInteger(16, 32);
+    }
+    writeInteger(64);
+    writeInt128();
+    add("n32:64");
+    add("S128");
+    add("Fn32");
+  }
+
+  void writeX86_64() {
+    writeHeader();
+    writeMicrosoftPointerAddressSpaces();
+    writeInteger(64);
+    writeInt128();
+    add("f80:128");
+    add("n8:16:32:64");
+    add("S128");
+  }
+
+  void writeWasm32() {
+    writeHeader();
+    writeNonDefaultPointer();
+    add("p10:8:8");
+    add("p20:8:8");
+    writeInteger(64);
+    writeInt128();
+    writeBinary128();
+    add("n32:64");
+    add("S128");
+    add("ni:1:10:20");
+  }
+
+  void writeSPIRV() {
+    writeHeader();
+    writeNonDefaultPointer();
+    writeInteger(64);
+    writeInt128();
+    add("v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-"
+        "v1024:1024");
+    add("n8:16:32:64");
+    add("G1");
+  }
+
+  void writeHeader() {
+    add("e");
+    writeMangling();
+  }
+
+  void writeMangling() {
+    switch (triple_.objectFormat()) {
+      case TripleObjectFormat::kMachO:
+        add("m:o");
+        break;
+      case TripleObjectFormat::kCOFF:
+        add("m:w");
+        break;
+      case TripleObjectFormat::kELF:
+      case TripleObjectFormat::kWasm:
+        add("m:e");
+        break;
+      case TripleObjectFormat::kSPIRV:
+      case TripleObjectFormat::kUnknown:
+        break;
+    }
+  }
+
+  void writeMicrosoftPointerAddressSpaces() {
+    add("p270:32:32");
+    add("p271:32:32");
+    add("p272:64:64");
+  }
+
+  void writePointer() {
+    const auto bits = memoryLayout_.sizeOfPointer() * 8;
+    add(std::format("p:{}:{}", bits, bits));
+  }
+
+  void writeNonDefaultPointer() {
+    if (memoryLayout_.sizeOfPointer() == kDefaultPointerSize) return;
+    writePointer();
+  }
+
+  void writeInteger(int bits) { add(std::format("i{}:{}", bits, bits)); }
+
+  void writeInteger(int bits, int preferredBits) {
+    add(std::format("i{}:{}:{}", bits, bits, preferredBits));
+  }
+
+  void writeInt128() {
+    if (!memoryLayout_.hasInt128Type()) return;
+    writeInteger(128);
+  }
+
+  void writeBinary128() {
+    const auto alignmentBits = memoryLayout_.binary128Alignment() * 8;
+    if (alignmentBits == kDefaultBinary128AlignmentBits) return;
+    add(std::format("f128:{}", alignmentBits));
+  }
+
+  void add(std::string_view spec) {
+    if (!text_.empty()) text_ += '-';
+    text_ += spec;
+  }
+
+  static constexpr std::size_t kDefaultPointerSize = 8;
+  static constexpr std::size_t kDefaultBinary128AlignmentBits = 128;
+
+  const MemoryLayout& memoryLayout_;
+  const Triple& triple_;
+  std::string text_;
+};
+
+}  // namespace
+
+auto MemoryLayout::targetDataLayout() const -> std::string {
+  const Triple triple{triple_};
+  return TargetDataLayoutWriter{*this, triple}.write();
 }
 
 auto MemoryLayout::isSPIRV() const -> bool {

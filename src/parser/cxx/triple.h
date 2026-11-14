@@ -57,6 +57,15 @@ enum class TripleOS {
   kWebGPU,
 };
 
+enum class TripleObjectFormat {
+  kUnknown,
+  kELF,
+  kMachO,
+  kCOFF,
+  kWasm,
+  kSPIRV,
+};
+
 enum class TripleEnvironment {
   kUnknown,
   kGNU,
@@ -89,6 +98,10 @@ class Triple {
   }
 
   [[nodiscard]] auto isDarwin() const -> bool;
+
+  [[nodiscard]] auto objectFormat() const -> TripleObjectFormat;
+
+  [[nodiscard]] auto isAppleMachO() const -> bool;
 
   [[nodiscard]] auto isWebAssembly() const -> bool;
 

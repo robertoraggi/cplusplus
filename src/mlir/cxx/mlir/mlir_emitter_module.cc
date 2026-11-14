@@ -39,7 +39,7 @@ auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
     initializeCxxModuleDataLayout(module);
   }
 
-  if (!info.framePointer.empty() && info.framePointer != "none") {
+  if (!info.framePointer.empty()) {
     module->setAttr("cxx.frame-pointer",
                     builder_.getStringAttr(mlir::StringRef{
                         info.framePointer.data(), info.framePointer.size()}));
@@ -48,6 +48,13 @@ auto MlirEmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
   if (!info.deviceProfile.empty())
     module->setAttr("cxx.device_profile",
                     builder_.getStringAttr(info.deviceProfile));
+
+  if (!info.relocationModel.empty()) {
+    module->setAttr(
+        "cxx.relocation-model",
+        builder_.getStringAttr(mlir::StringRef{info.relocationModel.data(),
+                                               info.relocationModel.size()}));
+  }
 
   if (info.picLevel != 0) {
     module->setAttr("cxx.pic-level", builder_.getI32IntegerAttr(info.picLevel));

@@ -24,8 +24,10 @@
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/mlir/mlir_emitter.h>
 #include <cxx/mlir/mlir_source_contexts.h>
+#include <cxx/mlir/passes.h>
 
 // mlir
+#include <gtest/gtest.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/Module.h>
 #include <mlir/Dialect/Arith/IR/Arith.h>
@@ -36,8 +38,6 @@
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Verifier.h>
 #include <mlir/Parser/Parser.h>
-
-#include <gtest/gtest.h>
 
 #include <array>
 
@@ -545,7 +545,10 @@ TEST_F(EmitterFixture, DebugMetadataDoesNotRequireAParserTranslationUnit) {
 
 class IRVerification : public ::testing::Test {
  protected:
-  IRVerification() { context_.loadDialect<mlir::LLVM::LLVMDialect>(); }
+  IRVerification() {
+    context_.loadDialect<mlir::LLVM::LLVMDialect>();
+    cxx::registerHostPipelinePasses();
+  }
 
   auto invalidModule() -> mlir::OwningOpRef<mlir::ModuleOp> {
     // Parse a structurally valid operation with an invalid return type, so only

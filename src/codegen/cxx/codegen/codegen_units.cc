@@ -54,6 +54,12 @@ struct ForEachExternalDefinition final : ASTVisitor {
     --functionDepth;
   }
 };
+[[nodiscard]] auto framePointerAttribute(FramePointerKind kind)
+    -> std::string_view {
+  if (kind == FramePointerKind::kNone) return {};
+  return to_string(kind);
+}
+
 }  // namespace
 
 struct Codegen::UnitVisitor {
@@ -186,23 +192,28 @@ auto Codegen::operator()(UnitAST* ast) -> UnitResult {
 }
 
 auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
+  const auto configuredPositionIndependence =
+      gen.control()->memoryLayout()->positionIndependence();
+  const auto positionIndependence =
+      configuredPositionIndependence.value_or(PositionIndependence{});
+  const auto dataLayout = gen.control()->memoryLayout()->targetDataLayout();
   auto module = gen.emitter_.beginModule({
       .name = gen.unit_->fileName(),
       .sourceFile = gen.unit_->fileName(),
       .targetTriple = gen.control()->memoryLayout()->triple(),
-      .dataLayout =
-          gen.control()->memoryLayout()->targetDataLayout().value_or(""),
+      .dataLayout = dataLayout,
       .debugCompilationDirectory = gen.debugCompilationDirectory(),
-      .framePointer =
-          to_string(gen.control()->memoryLayout()->framePointerKind()),
+      .framePointer = framePointerAttribute(
+          gen.control()->memoryLayout()->framePointerKind()),
       .deviceProfile =
           gen.control()->memoryLayout()->deviceProfile() == DeviceProfile::kNone
               ? std::string_view{}
               : to_string(gen.control()->memoryLayout()->deviceProfile()),
-      .picLevel =
-          gen.control()->memoryLayout()->positionIndependence().picLevel,
-      .pieLevel =
-          gen.control()->memoryLayout()->positionIndependence().pieLevel,
+      .relocationModel = configuredPositionIndependence
+                             ? configuredPositionIndependence->relocationModel()
+                             : std::string_view{},
+      .picLevel = positionIndependence.picLevel,
+      .pieLevel = positionIndependence.pieLevel,
   });
 
   visitGlobals(gen.unit_->globalScope());

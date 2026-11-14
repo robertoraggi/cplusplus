@@ -21,7 +21,9 @@
 // cxx
 #include <cxx/mlir/bitfield_accesses.h>
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/module_data_layout.h>
 #include <cxx/mlir/passes.h>
+#include <cxx/mlir/symbol_binding.h>
 #include <cxx/token_fwd.h>
 #include <mlir/Transforms/WalkPatternRewriteDriver.h>
 
@@ -3179,6 +3181,7 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     return;
   }
 
+  ::cxx::materializeDataLayout(module);
   DataLayout dataLayout{module};
   LowerToLLVMOptions loweringOptions(context, dataLayout);
   auto pointerIndexBits =
@@ -3482,10 +3485,11 @@ void CxxToLLVMLoweringPass::runOnOperation() {
   }
 
   emitPositionIndependenceFlags(module);
+  ::cxx::markDSOLocalSymbols(module);
 
-  for (auto name :
-       {"cxx.triple", "cxx.data-layout", "cxx.frame-pointer",
-        "cxx.debug-compilation-dir", "cxx.pic-level", "cxx.pie-level"}) {
+  for (auto name : {"cxx.triple", "cxx.data-layout", "cxx.frame-pointer",
+                    "cxx.debug-compilation-dir", "cxx.pic-level",
+                    "cxx.pie-level", "cxx.relocation-model"}) {
     module->removeAttr(name);
   }
 }

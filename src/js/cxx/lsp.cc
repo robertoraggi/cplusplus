@@ -84,10 +84,12 @@ class JsServerHost final : public cxx::lsp::ServerHost {
   }
 
   [[nodiscard]] auto emitCode(cxx::lsp::CxxDocument& document,
-                              cxx::lsp::EmitCodeFormat format, bool debugInfo,
-                              int optimizationLevel,
-                              const std::string& mlirPipeline)
+                              const cxx::lsp::EmitCodeOptions& options)
       -> std::optional<cxx::lsp::EmittedCode> override {
+    const auto format = options.format;
+    const auto debugInfo = options.debugInfo;
+    const auto optimizationLevel = options.optimizationLevel;
+    const auto& mlirPipeline = options.mlirPipeline;
     const auto kernelFormat = format == cxx::lsp::EmitCodeFormat::kWGSL ||
                               format == cxx::lsp::EmitCodeFormat::kSPIRV;
 
@@ -108,9 +110,9 @@ class JsServerHost final : public cxx::lsp::ServerHost {
                             mlirPipeline);
     }
 
-    auto generated =
-        cxx::js::generateCode(document.translationUnit(), to_string(format),
-                              debugInfo, optimizationLevel, mlirPipeline);
+    auto generated = cxx::js::generateCode(
+        document.translationUnit(), to_string(format), debugInfo,
+        optimizationLevel, mlirPipeline, options.locations);
 
     if (!generated) return std::nullopt;
 

@@ -911,6 +911,7 @@ inline auto toVal(const cxx::ir::ModuleInfo& value) -> val {
              toVal(value.debugCompilationDirectory));
   result.set("framePointer", toVal(value.framePointer));
   result.set("deviceProfile", toVal(value.deviceProfile));
+  result.set("relocationModel", toVal(value.relocationModel));
   result.set("picLevel", toVal(value.picLevel));
   result.set("pieLevel", toVal(value.pieLevel));
   return result;
@@ -1106,6 +1107,7 @@ inline auto toVal(const cxx::ir::DebugCompileUnitInfo& value) -> val {
   result.set("file", toVal(value.file));
   result.set("directory", toVal(value.directory));
   result.set("isCxx", toVal(value.isCxx));
+  result.set("appleNameTable", toVal(value.appleNameTable));
   return result;
 }
 
