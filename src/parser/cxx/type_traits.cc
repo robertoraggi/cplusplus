@@ -1067,6 +1067,24 @@ struct IsSameVisitor {
 
 enum class TrivialCopyKind { kCopyable, kForCalls, kLayout };
 
+template <typename Derive>
+[[nodiscard]] auto derivedClassProperty(ClassSymbol* cls,
+                                        ClassProperty property, Derive derive)
+    -> bool {
+  if (auto known = cls->knownProperty(property)) return *known;
+  const bool value = derive();
+  cls->recordProperty(property, value);
+  return value;
+}
+
+[[nodiscard]] auto trivialCopyProperty(TrivialCopyKind kind) -> ClassProperty {
+  if (kind == TrivialCopyKind::kCopyable)
+    return ClassProperty::kTriviallyCopyable;
+  if (kind == TrivialCopyKind::kForCalls)
+    return ClassProperty::kTrivialForCalls;
+  return ClassProperty::kTrivialCopyMembersForObjectSizes;
+}
+
 [[nodiscard]] auto mostConstrainedSpecialMembers(
     TranslationUnit* unit, std::vector<FunctionSymbol*> members)
     -> std::vector<FunctionSymbol*> {
@@ -1126,10 +1144,13 @@ enum class TrivialCopyKind { kCopyable, kForCalls, kLayout };
                              });
 }
 
-auto has_trivial_copy_members(TypeTraits& traits, ClassSymbol* cls,
-                              TrivialCopyKind kind) -> bool {
-  if (!cls || !cls->isComplete()) return false;
+[[nodiscard]] auto has_trivial_copy_members(TypeTraits& traits,
+                                            ClassSymbol* cls,
+                                            TrivialCopyKind kind) -> bool;
 
+[[nodiscard]] auto derive_trivial_copy_members(TypeTraits& traits,
+                                               ClassSymbol* cls,
+                                               TrivialCopyKind kind) -> bool {
   auto unit = traits.unit();
   auto destructors = cls->prospectiveDestructors();
   auto eligibleDestructors = kind == TrivialCopyKind::kLayout
@@ -1182,6 +1203,14 @@ auto has_trivial_copy_members(TypeTraits& traits, ClassSymbol* cls,
   return true;
 }
 
+auto has_trivial_copy_members(TypeTraits& traits, ClassSymbol* cls,
+                              TrivialCopyKind kind) -> bool {
+  if (!cls || !cls->isComplete()) return false;
+  return derivedClassProperty(cls, trivialCopyProperty(kind), [&] {
+    return derive_trivial_copy_members(traits, cls, kind);
+  });
+}
+
 auto has_non_deleted_copy_or_move_constructor(TranslationUnit* unit,
                                               ClassSymbol* cls) -> bool {
   auto isCopyOrMove = [cls](FunctionSymbol* constructor) {
@@ -1201,9 +1230,10 @@ auto is_trivially_copyable_class(TypeTraits& traits, ClassSymbol* cls) -> bool {
 }
 
 [[nodiscard]] auto is_trivially_destructible_class(TypeTraits& traits,
-                                                   ClassSymbol* cls) -> bool {
-  if (!cls || !cls->isComplete()) return false;
+                                                   ClassSymbol* cls) -> bool;
 
+[[nodiscard]] auto derive_trivial_destructor(TypeTraits& traits,
+                                             ClassSymbol* cls) -> bool {
   auto dtor = cls->destructor();
   if (traits.is_user_provided(dtor)) return false;
   if (dtor && dtor->isVirtual()) return false;
@@ -1221,6 +1251,14 @@ auto is_trivially_copyable_class(TypeTraits& traits, ClassSymbol* cls) -> bool {
   }
 
   return true;
+}
+
+auto is_trivially_destructible_class(TypeTraits& traits, ClassSymbol* cls)
+    -> bool {
+  if (!cls || !cls->isComplete()) return false;
+  return derivedClassProperty(cls, ClassProperty::kTrivialDestructor, [&] {
+    return derive_trivial_destructor(traits, cls);
+  });
 }
 
 template <typename Predicate>
@@ -1269,11 +1307,23 @@ template <typename Kind>
     TypeTraits& traits, const Type* type, TrivialConstructorKind kind,
     CvQualifiers sourceCv, bool allowDeleted) -> bool;
 
-[[nodiscard]] auto has_trivial_constructor(
-    TypeTraits& traits, ClassSymbol* cls, TrivialConstructorKind kind,
-    bool allowDeleted = false, FunctionSymbol* constructor = nullptr) -> bool {
-  if (!cls || !cls->isComplete()) return false;
-  if (!constructor) constructor = memberFor(traits.unit(), cls, kind);
+[[nodiscard]] auto trivialConstructorProperty(TrivialConstructorKind kind,
+                                              bool allowDeleted)
+    -> ClassProperty {
+  if (kind == TrivialConstructorKind::kDefault)
+    return allowDeleted ? ClassProperty::kTrivialOrDeletedDefaultConstructor
+                        : ClassProperty::kTrivialDefaultConstructor;
+  if (kind == TrivialConstructorKind::kCopy)
+    return allowDeleted ? ClassProperty::kTrivialOrDeletedCopyConstructor
+                        : ClassProperty::kTrivialCopyConstructor;
+  return allowDeleted ? ClassProperty::kTrivialOrDeletedMoveConstructor
+                      : ClassProperty::kTrivialMoveConstructor;
+}
+
+[[nodiscard]] auto is_trivial_constructor(TypeTraits& traits, ClassSymbol* cls,
+                                          TrivialConstructorKind kind,
+                                          bool allowDeleted,
+                                          FunctionSymbol* constructor) -> bool {
   if (!constructor ||
       (!allowDeleted &&
        traits.unit()->typeTraits().is_deleted_function(constructor)))
@@ -1307,6 +1357,20 @@ template <typename Kind>
       return false;
   }
   return true;
+}
+
+[[nodiscard]] auto has_trivial_constructor(
+    TypeTraits& traits, ClassSymbol* cls, TrivialConstructorKind kind,
+    bool allowDeleted = false, FunctionSymbol* constructor = nullptr) -> bool {
+  if (!cls || !cls->isComplete()) return false;
+  auto declared = memberFor(traits.unit(), cls, kind);
+  if (constructor && constructor != declared)
+    return is_trivial_constructor(traits, cls, kind, allowDeleted, constructor);
+  return derivedClassProperty(
+      cls, trivialConstructorProperty(kind, allowDeleted), [&] {
+        return is_trivial_constructor(traits, cls, kind, allowDeleted,
+                                      declared);
+      });
 }
 
 [[nodiscard]] auto has_trivial_subobject_constructor(
@@ -1361,9 +1425,13 @@ auto memberFor(TranslationUnit* unit, ClassSymbol* cls, Kind kind)
   return declaredMember(cls, Kind::kCopy);
 }
 
-auto has_trivial_assignment(TypeTraits& traits, ClassSymbol* cls,
-                            TrivialAssignmentKind kind) -> bool {
-  if (!cls || !cls->isComplete()) return false;
+[[nodiscard]] auto has_trivial_assignment(TypeTraits& traits, ClassSymbol* cls,
+                                          TrivialAssignmentKind kind) -> bool;
+
+[[nodiscard]] auto derive_trivial_assignment(TypeTraits& traits,
+                                             ClassSymbol* cls,
+                                             TrivialAssignmentKind kind)
+    -> bool {
   auto assignment = memberFor(traits.unit(), cls, kind);
   if (!assignment ||
       traits.unit()->typeTraits().is_deleted_function(assignment))
@@ -1374,6 +1442,17 @@ auto has_trivial_assignment(TypeTraits& traits, ClassSymbol* cls,
   if (cls->isUnion()) return true;
   return allSubobjectClasses(traits, cls, [&](ClassSymbol* subobject) {
     return has_trivial_assignment(traits, subobject, kind);
+  });
+}
+
+auto has_trivial_assignment(TypeTraits& traits, ClassSymbol* cls,
+                            TrivialAssignmentKind kind) -> bool {
+  if (!cls || !cls->isComplete()) return false;
+  const auto property = kind == TrivialAssignmentKind::kCopy
+                            ? ClassProperty::kTrivialCopyAssignment
+                            : ClassProperty::kTrivialMoveAssignment;
+  return derivedClassProperty(cls, property, [&] {
+    return derive_trivial_assignment(traits, cls, kind);
   });
 }
 
@@ -1469,17 +1548,6 @@ auto has_non_static_data_members(ClassSymbol* cls) -> bool {
   for (auto member : cls->members() | views::non_static_fields) {
     (void)member;
     return true;
-  }
-  return false;
-}
-
-auto has_data_members_in_hierarchy(ClassSymbol* cls) -> bool {
-  if (has_non_static_data_members(cls)) return true;
-  for (auto base : cls->baseClasses()) {
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) continue;
-    baseClass = baseClass->resolvedDefinition();
-    if (has_data_members_in_hierarchy(baseClass)) return true;
   }
   return false;
 }
@@ -3662,6 +3730,53 @@ auto TypeTraits::is_standard_layout(const Type* type) -> bool {
   return standard_layout(type, StandardLayoutRule::kLanguage);
 }
 
+namespace {
+[[nodiscard]] auto derive_standard_layout(TypeTraits& traits,
+                                          const ClassType* classType,
+                                          ClassSymbol* cls,
+                                          TypeTraits::StandardLayoutRule rule)
+    -> bool {
+  if (cls->hasVirtualFunctions()) return false;
+  if (cls->hasVirtualBaseClasses()) return false;
+
+  std::optional<AccessSpecifier> memberAccess;
+  for (auto field : cls->members() | views::non_static_fields) {
+    if (field->isBitField() && !field->name()) continue;
+    if (traits.is_reference(field->type())) return false;
+    if (!traits.standard_layout(traits.remove_all_extents(field->type()), rule))
+      return false;
+    if (!memberAccess) memberAccess = field->accessSpecifier();
+    if (*memberAccess != field->accessSpecifier()) return false;
+  }
+
+  auto classesWithNonStaticDataMembers = 0;
+  if (has_non_static_data_members(cls)) classesWithNonStaticDataMembers = 1;
+  for (auto base : cls->baseClasses()) {
+    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseClass) continue;
+    baseClass = baseClass->resolvedDefinition();
+    if (!traits.standard_layout(baseClass->type(), rule)) return false;
+    if (baseClass->hasDirectOrInheritedNonStaticDataMembers())
+      ++classesWithNonStaticDataMembers;
+    if (classesWithNonStaticDataMembers > 1) return false;
+  }
+
+  if (rule == TypeTraits::StandardLayoutRule::kLayout)
+    return !has_base_of_first_member_type(traits, cls);
+
+  std::unordered_set<ClassSymbol*> baseTypes;
+  if (!has_unique_base_subobject_types(cls, baseTypes)) return false;
+
+  std::unordered_set<ClassSymbol*> memberTypes;
+  std::unordered_set<ClassSymbol*> expandedMemberTypes;
+  collect_standard_layout_member_types(traits, classType, memberTypes,
+                                       expandedMemberTypes);
+  return std::ranges::none_of(baseTypes, [&](ClassSymbol* baseType) {
+    return memberTypes.contains(baseType);
+  });
+}
+}  // namespace
+
 auto TypeTraits::standard_layout(const Type* type, StandardLayoutRule rule)
     -> bool {
   auto unqual = remove_cv(type);
@@ -3670,45 +3785,12 @@ auto TypeTraits::standard_layout(const Type* type, StandardLayoutRule rule)
     auto cls = classType->definition();
     require_complete_class(cls);
     if (!cls || !cls->isComplete()) return false;
-    if (cls->hasVirtualFunctions()) return false;
-    if (cls->hasVirtualBaseClasses()) return false;
-
-    std::optional<AccessSpecifier> memberAccess;
-    for (auto field : cls->members() | views::non_static_fields) {
-      if (field->isBitField() && !field->name()) continue;
-      if (is_reference(field->type())) return false;
-      if (!standard_layout(remove_all_extents(field->type()), rule))
-        return false;
-      if (!memberAccess) memberAccess = field->accessSpecifier();
-      if (*memberAccess != field->accessSpecifier()) return false;
-    }
-
-    auto dataBearingSubobjects = 0;
-    if (has_non_static_data_members(cls)) dataBearingSubobjects = 1;
-    for (auto base : cls->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass) continue;
-      baseClass = baseClass->resolvedDefinition();
-      if (!standard_layout(baseClass->type(), rule)) return false;
-      if (has_data_members_in_hierarchy(baseClass)) ++dataBearingSubobjects;
-      if (dataBearingSubobjects > 1) return false;
-    }
-
-    if (rule == StandardLayoutRule::kLayout) {
-      return !has_base_of_first_member_type(*this, cls);
-    }
-
-    std::unordered_set<ClassSymbol*> baseTypes;
-    if (!has_unique_base_subobject_types(cls, baseTypes)) return false;
-
-    std::unordered_set<ClassSymbol*> memberTypes;
-    std::unordered_set<ClassSymbol*> expandedMemberTypes;
-    collect_standard_layout_member_types(*this, unqual, memberTypes,
-                                         expandedMemberTypes);
-    for (auto baseType : baseTypes) {
-      if (memberTypes.contains(baseType)) return false;
-    }
-    return true;
+    const auto property = rule == StandardLayoutRule::kLayout
+                              ? ClassProperty::kStandardLayoutForObjectSizes
+                              : ClassProperty::kStandardLayout;
+    return derivedClassProperty(cls, property, [&] {
+      return derive_standard_layout(*this, classType, cls, rule);
+    });
   }
   if (is_array(unqual))
     return standard_layout(remove_all_extents(unqual), rule);

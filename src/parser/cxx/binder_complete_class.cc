@@ -167,6 +167,7 @@ class ImplicitDefinitionScope {
       if (std::ranges::contains(virtualBases, baseClass)) continue;
       virtualBases.push_back(baseClass);
     }
+    if (is_laid_out_without_virtual_base_subobjects(baseClass)) continue;
     frames.push_back({baseClass});
   }
   return virtualBases;
@@ -3247,12 +3248,13 @@ auto Binder::BuildRecordLayout::selectPrimaryBase() const
       return {baseClass, false};
   }
 
-  auto indirectPrimaryBases = indirectPrimaryBasesOf(classSymbol);
-
   std::vector<ClassSymbol*> candidates;
   for (auto virtualBase : virtualBasesInInheritanceGraphOrder(classSymbol)) {
     if (isNearlyEmptyClass(virtualBase)) candidates.push_back(virtualBase);
   }
+  if (candidates.empty()) return {nullptr, false};
+
+  auto indirectPrimaryBases = indirectPrimaryBasesOf(classSymbol);
 
   auto candidate = std::ranges::find_if(candidates, [&](ClassSymbol* base) {
     return !std::ranges::contains(indirectPrimaryBases, base);
@@ -3617,6 +3619,7 @@ void Binder::BuildRecordLayout::collectIndirectPrimaryPlacements(
     pending.pop_back();
     auto classLayout = cls->layout();
     if (!classLayout) continue;
+    if (is_laid_out_without_virtual_base_subobjects(cls)) continue;
     recordPrimaryChain(cls, offset, rootIndex);
     for (auto base : cls->baseClasses() | std::views::reverse) {
       if (base->isVirtual()) continue;
