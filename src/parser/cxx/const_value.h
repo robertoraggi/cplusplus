@@ -36,6 +36,7 @@
 #include <optional>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -198,8 +199,14 @@ class ConstObject {
   }
 
   [[nodiscard]] auto mutableMembers() -> std::deque<Member>& {
+    forgetMemberPositions();
     return members_;
   }
+
+  [[nodiscard]] auto directMember(const Symbol* symbol) const -> const Member*;
+
+  [[nodiscard]] auto transparentMemberPositions() const
+      -> const std::vector<std::size_t>&;
 
   [[nodiscard]] auto isUnion() const -> bool;
 
@@ -219,8 +226,14 @@ class ConstObject {
  private:
   [[nodiscard]] auto enclosingSubobject(const Symbol* symbol) -> ConstObject*;
 
+  void forgetMemberPositions();
+  void positionMembers() const;
+
   const Type* type_ = nullptr;
   std::deque<Member> members_;
+  mutable std::unordered_map<const Symbol*, std::size_t> memberPositions_;
+  mutable std::vector<std::size_t> transparentMemberPositions_;
+  mutable std::size_t positionedMemberCount_ = 0;
   bool constexprUnknown_ = false;
   bool lifetimeEnded_ = false;
 };
