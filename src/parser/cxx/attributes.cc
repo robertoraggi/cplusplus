@@ -305,13 +305,7 @@ auto mergeAttributes(AttributeMap lhs, const AttributeMap* rhs)
 }
 
 auto namesAttribute(const Attribute& attribute, AttributeKind kind) -> bool {
-  if (!attribute.name) return false;
-  return std::ranges::any_of(
-      attributeInfo(kind).spellings, [&](const AttributeSpelling& spelling) {
-        return spelling.name == attribute.name->name() &&
-               spelling.attributeNamespace ==
-                   spellingOf(attribute.attributeNamespace);
-      });
+  return attribute.kind == kind;
 }
 
 auto findAttribute(const AttributeMap* attributes, AttributeKind kind)
@@ -332,72 +326,98 @@ auto attributeArgument(const AttributeMap* attributes, AttributeKind kind)
   return attribute->arguments.front();
 }
 
+namespace {
+
+struct AttributeEntries {
+  List<AttributeAST*>* entries = nullptr;
+  AttributeSyntax syntax = AttributeSyntax::kCxx;
+  AttributeUsingPrefixAST* usingPrefix = nullptr;
+};
+
+[[nodiscard]] auto attributeEntriesOf(AttributeSpecifierAST* specifier)
+    -> std::optional<AttributeEntries> {
+  if (auto cxxAttribute = ast_cast<CxxAttributeAST>(specifier))
+    return AttributeEntries{.entries = cxxAttribute->attributeList,
+                            .syntax = AttributeSyntax::kCxx,
+                            .usingPrefix = cxxAttribute->attributeUsingPrefix};
+  if (auto gccAttribute = ast_cast<GccAttributeAST>(specifier))
+    return AttributeEntries{.entries = gccAttribute->attributeList,
+                            .syntax = AttributeSyntax::kGnu};
+  return std::nullopt;
+}
+
+[[nodiscard]] auto resolveAttributeSpelling(TranslationUnit* unit,
+                                            const AttributeEntries& specifier,
+                                            AttributeAST* entry)
+    -> const AttributeSpelling* {
+  const Identifier* attributeNamespace = nullptr;
+  if (auto prefix = specifier.usingPrefix)
+    attributeNamespace = unit->identifier(prefix->attributeNamespaceLoc);
+
+  const Identifier* name = nullptr;
+  if (auto simple = ast_cast<SimpleAttributeTokenAST>(entry->attributeToken)) {
+    name = simple->identifier;
+  } else if (auto scoped =
+                 ast_cast<ScopedAttributeTokenAST>(entry->attributeToken)) {
+    name = scoped->identifier;
+    attributeNamespace = scoped->attributeNamespace;
+  }
+
+  return unit->control()->getAttributeSpelling(specifier.syntax,
+                                               attributeNamespace, name);
+}
+
+template <typename Visit>
+void visitKnownAttributes(TranslationUnit* unit,
+                          List<AttributeSpecifierAST*>* attributeList,
+                          Visit visit) {
+  for (auto specifier : ListView{attributeList}) {
+    auto entries = attributeEntriesOf(specifier);
+    if (!entries) continue;
+    for (auto entry : ListView{entries->entries}) {
+      auto spelling = resolveAttributeSpelling(unit, *entries, entry);
+      if (!spelling) continue;
+      if (!visit(AttributeRef{spelling, entry->attributeArgumentClause,
+                              entry->firstSourceLocation()}))
+        return;
+    }
+  }
+}
+
+}  // namespace
+
 auto knownAttributes(TranslationUnit* unit,
                      List<AttributeSpecifierAST*>* attributeList)
     -> std::vector<AttributeRef> {
-  auto control = unit->control();
   std::vector<AttributeRef> result;
-
-  for (auto specifier : ListView{attributeList}) {
-    List<AttributeAST*>* entries = nullptr;
-    auto syntax = AttributeSyntax::kCxx;
-    const Identifier* usingNamespace = nullptr;
-
-    if (auto cxxAttribute = ast_cast<CxxAttributeAST>(specifier)) {
-      entries = cxxAttribute->attributeList;
-      if (auto prefix = cxxAttribute->attributeUsingPrefix) {
-        usingNamespace = canonicalAttributeNamespace(
-            control, unit->identifier(prefix->attributeNamespaceLoc));
-      }
-    } else if (auto gccAttribute = ast_cast<GccAttributeAST>(specifier)) {
-      entries = gccAttribute->attributeList;
-      syntax = AttributeSyntax::kGnu;
-    } else {
-      continue;
-    }
-
-    for (auto entry : ListView{entries}) {
-      const Identifier* attributeNamespace = usingNamespace;
-      const Identifier* name = nullptr;
-
-      if (auto simple =
-              ast_cast<SimpleAttributeTokenAST>(entry->attributeToken)) {
-        name = canonicalAttributeName(control, simple->identifier);
-      } else if (auto scoped =
-                     ast_cast<ScopedAttributeTokenAST>(entry->attributeToken)) {
-        name = canonicalAttributeName(control, scoped->identifier);
-        attributeNamespace =
-            canonicalAttributeNamespace(control, scoped->attributeNamespace);
-      }
-
-      auto spelling = findAttributeSpelling(
-          syntax, spellingOf(attributeNamespace), spellingOf(name));
-      if (!spelling) continue;
-
-      result.push_back({spelling, entry->attributeArgumentClause,
-                        entry->firstSourceLocation()});
-    }
-  }
-
+  visitKnownAttributes(unit, attributeList, [&](const AttributeRef& attribute) {
+    result.push_back(attribute);
+    return true;
+  });
   return result;
 }
 
 auto findAttributes(TranslationUnit* unit,
                     List<AttributeSpecifierAST*>* attributeList,
                     AttributeKind kind) -> std::vector<AttributeRef> {
-  auto attributes = knownAttributes(unit, attributeList);
-  std::erase_if(attributes, [kind](const AttributeRef& attribute) {
-    return attribute.kind() != kind;
+  std::vector<AttributeRef> result;
+  visitKnownAttributes(unit, attributeList, [&](const AttributeRef& attribute) {
+    if (attribute.kind() == kind) result.push_back(attribute);
+    return true;
   });
-  return attributes;
+  return result;
 }
 
 auto findAttribute(TranslationUnit* unit,
                    List<AttributeSpecifierAST*>* attributeList,
                    AttributeKind kind) -> AttributeRef {
-  for (auto attribute : knownAttributes(unit, attributeList))
-    if (attribute.kind() == kind) return attribute;
-  return {};
+  AttributeRef result;
+  visitKnownAttributes(unit, attributeList, [&](const AttributeRef& attribute) {
+    if (attribute.kind() != kind) return true;
+    result = attribute;
+    return false;
+  });
+  return result;
 }
 
 }  // namespace cxx

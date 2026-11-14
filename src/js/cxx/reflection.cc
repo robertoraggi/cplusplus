@@ -6947,6 +6947,10 @@ auto readASTVal(std::intptr_t handle, int slot) -> val {
                              reinterpret_cast<std::intptr_t>(
                                  static_cast<const ::cxx::Name*>(item))));
                        }));
+            result.set("kind",
+                       optionalValue((item).kind, [&](const auto& item) {
+                         return val(static_cast<double>(item));
+                       }));
             return result;
           }();
         });
@@ -8943,6 +8947,10 @@ auto readSymbolVal(std::intptr_t handle, int slot) -> val {
                          return val(static_cast<double>(
                              reinterpret_cast<std::intptr_t>(
                                  static_cast<const ::cxx::Name*>(item))));
+                       }));
+            result.set("kind",
+                       optionalValue((item).kind, [&](const auto& item) {
+                         return val(static_cast<double>(item));
                        }));
             return result;
           }();

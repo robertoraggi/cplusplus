@@ -2439,6 +2439,8 @@ inline constexpr FieldDescriptor kSemanticFieldModelStorage[] = {
      ""},
     {"::cxx::Attribute", "name", FieldPersistence::kPersisted, ""},
     {"::cxx::Attribute", "arguments", FieldPersistence::kPersisted, ""},
+    {"::cxx::Attribute", "kind", FieldPersistence::kDerived,
+     "resolved from the namespace and the name when the map is interned"},
     {"::cxx::Meta", "value", FieldPersistence::kPersisted, ""},
     {"::cxx::Meta::ConstExpr", "type", FieldPersistence::kPersisted, ""},
     {"::cxx::Meta::ConstExpr", "value", FieldPersistence::kPersisted, ""},

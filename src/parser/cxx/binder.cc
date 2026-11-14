@@ -2558,20 +2558,20 @@ void Binder::applyDeclarationAttributes(
   collected = mergeAttributes(std::move(collected), &gnuAttributes);
   applyAttributeMap(symbol, std::move(collected));
 
+  const std::array known{
+      knownAttributes(unit_, attributes),
+      knownAttributes(unit_, declaratorIdAttributes(declarator)),
+      knownAttributes(unit_, terminatingAttributes(declarator))};
+
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-    applyConstructorAttribute(function, attributes);
-    applyConstructorAttribute(function, declaratorIdAttributes(declarator));
-    applyConstructorAttribute(function, terminatingAttributes(declarator));
+    for (const auto& list : known) applyConstructorAttribute(function, list);
   }
 
-  applyAlignedAttribute(symbol, attributes);
-  applyAlignedAttribute(symbol, declaratorIdAttributes(declarator));
-  applyAlignedAttribute(symbol, terminatingAttributes(declarator));
+  for (const auto& list : known) applyAlignedAttribute(symbol, list);
 
   std::vector<AttributeRef> deviceAttributes;
-  for (auto list : {attributes, declaratorIdAttributes(declarator),
-                    terminatingAttributes(declarator)}) {
-    for (auto attribute : knownAttributes(unit_, list)) {
+  for (const auto& list : known) {
+    for (const auto& attribute : list) {
       if (attributeInfo(attribute.kind()).availability !=
           AttributeAvailability::kDeviceProfile)
         continue;
@@ -2585,7 +2585,11 @@ void Binder::inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern) {
   if (!symbol || !pattern) return;
   auto attributes = pattern->attributes();
   if (!attributes) return;
-  applyAttributeMap(symbol, *attributes);
+  auto canonical = symbol->canonical() ? symbol->canonical() : symbol;
+  if (!canonical->attributes() || canonical->attributes() == attributes)
+    applyAttributes(symbol, attributes);
+  else
+    applyAttributeMap(symbol, *attributes);
   auto function = symbol_cast<FunctionSymbol>(symbol);
   auto source = symbol_cast<FunctionSymbol>(pattern);
   if (function && source)
@@ -2615,10 +2619,11 @@ void Binder::applyEnableIfAttributes(FunctionSymbol* function,
 }
 
 void Binder::applyConstructorAttribute(
-    FunctionSymbol* function, List<AttributeSpecifierAST*>* attributes) {
-  auto attribute =
-      findAttribute(unit_, attributes, AttributeKind::kConstructor);
-  if (!attribute) return;
+    FunctionSymbol* function, std::span<const AttributeRef> attributes) {
+  auto found = std::ranges::find(attributes, AttributeKind::kConstructor,
+                                 &AttributeRef::kind);
+  if (found == attributes.end()) return;
+  const auto& attribute = *found;
   std::uint32_t priority = 65535;
   auto clause = attribute.argumentClause;
   if (clause && clause->expressionList) {
@@ -2650,8 +2655,13 @@ void Binder::applyAttributeMap(Symbol* symbol, AttributeMap collected) {
   auto canonical = symbol->canonical();
   if (!canonical) canonical = symbol;
 
-  auto merged = control()->getAttributes(
-      mergeAttributes(collected, canonical->attributes()));
+  applyAttributes(symbol, control()->getAttributes(mergeAttributes(
+                              std::move(collected), canonical->attributes())));
+}
+
+void Binder::applyAttributes(Symbol* symbol, const AttributeMap* merged) {
+  auto canonical = symbol->canonical();
+  if (!canonical) canonical = symbol;
 
   symbol->setAttributes(merged);
   canonical->setAttributes(merged);
@@ -4237,10 +4247,12 @@ auto Binder::validatedAlignment(std::optional<std::intmax_t> value,
   return static_cast<int>(*value);
 }
 
-auto Binder::alignedAttribute(List<AttributeSpecifierAST*>* attributeList)
+auto Binder::alignedAttribute(std::span<const AttributeRef> attributes)
     -> std::optional<int> {
-  auto attribute = findAttribute(unit_, attributeList, AttributeKind::kAligned);
-  if (!attribute) return std::nullopt;
+  auto found = std::ranges::find(attributes, AttributeKind::kAligned,
+                                 &AttributeRef::kind);
+  if (found == attributes.end()) return std::nullopt;
+  const auto& attribute = *found;
 
   auto clause = attribute.argumentClause;
   if (!clause || !clause->expressionList)
@@ -4256,9 +4268,9 @@ auto Binder::alignedAttribute(List<AttributeSpecifierAST*>* attributeList)
   return validatedAlignment(interp.toInt(*value), attribute.location);
 }
 
-void Binder::applyAlignedAttribute(
-    Symbol* symbol, List<AttributeSpecifierAST*>* attributeList) {
-  auto requested = alignedAttribute(attributeList);
+void Binder::applyAlignedAttribute(Symbol* symbol,
+                                   std::span<const AttributeRef> attributes) {
+  auto requested = alignedAttribute(attributes);
   if (!requested) return;
 
   if (auto field = symbol_cast<FieldSymbol>(symbol)) {
@@ -4327,7 +4339,8 @@ auto Binder::checkExplicitAlignment(int requested, const Type* type,
 }
 
 void Binder::applyExplicitAlignment(FieldSymbol* field, const Decl& decl) {
-  applyAlignedAttribute(field, decl.specs.attributeList);
+  applyAlignedAttribute(field,
+                        knownAttributes(unit_, decl.specs.attributeList));
 
   auto requested = explicitAlignment(decl.specs.attributeList, decl.location());
   if (!requested) return;
@@ -4346,7 +4359,8 @@ void Binder::applyExplicitAlignment(FieldSymbol* field, const Decl& decl) {
 
 void Binder::applyExplicitAlignment(VariableSymbol* variable,
                                     const Decl& decl) {
-  applyAlignedAttribute(variable, decl.specs.attributeList);
+  applyAlignedAttribute(variable,
+                        knownAttributes(unit_, decl.specs.attributeList));
 
   auto requested = explicitAlignment(decl.specs.attributeList, decl.location());
   if (!requested) return;

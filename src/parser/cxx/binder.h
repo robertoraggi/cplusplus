@@ -275,11 +275,11 @@ class Binder {
                                         SourceLocation loc)
       -> std::optional<int>;
 
-  [[nodiscard]] auto alignedAttribute(
-      List<AttributeSpecifierAST*>* attributeList) -> std::optional<int>;
+  [[nodiscard]] auto alignedAttribute(std::span<const AttributeRef> attributes)
+      -> std::optional<int>;
 
   void applyAlignedAttribute(Symbol* symbol,
-                             List<AttributeSpecifierAST*>* attributeList);
+                             std::span<const AttributeRef> attributes);
 
   void applyExplicitAlignment(FieldSymbol* field, const Decl& decl);
   void applyExplicitAlignment(VariableSymbol* variable, const Decl& decl);
@@ -754,6 +754,7 @@ class Binder {
   void inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern);
 
   void applyAttributeMap(Symbol* symbol, AttributeMap collected);
+  void applyAttributes(Symbol* symbol, const AttributeMap* merged);
 
   void rejectKernelTemplate(FunctionSymbol* function);
 
@@ -761,7 +762,7 @@ class Binder {
                              std::span<const AttributeRef> attributes);
 
   void applyConstructorAttribute(FunctionSymbol* function,
-                                 List<AttributeSpecifierAST*>* attributes);
+                                 std::span<const AttributeRef> attributes);
 
   void applyWasmFunctionAttributes(FunctionSymbol* function,
                                    const AttributeMap* attributes);

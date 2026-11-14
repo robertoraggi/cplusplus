@@ -27,6 +27,7 @@
 
 #include <compare>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <variant>
@@ -54,6 +55,7 @@ struct Attribute {
   const Identifier* attributeNamespace = nullptr;
   const Identifier* name = nullptr;
   std::vector<const Identifier*> arguments;
+  std::optional<AttributeKind> kind;
 
   /**
    * Orders by spelling. Identifiers are interned, so equality is a pointer

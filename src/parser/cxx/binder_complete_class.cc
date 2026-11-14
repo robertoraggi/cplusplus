@@ -4144,8 +4144,10 @@ auto Binder::BuildRecordLayout::alignedAttributeOfClass()
     -> std::optional<int> {
   auto specifier = ast_cast<ClassSpecifierAST>(classSymbol->declaration());
   if (!specifier) return std::nullopt;
-  auto head = binder.alignedAttribute(specifier->attributeList);
-  auto trailing = binder.alignedAttribute(specifier->trailingAttributeList);
+  auto head = binder.alignedAttribute(
+      knownAttributes(binder.unit_, specifier->attributeList));
+  auto trailing = binder.alignedAttribute(
+      knownAttributes(binder.unit_, specifier->trailingAttributeList));
   if (!head) return trailing;
   if (!trailing) return head;
   return std::max(*head, *trailing);

@@ -81,6 +81,11 @@ class Control {
   [[nodiscard]] auto getAttributes(AttributeMap attributes)
       -> const AttributeMap*;
 
+  [[nodiscard]] auto getAttributeSpelling(AttributeSyntax syntax,
+                                          const Identifier* attributeNamespace,
+                                          const Identifier* name)
+      -> const AttributeSpelling*;
+
   [[nodiscard]] auto getAbiTags(std::vector<const Identifier*> tags)
       -> const std::vector<const Identifier*>*;
   [[nodiscard]] auto getOperatorId(TokenKind op) -> const OperatorId*;
@@ -344,6 +349,9 @@ class Control {
   void setNothrowType(const Type* type);
 
  private:
+  [[nodiscard]] auto attributeKindOf(const Attribute& attribute)
+      -> std::optional<AttributeKind>;
+
   struct Private;
   std::unique_ptr<Private> d;
 };
