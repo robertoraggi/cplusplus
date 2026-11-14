@@ -2845,14 +2845,13 @@ auto ClassSymbol::visibleConversionFunctions() const
 
   std::vector<Declaration> declarations;
   std::vector<ClassSymbol*> pending{resolvedDefinition()};
-  std::vector<ClassSymbol*> seen;
+  InsertionOrderedSet<ClassSymbol*> seen;
 
   while (!pending.empty()) {
     auto currentClass = pending.back();
     pending.pop_back();
     if (!currentClass) continue;
-    if (std::ranges::find(seen, currentClass) != seen.end()) continue;
-    seen.push_back(currentClass);
+    if (!seen.insert(currentClass)) continue;
 
     for (auto base : currentClass->baseClasses()) {
       if (auto baseClass = symbol_cast<ClassSymbol>(base->symbol()))
