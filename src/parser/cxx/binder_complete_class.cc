@@ -3106,6 +3106,15 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   std::vector<std::pair<ClassSymbol*, ClassLayout::MemberInfo>>
       indirectPrimaryPlacements;
 
+  struct AllocatedBase {
+    ClassSymbol* symbol = nullptr;
+    bool isVirtual = false;
+
+    [[nodiscard]] auto operator==(const AllocatedBase&) const -> bool = default;
+  };
+
+  std::vector<std::pair<ClassSymbol*, AllocatedBase>> indirectPrimaryOwners;
+
   int packValue = 0;
 
   BuildRecordLayout(Binder& b, ClassSymbol* cls)
@@ -3134,11 +3143,17 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
                                       ClassLayout::MemberInfo info);
   [[nodiscard]] auto indirectPrimaryPlacement(ClassSymbol* primary) const
       -> std::optional<ClassLayout::MemberInfo>;
-  void recordPrimaryChain(ClassSymbol* cls, std::uint64_t offset,
-                          std::uint32_t topIndex);
-  void collectIndirectPrimaryPlacements(ClassSymbol* root,
-                                        std::uint64_t rootOffset,
-                                        std::uint32_t rootIndex);
+  void assignIndirectPrimaryOwners();
+  [[nodiscard]] auto isIndirectPrimary(ClassSymbol* base) const -> bool;
+  void assignIndirectPrimaryOwner(ClassSymbol* cls, AllocatedBase owner);
+  [[nodiscard]] auto ownsIndirectPrimary(AllocatedBase owner,
+                                         ClassSymbol* primary) const -> bool;
+  using IndirectPrimaryOffsets =
+      std::vector<std::pair<ClassSymbol*, std::uint64_t>>;
+  void appendPrimaryChain(IndirectPrimaryOffsets& primaries, ClassSymbol* cls,
+                          AllocatedBase owner, std::uint64_t offset) const;
+  [[nodiscard]] auto indirectPrimariesAllocatedWith(AllocatedBase root) const
+      -> IndirectPrimaryOffsets;
   [[nodiscard]] auto baseNonVirtualSize(ClassSymbol* base) -> std::uint64_t;
   [[nodiscard]] auto allocateBaseSubobject(ClassSymbol* base, bool isVirtual)
       -> ClassLayout::MemberInfo;
@@ -3158,11 +3173,16 @@ struct [[nodiscard]] Binder::BuildRecordLayout {
   [[nodiscard]] auto conflictsAt(const EmptySubobjectComponent& candidate,
                                  std::uint64_t offset) -> bool;
 
-  [[nodiscard]] auto classSubobjectOffset(ClassSymbol* symbol,
-                                          bool isCompleteObject,
-                                          ClassSubobjectExtent extent,
-                                          bool tryZero, std::uint64_t alignment)
-      -> std::uint64_t;
+  [[nodiscard]] auto conflictsAt(
+      const std::vector<EmptySubobjectComponent>& candidates,
+      std::uint64_t offset) -> bool;
+
+  [[nodiscard]] auto classSubobjectOffset(
+      const std::vector<EmptySubobjectComponent>& candidates, bool tryZero,
+      std::uint64_t alignment) -> std::uint64_t;
+  void appendCandidate(std::vector<EmptySubobjectComponent>& candidates,
+                       ClassSymbol* symbol, bool isCompleteObject,
+                       std::uint64_t offset, ClassSubobjectExtent extent = {});
   void recordClassSubobject(ClassSymbol* symbol, bool isCompleteObject,
                             std::uint64_t offset,
                             ClassSubobjectExtent extent = {});
@@ -3202,6 +3222,7 @@ auto Binder::BuildRecordLayout::operator()()
 
   layout->setAbiEmpty(computeAbiEmpty());
   layoutVtable();
+  assignIndirectPrimaryOwners();
   layoutBases();
 
   auto fieldsStatus = layoutFields();
@@ -3313,7 +3334,6 @@ void Binder::BuildRecordLayout::layoutVtable() {
     layout->setVirtualBaseInfo(primaryBase, primaryInfo);
     layout->setHasDirectVtable(true);
     layout->setVtableIndex(primaryInfo.index);
-    recordClassSubobject(primaryBase, false, 0);
   } else {
     layout->setHasDirectVtable(true);
     layout->setVtableIndex(currentIndex++);
@@ -3329,45 +3349,9 @@ void Binder::BuildRecordLayout::layoutVtable() {
 auto Binder::BuildRecordLayout::isNearlyEmptyClass(ClassSymbol* candidate) const
     -> bool {
   if (!candidate) return false;
-  candidate = candidate->resolvedDefinition();
-  auto candidateLayout = candidate->layout();
+  auto candidateLayout = candidate->resolvedDefinition()->layout();
   if (!candidateLayout || !candidateLayout->hasVtable()) return false;
-
-  if (!hasOnlyZeroSizeDataMembers(candidate)) return false;
-
-  int nearlyEmptyNonVirtualBases = 0;
-  for (auto base : candidate->baseClasses()) {
-    if (base->isVirtual()) continue;
-    auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-    if (!baseClass) return false;
-    baseClass = baseClass->resolvedDefinition();
-    auto baseLayout = baseClass->layout();
-    if (baseLayout && baseLayout->isAbiEmpty()) continue;
-    if (!isNearlyEmptyClass(baseClass)) return false;
-    if (++nearlyEmptyNonVirtualBases > 1) return false;
-  }
-
-  std::vector<std::pair<ClassSymbol*, std::uint64_t>> pendingBases{
-      {candidate, 0}};
-  while (!pendingBases.empty()) {
-    auto [cls, offset] = pendingBases.back();
-    pendingBases.pop_back();
-    auto classLayout = cls->layout();
-    if (!classLayout) continue;
-    for (auto base : cls->baseClasses()) {
-      if (base->isVirtual()) continue;
-      auto baseClass = resolved_base_class(base);
-      if (!baseClass) continue;
-      auto info = classLayout->getBaseInfo(baseClass);
-      if (!info) continue;
-      const auto baseOffset = offset + info->offset;
-      auto baseLayout = baseClass->layout();
-      if (baseOffset != 0 && baseLayout && baseLayout->isAbiEmpty())
-        return false;
-      pendingBases.emplace_back(baseClass, baseOffset);
-    }
-  }
-  return true;
+  return candidateLayout->nonVirtualSize() == memoryLayout->sizeOfPointer();
 }
 
 auto Binder::BuildRecordLayout::selectPrimaryBase() const
@@ -3614,19 +3598,30 @@ auto Binder::BuildRecordLayout::conflictsAt(
   return false;
 }
 
+auto Binder::BuildRecordLayout::conflictsAt(
+    const std::vector<EmptySubobjectComponent>& candidates,
+    std::uint64_t offset) -> bool {
+  return std::ranges::any_of(candidates, [&](const auto& candidate) {
+    return conflictsAt(candidate, offset);
+  });
+}
+
 auto Binder::BuildRecordLayout::classSubobjectOffset(
-    ClassSymbol* symbol, bool isCompleteObject, ClassSubobjectExtent extent,
-    bool tryZero, std::uint64_t alignment) -> std::uint64_t {
-  const auto candidate =
-      binder.emptySubobjectComponent(symbol, isCompleteObject, 0, extent);
+    const std::vector<EmptySubobjectComponent>& candidates, bool tryZero,
+    std::uint64_t alignment) -> std::uint64_t {
+  if (tryZero && !conflictsAt(candidates, 0)) return 0;
 
   auto offset = align_to(calculatedSize, alignment);
-  if (!candidate) return tryZero ? 0 : offset;
-
-  if (tryZero && !conflictsAt(*candidate, 0)) return 0;
-
-  while (conflictsAt(*candidate, offset)) offset += alignment;
+  while (conflictsAt(candidates, offset)) offset += alignment;
   return offset;
+}
+
+void Binder::BuildRecordLayout::appendCandidate(
+    std::vector<EmptySubobjectComponent>& candidates, ClassSymbol* symbol,
+    bool isCompleteObject, std::uint64_t offset, ClassSubobjectExtent extent) {
+  if (auto component = binder.emptySubobjectComponent(symbol, isCompleteObject,
+                                                      offset, extent))
+    candidates.push_back(*component);
 }
 
 void Binder::BuildRecordLayout::recordClassSubobject(
@@ -3668,8 +3663,15 @@ auto Binder::BuildRecordLayout::allocateBaseSubobject(ClassSymbol* base,
   const auto baseSizeInBytes = static_cast<int>(baseNonVirtualSize(base));
   const bool isEmpty = baseLayout && baseLayout->isAbiEmpty();
 
-  const auto baseOffset = classSubobjectOffset(
-      base, false, ClassSubobjectExtent{}, isEmpty, std::max(baseAlignment, 1));
+  const auto ownedPrimaries = indirectPrimariesAllocatedWith({base, isVirtual});
+
+  std::vector<EmptySubobjectComponent> candidates;
+  appendCandidate(candidates, base, false, 0);
+  for (const auto& [primary, offset] : ownedPrimaries)
+    appendCandidate(candidates, primary, false, offset);
+
+  const auto baseOffset =
+      classSubobjectOffset(candidates, isEmpty, std::max(baseAlignment, 1));
 
   if (!isEmpty) padTo(baseOffset);
 
@@ -3695,6 +3697,9 @@ auto Binder::BuildRecordLayout::allocateBaseSubobject(ClassSymbol* base,
   }
 
   recordClassSubobject(base, false, baseOffset);
+  for (const auto& [primary, offset] : ownedPrimaries)
+    recordIndirectPrimaryPlacement(primary,
+                                   {baseOffset + offset, baseInfo.index});
   calculatedAlignment = std::max(calculatedAlignment, baseAlignment);
 
   return baseInfo;
@@ -3730,35 +3735,20 @@ void Binder::BuildRecordLayout::layoutBases() {
 void Binder::BuildRecordLayout::layoutVirtualBases() {
   if (classSymbol->isUnion()) return;
 
-  if (layout->primaryBaseIsVirtual()) {
-    auto primary = layout->primaryBase();
-    if (auto info = layout->getVirtualBaseInfo(primary)) {
-      recordIndirectPrimaryPlacement(primary, {info->offset, info->index});
-      recordPrimaryChain(primary, info->offset, info->index);
-    }
+  const auto virtualBases = virtualBasesInInheritanceGraphOrder(classSymbol);
+
+  for (auto virtualBase : virtualBases) {
+    if (indirectPrimaryPlacement(virtualBase)) continue;
+    if (isIndirectPrimary(virtualBase)) continue;
+    std::ignore = allocateBaseSubobject(virtualBase, true);
   }
 
-  for (auto base : classSymbol->baseClasses()) {
-    if (base->isVirtual()) continue;
-    auto baseClass = resolved_base_class(base);
-    if (!baseClass) continue;
-    if (auto info = layout->getBaseInfo(baseClass))
-      collectIndirectPrimaryPlacements(baseClass, info->offset, info->index);
-  }
-
-  for (auto virtualBase : virtualBasesInInheritanceGraphOrder(classSymbol)) {
-    if (auto placement = indirectPrimaryPlacement(virtualBase)) {
+  for (auto virtualBase : virtualBases) {
+    if (auto placement = indirectPrimaryPlacement(virtualBase))
       layout->setVirtualBaseInfo(virtualBase, *placement);
-      layout->addVirtualBase(virtualBase);
-      recordClassSubobject(virtualBase, false, placement->offset);
-      recordPrimaryChain(virtualBase, placement->offset, placement->index);
-      continue;
-    }
-
-    const auto baseInfo = allocateBaseSubobject(virtualBase, true);
-
+    else if (!layout->getVirtualBaseInfo(virtualBase))
+      std::ignore = allocateBaseSubobject(virtualBase, true);
     layout->addVirtualBase(virtualBase);
-    recordPrimaryChain(virtualBase, baseInfo.offset, baseInfo.index);
   }
 
   nextBitPos = static_cast<std::uint64_t>(calculatedSize) * 8;
@@ -3768,6 +3758,7 @@ void Binder::BuildRecordLayout::recordIndirectPrimaryPlacement(
     ClassSymbol* primary, ClassLayout::MemberInfo info) {
   if (indirectPrimaryPlacement(primary)) return;
   indirectPrimaryPlacements.emplace_back(primary, info);
+  recordClassSubobject(primary, false, info.offset);
 }
 
 auto Binder::BuildRecordLayout::indirectPrimaryPlacement(
@@ -3778,9 +3769,79 @@ auto Binder::BuildRecordLayout::indirectPrimaryPlacement(
   return std::nullopt;
 }
 
-void Binder::BuildRecordLayout::recordPrimaryChain(ClassSymbol* cls,
-                                                   std::uint64_t offset,
-                                                   std::uint32_t topIndex) {
+auto Binder::BuildRecordLayout::isIndirectPrimary(ClassSymbol* base) const
+    -> bool {
+  return std::ranges::contains(indirectPrimaryOwners, base,
+                               [](const auto& entry) { return entry.first; });
+}
+
+void Binder::BuildRecordLayout::assignIndirectPrimaryOwner(
+    ClassSymbol* cls, AllocatedBase owner) {
+  auto classLayout = cls->layout();
+  if (!classLayout || !classLayout->primaryBaseIsVirtual()) return;
+  auto primary = classLayout->primaryBase();
+  if (isIndirectPrimary(primary)) return;
+  indirectPrimaryOwners.emplace_back(primary, owner);
+}
+
+void Binder::BuildRecordLayout::assignIndirectPrimaryOwners() {
+  struct InheritanceFrame {
+    ClassSymbol* classSymbol;
+    AllocatedBase owner;
+    std::size_t nextBase = 0;
+  };
+
+  const AllocatedBase self{classSymbol, false};
+  if (layout->primaryBaseIsVirtual())
+    indirectPrimaryOwners.emplace_back(layout->primaryBase(), self);
+
+  std::vector<ClassSymbol*> virtualBases;
+  std::vector<InheritanceFrame> frames{{classSymbol, self}};
+  while (!frames.empty()) {
+    auto& frame = frames.back();
+    auto& bases = frame.classSymbol->baseClasses();
+    if (frame.nextBase == bases.size()) {
+      frames.pop_back();
+      continue;
+    }
+    const auto isDirect = frames.size() == 1;
+    auto owner = frame.owner;
+    auto base = bases[frame.nextBase++];
+    auto baseClass = resolved_base_class(base);
+    if (!baseClass) continue;
+    if (base->isVirtual()) {
+      if (std::ranges::contains(virtualBases, baseClass)) continue;
+      virtualBases.push_back(baseClass);
+      owner = {baseClass, true};
+    } else if (isDirect) {
+      owner = {baseClass, false};
+    }
+    if (is_laid_out_without_virtual_base_subobjects(baseClass)) continue;
+    assignIndirectPrimaryOwner(baseClass, owner);
+    frames.push_back({baseClass, owner});
+  }
+
+  if (!layout->primaryBaseIsVirtual()) return;
+  auto primary = layout->primaryBase();
+  auto info = layout->getVirtualBaseInfo(primary);
+  if (!info) return;
+  recordIndirectPrimaryPlacement(primary, *info);
+  IndirectPrimaryOffsets chain;
+  appendPrimaryChain(chain, primary, {primary, true}, info->offset);
+  for (const auto& [chained, offset] : chain)
+    recordIndirectPrimaryPlacement(chained, {offset, info->index});
+}
+
+auto Binder::BuildRecordLayout::ownsIndirectPrimary(AllocatedBase owner,
+                                                    ClassSymbol* primary) const
+    -> bool {
+  return std::ranges::contains(indirectPrimaryOwners,
+                               std::pair{primary, owner});
+}
+
+void Binder::BuildRecordLayout::appendPrimaryChain(
+    IndirectPrimaryOffsets& primaries, ClassSymbol* cls, AllocatedBase owner,
+    std::uint64_t offset) const {
   while (cls) {
     auto classLayout = cls->layout();
     if (!classLayout || !classLayout->primaryBase()) return;
@@ -3789,28 +3850,34 @@ void Binder::BuildRecordLayout::recordPrimaryChain(ClassSymbol* cls,
         classLayout->getBaseInfo(primary, classLayout->primaryBaseIsVirtual());
     if (!info) return;
     const auto primaryOffset = offset + info->offset;
-    if (classLayout->primaryBaseIsVirtual())
-      recordIndirectPrimaryPlacement(primary, {primaryOffset, topIndex});
+    if (classLayout->primaryBaseIsVirtual()) {
+      if (!ownsIndirectPrimary(owner, primary)) return;
+      if (!std::ranges::contains(primaries, primary,
+                                 [](const auto& entry) { return entry.first; }))
+        primaries.emplace_back(primary, primaryOffset);
+      owner = {primary, true};
+    }
     cls = primary;
     offset = primaryOffset;
   }
 }
 
-void Binder::BuildRecordLayout::collectIndirectPrimaryPlacements(
-    ClassSymbol* root, std::uint64_t rootOffset, std::uint32_t rootIndex) {
+auto Binder::BuildRecordLayout::indirectPrimariesAllocatedWith(
+    AllocatedBase root) const -> IndirectPrimaryOffsets {
   struct PlacementWork {
     ClassSymbol* classSymbol;
     std::uint64_t offset;
   };
 
-  std::vector<PlacementWork> pending{{root, rootOffset}};
+  IndirectPrimaryOffsets primaries;
+  std::vector<PlacementWork> pending{{root.symbol, 0}};
   while (!pending.empty()) {
     auto [cls, offset] = pending.back();
     pending.pop_back();
     auto classLayout = cls->layout();
     if (!classLayout) continue;
     if (is_laid_out_without_virtual_base_subobjects(cls)) continue;
-    recordPrimaryChain(cls, offset, rootIndex);
+    appendPrimaryChain(primaries, cls, root, offset);
     for (auto base : cls->baseClasses() | std::views::reverse) {
       if (base->isVirtual()) continue;
       auto baseClass = resolved_base_class(base);
@@ -3819,6 +3886,7 @@ void Binder::BuildRecordLayout::collectIndirectPrimaryPlacements(
         pending.push_back({baseClass, offset + info->offset});
     }
   }
+  return primaries;
 }
 
 void Binder::BuildRecordLayout::closeBitfieldRun() {
@@ -4049,9 +4117,11 @@ auto Binder::BuildRecordLayout::regularFieldOffset(FieldSymbol* field,
   if (classSymbol->isUnion()) return 0;
   auto fieldAlign = field->effectiveAlignment();
   if (auto elementClass = binder.fieldElementClass(field)) {
-    return classSubobjectOffset(elementClass, true,
-                                binder.fieldArrayExtent(field),
-                                isEmptyDataMember, std::max(fieldAlign, 1));
+    std::vector<EmptySubobjectComponent> candidates;
+    appendCandidate(candidates, elementClass, true, 0,
+                    binder.fieldArrayExtent(field));
+    return classSubobjectOffset(candidates, isEmptyDataMember,
+                                std::max(fieldAlign, 1));
   }
   return static_cast<std::uint64_t>(align_to(calculatedSize, fieldAlign));
 }
