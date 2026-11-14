@@ -95,6 +95,11 @@ class TranslationUnit {
   void setPlaceholderReturnType(const ScopeSymbol* function,
                                 const Type* placeholder);
   void addNonDependentType(const Type* type);
+  [[nodiscard]] auto hasNonDependentTemplateArguments(
+      UnqualifiedIdAST* templateId, TemplateParametersSymbol* parameters) const
+      -> bool;
+  void addNonDependentTemplateArguments(UnqualifiedIdAST* templateId,
+                                        TemplateParametersSymbol* parameters);
 
   void addPendingBodyCompletion(FunctionSymbol* function,
                                 SourceLocation location = {},
@@ -600,6 +605,8 @@ class TranslationUnit {
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
   std::unordered_set<const Type*> nonDependentTypes_;
+  std::unordered_map<UnqualifiedIdAST*, TemplateParametersSymbol*>
+      nonDependentTemplateArguments_;
   std::unordered_map<const Symbol*, bool> immediateObjectVariables_;
   std::unordered_map<const ScopeSymbol*, const Type*> placeholderReturnTypes_;
   std::unordered_map<std::uint64_t, const Identifier*> snippets_;

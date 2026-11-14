@@ -498,6 +498,7 @@ void TranslationUnit::endParsing() {
   parser_->endParsing();
   parser_.reset();
   nonDependentTypes_ = {};
+  nonDependentTemplateArguments_ = {};
   placeholderReturnTypes_ = {};
 }
 
@@ -576,6 +577,19 @@ auto TranslationUnit::isNonDependentType(const Type* type) const -> bool {
 
 void TranslationUnit::addNonDependentType(const Type* type) {
   nonDependentTypes_.insert(type);
+}
+
+auto TranslationUnit::hasNonDependentTemplateArguments(
+    UnqualifiedIdAST* templateId, TemplateParametersSymbol* parameters) const
+    -> bool {
+  auto it = nonDependentTemplateArguments_.find(templateId);
+  if (it == nonDependentTemplateArguments_.end()) return false;
+  return it->second == parameters;
+}
+
+void TranslationUnit::addNonDependentTemplateArguments(
+    UnqualifiedIdAST* templateId, TemplateParametersSymbol* parameters) {
+  nonDependentTemplateArguments_.insert_or_assign(templateId, parameters);
 }
 
 auto TranslationUnit::placeholderReturnType(const ScopeSymbol* function) const
