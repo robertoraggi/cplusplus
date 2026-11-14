@@ -420,6 +420,11 @@ class Binder {
   void refreshImplicitExceptionSpecifications(ClassSymbol* classSymbol);
   void completeDeferredImplicitExceptionSpecification(FunctionSymbol* fn);
   void completeDeferredDeletion(FunctionSymbol* fn);
+  void determineImplicitExceptionSpecification(FunctionSymbol* fn);
+  using UndecidedProperty = bool (FunctionSymbol::*)() const;
+  [[nodiscard]] auto subobjectMembersFirst(FunctionSymbol* fn,
+                                           UndecidedProperty isUndecided)
+      -> std::vector<FunctionSymbol*>;
 
   void finalizeExceptionSpecifications(ClassSymbol* classSymbol);
 
