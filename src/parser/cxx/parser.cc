@@ -3864,6 +3864,7 @@ auto Parser::parse_alignof_expression(ExpressionAST*& yyast,
 
   ast->alignofLoc = alignofLoc;
 
+  auto _ = UnevaluatedOperandGuard{this};
   if (!parse_unary_expression(ast->expression, ctx)) {
     report_failed_parse("expected an expression");
   }

@@ -1605,7 +1605,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(AlignofExpressionAST* ast)
   copy->valueCategory = ast->valueCategory;
   copy->type = ast->type;
   copy->alignofLoc = ast->alignofLoc;
-  copy->expression = rewrite.expression(ast->expression);
+  copy->expression = rewrite.unevaluatedExpression(ast->expression);
 
   return copy;
 }
