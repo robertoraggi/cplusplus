@@ -951,8 +951,6 @@ auto ASTRewriter::foldStep(ExpressionAST* left, TokenKind op,
   }
 
   auto binop = BinaryExpressionAST::create(arena());
-  binop->valueCategory = left->valueCategory;
-  binop->type = left->type;
   binop->leftExpression = left;
   binop->op = op;
   binop->opLoc = opLoc;
