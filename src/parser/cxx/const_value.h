@@ -217,6 +217,8 @@ class ConstObject {
   [[nodiscard]] auto operator==(const ConstObject& other) const -> bool;
 
  private:
+  [[nodiscard]] auto enclosingSubobject(const Symbol* symbol) -> ConstObject*;
+
   const Type* type_ = nullptr;
   std::deque<Member> members_;
   bool constexprUnknown_ = false;

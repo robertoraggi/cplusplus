@@ -507,8 +507,47 @@ void InitializerList::setSize(std::size_t size) {
 
 void InitializerList::setFiller(Element filler) { filler_ = std::move(filler); }
 
+namespace {
+[[nodiscard]] auto isDirectMemberOf(const Symbol* symbol,
+                                    const ClassSymbol* classSymbol) -> bool {
+  auto owner = symbol_cast<ClassSymbol>(symbol->parent());
+  return owner &&
+         owner->resolvedDefinition() == classSymbol->resolvedDefinition();
+}
+
+[[nodiscard]] auto subobjectType(Symbol* subobject) -> const Type* {
+  if (auto base = symbol_cast<BaseClassSymbol>(subobject)) {
+    auto baseClass = resolved_base_class(base);
+    return baseClass ? baseClass->type() : nullptr;
+  }
+  return subobject->type();
+}
+}  // namespace
+
+auto ConstObject::enclosingSubobject(const Symbol* symbol) -> ConstObject* {
+  auto classType = unqualified_cast<ClassType>(type_);
+  if (!classType || isDirectMemberOf(symbol, classType->symbol()))
+    return nullptr;
+  auto path = classType->symbol()->subobjectPath(const_cast<Symbol*>(symbol));
+  if (!path || path->size() < 2) return nullptr;
+
+  auto enclosing = path->front();
+  auto type = subobjectType(enclosing);
+  if (!type) return nullptr;
+
+  auto slot = mutableSubobject(enclosing);
+  if (!slot) slot = addMember(enclosing, std::make_shared<ConstObject>(type));
+  auto object = std::get_if<std::shared_ptr<ConstObject>>(slot);
+  if (object && *object) return object->get();
+  auto created = std::make_shared<ConstObject>(type);
+  *slot = created;
+  return created.get();
+}
+
 auto ConstObject::addMember(const Symbol* symbol, ConstValue value)
     -> ConstValue* {
+  if (auto enclosing = enclosingSubobject(symbol))
+    return enclosing->addMember(symbol, std::move(value));
   if (isUnion()) {
     members_.clear();
   } else if (auto owner = symbol_cast<ClassSymbol>(symbol->parent());
@@ -523,11 +562,9 @@ auto ConstObject::addMember(const Symbol* symbol, ConstValue value)
 
 void ConstObject::setMember(const Symbol* symbol, ConstValue value) {
   if (!isUnion()) {
-    for (auto& member : members_) {
-      if (member.symbol == symbol) {
-        member.value = std::move(value);
-        return;
-      }
+    if (auto slot = mutableSubobject(symbol)) {
+      *slot = std::move(value);
+      return;
     }
   }
   addMember(symbol, std::move(value));
