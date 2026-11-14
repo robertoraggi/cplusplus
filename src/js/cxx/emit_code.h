@@ -52,7 +52,8 @@ struct GeneratedCode {
 
 [[nodiscard]] auto generateCode(TranslationUnit* unit, std::string_view format,
                                 bool debugInfo, int optimizationLevel,
-                                std::string_view mlirPipeline = {})
+                                std::string_view mlirPipeline = {},
+                                bool locations = false)
     -> std::optional<GeneratedCode>;
 
 }  // namespace cxx::js

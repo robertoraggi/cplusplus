@@ -80,6 +80,14 @@ void registerConvertCxxKernelToGpuPass();
 
 void registerLiftCxxControlFlowToSCFPass();
 
+void registerHostPipelinePasses();
+
+#ifdef CXX_WITH_SPIRV
+void registerDevicePipelinePasses();
+#endif
+
+void registerPipelinePasses();
+
 [[nodiscard]] auto liftCxxControlFlowRegion(mlir::Region& region,
                                             mlir::DominanceInfo& dominance)
     -> mlir::FailureOr<bool>;

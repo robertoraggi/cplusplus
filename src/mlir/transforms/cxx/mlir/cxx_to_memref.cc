@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/mlir/cxx_dialect.h>
+#include <cxx/mlir/module_data_layout.h>
 #include <cxx/mlir/passes.h>
 #include <llvm/ADT/DenseSet.h>
 #include <llvm/ADT/EquivalenceClasses.h>
@@ -2374,6 +2375,7 @@ class ConvertCxxToMemRefPass
   }
 
   void runOnOperation() override {
+    ::cxx::materializeDataLayout(getOperation());
     if (typedStorage) {
       runTypedStorage();
       return;

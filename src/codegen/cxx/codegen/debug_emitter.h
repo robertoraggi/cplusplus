@@ -24,6 +24,7 @@
 #include <cxx/source_location.h>
 
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace cxx::ir {
@@ -60,7 +61,17 @@ struct DebugCompileUnitInfo {
   std::string_view file;
   std::string_view directory;
   bool isCxx = true;
+  bool appleNameTable = false;
 };
+
+struct DebugFilePath {
+  std::string file;
+  std::string directory;
+};
+
+[[nodiscard]] auto debugFilePath(std::string_view file,
+                                 std::string_view compilationDirectory)
+    -> DebugFilePath;
 
 struct DebugBasicTypeInfo {
   std::string_view name;

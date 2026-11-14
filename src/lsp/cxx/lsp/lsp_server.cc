@@ -236,17 +236,15 @@ void Server::sendNullResult(std::optional<std::variant<long, std::string>> id) {
 }
 
 void Server::sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
-                             EmitCodeFormat format, bool debugInfo,
-                             int optimizationLevel,
-                             const std::string& mlirPipeline) {
+                             const EmitCodeOptions& options) {
   const auto startedAt = std::chrono::steady_clock::now();
+  const auto format = options.format;
 
   logTrace(std::format(
       "emit event=started file={} version={} format={} interruptible=false",
       document.fileName(), document.version(), to_string(format)));
 
-  auto emitted = host_->emitCode(document, format, debugInfo, optimizationLevel,
-                                 mlirPipeline);
+  auto emitted = host_->emitCode(document, options);
 
   logTrace(std::format(
       "emit event=finished file={} version={} format={} duration_ms={:.1f}",
@@ -569,6 +567,7 @@ namespace {
 
 void Server::operator()(InitializeRequest request) {
   logTrace(std::format("Did receive InitializeRequest"));
+  trace_ = request.params().trace().value_or(TraceValue::kOff);
 
   completionSnippets_ = supportsCompletionSnippets(request);
 
@@ -1080,6 +1079,13 @@ void Server::operator()(SignatureHelpRequest request) {
     return;
   }
 
+  const auto offset = snapshot->offsetAt(line, column);
+  if (offset != std::string::npos &&
+      Preprocessor::isInsideIncludeDirective(snapshot->value, offset)) {
+    sendNullResult(id);
+    return;
+  }
+
   auto version = snapshot->version;
   auto storage = std::make_shared<json>();
 
@@ -1117,11 +1123,14 @@ void Server::operator()(EmitCodeRequest request) {
   auto params = request.params();
   auto uri = params.textDocument().uri();
   auto id = request.id();
-  auto format = params.format();
-  auto debugInfo = params.debugInfo().value_or(false);
-  auto mlirPipeline = params.mlirPipeline().value_or("");
-  auto optimizationLevel =
-      static_cast<int>(params.optimizationLevel().value_or(0));
+  const auto debugInfo = params.debugInfo().value_or(false);
+  EmitCodeOptions options{
+      .format = params.format(),
+      .debugInfo = debugInfo,
+      .locations = debugInfo || params.locations().value_or(false),
+      .optimizationLevel =
+          static_cast<int>(params.optimizationLevel().value_or(0)),
+      .mlirPipeline = params.mlirPipeline().value_or("")};
 
   auto fileName = host_->pathFromUri(uri);
 
@@ -1154,8 +1163,7 @@ void Server::operator()(EmitCodeRequest request) {
   auto parserRequest = registerPendingParserRequest(document, uri, "emit",
                                                     snapshot->value.size(), id);
 
-  host_->run([this, storage, parserRequest, response, uri, version, format,
-              debugInfo, optimizationLevel, mlirPipeline,
+  host_->run([this, storage, parserRequest, response, uri, version, options,
               source = std::move(snapshot->value)]() mutable {
     if (parserRequestIsInvalidated(parserRequest)) {
       skipParserRequest(parserRequest);
@@ -1168,21 +1176,18 @@ void Server::operator()(EmitCodeRequest request) {
 
     if (canReuse) {
       reuseParserRequest(parserRequest);
-      sendEmittedCode(response, *parsedDocument, format, debugInfo,
-                      optimizationLevel, mlirPipeline);
+      sendEmittedCode(response, *parsedDocument, options);
       return;
     }
 
     const auto startedAt = startParserRequest(parserRequest);
 
-    host_->process(*parserRequest->document, std::move(source),
-                   [this, storage, parserRequest, response, format, debugInfo,
-                    optimizationLevel, mlirPipeline, startedAt] {
-                     if (!finishParserRequest(parserRequest, startedAt)) return;
-                     sendEmittedCode(response, *parserRequest->document, format,
-                                     debugInfo, optimizationLevel,
-                                     mlirPipeline);
-                   });
+    host_->process(
+        *parserRequest->document, std::move(source),
+        [this, storage, parserRequest, response, options, startedAt] {
+          if (!finishParserRequest(parserRequest, startedAt)) return;
+          sendEmittedCode(response, *parserRequest->document, options);
+        });
   });
 }
 

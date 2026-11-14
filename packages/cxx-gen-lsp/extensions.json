@@ -53,7 +53,16 @@
             "name": "boolean"
           },
           "optional": true,
-          "documentation": "Whether the generated code carries the source locations. Defaults to false."
+          "documentation": "Whether the generated code carries debug information: the source locations and the debug description of the program's entities. Defaults to false."
+        },
+        {
+          "name": "locations",
+          "type": {
+            "kind": "base",
+            "name": "boolean"
+          },
+          "optional": true,
+          "documentation": "Whether the generated code carries the source locations without the debug description. Implied by debugInfo. Defaults to false."
         },
         {
           "name": "optimizationLevel",

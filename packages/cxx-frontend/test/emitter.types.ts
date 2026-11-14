@@ -25,6 +25,7 @@ if (debug) {
     file: "example.cc",
     directory: "/src",
     isCxx: true,
+    appleNameTable: false,
   });
   const type = debug.basicType({
     name: "int",

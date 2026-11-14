@@ -40,6 +40,14 @@ struct EmittedKernel {
   std::string code;
 };
 
+struct EmitCodeOptions {
+  EmitCodeFormat format;
+  bool debugInfo = false;
+  bool locations = false;
+  int optimizationLevel = 0;
+  std::string mlirPipeline;
+};
+
 struct EmittedCode {
   std::string text;
   std::string error;
@@ -68,9 +76,7 @@ class ServerHost {
   [[nodiscard]] virtual auto supportsEmitCode() const -> bool;
 
   [[nodiscard]] virtual auto emitCode(CxxDocument& document,
-                                      EmitCodeFormat format, bool debugInfo,
-                                      int optimizationLevel,
-                                      const std::string& mlirPipeline)
+                                      const EmitCodeOptions& options)
       -> std::optional<EmittedCode>;
 
   void configure(CompileSettings settings);

@@ -23,50 +23,12 @@
 #include <cxx/mlir/mlir_emitter.h>
 #include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/Support/ErrorHandling.h>
-#include <llvm/TargetParser/Triple.h>
 
 #include <array>
-#include <filesystem>
 #include <limits>
 
 namespace cxx::ir {
 namespace {
-
-[[nodiscard]] static auto targetNeedsAppleNameTable(mlir::ModuleOp module)
-    -> bool {
-  auto tripleAttr = module->getAttrOfType<mlir::StringAttr>("cxx.triple");
-  if (!tripleAttr) return false;
-  llvm::Triple triple(tripleAttr.getValue());
-  return triple.isAppleMachO();
-}
-
-[[nodiscard]] static auto debugFilePath(const std::string& filename,
-                                        const std::string& compilationDirectory)
-    -> std::pair<std::string, std::string> {
-  const auto filePath = std::filesystem::path{filename};
-
-  if (!filePath.is_absolute()) return {filename, compilationDirectory};
-
-  const auto currentPath = std::filesystem::path{compilationDirectory};
-
-  auto fileIt = filePath.begin();
-  const auto fileEnd = filePath.end();
-  auto dirIt = currentPath.begin();
-  const auto dirEnd = currentPath.end();
-
-  std::filesystem::path commonPrefix;
-  for (; dirIt != dirEnd && fileIt != fileEnd && *dirIt == *fileIt;
-       ++dirIt, ++fileIt) {
-    commonPrefix /= *dirIt;
-  }
-
-  if (commonPrefix == commonPrefix.root_path()) return {filename, {}};
-
-  std::filesystem::path relativePath;
-  for (; fileIt != fileEnd; ++fileIt) relativePath /= *fileIt;
-
-  return {relativePath.string(), commonPrefix.string()};
-}
 
 [[nodiscard]] static auto subprogramOf(mlir::LLVM::DIScopeAttr scope)
     -> mlir::LLVM::DISubprogramAttr {
@@ -164,9 +126,8 @@ auto MlirDebugEmitter::compileUnit(const DebugCompileUnitInfo& info)
   auto distinct = mlir::DistinctAttr::create(builder_.getUnitAttr());
   auto language =
       info.isCxx ? llvm::dwarf::DW_LANG_C_plus_plus_20 : llvm::dwarf::DW_LANG_C;
-  auto nameTable = targetNeedsAppleNameTable(emitter_.module())
-                       ? mlir::LLVM::DINameTableKind::Apple
-                       : mlir::LLVM::DINameTableKind::Default;
+  auto nameTable = info.appleNameTable ? mlir::LLVM::DINameTableKind::Apple
+                                       : mlir::LLVM::DINameTableKind::Default;
   compileUnitAttr_ = mlir::LLVM::DICompileUnitAttr::get(
       distinct, language, getOrCreateFileAttr(info.file),
       mlir::StringAttr::get(context_, "cxx"), false,
@@ -342,8 +303,8 @@ auto MlirDebugEmitter::getOrCreateFileAttr(std::string_view filename)
     -> mlir::LLVM::DIFileAttr {
   auto key = std::string{filename};
   if (auto it = fileAttrs_.find(key); it != fileAttrs_.end()) return it->second;
-  auto [file, directory] = debugFilePath(key, compilationDirectory_);
-  auto attr = mlir::LLVM::DIFileAttr::get(context_, file, directory);
+  auto path = debugFilePath(key, compilationDirectory_);
+  auto attr = mlir::LLVM::DIFileAttr::get(context_, path.file, path.directory);
   fileAttrs_.emplace(std::move(key), attr);
   return attr;
 }

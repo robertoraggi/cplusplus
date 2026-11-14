@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <string_view>
+
 namespace cxx {
 
 struct PositionIndependence {
@@ -28,6 +30,11 @@ struct PositionIndependence {
 
   [[nodiscard]] auto isPositionIndependent() const -> bool {
     return picLevel > 0;
+  }
+
+  [[nodiscard]] auto relocationModel() const -> std::string_view {
+    if (isPositionIndependent()) return "pic";
+    return "static";
   }
 
   [[nodiscard]] auto operator==(const PositionIndependence&) const

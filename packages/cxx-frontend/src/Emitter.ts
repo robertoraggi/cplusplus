@@ -275,6 +275,7 @@ export interface ModuleInfo {
   debugCompilationDirectory: string;
   framePointer: string;
   deviceProfile: string;
+  relocationModel: string;
   picLevel: number;
   pieLevel: number;
 }
@@ -427,6 +428,7 @@ export interface DebugCompileUnitInfo {
   file: string;
   directory: string;
   isCxx: boolean;
+  appleNameTable: boolean;
 }
 
 /** @category Debug Information */

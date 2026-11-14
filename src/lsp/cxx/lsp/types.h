@@ -12759,6 +12759,14 @@ class EmitCodeParams final : public LSPObject {
     return T(value);
   }
 
+  [[nodiscard]] auto locations() const -> std::optional<bool>;
+
+  template <typename T>
+  [[nodiscard]] auto locations() -> T {
+    auto& value = (*repr_)["locations"];
+    return T(value);
+  }
+
   [[nodiscard]] auto optimizationLevel() const -> std::optional<long>;
 
   template <typename T>
@@ -12780,6 +12788,8 @@ class EmitCodeParams final : public LSPObject {
   auto format(EmitCodeFormat format) -> EmitCodeParams&;
 
   auto debugInfo(std::optional<bool> debugInfo) -> EmitCodeParams&;
+
+  auto locations(std::optional<bool> locations) -> EmitCodeParams&;
 
   auto optimizationLevel(std::optional<long> optimizationLevel)
       -> EmitCodeParams&;

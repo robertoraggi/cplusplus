@@ -389,6 +389,7 @@ export class TraceEmitter implements EmitterDelegate {
         (info.sourceFile ? ` source "${info.sourceFile}"` : "") +
         (info.targetTriple ? ` triple "${info.targetTriple}"` : "") +
         (info.dataLayout ? ` layout "${info.dataLayout}"` : "") +
+        (info.relocationModel ? ` reloc ${info.relocationModel}` : "") +
         (info.picLevel ? ` pic ${info.picLevel}` : "") +
         (info.pieLevel ? ` pie ${info.pieLevel}` : ""),
     );

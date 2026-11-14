@@ -18,11 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include <cxx/diagnostics_client.h>
 #include <cxx/mlir/device_kernel.h>
 #include <cxx/mlir/kernel_manifest.h>
 #include <cxx/mlir/passes.h>
-#include <cxx/translation_unit.h>
 #include <mlir/Dialect/GPU/IR/GPUDialect.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
@@ -48,45 +46,14 @@ namespace {
   std::unreachable();
 }
 
-[[nodiscard]] auto severityOf(mlir::DiagnosticSeverity severity) -> Severity {
-  switch (severity) {
-    case mlir::DiagnosticSeverity::Error:
-      return Severity::Error;
-    case mlir::DiagnosticSeverity::Warning:
-      return Severity::Warning;
-    case mlir::DiagnosticSeverity::Note:
-      return Severity::Note;
-    case mlir::DiagnosticSeverity::Remark:
-      return Severity::Message;
-  }
-  std::unreachable();
-}
-
-[[nodiscard]] auto isAt(const SourcePosition& position,
-                        mlir::FileLineColLoc location) -> bool {
-  if (position.line != location.getLine()) return false;
-  if (position.column != location.getColumn()) return false;
-  return position.fileName == std::string_view{location.getFilename()};
-}
-
-[[nodiscard]] auto sourceLocationOf(const TranslationUnit* unit,
-                                    mlir::FileLineColLoc location)
-    -> SourceLocation {
-  for (unsigned index = 0; index < unit->tokenCount(); ++index) {
-    auto source = unit->locationOfIndex(index);
-    if (isAt(unit->tokenStartPosition(source), location)) return source;
-  }
-  return {};
-}
-
 }  // namespace
 
 DeviceDiagnostics::DeviceDiagnostics(mlir::MLIRContext* context,
                                      llvm::raw_ostream& out,
-                                     const TranslationUnit* unit)
+                                     MLIRDiagnosticSink sink)
     : context_(context),
       out_(out),
-      unit_(unit),
+      sink_(std::move(sink)),
       printedOperations_(context->shouldPrintOpOnDiagnostic()),
       handler_(context, [this](mlir::Diagnostic& diagnostic) {
         print(diagnostic);
@@ -100,20 +67,8 @@ DeviceDiagnostics::~DeviceDiagnostics() {
   context_->printOpOnDiagnostic(printedOperations_);
 }
 
-auto DeviceDiagnostics::reportToUnit(mlir::Diagnostic& diagnostic) -> bool {
-  if (!unit_) return false;
-  auto location =
-      diagnostic.getLocation()->findInstanceOf<mlir::FileLineColLoc>();
-  if (!location) return false;
-  auto source = sourceLocationOf(unit_, location);
-  if (!source) return false;
-  unit_->report(unit_->diagnosticsClient(), source,
-                severityOf(diagnostic.getSeverity()), diagnostic.str());
-  return true;
-}
-
 void DeviceDiagnostics::print(mlir::Diagnostic& diagnostic) {
-  if (reportToUnit(diagnostic)) return;
+  if (sink_ && sink_(diagnostic)) return;
   if (auto location =
           diagnostic.getLocation()->findInstanceOf<mlir::FileLineColLoc>()) {
     out_ << location.getFilename().getValue() << ':' << location.getLine()

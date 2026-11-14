@@ -23,14 +23,45 @@
 #include <cxx/codegen/debug_emitter.h>
 #include <cxx/control.h>
 #include <cxx/decl.h>
+#include <cxx/memory_layout.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
 #include <cxx/translation_unit.h>
+#include <cxx/triple.h>
 #include <cxx/types.h>
 
+#include <filesystem>
 #include <format>
 
 namespace cxx {
+
+auto ir::debugFilePath(std::string_view file,
+                       std::string_view compilationDirectory) -> DebugFilePath {
+  const auto filePath = std::filesystem::path{file};
+
+  if (!filePath.is_absolute())
+    return {std::string{file}, std::string{compilationDirectory}};
+
+  const auto currentPath = std::filesystem::path{compilationDirectory};
+
+  auto fileIt = filePath.begin();
+  const auto fileEnd = filePath.end();
+  auto dirIt = currentPath.begin();
+  const auto dirEnd = currentPath.end();
+
+  std::filesystem::path commonPrefix;
+  for (; dirIt != dirEnd && fileIt != fileEnd && *dirIt == *fileIt;
+       ++dirIt, ++fileIt) {
+    commonPrefix /= *dirIt;
+  }
+
+  if (commonPrefix == commonPrefix.root_path()) return {std::string{file}, {}};
+
+  std::filesystem::path relativePath;
+  for (; fileIt != fileEnd; ++fileIt) relativePath /= *fileIt;
+
+  return {relativePath.string(), commonPrefix.string()};
+}
 
 auto Codegen::debugEmitter() -> ir::DebugEmitter* {
   if (debugEmitter_) return debugEmitter_;
@@ -39,7 +70,9 @@ auto Codegen::debugEmitter() -> ir::DebugEmitter* {
   debugCompileUnit_ = debugEmitter_->compileUnit(
       {.file = unit_->fileName(),
        .directory = options_.debugCompilationDirectory,
-       .isCxx = unit_->language() == LanguageKind::kCXX});
+       .isCxx = unit_->language() == LanguageKind::kCXX,
+       .appleNameTable =
+           Triple{unit_->control()->memoryLayout()->triple()}.isAppleMachO()});
   return debugEmitter_;
 }
 

@@ -1,5 +1,6 @@
 add_library(cxx-mlir-transforms cxx_to_llvm.cc cxx_to_scf.cc cxx_to_ptr.cc cxx_to_memref.cc
-    cxx_to_func.cc cxx_to_math.cc bitfield_accesses.cc)
+    cxx_to_func.cc cxx_to_math.cc bitfield_accesses.cc pipeline_passes.cc
+    symbol_binding.cc module_data_layout.cc)
 
 llvm_update_compile_flags(cxx-mlir-transforms)
 
@@ -31,6 +32,7 @@ mlir_target_link_libraries(cxx-mlir-transforms PUBLIC
     MLIRPtrToLLVM
     MLIRSCFToControlFlow
     MLIRTargetLLVMIRExport
+    MLIRTargetLLVMIRImport
     MLIRTransforms
     MLIRUBToLLVM
     MLIRVectorToLLVM

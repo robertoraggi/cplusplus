@@ -20,13 +20,6 @@
 
 #include "frontend.h"
 
-#ifdef CXX_WITH_SPIRV
-#include <cxx/mlir/device_kernel.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/ToolOutputFile.h>
-
-#endif
-
 #include <cxx/ast.h>
 #include <cxx/ast_pretty_printer.h>
 #include <cxx/ast_printer.h>
@@ -55,19 +48,16 @@
 #include <system_error>
 
 #ifdef CXX_WITH_MLIR
+#include <cxx/mlir/backend.h>
 #include <cxx/mlir/cxx_dialect.h>
 #include <cxx/mlir/cxx_dialect_conversions.h>
 #include <cxx/mlir/mlir_emitter.h>
 #include <cxx/mlir/mlir_source_contexts.h>
 #include <cxx/mlir/mlir_source_region.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/Module.h>
-#include <llvm/MC/TargetRegistry.h>
-#include <llvm/Pass.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
-#include <mlir/Parser/Parser.h>
+#include <cxx/mlir/passes.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/ToolOutputFile.h>
+#include <llvm/Support/raw_ostream.h>
 #endif
 
 #include <cstdio>
@@ -82,6 +72,53 @@
 #include "verify_diagnostics_client.h"
 
 namespace cxx {
+
+namespace {
+
+#ifdef CXX_WITH_MLIR
+
+[[nodiscard]] auto backendRunsAlwaysInliner() -> bool {
+  return llvmPipelineRunsAlwaysInliner();
+}
+
+[[nodiscard]] auto severityOf(mlir::DiagnosticSeverity severity) -> Severity {
+  switch (severity) {
+    case mlir::DiagnosticSeverity::Error:
+      return Severity::Error;
+    case mlir::DiagnosticSeverity::Warning:
+      return Severity::Warning;
+    case mlir::DiagnosticSeverity::Note:
+      return Severity::Note;
+    case mlir::DiagnosticSeverity::Remark:
+      return Severity::Message;
+  }
+  std::unreachable();
+}
+
+[[nodiscard]] auto startsAt(const SourcePosition& position,
+                            mlir::FileLineColLoc location) -> bool {
+  if (position.line != location.getLine()) return false;
+  if (position.column != location.getColumn()) return false;
+  return position.fileName == std::string_view{location.getFilename()};
+}
+
+[[nodiscard]] auto tokenAt(const TranslationUnit& unit,
+                           mlir::FileLineColLoc location) -> SourceLocation {
+  for (unsigned index = 0; index < unit.tokenCount(); ++index) {
+    auto source = unit.locationOfIndex(index);
+    if (startsAt(unit.tokenStartPosition(source), location)) return source;
+  }
+  return {};
+}
+
+#else
+
+[[nodiscard]] auto backendRunsAlwaysInliner() -> bool { return false; }
+
+#endif
+
+}  // namespace
+
 struct Frontend::Private {
   Frontend& frontend;
   const CLI& cli;
@@ -95,9 +132,6 @@ struct Frontend::Private {
   std::unique_ptr<mlir::MLIRContext> context_;
   mlir::ModuleOp module_;
   mlir::OwningOpRef<mlir::ModuleOp> parsedModule_;
-  std::unique_ptr<llvm::LLVMContext> llvmContext_;
-  std::unique_ptr<llvm::Module> llvmModule_;
-  std::unique_ptr<llvm::TargetMachine> targetMachine_;
 #endif
   bool shouldExit_ = false;
   std::optional<PreprocessorSnapshot> preprocessorSnapshot_;
@@ -119,11 +153,6 @@ struct Frontend::Private {
   [[nodiscard]] auto needsIR() const -> bool {
     return cli.opt_emit_cxx_ir || cli.opt_emit_mlir || cli.opt_emit_llvm ||
            cli.opt_emit_spirv || cli.opt_emit_wgsl || cli.opt_S || cli.opt_c ||
-           objectOutput_.has_value();
-  }
-
-  [[nodiscard]] auto needsLLVMIR() const -> bool {
-    return cli.opt_emit_llvm || cli.opt_S || cli.opt_c ||
            objectOutput_.has_value();
   }
 
@@ -149,25 +178,27 @@ struct Frontend::Private {
   void generateIR();
   void generateCxxIR(const std::function<void(const ir::CxxIREmitter&,
                                               ir::ModuleRef)>& action);
-  void runIRPassPipeline();
+  [[nodiscard]] auto codegenOptions() const -> Codegen::Options;
   [[nodiscard]] auto targetsDevice() const -> bool;
-  void emitKernelArtifact();
-  void emitKernelIR();
-  void emitCxxIR();
-  void lowerIR();
-  void emitMLIR();
-  void emitLLVMIR();
-  void emitCode();
+  void compileIR();
 
 #ifdef CXX_WITH_MLIR
-  [[nodiscard]] auto llvmOptimizationLevel() const -> llvm::OptimizationLevel;
-  [[nodiscard]] auto targetMachine() -> llvm::TargetMachine*;
-  [[nodiscard]] auto relocationModel() const
-      -> std::optional<llvm::Reloc::Model>;
+  [[nodiscard]] auto reportConflictingOutputs() -> bool;
+  [[nodiscard]] auto selectBackendOutput() const -> BackendOutput;
+  [[nodiscard]] auto isKernelArtifact(BackendOutput output) const -> bool;
+  [[nodiscard]] static auto outputExtension(BackendOutput output)
+      -> std::string;
+  [[nodiscard]] auto kernelOutputPath(BackendOutput output) const
+      -> std::string;
+  [[nodiscard]] auto hasValidKernelOutputPaths(BackendOutput output) -> bool;
+  void writeKernelArtifact(BackendOutput output,
+                           const BackendArtifact& artifact);
+  void writeObjectFile(const std::string& path, const std::string& code);
+  [[nodiscard]] auto reportBackendDiagnostic(mlir::Diagnostic& diagnostic)
+      -> bool;
 #endif
 
   [[nodiscard]] auto debugCompilationDirectory() const -> std::string;
-  void emitObjectFile();
   void printPreprocessedText();
   void writeDepFile();
   void dumpMacros(std::format_context::iterator& out);
@@ -286,14 +317,7 @@ Frontend::Private::Private(Frontend& frontend, const CLI& cli,
       [this]() { toolchain_->applyEntryPointAbi(unit_.get()); });
   actions_.emplace_back([this]() { generateIR(); });
   actions_.emplace_back([this]() { exitIfErrors(); });
-  actions_.emplace_back([this]() { runIRPassPipeline(); });
-  actions_.emplace_back([this]() { emitKernelArtifact(); });
-  actions_.emplace_back([this]() { emitKernelIR(); });
-  actions_.emplace_back([this]() { emitCxxIR(); });
-  actions_.emplace_back([this]() { lowerIR(); });
-  actions_.emplace_back([this]() { emitMLIR(); });
-  actions_.emplace_back([this]() { emitLLVMIR(); });
-  actions_.emplace_back([this]() { emitCode(); });
+  actions_.emplace_back([this]() { compileIR(); });
 }
 
 Frontend::Private::~Private() {}
@@ -927,7 +951,7 @@ void Frontend::Private::generateCxxIR(
     const std::function<void(const ir::CxxIREmitter&, ir::ModuleRef)>& action) {
   TimeTrace::Scope trace(unit_->timeTrace(), "Generate CXXIR");
   ir::CxxIREmitter emitter{unit_.get()};
-  Codegen codegen{emitter, unit_.get(), {.debugInfo = false}};
+  Codegen codegen{emitter, unit_.get(), codegenOptions()};
   auto result = codegen(unit_->ast());
   if (diagnosticsClient_->hasErrors()) {
     fail();
@@ -935,6 +959,12 @@ void Frontend::Private::generateCxxIR(
   }
   if (!result.module) return;
   action(emitter, result.module);
+}
+
+auto Frontend::Private::codegenOptions() const -> Codegen::Options {
+  return {.debugInfo = cli.opt_g,
+          .debugCompilationDirectory = debugCompilationDirectory(),
+          .runsAlwaysInliner = backendRunsAlwaysInliner()};
 }
 
 void Frontend::Private::generateIR() {
@@ -971,15 +1001,13 @@ void Frontend::Private::generateIR() {
     });
     if (!text) return;
     TimeTrace::Scope trace(unit_->timeTrace(), "Read CXXIR");
-    mlir::ParserConfig config(context_.get(), cli.irVerificationEnabled());
-    parsedModule_ = mlir::parseSourceString<mlir::ModuleOp>(*text, config);
+    parsedModule_ = parseCxxIR(*context_, *text, cli.irVerificationEnabled());
     if (!parsedModule_) {
       std::print(stderr, "{}", "cxx: failed to read experimental CXX IR\n");
       fail();
       return;
     }
     module_ = parsedModule_.get();
-    initializeCxxModuleDataLayout(module_);
     return;
   }
 
@@ -1002,13 +1030,9 @@ void Frontend::Private::generateIR() {
     options.mode = ir::SourceContextOptions::Mode::Structured;
   }
   auto observer = enabled ? emitter.enableSourceContexts(options) : nullptr;
-  auto codegen =
-      cxx::Codegen{emitter,
-                   unit_.get(),
-                   {.debugInfo = cli.opt_g,
-                    .debugCompilationDirectory = debugCompilationDirectory(),
-                    .sourceObserver = observer,
-                    .runsAlwaysInliner = llvmPipelineRunsAlwaysInliner()}};
+  auto codegenOptions = this->codegenOptions();
+  codegenOptions.sourceObserver = observer;
+  auto codegen = cxx::Codegen{emitter, unit_.get(), std::move(codegenOptions)};
 
   auto ir = codegen(unit_->ast());
   module_ = emitter.module(ir.module);
@@ -1022,226 +1046,9 @@ void Frontend::Private::generateIR() {
 #endif
 }
 
-void Frontend::Private::runIRPassPipeline() {
-#ifdef CXX_WITH_MLIR
-  if (!module_) return;
-  TimeTrace::Scope trace(unit_->timeTrace(), "IR pipeline");
-
-  auto pipeline = cli.getSingle("-mlir-pass-pipeline").value_or("");
-  if (succeeded(
-          runMLIRPassPipeline(module_, pipeline, cli.irVerificationEnabled())))
-    return;
-
-  std::print(stderr, "{}\n", "cxx: failed to run MLIR pass pipeline");
-  fail();
-  module_ = nullptr;
-#endif
-}
-
 auto Frontend::Private::targetsDevice() const -> bool {
   return toolchain_ &&
          toolchain_->memoryLayout()->deviceProfile() != DeviceProfile::kNone;
-}
-
-void Frontend::Private::emitKernelArtifact() {
-  const bool deviceObject = cli.opt_c && targetsDevice();
-  if (!cli.opt_emit_spirv && !cli.opt_emit_wgsl && !deviceObject) return;
-  shouldExit_ = true;
-#ifdef CXX_WITH_SPIRV
-  if (!module_) return;
-  const bool wgsl = cli.opt_emit_wgsl;
-  std::vector<std::string_view> selected;
-  if (cli.opt_emit_spirv) selected.push_back("-emit-spirv");
-  if (cli.opt_emit_wgsl) selected.push_back("-emit-wgsl");
-  if (deviceObject) selected.push_back("-c");
-  if (selected.size() > 1) {
-    std::print(stderr, "{}{}{}{}{}", "cxx: ", selected[0], " and ", selected[1],
-               " are mutually exclusive\n");
-    fail();
-    return;
-  }
-  auto kernel = cli.getSingle("--kernel").value_or("");
-  auto manifestPath = cli.getSingle("--resource-manifest");
-  if (manifestPath && (manifestPath->empty() || *manifestPath == "-")) {
-    std::print(stderr, "{}", "cxx: --resource-manifest requires a file path\n");
-    fail();
-    return;
-  }
-  const auto extension = wgsl ? "wgsl" : deviceObject ? "o" : "spv";
-  auto outputPath = cli.getSingle("-o").value_or(
-      fs::path(fileName_).filename().replace_extension(extension).string());
-  if (manifestPath &&
-      fs::file_identity(outputPath) == fs::file_identity(*manifestPath)) {
-    std::print(stderr, "{}",
-               "cxx: kernel artifact and resource manifest need distinct "
-               "paths\n");
-    fail();
-    return;
-  }
-  DeviceDiagnostics diagnostics(module_.getContext(), llvm::errs(),
-                                unit_.get());
-  auto artifact = wgsl ? compileWGSLModule(module_, kernel)
-                       : compileSPIRVModule(module_, kernel);
-  if (failed(artifact)) {
-    fail();
-    return;
-  }
-  std::error_code error;
-  llvm::ToolOutputFile output(
-      outputPath, error,
-      wgsl ? llvm::sys::fs::OF_Text : llvm::sys::fs::OF_None);
-  if (error) {
-    std::print(stderr, "{}{}{}{}{}", "cxx: ", error.message(), ": ", outputPath,
-               '\n');
-    fail();
-    return;
-  }
-  std::optional<llvm::ToolOutputFile> manifest;
-  if (manifestPath) {
-    manifest.emplace(*manifestPath, error, llvm::sys::fs::OF_Text);
-    if (error) {
-      std::print(stderr, "{}{}{}{}{}", "cxx: ", error.message(), ": ",
-                 *manifestPath, '\n');
-      fail();
-      return;
-    }
-    manifest->os() << artifact->manifest;
-    manifest->os().flush();
-  }
-  output.os().write(reinterpret_cast<const char*>(artifact->bytes.data()),
-                    artifact->bytes.size());
-  output.os().flush();
-  if (output.os().has_error() || (manifest && manifest->os().has_error())) {
-    std::print(stderr, "{}", "cxx: cannot write kernel outputs\n");
-    fail();
-    return;
-  }
-  output.keep();
-  if (manifest) manifest->keep();
-#else
-  std::print(stderr, "{}", "cxx: this build has no device kernel support\n");
-  fail();
-#endif
-}
-
-void Frontend::Private::emitKernelIR() {
-  const bool deviceMLIR = cli.opt_emit_mlir && targetsDevice();
-  const bool deviceAssembly = cli.opt_S && targetsDevice();
-  if (!deviceMLIR && !deviceAssembly) return;
-  shouldExit_ = true;
-#ifdef CXX_WITH_SPIRV
-  if (!module_) return;
-  if (deviceMLIR && deviceAssembly) {
-    std::print(stderr, "{}", "cxx: -emit-mlir and -S are mutually exclusive\n");
-    fail();
-    return;
-  }
-  const auto stage = deviceMLIR ? KernelStage::kGPU : KernelStage::kSPIRV;
-  auto selected = cli.getSingle("--kernel").value_or("");
-  std::string text;
-  llvm::raw_string_ostream out(text);
-  DeviceDiagnostics diagnostics(module_.getContext(), llvm::errs(),
-                                unit_.get());
-  if (failed(printDeviceModule(module_, selected, stage, out))) {
-    fail();
-    return;
-  }
-  withRawOutputStream(deviceAssembly ? "s" : "mlir",
-                      [&](llvm::raw_pwrite_stream& output) { output << text; });
-#else
-  std::print(stderr, "{}", "cxx: this build has no device kernel support\n");
-  fail();
-#endif
-}
-
-void Frontend::Private::emitCxxIR() {
-  if (!cli.opt_emit_cxx_ir) return;
-
-#ifdef CXX_WITH_MLIR
-  if (!module_) return;
-
-  TimeTrace::Scope trace(unit_->timeTrace(), "Print CXX IR");
-  shouldExit_ = true;
-
-  mlir::OpPrintingFlags flags;
-  if (cli.opt_g) {
-    flags.enableDebugInfo(true);
-  }
-
-  withRawOutputStream(
-      "mlir", [&](llvm::raw_ostream& out) { module_->print(out, flags); });
-
-#endif
-}
-
-void Frontend::Private::lowerIR() {
-#ifdef CXX_WITH_MLIR
-  if (!module_) return;
-  if (cli.opt_fsyntax_only) return;
-
-  auto needsLowering = cli.opt_emit_mlir || needsLLVMIR();
-
-  if (!needsLowering) return;
-
-  TimeTrace::Scope trace(unit_->timeTrace(), "Lower IR");
-  if (succeeded(lowerToMLIR(module_, {},
-                            {.verifyIR = cli.irVerificationEnabled(),
-                             .timeTrace = unit_->timeTrace()}))) {
-    return;
-  }
-
-  std::print(stderr, "{}\n", "cxx: failed to lower C++ AST to MLIR");
-  fail();
-  module_ = nullptr;
-#endif
-}
-
-void Frontend::Private::emitMLIR() {
-  if (!cli.opt_emit_mlir) return;
-
-#ifdef CXX_WITH_MLIR
-  if (!module_) return;
-
-  TimeTrace::Scope trace(unit_->timeTrace(), "Print MLIR");
-  shouldExit_ = true;
-
-  mlir::OpPrintingFlags flags;
-  if (cli.opt_g) {
-    flags.enableDebugInfo(true);
-  }
-
-  withRawOutputStream(
-      "mlir", [&](llvm::raw_ostream& out) { module_->print(out, flags); });
-
-#endif
-}
-
-void Frontend::Private::emitLLVMIR() {
-  if (!needsLLVMIR()) return;
-
-#ifdef CXX_WITH_MLIR
-  if (!module_) return;
-
-  llvmContext_ = std::make_unique<llvm::LLVMContext>();
-  llvmModule_ =
-      exportToLLVMIR(module_, *llvmContext_, cli.irVerificationEnabled());
-
-  if (!llvmModule_) {
-    std::print(stderr, "{}\n", "cxx: failed to lower MLIR module to LLVM IR");
-    fail();
-    return;
-  }
-
-  optimizeLLVMIR(*llvmModule_, targetMachine(), llvmOptimizationLevel());
-
-  if (!cli.opt_emit_llvm) return;
-
-  shouldExit_ = true;
-
-  withRawOutputStream(
-      ".ll", [&](llvm::raw_ostream& out) { llvmModule_->print(out, nullptr); });
-
-#endif
 }
 
 auto Frontend::Private::debugCompilationDirectory() const -> std::string {
@@ -1249,129 +1056,215 @@ auto Frontend::Private::debugCompilationDirectory() const -> std::string {
   return fs::working_directory().string();
 }
 
-#ifdef CXX_WITH_MLIR
-auto Frontend::Private::llvmOptimizationLevel() const
-    -> llvm::OptimizationLevel {
-  switch (cli.optimizationLevel()) {
-    case 1:
-      return llvm::OptimizationLevel::O1;
-    case 2:
-      return llvm::OptimizationLevel::O2;
-    case 3:
-      return llvm::OptimizationLevel::O3;
-    default:
-      return llvm::OptimizationLevel::O0;
-  }
+#ifndef CXX_WITH_MLIR
+
+void Frontend::Private::compileIR() {
+  if (!needsIR()) return;
+  std::print(stderr, "{}", "cxx: code generation requires a build with MLIR\n");
+  fail();
 }
 
-auto Frontend::Private::relocationModel() const
-    -> std::optional<llvm::Reloc::Model> {
-  if (!toolchain_->supportsPositionIndependence()) return std::nullopt;
-  if (toolchain_->memoryLayout()
-          ->positionIndependence()
-          .isPositionIndependent())
-    return llvm::Reloc::PIC_;
-  return llvm::Reloc::Static;
-}
+#else
 
-auto Frontend::Private::targetMachine() -> llvm::TargetMachine* {
-  if (targetMachine_) return targetMachine_.get();
+void Frontend::Private::compileIR() {
+  if (!needsIR()) return;
+  if (!module_) return;
+  if (reportConflictingOutputs()) return;
 
-  llvm::InitializeAllAsmPrinters();
+  const auto output = selectBackendOutput();
+  if (isKernelArtifact(output) && !hasValidKernelOutputPaths(output)) return;
 
-  auto triple = llvm::Triple{toolchain_->memoryLayout()->triple()};
+  const auto passPipeline = cli.getSingle("-mlir-pass-pipeline").value_or("");
+  const auto kernel = cli.getSingle("--kernel").value_or("");
 
-  std::string error;
-  auto target = llvm::TargetRegistry::lookupTarget(triple, error);
+  registerPipelinePasses();
 
-  if (!target) {
-    std::print(stderr, "cxx: cannot find target for triple '{}': {}\n",
-               triple.getTriple(), error);
-    return nullptr;
-  }
+  auto artifact =
+      compileModule(module_,
+                    {.output = output,
+                     .optimizationLevel = cli.optimizationLevel(),
+                     .debugInfo = cli.opt_g,
+                     .verifyIR = cli.irVerificationEnabled(),
+                     .passPipeline = passPipeline,
+                     .kernel = kernel,
+                     .timeTrace = unit_->timeTrace(),
+                     .diagnosticSink =
+                         [this](mlir::Diagnostic& diagnostic) {
+                           return reportBackendDiagnostic(diagnostic);
+                         }},
+                    llvm::errs());
 
-  const auto codeGenOptLevel = [&] {
-    switch (cli.optimizationLevel()) {
-      case 1:
-        return llvm::CodeGenOptLevel::Less;
-      case 2:
-        return llvm::CodeGenOptLevel::Default;
-      case 3:
-        return llvm::CodeGenOptLevel::Aggressive;
-      default:
-        return llvm::CodeGenOptLevel::None;
-    }
-  }();
-
-  llvm::TargetOptions opt;
-  opt.UseInitArray = true;
-
-  targetMachine_ =
-      std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
-          llvm::Triple{triple}, "generic", "", opt, relocationModel(),
-          std::nullopt, codeGenOptLevel));
-
-  if (!targetMachine_) {
-    std::print(stderr, "cxx: cannot create target machine for '{}': {}\n",
-               triple.getTriple(), error);
-  }
-
-  return targetMachine_.get();
-}
-#endif
-
-void Frontend::Private::emitCode() {
-  if (!cli.opt_S && !cli.opt_c && !objectOutput_.has_value()) return;
-#ifdef CXX_WITH_MLIR
-  if (!llvmModule_) return;
-
-  auto targetMachine = this->targetMachine();
-
-  if (!targetMachine) {
+  if (!artifact) {
+    std::print(stderr, "cxx: {}\n", artifact.error());
     fail();
     return;
   }
 
-  const bool emitAssembly = cli.opt_S && !objectOutput_.has_value();
-
-  auto emit = [&](llvm::raw_pwrite_stream& out) {
-    llvm::legacy::PassManager pm;
-
-    llvm::CodeGenFileType fileType = emitAssembly
-                                         ? llvm::CodeGenFileType::AssemblyFile
-                                         : llvm::CodeGenFileType::ObjectFile;
-
-    if (targetMachine->addPassesToEmitFile(pm, out, nullptr, fileType)) {
-      std::print(stderr, "{}", "cxx: target machine cannot emit assembly\n");
-      fail();
-      return;
-    }
-
-    pm.run(*llvmModule_);
-    if (llvmContext_->getDiagHandlerPtr()->HasErrors) fail();
-    out.flush();
-  };
-
-  if (objectOutput_.has_value()) {
-    std::error_code ec;
-    llvm::raw_fd_ostream out(*objectOutput_, ec);
-    if (ec) {
-      std::print(stderr, "cxx: cannot open '{}': {}\n", *objectOutput_,
-                 ec.message());
-      fail();
-      return;
-    }
-    emit(out);
+  if (isKernelArtifact(output)) {
+    writeKernelArtifact(output, *artifact);
     return;
   }
 
-  withRawOutputStream(emitAssembly ? ".s" : ".o", emit);
-#else
-  std::print(stderr, "{}",
-             "cxx: object and assembly output require a build with MLIR\n");
-  fail();
-#endif
+  if (output == BackendOutput::kObject && objectOutput_) {
+    writeObjectFile(*objectOutput_, artifact->code);
+    return;
+  }
+
+  withRawOutputStream(
+      outputExtension(output),
+      [&](llvm::raw_pwrite_stream& out) { out << artifact->code; });
 }
+
+auto Frontend::Private::reportConflictingOutputs() -> bool {
+  std::vector<std::string_view> kernelOutputs;
+  if (cli.opt_emit_spirv) kernelOutputs.push_back("-emit-spirv");
+  if (cli.opt_emit_wgsl) kernelOutputs.push_back("-emit-wgsl");
+  if (cli.opt_c && targetsDevice()) kernelOutputs.push_back("-c");
+  if (kernelOutputs.size() > 1) {
+    std::print(stderr, "cxx: {} and {} are mutually exclusive\n",
+               kernelOutputs[0], kernelOutputs[1]);
+    fail();
+    return true;
+  }
+  if (!kernelOutputs.empty()) return false;
+  if (!targetsDevice() || !cli.opt_emit_mlir || !cli.opt_S) return false;
+  std::print(stderr, "{}", "cxx: -emit-mlir and -S are mutually exclusive\n");
+  fail();
+  return true;
+}
+
+auto Frontend::Private::selectBackendOutput() const -> BackendOutput {
+  const bool device = targetsDevice();
+  if (cli.opt_emit_spirv) return BackendOutput::kSPIRV;
+  if (cli.opt_emit_wgsl) return BackendOutput::kWGSL;
+  if (device && cli.opt_c) return BackendOutput::kObject;
+  if (device && cli.opt_emit_mlir) return BackendOutput::kMLIR;
+  if (device && cli.opt_S) return BackendOutput::kAssembly;
+  if (cli.opt_emit_cxx_ir) return BackendOutput::kCxxIR;
+  if (cli.opt_emit_mlir) return BackendOutput::kMLIR;
+  if (cli.opt_emit_llvm) return BackendOutput::kLLVMIR;
+  if (cli.opt_S && !objectOutput_) return BackendOutput::kAssembly;
+  return BackendOutput::kObject;
+}
+
+auto Frontend::Private::isKernelArtifact(BackendOutput output) const -> bool {
+  if (output == BackendOutput::kSPIRV || output == BackendOutput::kWGSL)
+    return true;
+  return output == BackendOutput::kObject && targetsDevice();
+}
+
+auto Frontend::Private::outputExtension(BackendOutput output) -> std::string {
+  switch (output) {
+    case BackendOutput::kCxxIR:
+    case BackendOutput::kMLIR:
+      return "mlir";
+    case BackendOutput::kLLVMIR:
+      return "ll";
+    case BackendOutput::kAssembly:
+      return "s";
+    case BackendOutput::kObject:
+      return "o";
+    case BackendOutput::kSPIRV:
+      return "spv";
+    case BackendOutput::kWGSL:
+      return "wgsl";
+  }
+  std::unreachable();
+}
+
+auto Frontend::Private::kernelOutputPath(BackendOutput output) const
+    -> std::string {
+  return cli.getSingle("-o").value_or(
+      fs::path(fileName_)
+          .filename()
+          .replace_extension(outputExtension(output))
+          .string());
+}
+
+auto Frontend::Private::hasValidKernelOutputPaths(BackendOutput output)
+    -> bool {
+  auto manifestPath = cli.getSingle("--resource-manifest");
+  if (!manifestPath) return true;
+  if (manifestPath->empty() || *manifestPath == "-") {
+    std::print(stderr, "{}", "cxx: --resource-manifest requires a file path\n");
+    fail();
+    return false;
+  }
+  if (fs::file_identity(kernelOutputPath(output)) !=
+      fs::file_identity(*manifestPath))
+    return true;
+  std::print(stderr, "{}",
+             "cxx: kernel artifact and resource manifest need distinct "
+             "paths\n");
+  fail();
+  return false;
+}
+
+void Frontend::Private::writeKernelArtifact(BackendOutput output,
+                                            const BackendArtifact& artifact) {
+  const auto outputPath = kernelOutputPath(output);
+  std::error_code error;
+  llvm::ToolOutputFile file(outputPath, error,
+                            output == BackendOutput::kWGSL
+                                ? llvm::sys::fs::OF_Text
+                                : llvm::sys::fs::OF_None);
+  if (error) {
+    std::print(stderr, "cxx: {}: {}\n", error.message(), outputPath);
+    fail();
+    return;
+  }
+  std::optional<llvm::ToolOutputFile> manifest;
+  if (auto manifestPath = cli.getSingle("--resource-manifest")) {
+    manifest.emplace(*manifestPath, error, llvm::sys::fs::OF_Text);
+    if (error) {
+      std::print(stderr, "cxx: {}: {}\n", error.message(), *manifestPath);
+      fail();
+      return;
+    }
+    manifest->os() << artifact.manifest;
+    manifest->os().flush();
+  }
+  file.os() << artifact.code;
+  file.os().flush();
+  if (file.os().has_error() || (manifest && manifest->os().has_error())) {
+    std::print(stderr, "{}", "cxx: cannot write kernel outputs\n");
+    fail();
+    return;
+  }
+  file.keep();
+  if (manifest) manifest->keep();
+}
+
+void Frontend::Private::writeObjectFile(const std::string& path,
+                                        const std::string& code) {
+  std::error_code error;
+  llvm::raw_fd_ostream out(path, error);
+  if (error) {
+    std::print(stderr, "cxx: cannot open '{}': {}\n", path, error.message());
+    fail();
+    return;
+  }
+  out << code;
+  out.flush();
+  if (!out.has_error()) return;
+  std::print(stderr, "cxx: failed to write output file '{}'\n", path);
+  out.clear_error();
+  fail();
+}
+
+auto Frontend::Private::reportBackendDiagnostic(mlir::Diagnostic& diagnostic)
+    -> bool {
+  auto location =
+      diagnostic.getLocation()->findInstanceOf<mlir::FileLineColLoc>();
+  if (!location) return false;
+  auto source = tokenAt(*unit_, location);
+  if (!source) return false;
+  unit_->report(unit_->diagnosticsClient(), source,
+                severityOf(diagnostic.getSeverity()), diagnostic.str());
+  return true;
+}
+
+#endif
 
 auto Frontend::Private::readAll(const std::string& fileName)
     -> std::optional<std::string> {

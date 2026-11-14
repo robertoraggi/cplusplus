@@ -137,8 +137,7 @@ class MemoryLayout {
       -> std::optional<FloatingPointFormat>;
 
   [[nodiscard]] auto triple() const -> const std::string&;
-  [[nodiscard]] auto targetDataLayout() const
-      -> std::optional<std::string_view>;
+  [[nodiscard]] auto targetDataLayout() const -> std::string;
   [[nodiscard]] auto arch() const -> std::string_view;
   [[nodiscard]] auto targetArch() const -> TripleArch;
   [[nodiscard]] auto isAArch64() const -> bool;
@@ -172,7 +171,8 @@ class MemoryLayout {
   [[nodiscard]] auto framePointerKind() const -> FramePointerKind;
   void setTriple(std::string triple);
 
-  [[nodiscard]] auto positionIndependence() const -> PositionIndependence {
+  [[nodiscard]] auto positionIndependence() const
+      -> std::optional<PositionIndependence> {
     return positionIndependence_;
   }
 
@@ -192,7 +192,7 @@ class MemoryLayout {
   std::size_t defaultNewAlignment_ = 16;
   std::string triple_;
   DeviceProfile deviceProfile_ = DeviceProfile::kNone;
-  PositionIndependence positionIndependence_;
+  std::optional<PositionIndependence> positionIndependence_;
 };
 
 #undef DECLARE_METHOD

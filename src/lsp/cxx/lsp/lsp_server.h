@@ -43,6 +43,7 @@ namespace cxx::lsp {
 
 class CxxDocument;
 class ServerHost;
+struct EmitCodeOptions;
 
 class Server {
  public:
@@ -120,8 +121,7 @@ class Server {
   void sendNullResult(std::optional<std::variant<long, std::string>> id);
 
   void sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
-                       EmitCodeFormat format, bool debugInfo,
-                       int optimizationLevel, const std::string& mlirPipeline);
+                       const EmitCodeOptions& options);
 
   void logTrace(std::string message, std::optional<std::string> verbose = {});
 

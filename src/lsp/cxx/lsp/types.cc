@@ -23761,6 +23761,16 @@ auto EmitCodeParams::debugInfo() const -> std::optional<bool> {
   return value.get<bool>();
 }
 
+auto EmitCodeParams::locations() const -> std::optional<bool> {
+  if (!repr_->contains("locations")) return std::nullopt;
+
+  auto& value = (*repr_)["locations"];
+
+  if (value.is_null()) value = false;
+  assert(value.is_boolean());
+  return value.get<bool>();
+}
+
 auto EmitCodeParams::optimizationLevel() const -> std::optional<long> {
   if (!repr_->contains("optimizationLevel")) return std::nullopt;
 
@@ -23799,6 +23809,16 @@ auto EmitCodeParams::debugInfo(std::optional<bool> debugInfo)
     return *this;
   }
   (*repr_)["debugInfo"] = std::move(debugInfo.value());
+  return *this;
+}
+
+auto EmitCodeParams::locations(std::optional<bool> locations)
+    -> EmitCodeParams& {
+  if (!locations.has_value()) {
+    repr_->erase("locations");
+    return *this;
+  }
+  (*repr_)["locations"] = std::move(locations.value());
   return *this;
 }
 

@@ -19,17 +19,22 @@
 // SOFTWARE.
 
 #include <cxx/cxxir/cxxir_emitter.h>
+#include <cxx/private/printing-priv.h>
 #include <cxx/translation_unit.h>
 
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cctype>
+#include <charconv>
 #include <cmath>
 #include <format>
+#include <functional>
 #include <initializer_list>
 #include <iterator>
 #include <list>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -244,9 +249,21 @@ class Attributes {
     return properties.empty() ? std::string{} : " <{" + properties + "}>";
   }
 
+  [[nodiscard]] auto sortedEntries() const -> std::string {
+    auto entries = entries_;
+    std::ranges::stable_sort(entries, {}, &Entry::name);
+    return join(entries, [](const Entry& entry) {
+      auto name = isBareIdentifier(entry.name) ? std::string(entry.name)
+                                               : quote(entry.name);
+      return name + " = " + std::string(entry.value);
+    });
+  }
+
   [[nodiscard]] auto dictionary(bool keyword = false) const -> std::string {
+    auto entries = entries_;
+    std::ranges::stable_sort(entries, {}, &Entry::name);
     std::string text;
-    for (const auto& entry : entries_) {
+    for (const auto& entry : entries) {
       if (entry.name.empty()) continue;
       if (!text.empty()) text += ", ";
       text += isBareIdentifier(entry.name) ? std::string(entry.name)
@@ -274,6 +291,10 @@ class Attributes {
     }
   }
 };
+
+[[nodiscard]] auto dictionaryAttr(std::string_view entries) -> std::string {
+  return "{" + Attributes(entries).sortedEntries() + "}";
+}
 
 [[nodiscard]] auto dictionaryText(std::string_view text) -> std::string {
   text = trim(text);
@@ -334,8 +355,8 @@ class Attributes {
 }  // namespace
 
 struct CxxIREmitter::Private {
-  Private(CxxIREmitter& emitter, TranslationUnit* unit)
-      : emitter(emitter), unit(unit) {}
+  Private(CxxIREmitter& emitter, TranslationUnit* unit);
+  ~Private();
 
   struct Type {
     TypeKind kind = TypeKind::Other;
@@ -355,11 +376,14 @@ struct CxxIREmitter::Private {
     std::uint64_t alignment = 0;
   };
 
+  struct Operation;
+
   struct Value {
     TypeRef type;
     bool isZero = false;
     SourceLocation location;
     std::string nameHint;
+    Operation* definition = nullptr;
   };
 
   struct Operation {
@@ -405,6 +429,8 @@ struct CxxIREmitter::Private {
     std::string name;
     TypeRef type;
     SourceLocation location;
+    Linkage linkage = Linkage::External;
+    std::uint32_t debugScope = 0;
     std::string attrs;
     std::string aliasee;
     std::string personality;
@@ -458,6 +484,9 @@ struct CxxIREmitter::Private {
   ModuleRef currentModule;
   Point point;
 
+  struct DebugInfo;
+  std::unique_ptr<DebugInfo> debugInfo;
+
   [[nodiscard]] auto sourceLocation(SourceLocation loc) const
       -> SourceLocation {
     return loc ? loc : emitter.enclosingLocation();
@@ -480,15 +509,26 @@ struct CxxIREmitter::Private {
       return it->second;
     }
 
-    auto suffix(SourceLocation loc) -> std::string {
-      if (!enabled) return {};
-      if (!unit || !loc) return reference(intern("unknown"));
-      if (auto it = sources.find(loc); it != sources.end())
-        return reference(it->second);
+    auto index(SourceLocation loc) -> std::size_t {
+      if (!unit || !loc) return intern("unknown");
+      if (auto it = sources.find(loc); it != sources.end()) return it->second;
       auto [file, line, column] = unit->tokenStartPosition(loc);
       auto index = intern(std::format("{}:{}:{}", quote(file), line, column));
       sources.emplace(loc, index);
-      return reference(index);
+      return index;
+    }
+
+    auto suffix(SourceLocation loc) -> std::string {
+      if (!enabled) return {};
+      return reference(index(loc));
+    }
+
+    auto suffix(SourceLocation loc, std::string_view metadata) -> std::string {
+      if (!enabled) return {};
+      if (metadata.empty()) return suffix(loc);
+      auto location = index(loc);
+      return reference(
+          intern(std::format("fused<{}>[#loc{}]", metadata, location)));
     }
 
     auto suffix(std::string_view file) -> std::string {
@@ -643,79 +683,234 @@ struct CxxIREmitter::Private {
     return ref;
   }
 
-  enum class TypePrintState { Unseen, Visiting, Printed };
+  struct TypeAliases {
+    struct Entry {
+      bool visited = false;
+      bool rendering = false;
+      bool defined = false;
+      std::size_t depth = 0;
+      std::size_t order = 0;
+      std::string base;
+      std::string name;
+    };
 
-  auto printTypeAlias(TypeRef ref, std::format_context::iterator& out,
-                      std::span<TypePrintState> states) const -> std::string {
-    const auto& t = type(ref);
-    if (t.text != std::format("!cxxir{}", HandleAccess::id(ref))) return t.text;
-    auto& state = states[HandleAccess::id(ref)];
-    if (state == TypePrintState::Printed) return t.text;
-    if (state == TypePrintState::Visiting) {
-      if (t.kind == TypeKind::Class) return "!cxx.class<" + quote(t.name) + ">";
-      return renderType(ref, out, states);
+    const Private& ir;
+    std::vector<Entry> entries;
+    std::vector<std::size_t> definitions;
+    std::size_t visits = 0;
+
+    explicit TypeAliases(const Private& ir)
+        : ir(ir), entries(ir.types.size()) {}
+
+    [[nodiscard]] auto isComposite(std::size_t id) const -> bool {
+      return ir.types[id].text == std::format("!cxxir{}", id);
     }
-    state = TypePrintState::Visiting;
-    auto definition = renderType(ref, out, states);
-    out = std::format_to(out, "{} = {}\n", t.text, definition);
-    state = TypePrintState::Printed;
-    return t.text;
-  }
 
-  auto renderTypes(std::span<const TypeRef> refs,
-                   std::format_context::iterator& out,
-                   std::span<TypePrintState> states) const -> std::string {
-    std::string text;
-    for (auto ref : refs) {
-      if (!text.empty()) text += ", ";
-      text += printTypeAlias(ref, out, states);
-    }
-    return text;
-  }
-
-  auto renderType(TypeRef ref, std::format_context::iterator& out,
-                  std::span<TypePrintState> states) const -> std::string {
-    const auto& t = type(ref);
-    switch (t.kind) {
-      case TypeKind::Pointer:
-        return "!cxx.ptr<" + printTypeAlias(t.element, out, states) +
-               (t.addressSpace ? std::format(", {}", *t.addressSpace) : "") +
-               ">";
-      case TypeKind::Array:
-        return std::format("!cxx.array<{}, {}>",
-                           printTypeAlias(t.element, out, states), t.count);
-      case TypeKind::Vector:
-        return std::format("vector<{}x{}>", t.count,
-                           printTypeAlias(t.element, out, states));
-      case TypeKind::Function: {
-        auto parameters = renderTypes(t.parameters, out, states);
-        auto results = renderTypes(t.results, out, states);
-        return std::format("!cxx.function<({}), ({}), {}>", parameters, results,
-                           t.variadic ? "true" : "false");
-      }
-      case TypeKind::Class: {
-        auto result = "!cxx.class<" + quote(t.name);
-        if (!t.defined) return result + ">";
-        result += ", ";
-        if (t.packed) result += "packed ";
-        if (t.alignment) result += std::format("align {} ", t.alignment);
-        result += '(';
-        for (std::size_t i = 0; i < t.members.size(); ++i) {
-          if (i) result += ", ";
-          if (std::ranges::find(t.padding, i) != t.padding.end())
-            result += "padding ";
-          result += printTypeAlias(t.members[i], out, states);
+    [[nodiscard]] static auto sanitize(std::string_view name) -> std::string {
+      std::string result;
+      for (unsigned char ch : name) {
+        if (std::isalnum(ch) || ch == '_' || ch == '$' || ch == '-') {
+          result += static_cast<char>(ch);
+          continue;
         }
-        return result + ")>";
+        result += std::format("{:X}", ch);
       }
-      case TypeKind::Other:
-        if (!t.members.empty())
-          return "tuple<" + renderTypes(t.members, out, states) + ">";
-        [[fallthrough]];
-      default:
-        return t.text;
+      return result;
     }
-  }
+
+    [[nodiscard]] auto aliasBase(std::size_t id) const -> std::string {
+      const auto& t = ir.types[id];
+      switch (t.kind) {
+        case TypeKind::Pointer:
+          return "ptr_";
+        case TypeKind::Array:
+          return "array_";
+        case TypeKind::Void:
+          return "void";
+        case TypeKind::Class:
+          if (!t.defined || t.members.empty()) return {};
+          return "class_" + sanitize(t.name);
+        default:
+          return {};
+      }
+    }
+
+    [[nodiscard]] auto children(std::size_t id) const
+        -> std::vector<std::size_t> {
+      const auto& t = ir.types[id];
+      std::vector<std::size_t> result;
+      auto add = [&](TypeRef ref) { result.push_back(HandleAccess::id(ref)); };
+      switch (t.kind) {
+        case TypeKind::Pointer:
+        case TypeKind::Array:
+        case TypeKind::Vector:
+          add(t.element);
+          break;
+        case TypeKind::Function:
+          std::ranges::for_each(t.parameters, add);
+          std::ranges::for_each(t.results, add);
+          break;
+        case TypeKind::Class:
+          if (t.defined) std::ranges::for_each(t.members, add);
+          break;
+        default:
+          std::ranges::for_each(t.members, add);
+          break;
+      }
+      std::erase_if(result,
+                    [this](std::size_t child) { return !isComposite(child); });
+      return result;
+    }
+
+    auto visit(std::size_t id) -> std::size_t {
+      auto& entry = entries[id];
+      if (entry.visited)
+        return entry.base.empty() ? entry.depth : entry.depth + 1;
+      entry.visited = true;
+      entry.base = aliasBase(id);
+      if (!entry.base.empty()) entry.order = visits++;
+      std::size_t depth = 0;
+      for (auto child : children(id)) depth = std::max(depth, visit(child));
+      entries[id].depth = depth;
+      return entries[id].base.empty() ? depth : depth + 1;
+    }
+
+    [[nodiscard]] static auto tokenEnd(std::string_view text,
+                                       std::size_t position) -> std::size_t {
+      auto end = position + std::string_view{"!cxxir"}.size();
+      while (end < text.size() &&
+             std::isdigit(static_cast<unsigned char>(text[end])))
+        ++end;
+      return end;
+    }
+
+    [[nodiscard]] static auto tokenId(std::string_view token) -> std::size_t {
+      std::size_t id = 0;
+      for (auto ch : token.substr(std::string_view{"!cxxir"}.size()))
+        id = id * 10 + static_cast<std::size_t>(ch - '0');
+      return id;
+    }
+
+    void collect(std::string_view text) {
+      for (auto position = text.find("!cxxir"); position != text.npos;
+           position = text.find("!cxxir", position)) {
+        auto end = tokenEnd(text, position);
+        (void)visit(tokenId(text.substr(position, end - position)));
+        position = end;
+      }
+    }
+
+    void assignNames() {
+      for (std::size_t id = 0; id < entries.size(); ++id)
+        if (entries[id].visited && !entries[id].base.empty())
+          definitions.push_back(id);
+      std::ranges::sort(definitions, [this](std::size_t lhs, std::size_t rhs) {
+        const auto& left = entries[lhs];
+        const auto& right = entries[rhs];
+        return std::tie(left.depth, left.base, left.order) <
+               std::tie(right.depth, right.base, right.order);
+      });
+      std::unordered_map<std::string, std::size_t> counts;
+      for (auto id : definitions) {
+        auto& entry = entries[id];
+        auto index = counts[entry.base]++;
+        entry.name = "!" + entry.base;
+        if (!index) continue;
+        if (std::isdigit(static_cast<unsigned char>(entry.base.back())))
+          entry.name += '_';
+        entry.name += std::to_string(index);
+      }
+    }
+
+    [[nodiscard]] auto reference(std::size_t id) -> std::string {
+      if (!isComposite(id)) return ir.types[id].text;
+      auto& entry = entries[id];
+      if (entry.defined) return entry.name;
+      const auto& t = ir.types[id];
+      if (t.kind == TypeKind::Class && entry.rendering)
+        return "!cxx.class<" + quote(t.name) + ">";
+      entry.rendering = true;
+      auto text = structure(id);
+      entries[id].rendering = false;
+      return text;
+    }
+
+    [[nodiscard]] auto references(std::span<const TypeRef> refs)
+        -> std::string {
+      return join(refs, [this](TypeRef ref) {
+        return reference(HandleAccess::id(ref));
+      });
+    }
+
+    [[nodiscard]] auto structure(std::size_t id) -> std::string {
+      const auto& t = ir.types[id];
+      switch (t.kind) {
+        case TypeKind::Pointer:
+          return "!cxx.ptr<" + reference(HandleAccess::id(t.element)) +
+                 (t.addressSpace ? std::format(", {}", *t.addressSpace) : "") +
+                 ">";
+        case TypeKind::Array:
+          return std::format("!cxx.array<{}, {}>",
+                             reference(HandleAccess::id(t.element)), t.count);
+        case TypeKind::Vector:
+          return std::format("vector<{}x{}>", t.count,
+                             reference(HandleAccess::id(t.element)));
+        case TypeKind::Function:
+          return std::format("!cxx.function<({}), ({}), {}>",
+                             references(t.parameters), references(t.results),
+                             t.variadic ? "true" : "false");
+        case TypeKind::Void:
+          return "!cxx.void";
+        case TypeKind::Class:
+          return classStructure(t);
+        default:
+          if (!t.members.empty()) return "tuple<" + references(t.members) + ">";
+          return t.text;
+      }
+    }
+
+    [[nodiscard]] auto classStructure(const Type& t) -> std::string {
+      auto result = "!cxx.class<" + quote(t.name);
+      if (!t.defined) return result + ">";
+      result += ", ";
+      if (t.packed) result += "packed ";
+      if (t.alignment) result += std::format("align {} ", t.alignment);
+      result += '(';
+      for (std::size_t i = 0; i < t.members.size(); ++i) {
+        if (i) result += ", ";
+        if (std::ranges::find(t.padding, i) != t.padding.end())
+          result += "padding ";
+        result += reference(HandleAccess::id(t.members[i]));
+      }
+      return result + ")>";
+    }
+
+    void printDefinitions(std::format_context::iterator& out) {
+      for (auto id : definitions) {
+        entries[id].rendering = true;
+        auto text = structure(id);
+        entries[id].rendering = false;
+        entries[id].defined = true;
+        out = std::format_to(out, "{} = {}\n", entries[id].name, text);
+      }
+    }
+
+    void printResolved(std::string_view text,
+                       std::format_context::iterator& out) {
+      std::size_t written = 0;
+      for (auto position = text.find("!cxxir"); position != text.npos;
+           position = text.find("!cxxir", position)) {
+        auto end = tokenEnd(text, position);
+        out =
+            std::format_to(out, "{}", text.substr(written, position - written));
+        out = std::format_to(
+            out, "{}",
+            reference(tokenId(text.substr(position, end - position))));
+        written = position = end;
+      }
+      out = std::format_to(out, "{}", text.substr(written));
+    }
+  };
 
   auto newValue(TypeRef type) -> ValueRef {
     auto ref = HandleAccess::make<ValueTag>(values.size());
@@ -733,16 +928,53 @@ struct CxxIREmitter::Private {
     const Private& ir;
     const Operation& op;
     const Names& names;
+    std::string_view indent;
     Attributes attributes;
     std::string prefix;
 
     OperationFormatter(const Private& ir, const Operation& op,
-                       const Names& names)
+                       const Names& names, std::string_view indent)
         : ir(ir),
           op(op),
           names(names),
+          indent(indent),
           attributes(op.attrs, op.properties),
           prefix(names.definition(op.results)) {}
+
+    [[nodiscard]] auto switchCaseValues() const
+        -> std::optional<std::vector<std::string_view>> {
+      auto values = attributes.get("case_values");
+      if (values.empty()) return std::vector<std::string_view>{};
+      auto open = values.find('[');
+      auto close = values.find(']');
+      if (open == values.npos || close == values.npos) return std::nullopt;
+      std::vector<std::string_view> cases;
+      for (auto entry : splitList(values.substr(open + 1, close - open - 1))) {
+        auto text = trim(entry);
+        std::int64_t parsed = 0;
+        auto [end, error] =
+            std::from_chars(text.data(), text.data() + text.size(), parsed);
+        if (error != std::errc{} || end != text.data() + text.size())
+          return std::nullopt;
+        cases.push_back(text);
+      }
+      return cases;
+    }
+
+    [[nodiscard]] auto switchText(std::span<const std::string_view> cases)
+        -> std::string {
+      for (auto property :
+           {"case_operand_segments", "case_values", "operandSegmentSizes"})
+        (void)attributes.take(property);
+      auto text =
+          std::format("{} : {}, [\n{}  default: {}", value(0), operandType(0),
+                      indent, names.block(op.successors.front()));
+      for (std::size_t i = 0; i < cases.size(); ++i)
+        std::format_to(std::back_inserter(text), ",\n{}  {}: {}", indent,
+                       cases[i], names.block(op.successors[i + 1]));
+      std::format_to(std::back_inserter(text), "\n{}]", indent);
+      return finish(text);
+    }
 
     [[nodiscard]] auto value(std::size_t index) const -> const std::string& {
       return names.value(op.operands[index]);
@@ -821,7 +1053,9 @@ struct CxxIREmitter::Private {
     op.location = sourceLocation(loc);
     op.successors.assign(successors.begin(), successors.end());
     op.terminator = terminator;
-    point.operations->insert(point.next, std::move(op));
+    auto inserted = point.operations->insert(point.next, std::move(op));
+    for (auto result : results)
+      values[HandleAccess::id(result)].definition = &*inserted;
     return results;
   }
 
@@ -871,7 +1105,7 @@ struct CxxIREmitter::Private {
           addAttr(attrs, "llvm.align", std::format("{} : i64", abi.alignment));
       }
       any |= !attrs.empty();
-      entries.push_back("{" + attrs + "}");
+      entries.push_back(dictionaryAttr(attrs));
     }
     if (!any) return {};
     return "[" + join(entries, [](const auto& s) { return s; }) + "]";
@@ -902,7 +1136,349 @@ struct CxxIREmitter::Private {
                        std::format_context::iterator& out,
                        LocationPrinter& locations, const Names& names,
                        std::string_view indent) const;
+  void printModule(const Module& module, const Names& names,
+                   LocationPrinter& locations,
+                   std::format_context::iterator& out) const;
+  void printDebugDefinitions(std::format_context::iterator& out) const;
+  [[nodiscard]] auto debugScopeAlias(std::uint32_t scope) const
+      -> std::string_view;
 };
+
+namespace {
+
+[[nodiscard]] auto debugEncoding(DebugEncoding value) -> std::string_view {
+  constexpr std::array<std::string_view, 7> names{
+      "",           "DW_ATE_boolean", "DW_ATE_signed",       "DW_ATE_unsigned",
+      "DW_ATE_UTF", "DW_ATE_float",   "DW_ATE_complex_float"};
+  return names.at(static_cast<unsigned>(value));
+}
+
+[[nodiscard]] auto debugDerivedTag(DebugDerivedKind value) -> std::string_view {
+  constexpr std::array<std::string_view, 9> names{
+      "DW_TAG_pointer_type",
+      "DW_TAG_reference_type",
+      "DW_TAG_rvalue_reference_type",
+      "DW_TAG_const_type",
+      "DW_TAG_volatile_type",
+      "DW_TAG_atomic_type",
+      "DW_TAG_ptr_to_member_type",
+      "DW_TAG_inheritance",
+      "DW_TAG_member"};
+  return names.at(static_cast<unsigned>(value));
+}
+
+[[nodiscard]] auto debugCompositeTag(DebugCompositeKind value)
+    -> std::string_view {
+  constexpr std::array<std::string_view, 3> names{
+      "DW_TAG_structure_type", "DW_TAG_union_type", "DW_TAG_enumeration_type"};
+  return names.at(static_cast<unsigned>(value));
+}
+
+class DebugFields {
+ public:
+  void add(std::string_view name, std::string_view value) {
+    if (value.empty()) return;
+    fields_.push_back(std::format("{} = {}", name, value));
+  }
+
+  void add(std::string_view name, std::uint64_t value) {
+    if (value == 0) return;
+    fields_.push_back(std::format("{} = {}", name, value));
+  }
+
+  void addString(std::string_view name, std::string_view value) {
+    fields_.push_back(std::format("{} = {}", name, quote(value)));
+  }
+
+  [[nodiscard]] auto attribute(std::string_view mnemonic) const -> std::string {
+    return std::format("#llvm.{}<{}>", mnemonic,
+                       join(fields_, [](const auto& f) { return f; }));
+  }
+
+ private:
+  std::vector<std::string> fields_;
+};
+
+}  // namespace
+
+struct CxxIREmitter::Private::DebugInfo final : DebugEmitter {
+  struct Scope {
+    std::string alias;
+    std::uint32_t subprogram = 0;
+    std::string file;
+    unsigned line = 0;
+  };
+
+  explicit DebugInfo(Private& p) : p(p) {}
+
+  Private& p;
+  std::string compilationDirectory;
+  std::string compileUnitAlias;
+  std::string compileUnitFile;
+  std::unordered_map<std::string, std::string> files;
+  std::unordered_map<std::string, std::string> aliases;
+  std::unordered_map<std::string, std::size_t> aliasCounts;
+  std::vector<std::pair<std::string, std::string>> definitions;
+  std::vector<std::string> types{1};
+  std::vector<Scope> scopes{1};
+  std::size_t nextDistinct = 0;
+
+  auto define(std::string_view base, std::string text) -> std::string {
+    if (auto it = aliases.find(text); it != aliases.end()) return it->second;
+    auto& count = aliasCounts[std::string(base)];
+    auto alias = count == 0 ? std::format("#{}", base)
+                            : std::format("#{}{}", base, count);
+    ++count;
+    aliases.emplace(text, alias);
+    definitions.emplace_back(alias, std::move(text));
+    return alias;
+  }
+
+  [[nodiscard]] auto distinct() -> std::string {
+    return std::format("distinct[{}]<>", nextDistinct++);
+  }
+
+  [[nodiscard]] auto type(DebugTypeRef ref) const -> const std::string& {
+    return types.at(HandleAccess::id(ref));
+  }
+
+  [[nodiscard]] auto scope(DebugScopeRef ref) const -> const Scope& {
+    return scopes.at(HandleAccess::id(ref));
+  }
+
+  [[nodiscard]] auto retainType(std::string alias) -> DebugTypeRef {
+    if (alias.empty()) return {};
+    auto ref = HandleAccess::make<DebugTypeTag>(
+        static_cast<std::uint32_t>(types.size()));
+    types.push_back(std::move(alias));
+    return ref;
+  }
+
+  [[nodiscard]] auto retainScope(Scope value) -> DebugScopeRef {
+    if (value.alias.empty()) return {};
+    auto ref = HandleAccess::make<DebugScopeTag>(
+        static_cast<std::uint32_t>(scopes.size()));
+    scopes.push_back(std::move(value));
+    return ref;
+  }
+
+  auto getOrCreateFile(std::string_view filename) -> std::string {
+    auto key = std::string{filename};
+    if (auto it = files.find(key); it != files.end()) return it->second;
+    auto path = debugFilePath(filename, compilationDirectory);
+    auto alias =
+        define("di_file", std::format("#llvm.di_file<{} in {}>",
+                                      quote(path.file), quote(path.directory)));
+    files.emplace(std::move(key), alias);
+    return alias;
+  }
+
+  auto getFile(std::string_view filename) -> std::string {
+    if (filename.empty()) return compileUnitFile;
+    return getOrCreateFile(filename);
+  }
+
+  auto compileUnit(const DebugCompileUnitInfo& info) -> DebugScopeRef override {
+    compilationDirectory = info.directory;
+    compileUnitFile = getOrCreateFile(info.file);
+    DebugFields fields;
+    fields.add("id", distinct());
+    fields.add("sourceLanguage",
+               info.isCxx ? "DW_LANG_C_plus_plus_20" : "DW_LANG_C");
+    fields.add("file", compileUnitFile);
+    fields.addString("producer", "cxx");
+    fields.add("isOptimized", "false");
+    fields.add("emissionKind", "Full");
+    if (info.appleNameTable) fields.add("nameTableKind", "Apple");
+    compileUnitAlias =
+        define("di_compile_unit", fields.attribute("di_compile_unit"));
+    return retainScope({.alias = compileUnitAlias});
+  }
+
+  auto fileScope(std::string_view file) -> DebugScopeRef override {
+    return retainScope({.alias = getFile(file)});
+  }
+
+  auto lexicalBlock(DebugScopeRef parent, DebugLocation location)
+      -> DebugScopeRef override {
+    const auto& enclosing = scope(parent);
+    auto subprogram = enclosing.subprogram;
+    DebugFields fields;
+    fields.add("scope", enclosing.alias);
+    fields.add("file", getFile(location.file));
+    fields.add("line", location.line);
+    fields.add("column", location.column);
+    return retainScope({.alias = define("di_lexical_block",
+                                        fields.attribute("di_lexical_block")),
+                        .subprogram = subprogram});
+  }
+
+  auto typeScope(DebugTypeRef ref) -> DebugScopeRef override {
+    return retainScope({.alias = type(ref)});
+  }
+
+  auto basicType(const DebugBasicTypeInfo& info) -> DebugTypeRef override {
+    DebugFields fields;
+    fields.add("tag", info.encoding == DebugEncoding::Unspecified
+                          ? "DW_TAG_unspecified_type"
+                          : "DW_TAG_base_type");
+    fields.addString("name", info.name);
+    fields.add("sizeInBits", info.sizeInBits);
+    fields.add("encoding", debugEncoding(info.encoding));
+    return retainType(
+        define("di_basic_type", fields.attribute("di_basic_type")));
+  }
+
+  auto derivedType(const DebugDerivedTypeInfo& info) -> DebugTypeRef override {
+    DebugFields fields;
+    fields.add("tag", debugDerivedTag(info.kind));
+    fields.addString("name", info.name);
+    fields.add("baseType", type(info.baseType));
+    fields.add("sizeInBits", info.sizeInBits);
+    fields.add("alignInBits", info.alignInBits);
+    fields.add("offsetInBits", info.offsetInBits);
+    fields.add("extraData", type(info.classType));
+    return retainType(
+        define("di_derived_type", fields.attribute("di_derived_type")));
+  }
+
+  auto compositeAttribute(std::string_view tag, std::string_view name,
+                          DebugLocation location, DebugScopeRef parent,
+                          DebugTypeRef baseType, std::uint64_t sizeInBits,
+                          std::uint64_t alignInBits, bool scopedEnum,
+                          std::string_view elements) -> std::string {
+    DebugFields fields;
+    fields.add("tag", tag);
+    fields.addString("name", name);
+    if (location.line) fields.add("file", getFile(location.file));
+    fields.add("line", location.line);
+    fields.add("scope", scope(parent).alias);
+    fields.add("baseType", type(baseType));
+    if (scopedEnum) fields.add("flags", "EnumClass");
+    fields.add("sizeInBits", sizeInBits);
+    fields.add("alignInBits", alignInBits);
+    fields.add("elements", elements);
+    return define("di_composite_type", fields.attribute("di_composite_type"));
+  }
+
+  auto compositeType(const DebugCompositeTypeInfo& info)
+      -> DebugTypeRef override {
+    std::vector<std::string_view> members;
+    for (auto element : info.elements)
+      if (const auto& alias = type(element); !alias.empty())
+        members.push_back(alias);
+    auto elements = join(members, [](auto alias) { return alias; });
+    return retainType(compositeAttribute(
+        debugCompositeTag(info.kind), info.name, info.location, info.scope,
+        info.baseType, info.sizeInBits, info.alignInBits, info.isScopedEnum,
+        elements));
+  }
+
+  auto arrayType(const DebugArrayTypeInfo& info) -> DebugTypeRef override {
+    auto subrange = std::format("#llvm.di_subrange<count = {} : i{}>",
+                                info.count, info.countBitWidth);
+    return retainType(compositeAttribute("DW_TAG_array_type", {}, {}, {},
+                                         info.elementType, info.sizeInBits,
+                                         info.alignInBits, false, subrange));
+  }
+
+  auto subroutineType(std::span<const DebugTypeRef> signature)
+      -> DebugTypeRef override {
+    auto types = join(signature, [&](DebugTypeRef ref) {
+      const auto& alias = type(ref);
+      return alias.empty() ? std::string{"#llvm.di_null_type"} : alias;
+    });
+    DebugFields fields;
+    fields.add("types", types);
+    return retainType(
+        define("di_subroutine_type", fields.attribute("di_subroutine_type")));
+  }
+
+  auto defineFunction(FunctionRef ref, SourceLocation loc,
+                      const DebugFunctionInfo& info) -> DebugScopeRef override {
+    auto& function = p.function(ref);
+    std::string_view symbolName = function.name;
+    auto name = info.name.empty() ? symbolName : info.name;
+    auto file = getFile(info.location.file);
+    auto parent = scope(info.scope).alias;
+    DebugFields fields;
+    fields.add("id", distinct());
+    fields.add("compileUnit", compileUnitAlias);
+    fields.add("scope", parent.empty() ? file : parent);
+    fields.addString("name", name);
+    if (name != symbolName) fields.addString("linkageName", symbolName);
+    fields.add("file", file);
+    fields.add("line", info.location.line);
+    fields.add("scopeLine", info.scopeLine);
+    fields.add("subprogramFlags", function.linkage == Linkage::Internal
+                                      ? "\"LocalToUnit|Definition\""
+                                      : "Definition");
+    fields.add("type", type(info.type));
+    auto index = static_cast<std::uint32_t>(scopes.size());
+    auto subprogram = retainScope(
+        {.alias = define("di_subprogram", fields.attribute("di_subprogram")),
+         .subprogram = index,
+         .file = file,
+         .line = info.location.line});
+    function.location = p.sourceLocation(loc);
+    function.debugScope = index;
+    return subprogram;
+  }
+
+  [[nodiscard]] auto enclosingSubprogram() const -> std::uint32_t {
+    if (!p.point.block) return 0;
+    auto function = p.block(p.point.block).function;
+    if (!function) return 0;
+    return p.function(function).debugScope;
+  }
+
+  void localVariable(ValueRef address, const DebugVariableInfo& info) override {
+    auto* op = p.values[HandleAccess::id(address)].definition;
+    if (!op) return;
+    auto parent = HandleAccess::id(info.scope);
+    if (auto enclosing = enclosingSubprogram();
+        enclosing && scopes.at(parent).subprogram != enclosing)
+      parent = enclosing;
+    const auto& declared = scopes.at(parent);
+    if (declared.alias.empty()) return;
+    auto file = getFile(info.location.file);
+    auto line = info.location.line;
+    if (info.isObjectParameter) {
+      const auto& subprogram = scopes.at(declared.subprogram);
+      file = subprogram.file;
+      line = subprogram.line;
+    }
+    DebugFields fields;
+    fields.add("scope", declared.alias);
+    fields.addString("name", info.name);
+    fields.add("file", file);
+    fields.add("line", line);
+    fields.add("arg", info.argument);
+    fields.add("type", type(info.type));
+    if (info.isObjectParameter)
+      fields.add("flags", "\"Artificial|ObjectPointer\"");
+    addAttr(op->attrs, "cxx.di_local",
+            define("di_local_variable", fields.attribute("di_local_variable")));
+  }
+};
+
+CxxIREmitter::Private::Private(CxxIREmitter& emitter, TranslationUnit* unit)
+    : emitter(emitter), unit(unit) {}
+
+CxxIREmitter::Private::~Private() = default;
+
+void CxxIREmitter::Private::printDebugDefinitions(
+    std::format_context::iterator& out) const {
+  if (!debugInfo) return;
+  for (const auto& [alias, text] : debugInfo->definitions)
+    out = std::format_to(out, "{} = {}\n", alias, text);
+}
+
+auto CxxIREmitter::Private::debugScopeAlias(std::uint32_t scope) const
+    -> std::string_view {
+  if (!debugInfo || !scope) return {};
+  return debugInfo->scopes.at(scope).alias;
+}
 
 auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
   std::string_view name = op.name;
@@ -956,6 +1532,9 @@ auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
     (void)attributes.take("operandSegmentSizes");
     return finish(value(0) + ", " + blockNames(successors));
   }
+  if (name == "cf.switch") {
+    if (auto cases = switchCaseValues()) return switchText(*cases);
+  }
 
   if (name == "vector.broadcast")
     return finish(value(0), " : " + operandType(0) + " to " + resultType());
@@ -979,7 +1558,7 @@ auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
                      ? value(dynamic++)
                      : std::string(scalarText(position));
     }
-    auto arguments = insert ? value(0) + ", " + value(1) : value(0);
+    auto arguments = insert ? value(0) + ", " + value(1) + " " : value(0);
     arguments += "[" + indices + "]";
     return finish(arguments,
                   insert ? " : " + operandType(0) + " into " + operandType(1)
@@ -1200,7 +1779,11 @@ CxxIREmitter::CxxIREmitter(TranslationUnit* unit)
     : priv_(std::make_unique<Private>(*this, unit)) {}
 CxxIREmitter::~CxxIREmitter() = default;
 
-auto CxxIREmitter::debug() -> DebugEmitter* { return nullptr; }
+auto CxxIREmitter::debug() -> DebugEmitter* {
+  auto& p = *priv_;
+  if (!p.debugInfo) p.debugInfo = std::make_unique<Private::DebugInfo>(p);
+  return p.debugInfo.get();
+}
 
 auto CxxIREmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
   auto& p = *priv_;
@@ -1214,6 +1797,7 @@ auto CxxIREmitter::beginModule(const ModuleInfo& info) -> ModuleRef {
   addStringAttr(attrs, "cxx.device_profile", info.deviceProfile);
   addStringAttr(attrs, "cxx.debug-compilation-dir",
                 info.debugCompilationDirectory);
+  addStringAttr(attrs, "cxx.relocation-model", info.relocationModel);
   if (info.picLevel)
     addAttr(attrs, "cxx.pic-level", std::format("{} : i32", info.picLevel));
   if (info.pieLevel)
@@ -1244,21 +1828,33 @@ auto CxxIREmitter::formatTo(ModuleRef ref, std::format_context::iterator out,
     -> std::format_context::iterator {
   const auto& p = *priv_;
   Private::LocationPrinter locations{.unit = p.unit, .enabled = printLocations};
-  std::vector<Private::TypePrintState> states(p.types.size());
-  for (std::size_t i = 1; i < p.types.size(); ++i)
-    (void)p.printTypeAlias(HandleAccess::make<TypeTag>(i), out, states);
   const auto& module = *p.modules.at(HandleAccess::id(ref));
   Private::Names names(p, module);
+  const std::function<void(std::format_context::iterator&)> printModule =
+      [&](std::format_context::iterator& text) {
+        p.printModule(module, names, locations, text);
+      };
+  auto text = std::format("{}", detail::FormattingAction{printModule});
+  Private::TypeAliases aliases{p};
+  aliases.collect(text);
+  aliases.assignNames();
+  aliases.printDefinitions(out);
+  p.printDebugDefinitions(out);
+  aliases.printResolved(text, out);
+  return out;
+}
+
+void CxxIREmitter::Private::printModule(
+    const Module& module, const Names& names, LocationPrinter& locations,
+    std::format_context::iterator& out) const {
   out = std::format_to(out, "module");
   if (!module.name.empty())
     out = std::format_to(out, " @{}", quote(module.name));
-  if (!module.attrs.empty())
-    out = std::format_to(out, " attributes {{{}}}", module.attrs);
+  out = std::format_to(out, "{}", Attributes(module.attrs).dictionary(true));
   out = std::format_to(out, " {{\n");
-  p.printOperations(module.operations, out, locations, names, "  ");
+  printOperations(module.operations, out, locations, names, "  ");
   out = std::format_to(out, "}}{}\n", locations.suffix(module.sourceFile));
   locations.print(out);
-  return out;
 }
 
 void CxxIREmitter::Private::printBlocks(std::span<const BlockRef> refs,
@@ -1356,7 +1952,9 @@ void CxxIREmitter::Private::printOperations(const Operations& operations,
         printBlocks(fn.blocks, out, locations, names, true);
         out = std::format_to(out, "{}}}", indent);
       }
-      out = std::format_to(out, "{}\n", locations.suffix(fn.location));
+      out = std::format_to(
+          out, "{}\n",
+          locations.suffix(fn.location, debugScopeAlias(fn.debugScope)));
     } else if (op.global) {
       const auto& g = global(op.global);
       Attributes attributes(g.attrs);
@@ -1381,15 +1979,16 @@ void CxxIREmitter::Private::printOperations(const Operations& operations,
       out = std::format_to(out, "{}{}\n", attributes.dictionary(true),
                            locations.suffix(g.location));
     } else {
-      out = std::format_to(out, "{}{}{}\n", indent,
-                           OperationFormatter{*this, op, names}.format(),
-                           locations.suffix(op.location));
+      out =
+          std::format_to(out, "{}{}{}\n", indent,
+                         OperationFormatter{*this, op, names, indent}.format(),
+                         locations.suffix(op.location));
     }
   }
 }
 
 auto CxxIREmitter::voidType() -> TypeRef {
-  return priv_->intern("void", {.kind = TypeKind::Void, .text = "!cxx.void"});
+  return priv_->intern("void", {.kind = TypeKind::Void});
 }
 
 auto CxxIREmitter::unresolvedType() -> TypeRef {
@@ -1413,9 +2012,8 @@ auto CxxIREmitter::floatingType(FloatKind kind) -> TypeRef {
 
 auto CxxIREmitter::pointerType(TypeRef element,
                                std::optional<std::uint32_t> space) -> TypeRef {
-  if (space == 0) space.reset();
-  auto key =
-      std::format("ptr:{}:{}", HandleAccess::id(element), space.value_or(0));
+  auto key = space ? std::format("ptr:{}:{}", HandleAccess::id(element), *space)
+                   : std::format("ptr:{}", HandleAccess::id(element));
   return priv_->intern(
       key,
       {.kind = TypeKind::Pointer, .element = element, .addressSpace = space});
@@ -2017,14 +2615,31 @@ void CxxIREmitter::switchBranch(SourceLocation loc, ValueRef flag,
                                 std::span<const ConstInt> caseValues,
                                 std::span<const BlockRef> caseDestinations) {
   assert(caseValues.size() == caseDestinations.size());
-  for (std::size_t i = 0; i < caseValues.size(); ++i) {
-    auto next = i + 1 == caseValues.size() ? defaultDest : createBlock({});
-    auto value = constantInt(loc, typeOf(flag), caseValues[i]);
-    auto matches = compareInt(loc, IntPredicate::Equal, flag, value);
-    condBranch(loc, matches, caseDestinations[i], next);
-    if (next != defaultDest) setInsertionBlock(next);
-  }
-  if (caseValues.empty()) branch(loc, defaultDest);
+  auto& p = *priv_;
+  const auto flagType = typeOf(flag);
+  const auto width = p.type(flagType).width;
+  auto caseValueText = [width](const ConstInt& value) {
+    return ConstInt::make(value.toWide(), width, true)
+        .value_or(value)
+        .toString();
+  };
+  auto zeroSegment = [](const ConstInt&) { return std::string("0"); };
+  std::vector<BlockRef> successors{defaultDest};
+  successors.insert(successors.end(), caseDestinations.begin(),
+                    caseDestinations.end());
+  auto properties =
+      caseValues.empty()
+          ? std::string(
+                "case_operand_segments = array<i32>, "
+                "operandSegmentSizes = array<i32: 1, 0, 0>")
+          : std::format(
+                "case_operand_segments = array<i32: {}>, case_values "
+                "= dense<[{}]> : vector<{}x{}>, operandSegmentSizes = "
+                "array<i32: 1, 0, 0>",
+                join(caseValues, zeroSegment), join(caseValues, caseValueText),
+                caseValues.size(), p.typeText(flagType));
+  (void)p.emit(loc, "cf.switch", {}, std::array{flag}, {}, successors, true,
+               std::move(properties));
 }
 
 void CxxIREmitter::ret(SourceLocation loc, std::span<const ValueRef> values) {
@@ -2050,6 +2665,7 @@ auto CxxIREmitter::declareFunction(SourceLocation loc, const FunctionInfo& info)
   function->name = info.name;
   function->type = info.type;
   function->location = p.sourceLocation(loc);
+  function->linkage = info.linkage;
   function->aliasee = info.aliasee;
   auto& attrs = function->attrs;
   addAttr(attrs, "sym_name", quote(info.name));
@@ -2081,19 +2697,20 @@ auto CxxIREmitter::declareFunction(SourceLocation loc, const FunctionInfo& info)
     addAttr(attrs, "cxx.kernel_workgroup_size",
             denseArray("i32", std::array{k.x, k.y, k.z}));
     auto buffers = join(k.buffers, [&](const auto& buffer) {
-      return std::format(
-          "{{parameter = {} : i32, binding = {} : i32, kind = {}, read_only = "
-          "{}, name = {}, unsigned = {}}}",
+      return dictionaryAttr(std::format(
+          "parameter = {} : i32, binding = {} : i32, kind = {}, read_only = "
+          "{}, name = {}, unsigned = {}",
           buffer.parameter, buffer.binding,
           quote(buffer.kind == KernelBufferKind::Storage ? "storage"
                                                          : "uniform"),
-          buffer.readOnly, quote(buffer.name), buffer.unsignedElements);
+          buffer.readOnly, quote(buffer.name), buffer.unsignedElements));
     });
     auto ids = join(k.invocationIds, [&](const auto& id) {
       static constexpr std::string_view kinds[] = {"global", "local",
                                                    "workgroup"};
-      return std::format("{{parameter = {} : i32, kind = {}}}", id.parameter,
-                         quote(kinds[static_cast<int>(id.kind)]));
+      return dictionaryAttr(
+          std::format("parameter = {} : i32, kind = {}", id.parameter,
+                      quote(kinds[static_cast<int>(id.kind)])));
     });
     addAttr(attrs, "cxx.kernel_buffers", "[" + buffers + "]");
     addAttr(attrs, "cxx.kernel_invocation_ids", "[" + ids + "]");
