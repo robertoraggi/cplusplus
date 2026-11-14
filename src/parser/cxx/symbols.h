@@ -1407,6 +1407,15 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto packAlignment() const -> int;
   void setPackAlignment(int alignment);
 
+  struct DirectBaseClasses {
+    std::vector<BaseClassSymbol*> withBaseClasses;
+    std::unordered_map<const ClassSymbol*, std::vector<BaseClassSymbol*>>
+        withoutBaseClasses;
+    bool areComplete = true;
+  };
+
+  [[nodiscard]] auto directBaseClassesLeadingTo(const ClassSymbol* base) const
+      -> std::vector<BaseClassSymbol*>;
   [[nodiscard]] auto hasDirectBaseClass(const Symbol* symbol) const -> bool;
   [[nodiscard]] auto hasBaseClass(const Symbol* symbol) const -> bool;
 
@@ -1498,11 +1507,13 @@ class ClassSymbol final : public ScopeSymbol,
     bool areComplete = true;
   };
 
+  [[nodiscard]] auto findDirectBaseClasses() const -> DirectBaseClasses;
   [[nodiscard]] auto findBaseClassSymbols() const -> BaseClassSymbols;
 
   SourceLocation firstNonFriendDeclarationLocation_;
   std::vector<BaseClassSymbol*> baseClasses_;
   mutable std::optional<std::vector<const Symbol*>> baseClassSymbols_;
+  mutable std::optional<DirectBaseClasses> directBaseClasses_;
   std::vector<ClassSymbol*> befriendingClasses_;
   std::vector<TemplateFriendship> templateFriendships_;
   std::vector<TemplateArgument> instantiationSubstitutionArguments_;

@@ -126,6 +126,9 @@ inline constexpr FieldDescriptor kSemanticFieldModelStorage[] = {
     {"::cxx::ClassSymbol", "baseClasses_", FieldPersistence::kPersisted, ""},
     {"::cxx::ClassSymbol", "baseClassSymbols_", FieldPersistence::kRebuilt,
      "the direct and indirect base classes, collected on first use"},
+    {"::cxx::ClassSymbol", "directBaseClasses_", FieldPersistence::kRebuilt,
+     "the direct base classes by whether they have base classes, collected on "
+     "first use"},
     {"::cxx::ClassSymbol", "befriendingClasses_", FieldPersistence::kPersisted,
      ""},
     {"::cxx::ClassSymbol", "templateFriendships_", FieldPersistence::kPersisted,

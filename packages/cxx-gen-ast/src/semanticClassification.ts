@@ -165,6 +165,10 @@ export const bindings: Record<string, ClassBindings> = {
       cls: 'R',
       why: 'the direct and indirect base classes, collected on first use',
     },
+    directBaseClasses_: {
+      cls: 'R',
+      why: 'the direct base classes by whether they have base classes, collected on first use',
+    },
     knownProperties_: {
       cls: 'R',
       why: 'which properties of the completed class were derived on first use',
