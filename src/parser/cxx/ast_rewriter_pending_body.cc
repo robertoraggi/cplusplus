@@ -462,12 +462,42 @@ void ASTRewriter::requireFunctionDefinition(TranslationUnit* unit,
                                             FunctionSymbol* caller) {
   if (!unit || !function) return;
   if (!unit->requiresDefinitions()) return;
+
+  auto& required = unit->requiredDefinitions();
+  const auto outstanding = required.size();
+  required.push_back({function, location, caller});
+  if (unit->isExaminingRequiredDefinitions()) return;
+
+  unit->setExaminingRequiredDefinitions(true);
+  while (required.size() > outstanding) {
+    const auto next = required.back();
+    required.pop_back();
+    const auto examined = required.size();
+    requireDefinitionsNeededBy(unit, next.function, next.location, next.caller);
+    std::reverse(required.begin() + examined, required.end());
+  }
+  unit->setExaminingRequiredDefinitions(false);
+}
+
+void ASTRewriter::completeConstexprBodyOf(TranslationUnit* unit,
+                                          FunctionSymbol* function) {
+  if (!function->isConstexpr()) return;
+  const auto wasExamining = unit->isExaminingRequiredDefinitions();
+  unit->setExaminingRequiredDefinitions(false);
+  (void)completePendingBodyFor(unit, function);
+  unit->setExaminingRequiredDefinitions(wasExamining);
+}
+
+void ASTRewriter::requireDefinitionsNeededBy(TranslationUnit* unit,
+                                             FunctionSymbol* function,
+                                             SourceLocation location,
+                                             FunctionSymbol* caller) {
   const auto alreadyRequired = function->isDefinitionRequired();
   function->setDefinitionRequired(true);
   unit->addPendingBodyCompletion(function, location, caller);
   if (alreadyRequired) return;
   completePendingExceptionSpecification(unit, function);
-  if (function->isConstexpr()) (void)completePendingBodyFor(unit, function);
+  completeConstexprBodyOf(unit, function);
   if (!function->hasPendingBody()) {
     auto rewriter = ASTRewriter{unit, unit->globalScope(), {}};
     rewriter.binder_.synthesizeDefaultedMemberBody(function);

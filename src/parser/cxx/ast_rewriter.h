@@ -204,6 +204,13 @@ class [[nodiscard]] ASTRewriter {
                                         SourceLocation location = {},
                                         FunctionSymbol* caller = nullptr);
 
+  static void requireDefinitionsNeededBy(TranslationUnit* unit,
+                                         FunctionSymbol* function,
+                                         SourceLocation location,
+                                         FunctionSymbol* caller);
+  static void completeConstexprBodyOf(TranslationUnit* unit,
+                                      FunctionSymbol* function);
+
   static void requireFieldDefinition(TranslationUnit* unit, FieldSymbol* field);
 
   static void requireDefinitionsNamedBy(TranslationUnit* unit, AST* ast);
