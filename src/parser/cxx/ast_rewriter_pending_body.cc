@@ -27,6 +27,7 @@
 #include <cxx/diagnostics_client.h>
 #include <cxx/function_body.h>
 #include <cxx/function_body_warnings.h>
+#include <cxx/lambda_captures.h>
 #include <cxx/names.h>
 #include <cxx/overload_resolution.h>
 #include <cxx/symbols.h>
@@ -113,15 +114,25 @@ void ASTRewriter::remapInstantiatedMember(Symbol* member) {
   remapScopeMembers(pattern->asScopeSymbol(), member->asScopeSymbol());
 }
 
-void ASTRewriter::remapInitCaptures(LambdaSymbol* pattern,
-                                    LambdaSymbol* instance) {
-  addSymbolRemap(pattern, instance);
-  for (auto variable : instance->members() | views::variables) {
-    for (auto patternVariable :
-         pattern->find(variable->name()) | views::variables) {
-      addSymbolRemap(patternVariable, variable);
-    }
+void ASTRewriter::remapInitCapture(
+    LambdaCaptureAST* pattern, std::span<LambdaCaptureAST* const> instances) {
+  auto variable = init_capture_variable(pattern);
+  if (!variable) return;
+
+  if (!is_pack_capture(pattern) ||
+      (instances.size() == 1 && is_pack_capture(instances.front()))) {
+    if (instances.empty()) return;
+    if (auto instance = init_capture_variable(instances.front()))
+      addSymbolRemap(variable, instance);
+    return;
   }
+
+  auto pack = control()->newParameterPackSymbol(binder_.scope(), {});
+  for (auto instance : instances) {
+    if (auto element = init_capture_variable(instance))
+      pack->addElement(element);
+  }
+  declarationPacks_[variable] = pack;
 }
 
 void ASTRewriter::remapEnclosingClassPatterns(ScopeSymbol* scope) {
@@ -285,7 +296,7 @@ void ASTRewriter::remapFunctionParameters(
     auto pack =
         control()->newParameterPackSymbol(instanceParameters, SourceLocation{});
     for (auto parameter : matches) pack->addElement(parameter);
-    functionParamPacks_[pattern] = pack;
+    declarationPacks_[pattern] = pack;
   }
 }
 

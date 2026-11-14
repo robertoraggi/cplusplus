@@ -30,6 +30,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
@@ -621,7 +622,7 @@ class [[nodiscard]] ASTRewriter {
   [[nodiscard]] auto parameterPackFor(Symbol* symbol) const
       -> ParameterPackSymbol*;
 
-  [[nodiscard]] auto functionParameterPackFor(Symbol* symbol) const
+  [[nodiscard]] auto declarationPackFor(Symbol* symbol) const
       -> ParameterPackSymbol*;
 
   [[nodiscard]] auto substitutedTemplateParameterClass(Symbol* symbol) const
@@ -725,7 +726,8 @@ class [[nodiscard]] ASTRewriter {
   static void notePendingBodyInstantiation(TranslationUnit* unit,
                                            FunctionSymbol* function);
 
-  void remapInitCaptures(LambdaSymbol* pattern, LambdaSymbol* instance);
+  void remapInitCapture(LambdaCaptureAST* pattern,
+                        std::span<LambdaCaptureAST* const> instances);
 
   void remapEnclosingClassPatterns(ScopeSymbol* scope);
 
@@ -802,7 +804,7 @@ class [[nodiscard]] ASTRewriter {
   std::vector<ActiveExpansion> activeExpansions_;
   std::optional<int> elementIndex_;
   Binder binder_;
-  std::unordered_map<Symbol*, ParameterPackSymbol*> functionParamPacks_;
+  std::unordered_map<Symbol*, ParameterPackSymbol*> declarationPacks_;
   std::unordered_map<Symbol*, Symbol*> symbolRemap_;
   std::vector<std::unordered_map<Symbol*, FieldSymbol*>> lambdaCaptureFields_;
   TemplateDeclarationAST* currentTemplatePatternHead_ = nullptr;

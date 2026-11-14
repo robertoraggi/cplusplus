@@ -67,6 +67,21 @@ namespace cxx {
   return slot ? *slot : nullptr;
 }
 
+[[nodiscard]] inline auto init_capture_variable_slot(LambdaCaptureAST* capture)
+    -> VariableSymbol** {
+  if (auto initCapture = ast_cast<InitLambdaCaptureAST>(capture))
+    return &initCapture->variable;
+  if (auto refInitCapture = ast_cast<RefInitLambdaCaptureAST>(capture))
+    return &refInitCapture->variable;
+  return nullptr;
+}
+
+[[nodiscard]] inline auto init_capture_variable(LambdaCaptureAST* capture)
+    -> VariableSymbol* {
+  auto slot = init_capture_variable_slot(capture);
+  return slot ? *slot : nullptr;
+}
+
 [[nodiscard]] inline auto capture_identifier(LambdaCaptureAST* capture)
     -> const Identifier* {
   if (auto simple = ast_cast<SimpleLambdaCaptureAST>(capture))

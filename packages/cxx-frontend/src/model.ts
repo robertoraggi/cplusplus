@@ -1114,9 +1114,9 @@ const DerefThisLambdaCaptureASTSlotBase = ThisLambdaCaptureASTSlotBase + 3;
 const SimpleLambdaCaptureASTSlotBase = DerefThisLambdaCaptureASTSlotBase + 3;
 const RefLambdaCaptureASTSlotBase = SimpleLambdaCaptureASTSlotBase + 5;
 const RefInitLambdaCaptureASTSlotBase = RefLambdaCaptureASTSlotBase + 6;
-const InitLambdaCaptureASTSlotBase = RefInitLambdaCaptureASTSlotBase + 6;
+const InitLambdaCaptureASTSlotBase = RefInitLambdaCaptureASTSlotBase + 7;
 const EllipsisExceptionDeclarationASTSlotBase =
-  InitLambdaCaptureASTSlotBase + 5;
+  InitLambdaCaptureASTSlotBase + 6;
 const TypeExceptionDeclarationASTSlotBase =
   EllipsisExceptionDeclarationASTSlotBase + 1;
 const CxxAttributeASTSlotBase = TypeExceptionDeclarationASTSlotBase + 5;
@@ -8658,6 +8658,12 @@ export class RefInitLambdaCaptureAST extends LambdaCaptureAST {
       this.modelOwner,
     );
   }
+  get variable(): VariableSymbol | undefined {
+    return symbolOf(
+      cxx.readAST(this.handle, RefInitLambdaCaptureASTSlotBase + 6),
+      this.modelOwner,
+    );
+  }
 }
 /** @category AST Nodes */
 export class InitLambdaCaptureAST extends LambdaCaptureAST {
@@ -8688,6 +8694,12 @@ export class InitLambdaCaptureAST extends LambdaCaptureAST {
   get symbol(): FieldSymbol | undefined {
     return symbolOf(
       cxx.readAST(this.handle, InitLambdaCaptureASTSlotBase + 4),
+      this.modelOwner,
+    );
+  }
+  get variable(): VariableSymbol | undefined {
+    return symbolOf(
+      cxx.readAST(this.handle, InitLambdaCaptureASTSlotBase + 5),
       this.modelOwner,
     );
   }

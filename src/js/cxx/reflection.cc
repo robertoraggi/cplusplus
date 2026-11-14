@@ -655,10 +655,10 @@ constexpr int RefLambdaCaptureASTSlotBase = SimpleLambdaCaptureASTSlotBase + 5;
 constexpr int RefInitLambdaCaptureASTSlotBase = RefLambdaCaptureASTSlotBase + 6;
 
 constexpr int InitLambdaCaptureASTSlotBase =
-    RefInitLambdaCaptureASTSlotBase + 6;
+    RefInitLambdaCaptureASTSlotBase + 7;
 
 constexpr int EllipsisExceptionDeclarationASTSlotBase =
-    InitLambdaCaptureASTSlotBase + 5;
+    InitLambdaCaptureASTSlotBase + 6;
 
 constexpr int TypeExceptionDeclarationASTSlotBase =
     EllipsisExceptionDeclarationASTSlotBase + 1;
@@ -6646,6 +6646,12 @@ auto readAST(std::intptr_t handle, int slot) -> double {
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->symbol)));
     }
+    case RefInitLambdaCaptureASTSlotBase + 6: {
+      auto self = static_cast<const ::cxx::RefInitLambdaCaptureAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->variable)));
+    }
     case InitLambdaCaptureASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::InitLambdaCaptureAST*>(
           reinterpret_cast<const ::cxx::AST*>(handle));
@@ -6673,6 +6679,12 @@ auto readAST(std::intptr_t handle, int slot) -> double {
           reinterpret_cast<const ::cxx::AST*>(handle));
       return static_cast<double>(reinterpret_cast<std::intptr_t>(
           static_cast<const ::cxx::Symbol*>(self->symbol)));
+    }
+    case InitLambdaCaptureASTSlotBase + 5: {
+      auto self = static_cast<const ::cxx::InitLambdaCaptureAST*>(
+          reinterpret_cast<const ::cxx::AST*>(handle));
+      return static_cast<double>(reinterpret_cast<std::intptr_t>(
+          static_cast<const ::cxx::Symbol*>(self->variable)));
     }
     case EllipsisExceptionDeclarationASTSlotBase + 0: {
       auto self = static_cast<const ::cxx::EllipsisExceptionDeclarationAST*>(

@@ -45,7 +45,7 @@ struct CollectReferencedParameterPacks final : ASTVisitor {
   }
 
   void visit(IdExpressionAST* ast) override {
-    if (auto pack = rewriter.functionParameterPackFor(ast->symbol)) {
+    if (auto pack = rewriter.declarationPackFor(ast->symbol)) {
       add(pack);
     }
 
@@ -109,7 +109,7 @@ struct FindUnresolvedParameterPack final : ASTVisitor {
 
   void checkParameter(Symbol* symbol) {
     if (!symbol || found) return;
-    if (rewriter.functionParameterPackFor(symbol)) return;
+    if (rewriter.declarationPackFor(symbol)) return;
     auto info = template_parameter_info(symbol);
     if (!info || !info->isPack) return;
     if (!rewriter.templateArgumentAt(info->depth, info->index)) found = true;
@@ -242,12 +242,11 @@ auto ASTRewriter::parameterPackFor(Symbol* symbol) const
   return parameterPackAt(info->depth, info->index, info->isPack);
 }
 
-auto ASTRewriter::functionParameterPackFor(Symbol* symbol) const
+auto ASTRewriter::declarationPackFor(Symbol* symbol) const
     -> ParameterPackSymbol* {
-  auto param = symbol_cast<ParameterSymbol>(symbol);
-  if (!param) return nullptr;
-  auto it = functionParamPacks_.find(param);
-  if (it == functionParamPacks_.end()) return nullptr;
+  if (!symbol) return nullptr;
+  auto it = declarationPacks_.find(symbol);
+  if (it == declarationPacks_.end()) return nullptr;
   return it->second;
 }
 

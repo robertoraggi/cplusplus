@@ -340,7 +340,7 @@ auto ASTRewriter::parameterDeclarationClause(ParameterDeclarationClauseAST* ast)
             if (value->symbol) elements->addElement(value->symbol);
           },
           pack);
-      if (node->symbol) functionParamPacks_[node->symbol] = elements;
+      if (node->symbol) declarationPacks_[node->symbol] = elements;
       continue;
     }
 

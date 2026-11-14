@@ -15056,6 +15056,7 @@ auto RefInitLambdaCaptureAST::clone(Arena* arena) -> RefInitLambdaCaptureAST* {
 
   node->identifier = cloneAttribute(arena, identifier);
   node->symbol = cloneAttribute(arena, symbol);
+  node->variable = cloneAttribute(arena, variable);
 
   return node;
 }
@@ -15065,12 +15066,10 @@ auto RefInitLambdaCaptureAST::create(Arena* arena) -> RefInitLambdaCaptureAST* {
   return node;
 }
 
-auto RefInitLambdaCaptureAST::create(Arena* arena, SourceLocation ampLoc,
-                                     SourceLocation ellipsisLoc,
-                                     SourceLocation identifierLoc,
-                                     ExpressionAST* initializer,
-                                     const Identifier* identifier,
-                                     FieldSymbol* symbol)
+auto RefInitLambdaCaptureAST::create(
+    Arena* arena, SourceLocation ampLoc, SourceLocation ellipsisLoc,
+    SourceLocation identifierLoc, ExpressionAST* initializer,
+    const Identifier* identifier, FieldSymbol* symbol, VariableSymbol* variable)
     -> RefInitLambdaCaptureAST* {
   auto node = new (arena) RefInitLambdaCaptureAST();
   node->ampLoc = ampLoc;
@@ -15079,17 +15078,20 @@ auto RefInitLambdaCaptureAST::create(Arena* arena, SourceLocation ampLoc,
   node->initializer = initializer;
   node->identifier = identifier;
   node->symbol = symbol;
+  node->variable = variable;
   return node;
 }
 
 auto RefInitLambdaCaptureAST::create(Arena* arena, ExpressionAST* initializer,
                                      const Identifier* identifier,
-                                     FieldSymbol* symbol)
+                                     FieldSymbol* symbol,
+                                     VariableSymbol* variable)
     -> RefInitLambdaCaptureAST* {
   auto node = new (arena) RefInitLambdaCaptureAST();
   node->initializer = initializer;
   node->identifier = identifier;
   node->symbol = symbol;
+  node->variable = variable;
   return node;
 }
 
@@ -15103,6 +15105,7 @@ auto InitLambdaCaptureAST::clone(Arena* arena) -> InitLambdaCaptureAST* {
 
   node->identifier = cloneAttribute(arena, identifier);
   node->symbol = cloneAttribute(arena, symbol);
+  node->variable = cloneAttribute(arena, variable);
 
   return node;
 }
@@ -15116,7 +15119,7 @@ auto InitLambdaCaptureAST::create(Arena* arena, SourceLocation ellipsisLoc,
                                   SourceLocation identifierLoc,
                                   ExpressionAST* initializer,
                                   const Identifier* identifier,
-                                  FieldSymbol* symbol)
+                                  FieldSymbol* symbol, VariableSymbol* variable)
     -> InitLambdaCaptureAST* {
   auto node = new (arena) InitLambdaCaptureAST();
   node->ellipsisLoc = ellipsisLoc;
@@ -15124,17 +15127,19 @@ auto InitLambdaCaptureAST::create(Arena* arena, SourceLocation ellipsisLoc,
   node->initializer = initializer;
   node->identifier = identifier;
   node->symbol = symbol;
+  node->variable = variable;
   return node;
 }
 
 auto InitLambdaCaptureAST::create(Arena* arena, ExpressionAST* initializer,
                                   const Identifier* identifier,
-                                  FieldSymbol* symbol)
+                                  FieldSymbol* symbol, VariableSymbol* variable)
     -> InitLambdaCaptureAST* {
   auto node = new (arena) InitLambdaCaptureAST();
   node->initializer = initializer;
   node->identifier = identifier;
   node->symbol = symbol;
+  node->variable = variable;
   return node;
 }
 

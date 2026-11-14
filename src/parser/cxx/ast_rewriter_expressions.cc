@@ -618,7 +618,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(IdExpressionAST* ast)
     -> ExpressionAST* {
   auto call = std::exchange(rewrite.rewritingCall_, nullptr);
   const auto isCallee = call != nullptr;
-  if (auto pack = rewrite.functionParameterPackFor(ast->symbol)) {
+  if (auto pack = rewrite.declarationPackFor(ast->symbol)) {
     if (auto expandedParam = rewrite.packElementAt(pack)) {
       auto copy = IdExpressionAST::create(arena());
       copy->valueCategory = ValueCategory::kLValue;
@@ -734,13 +734,21 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   auto scopeGuard = Binder::ScopeGuard(binder());
 
   ListAppender<LambdaCaptureAST> appendCapture{arena(), copy->captureList};
+  std::vector<std::pair<LambdaCaptureAST*, std::vector<LambdaCaptureAST*>>>
+      initCaptures;
   for (auto capture : ListView{ast->captureList}) {
-    if (is_pack_capture(capture) &&
-        rewrite.forEachPackElement(
-            capture_initializer(capture), capture->firstSourceLocation(),
-            [&] { appendCapture(rewrite.lambdaCapture(capture)); }))
-      continue;
-    appendCapture(rewrite.lambdaCapture(capture));
+    std::vector<LambdaCaptureAST*> instances;
+    auto rewriteCapture = [&] {
+      instances.push_back(rewrite.lambdaCapture(capture));
+      appendCapture(instances.back());
+    };
+    if (!is_pack_capture(capture) ||
+        !rewrite.forEachPackElement(capture_initializer(capture),
+                                    capture->firstSourceLocation(),
+                                    rewriteCapture))
+      rewriteCapture();
+    if (is_init_capture(capture))
+      initCaptures.emplace_back(capture, std::move(instances));
   }
 
   copy->rbracketLoc = ast->rbracketLoc;
@@ -748,7 +756,9 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
   if (needsFreshClosure) {
     binder()->bind(copy);
     binder()->bindLambdaIntroducer(copy);
-    rewrite.remapInitCaptures(ast->symbol, copy->symbol);
+    rewrite.addSymbolRemap(ast->symbol, copy->symbol);
+    for (const auto& [pattern, instances] : initCaptures)
+      rewrite.remapInitCapture(pattern, instances);
   }
 
   copy->lessLoc = ast->lessLoc;
@@ -834,10 +844,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(LambdaExpressionAST* ast)
         auto field = capture_field(captureNode);
         if (!field) continue;
 
-        if (is_init_capture(captureNode)) {
-          if (auto declared = Binder::declaredInitCapture(
-                  copy->symbol, capture_identifier(captureNode)))
-            captureFields[declared] = field;
+        if (auto variable = init_capture_variable(captureNode)) {
+          captureFields[variable] = field;
           continue;
         }
 
@@ -1558,7 +1566,7 @@ auto ASTRewriter::ExpressionVisitor::operator()(SizeofTypeExpressionAST* ast)
 auto ASTRewriter::ExpressionVisitor::operator()(SizeofPackExpressionAST* ast)
     -> ExpressionAST* {
   auto pack = rewrite.parameterPackFor(ast->symbol);
-  if (!pack) pack = rewrite.functionParameterPackFor(ast->symbol);
+  if (!pack) pack = rewrite.declarationPackFor(ast->symbol);
 
   if (pack) {
     auto literal =
@@ -2093,6 +2101,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(RefInitLambdaCaptureAST* ast)
   copy->identifier = ast->identifier;
 
   copy->symbol = ast->symbol;
+  copy->variable = ast->variable;
   return copy;
 }
 
@@ -2106,6 +2115,7 @@ auto ASTRewriter::LambdaCaptureVisitor::operator()(InitLambdaCaptureAST* ast)
   copy->identifier = ast->identifier;
 
   copy->symbol = ast->symbol;
+  copy->variable = ast->variable;
   return copy;
 }
 }  // namespace cxx

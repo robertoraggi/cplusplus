@@ -6494,6 +6494,8 @@ void SemanticEncoder::writeAstRefInitLambdaCaptureAST(
   out.varU32(static_cast<std::uint32_t>(identifierRef(self->identifier)));
   // ::cxx::RefInitLambdaCaptureAST::symbol
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->symbol)));
+  // ::cxx::RefInitLambdaCaptureAST::variable
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->variable)));
 }
 
 void SemanticEncoder::writeAstInitLambdaCaptureAST(
@@ -6509,6 +6511,8 @@ void SemanticEncoder::writeAstInitLambdaCaptureAST(
   out.varU32(static_cast<std::uint32_t>(identifierRef(self->identifier)));
   // ::cxx::InitLambdaCaptureAST::symbol
   out.varU32(static_cast<std::uint32_t>(symbolRef(self->symbol)));
+  // ::cxx::InitLambdaCaptureAST::variable
+  out.varU32(static_cast<std::uint32_t>(symbolRef(self->variable)));
 }
 
 void SemanticEncoder::writeAstEllipsisExceptionDeclarationAST(
@@ -16715,6 +16719,10 @@ void SemanticDecoder::readAstRefInitLambdaCaptureAST(
   cxx::FieldSymbol* value6 =
       symbol_cast<FieldSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->symbol = std::move(value6);
+  // ::cxx::RefInitLambdaCaptureAST::variable
+  cxx::VariableSymbol* value7 =
+      symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->variable = std::move(value7);
 }
 
 void SemanticDecoder::readAstInitLambdaCaptureAST(
@@ -16738,6 +16746,10 @@ void SemanticDecoder::readAstInitLambdaCaptureAST(
   cxx::FieldSymbol* value5 =
       symbol_cast<FieldSymbol>(symbolAt(SymbolRef{in.varU32()}));
   self->symbol = std::move(value5);
+  // ::cxx::InitLambdaCaptureAST::variable
+  cxx::VariableSymbol* value6 =
+      symbol_cast<VariableSymbol>(symbolAt(SymbolRef{in.varU32()}));
+  self->variable = std::move(value6);
 }
 
 void SemanticDecoder::readAstEllipsisExceptionDeclarationAST(
