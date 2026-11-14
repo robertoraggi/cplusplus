@@ -33,6 +33,7 @@
 #include <span>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace cxx {
@@ -524,6 +525,8 @@ class ASTInterpreter {
       -> ExpressionAST*;
   [[nodiscard]] auto isPotentiallyUsableInConstantExpressions(
       VariableSymbol* var) -> bool;
+  [[nodiscard]] auto isUsableInConstantExpressions(VariableSymbol* definition)
+      -> bool;
   [[nodiscard]] auto staticTemporary(const Type* type, ConstValue value,
                                      SourceLocation location,
                                      std::string_view name)
@@ -954,6 +957,7 @@ class ASTInterpreter {
     ~EvaluationScope() {
       if (--interp_.activeEvaluations_ == 0) {
         interp_.endTemporaries(0);
+        interp_.usableConstants_.clear();
       }
     }
 
@@ -962,6 +966,8 @@ class ASTInterpreter {
   };
 
   int activeEvaluations_ = 0;
+  std::unordered_map<FunctionSymbol*, std::unordered_set<VariableSymbol*>>
+      usableConstants_;
 
   std::vector<const Frame*> framesBeingBound_;
   std::vector<std::shared_ptr<ConstStorage>> backingArrays_;

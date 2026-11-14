@@ -1929,10 +1929,22 @@ auto ASTInterpreter::isPotentiallyUsableInConstantExpressions(
     VariableSymbol* var) -> bool {
   auto definition = var->resolvedDefinition();
   if (!definition) definition = var;
-  if (traits.is_usable_in_constant_expressions(definition, currentFunction_))
-    return true;
+  if (isUsableInConstantExpressions(definition)) return true;
   return traits.is_const(definition->type()) &&
          isDependent(unit_, definition->type());
+}
+
+auto ASTInterpreter::isUsableInConstantExpressions(VariableSymbol* definition)
+    -> bool {
+  if (!activeEvaluations_)
+    return traits.is_usable_in_constant_expressions(definition,
+                                                    currentFunction_);
+  auto& usable = usableConstants_[currentFunction_];
+  if (usable.contains(definition)) return true;
+  if (!traits.is_usable_in_constant_expressions(definition, currentFunction_))
+    return false;
+  usable.insert(definition);
+  return true;
 }
 
 auto ASTInterpreter::referenceInitializer(ExpressionAST* initializer)
