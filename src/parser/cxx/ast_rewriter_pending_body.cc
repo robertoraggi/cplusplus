@@ -486,6 +486,15 @@ struct RequireNamedDefinitions final : ASTVisitor {
 
   explicit RequireNamedDefinitions(TranslationUnit* unit) : unit(unit) {}
 
+  template <typename Initializer>
+  void visitInitializers(Initializer* ast, const InitializerInfo& info) {
+    if (!info.arguments) {
+      ASTVisitor::visit(ast);
+      return;
+    }
+    for (auto node : ListView{*info.arguments}) accept(node);
+  }
+
   void requireEntity(Symbol* symbol) {
     ASTRewriter::requireFunctionDefinition(unit,
                                            symbol_cast<FunctionSymbol>(symbol));
@@ -494,12 +503,23 @@ struct RequireNamedDefinitions final : ASTVisitor {
 
   void visit(ParenMemInitializerAST* ast) override {
     requireEntity(ast->constructor);
+    accept(ast->initialization.expression);
     ASTVisitor::visit(ast);
   }
 
   void visit(BracedMemInitializerAST* ast) override {
     requireEntity(ast->constructor);
+    accept(ast->initialization.expression);
     ASTVisitor::visit(ast);
+  }
+
+  void visit(BracedInitListAST* ast) override {
+    if (auto element = ast->implicitElement) accept(element->initializer());
+    visitInitializers(ast, ast->initialization);
+  }
+
+  void visit(ParenInitializerAST* ast) override {
+    visitInitializers(ast, ast->initialization);
   }
 
   void visit(IdExpressionAST* ast) override {
@@ -529,6 +549,7 @@ struct RequireNamedDefinitions final : ASTVisitor {
 
   void visit(BracedTypeConstructionAST* ast) override {
     requireEntity(ast->constructorSymbol);
+    accept(ast->initialization.expression);
     ASTVisitor::visit(ast);
   }
 
