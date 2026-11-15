@@ -1528,7 +1528,8 @@ auto StandardConversion::classListInitializationSequence(
   sequence.form = ConversionSequenceForm::kUserDefined;
   sequence.udc.aggregateInitializedClass = type;
   bindResultToReference(sequence, targetType, ValueCategory::kPrValue);
-  return completedSequence(sequence, ImplicitCastKind::kIdentity, type);
+  return completedSequence(std::move(sequence), ImplicitCastKind::kIdentity,
+                           type);
 }
 
 auto StandardConversion::aggregateListInitializationSequence(
@@ -1585,7 +1586,8 @@ auto StandardConversion::listInitializationSequence(
           traits, !isC_, listTarget, singleInitializerClause(bracedInitList));
       stringInit && stringInit->compatible) {
     bindResultToReference(seq, targetType, ValueCategory::kPrValue);
-    return completedSequence(seq, ImplicitCastKind::kIdentity, listTarget);
+    return completedSequence(std::move(seq), ImplicitCastKind::kIdentity,
+                             listTarget);
   }
 
   if (auto elemType = traits.initializer_list_element_type(targetType)) {
@@ -1604,7 +1606,8 @@ auto StandardConversion::listInitializationSequence(
     seq.list.initializerListElementType = elemType;
     seq.list.elementCount = elementCount;
     seq.list.elementRank = worstRank;
-    return completedSequence(seq, ImplicitCastKind::kIdentity, targetType);
+    return completedSequence(std::move(seq), ImplicitCastKind::kIdentity,
+                             targetType);
   }
 
   if (traits.is_array(listTarget)) {
@@ -1620,7 +1623,8 @@ auto StandardConversion::listInitializationSequence(
     seq.list.elementRank = conversion.elementRank;
     seq.list.targetIsUnboundedArray = traits.is_unbounded_array(listTarget);
     bindResultToReference(seq, targetType, ValueCategory::kPrValue);
-    return completedSequence(seq, ImplicitCastKind::kIdentity, listTarget);
+    return completedSequence(std::move(seq), ImplicitCastKind::kIdentity,
+                             listTarget);
   }
 
   if (traits.is_class_or_union(listTarget)) {
@@ -1654,7 +1658,8 @@ auto StandardConversion::listInitializationSequence(
 
   if (!bracedInitList->expressionList) {
     bindResultToReference(seq, targetType, ValueCategory::kPrValue);
-    return completedSequence(seq, ImplicitCastKind::kIdentity, listTarget);
+    return completedSequence(std::move(seq), ImplicitCastKind::kIdentity,
+                             listTarget);
   }
 
   return seq;
@@ -1742,26 +1747,29 @@ auto StandardConversion::pointerConversionSequence(
   sequence.pointeeCv = targetCv;
   if (traits.is_qualification_convertible(sourceType,
                                           traits.remove_cv(targetType)))
-    return completedSequence(
-        sequence, ImplicitCastKind::kQualificationConversion, targetType);
-  if (traits.is_void(targetUnqualified) && traits.is_object(sourceUnqualified))
-    return completedSequence(sequence, ImplicitCastKind::kPointerConversion,
+    return completedSequence(std::move(sequence),
+                             ImplicitCastKind::kQualificationConversion,
                              targetType);
+  if (traits.is_void(targetUnqualified) && traits.is_object(sourceUnqualified))
+    return completedSequence(std::move(sequence),
+                             ImplicitCastKind::kPointerConversion, targetType);
   if (pointeeClassAdjustment(sourceType, targetType) ==
       ClassAdjustment::kDerivedToBase)
-    return completedSequence(
-        sequence, ImplicitCastKind::kDerivedToBaseConversion, targetType);
+    return completedSequence(std::move(sequence),
+                             ImplicitCastKind::kDerivedToBaseConversion,
+                             targetType);
   if (traits.is_function(sourceElement) && traits.is_function(targetElement) &&
       traits.is_reference_compatible(targetElement, sourceElement))
-    return completedSequence(
-        sequence, ImplicitCastKind::kFunctionPointerConversion, targetType);
+    return completedSequence(std::move(sequence),
+                             ImplicitCastKind::kFunctionPointerConversion,
+                             targetType);
   if (!isC_) return sequence;
   if (traits.is_void(sourceUnqualified) || traits.is_void(targetUnqualified))
-    return completedSequence(sequence, ImplicitCastKind::kPointerConversion,
-                             targetType);
+    return completedSequence(std::move(sequence),
+                             ImplicitCastKind::kPointerConversion, targetType);
   if (traits.is_vla_compatible(sourceUnqualified, targetUnqualified))
-    return completedSequence(sequence, ImplicitCastKind::kPointerConversion,
-                             targetType);
+    return completedSequence(std::move(sequence),
+                             ImplicitCastKind::kPointerConversion, targetType);
   return sequence;
 }
 
@@ -1789,7 +1797,7 @@ auto StandardConversion::memberPointerConversionSequence(
   auto kind = traits.is_function(source.pointeeType)
                   ? ImplicitCastKind::kFunctionPointerConversion
                   : ImplicitCastKind::kQualificationConversion;
-  return completedSequence(sequence, kind, targetType);
+  return completedSequence(std::move(sequence), kind, targetType);
 }
 
 auto StandardConversion::computeConversionSequenceSteps(
@@ -1854,7 +1862,8 @@ auto StandardConversion::computeConversionSequenceSteps(
   if (isDirectInitialization(initializationKind) &&
       traits.is_null_pointer(unqualFrom) &&
       traits.is_same(unqualTo, control_->getBoolType())) {
-    return completedSequence(seq, ImplicitCastKind::kBooleanConversion,
+    return completedSequence(std::move(seq),
+                             ImplicitCastKind::kBooleanConversion,
                              comparisonTargetType);
   }
 
@@ -1863,7 +1872,7 @@ auto StandardConversion::computeConversionSequenceSteps(
     seq.copyConstructor =
         selectCopyConstructor(expr, targetType, initializationKind);
     bindResultToReference(seq, targetType, currentValCat);
-    return completedSequence(seq, ImplicitCastKind::kIdentity,
+    return completedSequence(std::move(seq), ImplicitCastKind::kIdentity,
                              comparisonTargetType);
   }
 
@@ -1881,24 +1890,28 @@ auto StandardConversion::computeConversionSequenceSteps(
       !traits.is_class_or_union(unqualTo) &&
       (traits.is_complex(unqualFrom) || traits.is_complex(unqualTo))) {
     if (traits.is_complex(unqualFrom) && traits.is_complex(unqualTo)) {
-      return completedSequence(seq, ImplicitCastKind::kComplexConversion,
+      return completedSequence(std::move(seq),
+                               ImplicitCastKind::kComplexConversion,
                                comparisonTargetType);
     }
 
     if (traits.is_complex(unqualTo)) {
       if (!traits.is_arithmetic(unqualFrom)) return seq;
-      return completedSequence(seq, ImplicitCastKind::kRealToComplexConversion,
+      return completedSequence(std::move(seq),
+                               ImplicitCastKind::kRealToComplexConversion,
                                comparisonTargetType);
     }
 
     if (traits.is_same(unqualTo, control_->getBoolType())) {
-      return completedSequence(seq, ImplicitCastKind::kBooleanConversion,
+      return completedSequence(std::move(seq),
+                               ImplicitCastKind::kBooleanConversion,
                                comparisonTargetType);
     }
 
     if (!isC_ && context != ConversionContext::kStandardOnly) return seq;
     if (!traits.is_arithmetic(unqualTo)) return seq;
-    return completedSequence(seq, ImplicitCastKind::kComplexToRealConversion,
+    return completedSequence(std::move(seq),
+                             ImplicitCastKind::kComplexToRealConversion,
                              comparisonTargetType);
   }
 
@@ -1907,13 +1920,15 @@ auto StandardConversion::computeConversionSequenceSteps(
       const bool bothExt = sourceVector->vectorKind() == VectorKind::kExt &&
                            targetVector->vectorKind() == VectorKind::kExt;
       if (bothExt && isVectorBooleanConversion(sourceVector, targetVector)) {
-        return completedSequence(seq, ImplicitCastKind::kBooleanConversion,
+        return completedSequence(std::move(seq),
+                                 ImplicitCastKind::kBooleanConversion,
                                  comparisonTargetType);
       }
       const auto width = traits.vector_width_in_bytes(sourceVector);
       if (!bothExt && width &&
           width == traits.vector_width_in_bytes(targetVector)) {
-        return completedSequence(seq, ImplicitCastKind::kVectorConversion,
+        return completedSequence(std::move(seq),
+                                 ImplicitCastKind::kVectorConversion,
                                  comparisonTargetType);
       }
       return seq;
@@ -1925,8 +1940,8 @@ auto StandardConversion::computeConversionSequenceSteps(
       auto elementConversion = arithmeticConversionKind(unqualFrom, element);
       if (!elementConversion) return seq;
       if (*elementConversion != ImplicitCastKind::kIdentity)
-        seq = completedSequence(seq, *elementConversion, element);
-      return completedSequence(seq, ImplicitCastKind::kVectorSplat,
+        seq = completedSequence(std::move(seq), *elementConversion, element);
+      return completedSequence(std::move(seq), ImplicitCastKind::kVectorSplat,
                                comparisonTargetType);
     }
 
@@ -1941,22 +1956,26 @@ auto StandardConversion::computeConversionSequenceSteps(
     seq.copyConstructor =
         selectCopyConstructor(expr, targetType, initializationKind);
     bindResultToReference(seq, targetType, currentValCat);
-    return completedSequence(seq, ImplicitCastKind::kDerivedToBaseConversion,
+    return completedSequence(std::move(seq),
+                             ImplicitCastKind::kDerivedToBaseConversion,
                              comparisonTargetType);
   }
 
   if (isNullPointerConstant(expr) && traits.is_null_pointer(unqualTo)) {
-    return completedSequence(seq, ImplicitCastKind::kPointerConversion,
+    return completedSequence(std::move(seq),
+                             ImplicitCastKind::kPointerConversion,
                              comparisonTargetType);
   }
 
   if (traits.is_null_pointer(unqualFrom) && traits.is_pointer(unqualTo)) {
-    return completedSequence(seq, ImplicitCastKind::kPointerConversion,
+    return completedSequence(std::move(seq),
+                             ImplicitCastKind::kPointerConversion,
                              comparisonTargetType);
   }
 
   if (traits.is_pointer(unqualTo) && isNullPointerConstant(expr)) {
-    return completedSequence(seq, ImplicitCastKind::kPointerConversion,
+    return completedSequence(std::move(seq),
+                             ImplicitCastKind::kPointerConversion,
                              comparisonTargetType);
   }
 
@@ -1967,26 +1986,29 @@ auto StandardConversion::computeConversionSequenceSteps(
   if (traits.is_same(unqualTo, control_->getBoolType())) {
     if (traits.is_arithmetic_or_unscoped_enum(unqualFrom) ||
         traits.is_pointer(unqualFrom) || traits.is_member_pointer(unqualFrom)) {
-      return completedSequence(seq, ImplicitCastKind::kBooleanConversion,
+      return completedSequence(std::move(seq),
+                               ImplicitCastKind::kBooleanConversion,
                                comparisonTargetType);
     }
   }
 
   if (auto kind = arithmeticConversionKind(unqualFrom, unqualTo))
-    return completedSequence(seq, *kind, comparisonTargetType);
+    return completedSequence(std::move(seq), *kind, comparisonTargetType);
 
   if (auto member = memberPointerConversionSequence(seq, unqualFrom,
                                                     comparisonTargetType))
     return *member;
 
   if (traits.is_member_pointer(unqualTo) && isNullPointerConstant(expr)) {
-    return completedSequence(seq, ImplicitCastKind::kPointerToMemberConversion,
+    return completedSequence(std::move(seq),
+                             ImplicitCastKind::kPointerToMemberConversion,
                              comparisonTargetType);
   }
 
   if (isC_ && traits.is_integral_or_unscoped_enum(unqualFrom) &&
       traits.is_enum(unqualTo) && !traits.is_scoped_enum(unqualTo)) {
-    return completedSequence(seq, ImplicitCastKind::kIntegralConversion,
+    return completedSequence(std::move(seq),
+                             ImplicitCastKind::kIntegralConversion,
                              comparisonTargetType);
   }
 
@@ -2072,12 +2094,13 @@ void StandardConversion::addConstructorCandidates(
   const auto initializesObjectDirectly =
       isDirectInitialization(initializationKind) &&
       !traits.is_reference(targetType);
-  auto constructors = initializesObjectDirectly
-                          ? classSymbol->constructors()
-                          : classSymbol->convertingConstructors();
-  for (auto constructor : constructors)
+  for (auto constructor : classSymbol->constructors()) {
+    if (!initializesObjectDirectly &&
+        !classSymbol->isConvertingConstructor(constructor))
+      continue;
     addConstructorCandidate(candidates, constructor, classSymbol, expr,
                             targetType);
+  }
 }
 
 auto StandardConversion::constructorArgumentConversion(

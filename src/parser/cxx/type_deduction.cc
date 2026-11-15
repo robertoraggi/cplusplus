@@ -599,7 +599,11 @@ struct TypeDeduction::DeduceType {
 
 TypeDeduction::TypeDeduction(TranslationUnit* unit,
                              TemplateDeclarationAST* templateDeclaration)
-    : unit_(unit) {
+    : unit_(unit),
+      parameters_(unit->control()->scratchMemory()),
+      deduced_(unit->control()->scratchMemory()),
+      specified_(unit->control()->scratchMemory()),
+      packPrefixes_(unit->control()->scratchMemory()) {
   if (templateDeclaration) {
     for (auto parameter : ListView{templateDeclaration->templateParameterList})
       parameters_.push_back(parameter);
@@ -648,12 +652,12 @@ auto TypeDeduction::specifiedPackLength(int slot) const -> std::size_t {
 }
 
 auto TypeDeduction::state() const -> State {
-  return {.deduced = deduced_,
+  return {.deduced = {deduced_.begin(), deduced_.end()},
           .skippedNonDeducedContext = skippedNonDeducedContext_};
 }
 
 void TypeDeduction::restore(State state) {
-  deduced_ = std::move(state.deduced);
+  deduced_.assign(state.deduced.begin(), state.deduced.end());
   skippedNonDeducedContext_ = state.skippedNonDeducedContext;
 }
 

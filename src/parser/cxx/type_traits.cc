@@ -111,16 +111,19 @@ struct DecomposeQualificationComponent {
   return visit(DecomposeQualificationComponent{}, unqualified_type(type));
 }
 
-struct QualificationDecomposition {
-  std::vector<CvQualifiers> cv;
-  std::vector<std::optional<std::uint32_t>> addressSpaces;
-  std::vector<QualificationComponent> components;
-  const Type* terminal = nullptr;
+struct QualificationLevel {
+  CvQualifiers leftCv = CvQualifiers::kNone;
+  CvQualifiers rightCv = CvQualifiers::kNone;
+  CvQualifiers combinedCv = CvQualifiers::kNone;
+  std::optional<std::uint32_t> addressSpace;
+  QualificationComponent leftComponent;
+  QualificationComponent rightComponent;
+  QualificationComponent combinedComponent;
 };
 
-struct QualificationDecompositionPair {
-  QualificationDecomposition left;
-  QualificationDecomposition right;
+struct QualificationDecomposition {
+  std::vector<QualificationLevel> levels;
+  const Type* terminal = nullptr;
 };
 
 [[nodiscard]] auto componentsMatch(const TypeTraits& traits,
@@ -2863,38 +2866,40 @@ auto TypeTraits::is_pointer_interconvertible_base_of(const Type* base,
 }
 
 namespace {
-[[nodiscard]] auto decomposeForQualification(const TypeTraits& traits,
-                                             const Type* lhs, const Type* rhs)
-    -> std::optional<QualificationDecompositionPair> {
-  QualificationDecompositionPair result;
-
+[[nodiscard]] auto decomposeForQualification(
+    const TypeTraits& traits, const Type* lhs, const Type* rhs,
+    QualificationDecomposition* decomposition) -> bool {
   for (;;) {
-    if (address_space(lhs) != address_space(rhs)) return std::nullopt;
-    result.left.cv.push_back(cv_qualifiers(lhs));
-    result.right.cv.push_back(cv_qualifiers(rhs));
-    result.left.addressSpaces.push_back(address_space(lhs));
+    if (address_space(lhs) != address_space(rhs)) return false;
 
     auto leftStep = decomposeQualificationComponent(lhs);
     auto rightStep = decomposeQualificationComponent(rhs);
 
-    if (!leftStep.component || !rightStep.component) break;
-    if (!componentsMatch(traits, *leftStep.component, *rightStep.component))
-      break;
+    const auto matched =
+        leftStep.component && rightStep.component &&
+        componentsMatch(traits, *leftStep.component, *rightStep.component);
 
-    result.left.components.push_back(*leftStep.component);
-    result.right.components.push_back(*rightStep.component);
+    if (decomposition) {
+      QualificationLevel level{.leftCv = cv_qualifiers(lhs),
+                               .rightCv = cv_qualifiers(rhs),
+                               .addressSpace = address_space(lhs)};
+      if (matched) {
+        level.leftComponent = *leftStep.component;
+        level.rightComponent = *rightStep.component;
+      }
+      decomposition->levels.push_back(level);
+    }
+
+    if (!matched) break;
 
     lhs = leftStep.next;
     rhs = rightStep.next;
   }
 
-  result.left.terminal = traits.remove_cv(lhs);
-  result.right.terminal = traits.remove_cv(rhs);
-
-  if (!traits.is_same(result.left.terminal, result.right.terminal))
-    return std::nullopt;
-
-  return result;
+  auto terminal = traits.remove_cv(lhs);
+  if (!traits.is_same(terminal, traits.remove_cv(rhs))) return false;
+  if (decomposition) decomposition->terminal = terminal;
+  return true;
 }
 }  // namespace
 
@@ -2958,38 +2963,38 @@ auto TypeTraits::adjusted_parameter_type(Control* control, const Type* type)
 
 auto TypeTraits::is_similar(const Type* lhs, const Type* rhs) const -> bool {
   if (lhs == rhs) return true;
-  return decomposeForQualification(*this, lhs, rhs).has_value();
+  return decomposeForQualification(*this, lhs, rhs, nullptr);
 }
 
 auto TypeTraits::qualification_combined_type(const Type* lhs,
                                              const Type* rhs) const
     -> const Type* {
-  auto decomposition = decomposeForQualification(*this, lhs, rhs);
-  if (!decomposition) return nullptr;
+  QualificationDecomposition decomposition;
+  if (!decomposeForQualification(*this, lhs, rhs, &decomposition))
+    return nullptr;
 
-  const auto& left = decomposition->left;
-  const auto& right = decomposition->right;
-  const auto depth = left.cv.size();
+  auto& levels = decomposition.levels;
+  const auto depth = levels.size();
+  const auto componentCount = depth - 1;
 
-  std::vector<CvQualifiers> cv(depth);
-  for (std::size_t i = 0; i < depth; ++i) cv[i] = left.cv[i] | right.cv[i];
+  for (auto& level : levels) level.combinedCv = level.leftCv | level.rightCv;
 
-  std::vector<QualificationComponent> components;
-  components.reserve(left.components.size());
-  for (std::size_t i = 0; i < left.components.size(); ++i) {
-    auto component = left.components[i];
-    if (right.components[i].kind ==
+  for (std::size_t i = 0; i < componentCount; ++i) {
+    auto& level = levels[i];
+    level.combinedComponent = level.leftComponent;
+    if (level.rightComponent.kind ==
         QualificationComponent::Kind::kUnboundedArray) {
-      component = right.components[i];
+      level.combinedComponent = level.rightComponent;
     }
-    components.push_back(component);
   }
 
   auto isChangedAt = [&](std::size_t i) {
-    if (cv[i] != left.cv[i] || cv[i] != right.cv[i]) return true;
-    if (i >= components.size()) return false;
-    return components[i].kind != left.components[i].kind ||
-           components[i].kind != right.components[i].kind;
+    const auto& level = levels[i];
+    if (level.combinedCv != level.leftCv) return true;
+    if (level.combinedCv != level.rightCv) return true;
+    if (i >= componentCount) return false;
+    return level.combinedComponent.kind != level.leftComponent.kind ||
+           level.combinedComponent.kind != level.rightComponent.kind;
   };
 
   for (auto changed = true; changed;) {
@@ -2998,26 +3003,27 @@ auto TypeTraits::qualification_combined_type(const Type* lhs,
     for (std::size_t i = 0; i < depth; ++i) {
       if (!isChangedAt(i)) continue;
       for (std::size_t k = 1; k < i; ++k) {
-        if (has_const(cv[k])) continue;
-        cv[k] = cv[k] | CvQualifiers::kConst;
+        if (has_const(levels[k].combinedCv)) continue;
+        levels[k].combinedCv = levels[k].combinedCv | CvQualifiers::kConst;
         changed = true;
       }
     }
 
-    for (std::size_t i = 0; i < components.size(); ++i) {
-      if (!components[i].isArray()) continue;
-      auto shared = cv[i] | cv[i + 1];
-      if (shared == cv[i] && shared == cv[i + 1]) continue;
-      cv[i] = shared;
-      cv[i + 1] = shared;
+    for (std::size_t i = 0; i < componentCount; ++i) {
+      if (!levels[i].combinedComponent.isArray()) continue;
+      auto shared = levels[i].combinedCv | levels[i + 1].combinedCv;
+      if (shared == levels[i].combinedCv && shared == levels[i + 1].combinedCv)
+        continue;
+      levels[i].combinedCv = shared;
+      levels[i + 1].combinedCv = shared;
       changed = true;
     }
   }
 
-  auto result = add_cv(left.terminal, cv[depth - 1]);
+  auto result = add_cv(decomposition.terminal, levels[depth - 1].combinedCv);
 
-  for (auto i = components.size(); i-- > 0;) {
-    const auto& component = components[i];
+  for (auto i = componentCount; i-- > 0;) {
+    const auto& component = levels[i].combinedComponent;
     switch (component.kind) {
       case QualificationComponent::Kind::kPointer:
         result = control()->getPointerType(result);
@@ -3032,7 +3038,8 @@ auto TypeTraits::qualification_combined_type(const Type* lhs,
         result = control()->getUnboundedArrayType(result);
         break;
     }
-    result = add_qualifiers(result, cv[i], left.addressSpaces[i]);
+    result =
+        add_qualifiers(result, levels[i].combinedCv, levels[i].addressSpace);
   }
 
   return result;
@@ -4206,11 +4213,12 @@ auto TypeTraits::is_implicit_lifetime(const Type* type) -> bool {
   if (!destructor || unit_->typeTraits().is_deleted_function(destructor))
     return false;
   if (!has_trivial_destructor(type)) return false;
-  auto constructors = cls->constructors();
-  std::erase_if(constructors, [cls](FunctionSymbol* constructor) {
-    if (constructor->isTemplatePattern()) return true;
-    return !constructorKind(cls, constructor);
-  });
+  std::vector<FunctionSymbol*> constructors;
+  for (auto constructor : cls->constructors()) {
+    if (constructor->isTemplatePattern()) continue;
+    if (!constructorKind(cls, constructor)) continue;
+    constructors.push_back(constructor);
+  }
   for (auto constructor :
        eligibleSpecialMembers(unit_, std::move(constructors))) {
     if (is_trivial_special_member(constructor)) return true;

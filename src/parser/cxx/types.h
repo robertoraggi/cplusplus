@@ -36,7 +36,6 @@ namespace cxx {
 class Type {
  public:
   explicit Type(TypeKind kind) : kind_(kind) {}
-  virtual ~Type() = default;
 
   [[nodiscard]] auto kind() const -> TypeKind { return kind_; }
 

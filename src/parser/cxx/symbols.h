@@ -402,6 +402,99 @@ class SpecializationTable {
 };
 
 template <typename S>
+class DeclarationChain
+    : public std::ranges::view_interface<DeclarationChain<S>> {
+ public:
+  class iterator {
+   public:
+    using iterator_category = std::random_access_iterator_tag;
+    using value_type = S*;
+    using difference_type = std::ptrdiff_t;
+    using reference = S*;
+
+    iterator() = default;
+    iterator(S* canonical, std::size_t index)
+        : canonical_(canonical), index_(index) {}
+
+    [[nodiscard]] auto operator*() const -> S* { return (*this)[0]; }
+    [[nodiscard]] auto operator[](difference_type n) const -> S* {
+      const auto position = index_ + n;
+      if (position == 0) return canonical_;
+      return canonical_->redeclarations()[position - 1];
+    }
+
+    auto operator++() -> iterator& {
+      ++index_;
+      return *this;
+    }
+    auto operator++(int) -> iterator {
+      auto previous = *this;
+      ++index_;
+      return previous;
+    }
+    auto operator--() -> iterator& {
+      --index_;
+      return *this;
+    }
+    auto operator--(int) -> iterator {
+      auto previous = *this;
+      --index_;
+      return previous;
+    }
+    auto operator+=(difference_type n) -> iterator& {
+      index_ += n;
+      return *this;
+    }
+    auto operator-=(difference_type n) -> iterator& {
+      index_ -= n;
+      return *this;
+    }
+    [[nodiscard]] friend auto operator+(iterator it, difference_type n)
+        -> iterator {
+      return it += n;
+    }
+    [[nodiscard]] friend auto operator+(difference_type n, iterator it)
+        -> iterator {
+      return it += n;
+    }
+    [[nodiscard]] friend auto operator-(iterator it, difference_type n)
+        -> iterator {
+      return it -= n;
+    }
+    [[nodiscard]] friend auto operator-(const iterator& lhs,
+                                        const iterator& rhs)
+        -> difference_type {
+      return static_cast<difference_type>(lhs.index_) -
+             static_cast<difference_type>(rhs.index_);
+    }
+    [[nodiscard]] friend auto operator==(const iterator& lhs,
+                                         const iterator& rhs) -> bool {
+      return lhs.index_ == rhs.index_;
+    }
+    [[nodiscard]] friend auto operator<=>(const iterator& lhs,
+                                          const iterator& rhs) {
+      return lhs.index_ <=> rhs.index_;
+    }
+
+   private:
+    S* canonical_ = nullptr;
+    std::size_t index_ = 0;
+  };
+
+  DeclarationChain() = default;
+  explicit DeclarationChain(S* canonical) : canonical_(canonical) {}
+
+  [[nodiscard]] auto begin() const -> iterator { return {canonical_, 0}; }
+  [[nodiscard]] auto end() const -> iterator { return {canonical_, size()}; }
+  [[nodiscard]] auto size() const -> std::size_t {
+    return 1 + canonical_->redeclarations().size();
+  }
+
+ private:
+  S* canonical_ = nullptr;
+};
+
+template <typename S>
 class MaybeRedecl {
  public:
   [[nodiscard]] auto canonical() const -> S* {
@@ -424,11 +517,8 @@ class MaybeRedecl {
     return redeclarations_;
   }
 
-  [[nodiscard]] auto declarations() const -> std::vector<S*> {
-    auto first = canonical();
-    std::vector<S*> result{first};
-    std::ranges::copy(first->redeclarations_, std::back_inserter(result));
-    return result;
+  [[nodiscard]] auto declarations() const -> DeclarationChain<S> {
+    return DeclarationChain<S>{canonical()};
   }
 
   void addRedeclaration(S* redecl) {
@@ -1266,6 +1356,38 @@ enum class ClassProperty : std::uint8_t {
   kEmpty,
 };
 
+namespace views {
+
+class each_function : public std::ranges::view_interface<each_function> {
+ public:
+  each_function() = default;
+
+  explicit each_function(Symbol* symbol);
+  explicit each_function(const OverloadSetSymbol* overloadSet);
+
+  [[nodiscard]] auto begin() const -> FunctionSymbol* const* {
+    if (declaredFunctions_) return declaredFunctions_->data();
+    if (function_) return &function_;
+    return composedFunctions_.data();
+  }
+
+  [[nodiscard]] auto end() const -> FunctionSymbol* const* {
+    if (declaredFunctions_)
+      return declaredFunctions_->data() + declaredFunctions_->size();
+    if (function_) return &function_ + 1;
+    return composedFunctions_.data() + composedFunctions_.size();
+  }
+
+ private:
+  void expand(const OverloadSetSymbol* overloadSet);
+
+  const std::vector<FunctionSymbol*>* declaredFunctions_ = nullptr;
+  FunctionSymbol* function_ = nullptr;
+  std::vector<FunctionSymbol*> composedFunctions_;
+};
+
+}  // namespace views
+
 class ClassSymbol final : public ScopeSymbol,
                           public MaybeTemplate<ClassSymbol, AST>,
                           public MaybeRedecl<ClassSymbol> {
@@ -1312,7 +1434,7 @@ class ClassSymbol final : public ScopeSymbol,
 
   void addBaseClass(BaseClassSymbol* baseClass);
 
-  [[nodiscard]] auto constructors() const -> std::vector<FunctionSymbol*>;
+  [[nodiscard]] auto constructors() const -> views::each_function;
 
   [[nodiscard]] auto declaredConstructors() const
       -> const std::vector<FunctionSymbol*>&;
@@ -1370,6 +1492,8 @@ class ClassSymbol final : public ScopeSymbol,
   [[nodiscard]] auto hasVirtualFunctions() const -> bool;
   [[nodiscard]] auto hasVirtualBaseClasses() const -> bool;
 
+  [[nodiscard]] auto isConvertingConstructor(FunctionSymbol* constructor) const
+      -> bool;
   [[nodiscard]] auto convertingConstructors() const
       -> std::vector<FunctionSymbol*>;
 
@@ -1944,7 +2068,7 @@ class OverloadSetSymbol final : public Symbol {
   explicit OverloadSetSymbol(ScopeSymbol* enclosingScope);
   ~OverloadSetSymbol() override;
 
-  [[nodiscard]] auto functions() const -> std::vector<FunctionSymbol*>;
+  [[nodiscard]] auto functions() const -> views::each_function;
 
   [[nodiscard]] auto functionsWithin(std::size_t functionCount,
                                      std::size_t usingDeclarationCount) const

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <cxx/arena.h>
 #include <cxx/ast.h>
 #include <cxx/attributes.h>
 #include <cxx/control.h>
@@ -34,7 +35,9 @@
 #include <cstdlib>
 #include <format>
 #include <forward_list>
+#include <map>
 #include <set>
+#include <span>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
@@ -78,22 +81,82 @@ struct TypeFieldsHash {
   }
 };
 
-struct TypeFieldsEqual {
-  template <typename T>
-  [[nodiscard]] auto operator()(const T& lhs, const T& rhs) const -> bool {
-    return typeFields(lhs) == typeFields(rhs);
+template <typename T>
+class InternSet {
+ public:
+  template <typename Matches>
+  [[nodiscard]] auto find(std::size_t hash, Matches matches) const -> const T* {
+    if (slots_.empty()) return nullptr;
+    for (auto index = slotOf(hash);; index = (index + 1) & mask()) {
+      const auto& slot = slots_[index];
+      if (!slot.value) return nullptr;
+      if (slot.hash == hash && matches(*slot.value)) return slot.value;
+    }
   }
+
+  void insert(const T* value, std::size_t hash) {
+    if ((size_ + 1) * 4 > slots_.size() * 3) grow();
+    place({value, hash});
+    ++size_;
+  }
+
+ private:
+  struct Slot {
+    const T* value = nullptr;
+    std::size_t hash = 0;
+  };
+
+  [[nodiscard]] auto mask() const -> std::size_t { return slots_.size() - 1; }
+
+  [[nodiscard]] auto slotOf(std::size_t hash) const -> std::size_t {
+    const auto mixed = static_cast<std::uint64_t>(hash) * 0x9e3779b97f4a7c15ull;
+    return static_cast<std::size_t>(mixed >> 16) & mask();
+  }
+
+  void place(Slot slot) {
+    auto index = slotOf(slot.hash);
+    while (slots_[index].value) index = (index + 1) & mask();
+    slots_[index] = slot;
+  }
+
+  void grow() {
+    auto previous = std::move(slots_);
+    slots_.assign(std::max<std::size_t>(64, previous.size() * 2), Slot{});
+    for (const auto& slot : previous) {
+      if (slot.value) place(slot);
+    }
+  }
+
+  std::vector<Slot> slots_;
+  std::size_t size_ = 0;
 };
 
 template <typename T>
-using TypeSet = std::unordered_set<T, TypeFieldsHash, TypeFieldsEqual>;
+using TypeSet = InternSet<T>;
+
+template <typename T, typename Key, typename... Args>
+[[nodiscard]] auto internName(Arena& arena, InternSet<T>& names, const Key& key,
+                              Args&&... args) -> const T* {
+  const auto hash = std::hash<T>{}(key);
+  auto matches = [&](const T& name) { return std::equal_to<T>{}(name, key); };
+  if (auto name = names.find(hash, matches)) return name;
+  auto name = arena.make<T>(std::forward<Args>(args)...);
+  names.insert(name, hash);
+  return name;
+}
 
 template <typename T, typename... Args>
-[[nodiscard]] auto internType(TypeSet<T>& types, Args&&... args) -> const T* {
-  T type{std::forward<Args>(args)...};
-  if (auto position = types.find(type); position != types.end())
-    return &*position;
-  return &*types.insert(std::move(type)).first;
+[[nodiscard]] auto internType(Arena& arena, TypeSet<T>& types, Args&&... args)
+    -> const T* {
+  T probe{std::forward<Args>(args)...};
+  const auto hash = TypeFieldsHash{}(probe);
+  auto matches = [&](const T& type) {
+    return typeFields(type) == typeFields(probe);
+  };
+  if (auto type = types.find(hash, matches)) return type;
+  auto type = arena.make<T>(std::move(probe));
+  types.insert(type, hash);
+  return type;
 }
 
 [[nodiscard]] auto withCompletedTemplateArguments(
@@ -197,8 +260,22 @@ constexpr std::size_t kWellKnownNameCount =
 #undef COUNT_WELL_KNOWN_NAME
 }  // namespace
 
+struct SymbolSequenceLess {
+  using is_transparent = void;
+
+  [[nodiscard]] auto operator()(std::span<Symbol* const> lhs,
+                                std::span<Symbol* const> rhs) const -> bool {
+    return std::ranges::lexicographical_compare(lhs, rhs);
+  }
+};
+
 struct Control::Private {
   explicit Private(Control*) {}
+
+  std::pmr::unsynchronized_pool_resource scratchMemory;
+  Arena typeArena;
+  Arena symbolArena;
+  SymbolCounts allocatedSymbols{};
 
   std::unordered_set<ClassSymbol*> copyConstructorSelections;
 
@@ -213,12 +290,13 @@ struct Control::Private {
   LiteralSet<StringLiteral> utf32StringLiterals;
   LiteralSet<CommentLiteral> commentLiterals;
 
-  std::unordered_set<Identifier> identifiers;
-  std::unordered_set<OperatorId> operatorIds;
-  std::unordered_set<DestructorId> destructorIds;
-  std::unordered_set<LiteralOperatorId> literalOperatorIds;
-  std::unordered_set<ConversionFunctionId> conversionFunctionIds;
-  std::unordered_set<TemplateId> templateIds;
+  Arena nameArena;
+  InternSet<Identifier> identifiers;
+  InternSet<OperatorId> operatorIds;
+  InternSet<DestructorId> destructorIds;
+  InternSet<LiteralOperatorId> literalOperatorIds;
+  InternSet<ConversionFunctionId> conversionFunctionIds;
+  InternSet<TemplateId> templateIds;
 
   const Type* builtinVaListType = nullptr;
   const Type* constantStringType = nullptr;
@@ -289,41 +367,14 @@ struct Control::Private {
 
   std::set<std::vector<const Identifier*>> abiTags;
   std::set<AttributeMap> attributes;
-  std::forward_list<NamespaceSymbol> namespaceSymbols;
-  std::forward_list<ConceptSymbol> conceptSymbols;
-  std::forward_list<DeductionGuideSymbol> deductionGuideSymbols;
-  std::forward_list<BaseClassSymbol> baseClassSymbols;
-  std::forward_list<InjectedClassNameSymbol> injectedClassNameSymbols;
-  std::forward_list<UnresolvedSymbol> unresolvedSymbols;
-  std::forward_list<ClassSymbol> classSymbols;
-  std::forward_list<EnumSymbol> enumSymbols;
-  std::forward_list<ScopedEnumSymbol> scopedEnumSymbols;
-  std::forward_list<OverloadSetSymbol> overloadSetSymbols;
-  std::forward_list<FunctionSymbol> functionSymbols;
-  std::forward_list<LambdaSymbol> lambdaSymbols;
-  std::forward_list<FunctionParametersSymbol> functionParametersSymbol;
-  std::forward_list<TemplateParametersSymbol> templateParametersSymbol;
-  std::forward_list<BlockSymbol> blockSymbols;
-  std::forward_list<TypeAliasSymbol> typeAliasSymbols;
-  std::forward_list<VariableSymbol> variableSymbols;
   std::unordered_map<const Type*, TypeAliasSymbol*> typeArgumentSymbols;
   std::map<std::tuple<const Type*, std::uint64_t, std::uint64_t, int, bool>,
            VariableSymbol*>
       constantArgumentSymbols;
   std::unordered_map<std::size_t, std::vector<VariableSymbol*>>
       classConstantArgumentSymbols;
-  std::map<std::vector<Symbol*>, ParameterPackSymbol*> packArgumentSymbols;
-  std::forward_list<FieldSymbol> fieldSymbols;
-  std::forward_list<ParameterSymbol> parameterSymbols;
-  std::forward_list<ParameterPackSymbol> parameterPackSymbols;
-  std::forward_list<TypeParameterSymbol> typeParameterSymbols;
-  std::forward_list<NonTypeParameterSymbol> nonTypeParameterSymbols;
-  std::forward_list<TemplateTypeParameterSymbol> templateTypeParameterSymbols;
-  std::forward_list<ConstraintTypeParameterSymbol>
-      constraintTypeParameterSymbols;
-  std::forward_list<EnumeratorSymbol> enumeratorSymbols;
-  std::forward_list<UsingDeclarationSymbol> usingDeclarationSymbols;
-  std::forward_list<NamespaceAliasSymbol> namespaceAliasSymbols;
+  std::map<std::vector<Symbol*>, ParameterPackSymbol*, SymbolSequenceLess>
+      packArgumentSymbols;
 
   std::forward_list<TypeTraitIdentifierInfo> typeTraitIdentifierInfos;
   std::forward_list<UnaryBuiltinTypeInfo> unaryBuiltinTypeInfos;
@@ -333,41 +384,13 @@ struct Control::Private {
   std::array<const Identifier*, kWellKnownNameCount> wellKnownIdentifiers{};
 
   [[nodiscard]] auto allocatedSymbolCounts() const -> SymbolCounts {
-    SymbolCounts counts{};
-    auto count = [&](const auto& symbols) {
-      using SymbolType =
-          typename std::remove_cvref_t<decltype(symbols)>::value_type;
-      counts[std::to_underlying(SymbolType::Kind)] =
-          static_cast<std::size_t>(std::ranges::distance(symbols));
-    };
-    count(namespaceSymbols);
-    count(conceptSymbols);
-    count(deductionGuideSymbols);
-    count(baseClassSymbols);
-    count(injectedClassNameSymbols);
-    count(unresolvedSymbols);
-    count(classSymbols);
-    count(enumSymbols);
-    count(scopedEnumSymbols);
-    count(overloadSetSymbols);
-    count(functionSymbols);
-    count(lambdaSymbols);
-    count(functionParametersSymbol);
-    count(templateParametersSymbol);
-    count(blockSymbols);
-    count(typeAliasSymbols);
-    count(variableSymbols);
-    count(fieldSymbols);
-    count(parameterSymbols);
-    count(parameterPackSymbols);
-    count(typeParameterSymbols);
-    count(nonTypeParameterSymbols);
-    count(templateTypeParameterSymbols);
-    count(constraintTypeParameterSymbols);
-    count(enumeratorSymbols);
-    count(usingDeclarationSymbols);
-    count(namespaceAliasSymbols);
-    return counts;
+    return allocatedSymbols;
+  }
+
+  template <typename T>
+  [[nodiscard]] auto newSymbol(ScopeSymbol* enclosingScope) -> T* {
+    ++allocatedSymbols[std::to_underlying(T::Kind)];
+    return symbolArena.make<T>(enclosingScope);
   }
 
   int anonymousIdCount = 0;
@@ -375,8 +398,7 @@ struct Control::Private {
   const Type* nothrowType = nullptr;
 
   [[nodiscard]] auto getIdentifier(std::string_view name) -> const Identifier* {
-    if (auto it = identifiers.find(name); it != identifiers.end()) return &*it;
-    return &*identifiers.emplace(std::string(name)).first;
+    return internName(nameArena, identifiers, name, std::string(name));
   }
 
   void initBuiltinTypeTraits() {
@@ -530,6 +552,10 @@ auto Control::commentLiteral(std::string_view spelling)
 
 auto Control::memoryLayout() const -> MemoryLayout* { return d->memoryLayout; }
 
+auto Control::scratchMemory() -> std::pmr::memory_resource* {
+  return &d->scratchMemory;
+}
+
 void Control::setMemoryLayout(MemoryLayout* memoryLayout) {
   d->memoryLayout = memoryLayout;
   d->builtinVaListType = nullptr;
@@ -551,27 +577,36 @@ auto Control::getIdentifier(WellKnownName name) const -> const Identifier* {
 }
 
 auto Control::getOperatorId(TokenKind op) -> const OperatorId* {
-  return &*d->operatorIds.emplace(op).first;
+  return internName(d->nameArena, d->operatorIds, op, op);
 }
 
 auto Control::getDestructorId(const Name* name) -> const DestructorId* {
-  return &*d->destructorIds.emplace(name).first;
+  return internName(d->nameArena, d->destructorIds, name, name);
 }
 
 auto Control::getLiteralOperatorId(std::string_view name)
     -> const LiteralOperatorId* {
-  return &*d->literalOperatorIds.emplace(std::string(name)).first;
+  return internName(d->nameArena, d->literalOperatorIds, name,
+                    std::string(name));
 }
 
 auto Control::getConversionFunctionId(const Type* type)
     -> const ConversionFunctionId* {
-  return &*d->conversionFunctionIds.emplace(type).first;
+  return internName(d->nameArena, d->conversionFunctionIds, type, type);
 }
 
 auto Control::getTemplateId(const Name* name,
                             std::vector<TemplateArgument> arguments)
     -> const TemplateId* {
-  return &*d->templateIds.emplace(name, std::move(arguments)).first;
+  TemplateId probe{name, std::move(arguments)};
+  const auto hash = probe.hashValue();
+  auto matches = [&](const TemplateId& id) {
+    return std::equal_to<TemplateId>{}(id, probe);
+  };
+  if (auto id = d->templateIds.find(hash, matches)) return id;
+  auto id = d->nameArena.make<TemplateId>(std::move(probe));
+  d->templateIds.insert(id, hash);
+  return id;
 }
 
 auto Control::getSizeType() -> const Type* {
@@ -778,36 +813,37 @@ auto Control::getQualType(const Type* elementType, CvQualifiers cvQualifiers,
     elementType = qualType->elementType();
   }
 
-  return internType(d->qualTypes, elementType, cvQualifiers, addressSpace);
+  return internType(d->typeArena, d->qualTypes, elementType, cvQualifiers,
+                    addressSpace);
 }
 
 auto Control::getBoundedArrayType(const Type* elementType, std::size_t size)
     -> const BoundedArrayType* {
-  return internType(d->boundedArrayTypes, elementType, size);
+  return internType(d->typeArena, d->boundedArrayTypes, elementType, size);
 }
 
 auto Control::getUnboundedArrayType(const Type* elementType)
     -> const UnboundedArrayType* {
-  return internType(d->unboundedArrayTypes, elementType);
+  return internType(d->typeArena, d->unboundedArrayTypes, elementType);
 }
 
 auto Control::getPointerType(const Type* elementType) -> const PointerType* {
-  return internType(d->pointerTypes, elementType);
+  return internType(d->typeArena, d->pointerTypes, elementType);
 }
 
 auto Control::getLvalueReferenceType(const Type* elementType)
     -> const LvalueReferenceType* {
-  return internType(d->lvalueReferenceTypes, elementType);
+  return internType(d->typeArena, d->lvalueReferenceTypes, elementType);
 }
 
 auto Control::getRvalueReferenceType(const Type* elementType)
     -> const RvalueReferenceType* {
-  return internType(d->rvalueReferenceTypes, elementType);
+  return internType(d->typeArena, d->rvalueReferenceTypes, elementType);
 }
 
 auto Control::getOverloadSetType(OverloadSetSymbol* symbol)
     -> const OverloadSetType* {
-  return internType(d->overloadSetTypes, symbol);
+  return internType(d->typeArena, d->overloadSetTypes, symbol);
 }
 
 auto Control::getFunctionType(const Type* returnType,
@@ -816,9 +852,9 @@ auto Control::getFunctionType(const Type* returnType,
                               RefQualifier refQualifier,
                               ExceptionSpecification exceptionSpecification)
     -> const FunctionType* {
-  return internType(d->functionTypes, returnType, std::move(parameterTypes),
-                    isVariadic, cvQualifiers, refQualifier,
-                    exceptionSpecification);
+  return internType(d->typeArena, d->functionTypes, returnType,
+                    std::move(parameterTypes), isVariadic, cvQualifiers,
+                    refQualifier, exceptionSpecification);
 }
 
 auto Control::getPseudoDestructorType() -> const FunctionType* {
@@ -837,13 +873,15 @@ auto Control::getMemberPointerType(const Type* classType,
 auto Control::getMemberObjectPointerType(const Type* classType,
                                          const Type* elementType)
     -> const MemberObjectPointerType* {
-  return internType(d->memberObjectPointerTypes, classType, elementType);
+  return internType(d->typeArena, d->memberObjectPointerTypes, classType,
+                    elementType);
 }
 
 auto Control::getMemberFunctionPointerType(const Type* classType,
                                            const FunctionType* functionType)
     -> const MemberFunctionPointerType* {
-  return internType(d->memberFunctionPointerTypes, classType, functionType);
+  return internType(d->typeArena, d->memberFunctionPointerTypes, classType,
+                    functionType);
 }
 
 auto Control::getDependentType() -> const TypeParameterType* {
@@ -852,15 +890,16 @@ auto Control::getDependentType() -> const TypeParameterType* {
 
 auto Control::getTypeParameterType(int index, int depth, bool isParameterPack)
     -> const TypeParameterType* {
-  return internType(d->typeParameterTypes, index, depth, isParameterPack);
+  return internType(d->typeArena, d->typeParameterTypes, index, depth,
+                    isParameterPack);
 }
 
 auto Control::getTemplateTypeParameterType(
     int index, int depth, bool isPack,
     std::vector<const Type*> templateParameters)
     -> const TemplateTypeParameterType* {
-  return internType(d->templateTypeParameterTypes, index, depth, isPack,
-                    std::move(templateParameters));
+  return internType(d->typeArena, d->templateTypeParameterTypes, index, depth,
+                    isPack, std::move(templateParameters));
 }
 
 auto Control::getTemplateTypeParameterSpecializationType(
@@ -888,12 +927,12 @@ auto Control::restoreTemplateTypeParameterSpecializationType(
 auto Control::getDecltypeType(TranslationUnit* unit, ExpressionAST* expression)
     -> const DecltypeType* {
   if (expression) unit->captureSnippet(expression->sourceLocationRange());
-  return internType(d->decltypeTypes, unit, expression);
+  return internType(d->typeArena, d->decltypeTypes, unit, expression);
 }
 
 auto Control::getPackExpansionType(const Type* pattern)
     -> const PackExpansionType* {
-  return internType(d->packExpansionTypes, pattern);
+  return internType(d->typeArena, d->packExpansionTypes, pattern);
 }
 
 auto Control::getUnresolvedNameType(TranslationUnit* unit,
@@ -917,8 +956,8 @@ auto Control::getUnresolvedNameType(TranslationUnit* unit,
   nestedNameSpecifier =
       withCompletedTemplateArguments(unit, nestedNameSpecifier);
 
-  auto type = internType(d->unresolvedNameTypes, unit, nestedNameSpecifier,
-                         unqualifiedId);
+  auto type = internType(d->typeArena, d->unresolvedNameTypes, unit,
+                         nestedNameSpecifier, unqualifiedId);
 
   if (expandedType) {
     auto qualifier = expandedType->translationUnit()->snippetText(
@@ -942,22 +981,23 @@ auto Control::getUnresolvedBoundedArrayType(TranslationUnit* unit,
     -> const UnresolvedBoundedArrayType* {
   if (sizeExpression)
     unit->captureSnippet(sizeExpression->sourceLocationRange());
-  return internType(d->unresolvedBoundedArrayTypes, unit, elementType,
-                    sizeExpression);
+  return internType(d->typeArena, d->unresolvedBoundedArrayTypes, unit,
+                    elementType, sizeExpression);
 }
 
 auto Control::getUnresolvedPackIndexType(TranslationUnit* unit,
                                          const Type* pack, ExpressionAST* index)
     -> const UnresolvedPackIndexType* {
   if (index) unit->captureSnippet(index->sourceLocationRange());
-  return internType(d->unresolvedPackIndexTypes, unit, pack, index);
+  return internType(d->typeArena, d->unresolvedPackIndexTypes, unit, pack,
+                    index);
 }
 
 auto Control::getUnresolvedUnderlyingType(TranslationUnit* unit,
                                           TypeIdAST* typeId)
     -> const UnresolvedUnderlyingType* {
   if (typeId) unit->captureSnippet(typeId->sourceLocationRange());
-  return internType(d->unresolvedUnderlyingTypes, unit, typeId);
+  return internType(d->typeArena, d->unresolvedUnderlyingTypes, unit, typeId);
 }
 
 auto Control::getUnresolvedBuiltinType(TranslationUnit* unit,
@@ -965,33 +1005,34 @@ auto Control::getUnresolvedBuiltinType(TranslationUnit* unit,
                                        TypeIdAST* typeId)
     -> const UnresolvedBuiltinType* {
   if (typeId) unit->captureSnippet(typeId->sourceLocationRange());
-  return internType(d->unresolvedBuiltinTypes, unit, builtinKind, typeId);
+  return internType(d->typeArena, d->unresolvedBuiltinTypes, unit, builtinKind,
+                    typeId);
 }
 
 auto Control::getClassType(ClassSymbol* symbol) -> const ClassType* {
-  return internType(d->classTypes, symbol);
+  return internType(d->typeArena, d->classTypes, symbol);
 }
 
 auto Control::getNamespaceType(NamespaceSymbol* symbol)
     -> const NamespaceType* {
-  return internType(d->namespaceTypes, symbol);
+  return internType(d->typeArena, d->namespaceTypes, symbol);
 }
 
 auto Control::getEnumType(EnumSymbol* symbol) -> const EnumType* {
-  return internType(d->enumTypes, symbol);
+  return internType(d->typeArena, d->enumTypes, symbol);
 }
 
 auto Control::getScopedEnumType(ScopedEnumSymbol* symbol)
     -> const ScopedEnumType* {
-  return internType(d->scopedEnumTypes, symbol);
+  return internType(d->typeArena, d->scopedEnumTypes, symbol);
 }
 
 auto Control::getBitIntType(int numBits) -> const BitIntType* {
-  return internType(d->bitIntTypes, numBits);
+  return internType(d->typeArena, d->bitIntTypes, numBits);
 }
 
 auto Control::getUnsignedBitIntType(int numBits) -> const UnsignedBitIntType* {
-  return internType(d->unsignedBitIntTypes, numBits);
+  return internType(d->typeArena, d->unsignedBitIntTypes, numBits);
 }
 
 auto Control::getUnresolvedBitIntType(TranslationUnit* unit,
@@ -1000,12 +1041,14 @@ auto Control::getUnresolvedBitIntType(TranslationUnit* unit,
     -> const UnresolvedBitIntType* {
   if (sizeExpression)
     unit->captureSnippet(sizeExpression->sourceLocationRange());
-  return internType(d->unresolvedBitIntTypes, unit, sizeExpression, isUnsigned);
+  return internType(d->typeArena, d->unresolvedBitIntTypes, unit,
+                    sizeExpression, isUnsigned);
 }
 
 auto Control::getVectorType(const Type* elementType, std::size_t elementCount,
                             VectorKind vectorKind) -> const VectorType* {
-  return internType(d->vectorTypes, elementType, elementCount, vectorKind);
+  return internType(d->typeArena, d->vectorTypes, elementType, elementCount,
+                    vectorKind);
 }
 
 auto Control::getUnresolvedVectorType(TranslationUnit* unit,
@@ -1016,25 +1059,25 @@ auto Control::getUnresolvedVectorType(TranslationUnit* unit,
     -> const UnresolvedVectorType* {
   if (sizeExpression)
     unit->captureSnippet(sizeExpression->sourceLocationRange());
-  return internType(d->unresolvedVectorTypes, unit, elementType, sizeExpression,
-                    vectorKind, sizeKind);
+  return internType(d->typeArena, d->unresolvedVectorTypes, unit, elementType,
+                    sizeExpression, vectorKind, sizeKind);
 }
 
 auto Control::getComplexType(const Type* elementType) -> const ComplexType* {
-  return internType(d->complexTypes, elementType);
+  return internType(d->typeArena, d->complexTypes, elementType);
 }
 
 auto Control::getSveType(SveTypeKind sveKind) -> const SveType* {
-  return internType(d->sveTypes, sveKind);
+  return internType(d->typeArena, d->sveTypes, sveKind);
 }
 
 auto Control::getAtomicType(const Type* elementType) -> const AtomicType* {
-  return internType(d->atomicTypes, elementType);
+  return internType(d->typeArena, d->atomicTypes, elementType);
 }
 
 auto Control::newNamespaceSymbol(ScopeSymbol* enclosingScope,
                                  SourceLocation loc) -> NamespaceSymbol* {
-  auto symbol = &d->namespaceSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<NamespaceSymbol>(enclosingScope);
   symbol->setType(getNamespaceType(symbol));
   symbol->setLocation(loc);
   return symbol;
@@ -1042,7 +1085,7 @@ auto Control::newNamespaceSymbol(ScopeSymbol* enclosingScope,
 
 auto Control::newConceptSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> ConceptSymbol* {
-  auto symbol = &d->conceptSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<ConceptSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1050,14 +1093,14 @@ auto Control::newConceptSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
 auto Control::newDeductionGuideSymbol(ScopeSymbol* enclosingScope,
                                       SourceLocation loc)
     -> DeductionGuideSymbol* {
-  auto symbol = &d->deductionGuideSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<DeductionGuideSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
 auto Control::newBaseClassSymbol(ScopeSymbol* enclosingScope,
                                  SourceLocation loc) -> BaseClassSymbol* {
-  auto symbol = &d->baseClassSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<BaseClassSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1065,21 +1108,21 @@ auto Control::newBaseClassSymbol(ScopeSymbol* enclosingScope,
 auto Control::newInjectedClassNameSymbol(ScopeSymbol* enclosingScope,
                                          SourceLocation loc)
     -> InjectedClassNameSymbol* {
-  auto symbol = &d->injectedClassNameSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<InjectedClassNameSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
 auto Control::newUnresolvedSymbol(ScopeSymbol* enclosingScope,
                                   SourceLocation loc) -> UnresolvedSymbol* {
-  auto symbol = &d->unresolvedSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<UnresolvedSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
 auto Control::newClassSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> ClassSymbol* {
-  auto symbol = &d->classSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<ClassSymbol>(enclosingScope);
   symbol->setType(getClassType(symbol));
   symbol->setLocation(loc);
   symbol->setConstructorOverloadSet(newOverloadSetSymbol(symbol, loc));
@@ -1088,7 +1131,7 @@ auto Control::newClassSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
 
 auto Control::newEnumSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> EnumSymbol* {
-  auto symbol = &d->enumSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<EnumSymbol>(enclosingScope);
   symbol->setType(getEnumType(symbol));
   symbol->setLocation(loc);
   return symbol;
@@ -1096,7 +1139,7 @@ auto Control::newEnumSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
 
 auto Control::newScopedEnumSymbol(ScopeSymbol* enclosingScope,
                                   SourceLocation loc) -> ScopedEnumSymbol* {
-  auto symbol = &d->scopedEnumSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<ScopedEnumSymbol>(enclosingScope);
   symbol->setType(getScopedEnumType(symbol));
   symbol->setLocation(loc);
   return symbol;
@@ -1104,7 +1147,7 @@ auto Control::newScopedEnumSymbol(ScopeSymbol* enclosingScope,
 
 auto Control::newOverloadSetSymbol(ScopeSymbol* enclosingScope,
                                    SourceLocation loc) -> OverloadSetSymbol* {
-  auto symbol = &d->overloadSetSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<OverloadSetSymbol>(enclosingScope);
   symbol->setType(getOverloadSetType(symbol));
   symbol->setLocation(loc);
   return symbol;
@@ -1112,14 +1155,14 @@ auto Control::newOverloadSetSymbol(ScopeSymbol* enclosingScope,
 
 auto Control::newFunctionSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> FunctionSymbol* {
-  auto symbol = &d->functionSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<FunctionSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
 auto Control::newLambdaSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> LambdaSymbol* {
-  auto symbol = &d->lambdaSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<LambdaSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1127,7 +1170,7 @@ auto Control::newLambdaSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
 auto Control::newFunctionParametersSymbol(ScopeSymbol* enclosingScope,
                                           SourceLocation loc)
     -> FunctionParametersSymbol* {
-  auto symbol = &d->functionParametersSymbol.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<FunctionParametersSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1135,21 +1178,21 @@ auto Control::newFunctionParametersSymbol(ScopeSymbol* enclosingScope,
 auto Control::newTemplateParametersSymbol(ScopeSymbol* enclosingScope,
                                           SourceLocation loc)
     -> TemplateParametersSymbol* {
-  auto symbol = &d->templateParametersSymbol.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<TemplateParametersSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
 auto Control::newBlockSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> BlockSymbol* {
-  auto symbol = &d->blockSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<BlockSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
 auto Control::newTypeAliasSymbol(ScopeSymbol* enclosingScope,
                                  SourceLocation loc) -> TypeAliasSymbol* {
-  auto symbol = &d->typeAliasSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<TypeAliasSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1164,11 +1207,13 @@ auto Control::getTypeArgumentSymbol(const Type* type) -> TypeAliasSymbol* {
 
 auto Control::getPackArgumentSymbol(std::span<Symbol* const> elements)
     -> ParameterPackSymbol* {
-  auto& symbol =
-      d->packArgumentSymbols[std::vector(elements.begin(), elements.end())];
-  if (symbol) return symbol;
-  symbol = newParameterPackSymbol(nullptr, {});
+  if (auto it = d->packArgumentSymbols.find(elements);
+      it != d->packArgumentSymbols.end())
+    return it->second;
+  auto symbol = newParameterPackSymbol(nullptr, {});
   for (auto element : elements) symbol->addElement(element);
+  d->packArgumentSymbols.emplace(
+      std::vector<Symbol*>(elements.begin(), elements.end()), symbol);
   return symbol;
 }
 
@@ -1219,7 +1264,7 @@ void Control::indexTemplateParameterObject(VariableSymbol* symbol) {
 
 auto Control::newVariableSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> VariableSymbol* {
-  auto symbol = &d->variableSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<VariableSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1237,14 +1282,14 @@ auto Control::getAbiTags(std::vector<const Identifier*> tags)
 
 auto Control::newFieldSymbol(ScopeSymbol* enclosingScope, SourceLocation loc)
     -> FieldSymbol* {
-  auto symbol = &d->fieldSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<FieldSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
 
 auto Control::newParameterSymbol(ScopeSymbol* enclosingScope,
                                  SourceLocation loc) -> ParameterSymbol* {
-  auto symbol = &d->parameterSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<ParameterSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1252,7 +1297,7 @@ auto Control::newParameterSymbol(ScopeSymbol* enclosingScope,
 auto Control::newParameterPackSymbol(ScopeSymbol* enclosingScope,
                                      SourceLocation loc)
     -> ParameterPackSymbol* {
-  auto symbol = &d->parameterPackSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<ParameterPackSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1261,7 +1306,7 @@ auto Control::newTypeParameterSymbol(ScopeSymbol* enclosingScope,
                                      SourceLocation loc, int index, int depth,
                                      bool isParameterPack)
     -> TypeParameterSymbol* {
-  auto symbol = &d->typeParameterSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<TypeParameterSymbol>(enclosingScope);
   symbol->setType(getTypeParameterType(index, depth, isParameterPack));
   symbol->setLocation(loc);
   return symbol;
@@ -1271,7 +1316,7 @@ auto Control::newTemplateTypeParameterSymbol(
     ScopeSymbol* enclosingScope, SourceLocation loc, int index, int depth,
     bool isPack, std::vector<const Type*> parameters)
     -> TemplateTypeParameterSymbol* {
-  auto symbol = &d->templateTypeParameterSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<TemplateTypeParameterSymbol>(enclosingScope);
   symbol->setType(getTemplateTypeParameterType(index, depth, isPack,
                                                std::move(parameters)));
   symbol->setLocation(loc);
@@ -1281,7 +1326,7 @@ auto Control::newTemplateTypeParameterSymbol(
 auto Control::newNonTypeParameterSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation loc)
     -> NonTypeParameterSymbol* {
-  auto symbol = &d->nonTypeParameterSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<NonTypeParameterSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1290,8 +1335,7 @@ auto Control::newConstraintTypeParameterSymbol(ScopeSymbol* enclosingScope,
                                                SourceLocation loc, int index,
                                                int depth, bool isParameterPack)
     -> ConstraintTypeParameterSymbol* {
-  auto symbol =
-      &d->constraintTypeParameterSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<ConstraintTypeParameterSymbol>(enclosingScope);
   symbol->setIndex(index);
   symbol->setDepth(depth);
   symbol->setParameterPack(isParameterPack);
@@ -1302,7 +1346,7 @@ auto Control::newConstraintTypeParameterSymbol(ScopeSymbol* enclosingScope,
 
 auto Control::newEnumeratorSymbol(ScopeSymbol* enclosingScope,
                                   SourceLocation loc) -> EnumeratorSymbol* {
-  auto symbol = &d->enumeratorSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<EnumeratorSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1310,7 +1354,7 @@ auto Control::newEnumeratorSymbol(ScopeSymbol* enclosingScope,
 auto Control::newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
                                         SourceLocation loc)
     -> UsingDeclarationSymbol* {
-  auto symbol = &d->usingDeclarationSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<UsingDeclarationSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }
@@ -1318,7 +1362,7 @@ auto Control::newUsingDeclarationSymbol(ScopeSymbol* enclosingScope,
 auto Control::newNamespaceAliasSymbol(ScopeSymbol* enclosingScope,
                                       SourceLocation loc)
     -> NamespaceAliasSymbol* {
-  auto symbol = &d->namespaceAliasSymbols.emplace_front(enclosingScope);
+  auto symbol = d->newSymbol<NamespaceAliasSymbol>(enclosingScope);
   symbol->setLocation(loc);
   return symbol;
 }

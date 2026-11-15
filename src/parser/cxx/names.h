@@ -123,8 +123,6 @@ class Name {
   Name(NameKind kind, std::size_t hashValue)
       : kind_(kind), hashValue_(hashValue) {}
 
-  virtual ~Name();
-
   [[nodiscard]] auto kind() const -> NameKind { return kind_; }
   [[nodiscard]] auto hashValue() const -> std::size_t { return hashValue_; }
 

@@ -1310,16 +1310,18 @@ auto required_parameter_count(FunctionSymbol* function, int parameterCount)
     -> int {
   if (!function) return parameterCount;
 
-  auto parameters = function->parameters();
-  if (parameters.empty()) return parameterCount;
+  auto scope = function->functionParameters();
+  if (!scope) return parameterCount;
 
-  int defaultCount = 0;
-  for (auto parameter : parameters | std::views::reverse) {
-    if (!parameter->hasDefaultArgument()) break;
-    ++defaultCount;
+  int trailingDefaultCount = 0;
+  for (auto parameter : views::members(scope) | views::parameters) {
+    if (parameter->hasDefaultArgument())
+      ++trailingDefaultCount;
+    else
+      trailingDefaultCount = 0;
   }
 
-  return parameterCount - defaultCount;
+  return parameterCount - trailingDefaultCount;
 }
 
 auto is_potentially_overlapping_subobject(Symbol* symbol) -> bool {
@@ -2440,8 +2442,8 @@ void ClassSymbol::addBefriendingClass(ClassSymbol* classSymbol,
   templateFriendships_.push_back({std::move(arguments), classSymbol});
 }
 
-auto ClassSymbol::constructors() const -> std::vector<FunctionSymbol*> {
-  return constructorOverloadSet_->functions();
+auto ClassSymbol::constructors() const -> views::each_function {
+  return views::each_function{constructorOverloadSet_};
 }
 
 auto ClassSymbol::declaredConstructors() const
@@ -3203,15 +3205,19 @@ auto ClassSymbol::hasVirtualBaseClasses() const -> bool {
   return false;
 }
 
+auto ClassSymbol::isConvertingConstructor(FunctionSymbol* constructor) const
+    -> bool {
+  if (constructor->isExplicit()) return false;
+  auto funcType = type_cast<FunctionType>(constructor->type());
+  if (!funcType) return false;
+  return !funcType->parameterTypes().empty() || funcType->isVariadic();
+}
+
 auto ClassSymbol::convertingConstructors() const
     -> std::vector<FunctionSymbol*> {
   std::vector<FunctionSymbol*> result;
   for (auto ctor : constructors()) {
-    if (ctor->isExplicit()) continue;
-    auto funcType = type_cast<FunctionType>(ctor->type());
-    if (!funcType) continue;
-    if (funcType->parameterTypes().empty() && !funcType->isVariadic()) continue;
-    result.push_back(ctor);
+    if (isConvertingConstructor(ctor)) result.push_back(ctor);
   }
   return result;
 }
@@ -3767,8 +3773,37 @@ auto OverloadSetSymbol::hasUnresolvedUsingDeclaration() const -> bool {
                              &UsingDeclarationSymbol::isUnresolved);
 }
 
-auto OverloadSetSymbol::functions() const -> std::vector<FunctionSymbol*> {
-  return functionsWithin(declaredFunctions_.size(), usingDeclarations_.size());
+auto OverloadSetSymbol::functions() const -> views::each_function {
+  return views::each_function{this};
+}
+
+views::each_function::each_function(Symbol* symbol) {
+  if (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol)) {
+    composedFunctions_ = usingDeclaration->introducedFunctions();
+    return;
+  }
+
+  if (auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol)) {
+    expand(overloadSet);
+    return;
+  }
+
+  function_ = symbol_cast<FunctionSymbol>(symbol);
+}
+
+views::each_function::each_function(const OverloadSetSymbol* overloadSet) {
+  expand(overloadSet);
+}
+
+void views::each_function::expand(const OverloadSetSymbol* overloadSet) {
+  if (overloadSet->usingDeclarations().empty()) {
+    declaredFunctions_ = &overloadSet->declaredFunctions();
+    return;
+  }
+
+  composedFunctions_ =
+      overloadSet->functionsWithin(overloadSet->declaredFunctions().size(),
+                                   overloadSet->usingDeclarations().size());
 }
 
 namespace {

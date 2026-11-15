@@ -87,49 +87,6 @@ constexpr auto non_static_fields =
 constexpr auto static_fields =
     fields | std::views::filter(&FieldSymbol::isStatic);
 
-class each_function : public std::ranges::view_interface<each_function> {
- public:
-  each_function() = default;
-
-  explicit each_function(Symbol* symbol) {
-    if (auto usingDeclaration = symbol_cast<UsingDeclarationSymbol>(symbol)) {
-      composedFunctions_ = usingDeclaration->introducedFunctions();
-      return;
-    }
-
-    auto overloadSet = symbol_cast<OverloadSetSymbol>(symbol);
-    if (!overloadSet) {
-      function_ = symbol_cast<FunctionSymbol>(symbol);
-      return;
-    }
-
-    if (overloadSet->usingDeclarations().empty()) {
-      declaredFunctions_ = &overloadSet->declaredFunctions();
-      return;
-    }
-
-    composedFunctions_ = overloadSet->functions();
-  }
-
-  [[nodiscard]] auto begin() const -> FunctionSymbol* const* {
-    if (declaredFunctions_) return declaredFunctions_->data();
-    if (function_) return &function_;
-    return composedFunctions_.data();
-  }
-
-  [[nodiscard]] auto end() const -> FunctionSymbol* const* {
-    if (declaredFunctions_)
-      return declaredFunctions_->data() + declaredFunctions_->size();
-    if (function_) return &function_ + 1;
-    return composedFunctions_.data() + composedFunctions_.size();
-  }
-
- private:
-  const std::vector<FunctionSymbol*>* declaredFunctions_ = nullptr;
-  FunctionSymbol* function_ = nullptr;
-  std::vector<FunctionSymbol*> composedFunctions_;
-};
-
 class declared_functions
     : public std::ranges::view_interface<declared_functions> {
  public:

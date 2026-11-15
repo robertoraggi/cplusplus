@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <memory_resource>
 #include <optional>
 #include <span>
 #include <string>
@@ -47,6 +48,8 @@ class Control {
 
   [[nodiscard]] auto memoryLayout() const -> MemoryLayout*;
   void setMemoryLayout(MemoryLayout* memoryLayout);
+
+  [[nodiscard]] auto scratchMemory() -> std::pmr::memory_resource*;
 
   [[nodiscard]] auto integerLiteral(std::string_view spelling)
       -> const IntegerLiteral*;

@@ -36,12 +36,15 @@ void hash_combine(std::size_t& seed, const T& val) {
   seed ^= std::hash<T>()(val) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-template <typename T>
+template <typename T, typename Allocator = std::allocator<T>>
 class InsertionOrderedSet {
  public:
   InsertionOrderedSet() = default;
 
-  explicit InsertionOrderedSet(std::vector<T> distinctElements)
+  explicit InsertionOrderedSet(const Allocator& allocator)
+      : elements_(allocator), index_(allocator) {}
+
+  explicit InsertionOrderedSet(std::vector<T, Allocator> distinctElements)
       : elements_(std::move(distinctElements)) {}
 
   [[nodiscard]] auto begin() const { return elements_.begin(); }
@@ -62,15 +65,15 @@ class InsertionOrderedSet {
     return true;
   }
 
-  [[nodiscard]] auto take() && -> std::vector<T> {
+  [[nodiscard]] auto take() && -> std::vector<T, Allocator> {
     return std::move(elements_);
   }
 
  private:
   static constexpr std::size_t kLinearScanLimit = 32;
 
-  std::vector<T> elements_;
-  std::unordered_set<T> index_;
+  std::vector<T, Allocator> elements_;
+  std::unordered_set<T, std::hash<T>, std::equal_to<T>, Allocator> index_;
 };
 
 }  // namespace cxx

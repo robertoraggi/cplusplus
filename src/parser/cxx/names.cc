@@ -236,8 +236,6 @@ auto resolveBuiltinFunctionKind(IdExpressionAST* idExpr)
   return BuiltinFunctionKind::T_NONE;
 }
 
-Name::~Name() = default;
-
 auto Identifier::isBuiltinTypeTrait() const -> bool {
   return builtinTypeTrait() != BuiltinTypeTraitKind::T_NONE;
 }
