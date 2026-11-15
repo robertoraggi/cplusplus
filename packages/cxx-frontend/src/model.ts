@@ -1183,7 +1183,7 @@ const EnumeratorSymbolSlotBase = ConstraintTypeParameterSymbolSlotBase + 6;
 const NamespaceAliasSymbolSlotBase = EnumeratorSymbolSlotBase + 1;
 const UsingDeclarationSymbolSlotBase = NamespaceAliasSymbolSlotBase + 1;
 const TypeSlotBase = 0;
-const QualTypeSlotBase = TypeSlotBase + 1;
+const QualTypeSlotBase = TypeSlotBase + 2;
 const BoundedArrayTypeSlotBase = QualTypeSlotBase + 5;
 const UnboundedArrayTypeSlotBase = BoundedArrayTypeSlotBase + 2;
 const PointerTypeSlotBase = UnboundedArrayTypeSlotBase + 1;
@@ -11306,8 +11306,11 @@ export abstract class Type extends ModelObject {
     super(handle, owner);
     this.kind = kind;
   }
+  get dependence(): Dependence {
+    return dependenceNames[cxx.readType(this.handle, TypeSlotBase + 0)]!;
+  }
   get text(): string {
-    return cxx.readTypeString(this.handle, TypeSlotBase + 0) as string;
+    return cxx.readTypeString(this.handle, TypeSlotBase + 1) as string;
   }
 }
 /** @category Types */
@@ -14554,6 +14557,13 @@ const kernelInvocationIdKindNames: Record<number, KernelInvocationIdKind> = {
   0: "Global",
   1: "Local",
   2: "Workgroup",
+};
+/** @category Enumerations */
+export type Dependence = "Unexamined" | "NonDependent" | "Dependent";
+const dependenceNames: Record<number, Dependence> = {
+  0: "Unexamined",
+  1: "NonDependent",
+  2: "Dependent",
 };
 /** @category Enumerations */
 export type RefQualifier = "None" | "Lvalue" | "Rvalue";

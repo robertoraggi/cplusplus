@@ -371,6 +371,10 @@ export const bindings: Record<string, ClassBindings> = {
 
   '::cxx::Type': {
     kind_: {cls: 'D', why: 'the type record\'s own kind tag'},
+    dependence_: {
+      cls: 'R',
+      why: 'a dependence answer, recomputed on the first query after load',
+    },
   },
 
   '::cxx::AST': {

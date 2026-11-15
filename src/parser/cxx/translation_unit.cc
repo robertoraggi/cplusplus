@@ -497,7 +497,6 @@ void TranslationUnit::endParsing() {
   if (!parser_) return;
   parser_->endParsing();
   parser_.reset();
-  nonDependentTypes_ = {};
   nonDependentTemplateArguments_ = {};
   placeholderReturnTypes_ = {};
 }
@@ -569,14 +568,6 @@ void TranslationUnit::cacheConstraintSatisfaction(
   indexTemplateArguments(arguments, position, cache.byArguments, cache.unkeyed);
   cache.entries.push_back(
       {std::move(constraints), std::move(arguments), value});
-}
-
-auto TranslationUnit::isNonDependentType(const Type* type) const -> bool {
-  return nonDependentTypes_.contains(type);
-}
-
-void TranslationUnit::addNonDependentType(const Type* type) {
-  nonDependentTypes_.insert(type);
 }
 
 auto TranslationUnit::hasNonDependentTemplateArguments(

@@ -89,12 +89,10 @@ class TranslationUnit {
                                    std::vector<TemplateArgument> arguments,
                                    bool value);
 
-  [[nodiscard]] auto isNonDependentType(const Type* type) const -> bool;
   [[nodiscard]] auto placeholderReturnType(const ScopeSymbol* function) const
       -> const Type*;
   void setPlaceholderReturnType(const ScopeSymbol* function,
                                 const Type* placeholder);
-  void addNonDependentType(const Type* type);
   [[nodiscard]] auto hasNonDependentTemplateArguments(
       UnqualifiedIdAST* templateId, TemplateParametersSymbol* parameters) const
       -> bool;
@@ -622,7 +620,6 @@ class TranslationUnit {
   std::unordered_set<FunctionDefinitionAST*> unparsedFunctionBodies_;
   std::unordered_map<Symbol*, ConstraintSatisfactionCache>
       constraintSatisfactionCaches_;
-  std::unordered_set<const Type*> nonDependentTypes_;
   std::unordered_map<UnqualifiedIdAST*, TemplateParametersSymbol*>
       nonDependentTemplateArguments_;
   std::unordered_map<const Symbol*, bool> immediateObjectVariables_;

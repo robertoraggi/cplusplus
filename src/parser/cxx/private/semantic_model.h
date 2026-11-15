@@ -64,6 +64,8 @@ inline constexpr FieldDescriptor kSemanticFieldModelStorage[] = {
      "carried by the interning factory arguments"},
     {"::cxx::Type", "kind_", FieldPersistence::kDerived,
      "the type record's own kind tag"},
+    {"::cxx::Type", "dependence_", FieldPersistence::kRebuilt,
+     "a dependence answer, recomputed on the first query after load"},
     {"::cxx::Symbol", "kind_", FieldPersistence::kDerived,
      "the symbol record's own kind tag"},
     {"::cxx::Symbol", "name_", FieldPersistence::kPersisted, ""},

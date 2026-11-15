@@ -764,7 +764,7 @@ constexpr int UsingDeclarationSymbolSlotBase = NamespaceAliasSymbolSlotBase + 1;
 
 constexpr int TypeSlotBase = 0;
 
-constexpr int QualTypeSlotBase = TypeSlotBase + 1;
+constexpr int QualTypeSlotBase = TypeSlotBase + 2;
 
 constexpr int BoundedArrayTypeSlotBase = QualTypeSlotBase + 5;
 
@@ -14675,6 +14675,10 @@ auto readSymbolItemVal(std::intptr_t handle, std::intptr_t unit, int slot,
 
 auto readType(std::intptr_t handle, int slot) -> double {
   switch (slot) {
+    case TypeSlotBase + 0: {
+      auto self = reinterpret_cast<const ::cxx::Type*>(handle);
+      return static_cast<double>(self->dependence());
+    }
     case QualTypeSlotBase + 0: {
       auto self = static_cast<const ::cxx::QualType*>(
           reinterpret_cast<const ::cxx::Type*>(handle));
@@ -15034,7 +15038,7 @@ auto readType(std::intptr_t handle, int slot) -> double {
 
 auto readTypeString(std::intptr_t handle, int slot) -> std::string {
   switch (slot) {
-    case TypeSlotBase + 0: {
+    case TypeSlotBase + 1: {
       auto self = reinterpret_cast<const ::cxx::Type*>(handle);
       return std::string(to_string(self));
     }
