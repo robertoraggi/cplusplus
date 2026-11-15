@@ -394,6 +394,7 @@ class TypeTraits {
       -> bool;
   [[nodiscard]] auto is_zero_size_subobject(FieldSymbol* field) -> bool;
   auto is_polymorphic(const Type* type) -> bool;
+  [[nodiscard]] auto is_polymorphic_glvalue(ExpressionAST* expr) -> bool;
   auto is_final(const Type* type) -> bool;
   auto select_constructor(ClassSymbol* classSymbol,
                           std::span<const Type* const> argTypes)

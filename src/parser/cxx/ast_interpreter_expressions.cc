@@ -3007,9 +3007,7 @@ auto ASTInterpreter::addressOfLvalue(ExpressionAST* ast)
   if (auto typeidExpression = ast_cast<TypeidExpressionAST>(ast)) {
     auto operand = typeidExpression->expression;
     if (!operand) return std::nullopt;
-    if (operand->valueCategory != ValueCategory::kPrValue &&
-        traits.is_polymorphic(operand->type))
-      return std::nullopt;
+    if (traits.is_polymorphic_glvalue(operand)) return std::nullopt;
     return typeInfoAddress(operand->type);
   }
 

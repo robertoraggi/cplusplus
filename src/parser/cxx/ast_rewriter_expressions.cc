@@ -1404,12 +1404,8 @@ auto ASTRewriter::ExpressionVisitor::operator()(TypeidExpressionAST* ast)
   copy->typeidLoc = ast->typeidLoc;
   copy->lparenLoc = ast->lparenLoc;
   copy->expression = rewrite.unevaluatedExpression(ast->expression);
-  auto traits = rewrite.unit_->typeTraits();
-  if (copy->expression && copy->expression->type &&
-      copy->expression->valueCategory != ValueCategory::kPrValue &&
-      traits.is_polymorphic(traits.remove_cvref(copy->expression->type))) {
+  if (rewrite.unit_->typeTraits().is_polymorphic_glvalue(copy->expression))
     copy->expression = rewrite.check(copy->expression);
-  }
   copy->rparenLoc = ast->rparenLoc;
 
   return copy;
