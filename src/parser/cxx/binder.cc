@@ -2564,7 +2564,10 @@ void Binder::applyDeclarationAttributes(
       knownAttributes(unit_, terminatingAttributes(declarator))};
 
   if (auto function = symbol_cast<FunctionSymbol>(symbol)) {
-    for (const auto& list : known) applyConstructorAttribute(function, list);
+    for (const auto& list : known) {
+      applyConstructorAttribute(function, list);
+      applyDestructorAttribute(function, list);
+    }
   }
 
   for (const auto& list : known) applyAlignedAttribute(symbol, list);
@@ -2592,8 +2595,9 @@ void Binder::inheritDeclarationAttributes(Symbol* symbol, Symbol* pattern) {
     applyAttributeMap(symbol, *attributes);
   auto function = symbol_cast<FunctionSymbol>(symbol);
   auto source = symbol_cast<FunctionSymbol>(pattern);
-  if (function && source)
-    function->setConstructorPriority(source->constructorPriority());
+  if (!function || !source) return;
+  function->setConstructorPriority(source->constructorPriority());
+  function->setDestructorPriority(source->destructorPriority());
 }
 
 void Binder::applyEnableIfAttributes(FunctionSymbol* function,
@@ -2618,33 +2622,49 @@ void Binder::applyEnableIfAttributes(FunctionSymbol* function,
   function->setEnableIfConditions(std::move(conditions));
 }
 
+auto Binder::requestedPriority(std::span<const AttributeRef> attributes,
+                               AttributeKind kind)
+    -> std::optional<std::uint32_t> {
+  auto found = std::ranges::find(attributes, kind, &AttributeRef::kind);
+  if (found == attributes.end()) return std::nullopt;
+  const auto& attribute = *found;
+  const auto name = attribute.spelling->name;
+  auto clause = attribute.argumentClause;
+  if (!clause || !clause->expressionList) return 65535;
+  if (clause->expressionList->next) {
+    error(attribute.location,
+          std::format("'{}' attribute requires at most one argument", name));
+    return std::nullopt;
+  }
+  ASTInterpreter interp{unit_, scope()};
+  auto value = interp.evaluate(clause->expressionList->value);
+  auto integer = value ? interp.toInt(*value) : std::nullopt;
+  if (!integer || *integer < 0 || *integer > 65535) {
+    error(attribute.location,
+          std::format("'{}' priority must be an integer constant from 0 to "
+                      "65535",
+                      name));
+    return std::nullopt;
+  }
+  return static_cast<std::uint32_t>(*integer);
+}
+
 void Binder::applyConstructorAttribute(
     FunctionSymbol* function, std::span<const AttributeRef> attributes) {
-  auto found = std::ranges::find(attributes, AttributeKind::kConstructor,
-                                 &AttributeRef::kind);
-  if (found == attributes.end()) return;
-  const auto& attribute = *found;
-  std::uint32_t priority = 65535;
-  auto clause = attribute.argumentClause;
-  if (clause && clause->expressionList) {
-    if (clause->expressionList->next) {
-      error(attribute.location,
-            "'constructor' attribute requires at most one argument");
-      return;
-    }
-    ASTInterpreter interp{unit_, scope()};
-    auto value = interp.evaluate(clause->expressionList->value);
-    auto integer = value ? interp.toInt(*value) : std::nullopt;
-    if (!integer || *integer < 0 || *integer > 65535) {
-      error(
-          attribute.location,
-          "'constructor' priority must be an integer constant from 0 to 65535");
-      return;
-    }
-    priority = static_cast<std::uint32_t>(*integer);
-  }
+  auto priority = requestedPriority(attributes, AttributeKind::kConstructor);
+  if (!priority) return;
   function->setConstructorPriority(priority);
   function->canonical()->setConstructorPriority(priority);
+  function->setUsed(true);
+  function->canonical()->setUsed(true);
+}
+
+void Binder::applyDestructorAttribute(
+    FunctionSymbol* function, std::span<const AttributeRef> attributes) {
+  auto priority = requestedPriority(attributes, AttributeKind::kDestructor);
+  if (!priority) return;
+  function->setDestructorPriority(priority);
+  function->canonical()->setDestructorPriority(priority);
   function->setUsed(true);
   function->canonical()->setUsed(true);
 }

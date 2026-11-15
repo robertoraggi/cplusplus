@@ -541,6 +541,8 @@ class Emitter {
   virtual void beginGlobalInitializer(GlobalRef global) = 0;
   virtual void globalConstructor(SourceLocation loc, FunctionRef function,
                                  std::uint32_t priority = 65535) = 0;
+  virtual void globalDestructor(SourceLocation loc, FunctionRef function,
+                                std::uint32_t priority = 65535) = 0;
   virtual auto constant(SourceLocation loc, TypeRef type,
                         const Initializer& value) -> ValueRef = 0;
 

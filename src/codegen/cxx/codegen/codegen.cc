@@ -3374,6 +3374,22 @@ auto Codegen::emittedFunctionSymbol(FunctionSymbol* functionSymbol)
   return functionSymbol->canonical();
 }
 
+void Codegen::emitGlobalStructors() {
+  auto byDeclaration = [](const GlobalStructor& left,
+                          const GlobalStructor& right) {
+    return left.function->location().index() <
+           right.function->location().index();
+  };
+  std::ranges::stable_sort(globalConstructors_, byDeclaration);
+  std::ranges::stable_sort(globalDestructors_, byDeclaration);
+  for (const auto& entry : globalConstructors_)
+    emitter_.globalConstructor(entry.location, entry.ref, entry.priority);
+  for (const auto& entry : globalDestructors_)
+    emitter_.globalDestructor(entry.location, entry.ref, entry.priority);
+  globalConstructors_.clear();
+  globalDestructors_.clear();
+}
+
 auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
     -> ir::FunctionRef {
   auto emittedSymbol = emittedFunctionSymbol(functionSymbol);
@@ -3489,7 +3505,10 @@ auto Codegen::findOrCreateFunction(FunctionSymbol* functionSymbol)
   funcOps_.insert_or_assign(emittedSymbol, func);
 
   if (auto priority = emittedSymbol->constructorPriority())
-    emitter_.globalConstructor(loc, func, *priority);
+    globalConstructors_.push_back({emittedSymbol, func, loc, *priority});
+
+  if (auto priority = emittedSymbol->destructorPriority())
+    globalDestructors_.push_back({emittedSymbol, func, loc, *priority});
 
   if (auto aliasName = aliasNameOf(emittedSymbol)) {
     (void)findOrCreateSecondaryFunctionName(emittedSymbol, *aliasName, name);

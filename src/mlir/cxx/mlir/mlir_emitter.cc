@@ -239,7 +239,16 @@ void MlirEmitter::beginGlobalInitializer(GlobalRef ref) {
 }
 void MlirEmitter::globalConstructor(SourceLocation loc, FunctionRef ref,
                                     std::uint32_t priority) {
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToEnd(module_.getBody());
   mlir::cxx::GlobalCtorOp::create(builder_, getLocation(loc), functionName(ref),
+                                  priority);
+}
+void MlirEmitter::globalDestructor(SourceLocation loc, FunctionRef ref,
+                                   std::uint32_t priority) {
+  mlir::OpBuilder::InsertionGuard guard(builder_);
+  builder_.setInsertionPointToEnd(module_.getBody());
+  mlir::cxx::GlobalDtorOp::create(builder_, getLocation(loc), functionName(ref),
                                   priority);
 }
 auto MlirEmitter::isZeroConstant(ValueRef ref) -> bool {

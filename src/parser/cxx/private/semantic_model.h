@@ -217,6 +217,8 @@ inline constexpr FieldDescriptor kSemanticFieldModelStorage[] = {
      ""},
     {"::cxx::FunctionSymbol", "constructorPriority_",
      FieldPersistence::kPersisted, ""},
+    {"::cxx::FunctionSymbol", "destructorPriority_",
+     FieldPersistence::kPersisted, ""},
     {"::cxx::FunctionSymbol", "kernelWorkgroupSize_",
      FieldPersistence::kPersisted, ""},
     {"::cxx::FunctionSymbol", "externalName_", FieldPersistence::kPersisted,

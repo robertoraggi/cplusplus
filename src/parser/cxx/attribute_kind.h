@@ -34,6 +34,7 @@ enum class AttributeKind {
   kBuffer,
   kConstructor,
   kDeprecated,
+  kDestructor,
   kEnableIf,
   kExcludeFromExplicitInstantiation,
   kExportName,

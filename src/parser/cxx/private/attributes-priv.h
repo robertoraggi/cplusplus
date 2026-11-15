@@ -91,6 +91,13 @@ inline constexpr AttributeSpelling kDeprecatedSpellings[] = {
 
 inline constexpr std::string_view kDeprecatedArguments[] = {"reason"};
 
+inline constexpr AttributeSpelling kDestructorSpellings[] = {
+    {AttributeSyntax::kGnu, "", "destructor", AttributeKind::kDestructor},
+    {AttributeSyntax::kCxx, "gnu", "destructor", AttributeKind::kDestructor},
+};
+
+inline constexpr std::string_view kDestructorArguments[] = {"priority"};
+
 inline constexpr AttributeSpelling kEnableIfSpellings[] = {
     {AttributeSyntax::kGnu, "", "enable_if", AttributeKind::kEnableIf},
 };
@@ -388,6 +395,19 @@ inline constexpr AttributeInfo kAttributeInfos[] = {
         .optionalArguments = true,
         .subjects = "names and entities",
         .documentation = "Marks the entity as deprecated.",
+    },
+    {
+        .kind = AttributeKind::kDestructor,
+        .name = "destructor",
+        .standardValue = 0,
+        .spellings = kDestructorSpellings,
+        .availability = AttributeAvailability::kAlways,
+        .cplusplusOnly = false,
+        .arguments = kDestructorArguments,
+        .optionalArguments = true,
+        .subjects = "functions",
+        .documentation = "Calls the function at normal program termination, in "
+                         "decreasing priority order.",
     },
     {
         .kind = AttributeKind::kEnableIf,
@@ -765,6 +785,7 @@ inline constexpr const AttributeSpelling* kSortedAttributeSpellings[] = {
     &kAlignedSpellings[0],
     &kAlwaysInlineSpellings[0],
     &kConstructorSpellings[0],
+    &kDestructorSpellings[0],
     &kEnableIfSpellings[0],
     &kExcludeFromExplicitInstantiationSpellings[0],
     &kExportNameSpellings[0],
@@ -814,6 +835,7 @@ inline constexpr const AttributeSpelling* kSortedAttributeSpellings[] = {
     &kAlignedSpellings[1],
     &kAlwaysInlineSpellings[1],
     &kConstructorSpellings[1],
+    &kDestructorSpellings[1],
     &kGnuInlineSpellings[1],
     &kNoinlineSpellings[1],
     &kNoreturnSpellings[2],

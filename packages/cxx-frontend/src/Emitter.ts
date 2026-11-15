@@ -546,6 +546,11 @@ export interface EmitterDelegate {
     function_: FunctionRef,
     priority: number,
   ): void;
+  globalDestructor(
+    loc: TokenIndex,
+    function_: FunctionRef,
+    priority: number,
+  ): void;
   constant(loc: TokenIndex, type: TypeRef, value: Initializer): ValueRef;
   isZeroConstant(value: ValueRef): boolean;
   symbolExists(name: string): boolean;

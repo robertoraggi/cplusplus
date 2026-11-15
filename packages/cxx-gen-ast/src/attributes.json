@@ -67,6 +67,14 @@
     "documentation": "Calls the function before main, in increasing priority order."
   },
   {
+    "name": "destructor",
+    "spellings": ["GNU", "CXX:gnu"],
+    "arguments": ["priority"],
+    "optionalArguments": true,
+    "subjects": "functions",
+    "documentation": "Calls the function at normal program termination, in decreasing priority order."
+  },
+  {
     "name": "deprecated",
     "standardValue": 201309,
     "spellings": ["CXX"],

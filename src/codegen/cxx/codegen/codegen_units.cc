@@ -233,6 +233,7 @@ auto Codegen::UnitVisitor::operator()(TranslationUnitAST* ast) -> UnitResult {
   gen.processPendingFunctions();
 
   gen.emitThreadLocalInitializers();
+  gen.emitGlobalStructors();
   gen.emitter_.endModule();
 
   UnitResult result{module};
@@ -255,6 +256,7 @@ auto Codegen::UnitVisitor::operator()(ModuleUnitAST* ast) -> UnitResult {
       gen.privateModuleFragment(ast->privateModuleFragment);
 
   gen.emitThreadLocalInitializers();
+  gen.emitGlobalStructors();
   gen.emitter_.endModule();
 
   UnitResult result{module};
