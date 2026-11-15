@@ -223,6 +223,7 @@ export function dumpModel(parser: Parser): Model {
   function methodName(name: S.Name | undefined): string | undefined {
     if (name instanceof S.Identifier) return name.name;
     if (name instanceof S.OperatorId && name.op === "(") return "operator()";
+    if (name instanceof S.OperatorId && name.op === "*") return "operator*";
     return undefined;
   }
   function methods(
