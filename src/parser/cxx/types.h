@@ -33,14 +33,24 @@
 #include <vector>
 
 namespace cxx {
+enum class Dependence : std::uint8_t {
+  kUnexamined,
+  kNonDependent,
+  kDependent,
+};
+
 class Type {
  public:
   explicit Type(TypeKind kind) : kind_(kind) {}
 
   [[nodiscard]] auto kind() const -> TypeKind { return kind_; }
 
+  [[nodiscard]] auto dependence() const -> Dependence { return dependence_; }
+  void setDependence(Dependence dependence) const { dependence_ = dependence; }
+
  private:
   TypeKind kind_;
+  mutable Dependence dependence_ = Dependence::kUnexamined;
 };
 
 class BuiltinVaListType final : public Type {

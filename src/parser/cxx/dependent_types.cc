@@ -174,7 +174,7 @@ struct IsDependent {
   std::size_t nonDependentTypeCount = 0;
   std::vector<NonDependentType> dynamicNonDependentTypes;
   std::size_t cycles = 0;
-  std::size_t unsettledClasses = 0;
+  std::size_t unsettledDeclarations = 0;
   std::optional<int> localTemplateDepth;
 
   [[nodiscard]] auto isLocalTemplateDepth(int depth) const -> bool {
@@ -379,7 +379,7 @@ struct IsDependent {
       return false;
 
     const auto cyclesBefore = cycles;
-    const auto unsettledClassesBefore = unsettledClasses;
+    const auto unsettledDeclarationsBefore = unsettledDeclarations;
     std::size_t index = 0;
     for (auto arg : ListView{get_template_arguments(id)}) {
       auto parameter = parameterForArgument(parameters, index);
@@ -387,7 +387,7 @@ struct IsDependent {
       if (isDependentTemplateArgument(arg, parameter)) return true;
     }
     if (unit && !localTemplateDepth && cycles == cyclesBefore &&
-        unsettledClasses == unsettledClassesBefore)
+        unsettledDeclarations == unsettledDeclarationsBefore)
       unit->addNonDependentTemplateArguments(id, parameters);
     return false;
   }
@@ -437,12 +437,27 @@ struct IsDependent {
     return false;
   }
 
+  [[nodiscard]] auto knownDependence(const Type* type) const
+      -> std::optional<bool> {
+    if (!unit) return std::nullopt;
+    switch (type->dependence()) {
+      case Dependence::kNonDependent:
+        return false;
+      case Dependence::kDependent:
+        if (localTemplateDepth) return std::nullopt;
+        return true;
+      case Dependence::kUnexamined:
+        return std::nullopt;
+    }
+    return std::nullopt;
+  }
+
   [[nodiscard]] auto isDependent(const Type* type) -> bool {
     if (!type) return false;
-    if (unit && unit->isNonDependentType(type)) {
+    if (auto known = knownDependence(type)) {
       if (unit->timeTrace())
         unit->timeTrace()->count(TimeTrace::kTypeDependenceCacheHits);
-      return false;
+      return *known;
     }
     if (isUnderExamination(typesUnderExamination, type)) {
       ++cycles;
@@ -458,17 +473,19 @@ struct IsDependent {
       return false;
     }
     const auto cyclesBefore = cycles;
-    const auto unsettledClassesBefore = unsettledClasses;
+    const auto unsettledDeclarationsBefore = unsettledDeclarations;
     Examination<const Type*> examination{type, typesUnderExamination};
     typesUnderExamination = &examination;
     if (unit && unit->timeTrace())
       unit->timeTrace()->count(TimeTrace::kTypeDependenceVisits);
     const auto dependent = visit(*this, type);
     typesUnderExamination = examination.previous;
-    if (dependent || cycles != cyclesBefore) return dependent;
+    if (cycles != cyclesBefore) return dependent;
     if (unit && !localTemplateDepth &&
-        unsettledClasses == unsettledClassesBefore)
-      unit->addNonDependentType(type);
+        unsettledDeclarations == unsettledDeclarationsBefore)
+      type->setDependence(dependent ? Dependence::kDependent
+                                    : Dependence::kNonDependent);
+    if (dependent) return dependent;
     if (nonDependentTypeCount < nonDependentTypes.size()) {
       nonDependentTypes[nonDependentTypeCount++] = {type, depth};
       return dependent;
@@ -547,7 +564,7 @@ struct IsDependent {
 
   auto operator()(const ClassType* type) -> bool {
     auto sym = type->symbol();
-    if (!hasSettledDeclaration(sym)) ++unsettledClasses;
+    if (!hasSettledDeclaration(sym)) ++unsettledDeclarations;
     return isDependentClass(sym);
   }
 
@@ -616,14 +633,19 @@ struct IsDependent {
 
     if (auto var = symbol_cast<VariableSymbol>(symbol)) {
       if (!var->constValue().has_value()) {
-        if (!var->initializer()) return true;
+        if (!var->initializer()) return isUnsettled();
         if (isDependentInitializer(var->initializer())) return true;
       }
     }
 
-    if (!symbol->type()) return true;
+    if (!symbol->type()) return isUnsettled();
 
     return isDependent(symbol->type());
+  }
+
+  [[nodiscard]] auto isUnsettled() -> bool {
+    ++unsettledDeclarations;
+    return true;
   }
 
   auto operator()(const EnumType* type) -> bool {
