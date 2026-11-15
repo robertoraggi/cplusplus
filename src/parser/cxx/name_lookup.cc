@@ -36,6 +36,7 @@
 #include <cxx/util.h>
 #include <cxx/views/symbols.h>
 
+#include <memory_resource>
 #include <optional>
 #include <span>
 #include <unordered_map>
@@ -239,7 +240,7 @@ void collectQualifiedNamespaceDeclarations(NamespaceSymbol* scope,
   return first->type() == second->type();
 }
 
-auto uniqueLookupDeclaration(const std::vector<Symbol*>& found) -> Symbol* {
+auto uniqueLookupDeclaration(std::span<Symbol* const> found) -> Symbol* {
   if (found.empty()) return nullptr;
   auto first = found.front();
   for (auto symbol : found) {
@@ -419,7 +420,9 @@ auto isContainedBy(NamespaceSymbol* ns, ScopeSymbol* scope) -> bool {
   return false;
 }
 
-using NominatedNamespaces = InsertionOrderedSet<NamespaceSymbol*>;
+using NominatedNamespaces =
+    InsertionOrderedSet<NamespaceSymbol*,
+                        std::pmr::polymorphic_allocator<NamespaceSymbol*>>;
 
 void collectActiveNominatedNamespaces(ScopeSymbol* scope,
                                       NominatedNamespaces& out) {
@@ -431,24 +434,32 @@ void collectActiveNominatedNamespaces(ScopeSymbol* scope,
   }
 }
 
-auto mergeDeclarations(Control* control, ScopeSymbol* scope, const Name* name,
-                       std::vector<Symbol*>& found, bool* ambiguous)
-    -> Symbol* {
-  std::vector<Symbol*> distinct;
+[[nodiscard]] auto keepFirstDeclarationOfEachEntity(std::span<Symbol*> found)
+    -> std::span<Symbol*> {
+  std::size_t kept = 0;
   for (auto symbol : found) {
-    if (!std::ranges::contains(distinct, symbol->canonical(),
-                               &Symbol::canonical))
-      distinct.push_back(symbol);
+    auto previous = found.first(kept);
+    if (std::ranges::contains(previous, symbol->canonical(),
+                              &Symbol::canonical))
+      continue;
+    found[kept++] = symbol;
   }
+  return found.first(kept);
+}
 
-  if (distinct.size() == 1) return distinct.front();
+auto mergeDeclarations(Control* control, ScopeSymbol* scope, const Name* name,
+                       std::span<Symbol*> declarations, bool* ambiguous)
+    -> Symbol* {
+  auto found = keepFirstDeclarationOfEachEntity(declarations);
 
-  std::vector<FunctionSymbol*> functions;
-  for (auto symbol : distinct) {
+  if (found.size() == 1) return found.front();
+
+  std::pmr::vector<FunctionSymbol*> functions{control->scratchMemory()};
+  for (auto symbol : found) {
     if (!symbol_cast<FunctionSymbol>(symbol) &&
         !symbol_cast<OverloadSetSymbol>(symbol)) {
       if (ambiguous) *ambiguous = true;
-      return distinct.front();
+      return found.front();
     }
 
     for (auto func : views::each_function(symbol)) {
@@ -458,8 +469,7 @@ auto mergeDeclarations(Control* control, ScopeSymbol* scope, const Name* name,
     }
   }
 
-  auto merged =
-      control->newOverloadSetSymbol(scope, distinct.front()->location());
+  auto merged = control->newOverloadSetSymbol(scope, found.front()->location());
   merged->setName(name);
   for (auto func : functions) merged->addFunction(func);
   return merged;
@@ -467,14 +477,14 @@ auto mergeDeclarations(Control* control, ScopeSymbol* scope, const Name* name,
 
 }  // namespace
 
-auto unqualifiedLookupType(Scope* lexicalScope, const Identifier* id,
-                           bool tagsAreTypes, bool discardHiddenClassNames)
-    -> Symbol* {
-  NominatedNamespaces nominated;
+auto unqualifiedLookupType(Control* control, Scope* lexicalScope,
+                           const Identifier* id, bool tagsAreTypes,
+                           bool discardHiddenClassNames) -> Symbol* {
+  NominatedNamespaces nominated{control->scratchMemory()};
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     if (!sc->symbol) continue;
     collectActiveNominatedNamespaces(sc->symbol, nominated);
-    std::vector<Symbol*> found;
+    std::pmr::vector<Symbol*> found{control->scratchMemory()};
     bool ambiguous = false;
     auto search = [&](ScopeSymbol* scope) {
       VisitedScopes visited;
@@ -542,13 +552,13 @@ auto friendTypeOnlyLookup(Scope* lexicalScope, const Identifier* id)
   return typeOnlyLookup(lexicalScope, id, isNearestNamespaceOrBlockScope);
 }
 
-auto unqualifiedLookupNamespace(Scope* lexicalScope, const Identifier* id)
-    -> NamespaceSymbol* {
-  NominatedNamespaces nominated;
+auto unqualifiedLookupNamespace(Control* control, Scope* lexicalScope,
+                                const Identifier* id) -> NamespaceSymbol* {
+  NominatedNamespaces nominated{control->scratchMemory()};
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     if (!sc->symbol) continue;
     collectActiveNominatedNamespaces(sc->symbol, nominated);
-    std::vector<Symbol*> found;
+    std::pmr::vector<Symbol*> found{control->scratchMemory()};
     auto search = [&](ScopeSymbol* scope) {
       for (auto candidate : scope->find(id))
         if (auto ns = resolve_namespace_alias(candidate)) found.push_back(ns);
@@ -572,7 +582,7 @@ template <typename Predicate>
     -> Symbol* {
   collectActiveNominatedNamespaces(scope, nominated);
 
-  std::vector<Symbol*> found;
+  std::pmr::vector<Symbol*> found{control->scratchMemory()};
 
   if (auto symbol = detail::searchScope(scope, name, visited, accept,
                                         /*followUsingDirectives=*/false)) {
@@ -603,7 +613,7 @@ auto unqualifiedLookupIncludingInlineNamespaces(
     return !skipClassNames || !symbol_cast<ClassSymbol>(symbol);
   };
 
-  NominatedNamespaces nominated;
+  NominatedNamespaces nominated{control->scratchMemory()};
   VisitedScopes visited;
 
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
@@ -639,7 +649,7 @@ auto unqualifiedNonMemberLookup(Control* control, ScopeSymbol* scope,
 
   auto accept = [](Symbol*) { return true; };
 
-  NominatedNamespaces nominated;
+  NominatedNamespaces nominated{control->scratchMemory()};
   VisitedScopes visited;
 
   for (; scope; scope = scope->parent()) {
@@ -683,9 +693,9 @@ auto designatedFunction(Symbol* symbol) -> FunctionSymbol* {
   if (!overloadSet) return nullptr;
 
   const auto functions = overloadSet->functions();
-  if (functions.size() != 1) return nullptr;
+  if (std::ranges::size(functions) != 1) return nullptr;
 
-  auto function = functions.front();
+  auto function = *functions.begin();
   if (function->isTemplatePattern()) return nullptr;
 
   return function;

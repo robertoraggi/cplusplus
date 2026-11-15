@@ -49,13 +49,14 @@ template <typename Predicate>
     bool skipClassNames = false, bool* ambiguous = nullptr,
     NameUse use = NameUse::kOrdinary) -> Symbol*;
 
-[[nodiscard]] auto unqualifiedLookupType(Scope* lexicalScope,
+[[nodiscard]] auto unqualifiedLookupType(Control* control, Scope* lexicalScope,
                                          const Identifier* id,
                                          bool tagsAreTypes = true,
                                          bool discardHiddenClassNames = false)
     -> Symbol*;
 
-[[nodiscard]] auto unqualifiedLookupNamespace(Scope* lexicalScope,
+[[nodiscard]] auto unqualifiedLookupNamespace(Control* control,
+                                              Scope* lexicalScope,
                                               const Identifier* id)
     -> NamespaceSymbol*;
 

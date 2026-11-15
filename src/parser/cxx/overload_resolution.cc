@@ -726,7 +726,7 @@ auto OverloadResolution::resolveConstructor(
         reject(ctor, failedArgumentConversion(args[i], *paramIt, i));
         break;
       }
-      cand.conversions.push_back(conv);
+      cand.conversions.push_back(std::move(conv));
     }
 
     if (cand.viable && type->isVariadic()) {
@@ -830,7 +830,7 @@ auto OverloadResolution::buildCallCandidate(
                                       static_cast<std::size_t>(i)));
       return std::nullopt;
     }
-    cand.conversions.push_back(conv);
+    cand.conversions.push_back(std::move(conv));
   }
 
   if (type->isVariadic()) {
@@ -1431,9 +1431,9 @@ auto OverloadResolution::subscriptCandidates(
         auto conversion =
             implicitObjectArgumentConversion(function, object, found->parent());
         if (!conversion) continue;
-        candidate->objectConversion = *conversion;
+        candidate->objectConversion = std::move(*conversion);
       } else if (function->hasExplicitObjectParameter()) {
-        candidate->objectConversion = candidate->conversions.front();
+        candidate->objectConversion = std::move(candidate->conversions.front());
         candidate->conversions.erase(candidate->conversions.begin());
       }
       candidates.push_back(std::move(*candidate));
@@ -1456,8 +1456,8 @@ auto OverloadResolution::subscriptCandidates(
       if (!left || !right) continue;
       Candidate candidate;
       candidate.viable = true;
-      candidate.objectConversion = left;
-      candidate.conversions.push_back(right);
+      candidate.objectConversion = std::move(left);
+      candidate.conversions.push_back(std::move(right));
       candidates.push_back(std::move(candidate));
     }
   }

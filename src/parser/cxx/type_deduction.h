@@ -26,6 +26,7 @@
 #include <cxx/types_fwd.h>
 
 #include <cstddef>
+#include <memory_resource>
 #include <optional>
 #include <span>
 #include <vector>
@@ -201,10 +202,10 @@ class TypeDeduction {
   [[nodiscard]] auto skipNonDeducedContext() -> bool;
 
   TranslationUnit* unit_ = nullptr;
-  std::vector<TemplateParameterAST*> parameters_;
-  std::vector<Symbol*> deduced_;
-  std::vector<bool> specified_;
-  std::vector<ParameterPackSymbol*> packPrefixes_;
+  std::pmr::vector<TemplateParameterAST*> parameters_;
+  std::pmr::vector<Symbol*> deduced_;
+  std::pmr::vector<bool> specified_;
+  std::pmr::vector<ParameterPackSymbol*> packPrefixes_;
   struct ExpandingSlot {
     int slot;
     bool specified = false;

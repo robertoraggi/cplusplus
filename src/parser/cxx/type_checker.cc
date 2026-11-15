@@ -2051,7 +2051,7 @@ auto TypeChecker::Visitor::CallCandidateSelection::buildCandidate(
       reject(function, objectConversion.error());
       return std::nullopt;
     }
-    candidate.objectConversion = *objectConversion;
+    candidate.objectConversion = std::move(*objectConversion);
   }
 
   auto parameterIt = functionType->parameterTypes().begin();
@@ -2076,7 +2076,7 @@ auto TypeChecker::Visitor::CallCandidateSelection::buildCandidate(
       return std::nullopt;
     }
 
-    candidate.conversions.push_back(conversion);
+    candidate.conversions.push_back(std::move(conversion));
   }
 
   if (functionType->isVariadic()) {
@@ -2437,7 +2437,7 @@ auto TypeChecker::Visitor::ResolveCallOperator::buildCandidate(
       reject(pattern, conversion.error());
       return std::nullopt;
     }
-    objectConversion = *conversion;
+    objectConversion = std::move(*conversion);
   }
 
   auto candidate = resolution.buildCallCandidate(function, functionType,
@@ -2625,7 +2625,7 @@ auto TypeChecker::Visitor::resolve_arrow_operator(MemberExpressionAST* ast)
     auto objectConversion = resolution.implicitObjectArgumentConversion(
         func, ast->baseExpression, lookupScope);
     if (!objectConversion) continue;
-    cand->objectConversion = *objectConversion;
+    cand->objectConversion = std::move(*objectConversion);
 
     viableCandidates.push_back(std::move(*cand));
   }

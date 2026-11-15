@@ -714,7 +714,7 @@ auto ClassTemplateArgumentDeduction::deduceFromGuides(
         break;
       }
 
-      candidate.conversions.push_back(sequence);
+      candidate.conversions.push_back(std::move(sequence));
       ++index;
     }
 

@@ -612,7 +612,7 @@ auto Parser::rejects_plain_type_name(TypeNameContext context) -> bool {
         context == TypeNameContext::kGeneral && isCxx()
             ? unqualifiedLookupIncludingInlineNamespaces(control_,
                                                          lexicalScope_, name)
-            : unqualifiedLookupType(lexicalScope_, name, isCxx(),
+            : unqualifiedLookupType(control_, lexicalScope_, name, isCxx(),
                                     context == TypeNameContext::kGeneral);
     if (is_type(symbol)) return false;
     rejectedTypeNameScope_ = lexicalScope_;
@@ -1408,7 +1408,8 @@ auto Parser::constructorCandidatesOf(const Type* type)
 
   unit_->typeTraits().require_complete_class(classSymbol);
 
-  return classSymbol->resolvedDefinition()->constructors();
+  auto constructors = classSymbol->resolvedDefinition()->constructors();
+  return {constructors.begin(), constructors.end()};
 }
 
 void Parser::checkInitializerCompletion(const Type* targetType) {
@@ -1864,7 +1865,7 @@ auto Parser::parse_type_nested_name_specifier(NestedNameSpecifierAST*& yyast,
       symbol =
           qualifiedLookupType(memberAccess.lookupScope, identifier, &ambiguous);
     if (!symbol && !ambiguous)
-      symbol = unqualifiedLookupType(lexicalScope(), identifier);
+      symbol = unqualifiedLookupType(control_, lexicalScope(), identifier);
   }
 
   if (memberAccess.isMember && symbol) {
@@ -3509,8 +3510,9 @@ auto Parser::lookat_pack_index_type() -> bool {
 }
 
 auto Parser::lookup_type_parameter_pack() -> Symbol* {
-  auto symbol = unqualifiedLookupType(
-      lexicalScope_, unit_->identifier(currentLocation()), isCxx(), true);
+  auto symbol = unqualifiedLookupType(control_, lexicalScope_,
+                                      unit_->identifier(currentLocation()),
+                                      isCxx(), true);
   auto parameter = template_parameter_info(symbol);
   return parameter && parameter->isPack ? symbol : nullptr;
 }
@@ -3522,7 +3524,8 @@ auto Parser::parse_pack_index_type_specifier(SpecifierAST*& yyast,
     return false;
   if (!lookat_pack_index_type()) {
     auto id = unit_->identifier(currentLocation());
-    if (!unqualifiedLookupType(lexicalScope_, id, isCxx(), true)) return false;
+    if (!unqualifiedLookupType(control_, lexicalScope_, id, isCxx(), true))
+      return false;
     parse_error(currentLocation(),
                 std::format("'{}' does not denote a pack", to_diag_string(id)));
     return false;
@@ -6887,9 +6890,9 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
         resolvedType = unqualifiedLookupIncludingInlineNamespaces(
             control_, lexicalScope_, nameId->identifier);
       } else {
-        resolvedType =
-            unqualifiedLookupType(lexicalScope_, nameId->identifier, isCxx(),
-                                  context == TypeNameContext::kGeneral);
+        resolvedType = unqualifiedLookupType(
+            control_, lexicalScope_, nameId->identifier, isCxx(),
+            context == TypeNameContext::kGeneral);
       }
     }
     symbol = binder_.resolve(nestedNameSpecifier, unqualifiedId, checkTemplates,
@@ -9320,7 +9323,7 @@ auto Parser::parse_namespace_alias_definition(DeclarationAST*& yyast) -> bool {
     if (!ast->nestedNameSpecifier && ast->unqualifiedId &&
         ast->unqualifiedId->identifier) {
       resolvedNamespace = unqualifiedLookupNamespace(
-          lexicalScope_, ast->unqualifiedId->identifier);
+          control_, lexicalScope_, ast->unqualifiedId->identifier);
     }
     binder_.bind(ast, resolvedNamespace);
     checkTemplateParameterRebinding(ast->symbol);
@@ -9385,7 +9388,7 @@ auto Parser::parse_using_directive(DeclarationAST*& yyast) -> bool {
     NamespaceSymbol* resolvedNs = nullptr;
     if (!ast->nestedNameSpecifier && ast->unqualifiedId &&
         ast->unqualifiedId->identifier) {
-      resolvedNs = unqualifiedLookupNamespace(lexicalScope_,
+      resolvedNs = unqualifiedLookupNamespace(control_, lexicalScope_,
                                               ast->unqualifiedId->identifier);
     }
     binder_.bind(ast, resolvedNs);
@@ -11185,8 +11188,8 @@ auto Parser::parse_base_class_name(BaseSpecifierAST* ast, Symbol*& resolvedType)
   if (ast->nestedNameSpecifier) return true;
 
   if (auto nameId = ast_cast<NameIdAST>(ast->unqualifiedId)) {
-    resolvedType =
-        unqualifiedLookupType(lexicalScope_, nameId->identifier, isCxx());
+    resolvedType = unqualifiedLookupType(control_, lexicalScope_,
+                                         nameId->identifier, isCxx());
   }
 
   return true;

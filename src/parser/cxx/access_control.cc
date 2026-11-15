@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 #include <cxx/access_control.h>
+#include <cxx/control.h>
 #include <cxx/dependent_types.h>
 #include <cxx/names.h>
 #include <cxx/symbols.h>
@@ -28,6 +29,7 @@
 
 #include <algorithm>
 #include <format>
+#include <memory_resource>
 #include <optional>
 #include <span>
 
@@ -150,22 +152,17 @@ void addUnique(std::vector<ClassSymbol*>& classes, ClassSymbol* classSymbol) {
   return derivation;
 }
 
-template <typename Key, typename Value>
-[[nodiscard]] auto cachedValue(std::vector<std::pair<Key, Value>>& cache,
-                               const Key& key) -> Value* {
+template <typename Key, typename Value, typename Allocator>
+[[nodiscard]] auto cachedValue(
+    std::vector<std::pair<Key, Value>, Allocator>& cache, const Key& key)
+    -> Value* {
   auto cached = std::ranges::find(cache, key, &std::pair<Key, Value>::first);
   if (cached == cache.end()) return nullptr;
   return &cached->second;
 }
 
-[[nodiscard]] auto templateArgumentsOf(auto* symbol)
-    -> std::vector<TemplateArgument> {
-  auto arguments = symbol->templateArguments();
-  return std::vector<TemplateArgument>{arguments.begin(), arguments.end()};
-}
-
 [[nodiscard]] auto hasDependentArgument(
-    TranslationUnit* unit, const std::vector<TemplateArgument>& arguments)
+    TranslationUnit* unit, std::span<const TemplateArgument> arguments)
     -> bool {
   for (const auto& argument : arguments) {
     if (isDependentTemplateArgument(unit, argument)) return true;
@@ -285,11 +282,12 @@ template <typename Key, typename Value>
 
 class EffectiveAccess {
  public:
-  EffectiveAccess(Symbol* member, DeclaredMember declared,
-                  bool ignoreUsingDeclarations = false)
+  EffectiveAccess(std::pmr::memory_resource* scratchMemory, Symbol* member,
+                  DeclaredMember declared, bool ignoreUsingDeclarations = false)
       : member_(member),
         declared_(declared),
-        ignoreUsingDeclarations_(ignoreUsingDeclarations) {}
+        ignoreUsingDeclarations_(ignoreUsingDeclarations),
+        cache_(scratchMemory) {}
 
   [[nodiscard]] auto asMemberOf(ClassSymbol* classSymbol)
       -> std::optional<AccessSpecifier> {
@@ -331,7 +329,8 @@ class EffectiveAccess {
   Symbol* member_;
   DeclaredMember declared_;
   bool ignoreUsingDeclarations_ = false;
-  std::vector<std::pair<ClassSymbol*, std::optional<AccessSpecifier>>> cache_;
+  std::pmr::vector<std::pair<ClassSymbol*, std::optional<AccessSpecifier>>>
+      cache_;
 };
 
 class FriendshipCollector {
@@ -341,10 +340,11 @@ class FriendshipCollector {
       : unit_(unit), friendClasses_(friendClasses) {}
 
   void collect(ClassSymbol* seed) {
-    auto arguments = templateArgumentsOf(seed);
+    auto arguments = seed->templateArguments();
     const auto dependent = isDependentSeed(arguments, seed);
-    std::vector<ClassSymbol*> visited;
-    std::vector<ClassSymbol*> pending{seed};
+    auto scratchMemory = unit_->control()->scratchMemory();
+    std::pmr::vector<ClassSymbol*> visited{scratchMemory};
+    std::pmr::vector<ClassSymbol*> pending{{seed}, scratchMemory};
 
     while (!pending.empty()) {
       auto classSymbol = pending.back();
@@ -365,7 +365,7 @@ class FriendshipCollector {
   }
 
   void collect(FunctionSymbol* seed) {
-    auto arguments = templateArgumentsOf(seed);
+    auto arguments = seed->templateArguments();
     const auto dependent = isDependentSeed(arguments, seed);
 
     for (auto function = seed; function;
@@ -384,7 +384,7 @@ class FriendshipCollector {
   }
 
   [[nodiscard]] auto isDependentSeed(
-      const std::vector<TemplateArgument>& arguments, ScopeSymbol* seed) const
+      std::span<const TemplateArgument> arguments, ScopeSymbol* seed) const
       -> bool {
     return hasDependentArgument(unit_, arguments) ||
            isEnclosedInDependentTemplate(unit_, seed,
@@ -393,7 +393,7 @@ class FriendshipCollector {
 
   void addTemplateFriendships(
       const std::vector<TemplateFriendship>& friendships,
-      const std::vector<TemplateArgument>& arguments, bool dependent) {
+      std::span<const TemplateArgument> arguments, bool dependent) {
     if (friendships.empty()) return;
 
     for (const auto& friendship : friendships) {
@@ -415,12 +415,12 @@ class AccessContext::Query {
         ClassSymbol* objectClass, bool ignoreUsingDeclarations = false)
       : context_(context),
         ignoreUsingDeclarations_(ignoreUsingDeclarations),
-        effectiveAccess_(member, declared, ignoreUsingDeclarations),
+        effectiveAccess_(context.unit_->control()->scratchMemory(), member,
+                         declared, ignoreUsingDeclarations),
         member_(member),
         declaringClass_(declared.declaringClass),
-        objectClass_(normalize(objectClass)) {
-    context_.materialize();
-  }
+        objectClass_(normalize(objectClass)),
+        accessible_(context.unit_->control()->scratchMemory()) {}
 
   [[nodiscard]] auto designatedIn(ClassSymbol* designatingClass)
       -> AccessResult {
@@ -554,7 +554,7 @@ class AccessContext::Query {
   ClassSymbol* declaringClass_;
   ClassSymbol* objectClass_;
   bool restrictsObject_ = false;
-  std::vector<std::pair<ClassSymbol*, AccessResult>> accessible_;
+  std::pmr::vector<std::pair<ClassSymbol*, AccessResult>> accessible_;
 };
 
 auto declaringClassOf(Symbol* member) -> ClassSymbol* {
@@ -672,13 +672,14 @@ auto AccessContext::isAccessibleBaseClass(ClassSymbol* derived,
 
 namespace {
 
-[[nodiscard]] auto deniedMemberOf(Symbol* member, ClassSymbol* designatingClass)
+[[nodiscard]] auto deniedMemberOf(std::pmr::memory_resource* scratchMemory,
+                                  Symbol* member, ClassSymbol* designatingClass)
     -> DeclaredMember {
   auto declared = declaredMemberOf(member);
   designatingClass = normalize(designatingClass);
   if (!designatingClass) return declared;
 
-  EffectiveAccess effectiveAccess{member, declared};
+  EffectiveAccess effectiveAccess{scratchMemory, member, declared};
   auto access = effectiveAccess.asMemberOf(designatingClass)
                     .value_or(AccessSpecifier::kPrivate);
 
@@ -704,7 +705,8 @@ auto checkMemberAccess(TranslationUnit* unit, ScopeSymbol* accessingScope,
   if (accessContext.isAccessible(member, designatingClass, objectClass))
     return true;
 
-  auto denied = deniedMemberOf(member, designatingClass);
+  auto denied = deniedMemberOf(unit->control()->scratchMemory(), member,
+                               designatingClass);
   if (!denied.declaringClass) return true;
 
   unit->error(loc, std::format("'{}' is a {} member of '{}'",

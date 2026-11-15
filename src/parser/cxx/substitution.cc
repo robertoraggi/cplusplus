@@ -36,6 +36,7 @@
 #include <cxx/types.h>
 
 #include <format>
+#include <memory_resource>
 
 namespace cxx {
 namespace {
@@ -373,39 +374,25 @@ auto isTemplateArgumentKindMatch(
     List<TemplateArgumentAST*>* templateArgumentList) -> bool {
   if (!templateDecl) return true;
 
-  std::vector<TemplateParameterAST*> parameters;
+  const ListView arguments{templateArgumentList};
+  auto argument = arguments.begin();
+
   for (auto parameter : ListView{templateDecl->templateParameterList}) {
-    parameters.push_back(parameter);
-  }
-
-  std::vector<TemplateArgumentAST*> arguments;
-  for (auto argument : ListView{templateArgumentList}) {
-    arguments.push_back(argument);
-  }
-
-  int argumentIndex = 0;
-  for (int parameterIndex = 0;
-       parameterIndex < static_cast<int>(parameters.size()); ++parameterIndex) {
-    if (argumentIndex >= static_cast<int>(arguments.size())) break;
-
-    auto parameter = parameters[parameterIndex];
+    if (argument == arguments.end()) break;
 
     if (isPackParameter(parameter)) {
-      while (argumentIndex < static_cast<int>(arguments.size())) {
-        if (!matchesTemplateParameterKind(parameter, arguments[argumentIndex]))
-          return false;
-        ++argumentIndex;
+      for (; argument != arguments.end(); ++argument) {
+        if (!matchesTemplateParameterKind(parameter, *argument)) return false;
       }
       break;
     }
 
-    if (!matchesTemplateParameterKind(parameter, arguments[argumentIndex]))
-      return false;
+    if (!matchesTemplateParameterKind(parameter, *argument)) return false;
 
-    ++argumentIndex;
+    ++argument;
   }
 
-  return argumentIndex == static_cast<int>(arguments.size());
+  return argument == arguments.end();
 }
 
 auto TemplateArguments::count(List<TemplateArgumentAST*>* templateArgumentList)
@@ -994,31 +981,24 @@ void Substitution::doMake() {
 
   if (!collectWrittenArguments()) return;
 
-  std::vector<TemplateParameterAST*> parameters;
-  for (auto parameter : ListView{templateDecl_->templateParameterList}) {
-    parameters.push_back(parameter);
-  }
-
-  const int paramCount = static_cast<int>(parameters.size());
+  const ListView parameters{templateDecl_->templateParameterList};
   const int argCount = static_cast<int>(writtenArguments_.size());
 
   int packIndex = -1;
   int packSize = 0;
+  int nonPackCount = 0;
 
-  for (int i = 0; i < paramCount; ++i) {
-    if (!isPackParameter(parameters[i])) continue;
-    packIndex = i;
+  for (int i = 0; auto parameter : parameters) {
+    if (!isPackParameter(parameter))
+      ++nonPackCount;
+    else if (packIndex < 0)
+      packIndex = i;
+    ++i;
+  }
 
-    if (argsComplete_) {
-      int nonPackCount = 0;
-      for (int j = 0; j < paramCount; ++j)
-        if (!isPackParameter(parameters[j])) ++nonPackCount;
-      packSize = std::max(0, argCount - nonPackCount);
-      break;
-    }
-
-    packSize = std::max(0, argCount - packIndex);
-    break;
+  if (packIndex >= 0) {
+    packSize = argsComplete_ ? std::max(0, argCount - nonPackCount)
+                             : std::max(0, argCount - packIndex);
   }
 
   int argumentIndex = 0;
@@ -1031,8 +1011,8 @@ void Substitution::doMake() {
     return symbol_cast<ParameterPackSymbol>(*symbol);
   };
 
-  for (int i = 0; i < paramCount; ++i) {
-    auto parameter = parameters[i];
+  for (int i = 0; auto parameter : parameters) {
+    const auto index = i++;
 
     if (isPackParameter(parameter)) {
       if (auto deducedPack = deducedPackAt(argumentIndex)) {
@@ -1046,8 +1026,8 @@ void Substitution::doMake() {
       }
     }
 
-    if (i == packIndex) {
-      std::vector<Symbol*> elements;
+    if (index == packIndex) {
+      std::pmr::vector<Symbol*> elements{control->scratchMemory()};
       elements.reserve(packSize);
       auto nonTypeParam = ast_cast<NonTypeTemplateParameterAST>(parameter);
 
