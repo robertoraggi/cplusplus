@@ -660,6 +660,19 @@ struct RequireNamedDefinitions final : ASTVisitor {
     }
     ASTVisitor::visit(ast);
   }
+
+  void visit(SizeofExpressionAST*) override {}
+  void visit(AlignofExpressionAST*) override {}
+  void visit(NoexceptExpressionAST*) override {}
+  void visit(ReflectExpressionAST*) override {}
+  void visit(DecltypeSpecifierAST*) override {}
+  void visit(RequiresClauseAST*) override {}
+  void visit(RequiresExpressionAST*) override {}
+
+  void visit(TypeidExpressionAST* ast) override {
+    if (unit->typeTraits().is_polymorphic_glvalue(ast->expression))
+      accept(ast->expression);
+  }
 };
 
 }  // namespace

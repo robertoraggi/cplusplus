@@ -3411,11 +3411,7 @@ auto Parser::parse_typeid_expression(ExpressionAST*& yyast,
 
   expect(TokenKind::T_RPAREN, ast->rparenLoc);
 
-  if (ast->expression && ast->expression->type &&
-      ast->expression->valueCategory != ValueCategory::kPrValue &&
-      traits.is_polymorphic(traits.remove_cvref(ast->expression->type))) {
-    check(&ast->expression);
-  }
+  if (traits.is_polymorphic_glvalue(ast->expression)) check(&ast->expression);
 
   check(&yyast);
 

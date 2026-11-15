@@ -4414,6 +4414,12 @@ auto TypeTraits::is_polymorphic(const Type* type) -> bool {
   return cls->isPolymorphic();
 }
 
+auto TypeTraits::is_polymorphic_glvalue(ExpressionAST* expr) -> bool {
+  if (!expr || !expr->type) return false;
+  if (expr->valueCategory == ValueCategory::kPrValue) return false;
+  return is_polymorphic(remove_cvref(expr->type));
+}
+
 auto TypeTraits::is_final(const Type* type) -> bool {
   auto classType = unqualified_cast<ClassType>(type);
   if (!classType) return false;
