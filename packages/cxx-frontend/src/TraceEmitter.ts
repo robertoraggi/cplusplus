@@ -1287,6 +1287,14 @@ export class TraceEmitter implements EmitterDelegate {
     this.#emit(`global_ctor @${function_} priority ${priority}`);
   }
 
+  globalDestructor(
+    loc: TokenIndex,
+    function_: FunctionRef,
+    priority = 65535,
+  ): void {
+    this.#emit(`global_dtor @${function_} priority ${priority}`);
+  }
+
   defineVTable(loc: TokenIndex, info: VTableInfo): void {
     this.#emitTop(
       `vtable @${info.name} typeinfo @${info.typeInfo} ` +

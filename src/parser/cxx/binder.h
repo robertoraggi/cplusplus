@@ -761,8 +761,13 @@ class Binder {
   void applyDeviceAttributes(Symbol* symbol,
                              std::span<const AttributeRef> attributes);
 
+  [[nodiscard]] auto requestedPriority(std::span<const AttributeRef> attributes,
+                                       AttributeKind kind)
+      -> std::optional<std::uint32_t>;
   void applyConstructorAttribute(FunctionSymbol* function,
                                  std::span<const AttributeRef> attributes);
+  void applyDestructorAttribute(FunctionSymbol* function,
+                                std::span<const AttributeRef> attributes);
 
   void applyWasmFunctionAttributes(FunctionSymbol* function,
                                    const AttributeMap* attributes);

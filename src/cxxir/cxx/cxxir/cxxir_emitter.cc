@@ -1097,6 +1097,9 @@ auto CxxIREmitter::Private::OperationFormatter::format() -> std::string {
   if (name == "cxx.global_ctor")
     return finish(symbolText(attributes.take("ctor")), {},
                   attributes.takeProperties({"priority"}));
+  if (name == "cxx.global_dtor")
+    return finish(symbolText(attributes.take("dtor")), {},
+                  attributes.takeProperties({"priority"}));
   if (name == "cxx.module_asm")
     return finish(std::string(attributes.take("assembly")));
   if (name == "cxx.exception_typeid")
@@ -2183,6 +2186,14 @@ void CxxIREmitter::globalConstructor(SourceLocation loc, FunctionRef ref,
                                      std::uint32_t priority) {
   priv_->appendModule({.name = "cxx.global_ctor",
                        .attrs = "ctor = @" + quote(priv_->function(ref).name) +
+                                std::format(", priority = {} : i32", priority),
+                       .location = priv_->sourceLocation(loc)});
+}
+
+void CxxIREmitter::globalDestructor(SourceLocation loc, FunctionRef ref,
+                                    std::uint32_t priority) {
+  priv_->appendModule({.name = "cxx.global_dtor",
+                       .attrs = "dtor = @" + quote(priv_->function(ref).name) +
                                 std::format(", priority = {} : i32", priority),
                        .location = priv_->sourceLocation(loc)});
 }

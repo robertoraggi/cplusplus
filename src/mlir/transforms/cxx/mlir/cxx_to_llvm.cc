@@ -3389,6 +3389,14 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     ctorOp.erase();
   });
 
+  SmallVector<Attribute> globalDtors;
+  SmallVector<Attribute> globalDtorPriorities;
+  module.walk([&](cxx::GlobalDtorOp dtorOp) {
+    globalDtors.push_back(dtorOp.getDtorAttr());
+    globalDtorPriorities.push_back(dtorOp.getPriorityAttr());
+    dtorOp.erase();
+  });
+
   SmallVector<Attribute> usedSymbols;
   module.walk([&](Operation* op) {
     if (auto funcOp = dyn_cast<cxx::FuncOp>(op)) {
@@ -3452,6 +3460,16 @@ void CxxToLLVMLoweringPass::runOnOperation() {
     LLVM::GlobalCtorsOp::create(
         ctorBuilder, module.getLoc(), ctorBuilder.getArrayAttr(functions),
         ctorBuilder.getArrayAttr(priorities), ctorBuilder.getArrayAttr(data));
+  }
+  if (!globalDtors.empty()) {
+    OpBuilder dtorBuilder(context);
+    dtorBuilder.setInsertionPointToEnd(module.getBody());
+    SmallVector<Attribute> data(globalDtors.size(),
+                                LLVM::ZeroAttr::get(context));
+    LLVM::GlobalDtorsOp::create(dtorBuilder, module.getLoc(),
+                                dtorBuilder.getArrayAttr(globalDtors),
+                                dtorBuilder.getArrayAttr(globalDtorPriorities),
+                                dtorBuilder.getArrayAttr(data));
   }
 
   emitLLVMUsed(module, usedSymbols);

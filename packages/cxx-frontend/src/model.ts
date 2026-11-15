@@ -1164,7 +1164,7 @@ const ClassSymbolSlotBase = InjectedClassNameSymbolSlotBase + 1;
 const EnumSymbolSlotBase = ClassSymbolSlotBase + 71;
 const ScopedEnumSymbolSlotBase = EnumSymbolSlotBase + 15;
 const FunctionSymbolSlotBase = ScopedEnumSymbolSlotBase + 13;
-const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 84;
+const OverloadSetSymbolSlotBase = FunctionSymbolSlotBase + 85;
 const LambdaSymbolSlotBase = OverloadSetSymbolSlotBase + 4;
 const FunctionParametersSymbolSlotBase = LambdaSymbolSlotBase + 8;
 const TemplateParametersSymbolSlotBase = FunctionParametersSymbolSlotBase + 1;
@@ -10492,15 +10492,11 @@ export class FunctionSymbol extends ScopeSymbol {
     return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 66) as
       number | undefined;
   }
-  get overriddenFunctions(): Iterable<FunctionSymbol | undefined> {
-    return symbolItems(
-      this.modelOwner,
-      this.handle,
-      FunctionSymbolSlotBase + 67,
-      (item: any) => symbolOf(item, this.modelOwner),
-    );
+  get destructorPriority(): number | undefined {
+    return cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 67) as
+      number | undefined;
   }
-  get befriendingClasses(): Iterable<ClassSymbol | undefined> {
+  get overriddenFunctions(): Iterable<FunctionSymbol | undefined> {
     return symbolItems(
       this.modelOwner,
       this.handle,
@@ -10508,18 +10504,26 @@ export class FunctionSymbol extends ScopeSymbol {
       (item: any) => symbolOf(item, this.modelOwner),
     );
   }
+  get befriendingClasses(): Iterable<ClassSymbol | undefined> {
+    return symbolItems(
+      this.modelOwner,
+      this.handle,
+      FunctionSymbolSlotBase + 69,
+      (item: any) => symbolOf(item, this.modelOwner),
+    );
+  }
   get templateFriendships(): Iterable<TemplateFriendship> {
     return symbolValItems(
       this.modelOwner,
       this.handle,
-      FunctionSymbolSlotBase + 69,
+      FunctionSymbolSlotBase + 70,
       (item: any) => decodeTemplateFriendship(item, this.modelOwner),
     );
   }
   get constructorInitializers():
     Iterable<MemInitializerAST | undefined> | undefined {
     return optionalOf(
-      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 70),
+      cxx.readSymbolVal(this.handle, FunctionSymbolSlotBase + 71),
       (item: any) =>
         listOf(this.modelOwner, item, (item: any) =>
           astOf(item, this.modelOwner),
@@ -10528,63 +10532,63 @@ export class FunctionSymbol extends ScopeSymbol {
   }
   get delegatingConstructor(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 71),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 72),
       this.modelOwner,
     );
   }
   get completeObjectVariant(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 72),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 73),
       this.modelOwner,
     );
   }
   get deletingDtorVariant(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 73),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 74),
       this.modelOwner,
     );
   }
   get structorPrincipal(): FunctionSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 74),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 75),
       this.modelOwner,
     );
   }
   get isStructorVariant(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 75) !== 0;
-  }
-  get isStructor(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 76) !== 0;
   }
-  get hasBaseObjectVariant(): boolean {
+  get isStructor(): boolean {
     return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 77) !== 0;
   }
-  get inheritedConstructor(): FunctionSymbol | undefined {
-    return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 78),
-      this.modelOwner,
-    );
+  get hasBaseObjectVariant(): boolean {
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 78) !== 0;
   }
-  get inheritedConstructorOrigin(): FunctionSymbol | undefined {
+  get inheritedConstructor(): FunctionSymbol | undefined {
     return symbolOf(
       cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 79),
       this.modelOwner,
     );
   }
+  get inheritedConstructorOrigin(): FunctionSymbol | undefined {
+    return symbolOf(
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 80),
+      this.modelOwner,
+    );
+  }
   get isDeletingDtorVariant(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 80) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 81) !== 0;
   }
   get hostScope(): ScopeSymbol | undefined {
     return symbolOf(
-      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 81),
+      cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 82),
       this.modelOwner,
     );
   }
   get hasFriendDefaultArgument(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 82) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 83) !== 0;
   }
   get hasFriendDefaultTemplateArgument(): boolean {
-    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 83) !== 0;
+    return cxx.readSymbol(this.handle, FunctionSymbolSlotBase + 84) !== 0;
   }
 }
 /** @category Symbols */
@@ -12535,6 +12539,7 @@ export type AttributeKind =
   | "Buffer"
   | "Constructor"
   | "Deprecated"
+  | "Destructor"
   | "EnableIf"
   | "ExcludeFromExplicitInstantiation"
   | "ExportName"
@@ -12575,35 +12580,36 @@ const attributeKindNames: Record<number, AttributeKind> = {
   7: "Buffer",
   8: "Constructor",
   9: "Deprecated",
-  10: "EnableIf",
-  11: "ExcludeFromExplicitInstantiation",
-  12: "ExportName",
-  13: "ExtVectorType",
-  14: "Fallthrough",
-  15: "GlobalId",
-  16: "GnuInline",
-  17: "ImportModule",
-  18: "ImportName",
-  19: "Indeterminate",
-  20: "Kernel",
-  21: "Likely",
-  22: "LocalId",
-  23: "MaybeUnused",
-  24: "NoUniqueAddress",
-  25: "Nodiscard",
-  26: "Noinline",
-  27: "Noreturn",
-  28: "Nothrow",
-  29: "Packed",
-  30: "Section",
-  31: "TrivialAbi",
-  32: "Unlikely",
-  33: "Used",
-  34: "VectorSize",
-  35: "WarnUnusedResult",
-  36: "Weak",
-  37: "WorkgroupId",
-  38: "WorkgroupSize",
+  10: "Destructor",
+  11: "EnableIf",
+  12: "ExcludeFromExplicitInstantiation",
+  13: "ExportName",
+  14: "ExtVectorType",
+  15: "Fallthrough",
+  16: "GlobalId",
+  17: "GnuInline",
+  18: "ImportModule",
+  19: "ImportName",
+  20: "Indeterminate",
+  21: "Kernel",
+  22: "Likely",
+  23: "LocalId",
+  24: "MaybeUnused",
+  25: "NoUniqueAddress",
+  26: "Nodiscard",
+  27: "Noinline",
+  28: "Noreturn",
+  29: "Nothrow",
+  30: "Packed",
+  31: "Section",
+  32: "TrivialAbi",
+  33: "Unlikely",
+  34: "Used",
+  35: "VectorSize",
+  36: "WarnUnusedResult",
+  37: "Weak",
+  38: "WorkgroupId",
+  39: "WorkgroupSize",
 };
 /** @category Enumerations */
 export type ValueCategory = "None" | "LValue" | "XValue" | "PrValue";

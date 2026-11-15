@@ -1902,6 +1902,14 @@ class FunctionSymbol final
     constructorPriority_ = priority;
   }
 
+  [[nodiscard]] auto destructorPriority() const
+      -> std::optional<std::uint32_t> {
+    return destructorPriority_;
+  }
+  void setDestructorPriority(std::optional<std::uint32_t> priority) {
+    destructorPriority_ = priority;
+  }
+
   void addOverriddenFunction(FunctionSymbol* function);
   [[nodiscard]] auto overriddenFunctions() const
       -> const std::vector<FunctionSymbol*>& {
@@ -2019,6 +2027,7 @@ class FunctionSymbol final
   std::vector<TemplateFriendship> templateFriendships_;
   int vtableSlotIndex_ = -1;
   std::optional<std::uint32_t> constructorPriority_;
+  std::optional<std::uint32_t> destructorPriority_;
   std::optional<KernelWorkgroupSize> kernelWorkgroupSize_;
   const Identifier* externalName_ = nullptr;
   const Identifier* aliasName_ = nullptr;

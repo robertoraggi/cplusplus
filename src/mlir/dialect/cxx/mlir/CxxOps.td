@@ -313,6 +313,15 @@ def Cxx_GlobalCtorOp : Cxx_Op<"global_ctor"> {
   let assemblyFormat = "$ctor prop-dict attr-dict";
 }
 
+def Cxx_GlobalDtorOp : Cxx_Op<"global_dtor"> {
+  let summary = "run a function at normal program termination";
+
+  let arguments = (ins FlatSymbolRefAttr:$dtor,
+      DefaultValuedAttr<I32Attr, "65535">:$priority);
+
+  let assemblyFormat = "$dtor prop-dict attr-dict";
+}
+
 def Cxx_VTableOp : Cxx_SymbolOp<"vtable"> {
   let summary = "one Itanium virtual table group";
   let description = [{

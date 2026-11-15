@@ -73,6 +73,8 @@ class MlirEmitter final : public Emitter {
   void beginGlobalInitializer(GlobalRef global) override;
   void globalConstructor(SourceLocation loc, FunctionRef function,
                          std::uint32_t priority = 65535) override;
+  void globalDestructor(SourceLocation loc, FunctionRef function,
+                        std::uint32_t priority = 65535) override;
   auto constant(SourceLocation loc, TypeRef type, const Initializer& value)
       -> ValueRef override;
   auto isZeroConstant(ValueRef value) -> bool override;

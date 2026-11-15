@@ -1344,6 +1344,12 @@ class JsEmitter final : public ir::Emitter {
                         toVal(priority));
   }
 
+  void globalDestructor(cxx::SourceLocation loc, cxx::ir::FunctionRef function,
+                        unsigned int priority) override {
+    delegate_.call<val>("globalDestructor", toVal(loc), toVal(function),
+                        toVal(priority));
+  }
+
   auto constant(cxx::SourceLocation loc, cxx::ir::TypeRef type,
                 const cxx::ir::Initializer& value)
       -> cxx::ir::ValueRef override {

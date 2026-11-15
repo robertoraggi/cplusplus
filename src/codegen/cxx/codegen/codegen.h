@@ -836,6 +836,7 @@ class Codegen {
       -> ir::FunctionRef;
   [[nodiscard]] auto findOrCreateThreadLocalInitializer() -> ir::FunctionRef;
   void emitThreadLocalInitializers();
+  void emitGlobalStructors();
   void emitStaticLocalVarInit(VariableSymbol* var, ir::GlobalRef global,
                               ExpressionAST* initializer);
 
@@ -1616,6 +1617,15 @@ class Codegen {
   std::unordered_set<std::string> classTypeNames_;
   std::unordered_map<Symbol*, ir::ValueRef> locals_;
   std::unordered_map<FunctionSymbol*, ir::FunctionRef> funcOps_;
+
+  struct GlobalStructor {
+    FunctionSymbol* function = nullptr;
+    ir::FunctionRef ref;
+    SourceLocation location;
+    std::uint32_t priority = 65535;
+  };
+  std::vector<GlobalStructor> globalConstructors_;
+  std::vector<GlobalStructor> globalDestructors_;
   std::vector<FunctionSymbol*> pendingFunctions_;
   std::vector<FunctionSymbol*> referencedBaseObjectStructors_;
   std::unordered_set<FunctionSymbol*> enqueuedFunctions_;
