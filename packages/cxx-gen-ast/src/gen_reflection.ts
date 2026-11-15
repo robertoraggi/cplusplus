@@ -306,11 +306,45 @@ export function gen_reflection(index: ModelIndex, root: string) {
     return items.join(" | ");
   }
 
+  function viewElement(type: ModelType): ModelType | undefined {
+    if (type.kind !== "class") return;
+    const record = index.classOf(type.name);
+    if (!record) return;
+    const isView = record.bases.some(
+      (base) => base.type === "::std::ranges::view_interface",
+    );
+    if (!isView) return;
+    const begin = record.methods.find(
+      (method) =>
+        method.name === "begin" &&
+        method.access === "public" &&
+        method.isConst &&
+        !method.parameters.length,
+    );
+    if (!begin) return;
+    const substitution = typeArguments(type);
+    const iterator = unqualified(begin.returnType);
+    if (iterator.kind === "pointer")
+      return substituteType(iterator.element, substitution);
+    if (iterator.kind !== "class") return;
+    const dereference = index
+      .classOf(iterator.name)
+      ?.methods.find(
+        (method) =>
+          method.name === "operator*" &&
+          method.access === "public" &&
+          method.isConst &&
+          !method.parameters.length,
+      );
+    if (!dereference) return;
+    return substituteType(dereference.returnType, substitution);
+  }
+
   function containerElement(type: ModelType): ModelType | undefined {
     if (type.kind !== "class") return;
     const args = typeArguments(type);
     if (containerClasses.includes(type.name)) return args[0];
-    if (type.name !== "::std::ranges::transform_view") return;
+    if (type.name !== "::std::ranges::transform_view") return viewElement(type);
     const transform = unqualified(args[1]!);
     if (transform.kind !== "class") return;
     const call = index
@@ -640,6 +674,7 @@ export function gen_reflection(index: ModelIndex, root: string) {
           }
         for (const method of owner.methods) {
           if (method.access !== "public") continue;
+          if (method.name.startsWith("operator")) continue;
           if (!method.isConst || method.isStatic || method.parameters.length)
             continue;
           if (
