@@ -56,9 +56,16 @@ auto ConstFloat16::value() const -> float {
 
 namespace {
 [[nodiscard]] auto isTransparentSubobject(const Symbol* symbol) -> bool {
-  if (symbol_cast<BaseClassSymbol>(const_cast<Symbol*>(symbol))) return true;
+  if (is_base_class_subobject(const_cast<Symbol*>(symbol))) return true;
   auto field = symbol_cast<FieldSymbol>(const_cast<Symbol*>(symbol));
   return field && anonymous_member_class(field);
+}
+
+[[nodiscard]] auto subobjectKey(const Symbol* symbol) -> const Symbol* {
+  if (auto virtualBase =
+          virtual_base_subobject_class(const_cast<Symbol*>(symbol)))
+    return virtualBase;
+  return symbol;
 }
 }  // namespace
 
@@ -86,52 +93,48 @@ class ConstantResult {
       : traits_(traits), point_(point), kind_(kind) {}
 
   [[nodiscard]] auto check(const ConstValue& value, const Type* type) -> bool {
-    std::vector<std::pair<const ConstValue*, const Type*>> pending{
-        {&value, type}};
-    while (!pending.empty()) {
-      auto [current, currentType] = pending.back();
-      pending.pop_back();
+    pending_.push_back({&value, type});
+    while (!pending_.empty()) {
+      auto [current, currentType, isBaseClassSubobject] = pending_.back();
+      pending_.pop_back();
       if (std::holds_alternative<IndeterminateValue>(*current) ||
           std::holds_alternative<OutOfLifetimeValue>(*current))
         return false;
       if (auto address = std::get_if<std::shared_ptr<ConstAddress>>(current)) {
-        if (!*address || !checkAddress(**address, currentType, pending))
-          return false;
+        if (!*address || !checkAddress(**address, currentType)) return false;
       } else if (auto object =
                      std::get_if<std::shared_ptr<ConstObject>>(current)) {
         if (!*object || (*object)->isConstexprUnknown() ||
             (*object)->lifetimeEnded())
           return false;
-        if (auto classType = unqualified_cast<ClassType>((*object)->type())) {
-          auto definition = classType->definition();
-          if (!definition) return false;
-          for (auto base : definition->baseClasses())
-            if (!(*object)->subobject(base)) return false;
+        if (!holdsBaseClassSubobjects(**object, isBaseClassSubobject))
+          return false;
+        for (const auto& member : (*object)->members()) {
+          auto symbol = const_cast<Symbol*>(member.symbol);
+          pending_.push_back({&member.value,
+                              traits_ ? traits_->aggregate_element_type(symbol)
+                                      : symbol->type(),
+                              is_base_class_subobject(symbol)});
         }
-        for (const auto& member : (*object)->members())
-          pending.emplace_back(&member.value,
-                               traits_ ? traits_->aggregate_element_type(
-                                             const_cast<Symbol*>(member.symbol))
-                                       : member.symbol->type());
       } else if (auto list =
                      std::get_if<std::shared_ptr<InitializerList>>(current)) {
         if (!*list) return false;
         for (const auto& [element, elementType] :
              (*list)->initializedElements())
-          pending.emplace_back(&element, elementType);
+          pending_.push_back({&element, elementType});
         if ((*list)->hasFiller()) {
           const auto& [filler, fillerType] = (*list)->filler();
-          pending.emplace_back(&filler, fillerType);
+          pending_.push_back({&filler, fillerType});
         }
       } else if (auto complex =
                      std::get_if<std::shared_ptr<ConstComplex>>(current)) {
         if (!*complex) return false;
-        pending.emplace_back(
-            &(*complex)->real(),
-            traits_ ? traits_->get_element_type(currentType) : nullptr);
-        pending.emplace_back(
-            &(*complex)->imag(),
-            traits_ ? traits_->get_element_type(currentType) : nullptr);
+        pending_.push_back(
+            {&(*complex)->real(),
+             traits_ ? traits_->get_element_type(currentType) : nullptr});
+        pending_.push_back(
+            {&(*complex)->imag(),
+             traits_ ? traits_->get_element_type(currentType) : nullptr});
       } else if (kind_ == ConstantResultKind::kTemplateArgument &&
                  std::holds_alternative<const StringLiteral*>(*current)) {
         return false;
@@ -141,6 +144,32 @@ class ConstantResult {
   }
 
  private:
+  struct Pending {
+    const ConstValue* value = nullptr;
+    const Type* type = nullptr;
+    bool isBaseClassSubobject = false;
+  };
+
+  [[nodiscard]] static auto holdsBaseClassSubobjects(const ConstObject& object,
+                                                     bool isBaseClassSubobject)
+      -> bool {
+    auto classType = unqualified_cast<ClassType>(object.type());
+    if (!classType) return true;
+    auto definition = classType->definition();
+    if (!definition) return false;
+    for (auto base : definition->baseClasses()) {
+      if (base->isVirtual()) continue;
+      if (!object.subobject(base)) return false;
+    }
+    if (isBaseClassSubobject) return true;
+    auto layout = definition->layout();
+    if (!layout) return true;
+    return std::ranges::all_of(layout->virtualBases(),
+                               [&](ClassSymbol* virtualBase) {
+                                 return object.subobject(virtualBase);
+                               });
+  }
+
   [[nodiscard]] auto referenceable(Symbol* referent) const -> bool {
     if (has_static_storage_duration(referent)) return true;
     if (has_thread_storage_duration(referent)) return false;
@@ -152,9 +181,8 @@ class ConstantResult {
     return function && function == point_->enclosingFunctionOrSelf();
   }
 
-  [[nodiscard]] auto checkAddress(
-      const ConstAddress& address, const Type* type,
-      std::vector<std::pair<const ConstValue*, const Type*>>& pending) -> bool {
+  [[nodiscard]] auto checkAddress(const ConstAddress& address, const Type* type)
+      -> bool {
     if (address.lifetimeEnded()) return false;
     auto owner = address.owner();
     if (owner && owner->isConstexprUnknown()) return false;
@@ -188,7 +216,7 @@ class ConstantResult {
     if (std::ranges::contains(extendedTemporaries_, temporary)) return true;
     extendedTemporaries_.push_back(temporary);
     if (!temporary->constValue()) return false;
-    pending.emplace_back(&*temporary->constValue(), temporary->type());
+    pending_.push_back({&*temporary->constValue(), temporary->type()});
     return true;
   }
 
@@ -196,6 +224,7 @@ class ConstantResult {
   ScopeSymbol* point_;
   ConstantResultKind kind_;
   std::vector<VariableSymbol*> extendedTemporaries_;
+  std::vector<Pending> pending_;
 };
 
 }  // namespace
@@ -528,8 +557,11 @@ auto ConstObject::enclosingSubobject(const Symbol* symbol) -> ConstObject* {
   auto classType = unqualified_cast<ClassType>(type_);
   if (!classType || isDirectMemberOf(symbol, classType->symbol()))
     return nullptr;
+  if (virtual_base_subobject_class(const_cast<Symbol*>(symbol))) return nullptr;
   auto path = classType->symbol()->subobjectPath(const_cast<Symbol*>(symbol));
-  if (!path || path->size() < 2) return nullptr;
+  if (!path) return nullptr;
+  *path = most_derived_object_path(std::move(*path));
+  if (path->size() < 2) return nullptr;
 
   auto enclosing = path->front();
   auto type = subobjectType(enclosing);
@@ -561,7 +593,7 @@ void ConstObject::positionMembers() const {
 
 auto ConstObject::directMember(const Symbol* symbol) const -> const Member* {
   positionMembers();
-  auto position = memberPositions_.find(symbol);
+  auto position = memberPositions_.find(subobjectKey(symbol));
   if (position == memberPositions_.end()) return nullptr;
   return &members_[position->second];
 }
@@ -574,6 +606,7 @@ auto ConstObject::transparentMemberPositions() const
 
 auto ConstObject::addMember(const Symbol* symbol, ConstValue value)
     -> ConstValue* {
+  symbol = subobjectKey(symbol);
   if (auto enclosing = enclosingSubobject(symbol))
     return enclosing->addMember(symbol, std::move(value));
   if (isUnion()) {
@@ -608,6 +641,7 @@ struct LocatedSubobject {
 
 [[nodiscard]] auto namedClassDeclaring(const Symbol* symbol)
     -> const ClassSymbol* {
+  if (symbol_cast<ClassSymbol>(const_cast<Symbol*>(symbol))) return nullptr;
   auto declaringClass = symbol_cast<ClassSymbol>(symbol->parent());
   if (!declaringClass || !declaringClass->name()) return nullptr;
   return declaringClass->resolvedDefinition();
@@ -624,8 +658,9 @@ struct LocatedSubobject {
     -> bool {
   if (!declaringClass) return true;
   auto base = symbol_cast<BaseClassSymbol>(const_cast<Symbol*>(subobject));
-  if (!base) return true;
-  auto baseClass = resolved_base_class(base);
+  auto baseClass =
+      base ? resolved_base_class(base)
+           : symbol_cast<ClassSymbol>(const_cast<Symbol*>(subobject));
   if (!baseClass) return true;
   if (baseClass == declaringClass) return true;
   return baseClass->hasBaseClass(declaringClass);
@@ -633,6 +668,7 @@ struct LocatedSubobject {
 
 [[nodiscard]] auto locateSubobject(const ConstObject& object,
                                    const Symbol* symbol) -> LocatedSubobject {
+  symbol = subobjectKey(symbol);
   struct Candidate {
     const ConstObject* object;
     std::vector<Symbol*> path;
@@ -737,7 +773,7 @@ namespace {
   std::vector<ConstAddress::Subobject> path;
   for (const auto& step : address.subobjectPath()) {
     auto symbol = std::get_if<Symbol*>(&step);
-    if (symbol && symbol_cast<BaseClassSymbol>(*symbol)) continue;
+    if (symbol && is_base_class_subobject(*symbol)) continue;
     path.push_back(step);
   }
   if (address.arrayType()) path.emplace_back(std::size_t(address.offset()));

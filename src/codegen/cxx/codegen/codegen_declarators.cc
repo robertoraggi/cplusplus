@@ -544,7 +544,7 @@ auto Codegen::MemInitializerVisitor::emitSubobjectInit(
     if (!shape) return {};
     if (isWritten && args.empty() &&
         gen.requiresZeroInitialization(shape->elementType, ast->constructor)) {
-      gen.emitZeroInitialization(loc, fieldPtr, targetType);
+      gen.emitZeroInitialization(loc, fieldPtr, targetType, symbol);
     }
     gen.emitSubobjectConstruction(
         loc, fieldPtr, *shape, completeObject, [&](ir::ValueRef element) {

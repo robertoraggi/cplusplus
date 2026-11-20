@@ -1091,7 +1091,7 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
                          field->isNoUniqueAddress());
     } else {
       if (!braced->type) braced->type = field->type();
-      emitAggregateInit(fieldPtr, field->type(), braced);
+      emitAggregateInit(fieldPtr, field->type(), braced, {}, field);
     }
     return;
   }
@@ -1117,7 +1117,7 @@ void Codegen::emitFieldInitializer(SourceLocation sourceLoc, FieldSymbol* field,
     }
   }
 
-  (void)emitPrvalueInto(fieldPtr, field->type(), expr, sourceLoc);
+  (void)emitPrvalueInto(fieldPtr, field->type(), expr, sourceLoc, field);
 }
 
 auto Codegen::FunctionBodyVisitor::emitAnonymousUnionInitializer(

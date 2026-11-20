@@ -872,6 +872,44 @@ auto ASTInterpreter::bindParametersFromExprs(
   return true;
 }
 
+auto ASTInterpreter::completeObjectConstructor(FunctionSymbol* constructor,
+                                               ConstructedObject constructed)
+    -> FunctionSymbol* {
+  if (constructed != ConstructedObject::kMostDerivedObject) return nullptr;
+  if (auto variant = constructor->completeObjectVariant()) return variant;
+  auto canonical = constructor->canonical();
+  return canonical ? canonical->completeObjectVariant() : nullptr;
+}
+
+auto ASTInterpreter::constructCompleteObject(
+    FunctionSymbol* constructor, Frame frame, const Type* classType,
+    std::shared_ptr<ConstObject> object,
+    std::shared_ptr<ConstAddress> destination) -> std::optional<ConstValue> {
+  auto variant = completeObjectConstructor(
+      constructor, ConstructedObject::kMostDerivedObject);
+  if (!variant) return std::nullopt;
+  auto sources = definingDeclarationOf(constructor)->parameters();
+  auto targets = definingDeclarationOf(variant)->parameters();
+  for (std::size_t index = 0; index < sources.size() && index < targets.size();
+       ++index) {
+    if (auto local = frame.locals.find(sources[index]);
+        local != frame.locals.end()) {
+      auto storage = local->second;
+      frame.locals.insert_or_assign(targets[index], std::move(storage));
+    }
+    if (auto reference = frame.references.find(sources[index]);
+        reference != frame.references.end()) {
+      auto binding = reference->second;
+      frame.references.insert_or_assign(targets[index], std::move(binding));
+    }
+  }
+  auto obj = constructionObject(classType, destination, std::move(object));
+  if (!obj) return std::nullopt;
+  return executeFunction(variant, std::move(frame), CallResultKind::kValue,
+                         std::move(obj), true, std::move(destination))
+      .value;
+}
+
 auto ASTInterpreter::initializeDefaultedObject(
     const std::shared_ptr<ConstObject>& obj, ClassSymbol* classSymbol,
     std::shared_ptr<ConstAddress> destination) -> bool {
@@ -886,7 +924,9 @@ auto ASTInterpreter::initializeDefaultedObject(
     if (!baseClass) continue;
     if (!obj->subobject(base)) obj->setMember(base, IndeterminateValue{});
     auto address = subobjectDestination(destination, base);
-    auto value = defaultConstruct(baseClass->type(), std::move(address));
+    auto value =
+        defaultConstruct(baseClass->type(), std::move(address), nullptr,
+                         ConstructedObject::kBaseClassSubobject);
     if (!value) return false;
     obj->setMember(base, std::move(*value));
   }
@@ -937,6 +977,7 @@ auto ASTInterpreter::copyDefaultedObject(
   }
 
   for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
     auto value = source->subobject(base);
     if (!value) return false;
     obj->addMember(base, cloneValue(*value));
@@ -987,45 +1028,24 @@ auto ASTInterpreter::subobjectSlot(const std::shared_ptr<ConstObject>& object,
   if (auto slot = object->mutableSubobject(symbol)) return slot;
 
   auto classType = unqualified_cast<ClassType>(object->type());
-  auto classSymbol = classType ? classType->symbol() : nullptr;
-  if (classSymbol) classSymbol = classSymbol->resolvedDefinition();
+  auto classSymbol = classType ? classType->definition() : nullptr;
+  auto path = classSymbol
+                  ? classSymbol->subobjectPath(const_cast<Symbol*>(symbol))
+                  : std::nullopt;
+  if (path) *path = most_derived_object_path(std::move(*path));
+  if (!path || path->size() < 2)
+    return object->addMember(symbol, ConstValue{IndeterminateValue{}});
 
-  auto owner = symbol_cast<ClassSymbol>(symbol->parent());
-
-  if (classSymbol && owner &&
-      owner->resolvedDefinition() != classSymbol->resolvedDefinition()) {
-    for (auto base : classSymbol->baseClasses()) {
-      auto baseClass = symbol_cast<ClassSymbol>(base->symbol());
-      if (!baseClass) continue;
-      if (!traits.is_member_of_object_type(baseClass->type(),
-                                           const_cast<Symbol*>(symbol)))
-        continue;
-
-      auto baseSlot = object->mutableSubobject(base);
-      if (!baseSlot) {
-        baseSlot = object->addMember(
-            base, ConstValue{std::make_shared<ConstObject>(baseClass->type())});
-      }
-
-      auto nested = std::get_if<std::shared_ptr<ConstObject>>(baseSlot);
-      if (!nested) continue;
-      if (!*nested) *nested = std::make_shared<ConstObject>(baseClass->type());
-      return subobjectSlot(*nested, symbol);
-    }
+  auto enclosing = path->front();
+  auto slot = object->mutableSubobject(enclosing);
+  if (!slot) slot = object->addMember(enclosing, IndeterminateValue{});
+  auto nested = std::get_if<std::shared_ptr<ConstObject>>(slot);
+  if (!nested || !*nested) {
+    *slot =
+        std::make_shared<ConstObject>(traits.aggregate_element_type(enclosing));
+    nested = std::get_if<std::shared_ptr<ConstObject>>(slot);
   }
-
-  if (classSymbol) {
-    auto path = classSymbol->subobjectPath(const_cast<Symbol*>(symbol));
-    if (path && path->size() > 1) {
-      auto enclosing = object->mutableSubobject(path->front());
-      auto nested = enclosing
-                        ? std::get_if<std::shared_ptr<ConstObject>>(enclosing)
-                        : nullptr;
-      if (nested && *nested) return subobjectSlot(*nested, symbol);
-    }
-  }
-
-  return object->addMember(symbol, ConstValue{IndeterminateValue{}});
+  return subobjectSlot(*nested, symbol);
 }
 
 auto ASTInterpreter::copyArrayElements(
@@ -1094,7 +1114,35 @@ auto ASTInterpreter::constructSubobject(
   return classInitializationValue(
       type, ast->constructor, arguments,
       arguments.empty() && hasEmptyInitializerSyntax(ast),
-      std::move(destination));
+      std::move(destination),
+      is_base_class_subobject(ast->symbol)
+          ? ConstructedObject::kBaseClassSubobject
+          : ConstructedObject::kMostDerivedObject);
+}
+
+auto ASTInterpreter::designatesVirtualBase(ClassSymbol* classSymbol) const
+    -> bool {
+  if (!currentConstructorClass_) return false;
+  return classSymbol->resolvedDefinition() !=
+         currentConstructorClass_->resolvedDefinition();
+}
+
+void ASTInterpreter::delegateConstruction(
+    MemInitializerAST* ast, const std::vector<ExpressionAST*>& arguments) {
+  auto constructed = ConstructedObject::kBaseClassSubobject;
+  if (currentFunction_ && currentFunction_->isStructorVariant() &&
+      ast->constructor != currentFunction_->structorPrincipal())
+    constructed = ConstructedObject::kMostDerivedObject;
+  auto result = evaluateConstructorFromExprs(
+      ast->constructor, thisObject_->type(), arguments, thisAddress_,
+      constructed, thisObject_);
+  auto object =
+      result ? std::get_if<std::shared_ptr<ConstObject>>(&*result) : nullptr;
+  if (!object || !*object) {
+    aborted_ = true;
+    return;
+  }
+  if (*object != thisObject_) *thisObject_ = **object;
 }
 
 void ASTInterpreter::applyMemInitializer(
@@ -1102,15 +1150,12 @@ void ASTInterpreter::applyMemInitializer(
   if (!ast->symbol || !thisObject_) return;
 
   if (auto cls = symbol_cast<ClassSymbol>(ast->symbol)) {
-    if (cls != currentConstructorClass_) return;
-    if (!ast->constructor) return;
-    auto result = evaluateConstructorFromExprs(
-        ast->constructor, thisObject_->type(), arguments, thisAddress_);
-    if (result) {
-      if (auto obj = std::get_if<std::shared_ptr<ConstObject>>(&*result)) {
-        if (*obj) *thisObject_ = **obj;
-      }
+    if (!designatesVirtualBase(cls)) {
+      if (ast->constructor) delegateConstruction(ast, arguments);
+      return;
     }
+    if (!currentFunction_ || !currentFunction_->isStructorVariant()) return;
+    initializeSubobject(ast, cls->resolvedDefinition(), cls->type(), arguments);
     return;
   }
 
@@ -1133,7 +1178,10 @@ void ASTInterpreter::initializeSubobject(
     const std::vector<ExpressionAST*>& arguments) {
   if (!ast->constructor && arguments.empty()) {
     if (!hasEmptyInitializerSyntax(ast)) return;
-    auto zero = zeroInitialize(type);
+    auto zero =
+        zeroInitialize(type, is_base_class_subobject(subobject)
+                                 ? ConstructedObject::kBaseClassSubobject
+                                 : ConstructedObject::kMostDerivedObject);
     if (!zero) {
       aborted_ = true;
       return;
@@ -1162,7 +1210,8 @@ void ASTInterpreter::initializeSubobject(
 
 auto ASTInterpreter::defaultConstruct(const Type* type,
                                       std::shared_ptr<ConstAddress> destination,
-                                      FunctionSymbol* constructor)
+                                      FunctionSymbol* constructor,
+                                      ConstructedObject constructed)
     -> std::optional<ConstValue> {
   EvaluationScope evaluationScope{*this};
   auto elementType = traits.remove_all_extents(type);
@@ -1182,7 +1231,7 @@ auto ASTInterpreter::defaultConstruct(const Type* type,
   auto classSymbol = classType->symbol()->resolvedDefinition();
   if (!constructor) constructor = classSymbol->defaultConstructor();
   return classInitializationValue(type, constructor, {}, false,
-                                  std::move(destination));
+                                  std::move(destination), constructed);
 }
 
 void ASTInterpreter::pushFrame() { frames_.push_back({}); }
@@ -1636,7 +1685,8 @@ auto ASTInterpreter::evaluateCallLValue(FunctionSymbol* func,
 auto ASTInterpreter::evaluateConstructorFromExprs(
     FunctionSymbol* constructor, const Type* type,
     const std::vector<ExpressionAST*>& arguments,
-    std::shared_ptr<ConstAddress> destination) -> std::optional<ConstValue> {
+    std::shared_ptr<ConstAddress> destination, ConstructedObject constructed,
+    std::shared_ptr<ConstObject> object) -> std::optional<ConstValue> {
   EvaluationScope evaluationScope{*this};
   if (!constructor || !constructor->isConstexpr()) return std::nullopt;
   auto declaration = definingDeclarationOf(constructor)->declaration();
@@ -1648,26 +1698,38 @@ auto ASTInterpreter::evaluateConstructorFromExprs(
       if (!value) return std::nullopt;
       values.push_back(std::move(*value));
     }
-    return evaluateConstructor(constructor, type, std::move(values), {},
-                               std::move(destination));
+    return evaluateConstructor(constructor, type, std::move(values),
+                               std::move(object), std::move(destination),
+                               constructed);
   }
   Frame frame;
   if (!bindParametersFromExprs(frame, constructor, arguments))
     return std::nullopt;
-  auto object = constructionObject(type, destination);
-  if (!object) return std::nullopt;
+  if (completeObjectConstructor(constructor, constructed))
+    return constructCompleteObject(constructor, std::move(frame), type,
+                                   std::move(object), std::move(destination));
+  auto obj = constructionObject(type, destination, std::move(object));
+  if (!obj) return std::nullopt;
   return executeFunction(constructor, std::move(frame), CallResultKind::kValue,
-                         std::move(object), true, std::move(destination))
+                         std::move(obj), true, std::move(destination))
       .value;
 }
 
 auto ASTInterpreter::evaluateConstructor(
     FunctionSymbol* ctor, const Type* classType, std::vector<ConstValue> args,
     std::shared_ptr<ConstObject> object,
-    std::shared_ptr<ConstAddress> destination) -> std::optional<ConstValue> {
+    std::shared_ptr<ConstAddress> destination, ConstructedObject constructed)
+    -> std::optional<ConstValue> {
   EvaluationScope evaluationScope{*this};
   if (!ctor) return std::nullopt;
   if (!ctor->isConstexpr()) return std::nullopt;
+
+  if (completeObjectConstructor(ctor, constructed)) {
+    Frame frame;
+    if (!bindParameters(frame, ctor, args)) return std::nullopt;
+    return constructCompleteObject(ctor, std::move(frame), classType,
+                                   std::move(object), std::move(destination));
+  }
 
   auto defn = definingDeclarationOf(ctor);
 

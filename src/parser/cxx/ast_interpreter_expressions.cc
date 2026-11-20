@@ -173,7 +173,8 @@ auto ASTInterpreter::sameObjectOperand(ExpressionAST* ast) -> ExpressionAST* {
   return cast->expression;
 }
 
-auto ASTInterpreter::zeroInitialize(const Type* type)
+auto ASTInterpreter::zeroInitialize(const Type* type,
+                                    ConstructedObject constructed)
     -> std::optional<ConstValue> {
   if (!type) return std::nullopt;
   type = traits.remove_atomic(type);
@@ -210,12 +211,25 @@ auto ASTInterpreter::zeroInitialize(const Type* type)
   }
 
   auto classType = unqualified_cast<ClassType>(type);
-  auto classSymbol = classType ? classType->symbol() : nullptr;
+  auto classSymbol = classType ? classType->definition() : nullptr;
   if (!classSymbol) return std::nullopt;
 
   auto object = std::make_shared<ConstObject>(classType);
+  if (constructed == ConstructedObject::kMostDerivedObject) {
+    for (auto virtualBase : virtual_base_initialization_order(classSymbol)) {
+      auto zero = zeroInitialize(virtualBase->type(),
+                                 ConstructedObject::kBaseClassSubobject);
+      if (!zero) return std::nullopt;
+      object->addMember(virtualBase, std::move(*zero));
+    }
+  }
   for (auto element : traits.aggregate_elements(classSymbol)) {
-    auto elementZero = zeroInitialize(traits.aggregate_element_type(element));
+    if (virtual_base_subobject_class(element)) continue;
+    auto elementZero =
+        zeroInitialize(traits.aggregate_element_type(element),
+                       is_base_class_subobject(element)
+                           ? ConstructedObject::kBaseClassSubobject
+                           : ConstructedObject::kMostDerivedObject);
     if (!elementZero) return std::nullopt;
     object->addMember(element, std::move(*elementZero));
     if (classSymbol->isUnion()) break;
@@ -1220,8 +1234,10 @@ auto ASTInterpreter::addressedElement(Value* storage,
                                       const ConstAddress& address) -> Value* {
   if (!storage || !validPosition(address)) return nullptr;
   if (isOnePastEnd(address)) return nullptr;
+  auto mostDerived = storage;
   for (const auto& subobject : address.subobjectPath()) {
     if (auto symbol = std::get_if<Symbol*>(&subobject)) {
+      if (virtual_base_subobject_class(*symbol)) storage = mostDerived;
       auto object = std::get_if<std::shared_ptr<ConstObject>>(storage);
       if (!object || !*object || (*object)->lifetimeEnded()) return nullptr;
       if constexpr (std::is_const_v<Value>) {
@@ -1232,6 +1248,7 @@ auto ASTInterpreter::addressedElement(Value* storage,
           storage = (*object)->addMember(*symbol, IndeterminateValue{});
       }
       if (!storage) return nullptr;
+      if (!is_base_class_subobject(*symbol)) mostDerived = storage;
       continue;
     }
     auto index = std::get<std::size_t>(subobject);
@@ -1241,6 +1258,7 @@ auto ASTInterpreter::addressedElement(Value* storage,
       storage = &std::get<0>((*array)->distinctElement(index));
     else
       storage = &std::get<0>((*array)->mutableElement(index));
+    mostDerived = storage;
   }
   if (!address.arrayType()) return storage;
   auto array = std::get_if<std::shared_ptr<InitializerList>>(storage);
@@ -1517,8 +1535,47 @@ auto ASTInterpreter::componentVector(MemberExpressionAST* ast)
 
 auto ASTInterpreter::memberObject(MemberExpressionAST* ast)
     -> std::shared_ptr<ConstObject> {
-  auto base = memberBase(ast);
-  return addressedClassSubobject(base.object, base.address).object;
+  return memberOwner(memberBase(ast), ast->symbol);
+}
+
+auto ASTInterpreter::reachedThroughVirtualBase(const Type* objectType,
+                                               Symbol* member) -> bool {
+  auto classType = unqualified_cast<ClassType>(objectType);
+  auto classSymbol = classType ? classType->definition() : nullptr;
+  if (!classSymbol || !classSymbol->hasVirtualBaseSubobjects()) return false;
+  auto path = classSymbol->subobjectPath(member);
+  return path && std::ranges::any_of(*path, [](Symbol* step) {
+           return virtual_base_subobject_class(step) != nullptr;
+         });
+}
+
+auto ASTInterpreter::memberOwner(const DesignatedObject& designated,
+                                 Symbol* member)
+    -> std::shared_ptr<ConstObject> {
+  auto object =
+      addressedClassSubobject(designated.object, designated.address).object;
+  if (!object || !designated.address || !member) return object;
+  if (!reachedThroughVirtualBase(object->type(), member)) return object;
+  auto mostDerived = completeClassAddress(*designated.address);
+  if (!mostDerived) return object;
+  auto owner =
+      pointeeObject(ConstValue{mostDerived}, mostDerived->objectType(traits));
+  return owner ? owner : object;
+}
+
+auto ASTInterpreter::mostDerivedObjectOf(
+    const std::shared_ptr<ConstObject>& object, const ConstAddress& address)
+    -> ClassSubobject {
+  auto located = typedAddress(address);
+  located->setClassDisplacement(0);
+  auto complete = completeClassAddress(*located);
+  if (!complete ||
+      complete->subobjectPath().size() == address.subobjectPath().size())
+    return {object, 0};
+  auto mostDerived =
+      pointeeObject(ConstValue{complete}, complete->objectType(traits));
+  if (!mostDerived) return {object, 0};
+  return {std::move(mostDerived), complete->classDisplacement()};
 }
 
 auto ASTInterpreter::addressedClassSubobject(
@@ -1526,7 +1583,8 @@ auto ASTInterpreter::addressedClassSubobject(
     const std::shared_ptr<ConstAddress>& address, const Type* enclosingType)
     -> ClassSubobject {
   if (!object || !address || !address->elementType()) return {object, 0};
-  auto completeType = unqualified_cast<ClassType>(object->type());
+  auto mostDerived = mostDerivedObjectOf(object, *address);
+  auto completeType = unqualified_cast<ClassType>(mostDerived.object->type());
   auto completeClass = completeType ? completeType->definition() : nullptr;
   auto completeLayout = completeClass ? completeClass->layout() : nullptr;
   struct Subobject {
@@ -1554,7 +1612,8 @@ auto ASTInterpreter::addressedClassSubobject(
     auto layout = classSymbol ? classSymbol->layout() : nullptr;
     if (!layout) continue;
     for (auto base : classSymbol->baseClasses()) {
-      auto value = current.object->subobject(base);
+      auto owner = base->isVirtual() ? mostDerived.object : current.object;
+      auto value = owner->subobject(base);
       auto nested =
           value ? std::get_if<std::shared_ptr<ConstObject>>(value) : nullptr;
       if (!nested || !*nested) continue;
@@ -1564,7 +1623,8 @@ auto ASTInterpreter::addressedClassSubobject(
       auto info = ownerLayout->getBaseInfo(baseClass, base->isVirtual());
       if (!info || !std::in_range<std::intmax_t>(info->offset)) continue;
       auto offset =
-          checkedAdd(ConstInt{base->isVirtual() ? 0 : current.offset},
+          checkedAdd(ConstInt{base->isVirtual() ? -mostDerived.displacement
+                                                : current.offset},
                      ConstInt{static_cast<std::intmax_t>(info->offset)});
       if (offset) {
         auto path = current.path;
@@ -1615,8 +1675,7 @@ auto ASTInterpreter::fieldOwner(ExpressionAST* ast)
   if (auto id = ast_cast<IdExpressionAST>(ast)) {
     auto field = symbol_cast<FieldSymbol>(id->symbol);
     if (!field || field->isStatic()) return nullptr;
-    auto object = implicitObjectFor(field);
-    return addressedClassSubobject(object.object, object.address).object;
+    return memberOwner(implicitObjectFor(field), field);
   }
   if (auto member = ast_cast<MemberExpressionAST>(ast)) {
     auto field = symbol_cast<FieldSymbol>(member->symbol);
@@ -1708,6 +1767,8 @@ auto ASTInterpreter::subobjectDestination(
   std::optional<std::intmax_t> displacement;
   if (auto field = symbol_cast<FieldSymbol>(subobject))
     displacement = addressedFieldDisplacement(*result, field);
+  else if (auto virtualBase = virtual_base_subobject_class(subobject))
+    displacement = virtualBaseDisplacement(result->elementType(), virtualBase);
   else if (auto base = symbol_cast<BaseClassSymbol>(subobject)) {
     auto baseClass = resolved_base_class(base);
     if (!baseClass) return nullptr;
@@ -1775,7 +1836,8 @@ auto ASTInterpreter::initializationValue(
 auto ASTInterpreter::classInitializationValue(
     const Type* type, FunctionSymbol* constructor,
     const std::vector<ExpressionAST*>& arguments, bool valueInitialized,
-    std::shared_ptr<ConstAddress> destination) -> std::optional<ConstValue> {
+    std::shared_ptr<ConstAddress> destination, ConstructedObject constructed)
+    -> std::optional<ConstValue> {
   if (auto array = unqualified_cast<BoundedArrayType>(type)) {
     auto elements = constructionArray(array, destination);
     if (!elements) return std::nullopt;
@@ -1796,15 +1858,15 @@ auto ASTInterpreter::classInitializationValue(
     needsZeroInitialization = false;
   if (!needsZeroInitialization)
     return evaluateConstructorFromExprs(constructor, type, arguments,
-                                        std::move(destination));
+                                        std::move(destination), constructed);
 
-  auto zero = zeroInitialize(type);
+  auto zero = zeroInitialize(type, constructed);
   if (!zero) return std::nullopt;
   if (traits.is_trivially_constructible(type, {})) return zero;
   auto object = std::get_if<std::shared_ptr<ConstObject>>(&*zero);
   if (!object || !*object) return std::nullopt;
   return evaluateConstructor(constructor, type, {}, *object,
-                             std::move(destination));
+                             std::move(destination), constructed);
 }
 
 auto ASTInterpreter::evaluateInitializer(
@@ -2015,10 +2077,19 @@ auto ASTInterpreter::memberAddress(MemberExpressionAST* ast)
   return fieldAddress(base, baseType, field);
 }
 
+auto ASTInterpreter::memberDisplacement(const ConstAddress* address,
+                                        const Type* objectType,
+                                        FieldSymbol* field)
+    -> std::optional<std::intmax_t> {
+  if (address && reachedThroughVirtualBase(objectType, field))
+    return addressedFieldDisplacement(*typedAddress(*address), field);
+  return fieldDisplacement(objectType, field);
+}
+
 auto ASTInterpreter::fieldAddress(const DesignatedObject& base,
                                   const Type* baseType, FieldSymbol* field)
     -> std::optional<ConstValue> {
-  auto displacement = fieldDisplacement(baseType, field);
+  auto displacement = memberDisplacement(base.address.get(), baseType, field);
 
   if (base.object && !base.object->isConstexprUnknown()) {
     auto result = memberAddress(base.object, field);
@@ -2330,7 +2401,7 @@ auto ASTInterpreter::callObjectAddress(
                             ConstInt{source->classDisplacement()});
     if (delta) displacement = delta->toIntMax();
   } else {
-    displacement = classSubobjectOffset(source->elementType(), targetType);
+    displacement = baseConversionOffset(*source, targetType);
   }
   if (!displacement) return nullptr;
   return adjustedClassAddress(*source, targetType, *displacement);
@@ -2413,7 +2484,7 @@ namespace {
   auto first = path.size();
   while (first > 0) {
     auto symbol = std::get_if<Symbol*>(&path[first - 1]);
-    if (!symbol || !symbol_cast<BaseClassSymbol>(*symbol)) break;
+    if (!symbol || !is_base_class_subobject(*symbol)) break;
     --first;
   }
   return first;
@@ -2491,18 +2562,20 @@ auto ASTInterpreter::completeClassAddress(const ConstAddress& address)
   if (first == path.size()) return result;
   auto completeClass = completeClassOf(*result);
   auto completeLayout = completeClass ? completeClass->layout() : nullptr;
-  auto position = result->classDisplacement();
+  std::intmax_t position = 0;
   for (auto index = first; index < path.size(); ++index) {
-    auto base = symbol_cast<BaseClassSymbol>(std::get<Symbol*>(path[index]));
-    auto baseClass = resolved_base_class(base);
-    if (!baseClass) return nullptr;
-    if (base->isVirtual()) {
-      auto info = completeLayout ? completeLayout->getBaseInfo(baseClass, true)
-                                 : std::nullopt;
+    auto step = std::get<Symbol*>(path[index]);
+    if (auto virtualBase = virtual_base_subobject_class(step)) {
+      auto info = completeLayout
+                      ? completeLayout->getVirtualBaseInfo(virtualBase)
+                      : std::nullopt;
       if (!info || !std::in_range<std::intmax_t>(info->offset)) return nullptr;
       position = static_cast<std::intmax_t>(info->offset);
       continue;
     }
+    auto base = symbol_cast<BaseClassSymbol>(step);
+    auto baseClass = resolved_base_class(base);
+    if (!baseClass) return nullptr;
     auto enclosing = base->enclosingClass();
     if (!enclosing) return nullptr;
     auto offset = classSubobjectOffset(enclosing->type(), baseClass->type());
@@ -2511,7 +2584,10 @@ auto ASTInterpreter::completeClassAddress(const ConstAddress& address)
     if (!adjustment) return nullptr;
     position = adjustment->toIntMax();
   }
-  result->setClassDisplacement(position);
+  auto displacement =
+      checkedAdd(ConstInt{position}, ConstInt{result->classDisplacement()});
+  if (!displacement) return nullptr;
+  result->setClassDisplacement(displacement->toIntMax());
   path.resize(first);
   result->setSubobjectPath(std::move(path));
   result->setSymbol(result->root());
@@ -2538,6 +2614,17 @@ ASTInterpreter::ConstructionScope::ConstructionScope(
 
 ASTInterpreter::ConstructionScope::~ConstructionScope() {
   interpreter_.constructionPhases_.pop_back();
+}
+
+auto ASTInterpreter::virtualBaseDisplacement(const Type* classType,
+                                             ClassSymbol* virtualBase)
+    -> std::optional<std::intmax_t> {
+  auto type = unqualified_cast<ClassType>(classType);
+  auto definition = type ? type->definition() : nullptr;
+  auto layout = definition ? definition->layout() : nullptr;
+  auto info = layout ? layout->getVirtualBaseInfo(virtualBase) : std::nullopt;
+  if (!info || !std::in_range<std::intmax_t>(info->offset)) return std::nullopt;
+  return static_cast<std::intmax_t>(info->offset);
 }
 
 auto ASTInterpreter::fieldDisplacement(const Type* objectType,
@@ -2848,7 +2935,8 @@ auto ASTInterpreter::addressOfLvalue(ExpressionAST* ast)
       if (thisAddress) thisAddress = typedAddress(*thisAddress);
       auto objectType =
           thisAddress ? thisAddress->elementType() : owner->type();
-      auto displacement = fieldDisplacement(objectType, field);
+      auto displacement =
+          memberDisplacement(thisAddress.get(), objectType, field);
       if (result && thisAddress && displacement &&
           !traits.is_reference(field->type())) {
         if (!locateSubobject(*result, *thisAddress, *displacement))

@@ -2628,7 +2628,7 @@ void Binder::CompleteClass::synthesizeCompleteObjectCtor(FunctionSymbol* ctor) {
   List<MemInitializerAST*>* memInits = nullptr;
   auto memInitsTail = &memInits;
 
-  for (auto vbase : virtual_base_initialization_order(classSymbol)) {
+  for (auto vbase : potentially_constructed_virtual_bases(classSymbol)) {
     auto vbaseCtor =
         selectSubobjectConstructor(vbase, vbase->type(), isCopy, isMove);
     ASTRewriter::requireFunctionDefinition(binder.unit_, vbaseCtor);
@@ -4075,19 +4075,17 @@ auto Binder::BuildRecordLayout::layoutRegularField(FieldSymbol* field)
 
   if (!isEmptyDataMember) {
     auto allocatedExtent = static_cast<std::uint64_t>(size.value());
-    auto emittedExtent = allocatedExtent;
 
     if (field->isNoUniqueAddress() &&
         unqualified_cast<ClassType>(field->type())) {
-      emittedExtent = binder.traits.non_virtual_size(field->type());
-      allocatedExtent =
-          std::max(emittedExtent, binder.traits.data_size(field->type()));
+      allocatedExtent = std::max(binder.traits.non_virtual_size(field->type()),
+                                 binder.traits.data_size(field->type()));
     }
 
     calculatedSize = std::max(calculatedSize,
                               static_cast<int>(fieldOffset + allocatedExtent));
     if (!isUnion)
-      emittedEnd = std::max(emittedEnd, fieldOffset + emittedExtent);
+      emittedEnd = std::max(emittedEnd, fieldOffset + allocatedExtent);
   }
 
   if (field->isNoUniqueAddress()) {

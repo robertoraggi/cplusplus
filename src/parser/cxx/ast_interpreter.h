@@ -42,6 +42,8 @@ class Control;
 
 class ASTInterpreter {
  public:
+  enum class ConstructedObject { kMostDerivedObject, kBaseClassSubobject };
+
   explicit ASTInterpreter(TranslationUnit* unit, ScopeSymbol* scope = nullptr);
   ~ASTInterpreter();
 
@@ -136,20 +138,26 @@ class ASTInterpreter {
   [[nodiscard]] auto evaluateConstructor(
       FunctionSymbol* ctor, const Type* classType, std::vector<ConstValue> args,
       std::shared_ptr<ConstObject> object = {},
-      std::shared_ptr<ConstAddress> destination = {})
+      std::shared_ptr<ConstAddress> destination = {},
+      ConstructedObject constructed = ConstructedObject::kMostDerivedObject)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] auto evaluateConstructorFromExprs(
       FunctionSymbol* constructor, const Type* type,
       const std::vector<ExpressionAST*>& arguments,
-      std::shared_ptr<ConstAddress> destination = {})
-      -> std::optional<ConstValue>;
+      std::shared_ptr<ConstAddress> destination = {},
+      ConstructedObject constructed = ConstructedObject::kMostDerivedObject,
+      std::shared_ptr<ConstObject> object = {}) -> std::optional<ConstValue>;
 
   [[nodiscard]] auto defaultConstruct(
       const Type* type, std::shared_ptr<ConstAddress> destination = {},
-      FunctionSymbol* constructor = nullptr) -> std::optional<ConstValue>;
+      FunctionSymbol* constructor = nullptr,
+      ConstructedObject constructed = ConstructedObject::kMostDerivedObject)
+      -> std::optional<ConstValue>;
 
-  [[nodiscard]] auto zeroInitialize(const Type* type)
+  [[nodiscard]] auto zeroInitialize(
+      const Type* type,
+      ConstructedObject constructed = ConstructedObject::kMostDerivedObject)
       -> std::optional<ConstValue>;
 
   [[nodiscard]] static auto builtinIsConstantOnly(BuiltinFunctionKind kind)
@@ -452,6 +460,15 @@ class ASTInterpreter {
       std::span<ExpressionAST* const> argExprs, bool rightToLeft = false)
       -> bool;
 
+  [[nodiscard]] static auto completeObjectConstructor(
+      FunctionSymbol* constructor, ConstructedObject constructed)
+      -> FunctionSymbol*;
+
+  [[nodiscard]] auto constructCompleteObject(
+      FunctionSymbol* constructor, Frame frame, const Type* classType,
+      std::shared_ptr<ConstObject> object,
+      std::shared_ptr<ConstAddress> destination) -> std::optional<ConstValue>;
+
   [[nodiscard]] auto evaluateCallLValue(FunctionSymbol* func,
                                         std::vector<ConstValue> args)
       -> ConstValue*;
@@ -494,7 +511,9 @@ class ASTInterpreter {
   [[nodiscard]] auto classInitializationValue(
       const Type* type, FunctionSymbol* constructor,
       const std::vector<ExpressionAST*>& arguments, bool valueInitialized,
-      std::shared_ptr<ConstAddress> destination) -> std::optional<ConstValue>;
+      std::shared_ptr<ConstAddress> destination,
+      ConstructedObject constructed = ConstructedObject::kMostDerivedObject)
+      -> std::optional<ConstValue>;
 
   [[nodiscard]] auto constructionArray(
       const BoundedArrayType* type,
@@ -503,6 +522,12 @@ class ASTInterpreter {
 
   void applyMemInitializer(MemInitializerAST* ast,
                            const std::vector<ExpressionAST*>& arguments);
+
+  void delegateConstruction(MemInitializerAST* ast,
+                            const std::vector<ExpressionAST*>& arguments);
+
+  [[nodiscard]] auto designatesVirtualBase(ClassSymbol* classSymbol) const
+      -> bool;
 
   void initializeSubobject(MemInitializerAST* ast, Symbol* subobject,
                            const Type* type,
@@ -622,6 +647,10 @@ class ASTInterpreter {
                                        FieldSymbol* field)
       -> std::optional<std::intmax_t>;
 
+  [[nodiscard]] static auto virtualBaseDisplacement(const Type* classType,
+                                                    ClassSymbol* virtualBase)
+      -> std::optional<std::intmax_t>;
+
   [[nodiscard]] auto elementAddress(const ConstAddress& base,
                                     std::intmax_t index,
                                     const Type* elementType)
@@ -681,12 +710,24 @@ class ASTInterpreter {
 
   [[nodiscard]] auto memberObject(MemberExpressionAST* ast)
       -> std::shared_ptr<ConstObject>;
+  [[nodiscard]] auto memberOwner(const DesignatedObject& designated,
+                                 Symbol* member)
+      -> std::shared_ptr<ConstObject>;
+  [[nodiscard]] auto reachedThroughVirtualBase(const Type* objectType,
+                                               Symbol* member) -> bool;
+  [[nodiscard]] auto memberDisplacement(const ConstAddress* address,
+                                        const Type* objectType,
+                                        FieldSymbol* field)
+      -> std::optional<std::intmax_t>;
 
   struct ClassSubobject {
     std::shared_ptr<ConstObject> object;
     std::intmax_t displacement = 0;
     std::vector<Symbol*> path;
   };
+  [[nodiscard]] auto mostDerivedObjectOf(
+      const std::shared_ptr<ConstObject>& object, const ConstAddress& address)
+      -> ClassSubobject;
   [[nodiscard]] auto addressedClassSubobject(
       const std::shared_ptr<ConstObject>& object,
       const std::shared_ptr<ConstAddress>& address,
