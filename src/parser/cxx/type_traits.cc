@@ -4232,6 +4232,10 @@ struct AggregateElementType {
     return baseClass->type();
   }
 
+  auto operator()(ClassSymbol* symbol) const -> const Type* {
+    return symbol->type();
+  }
+
   auto operator()(auto) const -> const Type* { return nullptr; }
 };
 }  // namespace
@@ -4262,15 +4266,14 @@ auto TypeTraits::is_aggregate(const Type* type) -> bool {
   require_complete_class(cls);
   if (!cls || !cls->isComplete()) return false;
   if (cls->hasInheritedConstructors()) return false;
-  if (cls->hasVirtualFunctions()) return false;
-  if (cls->hasVirtualBaseClasses()) return false;
+  if (cls->isPolymorphic()) return false;
+  if (cls->hasVirtualBaseSubobjects()) return false;
   if (cls->hasUserDeclaredConstructors()) return false;
   for (auto field : cls->members() | views::non_static_fields) {
     if (field->isBitField() && !field->name()) continue;
     if (field->accessSpecifier() != AccessSpecifier::kPublic) return false;
   }
   for (auto base : cls->baseClasses()) {
-    if (base->isVirtual()) return false;
     if (base->accessSpecifier() != AccessSpecifier::kPublic) return false;
   }
   return true;

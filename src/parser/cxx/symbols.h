@@ -191,10 +191,18 @@ void rebuild_specialization_index(Symbol* symbol);
 [[nodiscard]] auto resolved_base_class(BaseClassSymbol* baseClass)
     -> ClassSymbol*;
 
+[[nodiscard]] auto virtual_base_subobject_class(Symbol* subobject)
+    -> ClassSymbol*;
+[[nodiscard]] auto is_base_class_subobject(Symbol* subobject) -> bool;
+[[nodiscard]] auto most_derived_object_path(std::vector<Symbol*> path)
+    -> std::vector<Symbol*>;
+
 [[nodiscard]] auto is_laid_out_without_virtual_base_subobjects(
     ClassSymbol* classSymbol) -> bool;
 [[nodiscard]] auto virtual_base_initialization_order(ClassSymbol* classSymbol)
     -> std::vector<ClassSymbol*>;
+[[nodiscard]] auto potentially_constructed_virtual_bases(
+    ClassSymbol* classSymbol) -> std::vector<ClassSymbol*>;
 
 [[nodiscard]] auto is_anonymous_union_member(FieldSymbol* field) -> bool;
 

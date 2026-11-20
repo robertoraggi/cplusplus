@@ -1527,8 +1527,7 @@ auto Codegen::ExpressionVisitor::emitFieldAddress(FieldSymbol* field,
       address = gen.globalObjectAddress(loc, variable, *global);
     }
     if (!address) return std::nullopt;
-    auto member =
-        gen.memberAddress(loc, address, field->type(), fieldInfo->index);
+    auto member = gen.fieldAddress(loc, address, field, *fieldInfo);
     return std::pair{member, *fieldInfo};
   }
 
@@ -1539,8 +1538,7 @@ auto Codegen::ExpressionVisitor::emitFieldAddress(FieldSymbol* field,
   auto adjustedThis =
       gen.navigateToClass(loc, thisPtr, currentClass, classSymbol);
 
-  auto op =
-      gen.memberAddress(loc, adjustedThis, field->type(), fieldInfo->index);
+  auto op = gen.fieldAddress(loc, adjustedThis, field, *fieldInfo);
   return std::pair{op, *fieldInfo};
 }
 
@@ -1599,8 +1597,8 @@ auto Codegen::ExpressionVisitor::emitMemberAccess(MemberExpressionAST* ast)
     }
 
     auto loc = ast->firstSourceLocation();
-    auto op = gen.memberAddress(loc, baseExpressionResult.value, field->type(),
-                                fieldInfo->index);
+    auto op =
+        gen.fieldAddress(loc, baseExpressionResult.value, field, *fieldInfo);
     return std::pair{op, *fieldInfo};
   }
   return std::nullopt;
@@ -2660,9 +2658,14 @@ auto Codegen::requiresZeroInitialization(const Type* type,
 }
 
 void Codegen::emitZeroInitialization(SourceLocation loc, ir::ValueRef address,
-                                     const Type* type) {
+                                     const Type* type, Symbol* subobject) {
   if (!control()->memoryLayout()->sizeOf(type)) return;
-  emitter_.zeroInitialize(loc, address, convertType(type));
+  if (!is_potentially_overlapping_subobject(subobject)) {
+    emitter_.zeroInitialize(loc, address, convertType(type));
+    return;
+  }
+  if (auto storageSize = subobjectStorageSize(type, subobject))
+    emitter_.memsetZero(loc, address, storageSize);
 }
 
 auto Codegen::arrayCookieSize() -> std::uint64_t {
@@ -4895,8 +4898,9 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
     if (is_glvalue(ast) || !gen.traits.is_class_or_union(ast->type))
       return gen.expression(element);
     auto object = gen.takeResultObject(ast);
+    auto subobject = object ? gen.resultObjectSubobject() : nullptr;
     if (!object) object = gen.newTemp(ast->type, loc);
-    (void)gen.emitPrvalueInto(object, ast->type, element, loc);
+    (void)gen.emitPrvalueInto(object, ast->type, element, loc, subobject);
     return {object};
   }
 
@@ -4904,7 +4908,8 @@ auto Codegen::ExpressionVisitor::operator()(BracedInitListAST* ast)
     return {gen.emitAggregateObject(ast, ast->type, ast, loc)};
 
   if (auto object = gen.takeResultObject(ast)) {
-    gen.emitAggregateInit(object, ast->type, ast);
+    gen.emitAggregateInit(object, ast->type, ast, {},
+                          gen.resultObjectSubobject());
     return {object};
   }
 
@@ -5053,8 +5058,8 @@ auto Codegen::emitVectorInitializer(const Type* type, BracedInitListAST* ast)
   return emitter_.vectorFromElements(loc, convertType(type), elements);
 }
 
-auto Codegen::emitInPlaceConstruction(ir::ValueRef address, ExpressionAST* ast)
-    -> bool {
+auto Codegen::emitInPlaceConstruction(ir::ValueRef address, ExpressionAST* ast,
+                                      Symbol* subobject) -> bool {
   auto construction = ast_cast<BracedTypeConstructionAST>(ast);
   if (!construction || !construction->constructorSymbol) return false;
 
@@ -5064,18 +5069,30 @@ auto Codegen::emitInPlaceConstruction(ir::ValueRef address, ExpressionAST* ast)
 
   (void)emitCtorCall(ast->firstSourceLocation(),
                      construction->constructorSymbol, address, std::move(args),
-                     /*completeObject=*/true);
+                     /*completeObject=*/true, {},
+                     is_potentially_overlapping_subobject(subobject));
 
   return true;
 }
 
+auto Codegen::subobjectStorageSize(const Type* type, Symbol* subobject)
+    -> std::uint64_t {
+  if (!is_potentially_overlapping_subobject(subobject) ||
+      !traits.is_class_or_union(type))
+    return getSize(type);
+  if (traits.is_empty(type)) return 0;
+  if (symbol_cast<BaseClassSymbol>(subobject))
+    return traits.non_virtual_size(type);
+  return potentiallyOverlappingMemberSize(type);
+}
+
 void Codegen::emitAggregateInit(ir::ValueRef address, const Type* type,
                                 BracedInitListAST* ast,
-                                ir::ValueRef elementCount) {
+                                ir::ValueRef elementCount, Symbol* subobject) {
   auto loc = ast->firstSourceLocation();
   if (auto element = listInitializedElement(traits, ast)) {
     if (traits.is_class_or_union(type))
-      (void)emitPrvalueInto(address, type, element, loc);
+      (void)emitPrvalueInto(address, type, element, loc, subobject);
     else
       emitter_.store(loc, expression(element).value, address,
                      getAlignment(type));
@@ -5089,7 +5106,7 @@ void Codegen::emitAggregateInit(ir::ValueRef address, const Type* type,
   auto constructionScope = CleanupScopeGuard{*this, loc};
   auto initializedCount = beginArrayConstruction(loc, address, type);
   emitAggregateElements(address, type, Initializer{ast}.expressionList(), loc,
-                        initializedCount, elementCount);
+                        initializedCount, elementCount, subobject);
   emitImplicitArrayElements(address, type, ast, initializedCount, elementCount);
 }
 
@@ -5186,18 +5203,19 @@ void Codegen::emitImplicitArrayElements(ir::ValueRef address, const Type* type,
 
 void Codegen::emitAggregateInit(ir::ValueRef address, const Type* type,
                                 List<ExpressionAST*>* initializerList,
-                                SourceLocation location) {
+                                SourceLocation location, Symbol* subobject) {
   auto constructionScope = CleanupScopeGuard{*this, location};
   auto initializedCount = beginArrayConstruction(location, address, type);
   emitAggregateElements(address, type, initializerList, location,
-                        initializedCount);
+                        initializedCount, {}, subobject);
 }
 
 void Codegen::emitAggregateElements(ir::ValueRef address, const Type* type,
                                     List<ExpressionAST*>* initializerList,
                                     SourceLocation location,
                                     ir::ValueRef initializedCount,
-                                    ir::ValueRef elementCount) {
+                                    ir::ValueRef elementCount,
+                                    Symbol* subobject) {
   auto loc = location;
 
   std::optional<DefaultInitializerObjectGuard> defaultInitializerObject;
@@ -5217,7 +5235,10 @@ void Codegen::emitAggregateElements(ir::ValueRef address, const Type* type,
     }
   }
 
-  if (control()->memoryLayout()->sizeOf(type)) {
+  if (is_potentially_overlapping_subobject(subobject)) {
+    if (auto storageSize = subobjectStorageSize(type, subobject))
+      emitter_.memsetZero(loc, address, storageSize);
+  } else if (control()->memoryLayout()->sizeOf(type)) {
     emitter_.zeroInitialize(loc, address, convertType(type));
   } else if (elementCount && traits.is_array(type)) {
     auto elementType = traits.remove_all_extents(type);
@@ -5403,13 +5424,13 @@ void Codegen::emitAggregateElements(ir::ValueRef address, const Type* type,
           emitBitFieldInit(elemLoc, elementAddress,
                            symbol_cast<FieldSymbol>(element), node);
         } else if (auto nested = ast_cast<BracedInitListAST>(node)) {
-          emitAggregateInit(elementAddress, elementType, nested);
-        } else if (emitInPlaceConstruction(elementAddress, node)) {
+          emitAggregateInit(elementAddress, elementType, nested, {}, element);
+        } else if (emitInPlaceConstruction(elementAddress, node, element)) {
         } else if (traits.is_array(elementType)) {
           arrayInit(elementAddress, elementType, node);
         } else if (traits.is_class_or_union(traits.remove_cv(elementType))) {
           (void)emitPrvalueInto(elementAddress, elementType, node,
-                                node->firstSourceLocation());
+                                node->firstSourceLocation(), element);
         } else {
           auto val = expression(node);
           emitter_.store(elemLoc, val.value, elementAddress,
@@ -5458,11 +5479,11 @@ void Codegen::emitDesignatedInit(ir::ValueRef address, const Type* type,
 
       auto layout = classSymbol->layout();
 
-      std::uint32_t memberIndex = 0;
+      ClassLayout::MemberInfo fieldInfo;
       currentBitField = nullptr;
       if (layout) {
         if (auto fi = layout->getFieldInfo(field)) {
-          memberIndex = fi->index;
+          fieldInfo = *fi;
           if (fi->bitWidth > 0)
             currentBitField = symbol_cast<FieldSymbol>(field);
         }
@@ -5471,7 +5492,7 @@ void Codegen::emitDesignatedInit(ir::ValueRef address, const Type* type,
       auto elemLoc = dot->firstSourceLocation();
 
       for (auto& target : addresses)
-        target = memberAddress(elemLoc, target, field->type(), memberIndex);
+        target = fieldAddress(elemLoc, target, field, fieldInfo);
       currentAddr = addresses.front();
       currentType = traits.remove_cv(field->type());
 
@@ -5592,6 +5613,7 @@ auto Codegen::ExpressionVisitor::emitClassConstruction(
     return {gen.emitTodoExpr(loc, "class construction: no class symbol")};
 
   auto object = gen.takeResultObject(ast);
+  auto subobject = object ? gen.resultObjectSubobject() : nullptr;
   const bool ownsTemporary = !object;
   if (ownsTemporary) object = gen.newTemp(classType, loc);
 
@@ -5605,11 +5627,12 @@ auto Codegen::ExpressionVisitor::emitClassConstruction(
     return {gen.emitTodoExpr(loc, "class construction: no recorded ctor")};
 
   if (!argList && gen.requiresZeroInitialization(classType, constructorSymbol))
-    gen.emitZeroInitialization(loc, object, classType);
+    gen.emitZeroInitialization(loc, object, classType, subobject);
 
   if (constructorSymbol) {
     (void)gen.emitCtorCall(loc, constructorSymbol, object, args,
-                           /*completeObject=*/true);
+                           /*completeObject=*/true, {},
+                           is_potentially_overlapping_subobject(subobject));
   }
 
   if (ownsTemporary) gen.addTemporaryCleanup(object, classType);

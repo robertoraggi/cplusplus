@@ -36,6 +36,7 @@
 #include <bit>
 #include <format>
 #include <limits>
+#include <set>
 
 namespace cxx {
 
@@ -375,8 +376,8 @@ auto Codegen::ConvertType::operator()(const ClassType* type) -> ir::TypeRef {
     return classType;
   }
 
-  auto storage =
-      gen.buildClassMemberTypes(classSymbol, /*includeVirtualBases=*/true);
+  auto storage = gen.buildClassMemberTypes(
+      classSymbol, /*includeVirtualBases=*/true, classSymbol->sizeInBytes());
 
   gen.defineClassType(classType, storage.members, storage.packed,
                       classSymbol->alignment(), storage.padding);
@@ -527,8 +528,36 @@ auto Codegen::bitFieldStorageType(std::uint64_t sizeInBytes) -> ir::TypeRef {
   return arrayType(emitter_.integerType(8), sizeInBytes);
 }
 
+auto Codegen::storedVirtualBases(ClassSymbol* classSymbol)
+    -> std::vector<std::pair<ClassSymbol*, ClassLayout::MemberInfo>> {
+  std::vector<std::pair<ClassSymbol*, ClassLayout::MemberInfo>> stored;
+  auto layout = classSymbol->layout();
+  if (!layout) return stored;
+
+  std::set<std::uint32_t> occupied;
+  if (layout->hasDirectVtable()) occupied.insert(layout->vtableIndex());
+  for (auto base : classSymbol->baseClasses()) {
+    if (base->isVirtual()) continue;
+    auto baseSymbol = symbol_cast<ClassSymbol>(base->symbol());
+    if (!baseSymbol) continue;
+    if (auto info = layout->getBaseInfo(baseSymbol))
+      occupied.insert(info->index);
+  }
+
+  for (auto virtualBase : layout->virtualBases()) {
+    auto info = layout->getVirtualBaseInfo(virtualBase);
+    if (!info || occupied.contains(info->index)) continue;
+    if (layout->primaryBaseIsVirtual() && layout->primaryBase() == virtualBase)
+      continue;
+    occupied.insert(info->index);
+    stored.emplace_back(virtualBase, *info);
+  }
+  return stored;
+}
+
 auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
-                                    bool includeVirtualBases)
+                                    bool includeVirtualBases,
+                                    std::uint64_t storageSize)
     -> ClassMemberTypes {
   ClassMemberTypes result;
 
@@ -539,112 +568,75 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
 
   std::map<std::uint32_t, ir::TypeRef> memberMap;
   std::map<std::uint32_t, std::uint64_t> offsetByIndex;
-  std::map<std::uint32_t, ClassSymbol*> pendingBases;
+  std::uint64_t storageEnd = 0;
+
+  auto place = [&](std::uint32_t index, std::uint64_t offset,
+                   const SubobjectStorage& storage) {
+    memberMap[index] = storage.type;
+    offsetByIndex[index] = offset;
+    if (storage.size) storageEnd = std::max(storageEnd, offset + storage.size);
+  };
 
   if (layout->hasDirectVtable()) {
-    auto i8Type = emitter_.integerType(8);
-    memberMap[layout->vtableIndex()] = emitter_.pointerType(i8Type);
-    offsetByIndex[layout->vtableIndex()] = 0;
+    place(layout->vtableIndex(), 0,
+          {.type = emitter_.pointerType(emitter_.integerType(8)),
+           .size = control()->memoryLayout()->sizeOfPointer()});
   }
 
   for (auto base : classSymbol->baseClasses()) {
-    if (!includeVirtualBases && base->isVirtual()) continue;
+    if (base->isVirtual()) continue;
     auto baseSym = symbol_cast<ClassSymbol>(base->symbol());
     if (!baseSym) continue;
 
-    auto info = layout->getBaseInfo(baseSym, base->isVirtual());
+    auto info = layout->getBaseInfo(baseSym);
     if (!info) continue;
-    if (layout->primaryBaseIsVirtual() && layout->primaryBase() == baseSym)
-      continue;
 
-    const Type* baseType = base->type();
-    if (!baseType) baseType = baseSym->type();
-
-    offsetByIndex[info->index] = info->offset;
-    if (baseSym->layout() && baseSym->layout()->isAbiEmpty()) {
-      memberMap[info->index] = emptyStorageType;
-    } else {
-      pendingBases[info->index] = baseSym;
-    }
+    place(info->index, info->offset, baseSubobjectStorage(baseSym));
   }
 
   if (includeVirtualBases) {
-    for (auto vbaseSym : layout->virtualBases()) {
-      auto info = layout->getVirtualBaseInfo(vbaseSym);
-      if (!info || memberMap.contains(info->index) ||
-          pendingBases.contains(info->index))
-        continue;
-      if (layout->primaryBaseIsVirtual() && layout->primaryBase() == vbaseSym)
-        continue;
-
-      offsetByIndex[info->index] = info->offset;
-      if (vbaseSym->layout() && vbaseSym->layout()->isAbiEmpty()) {
-        memberMap[info->index] = emptyStorageType;
-      } else {
-        pendingBases[info->index] = vbaseSym;
-      }
-    }
+    for (const auto& [virtualBase, info] : storedVirtualBases(classSymbol))
+      place(info.index, info.offset, baseSubobjectStorage(virtualBase));
   }
 
   for (auto field : views::members(classSymbol) | views::non_static_fields) {
     auto info = layout->getFieldInfo(field);
     if (!info) continue;
-    if (memberMap.contains(info->index) || pendingBases.contains(info->index))
-      continue;
+    if (memberMap.contains(info->index)) continue;
 
-    offsetByIndex[info->index] = info->offset;
     if (info->bitWidth > 0 && info->allocUnitSizeBytes > 0) {
-      memberMap[info->index] = bitFieldStorageType(info->allocUnitSizeBytes);
-    } else if (field->isNoUniqueAddress()) {
-      ClassSymbol* fieldSymbol = nullptr;
-      if (auto fieldClass = unqualified_cast<ClassType>(field->type())) {
-        if (fieldClass->symbol()) {
-          fieldSymbol = fieldClass->symbol()->resolvedDefinition();
-        }
-      }
-
-      const ClassLayout* fieldLayout = nullptr;
-      if (fieldSymbol) fieldLayout = fieldSymbol->layout();
-
-      if (fieldLayout && fieldLayout->isAbiEmpty()) {
-        memberMap[info->index] = emptyStorageType;
-      } else if (fieldLayout) {
-        pendingBases[info->index] = fieldSymbol;
-      } else {
-        memberMap[info->index] = convertType(field->type());
-      }
+      place(info->index, info->offset,
+            {.type = bitFieldStorageType(info->allocUnitSizeBytes),
+             .size = info->allocUnitSizeBytes});
     } else {
-      memberMap[info->index] = convertType(field->type());
+      place(info->index, info->offset, fieldStorage(field));
     }
   }
 
-  for (auto const& [index, baseSym] : pendingBases) {
-    auto next = offsetByIndex.upper_bound(index);
-    auto available = next != offsetByIndex.end()
-                         ? next->second - offsetByIndex[index]
-                         : std::numeric_limits<std::uint64_t>::max();
-    memberMap[index] = convertBaseEmbedding(baseSym, available);
-  }
+  auto paddingType = [&](std::uint64_t sizeInBytes) {
+    auto i8Type = emitter_.integerType(8);
+    return sizeInBytes == 1 ? i8Type : this->arrayType(i8Type, sizeInBytes);
+  };
 
-  const auto recordLimit = includeVirtualBases
-                               ? layout->size()
-                               : traits.non_virtual_size(classSymbol->type());
-
-  auto i8Type = emitter_.integerType(8);
   for (auto const& padding : layout->padding()) {
-    if (padding.offset >= recordLimit) continue;
+    if (padding.offset >= storageSize) continue;
     const auto sizeInBytes =
-        std::min(padding.sizeInBytes, recordLimit - padding.offset);
-    memberMap[padding.index] =
-        sizeInBytes == 1
-            ? i8Type
-            : this->arrayType(i8Type, static_cast<std::uint64_t>(sizeInBytes));
+        std::min(padding.sizeInBytes, storageSize - padding.offset);
+    memberMap[padding.index] = paddingType(sizeInBytes);
+    storageEnd = std::max(storageEnd, padding.offset + sizeInBytes);
     result.padding.push_back(padding.index);
   }
+
+  if (storageEnd < storageSize) {
+    const auto index = memberMap.empty() ? 0 : memberMap.rbegin()->first + 1;
+    memberMap[index] = paddingType(storageSize - storageEnd);
+    result.padding.push_back(index);
+  }
+
   std::ranges::sort(result.padding);
 
   if (!memberMap.empty()) {
-    result.members.resize(memberMap.rbegin()->first + 1);
+    result.members.assign(memberMap.rbegin()->first + 1, emptyStorageType);
     for (auto const& [index, type] : memberMap) result.members[index] = type;
   }
 
@@ -659,23 +651,36 @@ auto Codegen::buildClassMemberTypes(ClassSymbol* classSymbol,
     if (offset->second % alignment != 0) result.packed = true;
   }
 
-  if (recordLimit % recordAlignment != 0) result.packed = true;
+  if (storageSize % recordAlignment != 0) result.packed = true;
 
   return result;
 }
 
-auto Codegen::convertBaseEmbedding(ClassSymbol* baseSymbol,
-                                   std::uint64_t availableBytes)
-    -> ir::TypeRef {
-  auto rep = convertBaseSubobjectType(baseSymbol);
+auto Codegen::baseSubobjectStorage(ClassSymbol* baseSymbol)
+    -> SubobjectStorage {
+  auto layout = baseSymbol->resolvedDefinition()->layout();
+  if (layout && layout->isAbiEmpty())
+    return {.type = this->arrayType(emitter_.integerType(8), 0)};
+  return {.type = convertBaseSubobjectType(baseSymbol),
+          .size = traits.non_virtual_size(baseSymbol->type())};
+}
 
-  auto layout = baseSymbol->layout();
-  if (!layout || layout->virtualBases().empty()) return rep;
-
-  if (traits.non_virtual_size(baseSymbol->type()) <= availableBytes) return rep;
-
-  auto i8Type = emitter_.integerType(8);
-  return this->arrayType(i8Type, availableBytes);
+auto Codegen::fieldStorage(FieldSymbol* field) -> SubobjectStorage {
+  auto fieldClass = field->isNoUniqueAddress()
+                        ? unqualified_cast<ClassType>(field->type())
+                        : nullptr;
+  auto fieldSymbol = fieldClass && fieldClass->symbol()
+                         ? fieldClass->symbol()->resolvedDefinition()
+                         : nullptr;
+  auto fieldLayout = fieldSymbol ? fieldSymbol->layout() : nullptr;
+  if (!fieldLayout)
+    return {
+        .type = convertType(field->type()),
+        .size = control()->memoryLayout()->sizeOf(field->type()).value_or(0)};
+  if (fieldLayout->isAbiEmpty())
+    return {.type = this->arrayType(emitter_.integerType(8), 0)};
+  return {.type = convertPotentiallyOverlappingMemberType(fieldSymbol),
+          .size = potentiallyOverlappingMemberSize(fieldSymbol->type())};
 }
 
 auto Codegen::convertBaseSubobjectType(ClassSymbol* classSymbol)
@@ -686,8 +691,9 @@ auto Codegen::convertBaseSubobjectType(ClassSymbol* classSymbol)
 
   if (!layout) return convertType(classSymbol->type());
 
-  if (layout->virtualBases().empty() &&
-      traits.non_virtual_size(classSymbol->type()) >= layout->size()) {
+  const auto storageSize = traits.non_virtual_size(classSymbol->type());
+
+  if (layout->virtualBases().empty() && storageSize >= layout->size()) {
     return convertType(classSymbol->type());
   }
 
@@ -703,15 +709,53 @@ auto Codegen::convertBaseSubobjectType(ClassSymbol* classSymbol)
 
   baseSubobjectTypeNames_[classSymbol] = classType;
 
-  auto storage = classSymbol->isUnion()
-                     ? unionBaseSubobjectMemberTypes(classSymbol)
-                     : buildClassMemberTypes(classSymbol,
-                                             /*includeVirtualBases=*/false);
+  auto storage =
+      classSymbol->isUnion()
+          ? unionBaseSubobjectMemberTypes(classSymbol)
+          : buildClassMemberTypes(classSymbol,
+                                  /*includeVirtualBases=*/false, storageSize);
 
   this->defineClassType(classType, storage.members, storage.packed, 1,
                         storage.padding);
 
   return classType;
+}
+
+auto Codegen::convertPotentiallyOverlappingMemberType(ClassSymbol* classSymbol)
+    -> ir::TypeRef {
+  classSymbol = classSymbol->resolvedDefinition();
+
+  auto layout = classSymbol->layout();
+  if (!layout || layout->virtualBases().empty())
+    return convertBaseSubobjectType(classSymbol);
+
+  const auto storageSize =
+      potentiallyOverlappingMemberSize(classSymbol->type());
+  if (storageSize >= layout->size()) return convertType(classSymbol->type());
+
+  if (auto it = potentiallyOverlappingMemberTypeNames_.find(classSymbol);
+      it != potentiallyOverlappingMemberTypeNames_.end()) {
+    return it->second;
+  }
+
+  auto name = std::format("{}.member", to_string(classSymbol->name()));
+
+  auto classType = declareClassType(uniqueClassTypeName(name), false);
+
+  potentiallyOverlappingMemberTypeNames_[classSymbol] = classType;
+
+  auto storage = buildClassMemberTypes(
+      classSymbol, /*includeVirtualBases=*/true, storageSize);
+
+  this->defineClassType(classType, storage.members, storage.packed, 1,
+                        storage.padding);
+
+  return classType;
+}
+
+auto Codegen::potentiallyOverlappingMemberSize(const Type* type)
+    -> std::uint64_t {
+  return std::max(traits.non_virtual_size(type), traits.data_size(type));
 }
 
 auto Codegen::unionBaseSubobjectMemberTypes(ClassSymbol* unionSymbol)

@@ -283,19 +283,24 @@ class Codegen {
                                          const Type* elementType,
                                          std::size_t index) -> ir::ValueRef;
   [[nodiscard]] auto emitInPlaceConstruction(ir::ValueRef address,
-                                             ExpressionAST* ast) -> bool;
+                                             ExpressionAST* ast,
+                                             Symbol* subobject = nullptr)
+      -> bool;
 
   void emitAggregateInit(ir::ValueRef address, const Type* type,
-                         BracedInitListAST* ast,
-                         ir::ValueRef elementCount = {});
+                         BracedInitListAST* ast, ir::ValueRef elementCount = {},
+                         Symbol* subobject = nullptr);
   void emitAggregateInit(ir::ValueRef address, const Type* type,
                          List<ExpressionAST*>* initializerList,
-                         SourceLocation location);
+                         SourceLocation location, Symbol* subobject = nullptr);
   void emitAggregateElements(ir::ValueRef address, const Type* type,
                              List<ExpressionAST*>* initializerList,
                              SourceLocation location,
                              ir::ValueRef initializedCount,
-                             ir::ValueRef elementCount = {});
+                             ir::ValueRef elementCount = {},
+                             Symbol* subobject = nullptr);
+  [[nodiscard]] auto subobjectStorageSize(const Type* type, Symbol* subobject)
+      -> std::uint64_t;
   void emitConstructorInitialization(SourceLocation loc, ir::ValueRef address,
                                      const Type* type,
                                      FunctionSymbol* constructor,
@@ -388,8 +393,27 @@ class Codegen {
   [[nodiscard]] auto convertBaseSubobjectType(ClassSymbol* classSymbol)
       -> ir::TypeRef;
 
+  [[nodiscard]] auto convertPotentiallyOverlappingMemberType(
+      ClassSymbol* classSymbol) -> ir::TypeRef;
+
+  [[nodiscard]] auto potentiallyOverlappingMemberSize(const Type* type)
+      -> std::uint64_t;
+
+  struct SubobjectStorage {
+    ir::TypeRef type;
+    std::uint64_t size = 0;
+  };
+
+  [[nodiscard]] auto baseSubobjectStorage(ClassSymbol* baseSymbol)
+      -> SubobjectStorage;
+
+  [[nodiscard]] auto fieldStorage(FieldSymbol* field) -> SubobjectStorage;
+
   [[nodiscard]] auto isBaseSubobjectType(ClassSymbol* classSymbol,
                                          ir::TypeRef type) const -> bool;
+
+  [[nodiscard]] static auto storedVirtualBases(ClassSymbol* classSymbol)
+      -> std::vector<std::pair<ClassSymbol*, ClassLayout::MemberInfo>>;
 
   struct ClassMemberTypes {
     std::vector<ir::TypeRef> members;
@@ -398,7 +422,8 @@ class Codegen {
   };
 
   [[nodiscard]] auto buildClassMemberTypes(ClassSymbol* classSymbol,
-                                           bool includeVirtualBases)
+                                           bool includeVirtualBases,
+                                           std::uint64_t storageSize)
       -> ClassMemberTypes;
 
   [[nodiscard]] auto unionBaseSubobjectMemberTypes(ClassSymbol* unionSymbol)
@@ -453,10 +478,6 @@ class Codegen {
   [[nodiscard]] auto findGlobal(std::string_view name) -> ir::GlobalRef;
 
   [[nodiscard]] auto globalName(ir::GlobalRef global) const -> std::string_view;
-
-  [[nodiscard]] auto convertBaseEmbedding(ClassSymbol* baseSymbol,
-                                          std::uint64_t availableBytes)
-      -> ir::TypeRef;
 
   [[nodiscard]] auto currentBlockMightHaveTerminator() -> bool;
 
@@ -728,6 +749,10 @@ class Codegen {
   [[nodiscard]] auto memberAddress(SourceLocation loc, ir::ValueRef objectPtr,
                                    const Type* memberType, std::uint32_t index)
       -> ir::ValueRef;
+  [[nodiscard]] auto fieldAddress(SourceLocation loc, ir::ValueRef objectPtr,
+                                  FieldSymbol* field,
+                                  const ClassLayout::MemberInfo& info)
+      -> ir::ValueRef;
   [[nodiscard]] auto memberAddress(SourceLocation loc, ir::ValueRef objectPtr,
                                    ir::TypeRef memberType, std::uint32_t index)
       -> ir::ValueRef;
@@ -785,6 +810,8 @@ class Codegen {
                                         Symbol* subobject);
 
   [[nodiscard]] auto emitsFunctionBody(FunctionSymbol* symbol) -> bool;
+  [[nodiscard]] auto completeObjectVariantToEmit(FunctionSymbol* structor)
+      -> FunctionSymbol*;
   void enqueueFunctionBody(FunctionSymbol* symbol);
   void processPendingFunctions();
 
@@ -1078,7 +1105,7 @@ class Codegen {
       -> bool;
 
   void emitZeroInitialization(SourceLocation loc, ir::ValueRef address,
-                              const Type* type);
+                              const Type* type, Symbol* subobject = nullptr);
 
   [[nodiscard]] auto arrayCookieSize() -> std::uint64_t;
 
@@ -1137,6 +1164,7 @@ class Codegen {
     ConstValue value;
     const Type* type = nullptr;
     bool isPotentiallyOverlapping = false;
+    bool isBaseClassSubobject = false;
   };
 
   struct BitFieldStorageSlot {
@@ -1226,7 +1254,8 @@ class Codegen {
       -> ir::ValueRef;
   [[nodiscard]] auto emitConstInitValue(SourceLocation loc, const Type* type,
                                         const ConstValue& value,
-                                        ir::TypeRef layoutType = {})
+                                        ir::TypeRef layoutType = {},
+                                        bool isBaseClassSubobject = false)
       -> ir::ValueRef;
 
   void branch(SourceLocation loc, ir::BlockRef block,
@@ -1445,6 +1474,7 @@ class Codegen {
   };
 
   [[nodiscard]] auto takeResultObject(ExpressionAST* ast) -> ir::ValueRef;
+  [[nodiscard]] auto resultObjectSubobject() const -> Symbol*;
 
   [[nodiscard]] auto emitIntoResultObject(ExpressionAST* owner,
                                           ExpressionAST* operand)
@@ -1457,11 +1487,13 @@ class Codegen {
       -> ir::ValueRef;
 
   auto emitPrvalueInto(ir::ValueRef object, const Type* objectType,
-                       ExpressionAST* ast, SourceLocation loc) -> bool;
+                       ExpressionAST* ast, SourceLocation loc,
+                       Symbol* subobject = nullptr) -> bool;
 
   class ResultObject {
    public:
-    ResultObject(Codegen& gen, ExpressionAST* ast, ir::ValueRef address);
+    ResultObject(Codegen& gen, ExpressionAST* ast, ir::ValueRef address,
+                 Symbol* subobject = nullptr);
     ~ResultObject();
 
     [[nodiscard]] auto wasConsumed() const -> bool;
@@ -1471,6 +1503,7 @@ class Codegen {
     ExpressionAST* savedOwner_;
     ir::ValueRef savedAddress_;
     bool savedInitialized_;
+    Symbol* savedSubobject_;
   };
 
   [[nodiscard]] auto collectCleanupSnapshot(std::size_t targetDepth = 0,
@@ -1578,6 +1611,8 @@ class Codegen {
   std::unordered_map<ir::TypeRef, std::uint64_t> vectorSizes_;
   std::unordered_map<ClassSymbol*, ir::TypeRef> classNames_;
   std::unordered_map<ClassSymbol*, ir::TypeRef> baseSubobjectTypeNames_;
+  std::unordered_map<ClassSymbol*, ir::TypeRef>
+      potentiallyOverlappingMemberTypeNames_;
   std::unordered_set<std::string> classTypeNames_;
   std::unordered_map<Symbol*, ir::ValueRef> locals_;
   std::unordered_map<FunctionSymbol*, ir::FunctionRef> funcOps_;
@@ -1605,6 +1640,7 @@ class Codegen {
   std::vector<CleanupGoto> cleanupGotos_;
   ExpressionAST* resultObjectOwner_ = nullptr;
   bool resultObjectInitialized_ = false;
+  Symbol* resultObjectSubobject_ = nullptr;
   int conditionalEvaluationDepth_ = 0;
   ir::ValueRef resultObjectAddress_;
   int count_ = 0;

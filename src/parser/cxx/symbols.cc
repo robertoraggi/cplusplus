@@ -1382,6 +1382,32 @@ auto resolved_base_class(BaseClassSymbol* baseClass) -> ClassSymbol* {
   return classSymbol->resolvedDefinition();
 }
 
+auto virtual_base_subobject_class(Symbol* subobject) -> ClassSymbol* {
+  if (auto classSymbol = symbol_cast<ClassSymbol>(subobject))
+    return classSymbol->resolvedDefinition();
+  auto base = symbol_cast<BaseClassSymbol>(subobject);
+  if (!base || !base->isVirtual()) return nullptr;
+  return resolved_base_class(base);
+}
+
+auto is_base_class_subobject(Symbol* subobject) -> bool {
+  return symbol_cast<BaseClassSymbol>(subobject) ||
+         symbol_cast<ClassSymbol>(subobject);
+}
+
+auto most_derived_object_path(std::vector<Symbol*> path)
+    -> std::vector<Symbol*> {
+  for (auto index = path.size(); index > 0; --index) {
+    auto virtualBase = virtual_base_subobject_class(path[index - 1]);
+    if (!virtualBase) continue;
+    path[index - 1] = virtualBase;
+    path.erase(path.begin(),
+               path.begin() + static_cast<std::ptrdiff_t>(index - 1));
+    break;
+  }
+  return path;
+}
+
 auto is_laid_out_without_virtual_base_subobjects(ClassSymbol* classSymbol)
     -> bool {
   auto layout = classSymbol->layout();
@@ -1416,6 +1442,12 @@ auto virtual_base_initialization_order(ClassSymbol* classSymbol)
     frames.pop_back();
   }
   return order;
+}
+
+auto potentially_constructed_virtual_bases(ClassSymbol* classSymbol)
+    -> std::vector<ClassSymbol*> {
+  if (classSymbol->isAbstract()) return {};
+  return virtual_base_initialization_order(classSymbol);
 }
 
 auto is_anonymous_union_member(FieldSymbol* field) -> bool {

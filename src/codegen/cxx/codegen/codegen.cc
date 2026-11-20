@@ -694,22 +694,40 @@ auto Codegen::classConstantSlots(const ConstValue& value,
 
   std::map<std::uint32_t, ConstantSlot> slotMap;
   auto interp = ASTInterpreter{unit_};
+  const auto virtualBases =
+      storedVirtualBases(classSymbol->resolvedDefinition());
 
   for (const auto& member : members) {
     auto symbol = const_cast<Symbol*>(member.symbol);
 
+    if (auto virtualBase = symbol_cast<ClassSymbol>(symbol)) {
+      auto stored = std::ranges::find(
+          virtualBases, virtualBase->resolvedDefinition(),
+          &std::pair<ClassSymbol*, ClassLayout::MemberInfo>::first);
+      if (stored == virtualBases.end()) continue;
+      auto baseLayout = virtualBase->layout();
+      if (!baseLayout) return std::nullopt;
+      if (baseLayout->isAbiEmpty()) continue;
+      slotMap[stored->second.index] =
+          ClassConstantSlot{member.value, virtualBase->type(),
+                            /*isPotentiallyOverlapping=*/true,
+                            /*isBaseClassSubobject=*/true};
+      continue;
+    }
+
     if (auto base = symbol_cast<BaseClassSymbol>(symbol)) {
+      if (base->isVirtual()) return std::nullopt;
       auto baseSymbol = symbol_cast<ClassSymbol>(base->symbol());
       if (!baseSymbol) return std::nullopt;
-      auto info = layout->getBaseInfo(baseSymbol, base->isVirtual());
+      auto info = layout->getBaseInfo(baseSymbol);
       if (!info) continue;
       auto baseLayout = baseSymbol->layout();
       if (!baseLayout) return std::nullopt;
       if (baseLayout->isAbiEmpty()) continue;
-      if (!baseLayout->virtualBases().empty()) return std::nullopt;
       slotMap[info->index] =
           ClassConstantSlot{member.value, baseSymbol->type(),
-                            /*isPotentiallyOverlapping=*/true};
+                            /*isPotentiallyOverlapping=*/true,
+                            /*isBaseClassSubobject=*/true};
       continue;
     }
 
@@ -787,7 +805,8 @@ auto Codegen::emitConstantSlotValue(SourceLocation loc,
   if (auto storage = std::get_if<BitFieldStorageSlot>(&slot))
     return emitBitFieldStorageValue(loc, storage->bytes);
   const auto& subobject = std::get<ClassConstantSlot>(slot);
-  return emitConstInitValue(loc, subobject.type, subobject.value, layoutType);
+  return emitConstInitValue(loc, subobject.type, subobject.value, layoutType,
+                            subobject.isBaseClassSubobject);
 }
 
 auto Codegen::constantSlotInitializer(const ConstantSlotValue& slot,
@@ -827,14 +846,15 @@ struct Codegen::ConstantStorageTypeVisitor {
   [[nodiscard]] auto embeddedPayloadLayout(const ClassConstantSlot& payload)
       -> ir::TypeRef {
     if (auto payloadClass = overlappingPayloadClass(payload))
-      return gen.convertBaseSubobjectType(payloadClass->symbol());
+      return gen.convertPotentiallyOverlappingMemberType(
+          payloadClass->symbol());
     return gen.convertType(payload.type);
   }
 
   [[nodiscard]] auto embeddedPayloadSize(const ClassConstantSlot& payload)
       -> std::uint64_t {
-    if (overlappingPayloadClass(payload))
-      return gen.traits.non_virtual_size(payload.type);
+    if (auto payloadClass = overlappingPayloadClass(payload))
+      return gen.potentiallyOverlappingMemberSize(payloadClass);
     return gen.control()->memoryLayout()->sizeOf(payload.type).value_or(0);
   }
 
@@ -1272,12 +1292,22 @@ auto Codegen::emitConstantVptrs(SourceLocation loc, ir::ValueRef value,
                                offset + info.offset);
     value = emitter_.insertValue(loc, type, value, nested, info.index);
   }
+  if (classSymbol != completeClass) return value;
+  for (const auto& [base, info] : storedVirtualBases(classSymbol)) {
+    if (!base->layout() || !base->layout()->hasVtable()) continue;
+    auto nested =
+        emitter_.extractValue(loc, members[info.index], value, info.index);
+    nested = emitConstantVptrs(loc, nested, base, completeClass,
+                               offset + info.offset);
+    value = emitter_.insertValue(loc, type, value, nested, info.index);
+  }
   return value;
 }
 
 auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
                                  const ConstValue& value,
-                                 ir::TypeRef layoutType) -> ir::ValueRef {
+                                 ir::TypeRef layoutType,
+                                 bool isBaseClassSubobject) -> ir::ValueRef {
   type = traits.remove_cv(traits.remove_atomic(type));
   auto interp = ASTInterpreter{unit_};
 
@@ -1554,6 +1584,7 @@ auto Codegen::emitConstInitValue(SourceLocation loc, const Type* type,
         result = emitter_.insertValue(loc, irType, result, elemVal,
                                       static_cast<int64_t>(i));
       }
+      if (isBaseClassSubobject) return result;
       return emitConstantVptrs(loc, result, classType->symbol(),
                                classType->symbol());
     }
@@ -2027,7 +2058,7 @@ void Codegen::addDestructorSubobjectCleanups(SourceLocation loc,
   if (function->isStructorVariant()) {
     auto principal = function->structorPrincipal();
     if (!principal || principal->completeObjectVariant() != function) return;
-    for (auto base : virtual_base_initialization_order(cls)) {
+    for (auto base : potentially_constructed_virtual_bases(cls)) {
       auto info = cls->layout()->getVirtualBaseInfo(base);
       if (!info) continue;
       auto address = subobjectAddress(loc, object, base, info->offset);
@@ -2338,12 +2369,16 @@ auto Codegen::subobjectAddress(SourceLocation loc, ir::ValueRef objectPtr,
       auto enclosing = subobjectAddress(loc, objectPtr, classSymbol, field);
       if (!enclosing) return {};
 
-      auto index = subobjectIndex(declaringClass, subobject);
-      if (!index) return {};
-      return memberAddress(loc, enclosing, type, *index);
+      return subobjectAddress(loc, enclosing, declaringClass, subobject);
     }
 
     return {};
+  }
+
+  if (auto field = symbol_cast<FieldSymbol>(subobject);
+      field && classSymbol->layout()) {
+    if (auto info = classSymbol->layout()->getFieldInfo(field))
+      return fieldAddress(loc, objectPtr, field, *info);
   }
 
   auto index = subobjectIndex(classSymbol, subobject);
@@ -2556,12 +2591,16 @@ auto Codegen::takeResultObject(ExpressionAST* ast) -> ir::ValueRef {
   return std::exchange(resultObjectAddress_, ir::ValueRef{});
 }
 
+auto Codegen::resultObjectSubobject() const -> Symbol* {
+  return resultObjectSubobject_;
+}
+
 auto Codegen::emitIntoResultObject(ExpressionAST* owner, ExpressionAST* operand)
     -> ir::ValueRef {
   auto object = takeResultObject(owner);
   if (!object) return {};
   (void)emitPrvalueInto(object, owner->type, operand,
-                        owner->firstSourceLocation());
+                        owner->firstSourceLocation(), resultObjectSubobject());
   return object;
 }
 
@@ -2569,9 +2608,10 @@ auto Codegen::emitAggregateObject(ExpressionAST* owner, const Type* type,
                                   BracedInitListAST* initializer,
                                   SourceLocation loc) -> ir::ValueRef {
   auto object = takeResultObject(owner);
+  auto subobject = object ? resultObjectSubobject() : nullptr;
   const bool ownsTemporary = !object;
   if (ownsTemporary) object = newTemp(type, loc);
-  if (initializer) emitAggregateInit(object, type, initializer);
+  if (initializer) emitAggregateInit(object, type, initializer, {}, subobject);
   if (ownsTemporary) addTemporaryCleanup(object, type);
   return object;
 }
@@ -2590,7 +2630,8 @@ auto Codegen::takeIndirectResultObject(ExpressionAST* ast,
 }
 
 auto Codegen::emitPrvalueInto(ir::ValueRef object, const Type* objectType,
-                              ExpressionAST* ast, SourceLocation loc) -> bool {
+                              ExpressionAST* ast, SourceLocation loc,
+                              Symbol* subobject) -> bool {
   if (traits.is_reference(objectType)) {
     auto result = expression(ast);
     if (!result.value) return false;
@@ -2598,7 +2639,7 @@ auto Codegen::emitPrvalueInto(ir::ValueRef object, const Type* objectType,
     return true;
   }
 
-  auto resultObject = ResultObject{*this, ast, object};
+  auto resultObject = ResultObject{*this, ast, object, subobject};
 
   auto result = expression(ast);
 
@@ -2613,6 +2654,19 @@ auto Codegen::emitPrvalueInto(ir::ValueRef object, const Type* objectType,
       emitter_.typeOf(value) != objectIrType &&
       (emitter_.typeKind(emitter_.typeOf(value)) == ir::TypeKind::Pointer);
 
+  const auto storageSize = subobjectStorageSize(objectType, subobject);
+
+  if (storageSize < getSize(objectType)) {
+    if (!storageSize) return true;
+    auto source = value;
+    if (!yieldedClassAddress) {
+      source = newTemp(objectType, loc);
+      emitter_.store(loc, value, source, getAlignment(objectType));
+    }
+    emitter_.memcpy(loc, object, source, storageSize);
+    return true;
+  }
+
   if (yieldedClassAddress) {
     value = emitter_.load(loc, objectIrType, value, getAlignment(objectType));
   }
@@ -2624,16 +2678,18 @@ auto Codegen::emitPrvalueInto(ir::ValueRef object, const Type* objectType,
 }
 
 Codegen::ResultObject::ResultObject(Codegen& gen, ExpressionAST* ast,
-                                    ir::ValueRef address)
+                                    ir::ValueRef address, Symbol* subobject)
     : gen_(gen),
       savedOwner_(std::exchange(gen.resultObjectOwner_, ast)),
       savedAddress_(std::exchange(gen.resultObjectAddress_, address)),
-      savedInitialized_(std::exchange(gen.resultObjectInitialized_, false)) {}
+      savedInitialized_(std::exchange(gen.resultObjectInitialized_, false)),
+      savedSubobject_(std::exchange(gen.resultObjectSubobject_, subobject)) {}
 
 Codegen::ResultObject::~ResultObject() {
   gen_.resultObjectOwner_ = savedOwner_;
   gen_.resultObjectAddress_ = savedAddress_;
   gen_.resultObjectInitialized_ = savedInitialized_;
+  gen_.resultObjectSubobject_ = savedSubobject_;
 }
 
 auto Codegen::ResultObject::wasConsumed() const -> bool {
@@ -3603,6 +3659,13 @@ auto Codegen::emitsFunctionBody(FunctionSymbol* symbol) -> bool {
   return true;
 }
 
+auto Codegen::completeObjectVariantToEmit(FunctionSymbol* structor)
+    -> FunctionSymbol* {
+  auto variant = structor->canonical()->completeObjectVariant();
+  if (!variant || hasDiscardableLinkage(structor)) return nullptr;
+  return variant;
+}
+
 void Codegen::enqueueFunctionBody(FunctionSymbol* symbol) {
   if (!emitsFunctionBody(symbol)) return;
   auto target = emittedFunctionSymbol(symbol)->resolvedDefinition();
@@ -3625,6 +3688,9 @@ void Codegen::processPendingFunctions() {
 
     if (auto deletingDtor = sym->deletingDtorVariant())
       (void)findOrCreateFunction(deletingDtor);
+
+    if (auto completeObject = completeObjectVariantToEmit(sym))
+      (void)findOrCreateFunction(completeObject);
 
     if (auto classSymbol = classRequiringVTable(sym))
       generateVTable(classSymbol);
@@ -4879,6 +4945,8 @@ void Codegen::emitCtorVtableInit(FunctionSymbol* functionSymbol,
       !thisValue_)
     return;
 
+  if (structorPrincipalOrSelf(functionSymbol)->delegatingConstructor()) return;
+
   auto classSymbol = symbol_cast<ClassSymbol>(functionSymbol->parent());
   if (!classSymbol) return;
 
@@ -4952,7 +5020,7 @@ auto Codegen::tableSubobjectAddress(SourceLocation loc, ir::ValueRef thisPtr,
     return subobjectAddress(loc, thisPtr, table.base, table.offset);
 
   auto virtualBaseAddress =
-      emitBaseClassAddress(loc, thisPtr, classSymbol, virtualBase);
+      emitVirtualBaseAddress(loc, thisPtr, classSymbol, virtualBase);
   return subobjectAddress(loc, virtualBaseAddress, table.base,
                           offsetInVirtualBase(classSymbol, table));
 }
@@ -5037,6 +5105,18 @@ auto Codegen::vtableEmission(ClassSymbol* classSymbol) -> VTableEmission {
   if (keyFunction->isInline() || definition->isInline()) return {};
 
   return {.emitDefinition = true, .linkage = ir::Linkage::External};
+}
+
+auto Codegen::fieldAddress(SourceLocation loc, ir::ValueRef objectPtr,
+                           FieldSymbol* field,
+                           const ClassLayout::MemberInfo& info)
+    -> ir::ValueRef {
+  if (!is_potentially_overlapping_subobject(field))
+    return memberAddress(loc, objectPtr, field->type(), info.index);
+  auto fieldPointerType = emitter_.rebindPointerType(
+      emitter_.typeOf(objectPtr), convertType(field->type()));
+  return displacedAddress(loc, fieldPointerType, objectPtr,
+                          static_cast<std::intmax_t>(info.offset));
 }
 
 auto Codegen::memberAddress(SourceLocation loc, ir::ValueRef objectPtr,
