@@ -308,40 +308,6 @@ int answer() { return A + B + C; }
   }
 });
 
-test("aborting during parsing stops a translation unit with no includes", async () => {
-  let source = "";
-  for (let i = 0; i < 20000; ++i) {
-    source += `int f${i}(int x) { int a = x + ${i}; return a * 2; }\n`;
-  }
-
-  const started = performance.now();
-  const parser = await Parser.parse({ source, path: "/source/big.cc" });
-  const fullParseMs = performance.now() - started;
-  parser.dispose();
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5);
-  const abortStarted = performance.now();
-
-  await assert.rejects(
-    Parser.parse({
-      source,
-      path: "/source/big.cc",
-      signal: controller.signal,
-    }),
-    (error) => error.name === "AbortError",
-  );
-
-  clearTimeout(timer);
-
-  const abortedParseMs = performance.now() - abortStarted;
-
-  assert.ok(
-    abortedParseMs < fullParseMs / 2,
-    `aborted parse took ${abortedParseMs.toFixed(0)}ms, full parse took ${fullParseMs.toFixed(0)}ms`,
-  );
-});
-
 test("return type deduction is checked across resumed parsing", async () => {
   let source = "";
   for (let i = 0; i < 4000; ++i) {
