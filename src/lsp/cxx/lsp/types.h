@@ -440,9 +440,9 @@ class FoldingRange final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto startLine() const -> long;
+  [[nodiscard]] auto startLine() const -> std::uint32_t;
 
-  [[nodiscard]] auto startCharacter() const -> std::optional<long>;
+  [[nodiscard]] auto startCharacter() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto startCharacter() -> T {
@@ -450,9 +450,9 @@ class FoldingRange final : public LSPObject {
     return T(value);
   }
 
-  [[nodiscard]] auto endLine() const -> long;
+  [[nodiscard]] auto endLine() const -> std::uint32_t;
 
-  [[nodiscard]] auto endCharacter() const -> std::optional<long>;
+  [[nodiscard]] auto endCharacter() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto endCharacter() -> T {
@@ -476,13 +476,14 @@ class FoldingRange final : public LSPObject {
     return T(value);
   }
 
-  auto startLine(long startLine) -> FoldingRange&;
+  auto startLine(std::uint32_t startLine) -> FoldingRange&;
 
-  auto startCharacter(std::optional<long> startCharacter) -> FoldingRange&;
+  auto startCharacter(std::optional<std::uint32_t> startCharacter)
+      -> FoldingRange&;
 
-  auto endLine(long endLine) -> FoldingRange&;
+  auto endLine(std::uint32_t endLine) -> FoldingRange&;
 
-  auto endCharacter(std::optional<long> endCharacter) -> FoldingRange&;
+  auto endCharacter(std::optional<std::uint32_t> endCharacter) -> FoldingRange&;
 
   auto kind(std::optional<FoldingRangeKind> kind) -> FoldingRange&;
 
@@ -999,11 +1000,11 @@ class SemanticTokens final : public LSPObject {
     return T(value);
   }
 
-  [[nodiscard]] auto data() const -> Vector<long>;
+  [[nodiscard]] auto data() const -> Vector<std::uint32_t>;
 
   auto resultId(std::optional<std::string> resultId) -> SemanticTokens&;
 
-  auto data(Vector<long> data) -> SemanticTokens&;
+  auto data(Vector<std::uint32_t> data) -> SemanticTokens&;
 };
 
 class SemanticTokensPartialResult final : public LSPObject {
@@ -1012,9 +1013,9 @@ class SemanticTokensPartialResult final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto data() const -> Vector<long>;
+  [[nodiscard]] auto data() const -> Vector<std::uint32_t>;
 
-  auto data(Vector<long> data) -> SemanticTokensPartialResult&;
+  auto data(Vector<std::uint32_t> data) -> SemanticTokensPartialResult&;
 };
 
 class SemanticTokensRegistrationOptions final : public LSPObject {
@@ -2513,7 +2514,8 @@ class InitializeParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto processId() const -> std::variant<long, std::nullptr_t>;
+  [[nodiscard]] auto processId() const
+      -> std::variant<std::int32_t, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto processId() -> T {
@@ -2590,7 +2592,7 @@ class InitializeParams final : public LSPObject {
     return T(value);
   }
 
-  auto processId(std::variant<long, std::nullptr_t> processId)
+  auto processId(std::variant<std::int32_t, std::nullptr_t> processId)
       -> InitializeParams&;
 
   auto clientInfo(std::optional<ClientInfo> clientInfo) -> InitializeParams&;
@@ -2959,7 +2961,7 @@ class PublishDiagnosticsParams final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  [[nodiscard]] auto version() const -> std::optional<long>;
+  [[nodiscard]] auto version() const -> std::optional<std::int32_t>;
 
   template <typename T>
   [[nodiscard]] auto version() -> T {
@@ -2971,7 +2973,8 @@ class PublishDiagnosticsParams final : public LSPObject {
 
   auto uri(std::string uri) -> PublishDiagnosticsParams&;
 
-  auto version(std::optional<long> version) -> PublishDiagnosticsParams&;
+  auto version(std::optional<std::int32_t> version)
+      -> PublishDiagnosticsParams&;
 
   auto diagnostics(Vector<Diagnostic> diagnostics) -> PublishDiagnosticsParams&;
 };
@@ -3501,7 +3504,7 @@ class SignatureHelp final : public LSPObject {
 
   [[nodiscard]] auto signatures() const -> Vector<SignatureInformation>;
 
-  [[nodiscard]] auto activeSignature() const -> std::optional<long>;
+  [[nodiscard]] auto activeSignature() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto activeSignature() -> T {
@@ -3510,7 +3513,7 @@ class SignatureHelp final : public LSPObject {
   }
 
   [[nodiscard]] auto activeParameter() const
-      -> std::optional<std::variant<long, std::nullptr_t>>;
+      -> std::optional<std::variant<std::uint32_t, std::nullptr_t>>;
 
   template <typename T>
   [[nodiscard]] auto activeParameter() -> T {
@@ -3520,11 +3523,12 @@ class SignatureHelp final : public LSPObject {
 
   auto signatures(Vector<SignatureInformation> signatures) -> SignatureHelp&;
 
-  auto activeSignature(std::optional<long> activeSignature) -> SignatureHelp&;
+  auto activeSignature(std::optional<std::uint32_t> activeSignature)
+      -> SignatureHelp&;
 
   auto activeParameter(
-      std::optional<std::variant<long, std::nullptr_t>> activeParameter)
-      -> SignatureHelp&;
+      std::optional<std::variant<std::uint32_t, std::nullptr_t>>
+          activeParameter) -> SignatureHelp&;
 };
 
 class SignatureHelpRegistrationOptions final : public LSPObject {
@@ -5035,7 +5039,7 @@ class ApplyWorkspaceEditResult final : public LSPObject {
     return T(value);
   }
 
-  [[nodiscard]] auto failedChange() const -> std::optional<long>;
+  [[nodiscard]] auto failedChange() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto failedChange() -> T {
@@ -5048,7 +5052,7 @@ class ApplyWorkspaceEditResult final : public LSPObject {
   auto failureReason(std::optional<std::string> failureReason)
       -> ApplyWorkspaceEditResult&;
 
-  auto failedChange(std::optional<long> failedChange)
+  auto failedChange(std::optional<std::uint32_t> failedChange)
       -> ApplyWorkspaceEditResult&;
 };
 
@@ -5078,7 +5082,7 @@ class WorkDoneProgressBegin final : public LSPObject {
     return T(value);
   }
 
-  [[nodiscard]] auto percentage() const -> std::optional<long>;
+  [[nodiscard]] auto percentage() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto percentage() -> T {
@@ -5094,7 +5098,8 @@ class WorkDoneProgressBegin final : public LSPObject {
 
   auto message(std::optional<std::string> message) -> WorkDoneProgressBegin&;
 
-  auto percentage(std::optional<long> percentage) -> WorkDoneProgressBegin&;
+  auto percentage(std::optional<std::uint32_t> percentage)
+      -> WorkDoneProgressBegin&;
 };
 
 class WorkDoneProgressReport final : public LSPObject {
@@ -5121,7 +5126,7 @@ class WorkDoneProgressReport final : public LSPObject {
     return T(value);
   }
 
-  [[nodiscard]] auto percentage() const -> std::optional<long>;
+  [[nodiscard]] auto percentage() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto percentage() -> T {
@@ -5135,7 +5140,8 @@ class WorkDoneProgressReport final : public LSPObject {
 
   auto message(std::optional<std::string> message) -> WorkDoneProgressReport&;
 
-  auto percentage(std::optional<long> percentage) -> WorkDoneProgressReport&;
+  auto percentage(std::optional<std::uint32_t> percentage)
+      -> WorkDoneProgressReport&;
 };
 
 class WorkDoneProgressEnd final : public LSPObject {
@@ -5197,7 +5203,7 @@ class CancelParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto id() const -> std::variant<long, std::string>;
+  [[nodiscard]] auto id() const -> std::variant<std::int32_t, std::string>;
 
   template <typename T>
   [[nodiscard]] auto id() -> T {
@@ -5205,7 +5211,7 @@ class CancelParams final : public LSPObject {
     return T(value);
   }
 
-  auto id(std::variant<long, std::string> id) -> CancelParams&;
+  auto id(std::variant<std::int32_t, std::string> id) -> CancelParams&;
 };
 
 class ProgressParams final : public LSPObject {
@@ -5509,13 +5515,13 @@ class Position final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto line() const -> long;
+  [[nodiscard]] auto line() const -> std::uint32_t;
 
-  [[nodiscard]] auto character() const -> long;
+  [[nodiscard]] auto character() const -> std::uint32_t;
 
-  auto line(long line) -> Position&;
+  auto line(std::uint32_t line) -> Position&;
 
-  auto character(long character) -> Position&;
+  auto character(std::uint32_t character) -> Position&;
 };
 
 class SelectionRangeOptions final : public LSPObject {
@@ -5605,11 +5611,11 @@ class SemanticTokensEdit final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto start() const -> long;
+  [[nodiscard]] auto start() const -> std::uint32_t;
 
-  [[nodiscard]] auto deleteCount() const -> long;
+  [[nodiscard]] auto deleteCount() const -> std::uint32_t;
 
-  [[nodiscard]] auto data() const -> std::optional<Vector<long>>;
+  [[nodiscard]] auto data() const -> std::optional<Vector<std::uint32_t>>;
 
   template <typename T>
   [[nodiscard]] auto data() -> T {
@@ -5617,11 +5623,11 @@ class SemanticTokensEdit final : public LSPObject {
     return T(value);
   }
 
-  auto start(long start) -> SemanticTokensEdit&;
+  auto start(std::uint32_t start) -> SemanticTokensEdit&;
 
-  auto deleteCount(long deleteCount) -> SemanticTokensEdit&;
+  auto deleteCount(std::uint32_t deleteCount) -> SemanticTokensEdit&;
 
-  auto data(std::optional<Vector<long>> data) -> SemanticTokensEdit&;
+  auto data(std::optional<Vector<std::uint32_t>> data) -> SemanticTokensEdit&;
 };
 
 class LinkedEditingRangeOptions final : public LSPObject {
@@ -5909,11 +5915,11 @@ class InlineValueContext final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto frameId() const -> long;
+  [[nodiscard]] auto frameId() const -> std::int32_t;
 
   [[nodiscard]] auto stoppedLocation() const -> Range;
 
-  auto frameId(long frameId) -> InlineValueContext&;
+  auto frameId(std::int32_t frameId) -> InlineValueContext&;
 
   auto stoppedLocation(Range stoppedLocation) -> InlineValueContext&;
 };
@@ -6238,7 +6244,7 @@ class NotebookDocument final : public LSPObject {
 
   [[nodiscard]] auto notebookType() const -> std::string;
 
-  [[nodiscard]] auto version() const -> long;
+  [[nodiscard]] auto version() const -> std::int32_t;
 
   [[nodiscard]] auto metadata() const -> std::optional<LSPObject>;
 
@@ -6254,7 +6260,7 @@ class NotebookDocument final : public LSPObject {
 
   auto notebookType(std::string notebookType) -> NotebookDocument&;
 
-  auto version(long version) -> NotebookDocument&;
+  auto version(std::int32_t version) -> NotebookDocument&;
 
   auto metadata(std::optional<LSPObject> metadata) -> NotebookDocument&;
 
@@ -6271,7 +6277,7 @@ class TextDocumentItem final : public LSPObject {
 
   [[nodiscard]] auto languageId() const -> LanguageKind;
 
-  [[nodiscard]] auto version() const -> long;
+  [[nodiscard]] auto version() const -> std::int32_t;
 
   [[nodiscard]] auto text() const -> std::string;
 
@@ -6279,7 +6285,7 @@ class TextDocumentItem final : public LSPObject {
 
   auto languageId(LanguageKind languageId) -> TextDocumentItem&;
 
-  auto version(long version) -> TextDocumentItem&;
+  auto version(std::int32_t version) -> TextDocumentItem&;
 
   auto text(std::string text) -> TextDocumentItem&;
 };
@@ -6315,11 +6321,11 @@ class VersionedNotebookDocumentIdentifier final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto version() const -> long;
+  [[nodiscard]] auto version() const -> std::int32_t;
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  auto version(long version) -> VersionedNotebookDocumentIdentifier&;
+  auto version(std::int32_t version) -> VersionedNotebookDocumentIdentifier&;
 
   auto uri(std::string uri) -> VersionedNotebookDocumentIdentifier&;
 };
@@ -6487,7 +6493,8 @@ class _InitializeParams final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto processId() const -> std::variant<long, std::nullptr_t>;
+  [[nodiscard]] auto processId() const
+      -> std::variant<std::int32_t, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto processId() -> T {
@@ -6555,7 +6562,7 @@ class _InitializeParams final : public LSPObject {
     return T(value);
   }
 
-  auto processId(std::variant<long, std::nullptr_t> processId)
+  auto processId(std::variant<std::int32_t, std::nullptr_t> processId)
       -> _InitializeParams&;
 
   auto clientInfo(std::optional<ClientInfo> clientInfo) -> _InitializeParams&;
@@ -7116,11 +7123,11 @@ class VersionedTextDocumentIdentifier final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto version() const -> long;
+  [[nodiscard]] auto version() const -> std::int32_t;
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  auto version(long version) -> VersionedTextDocumentIdentifier&;
+  auto version(std::int32_t version) -> VersionedTextDocumentIdentifier&;
 
   auto uri(std::string uri) -> VersionedTextDocumentIdentifier&;
 };
@@ -7195,7 +7202,7 @@ class Diagnostic final : public LSPObject {
   }
 
   [[nodiscard]] auto code() const
-      -> std::optional<std::variant<long, std::string>>;
+      -> std::optional<std::variant<std::int32_t, std::string>>;
 
   template <typename T>
   [[nodiscard]] auto code() -> T {
@@ -7257,7 +7264,8 @@ class Diagnostic final : public LSPObject {
 
   auto severity(std::optional<DiagnosticSeverity> severity) -> Diagnostic&;
 
-  auto code(std::optional<std::variant<long, std::string>> code) -> Diagnostic&;
+  auto code(std::optional<std::variant<std::int32_t, std::string>> code)
+      -> Diagnostic&;
 
   auto codeDescription(std::optional<CodeDescription> codeDescription)
       -> Diagnostic&;
@@ -7607,7 +7615,7 @@ class SignatureInformation final : public LSPObject {
   }
 
   [[nodiscard]] auto activeParameter() const
-      -> std::optional<std::variant<long, std::nullptr_t>>;
+      -> std::optional<std::variant<std::uint32_t, std::nullptr_t>>;
 
   template <typename T>
   [[nodiscard]] auto activeParameter() -> T {
@@ -7625,8 +7633,8 @@ class SignatureInformation final : public LSPObject {
       -> SignatureInformation&;
 
   auto activeParameter(
-      std::optional<std::variant<long, std::nullptr_t>> activeParameter)
-      -> SignatureInformation&;
+      std::optional<std::variant<std::uint32_t, std::nullptr_t>>
+          activeParameter) -> SignatureInformation&;
 };
 
 class SignatureHelpOptions final : public LSPObject {
@@ -8016,7 +8024,7 @@ class FormattingOptions final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto tabSize() const -> long;
+  [[nodiscard]] auto tabSize() const -> std::uint32_t;
 
   [[nodiscard]] auto insertSpaces() const -> bool;
 
@@ -8044,7 +8052,7 @@ class FormattingOptions final : public LSPObject {
     return T(value);
   }
 
-  auto tabSize(long tabSize) -> FormattingOptions&;
+  auto tabSize(std::uint32_t tabSize) -> FormattingOptions&;
 
   auto insertSpaces(bool insertSpaces) -> FormattingOptions&;
 
@@ -8307,7 +8315,8 @@ class OptionalVersionedTextDocumentIdentifier final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto version() const -> std::variant<long, std::nullptr_t>;
+  [[nodiscard]] auto version() const
+      -> std::variant<std::int32_t, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto version() -> T {
@@ -8317,7 +8326,7 @@ class OptionalVersionedTextDocumentIdentifier final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  auto version(std::variant<long, std::nullptr_t> version)
+  auto version(std::variant<std::int32_t, std::nullptr_t> version)
       -> OptionalVersionedTextDocumentIdentifier&;
 
   auto uri(std::string uri) -> OptionalVersionedTextDocumentIdentifier&;
@@ -8558,7 +8567,8 @@ class WorkspaceFullDocumentDiagnosticReport final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  [[nodiscard]] auto version() const -> std::variant<long, std::nullptr_t>;
+  [[nodiscard]] auto version() const
+      -> std::variant<std::int32_t, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto version() -> T {
@@ -8580,7 +8590,7 @@ class WorkspaceFullDocumentDiagnosticReport final : public LSPObject {
 
   auto uri(std::string uri) -> WorkspaceFullDocumentDiagnosticReport&;
 
-  auto version(std::variant<long, std::nullptr_t> version)
+  auto version(std::variant<std::int32_t, std::nullptr_t> version)
       -> WorkspaceFullDocumentDiagnosticReport&;
 
   auto kind(std::string kind) -> WorkspaceFullDocumentDiagnosticReport&;
@@ -8600,7 +8610,8 @@ class WorkspaceUnchangedDocumentDiagnosticReport final : public LSPObject {
 
   [[nodiscard]] auto uri() const -> std::string;
 
-  [[nodiscard]] auto version() const -> std::variant<long, std::nullptr_t>;
+  [[nodiscard]] auto version() const
+      -> std::variant<std::int32_t, std::nullptr_t>;
 
   template <typename T>
   [[nodiscard]] auto version() -> T {
@@ -8614,7 +8625,7 @@ class WorkspaceUnchangedDocumentDiagnosticReport final : public LSPObject {
 
   auto uri(std::string uri) -> WorkspaceUnchangedDocumentDiagnosticReport&;
 
-  auto version(std::variant<long, std::nullptr_t> version)
+  auto version(std::variant<std::int32_t, std::nullptr_t> version)
       -> WorkspaceUnchangedDocumentDiagnosticReport&;
 
   auto kind(std::string kind) -> WorkspaceUnchangedDocumentDiagnosticReport&;
@@ -8988,7 +8999,7 @@ class TextDocumentContentChangePartial final : public LSPObject {
 
   [[nodiscard]] auto range() const -> Range;
 
-  [[nodiscard]] auto rangeLength() const -> std::optional<long>;
+  [[nodiscard]] auto rangeLength() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto rangeLength() -> T {
@@ -9000,7 +9011,7 @@ class TextDocumentContentChangePartial final : public LSPObject {
 
   auto range(Range range) -> TextDocumentContentChangePartial&;
 
-  auto rangeLength(std::optional<long> rangeLength)
+  auto rangeLength(std::optional<std::uint32_t> rangeLength)
       -> TextDocumentContentChangePartial&;
 
   auto text(std::string text) -> TextDocumentContentChangePartial&;
@@ -9098,7 +9109,7 @@ class ParameterInformation final : public LSPObject {
   explicit operator bool() const;
 
   [[nodiscard]] auto label() const
-      -> std::variant<std::string, std::tuple<long, long>>;
+      -> std::variant<std::string, std::tuple<std::uint32_t, std::uint32_t>>;
 
   template <typename T>
   [[nodiscard]] auto label() -> T {
@@ -9115,7 +9126,8 @@ class ParameterInformation final : public LSPObject {
     return T(value);
   }
 
-  auto label(std::variant<std::string, std::tuple<long, long>> label)
+  auto label(
+      std::variant<std::string, std::tuple<std::uint32_t, std::uint32_t>> label)
       -> ParameterInformation&;
 
   auto documentation(
@@ -9162,7 +9174,7 @@ class ExecutionSummary final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto executionOrder() const -> long;
+  [[nodiscard]] auto executionOrder() const -> std::uint32_t;
 
   [[nodiscard]] auto success() const -> std::optional<bool>;
 
@@ -9172,7 +9184,7 @@ class ExecutionSummary final : public LSPObject {
     return T(value);
   }
 
-  auto executionOrder(long executionOrder) -> ExecutionSummary&;
+  auto executionOrder(std::uint32_t executionOrder) -> ExecutionSummary&;
 
   auto success(std::optional<bool> success) -> ExecutionSummary&;
 };
@@ -10234,9 +10246,9 @@ class NotebookCellArrayChange final : public LSPObject {
 
   explicit operator bool() const;
 
-  [[nodiscard]] auto start() const -> long;
+  [[nodiscard]] auto start() const -> std::uint32_t;
 
-  [[nodiscard]] auto deleteCount() const -> long;
+  [[nodiscard]] auto deleteCount() const -> std::uint32_t;
 
   [[nodiscard]] auto cells() const -> std::optional<Vector<NotebookCell>>;
 
@@ -10246,9 +10258,9 @@ class NotebookCellArrayChange final : public LSPObject {
     return T(value);
   }
 
-  auto start(long start) -> NotebookCellArrayChange&;
+  auto start(std::uint32_t start) -> NotebookCellArrayChange&;
 
-  auto deleteCount(long deleteCount) -> NotebookCellArrayChange&;
+  auto deleteCount(std::uint32_t deleteCount) -> NotebookCellArrayChange&;
 
   auto cells(std::optional<Vector<NotebookCell>> cells)
       -> NotebookCellArrayChange&;
@@ -11427,7 +11439,7 @@ class FoldingRangeClientCapabilities final : public LSPObject {
     return T(value);
   }
 
-  [[nodiscard]] auto rangeLimit() const -> std::optional<long>;
+  [[nodiscard]] auto rangeLimit() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto rangeLimit() -> T {
@@ -11464,7 +11476,7 @@ class FoldingRangeClientCapabilities final : public LSPObject {
   auto dynamicRegistration(std::optional<bool> dynamicRegistration)
       -> FoldingRangeClientCapabilities&;
 
-  auto rangeLimit(std::optional<long> rangeLimit)
+  auto rangeLimit(std::optional<std::uint32_t> rangeLimit)
       -> FoldingRangeClientCapabilities&;
 
   auto lineFoldingOnly(std::optional<bool> lineFoldingOnly)
@@ -12767,7 +12779,7 @@ class EmitCodeParams final : public LSPObject {
     return T(value);
   }
 
-  [[nodiscard]] auto optimizationLevel() const -> std::optional<long>;
+  [[nodiscard]] auto optimizationLevel() const -> std::optional<std::uint32_t>;
 
   template <typename T>
   [[nodiscard]] auto optimizationLevel() -> T {
@@ -12791,7 +12803,7 @@ class EmitCodeParams final : public LSPObject {
 
   auto locations(std::optional<bool> locations) -> EmitCodeParams&;
 
-  auto optimizationLevel(std::optional<long> optimizationLevel)
+  auto optimizationLevel(std::optional<std::uint32_t> optimizationLevel)
       -> EmitCodeParams&;
 
   auto mlirPipeline(std::optional<std::string> mlirPipeline) -> EmitCodeParams&;

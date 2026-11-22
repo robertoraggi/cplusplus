@@ -87,13 +87,15 @@ auto enumNames(const std::array<Enum, Size>& values)
 }
 
 template <typename Enum, std::size_t Size>
-auto enumIndex(const std::array<Enum, Size>& values, Enum value) -> long {
+auto enumIndex(const std::array<Enum, Size>& values, Enum value)
+    -> std::uint32_t {
   auto position = std::ranges::find(values, value);
-  return long(position - values.begin());
+  return std::uint32_t(position - values.begin());
 }
 
-auto semanticTokenModifierMask(SemanticTokenModifiers modifier) -> long {
-  return 1L << enumIndex(kSemanticTokenModifiers, modifier);
+auto semanticTokenModifierMask(SemanticTokenModifiers modifier)
+    -> std::uint32_t {
+  return std::uint32_t{1} << enumIndex(kSemanticTokenModifiers, modifier);
 }
 
 auto templateParametersOf(Symbol* symbol) -> TemplateParametersSymbol*;
@@ -1310,7 +1312,7 @@ void addTemplateSignature(SignatureHelp& result, Symbol* templateSymbol,
   }
 
   result.activeSignature(0);
-  result.activeParameter(long(activeParameter));
+  result.activeParameter(std::uint32_t(activeParameter));
 }
 
 struct SignatureHelpSink {
@@ -1360,7 +1362,7 @@ struct SignatureHelpSink {
     if (!foundActiveSignature) activeSignature = 0;
 
     result.activeSignature(activeSignature);
-    result.activeParameter(long(context.activeParameter));
+    result.activeParameter(std::uint32_t(context.activeParameter));
   }
 
   void operator()(const TemplateArgumentHintsContext& context) {
@@ -1387,7 +1389,7 @@ struct SignatureHelpSink {
     }
 
     result.activeSignature(0);
-    result.activeParameter(long(context.activeParameter));
+    result.activeParameter(std::uint32_t(context.activeParameter));
   }
 
   void operator()(const MemberCompletionContext&) const {}
@@ -1404,7 +1406,7 @@ struct SignatureHelpSink {
 
 struct CxxDocument::Private {
   std::string fileName;
-  long version;
+  std::int32_t version;
   Diagnostics diagnosticsClient;
   TranslationUnit unit{&diagnosticsClient};
   std::shared_ptr<Toolchain> toolchain;
@@ -1418,7 +1420,7 @@ struct CxxDocument::Private {
   bool cancelled{false};
 #endif
 
-  Private(std::string fileName, long version)
+  Private(std::string fileName, std::int32_t version)
       : fileName(std::move(fileName)), version(version) {
     diagnosticsClient.setErrorLimit(kMaxDiagnostics);
   }
@@ -1466,7 +1468,7 @@ auto CxxDocument::semanticTokenModifierLegend()
   return tokenModifiers;
 }
 
-CxxDocument::CxxDocument(std::string fileName, long version)
+CxxDocument::CxxDocument(std::string fileName, std::int32_t version)
     : d(std::make_unique<Private>(std::move(fileName), version)) {}
 
 CxxDocument::~CxxDocument() {}
@@ -1489,7 +1491,7 @@ void CxxDocument::cancel() {
 
 auto CxxDocument::fileName() const -> const std::string& { return d->fileName; }
 
-auto CxxDocument::version() const -> long { return d->version; }
+auto CxxDocument::version() const -> std::int32_t { return d->version; }
 
 auto CxxDocument::translationUnit() const -> TranslationUnit* {
   return &d->unit;
@@ -1576,7 +1578,7 @@ void CxxDocument::requestSignatureHelpAt(std::uint32_t line,
 }
 
 void CxxDocument::semanticTokens(std::optional<Range> range,
-                                 Vector<long> result) const {
+                                 Vector<std::uint32_t> result) const {
   auto& unit = d->unit;
   auto preprocessor = unit.preprocessor();
   const std::string_view source =
@@ -1586,7 +1588,7 @@ void CxxDocument::semanticTokens(std::optional<Range> range,
 
   struct SymbolToken {
     SemanticTokenTypes type;
-    long modifiers = 0;
+    std::uint32_t modifiers = 0;
   };
 
   std::unordered_map<std::size_t, SymbolToken> symbolTokens;
@@ -1597,7 +1599,7 @@ void CxxDocument::semanticTokens(std::optional<Range> range,
     auto type = semanticTokenTypeOf(occurrence.symbol);
     if (!type.has_value()) continue;
 
-    long modifiers = 0;
+    std::uint32_t modifiers = 0;
     if (occurrence.isDeclaration) {
       modifiers =
           semanticTokenModifierMask(SemanticTokenModifiers::kDeclaration);
@@ -1626,7 +1628,7 @@ void CxxDocument::semanticTokens(std::optional<Range> range,
   bool hasPreviousToken = false;
 
   auto emit = [&](std::size_t startOffset, std::size_t endOffset,
-                  SemanticTokenTypes type, long modifiers) {
+                  SemanticTokenTypes type, std::uint32_t modifiers) {
     if (startOffset == endOffset) return;
 
     auto position = sourceText.positionAt(startOffset);
@@ -1646,9 +1648,9 @@ void CxxDocument::semanticTokens(std::optional<Range> range,
       if (deltaLine == 0) deltaCharacter -= previousCharacter;
     }
 
-    result.emplace_back(long(deltaLine));
-    result.emplace_back(long(deltaCharacter));
-    result.emplace_back(long(length));
+    result.emplace_back(deltaLine);
+    result.emplace_back(deltaCharacter);
+    result.emplace_back(length);
     result.emplace_back(enumIndex(kSemanticTokenTypes, type));
     result.emplace_back(modifiers);
 
@@ -1666,7 +1668,7 @@ void CxxDocument::semanticTokens(std::optional<Range> range,
 
     const auto tokenStart = std::size_t(lexer.tokenPos());
     const auto tokenEnd = tokenStart + lexer.tokenLength();
-    auto modifiers = 0L;
+    std::uint32_t modifiers = 0;
     std::optional<SemanticTokenTypes> type;
 
     if (kind == TokenKind::T_IDENTIFIER) {

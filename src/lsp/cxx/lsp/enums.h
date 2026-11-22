@@ -74,7 +74,7 @@ enum class DocumentDiagnosticReportKind {
   kUnchanged,
 };
 
-enum class ErrorCodes : int {
+enum class ErrorCodes : std::int32_t {
   kParseError = -32700,
   kInvalidRequest = -32600,
   kMethodNotFound = -32601,
@@ -84,7 +84,7 @@ enum class ErrorCodes : int {
   kUnknownErrorCode = -32001,
 };
 
-enum class LSPErrorCodes : int {
+enum class LSPErrorCodes : std::int32_t {
   kRequestFailed = -32803,
   kServerCancelled = -32802,
   kContentModified = -32801,
@@ -97,7 +97,7 @@ enum class FoldingRangeKind {
   kRegion,
 };
 
-enum class SymbolKind : long {
+enum class SymbolKind : std::uint32_t {
   kFile = 1,
   kModule = 2,
   kNamespace = 3,
@@ -126,7 +126,7 @@ enum class SymbolKind : long {
   kTypeParameter = 26,
 };
 
-enum class SymbolTag : long {
+enum class SymbolTag : std::uint32_t {
   kDeprecated = 1,
 };
 
@@ -144,12 +144,12 @@ enum class MonikerKind {
   kLocal,
 };
 
-enum class InlayHintKind : long {
+enum class InlayHintKind : std::uint32_t {
   kType = 1,
   kParameter = 2,
 };
 
-enum class MessageType : long {
+enum class MessageType : std::uint32_t {
   kError = 1,
   kWarning = 2,
   kInfo = 3,
@@ -157,19 +157,19 @@ enum class MessageType : long {
   kDebug = 5,
 };
 
-enum class TextDocumentSyncKind : long {
+enum class TextDocumentSyncKind : std::uint32_t {
   kNone = 0,
   kFull = 1,
   kIncremental = 2,
 };
 
-enum class TextDocumentSaveReason : long {
+enum class TextDocumentSaveReason : std::uint32_t {
   kManual = 1,
   kAfterDelay = 2,
   kFocusOut = 3,
 };
 
-enum class CompletionItemKind : long {
+enum class CompletionItemKind : std::uint32_t {
   kText = 1,
   kMethod = 2,
   kFunction = 3,
@@ -197,21 +197,21 @@ enum class CompletionItemKind : long {
   kTypeParameter = 25,
 };
 
-enum class CompletionItemTag : long {
+enum class CompletionItemTag : std::uint32_t {
   kDeprecated = 1,
 };
 
-enum class InsertTextFormat : long {
+enum class InsertTextFormat : std::uint32_t {
   kPlainText = 1,
   kSnippet = 2,
 };
 
-enum class InsertTextMode : long {
+enum class InsertTextMode : std::uint32_t {
   kAsIs = 1,
   kAdjustIndentation = 2,
 };
 
-enum class DocumentHighlightKind : long {
+enum class DocumentHighlightKind : std::uint32_t {
   kText = 1,
   kRead = 2,
   kWrite = 3,
@@ -231,7 +231,7 @@ enum class CodeActionKind {
   kNotebook,
 };
 
-enum class CodeActionTag : long {
+enum class CodeActionTag : std::uint32_t {
   kLLMGenerated = 1,
 };
 
@@ -311,7 +311,7 @@ enum class LanguageKind {
   kYAML,
 };
 
-enum class InlineCompletionTriggerKind : long {
+enum class InlineCompletionTriggerKind : std::uint32_t {
   kInvoked = 1,
   kAutomatic = 2,
 };
@@ -322,48 +322,48 @@ enum class PositionEncodingKind {
   kUTF32,
 };
 
-enum class FileChangeType : long {
+enum class FileChangeType : std::uint32_t {
   kCreated = 1,
   kChanged = 2,
   kDeleted = 3,
 };
 
-enum class WatchKind : long {
+enum class WatchKind : std::uint32_t {
   kCreate = 1,
   kChange = 2,
   kDelete = 4,
 };
 
-enum class DiagnosticSeverity : long {
+enum class DiagnosticSeverity : std::uint32_t {
   kError = 1,
   kWarning = 2,
   kInformation = 3,
   kHint = 4,
 };
 
-enum class DiagnosticTag : long {
+enum class DiagnosticTag : std::uint32_t {
   kUnnecessary = 1,
   kDeprecated = 2,
 };
 
-enum class CompletionTriggerKind : long {
+enum class CompletionTriggerKind : std::uint32_t {
   kInvoked = 1,
   kTriggerCharacter = 2,
   kTriggerForIncompleteCompletions = 3,
 };
 
-enum class ApplyKind : long {
+enum class ApplyKind : std::uint32_t {
   kReplace = 1,
   kMerge = 2,
 };
 
-enum class SignatureHelpTriggerKind : long {
+enum class SignatureHelpTriggerKind : std::uint32_t {
   kInvoked = 1,
   kTriggerCharacter = 2,
   kContentChange = 3,
 };
 
-enum class CodeActionTriggerKind : long {
+enum class CodeActionTriggerKind : std::uint32_t {
   kInvoked = 1,
   kAutomatic = 2,
 };
@@ -373,7 +373,7 @@ enum class FileOperationPatternKind {
   kFolder,
 };
 
-enum class NotebookCellKind : long {
+enum class NotebookCellKind : std::uint32_t {
   kMarkup = 1,
   kCode = 2,
 };
@@ -391,7 +391,7 @@ enum class FailureHandlingKind {
   kUndo,
 };
 
-enum class PrepareSupportDefaultBehavior : long {
+enum class PrepareSupportDefaultBehavior : std::uint32_t {
   kIdentifier = 1,
 };
 

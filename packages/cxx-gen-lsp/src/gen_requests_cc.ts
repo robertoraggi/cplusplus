@@ -20,7 +20,7 @@
 
 import * as path from "node:path";
 import type { MetaModel, Structure, Type } from "./MetaModel.ts";
-import { isRequest, toCppType } from "./MetaModel.ts";
+import { isRequest, requestIdType, toCppBaseType, toCppType } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.ts";
 import { TypeGenerator } from "./gen_types_cc.ts";
@@ -34,21 +34,21 @@ class RequestGenerator extends TypeGenerator {
     this.begin();
 
     this.emit();
-    this.emit(`auto LSPRequest::id() const -> std::optional<std::variant<long, std::string>> {`);
+    this.emit(`auto LSPRequest::id() const -> std::optional<${requestIdType}> {`);
     this.emit(`  if (!repr_->contains("id")) return std::nullopt;`);
     this.emit(`  const auto& id = repr_->at("id");`);
     this.emit(`  if (id.is_string()) return id.get<std::string>();`);
-    this.emit(`  return id.get<long>();`);
+    this.emit(`  return id.get<${toCppBaseType("integer")}>();`);
     this.emit(`}`);
     this.emit();
-    this.emit(`auto LSPRequest::id(std::optional<std::variant<long, std::string>> id)`);
+    this.emit(`auto LSPRequest::id(std::optional<${requestIdType}> id)`);
     this.emit(`    -> LSPRequest& {`);
     this.emit(`  if (!id.has_value()) {`);
     this.emit(`    repr_->erase("id");`);
     this.emit(`    return *this;`);
     this.emit(`  }`);
-    this.emit(`  if (std::holds_alternative<long>(*id)) {`);
-    this.emit(`    (*repr_)["id"] = std::get<long>(*id);`);
+    this.emit(`  if (std::holds_alternative<${toCppBaseType("integer")}>(*id)) {`);
+    this.emit(`    (*repr_)["id"] = std::get<${toCppBaseType("integer")}>(*id);`);
     this.emit(`  } else {`);
     this.emit(`    (*repr_)["id"] = std::get<std::string>(*id);`);
     this.emit(`  }`);
@@ -59,21 +59,21 @@ class RequestGenerator extends TypeGenerator {
     this.emit(`  return repr_->at("method").get<std::string>();`);
     this.emit(`}`);
     this.emit();
-    this.emit(`auto LSPResponse::id() const -> std::optional<std::variant<long, std::string>> {`);
+    this.emit(`auto LSPResponse::id() const -> std::optional<${requestIdType}> {`);
     this.emit(`  if (!repr_->contains("id")) return std::nullopt;`);
     this.emit(`  const auto& id = repr_->at("id");`);
     this.emit(`  if (id.is_string()) return id.get<std::string>();`);
-    this.emit(`  return id.get<long>();`);
+    this.emit(`  return id.get<${toCppBaseType("integer")}>();`);
     this.emit(`}`);
     this.emit();
-    this.emit(`auto LSPResponse::id(std::optional<std::variant<long, std::string>> id)`);
+    this.emit(`auto LSPResponse::id(std::optional<${requestIdType}> id)`);
     this.emit(`    -> LSPResponse& {`);
     this.emit(`  if (!id.has_value()) {`);
     this.emit(`    repr_->erase("id");`);
     this.emit(`    return *this;`);
     this.emit(`  }`);
-    this.emit(`  if (std::holds_alternative<long>(*id)) {`);
-    this.emit(`    (*repr_)["id"] = std::get<long>(*id);`);
+    this.emit(`  if (std::holds_alternative<${toCppBaseType("integer")}>(*id)) {`);
+    this.emit(`    (*repr_)["id"] = std::get<${toCppBaseType("integer")}>(*id);`);
     this.emit(`  } else {`);
     this.emit(`    (*repr_)["id"] = std::get<std::string>(*id);`);
     this.emit(`  }`);
@@ -90,7 +90,7 @@ class RequestGenerator extends TypeGenerator {
       this.emit(`  return *this;`);
       this.emit(`}`);
       this.emit();
-      this.emit(`auto ${typeName}::id(std::variant<long, std::string> id) -> ${typeName}& {`);
+      this.emit(`auto ${typeName}::id(${requestIdType} id) -> ${typeName}& {`);
       this.emit(`  return static_cast<${typeName}&>(LSPRequest::id(std::move(id)));`);
       this.emit(`}`);
 
@@ -113,7 +113,7 @@ class RequestGenerator extends TypeGenerator {
         const responseTypeName = typeName.replace(/Request$/, "Response");
 
         this.emit();
-        this.emit(`auto ${responseTypeName}::id(std::variant<long, std::string> id) -> ${responseTypeName}& {`);
+        this.emit(`auto ${responseTypeName}::id(${requestIdType} id) -> ${responseTypeName}& {`);
         this.emit(`  return static_cast<${responseTypeName}&>(LSPResponse::id(std::move(id)));`);
         this.emit(`}`);
 

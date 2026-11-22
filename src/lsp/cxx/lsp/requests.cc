@@ -25,21 +25,22 @@
 
 namespace cxx::lsp {
 
-auto LSPRequest::id() const -> std::optional<std::variant<long, std::string>> {
+auto LSPRequest::id() const
+    -> std::optional<std::variant<std::int32_t, std::string>> {
   if (!repr_->contains("id")) return std::nullopt;
   const auto& id = repr_->at("id");
   if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
+  return id.get<std::int32_t>();
 }
 
-auto LSPRequest::id(std::optional<std::variant<long, std::string>> id)
+auto LSPRequest::id(std::optional<std::variant<std::int32_t, std::string>> id)
     -> LSPRequest& {
   if (!id.has_value()) {
     repr_->erase("id");
     return *this;
   }
-  if (std::holds_alternative<long>(*id)) {
-    (*repr_)["id"] = std::get<long>(*id);
+  if (std::holds_alternative<std::int32_t>(*id)) {
+    (*repr_)["id"] = std::get<std::int32_t>(*id);
   } else {
     (*repr_)["id"] = std::get<std::string>(*id);
   }
@@ -50,21 +51,22 @@ auto LSPRequest::method() const -> std::string {
   return repr_->at("method").get<std::string>();
 }
 
-auto LSPResponse::id() const -> std::optional<std::variant<long, std::string>> {
+auto LSPResponse::id() const
+    -> std::optional<std::variant<std::int32_t, std::string>> {
   if (!repr_->contains("id")) return std::nullopt;
   const auto& id = repr_->at("id");
   if (id.is_string()) return id.get<std::string>();
-  return id.get<long>();
+  return id.get<std::int32_t>();
 }
 
-auto LSPResponse::id(std::optional<std::variant<long, std::string>> id)
+auto LSPResponse::id(std::optional<std::variant<std::int32_t, std::string>> id)
     -> LSPResponse& {
   if (!id.has_value()) {
     repr_->erase("id");
     return *this;
   }
-  if (std::holds_alternative<long>(*id)) {
-    (*repr_)["id"] = std::get<long>(*id);
+  if (std::holds_alternative<std::int32_t>(*id)) {
+    (*repr_)["id"] = std::get<std::int32_t>(*id);
   } else {
     (*repr_)["id"] = std::get<std::string>(*id);
   }
@@ -77,7 +79,7 @@ auto ImplementationRequest::method(std::string method)
   return *this;
 }
 
-auto ImplementationRequest::id(std::variant<long, std::string> id)
+auto ImplementationRequest::id(std::variant<std::int32_t, std::string> id)
     -> ImplementationRequest& {
   return static_cast<ImplementationRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -93,7 +95,7 @@ auto ImplementationRequest::params(ImplementationParams params)
   return *this;
 }
 
-auto ImplementationResponse::id(std::variant<long, std::string> id)
+auto ImplementationResponse::id(std::variant<std::int32_t, std::string> id)
     -> ImplementationResponse& {
   return static_cast<ImplementationResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -115,7 +117,7 @@ auto TypeDefinitionRequest::method(std::string method)
   return *this;
 }
 
-auto TypeDefinitionRequest::id(std::variant<long, std::string> id)
+auto TypeDefinitionRequest::id(std::variant<std::int32_t, std::string> id)
     -> TypeDefinitionRequest& {
   return static_cast<TypeDefinitionRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -131,7 +133,7 @@ auto TypeDefinitionRequest::params(TypeDefinitionParams params)
   return *this;
 }
 
-auto TypeDefinitionResponse::id(std::variant<long, std::string> id)
+auto TypeDefinitionResponse::id(std::variant<std::int32_t, std::string> id)
     -> TypeDefinitionResponse& {
   return static_cast<TypeDefinitionResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -153,12 +155,12 @@ auto WorkspaceFoldersRequest::method(std::string method)
   return *this;
 }
 
-auto WorkspaceFoldersRequest::id(std::variant<long, std::string> id)
+auto WorkspaceFoldersRequest::id(std::variant<std::int32_t, std::string> id)
     -> WorkspaceFoldersRequest& {
   return static_cast<WorkspaceFoldersRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto WorkspaceFoldersResponse::id(std::variant<long, std::string> id)
+auto WorkspaceFoldersResponse::id(std::variant<std::int32_t, std::string> id)
     -> WorkspaceFoldersResponse& {
   return static_cast<WorkspaceFoldersResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -179,7 +181,7 @@ auto ConfigurationRequest::method(std::string method) -> ConfigurationRequest& {
   return *this;
 }
 
-auto ConfigurationRequest::id(std::variant<long, std::string> id)
+auto ConfigurationRequest::id(std::variant<std::int32_t, std::string> id)
     -> ConfigurationRequest& {
   return static_cast<ConfigurationRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -195,7 +197,7 @@ auto ConfigurationRequest::params(ConfigurationParams params)
   return *this;
 }
 
-auto ConfigurationResponse::id(std::variant<long, std::string> id)
+auto ConfigurationResponse::id(std::variant<std::int32_t, std::string> id)
     -> ConfigurationResponse& {
   return static_cast<ConfigurationResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -212,7 +214,7 @@ auto DocumentColorRequest::method(std::string method) -> DocumentColorRequest& {
   return *this;
 }
 
-auto DocumentColorRequest::id(std::variant<long, std::string> id)
+auto DocumentColorRequest::id(std::variant<std::int32_t, std::string> id)
     -> DocumentColorRequest& {
   return static_cast<DocumentColorRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -228,7 +230,7 @@ auto DocumentColorRequest::params(DocumentColorParams params)
   return *this;
 }
 
-auto DocumentColorResponse::id(std::variant<long, std::string> id)
+auto DocumentColorResponse::id(std::variant<std::int32_t, std::string> id)
     -> DocumentColorResponse& {
   return static_cast<DocumentColorResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -246,7 +248,7 @@ auto ColorPresentationRequest::method(std::string method)
   return *this;
 }
 
-auto ColorPresentationRequest::id(std::variant<long, std::string> id)
+auto ColorPresentationRequest::id(std::variant<std::int32_t, std::string> id)
     -> ColorPresentationRequest& {
   return static_cast<ColorPresentationRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -262,7 +264,7 @@ auto ColorPresentationRequest::params(ColorPresentationParams params)
   return *this;
 }
 
-auto ColorPresentationResponse::id(std::variant<long, std::string> id)
+auto ColorPresentationResponse::id(std::variant<std::int32_t, std::string> id)
     -> ColorPresentationResponse& {
   return static_cast<ColorPresentationResponse&>(
       LSPResponse::id(std::move(id)));
@@ -280,7 +282,7 @@ auto FoldingRangeRequest::method(std::string method) -> FoldingRangeRequest& {
   return *this;
 }
 
-auto FoldingRangeRequest::id(std::variant<long, std::string> id)
+auto FoldingRangeRequest::id(std::variant<std::int32_t, std::string> id)
     -> FoldingRangeRequest& {
   return static_cast<FoldingRangeRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -296,7 +298,7 @@ auto FoldingRangeRequest::params(FoldingRangeParams params)
   return *this;
 }
 
-auto FoldingRangeResponse::id(std::variant<long, std::string> id)
+auto FoldingRangeResponse::id(std::variant<std::int32_t, std::string> id)
     -> FoldingRangeResponse& {
   return static_cast<FoldingRangeResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -318,13 +320,13 @@ auto FoldingRangeRefreshRequest::method(std::string method)
   return *this;
 }
 
-auto FoldingRangeRefreshRequest::id(std::variant<long, std::string> id)
+auto FoldingRangeRefreshRequest::id(std::variant<std::int32_t, std::string> id)
     -> FoldingRangeRefreshRequest& {
   return static_cast<FoldingRangeRefreshRequest&>(
       LSPRequest::id(std::move(id)));
 }
 
-auto FoldingRangeRefreshResponse::id(std::variant<long, std::string> id)
+auto FoldingRangeRefreshResponse::id(std::variant<std::int32_t, std::string> id)
     -> FoldingRangeRefreshResponse& {
   return static_cast<FoldingRangeRefreshResponse&>(
       LSPResponse::id(std::move(id)));
@@ -342,7 +344,7 @@ auto DeclarationRequest::method(std::string method) -> DeclarationRequest& {
   return *this;
 }
 
-auto DeclarationRequest::id(std::variant<long, std::string> id)
+auto DeclarationRequest::id(std::variant<std::int32_t, std::string> id)
     -> DeclarationRequest& {
   return static_cast<DeclarationRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -358,7 +360,7 @@ auto DeclarationRequest::params(DeclarationParams params)
   return *this;
 }
 
-auto DeclarationResponse::id(std::variant<long, std::string> id)
+auto DeclarationResponse::id(std::variant<std::int32_t, std::string> id)
     -> DeclarationResponse& {
   return static_cast<DeclarationResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -380,7 +382,7 @@ auto SelectionRangeRequest::method(std::string method)
   return *this;
 }
 
-auto SelectionRangeRequest::id(std::variant<long, std::string> id)
+auto SelectionRangeRequest::id(std::variant<std::int32_t, std::string> id)
     -> SelectionRangeRequest& {
   return static_cast<SelectionRangeRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -396,7 +398,7 @@ auto SelectionRangeRequest::params(SelectionRangeParams params)
   return *this;
 }
 
-auto SelectionRangeResponse::id(std::variant<long, std::string> id)
+auto SelectionRangeResponse::id(std::variant<std::int32_t, std::string> id)
     -> SelectionRangeResponse& {
   return static_cast<SelectionRangeResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -418,7 +420,8 @@ auto WorkDoneProgressCreateRequest::method(std::string method)
   return *this;
 }
 
-auto WorkDoneProgressCreateRequest::id(std::variant<long, std::string> id)
+auto WorkDoneProgressCreateRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> WorkDoneProgressCreateRequest& {
   return static_cast<WorkDoneProgressCreateRequest&>(
       LSPRequest::id(std::move(id)));
@@ -436,7 +439,8 @@ auto WorkDoneProgressCreateRequest::params(WorkDoneProgressCreateParams params)
   return *this;
 }
 
-auto WorkDoneProgressCreateResponse::id(std::variant<long, std::string> id)
+auto WorkDoneProgressCreateResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> WorkDoneProgressCreateResponse& {
   return static_cast<WorkDoneProgressCreateResponse&>(
       LSPResponse::id(std::move(id)));
@@ -455,7 +459,7 @@ auto CallHierarchyPrepareRequest::method(std::string method)
   return *this;
 }
 
-auto CallHierarchyPrepareRequest::id(std::variant<long, std::string> id)
+auto CallHierarchyPrepareRequest::id(std::variant<std::int32_t, std::string> id)
     -> CallHierarchyPrepareRequest& {
   return static_cast<CallHierarchyPrepareRequest&>(
       LSPRequest::id(std::move(id)));
@@ -472,7 +476,8 @@ auto CallHierarchyPrepareRequest::params(CallHierarchyPrepareParams params)
   return *this;
 }
 
-auto CallHierarchyPrepareResponse::id(std::variant<long, std::string> id)
+auto CallHierarchyPrepareResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> CallHierarchyPrepareResponse& {
   return static_cast<CallHierarchyPrepareResponse&>(
       LSPResponse::id(std::move(id)));
@@ -495,7 +500,8 @@ auto CallHierarchyIncomingCallsRequest::method(std::string method)
   return *this;
 }
 
-auto CallHierarchyIncomingCallsRequest::id(std::variant<long, std::string> id)
+auto CallHierarchyIncomingCallsRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> CallHierarchyIncomingCallsRequest& {
   return static_cast<CallHierarchyIncomingCallsRequest&>(
       LSPRequest::id(std::move(id)));
@@ -514,7 +520,8 @@ auto CallHierarchyIncomingCallsRequest::params(
   return *this;
 }
 
-auto CallHierarchyIncomingCallsResponse::id(std::variant<long, std::string> id)
+auto CallHierarchyIncomingCallsResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> CallHierarchyIncomingCallsResponse& {
   return static_cast<CallHierarchyIncomingCallsResponse&>(
       LSPResponse::id(std::move(id)));
@@ -537,7 +544,8 @@ auto CallHierarchyOutgoingCallsRequest::method(std::string method)
   return *this;
 }
 
-auto CallHierarchyOutgoingCallsRequest::id(std::variant<long, std::string> id)
+auto CallHierarchyOutgoingCallsRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> CallHierarchyOutgoingCallsRequest& {
   return static_cast<CallHierarchyOutgoingCallsRequest&>(
       LSPRequest::id(std::move(id)));
@@ -556,7 +564,8 @@ auto CallHierarchyOutgoingCallsRequest::params(
   return *this;
 }
 
-auto CallHierarchyOutgoingCallsResponse::id(std::variant<long, std::string> id)
+auto CallHierarchyOutgoingCallsResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> CallHierarchyOutgoingCallsResponse& {
   return static_cast<CallHierarchyOutgoingCallsResponse&>(
       LSPResponse::id(std::move(id)));
@@ -579,7 +588,7 @@ auto SemanticTokensRequest::method(std::string method)
   return *this;
 }
 
-auto SemanticTokensRequest::id(std::variant<long, std::string> id)
+auto SemanticTokensRequest::id(std::variant<std::int32_t, std::string> id)
     -> SemanticTokensRequest& {
   return static_cast<SemanticTokensRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -595,7 +604,7 @@ auto SemanticTokensRequest::params(SemanticTokensParams params)
   return *this;
 }
 
-auto SemanticTokensResponse::id(std::variant<long, std::string> id)
+auto SemanticTokensResponse::id(std::variant<std::int32_t, std::string> id)
     -> SemanticTokensResponse& {
   return static_cast<SemanticTokensResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -617,7 +626,7 @@ auto SemanticTokensDeltaRequest::method(std::string method)
   return *this;
 }
 
-auto SemanticTokensDeltaRequest::id(std::variant<long, std::string> id)
+auto SemanticTokensDeltaRequest::id(std::variant<std::int32_t, std::string> id)
     -> SemanticTokensDeltaRequest& {
   return static_cast<SemanticTokensDeltaRequest&>(
       LSPRequest::id(std::move(id)));
@@ -634,7 +643,7 @@ auto SemanticTokensDeltaRequest::params(SemanticTokensDeltaParams params)
   return *this;
 }
 
-auto SemanticTokensDeltaResponse::id(std::variant<long, std::string> id)
+auto SemanticTokensDeltaResponse::id(std::variant<std::int32_t, std::string> id)
     -> SemanticTokensDeltaResponse& {
   return static_cast<SemanticTokensDeltaResponse&>(
       LSPResponse::id(std::move(id)));
@@ -657,7 +666,7 @@ auto SemanticTokensRangeRequest::method(std::string method)
   return *this;
 }
 
-auto SemanticTokensRangeRequest::id(std::variant<long, std::string> id)
+auto SemanticTokensRangeRequest::id(std::variant<std::int32_t, std::string> id)
     -> SemanticTokensRangeRequest& {
   return static_cast<SemanticTokensRangeRequest&>(
       LSPRequest::id(std::move(id)));
@@ -674,7 +683,7 @@ auto SemanticTokensRangeRequest::params(SemanticTokensRangeParams params)
   return *this;
 }
 
-auto SemanticTokensRangeResponse::id(std::variant<long, std::string> id)
+auto SemanticTokensRangeResponse::id(std::variant<std::int32_t, std::string> id)
     -> SemanticTokensRangeResponse& {
   return static_cast<SemanticTokensRangeResponse&>(
       LSPResponse::id(std::move(id)));
@@ -697,13 +706,15 @@ auto SemanticTokensRefreshRequest::method(std::string method)
   return *this;
 }
 
-auto SemanticTokensRefreshRequest::id(std::variant<long, std::string> id)
+auto SemanticTokensRefreshRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> SemanticTokensRefreshRequest& {
   return static_cast<SemanticTokensRefreshRequest&>(
       LSPRequest::id(std::move(id)));
 }
 
-auto SemanticTokensRefreshResponse::id(std::variant<long, std::string> id)
+auto SemanticTokensRefreshResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> SemanticTokensRefreshResponse& {
   return static_cast<SemanticTokensRefreshResponse&>(
       LSPResponse::id(std::move(id)));
@@ -721,7 +732,7 @@ auto ShowDocumentRequest::method(std::string method) -> ShowDocumentRequest& {
   return *this;
 }
 
-auto ShowDocumentRequest::id(std::variant<long, std::string> id)
+auto ShowDocumentRequest::id(std::variant<std::int32_t, std::string> id)
     -> ShowDocumentRequest& {
   return static_cast<ShowDocumentRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -737,7 +748,7 @@ auto ShowDocumentRequest::params(ShowDocumentParams params)
   return *this;
 }
 
-auto ShowDocumentResponse::id(std::variant<long, std::string> id)
+auto ShowDocumentResponse::id(std::variant<std::int32_t, std::string> id)
     -> ShowDocumentResponse& {
   return static_cast<ShowDocumentResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -754,7 +765,7 @@ auto LinkedEditingRangeRequest::method(std::string method)
   return *this;
 }
 
-auto LinkedEditingRangeRequest::id(std::variant<long, std::string> id)
+auto LinkedEditingRangeRequest::id(std::variant<std::int32_t, std::string> id)
     -> LinkedEditingRangeRequest& {
   return static_cast<LinkedEditingRangeRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -770,7 +781,7 @@ auto LinkedEditingRangeRequest::params(LinkedEditingRangeParams params)
   return *this;
 }
 
-auto LinkedEditingRangeResponse::id(std::variant<long, std::string> id)
+auto LinkedEditingRangeResponse::id(std::variant<std::int32_t, std::string> id)
     -> LinkedEditingRangeResponse& {
   return static_cast<LinkedEditingRangeResponse&>(
       LSPResponse::id(std::move(id)));
@@ -793,7 +804,7 @@ auto WillCreateFilesRequest::method(std::string method)
   return *this;
 }
 
-auto WillCreateFilesRequest::id(std::variant<long, std::string> id)
+auto WillCreateFilesRequest::id(std::variant<std::int32_t, std::string> id)
     -> WillCreateFilesRequest& {
   return static_cast<WillCreateFilesRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -809,7 +820,7 @@ auto WillCreateFilesRequest::params(CreateFilesParams params)
   return *this;
 }
 
-auto WillCreateFilesResponse::id(std::variant<long, std::string> id)
+auto WillCreateFilesResponse::id(std::variant<std::int32_t, std::string> id)
     -> WillCreateFilesResponse& {
   return static_cast<WillCreateFilesResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -831,7 +842,7 @@ auto WillRenameFilesRequest::method(std::string method)
   return *this;
 }
 
-auto WillRenameFilesRequest::id(std::variant<long, std::string> id)
+auto WillRenameFilesRequest::id(std::variant<std::int32_t, std::string> id)
     -> WillRenameFilesRequest& {
   return static_cast<WillRenameFilesRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -847,7 +858,7 @@ auto WillRenameFilesRequest::params(RenameFilesParams params)
   return *this;
 }
 
-auto WillRenameFilesResponse::id(std::variant<long, std::string> id)
+auto WillRenameFilesResponse::id(std::variant<std::int32_t, std::string> id)
     -> WillRenameFilesResponse& {
   return static_cast<WillRenameFilesResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -869,7 +880,7 @@ auto WillDeleteFilesRequest::method(std::string method)
   return *this;
 }
 
-auto WillDeleteFilesRequest::id(std::variant<long, std::string> id)
+auto WillDeleteFilesRequest::id(std::variant<std::int32_t, std::string> id)
     -> WillDeleteFilesRequest& {
   return static_cast<WillDeleteFilesRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -885,7 +896,7 @@ auto WillDeleteFilesRequest::params(DeleteFilesParams params)
   return *this;
 }
 
-auto WillDeleteFilesResponse::id(std::variant<long, std::string> id)
+auto WillDeleteFilesResponse::id(std::variant<std::int32_t, std::string> id)
     -> WillDeleteFilesResponse& {
   return static_cast<WillDeleteFilesResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -906,7 +917,8 @@ auto MonikerRequest::method(std::string method) -> MonikerRequest& {
   return *this;
 }
 
-auto MonikerRequest::id(std::variant<long, std::string> id) -> MonikerRequest& {
+auto MonikerRequest::id(std::variant<std::int32_t, std::string> id)
+    -> MonikerRequest& {
   return static_cast<MonikerRequest&>(LSPRequest::id(std::move(id)));
 }
 
@@ -920,7 +932,7 @@ auto MonikerRequest::params(MonikerParams params) -> MonikerRequest& {
   return *this;
 }
 
-auto MonikerResponse::id(std::variant<long, std::string> id)
+auto MonikerResponse::id(std::variant<std::int32_t, std::string> id)
     -> MonikerResponse& {
   return static_cast<MonikerResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -942,7 +954,7 @@ auto TypeHierarchyPrepareRequest::method(std::string method)
   return *this;
 }
 
-auto TypeHierarchyPrepareRequest::id(std::variant<long, std::string> id)
+auto TypeHierarchyPrepareRequest::id(std::variant<std::int32_t, std::string> id)
     -> TypeHierarchyPrepareRequest& {
   return static_cast<TypeHierarchyPrepareRequest&>(
       LSPRequest::id(std::move(id)));
@@ -959,7 +971,8 @@ auto TypeHierarchyPrepareRequest::params(TypeHierarchyPrepareParams params)
   return *this;
 }
 
-auto TypeHierarchyPrepareResponse::id(std::variant<long, std::string> id)
+auto TypeHierarchyPrepareResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> TypeHierarchyPrepareResponse& {
   return static_cast<TypeHierarchyPrepareResponse&>(
       LSPResponse::id(std::move(id)));
@@ -982,7 +995,8 @@ auto TypeHierarchySupertypesRequest::method(std::string method)
   return *this;
 }
 
-auto TypeHierarchySupertypesRequest::id(std::variant<long, std::string> id)
+auto TypeHierarchySupertypesRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> TypeHierarchySupertypesRequest& {
   return static_cast<TypeHierarchySupertypesRequest&>(
       LSPRequest::id(std::move(id)));
@@ -1000,7 +1014,8 @@ auto TypeHierarchySupertypesRequest::params(
   return *this;
 }
 
-auto TypeHierarchySupertypesResponse::id(std::variant<long, std::string> id)
+auto TypeHierarchySupertypesResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> TypeHierarchySupertypesResponse& {
   return static_cast<TypeHierarchySupertypesResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1023,7 +1038,8 @@ auto TypeHierarchySubtypesRequest::method(std::string method)
   return *this;
 }
 
-auto TypeHierarchySubtypesRequest::id(std::variant<long, std::string> id)
+auto TypeHierarchySubtypesRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> TypeHierarchySubtypesRequest& {
   return static_cast<TypeHierarchySubtypesRequest&>(
       LSPRequest::id(std::move(id)));
@@ -1041,7 +1057,8 @@ auto TypeHierarchySubtypesRequest::params(TypeHierarchySubtypesParams params)
   return *this;
 }
 
-auto TypeHierarchySubtypesResponse::id(std::variant<long, std::string> id)
+auto TypeHierarchySubtypesResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> TypeHierarchySubtypesResponse& {
   return static_cast<TypeHierarchySubtypesResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1063,7 +1080,7 @@ auto InlineValueRequest::method(std::string method) -> InlineValueRequest& {
   return *this;
 }
 
-auto InlineValueRequest::id(std::variant<long, std::string> id)
+auto InlineValueRequest::id(std::variant<std::int32_t, std::string> id)
     -> InlineValueRequest& {
   return static_cast<InlineValueRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1079,7 +1096,7 @@ auto InlineValueRequest::params(InlineValueParams params)
   return *this;
 }
 
-auto InlineValueResponse::id(std::variant<long, std::string> id)
+auto InlineValueResponse::id(std::variant<std::int32_t, std::string> id)
     -> InlineValueResponse& {
   return static_cast<InlineValueResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1101,12 +1118,12 @@ auto InlineValueRefreshRequest::method(std::string method)
   return *this;
 }
 
-auto InlineValueRefreshRequest::id(std::variant<long, std::string> id)
+auto InlineValueRefreshRequest::id(std::variant<std::int32_t, std::string> id)
     -> InlineValueRefreshRequest& {
   return static_cast<InlineValueRefreshRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto InlineValueRefreshResponse::id(std::variant<long, std::string> id)
+auto InlineValueRefreshResponse::id(std::variant<std::int32_t, std::string> id)
     -> InlineValueRefreshResponse& {
   return static_cast<InlineValueRefreshResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1124,7 +1141,7 @@ auto InlayHintRequest::method(std::string method) -> InlayHintRequest& {
   return *this;
 }
 
-auto InlayHintRequest::id(std::variant<long, std::string> id)
+auto InlayHintRequest::id(std::variant<std::int32_t, std::string> id)
     -> InlayHintRequest& {
   return static_cast<InlayHintRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1139,7 +1156,7 @@ auto InlayHintRequest::params(InlayHintParams params) -> InlayHintRequest& {
   return *this;
 }
 
-auto InlayHintResponse::id(std::variant<long, std::string> id)
+auto InlayHintResponse::id(std::variant<std::int32_t, std::string> id)
     -> InlayHintResponse& {
   return static_cast<InlayHintResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1161,7 +1178,7 @@ auto InlayHintResolveRequest::method(std::string method)
   return *this;
 }
 
-auto InlayHintResolveRequest::id(std::variant<long, std::string> id)
+auto InlayHintResolveRequest::id(std::variant<std::int32_t, std::string> id)
     -> InlayHintResolveRequest& {
   return static_cast<InlayHintResolveRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1177,7 +1194,7 @@ auto InlayHintResolveRequest::params(InlayHint params)
   return *this;
 }
 
-auto InlayHintResolveResponse::id(std::variant<long, std::string> id)
+auto InlayHintResolveResponse::id(std::variant<std::int32_t, std::string> id)
     -> InlayHintResolveResponse& {
   return static_cast<InlayHintResolveResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1194,12 +1211,12 @@ auto InlayHintRefreshRequest::method(std::string method)
   return *this;
 }
 
-auto InlayHintRefreshRequest::id(std::variant<long, std::string> id)
+auto InlayHintRefreshRequest::id(std::variant<std::int32_t, std::string> id)
     -> InlayHintRefreshRequest& {
   return static_cast<InlayHintRefreshRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto InlayHintRefreshResponse::id(std::variant<long, std::string> id)
+auto InlayHintRefreshResponse::id(std::variant<std::int32_t, std::string> id)
     -> InlayHintRefreshResponse& {
   return static_cast<InlayHintRefreshResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1217,7 +1234,7 @@ auto DocumentDiagnosticRequest::method(std::string method)
   return *this;
 }
 
-auto DocumentDiagnosticRequest::id(std::variant<long, std::string> id)
+auto DocumentDiagnosticRequest::id(std::variant<std::int32_t, std::string> id)
     -> DocumentDiagnosticRequest& {
   return static_cast<DocumentDiagnosticRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1233,7 +1250,7 @@ auto DocumentDiagnosticRequest::params(DocumentDiagnosticParams params)
   return *this;
 }
 
-auto DocumentDiagnosticResponse::id(std::variant<long, std::string> id)
+auto DocumentDiagnosticResponse::id(std::variant<std::int32_t, std::string> id)
     -> DocumentDiagnosticResponse& {
   return static_cast<DocumentDiagnosticResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1255,7 +1272,7 @@ auto WorkspaceDiagnosticRequest::method(std::string method)
   return *this;
 }
 
-auto WorkspaceDiagnosticRequest::id(std::variant<long, std::string> id)
+auto WorkspaceDiagnosticRequest::id(std::variant<std::int32_t, std::string> id)
     -> WorkspaceDiagnosticRequest& {
   return static_cast<WorkspaceDiagnosticRequest&>(
       LSPRequest::id(std::move(id)));
@@ -1272,7 +1289,7 @@ auto WorkspaceDiagnosticRequest::params(WorkspaceDiagnosticParams params)
   return *this;
 }
 
-auto WorkspaceDiagnosticResponse::id(std::variant<long, std::string> id)
+auto WorkspaceDiagnosticResponse::id(std::variant<std::int32_t, std::string> id)
     -> WorkspaceDiagnosticResponse& {
   return static_cast<WorkspaceDiagnosticResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1290,12 +1307,12 @@ auto DiagnosticRefreshRequest::method(std::string method)
   return *this;
 }
 
-auto DiagnosticRefreshRequest::id(std::variant<long, std::string> id)
+auto DiagnosticRefreshRequest::id(std::variant<std::int32_t, std::string> id)
     -> DiagnosticRefreshRequest& {
   return static_cast<DiagnosticRefreshRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto DiagnosticRefreshResponse::id(std::variant<long, std::string> id)
+auto DiagnosticRefreshResponse::id(std::variant<std::int32_t, std::string> id)
     -> DiagnosticRefreshResponse& {
   return static_cast<DiagnosticRefreshResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1314,7 +1331,7 @@ auto InlineCompletionRequest::method(std::string method)
   return *this;
 }
 
-auto InlineCompletionRequest::id(std::variant<long, std::string> id)
+auto InlineCompletionRequest::id(std::variant<std::int32_t, std::string> id)
     -> InlineCompletionRequest& {
   return static_cast<InlineCompletionRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1330,7 +1347,7 @@ auto InlineCompletionRequest::params(InlineCompletionParams params)
   return *this;
 }
 
-auto InlineCompletionResponse::id(std::variant<long, std::string> id)
+auto InlineCompletionResponse::id(std::variant<std::int32_t, std::string> id)
     -> InlineCompletionResponse& {
   return static_cast<InlineCompletionResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1355,7 +1372,7 @@ auto TextDocumentContentRequest::method(std::string method)
   return *this;
 }
 
-auto TextDocumentContentRequest::id(std::variant<long, std::string> id)
+auto TextDocumentContentRequest::id(std::variant<std::int32_t, std::string> id)
     -> TextDocumentContentRequest& {
   return static_cast<TextDocumentContentRequest&>(
       LSPRequest::id(std::move(id)));
@@ -1372,7 +1389,7 @@ auto TextDocumentContentRequest::params(TextDocumentContentParams params)
   return *this;
 }
 
-auto TextDocumentContentResponse::id(std::variant<long, std::string> id)
+auto TextDocumentContentResponse::id(std::variant<std::int32_t, std::string> id)
     -> TextDocumentContentResponse& {
   return static_cast<TextDocumentContentResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1390,7 +1407,8 @@ auto TextDocumentContentRefreshRequest::method(std::string method)
   return *this;
 }
 
-auto TextDocumentContentRefreshRequest::id(std::variant<long, std::string> id)
+auto TextDocumentContentRefreshRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> TextDocumentContentRefreshRequest& {
   return static_cast<TextDocumentContentRefreshRequest&>(
       LSPRequest::id(std::move(id)));
@@ -1409,7 +1427,8 @@ auto TextDocumentContentRefreshRequest::params(
   return *this;
 }
 
-auto TextDocumentContentRefreshResponse::id(std::variant<long, std::string> id)
+auto TextDocumentContentRefreshResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> TextDocumentContentRefreshResponse& {
   return static_cast<TextDocumentContentRefreshResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1427,7 +1446,7 @@ auto RegistrationRequest::method(std::string method) -> RegistrationRequest& {
   return *this;
 }
 
-auto RegistrationRequest::id(std::variant<long, std::string> id)
+auto RegistrationRequest::id(std::variant<std::int32_t, std::string> id)
     -> RegistrationRequest& {
   return static_cast<RegistrationRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1443,7 +1462,7 @@ auto RegistrationRequest::params(RegistrationParams params)
   return *this;
 }
 
-auto RegistrationResponse::id(std::variant<long, std::string> id)
+auto RegistrationResponse::id(std::variant<std::int32_t, std::string> id)
     -> RegistrationResponse& {
   return static_cast<RegistrationResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1461,7 +1480,7 @@ auto UnregistrationRequest::method(std::string method)
   return *this;
 }
 
-auto UnregistrationRequest::id(std::variant<long, std::string> id)
+auto UnregistrationRequest::id(std::variant<std::int32_t, std::string> id)
     -> UnregistrationRequest& {
   return static_cast<UnregistrationRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1477,7 +1496,7 @@ auto UnregistrationRequest::params(UnregistrationParams params)
   return *this;
 }
 
-auto UnregistrationResponse::id(std::variant<long, std::string> id)
+auto UnregistrationResponse::id(std::variant<std::int32_t, std::string> id)
     -> UnregistrationResponse& {
   return static_cast<UnregistrationResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1494,7 +1513,7 @@ auto InitializeRequest::method(std::string method) -> InitializeRequest& {
   return *this;
 }
 
-auto InitializeRequest::id(std::variant<long, std::string> id)
+auto InitializeRequest::id(std::variant<std::int32_t, std::string> id)
     -> InitializeRequest& {
   return static_cast<InitializeRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1509,7 +1528,7 @@ auto InitializeRequest::params(InitializeParams params) -> InitializeRequest& {
   return *this;
 }
 
-auto InitializeResponse::id(std::variant<long, std::string> id)
+auto InitializeResponse::id(std::variant<std::int32_t, std::string> id)
     -> InitializeResponse& {
   return static_cast<InitializeResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1525,12 +1544,12 @@ auto ShutdownRequest::method(std::string method) -> ShutdownRequest& {
   return *this;
 }
 
-auto ShutdownRequest::id(std::variant<long, std::string> id)
+auto ShutdownRequest::id(std::variant<std::int32_t, std::string> id)
     -> ShutdownRequest& {
   return static_cast<ShutdownRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto ShutdownResponse::id(std::variant<long, std::string> id)
+auto ShutdownResponse::id(std::variant<std::int32_t, std::string> id)
     -> ShutdownResponse& {
   return static_cast<ShutdownResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1547,7 +1566,7 @@ auto ShowMessageRequest::method(std::string method) -> ShowMessageRequest& {
   return *this;
 }
 
-auto ShowMessageRequest::id(std::variant<long, std::string> id)
+auto ShowMessageRequest::id(std::variant<std::int32_t, std::string> id)
     -> ShowMessageRequest& {
   return static_cast<ShowMessageRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1563,7 +1582,7 @@ auto ShowMessageRequest::params(ShowMessageRequestParams params)
   return *this;
 }
 
-auto ShowMessageResponse::id(std::variant<long, std::string> id)
+auto ShowMessageResponse::id(std::variant<std::int32_t, std::string> id)
     -> ShowMessageResponse& {
   return static_cast<ShowMessageResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1586,7 +1605,7 @@ auto WillSaveTextDocumentWaitUntilRequest::method(std::string method)
 }
 
 auto WillSaveTextDocumentWaitUntilRequest::id(
-    std::variant<long, std::string> id)
+    std::variant<std::int32_t, std::string> id)
     -> WillSaveTextDocumentWaitUntilRequest& {
   return static_cast<WillSaveTextDocumentWaitUntilRequest&>(
       LSPRequest::id(std::move(id)));
@@ -1606,7 +1625,7 @@ auto WillSaveTextDocumentWaitUntilRequest::params(
 }
 
 auto WillSaveTextDocumentWaitUntilResponse::id(
-    std::variant<long, std::string> id)
+    std::variant<std::int32_t, std::string> id)
     -> WillSaveTextDocumentWaitUntilResponse& {
   return static_cast<WillSaveTextDocumentWaitUntilResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1628,7 +1647,7 @@ auto CompletionRequest::method(std::string method) -> CompletionRequest& {
   return *this;
 }
 
-auto CompletionRequest::id(std::variant<long, std::string> id)
+auto CompletionRequest::id(std::variant<std::int32_t, std::string> id)
     -> CompletionRequest& {
   return static_cast<CompletionRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1643,7 +1662,7 @@ auto CompletionRequest::params(CompletionParams params) -> CompletionRequest& {
   return *this;
 }
 
-auto CompletionResponse::id(std::variant<long, std::string> id)
+auto CompletionResponse::id(std::variant<std::int32_t, std::string> id)
     -> CompletionResponse& {
   return static_cast<CompletionResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1665,7 +1684,7 @@ auto CompletionResolveRequest::method(std::string method)
   return *this;
 }
 
-auto CompletionResolveRequest::id(std::variant<long, std::string> id)
+auto CompletionResolveRequest::id(std::variant<std::int32_t, std::string> id)
     -> CompletionResolveRequest& {
   return static_cast<CompletionResolveRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1681,7 +1700,7 @@ auto CompletionResolveRequest::params(CompletionItem params)
   return *this;
 }
 
-auto CompletionResolveResponse::id(std::variant<long, std::string> id)
+auto CompletionResolveResponse::id(std::variant<std::int32_t, std::string> id)
     -> CompletionResolveResponse& {
   return static_cast<CompletionResolveResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1698,7 +1717,8 @@ auto HoverRequest::method(std::string method) -> HoverRequest& {
   return *this;
 }
 
-auto HoverRequest::id(std::variant<long, std::string> id) -> HoverRequest& {
+auto HoverRequest::id(std::variant<std::int32_t, std::string> id)
+    -> HoverRequest& {
   return static_cast<HoverRequest&>(LSPRequest::id(std::move(id)));
 }
 
@@ -1712,7 +1732,8 @@ auto HoverRequest::params(HoverParams params) -> HoverRequest& {
   return *this;
 }
 
-auto HoverResponse::id(std::variant<long, std::string> id) -> HoverResponse& {
+auto HoverResponse::id(std::variant<std::int32_t, std::string> id)
+    -> HoverResponse& {
   return static_cast<HoverResponse&>(LSPResponse::id(std::move(id)));
 }
 
@@ -1731,7 +1752,7 @@ auto SignatureHelpRequest::method(std::string method) -> SignatureHelpRequest& {
   return *this;
 }
 
-auto SignatureHelpRequest::id(std::variant<long, std::string> id)
+auto SignatureHelpRequest::id(std::variant<std::int32_t, std::string> id)
     -> SignatureHelpRequest& {
   return static_cast<SignatureHelpRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1747,7 +1768,7 @@ auto SignatureHelpRequest::params(SignatureHelpParams params)
   return *this;
 }
 
-auto SignatureHelpResponse::id(std::variant<long, std::string> id)
+auto SignatureHelpResponse::id(std::variant<std::int32_t, std::string> id)
     -> SignatureHelpResponse& {
   return static_cast<SignatureHelpResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1768,7 +1789,7 @@ auto DefinitionRequest::method(std::string method) -> DefinitionRequest& {
   return *this;
 }
 
-auto DefinitionRequest::id(std::variant<long, std::string> id)
+auto DefinitionRequest::id(std::variant<std::int32_t, std::string> id)
     -> DefinitionRequest& {
   return static_cast<DefinitionRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1783,7 +1804,7 @@ auto DefinitionRequest::params(DefinitionParams params) -> DefinitionRequest& {
   return *this;
 }
 
-auto DefinitionResponse::id(std::variant<long, std::string> id)
+auto DefinitionResponse::id(std::variant<std::int32_t, std::string> id)
     -> DefinitionResponse& {
   return static_cast<DefinitionResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1804,7 +1825,7 @@ auto ReferencesRequest::method(std::string method) -> ReferencesRequest& {
   return *this;
 }
 
-auto ReferencesRequest::id(std::variant<long, std::string> id)
+auto ReferencesRequest::id(std::variant<std::int32_t, std::string> id)
     -> ReferencesRequest& {
   return static_cast<ReferencesRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1819,7 +1840,7 @@ auto ReferencesRequest::params(ReferenceParams params) -> ReferencesRequest& {
   return *this;
 }
 
-auto ReferencesResponse::id(std::variant<long, std::string> id)
+auto ReferencesResponse::id(std::variant<std::int32_t, std::string> id)
     -> ReferencesResponse& {
   return static_cast<ReferencesResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1841,7 +1862,7 @@ auto DocumentHighlightRequest::method(std::string method)
   return *this;
 }
 
-auto DocumentHighlightRequest::id(std::variant<long, std::string> id)
+auto DocumentHighlightRequest::id(std::variant<std::int32_t, std::string> id)
     -> DocumentHighlightRequest& {
   return static_cast<DocumentHighlightRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1857,7 +1878,7 @@ auto DocumentHighlightRequest::params(DocumentHighlightParams params)
   return *this;
 }
 
-auto DocumentHighlightResponse::id(std::variant<long, std::string> id)
+auto DocumentHighlightResponse::id(std::variant<std::int32_t, std::string> id)
     -> DocumentHighlightResponse& {
   return static_cast<DocumentHighlightResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1880,7 +1901,7 @@ auto DocumentSymbolRequest::method(std::string method)
   return *this;
 }
 
-auto DocumentSymbolRequest::id(std::variant<long, std::string> id)
+auto DocumentSymbolRequest::id(std::variant<std::int32_t, std::string> id)
     -> DocumentSymbolRequest& {
   return static_cast<DocumentSymbolRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1896,7 +1917,7 @@ auto DocumentSymbolRequest::params(DocumentSymbolParams params)
   return *this;
 }
 
-auto DocumentSymbolResponse::id(std::variant<long, std::string> id)
+auto DocumentSymbolResponse::id(std::variant<std::int32_t, std::string> id)
     -> DocumentSymbolResponse& {
   return static_cast<DocumentSymbolResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1920,7 +1941,7 @@ auto CodeActionRequest::method(std::string method) -> CodeActionRequest& {
   return *this;
 }
 
-auto CodeActionRequest::id(std::variant<long, std::string> id)
+auto CodeActionRequest::id(std::variant<std::int32_t, std::string> id)
     -> CodeActionRequest& {
   return static_cast<CodeActionRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1935,7 +1956,7 @@ auto CodeActionRequest::params(CodeActionParams params) -> CodeActionRequest& {
   return *this;
 }
 
-auto CodeActionResponse::id(std::variant<long, std::string> id)
+auto CodeActionResponse::id(std::variant<std::int32_t, std::string> id)
     -> CodeActionResponse& {
   return static_cast<CodeActionResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -1958,7 +1979,7 @@ auto CodeActionResolveRequest::method(std::string method)
   return *this;
 }
 
-auto CodeActionResolveRequest::id(std::variant<long, std::string> id)
+auto CodeActionResolveRequest::id(std::variant<std::int32_t, std::string> id)
     -> CodeActionResolveRequest& {
   return static_cast<CodeActionResolveRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -1974,7 +1995,7 @@ auto CodeActionResolveRequest::params(CodeAction params)
   return *this;
 }
 
-auto CodeActionResolveResponse::id(std::variant<long, std::string> id)
+auto CodeActionResolveResponse::id(std::variant<std::int32_t, std::string> id)
     -> CodeActionResolveResponse& {
   return static_cast<CodeActionResolveResponse&>(
       LSPResponse::id(std::move(id)));
@@ -1992,7 +2013,7 @@ auto WorkspaceSymbolRequest::method(std::string method)
   return *this;
 }
 
-auto WorkspaceSymbolRequest::id(std::variant<long, std::string> id)
+auto WorkspaceSymbolRequest::id(std::variant<std::int32_t, std::string> id)
     -> WorkspaceSymbolRequest& {
   return static_cast<WorkspaceSymbolRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2008,7 +2029,7 @@ auto WorkspaceSymbolRequest::params(WorkspaceSymbolParams params)
   return *this;
 }
 
-auto WorkspaceSymbolResponse::id(std::variant<long, std::string> id)
+auto WorkspaceSymbolResponse::id(std::variant<std::int32_t, std::string> id)
     -> WorkspaceSymbolResponse& {
   return static_cast<WorkspaceSymbolResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -2033,7 +2054,8 @@ auto WorkspaceSymbolResolveRequest::method(std::string method)
   return *this;
 }
 
-auto WorkspaceSymbolResolveRequest::id(std::variant<long, std::string> id)
+auto WorkspaceSymbolResolveRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> WorkspaceSymbolResolveRequest& {
   return static_cast<WorkspaceSymbolResolveRequest&>(
       LSPRequest::id(std::move(id)));
@@ -2050,7 +2072,8 @@ auto WorkspaceSymbolResolveRequest::params(WorkspaceSymbol params)
   return *this;
 }
 
-auto WorkspaceSymbolResolveResponse::id(std::variant<long, std::string> id)
+auto WorkspaceSymbolResolveResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> WorkspaceSymbolResolveResponse& {
   return static_cast<WorkspaceSymbolResolveResponse&>(
       LSPResponse::id(std::move(id)));
@@ -2067,7 +2090,7 @@ auto CodeLensRequest::method(std::string method) -> CodeLensRequest& {
   return *this;
 }
 
-auto CodeLensRequest::id(std::variant<long, std::string> id)
+auto CodeLensRequest::id(std::variant<std::int32_t, std::string> id)
     -> CodeLensRequest& {
   return static_cast<CodeLensRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2082,7 +2105,7 @@ auto CodeLensRequest::params(CodeLensParams params) -> CodeLensRequest& {
   return *this;
 }
 
-auto CodeLensResponse::id(std::variant<long, std::string> id)
+auto CodeLensResponse::id(std::variant<std::int32_t, std::string> id)
     -> CodeLensResponse& {
   return static_cast<CodeLensResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -2104,7 +2127,7 @@ auto CodeLensResolveRequest::method(std::string method)
   return *this;
 }
 
-auto CodeLensResolveRequest::id(std::variant<long, std::string> id)
+auto CodeLensResolveRequest::id(std::variant<std::int32_t, std::string> id)
     -> CodeLensResolveRequest& {
   return static_cast<CodeLensResolveRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2120,7 +2143,7 @@ auto CodeLensResolveRequest::params(CodeLens params)
   return *this;
 }
 
-auto CodeLensResolveResponse::id(std::variant<long, std::string> id)
+auto CodeLensResolveResponse::id(std::variant<std::int32_t, std::string> id)
     -> CodeLensResolveResponse& {
   return static_cast<CodeLensResolveResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -2137,12 +2160,12 @@ auto CodeLensRefreshRequest::method(std::string method)
   return *this;
 }
 
-auto CodeLensRefreshRequest::id(std::variant<long, std::string> id)
+auto CodeLensRefreshRequest::id(std::variant<std::int32_t, std::string> id)
     -> CodeLensRefreshRequest& {
   return static_cast<CodeLensRefreshRequest&>(LSPRequest::id(std::move(id)));
 }
 
-auto CodeLensRefreshResponse::id(std::variant<long, std::string> id)
+auto CodeLensRefreshResponse::id(std::variant<std::int32_t, std::string> id)
     -> CodeLensRefreshResponse& {
   return static_cast<CodeLensRefreshResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -2159,7 +2182,7 @@ auto DocumentLinkRequest::method(std::string method) -> DocumentLinkRequest& {
   return *this;
 }
 
-auto DocumentLinkRequest::id(std::variant<long, std::string> id)
+auto DocumentLinkRequest::id(std::variant<std::int32_t, std::string> id)
     -> DocumentLinkRequest& {
   return static_cast<DocumentLinkRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2175,7 +2198,7 @@ auto DocumentLinkRequest::params(DocumentLinkParams params)
   return *this;
 }
 
-auto DocumentLinkResponse::id(std::variant<long, std::string> id)
+auto DocumentLinkResponse::id(std::variant<std::int32_t, std::string> id)
     -> DocumentLinkResponse& {
   return static_cast<DocumentLinkResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -2197,7 +2220,7 @@ auto DocumentLinkResolveRequest::method(std::string method)
   return *this;
 }
 
-auto DocumentLinkResolveRequest::id(std::variant<long, std::string> id)
+auto DocumentLinkResolveRequest::id(std::variant<std::int32_t, std::string> id)
     -> DocumentLinkResolveRequest& {
   return static_cast<DocumentLinkResolveRequest&>(
       LSPRequest::id(std::move(id)));
@@ -2214,7 +2237,7 @@ auto DocumentLinkResolveRequest::params(DocumentLink params)
   return *this;
 }
 
-auto DocumentLinkResolveResponse::id(std::variant<long, std::string> id)
+auto DocumentLinkResolveResponse::id(std::variant<std::int32_t, std::string> id)
     -> DocumentLinkResolveResponse& {
   return static_cast<DocumentLinkResolveResponse&>(
       LSPResponse::id(std::move(id)));
@@ -2232,7 +2255,7 @@ auto DocumentFormattingRequest::method(std::string method)
   return *this;
 }
 
-auto DocumentFormattingRequest::id(std::variant<long, std::string> id)
+auto DocumentFormattingRequest::id(std::variant<std::int32_t, std::string> id)
     -> DocumentFormattingRequest& {
   return static_cast<DocumentFormattingRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2248,7 +2271,7 @@ auto DocumentFormattingRequest::params(DocumentFormattingParams params)
   return *this;
 }
 
-auto DocumentFormattingResponse::id(std::variant<long, std::string> id)
+auto DocumentFormattingResponse::id(std::variant<std::int32_t, std::string> id)
     -> DocumentFormattingResponse& {
   return static_cast<DocumentFormattingResponse&>(
       LSPResponse::id(std::move(id)));
@@ -2271,7 +2294,8 @@ auto DocumentRangeFormattingRequest::method(std::string method)
   return *this;
 }
 
-auto DocumentRangeFormattingRequest::id(std::variant<long, std::string> id)
+auto DocumentRangeFormattingRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> DocumentRangeFormattingRequest& {
   return static_cast<DocumentRangeFormattingRequest&>(
       LSPRequest::id(std::move(id)));
@@ -2289,7 +2313,8 @@ auto DocumentRangeFormattingRequest::params(
   return *this;
 }
 
-auto DocumentRangeFormattingResponse::id(std::variant<long, std::string> id)
+auto DocumentRangeFormattingResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> DocumentRangeFormattingResponse& {
   return static_cast<DocumentRangeFormattingResponse&>(
       LSPResponse::id(std::move(id)));
@@ -2312,7 +2337,8 @@ auto DocumentRangesFormattingRequest::method(std::string method)
   return *this;
 }
 
-auto DocumentRangesFormattingRequest::id(std::variant<long, std::string> id)
+auto DocumentRangesFormattingRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> DocumentRangesFormattingRequest& {
   return static_cast<DocumentRangesFormattingRequest&>(
       LSPRequest::id(std::move(id)));
@@ -2330,7 +2356,8 @@ auto DocumentRangesFormattingRequest::params(
   return *this;
 }
 
-auto DocumentRangesFormattingResponse::id(std::variant<long, std::string> id)
+auto DocumentRangesFormattingResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> DocumentRangesFormattingResponse& {
   return static_cast<DocumentRangesFormattingResponse&>(
       LSPResponse::id(std::move(id)));
@@ -2353,7 +2380,8 @@ auto DocumentOnTypeFormattingRequest::method(std::string method)
   return *this;
 }
 
-auto DocumentOnTypeFormattingRequest::id(std::variant<long, std::string> id)
+auto DocumentOnTypeFormattingRequest::id(
+    std::variant<std::int32_t, std::string> id)
     -> DocumentOnTypeFormattingRequest& {
   return static_cast<DocumentOnTypeFormattingRequest&>(
       LSPRequest::id(std::move(id)));
@@ -2371,7 +2399,8 @@ auto DocumentOnTypeFormattingRequest::params(
   return *this;
 }
 
-auto DocumentOnTypeFormattingResponse::id(std::variant<long, std::string> id)
+auto DocumentOnTypeFormattingResponse::id(
+    std::variant<std::int32_t, std::string> id)
     -> DocumentOnTypeFormattingResponse& {
   return static_cast<DocumentOnTypeFormattingResponse&>(
       LSPResponse::id(std::move(id)));
@@ -2393,7 +2422,8 @@ auto RenameRequest::method(std::string method) -> RenameRequest& {
   return *this;
 }
 
-auto RenameRequest::id(std::variant<long, std::string> id) -> RenameRequest& {
+auto RenameRequest::id(std::variant<std::int32_t, std::string> id)
+    -> RenameRequest& {
   return static_cast<RenameRequest&>(LSPRequest::id(std::move(id)));
 }
 
@@ -2407,7 +2437,8 @@ auto RenameRequest::params(RenameParams params) -> RenameRequest& {
   return *this;
 }
 
-auto RenameResponse::id(std::variant<long, std::string> id) -> RenameResponse& {
+auto RenameResponse::id(std::variant<std::int32_t, std::string> id)
+    -> RenameResponse& {
   return static_cast<RenameResponse&>(LSPResponse::id(std::move(id)));
 }
 
@@ -2427,7 +2458,7 @@ auto PrepareRenameRequest::method(std::string method) -> PrepareRenameRequest& {
   return *this;
 }
 
-auto PrepareRenameRequest::id(std::variant<long, std::string> id)
+auto PrepareRenameRequest::id(std::variant<std::int32_t, std::string> id)
     -> PrepareRenameRequest& {
   return static_cast<PrepareRenameRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2443,7 +2474,7 @@ auto PrepareRenameRequest::params(PrepareRenameParams params)
   return *this;
 }
 
-auto PrepareRenameResponse::id(std::variant<long, std::string> id)
+auto PrepareRenameResponse::id(std::variant<std::int32_t, std::string> id)
     -> PrepareRenameResponse& {
   return static_cast<PrepareRenameResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -2465,7 +2496,7 @@ auto ExecuteCommandRequest::method(std::string method)
   return *this;
 }
 
-auto ExecuteCommandRequest::id(std::variant<long, std::string> id)
+auto ExecuteCommandRequest::id(std::variant<std::int32_t, std::string> id)
     -> ExecuteCommandRequest& {
   return static_cast<ExecuteCommandRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2481,7 +2512,7 @@ auto ExecuteCommandRequest::params(ExecuteCommandParams params)
   return *this;
 }
 
-auto ExecuteCommandResponse::id(std::variant<long, std::string> id)
+auto ExecuteCommandResponse::id(std::variant<std::int32_t, std::string> id)
     -> ExecuteCommandResponse& {
   return static_cast<ExecuteCommandResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -2503,7 +2534,7 @@ auto ApplyWorkspaceEditRequest::method(std::string method)
   return *this;
 }
 
-auto ApplyWorkspaceEditRequest::id(std::variant<long, std::string> id)
+auto ApplyWorkspaceEditRequest::id(std::variant<std::int32_t, std::string> id)
     -> ApplyWorkspaceEditRequest& {
   return static_cast<ApplyWorkspaceEditRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2519,7 +2550,7 @@ auto ApplyWorkspaceEditRequest::params(ApplyWorkspaceEditParams params)
   return *this;
 }
 
-auto ApplyWorkspaceEditResponse::id(std::variant<long, std::string> id)
+auto ApplyWorkspaceEditResponse::id(std::variant<std::int32_t, std::string> id)
     -> ApplyWorkspaceEditResponse& {
   return static_cast<ApplyWorkspaceEditResponse&>(
       LSPResponse::id(std::move(id)));
@@ -2536,7 +2567,7 @@ auto EmitCodeRequest::method(std::string method) -> EmitCodeRequest& {
   return *this;
 }
 
-auto EmitCodeRequest::id(std::variant<long, std::string> id)
+auto EmitCodeRequest::id(std::variant<std::int32_t, std::string> id)
     -> EmitCodeRequest& {
   return static_cast<EmitCodeRequest&>(LSPRequest::id(std::move(id)));
 }
@@ -2551,7 +2582,7 @@ auto EmitCodeRequest::params(EmitCodeParams params) -> EmitCodeRequest& {
   return *this;
 }
 
-auto EmitCodeResponse::id(std::variant<long, std::string> id)
+auto EmitCodeResponse::id(std::variant<std::int32_t, std::string> id)
     -> EmitCodeResponse& {
   return static_cast<EmitCodeResponse&>(LSPResponse::id(std::move(id)));
 }
@@ -2574,7 +2605,7 @@ auto DidChangeWorkspaceFoldersNotification::method(std::string method)
 }
 
 auto DidChangeWorkspaceFoldersNotification::id(
-    std::variant<long, std::string> id)
+    std::variant<std::int32_t, std::string> id)
     -> DidChangeWorkspaceFoldersNotification& {
   return static_cast<DidChangeWorkspaceFoldersNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2599,7 +2630,8 @@ auto WorkDoneProgressCancelNotification::method(std::string method)
   return *this;
 }
 
-auto WorkDoneProgressCancelNotification::id(std::variant<long, std::string> id)
+auto WorkDoneProgressCancelNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> WorkDoneProgressCancelNotification& {
   return static_cast<WorkDoneProgressCancelNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2624,7 +2656,7 @@ auto DidCreateFilesNotification::method(std::string method)
   return *this;
 }
 
-auto DidCreateFilesNotification::id(std::variant<long, std::string> id)
+auto DidCreateFilesNotification::id(std::variant<std::int32_t, std::string> id)
     -> DidCreateFilesNotification& {
   return static_cast<DidCreateFilesNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2647,7 +2679,7 @@ auto DidRenameFilesNotification::method(std::string method)
   return *this;
 }
 
-auto DidRenameFilesNotification::id(std::variant<long, std::string> id)
+auto DidRenameFilesNotification::id(std::variant<std::int32_t, std::string> id)
     -> DidRenameFilesNotification& {
   return static_cast<DidRenameFilesNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2670,7 +2702,7 @@ auto DidDeleteFilesNotification::method(std::string method)
   return *this;
 }
 
-auto DidDeleteFilesNotification::id(std::variant<long, std::string> id)
+auto DidDeleteFilesNotification::id(std::variant<std::int32_t, std::string> id)
     -> DidDeleteFilesNotification& {
   return static_cast<DidDeleteFilesNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2693,7 +2725,8 @@ auto DidOpenNotebookDocumentNotification::method(std::string method)
   return *this;
 }
 
-auto DidOpenNotebookDocumentNotification::id(std::variant<long, std::string> id)
+auto DidOpenNotebookDocumentNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> DidOpenNotebookDocumentNotification& {
   return static_cast<DidOpenNotebookDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2719,7 +2752,7 @@ auto DidChangeNotebookDocumentNotification::method(std::string method)
 }
 
 auto DidChangeNotebookDocumentNotification::id(
-    std::variant<long, std::string> id)
+    std::variant<std::int32_t, std::string> id)
     -> DidChangeNotebookDocumentNotification& {
   return static_cast<DidChangeNotebookDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2744,7 +2777,8 @@ auto DidSaveNotebookDocumentNotification::method(std::string method)
   return *this;
 }
 
-auto DidSaveNotebookDocumentNotification::id(std::variant<long, std::string> id)
+auto DidSaveNotebookDocumentNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> DidSaveNotebookDocumentNotification& {
   return static_cast<DidSaveNotebookDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2770,7 +2804,7 @@ auto DidCloseNotebookDocumentNotification::method(std::string method)
 }
 
 auto DidCloseNotebookDocumentNotification::id(
-    std::variant<long, std::string> id)
+    std::variant<std::int32_t, std::string> id)
     -> DidCloseNotebookDocumentNotification& {
   return static_cast<DidCloseNotebookDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2795,7 +2829,7 @@ auto InitializedNotification::method(std::string method)
   return *this;
 }
 
-auto InitializedNotification::id(std::variant<long, std::string> id)
+auto InitializedNotification::id(std::variant<std::int32_t, std::string> id)
     -> InitializedNotification& {
   return static_cast<InitializedNotification&>(LSPRequest::id(std::move(id)));
 }
@@ -2816,7 +2850,7 @@ auto ExitNotification::method(std::string method) -> ExitNotification& {
   return *this;
 }
 
-auto ExitNotification::id(std::variant<long, std::string> id)
+auto ExitNotification::id(std::variant<std::int32_t, std::string> id)
     -> ExitNotification& {
   return static_cast<ExitNotification&>(LSPRequest::id(std::move(id)));
 }
@@ -2827,7 +2861,8 @@ auto DidChangeConfigurationNotification::method(std::string method)
   return *this;
 }
 
-auto DidChangeConfigurationNotification::id(std::variant<long, std::string> id)
+auto DidChangeConfigurationNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> DidChangeConfigurationNotification& {
   return static_cast<DidChangeConfigurationNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2852,7 +2887,7 @@ auto ShowMessageNotification::method(std::string method)
   return *this;
 }
 
-auto ShowMessageNotification::id(std::variant<long, std::string> id)
+auto ShowMessageNotification::id(std::variant<std::int32_t, std::string> id)
     -> ShowMessageNotification& {
   return static_cast<ShowMessageNotification&>(LSPRequest::id(std::move(id)));
 }
@@ -2874,7 +2909,7 @@ auto LogMessageNotification::method(std::string method)
   return *this;
 }
 
-auto LogMessageNotification::id(std::variant<long, std::string> id)
+auto LogMessageNotification::id(std::variant<std::int32_t, std::string> id)
     -> LogMessageNotification& {
   return static_cast<LogMessageNotification&>(LSPRequest::id(std::move(id)));
 }
@@ -2896,7 +2931,7 @@ auto TelemetryEventNotification::method(std::string method)
   return *this;
 }
 
-auto TelemetryEventNotification::id(std::variant<long, std::string> id)
+auto TelemetryEventNotification::id(std::variant<std::int32_t, std::string> id)
     -> TelemetryEventNotification& {
   return static_cast<TelemetryEventNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2919,7 +2954,8 @@ auto DidOpenTextDocumentNotification::method(std::string method)
   return *this;
 }
 
-auto DidOpenTextDocumentNotification::id(std::variant<long, std::string> id)
+auto DidOpenTextDocumentNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> DidOpenTextDocumentNotification& {
   return static_cast<DidOpenTextDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2943,7 +2979,8 @@ auto DidChangeTextDocumentNotification::method(std::string method)
   return *this;
 }
 
-auto DidChangeTextDocumentNotification::id(std::variant<long, std::string> id)
+auto DidChangeTextDocumentNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> DidChangeTextDocumentNotification& {
   return static_cast<DidChangeTextDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2967,7 +3004,8 @@ auto DidCloseTextDocumentNotification::method(std::string method)
   return *this;
 }
 
-auto DidCloseTextDocumentNotification::id(std::variant<long, std::string> id)
+auto DidCloseTextDocumentNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> DidCloseTextDocumentNotification& {
   return static_cast<DidCloseTextDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -2991,7 +3029,8 @@ auto DidSaveTextDocumentNotification::method(std::string method)
   return *this;
 }
 
-auto DidSaveTextDocumentNotification::id(std::variant<long, std::string> id)
+auto DidSaveTextDocumentNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> DidSaveTextDocumentNotification& {
   return static_cast<DidSaveTextDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -3015,7 +3054,8 @@ auto WillSaveTextDocumentNotification::method(std::string method)
   return *this;
 }
 
-auto WillSaveTextDocumentNotification::id(std::variant<long, std::string> id)
+auto WillSaveTextDocumentNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> WillSaveTextDocumentNotification& {
   return static_cast<WillSaveTextDocumentNotification&>(
       LSPRequest::id(std::move(id)));
@@ -3039,7 +3079,8 @@ auto DidChangeWatchedFilesNotification::method(std::string method)
   return *this;
 }
 
-auto DidChangeWatchedFilesNotification::id(std::variant<long, std::string> id)
+auto DidChangeWatchedFilesNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> DidChangeWatchedFilesNotification& {
   return static_cast<DidChangeWatchedFilesNotification&>(
       LSPRequest::id(std::move(id)));
@@ -3063,7 +3104,8 @@ auto PublishDiagnosticsNotification::method(std::string method)
   return *this;
 }
 
-auto PublishDiagnosticsNotification::id(std::variant<long, std::string> id)
+auto PublishDiagnosticsNotification::id(
+    std::variant<std::int32_t, std::string> id)
     -> PublishDiagnosticsNotification& {
   return static_cast<PublishDiagnosticsNotification&>(
       LSPRequest::id(std::move(id)));
@@ -3086,7 +3128,7 @@ auto SetTraceNotification::method(std::string method) -> SetTraceNotification& {
   return *this;
 }
 
-auto SetTraceNotification::id(std::variant<long, std::string> id)
+auto SetTraceNotification::id(std::variant<std::int32_t, std::string> id)
     -> SetTraceNotification& {
   return static_cast<SetTraceNotification&>(LSPRequest::id(std::move(id)));
 }
@@ -3107,7 +3149,7 @@ auto LogTraceNotification::method(std::string method) -> LogTraceNotification& {
   return *this;
 }
 
-auto LogTraceNotification::id(std::variant<long, std::string> id)
+auto LogTraceNotification::id(std::variant<std::int32_t, std::string> id)
     -> LogTraceNotification& {
   return static_cast<LogTraceNotification&>(LSPRequest::id(std::move(id)));
 }
@@ -3128,7 +3170,7 @@ auto CancelNotification::method(std::string method) -> CancelNotification& {
   return *this;
 }
 
-auto CancelNotification::id(std::variant<long, std::string> id)
+auto CancelNotification::id(std::variant<std::int32_t, std::string> id)
     -> CancelNotification& {
   return static_cast<CancelNotification&>(LSPRequest::id(std::move(id)));
 }
@@ -3148,7 +3190,7 @@ auto ProgressNotification::method(std::string method) -> ProgressNotification& {
   return *this;
 }
 
-auto ProgressNotification::id(std::variant<long, std::string> id)
+auto ProgressNotification::id(std::variant<std::int32_t, std::string> id)
     -> ProgressNotification& {
   return static_cast<ProgressNotification&>(LSPRequest::id(std::move(id)));
 }

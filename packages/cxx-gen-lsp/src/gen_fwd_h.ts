@@ -20,9 +20,12 @@
 
 import * as path from "node:path";
 import type { MetaModel, Type, Request, Notification, TypeAlias } from "./MetaModel.ts";
-import { getEnumBaseType, toCppType, isRequest } from "./MetaModel.ts";
+import { getEnumBaseType, requestIdType, toCppBaseType, toCppType, isRequest } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.ts";
+
+const integerType = toCppBaseType("integer");
+const uintegerType = toCppBaseType("uinteger");
 
 const fragment = `
 
@@ -55,8 +58,8 @@ class LSPRequest : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] auto id() const -> std::optional<std::variant<long, std::string>>;
-  auto id(std::optional<std::variant<long, std::string>>) -> LSPRequest&;
+  [[nodiscard]] auto id() const -> std::optional<${requestIdType}>;
+  auto id(std::optional<${requestIdType}>) -> LSPRequest&;
 
   [[nodiscard]] auto method() const -> std::string;
 };
@@ -65,8 +68,8 @@ class LSPResponse : public LSPObject {
  public:
   using LSPObject::LSPObject;
 
-  [[nodiscard]] auto id() const -> std::optional<std::variant<long, std::string>>;
-  auto id(std::optional<std::variant<long, std::string>>) -> LSPResponse&;
+  [[nodiscard]] auto id() const -> std::optional<${requestIdType}>;
+  auto id(std::optional<${requestIdType}>) -> LSPResponse&;
 };
 
 template <typename T>
@@ -122,19 +125,19 @@ struct TryEmplace<bool> {
 };
 
 template <>
-struct TryEmplace<int> {
+struct TryEmplace<${integerType}> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result.template emplace<int>(value.get<int>());
+    result.template emplace<${integerType}>(value.get<${integerType}>());
     return true;
   }
 };
 
 template <>
-struct TryEmplace<long> {
+struct TryEmplace<${uintegerType}> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result.template emplace<long>(value.get<long>());
+    result.template emplace<${uintegerType}>(value.get<${uintegerType}>());
     return true;
   }
 };
@@ -187,7 +190,8 @@ template <>
 struct TryEmplace<TextDocumentSyncKind> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result = TextDocumentSyncKind(value.get<int>());
+    result = TextDocumentSyncKind(
+        value.get<std::underlying_type_t<TextDocumentSyncKind>>());
     return true;
   }
 };
@@ -372,6 +376,8 @@ export function gen_fwd_h({ model, outputDirectory }: { model: MetaModel; output
   emit();
   emit(`#include <cxx/lsp/json.h>`);
   emit(`#include <concepts>`);
+  emit(`#include <cstdint>`);
+  emit(`#include <type_traits>`);
   emit(`#include <variant>`);
   emit();
   emit(`namespace cxx::lsp {`);

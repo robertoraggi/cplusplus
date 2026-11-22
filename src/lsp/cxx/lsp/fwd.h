@@ -24,6 +24,8 @@
 #include <cxx/lsp/json.h>
 
 #include <concepts>
+#include <cstdint>
+#include <type_traits>
 #include <variant>
 
 namespace cxx::lsp {
@@ -31,42 +33,42 @@ namespace cxx::lsp {
 enum class SemanticTokenTypes;
 enum class SemanticTokenModifiers;
 enum class DocumentDiagnosticReportKind;
-enum class ErrorCodes : int;
-enum class LSPErrorCodes : int;
+enum class ErrorCodes : std::int32_t;
+enum class LSPErrorCodes : std::int32_t;
 enum class FoldingRangeKind;
-enum class SymbolKind : long;
-enum class SymbolTag : long;
+enum class SymbolKind : std::uint32_t;
+enum class SymbolTag : std::uint32_t;
 enum class UniquenessLevel;
 enum class MonikerKind;
-enum class InlayHintKind : long;
-enum class MessageType : long;
-enum class TextDocumentSyncKind : long;
-enum class TextDocumentSaveReason : long;
-enum class CompletionItemKind : long;
-enum class CompletionItemTag : long;
-enum class InsertTextFormat : long;
-enum class InsertTextMode : long;
-enum class DocumentHighlightKind : long;
+enum class InlayHintKind : std::uint32_t;
+enum class MessageType : std::uint32_t;
+enum class TextDocumentSyncKind : std::uint32_t;
+enum class TextDocumentSaveReason : std::uint32_t;
+enum class CompletionItemKind : std::uint32_t;
+enum class CompletionItemTag : std::uint32_t;
+enum class InsertTextFormat : std::uint32_t;
+enum class InsertTextMode : std::uint32_t;
+enum class DocumentHighlightKind : std::uint32_t;
 enum class CodeActionKind;
-enum class CodeActionTag : long;
+enum class CodeActionTag : std::uint32_t;
 enum class TraceValue;
 enum class MarkupKind;
 enum class LanguageKind;
-enum class InlineCompletionTriggerKind : long;
+enum class InlineCompletionTriggerKind : std::uint32_t;
 enum class PositionEncodingKind;
-enum class FileChangeType : long;
-enum class WatchKind : long;
-enum class DiagnosticSeverity : long;
-enum class DiagnosticTag : long;
-enum class CompletionTriggerKind : long;
-enum class ApplyKind : long;
-enum class SignatureHelpTriggerKind : long;
-enum class CodeActionTriggerKind : long;
+enum class FileChangeType : std::uint32_t;
+enum class WatchKind : std::uint32_t;
+enum class DiagnosticSeverity : std::uint32_t;
+enum class DiagnosticTag : std::uint32_t;
+enum class CompletionTriggerKind : std::uint32_t;
+enum class ApplyKind : std::uint32_t;
+enum class SignatureHelpTriggerKind : std::uint32_t;
+enum class CodeActionTriggerKind : std::uint32_t;
 enum class FileOperationPatternKind;
-enum class NotebookCellKind : long;
+enum class NotebookCellKind : std::uint32_t;
 enum class ResourceOperationKind;
 enum class FailureHandlingKind;
-enum class PrepareSupportDefaultBehavior : long;
+enum class PrepareSupportDefaultBehavior : std::uint32_t;
 enum class TokenFormat;
 enum class EmitCodeFormat;
 
@@ -659,8 +661,9 @@ class LSPRequest : public LSPObject {
   using LSPObject::LSPObject;
 
   [[nodiscard]] auto id() const
-      -> std::optional<std::variant<long, std::string>>;
-  auto id(std::optional<std::variant<long, std::string>>) -> LSPRequest&;
+      -> std::optional<std::variant<std::int32_t, std::string>>;
+  auto id(std::optional<std::variant<std::int32_t, std::string>>)
+      -> LSPRequest&;
 
   [[nodiscard]] auto method() const -> std::string;
 };
@@ -670,8 +673,9 @@ class LSPResponse : public LSPObject {
   using LSPObject::LSPObject;
 
   [[nodiscard]] auto id() const
-      -> std::optional<std::variant<long, std::string>>;
-  auto id(std::optional<std::variant<long, std::string>>) -> LSPResponse&;
+      -> std::optional<std::variant<std::int32_t, std::string>>;
+  auto id(std::optional<std::variant<std::int32_t, std::string>>)
+      -> LSPResponse&;
 };
 
 template <typename T>
@@ -733,19 +737,19 @@ struct TryEmplace<bool> {
 };
 
 template <>
-struct TryEmplace<int> {
+struct TryEmplace<std::int32_t> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result.template emplace<int>(value.get<int>());
+    result.template emplace<std::int32_t>(value.get<std::int32_t>());
     return true;
   }
 };
 
 template <>
-struct TryEmplace<long> {
+struct TryEmplace<std::uint32_t> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result.template emplace<long>(value.get<long>());
+    result.template emplace<std::uint32_t>(value.get<std::uint32_t>());
     return true;
   }
 };
@@ -798,7 +802,8 @@ template <>
 struct TryEmplace<TextDocumentSyncKind> {
   auto operator()(auto& result, json& value) const -> bool {
     if (!value.is_number_integer()) return false;
-    result = TextDocumentSyncKind(value.get<int>());
+    result = TextDocumentSyncKind(
+        value.get<std::underlying_type_t<TextDocumentSyncKind>>());
     return true;
   }
 };
@@ -929,7 +934,7 @@ using DocumentDiagnosticReportProgress =
 using PrepareRenameResult =
     std::variant<Range, PrepareRenamePlaceholder, PrepareRenameDefaultBehavior>;
 
-using ProgressToken = std::variant<long, std::string>;
+using ProgressToken = std::variant<std::int32_t, std::string>;
 
 using ChangeAnnotationIdentifier = std::string;
 

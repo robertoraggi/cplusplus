@@ -83,11 +83,11 @@ class Server {
   void operator()(LSPRequest request);
 
  private:
-  using ParserRequestId = std::variant<long, std::string>;
+  using ParserRequestId = std::variant<std::int32_t, std::string>;
   struct PendingParserRequest;
 
   [[nodiscard]] auto cancelPendingParserRequests(
-      const std::string& fileName, std::optional<long> minVersion = {})
+      const std::string& fileName, std::optional<std::int32_t> minVersion = {})
       -> std::size_t;
   [[nodiscard]] auto cancelPendingParserRequest(const ParserRequestId& id)
       -> bool;
@@ -118,7 +118,8 @@ class Server {
   void sendToClient(LSPRequest notification);
   void sendToClient(LSPResponse response);
 
-  void sendNullResult(std::optional<std::variant<long, std::string>> id);
+  void sendNullResult(
+      std::optional<std::variant<std::int32_t, std::string>> id);
 
   void sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
                        const EmitCodeOptions& options);
@@ -130,7 +131,7 @@ class Server {
         std::make_shared<PreambleCache>();
     std::string value;
     std::vector<std::size_t> lineStartOffsets;
-    std::int64_t version = 0;
+    std::int32_t version = 0;
 
     auto offsetAt(std::size_t line, std::size_t column) const -> std::size_t;
     auto completionPrefixStartAt(std::size_t line, std::size_t column) const
@@ -148,7 +149,7 @@ class Server {
   [[nodiscard]] auto snapshotDocument(const std::string& uri)
       -> std::optional<Text>;
   [[nodiscard]] auto documentVersion(const std::string& uri)
-      -> std::optional<std::int64_t>;
+      -> std::optional<std::int32_t>;
 
   struct PendingParserRequest {
     std::shared_ptr<CxxDocument> document;
