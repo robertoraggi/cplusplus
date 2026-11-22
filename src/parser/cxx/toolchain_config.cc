@@ -237,6 +237,8 @@ void applyCommandLineMacros(const CLI& cli, Preprocessor* preprocessor) {
 void addStandardIncludePaths(const CLI& cli, Toolchain* toolchain) {
   if (cli.opt_nostdinc) return;
 
+  toolchain->addCompatibilityIncludePaths();
+
   if (toolchain->language() == LanguageKind::kCXX && !cli.opt_nostdincpp) {
     if (auto paths = cli.get("-stdlib++-isystem"); !paths.empty()) {
       for (const auto& path : paths) toolchain->addSystemIncludePath(path);

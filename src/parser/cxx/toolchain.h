@@ -109,6 +109,7 @@ class Toolchain {
   void setMemoryLayout(std::unique_ptr<MemoryLayout> memoryLayout);
 
   virtual void initMemoryLayout();
+  virtual void addCompatibilityIncludePaths() {}
   virtual void addSystemIncludePaths() = 0;
   virtual void addSystemCppIncludePaths() = 0;
   virtual void addPredefinedMacros() = 0;
