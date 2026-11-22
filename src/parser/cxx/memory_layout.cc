@@ -39,6 +39,9 @@ namespace {
   return 64;
 }
 
+constexpr FloatingPointFormat kBinary128Format{.exponentBits = 15,
+                                               .significandDigits = 113};
+
 struct FloatingPointFormatOf {
   const MemoryLayout& memoryLayout;
 
@@ -72,8 +75,7 @@ struct FloatingPointFormatOf {
                                    .significandDigits = 64,
                                    .explicitIntegerBit = true};
       case 113:
-        return FloatingPointFormat{.exponentBits = 15,
-                                   .significandDigits = 113};
+        return kBinary128Format;
       default:
         return std::nullopt;
     }
@@ -81,7 +83,7 @@ struct FloatingPointFormatOf {
 
   [[nodiscard]] auto operator()(const Float128Type*) const
       -> std::optional<FloatingPointFormat> {
-    return FloatingPointFormat{.exponentBits = 15, .significandDigits = 113};
+    return kBinary128Format;
   }
 
   [[nodiscard]] auto operator()(const QualType* type) const
@@ -470,6 +472,17 @@ struct AlignmentOf {
     return memoryLayout.alignmentOf(type->elementType());
   }
 
+  auto operator()(const LongDoubleType* type) const
+      -> std::optional<std::size_t> {
+    if (memoryLayout.floatingPointFormat(type) == kBinary128Format)
+      return memoryLayout.binary128Alignment();
+    return memoryLayout.sizeOfLongDouble();
+  }
+
+  auto operator()(const Float128Type*) const -> std::optional<std::size_t> {
+    return memoryLayout.binary128Alignment();
+  }
+
   auto operator()(const MemberObjectPointerType* type) const
       -> std::optional<std::size_t> {
     return memoryLayout.sizeOfPointer();
@@ -854,6 +867,11 @@ auto MemoryLayout::isSPIRV() const -> bool {
 
 auto MemoryLayout::hasInt128Type() const -> bool {
   return ConstInt::supportsInt128 && !isSPIRV();
+}
+
+auto MemoryLayout::binary128Alignment() const -> std::size_t {
+  if (Triple{triple_}.os() == TripleOS::kEmscripten) return 8;
+  return 16;
 }
 
 auto MemoryLayout::isDarwin() const -> bool {
