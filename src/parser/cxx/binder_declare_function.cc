@@ -1323,6 +1323,7 @@ void Binder::DeclareFunction::mergeRedeclaration() {
   if (canonical->isOverride()) functionSymbol->setOverride(true);
   if (canonical->isFinal()) functionSymbol->setFinal(true);
   if (canonical->isPure()) functionSymbol->setPure(true);
+  if (canonical->isNoReturn()) functionSymbol->setNoReturn(true);
   binder.checkLanguageLinkageRedeclaration(functionSymbol, canonical,
                                            canonical->languageLinkage(),
                                            declaredLanguageLinkage());
@@ -1334,6 +1335,10 @@ void Binder::DeclareFunction::mergeRedeclaration() {
     binder.setSpeculativeValue(
         canonical->isInline(), true,
         [canonical](bool value) { canonical->setInline(value); });
+  if (functionSymbol->isNoReturn())
+    binder.setSpeculativeValue(
+        canonical->isNoReturn(), true,
+        [canonical](bool value) { canonical->setNoReturn(value); });
   if (functionSymbol->isConstexpr())
     binder.setSpeculativeValue(
         canonical->isConstexpr(), true,

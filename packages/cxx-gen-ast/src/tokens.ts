@@ -210,6 +210,7 @@ export const CXX_KEYWORDS: string[] = [
   "_Complex",
   "_Float16",
   "_Generic",
+  "_Noreturn",
 ];
 
 export const BUILTIN_TYPE_TRAITS: string[] = [

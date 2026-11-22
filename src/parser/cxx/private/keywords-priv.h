@@ -1204,6 +1204,22 @@ static inline auto classify9(const char* s, int& value) -> cxx::TokenKind {
           }
         }
       }
+    } else if (s[1] == 'N') {
+      if (s[2] == 'o') {
+        if (s[3] == 'r') {
+          if (s[4] == 'e') {
+            if (s[5] == 't') {
+              if (s[6] == 'u') {
+                if (s[7] == 'r') {
+                  if (s[8] == 'n') {
+                    return cxx::TokenKind::T__NORETURN;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
   return cxx::TokenKind::T_IDENTIFIER;
