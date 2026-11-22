@@ -147,6 +147,7 @@ void DeclSpecs::Visitor::operator()(VirtualSpecifierAST* ast) {
 }
 
 void DeclSpecs::Visitor::operator()(ExplicitSpecifierAST* ast) {
+  specs.explicitSpecifier = ast;
   if (!ast->expression) {
     specs.isExplicit = true;
     return;

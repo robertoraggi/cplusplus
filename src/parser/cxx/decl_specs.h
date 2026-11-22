@@ -95,6 +95,7 @@ class [[nodiscard]] DeclSpecs {
 
   bool isVirtual = false;
   bool isExplicit = false;
+  ExplicitSpecifierAST* explicitSpecifier = nullptr;
 
   bool isSigned = false;
   bool isUnsigned = false;

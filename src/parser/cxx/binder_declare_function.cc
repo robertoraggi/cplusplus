@@ -169,6 +169,10 @@ struct [[nodiscard]] Binder::DeclareFunction {
   void reportDifferentKindOfSymbol(ScopeSymbol* declaringScope);
   void reportMemberRedeclaration(FunctionSymbol* previous);
 
+  [[nodiscard]] auto declaresNonStaticMemberFunction() const -> bool;
+  [[nodiscard]] auto isDeclaredInItsClassDefinition() const -> bool;
+  void checkFunctionSpecifiers();
+  void checkVirtualSpecifierInRedeclaration();
   void applyVirtualFlagsFromDeclarator();
   auto enclosingClass() const -> ClassSymbol*;
   void checkVirtualSpecifierOutsideClass();
@@ -271,6 +275,7 @@ auto Binder::DeclareFunction::declare() -> FunctionSymbol* {
   }
 
   checkDeclSpecifiers();
+  checkFunctionSpecifiers();
   checkFriendDefaults();
 
   functionSymbol->setHostScope(originalScope && originalScope->isBlock()
@@ -1028,6 +1033,45 @@ auto Binder::DeclareFunction::declaredLanguageLinkage() const
   return binder.declaredLanguageLinkage(functionSymbol);
 }
 
+auto Binder::DeclareFunction::declaresNonStaticMemberFunction() const -> bool {
+  return is_class_member(functionSymbol) && !functionSymbol->isStatic();
+}
+
+auto Binder::DeclareFunction::isDeclaredInItsClassDefinition() const -> bool {
+  auto classBeingDefined = binder.classBeingDefined();
+  return classBeingDefined && functionSymbol->parent() == classBeingDefined;
+}
+
+void Binder::DeclareFunction::checkFunctionSpecifiers() {
+  if (binder.unit_->isInstantiatingTemplate()) return;
+
+  if (decl.specs.isVirtual && !declaresNonStaticMemberFunction()) {
+    binder.error(decl.location(),
+                 "'virtual' can only appear on non-static member functions");
+    functionSymbol->setVirtual(false);
+  }
+
+  if (!decl.specs.explicitSpecifier) return;
+  const auto declaresConstructorOrConversionFunction =
+      functionSymbol->isConstructor() || namesConversionFunction();
+  if (declaresConstructorOrConversionFunction &&
+      isDeclaredInItsClassDefinition())
+    return;
+  binder.error(decl.location(),
+               "'explicit' can only appear on a constructor or conversion "
+               "function declared in its class definition");
+  functionSymbol->setExplicit(false);
+}
+
+void Binder::DeclareFunction::checkVirtualSpecifierInRedeclaration() {
+  if (binder.unit_->isInstantiatingTemplate()) return;
+  if (!decl.specs.isVirtual) return;
+  if (!declaresNonStaticMemberFunction()) return;
+  binder.error(decl.location(),
+               "'virtual' can only appear in the initial declaration of a "
+               "member function");
+}
+
 void Binder::DeclareFunction::applyVirtualFlagsFromDeclarator() {
   if (!functionDeclarator) return;
   if (functionDeclarator->isOverride) functionSymbol->setOverride(true);
@@ -1284,6 +1328,8 @@ void Binder::DeclareFunction::attachFunctionParameters() {
 void Binder::DeclareFunction::mergeRedeclaration() {
   auto canonical = functionSymbol->canonical();
   if (!canonical || canonical == functionSymbol) return;
+
+  checkVirtualSpecifierInRedeclaration();
 
   {
     bool defaultArgument = functionSymbol->hasFriendDefaultArgument();

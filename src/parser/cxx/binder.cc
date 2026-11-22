@@ -5070,9 +5070,24 @@ auto Binder::declareMemberSymbol(DeclaratorAST* declarator, const Decl& decl,
 
 void Binder::checkNonFunctionSpecifiers(const DeclSpecs& specs,
                                         SourceLocation location) {
-  if (!specs.isConsteval || unit_->isInstantiatingTemplate()) return;
-  error(location,
-        "consteval can only be applied to a function or function template");
+  if (unit_->isInstantiatingTemplate()) return;
+  if (specs.isConsteval)
+    error(location,
+          "consteval can only be applied to a function or function template");
+  if (specs.isVirtual)
+    reportFunctionSpecifierOutsideFunctionDeclaration(location, "virtual");
+  if (specs.explicitSpecifier)
+    reportFunctionSpecifierOutsideFunctionDeclaration(location, "explicit");
+  if (specs.isNoreturn)
+    reportFunctionSpecifierOutsideFunctionDeclaration(location, "_Noreturn");
+  if (specs.isInline && isC())
+    reportFunctionSpecifierOutsideFunctionDeclaration(location, "inline");
+}
+
+void Binder::reportFunctionSpecifierOutsideFunctionDeclaration(
+    SourceLocation location, std::string_view specifier) {
+  error(location, std::format("'{}' can be used only in a function declaration",
+                              specifier));
 }
 
 void Binder::checkConstinitStorage(const DeclSpecs& specs, Symbol* symbol,
