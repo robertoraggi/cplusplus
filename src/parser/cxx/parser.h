@@ -650,6 +650,7 @@ class Parser final {
                                                  DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_primitive_type_specifier(SpecifierAST*& yyast,
                                                     DeclSpecs& specs) -> bool;
+  void check_target_type_availability(SourceLocation loc, TokenKind kind);
   [[nodiscard]] auto parse_size_type_specifier(SpecifierAST*& yyast,
                                                DeclSpecs& specs) -> bool;
   [[nodiscard]] auto parse_sign_type_specifier(SpecifierAST*& yyast,

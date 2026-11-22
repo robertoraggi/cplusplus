@@ -7093,6 +7093,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T___INT128_T:
     case TokenKind::T___UINT128_T:
       if constexpr (!ConstInt::supportsInt128) return false;
+      check_target_type_availability(currentLocation(), tk.kind());
       makeIntegralTypeSpecifier();
       specs.accept(yyast);
       return true;
@@ -7117,6 +7118,22 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
 
     default:
       return false;
+  }
+}
+
+void Parser::check_target_type_availability(SourceLocation loc,
+                                            TokenKind kind) {
+  const auto memoryLayout = control_->memoryLayout();
+  switch (kind) {
+    case TokenKind::T___INT128:
+    case TokenKind::T___INT128_T:
+    case TokenKind::T___UINT128_T:
+      if (memoryLayout->hasInt128Type()) return;
+      unit_->error(loc, "the target provides no 128-bit extended integer type");
+      return;
+
+    default:
+      return;
   }
 }
 
