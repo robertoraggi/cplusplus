@@ -33,7 +33,6 @@ namespace cxx {
 WindowsToolchain::WindowsToolchain(Preprocessor* preprocessor, Triple triple)
     : Toolchain(preprocessor, std::move(triple)) {
   memoryLayout()->setSizeOfLong(4);
-  memoryLayout()->setSizeOfLongLong(8);
   memoryLayout()->setSizeOfLongDouble(8, 53);
   memoryLayout()->setSizeOfPointer(8);
   memoryLayout()->setWideCharUnderlyingType(2, /*isSigned=*/false);
