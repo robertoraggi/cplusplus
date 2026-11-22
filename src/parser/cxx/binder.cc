@@ -5108,6 +5108,7 @@ void Binder::applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs) {
   symbol->setConsteval(specs.isConsteval);
   symbol->setVirtual(specs.isVirtual);
   symbol->setExplicit(specs.isExplicit);
+  if (specs.isNoreturn) symbol->setNoReturn(true);
 }
 
 void Binder::applySpecifiers(VariableSymbol* symbol, const DeclSpecs& specs) {
