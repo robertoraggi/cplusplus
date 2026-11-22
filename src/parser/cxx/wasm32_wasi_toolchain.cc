@@ -83,6 +83,14 @@ auto Wasm32WasiToolchain::libraryDir() const -> std::string {
   return std::format("{}/lib", sysroot());
 }
 
+void Wasm32WasiToolchain::addCompatibilityIncludePaths() {
+  if (triple().os() != TripleOS::kEmscripten) return;
+
+  const auto includeDir = std::format("{}/include", headerSysroot());
+  addSystemIncludePath(std::format("{}/fakesdl", includeDir));
+  addSystemIncludePath(std::format("{}/compat", includeDir));
+}
+
 void Wasm32WasiToolchain::addSystemIncludePaths() {
   addBuiltinIncludePath();
 

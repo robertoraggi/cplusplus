@@ -30,6 +30,7 @@ class Wasm32WasiToolchain final : public Toolchain {
  public:
   Wasm32WasiToolchain(Preprocessor* preprocessor, Triple triple);
 
+  void addCompatibilityIncludePaths() override;
   void addSystemIncludePaths() override;
   void addSystemCppIncludePaths() override;
   void addPredefinedMacros() override;
