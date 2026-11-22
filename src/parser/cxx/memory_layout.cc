@@ -865,6 +865,8 @@ auto MemoryLayout::isSPIRV() const -> bool {
   return target == TripleArch::kSPIRV32 || target == TripleArch::kSPIRV64;
 }
 
+auto MemoryLayout::hasFloat16Type() const -> bool { return !isWebAssembly(); }
+
 auto MemoryLayout::hasInt128Type() const -> bool {
   return ConstInt::supportsInt128 && !isSPIRV();
 }

@@ -130,6 +130,7 @@ class MemoryLayout {
   [[nodiscard]] auto isX86_64() const -> bool;
   [[nodiscard]] auto isWebAssembly() const -> bool;
   [[nodiscard]] auto isSPIRV() const -> bool;
+  [[nodiscard]] auto hasFloat16Type() const -> bool;
   [[nodiscard]] auto hasInt128Type() const -> bool;
   [[nodiscard]] auto binary128Alignment() const -> std::size_t;
   [[nodiscard]] auto isDarwin() const -> bool;

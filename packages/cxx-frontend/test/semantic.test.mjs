@@ -745,6 +745,7 @@ test("constexpr folding and reference conversions preserve written initializers"
 test("half types and exact binary16 constants retain their identity", async () => {
   const parser = await Parser.parse({
     path: "/half.cc",
+    target: "aarch64-unknown-linux-gnu",
     source: `
       __fp16 half_value;
       _Float16 float16_value;
