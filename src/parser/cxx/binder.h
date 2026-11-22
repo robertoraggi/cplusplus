@@ -394,6 +394,8 @@ class Binder {
 
   void checkNonFunctionSpecifiers(const DeclSpecs& specs,
                                   SourceLocation location);
+  void reportFunctionSpecifierOutsideFunctionDeclaration(
+      SourceLocation location, std::string_view specifier);
   void checkConstinitStorage(const DeclSpecs& specs, Symbol* symbol,
                              SourceLocation location);
   void applySpecifiers(FunctionSymbol* symbol, const DeclSpecs& specs);
