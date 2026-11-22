@@ -917,6 +917,10 @@ auto Parser::parse_literal(ExpressionAST*& yyast) -> bool {
       else
         ast->type = control_->getDoubleType();
 
+      if (components.suffix ==
+          FloatLiteral::Components::FloatingPointSuffix::kF16)
+        check_target_type_availability(ast->literalLoc, TokenKind::T__FLOAT16);
+
       return true;
     }
 
@@ -7104,6 +7108,7 @@ auto Parser::parse_primitive_type_specifier(SpecifierAST*& yyast,
     case TokenKind::T__FLOAT16:
     case TokenKind::T___FLOAT80:
     case TokenKind::T___FLOAT128:
+      check_target_type_availability(currentLocation(), tk.kind());
       makeFloatingPointTypeSpecifier();
       specs.accept(yyast);
       return true;
@@ -7130,6 +7135,11 @@ void Parser::check_target_type_availability(SourceLocation loc,
     case TokenKind::T___UINT128_T:
       if (memoryLayout->hasInt128Type()) return;
       unit_->error(loc, "the target provides no 128-bit extended integer type");
+      return;
+
+    case TokenKind::T__FLOAT16:
+      if (memoryLayout->hasFloat16Type()) return;
+      unit_->error(loc, "the target provides no _Float16 type");
       return;
 
     default:
