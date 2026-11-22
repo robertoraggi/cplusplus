@@ -62,6 +62,9 @@ struct FloatingPointFormat {
   int significandDigits = 0;
   bool explicitIntegerBit = false;
 
+  friend auto operator==(const FloatingPointFormat&, const FloatingPointFormat&)
+      -> bool = default;
+
   [[nodiscard]] auto fractionBits() const -> int;
   [[nodiscard]] auto maxExponent() const -> int;
   [[nodiscard]] auto representsInteger(std::intmax_t value) const -> bool;
@@ -128,6 +131,7 @@ class MemoryLayout {
   [[nodiscard]] auto isWebAssembly() const -> bool;
   [[nodiscard]] auto isSPIRV() const -> bool;
   [[nodiscard]] auto hasInt128Type() const -> bool;
+  [[nodiscard]] auto binary128Alignment() const -> std::size_t;
   [[nodiscard]] auto isDarwin() const -> bool;
   [[nodiscard]] auto usesArmMemberPointerAbi() const -> bool;
   [[nodiscard]] auto unnamedBitFieldAlignsAggregate() const -> bool;
