@@ -370,6 +370,7 @@ void Toolchain::addCommonMacros() {
   defineMacro("__LITTLE_ENDIAN__", "1");
   defineMacro("__LLONG_WIDTH__", "64");
   defineMacro("__LONG_LONG_MAX__", "9223372036854775807LL");
+  defineMacro("__MEMORY_SCOPE_CLUSTR", "5");
   defineMacro("__MEMORY_SCOPE_DEVICE", "1");
   defineMacro("__MEMORY_SCOPE_SINGLE", "4");
   defineMacro("__MEMORY_SCOPE_SYSTEM", "0");
@@ -388,6 +389,7 @@ void Toolchain::addCommonMacros() {
   defineMacro("__SCHAR_MAX__", "127");
   defineMacro("__SHRT_MAX__", "32767");
   defineMacro("__SHRT_WIDTH__", "16");
+  defineMacro("__SIG_ATOMIC_MIN__", "(-__SIG_ATOMIC_MAX__ - 1)");
   defineMacro("__SIG_ATOMIC_WIDTH__", "32");
   defineMacro("__SIZEOF_DOUBLE__", "8");
   defineMacro("__SIZEOF_FLOAT__", "4");
@@ -707,6 +709,7 @@ void Toolchain::addCommonLinuxMacros() {
   defineMacro("__PTRDIFF_TYPE__", "long int");
   defineMacro("__PTRDIFF_WIDTH__", "64");
   defineMacro("__SIG_ATOMIC_MAX__", "2147483647");
+  defineMacro("__SIG_ATOMIC_TYPE__", "int");
   defineMacro("__SIZEOF_LONG_DOUBLE__", "16");
   defineMacro("__SIZEOF_LONG__", "8");
   defineMacro("__SIZEOF_POINTER__", "8");
@@ -761,6 +764,7 @@ void Toolchain::addCommonLinuxMacros() {
   defineMacro("__USER_LABEL_PREFIX__", "");
   defineMacro("__WCHAR_WIDTH__", "32");
   defineMacro("__WINT_MAX__", "4294967295U");
+  defineMacro("__WINT_MIN__", "0U");
   defineMacro("__WINT_TYPE__", "unsigned int");
   defineMacro("__WINT_UNSIGNED__", "1");
   defineMacro("__WINT_WIDTH__", "32");
@@ -870,6 +874,7 @@ void Toolchain::addCommonMacOSMacros() {
   defineMacro("__PTRDIFF_WIDTH__", "64");
   defineMacro("__REGISTER_PREFIX__", "");
   defineMacro("__SIG_ATOMIC_MAX__", "2147483647");
+  defineMacro("__SIG_ATOMIC_TYPE__", "int");
   defineMacro("__SIZEOF_LONG__", "8");
   defineMacro("__SIZEOF_POINTER__", "8");
   defineMacro("__SIZEOF_PTRDIFF_T__", "8");
@@ -924,9 +929,11 @@ void Toolchain::addCommonMacOSMacros() {
   defineMacro("__UINT_LEAST64_TYPE__", "long long unsigned int");
   defineMacro("__USER_LABEL_PREFIX__", "_");
   defineMacro("__WCHAR_MAX__", "2147483647");
+  defineMacro("__WCHAR_MIN__", "(-__WCHAR_MAX__ - 1)");
   defineMacro("__WCHAR_TYPE__", "int");
   defineMacro("__WCHAR_WIDTH__", "32");
   defineMacro("__WINT_MAX__", "2147483647");
+  defineMacro("__WINT_MIN__", "(-__WINT_MAX__ - 1)");
   defineMacro("__WINT_TYPE__", "int");
   defineMacro("__WINT_WIDTH__", "32");
   defineMacro("__clang_wide_literal_encoding__", "\"UTF-32\"");
@@ -1017,6 +1024,7 @@ void Toolchain::addCommonWindowsMacros() {
   defineMacro("__PTRDIFF_TYPE__", "long long int");
   defineMacro("__PTRDIFF_WIDTH__", "64");
   defineMacro("__SIG_ATOMIC_MAX__", "2147483647");
+  defineMacro("__SIG_ATOMIC_TYPE__", "int");
   defineMacro("__SIZEOF_LONG_DOUBLE__", "8");
   defineMacro("__SIZEOF_LONG__", "4");
   defineMacro("__SIZEOF_POINTER__", "8");
@@ -1069,10 +1077,12 @@ void Toolchain::addCommonWindowsMacros() {
   defineMacro("__UINT_LEAST64_TYPE__", "long long unsigned int");
   defineMacro("__USER_LABEL_PREFIX__", "");
   defineMacro("__WCHAR_MAX__", "65535");
+  defineMacro("__WCHAR_MIN__", "0");
   defineMacro("__WCHAR_TYPE__", "unsigned short");
   defineMacro("__WCHAR_UNSIGNED__", "1");
   defineMacro("__WCHAR_WIDTH__", "16");
   defineMacro("__WINT_MAX__", "65535");
+  defineMacro("__WINT_MIN__", "0");
   defineMacro("__WINT_TYPE__", "unsigned short");
   defineMacro("__WINT_UNSIGNED__", "1");
   defineMacro("__WINT_WIDTH__", "16");
@@ -1152,6 +1162,7 @@ void Toolchain::addCommonWASIMacros() {
   defineMacro("__PTRDIFF_TYPE__", "long int");
   defineMacro("__PTRDIFF_WIDTH__", "32");
   defineMacro("__SIG_ATOMIC_MAX__", "2147483647L");
+  defineMacro("__SIG_ATOMIC_TYPE__", "long int");
   defineMacro("__SIZEOF_LONG_DOUBLE__", "16");
   defineMacro("__SIZEOF_LONG__", "4");
   defineMacro("__SIZEOF_POINTER__", "4");
@@ -1205,9 +1216,11 @@ void Toolchain::addCommonWASIMacros() {
   defineMacro("__UINT_LEAST64_TYPE__", "long long unsigned int");
   defineMacro("__USER_LABEL_PREFIX__", "");
   defineMacro("__WCHAR_MAX__", "2147483647");
+  defineMacro("__WCHAR_MIN__", "(-__WCHAR_MAX__ - 1)");
   defineMacro("__WCHAR_TYPE__", "int");
   defineMacro("__WCHAR_WIDTH__", "32");
   defineMacro("__WINT_MAX__", "2147483647");
+  defineMacro("__WINT_MIN__", "(-__WINT_MAX__ - 1)");
   defineMacro("__WINT_TYPE__", "int");
   defineMacro("__WINT_WIDTH__", "32");
   defineMacro("__clang_wide_literal_encoding__", "\"UTF-32\"");
@@ -1268,6 +1281,7 @@ void Toolchain::addLinuxAArch64Macros() {
   defineMacro("__LDBL_NORM_MAX__",
               "1.18973149535723176508575932662800702e+4932L");
   defineMacro("__WCHAR_MAX__", "4294967295U");
+  defineMacro("__WCHAR_MIN__", "0U");
   defineMacro("__WCHAR_TYPE__", "unsigned int");
   defineMacro("__WCHAR_UNSIGNED__", "1");
 }
@@ -1295,6 +1309,7 @@ void Toolchain::addLinuxX86_64Macros() {
   defineMacro("__SSE_MATH__", "1");
   defineMacro("__SSE__", "1");
   defineMacro("__WCHAR_MAX__", "2147483647");
+  defineMacro("__WCHAR_MIN__", "(-__WCHAR_MAX__ - 1)");
   defineMacro("__WCHAR_TYPE__", "int");
   defineMacro("__amd64", "1");
   defineMacro("__amd64__", "1");
