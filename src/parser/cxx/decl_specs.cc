@@ -38,21 +38,6 @@
 
 namespace cxx {
 
-namespace {
-
-[[nodiscard]] auto isInt128Specifier(TokenKind kind) -> bool {
-  switch (kind) {
-    case TokenKind::T___INT128:
-    case TokenKind::T___INT128_T:
-    case TokenKind::T___UINT128_T:
-      return true;
-    default:
-      return false;
-  }
-}
-
-}  // namespace
-
 struct DeclSpecs::Visitor {
   DeclSpecs& specs;
 
@@ -374,12 +359,6 @@ void DeclSpecs::Visitor::operator()(IntegralTypeSpecifierAST* ast) {
     default:
       break;
   }
-
-  if (isInt128Specifier(ast->specifier) &&
-      !control()->memoryLayout()->hasInt128Type())
-    specs.translationUnit()->error(ast->specifierLoc,
-                                   "the target provides no 128-bit extended "
-                                   "integer type");
 }
 
 void DeclSpecs::Visitor::operator()(FloatingPointTypeSpecifierAST* ast) {
