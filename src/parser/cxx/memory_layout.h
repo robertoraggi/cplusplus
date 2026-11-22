@@ -100,7 +100,6 @@ class MemoryLayout {
 
   void setSizeOfPointer(std::size_t sizeOfPointer);
   void setSizeOfLong(std::size_t sizeOfLong);
-  void setSizeOfLongLong(std::size_t sizeOfLongLong);
   void setSizeOfLongDouble(std::size_t sizeOfLongDouble,
                            std::size_t mantissaDigits);
   void setWideCharUnderlyingType(std::size_t size, bool isSigned);

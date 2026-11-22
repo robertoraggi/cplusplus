@@ -573,7 +573,7 @@ template <typename Float>
 MemoryLayout::MemoryLayout(std::size_t bits) : bits_(bits) {
   sizeOfPointer_ = bits / 8;
   sizeOfLong_ = bits / 8;
-  sizeOfLongLong_ = sizeOfLong_;
+  sizeOfLongLong_ = 8;
   sizeOfLongDouble_ = 8;
   longDoubleMantissaDigits_ = 53;
 }
@@ -595,7 +595,6 @@ MemoryLayout::MemoryLayout(const Triple& triple)
   setTriple(triple.str());
   if (isSPIRV()) {
     setSizeOfLong(8);
-    setSizeOfLongLong(8);
     setSizeOfLongDouble(8, 53);
     setDefaultNewAlignment(8);
   }
@@ -637,10 +636,6 @@ void MemoryLayout::setSizeOfPointer(std::size_t sizeOfPointer) {
 
 void MemoryLayout::setSizeOfLong(std::size_t sizeOfLong) {
   sizeOfLong_ = sizeOfLong;
-}
-
-void MemoryLayout::setSizeOfLongLong(std::size_t sizeOfLongLong) {
-  sizeOfLongLong_ = sizeOfLongLong;
 }
 
 void MemoryLayout::setSizeOfLongDouble(std::size_t sizeOfLongDouble,

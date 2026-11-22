@@ -53,7 +53,6 @@ Wasm32WasiToolchain::Wasm32WasiToolchain(Preprocessor* preprocessor,
     : Toolchain(preprocessor, std::move(triple)) {
   setMemoryLayout(std::make_unique<MemoryLayout>(32));
   memoryLayout()->setSizeOfLongDouble(16, 113);
-  memoryLayout()->setSizeOfLongLong(8);
   memoryLayout()->setWideCharUnderlyingType(4, /*isSigned=*/true);
   memoryLayout()->setDefaultNewAlignment(defaultNewAlignment(this->triple()));
   memoryLayout()->setTriple(this->triple().str());
