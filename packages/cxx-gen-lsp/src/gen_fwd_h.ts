@@ -160,7 +160,10 @@ struct TryEmplace<std::string> {
 template <typename... Ts>
 struct TryEmplace<std::variant<Ts...>> {
   auto operator()(auto& result, json& value) const -> bool {
-    return try_emplace(result, value);
+    auto alternative = std::variant<Ts...>{};
+    if (!try_emplace(alternative, value)) return false;
+    result.template emplace<std::variant<Ts...>>(std::move(alternative));
+    return true;
   }
 };
 
