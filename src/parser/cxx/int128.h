@@ -33,13 +33,22 @@ namespace cxx {
 class Int128;
 
 class UInt128 {
+  template <std::integral T>
+  [[nodiscard]] static constexpr auto extended_high_word(T value)
+      -> std::uint64_t {
+    if constexpr (std::is_signed_v<T>) {
+      if (value < 0) return ~std::uint64_t{0};
+    }
+    return 0;
+  }
+
  public:
   constexpr UInt128() = default;
 
   template <std::integral T>
   constexpr UInt128(T value)
       : low_(static_cast<std::uint64_t>(value)),
-        high_(std::is_signed_v<T> && value < 0 ? ~std::uint64_t{0} : 0) {}
+        high_(extended_high_word(value)) {}
 
   template <std::floating_point T>
   explicit UInt128(T value) {
