@@ -130,24 +130,27 @@ void Toolchain::addSPIRVMacros() {
   defineMacro("__USER_LABEL_PREFIX__", "");
   defineMacro("__STDC__", "1");
   if (definesStrictAnsi()) defineMacro("__STRICT_ANSI__", "1");
-  if (language() == LanguageKind::kCXX)
-    defineMacro("__STDCPP_DEFAULT_NEW_ALIGNMENT__",
-                std::format("{}U", memoryLayout()->defaultNewAlignment()));
 
   std::string signedType = "int";
   std::string unsignedType = "unsigned int";
   std::string signedMax = "2147483647";
   std::string unsignedMax = "4294967295U";
+  std::string unsignedSuffix = "U";
   std::string formatPrefix;
   if (bits == 64) {
     signedType = "long int";
     unsignedType = "long unsigned int";
     signedMax = "9223372036854775807L";
     unsignedMax = "18446744073709551615UL";
+    unsignedSuffix = "UL";
     formatPrefix = "l";
     defineMacro("__LP64__", "1");
     defineMacro("_LP64", "1");
   }
+  if (language() == LanguageKind::kCXX)
+    defineMacro("__STDCPP_DEFAULT_NEW_ALIGNMENT__",
+                std::format("{}{}", memoryLayout()->defaultNewAlignment(),
+                            unsignedSuffix));
   defineMacro("__SIZE_TYPE__", unsignedType);
   defineMacro("__SIZE_MAX__", unsignedMax);
   defineMacro("__SIZE_WIDTH__", std::to_string(bits));
