@@ -20,7 +20,7 @@
 
 import * as path from "node:path";
 import type { MetaModel, Request, Notification, Structure } from "./MetaModel.ts";
-import { toCppType, isRequest } from "./MetaModel.ts";
+import { requestIdType, toCppType, isRequest } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.ts";
 
@@ -72,7 +72,7 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
     emit(`  using LSPRequest::method;`);
     emit();
     emit(`  auto method(std::string method) -> ${typeName}&;`);
-    emit(`  auto id(std::variant<long, std::string> id) -> ${typeName}&;`);
+    emit(`  auto id(${requestIdType} id) -> ${typeName}&;`);
 
     if (request.params) {
       const paramsType = toCppType(request.params);
@@ -96,7 +96,7 @@ export function gen_requests_h({ model, outputDirectory }: { model: MetaModel; o
       emit(`  using LSPResponse::id;`);
       emit(`  using Result = ${resultType};`);
       emit();
-      emit(`  auto id(std::variant<long, std::string> id) -> ${responseTypeName}&;`);
+      emit(`  auto id(${requestIdType} id) -> ${responseTypeName}&;`);
       emit();
 
       const structure: Structure = {

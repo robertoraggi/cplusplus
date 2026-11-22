@@ -59,11 +59,11 @@ class CxxDocument {
 
   std::shared_ptr<PreambleCache> preambleCache;
 
-  CxxDocument(std::string fileName, long version);
+  CxxDocument(std::string fileName, std::int32_t version);
   ~CxxDocument();
 
   [[nodiscard]] auto fileName() const -> const std::string&;
-  [[nodiscard]] auto version() const -> long;
+  [[nodiscard]] auto version() const -> std::int32_t;
 
   [[nodiscard]] auto isCancelled() const -> bool;
   void cancel();
@@ -91,7 +91,8 @@ class CxxDocument {
   void requestSignatureHelpAt(std::uint32_t line, std::uint32_t column,
                               SignatureHelp result);
 
-  void semanticTokens(std::optional<Range> range, Vector<long> result) const;
+  void semanticTokens(std::optional<Range> range,
+                      Vector<std::uint32_t> result) const;
 
   [[nodiscard]] auto hoverAt(std::size_t offset, Hover result) const -> bool;
 

@@ -840,40 +840,40 @@ FoldingRange::operator bool() const {
   return true;
 }
 
-auto FoldingRange::startLine() const -> long {
+auto FoldingRange::startLine() const -> std::uint32_t {
   auto& value = (*repr_)["startLine"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
-auto FoldingRange::startCharacter() const -> std::optional<long> {
+auto FoldingRange::startCharacter() const -> std::optional<std::uint32_t> {
   if (!repr_->contains("startCharacter")) return std::nullopt;
 
   auto& value = (*repr_)["startCharacter"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
-auto FoldingRange::endLine() const -> long {
+auto FoldingRange::endLine() const -> std::uint32_t {
   auto& value = (*repr_)["endLine"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
-auto FoldingRange::endCharacter() const -> std::optional<long> {
+auto FoldingRange::endCharacter() const -> std::optional<std::uint32_t> {
   if (!repr_->contains("endCharacter")) return std::nullopt;
 
   auto& value = (*repr_)["endCharacter"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto FoldingRange::kind() const -> std::optional<FoldingRangeKind> {
@@ -899,12 +899,12 @@ auto FoldingRange::collapsedText() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
-auto FoldingRange::startLine(long startLine) -> FoldingRange& {
+auto FoldingRange::startLine(std::uint32_t startLine) -> FoldingRange& {
   (*repr_)["startLine"] = std::move(startLine);
   return *this;
 }
 
-auto FoldingRange::startCharacter(std::optional<long> startCharacter)
+auto FoldingRange::startCharacter(std::optional<std::uint32_t> startCharacter)
     -> FoldingRange& {
   if (!startCharacter.has_value()) {
     repr_->erase("startCharacter");
@@ -914,12 +914,12 @@ auto FoldingRange::startCharacter(std::optional<long> startCharacter)
   return *this;
 }
 
-auto FoldingRange::endLine(long endLine) -> FoldingRange& {
+auto FoldingRange::endLine(std::uint32_t endLine) -> FoldingRange& {
   (*repr_)["endLine"] = std::move(endLine);
   return *this;
 }
 
-auto FoldingRange::endCharacter(std::optional<long> endCharacter)
+auto FoldingRange::endCharacter(std::optional<std::uint32_t> endCharacter)
     -> FoldingRange& {
   if (!endCharacter.has_value()) {
     repr_->erase("endCharacter");
@@ -1501,7 +1501,7 @@ auto CallHierarchyItem::name() const -> std::string {
 auto CallHierarchyItem::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return static_cast<SymbolKind>(value.get<long>());
+  return static_cast<SymbolKind>(value.get<std::uint32_t>());
 }
 
 auto CallHierarchyItem::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -1558,7 +1558,7 @@ auto CallHierarchyItem::name(std::string name) -> CallHierarchyItem& {
 }
 
 auto CallHierarchyItem::kind(SymbolKind kind) -> CallHierarchyItem& {
-  (*repr_)["kind"] = static_cast<long>(kind);
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind);
   return *this;
 }
 
@@ -1971,11 +1971,11 @@ auto SemanticTokens::resultId() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
-auto SemanticTokens::data() const -> Vector<long> {
+auto SemanticTokens::data() const -> Vector<std::uint32_t> {
   auto& value = (*repr_)["data"];
 
   if (value.is_null()) value = json::array();
-  return Vector<long>(value);
+  return Vector<std::uint32_t>(value);
 }
 
 auto SemanticTokens::resultId(std::optional<std::string> resultId)
@@ -1988,7 +1988,7 @@ auto SemanticTokens::resultId(std::optional<std::string> resultId)
   return *this;
 }
 
-auto SemanticTokens::data(Vector<long> data) -> SemanticTokens& {
+auto SemanticTokens::data(Vector<std::uint32_t> data) -> SemanticTokens& {
   (*repr_)["data"] = std::move(data);
   return *this;
 }
@@ -1999,14 +1999,14 @@ SemanticTokensPartialResult::operator bool() const {
   return true;
 }
 
-auto SemanticTokensPartialResult::data() const -> Vector<long> {
+auto SemanticTokensPartialResult::data() const -> Vector<std::uint32_t> {
   auto& value = (*repr_)["data"];
 
   if (value.is_null()) value = json::array();
-  return Vector<long>(value);
+  return Vector<std::uint32_t>(value);
 }
 
-auto SemanticTokensPartialResult::data(Vector<long> data)
+auto SemanticTokensPartialResult::data(Vector<std::uint32_t> data)
     -> SemanticTokensPartialResult& {
   (*repr_)["data"] = std::move(data);
   return *this;
@@ -3097,7 +3097,7 @@ auto TypeHierarchyItem::name() const -> std::string {
 auto TypeHierarchyItem::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return static_cast<SymbolKind>(value.get<long>());
+  return static_cast<SymbolKind>(value.get<std::uint32_t>());
 }
 
 auto TypeHierarchyItem::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -3154,7 +3154,7 @@ auto TypeHierarchyItem::name(std::string name) -> TypeHierarchyItem& {
 }
 
 auto TypeHierarchyItem::kind(SymbolKind kind) -> TypeHierarchyItem& {
-  (*repr_)["kind"] = static_cast<long>(kind);
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind);
   return *this;
 }
 
@@ -3693,7 +3693,7 @@ auto InlayHint::kind() const -> std::optional<InlayHintKind> {
 
   auto& value = (*repr_)["kind"];
 
-  return static_cast<InlayHintKind>(value.get<long>());
+  return static_cast<InlayHintKind>(value.get<std::uint32_t>());
 }
 
 auto InlayHint::textEdits() const -> std::optional<Vector<TextEdit>> {
@@ -3774,7 +3774,7 @@ auto InlayHint::kind(std::optional<InlayHintKind> kind) -> InlayHint& {
     repr_->erase("kind");
     return *this;
   }
-  (*repr_)["kind"] = static_cast<long>(kind.value());
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind.value());
   return *this;
 }
 
@@ -4956,10 +4956,11 @@ InitializeParams::operator bool() const {
   return true;
 }
 
-auto InitializeParams::processId() const -> std::variant<long, std::nullptr_t> {
+auto InitializeParams::processId() const
+    -> std::variant<std::int32_t, std::nullptr_t> {
   auto& value = (*repr_)["processId"];
 
-  std::variant<long, std::nullptr_t> result;
+  std::variant<std::int32_t, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -5061,12 +5062,12 @@ auto InitializeParams::workspaceFolders() const
   return result;
 }
 
-auto InitializeParams::processId(std::variant<long, std::nullptr_t> processId)
-    -> InitializeParams& {
+auto InitializeParams::processId(
+    std::variant<std::int32_t, std::nullptr_t> processId) -> InitializeParams& {
   struct {
     json* repr_;
 
-    void operator()(long processId) {
+    void operator()(std::int32_t processId) {
       (*repr_)["processId"] = std::move(processId);
     }
 
@@ -5339,7 +5340,7 @@ ShowMessageParams::operator bool() const {
 auto ShowMessageParams::type() const -> MessageType {
   auto& value = (*repr_)["type"];
 
-  return static_cast<MessageType>(value.get<long>());
+  return static_cast<MessageType>(value.get<std::uint32_t>());
 }
 
 auto ShowMessageParams::message() const -> std::string {
@@ -5351,7 +5352,7 @@ auto ShowMessageParams::message() const -> std::string {
 }
 
 auto ShowMessageParams::type(MessageType type) -> ShowMessageParams& {
-  (*repr_)["type"] = static_cast<long>(type);
+  (*repr_)["type"] = static_cast<std::uint32_t>(type);
   return *this;
 }
 
@@ -5370,7 +5371,7 @@ ShowMessageRequestParams::operator bool() const {
 auto ShowMessageRequestParams::type() const -> MessageType {
   auto& value = (*repr_)["type"];
 
-  return static_cast<MessageType>(value.get<long>());
+  return static_cast<MessageType>(value.get<std::uint32_t>());
 }
 
 auto ShowMessageRequestParams::message() const -> std::string {
@@ -5393,7 +5394,7 @@ auto ShowMessageRequestParams::actions() const
 
 auto ShowMessageRequestParams::type(MessageType type)
     -> ShowMessageRequestParams& {
-  (*repr_)["type"] = static_cast<long>(type);
+  (*repr_)["type"] = static_cast<std::uint32_t>(type);
   return *this;
 }
 
@@ -5443,7 +5444,7 @@ LogMessageParams::operator bool() const {
 auto LogMessageParams::type() const -> MessageType {
   auto& value = (*repr_)["type"];
 
-  return static_cast<MessageType>(value.get<long>());
+  return static_cast<MessageType>(value.get<std::uint32_t>());
 }
 
 auto LogMessageParams::message() const -> std::string {
@@ -5455,7 +5456,7 @@ auto LogMessageParams::message() const -> std::string {
 }
 
 auto LogMessageParams::type(MessageType type) -> LogMessageParams& {
-  (*repr_)["type"] = static_cast<long>(type);
+  (*repr_)["type"] = static_cast<std::uint32_t>(type);
   return *this;
 }
 
@@ -5568,7 +5569,7 @@ auto TextDocumentChangeRegistrationOptions::syncKind() const
     -> TextDocumentSyncKind {
   auto& value = (*repr_)["syncKind"];
 
-  return static_cast<TextDocumentSyncKind>(value.get<long>());
+  return static_cast<TextDocumentSyncKind>(value.get<std::uint32_t>());
 }
 
 auto TextDocumentChangeRegistrationOptions::documentSelector() const
@@ -5584,7 +5585,7 @@ auto TextDocumentChangeRegistrationOptions::documentSelector() const
 
 auto TextDocumentChangeRegistrationOptions::syncKind(
     TextDocumentSyncKind syncKind) -> TextDocumentChangeRegistrationOptions& {
-  (*repr_)["syncKind"] = static_cast<long>(syncKind);
+  (*repr_)["syncKind"] = static_cast<std::uint32_t>(syncKind);
   return *this;
 }
 
@@ -5744,7 +5745,7 @@ auto WillSaveTextDocumentParams::textDocument() const
 auto WillSaveTextDocumentParams::reason() const -> TextDocumentSaveReason {
   auto& value = (*repr_)["reason"];
 
-  return static_cast<TextDocumentSaveReason>(value.get<long>());
+  return static_cast<TextDocumentSaveReason>(value.get<std::uint32_t>());
 }
 
 auto WillSaveTextDocumentParams::textDocument(
@@ -5755,7 +5756,7 @@ auto WillSaveTextDocumentParams::textDocument(
 
 auto WillSaveTextDocumentParams::reason(TextDocumentSaveReason reason)
     -> WillSaveTextDocumentParams& {
-  (*repr_)["reason"] = static_cast<long>(reason);
+  (*repr_)["reason"] = static_cast<std::uint32_t>(reason);
   return *this;
 }
 
@@ -5845,14 +5846,14 @@ auto PublishDiagnosticsParams::uri() const -> std::string {
   return value.get<std::string>();
 }
 
-auto PublishDiagnosticsParams::version() const -> std::optional<long> {
+auto PublishDiagnosticsParams::version() const -> std::optional<std::int32_t> {
   if (!repr_->contains("version")) return std::nullopt;
 
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<int>();
+  return value.get<std::int32_t>();
 }
 
 auto PublishDiagnosticsParams::diagnostics() const -> Vector<Diagnostic> {
@@ -5868,7 +5869,7 @@ auto PublishDiagnosticsParams::uri(std::string uri)
   return *this;
 }
 
-auto PublishDiagnosticsParams::version(std::optional<long> version)
+auto PublishDiagnosticsParams::version(std::optional<std::int32_t> version)
     -> PublishDiagnosticsParams& {
   if (!version.has_value()) {
     repr_->erase("version");
@@ -6006,7 +6007,7 @@ auto CompletionItem::kind() const -> std::optional<CompletionItemKind> {
 
   auto& value = (*repr_)["kind"];
 
-  return static_cast<CompletionItemKind>(value.get<long>());
+  return static_cast<CompletionItemKind>(value.get<std::uint32_t>());
 }
 
 auto CompletionItem::tags() const -> std::optional<Vector<CompletionItemTag>> {
@@ -6097,7 +6098,7 @@ auto CompletionItem::insertTextFormat() const
 
   auto& value = (*repr_)["insertTextFormat"];
 
-  return static_cast<InsertTextFormat>(value.get<long>());
+  return static_cast<InsertTextFormat>(value.get<std::uint32_t>());
 }
 
 auto CompletionItem::insertTextMode() const -> std::optional<InsertTextMode> {
@@ -6105,7 +6106,7 @@ auto CompletionItem::insertTextMode() const -> std::optional<InsertTextMode> {
 
   auto& value = (*repr_)["insertTextMode"];
 
-  return static_cast<InsertTextMode>(value.get<long>());
+  return static_cast<InsertTextMode>(value.get<std::uint32_t>());
 }
 
 auto CompletionItem::textEdit() const
@@ -6189,7 +6190,7 @@ auto CompletionItem::kind(std::optional<CompletionItemKind> kind)
     repr_->erase("kind");
     return *this;
   }
-  (*repr_)["kind"] = static_cast<long>(kind.value());
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind.value());
   return *this;
 }
 
@@ -6294,7 +6295,8 @@ auto CompletionItem::insertTextFormat(
     repr_->erase("insertTextFormat");
     return *this;
   }
-  (*repr_)["insertTextFormat"] = static_cast<long>(insertTextFormat.value());
+  (*repr_)["insertTextFormat"] =
+      static_cast<std::uint32_t>(insertTextFormat.value());
   return *this;
 }
 
@@ -6304,7 +6306,8 @@ auto CompletionItem::insertTextMode(
     repr_->erase("insertTextMode");
     return *this;
   }
-  (*repr_)["insertTextMode"] = static_cast<long>(insertTextMode.value());
+  (*repr_)["insertTextMode"] =
+      static_cast<std::uint32_t>(insertTextMode.value());
   return *this;
 }
 
@@ -6844,23 +6847,23 @@ auto SignatureHelp::signatures() const -> Vector<SignatureInformation> {
   return Vector<SignatureInformation>(value);
 }
 
-auto SignatureHelp::activeSignature() const -> std::optional<long> {
+auto SignatureHelp::activeSignature() const -> std::optional<std::uint32_t> {
   if (!repr_->contains("activeSignature")) return std::nullopt;
 
   auto& value = (*repr_)["activeSignature"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto SignatureHelp::activeParameter() const
-    -> std::optional<std::variant<long, std::nullptr_t>> {
+    -> std::optional<std::variant<std::uint32_t, std::nullptr_t>> {
   if (!repr_->contains("activeParameter")) return std::nullopt;
 
   auto& value = (*repr_)["activeParameter"];
 
-  std::variant<long, std::nullptr_t> result;
+  std::variant<std::uint32_t, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -6873,8 +6876,8 @@ auto SignatureHelp::signatures(Vector<SignatureInformation> signatures)
   return *this;
 }
 
-auto SignatureHelp::activeSignature(std::optional<long> activeSignature)
-    -> SignatureHelp& {
+auto SignatureHelp::activeSignature(
+    std::optional<std::uint32_t> activeSignature) -> SignatureHelp& {
   if (!activeSignature.has_value()) {
     repr_->erase("activeSignature");
     return *this;
@@ -6884,7 +6887,7 @@ auto SignatureHelp::activeSignature(std::optional<long> activeSignature)
 }
 
 auto SignatureHelp::activeParameter(
-    std::optional<std::variant<long, std::nullptr_t>> activeParameter)
+    std::optional<std::variant<std::uint32_t, std::nullptr_t>> activeParameter)
     -> SignatureHelp& {
   if (!activeParameter.has_value()) {
     repr_->erase("activeParameter");
@@ -6894,7 +6897,7 @@ auto SignatureHelp::activeParameter(
   struct {
     json* repr_;
 
-    void operator()(long activeParameter) {
+    void operator()(std::uint32_t activeParameter) {
       (*repr_)["activeParameter"] = std::move(activeParameter);
     }
 
@@ -7390,7 +7393,7 @@ auto DocumentHighlight::kind() const -> std::optional<DocumentHighlightKind> {
 
   auto& value = (*repr_)["kind"];
 
-  return static_cast<DocumentHighlightKind>(value.get<long>());
+  return static_cast<DocumentHighlightKind>(value.get<std::uint32_t>());
 }
 
 auto DocumentHighlight::range(Range range) -> DocumentHighlight& {
@@ -7404,7 +7407,7 @@ auto DocumentHighlight::kind(std::optional<DocumentHighlightKind> kind)
     repr_->erase("kind");
     return *this;
   }
-  (*repr_)["kind"] = static_cast<long>(kind.value());
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind.value());
   return *this;
 }
 
@@ -7569,7 +7572,7 @@ auto SymbolInformation::name() const -> std::string {
 auto SymbolInformation::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return static_cast<SymbolKind>(value.get<long>());
+  return static_cast<SymbolKind>(value.get<std::uint32_t>());
 }
 
 auto SymbolInformation::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -7612,7 +7615,7 @@ auto SymbolInformation::name(std::string name) -> SymbolInformation& {
 }
 
 auto SymbolInformation::kind(SymbolKind kind) -> SymbolInformation& {
-  (*repr_)["kind"] = static_cast<long>(kind);
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind);
   return *this;
 }
 
@@ -7666,7 +7669,7 @@ auto DocumentSymbol::detail() const -> std::optional<std::string> {
 auto DocumentSymbol::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return static_cast<SymbolKind>(value.get<long>());
+  return static_cast<SymbolKind>(value.get<std::uint32_t>());
 }
 
 auto DocumentSymbol::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -7725,7 +7728,7 @@ auto DocumentSymbol::detail(std::optional<std::string> detail)
 }
 
 auto DocumentSymbol::kind(SymbolKind kind) -> DocumentSymbol& {
-  (*repr_)["kind"] = static_cast<long>(kind);
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind);
   return *this;
 }
 
@@ -8406,7 +8409,7 @@ auto WorkspaceSymbol::name() const -> std::string {
 auto WorkspaceSymbol::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return static_cast<SymbolKind>(value.get<long>());
+  return static_cast<SymbolKind>(value.get<std::uint32_t>());
 }
 
 auto WorkspaceSymbol::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -8460,7 +8463,7 @@ auto WorkspaceSymbol::name(std::string name) -> WorkspaceSymbol& {
 }
 
 auto WorkspaceSymbol::kind(SymbolKind kind) -> WorkspaceSymbol& {
-  (*repr_)["kind"] = static_cast<long>(kind);
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind);
   return *this;
 }
 
@@ -9809,14 +9812,15 @@ auto ApplyWorkspaceEditResult::failureReason() const
   return value.get<std::string>();
 }
 
-auto ApplyWorkspaceEditResult::failedChange() const -> std::optional<long> {
+auto ApplyWorkspaceEditResult::failedChange() const
+    -> std::optional<std::uint32_t> {
   if (!repr_->contains("failedChange")) return std::nullopt;
 
   auto& value = (*repr_)["failedChange"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto ApplyWorkspaceEditResult::applied(bool applied)
@@ -9835,8 +9839,8 @@ auto ApplyWorkspaceEditResult::failureReason(
   return *this;
 }
 
-auto ApplyWorkspaceEditResult::failedChange(std::optional<long> failedChange)
-    -> ApplyWorkspaceEditResult& {
+auto ApplyWorkspaceEditResult::failedChange(
+    std::optional<std::uint32_t> failedChange) -> ApplyWorkspaceEditResult& {
   if (!failedChange.has_value()) {
     repr_->erase("failedChange");
     return *this;
@@ -9889,14 +9893,14 @@ auto WorkDoneProgressBegin::message() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
-auto WorkDoneProgressBegin::percentage() const -> std::optional<long> {
+auto WorkDoneProgressBegin::percentage() const -> std::optional<std::uint32_t> {
   if (!repr_->contains("percentage")) return std::nullopt;
 
   auto& value = (*repr_)["percentage"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto WorkDoneProgressBegin::kind(std::string kind) -> WorkDoneProgressBegin& {
@@ -9929,7 +9933,7 @@ auto WorkDoneProgressBegin::message(std::optional<std::string> message)
   return *this;
 }
 
-auto WorkDoneProgressBegin::percentage(std::optional<long> percentage)
+auto WorkDoneProgressBegin::percentage(std::optional<std::uint32_t> percentage)
     -> WorkDoneProgressBegin& {
   if (!percentage.has_value()) {
     repr_->erase("percentage");
@@ -9974,14 +9978,15 @@ auto WorkDoneProgressReport::message() const -> std::optional<std::string> {
   return value.get<std::string>();
 }
 
-auto WorkDoneProgressReport::percentage() const -> std::optional<long> {
+auto WorkDoneProgressReport::percentage() const
+    -> std::optional<std::uint32_t> {
   if (!repr_->contains("percentage")) return std::nullopt;
 
   auto& value = (*repr_)["percentage"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto WorkDoneProgressReport::kind(std::string kind) -> WorkDoneProgressReport& {
@@ -10009,7 +10014,7 @@ auto WorkDoneProgressReport::message(std::optional<std::string> message)
   return *this;
 }
 
-auto WorkDoneProgressReport::percentage(std::optional<long> percentage)
+auto WorkDoneProgressReport::percentage(std::optional<std::uint32_t> percentage)
     -> WorkDoneProgressReport& {
   if (!percentage.has_value()) {
     repr_->erase("percentage");
@@ -10126,21 +10131,22 @@ CancelParams::operator bool() const {
   return true;
 }
 
-auto CancelParams::id() const -> std::variant<long, std::string> {
+auto CancelParams::id() const -> std::variant<std::int32_t, std::string> {
   auto& value = (*repr_)["id"];
 
-  std::variant<long, std::string> result;
+  std::variant<std::int32_t, std::string> result;
 
   details::try_emplace(result, value);
 
   return result;
 }
 
-auto CancelParams::id(std::variant<long, std::string> id) -> CancelParams& {
+auto CancelParams::id(std::variant<std::int32_t, std::string> id)
+    -> CancelParams& {
   struct {
     json* repr_;
 
-    void operator()(long id) { (*repr_)["id"] = std::move(id); }
+    void operator()(std::int32_t id) { (*repr_)["id"] = std::move(id); }
 
     void operator()(std::string id) { (*repr_)["id"] = std::move(id); }
   } v{repr_};
@@ -10680,28 +10686,28 @@ Position::operator bool() const {
   return true;
 }
 
-auto Position::line() const -> long {
+auto Position::line() const -> std::uint32_t {
   auto& value = (*repr_)["line"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
-auto Position::character() const -> long {
+auto Position::character() const -> std::uint32_t {
   auto& value = (*repr_)["character"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
-auto Position::line(long line) -> Position& {
+auto Position::line(std::uint32_t line) -> Position& {
   (*repr_)["line"] = std::move(line);
   return *this;
 }
 
-auto Position::character(long character) -> Position& {
+auto Position::character(std::uint32_t character) -> Position& {
   (*repr_)["character"] = std::move(character);
   return *this;
 }
@@ -10870,42 +10876,43 @@ SemanticTokensEdit::operator bool() const {
   return true;
 }
 
-auto SemanticTokensEdit::start() const -> long {
+auto SemanticTokensEdit::start() const -> std::uint32_t {
   auto& value = (*repr_)["start"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
-auto SemanticTokensEdit::deleteCount() const -> long {
+auto SemanticTokensEdit::deleteCount() const -> std::uint32_t {
   auto& value = (*repr_)["deleteCount"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
-auto SemanticTokensEdit::data() const -> std::optional<Vector<long>> {
+auto SemanticTokensEdit::data() const -> std::optional<Vector<std::uint32_t>> {
   if (!repr_->contains("data")) return std::nullopt;
 
   auto& value = (*repr_)["data"];
 
   if (value.is_null()) value = json::array();
-  return Vector<long>(value);
+  return Vector<std::uint32_t>(value);
 }
 
-auto SemanticTokensEdit::start(long start) -> SemanticTokensEdit& {
+auto SemanticTokensEdit::start(std::uint32_t start) -> SemanticTokensEdit& {
   (*repr_)["start"] = std::move(start);
   return *this;
 }
 
-auto SemanticTokensEdit::deleteCount(long deleteCount) -> SemanticTokensEdit& {
+auto SemanticTokensEdit::deleteCount(std::uint32_t deleteCount)
+    -> SemanticTokensEdit& {
   (*repr_)["deleteCount"] = std::move(deleteCount);
   return *this;
 }
 
-auto SemanticTokensEdit::data(std::optional<Vector<long>> data)
+auto SemanticTokensEdit::data(std::optional<Vector<std::uint32_t>> data)
     -> SemanticTokensEdit& {
   if (!data.has_value()) {
     repr_->erase("data");
@@ -11435,12 +11442,12 @@ InlineValueContext::operator bool() const {
   return true;
 }
 
-auto InlineValueContext::frameId() const -> long {
+auto InlineValueContext::frameId() const -> std::int32_t {
   auto& value = (*repr_)["frameId"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<int>();
+  return value.get<std::int32_t>();
 }
 
 auto InlineValueContext::stoppedLocation() const -> Range {
@@ -11449,7 +11456,7 @@ auto InlineValueContext::stoppedLocation() const -> Range {
   return Range(value);
 }
 
-auto InlineValueContext::frameId(long frameId) -> InlineValueContext& {
+auto InlineValueContext::frameId(std::int32_t frameId) -> InlineValueContext& {
   (*repr_)["frameId"] = std::move(frameId);
   return *this;
 }
@@ -12095,12 +12102,12 @@ auto NotebookDocument::notebookType() const -> std::string {
   return value.get<std::string>();
 }
 
-auto NotebookDocument::version() const -> long {
+auto NotebookDocument::version() const -> std::int32_t {
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<int>();
+  return value.get<std::int32_t>();
 }
 
 auto NotebookDocument::metadata() const -> std::optional<LSPObject> {
@@ -12130,7 +12137,7 @@ auto NotebookDocument::notebookType(std::string notebookType)
   return *this;
 }
 
-auto NotebookDocument::version(long version) -> NotebookDocument& {
+auto NotebookDocument::version(std::int32_t version) -> NotebookDocument& {
   (*repr_)["version"] = std::move(version);
   return *this;
 }
@@ -12178,12 +12185,12 @@ auto TextDocumentItem::languageId() const -> LanguageKind {
   lsp_runtime_error("invalid value for LanguageKind enumeration");
 }
 
-auto TextDocumentItem::version() const -> long {
+auto TextDocumentItem::version() const -> std::int32_t {
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<int>();
+  return value.get<std::int32_t>();
 }
 
 auto TextDocumentItem::text() const -> std::string {
@@ -12205,7 +12212,7 @@ auto TextDocumentItem::languageId(LanguageKind languageId)
   return *this;
 }
 
-auto TextDocumentItem::version(long version) -> TextDocumentItem& {
+auto TextDocumentItem::version(std::int32_t version) -> TextDocumentItem& {
   (*repr_)["version"] = std::move(version);
   return *this;
 }
@@ -12266,12 +12273,12 @@ VersionedNotebookDocumentIdentifier::operator bool() const {
   return true;
 }
 
-auto VersionedNotebookDocumentIdentifier::version() const -> long {
+auto VersionedNotebookDocumentIdentifier::version() const -> std::int32_t {
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<int>();
+  return value.get<std::int32_t>();
 }
 
 auto VersionedNotebookDocumentIdentifier::uri() const -> std::string {
@@ -12282,7 +12289,7 @@ auto VersionedNotebookDocumentIdentifier::uri() const -> std::string {
   return value.get<std::string>();
 }
 
-auto VersionedNotebookDocumentIdentifier::version(long version)
+auto VersionedNotebookDocumentIdentifier::version(std::int32_t version)
     -> VersionedNotebookDocumentIdentifier& {
   (*repr_)["version"] = std::move(version);
   return *this;
@@ -12369,7 +12376,7 @@ auto InlineCompletionContext::triggerKind() const
     -> InlineCompletionTriggerKind {
   auto& value = (*repr_)["triggerKind"];
 
-  return static_cast<InlineCompletionTriggerKind>(value.get<long>());
+  return static_cast<InlineCompletionTriggerKind>(value.get<std::uint32_t>());
 }
 
 auto InlineCompletionContext::selectedCompletionInfo() const
@@ -12383,7 +12390,7 @@ auto InlineCompletionContext::selectedCompletionInfo() const
 
 auto InlineCompletionContext::triggerKind(
     InlineCompletionTriggerKind triggerKind) -> InlineCompletionContext& {
-  (*repr_)["triggerKind"] = static_cast<long>(triggerKind);
+  (*repr_)["triggerKind"] = static_cast<std::uint32_t>(triggerKind);
   return *this;
 }
 
@@ -12570,10 +12577,10 @@ _InitializeParams::operator bool() const {
 }
 
 auto _InitializeParams::processId() const
-    -> std::variant<long, std::nullptr_t> {
+    -> std::variant<std::int32_t, std::nullptr_t> {
   auto& value = (*repr_)["processId"];
 
-  std::variant<long, std::nullptr_t> result;
+  std::variant<std::int32_t, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -12662,12 +12669,13 @@ auto _InitializeParams::workDoneToken() const -> std::optional<ProgressToken> {
   return result;
 }
 
-auto _InitializeParams::processId(std::variant<long, std::nullptr_t> processId)
+auto _InitializeParams::processId(
+    std::variant<std::int32_t, std::nullptr_t> processId)
     -> _InitializeParams& {
   struct {
     json* repr_;
 
-    void operator()(long processId) {
+    void operator()(std::int32_t processId) {
       (*repr_)["processId"] = std::move(processId);
     }
 
@@ -13312,7 +13320,8 @@ auto ServerCapabilities::textDocumentSync(
     }
 
     void operator()(TextDocumentSyncKind textDocumentSync) {
-      (*repr_)["textDocumentSync"] = static_cast<long>(textDocumentSync);
+      (*repr_)["textDocumentSync"] =
+          static_cast<std::uint32_t>(textDocumentSync);
     }
   } v{repr_};
 
@@ -14174,12 +14183,12 @@ VersionedTextDocumentIdentifier::operator bool() const {
   return true;
 }
 
-auto VersionedTextDocumentIdentifier::version() const -> long {
+auto VersionedTextDocumentIdentifier::version() const -> std::int32_t {
   auto& value = (*repr_)["version"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<int>();
+  return value.get<std::int32_t>();
 }
 
 auto VersionedTextDocumentIdentifier::uri() const -> std::string {
@@ -14190,7 +14199,7 @@ auto VersionedTextDocumentIdentifier::uri() const -> std::string {
   return value.get<std::string>();
 }
 
-auto VersionedTextDocumentIdentifier::version(long version)
+auto VersionedTextDocumentIdentifier::version(std::int32_t version)
     -> VersionedTextDocumentIdentifier& {
   (*repr_)["version"] = std::move(version);
   return *this;
@@ -14244,7 +14253,7 @@ auto FileEvent::uri() const -> std::string {
 auto FileEvent::type() const -> FileChangeType {
   auto& value = (*repr_)["type"];
 
-  return static_cast<FileChangeType>(value.get<long>());
+  return static_cast<FileChangeType>(value.get<std::uint32_t>());
 }
 
 auto FileEvent::uri(std::string uri) -> FileEvent& {
@@ -14253,7 +14262,7 @@ auto FileEvent::uri(std::string uri) -> FileEvent& {
 }
 
 auto FileEvent::type(FileChangeType type) -> FileEvent& {
-  (*repr_)["type"] = static_cast<long>(type);
+  (*repr_)["type"] = static_cast<std::uint32_t>(type);
   return *this;
 }
 
@@ -14278,7 +14287,7 @@ auto FileSystemWatcher::kind() const -> std::optional<WatchKind> {
 
   auto& value = (*repr_)["kind"];
 
-  return static_cast<WatchKind>(value.get<long>());
+  return static_cast<WatchKind>(value.get<std::uint32_t>());
 }
 
 auto FileSystemWatcher::globPattern(GlobPattern globPattern)
@@ -14293,7 +14302,7 @@ auto FileSystemWatcher::kind(std::optional<WatchKind> kind)
     repr_->erase("kind");
     return *this;
   }
-  (*repr_)["kind"] = static_cast<long>(kind.value());
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind.value());
   return *this;
 }
 
@@ -14315,16 +14324,16 @@ auto Diagnostic::severity() const -> std::optional<DiagnosticSeverity> {
 
   auto& value = (*repr_)["severity"];
 
-  return static_cast<DiagnosticSeverity>(value.get<long>());
+  return static_cast<DiagnosticSeverity>(value.get<std::uint32_t>());
 }
 
 auto Diagnostic::code() const
-    -> std::optional<std::variant<long, std::string>> {
+    -> std::optional<std::variant<std::int32_t, std::string>> {
   if (!repr_->contains("code")) return std::nullopt;
 
   auto& value = (*repr_)["code"];
 
-  std::variant<long, std::string> result;
+  std::variant<std::int32_t, std::string> result;
 
   details::try_emplace(result, value);
 
@@ -14398,11 +14407,12 @@ auto Diagnostic::severity(std::optional<DiagnosticSeverity> severity)
     repr_->erase("severity");
     return *this;
   }
-  (*repr_)["severity"] = static_cast<long>(severity.value());
+  (*repr_)["severity"] = static_cast<std::uint32_t>(severity.value());
   return *this;
 }
 
-auto Diagnostic::code(std::optional<std::variant<long, std::string>> code)
+auto Diagnostic::code(
+    std::optional<std::variant<std::int32_t, std::string>> code)
     -> Diagnostic& {
   if (!code.has_value()) {
     repr_->erase("code");
@@ -14412,7 +14422,7 @@ auto Diagnostic::code(std::optional<std::variant<long, std::string>> code)
   struct {
     json* repr_;
 
-    void operator()(long code) { (*repr_)["code"] = std::move(code); }
+    void operator()(std::int32_t code) { (*repr_)["code"] = std::move(code); }
 
     void operator()(std::string code) { (*repr_)["code"] = std::move(code); }
   } v{repr_};
@@ -14497,7 +14507,7 @@ CompletionContext::operator bool() const {
 auto CompletionContext::triggerKind() const -> CompletionTriggerKind {
   auto& value = (*repr_)["triggerKind"];
 
-  return static_cast<CompletionTriggerKind>(value.get<long>());
+  return static_cast<CompletionTriggerKind>(value.get<std::uint32_t>());
 }
 
 auto CompletionContext::triggerCharacter() const -> std::optional<std::string> {
@@ -14512,7 +14522,7 @@ auto CompletionContext::triggerCharacter() const -> std::optional<std::string> {
 
 auto CompletionContext::triggerKind(CompletionTriggerKind triggerKind)
     -> CompletionContext& {
-  (*repr_)["triggerKind"] = static_cast<long>(triggerKind);
+  (*repr_)["triggerKind"] = static_cast<std::uint32_t>(triggerKind);
   return *this;
 }
 
@@ -14649,7 +14659,7 @@ auto CompletionItemDefaults::insertTextFormat() const
 
   auto& value = (*repr_)["insertTextFormat"];
 
-  return static_cast<InsertTextFormat>(value.get<long>());
+  return static_cast<InsertTextFormat>(value.get<std::uint32_t>());
 }
 
 auto CompletionItemDefaults::insertTextMode() const
@@ -14658,7 +14668,7 @@ auto CompletionItemDefaults::insertTextMode() const
 
   auto& value = (*repr_)["insertTextMode"];
 
-  return static_cast<InsertTextMode>(value.get<long>());
+  return static_cast<InsertTextMode>(value.get<std::uint32_t>());
 }
 
 auto CompletionItemDefaults::data() const -> std::optional<LSPAny> {
@@ -14711,7 +14721,8 @@ auto CompletionItemDefaults::insertTextFormat(
     repr_->erase("insertTextFormat");
     return *this;
   }
-  (*repr_)["insertTextFormat"] = static_cast<long>(insertTextFormat.value());
+  (*repr_)["insertTextFormat"] =
+      static_cast<std::uint32_t>(insertTextFormat.value());
   return *this;
 }
 
@@ -14721,7 +14732,8 @@ auto CompletionItemDefaults::insertTextMode(
     repr_->erase("insertTextMode");
     return *this;
   }
-  (*repr_)["insertTextMode"] = static_cast<long>(insertTextMode.value());
+  (*repr_)["insertTextMode"] =
+      static_cast<std::uint32_t>(insertTextMode.value());
   return *this;
 }
 
@@ -14746,7 +14758,7 @@ auto CompletionItemApplyKinds::commitCharacters() const
 
   auto& value = (*repr_)["commitCharacters"];
 
-  return static_cast<ApplyKind>(value.get<long>());
+  return static_cast<ApplyKind>(value.get<std::uint32_t>());
 }
 
 auto CompletionItemApplyKinds::data() const -> std::optional<ApplyKind> {
@@ -14754,7 +14766,7 @@ auto CompletionItemApplyKinds::data() const -> std::optional<ApplyKind> {
 
   auto& value = (*repr_)["data"];
 
-  return static_cast<ApplyKind>(value.get<long>());
+  return static_cast<ApplyKind>(value.get<std::uint32_t>());
 }
 
 auto CompletionItemApplyKinds::commitCharacters(
@@ -14763,7 +14775,8 @@ auto CompletionItemApplyKinds::commitCharacters(
     repr_->erase("commitCharacters");
     return *this;
   }
-  (*repr_)["commitCharacters"] = static_cast<long>(commitCharacters.value());
+  (*repr_)["commitCharacters"] =
+      static_cast<std::uint32_t>(commitCharacters.value());
   return *this;
 }
 
@@ -14773,7 +14786,7 @@ auto CompletionItemApplyKinds::data(std::optional<ApplyKind> data)
     repr_->erase("data");
     return *this;
   }
-  (*repr_)["data"] = static_cast<long>(data.value());
+  (*repr_)["data"] = static_cast<std::uint32_t>(data.value());
   return *this;
 }
 
@@ -14919,7 +14932,7 @@ SignatureHelpContext::operator bool() const {
 auto SignatureHelpContext::triggerKind() const -> SignatureHelpTriggerKind {
   auto& value = (*repr_)["triggerKind"];
 
-  return static_cast<SignatureHelpTriggerKind>(value.get<long>());
+  return static_cast<SignatureHelpTriggerKind>(value.get<std::uint32_t>());
 }
 
 auto SignatureHelpContext::triggerCharacter() const
@@ -14952,7 +14965,7 @@ auto SignatureHelpContext::activeSignatureHelp() const
 
 auto SignatureHelpContext::triggerKind(SignatureHelpTriggerKind triggerKind)
     -> SignatureHelpContext& {
-  (*repr_)["triggerKind"] = static_cast<long>(triggerKind);
+  (*repr_)["triggerKind"] = static_cast<std::uint32_t>(triggerKind);
   return *this;
 }
 
@@ -15020,12 +15033,12 @@ auto SignatureInformation::parameters() const
 }
 
 auto SignatureInformation::activeParameter() const
-    -> std::optional<std::variant<long, std::nullptr_t>> {
+    -> std::optional<std::variant<std::uint32_t, std::nullptr_t>> {
   if (!repr_->contains("activeParameter")) return std::nullopt;
 
   auto& value = (*repr_)["activeParameter"];
 
-  std::variant<long, std::nullptr_t> result;
+  std::variant<std::uint32_t, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -15074,7 +15087,7 @@ auto SignatureInformation::parameters(
 }
 
 auto SignatureInformation::activeParameter(
-    std::optional<std::variant<long, std::nullptr_t>> activeParameter)
+    std::optional<std::variant<std::uint32_t, std::nullptr_t>> activeParameter)
     -> SignatureInformation& {
   if (!activeParameter.has_value()) {
     repr_->erase("activeParameter");
@@ -15084,7 +15097,7 @@ auto SignatureInformation::activeParameter(
   struct {
     json* repr_;
 
-    void operator()(long activeParameter) {
+    void operator()(std::uint32_t activeParameter) {
       (*repr_)["activeParameter"] = std::move(activeParameter);
     }
 
@@ -15278,7 +15291,7 @@ auto BaseSymbolInformation::name() const -> std::string {
 auto BaseSymbolInformation::kind() const -> SymbolKind {
   auto& value = (*repr_)["kind"];
 
-  return static_cast<SymbolKind>(value.get<long>());
+  return static_cast<SymbolKind>(value.get<std::uint32_t>());
 }
 
 auto BaseSymbolInformation::tags() const -> std::optional<Vector<SymbolTag>> {
@@ -15307,7 +15320,7 @@ auto BaseSymbolInformation::name(std::string name) -> BaseSymbolInformation& {
 }
 
 auto BaseSymbolInformation::kind(SymbolKind kind) -> BaseSymbolInformation& {
-  (*repr_)["kind"] = static_cast<long>(kind);
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind);
   return *this;
 }
 
@@ -15404,7 +15417,7 @@ auto CodeActionContext::triggerKind() const
 
   auto& value = (*repr_)["triggerKind"];
 
-  return static_cast<CodeActionTriggerKind>(value.get<long>());
+  return static_cast<CodeActionTriggerKind>(value.get<std::uint32_t>());
 }
 
 auto CodeActionContext::diagnostics(Vector<Diagnostic> diagnostics)
@@ -15429,7 +15442,7 @@ auto CodeActionContext::triggerKind(
     repr_->erase("triggerKind");
     return *this;
   }
-  (*repr_)["triggerKind"] = static_cast<long>(triggerKind.value());
+  (*repr_)["triggerKind"] = static_cast<std::uint32_t>(triggerKind.value());
   return *this;
 }
 
@@ -15700,12 +15713,12 @@ FormattingOptions::operator bool() const {
   return true;
 }
 
-auto FormattingOptions::tabSize() const -> long {
+auto FormattingOptions::tabSize() const -> std::uint32_t {
   auto& value = (*repr_)["tabSize"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto FormattingOptions::insertSpaces() const -> bool {
@@ -15746,7 +15759,7 @@ auto FormattingOptions::trimFinalNewlines() const -> std::optional<bool> {
   return value.get<bool>();
 }
 
-auto FormattingOptions::tabSize(long tabSize) -> FormattingOptions& {
+auto FormattingOptions::tabSize(std::uint32_t tabSize) -> FormattingOptions& {
   (*repr_)["tabSize"] = std::move(tabSize);
   return *this;
 }
@@ -16154,10 +16167,10 @@ OptionalVersionedTextDocumentIdentifier::operator bool() const {
 }
 
 auto OptionalVersionedTextDocumentIdentifier::version() const
-    -> std::variant<long, std::nullptr_t> {
+    -> std::variant<std::int32_t, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<long, std::nullptr_t> result;
+  std::variant<std::int32_t, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16173,12 +16186,14 @@ auto OptionalVersionedTextDocumentIdentifier::uri() const -> std::string {
 }
 
 auto OptionalVersionedTextDocumentIdentifier::version(
-    std::variant<long, std::nullptr_t> version)
+    std::variant<std::int32_t, std::nullptr_t> version)
     -> OptionalVersionedTextDocumentIdentifier& {
   struct {
     json* repr_;
 
-    void operator()(long version) { (*repr_)["version"] = std::move(version); }
+    void operator()(std::int32_t version) {
+      (*repr_)["version"] = std::move(version);
+    }
 
     void operator()(std::nullptr_t version) {
       (*repr_)["version"] = std::move(version);
@@ -16644,10 +16659,10 @@ auto WorkspaceFullDocumentDiagnosticReport::uri() const -> std::string {
 }
 
 auto WorkspaceFullDocumentDiagnosticReport::version() const
-    -> std::variant<long, std::nullptr_t> {
+    -> std::variant<std::int32_t, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<long, std::nullptr_t> result;
+  std::variant<std::int32_t, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16688,12 +16703,14 @@ auto WorkspaceFullDocumentDiagnosticReport::uri(std::string uri)
 }
 
 auto WorkspaceFullDocumentDiagnosticReport::version(
-    std::variant<long, std::nullptr_t> version)
+    std::variant<std::int32_t, std::nullptr_t> version)
     -> WorkspaceFullDocumentDiagnosticReport& {
   struct {
     json* repr_;
 
-    void operator()(long version) { (*repr_)["version"] = std::move(version); }
+    void operator()(std::int32_t version) {
+      (*repr_)["version"] = std::move(version);
+    }
 
     void operator()(std::nullptr_t version) {
       (*repr_)["version"] = std::move(version);
@@ -16748,10 +16765,10 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::uri() const -> std::string {
 }
 
 auto WorkspaceUnchangedDocumentDiagnosticReport::version() const
-    -> std::variant<long, std::nullptr_t> {
+    -> std::variant<std::int32_t, std::nullptr_t> {
   auto& value = (*repr_)["version"];
 
-  std::variant<long, std::nullptr_t> result;
+  std::variant<std::int32_t, std::nullptr_t> result;
 
   details::try_emplace(result, value);
 
@@ -16782,12 +16799,14 @@ auto WorkspaceUnchangedDocumentDiagnosticReport::uri(std::string uri)
 }
 
 auto WorkspaceUnchangedDocumentDiagnosticReport::version(
-    std::variant<long, std::nullptr_t> version)
+    std::variant<std::int32_t, std::nullptr_t> version)
     -> WorkspaceUnchangedDocumentDiagnosticReport& {
   struct {
     json* repr_;
 
-    void operator()(long version) { (*repr_)["version"] = std::move(version); }
+    void operator()(std::int32_t version) {
+      (*repr_)["version"] = std::move(version);
+    }
 
     void operator()(std::nullptr_t version) {
       (*repr_)["version"] = std::move(version);
@@ -16822,7 +16841,7 @@ NotebookCell::operator bool() const {
 auto NotebookCell::kind() const -> NotebookCellKind {
   auto& value = (*repr_)["kind"];
 
-  return static_cast<NotebookCellKind>(value.get<long>());
+  return static_cast<NotebookCellKind>(value.get<std::uint32_t>());
 }
 
 auto NotebookCell::document() const -> std::string {
@@ -16851,7 +16870,7 @@ auto NotebookCell::executionSummary() const -> std::optional<ExecutionSummary> {
 }
 
 auto NotebookCell::kind(NotebookCellKind kind) -> NotebookCell& {
-  (*repr_)["kind"] = static_cast<long>(kind);
+  (*repr_)["kind"] = static_cast<std::uint32_t>(kind);
   return *this;
 }
 
@@ -17276,7 +17295,7 @@ auto TextDocumentSyncOptions::change() const
 
   auto& value = (*repr_)["change"];
 
-  return static_cast<TextDocumentSyncKind>(value.get<long>());
+  return static_cast<TextDocumentSyncKind>(value.get<std::uint32_t>());
 }
 
 auto TextDocumentSyncOptions::willSave() const -> std::optional<bool> {
@@ -17328,7 +17347,7 @@ auto TextDocumentSyncOptions::change(std::optional<TextDocumentSyncKind> change)
     repr_->erase("change");
     return *this;
   }
-  (*repr_)["change"] = static_cast<long>(change.value());
+  (*repr_)["change"] = static_cast<std::uint32_t>(change.value());
   return *this;
 }
 
@@ -17474,14 +17493,14 @@ auto TextDocumentContentChangePartial::range() const -> Range {
 }
 
 auto TextDocumentContentChangePartial::rangeLength() const
-    -> std::optional<long> {
+    -> std::optional<std::uint32_t> {
   if (!repr_->contains("rangeLength")) return std::nullopt;
 
   auto& value = (*repr_)["rangeLength"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto TextDocumentContentChangePartial::text() const -> std::string {
@@ -17499,7 +17518,8 @@ auto TextDocumentContentChangePartial::range(Range range)
 }
 
 auto TextDocumentContentChangePartial::rangeLength(
-    std::optional<long> rangeLength) -> TextDocumentContentChangePartial& {
+    std::optional<std::uint32_t> rangeLength)
+    -> TextDocumentContentChangePartial& {
   if (!rangeLength.has_value()) {
     repr_->erase("rangeLength");
     return *this;
@@ -17685,10 +17705,10 @@ ParameterInformation::operator bool() const {
 }
 
 auto ParameterInformation::label() const
-    -> std::variant<std::string, std::tuple<long, long>> {
+    -> std::variant<std::string, std::tuple<std::uint32_t, std::uint32_t>> {
   auto& value = (*repr_)["label"];
 
-  std::variant<std::string, std::tuple<long, long>> result;
+  std::variant<std::string, std::tuple<std::uint32_t, std::uint32_t>> result;
 
   details::try_emplace(result, value);
 
@@ -17709,14 +17729,14 @@ auto ParameterInformation::documentation() const
 }
 
 auto ParameterInformation::label(
-    std::variant<std::string, std::tuple<long, long>> label)
+    std::variant<std::string, std::tuple<std::uint32_t, std::uint32_t>> label)
     -> ParameterInformation& {
   struct {
     json* repr_;
 
     void operator()(std::string label) { (*repr_)["label"] = std::move(label); }
 
-    void operator()(std::tuple<long, long> label) {
+    void operator()(std::tuple<std::uint32_t, std::uint32_t> label) {
       lsp_runtime_error("ParameterInformation::label: not implemented yet");
     }
   } v{repr_};
@@ -17818,12 +17838,12 @@ ExecutionSummary::operator bool() const {
   return true;
 }
 
-auto ExecutionSummary::executionOrder() const -> long {
+auto ExecutionSummary::executionOrder() const -> std::uint32_t {
   auto& value = (*repr_)["executionOrder"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto ExecutionSummary::success() const -> std::optional<bool> {
@@ -17836,7 +17856,7 @@ auto ExecutionSummary::success() const -> std::optional<bool> {
   return value.get<bool>();
 }
 
-auto ExecutionSummary::executionOrder(long executionOrder)
+auto ExecutionSummary::executionOrder(std::uint32_t executionOrder)
     -> ExecutionSummary& {
   (*repr_)["executionOrder"] = std::move(executionOrder);
   return *this;
@@ -19609,20 +19629,20 @@ NotebookCellArrayChange::operator bool() const {
   return true;
 }
 
-auto NotebookCellArrayChange::start() const -> long {
+auto NotebookCellArrayChange::start() const -> std::uint32_t {
   auto& value = (*repr_)["start"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
-auto NotebookCellArrayChange::deleteCount() const -> long {
+auto NotebookCellArrayChange::deleteCount() const -> std::uint32_t {
   auto& value = (*repr_)["deleteCount"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto NotebookCellArrayChange::cells() const
@@ -19635,12 +19655,13 @@ auto NotebookCellArrayChange::cells() const
   return Vector<NotebookCell>(value);
 }
 
-auto NotebookCellArrayChange::start(long start) -> NotebookCellArrayChange& {
+auto NotebookCellArrayChange::start(std::uint32_t start)
+    -> NotebookCellArrayChange& {
   (*repr_)["start"] = std::move(start);
   return *this;
 }
 
-auto NotebookCellArrayChange::deleteCount(long deleteCount)
+auto NotebookCellArrayChange::deleteCount(std::uint32_t deleteCount)
     -> NotebookCellArrayChange& {
   (*repr_)["deleteCount"] = std::move(deleteCount);
   return *this;
@@ -20502,7 +20523,7 @@ auto CompletionClientCapabilities::insertTextMode() const
 
   auto& value = (*repr_)["insertTextMode"];
 
-  return static_cast<InsertTextMode>(value.get<long>());
+  return static_cast<InsertTextMode>(value.get<std::uint32_t>());
 }
 
 auto CompletionClientCapabilities::contextSupport() const
@@ -20564,7 +20585,8 @@ auto CompletionClientCapabilities::insertTextMode(
     repr_->erase("insertTextMode");
     return *this;
   }
-  (*repr_)["insertTextMode"] = static_cast<long>(insertTextMode.value());
+  (*repr_)["insertTextMode"] =
+      static_cast<std::uint32_t>(insertTextMode.value());
   return *this;
 }
 
@@ -21505,7 +21527,7 @@ auto RenameClientCapabilities::prepareSupportDefaultBehavior() const
 
   auto& value = (*repr_)["prepareSupportDefaultBehavior"];
 
-  return static_cast<PrepareSupportDefaultBehavior>(value.get<long>());
+  return static_cast<PrepareSupportDefaultBehavior>(value.get<std::uint32_t>());
 }
 
 auto RenameClientCapabilities::honorsChangeAnnotations() const
@@ -21547,7 +21569,7 @@ auto RenameClientCapabilities::prepareSupportDefaultBehavior(
     return *this;
   }
   (*repr_)["prepareSupportDefaultBehavior"] =
-      static_cast<long>(prepareSupportDefaultBehavior.value());
+      static_cast<std::uint32_t>(prepareSupportDefaultBehavior.value());
   return *this;
 }
 
@@ -21578,14 +21600,15 @@ auto FoldingRangeClientCapabilities::dynamicRegistration() const
   return value.get<bool>();
 }
 
-auto FoldingRangeClientCapabilities::rangeLimit() const -> std::optional<long> {
+auto FoldingRangeClientCapabilities::rangeLimit() const
+    -> std::optional<std::uint32_t> {
   if (!repr_->contains("rangeLimit")) return std::nullopt;
 
   auto& value = (*repr_)["rangeLimit"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto FoldingRangeClientCapabilities::lineFoldingOnly() const
@@ -21628,7 +21651,8 @@ auto FoldingRangeClientCapabilities::dynamicRegistration(
   return *this;
 }
 
-auto FoldingRangeClientCapabilities::rangeLimit(std::optional<long> rangeLimit)
+auto FoldingRangeClientCapabilities::rangeLimit(
+    std::optional<std::uint32_t> rangeLimit)
     -> FoldingRangeClientCapabilities& {
   if (!rangeLimit.has_value()) {
     repr_->erase("rangeLimit");
@@ -23771,14 +23795,14 @@ auto EmitCodeParams::locations() const -> std::optional<bool> {
   return value.get<bool>();
 }
 
-auto EmitCodeParams::optimizationLevel() const -> std::optional<long> {
+auto EmitCodeParams::optimizationLevel() const -> std::optional<std::uint32_t> {
   if (!repr_->contains("optimizationLevel")) return std::nullopt;
 
   auto& value = (*repr_)["optimizationLevel"];
 
   if (value.is_null()) value = 0;
   assert(value.is_number_integer());
-  return value.get<long>();
+  return value.get<std::uint32_t>();
 }
 
 auto EmitCodeParams::mlirPipeline() const -> std::optional<std::string> {
@@ -23822,8 +23846,8 @@ auto EmitCodeParams::locations(std::optional<bool> locations)
   return *this;
 }
 
-auto EmitCodeParams::optimizationLevel(std::optional<long> optimizationLevel)
-    -> EmitCodeParams& {
+auto EmitCodeParams::optimizationLevel(
+    std::optional<std::uint32_t> optimizationLevel) -> EmitCodeParams& {
   if (!optimizationLevel.has_value()) {
     repr_->erase("optimizationLevel");
     return *this;

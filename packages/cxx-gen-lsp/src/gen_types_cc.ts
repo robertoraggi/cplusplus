@@ -20,7 +20,7 @@
 
 import * as path from "node:path";
 import type { Enumeration, MetaModel, Property, Structure, Type, TypeAlias } from "./MetaModel.ts";
-import { getStructureProperties, toCppType } from "./MetaModel.ts";
+import { getStructureProperties, toCppBaseType, toCppType } from "./MetaModel.ts";
 import { writeFileSync } from "node:fs";
 import { copyrightHeader } from "./copyrightHeader.ts";
 
@@ -208,13 +208,13 @@ export class TypeGenerator {
       case "integer":
         this.emit(`if (value.is_null()) value = 0;`);
         this.emit(`assert(value.is_number_integer());`);
-        this.emit(`return value.get<int>();`);
+        this.emit(`return value.get<${toCppBaseType("integer")}>();`);
         return true;
 
       case "uinteger":
         this.emit(`if (value.is_null()) value = 0;`);
         this.emit(`assert(value.is_number_integer());`);
-        this.emit(`return value.get<long>();`);
+        this.emit(`return value.get<${toCppBaseType("uinteger")}>();`);
         return true;
 
       case "decimal":
@@ -259,7 +259,7 @@ export class TypeGenerator {
     if (this.enumByName.has(property.type.name)) {
       const enumeration = this.enumByName.get(property.type.name)!;
       if (enumeration.type.name !== "string") {
-        this.emit(`return static_cast<${propertyType}>(value.get<long>());`);
+        this.emit(`return static_cast<${propertyType}>(value.get<${toCppBaseType(enumeration.type.name)}>());`);
         return true;
       }
 

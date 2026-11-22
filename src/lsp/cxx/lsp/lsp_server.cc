@@ -226,7 +226,8 @@ void Server::logTrace(std::string message, std::optional<std::string> verbose) {
   });
 }
 
-void Server::sendNullResult(std::optional<std::variant<long, std::string>> id) {
+void Server::sendNullResult(
+    std::optional<std::variant<std::int32_t, std::string>> id) {
   withUnsafeJson([&](json storage) {
     LSPResponse response(storage);
     response.id(std::move(id));
@@ -273,7 +274,7 @@ void Server::sendEmittedCode(EmitCodeResponse response, CxxDocument& document,
 }
 
 auto Server::cancelPendingParserRequests(const std::string& fileName,
-                                         std::optional<long> minVersion)
+                                         std::optional<std::int32_t> minVersion)
     -> std::size_t {
 #ifndef CXX_NO_THREADS
   auto lock = std::unique_lock(documentsMutex_);
@@ -471,7 +472,7 @@ auto Server::snapshotDocument(const std::string& uri) -> std::optional<Text> {
 }
 
 auto Server::documentVersion(const std::string& uri)
-    -> std::optional<std::int64_t> {
+    -> std::optional<std::int32_t> {
 #ifndef CXX_NO_THREADS
   auto lock = std::unique_lock(documentContentsMutex_);
 #endif
@@ -1200,7 +1201,7 @@ void Server::operator()(CancelNotification notification) {
                          std::get<std::string>(id), cancelled));
   } else {
     logTrace(std::format("parse event=request-cancelled id={} matched={}",
-                         std::get<long>(id), cancelled));
+                         std::get<std::int32_t>(id), cancelled));
   }
 }
 

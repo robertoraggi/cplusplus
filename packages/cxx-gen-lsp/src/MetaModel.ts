@@ -166,9 +166,8 @@ export function isStringLike(type: Type, typeAliasByName: Map<string, TypeAlias>
 export function getEnumBaseType(enumeration: Enumeration) {
   switch (enumeration.type.name) {
     case "integer":
-      return " : int";
     case "uinteger":
-      return " : long";
+      return ` : ${toCppBaseType(enumeration.type.name)}`;
     default:
       return "";
   }
@@ -190,30 +189,35 @@ export function getEnumeratorInitializer(enumeration: Enumeration, enumerator: E
   return ` = ${enumerator.value}`;
 }
 
+export function toCppBaseType(name: BaseTypeName): string {
+  switch (name) {
+    case "null":
+      return "std::nullptr_t";
+    case "string":
+      return "std::string";
+    case "integer":
+      return "std::int32_t";
+    case "uinteger":
+      return "std::uint32_t";
+    case "decimal":
+      return "double";
+    case "boolean":
+      return "bool";
+    case "DocumentUri":
+      return "std::string";
+    case "URI":
+      return "std::string";
+    default:
+      throw new Error(`Unknown base type: ${JSON.stringify(name)}`);
+  }
+}
+
+export const requestIdType = `std::variant<${toCppBaseType("integer")}, std::string>`;
+
 export function toCppType(type: Type): string {
   switch (type.kind) {
-    case "base": {
-      switch (type.name) {
-        case "null":
-          return "std::nullptr_t";
-        case "string":
-          return "std::string";
-        case "integer":
-          return "long";
-        case "uinteger":
-          return "long";
-        case "decimal":
-          return "double";
-        case "boolean":
-          return "bool";
-        case "DocumentUri":
-          return "std::string";
-        case "URI":
-          return "std::string";
-        default:
-          throw new Error(`Unknown base type: ${JSON.stringify(type)}`);
-      } // switch type.name
-    } // case "base"
+    case "base":
+      return toCppBaseType(type.name);
 
     case "stringLiteral":
       return "std::string";
