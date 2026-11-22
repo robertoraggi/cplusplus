@@ -66,12 +66,15 @@ void Toolchain::addSPIRVMacros() {
   defineMacro("__SIZEOF_PTRDIFF_T__", bytes);
   defineMacro("__SIZEOF_WCHAR_T__", "4");
   defineMacro("__SIZEOF_WINT_T__", "4");
+  defineMacro("__SIG_ATOMIC_MAX__", "2147483647");
+  defineMacro("__SIG_ATOMIC_TYPE__", "int");
   defineMacro("__WCHAR_TYPE__", "int");
   defineMacro("__WCHAR_MAX__", "2147483647");
   defineMacro("__WCHAR_MIN__", "(-__WCHAR_MAX__ - 1)");
   defineMacro("__WCHAR_WIDTH__", "32");
   defineMacro("__WINT_TYPE__", "int");
   defineMacro("__WINT_MAX__", "2147483647");
+  defineMacro("__WINT_MIN__", "(-__WINT_MAX__ - 1)");
   defineMacro("__WINT_WIDTH__", "32");
   defineMacro("__clang_wide_literal_encoding__", "\"UTF-32\"");
   defineMacro("__INT64_TYPE__", "long long int");
