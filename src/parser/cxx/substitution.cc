@@ -1069,19 +1069,12 @@ void Substitution::doMake() {
 
 auto Substitution::argumentFor(TemplateParameterAST* parameter, int index) const
     -> CollectedArgument {
-  const auto& collected = writtenArguments_[index].argument;
+  const auto& written = writtenArguments_[index];
   if (ast_cast<TemplateTypeParameterAST>(parameter)) {
-    if (auto templateName =
-            injectedClassNameAsTemplate(writtenArguments_[index].node))
+    if (auto templateName = injectedClassNameAsTemplate(written.node))
       return templateName;
-    return collected;
   }
-  auto symbol = std::get_if<Symbol*>(&collected);
-  if (!symbol) return collected;
-  if (auto classTemplate =
-          symbol_cast<ClassSymbol>(template_name_symbol(*symbol)))
-    return injectedClassNameAsType(classTemplate);
-  return collected;
+  return written.argument;
 }
 
 auto Substitution::argumentSymbol(const CollectedArgument& argument) const
@@ -1137,11 +1130,6 @@ auto Substitution::checkArgumentKind(TemplateParameterAST* parameter, int index)
         "template argument does not match the form of its template "
         "parameter");
   return false;
-}
-
-auto Substitution::injectedClassNameAsType(ClassSymbol* classTemplate) const
-    -> Symbol* {
-  return unit_->control()->getTypeArgumentSymbol(classTemplate->type());
 }
 
 void Substitution::maybeReportInvalidConstantExpression(SourceLocation loc) {

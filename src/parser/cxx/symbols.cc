@@ -653,11 +653,7 @@ auto template_name_symbol(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
 
   if (auto alias = symbol_cast<TypeAliasSymbol>(symbol)) {
-    if (alias->isTemplatePattern()) return alias;
-    if (auto classType = unqualified_cast<ClassType>(alias->type())) {
-      return template_name_symbol(classType->symbol());
-    }
-    return nullptr;
+    return alias->isTemplatePattern() ? alias : nullptr;
   }
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
