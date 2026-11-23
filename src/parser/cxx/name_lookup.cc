@@ -479,24 +479,29 @@ auto mergeDeclarations(Control* control, ScopeSymbol* scope, const Name* name,
 
 auto unqualifiedLookupType(Control* control, Scope* lexicalScope,
                            const Identifier* id, bool tagsAreTypes,
-                           bool discardHiddenClassNames) -> Symbol* {
+                           bool discardHiddenClassNames, bool* ambiguous)
+    -> Symbol* {
+  if (ambiguous) *ambiguous = false;
   NominatedNamespaces nominated{control->scratchMemory()};
   for (auto sc = lexicalScope; sc; sc = sc->parent) {
     if (!sc->symbol) continue;
     collectActiveNominatedNamespaces(sc->symbol, nominated);
     std::pmr::vector<Symbol*> found{control->scratchMemory()};
-    bool ambiguous = false;
+    bool ambiguousInScope = false;
     auto search = [&](ScopeSymbol* scope) {
       VisitedScopes visited;
-      if (auto symbol =
-              lookupTypeHelper(scope, id, visited, tagsAreTypes,
-                               discardHiddenClassNames, false, &ambiguous))
+      if (auto symbol = lookupTypeHelper(scope, id, visited, tagsAreTypes,
+                                         discardHiddenClassNames, false,
+                                         &ambiguousInScope))
         found.push_back(symbol);
     };
     search(sc->symbol);
     for (auto ns : nominated)
       if (isContainedBy(ns, sc->symbol)) search(ns);
-    if (ambiguous || !found.empty()) return uniqueLookupDeclaration(found);
+    if (!ambiguousInScope && found.empty()) continue;
+    auto result = uniqueLookupDeclaration(found);
+    if (ambiguous) *ambiguous = !result;
+    return result;
   }
   return nullptr;
 }

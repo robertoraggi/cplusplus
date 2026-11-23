@@ -717,4 +717,12 @@ auto checkMemberAccess(TranslationUnit* unit, ScopeSymbol* accessingScope,
   return false;
 }
 
+void checkDeferredAccess(TranslationUnit* unit, ScopeSymbol* accessingScope,
+                         std::span<const DeferredAccessCheck> checks) {
+  for (const auto& check : checks) {
+    (void)checkMemberAccess(unit, accessingScope, check.member,
+                            check.designatingClass, nullptr, check.loc);
+  }
+}
+
 }  // namespace cxx

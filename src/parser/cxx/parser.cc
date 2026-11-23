@@ -181,6 +181,7 @@ struct Parser::LookaheadParser {
   RecordingDiagnosticsClient client;
   DiagnosticsClient* previousClient = nullptr;
   std::size_t pendingImmediateEscalations = 0;
+  std::size_t deferredAccessChecks = 0;
   bool committed = false;
 
   LookaheadParser(const LookaheadParser&) = delete;
@@ -191,7 +192,8 @@ struct Parser::LookaheadParser {
         backtrackPoint(p),
         cursor(p->cursor_),
         pendingImmediateEscalations(
-            p->unit_->pendingImmediateEscalationCount()) {
+            p->unit_->pendingImmediateEscalationCount()),
+        deferredAccessChecks(p->deferredAccessChecks_.size()) {
     previousClient = p->unit_->changeDiagnosticsClient(&client);
   }
 
@@ -200,6 +202,7 @@ struct Parser::LookaheadParser {
 
     if (!committed) {
       p->unit_->discardImmediateEscalations(pendingImmediateEscalations);
+      p->discardDeferredAccessChecks(deferredAccessChecks);
       if (client.hasMessages()) {
         p->record_failed_parse(p->unit_->locationOfIndex(cursor),
                                client.takeMessages());
@@ -666,8 +669,7 @@ void Parser::report_unresolved_type_name(const FailedParse& failedParse) {
   if (found || ambiguous)
     unit_->error(location, std::format("'{}' is not a type", text));
   else
-    unit_->error(location,
-                 std::format("lookup for '{}' finds no declaration", text));
+    unit_->error(location, Binder::findsNoDeclarationMessage(text));
 }
 
 void Parser::report_failed_parse(std::string message) {
@@ -700,6 +702,7 @@ void Parser::replayDiagnostics(const std::vector<Diagnostic>& diagnostics) {
 
 void Parser::type_error(SourceLocation loc, std::string message) {
   if (!config().checkTypes) return;
+  if (uncheckedInitializerDepth_) return;
   unit_->error(loc, std::move(message));
 }
 
@@ -1797,7 +1800,8 @@ auto Parser::parse_unqualified_id(UnqualifiedIdAST*& yyast,
   }
 
   if (ConversionFunctionIdAST* conversionFunctionName = nullptr;
-      parse_conversion_function_id(conversionFunctionName)) {
+      parse_conversion_function_id(conversionFunctionName,
+                                   nestedNameSpecifier)) {
     yyast = conversionFunctionName;
     return true;
   }
@@ -1867,6 +1871,8 @@ auto Parser::parse_decltype_nested_name_specifier(
   if (decltypeSpecifier) {
     ast->symbol = binder_.resolveNestedNameSpecifier(
         binder_.scopeOfType(decltypeSpecifier->type));
+    if (!ast->symbol)
+      reportNonScopeQualifier(decltypeSpecifier->type, decltypeLoc);
   }
 
   return true;
@@ -1882,23 +1888,26 @@ auto Parser::parse_type_nested_name_specifier(NestedNameSpecifierAST*& yyast,
   auto identifier = unit_->identifier(identifierLoc);
   auto scopeLoc = consumeToken();
   Symbol* symbol = nullptr;
+  bool ambiguous = false;
   if (yyast) {
-    if (yyast->symbol) symbol = qualifiedLookupType(yyast->symbol, identifier);
+    if (yyast->symbol)
+      symbol = qualifiedLookupType(yyast->symbol, identifier, &ambiguous);
   } else {
-    bool ambiguous = false;
     if (memberAccess.lookupScope)
       symbol =
           qualifiedLookupType(memberAccess.lookupScope, identifier, &ambiguous);
     if (!symbol && !ambiguous)
-      symbol = unqualifiedLookupType(control_, lexicalScope(), identifier);
+      symbol = unqualifiedLookupType(control_, lexicalScope(), identifier, true,
+                                     false, &ambiguous);
   }
 
-  if (memberAccess.isMember && symbol) {
-    auto namingScope = yyast ? yyast->symbol : memberAccess.lookupScope;
-    if (auto namingClass = symbol_cast<ClassSymbol>(namingScope))
-      (void)checkMemberAccess(unit_, scope(), symbol, namingClass, namingClass,
-                              identifierLoc);
+  if (auto message = nestedNameSpecifierComponentError(
+          yyast, symbol, identifier, ambiguous, memberAccess)) {
+    type_error(identifierLoc, std::move(*message));
+    symbol = nullptr;
   }
+
+  checkNestedNameSpecifierAccess(yyast, symbol, identifierLoc, memberAccess);
 
   auto ast = SimpleNestedNameSpecifierAST::create(pool_);
   ast->nestedNameSpecifier = yyast;
@@ -1909,7 +1918,35 @@ auto Parser::parse_type_nested_name_specifier(NestedNameSpecifierAST*& yyast,
   ast->scopeLoc = scopeLoc;
   ast->symbol = binder_.resolveNestedNameSpecifier(symbol);
 
+  if (symbol && !ast->symbol)
+    reportNonScopeQualifier(symbol->type(), identifierLoc);
+
   return true;
+}
+
+auto Parser::nestedNameSpecifierComponentError(NestedNameSpecifierAST* prefix,
+                                               Symbol* found,
+                                               const Identifier* identifier,
+                                               bool ambiguous,
+                                               MemberAccess memberAccess) const
+    -> std::optional<std::string> {
+  if (auto message = binder_.nestedNameSpecifierComponentError(
+          prefix, found, identifier, ambiguous))
+    return message;
+  if (found || prefix || memberAccess.isDependent) return std::nullopt;
+  return Binder::findsNoDeclarationMessage(to_diag_string(identifier));
+}
+
+void Parser::reportUnsuitableDeclaratorQualifier(
+    NestedNameSpecifierAST* nestedNameSpecifier) {
+  if (!nestedNameSpecifier || !nestedNameSpecifier->symbol) return;
+  type_error(nestedNameSpecifier->firstSourceLocation(),
+             "unresolved class or namespace");
+}
+
+void Parser::reportNonScopeQualifier(const Type* type, SourceLocation loc) {
+  if (!type || isDependent(unit_, type)) return;
+  type_error(loc, Binder::nonScopeQualifierMessage(type));
 }
 
 namespace {
@@ -1975,6 +2012,13 @@ auto Parser::parse_template_nested_name_specifier(
   ast->scopeLoc = scopeLoc;
   ast->isTemplateIntroduced = isTemplateIntroduced;
 
+  if (!template_name_symbol(templateId->symbol)) {
+    if (auto message = nestedNameSpecifierComponentError(
+            ast->nestedNameSpecifier, nullptr, templateId->identifier, false,
+            memberAccess))
+      type_error(templateId->identifierLoc, std::move(*message));
+  }
+
   if (config().checkTypes) {
     bool hasDependentArgs = false;
     if (binder_.inTemplate()) {
@@ -2005,13 +2049,9 @@ auto Parser::parse_template_nested_name_specifier(
         auto instance =
             binder_.resolve(ast->nestedNameSpecifier, templateId, true);
 
-        if (auto alias = symbol_cast<TypeAliasSymbol>(instance)) {
-          if (auto classType = unqualified_cast<ClassType>(alias->type())) {
-            ast->symbol = classType->symbol();
-          }
-        } else {
-          ast->symbol = symbol_cast<ScopeSymbol>(instance);
-        }
+        ast->symbol = binder_.resolveNestedNameSpecifier(instance);
+        if (instance && !ast->symbol)
+          reportNonScopeQualifier(instance->type(), templateId->identifierLoc);
       } else if (!templateId->symbol) {
         auto resolved = binder_.resolve(nullptr, templateId, true);
         ast->symbol = symbol_cast<ScopeSymbol>(resolved);
@@ -5460,10 +5500,26 @@ auto Parser::parse_template_declaration_body(
                                   templateHead);
 }
 
+void Parser::checkNestedNameSpecifierAccess(NestedNameSpecifierAST* prefix,
+                                            Symbol* symbol, SourceLocation loc,
+                                            MemberAccess memberAccess) {
+  if (!memberAccess.isMember || !symbol) {
+    deferAccessCheck(prefix, symbol, loc);
+    return;
+  }
+  if (uncheckedInitializerDepth_) return;
+  auto namingScope = prefix ? prefix->symbol : memberAccess.lookupScope;
+  auto namingClass = symbol_cast<ClassSymbol>(namingScope);
+  if (!namingClass) return;
+  (void)checkMemberAccess(unit_, scope(), symbol, namingClass, namingClass,
+                          loc);
+}
+
 void Parser::deferAccessCheck(NestedNameSpecifierAST* nestedNameSpecifier,
                               Symbol* symbol, SourceLocation loc) {
   if (!symbol) return;
   if (!nestedNameSpecifier) return;
+  if (uncheckedInitializerDepth_) return;
   if (binder_.inExplicitInstantiation()) return;
 
   auto designatingClass = symbol_cast<ClassSymbol>(nestedNameSpecifier->symbol);
@@ -5523,16 +5579,15 @@ auto Parser::declareFunction(DeclaratorAST* declarator, Decl& decl)
   return functionSymbol;
 }
 
-void Parser::flushDeferredAccessChecks(ScopeSymbol* accessingScope) {
-  if (deferredAccessChecks_.empty()) return;
+void Parser::discardDeferredAccessChecks(std::size_t count) {
+  if (count >= deferredAccessChecks_.size()) return;
+  deferredAccessChecks_.resize(count);
+}
 
+void Parser::flushDeferredAccessChecks(ScopeSymbol* accessingScope) {
   auto checks = std::move(deferredAccessChecks_);
   deferredAccessChecks_.clear();
-
-  for (const auto& check : checks) {
-    (void)checkMemberAccess(unit_, accessingScope, check.member,
-                            check.designatingClass, nullptr, check.loc);
-  }
+  checkDeferredAccess(unit_, accessingScope, checks);
 }
 
 auto Parser::parse_declaration(DeclarationAST*& yyast, BindingContext ctx)
@@ -5989,14 +6044,13 @@ auto Parser::parse_simple_declaration(
       functionType =
           type_cast<FunctionType>(binder_.resolveMemberOfCurrentInstantiation(
               functionType, currentInstantiation));
-    } else if (q) {
-      type_error(q->firstSourceLocation(),
-                 std::format("unresolved class or namespace"));
+    } else {
+      reportUnsuitableDeclaratorQualifier(q);
     }
 
     const Name* functionName = decl.getName();
 
-    if (q) {
+    if (decl.getScope()) {
       auto existing = binder_.getFunction(scope(), functionName, functionType,
                                           templateHead, requiresClause);
       if (!existing && !binder_.getSpecializedFunctionTemplate(
@@ -6127,9 +6181,8 @@ auto Parser::parse_notypespec_function_definition(
 
   if (auto scope = decl.getScope()) {
     enterDeclaratorScopeChain(scope);
-  } else if (auto q = decl.getNestedNameSpecifier()) {
-    type_error(q->firstSourceLocation(),
-               std::format("unresolved class or namespace"));
+  } else {
+    reportUnsuitableDeclaratorQualifier(decl.getNestedNameSpecifier());
   }
 
   FunctionDeclaratorChunkAST* functionDeclarator = nullptr;
@@ -6940,7 +6993,7 @@ auto Parser::parse_named_type_specifier(SpecifierAST*& yyast, DeclSpecs& specs,
                   std::format("'{}' is not a type", name));
     else
       parse_error(unqualifiedId->firstSourceLocation(),
-                  std::format("lookup for '{}' finds no declaration", name));
+                  Binder::findsNoDeclarationMessage(name));
     return false;
   }
 
@@ -7896,9 +7949,8 @@ auto Parser::parse_declarator(DeclaratorAST*& yyast, Decl& decl,
 
   if (auto scope = decl.getScope()) {
     enterDeclaratorScopeChain(scope);
-  } else if (q) {
-    type_error(q->firstSourceLocation(),
-               std::format("unresolved class or namespace"));
+  } else {
+    reportUnsuitableDeclaratorQualifier(q);
   }
 
   List<DeclaratorChunkAST*>* declaratorChunkList = nullptr;
@@ -11121,9 +11173,15 @@ auto Parser::parse_pure_specifier(SourceLocation& equalLoc,
   return true;
 }
 
-auto Parser::parse_conversion_function_id(ConversionFunctionIdAST*& yyast)
-    -> bool {
+auto Parser::parse_conversion_function_id(
+    ConversionFunctionIdAST*& yyast,
+    NestedNameSpecifierAST* nestedNameSpecifier) -> bool {
   if (!lookat(TokenKind::T_OPERATOR)) return false;
+
+  ScopeRAII conversionTypeLookupContext{this};
+  if (auto designatedClass = symbol_cast<ClassSymbol>(
+          nestedNameSpecifier ? nestedNameSpecifier->symbol : nullptr))
+    pushScope(designatedClass);
 
   LookaheadParser lookahead{this};
 
@@ -11454,6 +11512,10 @@ void Parser::parse_mem_initializer_id(
 }
 
 auto Parser::parse_operator_function_id(OperatorFunctionIdAST*& yyast) -> bool {
+  if (!lookat(TokenKind::T_OPERATOR)) return false;
+
+  LookaheadParser lookahead{this};
+
   SourceLocation operatorLoc;
 
   if (!match(TokenKind::T_OPERATOR, operatorLoc)) return false;
@@ -11464,6 +11526,8 @@ auto Parser::parse_operator_function_id(OperatorFunctionIdAST*& yyast) -> bool {
   SourceLocation closeLoc;
 
   if (!parse_operator(op, opLoc, openLoc, closeLoc)) return false;
+
+  lookahead.commit();
 
   auto ast = OperatorFunctionIdAST::create(pool_);
   yyast = ast;

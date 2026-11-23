@@ -2,4 +2,4 @@
 
 int NotAScope = 0;
 
-class NotAScope::Inner;  // expected-error {{nested name specifier must be a class or namespace}}
+class NotAScope::Inner;  // expected-error {{lookup for 'NotAScope' finds no declaration}}

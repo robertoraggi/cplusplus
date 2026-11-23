@@ -24,6 +24,7 @@
 #include <cxx/source_location.h>
 #include <cxx/symbols_fwd.h>
 
+#include <span>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -48,6 +49,15 @@ enum class AccessResult {
                                      ClassSymbol* designatingClass,
                                      ClassSymbol* objectClass,
                                      SourceLocation loc) -> bool;
+
+struct DeferredAccessCheck {
+  Symbol* member = nullptr;
+  ClassSymbol* designatingClass = nullptr;
+  SourceLocation loc;
+};
+
+void checkDeferredAccess(TranslationUnit* unit, ScopeSymbol* accessingScope,
+                         std::span<const DeferredAccessCheck> checks);
 
 class AccessContext {
  public:

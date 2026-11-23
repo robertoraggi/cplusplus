@@ -7939,15 +7939,10 @@ auto TypeChecker::Visitor::contextual_conversion_to_bool(ExpressionAST*& expr)
 
 void TypeChecker::Visitor::report_unresolved_qualified_id(
     IdExpressionAST* ast) {
-  const auto name = to_diag_string(get_name(control(), ast->unqualifiedId));
-
   auto scope = ast->nestedNameSpecifier->symbol;
-  if (!scope) {
-    error(get_name_location(ast),
-          std::format("no member named '{}' in an unresolved scope", name));
-    return;
-  }
+  if (!scope) return;
 
+  const auto name = to_diag_string(get_name(control(), ast->unqualifiedId));
   error(get_name_location(ast),
         std::format("no member named '{}' in {}", name, describe_scope(scope)));
 }
@@ -9808,6 +9803,14 @@ auto TypeChecker::Visitor::check_member_access(MemberExpressionAST* ast)
   return CheckMemberAccess{*this, ast}();
 }
 
+namespace {
+
+[[nodiscard]] auto hasFailedQualifier(MemberExpressionAST* ast) -> bool {
+  return ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol;
+}
+
+}  // namespace
+
 auto TypeChecker::Visitor::CheckMemberAccess::namesResolvedMember(
     Symbol* symbol) -> bool {
   if (symbol_cast<OverloadSetSymbol>(symbol)) return false;
@@ -9832,6 +9835,7 @@ auto TypeChecker::Visitor::CheckMemberAccess::operator()() -> bool {
 
   auto designatingClass = visitor.designatingClassOf(ast);
   if (!designatingClass) {
+    if (hasFailedQualifier(ast)) return true;
     visitor.error(
         get_name_location(ast),
         "member qualifier does not name a class or member enumeration");

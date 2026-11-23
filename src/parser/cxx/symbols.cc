@@ -658,7 +658,7 @@ auto template_name_symbol(Symbol* symbol) -> Symbol* {
 
   if (auto classSymbol = symbol_cast<ClassSymbol>(symbol)) {
     if (classSymbol->isSpecialization()) return nullptr;
-    return classSymbol->templateParameters() ? classSymbol : nullptr;
+    return classSymbol->isTemplatePattern() ? classSymbol : nullptr;
   }
 
   if (symbol_cast<TemplateTypeParameterSymbol>(symbol)) return symbol;

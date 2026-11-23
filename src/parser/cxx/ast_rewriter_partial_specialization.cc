@@ -179,6 +179,7 @@ auto ASTRewriter::RewritePartialSpecialization::reproducesArguments(
   auto scope = candidate.symbol->parent();
   auto rewriter = ASTRewriter{unit, scope, candidate.deducedArgs};
   rewriter.depth_ = candidate.specTemplateDecl->depth;
+  rewriter.accessCheckScope_ = symbol_cast<ClassSymbol>(candidate.symbol);
   rewriter.inheritEnclosingTemplateArguments(scope);
   auto substituted = rewriter.rewriteTemplateArgumentList(
       candidate.templateId->templateArgumentList);

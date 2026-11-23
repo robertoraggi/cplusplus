@@ -89,6 +89,20 @@ struct ASTRewriter::NestedNameSpecifierVisitor : VisitorBase {
 
   void reportNonScopeQualifier(const Type* type, SourceLocation loc);
 
+  [[nodiscard]] auto designatingClass(NestedNameSpecifierAST* prefix) const
+      -> ClassSymbol*;
+
+  [[nodiscard]] auto searchesObjectClass(NestedNameSpecifierAST* prefix) const
+      -> bool;
+
+  [[nodiscard]] auto componentError(NestedNameSpecifierAST* prefix,
+                                    Symbol* found, const Identifier* identifier,
+                                    bool ambiguous) const
+      -> std::optional<std::string>;
+
+  void checkAccess(NestedNameSpecifierAST* prefix, Symbol* member,
+                   SourceLocation loc);
+
   [[nodiscard]] auto lookupType(NestedNameSpecifierAST* prefix,
                                 const Identifier* id, Symbol* lexicalBinding,
                                 bool& ambiguous,
@@ -403,9 +417,48 @@ auto ASTRewriter::NestedNameSpecifierVisitor::designatedScope(
 
 void ASTRewriter::NestedNameSpecifierVisitor::reportNonScopeQualifier(
     const Type* type, SourceLocation loc) {
-  rewrite.error(loc, std::format("type '{}' cannot be used prior to '::' "
-                                 "because it has no members",
-                                 to_diag_string(type)));
+  rewrite.error(loc, Binder::nonScopeQualifierMessage(type));
+}
+
+auto ASTRewriter::NestedNameSpecifierVisitor::designatingClass(
+    NestedNameSpecifierAST* prefix) const -> ClassSymbol* {
+  if (prefix) return symbol_cast<ClassSymbol>(prefix->symbol);
+  return memberScope;
+}
+
+auto ASTRewriter::NestedNameSpecifierVisitor::searchesObjectClass(
+    NestedNameSpecifierAST* prefix) const -> bool {
+  if (prefix || !memberScope) return false;
+  return !isDependent(rewrite.unit_, memberScope->type());
+}
+
+auto ASTRewriter::NestedNameSpecifierVisitor::componentError(
+    NestedNameSpecifierAST* prefix, Symbol* found, const Identifier* identifier,
+    bool ambiguous) const -> std::optional<std::string> {
+  if (auto message = binder()->nestedNameSpecifierComponentError(
+          prefix, found, identifier, ambiguous))
+    return message;
+  if (found || !searchesObjectClass(prefix)) return std::nullopt;
+  return Binder::findsNoDeclarationMessage(to_diag_string(identifier));
+}
+
+void ASTRewriter::NestedNameSpecifierVisitor::checkAccess(
+    NestedNameSpecifierAST* prefix, Symbol* member, SourceLocation loc) {
+  auto namingClass = designatingClass(prefix);
+  if (!namingClass) return;
+  rewrite.checkNestedNameSpecifierAccess(member, namingClass, loc);
+}
+
+void ASTRewriter::checkNestedNameSpecifierAccess(Symbol* member,
+                                                 ClassSymbol* designatingClass,
+                                                 SourceLocation loc) {
+  if (deferredAccessChecks_) {
+    deferredAccessChecks_->push_back({member, designatingClass, loc});
+    return;
+  }
+  auto accessingScope = accessCheckScope_ ? accessCheckScope_ : binder_.scope();
+  (void)checkMemberAccess(unit_, accessingScope, member, designatingClass,
+                          designatingClass, loc);
 }
 
 void ASTRewriter::NestedNameSpecifierVisitor::resolveDependentQualifier(
@@ -415,13 +468,14 @@ void ASTRewriter::NestedNameSpecifierVisitor::resolveDependentQualifier(
   bool ambiguous = false;
   auto resolved = lookupType(copy->nestedNameSpecifier, copy->identifier,
                              copy->symbol, ambiguous);
-  if (ambiguous) {
+
+  if (auto message = componentError(copy->nestedNameSpecifier, resolved,
+                                    copy->identifier, ambiguous)) {
     copy->symbol = nullptr;
-    rewrite.error(copy->identifierLoc,
-                  std::format("reference to '{}' is ambiguous",
-                              copy->identifier->value()));
+    rewrite.error(copy->identifierLoc, std::move(*message));
     return;
   }
+
   if (!resolved || resolved == copy->symbol) return;
 
   if (resolved->type() && isDependent(rewrite.unit_, resolved->type())) {
@@ -429,9 +483,7 @@ void ASTRewriter::NestedNameSpecifierVisitor::resolveDependentQualifier(
     return;
   }
 
-  if (!copy->nestedNameSpecifier && memberScope)
-    (void)checkMemberAccess(translationUnit(), binder()->scope(), resolved,
-                            memberScope, memberScope, copy->identifierLoc);
+  checkAccess(copy->nestedNameSpecifier, resolved, copy->identifierLoc);
   copy->symbol = designatedScope(resolved, copy->identifierLoc);
 }
 
@@ -502,10 +554,8 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
       return copy;
     }
     if (resolved) {
-      if (!copy->nestedNameSpecifier && memberScope)
-        (void)checkMemberAccess(translationUnit(), binder()->scope(), resolved,
-                                memberScope, memberScope,
-                                copy->templateId->identifierLoc);
+      checkAccess(copy->nestedNameSpecifier, resolved,
+                  copy->templateId->identifierLoc);
       copy->templateId->symbol = templated_symbol(resolved);
     }
   }
@@ -524,17 +574,10 @@ auto ASTRewriter::NestedNameSpecifierVisitor::operator()(
 
   if (isDependent(rewrite.unit_, copy->nestedNameSpecifier)) return copy;
 
-  if (!copy->templateId->symbol && copy->templateId->identifier &&
-      !isDependentTypeParameterSymbol(copy->nestedNameSpecifier
-                                          ? copy->nestedNameSpecifier->symbol
-                                          : nullptr)) {
-    auto scopeSymbol =
-        copy->nestedNameSpecifier ? copy->nestedNameSpecifier->symbol : nullptr;
-    rewrite.error(copy->templateId->identifierLoc,
-                  std::format("no member named '{}' in '{}'",
-                              copy->templateId->identifier->value(),
-                              scopeSymbol ? to_diag_string(scopeSymbol->type())
-                                          : std::string{"<error-type>"}));
+  if (!copy->templateId->symbol && copy->templateId->identifier) {
+    if (auto message = componentError(copy->nestedNameSpecifier, nullptr,
+                                      copy->templateId->identifier, false))
+      rewrite.error(copy->templateId->identifierLoc, std::move(*message));
   }
 
   if (auto primaryClass = symbol_cast<ClassSymbol>(copy->templateId->symbol)) {

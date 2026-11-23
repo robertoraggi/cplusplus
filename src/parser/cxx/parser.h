@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/access_control.h>
 #include <cxx/binder.h>
 #include <cxx/control.h>
 #include <cxx/parser_fwd.h>
@@ -893,7 +894,8 @@ class Parser final {
   [[nodiscard]] auto parse_pure_specifier(SourceLocation& equalLoc,
                                           SourceLocation& zeroLoc) -> bool;
   [[nodiscard]] auto parse_conversion_function_id(
-      ConversionFunctionIdAST*& yyast) -> bool;
+      ConversionFunctionIdAST*& yyast,
+      NestedNameSpecifierAST* nestedNameSpecifier) -> bool;
   [[nodiscard]] auto parse_base_clause(ClassSpecifierAST* ast) -> bool;
   [[nodiscard]] auto parse_base_specifier_list(ClassSpecifierAST* ast) -> bool;
   void parse_base_specifier(BaseSpecifierAST*& yyast);
@@ -1195,20 +1197,29 @@ class Parser final {
                                      IdExpressionContext ctx);
   [[nodiscard]] auto lookupUnqualifiedTemplateName(const Name* name) -> Symbol*;
 
-  struct DeferredAccessCheck {
-    Symbol* member = nullptr;
-    ClassSymbol* designatingClass = nullptr;
-    SourceLocation loc;
-  };
+  void checkNestedNameSpecifierAccess(NestedNameSpecifierAST* prefix,
+                                      Symbol* symbol, SourceLocation loc,
+                                      MemberAccess memberAccess);
 
   void deferAccessCheck(NestedNameSpecifierAST* nestedNameSpecifier,
                         Symbol* symbol, SourceLocation loc);
+
+  [[nodiscard]] auto nestedNameSpecifierComponentError(
+      NestedNameSpecifierAST* prefix, Symbol* found,
+      const Identifier* identifier, bool ambiguous,
+      MemberAccess memberAccess) const -> std::optional<std::string>;
+
+  void reportNonScopeQualifier(const Type* type, SourceLocation loc);
+
+  void reportUnsuitableDeclaratorQualifier(
+      NestedNameSpecifierAST* nestedNameSpecifier);
 
   void checkInjectedClassName(Symbol* symbol, SourceLocation loc);
 
   ScopeSymbol* accessCheckScope_ = nullptr;
 
   void flushDeferredAccessChecks(ScopeSymbol* accessingScope);
+  void discardDeferredAccessChecks(std::size_t count);
 
   [[nodiscard]] auto declareFunction(DeclaratorAST* declarator, Decl& decl)
       -> FunctionSymbol*;

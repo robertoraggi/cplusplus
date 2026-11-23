@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cxx/access_control.h>
 #include <cxx/ast.h>
 #include <cxx/binder.h>
 #include <cxx/dependent_types.h>
@@ -785,6 +786,10 @@ class [[nodiscard]] ASTRewriter {
 
   [[nodiscard]] auto remapSymbol(Symbol* sym) const -> Symbol*;
 
+  void checkNestedNameSpecifierAccess(Symbol* member,
+                                      ClassSymbol* designatingClass,
+                                      SourceLocation loc);
+
   void pushLambdaCaptureFields(
       std::unordered_map<Symbol*, FieldSymbol*> fields);
   void popLambdaCaptureFields();
@@ -813,6 +818,8 @@ class [[nodiscard]] ASTRewriter {
   std::vector<ActiveExpansion> activeExpansions_;
   std::optional<int> elementIndex_;
   Binder binder_;
+  std::vector<DeferredAccessCheck>* deferredAccessChecks_ = nullptr;
+  ScopeSymbol* accessCheckScope_ = nullptr;
   std::unordered_map<Symbol*, ParameterPackSymbol*> declarationPacks_;
   std::unordered_map<Symbol*, Symbol*> symbolRemap_;
   std::vector<std::unordered_map<Symbol*, FieldSymbol*>> lambdaCaptureFields_;
