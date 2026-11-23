@@ -936,7 +936,7 @@ void Binder::bind(EnumSpecifierAST* ast, const DeclSpecs& underlyingTypeSpecs) {
     qualifyingScope =
         symbol_cast<ScopeSymbol>(ast->nestedNameSpecifier->symbol);
     if (!qualifyingScope)
-      (void)reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
+      (void)rejectsUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
   }
   const auto isValidDeclaration =
       !ast->nestedNameSpecifier || qualifyingScope != nullptr;
@@ -1139,7 +1139,7 @@ void Binder::bind(ElaboratedTypeSpecifierAST* ast, DeclSpecs& declSpecs,
     auto parent = ast->nestedNameSpecifier->symbol;
 
     if (!parent || !parent->isClassOrNamespace()) {
-      (void)reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
+      (void)rejectsUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
       return;
     }
 
@@ -1906,7 +1906,7 @@ void Binder::bind(UsingDeclaratorAST* ast, Symbol* target) {
   }
 
   if (ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol) {
-    if (reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier)) return;
+    if (rejectsUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier)) return;
   }
 
   const bool dependentQualifier =
@@ -2029,7 +2029,7 @@ void Binder::bind(BaseSpecifierAST* ast, Symbol* resolvedType) {
   const auto checkTemplates = unit_->config().checkTypes;
 
   if (ast->nestedNameSpecifier && !ast->nestedNameSpecifier->symbol) {
-    if (reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier)) return;
+    if (rejectsUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier)) return;
   }
 
   Symbol* symbol = nullptr;
@@ -3935,7 +3935,7 @@ void Binder::bind(UsingEnumDeclarationAST* ast) {
   auto spec = ast->enumTypeSpecifier;
 
   if (spec->nestedNameSpecifier && !spec->nestedNameSpecifier->symbol) {
-    if (reportUnresolvedNestedNameSpecifier(spec->nestedNameSpecifier)) return;
+    if (rejectsUnresolvedNestedNameSpecifier(spec->nestedNameSpecifier)) return;
   }
 
   const auto checkTemplates = unit_->config().checkTypes;
@@ -5145,12 +5145,14 @@ void Binder::applySpecifiers(FieldSymbol* symbol, const DeclSpecs& specs) {
   symbol->setInline(specs.isInline);
 }
 
-auto Binder::reportUnresolvedNestedNameSpecifier(NestedNameSpecifierAST* ast)
+auto Binder::rejectsUnresolvedNestedNameSpecifier(NestedNameSpecifierAST* ast)
     -> bool {
   if (inTemplate() || isDependentTypeParameterSymbol(ast->symbol)) return false;
 
-  error(ast->firstSourceLocation(),
-        "nested name specifier must be a class or namespace");
+  if (ast->symbol) {
+    error(ast->firstSourceLocation(),
+          "nested name specifier must be a class or namespace");
+  }
 
   return true;
 }
@@ -5195,6 +5197,57 @@ struct Binder::NestedNameSpecifierEntity {
 auto Binder::resolveNestedNameSpecifier(Symbol* symbol) -> Symbol* {
   if (!symbol) return nullptr;
   return visit(NestedNameSpecifierEntity{*this}, symbol);
+}
+
+namespace {
+
+[[nodiscard]] auto designatesNonDependentScope(TranslationUnit* unit,
+                                               NestedNameSpecifierAST* ast)
+    -> bool {
+  if (!ast || !ast->symbol) return false;
+  return !isDependent(unit, ast);
+}
+
+[[nodiscard]] auto missingMemberMessage(Symbol* scope,
+                                        const Identifier* identifier)
+    -> std::string {
+  return std::format("no member named '{}' in '{}'", to_diag_string(identifier),
+                     to_diag_string(scope->type()));
+}
+
+}  // namespace
+
+auto Binder::nestedNameSpecifierComponentError(NestedNameSpecifierAST* prefix,
+                                               Symbol* found,
+                                               const Identifier* identifier,
+                                               bool ambiguous) const
+    -> std::optional<std::string> {
+  if (ambiguous) {
+    return std::format("reference to '{}' is ambiguous",
+                       to_diag_string(identifier));
+  }
+
+  if (!found) {
+    if (!designatesNonDependentScope(unit_, prefix)) return std::nullopt;
+    return missingMemberMessage(prefix->symbol, identifier);
+  }
+
+  if (!template_name_symbol(found)) return std::nullopt;
+
+  return std::format(
+      "template '{}' cannot be used prior to '::' without a template "
+      "argument list",
+      to_diag_string(identifier));
+}
+
+auto Binder::nonScopeQualifierMessage(const Type* type) -> std::string {
+  return std::format(
+      "type '{}' cannot be used prior to '::' because it has no members",
+      to_diag_string(type));
+}
+
+auto Binder::findsNoDeclarationMessage(std::string_view name) -> std::string {
+  return std::format("lookup for '{}' finds no declaration", name);
 }
 
 auto Binder::scopeOfType(const Type* type) -> ScopeSymbol* {
@@ -5274,7 +5327,7 @@ void Binder::bind(IdExpressionAST* ast, bool mayUseArgumentDependentLookup,
 
   if (ast->nestedNameSpecifier) {
     if (!ast->nestedNameSpecifier->symbol) {
-      (void)reportUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
+      (void)rejectsUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
       return;
     }
 

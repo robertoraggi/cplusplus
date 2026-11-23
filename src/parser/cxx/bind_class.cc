@@ -419,10 +419,7 @@ void Binder::BindClass::check_optional_nested_name_specifier() {
   auto parent = ast->nestedNameSpecifier->symbol;
 
   if (!parent || !parent->isClassOrNamespace()) {
-    if (!binder.inTemplate()) {
-      binder.error(ast->nestedNameSpecifier->firstSourceLocation(),
-                   "nested name specifier must be a class or namespace");
-    }
+    (void)binder.rejectsUnresolvedNestedNameSpecifier(ast->nestedNameSpecifier);
     return;
   }
 

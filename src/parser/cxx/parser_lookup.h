@@ -52,8 +52,8 @@ template <typename Predicate>
 [[nodiscard]] auto unqualifiedLookupType(Control* control, Scope* lexicalScope,
                                          const Identifier* id,
                                          bool tagsAreTypes = true,
-                                         bool discardHiddenClassNames = false)
-    -> Symbol*;
+                                         bool discardHiddenClassNames = false,
+                                         bool* ambiguous = nullptr) -> Symbol*;
 
 [[nodiscard]] auto unqualifiedLookupNamespace(Control* control,
                                               Scope* lexicalScope,

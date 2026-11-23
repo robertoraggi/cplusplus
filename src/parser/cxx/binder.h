@@ -36,6 +36,7 @@
 #include <functional>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -601,9 +602,20 @@ class Binder {
 
   [[nodiscard]] auto resolveNestedNameSpecifier(Symbol* symbol) -> Symbol*;
 
+  [[nodiscard]] auto nestedNameSpecifierComponentError(
+      NestedNameSpecifierAST* prefix, Symbol* found,
+      const Identifier* identifier, bool ambiguous) const
+      -> std::optional<std::string>;
+
+  [[nodiscard]] static auto nonScopeQualifierMessage(const Type* type)
+      -> std::string;
+
+  [[nodiscard]] static auto findsNoDeclarationMessage(std::string_view name)
+      -> std::string;
+
   [[nodiscard]] auto scopeOfType(const Type* type) -> ScopeSymbol*;
 
-  [[nodiscard]] auto reportUnresolvedNestedNameSpecifier(
+  [[nodiscard]] auto rejectsUnresolvedNestedNameSpecifier(
       NestedNameSpecifierAST* ast) -> bool;
 
   [[nodiscard]] auto referencedElaboratedType(

@@ -9,7 +9,7 @@ struct S {
 };
 
 void undeclared_qualifier() {
-  ns2::x << 1;  // expected-error {{nested name specifier must be a class or namespace}}
+  ns2::x << 1;  // expected-error {{lookup for 'ns2' finds no declaration}}
 }
 
 void missing_member() {

@@ -36,6 +36,7 @@
 #include <cxx/types.h>
 
 #include <format>
+#include <utility>
 
 namespace cxx {
 namespace {
@@ -679,11 +680,16 @@ auto ASTRewriter::declarator(DeclaratorAST* ast) -> DeclaratorAST* {
 
   copy->ptrOpList = rewriteList(ast->ptrOpList, &ASTRewriter::ptrOperator);
 
+  std::vector<DeferredAccessCheck> declaratorIdAccessChecks;
+  auto enclosingAccessChecks =
+      std::exchange(deferredAccessChecks_, &declaratorIdAccessChecks);
   copy->coreDeclarator = coreDeclarator(ast->coreDeclarator);
+  deferredAccessChecks_ = enclosingAccessChecks;
 
   auto scopeGuard = Binder::ScopeGuard{&binder_};
   auto decl = Decl{DeclSpecs{unit_}, copy};
   if (auto scope = decl.getScope()) binder_.setScope(scope);
+  checkDeferredAccess(unit_, binder_.scope(), declaratorIdAccessChecks);
 
   copy->declaratorChunkList =
       rewriteList(ast->declaratorChunkList, &ASTRewriter::declaratorChunk);
