@@ -199,9 +199,6 @@ class Substitution {
   [[nodiscard]] auto checkArgumentKind(TemplateParameterAST* parameter,
                                        int index) -> bool;
 
-  [[nodiscard]] auto injectedClassNameAsType(ClassSymbol* classTemplate) const
-      -> Symbol*;
-
   [[nodiscard]] auto normalizeNonTypeArgument(
       NonTypeTemplateParameterAST* parameter, const CollectedArgument& argument)
       -> Symbol*;
