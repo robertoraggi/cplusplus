@@ -98,6 +98,9 @@ void recordDefaultTemplateArgument(TemplateParameterAST* parameter,
 
 [[nodiscard]] auto denotesTemplateName(TemplateArgumentAST* argument) -> bool;
 
+[[nodiscard]] auto templateTemplateArgumentName(TemplateArgumentAST* argument)
+    -> NamedTypeSpecifierAST*;
+
 [[nodiscard]] auto matchesTemplateParameterKind(TemplateParameterAST* parameter,
                                                 TemplateArgumentAST* argument)
     -> bool;

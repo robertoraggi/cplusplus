@@ -298,6 +298,14 @@ auto denotesTemplateName(TemplateArgumentAST* argument) -> bool {
   return visit(DenotesTemplateNotType{}, named->symbol);
 }
 
+auto templateTemplateArgumentName(TemplateArgumentAST* argument)
+    -> NamedTypeSpecifierAST* {
+  auto named = writtenTemplateArgumentName(argument);
+  if (!named) return nullptr;
+  if (named->symbol && !visit(DenotesTemplate{}, named->symbol)) return nullptr;
+  return named;
+}
+
 namespace {
 
 struct MatchesTemplateParameterKind {
@@ -318,10 +326,7 @@ struct MatchesTemplateParameterKind {
   }
 
   [[nodiscard]] auto operator()(TemplateTypeParameterAST*) const -> bool {
-    auto named = writtenTemplateArgumentName(argument);
-    if (!named) return false;
-    if (!named->symbol) return true;
-    return visit(DenotesTemplate{}, named->symbol);
+    return templateTemplateArgumentName(argument) != nullptr;
   }
 
   [[nodiscard]] auto operator()(NonTypeTemplateParameterAST*) const -> bool {
