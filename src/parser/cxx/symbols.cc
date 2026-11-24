@@ -146,6 +146,11 @@ auto nonTypeParameterIdentity(Symbol* symbol)
                                   parameter->isParameterPack()};
 }
 
+[[nodiscard]] auto declaredTemplateName(Symbol* symbol) -> Symbol* {
+  if (template_parameter_info(symbol)) return nullptr;
+  return template_name_symbol(symbol);
+}
+
 struct HoldsAST {
   mutable const Type* firstExaminedType = nullptr;
   mutable std::vector<const Type*> examinedTypes;
@@ -317,8 +322,8 @@ auto compare_symbols(TranslationUnit* unit, Symbol* lhs, Symbol* rhs) -> bool {
     return true;
   }
 
-  auto lhsTemplateName = template_name_symbol(lhs);
-  auto rhsTemplateName = template_name_symbol(rhs);
+  auto lhsTemplateName = declaredTemplateName(lhs);
+  auto rhsTemplateName = declaredTemplateName(rhs);
   if (lhsTemplateName || rhsTemplateName) {
     if (!lhsTemplateName || !rhsTemplateName) return false;
     return lhsTemplateName->canonical() == rhsTemplateName->canonical();
@@ -355,7 +360,7 @@ auto compare_symbol_and_type(TranslationUnit* unit, Symbol* symbol,
   if (!symbol || !type) return false;
   if (symbol_cast<VariableSymbol>(symbol)) return false;
   if (symbol_cast<NonTypeParameterSymbol>(symbol)) return false;
-  if (template_name_symbol(symbol)) return false;
+  if (declaredTemplateName(symbol)) return false;
   return same_argument_type(unit, symbol->type(), type);
 }
 
@@ -603,7 +608,7 @@ struct TemplateArgumentHasher {
 
   [[nodiscard]] auto operator()(Symbol* symbol) -> bool {
     if (!symbol) return false;
-    if (auto templateName = template_name_symbol(symbol)) {
+    if (auto templateName = declaredTemplateName(symbol)) {
       hash_combine(seed, std::hash<const void*>{}(templateName->canonical()));
       return true;
     }
