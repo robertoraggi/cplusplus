@@ -329,28 +329,27 @@ struct IsDependent {
     return hasDependentQualifier(typeArg->typeId);
   }
 
-  [[nodiscard]] auto isDependentTemplateNameArgument(
-      TypeTemplateArgumentAST* typeArg) -> bool {
-    if (!typeArg || !typeArg->typeId) return true;
+  [[nodiscard]] static auto writtenTemplateName(TemplateArgumentAST* arg,
+                                                Symbol* parameter)
+      -> NamedTypeSpecifierAST* {
+    if (!symbol_cast<TemplateTypeParameterSymbol>(parameter) &&
+        !denotesTemplateName(arg))
+      return nullptr;
+    return templateTemplateArgumentName(arg);
+  }
 
-    for (auto spec : ListView{typeArg->typeId->typeSpecifierList}) {
-      auto named = ast_cast<NamedTypeSpecifierAST>(spec);
-      if (!named) continue;
-      if (isDependent(named->nestedNameSpecifier)) return true;
-      return namesDependentTemplateParameter(named->symbol);
-    }
-
-    return true;
+  [[nodiscard]] auto isDependentTemplateName(NamedTypeSpecifierAST* name)
+      -> bool {
+    if (isDependent(name->nestedNameSpecifier)) return true;
+    return namesDependentTemplateParameter(name->symbol);
   }
 
   [[nodiscard]] auto isDependentTemplateArgument(TemplateArgumentAST* arg,
                                                  Symbol* parameter = nullptr)
       -> bool {
     if (auto typeArg = ast_cast<TypeTemplateArgumentAST>(arg)) {
-      if (symbol_cast<TemplateTypeParameterSymbol>(parameter))
-        return isDependentTemplateNameArgument(typeArg);
-      if (denotesTemplateName(typeArg))
-        return isDependentTemplateNameArgument(typeArg);
+      if (auto name = writtenTemplateName(arg, parameter))
+        return isDependentTemplateName(name);
       return isDependentTypeArgument(typeArg);
     }
     if (auto exprArg = ast_cast<ExpressionTemplateArgumentAST>(arg))
